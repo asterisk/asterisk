@@ -45,7 +45,7 @@ static void (*errorf)(const char *str) = internalerror;
 static void dump_addr(char *output, int maxlen, void *value, int len)
 {
 	struct sockaddr_in sin;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (len == (int)sizeof(sin)) {
 		memcpy(&sin, value, len);
 		snprintf(output, maxlen, "IPV4 %s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
@@ -254,7 +254,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 	char *class;
 	char *subclass;
 	char tmp[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (f) {
 		fh = f->data;
 		snprintf(retries, (int)sizeof(retries), "%03d", f->retries);

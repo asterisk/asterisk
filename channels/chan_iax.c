@@ -509,7 +509,7 @@ static void showframe(struct ast_iax_frame *f, struct ast_iax_full_hdr *fhi, int
 	char subclass2[20];
 	char *class;
 	char *subclass;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (f) {
 		fh = f->data;
 		snprintf(retries, sizeof(retries), "%03d", f->retries);
@@ -940,7 +940,7 @@ static int handle_error(void)
 static int send_packet(struct ast_iax_frame *f)
 {
 	int res;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	/* Called with iaxsl held */
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
@@ -1110,7 +1110,7 @@ static int attempt_transmit(void *data)
 	struct ast_iax_frame *f = data;
 	int freeme=0;
 	int callno = f->callno;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	/* Make sure this call is still active */
 	if (callno > -1) 
 		ast_mutex_lock(&iaxsl[callno]);
@@ -1905,7 +1905,7 @@ static int iax_start_transfer(struct ast_channel *c0, struct ast_channel *c1)
 	int res;
 	char req0[256];
 	char req1[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	struct chan_iax_pvt *p0 = c0->pvt->pvt;
 	struct chan_iax_pvt *p1 = c1->pvt->pvt;
 	snprintf(req0, sizeof(req0), "remip=%s;remport=%d;remcall=%d;", ast_inet_ntoa(iabuf, sizeof(iabuf), p1->addr.sin_addr), ntohs(p1->addr.sin_port), p1->peercallno);
@@ -2083,7 +2083,7 @@ static struct ast_channel *ast_iax_new(struct chan_iax_pvt *i, int state, int ca
 {
 	char host[256];
 	struct ast_channel *tmp;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		if (!iax_getpeername(i->addr, host, sizeof(host)))
@@ -2339,7 +2339,7 @@ static int iax_show_peers(int fd, int argc, char *argv[])
 #define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-8d  %-10s\n"
 	struct iax_peer *peer;
 	char name[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&peerl.lock);
@@ -2414,7 +2414,7 @@ static int iax_show_registry(int fd, int argc, char *argv[])
 	struct iax_registry *reg;
 	char host[80];
 	char perceived[80];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&peerl.lock);
@@ -2440,7 +2440,7 @@ static int iax_show_channels(int fd, int argc, char *argv[])
 #define FORMAT  "%-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-6.6s\n"
 	int x;
 	int numchans = 0;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT2, "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "Format");
@@ -2634,7 +2634,7 @@ static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int
 	char *var, *value;
 	struct iax_user *user;
 	char request[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int gotcapability=0;
 	char *stringp=NULL;
 	strncpy(request, orequest, sizeof(request)-1);
@@ -2745,7 +2745,7 @@ static int check_access(int callno, struct sockaddr_in *sin, char *orequest, int
 static int raw_hangup(struct sockaddr_in *sin, short src, short dst)
 {
 	struct ast_iax_full_hdr fh;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	fh.callno = htons(src | AST_FLAG_FULL);
 	fh.dcallno = htons(dst);
 	fh.ts = 0;
@@ -2851,7 +2851,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, char *orequest)
 	char md5secret[256] = "";
 	char rsasecret[256] = "";
 	char secret[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	struct iax_peer *p;
 	struct ast_key *key;
 	char *var;
@@ -2996,7 +2996,7 @@ static int authenticate(char *challenge, char *secret, char *keyn, char *methods
 {
 	int res = -1;
 	int x;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (keyn && strlen(keyn)) {
 		if (!strstr(methods, "rsa")) {
 			if (!secret || !strlen(secret)) 
@@ -3304,7 +3304,7 @@ static int iax_ack_registry(char *orequest, struct sockaddr_in *sin, int callno)
 	int ourport = 0;
 	int refresh = 0;
 	char ourip[256] = "<Unspecified>";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	struct sockaddr_in oldus;
 	char *var, *value;
 	char *stringp=NULL;
@@ -3442,7 +3442,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 	/* Called from IAX thread only, with proper iaxsl lock */
 	char requeststr[256] = "";
 	struct iax_peer *p;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	for (p = peerl.peers;p;p = p->next) {
 		if (!strcasecmp(name, p->name)) {
 			break;
@@ -3524,7 +3524,7 @@ static int registry_rerequest(char *orequest, int callno, struct sockaddr_in *si
 	char peer[256] = "";
 	char methods[256] = "";
 	char challenge[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *var, *value;
 	int res;
 	char *stringp=NULL;
@@ -3666,7 +3666,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int format;
 	int exists;
 	int mm;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char rel0[256];
 	char rel1[255];
 	char empty[32]="";		/* Safety measure */
@@ -5400,7 +5400,7 @@ int load_module(void)
 	int x;
 	struct iax_registry *reg;
 	struct iax_peer *peer;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	
 	struct sockaddr_in sin;
 	

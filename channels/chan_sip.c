@@ -581,7 +581,7 @@ static inline int sip_debug_test_pvt(struct sip_pvt *p)
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (p->nat == SIP_NAT_ALWAYS)
 	    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
 	else
@@ -608,7 +608,7 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	if (localaddr && externip.sin_addr.s_addr &&
 	   ast_apply_ha(localaddr, &theirs)) {
 		char t[256];
-		char iabuf[80];
+		char iabuf[INET_ADDRSTRLEN];
 		memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
 		strcpy(t, ast_inet_ntoa(iabuf, sizeof(iabuf), *(struct in_addr *)&them->s_addr));
 		ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", t);
@@ -657,7 +657,7 @@ static int retrans_pkt(void *data)
 {
 	struct sip_pkt *pkt=data, *prev, *cur;
 	int res = 0;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	ast_mutex_lock(&pkt->owner->lock);
 	if (pkt->retrans < MAX_RETRANS) {
 		pkt->retrans++;
@@ -840,7 +840,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp)
 static int send_response(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
 	int res;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (sip_debug_test_pvt(p)) {
 		if (p->nat == SIP_NAT_ALWAYS)
 			ast_verbose("%sTransmitting (NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
@@ -863,7 +863,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable, int seqno)
 {
 	int res;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (sip_debug_test_pvt(p)) {
 		if (p->nat == SIP_NAT_ALWAYS)
 			ast_verbose("%sTransmitting:\n%s (NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
@@ -1031,7 +1031,7 @@ static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *usernam
 		char query[512];
 		char *name;
 		char *uname;
-		char iabuf[80];
+		char iabuf[INET_ADDRSTRLEN];
 		time_t nowtime;
 		name = alloca(strlen(peer) * 2 + 1);
 		uname = alloca(strlen(username) * 2 + 1);
@@ -1061,7 +1061,7 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 		char *name = NULL;
 		int numfields, x;
 		int port;
-		char iabuf[80];
+		char iabuf[INET_ADDRSTRLEN];
 		time_t regseconds, nowtime;
 		MYSQL_RES *result;
 		MYSQL_FIELD *fields;
@@ -1208,7 +1208,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	int found=0;
 	char *port;
 	int portno;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char host[256], *hostn;
 
 	r->sa.sin_family = AF_INET;
@@ -2196,7 +2196,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip)
 	int res;
 	int val;
 	int x;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	for (x=0;x<4;x++) {
 		val = rand();
 		res = snprintf(callid, len, "%08x", val);
@@ -2211,7 +2211,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip)
 static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobalnat)
 {
 	struct sip_pvt *p;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 
 	p = malloc(sizeof(struct sip_pvt));
 	if (!p)
@@ -2302,7 +2302,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	struct sip_pvt *p;
 	char *callid;
 	char tmp[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *cmd;
 	char *tag = "", *c;
 	int themisfrom;
@@ -2568,7 +2568,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	char *c;
 	char *a;
 	char host[258];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int len = -1;
 	int portno=0;
 	int vportno=0;
@@ -2847,7 +2847,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 	int start = 0;
 	int copied = 0;
 	char new[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	for (;;) {
 		tmp = __get_header(orig, field, &start);
 		if (!ast_strlen_zero(tmp)) {
@@ -2902,7 +2902,7 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 static void set_destination(struct sip_pvt *p, char *uri)
 {
 	char *h, *maddr, hostname[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int port, hn;
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -3043,7 +3043,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	char stripped[80] ="";
 	char tmp[80];
 	char newto[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *c, *n;
 	char *ot, *of;
 
@@ -3252,7 +3252,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char m2[256] = "";
 	char a[1024] = "";
 	char a2[1024] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int x;
 	int capability;
 	struct sockaddr_in dest;
@@ -3555,7 +3555,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 /*--- build_contact: Build contact header - the contact header we send out ---*/
 static void build_contact(struct sip_pvt *p)
 {
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	/* Construct Contact: header */
 	if (ourport != 5060)
 		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s@%s:%d>", p->exten, ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport);
@@ -3570,7 +3570,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	char from[256];
 	char to[256];
 	char tmp[80];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char cid[256];
 	char *l = callerid, *n=NULL;
 
@@ -3643,7 +3643,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int init)
 {
 	struct sip_request req;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	
 	if (init) {
 		/* Bump branch even on initial requests */
@@ -3846,7 +3846,7 @@ static int sip_reg_timeout(void *data)
 	/* if we are here, our registration timed out, so we'll just do it over */
 	struct sip_registry *r=data;
 	struct sip_pvt *p;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int res;
 	ast_mutex_lock(&regl.lock);
 	ast_log(LOG_NOTICE, "Registration for '%s@%s' timed out, trying again\n", r->username, ast_inet_ntoa(iabuf, sizeof(iabuf), r->addr.sin_addr)); 
@@ -3874,7 +3874,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	char tmp[80];
 	char via[80];
 	char addr[80];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	struct sip_pvt *p;
 	struct ast_hostent ahp;
 	struct hostent *hp;
@@ -4095,7 +4095,7 @@ static int sip_poke_peer(struct sip_peer *peer);
 static void reg_source_db(struct sip_peer *p)
 {
 	char data[80];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	struct in_addr in;
 	char *c, *d, *u;
 	int expiry;
@@ -4138,7 +4138,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 {
 	char contact[80]= ""; 
 	char data[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *expires = get_header(req, "Expires");
 	int expiry = atoi(expires);
 	char *c, *n, *pt;
@@ -4551,7 +4551,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	int res = -1;
 	struct sip_peer *peer;
 	char tmp[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *name, *c;
 	char *t;
 	/* Terminate URI */
@@ -4921,7 +4921,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 static int check_via(struct sip_pvt *p, struct sip_request *req)
 {
 	char via[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *c, *pt;
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -5035,7 +5035,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	struct sip_peer *peer;
 	char *of, from[256] = "", *c;
 	char *rpid,rpid_num[50];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int res = 0;
 	char *t;
 	char calleridname[50];
@@ -5341,7 +5341,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 #define FORMAT  "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8d %-10s\n"
 	struct sip_peer *peer;
 	char name[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3 && argc != 5)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&peerl.lock);
@@ -5448,7 +5448,7 @@ static void  print_group(int fd, unsigned int group)
 static int sip_show_peer(int fd, int argc, char *argv[])
 {
 	char status[30];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	struct sip_peer *peer;
 
 	if (argc != 4)
@@ -5553,7 +5553,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #define FORMAT  "%-20.20s  %-12.12s  %8d %-20.20s\n"
 	struct sip_registry *reg;
 	char host[80];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&regl.lock);
@@ -5590,7 +5590,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s   %s\n"
 #define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d   %-6.6s%s\n"
 	struct sip_pvt *cur;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int numchans = 0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -5654,7 +5654,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
 	char tmp[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	size_t len;
 	int found = 0;
 	if (argc != 4)
@@ -5824,7 +5824,7 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int port = 0;
 	char *p, *arg;
 	if (argc != 4)
@@ -5854,7 +5854,7 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 static int sip_do_debug_peer(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&peerl.lock);
@@ -6065,7 +6065,7 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	char resp_hash[256];
 	char uri[256] = "";
 	char cnonce[80];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 
 	if (!ast_strlen_zero(p->domain))
 		strncpy(uri, p->domain, sizeof(uri) - 1);
@@ -6266,7 +6266,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	int pingtime;
 	struct timeval tv;
 	int seqno=0;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	c = get_header(req, "Cseq");
 	if (sscanf(c, "%d ", &seqno) != 1) {
 		ast_log(LOG_WARNING, "Unable to determine sequence number\n");
@@ -6648,7 +6648,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	int respid;
 	int res;
 	int gotdest;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	struct ast_frame af = { AST_FRAME_NULL, };
 	int debug = sip_debug_test_pvt(p);
 
@@ -7223,7 +7223,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
 	char name[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int newmsgs, oldmsgs;
 	/* Check for messages */
 	ast_app_messagecount(peer->mailbox, &newmsgs, &oldmsgs);
@@ -7441,7 +7441,7 @@ static int sip_poke_noanswer(void *data)
 static int sip_poke_peer(struct sip_peer *peer)
 {
 	struct sip_pvt *p;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (!peer->maxms || !peer->addr.sin_addr.s_addr) {
 		/* IF we have no IP, or this isn't to be monitored, return
 		  imeediately after clearing things out */
@@ -7546,7 +7546,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	struct ast_channel *tmpc = NULL;
 	char *ext, *host;
 	char tmp[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *dest = data;
 
 	oldformat = format;
@@ -8010,7 +8010,7 @@ static int reload_config(void)
 	struct hostent *hp;
 	int format;
 	int oldport = ntohs(bindaddr.sin_port);
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 
 	globaldtmfmode = SIP_DTMF_RFC2833;
 	globalpromiscredir = 0;

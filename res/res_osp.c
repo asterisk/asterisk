@@ -423,7 +423,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
 int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *timelimit, char *callerid, struct in_addr addr, char *extension)
 {
 	char tmp[256]="", *l, *n;
-	char ip[256];
+	char iabuf[INET_ADDRSTRLEN];
 	char source[OSP_MAX]; /* Same length as osp->source */
 	char *token2;
 	int tokenlen;
@@ -452,7 +452,7 @@ int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *tim
 	}
 	callerid = l;
 	ast_mutex_lock(&osplock);
-	ast_inet_ntoa(ip, sizeof(ip), addr);
+	ast_inet_ntoa(iabuf, sizeof(iabuf), addr);
 	osp = providers;
 	while(osp) {
 		if (!strcasecmp(osp->name, provider)) {
@@ -470,10 +470,10 @@ int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *tim
 	if (res) {
 		res = 0;
 		dummy = 0;
-		if (!OSPPTransactionValidateAuthorisation(*handle, ip, source, NULL, NULL, 
+		if (!OSPPTransactionValidateAuthorisation(*handle, iabuf, source, NULL, NULL, 
 			callerid, OSPC_E164, extension, OSPC_E164, 0, "", tokenlen, token2, &authorised, timelimit, &dummy, NULL, TOKEN_ALGO_BOTH)) {
 			if (authorised) {
-				ast_log(LOG_DEBUG, "Validated token for '%s' from '%s@%s'\n", extension, callerid, ip);
+				ast_log(LOG_DEBUG, "Validated token for '%s' from '%s@%s'\n", extension, callerid, iabuf);
 				res = 1;
 			}
 		}

@@ -163,7 +163,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 static int handle_showmanconn(int fd, int argc, char *argv[])
 {
 	struct mansession *s;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *format = "  %-15.15s  %-15.15s\n";
 	ast_mutex_lock(&sessionlock);
 	s = sessions;
@@ -312,7 +312,7 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 static int authenticate(struct mansession *s, struct message *m)
 {
 	struct ast_config *cfg;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *cat;
 	char *user = astman_get_header(m, "Username");
 	char *pass = astman_get_header(m, "Secret");
@@ -940,7 +940,7 @@ static int process_message(struct mansession *s, struct message *m)
 	struct manager_action *tmp = first_action;
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 
 	strncpy(action, astman_get_header(m, "Action"), sizeof(action));
 	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
@@ -1012,7 +1012,7 @@ static int get_input(struct mansession *s, char *output)
 	int res;
 	int x;
 	struct pollfd fds[1];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	for (x=1;x<s->inlen;x++) {
 		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) {
 			/* Copy output data up to and including \r\n */
@@ -1050,7 +1050,7 @@ static void *session_do(void *data)
 {
 	struct mansession *s = data;
 	struct message m;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int res;
 	
 	ast_mutex_lock(&s->lock);

@@ -491,7 +491,7 @@ static int resend_response(struct mgcp_subchannel *sub, struct mgcp_response *re
 {
     struct mgcp_endpoint *p = sub->parent;
 	int res;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (mgcpdebug) {
 		ast_verbose("Retransmitting:\n%s\n to %s:%d\n", resp->buf, ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
     }
@@ -505,7 +505,7 @@ static int send_response(struct mgcp_subchannel *sub, struct mgcp_request *req)
 {
     struct mgcp_endpoint *p = sub->parent;
 	int res;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (mgcpdebug) {
 		ast_verbose("Transmitting:\n%s\n to %s:%d\n", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
     }
@@ -700,7 +700,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 {
     int res = 0;
     struct mgcp_request **queue, *q, *r, *t;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
     ast_mutex_t *l;
 
     switch (req->cmd) {
@@ -937,7 +937,7 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 	struct mgcp_gateway  *g;
 	struct mgcp_endpoint *e;
 	int hasendpoints = 0;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&gatelock);
@@ -1367,7 +1367,7 @@ static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct soc
 	struct mgcp_endpoint *p = NULL;
 	struct mgcp_subchannel *sub = NULL;
 	struct mgcp_gateway *g;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char tmp[256] = "";
 	char *at = NULL, *c;
     int found = 0;
@@ -1800,7 +1800,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	char t[256];
 	char m[256];
 	char a[1024] = "";
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int x;
 	struct sockaddr_in dest;
     struct mgcp_endpoint *p = sub->parent;
@@ -2169,7 +2169,7 @@ static struct mgcp_request *find_command(struct mgcp_endpoint *p, struct mgcp_su
                                          struct mgcp_request **queue, ast_mutex_t *l, int ident)
 {
     struct mgcp_request *prev, *req;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 
     ast_mutex_lock(l);
     for (prev = NULL, req = *queue; req; prev = req, req = req->next) {
@@ -2798,7 +2798,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 	struct ast_frame f = { 0, };
     struct mgcp_endpoint *p = sub->parent;
     struct mgcp_gateway *g = NULL;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
     int res;
 	if (mgcpdebug) {
 		ast_verbose("Handling request '%s' on %s@%s\n", req->verb, p->name, p->parent->name);
@@ -3092,7 +3092,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	int len;
 	int result;
 	int ident;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
 	res = recvfrom(mgcpsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
@@ -3861,7 +3861,7 @@ static int reload_config(void)
 	struct ast_variable *v;
 	struct mgcp_gateway *g;
 	struct mgcp_endpoint *e;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *cat;
 	struct ast_hostent ahp; struct hostent *hp;
 	int format;

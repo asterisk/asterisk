@@ -174,7 +174,7 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 {
 	struct timeval tv;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	gettimeofday(&tv, NULL);
 	if ((tv.tv_sec < rtp->dtmfmute.tv_sec) ||
 	    ((tv.tv_sec == rtp->dtmfmute.tv_sec) && (tv.tv_usec < rtp->dtmfmute.tv_usec))) {
@@ -338,7 +338,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	int res;
 	struct sockaddr_in sin;
 	unsigned int rtcpdata[1024];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	
 	if (!rtp->rtcp)
 		return &null_frame;
@@ -407,7 +407,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int payloadtype;
 	int hdrlen = 12;
 	int mark;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
 	unsigned int *rtpheader;
 	static struct ast_frame *f, null_frame = { AST_FRAME_NULL, };
@@ -950,7 +950,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	int ms;
 	int x;
 	char data[256];
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 
 	if ((digit <= '9') && (digit >= '0'))
 		digit -= '0';
@@ -1013,7 +1013,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec)
 {
 	unsigned int *rtpheader;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	int hdrlen = 12;
 	int res;
 	int ms;
@@ -1288,7 +1288,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	struct sockaddr_in vac0, vac1;
 	struct sockaddr_in t0, t1;
 	struct sockaddr_in vt0, vt1;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	
 	void *pvt0, *pvt1;
 	int to;

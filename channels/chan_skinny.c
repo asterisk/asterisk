@@ -988,7 +988,7 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 	struct skinny_device  *d;
 	struct skinny_line *l;
 	int haslines = 0;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&devicelock);
@@ -2327,7 +2327,7 @@ static void *skinny_session(void *data)
 	int res;
 	skinny_req *req;
 	struct skinnysession *s = data;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	
 	ast_verbose(VERBOSE_PREFIX_3 "Starting Skinny session from %s\n",  ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 
@@ -2508,7 +2508,7 @@ static int reload_config(void)
 	struct ast_variable *v;
 	int format;
 	char *cat;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	struct skinny_device *d;
 	int oldport = ntohs(bindaddr.sin_port);
 

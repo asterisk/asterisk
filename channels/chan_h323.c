@@ -918,7 +918,7 @@ struct oh323_alias *find_alias(const char *source_aliases)
 struct oh323_user *find_user(const call_details_t cd)
 {
 	struct oh323_user *u;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 	u = userl.users;
 	if(userbyalias == 1){
 		while(u) {
@@ -1002,7 +1002,7 @@ struct rtp_info *create_connection(unsigned call_reference)
 	   but this function wants to return a static variable so
 	   the only way to do this will be to declare iabuf within
 	   the oh323_pvt structure XXX */
-	static char iabuf[80];
+	static char iabuf[INET_ADDRSTRLEN];
 
 	info = (struct rtp_info *) malloc(sizeof(struct rtp_info));
 
@@ -1036,7 +1036,7 @@ int setup_incoming_call(call_details_t cd)
 /*	struct ast_channel *c = NULL; */
 	struct oh323_user *user = NULL;
 	struct oh323_alias *alias = NULL;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 
 	/* allocate the call*/
 	p = oh323_alloc(cd.call_reference);
@@ -1839,7 +1839,7 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 	struct sockaddr_in them;
 	struct sockaddr_in us;
 	char *mode;
-	char iabuf[80];
+	char iabuf[INET_ADDRSTRLEN];
 
 	mode = convertcap(chan->writeformat); 
 

@@ -170,10 +170,13 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 	/* Start optimistic */
 	int res = AST_SENSE_ALLOW;
 	while(ha) {
-		char tmp[80];
-		char tmp2[80];
+		char iabuf[INET_ADDRSTRLEN];
+		char iabuf2[INET_ADDRSTRLEN];
 		/* DEBUG */
-		ast_log(LOG_DEBUG, "##### Testing %s with %s\n",ast_inet_ntoa(tmp, sizeof(tmp), sin->sin_addr), ast_inet_ntoa(tmp2, sizeof(tmp2), ha->netaddr));
+		ast_log(LOG_DEBUG,
+			"##### Testing %s with %s\n",
+			ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr),
+			ast_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr));
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == (ha->netaddr.s_addr))
@@ -228,13 +231,13 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		struct	rt_msghdr m_rtm;
 		char	m_space[512];
 	} m_rtmsg;
-	char tmp[80];
+	char iabuf[INET_ADDRSTRLEN];
 	char *cp, *p;
 	int i, l, s, seq, flags;
 	pid_t pid = getpid();
 	static int routeseq;	/* Protected by "routeseq_lock" mutex */
 
-	p = ast_strdupa(ast_inet_ntoa(tmp, sizeof(tmp), *them));
+	p = ast_strdupa(ast_inet_ntoa(iabuf, sizeof(iabuf), *them));
 	memset(us, 0, sizeof(struct in_addr));
 
 	memset(&m_rtmsg, 0, sizeof(m_rtmsg));
@@ -297,7 +300,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 				if (i == RTA_IFA && sa->sa_family == AF_INET) {
 					sin = (struct sockaddr_in *)sa;
 					*us = sin->sin_addr;
-					ast_log(LOG_DEBUG, "Found route to %s, output from our address %s.\n", p, ast_inet_ntoa(tmp, sizeof(tmp), *us));
+					ast_log(LOG_DEBUG, "Found route to %s, output from our address %s.\n", p, ast_inet_ntoa(iabuf, sizeof(iabuf), *us));
 					return 0;
 				}
 				cp += sa->sa_len > 0 ?
@@ -354,8 +357,8 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 			sscanf(fields[2],"%x",&gateway);
 			sscanf(fields[7],"%x",&mask);
 #if 0
-			{ char tmp[80]; 
-			printf("Addr: %s %08x Dest: %08x Mask: %08x\n", ast_inet_ntoa(tmp, sizeof(tmp), *them), remote_ip, dest, mask); }
+			{ char iabuf[INET_ADDRSTRLEN]; 
+			printf("Addr: %s %08x Dest: %08x Mask: %08x\n", ast_inet_ntoa(iabuf, sizeof(iabuf), *them), remote_ip, dest, mask); }
 #endif		
 			/* Looks simple, but here is the magic */
 			if (((remote_ip & mask) ^ dest) == 0) {
