@@ -49,6 +49,9 @@ static char mtype[80] = "autodetect";
 /* Default context for incoming calls */
 static char context[AST_MAX_EXTENSION]= "default";
 
+/* Default language */
+static char language[MAX_LANGUAGE] = "";
+
 /* Initialization String */
 static char initstr[AST_MAX_INIT_STR] = "ATE1Q0";
 
@@ -271,8 +274,13 @@ static int modem_setup(struct ast_modem_pvt *p, int baudrate)
 	   mode.  Set the baud rate, etc.  */
 	char identity[256];
 	char *ident = NULL;
+	char etx[2] = { 0x10, 0x03 };
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Setting up modem %s\n", p->dev);
+	if (ast_modem_send(p, etx, 2)) {
+		ast_log(LOG_WARNING, "Failed to send ETX?\n");
+		return -1;
+	}
 	if (ast_modem_send(p, "\r\n", 2)) {
 		ast_log(LOG_WARNING, "Failed to send enter?\n");
 		return -1;
@@ -433,6 +441,8 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		strncpy(tmp->context, i->context, sizeof(tmp->context));
 		if (strlen(i->cid))
 			tmp->callerid = strdup(i->cid);
+		if (strlen(i->language))
+			strncpy(tmp->language,i->language, sizeof(tmp->language));
 		i->owner = tmp;
 		pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -596,6 +606,7 @@ static struct ast_modem_pvt *mkif(char *iface)
 			free(tmp);
 			return NULL;
 		}
+		strncpy(tmp->language, language, sizeof(tmp->language));
 		tmp->f = fdopen(tmp->fd, "w+");
 		/* Disable buffering */
 		setvbuf(tmp->f, NULL, _IONBF,0);
@@ -732,6 +743,8 @@ int load_module()
 			dialtype = toupper(v->value[0]);
 		} else if (!strcasecmp(v->name, "context")) {
 			strncpy(context, v->value, sizeof(context));
+		} else if (!strcasecmp(v->name, "language")) {
+			strncpy(language, v->value, sizeof(language));
 		}
 		v = v->next;
 	}

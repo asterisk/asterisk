@@ -102,6 +102,8 @@ static struct ast_filestream *g723_rewrite(int fd, char *comment)
 		tmp->owner = NULL;
 		tmp->fr = NULL;
 		tmp->lasttimeout = -1;
+		tmp->orig.tv_usec = 0;
+		tmp->orig.tv_sec = 0;
 		glistcnt++;
 		pthread_mutex_unlock(&g723_lock);
 		ast_update_use_count();
@@ -189,8 +191,8 @@ static int ast_read_callback(void *data)
 			delay = ntohl(delay);
 		else
 			delay = -1;
-		/* Average out frames <= 40 ms */
-		if (delay < 41)
+		/* Average out frames <= 50 ms */
+		if (delay < 50)
 			s->fr->timelen = 30;
 		else
 			s->fr->timelen = delay;
@@ -227,8 +229,8 @@ static int g723_apply(struct ast_channel *c, struct ast_filestream *s)
 	s->owner = c;
 	/* Read and ignore the first delay */
 	if (read(s->fd, &delay, 4) != 4) {
-		ast_log(LOG_WARNING, "Bad stream?\n");
-		return -1;
+		/* Empty file */
+		return 0;
 	}
 	ast_read_callback(s);
 	return 0;
