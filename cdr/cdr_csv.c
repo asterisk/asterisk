@@ -19,6 +19,7 @@
 #include <asterisk/cdr.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
+#include <asterisk/utils.h>
 #include "../asterisk.h"
 #include "../astconf.h"
 
@@ -224,7 +225,7 @@ static int csv_log(struct ast_cdr *cdr)
 			fclose(mf);
 			mf = NULL;
 		}
-		if (strlen(cdr->accountcode)) {
+		if (!ast_strlen_zero(cdr->accountcode)) {
 			if (writefile(buf, cdr->accountcode))
 				ast_log(LOG_WARNING, "Unable to write CSV record to account file '%s'\n", cdr->accountcode);
 		}

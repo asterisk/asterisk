@@ -25,6 +25,7 @@
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
 #include <asterisk/say.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -246,7 +247,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int confno = 0;
 	char confstr[80];
 
-	if (data && strlen(data)) {
+	if (data && !ast_strlen_zero(data)) {
 		if ((sscanf(data, "Zap/%d", &confno) != 1) &&
 		    (sscanf(data, "%d", &confno) != 1)) {
 			ast_log(LOG_WARNING, "ZapBarge Argument (if specified) must be a channel number, not '%s'\n", (char *)data);

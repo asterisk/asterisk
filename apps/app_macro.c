@@ -18,6 +18,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -73,14 +74,14 @@ static int macro_exec(struct ast_channel *chan, void *data)
   char *save_macro_priority;
   char *save_macro_offset;
   
-  if (!data || !strlen(data)) {
+  if (!data || ast_strlen_zero(data)) {
     ast_log(LOG_WARNING, "Invalid Macro incantation\n");
     return 0;
   }
   strncpy(tmp, data, sizeof(tmp) - 1);
   rest = tmp;
   macro = strsep(&rest, "|");
-  if (!macro || !strlen(macro)) {
+  if (!macro || ast_strlen_zero(macro)) {
   	ast_log(LOG_WARNING, "Invalid macro name specified\n");
 	return 0;
   }
@@ -96,7 +97,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
   oldpriority = chan->priority;
   strncpy(oldexten, chan->exten, sizeof(oldexten) - 1);
   strncpy(oldcontext, chan->context, sizeof(oldcontext) - 1);
-  if (!strlen(chan->macrocontext)) {
+  if (ast_strlen_zero(chan->macrocontext)) {
 	strncpy(chan->macrocontext, chan->context, sizeof(chan->macrocontext) - 1);
 	strncpy(chan->macroexten, chan->exten, sizeof(chan->macroexten) - 1);
 	chan->macropriority = chan->priority;

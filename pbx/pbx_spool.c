@@ -18,6 +18,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/options.h>
+#include <asterisk/utils.h>
 #include <pthread.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -109,9 +110,9 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				 *c = '\0';
 
 			/* Trim trailing white space */
-			while(strlen(buf) && buf[strlen(buf) - 1] < 33)
+			while(!ast_strlen_zero(buf) && buf[strlen(buf) - 1] < 33)
 				buf[strlen(buf) - 1] = '\0';
-			if (strlen(buf)) {
+			if (!ast_strlen_zero(buf)) {
 				c = strchr(buf, ':');
 				if (c) {
 					*c = '\0';
@@ -187,7 +188,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 		}
 	}
 	strncpy(o->fn, fn, sizeof(o->fn) - 1);
-	if (!strlen(o->tech) || !strlen(o->dest) || (!strlen(o->app) && !strlen(o->exten))) {
+	if (ast_strlen_zero(o->tech) || ast_strlen_zero(o->dest) || (ast_strlen_zero(o->app) && ast_strlen_zero(o->exten))) {
 		ast_log(LOG_WARNING, "At least one of app or extension must be specified, along with tech and dest in file %s\n", fn);
 		return -1;
 	}
@@ -219,7 +220,7 @@ static void *attempt_thread(void *data)
 {
 	struct outgoing *o = data;
 	int res, reason;
-	if (strlen(o->app)) {
+	if (!ast_strlen_zero(o->app)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
 		res = ast_pbx_outgoing_app(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->callerid, o->variable, o->account);
