@@ -126,6 +126,7 @@ static int phone_digit(struct ast_channel *ast, char digit)
 		return -1;
 	}
 	ioctl(p->fd, PHONE_PLAY_TONE, digit);
+	p->lastformat = -1;
 	return 0;
 }
 
@@ -634,6 +635,7 @@ static void phone_check_exception(struct phone_pvt *i)
 				ioctl(i->fd, PHONE_PLAY_STOP);
 				ioctl(i->fd, PHONE_PLAY_CODEC, ULAW);
 				ioctl(i->fd, PHONE_PLAY_START);
+				i->lastformat = -1;
 			}
 		} else {
 			if (i->dialtone) {
@@ -647,6 +649,7 @@ static void phone_check_exception(struct phone_pvt *i)
 			ioctl(i->fd, PHONE_PLAY_STOP);
 			ioctl(i->fd, PHONE_REC_STOP);
 			i->dialtone = 0;
+			i->lastformat = -1;
 		}
 	}
 	if (phonee.bits.pstn_ring) {
