@@ -10,7 +10,7 @@ autoanswer=yes
 ;
 ; Default context (is overridden with @context syntax)
 ;
-;context=local
+context=local
 ;
 ; Default extension to call
 ;

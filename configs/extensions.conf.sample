@@ -15,22 +15,55 @@
 ;
 static=yes
 
+;
+; if stati=yes and writeprotect=no, you can save dialplan by
+; CLI command 'save dialplan' too
+;
+writeprotect=no
+
 ; Remote things always ring all phones first.
 ;[remote]
 ;exten => s,1,Dial,AdtranVoFR/4200&AdtranVoFR/4151&AdtranVoFR/4300|15
 ;exten => s,2,Goto,default|s|2
 ;include => default
 
+;
+; Here are the entries you need to participate in the IAXTEL
+; call routing system.  Most IAXTEL numbers begin with 1-700, but
+; there are exceptions.  For more information, and to sign
+; up, please go to www.gnophone.com or www.iaxtel.com
+;
+[iaxtel]
+exten => _91NXXNXXXXXX,1,StripMSD,1
+exten => _1NXXNXXXXXX,2,Dial,IAX/iaxtel.com/BYEXTENSION@iaxtel
+
 ; Local stuff
-;[local]
-;exten => s,1,Goto,defaults|s|2
+[local]
 ; Special extension for local phone numbers, long distance, etc, going
 ; out via the Frame Relay interface.  Patterns are prefixed with "_", which
 ; is ignored.
+;
+; ignorepat can be used to instruct drivers to not cancel dialtone upon
+; receipt of a particular pattern.  The most commonly used example is
+; of course '9' like this:
+;
+; ignorepat => 9
+;
+; so that dialtone remains even after dialing a 9.
+;
+ignorepat => 9
 ;exten => _9NXXXXXX,1,Dial,AdtranVoFR/BYEXTENSION
 ;exten => _91NXXNXXXXXX,1,Dial,AdtranVoFR/BYEXTENSION
 ;exten => _9911,1,Dial,AdtranVoFR/BYEXTENSION
-;include => default
+include => default
+include => iaxtel
+;
+; You can use an alternative switch type as well, to resolve
+; extensions that are not known here, for example with remote 
+; IAX switching you transparently get access to the remote
+; 
+; switch => IAX/user:password@bigserver/local
+
 
 [default]
 ;
@@ -53,7 +86,8 @@ exten => 3,2,Goto,s|5			; Start with the congratulations
 ; We also create an example user, 1234, who is on the console and has
 ; voicemail, etc.
 ;
-exten => 1234,1,Playback,transfer		; "Please hold while..."
+exten => 1234,1,Playback,transfer|skip		; "Please hold while..." 
+					; (but skip if channel is not up)
 exten => 1234,2,Dial,Console/dsp|10	; Ring the console, 10 secs max
 exten => 1234,3,Playback,vm/1234/unavail	; "I'm not here right now"
 exten => 1234,4,Voicemail,1234		; Send to voicemail...
