@@ -55,7 +55,7 @@ struct ast_iax_full_hdr {
 /* Mini header is used only for voice frames -- delivered unreliably */
 struct ast_iax_mini_hdr {
 	short callno;			/* Source call number -- high bit must be 0 */
-	unsigned short ts;		/* 16-bit Timestamp (high 32 bits from last ast_iax_full_hdr) */
+	unsigned short ts;		/* 16-bit Timestamp (high 16 bits from last ast_iax_full_hdr) */
 							/* Frametype implicitly VOICE_FRAME */
 							/* subclass implicit from last ast_iax_full_hdr */
 	char data[0];
