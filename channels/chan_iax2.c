@@ -1786,6 +1786,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	struct ast_frame *f;
 	struct chan_iax2_pvt *p0 = c0->pvt->pvt;
 	struct chan_iax2_pvt *p1 = c1->pvt->pvt;
+	struct timeval waittimer = {0, 0}, tv;
 
 	/* Put them in native bridge mode */
 	p0->bridgecallno = p1->callno;
@@ -1814,13 +1815,18 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		
 		if ((p0->transferring == TRANSFER_RELEASED) && (p1->transferring == TRANSFER_RELEASED)) {
 			/* Call has been transferred.  We're no longer involved */
-			sleep(1);
-			c0->_softhangup |= AST_SOFTHANGUP_DEV;
-			c1->_softhangup |= AST_SOFTHANGUP_DEV;
-			*fo = NULL;
-			*rc = c0;
-			res = 0;
-			break;
+			gettimeofday(&tv, NULL);
+			if (!waittimer.tv_sec && !waittimer.tv_usec) {
+				waittimer.tv_sec = tv.tv_sec;
+				waittimer.tv_usec = tv.tv_usec;
+			} else if (tv.tv_sec - waittimer.tv_sec > IAX_LINGER_TIMEOUT) {
+				c0->_softhangup |= AST_SOFTHANGUP_DEV;
+				c1->_softhangup |= AST_SOFTHANGUP_DEV;
+				*fo = NULL;
+				*rc = c0;
+				res = 0;
+				break;
+			}
 		}
 		to = 1000;
 		who = ast_waitfor_n(cs, 2, &to);
@@ -2164,7 +2170,10 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 		fh->scallno = htons(fr->callno | IAX_FLAG_FULL);
 		fh->ts = htonl(fr->ts);
 		fh->oseqno = fr->oseqno;
-		fh->iseqno = fr->iseqno;
+		if (transfer) {
+			fh->iseqno = 0;
+		} else
+			fh->iseqno = fr->iseqno;
 		/* Keep track of the last thing we've acknowledged */
 		pvt->aseqno = fr->iseqno;
 		fh->type = fr->af.frametype & 0xFF;
@@ -2206,6 +2215,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 					ast_log(LOG_WARNING, "Out of trunk data space on call number %d, dropping\n", pvt->callno);
 				pvt->trunkerror = 1;
 			}
+			res = 0;
 		} else {
 			/* Mini-frames have no sequence number */
 			fr->oseqno = -1;
@@ -3355,146 +3365,6 @@ static int iax2_poke_peer_s(void *data)
 	return 0;
 }
 
-static int parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
-{
-	/* Parse data into information elements */
-	int len;
-	int ie;
-	memset(ies, 0, sizeof(struct iax_ies));
-	ies->msgcount = -1;
-	while(datalen >= 2) {
-		ie = data[0];
-		len = data[1];
-		if (len > datalen - 2) {
-			ast_log(LOG_WARNING, "Information element length exceeds message size\n");
-			return -1;
-		}
-		switch(ie) {
-		case IAX_IE_CALLED_NUMBER:
-			ies->called_number = data + 2;
-			break;
-		case IAX_IE_CALLING_NUMBER:
-			ies->calling_number = data + 2;
-			break;
-		case IAX_IE_CALLING_ANI:
-			ies->calling_ani = data + 2;
-			break;
-		case IAX_IE_CALLING_NAME:
-			ies->calling_name = data + 2;
-			break;
-		case IAX_IE_CALLED_CONTEXT:
-			ies->called_context = data + 2;
-			break;
-		case IAX_IE_USERNAME:
-			ies->username = data + 2;
-			break;
-		case IAX_IE_PASSWORD:
-			ies->password = data + 2;
-			break;
-		case IAX_IE_CAPABILITY:
-			if (len != sizeof(unsigned int)) 
-				ast_log(LOG_WARNING, "Expecting capability to be %d bytes long but was %d\n", sizeof(unsigned int), len);
-			else
-				ies->capability = ntohl(*((unsigned int *)(data + 2)));
-			break;
-		case IAX_IE_FORMAT:
-			if (len != sizeof(unsigned int)) 
-				ast_log(LOG_WARNING, "Expecting format to be %d bytes long but was %d\n", sizeof(unsigned int), len);
-			else
-				ies->format = ntohl(*((unsigned int *)(data + 2)));
-			break;
-		case IAX_IE_LANGUAGE:
-			ies->language = data + 2;
-			break;
-		case IAX_IE_VERSION:
-			if (len != sizeof(unsigned short)) 
-				ast_log(LOG_WARNING, "Expecting version to be %d bytes long but was %d\n", sizeof(unsigned short), len);
-			else
-				ies->version = ntohs(*((unsigned short *)(data + 2)));
-			break;
-		case IAX_IE_ADSICPE:
-			if (len != sizeof(unsigned short)) 
-				ast_log(LOG_WARNING, "Expecting adsicpe to be %d bytes long but was %d\n", sizeof(unsigned short), len);
-			else
-				ies->adsicpe = ntohs(*((unsigned short *)(data + 2)));
-			break;
-		case IAX_IE_DNID:
-			ies->dnid = data + 2;
-			break;
-		case IAX_IE_AUTHMETHODS:
-			if (len != sizeof(unsigned short)) 
-				ast_log(LOG_WARNING, "Expecting authmethods to be %d bytes long but was %d\n", sizeof(unsigned short), len);
-			else
-				ies->authmethods = ntohs(*((unsigned short *)(data + 2)));
-			break;
-		case IAX_IE_CHALLENGE:
-			ies->challenge = data + 2;
-			break;
-		case IAX_IE_MD5_RESULT:
-			ies->md5_result = data + 2;
-			break;
-		case IAX_IE_RSA_RESULT:
-			ies->rsa_result = data + 2;
-			break;
-		case IAX_IE_APPARENT_ADDR:
-			ies->apparent_addr = ((struct sockaddr_in *)(data + 2));
-			break;
-		case IAX_IE_REFRESH:
-			if (len != sizeof(unsigned short)) 
-				ast_log(LOG_WARNING, "Expecting refresh to be %d bytes long but was %d\n", sizeof(unsigned short), len);
-			else
-				ies->refresh = ntohs(*((unsigned short *)(data + 2)));
-			break;
-		case IAX_IE_DPSTATUS:
-			if (len != sizeof(unsigned short)) 
-				ast_log(LOG_WARNING, "Expecting dpstatus to be %d bytes long but was %d\n", sizeof(unsigned short), len);
-			else
-				ies->dpstatus = ntohs(*((unsigned short *)(data + 2)));
-			break;
-		case IAX_IE_CALLNO:
-			if (len != sizeof(unsigned short)) 
-				ast_log(LOG_WARNING, "Expecting callno to be %d bytes long but was %d\n", sizeof(unsigned short), len);
-			else
-				ies->callno = ntohs(*((unsigned short *)(data + 2)));
-			break;
-		case IAX_IE_CAUSE:
-			ies->cause = data + 2;
-			break;
-		case IAX_IE_IAX_UNKNOWN:
-			if (len == 1)
-				ies->iax_unknown = data[2];
-			else
-				ast_log(LOG_WARNING, "Expected single byte Unknown command, but was %d long\n", len);
-			break;
-		case IAX_IE_MSGCOUNT:
-			if (len != sizeof(unsigned short)) 
-				ast_log(LOG_WARNING, "Expecting msgcount to be %d bytes long but was %d\n", sizeof(unsigned short), len);
-			else
-				ies->msgcount = ntohs(*((unsigned short *)(data + 2)));	
-			break;
-		case IAX_IE_AUTOANSWER:
-			ies->autoanswer = 1;
-			break;
-		case IAX_IE_MUSICONHOLD:
-			ies->musiconhold = 1;
-			break;
-		default:
-			ast_log(LOG_NOTICE, "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);
-		}
-		/* Overwrite information element with 0, to null terminate previous portion */
-		data[0] = 0;
-		datalen -= (len + 2);
-		data += (len + 2);
-	}
-	/* Null-terminate last field */
-	*data = '\0';
-	if (datalen) {
-		ast_log(LOG_WARNING, "Invalid information element contents, strange boundary\n");
-		return -1;
-	}
-	return 0;
-}
-
 static int send_trunk(struct iax2_peer *peer)
 {
 	int x;
@@ -3777,9 +3647,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
 		return 1;
 	}
-	if (((f.subclass != IAX_COMMAND_TXCNT) &&
-	     (f.subclass != IAX_COMMAND_TXACC)) || (f.frametype != AST_FRAME_IAX))
-		iaxs[fr.callno]->peercallno = (short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
+	if (!memcmp(&sin, &iaxs[fr.callno]->addr, sizeof(sin)))
+		iaxs[fr.callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
@@ -3840,9 +3709,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		}
 		f.datalen = res - sizeof(struct ast_iax2_full_hdr);
 
-		/* Handle implicit ACKing unless this is an INVAL */
-		if (((f.subclass != IAX_COMMAND_INVAL)) ||
-			(f.frametype != AST_FRAME_IAX)) {
+		/* Handle implicit ACKing unless this is an INVAL, and only if this is 
+		   from the real peer, not the transfer peer */
+		if (!memcmp(&sin, &iaxs[fr.callno]->addr, sizeof(sin)) && 
+			(((f.subclass != IAX_COMMAND_INVAL)) ||
+			(f.frametype != AST_FRAME_IAX))) {
 			unsigned char x;
 			/* XXX This code is not very efficient.  Surely there is a better way which still
 			       properly handles boundary conditions? XXX */
@@ -3883,10 +3754,18 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			} else
 				ast_log(LOG_DEBUG, "Received iseqno %d not within window %d->%d\n", fr.iseqno, iaxs[fr.callno]->rseqno, iaxs[fr.callno]->oseqno);
 		}
+		if (memcmp(&sin, &iaxs[fr.callno]->addr, sizeof(sin)) && 
+			((f.frametype != AST_FRAME_IAX) || 
+			 ((f.subclass != IAX_COMMAND_TXACC) &&
+			  (f.subclass != IAX_COMMAND_TXCNT)))) {
+			/* Only messages we accept from a transfer host are TXACC and TXCNT */
+			ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
+			return 1;
+		}
 
 		if (f.datalen) {
 			if (f.frametype == AST_FRAME_IAX) {
-				if (parse_ies(&ies, buf + sizeof(struct ast_iax2_full_hdr), f.datalen)) {
+				if (iax_parse_ies(&ies, buf + sizeof(struct ast_iax2_full_hdr), f.datalen)) {
 					ast_log(LOG_WARNING, "undecodable frame received\n");
 					ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
 					return 1;
@@ -4385,6 +4264,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					send_command_transfer(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_TXACC, 0, NULL, 0);
 				break;
 			case IAX_COMMAND_TXREL:
+				/* Send ack immediately, rather than waiting until we've changed addresses */
+				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				complete_transfer(fr.callno, &ies);
 				break;	
 			case IAX_COMMAND_DPREP:

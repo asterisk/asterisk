@@ -31,7 +31,7 @@ WAV49	= -DWAV49
 ######### manual page on gsm_option(3).
 
 #K6OPT	= -DK6OPT
-K6OPT	=
+#K6OPT	=
 ######### Define to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
@@ -54,7 +54,7 @@ PG =
 # CC		= /usr/lang/acc
 # CCFLAGS 	= -c -O
 
-CC		= gcc -ansi -pedantic -O6 -mpentium -fschedule-insns2  -fomit-frame-pointer 
+CC		= gcc -ansi -pedantic $(OPTIMIZE) -march=$(PROC) -fschedule-insns2  -fomit-frame-pointer 
 CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -finline-functions -funroll-loops
 
 LD 		= $(CC)

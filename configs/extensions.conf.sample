@@ -31,7 +31,7 @@ CONSOLE=Console/dsp				; Console interface for demo
 IAXINFO=guest					; IAXtel username/password
 ;IAXINFO=myuser:mypass
 TRUNK=Zap/g2					; Trunk interface
-;TRUNK=IAX/user:pass@provider
+;TRUNK=IAX2/user:pass@provider
 
 ;
 ; Any category other than "General" and "Globals" represent 
@@ -84,10 +84,10 @@ TRUNK=Zap/g2					; Trunk interface
 ; up, please go to www.gnophone.com or www.iaxtel.com
 ;
 [iaxtel700]
-exten => _91700NXXXXXX,1,Dial(IAX/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
+exten => _91700NXXXXXX,1,Dial(IAX2/${IAXINFO}@iaxtel.com/${EXTEN:1}@iaxtel)
 
 [iaxprovider]
-;switch => IAX/user:[key]@myserver/mycontext
+;switch => IAX2/user:[key]@myserver/mycontext
 
 [trunkint]
 ;
@@ -155,7 +155,7 @@ include => provider
 ; extensions that are not known here, for example with remote 
 ; IAX switching you transparently get access to the remote
 ; 
-; switch => IAX/user:password@bigserver/local
+; switch => IAX2/user:password@bigserver/local
 
 [macro-stdexten];
 ;
@@ -218,7 +218,7 @@ exten => i,1,Playback(invalid)		; "That's not valid, try again"
 ; Asterisk demo.
 ;
 exten => 500,1,Playback(demo-abouttotry); Let them know what's going on
-exten => 500,2,Dial(IAX/guest@misery.digium.com/s@default)	; Call the Asterisk demo
+exten => 500,2,Dial(IAX2/guest@misery.digium.com/s@default)	; Call the Asterisk demo
 exten => 500,3,Playback(demo-nogo)	; Couldn't connect to the demo site
 exten => 500,4,Goto(s,6)		; Return to the start over message.
 

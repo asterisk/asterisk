@@ -66,6 +66,8 @@
 
 #define IAX_DEFAULT_REG_EXPIRE  60	/* By default require re-registration once per minute */
 
+#define IAX_LINGER_TIMEOUT		10 /* How long to wait before closing bridged call */
+
 #define IAX_DEFAULT_PORTNO		4569
 
 /* IAX Information elements */

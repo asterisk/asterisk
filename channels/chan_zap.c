@@ -2732,6 +2732,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								p->owner = p->subs[SUB_REAL].owner;
 								if (p->subs[SUB_REAL].owner && p->subs[SUB_REAL].owner->bridge)
 									ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
+								zt_enable_ec(p);
 							}
 							
 						}

@@ -221,8 +221,8 @@ static void *monmp3thread(void *data)
 			res = read(class->pseudofd, buf, sizeof(buf));
 		} else {
 			/* otherwise just sleep (unreliable) */
-			usleep(250000);
-			res = 2000;
+			usleep(100000);	/* Sleep 100 ms */
+			res = 800;		/* 800 samples */
 		}
 		if (!class->members)
 			continue;
@@ -328,7 +328,7 @@ static struct mohdata *mohalloc(struct mohclass *cl)
 static void moh_release(struct ast_channel *chan, void *data)
 {
 	struct mohdata *moh = data, *prev, *cur;
-	int oldrfmt, oldwfmt;
+	int oldwfmt;
 	ast_pthread_mutex_lock(&moh_lock);
 	/* Unlink */
 	prev = NULL;
@@ -350,8 +350,8 @@ static void moh_release(struct ast_channel *chan, void *data)
 	oldwfmt = moh->origwfmt;
 	free(moh);
 	if (chan) {
-		if (ast_set_write_format(chan, oldwfmt)) 
-			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %d/%d\n", chan->name, oldwfmt, oldrfmt);
+		if (oldwfmt && ast_set_write_format(chan, oldwfmt)) 
+			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %d\n", chan->name, oldwfmt);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
 	}

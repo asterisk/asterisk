@@ -238,15 +238,37 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 
 struct ast_frame *ast_frdup(struct ast_frame *f)
 {
-	struct ast_frame *ret;
-	int p;
-	p = f->mallocd;
-	f->mallocd = 0;
-	/* Make frisolate think this is a 100% static frame, and make a duplicate */
-	ret = ast_frisolate(f);
-	/* Restore its true malloc status */
-	f->mallocd = p;
-	return ret;
+	struct ast_frame *out;
+	int len;
+	void *buf;
+	/* Start with standard stuff */
+	len = sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET + f->datalen;
+	/* If we have a source, add space for it */
+	if (f->src && strlen(f->src))
+		len += strlen(f->src) + 1;
+	buf = malloc(len);
+	if (!buf)
+		return NULL;
+	out = buf;
+	/* Set us as having malloc'd header only, so it will eventually
+	   get freed. */
+	out->frametype = f->frametype;
+	out->subclass = f->subclass;
+	out->datalen = f->datalen;
+	out->samples = f->samples;
+	out->mallocd = AST_MALLOCD_HDR;
+	out->offset = AST_FRIENDLY_OFFSET;
+	out->data = buf + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
+	if (f->src && strlen(f->src)) {
+		out->src = out->data + f->datalen;
+		/* Must have space since we allocated for it */
+		strcpy(out->src, f->src);
+	} else
+		out->src = NULL;
+	out->prev = NULL;
+	out->next = NULL;
+	memcpy(out->data, f->data, out->datalen);	
+	return out;
 }
 
 struct ast_frame *ast_fr_fdread(int fd)

@@ -347,7 +347,8 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 		cur = cur->next;
 		qlen++;
 	}
-	if (qlen  > 128) {
+	/* Allow up to 96 voice frames outstanding, and up to 128 total frames */
+	if (((fin->frametype == AST_FRAME_VOICE) && (qlen > 96)) || (qlen  > 128)) {
 		if (fin->frametype != AST_FRAME_VOICE) {
 			ast_log(LOG_WARNING, "Exceptionally long queue length queuing to %s\n", chan->name);
 			CRASH;

@@ -13,6 +13,34 @@
 
 .EXPORT_ALL_VARIABLES:
 
+# Pentium Pro Optimize
+#PROC=i686
+# Pentium Optimize
+#PROC=i586
+#PROC=k6
+#PROC=ppc
+PROC=$(shell uname -m)
+
+######### More GSM codec optimization
+######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
+######### which support MMX instructions.  This should be newer pentiums,
+######### ppro's, etc, as well as the AMD K6 and K7.  
+K6OPT  = #-DK6OPT
+
+#Tell gcc to optimize the asterisk's code
+OPTIMIZE=-O6
+
+#Include debug symbols in the executables (-g) and profiling info (-pg)
+DEBUG=-g #-pg
+
+# Optional debugging parameters
+DEBUG_THREADS = #-DDO_CRASH -DDEBUG_THREADS
+
+# Uncomment next one to enable ast_frame tracing (for debugging)
+TRACE_FRAMES = #-DTRACE_FRAMES
+
+# Where to install asterisk after compiling
+# Default -> leave empty
 INSTALL_PREFIX=
 
 ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
@@ -30,18 +58,9 @@ ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
 MODULES_DIR=$(ASTLIBDIR)/modules
 AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 
-# Pentium Pro Optimize
-#PROC=i686
-# Pentium Optimize
-#PROC=i586
-#PROC=k6
-#PROC=ppc
-PROC=$(shell uname -m)
-
-DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
 CFLAGS=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
-#CFLAGS+=-O6
+CFLAGS+=$(OPTIMIZE)
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
 
@@ -62,10 +81,8 @@ CFLAGS+=-DASTCONFPATH=\"$(ASTCONFPATH)\"
 CFLAGS+=-DASTMODDIR=\"$(MODULES_DIR)\"
 CFLAGS+=-DASTAGIDIR=\"$(AGI_DIR)\"
 
-# Optional debugging parameters
-CFLAGS+= -DDO_CRASH -DDEBUG_THREADS
-# Uncomment next one to enable ast_frame tracing (for debugging)
-#CFLAGS+= -DTRACE_FRAMES
+CFLAGS+= $(DEBUG_THREADS)
+CFLAGS+= $(TRACE_FRAMES)
 CFLAGS+=# -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr astman
 LIBS=-ldl -lpthread -lncurses -lm  #-lnjamd
@@ -311,3 +328,7 @@ config:
 	fi 
 
 	
+dont-optimize:
+	make OPTIMIZE= K6OPT= install
+
+valgrind: dont-optimize

@@ -1512,8 +1512,12 @@ static int pbx_load_module(void)
 							appl = stringp;
 							if (!appl)
 								appl="";
-							if (!(start = strchr(appl, '(')))
-								appl = strsep(&stringp, ",");
+							if (!(start = strchr(appl, '('))) {
+								if (stringp)
+									appl = strsep(&stringp, ",");
+								else
+									appl = "";
+							}
 							if (start && (end = strrchr(appl, ')'))) {
 								*start = *end = '\0';
 								data = start + 1;
@@ -1525,7 +1529,10 @@ static int pbx_load_module(void)
 								data = strsep(&stringp, "\"");
 								stringp++;
 							} else {
-								data = strsep(&stringp, ",");
+								if (stringp)
+									data = strsep(&stringp, ",");
+								else
+									data = "";
 							}
 							cidmatch = strchr(ext, '/');
 							if (cidmatch) {

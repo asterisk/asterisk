@@ -22,8 +22,9 @@ LIB_TARGET_DIR = .
 # 
 
 WARNINGS = -Wall -Wno-comment -Wno-error
-CFLAGS = -O6 -I$(LIB_TARGET_DIR) $(WARNINGS)
-CFLAGS+= $(shell if uname -m | grep -q 86; then echo "-mpentium" ; fi)
+CFLAGS = $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS)
+#CFLAGS+= $(shell if uname -m | grep -q 86; then echo "-mpentium" ; fi)
+CFLAGS+= -march=$(PROC)
 
 LIB = $(LIB_TARGET_DIR)/liblpc10.a
 

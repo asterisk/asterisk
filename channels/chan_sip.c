@@ -473,7 +473,7 @@ static void sip_prefs_free(void)
 
 static void sip_pref_remove(int format)
 {
-	struct sip_codec_pref *cur, *prev;
+	struct sip_codec_pref *cur, *prev=NULL;
 	cur = prefs;
 	while(cur) {
 		if (cur->codec == format) {
@@ -744,10 +744,9 @@ static int sip_hangup(struct ast_channel *ast)
 
 static int sip_answer(struct ast_channel *ast)
 {
-	int res = 0,fmt,capability;
+	int res = 0,fmt;
 	char *codec;
 	struct sip_pvt *p = ast->pvt->pvt;
-	struct sip_codec_pref *oldpref=NULL;
 
 	
 	if (ast->_state != AST_STATE_UP) {
@@ -759,10 +758,6 @@ static int sip_answer(struct ast_channel *ast)
 			ast_log(LOG_NOTICE, "Changing codec to '%s' for this call because of ${SIP_CODEC) variable\n",codec);
 			fmt=ast_getformatbyname(codec);
 			if (fmt) {
-				oldpref=prefs;
-				prefs=NULL;
-				sip_pref_append(fmt);
-				capability=p->capability;
 				p->capability=fmt;
 			} else ast_log(LOG_NOTICE, "Ignoring ${SIP_CODEC} variable because of unrecognized codec: %s\n",codec);
 		}
@@ -771,11 +766,6 @@ static int sip_answer(struct ast_channel *ast)
 		if (option_debug)
 			ast_log(LOG_DEBUG, "sip_answer(%s)\n", ast->name);
 		res = transmit_response_with_sdp(p, "200 OK", &p->initreq);
-		sip_prefs_free();
-		if (oldpref) {
-			prefs=oldpref;
-			p->capability=capability;
-		}
 	}
 	return res;
 }

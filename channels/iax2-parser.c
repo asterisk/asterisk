@@ -342,3 +342,157 @@ void iax_set_error(void (*func)(const char *))
 {
 	errorf = func;
 }
+
+int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
+{
+	/* Parse data into information elements */
+	int len;
+	int ie;
+	char tmp[256];
+	memset(ies, 0, sizeof(struct iax_ies));
+	ies->msgcount = -1;
+	while(datalen >= 2) {
+		ie = data[0];
+		len = data[1];
+		if (len > datalen - 2) {
+			errorf("Information element length exceeds message size\n");
+			return -1;
+		}
+		switch(ie) {
+		case IAX_IE_CALLED_NUMBER:
+			ies->called_number = data + 2;
+			break;
+		case IAX_IE_CALLING_NUMBER:
+			ies->calling_number = data + 2;
+			break;
+		case IAX_IE_CALLING_ANI:
+			ies->calling_ani = data + 2;
+			break;
+		case IAX_IE_CALLING_NAME:
+			ies->calling_name = data + 2;
+			break;
+		case IAX_IE_CALLED_CONTEXT:
+			ies->called_context = data + 2;
+			break;
+		case IAX_IE_USERNAME:
+			ies->username = data + 2;
+			break;
+		case IAX_IE_PASSWORD:
+			ies->password = data + 2;
+			break;
+		case IAX_IE_CAPABILITY:
+			if (len != sizeof(unsigned int)) {
+				snprintf(tmp, sizeof(tmp), "Expecting capability to be %d bytes long but was %d\n", sizeof(unsigned int), len);
+				errorf(tmp);
+			} else
+				ies->capability = ntohl(*((unsigned int *)(data + 2)));
+			break;
+		case IAX_IE_FORMAT:
+			if (len != sizeof(unsigned int)) {
+				snprintf(tmp, sizeof(tmp), "Expecting format to be %d bytes long but was %d\n", sizeof(unsigned int), len);
+				errorf(tmp);
+			} else
+				ies->format = ntohl(*((unsigned int *)(data + 2)));
+			break;
+		case IAX_IE_LANGUAGE:
+			ies->language = data + 2;
+			break;
+		case IAX_IE_VERSION:
+			if (len != sizeof(unsigned short)) {
+				snprintf(tmp, sizeof(tmp),  "Expecting version to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->version = ntohs(*((unsigned short *)(data + 2)));
+			break;
+		case IAX_IE_ADSICPE:
+			if (len != sizeof(unsigned short)) {
+				snprintf(tmp, sizeof(tmp), "Expecting adsicpe to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->adsicpe = ntohs(*((unsigned short *)(data + 2)));
+			break;
+		case IAX_IE_DNID:
+			ies->dnid = data + 2;
+			break;
+		case IAX_IE_AUTHMETHODS:
+			if (len != sizeof(unsigned short))  {
+				snprintf(tmp, sizeof(tmp), "Expecting authmethods to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->authmethods = ntohs(*((unsigned short *)(data + 2)));
+			break;
+		case IAX_IE_CHALLENGE:
+			ies->challenge = data + 2;
+			break;
+		case IAX_IE_MD5_RESULT:
+			ies->md5_result = data + 2;
+			break;
+		case IAX_IE_RSA_RESULT:
+			ies->rsa_result = data + 2;
+			break;
+		case IAX_IE_APPARENT_ADDR:
+			ies->apparent_addr = ((struct sockaddr_in *)(data + 2));
+			break;
+		case IAX_IE_REFRESH:
+			if (len != sizeof(unsigned short)) {
+				snprintf(tmp, sizeof(tmp),  "Expecting refresh to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->refresh = ntohs(*((unsigned short *)(data + 2)));
+			break;
+		case IAX_IE_DPSTATUS:
+			if (len != sizeof(unsigned short)) {
+				snprintf(tmp, sizeof(tmp),  "Expecting dpstatus to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->dpstatus = ntohs(*((unsigned short *)(data + 2)));
+			break;
+		case IAX_IE_CALLNO:
+			if (len != sizeof(unsigned short)) {
+				snprintf(tmp, sizeof(tmp),  "Expecting callno to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->callno = ntohs(*((unsigned short *)(data + 2)));
+			break;
+		case IAX_IE_CAUSE:
+			ies->cause = data + 2;
+			break;
+		case IAX_IE_IAX_UNKNOWN:
+			if (len == 1)
+				ies->iax_unknown = data[2];
+			else {
+				snprintf(tmp, sizeof(tmp), "Expected single byte Unknown command, but was %d long\n", len);
+				errorf(tmp);
+			}
+			break;
+		case IAX_IE_MSGCOUNT:
+			if (len != sizeof(unsigned short)) {
+				snprintf(tmp, sizeof(tmp), "Expecting msgcount to be %d bytes long but was %d\n", sizeof(unsigned short), len);
+				errorf(tmp);
+			} else
+				ies->msgcount = ntohs(*((unsigned short *)(data + 2)));	
+			break;
+		case IAX_IE_AUTOANSWER:
+			ies->autoanswer = 1;
+			break;
+		case IAX_IE_MUSICONHOLD:
+			ies->musiconhold = 1;
+			break;
+		default:
+			snprintf(tmp, sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);
+			errorf(tmp);
+		}
+		/* Overwrite information element with 0, to null terminate previous portion */
+		data[0] = 0;
+		datalen -= (len + 2);
+		data += (len + 2);
+	}
+	/* Null-terminate last field */
+	*data = '\0';
+	if (datalen) {
+		errorf("Invalid information element contents, strange boundary\n");
+		return -1;
+	}
+	return 0;
+}
+

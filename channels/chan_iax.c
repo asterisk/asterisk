@@ -3409,7 +3409,6 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	char rel0[256];
 	char rel1[255];
 	char empty[32]="";		/* Safety measure */
-	fr.ts=0;	/* make Valgrind happy */
 	res = recvfrom(netsocket, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
@@ -3473,6 +3472,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", ntohs(fh->seqno), f.frametype, f.subclass);
 		/* Check if it's out of order (and not an ACK or INVAL) */
 		fr.seqno = ntohs(fh->seqno);
+		fr.ts = ntohl(fh->ts);
 		if ((iaxs[fr.callno]->iseqno != fr.seqno) &&
 			(iaxs[fr.callno]->iseqno ||
 				((f.subclass != AST_IAX_COMMAND_TXCNT) &&
@@ -3525,7 +3525,6 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			f.data = buf + sizeof(struct ast_iax_full_hdr);
 		else
 			f.data = empty;
-		fr.ts = ntohl(fh->ts);
 		/* Unless this is an ACK or INVAL frame, ack it */
 		if ((f.frametype != AST_FRAME_IAX) || 
 			 ((f.subclass != AST_IAX_COMMAND_ACK) && 
