@@ -57,6 +57,9 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 			}
 			if (option_verbose >= vsize) {
 				switch (vsize) {
+				case 0:
+					ast_verbose("%s\n", vtext);
+					break;
 				case 1:
 					ast_verbose(VERBOSE_PREFIX_1 "%s\n", vtext);
 					break;
