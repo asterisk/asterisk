@@ -648,6 +648,10 @@ static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char 
 		tmp->priority = 1;
 		if (strlen(i->callerid))
 			tmp->callerid = strdup(i->callerid);
+		if (strlen(i->accountcode))
+			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
+		if (i->amaflags)
+			tmp->amaflags = i->amaflags;
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -983,10 +987,7 @@ int setup_incoming_call(call_details_t cd)
 
 			if (strlen(user->accountcode)) {
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)-1);
-				printf("ACCOUNT CODE: %s\n", p->accountcode);
-			} else {
-				printf("NO ACCOUNT CODE IN USERS\n");
-			}
+			} 
 
 			/* Increment the usage counter */
 			user->inUse++;
