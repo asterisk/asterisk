@@ -3617,9 +3617,15 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 				iax2_regfunk(p->name, 1);
 			snprintf(data, sizeof(data), "%s:%d:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), p->expirey);
 			ast_db_put("IAX/Registry", p->name, data);
-			if  (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
-				iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+			if (sin->sin_addr.s_addr) {
+				if  (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
+					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+			} else {
+				if  (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Unregistered '%s' (%s)\n", p->name, 
+					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
+			}
 			/* Update the host */
 			memcpy(&p->addr, sin, sizeof(p->addr));
 			/* Verify that the host is really there */
@@ -3628,23 +3634,25 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 		/* Setup the expirey */
 		if (p->expire > -1)
 			ast_sched_del(sched, p->expire);
-		if (p->expirey)
+		if (p->expirey && sin->sin_addr.s_addr)
 			p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
-		iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
 		iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime());
-		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
-		if (strlen(p->mailbox)) {
-			msgcount = ast_app_has_voicemail(p->mailbox);
-			if (msgcount)
-				msgcount = 65535;
-			iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
+		if (sin->sin_addr.s_addr) {
+			iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
+			iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
+			if (strlen(p->mailbox)) {
+				msgcount = ast_app_has_voicemail(p->mailbox);
+				if (msgcount)
+					msgcount = 65535;
+				iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
+			}
+			if (p->hascallerid)
+				iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->callerid);
 		}
-		if (p->hascallerid)
-			iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->callerid);
 		if (p->temponly)
 			free(p);
-		return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);;
+		return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
 	}
 	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
 	return -1;
@@ -4757,6 +4765,7 @@ retryowner:
 				vnak_retransmit(fr.callno, fr.iseqno);
 				break;
 			case IAX_COMMAND_REGREQ:
+			case IAX_COMMAND_REGREL:
 				if (register_verify(fr.callno, &sin, &ies)) {
 					memset(&ied0, 0, sizeof(ied0));
 					iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Registration Refused");
@@ -4764,6 +4773,8 @@ retryowner:
 					break;
 				}
 				if ((!strlen(iaxs[fr.callno]->secret) && !strlen(iaxs[fr.callno]->inkeys)) || (iaxs[fr.callno]->state & IAX_STATE_AUTHENTICATED)) {
+					if (f.subclass == IAX_COMMAND_REGREL)
+						memset(&sin, 0, sizeof(sin));
 					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno))
 						ast_log(LOG_WARNING, "Registry error\n");
 					break;
