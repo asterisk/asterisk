@@ -1893,8 +1893,10 @@ static int zt_hangup(struct ast_channel *ast)
 		p->faxhandled = 0;
 		p->pulsedial = 0;
 		p->onhooktime = time(NULL);
+#ifdef ZAPATA_PRI
 		p->proceeding = 0;
 		p->setup_ack = 0;
+#endif		
 		if (p->dsp) {
 			ast_dsp_free(p->dsp);
 			p->dsp = NULL;
@@ -5146,7 +5148,11 @@ static void *do_monitor(void *data)
 		count = 0;
 		i = iflist;
 		while(i) {
-			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio) && !i->pri) {
+			if ((i->subs[SUB_REAL].zfd > -1) && i->sig && (!i->radio) 
+#ifdef ZAPATA_PRI
+				&& !i->pri
+#endif
+				) {
 				if (!i->owner && !i->subs[SUB_REAL].owner) {
 					/* This needs to be watched, as it lacks an owner */
 					pfds[count].fd = i->subs[SUB_REAL].zfd;
@@ -6156,7 +6162,7 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 	span = PRI_SPAN(channel);
 	channel = PRI_CHANNEL(channel);
 	
-	for (x=1;x<=pri->numchans;x++) {
+	for (x=1;x<pri->numchans;x++) {
 		if (pri->pvts[x] && (pri->pvts[x]->prioffset == channel) && (pri->logicalspan == span)) {
 			principle = x;
 			break;
@@ -6175,11 +6181,11 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 		return principle;
 	}
 	if ((principle > -1) && 
-		(principle <= pri->numchans) && 
+		(principle < pri->numchans) && 
 		(pri->pvts[principle]) && 
 		(pri->pvts[principle]->call == c))
 		return principle;
-	for (x=1;x<=pri->numchans;x++) {
+	for (x=1;x<pri->numchans;x++) {
 		if (!pri->pvts[x]) continue;
 		if (pri->pvts[x]->call == c) {
 			/* Found our call */
@@ -6282,11 +6288,11 @@ static int pri_check_restart(struct zt_pri *pri)
 {
 	do {
 		pri->resetpos++;
-	} while((pri->resetpos <= pri->numchans) &&
+	} while((pri->resetpos < pri->numchans) &&
 		 (!pri->pvts[pri->resetpos] ||
 		  pri->pvts[pri->resetpos]->call ||
 		  pri->pvts[pri->resetpos]->resetting));
-	if (pri->resetpos <= pri->numchans) {
+	if (pri->resetpos < pri->numchans) {
 		/* Mark the channel as resetting and restart it */
 		pri->pvts[pri->resetpos]->resetting = 1;
 		pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[pri->resetpos]));
@@ -6480,7 +6486,7 @@ static void *pri_dchannel(void *vpri)
 				pri->lastreset += 5;
 				pri->resetting = 0;
 				/* Take the channels from inalarm condition */
-				for (i=0; i<=pri->numchans; i++)
+				for (i=0; i<pri->numchans; i++)
 					if (pri->pvts[i]) {
 						pri->pvts[i]->inalarm = 0;
 					}
@@ -6491,7 +6497,7 @@ static void *pri_dchannel(void *vpri)
 				pri->up = 0;
 				pri->resetting = 0;
 				/* Hangup active channels and put them in alarm mode */
-				for (i=0; i<=pri->numchans; i++) {
+				for (i=0; i<pri->numchans; i++) {
 					struct zt_pvt *p = pri->pvts[i];
 					if (p) {
 						if (p->call) {
@@ -6531,7 +6537,7 @@ static void *pri_dchannel(void *vpri)
 				} else {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_2 "Restart on requested on entire span %d\n", pri->span);
-					for (x=1;x <= pri->numchans;x++)
+					for (x=1;x < pri->numchans;x++)
 						if (pri->pvts[x]) {
 							ast_mutex_lock(&pri->pvts[x]->lock);
 							if (pri->pvts[x]->call) {
