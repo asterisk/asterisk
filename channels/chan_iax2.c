@@ -7207,7 +7207,7 @@ int load_module(void)
 	srand(time(NULL));
 	
 	sin.sin_family = AF_INET;
-	sin.sin_port = ntohs(IAX_DEFAULT_PORTNO);
+	sin.sin_port = htons(IAX_DEFAULT_PORTNO);
 	sin.sin_addr.s_addr = INADDR_ANY;
 
 #ifdef IAX_TRUNKING
