@@ -47,6 +47,10 @@ struct ast_channel_pvt {
 	int (*write)(struct ast_channel *chan, struct ast_frame *frame);
 	/* Display or transmit text */
 	int (*send_text)(struct ast_channel *chan, char *text);
+	/* Display or send an image */
+	int (*send_image)(struct ast_channel *chan, struct ast_frame *frame);
+	/* Send HTML data */
+	int (*send_html)(struct ast_channel *chan, int subclass, char *data, int len);
 	/* Handle an exception, reading a frame */
 	struct ast_frame * (*exception)(struct ast_channel *chan);
 	/* Bridge two channels of the same type together */
