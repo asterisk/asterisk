@@ -636,7 +636,8 @@ static int action_getvar(struct mansession *s, struct message *m)
 	  
 	ast_mutex_unlock(&c->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
-		"%s: %s",varname,varval);
+		"%s: %s\r\n" ,varname,varval);
+	ast_cli(s->fd, "\r\n");
 
 	return 0;
 }
