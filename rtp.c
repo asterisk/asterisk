@@ -997,13 +997,13 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		ast_rtp_get_peer(p0, &t0);
 		if (inaddrcmp(&t1, &ac1)) {
 			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address\n", c1->name);
-			if (pr0->set_rtp_peer(c0, p1)) 
+			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL)) 
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
 		}
 		if (inaddrcmp(&t0, &ac0)) {
 			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address\n", c0->name);
-			if (pr1->set_rtp_peer(c1, p0))
+			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));
 		}
