@@ -378,8 +378,8 @@ pthread_attr_t attr;
 	myrpt->rxchannel = ast_request(myrpt->rxchanname,AST_FORMAT_SLINEAR,tele);
 	if (myrpt->rxchannel)
 	{
-		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR, 0);
-		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR, 0);
+		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
+		ast_set_write_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
 		myrpt->rxchannel->whentohangup = 0;
 		myrpt->rxchannel->appl = "Apprpt";
 		myrpt->rxchannel->data = "(Repeater Rx)";
@@ -405,8 +405,8 @@ pthread_attr_t attr;
 		myrpt->txchannel = ast_request(myrpt->txchanname,AST_FORMAT_SLINEAR,tele);
 		if (myrpt->txchannel)
 		{
-			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR, 0);
-			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR, 0);
+			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
+			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
 			myrpt->txchannel->data = "(Repeater Rx)";

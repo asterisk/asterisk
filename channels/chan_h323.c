@@ -527,8 +527,8 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *p)
 			if (f->subclass != p->owner->nativeformats) {
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				p->owner->nativeformats = f->subclass;
-				ast_set_read_format(p->owner, p->owner->readformat, 0);
-				ast_set_write_format(p->owner, p->owner->writeformat, 0);
+				ast_set_read_format(p->owner, p->owner->readformat);
+				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
 		
 			/* Do in-band DTMF detection */
