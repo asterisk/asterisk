@@ -755,7 +755,7 @@ zapretry:
 	ztc.confno = conf->zapconf;
 	ast_mutex_lock(&conflock);
 	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER) && conf->users > 1) {
-		if (ast_fileexists(user->namerecloc, NULL, NULL)) {
+		if (conf->chan && ast_fileexists(user->namerecloc, NULL, NULL)) {
 			if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
 				ast_waitstream(conf->chan, "");
 			if (!ast_streamfile(conf->chan, "conf-hasjoin", chan->language))
@@ -1109,7 +1109,7 @@ zapretry:
 		conf_play(conf, LEAVE);
 
 	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER) && conf->users > 1) {
-		if (ast_fileexists(user->namerecloc, NULL, NULL)) {
+		if (conf->chan && ast_fileexists(user->namerecloc, NULL, NULL)) {
 			if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
 				ast_waitstream(conf->chan, "");
 			if (!ast_streamfile(conf->chan, "conf-hasleft", chan->language))
@@ -1719,6 +1719,9 @@ static void *recordthread(void *args)
 	int res=0;
 
 	cnf = (struct ast_conference *)args;
+	if( !cnf || !cnf->chan ) {
+		pthread_exit(0);
+	}
 	ast_stopstream(cnf->chan);
 	flags = O_CREAT|O_TRUNC|O_WRONLY;
 	s = ast_writefile(cnf->recordingfilename, cnf->recordingformat, NULL, flags, 0, 0644);
