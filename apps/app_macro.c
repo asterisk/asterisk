@@ -115,7 +115,10 @@ static int macro_exec(struct ast_channel *chan, void *data)
 
   /* Setup environment for new run */
   strcpy(chan->exten, "s");
+#if 0
+	/* Don't overwrite it because sometimes we have to know the real context */
   strncpy(chan->context, fullmacro, sizeof(chan->context));
+#endif  
   chan->priority = 1;
 
   while((cur = strsep(&rest, "|")) && (argc < MAX_ARGS)) {
@@ -128,8 +131,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	pbx_builtin_setvar_helper(chan, varname, cur);
 	argc++;
   }
-  while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->callerid)) {
-	if ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->callerid))) {
+  while(ast_exists_extension(chan, fullmacro, chan->exten, chan->priority, chan->callerid)) {
+	if ((res = ast_spawn_extension(chan, fullmacro, chan->exten, chan->priority, chan->callerid))) {
 		/* Something bad happened, or a hangup has been requested. */
 		if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F'))) {
 			/* Just return result as to the previous application as if it had been dialed */
@@ -152,7 +155,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 			goto out;
 		}
 	}
-	if (strcasecmp(chan->context, fullmacro)) {
+	if (strcmp(chan->context, oldcontext) || strcmp(chan->exten, "s")) {
 		if (option_verbose > 1)
 			ast_verbose(VERBOSE_PREFIX_2 "Channel '%s' jumping out of macro '%s'\n", chan->name, macro);
 		break;
