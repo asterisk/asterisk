@@ -346,7 +346,10 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 					0, (struct sockaddr *)&sin, &len);
 	
 	if (res < 0) {
-		ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
+		if (errno == EAGAIN)
+			ast_log(LOG_NOTICE, "RTP: Received packet with bad UDP checksum\n");
+		else
+			ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
 		if (errno == EBADF)
 			CRASH;
 		return &null_frame;

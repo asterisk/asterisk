@@ -7168,7 +7168,9 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	memset(&req, 0, sizeof(req));
 	res = recvfrom(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
 	if (res < 0) {
-		if (errno != ECONNREFUSED)
+		if (errno == EAGAIN)
+			ast_log(LOG_NOTICE, "SIP: Received packet with bad UDP checksum\n");
+		else if (errno != ECONNREFUSED)
 			ast_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
