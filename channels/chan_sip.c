@@ -1248,6 +1248,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->dtmfmode = globaldtmfmode;
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
+	strncpy(p->context, context, sizeof(p->context));
 	/* Add to list */
 	ast_pthread_mutex_lock(&iflock);
 	p->next = iflist;
