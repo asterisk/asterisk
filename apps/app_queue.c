@@ -1557,6 +1557,14 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
+				if (ast_test_flag(qe->parent, QUEUE_FLAG_EVENTWHENCALLED)) {
+					manager_event(EVENT_FLAG_AGENT, "AgentDump",
+							"Queue: %s\r\n"
+							"Uniqueid: %s\r\n"
+							"Channel: %s\r\n"
+							"Member: %s\r\n",
+						queuename, qe->chan->uniqueid, peer->name, member->interface);
+				}
 				ast_hangup(peer);
 				return -1;
 			}
@@ -1594,6 +1602,15 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
  			ast_channel_sendurl( peer, url );
  		}
 		ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
+		if (ast_test_flag(qe->parent, QUEUE_FLAG_EVENTWHENCALLED)) {
+			manager_event(EVENT_FLAG_AGENT, "AgentConnect",
+					"Queue: %s\r\n"
+					"Uniqueid: %s\r\n"
+					"Channel: %s\r\n"
+					"Member: %s\r\n"
+					"Holdtime: %ld\r\n",
+				queuename, qe->chan->uniqueid, peer->name, member->interface, (long)time(NULL) - qe->start);
+		}
 		strncpy(oldcontext, qe->chan->context, sizeof(oldcontext) - 1);
 		strncpy(oldexten, qe->chan->exten, sizeof(oldexten) - 1);
 		time(&callstart);
@@ -1613,8 +1630,30 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "TRANSFER", "%s|%s", qe->chan->exten, qe->chan->context);
 		} else if (qe->chan->_softhangup) {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETECALLER", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+			if (ast_test_flag(qe->parent, QUEUE_FLAG_EVENTWHENCALLED)) {
+				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+						"Queue: %s\r\n"
+						"Uniqueid: %s\r\n"
+						"Channel: %s\r\n"
+						"Member: %s\r\n"
+						"HoldTime: %ld\r\n"
+						"TalkTime: %ld\r\n"
+						"Reason: caller\r\n",
+						queuename, qe->chan->uniqueid, peer->name, member->interface, (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+			}
 		} else {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "COMPLETEAGENT", "%ld|%ld", (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+			if (ast_test_flag(qe->parent, QUEUE_FLAG_EVENTWHENCALLED)) {
+				manager_event(EVENT_FLAG_AGENT, "AgentComplete",
+						"Queue: %s\r\n"
+						"Uniqueid: %s\r\n"
+						"Channel: %s\r\n"
+						"HoldTime: %ld\r\n"
+						"TalkTime: %ld\r\n"
+						"Reason: agent\r\n",
+					queuename, qe->chan->uniqueid, peer->name, (long)(callstart - qe->start), (long)(time(NULL) - callstart));
+			}
+
 		}
 
 		if(bridge != AST_PBX_NO_HANGUP_PEER)
