@@ -34,10 +34,23 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 #include <time.h>
+
+/* we define USESQLVM when we have MySQL or POSTGRES */
 #ifdef USEMYSQLVM
 #include <mysql.h>
 #include "mysql-vm-routines.h"
-#else
+#define USESQLVM 1
+#endif
+
+#ifdef USEPOSTGRESVM
+/*
+ * PostgreSQL routines written by Otmar Lendl <lendl@nic.at>
+ */
+#include <postgresql/libpq-fe.h>
+#define USESQLVM 1
+#endif
+
+#ifndef USESQLVM
 static inline int sql_init(void) { return 0; }
 static inline void sql_close(void) { }
 #endif
@@ -185,7 +198,162 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 	
 }
 
-#ifndef USEMYSQLVM
+#ifdef USEPOSTGRESVM
+
+PGconn *dbhandler;
+char	dboption[256];
+ast_mutex_t postgreslock;
+
+static int sql_init(void)
+{
+	ast_verbose( VERBOSE_PREFIX_3 "Logging into postgres database: %s\n", dboption);
+/*	fprintf(stderr,"Logging into postgres database: %s\n", dboption); */
+
+	dbhandler=PQconnectdb(dboption);
+	if (PQstatus(dbhandler) == CONNECTION_BAD) {
+		ast_log(LOG_WARNING, "Error Logging into database %s: %s\n",dboption,PQerrorMessage(dbhandler));
+		return(-1);
+	}
+	ast_mutex_init(&postgreslock);
+
+/*	fprintf(stderr,"postgres login OK\n"); */
+	return(0);
+}
+
+static void sql_close(void)
+{
+	PQfinish(dbhandler);
+}
+
+
+static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
+{
+	PGresult *PGSQLres;
+
+
+	int numFields, i;
+	char *fname;
+	char query[240];
+	char options[160] = "";
+	struct ast_vm_user *retval;
+
+	retval=malloc(sizeof(struct ast_vm_user));
+
+/*	fprintf(stderr,"postgres find_user:\n"); */
+
+	if (retval) {
+		*retval->mailbox='\0';
+		*retval->context='\0';
+		*retval->password='\0';
+		*retval->fullname='\0';
+		*retval->email='\0';
+		*retval->pager='\0';
+		*retval->serveremail='\0';
+		retval->attach=-1;
+		retval->alloced=1;
+		retval->next=NULL;
+		if (mailbox) {
+			strcpy(retval->mailbox, mailbox);
+		}
+		if (context) {
+			strcpy(retval->context, context);
+		}
+
+		if (*retval->context) {
+			sprintf(query, "SELECT password,fullname,email,pager,options FROM voicemail WHERE context='%s' AND mailbox='%s'", context, mailbox);
+		} else {
+			sprintf(query, "SELECT password,fullname,email,pager,options FROM voicemail WHERE mailbox='%s'", mailbox);
+		}
+/*	fprintf(stderr,"postgres find_user: query = %s\n",query); */
+		ast_mutex_lock(&postgreslock);
+		PGSQLres=PQexec(dbhandler,query);
+		if (PGSQLres!=NULL) {
+			if (PQresultStatus(PGSQLres) == PGRES_BAD_RESPONSE ||
+				PQresultStatus(PGSQLres) == PGRES_NONFATAL_ERROR ||
+				PQresultStatus(PGSQLres) == PGRES_FATAL_ERROR) {
+
+				ast_log(LOG_WARNING,"PGSQL_query: Query Error (%s) Calling PQreset\n",PQcmdStatus(PGSQLres));
+				PQclear(PGSQLres);
+				PQreset(dbhandler);
+				ast_mutex_unlock(&postgreslock);
+				free(retval);
+				return(NULL);
+			} else {
+			numFields = PQnfields(PGSQLres);
+/*	fprintf(stderr,"postgres find_user: query found %d rows with %d fields\n",PQntuples(PGSQLres), numFields); */
+			if (PQntuples(PGSQLres) != 1) {
+				ast_log(LOG_WARNING,"PGSQL_query: Did not find a unique mailbox for %s\n",mailbox);
+				PQclear(PGSQLres);
+				ast_mutex_unlock(&postgreslock);
+				free(retval);
+				return(NULL);
+			}
+			for (i=0; i<numFields; i++) {
+				fname = PQfname(PGSQLres,i);
+				if (!strcmp(fname, "password")) {
+					strncpy(retval->password, PQgetvalue(PGSQLres,0,i),sizeof(retval->password) - 1);
+				} else if (!strcmp(fname, "fullname")) {
+					strncpy(retval->fullname, PQgetvalue(PGSQLres,0,i),sizeof(retval->fullname) - 1);
+				} else if (!strcmp(fname, "email")) {
+					strncpy(retval->email, PQgetvalue(PGSQLres,0,i),sizeof(retval->email) - 1);
+				} else if (!strcmp(fname, "pager")) {
+					strncpy(retval->pager, PQgetvalue(PGSQLres,0,i),sizeof(retval->pager) - 1);
+				} else if (!strcmp(fname, "options")) {
+					strncpy(options, PQgetvalue(PGSQLres,0,i), sizeof(options) - 1);
+					apply_options(retval, options);
+				}
+			}
+			}
+			PQclear(PGSQLres);
+			ast_mutex_unlock(&postgreslock);
+			return(retval);
+		}
+		else {
+			ast_log(LOG_WARNING,"PGSQL_query: Connection Error (%s)\n",PQerrorMessage(dbhandler));
+			ast_mutex_unlock(&postgreslock);
+			free(retval);
+			return(NULL);
+		}
+		/* not reached */
+	} /* malloc() retval */
+	return(NULL);
+}
+
+
+static void vm_change_password(struct ast_vm_user *vmu, char *password)
+{
+	char query[400];
+
+	if (*vmu->context) {
+		sprintf(query, "UPDATE voicemail SET password='%s' WHERE context='%s' AND mailbox='%s' AND (password='%s' OR password IS NULL)", password, vmu->context, vmu->mailbox, vmu->password);
+	} else {
+		sprintf(query, "UPDATE voicemail SET password='%s' WHERE mailbox='%s' AND (password='%s' OR password IS NULL)", password, vmu->mailbox, vmu->password);
+	}
+/*	fprintf(stderr,"postgres change_password: query = %s\n",query); */
+	ast_mutex_lock(&postgreslock);
+	PQexec(dbhandler, query);
+	strcpy(vmu->password, password);
+	ast_mutex_unlock(&postgreslock);
+}
+
+static void reset_user_pw(char *context, char *mailbox, char *password)
+{
+	char query[320];
+
+	if (context) {
+		sprintf(query, "UPDATE voicemail SET password='%s' WHERE context='%s' AND mailbox='%s'", password, context, mailbox);
+	} else {
+		sprintf(query, "UPDATE voicemail SET password='%s' WHERE mailbox='%s'", password, mailbox);
+	}
+	ast_mutex_lock(&postgreslock);
+/*	fprintf(stderr,"postgres reset_user_pw: query = %s\n",query); */
+	PQexec(dbhandler, query);
+	ast_mutex_unlock(&postgreslock);
+}
+
+#endif	/* Postgres */
+
+#ifndef USESQLVM
 static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
 {
 	/* This function could be made to generate one from a database, too */
@@ -2590,12 +2758,20 @@ static int load_config(void)
 			strcpy(dbname, s);
 		}
 #endif
+
+#ifdef USEPOSTGRESVM
+		if (!(s=ast_variable_retrieve(cfg, "general", "dboption"))) {
+			strcpy(dboption, "dboption not-specified in voicemail.conf");
+		} else {
+			strcpy(dboption, s);
+		}
+#endif
 		cat = ast_category_browse(cfg, NULL);
 		while(cat) {
 			if (strcasecmp(cat, "general")) {
 				var = ast_variable_browse(cfg, cat);
 				if (strcasecmp(cat, "zonemessages")) {
-#ifndef USEMYSQLVM
+#ifndef USESQLVM
 					/* Process mailboxes in this context */
 					while(var) {
 						append_mailbox(cat, var->name, var->value);
@@ -2709,6 +2885,8 @@ int load_module(void)
 	if ((res=load_config())) {
 		return(res);
 	}
+
+		ast_log(LOG_WARNING, "SQL init\n");
 	if ((res = sql_init()))
 		return res;
 	return res;

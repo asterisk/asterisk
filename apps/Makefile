@@ -12,7 +12,7 @@
 #
 
 USE_MYSQL_VM_INTERFACE=0
-
+USE_POSTGRES_VM_INTERFACE=0
 
 #APPS=app_dial.so app_playback.so app_directory.so app_intercom.so app_mp3.so 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.so app_mp3.so \
@@ -33,6 +33,10 @@ APPS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "app_zapras.so ap
 #APPS+=$(shell if [ -f /usr/include/zap.h ]; then echo "app_rpt.so" ; fi)
 
 CFLAGS+=-fPIC
+
+ifeq ($(USE_POSTGRES_VM_INTERFACE),1)
+CFLAGS+=-DUSEPOSTGRESVM
+endif
 
 all: $(APPS)
 
@@ -58,7 +62,11 @@ app_voicemail2.so : app_voicemail2.o
 ifeq ($(USE_MYSQL_VM_INTERFACE),1)
 	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $< -lmysqlclient -lz
 else
-	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $<
+ifeq ($(USE_POSTGRES_VM_INTERFACE),1)
+	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $< -lpq
+else
+	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $< 
+endif
 endif
 
 app_sql_postgres.o: app_sql_postgres.c
