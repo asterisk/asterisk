@@ -158,7 +158,9 @@
 #  include <machine/endian.h>
 #elif defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
 #  include <endian.h>
+#if !defined(__APPLE__)
 #  include <byteswap.h>
+#endif
 #elif defined( linux )
 #  include <endian.h>
 #endif

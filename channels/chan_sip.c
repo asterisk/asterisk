@@ -4840,6 +4840,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+
 static void receive_info(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024] = "";
@@ -4847,19 +4848,23 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 	char resp = 0;
 	struct ast_frame f;
 	char *c;
-	/* Try getting the "signal=" part */
-	if (!ast_strlen_zero(c = get_sdp(req, "Signal")) || !ast_strlen_zero(c = get_sdp(req, "d"))) {
-		strncpy(buf, c, sizeof(buf) - 1);
-	} else if (get_msg_text(buf, sizeof(buf), req)) {
-		/* Normal INFO method */
-		ast_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
-		return;
-	}
 	
-	if (p->owner) {
-		if (!ast_strlen_zero(buf)) {
-			if (sip_debug_test_pvt(p))
-				ast_verbose("DTMF received: '%c'\n", buf[0]);
+	/* Need to check the media/type */
+	if (!strcasecmp(get_header(req, "Content-Type"), "application/dtmf-relay")) {
+
+		/* Try getting the "signal=" part */
+		if (strlen(c = get_sdp(req, "Signal")) || strlen(c = get_sdp(req, "d"))) {
+		   strncpy(buf, c, sizeof(buf) - 1);
+		} else {
+		   ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
+		   transmit_response(p, "200 OK", req); /* Should return error */
+		   return;
+		}
+	
+		if (p->owner) {	/* PBX call */
+		   if (!ast_strlen_zero(buf)) {
+			if (sipdebug)
+				ast_verbose("* DTMF received: '%c'\n", buf[0]);
 			if (buf[0] == '*')
 				event = 10;
 			else if (buf[0] == '#')
@@ -4875,6 +4880,7 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
                         } else if (event < 16) {
                                 resp = 'A' + (event - 12);
                         }
+			/* Build DTMF frame and deliver to PBX for transmission to other call leg*/
                         memset(&f, 0, sizeof(f));
                         f.frametype = AST_FRAME_DTMF;
                         f.subclass = resp;
@@ -4882,8 +4888,19 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
                         f.data = NULL;
                         f.datalen = 0;
                         ast_queue_frame(p->owner, &f);
+		   }
+		   transmit_response(p, "200 OK", req);
+		   return;
 		}
+		transmit_response(p, "481 Call leg/transaction does not exist", req);
+		return;
 	}
+	/* Other type of INFO message, not really understood by Asterisk */
+	/* if (get_msg_text(buf, sizeof(buf), req)) { */
+
+	ast_log(LOG_WARNING, "Unable to parse INFO message from %s. Content %s\n", p->callid, buf);
+	transmit_response(p, "415 Unsupported media type", req);
+	return;
 }
 
 static int sip_do_debug_ip(int fd, int argc, char *argv[])
