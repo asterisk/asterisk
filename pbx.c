@@ -713,6 +713,8 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 {
 	char *first,*second;
 	char tmpvar[80] = "";
+	time_t thistime;
+	struct tm brokentime;
 	int offset,offset2;
 	struct ast_var_t *variables;
 	char *name, *num; /* for callerid name + num variables */
@@ -807,6 +809,21 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 	} else if (!strcmp(var, "CHANNEL")) {
 		strncpy(workspace, c->name, workspacelen - 1);
 		*ret = workspace;
+	} else if (!strcmp(var, "EPOCH")) {
+	  snprintf(workspace, workspacelen -1, "%u",(int)time(NULL));
+	  *ret = workspace;
+	} else if (!strcmp(var, "DATETIME")) {
+	  thistime=time(NULL);
+	  localtime_r(&thistime, &brokentime);
+	  snprintf(workspace, workspacelen -1, "%02d%02d%04d-%02d:%02d:%02d",
+		   brokentime.tm_mday,
+		   brokentime.tm_mon+1,
+		   brokentime.tm_year+1900,
+		   brokentime.tm_hour,
+		   brokentime.tm_min,
+		   brokentime.tm_sec
+		   );
+	  *ret = workspace;
 	} else {
 		AST_LIST_TRAVERSE(headp,variables,entries) {
 #if 0
