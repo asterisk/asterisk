@@ -61,7 +61,7 @@ struct name {								\
   This macro initializes a list head structure by setting the head
   entry to the supplied value and recreating the embedded lock.
 */
-#define AST_LIST_HEAD_SET(head,entry) do {				\
+#define AST_LIST_HEAD_SET(head, entry) do {				\
 	(head)->first=(entry);						\
 	ast_pthread_mutex_init(&(head)->lock,NULL);				\
 } while (0)
@@ -169,7 +169,7 @@ struct {								\
   ...
   struct list_entry *current;
   ...
-  AST_LIST_TRAVERSE_SAFE_BEGIN(&entries, current, list_entry, list) {
+  AST_LIST_TRAVERSE_SAFE_BEGIN(&entries, current, list) {
      (do something with current here)
   }
   AST_LIST_TRAVERSE_SAFE_END
