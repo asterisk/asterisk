@@ -165,10 +165,9 @@ clean :
 	rm -f $(BGCSRCS:.c=.o_a) $(CCSRCS:.c=.o_a)
 	rm -f $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s)
 	rm -f $(TCSRCS:.c=.o) $(TEST)
-	rm -f config.cache
 
 distclean : clean
-	rm -f config.log config.status config.h Makefile
+	rm -f config.cache config.log config.status config.h Makefile
 
 #
 # Internal targets and rules.
