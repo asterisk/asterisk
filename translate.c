@@ -55,6 +55,8 @@ struct ast_trans_pvt {
 	struct ast_translator *step;
 	struct ast_translator_pvt *state;
 	struct ast_trans_pvt *next;
+	struct timeval nextin;
+	struct timeval nextout;
 };
 
 
@@ -99,6 +101,10 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 				
 			if (tmp) {
 				tmp->next = NULL;
+				tmp->nextin.tv_sec = 0;
+				tmp->nextin.tv_usec = 0;
+				tmp->nextout.tv_sec = 0;
+				tmp->nextout.tv_usec = 0;
 				tmp->step = tr_matrix[source][dest].step;
 				tmp->state = tmp->step->new();
 				if (!tmp->state) {
@@ -131,12 +137,46 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 {
 	struct ast_trans_pvt *p;
 	struct ast_frame *out;
-	struct timeval delivery;
 	p = path;
 	/* Feed the first frame into the first translator */
 	p->step->framein(p->state, f);
-	delivery.tv_sec = f->delivery.tv_sec;
-	delivery.tv_usec = f->delivery.tv_usec;
+	if (path->nextin.tv_sec || path->nextin.tv_usec) {
+		/* Make sure this is in line with what we were expecting */
+		if ((path->nextin.tv_sec != f->delivery.tv_sec) ||
+		    (path->nextin.tv_usec != f->delivery.tv_usec)) {
+			/* The time has changed between what we expected and this
+			   most recent time on the new packet.  Adjust our output
+			   time appropriately */
+			long sdiff;
+			long udiff;
+			sdiff = f->delivery.tv_sec - path->nextin.tv_sec;
+			udiff = f->delivery.tv_usec - path->nextin.tv_usec;
+			path->nextin.tv_sec = f->delivery.tv_sec;
+			path->nextin.tv_usec = f->delivery.tv_usec;
+			path->nextout.tv_sec += sdiff;
+			path->nextout.tv_usec += udiff;
+			if (path->nextout.tv_usec < 0) {
+				path->nextout.tv_usec += 1000000;
+				path->nextout.tv_sec--;
+			} else if (path->nextout.tv_usec >= 1000000) {
+				path->nextout.tv_usec -= 1000000;
+				path->nextout.tv_sec++;
+			}
+		}
+	} else {
+		/* This is our first pass.  Make sure the timing looks good */
+		path->nextin.tv_sec = f->delivery.tv_sec;
+		path->nextin.tv_usec = f->delivery.tv_usec;
+		path->nextout.tv_sec = f->delivery.tv_sec;
+		path->nextout.tv_usec = f->delivery.tv_usec;
+	}
+	/* Predict next incoming sample */
+	path->nextin.tv_sec += (f->samples / 8000);
+	path->nextin.tv_usec += ((f->samples % 8000) * 125);
+	if (path->nextin.tv_usec >= 1000000) {
+		path->nextin.tv_usec -= 1000000;
+		path->nextin.tv_sec++;
+	}
 	if (consume)
 		ast_frfree(f);
 	while(p) {
@@ -149,8 +189,18 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		if (p->next) 
 			p->next->step->framein(p->next->state, out);
 		else {
-			out->delivery.tv_sec = delivery.tv_sec;
-			out->delivery.tv_usec = delivery.tv_usec;
+			/* Use next predicted outgoing timestamp */
+			out->delivery.tv_sec = path->nextout.tv_sec;
+			out->delivery.tv_usec = path->nextout.tv_usec;
+			
+			/* Predict next outgoing timestamp from samples in this
+			   frame. */
+			path->nextout.tv_sec += (out->samples / 8000);
+			path->nextout.tv_usec += ((out->samples % 8000) * 125);
+			if (path->nextout.tv_usec >= 1000000) {
+				path->nextout.tv_sec++;
+				path->nextout.tv_usec -= 1000000;
+			}
 			return out;
 		}
 		p = p->next;
