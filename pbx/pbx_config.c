@@ -1576,7 +1576,7 @@ static int pbx_load_module(void)
 		}
 		cxt = ast_category_browse(cfg, NULL);
 		while(cxt) {
-			/* All categories but "general" are considered contexts */
+			/* All categories but "general" or "globals" are considered contexts */
 			if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals")) {
 				cxt = ast_category_browse(cfg, cxt);
 				continue;

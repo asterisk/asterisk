@@ -4096,12 +4096,13 @@ void __ast_context_destroy(struct ast_context *con, char *registrar, int lock)
 				free(tmpil);
 			}
 			for (ipi = tmp->ignorepats; ipi; ) {
-				/* Free includes */
+				/* Free ignorepats */
 				ipl = ipi;
 				ipi = ipi->next;
 				free(ipl);
 			}
 			for (sw = tmp->alts; sw; ) {
+				/* Free switches */
 				swl = sw;
 				sw = sw->next;
 				free(swl);
