@@ -492,6 +492,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	if (id && !ast_strlen_zero(id))
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 	ast_cli(s->fd, "Response: Success\r\n%s", idText);
+	ast_mutex_lock(&s->lock);
 	ast_mutex_lock(&actionlock);
 	while (cur) { /* Walk the list of actions */
 		if ((s->writeperm & cur->authority) == cur->authority)
@@ -500,6 +501,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	}
 	ast_mutex_unlock(&actionlock);
 	ast_cli(s->fd, "\r\n");
+	ast_mutex_unlock(&s->lock);
 
 	return 0;
 }
@@ -636,11 +638,13 @@ static int action_getvar(struct mansession *s, struct message *m)
 	varval=pbx_builtin_getvar_helper(c,varname);
 	  
 	ast_mutex_unlock(&c->lock);
+	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
 		"%s: %s\r\n" ,varname,varval);
 	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "\r\n");
+	ast_mutex_unlock(&s->lock);
 
 	return 0;
 }
@@ -679,6 +683,7 @@ static int action_status(struct mansession *s, struct message *m)
 			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->bridge->name);
 		else
 			bridge[0] = '\0';
+		ast_mutex_lock(&s->lock);
 		if (c->pbx) {
 			if (c->cdr) {
 				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
@@ -716,16 +721,19 @@ static int action_status(struct mansession *s, struct message *m)
 			c->accountcode,
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
+		ast_mutex_unlock(&s->lock);
 		ast_mutex_unlock(&c->lock);
 		if (name && !ast_strlen_zero(name)) {
 			break;
 		}
 		c = ast_channel_walk_locked(c);
 	}
+	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd,
 	"Event: StatusComplete\r\n"
 	"%s"
 	"\r\n",idText);
+	ast_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -921,17 +929,21 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	char *mailbox = astman_get_header(m, "Mailbox");
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
+	int ret;
 	if (!mailbox || ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
         if (id && !ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
+	ret = ast_app_has_voicemail(mailbox);
+	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
 				   "%s"
 				   "Message: Mailbox Status\r\n"
 				   "Mailbox: %s\r\n"
-		 		   "Waiting: %d\r\n\r\n", idText, mailbox, ast_app_has_voicemail(mailbox));
+		 		   "Waiting: %d\r\n\r\n", idText, mailbox, ret);
+	ast_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -949,6 +961,7 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
         if (id && !ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
+	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
 				   "%s"
 				   "Message: Mailbox Message Count\r\n"
@@ -957,6 +970,7 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 				   "OldMessages: %d\r\n" 
 				   "\r\n",
 				    idText,mailbox, newmsgs, oldmsgs);
+	ast_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -979,6 +993,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
         if (id && !ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
+	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
 			           "%s"
 				   "Message: Extension Status\r\n"
@@ -987,6 +1002,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 				   "Hint: %s\r\n"
 		 		   "Status: %d\r\n\r\n",
 				   idText,exten, context, hint, status);
+	ast_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -1049,10 +1065,12 @@ static int process_message(struct mansession *s, struct message *m)
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
 					ast_mutex_unlock(&s->lock);
 				}
+				ast_mutex_lock(&s->lock);
 				ast_cli(s->fd, "Response: Success\r\n"
 						"%s"
 						"Challenge: %s\r\n\r\n",
 						idText,s->challenge);
+				ast_mutex_unlock(&s->lock);
 				return 0;
 			} else {
 				astman_send_error(s, m, "Must specify AuthType");

@@ -797,6 +797,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 
         cur=parkinglot;
         while(cur) {
+			ast_mutex_lock(&s->lock);
                 ast_cli(s->fd, "Event: ParkedCall\r\n"
 			"Exten: %d\r\n"
 			"Channel: %s\r\n"
@@ -808,8 +809,9 @@ static int manager_parking_status( struct mansession *s, struct message *m )
                         ,(long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL)
 			,(cur->chan->callerid ? cur->chan->callerid : "")
 			,idText);
+			ast_mutex_unlock(&s->lock);
 
-                cur = cur->next;
+            cur = cur->next;
         }
 
 	ast_cli(s->fd,
