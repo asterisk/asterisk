@@ -419,8 +419,8 @@ static struct pbx_builtin {
 	},
 
 	{ "WaitExten", pbx_builtin_waitexten, 
-	"Waits for some time", 
-	"  Wait([seconds]): Waits for the user to enter a new extension for the \n"
+	"Waits for an extension to be entered", 
+	"  WaitExten([seconds]): Waits for the user to enter a new extension for the \n"
 	"specified number of seconds, then returns 0.  Seconds can be passed with\n"
 	"fractions of a seconds (eg: 1.5 = 1.5 seconds) or if unspecified the\n"
 	"default extension timeout will be used.\n" 
