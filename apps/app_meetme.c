@@ -555,16 +555,6 @@ static struct ast_cli_entry cli_conf = {
 	{ "meetme", NULL, NULL }, conf_cmd,
 	"Execute a command on a conference or conferee", conf_usage, complete_confcmd };
 
-static int confnonzero(void *ptr)
-{
-	struct ast_conference *conf = ptr;
-	int res;
-	ast_mutex_lock(&conflock);
-	res = (conf->markedusers == 0);
-	ast_mutex_unlock(&conflock);
-	return res;
-}
-
 static void conf_flush(int fd)
 {
 	int x;
@@ -593,6 +583,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int musiconhold = 0;
 	int firstpass = 0;
 	int origquiet;
+	int lastmarked = 0;
+	int currentmarked = 0;
 	int ret = -1;
 	int x;
 	int menu_active = 0;
@@ -692,35 +684,13 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		ast_record_review(chan,"vm-rec-name",user->namerecloc, 10,"sln", &duration, NULL);
 	}
 
-	while((confflags & CONFFLAG_WAITMARKED) && (conf->markedusers == 0)) {
-		confflags &= ~CONFFLAG_QUIET;
-		confflags |= origquiet;
-		/* XXX Announce that we're waiting on the conference lead to join */
-		if (!(confflags & CONFFLAG_QUIET)) {
-			res = ast_streamfile(chan, "vm-dialout", chan->language);
-			if (!res)
-				res = ast_waitstream(chan, "");
-		} else
-			res = 0;
-		/* If we're waiting with hold music, set to silent mode */
-		if (!res) {
-			confflags |= CONFFLAG_QUIET;
-			ast_moh_start(chan, NULL);
-			res = ast_safe_sleep_conditional(chan, 60000, confnonzero, conf);
-			ast_moh_stop(chan);
-		}
-		if (res < 0) {
-			ast_log(LOG_DEBUG, "Got hangup on '%s' already\n", chan->name);
-			goto outrun;
-		}
-	}
-	
-	if (!(confflags & CONFFLAG_QUIET) && conf->users == 1) {
-		if (!ast_streamfile(chan, "conf-onlyperson", chan->language)) {
-			if (ast_waitstream(chan, "") < 0)
-				goto outrun;
-		} else
-			goto outrun;
+	if (!(confflags & CONFFLAG_QUIET)) {
+		if (conf->users == 1 && !(confflags & CONFFLAG_WAITMARKED))
+			if (!ast_streamfile(chan, "conf-onlyperson", chan->language))
+				ast_waitstream(chan, "");
+		if ((confflags & CONFFLAG_WAITMARKED) && conf->markedusers == 0)
+			if (!ast_streamfile(chan, "conf-waitforleader", chan->language))
+				ast_waitstream(chan, "");
 	}
 
 	/* Set it into linear mode (write) */
@@ -835,7 +805,8 @@ zapretry:
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
 		firstpass = 1;
 		if (!(confflags & CONFFLAG_QUIET))
-			conf_play(chan, conf, ENTER);
+			if ((confflags & CONFFLAG_WAITMARKED) && conf->markedusers >= 1)
+				conf_play(chan, conf, ENTER);
 	}
 	conf_flush(fd);
 	ast_mutex_unlock(&conflock);
@@ -879,13 +850,82 @@ zapretry:
 		for(;;) {
 			outfd = -1;
 			ms = -1;
+			currentmarked = conf->markedusers;
+			if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_MARKEDUSER) && (confflags & CONFFLAG_WAITMARKED) && lastmarked == 0) {
+				if (currentmarked == 1 && conf->users > 1) {
+					ast_say_number(chan, conf->users - 1, AST_DIGIT_ANY, chan->language, (char *) NULL);
+					if (conf->users - 1 == 1) {
+						if (!ast_streamfile(chan, "conf-userwilljoin", chan->language))
+							ast_waitstream(chan, "");
+					} else {
+						if (!ast_streamfile(chan, "conf-userswilljoin", chan->language))
+							ast_waitstream(chan, "");
+					}
+				}
+				if (conf->users == 1 && ! (confflags & CONFFLAG_MARKEDUSER))
+					if (!ast_streamfile(chan, "conf-onlyperson", chan->language))
+						ast_waitstream(chan, "");
+			}
+
 			c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 			
 			/* Update the struct with the actual confflags */
 			user->userflags = confflags;
 			
+			if (confflags & CONFFLAG_WAITMARKED) {
+				if(currentmarked == 0) {
+					if (lastmarked != 0) {
+						if (!(confflags & CONFFLAG_QUIET))
+							if (!ast_streamfile(chan, "conf-leaderhasleft", chan->language))
+								ast_waitstream(chan, "");
+						if(confflags & CONFFLAG_MARKEDEXIT)
+							break;
+						else {
+							ztc.confmode = ZT_CONF_CONF;
+							if (ioctl(fd, ZT_SETCONF, &ztc)) {
+								ast_log(LOG_WARNING, "Error setting conference\n");
+								close(fd);
+								goto outrun;
+							}
+						}
+					}
+					if (musiconhold == 0 && (confflags & CONFFLAG_MOH)) {
+						ast_moh_start(chan, NULL);
+						musiconhold = 1;
+					} else {
+						ztc.confmode = ZT_CONF_CONF;
+						if (ioctl(fd, ZT_SETCONF, &ztc)) {
+							ast_log(LOG_WARNING, "Error setting conference\n");
+							close(fd);
+							goto outrun;
+						}
+					}
+				} else if(currentmarked >= 1 && lastmarked == 0) {
+					if (confflags & CONFFLAG_MONITOR)
+						ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
+					else if (confflags & CONFFLAG_TALKER)
+						ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER;
+					else
+						ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+					if (ioctl(fd, ZT_SETCONF, &ztc)) {
+						ast_log(LOG_WARNING, "Error setting conference\n");
+						close(fd);
+						goto outrun;
+					}
+					if (musiconhold && (confflags & CONFFLAG_MOH)) {
+						ast_moh_stop(chan);
+						musiconhold = 0;
+					}
+					if ( !(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MARKEDUSER)) {
+						if (!ast_streamfile(chan, "conf-placeintoconf", chan->language))
+							ast_waitstream(chan, "");
+						conf_play(chan, conf, ENTER);
+					}
+				}
+			}
+
 			/* trying to add moh for single person conf */
-			if (confflags & CONFFLAG_MOH) {
+			if ((confflags & CONFFLAG_MOH) && !( confflags & CONFFLAG_WAITMARKED)) {
 				if (conf->users == 1) {
 					if (musiconhold == 0) {
 						ast_moh_start(chan, NULL);
@@ -900,7 +940,7 @@ zapretry:
 			}
 			
 			/* Leave if the last marked user left */
-			if (conf->markedusers == 0 && confflags & CONFFLAG_MARKEDEXIT) {
+			if (currentmarked == 0 && (confflags & CONFFLAG_MARKEDEXIT)) {
 				ret = -1;
 				break;
 			}
@@ -1152,6 +1192,7 @@ zapretry:
 				} else 
 					ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 			}
+			lastmarked = currentmarked;
 		}
 	}
 	if (using_pseudo)
