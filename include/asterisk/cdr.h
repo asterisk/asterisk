@@ -220,9 +220,10 @@ extern char *ast_cdr_disp2str(int disposition);
 //! Reset the detail record, optionally posting it first
 /*!
  * \param cdr which cdr to act upon
- * \param post whether or not to post the cdr first before resetting it
+ * \param flags |AST_CDR_FLAG_POSTED whether or not to post the cdr first before resetting it
+ *              |AST_CDR_FLAG_LOCKED whether or not to reset locked CDR's
  */
-extern void ast_cdr_reset(struct ast_cdr *cdr, int post);
+extern void ast_cdr_reset(struct ast_cdr *cdr, int flags);
 
 //! Flags to a string
 /*!
@@ -248,6 +249,7 @@ extern int ast_default_amaflags;
 
 extern char ast_default_accountcode[20];
 
+#define ast_cdr_compare_flag(flags, flag) (flags & (flag))
 #define ast_cdr_has_flag(cdr, flag) ((cdr)->flags & (flag))
 #define ast_cdr_add_flag(cdr, flag) ((cdr)->flags |= (flag))
 #define ast_cdr_del_flag(cdr, flag) ((cdr)->flags &= ~(flag))

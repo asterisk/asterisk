@@ -499,25 +499,29 @@ void ast_cdr_post(struct ast_cdr *cdr)
 	}
 }
 
-void ast_cdr_reset(struct ast_cdr *cdr, int post)
+void ast_cdr_reset(struct ast_cdr *cdr, int flags)
 {
 	while (cdr) {
 		/* Post if requested */
-		if (post) {
-			ast_cdr_end(cdr);
-			ast_cdr_post(cdr);
+		if (ast_cdr_compare_flag(flags,AST_CDR_FLAG_LOCKED) || !ast_cdr_has_flag(cdr,AST_CDR_FLAG_LOCKED)) {
+			if (ast_cdr_compare_flag(flags,AST_CDR_FLAG_POSTED)) {
+				ast_cdr_end(cdr);
+				ast_cdr_post(cdr);
+			}
+			/* Reset to initial state */
+			cdr->flags=0;
+			memset(&cdr->start, 0, sizeof(cdr->start));
+			memset(&cdr->end, 0, sizeof(cdr->end));
+			memset(&cdr->answer, 0, sizeof(cdr->answer));
+			cdr->billsec = 0;
+			cdr->duration = 0;
+			ast_cdr_start(cdr);
+			cdr->disposition = AST_CDR_NOANSWER;
 		}
-		/* Reset to initial state */
-		cdr->flags=0;
-		memset(&cdr->start, 0, sizeof(cdr->start));
-		memset(&cdr->end, 0, sizeof(cdr->end));
-		memset(&cdr->answer, 0, sizeof(cdr->answer));
-		cdr->billsec = 0;
-		cdr->duration = 0;
-		ast_cdr_start(cdr);
-		cdr->disposition = AST_CDR_NOANSWER;
+			
 		cdr = cdr->next;
 	}
+	
 }
 
 void ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr) {

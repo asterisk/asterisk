@@ -4387,11 +4387,16 @@ static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 {
+	int flags = 0;
 	/* Reset the CDR as specified */
-	if (data)
-		ast_cdr_reset(chan->cdr, strchr((char *)data, 'w') ? 1 : 0);
-	else
-		ast_cdr_reset(chan->cdr, 0);
+	if(data) {
+		if(strchr((char *)data, 'w'))
+			flags |= AST_CDR_FLAG_POSTED;
+		if(strchr((char *)data, 'a'))
+			flags |= AST_CDR_FLAG_LOCKED;
+	}
+
+	ast_cdr_reset(chan->cdr, flags);
 	return 0;
 }
 
