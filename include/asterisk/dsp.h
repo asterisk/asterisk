@@ -33,6 +33,15 @@
 #define DSP_PROGRESS_CONGESTION		(1 << 19)		/* Enable congestion tone detection */
 #define DSP_FEATURE_CALL_PROGRESS	(DSP_PROGRESS_TALK | DSP_PROGRESS_RINGING | DSP_PROGRESS_BUSY | DSP_PROGRESS_CONGESTION)
 
+#define DSP_TONE_STATE_SILENCE  0
+#define DSP_TONE_STATE_RINGING  1 
+#define DSP_TONE_STATE_DIALTONE 2
+#define DSP_TONE_STATE_TALKING  3
+#define DSP_TONE_STATE_BUSY     4
+#define DSP_TONE_STATE_SPECIAL1	5
+#define DSP_TONE_STATE_SPECIAL2 6
+#define DSP_TONE_STATE_SPECIAL3 7
+
 struct ast_dsp;
 
 struct ast_dsp *ast_dsp_new(void);
@@ -79,4 +88,9 @@ int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max);
 /* Set digit mode */
 int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode);
 
+/* Get tstate (Tone State) */
+int ast_dsp_get_tstate(struct ast_dsp *dsp);
+
+/* Get tcount (Threshold counter) */
+int ast_dsp_get_tcount(struct ast_dsp *dsp);
 #endif

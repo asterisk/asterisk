@@ -96,15 +96,6 @@ static struct progress {
 #define TONE_MIN_THRESH 1e8	/* How much tone there should be at least to attempt */
 #define COUNT_THRESH  3		/* Need at least 50ms of stuff to count it */
 
-#define TONE_STATE_SILENCE  0
-#define TONE_STATE_RINGING  1 
-#define TONE_STATE_DIALTONE 2
-#define TONE_STATE_TALKING  3
-#define TONE_STATE_BUSY     4
-#define TONE_STATE_SPECIAL1	5
-#define TONE_STATE_SPECIAL2 6
-#define TONE_STATE_SPECIAL3 7
-
 #define	MAX_DTMF_DIGITS 128
 
 /* Basic DTMF specs:
@@ -1116,7 +1107,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 	int x;
 	int y;
 	int pass;
-	int newstate = TONE_STATE_SILENCE;
+	int newstate = DSP_TONE_STATE_SILENCE;
 	int res = 0;
 	while(len) {
 		/* Take the lesser of the number of samples we need and what we have */
@@ -1142,31 +1133,31 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			switch(dsp->progmode) {
 			case PROG_MODE_NA:
 				if (pair_there(hz[HZ_480], hz[HZ_620], hz[HZ_350], hz[HZ_440], dsp->genergy)) {
-					newstate = TONE_STATE_BUSY;
+					newstate = DSP_TONE_STATE_BUSY;
 				} else if (pair_there(hz[HZ_440], hz[HZ_480], hz[HZ_350], hz[HZ_620], dsp->genergy)) {
-					newstate = TONE_STATE_RINGING;
+					newstate = DSP_TONE_STATE_RINGING;
 				} else if (pair_there(hz[HZ_350], hz[HZ_440], hz[HZ_480], hz[HZ_620], dsp->genergy)) {
-					newstate = TONE_STATE_DIALTONE;
+					newstate = DSP_TONE_STATE_DIALTONE;
 				} else if (hz[HZ_950] > TONE_MIN_THRESH * TONE_THRESH) {
-					newstate = TONE_STATE_SPECIAL1;
+					newstate = DSP_TONE_STATE_SPECIAL1;
 				} else if (hz[HZ_1400] > TONE_MIN_THRESH * TONE_THRESH) {
-					if (dsp->tstate == TONE_STATE_SPECIAL1)
-						newstate = TONE_STATE_SPECIAL2;
+					if (dsp->tstate == DSP_TONE_STATE_SPECIAL1)
+						newstate = DSP_TONE_STATE_SPECIAL2;
 				} else if (hz[HZ_1800] > TONE_MIN_THRESH * TONE_THRESH) {
-					if (dsp->tstate == TONE_STATE_SPECIAL2)
-						newstate = TONE_STATE_SPECIAL3;
+					if (dsp->tstate == DSP_TONE_STATE_SPECIAL2)
+						newstate = DSP_TONE_STATE_SPECIAL3;
 				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
-					newstate = TONE_STATE_TALKING;
+					newstate = DSP_TONE_STATE_TALKING;
 				} else
-					newstate = TONE_STATE_SILENCE;
+					newstate = DSP_TONE_STATE_SILENCE;
 				break;
 			case PROG_MODE_CR:
 				if (hz[HZ_425] > TONE_MIN_THRESH * TONE_THRESH) {
-					newstate = TONE_STATE_RINGING;
+					newstate = DSP_TONE_STATE_RINGING;
 				} else if (dsp->genergy > TONE_MIN_THRESH * TONE_THRESH) {
-					newstate = TONE_STATE_TALKING;
+					newstate = DSP_TONE_STATE_TALKING;
 				} else
-					newstate = TONE_STATE_SILENCE;
+					newstate = DSP_TONE_STATE_SILENCE;
 				break;
 			default:
 				ast_log(LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
@@ -1174,15 +1165,15 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			if (newstate == dsp->tstate) {
 				dsp->tcount++;
 				if (dsp->tcount == COUNT_THRESH) {
-					if ((dsp->features & DSP_PROGRESS_BUSY) && dsp->tstate == TONE_STATE_BUSY) {
+					if ((dsp->features & DSP_PROGRESS_BUSY) && dsp->tstate == DSP_TONE_STATE_BUSY) {
 						res = AST_CONTROL_BUSY;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if ((dsp->features & DSP_PROGRESS_TALK) && dsp->tstate == TONE_STATE_TALKING) {
+					} else if ((dsp->features & DSP_PROGRESS_TALK) && dsp->tstate == DSP_TONE_STATE_TALKING) {
 						res = AST_CONTROL_ANSWER;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if ((dsp->features & DSP_PROGRESS_RINGING) && dsp->tstate == TONE_STATE_RINGING)
+					} else if ((dsp->features & DSP_PROGRESS_RINGING) && dsp->tstate == DSP_TONE_STATE_RINGING)
 						res = AST_CONTROL_RINGING;
-					else if ((dsp->features & DSP_PROGRESS_CONGESTION) && dsp->tstate == TONE_STATE_SPECIAL3) {
+					else if ((dsp->features & DSP_PROGRESS_CONGESTION) && dsp->tstate == DSP_TONE_STATE_SPECIAL3) {
 						res = AST_CONTROL_CONGESTION;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 					}
@@ -1743,3 +1734,15 @@ int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone)
 	}
 	return -1;
 }
+
+int ast_dsp_get_tstate(struct ast_dsp *dsp) 
+{
+	return dsp->tstate;
+}
+
+
+int ast_dsp_get_tcount(struct ast_dsp *dsp) 
+{
+	return dsp->tcount;
+}
+
