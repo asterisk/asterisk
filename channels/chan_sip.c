@@ -1573,7 +1573,7 @@ static int sip_register(char *value, int lineno)
 		hostname++;
 	}
 	if (!username || !strlen(username) || !hostname || !strlen(hostname)) {
-		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port] at line %d", lineno);
+		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d", lineno);
 		return -1;
 	}
 	stringp=username;
@@ -4091,6 +4091,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "NAT Support:         %s\n", cur->nat ? "Yes" : "No");
 			ast_cli(fd, "Our Tag:             %08d\n", cur->tag);
 			ast_cli(fd, "Their Tag:           %s\n", cur->theirtag);
+			ast_cli(fd, "Need Destroy:        %d\n", cur->needdestroy);
 			strcpy(tmp, "");
 			if (cur->dtmfmode & SIP_DTMF_RFC2833)
 				strcat(tmp, "rfc2833 ");
