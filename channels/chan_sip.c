@@ -7650,7 +7650,7 @@ restartsearch:
 		sip = iflist;
 		while(sip) {
 			ast_mutex_lock(&sip->lock);
-			if (sip->rtp && sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout) && !sip->redirip.sin_addr.s_addr) {
+			if (sip->rtp && sip->owner && (sip->owner->_state == AST_STATE_UP) && sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout) && !sip->redirip.sin_addr.s_addr) {
 				if (t > sip->lastrtprx + sip->rtptimeout) {
 					/* Might be a timeout now -- see if we're on hold */
 					struct sockaddr_in sin;
