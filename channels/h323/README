@@ -31,8 +31,8 @@ you are on your own, sorry.
 
 
 To compile this code:
-You first need Open H.323 v1.12.2 and PWLib v1.5.2 versions of PWLib and Open H.323 from
-http://www.openh323.org/. Make sure you follow the build instructions EXPLICTLY.
+You first need Open H.323 v1.12.2 and PWLib v1.5.2 from http://www.openh323.org/bin/. Make sure you
+follow the build instructions EXPLICTLY at http://www.openh323.org/build.html.
 
 Once PWLib and Open H.323 have been compiled, issue a make in the asterisk/channels/h323 
 directory, then go back to the Asterisk source top level directory and issue a make install.
