@@ -20,7 +20,11 @@
 #include <asterisk/options.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#ifdef __linux__
 #include <sys/signal.h>
+#else
+#include <signal.h>
+#endif /* __linux__ */
 
 #include <stdlib.h>
 #include <unistd.h>
