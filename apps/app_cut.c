@@ -85,6 +85,8 @@ static int cut_exec(struct ast_channel *chan, void *data)
 		char *tmp2 = alloca(MAXRESULT);
 		char retstring[MAXRESULT];
 
+		if (tmp2)
+			memset(tmp2, 0, MAXRESULT);
 		memset(retstring, 0, MAXRESULT);
 
 		if (tmp && tmp2) {

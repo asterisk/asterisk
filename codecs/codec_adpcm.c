@@ -27,7 +27,6 @@
 #include <unistd.h>
 
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
-#define BUF_SHIFT	5
 
 static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt = 0;
@@ -105,6 +104,8 @@ decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rke
 	*signal = -2047;
 
   *next = 0;
+
+#ifdef AUTO_RETURN
   if( encoded & 0x7 )
         *rkey = 0;
   else if ( ++(*rkey) == 24 ) {
@@ -114,6 +115,7 @@ decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rke
 	else if (*signal < 0)
 		*next = 0x2;
   }
+#endif
 
   *ssindex = *ssindex + indsft[(encoded & 7)];
   if (*ssindex < 0)
@@ -200,6 +202,10 @@ struct adpcm_decoder_pvt
   struct ast_frame f;
   char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
   short outbuf[BUFFER_SIZE];	/* Decoded signed linear values */
+  short ssindex;
+  short signal;
+  unsigned char zero_count;
+  unsigned char next_flag;
   int tail;
 };
 
@@ -272,41 +278,21 @@ adpcmtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
 {
   struct adpcm_decoder_pvt *tmp = (struct adpcm_decoder_pvt *) pvt;
   int x;
-  short signal;
-  short ssindex;
   unsigned char *b;
-  unsigned char zero_count;
-  unsigned char next_flag;
 
-  if (f->datalen < BUF_SHIFT) {
-  	ast_log(LOG_WARNING, "Didn't have at least %d bytes of input\n", BUF_SHIFT);
-	return -1;
-  }
-
-  if ((f->datalen - BUF_SHIFT) * 4 > sizeof(tmp->outbuf)) {
+  if (f->datalen * 4 > sizeof(tmp->outbuf)) {
   	ast_log(LOG_WARNING, "Out of buffer space\n");
 	return -1;
   }
 
-  /* Reset ssindex and signal to frame's specified values */
   b = f->data;
-  ssindex = b[0];
-  if (ssindex < 0)
-  	ssindex = 0;
-  if (ssindex > 48)
-    ssindex = 48;
 
-  signal = (b[1] << 8) | b[2]; 
+  for (x=0;x<f->datalen;x++) {
+	decode((b[x] >> 4) & 0xf, &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
+	tmp->outbuf[tmp->tail++] = tmp->signal << 4;
 
-  zero_count = b[3];
-  next_flag = b[4];
-
-  for (x=BUF_SHIFT;x<f->datalen;x++) {
-	decode((b[x] >> 4) & 0xf, &ssindex, &signal, &zero_count, &next_flag);
-	tmp->outbuf[tmp->tail++] = signal << 4;
-
-	decode(b[x] & 0x0f, &ssindex, &signal, &zero_count, &next_flag);
-	tmp->outbuf[tmp->tail++] = signal << 4;
+	decode(b[x] & 0x0f, &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
+	tmp->outbuf[tmp->tail++] = tmp->signal << 4;
   }
 
   return 0;
@@ -408,7 +394,7 @@ lintoadpcm_frameout (struct ast_translator_pvt *pvt)
     adpcm0 = adpcm (tmp->inbuf[i], &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
     adpcm1 = adpcm (tmp->inbuf[i+1], &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
 
-    tmp->outbuf[i/2 + BUF_SHIFT] = (adpcm0 << 4) | adpcm1;
+    tmp->outbuf[i/2] = (adpcm0 << 4) | adpcm1;
   };
 
 
@@ -419,7 +405,7 @@ lintoadpcm_frameout (struct ast_translator_pvt *pvt)
   tmp->f.offset = AST_FRIENDLY_OFFSET;
   tmp->f.src = __PRETTY_FUNCTION__;
   tmp->f.data = tmp->outbuf;
-  tmp->f.datalen = i_max / 2 + BUF_SHIFT;
+  tmp->f.datalen = i_max / 2;
 
   /*
    * If there is a signal left over (there should be no more than

@@ -44,7 +44,7 @@ struct asent {
 };
 
 static struct asent *aslist = NULL;
-static pthread_t asthread = (pthread_t) -1;
+static pthread_t asthread = AST_PTHREADT_NULL;
 
 static void *autoservice_run(void *ign)
 {
@@ -80,7 +80,7 @@ static void *autoservice_run(void *ign)
 				ast_frfree(f);
 		}
 	}
-	asthread = (pthread_t) -1;
+	asthread = AST_PTHREADT_NULL;
 	return NULL;
 }
 
@@ -90,7 +90,7 @@ int ast_autoservice_start(struct ast_channel *chan)
 	struct asent *as;
 	int needstart;
 	ast_mutex_lock(&autolock);
-	needstart = (asthread == (pthread_t) -1) ? 1 : 0 /* aslist ? 0 : 1 */;
+	needstart = (asthread == AST_PTHREADT_NULL) ? 1 : 0 /* aslist ? 0 : 1 */;
 	as = aslist;
 	while(as) {
 		if (as->chan == chan)
@@ -142,7 +142,7 @@ int ast_autoservice_stop(struct ast_channel *chan)
 		if (!chan->_softhangup)
 			res = 0;
 	}
-	if (asthread != (pthread_t) -1) 
+	if (asthread != AST_PTHREADT_NULL) 
 		pthread_kill(asthread, SIGURG);
 	ast_mutex_unlock(&autolock);
 	/* Wait for it to un-block */

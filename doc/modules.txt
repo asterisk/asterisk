@@ -3,8 +3,8 @@ All modules must have at least the following functions:
 int load_module():
 
 	Do what you need to do when you get started.  This function
-returns 0 on sucess and non-zero on failure (it is not considered loaded
-if it failes.
+returns 0 on success and non-zero on failure (it is not considered loaded
+if it fails.
 
 int unload_module():
 	
@@ -12,7 +12,7 @@ int unload_module():
 features, you should give them a softhangup in an effort to keep the
 program from crashing.  Generally, unload_module is only called when the
 usecount is 0 or less, but the user can force unloading at their
-discression, and thus a module should do its best to comply (although in
+discretion, and thus a module should do its best to comply (although in
 some cases there may be no way to avoid a crash).  This function should
 return 0 on success and non-zero on failure (i.e. it cannot yet be
 unloaded).

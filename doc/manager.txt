@@ -12,7 +12,7 @@ receive this class of "event".
 
 Command Syntax
 --------------
-Mangement communication consists of tags of the form "header: value", 
+Management communication consists of tags of the form "header: value", 
 terminated with an empty newline (\r\n) in the style of SMTP, HTTP, and
 other headers.
 

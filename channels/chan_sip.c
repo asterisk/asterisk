@@ -54,7 +54,8 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#ifdef MYSQL_FRIENDS
+#ifdef SIP_MYSQL_FRIENDS
+#define MYSQL_FRIENDS
 #include <mysql/mysql.h>
 #endif
 
@@ -134,7 +135,7 @@ static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
-static pthread_t monitor_thread = 0;
+static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
@@ -252,6 +253,7 @@ static struct sip_pvt {
 	char our_contact[256];				/* Our contact header */
 	char realm[256];				/* Authorization realm */
 	char nonce[256];				/* Authorization nonce */
+	char opaque[256];				/* Opaque nonsense */
 	char domain[256];				/* Authorization nonce */
 	char lastmsg[256];				/* Last Message sent/received */
 	int amaflags;						/* AMA Flags */
@@ -687,17 +689,20 @@ static int sip_sendtext(struct ast_channel *ast, char *text)
 
 #ifdef MYSQL_FRIENDS
 
-static void mysql_update_peer(char *peer, struct sockaddr_in *sin)
+static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *username, int expiry)
 {
 	if (mysql && (strlen(peer) < 128)) {
 		char query[512];
 		char *name;
+		char *uname;
 		time_t nowtime;
 		name = alloca(strlen(peer) * 2 + 1);
+		uname = alloca(strlen(username) * 2 + 1);
 		time(&nowtime);
 		mysql_real_escape_string(mysql, name, peer, strlen(peer));
-		snprintf(query, sizeof(query), "UPDATE sipfriends SET ipaddr=\"%s\", port=\"%d\", regseconds=\"%ld\" WHERE name=\"%s\"", 
-			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), nowtime, name);
+		mysql_real_escape_string(mysql, uname, username, strlen(username));
+		snprintf(query, sizeof(query), "UPDATE sipfriends SET ipaddr=\"%s\", port=\"%d\", regseconds=\"%ld\", username=\"%s\" WHERE name=\"%s\"", 
+			inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), nowtime + expiry, uname, name);
 		ast_mutex_lock(&mysqllock);
 		if (mysql_real_query(mysql, query, strlen(query))) 
 			ast_log(LOG_WARNING, "Unable to update database\n");
@@ -745,6 +750,8 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 							strncpy(p->name, rowval[x], sizeof(p->name) - 1);
 						} else if (!strcasecmp(fields[x].name, "context")) {
 							strncpy(p->context, rowval[x], sizeof(p->context) - 1);
+						} else if (!strcasecmp(fields[x].name, "username")) {
+							strncpy(p->username, rowval[x], sizeof(p->username) - 1);
 						} else if (!strcasecmp(fields[x].name, "ipaddr")) {
 							inet_aton(rowval[x], &p->addr.sin_addr);
 						} else if (!strcasecmp(fields[x].name, "port")) {
@@ -758,9 +765,11 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 					}
 				}
 				time(&nowtime);
-				if ((nowtime - regseconds) > default_expiry) 
+				if (nowtime > regseconds) 
 					memset(&p->addr, 0, sizeof(p->addr));
 			}
+			mysql_free_result(result);
+			result = NULL;
 		}
 		ast_mutex_unlock(&mysqllock);
 	}
@@ -853,8 +862,11 @@ static int create_addr(struct sip_pvt *r, char *peer)
 					r->sa.sin_port = p->defaddr.sin_port;
 				}
 				memcpy(&r->recv, &r->sa, sizeof(r->recv));
-			} else
+			} else {
+				if (p->temponly)
+					free(p);
 				p = NULL;
+			}
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
@@ -1029,7 +1041,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
 	if (sipdebug)
-		ast_log(LOG_DEBUG, "Destorying call '%s'\n", p->callid);
+		ast_log(LOG_DEBUG, "Destroying call '%s'\n", p->callid);
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
 	if (p->initid > -1)
@@ -1397,7 +1409,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
-			if (!p->progress && !p->ringing) {
+			if (!p->progress) {
 				transmit_response(p, "180 Ringing", &p->initreq);
 				p->ringing = 1;
 				break;
@@ -2608,7 +2620,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	char a2[1024] = "";
 	int x;
 	struct sockaddr_in dest;
-	struct sockaddr_in vdest;
+	struct sockaddr_in vdest = { 0, };
 	/* XXX We break with the "recommendation" and send our IP, in order that our
 	       peer doesn't have to gethostbyname() us XXX */
 	len = 0;
@@ -2682,7 +2694,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		cur = cur->next;
 	}
 	/* Now send any other common codecs, and non-codec formats: */
-	for (x = 1; x <= AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	for (x = 1; x <= (videosupport ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if ((p->jointcapability & x) && !(alreadysent & x)) {
 			if (sipdebug)
 				ast_verbose("Answering with capability %d\n", x);	
@@ -2720,6 +2732,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 			}
 		}
 	}
+	strncat(a, "a=silenceSupp:off - - - -\r\n", sizeof(a) - strlen(a));
 	if (strlen(m) < sizeof(m) - 2)
 		strcat(m, "\r\n");
 	if (strlen(m2) < sizeof(m2) - 2)
@@ -2902,8 +2915,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 				l = callerid;
 	}
 	/* if user want's his callerid restricted */
-	if (p->restrictcid)
+	if (p->restrictcid) {
 		l = CALLERID_UNKNOWN;
+		n = l;
+	}
 	if (!n || !strlen(n))
 		n = l;
 	/* Allow user to be overridden */
@@ -3252,7 +3267,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Contact", p->our_contact);
 	add_header(&req, "Event", "registration");
-	add_header(&req, "Content-length", "0");
+	add_header(&req, "Content-Length", "0");
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
@@ -3305,6 +3320,7 @@ static int transmit_refer(struct sip_pvt *p, char *dest)
 	add_header(&req, "Refer-To", referto);
 	if (strlen(p->our_contact))
 		add_header(&req, "Referred-By", p->our_contact);
+	add_blank_header(&req);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
@@ -3492,14 +3508,10 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	if (!p->temponly)
 		p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
 	pvt->expiry = expiry;
+	snprintf(data, sizeof(data), "%s:%d:%d:%s", inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username);
+	ast_db_put("SIP/Registry", p->name, data);
 	if (inaddrcmp(&p->addr, &oldsin)) {
-#ifdef MYSQL_FRIENDS
-		if (p->temponly)
-			mysql_update_peer(p->name, &p->addr);
-#endif
 		sip_poke_peer(p);
-		snprintf(data, sizeof(data), "%s:%d:%d:%s", inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username);
-		ast_db_put("SIP/Registry", p->name, data);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
 	}
@@ -3628,13 +3640,26 @@ static void md5_hash(char *output, char *input)
 			ptr += sprintf(ptr, "%2.2x", digest[x]);
 }
 
-static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *md5secret, char *method, char *uri, int reliable)
+static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata, int randlen, char *username, char *secret, char *md5secret, char *method, char *uri, int reliable, int ignore)
 {
 	int res = -1;
 	/* Always OK if no secret */
 	if (!strlen(secret) && !strlen(md5secret))
 		return 0;
-	if (!strlen(randdata) || !strlen(get_header(req, "Proxy-Authorization"))) {
+	if (ignore) {
+		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
+		   information */
+		if (strlen(randdata)) {
+			if (!reliable) {
+				/* Resend message if this was NOT a reliable delivery.   Otherwise the
+				   retransmission should get it */
+				transmit_response_with_auth(p, "407 Proxy Authentication Required", req, randdata, reliable);
+				/* Schedule auto destroy in 15 seconds */
+				sip_scheddestroy(p, 15000);
+			}
+			res = 1;
+		}
+	} else if (!strlen(randdata) || !strlen(get_header(req, "Proxy-Authorization"))) {
 		snprintf(randdata, randlen, "%08x", rand());
 		transmit_response_with_auth(p, "407 Proxy Authentication Required", req, randdata, reliable);
 		/* Schedule auto destroy in 15 seconds */
@@ -3648,7 +3673,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		char a1_hash[256];
 		char a2_hash[256];
 		char resp[256];
-		char resp_hash[256];
+		char resp_hash[256]="";
 		char tmp[256] = "";
 		char *c;
 		char *z;
@@ -3735,7 +3760,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
     return 0;
 }
 
-static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct sip_request *req, char *uri)
+static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct sip_request *req, char *uri, int ignore)
 {
 	int res = -1;
 	struct sip_peer *peer;
@@ -3780,15 +3805,19 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 #endif
 	if (peer) {
 			if (!peer->dynamic) {
-				ast_log(LOG_NOTICE, "Peer '%s' isn't dynamic\n", peer->name);
+				ast_log(LOG_NOTICE, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 			} else {
 				p->nat = peer->nat;
 				transmit_response(p, "100 Trying", req);
-				if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, "REGISTER", uri, 0))) {
+				if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, "REGISTER", uri, 0, ignore))) {
 					sip_cancel_destroy(p);
 					if (parse_contact(p, peer, req)) {
 						ast_log(LOG_WARNING, "Failed to parse contact info\n");
 					} else {
+#ifdef MYSQL_FRIENDS
+		                if (peer->temponly)
+					mysql_update_peer(peer->name, &peer->addr, peer->username, p->expiry);
+#endif
 						/* Say OK and ask subsystem to retransmit msg counter */
 						transmit_response_with_date(p, "200 OK", req);
 						peer->lastmsgssent = -1;
@@ -3808,7 +3837,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			if (parse_contact(p, peer, req)) {
 				ast_log(LOG_WARNING, "Failed to parse contact info\n");
 			} else {
-				/* Say OK and ask subsystem to retransmit msg counter */
+		/* Say OK and ask subsystem to retransmit msg counter */
 				transmit_response_with_date(p, "200 OK", req);
 				peer->lastmsgssent = -1;
 				res = 0;
@@ -3888,8 +3917,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	if ((a = strchr(c, ';'))) {
 		*a = '\0';
 	}
-	if ((a = strchr(fr, '@')) || (a = strchr(fr, ';'))) {
-		*a = '\0';
+	if (fr) {
+		if ((a = strchr(fr, '@')) || (a = strchr(fr, ';'))) {
+			*a = '\0';
+		}
 	}
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
@@ -3955,11 +3986,15 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 		a++;
 		if (!strncasecmp(a, "REPLACES=", strlen("REPLACES="))) {
 			strncpy(tmp5, a + strlen("REPLACES="), sizeof(tmp5) - 1);
-			if ((a = strchr(tmp5, '%'))) {
+			a = tmp5;
+			while ((a = strchr(a, '%'))) {
 				/* Yuck!  Pingtel converts the '@' to a %40, icky icky!  Convert
 				   back to an '@' */
+				if (strlen(a) < 3)
+					break;
 				*a = hex2int(a[1]) * 16 + hex2int(a[2]);
 				memmove(a + 1, a+3, strlen(a + 3) + 1);
+				a++;
 			}
 			if ((a = strchr(tmp5, '%'))) 
 				*a = '\0';
@@ -4147,7 +4182,7 @@ static char *get_calleridname(char *input,char *output)
 	}
 	return output;
 }
-static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin)
+static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
 {
 	struct sip_user *user;
 	struct sip_peer *peer;
@@ -4204,7 +4239,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
 				ast_rtp_setnat(p->vrtp, p->nat);
 			}
-			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable))) {
+			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable, ignore))) {
 				sip_cancel_destroy(p);
 				if (strlen(user->context))
 					strncpy(p->context, user->context, sizeof(p->context) - 1);
@@ -4620,7 +4655,7 @@ static int sip_no_debug(int fd, int argc, char *argv[])
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, char *digest, int digest_len);
 
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader) {
-	char digest[256];
+	char digest[1024];
 	p->authtries++;
 	memset(digest,0,sizeof(digest));
 	if (reply_digest(p,req, header, "REGISTER", digest, sizeof(digest))) {
@@ -4631,7 +4666,7 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *he
 }
 
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, char *msg, int init) {
-	char digest[256];
+	char digest[1024];
 	p->authtries++;
 	memset(digest,0,sizeof(digest));
 	if (reply_digest(p,req, "Proxy-Authenticate", msg, digest, sizeof(digest) )) {
@@ -4643,10 +4678,11 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, char *orig_header, char *digest, int digest_len) {
 
-	char tmp[256] = "";
+	char tmp[512] = "";
 	char *realm = "";
 	char *nonce = "";
 	char *domain = "";
+	char *opaque = "";
 	char *c;
 
 
@@ -4681,6 +4717,17 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 				if ((c = strchr(c,',')))
 					*c = '\0';
 			}
+		} else if (!strncasecmp(c, "opaque=", strlen("opaque="))) {
+			c+=strlen("opaque=");
+			if ((*c == '\"')) {
+				opaque=++c;
+				if ((c = strchr(c,'\"')))
+					*c = '\0';
+			} else {
+				opaque = c;
+				if ((c = strchr(c,',')))
+					*c = '\0';
+			}
 		} else if (!strncasecmp(c, "domain=", strlen("domain="))) {
 			c+=strlen("domain=");
 			if ((*c == '\"')) {
@@ -4704,6 +4751,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 	strncpy(p->realm, realm, sizeof(p->realm)-1);
 	strncpy(p->nonce, nonce, sizeof(p->nonce)-1);
 	strncpy(p->domain, domain, sizeof(p->domain)-1);
+	strncpy(p->opaque, opaque, sizeof(p->opaque)-1);
 	build_reply_digest(p, orig_header, digest, digest_len); 
 	return 0;
 }
@@ -4735,7 +4783,7 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,p->nonce,a2_hash);
 	md5_hash(resp_hash,resp);
 
-	snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\"",p->peername,p->realm,uri,p->nonce,resp_hash);
+	snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=\"MD5\", uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->peername,p->realm,uri,p->nonce,resp_hash, p->opaque);
 
 	return 0;
 }
@@ -4905,9 +4953,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 100:
 			break;
 		case 183:	
-			if (p->owner) {
-				/* Queue a progress frame */
-				ast_queue_control(p->owner, AST_CONTROL_PROGRESS, 0);
+			if (!strcasecmp(msg, "INVITE")) {
+				if (strlen(get_header(req, "Content-Type")))
+					process_sdp(p, req);
+				if (p->owner) {
+					/* Queue a progress frame */
+					ast_queue_control(p->owner, AST_CONTROL_PROGRESS, 0);
+				}
 			}
 			break;
 		case 180:
@@ -5046,7 +5098,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 				/* XXX Locking issues?? XXX */
 				switch(resp) {
+				case 300: /* Multiple Choices */
+				case 301: /* Moved permenantly */
 				case 302: /* Moved temporarily */
+				case 305: /* Use Proxy */
 					parse_moved_contact(p, req);
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY, 0);
@@ -5267,7 +5322,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					return -1;
 			} else {
 				p->jointcapability = p->capability;
-				ast_log(LOG_DEBUG, "Hm....  No sdp for the moemnt\n");
+				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
 			}
 			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
 			if (p->owner)
@@ -5276,7 +5331,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first invite */
-			res = check_user(p, req, cmd, e, 1, sin);
+			res = check_user(p, req, cmd, e, 1, sin, ignore);
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
@@ -5458,7 +5513,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_rtp_stop(p->vrtp);
 		}
 		if (strlen(get_header(req, "Also"))) {
-			ast_log(LOG_NOTICE, "Client '%s' using depreciated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
+			ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
 				inet_ntoa(p->recv.sin_addr));
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
@@ -5502,7 +5557,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first subscribe */
-			res = check_user(p, req, cmd, e, 0, sin);
+			res = check_user(p, req, cmd, e, 0, sin, ignore);
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
@@ -5564,7 +5619,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Using latest request as basis request\n");
 		copy_request(&p->initreq, req);
 		check_via(p, req);
-		if ((res = register_verify(p, sin, req, e)) < 0) 
+		if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
 			ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), inet_ntoa(sin->sin_addr));
 		if (res < 1) {
 			p->needdestroy = 1;
@@ -5592,7 +5647,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		transmit_response_with_allow(p, "405 Method Not Allowed", req);
 		ast_log(LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n", 
 			cmd, inet_ntoa(p->sa.sin_addr));
-		/* If this is some new method, and we don't have a call, destory it now */
+		/* If this is some new method, and we don't have a call, destroy it now */
 		if (!p->initreq.headers)
 			p->needdestroy = 1;
 	}
@@ -5790,7 +5845,7 @@ restartsearch:
 static int restart_monitor(void)
 {
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == (pthread_t) -2)
+	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
@@ -5801,7 +5856,7 @@ static int restart_monitor(void)
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread) {
+	if (monitor_thread != AST_PTHREADT_NULL) {
 		/* Wake up the thread */
 		pthread_kill(monitor_thread, SIGURG);
 	} else {
@@ -6837,12 +6892,12 @@ int unload_module()
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread && ((int)monitor_thread != -2)) {
+		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}
-		monitor_thread = (pthread_t) -2;
+		monitor_thread = AST_PTHREADT_STOP;
 		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");

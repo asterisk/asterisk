@@ -274,7 +274,7 @@ static int copy(char *infile, char *outfile)
 static char *build_filename(char *filename, char *ext)
 {
 	char *fn;
-	char tmp[AST_CONFIG_MAX_PATH];
+	char tmp[AST_CONFIG_MAX_PATH]="";
 	snprintf(tmp,sizeof(tmp)-1,"%s/%s",(char *)ast_config_AST_VAR_DIR,"sounds");
 	fn = malloc(strlen(tmp) + strlen(filename) + strlen(ext) + 10);
 	if (fn) {
@@ -285,6 +285,22 @@ static char *build_filename(char *filename, char *ext)
 	}
 	return fn;
 	
+}
+
+static int exts_compare(char *exts, char *type)
+{
+	char *stringp = NULL, *ext;
+	char tmp[256];
+
+	strncpy(tmp, exts, sizeof(tmp) - 1);
+	stringp = tmp;
+	while ((ext = strsep(&stringp, "|"))) {
+		if (!strcmp(ext, type)) {
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 #define ACTION_EXISTS 1
@@ -319,7 +335,7 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 	}
 	f = formats;
 	while(f) {
-		if (!fmt || !strcasecmp(f->name, fmt)) {
+		if (!fmt || exts_compare(f->exts, fmt)) {
 			char *stringp=NULL;
 			exts = strdup(f->exts);
 			/* Try each kind of extension */
@@ -376,7 +392,7 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 											chan->vstream = s;
 									} else {
 										close(ret);
-										ast_log(LOG_WARNING, "Unable to open fd on %s\n", filename);
+										ast_log(LOG_WARNING, "Unable to open fd on %s\n", fn);
 									}
 								} else
 									ast_log(LOG_WARNING, "Couldn't open file %s\n", fn);
@@ -748,7 +764,7 @@ struct ast_filestream *ast_readfile(char *filename, char *type, char *comment, i
 	}
 	f = formats;
 	while(f) {
-		if (!strcasecmp(f->name, type)) {
+		if (exts_compare(f->exts, type)) {
 			char *stringp=NULL;
 			/* XXX Implement check XXX */
 			ext = strdup(f->exts);
@@ -803,7 +819,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 
 	f = formats;
 	while(f) {
-		if (!strcasecmp(f->name, type)) {
+		if (exts_compare(f->exts, type)) {
 			char *stringp=NULL;
 			/* XXX Implement check XXX */
 			ext = strdup(f->exts);

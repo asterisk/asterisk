@@ -73,19 +73,6 @@ switchtype=national
 ;
 signalling=fxo_ls
 ;
-; A variety of timing parameters can be specified as well
-; Including:
-;    prewink:     Pre-wink time
-;    preflash:    Pre-flash time
-;    wink:        Wink time
-;    flash:       Flash time
-;    start:       Start time
-;    rxwink:      Receiver wink time
-;    rxflash:     Receiver flashtime
-;    debounce:    Debounce timing
-;
-rxwink=300		; Atlas seems to use long (250ms) winks
-;
 ; Whether or not to do distinctive ring detection on FXO lines
 ;
 ;usedistinctiveringdetection=yes

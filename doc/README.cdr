@@ -13,7 +13,7 @@ separated text file.
 Applications
 ------------
 
-    * Asterisk cmd setaccount: Set accound code for billing
+    * Asterisk cmd setaccount: Set account code for billing
     * Asterisk cmd NoCDR: Make sure no CDR is saved for a specific call
     * Asterisk cmd resetCDR: Reset CDR
     * Asterisk cmd authenticate - Authenticates and sets the account code
@@ -36,7 +36,7 @@ Fields of the CDR in Asterisk
    8. lastapp: Last application if appropriate (80 characters)
    9. lastdata: Last application data (arguments) (80 characters)
   10. start: Start of call (date/time)
-  11. answer: Anwer of call (date/time)
+  11. answer: Answer of call (date/time)
   12. end: End of call (date/time)
   13. duration: Total time in system, in seconds (integer), from dial to hangup
   14. billsec: Total time call is up, in seconds (integer), from answer to hangup

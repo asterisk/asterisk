@@ -43,14 +43,16 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; buffer.  Specifically, you can provide a maximum jitter buffer,
 ; you can turn it off entirely, and you can specify an acceptable
 ; drop rate (per MEMORY_SIZE, by default 3 of 100).  Disabling the
-; jitter buffer is not recommended.  Finally, you can specify the maximum
+; jitter buffer is generally recommended unless you are on a highly
+; jittery network, since usually jitter buffering will cause you additional
+; latency.  Finally, you can specify the maximum
 ; excess jitter buffer, which if exceeded, causes the jitter buffer to
 ; slowly shrink in order to improve latency.
 ;
 jitterbuffer=no
 ;dropcount=3
 ;maxjitterbuffer=500
-;maxexccessbuffer=100
+;maxexcessbuffer=100
 ;
 ;trunkfreq=20			; How frequently to send trunk msgs (in ms)
 ;

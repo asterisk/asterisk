@@ -5,7 +5,7 @@
  * 
  * Copyright (C) 2002, Christos Ricudis
  *
- * Christos Ricudis <ricudis@paiko.gr>
+ * Christos Ricudis <ricudis@itc.auth.gr>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -376,6 +376,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     			if (strlen((char *)data)==strln) {
     				ast_log(LOG_DEBUG,"Size OK\n");
     				read(fdesc,&bigstring,strln);
+				bigstring[strln] = 0;
 	    			if (strcmp(bigstring,data)==0) { 
 	    				readcache=1;
 	    			} else {

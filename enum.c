@@ -232,8 +232,10 @@ static int enum_callback(void *context, u_char *answer, int len, u_char *fullans
 {
 	struct enum_context *c = (struct enum_context *)context;
 
-	if (parse_naptr(c->dst, c->dstlen, c->tech, c->techlen, answer, len, c->naptrinput))
+	if (parse_naptr(c->dst, c->dstlen, c->tech, c->techlen, answer, len, c->naptrinput)) {
 		ast_log(LOG_WARNING, "Failed to parse naptr :(\n");
+		return -1;
+	}
 
 	if (strlen(c->dst))
 		return 1;

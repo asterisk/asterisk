@@ -136,6 +136,7 @@ int ast_unload_resource(char *resource_name, int force)
 				module_list = m->next;
 			dlclose(m->lib);
 			free(m);
+			break;
 		}
 		ml = m;
 		m = m->next;

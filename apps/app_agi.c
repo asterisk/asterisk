@@ -529,6 +529,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		if (!fs) {
 			res = -1;
 			fdprintf(agi->fd, "200 result=%d (writefile)\n", res);
+			if (sildet)
+				ast_dsp_free(sildet);
 			return RESULT_FAILURE;
 		}
 		
@@ -545,12 +547,16 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 			if (res < 0) {
 				ast_closestream(fs);
 				fdprintf(agi->fd, "200 result=%d (waitfor) endpos=%ld\n", res,sample_offset);
+				if (sildet)
+					ast_dsp_free(sildet);
 				return RESULT_FAILURE;
 			}
 			f = ast_read(chan);
 			if (!f) {
 				fdprintf(agi->fd, "200 result=%d (hangup) endpos=%ld\n", 0, sample_offset);
 				ast_closestream(fs);
+				if (sildet)
+					ast_dsp_free(sildet);
 				return RESULT_FAILURE;
 			}
 			switch(f->frametype) {
@@ -561,6 +567,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 					fdprintf(agi->fd, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
 					ast_closestream(fs);
 					ast_frfree(f);
+					if (sildet)
+						ast_dsp_free(sildet);
 					return RESULT_SUCCESS;
 				}
 				break;
@@ -596,6 +604,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
               	if (gotsilence) {
                      	ast_stream_rewind(fs, silence-1000);
                 	ast_truncstream(fs);
+			sample_offset = ast_tellstream(fs);
 		}		
 		fdprintf(agi->fd, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 		ast_closestream(fs);
@@ -1218,6 +1227,10 @@ static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 			fdprintf(agi->fd, c->usage);
 			fdprintf(agi->fd, "520 End of proper usage.\n");
 			break;
+		case AST_PBX_KEEPALIVE:
+			/* We've been asked to keep alive, so do so */
+			return AST_PBX_KEEPALIVE;
+			break;
 		case RESULT_FAILURE:
 			/* They've already given the failure.  We've been hung up on so handle this
 			   appropriately */
@@ -1285,7 +1298,7 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid)
 
 			returnstatus |= agi_handle_command(chan, agi, buf);
 			/* If the handle_command returns -1, we need to stop */
-			if (returnstatus < 0) {
+			if ((returnstatus < 0) || (returnstatus == AST_PBX_KEEPALIVE)) {
 				break;
 			}
 		} else {

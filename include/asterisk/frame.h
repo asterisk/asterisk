@@ -20,6 +20,8 @@
 extern "C" {
 #endif
 
+#include <sys/types.h>
+	
 /*
  * Autodetect system endianess
  */
@@ -51,8 +53,6 @@ extern "C" {
 #ifndef __BYTE_ORDER
 #error Need to know endianess
 #endif /* __BYTE_ORDER */
-
-#include <sys/types.h>
 
 //! Data structure associated with a single frame of data
 /* A frame of data read used to communicate between 
@@ -90,10 +90,10 @@ struct ast_frame_chain {
 };
 
 #define AST_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to
-										   have at least this number of bytes
-										   of offset before your real frame data
-										   so that additional headers can be
-										   added. */
+						    				have this number of bytes for additional
+											headers.  */
+#define AST_MIN_OFFSET 		32		/*! Make sure we keep at least this much handy */
+
 /*! Need the header be free'd? */
 #define AST_MALLOCD_HDR		(1 << 0)
 /*! Need the data be free'd? */

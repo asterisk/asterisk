@@ -11,7 +11,7 @@ Adding "/n" at the end of the string will make the Local channel not do a native
 
 * Purpose:
 
-The Local channel construct can be used to establish dialling into any part of the dialplan.
+The Local channel construct can be used to establish dialing into any part of the dialplan.
 
 Imagine you have a TE410P in your box. You want to do something for which you must use a Dial statement (for instance when dropping files in /var/spool/outgoing) but you do want to be able to use your dialplans least-cost-routes or other intelligent stuff. What you could do before we had chan_local was create a cross-link between two ports of the TE410P and then Dial out one port and in the other. This way you could control where the call was going.
 

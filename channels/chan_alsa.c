@@ -26,7 +26,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#define ALSA_PCM_NEW_HW_PARAMS_API
+#define ALSA_PCM_NEW_SW_PARAMS_API
 #include <alsa/asoundlib.h>
+
 #include "busy.h"
 #include "ringtone.h"
 #include "ring10.h"
@@ -316,14 +320,15 @@ static void *sound_thread(void *unused)
 static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 {
 	int err;
+	int direction;
 	snd_pcm_t *handle = NULL;
 	snd_pcm_hw_params_t *hwparams = NULL;
 	snd_pcm_sw_params_t *swparams = NULL;
 	struct pollfd pfd;
-	int period_size = PERIOD_FRAMES * 4;
+	snd_pcm_uframes_t period_size = PERIOD_FRAMES * 4;
 	//int period_bytes = 0;
-	int buffer_size = 0;
-	
+	snd_pcm_uframes_t buffer_size = 0;
+
 	unsigned int rate = DESIRED_RATE;
 	unsigned int per_min = 1;
 	//unsigned int per_max = 8;
@@ -355,35 +360,35 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 		ast_log(LOG_ERROR, "set_channels failed: %s\n", snd_strerror(err));
 	}
 
-	rate = snd_pcm_hw_params_set_rate_near(handle, hwparams, rate, 0);
-
+	direction = 0;
+	err = snd_pcm_hw_params_set_rate_near(handle, hwparams, &rate, &direction);
 	if (rate != DESIRED_RATE) {
 		ast_log(LOG_WARNING, "Rate not correct, requested %d, got %d\n", DESIRED_RATE, rate);
 	}
 
-	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, period_size, 0);
+	direction = 0;
+	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
 	if (err < 0) {
-		ast_log(LOG_ERROR, "period_size(%d frames) is bad: %s\n", period_size, snd_strerror(err));
+		ast_log(LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
 	} else {
 		ast_log(LOG_DEBUG, "Period size is %d\n", err);
 	}
-	period_size = err;
 
 	buffer_size = 4096 * 2; //period_size * 16;
-	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, buffer_size);
+	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);
 	if (err < 0) {
-		ast_log(LOG_WARNING, "Problem setting buffer size of %d: %s\n", buffer_size, snd_strerror(err));
+		ast_log(LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
 	} else {
 		ast_log(LOG_DEBUG, "Buffer size is set to %d frames\n", err);
 	}
-	buffer_size = err;
 
-	err = snd_pcm_hw_params_set_periods_min(handle, hwparams, &per_min, 0);
+#if 0
+	direction = 0;
+	err = snd_pcm_hw_params_set_periods_min(handle, hwparams, &per_min, &direction);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "periods_min: %s\n", snd_strerror(err));
 	}
 
-#if 0
 	err = snd_pcm_hw_params_set_periods_max(handle, hwparams, &per_max, 0);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "periods_max: %s\n", snd_strerror(err));
@@ -429,11 +434,12 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	}
 #endif
 
+#if 0
 	err = snd_pcm_sw_params_set_silence_threshold(handle, swparams, silencethreshold);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "Unable to set silence threshold: %s\n", snd_strerror(err));
 	}
-
+#endif
 	err = snd_pcm_sw_params(handle, swparams);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "sw_params: %s\n", snd_strerror(err));
@@ -788,7 +794,7 @@ static int alsa_indicate(struct ast_channel *chan, int cond)
 static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 {
 	struct ast_channel *tmp;
-	tmp = ast_channel_alloc(0);
+	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		snprintf(tmp->name, sizeof(tmp->name), "ALSA/%s", indevname);
 		tmp->type = type;
@@ -943,8 +949,9 @@ static int console_hangup(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	}
 	hookstate = 0;
-	if (alsa.owner)
-		needhangup++;
+	if (alsa.owner) {
+		ast_queue_hangup(alsa.owner, 1);
+	}
 	return RESULT_SUCCESS;
 }
 
@@ -988,7 +995,7 @@ static int console_dial(int fd, int argc, char *argv[])
 		strncpy(alsa.exten, mye, sizeof(alsa.exten)-1);
 		strncpy(alsa.context, myc, sizeof(alsa.context)-1);
 		hookstate = 1;
-		alsa_new(&alsa, AST_STATE_UP);
+		alsa_new(&alsa, AST_STATE_RINGING);
 	} else
 		ast_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
 	return RESULT_SUCCESS;

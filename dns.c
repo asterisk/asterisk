@@ -137,8 +137,10 @@ static int dns_parse_answer(void *context,
 
 		if (ntohs(ans->class) == class && ntohs(ans->rtype) == type) {
 			if (callback) {
-				if ((res = callback(context, answer, ntohs(ans->size), fullanswer)) < 0)
+				if ((res = callback(context, answer, ntohs(ans->size), fullanswer)) < 0) {
 					ast_log(LOG_WARNING, "Failed to parse result\n");
+					return -1;
+				}
 				if (res > 0)
 					return 1;
 			}
@@ -153,13 +155,13 @@ int ast_search_dns(void *context,
 				   const char *dname, int class, int type,
 				   int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
 {
-#ifdef __Linux__
+#ifdef linux
 	struct __res_state dnsstate;
 #endif
 	char answer[MAX_SIZE];
 	int res, ret = -1;
 
-#ifdef __Linux__
+#ifdef linux
 	res_ninit(&dnsstate);
 	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
 #else
@@ -178,8 +180,8 @@ int ast_search_dns(void *context,
 		else
 			ret = 1;
 	}
-#if defined(__Linux__)
-	res_nclose(&srvstate);
+#if defined(linux)
+	res_nclose(&dnsstate);
 #else
 #ifndef __APPLE__
 	res_close();

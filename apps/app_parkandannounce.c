@@ -68,13 +68,17 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
   int outstate;
 
   struct localuser *u;
-  if (!data) {
-    ast_log(LOG_WARNING, "Park requires an argument (parkinglot)\n");
+  if (!data || (data && !strlen(data))) {
+    ast_log(LOG_WARNING, "ParkAndAnnounce requires arguments: (announce:template|timeout|dial|[return_context])\n");
     return -1;
   }
   
   l=strlen(data)+2;
   orig_s=malloc(l);
+  if (!orig_s) {
+    ast_log(LOG_WARNING, "Out of memory\n");
+    return -1;
+  }
   s=orig_s;
   strncpy(s,data,l);
 
@@ -85,9 +89,10 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
     return -1;
   }
   
-  timeout = atoi(strsep(&s, "|"));
-  timeout *= 1000;
-
+  if (s) {
+    timeout = atoi(strsep(&s, "|"));
+    timeout *= 1000;
+  }
   dial=strsep(&s, "|");
   if (! dial) {
     ast_log(LOG_WARNING, "PARK: A dial resouce must be specified i.e: Console/dsp or Zap/g1/5551212\n");

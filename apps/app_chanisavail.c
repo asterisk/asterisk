@@ -38,9 +38,9 @@ static char *synopsis = "Check if channel is available";
 static char *descrip = 
 "  ChanIsAvail(Technology/resource[&Technology2/resource2...]): \n"
 "Checks is any of the requested channels are available.  If none\n"
-"of the requested channels are available the new priority will\n"
-"be n+101 (unless such a priority does not exist, in which case\n"
-"ChanIsAvail will return -1.  If any of the requested channels\n"
+"of the requested channels are available the new priority will be\n"
+"n+101 (unless such a priority does not exist or on error, in which\n"
+"case ChanIsAvail will return -1).  If any of the requested channels\n"
 "are available, the next priority will be n+1, the channel variable\n"
 "${AVAILCHAN} will be set to the name of the available channel and\n"
 "the ChanIsAvail app will return 0.\n";
@@ -53,7 +53,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
 	struct localuser *u;
-	char info[256], *peers, *tech, *number, *rest, *cur;
+	char info[512], *peers, *tech, *number, *rest, *cur;
 	struct ast_channel *tempchan;
 
 	if (!data) {
@@ -62,7 +62,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 
-	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+	strncpy(info, (char *)data, sizeof(info)-1);
 	peers = info;
 	if (peers) {
 		cur = peers;
@@ -76,8 +76,8 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			tech = cur;
 			number = strchr(tech, '/');
 			if (!number) {
-				ast_log(LOG_WARNING, "ChanIsAvail argument takes format (Zap/[device])\n");
-				continue;
+				ast_log(LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
+				return -1;
 			}
 			*number = '\0';
 			number++;

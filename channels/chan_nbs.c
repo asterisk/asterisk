@@ -149,7 +149,7 @@ static int nbs_hangup(struct ast_channel *ast)
 	return 0;
 }
 
-static struct ast_frame  *nbs_read(struct ast_channel *ast)
+static struct ast_frame  *nbs_xread(struct ast_channel *ast)
 {
 	struct nbs_pvt *p = ast->pvt->pvt;
 	
@@ -209,7 +209,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 		tmp->pvt->pvt = i;
 		tmp->pvt->call = nbs_call;
 		tmp->pvt->hangup = nbs_hangup;
-		tmp->pvt->read = nbs_read;
+		tmp->pvt->read = nbs_xread;
 		tmp->pvt->write = nbs_xwrite;
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);

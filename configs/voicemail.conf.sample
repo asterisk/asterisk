@@ -10,9 +10,9 @@ serveremail=asterisk
 ;serveremail=asterisk@linux-support.net
 ; Should the email contain the voicemail as an attachment
 attach=yes
-; Maximum length of a voicemail message
+; Maximum length of a voicemail message in seconds
 ;maxmessage=180
-; Maximum length of greetings
+; Maximum length of greetings in seconds
 ;maxgreet=60
 ; How many miliseconds to skip forward/back when rew/ff in message playback
 skipms=3000

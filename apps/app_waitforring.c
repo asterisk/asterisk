@@ -48,7 +48,7 @@ static int waitforring_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	int ms;
 	if (!data || (sscanf(data, "%d", &ms) != 1)) {
-                ast_log(LOG_WARNING, "SoftHangup requires an argument (minimum seconds)\n");
+                ast_log(LOG_WARNING, "WaitForRing requires an argument (minimum seconds)\n");
 		return 0;
 	}
 	ms *= 1000;

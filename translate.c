@@ -29,13 +29,6 @@
 #include <string.h>
 #include <stdio.h>
 
-/* Uncomment the EXPERIMENTAL_TRANSLATION to enable a more complicated, but probably more
-   correct way of handling full duplex translation */
-
-/*
-#define EXPERIMENTAL_TRANSLATION
-*/
-
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
@@ -77,10 +70,11 @@ static int powerof(int d)
 
 void ast_translator_free_path(struct ast_trans_pvt *p)
 {
-	struct ast_trans_pvt *pl;
-	while(p) {
-		pl = p;
-		p = p->next;
+	struct ast_trans_pvt *pl, *pn;
+	pn = p;
+	while(pn) {
+		pl = pn;
+		pn = pn->next;
 		if (pl->state && pl->step->destroy)
 			pl->step->destroy(pl->state);
 		free(pl);
@@ -264,17 +258,16 @@ static int show_translation(int fd, int argc, char *argv[])
 	for (x=-1;x<SHOW_TRANS; x++) {
 		strcpy(line, " ");
 		for (y=-1;y<SHOW_TRANS;y++) {
-			/* Skip MP3 (y = 4) as Destination format */
-			if (y != 4 && x >= 0 && y >= 0 && tr_matrix[x][y].step)
-				snprintf(line + strlen(line), sizeof(line) - strlen(line), " %6d", tr_matrix[x][y].cost);
+			if (x >= 0 && y >= 0 && tr_matrix[x][y].step)
+				snprintf(line + strlen(line), sizeof(line) - strlen(line), " %5d", tr_matrix[x][y].cost >= 99999 ? tr_matrix[x][y].cost-99999 : tr_matrix[x][y].cost);
 			else
-				if ((y != 4) && ((x == -1 && y >= 0) || (y == -1 && x >= 0))) {
+				if (((x == -1 && y >= 0) || (y == -1 && x >= 0))) {
 					snprintf(line + strlen(line), sizeof(line) - strlen(line), 
-						" %6s", ast_getformatname(1<<(x+y+1)) );
-				} else if (x != -1 && y != -1 && y != 4) {
-					snprintf(line + strlen(line), sizeof(line) - strlen(line), "      -");
-				} else if (y != 4) {
-					snprintf(line + strlen(line), sizeof(line) - strlen(line), "       ");
+						" %5s", ast_getformatname(1<<(x+y+1)) );
+				} else if (x != -1 && y != -1 ) {
+					snprintf(line + strlen(line), sizeof(line) - strlen(line), "     -");
+				} else {
+					snprintf(line + strlen(line), sizeof(line) - strlen(line), "      ");
 				}
 		}
 		snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");

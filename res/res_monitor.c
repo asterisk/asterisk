@@ -203,7 +203,7 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 			}
 		}
 		if (chan->monitor->joinfiles && strlen(chan->monitor->filename_base)) {
-			char tmp[255];
+			char tmp[1024];
 			char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;

@@ -1,4 +1,4 @@
-GENERAL ENCHANCEMENTS TO EXTENSION LOGIC : 
+GENERAL ENHANCEMENTS TO EXTENSION LOGIC : 
 
 QUOTING: 
 
@@ -9,7 +9,7 @@ comma does not terminate the field.
 
 Also, characters special to variable substitution, expression evaluation, etc
 (see below), can be quoted. For example, to literally use a $ on the 
-string "$1231", quote it with a preceeding \. Special characters that must
+string "$1231", quote it with a preceding \. Special characters that must
 be quoted to be used, are [ ] $ " \. (to write \ itself, use \\). 
 
 VARIABLES: 

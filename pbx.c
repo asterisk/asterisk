@@ -338,8 +338,8 @@ static struct pbx_builtin {
 
 	{ "Wait", pbx_builtin_wait, 
 "Waits for some time", 
-"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n" },
-
+"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n"
+"seconds can be passed with fractions of a second. (eg: 1.5 = 1.5 seconds)\n" },
 };
 
 /* Lock for the application list */
@@ -751,7 +751,20 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		headp=&c->varshead;
     *ret=NULL;
         /* Now we have the variable name on cp3 */
-	if ((first=strchr(var,':'))) {
+	if (!strncasecmp(var,"LEN(",4)) {
+		int len=strlen(var);
+		int len_len=4;
+		if (strrchr(var,')')) {
+			char cp3[80];
+			strncpy(cp3, var, sizeof(cp3) - 1);
+			cp3[len-len_len-1]='\0';
+			sprintf(workspace,"%d",strlen(cp3));
+			*ret = workspace;
+		} else {
+			/* length is zero */
+			*ret = "0";
+		}
+	} else if ((first=strchr(var,':'))) {
 		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
 		first = strchr(tmpvar, ':');
 		if (!first)
@@ -925,17 +938,6 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 					*ret = workspace;
 				}
 			}
-		}
-		if (!(*ret) && !strncasecmp(var,"LEN(",4)) {
-			int len=strlen(var);
-			int len_len=4;
-			if (len > (len_len+1) && !strncasecmp(var,"LEN(",len_len) && strchr(var+len_len+2,')')) {
-				char cp3[80];
-				strncpy(cp3, var, sizeof(cp3) - 1);
-				cp3[len-len_len-1]='\0';
-				sprintf(workspace,"%d",strlen(cp3));
-				*ret = workspace;
-			} else ast_log(LOG_NOTICE, "Wrong use of LEN(VARIABLE)\n");
 		}
 	}
 }
@@ -2930,12 +2932,12 @@ static void get_timerange(struct ast_include *i, char *times)
 #if 1
 	s1 = s1 * 30 + s2/2;
 	if ((s1 < 0) || (s1 >= 24*30)) {
-		ast_log(LOG_WARNING, "%s isn't a valid star time. Assuming no time.\n", times);
+		ast_log(LOG_WARNING, "%s isn't a valid start time. Assuming no time.\n", times);
 		return;
 	}
 	e1 = e1 * 30 + e2/2;
-	if ((e1 < 0) || (e2 >= 24*30)) {
-		ast_log(LOG_WARNING, "%s isn't a valid start time. Assuming no time.\n", times);
+	if ((e1 < 0) || (e1 >= 24*30)) {
+		ast_log(LOG_WARNING, "%s isn't a valid end time. Assuming no time.\n", e);
 		return;
 	}
 	/* Go through the time and enable each appropriate bit */
@@ -3303,7 +3305,7 @@ int ast_context_add_switch2(struct ast_context *con, char *value,
 	/* ... go to last sw and check if context is already swd too... */
 	i = con->alts;
 	while (i) {
-		if (!strcasecmp(i->name, new_sw->name)) {
+		if (!strcasecmp(i->name, new_sw->name) && !strcasecmp(i->data, new_sw->data)) {
 			free(new_sw);
 			ast_mutex_unlock(&con->lock);
 			errno = EEXIST;
@@ -3535,12 +3537,13 @@ int ast_async_goto(struct ast_channel *chan, char *context, char *exten, int pri
 				tmpchan->priority = priority;
 			else
 				tmpchan->priority = chan->priority;
-			if (needlock)
-				ast_mutex_unlock(&chan->lock);
 			
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
 			
+			if (needlock)
+				ast_mutex_unlock(&chan->lock);
+				
 			/* Make the masquerade happen by reading a frame from the tmp channel */
 			f = ast_read(tmpchan);
 			if (f)
@@ -3729,9 +3732,9 @@ int ast_add_extension2(struct ast_context *con,
 						tmp->peer = e;
 					} else {
 						/* We're the very first extension altogether */
-						tmp->next = con->root;
+						tmp->next = con->root->next;
 						/* Con->root must always exist or we couldn't get here */
-						tmp->peer = con->root->peer;
+						tmp->peer = con->root;
 						con->root = tmp;
 					}
 					ast_mutex_unlock(&con->lock);
@@ -4066,6 +4069,7 @@ void __ast_context_destroy(struct ast_context *con, char *registrar, int lock)
 	struct ast_include *tmpi, *tmpil= NULL;
 	struct ast_sw *sw, *swl= NULL;
 	struct ast_exten *e, *el, *en;
+	struct ast_ignorepat *ipi, *ipl = NULL;
 	if (lock)
 		ast_mutex_lock(&conlock);
 	tmp = contexts;
@@ -4090,9 +4094,15 @@ void __ast_context_destroy(struct ast_context *con, char *registrar, int lock)
 				tmpil = tmpi;
 				tmpi = tmpi->next;
 				free(tmpil);
-				tmpil = tmpi;
+			}
+			for (ipi = tmp->ignorepats; ipi; ) {
+				/* Free ignorepats */
+				ipl = ipi;
+				ipi = ipi->next;
+				free(ipl);
 			}
 			for (sw = tmp->alts; sw; ) {
+				/* Free switches */
 				swl = sw;
 				sw = sw->next;
 				free(swl);
@@ -4276,8 +4286,8 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 {
 	int ms;
 	/* Wait for "n" seconds */
-	if (data && atoi((char *)data)) {
-		ms = atoi((char *)data) * 1000;
+	if (data && atof((char *)data)) {
+		ms = atof((char *)data) * 1000;
 		return ast_safe_sleep(chan, ms);
 	}
 	return 0;
@@ -4304,7 +4314,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
 {
 	int x = atoi((char *) data);
-	/* Set the timeout for how long to wait between digits */
+	/* Set the absolute maximum time how long a call can be connected */
 	ast_channel_setwhentohangup(chan,x);
 	if (option_verbose > 2)
 		ast_verbose( VERBOSE_PREFIX_3 "Set Absolute Timeout to %d\n", x);

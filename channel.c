@@ -630,8 +630,8 @@ int ast_hangup(struct ast_channel *chan)
 	/* If this channel is one which will be masqueraded into something, 
 	   mark it as a zombie already, so we know to free it later */
 	if (chan->masqr) {
-		ast_mutex_unlock(&chan->lock);
 		chan->zombie=1;
+		ast_mutex_unlock(&chan->lock);
 		return 0;
 	}
 	free_translation(chan);
@@ -733,7 +733,8 @@ int ast_answer(struct ast_channel *chan)
 void ast_deactivate_generator(struct ast_channel *chan)
 {
 	if (chan->generatordata) {
-		chan->generator->release(chan, chan->generatordata);
+		if (chan->generator && chan->generator->release) 
+			chan->generator->release(chan, chan->generatordata);
 		chan->generatordata = NULL;
 		chan->generator = NULL;
 		chan->writeinterrupt = 0;
@@ -743,7 +744,8 @@ void ast_deactivate_generator(struct ast_channel *chan)
 int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params)
 {
 	if (chan->generatordata) {
-		chan->generator->release(chan, chan->generatordata);
+		if (chan->generator && chan->generator->release)
+			chan->generator->release(chan, chan->generatordata);
 		chan->generatordata = NULL;
 	}
 	ast_prod(chan);
@@ -809,15 +811,26 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	fd_set rfds, efds;
 	int res;
 	int x, y, max=-1;
+	time_t now = 0;
+	long whentohangup = 0, havewhen = 0, diff;
 	struct ast_channel *winner = NULL;
 	if (outfd)
-		*outfd = -1;
+		*outfd = -99999;
 	if (exception)
 		*exception = 0;
 	
 	/* Perform any pending masquerades */
 	for (x=0;x<n;x++) {
 		ast_mutex_lock(&c[x]->lock);
+		if (c[x]->whentohangup) {
+			if (!havewhen)
+				time(&now);
+			diff = c[x]->whentohangup - now;
+			if (!havewhen || (diff < whentohangup)) {
+				havewhen++;
+				whentohangup = diff;
+			}
+		}
 		if (c[x]->masq) {
 			if (ast_do_masquerade(c[x])) {
 				ast_log(LOG_WARNING, "Masquerade failed\n");
@@ -831,6 +844,13 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	
 	tv.tv_sec = *ms / 1000;
 	tv.tv_usec = (*ms % 1000) * 1000;
+	
+	if (havewhen) {
+		if ((*ms < 0) || (whentohangup * 1000 < *ms)) {
+			tv.tv_sec = whentohangup;
+			tv.tv_usec = 0;
+		}
+	}
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
 
@@ -851,7 +871,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		if (fds[x] > max)
 			max = fds[x];
 	}
-	if (*ms >= 0)
+	if ((*ms >= 0) || (havewhen))
 		res = ast_select(max + 1, &rfds, NULL, &efds, &tv);
 	else
 		res = ast_select(max + 1, &rfds, NULL, &efds, NULL);
@@ -871,8 +891,15 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		return NULL;
 	}
 
+	if (havewhen)
+		time(&now);
 	for (x=0;x<n;x++) {
 		c[x]->blocking = 0;
+		if (havewhen && c[x]->whentohangup && (now > c[x]->whentohangup)) {
+			c[x]->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
+			if (!winner)
+				winner = c[x];
+		}
 		for (y=0;y<AST_MAX_FDS;y++) {
 			if (c[x]->fds[y] > -1) {
 				if ((FD_ISSET(c[x]->fds[y], &rfds) || FD_ISSET(c[x]->fds[y], &efds)) && !winner) {
@@ -1551,6 +1578,8 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 						state = f->subclass;
 						ast_frfree(f);
 						break;
+					} else if (f->subclass == -1) {
+						/* Ignore -- just stopping indications */
 					} else {
 						ast_log(LOG_NOTICE, "Don't know what to do with control frame %d\n", f->subclass);
 					}
@@ -2087,19 +2116,6 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
 	
-	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
-	   a zombie so nothing tries to touch it.  If it's already been marked as a
-	   zombie, then free it now (since it already is considered invalid). */
-	if (clone->zombie) {
-		ast_log(LOG_DEBUG, "Destroying clone '%s'\n", clone->name);
-		ast_mutex_unlock(&clone->lock);
-		ast_channel_free(clone);
-		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
-	} else {
-		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
-		clone->zombie=1;
-		ast_mutex_unlock(&clone->lock);
-	}
 	/* Set the write format */
 	ast_set_write_format(original, wformat);
 
@@ -2120,6 +2136,21 @@ static int ast_do_masquerade(struct ast_channel *original)
 	} else
 		ast_log(LOG_WARNING, "Driver '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
 			original->type, original->name);
+	
+	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
+	   a zombie so nothing tries to touch it.  If it's already been marked as a
+	   zombie, then free it now (since it already is considered invalid). */
+	if (clone->zombie) {
+		ast_log(LOG_DEBUG, "Destroying clone '%s'\n", clone->name);
+		ast_mutex_unlock(&clone->lock);
+		ast_channel_free(clone);
+		manager_event(EVENT_FLAG_CALL, "Hangup", "Channel: %s\r\n", zombn);
+	} else {
+		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
+		clone->zombie=1;
+		ast_mutex_unlock(&clone->lock);
+	}
+	
 	/* Signal any blocker */
 	if (original->blocking)
 		pthread_kill(original->blocker, SIGURG);
@@ -2276,7 +2307,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			*fo = f;
 			*rc = who;
 			res =  0;
-			ast_log(LOG_DEBUG, "Got a FRAME_CONTROL frame on channel %s\n",who->name);
+			ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
 			break;
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||
@@ -2492,3 +2523,36 @@ int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, i
 	return 0;
 }
 
+unsigned int ast_get_group(char *s)
+{
+	char *copy;
+	char *piece;
+	char *c=NULL;
+	int start=0, finish=0,x;
+	unsigned int group = 0;
+	copy = ast_strdupa(s);
+	if (!copy) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return 0;
+	}
+	c = copy;
+	
+	while((piece = strsep(&c, ","))) {
+		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
+			/* Range */
+		} else if (sscanf(piece, "%d", &start)) {
+			/* Just one */
+			finish = start;
+		} else {
+			ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'.  Using '0'\n", s,piece);
+			return 0;
+		}
+		for (x=start;x<=finish;x++) {
+			if ((x > 31) || (x < 0)) {
+				ast_log(LOG_WARNING, "Ignoring invalid group %d (maximum group is 31)\n", x);
+			} else
+				group |= (1 << x);
+		}
+	}
+	return group;
+}

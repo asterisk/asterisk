@@ -34,7 +34,7 @@
 #include <signal.h>
 #include <sched.h>
 #include <asterisk/io.h>
-#include <pthread.h>
+#include <asterisk/lock.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/select.h>
@@ -65,7 +65,7 @@ int fully_booted = 0;
 
 static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
 static int ast_consock = -1;		/* UNIX Socket for controlling another asterisk */
-static int mainpid;
+int ast_mainpid;
 struct console {
 	int fd;					/* File descriptor */
 	int p[2];				/* Pipe */
@@ -105,6 +105,11 @@ char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
 char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
 char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
+
+static char *_argv[256];
+static int shuttingdown = 0;
+static int restartnow = 0;
+static pthread_t consolethread = AST_PTHREADT_NULL;
 
 int ast_register_atexit(void (*func)(void))
 {
@@ -191,7 +196,7 @@ static void *netconsole(void *vconsole)
 	
 	if (gethostname(hostname, sizeof(hostname)))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
-	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, mainpid, ASTERISK_VERSION);
+	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, ast_mainpid, ASTERISK_VERSION);
 	fdprint(con->fd, tmp);
 	for(;;) {
 		FD_ZERO(&rfds);	
@@ -252,13 +257,15 @@ static void *listener(void *unused)
 		FD_SET(ast_socket, &fds);
 		s = ast_select(ast_socket + 1, &fds, NULL, NULL, NULL);
 		if (s < 0) {
-			ast_log(LOG_WARNING, "Select retured error: %s\n", strerror(errno));
+			if (errno != EINTR)
+				ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 			continue;
 		}
 		len = sizeof(sun);
 		s = accept(ast_socket, (struct sockaddr *)&sun, &len);
 		if (s < 0) {
-			ast_log(LOG_WARNING, "Accept retured %d: %s\n", s, strerror(errno));
+			if (errno != EINTR)
+				ast_log(LOG_WARNING, "Accept returned %d: %s\n", s, strerror(errno));
 		} else {
 			for (x=0;x<AST_MAX_CONNECTS;x++) {
 				if (consoles[x].fd < 0) {
@@ -365,6 +372,8 @@ static void hup_handler(int num)
 {
 	if (option_verbose > 1) 
 		printf("Received HUP signal -- Reloading configs\n");
+	if (restartnow)
+		execvp(_argv[0], _argv);
 	/* XXX This could deadlock XXX */
 	ast_module_reload();
 }
@@ -435,10 +444,6 @@ static int set_priority(int pri)
 #endif
 	return 0;
 }
-
-static char *_argv[256];
-
-static int shuttingdown = 0;
 
 static void ast_run_atexits(void)
 {
@@ -536,7 +541,16 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		}
 		if (option_verbose || option_console)
 			ast_verbose("Restarting Asterisk NOW...\n");
-		execvp(_argv[0], _argv);
+		restartnow = 1;
+		/* If there is a consolethread running send it a SIGHUP 
+		   so it can execvp, otherwise we can do it ourselves */
+		if (consolethread != AST_PTHREADT_NULL) {
+			pthread_kill(consolethread, SIGHUP);
+			/* Give the signal handler some time to complete */
+			sleep(2);
+		} else
+			execvp(_argv[0], _argv);
+	
 	}
 	exit(0);
 }
@@ -545,8 +559,6 @@ static void __quit_handler(int num)
 {
 	quit_handler(num, 0, 1, 0);
 }
-
-static pthread_t consolethread = (pthread_t) -1;
 
 static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
 {
@@ -579,7 +591,7 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 	fflush(stdout);
 	if (complete)
 	/* Wake up a select()ing console */
-		if (consolethread != (pthread_t) -1)
+		if (option_console && consolethread != AST_PTHREADT_NULL)
 			pthread_kill(consolethread, SIGURG);
 }
 
@@ -928,7 +940,7 @@ static char *cli_complete(EditLine *el, int ch)
 	int nummatches = 0;
 	char **matches;
 	int retval = CC_ERROR;
-	char buf[1024];
+	char buf[2048];
 	int res;
 
 	LineInfo *lf = (LineInfo *)el_line(el);
@@ -1036,6 +1048,8 @@ static int ast_el_initialize(void)
 	el_set(el, EL_BIND, "^I", "ed-complete", NULL);
 	/* Bind ? to command completion */
 	el_set(el, EL_BIND, "?", "ed-complete", NULL);
+	/* Bind ^D to redisplay */
+	el_set(el, EL_BIND, "^D", "ed-redisplay", NULL);
 
 	return 0;
 }
@@ -1254,7 +1268,7 @@ int main(int argc, char *argv[])
 
 	if (gethostname(hostname, sizeof(hostname)))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
-	mainpid = getpid();
+	ast_mainpid = getpid();
 	ast_ulaw_init();
 	ast_alaw_init();
 	callerid_init();
@@ -1462,6 +1476,8 @@ int main(int argc, char *argv[])
 		ast_verbose(" ]\n");
 	if (option_verbose || option_console)
 		ast_verbose(term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
+	if (option_nofork)
+		consolethread = pthread_self();
 	fully_booted = 1;
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 #ifdef __AST_DEBUG_MALLOC
@@ -1481,11 +1497,10 @@ int main(int argc, char *argv[])
 		/* Register our quit function */
 		char title[256];
 		set_icon("Asterisk");
-		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, mainpid);
+		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, ast_mainpid);
 		set_title(title);
 	    ast_cli_register(&quit);
 	    ast_cli_register(&astexit);
-		consolethread = pthread_self();
 
 		for (;;) {
 			buf = (char *)el_gets(el, &num);

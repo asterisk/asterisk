@@ -321,6 +321,8 @@ static inline void free_zone(struct tone_zone* zone)
 		free(zone->tones);
 		zone->tones = tmp;
 	}
+	if (zone->ringcadance)
+		free((void*)zone->ringcadance);
 	free(zone);
 }
 
@@ -395,6 +397,8 @@ int ast_unregister_indication_country(const char *country)
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Unregistered indication country '%s'\n",tz->country);
 			free_zone(tz);
+			if (tone_zones == tz)
+				tone_zones = tmp;
 			tz = tmp;
 			res = 0;
 		}

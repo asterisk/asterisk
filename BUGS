@@ -1,3 +1,37 @@
+Known Issues in Asterisk 1.0
+============================
+In order to provide a path for a stable Asterisk 1.0, the Asterisk CVS tree
+was forked into a a 1.0-stable branch.  Many new features and enhancements
+have been added to the development tree in the mean time since the branch,
+but in the interest of stability, only bug fixes were accepted into the 
+stable branch, meaning that over time, there has been a substantial
+diversion of the feature set between stable (1.0) and developmental
+Asterisk.  This section is a list of important differences between the
+stable (1.0) and development versions of Asterisk.
+
+* The number of SIP channels that can be simultaneously run through Asterisk
+  may be more limited than in development releases.
+
+* When Asterisk carries media from one RTP or IAX connection to another, 
+  jitter on one side can sometimes be reflected in the timestamps going
+  to the other, causing the audio to be broken up on poor quality network
+  connections.  This behavior has been changed in development releases.
+
+* The MGCP channel driver has been greatly extended in development releases.
+
+* The VPB (Voicetronix) driver in 1.0 only works with properly with FXO 
+  interfaces.  Extensive work has been done on the driver in the development
+  channel.
+
+* The SIP channel driver's ability to negotiate codecs has been improved
+  in developmental Asterisk.
+
+* The return result of app_system is unrealiable in 1.0 and has gone through
+  extensive rework in developmental Asterisk.
+
+* The queue system has been extensively reworked with a variety of new
+  features in developmental Asterisk.
+
 Asterisk Bug Tracking Information
 =================================
 

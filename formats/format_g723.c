@@ -47,7 +47,7 @@ static int glistcnt = 0;
 
 static char *name = "g723sf";
 static char *desc = "G.723.1 Simple Timestamp File Format";
-static char *exts = "g723";
+static char *exts = "g723|g723sf";
 
 static struct ast_filestream *g723_open(int fd)
 {

@@ -49,10 +49,10 @@ static char *descrip =
 "which first answered. All other calls placed by the Dial app will be hung up\n"
 "If a timeout is not specified, the Dial application will wait indefinitely\n"
 "until either one of the called channels answers, the user hangs up, or all\n"
-"channels return busy or error. In general, the dialler will return 0 if it\n"
+"channels return busy or error. In general, the dialer will return 0 if it\n"
 "was unable to place the call, or the timeout expired. However, if all\n"
 "channels were busy, and there exists an extension with priority n+101 (where\n"
-"n is the priority of the dialler instance), then it will be the next\n"
+"n is the priority of the dialer instance), then it will be the next\n"
 "executed extension (this allows you to setup different behavior on busy from\n"
 "no-answer).\n"
 "  This application returns -1 if the originating channel hangs up, or if the\n"
@@ -69,7 +69,7 @@ static char *descrip =
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
-"  The optionnal URL will be sent to the called party if the channel supports\n"
+"  The optional URL will be sent to the called party if the channel supports\n"
 "it.\n";
 
 /* We define a customer "local user" structure because we
@@ -139,6 +139,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		} else if (outgoing->ringbackonly) {
 			ast_indicate(in, AST_CONTROL_RINGING);
 		}
+			sentringing++;
 	}
 	
 	while(*to && !peer) {
@@ -171,7 +172,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			/* if no one available we'd better stop MOH/ringing to */
 			if (moh) {
 				ast_moh_stop(in);
-			} else if (ringind) {
+			} else if (sentringing) {
 				ast_indicate(in, -1);
 			}
 			return NULL;
@@ -207,13 +208,19 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (o->chan->callerid)
 								free(o->chan->callerid);
 							o->chan->callerid = malloc(strlen(in->callerid) + 1);
-							strncpy(o->chan->callerid, in->callerid, strlen(in->callerid) + 1);
+							if (o->chan->callerid)
+								strncpy(o->chan->callerid, in->callerid, strlen(in->callerid) + 1);
+							else
+								ast_log(LOG_WARNING, "Out of memory\n");
 						}
 						if (in->ani) {
 							if (o->chan->ani)
 								free(o->chan->ani);
 							o->chan->ani = malloc(strlen(in->ani) + 1);
-							strncpy(o->chan->ani, in->ani, strlen(in->ani) + 1);
+							if (o->chan->ani)
+								strncpy(o->chan->ani, in->ani, strlen(in->ani) + 1);
+							else
+								ast_log(LOG_WARNING, "Out of memory\n");
 						}
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
@@ -268,7 +275,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (!sentringing && !moh) {
 								ast_indicate(in, AST_CONTROL_RINGING);
 								sentringing++;
-								ringind++;
 							}
 							break;
 						case AST_CONTROL_PROGRESS:
@@ -280,9 +286,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							/* Ignore going off hook */
 							break;
 						case -1:
-							if (option_verbose > 2)
-								ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
-							ast_indicate(in, -1);
+							if (!ringind && !moh) {
+								if (option_verbose > 2)
+									ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
+								ast_indicate(in, -1);
+								sentringing = 0;
+							}
 							break;
 						default:
 							ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
@@ -337,7 +346,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	}
 	if (moh) {
 		ast_moh_stop(in);
-	} else if (ringind) {
+	} else if (sentringing) {
 		ast_indicate(in, -1);
 	}
 

@@ -42,7 +42,7 @@ static int random_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 
-	char *s, *ts;
+	char *s;
 	char *exten, *pri, *context;
 	char *prob;
 	int probint, priorityint;
@@ -54,7 +54,7 @@ static int random_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	s = ast_strdupa((void *) data);
 
-	prob = strsep(&ts,":");
+	prob = strsep(&s,":");
 	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))
 		probint = 0;
 

@@ -87,12 +87,12 @@ static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 /* Protect the interface list (of sip_pvt's) */
 static ast_mutex_t agentlock = AST_MUTEX_INITIALIZER;
 
-int recordagentcalls = 0;
-char recordformat[AST_MAX_BUF];
-char recordformatext[AST_MAX_BUF];
-int createlink = 0;
-char urlprefix[AST_MAX_BUF];
-char savecallsin[AST_MAX_BUF];
+static int recordagentcalls = 0;
+static char recordformat[AST_MAX_BUF];
+static char recordformatext[AST_MAX_BUF];
+static int createlink = 0;
+static char urlprefix[AST_MAX_BUF];
+static char savecallsin[AST_MAX_BUF];
 
 static struct agent_pvt {
 	ast_mutex_t lock;				/* Channel private lock */
@@ -337,7 +337,7 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	}
 	CLEANUP(ast,p);
 	ast_mutex_unlock(&p->lock);
-	if (f == &answer_frame)
+	if (recordagentcalls && f == &answer_frame)
 		agent_start_monitoring(ast,0);
 	return f;
 }
@@ -467,7 +467,8 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 			ast_setstate(ast, AST_STATE_RINGING);
 		else {
 			ast_setstate(ast, AST_STATE_UP);
-			agent_start_monitoring(ast,0);
+			if (recordagentcalls)
+				agent_start_monitoring(ast,0);
 			p->acknowledged = 1;
 		}
 		res = 0;

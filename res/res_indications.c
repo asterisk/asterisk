@@ -238,6 +238,7 @@ static int ind_load_module(void)
 		tones = malloc(sizeof(struct tone_zone));
 		if (!tones) {
 			ast_log(LOG_WARNING,"Out of memory\n");
+			ast_destroy(cfg);
 			return -1;
 		}
 		memset(tones,0,sizeof(struct tone_zone));
@@ -261,6 +262,7 @@ static int ind_load_module(void)
 					tmp = realloc(tones->ringcadance,(tones->nrringcadance+1)*sizeof(int));
 					if (!tmp) {
 						ast_log(LOG_WARNING, "Out of memory\n");
+						ast_destroy(cfg);
 						return -1;
 					}
 					tones->ringcadance = tmp;
@@ -277,6 +279,7 @@ static int ind_load_module(void)
 					struct tone_zone* azone = malloc(sizeof(struct tone_zone));
 					if (!azone) {
 						ast_log(LOG_WARNING,"Out of memory\n");
+						ast_destroy(cfg);
 						return -1;
 					}
 					memset(azone,0,sizeof(struct tone_zone));
@@ -303,6 +306,7 @@ static int ind_load_module(void)
 				ts = malloc(sizeof(struct tone_zone_sound));
 				if (!ts) {
 					ast_log(LOG_WARNING, "Out of memory\n");
+					ast_destroy(cfg);
 					return -1;
 				}
 				ts->next = NULL;

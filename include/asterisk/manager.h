@@ -66,7 +66,7 @@ struct mansession {
 	int writeperm;
 	char inbuf[MAX_LEN];
 	int inlen;
-	
+	int send_events;
 	struct mansession *next;
 };
 
@@ -83,6 +83,8 @@ struct manager_action {
 	int (*func)(struct mansession *s, struct message *m);
 	struct manager_action *next;
 };
+
+int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
 
 /* External routines may register/unregister manager callbacks this way */
 int ast_manager_register( char *action, int authority, 

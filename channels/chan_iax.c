@@ -149,7 +149,7 @@ static int iaxdebug = 0;
 static char accountcode[20];
 static int amaflags = 0;
 
-static pthread_t netthreadid;
+static pthread_t netthreadid = AST_PTHREADT_NULL;
 
 #define IAX_STATE_STARTED		(1 << 0)
 #define IAX_STATE_AUTHENTICATED (1 << 1)
@@ -3686,7 +3686,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				|| (f.subclass == AST_IAX_COMMAND_POKE)))
 			new = NEW_ALLOW;
 	} else {
-		/* Don't knwo anything about it yet */
+		/* Don't know anything about it yet */
 		f.frametype = AST_FRAME_NULL;
 		f.subclass = 0;
 	}
@@ -5344,8 +5344,10 @@ static int __unload_module(void)
 {
 	int x;
 	/* Cancel the network thread, close the net socket */
-	pthread_cancel(netthreadid);
-	pthread_join(netthreadid, NULL);
+	if (netthreadid != AST_PTHREADT_NULL) {
+		pthread_cancel(netthreadid);
+		pthread_join(netthreadid, NULL);
+	}
 	close(netsocket);
 	for (x=0;x<AST_IAX_MAX_CALLS;x++)
 		if (iaxs[x])

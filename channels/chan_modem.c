@@ -83,7 +83,7 @@ static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
-static pthread_t monitor_thread = (pthread_t) -1;
+static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
@@ -646,7 +646,7 @@ static void *do_monitor(void *data)
 static int restart_monitor()
 {
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == (pthread_t) -2)
+	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
@@ -657,7 +657,7 @@ static int restart_monitor()
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread != (pthread_t) -1) {
+	if (monitor_thread != AST_PTHREADT_NULL) {
 		pthread_cancel(monitor_thread);
 		/* Nudge it a little, as it's probably stuck in select */
 		pthread_kill(monitor_thread, SIGURG);
@@ -861,11 +861,11 @@ static int __unload_module(void)
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread != (pthread_t) -1 && monitor_thread != (pthread_t) -2) {
+		if (monitor_thread != AST_PTHREADT_NULL && monitor_thread != AST_PTHREADT_STOP) {
 			pthread_cancel(monitor_thread);
 			pthread_join(monitor_thread, NULL);
 		}
-		monitor_thread = (pthread_t) -2;
+		monitor_thread = AST_PTHREADT_STOP;
 		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");

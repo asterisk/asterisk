@@ -128,6 +128,20 @@ int ast_true(char *s)
 	return 0;
 }
 
+int ast_false(char *s)
+{
+	if (!s)
+		return 0;
+	/* Determine if this is a false value */
+	if (!strcasecmp(s, "no") ||
+	    !strcasecmp(s, "false") ||
+		!strcasecmp(s, "n") ||
+		!strcasecmp(s, "f") ||
+		!strcasecmp(s, "0"))
+			return -1;
+	return 0;
+}
+
 struct ast_variable *ast_variable_browse(struct ast_config *config, char *category)
 {
 	struct ast_category *cat;

@@ -56,6 +56,9 @@
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE 183
 
+/* Define if you want the fax detector -- NOT RECOMMENDED IN -STABLE */
+/* #define FAX_DETECT */
+
 #define HZ_350  0
 #define HZ_440  1
 #define HZ_480  2
@@ -130,11 +133,15 @@ typedef struct
 
     goertzel_state_t row_out[4];
     goertzel_state_t col_out[4];
+#ifdef FAX_DETECT
 	goertzel_state_t fax_tone;
+#endif
 #ifdef OLD_DSP_ROUTINES
     goertzel_state_t row_out2nd[4];
     goertzel_state_t col_out2nd[4];
+#ifdef FAX_DETECT
 	goertzel_state_t fax_tone2nd;    
+#endif
     int hit1;
     int hit2;
     int hit3;
@@ -153,7 +160,9 @@ typedef struct
     int digit_hits[16];
 
 
+#ifdef FAX_DETECT
 	int fax_hits;
+#endif
 } dtmf_detect_state_t;
 
 typedef struct
@@ -176,7 +185,9 @@ typedef struct
     int current_digits;
     int detected_digits;
     int lost_digits;
+#ifdef FAX_DETECT
 	int fax_hits;
+#endif
 } mf_detect_state_t;
 
 static float dtmf_row[] =
@@ -193,7 +204,9 @@ static float mf_tones[] =
 	700.0, 900.0, 1100.0, 1300.0, 1500.0, 1700.0
 };
 
+#ifdef FAX_DETECT
 static float fax_freq = 1100.0;
+#endif
 
 static char dtmf_positions[] = "123A" "456B" "789C" "*0#D";
 
@@ -294,6 +307,7 @@ static void ast_dtmf_detect_init (dtmf_detect_state_t *s)
 		s->energy = 0.0;
     }
 
+#ifdef FAX_DETECT
 	/* Same for the fax dector */
     goertzel_init (&s->fax_tone, fax_freq, 102);
 
@@ -301,6 +315,7 @@ static void ast_dtmf_detect_init (dtmf_detect_state_t *s)
 	/* Same for the fax dector 2nd harmonic */
     goertzel_init (&s->fax_tone2nd, fax_freq * 2.0, 102);
 #endif	
+#endif /* FAX_DETECT */
 	
     s->current_sample = 0;
     s->detected_digits = 0;
@@ -348,10 +363,12 @@ static int dtmf_detect (dtmf_detect_state_t *s,
 
     float row_energy[4];
     float col_energy[4];
+#ifdef FAX_DETECT
     float fax_energy;
 #ifdef OLD_DSP_ROUTINES
     float fax_energy_2nd;
 #endif	
+#endif /* FAX_DETECT */
     float famp;
     float v1;
     int i;
@@ -422,11 +439,12 @@ static int dtmf_detect (dtmf_detect_state_t *s,
             s->col_out[3].v2 = s->col_out[3].v3;
             s->col_out[3].v3 = s->col_out[3].fac*s->col_out[3].v2 - v1 + famp;
 
+#ifdef FAX_DETECT
 			/* Update fax tone */
             v1 = s->fax_tone.v2;
             s->fax_tone.v2 = s->fax_tone.v3;
             s->fax_tone.v3 = s->fax_tone.fac*s->fax_tone.v2 - v1 + famp;
-
+#endif /* FAX_DETECT */
 #ifdef OLD_DSP_ROUTINES
             v1 = s->col_out2nd[0].v2;
             s->col_out2nd[0].v2 = s->col_out2nd[0].v3;
@@ -460,9 +478,13 @@ static int dtmf_detect (dtmf_detect_state_t *s,
             s->row_out2nd[3].v2 = s->row_out2nd[3].v3;
             s->row_out2nd[3].v3 = s->row_out2nd[3].fac*s->row_out2nd[3].v2 - v1 + famp;
 
-            v1 = s->fax_tone.v2;
+
+#ifdef FAX_DETECT
+		/* Update fax tone */            
+	    v1 = s->fax_tone.v2;
             s->fax_tone2nd.v2 = s->fax_tone2nd.v3;
             s->fax_tone2nd.v3 = s->fax_tone2nd.fac*s->fax_tone2nd.v2 - v1 + famp;
+#endif /* FAX_DETECT */
 #endif
         }
 #endif
@@ -478,8 +500,10 @@ static int dtmf_detect (dtmf_detect_state_t *s,
             continue;
 		}
 
+#ifdef FAX_DETECT
 		/* Detect the fax energy, too */
 		fax_energy = goertzel_result(&s->fax_tone);
+#endif
 		
         /* We are at the end of a DTMF detection block */
         /* Find the peak row and the peak column */
@@ -582,6 +606,7 @@ static int dtmf_detect (dtmf_detect_state_t *s,
 #endif
             }
         } 
+#ifdef FAX_DETECT
 #ifdef OLD_DSP_ROUTINES
 		if (!hit && (fax_energy >= FAX_THRESHOLD) && (fax_energy > s->energy * 21.0)) {
 				fax_energy_2nd = goertzel_result(&s->fax_tone2nd);
@@ -622,6 +647,7 @@ static int dtmf_detect (dtmf_detect_state_t *s,
 			}
 			s->fax_hits = 0;
 		}
+#endif /* FAX_DETECT */
 #ifdef OLD_DSP_ROUTINES
         s->hit1 = s->hit2;
         s->hit2 = s->hit3;
@@ -641,10 +667,12 @@ static int dtmf_detect (dtmf_detect_state_t *s,
     	    goertzel_reset(&s->col_out2nd[i]);
 #endif			
         }
+#ifdef FAX_DETECT
     	goertzel_reset (&s->fax_tone);
 #ifdef OLD_DSP_ROUTINES
     	goertzel_reset (&s->fax_tone2nd);
 #endif			
+#endif
 		s->energy = 0.0;
         s->current_sample = 0;
     }
@@ -1633,9 +1661,13 @@ void ast_dsp_digitreset(struct ast_dsp *dsp)
 	    	goertzel_reset(&dsp->td.dtmf.col_out2nd[i]);
 #endif			
 		}
+#ifdef FAX_DETECT
 	    goertzel_reset (&dsp->td.dtmf.fax_tone);
+#endif
 #ifdef OLD_DSP_ROUTINES
+#ifdef FAX_DETECT
 	    goertzel_reset (&dsp->td.dtmf.fax_tone2nd);
+#endif
 	    dsp->td.dtmf.hit1 = dsp->td.dtmf.hit2 = dsp->td.dtmf.hit3 = dsp->td.dtmf.hit4 = dsp->td.dtmf.mhit = 0;
 #else
 	    dsp->td.dtmf.hits[2] = dsp->td.dtmf.hits[1] = dsp->td.dtmf.hits[0] =  dsp->td.dtmf.mhit = 0;

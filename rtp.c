@@ -75,6 +75,7 @@ struct ast_rtp {
 	struct sockaddr_in them;
 	struct timeval rxcore;
 	struct timeval txcore;
+	struct timeval dtmfmute;
 	struct ast_smoother *smoother;
 	int *ioid;
 	unsigned short seqno;
@@ -163,7 +164,17 @@ void ast_rtp_setnat(struct ast_rtp *rtp, int nat)
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 {
-	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c)\n", rtp->resp, rtp->resp);
+	struct timeval tv;
+	static struct ast_frame null_frame = { AST_FRAME_NULL, };
+	gettimeofday(&tv, NULL);
+	if ((tv.tv_sec < rtp->dtmfmute.tv_sec) ||
+	    ((tv.tv_sec == rtp->dtmfmute.tv_sec) && (tv.tv_usec < rtp->dtmfmute.tv_usec))) {
+		ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", inet_ntoa(rtp->them.sin_addr));
+		rtp->resp = 0;
+		rtp->dtmfduration = 0;
+		return &null_frame;
+	}
+	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, inet_ntoa(rtp->them.sin_addr));
 	rtp->f.frametype = AST_FRAME_DTMF;
 	rtp->f.subclass = rtp->resp;
 	rtp->f.datalen = 0;
@@ -389,6 +400,11 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 		}
 	}
+	/* Ignore if the other side hasn't been given an address
+	   yet.  */
+	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
+		return &null_frame;
+
 	/* Get fields */
 	seqno = ntohl(rtpheader[0]);
 	payloadtype = (seqno & 0x7f0000) >> 16;
@@ -862,6 +878,13 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	if (!rtp->them.sin_addr.s_addr)
 		return 0;
 
+	gettimeofday(&rtp->dtmfmute, NULL);
+	rtp->dtmfmute.tv_usec += (500 * 1000);
+	if (rtp->dtmfmute.tv_usec > 1000000) {
+		rtp->dtmfmute.tv_usec -= 1000000;
+		rtp->dtmfmute.tv_sec += 1;
+	}
+
 	ms = calc_txstamp(rtp);
 	/* Default prediction */
 	pred = rtp->lastts + ms * 8;
@@ -884,8 +907,8 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		if (x ==0) {
 			/* Clear marker bit and increment seqno */
 			rtpheader[0] = htonl((2 << 30)  | (101 << 16) | (rtp->seqno++));
-			/* Make duration 240 */
-			rtpheader[3] |= htonl((240));
+			/* Make duration 800 (100ms) */
+			rtpheader[3] |= htonl((800));
 			/* Set the End bit for the last 3 */
 			rtpheader[3] |= htonl((1 << 23));
 		}
@@ -1200,7 +1223,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		codec0 = pr0->get_codec(c0);
 		codec1 = pr1->get_codec(c1);
 		/* Hey, we can't do reinvite if both parties speak diffrent codecs */
-		if (codec0 != codec1) {
+		if (!(codec0 & codec1)) {
 			ast_log(LOG_WARNING, "codec0 = %d is not codec1 = %d, cannot native bridge.\n",codec0,codec1);
 			ast_mutex_unlock(&c0->lock);
 			ast_mutex_unlock(&c1->lock);

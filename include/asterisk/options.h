@@ -29,6 +29,7 @@ extern int fully_booted;
 extern char defaultlanguage[];
 extern time_t ast_startuptime;
 extern time_t ast_lastreloadtime;
+extern int ast_mainpid;
 
 #define VERBOSE_PREFIX_1 " "
 #define VERBOSE_PREFIX_2 "  == "

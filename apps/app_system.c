@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <pthread.h>
 
@@ -53,13 +54,15 @@ static int system_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	/* Do our thing here */
 	res = system((char *)data);
-	if (res < 0) {
+	if ((res < 0) && (errno != ECHILD)) {
 		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
 		res = -1;
 	} else if (res == 127) {
 		ast_log(LOG_WARNING, "Unable to execute '%s'\n", (char *)data);
 		res = -1;
 	} else {
+		if (res < 0)
+			res = 0;
 		if (res && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) 
 			chan->priority+=100;
 		res = 0;

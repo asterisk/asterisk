@@ -148,12 +148,14 @@ static char *synopsis_vm =
 
 static char *descrip_vm =
 "  VoiceMail([s|u|b]extension[@context]):  Leaves voicemail for a given\n"
-"extension (must be configured in voicemail.conf).  If the extension is\n"
-"preceded by an 's' then instructions for leaving the message will be\n"
-"skipped.  If the extension is preceeded by 'u' then the \"unavailable\"\n"
-"message will be played (/var/lib/asterisk/sounds/vm/<exten>/unavail) if it\n"
-"exists.  If the extension is preceeded by a 'b' then the the busy message\n"
-"will be played (that is, busy instead of unavail).\n"
+"extension (must be configured in voicemail.conf). \n"
+" If the extension is preceded by \n"
+"* 's' instructions for leaving the message will be skipped.\n"
+"* 'u' the \"unavailable\" message will be played \n"
+"  (/var/lib/asterisk/sounds/vm/<exten>/unavail) if it exists.\n"
+"* 'b' the busy message will be played (that is, busy instead of unavail).\n"
+"If the caller presses '0' (zero) during the prompt, the call jumps to\n"
+"priority 'o' in the current context.\n"
 "If the requested mailbox does not exist, and there exists a priority\n"
 "n + 101, then that priority will be taken next.\n"
 "Returns -1 on error or mailbox not found, or if the user hangs up.\n"
@@ -167,7 +169,7 @@ static char *descrip_vmain =
 "for the checking of voicemail.  The mailbox can be passed as the option,\n"
 "which will stop the voicemail system from prompting the user for the mailbox.\n"
 "If the mailbox is preceded by 's' then the password check will be skipped.  If\n"
-"a context is specified, logins are considered in that context only.\n"
+"a context is specified, logins are considered in that voicemail context only.\n"
 "Returns -1 if the user hangs up or 0 otherwise.\n";
 
 /* Leave a message */
@@ -450,11 +452,14 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 	
         FILE *configin;
         FILE *configout;
+		int linenum=0;
 		char inbuf[256];
 		char orig[256];
+		char currcontext[256] ="";
 		char tmpin[AST_CONFIG_MAX_PATH];
 		char tmpout[AST_CONFIG_MAX_PATH];
-		char *user, *pass, *rest, *trim;
+		char *user, *pass, *rest, *trim, *tempcontext;
+		tempcontext = NULL;
 		snprintf((char *)tmpin, sizeof(tmpin)-1, "%s/voicemail.conf",(char *)ast_config_AST_CONFIG_DIR);
 		snprintf((char *)tmpout, sizeof(tmpout)-1, "%s/voicemail.conf.new",(char *)ast_config_AST_CONFIG_DIR);
         configin = fopen((char *)tmpin,"r");
@@ -477,6 +482,7 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
         while (!feof(configin)) {
 			/* Read in the line */
 			fgets(inbuf, sizeof(inbuf), configin);
+			linenum++;
 			if (!feof(configin)) {
 				/* Make a backup of it */
 				memcpy(orig, inbuf, sizeof(orig));
@@ -488,6 +494,18 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 				user=inbuf;
 				while(*user < 33)
 					user++;
+				/* check for '[' (opening of context name ) */
+				tempcontext = strchr(user, '[');
+				if (tempcontext) {
+					strncpy(currcontext, tempcontext +1,
+						 sizeof(currcontext) - 1);
+					/* now check for ']' */
+					tempcontext = strchr(currcontext, ']');
+					if (tempcontext) 
+						*tempcontext = '\0';
+					else
+						currcontext[0] = '\0';
+				}
 				pass = strchr(user, '=');
 				if (pass > user) {
 					trim = pass - 1;
@@ -512,7 +530,11 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 					}
 				} else
 					rest = NULL;
-				if (user && pass && *user && *pass && !strcmp(user, vmu->mailbox) && !strcmp(pass, vmu->password)) {
+				
+				/* Compare user, pass AND context */
+				if (user && *user && !strcmp(user, vmu->mailbox) &&
+					 pass && *pass && !strcmp(pass, vmu->password) &&
+					 currcontext && *currcontext && !strcmp(currcontext, vmu->context)) {
 					/* This is the line */
 					if (rest) {
 						fprintf(configout, "%s => %s,%s\n", vmu->mailbox,newpassword,rest);
@@ -741,7 +763,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 
 			fprintf(p, "--%s\n", bound);
 		}
-		fprintf(p, "Content-Type: text/plain; charset=ISO-8859-1\nContent-Transfer-Encoding: 8bit\n");
+		fprintf(p, "Content-Type: text/plain; charset=ISO-8859-1\nContent-Transfer-Encoding: 8bit\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 		if (emailbody) {
 			struct ast_channel *ast = ast_channel_alloc(0);
@@ -1318,6 +1340,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	FILE *txt;
 	int res = 0;
 	int msgnum;
+	int fd;
 	char date[256];
 	char dir[256];
 	char fn[256];
@@ -1453,11 +1476,15 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				res = play_and_record(chan, NULL, fn, vmmaxmessage, fmt);
 				if (res > 0)
 					res = 0;
-				txt = fopen(txtfile, "a");
-				if (txt) {
-					time(&end);
-					fprintf(txt, "duration=%ld\n", (long)(end-start));
-					fclose(txt);
+				fd = open(txtfile, O_APPEND | O_WRONLY);
+				if (fd > -1) {
+					txt = fdopen(fd, "a");
+					if (txt) {
+						time(&end);
+						fprintf(txt, "duration=%ld\n", (long)(end-start));
+						fclose(txt);
+					} else
+						close(fd);
 				}
 				stringp = fmt;
 				strsep(&stringp, "|");
@@ -2244,7 +2271,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		system(sys);
 
 		todircount = count_messages(todir);
-		strncpy(tmp, fmt, sizeof(tmp));
+		strncpy(tmp, fmt, sizeof(tmp) - 1);
 		stringp = tmp;
 		while((s = strsep(&stringp, "|"))) {
 			/* XXX This is a hack -- we should use build_filename or similar XXX */
@@ -2556,9 +2583,7 @@ static int vm_instructions(struct ast_channel *chan, struct vm_state *vms)
 		if (!res) {
 			vms->repeats++;
 			if (vms->repeats > 2) {
-				res = play_and_wait(chan, "vm-goodbye");
-				if (!res)
-					res = 't';
+				res = 't';
 			}
 		}
 	}
@@ -2994,22 +3019,22 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	char *stringp;
 	char *s;
 	struct ast_vm_user *vmu;
-	strncpy(tmp, data, sizeof(tmp));
+	strncpy(tmp, data, sizeof(tmp) - 1);
 	vmu = malloc(sizeof(struct ast_vm_user));
 	if (vmu) {
 		memset(vmu, 0, sizeof(struct ast_vm_user));
-		strncpy(vmu->context, context, sizeof(vmu->context));
-		strncpy(vmu->mailbox, mbox, sizeof(vmu->mailbox));
+		strncpy(vmu->context, context, sizeof(vmu->context) - 1);
+		strncpy(vmu->mailbox, mbox, sizeof(vmu->mailbox) - 1);
 		vmu->attach = -1;
 		stringp = tmp;
 		if ((s = strsep(&stringp, ","))) 
-			strncpy(vmu->password, s, sizeof(vmu->password));
+			strncpy(vmu->password, s, sizeof(vmu->password) - 1);
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->fullname, s, sizeof(vmu->fullname));
+			strncpy(vmu->fullname, s, sizeof(vmu->fullname) - 1);
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->email, s, sizeof(vmu->email));
+			strncpy(vmu->email, s, sizeof(vmu->email) - 1);
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->pager, s, sizeof(vmu->pager));
+			strncpy(vmu->pager, s, sizeof(vmu->pager) - 1);
 		if (stringp && (s = strsep(&stringp, ","))) 
 			apply_options(vmu, s);
 		vmu->next = NULL;
@@ -3022,6 +3047,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	return 0;
 }
 
+#ifndef USEMYSQLVM
 /* XXX TL Bug 690 */
 static char show_voicemail_users_help[] =
 "Usage: show voicemail users [for <context>]\n"
@@ -3143,7 +3169,7 @@ static struct ast_cli_entry show_voicemail_zones_cli =
 	{ { "show", "voicemail", "zones", NULL },
 	handle_show_voicemail_zones, "List zone message formats",
 	show_voicemail_zones_help, NULL };
-
+#endif
 
 static int load_config(void)
 {
@@ -3167,6 +3193,7 @@ static int load_config(void)
 	while(cur) {
 		l = cur;
 		cur = cur->next;
+		l->alloced = 1;
 		free_user(l);
 	}
 	zcur = zones;
@@ -3301,16 +3328,21 @@ static int load_config(void)
 							msg_format = ast_strdupa(var->value);
 							if (msg_format != NULL) {
 								timezone = strsep(&msg_format, "|");
-								strncpy(z->name, var->name, sizeof(z->name) - 1);
-								strncpy(z->timezone, timezone, sizeof(z->timezone) - 1);
-								strncpy(z->msg_format, msg_format, sizeof(z->msg_format) - 1);
-								z->next = NULL;
-								if (zones) {
-									zonesl->next = z;
-									zonesl = z;
+								if (msg_format) {
+									strncpy(z->name, var->name, sizeof(z->name) - 1);
+									strncpy(z->timezone, timezone, sizeof(z->timezone) - 1);
+									strncpy(z->msg_format, msg_format, sizeof(z->msg_format) - 1);
+									z->next = NULL;
+									if (zones) {
+										zonesl->next = z;
+										zonesl = z;
+									} else {
+										zones = z;
+										zonesl = z;
+									}
 								} else {
-									zones = z;
-									zonesl = z;
+									ast_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
+									free(z);
 								}
 							} else {
 								ast_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
@@ -3386,8 +3418,10 @@ int unload_module(void)
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(capp2);
 	sql_close();
+#ifndef USEMYSQLVM
 	ast_cli_unregister(&show_voicemail_users_cli);
 	ast_cli_unregister(&show_voicemail_zones_cli);
+#endif
 	return res;
 }
 
@@ -3409,8 +3443,10 @@ int load_module(void)
 		ast_log(LOG_WARNING, "SQL init\n");
 		return res;
 	}
+#ifndef USEMYSQLVM
 	ast_cli_register(&show_voicemail_users_cli);
 	ast_cli_register(&show_voicemail_zones_cli);
+#endif
 	return res;
 }
 

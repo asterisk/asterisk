@@ -37,7 +37,8 @@ static char *descrip =
 "discovered from  voicemail.conf. The  context  argument  is  required,  and\n"
 "specifies  the  context  in  which to interpret the extensions. Returns 0\n"
 "unless the user hangs up. It  also sets up the channel on exit to enter the\n"
-"extension the user selected.\n";
+"extension the user selected.  Please note that the context must be the same\n"
+"as the section in voicemail.conf that the mailbox is processed from as well.\n";
 
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
@@ -199,10 +200,15 @@ ahem:
 				ast_stopstream(chan);
 				if (res > -1) {
 					if (res == '1') {
-						strncpy(chan->exten, v->name, sizeof(chan->exten)-1);
-						chan->priority = 0;
-						strncpy(chan->context, context, sizeof(chan->context)-1);
-						res = 0;
+						if (ast_exists_extension(chan, context, v->name, 1, chan->callerid)) {
+							strncpy(chan->exten, v->name, sizeof(chan->exten)-1);
+							chan->priority = 0;
+							strncpy(chan->context, context, sizeof(chan->context)-1);
+							res = 0;
+						} else {
+							ast_log(LOG_WARNING, "Can't find extension '%s' in context '%s'.  Did you pass the wrong context to Directory?\n", v->name, context);
+							res = -1;
+						}
 						break;
 					} else if (res == '*') {
 						res = 0;

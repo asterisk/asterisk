@@ -64,7 +64,7 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 static void dump_int(char *output, int maxlen, void *value, int len)
 {
 	if (len == sizeof(unsigned int))
-		snprintf(output, maxlen, "%ld", (long)ntohl(*((unsigned int *)value)));
+		snprintf(output, maxlen, "%lu", (unsigned long)ntohl(*((unsigned int *)value)));
 	else
 		snprintf(output, maxlen, "Invalid INT");
 }
@@ -287,8 +287,8 @@ snprintf(tmp, sizeof(tmp),
 	retries, fh->oseqno, fh->iseqno, class, subclass);
 	outputf(tmp);
 snprintf(tmp, sizeof(tmp), 
-"   Timestamp: %05ldms  SCall: %5.5d  DCall: %5.5d [%s:%d]\n",
-	(long)ntohl(fh->ts),
+"   Timestamp: %05lums  SCall: %5.5d  DCall: %5.5d [%s:%d]\n",
+	(unsigned long)ntohl(fh->ts),
 	ntohs(fh->scallno) & ~IAX_FLAG_FULL, ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS,
 		inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 	outputf(tmp);

@@ -49,6 +49,7 @@ static int syslog_level_map[] = {
 
 static ast_mutex_t msglist_lock = AST_MUTEX_INITIALIZER;
 static ast_mutex_t loglock = AST_MUTEX_INITIALIZER;
+static int pending_logger_reload = 0;
 
 static struct msglist {
 	char *msg;
@@ -228,7 +229,6 @@ int reload_logger(int rotate)
 	FILE *myf;
 
 	int x;
-
 	ast_mutex_lock(&loglock);
 	if (eventlog) 
 		fclose(eventlog);
@@ -295,6 +295,7 @@ int reload_logger(int rotate)
 	} else 
 		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	init_logger_chain();
+	pending_logger_reload = 0;
 	return -1;
 }
 
@@ -345,10 +346,8 @@ static struct ast_cli_entry rotate_logger_cli =
 	logger_rotate_help };
 
 static int handle_SIGXFSZ(int sig) {
-    reload_logger(1);
-    ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ\n");
-    if (option_verbose)
-	    ast_verbose("Rotated Logs Per SIGXFSZ\n");
+	/* Indicate need to reload */
+	pending_logger_reload = 1;
     return 0;
 }
 
@@ -399,7 +398,7 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 		 levels[level], (long)pthread_self(), file, line, function);
     }
     vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
-    syslog(syslog_level_map[level], buf);
+    syslog(syslog_level_map[level], "%s", buf);
 }
 
 /*
@@ -473,7 +472,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		    va_start(ap, fmt);
 		    vsnprintf(buf, sizeof(buf), fmt, ap);
 		    va_end(ap);
-		    fprintf(chan->fileptr, buf);
+		    fputs(buf, chan->fileptr);
 		    fflush(chan->fileptr);
 	    }
 	    chan = chan->next;
@@ -487,12 +486,18 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		    va_start(ap, fmt);
 		    vsnprintf(buf, sizeof(buf), fmt, ap);
 		    va_end(ap);
-		    fprintf(stdout, buf);
+		    fputs(buf, stdout);
 		}
     }
 
     ast_mutex_unlock(&loglock);
     /* end critical section */
+	if (pending_logger_reload) {
+	    reload_logger(1);
+	    ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ\n");
+	    if (option_verbose)
+		    ast_verbose("Rotated Logs Per SIGXFSZ\n");
+	}
 }
 
 extern void ast_verbose(const char *fmt, ...)

@@ -78,7 +78,7 @@ static char *descrip =
 "      'n' -- no retries on the timeout; will exit this application and go to the next step.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
-"  The optionnal URL will be sent to the called party if the channel supports\n"
+"  The optional URL will be sent to the called party if the channel supports\n"
 "it.\n";
 
 // [PHM 06/26/03]
@@ -482,7 +482,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 			if (numlines == numbusies) {
 				ast_log(LOG_DEBUG, "Everyone is busy at this time\n");
 			} else {
-				ast_log(LOG_NOTICE, "No one is answered queue %s\n", queue);
+				ast_log(LOG_NOTICE, "No one is answering queue '%s'\n", queue);
 			}
 			*to = 0;
 			return NULL;
@@ -1344,7 +1344,7 @@ static void reload_queues(void)
 	ast_mutex_unlock(&qlock);
 }
 
-static int queues_show(int fd, int argc, char **argv)
+static int __queues_show(int fd, int argc, char **argv, int queue_show)
 {
 	struct ast_call_queue *q;
 	struct queue_ent *qe;
@@ -1353,19 +1353,32 @@ static int queues_show(int fd, int argc, char **argv)
 	time_t now;
 	char max[80];
 	char calls[80];
-	
 	time(&now);
-	if (argc != 2)
+	if ((!queue_show && argc != 2) || (queue_show && argc != 3))
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&qlock);
 	q = queues;
 	if (!q) {	
 		ast_mutex_unlock(&qlock);
-		ast_cli(fd, "No queues.\n");
+		if (queue_show)
+			ast_cli(fd, "No such queue: %s.\n",argv[2]);
+		else
+			ast_cli(fd, "No queues.\n");
 		return RESULT_SUCCESS;
 	}
 	while(q) {
 		ast_mutex_lock(&q->lock);
+		if (queue_show) {
+			if (strcasecmp(q->name, argv[2]) != 0) {
+				ast_mutex_unlock(&q->lock);
+				q = q->next;
+				if (!q) {
+					ast_cli(fd, "No such queue: %s.\n",argv[2]);
+					break;
+				}
+				continue;
+			}
+		}
 		if (q->maxlen)
 			snprintf(max, sizeof(max), "%d", q->maxlen);
 		else
@@ -1400,9 +1413,39 @@ static int queues_show(int fd, int argc, char **argv)
 		ast_cli(fd, "\n");
 		ast_mutex_unlock(&q->lock);
 		q = q->next;
+		if (queue_show)
+			break;
 	}
 	ast_mutex_unlock(&qlock);
 	return RESULT_SUCCESS;
+}
+
+static int queues_show(int fd, int argc, char **argv)
+{
+	return __queues_show(fd, argc, argv, 0);
+}
+
+static int queue_show(int fd, int argc, char **argv)
+{
+	return __queues_show(fd, argc, argv, 1);
+}
+
+static char *complete_queue(char *line, char *word, int pos, int state)
+{
+	struct ast_call_queue *q;
+	int which=0;
+	
+	ast_mutex_lock(&qlock);
+	q = queues;
+	while(q) {
+		if (!strncasecmp(word, q->name, strlen(word))) {
+			if (++which > state)
+				break;
+		}
+		q = q->next;
+	}
+	ast_mutex_unlock(&qlock);
+	return q ? strdup(q->name) : NULL;
 }
 
 /* JDG: callback to display queues status in manager */
@@ -1469,12 +1512,23 @@ static struct ast_cli_entry cli_show_queues = {
 	{ "show", "queues", NULL }, queues_show, 
 	"Show status of queues", show_queues_usage, NULL };
 
+static char show_queue_usage[] = 
+"Usage: show queue\n"
+"       Provides summary information on a specified queue.\n";
+
+static struct ast_cli_entry cli_show_queue = {
+	{ "show", "queue", NULL }, queue_show, 
+	"Show status of a specified queue", show_queue_usage, complete_queue };
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_cli_unregister(&cli_show_queue);
 	ast_cli_unregister(&cli_show_queues);
 	ast_manager_unregister( "Queues" );
 	ast_manager_unregister( "QueueStatus" );
+	ast_unregister_application(app_aqm);
+	ast_unregister_application(app_rqm);
 	return ast_unregister_application(app);
 }
 
@@ -1483,6 +1537,7 @@ int load_module(void)
 	int res;
 	res = ast_register_application(app, queue_exec, synopsis, descrip);
 	if (!res) {
+		ast_cli_register(&cli_show_queue);
 		ast_cli_register(&cli_show_queues);
 		ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
 		ast_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );

@@ -5,7 +5,7 @@
  * 
  * Copyright (C) 2002, Christos Ricudis
  *
- * Christos Ricudis <ricudis@paiko.gr>
+ * Christos Ricudis <ricudis@itc.auth.gr>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

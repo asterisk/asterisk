@@ -68,7 +68,7 @@ static int glistcnt = 0;
 
 static char *name = "wav49";
 static char *desc = "Microsoft WAV format (Proprietary GSM)";
-static char *exts = "WAV";
+static char *exts = "WAV|wav49";
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define htoll(b) (b)
@@ -481,7 +481,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
 	off_t offset=0,distance,cur,min,max;
-	min = 52;
+	min = 60;
 	cur = lseek(fs->fd, 0, SEEK_CUR);
 	max = lseek(fs->fd, 0, SEEK_END);
 	/* I'm getting sloppy here, I'm only going to go to even splits of the 2

@@ -79,8 +79,10 @@ static int srv_callback(void *context, u_char *answer, int len, u_char *fullansw
 {
 	struct srv_context *c = (struct srv_context *)context;
 
-	if (parse_srv(c->host, c->hostlen, c->port, answer, len, fullanswer))
+	if (parse_srv(c->host, c->hostlen, c->port, answer, len, fullanswer)) {
 		ast_log(LOG_WARNING, "Failed to parse srv\n");
+		return -1;
+	}
 
 	if (strlen(c->host))
 		return 1;

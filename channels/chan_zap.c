@@ -225,7 +225,7 @@ static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
-static pthread_t monitor_thread = 0;
+static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
@@ -388,6 +388,7 @@ static struct zt_pvt {
 	struct zt_pvt *prev;			/* Prev channel in list */
 
 	struct zt_distRings drings;
+	int usedistinctiveringdetection;
 
 	char context[AST_MAX_EXTENSION];
 	char defcontext[AST_MAX_EXTENSION];
@@ -1598,7 +1599,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			p->prioffset, p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1, l, p->pri->dialplan - 1, n,
 			l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : (p->use_callingpres ? ast->callingpres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN)) : PRES_NUMBER_NOT_AVAILABLE,
 			c + p->stripmsd, p->pri->dialplan - 1, 
-			((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW))) {
+			(p->digital ? -1 : 
+			((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)))) {
 			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
 			return -1;
 		}
@@ -1709,7 +1711,8 @@ static int zt_hangup(struct ast_channel *ast)
 	}	
 	if (p->dsp)
 		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
-
+	if (p->exten)
+		strcpy(p->exten, "");
 
 	ast_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
 		p->channel, index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
@@ -2192,13 +2195,23 @@ int	x;
 	return 0;
 }
 
-static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master)
+static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master, int needlock)
 {
 	/* Unlink a specific slave or all slaves/masters from a given master */
 	int x;
 	int hasslaves;
 	if (!master)
 		return;
+	if (needlock) {
+		ast_mutex_lock(&master->lock);
+		if (slave) {
+			while(ast_mutex_trylock(&slave->lock)) {
+				ast_mutex_unlock(&master->lock);
+				usleep(1);
+				ast_mutex_lock(&master->lock);
+			}
+		}
+	}
 	hasslaves = 0;
 	for (x=0;x<MAX_SLAVES;x++) {
 		if (master->slaves[x]) {
@@ -2233,6 +2246,11 @@ static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master)
 		master->master = NULL;
 	}
 	update_conf(master);
+	if (needlock) {
+		if (slave)
+			ast_mutex_unlock(&slave->lock);
+		ast_mutex_unlock(&master->lock);
+	}
 }
 
 static void zt_link(struct zt_pvt *slave, struct zt_pvt *master) {
@@ -2296,8 +2314,11 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	oi2 = zt_get_index(c1, p1, 0);
 	oc1 = p0->owner;
 	oc2 = p1->owner;
-	if ((oi1 < 0) || (oi2 < 0))
+	if ((oi1 < 0) || (oi2 < 0)) {
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
 		return -1;
+	}
 
 
 
@@ -2452,7 +2473,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			(oi1 != i1) ||
 			(oi2 != i2)) {
 			if (slave && master)
-				zt_unlink(slave, master);
+				zt_unlink(slave, master, 1);
 			ast_log(LOG_DEBUG, "Something changed out on %d/%d to %d/%d, returning -3 to restart\n",
 									op0->channel, oi1, op1->channel, oi2);
 			if (op0 == p0)
@@ -2480,7 +2501,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 			*fo = NULL;
 			*rc = who;
 			if (slave && master)
-				zt_unlink(slave, master);
+				zt_unlink(slave, master, 1);
 			if (op0 == p0)
 				zt_enable_ec(p0);
 			if (op1 == p1)
@@ -2493,7 +2514,7 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 				*fo = f;
 				*rc = who;
 				if (slave && master)
-					zt_unlink(slave, master);
+					zt_unlink(slave, master, 1);
 				return 0;
 			} else if ((who == c0) && p0->pulsedial) {
 				ast_write(c1, f);
@@ -2516,18 +2537,20 @@ static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct zt_pvt *p = newchan->pvt->pvt;
 	int x;
+	ast_mutex_lock(&p->lock);
 	ast_log(LOG_DEBUG, "New owner for channel %d is %s\n", p->channel, newchan->name);
 	if (p->owner == oldchan)
 		p->owner = newchan;
 	for (x=0;x<3;x++)
 		if (p->subs[x].owner == oldchan) {
 			if (!x)
-				zt_unlink(NULL, p);
+				zt_unlink(NULL, p, 0);
 			p->subs[x].owner = newchan;
 		}
 	if (newchan->_state == AST_STATE_RINGING) 
 		zt_indicate(newchan, AST_CONTROL_RINGING);
 	update_conf(p);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -2982,7 +3005,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						if (res < 0) {
 						  ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
 						  p->dop.dialstr[0] = '\0';
-						  return NULL;
 						} else {
 						  ast_log(LOG_DEBUG, "Sent FXO deferred digit string: %s\n", p->dop.dialstr);
 						  p->subs[index].f.frametype = AST_FRAME_NULL;
@@ -3107,7 +3129,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					} else if (!p->subs[SUB_THREEWAY].owner) {
 						char callerid[256];
 						if (p->threewaycalling && !check_for_conference(p)) {
-							if (p->zaptrcallerid && p->owner)
+							if (p->zaptrcallerid && p->owner && p->owner->callerid)
 								strncpy(callerid, p->owner->callerid, sizeof(callerid) - 1);
 							/* XXX This section needs much more error checking!!! XXX */
 							/* Start a 3-way call if feasible */
@@ -4638,7 +4660,7 @@ static void *ss_thread(void *data)
 							break;
 					}
 				}
-				if (usedistinctiveringdetection == 1) {
+				if (p->usedistinctiveringdetection == 1) {
 					if(option_verbose > 2)
 						/* this only shows up if you have n of the dring patterns filled in */
 						ast_verbose( VERBOSE_PREFIX_3 "Detected ring pattern: %d,%d,%d\n",curRingData[0],curRingData[1],curRingData[2]);
@@ -4793,6 +4815,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXOLS:
 		case SIG_FXOGS:
 		case SIG_FXOKS:
+			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 			if (i->cidspill) {
 				/* Cancel VMWI spill */
 				free(i->cidspill);
@@ -5136,7 +5159,7 @@ static int restart_monitor(void)
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	/* If we're supposed to be stopped -- stay stopped */
-	if (monitor_thread == -2)
+	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
 	if (ast_mutex_lock(&monlock)) {
 		ast_log(LOG_WARNING, "Unable to lock monitor\n");
@@ -5147,7 +5170,7 @@ static int restart_monitor(void)
 		ast_log(LOG_WARNING, "Cannot kill myself\n");
 		return -1;
 	}
-	if (monitor_thread) {
+	if (monitor_thread != AST_PTHREADT_NULL) {
 		/* Just signal it to be sure it wakes up */
 #if 0
 		pthread_cancel(monitor_thread);
@@ -5492,6 +5515,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		/* Flag to destroy the channel must be cleared on new mkif.  Part of changes for reload to work */
 		tmp->destroy = 0;
 		tmp->drings = drings;
+		tmp->usedistinctiveringdetection = usedistinctiveringdetection;
 		tmp->callwaitingcallerid = callwaitingcallerid;
 		tmp->threewaycalling = threewaycalling;
 		tmp->adsi = adsi;
@@ -5845,6 +5869,11 @@ static int pri_fixup(struct zt_pri *pri, int channel, q931_call *c)
 			return 0;
 		return channel;
 	}
+	if ((channel >= 1) && 
+		(channel <= pri->channels) && 
+		(pri->pvt[channel]) && 
+		(pri->pvt[channel]->call == c))
+		return channel;
 	for (x=1;x<=pri->channels;x++) {
 		if (!pri->pvt[x]) continue;
 		if (pri->pvt[x]->call == c) {
@@ -5863,6 +5892,7 @@ static int pri_fixup(struct zt_pri *pri, int channel, q931_call *c)
 				if (pri->pvt[channel]->owner) {
 					pri->pvt[channel]->owner->pvt->pvt = pri->pvt[channel];
 					pri->pvt[channel]->owner->fds[0] = pri->pvt[channel]->subs[SUB_REAL].zfd;
+					pri->pvt[channel]->subs[SUB_REAL].owner = pri->pvt[x]->subs[SUB_REAL].owner;
 				} else
 					ast_log(LOG_WARNING, "Whoa, there's no  owner, and we're having to fix up channel %d to channel %d\n", x, channel);
 				pri->pvt[channel]->call = pri->pvt[x]->call;
@@ -6393,7 +6423,7 @@ static void *pri_dchannel(void *vpri)
                                 if ((chan >= 1) && (chan <= pri->channels)) 
 	                                        if (pri->pvt[chan] && pri->overlapdial && !pri->pvt[chan]->proceeding) {
 							struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
-							ast_log(LOG_DEBUG, "queling frame from PRI_EVENT_PROCEEDING on channel %d span %d\n",chan,pri->pvt[chan]->span);
+							ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROCEEDING on channel %d span %d\n",chan,pri->pvt[chan]->span);
 							ast_queue_frame(pri->pvt[chan]->owner, &f, 0);
 
 							pri->pvt[chan]->proceeding=1;
@@ -6472,9 +6502,9 @@ static void *pri_dchannel(void *vpri)
 						if (!pri->pvt[chan]->alreadyhungup) {
 							/* we're calling here zt_hangup so once we get there we need to clear p->call after calling pri_hangup */
 							pri->pvt[chan]->alreadyhungup = 1;
-							pri->pvt[chan]->owner->hangupcause = hangup_pri2cause(e->hangup.cause);
 							/* Queue a BUSY instead of a hangup if our cause is appropriate */
 							if (pri->pvt[chan]->owner) {
+								pri->pvt[chan]->owner->hangupcause = hangup_pri2cause(e->hangup.cause);
 								switch(e->hangup.cause) {
 								case PRI_CAUSE_USER_BUSY:
 									pri->pvt[chan]->subs[SUB_REAL].needbusy =1;
@@ -6654,7 +6684,7 @@ static void *pri_dchannel(void *vpri)
 			x = 0;
 			res = ioctl(pri->fd, ZT_GETEVENT, &x);
 			if (x) 
-				printf("PRI got event: %d\n", x);
+				ast_log(LOG_NOTICE, "PRI got event: %d on span %d\n", x, pri->span);
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Got event %s (%d) on D-channel for span %d\n", event2str(x), x, pri->span);
 		}
@@ -6687,7 +6717,7 @@ static int start_pri(struct zt_pri *pri)
 	if (p.sigtype != ZT_SIG_HDLCFCS) {
 		close(pri->fd);
 		pri->fd = -1;
-		ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/tormenta.conf\n", x);
+		ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x);
 		return -1;
 	}
 	bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
@@ -6725,7 +6755,7 @@ static char *complete_span(char *line, char *word, int pos, int state)
 	int span=1;
 	char tmp[50];
 	while(span <= NUM_SPANS) {
-		if (span > state)
+		if (span > state && pris[span-1].pri)
 			break;
 		span++;
 	}
@@ -7202,12 +7232,12 @@ static int __unload_module(void)
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != -2)) {
+		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
 		}
-		monitor_thread = -2;
+		monitor_thread = AST_PTHREADT_STOP;
 		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
@@ -7332,7 +7362,8 @@ static int setup_zap(void)
 				chan = strsep(&c, ",");
 			}
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
-			if (!strcasecmp(v->value, "yes")) usedistinctiveringdetection = 1;
+			if (ast_true(v->value))
+				usedistinctiveringdetection = 1;
 		} else if (!strcasecmp(v->name, "dring1context")) {
 			strncpy(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData)-1);
 		} else if (!strcasecmp(v->name, "dring2context")) {
@@ -7815,7 +7846,8 @@ static int reload_zt(void)
 				chan = strsep(&stringp, ",");
 			}
 		} else if (!strcasecmp(v->name, "usedistinctiveringdetection")) {
-			if (!strcasecmp(v->value, "yes")) usedistinctiveringdetection = 1;
+			if (ast_true(v->value))
+				usedistinctiveringdetection = 1;
 		} else if (!strcasecmp(v->name, "dring1context")) {
 			strncpy(drings.ringContext[0].contextData,v->value,sizeof(drings.ringContext[0].contextData)-1);
 		} else if (!strcasecmp(v->name, "dring2context")) {
