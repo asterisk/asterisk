@@ -430,3 +430,29 @@ char *ast_strcasestr(const char *haystack, const char *needle)
 }
 #endif
 
+
+/*--- ast_print_group: Print call group and pickup group ---*/
+char *ast_print_group(char *buf, int buflen, unsigned int group) 
+{
+	unsigned int i;
+	int first=1;
+	char num[3];
+
+	buf[0] = '\0';
+	
+	if (!group)	/* Return empty string if no group */
+		return(buf);
+
+	for (i=0; i<=31; i++) {	/* Max group is 31 */
+		if (group & (1 << i)) {
+	   		if (!first) {
+				strncat(buf, ", ", buflen);
+			} else {
+				first=0;
+	  		}
+			snprintf(num, sizeof(num), "%u", i);
+			strncat(buf, num, buflen);
+		}
+    	}
+	return(buf);
+}

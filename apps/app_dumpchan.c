@@ -19,6 +19,7 @@
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -29,9 +30,9 @@ static char *synopsis = "Dump Info About The Calling Channel";
 static char *desc = 
 "   DumpChan([<min_verbose_level>])\n"
 "Displays information on channel and listing of all channel\n"
-"variables.  If min_verbose_level is specified, output is only\n"
+"variables. If min_verbose_level is specified, output is only\n"
 "displayed when the verbose level is currently set to that number\n"
-"or greater.  Always returns 0.\n\n";
+"or greater. Always returns 0.\n\n";
 
 STANDARD_LOCAL_USER;
 
@@ -42,6 +43,9 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	struct timeval now;
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
+	char cgrp[256];
+	char pgrp[256];
+	
 	gettimeofday(&now, NULL);
 	memset(buf,0,size);
 	if (!c)
@@ -55,30 +59,30 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	}
 
 	snprintf(buf,size, 
-			 "Name=%s\n"
-			 "Type=%s\n"
-			 "UniqueID=%s\n"
-			 "CallerID=%s\n"
-			 "CallerIDName=%s\n"
-			 "DNIDDigits=%s\n"
-			 "State=%s(%d)\n"
-			 "Rings=%d\n"
-			 "NativeFormat=%d\n"
-			 "WriteFormat=%d\n"
-			 "ReadFormat=%d\n"
-			 "1stFileDescriptor=%d\n"
-			 "Framesin=%d%s\n"
-			 "Framesout=%d%s\n"
-			 "TimetoHangup=%ld\n"
-			 "ElapsedTime=%dh%dm%ds\n"
-			 "Context=%s\n"
-			 "Extension=%s\n"
-			 "Priority=%d\n"
-			 "CallGroup=%d\n"
-			 "PickupGroup=%d\n"
-			 "Application=%s\n"
-			 "Data=%s\n"
-			 "Blocking_in=%s\n",
+			 "Name=               %s\n"
+			 "Type=               %s\n"
+			 "UniqueID=           %s\n"
+			 "CallerID=           %s\n"
+			 "CallerIDName=       %s\n"
+			 "DNIDDigits=         %s\n"
+			 "State=              %s (%d)\n"
+			 "Rings=              %d\n"
+			 "NativeFormat=       %d\n"
+			 "WriteFormat=        %d\n"
+			 "ReadFormat=         %d\n"
+			 "1stFileDescriptor=  %d\n"
+			 "Framesin=           %d %s\n"
+			 "Framesout=          %d %s\n"
+			 "TimetoHangup=       %ld\n"
+			 "ElapsedTime=        %dh%dm%ds\n"
+			 "Context=            %s\n"
+			 "Extension=          %s\n"
+			 "Priority=           %d\n"
+			 "CallGroup=          %s\n"
+			 "PickupGroup=        %s\n"
+			 "Application=        %s\n"
+			 "Data=               %s\n"
+			 "Blocking_in=        %s\n",
 			 c->name,
 			 c->type,
 			 c->uniqueid,
@@ -99,8 +103,8 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 c->context,
 			 c->exten,
 			 c->priority,
-			 c->callgroup,
-			 c->pickupgroup,
+			 ast_print_group(cgrp, sizeof(cgrp), c->callgroup),
+			 ast_print_group(pgrp, sizeof(pgrp), c->pickupgroup),
 			 ( c->appl ? c->appl : "(N/A)" ),
 			 ( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
 			 (ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
@@ -125,7 +129,7 @@ static int dumpchan_exec(struct ast_channel *chan, void *data)
 	pbx_builtin_serialize_variables(chan, vars, sizeof(vars));
 	ast_serialize_showchan(chan, info, sizeof(info));
 	if (option_verbose >= level)
-		ast_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n",chan->name,line,info,vars,line);
+		ast_verbose("\nDumping Info For Channel: %s:\n%s\nInfo:\n%s\nVariables:\n%s%s\n",chan->name, line, info, vars, line);
 
 	LOCAL_USER_REMOVE(u);
 	return res;

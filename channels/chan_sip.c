@@ -5902,20 +5902,8 @@ static int sip_show_objects(int fd, int argc, char *argv[])
 /*--- print_group: Print call group and pickup group ---*/
 static void  print_group(int fd, unsigned int group) 
 {
-	unsigned int i;
-	int first=1;
-
-	for (i=0; i<=31; i++) {	/* Max group is 31 */
-		if (group & (1 << i)) {
-	   		if (!first) {
-				ast_cli(fd, ", ");
-			} else {
-				first=0;
-	  		}
-			ast_cli(fd, "%u", i);
-		}
-    	}
-	ast_cli(fd, " (%u)\n", group);
+	char buf[256];
+	ast_cli(fd, ast_print_group(buf, sizeof(buf), group) );
 }
 
 static const char *dtmfmode2str(int mode)
@@ -5928,6 +5916,7 @@ static const char *dtmfmode2str(int mode)
 	case SIP_DTMF_INBAND:
 		return "inband";
 	}
+	return "<error>";
 }
 
 static const char *insecure2str(int mode)
@@ -5940,6 +5929,7 @@ static const char *insecure2str(int mode)
 	case SIP_INSECURE_VERY:
 		return "very";
 	}
+	return "<error>";
 }
 
 /*--- sip_show_peer: Show one peer in detail ---*/
@@ -9065,6 +9055,7 @@ static int reload_config(void)
 	return 0;
 }
 
+/*--- sip_get_rtp_peer: Returns null if we can't reinvite */
 static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
@@ -9287,12 +9278,14 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+/*--- sip_get_codec: Return peers codec ---*/
 static int sip_get_codec(struct ast_channel *chan)
 {
 	struct sip_pvt *p = chan->pvt->pvt;
 	return p->peercapability;	
 }
 
+/*--- sip_rtp: Interface structure with callbacks used to connect to rtp module --*/
 static struct ast_rtp_protocol sip_rtp = {
 	get_rtp_info: sip_get_rtp_peer,
 	get_vrtp_info: sip_get_vrtp_peer,
