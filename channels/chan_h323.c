@@ -1648,9 +1648,11 @@ int reload(void)
 	delete_aliases();
 	prune_peers();
 
+#if 0
 	if (strlen(gatekeeper)) {
 		h323_gk_urq();
 	}
+#endif
 
 	reload_config();
 
