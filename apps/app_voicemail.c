@@ -109,6 +109,23 @@ struct vm_zone {
 	struct vm_zone *next;
 };
 
+struct vm_state {
+	char curbox[80];
+	char username[80];
+	char curdir[256];
+	char vmbox[256];
+	char fn[256];
+	char fn2[256];
+	int deleted[MAXMSG];
+	int heard[MAXMSG];
+	int curmsg;
+	int lastmsg;
+	int newmessages;
+	int oldmessages;
+	int starting;
+	int repeats;
+};
+
 static char *tdesc = "Comedian Mail (Voicemail System)";
 
 static char *adapp = "CoMa";
@@ -872,6 +889,214 @@ static int play_and_wait(struct ast_channel *chan, char *fn)
 	d = ast_waitstream(chan, AST_DIGIT_ANY);
 	ast_stopstream(chan);
 	return d;
+}
+
+static int play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt)
+{
+	char d, *fmts;
+	char comment[256];
+	int x, fmtcnt=1, res=-1,outmsg=0;
+	struct ast_frame *f;
+	struct ast_filestream *others[MAX_OTHER_FORMATS];
+	struct ast_filestream *realfiles[MAX_OTHER_FORMATS];
+	char *sfmt[MAX_OTHER_FORMATS];
+	char *stringp=NULL;
+	time_t start, end;
+	struct ast_dsp *sildet;   	/* silence detector dsp */
+	int totalsilence = 0;
+	int dspsilence = 0;
+	int gotsilence = 0;		/* did we timeout for silence? */
+	int rfmt=0;	
+	char prependfile[80];
+	
+	ast_log(LOG_DEBUG,"play_and_preped: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
+	snprintf(comment,sizeof(comment),"Playing %s, Recording to: %s on %s\n", playfile ? playfile : "<None>", recordfile, chan->name);
+
+	if (playfile) {	
+		d = play_and_wait(chan, playfile);
+		if (d > -1)
+			d = ast_streamfile(chan, "beep",chan->language);
+		if (!d)
+			d = ast_waitstream(chan,"");
+		if (d < 0)
+			return -1;
+	}
+	strncpy(prependfile, recordfile, sizeof(prependfile) -1);	
+	strcat(prependfile, "-prepend");
+			
+	fmts = ast_strdupa(fmt);
+	
+	stringp=fmts;
+	strsep(&stringp, "|");
+	ast_log(LOG_DEBUG,"Recording Formats: sfmts=%s\n", fmts);	
+	sfmt[0] = ast_strdupa(fmts);
+	
+	while((fmt = strsep(&stringp, "|"))) {
+		if (fmtcnt > MAX_OTHER_FORMATS - 1) {
+			ast_log(LOG_WARNING, "Please increase MAX_OTHER_FORMATS in app_voicemail.c\n");
+			break;
+		}
+		sfmt[fmtcnt++] = ast_strdupa(fmt);
+	}
+
+	if (maxtime)
+		time(&start);
+	for (x=0;x<fmtcnt;x++) {
+		others[x] = ast_writefile(prependfile, sfmt[x], comment, O_TRUNC, 0, 0700);
+		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s, %p\n", x, prependfile, sfmt[x], others[x]);
+		if (!others[x]) {
+			break;
+		}
+	}
+	
+	sildet = ast_dsp_new(); //Create the silence detector
+	if (!sildet) {
+		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+		return -1;
+	}
+	ast_dsp_set_threshold(sildet, silencethreshold);
+	
+	if (maxsilence > 0) {
+		rfmt = chan->readformat;
+		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			return -1;
+		}
+	}
+						
+	if (x == fmtcnt) {
+	/* Loop forever, writing the packets we read to the writer(s), until
+	   we read a # or get a hangup */
+		f = NULL;
+		for(;;) {
+		 	res = ast_waitfor(chan, 2000);
+			if (!res) {
+				ast_log(LOG_DEBUG, "One waitfor failed, trying another\n");
+				/* Try one more time in case of masq */
+			 	res = ast_waitfor(chan, 2000);
+				if (!res) {
+					ast_log(LOG_WARNING, "No audio available on %s??\n", chan->name);
+					res = -1;
+				}
+			}
+			
+			if (res < 0) {
+				f = NULL;
+				break;
+			}
+			f = ast_read(chan);
+			if (!f)
+				break;
+			if (f->frametype == AST_FRAME_VOICE) {
+				/* write each format */
+				for (x=0;x<fmtcnt;x++) {
+					if (!others[x])
+						break;
+					res = ast_writestream(others[x], f);
+				}
+				
+				/* Silence Detection */
+				if (maxsilence > 0) {
+					dspsilence = 0;
+					ast_dsp_silence(sildet, f, &dspsilence);
+					if (dspsilence)
+						totalsilence = dspsilence;
+					else
+						totalsilence = 0;
+					
+					if (totalsilence > maxsilence) {
+					/* Ended happily with silence */
+					ast_frfree(f);
+					gotsilence = 1;
+					outmsg=2;
+					break;
+					}
+				}
+				/* Exit on any error */
+				if (res) {
+					ast_log(LOG_WARNING, "Error writing frame\n");
+					ast_frfree(f);
+					break;
+				}
+			} else if (f->frametype == AST_FRAME_VIDEO) {
+				/* Write only once */
+				ast_writestream(others[0], f);
+			} else if (f->frametype == AST_FRAME_DTMF) {
+				/* stop recording with any digit */
+				if (option_verbose > 2) 
+					ast_verbose( VERBOSE_PREFIX_3 "User ended message by pressing %c\n", f->subclass);
+				res = f->subclass;
+				outmsg = 2;
+				ast_frfree(f);
+				break;
+			}
+			if (maxtime) {
+				time(&end);
+				if (maxtime < (end - start)) {
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
+					res = 't';
+					ast_frfree(f);
+					break;
+				}
+			}
+			ast_frfree(f);
+		}
+		if (!f) {
+			if (option_verbose > 2) 
+				ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
+			res = -1;
+			outmsg=1;
+			/* delete all the prepend files */
+			for (x=0;x<fmtcnt;x++) {
+				if (!others[x])
+					break;
+				ast_closestream(others[x]);
+				ast_filedelete(prependfile, sfmt[x]);
+			}
+		}
+	} else {
+		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
+	}
+	if (outmsg > 1) {
+		struct ast_frame *fr;
+		for (x=0;x<fmtcnt;x++) {
+			snprintf(comment, sizeof(comment), "Opening the real file %s.%s\n", recordfile, sfmt[x]);
+			realfiles[x] = ast_writefile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
+			if (!others[x] || !realfiles[x])
+				break;
+			if (totalsilence)
+				ast_stream_rewind(others[x], totalsilence-200);
+			else
+				ast_stream_rewind(others[x], 200);
+			ast_truncstream(others[x]);
+			/* add the original file too */
+			while ((fr = ast_readframe(realfiles[x]))) {
+				ast_writestream(others[x],fr);
+			}
+			ast_closestream(others[x]);
+			ast_closestream(realfiles[x]);
+			ast_filerename(prependfile, recordfile, sfmt[x]);
+#if 0
+			ast_verbose("Recording Format: sfmts=%s, prependfile %s, recordfile %s\n", sfmt[x],prependfile,recordfile);
+#endif
+			ast_filedelete(prependfile, sfmt[x]);
+		}
+	}
+	if (rfmt) {
+		if (ast_set_read_format(chan, rfmt)) {
+			ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
+		}
+	}
+	if (outmsg) {
+		if (outmsg > 1) {
+			/* Let them know it worked */
+			ast_streamfile(chan, "vm-msgsaved", chan->language);
+			ast_waitstream(chan, "");
+		}
+	}	
+	return res;
 }
 
 static int play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt)
@@ -1891,8 +2116,45 @@ static int get_folder2(struct ast_channel *chan, char *fn, int start)
 	return res;
 }
 
-static int
-forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, struct ast_vm_user *sender, char *fmt)
+static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, char *curdir, int curmsg, char *vmfts, char *context)
+{
+	int cmd = 0;
+	int retries = 0;
+
+	while((cmd >= 0) && (cmd != 't') && (cmd != '#')) {
+		if (cmd)
+			retries = 0;
+		switch (cmd) {
+		case '1': 
+			/* prepend a message to the current message and return */
+		{
+			char file[200];
+			snprintf(file, sizeof(file), "%s/msg%04d", curdir, curmsg);
+			cmd = play_and_prepend(chan, NULL, file, 0, vmfmts);
+			break;
+		}
+		case '2': 
+			cmd = 't';
+			break;
+		case '#':
+			cmd = '#';
+			break;
+		default: 
+			cmd = play_and_wait(chan,"vm-forwardoptions");
+			if (!cmd)
+				cmd = ast_waitfordigit(chan,6000);
+			if (!cmd)
+				retries++;
+			if (retries > 3)
+				cmd = 't';
+		 }
+	}
+	if (cmd == 't')
+		cmd = 0;
+	return cmd;
+}
+
+static int forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, struct ast_vm_user *sender, char *fmt)
 {
 	char username[70];
 	char sys[256];
@@ -1903,105 +2165,126 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 	char miffile[256];
 	char fn[256];
 	char callerid[512];
-	int res = 0;
-	struct ast_vm_user *receiver, srec;
+	int res = 0, cmd = 0;
+	struct ast_vm_user *receiver, *extensions = NULL, *vmtmp = NULL;
 	char tmp[256];
 	char *stringp, *s;
-	
-	while(!res) {
+	int saved_messages = 0, found = 0;
+	int valid_extensions = 0;
+	while (!res && !valid_extensions) {
 		res = ast_streamfile(chan, "vm-extension", chan->language);
 		if (res)
 			break;
 		if ((res = ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0))
 			break;
-		if ((receiver = find_user(&srec, context, username))) {
-			/* if (play_and_wait(chan, "vm-savedto"))
+		/* start all over if no username */
+		if (!strlen(username))
+			continue;
+		stringp = username;
+		s = strsep(&stringp, "*");
+		/* start optimistic */
+		valid_extensions = 1;
+		while (s) {
+			/* find_user is going to malloc since we have a NULL as first argument */
+			if ((receiver = find_user(NULL, context, s))) {
+				if (!extensions)
+					vmtmp = extensions = receiver;
+				else {
+					vmtmp->next = receiver;
+					vmtmp = receiver;
+				}
+				found++;
+			} else {
+				valid_extensions = 0;
 				break;
-			*/
-
-			snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR, receiver->context, username);
-			snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
-			ast_log(LOG_DEBUG, sys);
-			system(sys);
-
-			todircount = count_messages(todir);
-			strncpy(tmp, fmt, sizeof(tmp));
-			stringp = tmp;
-			while((s = strsep(&stringp, "|"))) {
-				/* XXX This is a hack -- we should use build_filename or similar XXX */
-				if (!strcasecmp(s, "wav49"))
-					s = "WAV";
-				snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
-				ast_log(LOG_DEBUG, sys);
-				system(sys);
 			}
-			snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
+			s = strsep(&stringp, "*");
+		}
+		/* break from the loop of reading the extensions */
+		if (valid_extensions)
+			break;
+		/* invalid extension, try again */
+		res = play_and_wait(chan, "pbx-invalid");
+	}
+	/* check if we're clear to proceed */
+	if (!extensions || !valid_extensions)
+		return res;
+	vmtmp = extensions;
+	cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context);
+
+	while(!res && vmtmp) {
+		/* if (play_and_wait(chan, "vm-savedto"))
+			break;
+		*/
+		snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
+		snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
+		ast_log(LOG_DEBUG, sys);
+		system(sys);
+
+		todircount = count_messages(todir);
+		strncpy(tmp, fmt, sizeof(tmp));
+		stringp = tmp;
+		while((s = strsep(&stringp, "|"))) {
+			/* XXX This is a hack -- we should use build_filename or similar XXX */
+			if (!strcasecmp(s, "wav49"))
+				s = "WAV";
+			snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
 			ast_log(LOG_DEBUG, sys);
 			system(sys);
-			snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
+		}
+		snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
+		ast_log(LOG_DEBUG, sys);
+		system(sys);
+		snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
 
-			/* load the information on the source message so we can send an e-mail like a new message */
-			snprintf(miffile, sizeof(miffile), "%s/msg%04d.txt", dir, curmsg);
-			if ((mif=ast_load(miffile))) {
+		/* load the information on the source message so we can send an e-mail like a new message */
+		snprintf(miffile, sizeof(miffile), "%s/msg%04d.txt", dir, curmsg);
+		if ((mif=ast_load(miffile))) {
 
-              /* set callerid and duration variables */
-              snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", sender->fullname, ast_variable_retrieve(mif, NULL, "callerid"));
-	      s = ast_variable_retrieve(mif, NULL, "duration");
-              if (s)
-		      duration = atol(s);
-	      else
-		      duration = 0;
-	      if (strlen(receiver->email)) {
+			/* set callerid and duration variables */
+			snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", sender->fullname, ast_variable_retrieve(mif, NULL, "callerid"));
+			s = ast_variable_retrieve(mif, NULL, "duration");
+			if (s)
+				duration = atol(s);
+			else
+				duration = 0;
+			if (strlen(vmtmp->email)) {
 				int attach_user_voicemail = attach_voicemail;
 				char *myserveremail = serveremail;
-				if (receiver->attach > -1)
-					attach_user_voicemail = receiver->attach;
-				if (strlen(receiver->serveremail))
-					myserveremail = receiver->serveremail;
-		      sendmail(myserveremail, receiver, todircount, username, callerid, fn, tmp, duration, attach_user_voicemail);
-	      }
-	     
-			if (strlen(receiver->pager)) {
+				if (vmtmp->attach > -1)
+					attach_user_voicemail = vmtmp->attach;
+				if (strlen(vmtmp->serveremail))
+					myserveremail = vmtmp->serveremail;
+				sendmail(myserveremail, vmtmp, todircount, vmtmp->mailbox, callerid, fn, tmp, duration, attach_user_voicemail);
+			}
+		     
+			if (strlen(vmtmp->pager)) {
 				char *myserveremail = serveremail;
-				if (strlen(receiver->serveremail))
-					myserveremail = receiver->serveremail;
-				sendpage(myserveremail, receiver->pager, todircount, username, callerid, duration, receiver);
+				if (strlen(vmtmp->serveremail))
+					myserveremail = vmtmp->serveremail;
+				sendpage(myserveremail, vmtmp->pager, todircount, vmtmp->mailbox, callerid, duration, vmtmp);
 			}
 			  
-			  ast_destroy(mif); /* or here */
-			}
-			/* Leave voicemail for someone */
-			manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", username, ast_app_has_voicemail(username));
-
-			/* give confirmatopm that the message was saved */
-			res = play_and_wait(chan, "vm-message");
-			if (!res)
-				res = play_and_wait(chan, "vm-saved");
-			free_user(receiver);
-			break;
-		} else {
-			res = play_and_wait(chan, "pbx-invalid");
+			ast_destroy(mif); /* or here */
 		}
-	}
-	return res;
-}
+		/* Leave voicemail for someone */
+		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vmtmp->mailbox, ast_app_has_voicemail(vmtmp->mailbox));
 
-struct vm_state {
-	char curbox[80];
-	char username[80];
-	char curdir[256];
-	char vmbox[256];
-	char fn[256];
-	char fn2[256];
-	int deleted[MAXMSG];
-	int heard[MAXMSG];
-	int curmsg;
-	int lastmsg;
-	int newmessages;
-	int oldmessages;
-	int starting;
-	int repeats;
-};
+		free_user(vmtmp);
+		saved_messages++;
+		vmtmp = vmtmp->next;
+	}
+	if (saved_messages > 0) {
+		/* give confirmatopm that the message was saved */
+		if (saved_messages == 1)
+			res = play_and_wait(chan, "vm-message");
+		else
+			res = play_and_wait(chan, "vm-messages");
+		if (!res)
+			res = play_and_wait(chan, "vm-saved");
+	}
+	return res ? res : cmd;
+}
 
 
 static int wait_file2(struct ast_channel *chan, struct vm_state *vms, char *file)

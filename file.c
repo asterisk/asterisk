@@ -499,6 +499,15 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, char *filename,
 	return NULL;
 }
 
+struct ast_frame *ast_readframe(struct ast_filestream *s)
+{
+	struct ast_frame *f = NULL;
+	int whennext = 0;	
+	if (s && s->fmt)
+		f = s->fmt->read(s, &whennext);
+	return f;
+}
+
 static int ast_readaudio_callback(void *data)
 {
 	struct ast_filestream *s = data;
@@ -726,10 +735,9 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 	return -1;
 }
 
-
-struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, int flags, int check, mode_t mode)
+struct ast_filestream *ast_readfile(char *filename, char *type, char *comment, int flags, int check, mode_t mode)
 {
-	int fd,myflags;
+	int fd,myflags = 0;
 	struct ast_format *f;
 	struct ast_filestream *fs=NULL;
 	char *fn;
@@ -738,9 +746,6 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
 	}
-	myflags = 0;
-	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
-	if (!(flags & O_APPEND)) myflags = O_TRUNC;
 	f = formats;
 	while(f) {
 		if (!strcasecmp(f->name, type)) {
@@ -750,7 +755,62 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 			stringp=ext;
 			ext = strsep(&stringp, "|");
 			fn = build_filename(filename, ext);
-			fd = open(fn, flags | myflags | O_WRONLY | O_CREAT, mode);
+			fd = open(fn, flags | myflags);
+			if (fd >= 0) {
+				errno = 0;
+				if ((fs = f->open(fd))) {
+					fs->trans = NULL;
+					fs->fmt = f;
+					fs->flags = flags;
+					fs->mode = mode;
+					fs->filename = strdup(filename);
+					fs->vfs = NULL;
+				} else {
+					ast_log(LOG_WARNING, "Unable to open %s\n", fn);
+					close(fd);
+					unlink(fn);
+				}
+			} else if (errno != EEXIST)
+				ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
+			free(fn);
+			free(ext);
+			break;
+		}
+		f = f->next;
+	}
+	ast_mutex_unlock(&formatlock);
+	if (!f) 
+		ast_log(LOG_WARNING, "No such format '%s'\n", type);
+	return fs;
+}
+
+struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, int flags, int check, mode_t mode)
+{
+	int fd,myflags = 0;
+	struct ast_format *f;
+	struct ast_filestream *fs=NULL;
+	char *fn;
+	char *ext;
+	if (ast_mutex_lock(&formatlock)) {
+		ast_log(LOG_WARNING, "Unable to lock format list\n");
+		return NULL;
+	}
+	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
+	if (!(flags & O_APPEND)) 
+		myflags = O_TRUNC;
+	
+	myflags |= O_WRONLY | O_CREAT;
+
+	f = formats;
+	while(f) {
+		if (!strcasecmp(f->name, type)) {
+			char *stringp=NULL;
+			/* XXX Implement check XXX */
+			ext = strdup(f->exts);
+			stringp=ext;
+			ext = strsep(&stringp, "|");
+			fn = build_filename(filename, ext);
+			fd = open(fn, flags | myflags, mode);
 			if (fd >= 0) {
 				errno = 0;
 				if ((fs = f->rewrite(fd, comment))) {

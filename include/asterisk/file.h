@@ -140,6 +140,22 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
    1 if monfd is ready for reading */
 char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int monfd);
 
+//! Starts reading from a file
+/*!
+ * \param filename the name of the file to write to
+ * \param type format of file you wish to write out to
+ * \param comment comment to go with
+ * \param oflags output file flags
+ * \param check (unimplemented, hence negligible)
+ * \param mode Open mode
+ * Open an incoming file stream.  oflags are flags for the open() command, and 
+ * if check is non-zero, then it will not write a file if there are any files that 
+ * start with that name and have an extension
+ * Please note, this is a blocking function.  Program execution will not return until ast_waitstream completes it's execution.
+ * Returns a struct ast_filestream on success, NULL on failure
+ */
+struct ast_filestream *ast_readfile(char *filename, char *type, char *comment, int oflags, int check, mode_t mode);
+
 //! Starts writing a file
 /*!
  * \param filename the name of the file to write to
@@ -260,6 +276,13 @@ int ast_stream_rewind(struct ast_filestream *fs, long ms);
  * Returns a long as a sample offset into stream
  */
 long ast_tellstream(struct ast_filestream *fs);
+
+//! Read a frame from a filestream
+/*!
+ * \param ast_filestream fs to act on
+ * Returns a frame or NULL if read failed
+ */ 
+struct ast_frame *ast_readframe(struct ast_filestream *s);
 
 #define AST_RESERVED_POINTERS 20
 
