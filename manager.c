@@ -614,6 +614,7 @@ static int action_getvar(struct mansession *s, struct message *m)
         char *varname = astman_get_header(m, "Variable");
 	char *id = astman_get_header(m,"ActionID");
 	char *varval;
+	char *varval2=NULL;
 
 	if (!strlen(name)) {
 		astman_send_error(s, m, "No channel specified");
@@ -638,11 +639,14 @@ static int action_getvar(struct mansession *s, struct message *m)
 	}
 	
 	varval=pbx_builtin_getvar_helper(c,varname);
-	  
+	if (varval)
+		varval2 = ast_strdupa(varval);
+	if (!varval2)
+		varval2 = "";
 	ast_mutex_unlock(&c->lock);
 	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
-		"%s: %s\r\n" ,varname,varval);
+		"%s: %s\r\n" ,varname,varval2);
 	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "\r\n");
