@@ -983,12 +983,35 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					if (!p->chan) {
 						if (callbackmode) {
 							char tmpchan[256] = "";
+							int pos = 0;
 							/* Retrieve login chan */
-							if (exten) {
-								strncpy(tmpchan, exten, sizeof(tmpchan) - 1);
-								res = 0;
-							} else
-								res = ast_app_getdata(chan, "agent-newlocation", tmpchan, sizeof(tmpchan) - 1, 0);
+							for (;;) {
+								if (exten) {
+									strncpy(tmpchan, exten, sizeof(tmpchan) - 1);
+									res = 0;
+								} else
+									res = ast_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
+								if (!strlen(tmpchan) || ast_exists_extension(chan, context && strlen(context) ? context : "default", tmpchan,
+											1, NULL))
+									break;
+								if (exten) {
+									ast_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", exten, p->agent);
+									exten = NULL;
+									pos = 0;
+								} else {
+									res = ast_streamfile(chan, "invalid", chan->language);
+									if (!res)
+										res = ast_waitstream(chan, AST_DIGIT_ANY);
+									if (res > 0) {
+										tmpchan[0] = res;
+										tmpchan[1] = '\0';
+										pos = 1;
+									} else {
+										tmpchan[0] = '\0';
+										pos = 0;
+									}
+								}
+							}
 							if (!res) {
 								if (context && strlen(context) && strlen(tmpchan))
 									snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
