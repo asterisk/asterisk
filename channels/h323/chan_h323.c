@@ -1006,7 +1006,7 @@ int setup_incoming_call(call_details_t cd)
 			strncpy(p->context, user->context, sizeof(p->context)-1);
 			p->bridge = user->bridge;
 
-			if (strlen(user->callerid) && strlen(p->callerid)) 
+			if (strlen(user->callerid)) 
 				strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
 			else
 				sprintf(p->callerid, "%s <%s>", p->cd.call_source_aliases, p->cd.call_source_e164); 
