@@ -2790,6 +2790,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				ast_moh_stop(p->owner->bridge);
 			} else {
 				ast_moh_start(p->owner->bridge, NULL);
+				if (sendonly)
+					ast_rtp_stop(p->rtp);
 			}
 		}
 	}
