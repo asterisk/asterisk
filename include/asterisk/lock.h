@@ -59,7 +59,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define AST_MUTEX_INIT_VALUE      { PTHREAD_MUTEX_INIT_VALUE, NULL, 0, NULL, 0 }
+#define AST_MUTEX_INIT_VALUE      { PTHREAD_MUTEX_INIT_VALUE, NULL, 0, 0, NULL, 0 }
 
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
