@@ -698,8 +698,6 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 	vfs = ast_openvstream(chan, filename, preflang);
 	if (vfs)
 		ast_log(LOG_DEBUG, "Ooh, found a video stream, too\n");
-	else
-		ast_log(LOG_DEBUG, "Waaah, '%s' has no video stream :(\n", filename);
 	if(fs){
 		if(ast_applystream(chan, fs))
 			return -1;
