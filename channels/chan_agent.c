@@ -1154,10 +1154,14 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						if( options )
 							if( strchr( options, 's' ) )
 								play_announcement = 0;
+						ast_mutex_unlock(&p->lock);
+						ast_mutex_unlock(&agentlock);
 						if( !res && play_announcement )
 							res = ast_streamfile(chan, filename, chan->language);
 						if (!res)
 							ast_waitstream(chan, "");
+						ast_mutex_lock(&agentlock);
+						ast_mutex_lock(&p->lock);
 						if (!res) {
 							res = ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
 							if (res)
@@ -1173,6 +1177,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							res = -1;
 						if (callbackmode && !res) {
 							/* Just say goodbye and be done with it */
+							ast_mutex_unlock(&agentlock);
 							if (!res)
 								res = ast_safe_sleep(chan, 500);
 							res = ast_streamfile(chan, "vm-goodbye", chan->language);
@@ -1181,7 +1186,6 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							if (!res)
 								res = ast_safe_sleep(chan, 1000);
 							ast_mutex_unlock(&p->lock);
-							ast_mutex_unlock(&agentlock);
 						} else if (!res) {
 #ifdef HONOR_MUSIC_CLASS
 							/* check if the moh class was changed with setmusiconhold */

@@ -47,6 +47,9 @@ Tilghman Lesher - Route lookup code, gotoiftime application, and various
        other patches.  http://asterisk.drunkcoder.com/
 Jayson Vantuyl - Manager protocol changes, various other bugs.
 	jvantuyl@computingedge.net
+Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
+	dialplan include verification, route lookup on OpenBSD, various other
+	bugs. tholo@sigmasoft.com
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt

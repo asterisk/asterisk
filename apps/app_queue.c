@@ -609,10 +609,8 @@ static int wait_our_turn(struct queue_ent *qe)
 	struct queue_ent *ch;
 	int res = 0;
 	for (;;) {
-		/* Atomically read the parent head */
-		ast_mutex_lock(&qe->parent->lock);
+		/* Atomically read the parent head -- does not need a lock */
 		ch = qe->parent->head;
-		ast_mutex_unlock(&qe->parent->lock);
 		/* If we are now at the top of the head, break out */
 		if (qe->parent->head == qe)
 			break;
@@ -722,6 +720,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		/* Get a technology/[device:]number pair */
 		tmp = malloc(sizeof(struct localuser));
 		if (!tmp) {
+			ast_mutex_unlock(&qe->parent->lock);
 			ast_log(LOG_WARNING, "Out of memory\n");
 			goto out;
 		}
@@ -859,11 +858,8 @@ out:
 
 static int wait_a_bit(struct queue_ent *qe)
 {
-	int retrywait;
-	/* Hold the lock while we setup the outgoing calls */
-	ast_mutex_lock(&qe->parent->lock);
-	retrywait = qe->parent->retry * 1000;
-	ast_mutex_unlock(&qe->parent->lock);
+	/* Don't need to hold the lock while we setup the outgoing calls */
+	int retrywait = qe->parent->retry * 1000;
 	return ast_waitfordigit(qe->chan, retrywait);
 }
 
@@ -1203,6 +1199,7 @@ static void reload_queues(void)
 	/* Mark all queues as dead for the moment */
 	q = queues;
 	while(q) {
+		q->dead = 1;
 		q = q->next;
 	}
 	/* Chug through config file */
@@ -1349,8 +1346,10 @@ static int queues_show(int fd, int argc, char **argv)
 	time(&now);
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
+	ast_mutex_lock(&qlock);
 	q = queues;
 	if (!q) {	
+		ast_mutex_unlock(&qlock);
 		ast_cli(fd, "No queues.\n");
 		return RESULT_SUCCESS;
 	}
@@ -1391,6 +1390,7 @@ static int queues_show(int fd, int argc, char **argv)
 		ast_mutex_unlock(&q->lock);
 		q = q->next;
 	}
+	ast_mutex_unlock(&qlock);
 	return RESULT_SUCCESS;
 }
 
@@ -1413,6 +1413,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 	struct queue_ent *qe;
 	astman_send_ack(s, m, "Queue status will follow");
 	time(&now);
+	ast_mutex_lock(&qlock);
 	q = queues;
 	if (id && &id) {
 		snprintf(idText,256,"ActionID: %s\r\n",id);
@@ -1445,6 +1446,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 		ast_mutex_unlock(&q->lock);
 		q = q->next;
 	}
+	ast_mutex_unlock(&qlock);
 	return RESULT_SUCCESS;
 }
 
