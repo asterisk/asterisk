@@ -110,6 +110,7 @@ struct ast_vm_user {
 	char zonetag[80];
 	char callback[80];
 	char dialout[80];
+	char exit[80];
 	int attach;
 	int alloced;
 	int saycid;
@@ -231,6 +232,7 @@ static int saycidinfo;
 static int hearenv;
 static char dialcontext[80];
 static char callcontext[80];
+static char exitcontext[80];
 
 static char cidinternalcontexts[MAX_NUM_CID_CONTEXTS][64];
 
@@ -262,6 +264,8 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		strncpy(vmu->callback, callcontext, sizeof(vmu->callback) -1);
 	if (dialcontext)
 		strncpy(vmu->dialout, dialcontext, sizeof(vmu->dialout) -1);
+	if (exitcontext)
+		strncpy(vmu->exit, exitcontext, sizeof(vmu->exit) -1);
 }
 
 static void apply_options(struct ast_vm_user *vmu, char *options)
@@ -307,6 +311,8 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 				strncpy(vmu->callback, value, sizeof(vmu->callback) -1);
 			} else if (!strcasecmp(var, "dialout")) {
 				strncpy(vmu->dialout, value, sizeof(vmu->dialout) -1);
+			} else if (!strcasecmp(var, "exitcontext")) {
+				strncpy(vmu->exit, value, sizeof(vmu->exit) -1);
 
 			}
 		}
@@ -1583,8 +1589,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		other than the operator -- an automated attendant or mailbox login for example */
 		if (res == '*') {
 			strncpy(chan->exten, "a", sizeof(chan->exten) - 1);
-			if (strlen(chan->macrocontext))
+			if (strlen(vmu->exit)) {
+				strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
+			} else if (strlen(chan->macrocontext)) {
 				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+			}
 			chan->priority = 0;
 			free_user(vmu);
 			return 0;
@@ -1593,8 +1602,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		if (res == '0') {
 		transfer:
 			strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
-			if (strlen(chan->macrocontext))
+			if (strlen(vmu->exit)) {
+				strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
+			} else if (strlen(chan->macrocontext)) {
 				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+			}
 			chan->priority = 0;
 			free_user(vmu);
 			return 0;
@@ -3600,6 +3612,7 @@ static int load_config(void)
 	char *s,*q,*stringp;
 	char *dialoutcxt = NULL;
 	char *callbackcxt = NULL;	
+	char *exitcxt = NULL;	
 	
 	int x;
 
@@ -3764,6 +3777,14 @@ static int load_config(void)
 		} else {
 			callcontext[0] = '\0';
 		}
+
+		if ((exitcxt = ast_variable_retrieve(cfg, "general", "exitcontext"))) {
+			strncpy(exitcontext, exitcxt, sizeof(exitcontext) - 1);
+			ast_log(LOG_DEBUG, "found operator context: %s\n", exitcontext);
+		} else {
+			exitcontext[0] = '\0';
+		}
+
 #ifdef USEMYSQLVM
 		if (!(s=ast_variable_retrieve(cfg, "general", "dbuser"))) {
 			strcpy(dbuser, "test");
