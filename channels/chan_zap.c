@@ -153,6 +153,8 @@ static int callwaitingcallerid = 0;
 
 static int hidecallerid = 0;
 
+static int restrictcid = 0;
+
 static int callreturn = 0;
 
 static int threewaycalling = 0;
@@ -382,6 +384,7 @@ static struct zt_pvt {
 	int hidecallerid;
 	int callreturn;
 	int permhidecallerid;		/* Whether to hide our outgoing caller ID or not */
+	int restrictcid;
 	int callwaitingrepeat;		/* How many samples to wait before repeating call waiting */
 	int cidcwexpire;			/* When to expire our muting for CID/CW */
 	unsigned char *cidspill;
@@ -1476,7 +1479,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		}
 		if (pri_call(p->pri->pri, p->call, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
 			p->prioffset, p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1, l, p->pri->dialplan - 1, n,
-			l ? PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN : PRES_NUMBER_NOT_AVAILABLE,
+			l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : PRES_NUMBER_NOT_AVAILABLE,
 			c + p->stripmsd, p->pri->dialplan - 1, 
 			((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW))) {
 			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
@@ -3738,6 +3741,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			tmp->callerid = strdup(i->callerid);
 			tmp->ani = strdup(i->callerid);
 		}
+		tmp->restrictcid = i->restrictcid;
 #ifdef ZAPATA_PRI
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
@@ -5098,6 +5102,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp->channel = channel;
 		tmp->stripmsd = stripmsd;
 		tmp->use_callerid = use_callerid;
+		tmp->restrictcid = restrictcid;
 		strncpy(tmp->accountcode, accountcode, sizeof(tmp->accountcode)-1);
 		tmp->amaflags = amaflags;
 		if (!here) {
@@ -6713,6 +6718,8 @@ int load_module()
 				strcpy(callerid,"");
 			else
 				strncpy(callerid, v->value, sizeof(callerid)-1);
+		} else if (!strcasecmp(v->name, "restrictcid")) {
+			restrictcid = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			strncpy(accountcode, v->value, sizeof(accountcode)-1);
 		} else if (!strcasecmp(v->name, "amaflags")) {

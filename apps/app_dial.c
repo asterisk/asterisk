@@ -568,6 +568,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			tmp->chan->ani = strdup(chan->ani);
 		else
 			tmp->chan->ani = NULL;
+		/* Pass hidecallerid setting */
+		tmp->chan->restrictcid = chan->restrictcid;
 		/* Presense of ADSI CPE on outgoing channel follows ours */
 		tmp->chan->adsicpe = chan->adsicpe;
 		/* Place the call, but don't wait on the answer */

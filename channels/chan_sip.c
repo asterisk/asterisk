@@ -62,6 +62,8 @@
 #define DEFAULT_MAX_EXPIRY      3600
 #define EXPIRY_GUARD_SECS	15
 
+#define CALLERID_UNKNOWN	"Unknown"
+
 #define SIP_DTMF_RFC2833	(1 << 0)
 #define SIP_DTMF_INBAND		(1 << 1)
 #define SIP_DTMF_INFO		(1 << 2)
@@ -217,6 +219,7 @@ static struct sip_pvt {
 	char uri[81];					/* Original requested URI */
 	char peersecret[81];
 	char callerid[256];					/* Caller*ID */
+	int restrictcid;			/* hide presentation from remote user */
 	char via[256];
 	char accountcode[20];				/* Account code */
 	char our_contact[256];				/* Our contact header */
@@ -276,6 +279,7 @@ struct sip_user {
 	int dtmfmode;
 	int inUse;
 	int incominglimit;
+	int restrictcid;
 	struct ast_ha *ha;
 	struct sip_user *next;
 };
@@ -846,6 +850,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	
 	res = 0;
 	p->outgoing = 1;
+	p->restrictcid = ast->restrictcid;
 	transmit_invite(p, "INVITE", 1, NULL, vxml_url,distinctive_ring, 1);
 	if (p->maxtime) {
 		/* Initialize auto-congest time */
@@ -1240,6 +1245,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
+		tmp->restrictcid = i->restrictcid;
                 if (strlen(i->accountcode))
                         strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
                 if (i->amaflags)
@@ -2607,6 +2613,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 		if (!l || !ast_isphonenumber(l))
 				l = callerid;
 	}
+	/* if user want's his callerid restricted */
+	if (p->restrictcid)
+		l = CALLERID_UNKNOWN;
 	if (!n || !strlen(n))
 		n = l;
 	/* Allow user to be overridden */
@@ -3800,6 +3809,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				p->amaflags = user->amaflags;
 				p->callgroup = user->callgroup;
 				p->pickupgroup = user->pickupgroup;
+				p->restrictcid = user->restrictcid;
 				if (user->dtmfmode) {
 					p->dtmfmode = user->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -5541,6 +5551,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				}
 			} else if (!strcasecmp(v->name, "insecure")) {
 				user->insecure = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "restrictcid")) {
+				user->restrictcid = ast_true(v->value);
 			} //else if (strcasecmp(v->name,"type"))
 			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			v = v->next;

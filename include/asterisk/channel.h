@@ -152,6 +152,8 @@ struct ast_channel {
 	char *ani;			
 	/*! Malloc'd RDNIS */
 	char *rdnis;
+	/*! Hide callerid from user */
+	int restrictcid;
 
 	
 	/*! Current extension context */
