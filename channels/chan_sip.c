@@ -6178,8 +6178,8 @@ static int sip_show_subscriptions(int fd, int argc, char *argv[])
 static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
 {
 #define FORMAT3 "%-15.15s  %-10.10s  %-21.21s  %-15.15s\n"
-#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s   %s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d   %-6.6s%s\n"
+#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s   %s	%s\n"
+#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d   %-6.6s%s	%s\n"
 	struct sip_pvt *cur;
 	char iabuf[INET_ADDRSTRLEN];
 	int numchans = 0;
@@ -6188,7 +6188,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 	ast_mutex_lock(&iflock);
 	cur = iflist;
 	if (!subscriptions)
-		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)",  "Format");
+		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Last Msg");
 	else
         	ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "URI");
 	while (cur) {
@@ -6197,7 +6197,9 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 				ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
 				cur->callid, 
 				cur->ocseq, cur->icseq, 
-				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), ast_test_flag(cur, SIP_NEEDDESTROY) ? "(d)" : "" );
+				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), 
+				ast_test_flag(cur, SIP_NEEDDESTROY) ? "(d)" : "",
+				cur->lastmsg );
 			numchans++;
 		}
 		if (cur->subscribed && subscriptions) {
