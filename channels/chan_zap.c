@@ -57,7 +57,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_REDIRECTING_REASON
+#ifndef PRI_AOC_UNITS
 #error "You need newer libpri"
 #endif
 #endif
@@ -1835,11 +1835,12 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			p->dop.op = ZT_DIAL_OP_REPLACE;
 			s = strchr(c + p->stripmsd, 'w');
 			if (s) {
-				if (strlen(s))
+				if (strlen(s) > 1)
 					snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", s);
 				else
 					p->dop.dialstr[0] = '\0';
 				*s = '\0';
+				s++;
 			} else {
 				p->dop.dialstr[0] = '\0';
 			}
@@ -1889,7 +1890,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				pridialplan = PRI_LOCAL_ISDN;
  			}
  		}
- 		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan,  s ? 1 : 0);
+ 		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan,  (s && *s) ? 1 : 0);
 
 		ldp_strip = 0;
 		prilocaldialplan = p->pri->localdialplan - 1;
