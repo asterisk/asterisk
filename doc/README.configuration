@@ -44,6 +44,42 @@ templates. Any object can be used as a template.
 
 No whitespace is allowed between the closing "]" and the parenthesis "(".
 
+Comments
+--------
+All lines that starts with semi-colon ";" is treated as comments
+and is not parsed.
+
+The ";--" is a marker for a multi-line comment. Everything after
+that marker will be treated as a comment until the end-marker "--;"
+is found. Parsing begins directly after the end-marker.
+
+	;This is a comment
+	label = value
+	;-- This is 
+	a comment --;
+	
+	;-- Comment --; exten=> 1000,1,dial(SIP/lisa)	
+
+Including other files
+---------------------
+In all of the configuration files, you may include the content of another
+file with the #include statement. The content of the other file will be
+included at the row that the #include statement occured.
+	
+	#include myusers.conf
+
+You may also include the output of a program with the #exec directive,
+if you enable it in asterisk.conf
+	
+In asterisk.conf, add the execincludes = yes statement in the options
+section:
+	[options]
+	execincludes=yes
+
+The exec directive is used like this:
+	
+	#exec /usr/local/bin/myasteriskconfigurator.sh
+
 Including other files
 ---------------------
 In all of the configuration files, you may include the content of another
