@@ -407,8 +407,13 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			r->insecure = p->insecure;
 			r->canreinvite = p->canreinvite;
 			r->maxtime = p->maxms;
-			if (p->dtmfmode)
+			if (p->dtmfmode) {
 				r->dtmfmode = p->dtmfmode;
+				if (r->dtmfmode & SIP_DTMF_RFC2833)
+					r->nonCodecCapability |= AST_RTP_DTMF;
+				else
+					r->nonCodecCapability &= ~AST_RTP_DTMF;
+			}
 			strncpy(r->context, p->context,sizeof(r->context)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 				(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
@@ -1184,6 +1189,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	/* Assume reinvite OK */
 	p->canreinvite = 1;
 	p->dtmfmode = globaldtmfmode;
+	if (p->dtmfmode & SIP_DTMF_RFC2833)
+		p->nonCodecCapability |= AST_RTP_DTMF;
 	/* Add to list */
 	ast_pthread_mutex_lock(&iflock);
 	p->next = iflist;
@@ -2625,6 +2632,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri)
 {
 	struct sip_user *user;
+	struct sip_peer *peer;
 	char *of, from[256] = "", *c;
 	int res = 0;
 	char *t;
@@ -2665,14 +2673,46 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 				p->canreinvite = user->canreinvite;
 				p->amaflags = user->amaflags;
-				if (user->dtmfmode)
+				if (user->dtmfmode) {
 					p->dtmfmode = user->dtmfmode;
+					if (p->dtmfmode & SIP_DTMF_RFC2833)
+						p->nonCodecCapability |= AST_RTP_DTMF;
+					else
+						p->nonCodecCapability &= ~AST_RTP_DTMF;
+				}
 			}
 			break;
 		}
 		user = user->next;
 	}
 	ast_pthread_mutex_unlock(&userl.lock);
+	if (!user) {
+	/* If we didn't find a user match, check for peers */
+		ast_pthread_mutex_lock(&peerl.lock);
+		peer = peerl.peers;
+		while(peer) {
+			if (!memcmp(&peer->addr, &p->recv, sizeof(peer->addr))) {
+				/* Take the peer */
+				p->nat = peer->nat;
+				if (p->rtp) {
+					ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
+					ast_rtp_setnat(p->rtp, p->nat);
+				}
+				p->canreinvite = peer->canreinvite;
+				strncpy(p->username, peer->name, sizeof(p->username) - 1);
+				if (peer->dtmfmode) {
+					p->dtmfmode = peer->dtmfmode;
+					if (p->dtmfmode & SIP_DTMF_RFC2833)
+						p->nonCodecCapability |= AST_RTP_DTMF;
+					else
+						p->nonCodecCapability &= ~AST_RTP_DTMF;
+				}
+				break;
+			}
+			peer = peer->next;
+		}
+		ast_pthread_mutex_unlock(&peerl.lock);
+	}
 	return res;
 }
 
@@ -3431,7 +3471,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 	}
 	
-	if (strcmp(cmd, "SIP/2.0"))
+	if (strcmp(cmd, "SIP/2.0") && (seqno >= p->icseq))
 		/* Next should follow monotonically increasing */
 		p->icseq = seqno + 1;
 
