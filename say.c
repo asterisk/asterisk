@@ -405,7 +405,7 @@ int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lan
       da - Danish
       de - German
       en - English
-      es - Spanish
+      es - Spanish, Mexican
       fr - French
       it - Italian
       nl - Dutch
@@ -413,9 +413,9 @@ int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lan
       se - Swedish
 
  Gender:
- For Portuguese, we're using m & f options to saynumber() to indicate if the gender is masculine or feminine.
+ For Portuguese, French & Spanish, we're using m & f options to saynumber() to indicate if the gender is masculine or feminine.
  For Danish, we're using c & n options to saynumber() to indicate if the gender is commune or neutrum.
- This still needs to be implemented for French, Spanish & German.
+ This still needs to be implemented for German (although the option is passed to the function, it currently does nothing with it).
  
  Date/Time functions currently have less languages supported than saynumber().
 
@@ -439,7 +439,7 @@ int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lan
 static int ast_say_number_full_en(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_da(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
-static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_it(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_nl(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
@@ -485,8 +485,8 @@ int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lan
 	   return(ast_say_number_full_da(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "de") ) {	/* German syntax */
 	   return(ast_say_number_full_de(chan, num, ints, language, options, audiofd, ctrlfd));
-	} else if (!strcasecmp(language, "es") ) {	/* Spanish syntax */
-	   return(ast_say_number_full_es(chan, num, ints, language, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "es") || !strcasecmp(language, "mx")) {	/* Spanish syntax */
+	   return(ast_say_number_full_es(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "fr") ) {	/* French syntax */
 	   return(ast_say_number_full_fr(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "it") ) {	/* Italian syntax */
@@ -512,8 +512,8 @@ int ast_say_number(struct ast_channel *chan, int num, char *ints, char *language
 	   return(ast_say_number_full_da(chan, num, ints, language, options, -1, -1));
 	} else if (!strcasecmp(language, "de")) {	/* German syntax */
 	   return(ast_say_number_full_de(chan, num, ints, language, options, -1, -1));
-	} else if (!strcasecmp(language, "es")) {	/* Spanish syntax */
-	   return(ast_say_number_full_es(chan, num, ints, language, -1, -1));
+	} else if (!strcasecmp(language, "es") || !strcasecmp(language, "mx")) {	/* Spanish syntax */
+	   return(ast_say_number_full_es(chan, num, ints, language, options, -1, -1));
 	} else if (!strcasecmp(language, "fr")) {	/* French syntax */
 	   return(ast_say_number_full_fr(chan, num, ints, language, options, -1, -1));
 	} else if (!strcasecmp(language, "it")) {	/* Italian syntax */
@@ -784,22 +784,34 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints,
 	return res;
 }
 
-/*--- ast_say_number_full_es: spanish syntax */
+/*--- ast_say_number_full_es: Spanish syntax */
 /* New files:
  Requires a few new audios:
+   1F.gsm: feminine 'una'
    21.gsm thru 29.gsm, cien.gsm, mil.gsm, millon.gsm, millones.gsm, 100.gsm, 200.gsm, 300.gsm, 400.gsm, 500.gsm, 600.gsm, 700.gsm, 800.gsm, 900.gsm, y.gsm 
  */
-static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd)
+static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
 {
 	int res = 0;
 	int playa = 0;
+	int mf = 1;                            /* +1 = Masculin; -1 = Feminin */
 	char fn[256] = "";
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+
+	if (options && !strncasecmp(options, "f",1))
+		mf = -1;
+
 	while (!res && num) {
 		if (playa) {
 			snprintf(fn, sizeof(fn), "digits/y");
 			playa = 0;
+		} else if (num == 1) {
+			if (mf < 0)
+				snprintf(fn, sizeof(fn), "digits/%dF", num);
+			else
+				snprintf(fn, sizeof(fn), "digits/%d", num);
+			num = 0;
 		} else if (num < 31) {
 			snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
@@ -817,14 +829,14 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints,
 				num -= ((num/100)*100);
 			} else {
 				if (num < 1000000) {
-					res = ast_say_number_full_es(chan, num / 1000, ints, language, audiofd, ctrlfd);
+					res = ast_say_number_full_es(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 					if (res)
 						return res;
 					num = num % 1000;
 					snprintf(fn, sizeof(fn), "digits/mil");
 				} else {
 					if (num < 2147483640) {
-						res = ast_say_number_full_es(chan, num / 1000000, ints, language, audiofd, ctrlfd);
+						res = ast_say_number_full_es(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
 						if (res)
 							return res;
 						if ((num/1000000) == 1) {
@@ -858,9 +870,9 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints,
 
 
 /*--- ast_say_number_full_fr: French syntax */
-/* 	Extra sounds needed: */
-/* 	1F: feminin 'une' */
-/* 	et: 'and' */
+/* 	Extra sounds needed:
+ 	1F: feminin 'une'
+ 	et: 'and' */
 static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
 {
 	int res = 0;
