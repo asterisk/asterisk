@@ -1153,6 +1153,7 @@ int ast_indicate(struct ast_channel *chan, int condition)
 	ast_mutex_lock(&chan->lock);
 	if (chan->pvt->indicate)
 		res = chan->pvt->indicate(chan, condition);
+	ast_mutex_unlock(&chan->lock);
 	if (!chan->pvt->indicate || res) {
 		/*
 		 * Device does not support (that) indication, lets fake
@@ -1185,7 +1186,6 @@ int ast_indicate(struct ast_channel *chan, int condition)
 		}
 		else ast_playtones_stop(chan);
 	}
-	ast_mutex_unlock(&chan->lock);
 	return res;
 }
 
