@@ -29,7 +29,7 @@
 #include <pthread.h>
 #include "libpq-fe.h"
 
-
+#define EXTRA_LOG 0
 
 
 static char *tdesc = "Simple PostgreSQL Interface";
@@ -250,6 +250,7 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data) {
 
 static int aPGSQL_query(struct ast_channel *chan, void *data) {
 	
+
 	char *s1,*s2,*s3,*s4,*s5;
 	char s[100];
 	char *querystring;
@@ -303,13 +304,14 @@ static int aPGSQL_query(struct ast_channel *chan, void *data) {
 	
 	free(s1);
 	free(s2);
+
 	return(res);
 }
 
 
 static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	
-	char *s1,*s2,*s3,*s4,*s5,*s6,*s7;
+	char *s1,*s2,*fetchid_var,*s4,*s5,*s6,*s7;
 	char s[100];
 	char *var;
 	int l;
@@ -332,13 +334,13 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 	strcpy(s1,data);
 	stringp=s1;
 	strsep(&stringp," "); // eat the first token, we already know it :P 
-	s3=strsep(&stringp," ");
+	fetchid_var=strsep(&stringp," ");
 	while (1) {	// ugly trick to make branches with break;
-		var=s3; // fetchid
+	  var=fetchid_var; // fetchid
 		fnd=0;
 		
 		AST_LIST_TRAVERSE(headp,variables,entries) {
-			if (strncasecmp(ast_var_name(variables),s3,strlen(s3))==0) {
+	    if (strncasecmp(ast_var_name(variables),fetchid_var,strlen(fetchid_var))==0) {
 	                        s7=ast_var_value(variables);
 	                        fnd=1;
                                 break;
@@ -347,7 +349,7 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 		
 		if (fnd==0) { 
 			s7="0";
-			pbx_builtin_setvar_helper(chan,s3,s7);
+	    pbx_builtin_setvar_helper(chan,fetchid_var,s7);
 		}
 
 		s4=strsep(&stringp," ");
@@ -359,12 +361,14 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 		}
 		id=atoi(s7); //fetchid
 		if ((lalares=find_identifier(id,AST_PGSQL_ID_FETCHID))==NULL) {
-			i=0;
+	    i=0;       // fetching the very first row
 		} else {
 			i=*lalares;
 			free(lalares);
-			del_identifier(id,AST_PGSQL_ID_FETCHID);
+	    del_identifier(id,AST_PGSQL_ID_FETCHID); // will re-add it a bit later
 		}
+
+	  if (i<PQntuples(PGSQLres)) {
 		nres=PQnfields(PGSQLres); 
 		ast_log(LOG_WARNING,"ast_PGSQL_fetch : nres = %d i = %d ;\n",nres,i);
 		for (j=0;j<nres;j++) {
@@ -373,7 +377,6 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 				ast_log(LOG_WARNING,"ast_PGSQL_fetch : More tuples (%d) than variables (%d)\n",nres,j);
 				break;
 			}
-			
 			s6=PQgetvalue(PGSQLres,i,j);
 			if (s6==NULL) { 
 				ast_log(LOG_WARNING,"PWgetvalue(res,%d,%d) returned NULL in ast_PGSQL_fetch\n",i,j);
@@ -382,18 +385,17 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data) {
 			ast_log(LOG_WARNING,"===setting variable '%s' to '%s'\n",s5,s6);
 			pbx_builtin_setvar_helper(chan,s5,s6);
 		}
-		i++;
-		if (i<PQntuples(PGSQLres)) {
 			lalares=malloc(sizeof(int));
-			*lalares=i;
-			id1=add_identifier(AST_PGSQL_ID_FETCHID,lalares);
+	    *lalares = ++i; // advance to the next row
+	    id1 = add_identifier(AST_PGSQL_ID_FETCHID,lalares);
 		} else {
-			id1=0;
+	    ast_log(LOG_WARNING,"ast_PGSQL_fetch : EOF\n");
+	    id1 = 0; // no more rows
 		}
 		s5=&s[0];
 		sprintf(s5,"%d",id1);
-		ast_log(LOG_WARNING,"Setting var '%s' to value '%s'\n",s3,s);
-		pbx_builtin_setvar_helper(chan,s3,s);
+	  ast_log(LOG_WARNING,"Setting var '%s' to value '%s'\n",fetchid_var,s);
+	  pbx_builtin_setvar_helper(chan,fetchid_var,s);
 	 	break;
 	}
 	
@@ -496,6 +498,10 @@ static int PGSQL_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
 	int result;
+
+#if EXTRA_LOG
+	printf("PRSQL_exec: data=%s\n",(char*)data);
+#endif
 
 	if (!data) {
 		ast_log(LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");
