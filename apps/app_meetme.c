@@ -52,7 +52,9 @@ static char *descrip =
 "      's' -- send user to admin/user menu if '*' is received\n"
 "      't' -- set talk only mode\n"
 "      'v' -- video mode\n"
-"      'q' -- quiet mode (don't play enter/leave sounds)\n";
+"      'q' -- quiet mode (don't play enter/leave sounds)\n"
+"      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND} (Zap channels only)\n"
+"             (does not work with non-Zap channels in the same conference)\n";
 
 static char *descrip2 =
 "  MeetMeCount(confno[|var]): Plays back the number of users in the specifiedi\n"
@@ -90,6 +92,8 @@ static ast_mutex_t conflock = AST_MUTEX_INITIALIZER;
 #define CONFFLAG_TALKER (1 << 5)	/* If set the use can only send audio to the conference */
 #define CONFFLAG_QUIET (1 << 6)		/* If set there will be no enter or leave sounds */
 #define CONFFLAG_VIDEO (1 << 7)		/* Set to enable video mode */
+#define CONFFLAG_AGI (1 << 8)		/* Set to run AGI Script in Background */
+
 
 static int careful_write(int fd, unsigned char *data, int len)
 {
@@ -239,6 +243,10 @@ static int conf_run(struct ast_channel *chan, struct conf *conf, int confflags)
 	int ret = -1;
 	int x;
 
+	struct ast_app *app;
+	char *agifile;
+	char *agifiledefault = "conf-background.agi";
+
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
@@ -359,7 +367,34 @@ zapretry:
 			conf_play(conf, ENTER);
 	}
 
-	for(;;) {
+	if (confflags & CONFFLAG_AGI) {
+
+		/* Get name of AGI file to run from $(MEETME_AGI_BACKGROUND)
+		  or use default filename of conf-background.agi */
+
+		agifile = pbx_builtin_getvar_helper(chan,"MEETME_AGI_BACKGROUND");
+		if (!agifile)
+			agifile = agifiledefault;
+
+		if (!strcasecmp(chan->type,"Zap")) {
+			/*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
+			x = 1;
+			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+		}
+		/* Find a pointer to the agi app and execute the script */
+		app = pbx_findapp("agi");
+		if (app) {
+			ret = pbx_exec(chan, app, agifile, 1);
+		} else {
+			ast_log(LOG_WARNING, "Could not find application (agi)\n");
+			ret = -2;
+		}
+                if (!strcasecmp(chan->type,"Zap")) {
+                        /*  Remove CONFMUTE mode on Zap channel */
+			x = 0;
+                        ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
+                }
+	} else for(;;) {
 		outfd = -1;
 		ms = -1;
 		c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
@@ -414,6 +449,7 @@ zapretry:
 				ast_log(LOG_WARNING, "Failed to read frame: %s\n", strerror(errno));
 		}
 	}
+
 	if (fd != chan->fds[0])
 		close(fd);
 	else {
@@ -533,6 +569,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int confflags = 0;
 	char info[256], *ptr, *inflags, *inpin;
 
+
 	if (!data || !strlen(data)) {
 		allowretry = 1;
 		data = "";
@@ -561,6 +598,9 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				confflags |= CONFFLAG_TALKER;
 			if (strchr(inflags, 'q'))
 				confflags |= CONFFLAG_QUIET;
+			if (strchr(inflags, 'b'))
+				confflags |= CONFFLAG_AGI;
+
 
 			inpin = strchr(inflags, '|');
 			if (inpin) {
