@@ -181,7 +181,7 @@ int ast_search_dns(void *context,
 			ret = 1;
 	}
 #if defined(__Linux__)
-	res_nclose(&srvstate);
+	res_nclose(&dnsstate);
 #else
 #ifndef __APPLE__
 	res_close();
