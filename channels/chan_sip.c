@@ -598,8 +598,12 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			strncpy(r->peersecret, p->secret, sizeof(r->peersecret)-1);
 			strncpy(r->username, p->username, sizeof(r->username)-1);
 			strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
-			if (!strlen(r->tohost)) 
-				snprintf(r->tohost, sizeof(r->tohost), inet_ntoa(p->addr.sin_addr));
+			if (!strlen(r->tohost)) {
+				if (p->addr.sin_addr.s_addr)
+					snprintf(r->tohost, sizeof(r->tohost), inet_ntoa(p->addr.sin_addr));
+				else
+					snprintf(r->tohost, sizeof(r->tohost), inet_ntoa(p->defaddr.sin_addr));
+			}
 			if (strlen(p->fromdomain))
 				strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
 			if (strlen(p->fromuser))
@@ -4709,6 +4713,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	}
 	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
 	memcpy(&p->recv, &peer->addr, sizeof(p->sa));
+	strncpy(p->tohost, peer->tohost, sizeof(p->tohost) - 1);
 
 	/* Recalculate our side, and recalculate Call ID */
 	memcpy(&p->ourip, myaddrfor(&p->sa.sin_addr), sizeof(p->ourip));
