@@ -1888,7 +1888,7 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 					manager_event(EVENT_FLAG_CALL, "Newchannel",
 					"Channel: %s\r\n"
 					"State: %s\r\n"
-					"Callerid: %s\r\n"
+					"CallerID: %s\r\n"
 					"Uniqueid: %s\r\n",
 					c->name, ast_state2str(c->_state), c->callerid ? c->callerid : "<unknown>", c->uniqueid);
 				}
@@ -2419,7 +2419,7 @@ void ast_set_callerid(struct ast_channel *chan, char *callerid, int anitoo)
 		ast_cdr_setcid(chan->cdr, chan);
 	manager_event(EVENT_FLAG_CALL, "Newcallerid", 
 				"Channel: %s\r\n"
-				"Callerid: %s\r\n"
+				"CallerID: %s\r\n"
 				"Uniqueid: %s\r\n",
 				chan->name, chan->callerid ? 
 				chan->callerid : "<Unknown>",
@@ -2436,14 +2436,14 @@ int ast_setstate(struct ast_channel *chan, int state)
 			manager_event(EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"State: %s\r\n"
-			"Callerid: %s\r\n"
+			"CallerID: %s\r\n"
 			"Uniqueid: %s\r\n",
 			chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>", chan->uniqueid);
 		} else {
 			manager_event(EVENT_FLAG_CALL, "Newstate", 
 				"Channel: %s\r\n"
 				"State: %s\r\n"
-				"Callerid: %s\r\n"
+				"CallerID: %s\r\n"
 				"Uniqueid: %s\r\n",
 				chan->name, ast_state2str(chan->_state), chan->callerid ? chan->callerid : "<unknown>", chan->uniqueid);
 		}
