@@ -11,7 +11,8 @@
 # the GNU General Public License
 #
 
-MODS=res_adsi.so res_parking.so res_crypto.so res_musiconhold.so res_indications.so res_monitor.so
+MODS=res_adsi.so res_parking.so res_crypto.so res_musiconhold.so res_indications.so res_monitor.so \
+     res_agi.so
 MODS+=$(shell if [ -f "/usr/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
 MODS+=$(shell if [ -f "/usr/local/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
 MODS+=$(shell if [ -f "/usr/include/osp/osp.h" ]; then echo "res_osp.so"; fi)
@@ -30,6 +31,7 @@ OSPLIB=/usr/lib/libosp.a
 all: depend $(MODS)
 
 install: all
+	rm -f $(DESTDIR)$(MODULES_DIR)/app_agi.so 
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 res_crypto.so: res_crypto.o

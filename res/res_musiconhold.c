@@ -79,6 +79,7 @@ struct mohclass {
 	int pid;		/* PID of mpg123 */
 	int quiet;
 	int single;
+	int custom;
 	pthread_t thread;
 	struct mohdata *members;
 	/* Source of audio */
@@ -119,34 +120,49 @@ static int spawn_mp3(struct mohclass *class)
 		ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
 		return -1;
  	}
-	argv[argc++] = "mpg123";
-	argv[argc++] = "-q";
-	argv[argc++] = "-s";
-	argv[argc++] = "--mono";
-	argv[argc++] = "-r";
-	argv[argc++] = "8000";
 
-	if (!class->single) {
-		argv[argc++] = "-b";
-		argv[argc++] = "2048";
-	}
+	if (!class->custom) {
+		argv[argc++] = "mpg123";
+		argv[argc++] = "-q";
+		argv[argc++] = "-s";
+		argv[argc++] = "--mono";
+		argv[argc++] = "-r";
+		argv[argc++] = "8000";
+		
+		if (!class->single) {
+			argv[argc++] = "-b";
+			argv[argc++] = "2048";
+		}
 
-	argv[argc++] = "-f";
-	
-	if (class->quiet) {
-		argv[argc++] = "4096";
-	} else
-		argv[argc++] = "8192";
+		argv[argc++] = "-f";
 
-	/* Look for extra arguments and add them to the list */
-	strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
-	argptr = xargs;
-	while(argptr && !ast_strlen_zero(argptr)) {
-		argv[argc++] = argptr;
-		argptr = strchr(argptr, ',');
-		if (argptr) {
-			*argptr = '\0';
-			argptr++;
+		if (class->quiet)
+			argv[argc++] = "4096";
+		else
+			argv[argc++] = "8192";
+
+		/* Look for extra arguments and add them to the list */
+		strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
+		argptr = xargs;
+		while(argptr && !ast_strlen_zero(argptr)) {
+			argv[argc++] = argptr;
+			argptr = strchr(argptr, ',');
+			if (argptr) {
+				*argptr = '\0';
+				argptr++;
+			}
+		}
+	} else {
+		/* Format arguments for argv vector */
+		strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
+		argptr = xargs;
+		while(argptr && !ast_strlen_zero(argptr)) {
+			argv[argc++] = argptr;
+			argptr = strchr(argptr, ' ');
+			if (argptr) {
+				*argptr = '\0';
+				argptr++;
+			}
 		}
 	}
 
@@ -195,12 +211,16 @@ static int spawn_mp3(struct mohclass *class)
 			close(x);
 		/* Child */
 		chdir(class->dir);
-		/* Default install is /usr/local/bin */
-		execv(LOCAL_MPG_123, argv);
-		/* Many places have it in /usr/bin */
-		execv(MPG_123, argv);
-		/* Check PATH as a last-ditch effort */
-		execvp("mpg123", argv);
+		if(class->custom) {
+			execv(argv[0], argv);
+		} else {
+			/* Default install is /usr/local/bin */
+			execv(LOCAL_MPG_123, argv);
+			/* Many places have it in /usr/bin */
+			execv(MPG_123, argv);
+			/* Check PATH as a last-ditch effort */
+			execvp("mpg123", argv);
+		}
 		ast_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
 		close(fds[1]);
 		exit(1);
@@ -506,7 +526,9 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 	strncpy(moh->class, classname, sizeof(moh->class) - 1);
 	if (miscargs)
 		strncpy(moh->miscargs, miscargs, sizeof(moh->miscargs) - 1);
-	if (!strcasecmp(mode, "mp3") || !strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb") || !strcasecmp(mode, "httpmp3")) {
+	if (!strcasecmp(mode, "mp3") || !strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb") || !strcasecmp(mode, "httpmp3") || !strcasecmp(mode, "custom")) {
+		if (!strcasecmp(mode, "custom"))
+			moh->custom = 1;
 		if (!strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3nb"))
 			moh->single = 1;
 		if (!strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb"))

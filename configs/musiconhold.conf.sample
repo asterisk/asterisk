@@ -7,3 +7,5 @@
 ;random => quietmp3:/var/lib/asterisk/mohmp3,-z
 ;unbuffered => mp3nb:/var/lib/asterisk/mohmp3
 ;quietunbuf => quietmp3nb:/var/lib/asterisk/mohmp3
+; Note that the custom mode cannot handle escaped parameters (specifically embedded spaces)
+;manual => custom:/var/lib/asterisk/mohmp3,/usr/bin/mpg123 -q -r 8000 -f 8192 -b 2048 --mono -s

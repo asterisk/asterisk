@@ -38,31 +38,15 @@
 #include <asterisk/musiconhold.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
+#include <asterisk/agi.h>
 #include "../asterisk.h"
 #include "../astconf.h"
 
 #define MAX_ARGS 128
+#define MAX_COMMANDS 128
 
 /* Recycle some stuff from the CLI interface */
 #define fdprintf ast_cli
-
-typedef struct agi_state {
-	int fd;		/* FD for general output */
-	int audio;	/* FD for audio output */
-	int ctrl;	/* FD for input control */
-} AGI;
-
-typedef struct agi_command {
-	/* Null terminated list of the words of the command */
-	char *cmda[AST_MAX_CMD_LEN];
-	/* Handler for the command (channel, AGI state, # of arguments, argument list). 
-	    Returns RESULT_SHOWUSAGE for improper arguments */
-	int (*handler)(struct ast_channel *chan, AGI *agi, int argc, char *argv[]);
-	/* Summary of the command (< 60 characters) */
-	char *summary;
-	/* Detailed usage information */
-	char *usage;
-} agi_command;
 
 static char *tdesc = "Asterisk Gateway Interface (AGI)";
 
@@ -1102,7 +1086,7 @@ static char usage_noop[] =
 " Usage: NOOP\n"
 "    Does nothing.\n";
 
-static agi_command commands[] = {
+static agi_command commands[MAX_COMMANDS] = {
 	{ { "answer", NULL }, handle_answer, "Asserts answer", usage_answer },
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
@@ -1112,7 +1096,7 @@ static agi_command commands[] = {
 	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
 	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
 	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber },
-        { { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic },
+	{ { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic },
 	{ { "say", "time", NULL }, handle_saytime, "Says a given time", usage_saytime },
 	{ { "get", "data", NULL }, handle_getdata, "Gets data on a channel", usage_getdata },
 	{ { "set", "context", NULL }, handle_setcontext, "Sets channel context", usage_setcontext },
@@ -1159,6 +1143,7 @@ static int help_workhorse(int fd, char *match[])
 	if (match)
 		join(matchstr, sizeof(matchstr), match);
 	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
+		if (!commands[x].cmda[0]) break;
 		e = &commands[x]; 
 		if (e)
 			join(fullcmd, sizeof(fullcmd), e->cmda);
@@ -1181,6 +1166,7 @@ static agi_command *find_command(char *cmds[], int exact)
 	int y;
 	int match;
 	for (x=0;x < sizeof(commands) / sizeof(commands[0]);x++) {
+		if (!commands[x].cmda[0]) break;
 		/* start optimistic */
 		match = 1;
 		for (y=0;match && cmds[y]; y++) {
@@ -1430,6 +1416,7 @@ static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
 
 	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
 		char *stringp=NULL;
+		if (!commands[x].cmda[0]) break;
 		e = &commands[x]; 
 		if (e)
 			join(fullcmd, sizeof(fullcmd), e->cmda);

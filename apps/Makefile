@@ -17,7 +17,7 @@ USE_POSTGRES_VM_INTERFACE=0
 #APPS=app_dial.so app_playback.so app_directory.so app_intercom.so app_mp3.so 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_system.so app_echo.so app_record.so app_image.so app_url.so app_disa.so \
-     app_agi.so app_qcall.so app_adsiprog.so app_getcpeid.so app_milliwatt.so \
+     app_qcall.so app_adsiprog.so app_getcpeid.so app_milliwatt.so \
      app_zapateller.so app_setcallerid.so app_festival.so \
      app_queue.so app_senddtmf.so app_parkandannounce.so app_striplsd.so \
      app_setcidname.so app_lookupcidname.so app_substring.so app_macro.so \
