@@ -114,7 +114,7 @@ static pthread_t monitor_thread = 0;
 static int restart_monitor(void);
 
 /* Codecs that we support by default: */
-static int capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H261;
+static int capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
 static int noncodeccapability = AST_RTP_DTMF;
 
 static char ourhost[256];
