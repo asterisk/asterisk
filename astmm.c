@@ -23,6 +23,7 @@
 #include <asterisk/cli.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
+#include <asterisk/lock.h>
 
 #define SOME_PRIME 563
 
@@ -55,7 +56,7 @@ static struct ast_region {
 #define HASH(a) \
 	(((unsigned long)(a)) % SOME_PRIME)
 	
-static ast_mutex_t reglock = PTHREAD_MUTEX_INITIALIZER;
+static ast_mutex_t reglock = AST_MUTEX_INITIALIZER;
 
 static inline void *__ast_alloc_region(size_t size, int which, const char *file, int lineno, const char *func)
 {
