@@ -12,6 +12,7 @@
 #
 #
 use CGI qw/:standard/;
+use CGI::Carp qw(fatalsToBrowser);
 
 @validfolders = ( "INBOX", "Old", "Work", "Family", "Friends", "Cust1", "Cust2", "Cust3", "Cust4", "Cust5" );
 
@@ -36,7 +37,7 @@ use CGI qw/:standard/;
 $astpath = "/_asterisk";
 
 $stdcontainerstart = "<table align=center width=600><tr><td>\n";
-$footer = "<hr><font size=-1><a href=\"http://www.asterisk.org\">The Asterisk Open Source PBX</a> Copyright 2002, <a href=\"http://www.linux-support.net\">Linux Support Services, Inc.</a></a>";
+$footer = "<hr><font size=-1><a href=\"http://www.asterisk.org\">The Asterisk Open Source PBX</a> Copyright 2002, <a href=\"http://www.digium.com\">Digium, Inc.</a></a>";
 $stdcontainerend = "</td></tr><tr><td align=right>$footer</td></tr></table>\n";
 
 sub login_screen() {
@@ -48,13 +49,14 @@ sub login_screen() {
 <BODY BGCOLOR="white">
 $stdcontainerstart
 <FORM METHOD="post">
+<input type=hidden name="action" value="login">
 <table align=center>
 <tr><td valign=top align=center rowspan=6><img align=center src="$astpath/animlogo.gif"></td></tr>
 <tr><td align=center colspan=2><font size=+2>Commedian Mail Login</font></td></tr>
 <tr><td align=center colspan=2><font size=+1>$message</font></td></tr>
 <tr><td>Mailbox:</td><td><input type=text name="mailbox"></td></tr>
 <tr><td>Password:</td><td><input type=password name="password"></td></tr>
-<tr><td align=right colspan=2><input name="action" value="login" type=submit></td></tr>
+<tr><td align=right colspan=2><input value="Login" type=submit></td></tr>
 </table>
 </FORM>
 $stdcontainerend
