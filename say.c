@@ -1190,6 +1190,118 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, char *ints,
 	return res;
 }
 
+typedef struct {  
+	char *separator_dziesiatek;
+	char *cyfry[10];
+	char *cyfry2[10];
+	char *setki[10];
+	char *dziesiatki[10];
+	char *nastki[10];  
+	char *rzedy[3][3];
+} odmiana;
+
+static char *pl_rzad_na_tekst(odmiana *odm, int i, int rzad)
+{
+	if (rzad==0)
+		return "";
+ 
+	if (i==1)
+		return odm->rzedy[rzad - 1][0];
+	if ((i > 21 || i < 11) &&  i%10 > 1 && i%10 < 5)
+		return odm->rzedy[rzad - 1][1];
+	else
+		return odm->rzedy[rzad - 1][2];
+}
+
+static char* pl_append(char* buffer, char* str)
+{
+	strcpy(buffer, str);
+	buffer += strlen(str); 
+	return buffer;
+}
+
+static void pl_odtworz_plik(struct ast_channel *chan, char *language, int audiofd, int ctrlfd, char *ints, char *fn)
+{    
+	char file_name[255] = "digits/";
+	strcat(file_name, fn);
+	ast_log(LOG_DEBUG, "Trying to play: %s\n", file_name);
+	if (!ast_streamfile(chan, file_name, language)) {
+		if (audiofd && ctrlfd)
+			ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+		else
+			ast_waitstream(chan, ints);
+	}
+	ast_stopstream(chan);
+}
+
+static void powiedz(struct ast_channel *chan, char *language, int audiofd, int ctrlfd, char *ints, odmiana *odm, int rzad, int i)
+{
+	/* Initialise variables to allow compilation on Debian-stable, etc */
+	int m1000E6 = 0;
+	int i1000E6 = 0;
+	int m1000E3 = 0;
+	int i1000E3 = 0;
+	int m1000 = 0;
+	int i1000 = 0;
+	int m100 = 0;
+	int i100 = 0;
+	
+	if (i == 0 && rzad > 0) { 
+		return;
+	}
+	if (i == 0) {
+		pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, odm->cyfry[0]);
+	}
+
+	m1000E6 = i % 1000000000;
+	i1000E6 = i / 1000000000;
+
+	powiedz(chan, language, audiofd, ctrlfd, ints, odm, rzad+3, i1000E6);
+
+	m1000E3 = m1000E6 % 1000000;
+	i1000E3 = m1000E6 / 1000000;
+
+	powiedz(chan, language, audiofd, ctrlfd, ints, odm, rzad+2, i1000E3);
+
+	m1000 = m1000E3 % 1000;
+	i1000 = m1000E3 / 1000;
+
+	powiedz(chan, language, audiofd, ctrlfd, ints, odm, rzad+1, i1000);
+
+	m100 = m1000 % 100;
+	i100 = m1000 / 100;
+	
+	if (i100>0)
+		pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, odm->setki[i100]);
+
+	if ( m100 > 0 && m100 <=9 ) {
+		if (m1000>0)
+			pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, odm->cyfry2[m100]);
+		else
+			pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, odm->cyfry[m100]);
+	} else if (m100 % 10 == 0) {
+		pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, odm->dziesiatki[m100 / 10]);
+	} else if (m100 <= 19 ) {
+		pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, odm->nastki[m100 % 10]);
+	} else if (m100 != 0) {
+		if (odm->separator_dziesiatek[0]==' ') {
+			pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, odm->dziesiatki[m100 / 10]);
+			pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, odm->cyfry2[m100 % 10]);
+		} else {
+			char buf[10];
+			char *b = buf;
+			b = pl_append(b, odm->dziesiatki[m100 / 10]);  
+			b = pl_append(b, odm->separator_dziesiatek);  
+			b = pl_append(b, odm->cyfry2[m100 % 10]); 
+			pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, buf);
+		}
+	} 
+
+	if (rzad > 0) {
+		pl_odtworz_plik(chan, language, audiofd, ctrlfd, ints, pl_rzad_na_tekst(odm, i, rzad));
+	}
+}
+
 /* ast_say_number_full_pl: Polish syntax */
 static int ast_say_number_full_pl(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
 /*
@@ -1284,16 +1396,6 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 
 */
 {
-	typedef struct {  
-	char *separator_dziesiatek;
-	char *cyfry[10];
-	char *cyfry2[10];
-	char *setki[10];
-	char *dziesiatki[10];
-	char *nastki[10];  
-	char *rzedy[3][3];
-	} odmiana;
-
 	char *zenski_cyfry[] = {"0","1z", "2z", "3", "4", "5", "6", "7", "8", "9"};
 
 	char *zenski_cyfry2[] = {"0","1", "2z", "3", "4", "5", "6", "7", "8", "9"};
@@ -1322,109 +1424,6 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 
 	/* Initialise variables to allow compilation on Debian-stable, etc */
 	odmiana *o;
-
-	static char* rzad_na_tekst(odmiana *odm, int i, int rzad)
-	{
-		if (rzad==0)
-			return "";
-  
-		if (i==1)
-			return odm->rzedy[rzad - 1][0];
-
-		if ((i > 21 || i < 11) &&  i%10 > 1 && i%10 < 5)
-			return odm->rzedy[rzad - 1][1];
-		else
-			return odm->rzedy[rzad - 1][2];
-	}
-
-	static char* append(char* buffer, char* str)
-	{
-		strcpy(buffer, str);
-		buffer += strlen(str); 
-		return buffer;
-	}
-
-	static void odtworz_plik(char *fn)
-	{    
-		char file_name[255] = "digits/";
-		strcat(file_name, fn);
-		ast_log(LOG_DEBUG, "Trying to play: %s\n", file_name);
-		if (!ast_streamfile(chan, file_name, language)) {
-			if (audiofd && ctrlfd)
-				ast_waitstream_full(chan, ints, audiofd, ctrlfd);
-			else
-				ast_waitstream(chan, ints);
-		}
-		ast_stopstream(chan);
-	}
-
-	static void powiedz(odmiana *odm, int rzad, int i)
-	{
-		/* Initialise variables to allow compilation on Debian-stable, etc */
-		int m1000E6 = 0;
-		int i1000E6 = 0;
-		int m1000E3 = 0;
-		int i1000E3 = 0;
-		int m1000 = 0;
-		int i1000 = 0;
-		int m100 = 0;
-		int i100 = 0;
-		
-		if (i == 0 && rzad > 0) { 
-			return;
-		}
-		if (i == 0) {
-			odtworz_plik(odm->cyfry[0]);
-		}
-
-		m1000E6 = i % 1000000000;
-		i1000E6 = i / 1000000000;
-
-		powiedz(odm, rzad+3, i1000E6);
-
-		m1000E3 = m1000E6 % 1000000;
-		i1000E3 = m1000E6 / 1000000;
-
-		powiedz(odm, rzad+2, i1000E3);
-
-		m1000 = m1000E3 % 1000;
-		i1000 = m1000E3 / 1000;
-
-		powiedz(odm, rzad+1, i1000);
-
-		m100 = m1000 % 100;
-		i100 = m1000 / 100;
-
-		if (i100>0)
-			odtworz_plik(odm->setki[i100]);
-
-		if ( m100 > 0 && m100 <=9 ) {
-			if (m1000>0)
-				odtworz_plik(odm->cyfry2[m100]);
-			else
-				odtworz_plik(odm->cyfry[m100]);
-		} else if (m100 % 10 == 0) {
-			odtworz_plik(odm->dziesiatki[m100 / 10]);
-		} else if (m100 <= 19 ) {
-			odtworz_plik(odm->nastki[m100 % 10]);
-		} else if (m100 != 0) {
-			if (odm->separator_dziesiatek[0]==' ') {
-				odtworz_plik(odm->dziesiatki[m100 / 10]);
-				odtworz_plik(odm->cyfry2[m100 % 10]);
-			} else {
-				char buf[10];
-				char *b = buf;
-				b = append(b, odm->dziesiatki[m100 / 10]);  
-				b = append(b, odm->separator_dziesiatek);  
-				b = append(b, odm->cyfry2[m100 % 10]); 
-				odtworz_plik(buf);
-			}
-		} 
-
-		if (rzad > 0) {
-			odtworz_plik(rzad_na_tekst(odm, i, rzad));
-		}
-	}
 
 	static odmiana *odmiana_nieosobowa = NULL; 
 	static odmiana *odmiana_meska = NULL; 
@@ -1479,7 +1478,7 @@ and combinations of eg.: 20_1, 30m_3m, etc...
 	} else
 		o = odmiana_nieosobowa;
 
-	powiedz(o, 0, num);
+	powiedz(chan, language, audiofd, ctrlfd, ints, o, 0, num);
 	return 0;
 }
 
