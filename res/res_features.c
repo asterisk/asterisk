@@ -180,7 +180,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			/* Wake up the (presumably select()ing) thread */
 			pthread_kill(parking_thread, SIGURG);
 			if (option_verbose > 1) 
-				ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d\n", pu->chan->name, pu->parkingnum);
+				ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d. Will timeout back to %s,%s,%d in %d seconds\n", pu->chan->name, pu->parkingnum, pu->context, pu->exten, pu->priority, (pu->parkingtime/1000));
 
 			manager_event(EVENT_FLAG_CALL, "ParkedCall",
                                 "Exten: %d\r\n"
@@ -535,6 +535,8 @@ static void *do_parking_thread(void *ignore)
 				strncpy(pu->chan->exten, pu->exten, sizeof(pu->chan->exten)-1);
 				strncpy(pu->chan->context, pu->context, sizeof(pu->chan->context)-1);
 				pu->chan->priority = pu->priority;
+				if (option_verbose > 1) 
+					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->chan->context, pu->chan->exten, pu->chan->priority);
 				/* Stop music on hold */
 				ast_moh_stop(pu->chan);
 				/* Start up the PBX, or hang them up */
