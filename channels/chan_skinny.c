@@ -318,7 +318,6 @@ typedef struct close_recieve_channel_message {
 	int partyId;
 } close_recieve_channel_message;
 
-
 #define	SOFT_KEY_TEMPLATE_RES_MESSAGE 0x0108
 static const char *soft_key_template_hack = {
 	"\x52\x65\x64\x69\x61\x6c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
@@ -1277,13 +1276,14 @@ static void *skinny_ss(void *data)
                                 l->call_forward, chan->name);
                     }
                     transmit_tone(s, SKINNY_DIALTONE); 
-					if (res)
-                        break;
+		    if (res) {
+	        	    break;
+		    }
                     usleep(500000);
                     ast_indicate(chan, -1);
                     sleep(1);
                     memset(exten, 0, sizeof(exten));
-					transmit_tone(s, SKINNY_DIALTONE); 
+		    transmit_tone(s, SKINNY_DIALTONE); 
                     len = 0;
                     getforward = 0;
                 } else  {
@@ -1882,45 +1882,53 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		switch(stimulus) {
 		case STIMULUS_REDIAL:
 			// XXX how we gonna deal with redial ?!?!
-			if (skinnydebug)
-				printf("Recieved Stimulus: Redial\n");
-
+			if (skinnydebug) {
+				printf("Recieved Stimulus: Redial(%d)\n", stimulusInstance);
+			}
 			break;
 		case STIMULUS_SPEEDDIAL:
-			// XXX No idea
-			if (skinnydebug)
-				printf("Recieved Stimulus: SpeedDial\n");
+			if (skinnydebug) {
+				printf("Recieved Stimulus: SpeedDial(%d)\n", stimulusInstance);
+			}
 			break;
 		case STIMULUS_HOLD:
 			// Easy enough
-			if (skinnydebug)
-				printf("Recieved Stimulus: Hold\n");
+			if (skinnydebug) {
+				printf("Recieved Stimulus: Hold(%d)\n", stimulusInstance);
+			}
 			break;
 		case STIMULUS_TRANSFER:
-			if (skinnydebug)
-				printf("Recieved Stimulus: Transfer\n");
+			if (skinnydebug) {
+				printf("Recieved Stimulus: Transfer(%d)", stimulusInstance);
+			}
+			transmit_tone(s, SKINNY_DIALTONE);
+				
+			// figure out how to transfer
+
 			break;
 		case STIMULUS_FORWARDALL:
 		case STIMULUS_FORWARDBUSY:
 		case STIMULUS_FORWARDNOANSWER:
 			// Gonna be fun
-			if (skinnydebug)
-				printf("Recieved Stimulus: Forward (%d)\n", stimulus);
+			if (skinnydebug) {
+				printf("Recieved Stimulus: Forward (%d)\n", stimulusInstance);
+			}
 			break;
 		case STIMULUS_DISPLAY:
 			// XXX Not sure
-			if (skinnydebug)
-				printf("Recieved Stimulus: Display\n");
+			if (skinnydebug) {
+				printf("Recieved Stimulus: Display(%d)\n", stimulusInstance);
+			}
 			break;
 		case STIMULUS_LINE:
-			if (skinnydebug)
-				printf("Recieved Stimulus: Line\n");
-
+			if (skinnydebug) {
+				printf("Recieved Stimulus: Line(%d)\n", stimulusInstance);
+			}		
 			sub = find_subchannel_by_line(s->device->lines);
 			transmit_speaker_mode(s, 1);  // Turn on
 		break;
 		default:
-			printf("RECEIVED UNKNOWN STIMULUS:  %d\n", stimulus);
+			printf("RECEIVED UNKNOWN STIMULUS:  %d(%d)\n", stimulus, stimulusInstance);			
 			break;
 		}
 			
@@ -2195,21 +2203,20 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		printf("us port: %d\n", ntohs(us.sin_port));
 		printf("sin port: %d\n", ntohs(sin.sin_port));
 
-
 		memset(req, 0, SKINNY_MAX_PACKET);
-        req->len = sizeof(start_media_transmission_message)+4;
-        req->e = START_MEDIA_TRANSMISSION_MESSAGE;
-        req->data.startmedia.conferenceId = 0;
-        req->data.startmedia.passThruPartyId = 0;
-        memcpy(req->data.startmedia.remoteIp, &s->device->ourip, 4); // Endian?
-	    req->data.startmedia.remotePort = ntohs(us.sin_port);
-        req->data.startmedia.packetSize = 20;
-        req->data.startmedia.payloadType = convert_cap(s->device->lines->capability);
-        req->data.startmedia.qualifier.precedence = 127;
-        req->data.startmedia.qualifier.vad = 0;
-        req->data.startmedia.qualifier.packets = 0;
-        req->data.startmedia.qualifier.bitRate = 0;
-        transmit_response(s, req);
+        	req->len = sizeof(start_media_transmission_message)+4;
+        	req->e = START_MEDIA_TRANSMISSION_MESSAGE;
+        	req->data.startmedia.conferenceId = 0;
+        	req->data.startmedia.passThruPartyId = 0;
+        	memcpy(req->data.startmedia.remoteIp, &s->device->ourip, 4); // Endian?
+	    	req->data.startmedia.remotePort = ntohs(us.sin_port);
+        	req->data.startmedia.packetSize = 20;
+        	req->data.startmedia.payloadType = convert_cap(s->device->lines->capability);
+        	req->data.startmedia.qualifier.precedence = 127;
+        	req->data.startmedia.qualifier.vad = 0;
+        	req->data.startmedia.qualifier.packets = 0;
+        	req->data.startmedia.qualifier.bitRate = 0;
+        	transmit_response(s, req);
 		break;	
 	default:
 		printf("RECEIVED UNKNOWN MESSAGE TYPE:  %x\n", req->e);
