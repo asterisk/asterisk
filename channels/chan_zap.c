@@ -6840,6 +6840,29 @@ static int handle_pri_really_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int handle_pri_show_span(int fd, int argc, char *argv[])
+{
+	int span;
+	if (argc < 4)
+		return RESULT_SHOWUSAGE;
+	span = atoi(argv[3]);
+	if ((span < 1) || (span > NUM_SPANS)) {
+		ast_cli(fd, "Invalid span %s.  Should be a number %d to %d\n", argv[4], 1, NUM_SPANS);
+		return RESULT_SUCCESS;
+	}
+	if (!pris[span-1].pri) {
+		ast_cli(fd, "No PRI running on span %d\n", span);
+		return RESULT_SUCCESS;
+	}
+#ifdef PRI_DUMP_INFO
+	pri_dump_info(pris[span-1].pri);
+#else
+#warning Please update libpri.  pri_dump_info not found
+	ast_log(LOG_WARNING, "Please update libpri.  pri_dump_info not available\n");
+#endif
+	return RESULT_SUCCESS;
+}
+
 static char pri_debug_help[] = 
 	"Usage: pri debug span <span>\n"
 	"       Enables debugging on a given PRI span\n";
@@ -6852,6 +6875,10 @@ static char pri_really_debug_help[] =
 	"Usage: pri intensive debug span <span>\n"
 	"       Enables debugging down to the Q.921 level\n";
 
+static char pri_show_span_help[] = 
+	"Usage: pri show span <span>\n"
+	"       Displays PRI Information\n";
+
 static struct ast_cli_entry pri_debug = {
 	{ "pri", "debug", "span", NULL }, handle_pri_debug, "Enables PRI debugging on a span", pri_debug_help, complete_span };
 
@@ -6860,6 +6887,9 @@ static struct ast_cli_entry pri_no_debug = {
 
 static struct ast_cli_entry pri_really_debug = {
 	{ "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span };
+
+static struct ast_cli_entry pri_show_span = {
+	{ "pri", "show", "span", NULL }, handle_pri_show_span, "Displays PRI Information", pri_show_span_help, complete_span };
 
 #endif /* ZAPATA_PRI */
 
@@ -7253,6 +7283,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&pri_debug);
 	ast_cli_unregister(&pri_no_debug);
 	ast_cli_unregister(&pri_really_debug);
+	ast_cli_unregister(&pri_show_span);
 #endif
 #ifdef ZAPATA_R2
 	ast_cli_unregister(&r2_debug);
@@ -7823,6 +7854,7 @@ int load_module(void)
 	ast_cli_register(&pri_debug);
 	ast_cli_register(&pri_no_debug);
 	ast_cli_register(&pri_really_debug);
+	ast_cli_register(&pri_show_span);
 #endif	
 #ifdef ZAPATA_R2
 	ast_cli_register(&r2_debug);
