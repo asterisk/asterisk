@@ -844,7 +844,8 @@ static int create_addr(struct sip_pvt *r, char *peer)
 					r->sa.sin_port = p->defaddr.sin_port;
 				}
 				memcpy(&r->recv, &r->sa, sizeof(r->recv));
-			}
+			} else
+				p = NULL;
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
@@ -5663,7 +5664,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	strncpy(name, peer->name, sizeof(name) - 1);
 	peer->lastmsgssent = ((newmsgs << 8) | (oldmsgs));
 	ast_mutex_unlock(&peerl.lock);
-	if (create_addr(p, name) || !p->sa.sin_addr.s_addr || !p->sa.sin_port) {
+	if (create_addr(p, name)) {
 		/* Maybe they're not registered, etc. */
 		sip_destroy(p);
 		return 0;
