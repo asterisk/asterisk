@@ -32,6 +32,7 @@
 #include <asterisk/cli.h>
 #include <asterisk/app.h>
 #include <asterisk/pbx.h>
+#include <asterisk/md5.h>
 
 static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
@@ -191,6 +192,9 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *cat;
 	char *user = get_header(m, "Username");
 	char *pass = get_header(m, "Secret");
+	char *authtype = get_header(m, "AuthType");
+	char *key = get_header(m, "Key");
+
 	cfg = ast_load("manager.conf");
 	if (!cfg)
 		return -1;
@@ -200,7 +204,27 @@ static int authenticate(struct mansession *s, struct message *m)
 			/* This is a user */
 			if (!strcasecmp(cat, user)) {
 				char *password = ast_variable_retrieve(cfg, cat, "secret");
-				if (password && !strcasecmp(password, pass)) {
+				if (!strcasecmp(authtype, "MD5")) {
+					if (key && strlen(key) && s->challenge) {
+						int x;
+						int len=0;
+						char md5key[256] = "";
+						struct MD5Context md5;
+						unsigned char digest[16];
+						MD5Init(&md5);
+						MD5Update(&md5, s->challenge, strlen(s->challenge));
+						MD5Update(&md5, password, strlen(password));
+						MD5Final(digest, &md5);
+						for (x=0;x<16;x++)
+							len += sprintf(md5key + len, "%2.2x", digest[x]);
+						if (!strcmp(md5key, key))
+							break;
+						else {
+							ast_destroy(cfg);
+							return -1;
+						}
+					}
+				} else if (password && !strcasecmp(password, pass)) {
 					break;
 				} else {
 					ast_log(LOG_NOTICE, "%s failed to authenticate as '%s'\n", inet_ntoa(s->sin.sin_addr), user);
@@ -414,7 +438,22 @@ static int process_message(struct mansession *s, struct message *m)
 		return 0;
 	}
 	if (!s->authenticated) {
-		if (!strcasecmp(action, "Login")) {
+		if (!strcasecmp(action, "Challenge")) {
+			char *authtype;
+			authtype = get_header(m, "AuthType");
+			if (!strcasecmp(authtype, "MD5")) {
+				if (!s->challenge || !strlen(s->challenge)) {
+					ast_pthread_mutex_lock(&s->lock);
+					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
+					ast_pthread_mutex_unlock(&s->lock);
+				}
+				ast_cli(s->fd, "Challenge: %s\r\n\r\n", s->challenge);
+				return 0;
+			} else {
+				send_error(s, "Must specify AuthType");
+				return 0;
+			}
+		} else if (!strcasecmp(action, "Login")) {
 			if (authenticate(s, m)) {
 				sleep(1);
 				send_error(s, "Authentication failed");

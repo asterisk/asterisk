@@ -64,6 +64,7 @@ static char *descrip =
 "      'm' -- provide hold music to the calling party until answered.\n"
 "      'd' -- data-quality (modem) call (minimum delay).\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
+"      'C' -- reset call detail record for this call.\n"
 "      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
@@ -295,6 +296,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int allowredir=0;
 	int allowdisconnect=0;
 	int privacy=0;
+	int resetcdr=0;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
 	char *transfer = NULL;
@@ -364,8 +366,12 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		} else if (strchr(transfer, 'P')) {
 			/* No specified privdb */
 			privacy = 1;
+		} else if (strchr(transfer, 'C')) {
+			resetcdr = 1;
 		}
 	}
+	if (resetcdr && chan->cdr)
+		ast_cdr_reset(chan->cdr, 0);
 	if (!strlen(privdb) && privacy) {
 		/* If privdb is not specified and we are using privacy, copy from extension */
 		strncpy(privdb, chan->exten, sizeof(privdb) - 1);

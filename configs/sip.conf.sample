@@ -17,12 +17,11 @@ context = default		; Default for incoming calls
 ;type=friend
 ;secret=blah
 ;host=dynamic
-;dtmf=inband			; Choices are inband, rfc2833, or info
+;dtmfmode=inband		; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59
 
 ;[pingtel]
 ;type=friend
-;insecure=yes			; Pingtel sends from different portno
 ;username=pingtel
 ;secret=blah
 ;host=dynamic
@@ -32,6 +31,7 @@ context = default		; Default for incoming calls
 ;type=friend
 ;username=cisco
 ;secret=blah
+;nat=yes			; This phone may be natted
 ;host=dynamic
 ;canreinvite=no			; Cisco poops on reinvite sometimes
 ;qualify=200			; Qualify peer is no more than 200ms away
@@ -39,7 +39,6 @@ context = default		; Default for incoming calls
 
 ;[cisco1]
 ;type=friend
-;insecure=yes
 ;username=cisco1
 ;secret=blah
 ;host=dynamic

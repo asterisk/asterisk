@@ -40,8 +40,8 @@ struct ast_modem_driver {
 	char **idents;
 	int formats;
 	int fullduplex;
-	void (*incusecnt)();
-	void (*decusecnt)();
+	void (*incusecnt)(void);
+	void (*decusecnt)(void);
 	char * (*identify)(struct ast_modem_pvt *);
 	int (*init)(struct ast_modem_pvt *);
 	int (*setdev)(struct ast_modem_pvt *, int dev);

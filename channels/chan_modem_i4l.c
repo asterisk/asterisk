@@ -474,7 +474,7 @@ static char *i4l_identify(struct ast_modem_pvt *p)
 	return strdup("Linux ISDN");
 }
 
-static void i4l_incusecnt()
+static void i4l_incusecnt(void)
 {
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;
@@ -482,7 +482,7 @@ static void i4l_incusecnt()
 	ast_update_use_count();
 }
 
-static void i4l_decusecnt()
+static void i4l_decusecnt(void)
 {
 	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt++;

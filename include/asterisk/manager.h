@@ -57,6 +57,7 @@ struct mansession {
 	int fd;
 	int blocking;
 	char username[80];
+	char challenge[10];
 	int authenticated;
 	int readperm;
 	int writeperm;

@@ -1,3 +1,4 @@
+ -- Add 'C' flag to dial command to reset call detail record (handy for calling cards)
  -- Add NAT and dynamic support to MGCP
  -- Allow selection of in-band, out-of-band, or INFO based DTMF
  -- Add contributed "*80" support to blacklist numbers (Thanks James!)
