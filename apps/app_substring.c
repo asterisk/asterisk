@@ -26,9 +26,11 @@
 #include <pthread.h>
 
 
-static char *tdesc = "Save substring digits in a given variable";
+static char *tdesc = "(Deprecated) Save substring digits in a given variable";
 
 static char *descrip =
+"  (Deprecated, use ${variable:a:b} instead)\n"
+"\n"
 "  SubString(variable=string_of_digits|count1|count2): Assigns the substring\n"
 "of string_of_digits to a given variable. Parameter count1 may be positive\n"
 "or negative. If it's positive then we skip the first count1 digits from the\n"
@@ -48,7 +50,7 @@ static char *descrip =
 
 static char *app = "SubString";
 
-static char *synopsis = "Save substring digits in a given variable";
+static char *synopsis = "(Deprecated) Save substring digits in a given variable";
 
 STANDARD_LOCAL_USER;
 
