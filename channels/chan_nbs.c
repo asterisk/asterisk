@@ -252,24 +252,27 @@ static struct ast_channel *nbs_request(char *type, int format, void *data)
 	return tmp;
 }
 
+static int __unload_module(void)
+{
+	/* First, take us out of the channel loop */
+	ast_channel_unregister(type);
+	return 0;
+}
+
+int unload_module(void)
+{
+	return __unload_module();
+}
+
 int load_module()
 {
 	/* Make sure we can register our Adtranphone channel type */
 	if (ast_channel_register(type, tdesc, 
 			 AST_FORMAT_SLINEAR, nbs_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		unload_module();
+		__unload_module();
 		return -1;
 	}
-	return 0;
-}
-
-
-
-int unload_module()
-{
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
 	return 0;
 }
 

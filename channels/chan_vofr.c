@@ -1136,61 +1136,7 @@ static struct ast_channel *vofr_request(char *type, int format, void *data)
 	return tmp;
 }
 
-int load_module()
-{
-	struct ast_config *cfg;
-	struct ast_variable *v;
-	struct vofr_pvt *tmp;
-	cfg = ast_load(config);
-
-	/* We *must* have a config file otherwise stop immediately */
-	if (!cfg) {
-		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
-		return -1;
-	}
-	if (ast_mutex_lock(&iflock)) {
-		/* It's a little silly to lock it, but we mind as well just to be sure */
-		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
-		return -1;
-	}
-	v = ast_variable_browse(cfg, "interfaces");
-	while(v) {
-		/* Create the interface list */
-		if (!strcasecmp(v->name, "user") ||
-			!strcasecmp(v->name, "network")) {
-				tmp = mkif(v->name, v->value);
-				if (tmp) {
-					tmp->next = iflist;
-					iflist = tmp;
-				} else {
-					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
-					ast_destroy(cfg);
-					ast_mutex_unlock(&iflock);
-					unload_module();
-					return -1;
-				}
-		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(context, v->value, sizeof(context)-1);
-		} else if (!strcasecmp(v->name, "language")) {
-			strncpy(language, v->value, sizeof(language)-1);
-		}
-		v = v->next;
-	}
-	ast_mutex_unlock(&iflock);
-	/* Make sure we can register our AdtranVoFR channel type */
-	if (ast_channel_register(type, tdesc, AST_FORMAT_G723_1, vofr_request)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		ast_destroy(cfg);
-		unload_module();
-		return -1;
-	}
-	ast_destroy(cfg);
-	/* And start the monitor for the first time */
-	restart_monitor();
-	return 0;
-}
-
-int unload_module()
+static int __unload_module(void)
 {
 	struct vofr_pvt *p, *pl;
 	/* First, take us out of the channel loop */
@@ -1241,6 +1187,65 @@ int unload_module()
 		return -1;
 	}
 		
+	return 0;
+}
+
+int unload_module()
+{
+	return __unload_module();
+}
+
+int load_module()
+{
+	struct ast_config *cfg;
+	struct ast_variable *v;
+	struct vofr_pvt *tmp;
+	cfg = ast_load(config);
+
+	/* We *must* have a config file otherwise stop immediately */
+	if (!cfg) {
+		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
+		return -1;
+	}
+	if (ast_mutex_lock(&iflock)) {
+		/* It's a little silly to lock it, but we mind as well just to be sure */
+		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
+		return -1;
+	}
+	v = ast_variable_browse(cfg, "interfaces");
+	while(v) {
+		/* Create the interface list */
+		if (!strcasecmp(v->name, "user") ||
+			!strcasecmp(v->name, "network")) {
+				tmp = mkif(v->name, v->value);
+				if (tmp) {
+					tmp->next = iflist;
+					iflist = tmp;
+				} else {
+					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
+					ast_destroy(cfg);
+					ast_mutex_unlock(&iflock);
+					__unload_module();
+					return -1;
+				}
+		} else if (!strcasecmp(v->name, "context")) {
+			strncpy(context, v->value, sizeof(context)-1);
+		} else if (!strcasecmp(v->name, "language")) {
+			strncpy(language, v->value, sizeof(language)-1);
+		}
+		v = v->next;
+	}
+	ast_mutex_unlock(&iflock);
+	/* Make sure we can register our AdtranVoFR channel type */
+	if (ast_channel_register(type, tdesc, AST_FORMAT_G723_1, vofr_request)) {
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ast_destroy(cfg);
+		__unload_module();
+		return -1;
+	}
+	ast_destroy(cfg);
+	/* And start the monitor for the first time */
+	restart_monitor();
 	return 0;
 }
 

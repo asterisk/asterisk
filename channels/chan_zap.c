@@ -6914,7 +6914,7 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static int zt_unload(void)
+static int __unload_module(void)
 {
 	struct zt_pvt *p, *pl;
 	/* First, take us out of the channel loop */
@@ -6977,7 +6977,7 @@ static int zt_unload(void)
 
 int unload_module()
 {
-	return zt_unload();
+	return __unload_module();
 }
 		
 static int setup_zap(void)
@@ -7016,7 +7016,7 @@ static int setup_zap(void)
 				ast_log(LOG_ERROR, "Signalling must be specified before any channels are.\n");
 				ast_destroy(cfg);
 				ast_mutex_unlock(&iflock);
-				zt_unload();
+				__unload_module();
 				return -1;
 			}
 			c = v->value;
@@ -7033,7 +7033,7 @@ static int setup_zap(void)
 					ast_log(LOG_ERROR, "Syntax error parsing '%s' at '%s'\n", v->value, chan);
 					ast_destroy(cfg);
 					ast_mutex_unlock(&iflock);
-					zt_unload();
+					__unload_module();
 					return -1;
 				}
 				if (finish < start) {
@@ -7051,7 +7051,7 @@ static int setup_zap(void)
 						ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 						ast_destroy(cfg);
 						ast_mutex_unlock(&iflock);
-						zt_unload();
+						__unload_module();
 						return -1;
 					}
 				}
@@ -7293,7 +7293,7 @@ static int setup_zap(void)
 				ast_log(LOG_ERROR, "Unknown switchtype '%s'\n", v->value);
 				ast_destroy(cfg);
 				ast_mutex_unlock(&iflock);
-				zt_unload();
+				__unload_module();
 				return -1;
 			}
 		} else if (!strcasecmp(v->name, "minunused")) {
@@ -7354,12 +7354,12 @@ int load_module(void)
 	/* Make sure we can register our Zap channel type */
 	if (ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		zt_unload();
+		__unload_module();
 		return -1;
 	}
 	if (ast_channel_register(typecompat, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", typecompat);
-		zt_unload();
+		__unload_module();
 		return -1;
 	}
 #ifdef ZAPATA_PRI

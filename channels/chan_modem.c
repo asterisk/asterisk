@@ -840,97 +840,7 @@ static unsigned int get_group(char *s)
 	return group;
 }
 
-int load_module()
-{
-	struct ast_config *cfg;
-	struct ast_variable *v;
-	struct ast_modem_pvt *tmp;
-	char driver[80];
-	cfg = ast_load(config);
-
-	/* We *must* have a config file otherwise stop immediately */
-	if (!cfg) {
-		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
-		return -1;
-	}
-	if (ast_mutex_lock(&iflock)) {
-		/* It's a little silly to lock it, but we mind as well just to be sure */
-		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
-		return -1;
-	}
-	v = ast_variable_browse(cfg, "interfaces");
-	while(v) {
-		/* Create the interface list */
-		if (!strcasecmp(v->name, "device")) {
-				tmp = mkif(v->value);
-				if (tmp) {
-					tmp->next = iflist;
-					iflist = tmp;
-					
-				} else {
-					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
-					ast_destroy(cfg);
-					ast_mutex_unlock(&iflock);
-					unload_module();
-					return -1;
-				}
-		} else if (!strcasecmp(v->name, "driver")) {
-			snprintf(driver, sizeof(driver), "chan_modem_%s.so", v->value);
-			if (option_verbose > 1) 
-				ast_verbose(VERBOSE_PREFIX_2 "Loading modem driver %s", driver);
-				
-			if (ast_load_resource(driver)) {
-				ast_log(LOG_ERROR, "Failed to load driver %s\n", driver);
-				ast_destroy(cfg);
-				ast_mutex_unlock(&iflock);
-				unload_module();
-				return -1;
-			}
-		} else if (!strcasecmp(v->name, "mode")) {
-			if (!strncasecmp(v->value, "ri", 2)) 
-				gmode = MODEM_MODE_WAIT_RING;
-			else if (!strncasecmp(v->value, "im", 2))
-				gmode = MODEM_MODE_IMMEDIATE;
-			else if (!strncasecmp(v->value, "an", 2))
-				gmode = MODEM_MODE_WAIT_ANSWER;
-			else
-				ast_log(LOG_WARNING, "Unknown mode: %s\n", v->value);
-		} else if (!strcasecmp(v->name, "stripmsd")) {
-			stripmsd = atoi(v->value);
-		} else if (!strcasecmp(v->name, "type")) {
-			strncpy(mtype, v->value, sizeof(mtype)-1);
-		} else if (!strcasecmp(v->name, "initstr")) {
-			strncpy(initstr, v->value, sizeof(initstr)-1);
-		} else if (!strcasecmp(v->name, "dialtype")) {
-			dialtype = toupper(v->value[0]);
-		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(context, v->value, sizeof(context)-1);
-		} else if (!strcasecmp(v->name, "msn")) {
-			strncpy(msn, v->value, sizeof(msn)-1);
-		} else if (!strcasecmp(v->name, "incomingmsn")) {
-			strncpy(incomingmsn, v->value, sizeof(incomingmsn)-1);
-		} else if (!strcasecmp(v->name, "language")) {
-			strncpy(language, v->value, sizeof(language)-1);
-		} else if (!strcasecmp(v->name, "group")) {
-			cur_group = get_group(v->value);
-		}
-		v = v->next;
-	}
-	ast_mutex_unlock(&iflock);
-	if (ast_channel_register(type, tdesc, /* XXX Don't know our types -- maybe we should register more than one XXX */ 
-						AST_FORMAT_SLINEAR, modem_request)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		ast_destroy(cfg);
-		unload_module();
-		return -1;
-	}
-	ast_destroy(cfg);
-	/* And start the monitor for the first time */
-	restart_monitor();
-	return 0;
-}
-
-int unload_module()
+static int __unload_module(void)
 {
 	struct ast_modem_pvt *p, *pl;
 	/* First, take us out of the channel loop */
@@ -980,6 +890,101 @@ int unload_module()
 		return -1;
 	}
 		
+	return 0;
+}
+
+int unload_module()
+{
+	return __unload_module();
+}
+
+int load_module()
+{
+	struct ast_config *cfg;
+	struct ast_variable *v;
+	struct ast_modem_pvt *tmp;
+	char driver[80];
+	cfg = ast_load(config);
+
+	/* We *must* have a config file otherwise stop immediately */
+	if (!cfg) {
+		ast_log(LOG_ERROR, "Unable to load config %s\n", config);
+		return -1;
+	}
+	if (ast_mutex_lock(&iflock)) {
+		/* It's a little silly to lock it, but we mind as well just to be sure */
+		ast_log(LOG_ERROR, "Unable to lock interface list???\n");
+		return -1;
+	}
+	v = ast_variable_browse(cfg, "interfaces");
+	while(v) {
+		/* Create the interface list */
+		if (!strcasecmp(v->name, "device")) {
+				tmp = mkif(v->value);
+				if (tmp) {
+					tmp->next = iflist;
+					iflist = tmp;
+					
+				} else {
+					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
+					ast_destroy(cfg);
+					ast_mutex_unlock(&iflock);
+					__unload_module();
+					return -1;
+				}
+		} else if (!strcasecmp(v->name, "driver")) {
+			snprintf(driver, sizeof(driver), "chan_modem_%s.so", v->value);
+			if (option_verbose > 1) 
+				ast_verbose(VERBOSE_PREFIX_2 "Loading modem driver %s", driver);
+				
+			if (ast_load_resource(driver)) {
+				ast_log(LOG_ERROR, "Failed to load driver %s\n", driver);
+				ast_destroy(cfg);
+				ast_mutex_unlock(&iflock);
+				__unload_module();
+				return -1;
+			}
+		} else if (!strcasecmp(v->name, "mode")) {
+			if (!strncasecmp(v->value, "ri", 2)) 
+				gmode = MODEM_MODE_WAIT_RING;
+			else if (!strncasecmp(v->value, "im", 2))
+				gmode = MODEM_MODE_IMMEDIATE;
+			else if (!strncasecmp(v->value, "an", 2))
+				gmode = MODEM_MODE_WAIT_ANSWER;
+			else
+				ast_log(LOG_WARNING, "Unknown mode: %s\n", v->value);
+		} else if (!strcasecmp(v->name, "stripmsd")) {
+			stripmsd = atoi(v->value);
+		} else if (!strcasecmp(v->name, "type")) {
+			strncpy(mtype, v->value, sizeof(mtype)-1);
+		} else if (!strcasecmp(v->name, "initstr")) {
+			strncpy(initstr, v->value, sizeof(initstr)-1);
+		} else if (!strcasecmp(v->name, "dialtype")) {
+			dialtype = toupper(v->value[0]);
+		} else if (!strcasecmp(v->name, "context")) {
+			strncpy(context, v->value, sizeof(context)-1);
+		} else if (!strcasecmp(v->name, "msn")) {
+			strncpy(msn, v->value, sizeof(msn)-1);
+		} else if (!strcasecmp(v->name, "incomingmsn")) {
+			strncpy(incomingmsn, v->value, sizeof(incomingmsn)-1);
+		} else if (!strcasecmp(v->name, "language")) {
+			strncpy(language, v->value, sizeof(language)-1);
+		} else if (!strcasecmp(v->name, "group")) {
+			cur_group = get_group(v->value);
+		}
+		v = v->next;
+	}
+	ast_mutex_unlock(&iflock);
+	if (ast_channel_register(type, tdesc, /* XXX Don't know our types -- maybe we should register more than one XXX */ 
+						AST_FORMAT_SLINEAR, modem_request)) {
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ast_destroy(cfg);
+		__unload_module();
+		return -1;
+	}
+	ast_destroy(cfg);
+	/* And start the monitor for the first time */
+	restart_monitor();
 	return 0;
 }
 

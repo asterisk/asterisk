@@ -1112,6 +1112,62 @@ static float parse_gain_value(char *gain_type, char *value)
 	return gain;
 }
 
+static int __unload_module(void)
+{
+     struct vpb_pvt *p;
+	/* First, take us out of the channel loop */
+	ast_channel_unregister(type);
+
+	ast_mutex_lock(&iflock); {
+	     /* Hangup all interfaces if they have an owner */
+	     p = iflist;
+	     while(p) {
+		  if (p->owner)
+		       ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
+		  p = p->next;
+	     }
+	     iflist = NULL;
+	} ast_mutex_unlock(&iflock);
+
+	ast_mutex_lock(&monlock); {
+	     if (mthreadactive > -1) {
+		  pthread_cancel(monitor_thread);
+		  pthread_join(monitor_thread, NULL);
+	     }
+	     mthreadactive = -2;
+	} ast_mutex_unlock(&monlock);
+
+	ast_mutex_lock(&iflock); {
+		/* Destroy all the interfaces and free their memory */
+
+		while(iflist) {
+		     p = iflist;		    
+		     ast_mutex_destroy(&p->lock);
+		     pthread_cancel(p->readthread);
+		     p->readthread = 0;
+		     
+		     iflist = iflist->next;
+		     
+		     free(p);
+		}
+		iflist = NULL;
+	} ast_mutex_unlock(&iflock);
+	
+	ast_mutex_lock(&bridge_lock); {
+	     memset(bridges, 0, sizeof bridges);	     
+	} ast_mutex_unlock(&bridge_lock);
+	ast_mutex_destroy(&bridge_lock);
+
+	tcounter = 0;
+	
+	return 0;
+}
+
+int unload_module(void)
+{
+	return __unload_module();
+}
+
 int load_module()
 {
 	struct ast_config *cfg;
@@ -1213,63 +1269,11 @@ int load_module()
 
 
 	if (error)
-	     unload_module();
+	     __unload_module();
 	else	     
 	     restart_monitor(); /* And start the monitor for the first time */
 	
 	return error;
-}
-
-
-int unload_module()
-{
-     struct vpb_pvt *p;
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
-
-	ast_mutex_lock(&iflock); {
-	     /* Hangup all interfaces if they have an owner */
-	     p = iflist;
-	     while(p) {
-		  if (p->owner)
-		       ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-		  p = p->next;
-	     }
-	     iflist = NULL;
-	} ast_mutex_unlock(&iflock);
-
-	ast_mutex_lock(&monlock); {
-	     if (mthreadactive > -1) {
-		  pthread_cancel(monitor_thread);
-		  pthread_join(monitor_thread, NULL);
-	     }
-	     mthreadactive = -2;
-	} ast_mutex_unlock(&monlock);
-
-	ast_mutex_lock(&iflock); {
-		/* Destroy all the interfaces and free their memory */
-
-		while(iflist) {
-		     p = iflist;		    
-		     ast_mutex_destroy(&p->lock);
-		     pthread_cancel(p->readthread);
-		     p->readthread = 0;
-		     
-		     iflist = iflist->next;
-		     
-		     free(p);
-		}
-		iflist = NULL;
-	} ast_mutex_unlock(&iflock);
-	
-	ast_mutex_lock(&bridge_lock); {
-	     memset(bridges, 0, sizeof bridges);	     
-	} ast_mutex_unlock(&bridge_lock);
-	ast_mutex_destroy(&bridge_lock);
-
-	tcounter = 0;
-	
-	return 0;
 }
 
 int usecount()

@@ -1051,6 +1051,64 @@ static int parse_gain_value(char *gain_type, char *value)
 	return (int)gain;
 }
 
+static int __unload_module(void)
+{
+	struct phone_pvt *p, *pl;
+	/* First, take us out of the channel loop */
+	ast_channel_unregister(type);
+	if (!ast_mutex_lock(&iflock)) {
+		/* Hangup all interfaces if they have an owner */
+		p = iflist;
+		while(p) {
+			if (p->owner)
+				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
+			p = p->next;
+		}
+		iflist = NULL;
+		ast_mutex_unlock(&iflock);
+	} else {
+		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		return -1;
+	}
+	if (!ast_mutex_lock(&monlock)) {
+		if (monitor_thread > -1) {
+			pthread_cancel(monitor_thread);
+			pthread_join(monitor_thread, NULL);
+		}
+		monitor_thread = -2;
+		ast_mutex_unlock(&monlock);
+	} else {
+		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		return -1;
+	}
+
+	if (!ast_mutex_lock(&iflock)) {
+		/* Destroy all the interfaces and free their memory */
+		p = iflist;
+		while(p) {
+			/* Close the socket, assuming it's real */
+			if (p->fd > -1)
+				close(p->fd);
+			pl = p;
+			p = p->next;
+			/* Free associated memory */
+			free(pl);
+		}
+		iflist = NULL;
+		ast_mutex_unlock(&iflock);
+	} else {
+		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		return -1;
+	}
+		
+	return 0;
+}
+
+int unload_module(void)
+{
+	return __unload_module();
+}
+
 int load_module()
 {
 	struct ast_config *cfg;
@@ -1083,7 +1141,7 @@ int load_module()
 					ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 					ast_destroy(cfg);
 					ast_mutex_unlock(&iflock);
-					unload_module();
+					__unload_module();
 					return -1;
 				}
 		} else if (!strcasecmp(v->name, "silencesupression")) {
@@ -1136,67 +1194,12 @@ int load_module()
 			 AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW, phone_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		ast_destroy(cfg);
-		unload_module();
+		__unload_module();
 		return -1;
 	}
 	ast_destroy(cfg);
 	/* And start the monitor for the first time */
 	restart_monitor();
-	return 0;
-}
-
-
-
-int unload_module()
-{
-	struct phone_pvt *p, *pl;
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
-	if (!ast_mutex_lock(&iflock)) {
-		/* Hangup all interfaces if they have an owner */
-		p = iflist;
-		while(p) {
-			if (p->owner)
-				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-			p = p->next;
-		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}
-	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread > -1) {
-			pthread_cancel(monitor_thread);
-			pthread_join(monitor_thread, NULL);
-		}
-		monitor_thread = -2;
-		ast_mutex_unlock(&monlock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}
-
-	if (!ast_mutex_lock(&iflock)) {
-		/* Destroy all the interfaces and free their memory */
-		p = iflist;
-		while(p) {
-			/* Close the socket, assuming it's real */
-			if (p->fd > -1)
-				close(p->fd);
-			pl = p;
-			p = p->next;
-			/* Free associated memory */
-			free(pl);
-		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}
-		
 	return 0;
 }
 

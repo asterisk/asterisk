@@ -5986,6 +5986,33 @@ static struct ast_switch iax2_switch =
 	matchmore:		iax2_matchmore,
 };
 
+static int __unload_module(void)
+{
+	int x;
+	/* Cancel the network thread, close the net socket */
+	pthread_cancel(netthreadid);
+	pthread_join(netthreadid, NULL);
+	close(netsocket);
+	for (x=0;x<IAX_MAX_CALLS;x++)
+		if (iaxs[x])
+			iax2_destroy(x);
+	ast_manager_unregister( "IAXpeers" );
+	ast_cli_unregister(&cli_show_users);
+	ast_cli_unregister(&cli_show_channels);
+	ast_cli_unregister(&cli_show_peers);
+	ast_cli_unregister(&cli_set_jitter);
+	ast_cli_unregister(&cli_show_stats);
+	ast_cli_unregister(&cli_show_cache);
+	ast_unregister_switch(&iax2_switch);
+	delete_users();
+	return 0;
+}
+
+int unload_module()
+{
+	return __unload_module();
+}
+
 int load_module(void)
 {
 	char *config = "iax.conf";
@@ -6048,7 +6075,7 @@ int load_module(void)
 
 	if (ast_channel_register(type, tdesc, iax2_capability, iax2_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		unload_module();
+		__unload_module();
 		return -1;
 	}
 
@@ -6093,28 +6120,6 @@ int load_module(void)
 char *description()
 {
 	return desc;
-}
-
-int unload_module()
-{
-	int x;
-	/* Cancel the network thread, close the net socket */
-	pthread_cancel(netthreadid);
-	pthread_join(netthreadid, NULL);
-	close(netsocket);
-	for (x=0;x<IAX_MAX_CALLS;x++)
-		if (iaxs[x])
-			iax2_destroy(x);
-	ast_manager_unregister( "IAXpeers" );
-	ast_cli_unregister(&cli_show_users);
-	ast_cli_unregister(&cli_show_channels);
-	ast_cli_unregister(&cli_show_peers);
-	ast_cli_unregister(&cli_set_jitter);
-	ast_cli_unregister(&cli_show_stats);
-	ast_cli_unregister(&cli_show_cache);
-	ast_unregister_switch(&iax2_switch);
-	delete_users();
-	return 0;
 }
 
 int usecount()
