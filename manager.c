@@ -63,9 +63,6 @@ static struct mansession *sessions = NULL;
 static struct manager_action *first_action = NULL;
 static ast_mutex_t actionlock = AST_MUTEX_INITIALIZER;
 
-
-
-
 int ast_carefulwrite(int fd, char *s, int len, int timeoutms) 
 {
 	/* Try to write string, but wait no more than ms milliseconds
@@ -92,7 +89,6 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	}
 	return res;
 }
-
 
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
@@ -231,6 +227,24 @@ static int get_perm(char *instr)
 	return ret;
 }
 
+static int set_eventmask(struct mansession *s, char *eventmask)
+{
+	if (!eventmask)
+		return -1;
+	if (!strcasecmp(eventmask, "on") || ast_true(eventmask)) {
+		ast_mutex_lock(&s->lock);
+		s->send_events = 1;
+		ast_mutex_unlock(&s->lock);
+		return 1;
+	} else if (!strcasecmp(eventmask, "off") || ast_false(eventmask)) {
+		ast_mutex_lock(&s->lock);
+		s->send_events = 0;
+		ast_mutex_unlock(&s->lock);
+		return 0;
+	}
+	return -1;
+}
+
 static int authenticate(struct mansession *s, struct message *m)
 {
 	struct ast_config *cfg;
@@ -240,7 +254,6 @@ static int authenticate(struct mansession *s, struct message *m)
 	char *authtype = astman_get_header(m, "AuthType");
 	char *key = astman_get_header(m, "Key");
 	char *events = astman_get_header(m, "Events");
-	int send_events = events ? ast_true(events) : 1;
 	
 	cfg = ast_load("manager.conf");
 	if (!cfg)
@@ -306,7 +319,8 @@ static int authenticate(struct mansession *s, struct message *m)
 		s->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
 		s->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
 		ast_destroy(cfg);
-		s->send_events=send_events;
+		if (events)
+			set_eventmask(s, events);
 		return 0;
 	}
 	ast_log(LOG_NOTICE, "%s tried to authenticate with non-existant user '%s'\n", inet_ntoa(s->sin.sin_addr), user);
@@ -320,34 +334,20 @@ static int action_ping(struct mansession *s, struct message *m)
 	return 0;
 }
 
-
-static int events_on_off(struct mansession *s,int onoff) {
-	ast_mutex_lock(&s->lock);
-	s->send_events = onoff ? 1 : 0;
-	ast_mutex_unlock(&s->lock);
-	return s->send_events;
-}
-
-
 static int action_events(struct mansession *s, struct message *m)
 {
 	char *mask = astman_get_header(m, "EventMask");
-	char reply[25];
 	int res;
-	int true=0;
-	
-	/* ast_true might wanna learn to include 'on' as a true stmt  */
-	if(!strcasecmp(mask,"on"))
-		true = 1;
-	else 
-		true = ast_true(mask);
-	
-	res = events_on_off(s,true);
-	sprintf(reply,"Events are now %s",res ? "on" : "off");
-	astman_send_response(s, m,reply, NULL);
+
+	res = set_eventmask(s, mask);
+	if (res > 0)
+		astman_send_response(s, m, "Events On", NULL);
+	else if (res == 0)
+		astman_send_response(s, m, "Events Off", NULL);
+	else
+		astman_send_response(s, m, "EventMask parse error", NULL);
 	return 0;
 }
-
 
 static int action_logoff(struct mansession *s, struct message *m)
 {
@@ -853,9 +853,7 @@ int manager_event(int category, char *event, char *fmt, ...)
 				va_start(ap, fmt);
 				vsnprintf(tmp, sizeof(tmp), fmt, ap);
 				va_end(ap);
-
 				ast_carefulwrite(s->fd,tmp,strlen(tmp),100);
-				/*write(s->fd, tmp, strlen(tmp));*/
 				ast_cli(s->fd, "\r\n");
 			}
 			ast_mutex_unlock(&s->lock);
@@ -972,7 +970,6 @@ int init_manager(void)
 	val = ast_variable_retrieve(cfg, "general", "block-sockets");
 	if(val)
 		block_sockets = ast_true(val);
-	
 
 	if ((val = ast_variable_retrieve(cfg, "general", "portno"))) {
 		if (sscanf(val, "%d", &portno) != 1) {
