@@ -128,7 +128,7 @@ static char *convert(char *lastname)
  */
 static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dialcontext, char *ext, char *name) {
 	int res = 0;
-	int loop = -1;
+	int loop = 3;
 	char fn[256];
 	char fn2[256];
 
@@ -172,6 +172,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 		if (res > -1) {
 			switch (res) {
 				case '1':
+					/* Name selected */
 					loop = 0;
 					if (ast_exists_extension(chan,dialcontext,ext,1,chan->callerid)) {
 						strncpy(chan->exten, ext, sizeof(chan->exten)-1);
@@ -187,14 +188,21 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 					break;
 	
 				case '*':   
+					/* Skip to next match in list */
 					loop = 0;
 					break;
 	
 				default:
+					/* Not '1', or '*', so decrement number of tries */
 					res = 0;
+					loop--;
 					break;
 			} /* end switch */
 		} /* end if */
+		else {
+			/* User hungup, so jump out now */
+			loop = 0;
+		}
 	} /* end while */
 
 	return(res);
@@ -261,7 +269,9 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 				res = play_mailbox_owner(chan, context, dialcontext, v->name, name);
 				switch (res) {
 					case -1:
-						/* user pressed '1' but extension does not exist */
+						/* user pressed '1' but extension does not exist, or
+						 * user hungup
+						 */
 						lastuserchoice = 0;
 						break;
 					case '1':
