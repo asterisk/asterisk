@@ -264,6 +264,9 @@ AST_MUTEX_DEFINE_STATIC(iflock);
 
 static int ifcount = 0;
 
+/* When to send the CallerID signals (rings) */
+static int sendcalleridafter = DEFAULT_CIDRINGS;
+
 /* Protect the monitoring thread, so only one process can kill or start it, and not
    when it's doing something critical. */
 AST_MUTEX_DEFINE_STATIC(monlock);
@@ -543,6 +546,7 @@ static struct zt_pvt {
 	int dtmfrelax;		/* whether to run in relaxed DTMF mode */
 	int fake_event;
 	int zaptrcallerid;	/* should we use the callerid from incoming call on zap transfer or not */
+	int sendcalleridafter;
 #ifdef ZAPATA_PRI
 	struct zt_pri *pri;
 	struct zt_pvt *bearer;
@@ -1532,7 +1536,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			} else {
 				if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCADENCE, NULL))
 					ast_log(LOG_WARNING, "Unable to reset default ring on '%s'\n", ast->name);
-				p->cidrings = DEFAULT_CIDRINGS;
+				p->cidrings = p->sendcalleridafter;
 			}
 
 
@@ -9595,6 +9599,8 @@ static int setup_zap(void)
 			cur_rxflash = atoi(v->value);
 		} else if (!strcasecmp(v->name, "debounce")) {
 			cur_debounce = atoi(v->value);
+		} else if (!strcasecmp(v->name, "sendcalleridafter")) {
+			sendcalleridafter = atoi(v->value);
 		} else
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
