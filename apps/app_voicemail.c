@@ -700,13 +700,16 @@ static int base_encode(char *filename, FILE *so)
 
 static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *attach, char *format, long duration, int attach_user_voicemail)
 {
-	FILE *p;
+	FILE *p=NULL;
+	int pfd;
 	char date[256];
 	char host[256];
 	char who[256];
 	char bound[256];
 	char fname[256];
 	char dur[256];
+	char tmp[80] = "/tmp/astmail-XXXXXX";
+	char tmp2[256];
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
@@ -714,7 +717,16 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
 	ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, attach_voicemail);
-	p = popen(mailcmd, "w");
+	/* Make a temporary file instead of piping directly to sendmail, in case the mail
+	   command hangs */
+	pfd = mkstemp(tmp);
+	if (pfd > -1) {
+		p = fdopen(pfd, "w");
+		if (!p) {
+			close(pfd);
+			pfd = -1;
+		}
+	}
 	if (p) {
 		gethostname(host, sizeof(host));
 		if (strchr(srcemail, '@'))
@@ -811,7 +823,9 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 			base_encode(fname, p);
 			fprintf(p, "\n\n--%s--\n.\n", bound);
 		}
-		pclose(p);
+		fclose(p);
+		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
+		system(tmp2);
 		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", who, mailcmd);
 	} else {
 		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
