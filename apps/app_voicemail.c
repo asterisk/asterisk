@@ -618,6 +618,18 @@ static int make_file(char *dest, int len, char *dir, int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
+static int last_message_index(char *dir)
+{
+	int x;
+	char fn[256];
+	for (x=0;x<MAXMSG;x++) {
+		make_file(fn, sizeof(fn), dir, x);
+		if (ast_fileexists(fn, NULL, NULL) < 1)
+			break;
+	}
+	return x-1;
+}
+
 static int
 inbuf(struct baseio *bio, FILE *fi)
 {
@@ -1440,15 +1452,54 @@ leave_vm_out:
 
 static int count_messages(char *dir)
 {
-	int x;
-	char fn[256];
-	for (x=0;x<MAXMSG;x++) {
-		make_file(fn, sizeof(fn), dir, x);
-		if (ast_fileexists(fn, NULL, NULL) < 1)
-			break;
+	// Find all .txt files - even if they are not in sequence from 0000
+
+	int vmcount = 0;
+	DIR *vmdir = NULL;
+	struct dirent *vment = NULL;
+
+	if ((vmdir = opendir(dir))) {
+		while ((vment = readdir(vmdir)))
+		{
+			if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
+			{
+				vmcount++;
+			}
+		}
+		closedir(vmdir);
 	}
-	return x;
+
+	return vmcount;
 }
+
+static void resequence_mailbox(char * dir)
+{
+	// we know max messages, so stop process when number is hit
+
+	int x,dest;
+	char sfn[256];
+	char dfn[256];
+	char stxt[256];
+	char dtxt[256];
+
+	for (x=0,dest=0;x<MAXMSG;x++) {
+		make_file(sfn, sizeof(sfn), dir, x);
+		if (ast_fileexists(sfn, NULL, NULL) > 0) {
+
+			if(x != dest) {
+				make_file(dfn, sizeof(dfn), dir, dest);
+				ast_filerename(sfn,dfn,NULL);
+
+				snprintf(stxt, sizeof(stxt), "%s.txt", sfn);
+				snprintf(dtxt, sizeof(dtxt), "%s.txt", dfn);
+				rename(stxt, dtxt);
+			}
+
+			dest++;
+		}
+	}
+}
+
 
 static int say_and_wait(struct ast_channel *chan, int num, char *language)
 {
@@ -2457,6 +2508,20 @@ static void open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 	strncpy(vms->curbox, mbox(box), sizeof(vms->curbox) - 1);
 	make_dir(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
 	vms->lastmsg = count_messages(vms->curdir) - 1;
+
+	/*
+	The following test is needed in case sequencing gets messed up.
+	There appears to be more than one way to mess up sequence, so
+	we will not try to find all of the root causes--just fix it when
+	detected.
+	*/
+
+	if(vms->lastmsg != last_message_index(vms->curdir))
+	{
+		ast_log(LOG_NOTICE, "Resequencing Mailbox: %s\n", vms->curdir);
+		resequence_mailbox(vms->curdir);
+	}
+
 	snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", vms->curbox);
 }
 
@@ -3789,7 +3854,7 @@ static int handle_show_voicemail_users(int fd, int argc, char *argv[])
 				if ((vmdir = opendir(dirname))) {
 					/* No matter what the format of VM, there will always be a .txt file for each message. */
 					while ((vment = readdir(vmdir)))
-						if (!strncmp(vment->d_name + 7,".txt",4))
+						if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
 							vmcount++;
 					closedir(vmdir);
 				}
