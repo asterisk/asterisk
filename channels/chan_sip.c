@@ -3745,16 +3745,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			p->initid = -1;
 		}
 		/* Get their tag if we haven't already */
-		if (!strlen(p->theirtag)) {
-			to = get_header(req, "To");
-			to = strstr(to, "tag=");
-			if (to) {
-				to += 4;
-				strncpy(p->theirtag, to, sizeof(p->theirtag) - 1);
-				to = strchr(p->theirtag, ';');
-				if (to)
-					*to = '\0';
-			}
+		to = get_header(req, "To");
+		to = strstr(to, "tag=");
+		if (to) {
+			to += 4;
+			strncpy(p->theirtag, to, sizeof(p->theirtag) - 1);
+			to = strchr(p->theirtag, ';');
+			if (to)
+				*to = '\0';
 		}
 		
 		switch(resp) {
@@ -4112,9 +4110,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		} else if (sipdebug)
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
-			/* Get destination right away */
-			gotdest = get_destination(p, NULL);
-			build_contact(p);
 			/* Handle authentication if this is our first invite */
 			res = check_user(p, req, cmd, e, 1);
 			if (res) {
@@ -4127,6 +4122,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Initialize the context if it hasn't been already */
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
+			/* Get destination right away */
+			gotdest = get_destination(p, NULL);
+			build_contact(p);
+
 			if (gotdest) {
 				if (gotdest < 0)
 					transmit_response(p, "404 Not Found", req);
@@ -4263,9 +4262,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Ignoring this request\n");
 			
 		if (!p->lastinvite) {
-			/* Get destination right away */
-			gotdest = get_destination(p, NULL);
-			build_contact(p);
 			/* Handle authentication if this is our first subscribe */
 			res = check_user(p, req, cmd, e, 0);
 			if (res) {
@@ -4278,6 +4274,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Initialize the context if it hasn't been already */
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
+			/* Get destination right away */
+			gotdest = get_destination(p, NULL);
+			build_contact(p);
 			if (gotdest) {
 				if (gotdest < 0)
 					transmit_response(p, "404 Not Found", req);
