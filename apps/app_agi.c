@@ -515,7 +515,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	if (!res)
 		res = ast_waitstream(chan, argv[4]);
 	if (!res) {
-		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY, 0, 0644);
+		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, 0644);
 		if (!fs) {
 			res = -1;
 			fdprintf(agi->fd, "200 result=%d (writefile)\n", res);
