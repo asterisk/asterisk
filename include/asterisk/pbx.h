@@ -32,10 +32,11 @@ extern "C" {
 struct ast_context;
 
 /* Register a new context */
-struct ast_context *ast_context_create(char *name);
+struct ast_context *ast_context_create(char *name, char *registrar);
 
-/* Destroy a context */
-void ast_context_destroy(struct ast_context *);
+/* Destroy a context (matches the specified context (or ANY context if
+   NULL) */
+void ast_context_destroy(struct ast_context *, char *registrar);
 
 /* Find a context */
 struct ast_context *ast_context_find(char *name);
@@ -49,10 +50,15 @@ int ast_pbx_run(struct ast_channel *c);
 /* Add an extension to an extension context, this time with an ast_context * */
 int ast_add_extension2(struct ast_context *con,
 				      int replace, char *extension, int priority, 
-					  char *application, void *data, void (*datad)(void *));
+					  char *application, void *data, void (*datad)(void *),
+					  char *registrar);
 
-/* Add an application.  The function 'execute' should return non-zero if the line needs to be hung up. */
-int ast_register_application(char *app, int (*execute)(struct ast_channel *, void *));
+/* Add an application.  The function 'execute' should return non-zero if the line needs to be hung up. 
+   Include a one-line synopsis (e.g. 'hangs up a channel') and a more lengthy, multiline
+   description with more detail, including under what conditions the application
+   will return 0 or -1.  */
+int ast_register_application(char *app, int (*execute)(struct ast_channel *, void *),
+			     char *synopsis, char *description);
 
 /* Remove an application */
 int ast_unregister_application(char *app);
@@ -65,6 +71,9 @@ int ast_exists_extension(struct ast_channel *c, char *context, char *exten, int 
    what you add to exten, it's not going to be a valid extension anymore */
 int ast_canmatch_extension(struct ast_channel *c, char *context, char *exten, int priority);
 
+/* Determine if a given extension matches a given pattern (in NXX format) */
+int ast_extension_match(char *pattern, char *extension);
+
 /* Launch a new extension (i.e. new stack) */
 int ast_spawn_extension(struct ast_channel *c, char *context, char *exten, int priority);
 
@@ -76,12 +85,12 @@ int ast_exec_extension(struct ast_channel *c, char *context, char *exten, int pr
 int ast_pbx_longest_extension(char *context);
 
 /* Add an include */
-int ast_context_add_include(char *context, char *include);
-int ast_context_add_include2(struct ast_context *con, char *include);
+int ast_context_add_include(char *context, char *include, char *registrar);
+int ast_context_add_include2(struct ast_context *con, char *include, char *registrar);
 
 /* Remove an include */
-int ast_context_remove_include(char *context, char *include);
-int ast_context_remove_include2(struct ast_context *con, char *include);
+int ast_context_remove_include(char *context, char *include, char *registrar);
+int ast_context_remove_include2(struct ast_context *con, char *include, char *registrar);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

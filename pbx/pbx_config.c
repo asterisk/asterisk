@@ -23,15 +23,17 @@
 
 static char *dtext = "Text Extension Configuration";
 static char *config = "extensions.conf";
+static char *registrar = "pbx_config";
 
 static int static_config = 0;
 
 int unload_module(void)
 {
+	ast_context_destroy(NULL, registrar);
 	return 0;
 }
 
-int load_module(void)
+static int pbx_load_module(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -49,7 +51,7 @@ int load_module(void)
 				cxt = ast_category_browse(cfg, cxt);
 				continue;
 			}
-			if ((con=ast_context_create(cxt))) {
+			if ((con=ast_context_create(cxt, registrar))) {
 				v = ast_variable_browse(cfg, cxt);
 				while(v) {
 					if (!strcasecmp(v->name, "exten")) {
@@ -66,12 +68,12 @@ int load_module(void)
 						data = strtok(NULL, ",");
 						if (!data)
 							data="";
-						if (ast_add_extension2(con, 0, ext, atoi(pri), appl, strdup(data), free)) {
-							ast_log(LOG_WARNING, "Unable to register extension\n");
+						if (ast_add_extension2(con, 0, ext, atoi(pri), appl, strdup(data), free, registrar)) {
+							ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 						}
 						free(tc);
 					} else if(!strcasecmp(v->name, "include")) {
-						if (ast_context_add_include2(con, v->value))
+						if (ast_context_add_include2(con, v->value, registrar))
 							ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
 					}
 					v = v->next;
@@ -81,6 +83,18 @@ int load_module(void)
 		}
 		ast_destroy(cfg);
 	}
+	return 0;
+}
+
+int load_module(void)
+{
+	return pbx_load_module();
+}
+
+int reload(void)
+{
+	ast_context_destroy(NULL, registrar);
+	load_module();
 	return 0;
 }
 
