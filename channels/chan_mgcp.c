@@ -182,7 +182,8 @@ static int adsi = 0;
 
 static int usecnt =0;
 static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
-static int oseq;
+/* SC: transaction id should always be positive */
+static unsigned int oseq;
 
 /* Wait up to 16 seconds for first digit (FXO logic) */
 static int firstdigittimeout = 16000;
@@ -235,7 +236,7 @@ struct mgcp_request {
 	char *line[MGCP_MAX_LINES];
 	char data[MGCP_MAX_PACKET];
     int cmd;                        /* SC: int version of verb = command */
-    int trid;                       /* SC: int version of identifier = transaction id */
+    unsigned int trid;              /* SC: int version of identifier = transaction id */
     struct mgcp_request *next;      /* SC: next in the queue */
 };
 
@@ -406,7 +407,7 @@ static int transmit_connection_del(struct mgcp_subchannel *sub);
 static int transmit_audit_endpoint(struct mgcp_endpoint *p);
 static void start_rtp(struct mgcp_subchannel *sub);
 static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,  
-                            int result, int ident, struct mgcp_request *resp);
+                            int result, unsigned int ident, struct mgcp_request *resp);
 static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub);
 static int mgcp_do_reload(void);
 static int mgcp_reload(int fd, int argc, char *argv[]);
@@ -484,7 +485,7 @@ static void dump_queue(struct mgcp_gateway *gw, struct mgcp_endpoint *p)
             else
                 gw->msgs = cur->next;
 
-            ast_log(LOG_NOTICE, "Removing message from %s tansaction %d\n", 
+            ast_log(LOG_NOTICE, "Removing message from %s tansaction %u\n", 
                     gw->name, cur->seqno);
 
             w = cur;
@@ -534,7 +535,7 @@ static int retrans_pkt(void *data)
         if (cur->retrans < MAX_RETRANS) {
             cur->retrans++;
             if (mgcpdebug) {
-                ast_verbose("Retransmitting #%d transaction %d on [%s]\n", cur->retrans, cur->seqno, gw->name);
+                ast_verbose("Retransmitting #%d transaction %u on [%s]\n", cur->retrans, cur->seqno, gw->name);
             }
             __mgcp_xmit(gw, cur->buf, cur->len);
 
@@ -547,7 +548,7 @@ static int retrans_pkt(void *data)
             else
                 gw->msgs = cur->next;
 
-            ast_log(LOG_WARNING, "Maximum retries exceeded for transaction %d on [%s]\n", cur->seqno, gw->name);
+            ast_log(LOG_WARNING, "Maximum retries exceeded for transaction %u on [%s]\n", cur->seqno, gw->name);
 
             w = cur;
             cur = cur->next;
@@ -1290,6 +1291,28 @@ static char *get_header(struct mgcp_request *req, char *name)
 	int start = 0;
 	return __get_header(req, name, &start);
 }
+
+/* SC: get comma separated value */
+static char *get_csv(char *c, int *len, char **next) 
+{
+    char *s;
+
+    *next = NULL, *len = 0;
+    if (!c) return NULL;
+
+    while(*c && (*c < 33 || *c == ','))
+        c++;
+    
+    s = c;
+    while(*c && (*c >= 33 && *c != ','))
+        c++, (*len)++;
+    *next = c;
+    
+    if (*len == 0)
+        s = NULL, *next = NULL;
+    
+    return s;
+} 
 
 #if 0
 static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
@@ -2048,6 +2071,26 @@ static int transmit_connection_del(struct mgcp_subchannel *sub)
 	return send_request(p, sub, &resp, oseq);  /* SC */
 }
 
+static int transmit_connection_del_w_params(struct mgcp_endpoint *p, char *callid, char *cxident)
+{
+	struct mgcp_request resp;
+    if (mgcpdebug) {
+        ast_verbose(VERBOSE_PREFIX_3 "Delete connection %s %s@%s on callid: %s\n", 
+                    cxident ? cxident : "", p->name, p->parent->name, callid ? callid : "");
+    }
+	reqprep(&resp, p, "DLCX");
+    /* SC: check if call id is avail */
+    if (callid && *callid)
+        add_header(&resp, "C", callid);
+    /* SC: check if cxident is avail */
+    if (cxident && *cxident)
+        add_header(&resp, "I", cxident);
+    /* SC: fill in new fields */
+    resp.cmd = MGCP_CMD_DLCX;
+    resp.trid = oseq;
+	return send_request(p, p->sub, &resp, oseq);
+}
+
 /* SC: cleanup pendng commands */
 static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub) 
 {
@@ -2116,7 +2159,7 @@ static struct mgcp_request *find_command(struct mgcp_endpoint *p, struct mgcp_su
 
 /* SC: modified for new transport mechanism */
 static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,  
-                            int result, int ident, struct mgcp_request *resp)
+                            int result, unsigned int ident, struct mgcp_request *resp)
 {
     char *c;
     struct mgcp_request *req;
@@ -2208,6 +2251,29 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
         }
 
         if (req->cmd == MGCP_CMD_AUEP) {
+            /* SC: check stale connection ids */
+            if ((c = get_header(resp, "I"))) {
+                char *v, *n;
+                int len;
+                while ((v = get_csv(c, &len, &n))) {
+                    if (len) {
+                        if(strncasecmp(v, p->sub->cxident, len) &&
+                           strncasecmp(v, p->sub->next->cxident, len)) {
+                            /* connection id not found. delete it */
+                            char cxident[80];
+                            memcpy(cxident, v, len);
+                            cxident[len] = '\0';
+                            if (option_verbose > 2) {
+                                ast_verbose(VERBOSE_PREFIX_3 "Non existing connection id %s on %s@%s \n", 
+                                            cxident, p->name, gw->name);
+                            }
+                            transmit_connection_del_w_params(p, NULL, cxident);
+                        }
+                    }
+                    c = n;
+                }
+            }
+
             /* Try to determine the hookstate returned from an audit endpoint command */
             if ((c = get_header(resp, "ES"))) {
                 if (strlen(c)) {
@@ -2241,7 +2307,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
                         }
                     }
                 }
-            }
+           }
         }
 
         if (resp && resp->lines) {
