@@ -61,6 +61,9 @@ PWD=$(shell pwd)
 ######### ppro's, etc, as well as the AMD K6 and K7.  
 #K6OPT  = -DK6OPT
 
+#Overwite config files on "make samples"
+OVERWRITE=y
+
 #Tell gcc to optimize the asterisk's code
 OPTIMIZE+=-O6
 
@@ -447,18 +450,27 @@ samples: all datafiles adsi
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	for x in configs/*.sample; do \
 		if [ -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ]; then \
-			mv -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample`.old ; \
+			if [ "$(OVERWRITE)" = "y" ]; then \
+				mv -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample`.old ; \
+			else \
+				echo "Skipping config file $$x"; \
+				continue; \
+			fi ;\
 		fi ; \
 		install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
 	done
-	echo "[directories]" > $(DESTDIR)$(ASTETCDIR)/asterisk.conf
-	echo "astetcdir => $(ASTETCDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
-	echo "astmoddir => $(MODULES_DIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
-	echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
-	echo "astagidir => $(AGI_DIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
-	echo "astspooldir => $(ASTSPOOLDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
-	echo "astrundir => $(ASTVARRUNDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
-	echo "astlogdir => $(ASTLOGDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
+	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTETCDIR)/asterisk.conf ]; then \
+		echo "[directories]" > $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "astetcdir => $(ASTETCDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "astmoddir => $(MODULES_DIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "astagidir => $(AGI_DIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "astspooldir => $(ASTSPOOLDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "astrundir => $(ASTVARRUNDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+		echo "astlogdir => $(ASTLOGDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+	else \
+		echo "Skipping asterisk.conf creation"; \
+	fi
 	for x in sounds/demo-*; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
