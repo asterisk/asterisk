@@ -206,7 +206,8 @@ static int send_sound(void)
 				}
 			}
 		}
-		res = write(sounddev, frame, res * 2);
+		if (frame)
+			res = write(sounddev, frame, res * 2);
 		if (res > 0)
 			return 0;
 		return res;
@@ -434,6 +435,7 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 		f.subclass = AST_CONTROL_ANSWER;
 		ast_queue_frame(c, &f, 0);
 	} else {
+		nosound = 1;
 		ast_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_RINGING;
@@ -456,7 +458,7 @@ static int oss_answer(struct ast_channel *c)
 {
 	ast_verbose( " << Console call has been answered >> \n");
 	answer_sound();
-	c->state = AST_STATE_UP;
+	ast_setstate(c, AST_STATE_UP);
 	cursound = -1;
 	return 0;
 }
@@ -610,7 +612,7 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 	if (readpos >= FRAME_SIZE * 2) {
 		/* A real frame */
 		readpos = 0;
-		if (chan->state != AST_STATE_UP) {
+		if (chan->_state != AST_STATE_UP) {
 			/* Don't transmit unless it's up */
 			return &f;
 		}
@@ -689,7 +691,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 		if (strlen(language))
 			strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		p->owner = tmp;
-		tmp->state = state;
+		ast_setstate(tmp, state);
 		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_pthread_mutex_unlock(&usecnt_lock);
@@ -875,7 +877,7 @@ static int console_dial(int fd, int argc, char *argv[])
 		strncpy(oss.exten, mye, sizeof(oss.exten)-1);
 		strncpy(oss.context, myc, sizeof(oss.context)-1);
 		hookstate = 1;
-		oss_new(&oss, AST_STATE_UP);
+		oss_new(&oss, AST_STATE_RINGING);
 	} else
 		ast_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
 	return RESULT_SUCCESS;
@@ -885,11 +887,44 @@ static char dial_usage[] =
 "Usage: dial [extension[@context]]\n"
 "       Dials a given extensison (";
 
+static int console_transfer(int fd, int argc, char *argv[])
+{
+	char tmp[256];
+	char *context;
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	if (oss.owner && oss.owner->bridge) {
+		strncpy(tmp, argv[1], sizeof(tmp) - 1);
+		context = strchr(tmp, '@');
+		if (context) {
+			*context = '\0';
+			context++;
+		} else
+			context = oss.owner->context;
+		if (ast_exists_extension(oss.owner->bridge, context, tmp, 1, oss.owner->bridge->callerid)) {
+			ast_cli(fd, "Whee, transferring %s to %s@%s.\n", 
+					oss.owner->bridge->name, tmp, context);
+			if (ast_async_goto(oss.owner->bridge, context, tmp, 1, 1))
+				ast_cli(fd, "Failed to transfer :(\n");
+		} else {
+			ast_cli(fd, "No such extension exists\n");
+		}
+	} else {
+		ast_cli(fd, "There is no call to transfer\n");
+	}
+	return RESULT_SUCCESS;
+}
+
+static char transfer_usage[] =
+"Usage: transfer <extension>[@context]\n"
+"       Transfers the currently connected call to the given extension (and\n"
+"context if specified)\n";
 
 static struct ast_cli_entry myclis[] = {
 	{ { "answer", NULL }, console_answer, "Answer an incoming console call", answer_usage },
 	{ { "hangup", NULL }, console_hangup, "Hangup a call on the console", hangup_usage },
 	{ { "dial", NULL }, console_dial, "Dial an extension on the console", dial_usage },
+	{ { "transfer", NULL }, console_transfer, "Transfer a call to a different extension", transfer_usage },
 	{ { "send text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete }
 };
@@ -958,7 +993,7 @@ int unload_module()
 		close(sndcmd[1]);
 	}
 	if (oss.owner)
-		ast_softhangup(oss.owner);
+		ast_softhangup(oss.owner, AST_SOFTHANGUP_APPUNLOAD);
 	if (oss.owner)
 		return -1;
 	return 0;
