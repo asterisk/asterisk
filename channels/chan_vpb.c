@@ -64,6 +64,10 @@ extern "C" {
 
 #define MAX_VPB_GAIN 12.0
 
+#define DTMF_CALLERID  
+#define DTMF_CID_START 'D'
+#define DTMF_CID_STOP 'C'
+
 /**/
 #if defined(__cplusplus) || defined(c_plusplus)
  extern "C" {
@@ -237,7 +241,7 @@ static struct vpb_pvt {
 	char language[MAX_LANGUAGE];		/* language being used */
 	char callerid[AST_MAX_EXTENSION];	/* CallerId used for directly connected phone */
 
-	int brcallerpos;			/* Brazilian CallerID detection */
+	int dtmf_caller_pos;			/* DTMF CallerID detection (Brazil)*/
 
 	int lastoutput;				/* Holds the last Audio format output'ed */
 	int lastinput;				/* Holds the last Audio format input'ed */
@@ -891,6 +895,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 {
 	char s[2] = {0};
+	struct ast_channel *owner = p->owner;
 
 	if (option_verbose > 3) {
 		char str[VPB_MAX_STR];
@@ -921,9 +926,9 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			else {
 				ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: playing dialtone\n",p->dev);
 				playtone(p->handle, &Dialtone);
+				p->state=VPB_STATE_PLAYDIAL;
 				p->wantdtmf = 1;
 				p->ext[0] = 0;	/* Just to be sure & paranoid.*/
-				p->state=VPB_STATE_PLAYDIAL;
 			}
 			break;
 
@@ -961,6 +966,28 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 		case VPB_DTMF:
 			if (p->state == VPB_STATE_ONHOOK){
 				/* DTMF's being passed while on-hook maybe Caller ID */
+				if ( p->mode == MODE_FXO ) {
+					if ( e->data == DTMF_CID_START ) { /* CallerID Start signal */
+						p->dtmf_caller_pos = 0; /* Leaves the first digit out */
+						memset(p->callerid,0,AST_MAX_EXTENSION);
+					}
+					else if ( e->data == DTMF_CID_STOP ) { /* CallerID End signal */
+						p->callerid[p->dtmf_caller_pos] = '\0';
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 " %s: DTMF CallerID %s\n",p->dev,p->callerid);
+						if (owner->cid.cid_num)
+							free(owner->cid.cid_num);
+						owner->cid.cid_num=NULL;
+						if (owner->cid.cid_name)
+							free(owner->cid.cid_name);
+						owner->cid.cid_name=NULL;
+						owner->cid.cid_num = strdup(p->callerid);
+					} else if ( p->dtmf_caller_pos < AST_MAX_EXTENSION ) {
+						if ( p->dtmf_caller_pos >= 0 )
+							p->callerid[p->dtmf_caller_pos] = e->data;
+						p->dtmf_caller_pos++;
+					}
+				}
 				break;
 			}
 			if (p->wantdtmf == 1) {
