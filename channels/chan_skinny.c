@@ -2539,6 +2539,7 @@ static int reload_config(void)
 		hp = ast_gethostbyname(ourhost, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get our IP address, Skinny disabled\n");
+			ast_destroy(cfg);
 			return 0;
 		}
 		memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
@@ -2574,6 +2575,7 @@ static int reload_config(void)
 		skinnysock = socket(AF_INET, SOCK_STREAM, 0);
 		if(setsockopt(skinnysock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
 			ast_log(LOG_ERROR, "Set Socket Options failed: errno %d, %s", errno, strerror(errno));
+			ast_destroy(cfg);
 			return 0;
 		}
 
@@ -2586,6 +2588,7 @@ static int reload_config(void)
 							strerror(errno));
 				close(skinnysock);
 				skinnysock = -1;
+				ast_destroy(cfg);
 				return 0;
 			} 
 
@@ -2595,6 +2598,7 @@ static int reload_config(void)
 							strerror(errno));
 					close(skinnysock);
 					skinnysock = -1;
+					ast_destroy(cfg);
 					return 0;
 			}
 		
