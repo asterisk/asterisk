@@ -4600,13 +4600,15 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 #define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-8d %-10s\n"
 	struct sip_peer *peer;
 	char name[256] = "";
-	if (argc != 3)
+	if (argc != 3 && argc != 5)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&peerl.lock);
 	ast_cli(fd, FORMAT2, "Name/username", "Host", "   ", "Mask", "Port", "Status");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20] = "";
 		char status[20];
+		int print_line = -1;
+		char srch[2000];
 		strncpy(nm, inet_ntoa(peer->mask), sizeof(nm)-1);
 		if (strlen(peer->username))
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
@@ -4623,11 +4625,31 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 				strcpy(status, "UNKNOWN");
 		} else 
 			strcpy(status, "Unmonitored");
+                sprintf(srch, FORMAT, name,
+                                        peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
+                                        peer->dynamic ? "(D)" : "   ",
+                                        nm,
+                                        ntohs(peer->addr.sin_port), status);
+
+                if (argc == 5) {
+                  if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
+                        print_line = -1;
+                   } else if (!strcasecmp(argv[3],"exclude") && !strstr(srch,argv[4])) {
+                        print_line = 1;
+                   } else if (!strcasecmp(argv[3],"begin") && !strncasecmp(srch,argv[4],strlen(argv[4]))) {
+                        print_line = -1;
+                   } else {
+                        print_line = 0;
+                  }
+                }
+
+		if (print_line) {
 		ast_cli(fd, FORMAT, name, 
 					peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "   ",
 					nm,
 					ntohs(peer->addr.sin_port), status);
+		}
 	}
 	ast_mutex_unlock(&peerl.lock);
 	return RESULT_SUCCESS;
@@ -5118,6 +5140,12 @@ static struct ast_cli_entry  cli_debug_peer =
 	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
+static struct ast_cli_entry  cli_show_peers_include =
+        { { "sip", "show", "peers", "include", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
+static struct ast_cli_entry  cli_show_peers_exclude =
+        { { "sip", "show", "peers", "exclude", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
+static struct ast_cli_entry  cli_show_peers_begin =
+        { { "sip", "show", "peers", "begin", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
 static struct ast_cli_entry  cli_inuse_show =
 	{ { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limit", show_inuse_usage };
 static struct ast_cli_entry  cli_show_registry =
@@ -7165,6 +7193,9 @@ int load_module()
 		ast_cli_register(&cli_show_channels);
 		ast_cli_register(&cli_show_channel);
 		ast_cli_register(&cli_show_peers);
+		ast_cli_register(&cli_show_peers_begin);
+		ast_cli_register(&cli_show_peers_include);
+		ast_cli_register(&cli_show_peers_exclude);
 		ast_cli_register(&cli_show_registry);
 		ast_cli_register(&cli_debug);
 		ast_cli_register(&cli_debug_ip);
@@ -7201,6 +7232,9 @@ int unload_module()
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
 	ast_cli_unregister(&cli_show_peers);
+	ast_cli_unregister(&cli_show_peers_include);
+	ast_cli_unregister(&cli_show_peers_exclude);
+	ast_cli_unregister(&cli_show_peers_begin);
 	ast_cli_unregister(&cli_show_registry);
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_debug_ip);

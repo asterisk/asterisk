@@ -2956,7 +2956,7 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 	struct iax2_peer *peer;
 	char name[256] = "";
 	int registeredonly=0;
-	if ((argc != 3) && (argc != 4))
+	if ((argc != 3) && (argc != 4) && (argc != 5))
 		return RESULT_SHOWUSAGE;
 	if ((argc == 4)) {
  		if (!strcasecmp(argv[3], "registered")) {
@@ -2969,6 +2969,8 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
 		char status[20];
+                int print_line = -1;
+                char srch[2000];
 		if (registeredonly && !peer->addr.sin_addr.s_addr)
 			continue;
 		if (strlen(peer->username))
@@ -2987,11 +2989,32 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 		} else 
 			strcpy(status, "Unmonitored");
 		strncpy(nm, inet_ntoa(peer->mask), sizeof(nm)-1);
+
+		sprintf(srch, FORMAT, name, 
+					peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
+					peer->dynamic ? "(D)" : "(S)",
+					nm,
+					ntohs(peer->addr.sin_port), peer->trunk ? "(T)" : "   ", status);
+
+                if (argc == 5) {
+                  if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
+                        print_line = -1;
+                   } else if (!strcasecmp(argv[3],"exclude") && !strstr(srch,argv[4])) {
+                        print_line = 1;
+                   } else if (!strcasecmp(argv[3],"begin") && !strncasecmp(srch,argv[4],strlen(argv[4]))) {
+                        print_line = -1;
+                   } else {
+                        print_line = 0;
+                  }
+                }
+		
+                if (print_line) {
 		ast_cli(fd, FORMAT, name, 
 					peer->addr.sin_addr.s_addr ? inet_ntoa(peer->addr.sin_addr) : "(Unspecified)",
 					peer->dynamic ? "(D)" : "(S)",
 					nm,
 					ntohs(peer->addr.sin_port), peer->trunk ? "(T)" : "   ", status);
+		}
 	}
 	ast_mutex_unlock(&peerl.lock);
 	return RESULT_SUCCESS;
@@ -3176,6 +3199,12 @@ static struct ast_cli_entry  cli_show_channels =
 	{ { "iax2", "show", "channels", NULL }, iax2_show_channels, "Show active IAX channels", show_channels_usage };
 static struct ast_cli_entry  cli_show_peers =
 	{ { "iax2", "show", "peers", NULL }, iax2_show_peers, "Show defined IAX peers", show_peers_usage };
+static struct ast_cli_entry  cli_show_peers_include =
+	{ { "iax2", "show", "peers", "include", NULL }, iax2_show_peers, "Show defined IAX peers", show_peers_usage };
+static struct ast_cli_entry  cli_show_peers_exclude =
+	{ { "iax2", "show", "peers", "exclude", NULL }, iax2_show_peers, "Show defined IAX peers", show_peers_usage };
+static struct ast_cli_entry  cli_show_peers_begin =
+	{ { "iax2", "show", "peers", "begin", NULL }, iax2_show_peers, "Show defined IAX peers", show_peers_usage };
 static struct ast_cli_entry  cli_show_registry =
 	{ { "iax2", "show", "registry", NULL }, iax2_show_registry, "Show IAX registration status", show_reg_usage };
 static struct ast_cli_entry  cli_debug =
@@ -6740,6 +6769,9 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_peers);
+	ast_cli_unregister(&cli_show_peers_include);
+	ast_cli_unregister(&cli_show_peers_exclude);
+	ast_cli_unregister(&cli_show_peers_begin);
 	ast_cli_unregister(&cli_show_firmware);
 	ast_cli_unregister(&cli_show_registry);
 	ast_cli_unregister(&cli_debug);
@@ -6807,6 +6839,9 @@ int load_module(void)
 	ast_cli_register(&cli_show_users);
 	ast_cli_register(&cli_show_channels);
 	ast_cli_register(&cli_show_peers);
+	ast_cli_register(&cli_show_peers_include);
+	ast_cli_register(&cli_show_peers_exclude);
+	ast_cli_register(&cli_show_peers_begin);
 	ast_cli_register(&cli_show_firmware);
 	ast_cli_register(&cli_show_registry);
 	ast_cli_register(&cli_debug);
