@@ -803,6 +803,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		if (!res) {
 			/* Note -- parent may have disappeared */
 			if (p->abouttograb) {
+				newlyavailable->acknowledged = 1;
 				ast_setstate(parent, AST_STATE_UP);
 				ast_setstate(chan, AST_STATE_UP);
 				/* Go ahead and mark the channel as a zombie so that masquerade will
