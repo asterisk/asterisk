@@ -6648,7 +6648,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		/* set default context */
 		strncpy(user->context, context, sizeof(user->context)-1);
 		strncpy(user->language, language, sizeof(user->language)-1);
-		strncpy(user->language, globalmusicclass, sizeof(user->musicclass)-1);
+		strncpy(user->musicclass, globalmusicclass, sizeof(user->musicclass)-1);
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				strncpy(user->context, v->value, sizeof(user->context));
