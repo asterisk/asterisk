@@ -70,6 +70,25 @@ void ast_var_delete(struct ast_var_t *var)
 
 char *ast_var_name(struct ast_var_t *var)
 {
+	char *name;
+
+	if (var == NULL)
+		return NULL;
+	if (var->name == NULL)
+		return NULL;
+	/* Return the name without the initial underscores */
+	if ((strlen(var->name) > 0) && (var->name[0] == '_')) {
+		if ((strlen(var->name) > 1) && (var->name[1] == '_'))
+			name = (char*)&(var->name[2]);
+		else
+			name = (char*)&(var->name[1]);
+	} else
+		name = var->name;
+	return name;
+}
+
+char *ast_var_full_name(struct ast_var_t *var)
+{
 	return (var != NULL ? var->name : NULL);
 }
 

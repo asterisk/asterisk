@@ -56,6 +56,10 @@
 #define EXT_DATA_SIZE 8192
 #endif
 
+#define	VAR_NORMAL		1
+#define	VAR_SOFTTRAN	2
+#define	VAR_HARDTRAN	3
+
 struct ast_context;
 
 /* ast_exten: An extension */
@@ -375,8 +379,8 @@ static struct pbx_builtin {
 
 	{ "SetVar", pbx_builtin_setvar,
 	"Set variable to value",
-	"  Setvar(#n=value): Sets channel specific variable n to value" 
-	},
+	"  SetVar(#n=value): Sets variable n to value.  If prefixed with _, single\n"
+	"inheritance assumed.  If prefixed with __, infinite inheritance is assumed.\n" },
 
 	{ "StripMSD", pbx_builtin_stripmsd,
 	"Strip leading digits",
@@ -4970,29 +4974,30 @@ char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name)
 	return NULL;
 }
 
-void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value) 
+void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value)
 {
 	struct ast_var_t *newvariable;
 	struct varshead *headp;
+
 	if (chan)
-		headp=&chan->varshead;
+		headp = &chan->varshead;
 	else
-		headp=&globals;
-                
-	AST_LIST_TRAVERSE (headp,newvariable,entries) {
-		if (strcasecmp(ast_var_name(newvariable),name)==0) {
+		headp = &globals;
+
+	AST_LIST_TRAVERSE (headp, newvariable, entries) {
+		if (strcasecmp(ast_var_name(newvariable), name) == 0) {
 			/* there is already such a variable, delete it */
-			AST_LIST_REMOVE(headp,newvariable,ast_var_t,entries);
+			AST_LIST_REMOVE(headp, newvariable, ast_var_t, entries);
 			ast_var_delete(newvariable);
 			break;
 		}
 	} 
-	
+
 	if (value) {
 		if ((option_verbose > 1) && (headp == &globals))
-			ast_verbose(VERBOSE_PREFIX_3 "Setting global variable '%s' to '%s'\n",name, value);
-		newvariable=ast_var_assign(name,value);	
-		AST_LIST_INSERT_HEAD(headp,newvariable,entries);
+			ast_verbose(VERBOSE_PREFIX_3 "Setting global variable '%s' to '%s'\n", name, value);
+		newvariable = ast_var_assign(name, value);	
+		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
 }
 
@@ -5001,41 +5006,40 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	char *name;
 	char *value;
 	char *stringp=NULL;
-                
+
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
 		return 0;
 	}
-	
-	stringp=data;
-	name=strsep(&stringp,"=");
-	value=strsep(&stringp,"\0"); 
-	
-	pbx_builtin_setvar_helper(chan,name,value);
-			
-        return(0);
+
+	stringp = data;
+	name = strsep(&stringp,"=");
+	value = strsep(&stringp,"\0"); 
+
+	pbx_builtin_setvar_helper(chan, name, value);
+
+	return(0);
 }
 
 static int pbx_builtin_setglobalvar(struct ast_channel *chan, void *data)
 {
 	char *name;
 	char *value;
-	char *stringp=NULL;
-                
+	char *stringp = NULL;
+
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
 		return 0;
 	}
-	
-	stringp=data;
-	name=strsep(&stringp,"=");
-	value=strsep(&stringp,"\0"); 
-	
-	pbx_builtin_setvar_helper(NULL,name,value);
-			
-        return(0);
-}
 
+	stringp = data;
+	name = strsep(&stringp, "=");
+	value = strsep(&stringp, "\0"); 
+
+	pbx_builtin_setvar_helper(NULL, name, value);
+
+	return(0);
+}
 
 static int pbx_builtin_noop(struct ast_channel *chan, void *data)
 {

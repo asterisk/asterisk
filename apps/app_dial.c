@@ -48,7 +48,7 @@ static char *descrip =
 "Requests one or more channels and places specified outgoing calls on them.\n"
 "As soon as a channel answers, the Dial app will answer the originating\n"
 "channel (if it needs to be answered) and will bridge a call with the channel\n"
-"which first answered. All other calls placed by the Dial app will be hung up\n"
+"which first answered. All other calls placed by the Dial app will be hung up.\n"
 "If a timeout is not specified, the Dial application will wait indefinitely\n"
 "until either one of the called channels answers, the user hangs up, or all\n"
 "channels return busy or error. In general, the dialer will return 0 if it\n"
@@ -482,6 +482,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char toast[80];
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
+	char *varname;
+	int vartype;
+
 	int digit = 0;
 	time_t start_time, answer_time, end_time;
 
@@ -512,9 +515,12 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				if (url) {
 					*url = '\0';
 					url++;
-					ast_log(LOG_DEBUG, "DIAL WITH URL=%s_\n", url);
+					if (option_debug)
+						ast_log(LOG_DEBUG, "DIAL WITH URL=%s_\n", url);
 				} else 
-					ast_log(LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
+					if (option_debug) {
+						ast_log(LOG_DEBUG, "SIMPLE DIAL (NO URL)\n");
+					}
 				/* /JDG */
 			}
 		}
@@ -792,27 +798,42 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				continue;
 			}
 		}
-		/* If creating a SIP channel, look for a variable called */
-		/* VXML_URL in the calling channel and copy it to the    */
-		/* new channel.                                          */
 
-		/* Check for ALERT_INFO in the SetVar list.  This is for   */
-		/* SIP distinctive ring as per the RFC.  For Cisco 7960s,  */
-		/* SetVar(ALERT_INFO=<x>) where x is an integer value 1-5. */
-		/* However, the RFC says it should be a URL.  -km-         */
-		headp=&chan->varshead;
-		AST_LIST_TRAVERSE(headp,current,entries) {
-			if (!strcasecmp(ast_var_name(current),"VXML_URL") ||
-			    !strcasecmp(ast_var_name(current), "ALERT_INFO") ||
-				!strcasecmp(ast_var_name(current), "OSPTOKEN") ||
-				!strcasecmp(ast_var_name(current), "OSPHANDLE"))
-			{
-				newvar=ast_var_assign(ast_var_name(current),ast_var_value(current));
-				newheadp=&tmp->chan->varshead;
-				AST_LIST_INSERT_HEAD(newheadp,newvar,entries);
+		/* Contitionally copy channel variables to the newly created channel */
+		headp = &chan->varshead;
+		AST_LIST_TRAVERSE(headp, current, entries) {
+			varname = ast_var_full_name(current);
+			vartype = 0;
+			if (varname) {
+				if (varname[0] == '_') {
+					vartype = 1;
+					if (varname[1] == '_')
+						vartype = 2;
+				}
+			}
+			if (vartype == 1) {
+				newvar = ast_var_assign((char*)&(varname[1]), 
+												ast_var_value(current));
+				newheadp = &tmp->chan->varshead;
+				AST_LIST_INSERT_HEAD(newheadp, newvar, entries);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Copying soft-transferable variable %s.\n", 
+												ast_var_name(newvar));
+			} else if (vartype == 2) {
+				newvar = ast_var_assign(ast_var_full_name(current), 
+												ast_var_value(current));
+				newheadp = &tmp->chan->varshead;
+				AST_LIST_INSERT_HEAD(newheadp, newvar, entries);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Copying hard-transferable variable %s.\n", 
+												ast_var_name(newvar));
+			} else {
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Not copying variable %s.\n", 
+												ast_var_name(current));
 			}
 		}
-		
+
 		tmp->chan->appl = "AppDial";
 		tmp->chan->data = "(Outgoing Line)";
 		tmp->chan->whentohangup = 0;
