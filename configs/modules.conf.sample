@@ -25,6 +25,13 @@ noload => app_intercom.so
 ;
 load => chan_modem.so
 load => res_musiconhold.so
+;
+; Load either OSS or ALSA, not both
+; By default, load OSS only (automatically) and do not load ALSA
+;
+noload => chan_alsa.so
+;noload => chan_oss.so
+;
 ; Module names listed in "global" section will have symbols globally
 ; exported to modules loaded after them.
 ;
