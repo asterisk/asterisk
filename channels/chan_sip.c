@@ -6580,7 +6580,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 #ifdef OSP_SUPPORT	
 						time(&p->ospstart);
 #endif
-						ast_setstate(p->owner, AST_STATE_UP);
 						ast_queue_control(p->owner, AST_CONTROL_ANSWER);
 					} else {
 						struct ast_frame af = { AST_FRAME_NULL, };

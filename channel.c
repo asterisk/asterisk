@@ -1359,6 +1359,10 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
 		f = &null_frame;
 	} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
+		if (chan->_state == AST_STATE_UP) {
+			ast_log(LOG_DEBUG, "Dropping duplicate answer!\n");
+			f = &null_frame;
+		}
 		/* Answer the CDR */
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
