@@ -23,8 +23,13 @@ of Open H.323 and PWLib. In fact you should check to make sure
 your distro didn't install them for you without your knowledge.
 Check everything out of CVS. If you dont know how to deal with cvs, learn. 
 Also, if you are not using the listed versions of Open H.323 or PWlib 
-you are on your own, sorry. Older versions will NOT work, but newer 
-versions ~should~ work.
+you are on your own, sorry. 
+
+Warning: Older versions than listed will NOT work, but newer  versions 
+~should~ work but are untested and you would be on your own. 
+
+As of June 16th, 2003 the cvs -HEAD of Open H.323 does not compile due to 
+the G729Capability is missing. 
 
 
 Most common compile error:  
