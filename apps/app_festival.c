@@ -263,7 +263,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	int i;
 	struct MD5Context md5ctx;
 	unsigned char MD5Res[16];
-	char MD5Hex[32];
+	char MD5Hex[33];
 	char koko[4];
 	char cachefile[MAXFESTLEN];
 	int readcache=0;
