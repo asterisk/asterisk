@@ -182,9 +182,50 @@ static int handle_sendtext(struct ast_channel *chan, int fd, int argc, char *arg
 	int res;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+	/* At the moment, the parser (perhaps broken) returns with
+	   the last argument PLUS the newline at the end of the input
+	   buffer. This probably needs to be fixed, but I wont do that
+	   because other stuff may break as a result. The right way
+	   would probably be to strip off the trailing newline before
+	   parsing, then here, add a newline at the end of the string
+	   before sending it to ast_sendtext --DUDE */
 	res = ast_sendtext(chan, argv[2]);
 	fdprintf(fd, "200 result=%d\n", res);
 	if (res >= 0)
+		return RESULT_SUCCESS;
+	else
+		return RESULT_FAILURE;
+}
+
+static int handle_recvchar(struct ast_channel *chan, int fd, int argc, char *argv[])
+{
+	int res;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	res = ast_recvchar(chan,atoi(argv[2]));
+	if (res == 0) {
+		fdprintf(fd, "200 result=%d (timeout)\n", res);
+		return RESULT_SUCCESS;
+	}
+	if (res > 0) {
+		fdprintf(fd, "200 result=%d\n", res);
+		return RESULT_SUCCESS;
+	}
+	else {
+		fdprintf(fd, "200 result=%d (hangup)\n", res);
+		return RESULT_FAILURE;
+	}
+}
+
+static int handle_tddmode(struct ast_channel *chan, int fd, int argc, char *argv[])
+{
+	int res,x;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	if (!strncasecmp(argv[2],"on",2)) x = 1; else x = 0;
+	res = ast_channel_setoption(chan,AST_OPTION_TDD,&x,sizeof(char),0);
+	fdprintf(fd, "200 result=%d\n", res);
+	if (res >= 0) 
 		return RESULT_SUCCESS;
 	else
 		return RESULT_FAILURE;
@@ -196,7 +237,7 @@ static int handle_sendimage(struct ast_channel *chan, int fd, int argc, char *ar
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	res = ast_send_image(chan, argv[2]);
-	if (!chan->softhangup)
+	if (!ast_check_hangup(chan))
 		res = 0;
 	fdprintf(fd, "200 result=%d\n", res);
 	if (res >= 0)
@@ -235,7 +276,7 @@ static int handle_saynumber(struct ast_channel *chan, int fd, int argc, char *ar
 		return RESULT_SHOWUSAGE;
 	if (sscanf(argv[2], "%i", &num) != 1)
 		return RESULT_SHOWUSAGE;
-	res = ast_say_number(chan, num, chan->language);
+	res = ast_say_number(chan, num, AST_DIGIT_ANY, chan->language);
 	fdprintf(fd, "200 result=%d\n", res);
 	if (res >= 0)
 		return RESULT_SUCCESS;
@@ -272,7 +313,7 @@ static int handle_setcontext(struct ast_channel *chan, int fd, int argc, char *a
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	strncpy(chan->context, argv[2], sizeof(chan->context));
+	strncpy(chan->context, argv[2], sizeof(chan->context)-1);
 	fdprintf(fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -281,7 +322,7 @@ static int handle_setextension(struct ast_channel *chan, int fd, int argc, char 
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	strncpy(chan->exten, argv[2], sizeof(chan->exten));
+	strncpy(chan->exten, argv[2], sizeof(chan->exten)-1);
 	fdprintf(fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -450,6 +491,19 @@ static char usage_sendtext[] =
 " consisting of greater than one word should be placed in quotes since the\n"
 " command only accepts a single argument.\n";
 
+static char usage_recvchar[] =
+" Usage: RECEIVE CHAR <timeout>\n"
+"        Receives a character of text on a channel.  Specify timeout to be the\n"
+" maximum time to wait for input in milliseconds, or 0 for infinite. Most channels\n"
+" do not support the reception of text.  Returns the decimal value of the character\n"
+" if one is received, or 0 if the channel does not support text reception.  Returns\n"
+" -1 only on error/hangup.\n";
+
+static char usage_tddmode[] =
+" Usage: TDD MODE <on|off>\n"
+"        Enable/Disable TDD transmission/reception on a channel. Returns 1 if\n"
+" successful, or 0 if channel is not TDD-capable.\n";
+
 static char usage_sendimage[] =
 " Usage: SEND IMAGE <image>\n"
 "        Sends the given image on a channel.  Most channels do not support the\n"
@@ -500,6 +554,8 @@ static char usage_recordfile[] =
 agi_command commands[] = {
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
+	{ { "receive", "char", NULL }, handle_recvchar, "Receives text from channels supporting it", usage_recvchar },
+	{ { "tdd", "mode", NULL }, handle_tddmode, "Sends text to channels supporting it", usage_tddmode },
 	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile },
 	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
 	{ { "say", "number", NULL }, handle_saynumber, "Says a given number", usage_saynumber },
@@ -677,6 +733,14 @@ static int run_agi(struct ast_channel *chan, char *request, int *fds, int pid)
 				pid = -1;
 				break;
 			}
+#if	0			
+			/* Un-comment this code to fix the problem with
+			   the newline being included in the parsed
+			   command string(s) output --DUDE */
+			  /* get rid of trailing newline, if any */
+			if (*buf && buf[strlen(buf) - 1] == '\n')
+				buf[strlen(buf) - 1] = 0;
+#endif
 			returnstatus |= agi_handle_command(chan, fds[1], buf);
 			/* If the handle_command returns -1, we need to stop */
 			if (returnstatus < 0) {
@@ -709,7 +773,7 @@ static int agi_exec(struct ast_channel *chan, void *data)
 	}
 
 
-	strncpy(tmp, data, sizeof(tmp));
+	strncpy(tmp, data, sizeof(tmp)-1);
 	strtok(tmp, "|");
 	args = strtok(NULL, "|");
 	ringy = strtok(NULL,"|");

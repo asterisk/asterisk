@@ -19,6 +19,7 @@
 #include <asterisk/config.h>
 #include <asterisk/say.h>
 #include <asterisk/module.h>
+#include <asterisk/adsi.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -50,14 +51,27 @@
 
 static char *tdesc = "Comedian Mail (Voicemail System)";
 
+static char *adapp = "CoMa";
+
+static char *adsec = "_AST";
+
+static char *addesc = "Comedian Mail";
+
+static int adver = 1;
+
 static char *synopsis_vm =
 "Leave a voicemail message";
 
 static char *descrip_vm =
-"  VoiceMail([s]extension): Leaves voicemail for a given  extension (must be\n"
-"configured in voicemail.conf). If the extension is preceeded by an 's' then\n"
-"instructions for leaving the message will be skipped. Returns  -1 on  error\n"
-"or mailbox not found, or if the user hangs up. Otherwise, it returns 0. \n";
+"  VoiceMail([s|u|b]extension): Leaves voicemail for a given  extension (must\n"
+"be configured in voicemail.conf). If the extension is preceeded by an 's'"
+"then instructions for leaving the message will be skipped.  If the extension\n"
+"is preceeded by 'u' then the \"unavailable\" message will be played (that is, \n"
+"/var/lib/asterisk/sounds/vm/<exten>/unavail) if it exists.  If the extension\n"
+"is preceeded by a 'b' then the the busy message will be played (that is,\n"
+"busy instead of unavail).  At most one of 's', 'u', or 'b' may be specified.\n"
+"Returns  -1 on  error or mailbox not found, or if the user hangs up. \n"
+"Otherwise, it returns 0. \n";
 
 static char *synopsis_vmain =
 "Enter voicemail system";
@@ -123,7 +137,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 	p = popen(SENDMAIL, "w");
 	if (p) {
 		if (strchr(srcemail, '@'))
-			strncpy(who, srcemail, sizeof(who));
+			strncpy(who, srcemail, sizeof(who)-1);
 		else {
 			gethostname(host, sizeof(host));
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
@@ -159,7 +173,29 @@ static int get_date(char *s, int len)
 	return strftime(s, len, "%a %b %e %r %Z %Y", tm);
 }
 
-static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
+static int invent_message(struct ast_channel *chan, char *ext, int busy)
+{
+	int res;
+	res = ast_streamfile(chan, "vm-theperson", chan->language);
+	if (res)
+		return -1;
+	res = ast_waitstream(chan, "#");
+	if (res)
+		return res;
+	res = ast_say_digit_str(chan, ext, "#", chan->language);
+	if (res)
+		return res;
+	if (busy)
+		res = ast_streamfile(chan, "vm-isonphone", chan->language);
+	else
+		res = ast_streamfile(chan, "vm-isunavail", chan->language);
+	if (res)
+		return -1;
+	res = ast_waitstream(chan, "#");
+	return res;
+}
+
+static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int busy, int unavail)
 {
 	struct ast_config *cfg;
 	char *copy, *name, *passwd, *email, *fmt, *fmts;
@@ -175,6 +211,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 	char date[256];
 	char dir[256];
 	char fn[256];
+	char prefile[256]="";
 	char *astemail;
 	
 	cfg = ast_load(VOICEMAIL_CONFIG);
@@ -185,6 +222,11 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 	if (!(astemail = ast_variable_retrieve(cfg, "general", "serveremail"))) 
 		astemail = ASTERISK_USERNAME;
 	if ((copy = ast_variable_retrieve(cfg, NULL, ext))) {
+		/* Setup pre-file if appropriate */
+		if (busy)
+			snprintf(prefile, sizeof(prefile), "vm/%s/busy", ext);
+		else if (unavail)
+			snprintf(prefile, sizeof(prefile), "vm/%s/unavail", ext);
 		/* Make sure they have an entry in the config */
 		copy = strdup(copy);
 		passwd = strtok(copy, ",");
@@ -197,6 +239,27 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent)
 		make_dir(dir, sizeof(dir), ext, "INBOX");
 		if (mkdir(dir, 0700) && (errno != EEXIST))
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
+		/* Play the beginning intro if desired */
+		if (strlen(prefile)) {
+			if (ast_fileexists(prefile, NULL, NULL) < 0) {
+				if (ast_streamfile(chan, prefile, chan->language) > -1) 
+				    silent = ast_waitstream(chan, "#");
+			} else {
+				ast_log(LOG_DEBUG, "%s doesn't exist, doing what we can\n", prefile);
+				silent = invent_message(chan, ext, busy);
+			}
+			if (silent < 0) {
+				ast_log(LOG_DEBUG, "Hang up during prefile playback\n");
+				free(copy);
+				return -1;
+			}
+		}
+		/* If they hit "#" we should still play the beep sound */
+		if (silent == '#') {
+			if (!ast_streamfile(chan, "beep", chan->language) < 0)
+				silent = 1;
+			ast_waitstream(chan, "");
+		}
 		/* Stream an info message */
 		if (silent || !ast_streamfile(chan, INTRO, chan->language)) {
 			/* Wait for the message to finish */
@@ -405,7 +468,7 @@ static int play_and_wait(struct ast_channel *chan, char *fn)
 static int say_and_wait(struct ast_channel *chan, int num)
 {
 	int d;
-	d = ast_say_number(chan, num, chan->language);
+	d = ast_say_number(chan, num, AST_DIGIT_ANY, chan->language);
 	return d;
 }
 
@@ -476,6 +539,449 @@ static int save_to_folder(char *dir, int msg, char *username, int box)
 	return 0;
 }
 
+static int adsi_logo(unsigned char *buf)
+{
+	int bytes = 0;
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_CENT, 0, "Comedian Mail", "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_CENT, 0, "(C)2002 LSS, Inc.", "");
+	return bytes;
+}
+
+static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
+{
+	char buf[256];
+	int bytes=0;
+	int x;
+	char num[5];
+
+	*useadsi = 0;
+	bytes += adsi_data_mode(buf + bytes);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+
+	bytes = 0;
+	bytes += adsi_logo(buf);
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Downloading Scripts", "");
+#ifdef DISPLAY
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, "   .", "");
+#endif
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += adsi_data_mode(buf + bytes);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+
+	if (adsi_begin_download(chan, addesc, adapp, adsec, adver)) {
+		bytes = 0;
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Load Cancelled.", "");
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "ADSI Unavailable", "");
+		bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+		bytes += adsi_voice_mode(buf + bytes, 0);
+		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+		return 0;
+	}
+
+#ifdef DISPLAY
+	/* Add a dot */
+	bytes = 0;
+	bytes += adsi_logo(buf);
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Downloading Scripts", "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, "   ..", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+#endif
+	bytes = 0;
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 0, "Listen", "Listen", "1", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 1, "Folder", "Folder", "2", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 2, "Advanced", "Advnced", "3", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 3, "Options", "Options", "4", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 4, "Help", "Help", "*", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 5, "Exit", "Exit", "#", 1);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD);
+
+#ifdef DISPLAY
+	/* Add another dot */
+	bytes = 0;
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, "   ...", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+#endif
+
+	bytes = 0;
+	/* These buttons we load but don't use yet */
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 6, "Previous", "Prev", "4", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 8, "Repeat", "Repeat", "5", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 7, "Delete", "Delete", "7", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 9, "Next", "Next", "6", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 10, "Save", "Save", "9", 1);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 11, "Undelete", "Restore", "7", 1);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD);
+
+#ifdef DISPLAY
+	/* Add another dot */
+	bytes = 0;
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, "   ....", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+#endif
+
+	bytes = 0;
+	for (x=0;x<5;x++) {
+		snprintf(num, sizeof(num), "%d", x);
+		bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 12 + x, mbox(x), mbox(x), num, 1);
+	}
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 12 + 5, "Cancel", "Cancel", "#", 1);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD);
+
+#ifdef DISPLAY
+	/* Add another dot */
+	bytes = 0;
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, "   .....", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+#endif
+
+	if (adsi_end_download(chan)) {
+		bytes = 0;
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Download Unsuccessful.", "");
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "ADSI Unavailable", "");
+		bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+		bytes += adsi_voice_mode(buf + bytes, 0);
+		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+		return 0;
+	}
+	bytes = 0;
+	bytes += adsi_download_disconnect(buf + bytes);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DOWNLOAD);
+
+	ast_log(LOG_DEBUG, "Done downloading scripts...\n");
+
+#ifdef DISPLAY
+	/* Add last dot */
+	bytes = 0;
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "   ......", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+#endif
+	ast_log(LOG_DEBUG, "Restarting session...\n");
+
+	bytes = 0;
+	/* Load the session now */
+	if (adsi_load_session(chan, adapp, adver, 1) == 1) {
+		*useadsi = 1;
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Scripts Loaded!", "");
+	} else
+		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Load Failed!", "");
+
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+	return 0;
+}
+
+static void adsi_begin(struct ast_channel *chan, int *useadsi)
+{
+	int x;
+	x = adsi_load_session(chan, adapp, adver, 1);
+	if (x < 0)
+		return;
+	if (!x) {
+		if (adsi_load_vmail(chan, useadsi)) {
+			ast_log(LOG_WARNING, "Unable to upload voicemail scripts\n");
+			return;
+		}
+	} else
+		*useadsi = 1;
+}
+
+static void adsi_login(struct ast_channel *chan)
+{
+	char buf[256];
+	int bytes=0;
+	unsigned char keys[6];
+	int x;
+	if (!adsi_available(chan))
+		return;
+
+	for (x=0;x<6;x++)
+		keys[x] = 0;
+	/* Set one key for next */
+	keys[3] = ADSI_KEY_APPS + 3;
+
+	bytes += adsi_logo(buf + bytes);
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, " ", "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, " ", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += adsi_input_format(buf + bytes, 1, ADSI_DIR_FROM_LEFT, 0, "Mailbox: ******", "");
+	bytes += adsi_input_control(buf + bytes, ADSI_COMM_PAGE, 4, 1, 1, ADSI_JUST_LEFT);
+	bytes += adsi_load_soft_key(buf + bytes, ADSI_KEY_APPS + 3, "Enter", "Enter", "#", 1);
+	bytes += adsi_set_keys(buf + bytes, keys);
+	bytes += adsi_voice_mode(buf + bytes, 0);
+ 	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
+static void adsi_password(struct ast_channel *chan)
+{
+	char buf[256];
+	int bytes=0;
+	unsigned char keys[6];
+	int x;
+	if (!adsi_available(chan))
+		return;
+
+	for (x=0;x<6;x++)
+		keys[x] = 0;
+	/* Set one key for next */
+	keys[3] = ADSI_KEY_APPS + 3;
+
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += adsi_input_format(buf + bytes, 1, ADSI_DIR_FROM_LEFT, 0, "Password: ******", "");
+	bytes += adsi_input_control(buf + bytes, ADSI_COMM_PAGE, 4, 0, 1, ADSI_JUST_LEFT);
+	bytes += adsi_set_keys(buf + bytes, keys);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
+static void adsi_folders(struct ast_channel *chan, int start, char *label)
+{
+	char buf[256];
+	int bytes=0;
+	unsigned char keys[6];
+	int x,y;
+
+	if (!adsi_available(chan))
+		return;
+
+	for (x=0;x<5;x++) {
+		y = ADSI_KEY_APPS + 12 + start + x;
+		if (y > ADSI_KEY_APPS + 12 + 4)
+			y = 0;
+		keys[x] = ADSI_KEY_SKT | y;
+	}
+	keys[5] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 17);
+
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_CENT, 0, label, "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_CENT, 0, " ", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += adsi_set_keys(buf + bytes, keys);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
+static void adsi_message(struct ast_channel *chan, char *folder, int msg, int last, int deleted, char *fn)
+{
+	int bytes=0;
+	char buf[256], buf1[256], buf2[256];
+	char fn2[256];
+	char cid[256]="";
+	char *val;
+	char *name, *num;
+	char datetime[21]="";
+	FILE *f;
+
+	unsigned char keys[6];
+
+	int x;
+
+	if (!adsi_available(chan))
+		return;
+
+	/* Retrieve important info */
+	snprintf(fn2, sizeof(fn2), "%s.txt", fn);
+	f = fopen(fn2, "r");
+	if (f) {
+		while(!feof(f)) {	
+			fgets(buf, sizeof(buf), f);
+			if (!feof(f)) {
+				strtok(buf, "=");
+				val = strtok(NULL, "=");
+				if (val && strlen(val)) {
+					if (!strcmp(buf, "callerid"))
+						strncpy(cid, val, sizeof(cid) - 1);
+					if (!strcmp(buf, "origdate"))
+						strncpy(datetime, val, sizeof(datetime) - 1);
+				}
+			}
+		}
+		fclose(f);
+	}
+	/* New meaning for keys */
+	for (x=0;x<5;x++)
+		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 6 + x);
+
+	if (!msg) {
+		/* No prev key, provide "Folder" instead */
+		keys[0] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
+	}
+	if (msg >= last) {
+		/* If last message ... */
+		if (msg) {
+			/* but not only message, provide "Folder" instead */
+			keys[3] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
+		} else {
+			/* Otherwise if only message, leave blank */
+			keys[3] = 1;
+		}
+	}
+
+	if (strlen(cid)) {
+		ast_callerid_parse(cid, &name, &num);
+		if (!name)
+			name = num;
+	} else
+		name = "Unknown Caller";
+
+	/* If deleted, show "undeleted" */
+	if (deleted)
+		keys[1] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 11);
+
+	/* Except "Exit" */
+	keys[5] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 5);
+	snprintf(buf1, sizeof(buf1), "%s%s", folder,
+		 strcasecmp(folder, "INBOX") ? " Messages" : "");
+ 	snprintf(buf2, sizeof(buf2), "Message %d of %d", msg + 1, last + 1);
+
+ 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_LEFT, 0, buf2, "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_LEFT, 0, name, "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_LEFT, 0, datetime, "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += adsi_set_keys(buf + bytes, keys);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
+static void adsi_delete(struct ast_channel *chan, int msg, int last, int deleted)
+{
+	int bytes=0;
+	char buf[256];
+	unsigned char keys[6];
+
+	int x;
+
+	if (!adsi_available(chan))
+		return;
+
+	/* New meaning for keys */
+	for (x=0;x<5;x++)
+		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 6 + x);
+
+	if (!msg) {
+		/* No prev key, provide "Folder" instead */
+		keys[0] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
+	}
+	if (msg >= last) {
+		/* If last message ... */
+		if (msg) {
+			/* but not only message, provide "Folder" instead */
+			keys[3] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 1);
+		} else {
+			/* Otherwise if only message, leave blank */
+			keys[3] = 1;
+		}
+	}
+
+	/* If deleted, show "undeleted" */
+	if (deleted) 
+		keys[1] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 11);
+
+	/* Except "Exit" */
+	keys[5] = ADSI_KEY_SKT | (ADSI_KEY_APPS + 5);
+	bytes += adsi_set_keys(buf + bytes, keys);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
+static void adsi_status(struct ast_channel *chan, int new, int old, int lastmsg)
+{
+	char buf[256], buf1[256], buf2[256];
+	int bytes=0;
+	unsigned char keys[6];
+	int x;
+
+	char *newm = (new == 1) ? "message" : "messages";
+	char *oldm = (old == 1) ? "message" : "messages";
+	if (!adsi_available(chan))
+		return;
+	if (new) {
+		snprintf(buf1, sizeof(buf1), "You have %d new", new);
+		if (old) {
+			strcat(buf1, " and");
+			snprintf(buf2, sizeof(buf2), "%d old %s.", old, oldm);
+		} else {
+			snprintf(buf2, sizeof(buf2), "%s.", newm);
+		}
+	} else if (old) {
+		snprintf(buf1, sizeof(buf1), "You have %d old", old);
+		snprintf(buf2, sizeof(buf2), "%s.", oldm);
+	} else {
+		strcpy(buf1, "You have no messages.");
+		strcpy(buf2, " ");
+	}
+ 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_LEFT, 0, buf2, "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+
+	for (x=0;x<6;x++)
+		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + x);
+
+	/* Don't let them listen if there are none */
+	if (lastmsg < 0)
+		keys[0] = 1;
+	bytes += adsi_set_keys(buf + bytes, keys);
+
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
+static void adsi_status2(struct ast_channel *chan, char *folder, int messages)
+{
+	char buf[256], buf1[256], buf2[256];
+	int bytes=0;
+	unsigned char keys[6];
+	int x;
+
+	char *mess = (messages == 1) ? "message" : "messages";
+
+	if (!adsi_available(chan))
+		return;
+
+	/* Original command keys */
+	for (x=0;x<6;x++)
+		keys[x] = ADSI_KEY_SKT | (ADSI_KEY_APPS + x);
+
+	if (messages < 1)
+		keys[0] = 0;
+
+	snprintf(buf1, sizeof(buf1), "%s%s has", folder,
+			strcasecmp(folder, "INBOX") ? " folder" : "");
+
+	if (messages)
+		snprintf(buf2, sizeof(buf2), "%d %s.", messages, mess);
+	else
+		strcpy(buf2, "no messages.");
+ 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_LEFT, 0, buf2, "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_LEFT, 0, "", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	bytes += adsi_set_keys(buf + bytes, keys);
+
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+	
+}
+
+static void adsi_clear(struct ast_channel *chan)
+{
+	char buf[256];
+	int bytes=0;
+	if (!adsi_available(chan))
+		return;
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
+static void adsi_goodbye(struct ast_channel *chan)
+{
+	char buf[256];
+	int bytes=0;
+	if (!adsi_available(chan))
+		return;
+	bytes += adsi_logo(buf + bytes);
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_LEFT, 0, " ", "");
+	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "Goodbye", "");
+	bytes += adsi_set_line(buf + bytes, ADSI_COMM_PAGE, 1);
+	adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
+}
+
 static int get_folder(struct ast_channel *chan, int start)
 {
 	int x;
@@ -485,7 +991,7 @@ static int get_folder(struct ast_channel *chan, int start)
 	if (d)
 		return d;
 	for (x = start; x< 5; x++) {
-		if ((d = ast_say_number(chan, x, chan->language)))
+		if ((d = ast_say_number(chan, x, AST_DIGIT_ANY, chan->language)))
 			return d;
 		d = play_and_wait(chan, "vm-for");
 		if (d)
@@ -539,13 +1045,15 @@ static int get_folder(struct ast_channel *chan, int start)
 
 #define PLAYMSG(a) do { \
 	starting = 0; \
+	make_file(fn, sizeof(fn), curdir, a); \
+	adsi_message(chan, curbox, a, lastmsg, deleted[a], fn); \
 	if (!a) \
 		WAITFILE2("vm-first"); \
 	else if (a == lastmsg) \
 		WAITFILE2("vm-last"); \
 	WAITFILE2("vm-message"); \
 	if (a && (a != lastmsg)) { \
-		d = ast_say_number(chan, a + 1, chan->language); \
+		d = ast_say_number(chan, a + 1, AST_DIGIT_ANY, chan->language); \
 		if (d < 0) goto out; \
 		if (d) goto cmd; \
 	} \
@@ -593,6 +1101,7 @@ static int get_folder(struct ast_channel *chan, int start)
 	snprintf(vmbox, sizeof(vmbox), "vm-%s", curbox); \
 } while (0)
 
+
 static int vm_execmain(struct ast_channel *chan, void *data)
 {
 	/* XXX This is, admittedly, some pretty horrendus code.  For some
@@ -621,6 +1130,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int lastmsg = 0;
 	int starting = 1;
 	int box;
+	int useadsi = 0;
 	struct ast_config *cfg;
 	
 	LOCAL_USER_ADD(u);
@@ -631,6 +1141,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	}
 	if (chan->state != AST_STATE_UP)
 		ast_answer(chan);
+
+	/* If ADSI is supported, setup login screen */
+	adsi_begin(chan, &useadsi);
+	if (useadsi)
+		adsi_login(chan);
 	if (ast_streamfile(chan, "vm-login", chan->language)) {
 		ast_log(LOG_WARNING, "Couldn't stream login file\n");
 		goto out;
@@ -650,6 +1165,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			res = 0;
 			goto out;
 		}
+		if (useadsi)
+			adsi_password(chan);
 		if (ast_streamfile(chan, "vm-password", chan->language)) {
 			ast_log(LOG_WARNING, "Unable to stream password file\n");
 			goto out;
@@ -670,10 +1187,14 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		} else if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "No such user '%s' in config file\n", username);
 		if (!valid) {
+			if (useadsi)
+				adsi_login(chan);
 			if (ast_streamfile(chan, "vm-incorrect", chan->language))
 				break;
+#if 0
 			if (ast_waitstream(chan, ""))
 				break;
+#endif
 		}
 	} while (!valid);
 
@@ -684,17 +1205,29 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		OPEN_MAILBOX(0);
 		newmessages = lastmsg + 1;
 		
+
+		/* Select proper mailbox FIRST!! */
+		if (!newmessages && oldmessages) {
+			/* If we only have old messages start here */
+			OPEN_MAILBOX(1);
+		}
+
+		if (useadsi)
+			adsi_status(chan, newmessages, oldmessages, lastmsg);
+
 		WAITCMD(play_and_wait(chan, "vm-youhave"));
 		if (newmessages) {
 			WAITCMD(say_and_wait(chan, newmessages));
 			WAITCMD(play_and_wait(chan, "vm-INBOX"));
-			if (newmessages == 1)
-				WAITCMD(play_and_wait(chan, "vm-message"));
-			else
-				WAITCMD(play_and_wait(chan, "vm-messages"));
-				
 			if (oldmessages)
 				WAITCMD(play_and_wait(chan, "vm-and"));
+			else {
+				if (newmessages == 1)
+					WAITCMD(play_and_wait(chan, "vm-message"));
+				else
+					WAITCMD(play_and_wait(chan, "vm-messages"));
+			}
+				
 		}
 		if (oldmessages) {
 			WAITCMD(say_and_wait(chan, oldmessages));
@@ -707,10 +1240,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		if (!oldmessages && !newmessages) {
 			WAITCMD(play_and_wait(chan, "vm-no"));
 			WAITCMD(play_and_wait(chan, "vm-messages"));
-		}
-		if (!newmessages && oldmessages) {
-			/* If we only have old messages start here */
-			OPEN_MAILBOX(1);
 		}
 		repeats = 0;
 		starting = 1;
@@ -750,6 +1279,8 @@ instructions:
 cmd:
 		switch(d) {
 		case '2':
+			if (useadsi)
+				adsi_folders(chan, 0, "Change to folder...");
 			box = play_and_wait(chan, "vm-changeto");
 			if (box < 0)
 				goto out;
@@ -763,6 +1294,8 @@ cmd:
 			box = box - '0';
 			CLOSE_MAILBOX;
 			OPEN_MAILBOX(box);
+			if (useadsi)
+				adsi_status2(chan, curbox, lastmsg + 1);
 			WAITCMD(play_and_wait(chan, vmbox));
 			WAITCMD(play_and_wait(chan, "vm-messages"));
 			starting = 1;
@@ -799,12 +1332,16 @@ cmd:
 			}
 		case '7':
 			deleted[curmsg] = !deleted[curmsg];
+			if (useadsi)
+				adsi_delete(chan, curmsg, lastmsg, deleted[curmsg]);
 			if (deleted[curmsg]) 
 				WAITCMD(play_and_wait(chan, "vm-deleted"));
 			else
 				WAITCMD(play_and_wait(chan, "vm-undeleted"));
 			goto instructions;
 		case '9':
+			if (useadsi)
+				adsi_folders(chan, 1, "Save to folder...");
 			box = play_and_wait(chan, "vm-savefolder");
 			if (box < 0)
 				goto out;
@@ -816,10 +1353,14 @@ cmd:
 					goto instructions;
 			} 
 			box = box - '0';
-			ast_log(LOG_DEBUG, "Save to folder: %s (%d)\n", mbox(box), box);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Save to folder: %s (%d)\n", mbox(box), box);
 			if (save_to_folder(curdir, curmsg, username, box))
 				goto out;
 			deleted[curmsg]=1;
+			make_file(fn, sizeof(fn), curdir, curmsg);
+			if (useadsi)
+				adsi_message(chan, curbox, curmsg, lastmsg, deleted[curmsg], fn);
 			WAITCMD(play_and_wait(chan, "vm-message"));
 			WAITCMD(say_and_wait(chan, curmsg + 1) );
 			WAITCMD(play_and_wait(chan, "vm-savedto"));
@@ -836,24 +1377,32 @@ cmd:
 			}
 			goto instructions;
 		case '#':
+			ast_stopstream(chan);
+			adsi_goodbye(chan);
 			play_and_wait(chan, "vm-goodbye");
-			goto out;
+			res = 0;
+			goto out2;
 		default:
 			goto instructions;
 		}
 	}
 out:
+	adsi_goodbye(chan);
+out2:
 	CLOSE_MAILBOX;
 	ast_stopstream(chan);
 	if (cfg)
 		ast_destroy(cfg);
+	if (useadsi)
+		adsi_unload_session(chan);
+	adsi_channel_init(chan);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
 static int vm_exec(struct ast_channel *chan, void *data)
 {
-	int res=0, silent=0;
+	int res=0, silent=0, busy=0, unavail=0;
 	struct localuser *u;
 	char *ext = (char *)data;
 	
@@ -865,10 +1414,16 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	if (*ext == 's') {
 		silent++;
 		ext++;
+	} else if (*ext == 'b') {
+		busy++;
+		ext++;
+	} else if (*ext == 'u') {
+		unavail++;
+		ext++;
 	}
 	if (chan->state != AST_STATE_UP)
 		ast_answer(chan);
-	res = leave_voicemail(chan, ext, silent);
+	res = leave_voicemail(chan, ext, silent, busy, unavail);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }

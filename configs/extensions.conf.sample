@@ -37,6 +37,9 @@ writeprotect=no
 exten => _91NXXNXXXXXX,1,StripMSD,1
 exten => _1NXXNXXXXXX,2,Dial,IAX/iaxtel.com/BYEXTENSION@iaxtel
 
+[provider]
+;switch => IAX/user:[key]@myserver/mycontext
+
 ; Local stuff
 [local]
 ; Special extension for local phone numbers, long distance, etc, going
@@ -52,10 +55,11 @@ exten => _1NXXNXXXXXX,2,Dial,IAX/iaxtel.com/BYEXTENSION@iaxtel
 ; so that dialtone remains even after dialing a 9.
 ;
 ignorepat => 9
-;exten => _9NXXXXXX,1,Dial,AdtranVoFR/BYEXTENSION
-;exten => _91NXXNXXXXXX,1,Dial,AdtranVoFR/BYEXTENSION
-;exten => _9911,1,Dial,AdtranVoFR/BYEXTENSION
+;exten => _9NXXXXXX,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
+;exten => _91NXXNXXXXXX,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
+;exten => _9911,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
 include => default
+include => provider
 include => iaxtel
 ;
 ; You can use an alternative switch type as well, to resolve
@@ -65,7 +69,7 @@ include => iaxtel
 ; switch => IAX/user:password@bigserver/local
 
 
-[default]
+[demo]
 ;
 ; We start with what to do when a call first comes in.
 ;
@@ -89,11 +93,10 @@ exten => 3,2,Goto,s|5			; Start with the congratulations
 exten => 1234,1,Playback,transfer|skip		; "Please hold while..." 
 					; (but skip if channel is not up)
 exten => 1234,2,Dial,Console/dsp|10	; Ring the console, 10 secs max
-exten => 1234,3,Playback,vm/1234/unavail	; "I'm not here right now"
-exten => 1234,4,Voicemail,1234		; Send to voicemail...
+exten => 1234,3,Voicemail,u1234		; Send to voicemail...
 exten => 1234,5,Goto,s|6			; Start over
-exten => 1234,103,Playback,vm/1234/busy	; (2 + 101) "I'm on the phone"
-exten => 1234,104,Goto,4			; Go to voicemail, etc.
+exten => 1234,103,Voicemail,b1234	; (2 + 101) "I'm on the phone"
+exten => 1234,104,Goto,5			; Go to voicemail, etc.
 
 exten => 1235,1,Goto,1234|3		; Right to voicemail
 
@@ -140,8 +143,15 @@ exten => 8500,2,Goto,s|6
 ;exten => 1265,1,Dial,Phone/phone0|15
 ;exten => 1265,2,Goto,s|5
 
+[default]
+;
+; By default we include the demo.  In a production system, you 
+; probably don't want to have the demo there.
+;
+include => demo
+
 ; This is a more complicated sample extension configuration, similar to
-; what we use at LSS.
+; what we used to use at LSS.
 
 ;[default]
 ;exten => s,1,Wait,0
@@ -171,17 +181,14 @@ exten => 8500,2,Goto,s|6
 ; Step 2:  Dial the numbers where Ben is likely to be.  Try for no more
 ;          than 15 seconds.
 ;exten => 4300,2,Dial,AdtranVoFR/4300|15
-; Step 3:  If there is no answer, play back a message stating that Ben is
-;          unavailable.  Alternatively, we could have rung an operator first.
-;exten => 4300,3,Playback,vm/4300/unavail
-; Step 4:  Send them to voicemail.
-;exten => 4300,4,Voicemail,4300
-; Step 5:  If they return from voicemail, go back to the top
-;exten => 4300,5,Goto,s|4
+; Step 3:  Send them to voicemail, preceeded by their unavailable message.
+;exten => 4300,3,Voicemail,u4300
+; Step 4:  If they return from voicemail, go back to the top
+;exten => 4300,4,Goto,s|4
 ; Step 103: If the Dialing is busy, it will try here first.  We'll play a
-;           special "I'm busy" message...
-;exten => 4300,103,Playback,vm/4300/busy
-; Step 104: And then continue as if it had been busy in the first place.
+;           special "I'm busy" message and send them to voicemail
+;exten => 4300,103,Voicemail,b4300
+; Step 104: And then continue from whereever the other would
 ;exten => 4300,104,Goto,4
 ; Exten. 4301: Provide a short-circuit so we can transfer striaght to 
 ;              voicemail.

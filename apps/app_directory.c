@@ -172,7 +172,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 						res = ast_waitstream(chan, AST_DIGIT_ANY);
 					ast_stopstream(chan);
 				} else {
-					res = ast_say_digit_str(chan, v->name, chan->language);
+					res = ast_say_digit_str(chan, v->name, AST_DIGIT_ANY, chan->language);
 				}
 ahem:
 				if (!res)
@@ -184,9 +184,9 @@ ahem:
 				ast_stopstream(chan);
 				if (res > -1) {
 					if (res == '1') {
-						strncpy(chan->exten, v->name, sizeof(chan->exten));
+						strncpy(chan->exten, v->name, sizeof(chan->exten)-1);
 						chan->priority = 0;
-						strncpy(chan->context, context, sizeof(chan->context));
+						strncpy(chan->context, context, sizeof(chan->context)-1);
 						res = 0;
 						break;
 					} else if (res == '*') {
