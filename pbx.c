@@ -849,6 +849,8 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		   brokentime.tm_sec
 		   );
 	  *ret = workspace;
+	} else if (!strcmp(var, "UNIQUEID")) {
+	  snprintf(workspace, workspacelen -1, "%s", c->uniqueid);
 	} else {
 		AST_LIST_TRAVERSE(headp,variables,entries) {
 #if 0

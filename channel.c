@@ -41,6 +41,7 @@
 
 
 static int shutting_down = 0;
+static int uniqueint = 0;
 
 /* XXX Lock appropriately in more functions XXX */
 
@@ -322,6 +323,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					tmp->data = NULL;
 					tmp->fin = 0;
 					tmp->fout = 0;
+					snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", time(NULL), uniqueint++);
 					headp=&tmp->varshead;
 					ast_pthread_mutex_init(&tmp->lock);
 				        AST_LIST_HEAD_INIT(headp);

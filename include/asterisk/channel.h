@@ -188,6 +188,9 @@ struct ast_channel {
 	unsigned int fin;
 	unsigned int fout;
 
+	/* Unique Channel Identifier */
+	char uniqueid[32];
+
 	/* A linked list for variables */
 	struct ast_var_t *vars;	
 	AST_LIST_HEAD(varshead,ast_var_t) varshead;

@@ -476,6 +476,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	" -- General --\n"
 	"           Name: %s\n"
 	"           Type: %s\n"
+	"       UniqueID: %s\n"
 	"      Caller ID: %s\n"
 	"    DNID Digits: %s\n"
 	"          State: %s (%d)\n"
@@ -497,7 +498,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"           Data: %s\n"
 	"          Stack: %d\n"
 	"    Blocking in: %s\n",
-	c->name, c->type, 
+	c->name, c->type, c->uniqueid,
 	(c->callerid ? c->callerid : "(N/A)"),
 	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
 	c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",

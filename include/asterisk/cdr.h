@@ -67,6 +67,8 @@ struct ast_cdr {
 	char accountcode[20];			
 	/*! Whether or not the record has been posted */
 	int posted;				
+        /* Unique Channel Identifier */
+        char uniqueid[32];
 };
 
 typedef int (*ast_cdrbe)(struct ast_cdr *cdr);

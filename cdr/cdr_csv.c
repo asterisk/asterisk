@@ -27,6 +27,8 @@
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
+/* #define CSV_LOGUNIQUEID 1 */
+
 #include <stdio.h>
 #include <string.h>
 
@@ -57,7 +59,7 @@
   			// "end time" minus "answer time"
   "disposition",    	// ANSWERED, NO ANSWER, BUSY
   "amaflags",       	// DOCUMENTATION, BILL, IGNORE etc, specified on a per channel basis like accountcode.
-
+  "uniqueid",           // unique call identifier
 */
 
 static char *desc = "Comma Separated Values CDR Backend";
@@ -158,6 +160,10 @@ static int build_csv_record(char *buf, int len, struct ast_cdr *cdr)
 	/* AMA Flags */
 	append_string(buf, ast_cdr_flags2str(cdr->amaflags), len);
 
+#ifdef CSV_LOGUNIQUEID
+	/* Unique ID */
+	append_string(buf, cdr->uniqueid, len);
+#endif
 	/* If we hit the end of our buffer, log an error */
 	if (strlen(buf) < len - 5) {
 		/* Trim off trailing comma */

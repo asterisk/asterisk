@@ -250,6 +250,8 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 		/* Destination information */
 		strncpy(cdr->dst, c->exten, sizeof(cdr->dst) - 1);
 		strncpy(cdr->dcontext, c->context, sizeof(cdr->dcontext) - 1);
+		/* Unique call identifier */
+		strncpy(cdr->uniqueid, c->uniqueid, sizeof(cdr->uniqueid) - 1);
 	}
 	return 0;
 }
