@@ -28,6 +28,7 @@ extern "C" {
 
 //! Special return values from applications to the PBX
 #define AST_PBX_KEEPALIVE	10		/* Destroy the thread, but don't hang up the channel */
+#define AST_PBX_NO_HANGUP_PEER       11
 
 //! Special Priority for an hint
 #define PRIORITY_HINT	-1

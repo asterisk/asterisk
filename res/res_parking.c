@@ -24,6 +24,7 @@
 #include <asterisk/parking.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/config.h>
+#include <asterisk/cli.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -120,7 +121,11 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				break;
 		}
 		if (x <= parking_stop) {
+			chan->appl = "Parked Call";
+			chan->data = NULL; 
+
 			pu->chan = chan;
+			/* Start music on hold */
 			ast_moh_start(pu->chan, NULL);
 			gettimeofday(&pu->start, NULL);
 			pu->parkingnum = x;
@@ -144,7 +149,6 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				ast_verbose(VERBOSE_PREFIX_2 "Parked %s on %d\n", pu->chan->name, pu->parkingnum);
 			if (peer)
 				ast_say_digits(peer, pu->parkingnum, "", peer->language);
-			/* Start music on hold */
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
@@ -188,7 +192,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	return 0;
 }
 
-int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect, int allowdisconnect)
+int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect_in, int allowredirect_out, int allowdisconnect)
 {
 	/* Copy voice back and forth between the two channels.  Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
@@ -198,13 +202,17 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 	char newext[256], *ptr;
 	int res;
 	struct ast_option_header *aoh;
+	struct ast_channel *transferer;
+	struct ast_channel *transferee;
+  char *transferer_real_context;
+
 	/* Answer if need be */
 	if (ast_answer(chan))
 		return -1;
 	peer->appl = "Bridged Call";
 	peer->data = chan->name;
 	for (;;) {
-		res = ast_channel_bridge(chan, peer, (allowdisconnect ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (allowredirect ? AST_BRIDGE_DTMF_CHANNEL_1 : 0), &f, &who);
+		res = ast_channel_bridge(chan, peer, (allowdisconnect||allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0), &f, &who);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Bridge failed on channels %s and %s\n", chan->name, peer->name);
 			return -1;
@@ -245,23 +253,45 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 			break;
 
 			}
-		if ((f->frametype == AST_FRAME_DTMF) && (who == peer) && allowredirect &&
-		     (f->subclass == '#')) {
+
+		if ((f->frametype == AST_FRAME_DTMF) &&
+			((allowredirect_in && who == peer) || (allowredirect_out && who == chan)) &&
+			(f->subclass == '#')) {
+				if(allowredirect_in &&  who == peer) {
+					transferer = peer;
+					transferee = chan;
+				}
+				else {
+					transferer = chan;
+					transferee = peer;
+				}
+
+				/* Use the non-macro context to transfer the call */
+				if(strlen(transferer->macrocontext))
+					transferer_real_context=transferer->macrocontext;
+				else
+					transferer_real_context=transferer->context;
+
 				/* Start autoservice on chan while we talk
-				   to the peer */
-				ast_autoservice_start(chan);
+				   to the originator */
+				ast_autoservice_start(transferee);
+				ast_moh_start(transferee, NULL);
+
 				memset(newext, 0, sizeof(newext));
 				ptr = newext;
+
 					/* Transfer */
-				if ((res=ast_streamfile(peer, "pbx-transfer", peer->language))) {
-					ast_autoservice_stop(chan);
+				if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
+					ast_moh_stop(transferee);
+					ast_autoservice_stop(transferee);
 					break;
 				}
-				if ((res=ast_waitstream(peer, AST_DIGIT_ANY)) < 0) {
-					ast_autoservice_stop(chan);
+				if ((res=ast_waitstream(transferer, AST_DIGIT_ANY)) < 0) {
+					ast_moh_stop(transferee);
+					ast_autoservice_stop(transferee);
 					break;
 				}
-				ast_stopstream(peer);
+				ast_stopstream(transferer);
 				if (res > 0) {
 					/* If they've typed a digit already, handle it */
 					newext[0] = res;
@@ -270,65 +300,77 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 				}
 				res = 0;
 				while(strlen(newext) < sizeof(newext) - 1) {
-					res = ast_waitfordigit(peer, 3000);
+					res = ast_waitfordigit(transferer, 3000);
 					if (res < 1) 
 						break;
 					if (res == '#')
 						break;
 					*(ptr++) = res;
-					if (!ast_matchmore_extension(peer, peer->context, newext, 1, peer->callerid)) {
+					if (!ast_matchmore_extension(transferer, transferer_real_context
+								, newext, 1, transferer->callerid)) {
 						break;
 					}
 				}
 
 				if (res < 0) {
-					ast_autoservice_stop(chan);
+					ast_moh_stop(transferee);
+					ast_autoservice_stop(transferee);
 					break;
 				}
 				if (!strcmp(newext, ast_parking_ext())) {
-					if (ast_autoservice_stop(chan))
+					ast_moh_stop(transferee);
+
+					if (ast_autoservice_stop(transferee))
 						res = -1;
-					else if (!ast_park_call(chan, peer, 0, NULL)) {
+					else if (!ast_park_call(transferee, transferer, 0, NULL)) {
 						/* We return non-zero, but tell the PBX not to hang the channel when
 						   the thread dies -- We have to be careful now though.  We are responsible for 
 						   hanging up the channel, else it will never be hung up! */
-						res=AST_PBX_KEEPALIVE;
+
+						if(transferer==peer)
+							res=AST_PBX_KEEPALIVE;
+						else
+							res=AST_PBX_NO_HANGUP_PEER;
 						break;
 					} else {
-						ast_log(LOG_WARNING, "Unable to park call %s\n", chan->name);
+						ast_log(LOG_WARNING, "Unable to park call %s\n", transferee->name);
 					}
 					/* XXX Maybe we should have another message here instead of invalid extension XXX */
-				} else if (ast_exists_extension(chan, peer->context, newext, 1, peer->callerid)) {
-					res=ast_autoservice_stop(chan);
-					if (!chan->pbx) {
+				} else if (ast_exists_extension(transferee, transferer_real_context, newext, 1, transferer->callerid)) {
+					ast_moh_stop(transferee);
+					res=ast_autoservice_stop(transferee);
+					if (!transferee->pbx) {
 						/* Doh!  Use our handy async_goto funcitons */
 						if (option_verbose > 2) 
-							ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n", chan->name, chan->exten, chan->context);
-						if (ast_async_goto(chan, peer->context, newext, 1, 1))
+							ast_verbose(VERBOSE_PREFIX_3 "Transferring %s to '%s' (context %s) priority 1\n"
+								,transferee->name, newext, transferer_real_context);
+						if (ast_async_goto(transferee, transferer_real_context, newext, 1, 1))
 							ast_log(LOG_WARNING, "Async goto fialed :(\n");
 					} else {
-						/* Set the channel's new extension, since it exists, using peer context */
-						strncpy(chan->exten, newext, sizeof(chan->exten)-1);
-						strncpy(chan->context, peer->context, sizeof(chan->context)-1);
-						chan->priority = 0;
+						/* Set the channel's new extension, since it exists, using transferer context */
+						strncpy(transferee->exten, newext, sizeof(transferee->exten)-1);
+						strncpy(transferee->context, transferer_real_context, sizeof(transferee->context)-1);
+						transferee->priority = 0;
 						ast_frfree(f);
 					}
 					break;
 				} else {
 					if (option_verbose > 2)	
-						ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context %s\n", newext, peer->context);
+						ast_verbose(VERBOSE_PREFIX_3 "Unable to find extension '%s' in context '%s'\n", newext, transferer_real_context);
 				}
-				res = ast_streamfile(peer, "pbx-invalid", chan->language);
+				res = ast_streamfile(transferer, "pbx-invalid", transferee->language);
 				if (res) {
-					ast_autoservice_stop(chan);
+					ast_moh_stop(transferee);
+					ast_autoservice_stop(transferee);
 					break;
 				}
-				res = ast_waitstream(peer, AST_DIGIT_ANY);
-				ast_stopstream(peer);
-				res = ast_autoservice_stop(chan);
+				res = ast_waitstream(transferer, AST_DIGIT_ANY);
+				ast_stopstream(transferer);
+				ast_moh_stop(transferee);
+				res = ast_autoservice_stop(transferee);
 				if (res) {
 					if (option_verbose > 1)
-						ast_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", chan->name);
+						ast_verbose(VERBOSE_PREFIX_2 "Hungup during autoservice stop on '%s'\n", transferee->name);
 				}
 			} else {
             if (f && (f->frametype == AST_FRAME_DTMF)) {
@@ -393,12 +435,12 @@ static void *do_parking_thread(void *ignore)
 			} else {
 				for (x=0;x<AST_MAX_FDS;x++) {
 					if ((pu->chan->fds[x] > -1) && (FD_ISSET(pu->chan->fds[x], &rfds) || FD_ISSET(pu->chan->fds[x], &efds))) {
-							if (FD_ISSET(pu->chan->fds[x], &efds))
-								pu->chan->exception = 1;
-							pu->chan->fdno = x;
-							/* See if they need servicing */
-							f = ast_read(pu->chan);
-							if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
+						if (FD_ISSET(pu->chan->fds[x], &efds))
+							pu->chan->exception = 1;
+						pu->chan->fdno = x;
+						/* See if they need servicing */
+						f = ast_read(pu->chan);
+						if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
 							/* There's a problem, hang them up*/
 							if (option_verbose > 1) 
 								ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
@@ -498,7 +540,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 		   were the person called. */
 		if (option_verbose > 2) 
 			ast_verbose(VERBOSE_PREFIX_3 "Channel %s connected to parked call %d\n", chan->name, park);
-		res = ast_bridge_call(peer, chan, 1, 0);
+		res = ast_bridge_call(peer, chan, 1, 1, 0);
 		/* Simulate the PBX hanging up */
 		if (res != AST_PBX_KEEPALIVE)
 			ast_hangup(peer);
@@ -520,6 +562,37 @@ static int park_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int handle_parkedcalls(int fd, int argc, char *argv[])
+{
+	struct parkeduser *cur;
+
+	ast_cli(fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
+		, "Context", "Extension", "Pri", "Timeout");
+
+	ast_pthread_mutex_lock(&parking_lock);
+
+	cur=parkinglot;
+	while(cur) {
+		ast_cli(fd, "%4d %25s (%-15s %-12s %-4d) %6ds\n"
+			,cur->parkingnum, cur->chan->name, cur->context, cur->exten
+			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
+
+		cur = cur->next;
+	}
+
+	ast_pthread_mutex_unlock(&parking_lock);
+
+	return RESULT_SUCCESS;
+}
+
+static char showparked_help[] =
+"Usage: show parkedcalls\n"
+"       Lists currently parked calls.\n";
+
+static struct ast_cli_entry showparked =
+{ { "show", "parkedcalls", NULL }, handle_parkedcalls, "Lists parked calls", showparked_help };
+
+
 int load_module(void)
 {
 	int res;
@@ -529,6 +602,9 @@ int load_module(void)
 	char exten[AST_MAX_EXTENSION];
 	struct ast_config *cfg;
 	struct ast_variable *var;
+
+	ast_cli_register(&showparked);
+
 	cfg = ast_load("parking.conf");
 	if (cfg) {
 		var = ast_variable_browse(cfg, "general");
@@ -641,6 +717,9 @@ unsigned int ast_get_group(char *s)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+
+	ast_cli_unregister(&showparked);
+
 	return ast_unregister_application(parkedcall);
 }
 

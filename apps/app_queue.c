@@ -92,7 +92,8 @@ static char *app_rqm_descrip =
 struct localuser {
 	struct ast_channel *chan;
 	int stillgoing;
-	int allowredirect;
+	int allowredirect_in;
+	int allowredirect_out;
 	int ringbackonly;
 	int musiconhold;
 	int dataquality;
@@ -283,7 +284,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define MAX 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir, int *allowdisconnect, char *queue)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, char *queue)
 {
 	struct localuser *o;
 	int found;
@@ -329,7 +330,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 					peer = o->chan;
-					*allowredir = o->allowredirect;
+					*allowredir_in = o->allowredirect_in;
+					*allowredir_out = o->allowredirect_out;
 					*allowdisconnect = o->allowdisconnect;
 				}
 			} else if (o->chan == winner) {
@@ -343,7 +345,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 								peer = o->chan;
-								*allowredir = o->allowredirect;
+								*allowredir_in = o->allowredirect_in;
+								*allowredir_out = o->allowredirect_out;
 								*allowdisconnect = o->allowdisconnect;
 							}
 							break;
@@ -441,7 +444,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	struct member *cur;
 	struct localuser *outgoing=NULL, *tmp = NULL;
 	int to;
-	int allowredir=0;
+	int allowredir_in=0;
+	int allowredir_out=0;
 	int allowdisconnect=0;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
@@ -466,7 +470,9 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		memset(tmp, 0, sizeof(struct localuser));
 		if (options) {
 			if (strchr(options, 't'))
-				tmp->allowredirect = 1;
+				tmp->allowredirect_in = 1;
+			if (strchr(options, 'T'))
+				tmp->allowredirect_out = 1;
 			if (strchr(options, 'r'))
 				tmp->ringbackonly = 1;
 			if (strchr(options, 'm'))
@@ -568,7 +574,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		to = -1;
 	ast_pthread_mutex_unlock(&qe->parent->lock);
 	
-	peer = wait_for_answer(qe->chan, outgoing, &to, &allowredir, &allowdisconnect, qe->parent->name);
+	peer = wait_for_answer(qe->chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, qe->parent->name);
 	if (!peer) {
 		if (to) 
 			/* Musta gotten hung up */
@@ -629,8 +635,11 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
  			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */
-		bridge = ast_bridge_call(qe->chan, peer, allowredir, allowdisconnect);
-		ast_hangup(peer);
+		bridge = ast_bridge_call(qe->chan, peer, allowredir_in, allowredir_out, allowdisconnect);
+
+		if(bridge != AST_PBX_NO_HANGUP_PEER)
+			ast_hangup(peer);
+
 		if( bridge == 0 ) res=1; /* JDG: bridge successfull, leave app_queue */
 		else res = bridge; /* bridge error, stay in the queue */
 	}	

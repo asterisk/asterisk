@@ -46,7 +46,7 @@ extern char *ast_pickup_ext(void);
 
 //! Bridge a call, optionally allowing redirection
 
-extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect, int allowdisconnect);
+extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allowredirect_in, int allowredirect_out, int allowdisconnect);
 
 extern unsigned int ast_get_group(char *s);
 

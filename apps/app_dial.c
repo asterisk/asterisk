@@ -79,7 +79,8 @@ static char *descrip =
 struct localuser {
 	struct ast_channel *chan;
 	int stillgoing;
-	int allowredirect;
+	int allowredirect_in;
+	int allowredirect_out;
 	int ringbackonly;
 	int musiconhold;
 	int dataquality;
@@ -105,7 +106,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define MAX 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir, int *allowdisconnect)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect)
 {
 	struct localuser *o;
 	int found;
@@ -182,7 +183,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 					peer = o->chan;
-					*allowredir = o->allowredirect;
+					*allowredir_in = o->allowredirect_in;
+					*allowredir_out = o->allowredirect_out;
 					*allowdisconnect = o->allowdisconnect;
 				}
 			} else if (o->chan == winner) {
@@ -218,7 +220,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 								peer = o->chan;
-								*allowredir = o->allowredirect;
+								*allowredir_in = o->allowredirect_in;
+								*allowredir_out = o->allowredirect_out;
 								*allowdisconnect = o->allowdisconnect;
 							}
 							break;
@@ -326,7 +329,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	struct localuser *outgoing=NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
-	int allowredir=0;
+	int allowredir_in=0;
+	int allowredir_out=0;
 	int allowdisconnect=0;
 	int privacy=0;
 	int resetcdr=0;
@@ -447,8 +451,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		memset(tmp, 0, sizeof(struct localuser));
 		if (transfer) {
 			if (strchr(transfer, 't'))
-				tmp->allowredirect = 1;
-                        else    tmp->allowredirect = 0;
+				tmp->allowredirect_in = 1;
+                        else    tmp->allowredirect_in = 0;
+			if (strchr(transfer, 'T'))
+				tmp->allowredirect_out = 1;
+                        else    tmp->allowredirect_out = 0;
 			if (strchr(transfer, 'r'))
 				tmp->ringbackonly = 1;
                         else    tmp->ringbackonly = 0;
@@ -583,7 +590,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		to = atoi(timeout) * 1000;
 	else
 		to = -1;
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir, &allowdisconnect);
+	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect);
 	if (!peer) {
 		if (to) 
 			/* Musta gotten hung up */
@@ -637,14 +644,16 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 			ast_channel_setoption(peer,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}
-		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect | clearchannel);
+		res = ast_bridge_call(chan, peer, allowredir_in, allowredir_out, allowdisconnect | clearchannel);
 		if (clearchannel)
 		{
 			int x = 1;
 			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 			ast_channel_setoption(peer,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}
-		ast_hangup(peer);
+
+		if (res != AST_PBX_NO_HANGUP_PEER)
+			ast_hangup(peer);
 	}	
 out:
 	hanguptree(outgoing, NULL);
