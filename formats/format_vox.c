@@ -33,6 +33,7 @@
 #endif
 
 #define BUF_SIZE 80		/* 160 samples */
+#define BUF_SHIFT	5
 
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
@@ -41,11 +42,13 @@ struct ast_filestream {
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
-	unsigned char buf[BUF_SIZE + 3];				/* Output Buffer */
+	unsigned char buf[BUF_SIZE + BUF_SHIFT];	/* Output Buffer */
 	int lasttimeout;
 	struct timeval last;
 	short signal;						/* Signal level (file side) */
 	short ssindex;						/* Signal ssindex (file side) */
+	unsigned char zero_count;				/* counter of consecutive zero samples */
+	unsigned char next_flag;
 };
 
 
@@ -95,21 +98,48 @@ static short nbl2bit[16][4] = {
  *  Sets the index to the step size table for the next encode.
  */
 
-static inline short
-decode (unsigned char encoded, short *ssindex)
+static inline void 
+decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rkey, unsigned char *next)
 {
   short diff, step;
   step = stpsz[*ssindex];
-  diff = nbl2bit[encoded][0] * (step * nbl2bit[encoded][1] +
-				(step >> 1) * nbl2bit[encoded][2] +
-				(step >> 2) * nbl2bit[encoded][3] +
-				(step >> 3));
+
+  diff = step * nbl2bit[encoded][1] +
+		(step >> 1) * nbl2bit[encoded][2] +
+		(step >> 2) * nbl2bit[encoded][3] +
+		(step >> 3);
+  if (nbl2bit[encoded][2] && (step & 0x1))
+	diff++;
+  diff *= nbl2bit[encoded][0];
+
+  if ( *next & 0x1 )
+        *signal -= 8;
+  else if ( *next & 0x2 )
+        *signal += 8;
+
+  *signal += diff;
+
+  if (*signal > 2047)
+	*signal = 2047;
+  else if (*signal < -2047)
+	*signal = -2047;
+
+  *next = 0;
+  if( encoded & 0x7 )
+        *rkey = 0;
+  else if ( ++(*rkey) == 24 ) {
+	*rkey = 0;
+	if (*signal > 0)
+		*next = 0x1;
+	else if (*signal < 0)
+		*next = 0x2;
+  }
+
   *ssindex = *ssindex + indsft[(encoded & 7)];
   if (*ssindex < 0)
     *ssindex = 0;
   else if (*ssindex > 48)
     *ssindex = 48;
-  return (diff);
 }
 
 /*
@@ -129,6 +159,7 @@ adpcm (short csig, short *ssindex, short *signal)
 {
   short diff, step;
   unsigned char encoded;
+  unsigned char zero_count, next_flag;
   step = stpsz[*ssindex];
   /* 
    * Clip csig if too large or too small
@@ -160,7 +191,8 @@ adpcm (short csig, short *ssindex, short *signal)
   if (diff >= step)
     encoded |= 1;
     
-  *signal += decode (encoded, ssindex);
+  decode (encoded, ssindex, signal, &zero_count, &next_flag);
+
   return (encoded);
 }
 
@@ -233,13 +265,12 @@ static struct ast_frame *vox_read(struct ast_filestream *s, int *whennext)
 	int res;
 	int x;
 	/* Send a frame from the file to the appropriate channel */
-
 	s->fr.frametype = AST_FRAME_VOICE;
 	s->fr.subclass = AST_FORMAT_ADPCM;
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = read(s->fd, s->buf + 3, BUF_SIZE)) < 1) {
+	if ((res = read(s->fd, s->buf + BUF_SHIFT, BUF_SIZE)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -248,13 +279,15 @@ static struct ast_frame *vox_read(struct ast_filestream *s, int *whennext)
 	s->buf[0] = s->ssindex & 0xff;
 	s->buf[1] = (s->signal >> 8) & 0xff;
 	s->buf[2] = s->signal & 0xff;
+	s->buf[3] = s->zero_count;
+	s->buf[4] = s->next_flag;
 	/* Do the decoder to be sure we get the right stuff in the signal and index fields. */
-	for (x=3;x<res+3;x++) {
-		s->signal += decode(s->buf[x] >> 4, &s->ssindex);
-		s->signal += decode(s->buf[x] & 0xf, &s->ssindex);
+	for (x=BUF_SHIFT;x<res+BUF_SHIFT;x++) {
+		decode (s->buf[x] >> 4, &s->ssindex, &s->signal, &s->zero_count, &s->next_flag);
+		decode (s->buf[x] & 0xf, &s->ssindex, &s->signal, &s->zero_count, &s->next_flag);
 	}
 	s->fr.samples = res * 2;
-	s->fr.datalen = res + 3;
+	s->fr.datalen = res + BUF_SHIFT;
 	*whennext = s->fr.samples;
 	return &s->fr;
 }
@@ -270,11 +303,11 @@ static int vox_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-ADPCM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if (f->datalen < 3) {
-		ast_log(LOG_WARNING, "Invalid frame of data (< 3 bytes long) from %s\n", f->src);
+	if (f->datalen < BUF_SHIFT) {
+		ast_log(LOG_WARNING, "Invalid frame of data (< %d bytes long) from %s\n", BUF_SHIFT, f->src);
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data + 3, f->datalen - 3)) != f->datalen - 3) {
+	if ((res = write(fs->fd, f->data + BUF_SHIFT, f->datalen - BUF_SHIFT)) != f->datalen - BUF_SHIFT) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}

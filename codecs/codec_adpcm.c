@@ -27,6 +27,7 @@
 #include <unistd.h>
 
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
+#define BUF_SHIFT	5
 
 static ast_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt = 0;
@@ -77,21 +78,48 @@ static short nbl2bit[16][4] = {
  *  Sets the index to the step size table for the next encode.
  */
 
-static inline short
-decode (unsigned char encoded, short *ssindex)
+static inline void 
+decode (unsigned char encoded, short *ssindex, short *signal, unsigned char *rkey, unsigned char *next)
 {
   short diff, step;
   step = stpsz[*ssindex];
-  diff = nbl2bit[encoded][0] * (step * nbl2bit[encoded][1] +
-				(step >> 1) * nbl2bit[encoded][2] +
-				(step >> 2) * nbl2bit[encoded][3] +
-				(step >> 3));
+
+  diff = step * nbl2bit[encoded][1] +
+		(step >> 1) * nbl2bit[encoded][2] +
+		(step >> 2) * nbl2bit[encoded][3] +
+		(step >> 3);
+  if (nbl2bit[encoded][2] && (step & 0x1))
+	diff++;
+  diff *= nbl2bit[encoded][0];
+
+  if ( *next & 0x1 )
+        *signal -= 8;
+  else if ( *next & 0x2 )
+        *signal += 8;
+
+  *signal += diff;
+
+  if (*signal > 2047)
+	*signal = 2047;
+  else if (*signal < -2047)
+	*signal = -2047;
+
+  *next = 0;
+  if( encoded & 0x7 )
+        *rkey = 0;
+  else if ( ++(*rkey) == 24 ) {
+	*rkey = 0;
+	if (*signal > 0)
+		*next = 0x1;
+	else if (*signal < 0)
+		*next = 0x2;
+  }
+
   *ssindex = *ssindex + indsft[(encoded & 7)];
   if (*ssindex < 0)
     *ssindex = 0;
   else if (*ssindex > 48)
     *ssindex = 48;
-  return (diff);
 }
 
 /*
@@ -107,7 +135,7 @@ decode (unsigned char encoded, short *ssindex)
  */
 
 static inline unsigned char
-adpcm (short csig, short *ssindex, short *signal)
+adpcm (short csig, short *ssindex, short *signal, unsigned char *rkey, unsigned char *next)
 {
   short diff, step;
   unsigned char encoded;
@@ -142,7 +170,7 @@ adpcm (short csig, short *ssindex, short *signal)
   if (diff >= step)
     encoded |= 1;
     
-  *signal += decode (encoded, ssindex);
+  decode (encoded, ssindex, signal, rkey, next);
   return (encoded);
 }
 
@@ -158,6 +186,8 @@ struct adpcm_encoder_pvt
   unsigned char outbuf[BUFFER_SIZE];  /* Encoded ADPCM, two nibbles to a word */
   short ssindex;
   short signal;
+  unsigned char zero_count;
+  unsigned char next_flag;
   int tail;
 };
 
@@ -245,13 +275,15 @@ adpcmtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
   short signal;
   short ssindex;
   unsigned char *b;
+  unsigned char zero_count;
+  unsigned char next_flag;
 
-  if (f->datalen < 3) {
-  	ast_log(LOG_WARNING, "Didn't have at least three bytes of input\n");
+  if (f->datalen < BUF_SHIFT) {
+  	ast_log(LOG_WARNING, "Didn't have at least %d bytes of input\n", BUF_SHIFT);
 	return -1;
   }
 
-  if ((f->datalen - 3) * 4 > sizeof(tmp->outbuf)) {
+  if ((f->datalen - BUF_SHIFT) * 4 > sizeof(tmp->outbuf)) {
   	ast_log(LOG_WARNING, "Out of buffer space\n");
 	return -1;
   }
@@ -265,20 +297,16 @@ adpcmtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
     ssindex = 48;
 
   signal = (b[1] << 8) | b[2]; 
-  
-  for (x=3;x<f->datalen;x++) {
-  	signal += decode(b[x] >> 4, &ssindex);
-	if (signal > 2047)
-		signal = 2047;
-	if (signal < -2048)
-		signal = -2048;
-    tmp->outbuf[tmp->tail++] = signal << 4;
-  	signal +=  decode(b[x] & 0x0f, &ssindex);
-	if (signal > 2047)
-		signal = 2047;
-	if (signal < -2048)
-		signal = -2048;
-    tmp->outbuf[tmp->tail++] = signal << 4;
+
+  zero_count = b[3];
+  next_flag = b[4];
+
+  for (x=BUF_SHIFT;x<f->datalen;x++) {
+	decode((b[x] >> 4) & 0xf, &ssindex, &signal, &zero_count, &next_flag);
+	tmp->outbuf[tmp->tail++] = signal << 4;
+
+	decode(b[x] & 0x0f, &ssindex, &signal, &zero_count, &next_flag);
+	tmp->outbuf[tmp->tail++] = signal << 4;
   }
 
   return 0;
@@ -372,12 +400,15 @@ lintoadpcm_frameout (struct ast_translator_pvt *pvt)
   tmp->outbuf[0] = tmp->ssindex & 0xff;
   tmp->outbuf[1] = (tmp->signal >> 8) & 0xff;
   tmp->outbuf[2] = (tmp->signal & 0xff);
+  tmp->outbuf[3] = tmp->zero_count;
+  tmp->outbuf[4] = tmp->next_flag;
 
   for (i = 0; i < i_max; i+=2)
   {
-    adpcm0 = adpcm(tmp->inbuf[i], &tmp->ssindex, &tmp->signal);
-    adpcm1 = adpcm(tmp->inbuf[i+1], &tmp->ssindex, &tmp->signal);
-    tmp->outbuf[i/2 + 3] = (adpcm0 << 4) | adpcm1;
+    adpcm0 = adpcm (tmp->inbuf[i], &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
+    adpcm1 = adpcm (tmp->inbuf[i+1], &tmp->ssindex, &tmp->signal, &tmp->zero_count, &tmp->next_flag);
+
+    tmp->outbuf[i/2 + BUF_SHIFT] = (adpcm0 << 4) | adpcm1;
   };
 
 
@@ -388,7 +419,7 @@ lintoadpcm_frameout (struct ast_translator_pvt *pvt)
   tmp->f.offset = AST_FRIENDLY_OFFSET;
   tmp->f.src = __PRETTY_FUNCTION__;
   tmp->f.data = tmp->outbuf;
-  tmp->f.datalen = i_max / 2 + 3;
+  tmp->f.datalen = i_max / 2 + BUF_SHIFT;
 
   /*
    * If there is a signal left over (there should be no more than
