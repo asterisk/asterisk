@@ -1194,6 +1194,14 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, char *ints,
 	return res;
 }
 
+static int exp10_int(int power)
+{
+	int x, res= 1;
+	for (x=0;x<power;x++)
+		res *= 10;
+	return res;
+}
+
 typedef struct {  
 	char *separator_dziesiatek;
 	char *cyfry[10];
@@ -1776,7 +1784,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, char *ints,
 			while ( (length % 3 ) != 1 ) {
 				length--;		
 			}
-			left = num / (exp10(length-1));
+			left = num / (exp10_int(length-1));
 			if ( left == 2 ) {  
 				switch (length-1) {
 					case 9: options = "w";  /* 1,000,000,000 gender female */
@@ -1796,7 +1804,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, char *ints,
 			} else { /* left == 1 */
 				snprintf(fn, sizeof(fn), "digits/1_E%d",length-1);
 			}
-			num -= left * (exp10(length-1));
+			num -= left * (exp10_int(length-1));
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
