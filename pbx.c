@@ -4836,9 +4836,12 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		ms = 10000;
 	res = ast_waitfordigit(chan, ms);
 	if (!res) {
-		if (ast_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num)) {
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num)) {
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s\n", chan->name);
+				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s, continuing...\n", chan->name);
+		} else if (ast_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num)) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s, going to 't'\n", chan->name);
 			strncpy(chan->exten, "t", sizeof(chan->exten));
 			chan->priority = 0;
 		} else {

@@ -1066,7 +1066,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 								if(macro_transfer_dest[res] == '^')
 									macro_transfer_dest[res] = '|';
 
-							if(!ast_parsable_goto(chan, macro_transfer_dest))
+							if(!ast_parseable_goto(chan, macro_transfer_dest))
 								go_on = 1;
 							
 						}
