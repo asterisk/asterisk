@@ -14,6 +14,9 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/nameser.h>
+#if __APPLE_CC__ >= 1495
+#include <arpa/nameser_compat.h>
+#endif
 #include <resolv.h>
 #include <stdio.h>
 #include <string.h>
@@ -35,22 +38,6 @@ struct srv {
 	unsigned short weight;
 	unsigned short portnum;
 } __attribute__ ((__packed__));
-
-static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int srclen)
-{
-	int len, olen;
-	len = olen = (int)src[0];
-	src++;
-	srclen--;
-	if (len > srclen) {
-		ast_log(LOG_WARNING, "Want %d, got %d\n", len, srclen);
-		return -1;
-	}
-	if (len > maxdatalen)
-		len = maxdatalen;
-	memcpy(data, src, len);
-	return olen + 1;
-}
 
 static int parse_srv(unsigned char *host, int hostlen, int *portno, unsigned char *answer, int len, unsigned char *msg)
 {

@@ -37,6 +37,10 @@ WAV49	= -DWAV49
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
 ######### probably require gcc. 
 
+ifneq (${OSARCH},Darwin)
+OPTIMIZE+=-march=$(PROC)
+endif
+
 PG =
 #PG = -g -pg
 ######### Profiling flags.  If you don't know what that means, leave it blank.
@@ -54,7 +58,7 @@ PG =
 # CC		= /usr/lang/acc
 # CCFLAGS 	= -c -O
 
-CC		= gcc $(OPTIMIZE) -march=$(PROC) -fomit-frame-pointer 
+CC		= gcc $(OPTIMIZE) -fomit-frame-pointer 
 CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -funroll-loops -fPIC
 
 LD 		= $(CC)
@@ -189,7 +193,7 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/gsm_option.c	\
 		$(SRC)/short_term.c	\
 		$(SRC)/table.c
-ifneq (${OSARCH},OpenBSD)
+ifeq (${OSARCH},Linux)
 GSM_SOURCES+=	$(SRC)/k6opt.s
 endif
 
@@ -236,7 +240,7 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/gsm_option.o	\
 		$(SRC)/short_term.o	\
 		$(SRC)/table.o
-ifneq (${OSARCH},OpenBSD)
+ifeq (${OSARCH},Linux)
 GSM_OBJECTS+=	$(SRC)/k6opt.o
 endif
 

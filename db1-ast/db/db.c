@@ -44,7 +44,9 @@ static char sccsid[] = "@(#)db.c	8.4 (Berkeley) 2/21/94";
 
 #include <db.h>
 
+#ifndef __APPLE__
 #define dbopen __dbopen
+#endif
 
 DB *
 dbopen(fname, flags, mode, type, openinfo)
@@ -74,8 +76,8 @@ dbopen(fname, flags, mode, type, openinfo)
 	errno = EINVAL;
 	return (NULL);
 }
-#undef dbopen
 #ifndef __APPLE__
+#undef dbopen
 #define weak_alias(original, alias) \
         asm (".weak " #alias "\n" #alias " = " #original);
 weak_alias (__dbopen, dbopen)

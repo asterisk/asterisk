@@ -15,6 +15,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/nameser.h>
+#if __APPLE_CC__ >= 1495
+#include <arpa/nameser_compat.h>
+#endif
 #include <resolv.h>
 #include <stdlib.h>
 #include <string.h>

@@ -26,7 +26,7 @@ extern "C" {
 #ifndef __BYTE_ORDER
 #ifdef __linux__
 #include <endian.h>
-#elif (defined(__OpenBSD__) || defined(__APPLE__))
+#elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #include <machine/endian.h>
 #define __BYTE_ORDER BYTE_ORDER
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
@@ -36,11 +36,11 @@ extern "C" {
 #define __BYTE_ORDER __LITTLE_ENDIAN
 #endif /* __LITTLE_ENDIAN */
 
-#if (defined(i386))
+#if defined(i386) || defined(__i386__)
 #define __BYTE_ORDER __LITTLE_ENDIAN
 #endif /* defined i386 */
 
-#if (defined(sun) && defined(unix) && defined(sparc))
+#if defined(sun) && defined(unix) && defined(sparc)
 #define __BYTE_ORDER __BIG_ENDIAN
 #endif /* sun unix sparc */
 

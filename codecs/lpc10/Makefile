@@ -37,42 +37,17 @@ LIB = $(LIB_TARGET_DIR)/liblpc10.a
 .PHONY: all clean
 
 all:	$(LIB)
-	ranlib $(LIB)
 
-$(LIB):		$(LIB)(f2clib.o)	\
-		$(LIB)(analys.o)	\
-		$(LIB)(bsynz.o)		\
-		$(LIB)(chanwr.o)	\
-		$(LIB)(dcbias.o)	\
-		$(LIB)(decode.o)	\
-		$(LIB)(deemp.o)		\
-		$(LIB)(difmag.o)	\
-		$(LIB)(dyptrk.o)	\
-		$(LIB)(encode.o)	\
-		$(LIB)(energy.o)	\
-		$(LIB)(ham84.o)		\
-		$(LIB)(hp100.o)		\
-		$(LIB)(invert.o)	\
-		$(LIB)(irc2pc.o)	\
-		$(LIB)(ivfilt.o)	\
-		$(LIB)(lpcdec.o)	\
-		$(LIB)(lpcenc.o)	\
-		$(LIB)(lpcini.o)	\
-		$(LIB)(lpfilt.o)	\
-		$(LIB)(median.o)	\
-		$(LIB)(mload.o)		\
-		$(LIB)(onset.o)		\
-		$(LIB)(pitsyn.o)	\
-		$(LIB)(placea.o)	\
-		$(LIB)(placev.o)	\
-		$(LIB)(preemp.o)	\
-		$(LIB)(prepro.o)	\
-		$(LIB)(random.o)	\
-		$(LIB)(rcchk.o)		\
-		$(LIB)(synths.o)	\
-		$(LIB)(tbdm.o)		\
-		$(LIB)(voicin.o)	\
-		$(LIB)(vparms.o)
+OBJ=	f2clib.o analys.o bsynz.o chanwr.o dcbias.o decode.o \
+		deemp.o difmag.o dyptrk.o encode.o energy.o ham84.o \
+		hp100.o invert.o irc2pc.o ivfilt.o lpcdec.o lpcenc.o \
+		lpcini.o lpfilt.o median.o mload.o onset.o pitsyn.o \
+		placea.o placev.o preemp.o prepro.o random.o rcchk.o \
+		synths.o tbdm.o voicin.o vparms.o
+
+$(LIB): $(OBJ)
+	$(AR) cr $@ $(OBJ)
+	ranlib $@
 
 clean:
 	-rm -f *.o $(LIB)

@@ -50,6 +50,7 @@ static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #define	__MPOOLINTERFACE_PRIVATE
 #include <mpool.h>
 
+#ifndef __APPLE__
 #define mpool_open __mpool_open
 #define mpool_filter __mpool_filter
 #define mpool_new __mpool_new
@@ -57,6 +58,7 @@ static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #define mpool_put __mpool_put
 #define mpool_sync __mpool_sync
 #define mpool_close __mpool_close
+#endif
 
 static BKT *mpool_bkt __P((MPOOL *));
 static BKT *mpool_look __P((MPOOL *, pgno_t));
@@ -309,6 +311,7 @@ mpool_sync(mp)
 	return (fsync(mp->fd) ? RET_ERROR : RET_SUCCESS);
 }
 
+#ifndef __APPLE__
 #undef mpool_open
 #undef mpool_filter
 #undef mpool_new
@@ -317,7 +320,6 @@ mpool_sync(mp)
 #undef mpool_close
 #undef mpool_sync
 
-#ifndef __APPLE__
 #define weak_alias(original, alias) \
 	asm (".weak " #alias "\n" #alias " = " #original);
 weak_alias (__mpool_open, mpool_open)
