@@ -329,7 +329,7 @@ struct zt_subchannel {
 	int needanswer;
 	int linear;
 	int inthreeway;
-	int curconfno;			/* What conference we're currently in */
+	ZT_CONFINFO curconf;
 };
 
 #define CONF_USER_REAL		(1 << 0)
@@ -658,7 +658,7 @@ static int unalloc_sub(struct zt_pvt *p, int x)
 	p->subs[x].chan = 0;
 	p->subs[x].owner = NULL;
 	p->subs[x].inthreeway = 0;
-	p->subs[x].curconfno = -1;
+	memset(&p->subs[x].curconf, 0, sizeof(p->subs[x].curconf));
 	return 0;
 }
 
@@ -818,46 +818,62 @@ static char *sig2str(int sig)
 	}
 }
 
-static int conf_add(int *confno, struct zt_subchannel *c, int index)
+static int conf_add(struct zt_pvt *p, struct zt_subchannel *c, int index, int slavechannel)
 {
 	/* If the conference already exists, and we're already in it
 	   don't bother doing anything */
 	ZT_CONFINFO zi;
-	if ((*confno > 0) && (c->curconfno == *confno))
-		return 0; 
-	if (c->curconfno > 0) {
-		ast_log(LOG_WARNING, "Subchannel %d is already in conference %d, moving to %d\n", c->zfd, c->curconfno, *confno);
-	}
-	if (c->zfd < 0)
-		return 0;
+	
 	memset(&zi, 0, sizeof(zi));
 	zi.chan = 0;
-	zi.confno = *confno;
-	if (!index) {
-		/* Real-side and pseudo-side both participate in conference */
-		zi.confmode = ZT_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER |
-							ZT_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER;
-	} else
-		zi.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+
+	if (slavechannel > 0) {
+		/* If we have only one slave, do a digital mon */
+		zi.confmode = ZT_CONF_DIGITALMON;
+		zi.confno = slavechannel;
+	} else {
+		if (!index) {
+			/* Real-side and pseudo-side both participate in conference */
+			zi.confmode = ZT_CONF_REALANDPSEUDO | ZT_CONF_TALKER | ZT_CONF_LISTENER |
+								ZT_CONF_PSEUDO_TALKER | ZT_CONF_PSEUDO_LISTENER;
+		} else
+			zi.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+		zi.confno = p->confno;
+	}
+	if ((zi.confno == c->curconf.confno) && (zi.confmode == c->curconf.confmode))
+		return 0;
+	if (c->zfd < 0)
+		return 0;
 	if (ioctl(c->zfd, ZT_SETCONF, &zi)) {
-		ast_log(LOG_WARNING, "Failed to add %d to conference %d\n", c->zfd, *confno);
+		ast_log(LOG_WARNING, "Failed to add %d to conference %d/%d\n", c->zfd, zi.confmode, zi.confno);
 		return -1;
 	}
-	c->curconfno = zi.confno;
-	*confno = zi.confno;
-	ast_log(LOG_DEBUG, "Added %d to conference %d\n", c->zfd, *confno);
+	if (slavechannel < 1) {
+		p->confno = zi.confno;
+	}
+	memcpy(&c->curconf, &zi, sizeof(c->curconf));
+	ast_log(LOG_DEBUG, "Added %d to conference %d/%d\n", c->zfd, c->curconf.confmode, c->curconf.confno);
 	return 0;
 }
 
-static int conf_del(int *confno, struct zt_subchannel *c, int index)
+static int isourconf(struct zt_pvt *p, struct zt_subchannel *c)
+{
+	/* If they're listening to our channel, they're ours */	
+	if ((p->channel == c->curconf.confno) && (c->curconf.confmode == ZT_CONF_DIGITALMON))
+		return 1;
+	/* If they're a talker on our (allocated) conference, they're ours */
+	if ((p->confno > 0) && (p->confno == c->curconf.confno) && (c->curconf.confmode & ZT_CONF_TALKER))
+		return 1;
+	return 0;
+}
+
+static int conf_del(struct zt_pvt *p, struct zt_subchannel *c, int index)
 {
 	ZT_CONFINFO zi;
-		/* Can't delete from this conference if it's not 0 */
-	if ((*confno < 1) ||
-		/* Can't delete if there's no zfd */
+	if (/* Can't delete if there's no zfd */
 		(c->zfd < 0) ||
 		/* Don't delete from the conference if it's not our conference */
-		(*confno != c->curconfno) 
+		!isourconf(p, c)
 		/* Don't delete if we don't think it's conferenced at all (implied) */
 		) return 0;
 	memset(&zi, 0, sizeof(zi));
@@ -865,43 +881,105 @@ static int conf_del(int *confno, struct zt_subchannel *c, int index)
 	zi.confno = 0;
 	zi.confmode = 0;
 	if (ioctl(c->zfd, ZT_SETCONF, &zi)) {
-		ast_log(LOG_WARNING, "Failed to drop %d from conference %d\n", c->zfd, *confno);
+		ast_log(LOG_WARNING, "Failed to drop %d from conference %d/%d\n", c->zfd, c->curconf.confmode, c->curconf.confno);
 		return -1;
 	}
-	c->curconfno = -1;
-	ast_log(LOG_DEBUG, "Removed %d from conference %d\n", c->zfd, *confno);
+	ast_log(LOG_DEBUG, "Removed %d from conference %d/%d\n", c->zfd, c->curconf.confmode, c->curconf.confno);
+	memcpy(&c->curconf, &zi, sizeof(c->curconf));
 	return 0;
+}
+
+static int isslavenative(struct zt_pvt *p, struct zt_pvt **out)
+{
+	int x;
+	int useslavenative;
+	struct zt_pvt *slave = NULL;
+	/* Start out optimistic */
+	useslavenative = 1;
+	/* Update conference state in a stateless fashion */
+	for (x=0;x<3;x++) {
+		/* Any three-way calling makes slave native mode *definitely* out
+		   of the question */
+		if ((p->subs[x].zfd > -1) && p->subs[x].inthreeway)
+			useslavenative = 0;
+	}
+	/* If we don't have any 3-way calls, check to see if we have
+	   precisely one slave */
+	if (useslavenative) {
+		for (x=0;x<MAX_SLAVES;x++) {
+			if (p->slaves[x]) {
+				if (slave) {
+					/* Whoops already have a slave!  No 
+					   slave native and stop right away */
+					slave = NULL;
+					useslavenative = 0;
+					break;
+				} else {
+					/* We have one slave so far */
+					slave = p->slaves[x];
+				}
+			}
+		}
+	}
+	/* If no slave, slave native definitely out */
+	if (!slave)
+		useslavenative = 0;
+	else if (slave->law != p->law) {
+		useslavenative = 0;
+		slave = NULL;
+	}
+	if (out)
+		*out = slave;
+	return useslavenative;
 }
 
 static int update_conf(struct zt_pvt *p)
 {
 	int needconf = 0;
 	int x;
-	/* Update conference state in a stateless fashion */
+	int useslavenative;
+	struct zt_pvt *slave = NULL;
+
+	useslavenative = isslavenative(p, &slave);
 	/* Start with the obvious, general stuff */
 	for (x=0;x<3;x++) {
+		/* Look for three way calls */
 		if ((p->subs[x].zfd > -1) && p->subs[x].inthreeway) {
-			conf_add(&p->confno, &p->subs[x], x);
+			conf_add(p, &p->subs[x], x, 0);
 			needconf++;
 		} else {
-			conf_del(&p->confno, &p->subs[x], x);
+			conf_del(p, &p->subs[x], x);
 		}
 	}
-	/* If we have a slave, add him to our conference now */
+	/* If we have a slave, add him to our conference now. or DAX
+	   if this is slave native */
 	for (x=0;x<MAX_SLAVES;x++) {
 		if (p->slaves[x]) {
-			conf_add(&p->confno, &p->slaves[x]->subs[SUB_REAL], SUB_REAL);
-			needconf++;
+			if (useslavenative)
+				conf_add(p, &p->slaves[x]->subs[SUB_REAL], SUB_REAL, p->channel);
+			else {
+				conf_add(p, &p->slaves[x]->subs[SUB_REAL], SUB_REAL, 0);
+				needconf++;
+			}
 		}
 	}
 	/* If we're supposed to be in there, do so now */
 	if (p->inconference && !p->subs[SUB_REAL].inthreeway) {
-		conf_add(&p->confno, &p->subs[SUB_REAL], SUB_REAL);
-		needconf++;
+		if (useslavenative)
+			conf_add(p, &p->subs[SUB_REAL], SUB_REAL, slave->channel);
+		else {
+			conf_add(p, &p->subs[SUB_REAL], SUB_REAL, 0);
+			needconf++;
+		}
 	}
 	/* If we have a master, add ourselves to his conference */
-	if (p->master) 
-		conf_add(&p->master->confno, &p->subs[SUB_REAL], SUB_REAL);
+	if (p->master) {
+		if (isslavenative(p->master, NULL)) {
+			conf_add(p->master, &p->subs[SUB_REAL], SUB_REAL, p->master->channel);
+		} else {
+			conf_add(p->master, &p->subs[SUB_REAL], SUB_REAL, 0);
+		}
+	}
 	if (!needconf) {
 		/* Nobody is left (or should be left) in our conference.  
 		   Kill it.  */
@@ -1989,7 +2067,8 @@ static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master)
 			if (!slave || (master->slaves[x] == slave)) {
 				/* Take slave out of the conference */
 				ast_log(LOG_DEBUG, "Unlinking slave %d from %d\n", master->slaves[x]->channel, master->channel);
-				conf_del(&master->confno, &master->slaves[x]->subs[SUB_REAL], SUB_REAL);
+				conf_del(master, &master->slaves[x]->subs[SUB_REAL], SUB_REAL);
+				conf_del(master->slaves[x], &master->subs[SUB_REAL], SUB_REAL);
 				master->slaves[x]->master = NULL;
 				master->slaves[x] = NULL;
 			} else
@@ -2001,7 +2080,8 @@ static void zt_unlink(struct zt_pvt *slave, struct zt_pvt *master)
 	if (!slave) {
 		if (master->master) {
 			/* Take master out of the conference */
-			conf_del(&master->master->confno, &master->subs[SUB_REAL], SUB_REAL);
+			conf_del(master->master, &master->subs[SUB_REAL], SUB_REAL);
+			conf_del(master, &master->master->subs[SUB_REAL], SUB_REAL);
 			hasslaves = 0;
 			for (x=0;x<MAX_SLAVES;x++) {
 				if (master->master->slaves[x] == master)
@@ -2472,7 +2552,7 @@ static int check_for_conference(struct zt_pvt *p)
 	/* If we have no master and don't have a confno, then 
 	   if we're in a conference, it's probably a MeetMe room or
 	   some such, so don't let us 3-way out! */
-	if (ci.confno) {
+	if ((p->subs[SUB_REAL].curconf.confno != ci.confno) || (p->subs[SUB_REAL].curconf.confmode != ci.confmode)) {
 		if (option_verbose > 2)	
 			ast_verbose(VERBOSE_PREFIX_3 "Avoiding 3-way call when in an external conference\n");
 		return 1;

@@ -1,3 +1,4 @@
+ -- True data mode bridging when possible
  -- H.323 build improvements
  -- Agent Callback-login support
  -- RFC2833 Improvements
