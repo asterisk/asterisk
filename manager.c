@@ -465,10 +465,13 @@ static int action_redirect(struct mansession *s, struct message *m)
 static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
+	char *id = astman_get_header(m, "ActionID");
 	ast_mutex_lock(&s->lock);
 	s->blocking = 1;
 	ast_mutex_unlock(&s->lock);
 	ast_cli(s->fd, "Response: Follows\r\n");
+	if (id && strlen(id))
+		ast_cli(s->fd, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
 	ast_cli_command(s->fd, cmd);
 	ast_cli(s->fd, "--END COMMAND--\r\n\r\n");
