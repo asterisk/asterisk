@@ -1007,7 +1007,6 @@ int ast_cli_command(int fd, char *s)
 				case RESULT_SHOWUSAGE:
 					ast_cli(fd, e->usage);
 					break;
-				default:
 				}
 			} else 
 				ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));

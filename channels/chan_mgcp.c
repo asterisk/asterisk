@@ -399,7 +399,7 @@ static int mgcp_postrequest(struct mgcp_subchannel *sub, unsigned char *data, in
     }
     time(&t);
     if (sub->messagepending && (sub->lastouttime + 20 < t)) {
-        ast_log(LOG_NOTICE, "Timeout waiting for response to message:%d,  lastouttime: %d, now: %d.  Dumping pending queue\n",
+        ast_log(LOG_NOTICE, "Timeout waiting for response to message:%d,  lastouttime: %ld, now: %ld.  Dumping pending queue\n",
                 sub->msgs ? sub->msgs->seqno : -1, sub->lastouttime, t);
         dump_queue(sub->parent);
     }

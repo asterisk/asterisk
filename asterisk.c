@@ -448,29 +448,34 @@ static void __quit_handler(int num)
 
 static pthread_t consolethread = -1;
 
-static int fix_header(char *outbuf, int maxout, char **s, char *cmp)
+static const char *fix_header(char *outbuf, int maxout, const char *s, char *cmp)
 {
-	if (!strncmp(*s, cmp, strlen(cmp))) {
-		*s += strlen(cmp);
+	const char *c;
+	if (!strncmp(s, cmp, strlen(cmp))) {
+		c = s + strlen(cmp);
 		term_color(outbuf, cmp, COLOR_GRAY, 0, maxout);
-		return 1;
+		return c;
 	}
-	return 0;
+	return NULL;
 }
 
 static void console_verboser(const char *s, int pos, int replace, int complete)
 {
 	char tmp[80];
+	const char *c=NULL;
 	/* Return to the beginning of the line */
 	if (!pos) {
 		fprintf(stdout, "\r");
-		if (fix_header(tmp, sizeof(tmp), &s, VERBOSE_PREFIX_4) ||
-			fix_header(tmp, sizeof(tmp), &s, VERBOSE_PREFIX_3) ||
-			fix_header(tmp, sizeof(tmp), &s, VERBOSE_PREFIX_2) ||
-			fix_header(tmp, sizeof(tmp), &s, VERBOSE_PREFIX_1))
+		if ((c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_4)) ||
+			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_3)) ||
+			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_2)) ||
+			(c = fix_header(tmp, sizeof(tmp), s, VERBOSE_PREFIX_1)))
 			fputs(tmp, stdout);
 	}
-	fputs(s + pos,stdout);
+	if (c)
+		fputs(c + pos,stdout);
+	else
+		fputs(s + pos,stdout);
 	fflush(stdout);
 	if (complete)
 	/* Wake up a select()ing console */

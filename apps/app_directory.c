@@ -112,7 +112,6 @@ static char *convert(char *lastname)
 			case 'Z':
 				tmp[lcount++] = '9';
 				break;
-			default:
 			}
 			lastname++;
 		}

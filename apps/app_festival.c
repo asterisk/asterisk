@@ -46,8 +46,9 @@ static char *app = "Festival";
 static char *synopsis = "Say text to the user";
 
 static char *descrip = 
-"  Festival():  Connect to Festival, send the argument, get back the waveform,"
-"play it to the user.\n";
+"  Festival(text[|intkeys]):  Connect to Festival, send the argument, get back the waveform,"
+"play it to the user, allowing any given interrupt keys to immediately terminate and return\n"
+"the value.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -302,9 +303,7 @@ static int festival_exec(struct ast_channel *chan, void *data)
 	if (!(temp = ast_variable_retrieve(cfg, "general", "usecache"))) {
 		usecache=0;
 	} else {
-		if (strcasecmp(temp,"yes")==0) {
-			usecache=1;
-		}
+		usecache = ast_true(temp);
 	}
 	if (!(cachedir = ast_variable_retrieve(cfg, "general", "cachedir"))) {
 		cachedir = "/tmp/";

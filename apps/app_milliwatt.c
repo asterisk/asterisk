@@ -55,7 +55,7 @@ static void milliwatt_release(struct ast_channel *chan, void *data)
 	return;
 }
 
-static int milliwatt_generate(struct ast_channel *chan, void *data, int len)
+static int milliwatt_generate(struct ast_channel *chan, void *data, int len, int samples)
 {
 	struct ast_frame wf;
 	unsigned char waste[AST_FRIENDLY_OFFSET];
