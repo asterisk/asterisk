@@ -2423,7 +2423,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	/* Start by sending our preferred codecs */
 	cur = prefs;
 	while(cur) {
-		if (p->capability & cur->codec) {
+		if (p->jointcapability & cur->codec) {
 			if (sipdebug)
 				ast_verbose("Answering with preferred capability %d\n", cur->codec);
 			codec = ast_rtp_lookup_code(p->rtp, 1, cur->codec);
@@ -2445,7 +2445,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	}
 	/* Now send any other common codecs, and non-codec formats: */
 	for (x = 1; x <= AST_FORMAT_MAX_AUDIO; x <<= 1) {
-		if ((p->capability & x) && !(alreadysent & x)) {
+		if ((p->jointcapability & x) && !(alreadysent & x)) {
 			if (sipdebug)
 				ast_verbose("Answering with capability %d\n", x);	
 			codec = ast_rtp_lookup_code(p->rtp, 1, x);

@@ -24,7 +24,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.
      app_authenticate.so app_softhangup.so app_lookupblacklist.so \
      app_waitforring.so app_privacy.so app_db.so app_chanisavail.so \
      app_enumlookup.so app_voicemail2.so app_transfer.so app_setcidnum.so app_cdr.so \
-     app_hasnewvoicemail.so
+     app_hasnewvoicemail.so app_sayunixtime.so
 
 #APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so
