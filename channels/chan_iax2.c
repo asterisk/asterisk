@@ -2938,7 +2938,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C");
 	for(user=userl.users;user;user=user->next) {
 		if (!ast_strlen_zero(user->secret)) {
-  			strncpy(auth,user->secret,strlen(auth)-1);
+  			strncpy(auth,user->secret,sizeof(auth)-1);
 		} else if (!ast_strlen_zero(user->inkeys)) {
   			sprintf(auth,"Key: %-15.15s ",user->inkeys);
  		} else
