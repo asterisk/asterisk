@@ -3199,6 +3199,9 @@ static void *do_monitor(void *data)
 			if (option_verbose > 0)
 				ast_verbose(VERBOSE_PREFIX_1 "Reloading MGCP\n");
 			mgcp_do_reload();
+			/* Add an I/O event to our UDP socket */
+			if (mgcpsock > -1) 
+				mgcpsock_read_id = ast_io_add(io, mgcpsock, mgcpsock_read, AST_IO_IN, NULL);
 		}
 
         /* Check for interfaces needing to be killed */
