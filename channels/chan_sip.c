@@ -515,8 +515,27 @@ static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest
 static int update_user_counter(struct sip_pvt *fup, int event);
 static void prune_peers(void);
 static int sip_do_reload(void);
-static int sip_debug_test_addr(struct sockaddr_in *addr);
-static int sip_debug_test_pvt(struct sip_pvt *p);
+
+
+/*--- sip_debug_test_addr: See if we pass debug IP filter */
+static inline int sip_debug_test_addr(struct sockaddr_in *addr) {
+	if (sipdebug == 0)
+		return 0;
+	if (debugaddr.sin_addr.s_addr) {
+		if (((ntohs(debugaddr.sin_port) != 0)
+			&& (debugaddr.sin_port != addr->sin_port))
+			|| (debugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
+			return 0;
+	}
+	return 1;
+}
+
+static inline int sip_debug_test_pvt(struct sip_pvt *p) {
+	if (sipdebug == 0)
+		return 0;
+	return sip_debug_test_addr((p->nat ? &p->recv : &p->sa));
+}
+
 
 /*--- __sip_xmit: Transmit SIP message ---*/
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
@@ -839,13 +858,15 @@ static char *ditch_braces(char *tmp)
 static int sip_sendtext(struct ast_channel *ast, char *text)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
-	if (sip_debug_test_pvt(p))
+	int debug=sip_debug_test_pvt(p);
+
+	if (debug)
 		ast_verbose("Sending text %s on %s\n", text, ast->name);
 	if (!p)
 		return -1;
 	if (!text || ast_strlen_zero(text))
 		return 0;
-	if (sip_debug_test_pvt(p))
+	if (debug)
 		ast_verbose("Really sending text %s on %s\n", text, ast->name);
 	transmit_message_with_text(p, text);
 	return 0;	
@@ -1018,22 +1039,6 @@ static struct sip_user *find_user(char *name)
 	}
 
 	return(u);
-}
-
-/*--- sip_debug_test_addr: See if we pass debug IP filter */
-static int sip_debug_test_addr(struct sockaddr_in *addr) {
-	if (sipdebug == 0) return 0;
-	if (debugaddr.sin_addr.s_addr) {
-		if (((ntohs(debugaddr.sin_port) != 0) &&
-		     (debugaddr.sin_port != addr->sin_port)) ||
-		    (debugaddr.sin_addr.s_addr != addr->sin_addr.s_addr))
-			return 0;
-	}
-	return 1;
-}
-
-static int sip_debug_test_pvt(struct sip_pvt *p) {
-	return (sipdebug && sip_debug_test_addr((p->nat ? &p->recv : &p->sa)));
 }
 
 /*--- create_addr: create address structure from peer definition ---*/
@@ -1299,6 +1304,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
 	struct sip_history *hist;
+
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Destroying call '%s'\n", p->callid);
 	if (p->stateid > -1)
@@ -2377,6 +2383,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int iterator;
 	int sendonly = 0;
 	int x;
+	int debug=sip_debug_test_pvt(p);
 
 	/* Update our last rtprx when we receive an SDP, too */
 	time(&p->lastrtprx);
@@ -2414,7 +2421,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
-				if (sip_debug_test_pvt(p))
+				if (debug)
 					ast_verbose("Found RTP audio format %d\n", codec);
 				ast_rtp_set_m_type(p->rtp, codec);
 				codecs += len;
@@ -2434,7 +2441,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 					return -1;
 				}
-				if (sip_debug_test_pvt(p))
+				if (debug)
 					ast_verbose("Found video format %s\n", ast_getformatname(codec));
 				ast_rtp_set_m_type(p->vrtp, codec);
 				codecs += len;
@@ -2473,7 +2480,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	  	sendonly=0;
 	  }
 	  if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
-	  if (sip_debug_test_pvt(p))
+	  if (debug)
 		ast_verbose("Found description format %s\n", mimeSubtype);
 	  /* Note: should really look at the 'freq' and '#chans' params too */
 	  ast_rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
@@ -2490,7 +2497,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	p->jointcapability = p->capability & (peercapability | vpeercapability);
 	p->noncodeccapability = noncodeccapability & (peernoncodeccapability | vpeernoncodeccapability);
 	
-	if (sip_debug_test_pvt(p)) {
+	if (debug) {
 		const unsigned slen=80;
 		char s1[slen], s2[slen], s3[slen], s4[slen];
 
@@ -2707,11 +2714,12 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	int port, hn;
 	struct hostent *hp;
 	struct ast_hostent ahp;
+	int debug=sip_debug_test_pvt(p);
 
 	/* Parse uri to h (host) and port - uri is already just the part inside the <> */
 	/* general form we are expecting is sip[s]:username[:password]@host[:port][;...] */
 
-	if (sip_debug_test_pvt(p))
+	if (debug)
 		ast_verbose("set_destination: Parsing <%s> for address/port to send to\n", uri);
 
 	/* Find and parse hostname */
@@ -2756,7 +2764,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	p->sa.sin_family = AF_INET;
 	memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 	p->sa.sin_port = htons(port);
-	if (sip_debug_test_pvt(p))
+	if (debug)
 		ast_verbose("set_destination: set destination to %s, port %d\n", inet_ntoa(p->sa.sin_addr), port);
 }
 
@@ -3052,6 +3060,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	int capability;
 	struct sockaddr_in dest;
 	struct sockaddr_in vdest = { 0, };
+	int debug=sip_debug_test_pvt(p);
+
 	/* XXX We break with the "recommendation" and send our IP, in order that our
 	       peer doesn't have to ast_gethostbyname() us XXX */
 	len = 0;
@@ -3090,10 +3100,11 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 			vdest.sin_port = vsin.sin_port;
 		}
 	}
-	if (sip_debug_test_pvt(p))
+	if (debug){
 		ast_verbose("We're at %s port %d\n", inet_ntoa(p->ourip), ntohs(sin.sin_port));	
-	if (sip_debug_test_pvt(p) && p->vrtp)
-		ast_verbose("Video is at %s port %d\n", inet_ntoa(p->ourip), ntohs(vsin.sin_port));	
+		if (p->vrtp)
+			ast_verbose("Video is at %s port %d\n", inet_ntoa(p->ourip), ntohs(vsin.sin_port));	
+	}
 	snprintf(v, sizeof(v), "v=0\r\n");
 	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, inet_ntoa(dest.sin_addr));
 	snprintf(s, sizeof(s), "s=session\r\n");
@@ -3102,7 +3113,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	snprintf(m2, sizeof(m2), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
 	if (capability & p->prefcodec) {
-		if (sip_debug_test_pvt(p))
+		if (debug)
 			ast_verbose("Answering/Requesting with root capability %d\n", p->prefcodec);
 		codec = ast_rtp_lookup_code(p->rtp, 1, p->prefcodec);
 		if (codec > -1) {
@@ -3123,7 +3134,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	cur = prefs;
 	while(cur) {
 		if ((capability & cur->codec) && !(alreadysent & cur->codec)) {
-			if (sip_debug_test_pvt(p))
+			if (debug)
 				ast_verbose("Answering with preferred capability 0x%x(%s)\n", cur->codec, ast_getformatname(cur->codec));
 			codec = ast_rtp_lookup_code(p->rtp, 1, cur->codec);
 			if (codec > -1) {
@@ -3145,7 +3156,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* Now send any other common codecs, and non-codec formats: */
 	for (x = 1; x <= (videosupport ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if ((capability & x) && !(alreadysent & x)) {
-			if (sip_debug_test_pvt(p))
+			if (debug)
 				ast_verbose("Answering with capability 0x%x(%s)\n", x, ast_getformatname(x));
 			codec = ast_rtp_lookup_code(p->rtp, 1, x);
 			if (codec > -1) {
@@ -3164,7 +3175,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
 		if (p->noncodeccapability & x) {
-			if (sip_debug_test_pvt(p))
+			if (debug)
 				ast_verbose("Answering with non-codec capability 0x%x(%s)\n", x, ast_getformatname(x));
 			codec = ast_rtp_lookup_code(p->rtp, 0, x);
 			if (codec > -1) {
@@ -4758,6 +4769,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	int res = 0;
 	char *t;
 	char calleridname[50];
+	int debug=sip_debug_test_addr(sin);
+
 	/* Terminate URI */
 	t = uri;
 	while(*t && (*t > 32) && (*t != ';'))
@@ -4833,10 +4846,10 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 					p->noncodeccapability &= ~AST_RTP_DTMF;
 			}
 		}
-		if (user && sip_debug_test_addr(sin))
+		if (user && debug)
 			ast_verbose("Found user '%s'\n", user->name);
 	} else {
-		if (user && sip_debug_test_addr(sin))
+		if (user && debug)
 			ast_verbose("Found user '%s', but fails host access\n", user->name);
 		user = NULL;
 	}
@@ -4850,7 +4863,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
  		*/
 		peer = find_peer(NULL, &p->recv);
 		if (peer) {
-			if (sip_debug_test_addr(sin))
+			if (debug)
 				ast_verbose("Found peer '%s'\n", peer->name);
 			/* Take the peer */
 			p->nat = peer->nat;
@@ -4900,7 +4913,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				free(peer);
 			}
 		} else
-			if (sip_debug_test_addr(sin))
+			if (debug)
 				ast_verbose("Found no matching peer or user for '%s:%d'\n", inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 		ast_mutex_unlock(&peerl.lock);
 
@@ -6295,6 +6308,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	int res;
 	int gotdest;
 	struct ast_frame af = { AST_FRAME_NULL, };
+	int debug = sip_debug_test_pvt(p);
+
 	/* Clear out potential response */
 	memset(&resp, 0, sizeof(resp));
 	/* Get Method and Cseq */
@@ -6393,7 +6408,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Process the SDP portion */
 		if (!ignore) {
 			/* Use this as the basis */
-			if (sip_debug_test_pvt(p))
+			if (debug)
 				ast_verbose("Using latest request as basis request\n");
 			sip_cancel_destroy(p);
 			/* This call is no longer outgoing if it ever was */
@@ -6412,7 +6427,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
 			if (p->owner)
 				ast_queue_frame(p->owner, &af);
-		} else if (sip_debug_test_pvt(p))
+		} else if (debug)
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first invite */
@@ -6649,7 +6664,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "MESSAGE")) {
 		if (!ignore) {
-			if (sip_debug_test_pvt(p))
+			if (debug)
 				ast_verbose("Receiving message!\n");
 			receive_message(p, req);
 		}
@@ -6657,13 +6672,13 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	} else if (!strcasecmp(cmd, "SUBSCRIBE")) {
 		if (!ignore) {
 			/* Use this as the basis */
-			if (sip_debug_test_pvt(p))
+			if (debug)
 				ast_verbose("Using latest SUBSCRIBE request as basis request\n");
 			/* This call is no longer outgoing if it ever was */
 			p->outgoing = 0;
 			copy_request(&p->initreq, req);
 			check_via(p, req);
-		} else if (sip_debug_test_pvt(p))
+		} else if (debug)
 			ast_verbose("Ignoring this request\n");
 
 		if (!p->lastinvite) {
@@ -6721,7 +6736,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 	} else if (!strcasecmp(cmd, "INFO")) {
 		if (!ignore) {
-			if (sip_debug_test_pvt(p))
+			if (debug)
 				ast_verbose("Receiving DTMF!\n");
 			receive_info(p, req);
 		} else { /* if ignoring, transmit response */
@@ -6734,7 +6749,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (!p->lastinvite) p->needdestroy = 1;
 	} else if (!strcasecmp(cmd, "REGISTER")) {
 		/* Use this as the basis */
-		if (sip_debug_test_pvt(p))
+		if (debug)
 			ast_verbose("Using latest request as basis request\n");
 		copy_request(&p->initreq, req);
 		check_via(p, req);
@@ -6787,6 +6802,8 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	int res;
 	int len;
 	int recount = 0;
+	int debug=sip_debug_test_addr(&sin);
+
 	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
 	res = recvfrom(sipsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
@@ -6797,12 +6814,12 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 	req.data[res] = '\0';
 	req.len = res;
-	if (sip_debug_test_addr(&sin))
+	if (debug)
 		ast_verbose("\n\nSip read: \n%s\n", req.data);
 	if (pedanticsipchecking)
 		req.len = lws2sws(req.data, req.len);
 	parse(&req);
-	if (sip_debug_test_addr(&sin))
+	if (debug)
 		ast_verbose("%d headers, %d lines\n", req.headers, req.lines);
 	if (req.headers < 2) {
 		/* Must have at least two headers */
