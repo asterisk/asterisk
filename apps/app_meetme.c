@@ -65,7 +65,7 @@ static char *descrip =
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
 "	      Default: conf-background.agi\n"
 "             (Note: This does not work with non-Zap channels in the same conference)\n"
-"      'u' -- send user to admin/user menu if '*' is received\n"
+"      's' -- Present menu (user or admin) when '*' is received ('send' to menu)\n"
 "      'a' -- set admin mode\n";
 
 static char *descrip2 =
@@ -1094,7 +1094,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			confflags |= CONFFLAG_MONITOR;
 		if (strchr(inflags, 'p'))
 			confflags |= CONFFLAG_POUNDEXIT;
-		if (strchr(inflags, 'u'))
+		if (strchr(inflags, 's'))
 			confflags |= CONFFLAG_STARMENU;
 		if (strchr(inflags, 't'))
 			confflags |= CONFFLAG_TALKER;
