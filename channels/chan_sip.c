@@ -2042,7 +2042,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 				l = callerid;
 	}
 	if (!n)
-		n = callerid;
+		n = l;
 	snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%08x", n, l, inet_ntoa(p->ourip), p->tag);
 	if (strlen(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
