@@ -5,6 +5,7 @@
 ; cards = number of cards
 ; indication = 1 ( To use Asterisk indication tones)
 ; ecsuppthres = 0|2048|4096 (none,-24db,-18db only for use with OpenLine4)
+; dtmfidd = 3000 (Inter Digit Delay timeout for when collecting DTMF tones for dialling, in ms)
 ;
 ; For [interface] section
 ; board = board_number (1, 2, 3, ...)
