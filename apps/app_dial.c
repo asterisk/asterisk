@@ -343,7 +343,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_PROGRESS:
 							if (option_verbose > 2)
 								ast_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", o->chan->name,in->name);
-							ast_indicate(in, AST_CONTROL_PROGRESS);
+							if (!outgoing->ringbackonly)
+								ast_indicate(in, AST_CONTROL_PROGRESS);
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
