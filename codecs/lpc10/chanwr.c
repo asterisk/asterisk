@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.3  2000/01/05 08:20:39  markster
-Version 0.1.4 from FTP
+Revision 1.4  2000/01/05 08:20:39  markster
+Version 0.1.5 from FTP
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -35,8 +35,8 @@ extern int chanrd_(integer *order, integer *ipitv, integer *irms, integer *irc, 
 /* 	CHANL Version 49 */
 
 /* $Log$
- * Revision 1.3  2000/01/05 08:20:39  markster
- * Version 0.1.4 from FTP
+ * Revision 1.4  2000/01/05 08:20:39  markster
+ * Version 0.1.5 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
