@@ -36,8 +36,6 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
-#include <pthread.h>
-
 static char *tdesc = "Dialing Application";
 
 static char *app = "Dial";

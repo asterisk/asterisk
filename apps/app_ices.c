@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <sys/time.h>
 #include <errno.h>
 #include "../astconf.h"

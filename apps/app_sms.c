@@ -27,8 +27,6 @@
 #include <dirent.h>
 #include <ctype.h>
 
-#include <pthread.h>
-
 /* ToDo */
 /* When acting as SC and answering, should check for messages and send instead of sending EST as first packet */
 /* Add full VP support */

@@ -22,7 +22,6 @@
 #include <asterisk/dsp.h>
 #include <string.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 static char *tdesc = "Playback with Talk Detection";
 

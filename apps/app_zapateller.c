@@ -20,7 +20,6 @@
 #include <asterisk/translate.h>
 #include <string.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 static char *tdesc = "Block Telemarketers with Special Information Tone";
 

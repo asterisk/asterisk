@@ -34,8 +34,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-#include <pthread.h>
-
 /* Need some zaptel help here */
 #ifdef __linux__
 #include <linux/zaptel.h>

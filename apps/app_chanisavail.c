@@ -27,8 +27,6 @@
 #include <stdlib.h>
 #include <sys/ioctl.h>
 
-#include <pthread.h>
-
 static char *tdesc = "Check if channel is available";
 
 static char *app = "ChanIsAvail";

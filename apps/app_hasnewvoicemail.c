@@ -37,13 +37,12 @@
 #include <asterisk/channel.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
+#include <asterisk/lock.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <dirent.h>
-
-#include <pthread.h>
 
 #include "../astconf.h"
 

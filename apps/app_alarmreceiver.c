@@ -39,7 +39,6 @@
 #include <math.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <pthread.h>
 #include <sys/time.h>
 
 #define ALMRCV_CONFIG "alarmreceiver.conf"

@@ -26,7 +26,6 @@
 #include <sys/types.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <pthread.h>
 #include "libpq-fe.h"
 
 #define EXTRA_LOG 0

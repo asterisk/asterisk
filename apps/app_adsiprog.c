@@ -20,6 +20,7 @@
 #include <asterisk/adsi.h>
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -28,8 +29,6 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <errno.h>
-
-#include <pthread.h>
 
 #include "../asterisk.h"
 #include "../astconf.h"

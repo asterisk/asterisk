@@ -31,7 +31,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
-#include <pthread.h>
 
 #ifdef __linux__
 #include <linux/zaptel.h>

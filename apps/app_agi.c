@@ -37,10 +37,9 @@
 #include <asterisk/dsp.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #include "../asterisk.h"
 #include "../astconf.h"
-
-#include <pthread.h>
 
 #define MAX_ARGS 128
 

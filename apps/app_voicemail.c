@@ -58,7 +58,6 @@ static inline int sql_init(void) { return 0; }
 static inline void sql_close(void) { }
 #endif
 
-#include <pthread.h>
 #include "../asterisk.h"
 #include "../astconf.h"
 

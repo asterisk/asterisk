@@ -20,6 +20,7 @@
 #include <asterisk/md5.h>
 #include <asterisk/config.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -35,7 +36,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <ctype.h>
-#include <pthread.h>
 
 
 #define FESTIVAL_CONFIG "festival.conf"

@@ -24,7 +24,6 @@
 #include <asterisk/astdb.h>
 #include <string.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 static char *tdesc = "Look up Caller*ID name/number from blacklist database";
 

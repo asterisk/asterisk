@@ -23,7 +23,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <pthread.h>
 #include <stdio.h>
 #include "../asterisk.h"
 #include "../astconf.h"

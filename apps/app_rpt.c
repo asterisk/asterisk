@@ -50,7 +50,6 @@ enum {REM_OFF,REM_MONITOR,REM_TX};
 enum{ID,PROC,TERM,COMPLETE,UNKEY,REMDISC,REMALREADY,REMNOTFOUND,REMGO,
 	CONNECTED,CONNFAIL,STATUS};
 
-#include <pthread.h>
 #include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>

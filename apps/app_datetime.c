@@ -23,9 +23,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <pthread.h>
-
-
 static char *tdesc = "Date and Time";
 
 static char *app = "DateTime";

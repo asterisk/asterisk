@@ -19,7 +19,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 static char *tdesc = "Custom User Event Application";
 

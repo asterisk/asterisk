@@ -27,9 +27,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include <pthread.h>
-
-
 static char *tdesc = "ENUM Lookup";
 
 static char *app = "EnumLookup";

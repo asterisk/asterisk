@@ -55,8 +55,6 @@
 
 #include "../astconf.h"
 
-#include <pthread.h>
-
 #define QUEUE_STRATEGY_RINGALL		0
 #define QUEUE_STRATEGY_ROUNDROBIN	1
 #define QUEUE_STRATEGY_LEASTRECENT	2

@@ -26,9 +26,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-#include <pthread.h>
-
-
 static char *tdesc = "TXTCIDName";
 
 static char *app = "TXTCIDName";

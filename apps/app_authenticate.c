@@ -26,8 +26,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
-
 
 static char *tdesc = "Authentication Application";
 

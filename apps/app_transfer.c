@@ -22,9 +22,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <pthread.h>
-
-
 static char *tdesc = "Transfer";
 
 static char *app = "Transfer";

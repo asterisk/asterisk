@@ -19,12 +19,11 @@
 #include <asterisk/module.h>
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
+#include <asterisk/lock.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-
-#include <pthread.h>
 
 #define MAX_ARGS 80
 

@@ -24,9 +24,6 @@
 #include <stdlib.h>
 #include <errno.h>
 
-#include <pthread.h>
-
-
 static char *tdesc = "Generic System() application";
 
 static char *app = "System";

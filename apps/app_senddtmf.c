@@ -23,7 +23,6 @@
 #include <asterisk/app.h>
 #include <string.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 static char *tdesc = "Send DTMF digits Application";
 

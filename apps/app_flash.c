@@ -29,7 +29,6 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 static char *tdesc = "Flash zap trunk application";
 

@@ -24,9 +24,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <pthread.h>
-
-
 static char *tdesc = "Get ADSI CPE ID";
 
 static char *app = "GetCPEID";

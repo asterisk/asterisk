@@ -25,13 +25,12 @@
 #include <asterisk/options.h>
 #include <asterisk/logger.h>
 #include <asterisk/say.h>
+#include <asterisk/lock.h>
 
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-
-#include <pthread.h>
 
 static char *tdesc = "Call Parking and Announce Application";
 
