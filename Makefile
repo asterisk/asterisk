@@ -15,8 +15,20 @@
 
 INSTALL_PREFIX=
 
-MODULES_DIR=$(INSTALL_PREFIX)/usr/lib/asterisk/modules
-AGI_DIR=$(INSTALL_PREFIX)/var/lib/asterisk/agi-bin
+ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
+ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
+ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
+ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
+ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
+ASTHEADERDIR=$(INSTALL_PREFIX)/usr/include/asterisk
+ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
+ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
+ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
+ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
+
+
+MODULES_DIR=$(ASTLIBDIR)/modules
+AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 
 # Pentium Pro Optimize
 #PROC=i686
@@ -29,25 +41,39 @@ PROC=$(shell uname -m)
 DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
 CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
-CFLAGS+=-O6
+#CFLAGS+=-O6
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
 
+LIBEDIT=editline/libedit.a
+
 ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; fi)
 HTTPDIR=$(shell if [ -d /var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
-RPMVERSION=$(shell sed 's/[-\/:]/_/g' .version)
+RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
 CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
+CFLAGS+=-DINSTALL_PREFIX=\"$(INSTALL_PREFIX)\"
+CFLAGS+=-DASTETCDIR=\"$(ASTETCDIR)\"
+CFLAGS+=-DASTLIBDIR=\"$(ASTLIBDIR)\"
+CFLAGS+=-DASTVARLIBDIR=\"$(ASTVARLIBDIR)\"
+CFLAGS+=-DASTVARRUNDIR=\"$(ASTVARRUNDIR)\"
+CFLAGS+=-DASTSPOOLDIR=\"$(ASTSPOOLDIR)\"
+CFLAGS+=-DASTLOGDIR=\"$(ASTLOGDIR)\"
+CFLAGS+=-DASTCONFPATH=\"$(ASTCONFPATH)\"
+CFLAGS+=-DASTMODDIR=\"$(MODULES_DIR)\"
+CFLAGS+=-DASTAGIDIR=\"$(AGI_DIR)\"
+
 # Optional debugging parameters
 CFLAGS+= -DDO_CRASH -DDEBUG_THREADS
 # Uncomment next one to enable ast_frame tracing (for debugging)
-#CLFAGS+= -DTRACE_FRAMES
+#CFLAGS+= -DTRACE_FRAMES
 CFLAGS+=# -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr astman
-LIBS=-ldl -lpthread -lreadline -lncurses -lm #-lnjamd
+LIBS=-ldl -lpthread -lncurses -lm  #-lnjamd
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
-	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ast_expr.o chanvars.o
+	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ast_expr.o \
+	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o
 CC=gcc
 INSTALL=install
 
@@ -62,6 +88,25 @@ _all: all
 
 all: asterisk subdirs
 
+editline/config.h:
+	@if [ -d editline ]; then \
+		cd editline && unset CFLAGS LIBS && ./configure ; \
+	else \
+		echo "You need to do a cvs update -d not just cvs update"; \
+		exit 1; \
+	fi
+
+editline/libedit.a: editline/config.h
+	make -C editline libedit.a
+
+db1-ast/libdb1.a: 
+	@if [ -d db1-ast ]; then \
+		make -C db1-ast libdb1.a ; \
+	else \
+		echo "You need to do a cvs update -d not just cvs update"; \
+		exit 1; \
+	fi
+
 _version: 
 	if [ -d CVS ] && ! [ -f .version ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 
 
@@ -75,8 +120,8 @@ ast_expr.o: ast_expr.c
 build.h:
 	./make_build_h
 
-asterisk: .version build.h $(OBJS)
-	gcc -o asterisk -rdynamic $(OBJS) $(LIBS)
+asterisk: .version build.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
+	gcc -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a
 
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done
@@ -86,41 +131,65 @@ clean:
 	rm -f *.o *.so asterisk
 	rm -f build.h 
 	rm -f ast_expr.c
+	@if [ -e editline/Makefile ]; then make -C editline clean ; fi
+	make -C db1-ast clean
 
 datafiles: all
-	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/sounds/digits
-	for x in sounds/digits/*; do \
-		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds/digits ; \
+	mkdir -p $(ASTVARLIBDIR)/sounds/digits
+	for x in sounds/digits/*.gsm; do \
+		if grep -q "^%`basename $$x`%" sounds.txt; then \
+			install $$x $(ASTVARLIBDIR)/sounds/digits ; \
+		else \
+			echo "No description for $$x"; \
+			exit 1; \
+		fi; \
 	done
-	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-*; do \
-		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds ; \
+	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-*; do \
+		if grep -q "^%`basename $$x`%" sounds.txt; then \
+			install $$x $(ASTVARLIBDIR)/sounds ; \
+		else \
+			echo "No description for $$x"; \
+			exit 1; \
+		fi; \
 	done
-	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/mohmp3
-	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/images
+	mkdir -p $(ASTVARLIBDIR)/mohmp3
+	mkdir -p $(ASTVARLIBDIR)/images
 	for x in images/*.jpg; do \
-		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/images ; \
+		install $$x $(ASTVARLIBDIR)/images ; \
 	done
 	mkdir -p $(AGI_DIR)
 
-install: all datafiles
+update: 
+	@if [ -d CVS ]; then \
+		echo "Updating from CVS..." ; \
+		cvs update -d; \
+		rm -f .version; \
+	else \
+		echo "Not CVS";  \
+	fi
+
+bininstall: all
 	mkdir -p $(MODULES_DIR)
-	mkdir -p $(INSTALL_PREFIX)/usr/sbin
-	mkdir -p $(INSTALL_PREFIX)/etc/asterisk
-	install -m 755 asterisk $(INSTALL_PREFIX)/usr/sbin/
-	install -m 755 astgenkey $(INSTALL_PREFIX)/usr/sbin/
-	install -m 755 safe_asterisk $(INSTALL_PREFIX)/usr/sbin/
+	mkdir -p $(ASTSBINDIR)
+	mkdir -p $(ASTETCDIR)
+	mkdir -p $(ASTBINDIR)
+	mkdir -p $(ASTSBINDIR)
+	mkdir -p $(ASTVARRUNDIR)
+	install -m 755 asterisk $(ASTSBINDIR)/
+	install -m 755 astgenkey $(ASTSBINDIR)/
+	install -m 755 safe_asterisk $(ASTSBINDIR)/
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
-	install -d $(INSTALL_PREFIX)/usr/include/asterisk
-	install include/asterisk/*.h $(INSTALL_PREFIX)/usr/include/asterisk
-	rm -f $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm
-	mkdir -p $(INSTALL_PREFIX)/var/spool/asterisk/vm
-	rm -f $(INSTALL_PREFIX)/usr/lib/asterisk/modules/chan_ixj.so
-	rm -f $(INSTALL_PREFIX)/usr/lib/asterisk/modules/chan_tor.so
-	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/sounds
-	mkdir -p $(INSTALL_PREFIX)/var/log/asterisk/cdr-csv
-	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/keys
-	install -m 644 keys/iaxtel.pub $(INSTALL_PREFIX)/var/lib/asterisk/keys
-	( cd $(INSTALL_PREFIX)/var/lib/asterisk/sounds  ; ln -s ../../../spool/asterisk/vm . )
+	install -d $(ASTHEADERDIR)
+	install include/asterisk/*.h $(ASTHEADERDIR)
+	rm -f $(ASTVARLIBDIR)/sounds/vm
+	mkdir -p $(ASTSPOOLDIR)/vm
+	rm -f $(ASTMODULESDIR)/chan_ixj.so
+	rm -f $(ASTMODULESDIR)/chan_tor.so
+	mkdir -p $(ASTVARLIBDIR)/sounds
+	mkdir -p $(ASTLOGDIR)/cdr-csv
+	mkdir -p $(ASTVARLIBDIR)/keys
+	install -m 644 keys/iaxtel.pub $(ASTVARLIBDIR)/keys
+	( cd $(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
 	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
@@ -142,36 +211,53 @@ install: all datafiles
 	@echo " + **Note** This requires that you have      +"
 	@echo " + doxygen installed on your local system    +"
 	@echo " +-------------------------------------------+"
+
+install: all datafiles bininstall
+
+upgrade: all bininstall
+
 adsi: all
-	mkdir -p /etc/asterisk
+	mkdir -p $(ASTETCDIR)
 	for x in configs/*.adsi; do \
-		if ! [ -f $(INSTALL_PREFIX)/etc/asterisk/$$x ]; then \
-			install -m 644 $$x $(INSTALL_PREFIX)/etc/asterisk/`basename $$x` ; \
+		if ! [ -f $(ASTETCDIRX)/$$x ]; then \
+			install -m 644 $$x $(ASTETCDIR)/`basename $$x` ; \
 		fi ; \
 	done
 
 samples: all datafiles adsi
-	mkdir -p $(INSTALL_PREFIX)/etc/asterisk
+	mkdir -p $(ASTETCDIR)
 	for x in configs/*.sample; do \
-		if [ -f $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample` ]; then \
-			mv -f $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample` $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample`.old ; \
+		if [ -f $(ASTETCDIR)/`basename $$x .sample` ]; then \
+			mv -f $(ASTETCDIR)/`basename $$x .sample` $(ASTETCDIR)/`basename $$x .sample`.old ; \
 		fi ; \
-		install $$x $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample` ;\
+		install $$x $(ASTETCDIR)/`basename $$x .sample` ;\
 	done
+	echo "astetcdir => $(ASTETCDIR)" >> $(ASTETCDIR)/asterisk.conf
+	echo "astmoddir => $(MODULES_DIR)" >> $(ASTETCDIR)/asterisk.conf
+	echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(ASTETCDIR)/asterisk.conf
+	echo "astagidir => $(AGI_DIR)" >> $(ASTETCDIR)/asterisk.conf
+	echo "astspooldir => $(ASTSPOOLDIR)" >> $(ASTETCDIR)/asterisk.conf
+	echo "astrundir => $(ASTVARRUNDIR)" >> $(ASTETCDIR)/asterisk.conf
+	echo "astlogdir => $(ASTLOGDIR)" >> $(ASTETCDIR)/asterisk.conf
 	for x in sounds/demo-*; do \
-		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds; \
+		if grep -q "^%`basename $$x`%" sounds.txt; then \
+			install $$x $(ASTVARLIBDIR)/sounds ; \
+		else \
+			echo "No description for $$x"; \
+			exit 1; \
+		fi; \
 	done
 	for x in sounds/*.mp3; do \
-		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/mohmp3 ; \
+		install $$x $(ASTVARLIBDIR)/mohmp3 ; \
 	done
-	mkdir -p $(INSTALL_PREFIX)/var/spool/asterisk/vm/1234/INBOX
-	:> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/unavail.gsm
+	mkdir -p $(ASTSPOOLDIR)/vm/1234/INBOX
+	:> $(ASTVARLIBDIR)/sounds/vm/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
-		cat $(INSTALL_PREFIX)/var/lib/asterisk/sounds/$$x.gsm >> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/unavail.gsm ; \
+		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/vm/1234/unavail.gsm ; \
 	done
-	:> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/busy.gsm
+	:> $(ASTVARLIBDIR)/sounds/vm/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat $(INSTALL_PREFIX)/var/lib/asterisk/sounds/$$x.gsm >> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/busy.gsm ; \
+		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/vm/1234/busy.gsm ; \
 	done
 
 webvmail:
