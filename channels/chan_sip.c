@@ -36,6 +36,7 @@
 #include <asterisk/dsp.h>
 #include <asterisk/parking.h>
 #include <asterisk/acl.h>
+#include <asterisk/srv.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -93,6 +94,8 @@ static char callerid[AST_MAX_EXTENSION] = "asterisk";
 static char fromdomain[AST_MAX_EXTENSION] = "";
 
 static char notifymime[AST_MAX_EXTENSION] = "application/simple-message-summary";
+
+static int srvlookup = 0;
 
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
@@ -595,6 +598,8 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	struct sip_peer *p;
 	int found=0;
 	char *port;
+	int portno;
+	char host[256], *hostn;
 
 	r->sa.sin_family = AF_INET;
 	ast_pthread_mutex_lock(&peerl.lock);
@@ -656,15 +661,27 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			*port='\0';
 			port++;
 		}
-		hp = gethostbyname(peer);
+		hostn = peer;
+		if (port)
+			portno = atoi(port);
+		else
+			portno = DEFAULT_SIP_PORT;
+		if (srvlookup) {
+			char service[256];
+			int tportno;
+			int ret;
+			snprintf(service, sizeof(service), "_sip._udp.%s", peer);
+			ret = ast_get_srv(NULL, host, sizeof(host), &tportno, service);
+			if (ret > 0) {
+				hostn = host;
+				portno = tportno;
+			}
+		}
+		hp = gethostbyname(hostn);
 		if (hp) {
 			strncpy(r->tohost, peer, sizeof(r->tohost) - 1);
 			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
-			if (port) {
-				r->sa.sin_port = htons(atoi(port));
-			} else {
-				r->sa.sin_port = htons(DEFAULT_SIP_PORT);
-			}
+			r->sa.sin_port = htons(portno);
 			memcpy(&r->recv, &r->sa, sizeof(r->recv));
 			return 0;
 		} else {
@@ -5216,6 +5233,8 @@ static int reload_config(void)
 			strncpy(fromdomain, v->value, sizeof(fromdomain)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
 			globalnat = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "srvlookup")) {
+			srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "canreinvite")) {
 			if (!strcasecmp(v->value, "update"))
 				globalcanreinvite = REINVITE_UPDATE;

@@ -3019,7 +3019,7 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 			if (dp->flags & CACHE_FLAG_PENDING) {
 				dp->flags &= ~CACHE_FLAG_PENDING;
 				dp->flags |= status;
-				dp->flags |= CACHE_FLAG_MATCHMORE;
+				dp->flags |= matchmore;
 			}
 			/* Wake up waiters */
 			for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)

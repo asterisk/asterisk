@@ -234,15 +234,12 @@ static int parse_answer(unsigned char *dst, int dstlen, unsigned char *tech, int
 	printf("Looking for %d/%d\n", C_IN, T_NAPTR);
 #endif
 	for (x=0;x<ntohs(h->ancount);x++) {
-		if ((res = skip_name(answer, len) < 0)) {
+		if ((res = skip_name(answer, len)) < 0) {
 			ast_log(LOG_WARNING, "Failed to skip name :(\n");
 			return -1;
 		}
 		answer += res;
 		len -= res;
-		/* XXX Why am I adding 2 here? XXX */
-		answer += 2;
-		len -= 2;
 		ans = (struct dn_answer *)answer;
 		answer += sizeof(struct dn_answer);
 		len -= sizeof(struct dn_answer);

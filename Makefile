@@ -112,7 +112,7 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
 	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ast_expr.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
-	astmm.o enum.o
+	astmm.o enum.o srv.o
 CC=gcc
 INSTALL=install
 
