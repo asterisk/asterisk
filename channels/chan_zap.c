@@ -3658,6 +3658,24 @@ char c;
 	}
 }
 
+static int zt_wink(struct zt_pvt *p, int index)
+{
+	int j;
+	zt_set_hook(p->subs[index].zfd, ZT_WINK);
+	for(;;)
+	{
+		   /* set bits of interest */
+		j = ZT_IOMUX_SIGEVENT;
+		    /* wait for some happening */
+		if (ioctl(p->subs[index].zfd,ZT_IOMUX,&j) == -1) return(-1);
+		   /* exit loop if we have it */
+		if (j & ZT_IOMUX_SIGEVENT) break;
+	}
+	  /* get the event info */
+	if (ioctl(p->subs[index].zfd,ZT_GETEVENT,&j) == -1) return(-1);
+	return 0;
+}
+
 static void *ss_thread(void *data)
 {
 	struct ast_channel *chan = data;
@@ -3670,7 +3688,7 @@ static void *ss_thread(void *data)
 	struct callerid_state *cs;
 	char *name=NULL, *number=NULL;
 	int flags;
-	int i,j;
+	int i;
 	int timeout;
 	int getforward=0;
 	char *s1, *s2;
@@ -3696,18 +3714,8 @@ static void *ss_thread(void *data)
 	case SIG_SF_FEATDMF:
 	case SIG_SF_FEATB:
 	case SIG_SFWINK:
-		zt_set_hook(p->subs[index].zfd, ZT_WINK);
-		for(;;)
-		{
-			   /* set bits of interest */
-			j = ZT_IOMUX_SIGEVENT;
-			    /* wait for some happening */
-			if (ioctl(p->subs[index].zfd,ZT_IOMUX,&j) == -1) return(NULL);
-			   /* exit loop if we have it */
-			if (j & ZT_IOMUX_SIGEVENT) break;
-		}
-		  /* get the event info */
-		if (ioctl(p->subs[index].zfd,ZT_GETEVENT,&j) == -1) return(NULL);
+		if (zt_wink(p, index))	
+			return NULL;
 		/* Fall through */
 	case SIG_EM:
 	case SIG_SF:
@@ -3821,6 +3829,9 @@ static void *ss_thread(void *data)
 				strncpy(exten, exten2 + 1, sizeof(exten)-1);
 			} else
 				ast_log(LOG_WARNING, "Got a non-Feature Group B input on channel %d.  Assuming E&M Wink instead\n", p->channel);
+		}
+		if (p->sig == SIG_FEATDMF) {
+			zt_wink(p, index);
 		}
 		zt_enable_ec(p);
 		if (ast_exists_extension(chan, chan->context, exten, 1, chan->callerid)) {
