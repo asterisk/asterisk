@@ -410,8 +410,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char info[256], *peers, *timeout, *tech, *number, *rest, *cur;
 	char  privdb[256] = "", *s;
 	char  announcemsg[256] = "", *ann;
-	struct localuser *outgoing=NULL, *tmp;
-	struct ast_channel *peer;
+	struct localuser *outgoing=NULL, *tmp,*o=NULL;
+	struct ast_channel *peer,*in=NULL;
 	int to;
 	int allowredir_in=0;
 	int allowredir_out=0;
