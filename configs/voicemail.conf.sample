@@ -30,7 +30,10 @@ maxlogins=3
 ; Change the email body, variables: VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_DATE
 ;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE} so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
 
-
+;
+; You can override the default program to send e-mail if you wish, too
+;
+;mailcmd=/usr/sbin/sendmail -t
 ; 
 ; Users may be located in different timezones, or may have different 
 ; message announcements for their introductory message when they enter 

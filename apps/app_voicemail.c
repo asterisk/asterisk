@@ -67,6 +67,8 @@ static inline void sql_close(void) { }
 #define VOICEMAIL_CONFIG "voicemail.conf"
 #define ASTERISK_USERNAME "asterisk"
 
+/* Default mail command to mail voicemail. Change it with the
+    mailcmd= command in voicemail.conf */
 #define SENDMAIL "/usr/sbin/sendmail -t"
 
 #define INTRO "vm-intro"
@@ -91,6 +93,7 @@ struct baseio {
 	unsigned char iobuf[BASEMAXINLINE];
 };
 
+/* Structure for linked list of users */
 struct ast_vm_user {
 	char context[80];
 	char mailbox[80];
@@ -99,6 +102,7 @@ struct ast_vm_user {
 	char email[80];
 	char pager[80];
 	char serveremail[80];
+	char mailcmd[160];	/* Configurable mail command */
 	char zonetag[80];
 	int attach;
 	int alloced;
@@ -183,6 +187,8 @@ static int attach_voicemail;
 static int maxsilence;
 static int silencethreshold = 128;
 static char serveremail[80];
+static char mailcmd[160];	/* Configurable mail cmd */
+
 static char vmfmts[80];
 static int vmmaxmessage;
 static int maxgreet;
@@ -193,6 +199,7 @@ static char *emailbody = NULL;
 static int pbxskip = 0;
 static char fromstring[100];
 static char emailtitle[100];
+
 
 STANDARD_LOCAL_USER;
 
@@ -382,6 +389,7 @@ static void reset_user_pw(char *context, char *mailbox, char *password)
 #endif	/* Postgres */
 
 #ifndef USESQLVM
+
 static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
 {
 	/* This function could be made to generate one from a database, too */
@@ -675,7 +683,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
 	ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, attach_voicemail);
-	p = popen(SENDMAIL, "w");
+	p = popen(mailcmd, "w");
 	if (p) {
 		gethostname(host, sizeof(host));
 		if (strchr(srcemail, '@'))
@@ -733,7 +741,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 
 			fprintf(p, "--%s\n", bound);
 		}
-		fprintf(p, "Content-Type: TEXT/PLAIN; charset=US-ASCII\n\n");
+		fprintf(p, "Content-Type: text/plain; charset=ISO-8859-1\nContent-Transfer-Encoding: 8bit\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 		if (emailbody) {
 			struct ast_channel *ast = ast_channel_alloc(0);
@@ -764,7 +772,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 		if (attach_user_voicemail) {
 			fprintf(p, "--%s\n", bound);
 			fprintf(p, "Content-Type: audio/x-%s; name=\"msg%04d.%s\"\n", format, msgnum, format);
-			fprintf(p, "Content-Transfer-Encoding: BASE64\n");
+			fprintf(p, "Content-Transfer-Encoding: base64\n");
 			fprintf(p, "Content-Description: Voicemail sound attachment.\n");
 			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"\n\n", msgnum, format);
 
@@ -773,8 +781,9 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 			fprintf(p, "\n\n--%s--\n.\n", bound);
 		}
 		pclose(p);
+		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", who, mailcmd);
 	} else {
-		ast_log(LOG_WARNING, "Unable to launch '%s'\n", SENDMAIL);
+		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
 		return -1;
 	}
 	return 0;
@@ -790,7 +799,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 	time_t t;
 	struct tm tm;
 	struct vm_zone *the_zone = NULL;
-	p = popen(SENDMAIL, "w");
+	p = popen(mailcmd, "w");
 
 	if (p) {
 		gethostname(host, sizeof(host));
@@ -830,8 +839,9 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *mailbox, char
 		fprintf(p, "New %s long msg in box %s\n"
 		           "from %s, on %s", dur, mailbox, (callerid ? callerid : "unknown"), date);
 		pclose(p);
+		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", who, mailcmd);
 	} else {
-		ast_log(LOG_WARNING, "Unable to launch '%s'\n", SENDMAIL);
+		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
 		return -1;
 	}
 	return 0;
@@ -3145,6 +3155,7 @@ static int load_config(void)
 	char *thresholdstr;
 	char *fmt;
 	char *astemail;
+ 	char *astmailcmd = SENDMAIL;
 	char *s;
 	int x;
 
@@ -3168,10 +3179,18 @@ static int load_config(void)
 	usersl = NULL;
 	if (cfg) {
 		/* General settings */
+
+		/* Attach voice message to mail message ? */
 		attach_voicemail = 1;
 		if (!(astattach = ast_variable_retrieve(cfg, "general", "attach"))) 
 			astattach = "yes";
 		attach_voicemail = ast_true(astattach);
+
+                /* Mail command */
+                strncpy(mailcmd, SENDMAIL, sizeof(mailcmd) - 1); /* Default */
+                if ((astmailcmd = ast_variable_retrieve(cfg, "general", "mailcmd")))
+                   strncpy(mailcmd, astmailcmd, sizeof(mailcmd) - 1); /* User setting */
+
 		maxsilence = 0;
 		if ((silencestr = ast_variable_retrieve(cfg, "general", "maxsilence"))) {
 			maxsilence = atoi(silencestr);
@@ -3179,6 +3198,8 @@ static int load_config(void)
 				maxsilence *= 1000;
 		}
 		
+
+		/* Silence treshold */
 		silencethreshold = 256;
 		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "silencethreshold")))
 			silencethreshold = atoi(thresholdstr);
