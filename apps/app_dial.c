@@ -571,6 +571,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			tmp->chan->callerid = strdup(chan->callerid);
 		else
 			tmp->chan->callerid = NULL;
+		/* Copy language from incoming to outgoing */
+		strcpy(tmp->chan->language, chan->language);
 		if (!strlen(tmp->chan->musicclass))
 			strncpy(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass) - 1);
 		if (chan->ani)
