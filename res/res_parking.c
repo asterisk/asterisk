@@ -164,7 +164,6 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
                                 "From: %s\r\n"
                                 "Timeout: %ld\r\n"
                                 "CallerID: %s\r\n"
-                                "\r\n"
                                 ,pu->parkingnum, pu->chan->name, peer->name
                                 ,(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL)
                                 ,(pu->chan->callerid ? pu->chan->callerid : "")
