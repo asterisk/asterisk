@@ -1,11 +1,11 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Implementation of Session Initiation Protocol
+ * Implementation of Agents
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -323,8 +323,18 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 		if (p->chan) {
 			/* Note that we don't hangup if it's not a callback because Asterisk will do it
 			   for us when the PBX instance that called login finishes */
-			if (!ast_strlen_zero(p->loginchan))
+			if (!ast_strlen_zero(p->loginchan)) {
 				ast_hangup(p->chan);
+				if (p->wrapuptime) {
+					gettimeofday(&p->lastdisc, NULL);
+					p->lastdisc.tv_usec += (p->wrapuptime % 1000) * 1000;
+					if (p->lastdisc.tv_usec > 1000000) {
+						p->lastdisc.tv_usec -= 1000000;
+						p->lastdisc.tv_sec++;
+					}
+					p->lastdisc.tv_sec += (p->wrapuptime / 1000);
+				}
+			}
 			p->chan = NULL;
 			p->acknowledged = 0;
 		}
@@ -993,6 +1003,7 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 	unsigned int groupmatch;
 	int waitforagent=0;
 	int hasagent = 0;
+	struct timeval tv;
 	s = data;
 	if ((s[0] == '@') && (sscanf(s + 1, "%d", &groupmatch) == 1)) {
 		groupmatch = (1 << groupmatch);
@@ -1034,7 +1045,11 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
 				if (p->chan || !ast_strlen_zero(p->loginchan))
 					hasagent++;
-				if (!p->lastdisc.tv_sec || (time(NULL) > p->lastdisc.tv_sec)) {
+				gettimeofday(&tv, NULL);
+#if 0
+				ast_log(LOG_NOTICE, "Time now: %ld, Time of lastdisc: %ld\n", tv.tv_sec, p->lastdisc.tv_sec);
+#endif
+				if (!p->lastdisc.tv_sec || (tv.tv_sec > p->lastdisc.tv_sec)) {
 					memset(&p->lastdisc, 0, sizeof(p->lastdisc));
 					/* Agent must be registered, but not have any active call, and not be in a waiting state */
 					if (!p->owner && p->chan) {
