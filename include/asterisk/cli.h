@@ -44,6 +44,8 @@ struct ast_cli_entry {
 	char *(*generator)(char *line, char *word, int pos, int state);
 	/*! For linking */
 	struct ast_cli_entry *next;
+	/*! For keeping track of usage */
+	int inuse;
 };
 
 //! Interprets a command
