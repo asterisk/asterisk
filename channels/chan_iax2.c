@@ -186,6 +186,7 @@ struct iax2_context {
 struct iax2_user {
 	char name[80];
 	char secret[80];
+	char dbsecret[80];
 	int authmethods;
 	char accountcode[20];
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
@@ -209,6 +210,7 @@ struct iax2_peer {
 	char name[80];
 	char username[80];		
 	char secret[80];
+	char dbsecret[80];
 	char outkey[80];		/* What key we use to talk to this peer */
 	char context[AST_MAX_EXTENSION];	/* For transfers only */
 	char regexten[AST_MAX_EXTENSION];	/* Extension to register (if regcontext is used) */
@@ -2123,8 +2125,6 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 				*capability = p->capability;
 			if (username)
 				strncpy(username, p->username, usernlen);
-			if (secret)
-				strncpy(secret, p->secret, seclen); /* safe */
 			if (p->addr.sin_addr.s_addr) {
 				sin->sin_addr = p->addr.sin_addr;
 				sin->sin_port = p->addr.sin_port;
@@ -2136,6 +2136,26 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 				*notransfer=p->notransfer;
 			if (usejitterbuf)
 				*usejitterbuf=p->usejitterbuf;
+			if (secret) {
+				if (!ast_strlen_zero(p->dbsecret)) {
+					char *family, *key=NULL;
+					family = ast_strdupa(p->dbsecret);
+					if (family) {
+						key = strchr(family, '/');
+						if (key) {
+							*key = '\0';
+							key++;
+						}
+					}
+					if (!family || !key || ast_db_get(family, key, secret, seclen)) {
+						ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", p->dbsecret);
+						if (p->temponly)
+							destroy_peer(p);
+						p = NULL;
+					}
+				} else
+					strncpy(secret, p->secret, seclen); /* safe */
+			}
 		} else {
 			if (p->temponly)
 				destroy_peer(p);
@@ -3656,8 +3676,6 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			else
 				strncpy(iaxs[callno]->context, context, sizeof(iaxs[callno]->context)-1);
 		}
-		/* Copy the secret */
-		strncpy(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret)-1);
 		/* And any input keys */
 		strncpy(iaxs[callno]->inkeys, user->inkeys, sizeof(iaxs[callno]->inkeys) - 1);
 		/* And the permitted authentication methods */
@@ -3683,6 +3701,26 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 			strncpy(iaxs[callno]->language, user->language, sizeof(iaxs[callno]->language)-1);
 		iaxs[callno]->notransfer = user->notransfer;
 		iaxs[callno]->usejitterbuf = user->usejitterbuf;
+		/* Keep this check last */
+		if (!ast_strlen_zero(user->dbsecret)) {
+			char *family, *key=NULL;
+			family = ast_strdupa(user->dbsecret);
+			if (family) {
+				key = strchr(family, '/');
+				if (key) {
+					*key = '\0';
+					key++;
+				}
+			}
+			if (!family || !key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
+				ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
+				if (user->temponly) {
+					destroy_user(user);
+					user = NULL;
+				}
+			}
+		} else
+			strncpy(iaxs[callno]->secret, user->secret, sizeof(iaxs[callno]->secret) - 1); 
 		res = 0;
 	}
 	iaxs[callno]->trunk = iax2_getpeertrunk(*sin);
@@ -3758,15 +3796,23 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 	} else if (p->authmethods & IAX_AUTH_MD5) {
 		struct MD5Context md5;
 		unsigned char digest[16];
-		MD5Init(&md5);
-		MD5Update(&md5, p->challenge, strlen(p->challenge));
-		MD5Update(&md5, p->secret, strlen(p->secret));
-		MD5Final(digest, &md5);
-		/* If they support md5, authenticate with it.  */
-		for (x=0;x<16;x++)
-			sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
-		if (!strcasecmp(requeststr, md5secret))
-			res = 0;
+		char *tmppw, *stringp;
+		
+		tmppw = ast_strdupa(p->secret);
+		stringp = tmppw;
+		while((tmppw = strsep(&stringp, ";"))) {
+			MD5Init(&md5);
+			MD5Update(&md5, p->challenge, strlen(p->challenge));
+			MD5Update(&md5, tmppw, strlen(tmppw));
+			MD5Final(digest, &md5);
+			/* If they support md5, authenticate with it.  */
+			for (x=0;x<16;x++)
+				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
+			if (!strcasecmp(requeststr, md5secret)) {
+				res = 0;
+				break;
+			}
+		}
 	} else if (p->authmethods & IAX_AUTH_PLAINTEXT) {
 		if (!strcmp(secret, p->secret))
 			res = 0;
@@ -3881,20 +3927,30 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	} else if (!ast_strlen_zero(md5secret) && (p->authmethods & IAX_AUTH_MD5) && !ast_strlen_zero(iaxs[callno]->challenge)) {
 		struct MD5Context md5;
 		unsigned char digest[16];
-		MD5Init(&md5);
-		MD5Update(&md5, iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
-		MD5Update(&md5, p->secret, strlen(p->secret));
-		MD5Final(digest, &md5);
-		for (x=0;x<16;x++)
-			sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
-		if (strcasecmp(requeststr, md5secret)) {
+		char *tmppw, *stringp;
+		
+		tmppw = ast_strdupa(p->secret);
+		stringp = tmppw;
+		while((tmppw = strsep(&stringp, ";"))) {
+			printf("Trying '%s'!\n", tmppw);		
+			MD5Init(&md5);
+			MD5Update(&md5, iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
+			MD5Update(&md5, tmppw, strlen(tmppw));
+			MD5Final(digest, &md5);
+			for (x=0;x<16;x++)
+				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
+			if (!strcasecmp(requeststr, md5secret)) 
+				break;
+		}
+		if (tmppw) {
+			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
+		} else {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name, requeststr, md5secret);
 			if (p->temponly)
 				destroy_peer(p);
 			return -1;
-		} else
-			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
+		}
 	} else if (!ast_strlen_zero(md5secret) || !ast_strlen_zero(secret)) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
@@ -6345,6 +6401,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v)
 	if (peer) {
 		peer->messagedetail = globalmessagedetail;
 		peer->usejitterbuf = globalusejitterbuf;
+		peer->secret[0] = '\0';
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
 			peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
@@ -6352,10 +6409,16 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v)
 		}
 		peer->capability = iax2_capability;
 		while(v) {
-			if (!strcasecmp(v->name, "secret")) 
-				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
-			else if (!strcasecmp(v->name, "mailbox"))
+			if (!strcasecmp(v->name, "secret")) {
+				if (!ast_strlen_zero(peer->secret)) {
+					strncpy(peer->secret + strlen(peer->secret), ";", sizeof(peer->secret)-strlen(peer->secret) - 1);
+					strncpy(peer->secret + strlen(peer->secret), v->value, sizeof(peer->secret)-strlen(peer->secret) - 1);
+				} else
+					strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
+			} else if (!strcasecmp(v->name, "mailbox")) {
 				strncpy(peer->mailbox, v->value, sizeof(peer->mailbox) - 1);
+			} else if (!strcasecmp(v->name, "dbsecret")) 
+				strncpy(peer->dbsecret, v->value, sizeof(peer->dbsecret)-1);
 			else if (!strcasecmp(v->name, "mailboxdetail"))
 				peer->messagedetail = ast_true(v->value);
 			else if (!strcasecmp(v->name, "trunk")) {
@@ -6552,15 +6615,21 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v)
 				user->notransfer = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "jitterbuffer")) {
 				user->usejitterbuf = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "dbsecret")) {
+				strncpy(user->dbsecret, v->value, sizeof(user->dbsecret)-1);
 			} else if (!strcasecmp(v->name, "secret")) {
-				strncpy(user->secret, v->value, sizeof(user->secret)-1);
+				if (!ast_strlen_zero(user->secret)) {
+					strncpy(user->secret + strlen(user->secret), ";", sizeof(user->secret) - strlen(user->secret) - 1);
+					strncpy(user->secret + strlen(user->secret), v->value, sizeof(user->secret) - strlen(user->secret) - 1);
+				} else
+					strncpy(user->secret, v->value, sizeof(user->secret)-1);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
 				user->hascallerid=1;
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
 			} else if (!strcasecmp(v->name, "language")) {
-                                strncpy(user->language, v->value, sizeof(user->language)-1);
+				strncpy(user->language, v->value, sizeof(user->language)-1);
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {
