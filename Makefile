@@ -146,7 +146,7 @@ endif # FreeBSD
 
 ifeq (${OSARCH},NetBSD)
 CFLAGS+=-pthread
-INCLUDE+=-I/usr/local/include
+INCLUDE+=-I/usr/local/include -I/usr/pkg/include
 endif
 
 ifeq (${OSARCH},OpenBSD)
@@ -197,7 +197,7 @@ ifeq (${OSARCH},FreeBSD)
 LIBS+=-lcrypto
 endif
 ifeq (${OSARCH},NetBSD)
-LIBS+=-lpthread -lcrypto -lm -L/usr/local/lib -lncurses
+LIBS+=-lpthread -lcrypto -lm -L/usr/local/lib -L/usr/pkg/lib -lncurses
 endif
 ifeq (${OSARCH},OpenBSD)
 LIBS=-lcrypto -lpthread -lm -lncurses
