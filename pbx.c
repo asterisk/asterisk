@@ -4352,7 +4352,7 @@ int ast_pbx_outgoing_cdr_failed(void)
 	return 0;  /* success */
 }
 
-int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account)
+int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account, struct ast_channel **channel)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -4364,6 +4364,11 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 	if (sync) {
 		LOAD_OH(oh);
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
+		if (channel) {
+			*channel = chan;
+			if (chan)
+				ast_mutex_lock(&chan->lock);
+		}
 		if (chan) {
 			
 			if (account)
@@ -4452,6 +4457,11 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			return -1;
 		memset(as, 0, sizeof(struct async_stat));
 		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
+		if (channel) {
+			*channel = chan;
+			if (chan)
+				ast_mutex_lock(&chan->lock);
+		}
 		if (!chan) {
 			free(as);
 			return -1;
@@ -4504,7 +4514,7 @@ static void *ast_pbx_run_app(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account)
+int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account, struct ast_channel **locked_channel)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -4513,12 +4523,13 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 	int res = -1, cdr_res = -1;
 	pthread_attr_t attr;
 	
+	if (locked_channel) 
+		*locked_channel = NULL;
 	if (!app || ast_strlen_zero(app))
 		return -1;
 	if (sync) {
 		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
 		if (chan) {
-			
 			if (account)
 				ast_cdr_setaccount(chan, account);
 			
@@ -4558,11 +4569,18 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 					} else {
 						pthread_attr_init(&attr);
 						pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+						if (locked_channel) 
+							ast_mutex_lock(&chan->lock);
 						if (ast_pthread_create(&tmp->t, &attr, ast_pbx_run_app, tmp)) {
 							ast_log(LOG_WARNING, "Unable to spawn execute thread on %s: %s\n", chan->name, strerror(errno));
 							free(tmp);
+							if (locked_channel) 
+								ast_mutex_unlock(&chan->lock);
 							ast_hangup(chan);
 							res = -1;
+						} else {
+							if (locked_channel) 
+								*locked_channel = chan;
 						}
 					}
 				} else {
@@ -4616,11 +4634,18 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 		/* Start a new thread, and get something handling this channel. */
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (locked_channel) 
+			ast_mutex_lock(&chan->lock);
 		if (ast_pthread_create(&as->p, &attr, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
 			free(as);
+			if (locked_channel) 
+				ast_mutex_unlock(&chan->lock);
 			ast_hangup(chan);
 			return -1;
+		} else {
+			if (locked_channel)
+				*locked_channel = chan;
 		}
 		res = 0;
 	}

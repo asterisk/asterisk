@@ -823,16 +823,18 @@ static void *fast_originate(void *data)
 	struct fast_originate_helper *in = data;
 	int res;
 	int reason = 0;
+	struct ast_channel *chan = NULL;
+
 	if (!ast_strlen_zero(in->app)) {
 		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
 			!ast_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->variable, in->account);
+			in->variable, in->account, &chan);
 	} else {
 		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
 			!ast_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->variable, in->account);
+			in->variable, in->account, &chan);
 	}   
 	if (!res)
 		manager_event(EVENT_FLAG_CALL,
@@ -841,8 +843,9 @@ static void *fast_originate(void *data)
 			"Channel: %s/%s\r\n"
 			"Context: %s\r\n"
 			"Exten: %s\r\n"
-			"Reason: %i\r\n",
-			in->idtext, in->tech, in->data, in->context, in->exten, reason);
+			"Reason: %i\r\n"
+			"Uniqueid: %s\r\n",
+			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
 	else
 		manager_event(EVENT_FLAG_CALL,
 			"OriginateFailure",
@@ -850,9 +853,13 @@ static void *fast_originate(void *data)
 			"Channel: %s/%s\r\n"
 			"Context: %s\r\n"
 			"Exten: %s\r\n"
-			"Reason: %i\r\n",
-			in->idtext, in->tech, in->data, in->context, in->exten, reason);
+			"Reason: %i\r\n"
+			"Uniqueid: %s\r\n",
+			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
 
+	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
+	if (chan)
+		ast_mutex_unlock(&chan->lock);
 	free(in);
 	return NULL;
 }
@@ -961,10 +968,10 @@ static int action_originate(struct mansession *s, struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
-        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, l, n, variable, account);
+        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, l, n, variable, account, NULL);
     	} else {
 		if (exten && context && pi)
-	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, l, n, variable, account);
+	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, l, n, variable, account, NULL);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
