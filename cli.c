@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
+#include <ctype.h>
 /* For rl_filename_completion */
 #include "editline/readline/readline.h"
 /* For module directory */
