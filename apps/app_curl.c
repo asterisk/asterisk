@@ -6,6 +6,7 @@
  * Copyright (C) 2004, Tilghman Lesher
  *
  * Tilghman Lesher <curl-20041222@the-tilghman.com>
+ * and Brian Wilkins <bwilkins@cfl.rr.com> (Added POST option)
  *
  * app_curl.c is distributed with no restrictions on usage or
  * redistribution.
@@ -30,9 +31,10 @@ static char *app = "Curl";
 static char *synopsis = "Load an external URL";
 
 static char *descrip = 
-"  Curl(URL): Requests the URL.  Mainly used for signalling external\n"
-"applications of an event.  Returns 0 or -1 on fatal error.  Also sets\n"
-"CURL variable with the resulting page.\n";
+"  Curl(URL[|postdata]): Requests the URL.  Mainly used for signalling\n"
+"external applications of an event.  Returns 0 or -1 on fatal error.\n"
+"Argument specified treated as POST data.  Also sets CURL variable with the\n"
+"resulting page.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -74,9 +76,18 @@ static int curl_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	CURL *curl;
+	char *info, *post_data=NULL, *url;
 
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "Curl requires an argument (URL)\n");
+		return -1;
+	}
+
+	if ((info = ast_strdupa((char *)data))) {
+		url = strsep(&info, "|");
+		post_data = info;
+	} else {
+		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 
@@ -91,10 +102,15 @@ static int curl_exec(struct ast_channel *chan, void *data)
 		chunk.memory=NULL; /* we expect realloc(NULL, size) to work */
 		chunk.size = 0;    /* no data at this point */
 
-		curl_easy_setopt(curl, CURLOPT_URL, (char *)data);
+		curl_easy_setopt(curl, CURLOPT_URL, url);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, "asterisk-libcurl-agent/1.0");
+
+		if (post_data) {
+			curl_easy_setopt(curl, CURLOPT_POST, 1);
+			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_data);
+		}
 
 		curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
