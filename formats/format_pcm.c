@@ -108,6 +108,7 @@ static void pcm_close(struct ast_filestream *s)
 		ast_log(LOG_WARNING, "Unable to lock pcm list\n");
 		return;
 	}
+	glistcnt--;
 	ast_mutex_unlock(&pcm_lock);
 	ast_update_use_count();
 	close(s->fd);
