@@ -949,7 +949,17 @@ static char *ditch_braces(char *tmp)
 {
 	char *c = tmp;
 	char *n;
-	if ((n = strchr(tmp, '<')) ) {
+	char *q;
+	if ((q = strchr(tmp, '"')) ) {
+		c = q + 1;
+		if ((q = strchr(c, '"')) )
+			c = q + 1;
+		else {
+			ast_log(LOG_WARNING, "No closing quote in '%s'\n", tmp);
+			c = tmp;
+		}
+	}
+	if ((n = strchr(c, '<')) ) {
 		c = n + 1;
 		while(*c && *c != '>') c++;
 		if (*c != '>') {
