@@ -557,14 +557,13 @@ static int agent_ack_sleep( void *data )
 				break;
 			}
 			ast_mutex_lock(&p->lock);
-			if (p->app_sleep_cond) {
+			if (!p->app_sleep_cond) {
 				ast_mutex_unlock(&p->lock);
 				res = 0;
 				break;
 			} else if (res == '#') {
-				check_availability(p, 0);
 				ast_mutex_unlock(&p->lock);
-				res = 0;
+				res = 1;
 				break;
 			}
 			ast_mutex_unlock(&p->lock);
@@ -1218,12 +1217,17 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								ast_mutex_lock(&p->lock);
 								p->owning_app = pthread_self();
 								ast_mutex_unlock(&p->lock);
-								if (p->ackcall > 1)
+								if (p->ackcall > 1) 
 									res = agent_ack_sleep(p);
 								else
 									res = ast_safe_sleep_conditional( chan, 1000,
-														agent_cont_sleep, p );
+													agent_cont_sleep, p );
 								ast_mutex_unlock( &p->app_lock );
+								if ((p->ackcall > 1)  && (res == 1)) {
+									ast_mutex_lock(&p->lock);
+									check_availability(p, 0);
+									ast_mutex_unlock(&p->lock);
+								}
 								sched_yield();
 							}
 							ast_mutex_lock(&p->lock);
