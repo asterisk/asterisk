@@ -210,8 +210,10 @@ static struct pbx_builtin {
 
 	{ "Answer", pbx_builtin_answer, 
 	"Answer a channel if ringing", 
-	"  Answer(): If the channel is ringing, answer it, otherwise do nothing. \n"
-	"Returns 0 unless it tries to answer the channel and fails.\n"   
+	"  Answer([delay]): If the channel is ringing, answer it, otherwise do nothing. \n"
+	"If delay is specified, asterisk will pause execution for the specified amount\n"
+	"of milliseconds if an answer is required, in order to give audio a chance to\n"
+	"become ready. Returns 0 unless it tries to answer the channel and fails.\n"   
 	},
 
 	{ "BackGround", pbx_builtin_background,
@@ -4705,7 +4707,16 @@ static int pbx_builtin_congestion(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 {
-	return ast_answer(chan);
+	int delay = atoi(data);
+	int res;
+	if (chan->_state == AST_STATE_UP)
+		delay = 0;
+	res = ast_answer(chan);
+	if (res)
+		return res;
+	if (delay)
+		res = ast_safe_sleep(chan, delay);
+	return res;
 }
 
 static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
