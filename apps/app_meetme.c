@@ -184,6 +184,35 @@ static void *recordthread(void *args);
 #define CONFFLAG_INTROUSER (1 << 14)	/* If set, user will be ask record name on entry of conference */
 #define CONFFLAG_RECORDCONF (1<< 15)	/* If set, the MeetMe will be recorded */
 #define CONFFLAG_MONITORTALKER (1 << 16) /* If set, the user will be monitored if the user is talking or not */
+#define CONFFLAG_DYNAMIC (1 << 17)
+#define CONFFLAG_DYNAMICPIN (1 << 18)
+#define CONFFLAG_EMPTY (1 << 19)
+#define CONFFLAG_EMPTYNOPIN (1 << 20)
+#define CONFFLAG_ALWAYSPROMPT (1 << 21)
+
+
+AST_DECLARE_OPTIONS(meetme_opts,{
+	['a'] = { CONFFLAG_ADMIN },
+	['T'] = { CONFFLAG_MONITORTALKER },
+	['i'] = { CONFFLAG_INTROUSER },
+	['m'] = { CONFFLAG_MONITOR },
+	['p'] = { CONFFLAG_POUNDEXIT },
+	['s'] = { CONFFLAG_STARMENU },
+	['t'] = { CONFFLAG_TALKER },
+	['q'] = { CONFFLAG_QUIET },
+	['M'] = { CONFFLAG_MOH },
+	['x'] = { CONFFLAG_MARKEDEXIT },
+	['X'] = { CONFFLAG_EXIT_CONTEXT },
+	['A'] = { CONFFLAG_MARKEDUSER },
+	['b'] = { CONFFLAG_AGI },
+	['w'] = { CONFFLAG_WAITMARKED },
+	['r'] = { CONFFLAG_RECORDCONF },
+	['d'] = { CONFFLAG_DYNAMIC },
+	['D'] = { CONFFLAG_DYNAMICPIN },
+	['e'] = { CONFFLAG_EMPTY },
+	['E'] = { CONFFLAG_EMPTYNOPIN },
+	['P'] = { CONFFLAG_ALWAYSPROMPT },
+});
 
 static char *istalking(int x)
 {
@@ -657,10 +686,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		else
 			strncpy(exitcontext, chan->context, sizeof(exitcontext) - 1);
 	}
-        snprintf(user->namerecloc,sizeof(user->namerecloc),"%s/meetme-username-%s-%d",AST_SPOOL_DIR,conf->confno,user->user_no);
 
-	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER))
+	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER)) {
+		snprintf(user->namerecloc,sizeof(user->namerecloc),"%s/meetme/meetme-username-%s-%d",ast_config_AST_SPOOL_DIR,conf->confno,user->user_no);
 		ast_record_review(chan,"vm-rec-name",user->namerecloc, 10,"sln", &duration, NULL);
+	}
 
 	while((confflags & CONFFLAG_WAITMARKED) && (conf->markedusers == 0)) {
 		confflags &= ~CONFFLAG_QUIET;
@@ -1363,7 +1393,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int allowretry = 0;
 	int retrycnt = 0;
 	struct ast_conference *cnf;
-	int confflags = 0;
+	struct ast_flags confflags = {0};
 	int dynamic = 0;
 	int empty = 0, empty_no_pin = 0;
 	int always_prompt = 0;
@@ -1396,52 +1426,14 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		strncpy(the_pin, inpin, sizeof(the_pin) - 1);
 
 	if (inflags) {
-		if (strchr(inflags, 'a'))
-			confflags |= CONFFLAG_ADMIN;
-		if (strchr(inflags, 'T'))
-			confflags |= CONFFLAG_MONITORTALKER;
-		if (strchr(inflags, 'i'))
-			confflags |= CONFFLAG_INTROUSER;
-		if (strchr(inflags, 'm'))
-			confflags |= CONFFLAG_MONITOR;
-		if (strchr(inflags, 'p'))
-			confflags |= CONFFLAG_POUNDEXIT;
-		if (strchr(inflags, 's'))
-			confflags |= CONFFLAG_STARMENU;
-		if (strchr(inflags, 't'))
-			confflags |= CONFFLAG_TALKER;
-		if (strchr(inflags, 'q'))
-			confflags |= CONFFLAG_QUIET;
-		if (strchr(inflags, 'M'))
-			confflags |= CONFFLAG_MOH;
-		if (strchr(inflags, 'x'))
-			confflags |= CONFFLAG_MARKEDEXIT;
-		if (strchr(inflags, 'X'))
-			confflags |= CONFFLAG_EXIT_CONTEXT;
-		if (strchr(inflags, 'A'))
-			confflags |= CONFFLAG_MARKEDUSER;
-		if (strchr(inflags, 'b'))
-			confflags |= CONFFLAG_AGI;
-		if (strchr(inflags, 'w'))
-			confflags |= CONFFLAG_WAITMARKED;
-		if (strchr(inflags, 'r'))
-			confflags |= CONFFLAG_RECORDCONF;	
-		if (strchr(inflags, 'd'))
-			dynamic = 1;
-		if (strchr(inflags, 'D')) {
-			dynamic = 1;
-			if (! inpin) {
-				strncpy(the_pin, "q", sizeof(the_pin) - 1);
-			}
-		}
-		if (strchr(inflags, 'e'))
-			empty = 1;
-		if (strchr(inflags, 'E')) {
-			empty = 1;
-			empty_no_pin = 1;
-		}
-		if (strchr(inflags, 'P'))
-			always_prompt = 1;
+		ast_parseoptions(meetme_opts, &confflags, NULL, inflags);
+		dynamic = ast_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
+		if (ast_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && !inpin)
+			strncpy(the_pin, "q", sizeof(the_pin) - 1);
+
+		empty = ast_test_flag(&confflags, CONFFLAG_EMPTY | CONFFLAG_EMPTYNOPIN);
+		empty_no_pin = ast_test_flag(&confflags, CONFFLAG_EMPTYNOPIN);
+		always_prompt = ast_test_flag(&confflags, CONFFLAG_ALWAYSPROMPT);
 	}
 
 	do {
@@ -1568,7 +1560,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				if (allowretry)
 					confno[0] = '\0';
 			} else {
-				if ((!ast_strlen_zero(cnf->pin) && ! (confflags & CONFFLAG_ADMIN)) || (!ast_strlen_zero(cnf->pinadmin) && (confflags & CONFFLAG_ADMIN))) {
+				if ((!ast_strlen_zero(cnf->pin) &&  !ast_test_flag(&confflags, CONFFLAG_ADMIN)) || (!ast_strlen_zero(cnf->pinadmin) && ast_test_flag(&confflags, CONFFLAG_ADMIN))) {
 					char pin[AST_MAX_EXTENSION]="";
 					int j;
 
@@ -1587,9 +1579,9 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								/* Pin correct */
 								allowretry = 0;
 								if (!ast_strlen_zero(cnf->pinadmin) && !strcasecmp(pin, cnf->pinadmin)) 
-									confflags |= CONFFLAG_ADMIN;
+									ast_set_flag(&confflags, CONFFLAG_ADMIN);
 								/* Run the conference */
-								res = conf_run(chan, cnf, confflags);
+								res = conf_run(chan, cnf, confflags.flags);
 								break;
 							} else {
 								/* Pin invalid */
@@ -1620,7 +1612,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					allowretry = 0;
 
 					/* Run the conference */
-					res = conf_run(chan, cnf, confflags);
+					res = conf_run(chan, cnf, confflags.flags);
 				}
 			}
 		}

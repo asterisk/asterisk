@@ -53,7 +53,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, skel_exec, synopsis, tdesc);
+	return ast_register_application(app, skel_exec, tdesc, synopsis);
 }
 
 char *description(void)

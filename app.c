@@ -1455,3 +1455,38 @@ char *ast_read_textfile(const char *filename)
 	return output;
 }
 
+int ast_parseoptions(const struct ast_option *options, struct ast_flags *flags, char **args, char *optstr)
+{
+	char *s;
+	int curarg;
+	int argloc;
+	char *arg;
+	int res = 0;
+	flags->flags = 0;
+	if (!optstr)
+		return 0;
+	s = optstr;
+	while(*s) {
+		curarg = *s & 0x7f;
+		flags->flags |= options[curarg].flag;
+		argloc = options[curarg].argoption;
+		s++;
+		if (*s == '(') {
+			/* Has argument */
+			s++;
+			arg = s;
+			while(*s && (*s != ')')) s++;
+			if (*s) {
+				if (argloc)
+					args[argloc - 1] = arg;
+				*s = '\0';
+				s++;
+			} else {
+				ast_log(LOG_WARNING, "Missing closing parenthesis for argument '%c'\n", curarg);
+				res = -1;
+			}
+		}
+	}
+	return res;
+}
+

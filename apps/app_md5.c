@@ -21,14 +21,15 @@
 #include <unistd.h>
 #include <string.h>
 
-static char *tdesc_md5 = "MD5 checksum application";
+static char *tdesc_md5 = "MD5 checksum applications";
 static char *app_md5 = "MD5";
+static char *desc_md5 = "Calculate MD5 checksum";
 static char *synopsis_md5 = 
 "  MD5(<var>=<string>): Calculates a MD5 checksum on <string>.\n"
 "Returns hash value in a channel variable. Always return 0\n";
 
-static char *tdesc_md5check = "MD5 checksum verification application";
 static char *app_md5check = "MD5Check";
+static char *desc_md5check = "Check MD5 checksum";
 static char *synopsis_md5check = 
 "  MD5Check(<md5hash>,<string>): Calculates a MD5 checksum on <string>\n"
 "and compares it with the hash. Returns 0 if <md5hash> is correct for <string>.\n"
@@ -122,8 +123,8 @@ int load_module(void)
 {
 	int res;
 
-	res = ast_register_application(app_md5check, md5check_exec, synopsis_md5check, tdesc_md5check);
-	res |= ast_register_application(app_md5, md5_exec, synopsis_md5, tdesc_md5);
+	res = ast_register_application(app_md5check, md5check_exec, desc_md5check, synopsis_md5check);
+	res |= ast_register_application(app_md5, md5_exec, desc_md5, synopsis_md5);
 	return res;
 }
 

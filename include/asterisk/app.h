@@ -65,6 +65,16 @@ struct ast_ivr_menu {
 
 #define AST_IVR_FLAG_AUTORESTART (1 << 0)
 
+struct ast_option {
+	unsigned int flag;
+	int argoption;
+};
+
+extern int ast_parseoptions(const struct ast_option *options, struct ast_flags *flags, char **args, char *optstr);
+
+#define AST_DECLARE_OPTIONS(holder,args...) \
+	static struct ast_option holder[128] = args
+
 #define AST_IVR_DECLARE_MENU(holder,title,flags,foo...) \
 	static struct ast_ivr_option __options_##holder[] = foo;\
 	static struct ast_ivr_menu holder = { title, flags, __options_##holder }
