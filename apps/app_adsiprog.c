@@ -666,7 +666,7 @@ static int showdisplay(char *buf, char *name, int id, char *args, struct adsi_sc
 	}
 				   
 	buf[0] = id;
-	buf[1] = (cmd << 6) | (disp->id & 0x2f); 
+	buf[1] = (cmd << 6) | (disp->id & 0x3f); 
 	buf[2] = ((line & 0x1f) << 3) | (flag & 0x7);
 	return 3;
 }
