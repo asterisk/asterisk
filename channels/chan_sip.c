@@ -3745,7 +3745,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 		l = p->owner->cid.cid_num;
 		n = p->owner->cid.cid_name;
 	}
-	if (!l || !ast_isphonenumber(l))
+	if ((!l || !ast_isphonenumber(l)) && default_callerid[0])
 			l = default_callerid;
 	/* if user want's his callerid restricted */
 	if (p->callingpres & AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED) {
