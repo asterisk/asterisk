@@ -264,6 +264,7 @@ static struct sip_pvt {
 	int capability;				/* Special capability (codec) */
 	int novideo;				/* Didn't get video in invite, don't offer */
 	int jointcapability;			/* Supported capability at both ends (codecs ) */
+	int peercapability;			/* Supported peer capability */
 	int prefcodec;				/* Preferred codec (outbound only) */
 	int noncodeccapability;
 	int outgoing;				/* Outgoing or incoming call? */
@@ -2735,7 +2736,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_rtp_get_current_formats(p->vrtp,
 				&vpeercapability, &vpeernoncodeccapability);
 	p->jointcapability = p->capability & (peercapability | vpeercapability);
-	p->noncodeccapability = noncodeccapability & (peernoncodeccapability | vpeernoncodeccapability);
+	p->peercapability = (peercapability | vpeercapability);
+	p->noncodeccapability = noncodeccapability & p->peercapability;
 	
 	if (debug) {
 		const unsigned slen=80;
@@ -3322,7 +3324,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
 		return -1;
 	}
-	capability = p->jointcapability;
+	capability = p->capability;
 		
 	if (!p->sessionid) {
 		p->sessionid = getpid();
@@ -5262,6 +5264,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			p->restrictcid = user->restrictcid;
 			p->capability = user->capability;
 			p->jointcapability = user->capability;
+			if (p->peercapability)
+				p->jointcapability &= p->peercapability;
 			p->promiscredir = user->promiscredir;
 			if (user->dtmfmode) {
 				p->dtmfmode = user->dtmfmode;
@@ -5343,6 +5347,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
 				p->jointcapability = peer->capability;
+				if (p->peercapability)
+					p->jointcapability &= p->peercapability;
 				p->promiscredir = peer->promiscredir;
 				if (peer->dtmfmode) {
 					p->dtmfmode = peer->dtmfmode;
@@ -5812,6 +5818,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Call-ID:                %s\n", cur->callid);
 			ast_cli(fd, "  Our Codec Capability:   %d\n", cur->capability);
 			ast_cli(fd, "  Non-Codec Capability:   %d\n", cur->noncodeccapability);
+			ast_cli(fd, "  Their Codec Capability:   %d\n", cur->peercapability);
 			ast_cli(fd, "  Joint Codec Capability:   %d\n", cur->jointcapability);
 			ast_cli(fd, "  Format                  %s\n", ast_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
 			ast_cli(fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), ntohs(cur->sa.sin_port));
@@ -8671,7 +8678,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 static int sip_get_codec(struct ast_channel *chan)
 {
 	struct sip_pvt *p = chan->pvt->pvt;
-	return p->capability;	
+	return p->peercapability;	
 }
 
 static struct ast_rtp_protocol sip_rtp = {
