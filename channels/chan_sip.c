@@ -4258,6 +4258,8 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
 		return 0;
 	}
+	/* For the 200 OK, we should use the received contact */
+	snprintf(pvt->our_contact, sizeof(pvt->our_contact) - 1, "<%s>", c);
 	/* Make sure it's a SIP URL */
 	if (strncasecmp(c, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "'%s' is not a valid SIP contact (missing sip:) trying to use anyway\n", c);
