@@ -1017,7 +1017,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		}
 		if (x ==0) {
 			/* Clear marker bit and increment seqno */
-			rtpheader[0] = htonl((2 << 30)  | (101 << 16) | (rtp->seqno++));
+			rtpheader[0] = htonl((2 << 30)  | (payload << 16) | (rtp->seqno++));
 			/* Make duration 800 (100ms) */
 			rtpheader[3] |= htonl((800));
 			/* Set the End bit for the last 3 */
