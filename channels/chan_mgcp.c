@@ -887,7 +887,6 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 
 		transmit_notify_request_with_callerid(sub, tone, ast->cid.cid_num, ast->cid.cid_name);
 		ast_setstate(ast, AST_STATE_RINGING);
-		mgcp_queue_control(sub, AST_CONTROL_RINGING);
 
         if (sub->next->owner && strlen(sub->next->cxident) && strlen(sub->next->callid)) {
             /* Put the connection back in sendrecv */
@@ -900,6 +899,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 		res = -1;
 	}
 	ast_mutex_unlock(&sub->lock);
+	ast_queue_frame(ast, AST_CONTROL_RINGING);
 	return res;
 }
 
@@ -2327,20 +2327,20 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
             if (sub->owner) {
                 ast_log(LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
                         result, p->name, p->parent->name, sub ? sub->id:-1);
-                ast_softhangup(sub->owner, AST_SOFTHANGUP_DEV);
+                mgcp_queue_hangup(sub);
             }
         }
         else {
             if (p->sub->next->owner) {
                 ast_log(LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
                         result, p->name, p->parent->name, sub ? sub->id:-1);
-                ast_softhangup(p->sub->next->owner, AST_SOFTHANGUP_DEV);
+                mgcp_queue_hangup(sub);
             }
 
             if (p->sub->owner) {
                 ast_log(LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
                         result, p->name, p->parent->name, sub ? sub->id:-1);
-                ast_softhangup(p->sub->owner, AST_SOFTHANGUP_DEV);
+                mgcp_queue_hangup(sub);
             }
 
             dump_cmd_queues(p, NULL);
@@ -2406,7 +2406,7 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
                             /* SC: XXX cleanup if we think we are offhook XXX */
                             if ((p->sub->owner || p->sub->next->owner ) && 
                                 p->hookstate == MGCP_OFFHOOK)
-                                ast_softhangup(sub->owner, AST_SOFTHANGUP_DEV);
+				                mgcp_queue_hangup(sub);
                             p->hookstate = MGCP_ONHOOK;
 
                             /* SC: update the requested events according to the new hookstate */
@@ -2935,8 +2935,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 						first_sub = tmp_ep->sub;
 						tmp_sub = tmp_ep->sub;
 						while (tmp_sub) {
-							if (tmp_sub->owner)
-								ast_softhangup(tmp_sub->owner, AST_SOFTHANGUP_DEV);
+			                mgcp_queue_hangup(tmp_sub);
 							tmp_sub = tmp_sub->next;
 							if (tmp_sub == first_sub)
 								break;
@@ -2945,7 +2944,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 					tmp_ep = tmp_ep->next;
 				}
 			} else if (sub->owner) {
-				ast_softhangup(sub->owner, AST_SOFTHANGUP_DEV);
+                mgcp_queue_hangup(sub);
 			}
 			transmit_response(sub, "200", req, "OK");
 			/* JS: We dont send NTFY or AUEP to wildcard ep */
@@ -3909,9 +3908,7 @@ static void destroy_endpoint(struct mgcp_endpoint *e)
             sub->rtp = NULL;
         }
         memset(sub->magic, 0, sizeof(sub->magic));
-        if (sub->owner) {
-            ast_softhangup(sub->owner, AST_SOFTHANGUP_DEV);
-        }
+        mgcp_queue_hangup(sub);
         dump_cmd_queues(NULL, sub);
         ast_mutex_unlock(&sub->lock);
         sub = sub->next;
@@ -4234,8 +4231,7 @@ int unload_module()
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
 		while(p) {
-			if (p->owner)
-				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
+            mgcp_queue_hangup(p);
 			p = p->next;
 		}
 		iflist = NULL;
