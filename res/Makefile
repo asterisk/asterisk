@@ -16,7 +16,7 @@ MODS=res_adsi.so res_parking.so res_crypto.so res_musiconhold.so res_indications
 CRYPTO_LIBS=-lssl -lcrypto
 
 CFLAGS+=
-CFLAGS+=$(shell [ -f /usr/include/zap.h ] && echo " -DZAPATA_MOH")
+CFLAGS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo " -DZAPATA_MOH")
 
 all: $(MODS)
 
