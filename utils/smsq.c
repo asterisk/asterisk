@@ -75,7 +75,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
     *p=NULL;
    FILE *f;
    DIR *d;
-   int ql = strlen (queue);
+   int ql = strlen (queue), qfl = ql;
    struct dirent *fn;
    snprintf (dirname, sizeof(dirname), "sms/%s", dir);
    d = opendir (dirname);
@@ -92,7 +92,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
    if (!ql)
    {                            /* not searching any specific queue, so use whatr we found as the queue */
       queue = fn->d_name;
-      ql = p - queue;
+      qfl = ql = p - queue;
    }
    p = strchr (queue, '-');
    if (p && p < queue + ql)
@@ -135,7 +135,7 @@ static char txqcheck (char *dir, char *queue, char subaddress, char *channel, ch
    }
    fprintf (f, ">\n");
    fprintf (f, "Application: SMS\n");
-   fprintf (f, "Data: %.*s", ql, queue);
+   fprintf (f, "Data: %.*s", qfl, queue);
    if (dir[1] == 't')
       fprintf (f, "|s");
    fprintf (f, "\nMaxRetries: %d\n", retries);
