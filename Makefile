@@ -98,6 +98,9 @@ CFLAGS=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarati
 CFLAGS+=$(OPTIMIZE)
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
+ifeq (${OSARCH},FreeBSD)
+CFLAGS+=-pthread
+endif
 ifeq (${OSARCH},OpenBSD)
 CFLAGS+=-pthread
 endif
@@ -131,7 +134,18 @@ SUBDIRS=res channels pbx apps codecs formats agi cdr astman
 ifeq (${OSARCH},Linux)
 LIBS=-ldl
 endif
-LIBS+=-lpthread -lncurses -lm -lresolv  #-lnjamd
+ifeq (${OSARCH},OpenBSD)
+LIBS=-pthread
+else
+ifeq (${OSARCH},FreeBSD)
+LIBS=-pthread
+else
+endif
+endif
+LIBS+=-lncurses -lm
+ifeq (${OSARCH},Linux)
+LIBS+=-lresolv  #-lnjamd
+endif
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \

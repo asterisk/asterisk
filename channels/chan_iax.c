@@ -532,7 +532,7 @@ static void showframe(struct ast_iax_frame *f, struct ast_iax_full_hdr *fhi, int
 	(rx ? "Rx" : "Tx"),
 	retries, ntohs(fh->seqno), class, subclass);
 		fprintf(stderr,
-"   Timestamp: %05dms  Callno: %5.5d  DCall: %5.5d [%s:%d]\n",
+"   Timestamp: %05ldms  Callno: %5.5d  DCall: %5.5d [%s:%d]\n",
 	ntohl(fh->ts),
 	(short)(ntohs(fh->callno) & ~AST_FLAG_FULL), (short) ntohs(fh->dcallno),
 		inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
