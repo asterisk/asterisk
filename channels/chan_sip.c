@@ -3209,7 +3209,7 @@ static void reg_source_db(struct sip_peer *p)
 {
 	char data[80];
 	struct in_addr in;
-	char *c, *d;
+	char *c, *d, *u;
 	int expiry;
 	if (!ast_db_get("SIP/Registry", p->name, data, sizeof(data))) {
 		c = strchr(data, ':');
@@ -3221,8 +3221,14 @@ static void reg_source_db(struct sip_peer *p)
 				if (d) {
 					*d = '\0';
 					d++;
-					ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding '%s' at %s:%d for %d\n", p->name, 
-						inet_ntoa(in), atoi(c), atoi(d));
+					u = strchr(d, ':');
+					if (u) {
+						*u = '\0';
+						u++;
+						strncpy(p->username, u, sizeof(p->username));
+					}
+					ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding '%s' at %s@%s:%d for %d\n", p->name, 
+						p->username, inet_ntoa(in), atoi(c), atoi(d));
 					sip_poke_peer(p);
 					expiry = atoi(d);
 					memset(&p->addr, 0, sizeof(p->addr));
@@ -3334,7 +3340,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	pvt->expiry = expiry;
 	if (inaddrcmp(&p->addr, &oldsin)) {
 		sip_poke_peer(p);
-		snprintf(data, sizeof(data), "%s:%d:%d", inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
+		snprintf(data, sizeof(data), "%s:%d:%d:%s", inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username);
 		ast_db_put("SIP/Registry", p->name, data);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
