@@ -313,6 +313,20 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 					return 0;
 				}
 			} else {
+				if (csth->len0 < f0->datalen) {
+					if (!csth->len0) {
+						if (!(csth->buf0 = malloc(f0->datalen * 2))) {
+							csth->spy.status = CHANSPY_DONE;
+							return -1;
+						}
+					} else {
+						if (!realloc(csth->buf0, f0->datalen * 2)) {
+							csth->spy.status = CHANSPY_DONE;
+							return -1;
+						}
+					}
+					csth->len0 = f0->datalen;
+				}
 				memcpy(csth->buf0, f0->data, f0->datalen);
 				maxsamp = f0->samples;
 			}
@@ -323,12 +337,12 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 				if ((f = ast_translate(csth->trans1, f1, 0))) {
 					if (csth->len1 < f->datalen) {
 						if (!csth->len1) {
-							if (!(csth->buf1 = malloc(f->datalen))) {
+							if (!(csth->buf1 = malloc(f->datalen * 2))) {
 								csth->spy.status = CHANSPY_DONE;
 								return -1;
 							}
 						} else {
-							if (!realloc(csth->buf1, f->datalen)) {
+							if (!realloc(csth->buf1, f->datalen * 2)) {
 								csth->spy.status = CHANSPY_DONE;
 								return -1;
 							}
@@ -345,6 +359,20 @@ static int spy_generate(struct ast_channel *chan, void *data, int len, int sampl
 					return 0;
 				}
 			} else {
+				if (csth->len1 < f1->datalen) {
+					if (!csth->len1) {
+						if (!(csth->buf1 = malloc(f1->datalen * 2))) {
+							csth->spy.status = CHANSPY_DONE;
+							return -1;
+						}
+					} else {
+						if (!realloc(csth->buf1, f1->datalen * 2)) {
+							csth->spy.status = CHANSPY_DONE;
+							return -1;
+						}
+					}
+					csth->len1 = f1->datalen;
+				}
 				memcpy(csth->buf1, f1->data, f1->datalen);
 				if (f1->samples > maxsamp) {
 					maxsamp = f1->samples;
