@@ -903,6 +903,8 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 {
 	char filename[256];
 	struct ast_context *c;
+	struct ast_config *cfg;
+	struct ast_variable *v;
 	int context_header_written;
 	int incomplete = 0; /* incomplete config write? */
 	FILE *output;
@@ -942,10 +944,13 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		snprintf(filename, sizeof(filename), "%s/%s",
 			(char *)ast_config_AST_CONFIG_DIR, config);
 
+	cfg = ast_load("extensions.conf");
+
 	/* try to lock contexts list */
 	if (ast_lock_contexts()) {
 		ast_cli(fd, "Failed to lock contexts list\n");
 		ast_mutex_unlock(&save_dialplan_lock);
+		ast_destroy(cfg);
 		return RESULT_FAILURE;
 	}
 
@@ -955,6 +960,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 			filename);
 		ast_unlock_contexts();
 		ast_mutex_unlock(&save_dialplan_lock);
+		ast_destroy(cfg);
 		return RESULT_FAILURE;
 	}
 
@@ -963,6 +969,17 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 		static_config ? "yes" : "no",
 		write_protect_config ? "yes" : "no");
 
+	if ((v = ast_variable_browse(cfg, "globals"))) {
+		fprintf(output, "[globals]\n");
+		while(v) {
+			fprintf(output, "%s => %s\n", v->name, v->value);
+			v = v->next;
+		}
+		fprintf(output, "\n");
+	}
+
+	ast_destroy(cfg);
+	
 	/* walk all contexts */
 	c = ast_walk_contexts(NULL);
 	while (c) {
