@@ -6413,6 +6413,8 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 					event = 10;
 				else if (buf[0] == '#')
 					event = 11;
+				else if ((buf[0] >= 'A') && (buf[0] <= 'D'))
+					event = 12 + buf[0] - 'A';
 				else
 					event = atoi(buf);
 				if (event < 10) {
