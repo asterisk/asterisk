@@ -764,6 +764,7 @@ int ast_answer(struct ast_channel *chan)
 		ast_setstate(chan, AST_STATE_UP);
 		if (chan->cdr)
 			ast_cdr_answer(chan->cdr);
+		ast_mutex_unlock(&chan->lock);
 		return res;
 		break;
 	case AST_STATE_UP:
