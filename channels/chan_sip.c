@@ -1062,7 +1062,9 @@ static struct sip_user *mysql_user(char *user)
 						} else if (!strcasecmp(fields[x].name, "callingpres")) {
 							u->callingpres = atoi(rowval[x]);
 						} else if (!strcasecmp(fields[x].name, "callerid")) {
-							strncpy(u->callerid, rowval[x], sizeof(u->callerid) - 1);
+							ast_callerid_split(rowval[x],
+								u->cid_name, sizeof(u->cid_name),
+								u->cid_num, sizeof(u->cid_num));
 							u->hascallerid=1;
 						}
 					}
