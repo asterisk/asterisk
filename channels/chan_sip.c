@@ -3386,7 +3386,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		ast_pthread_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
 		while(peer) {
-			if (!inaddrcmp(&peer->addr, &p->recv)) {
+			if (!inaddrcmp(&peer->addr, &p->recv) || 
+				(p->insecure && (peer->addr.sin_addr.s_addr == p->recv.sin_addr.s_addr))) {
 				/* Take the peer */
 				p->nat = peer->nat;
 				if (p->rtp) {
