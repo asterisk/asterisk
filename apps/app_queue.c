@@ -839,6 +839,7 @@ static void reload_queues(void)
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
+	ast_destroy(cfg);
 	q = queues;
 	ql = NULL;
 	while(q) {
