@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.1  2000/01/05 08:20:39  markster
-Version 0.1.2 from FTP
+Revision 1.2  2000/01/05 08:20:39  markster
+Version 0.1.3 from FTP
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -29,8 +29,8 @@ extern int placev_(integer *osbuf, integer *osptr, integer *oslen, integer *obou
 /* 	PLACEV Version 48 */
 
 /* $Log$
- * Revision 1.1  2000/01/05 08:20:39  markster
- * Version 0.1.2 from FTP
+ * Revision 1.2  2000/01/05 08:20:39  markster
+ * Version 0.1.3 from FTP
  *
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
