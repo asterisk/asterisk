@@ -840,16 +840,18 @@ static void *fast_originate(void *data)
 			"%s"
 			"Channel: %s/%s\r\n"
 			"Context: %s\r\n"
-			"Exten: %s\r\n",
-			in->idtext, in->tech, in->data, in->context, in->exten);
+			"Exten: %s\r\n"
+			"Reason: %i\r\n",
+			in->idtext, in->tech, in->data, in->context, in->exten, reason);
 	else
 		manager_event(EVENT_FLAG_CALL,
 			"OriginateFailure",
 			"%s"
 			"Channel: %s/%s\r\n"
 			"Context: %s\r\n"
-			"Exten: %s\r\n",
-			in->idtext, in->tech, in->data, in->context, in->exten);
+			"Exten: %s\r\n"
+			"Reason: %i\r\n",
+			in->idtext, in->tech, in->data, in->context, in->exten, reason);
 
 	free(in);
 	return NULL;
@@ -879,8 +881,8 @@ static int action_originate(struct mansession *s, struct message *m)
 	char *priority = astman_get_header(m, "Priority");
 	char *timeout = astman_get_header(m, "Timeout");
 	char *callerid = astman_get_header(m, "CallerID");
-    char *variable = astman_get_header(m, "Variable");
-    char *account = astman_get_header(m, "Account");
+	char *variable = astman_get_header(m, "Variable");
+	char *account = astman_get_header(m, "Account");
 	char *app = astman_get_header(m, "Application");
 	char *appdata = astman_get_header(m, "Data");
 	char *async = astman_get_header(m, "Async");

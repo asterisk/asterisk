@@ -886,6 +886,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			cur = rest;
 			continue;
 		}
+		pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", numsubst);
 		if (!ast_strlen_zero(tmp->chan->call_forward)) {
 			char tmpchan[256]="";
 			char *stuff;
@@ -1059,8 +1060,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_cdr_setdestchan(chan->cdr, peer->name);
 		if (peer->name)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
-		if (numsubst)
-			pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", numsubst);
+
+		number = pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
+		if (!number)
+			number = numsubst;
+		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
  		/* JDG: sendurl */
  		if ( url && !ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
