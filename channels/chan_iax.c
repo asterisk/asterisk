@@ -3774,7 +3774,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					ast_log(LOG_DEBUG, "Ooh, voice format changed to %s\n", ast_getformatname(f.subclass));
 					if (iaxs[fr.callno]->owner) {
 						int orignative;
-						ast_mutex_lock(&iaxs[fr.callno]->owner->lock);
+retryowner:
+						if (ast_mutex_trylock(&iaxs[fr.callno]->owner->lock)) {
+							ast_mutex_unlock(&iaxsl[fr.callno]);
+							usleep(1);
+							ast_mutex_lock(&iaxsl[fr.callno]);
+							if (iaxs[fr.callno] && iaxs[fr.callno]->owner) goto retryowner;
+						}
 						orignative = iaxs[fr.callno]->owner->nativeformats;
 						iaxs[fr.callno]->owner->nativeformats = f.subclass;
 						if (iaxs[fr.callno]->owner->readformat)
