@@ -3,7 +3,7 @@
 # 
 # Top level Makefile
 #
-# Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+# Copyright (C) 1999, Mark Spencer
 #
 # Mark Spencer <markster@linux-support.net>
 #
@@ -18,11 +18,11 @@ MODULES_DIR=/usr/lib/asterisk/modules
 
 DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
-CFLAGS=-Wall -Werror -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
+CFLAGS=-pipe -Wall -Werror -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
 CFLAGS+=$(shell if $(CC) -march=i686 -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=i686"; fi)
 SUBDIRS=channels pbx apps codecs formats
-LIBS=-ldl -lpthread #-lefence
-OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o translate.o file.o say.o pbx.o asterisk.o
+LIBS=-ldl -lpthread -lreadline # -lefence
+OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o translate.o file.o say.o pbx.o cli.o asterisk.o
 CC=gcc
 INSTALL=install
 

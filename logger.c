@@ -3,7 +3,7 @@
  * 
  * Mark Spencer <markster@marko.net>
  *
- * Copyright(C) 1999, Adtran, Inc.
+ * Copyright(C)1999, Mark Spencer
  * 
  * Distributed under the terms of the GNU General Public License (GPL) Version 2
  *
@@ -29,6 +29,7 @@
 #define MAX_MSG_QUEUE 200
 
 static pthread_mutex_t msglist_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t loglock = PTHREAD_MUTEX_INITIALIZER;
 
 static struct msglist {
 	char *msg;
@@ -75,7 +76,7 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 
 	va_list ap;
 	va_start(ap, fmt);
-
+	pthread_mutex_lock(&loglock);
 	if (level == 1 /* Event */) {
 		time(&t);
 		tm = localtime(&t);
@@ -92,12 +93,13 @@ extern void ast_log(int level, char *file, int line, char *function, char *fmt, 
 		vfprintf(stdout, fmt, ap);
 		fflush(stdout);
 	}
+	pthread_mutex_unlock(&loglock);
 	va_end(ap);
 }
 
 extern void ast_verbose(char *fmt, ...)
 {
-	static char stuff[256];
+	static char stuff[4096];
 	static int pos = 0, opos;
 	static int replacelast = 0, complete;
 	struct msglist *m;
@@ -139,6 +141,7 @@ extern void ast_verbose(char *fmt, ...)
 			}
 		}
 	}
+	pthread_mutex_lock(&loglock);
 	if (verboser) {
 		v = verboser;
 		while(v) {
@@ -152,7 +155,7 @@ extern void ast_verbose(char *fmt, ...)
 		replacelast = 1;
 	else 
 		replacelast = pos = 0;
-	
+	pthread_mutex_unlock(&loglock);
 	va_end(ap);
 	pthread_mutex_unlock(&msglist_lock);
 }

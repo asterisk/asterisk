@@ -3,7 +3,7 @@
  *
  * General Asterisk channel definitions.
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-
+#include <pthread.h>
 
 #define AST_CHANNEL_NAME 80
 #define AST_CHANNEL_MAX_STACK 32
@@ -34,7 +34,10 @@ extern "C" {
 struct ast_channel {
 	char name[AST_CHANNEL_NAME];		/* ASCII Description of channel name */
 	pthread_t blocker;					/* If anyone is blocking, this is them */
+	pthread_mutex_t lock;				/* Lock, can be used to lock a channel for some operations */
 	char *blockproc;					/* Procedure causing blocking */
+	char *appl;							/* Current application */
+	char *data;							/* Data passed to current application */
 	int blocking;						/* Whether or not we're blocking */
 	struct sched_context *sched;		/* Schedule context */
 	int streamid;					/* For streaming playback, the schedule ID */
@@ -128,6 +131,9 @@ struct ast_frame *ast_read(struct ast_channel *chan);
 
 /* Write a frame to a channel */
 int ast_write(struct ast_channel *chan, struct ast_frame *frame);
+
+/* Browse the channels currently in use */
+struct ast_channel *ast_channel_walk(struct ast_channel *prev);
 
 /* Wait for a digit.  Returns <0 on error, 0 on no entry, and the digit on success. */
 char ast_waitfordigit(struct ast_channel *c, int ms);

@@ -3,7 +3,7 @@
  *
  * Module Loader
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -91,9 +91,22 @@ int ast_load_resource(char *resource_name)
 	static char fn[256];
 	int errors=0;
 	int res;
-	struct module *m = malloc(sizeof(struct module));
+	struct module *m;
+	if (pthread_mutex_lock(&modlock))
+		ast_log(LOG_WARNING, "Failed to lock\n");
+	m = module_list;
+	while(m) {
+		if (!strcasecmp(m->resource, resource_name)) {
+			ast_log(LOG_WARNING, "Module '%s' already exists\n", resource_name);
+			pthread_mutex_unlock(&modlock);
+			return -1;
+		}
+		m = m->next;
+	}
+	m = malloc(sizeof(struct module));	
 	if (!m) {
 		ast_log(LOG_WARNING, "Out of memory\n");
+		pthread_mutex_unlock(&modlock);
 		return -1;
 	}
 	strncpy(m->resource, resource_name, sizeof(m->resource));
@@ -106,6 +119,7 @@ int ast_load_resource(char *resource_name)
 	if (!m->lib) {
 		ast_log(LOG_WARNING, "%s\n", dlerror());
 		free(m);
+		pthread_mutex_unlock(&modlock);
 		return -1;
 	}
 	m->load_module = dlsym(m->lib, "load_module");
@@ -132,25 +146,23 @@ int ast_load_resource(char *resource_name)
 		ast_log(LOG_WARNING, "%d error(s) loading module %s, aborted\n", errors, fn);
 		dlclose(m->lib);
 		free(m);
+		pthread_mutex_unlock(&modlock);
 		return -1;
 	}
 	if (option_verbose) 
 		ast_verbose( " => (%s)\n", m->description());
+	pthread_mutex_unlock(&modlock);
 	if ((res = m->load_module())) {
 		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", m->resource, fn, res);
-		free(m);
+		ast_unload_resource(resource_name, 0);
 		return -1;
 	}
-	if (pthread_mutex_lock(&modlock))
-		ast_log(LOG_WARNING, "Failed to lock\n");
 	m->next = module_list;
 	module_list = m;
-	pthread_mutex_unlock(&modlock);
-	ast_update_use_count();
 	return 0;
 }	
 
-int ast_resource_exists(char *resource)
+static int ast_resource_exists(char *resource)
 {
 	struct module *m;
 	if (pthread_mutex_lock(&modlock))
