@@ -276,7 +276,7 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 	/* answer is not null-terminated, but should be */
 	/* this is safe to do, as answer has extra bytes on the end we can 
            safely overwrite with a null */
-	answer[len] = (u_char)"\0";
+	answer[len] = '\0';
 	/* now increment len so that len includes the null, so that we can
 	   compare apples to apples */
 	len +=1;
@@ -285,7 +285,7 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 	strncpy(c->txt, answer, len < c->txtlen ? len-1 : (c->txtlen)-1);
 	
 	/* just to be safe, let's make sure c->txt is null terminated */
-	c->txt[(c->txtlen)-1] = (char)"\0";
+	c->txt[(c->txtlen)-1] = '\0';
 
 	return 1;
 }
