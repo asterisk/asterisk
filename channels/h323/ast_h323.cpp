@@ -5,8 +5,8 @@
  *			By  Jeremy McNamara
  *			For The NuFone Network
  * 
- * This code has been derived from code created by
- *              Michael Manousos and Mark Spencer
+ * chan_h323 has been derived from code created by
+ *               Michael Manousos and Mark Spencer
  *
  * This file is part of the chan_h323 driver for Asterisk
  *
@@ -59,11 +59,6 @@ int channelsOpen;
 
 /* DTMF Mode */
 int mode = H323_DTMF_RFC2833;
-
-/** Options for connections creation */
-BOOL	noFastStart = TRUE;
-BOOL	noH245Tunneling;
-BOOL	noSilenceSuppression;
 
 /**
  * We assume that only one endPoint should exist.
@@ -243,26 +238,27 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
 	MyH323Connection * connection;
 
 	/* Determine whether we are using a gatekeeper or not. */
-	if (GetGatekeeper() != NULL) {
+	if (!GetGatekeeper()) {
 		fullAddress = dest;
-		if (h323debug)
+		if (h323debug) {
 			cout << " -- Making call to " << fullAddress << " using gatekeeper." << endl;
+		}
 	} else {
-			fullAddress = dest; /* host */
-			if (h323debug)
-				cout << " -- Making call to " << fullAddress << "." << endl;
+		fullAddress = dest; 
+		if (h323debug) {
+			cout << " -- Making call to " << fullAddress << "." << endl;
+		}
 	}
-
 	if (!(connection = (MyH323Connection *)H323EndPoint::MakeCallLocked(fullAddress, token))) {
-		if (h323debug)
+		if (h323debug) {
 			cout << "Error making call to \"" << fullAddress << '"' << endl;
+		}
 		return 1;
 	}
-	
-	*callReference = connection->GetCallReference();
-	
-	if (callerid)
+	*callReference = connection->GetCallReference();	
+	if (callerid) {
 		connection->SetLocalPartyName(PString(callerid));
+	}
 	if (callername) {
                 localAliasNames.RemoveAll();
 		connection->SetLocalPartyName(PString(callername));
@@ -272,16 +268,14 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
                 localAliasNames.RemoveAll();
                 connection->SetLocalPartyName(PString(callerid));
         }
-        
         connection->AST_Outgoing = TRUE;
-
-	connection->Unlock(); 	
 
 	if (h323debug) {
 		cout << "	-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
 		cout << "	-- " << "Call token is " << (const char *)token << endl;
 		cout << "	-- Call reference is " << *callReference << endl;
 	}
+	connection->Unlock(); 	
 	return 0;
 }
 
@@ -994,6 +988,7 @@ int h323_set_capability(int cap, int dtmfMode)
 	} else {
 		endPoint->SetSendUserInputMode(H323Connection::SendUserInputAsInlineRFC2833);
 	}
+#if 0
 	if (cap & AST_FORMAT_SPEEX) {
 		/* Not real sure if Asterisk acutally supports all
 		   of the various different bit rates so add them 
@@ -1005,7 +1000,7 @@ int h323_set_capability(int cap, int dtmfMode)
 		endPoint->SetCapability(0, 0, new SpeexNarrow5AudioCapability());
 		endPoint->SetCapability(0, 0, new SpeexNarrow6AudioCapability());
 	}
-
+#endif 
 	if (cap & AST_FORMAT_G729A) {
 		AST_G729ACapability *g729aCap;
 		AST_G729Capability *g729Cap;
@@ -1017,13 +1012,13 @@ int h323_set_capability(int cap, int dtmfMode)
 		H323_G7231Capability *g7231Cap;
 		endPoint->SetCapability(0, 0, g7231Cap = new H323_G7231Capability);
 	} 
-
+#if 0
 	if (cap & AST_FORMAT_GSM) {
 		H323_GSM0610Capability *gsmCap;
 	    	endPoint->SetCapability(0, 0, gsmCap = new H323_GSM0610Capability);
 	    	gsmCap->SetTxFramesInPacket(gsmFrames);
 	} 
-
+#endif
 	if (cap & AST_FORMAT_ULAW) {
 		H323_G711Capability *g711uCap;
 	    	endPoint->SetCapability(0, 0, g711uCap = new H323_G711Capability(H323_G711Capability::muLaw));
@@ -1203,13 +1198,8 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 	if (!h323_end_point_exist()) {
 		return 1;
 	}
-	
-	noFastStart = 	call_options.noFastStart;
-	noH245Tunneling = call_options.noH245Tunneling;
-
 	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port, call_options.callerid, call_options.callername);
 	memcpy((char *)(cd->call_token), (const unsigned char *)token, token.GetLength());
-	
 	return res;
 };
 

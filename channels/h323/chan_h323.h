@@ -56,17 +56,19 @@ struct oh323_user {
    All peers are registered to a GK if there is one */
 struct oh323_peer {
 	char name[80];
-	char context[80];
-	int  noFastStart;
-	int  noH245Tunneling;
-	int  noSilenceSuppression;
-	int  inUse;
-	int  outgoinglimit;
-	int  bridge;
-	int  nat;
-	int  dtmfmode;
+	char mailbox[AST_MAX_EXTENSION];
+	int capability;
+	int noFastStart;
+	int noH245Tunneling;
+	int noSilenceSuppression;
+	int inUse;
+	int outgoinglimit;
+	int bridge;
+	int nat;
+	int dtmfmode;
 	int delme;
 	struct sockaddr_in addr;
+	struct ast_ha *ha;
 	struct oh323_peer *next;
 };
 
@@ -114,7 +116,7 @@ typedef struct rtp_info {
 
 /* This is a callback prototype function, called pass
    DTMF down the RTP. */
-typedef int (*send_digit_cb)(unsigned, char);
+typedef int (*send_digit_cb)(unsigned, char, const char *);
 extern send_digit_cb	on_send_digit; 
 
 /* This is a callback prototype function, called to collect
