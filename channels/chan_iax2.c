@@ -181,6 +181,7 @@ struct iax2_user {
 	int amaflags;
 	int hascallerid;
 	int delme;
+	int temponly;
 	int capability;
 	int trunk;
 	char callerid[AST_MAX_EXTENSION];
@@ -216,6 +217,7 @@ struct iax2_peer {
 	int expirey;					/* How soon to expire */
 	int capability;					/* Capability */
 	int delme;						/* I need to be deleted */
+	int temponly;					/* I'm only a temp */
 	int trunk;						/* Treat as an IAX trunking */
 	struct timeval txtrunktime;		/* Transmit trunktime */
 	struct timeval rxtrunktime;		/* Receive trunktime */
@@ -1596,7 +1598,7 @@ static struct iax2_peer *mysql_peer(char *peer)
 	} else {
 		strncpy(p->name, peer, sizeof(p->name) - 1);
 		p->dynamic = 1;
-		p->delme = 1;
+		p->temponly = 1;
 		p->expire = -1;
 		p->capability = iax2_capability;
 		p->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
@@ -1652,7 +1654,7 @@ static struct iax2_user *mysql_user(char *user)
 		p = NULL;
 	} else {
 		strncpy(p->name, user, sizeof(p->name) - 1);
-		p->delme = 1;
+		p->temponly = 1;
 		p->capability = iax2_capability;
 		p->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
 	}
@@ -1711,7 +1713,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 			if (notransfer)
 				*notransfer=p->notransfer;
 		} else {
-			if (p->delme)
+			if (p->temponly)
 				free(p);
 			p = NULL;
 		}
@@ -1728,7 +1730,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 		}
 	} else if (!p)
 		return -1;
-	if (p->delme)
+	if (p->temponly)
 		free(p);
 	return 0;
 }
@@ -3049,7 +3051,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	if (!p->dynamic) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, inet_ntoa(sin->sin_addr));
-		if (p->delme)
+		if (p->temponly)
 			free(p);
 		return -1;
 	}
@@ -3057,7 +3059,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	if (!ast_apply_ha(p->ha, sin)) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", inet_ntoa(sin->sin_addr), p->name);
-		if (p->delme)
+		if (p->temponly)
 			free(p);
 		return -1;
 	}
@@ -3083,14 +3085,14 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			if (!keyn) {
 				if (authdebug)
 					ast_log(LOG_NOTICE, "Host %s failed RSA authentication with inkeys '%s'\n", peer, p->inkeys);
-				if (p->delme)
+				if (p->temponly)
 					free(p);
 				return -1;
 			}
 		} else {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host '%s' trying to do RSA authentication, but we have no inkeys\n", peer);
-			if (p->delme)
+			if (p->temponly)
 				free(p);
 			return -1;
 		}
@@ -3099,7 +3101,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		if (strcmp(secret, p->secret)) {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", inet_ntoa(sin->sin_addr), p->name);
-			if (p->delme)
+			if (p->temponly)
 				free(p);
 			return -1;
 		} else
@@ -3116,7 +3118,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		if (strcasecmp(requeststr, md5secret)) {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", inet_ntoa(sin->sin_addr), p->name, requeststr, md5secret);
-			if (p->delme)
+			if (p->temponly)
 				free(p);
 			return -1;
 		} else
@@ -3124,7 +3126,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	} else if (strlen(md5secret) || strlen(secret)) {
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
-		if (p->delme)
+		if (p->temponly)
 			free(p);
 		return -1;
 	}
@@ -3132,7 +3134,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	/* Choose lowest expirey number */
 	if (expire && (expire < iaxs[callno]->expirey)) 
 		iaxs[callno]->expirey = expire;
-	if (p->delme)
+	if (p->temponly)
 		free(p);
 	return 0;
 	
@@ -3564,7 +3566,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 #endif	
 	if (p) {
 #ifdef MYSQL_FRIENDS
-		if (p->delme)
+		if (p->temponly)
 			mysql_update_peer(name, sin);
 #endif
 		if (inaddrcmp(&p->addr, sin)) {
@@ -3596,7 +3598,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 		}
 		if (p->hascallerid)
 			iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->callerid);
-		if (p->delme)
+		if (p->temponly)
 			free(p);
 		return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);;
 	}
@@ -3628,7 +3630,7 @@ static int registry_authrequest(char *name, int callno)
 			iax_ie_append_str(&ied, IAX_IE_CHALLENGE, iaxs[callno]->challenge);
 		}
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, name);
-		if (p->delme)
+		if (p->temponly)
 			free(p);
 		return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGAUTH, 0, ied.buf, ied.pos, -1);;
 	} 
@@ -5219,10 +5221,36 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 
 static struct iax2_user *build_user(char *name, struct ast_variable *v)
 {
-	struct iax2_user *user;
+	struct iax2_user *prev, *user;
 	struct iax2_context *con, *conl = NULL;
 	int format;
-	user = (struct iax2_user *)malloc(sizeof(struct iax2_user));
+	int found;
+	
+	prev = NULL;
+	ast_mutex_lock(&userl.lock);
+	user = userl.users;
+	while(user) {
+		if (!strcasecmp(user->name, name)) {	
+			break;
+		}
+		prev = user;
+		user = user->next;
+	}
+	if (user) {
+		found++;
+		/* Already in the list, remove it and it will be added back (or FREE'd) */
+		if (prev) {
+			prev->next = user->next;
+		} else {
+			userl.users = user->next;
+		}
+		ast_mutex_unlock(&userl.lock);
+ 	} else {
+		ast_mutex_unlock(&userl.lock);
+		user = malloc(sizeof(struct iax2_user));
+		memset(user, 0, sizeof(struct iax2_user));
+	}
+	
 	if (user) {
 		memset(user, 0, sizeof(struct iax2_user));
 		user->capability = iax2_capability;
@@ -5282,39 +5310,34 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			v = v->next;
 		}
-	}
-	if (!user->authmethods) {
-		if (strlen(user->secret)) {
-			user->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
-			if (strlen(user->inkeys))
-				user->authmethods |= IAX_AUTH_RSA;
-		} else if (strlen(user->inkeys)) {
-			user->authmethods = IAX_AUTH_RSA;
-		} else {
-			user->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
+		if (!user->authmethods) {
+			if (strlen(user->secret)) {
+				user->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
+				if (strlen(user->inkeys))
+					user->authmethods |= IAX_AUTH_RSA;
+			} else if (strlen(user->inkeys)) {
+				user->authmethods = IAX_AUTH_RSA;
+			} else {
+				user->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
+			}
 		}
+		user->delme = 0;
 	}
 	return user;
 }
 
-
-static void delete_users(void){
-	struct iax2_user *user, *userlast;
+static void delete_users(void)
+{
+	struct iax2_user *user;
 	struct iax2_peer *peer;
 	struct iax2_registry *reg, *regl;
 
-	/* Delete all users */
 	ast_mutex_lock(&userl.lock);
 	for (user=userl.users;user;) {
-		ast_free_ha(user->ha);
-		free_context(user->contexts);
-		userlast = user;
-		user=user->next;
-		free(userlast);
+		user->delme = 1;
+		user = user->next;
 	}
-	userl.users=NULL;
 	ast_mutex_unlock(&userl.lock);
-
 	for (reg = registrations;reg;) {
 		regl = reg;
 		reg = reg->next;
@@ -5330,6 +5353,28 @@ static void delete_users(void){
 		peer = peer->next;
 	}
 	ast_mutex_unlock(&peerl.lock);
+}
+
+static void prune_users(void)
+{
+	struct iax2_user *user, *usernext, *userlast = NULL;
+	ast_mutex_lock(&userl.lock);
+	for (user=userl.users;user;) {
+		usernext = user->next;
+		if (user->delme) {
+			ast_free_ha(user->ha);
+			free_context(user->contexts);
+			user=user->next;
+			free(user);
+			if (userlast)
+				userlast->next = usernext;
+			else
+				userl.users = usernext;
+		} else
+			userlast = user;
+		user = usernext;
+	}
+	ast_mutex_unlock(&userl.lock);
 }
 
 static void prune_peers(void){
@@ -5563,6 +5608,7 @@ static int reload_config(void)
 	delete_users();
 	set_config(config,&dead_sin);
 	prune_peers();
+	prune_users();
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
 	/* Qualify hosts, too */

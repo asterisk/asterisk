@@ -266,11 +266,15 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 		if (context) {
 			strcpy(retval->context, context);
 		}
+		else
+		{
+			strcpy(retval->context, "default");
+		}
 
 		if (*retval->context) {
 			sprintf(query, "SELECT password,fullname,email,pager,options FROM voicemail WHERE context='%s' AND mailbox='%s'", context, mailbox);
 		} else {
-			sprintf(query, "SELECT password,fullname,email,pager,options FROM voicemail WHERE mailbox='%s'", mailbox);
+			sprintf(query, "SELECT password,fullname,email,pager,options FROM voicemail WHERE context='default' AND mailbox='%s'", mailbox);
 		}
 /*	fprintf(stderr,"postgres find_user: query = %s\n",query); */
 		ast_mutex_lock(&postgreslock);
