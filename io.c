@@ -56,6 +56,8 @@ struct io_context {
 	unsigned int maxfdcnt;
 	/* Currently used io callback */
 	int current_ioc;
+	/* Whether something has been deleted */
+	int needshrink;
 };
 
 
@@ -65,11 +67,22 @@ struct io_context *io_context_create(void)
 	struct io_context *tmp;
 	tmp = malloc(sizeof(struct io_context));
 	if (tmp) {
-		tmp->fds = NULL;
-		tmp->ior =  NULL;
+		tmp->needshrink = 0;
 		tmp->fdcnt = 0;
-		tmp->maxfdcnt = -1;
+		tmp->maxfdcnt = GROW_SHRINK_SIZE/2;
 		tmp->current_ioc = -1;
+		tmp->fds = malloc((GROW_SHRINK_SIZE/2) * sizeof(struct pollfd));
+		if (!tmp->fds) {
+			free(tmp);
+			tmp = NULL;
+		} else {
+			tmp->ior =  malloc((GROW_SHRINK_SIZE/2) * sizeof(struct io_rec));
+			if (!tmp->ior) {
+				free(tmp->fds);
+				free(tmp);
+				tmp = NULL;
+			}
+		}
 	}
 	return tmp;
 }
@@ -127,8 +140,9 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 	 * with the given event mask, to call callback with
 	 * data as an argument.  Returns NULL on failure.
 	 */
+	int *ret;
 	DEBUG(ast_log(LOG_DEBUG, "ast_io_add()\n"));
-	if (ioc->fdcnt < ioc->maxfdcnt) {
+	if (ioc->fdcnt >= ioc->maxfdcnt) {
 		/* 
 		 * We don't have enough space for this entry.  We need to
 		 * reallocate maxfdcnt poll fd's and io_rec's, or back out now.
@@ -150,8 +164,10 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 	/* Bonk if we couldn't allocate an int */
 	if (!ioc->ior[ioc->fdcnt].id)
 		return NULL;
-	*ioc->ior[ioc->fdcnt].id = ioc->fdcnt;
-	return ioc->ior[ioc->fdcnt++].id;
+	*(ioc->ior[ioc->fdcnt].id) = ioc->fdcnt;
+	ret = ioc->ior[ioc->fdcnt].id;
+	ioc->fdcnt++;
+	return ret;
 }
 
 int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, short events, void *data)
@@ -169,41 +185,55 @@ int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, 
 	} else return NULL;
 }
 
-static int io_shrink(struct io_context *ioc, int which)
+static int io_shrink(struct io_context *ioc)
 {
+	int getfrom;
+	int putto = 0;
 	/* 
 	 * Bring the fields from the very last entry to cover over
 	 * the entry we are removing, then decrease the size of the 
 	 * arrays by one.
 	 */
-	ioc->fdcnt--;
-
-	/* Free the int */
-	free(ioc->ior[which].id);
-	
-	/* If we're not deleting the last one, move the last one to
-	   the current position */
-	if (which != ioc->fdcnt) {
-		ioc->fds[which] = ioc->fds[ioc->fdcnt];
-		ioc->ior[which] = ioc->ior[ioc->fdcnt];
-		*ioc->ior[which].id = which;
+	for (getfrom=0;getfrom<ioc->fdcnt;getfrom++) {
+		if (ioc->ior[getfrom].id) {
+			/* In use, save it */
+			if (getfrom != putto) {
+				ioc->fds[putto] = ioc->fds[getfrom];
+				ioc->ior[putto] = ioc->ior[getfrom];
+				*(ioc->ior[putto].id) = putto;
+			}
+			putto++;
+		}
 	}
+	ioc->fdcnt = putto;
+	ioc->needshrink = 0;
 	/* FIXME: We should free some memory if we have lots of unused
 	   io structs */
 	return 0;
 }
 
-int ast_io_remove(struct io_context *ioc, int *id)
+int ast_io_remove(struct io_context *ioc, int *_id)
 {
-	if (ioc->current_ioc == *id) {
-		ast_log(LOG_NOTICE, "Callback for %d tried to remove itself (%p)\n", *id, id);
-	} else
+	int x;
+	if (!*_id) {
+		ast_log(LOG_WARNING, "Asked to remove NULL?\n");
+		return -1;
+	}
+	for (x=0;x<ioc->fdcnt;x++) {
+		if (ioc->ior[x].id == _id) {
+			/* Free the int immediately and set to NULL so we know it's unused now */
+			free(ioc->ior[x].id);
+			ioc->ior[x].id = NULL;
+			ioc->fds[x].events = 0;
+			ioc->fds[x].revents = 0;
+			ioc->needshrink = 1;
+			if (!ioc->current_ioc)
+				io_shrink(ioc);
+			return 0;
+		}
+	}
 	
-	if (*id < ioc->fdcnt) {
-		return io_shrink(ioc, *id);
-	} else 
-		ast_log(LOG_NOTICE, "Unable to remove unknown id %d\n", *id);
-
+	ast_log(LOG_NOTICE, "Unable to remove unknown id %p\n", _id);
 	return -1;
 }
 
@@ -216,24 +246,31 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 	 */
 	int res;
 	int x;
+	int origcnt;
 	DEBUG(ast_log(LOG_DEBUG, "ast_io_wait()\n"));
 	res = poll(ioc->fds, ioc->fdcnt, howlong);
 	if (res > 0) {
 		/*
 		 * At least one event
 		 */
-		for(x=0;x<ioc->fdcnt;x++) {
-			if (ioc->fds[x].revents) {
+		origcnt = ioc->fdcnt;
+		for(x=0;x<origcnt;x++) {
+			/* Yes, it is possible for an entry to be deleted and still have an
+			   event waiting if it occurs after the original calling id */
+			if (ioc->fds[x].revents && ioc->ior[x].id) {
 				/* There's an event waiting */
-				
 				ioc->current_ioc = *ioc->ior[x].id;
-				if (!ioc->ior[x].callback(ioc->ior[x].id, ioc->fds[x].fd, ioc->fds[x].revents, ioc->ior[x].data)) {
-					/* Time to delete them since they returned a 0 */
-					io_shrink(ioc, x);
+				if (ioc->ior[x].callback) {
+					if (!ioc->ior[x].callback(ioc->ior[x].id, ioc->fds[x].fd, ioc->fds[x].revents, ioc->ior[x].data)) {
+						/* Time to delete them since they returned a 0 */
+						ast_io_remove(ioc, ioc->ior[x].id);
+					}
 				}
 				ioc->current_ioc = -1;
 			}
 		}
+		if (ioc->needshrink)
+			io_shrink(ioc);
 	}
 	return res;
 }
