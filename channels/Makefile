@@ -26,17 +26,6 @@ CHANNEL_LIBS=chan_modem.so chan_sip.so \
              chan_agent.so chan_mgcp.so chan_iax2.so \
 	     chan_local.so chan_skinny.so
 
-#
-# If you really want IAX1 uncomment the following, but it is
-# unmaintained
-#
-#CHANNEL_LIBS+=chan_iax.so
-
-#
-# If you really want VoFR you can have it :-P
-#
-#CHANNEL_LIBS+=chan_vofr
-
 ifeq (${OSARCH},OpenBSD)
 MYSQLLIB=-L/usr/local/lib/mysql -lmysqlclient
 CFLAGS+=-I/usr/local/include
