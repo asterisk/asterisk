@@ -1407,19 +1407,25 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 {
 	time_t now;
 	int pos;
+	char *id = astman_get_header(m,"ActionID");
+	char idText[256] = "";
 	struct ast_call_queue *q;
 	struct queue_ent *qe;
-	astman_send_ack(s, "Queue status will follow");
+	astman_send_ack(s, m, "Queue status will follow");
 	time(&now);
 	q = queues;
+	if (id && &id) {
+		snprintf(idText,256,"ActionID: %s\r\n",id);
+	}
 	while(q) {
 		ast_mutex_lock(&q->lock);
 		ast_cli(s->fd, "Event: QueueParams\r\n"
 					"Queue: %s\r\n"
 					"Max: %d\r\n"
 					"Calls: %d\r\n"
+					"%s"
 					"\r\n",
-						q->name, q->maxlen, q->count);
+						q->name, q->maxlen, q->count,idText);
 #if 0
 		/* Do we care about queue members? */					
 		for (mem = q->members; mem; mem = mem->next) 
@@ -1433,8 +1439,9 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 				"Channel: %s\r\n"
 				"CallerID: %s\r\n"
 				"Wait: %ld\r\n"
+				"%s"
 				"\r\n", 
-					q->name, pos++, qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), now - qe->start);
+					q->name, pos++, qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : ""), now - qe->start), idText;
 		ast_mutex_unlock(&q->lock);
 		q = q->next;
 	}

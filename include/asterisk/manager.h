@@ -95,9 +95,9 @@ extern int manager_event(int category, char *event, char *contents, ...)
 	__attribute__ ((format (printf, 3,4)));
 
 extern char *astman_get_header(struct message *m, char *var);
-extern void astman_send_error(struct mansession *s, char *error);
-extern void astman_send_response(struct mansession *s, char *resp, char *msg);
-extern void astman_send_ack(struct mansession *s, char *msg);
+extern void astman_send_error(struct mansession *s, struct message *m, char *error);
+extern void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);
+extern void astman_send_ack(struct mansession *s, struct message *m, char *msg);
 
 /* Called by Asterisk initialization */
 extern int init_manager(void);
