@@ -45,6 +45,8 @@ Asterisk 1.0.6
        checking.
  -- cdr_pgsql:
     -- This will now attempt to reconnect after a connection problem.
+ -- IAXY firmware:
+    -- This has been updated to version 23.  It includes a fix for lost registrations.
  -- internals
     -- Behavior was changed for 'show codec <number>' to make it more intuitive. (kshumard)
     -- DNS failures and asterisk do not get along too well, this is not totally the case anymore.
