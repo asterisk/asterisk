@@ -882,7 +882,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		transmit_invite(p, "INVITE", 1, NULL, NULL, vxml_url,distinctive_ring, 1);
 		if (p->maxtime) {
 			/* Initialize auto-congest time */
-			p->initid = ast_sched_add(sched, p->maxtime * 2, auto_congest, p);
+			p->initid = ast_sched_add(sched, p->maxtime * 4, auto_congest, p);
 		}
 	}
 	return res;
