@@ -4196,8 +4196,11 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  		case '3':
  			message_exists = 0;
  			/* Record */
- 			ast_verbose(VERBOSE_PREFIX_3 "Re-recording the message\n");
- 			if (recorded && outsidecaller) {
+ 			if (recorded == 1)
+				ast_verbose(VERBOSE_PREFIX_3 "Re-recording the message\n");
+ 			else	
+				ast_verbose(VERBOSE_PREFIX_3 "Recording the message\n");
+			if (recorded && outsidecaller) {
  				cmd = play_and_wait(chan, INTRO);
  				cmd = play_and_wait(chan, "beep");
  			}
