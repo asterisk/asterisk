@@ -89,13 +89,13 @@ will ensure a sane build.
 
 Dialing an H.323 channel
 
-Note: At the present time chan_H323 does not support dialing with a type=peer.
+Note: At the present time chan_h323 does not support dialing with a type=peer.
 
-Without a  gatekeeper:
+Without a gatekeeper:
 
 exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@ip.address.or.hostname/callerid
 
-Using Gatekeeper:
+Using a gatekeeper:
 
 exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}
 
