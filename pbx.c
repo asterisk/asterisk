@@ -633,7 +633,7 @@ static void pbx_destroy(struct ast_pbx *p)
 		case '.':\
 			/* Must match */\
 			return 1;\
-		case '+':\
+		case '!':\
 			/* Early match */\
 			return 2;\
 		case ' ':\
@@ -648,8 +648,8 @@ static void pbx_destroy(struct ast_pbx *p)
 		data++;\
 		pattern++;\
 	}\
-	/* If we ran off the end of the data and the pattern ends in '+', match */\
-	if (match && !*data && (*pattern == '+'))\
+	/* If we ran off the end of the data and the pattern ends in '!', match */\
+	if (match && !*data && (*pattern == '!'))\
 		return 2;\
 }
 
@@ -774,7 +774,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 				    (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
 
 					if (action == HELPER_MATCHMORE && match == 2 && !earlymatch) {
-						/* It matched an extension ending in a '+' wildcard
+						/* It matched an extension ending in a '!' wildcard
 						   So ignore it for now, unless there's a better match */
 						earlymatch = eroot;
 					} else {

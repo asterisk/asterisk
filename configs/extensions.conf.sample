@@ -69,7 +69,7 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;   [1235-9] - any digit in the brackets (in this example, 1,2,3,5,6,7,8,9)
 ;   . - wildcard, matches anything remaining (e.g. _9011. matches 
 ;	anything starting with 9011 excluding 9011 itself)
-;   + - wildcard, causes the matching process to complete as soon as
+;   ! - wildcard, causes the matching process to complete as soon as
 ;       it can unambiguously determine that no other matches are possible
 ;
 ; For example the extension _NXXXXXX would match normal 7 digit dialings, 
