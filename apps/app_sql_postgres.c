@@ -39,57 +39,67 @@ static char *app = "PGSQL";
 static char *synopsis = "Do several SQLy things";
 
 static char *descrip = 
-"  PGSQL():  Do several SQLy things\n";
+"PGSQL():  Do several SQLy things\n"
+"Syntax:\n"
+"  PGSQL(Connect var option-string)\n"
+"    Connects to a database.  Option string contains standard PostgreSQL\n"
+"    parameters like host=, dbname=, user=.  Connection identifer returned\n"
+"    in ${var}\n"
+"  PGSQL(Query var ${connection_identifier} query-string)\n"
+"    Executes standard SQL query contained in query-string using established\n"
+"    connection identified by ${connection_identifier}. Reseult of query is\n"
+"    is stored in ${var}.\n"
+"  PGSQL(Fetch statusvar ${result_identifier} var1 var2 ... varn)\n"
+"    Fetches a single row from a result set contained in ${result_identifier}.\n"
+"    Assigns returned fields to ${var1} ... ${varn}.  ${statusvar} is set TRUE\n"
+"    if additional rows exist in reseult set.\n"
+"  PGSQL(Clear ${result_identifier})\n"
+"    Frees memory and datastructures associated with result set.\n" 
+"  PGSQL(Disconnect ${connection_identifier})\n"
+"    Disconnects from named connection to PostgreSQL.\n" ;
 
 /*
 
 Syntax of SQL commands : 
 
-	Connect #var option-string
+	Connect var option-string
 	
 	Connects to a database using the option-string and stores the 
-	connection identifier in $var
+	connection identifier in ${var}
 	
 	
-	Query var connection-identifier query-string
+	Query var ${connection_identifier} query-string
 	
 	Submits query-string to database backend and stores the result
 	identifier in ${var}
 	
 	
-	Fetch statusvar result-identifier var1 var2 var3 ... varn
+	Fetch statusvar ${result_identifier} var1 var2 var3 ... varn
 	
 	Fetches a row from the query and stores end-of-table status in 
 	${statusvar} and columns in ${var1}..${varn}
 	
 	
-	Clear result-identifier
+	Clear ${result_identifier}
 
-	Clears data structures associated with result-identifier
+	Clears data structures associated with ${result_identifier}
 	
 	
-	Disconnect connection-identifier
+	Disconnect ${connection_identifier}
 	
 	Disconnects from named connection
 	
 	
 EXAMPLES OF USE : 
 
-(
- $2 = Connection Identifier
- $3 = Result Identifier
- $4 = Fetch Status Identifier (0 = no more rows)
- $5, $6 = Data variables
-)
-
-exten => s,2,PGSQL,"Connect connid host=localhost user=asterisk dbname=credit";
-exten => s,3,PGSQL,"Query resultid ${connid} SELECT username,credit FROM credit WHERE callerid=${callerid}";
-exten => s,4,PGSQL,"Fetch fetchid ${resultid} datavar1 datavar2";
-exten => s,5,GotoIf,"${fetchid}=1?s|6:s|8";
-exten => s,6,blablabla ${datavar1} ${datavar2}	(does blablabla, datavar1 = username, datavar2 = credit);
-exten => s,7,Goto,s|4
-exten => s,8,PGSQL,"Clear ${resultid}";
-exten => s,9,PGSQL,"Disconnect ${connid}";
+exten => s,2,PGSQL(Connect connid host=localhost user=asterisk dbname=credit)
+exten => s,3,PGSQL(Query resultid ${connid} SELECT username,credit FROM credit WHERE callerid=${CALLERIDNUM})
+exten => s,4,PGSQL(Fetch fetchid ${resultid} datavar1 datavar2)
+exten => s,5,GotoIf(${fetchid}?6:8)
+exten => s,6,Festival("User ${datavar1} currently has credit balance of ${datavar2} dollars.")	
+exten => s,7,Goto(s,4)
+exten => s,8,PGSQL(Clear ${resultid})
+exten => s,9,PGSQL(Disconnect ${connid})
 
 */
 
