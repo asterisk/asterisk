@@ -162,7 +162,7 @@ struct ast_config *ast_load(char *configfile)
 	int lineno=0;
 
 	if (configfile[0] == '/') {
-		strncpy(fn, configfile, sizeof(fn));
+		strncpy(fn, configfile, sizeof(fn)-1);
 	} else {
 		snprintf(fn, sizeof(fn), "%s/%s", AST_CONFIG_DIR, configfile);
 	}
@@ -221,7 +221,7 @@ struct ast_config *ast_load(char *configfile)
 								fclose(f);
 								return NULL;
 							}
-							strncpy(tmpc->name, cur+1, sizeof(tmpc->name));
+							strncpy(tmpc->name, cur+1, sizeof(tmpc->name)-1);
 							tmpc->root =  NULL;
 							tmpc->next = tmp->root;
 							tmp->root = tmpc;
@@ -261,7 +261,7 @@ struct ast_config *ast_load(char *configfile)
 								return NULL;
 							}
 						} else {
-							ast_log(LOG_WARNING, "No '=' (equal sign) in line %d\n", lineno);
+							ast_log(LOG_WARNING, "No '=' (equal sign) in line %d of %s\n", lineno, configfile);
 						}
 														
 					}

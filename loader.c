@@ -161,14 +161,19 @@ int ast_load_resource(char *resource_name)
 	struct ast_config *cfg;
 	/* Keep the module file parsing silent */
 	o = option_verbose;
-	option_verbose = 0;
-	cfg = ast_load(AST_MODULE_CONFIG);
-	option_verbose = o;
-	if (cfg) {
-		if ((val = ast_variable_retrieve(cfg, "global", resource_name))
-				&& ast_true(val))
-			flags |= RTLD_GLOBAL;
-		ast_destroy(cfg);
+	if (strncasecmp(resource_name, "res_", 4)) {
+		option_verbose = 0;
+		cfg = ast_load(AST_MODULE_CONFIG);
+		option_verbose = o;
+		if (cfg) {
+			if ((val = ast_variable_retrieve(cfg, "global", resource_name))
+					&& ast_true(val))
+				flags |= RTLD_GLOBAL;
+			ast_destroy(cfg);
+		}
+	} else {
+		/* Resource modules are always loaded global */
+		flags |= RTLD_GLOBAL;
 	}
 	
 	if (ast_pthread_mutex_lock(&modlock))
@@ -188,9 +193,9 @@ int ast_load_resource(char *resource_name)
 		ast_pthread_mutex_unlock(&modlock);
 		return -1;
 	}
-	strncpy(m->resource, resource_name, sizeof(m->resource));
+	strncpy(m->resource, resource_name, sizeof(m->resource)-1);
 	if (resource_name[0] == '/') {
-		strncpy(fn, resource_name, sizeof(fn));
+		strncpy(fn, resource_name, sizeof(fn)-1);
 	} else {
 		snprintf(fn, sizeof(fn), "%s/%s", AST_MODULE_DIR, resource_name);
 	}
@@ -315,49 +320,54 @@ int load_modules()
 		/* Load all modules */
 		DIR *mods;
 		struct dirent *d;
-		mods = opendir(AST_MODULE_DIR);
-		if (mods) {
-			while((d = readdir(mods))) {
-				/* Must end in .so to load it.  */
-				if ((strlen(d->d_name) > 3) && 
-				    !strcasecmp(d->d_name + strlen(d->d_name) - 3, ".so") &&
-					!ast_resource_exists(d->d_name)) {
-					/* It's a shared library -- Just be sure we're allowed to load it -- kinda
-					   an inefficient way to do it, but oh well. */
-					if (cfg) {
-						v = ast_variable_browse(cfg, "modules");
-						while(v) {
-							if (!strcasecmp(v->name, "noload") &&
-							    !strcasecmp(v->value, d->d_name)) 
-								break;
-							v = v->next;
-						}
-						if (v) {
-							if (option_verbose) {
-								ast_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", d->d_name);
-								fflush(stdout);
+		int x;
+		/* Make two passes.  First, load any resource modules, then load the others. */
+		for (x=0;x<2;x++) {
+			mods = opendir(AST_MODULE_DIR);
+			if (mods) {
+				while((d = readdir(mods))) {
+					/* Must end in .so to load it.  */
+					if ((strlen(d->d_name) > 3) && (x || !strncasecmp(d->d_name, "res_", 4)) && 
+					    !strcasecmp(d->d_name + strlen(d->d_name) - 3, ".so") &&
+						!ast_resource_exists(d->d_name)) {
+						/* It's a shared library -- Just be sure we're allowed to load it -- kinda
+						   an inefficient way to do it, but oh well. */
+						if (cfg) {
+							v = ast_variable_browse(cfg, "modules");
+							while(v) {
+								if (!strcasecmp(v->name, "noload") &&
+								    !strcasecmp(v->value, d->d_name)) 
+									break;
+								v = v->next;
 							}
-							continue;
+							if (v) {
+								if (option_verbose) {
+									ast_verbose( VERBOSE_PREFIX_1 "[skipping %s]\n", d->d_name);
+									fflush(stdout);
+								}
+								continue;
+							}
+							
 						}
-						
-					}
-				    if (option_debug && !option_verbose)
-						ast_log(LOG_DEBUG, "Loading module %s\n", d->d_name);
-					if (option_verbose) {
-						ast_verbose( VERBOSE_PREFIX_1 "[%s]", d->d_name);
-						fflush(stdout);
-					}
-					if (ast_load_resource(d->d_name)) {
-						ast_log(LOG_WARNING, "Loading module %s failed!\n", d->d_name);
-						if (cfg)
-							ast_destroy(cfg);
-						return -1;
+					    if (option_debug && !option_verbose)
+							ast_log(LOG_DEBUG, "Loading module %s\n", d->d_name);
+						if (option_verbose) {
+							ast_verbose( VERBOSE_PREFIX_1 "[%s]", d->d_name);
+							fflush(stdout);
+						}
+						if (ast_load_resource(d->d_name)) {
+							ast_log(LOG_WARNING, "Loading module %s failed!\n", d->d_name);
+							if (cfg)
+								ast_destroy(cfg);
+							return -1;
+						}
 					}
 				}
-			};
-		} else {
-			if (!option_quiet)
-				ast_log(LOG_WARNING, "Unable to open modules directory " AST_MODULE_DIR ".\n");
+				closedir(mods);
+			} else {
+				if (!option_quiet)
+					ast_log(LOG_WARNING, "Unable to open modules directory " AST_MODULE_DIR ".\n");
+			}
 		}
 	} 
 	ast_destroy(cfg);
