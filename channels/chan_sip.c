@@ -5528,29 +5528,31 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			transmit_response_with_allow(p, "484 Address Incomplete", req);
 		else {
 			transmit_response(p, "202 Accepted", req);
-			if (p->refer_call) {
-				ast_log(LOG_DEBUG,"202 Accepted (supervised)\n");
-				attempt_transfer(p, p->refer_call);
-				ast_mutex_unlock(&p->refer_call->lock);
-				p->refer_call = NULL;
-				p->gotrefer = 1;
-			} else {
-				ast_log(LOG_DEBUG,"202 Accepted (blind)\n");
-				c = p->owner;
-				if (c) {
-					transfer_to = c->bridge;
-					if (transfer_to) {
-						ast_moh_stop(transfer_to);
-						ast_async_goto(transfer_to,p->context, p->refer_to,1);
-					} else {
-						ast_queue_hangup(p->owner);
+			if (!ignore) {
+				if (p->refer_call) {
+					ast_log(LOG_DEBUG,"202 Accepted (supervised)\n");
+					attempt_transfer(p, p->refer_call);
+					ast_mutex_unlock(&p->refer_call->lock);
+					p->refer_call = NULL;
+					p->gotrefer = 1;
+				} else {
+					ast_log(LOG_DEBUG,"202 Accepted (blind)\n");
+					c = p->owner;
+					if (c) {
+						transfer_to = c->bridge;
+						if (transfer_to) {
+							ast_moh_stop(transfer_to);
+							ast_async_goto(transfer_to,p->context, p->refer_to,1);
+						} else {
+							ast_queue_hangup(p->owner);
+						}
 					}
+					p->gotrefer = 1;
 				}
-				p->gotrefer = 1;
+				/* Always increment on a BYE */
+				transmit_request_with_auth(p, "BYE", 0, 1, 1);
+				p->alreadygone = 1;
 			}
-			/* Always increment on a BYE */
-			transmit_request_with_auth(p, "BYE", 0, 1, 1);
-			p->alreadygone = 1;
 		}
 	} else if (!strcasecmp(cmd, "CANCEL")) {
 		check_via(p, req);

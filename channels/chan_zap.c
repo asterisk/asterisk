@@ -1509,7 +1509,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		if (c)
 			c++;
 		else
-			c = dest;
+			c = "";
 		if (strlen(c) < p->stripmsd) {
 			ast_log(LOG_WARNING, "Number '%s' is shorter than stripmsd (%d)\n", c, p->stripmsd);
 			return -1;
