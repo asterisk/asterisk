@@ -105,8 +105,7 @@ central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hour
 ;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central
 ;4300 => 3456,Ben Rigas,ben@american-computer.net
 ;4310 => 5432,Sales,sales@marko.net
-;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=
-yes 
+;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes 
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
 
 ;
