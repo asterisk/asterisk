@@ -4296,6 +4296,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			p->alreadygone = 1;
 		}
 	} else if (!strcasecmp(cmd, "CANCEL")) {
+		check_via(p, req);
 		p->alreadygone = 1;
 		if (p->rtp) {
 			/* Immediately stop RTP */
@@ -4307,6 +4308,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 	} else if (!strcasecmp(cmd, "BYE")) {
 		copy_request(&p->initreq, req);
+		check_via(p, req);
 		p->alreadygone = 1;
 		if (p->rtp) {
 			/* Immediately stop RTP */
