@@ -54,13 +54,13 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <sys/signal.h>
-#include <netinet/ip.h>
 #ifdef __OpenBSD__
 #include <netinet/in_systm.h>
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
 #endif
 #endif
+#include <netinet/ip.h>
 
 #include "h323/chan_h323.h"
 

@@ -39,7 +39,10 @@ CFLAGS += -march=$(shell uname -m) -DPBYTE_ORDER=PLITTLE_ENDIAN
 # Pre Janus release directives
 CFLAGS += -DNDEBUG -DDO_CRASH -DDEBUG_THREADS
 CFLAGS += -pipe -Wall -fPIC -Wmissing-prototypes -Wmissing-declarations
-CFLAGS += -DP_LINUX  -D_REENTRANT -D_GNU_SOURCE
+ifeq (${OSARCH},Linux)
+CFLAGS += -DP_LINUX
+endif
+CFLAGS += -D_REENTRANT -D_GNU_SOURCE
 CFLAGS += -DP_HAS_SEMAPHORES -DP_SSL -DP_PTHREADS
 CFLAGS += -DPHAS_TEMPLATES -DPTRACING -DP_USE_PRAGMA
 CFLAGS += -I../../include
