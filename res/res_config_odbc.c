@@ -416,7 +416,7 @@ static struct ast_config *config_odbc (const char *database, const char *table, 
 	odbc_obj *obj;
 	SQLINTEGER err=0, commented=0, cat_metric=0, var_metric=0, last_cat_metric=0;
 	SQLBIGINT id;
-	char sql[255] = "", filename[128], category[128], var_name[128], var_val[128];
+	char sql[255] = "", filename[128], category[128], var_name[128], var_val[512];
 	SQLSMALLINT rowcount=0;
 	SQLHSTMT stmt;
 	char last[80] = "";
