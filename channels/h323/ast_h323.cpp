@@ -471,9 +471,6 @@ MyH323Connection::MyH323Connection(MyH323EndPoint & ep, unsigned callReference,
 							unsigned options)
 	: H323Connection(ep, callReference, options)
 {
-    	remoteIpAddress = 0; 	// IP Address of remote endpoint
-	remotePort      = 0;	// remote endpoint Data port (control is dataPort+1)
-
 	if (h323debug) {
 		cout << "	== New H.323 Connection created." << endl;
 	}
@@ -722,23 +719,13 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 		cout << ((channel.GetDirection()==H323Channel::IsTransmitter)?"sending ":((channel.GetDirection()==H323Channel::IsReceiver)?"receiving ":" ")); 
 		cout << (const char *)(channel.GetCapability()).GetFormatName() << endl;
 	}
-	// adjust the count of channels we have open
+
+	/* adjust the count of channels we have open */
 	channelsOpen++;
+
 	if (h323debug) {
 		cout <<  "		-- channelsOpen = " << channelsOpen << endl;
 	}
-
-	H323_ExternalRTPChannel & external = (H323_ExternalRTPChannel &)channel;
- 	external.GetRemoteAddress(remoteIpAddress, remotePort); 
-
-	if (h323debug) {
-		if (channel.GetDirection()==H323Channel::IsReceiver) {
-			cout << "		-- remoteIpAddress: " << remoteIpAddress << endl;
-			cout << "		-- remotePort: " << remotePort << endl;
-		}
-	}
-	/* Notify Asterisk of remote RTP information */
-	on_start_logical_channel(GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort);
 
 	return TRUE;	
 }
@@ -752,10 +739,6 @@ MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connecti
 		  				     WORD dataPort)
 	: H323_ExternalRTPChannel(connection, capability, direction, sessionID, ip, dataPort)
 {
-	if (h323debug) {
-		cout << "	== New H.323 ExternalRTPChannel created." << endl;
-	}
-	return;
 }
 
 MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connection,
@@ -778,32 +761,29 @@ MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connecti
 
 MyH323_ExternalRTPChannel::~MyH323_ExternalRTPChannel()
 {
-	if (h323debug) {
-		cout << "	== H.323 ExternalRTPChannel deleted." << endl;
-	}
-	return;
 }
 
 BOOL MyH323_ExternalRTPChannel::OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param)
 {
-	PIPSocket::Address remoteIpAddress;
-	WORD remotePort;
+       PIPSocket::Address remoteIpAddress;
+       WORD remotePort;
 
-	if (H323_ExternalRTPChannel::OnReceivedAckPDU(param)) {
-		H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddress, remotePort);
-		/* Notify Asterisk of remote RTP information */
-		on_start_logical_channel(connection.GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort);
-		return TRUE;
-	}
-	return FALSE;
+        if (H323_ExternalRTPChannel::OnReceivedAckPDU(param)) {
+               H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddress, remotePort);
+               /* Notify Asterisk of remote RTP information */
+               on_start_logical_channel(connection.GetCallReference(), (const char *)remoteIpAddress.AsString(), remotePort);
+                return TRUE;
+        }
+        return FALSE;
+
 }
-
 /** IMPLEMENTATION OF C FUNCTIONS */
 
 /**
  * The extern "C" directive takes care for 
  * the ANSI-C representation of linkable symbols 
  */
+
 extern "C" {
 
 int h323_end_point_exist(void)

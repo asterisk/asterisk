@@ -248,9 +248,7 @@ class MyH323Connection : public H323Connection {
 	PString destE164;
 
 	PIPSocket::Address externalIpAddress;	
-    	PIPSocket::Address remoteIpAddress;	
 	WORD externalPort;
-	WORD remotePort;		
 	WORD sessionId;
 	BOOL bridging;			
 };
@@ -289,9 +287,7 @@ class MyH323_ExternalRTPChannel : public H323_ExternalRTPChannel {
      	BOOL OnReceivedAckPDU(const H245_H2250LogicalChannelAckParameters & param);
 
      	PIPSocket::Address externalIpAddress;   
-     	PIPSocket::Address remoteIpAddress;             
      	WORD externalPort;               
-     	WORD remotePort;
 }; 
 
 /**
