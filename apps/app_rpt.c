@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.15 8/21/04
+ *  version 0.16 8/21/04
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -137,7 +137,7 @@ enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.15  08/21/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.16  08/21/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -2773,6 +2773,7 @@ char cmd[MAXDTMF+1] = "";
 	{
 		fprintf(stderr,"rpt:Dial number (%s) must be in format tech/number\n",myrpt->rxchanname);
 		ast_mutex_unlock(&myrpt->lock);
+		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	*tele++ = 0;
@@ -2784,6 +2785,7 @@ char cmd[MAXDTMF+1] = "";
 			fprintf(stderr,"rpt:Sorry unable to obtain Rx channel\n");
 			ast_mutex_unlock(&myrpt->lock);
 			ast_hangup(myrpt->rxchannel);
+			myrpt->rpt_thread = AST_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
 		ast_set_read_format(myrpt->rxchannel,AST_FORMAT_SLINEAR);
@@ -2799,6 +2801,7 @@ char cmd[MAXDTMF+1] = "";
 		{
 			ast_mutex_unlock(&myrpt->lock);
 			ast_hangup(myrpt->rxchannel);
+			myrpt->rpt_thread = AST_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
 	}
@@ -2806,6 +2809,7 @@ char cmd[MAXDTMF+1] = "";
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain Rx channel\n");
 		ast_mutex_unlock(&myrpt->lock);
+		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	if (myrpt->txchanname)
@@ -2816,6 +2820,7 @@ char cmd[MAXDTMF+1] = "";
 		{
 			fprintf(stderr,"rpt:Dial number (%s) must be in format tech/number\n",myrpt->txchanname);
 			ast_mutex_unlock(&myrpt->lock);
+			myrpt->rpt_thread = AST_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
 		*tele++ = 0;
@@ -2828,6 +2833,7 @@ char cmd[MAXDTMF+1] = "";
 				ast_mutex_unlock(&myrpt->lock);
 				ast_hangup(myrpt->txchannel);
 				ast_hangup(myrpt->rxchannel);
+				myrpt->rpt_thread = AST_PTHREADT_STOP;
 				pthread_exit(NULL);
 			}			
 			ast_set_read_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
@@ -2844,6 +2850,7 @@ char cmd[MAXDTMF+1] = "";
 				ast_mutex_unlock(&myrpt->lock);
 				ast_hangup(myrpt->rxchannel);
 				ast_hangup(myrpt->txchannel);
+				myrpt->rpt_thread = AST_PTHREADT_STOP;
 				pthread_exit(NULL);
 			}
 		}
@@ -2852,6 +2859,7 @@ char cmd[MAXDTMF+1] = "";
 			fprintf(stderr,"rpt:Sorry unable to obtain Tx channel\n");
 			ast_mutex_unlock(&myrpt->lock);
 			ast_hangup(myrpt->rxchannel);
+			myrpt->rpt_thread = AST_PTHREADT_STOP;
 			pthread_exit(NULL);
 		}
 	}
@@ -2868,6 +2876,7 @@ char cmd[MAXDTMF+1] = "";
 		if (myrpt->txchannel != myrpt->rxchannel) 
 			ast_hangup(myrpt->txchannel);
 		ast_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* make a conference for the tx */
@@ -2883,6 +2892,7 @@ char cmd[MAXDTMF+1] = "";
 		if (myrpt->txchannel != myrpt->rxchannel) 
 			ast_hangup(myrpt->txchannel);
 		ast_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* save tx conference number */
@@ -2900,6 +2910,7 @@ char cmd[MAXDTMF+1] = "";
 		if (myrpt->txchannel != myrpt->rxchannel) 
 			ast_hangup(myrpt->txchannel);
 		ast_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* save pseudo channel conference number */
@@ -2914,6 +2925,7 @@ char cmd[MAXDTMF+1] = "";
 		if (myrpt->txchannel != myrpt->rxchannel) 
 			ast_hangup(myrpt->txchannel);
 		ast_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* make a conference for the tx */
@@ -2930,6 +2942,7 @@ char cmd[MAXDTMF+1] = "";
 		if (myrpt->txchannel != myrpt->rxchannel) 
 			ast_hangup(myrpt->txchannel);
 		ast_hangup(myrpt->rxchannel);
+		myrpt->rpt_thread = AST_PTHREADT_STOP;
 		pthread_exit(NULL);
 	}
 	/* Now, the idea here is to copy from the physical rx channel buffer
@@ -3531,6 +3544,7 @@ char cmd[MAXDTMF+1] = "";
 	}
 	ast_mutex_unlock(&myrpt->lock);
 	if (debug) printf("@@@@ rpt:Hung up channel\n");
+	myrpt->rpt_thread = AST_PTHREADT_STOP;
 	pthread_exit(NULL); 
 	return NULL;
 }
@@ -3673,7 +3687,9 @@ pthread_attr_t attr;
 			ast_log(LOG_WARNING,"Did not specify ident for node %s\n",rpt_vars[i].name);
 			pthread_exit(NULL);
 		}
-		ast_pthread_create(&rpt_vars[i].rpt_thread,NULL,rpt,(void *) &rpt_vars[i]);
+	        pthread_attr_init(&attr);
+	        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		ast_pthread_create(&rpt_vars[i].rpt_thread,&attr,rpt,(void *) &rpt_vars[i]);
 	}
 	usleep(500000);
 	for(;;)
@@ -3681,8 +3697,13 @@ pthread_attr_t attr;
 		/* Now monitor each thread, and restart it if necessary */
 		for(i = 0; i < n; i++)
 		{ 
+			int rv;
 			if (rpt_vars[i].remote) continue;
-			if (pthread_kill(rpt_vars[i].rpt_thread,0))
+			if (rpt_vars[i].rpt_thread == AST_PTHREADT_STOP) 
+				rv = -1;
+			else
+				rv = pthread_kill(rpt_vars[i].rpt_thread,0);
+			if (rv)
 			{
 			        pthread_attr_init(&attr);
 	 		        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
