@@ -351,6 +351,7 @@ odbc_status odbc_obj_connect(odbc_obj * obj)
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
 		SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
+		ast_mutex_unlock(&obj->lock);
 		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%ld %s\n", res, err, msg);
 		return ODBC_FAIL;
 	} else {

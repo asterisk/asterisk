@@ -82,10 +82,10 @@ static void *autodial(void *ignore)
 		fds[0].events = POLLIN;
 		poll(fds, 1, -1);
 		bytes=read(fd,buf,256);
-		buf[(int)bytes]=0;
 
 		if(bytes>0){
 			int x;
+			buf[(int)bytes]=0;
 			ast_log(LOG_DEBUG, "WilCalu : Read Buf %s\n",buf);
 			sendbufptr=sendbuf;
 			for(x=0; lastbuf[x]!=0 && x<257; x++);

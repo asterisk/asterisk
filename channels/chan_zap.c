@@ -1796,6 +1796,11 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 static void destroy_zt_pvt(struct zt_pvt **pvt)
 {
 	struct zt_pvt *p = *pvt;
+	/* Remove channel from the list */
+	if(p->prev)
+		p->prev->next = p->next;
+	if(p->next)
+		p->next->prev = p->prev;
 	ast_mutex_destroy(&p->lock);
 	free(p);
 	*pvt = NULL;
@@ -5529,7 +5534,7 @@ static int handle_init_r2_event(struct zt_pvt *i, mfcr2_event_t *e)
 			   Steve's code */
 			/* Check for callerid, digits, etc */
 			i->hasr2call = 1;
-			chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0);
+			chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0, 0);
 			if (!chan) {
 				ast_log(LOG_WARNING, "Unable to create channel for channel %d\n", i->channel);
 				mfcr2_DropCall(i->r2, NULL, UC_NETWORK_CONGESTION);
