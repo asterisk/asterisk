@@ -52,6 +52,7 @@ ${ACCOUNTCODE} 	Account code (if specified)
 ${CALLERID}	Caller ID
 ${CALLERIDNAME}	Caller ID Name only
 ${CALLERIDNUM}	Caller ID Number only
+${CALLINGPRES}	PRI Caller ID presentation for incoming calls
 ${CHANNEL}	Current channel name
 ${CONTEXT}      Current context
 ${DATETIME}	Current date time in the format: YYYY-MM-DD_HH:MM:SS
