@@ -11,7 +11,10 @@
 # the GNU General Public License
 #
 
-CHANNEL_LIBS=chan_vofr.so chan_ixj.so chan_modem.so chan_modem_aopen.so
+CHANNEL_LIBS=chan_vofr.so chan_modem.so \
+	     chan_modem_aopen.so chan_iax.so chan_oss.so
+
+CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 
 CFLAGS+=#-DVOFRDUMPER
 
@@ -22,6 +25,9 @@ clean:
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
+
+#chan_modem.so : chan_modem.o
+#	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<
 
 install: all
 	for x in $(CHANNEL_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
