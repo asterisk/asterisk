@@ -182,6 +182,7 @@ static struct sip_pvt {
 	int tag;							/* Another random number */
 	int nat;							/* Whether to try to support NAT */
 	struct sockaddr_in sa;				/* Our peer */
+	struct sockaddr_in redirip;			/* Where our RTP should be going if not to us */
 	struct sockaddr_in recv;			/* Received as */
 	struct in_addr ourip;				/* Our IP */
 	struct ast_channel *owner;			/* Who owns us */
@@ -2163,7 +2164,10 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		return -1;
 	}
 	ast_rtp_get_us(p->rtp, &sin);
-	if (rtp) {
+	if (p->redirip.sin_addr.s_addr) {
+		dest.sin_port = p->redirip.sin_port;
+		dest.sin_addr = p->redirip.sin_addr;
+	} else if (rtp) {
 		ast_rtp_get_peer(rtp, &dest);
 	} else {
 		dest.sin_addr = p->ourip;
@@ -5297,6 +5301,10 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp)
 	struct sip_pvt *p;
 	p = chan->pvt->pvt;
 	if (p) {
+		if (rtp)
+			ast_rtp_get_peer(rtp, &p->redirip);
+		else
+			memset(&p->redirip, 0, sizeof(p->redirip));
 		transmit_reinvite_with_sdp(p, rtp);
 		p->outgoing = 1;
 		return 0;
