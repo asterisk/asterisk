@@ -459,7 +459,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			for (i=0; i<globbuf.gl_pathc; i++) {
 				strncpy(fn, globbuf.gl_pathv[i], sizeof(fn)-1);
 #endif
-	if ((option_verbose > 1) && !option_debug) {
+	if ((option_verbose > 2) && !option_debug) {
 		ast_verbose(  VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
 		fflush(stdout);
 	}
