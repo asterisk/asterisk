@@ -109,8 +109,6 @@ typedef struct rtp_info {
 	unsigned int port;
 } rtp_info_t;
 
-static struct sockaddr_in bindaddr;
-
 /* This is a callback prototype function, called pass
    DTMF down the RTP. */
 typedef int (*send_digit_cb)(unsigned, char);
