@@ -28,6 +28,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 
+#define LOCAL_MPG_123 "/usr/local/bin/mpg123"
 #define MPG_123 "/usr/bin/mpg123"
 
 static char *tdesc = "Silly MP3 Application";
@@ -60,10 +61,22 @@ static int mp3play(char *filename, int fd)
 			close(x);
 	}
 	/* Execute mpg123, but buffer if it's a net connection */
-	if (strncmp(filename, "http://", 7)) 
-	    execl(MPG_123, MPG_123, "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, (char *)NULL);
-	else
-	    execl(MPG_123, MPG_123, "-q", "-s", "--mono", "-r", "8000", filename, (char *)NULL);
+	if (strncmp(filename, "http://", 7)) {
+		/* Most commonly installed in /usr/local/bin */
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, (char *)NULL);
+		/* But many places has it in /usr/bin */
+	    execl(MPG_123, "mpg123", "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, (char *)NULL);
+		/* As a last-ditch effort, try to use PATH */
+	    execlp("mpg123", "mpg123", "-q", "-s", "-b", "1024", "--mono", "-r", "8000", filename, (char *)NULL);
+	}
+	else {
+		/* Most commonly installed in /usr/local/bin */
+	    execl(MPG_123, "mpg123", "-q", "-s", "--mono", "-r", "8000", filename, (char *)NULL);
+		/* But many places has it in /usr/bin */
+	    execl(LOCAL_MPG_123, "mpg123", "-q", "-s", "--mono", "-r", "8000", filename, (char *)NULL);
+		/* As a last-ditch effort, try to use PATH */
+	    execlp("mpg123", "mpg123", "-q", "-s", "--mono", "-r", "8000", filename, (char *)NULL);
+	}
 	ast_log(LOG_WARNING, "Execute of mpg123 failed\n");
 	return -1;
 }
