@@ -92,6 +92,7 @@ LOCAL_USER_DECL;
 
 static struct ast_conference {
 	char confno[AST_MAX_EXTENSION];		/* Conference */
+	struct ast_channel *chan;	/* Announcements channel */
 	int fd;				/* Announcements fd */
 	int zapconf;			/* Zaptel Conf # */
 	int users;			/* Number of active users */
@@ -147,8 +148,12 @@ static int admin_exec(struct ast_channel *chan, void *data);
 static int careful_write(int fd, unsigned char *data, int len)
 {
 	int res;
+	int x;
 	while(len) {
-		res = write(fd, data, len);
+		x = ZT_IOMUX_WRITE | ZT_IOMUX_SIGEVENT;
+		res = ioctl(fd, ZT_IOMUX, &x);
+		if (res >= 0)
+			res = write(fd, data, len);
 		if (res < 1) {
 			if (errno != EAGAIN) {
 				ast_log(LOG_WARNING, "Failed to write audio data to conference: %s\n", strerror(errno));
@@ -203,21 +208,30 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			memset(cnf, 0, sizeof(struct ast_conference));
 			strncpy(cnf->confno, confno, sizeof(cnf->confno) - 1);
 			strncpy(cnf->pin, pin, sizeof(cnf->pin) - 1);
-			cnf->fd = open("/dev/zap/pseudo", O_RDWR);
-			if (cnf->fd < 0) {
-				ast_log(LOG_WARNING, "Unable to open pseudo channel\n");
-				free(cnf);
-				cnf = NULL;
-				goto cnfout;
+			cnf->chan = ast_request("zap", AST_FORMAT_ULAW, "pseudo");
+			if (cnf->chan) {
+				cnf->fd = cnf->chan->fds[0];	/* for use by conf_play() */
+			} else {
+				ast_log(LOG_WARNING, "Unable to open pseudo channel - trying device\n");
+				cnf->fd = open("/dev/zap/pseudo", O_RDWR);
+				if (cnf->fd < 0) {
+					ast_log(LOG_WARNING, "Unable to open pseudo device\n");
+					free(cnf);
+					cnf = NULL;
+					goto cnfout;
+				}
 			}
 			memset(&ztc, 0, sizeof(ztc));
 			/* Setup a new zap conference */
 			ztc.chan = 0;
 			ztc.confno = -1;
-			ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+			ztc.confmode = ZT_CONF_CONFANN;
 			if (ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
 				ast_log(LOG_WARNING, "Error setting conference\n");
-				close(cnf->fd);
+				if (cnf->chan)
+					ast_hangup(cnf->chan);
+				else
+					close(cnf->fd);
 				free(cnf);
 				cnf = NULL;
 				goto cnfout;
@@ -927,7 +941,10 @@ outrun:
 		}
 		if (!cur) 
 			ast_log(LOG_WARNING, "Conference not found\n");
-		close(conf->fd);
+		if (conf->chan)
+			ast_hangup(conf->chan);
+		else
+			close(conf->fd);
 		free(conf);
 		} else {
 			/* Remove the user struct */ 
