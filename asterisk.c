@@ -654,12 +654,22 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 			pthread_kill(consolethread, SIGURG);
 }
 
+static int ast_all_zeros(char *s)
+{
+	while(*s) {
+		if (*s > 32)
+			return 0;
+		s++;  
+	}
+	return 1;
+}
+
 static void consolehandler(char *s)
 {
 	printf(term_end());
 	fflush(stdout);
 	/* Called when readline data is available */
-	if (s && !ast_strlen_zero(s))
+	if (s && !ast_all_zeros(s))
 		ast_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
