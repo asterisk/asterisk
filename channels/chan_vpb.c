@@ -2003,7 +2003,7 @@ static void *do_chanreads(void *pvt)
 			// This DTMF is played by asterisk and leads to an annoying trailing beep on CISCO phones
 			if( !ignore_dtmf) 
 				vpb_set_event_mask(p->handle, VPB_EVENTS_NODTMF );
-			if (strcmp(p->owner->type,"vpb")){
+			if (strcmp(p->owner->type,"vpb")==0){
 				vpb_dial_sync(p->handle,p->play_dtmf);
 				if(option_verbose>1) 
 					ast_verbose( VERBOSE_PREFIX_2 "%s: chanreads: Played DTMF %s\n",p->dev,p->play_dtmf);
