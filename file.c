@@ -146,7 +146,7 @@ int ast_stopstream(struct ast_channel *tmp)
 	if (!tmp->stream) 
 		return 0;
 	tmp->stream->fmt->close(tmp->stream);
-	if (ast_set_write_format(tmp, tmp->oldwriteformat))
+	if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
 		ast_log(LOG_WARNING, "Unable to restore format back to %d\n", tmp->oldwriteformat);
 	return 0;
 }
@@ -192,6 +192,45 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 	}
 }
 
+static int copy(char *infile, char *outfile)
+{
+	int ifd;
+	int ofd;
+	int res;
+	int len;
+	char buf[4096];
+	if ((ifd = open(infile, O_RDONLY)) < 0) {
+		ast_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
+		return -1;
+	}
+	if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
+		ast_log(LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
+		close(ifd);
+		return -1;
+	}
+	do {
+		len = read(ifd, buf, sizeof(buf));
+		if (len < 0) {
+			ast_log(LOG_WARNING, "Read failed on %s: %s\n", infile, strerror(errno));
+			close(ifd);
+			close(ofd);
+			unlink(outfile);
+		}
+		if (len) {
+			res = write(ofd, buf, len);
+			if (res != len) {
+				ast_log(LOG_WARNING, "Write failed on %s (%d of %d): %s\n", outfile, res, len, strerror(errno));
+				close(ifd);
+				close(ofd);
+				unlink(outfile);
+			}
+		}
+	} while(len);
+	close(ifd);
+	close(ofd);
+	return 0;
+}
+
 static char *build_filename(char *filename, char *ext)
 {
 	char *fn;
@@ -210,6 +249,7 @@ static char *build_filename(char *filename, char *ext)
 #define ACTION_DELETE 2
 #define ACTION_RENAME 3
 #define ACTION_OPEN   4
+#define ACTION_COPY   5
 
 static int ast_filehelper(char *filename, char *filename2, char *fmt, int action)
 {
@@ -261,6 +301,16 @@ static int ast_filehelper(char *filename, char *filename2, char *fmt, int action
 								res = rename(fn, nfn);
 								if (res)
 									ast_log(LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
+								free(nfn);
+							} else
+								ast_log(LOG_WARNING, "Out of memory\n");
+							break;
+						case ACTION_COPY:
+							nfn = build_filename(filename2, ext);
+							if (nfn) {
+								res = copy(fn, nfn);
+								if (res)
+									ast_log(LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 								free(nfn);
 							} else
 								ast_log(LOG_WARNING, "Out of memory\n");
@@ -341,6 +391,11 @@ int ast_filedelete(char *filename, char *fmt)
 int ast_filerename(char *filename, char *filename2, char *fmt)
 {
 	return ast_filehelper(filename, filename2, fmt, ACTION_RENAME);
+}
+
+int ast_filecopy(char *filename, char *filename2, char *fmt)
+{
+	return ast_filehelper(filename, filename2, fmt, ACTION_COPY);
 }
 
 int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)

@@ -59,6 +59,9 @@ int ast_filerename(char *oldname, char *newname, char *fmt);
 /* Delete a given file in a given format, or if fmt is NULL, then do so for all */
 int ast_filedelete(char *filename, char *fmt);
 
+/* Copy a given file in a given format, or if fmt is NULL, then do so for all */
+int ast_filecopy(char *oldname, char *newname, char *fmt);
+
 /* Wait for a stream to stop or for any one of a given digit to arrive,  Returns
    0 if the stream finishes, the character if it was interrupted, and -1 on error */
 char ast_waitstream(struct ast_channel *c, char *breakon);
