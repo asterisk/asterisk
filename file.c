@@ -1116,7 +1116,7 @@ static int show_file_formats(int fd, int argc, char *argv[])
 	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return -1;
-        }
+	}
 
 	f = formats;
 	while(f) {

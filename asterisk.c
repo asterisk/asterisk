@@ -1488,11 +1488,11 @@ static void ast_readconfig(void) {
 	char *config = ASTCONFPATH;
 
 	if (option_overrideconfig == 1) {
-	    cfg = ast_load((char *)ast_config_AST_CONFIG_FILE);
+		cfg = ast_load((char *)ast_config_AST_CONFIG_FILE);
 		if (!cfg)
 			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using builtin defaults\n", ast_config_AST_CONFIG_FILE);
 	} else {
-	    cfg = ast_load(config);
+		cfg = ast_load(config);
 	}
 
 	/* init with buildtime config */
@@ -1510,27 +1510,27 @@ static void ast_readconfig(void) {
 	
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (!cfg) {
-	    return;
+		return;
 	}
 	v = ast_variable_browse(cfg, "directories");
 	while(v) {
 		if (!strcasecmp(v->name, "astetcdir")) {
-		    strncpy((char *)ast_config_AST_CONFIG_DIR,v->value,sizeof(ast_config_AST_CONFIG_DIR)-1);
+			strncpy((char *)ast_config_AST_CONFIG_DIR,v->value,sizeof(ast_config_AST_CONFIG_DIR)-1);
 		} else if (!strcasecmp(v->name, "astspooldir")) {
-		    strncpy((char *)ast_config_AST_SPOOL_DIR,v->value,sizeof(ast_config_AST_SPOOL_DIR)-1);
+			strncpy((char *)ast_config_AST_SPOOL_DIR,v->value,sizeof(ast_config_AST_SPOOL_DIR)-1);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
-		    strncpy((char *)ast_config_AST_VAR_DIR,v->value,sizeof(ast_config_AST_VAR_DIR)-1);
-		    snprintf((char *)ast_config_AST_DB,sizeof(ast_config_AST_DB),"%s/%s",v->value,"astdb");    
+			strncpy((char *)ast_config_AST_VAR_DIR,v->value,sizeof(ast_config_AST_VAR_DIR)-1);
+			snprintf((char *)ast_config_AST_DB,sizeof(ast_config_AST_DB),"%s/%s",v->value,"astdb");    
 		} else if (!strcasecmp(v->name, "astlogdir")) {
-		    strncpy((char *)ast_config_AST_LOG_DIR,v->value,sizeof(ast_config_AST_LOG_DIR)-1);
+			strncpy((char *)ast_config_AST_LOG_DIR,v->value,sizeof(ast_config_AST_LOG_DIR)-1);
 		} else if (!strcasecmp(v->name, "astagidir")) {
-		    strncpy((char *)ast_config_AST_AGI_DIR,v->value,sizeof(ast_config_AST_AGI_DIR)-1);
+			strncpy((char *)ast_config_AST_AGI_DIR,v->value,sizeof(ast_config_AST_AGI_DIR)-1);
 		} else if (!strcasecmp(v->name, "astrundir")) {
-		    snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID),"%s/%s",v->value,"asterisk.pid");    
-		    snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET),"%s/%s",v->value,"asterisk.ctl");    
-		    strncpy((char *)ast_config_AST_RUN_DIR,v->value,sizeof(ast_config_AST_RUN_DIR)-1);
+			snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID),"%s/%s",v->value,"asterisk.pid");    
+			snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET),"%s/%s",v->value,"asterisk.ctl");    
+			strncpy((char *)ast_config_AST_RUN_DIR,v->value,sizeof(ast_config_AST_RUN_DIR)-1);
 		} else if (!strcasecmp(v->name, "astmoddir")) {
-		    strncpy((char *)ast_config_AST_MODULE_DIR,v->value,sizeof(ast_config_AST_MODULE_DIR)-1);
+			strncpy((char *)ast_config_AST_MODULE_DIR,v->value,sizeof(ast_config_AST_MODULE_DIR)-1);
 		}
 		v = v->next;
 	}
@@ -1541,21 +1541,21 @@ static void ast_readconfig(void) {
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug= ast_true(v->value);
 		} else if (!strcasecmp(v->name, "nofork")) {
-            option_nofork = ast_true(v->value);
+			option_nofork = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "quiet")) {
-            option_quiet = ast_true(v->value);
+			option_quiet = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "console")) {
-            option_console = ast_true(v->value);
+			option_console = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "highpriority")) {
-            option_highpriority = ast_true(v->value);
+			option_highpriority = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "initcrypto")) {
-            option_initcrypto = ast_true(v->value);
+			option_initcrypto = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "nocolor")) {
-            option_nocolor = ast_true(v->value);
+			option_nocolor = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dumpcore")) {
-            option_dumpcore = ast_true(v->value);
+			option_dumpcore = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cache_record_files")) {
-            option_cache_record_files = ast_true(v->value);
+			option_cache_record_files = ast_true(v->value);
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
 			strncpy(record_cache_dir,v->value,AST_CACHE_DIR_LEN);
 		}
@@ -1858,9 +1858,9 @@ int main(int argc, char *argv[])
 	/* sync cust config and reload some internals in case a custom config handler binded to them */
 	read_ast_cust_config();
 	reload_logger(0);
-    reload_manager();
-    ast_enum_reload();
-    ast_rtp_reload();
+	reload_manager();
+	ast_enum_reload();
+	ast_rtp_reload();
 
 
 	/* We might have the option of showing a console, but for now just
