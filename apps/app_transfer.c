@@ -33,7 +33,7 @@ static char *synopsis = "Transfer caller to remote extension";
 
 static char *descrip = 
 "  Transfer(exten):  Requests the remote caller be transferred to\n"
-"a given   Returns -1 on hangup, or 0 on completion\n"
+"a given extension. Returns -1 on hangup, or 0 on completion\n"
 "regardless of whether the transfer was successful.  If the transfer\n"
 "was *not* supported or successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
