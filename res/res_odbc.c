@@ -33,6 +33,7 @@ struct odbc_list
 
 static struct odbc_list ODBC_REGISTRY[MAX_ODBC_HANDLES];
 
+
 static void odbc_destroy(void)
 {
 	int x = 0;
@@ -56,7 +57,7 @@ static odbc_obj *odbc_read(struct odbc_list *registry, const char *name)
 	return NULL;
 }
 
-static int odbc_write(struct odbc_list *registry, char *name, odbc_obj * obj)
+static int odbc_write(struct odbc_list *registry, char *name, odbc_obj *obj)
 {
 	int x = 0;
 	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
@@ -80,6 +81,82 @@ static void odbc_init(void)
 
 static char *tdesc = "ODBC Resource";
 /* internal stuff */
+
+int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt) 
+{
+	int res = 0;
+	res = SQLExecute(stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
+		ast_mutex_lock(&obj->lock);
+		obj->up = 0;
+		ast_mutex_unlock(&obj->lock);
+		odbc_obj_disconnect(obj);
+        odbc_obj_connect(obj);
+		res = SQLExecute(stmt);
+	}
+	
+	return res;
+}
+
+
+int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql) 
+{
+	int res = 0;
+
+	res = SQLExecDirect (stmt, sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
+		ast_mutex_lock(&obj->lock);
+		obj->up = 0;
+		ast_mutex_unlock(&obj->lock);
+		odbc_obj_disconnect(obj);
+        odbc_obj_connect(obj);
+		res = SQLExecDirect (stmt, sql, SQL_NTS);
+	}
+	
+	return res;
+}
+
+int odbc_sanity_check(odbc_obj *obj) 
+{
+	char *test_sql = "select 1";
+	SQLHSTMT stmt;
+	int res = 0;
+	SQLLEN rowcount = 0;
+
+	ast_mutex_lock(&obj->lock);
+	if(obj->up) { /* so you say... let's make sure */
+		res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			obj->up = 0; /* Liar!*/
+		} else {
+			res = SQLPrepare(stmt, test_sql, SQL_NTS);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				obj->up = 0; /* Liar!*/
+			} else {
+				res = SQLExecute(stmt);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					obj->up = 0; /* Liar!*/
+				} else {
+					res = SQLRowCount(stmt, &rowcount);
+					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+						obj->up = 0; /* Liar!*/
+					}
+				}
+			}
+		}
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	}
+	ast_mutex_unlock(&obj->lock);
+
+	if(!obj->up) { /* Try to reconnect! */
+		ast_log(LOG_WARNING, "Connection is down attempting to reconnect...\n");
+		odbc_obj_disconnect(obj);
+		odbc_obj_connect(obj);
+	}
+	return obj->up;
+}
 
 static int load_odbc_config(void)
 {
@@ -145,9 +222,11 @@ static int load_odbc_config(void)
 	return 0;
 }
 
-int odbc_dump_fd(int fd, odbc_obj * obj)
+int odbc_dump_fd(int fd, odbc_obj *obj)
 {
-	ast_cli(fd, "Name: %s\nDSN: %s\nConnected: %s\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
+	/* make sure the connection is up before we lie to our master.*/
+	odbc_sanity_check(obj);
+	ast_cli(fd, "Name: %s\nDSN: %s\nConnected: %s\n\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
 	return 0;
 }
 
@@ -244,16 +323,21 @@ static struct ast_cli_entry odbc_show_struct =
 
 /* api calls */
 
-int register_odbc_obj(char *name, odbc_obj * obj)
+int register_odbc_obj(char *name, odbc_obj *obj)
 {
 	if (obj != NULL)
 		return odbc_write(ODBC_REGISTRY, name, obj);
 	return 0;
 }
 
-odbc_obj *fetch_odbc_obj(const char *name)
+odbc_obj *fetch_odbc_obj(const char *name, int check)
 {
-	return (odbc_obj *) odbc_read(ODBC_REGISTRY, name);
+	odbc_obj *obj = NULL;
+	if((obj = (odbc_obj *) odbc_read(ODBC_REGISTRY, name))) {
+		if(check)
+			odbc_sanity_check(obj);
+	}
+	return obj;
 }
 
 odbc_obj *new_odbc_obj(char *name, char *dsn, char *username, char *password)
@@ -295,7 +379,7 @@ odbc_obj *new_odbc_obj(char *name, char *dsn, char *username, char *password)
 	return new;
 }
 
-void destroy_obdc_obj(odbc_obj ** obj)
+void destroy_obdc_obj(odbc_obj **obj)
 {
 	odbc_obj_disconnect(*obj);
 
@@ -311,32 +395,30 @@ void destroy_obdc_obj(odbc_obj ** obj)
 	if ((*obj)->password)
 		free((*obj)->password);
 	ast_mutex_unlock(&(*obj)->lock);
+	ast_mutex_destroy(&(*obj)->lock);
 	free(*obj);
 }
 
-odbc_status odbc_obj_disconnect(odbc_obj * obj)
+odbc_status odbc_obj_disconnect(odbc_obj *obj)
 {
 	int res;
 	ast_mutex_lock(&obj->lock);
 
-	if (obj->up) {
-		res = SQLDisconnect(obj->con);
-	} else {
-		res = -1;
-	}
+	res = SQLDisconnect(obj->con);
+
 
 	if (res == ODBC_SUCCESS) {
 		ast_log(LOG_WARNING, "res_odbc: disconnected %d from %s [%s]\n", res, obj->name, obj->dsn);
-		obj->up = 0;
 	} else {
 		ast_log(LOG_WARNING, "res_odbc: %s [%s] already disconnected\n",
 		obj->name, obj->dsn);
 	}
+	obj->up = 0;
 	ast_mutex_unlock(&obj->lock);
 	return ODBC_SUCCESS;
 }
 
-odbc_status odbc_obj_connect(odbc_obj * obj)
+odbc_status odbc_obj_connect(odbc_obj *obj)
 {
 	int res;
 	long int err;
@@ -378,8 +460,13 @@ odbc_status odbc_obj_connect(odbc_obj * obj)
 		}
 		SQLSetConnectAttr(obj->con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *) 10, 0);
 	}
+	if(obj->up) {
+		odbc_obj_disconnect(obj);
+		ast_log(LOG_NOTICE,"Re-connecting %s\n", obj->name);
+	}
 
-	ast_log(LOG_NOTICE, "Calling %p/%p\n", obj->username, obj->password);
+	ast_log(LOG_NOTICE, "Connecting %s\n", obj->name);
+
 	res = SQLConnect(obj->con,
 		   (SQLCHAR *) obj->dsn, SQL_NTS,
 		   (SQLCHAR *) obj->username, SQL_NTS,

@@ -57,7 +57,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	if (!table)
 		return NULL;
 
-	obj = fetch_odbc_obj(database);
+	obj = fetch_odbc_obj(database, 0);
 	if (!obj)
 		return NULL;
 
@@ -95,8 +95,8 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		newval = va_arg(ap, const char *);
 		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
 	}
-		
-	res = SQLExecute(stmt);
+	
+	res = odbc_smart_execute(obj, stmt);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -198,7 +198,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		return NULL;
 	memset(&ra, 0, sizeof(ra));
 
-	obj = fetch_odbc_obj(database);
+	obj = fetch_odbc_obj(database, 0);
 	if (!obj)
 		return NULL;
 
@@ -242,7 +242,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
 	}
 		
-	res = SQLExecute(stmt);
+	res = odbc_smart_execute(obj, stmt);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -333,7 +333,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 	if (!table)
 		return -1;
 
-	obj = fetch_odbc_obj (database);
+	obj = fetch_odbc_obj (database, 0);
 	if (!obj)
 		return -1;
 
@@ -374,7 +374,7 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 		
 	SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(lookup), 0, (void *)lookup, 0, NULL);
 
-	res = SQLExecute(stmt);
+	res = odbc_smart_execute(obj, stmt);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -411,7 +411,7 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	if (!file || !strcmp (file, "res_config_odbc.conf"))
 		return NULL;		/* cant configure myself with myself ! */
 
-	obj = fetch_odbc_obj(database);
+	obj = fetch_odbc_obj(database, 0);
 	if (!obj)
 		return NULL;
 
@@ -425,10 +425,11 @@ static struct ast_config *config_odbc(const char *database, const char *table, c
 	SQLBindCol (stmt, 6, SQL_C_CHAR, &category, sizeof (category), &err);
 	SQLBindCol (stmt, 7, SQL_C_CHAR, &var_name, sizeof (var_name), &err);
 	SQLBindCol (stmt, 8, SQL_C_CHAR, &var_val, sizeof (var_val), &err);
-
+	
 	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE filename='%s' and commented=0 ORDER BY filename,cat_metric desc,var_metric asc,category,var_name,var_val,id", table, file);
-	res = SQLExecDirect (stmt, sql, SQL_NTS);
 
+	res = odbc_smart_direct_execute(obj, stmt, sql);
+	
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log (LOG_WARNING, "SQL select error!\n[%s]\n\n", sql);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
