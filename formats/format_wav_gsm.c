@@ -520,6 +520,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	int res;
 	char msdata[66];
 	int len =0;
+	int alreadyms=0;
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -528,29 +529,42 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
 		return -1;
 	}
+	if (!(f->datalen % 65)) 
+		alreadyms = 1;
 	while(len < f->datalen) {
-		if (fs->secondhalf) {
-			memcpy(fs->gsm + 33, f->data + len, 33);
-			conv66(fs->gsm, msdata);
-			if ((res = write(fs->fd, msdata, 65)) != 65) {
+		if (alreadyms) {
+			fs->secondhalf = 0;
+			if ((res = write(fs->fd, f->data + len, 65)) != 65) {
 				ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 				return -1;
 			}
 			fs->bytes += 65;
 			update_header(fs->fd);
+			len += 65;
 		} else {
-			/* Copy the data and do nothing */
-			memcpy(fs->gsm, f->data + len, 33);
+			if (fs->secondhalf) {
+				memcpy(fs->gsm + 33, f->data + len, 33);
+				conv66(fs->gsm, msdata);
+				if ((res = write(fs->fd, msdata, 65)) != 65) {
+					ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
+					return -1;
+				}
+				fs->bytes += 65;
+				update_header(fs->fd);
+			} else {
+				/* Copy the data and do nothing */
+				memcpy(fs->gsm, f->data + len, 33);
+			}
+			fs->secondhalf = !fs->secondhalf;
+			len += 33;
 		}
-		fs->secondhalf = !fs->secondhalf;
-		len += 33;
 	}
 	return 0;
 }
 
 static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
-	off_t offset,distance,cur,min,max;
+	off_t offset=0,distance,cur,min,max;
 	min = 52;
 	cur = lseek(fs->fd, 0, SEEK_CUR);
 	max = lseek(fs->fd, 0, SEEK_END);

@@ -30,6 +30,8 @@
 #else
 #include <machine/endian.h>
 #endif
+#include "msgsm.h"
+
 
 /* Some Ideas for this code came from makegsme.c by Jeffery Chilton */
 
@@ -45,7 +47,7 @@ struct ast_filestream {
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
-	unsigned char gsm[33];				/* Two Real GSM Frames */
+	unsigned char gsm[66];				/* Two Real GSM Frames */
 	int lasttimeout;
 	struct timeval last;
 	int adj;
@@ -233,6 +235,7 @@ static int gsm_play(struct ast_filestream *s)
 static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 {
 	int res;
+	unsigned char gsm[66];
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Asked to write non-voice frame!\n");
 		return -1;
@@ -241,20 +244,33 @@ static int gsm_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-GSM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if (f->datalen % 33) {
-		ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
-		return -1;
-	}
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
-			ast_log(LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
+	if (!(f->datalen % 65)) {
+		/* This is in MSGSM format, need to be converted */
+		int len=0;
+		while(len < f->datalen) {
+			conv65(f->data + len, gsm);
+			if ((res = write(fs->fd, gsm, 66)) != 66) {
+				ast_log(LOG_WARNING, "Bad write (%d/66): %s\n", res, strerror(errno));
+				return -1;
+			}
+			len += 65;
+		}
+	} else {
+		if (f->datalen % 33) {
+			ast_log(LOG_WARNING, "Invalid data length, %d, should be multiple of 33\n", f->datalen);
 			return -1;
+		}
+		if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+				ast_log(LOG_WARNING, "Bad write (%d/33): %s\n", res, strerror(errno));
+				return -1;
+		}
 	}
 	return 0;
 }
 
 static int gsm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
-	off_t offset,min,cur,max,distance;
+	off_t offset=0,min,cur,max,distance;
 	
 	min = 0;
 	cur = lseek(fs->fd, 0, SEEK_CUR);
