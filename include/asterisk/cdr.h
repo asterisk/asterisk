@@ -92,6 +92,15 @@ extern void ast_cdr_free(struct ast_cdr *cdr);
  */
 extern int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *chan);
 
+//! Initialize based on a channel
+/*! 
+ * \param cdr Call Detail Record to use for channel
+ * \param chan Channel to bind CDR with
+ * Initializes a CDR and associates it with a particular channel
+ * Return is negligible.  (returns 0 by default)
+ */
+extern int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *chan);
+
 //! Register a CDR handling engine
 /*!
  * \param name name associated with the particular CDR handler
@@ -181,6 +190,13 @@ extern int ast_cdr_amaflags2int(char *flag);
  */
 extern char *ast_cdr_disp2str(int disposition);
 
+//! Reset the detail record, optionally posting it first
+/*!
+ * \param cdr which cdr to act upon
+ * \param post whether or not to post the cdr first before resetting it
+ */
+extern void ast_cdr_reset(struct ast_cdr *cdr, int post);
+
 //! Flags to a string
 /*!
  * \param flags binary flag
@@ -190,6 +206,9 @@ extern char *ast_cdr_disp2str(int disposition);
 extern char *ast_cdr_flags2str(int flags);
 
 extern int ast_cdr_setaccount(struct ast_channel *chan, char *account);
+/* Update CDR on a channel */
+extern int ast_cdr_update(struct ast_channel *chan);
+
 
 extern int ast_default_amaflags;
 
