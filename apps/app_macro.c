@@ -98,6 +98,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
   strncpy(oldcontext, chan->context, sizeof(oldcontext) - 1);
   if (!strlen(chan->macrocontext)) {
 	strncpy(chan->macrocontext, chan->context, sizeof(chan->macrocontext) - 1);
+	strncpy(chan->macroexten, chan->exten, sizeof(chan->macroexten) - 1);
+	chan->macropriority = chan->priority;
 	setmacrocontext=1;
   }
   argc = 1;
@@ -190,8 +192,11 @@ out:
   if (save_macro_context) free(save_macro_context);
   pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
   if (save_macro_priority) free(save_macro_priority);
-  if (setmacrocontext)
+  if (setmacrocontext) {
   	strcpy(chan->macrocontext, "");
+  	strcpy(chan->macroexten, "");
+	chan->macropriority = 0;
+  }
 
   if (!strcasecmp(chan->context, fullmacro)) {
   	/* If we're leaving the macro normally, restore original information */

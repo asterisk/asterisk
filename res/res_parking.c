@@ -137,9 +137,18 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				*extout = x;
 			/* Remember what had been dialed, so that if the parking
 			   expires, we try to come back to the same place */
-			strncpy(pu->context, chan->context, sizeof(pu->context)-1);
-			strncpy(pu->exten, chan->exten, sizeof(pu->exten)-1);
-			pu->priority = chan->priority;
+			if (strlen(chan->macrocontext))
+				strncpy(pu->context, chan->macrocontext, sizeof(pu->context)-1);
+			else
+				strncpy(pu->context, chan->context, sizeof(pu->context)-1);
+			if (strlen(chan->macroexten))
+				strncpy(pu->exten, chan->macroexten, sizeof(pu->exten)-1);
+			else
+				strncpy(pu->exten, chan->exten, sizeof(pu->exten)-1);
+			if (chan->macropriority)
+				pu->priority = chan->macropriority;
+			else
+				pu->priority = chan->priority;
 			pu->next = parkinglot;
 			parkinglot = pu;
 			ast_pthread_mutex_unlock(&parking_lock);

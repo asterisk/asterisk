@@ -158,6 +158,10 @@ struct ast_channel {
 	char context[AST_MAX_EXTENSION];	
 	/*! Current non-macro context */
 	char macrocontext[AST_MAX_EXTENSION];	
+	/*! Current non-macro extension */
+	char macroexten[AST_MAX_EXTENSION];
+	/*! Current non-macro priority */
+	int macropriority;
 	/*! Current extension number */
 	char exten[AST_MAX_EXTENSION];		
 	/* Current extension priority */
