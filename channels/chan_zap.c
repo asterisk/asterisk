@@ -3857,6 +3857,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		i->isidlecall = 0;
 		i->alreadyhungup = 0;
 #endif
+		/* clear the fake event in case we posted one before we had ast_chanenl */
+		i->fake_event = 0;
 		/* Assure there is no confmute on this channel */
 		zt_confmute(i, 0);
 		if (startpbx) {
@@ -6814,6 +6816,10 @@ static int action_transfer(struct mansession *s, struct message *m)
 		return 0;
 	}
 	p = find_channel(atoi(channel));
+	if (p->owner && p->owner->_state != AST_STATE_UP) {
+		astman_send_error(s, m, "Channel is on hook");
+		return 0;
+	}
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -6832,6 +6838,10 @@ static int action_transferhangup(struct mansession *s, struct message *m)
 		return 0;
 	}
 	p = find_channel(atoi(channel));
+	if (p->owner && p->owner->_state != AST_STATE_UP) {
+		astman_send_error(s, m, "Channel is on hook");
+		return 0;
+	}
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -6856,6 +6866,15 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 		return 0;
 	}
 	p = find_channel(atoi(channel));
+	if (p->owner) {
+		if (p->owner->_state != AST_STATE_UP) {
+			astman_send_error(s, m, "Channel is on hook");
+			return 0;
+		}
+	} else {
+		astman_send_error(s, m, "Channel does not have it's owner");
+		return 0;
+	}
 	if (!p) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
