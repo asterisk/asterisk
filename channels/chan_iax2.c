@@ -2803,6 +2803,15 @@ static int send_command(struct chan_iax2_pvt *i, char type, int command, unsigne
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 0);
 }
 
+static int send_command_locked(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
+{
+	int res;
+	ast_mutex_lock(&iaxsl[i->callno]);
+	res = send_command(i, type, command, ts, data, datalen, seqno);
+	ast_mutex_unlock(&iaxsl[i->callno]);
+	return res;
+}
+
 #ifdef BRIDGE_OPTIMIZATION
 static int forward_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, char *data, int datalen, int seqno)
 {
