@@ -3,52 +3,195 @@
 
 #include <asterisk/lock.h>
 
+/*!
+  \file linkedlists.h
+  \brief A set of macros to manage forward-linked lists.
+*/
+
+/*!
+  \brief Attempts to lock a list.
+  \param head This is a pointer to the list head structure
+
+  This macro attempts to place an exclusive lock in the
+  list head structure pointed to by head.
+  Returns non-zero on success, 0 on failure
+*/
 #define AST_LIST_LOCK(head)						\
 	ast_mutex_lock(&(head)->lock) 
 	
+/*!
+  \brief Attempts to unlock a list.
+  \param head This is a pointer to the list head structure
+
+  This macro attempts to remove an exclusive lock from the
+  list head structure pointed to by head. If the list
+  was not locked by this thread, this macro has no effect.
+*/
 #define AST_LIST_UNLOCK(head) 						\
 	ast_mutex_unlock(&(head)->lock)
 
+/*!
+  \brief Defines a structure to be used to hold a list of specified type.
+  \param name This will be the name of the defined structure.
+  \param type This is the type of each list entry.
+
+  This macro creates a structure definition that can be used
+  to hold a list of the entries of type \a type. It does not actually
+  declare (allocate) a structure; to do that, either follow this
+  macro with the desired name of the instance you wish to declare,
+  or use the specified \a name to declare instances elsewhere. It is
+  frequently used as follows:
+  \code
+  static AST_LIST_HEAD(entry_list, entry) entries;
+  \endcode
+  This would define \a struct \a entry_list, and declare an instance of it named
+  \a entries, all intended to hold a list of type \a struct \a entry.
+*/
 #define AST_LIST_HEAD(name, type)					\
 struct name {								\
 	struct type *first;						\
 	ast_mutex_t lock;						\
 }
 
+/*!
+  \brief Initializes a list head structure with a specified first entry.
+  \param head This is a pointer to the list head structure
+  \param entry pointer to the list entry that will become the head of the list
+
+  This macro initializes a list head structure by setting the head
+  entry to the supplied value and recreating the embedded lock.
+*/
 #define AST_LIST_HEAD_SET(head,entry) do {				\
 	(head)->first=(entry);						\
 	ast_pthread_mutex_init(&(head)->lock,NULL);				\
 } while (0)
 
+/*!
+  \brief Declare a forward link structure inside a list entry.
+  \param type This is the type of each list entry.
+
+  This macro declares a structure to be used to link list entries together.
+  It must be used inside the definition of the structure named in
+  \a type, as follows:
+  \code
+  struct list_entry {
+  	...
+  	AST_LIST_ENTRY(list_entry) list;
+  }
+  \endcode
+  The field name \a list here is arbitrary, and can be anything you wish.
+*/
 #define AST_LIST_ENTRY(type)						\
 struct {								\
 	struct type *next;						\
 }
  
+/*!
+  \brief Returns the first entry contained in a list.
+  \param head This is a pointer to the list head structure
+ */
 #define	AST_LIST_FIRST(head)	((head)->first)
 
+/*!
+  \brief Returns the next entry in the list after the given entry.
+  \param elm This is a pointer to the current entry.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+*/
 #define AST_LIST_NEXT(elm, field)	((elm)->field.next)
 
+/*!
+  \brief Checks whether the specified list contains any entries.
+  \param head This is a pointer to the list head structure
+
+  Returns non-zero if the list has entries, zero if not.
+ */
 #define	AST_LIST_EMPTY(head)	(AST_LIST_FIRST(head) == NULL)
 
+/*!
+  \brief Loops over (traverses) the entries in a list.
+  \param head This is a pointer to the list head structure
+  \param var This is the name of the variable that will hold a pointer to the
+  current list entry on each iteration. It must be declared before calling
+  this macro.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+
+  This macro is use to loop over (traverse) the entries in a list. It uses a
+  \a for loop, and supplies the enclosed code with a pointer to each list
+  entry as it loops. It is typically used as follows:
+  \code
+  static AST_LIST_HEAD(entry_list, list_entry) entries;
+  ...
+  struct list_entry {
+  	...
+  	AST_LIST_ENTRY(list_entry) list;
+  }
+  ...
+  struct list_entry *current;
+  ...
+  AST_LIST_TRAVERSE(&entries, current, list) {
+     (do something with current here)
+  }
+  \endcode
+  \warning If you modify the forward-link pointer contained in the \a current entry while
+  inside the loop, the behavior will be unpredictable. At a minimum, the following
+  macros will modify the forward-link pointer, and should not be used inside
+  AST_LIST_TRAVERSE() against the entry pointed to by the \a current pointer without
+  careful consideration of their consequences:
+  \li AST_LIST_NEXT() (when used as an lvalue)
+  \li AST_LIST_INSERT_AFTER()
+  \li AST_LIST_INSERT_HEAD()
+  \li AST_LIST_INSERT_TAIL()
+*/
 #define AST_LIST_TRAVERSE(head,var,field) 				\
 	for((var) = (head)->first; (var); (var) = (var)->field.next)
 
+/*!
+  \brief Initializes a list head structure.
+  \param head This is a pointer to the list head structure
+
+  This macro initializes a list head structure by setting the head
+  entry to \a NULL (empty list) and recreating the embedded lock.
+*/
 #define AST_LIST_HEAD_INIT(head) {						\
 	(head)->first = NULL;						\
 	ast_pthread_mutex_init(&(head)->lock,NULL);				\
 }
 
+/*!
+  \brief Inserts a list entry after a given entry.
+  \param listelm This is a pointer to the entry after which the new entry should
+  be inserted.
+  \param elm This is a pointer to the entry to be inserted.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+ */
 #define AST_LIST_INSERT_AFTER(listelm, elm, field) do {		\
 	(elm)->field.next = (listelm)->field.next;			\
 	(listelm)->field.next = (elm);				\
 } while (0)
 
+/*!
+  \brief Inserts a list entry at the head of a list.
+  \param head This is a pointer to the list head structure
+  \param elm This is a pointer to the entry to be inserted.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+ */
 #define AST_LIST_INSERT_HEAD(head, elm, field) do {			\
 		(elm)->field.next = (head)->first;			\
 		(head)->first = (elm);					\
 } while (0)
 
+/*!
+  \brief Inserts a list entry at the tail of a list.
+  \param head This is a pointer to the list head structure
+  \param elm This is a pointer to the entry to be inserted.
+  \param type This is the type of each list entry.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+ */
 #define AST_LIST_INSERT_TAIL(head, elm, type, field) do {             \
       struct type *curelm = (head)->first;                            \
       if(!curelm) {                                                   \
@@ -61,13 +204,31 @@ struct {								\
       }                                                               \
 } while (0)
 
+/*!
+  \brief Removes and returns the head entry from a list.
+  \param head This is a pointer to the list head structure
+  \param type This is the type of each list entry.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
 
+  Removes the head entry from the list, and returns a pointer to it. The
+  forward-link pointer in the returned entry is \b not cleared.
+ */
 #define AST_LIST_REMOVE_HEAD(head, type, field) ({				\
 		struct type *cur = (head)->first;				\
 		(head)->first = (head)->first->field.next;			\
 		cur;								\
 	})
 
+/*!
+  \brief Removes a specific entry from a list.
+  \param head This is a pointer to the list head structure
+  \param elm This is a pointer to the entry to be removed.
+  \param type This is the type of each list entry.
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+  \warning The removed entry is \b not freed nor modified in any way.
+ */
 #define AST_LIST_REMOVE(head, elm, type, field) do {			\
 	if ((head)->first == (elm)) {					\
 		AST_LIST_REMOVE_HEAD((head), type, field);		\

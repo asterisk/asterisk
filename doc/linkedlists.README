@@ -1,3 +1,6 @@
+As of 2004-12-23, this documentation is no longer maintained. The doxygen documentation
+generated from linkedlists.h should be referred to in its place, as it is more complete
+and better maintained.
 
 2nd version, implemented as macros.
 
