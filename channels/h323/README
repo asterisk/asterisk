@@ -10,8 +10,9 @@
 	       			expat-1.95
 	       			expat-dev-1.95
 
-This code runs on Open H.323 and PWLib Janus (Patch 2). If you use different
-versions, you are on your own.
+This code runs on Open H.323 and PWLib Janus (Patch 2) and Open H.323 v1.12.2 
+and PWLib v1.5.2. If you use different versions, you are on your own. 
+See the Makefile for more details.
 
 chan_h323 has been implemented using Asterisk's RTP stack insted of trying
 to implement a pseudo sound card driver. I feel this is more effiecent,
