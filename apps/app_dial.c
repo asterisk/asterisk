@@ -68,6 +68,7 @@ static char *descrip =
 "      'C' -- reset call detail record for this call.\n"
 "      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
 "      'g' -- goes on in context if the destination channel hangs up\n"
+"      'A(x)' -- play an announcement to the called party, using x as file\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optionnal URL will be sent to the called party if the channel supports\n"
@@ -337,6 +338,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char info[256], *peers, *timeout, *tech, *number, *rest, *cur;
 	char  privdb[256] = "", *s;
+	char  announcemsg[256] = "", *ann;
 	struct localuser *outgoing=NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
@@ -344,8 +346,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int allowredir_out=0;
 	int allowdisconnect=0;
 	int privacy=0;
+	int announce=0;
 	int resetcdr=0;
 	int clearchannel=0;
+	int cnt=0;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
 	char *transfer = NULL;
@@ -418,6 +422,16 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			privacy = 1;
 		} else if (strchr(transfer, 'C')) {
 			resetcdr = 1;
+		}
+		/* XXX ANNOUNCE SUPPORT */
+		else if ((ann = strstr(transfer, "A("))) {
+			announce = 1;
+			strncpy(announcemsg, ann + 2, sizeof(announcemsg) - 1);
+			cnt=0;
+			while(announcemsg[cnt] != ')') {
+				cnt++;
+				}
+			announcemsg[cnt]='\0';
 		}
 	}
 	if (resetcdr && chan->cdr)
@@ -669,6 +683,19 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			int x = 0;
 			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 			ast_channel_setoption(peer,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		}
+		if (announce && announcemsg)
+		{
+			int res2;
+			// Start autoservice on the other chan
+			res2 = ast_autoservice_start(chan);
+			// Now Stream the File
+			if (!res2)
+				res2 = ast_streamfile(peer,announcemsg,peer->language);
+			if (!res2)
+				res2 = ast_waitstream(peer,"");
+			// Ok, done. stop autoservice
+			res2 = ast_autoservice_stop(chan);
 		}
 		res = ast_bridge_call(chan, peer, allowredir_in, allowredir_out, allowdisconnect | clearchannel);
 		if (clearchannel)
