@@ -6421,7 +6421,7 @@ int reload(void)
 	return reload_config();
 }
 
-static int cache_get_callno(char *data)
+static int cache_get_callno_locked(char *data)
 {
 	struct sockaddr_in sin;
 	int x;
@@ -6437,7 +6437,6 @@ static int cache_get_callno(char *data)
 		   look up entries for a single context */
 		if (!ast_mutex_trylock(&iaxsl[x])) {
 			if (iaxs[x] && !strcasecmp(data, iaxs[x]->dproot)) {
-				ast_mutex_unlock(&iaxsl[x]);
 				return x;
 			}
 			ast_mutex_unlock(&iaxsl[x]);
@@ -6501,7 +6500,6 @@ static int cache_get_callno(char *data)
 #endif		
 	/* Start the call going */
 	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
-	ast_mutex_unlock(&iaxsl[callno]);
 	return callno;
 }
 
@@ -6548,14 +6546,16 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, char *data, cha
 	if (!dp) {
 		/* No matching entry.  Create a new one. */
 		/* First, can we make a callno? */
-		callno = cache_get_callno(data);
+		callno = cache_get_callno_locked(data);
 		if (callno < 0) {
 			ast_log(LOG_WARNING, "Unable to generate call for '%s'\n", data);
 			return NULL;
 		}
 		dp = malloc(sizeof(struct iax2_dpcache));
-		if (!dp)
+		if (!dp) {
+			ast_mutex_unlock(&iaxsl[callno]);
 			return NULL;
+		}
 		memset(dp, 0, sizeof(struct iax2_dpcache));
 		strncpy(dp->peercontext, data, sizeof(dp->peercontext)-1);
 		strncpy(dp->exten, exten, sizeof(dp->exten)-1);
@@ -6573,6 +6573,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, char *data, cha
 		/* Send the request if we're already up */
 		if (iaxs[callno]->state & IAX_STATE_STARTED)
 			iax2_dprequest(dp, callno);
+		ast_mutex_unlock(&iaxsl[callno]);
 	}
 	/* By here we must have a dp */
 	if (dp->flags & CACHE_FLAG_PENDING) {

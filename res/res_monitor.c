@@ -172,7 +172,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 /* Stop monitoring a channel */
 int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 {
-  char *execute=NULL;
+  char *execute;
   int soxmix =0;
 	if(need_lock) {
 		if(ast_mutex_lock(&chan->lock)) {
@@ -219,7 +219,7 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 			}
 		}
 
-		if (chan->monitor->joinfiles && !ast_strlen_zero(execute) && strlen(chan->monitor->filename_base)) {
+		if (chan->monitor->joinfiles && strlen(chan->monitor->filename_base)) {
 			char tmp[1024];
 			char tmp2[1024];
 			char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
