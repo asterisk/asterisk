@@ -2174,7 +2174,7 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	} else if (strcmp(argv[4], "to")) {
 		return RESULT_SHOWUSAGE;
-	} else if ((argc == 8) && strcmp(argv[6], "priority")) {
+	} else if ((argc == 8) && strcmp(argv[6], "penalty")) {
 		return RESULT_SHOWUSAGE;
 	}
 
