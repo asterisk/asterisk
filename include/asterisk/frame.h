@@ -274,6 +274,13 @@ extern int ast_getformatbyname(char *name);
 /* Choose the best codec...  Uhhh...   Yah. */
 extern int ast_best_codec(int fmts);
 
+struct ast_smoother;
+
+extern struct ast_smoother *ast_smoother_new(int bytes);
+extern void ast_smoother_free(struct ast_smoother *s);
+extern int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f);
+extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
