@@ -4294,7 +4294,9 @@ static void *ss_thread(void *data)
 						res = zt_get_event(p->subs[index].zfd);
 						ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 						res = 0;
-						break;
+						/* Let us detect callerid when the telco uses distinctive ring */
+						if (p->ringt < RINGT/2)
+							break;
 					} else if (i & ZT_IOMUX_READ) {
 						res = read(p->subs[index].zfd, buf, sizeof(buf));
 						if (res < 0) {
