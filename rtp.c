@@ -68,6 +68,7 @@ struct ast_rtp {
 	int lasttxformat;
 	int lastrxformat;
 	int dtmfcount;
+	unsigned int dtmfduration;
 	int nat;
 	struct sockaddr_in us;
 	struct sockaddr_in them;
@@ -169,6 +170,7 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 	rtp->f.mallocd = 0;
 	rtp->f.src = "RTP";
 	rtp->resp = 0;
+	rtp->dtmfduration = 0;
 	return &rtp->f;
 	
 }
@@ -203,10 +205,17 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len)
 {
 	unsigned int event;
+	unsigned int event_end;
+	unsigned int duration;
 	char resp = 0;
 	struct ast_frame *f = NULL;
 	event = ntohl(*((unsigned int *)(data)));
 	event >>= 24;
+	event_end = ntohl(*((unsigned int *)(data)));
+	event_end <<= 8;
+	event_end >>= 24;
+	duration = ntohl(*((unsigned int *)(data)));
+	duration &= 0xFFFF;
 #if 0
 	printf("Event: %08x (len = %d)\n", event, len);
 #endif	
@@ -222,8 +231,20 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	if (rtp->resp && (rtp->resp != resp)) {
 		f = send_dtmf(rtp);
 	}
+	else if(event_end & 0x80)
+	{
+		f = send_dtmf(rtp);
+		resp = 0;
+		duration = 0;
+	}
+	else if(rtp->dtmfduration && (duration < rtp->dtmfduration))
+	{
+		f = send_dtmf(rtp);
+	}
+
 	rtp->resp = resp;
 	rtp->dtmfcount = dtmftimeout;
+	rtp->dtmfduration = duration;
 	return f;
 }
 
