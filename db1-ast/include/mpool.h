@@ -37,6 +37,9 @@
 #define _MPOOL_H 1
 
 #include <sys/queue.h>
+#ifndef CIRCLEQ_HEAD
+#include <circ-queue.h>
+#endif
 
 /*
  * The memory pool scheme is a simple one.  Each in-memory page is referenced

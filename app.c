@@ -303,3 +303,106 @@ int ast_dtmf_stream(struct ast_channel *chan,struct ast_channel *peer,char *digi
 	}
 	return res;
 }
+
+struct linear_state {
+	int fd;
+	int autoclose;
+	int allowoverride;
+	int origwfmt;
+};
+
+static void linear_release(struct ast_channel *chan, void *params)
+{
+	struct linear_state *ls = params;
+	if (ls->origwfmt && ast_set_write_format(chan, ls->origwfmt)) {
+		ast_log(LOG_WARNING, "Unable to restore channel '%s' to format '%d'\n", chan->name, ls->origwfmt);
+	}
+	if (ls->autoclose)
+		close(ls->fd);
+	free(params);
+}
+
+static int linear_generator(struct ast_channel *chan, void *data, int len, int samples)
+{
+	struct ast_frame f;
+	short buf[2048 + AST_FRIENDLY_OFFSET / 2];
+	struct linear_state *ls = data;
+	int res;
+	len = samples * 2;
+	if (len > sizeof(buf) - AST_FRIENDLY_OFFSET) {
+		ast_log(LOG_WARNING, "Can't generate %d bytes of data!\n" ,len);
+		len = sizeof(buf) - AST_FRIENDLY_OFFSET;
+	}
+	memset(&f, 0, sizeof(f));
+	res = read(ls->fd, buf + AST_FRIENDLY_OFFSET/2, len);
+	if (res > 0) {
+		f.frametype = AST_FRAME_VOICE;
+		f.subclass = AST_FORMAT_SLINEAR;
+		f.data = buf + AST_FRIENDLY_OFFSET/2;
+		f.datalen = res;
+		f.samples = res / 2;
+		f.offset = AST_FRIENDLY_OFFSET;
+		ast_write(chan, &f);
+		if (res == len)
+			return 0;
+	}
+	return -1;
+}
+
+static void *linear_alloc(struct ast_channel *chan, void *params)
+{
+	struct linear_state *ls;
+	/* In this case, params is already malloc'd */
+	if (params) {
+		ls = params;
+		if (ls->allowoverride)
+			chan->writeinterrupt = 1;
+		else
+			chan->writeinterrupt = 0;
+		ls->origwfmt = chan->writeformat;
+		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
+			ast_log(LOG_WARNING, "Unable to set '%s' to linear format (write)\n", chan->name);
+			free(ls);
+			ls = params = NULL;
+		}
+	}
+	return params;
+}
+
+static struct ast_generator linearstream = 
+{
+	alloc: linear_alloc,
+	release: linear_release,
+	generate: linear_generator,
+};
+
+int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride)
+{
+	struct linear_state *lin;
+	char tmpf[256] = "";
+	int res = -1;
+	int autoclose = 0;
+	if (fd < 0) {
+		if (!filename || ast_strlen_zero(filename))
+			return -1;
+		autoclose = 1;
+		if (filename[0] == '/') 
+			strncpy(tmpf, filename, sizeof(tmpf) - 1);
+		else
+			snprintf(tmpf, sizeof(tmpf), "%s/%s/%s", (char *)ast_config_AST_VAR_DIR, "sounds", filename);
+		fd = open(tmpf, O_RDONLY);
+		if (fd < 0){
+			ast_log(LOG_WARNING, "Unable to open file '%s': %s\n", tmpf, strerror(errno));
+			return -1;
+		}
+	}
+	lin = malloc(sizeof(struct linear_state));
+	if (lin) {
+		memset(lin, 0, sizeof(lin));
+		lin->fd = fd;
+		lin->allowoverride = allowoverride;
+		lin->autoclose = autoclose;
+		res = ast_activate_generator(chan, &linearstream, lin);
+	}
+	return res;
+}

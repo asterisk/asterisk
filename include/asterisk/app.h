@@ -51,6 +51,9 @@ extern int ast_safe_system(const char *s);
 //! Send DTMF to chan (optionally entertain peer)  
 int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, char *digits, int between);
 
+//! Stream a filename (or file descriptor) as a generator.
+int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
