@@ -71,15 +71,19 @@ static char *app = "AGI";
 static char *eapp = "EAGI";
 
 static char *synopsis = "Executes an AGI compliant application";
+static char *esynopsis = "Executes an EAGI compliant application";
 
 static char *descrip =
 "  [E]AGI(command|args): Executes an Asterisk Gateway Interface compliant\n"
-"program on a channel.   AGI allows Asterisk to launch external programs\n"
+"program on a channel. AGI allows Asterisk to launch external programs\n"
 "written in any language to control a telephony channel, play audio,\n"
 "read DTMF digits, etc. by communicating with the AGI protocol on stdin\n"
-"and stdout.  Returns -1 on hangup or if application requested hangup, or\n"
-"0 on non-hangup exit.  Using 'EAGI' provides enhanced AGI, with audio\n"
-"available out of band on file descriptor 3\n";
+"and stdout.\n"
+"Returns -1 on hangup or if application requested hangup, or\n"
+"0 on non-hangup exit. \n"
+"Using 'EAGI' provides enhanced AGI, with incoming audio available out of band"
+"on file descriptor 3\n\n"
+"Use the CLI command 'show agi' to list available agi commands\n";
 
 STANDARD_LOCAL_USER;
 
@@ -1484,7 +1488,7 @@ int load_module(void)
 {
 	ast_cli_register(&showagi);
 	ast_cli_register(&dumpagihtml);
-	ast_register_application(eapp, eagi_exec, synopsis, descrip);
+	ast_register_application(eapp, eagi_exec, esynopsis, descrip);
 	return ast_register_application(app, agi_exec, synopsis, descrip);
 }
 
