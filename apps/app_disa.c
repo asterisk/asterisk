@@ -17,6 +17,7 @@
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
+#include <asterisk/app.h>
 #include <asterisk/indications.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
@@ -67,7 +68,11 @@ static char *descrip =
 	"above arguments may have |new-callerid-string appended to them, to\n"
 	"specify a new (different) callerid to be used for this call, for\n"
 	"example: numeric-passcode|context|\"My Phone\" <(234) 123-4567> or \n"
-	"full-pathname-of-passcode-file|\"My Phone\" <(234) 123-4567>. Note that\n"
+	"full-pathname-of-passcode-file|\"My Phone\" <(234) 123-4567>.  Last\n"
+	"but not least, |mailbox[@context] may be appended, which will cause\n"
+	"a stutter-dialtone (indication \"dialrecall\") to be used, if the\n"
+	"specified mailbox contains any new messages, for example:\n"
+	"numeric-passcode|context||1234 (w/a changing callerid).  Note that\n"
 	"in the case of specifying the numeric-passcode, the context must be\n"
 	"specified if the callerid is specified also.\n\n"
 	"If login is successful, the application parses the dialed number in\n"
@@ -80,9 +85,6 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int firstdigittimeout = 20000; /* 20 seconds first digit timeout */
-static int digittimeout = 10000; /* 10 seconds subsequent digit timeout */
-
 static int ms_diff(struct timeval *tv1, struct timeval *tv2)
 {
 int	ms;
@@ -92,10 +94,13 @@ int	ms;
 	return(ms);
 }
 
-static void play_dialtone(struct ast_channel *chan)
+static void play_dialtone(struct ast_channel *chan, char *mailbox)
 {
 	const struct tone_zone_sound *ts = NULL;
-	ts = ast_get_indication_tone(chan->zone, "dial");
+	if(ast_app_has_voicemail(mailbox, NULL))
+		ts = ast_get_indication_tone(chan->zone, "dialrecall");
+	else
+		ts = ast_get_indication_tone(chan->zone, "dial");
 	if (ts)
 		ast_playtones_start(chan, 0, ts->data, 0);
 	else
@@ -105,9 +110,11 @@ static void play_dialtone(struct ast_channel *chan)
 static int disa_exec(struct ast_channel *chan, void *data)
 {
 	int i,j,k,x,did_ignore;
+	int firstdigittimeout = 20000;
+	int digittimeout = 10000;
 	struct localuser *u;
 	char tmp[256],arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
-	char *ourcontext,*ourcallerid;
+	char *ourcontext,*ourcallerid,*mailbox;
 	struct ast_frame *f;
 	struct timeval lastout, now, lastdigittime;
 	int res;
@@ -115,6 +122,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	FILE *fp;
 	char *stringp=NULL;
 
+	if (chan->pbx) {
+		firstdigittimeout = chan->pbx->rtimeout*1000;
+		digittimeout = chan->pbx->dtimeout*1000;
+	}
+	
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW))
 	{
 		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
@@ -130,6 +142,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
 	}
+	ast_log(LOG_DEBUG, "Digittimeout: %i\n", digittimeout);
+	ast_log(LOG_DEBUG, "Responsetimeout: %i\n", firstdigittimeout);
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	stringp=tmp;
 	strsep(&stringp, "|");
@@ -145,6 +159,10 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ourcallerid = NULL;
 		ourcontext = "disa";
 	}
+	(char *)mailbox = strsep(&stringp, "|");
+	if (!mailbox)
+		mailbox = "";
+	ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
 	LOCAL_USER_ADD(u);
 	if (chan->_state != AST_STATE_UP)
 	{
@@ -166,7 +184,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	}
 	gettimeofday(&lastdigittime,NULL);
 
-	play_dialtone(chan);
+	play_dialtone(chan, mailbox);
 
 	for(;;)
 	{
@@ -266,7 +284,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					}
 					 /* password good, set to dial state */
 					ast_log(LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
-					play_dialtone(chan);
+					play_dialtone(chan, mailbox);
 
 					k = 1;
 					i = 0;  /* re-set buffer pointer */
@@ -284,7 +302,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			  /* if this exists */
 
 			if (ast_ignore_pattern(ourcontext, exten)) {
-				play_dialtone(chan);
+				play_dialtone(chan, "");
 				did_ignore = 1;
 			} else
 				if (did_ignore) {
