@@ -3,7 +3,7 @@
  *
  * Implementation of Inter-Asterisk eXchange Version 2
  *
- * Copyright (C) 2003, Digium
+ * Copyright (C) 2003-2004, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -114,6 +114,7 @@ static char *type = "IAX2";
 static char context[80] = "default";
 
 static char language[MAX_LANGUAGE] = "";
+static char regcontext[AST_MAX_EXTENSION] = "";
 
 static int max_retries = 4;
 static int ping_time = 20;
@@ -219,6 +220,7 @@ struct iax2_peer {
 	char secret[80];
 	char outkey[80];		/* What key we use to talk to this peer */
 	char context[AST_MAX_EXTENSION];	/* Default context (for transfer really) */
+	char regexten[AST_MAX_EXTENSION];	/* Extension to register (if regcontext is used) */
 	char peercontext[AST_MAX_EXTENSION];	/* Context to pass to peer */
 	char mailbox[AST_MAX_EXTENSION];	/* Mailbox */
 	struct sockaddr_in addr;
@@ -4211,6 +4213,22 @@ static int iax2_register(char *value, int lineno)
 	return 0;
 }
 
+static void register_peer_exten(struct iax2_peer *peer, int onoff)
+{
+	unsigned char multi[256]="";
+	char *stringp, *ext;
+	if (!ast_strlen_zero(regcontext)) {
+		strncpy(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi) - 1);
+		stringp = multi;
+		while((ext = strsep(&stringp, "&"))) {
+			if (onoff)
+				ast_add_extension(regcontext, 1, ext, 1, NULL, "Noop", strdup(peer->name), free, type);
+			else
+				ast_context_remove_extension(regcontext, ext, 1, NULL);
+		}
+	}
+}
+
 static int expire_registry(void *data)
 {
 	struct iax2_peer *p = data;
@@ -4221,6 +4239,7 @@ static int expire_registry(void *data)
 	/* Reset expirey value */
 	p->expirey = expirey;
 	ast_db_del("IAX/Registry", p->name);
+	register_peer_exten(p, 0);
 	if (iax2_regfunk)
 		iax2_regfunk(p->name, 0);
 	return 0;
@@ -4259,6 +4278,7 @@ static void reg_source_db(struct iax2_peer *p)
 					p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
+					register_peer_exten(p, 1);
 				}					
 					
 			}
@@ -4294,15 +4314,18 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			if (iax2_regfunk)
 				iax2_regfunk(p->name, 1);
 			snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), p->expirey);
-			ast_db_put("IAX/Registry", p->name, data);
 			if (sin->sin_addr.s_addr) {
+				ast_db_put("IAX/Registry", p->name, data);
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
+				register_peer_exten(p, 1);
 			} else {
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Unregistered '%s' (%s)\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
+				register_peer_exten(p, 0);
+				ast_db_del("IAX/Registry", p->name);
 			}
 			/* Update the host */
 			memcpy(&p->addr, sin, sizeof(p->addr));
@@ -6291,6 +6314,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "context")) {
 				if (ast_strlen_zero(peer->context))
 					strncpy(peer->context, v->value, sizeof(peer->context) - 1);
+			} else if (!strcasecmp(v->name, "regexten")) {
+				strncpy(peer->regexten, v->value, sizeof(peer->regexten) - 1);
 			} else if (!strcasecmp(v->name, "peercontext")) {
 				if (ast_strlen_zero(peer->peercontext))
 					strncpy(peer->peercontext, v->value, sizeof(peer->peercontext) - 1);
@@ -6552,6 +6577,7 @@ static void prune_peers(void){
 				ast_sched_del(sched, peer->pokeexpire);
 			if (peer->callno > 0)
 				iax2_destroy(peer->callno);
+			register_peer_exten(peer, 0);
 			free(peer);
 			if (peerlast)
 				peerlast->next = peernext;
@@ -6669,6 +6695,11 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			iax2_register(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "iaxcompat")) {
 			iaxcompat = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "regcontext")) {
+			strncpy(regcontext, v->value, sizeof(regcontext) - 1);
+			/* Create context if it doesn't exist already */
+			if (!ast_context_find(regcontext))
+				ast_context_create(NULL, regcontext, type);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%i", &format) == 1)
 				tos = format & 0xff;

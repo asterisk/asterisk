@@ -203,6 +203,7 @@ static int global_promiscredir;
 
 static char global_musicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
 static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
+static char regcontext[AST_MAX_EXTENSION] = "";
 
 /* Expire slowly */
 static int expiry = 900;
@@ -422,6 +423,7 @@ struct sip_peer {
 	char context[80];		/* JK02: peers need context too to allow parking etc */
 	char username[80];
 	char tohost[80];
+	char regexten[AST_MAX_EXTENSION];	/* Extension to register (if regcontext is used) */
 	char fromuser[80];
 	char fromdomain[80];
 	char fullcontact[128];
@@ -4210,12 +4212,29 @@ static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int seqno, i
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
 
+static void register_peer_exten(struct sip_peer *peer, int onoff)
+{
+	unsigned char multi[256]="";
+	char *stringp, *ext;
+	if (!ast_strlen_zero(regcontext)) {
+		strncpy(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi) - 1);
+		stringp = multi;
+		while((ext = strsep(&stringp, "&"))) {
+			if (onoff)
+				ast_add_extension(regcontext, 1, ext, 1, NULL, "Noop", strdup(peer->name), free, type);
+			else
+				ast_context_remove_extension(regcontext, ext, 1, NULL);
+		}
+	}
+}
+
 /*--- expire_register: Expire registration of SIP peer ---*/
 static int expire_register(void *data)
 {
 	struct sip_peer *p = data;
 	memset(&p->addr, 0, sizeof(p->addr));
 	ast_db_del("SIP/Registry", p->name);
+	register_peer_exten(p, 0);
 	p->expire = -1;
 	ast_device_state_changed("SIP/%s", p->name);
 	if (p->selfdestruct) {
@@ -4269,6 +4288,7 @@ static void reg_source_db(struct sip_peer *p)
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
 					p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, (void *)p);
+					register_peer_exten(p, 1);
 				}					
 					
 			}
@@ -4318,6 +4338,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_sched_del(sched, p->expire);
 		p->expire = -1;
 		ast_db_del("SIP/Registry", p->name);
+		register_peer_exten(p, 0);
 		p->fullcontact[0] = '\0';
 		p->useragent[0] = '\0';
 		p->lastms = 0;
@@ -4387,6 +4408,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		sip_poke_peer(p);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
+		register_peer_exten(p, 1);
 	}
 
 	/* Save User agent */
@@ -8254,6 +8276,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				strncpy(peer->username, v->value, sizeof(peer->username)-1);
 			} else if (!strcasecmp(v->name, "language")) {
 				strncpy(peer->language, v->value, sizeof(peer->language)-1);
+			} else if (!strcasecmp(v->name, "regexten")) {
+				strncpy(peer->regexten, v->value, sizeof(peer->regexten)-1);
 			} else if (!strcasecmp(v->name, "musiconhold")) {
 				strncpy(peer->musicclass, v->value, sizeof(peer->musicclass)-1);
 			} else if (!strcasecmp(v->name, "mailbox")) {
@@ -8425,6 +8449,11 @@ static int reload_config(void)
 			strncpy(global_musicclass, v->value, sizeof(global_musicclass) - 1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(default_language, v->value, sizeof(default_language)-1);
+		} else if (!strcasecmp(v->name, "regcontext")) {
+			strncpy(regcontext, v->value, sizeof(regcontext) - 1);
+			/* Create context if it doesn't exist already */
+			if (!ast_context_find(regcontext))
+				ast_context_create(NULL, regcontext, type);
 		} else if (!strcasecmp(v->name, "callerid")) {
 			strncpy(default_callerid, v->value, sizeof(default_callerid)-1);
 		} else if (!strcasecmp(v->name, "fromdomain")) {
@@ -8834,6 +8863,7 @@ static void prune_peers(void)
 				ast_sched_del(sched, peer->expire);
 			if (peer->pokeexpire > -1)
 				ast_sched_del(sched, peer->pokeexpire);
+			register_peer_exten(peer, 0);
 			free(peer);
 			if (peerlast)
 				peerlast->next = peernext;

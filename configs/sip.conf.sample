@@ -71,6 +71,16 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                       ; Note that promiscredir when redirects are made to the
 ;                       ; local system will cause loops since SIP is incapable
 ;                       ; of performing a "hairpin" call.
+;
+; If regcontext is specified, Asterisk will dynamically 
+; create and destroy a NoOp priority 1 extension for a given
+; peer who registers or unregisters with us.  The actual extension
+; is the 'regexten' parameter of the registering peer or its
+; name if 'regexten' is not provided.  More than one regexten may be supplied
+; if they are separated by '&'.  Patterns may be used in regexten.
+;
+;regcontext=iaxregistrations
+;
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
 ;       register => user[:secret[:authuser]]@host[:port][/extension]
@@ -145,6 +155,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             username
 ;                             template
 ;                             fromdomain
+;                             regexten
 ;                             fromuser
 ;                             host
 ;                             mask
@@ -190,6 +201,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;Turn off silence suppression in X-Lite ("Transmit Silence"=YES)!
 ;Note that Xlite sends NAT keep-alive packets, so qualify=yes is not needed
 ;type=friend
+;regexten=1234                 ; When they register, create extension 1234
 ;username=xlite1
 ;callerid="Jane Smith" <5678>
 ;host=dynamic

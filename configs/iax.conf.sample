@@ -152,6 +152,15 @@ tos=lowdelay
 ;
 ;mailboxdetail=yes
 ;
+; If regcontext is specified, Asterisk will dynamically 
+; create and destroy a NoOp priority 1 extension for a given
+; peer who registers or unregisters with us.  The actual extension
+; is the 'regexten' parameter of the registering peer or its
+; name if 'regexten' is not provided.  More than one regexten may be supplied
+; if they are separated by '&'.  Patterns may be used in regexten.
+;
+;regcontext=iaxregistrations
+;
 ; Guest sections for unauthenticated connection attempts.  Just
 ; specify an empty secret, or provide no secret section.
 ;
@@ -262,6 +271,7 @@ host=216.207.245.47
 ;[marko]
 ;type=friend
 ;host=dynamic
+;regexten=1234
 ;secret=moofoo
 ;context=default
 ;permit=0.0.0.0/0.0.0.0
