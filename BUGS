@@ -1,48 +1,18 @@
-* EVERYTHING MARKED WITH "XXX" IN THE SOURCE REPRESENTS A BUG!  Sometimes
-  these bugs are in asterisk, and sometimes they relate to the products
-  that asterisk uses.
+Asterisk Bug Tracking Information
+=================================
 
-* In general Asterisk is a very new program, and there are liable to be
-  many bugs yet to be discovered, so if you think you've found one, please
-  be sure to report it.
+To learn about and report Asterisk bugs or make feature
+requests, please visit the official Asterisk Bug Tracker
+at:
 
-* When you flip to call waiting on a tormenta channel while you have a
-  three way call up, the parties in the three way cannot hear one another
-  in the general case.
+	http://bugs.digium.com
 
-* No auto-reload in chan_zap yet
+For more information on using the bug tracker, or to 
+learn how you can contribute by acting as a bug marshal
+please see:
 
-* Must be able to call park with flash-hook transfer
+	http://www.digium.com/bugtracker.html
 
-======================================================================
-Short report on the voicemail system
-======================================================================
-Stuff We Need:
+Thank you!
 
--Date/Time (conversion on the fly for different locales)
--A more fleshed/emphasized Main Menu
--Mailbox Options
-	-useful for allowing user to set certain options
--Notification of new vs. old messages
--Notification of first and last messages (old and new)
-	and a return to the Main Menu @ the end
-**-Better handling of lack of user input, specifically...
-	infinite loops...
-	currently found in:  vm-instructions
-			     vm-msginstruct
-	System MUST disconnect user for inactivity
--Mid message menu w/
-	pause/unpause
-	seeking
-	callback option
-	option to get caller's number if available
-	option to leave message directly on caller's voicemail
-		if he/she has account on system
--Also redesign the End Of Message Menu
--Efficienty Question...
-	Better to always rename msgs to being @ 0001
-	or...
-	Better to append new msgs numerically @ the
-	end and use software to traverse them in 
-	order...saving cpu cycles on renaming files
-	..could get messy w/ lots of users
+Mark
