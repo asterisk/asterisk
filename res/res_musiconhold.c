@@ -586,7 +586,7 @@ static void ast_moh_destroy(void)
 		if (moh->pid) {
 			ast_log(LOG_DEBUG, "killing %d!\n", moh->pid);
 			stime = time(NULL);
-			kill(moh->pid, SIGABRT);
+			kill(moh->pid, SIGKILL);
 			while ((bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime + 5) {
 				tbytes = tbytes + bytes;
 			}
