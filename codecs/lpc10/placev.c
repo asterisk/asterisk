@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.6  2000/01/05 08:20:39  markster
-Version 0.1.7 from FTP
+Revision 1.7  2001/04/12 21:27:53  markster
+Version 0.1.8 from FTP
+
+Revision 1.3  2001/04/12 21:27:53  markh
+app_record now supports wildcards of sort so your output file is not overwritten every time it's run.  File.h got a documentation update on the ast_fileexists to include the return call.  Watch out for the placea.c placev.c code, it's updates have not been tested yet.  Just a few parenthesis to make it compile nicer on newer gcc versions with all the -W flags set.
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -29,9 +32,12 @@ extern int placev_(integer *osbuf, integer *osptr, integer *oslen, integer *obou
 /* 	PLACEV Version 48 */
 
 /* $Log$
- * Revision 1.6  2000/01/05 08:20:39  markster
- * Version 0.1.7 from FTP
+ * Revision 1.7  2001/04/12 21:27:53  markster
+ * Version 0.1.8 from FTP
  *
+/* Revision 1.3  2001/04/12 21:27:53  markh
+/* app_record now supports wildcards of sort so your output file is not overwritten every time it's run.  File.h got a documentation update on the ast_fileexists to include the return call.  Watch out for the placea.c placev.c code, it's updates have not been tested yet.  Just a few parenthesis to make it compile nicer on newer gcc versions with all the -W flags set.
+/*
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
 /*
@@ -181,7 +187,7 @@ t*/
 
     /* Function Body */
 /* Computing MAX */
-    i__1 = vwin[(*af - 1 << 1) + 2] + 1, i__2 = (*af - 2) * *lframe + 1;
+    i__1 = vwin[((*af - 1) << 1) + 2] + 1, i__2 = (*af - 2) * *lframe + 1;
     lrange = max(i__1,i__2);
     hrange = *af * *lframe;
 /* Compute OSPTR1, so the following code only looks at relevant onsets. */
@@ -195,7 +201,7 @@ L90:
 /* Check for case 1 first (fast case): */
     if (osptr1 <= 1 || osbuf[osptr1 - 1] < lrange) {
 /* Computing MAX */
-	i__1 = vwin[(*af - 1 << 1) + 2] + 1;
+	i__1 = vwin[((*af - 1) << 1) + 2] + 1;
 	vwin[(*af << 1) + 1] = max(i__1,*dvwinl);
 	vwin[(*af << 1) + 2] = vwin[(*af << 1) + 1] + *maxwin - 1;
 	*obound = 0;

@@ -50,6 +50,7 @@ int ast_streamfile(struct ast_channel *c, char *filename, char *preflang);
 int ast_stopstream(struct ast_channel *c);
 
 /* See if a given file exists in a given format.  If fmt is NULL,  any format is accepted.*/
+/* Returns -1 if file does not exist */
 int ast_fileexists(char *filename, char *fmt, char *preflang);
 
 /* Rename a given file in a given format, or if fmt is NULL, then do so for all */

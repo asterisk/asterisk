@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.6  2000/01/05 08:20:39  markster
-Version 0.1.7 from FTP
+Revision 1.7  2001/04/12 21:27:53  markster
+Version 0.1.8 from FTP
+
+Revision 1.3  2001/04/12 21:27:53  markh
+app_record now supports wildcards of sort so your output file is not overwritten every time it's run.  File.h got a documentation update on the ast_fileexists to include the return call.  Watch out for the placea.c placev.c code, it's updates have not been tested yet.  Just a few parenthesis to make it compile nicer on newer gcc versions with all the -W flags set.
 
 Revision 1.2  2000/01/05 08:20:39  markster
 Some OSS fixes and a few lpc changes to make it actually work
@@ -29,9 +32,12 @@ extern int placea_(integer *ipitch, integer *voibuf, integer *obound, integer *a
 /* 	PLACEA Version 48 */
 
 /* $Log$
- * Revision 1.6  2000/01/05 08:20:39  markster
- * Version 0.1.7 from FTP
+ * Revision 1.7  2001/04/12 21:27:53  markster
+ * Version 0.1.8 from FTP
  *
+/* Revision 1.3  2001/04/12 21:27:53  markh
+/* app_record now supports wildcards of sort so your output file is not overwritten every time it's run.  File.h got a documentation update on the ast_fileexists to include the return call.  Watch out for the placea.c placev.c code, it's updates have not been tested yet.  Just a few parenthesis to make it compile nicer on newer gcc versions with all the -W flags set.
+/*
 /* Revision 1.2  2000/01/05 08:20:39  markster
 /* Some OSS fixes and a few lpc changes to make it actually work
 /*
@@ -140,18 +146,18 @@ extern int placea_(integer *ipitch, integer *voibuf, integer *obound, integer *a
 /*   is not altered from MAXWIN, since this would defeat the purpose */
 /*   of phase-synchronous placement. */
 /* Check for case 1 and case 2 */
-    allv = voibuf[(*af - 2 << 1) + 2] == 1;
-    allv = allv && voibuf[(*af - 1 << 1) + 1] == 1;
-    allv = allv && voibuf[(*af - 1 << 1) + 2] == 1;
+    allv = voibuf[((*af - 2) << 1) + 2] == 1;
+    allv = allv && voibuf[((*af - 1) << 1) + 1] == 1;
+    allv = allv && voibuf[((*af - 1) << 1) + 2] == 1;
     allv = allv && voibuf[(*af << 1) + 1] == 1;
     allv = allv && voibuf[(*af << 1) + 2] == 1;
     winv = voibuf[(*af << 1) + 1] == 1 || voibuf[(*af << 1) + 2] == 1;
     if (allv || winv && *obound == 0) {
 /* APHASE:  Phase synchronous window placement. */
 /* Get minimum lower index of the window. */
-	i__ = (lrange + *ipitch - 1 - awin[(*af - 1 << 1) + 1]) / *ipitch;
+	i__ = (lrange + *ipitch - 1 - awin[((*af - 1) << 1) + 1]) / *ipitch;
 	i__ *= *ipitch;
-	i__ += awin[(*af - 1 << 1) + 1];
+	i__ += awin[((*af - 1) << 1) + 1];
 /* L = the actual length of this frame's analysis window. */
 	l = *maxwin;
 /* Calculate the location where a perfectly centered window would star
