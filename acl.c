@@ -41,7 +41,7 @@ struct ast_ha {
 };
 
 /* Default IP - if not otherwise set, don't breathe garbage */
-static struct in_addr __ourip = { (in_addr_t)0x00000000 };
+static struct in_addr __ourip = { 0x00000000 };
 
 struct my_ifreq {
 	char ifrn_name[IFNAMSIZ];	/* Interface name, e.g. "eth0", "ppp0", etc.  */
