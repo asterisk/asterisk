@@ -851,17 +851,19 @@ struct oh323_peer *find_peer(char *peer, struct sockaddr_in *sin)
 		}
 	} else {
 		/* find by sin */
-		while (p) {
-			if ((!inaddrcmp(&p->addr, sin)) || 
-				(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)) {
-				ast_log(LOG_DEBUG, "Found peer %s/%s by addr\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr));
-				break;
+		if (sin) {
+			while (p) {
+				if ((!inaddrcmp(&p->addr, sin)) || 
+					(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)) {
+					ast_log(LOG_DEBUG, "Found peer %s/%s by addr\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr));
+					break;
+				}
+				p = p->next;
 			}
-			p = p->next;
-		}
+		}	
 	}
 	if (!p) {
-		ast_log(LOG_DEBUG, "Could not find peer %s/%s by addr\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr));
+		ast_log(LOG_DEBUG, "Could not find peer %s by name or address\n", peer);
 	}
 	return p;
 }
@@ -1804,25 +1806,8 @@ int reload(void)
 	delete_users();
 	delete_aliases();
 	prune_peers();
-
-#if 0
-	if (!ast_strlen_zero(gatekeeper)) {
-		h323_gk_urq();
-	}
-#endif
-
 	reload_config();
 
-#if 0
-	/* Possibly register with a GK */
-	if (gatekeeper_disable == 0) {
-		if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
-			ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
-			h323_end_process();
-			return -1;
-		}
-	}
-#endif
 	restart_monitor();
 	return 0;
 }
