@@ -23,11 +23,14 @@ PROC=i586
 
 DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
-CFLAGS=-pipe -Wall -Werror -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
+CFLAGS=-pipe -Wall -Werror -Wmissing-prototypes -Wmissing-declarations -fomit-frame-pointer -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+CFLAGS += -DDO_CRASH
 SUBDIRS=channels pbx apps codecs formats
-LIBS=-ldl -lpthread -lreadline -lncurses # -lefence
-OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o translate.o file.o say.o pbx.o cli.o md5.o asterisk.o
+LIBS=-ldl -lpthread -lreadline -lncurses -lm # -lefence
+OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
+	translate.o file.o say.o pbx.o cli.o md5.o \
+	ulaw.o callerid.o fskmodem.o asterisk.o 
 CC=gcc
 INSTALL=install
 
@@ -58,11 +61,10 @@ datafiles: all
 	for x in sounds/digits/*; do \
 		install $$x /var/lib/asterisk/sounds/digits ; \
 	done
-	for x in sounds/vm-* sounds/transfer* ; do \
+	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-*; do \
 		install $$x /var/lib/asterisk/sounds ; \
 	done
-
-install: all
+install: all datafiles
 	mkdir -p $(MODULES_DIR)
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d /usr/include/asterisk

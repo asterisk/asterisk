@@ -1,3 +1,15 @@
+* Asterisk 0.1.7
+ -- Update configuration files and add some missing sounds
+ -- Added ability to include one context in another
+ -- Rewrite of PBX switching
+ -- Major mods to dialler application
+ -- Added Caller*ID spill reception
+ -- Added Dialogic VOX file format support
+ -- Added ADPCM Codec
+ -- Add Tormenta driver (RBS signalling)
+ -- Add Caller*ID spill creation
+ -- Rewrite of translation layer entirely
+ -- Add ability to run PBX without additional thread
 * Asterisk 0.1.6
  -- Make app_dial handle a lack of translators smoothly
  -- Add ISDN4Linux support -- dtmf is weird...

@@ -73,7 +73,7 @@ exten=#,2,Hangup			; Hang them up.
 ;
 ; A timeout and "invalid extension rule"
 ;
-exten=t,1,Playback,Goto,#|1		; If they take too long, give up
+exten=t,1,Goto,#|1			; If they take too long, give up
 exten=i,1,Playback,invalid		; "That's not valid, try again"
 
 ;
