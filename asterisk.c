@@ -70,6 +70,7 @@ int option_initcrypto=0;
 int option_nocolor;
 int option_dumpcore = 0;
 int option_overrideconfig = 0;
+int option_reconnect = 0;
 int fully_booted = 0;
 
 static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
@@ -871,7 +872,29 @@ static int ast_el_read_char(EditLine *el, char *cp)
 			/* if the remote side disappears exit */
 			if (res < 1) {
 				fprintf(stderr, "\nDisconnected from Asterisk server\n");
-				quit_handler(0, 0, 0, 0);
+				if (!option_reconnect) {
+					quit_handler(0, 0, 0, 0);
+				} else {
+					int tries;
+					int reconnects_per_second = 10;
+					fprintf(stderr, "\nAttempting to reconnect for 30 seconds\n");
+					for (tries=0;tries<30 * reconnects_per_second;tries++) {
+						if (ast_tryconnect()) {
+							printf(term_quit());
+							ast_register_verbose(console_verboser);
+							ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2004 Digium.\n");
+							ast_verbose( "Written by Mark Spencer <markster@digium.com>\n");
+							ast_verbose( "=========================================================================\n");
+							break;
+						} else {
+							usleep(1000000 / reconnects_per_second);
+						}
+					}
+					if (tries >= 30) {
+						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
+						quit_handler(0, 0, 0, 0);
+					}
+				}
 			}
 
 			buf[res] = '\0';
@@ -1394,6 +1417,7 @@ static int show_cli_help(void) {
 	printf("   -p              Run as pseudo-realtime thread\n");
 	printf("   -q              Quiet mode (supress output)\n");
 	printf("   -r              Connect to Asterisk on this machine\n");
+	printf("   -R              Connect to Asterisk, and attempt to reconnect if disconnected\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
 	printf("\n");
@@ -1498,7 +1522,7 @@ int main(int argc, char *argv[])
 	}
 	*/
 	/* Check for options */
-	while((c=getopt(argc, argv, "hfdvqprgcinx:C:")) != -1) {
+	while((c=getopt(argc, argv, "hfdvqprRgcinx:C:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -1517,6 +1541,11 @@ int main(int argc, char *argv[])
 		case 'r':
 			option_remote++;
 			option_nofork++;
+			break;
+		case 'R':
+			option_remote++;
+			option_nofork++;
+			option_reconnect++;
 			break;
 		case 'p':
 			option_highpriority++;
