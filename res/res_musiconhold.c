@@ -461,8 +461,6 @@ static int moh_generate(struct ast_channel *chan, void *data, int len, int sampl
 		f.samples = res / 2;
 		f.data = buf + AST_FRIENDLY_OFFSET / 2;
 		f.offset = AST_FRIENDLY_OFFSET;
-		f.delivery.tv_sec = 0;
-		f.delivery.tv_usec = 0;
 		if (ast_write(chan, &f)< 0) {
 			ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 			return -1;
