@@ -241,7 +241,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_RINGING:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
-							if (!sentringing) {
+							if (!sentringing && !moh) {
 								ast_indicate(in, AST_CONTROL_RINGING);
 								sentringing++;
 								ringind++;

@@ -23,6 +23,10 @@
 #include "iax2-parser.h"
 
 
+static int frames = 0;
+static int iframes = 0;
+static int oframes = 0;
+
 static void internaloutput(const char *str)
 {
 	printf(str);
@@ -165,7 +169,7 @@ static void dump_ies(unsigned char *iedata, int len)
 	outputf("\n");
 }
 
-void iax_showframe(struct ast_iax2_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
+void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
 {
 	char *frames[] = {
 		"(0?)",
@@ -504,3 +508,52 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 	return 0;
 }
 
+void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
+{
+	fr->af.frametype = f->frametype;
+	fr->af.subclass = f->subclass;
+	fr->af.mallocd = 0;				/* Our frame is static relative to the container */
+	fr->af.datalen = f->datalen;
+	fr->af.samples = f->samples;
+	fr->af.offset = AST_FRIENDLY_OFFSET;
+	fr->af.src = f->src;
+	fr->af.data = fr->afdata;
+	if (fr->af.datalen) 
+		memcpy(fr->af.data, f->data, fr->af.datalen);
+}
+
+struct iax_frame *iax_frame_new(int direction, int datalen)
+{
+	struct iax_frame *fr;
+	fr = malloc(sizeof(struct iax_frame) + datalen);
+	if (fr) {
+		fr->direction = direction;
+		fr->retrans = -1;
+		frames++;
+		if (fr->direction == DIRECTION_INGRESS)
+			iframes++;
+		else
+			oframes++;
+	}
+	return fr;
+}
+
+void iax_frame_free(struct iax_frame *fr)
+{
+	/* Note: does not remove from scheduler! */
+	if (fr->direction == DIRECTION_INGRESS)
+		iframes--;
+	else if (fr->direction == DIRECTION_OUTGRESS)
+		oframes--;
+	else {
+		errorf("Attempt to double free frame detected\n");
+		return;
+	}
+	fr->direction = 0;
+	free(fr);
+	frames--;
+}
+
+int iax_get_frames(void) { return frames; }
+int iax_get_iframes(void) { return iframes; }
+int iax_get_oframes(void) { return oframes; }

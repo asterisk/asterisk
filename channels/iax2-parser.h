@@ -47,7 +47,12 @@ struct iax_ies {
 #define DIRECTION_INGRESS 1
 #define DIRECTION_OUTGRESS 2
 
-struct ast_iax2_frame {
+struct iax_frame {
+#ifdef LIBIAX
+	struct iax_session *session;
+	struct iax_event *event;
+#endif
+
 	/* /Our/ call number */
 	unsigned short callno;
 	/* /Their/ call number */
@@ -79,8 +84,8 @@ struct ast_iax2_frame {
 	/* Retransmission ID */
 	int retrans;
 	/* Easy linking */
-	struct ast_iax2_frame *next;
-	struct ast_iax2_frame *prev;
+	struct iax_frame *next;
+	struct iax_frame *prev;
 	/* Actual, isolated frame header */
 	struct ast_frame af;
 	unsigned char unused[AST_FRIENDLY_OFFSET];
@@ -96,7 +101,7 @@ struct iax_ie_data {
 extern void iax_set_output(void (*output)(const char *data));
 /* Choose a different function for errors */
 extern void iax_set_error(void (*output)(const char *data));
-extern void iax_showframe(struct ast_iax2_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen);
+extern void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen);
 
 extern const char *iax_ie2str(int ie);
 
@@ -109,4 +114,11 @@ extern int iax_ie_append_byte(struct iax_ie_data *ied, unsigned char ie, unsigne
 extern int iax_ie_append(struct iax_ie_data *ied, unsigned char ie);
 extern int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen);
 
+extern int iax_get_frames(void);
+extern int iax_get_iframes(void);
+extern int iax_get_oframes(void);
+
+extern void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f);
+extern struct iax_frame *iax_frame_new(int direction, int datalen);
+extern void iax_frame_free(struct iax_frame *fr);
 #endif

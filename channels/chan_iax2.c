@@ -379,8 +379,8 @@ struct chan_iax2_pvt {
 };
 
 static struct ast_iax2_queue {
-	struct ast_iax2_frame *head;
-	struct ast_iax2_frame *tail;
+	struct iax_frame *head;
+	struct iax_frame *tail;
 	int count;
 	pthread_mutex_t lock;
 } iaxq;
@@ -569,65 +569,13 @@ static int get_samples(struct ast_frame *f)
 	return samples;
 }
 
-static int frames = 0;
-static int iframes = 0;
-static int oframes = 0;
-
-static void ast_iax2_frame_wrap(struct ast_iax2_frame *fr, struct ast_frame *f)
-{
-	fr->af.frametype = f->frametype;
-	fr->af.subclass = f->subclass;
-	fr->af.mallocd = 0;				/* Our frame is static relative to the container */
-	fr->af.datalen = f->datalen;
-	fr->af.samples = f->samples;
-	fr->af.offset = AST_FRIENDLY_OFFSET;
-	fr->af.src = f->src;
-	fr->af.data = fr->afdata;
-	if (fr->af.datalen) 
-		memcpy(fr->af.data, f->data, fr->af.datalen);
-}
-
-static struct ast_iax2_frame *ast_iax2_frame_new(int direction, int datalen)
-{
-	struct ast_iax2_frame *fr;
-	fr = malloc(sizeof(struct ast_iax2_frame) + datalen);
-	if (fr) {
-		fr->direction = direction;
-		fr->retrans = -1;
-		frames++;
-		if (fr->direction == DIRECTION_INGRESS)
-			iframes++;
-		else
-			oframes++;
-	}
-	return fr;
-}
-
-static void ast_iax2_frame_free(struct ast_iax2_frame *fr)
-{
-	if (fr->retrans > -1)
-		ast_sched_del(sched, fr->retrans);
-	if (fr->direction == DIRECTION_INGRESS)
-		iframes--;
-	else if (fr->direction == DIRECTION_OUTGRESS)
-		oframes--;
-	else {
-		ast_log(LOG_WARNING, "Attempt to double free frame detected\n");
-		CRASH;
-		return;
-	}
-	fr->direction = 0;
-	free(fr);
-	frames--;
-}
-
-static struct ast_iax2_frame *iaxfrdup2(struct ast_iax2_frame *fr)
+static struct iax_frame *iaxfrdup2(struct iax_frame *fr)
 {
 	/* Malloc() a copy of a frame */
-	struct ast_iax2_frame *new = ast_iax2_frame_new(DIRECTION_INGRESS, fr->af.datalen);
+	struct iax_frame *new = iax_frame_new(DIRECTION_INGRESS, fr->af.datalen);
 	if (new) {
-		memcpy(new, fr, sizeof(struct ast_iax2_frame));	
-		ast_iax2_frame_wrap(new, &fr->af);
+		memcpy(new, fr, sizeof(struct iax_frame));	
+		iax_frame_wrap(new, &fr->af);
 		new->data = NULL;
 		new->datalen = 0;
 		new->direction = DIRECTION_INGRESS;
@@ -802,6 +750,13 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 	return res;
 }
 
+static void iax2_frame_free(struct iax_frame *fr)
+{
+	if (fr->retrans > -1)
+		ast_sched_del(sched, fr->retrans);
+	iax_frame_free(fr);
+}
+
 static int iax2_queue_frame(int callno, struct ast_frame *f)
 {
 	int pass =0;
@@ -835,7 +790,7 @@ static int __do_deliver(void *data)
 {
 	/* Just deliver the packet by using queueing.  This is called by
 	  the IAX thread with the iaxsl lock held. */
-	struct ast_iax2_frame *fr = data;
+	struct iax_frame *fr = data;
 	unsigned int ts;
 	fr->retrans = -1;
 	if (iaxs[fr->callno] && !iaxs[fr->callno]->alreadygone) {
@@ -856,7 +811,7 @@ static int __do_deliver(void *data)
 		}
 	}
 	/* Free our iax frame */
-	ast_iax2_frame_free(fr);
+	iax2_frame_free(fr);
 	/* And don't run again */
 	return 0;
 }
@@ -864,7 +819,7 @@ static int __do_deliver(void *data)
 static int do_deliver(void *data)
 {
 	/* Locking version of __do_deliver */
-	struct ast_iax2_frame *fr = data;
+	struct iax_frame *fr = data;
 	int callno = fr->callno;
 	int res;
 	ast_pthread_mutex_lock(&iaxsl[callno]);
@@ -907,7 +862,7 @@ static int handle_error(void)
 	return 0;
 }
 
-static int send_packet(struct ast_iax2_frame *f)
+static int send_packet(struct iax_frame *f)
 {
 	int res;
 	/* Called with iaxsl held */
@@ -998,7 +953,7 @@ static int iax2_predestroy_nolock(int callno)
 static void iax2_destroy(int callno)
 {
 	struct chan_iax2_pvt *pvt;
-	struct ast_iax2_frame *cur;
+	struct iax_frame *cur;
 	struct ast_channel *owner;
 
 retry:
@@ -1070,7 +1025,7 @@ static void iax2_destroy_nolock(int callno)
 	ast_pthread_mutex_lock(&iaxsl[callno]);
 }
 
-static int update_packet(struct ast_iax2_frame *f)
+static int update_packet(struct iax_frame *f)
 {
 	/* Called with iaxsl lock held, and iaxs[callno] non-NULL */
 	struct ast_iax2_full_hdr *fh = f->data;
@@ -1086,7 +1041,7 @@ static int attempt_transmit(void *data)
 {
 	/* Attempt to transmit the frame to the remote peer...
 	   Called without iaxsl held. */
-	struct ast_iax2_frame *f = data;
+	struct iax_frame *f = data;
 	int freeme=0;
 	int callno = f->callno;
 	/* Make sure this call is still active */
@@ -1163,7 +1118,7 @@ static int attempt_transmit(void *data)
 		ast_pthread_mutex_unlock(&iaxq.lock);
 		f->retrans = -1;
 		/* Free the IAX frame */
-		ast_iax2_frame_free(f);
+		iax2_frame_free(f);
 	}
 	return 0;
 }
@@ -1201,7 +1156,7 @@ static char jitter_usage[] =
 
 static int iax2_show_stats(int fd, int argc, char *argv[])
 {
-	struct ast_iax2_frame *cur;
+	struct iax_frame *cur;
 	int cnt = 0, dead=0, final=0;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -1214,7 +1169,7 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 	}
 	ast_cli(fd, "    IAX Statistics\n");
 	ast_cli(fd, "---------------------\n");
-	ast_cli(fd, "Outstanding frames: %d (%d ingress, %d outgress)\n", frames, iframes, oframes);
+	ast_cli(fd, "Outstanding frames: %d (%d ingress, %d outgress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes());
 	ast_cli(fd, "Packets in transmit queue: %d dead, %d final, %d total\n", dead, final, cnt);
 	return RESULT_SUCCESS;
 }
@@ -1296,7 +1251,7 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p);
 #ifdef BRIDGE_OPTIMIZATION
 static unsigned int calc_fakestamp(struct chan_iax2_pvt *from, struct chan_iax2_pvt *to, unsigned int ts);
 
-static int forward_delivery(struct ast_iax2_frame *fr)
+static int forward_delivery(struct iax_frame *fr)
 {
 	struct chan_iax2_pvt *p1, *p2;
 	p1 = iaxs[fr->callno];
@@ -1313,7 +1268,7 @@ static int forward_delivery(struct ast_iax2_frame *fr)
 }
 #endif
 
-static int schedule_delivery(struct ast_iax2_frame *fr, int reallydeliver, int updatehistory)
+static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int updatehistory)
 {
 	int ms,x;
 	int drops[MEMORY_SIZE];
@@ -1434,7 +1389,7 @@ static int schedule_delivery(struct ast_iax2_frame *fr, int reallydeliver, int u
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Dropping voice packet since %d ms is, too old\n", ms);
 			/* Free our iax frame */
-			ast_iax2_frame_free(fr);
+			iax2_frame_free(fr);
 		}
 	} else {
 		if (option_debug)
@@ -1444,7 +1399,7 @@ static int schedule_delivery(struct ast_iax2_frame *fr, int reallydeliver, int u
 	return 0;
 }
 
-static int iax2_transmit(struct ast_iax2_frame *fr)
+static int iax2_transmit(struct iax_frame *fr)
 {
 	/* Lock the queue and place this packet at the end */
 	fr->next = NULL;
@@ -2136,8 +2091,8 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	struct ast_iax2_full_hdr *fh;
 	struct ast_iax2_mini_hdr *mh;
 	unsigned char buffer[4096];		/* Buffer -- must preceed fr2 */
-	struct ast_iax2_frame fr2;
-	struct ast_iax2_frame *fr;
+	struct iax_frame fr2;
+	struct iax_frame *fr;
 	int res;
 	int sendmini=0;
 	unsigned int lastsent;
@@ -2166,23 +2121,23 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			/* Mark that mini-style frame is appropriate */
 			sendmini = 1;
 	}
-	/* Allocate an ast_iax2_frame */
+	/* Allocate an iax_frame */
 	if (now) {
 		fr = &fr2;
 	} else
-		fr = ast_iax2_frame_new(DIRECTION_OUTGRESS, f->datalen);
+		fr = iax_frame_new(DIRECTION_OUTGRESS, f->datalen);
 	if (!fr) {
 		ast_log(LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
 	/* Copy our prospective frame into our immediate or retransmitted wrapper */
-	ast_iax2_frame_wrap(fr, f);
+	iax_frame_wrap(fr, f);
 
 	fr->ts = fts;
 	if (!fr->ts) {
 		ast_log(LOG_WARNING, "timestamp is 0?\n");
 		if (!now)
-			ast_iax2_frame_free(fr);
+			iax2_frame_free(fr);
 		return -1;
 	}
 	fr->callno = pvt->callno;
@@ -2704,7 +2659,6 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		strncpy(md5secret, ies->md5_result, sizeof(md5secret)-1);
 	if (ies->rsa_result)
 		strncpy(rsasecret, ies->rsa_result, sizeof(rsasecret)-1);
-	printf("Auth methods: %d, rsasecret: %s, inkeys: %s\n", p->authmethods, rsasecret, p->inkeys);
 	if ((p->authmethods & IAX_AUTH_RSA) && strlen(rsasecret) && strlen(p->inkeys)) {
 		struct ast_key *key;
 		char *keyn;
@@ -3046,7 +3000,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 {
 	int peercallno = 0;
 	struct chan_iax2_pvt *pvt = iaxs[callno];
-	struct ast_iax2_frame *cur;
+	struct iax_frame *cur;
 
 	if (ies->callno)
 		peercallno = ies->callno;
@@ -3378,7 +3332,7 @@ static int iax2_vnak(int callno)
 
 static void vnak_retransmit(int callno, int last)
 {
-	struct ast_iax2_frame *f;
+	struct iax_frame *f;
 	ast_pthread_mutex_lock(&iaxq.lock);
 	f = iaxq.head;
 	while(f) {
@@ -3406,15 +3360,15 @@ static int send_trunk(struct iax2_peer *peer)
 	int calls = 0;
 	int res = 0;
 	int firstcall = 0;
-	unsigned char buf[65536 + sizeof(struct ast_iax2_frame)], *ptr;
+	unsigned char buf[65536 + sizeof(struct iax_frame)], *ptr;
 	int len = 65536;
-	struct ast_iax2_frame *fr;
+	struct iax_frame *fr;
 	struct ast_iax2_meta_hdr *meta;
 	struct ast_iax2_meta_trunk_hdr *mth;
 	struct ast_iax2_meta_trunk_entry *met;
 	
 	/* Point to frame */
-	fr = (struct ast_iax2_frame *)buf;
+	fr = (struct iax_frame *)buf;
 	/* Point to meta data */
 	meta = (struct ast_iax2_meta_hdr *)fr->afdata;
 	mth = (struct ast_iax2_meta_trunk_hdr *)meta->data;
@@ -3540,8 +3494,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct ast_iax2_meta_trunk_hdr *mth;
 	struct ast_iax2_meta_trunk_entry *mte;
 	char dblbuf[4096];	/* Declaration of dblbuf must immediately *preceed* fr  on the stack */
-	struct ast_iax2_frame fr;
-	struct ast_iax2_frame *cur;
+	struct iax_frame fr;
+	struct iax_frame *cur;
 	struct ast_frame f;
 	struct ast_channel *c;
 	struct iax2_dpcache *dp;
@@ -3628,7 +3582,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 								else
 									f.samples = 0;
 								fr.outoforder = 0;
-								ast_iax2_frame_wrap(&fr, &f);
+								iax_frame_wrap(&fr, &f);
 #ifdef BRIDGE_OPTIMIZATION
 								if (iaxs[fr.callno]->bridgecallno) {
 									forward_delivery(&fr);
@@ -4113,7 +4067,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					f.mallocd = 0;
 					f.offset = 0;
 					f.samples = 0;
-					ast_iax2_frame_wrap(&fr, &f);
+					iax_frame_wrap(&fr, &f);
 					schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
 #ifdef BRIDGE_OPTIMIZATION
 				}
@@ -4383,7 +4337,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		f.samples = get_samples(&f);
 	else
 		f.samples = 0;
-	ast_iax2_frame_wrap(&fr, &f);
+	iax_frame_wrap(&fr, &f);
 
 	/* If this is our most recent packet, use it as our basis for timestamping */
 	if (iaxs[fr.callno]->last < fr.ts) {
@@ -4560,7 +4514,7 @@ static void *network_thread(void *ignore)
 	/* Our job is simple: Send queued messages, retrying if necessary.  Read frames 
 	   from the network, and queue them for delivery to the channels */
 	int res;
-	struct ast_iax2_frame *f, *freeme;
+	struct iax_frame *f, *freeme;
 	/* Establish I/O callback for socket read */
 	ast_io_add(io, netsocket, socket_read, AST_IO_IN, NULL);
 	if (timingfd > -1)
@@ -4599,7 +4553,7 @@ static void *network_thread(void *ignore)
 			}
 			f = f->next;
 			if (freeme)
-				ast_iax2_frame_free(freeme);
+				iax_frame_free(freeme);
 		}
 		ast_pthread_mutex_unlock(&iaxq.lock);
 		res = ast_sched_wait(sched);
