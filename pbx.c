@@ -3306,7 +3306,7 @@ int ast_context_add_switch2(struct ast_context *con, char *value,
 	/* ... go to last sw and check if context is already swd too... */
 	i = con->alts;
 	while (i) {
-		if (!strcasecmp(i->name, new_sw->name)) {
+		if (!strcasecmp(i->name, new_sw->name) && !strcasecmp(i->data, new_sw->data)) {
 			free(new_sw);
 			ast_mutex_unlock(&con->lock);
 			errno = EEXIST;
