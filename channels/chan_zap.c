@@ -503,22 +503,36 @@ static int cidrings[] = {
 #define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 #define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 
+#ifdef ZAPATA_PRI
 /* translate between PRI causes and asterisk's */
 static int hangup_pri2cause(int cause)
 {
 	switch(cause) {
-#ifdef ZAPATA_PRI
 		case PRI_CAUSE_USER_BUSY:
 			return AST_CAUSE_BUSY;
 		case PRI_CAUSE_NORMAL_CLEARING:
 			return AST_CAUSE_NORMAL;
-#endif
 		default:
 			return AST_CAUSE_FAILURE;
 	}
 	/* never reached */
 	return 0;
 }
+
+/* translate between ast cause and PRI */
+static int hangup_cause2pri(int cause)
+{
+	switch(cause) {
+		case AST_CAUSE_BUSY:
+			return PRI_CAUSE_USER_BUSY;
+		case AST_CAUSE_NORMAL:
+		default:
+			return PRI_CAUSE_NORMAL_CLEARING;
+	}
+	/* never reached */
+	return 0;
+}
+#endif
 
 static int zt_get_index(struct ast_channel *ast, struct zt_pvt *p, int nullok)
 {
@@ -1753,7 +1767,7 @@ static int zt_hangup(struct ast_channel *ast)
 						p->call = NULL;
 					} else {
 						p->alreadyhungup = 1;
-						pri_hangup(p->pri->pri, p->call, -1);
+						pri_hangup(p->pri->pri, p->call, ast->hangupcause ? hangup_cause2pri(ast->hangupcause) : -1);
 					}
 #endif
 					if (res < 0) 

@@ -38,6 +38,7 @@
 #include <asterisk/acl.h>
 #include <asterisk/srv.h>
 #include <asterisk/astdb.h>
+#include <asterisk/causes.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -4426,6 +4427,19 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 		strncpy(p->owner->call_forward, s, sizeof(p->owner->call_forward) - 1);
 }
 
+static int hangup_sip2cause(int cause)
+{
+	switch(cause)
+	{
+		case 486:
+			return AST_CAUSE_BUSY;
+		default:
+			return AST_CAUSE_NORMAL;
+	}
+	/* Never reached */
+	return 0;
+}
+
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req)
 {
 	char *to;
@@ -4442,6 +4456,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	msg = strchr(c, ' ');
 	if (!msg) msg = ""; else msg++;
 	owner = p->owner;
+	if (owner) 
+		owner->hangupcause = hangup_sip2cause(resp);
 	/* Acknowledge whatever it is destined for */
 	if ((resp >= 100) && (resp <= 199))
 		__sip_semi_ack(p, seqno, 0);
