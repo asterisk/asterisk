@@ -1334,7 +1334,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 							res = 0;
 						} else {
 							/* Prompt user for pin if pin is required */
-							res = ast_app_getdata(chan, "conf-getpin", pin, sizeof(pin) - 1, 0);
+							res = ast_app_getdata(chan, "conf-getpin", pin + strlen(pin), sizeof(pin) - 1 - strlen(pin), 0);
 						}
 						if (res >= 0) {
 							if (!strcasecmp(pin, cnf->pin)) {
@@ -1347,7 +1347,11 @@ static int conf_exec(struct ast_channel *chan, void *data)
 								/* Pin invalid */
 								res = ast_streamfile(chan, "conf-invalidpin", chan->language);
 								if (!res)
-									ast_waitstream(chan, "");
+									ast_waitstream(chan, AST_DIGIT_ANY);
+								if (res < 0)
+									break;
+								pin[0] = res;
+								pin[1] = '\0';
 								res = -1;
 								if (allowretry)
 									confno[0] = '\0';
