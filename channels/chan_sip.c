@@ -2396,7 +2396,8 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	char iabuf[INET_ADDRSTRLEN];
 	char *cmd;
 	char *tag = "", *c;
-	char *tag2 = ""
+	char *tag2 = "";
+
 	callid = get_header(req, "Call-ID");
 
 	if (pedanticsipchecking) {
