@@ -1262,6 +1262,7 @@ static char *cli_complete(EditLine *el, int ch)
 static int ast_el_initialize(void)
 {
 	HistEvent ev;
+	char *editor = getenv("EDITOR");
 
 	if (el != NULL)
 		el_end(el);
@@ -1272,7 +1273,7 @@ static int ast_el_initialize(void)
 	el_set(el, EL_PROMPT, cli_prompt);
 
 	el_set(el, EL_EDITMODE, 1);		
-	el_set(el, EL_EDITOR, "emacs");		
+	el_set(el, EL_EDITOR, editor ? editor : "emacs");		
 	el_hist = history_init();
 	if (!el || !el_hist)
 		return -1;
