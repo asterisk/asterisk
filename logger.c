@@ -420,20 +420,15 @@ void ast_log(int level, const char *file, int line, const char *function, const 
     if (level == __LOG_EVENT) {
 	    time(&t);
 	    localtime_r(&t,&tm);
-	    if (&tm) {
-		    /* Log events into the event log file, with a different format */
-		    strftime(date, sizeof(date), "%b %e %T", &tm);
-		    va_start(ap, fmt);
+	    /* Log events into the event log file, with a different format */
+	    strftime(date, sizeof(date), "%b %e %T", &tm);
+	    va_start(ap, fmt);
 
-		    fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
-		    vfprintf(eventlog, fmt, ap);
-		    fflush(eventlog);
+	    fprintf(eventlog, "%s asterisk[%d]: ", date, getpid());
+	    vfprintf(eventlog, fmt, ap);
+	    fflush(eventlog);
 
-		    va_end(ap);
-	    } else
-		    /** Cannot use ast_log() from locked section of ast_log()!
-			ast_log(LOG_WARNING, "Unable to retrieve local time?\n"); **/
-		    fprintf(stderr, "ast_log: Unable to retrieve local time for %ld?\n", (long)t);
+	    va_end(ap);
 	    ast_mutex_unlock(&loglock);
 	    return;
     }
@@ -451,13 +446,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 		time(&t);
 		localtime_r(&t, &tm);
-		if(!&tm) {
-		    /** Cannot use ast_log() from locked section of ast_log()!
-			ast_log(AST_LOG_WARNING, "Unable to retrieve local time?\n"); **/
-		    fprintf(stderr, "ast_log: Unable to retrieve local time for %ld?\n", (long)t);
-		    ast_mutex_unlock(&loglock);
-		    return;
-		}
+
 		strftime(date, sizeof(date), "%b %e %T", &tm);
 
 		sprintf(linestr, "%d", line);
