@@ -1031,7 +1031,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
 	if (sipdebug)
-		ast_log(LOG_DEBUG, "Destorying call '%s'\n", p->callid);
+		ast_log(LOG_DEBUG, "Destroying call '%s'\n", p->callid);
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
 	if (p->initid > -1)
@@ -5601,7 +5601,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		transmit_response_with_allow(p, "405 Method Not Allowed", req);
 		ast_log(LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n", 
 			cmd, inet_ntoa(p->sa.sin_addr));
-		/* If this is some new method, and we don't have a call, destory it now */
+		/* If this is some new method, and we don't have a call, destroy it now */
 		if (!p->initreq.headers)
 			p->needdestroy = 1;
 	}
