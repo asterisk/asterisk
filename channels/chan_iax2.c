@@ -3259,7 +3259,7 @@ static int expire_registry(void *data)
 	p->expire = -1;
 	/* Reset expirey value */
 	p->expirey = expirey;
-	ast_db_del("IAX2/Registry", p->name);
+	ast_db_del("IAX/Registry", p->name);
 	if (iax2_regfunk)
 		iax2_regfunk(p->name, 0);
 	return 0;
@@ -3273,7 +3273,7 @@ static void reg_source_db(struct iax2_peer *p)
 	char data[80];
 	struct in_addr in;
 	char *c, *d;
-	if (!ast_db_get("IAX2/Registry", p->name, data, sizeof(data))) {
+	if (!ast_db_get("IAX/Registry", p->name, data, sizeof(data))) {
 		c = strchr(data, ':');
 		if (c) {
 			*c = '\0';
@@ -3294,6 +3294,8 @@ static void reg_source_db(struct iax2_peer *p)
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
 					p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
+					if (iax2_regfunk)
+						iax2_regfunk(p->name, 1);
 				}					
 					
 			}
@@ -3315,7 +3317,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 				if (iax2_regfunk)
 					iax2_regfunk(p->name, 1);
 				snprintf(data, sizeof(data), "%s:%d:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), p->expirey);
-				ast_db_put("IAX2/Registry", p->name, data);
+				ast_db_put("IAX/Registry", p->name, data);
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));

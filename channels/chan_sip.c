@@ -37,6 +37,7 @@
 #include <asterisk/parking.h>
 #include <asterisk/acl.h>
 #include <asterisk/srv.h>
+#include <asterisk/astdb.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -3024,6 +3025,7 @@ static int expire_register(void *data)
 {
 	struct sip_peer *p = data;
 	memset(&p->addr, 0, sizeof(p->addr));
+	ast_db_del("SIP/Registry", p->name);
 	p->expire = -1;
 	ast_device_state_changed("SIP/%s", p->name);
 	return 0;
@@ -3031,9 +3033,44 @@ static int expire_register(void *data)
 
 static int sip_poke_peer(struct sip_peer *peer);
 
+static void reg_source_db(struct sip_peer *p)
+{
+	char data[80];
+	struct in_addr in;
+	char *c, *d;
+	int expiry;
+	if (!ast_db_get("SIP/Registry", p->name, data, sizeof(data))) {
+		c = strchr(data, ':');
+		if (c) {
+			*c = '\0';
+			c++;
+			if (inet_aton(data, &in)) {
+				d = strchr(c, ':');
+				if (d) {
+					*d = '\0';
+					d++;
+					ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding '%s' at %s:%d for %d\n", p->name, 
+						inet_ntoa(in), atoi(c), atoi(d));
+					sip_poke_peer(p);
+					expiry = atoi(d);
+					memset(&p->addr, 0, sizeof(p->addr));
+					p->addr.sin_family = AF_INET;
+					p->addr.sin_addr = in;
+					p->addr.sin_port = htons(atoi(c));
+					if (p->expire > -1)
+						ast_sched_del(sched, p->expire);
+					p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, (void *)p);
+				}					
+					
+			}
+		}
+	}
+}
+
 static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req)
 {
 	char contact[80]= ""; 
+	char data[256];
 	char *expires = get_header(req, "Expires");
 	int expiry = atoi(expires);
 	char *c, *n, *pt;
@@ -3068,7 +3105,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_sched_del(sched, p->expire);
 		p->expire = -1;
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->username);
+			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
 		return 0;
 	}
 	/* Make sure it's a SIP URL */
@@ -3124,8 +3161,10 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	pvt->expiry = expiry;
 	if (inaddrcmp(&p->addr, &oldsin)) {
 		sip_poke_peer(p);
+		snprintf(data, sizeof(data), "%s:%d:%d", inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
+		ast_db_put("SIP/Registry", p->name, data);
 		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->username, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
+			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
 	}
 	return 0;
 }
@@ -5606,6 +5645,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		}
 		if (!strlen(peer->methods))
 			strcpy(peer->methods, "md5,plaintext");
+		if (!found && peer->dynamic)
+			reg_source_db(peer);
 		peer->delme = 0;
 	}
 	return peer;
@@ -5876,6 +5917,15 @@ int load_module()
 	int res;
 	struct sip_peer *peer;
 	struct sip_registry *reg;
+	sched = sched_context_create();
+	if (!sched) {
+		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+	}
+	io = io_context_create();
+	if (!io) {
+		ast_log(LOG_WARNING, "Unable to create I/O context\n");
+	}
+	
 	res = reload_config();
 	if (!res) {
 		/* Make sure we can register our sip channel type */
@@ -5893,15 +5943,6 @@ int load_module()
 		ast_cli_register(&cli_inuse_show);
 		sip_rtp.type = type;
 		ast_rtp_proto_register(&sip_rtp);
-		sched = sched_context_create();
-		if (!sched) {
-			ast_log(LOG_WARNING, "Unable to create schedule context\n");
-		}
-		io = io_context_create();
-		if (!io) {
-			ast_log(LOG_WARNING, "Unable to create I/O context\n");
-		}
-	
 		ast_mutex_lock(&peerl.lock);
 		for (peer = peerl.peers; peer; peer = peer->next)
 			sip_poke_peer(peer);
