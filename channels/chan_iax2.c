@@ -1924,7 +1924,6 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 
 static int iax2_hangup(struct ast_channel *c) 
 {
-	struct chan_iax2_pvt *pvt = c->pvt->pvt;
 	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
 	int alreadygone;
 	ast_mutex_lock(&iaxsl[callno]);
@@ -1932,7 +1931,7 @@ static int iax2_hangup(struct ast_channel *c)
 		ast_log(LOG_DEBUG, "We're hanging up %s now...\n", c->name);
 		alreadygone = iaxs[callno]->alreadygone;
 		/* Send the hangup unless we have had a transmission error or are already gone */
-		if (!pvt->error && !alreadygone) 
+		if (!iaxs[callno]->error && !alreadygone) 
 			send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_HANGUP, 0, NULL, 0, -1);
 		/* Explicitly predestroy it */
 		iax2_predestroy_nolock(callno);
@@ -2235,7 +2234,7 @@ static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int 
 		tmp->nativeformats = capability;
 		tmp->readformat = 0;
 		tmp->writeformat = 0;
-		tmp->pvt->pvt = i;
+		tmp->pvt->pvt = CALLNO_TO_PTR(i->callno);
 		tmp->pvt->send_digit = iax2_digit;
 		tmp->pvt->send_text = iax2_sendtext;
 		tmp->pvt->send_image = iax2_sendimage;
