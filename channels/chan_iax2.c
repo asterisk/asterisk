@@ -3573,6 +3573,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 			p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 		iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
+		iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime());
 		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
 		if (strlen(p->mailbox)) {
 			msgcount = ast_app_has_voicemail(p->mailbox);
