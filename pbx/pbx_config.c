@@ -31,7 +31,7 @@ static char *registrar = "pbx_config";
 static int static_config = 0;
 static int write_protect_config = 1;
 
-static pthread_mutex_t save_dialplan_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t save_dialplan_lock = AST_MUTEX_INITIALIZER;
 
 /*
  * Help for commands provided by this module ...
@@ -1496,8 +1496,12 @@ static int pbx_load_module(void)
 							appl="";
 						data = strtok(NULL, ",");
 
+						cidmatch = strchr(ext, '/');
+						if (cidmatch) {
+							*cidmatch = '\0';
+							cidmatch++;
+						}
 						strtok(ext, "/");
-						cidmatch = strtok(NULL, "/");
 
 						if (!data)
 							data="";

@@ -54,7 +54,7 @@
 #include "slin_g723_ex.h"
 #include "g723_slin_ex.h"
 
-static pthread_mutex_t localuser_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt=0;
 
 #ifdef ANNEX_B

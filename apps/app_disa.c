@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -25,7 +26,9 @@
 #include <pthread.h>
 #include <sys/time.h>
 
-#define	TONE_BLOCK_SIZE 200
+/*
+#define	TONE_BLOCK_SIZE 320
+*/
 
 static char *tdesc = "DISA (Direct Inward System Access) Application";
 
@@ -72,19 +75,17 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static float loudness=8192.0;
+static float loudness=4096.0;
 
-int firstdigittimeout = 10000; /* 10 seconds first digit timeout */
-int digittimeout = 5000; /* 5 seconds subsequent digit timeout */
+int firstdigittimeout = 20000; /* 20 seconds first digit timeout */
+int digittimeout = 10000; /* 10 seconds subsequent digit timeout */
 
-static void make_tone_block(unsigned char *data, float f1, float f2, int *x);
-
-static void make_tone_block(unsigned char *data, float f1, float f2, int *x)
+static void make_tone_block(unsigned char *data, float f1, float f2, int len, int *x)
 {
 int	i;
 float	val;
 
-	for(i = 0; i < TONE_BLOCK_SIZE; i++)
+	for(i = 0; i < len; i++)
 	{
 		val = loudness * sin((f1 * 2.0 * M_PI * (*x))/8000.0);
 		val += loudness * sin((f2 * 2.0 * M_PI * (*x)++)/8000.0);
@@ -109,12 +110,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int i,j,k,x;
 	struct localuser *u;
 	char tmp[256],exten[AST_MAX_EXTENSION],acctcode[20];
-	unsigned char tone_block[TONE_BLOCK_SIZE],sil_block[TONE_BLOCK_SIZE];
+	unsigned char tone_block[640],sil_block[640];
 	char *ourcontext;
 	struct ast_frame *f,wf;
-	fd_set	readfds;
-	int waitfor_notime;
-	struct timeval notime = { 0,0 }, lastout, now, lastdigittime;
+	struct timeval lastout, now, lastdigittime;
+	int res;
 	FILE *fp;
 
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW))
@@ -129,7 +129,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	}
 	lastout.tv_sec = lastout.tv_usec = 0;
 	  /* make block of silence */
-	memset(sil_block,0x7f,TONE_BLOCK_SIZE);
+	memset(sil_block,0x7f,sizeof(sil_block));
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
@@ -165,33 +165,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				((k) ? "extension" : "password"),chan->name);
 			goto reorder;
 		}
-		  /* if first digit or ignore, send dialtone */
-		if ((!i) || (ast_ignore_pattern(ourcontext,exten) && k)) 
-		{
-			gettimeofday(&now,NULL);
-			if (lastout.tv_sec && 
-				(ms_diff(&now,&lastout) < 25)) continue;
-			lastout.tv_sec = now.tv_sec;
-			lastout.tv_usec = now.tv_usec;
-			wf.frametype = AST_FRAME_VOICE;
-			wf.subclass = AST_FORMAT_ULAW;
-			wf.offset = AST_FRIENDLY_OFFSET;
-			wf.mallocd = 0;
-			wf.data = tone_block;
-			wf.datalen = TONE_BLOCK_SIZE;				
-			/* make this tone block */
-			make_tone_block(tone_block,350.0,440.0,&x);
-			wf.timelen = wf.datalen / 8;
-		        if (ast_write(chan, &wf)) 
-			{
-		                ast_log(LOG_WARNING, "DISA Failed to write frame on %s\n",chan->name);
-				LOCAL_USER_REMOVE(u);
-				return -1;
-			}
+		if ((res = ast_waitfor(chan, -1) < 0)) {
+			ast_log(LOG_DEBUG, "Waitfor returned %d\n", res);
+			continue;
 		}
-		waitfor_notime = notime.tv_usec + notime.tv_sec * 1000;
-		if (!ast_waitfor_nandfds(&chan, 1, &(chan->fds[0]), 1, NULL, NULL,
-			&waitfor_notime)) continue;
+			
 		f = ast_read(chan);
 		if (f == NULL) 
 		{
@@ -205,14 +183,37 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
+		if (f->frametype == AST_FRAME_VOICE) {
+			if (!i || (ast_ignore_pattern(ourcontext, exten) && k)) {
+				wf.frametype = AST_FRAME_VOICE;
+				wf.subclass = AST_FORMAT_ULAW;
+				wf.offset = AST_FRIENDLY_OFFSET;
+				wf.mallocd = 0;
+				wf.data = tone_block;
+				wf.datalen = f->datalen;
+				make_tone_block(tone_block, 350, 440, f->datalen, &x);
+				wf.timelen = wf.datalen / 8;
+				ast_frfree(f);
+			    if (ast_write(chan, &wf)) 
+				{
+			        ast_log(LOG_WARNING, "DISA Failed to write frame on %s\n",chan->name);
+					LOCAL_USER_REMOVE(u);
+					return -1;
+				}
+			} else
+				ast_frfree(f);
+			continue;
+		}
 		  /* if not DTMF, just do it again */
 		if (f->frametype != AST_FRAME_DTMF) 
 		{
 			ast_frfree(f);
 			continue;
 		}
+
 		j = f->subclass;  /* save digit */
 		ast_frfree(f);
+		
 		gettimeofday(&lastdigittime,NULL);
 		  /* got a DTMF tone */
 		if (i < AST_MAX_EXTENSION) /* if still valid number of digits */
@@ -258,6 +259,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 					}
 					 /* password good, set to dial state */
+						ast_log(LOG_WARNING,"DISA on chan %s password is good\n",chan->name);
 					k = 1;
 					i = 0;  /* re-set buffer pointer */
 					exten[sizeof(acctcode)] = 0;
@@ -285,95 +287,46 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (ast_canmatch_extension(chan,ourcontext,exten,1, chan->callerid)) continue;
 		}
 reorder:
+		
 		/* something is invalid, give em reorder forever */
 		x = 0;
+		k = 0;	/* k = 0 means busy tone, k = 1 means silence) */
+		i = 0;	/* Number of samples we've done */
 		for(;;)
 		{
-			for(i = 0; i < 10; i++)
-			{
-				do gettimeofday(&now,NULL);
-				while (lastout.tv_sec && 
-					(ms_diff(&now,&lastout) < 25)) ;
-				lastout.tv_sec = now.tv_sec;
-				lastout.tv_usec = now.tv_usec;
+			if (ast_waitfor(chan, -1) < 0)
+				break;
+			f = ast_read(chan);
+			if (!f)
+				break;
+			if (f->frametype == AST_FRAME_VOICE) {
 				wf.frametype = AST_FRAME_VOICE;
 				wf.subclass = AST_FORMAT_ULAW;
 				wf.offset = AST_FRIENDLY_OFFSET;
 				wf.mallocd = 0;
 				wf.data = tone_block;
-				wf.datalen = TONE_BLOCK_SIZE;
-				/* make this tone block */
-				make_tone_block(tone_block,480.0,620.0,&x);
+				wf.datalen = f->datalen;
 				wf.timelen = wf.datalen / 8;
-			        if (ast_write(chan, &wf)) 
+				if (k) 
+					memset(tone_block, 0x7f, wf.datalen);
+				else
+					make_tone_block(tone_block,480.0, 620.0,wf.datalen, &x);
+				i += wf.datalen / 8;
+				if (i > 250) {
+					i = 0;
+					k = !k;
+				}
+			    if (ast_write(chan, &wf)) 
 				{
-			                ast_log(LOG_WARNING, "DISA Failed to write frame on %s\n",chan->name);
+			        ast_log(LOG_WARNING, "DISA Failed to write frame on %s\n",chan->name);
 					LOCAL_USER_REMOVE(u);
 					return -1;
 				}
-				FD_ZERO(&readfds);
-				FD_SET(chan->fds[0],&readfds);
-				  /* if no read avail, do send again */
-				if (select(chan->fds[0] + 1,&readfds,NULL,
-					NULL,&notime) < 1) continue;
-				  /* read frame */
-				f = ast_read(chan);
-				if (f == NULL) 
-				{
-					LOCAL_USER_REMOVE(u);
-					return -1;
-				}
-				if ((f->frametype == AST_FRAME_CONTROL) &&
-				    (f->subclass == AST_CONTROL_HANGUP))
-				{
-					ast_frfree(f);
-					LOCAL_USER_REMOVE(u);
-					return -1;
-				}
-				ast_frfree(f);
 			}
-			for(i = 0; i < 10; i++)
-			{
-				do gettimeofday(&now,NULL);
-				while (lastout.tv_sec && 
-					(ms_diff(&now,&lastout) < 25)) ;
-				lastout.tv_sec = now.tv_sec;
-				lastout.tv_usec = now.tv_usec;
-				wf.frametype = AST_FRAME_VOICE;
-				wf.subclass = AST_FORMAT_ULAW;
-				wf.offset = AST_FRIENDLY_OFFSET;
-				wf.mallocd = 0;
-				wf.data = sil_block;
-				wf.datalen = TONE_BLOCK_SIZE;
-				wf.timelen = wf.datalen / 8;
-			        if (ast_write(chan, &wf)) 
-				{
-			                ast_log(LOG_WARNING, "DISA Failed to write frame on %s\n",chan->name);
-					LOCAL_USER_REMOVE(u);
-					return -1;
-				}
-				FD_ZERO(&readfds);
-				FD_SET(chan->fds[0],&readfds);
-				  /* if no read avail, do send again */
-				if (select(chan->fds[0] + 1,&readfds,NULL,
-					NULL,&notime) < 1) continue;
-				  /* read frame */
-				f = ast_read(chan);
-				if (f == NULL) 
-				{
-					LOCAL_USER_REMOVE(u);
-					return -1;
-				}
-				if ((f->frametype == AST_FRAME_CONTROL) &&
-				    (f->subclass == AST_CONTROL_HANGUP))
-				{
-					ast_frfree(f);
-					LOCAL_USER_REMOVE(u);
-					return -1;
-				}
-				ast_frfree(f);
-			}
+			ast_frfree(f);
 		}
+		LOCAL_USER_REMOVE(u);
+		return -1;
 	}
 }
 

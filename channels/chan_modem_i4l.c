@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
-#include <pthread.h>
+#include <asterisk/lock.h>
 #include <asterisk/vmodem.h>
 #include <asterisk/module.h>
 #include <asterisk/frame.h>
@@ -33,7 +33,7 @@ static char *breakcmd = "\0x10\0x14\0x10\0x3";
 static char *desc = "ISDN4Linux Emulated Modem Driver";
 
 int usecnt;
-pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *i4l_idents[] = {
 	/* Identify ISDN4Linux Driver */
@@ -386,7 +386,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 
 static int i4l_write(struct ast_modem_pvt *p, struct ast_frame *f)
 {
-#define MAX_WRITE_SIZE 512
+#define MAX_WRITE_SIZE 1024
 	unsigned char result[MAX_WRITE_SIZE << 1];
 	unsigned char b;
 	int bpos=0, x;
@@ -416,8 +416,10 @@ static int i4l_write(struct ast_modem_pvt *p, struct ast_frame *f)
 	res = write(p->fd, result, bpos);
 #endif
 	if (res < 1) {
-		ast_log(LOG_WARNING, "Failed to write buffer\n");
-		return -1;
+		if (errno != EAGAIN) {
+			ast_log(LOG_WARNING, "Failed to write buffer\n");
+			return -1;
+		}
 	}
 #if 0
 	printf("Result of write is %d\n", res);

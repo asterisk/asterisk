@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
@@ -46,7 +47,7 @@ struct ast_filestream {
 
 
 static struct ast_filestream *glist = NULL;
-static pthread_mutex_t mp3_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t mp3_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 
 static char *name = "mp3";

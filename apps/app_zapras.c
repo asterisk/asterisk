@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -125,7 +126,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 			if (!res) {
 				/* Check for hangup */
 				if (chan->softhangup && !signalled) {
-					ast_log(LOG_DEBUG, "Channel hungup.  Signalling RAS at %d to die...\n", pid);
+					ast_log(LOG_DEBUG, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", chan->name, pid);
 					kill(pid, SIGTERM);
 					signalled=1;
 				}
@@ -147,7 +148,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 				}
 			}
 			/* Throw back into audio mode */
-			x = 0;
+			x = 1;
 			ioctl(chan->fds[0], ZT_AUDIOMODE, &x);
 
 			/* Double check buffering too */

@@ -19,6 +19,7 @@
 #define TYPE_LOW	 0x1
 #define TYPE_MASK	 0x3
 
+#include <asterisk/lock.h>
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
@@ -37,7 +38,7 @@
 #include "slin_gsm_ex.h"
 #include "gsm_slin_ex.h"
 
-static pthread_mutex_t localuser_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt=0;
 
 static char *tdesc = "GSM/PCM16 (signed linear) Codec Translator";

@@ -14,6 +14,7 @@
  *
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/channel.h>
 #include <asterisk/cdr.h>
 #include <asterisk/logger.h>
@@ -25,7 +26,7 @@
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
 char ast_default_accountcode[20] = "";
 
-static pthread_mutex_t cdrlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t cdrlock = AST_MUTEX_INITIALIZER;
 
 static struct ast_cdr_beitem {
 	char name[20];

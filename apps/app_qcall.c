@@ -16,13 +16,14 @@
  * The queue is a directory containing files with the call request information
  * as a single line of text as follows:
  * 
- * Dialstring Caller-ID Extension Maxsecs Identifier [Required-response]
+ * Dialstring Caller-ID Extension Maxsecs [Identifier] [Required-response]
  *
  *  Dialstring -- A Dial String (The number to be called) in the
  *  format Technology/Number, such IAX/mysys/1234 or Zap/g1/1234
  * 
  *  Caller-ID -- A Standard nomalized representation of the Caller-ID of
- *  the number being dialed (generally 10 digits in the US).
+ *  the number being dialed (generally 10 digits in the US). Leave as
+ *  "asreceived" to use the default Caller*ID
  *
  *  Extension -- The Extension (optionally Extension@context) that the
  *  user should be "transferred" to after acceptance of the call.
@@ -36,7 +37,7 @@
  *  (generally a "thank you" recording), is the specified string with "-ok" 
  *  added to the end. So, if you specify "foo" as the identifier, your first
  *  prompt file that will be played will be "foo" and the second one will be
- *  "foo-ok".
+ *  "foo-ok".  If omitted no prompt is given
  *
  *  Required-Response (Optional) -- Specify a digit string to be used as the
  *  acceptance "code" if you desire it to be something other then "1". This
@@ -49,6 +50,7 @@
  *
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -78,7 +80,7 @@ STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 #define	OLDESTOK	14400		/* not any more then this number of secs old */
-#define	INITIALONE	20		/* initial wait before the first one in secs */
+#define	INITIALONE	1		/* initial wait before the first one in secs */
 #define	NEXTONE		600		/* wait before trying it again in secs */
 #define	MAXWAITFORANSWER 45000		/* max call time before answer */
 /* define either one or both of these two if your application requires it */
@@ -132,7 +134,8 @@ pthread_attr_t attr;
 			  /* if not yet .... */
 			if (mystat.st_atime == mystat.st_ctime)
 			   {  /* first time */
-				if ((mystat.st_atime + INITIALONE) > t) continue;
+				if ((mystat.st_atime + INITIALONE) > t) 
+					continue;
 			   }
 			else
 			   { /* already looked at once */
@@ -195,8 +198,9 @@ time_t	t;
 		pthread_exit(NULL);
 	   }
 	strcpy(reqinp,"1");  /* default required input for acknowledgement */
+	strcpy(ident, "");	/* default no ident */
 	if (fscanf(fp,"%s %s %s %d %s %s",dialstr,clid,
-		extstr,&maxsecs,ident,reqinp) < 5)
+		extstr,&maxsecs,ident,reqinp) < 4)
 	   {
 		fprintf(stderr,"qcall_do:file line invalid in file %s:\n",fname);
 		pthread_exit(NULL);
@@ -216,10 +220,12 @@ time_t	t;
 	   {
 		ast_set_read_format(channel,AST_FORMAT_SLINEAR);
 		ast_set_write_format(channel,AST_FORMAT_SLINEAR);
-		channel->callerid = NULL;
-		channel->ani = NULL;
 #ifdef	OURCLID
+		if (channel->callerid)
+			free(channel->callerid);
 		channel->callerid = strdup(OURCLID);
+		if (channel->ani)
+			free(channel->ani);
 		channel->ani = strdup(OURCLID);
 #endif		
 		channel->whentohangup = 0;
@@ -235,10 +241,12 @@ time_t	t;
 		fprintf(stderr,"qcall_do:Sorry unable to obtain channel\n");
 		pthread_exit(NULL);
 	   }
-	if (channel->callerid) free(channel->callerid);
-	channel->callerid = NULL;
-	if (channel->ani) free(channel->ani);
-	channel->ani = NULL;
+	if (strcasecmp(clid, "asreceived")) {
+		if (channel->callerid) free(channel->callerid);
+		channel->callerid = NULL;
+		if (channel->ani) free(channel->ani);
+		channel->ani = NULL;
+	}
 	if (channel->state == AST_STATE_UP)
 	if (debug) printf("@@@@ Autodial:Line is Up\n");
 	if (option_verbose > 2)
@@ -251,7 +259,6 @@ time_t	t;
 		if (!f)
 		   {
 			if (debug) printf("@@@@ qcall_do:Hung Up\n");
-			ast_frfree(f);
 			unlink(fname);
 			break;
 		   }
@@ -274,22 +281,24 @@ time_t	t;
 						ast_verbose(VERBOSE_PREFIX_3 "Qcall got answer on %s\n",
 							channel->name);
 					usleep(1500000);
-					ast_streamfile(channel,ident,0);
-					if (ast_readstring(channel,buf,strlen(reqinp),10000,5000,"#"))
-					   {
+					if (strlen(ident)) {
+						ast_streamfile(channel,ident,0);
+						if (ast_readstring(channel,buf,strlen(reqinp),10000,5000,"#"))
+						{
+							ast_stopstream(channel);
+							if (debug) printf("@@@@ qcall_do: timeout or hangup in dtmf read\n");
+							ast_frfree(f);
+							break;
+						}
 						ast_stopstream(channel);
-						if (debug) printf("@@@@ qcall_do: timeout or hangup in dtmf read\n");
+						if (strcmp(buf,reqinp)) /* if not match */
+						{
+							if (debug) printf("@@@@ qcall_do: response (%s) does not match required (%s)\n",buf,reqinp);
+							ast_frfree(f);
+							break;
+						}
 						ast_frfree(f);
-						break;
-					   }
-					ast_stopstream(channel);
-					if (strcmp(buf,reqinp)) /* if not match */
-					   {
-						if (debug) printf("@@@@ qcall_do: response (%s) does not match required (%s)\n",buf,reqinp);
-						ast_frfree(f);
-						break;
-					   }
-					ast_frfree(f);
+					}
 					/* okay, now we go for it */
 					context = strchr(extstr,'@');
 					if (!context) context = "default";
@@ -297,15 +306,19 @@ time_t	t;
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Qcall got accept, now putting through to %s@%s on %s\n",
 							extstr,context,channel->name);
-					strcat(ident,"-ok");
-					  /* if file existant, play it */
-					if (!ast_streamfile(channel,ident,0))
-					   {
-						ast_waitstream(channel,"");
-						ast_stopstream(channel);
-					   }
-					channel->callerid = strdup(clid);
-					channel->ani = strdup(clid);
+					if (strlen(ident)) {
+						strcat(ident,"-ok");
+						/* if file existant, play it */
+						if (!ast_streamfile(channel,ident,0))
+						{
+							ast_waitstream(channel,"");
+							ast_stopstream(channel);
+						}
+					}
+					if (strcasecmp(clid, "asreceived")) {
+						channel->callerid = strdup(clid);
+						channel->ani = strdup(clid);
+					}
 					channel->language[0] = 0;
 					channel->dnid = strdup(extstr);
 #ifdef	AMAFLAGS
@@ -324,6 +337,7 @@ time_t	t;
 					strcpy(channel->exten,extstr);
 					strcpy(channel->context,context);
 					channel->priority = 1;
+					printf("Caller ID is %s\n", channel->callerid);
 					ast_pbx_run(channel);
 					pthread_exit(NULL);
 				}

@@ -55,7 +55,7 @@
 static char base64[64];
 static char b2a[256];
 
-static pthread_mutex_t keylock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t keylock = AST_MUTEX_INITIALIZER;
 
 #define KEY_NEEDS_PASSCODE (1 << 16)
 

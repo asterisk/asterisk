@@ -32,7 +32,7 @@
 #include "asterisk.h"
 
 static struct ast_imager *list;
-static pthread_mutex_t listlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t listlock = AST_MUTEX_INITIALIZER;
 
 int ast_image_register(struct ast_imager *img)
 {

@@ -149,7 +149,7 @@ void ast_module_reload(void);
 								struct localuser *next; \
 							}
 
-#define LOCAL_USER_DECL static pthread_mutex_t localuser_lock = PTHREAD_MUTEX_INITIALIZER; \
+#define LOCAL_USER_DECL static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER; \
 						static struct localuser *localusers = NULL; \
 						static int localusecnt = 0;
 

@@ -16,7 +16,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <pthread.h>
+#include <asterisk/lock.h>
 #include <asterisk/vmodem.h>
 #include <asterisk/module.h>
 #include <asterisk/frame.h>
@@ -34,7 +34,7 @@ static char *breakcmd = "\0x10\0x03";
 static char *desc = "A/Open (Rockwell Chipset) ITU-2 VoiceModem Driver";
 
 int usecnt;
-pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *aopen_idents[] = {
 	/* Identify A/Open Modem */

@@ -17,6 +17,7 @@
  */
 
 
+#include <asterisk/lock.h>
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
@@ -42,7 +43,7 @@
 
 #define LPC10_BYTES_IN_COMPRESSED_FRAME (LPC10_BITS_IN_COMPRESSED_FRAME + 7)/8
 
-static pthread_mutex_t localuser_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt=0;
 
 static char *tdesc = "LPC10 2.4kbps (signed linear) Voice Coder";

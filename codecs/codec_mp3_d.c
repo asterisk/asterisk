@@ -14,6 +14,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
@@ -40,7 +41,7 @@
 #define MAX_FRAME_SIZE 1441
 #define MAX_OUTPUT_LEN 2304
 
-static pthread_mutex_t localuser_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt=0;
 
 static char *tdesc = "MP3/PCM16 (signed linear) Translator (Decoder only)";

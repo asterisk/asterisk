@@ -13,6 +13,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/logger.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
@@ -27,7 +28,7 @@
 
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 
-static pthread_mutex_t localuser_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t localuser_lock = AST_MUTEX_INITIALIZER;
 static int localusecnt = 0;
 
 static char *tdesc = "Adaptive Differential PCM Coder/Decoder";

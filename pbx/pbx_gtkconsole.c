@@ -40,7 +40,7 @@
 /* For where to put dynamic tables */
 #include "../asterisk.h"
 
-static pthread_mutex_t verb_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t verb_lock = AST_MUTEX_INITIALIZER;
 
 static pthread_t console_thread;
 

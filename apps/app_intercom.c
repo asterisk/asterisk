@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/frame.h>
 #include <asterisk/logger.h>
@@ -47,7 +48,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static pthread_mutex_t sound_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t sound_lock = AST_MUTEX_INITIALIZER;
 static int sound = -1;
 
 static int write_audio(short *data, int len)

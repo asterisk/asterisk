@@ -43,7 +43,7 @@ void ast_cli(int fd, char *fmt, ...)
 	write(fd, stuff, strlen(stuff));
 }
 
-pthread_mutex_t clilock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t clilock = AST_MUTEX_INITIALIZER;
 
 
 struct ast_cli_entry *helpers = NULL;
@@ -154,7 +154,7 @@ static int handle_unload(int fd, int argc, char *argv[])
 #define MODLIST_FORMAT  "%-20s %-40.40s %-10d\n"
 #define MODLIST_FORMAT2 "%-20s %-40.40s %-10s\n"
 
-static pthread_mutex_t climodentrylock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t climodentrylock = AST_MUTEX_INITIALIZER;
 static int climodentryfd = -1;
 
 static int modlist_modentry(char *module, char *description, int usecnt)
@@ -441,13 +441,17 @@ int ast_cli_unregister(struct ast_cli_entry *e)
 	cur = helpers;
 	while(cur) {
 		if (e == cur) {
-			/* Rewrite */
-			if (l)
-				l->next = e->next;
-			else
-				helpers = e->next;
-			e->next = NULL;
-			break;
+			if (e->inuse) {
+				ast_log(LOG_WARNING, "Can't remove command that is in use\n");
+			} else {
+				/* Rewrite */
+				if (l)
+					l->next = e->next;
+				else
+					helpers = e->next;
+				e->next = NULL;
+				break;
+			}
 		}
 		l = cur;
 		cur = cur->next;
@@ -719,6 +723,9 @@ int ast_cli_command(int fd, char *s)
 		if (x > 0) {
 			ast_pthread_mutex_lock(&clilock);
 			e = find_cli(argv, 0);
+			if (e)
+				e->inuse++;
+			ast_pthread_mutex_unlock(&clilock);
 			if (e) {
 				switch(e->handler(fd, x, argv)) {
 				case RESULT_SHOWUSAGE:
@@ -728,7 +735,11 @@ int ast_cli_command(int fd, char *s)
 				}
 			} else 
 				ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
-			ast_pthread_mutex_unlock(&clilock);
+			if (e) {
+				ast_pthread_mutex_lock(&clilock);
+				e->inuse--;
+				ast_pthread_mutex_unlock(&clilock);
+			}
 		}
 		free(dup);
 	} else {

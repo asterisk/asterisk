@@ -17,7 +17,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <pthread.h>
+#include <asterisk/lock.h>
 #include <asterisk/vmodem.h>
 #include <asterisk/module.h>
 #include <asterisk/frame.h>
@@ -38,7 +38,7 @@ static char *breakcmd = "\020!";
 static char *desc = "BestData (Conexant V.90 Chipset) VoiceModem Driver";
 
 int usecnt;
-pthread_mutex_t usecnt_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
 static char *bestdata_idents[] = {
 	/* Identify BestData Modem */

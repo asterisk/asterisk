@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
 
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -47,7 +48,10 @@ static int echo_exec(struct ast_channel *chan, void *data)
 	ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
 	ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
 	/* Do our thing here */
-	while((f = ast_read(chan))) {
+	while(ast_waitfor(chan, -1) > -1) {
+		f = ast_read(chan);
+		if (!f)
+			break;
 		if (f->frametype == AST_FRAME_VOICE) {
 			if (ast_write(chan, f)) 
 				break;

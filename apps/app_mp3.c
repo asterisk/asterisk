@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>

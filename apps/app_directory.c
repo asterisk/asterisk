@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
  
+#include <asterisk/lock.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -131,7 +132,8 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 	memset(ext, 0, sizeof(ext));
 	ext[0] = digit;
 	res = 0;
-	if (ast_readstring(chan, ext + 1, NUMDIGITS, 3000, 3000, "#") < 0) res = -1;
+	if (ast_readstring(chan, ext + 1, NUMDIGITS - 1, 3000, 3000, "#") < 0) res = -1;
+	printf("Res: %d, ext: %s\n", res, ext);
 	if (!res) {
 		/* Search for all names which start with those digits */
 		v = ast_variable_browse(cfg, context);
@@ -166,7 +168,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 			if (v) {
 				/* We have a match -- play a greeting if they have it */
 				snprintf(fn, sizeof(fn), "%s/vm/%s/greet", AST_SPOOL_DIR, v->name);
-				if (ast_fileexists(fn, NULL, chan->language)) {
+				if (ast_fileexists(fn, NULL, chan->language) > 0) {
 					res = ast_streamfile(chan, fn, chan->language);
 					if (!res)
 						res = ast_waitstream(chan, AST_DIGIT_ANY);
