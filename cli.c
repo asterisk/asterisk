@@ -186,6 +186,8 @@ static char *format_uptimestr(time_t timeval)
 #define WEEK (DAY*7)
 #define YEAR (DAY*365)
 
+	if (timeval < 0)
+		return NULL;
 	if (timeval > YEAR) {
 		years = (timeval / YEAR);
 		timeval -= (years * YEAR);
