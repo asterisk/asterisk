@@ -14,6 +14,11 @@ on the project itself, please visit the Asterisk home page at:
 
            http://www.asterisk.org
 
+In addition you'll find lot's of information compiled by the Asterisk
+community on this Wiki:
+
+           http://www.voip-info.org/wiki-Asterisk
+
 * LICENSING
   Asterisk is distributed under GNU General Public License.  The GPL also
 must apply to all loadable modules as well, except as defined below.
@@ -45,13 +50,12 @@ licensing scheme are added to the Asterisk-addons CVS module.
 == Linux ==
   Currently, the Asterisk Open Source PBX is only known to run on the
 Linux OS, although it may be portable to other UNIX-like operating systems
-as well. 
+(like FreeBSD) as well. 
 
 
 * GETTING STARTED
 
-First, be sure you've got supported hardware.  To use Asterisk right now,
-you will need one of the following:
+First, be sure you've got supported hardware (but note that you don't need ANY hardware, not even a soundcard) to install and run Asterisk. Supported are:
 
 	* All Wildcard (tm) products from Digium (www.digium.com)
 	* QuickNet Internet PhoneJack and LineJack (http://www.quicknet.net)
@@ -60,8 +64,9 @@ you will need one of the following:
 	* ISDN4Linux compatible ISDN card
 	* Tormenta Dual T1 card (www.bsdtelephony.com.mx)
 
-Assuming you have one of these (most likely the third) you're ready to 
-proceed:
+Hint: CAPI compatible ISDN cards can be run using the add-on channel chan_capi.
+
+So let's proceed:
 
 1) Run "make"
 2) Run "make install"
@@ -71,7 +76,7 @@ the sample PBX, with demonstration extensions, etc.  If so, run:
 
 	"make samples"
 
-Doing so will overwrite any existing config files you have.
+Doing so will overwrite any existing config files you have. If you are lacking a soundcard you won't be able to use the DIAL command on the console, though.
 
 Finally, you can launch Asterisk with:
 
@@ -143,3 +148,5 @@ you're interested in getting more information.
 Welcome to the growing worldwide community of Asterisk users!
 
 Mark Spencer
+
+
