@@ -16,7 +16,7 @@
 #ifndef SOLARIS
 #include <err.h>
 #else
-typedef uint64_t quad_t;
+#define quad_t uint64_t
 #endif
 #include <errno.h>
 #include <regex.h>
