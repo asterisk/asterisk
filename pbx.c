@@ -828,7 +828,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 			offset = strlen(c->exten);
 		strncpy(workspace, c->exten + offset, workspacelen - 1);
 		*ret = workspace;
-		ast_log(LOG_WARNING, "The use of 'EXTEN-foo' has been derprecated in favor of 'EXTEN:foo'\n");
+		ast_log(LOG_WARNING, "The use of 'EXTEN-foo' has been deprecated in favor of 'EXTEN:foo'\n");
 	} else if (c && !strcmp(var, "RDNIS")) {
 		if (c->rdnis) {
 			strncpy(workspace, c->rdnis, workspacelen - 1);
@@ -1668,7 +1668,7 @@ int ast_pbx_run(struct ast_channel *c)
 		ast_log(LOG_WARNING, "%s already has PBX structure??\n", c->name);
 	c->pbx = malloc(sizeof(struct ast_pbx));
 	if (!c->pbx) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		return -1;
 	}
 	if (c->amaflags) {
@@ -2226,7 +2226,7 @@ int ast_register_application(char *app, int (*execute)(struct ast_channel *, voi
 			apps = tmp;
 		}
 	} else {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		ast_mutex_unlock(&applock);
 		return -1;
 	}
@@ -2806,7 +2806,7 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, char *n
 		else if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Registered extension context '%s'\n", tmp->name);
 	} else
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 	
 	if (!extcontexts)
 		ast_mutex_unlock(&conlock);
@@ -2888,6 +2888,7 @@ static void get_timerange(struct ast_include *i, char *times)
 	int x;
 	int s1, s2;
 	int e1, e2;
+	int cth, ctm;
 
 	//[PHM 07/01/03]
 	//start disabling all times, fill the fields with 0's, as they may contain garbage
@@ -2902,24 +2903,26 @@ static void get_timerange(struct ast_include *i, char *times)
 	/* Otherwise expect a range */
 	e = strchr(times, '-');
 	if (!e) {
-		ast_log(LOG_WARNING, "Time range is not valid. Assuming no time.\n");
+		ast_log(LOG_WARNING, "Time range is not valid. Assuming no restrictions based on time.\n");
 		return;
 	}
 	*e = '\0';
 	e++;
 	while(*e && !isdigit(*e)) e++;
 	if (!*e) {
-		ast_log(LOG_WARNING, "Invalid time range.  Assuming no time.\n");
+		ast_log(LOG_WARNING, "Invalid time range.  Assuming no restrictions based on time.\n");
 		return;
 	}
 	if (sscanf(times, "%d:%d", &s1, &s2) != 2) {
-		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no time.\n", times);
+		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", times);
 		return;
 	}
 	if (sscanf(e, "%d:%d", &e1, &e2) != 2) {
-		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no time.\n", e);
+		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", e);
 		return;
 	}
+
+#if 0
 	s1 = s1 * 30 + s2/2;
 	if ((s1 < 0) || (s1 >= 24*30)) {
 		ast_log(LOG_WARNING, "%s isn't a valid star time. Assuming no time.\n", times);
@@ -2936,6 +2939,29 @@ static void get_timerange(struct ast_include *i, char *times)
 	}
 	/* Do the last one */
 	i->minmask[x/30] |= (1 << (x % 30));
+#else
+	for (cth=0;cth<24;cth++) {
+		/* Initialize masks to blank */
+		i->minmask[cth] = 0;
+		for (ctm=0;ctm<30;ctm++) {
+			if (
+			/* First hour with more than one hour */
+			      (((cth == s1) && (ctm >= s2)) &&
+			       ((cth < e1)))
+			/* Only one hour */
+			||    (((cth == s1) && (ctm >= s2)) &&
+			       ((cth == e1) && (ctm <= e2)))
+			/* In between first and last hours (more than 2 hours) */
+			||    ((cth > s1) &&
+			       (cth < e1))
+			/* Last hour with more than one hour */
+			||    ((cth > s1) &&
+			       ((cth == e1) && (ctm <= e2)))
+			)
+				i->minmask[cth] |= (1 << (ctm / 2));
+		}
+	}
+#endif
 	/* All done */
 	return;
 }
@@ -3147,7 +3173,7 @@ int ast_context_add_include2(struct ast_context *con, char *value,
 
 	/* allocate new include structure ... */
 	if (!(new_include = malloc(sizeof(struct ast_include)))) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		errno = ENOMEM;
 		return -1;
 	}
@@ -3247,7 +3273,7 @@ int ast_context_add_switch2(struct ast_context *con, char *value,
 
 	/* allocate new sw structure ... */
 	if (!(new_sw = malloc(sizeof(struct ast_sw)))) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		errno = ENOMEM;
 		return -1;
 	}
@@ -3386,7 +3412,7 @@ int ast_context_add_ignorepat2(struct ast_context *con, char *value, char *regis
 	struct ast_ignorepat *ignorepat, *ignorepatc, *ignorepatl = NULL;
 	ignorepat = malloc(sizeof(struct ast_ignorepat));
 	if (!ignorepat) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		errno = ENOMEM;
 		return -1;
 	}
@@ -3617,7 +3643,7 @@ int ast_add_extension2(struct ast_context *con,
 		tmp->peer = NULL;
 		tmp->next =  NULL;
 	} else {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		errno = ENOMEM;
 		return -1;
 	}
@@ -3814,7 +3840,7 @@ static void *async_wait(void *data)
 				chan->priority = as->priority;
 			/* Run the PBX */
 			if (ast_pbx_run(chan)) {
-				ast_log(LOG_WARNING, "Failed to start PBX on %s\n", chan->name);
+				ast_log(LOG_ERROR, "Failed to start PBX on %s\n", chan->name);
 			} else {
 				/* PBX will have taken care of this */
 				chan = NULL;
@@ -3849,13 +3875,13 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 
 				if (sync > 1) {
 					if (ast_pbx_run(chan)) {
-						ast_log(LOG_WARNING, "Unable to run PBX on %s\n", chan->name);
+						ast_log(LOG_ERROR, "Unable to run PBX on %s\n", chan->name);
 						ast_hangup(chan);
 						res = -1;
 					}
 				} else {
 					if (ast_pbx_start(chan)) {
-						ast_log(LOG_WARNING, "Unable to start PBX on %s\n", chan->name);
+						ast_log(LOG_ERROR, "Unable to start PBX on %s\n", chan->name);
 						ast_hangup(chan);
 						res = -1;
 					} 
@@ -3983,7 +4009,7 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 						}
 					}
 				} else {
-					ast_log(LOG_WARNING, "Out of memory :(\n");
+					ast_log(LOG_ERROR, "Out of memory :(\n");
 					res = -1;
 				}
 			} else {
@@ -4474,7 +4500,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 	char *stringp=NULL;
 
 	if (!data || !strlen(data)) {
-		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
+		ast_log(LOG_WARNING, "Ignoring, since there is no variable to check\n");
 		return 0;
 	}
 	
@@ -4491,7 +4517,7 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 	}
 	
 	if ((branch==NULL) || (strlen(branch)==0)) {
-		ast_log(LOG_WARNING, "Not taking any branch\n");
+		ast_log(LOG_NOTICE, "Not taking any branch\n");
 		return(0);
 	}
 	
