@@ -633,6 +633,9 @@ static void pbx_destroy(struct ast_pbx *p)
 		case '.':\
 			/* Must match */\
 			return 1;\
+		case '+':\
+			/* Early match */\
+			return 2;\
 		case ' ':\
 		case '-':\
 			/* Ignore these characters */\
@@ -645,6 +648,9 @@ static void pbx_destroy(struct ast_pbx *p)
 		data++;\
 		pattern++;\
 	}\
+	/* If we ran off the end of the data and the pattern ends in '+', match */\
+	if (match && !*data && (*pattern == '+'))\
+		return 2;\
 }
 
 int ast_extension_match(const char *pattern, const char *data)
@@ -673,8 +679,9 @@ int ast_extension_close(const char *pattern, const char *data, int needmore)
 		return 1;
 	}
 	EXTENSION_MATCH_CORE(data,pattern,match);
-	/* If there's more or we don't care about more, return non-zero, otlherwise it's a miss */
-	if (!needmore || *pattern) {
+	/* If there's more or we don't care about more, or if it's a possible early match, 
+	   return non-zero; otherwise it's a miss */
+	if (!needmore || *pattern || match == 2) {
 		return match;
 	} else
 		return 0;
@@ -754,15 +761,23 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 	while(tmp) {
 		/* Match context */
 		if (bypass || !strcmp(tmp->name, context)) {
+			struct ast_exten *earlymatch = NULL;
+
 			if (*status < STATUS_NO_EXTENSION)
 				*status = STATUS_NO_EXTENSION;
-			eroot = tmp->root;
-			while(eroot) {
+			for (eroot = tmp->root; eroot; eroot=eroot->next) {
+				int match = 0;
 				/* Match extension */
 				if ((((action != HELPER_MATCHMORE) && ast_extension_match(eroot->exten, exten)) ||
-						((action == HELPER_CANMATCH) && (ast_extension_close(eroot->exten, exten, 0))) ||
-						((action == HELPER_MATCHMORE) && (ast_extension_close(eroot->exten, exten, 1)))) &&
-						(!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
+				     ((action == HELPER_CANMATCH) && (ast_extension_close(eroot->exten, exten, 0))) ||
+				     ((action == HELPER_MATCHMORE) && (match = ast_extension_close(eroot->exten, exten, 1)))) &&
+				    (!eroot->matchcid || matchcid(eroot->cidmatch, callerid))) {
+
+					if (action == HELPER_MATCHMORE && match == 2 && !earlymatch) {
+						/* It matched an extension ending in a '+' wildcard
+						   So ignore it for now, unless there's a better match */
+						earlymatch = eroot;
+					} else {
 						e = eroot;
 						if (*status < STATUS_NO_PRIORITY)
 							*status = STATUS_NO_PRIORITY;
@@ -783,8 +798,15 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 							}
 							e = e->peer;
 						}
+					}
 				}
-				eroot = eroot->next;
+			}
+			if (earlymatch) {
+				/* Bizarre logic for HELPER_MATCHMORE. We return zero to break out 
+				   of the loop waiting for more digits, and _then_ match (normally)
+				   the extension we ended up with. We got an early-matching wildcard
+				   pattern, so return NULL to break out of the loop. */
+				return NULL;
 			}
 			/* Check alternative switches */
 			sw = tmp->alts;
