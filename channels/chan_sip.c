@@ -179,6 +179,7 @@ static struct sip_pvt {
 	int expiry;						/* How long we take to expire */
 	int branch;							/* One random number */
 	int canreinvite;					/* Do we support reinvite */
+	int ringing;						/* Have sent 180 ringing */
 	int progress;						/* Have sent 183 message progress */
 	int tag;							/* Another random number */
 	int nat;							/* Whether to try to support NAT */
@@ -1011,8 +1012,9 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
-			if (!p->progress) {
+			if (!p->progress && !p->ringing) {
 				transmit_response(p, "180 Ringing", &p->initreq);
+				p->ringing = 1;
 				break;
 			} else {
 				/* Oops, we've sent progress tones.  Let Asterisk do it instead */

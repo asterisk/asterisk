@@ -1373,12 +1373,15 @@ int main(int argc, char *argv[])
 	    ast_cli_register(&astexit);
 		consolethread = pthread_self();
 
-		while ( (buf = (char *)el_gets(el, &num) ) != NULL && num != 0) {
+		for (;;) {
+			buf = (char *)el_gets(el, &num);
+			if (buf) {
+				if (buf[strlen(buf)-1] == '\n')
+					buf[strlen(buf)-1] = '\0';
 
-			if (buf[strlen(buf)-1] == '\n')
-				buf[strlen(buf)-1] = '\0';
-
-			consolehandler((char *)buf);
+				consolehandler((char *)buf);
+			} else
+				ast_cli(STDOUT_FILENO, "\nUse EXIT or QUIT to exist, or STOP NOW to shutdown Asterisk\n");
 		}
 
 	} else {
