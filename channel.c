@@ -1685,6 +1685,8 @@ struct ast_channel *__ast_request_and_dial(char *type, int format, void *data, i
 						state = f->subclass;
 						ast_frfree(f);
 						break;
+					} else if (f->subclass == AST_CONTROL_PROGRESS) {
+						/* Ignore */
 					} else if (f->subclass == -1) {
 						/* Ignore -- just stopping indications */
 					} else {
