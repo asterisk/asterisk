@@ -3685,7 +3685,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	/* Always OK if no secret */
 	if (!strlen(secret) && !strlen(md5secret))
 		return 0;
-	if (ignore) {
+	if (ignore && strlen(randdata) && !strlen(get_header(req, "Proxy-Authorization"))) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
 		   information */
 		if (strlen(randdata)) {
@@ -5663,7 +5663,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
 			ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), inet_ntoa(sin->sin_addr));
 		if (res < 1) {
-			p->needdestroy = 1;
+			/* Destroy the session, but keep us around for just a bit in case they don't
+			   get our 200 OK */
+		    sip_scheddestroy(p, 15*1000);
 		}
 	} else if (!strcasecmp(cmd, "ACK")) {
 		/* Uhm, I haven't figured out the point of the ACK yet.  Are we
