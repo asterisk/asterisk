@@ -14,7 +14,10 @@
 
 .EXPORT_ALL_VARIABLES:
 
-MODULES_DIR=/usr/lib/asterisk/modules
+INSTALL_PREFIX=
+
+MODULES_DIR=$(INSTALL_PREFIX)/usr/lib/asterisk/modules
+AGI_DIR=$(INSTALL_PREFIX)/var/lib/asterisk/agi-bin
 
 # Pentium Pro Optimize
 #PROC=i686
@@ -23,17 +26,22 @@ PROC=i586
 
 DEBUG=-g #-pg
 INCLUDE=-Iinclude -I../include
-CFLAGS=-pipe  -Wall -Werror -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
+#CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT -Werror
+CFLAGS=-pipe  -Wall -Wmissing-prototypes -Wmissing-declarations -O6 $(DEBUG) $(INCLUDE) -D_REENTRANT
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
-ASTERISKVERSION=$(shell cat .version)
+ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; fi)
+RPMVERSION=$(shell sed 's/[-\/:]/_/g' .version)
 CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
+# Optional debugging parameters
 CFLAGS+= -DDO_CRASH -DDEBUG_THREADS
+# Uncomment next one to enable ast_frame tracing (for debugging)
+#CLFAGS+= -DTRACE_FRAMES
 CFLAGS+=# -fomit-frame-pointer 
-SUBDIRS=channels pbx apps codecs formats
+SUBDIRS=channels pbx apps codecs formats agi
 LIBS=-ldl -lpthread -lreadline -lncurses -lm
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o \
-	ulaw.o callerid.o fskmodem.o asterisk.o 
+	ulaw.o callerid.o fskmodem.o image.o app.o asterisk.o 
 CC=gcc
 INSTALL=install
 
@@ -44,13 +52,12 @@ _all: all
 	@echo " + running:                                  +"  
 	@echo " +                                           +"
 	@echo " +               make install                +"  
-	@echo " +                                           +"
 	@echo " +-------------------------------------------+"  
 
 all: asterisk subdirs
 
 _version: 
-	if [ -d CVS ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 
+	if [ -d CVS ] && ! [ -f .version ]; then echo "CVS-`date +"%D-%T"`" > .version; fi 
 
 build.h:
 	./make_build_h
@@ -67,26 +74,36 @@ clean:
 	rm -f build.h
 
 datafiles: all
-	mkdir -p /var/lib/asterisk/sounds/digits
+	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/sounds/digits
 	for x in sounds/digits/*; do \
-		install $$x /var/lib/asterisk/sounds/digits ; \
+		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds/digits ; \
 	done
-	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep*; do \
-		install $$x /var/lib/asterisk/sounds ; \
+	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-*; do \
+		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds ; \
 	done
+	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/images
+	for x in images/*.jpg; do \
+		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/images ; \
+	done
+	mkdir -p $(AGI_DIR)
+
 install: all datafiles
 	mkdir -p $(MODULES_DIR)
-	mkdir -p /usr/sbin
-	install -m 755 asterisk /usr/sbin/
+	mkdir -p $(INSTALL_PREFIX)/usr/sbin
+	install -m 755 asterisk $(INSTALL_PREFIX)/usr/sbin/
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
-	install -d /usr/include/asterisk
-	install include/asterisk/*.h /usr/include/asterisk
-	rm -f /var/lib/asterisk/sounds/vm
-	mkdir -p /var/spool/asterisk/vm
-	rm -f /usr/lib/asterisk/modules/chan_ixj.so
-	mkdir -p /var/lib/asterisk/sounds
-	( cd /var/lib/asterisk/sounds  ; ln -s ../../../spool/asterisk/vm . )
+	install -d $(INSTALL_PREFIX)/usr/include/asterisk
+	install include/asterisk/*.h $(INSTALL_PREFIX)/usr/include/asterisk
+	rm -f $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm
+	mkdir -p $(INSTALL_PREFIX)/var/spool/asterisk/vm
+	rm -f $(INSTALL_PREFIX)/usr/lib/asterisk/modules/chan_ixj.so
+	rm -f $(INSTALL_PREFIX)/usr/lib/asterisk/modules/chan_tor.so
+	mkdir -p $(INSTALL_PREFIX)/var/lib/asterisk/sounds
+	( cd $(INSTALL_PREFIX)/var/lib/asterisk/sounds  ; ln -s ../../../spool/asterisk/vm . )
 	@echo " +---- Asterisk Installation Complete -------+"  
+	@echo " +                                           +"
+	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
+	@echo " +                                           +"
 	@echo " + Asterisk has successfully been installed. +"  
 	@echo " + If you would like to install the sample   +"  
 	@echo " + configuration files (overwriting any      +"
@@ -94,25 +111,56 @@ install: all datafiles
 	@echo " +                                           +"
 	@echo " +               make samples                +"
 	@echo " +                                           +"
-	@echo " +-------------------------------------------+"  
-
+	@echo " +-----------------  or ---------------------+"
+	@echo " +                                           +"
+	@echo " + You can go ahead and install the asterisk +"
+	@echo " + program documentation now or later run:   +"
+	@echo " +                                           +"
+	@echo " +              make progdocs                +"
+	@echo " +                                           +"
+	@echo " + **Note** This requires that you have      +"
+	@echo " + doxygen installed on your local system    +"
+	@echo " +-------------------------------------------+"
 samples: all datafiles
-	mkdir -p /etc/asterisk
+	mkdir -p $(INSTALL_PREFIX)/etc/asterisk
 	for x in configs/*.sample; do \
-		if [ -f /etc/asterisk/`basename $$x .sample` ]; then \
-			mv -f /etc/asterisk/`basename $$x .sample` /etc/asterisk/`basename $$x .sample`.old ; \
+		if [ -f $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample` ]; then \
+			mv -f $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample` $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample`.old ; \
 		fi ; \
-		install $$x /etc/asterisk/`basename $$x .sample` ;\
+		install $$x $(INSTALL_PREFIX)/etc/asterisk/`basename $$x .sample` ;\
 	done
 	for x in sounds/demo-*; do \
-		install $$x /var/lib/asterisk/sounds; \
+		install $$x $(INSTALL_PREFIX)/var/lib/asterisk/sounds; \
 	done
-	mkdir -p /var/spool/asterisk/vm/1234/INBOX
-	:> /var/lib/asterisk/sounds/vm/1234/unavail.gsm
+	mkdir -p $(INSTALL_PREFIX)/var/spool/asterisk/vm/1234/INBOX
+	:> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
-		cat /var/lib/asterisk/sounds/$$x.gsm >> /var/lib/asterisk/sounds/vm/1234/unavail.gsm ; \
+		cat $(INSTALL_PREFIX)/var/lib/asterisk/sounds/$$x.gsm >> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/unavail.gsm ; \
 	done
-	:> /var/lib/asterisk/sounds/vm/1234/busy.gsm
+	:> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat /var/lib/asterisk/sounds/$$x.gsm >> /var/lib/asterisk/sounds/vm/1234/busy.gsm ; \
+		cat $(INSTALL_PREFIX)/var/lib/asterisk/sounds/$$x.gsm >> $(INSTALL_PREFIX)/var/lib/asterisk/sounds/vm/1234/busy.gsm ; \
 	done
+
+mailbox:
+	./addmailbox 
+	
+
+rpm: __rpm
+
+__rpm: _version
+	rm -rf /tmp/asterisk ; \
+	mkdir -p /tmp/asterisk/redhat/RPMS/i386 ; \
+	make INSTALL_PREFIX=/tmp/asterisk install ; \
+	make INSTALL_PREFIX=/tmp/asterisk samples ; \
+	mkdir -p /tmp/asterisk/etc/rc.d/init.d ; \
+	cp -f redhat/asterisk /tmp/asterisk/etc/rc.d/init.d/ ; \
+	cp -f redhat/rpmrc /tmp/asterisk/ ; \
+	cp -f redhat/rpmmacros /tmp/asterisk/ ; \
+	sed "s/Version:/Version: $(RPMVERSION)/g" redhat/asterisk.spec > /tmp/asterisk/asterisk.spec ; \
+	rpm --rcfile /usr/lib/rpm/rpmrc:/tmp/asterisk/rpmrc -bb /tmp/asterisk/asterisk.spec ; \
+	mv /tmp/asterisk/redhat/RPMS/i386/asterisk* ./ ; \
+	rm -rf /tmp/asterisk
+
+progdocs:
+	doxygen asterisk-ng-doxygen
