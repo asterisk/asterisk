@@ -7163,6 +7163,7 @@ static struct sip_peer *temp_peer(char *name)
 	strncpy(peer->language, language, sizeof(peer->language)-1);
 	strncpy(peer->musicclass, globalmusicclass, sizeof(peer->musicclass)-1);
 	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+	peer->addr.sin_family = AF_INET;
 	peer->expiry = expiry;
 	peer->capability = capability;
 	/* Assume can reinvite */
@@ -7218,6 +7219,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			strncpy(peer->language, language, sizeof(peer->language)-1);
 			strncpy(peer->musicclass, globalmusicclass, sizeof(peer->musicclass)-1);
 			peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+			peer->addr.sin_family = AF_INET;
+			peer->defaddr.sin_family = AF_INET;
 			peer->expiry = expiry;
 		}
 		oldha = peer->ha;
