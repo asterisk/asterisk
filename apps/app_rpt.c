@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.5 6/22/04
+ *  version 0.7 6/25/04
  * 
  * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
  *
@@ -23,7 +23,9 @@
  *  *6 - autopatch access/send (*)
  *  *7 - system status
  *  *8 - force ID
- *  *9 - system reset
+ *  *90 - system disable (and reset)
+ *  *91 - system enable
+ *  *99 - system reset
  *
  *  To send an asterisk (*) while dialing or talking on phone,
  *  use the autopatch acess code.
@@ -32,7 +34,9 @@
 /* number of digits for function after *. Must be at least 1 */
 #define	FUNCTION_LEN 4
 /* string containing all of the 1 digit functions */
-#define	SHORTFUNCS "056789"
+#define	SHORTFUNCS "05678"
+/* string containing all of the 2 digit functions */
+#define	MEDFUNCS "9"
 
 /* maximum digits in DTMF buffer, and seconds after * for DTMF command timeout */
 
@@ -48,7 +52,7 @@
 enum {REM_OFF,REM_MONITOR,REM_TX};
 
 enum{ID,PROC,TERM,COMPLETE,UNKEY,REMDISC,REMALREADY,REMNOTFOUND,REMGO,
-	CONNECTED,CONNFAIL,STATUS};
+	CONNECTED,CONNFAIL,STATUS,TIMEOUT};
 
 #include <asterisk/lock.h>
 #include <asterisk/file.h>
@@ -80,7 +84,7 @@ enum{ID,PROC,TERM,COMPLETE,UNKEY,REMDISC,REMALREADY,REMNOTFOUND,REMGO,
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.3  06/18/2004";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.7  06/25/2004";
 static char *app = "Rpt";
 
 static char *synopsis = "Radio Repeater/Remote Base Control System";
@@ -154,6 +158,9 @@ static struct rpt
 	char remoteon;
 	char simple;
 	char remote;
+	char tounkeyed;
+	char tonotify;
+	char enable;
 	char dtmfbuf[MAXDTMF];
 	char rem_dtmfbuf[MAXDTMF];
 	char cmdnode[50];
@@ -401,6 +408,16 @@ struct	ast_channel *mychannel;
 			free(m);
 		}			
 		imdone = 1;
+		break;
+	    case TIMEOUT:
+		res = ast_streamfile(mychannel, "rpt/node", mychannel->language);
+		if (!res) 
+			res = ast_waitstream(mychannel, "");
+		else
+			 ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+		ast_stopstream(mychannel);
+		ast_say_character_str(mychannel,myrpt->name,NULL,mychannel->language);
+		res = ast_streamfile(mychannel, "rpt/timeout", mychannel->language);
 		break;
 	}
 	if (!imdone)
@@ -667,15 +684,12 @@ struct	rpt_link *l;
 	/* first, see if our dude is there */
 	while(l != &myrpt->links)
 	{
-		if (!l->isremote)
+		/* if we found it, write it and were done */
+		if (!strcmp(l->name,myrpt->cmdnode))
 		{
-			/* if we found it, write it and were done */
-			if (!strcmp(l->name,myrpt->cmdnode))
-			{
-				wf.data = strdup(str);
-				ast_write(l->chan,&wf);
-				return;
-			}
+			wf.data = strdup(str);
+			ast_write(l->chan,&wf);
+			return;
 		}
 		l = l->next;
 	}
@@ -683,11 +697,8 @@ struct	rpt_link *l;
 	/* if not, give it to everyone */
 	while(l != &myrpt->links)
 	{
-		if (!l->isremote) 
-		{
-			wf.data = strdup(str);
-			ast_write(l->chan,&wf);
-		}
+		wf.data = strdup(str);
+		ast_write(l->chan,&wf);
 		l = l->next;
 	}
 	return;
@@ -703,6 +714,7 @@ ZT_CONFINFO ci;  /* conference info */
 	switch(atoi(cmd) / 1000)
 	{
 	case 6:	/* autopatch on / send asterisk (*) */
+		if (!myrpt->enable) return;
 		ast_mutex_lock(&myrpt->lock);
 		/* if on call, force * into current audio stream */
 		if ((myrpt->callmode == 2) || (myrpt->callmode == 3))
@@ -725,6 +737,7 @@ ZT_CONFINFO ci;  /* conference info */
 		pthread_create(&myrpt->rpt_call_thread,&attr,rpt_call,(void *) myrpt);
 		return;
 	case 0:	/* autopatch off */
+		if (!myrpt->enable) return;
 		ast_mutex_lock(&myrpt->lock);
 		if (!myrpt->callmode)
 		{
@@ -735,8 +748,19 @@ ZT_CONFINFO ci;  /* conference info */
 		ast_mutex_unlock(&myrpt->lock);
 		rpt_telemetry(myrpt,TERM,NULL);
 		return;
-	case 9: /* master reset */
+	case 9: /* system control group */
+		/* if invalid, just ignore */
+		if ((cmd[1] >= '2') && (cmd[1] <= '8')) return;
 		ast_mutex_lock(&myrpt->lock);
+		if (cmd[1] == '1') /* system enable */
+		{
+			myrpt->enable = 1;
+		}
+		if (cmd[1] == '0') /* system disable */
+		{
+			myrpt->enable = 0;
+		}
+		/* reset system */
 		myrpt->callmode = 0;
 		ast_mutex_unlock(&myrpt->lock);
 		l = myrpt->links.next;
@@ -748,6 +772,7 @@ ZT_CONFINFO ci;  /* conference info */
 		}
 		break;
 	case 1: /* remote base off */
+		if (!myrpt->enable) return;
 		val = ast_variable_retrieve(cfg,NODES,cmd + 1);
 		if (!val)
 		{
@@ -775,6 +800,7 @@ ZT_CONFINFO ci;  /* conference info */
 		ast_mutex_unlock(&myrpt->lock);
 		return;
 	case 2: /* remote base monitor */
+		if (!myrpt->enable) return;
 		val = ast_variable_retrieve(cfg,NODES,cmd + 1);
 		if (!val)
 		{
@@ -872,6 +898,7 @@ ZT_CONFINFO ci;  /* conference info */
 		ast_mutex_unlock(&myrpt->lock);
 		break;
 	case 3: /* remote base tranceieve */
+		if (!myrpt->enable) return;
 		val = ast_variable_retrieve(cfg,NODES,cmd + 1);
 		if (!val)
 		{
@@ -888,6 +915,7 @@ ZT_CONFINFO ci;  /* conference info */
 		{
 			/* if found matching string */
 			if (!strcmp(l->name,cmd + 1)) break;
+			l = l->next;
 		}
 		/* if found */
 		if (l != &myrpt->links) 
@@ -970,6 +998,7 @@ ZT_CONFINFO ci;  /* conference info */
 		ast_mutex_unlock(&myrpt->lock);
 		break;
 	case 4: /* remote cmd mode */
+		if (!myrpt->enable) return;
 		/* if doesnt allow link cmd, return */
  		if ((!allow_linkcmd) || (myrpt->links.next == &myrpt->links)) return;
 		/* if already in cmd mode, or selected self, forget it */
@@ -995,18 +1024,22 @@ ZT_CONFINFO ci;  /* conference info */
 		rpt_telemetry(myrpt,REMGO,NULL);				
 		return;
 	case 7: /* system status */
+		if (!myrpt->enable) return;
 		rpt_telemetry(myrpt,STATUS,NULL);
 		return;
 	case 8: /* force ID */
+		if (!myrpt->enable) return;
 		myrpt->idtimer = 0;
 		return;
 	default:
 		return;
 	}
+	if (!myrpt->enable) return;
 	rpt_telemetry(myrpt,COMPLETE,NULL);
 }
 
-static void handle_link_data(struct rpt *myrpt, char *str)
+static void handle_link_data(struct rpt *myrpt, struct rpt_link *mylink,
+	char *str)
 {
 char	tmp[300],cmd[300],dest[300],src[300],c;
 int	seq;
@@ -1021,7 +1054,6 @@ struct	ast_frame wf;
 	wf.mallocd = 1;
 	wf.datalen = strlen(str) + 1;
 	wf.samples = 0;
-	l = myrpt->links.next;
  	/* put string in our buffer */
 	strncpy(tmp,str,sizeof(tmp) - 1);
 	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
@@ -1038,10 +1070,39 @@ struct	ast_frame wf;
 	if (strcmp(dest,myrpt->name))
 	{
 		l = myrpt->links.next;
+		/* see if this is one in list */
 		while(l != &myrpt->links)
 		{
-			if (!l->isremote)
+			/* dont send back from where it came */
+			if ((l == mylink) || (!strcmp(l->name,mylink->name)))
 			{
+				l = l->next;
+				continue;
+			}
+			/* if it is, send it and we're done */
+			if (!strcmp(l->name,dest))
+			{
+				/* send, but not to src */
+				if (strcmp(l->name,src)) {
+					wf.data = strdup(str);
+					ast_write(l->chan,&wf);
+				}
+				return;
+			}
+			l = l->next;
+		}
+		l = myrpt->links.next;
+		/* otherwise, send it to all of em */
+		while(l != &myrpt->links)
+		{
+			/* dont send back from where it came */
+			if ((l == mylink) || (!strcmp(l->name,mylink->name)))
+			{
+				l = l->next;
+				continue;
+			}
+			/* send, but not to src */
+			if (strcmp(l->name,src)) {
 				wf.data = strdup(str);
 				ast_write(l->chan,&wf);
 			}
@@ -1072,6 +1133,13 @@ struct	ast_frame wf;
 					myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx++] = '0';
 				myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx] = 0;
 			}
+			/* if to terminate function now */
+			if ((myrpt->rem_dtmfidx == 2) && strchr(MEDFUNCS,myrpt->rem_dtmfbuf[0]))
+			{
+				while(myrpt->rem_dtmfidx < FUNCTION_LEN)
+					myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx++] = '0';
+				myrpt->rem_dtmfbuf[myrpt->rem_dtmfidx] = 0;
+			}
 		}
 		if (myrpt->rem_dtmfidx == FUNCTION_LEN)
 		{
@@ -1084,6 +1152,29 @@ struct	ast_frame wf;
 		}
 	}
 	ast_mutex_unlock(&myrpt->lock);
+	return;
+}
+
+static void handle_remote_data(struct rpt *myrpt, char *str)
+{
+char	tmp[300],cmd[300],dest[300],src[300],c;
+int	seq;
+
+ 	/* put string in our buffer */
+	strncpy(tmp,str,sizeof(tmp) - 1);
+	if (sscanf(tmp,"%s %s %s %d %c",cmd,dest,src,&seq,&c) != 5)
+	{
+		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
+		return;
+	}
+	if (strcmp(cmd,"D"))
+	{
+		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
+		return;
+	}
+	/* if not for me, ignore */
+	if (strcmp(dest,myrpt->name)) return;
+	printf("Remote %s got DTMF %c\n",myrpt->name,c);
 	return;
 }
 
@@ -1223,7 +1314,8 @@ pthread_attr_t attr;
 	myrpt->totimer = 0;
 	myrpt->idtimer = 0;
 	myrpt->callmode = 0;
-	ast_mutex_unlock(&myrpt->lock);
+	myrpt->tounkeyed = 0;
+	myrpt->tonotify = 0;
 	lasttx = 0;
 	keyed = 0;
 	myrpt->dtmfidx = -1;
@@ -1232,6 +1324,8 @@ pthread_attr_t attr;
 	myrpt->rem_dtmfbuf[0] = 0;
 	dtmf_time = 0;
 	myrpt->rem_dtmf_time = 0;
+	myrpt->enable = 1;
+	ast_mutex_unlock(&myrpt->lock);
 	val = 0;
 	ast_channel_setoption(myrpt->rxchannel,AST_OPTION_TONE_VERIFY,&val,sizeof(char),0);
 	val = 1;
@@ -1258,15 +1352,32 @@ pthread_attr_t attr;
 		totx = (keyed || myrpt->callmode || 
 			(myrpt->tele.next != &myrpt->tele));
 		myrpt->exttx = totx;
-		totx |= remrx;
-		if (!totx) myrpt->totimer = myrpt->totime;
-		else myrpt->tailtimer = myrpt->hangtime;
-		totx = (totx || myrpt->tailtimer) && myrpt->totimer;
-		/* if wants to transmit and in phone call, but timed out, 
-			reset time-out timer if keyed */
-		if ((!totx) && (!myrpt->totimer) && myrpt->callmode && keyed)
+		totx = totx || remrx;
+		if (!totx) 
 		{
 			myrpt->totimer = myrpt->totime;
+			myrpt->tounkeyed = 0;
+			myrpt->tonotify = 0;
+		}
+		else myrpt->tailtimer = myrpt->hangtime;
+		totx = totx && myrpt->totimer;
+		/* if timed-out and not said already, say it */
+		if ((!myrpt->totimer) && (!myrpt->tonotify))
+		{
+			myrpt->tonotify = 1;
+			rpt_telemetry(myrpt,TIMEOUT,NULL);
+		}
+		/* if wants to transmit and in phone call, but timed out, 
+			reset time-out timer if keyed */
+		if ((!totx) && (!myrpt->totimer) && (!myrpt->tounkeyed) && (!keyed))
+		{
+			myrpt->tounkeyed = 1;
+		}
+		if ((!totx) && (!myrpt->totimer) && myrpt->tounkeyed && keyed)
+		{
+			myrpt->totimer = myrpt->totime;
+			myrpt->tounkeyed = 0;
+			myrpt->tonotify = 0;
 			ast_mutex_unlock(&myrpt->lock);
 			continue;
 		}
@@ -1275,6 +1386,11 @@ pthread_attr_t attr;
 		{
 			myrpt->callmode = 0;
 		}
+		/* get rid of tail if timed out */
+		if (!myrpt->totimer) myrpt->tailtimer = 0;
+		/* if not timed-out, add in tail */
+		if (myrpt->totimer) totx = totx || myrpt->tailtimer;
+		/* if time to ID */
 		if (totx && (!myrpt->idtimer))
 		{
 			myrpt->idtimer = myrpt->idtime;
@@ -1282,6 +1398,8 @@ pthread_attr_t attr;
 			rpt_telemetry(myrpt,ID,NULL);
 			ast_mutex_lock(&myrpt->lock);
 		}
+		/* let telemetry transmit anyway (regardless of timeout) */
+		totx = totx || (myrpt->tele.next != &myrpt->tele);
 		if (totx && (!lasttx))
 		{
 			lasttx = 1;
@@ -1289,6 +1407,7 @@ pthread_attr_t attr;
 			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_KEY);
 			ast_mutex_lock(&myrpt->lock);
 		}
+		totx = totx && myrpt->enable;
 		if ((!totx) && lasttx)
 		{
 			lasttx = 0;
@@ -1416,6 +1535,13 @@ pthread_attr_t attr;
 							myrpt->dtmfbuf[myrpt->dtmfidx] = 0;
 							/* if to terminate function now */
 							if ((myrpt->dtmfidx == 1) && strchr(SHORTFUNCS,c))
+							{
+								while(myrpt->dtmfidx < FUNCTION_LEN)
+									myrpt->dtmfbuf[myrpt->dtmfidx++] = '0';
+								myrpt->dtmfbuf[myrpt->dtmfidx] = 0;
+							}
+							/* if to terminate function now */
+							if ((myrpt->dtmfidx == 2) && strchr(MEDFUNCS,myrpt->dtmfbuf[0]))
 							{
 								while(myrpt->dtmfidx < FUNCTION_LEN)
 									myrpt->dtmfbuf[myrpt->dtmfidx++] = '0';
@@ -1589,7 +1715,7 @@ pthread_attr_t attr;
 				}
 				if (f->frametype == AST_FRAME_TEXT)
 				{
-					handle_link_data(myrpt,f->data);
+					handle_link_data(myrpt,l,f->data);
 				}
 				if (f->frametype == AST_FRAME_CONTROL)
 				{
@@ -1839,6 +1965,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		{
 			/* if found matching string */
 			if (!strcmp(l->name,b1)) break;
+			l = l->next;
 		}
 		/* if found */
 		if (l != &myrpt->links) 
@@ -2027,7 +2154,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			}
 			else if (f->frametype == AST_FRAME_TEXT)
 			{
-				handle_link_data(myrpt,f->data);
+				handle_remote_data(myrpt,f->data);
 			}
 			else if (f->frametype == AST_FRAME_CONTROL)
 			{
@@ -2113,9 +2240,12 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	int i;
+
 	STANDARD_HANGUP_LOCALUSERS;
 	for(i = 0; i < nrpts; i++) {
+		if (!strcmp(rpt_vars[i].name,NODES)) continue;
                 ast_mutex_destroy(&rpt_vars[i].lock);
+	}
 	return ast_unregister_application(app);
 	return 0;
 }
