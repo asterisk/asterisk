@@ -368,6 +368,7 @@ static struct ast_peer_list {
 	ast_mutex_t lock;
 } peerl = { NULL, AST_MUTEX_INITIALIZER };
 
+ast_mutex_t sip_reload_lock = AST_MUTEX_INITIALIZER;
 
 #define REG_STATE_UNREGISTERED 0
 #define REG_STATE_REGSENT	   1
@@ -4760,6 +4761,10 @@ static char no_debug_usage[] =
 "Usage: sip no debug\n"
 "       Disables dumping of SIP packets for debugging purposes\n";
 
+static char sip_reload_usage[] =
+"Usage: sip reload\n"
+"       Reloads SIP configuration from sip.conf\n";
+
 static struct ast_cli_entry  cli_show_users = 
 	{ { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage };
 static struct ast_cli_entry  cli_show_channels =
@@ -4776,7 +4781,6 @@ static struct ast_cli_entry  cli_debug =
 	{ { "sip", "debug", NULL }, sip_do_debug, "Enable SIP debugging", debug_usage };
 static struct ast_cli_entry  cli_no_debug =
 	{ { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage };
-
 
 static int sip_poke_peer_s(void *data)
 {
@@ -6605,52 +6609,6 @@ static struct ast_rtp_protocol sip_rtp = {
 	get_codec: sip_get_codec,
 };
 
-int load_module()
-{
-	int res;
-	struct sip_peer *peer;
-	struct sip_registry *reg;
-	sched = sched_context_create();
-	if (!sched) {
-		ast_log(LOG_WARNING, "Unable to create schedule context\n");
-	}
-	io = io_context_create();
-	if (!io) {
-		ast_log(LOG_WARNING, "Unable to create I/O context\n");
-	}
-	
-	res = reload_config();
-	if (!res) {
-		/* Make sure we can register our sip channel type */
-		if (ast_channel_register_ex(type, tdesc, capability, sip_request, sip_devicestate)) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-			return -1;
-		}
-		ast_cli_register(&cli_show_users);
-		ast_cli_register(&cli_show_channels);
-		ast_cli_register(&cli_show_channel);
-		ast_cli_register(&cli_show_peers);
-		ast_cli_register(&cli_show_registry);
-		ast_cli_register(&cli_debug);
-		ast_cli_register(&cli_no_debug);
-		ast_cli_register(&cli_inuse_show);
-		sip_rtp.type = type;
-		ast_rtp_proto_register(&sip_rtp);
-		ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
-		ast_mutex_lock(&peerl.lock);
-		for (peer = peerl.peers; peer; peer = peer->next)
-			sip_poke_peer(peer);
-
-		for (reg = registrations; reg; reg = reg->next) 
-			sip_do_register(reg);
-		ast_mutex_unlock(&peerl.lock);
-		
-		/* And start the monitor for the first time */
-		restart_monitor();
-	}
-	return res;
-}
-
 static void delete_users(void)
 {
 	struct sip_user *user, *userlast;
@@ -6713,10 +6671,16 @@ static void prune_peers(void)
 	ast_mutex_unlock(&peerl.lock);
 }
 
-int reload(void)
+static int sip_reload(int fd, int argc, char *argv[])
 {
 	struct sip_registry *reg;
 	struct sip_peer *peer;
+
+	if (ast_mutex_trylock(&sip_reload_lock) == EBUSY) {
+		ast_verbose("Previous SIP reload not yet done\n");
+		return -1;
+	}
+
 	delete_users();
 	reload_config();
 
@@ -6729,7 +6693,64 @@ int reload(void)
 	for (peer = peerl.peers; peer; peer = peer->next)
 		sip_poke_peer(peer);
 	ast_mutex_unlock(&peerl.lock);
+	ast_mutex_unlock(&sip_reload_lock);
+
 	return 0;
+}
+
+int reload(void)
+{
+	return sip_reload(0, 0, NULL);
+}
+
+static struct ast_cli_entry  cli_sip_reload =
+	{ { "sip", "reload", NULL }, sip_reload, "Reload SIP configuration", sip_reload_usage };
+
+int load_module()
+{
+	int res;
+	struct sip_peer *peer;
+	struct sip_registry *reg;
+	sched = sched_context_create();
+	if (!sched) {
+		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+	}
+	io = io_context_create();
+	if (!io) {
+		ast_log(LOG_WARNING, "Unable to create I/O context\n");
+	}
+	
+	res = reload_config();
+	if (!res) {
+		/* Make sure we can register our sip channel type */
+		if (ast_channel_register_ex(type, tdesc, capability, sip_request, sip_devicestate)) {
+			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			return -1;
+		}
+		ast_cli_register(&cli_show_users);
+		ast_cli_register(&cli_show_channels);
+		ast_cli_register(&cli_show_channel);
+		ast_cli_register(&cli_show_peers);
+		ast_cli_register(&cli_show_registry);
+		ast_cli_register(&cli_debug);
+		ast_cli_register(&cli_no_debug);
+		ast_cli_register(&cli_sip_reload);
+		ast_cli_register(&cli_inuse_show);
+		sip_rtp.type = type;
+		ast_rtp_proto_register(&sip_rtp);
+		ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
+		ast_mutex_lock(&peerl.lock);
+		for (peer = peerl.peers; peer; peer = peer->next)
+			sip_poke_peer(peer);
+
+		for (reg = registrations; reg; reg = reg->next) 
+			sip_do_register(reg);
+		ast_mutex_unlock(&peerl.lock);
+		
+		/* And start the monitor for the first time */
+		restart_monitor();
+	}
+	return res;
 }
 
 int unload_module()
@@ -6745,6 +6766,7 @@ int unload_module()
 	ast_cli_unregister(&cli_show_registry);
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_no_debug);
+	ast_cli_unregister(&cli_sip_reload);
 	ast_cli_unregister(&cli_inuse_show);
 	ast_rtp_proto_unregister(&sip_rtp);
 	ast_channel_unregister(type);
