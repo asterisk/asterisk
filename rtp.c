@@ -544,6 +544,8 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			rtp->lastividtimestamp = timestamp;
 		rtp->f.samples = timestamp - rtp->lastividtimestamp;
 		rtp->lastividtimestamp = timestamp;
+		rtp->f.delivery.tv_sec = 0;
+		rtp->f.delivery.tv_usec = 0;
 		if (mark)
 			rtp->f.subclass |= 0x1;
 		
@@ -1043,12 +1045,14 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 90;
 		/* If it's close to our prediction, go for it */
-		if (abs(rtp->lastts - pred) < 7200) {
-			rtp->lastts = pred;
-			rtp->lastovidtimestamp += f->samples;
-		} else {
-			ast_log(LOG_DEBUG, "Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
-			rtp->lastovidtimestamp = rtp->lastts;
+		if (!f->delivery.tv_sec && !f->delivery.tv_usec) {
+			if (abs(rtp->lastts - pred) < 7200) {
+				rtp->lastts = pred;
+				rtp->lastovidtimestamp += f->samples;
+			} else {
+				ast_log(LOG_DEBUG, "Difference is %d, ms is %d (%d), pred/ts/samples %d/%d/%d\n", abs(rtp->lastts - pred), ms, ms * 90, rtp->lastts, pred, f->samples);
+				rtp->lastovidtimestamp = rtp->lastts;
+			}
 		}
 	}
 	/* Get a pointer to the header */

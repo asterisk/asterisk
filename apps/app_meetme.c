@@ -465,7 +465,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int firstpass = 0;
 	int ret = -1;
 	int x;
-        int menu_active = 0;
+	int menu_active = 0;
+	int using_pseudo = 0;
 
 	struct ast_app *app;
 	char *agifile;
@@ -561,6 +562,7 @@ zapretry:
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;
 		}
+		using_pseudo = 1;
 		/* Make non-blocking */
 		flags = fcntl(fd, F_GETFL);
 		if (flags < 0) {
@@ -885,7 +887,7 @@ zapretry:
 		}
 	}
 	}
-	if (fd != chan->fds[0])
+	if (using_pseudo)
 		close(fd);
 	else {
 		/* Take out of conference */
