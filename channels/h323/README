@@ -32,9 +32,12 @@ As of June 16th, 2003 the release version of Open H.323 does not compile
 due to the G729Capability is missing. If you want G.729 support see
 the Makefile.  
 
-Some chan_h323 users have reported success when using newer versions
-of Open H.323. We haven't personally tested this and will not be able
-to assist you if you have 'issues'. Sorry.
+Some chan_h323 users have reported success and others have reported dramatic
+failures when using newer versions of Open H.323. We haven't personally tested
+this and will not be able to assist you if you have 'issues'. Sorry.
+
+IN OTHER WORDS: Run Open H.323 v1.11.7 nothing newer nothing older if u want
+this to work.
 
 
 
