@@ -487,7 +487,8 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) {
     result.isAstFormat = result.code = 0;
     return result; // bogus payload type
   }
-  return rtp->current_RTP_PT[pt];
+  /* Gotta use our static one, since that's what we sent against */
+  return static_RTP_PT[pt];
 }
 
 int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
