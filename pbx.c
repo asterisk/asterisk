@@ -299,7 +299,7 @@ static struct pbx_builtin {
 
 	{ "SetGlobalVar", pbx_builtin_setglobalvar,
 "Set variable to value",
-"  Setvar(#n=value): Sets global variable n to value" },
+"  SetGlobalVar(#n=value): Sets global variable n to value" },
 
 	{ "SetLanguage", pbx_builtin_setlanguage,
 "Sets user language",
