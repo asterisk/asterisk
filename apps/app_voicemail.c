@@ -1769,14 +1769,20 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
 
 		/* Check current or macro-calling context for special extensions */
-		if (ast_exists_extension(chan, chan->context, "o", 1, chan->callerid))
+		if (!ast_strlen_zero(vmu->exit)) {
+			if (ast_exists_extension(chan, vmu->exit, "o", 1, chan->callerid))
+				strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
+		} else if (ast_exists_extension(chan, chan->context, "o", 1, chan->callerid))
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->callerid)) {
 			strncat(ecodes, "0", sizeof(ecodes) - strlen(ecodes) - 1);
 			ousemacro = 1;
 		}
 
-		if (ast_exists_extension(chan, chan->context, "a", 1, chan->callerid))
+		if (!ast_strlen_zero(vmu->exit)) {
+			if (ast_exists_extension(chan, vmu->exit, "a", 1, chan->callerid))
+				strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
+		} else if (ast_exists_extension(chan, chan->context, "a", 1, chan->callerid))
 			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
 		else if (!ast_strlen_zero(chan->macrocontext) && ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->callerid)) {
 			strncat(ecodes, "*", sizeof(ecodes) -  strlen(ecodes) - 1);
