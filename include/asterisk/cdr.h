@@ -63,9 +63,9 @@ struct ast_cdr {
 	
 	struct timeval end;
 	/*! Total time in system, in seconds */
-	int duration;
+	int duration;				
 	/*! Total time call is up, in seconds */
-	int billsec;
+	int billsec;				
 	/*! What happened to the call */
 	int disposition;			
 	/*! What flags to use */

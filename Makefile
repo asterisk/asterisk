@@ -194,13 +194,6 @@ endif
 CC=gcc
 INSTALL=install
 
-
-#######  res_perl
-LIBS += $(shell /usr/local/bin/perl -MExtUtils::Embed -e ldopts) $(shell perl -MConfig -e 'print $$Config{libs}')
-PERLCFLAGS += $(shell /usr/local/bin/perl -MExtUtils::Embed -e ccopts)
-OBJS += perlxsi.o
-####### /res_perl
-
 _all: all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, but +"  
@@ -211,11 +204,6 @@ _all: all
 	@echo " +-------------------------------------------+"  
 
 all: depend asterisk subdirs
-
-#######  res_perl
-perlxsi.o: 
-	$(CC) -c perlxsi.c $(PERLCFLAGS) -o perlxsi.o
-####### /res_perl
 
 editline/config.h:
 	cd editline && unset CFLAGS LIBS && ./configure ; \

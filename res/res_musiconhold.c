@@ -75,10 +75,10 @@ struct mohclass {
 	char class[80];
 	char dir[256];
 	char miscargs[256];
-	char customexec[256];
 	int destroyme;
 	int pid;		/* PID of mpg123 */
 	int quiet;
+	int single;
 	pthread_t thread;
 	struct mohdata *members;
 	/* Source of audio */
@@ -106,82 +106,64 @@ AST_MUTEX_DEFINE_STATIC(moh_lock);
 static int spawn_mp3(struct mohclass *class)
 {
 	int fds[2];
-	int files=0;
+	int files;
 	char fns[MAX_MP3S][80];
 	char *argv[MAX_MP3S + 50];
 	char xargs[256];
 	char *argptr;
-	int argc;
+	int argc = 0;
 	DIR *dir;
 	struct dirent *de;
+	dir = opendir(class->dir);
+	if (!dir) {
+		ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
+		return -1;
+ 	}
+	argv[argc++] = "mpg123";
+	argv[argc++] = "-q";
+	argv[argc++] = "-s";
+	argv[argc++] = "--mono";
+	argv[argc++] = "-r";
+	argv[argc++] = "8000";
 
-	if(class->customexec && strlen(class->customexec)) {
-		argc = 0;
-		strncpy(xargs, class->customexec, sizeof(xargs) - 1);
-		argptr = xargs;
-		while(argptr && strlen(argptr)) {
-			argv[argc] = argptr;
-			argptr = strchr(argptr, ',');
-			if (argptr) {
-				*argptr = '\0';
-				argptr++;
-			}
-			argc++;
+	if (!class->single) {
+		argv[argc++] = "-b";
+		argv[argc++] = "2048";
+	}
+
+	argv[argc++] = "-f";
+	
+	if (class->quiet) {
+		argv[argc++] = "4096";
+	} else
+		argv[argc++] = "8192";
+
+	/* Look for extra arguments and add them to the list */
+	strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
+	argptr = xargs;
+	while(argptr && !ast_strlen_zero(argptr)) {
+		argv[argc++] = argptr;
+		argptr = strchr(argptr, ',');
+		if (argptr) {
+			*argptr = '\0';
+			argptr++;
 		}
 	}
-	else {
-	  dir = opendir(class->dir);
-	  if (!dir) {
-	    ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
-	    return -1;
-	  }
-	  argv[0] = "mpg123";
-	  argv[1] = "-q";
-	  argv[2] = "-s";
-	  argv[3] = "--mono";
-	  argv[4] = "-r";
-	  argv[5] = "8000";
-	  argv[6] = "-b";
-	  argv[7] = "2048";
-	  argc = 8;
-	  if (class->quiet) {
-	    argv[argc++] = "-f";
-	    argv[argc++] = "8192";
-	  }
 
-	  /* Look for extra arguments and add them to the list */
-	  strncpy(xargs, class->miscargs, sizeof(xargs) - 1);
-	  argptr = xargs;
-	  while(argptr && strlen(argptr)) {
-	    argv[argc++] = argptr;
-	    argptr = strchr(argptr, ',');
-	    if (argptr) {
-	      *argptr = '\0';
-	      argptr++;
-	    }
-	  }
-
-		
-
-
-	  files = 0;
-	  while((de = readdir(dir)) && (files < MAX_MP3S)) {
-	    if ((strlen(de->d_name) > 3) && !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3")) {
-	      strncpy(fns[files], de->d_name, sizeof(fns[files]));
-	      argv[argc++] = fns[files];
-	      files++;
-	    }
-	  }
-	  argv[argc] = NULL;
-	  closedir(dir);
+	files = 0;
+	while((de = readdir(dir)) && (files < MAX_MP3S)) {
+		if ((strlen(de->d_name) > 3) && !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3")) {
+			strncpy(fns[files], de->d_name, sizeof(fns[files]));
+			argv[argc++] = fns[files];
+			files++;
+		}
 	}
-
-
-
-	  if (pipe(fds)) {	
-	    ast_log(LOG_WARNING, "Pipe failed\n");
-	    return -1;
-	  }
+	argv[argc] = NULL;
+	closedir(dir);
+	if (pipe(fds)) {	
+		ast_log(LOG_WARNING, "Pipe failed\n");
+		return -1;
+	}
 #if 0
 	printf("%d files total, %d args total\n", files, argc);
 	{
@@ -190,47 +172,28 @@ static int spawn_mp3(struct mohclass *class)
 			printf("arg%d: %s\n", x, argv[x]);
 	}
 #endif	
-	if (!files &&  class->customexec && ! strlen(class->customexec)) {
+	if (!files) {
 		ast_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
 		close(fds[0]);
 		close(fds[1]);
 		return -1;
 	}
-
-
-
 	class->pid = fork();
-
 	if (class->pid < 0) {
 		close(fds[0]);
 		close(fds[1]);
 		ast_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
 		return -1;
 	}
-
-
-
-
-
 	if (!class->pid) {
 		int x;
 		close(fds[0]);
 		/* Stdout goes to pipe */
-
 		dup2(fds[1], STDOUT_FILENO);
-
-
-
-
-		
-		  /* Close unused file descriptors */
-		  for (x=3;x<8192;x++)
-		    close(x);
-		  /* Child */
-		
-
-		  /* try custom */
-		execv(argv[0], argv);
+		/* Close unused file descriptors */
+		for (x=3;x<8192;x++)
+			close(x);
+		/* Child */
 		chdir(class->dir);
 		/* Default install is /usr/local/bin */
 		execv(LOCAL_MPG_123, argv);
@@ -522,11 +485,9 @@ static struct ast_generator mohgen =
 	generate: moh_generate,
 };
 
-static int moh_register(char *classname, char *mode, char *param, char *miscargs,char *customexec)
+static int moh_register(char *classname, char *mode, char *param, char *miscargs)
 {
 	struct mohclass *moh;
-	char custmode[7] = "custom";
-	custmode[7]= (char) NULL;
 #ifdef ZAPATA_MOH
 	int x;
 #endif
@@ -543,32 +504,14 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 	memset(moh, 0, sizeof(struct mohclass));
 
 	strncpy(moh->class, classname, sizeof(moh->class) - 1);
-
-	if(customexec && strlen(customexec)) {
-	  strncpy(moh->customexec, customexec, sizeof(moh->customexec) - 1);
-	  mode=custmode;
-
-	}
-
 	if (miscargs)
-	  strncpy(moh->miscargs, miscargs, sizeof(moh->miscargs) - 1);
-
-
-
-
-
-
-
-
-
-	if (!strcasecmp(mode, "mp3") || !strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "httpmp3") || !strcasecmp(mode, "custom")) {
-
-
-	  if(! customexec || (customexec && ! strlen(customexec))) {
-		if (!strcasecmp(mode, "quietmp3"))
+		strncpy(moh->miscargs, miscargs, sizeof(moh->miscargs) - 1);
+	if (!strcasecmp(mode, "mp3") || !strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb") || !strcasecmp(mode, "httpmp3")) {
+		if (!strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3nb"))
+			moh->single = 1;
+		if (!strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb"))
 			moh->quiet = 1;
 		strncpy(moh->dir, param, sizeof(moh->dir) - 1);
-	  }
 		moh->srcfd = -1;
 #ifdef ZAPATA_MOH
 		/* It's an MP3 Moh -- Open /dev/zap/pseudo for timing...  Is
@@ -583,9 +526,6 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 #else
 		moh->pseudofd = -1;
 #endif
-
-
-
 		if (pthread_create(&moh->thread, NULL, monmp3thread, moh)) {
 			ast_log(LOG_WARNING, "Unable to create moh...\n");
 			if (moh->pseudofd > -1)
@@ -638,20 +578,10 @@ static void load_moh_classes(void)
 					*args = '\0';
 					args++;
 				}
-				moh_register(var->name, var->value, data,args,NULL);
+				moh_register(var->name, var->value, data,args);
 			}
 			var = var->next;
 		}
-
-
-		var = ast_variable_browse(cfg, "custom_exec");
-		while(var) {
-
-		  moh_register(var->name,NULL,NULL,NULL,var->value);
-		  var = var->next;
-		}
-
-
 		ast_destroy(cfg);
 	}
 }
@@ -676,7 +606,7 @@ static void ast_moh_destroy(void)
 			ast_log(LOG_DEBUG, "mpg123 pid %d and child died after %d bytes read\n", moh->pid, tbytes);
 			close(moh->srcfd);
 			moh->pid = 0;
-			}
+		}
 		moh = moh->next;
 	}
 	ast_mutex_unlock(&moh_lock);
