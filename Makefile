@@ -471,7 +471,7 @@ depend: .depend
 FORCE:
 
 %_env:
-	make -C $(shell echo $@ | /bin/sed "s/_env//g") env
+	make -C $(shell echo $@ | sed "s/_env//g") env
 
 env:
-	/bin/env
+	env

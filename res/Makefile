@@ -46,4 +46,4 @@ depend: .depend
 	../mkdep $(CFLAGS) `ls *.c`
 
 env:
-	/bin/env
+	env
