@@ -627,6 +627,11 @@ int ast_closestream(struct ast_filestream *f)
 			f->owner->vstreamid = -1;
 		}
 	}
+	/* destroy the translator on exit */
+	if (f->trans) {
+		ast_translator_free_path(f->trans);
+		f->trans = NULL;
+	}
 	if (f->filename)
 		free(f->filename);
 	f->filename = NULL;
