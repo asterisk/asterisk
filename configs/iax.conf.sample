@@ -119,6 +119,13 @@ jitterbuffer=no
 ;
 tos=lowdelay
 ;
+; If mailboxdetail is set to "yes", the user receives
+; the actual new/old message counts, not just a yes/no
+; as to whether they have messages.  this can be set on
+; a per-peer basis as well
+;
+;mailboxdetail=yes
+;
 ; Guest sections for unauthenticated connection attempts.  Just
 ; specify an empty secret, or provide no secret section.
 ;

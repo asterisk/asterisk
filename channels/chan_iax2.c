@@ -178,6 +178,7 @@ static char accountcode[20];
 static int amaflags = 0;
 static int globalnotransfer = 0;
 static int delayreject = 0;
+static int globalmessagedetail = 0;
 
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 
@@ -239,6 +240,7 @@ struct iax2_peer {
 	int delme;						/* I need to be deleted */
 	int temponly;					/* I'm only a temp */
 	int trunk;						/* Treat as an IAX trunking */
+	int messagedetail;				/* Show exact numbers? */
 
 	/* Qualification */
 	int callno;					/* Call number of POKE request */
@@ -4175,9 +4177,19 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
 			iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
 			if (!ast_strlen_zero(p->mailbox)) {
-				msgcount = ast_app_has_voicemail(p->mailbox);
-				if (msgcount)
-					msgcount = 65535;
+				if (p->messagedetail) {
+					int new, old;
+					ast_app_messagecount(p->mailbox, &new, &old);
+					if (new > 255)
+						new = 255;
+					if (old > 255)
+						old = 255;
+					msgcount = (old << 8) | new;
+				} else {
+					msgcount = ast_app_has_voicemail(p->mailbox);
+					if (msgcount)
+						msgcount = 65535;
+				}
 				iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
 			}
 			if (p->hascallerid)
@@ -5955,6 +5967,7 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 		peer->expire = -1;
 		peer->pokeexpire = -1;
 	}
+	peer->messagedetail = globalmessagedetail;
 	if (peer) {
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
@@ -5967,6 +5980,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
 			else if (!strcasecmp(v->name, "mailbox"))
 				strncpy(peer->mailbox, v->value, sizeof(peer->mailbox) - 1);
+			else if (!strcasecmp(v->name, "mailboxdetail"))
+				peer->messagedetail = ast_true(v->value);
 			else if (!strcasecmp(v->name, "trunk")) {
 				peer->trunk = ast_true(v->value);
 				if (peer->trunk && (timingfd < 0)) {
@@ -6362,6 +6377,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			globalnotransfer = ast_true(v->value);
 		else if (!strcasecmp(v->name, "delayreject"))
 			delayreject = ast_true(v->value);
+		else if (!strcasecmp(v->name, "mailboxdetail"))
+			globalmessagedetail = ast_true(v->value);
 		else if (!strcasecmp(v->name, "trunkfreq")) {
 			trunkfreq = atoi(v->value);
 			if (trunkfreq < 10)
