@@ -1867,9 +1867,9 @@ static struct cfalias {
 	{ "Subject", "s" },
 	{ "To", "t" },
 	{ "Supported", "k" },
-        { "Refer-To", "r" },
-        { "Allow-Events", "u" },
-        { "Event", "o" },
+	{ "Refer-To", "r" },
+	{ "Allow-Events", "u" },
+	{ "Event", "o" },
 	{ "Via", "v" },
 };
 
