@@ -202,7 +202,6 @@ extern "C" {
 				else \
 					(container)->head = next; \
 				ASTOBJ_CONTAINER_UNLOCK(container); \
-				break; \
 			} \
 			ASTOBJ_UNLOCK(iterator); \
 			if (found) \
