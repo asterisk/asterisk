@@ -2765,8 +2765,13 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			return -2;
 		}
 		if (c0->nativeformats != c1->nativeformats) {
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Operating with different codecs, can't native bridge...\n");
+			if (option_verbose > 2) {
+				char buf0[255];
+				char buf1[255];
+				ast_getformatname_multiple(buf0, sizeof(buf0) -1, c0->nativeformats);
+				ast_getformatname_multiple(buf1, sizeof(buf1) -1, c1->nativeformats);
+				ast_verbose(VERBOSE_PREFIX_3 "Operating with different codecs %d[%s] %d[%s] , can't native bridge...\n", c0->nativeformats, buf0, c1->nativeformats, buf1);
+			}
 			/* Remove from native mode */
 			lock_both(callno0, callno1);
 			iaxs[callno0]->bridgecallno = 0;
