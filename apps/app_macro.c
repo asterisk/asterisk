@@ -18,6 +18,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/options.h>
+#include <asterisk/config.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
 #include <stdlib.h>
@@ -42,9 +43,16 @@ static char *descrip =
 "termination, Macro will attempt to continue at priority\n"
 "MACRO_OFFSET + N + 1 if such a step exists, and N + 1 otherwise.\n";
 
+static char *if_descrip =
+"  MacroIf(<expr>?label_a[|arg1][:label_b[|arg1]]):\n"
+"Executes macro defined in <label_a> if <expr> is true\n"
+"(otherwise <label_b> if provided)\n";
+
 static char *app = "Macro";
+static char *if_app = "MacroIf";
 
 static char *synopsis = "Macro Implementation";
+static char *if_synopsis = "Conditional Macro Implementation";
 
 STANDARD_LOCAL_USER;
 
@@ -52,7 +60,7 @@ LOCAL_USER_DECL;
 
 static int macro_exec(struct ast_channel *chan, void *data)
 {
-  char tmp[256] = "";
+  char *tmp;
   char *cur, *rest;
   char *macro;
   char fullmacro[80];
@@ -72,12 +80,14 @@ static int macro_exec(struct ast_channel *chan, void *data)
   char *save_macro_context;
   char *save_macro_priority;
   char *save_macro_offset;
+  struct localuser *u;
   
   if (!data || ast_strlen_zero(data)) {
     ast_log(LOG_WARNING, "Invalid Macro incantation\n");
     return 0;
   }
-  strncpy(tmp, data, sizeof(tmp) - 1);
+
+  tmp = ast_strdupa((char *) data);
   rest = tmp;
   macro = strsep(&rest, "|");
   if (!macro || ast_strlen_zero(macro)) {
@@ -92,6 +102,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	  	ast_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
 	return 0;
   }
+
+  LOCAL_USER_ADD(u);
   /* Save old info */
   oldpriority = chan->priority;
   strncpy(oldexten, chan->exten, sizeof(oldexten) - 1);
@@ -220,17 +232,45 @@ out:
 
   pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", save_macro_offset);
   if (save_macro_offset) free(save_macro_offset);
+  LOCAL_USER_REMOVE(u);
   return res;
 }
 
+static int macroif_exec(struct ast_channel *chan, void *data) 
+{
+	char *expr = NULL, *label_a = NULL, *label_b = NULL;
+	int res = 0;
+
+	if((expr = ast_strdupa((char *) data))) {
+		if ((label_a = strchr(expr, '?'))) {
+			*label_a = '\0';
+			label_a++;
+			if ((label_b = strchr(label_a, ':'))) {
+				*label_b = '\0';
+				label_b++;
+			}
+			if (ast_true(expr))
+				macro_exec(chan, label_a);
+			else if (label_b) 
+				macro_exec(chan, label_b);
+			
+		} else
+			ast_log(LOG_WARNING, "Invalid Syntax.\n");
+	} else 
+		ast_log(LOG_ERROR, "Out of Memory!\n");
+	return res;
+}
+			
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_unregister_application(if_app);
 	return ast_unregister_application(app);
 }
 
 int load_module(void)
 {
+	ast_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
 	return ast_register_application(app, macro_exec, synopsis, descrip);
 }
 
