@@ -217,6 +217,26 @@ static int ast_onedigit_goto(struct ast_channel *chan, char *context, char exten
 }
 
 
+static char *get_cid_name(char *name, int namelen, struct ast_channel *chan)
+{
+	char *context;
+	char *exten;
+	if (!ast_strlen_zero(chan->macrocontext))
+		context = chan->macrocontext;
+	else
+		context = chan->context;
+
+	if (!ast_strlen_zero(chan->macroexten))
+		exten = chan->macroexten;
+	else
+		exten = chan->exten;
+
+	if (ast_get_hint(NULL, 0, name, namelen, chan, context, exten))
+		return name;
+	else
+		return "";
+}
+
 static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
 {
 	struct localuser *o;
@@ -235,6 +255,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	int single;
 	struct ast_channel *winner;
 	char *context = NULL;
+	char cidname[AST_MAX_EXTENSION];
 
 	single = (outgoing && !outgoing->next && !ast_test_flag(outgoing, DIAL_MUSICONHOLD | DIAL_RINGBACKONLY));
 	
@@ -382,7 +403,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							numnochan++;
 						} else {
 							/* After calling, set callerid to extension */
-							ast_set_callerid(o->chan, ast_strlen_zero(in->macroexten) ? in->exten : in->macroexten, NULL, NULL);
+							ast_set_callerid(o->chan, ast_strlen_zero(in->macroexten) ? in->exten : in->macroexten, get_cid_name(cidname, sizeof(cidname), in), NULL);
 						}
 					}
 					/* Hangup the original channel now, in case we needed it */
@@ -558,6 +579,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int cause;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
+	char cidname[AST_MAX_EXTENSION];
 	char *transfer = NULL;
 	char *newnum;
 	char *l;
@@ -991,7 +1013,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		} else {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
-			ast_set_callerid(tmp->chan, ast_strlen_zero(chan->macroexten) ? chan->exten : chan->macroexten, NULL, NULL);
+			ast_set_callerid(tmp->chan, ast_strlen_zero(chan->macroexten) ? chan->exten : chan->macroexten, get_cid_name(cidname, sizeof(cidname), chan), NULL);
 		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get

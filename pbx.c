@@ -900,7 +900,12 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		} else
 			*ret = NULL;
 	} else if (c && !strcmp(var, "HINT")) {
-		if (!ast_get_hint(workspace, workspacelen, c, c->context, c->exten))
+		if (!ast_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten))
+			*ret = NULL;
+		else
+			*ret = workspace;
+	} else if (c && !strcmp(var, "HINTNAME")) {
+		if (!ast_get_hint(NULL, 0, workspace, workspacelen, c, c->context, c->exten))
 			*ret = NULL;
 		else
 			*ret = workspace;
@@ -1787,19 +1792,26 @@ static int ast_remove_hint(struct ast_exten *e)
 			prev = list;
 			list = list->next;    
 		}
-    	}
+	}
 
 	ast_mutex_unlock(&hintlock);
 	return -1;
 }
 
 
-int ast_get_hint(char *hint, int hintsize, struct ast_channel *c, const char *context, const char *exten)
+int ast_get_hint(char *hint, int hintsize, char *name, int namesize, struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
+	void *tmp;
 	e = ast_hint_extension(c, context, exten);
-	if (e) {	
-	    strncpy(hint, ast_get_extension_app(e), hintsize - 1);
+	if (e) {
+		if (hint) 
+		    strncpy(hint, ast_get_extension_app(e), hintsize - 1);
+		if (name) {
+			tmp = ast_get_extension_app_data(e);
+			if (tmp)
+				strncpy(name, (char *)tmp, namesize - 1);
+		}
 	    return -1;
 	}
 	return 0;	

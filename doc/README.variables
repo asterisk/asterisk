@@ -62,6 +62,8 @@ ${EPOCH}	Current unix style epoch
 ${EXTEN}	Current extension
 ${ENV(VAR)}	Environmental variable VAR
 ${HANGUPCAUSE}	Asterisk hangup cause
+${HINT}		Channel hints for this extension
+${HINTNAME}	Suggested Caller*ID name for this extension
 ${INVALID_EXTEN}The invalid called extension (used in the "i" extension)
 ${LANGUAGE}	Current language
 ${LEN(VAR)}	String length of VAR (integer)

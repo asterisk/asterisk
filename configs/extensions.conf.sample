@@ -392,7 +392,7 @@ include => demo
 ; overlap extensions and menu options without conflict.  You can alias them with
 ; names, too and use global variables
 
-;exten => 6245,hint,SIP/Grandstream1&SIP/Xlite1 ; Channel hints for presence
+;exten => 6245,hint,SIP/Grandstream1&SIP/Xlite1,Joe Schmoe ; Channel hints for presence
 ;exten => 6245,1,Dial(SIP/Grandstream1,20,rt)	; permit transfer
 ;exten => 6245,n(dial),Dial(${HINT},20,rtT)		; Use hint as listed
 ;exten => 6245,n,Voicemail(u6245)		; Voicemail (unavailable)

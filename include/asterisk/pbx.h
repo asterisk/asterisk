@@ -285,6 +285,8 @@ int ast_extension_state_del(int id, ast_state_cb_type callback);
 /*!
  * \param hint buffer for hint
  * \param maxlen size of hint buffer
+ * \param hint buffer for name portion of hint
+ * \param maxlen size of name buffer
  * \param c this is not important
  * \param context which context to look in
  * \param exten which extension to search for
@@ -292,7 +294,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback);
  * is found a non zero value will be returned.
  * Otherwise, 0 is returned.
  */
-int ast_get_hint(char *hint, int maxlen, struct ast_channel *c, const char *context, const char *exten);
+int ast_get_hint(char *hint, int maxlen, char *name, int maxnamelen, struct ast_channel *c, const char *context, const char *exten);
 
 /*! If an extension exists, return non-zero */
 /*  work */

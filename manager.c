@@ -1042,7 +1042,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	if (!context || ast_strlen_zero(context))
 		context = "default";
 	status = ast_extension_state(NULL, context, exten);
-	ast_get_hint(hint, sizeof(hint) - 1, NULL, context, exten);
+	ast_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
         if (id && !ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
