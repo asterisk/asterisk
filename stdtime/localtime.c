@@ -981,11 +981,14 @@ const char * const	zone;
 
 	sp = lclptr;
 	/* Find the right zone record */
-	while (sp != NULL) {
-		if (!strcmp(sp->name,zone))
-			break;
-		sp = sp->next;
-	}
+	if (zone == NULL)
+		sp = NULL;
+	else
+		while (sp != NULL) {
+			if (!strcmp(sp->name,zone))
+				break;
+			sp = sp->next;
+		}
 
 	if (sp == NULL) {
 		ast_tzsetwall();
