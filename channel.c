@@ -1659,6 +1659,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	case AST_FRAME_TEXT:
 		if (chan->pvt->send_text)
 			res = chan->pvt->send_text(chan, (char *) fr->data);
+		else
+			res = 0;
+		break;
+	case AST_FRAME_HTML:
+		if (chan->pvt->send_html)
+			res = chan->pvt->send_html(chan, fr->subclass, (char *) fr->data, fr->datalen);
+		else
+			res = 0;
 		break;
 	case AST_FRAME_VIDEO:
 		/* XXX Handle translation of video codecs one day XXX */
@@ -2832,6 +2840,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			(f->frametype == AST_FRAME_TEXT) ||
 			(f->frametype == AST_FRAME_VIDEO) || 
 			(f->frametype == AST_FRAME_IMAGE) ||
+			(f->frametype == AST_FRAME_HTML) ||
 			(f->frametype == AST_FRAME_DTMF)) {
 			if ((f->frametype == AST_FRAME_DTMF) && 
 				(config->flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {

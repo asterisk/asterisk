@@ -354,7 +354,7 @@ struct ast_frame *ast_fr_fdread(int fd)
 	/* Forget about being mallocd */
 	f->mallocd = 0;
 	/* Re-write the source */
-	f->src = __FUNCTION__;
+	f->src = (char *)__FUNCTION__;
 	if (f->datalen > sizeof(buf) - sizeof(struct ast_frame)) {
 		/* Really bad read */
 		ast_log(LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);

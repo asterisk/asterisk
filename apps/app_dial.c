@@ -149,6 +149,7 @@ static char *rdescrip =
 #define DIAL_GO_ON					(1 << 10)
 #define DIAL_HALT_ON_DTMF 			(1 << 11)
 #define DIAL_PRESERVE_CALLERID		(1 << 12)
+#define DIAL_NOFORWARDHTML			(1 << 13)
 
 struct localuser {
 	struct ast_channel *chan;
@@ -328,7 +329,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 					peer = o->chan;
-					ast_copy_flags(peerflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT);
+					ast_copy_flags(peerflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT|DIAL_NOFORWARDHTML);
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				if (!ast_strlen_zero(o->chan->call_forward)) {
@@ -440,7 +441,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 								peer = o->chan;
-								ast_copy_flags(peerflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT);
+								ast_copy_flags(peerflags, o, DIAL_ALLOWREDIRECT_IN|DIAL_ALLOWREDIRECT_OUT|DIAL_ALLOWDISCONNECT_IN|DIAL_ALLOWDISCONNECT_OUT|DIAL_NOFORWARDHTML);
 							}
 							/* If call has been answered, then the eventual hangup is likely to be normal hangup */
 							in->hangupcause = AST_CAUSE_NORMAL_CLEARING;
@@ -504,14 +505,16 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
 					} else if (single && (f->frametype == AST_FRAME_VOICE) && 
-								!(ast_test_flag(outgoing, DIAL_RINGBACKONLY) || ast_test_flag(outgoing, DIAL_MUSICONHOLD))) {
+								!(ast_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
 						if (ast_write(in, f)) 
 							ast_log(LOG_WARNING, "Unable to forward frame\n");
 					} else if (single && (f->frametype == AST_FRAME_IMAGE) && 
-								!(ast_test_flag(outgoing, DIAL_RINGBACKONLY) || ast_test_flag(outgoing, DIAL_MUSICONHOLD))) {
+								!(ast_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
 						if (ast_write(in, f))
 							ast_log(LOG_WARNING, "Unable to forward image\n");
-					}
+					} else if (single && (f->frametype == AST_FRAME_HTML) && !ast_test_flag(outgoing, DIAL_NOFORWARDHTML))
+						ast_channel_sendhtml(in, f->subclass, f->data, f->datalen);
+
 					ast_frfree(f);
 				} else {
 					in->hangupcause = o->chan->hangupcause;
@@ -563,6 +566,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					return NULL;
 				}
 			}
+
+			/* Forward HTML stuff */
+			if (single && f && (f->frametype == AST_FRAME_HTML) && !ast_test_flag(outgoing, DIAL_NOFORWARDHTML)) 
+				ast_channel_sendhtml(outgoing->chan, f->subclass, f->data, f->datalen);
+			
 
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
 				if (ast_write(outgoing->chan, f))
@@ -906,6 +914,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_set2_flag(tmp, strchr(transfer, 'h'), DIAL_ALLOWDISCONNECT_IN);
 			ast_set2_flag(peerflags, strchr(transfer, 'h'), DIAL_ALLOWDISCONNECT_IN);
 			ast_set2_flag(tmp, strchr(transfer, 'f'), DIAL_FORCECALLERID);	
+			ast_set2_flag(tmp, url, DIAL_NOFORWARDHTML);	
 			ast_set2_flag(peerflags, strchr(transfer, 'w'), DIAL_MONITOR_IN);	
 			ast_set2_flag(peerflags, strchr(transfer, 'W'), DIAL_MONITOR_OUT);	
 			ast_set2_flag(peerflags, strchr(transfer, 'd'), DIAL_HALT_ON_DTMF);	

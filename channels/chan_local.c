@@ -139,7 +139,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 {
 	if (p->alreadymasqed || p->nooptimization)
 		return;
-	if (isoutbound && p->chan && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && p->owner) {
+	if (isoutbound && p->chan && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && p->owner && !p->owner->pvt->readq) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
@@ -152,7 +152,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 			}
 			ast_mutex_unlock(&(p->chan->_bridge)->lock);
 		}
-	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan) {
+	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && !p->chan->pvt->readq) {
 		/* Masquerade bridged channel into chan */
 		if (!ast_mutex_trylock(&(p->owner->_bridge)->lock)) {
 			if (!ast_mutex_trylock(&p->chan->lock)) {
@@ -228,6 +228,22 @@ static int local_digit(struct ast_channel *ast, char digit)
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
+	res = local_queue_frame(p, isoutbound, &f, ast);
+	ast_mutex_unlock(&p->lock);
+	return res;
+}
+
+static int local_sendhtml(struct ast_channel *ast, int subclass, char *data, int datalen)
+{
+	struct local_pvt *p = ast->pvt->pvt;
+	int res = -1;
+	struct ast_frame f = { AST_FRAME_HTML, };
+	int isoutbound;
+	ast_mutex_lock(&p->lock);
+	isoutbound = IS_OUTBOUND(ast, p);
+	f.subclass = subclass;
+	f.data = data;
+	f.datalen = datalen;
 	res = local_queue_frame(p, isoutbound, &f, ast);
 	ast_mutex_unlock(&p->lock);
 	return res;
@@ -436,6 +452,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 		tmp2->pvt->pvt = p;
 		tmp->pvt->send_digit = local_digit;
 		tmp2->pvt->send_digit = local_digit;
+		tmp->pvt->send_html = local_sendhtml;
+		tmp2->pvt->send_html = local_sendhtml;
 		tmp->pvt->call = local_call;
 		tmp2->pvt->call = local_call;
 		tmp->pvt->hangup = local_hangup;
