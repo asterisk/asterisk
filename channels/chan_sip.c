@@ -267,7 +267,9 @@ struct sip_user {
 	int amaflags;
 	int insecure;
 	int canreinvite;
-        int dtmfmode;
+	int dtmfmode;
+	int inUse;
+	int incominglimit;
 	struct ast_ha *ha;
 	struct sip_user *next;
 };
@@ -882,6 +884,37 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		free(p);
 	}
 }
+
+static int find_user(struct sip_pvt *p, int event)
+{
+	char name[256] = "";
+	struct sip_user *u;
+	strncpy(name, p->username, sizeof(name) - 1);
+	ast_pthread_mutex_lock(&userl.lock);
+	u = userl.users;
+	while(u) {
+		if (!strcasecmp(u->name, name)) {
+			break;
+		}
+		u = u->next;
+	}
+	if(event == 0) {
+		u->inUse--;
+	} else {
+		if (u->incominglimit > 0 ) {
+			if (u->inUse >= u->incominglimit) {
+				ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", u->name, u->incominglimit);
+				ast_pthread_mutex_unlock(&userl.lock);
+				return -1; 
+			}
+		}
+		u->inUse++;
+		ast_log(LOG_DEBUG, "Call from user '%s' is %d out of %d\n", u->name, u->inUse, u->incominglimit);
+	}
+	ast_pthread_mutex_unlock(&userl.lock);
+	return 0;
+}
+
 static void sip_destroy(struct sip_pvt *p)
 {
 	ast_pthread_mutex_lock(&iflock);
@@ -904,6 +937,7 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	ast_pthread_mutex_lock(&p->lock);
+	/* find_user(p,0); */
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
 		ast_log(LOG_WARNING, "Huh?  We aren't the owner?\n");
@@ -3667,20 +3701,22 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 
 static int sip_show_users(int fd, int argc, char *argv[])
 {
-#define FORMAT "%-15.15s  %-15.15s  %-15.15s  %-15.15s  %-5.5s\n"
+#define FORMAT  "%-15.15s  %-10.15s  %-10.10s  %-10.15s  %-5.5s  %-5.15s\n"
+#define FORMAT2 "%-15.15s  %-10.15s  %-10.10s  %-11.15s  %-6.5s  %d/%d\n"
 	struct sip_user *user;
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_pthread_mutex_lock(&userl.lock);
-	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C");
+	ast_cli(fd, FORMAT, "Username", "Secret", "Authen", "Def.Context", "A/C", "inUse/Limit");
 	for(user=userl.users;user;user=user->next) {
-		ast_cli(fd, FORMAT, user->name, user->secret, user->methods, 
-				user->context,
-				user->ha ? "Yes" : "No");
+		ast_cli(fd, FORMAT2, user->name, user->secret, user->methods, 
+				user->context,user->ha ? "Yes" : "No",
+				user->inUse,user->incominglimit);
 	}
 	ast_pthread_mutex_unlock(&userl.lock);
 	return RESULT_SUCCESS;
 #undef FORMAT
+#undef FORMAT2
 }
 
 static int sip_show_peers(int fd, int argc, char *argv[])
@@ -4494,16 +4530,28 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Initialize the context if it hasn't been already */
 			if (!strlen(p->context))
 				strncpy(p->context, context, sizeof(p->context) - 1);
+			/* Check number of concurrent calls -vs- incoming limit HERE */
+			res = find_user(p,1);
+			if (res) {
+				if (res < 0) {
+					ast_log(LOG_DEBUG, "Failed to place call for user %s, too many calls\n", p->username);
+					p->needdestroy = 1;
+				}
+				return 0;
+			}
 			/* Get destination right away */
 			gotdest = get_destination(p, NULL);
 			get_rdnis(p, NULL);
 			build_contact(p);
 
 			if (gotdest) {
-				if (gotdest < 0)
+				if (gotdest < 0) {
 					transmit_response(p, "404 Not Found", req);
-				else
+					find_user(p,0);
+				} else {
 					transmit_response(p, "484 Address Incomplete", req);
+					find_user(p,0);
+				}
 				p->needdestroy = 1;
 			} else {
 				/* If no extension was specified, use the s one */
@@ -4627,6 +4675,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		transmit_response(p, "200 OK", req);
 		transmit_response_reliable(p, "487 Request Terminated", &p->initreq);
 	} else if (!strcasecmp(cmd, "BYE")) {
+		find_user(p,0);
 		copy_request(&p->initreq, req);
 		check_via(p, req);
 		p->alreadygone = 1;
@@ -5141,6 +5190,10 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 	if (user) {
 		memset(user, 0, sizeof(struct sip_user));
 		strncpy(user->name, name, sizeof(user->name)-1);
+
+		/* set the usage flag to a sane staring value*/
+		user->inUse = 0;
+
 		user->canreinvite = REINVITE_INVITE;
 		/* JK02: set default context */
 		strcpy(user->context, context);
@@ -5181,6 +5234,10 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				user->pickupgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
+			} else if (!strcasecmp(v->name, "incominglimit")) {
+				user->incominglimit = atoi(v->value);
+				if (user->incominglimit < 0)
+				   user->incominglimit = 0;
 			} else if (!strcasecmp(v->name, "amaflags")) {
 				format = ast_cdr_amaflags2int(v->value);
 				if (format < 0) {

@@ -184,7 +184,7 @@ build.h:
 endif
 
 asterisk: .version build.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
-	gcc $(DEBUG) -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a
+	$(CC) $(DEBUG) -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a
 
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done

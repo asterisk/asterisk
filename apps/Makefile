@@ -35,7 +35,7 @@ CFLAGS+=-fPIC
 all: $(APPS)
 
 clean:
-	rm -f *.so *.o look
+	rm -f *.so *.o look .depend
 
 %.so : %.o
 	$(CC) -shared -Xlinker -x -o $@ $<
