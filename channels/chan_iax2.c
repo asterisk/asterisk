@@ -6152,6 +6152,45 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 	return 1;
 }
 
+static char *papp = "IAX2Provision";
+static char *psyn = "Provision a calling IAXy with a given template";
+static char *pdescrip = 
+"  IAX2Provision([template]): Provisions the calling IAXy (assuming\n"
+"the calling entity is in fact an IAXy) with the given template or\n"
+"default if one is not specified.  Returns -1 on error or 0 on success.\n";
+
+static int iax2_prov_app(struct ast_channel *chan, void *data)
+{
+	int res;
+	char *sdata;
+	char *opts;
+	int force =0;
+	unsigned short callno = PTR_TO_CALLNO(chan->pvt->pvt);
+	char iabuf[INET_ADDRSTRLEN];
+	if (!data || ast_strlen_zero(data))
+		data = "default";
+	sdata = ast_strdupa(data);
+	opts = strchr(sdata, '|');
+	if (opts)
+		*opts='\0';
+
+	if (chan->type != type) {
+		ast_log(LOG_NOTICE, "Can't provision a non-IAX device!\n");
+		return -1;
+	} 
+	if (!callno || !iaxs[callno] || !iaxs[callno]->addr.sin_addr.s_addr) {
+		ast_log(LOG_NOTICE, "Can't provision something with no IP?\n");
+		return -1;
+	}
+	res = iax2_provision(&iaxs[callno]->addr, NULL, sdata, force);
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Provisioned IAXY at '%s' with '%s'= %d\n", 
+		ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr),
+		sdata, res);
+	return res;
+}
+
+
 static int iax2_prov_cmd(int fd, int argc, char *argv[])
 {
 	int force = 0;
@@ -7445,6 +7484,7 @@ static int __unload_module(void)
 		if (iaxs[x])
 			iax2_destroy(x);
 	ast_manager_unregister( "IAXpeers" );
+	ast_unregister_application(papp);
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_peers);
@@ -7539,6 +7579,8 @@ int load_module(void)
 	ast_cli_register(&cli_show_stats);
 	ast_cli_register(&cli_show_cache);
 
+	ast_register_application(papp, iax2_prov_app, psyn, pdescrip);
+	
 	ast_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
 
 	set_config(config,&sin);
