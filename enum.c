@@ -125,12 +125,14 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	} else if ((!strncasecmp(services, "e2u+h323", 8)) || 
 	    (!strncasecmp(services, "h323+e2u", 8))) {
 		strncpy(tech, "h323", techsize -1); 
-	} else if ((!strncasecmp(services, "e2u+iax", 7)) || 
-	    (!strncasecmp(services, "iax+e2u", 7))) {
-		strncpy(tech, "iax", techsize -1); 
-	} else if ((!strncasecmp(services, "e2u+iax2", 8)) || 
+	} else if ((!strncasecmp(services, "e2u+x-iax2", 10)) || 
+	    (!strncasecmp(services, "e2u+iax2", 8)) ||
 	    (!strncasecmp(services, "iax2+e2u", 8))) {
 		strncpy(tech, "iax2", techsize -1); 
+	} else if ((!strncasecmp(services, "e2u+x-iax", 9)) ||
+	    (!strncasecmp(services, "e2u+iax", 7)) ||
+	    (!strncasecmp(services, "iax+e2u", 7))) {
+		strncpy(tech, "iax", techsize -1); 
 	} else if ((!strncasecmp(services, "e2u+tel", 7)) || 
 	    (!strncasecmp(services, "tel+e2u", 7))) {
 		strncpy(tech, "tel", techsize -1); 
