@@ -383,16 +383,14 @@ static int agent_write(struct ast_channel *ast, struct ast_frame *f)
 static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct agent_pvt *p = newchan->pvt->pvt;
-	if (needlock)
-		ast_mutex_lock(&p->lock);
+	ast_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
 		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	p->owner = newchan;
-	if (needlock)
-		ast_mutex_unlock(&p->lock);
+	ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
