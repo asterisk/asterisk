@@ -1064,10 +1064,17 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %d since our native format has changed to %d\n", chan->name, f->subclass, chan->nativeformats);
 			ast_frfree(f);
 			f = &null_frame;
-		} else if (chan->pvt->readtrans) {
-			f = ast_translate(chan->pvt->readtrans, f, 1);
-			if (!f)
-				f = &null_frame;
+		} else {
+			if (chan->monitor && chan->monitor->read_stream ) {
+				if( ast_writestream( chan->monitor->read_stream, f ) < 0 ) {
+					ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
+				}
+			}
+			if (chan->pvt->readtrans) {
+				f = ast_translate(chan->pvt->readtrans, f, 1);
+				if (!f)
+					f = &null_frame;
+			}
 		}
 	}
 
@@ -1089,11 +1096,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		/* Answer the CDR */
 		ast_setstate(chan, AST_STATE_UP);
 		ast_cdr_answer(chan->cdr);
-	} else if( ( f->frametype == AST_FRAME_VOICE ) && chan->monitor && chan->monitor->read_stream ) {
-		if( ast_writestream( chan->monitor->read_stream, f ) < 0 ) {
-			ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
-		}
-	}
+	} 
 	pthread_mutex_unlock(&chan->lock);
 
 	/* Run any generator sitting on the line */
