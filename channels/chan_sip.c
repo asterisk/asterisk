@@ -876,12 +876,14 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	p->outgoing = 1;
 	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
 	res = find_user(p,INC_OUT_USE);
-	p->restrictcid = ast->restrictcid;
-	p->jointcapability = p->capability;
-	transmit_invite(p, "INVITE", 1, NULL, NULL, vxml_url,distinctive_ring, 1);
-	if (p->maxtime) {
-		/* Initialize auto-congest time */
-		p->initid = ast_sched_add(sched, p->maxtime * 2, auto_congest, p);
+	if ( res != -1 ) {
+		p->restrictcid = ast->restrictcid;
+		p->jointcapability = p->capability;
+		transmit_invite(p, "INVITE", 1, NULL, NULL, vxml_url,distinctive_ring, 1);
+		if (p->maxtime) {
+			/* Initialize auto-congest time */
+			p->initid = ast_sched_add(sched, p->maxtime * 2, auto_congest, p);
+		}
 	}
 	return res;
 }
@@ -974,6 +976,8 @@ static int find_user(struct sip_pvt *fup, int event)
 		return 0;
 	}
 	switch(event) {
+		/* incoming and outgoing affects the inUse counter */
+		case DEC_OUT_USE:
 		case DEC_IN_USE:
 			if ( u->inUse > 0 ) {
 				u->inUse--;
@@ -982,16 +986,22 @@ static int find_user(struct sip_pvt *fup, int event)
 			}
 			break;
 		case INC_IN_USE:
+		case INC_OUT_USE:
 			if (u->incominglimit > 0 ) {
 				if (u->inUse >= u->incominglimit) {
 					ast_log(LOG_ERROR, "Call from user '%s' rejected due to usage limit of %d\n", u->name, u->incominglimit);
 					ast_mutex_unlock(&userl.lock);
+					/* inc inUse as well */
+					if ( event == INC_OUT_USE ) {
+						u->inUse++;
+					}
 					return -1; 
 				}
 			}
 			u->inUse++;
 			ast_log(LOG_DEBUG, "Call from user '%s' is %d out of %d\n", u->name, u->inUse, u->incominglimit);
 			break;
+		/* we don't use these anymore
 		case DEC_OUT_USE:
 			if ( u->outUse > 0 ) {
 				u->outUse--;
@@ -1009,6 +1019,7 @@ static int find_user(struct sip_pvt *fup, int event)
 			}
 			u->outUse++;
 			break;
+		*/
 		default:
 			ast_log(LOG_ERROR, "find_user(%s,%d) called with no event!\n",u->name,event);
 	}
@@ -1101,6 +1112,13 @@ static int sip_hangup(struct ast_channel *ast)
 				   INVITE, but do set an autodestruct just in case. */
 				needdestroy = 0;
 				sip_scheddestroy(p, 15000);
+				/* channel still up - reverse dec of inUse counter */
+				if ( p->outgoing ) {
+					find_user(p, INC_OUT_USE);
+				}
+				else {
+					find_user(p, INC_IN_USE);
+				}
 			} else {
 				char *res;
 				if (ast->hangupcause && ((res = hangup_cause2sip(ast->hangupcause)))) {
@@ -4815,6 +4833,15 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					parse_moved_contact(p, req);
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY, 0);
+					break;
+				case 487:
+					/* channel now destroyed - dec the inUse counter */
+					if ( p->outgoing ) {
+						find_user(p, DEC_OUT_USE);
+					}
+					else {
+						find_user(p, DEC_IN_USE);
+					}
 					break;
 				case 486: /* Busy here */
 				case 600: /* Busy everywhere */
