@@ -6545,6 +6545,15 @@ int unload_module()
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(type);
 	ast_unregister_application(app_dtmfmode);
+	ast_cli_unregister(&cli_show_users);
+	ast_cli_unregister(&cli_show_channels);
+	ast_cli_unregister(&cli_show_channel);
+	ast_cli_unregister(&cli_show_peers);
+	ast_cli_unregister(&cli_show_registry);
+	ast_cli_unregister(&cli_debug);
+	ast_cli_unregister(&cli_no_debug);
+	ast_cli_unregister(&cli_inuse_show);
+	ast_rtp_proto_unregister(&sip_rtp);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -6560,7 +6569,7 @@ int unload_module()
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread) {
+		if (monitor_thread && (monitor_thread != -2)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
