@@ -309,6 +309,10 @@ static void setup_env(struct ast_channel *chan, char *request, int fd, int enhan
 	/* ANI/DNIS */
 	fdprintf(fd, "agi_callerid: %s\n", chan->cid.cid_num ? chan->cid.cid_num : "unknown");
 	fdprintf(fd, "agi_calleridname: %s\n", chan->cid.cid_name ? chan->cid.cid_name : "unknown");
+	fdprintf(fd, "agi_callingpres: %d\n", chan->cid.cid_pres);
+	fdprintf(fd, "agi_callingani2: %d\n", chan->cid.cid_ani2);
+	fdprintf(fd, "agi_callington: %d\n", chan->cid.cid_ton);
+	fdprintf(fd, "agi_callingtns: %d\n", chan->cid.cid_tns);
 	fdprintf(fd, "agi_dnid: %s\n", chan->cid.cid_dnid ? chan->cid.cid_dnid : "unknown");
 	fdprintf(fd, "agi_rdnis: %s\n", chan->cid.cid_rdnis ? chan->cid.cid_rdnis : "unknown");
 
