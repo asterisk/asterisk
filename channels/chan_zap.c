@@ -2634,7 +2634,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						ast_log(LOG_DEBUG, "Ring detected\n");
 					p->subs[index].f.frametype = AST_FRAME_CONTROL;
 					p->subs[index].f.subclass = AST_CONTROL_RING;
-				} else if ((ast->_state == AST_STATE_RINGING) || (ast->_state == AST_STATE_DIALING)) {
+				} else if (p->outgoing && ((ast->_state == AST_STATE_RINGING) || (ast->_state == AST_STATE_DIALING))) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Line answered\n");
 					if (p->confirmanswer) {
