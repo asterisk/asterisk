@@ -51,21 +51,46 @@ bandwidth=low
 disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;allow=gsm			; Always allow GSM, it's cool :)
 ;
-; You can also adjust several parameters relating to the jitter
-; buffer.  Specifically, you can provide a maximum jitter buffer,
-; you can turn it off entirely, and you can specify an acceptable
-; drop rate (per MEMORY_SIZE, by default 3 of 100).  Disabling the
-; jitter buffer is generally recommended unless you are on a highly
-; jittery network, since usually jitter buffering will cause you additional
-; latency.  Finally, you can specify the maximum
-; excess jitter buffer, which if exceeded, causes the jitter buffer to
-; slowly shrink in order to improve latency.
+
+; You can adjust several parameters relating to the jitter buffer.
+; The jitter buffer's function is to compensate for varying
+; network delay.
+; All the jitter buffer settings except dropcount are in milliseconds.
+; The jitter buffer works for INCOMING audio - the outbound audio
+; will be dejittered by the jitter buffer at the other end.
 ;
+; jitterbuffer=yes|no: whether you want the jitter buffer at all.
+; dropcount: the jitter buffer is sized such that no more than "dropcount"
+; frames would have been "too late" over the last 2 seconds.
+; Set to a small number.  "3" represents 1.5% of frames dropped
+;
+; maxjitterbuffer: a maximum size for the jitter buffer.
+; Setting a reasonable maximum here will prevent the call delay
+; from rising to silly values in extreme situations.
+;
+; maxexcessbuffer: If conditions improve after a period of high jitter,
+; the jitter buffer can end up bigger than necessary.  If it ends up
+; more than "maxexcessbuffer" bigger than needed, Asterisk will start
+; gradually decreasing the amount of jitter buffering.
+;
+; minexcessbuffer: Sets a desired mimimum amount of headroom in 
+; the jitter buffer.  If Asterisk has less headroom than this, then
+; it will start gradually increasing the amount of jitter buffering.
+;
+; jittershrinkrate: when the jitter buffer is being gradually shrunk 
+; (or enlarged), how many millisecs shall we take off per 20ms frame
+; received?  Use a small number, or you will be able to hear it
+; changing.  An example: if you set this to 2, then the jitter buffer
+; size will change by 100 millisec per second.
+
 jitterbuffer=no
-;dropcount=3
+;dropcount=2
 ;maxjitterbuffer=500
-;maxexcessbuffer=100
-;
+;maxexcessbuffer=80
+;maxexcessbuffer=80
+;jittershrinkrate=1
+
+
 ;trunkfreq=20			; How frequently to send trunk msgs (in ms)
 ;
 ;

@@ -120,7 +120,6 @@ static int lagrq_time = 10;
 static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
 static int maxjitterbuffer=1000;
-static int minjitterbuffer=10;
 static int jittershrinkrate=2;
 static int trunkfreq = 20;
 static int authdebug = 1;
@@ -318,15 +317,19 @@ static struct iax2_registry *registrations;
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
 #define MIN_RETRY_TIME	100
 #define MAX_RETRY_TIME  10000
+
 #define MAX_JITTER_BUFFER 50
+#define MIN_JITTER_BUFFER 10
 
 #define DEFAULT_TRUNKDATA	640 * 10		/* 40ms, uncompressed linear * 10 channels */
 #define MAX_TRUNKDATA		640 * 200		/* 40ms, uncompressed linear * 200 channels */
 
 #define MAX_TIMESTAMP_SKEW	640
 
-/* If we have more than this much excess real jitter buffer, srhink it. */
+/* If we have more than this much excess real jitter buffer, shrink it. */
 static int max_jitter_buffer = MAX_JITTER_BUFFER;
+/* If we have less than this much excess real jitter buffer, enlarge it. */
+static int min_jitter_buffer = MIN_JITTER_BUFFER;
 
 struct chan_iax2_pvt {
 	/* Pipes for communication.  pipe[1] belongs to the
@@ -1625,7 +1628,10 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 {
 	int ms,x;
 	int drops[MEMORY_SIZE];
-	int min, max=0, maxone=0,y,z, match;
+	int min, max=0, prevjitterbuffer, maxone=0,y,z, match;
+
+	/* Remember current jitterbuffer so we can log any change */
+	prevjitterbuffer = iaxs[fr->callno]->jitterbuffer;
 
 	/* ms is a measure of the "lateness" of the packet relative to the first
 	   packet we received.  Understand that "ms" can easily be -ve if lag improves
@@ -1637,15 +1643,23 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		/* What likely happened here is that our counter has circled but we haven't
 		   gotten the update from the main packet.  We'll just pretend that we did, and
 		   update the timestamp appropriately. */
-		ms -= 65536;
-		fr->ts += 65536;
+		/*ms -= 65536; 	fr->ts += 65536;*/
+		fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
+		iaxs[fr->callno]->last = fr->ts;
+		ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
+		if (option_debug)
+			ast_log(LOG_DEBUG, "schedule_delivery: pushed forward timestamp\n");
 	}
 
 	if (ms < -32768) {
 		/* We got this packet out of order.  Lets add 65536 to it to bring it into our new
 		   time frame */
-		ms += 65536;
-		fr->ts -= 65536;
+		/*ms += 65536;  fr->ts -= 65536;*/
+		fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) - 0x10000) | (fr->ts & 0xFFFF);
+		iaxs[fr->callno]->last = fr->ts;
+		ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
+		if (option_debug)
+			ast_log(LOG_DEBUG, "schedule_delivery: pushed back timestamp\n");
 	}
 
 	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
@@ -1711,9 +1725,16 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 			iaxs[fr->callno]->historicjitter;
 
 	/* If our jitter buffer is too big (by a significant margin), then we slowly
-	   shrink it by about 1 ms each time to avoid letting the change be perceived */
+	   shrink it to avoid letting the change be perceived */
 	if (max < iaxs[fr->callno]->jitterbuffer - max_jitter_buffer)
 		iaxs[fr->callno]->jitterbuffer -= jittershrinkrate;
+
+	/* If our jitter buffer headroom is too small (by a significant margin), then we slowly enlarge it */
+	/* min_jitter_buffer should be SMALLER than max_jitter_buffer - leaving a "no mans land"
+	   in between - otherwise the jitterbuffer size will hunt up and down causing unnecessary
+	   disruption.  Set maxexcessbuffer to say 150msec, minexcessbuffer to say 50 */
+	if (max > iaxs[fr->callno]->jitterbuffer - min_jitter_buffer)
+		iaxs[fr->callno]->jitterbuffer += jittershrinkrate;
 
 
 #if 1
@@ -1737,9 +1758,12 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 
 	if (option_debug)
 		/* Log jitter stats for possible offline analysis */
-		ast_log(LOG_DEBUG, "Jitter: call=%d ts=%d: min=%d max=%d jb=%d; lateness=%d; jitter=%d historic=%d\n",
-					fr->callno, fr->ts, min, max, iaxs[fr->callno]->jitterbuffer, ms,
-					iaxs[fr->callno]->jitter, iaxs[fr->callno]->historicjitter);
+		ast_log(LOG_DEBUG, "Jitter: call=%d ts=%d %s: min=%d max=%d jb=%d %+d; lateness=%d; jitter=%d historic=%d\n",
+					fr->callno, fr->ts,
+					(fr->af.frametype == AST_FRAME_VOICE) ? "VOICE" : "CONTROL",
+					min, max, iaxs[fr->callno]->jitterbuffer,
+					iaxs[fr->callno]->jitterbuffer - prevjitterbuffer,
+					ms, iaxs[fr->callno]->jitter, iaxs[fr->callno]->historicjitter);
 	
 	/* Subtract the lateness from our jitter buffer to know how long to wait
 	   before sending our packet.  */
@@ -2870,7 +2894,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	fts = calc_timestamp(pvt, ts, f);
 
 	if ((pvt->trunk || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
-		/* High two bits are the same on timestamp, or sending on a trunk */ &&
+		/* High two bytes are the same on timestamp, or sending on a trunk */ &&
 	    (f->frametype == AST_FRAME_VOICE) 
 		/* is a voice frame */ &&
 		(f->subclass == pvt->svoiceformat) 
@@ -6410,12 +6434,12 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			ping_time = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxjitterbuffer")) 
 			maxjitterbuffer = atoi(v->value);
-		else if (!strcasecmp(v->name, "minjitterbuffer")) 
-			minjitterbuffer = atoi(v->value);
 		else if (!strcasecmp(v->name, "jittershrinkrate")) 
 			jittershrinkrate = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxexcessbuffer")) 
 			max_jitter_buffer = atoi(v->value);
+		else if (!strcasecmp(v->name, "minexcessbuffer")) 
+			min_jitter_buffer = atoi(v->value);
 		else if (!strcasecmp(v->name, "lagrqtime")) 
 			lagrq_time = atoi(v->value);
 		else if (!strcasecmp(v->name, "dropcount")) 
