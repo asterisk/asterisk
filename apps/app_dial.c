@@ -782,7 +782,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		if (chan->cdr)
 			ast_cdr_setdestchan(chan->cdr, tmp->chan->name);
 
-		/* check the restuls of ast_call */
+		/* check the results of ast_call */
 		if (res) {
 			/* Again, keep going even if there's an error */
 			if (option_debug)
