@@ -1594,6 +1594,7 @@ static struct iax_peer *mysql_peer(char *peer)
 		strncpy(p->name, peer, sizeof(p->name) - 1);
 		p->dynamic = 1;
 		p->delme = 1;
+		p->expire = -1;
 		p->capability = iax_capability;
 		strcpy(p->methods, "md5,plaintext");
 	}
@@ -3447,7 +3448,8 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 		/* Setup the expirey */
 		if (p->expire > -1)
 			ast_sched_del(sched, p->expire);
-		p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
+		if (p->expirey)
+			p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
 		MYSNPRINTF "peer=%s;yourip=%s;yourport=%d;refresh=%d;",
 			p->name, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), p->expirey);
 		if (p->hascallerid)

@@ -1596,6 +1596,7 @@ static struct iax2_peer *mysql_peer(char *peer)
 		strncpy(p->name, peer, sizeof(p->name) - 1);
 		p->dynamic = 1;
 		p->delme = 1;
+		p->expire = -1;
 		p->capability = iax2_capability;
 		p->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
 	}
@@ -3568,7 +3569,8 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 		/* Setup the expirey */
 		if (p->expire > -1)
 			ast_sched_del(sched, p->expire);
-		p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
+		if (p->expirey)
+			p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
 		iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
 		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
