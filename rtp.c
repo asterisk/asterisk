@@ -1073,6 +1073,8 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 			rtpheader[3] |= htonl((800));
 			/* Set the End bit for the last 3 */
 			rtpheader[3] |= htonl((1 << 23));
+		} else if ( x < 3) {
+			rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno++));
 		}
 	}
 	return 0;
