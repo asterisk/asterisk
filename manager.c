@@ -150,7 +150,7 @@ void astman_send_error(struct mansession *s, struct message *m, char *error)
 	char *id = astman_get_header(m,"ActionID");
 	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Error\r\n");
-	if (id && &id)
+	if (id && strlen(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "Message: %s\r\n\r\n", error);
 	ast_mutex_unlock(&s->lock);
@@ -161,7 +161,7 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 	char *id = astman_get_header(m,"ActionID");
 	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: %s\r\n", resp);
-	if (id && &id)
+	if (id && strlen(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	if (msg)
 		ast_cli(s->fd, "Message: %s\r\n\r\n", msg);
@@ -321,7 +321,7 @@ static int action_status(struct mansession *s, struct message *m)
 	char bridge[256];
 	astman_send_ack(s, m, "Channel status will follow");
 	c = ast_channel_walk(NULL);
-        if (id && &id)
+        if (id && strlen(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	while(c) {
 		if (c->bridge)
@@ -468,7 +468,7 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-        if (id && &id)
+        if (id && strlen(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	ast_cli(s->fd, "Response: Success\r\n"
 				   "%s"
@@ -489,7 +489,7 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 		return 0;
 	}
 	ast_app_messagecount(mailbox, &newmsgs, &oldmsgs);
-        if (id && &id) {
+        if (id && strlen(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	ast_cli(s->fd, "Response: Success\r\n"
@@ -519,7 +519,7 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 		context = "default";
 	status = ast_extension_state(NULL, context, exten);
 	ast_get_hint(hint, sizeof(hint) - 1, NULL, context, exten);
-        if (id && &id) {
+        if (id && strlen(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	ast_cli(s->fd, "Response: Success\r\n"
@@ -576,7 +576,7 @@ static int process_message(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-        if (id && *id) {
+        if (id && strlen(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	if (!s->authenticated) {
