@@ -7,6 +7,8 @@
     -- fix bug with supervised transfers
  -- chan_h323
     -- fix compilation problem
+ -- chan_iax2
+   -- avoid a deadlock related to a static config of a BUNCH of peers
  -- cdr_pgsql
     -- fix memory leak when reading config
  -- Numerous other minor bug fixes
