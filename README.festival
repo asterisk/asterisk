@@ -8,7 +8,7 @@ do not need to be dynamically generated all the time.
 You need : 
 
 1) festival, patched to produce 8khz waveforms on output. Patch for Festival
-1.4.1 RELEASE are included. The patch adds a new command to festival 
+1.4.2 RELEASE are included. The patch adds a new command to festival 
 (asterisk_tts). 
 
 2) My patches to asterisk that provide variable substitution and quoting to 
