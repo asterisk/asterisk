@@ -572,7 +572,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	struct ast_conf_user *user = malloc(sizeof(struct ast_conf_user));
 	struct ast_conf_user *usr = NULL;
 	int fd;
-	struct zt_confinfo ztc;
+	struct zt_confinfo ztc, ztc_empty;
 	struct ast_frame *f;
 	struct ast_channel *c;
 	struct ast_frame fr;
@@ -790,6 +790,7 @@ zapretry:
 		nfds = 0;
 	}
 	memset(&ztc, 0, sizeof(ztc));
+	memset(&ztc_empty, 0, sizeof(ztc_empty));
 	/* Check to see if we're in a conference... */
 	ztc.chan = 0;	
 	if (ioctl(fd, ZT_GETCONF, &ztc)) {
@@ -1078,10 +1079,7 @@ zapretry:
 					ret = 0;
 					break;
 				} else if (((f->frametype == AST_FRAME_DTMF) && (f->subclass == '*') && (confflags & CONFFLAG_STARMENU)) || ((f->frametype == AST_FRAME_DTMF) && menu_active)) {
-					int oldconfmode = 0;
-					oldconfmode = ztc.confmode;
-					ztc.confmode = 0;
-					if (ioctl(fd, ZT_SETCONF, &ztc)) {
+					if (ioctl(fd, ZT_SETCONF, &ztc_empty)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
 						ast_mutex_unlock(&conflock);
@@ -1202,7 +1200,7 @@ zapretry:
 					if (musiconhold) {
 			   			ast_moh_start(chan, NULL);
 					}
-					ztc.confmode = oldconfmode;
+
 					if (ioctl(fd, ZT_SETCONF, &ztc)) {
 						ast_log(LOG_WARNING, "Error setting conference\n");
 						close(fd);
