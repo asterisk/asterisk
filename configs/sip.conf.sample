@@ -48,3 +48,5 @@ context = default		; Default for incoming calls
 ;secret=blah
 ;host=dynamic
 ;defaultip=192.168.0.4
+;amaflags=default		; Choices are default, omit, billing, documentation
+;accountcode=markster		; Users may be associated with an accountcode tp ease billing
