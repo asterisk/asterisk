@@ -25,6 +25,7 @@ CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
 #CHANNEL_LIBS+=chan_vofr
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
+CHANNEL_LIBS+=$(shell [ -f h323/libchanh323.a ] && echo chan_h323.so)
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
 CFLAGS+=$(shell [ ! -f /usr/include/linux/if_wanpipe.h ] && echo " -DOLD_SANGOMA_API")
@@ -107,6 +108,10 @@ chan_vpb.o: chan_vpb.c
 
 chan_vpb.so: chan_vpb.o
 	 $(CXX) -shared -Xlinker -x -o $@ $< -lvpb -lpthread -lm -ldl
+
+chan_h323.so: chan_h323.o h323/libchanh323.a
+	$(CC) -shared -Xlinker -x -o $@ $< h323/libchanh323.a -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
+
 
 #chan_modem.so : chan_modem.o
 #	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<

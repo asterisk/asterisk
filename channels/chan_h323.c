@@ -56,7 +56,7 @@
 #include <netinet/ip.h>
 
 
-#include "chan_h323.h"
+#include "h323/chan_h323.h"
 
 /** String variables required by ASTERISK */
 static char *type	= "H323";
@@ -617,73 +617,73 @@ static int oh323_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 
 static struct ast_channel *oh323_new(struct oh323_pvt *i, int state, const char *host)
 {
-	struct ast_channel *tmp;
+	struct ast_channel *ch;
 	int fmt;
-	tmp = ast_channel_alloc(1);
+	ch = ast_channel_alloc(1);
 	
-	if (tmp) {
+	if (ch) {
 		
-		snprintf(tmp->name, sizeof(tmp->name)-1, "H323/%s", host);
-		tmp->nativeformats = i->capability;
-		if (!tmp->nativeformats)
-			tmp->nativeformats = capability;
-		fmt = ast_best_codec(tmp->nativeformats);
-		tmp->type = type;
-		tmp->fds[0] = ast_rtp_fd(i->rtp);
-		ast_setstate(tmp, state);
+		snprintf(ch->name, sizeof(ch->name)-1, "H323/%s", host);
+		ch->nativeformats = i->capability;
+		if (!ch->nativeformats)
+			ch->nativeformats = capability;
+		fmt = ast_best_codec(ch->nativeformats);
+		ch->type = type;
+		ch->fds[0] = ast_rtp_fd(i->rtp);
+		ast_setstate(ch, state);
 		
 		if (state == AST_STATE_RING)
-			tmp->rings = 1;
+			ch->rings = 1;
 		
-		tmp->writeformat = fmt;
-		tmp->pvt->rawwriteformat = fmt;
-		tmp->readformat = fmt;
-		tmp->pvt->rawreadformat = fmt;
+		ch->writeformat = fmt;
+		ch->pvt->rawwriteformat = fmt;
+		ch->readformat = fmt;
+		ch->pvt->rawreadformat = fmt;
 		
 		/* Allocate dsp for in-band DTMF support */
 		if (i->dtmfmode & H323_DTMF_INBAND) {
 			i->vad = ast_dsp_new();
 			ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
-        }
+        	}
 
 		/* Register the OpenH323 channel's functions. */
-		tmp->pvt->pvt = i;
-		tmp->pvt->send_digit = oh323_digit;
-		tmp->pvt->call = oh323_call;
-		tmp->pvt->hangup = oh323_hangup;
-		tmp->pvt->answer = oh323_answer;
-		tmp->pvt->read = oh323_read;
-		tmp->pvt->write = oh323_write;
-		tmp->pvt->indicate = oh323_indicate;
-		tmp->pvt->fixup = oh323_fixup;
-		tmp->pvt->bridge = ast_rtp_bridge;
+		ch->pvt->pvt = i;
+		ch->pvt->send_digit = oh323_digit;
+		ch->pvt->call = oh323_call;
+		ch->pvt->hangup = oh323_hangup;
+		ch->pvt->answer = oh323_answer;
+		ch->pvt->read = oh323_read;
+		ch->pvt->write = oh323_write;
+		ch->pvt->indicate = oh323_indicate;
+		ch->pvt->fixup = oh323_fixup;
+		ch->pvt->bridge = ast_rtp_bridge;
 
 		/*  Set the owner of this channel */
-		i->owner = tmp;
+		i->owner = ch;
 		
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
-		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
-		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);		
-		tmp->priority = 1;
+		strncpy(ch->context, i->context, sizeof(ch->context)-1);
+		strncpy(ch->exten, i->exten, sizeof(ch->exten)-1);		
+		ch->priority = 1;
 		if (strlen(i->callerid))
-			tmp->callerid = strdup(i->callerid);
+			ch->callerid = strdup(i->callerid);
 		if (strlen(i->accountcode))
-			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
+			strncpy(ch->accountcode, i->accountcode, sizeof(ch->accountcode)-1);
 		if (i->amaflags)
-			tmp->amaflags = i->amaflags;
+			ch->amaflags = i->amaflags;
 		if (state != AST_STATE_DOWN) {
-			if (ast_pbx_start(tmp)) {
-				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
-				ast_hangup(tmp);
-				tmp = NULL;
+			if (ast_pbx_start(ch)) {
+				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", ch->name);
+				ast_hangup(ch);
+				ch = NULL;
 			}
 		}
 	} else
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
-	return tmp;
+	return ch;
 }
 
 static struct oh323_pvt *oh323_alloc(int callid)
