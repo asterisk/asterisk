@@ -315,6 +315,8 @@ struct chan_iax2_pvt {
 	unsigned int last;
 	/* Last sent timestamp - never send the same timestamp twice in a single call */
 	unsigned int lastsent;
+	/* Next outgoing timestamp if everything is good */
+	unsigned int nextpred;
 	/* Ping time */
 	unsigned int pingtime;
 	/* Max time for initial response */
@@ -507,7 +509,7 @@ static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned in
 static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, char *, int);
 
-static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct timeval *tv);
+static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct ast_frame *f);
 
 static int send_ping(void *data)
 {
@@ -2569,10 +2571,16 @@ static unsigned int fix_peerts(struct iax2_peer *peer, int callno, unsigned int 
 	return ms + ts;
 }
 
-static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct timeval *delivery)
+static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct ast_frame *f)
 {
 	struct timeval tv;
 	int ms;
+	int voice = 0;
+	struct timeval *delivery = NULL;
+	if (f && (f->frametype == AST_FRAME_VOICE)) {
+		voice = 1;
+		delivery = &f->delivery;
+	}
 	if (!p->offset.tv_sec && !p->offset.tv_usec) {
 		gettimeofday(&p->offset, NULL);
 		/* Round to nearest 20ms */
@@ -2588,12 +2596,27 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 		ms = (tv.tv_sec - p->offset.tv_sec) * 1000 + (tv.tv_usec - p->offset.tv_usec) / 1000;
 		if (ms < 0)
 			ms = 0;
-	}
-	/* We never send the same timestamp twice, so fudge a little if we must */
-	if (ms <= p->lastsent) {
-		ms = p->lastsent + 1;
+		if (voice) {
+			/* On a voice frame, use predicted values if appropriate */
+			if (abs(ms - p->nextpred) <= 640) {
+				if (!p->nextpred)
+					p->nextpred = f->samples / 8;
+				ms = p->nextpred;
+			} else
+				p->nextpred = ms;
+		} else {
+			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinkign) if appropriate */
+			if (abs(ms - p->lastsent) <= 640) {
+				ms = p->lastsent + 3;
+			}
+		}
 	}
 	p->lastsent = ms;
+	if (voice)
+		p->nextpred = p->nextpred + f->samples / 8;
+#if 0
+	printf("TS: %s - %dms\n", voice ? "Audio" : "Control", ms);
+#endif	
 	return ms;
 }
 
@@ -2664,7 +2687,7 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 	lastsent = pvt->lastsent;
 
 	/* Calculate actual timestamp */
-	fts = calc_timestamp(pvt, ts, (f->frametype == AST_FRAME_VOICE) ? &f->delivery : NULL);
+	fts = calc_timestamp(pvt, ts, f);
 
 	if ((pvt->trunk || ((fts & 0xFFFF0000L) == (lastsent & 0xFFFF0000L)))
 		/* High two bits are the same on timestamp, or sending on a trunk */ &&
@@ -3706,6 +3729,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	pvt->lag = 0;
 	pvt->last = 0;
 	pvt->lastsent = 0;
+	pvt->nextpred = 0;
 	pvt->pingtime = DEFAULT_RETRY_TIME;
 	ast_mutex_lock(&iaxq.lock);
 	for (cur = iaxq.head; cur ; cur = cur->next) {
