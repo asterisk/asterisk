@@ -2544,10 +2544,11 @@ static int vm_forwardoptions(struct ast_channel *chan, struct ast_vm_user *vmu, 
 
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *callerid)
 {
-	char todir[256], fn[256], *stringp;
+	char todir[256], fn[256], ext_context[256], *stringp;
 
 	make_dir(todir, sizeof(todir), vmu->context, vmu->mailbox, "INBOX");
 	make_file(fn, sizeof(fn), todir, msgnum);
+	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
 
 	/* Attach only the first format */
 	fmt = ast_strdupa(fmt);
@@ -2580,8 +2581,8 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	}
 
 	/* Leave voicemail for someone */
-	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", vmu->mailbox, ast_app_has_voicemail(vmu->mailbox));
-	run_externnotify(chan->context, vmu->mailbox, ast_app_has_voicemail(vmu->mailbox));
+	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context));
+	run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
 	return 0;
 }
 
