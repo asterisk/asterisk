@@ -158,46 +158,54 @@ static int test_errors = 0;
 
 static void *test_thread_body(void *data) 
 { 
-  ast_mutex_lock(&test_lock);
-  lock_count += 10;
-  if(lock_count != 10) test_errors++;
-  ast_mutex_lock(&test_lock);
-  lock_count += 10;
-  if(lock_count != 20) test_errors++;
-  ast_mutex_lock(&test_lock2);
-  ast_mutex_unlock(&test_lock);
-  lock_count -= 10;
-  if(lock_count != 10) test_errors++;
-  ast_mutex_unlock(&test_lock);
-  lock_count -= 10;
-  ast_mutex_unlock(&test_lock2);
-  if(lock_count != 0) test_errors++;
-  return NULL;
+	ast_mutex_lock(&test_lock);
+	lock_count += 10;
+	if (lock_count != 10) 
+		test_errors++;
+	ast_mutex_lock(&test_lock);
+	lock_count += 10;
+	if (lock_count != 20) 
+		test_errors++;
+	ast_mutex_lock(&test_lock2);
+	ast_mutex_unlock(&test_lock);
+	lock_count -= 10;
+	if (lock_count != 10) 
+		test_errors++;
+	ast_mutex_unlock(&test_lock);
+	lock_count -= 10;
+	ast_mutex_unlock(&test_lock2);
+	if (lock_count != 0) 
+		test_errors++;
+	return NULL;
 } 
 
 int test_for_thread_safety(void)
 { 
-  ast_mutex_lock(&test_lock2);
-  ast_mutex_lock(&test_lock);
-  lock_count += 1;
-  ast_mutex_lock(&test_lock);
-  lock_count += 1;
-  pthread_create(&test_thread, NULL, test_thread_body, NULL); 
-  pthread_yield();
-  usleep(100);
-  if(lock_count != 2) test_errors++;
-  ast_mutex_unlock(&test_lock);
-  lock_count -= 1;
-  pthread_yield(); 
-  usleep(100); 
-  if(lock_count != 1) test_errors++;
-  ast_mutex_unlock(&test_lock);
-  lock_count -= 1;
-  if(lock_count != 0) test_errors++;
-  ast_mutex_unlock(&test_lock2);
-  pthread_yield();
-  usleep(100);
-  if(lock_count != 0) test_errors++;
-  pthread_join(test_thread, NULL);
-  return(test_errors);          /* return 0 on success. */
+	ast_mutex_lock(&test_lock2);
+	ast_mutex_lock(&test_lock);
+	lock_count += 1;
+	ast_mutex_lock(&test_lock);
+	lock_count += 1;
+	pthread_create(&test_thread, NULL, test_thread_body, NULL); 
+	pthread_yield();
+	usleep(100);
+	if (lock_count != 2) 
+		test_errors++;
+	ast_mutex_unlock(&test_lock);
+	lock_count -= 1;
+	pthread_yield(); 
+	usleep(100); 
+	if (lock_count != 1) 
+		test_errors++;
+	ast_mutex_unlock(&test_lock);
+	lock_count -= 1;
+	if (lock_count != 0) 
+		test_errors++;
+	ast_mutex_unlock(&test_lock2);
+	pthread_yield();
+	usleep(100);
+	if (lock_count != 0) 
+		test_errors++;
+	pthread_join(test_thread, NULL);
+	return(test_errors);          /* return 0 on success. */
 }
