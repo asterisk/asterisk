@@ -3678,7 +3678,7 @@ static void *ss_thread(void *data)
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
 		}
 		/* Wait for the first digit only if immediate=no */
-		if (!p->immediate)
+		if (((p->sig == SIG_EM) || (p->sig == SIG_EMWINK)) && !p->immediate)
 			/* Wait for the first digit (up to 5 seconds). */
 			res = ast_waitfordigit(chan,5000);
 		else res = 0;
