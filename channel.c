@@ -461,9 +461,9 @@ retry:
 		if (l) {
 			if (ast_mutex_trylock(&l->lock)) {
 				if (retries < 10)
-					ast_log(LOG_DEBUG, "Avoiding initial deadlock for '%s'\n", ret->name);
+					ast_log(LOG_DEBUG, "Avoiding initial deadlock for '%s'\n", l->name);
 				else
-					ast_log(LOG_WARNING, "Avoided initial deadlock for '%s', %d retries!\n", ret->name, retries);
+					ast_log(LOG_WARNING, "Avoided initial deadlock for '%s', %d retries!\n", l->name, retries);
 				ast_mutex_unlock(&chlock);
 				if (retries < 10) {
 					usleep(1);
