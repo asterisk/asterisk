@@ -157,105 +157,107 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		return NULL;
 	chan = malloc(sizeof(struct logchannel));
 
-	if (chan) {
-		memset(chan, 0, sizeof(struct logchannel));
-		if (!strcasecmp(channel, "console")) {
-			chan->type = LOGTYPE_CONSOLE;
-		} else if (!strncasecmp(channel, "syslog", 6)) {
-			/*
-			* syntax is:
-			*  syslog.facility => level,level,level
-			*/
-			facility = strchr(channel, '.');
-			if(!facility++ || !facility) {
-				facility = "local0";
-			}
+	if (!chan)	/* Can't allocate memory */
+		return NULL;
+
+	memset(chan, 0, sizeof(struct logchannel));
+	if (!strcasecmp(channel, "console")) {
+		chan->type = LOGTYPE_CONSOLE;
+	} else if (!strncasecmp(channel, "syslog", 6)) {
+		/*
+		* syntax is:
+		*  syslog.facility => level,level,level
+		*/
+		facility = strchr(channel, '.');
+		if(!facility++ || !facility) {
+			facility = "local0";
+		}
 
 #ifndef SOLARIS
-			/*
-		 	* Walk through the list of facilitynames (defined in sys/syslog.h)
-			* to see if we can find the one we have been given
-			*/
-			chan->facility = -1;
-		 	cptr = facilitynames;
-			while (cptr->c_name) {
-				if (!strcasecmp(facility, cptr->c_name)) {
-					    chan->facility = cptr->c_val;
-					    break;
-				}
-				cptr++;
+		/*
+ 		* Walk through the list of facilitynames (defined in sys/syslog.h)
+		* to see if we can find the one we have been given
+		*/
+		chan->facility = -1;
+ 		cptr = facilitynames;
+		while (cptr->c_name) {
+			if (!strcasecmp(facility, cptr->c_name)) {
+		 		chan->facility = cptr->c_val;
+				break;
 			}
+			cptr++;
+		}
 #else
-			chan->facility = -1;
-			if (!strcasecmp(facility, "kern")) 
-				chan->facility = LOG_KERN;
-			else if (!strcasecmp(facility, "USER")) 
-				chan->facility = LOG_USER;
-			else if (!strcasecmp(facility, "MAIL")) 
-				chan->facility = LOG_MAIL;
-			else if (!strcasecmp(facility, "DAEMON")) 
-				chan->facility = LOG_DAEMON;
-			else if (!strcasecmp(facility, "AUTH")) 
-				chan->facility = LOG_AUTH;
-			else if (!strcasecmp(facility, "SYSLOG")) 
-				chan->facility = LOG_SYSLOG;
-			else if (!strcasecmp(facility, "LPR")) 
-				chan->facility = LOG_LPR;
-			else if (!strcasecmp(facility, "NEWS")) 
-				chan->facility = LOG_NEWS;
-			else if (!strcasecmp(facility, "UUCP")) 
-				chan->facility = LOG_UUCP;
-			else if (!strcasecmp(facility, "CRON")) 
-				chan->facility = LOG_CRON;
-			else if (!strcasecmp(facility, "LOCAL0")) 
-				chan->facility = LOG_LOCAL0;
-			else if (!strcasecmp(facility, "LOCAL1")) 
-				chan->facility = LOG_LOCAL1;
-			else if (!strcasecmp(facility, "LOCAL2")) 
-				chan->facility = LOG_LOCAL2;
-			else if (!strcasecmp(facility, "LOCAL3")) 
-				chan->facility = LOG_LOCAL3;
-			else if (!strcasecmp(facility, "LOCAL4")) 
-				chan->facility = LOG_LOCAL4;
-			else if (!strcasecmp(facility, "LOCAL5")) 
-				chan->facility = LOG_LOCAL5;
-			else if (!strcasecmp(facility, "LOCAL6")) 
-				chan->facility = LOG_LOCAL6;
-			else if (!strcasecmp(facility, "LOCAL7")) 
-				chan->facility = LOG_LOCAL7;
+		chan->facility = -1;
+		if (!strcasecmp(facility, "kern")) 
+			chan->facility = LOG_KERN;
+		else if (!strcasecmp(facility, "USER")) 
+			chan->facility = LOG_USER;
+		else if (!strcasecmp(facility, "MAIL")) 
+			chan->facility = LOG_MAIL;
+		else if (!strcasecmp(facility, "DAEMON")) 
+			chan->facility = LOG_DAEMON;
+		else if (!strcasecmp(facility, "AUTH")) 
+			chan->facility = LOG_AUTH;
+		else if (!strcasecmp(facility, "SYSLOG")) 
+			chan->facility = LOG_SYSLOG;
+		else if (!strcasecmp(facility, "LPR")) 
+			chan->facility = LOG_LPR;
+		else if (!strcasecmp(facility, "NEWS")) 
+			chan->facility = LOG_NEWS;
+		else if (!strcasecmp(facility, "UUCP")) 
+			chan->facility = LOG_UUCP;
+		else if (!strcasecmp(facility, "CRON")) 
+			chan->facility = LOG_CRON;
+		else if (!strcasecmp(facility, "LOCAL0")) 
+			chan->facility = LOG_LOCAL0;
+		else if (!strcasecmp(facility, "LOCAL1")) 
+			chan->facility = LOG_LOCAL1;
+		else if (!strcasecmp(facility, "LOCAL2")) 
+			chan->facility = LOG_LOCAL2;
+		else if (!strcasecmp(facility, "LOCAL3")) 
+			chan->facility = LOG_LOCAL3;
+		else if (!strcasecmp(facility, "LOCAL4")) 
+			chan->facility = LOG_LOCAL4;
+		else if (!strcasecmp(facility, "LOCAL5")) 
+			chan->facility = LOG_LOCAL5;
+		else if (!strcasecmp(facility, "LOCAL6")) 
+			chan->facility = LOG_LOCAL6;
+		else if (!strcasecmp(facility, "LOCAL7")) 
+			chan->facility = LOG_LOCAL7;
 #endif /* Solaris */
 
-			if (0 > chan->facility) {
-				fprintf(stderr, "Logger Warning: bad syslog facility in logger.conf\n");
-				free(chan);
-				return NULL;
-			}
-
-			chan->type = LOGTYPE_SYSLOG;
-			openlog("asterisk", LOG_PID, chan->facility);
-		} else {
-			if (channel[0] == '/') {
-				if(!ast_strlen_zero(hostname)) { 
-					snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
-				} else {
-					strncpy(chan->filename, channel, sizeof(chan->filename) - 1);
-				}
-			}		  
-			
-			if(!ast_strlen_zero(hostname)) {
-				snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)ast_config_AST_LOG_DIR, channel, hostname);
-			} else {
-				snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, channel);
-			}
-			chan->fileptr = fopen(chan->filename, "a");
-			if (!chan->fileptr) {
-				/* Can't log here, since we're called with a lock */
-				fprintf(stderr, "Logger Warning: Unable to open log file '%s': %s\n", chan->filename, strerror(errno));
-			} 
-			chan->type = LOGTYPE_FILE;
+		if (0 > chan->facility) {
+			fprintf(stderr, "Logger Warning: bad syslog facility in logger.conf\n");
+			free(chan);
+			return NULL;
 		}
-		chan->logmask = make_components(components, lineno);
+
+		chan->type = LOGTYPE_SYSLOG;
+		snprintf(chan->filename, sizeof(chan->filename), "%s", channel);
+		openlog("asterisk", LOG_PID, chan->facility);
+	} else {
+		if (channel[0] == '/') {
+			if(!ast_strlen_zero(hostname)) { 
+				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
+			} else {
+				strncpy(chan->filename, channel, sizeof(chan->filename) - 1);
+			}
+		}		  
+		
+		if(!ast_strlen_zero(hostname)) {
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s.%s",(char *)ast_config_AST_LOG_DIR, channel, hostname);
+		} else {
+			snprintf(chan->filename, sizeof(chan->filename), "%s/%s", (char *)ast_config_AST_LOG_DIR, channel);
+		}
+		chan->fileptr = fopen(chan->filename, "a");
+		if (!chan->fileptr) {
+			/* Can't log here, since we're called with a lock */
+			fprintf(stderr, "Logger Warning: Unable to open log file '%s': %s\n", chan->filename, strerror(errno));
+		} 
+		chan->type = LOGTYPE_FILE;
 	}
+	chan->logmask = make_components(components, lineno);
 	return chan;
 }
 
