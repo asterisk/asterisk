@@ -235,6 +235,7 @@ static char cidinternalcontexts[MAX_NUM_CID_CONTEXTS][64];
 
 static char *emailbody = NULL;
 static int pbxskip = 0;
+static char *emailsubject = NULL;
 static char fromstring[100];
 static char emailtitle[100];
 
@@ -754,6 +755,18 @@ static int base_encode(char *filename, FILE *so)
 	return 1;
 }
 
+static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *dur, char *date, char *passdata)
+{
+	/* Prepare variables for substition in email body and subject */
+	pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
+	pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
+	sprintf(passdata,"%d",msgnum);
+	pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
+	pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
+	pbx_builtin_setvar_helper(ast, "VM_CALLERID", (callerid ? callerid : "an unknown caller"));
+	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
+}
+
 static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *mailbox, char *callerid, char *attach, char *format, int duration, int attach_user_voicemail)
 {
 	FILE *p=NULL;
@@ -820,6 +833,20 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
 
+		if (emailsubject) {
+			struct ast_channel *ast = ast_channel_alloc(0);
+			if (ast) {
+				char *passdata;
+				int vmlen = strlen(emailsubject)*3 + 200;
+				if ((passdata = alloca(vmlen))) {
+					memset(passdata, 0, vmlen);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata);
+					pbx_substitute_variables_helper(ast,emailsubject,passdata,vmlen);
+					fprintf(p, "Subject: %s\n",passdata);
+				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+				ast_channel_free(ast);
+			} else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+		} else
 		if( *emailtitle)
 		{
 			fprintf(p, emailtitle, msgnum + 1, mailbox) ;
@@ -849,13 +876,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 				int vmlen = strlen(emailbody)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
 					memset(passdata, 0, vmlen);
-					pbx_builtin_setvar_helper(ast, "VM_NAME", vmu->fullname);
-					pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
-					sprintf(passdata,"%d",msgnum);
-					pbx_builtin_setvar_helper(ast, "VM_MSGNUM", passdata);
-					pbx_builtin_setvar_helper(ast, "VM_MAILBOX", mailbox);
-					pbx_builtin_setvar_helper(ast, "VM_CALLERID", (callerid ? callerid : "an unknown caller"));
-					pbx_builtin_setvar_helper(ast, "VM_DATE", date);
+					prep_email_sub_vars(ast,vmu,msgnum + 1,mailbox,callerid,dur,date,passdata);
 					pbx_substitute_variables_helper(ast,emailbody,passdata,vmlen);
 					fprintf(p, "%s\n",passdata);
 				} else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
@@ -3811,12 +3832,18 @@ static int load_config(void)
 			free(emailbody);
 			emailbody = NULL;
 		}
+		if (emailsubject) {
+			free(emailsubject);
+			emailsubject = NULL;
+		}
 		if ((s=ast_variable_retrieve(cfg, "general", "pbxskip")))
 			pbxskip = ast_true(s);
 		if ((s=ast_variable_retrieve(cfg, "general", "fromstring")))
 			strncpy(fromstring,s,sizeof(fromstring)-1);
 		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle")))
 			strncpy(emailtitle,s,sizeof(emailtitle)-1);
+		if ((s=ast_variable_retrieve(cfg, "general", "emailsubject")))
+			emailsubject = strdup(s);
 		if ((s=ast_variable_retrieve(cfg, "general", "emailbody"))) {
 			char *tmpread, *tmpwrite;
 			emailbody = strdup(s);
