@@ -8597,12 +8597,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ignore=1;
 		}
 	
-		if (seqno >= p->icseq)
-			/* Next should follow monotonically (but not necessarily 
-			   incrementally -- thanks again to the genius authors of SIP --
-			   increasing */
-			p->icseq = seqno;
-
 		extract_uri(p, req);
 		while(*e && (*e < 33)) 
 			e++;
@@ -8631,6 +8625,12 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		ignore=1;
 	}
 		
+	if (seqno >= p->icseq)
+		/* Next should follow monotonically (but not necessarily 
+		   incrementally -- thanks again to the genius authors of SIP --
+		   increasing */
+		p->icseq = seqno;
+
 	/* Find their tag if we haven't got it */
 	if (ast_strlen_zero(p->theirtag)) {
 		from = get_header(req, "From");
