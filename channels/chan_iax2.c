@@ -3669,7 +3669,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				iaxs[callno]->calling_ton = 0;
 				strncpy(iaxs[callno]->cid_num, user->cid_num, sizeof(iaxs[callno]->cid_num)-1);
 				strncpy(iaxs[callno]->cid_name, user->cid_name, sizeof(iaxs[callno]->cid_name)-1);
-				iaxs[callno]->calling_pres = 0;
+				iaxs[callno]->calling_pres = AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN;
 			}
 			strncpy(iaxs[callno]->ani, user->cid_num, sizeof(iaxs[callno]->ani)-1);
 		} else {
