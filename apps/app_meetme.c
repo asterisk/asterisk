@@ -961,10 +961,11 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
-	struct ast_conference *cnf = confs;
+	struct ast_conference *cnf;
 
 	/* Check first in the conference list */
 	ast_mutex_lock(&conflock);
+	cnf = confs;
 	while (cnf) {
 		if (!strcmp(confno, cnf->confno)) 
 			break;
