@@ -932,7 +932,7 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 			
 			/* XXX Maybe we should fire a new thread to attempt to re-register later and not kill asterisk here? */
 
-			delete rasChannel;
+		//	delete rasChannel;
 			return 1;
 		}
 	}
