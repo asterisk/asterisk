@@ -18,6 +18,8 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/frame.h>
+#include <asterisk/term.h>
+#include <asterisk/manager.h>
 #include <asterisk/file.h>
 #include <asterisk/cli.h>
 #include <asterisk/lock.h>
@@ -38,6 +40,8 @@
 #define MODE_MATCH 		0
 #define MODE_MATCHMORE 	1
 #define MODE_CANMATCH 	2
+
+#define EXT_DATA_SIZE 256
 
 static char *tdesc = "Realtime Switch";
 
@@ -159,7 +163,11 @@ static int realtime_canmatch(struct ast_channel *chan, const char *context, cons
 static int realtime_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
 {
 	char app[256];
-	char *appdata="";
+	char appdata[512]="";
+	char *tmp="";
+    char tmp1[80];
+    char tmp2[80];
+    char tmp3[EXT_DATA_SIZE];
 	struct ast_app *a;
 	struct ast_variable *v;
 	REALTIME_COMMON(MODE_MATCH);
@@ -169,13 +177,30 @@ static int realtime_exec(struct ast_channel *chan, const char *context, const ch
 			if (!strcasecmp(v->name, "app"))
 				strncpy(app, v->value, sizeof(app) -1 );
 			else if (!strcasecmp(v->name, "appdata"))
-				appdata = ast_strdupa(v->value);
+				tmp = ast_strdupa(v->value);
 			v = v->next;
 		}
 		ast_destroy_realtime(var);
 		if (!ast_strlen_zero(app)) {
 			a = pbx_findapp(app);
 			if (a) {
+				if(!ast_strlen_zero(tmp))
+				   pbx_substitute_variables_helper(chan, tmp, appdata, sizeof(appdata) - 1);
+                if (option_verbose > 2)
+					ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\")\n",
+								 term_color(tmp1, app, COLOR_BRCYAN, 0, sizeof(tmp1)),
+								 term_color(tmp2, chan->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
+								 term_color(tmp3, (!ast_strlen_zero(appdata) ? (char *)appdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)));
+                manager_event(EVENT_FLAG_CALL, "Newexten",
+							  "Channel: %s\r\n"
+							  "Context: %s\r\n"
+							  "Extension: %s\r\n"
+							  "Priority: %d\r\n"
+							  "Application: %s\r\n"
+							  "AppData: %s\r\n"
+							  "Uniqueid: %s\r\n",
+							  chan->name, chan->context, chan->exten, chan->priority, app, appdata ? appdata : "(NULL)", chan->uniqueid);
+				
 				res = pbx_exec(chan, a, appdata, newstack);
 			} else
 				ast_log(LOG_NOTICE, "No such application '%s' for extension '%s' in context '%s'\n", app, exten, context);
