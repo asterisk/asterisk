@@ -13,6 +13,8 @@
 
 OSARCH=$(shell uname -s)
 
+USE_MYSQL_FRIENDS=0
+
 CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
 	     chan_modem_aopen.so \
              chan_modem_bestdata.so chan_modem_i4l.so \
@@ -49,6 +51,10 @@ ALSA_SRC+=$(shell [ -f alsa-monitor.h ] && echo "alsa-monitor.h")
 
 CFLAGS+=-DCRYPTO
 CFLAGS+=-fPIC
+
+ifeq ($(USE_MYSQL_FRIENDS),1)
+CFLAGS+=-DMYSQL_FRIENDS
+endif
 
 CFLAGS+=#-DVOFRDUMPER
 
@@ -101,7 +107,11 @@ chan_oss.so: chan_oss.o
 endif
 
 chan_iax2.so: chan_iax2.o iax2-parser.o
+ifeq ($(USE_MYSQL_FRIENDS),1)
+	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o -lmysqlclient -lz
+else
 	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o
+endif
 
 chan_zap.o: $(CHANZAP)
 	$(CC) -c $(CFLAGS) -o chan_zap.o $(CHANZAP)
