@@ -2733,6 +2733,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 			}
 		}
 	}
+	strncat(a, "a=silenceSupp:off - - - -\r\n", sizeof(a) - strlen(a));
 	if (strlen(m) < sizeof(m) - 2)
 		strcat(m, "\r\n");
 	if (strlen(m2) < sizeof(m2) - 2)
