@@ -3596,8 +3596,6 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                 adsi = ast_true(v->value);
             } else if (!strcasecmp(v->name, "callreturn")) {
                 callreturn = ast_true(v->value);
-            } else if (!strcasecmp(v->name, "immediate")) {
-                immediate = ast_true(v->value);
             } else if (!strcasecmp(v->name, "callwaiting")) {
                 callwaiting = ast_true(v->value);
             } else if (!strcasecmp(v->name, "slowsequence")) {
