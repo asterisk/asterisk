@@ -104,7 +104,7 @@ static void bitget_init_end(unsigned char *buf_end)
    bitdat.bs_ptr_end = buf_end;
 }
 /*------------- get n bits from bitstream -------------*/
-int bitget_bits_used()
+int bitget_bits_used(void)
 {
    int n;			/* compute bits used from last init call */
 
@@ -142,7 +142,7 @@ unsigned int bitget(int n)
    return x;
 }
 /*------------- get 1 bit from bitstream -------------*/
-unsigned int bitget_1bit()
+unsigned int bitget_1bit(void)
 {
    unsigned int x;
 
@@ -994,8 +994,6 @@ void sbt_init(MPEG *m);
 #if 0
 typedef int iARRAY22[22];
 #endif
-iARRAY22 *quant_init_band_addr();
-iARRAY22 *msis_init_band_addr();
 
 /*---------------------------------------------------------*/
 /* mpeg_head defined in mhead.h  frame bytes is without pad */

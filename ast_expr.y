@@ -79,17 +79,20 @@ static struct val	*op_times __P((struct val *, struct val *));
 static quad_t		to_integer __P((struct val *));
 static void		to_string __P((struct val *));
 static int		ast_yyerror __P((const char *));
-static int		ast_yylex __P(());
 %}
 
 %pure-parser
 /* %name-prefix="ast_yy" */
 
-
 %union
 {
 	struct val *val;
 }
+
+%{
+static int		ast_yylex __P((YYSTYPE *, struct parser_control *));
+%}
+
 
 %left <val> '|'
 %left <val> '&'

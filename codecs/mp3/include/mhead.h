@@ -210,9 +210,8 @@ MPEG8;
 #include "itype.h"
 
 typedef void (*SBT_FUNCTION) (SAMPLEINT * sample, short *pcm, int n);
-typedef void (*UNPACK_FUNCTION) ();
 
-typedef struct
+typedef struct MPEGI
 {
 	struct {
 		DEC_INFO decinfo;
@@ -241,7 +240,7 @@ typedef struct
 		signed short group9_table[1024][3];
 		int nsbt;
 		SBT_FUNCTION sbt;
-		UNPACK_FUNCTION unpack_routine;
+		void (*unpack_routine) (struct MPEGI *);
 		unsigned char *bs_ptr;
 		UINT32 bitbuf;
 		int bits;

@@ -140,7 +140,7 @@ int L3table_init(MPEG *m)
 }
 /*====================================================================*/
 typedef float ARRAY36[36];
-ARRAY36 *hwin_init_addr();
+ARRAY36 *hwin_init_addr(MPEG *m);
 
 /*--------------------------------------------------------------------*/
 void hwin_init(MPEG *m)
@@ -200,8 +200,8 @@ void hwin_init(MPEG *m)
 }
 /*=============================================================*/
 typedef float ARRAY4[4];
-IMDCT_INIT_BLOCK *imdct_init_addr_18();
-IMDCT_INIT_BLOCK *imdct_init_addr_6();
+IMDCT_INIT_BLOCK *imdct_init_addr_18(void);
+IMDCT_INIT_BLOCK *imdct_init_addr_6(void);
 
 /*-------------------------------------------------------------*/
 void imdct_init(MPEG *m)

@@ -54,7 +54,7 @@ PG =
 # CC		= /usr/lang/acc
 # CCFLAGS 	= -c -O
 
-CC		= gcc -ansi -pedantic $(OPTIMIZE) -march=$(PROC) -fschedule-insns2  -fomit-frame-pointer 
+CC		= gcc -pipe -Wall $(OPTIMIZE) -march=$(PROC) -fschedule-insns2  -fomit-frame-pointer 
 CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -finline-functions -funroll-loops -fPIC
 
 LD 		= $(CC)

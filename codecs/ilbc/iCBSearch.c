@@ -117,7 +117,9 @@ void iCBSearch(
             *ppe=0.0; 
             pp=buf+LPC_FILTERORDER+lMem-lTarget; 
             for (j=0; j<lTarget; j++) { 
-                *ppe+=(*pp)*(*pp++); 
+		// XXXXXX is this the coder's intent?
+                //*ppe+=(*pp)*(*pp++); 
+                *ppe+=(pp[0])*(pp[1]); 
             } 
              
             if(*ppe>0.0) { 
@@ -295,7 +297,9 @@ void iCBSearch(
  
             pp=cbvectors+lMem-lTarget; 
             for (j=0; j<lTarget; j++) { 
-                *ppe+=(*pp)*(*pp++); 
+		// XXXXXX is this the coder's intent?
+                //*ppe+=(*pp)*(*pp++); 
+                *ppe+=(pp[0])*(pp[1]); 
             } 
  
             ppi = cbvectors + lMem - 1 - lTarget; 

@@ -312,7 +312,7 @@ int L1audio_decode_init(MPEG *m, MPEG_HEAD * h, int framebytes_arg,
 
 
 /* init sub-band transform */
-   sbt_init();
+   sbt_init(m);
 
    return 1;
 }

@@ -59,9 +59,9 @@ typedef struct editline EditLine;
  * For user-defined function interface
  */
 typedef struct lineinfo {
-	const char	*buffer;
-	const char	*cursor;
-	const char	*lastchar;
+	char	*buffer;
+	char	*cursor;
+	char	*lastchar;
 } LineInfo;
 
 

@@ -100,10 +100,10 @@ static signed int vb_ptr;
 extern WININT vbuf[512];
 extern WININT vbuf2[512];
 
-DCTCOEF *i_dct_coef_addr();
+DCTCOEF *i_dct_coef_addr(void);
 
 /*======================================================================*/
-static void gencoef()		/* gen coef for N=32 */
+static void gencoef(void)		/* gen coef for N=32 */
 {
    int p, n, i, k;
    double t, pi;
@@ -125,8 +125,8 @@ static void gencoef()		/* gen coef for N=32 */
    }
 }
 /*------------------------------------------------------------*/
-WINCOEF *i_wincoef_addr();
-static void genwincoef_q()	/* gen int window coefs from floating table */
+WINCOEF *i_wincoef_addr(void);
+static void genwincoef_q(void)	/* gen int window coefs from floating table */
 {
    int i, j, k, m;
    float x;
@@ -166,12 +166,11 @@ static void genwincoef_q()	/* gen int window coefs from floating table */
    }
 }
 /*------------------------------------------------------------*/
-static void genwincoef()	/* gen int window coefs from floating table */
+static void genwincoef(void)	/* gen int window coefs from floating table */
 {
    int i;
    float x;
    WINCOEF *iwincoef;
-   WINCOEF *i_wincoef_addr();
 
    iwincoef = i_wincoef_addr();
 
@@ -186,7 +185,7 @@ static void genwincoef()	/* gen int window coefs from floating table */
    }
 }
 /*------------------------------------------------------------*/
-void i_sbt_init()
+void i_sbt_init(void)
 {
    int i;
    static int first_pass = 1;

@@ -71,11 +71,11 @@ static IMDCT_INIT_BLOCK imdct_info_6 =
 {mdct6_3v, mdct6_3v2, &coef87};
 
 /*====================================================================*/
-IMDCT_INIT_BLOCK *imdct_init_addr_18()
+IMDCT_INIT_BLOCK *imdct_init_addr_18(void)
 {
    return &imdct_info_18;
 }
-IMDCT_INIT_BLOCK *imdct_init_addr_6()
+IMDCT_INIT_BLOCK *imdct_init_addr_6(void)
 {
    return &imdct_info_6;
 }

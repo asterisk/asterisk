@@ -427,7 +427,7 @@ static int get_user_input(char *msg, char *buf, int buflen)
 	newtComponent ok;
 	newtComponent cancel;
 	newtComponent inpfield;
-	char *input;
+	const char *input;
 	int res = -1;
 	struct newtExitStruct es;
 
@@ -550,8 +550,8 @@ static int login(char *hostname)
 	newtComponent label;
 	newtComponent ulabel;
 	newtComponent plabel;
-	char *user;
-	char *pass;
+	const char *user;
+	const char *pass;
 	struct message *m;
 	struct newtExitStruct es;
 	char tmp[55];

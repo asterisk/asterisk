@@ -45,13 +45,16 @@ static char sccsid[] = "@(#)hash_func.c	8.2 (Berkeley) 2/21/94";
 #include "page.h"
 #include "extern.h"
 
-static u_int32_t hash1 __P((const void *, size_t));
-static u_int32_t hash2 __P((const void *, size_t));
-static u_int32_t hash3 __P((const void *, size_t));
-static u_int32_t hash4 __P((const void *, size_t));
+/* only one of these can be defined */
+//#define HASH1_EJB 1
+//#define HASH2_PHONG 1
+//#define HASH3_SDBM 1
+#define HASH4_TOREK 1
+
+static u_int32_t hashfunc __P((const void *, size_t));
 
 /* Global default hash function */
-u_int32_t (*__default_hash) __P((const void *, size_t)) = hash4;
+u_int32_t (*__default_hash) __P((const void *, size_t)) = hashfunc;
 
 /*
  * HASH FUNCTIONS
@@ -62,11 +65,13 @@ u_int32_t (*__default_hash) __P((const void *, size_t)) = hash4;
  * This came from ejb's hsearch.
  */
 
+#ifdef HASH1_EJB
+
 #define PRIME1		37
 #define PRIME2		1048583
 
 static u_int32_t
-hash1(keyarg, len)
+hashfunc(keyarg, len)
 	const void *keyarg;
 	register size_t len;
 {
@@ -80,13 +85,16 @@ hash1(keyarg, len)
 	return (h);
 }
 
+#endif
+
+#ifdef HASH2_PHONG
 /*
  * Phong's linear congruential hash
  */
 #define dcharhash(h, c)	((h) = 0x63c63cd9*(h) + 0x9c39c33d + (c))
 
 static u_int32_t
-hash2(keyarg, len)
+hashfunc(keyarg, len)
 	const void *keyarg;
 	size_t len;
 {
@@ -104,7 +112,9 @@ hash2(keyarg, len)
 	}
 	return (h);
 }
+#endif
 
+#ifdef HASH3_SDBM
 /*
  * This is INCREDIBLY ugly, but fast.  We break the string up into 8 byte
  * units.  On the first time through the loop we get the "leftover bytes"
@@ -115,7 +125,7 @@ hash2(keyarg, len)
  * OZ's original sdbm hash
  */
 static u_int32_t
-hash3(keyarg, len)
+hashfunc(keyarg, len)
 	const void *keyarg;
 	register size_t len;
 {
@@ -160,10 +170,12 @@ hash3(keyarg, len)
 	}
 	return (h);
 }
+#endif
 
+#ifdef HASH4_TOREK
 /* Hash function from Chris Torek. */
 static u_int32_t
-hash4(keyarg, len)
+hashfunc(keyarg, len)
 	const void *keyarg;
 	register size_t len;
 {
@@ -210,3 +222,4 @@ hash4(keyarg, len)
 	}
 	return (h);
 }
+#endif

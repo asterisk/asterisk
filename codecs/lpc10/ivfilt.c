@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.14  2003/02/12 13:59:15  matteo
-mer feb 12 14:56:57 CET 2003
+Revision 1.15  2003/09/19 01:20:22  markster
+Code cleanups (bug #66)
+
+Revision 1.2  2003/09/19 01:20:22  markster
+Code cleanups (bug #66)
 
 Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 mer feb 12 14:56:57 CET 2003
@@ -32,9 +35,12 @@ extern int ivfilt_(real *lpbuf, real *ivbuf, integer *len, integer *nsamp, real 
 /* 	IVFILT Version 48 */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:15  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/09/19 01:20:22  markster
+ * Code cleanups (bug #66)
  *
+/* Revision 1.2  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:15  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -97,7 +103,7 @@ extern int ivfilt_(real *lpbuf, real *ivbuf, integer *len, integer *nsamp, real 
     /* Function Body */
     for (i__ = 1; i__ <= 3; ++i__) {
 	r__[i__ - 1] = 0.f;
-	k = i__ - 1 << 2;
+	k = (i__ - 1) << 2;
 	i__1 = *len;
 	for (j = (i__ << 2) + *len - *nsamp; j <= i__1; j += 2) {
 	    r__[i__ - 1] += lpbuf[j] * lpbuf[j - k];

@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.14  2003/02/12 13:59:14  matteo
-mer feb 12 14:56:57 CET 2003
+Revision 1.15  2003/09/19 01:20:22  markster
+Code cleanups (bug #66)
+
+Revision 1.2  2003/09/19 01:20:22  markster
+Code cleanups (bug #66)
 
 Revision 1.1.1.1  2003/02/12 13:59:14  matteo
 mer feb 12 14:56:57 CET 2003
@@ -56,9 +59,12 @@ static integer c__2 = 2;
 /* 	DECODE Version 54 */
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:14  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/09/19 01:20:22  markster
+ * Code cleanups (bug #66)
  *
+/* Revision 1.2  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:14  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -194,9 +200,12 @@ static integer c__2 = 2;
     integer ishift, errcnt, lsb;
 
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:14  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/09/19 01:20:22  markster
+ * Code cleanups (bug #66)
  *
+/* Revision 1.2  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:14  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -228,9 +237,12 @@ static integer c__2 = 2;
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
 /* $Log$
- * Revision 1.14  2003/02/12 13:59:14  matteo
- * mer feb 12 14:56:57 CET 2003
+ * Revision 1.15  2003/09/19 01:20:22  markster
+ * Code cleanups (bug #66)
  *
+/* Revision 1.2  2003/09/19 01:20:22  markster
+/* Code cleanups (bug #66)
+/*
 /* Revision 1.1.1.1  2003/02/12 13:59:14  matteo
 /* mer feb 12 14:56:57 CET 2003
 /*
@@ -518,9 +530,9 @@ static integer c__2 = 2;
 	}
 	for (i__ = 1; i__ <= 6; ++i__) {
 	    if ((i__1 = drc[i__ * 3 - 2] - drc[i__ * 3 - 3], (real) abs(i__1))
-		     >= corth[ixcor + (i__ + 2 << 2) - 5] && (i__2 = drc[i__ *
+		     >= corth[ixcor + ((i__ + 2) << 2) - 5] && (i__2 = drc[i__ *
 		     3 - 2] - drc[i__ * 3 - 1], (real) abs(i__2)) >= corth[
-		    ixcor + (i__ + 2 << 2) - 5]) {
+		    ixcor + ((i__ + 2) << 2) - 5]) {
 		irc[i__] = median_(&drc[i__ * 3 - 1], &drc[i__ * 3 - 2], &drc[
 			i__ * 3 - 3]);
 	    }

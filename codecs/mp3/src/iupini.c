@@ -268,7 +268,7 @@ static void table_init(MPEGI *m)
 int i_audio_decode_initL1(MPEGI *m, MPEG_HEAD * h, int framebytes_arg,
 		   int reduction_code, int transform_code, int convert_code,
 			  int freq_limit);
-void i_sbt_init();
+void i_sbt_init(void);
 
 /*---------------------------------------------------------*/
 /* mpeg_head defined in mhead.h  frame bytes is without pad */

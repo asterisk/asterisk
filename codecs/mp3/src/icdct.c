@@ -49,7 +49,7 @@ static DCTCOEF coef32[32];	/* 32 pt dct coefs */
 #define forward_bf idx_forward_bf
 /*--- #define forward_bf ptr_forward_bf  ---*/
 /*------------------------------------------------------------*/
-DCTCOEF *i_dct_coef_addr()
+DCTCOEF *i_dct_coef_addr(void)
 {
    return coef32;
 }

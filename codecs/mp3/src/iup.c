@@ -138,7 +138,7 @@ static int bat_bit_master[] =
 void i_sbt_mono(SAMPLEINT * sample, short *pcm, int n);
 void i_sbt_dual(SAMPLEINT * sample, short *pcm, int n);
 
-static void unpack();
+static void unpack(MPEGI *m);
 
 /*------------- initialize bit getter -------------*/
 static void load_init(MPEGI *m, unsigned char *buf)
@@ -514,7 +514,7 @@ IN_OUT i_audio_decode(MPEGI *m, unsigned char *bs, signed short *pcm)
    if (sync != 0xFFF)
       return in_out;		/* sync fail */
 /*-----------*/
-   m->iup.unpack_routine();
+   m->iup.unpack_routine(m);
 
 
    m->iup.sbt(m->iup.sample, pcm, m->iup.nsbt);
