@@ -7,6 +7,16 @@
  *
  * Mark Spencer <markster@digium.com>
  *
+ * 2004-11-25: Persistent Dynamic Members added by:
+ *             NetNation Communications (www.netnation.com)
+ *             Kevin Lindsay <kevinl@netnation.com>
+ * 
+ *             Each dynamic agent in each queue is now stored in the astdb.
+ *             When asterisk is restarted, each agent will be automatically
+ *             readded into their recorded queues. This feature can be
+ *             configured with the 'peristent_members=<1|0>' KVP under the
+ *             '[general]' group in queues.conf. The default is on.
+ * 
  * 2004-06-04: Priorities in queues added by inAccess Networks (work funded by Hellas On Line (HOL) www.hol.gr).
  *
  * These features added by David C. Troy <dave@toad.net>:
@@ -22,7 +32,7 @@
  * Added servicelevel statistic by Michiel Betel <michiel@betel.nl>
  * Added Priority jumping code for adding and removing queue members by Jonathan Stanton <asterisk@doilooklikeicare.com>
  *
- * Fixed ot work with CVS as of 2004-02-25 and released as 1.07a
+ * Fixed to work with CVS as of 2004-02-25 and released as 1.07a
  * by Matthew Enger <m.enger@xi.com.au>
  *
  * This program is free software, distributed under the terms of
@@ -46,6 +56,7 @@
 #include <asterisk/monitor.h>
 #include <asterisk/utils.h>
 #include <asterisk/causes.h>
+#include <asterisk/astdb.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -135,6 +146,13 @@ static char *app_rqm_descrip =
 "Returns -1 if there is an error.\n"
 "Example: RemoveQueueMember(techsupport|SIP/3000)\n"
 "";
+
+/* Persistent Members astdb family */
+static const char *pm_family = "/Queue/PersistentMembers";
+/* The maximum lengh of each persistent member queue database entry */
+#define PM_MAX_LEN 2048
+/* queues.conf [general] option */
+static int queue_persistent_members = 0;
 
 /* We define a customer "local user" structure because we
    use it not only for keeping track of what is in use but
@@ -1542,6 +1560,46 @@ static struct member * create_queue_node( char * interface, int penalty )
 	return( cur ) ;
 }
 
+/* Dump all members in a specific queue to the databse
+ *
+ * <pm_family>/<queuename> = <interface>;<penalty>;...
+ *
+ */
+static void dump_queue_members(struct ast_call_queue *pm_queue)
+{
+	struct member *cur_member = NULL;
+	char value[PM_MAX_LEN];
+	int value_len = 0;
+	int res;
+
+	memset(value, 0, sizeof(value));
+
+	if (pm_queue) {
+		cur_member = pm_queue->members;
+		while (cur_member) {
+			if (cur_member->dynamic) {
+				value_len = strlen(value);
+				res = snprintf(value+value_len, sizeof(value)-value_len, "%s/%s;%d;", cur_member->tech, cur_member->loc, cur_member->penalty);
+				if (res != strlen(value + value_len)) {
+					ast_log(LOG_WARNING, "Could not create persistent member string, out of space\n");
+					break;
+				}
+			}					
+			cur_member = cur_member->next;
+		}
+
+		if (!ast_strlen_zero(value) && !cur_member) {
+			if (ast_db_put(pm_family, pm_queue->name, value))
+			    ast_log(LOG_WARNING, "failed to create persistent dynamic entry!\n");
+		} else {
+			/* Delete the entry if the queue is empty or there is an error */
+		    ast_db_del(pm_family, pm_queue->name);
+		}
+
+	}
+
+}
+
 static int remove_from_queue(char *queuename, char *interface)
 {
 	struct ast_call_queue *q;
@@ -1570,6 +1628,10 @@ static int remove_from_queue(char *queuename, char *interface)
 						"Location: %s/%s\r\n",
 					q->name, last_member->tech, last_member->loc);
 				free(last_member);
+
+				if (queue_persistent_members)
+				    dump_queue_members(q);
+
 				res = RES_OKAY;
 			} else {
 				res = RES_EXISTS;
@@ -1610,6 +1672,10 @@ static int add_to_queue(char *queuename, char *interface, int penalty)
 						"Status: %d\r\n",
 					q->name, new_member->tech, new_member->loc, new_member->dynamic ? "dynamic" : "static",
 					new_member->penalty, new_member->calls, new_member->lastcall, new_member->status);
+					
+					if (queue_persistent_members)
+					    dump_queue_members(q);
+
 					res = RES_OKAY;
 				} else {
 					res = RES_OUTOFMEMORY;
@@ -1624,6 +1690,86 @@ static int add_to_queue(char *queuename, char *interface, int penalty)
 	}
 	ast_mutex_unlock(&qlock);
 	return res;
+}
+
+/* Add members saved in the queue members DB file saves
+ * created by dump_queue_members(), back into the queues */
+static void reload_queue_members(void)
+{
+	char *cur_pm_ptr;	
+	char *pm_queue_name;
+	char *pm_interface;
+	char *pm_penalty_tok;
+	int pm_penalty = 0;
+	struct ast_db_entry *pm_db_tree = NULL;
+	int pm_family_len = 0;
+	struct ast_call_queue *cur_queue = NULL;
+	char queue_data[PM_MAX_LEN];
+
+	pm_db_tree = ast_db_gettree(pm_family, NULL);
+
+	pm_family_len = strlen(pm_family);
+	ast_mutex_lock(&qlock);
+	/* Each key in 'pm_family' is the name of a specific queue in which
+	 * we will reload members into. */
+	while (pm_db_tree) {
+		pm_queue_name = pm_db_tree->key+pm_family_len+2;
+
+		cur_queue = queues;
+		while (cur_queue) {
+			ast_mutex_lock(&cur_queue->lock);
+			
+			if (strcmp(pm_queue_name, cur_queue->name) == 0)
+			    break;
+			
+			ast_mutex_unlock(&cur_queue->lock);
+			
+			cur_queue = cur_queue->next;
+		}
+
+		if (!cur_queue) {
+			/* If the queue no longer exists, remove it from the
+			 * database */
+			ast_db_del(pm_family, pm_queue_name);
+			pm_db_tree = pm_db_tree->next;
+			continue;
+		} else
+		    ast_mutex_unlock(&cur_queue->lock);
+
+		if (!ast_db_get(pm_family, pm_queue_name, queue_data, PM_MAX_LEN)) {
+			/* Parse each <interface>;<penalty>; from the value of the
+			 * queuename key and add it to the respective queue */
+			cur_pm_ptr = queue_data;
+			while ((pm_interface = strsep(&cur_pm_ptr, ";"))) {
+				if (!(pm_penalty_tok = strsep(&cur_pm_ptr, ";"))) {
+					ast_log(LOG_WARNING, "Error parsing corrupted Queue DB string for '%s'\n", pm_queue_name);
+					break;
+				}
+				pm_penalty = strtol(pm_penalty_tok, NULL, 10);
+				if (errno == ERANGE) {
+					ast_log(LOG_WARNING, "Error converting penalty: %s: Out of range.\n", pm_penalty_tok);
+					break;
+				}
+	
+				if (option_debug)
+				    ast_log(LOG_DEBUG, "Reload Members: Queue: %s  Member: %s  Penalty: %d\n", pm_queue_name, pm_interface, pm_penalty);
+	
+				if (add_to_queue(pm_queue_name, pm_interface, pm_penalty) == RES_OUTOFMEMORY) {
+					ast_log(LOG_ERROR, "Out of Memory\n");
+					break;
+				}
+			}
+		}
+		
+		pm_db_tree = pm_db_tree->next;
+	}
+
+	ast_log(LOG_NOTICE, "Queue members sucessfully reloaded from database.\n");
+	ast_mutex_unlock(&qlock);
+	if (pm_db_tree) {
+		ast_db_freetree(pm_db_tree);
+		pm_db_tree = NULL;
+	}
 }
 
 static int rqm_exec(struct ast_channel *chan, void *data)
@@ -1994,6 +2140,8 @@ static void reload_queues(void)
 	struct ast_variable *var;
 	struct member *prev, *cur;
 	int new;
+	char *general_val = NULL;
+	
 	cfg = ast_load("queues.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No call queueing config file, so no call queues\n");
@@ -2178,6 +2326,11 @@ static void reload_queues(void)
 					queues = q;
 				}
 			}
+		} else {
+			/* Initialize global settings */
+			queue_persistent_members = 0;
+			if ((general_val = ast_variable_retrieve(cfg, "general", "persistentmembers")))
+			    queue_persistent_members = ast_true(general_val);
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
@@ -2728,6 +2881,10 @@ int load_module(void)
 		ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip) ;
 	}
 	reload_queues();
+	
+	if (queue_persistent_members)
+	    reload_queue_members();
+
 	return res;
 }
 

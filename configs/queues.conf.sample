@@ -1,7 +1,13 @@
 [general]
 ;
 ; Global settings for call queues
-;   (none exist currently)
+;
+; Persistent Members
+;    Store each dynamic agent in each queue in the astdb so that
+;    when asterisk is restarted, each agent will be automatically
+;    readded into their recorded queues. Default is 'yes'.
+;
+persistentmembers = yes
 ;
 ; Note that a timeout to fail out of a queue may be passed as part of application call
 ; from extensions.conf:
