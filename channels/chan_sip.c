@@ -4079,7 +4079,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 static int sip_show_channels(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-6.6s\n"
+#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-6.6s%s\n"
 	struct sip_pvt *cur;
 	int numchans = 0;
 	if (argc != 3)
@@ -4095,7 +4095,7 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 						cur->ocseq, cur->icseq, 
 						0,
 						0,
-						ast_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
+						ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), cur->needdestroy ? "(d)" : "" );
 		numchans++;
 		}
 		cur = cur->next;
@@ -5278,7 +5278,7 @@ restartsearch:
 		sip = iflist;
 		while(sip) {
 			ast_mutex_lock(&sip->lock);
-			if (sip->needdestroy && !sip->packets) {
+			if (sip->needdestroy && (!sip->packets || (sip->packets->retransid == -1))) {
 				ast_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
 				goto restartsearch;
