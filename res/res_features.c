@@ -278,8 +278,8 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
                                 "CallerIDName: %s\r\n\r\n"
                                 ,pu->parkingnum, pu->chan->name, peer->name
                                 ,(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL)
-                                ,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "")
-                                ,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "")
+                                ,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+                                ,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
                                 );
 
 			if (peer) {
@@ -1135,6 +1135,17 @@ static void *do_parking_thread(void *ignore)
 					strncpy(pu->chan->context, pu->context, sizeof(pu->chan->context)-1);
 					pu->chan->priority = pu->priority;
 				}
+
+				manager_event(EVENT_FLAG_CALL, "ParkedCallTimeOut",
+					"Exten: %d\r\n"
+					"Channel: %s\r\n"
+					"CallerID: %s\r\n"
+					"CallerIDName: %s\r\n\r\n"
+					,pu->parkingnum, pu->chan->name
+					,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+					,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+					);
+
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->chan->context, pu->chan->exten, pu->chan->priority);
 				/* Start up the PBX, or hang them up */
@@ -1168,6 +1179,17 @@ static void *do_parking_thread(void *ignore)
 						/* See if they need servicing */
 						f = ast_read(pu->chan);
 						if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
+
+							manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
+								"Exten: %d\r\n"
+								"Channel: %s\r\n"
+								"CallerID: %s\r\n"
+								"CallerIDName: %s\r\n\r\n"
+								,pu->parkingnum, pu->chan->name
+								,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+								,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+								);
+
 							/* There's a problem, hang them up*/
 							if (option_verbose > 1) 
 								ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
@@ -1289,6 +1311,18 @@ static int park_exec(struct ast_channel *chan, void *data)
 				ast_log(LOG_WARNING, "Whoa, failed to remove the extension!\n");
 		} else
 			ast_log(LOG_WARNING, "Whoa, no parking context?\n");
+
+		manager_event(EVENT_FLAG_CALL, "UnParkedCall",
+			"Exten: %d\r\n"
+			"Channel: %s\r\n"
+			"From: %s\r\n"
+			"CallerID: %s\r\n"
+			"CallerIDName: %s\r\n\r\n"
+			,pu->parkingnum, pu->chan->name, chan->name
+			,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
+			,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
+			);
+
 		free(pu);
 	}
 	/* JK02: it helps to answer the channel if not already up */
