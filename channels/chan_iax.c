@@ -35,7 +35,6 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/time.h>
-#include <sys/signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -43,6 +42,9 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <pthread.h>
+#include <signal.h>
+#include <sys/signal.h>
 
 #ifdef MYSQL_FRIENDS
 #include <mysql/mysql.h>

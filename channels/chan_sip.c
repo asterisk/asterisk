@@ -48,6 +48,8 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+#include <signal.h>
 #include <sys/signal.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -6792,7 +6794,7 @@ int unload_module()
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != -2)) {
+		if (monitor_thread && ((int)monitor_thread != -2)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);

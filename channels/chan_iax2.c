@@ -40,6 +40,8 @@
 #include <netinet/ip.h>
 #include <sys/time.h>
 #include <sys/signal.h>
+#include <signal.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

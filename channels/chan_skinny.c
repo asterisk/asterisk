@@ -49,6 +49,8 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/signal.h>
+#include <signal.h>
+#include <pthread.h>
 #include <asterisk/dsp.h>
 #include <ctype.h>
 
