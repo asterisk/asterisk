@@ -43,9 +43,9 @@ mode=immediate
 ;
 ; List all devices we can use.
 ;
-;device=/dev/ttyS3
+;device => /dev/ttyS3
 ;
 ; ISDN example
 ;
 ;msn=39907835
-;device=/dev/ttyI0
+;device => /dev/ttyI0
