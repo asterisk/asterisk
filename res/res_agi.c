@@ -34,7 +34,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <sys/socket.h>
 #include <asterisk/cli.h>
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
