@@ -93,7 +93,7 @@ static int cleanup(void *useless)
 }
 
 
-static void __verboser(char *stuff, int opos, int replacelast, int complete)
+static void __verboser(const char *stuff, int opos, int replacelast, int complete)
 {
 	char *s2[2];
 	struct timeval tv;
@@ -123,7 +123,7 @@ static void __verboser(char *stuff, int opos, int replacelast, int complete)
 	}
 }
 
-static void verboser(char *stuff, int opos, int replacelast, int complete) 
+static void verboser(const char *stuff, int opos, int replacelast, int complete) 
 {
 	ast_mutex_lock(&verb_lock);
 	/* Lock appropriately if we're really being called in verbose mode */

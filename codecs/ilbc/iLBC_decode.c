@@ -22,6 +22,7 @@
 #include "helpfun.h" 
 #include "constants.h" 
 #include "packing.h" 
+#include "iLBC_decode.h"
 #include "string.h" 
 #include "enhancer.h" 
 #include "hpOutput.h" 
@@ -78,7 +79,7 @@ short initDecode(                   /* (o) Number of decoded
  *  frame residual decoder function (subrutine to iLBC_decode)  
  *---------------------------------------------------------------*/ 
  
-void Decode( 
+static void Decode( 
     float *decresidual,     /* (o) decoded residual frame */ 
     int start,              /* (i) location of start state */ 
     int idxForMax,          /* (i) codebook index for the maximum  

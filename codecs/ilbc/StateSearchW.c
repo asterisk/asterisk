@@ -18,6 +18,7 @@
 #include "constants.h" 
 #include "filter.h" 
 #include "helpfun.h" 
+#include "StateSearchW.h"
  
 /*----------------------------------------------------------------* 
  *  predictive noise shaping encoding of scaled start state  

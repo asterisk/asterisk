@@ -18,6 +18,7 @@
 #include "lsf.h" 
 #include "iLBC_define.h" 
 #include "constants.h" 
+#include "LPCdecode.h"
  
 /*----------------------------------------------------------------* 
  *  interpolation of lsf coefficients for the decoder                            

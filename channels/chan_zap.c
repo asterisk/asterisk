@@ -4348,7 +4348,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				}
 			} else {
 				/* Check for callerid, digits, etc */
-				chan = zt_new(i, AST_STATE_DOWN, 0, SUB_REAL, 0);
+				chan = zt_new(i, AST_STATE_RESERVED, 0, SUB_REAL, 0);
 				if (chan) {
 					if (has_voicemail(i))
 #ifdef ZT_TONE_STUTTER
@@ -4560,7 +4560,7 @@ static void *do_monitor(void *data)
 							if (last->msgstate != res) {
 								int x;
 								ast_log(LOG_DEBUG, "Message status for %s changed from %d to %d on %d\n", last->mailbox, last->msgstate, res, last->channel);
-								x = ZT_FLUSH_WRITE;
+								x = ZT_FLUSH_BOTH;
 								res2 = ioctl(last->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
 								if (res2)
 									ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", last->channel);

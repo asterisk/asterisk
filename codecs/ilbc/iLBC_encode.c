@@ -22,6 +22,7 @@
 #include "helpfun.h" 
 #include "constants.h" 
 #include "packing.h" 
+#include "iLBC_encode.h"
 #include "iCBSearch.h" 
 #include "iCBConstruct.h" 
 #include "hpInput.h" 

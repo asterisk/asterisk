@@ -12,6 +12,7 @@
 ******************************************************************/ 
  
 #include "iLBC_define.h" 
+#include "FrameClassify.h"
  
 /*----------------------------------------------------------------* 
  *  Classification of subframes to localize start state                           

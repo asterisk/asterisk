@@ -48,7 +48,7 @@ static char *synopsis = "Say text to the user";
 static char *descrip = 
 "  Festival(text[|intkeys]):  Connect to Festival, send the argument, get back the waveform,"
 "play it to the user, allowing any given interrupt keys to immediately terminate and return\n"
-"the value.\n";
+"the value, or 'any' to allow any number back (useful in dialplan)\n";
 
 STANDARD_LOCAL_USER;
 
@@ -122,7 +122,7 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
 }
 
 
-static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, int length) {
+static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, int length, char *intkeys) {
 	int res=0;
 	int fds[2];
 	int ms = -1;
@@ -170,9 +170,11 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 			}
 			if (f->frametype == AST_FRAME_DTMF) {
 				ast_log(LOG_DEBUG, "User pressed a key\n");
-				ast_frfree(f);
-				res = 0;
-				break;
+				if (strchr(intkeys, f->subclass)) {
+					res = f->subclass;
+					ast_frfree(f);
+					break;
+				}
 			}
 			if (f->frametype == AST_FRAME_VOICE) {
 				/* Treat as a generator */
@@ -224,7 +226,7 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
 
 
 
-static int festival_exec(struct ast_channel *chan, void *data)
+static int festival_exec(struct ast_channel *chan, void *vdata)
 {
 	int usecache;
 	int res=0;
@@ -253,9 +255,11 @@ static int festival_exec(struct ast_channel *chan, void *data)
 	int readcache=0;
 	int writecache=0;
 	int strln;
-	int fdesc;
+	int fdesc = -1;
 	char buffer[16384];
-	int seekpos;	
+	int seekpos = 0;	
+	char data[256] = "";
+	char *intstr;
 	
 	struct ast_config *cfg;
 	cfg = ast_load(FESTIVAL_CONFIG);
@@ -285,9 +289,16 @@ static int festival_exec(struct ast_channel *chan, void *data)
 	
 		
 
-	if (!data) {
+	if (!vdata || !strlen(vdata)) {
 		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
 		return -1;
+	}
+	strncpy(data, vdata, sizeof(data) - 1);
+	if ((intstr = strchr(data, '|'))) {
+		*intstr = '\0';
+		intstr++;
+		if (!strcasecmp(intstr, "any"))
+			intstr = AST_DIGIT_ANY;
 	}
 	LOCAL_USER_ADD(u);
 	ast_log(LOG_WARNING, "Text passed to festival server : %s\n",(char *)data);
@@ -398,7 +409,7 @@ static int festival_exec(struct ast_channel *chan, void *data)
 		if (strcmp(ack,"WV\n") == 0) {         /* receive a waveform */
 			ast_log(LOG_WARNING,"Festival WV command");
 			waveform = socket_receive_file_to_buff(fd,&filesize);
-			send_waveform_to_channel(chan,waveform,filesize);
+			send_waveform_to_channel(chan,waveform,filesize, intstr);
 			free(waveform);
 			res=0;
 			break;

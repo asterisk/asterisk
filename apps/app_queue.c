@@ -140,6 +140,7 @@ struct member {
 	char loc[256];				/* Location */
 	int penalty;				/* Are we a last resort? */
 	int calls;
+	int dynamic;				/* Are we dynamically added? */
 	time_t lastcall;	/* When last successful call was hungup */
 	struct member *next;		/* Next member */
 };
@@ -245,14 +246,22 @@ ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, q
 
 static void free_members(struct ast_call_queue *q)
 {
-	struct member *curm, *next;
+	/* Free non-dynamic members */
+	struct member *curm, *next, *prev;
 	curm = q->members;
+	prev = NULL;
 	while(curm) {
 		next = curm->next;
-		free(curm);
+		if (!curm->dynamic) {
+			if (prev)
+				prev->next = next;
+			else
+				q->members = next;
+			free(curm);
+		} else 
+			prev = curm;
 		curm = next;
 	}
-	q->members = NULL;
 }
 
 static void destroy_queue(struct ast_call_queue *q)
@@ -1044,9 +1053,10 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 					save = q->members ;
 					q->members = create_queue_node( interface ) ;
 
-					if( q->members != NULL )
+					if( q->members != NULL ) {
+						q->members->dynamic = 1;
 						q->members->next = save ;
-					else
+					} else
 						q->members = save ;
 
 					ast_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", interface, queuename);
@@ -1182,7 +1192,6 @@ static void reload_queues(void)
 	/* Mark all queues as dead for the moment */
 	q = queues;
 	while(q) {
-		q->dead = 1;
 		q = q->next;
 	}
 	/* Chug through config file */
@@ -1340,9 +1349,11 @@ static int queues_show(int fd, int argc, char **argv)
 			ast_cli(fd, "   Members: \n");
 			for (mem = q->members; mem; mem = mem->next) {
 				if (mem->penalty)
-					snprintf(max, sizeof(max), " with penalty %d", mem->penalty);
+					snprintf(max, sizeof(max) - 20, " with penalty %d", mem->penalty);
 				else
 					strcpy(max, "");
+				if (mem->dynamic)
+					strcat(max, " (dynamic)");
 				if (mem->calls) {
 					snprintf(calls, sizeof(calls), " has taken %d calls (last was %ld secs ago)",
 							mem->calls, time(NULL) - mem->lastcall);

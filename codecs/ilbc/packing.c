@@ -18,6 +18,7 @@
 #include "constants.h" 
 #include "helpfun.h" 
 #include "string.h" 
+#include "packing.h"
  
 /*----------------------------------------------------------------* 
  *  splitting an integer into first most significant bits and  

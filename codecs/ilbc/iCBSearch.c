@@ -15,6 +15,7 @@
 #include <string.h> 
  
 #include "iLBC_define.h" 
+#include "iCBSearch.h"
 #include "gainquant.h" 
 #include "createCB.h" 
 #include "filter.h" 

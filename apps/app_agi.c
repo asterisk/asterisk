@@ -452,13 +452,13 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	int res = 0;
 	int ms;
 
-        struct ast_dsp *sildet;         /* silence detector dsp */
+        struct ast_dsp *sildet=NULL;         /* silence detector dsp */
         int totalsilence = 0;
         int dspsilence = 0;
         int silence = 0;                /* amount of silence to allow */
         int gotsilence = 0;             /* did we timeout for silence? */
-        char *silencestr;
-        int rfmt;
+        char *silencestr=NULL;
+        int rfmt=0;
 
 
 	/* XXX EAGI FIXME XXX */

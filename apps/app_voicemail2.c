@@ -1793,7 +1793,6 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 		if ((res = ast_readstring(chan, username, sizeof(username) - 1, 2000, 10000, "#") < 0))
 			break;
 		if ((receiver = find_user(&srec, context, username))) {
-			printf("Got %d\n", atoi(username));
 			/* if (play_and_wait(chan, "vm-savedto"))
 				break;
 			*/

@@ -13,6 +13,7 @@
  
 #include <string.h> 
 #include "iLBC_define.h" 
+#include "anaFilter.h"
  
 /*----------------------------------------------------------------* 
  *  LP analysis filter. 

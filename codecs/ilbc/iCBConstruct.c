@@ -16,6 +16,7 @@
 #include "iLBC_define.h" 
 #include "gainquant.h" 
 #include "getCBvec.h" 
+#include "iCBConstruct.h"
  
 /*----------------------------------------------------------------* 
  *  Convert the codebook indexes to make the search easier 

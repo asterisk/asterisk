@@ -17,6 +17,7 @@
 #include "iLBC_define.h" 
 #include "constants.h" 
 #include "filter.h" 
+#include "StateConstructW.h"
  
 /*----------------------------------------------------------------* 
  *  decoding of the start state 

@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include <pthread.h>
 

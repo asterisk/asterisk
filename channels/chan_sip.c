@@ -2833,6 +2833,9 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 			strncpy(p->peername, r->username, sizeof(p->peername)-1);
 		strncpy(p->username, r->username, sizeof(p->username)-1);
 		strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
+		/* Always bind to our IP if specified */
+		if (bindaddr.sin_addr.s_addr)
+			memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
 		build_contact(p);
 	}
 

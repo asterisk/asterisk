@@ -15,6 +15,7 @@
 #include <math.h> 
 #include "constants.h" 
 #include "filter.h" 
+#include "gainquant.h"
  
 /*----------------------------------------------------------------* 
  *  quantizer for the gain in the gain-shape coding of residual 

@@ -13,6 +13,7 @@
  
 #include "iLBC_define.h" 
 #include "constants.h" 
+#include "createCB.h"
 #include <string.h> 
 #include <math.h> 
  

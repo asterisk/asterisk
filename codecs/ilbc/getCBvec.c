@@ -13,6 +13,7 @@
  
 #include "iLBC_define.h" 
 #include "constants.h" 
+#include "getCBvec.h"
 #include <string.h> 
  
 /*----------------------------------------------------------------* 
