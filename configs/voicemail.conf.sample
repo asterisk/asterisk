@@ -1,0 +1,14 @@
+;
+; Voicemail Configuration
+;
+[general]
+; Default format for writing Voicemail
+; format=g723sf|rawgsm|mp3|wav
+format=g723sf|wav
+
+[default]
+4200=2345,Mark Spencer,markster@linux-support.net
+4300=2345,Ben Rigas,ben@american-computer.net
+4310=2345,Sales,sales@marko.net
+4069=2345,Matt Brooks,matt@marko.net
+4110=1379,Rob Flynn,rflynn@blueridge.net

@@ -1,0 +1,118 @@
+;
+; Static extension configuration files, used by
+; the pbx_config module.
+;
+; The "General" category is for certain variables.  All other categories
+; are interpreted as extension contexts
+;
+[general]
+;
+; If static is set to no, or omitted, then the pbx_config will rewrite
+; this file when extensions are modified.  Remember that all comments
+; made in the file will be lost when that happens.
+;
+static=yes
+
+; Remote things always ring all phones first.
+[remote]
+exten=s,1,Dial,AdtranVoFR/4200&AdtranVoFR/4151&AdtranVoFR/4300|15
+exten=s,2,Goto,default|s|2
+
+; Local stuff
+[local]
+exten=s,1,Goto,defaults|s|2
+; Special extension for local phone numbers, long distance, etc, going
+; out via the Frame Relay interface.  Patterns are prefixed with "_", which
+; is ignored.
+exten=_9NXXXXXX,1,Dial,AdtranVoFR/BYEXTENSION
+exten=_91NXXNXXXXXX,1,Dial,AdtranVoFR/BYEXTENSION
+exten=_9911,1,Dial,AdtranVoFR/BYEXTENSION
+
+[default]
+exten=s,1,Wait,0
+exten=s,2,Answer
+exten=s,3,DigitTimeout,5
+exten=s,4,ResponseTimeout,10
+exten=s,5,BackGround,welcome
+exten=*,1,Directory,default
+exten=*,2,Goto,s|4
+exten=#,1,Playback,goodbye
+exten=#,2,Hangup
+exten=100,1,Goto,other|s|1
+exten=200,1,Intercom
+exten=400,1,MP3Player,song8.mp3
+exten=401,1,MP3Player,sample.mp3
+exten=402,1,MP3Player,sunscreen.mp3
+exten=403,1,MP3Player,http://trode.vergenet.net:8000
+exten=404,1,MP3Player,http://216.32.166.94:14900
+exten=405,1,Playback,sample
+;
+; Here's the template for a typical extension, carefully broken apart
+; for analysis.  The others are pretty much the same, but not as well
+; documented.
+;
+; Step 1:  Play back a "Please hold while I try that extension" message
+exten=4300,1,Playback,transfer
+; Step 2:  Dial the numbers where Ben is likely to be.  Try for no more
+;          than 15 seconds.
+exten=4300,2,Dial,AdtranVoFR/4300|15
+; Step 3:  If there is no answer, play back a message stating that Ben is
+;          unavailable.  Alternatively, we could have rung an operator first.
+exten=4300,3,Playback,vm/4300/unavail
+; Step 4:  Send them to voicemail.
+exten=4300,4,Voicemail,4300
+; Step 5:  If they return from voicemail, go back to the top
+exten=4300,5,Goto,s|4
+; Step 103: If the Dialing is busy, it will try here first.  We'll play a
+;           special "I'm busy" message...
+exten=4300,103,Playback,vm/4300/busy
+; Step 104: And then continue as if it had been busy in the first place.
+exten=4300,104,Goto,4
+; Exten. 4301: Provide a short-circuit so we can transfer striaght to 
+;              voicemail.
+exten=4301,1,Goto,4300|3
+; Exten. 4302: Provide a way to ring a given phone indefinitely
+exten=4302,1,Dial,AdtranVoFR/4300
+
+exten=4200,1,Playback,transfer
+exten=4200,2,Dial,AdtranVoFR/4200|15
+exten=4200,3,Playback,vm/4200/unavail
+exten=4200,4,Voicemail,4200
+exten=4200,5,Goto,s|4
+exten=4200,103,Playback,vm/4200/busy
+exten=4200,104,Goto,4
+exten=4201,1,Goto,4200|3
+exten=4202,1,Dial,AdtranVoFR/4200
+
+exten=4230,1,Dial,PhoneJack/ixj0
+
+exten=4110,1,Playback,transfer
+;exten=4110,2,Dial,AdtranVoFR/4110|15
+exten=4110,2,Wait,5
+exten=4110,3,Playback,vm/4110/unavail
+exten=4110,4,Voicemail,4110
+exten=4110,5,Goto,s|4
+exten=4110,103,Playback,vm/4110/busy
+exten=4110,104,Goto,4
+exten=4111,1,Goto,4110|3
+exten=4112,1,Dial,AdtranVoFR/4110
+exten=4113,1,Voicemail,s4110
+
+exten=8500,1,VoicemailMain
+exten=8500,2,Goto,s|4
+exten=762,1,Playback,somepeople
+exten=762,2,Wait,4
+exten=762,3,Goto,s|4
+
+; Timeout stuff...  We could send to an operator, or just ditch them.
+exten=t,1,Goto,#|1
+exten=i,1,BackGround,invalid
+
+[other]
+exten=s,1,Playback,digits/9
+exten=s,2,Playback,digits/8
+exten=s,3,Playback,digits/7
+exten=s,4,Goto,100|1
+exten=100,1,Playback,digits/6
+exten=100,2,Playback,digits/5
+exten=100,3,Goto,default|s|4
