@@ -61,6 +61,8 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit);
 
 int ast_rtp_settos(struct ast_rtp *rtp, int tos);
 
+void ast_rtp_setnat(struct ast_rtp *rtp, int nat);
+
 int ast2rtp(int id);
 
 int rtp2ast(int id);

@@ -2,7 +2,9 @@
 
 #define GSM_MAGIC 0xD
 
+#ifndef GSM_H
 typedef unsigned char           gsm_byte;
+#endif
 typedef unsigned char           wav_byte;
 typedef unsigned int			uword;
 
@@ -109,7 +111,7 @@ typedef unsigned int			uword;
         xmc[51]  = *c & 0x7;                    /* 33 */ \
 }
 
-static void conv66(gsm_byte * d, wav_byte * c) {
+static inline void conv66(gsm_byte * d, wav_byte * c) {
 	gsm_byte frame_chain;
     unsigned int sr;
 	unsigned int    LARc[8], Nc[4], Mc[4], bc[4], xmaxc[4], xmc[13*4];
@@ -450,7 +452,7 @@ static void conv66(gsm_byte * d, wav_byte * c) {
                            | (xmc[51] & 0x7); \
 }
 
-static void conv65( wav_byte * c, gsm_byte * d){
+static inline void conv65( wav_byte * c, gsm_byte * d){
 
                 unsigned int sr = 0;
                 unsigned int frame_chain;

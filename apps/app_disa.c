@@ -251,7 +251,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 						tmp[0] = 0;
 						while(fgets(tmp,sizeof(tmp) - 1,fp))
 						   {
-							char *stringp=NULL;
+							char *stringp=NULL,*stringp2;
 							if (!tmp[0]) continue;
 							if (tmp[strlen(tmp) - 1] == '\n') 
 								tmp[strlen(tmp) - 1] = 0;
@@ -261,9 +261,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							if (tmp[0] == ';') continue;
 							stringp=tmp;
 							strsep(&stringp, "|");
-							/* save 2nd arg as clid */
-							ourcallerid = arg2;
-							ourcontext = strsep(&stringp, "|");
+							stringp2=strsep(&stringp, "|");
+							if (stringp2) {
+								ourcontext=stringp2;
+								stringp2=strsep(&stringp, "|");
+								if (stringp2) ourcallerid=stringp2;
+							}
 							  /* password must be in valid format (numeric) */
 							if (sscanf(tmp,"%d",&j) < 1) continue;
 							  /* if we got it */

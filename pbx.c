@@ -32,6 +32,8 @@
 #include <setjmp.h>
 #include <ctype.h>
 #include <errno.h>
+#include <time.h>
+#include <sys/time.h>
 #include "asterisk.h"
 
 /*
@@ -1102,10 +1104,22 @@ int ast_pbx_run(struct ast_channel *c)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "PBX_THREAD(%s)\n", c->name);
 	else if (option_verbose > 1) {
-		if (c->callerid)
-			ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s' (%s)\n", c->name, c->callerid);
-		else
-			ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s'\n", c->name);
+		struct timeval tv;
+		struct tm tm;
+		FILE *LOG;
+
+		gettimeofday(&tv,NULL);
+		localtime_r(&(tv.tv_sec),&tm);
+		LOG = fopen(AST_SPOOL_DIR "/call.log","a");
+
+		if (c->callerid) {
+			ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s' (%s) at %02d-%02d %02d:%02d\n", c->name, c->callerid, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);
+			fprintf(LOG,"%04d-%02d-%02d %02d:%02d:%02d - %s - %s\n",tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, c->name, c->callerid);
+		} else {
+			ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s' at %02d-%02d %02d:%02d\n", c->name, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);
+			fprintf(LOG,"%04d-%02d-%02d %02d:%02d:%02d - %s\n",tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, c->name);
+		}
+		fclose(LOG);
 	}
 		
 	/* Start by trying whatever the channel is set to */
@@ -1156,10 +1170,18 @@ int ast_pbx_run(struct ast_channel *c)
 						c->_softhangup =0;
 						break;
 					}
+					/* atimeout */
+					if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
+						break;
+					}
 					goto out;
 				}
 			}
-			if (c->_softhangup) {
+			if ((c->_softhangup == AST_SOFTHANGUP_TIMEOUT) && (ast_exists_extension(c,c->context,"T",1,c->callerid))) {
+				strncpy(c->exten,"T",sizeof(c->exten) - 1);
+				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
+				c->whentohangup = 0;
+			} else if (c->_softhangup) {
 				ast_log(LOG_DEBUG, "Extension %s, priority %d returned normally even though call was hung up\n",
 					c->exten, c->priority);
 				goto out;
@@ -1179,6 +1201,9 @@ int ast_pbx_run(struct ast_channel *c)
 					c->name, c->exten, c->context);
 				goto out;
 			}
+		} else if (c->_softhangup == AST_SOFTHANGUP_TIMEOUT) {
+			/* If we get this far with AST_SOFTHANGUP_TIMEOUT, then we know that the "T" extension is next. */
+			c->_softhangup = 0;
 		} else {
 			/* Done, wait for an extension */
 			if (digit)

@@ -33,6 +33,7 @@
 #include <stdio.h>
 
 #include "gsm/inc/gsm.h"
+#include "../formats/msgsm.h"
 
 /* Sample frame data */
 #include "slin_gsm_ex.h"
@@ -57,7 +58,7 @@ struct ast_translator_pvt {
 
 #define gsm_coder_pvt ast_translator_pvt
 
-static struct ast_translator_pvt *gsm_new()
+static struct ast_translator_pvt *gsm_new(void)
 {
 	struct gsm_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct gsm_coder_pvt));
@@ -72,7 +73,7 @@ static struct ast_translator_pvt *gsm_new()
 	return tmp;
 }
 
-static struct ast_frame *lintogsm_sample()
+static struct ast_frame *lintogsm_sample(void)
 {
 	static struct ast_frame f;
 	f.frametype = AST_FRAME_VOICE;
@@ -87,7 +88,7 @@ static struct ast_frame *lintogsm_sample()
 	return &f;
 }
 
-static struct ast_frame *gsmtolin_sample()
+static struct ast_frame *gsmtolin_sample(void)
 {
 	static struct ast_frame f;
 	f.frametype = AST_FRAME_VOICE;
@@ -128,20 +129,47 @@ static int gsmtolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f)
 	/* Assuming there's space left, decode into the current buffer at
 	   the tail location.  Read in as many frames as there are */
 	int x;
-	if (f->datalen % 33) {
-		ast_log(LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 bytes long from %s (%d)?\n", f->src, f->datalen);
+	unsigned char data[66];
+	int msgsm=0;
+	
+	if ((f->datalen % 33) && (f->datalen % 65)) {
+		ast_log(LOG_WARNING, "Huh?  A GSM frame that isn't a multiple of 33 or 65 bytes long from %s (%d)?\n", f->src, f->datalen);
 		return -1;
 	}
-	for (x=0;x<f->datalen;x+=33) {
-		if (tmp->tail + 160 < sizeof(tmp->buf)/2) {	
-			if (gsm_decode(tmp->gsm, f->data + x, tmp->buf + tmp->tail)) {
-				ast_log(LOG_WARNING, "Invalid GSM data\n");
+	
+	if (f->datalen % 65 == 0) 
+		msgsm = 1;
+		
+	for (x=0;x<f->datalen;x+=(msgsm ? 65 : 33)) {
+		if (msgsm) {
+			/* Translate MSGSM format to Real GSM format before feeding in */
+			conv65(f->data + x, data);
+			if (tmp->tail + 320 < sizeof(tmp->buf)/2) {	
+				if (gsm_decode(tmp->gsm, data, tmp->buf + tmp->tail)) {
+					ast_log(LOG_WARNING, "Invalid GSM data (1)\n");
+					return -1;
+				}
+				tmp->tail+=160;
+				if (gsm_decode(tmp->gsm, data + 33, tmp->buf + tmp->tail)) {
+					ast_log(LOG_WARNING, "Invalid GSM data (2)\n");
+					return -1;
+				}
+				tmp->tail+=160;
+			} else {
+				ast_log(LOG_WARNING, "Out of (MS) buffer space\n");
 				return -1;
 			}
-			tmp->tail+=160;
 		} else {
-			ast_log(LOG_WARNING, "Out of buffer space\n");
-			return -1;
+			if (tmp->tail + 160 < sizeof(tmp->buf)/2) {	
+				if (gsm_decode(tmp->gsm, f->data + x, tmp->buf + tmp->tail)) {
+					ast_log(LOG_WARNING, "Invalid GSM data\n");
+					return -1;
+				}
+				tmp->tail+=160;
+			} else {
+				ast_log(LOG_WARNING, "Out of buffer space\n");
+				return -1;
+			}
 		}
 	}
 	return 0;

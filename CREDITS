@@ -32,6 +32,7 @@ James Golovch - Various contributions
        You can find him and asterisk-perl at http://asterisk.gnuinter.net
 Steven Critchfield - Seek and Trunc functions for playback and recording
 		critch@basesys.com
+Jefferson Noxon - app_lookupcidname, app_db, and various other contributions
 
 === OTHER SOURCE CODE IN ASTERISK ===
 

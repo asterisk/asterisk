@@ -34,6 +34,7 @@
 #include <asterisk/tdd.h>
 #include <asterisk/app.h>
 #include <asterisk/dsp.h>
+#include <asterisk/astdb.h>
 #include <sys/signal.h>
 #include <sys/select.h>
 #include <errno.h>

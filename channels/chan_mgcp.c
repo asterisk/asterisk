@@ -124,6 +124,7 @@ struct mgcp_endpoint {
 	int type;
 	int group;
 	int iseq;
+	int nat;
 	int lastout;
 	int alreadygone;
 	int needdestroy;
@@ -1129,6 +1130,8 @@ static void start_rtp(struct mgcp_endpoint *p)
 		p->rtp = ast_rtp_new(NULL, NULL);
 		if (p->rtp && p->owner)
 			p->owner->fds[0] = ast_rtp_fd(p->rtp);
+		if (p->rtp)
+			ast_rtp_setnat(p->rtp, p->nat);
 #if 0
 		ast_rtp_set_callback(p->rtp, rtpready);
 		ast_rtp_set_data(p->rtp, p);
@@ -1445,6 +1448,7 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 	char context[AST_MAX_EXTENSION] = "default";
 	char language[80] = "";
 	char callerid[AST_MAX_EXTENSION] = "";
+	int nat = 0;
 
 	gw = malloc(sizeof(struct mgcp_gateway));
 	if (gw) {
@@ -1463,6 +1467,8 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 				gw->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "context")) {
 				strncpy(context, v->value, sizeof(context) - 1);
+			} else if (!strcasecmp(v->name, "nat")) {
+				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
 				if (!strcasecmp(v->value, "asreceived"))
 					strcpy(callerid, "");
@@ -1482,6 +1488,7 @@ struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					strncpy(e->language, language, sizeof(e->language) - 1);
 					e->capability = capability;
 					e->parent = gw;
+					e->nat = nat;
 					strncpy(e->name, v->value, sizeof(e->name) - 1);
 					if (!strcasecmp(v->name, "trunk"))
 						e->type = TYPE_TRUNK;

@@ -50,6 +50,7 @@ struct ast_rtp {
 	int lasttxformat;
 	int lastrxformat;
 	int dtmfcount;
+	int nat;
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 	struct timeval rxcore;
@@ -112,6 +113,11 @@ void ast_rtp_set_data(struct ast_rtp *rtp, void *data)
 void ast_rtp_set_callback(struct ast_rtp *rtp, ast_rtp_callback callback)
 {
 	rtp->callback = callback;
+}
+
+void ast_rtp_setnat(struct ast_rtp *rtp, int nat)
+{
+	rtp->nat = nat;
 }
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
@@ -262,6 +268,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	res = recvfrom(rtp->s, rtp->rawdata + AST_FRIENDLY_OFFSET, sizeof(rtp->rawdata) - AST_FRIENDLY_OFFSET,
 					0, (struct sockaddr *)&sin, &len);
 
+
 	rtpheader = (unsigned int *)(rtp->rawdata + AST_FRIENDLY_OFFSET);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
@@ -272,6 +279,10 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	if (res < hdrlen) {
 		ast_log(LOG_WARNING, "RTP Read too short\n");
 		return &null_frame;
+	}
+	if (rtp->nat) {
+		/* Send to whoever sent to us */
+		memcpy(&rtp->them, &sin, sizeof(rtp->them));
 	}
 	/* Get fields */
 	seqno = ntohl(rtpheader[0]);

@@ -2516,6 +2516,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	while(user) {
 		if (!strcasecmp(user->name, of)) {
 			p->nat = user->nat;
+			if (p->rtp)
+				ast_rtp_setnat(p->rtp, p->nat);
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, cmd, uri))) {
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
 				if (strlen(user->callerid) && strlen(p->callerid)) 
