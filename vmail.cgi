@@ -672,7 +672,7 @@ sub file_copy()
 
 sub message_copy()
 {
-	my ($mbox, $oldfolder, $old, $newmbox, $new) = @_;
+	my ($mbox, $newmbox, $oldfolder, $old, $new) = @_;
 	my $oldfile, $newfile;
 	return if ($mbox eq $newmbox);
 	
@@ -788,7 +788,7 @@ sub message_forward()
 #		print header;
 		foreach $msg (@msgs) {
 #			print "Forwarding $msg from $mbox to $newmbox<BR>\n";
-			&message_copy($context, $mbox, $folder, $msg, $newmbox, sprintf "%04d", $msgcount);
+			&message_copy($mbox, $newmbox, $folder, $msg, sprintf "%04d", $msgcount);
 			$msgcount++;
 		}
 		$txt = "Forwarded messages " . join(', ', @msgs) . "to $newmbox";
