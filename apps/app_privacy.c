@@ -36,17 +36,23 @@ static char *synopsis = "Require phone number to be entered, if no CallerID sent
 
 static char *descrip =
   "  PrivacyManager: If no Caller*ID is sent, PrivacyManager answers the\n"
-  "channel and asks the caller to enter their 10 digit phone number.\n"
+  "channel and asks the caller to enter their phone number.\n"
   "The caller is given 3 attempts.  If after 3 attempts, they do not enter\n"
-  "their 10 digit phone number, and if there exists a priority n + 101,\n"
+  "at least a 10 digit phone number, and if there exists a priority n + 101,\n"
   "where 'n' is the priority of the current instance, then  the\n"
   "channel  will  be  setup  to continue at that priority level.\n"
   "Otherwise, it returns 0.  Does nothing if Caller*ID was received on the\n"
-  "channel.\n";
+  "channel.\n"
+  "  Configuration file privacy.conf contains two variables:\n"
+  "   maxretries  default 3  -maximum number of attempts the caller is allowed to input a callerid.\n"
+  "   minlength   default 10 -minimum allowable digits in the input callerid number.\n"
+;
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
+
+
 
 static int
 privacy_exec (struct ast_channel *chan, void *data)
@@ -54,9 +60,10 @@ privacy_exec (struct ast_channel *chan, void *data)
 	int res=0;
 	int retries;
 	int maxretries = 3;
+	int minlength = 10;
 	int x;
 	char *s;
-	char phone[10];
+	char phone[30];
 	char new_cid[144];
 	struct localuser *u;
 	struct ast_config *cfg;
@@ -95,16 +102,29 @@ privacy_exec (struct ast_channel *chan, void *data)
                         ast_log(LOG_WARNING, "Invalid max retries argument\n");
                 }
         }
+        if (cfg && (s = ast_variable_retrieve(cfg, "general", "minlength"))) {
+                if (sscanf(s, "%d", &x) == 1) {
+                        minlength = x;
+                } else {
+                        ast_log(LOG_WARNING, "Invalid min length argument\n");
+                }
+        }
 			
 		/*Ask for 10 digit number, give 3 attempts*/
 		for (retries = 0; retries < maxretries; retries++) {
 			if (!res)
-				res = ast_app_getdata(chan, "privacy-prompt", phone, sizeof(phone), 0);
+				res = ast_streamfile(chan, "privacy-prompt", chan->language);
+			if (!res)
+				res = ast_waitstream(chan, "");
+
+			if (!res ) 
+				res = ast_readstring(chan, phone, sizeof(phone) - 1, /* digit timeout ms */ 3200, /* first digit timeout */ 5000, "#");
+
 			if (res < 0)
 				break;
 
-			/*Make sure we get 10 digits*/
-			if (strlen(phone) == 10) 
+			/*Make sure we get at least digits*/
+			if (strlen(phone) >= minlength ) 
 				break;
 			else {
 				res = ast_streamfile(chan, "privacy-incorrect", chan->language);
@@ -114,7 +134,7 @@ privacy_exec (struct ast_channel *chan, void *data)
 		}
 		
 		/*Got a number, play sounds and send them on their way*/
-		if ((retries < maxretries) && !res) {
+		if ((retries < maxretries) && res == 1 ) {
 			res = ast_streamfile(chan, "privacy-thankyou", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");

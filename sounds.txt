@@ -246,7 +246,7 @@
 
 %privacy-unident.gsm%The party you are trying to reach does not accept unidentified calls.
 
-%privacy-prompt.gsm%Please enter your 10 digit phone number, starting with the area code.
+%privacy-prompt.gsm%Please enter your phone number, starting with the area code.
 
 %privacy-incorrect.gsm%I'm sorry, that number is not valid.
 
