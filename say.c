@@ -93,28 +93,36 @@ int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lan
 
 /* Forward declarations */
 /* Syntaxes supported, not really language codes.
+      da - Danish
+      de - German
       en - English, Swedish, Norwegian
-      fr - French
-      da - Danish (maybe German - please check)
-      pt - Portuguese
       es - Spanish
+      fr - French
       it - Italian
       nl - Dutch
+      pt - Portuguese
 
-  For portuguese, we're using an option to saynumber() to indicate if the gender is male of female
-  This should also be implemented in _full version, really.
+ Gender:
+ For Portuguese, we're using m & f options to saynumber() to indicate if the gender is masculine or feminine.
+ For Danish, we're using c & n options to saynumber() to indicate if the gender is commune or neutrum.
+ This still needs to be implemented for French, Spanish & German.
+
+ Note that in future, we need to move to a model where we can differentiate further - e.g. between en_US & en_UK
+
+ See contrib/i18n.testsuite.conf for some examples of the different syntaxes
 
  OEJ 2004-04-25
+ FPB 2004-05-01
 */
 
 static int ast_say_number_full_en(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
-static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
-static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_da(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
-static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
-static int ast_say_number_full_it(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_it(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_nl(struct ast_channel *chan, int num, char *ints, char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd);
 
 /*--- ast_say_number_full: call language-specific functions */
 /* Called from AGI */
@@ -136,7 +144,7 @@ int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lan
 	   return(ast_say_number_full_pt(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "es") ) {	/* Spanish syntax */
 	   return(ast_say_number_full_es(chan, num, ints, language, audiofd, ctrlfd));
-	} else if (!strcasecmp(language, "nl") ) {	/* Spanish syntax */
+	} else if (!strcasecmp(language, "nl") ) {	/* Dutch syntax */
 	   return(ast_say_number_full_nl(chan, num, ints, language, audiofd, ctrlfd));
 	}
 
@@ -151,15 +159,17 @@ int ast_say_number(struct ast_channel *chan, int num, char *ints, char *language
 	   return(ast_say_number_full_en(chan, num, ints, language, -1, -1));
 	}
 	/* French */
-	if (!strcasecmp(language, "fr")) {	/* French syntax */
+	if (!strcasecmp(language, "fr")) {		/* French syntax */
 	   return(ast_say_number_full_fr(chan, num, ints, language, -1, -1));
 	} else if (!strcasecmp(language, "da")) {	/* Danish syntax */
 	   return(ast_say_number_full_da(chan, num, ints, language, options, -1, -1));
+	} else if (!strcasecmp(language, "de")) {	/* German syntax */
+	   return(ast_say_number_full_de(chan, num, ints, language, -1, -1));
 	} else if (!strcasecmp(language, "it")) {	/* Italian syntax */
 	   return(ast_say_number_full_it(chan, num, ints, language, -1, -1));
 	} else if (!strcasecmp(language, "pt")) {	/* Portuguese syntax */
 	   return(ast_say_number_full_pt(chan, num, ints, language, options, -1, -1));
-	} else if (!strcasecmp(language, "nl")) {	/* Spanish syntax */
+	} else if (!strcasecmp(language, "nl")) {	/* Dutch syntax */
 	   return(ast_say_number_full_nl(chan, num, ints, language, -1, -1));
 	} else if (!strcasecmp(language, "es")) {	/* Spanish syntax */
 	   return(ast_say_number_full_es(chan, num, ints, language, -1, -1));
@@ -330,7 +340,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, char *ints,
 	if (options && !strncasecmp(options, "n",1)) cn = -1;
 
 	while(!res && (num || playh || playa )) {
-               /* The grammer for Danish numbers is the same as for English except
+               /* The grammar for Danish numbers is the same as for English except
                 * for the following:
 		* - 1 exists in both commune ("en", file "1N") and neutrum ("et", file "1")
                 * - numbers 20 through 99 are said in reverse order, i.e. 21 is
@@ -434,7 +444,7 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints,
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
 	while(!res && (num || playh || playa )) {
-               /* The grammer for German numbers is the same as for English except
+               /* The grammar for German numbers is the same as for English except
                 * for the following:
                 * - numbers 20 through 99 are said in reverse order, i.e. 21 is
                 *   "one-and twenty" and 68 is "eight-and sixty".
@@ -521,9 +531,11 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints,
 
 /*------------ Portuguese ----------------------*/
 /* ast_say_number_full_pt: Portuguese syntax */
+/* 	Extra sounds needed: */
 /* 	For feminin all sound files end with F */
 /*	100E for 100+ something */
-/*	What is "pt-e" */
+/*	1000000S for plural */
+/*	pt-e for 'and' */
 static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints, char *language, char *options, int audiofd, int ctrlfd)
 {
 	int res = 0;
