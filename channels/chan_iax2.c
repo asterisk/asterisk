@@ -2059,7 +2059,7 @@ static struct iax2_user *mysql_user(char *user)
 }
 #endif /* MYSQL_FRIENDS */
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *secret, int seclen, int *ofound, char *peercontext)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *username, int usernlen, char *secret, int seclen, int *ofound, char *peercontext)
 {
 	struct ast_hostent ahp; struct hostent *hp;
 	struct iax2_peer *p;
@@ -2100,6 +2100,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 				*trunk = p->trunk;
 			if (capability)
 				*capability = p->capability;
+			if (username)
+				strncpy(username, p->username, usernlen);
 			if (secret)
 				strncpy(secret, p->secret, seclen); /* safe */
 			if (p->addr.sin_addr.s_addr) {
@@ -2185,7 +2187,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	char *opts = "";
 	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
 	char *stringp=NULL;
-	char storedsecret[80];
+	char storedusern[80], storedsecret[80];
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)?\n", c->name);
 		return -1;
@@ -2227,7 +2229,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strsep(&stringp, ":");
 		portno = strsep(&stringp, ":");
 	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext)) {
+	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, storedusern, sizeof(storedusern) - 1, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -2272,6 +2274,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, rcontext);
 	else if (strlen(peercontext))
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, peercontext);
+	if (!username && !ast_strlen_zero(storedusern))
+		username = storedusern;
 	if (username)
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, username);
 	if (!secret && !ast_strlen_zero(storedsecret))
@@ -5892,7 +5896,7 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 	if (end)
 		memcpy(&sin, end, sizeof(sin));
 	else {
-		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, 0, NULL, NULL))
+		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL))
 			return -1;
 	}
 	/* Build the rest of the message */
@@ -6044,7 +6048,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	}							
 
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, NULL, 0, &found, NULL)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, NULL, 0, NULL, 0, &found, NULL)) {
 		return NULL;
 	}
 	if (portno) {
@@ -6825,7 +6829,7 @@ static int cache_get_callno_locked(char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, 0, NULL, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);
