@@ -5380,7 +5380,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	ast_mutex_lock(&userl.lock);
 	user = find_user(of);
 	/* Find user based on user name in the from header */
-	if (user && ast_apply_ha(user->ha, sin)) {
+	if (!mailbox && user && ast_apply_ha(user->ha, sin)) {
 		p->prefs = user->prefs;	
 		p->nat = user->nat;
 #ifdef OSP_SUPPORT
@@ -5437,7 +5437,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		if (user && debug)
 			ast_verbose("Found user '%s'\n", user->name);
 	} else {
-		if (user && debug)
+		if (!mailbox && user && debug)
 			ast_verbose("Found user '%s', but fails host access\n", user->name);
 		user = NULL;
 	}
@@ -7526,8 +7526,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 		if (!p->lastinvite) {
 			char mailbox[256]="";
-			char rbox[256];
 			int found = 0;
+
 			/* Handle authentication if this is our first subscribe */
 			res = check_user_full(p, req, cmd, e, 0, sin, ignore, mailbox, sizeof(mailbox));
 			if (res) {
@@ -7556,14 +7556,23 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				    p->subscribed = 2;
 				else if (!strcmp(get_header(req, "Accept"), "application/simple-message-summary")) {
 					/* Looks like they actually want a mailbox */
-					snprintf(rbox, sizeof(rbox), ",%s@%s,", p->exten, p->context);
-					if (strstr(mailbox, rbox))
+
+					/* At this point, we should check if they subscribe to a mailbox that
+					  has the same extension as the peer or the mailbox id. If we configure
+					  the context to be the same as a SIP domain, we could check mailbox
+					  context as well. To be able to securely accept subscribes on mailbox
+					  IDs, not extensions, we need to check the digest auth user to make
+					  sure that the user has access to the mailbox.
+					 
+					  Since we do not act on this subscribe anyway, we might as well 
+					  accept any authenticated peer with a mailbox definition in their 
+					  config section.
+					
+					*/
+					if (!ast_strlen_zero(mailbox)) {
 						found++;
-					if (!found) {
-						snprintf(rbox, sizeof(rbox), ",%s,", p->exten);
-						if (strstr(mailbox, rbox))
-							found++;
 					}
+
 					if (found)
 						transmit_response(p, "200 OK", req);
 					else {
