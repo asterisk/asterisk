@@ -329,7 +329,7 @@ immediate=no
 ; of a phone line.  If the hanguponpolarityswitch option is selected, the
 ; call will be considered "hung up" on a polarity reversal
 ;
-;hanguponpolarityswitch
+;hanguponpolarityswitch=yes
 ;
 ; On trunk interfaces (FXS) it can be useful to attempt to follow the progress
 ; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
