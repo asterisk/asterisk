@@ -1,6 +1,6 @@
 The Asterisk Open Source PBX
 by Mark Spencer <markster@digium.com>
-Copyright (C) 2001-2004 Digium
+Copyright (C) 2001-2005 Digium, Inc.
 ================================================================
 * SECURITY
   It is imperative that you read and fully understand the contents of
@@ -14,7 +14,7 @@ on the project itself, please visit the Asterisk home page at:
 
            http://www.asterisk.org
 
-In addition you'll find lot's of information compiled by the Asterisk
+In addition you'll find lots of information compiled by the Asterisk
 community on this Wiki:
 
            http://www.voip-info.org/wiki-Asterisk
@@ -23,20 +23,20 @@ community on this Wiki:
   Asterisk is distributed under GNU General Public License.  The GPL also
 must apply to all loadable modules as well, except as defined below.
 
-  Digium, Inc. (formerly Linux Support Services) retains copyright to all 
-of the core Asterisk system, and therefore can grant, at its sole discretion, 
-the ability for companies, individuals, or organizations to create proprietary
-or Open Source (but non-GPL'd) modules which may be dynamically linked at
-runtime with the portions of Asterisk which fall under our copyright
-umbrella, or are distributed under more flexible licenses than GPL.  
-
+  Digium, Inc. (formerly Linux Support Services) retains copyright and/or a
+sufficient license to all components of the core Asterisk system, and therefore
+can grant, at its sole discretion, the ability for companies, individuals, or
+organizations to create proprietary or Open Source (but non-GPL'd) modules
+which may be dynamically linked at runtime with the portions of Asterisk which
+fall under our copyright/license umbrella, or are distributed under more
+flexible licenses than GPL.  
 
   If you wish to use our code in other GPL programs, don't worry -- there
 is no requirement that you provide the same exemption in your GPL'd
 products (although if you've written a module for Asterisk we would
 strongly encourage you to make the same exemption that we do).
 
-  Specific permission is also granted to OpenSSL and OpenH323 to link to
+  Specific permission is also granted to OpenSSL and OpenH323 to link with
 Asterisk.
 
   If you have any questions, whatsoever, regarding our licensing policy,
@@ -45,70 +45,88 @@ please contact us.
   Modules that are GPL-licensed and not available under Digium's 
 licensing scheme are added to the Asterisk-addons CVS module.
   
-* REQUIRED COMPONENTS
+* OPERATING SYSTEMS
 
 == Linux ==
-  Currently, the Asterisk Open Source PBX is only known to run on the
-Linux OS, although it may be portable to other UNIX-like operating systems
-(like FreeBSD) as well. 
+  The Asterisk Open Source PBX is developed and tested primarily on the
+GNU/Linux operating system, and is supported on every major GNU/Linux
+distribution.
 
+== Others ==
+  Asterisk has also been 'ported' and reportedly runs properly on other
+operating systems as well, including Sun Solaris, Apple's Mac OS X, and
+the BSD variants.
 
 * GETTING STARTED
 
-First, be sure you've got supported hardware (but note that you don't need ANY hardware, not even a soundcard) to install and run Asterisk. Supported are:
+  First, be sure you've got supported hardware (but note that you don't need
+ANY special hardware, not even a soundcard) to install and run Asterisk.
+
+  Supported telephony hardware includes:
 
 	* All Wildcard (tm) products from Digium (www.digium.com)
 	* QuickNet Internet PhoneJack and LineJack (http://www.quicknet.net)
-	* Full Duplex Sound Card supported by Linux
-	* Adtran Atlas 800 Plus
+	* any full duplex sound card supported by ALSA or OSS
 	* ISDN4Linux compatible ISDN card
-	* Tormenta Dual T1 card (www.bsdtelephony.com.mx)
+        * VoiceTronix OpenLine products
 
 Hint: CAPI compatible ISDN cards can be run using the add-on channel chan_capi.
 
-So let's proceed:
+  Second, ensure that your system contains a compatible compiler and development
+libraries.  Asterisk requires either the GNU Compiler Collection (GCC) version
+3.0 or higher, or a compiler that supports the C99 specification and some of
+the gcc language extensions.  In addition, your system needs to have the C
+library headers available, and the headers and libraries for OpenSSL and zlib.
+On many distributions, these files are installed by packages with names like
+'libc-devel', 'openssl-devel' and 'zlib-devel' or similar.
+
+  So let's proceed:
 
 1) Run "make"
+
+  Assuming the build completes successfully:
+
 2) Run "make install"
 
-Each time you update or checkout from CVS, you are strongly encouraged 
+  Each time you update or checkout from CVS, you are strongly encouraged 
 to ensure all previous object files are removed to avoid internal 
 inconsistency in Asterisk. Normally, this is automatically done with 
 the presence of the file .cleancount, which increments each time a 'make clean'
 is required, and the file .lastclean, which contains the last .cleancount used. 
 
-If this is your first time working with Asterisk, you may wish to install
+  If this is your first time working with Asterisk, you may wish to install
 the sample PBX, with demonstration extensions, etc.  If so, run:
 
-	"make samples"
+3) "make samples"
 
-Doing so will overwrite any existing config files you have. If you are lacking a soundcard you won't be able to use the DIAL command on the console, though.
+  Doing so will overwrite any existing config files you have. If you are lacking a
+soundcard you won't be able to use the DIAL command on the console, though.
 
-Finally, you can launch Asterisk with:
+  Finally, you can launch Asterisk with:
 
-	./asterisk -vvvc
+# asterisk -vvvc
 
-You'll see a bunch of verbose messages fly by your screen as Asterisk
+  You'll see a bunch of verbose messages fly by your screen as Asterisk
 initializes (that's the "very very verbose" mode).  When it's ready, if
 you specified the "c" then you'll get a command line console, that looks
 like this:
 
 *CLI>
 
-You can type "help" at any time to get help with the system.  For help
+  You can type "help" at any time to get help with the system.  For help
 with a specific command, type "help <command>".  To start the PBX using
 your sound card, you can type "dial" to dial the PBX.  Then you can use
 "answer", "hangup", and "dial" to simulate the actions of a telephone.
-Remember that if you don't have a full duplex sound card (And asterisk
-will tell you somewhere in its verbose messages if you do/don't) than it
+Remember that if you don't have a full duplex sound card (and Asterisk
+will tell you somewhere in its verbose messages if you do/don't) then it
 won't work right (not yet).
 
-Feel free to look over the configuration files in /etc/asterisk, where
+  Feel free to look over the configuration files in /etc/asterisk, where
 you'll find a lot of information about what you can do with Asterisk.
 
 * ABOUT CONFIGURATION FILES
 
-All Asterisk configuration files share a common format.  Comments are
+  All Asterisk configuration files share a common format.  Comments are
 delimited by ';' (since '#' of course, being a DTMF digit, may occur in
 many places).  A configuration file is divided into sections whose names
 appear in []'s.  Each section typically contains two types of statements,
@@ -117,12 +135,12 @@ parameters'.  Internally the use of '=' and '=>' is exactly the same, so
 they're used only to help make the configuration file easier to
 understand, and do not affect how it is actually parsed.
 
-Entries of the form 'variable=value' set the value of some parameter in
-asterisk.  For example, in tormenta.conf, one might specify:
+  Entries of the form 'variable=value' set the value of some parameter in
+asterisk.  For example, in zapata.conf, one might specify:
 
 	switchtype=national
 
-In order to indicate to Asterisk that the switch they are connecting to is
+in order to indicate to Asterisk that the switch they are connecting to is
 of the type "national".  In general, the parameter will apply to
 instantiations which occur below its specification.  For example, if the
 configuration file read:
@@ -133,26 +151,24 @@ configuration file read:
 	switchtype = dms100
 	channel => 25-47
 
-Then, the "national" switchtype would be applied to channels one through
+the "national" switchtype would be applied to channels one through
 four and channels 10 through 12, whereas the "dms100" switchtype would
 apply to channels 25 through 47.
   
-The "object => parameters" instantiates an object with the given
+  The "object => parameters" instantiates an object with the given
 parameters.  For example, the line "channel => 25-47" creates objects for
-the channels 25 through 47 of the tormenta card, obtaining the settings
+the channels 25 through 47 of the card, obtaining the settings
 from the variables specified above.
 
 * MORE INFORMATION
 
-See the doc directory for more documentation.
+  See the doc directory for more documentation.
 
-Finally, you may wish to visit the web site and join the mailing list if
+  Finally, you may wish to visit the web site and join the mailing list if
 you're interested in getting more information.
 
    http://www.asterisk.org/index.php?menu=support
 
-Welcome to the growing worldwide community of Asterisk users!
+  Welcome to the growing worldwide community of Asterisk users!
 
 Mark Spencer
-
-

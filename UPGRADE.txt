@@ -1,6 +1,17 @@
 Information for Upgrading From Asterisk 1.0
 ===========================================
 
+Compiling:
+
+* The Asterisk 1.2 source code now uses C language features
+  supported only by 'modern' C compilers.  Generally, this means GCC
+  version 3.0 or higher, although some GCC 2.96 releases will also
+  work.  Some non-GCC compilers that support C99 and the common GCC
+  extensions (including anonymous structures and unions) will also
+  work.  All releases of GCC 2.95 do _not_ have the requisite feature
+  support; systems using that compiler will need to be upgraded to
+  a more recent compiler release.
+
 Agents:
 
 * The default for ackcall has been changed to "no" instead of "yes" 

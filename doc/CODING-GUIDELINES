@@ -78,7 +78,6 @@ for (x=0;x<5;x++) {
 }
 
 
-
 Make sure you never use an uninitialized variable.  The compiler will 
 usually warn you if you do so.
 
@@ -154,3 +153,14 @@ if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newn
 
 Use const on pointers which your function will not be modifying, as this 
 allows the compiler to make certain optimizations.
+
+== CLI Commands ==
+
+New CLI commands should be named using the module's name, followed by a verb
+and then any parameters that the command needs. For example:
+
+*CLI> iax2 show peer <peername>
+
+not
+
+*CLI> show iax2 peer <peername>
