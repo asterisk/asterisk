@@ -649,7 +649,7 @@ extern void ast_verbose(const char *fmt, ...)
 	} /* else
 		fprintf(stdout, stuff + opos); */
 
-	ast_log(LOG_VERBOSE, stuff);
+	ast_log(LOG_VERBOSE, "%s", stuff);
 
 	if (fmt[strlen(fmt)-1] != '\n') 
 		replacelast = 1;

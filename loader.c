@@ -67,7 +67,7 @@ static int printdigest(unsigned char *d)
 		strcat(buf, buf2);
 	}
 	strcat(buf, "\n");
-	ast_log(LOG_DEBUG, buf);
+	ast_log(LOG_DEBUG, "%s", buf);
 	return 0;
 }
 
