@@ -1282,11 +1282,11 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 {
 	struct ast_frame *f = NULL;
 	int blah;
+	int prestate;
 #ifdef ZAPTEL_OPTIMIZATIONS
 	int (*func)(void *);
 	void *data;
 	int res;
-	int prestate;
 #endif
 	static struct ast_frame null_frame = 
 	{
