@@ -3824,10 +3824,14 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 static int dundi_lookup_exec(struct ast_channel *chan, void *data)
 {
 	char *tmp;
-	char *context;
+	char *context = NULL;
 	char *opts;
-	int res = -1;
+	int res = 0;
+	int results = 0;
+	int x;
+	int bypass = 0;
 	struct localuser *u;
+	struct dundi_result dr[MAX_RESULTS];
 
 	if (!data || !strlen(data)) {
 		ast_log(LOG_WARNING, "DUNDiLookup requires an argument (number)\n");
@@ -3852,6 +3856,20 @@ static int dundi_lookup_exec(struct ast_channel *chan, void *data)
 		if (!opts)
 			opts = "";
 		
+	}
+	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, tmp, bypass);
+	if (results > 0) {
+        sort_results(dr, results);
+        for (x=0;x<results;x++) {
+			if (dr[x].flags & DUNDI_FLAG_EXISTS) {
+				pbx_builtin_setvar_helper(chan, "DUNDTECH", dr[x].tech);
+				pbx_builtin_setvar_helper(chan, "DUNDDEST", dr[x].dest);
+				break;
+            }
+        }
+    } else {
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
+            chan->priority += 100;
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;

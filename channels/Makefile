@@ -21,7 +21,7 @@ CHANNEL_LIBS=chan_modem.so chan_sip.so \
 	     chan_modem_aopen.so \
              chan_modem_bestdata.so chan_modem_i4l.so \
              chan_agent.so chan_mgcp.so chan_iax2.so \
-	     chan_local.so chan_skinny.so
+	     chan_local.so chan_skinny.so chan_features.so
 
 ifeq (${OSARCH},OpenBSD)
 CFLAGS+=-I/usr/local/include

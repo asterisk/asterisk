@@ -59,6 +59,8 @@
 static int shutting_down = 0;
 static int uniqueint = 0;
 
+unsigned long global_fin = 0, global_fout = 0;
+
 /* XXX Lock appropriately in more functions XXX */
 
 struct chanlist {
@@ -334,8 +336,8 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 					tmp->streamid = -1;
 					tmp->appl = NULL;
 					tmp->data = NULL;
-					tmp->fin = 0;
-					tmp->fout = 0;
+					tmp->fin = global_fin;
+					tmp->fout = global_fout;
 					snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long)time(NULL), uniqueint++);
 					headp=&tmp->varshead;
 					ast_mutex_init(&tmp->lock);

@@ -37,6 +37,8 @@
 #define VERSION_INFO "Asterisk " ASTERISK_VERSION " built by " BUILD_USER "@" BUILD_HOSTNAME \
 	" on a " BUILD_MACHINE " running " BUILD_OS
 	
+extern unsigned long global_fin, global_fout;
+	
 void ast_cli(int fd, char *fmt, ...)
 {
 	char *stuff;
@@ -548,47 +550,73 @@ static int handle_commandcomplete(int fd, int argc, char *argv[])
 static int handle_debugchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
+	int is_all;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+
+	is_all = !strcasecmp("all", argv[2]);
+	if (is_all) {
+		global_fin |= 0x80000000;
+		global_fout |= 0x80000000;
+	}
 	c = ast_channel_walk_locked(NULL);
 	while(c) {
-		if (!strcasecmp(c->name, argv[2])) {
-			c->fin |= 0x80000000;
-			c->fout |= 0x80000000;
-			break;
+		if (is_all || !strcasecmp(c->name, argv[2])) {
+			if (!(c->fin & 0x80000000) || !(c->fout & 0x80000000)) {
+				c->fin |= 0x80000000;
+				c->fout |= 0x80000000;
+				ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
+			}
+			if (!is_all)
+				break;
 		}
 		ast_mutex_unlock(&c->lock);
 		c = ast_channel_walk_locked(c);
 	}
-	if (c) {
-		ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
-		ast_mutex_unlock(&c->lock);
+	if (!is_all) {
+		if (c)
+			ast_mutex_unlock(&c->lock);
+		else
+			ast_cli(fd, "No such channel %s\n", argv[2]);
 	}
 	else
-		ast_cli(fd, "No such channel %s\n", argv[2]);
+		ast_cli(fd, "Debugging on new channels is enabled\n");
 	return RESULT_SUCCESS;
 }
 
 static int handle_nodebugchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
+	int is_all;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
+	is_all = !strcasecmp("all", argv[3]);
+	if (is_all) {
+		global_fin &= ~0x80000000;
+		global_fout &= ~0x80000000;
+	}
 	c = ast_channel_walk_locked(NULL);
 	while(c) {
-		if (!strcasecmp(c->name, argv[3])) {
-			c->fin &= 0x7fffffff;
-			c->fout &= 0x7fffffff;
-			break;
+		if (is_all || !strcasecmp(c->name, argv[3])) {
+			if ((c->fin & 0x80000000) || (c->fout & 0x80000000)) {
+				c->fin &= 0x7fffffff;
+				c->fout &= 0x7fffffff;
+				ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
+			}
+			if (!is_all)
+				break;
 		}
 		ast_mutex_unlock(&c->lock);
 		c = ast_channel_walk_locked(c);
 	}
-	if (c) {
-		ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
-		ast_mutex_unlock(&c->lock);
-	} else
-		ast_cli(fd, "No such channel %s\n", argv[2]);
+	if (!is_all) {
+		if (c)
+			ast_mutex_unlock(&c->lock);
+		else
+			ast_cli(fd, "No such channel %s\n", argv[3]);
+	}
+	else
+		ast_cli(fd, "Debugging on new channels is disabled\n");
 	return RESULT_SUCCESS;
 }
 		

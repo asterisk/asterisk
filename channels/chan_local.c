@@ -335,6 +335,9 @@ static int local_hangup(struct ast_channel *ast)
 			cur = cur->next;
 		}
 		ast_mutex_unlock(&locallock);
+		/* Grab / release lock just in case */
+		ast_mutex_lock(&p->lock);
+		ast_mutex_unlock(&p->lock);
 		/* And destroy */
 		if (!glaredetect) {
 			ast_mutex_destroy(&p->lock);
