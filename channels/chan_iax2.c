@@ -3886,12 +3886,15 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		ast_log(LOG_NOTICE, "Empty registration from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		return -1;
 	}
-
+	/* We release the lock for the call to prevent a deadlock, but it's okay because
+	   only the current thread could possibly make it go away or make changes */
+	ast_mutex_unlock(&iaxsl[callno]);
 	ast_mutex_lock(&peerl.lock);
 	for (p = peerl.peers; p ; p = p->next) 
 		if (!strcasecmp(p->name, peer))
 			break;
 	ast_mutex_unlock(&peerl.lock);
+	ast_mutex_lock(&iaxsl[callno]);
 	if (!p) 
 		p = realtime_peer(peer);
 
