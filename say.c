@@ -252,11 +252,7 @@ int ast_say_date_with_format(struct ast_channel *chan, time_t time, char *ints, 
 	int res=0, offset, sndoffset;
 	char sndfile[256], nextmsg[256];
 
-	ast_log(LOG_DEBUG, "ast_say_date_with_format() called\n");
-
 	ast_localtime(&time,&tm,timezone);
-
-	ast_log(LOG_DEBUG, "ast_localtime() returned\n");
 
 	for (offset=0 ; format[offset] != '\0' ; offset++) {
 		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
@@ -418,7 +414,7 @@ int ast_say_date_with_format(struct ast_channel *chan, time_t time, char *ints, 
 			case 'P':
 			case 'p':
 				/* AM/PM */
-				if ((tm.tm_hour == 0) || (tm.tm_hour > 11))
+				if (tm.tm_hour > 11)
 					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "p-m");
 				else
 					snprintf(nextmsg,sizeof(nextmsg), DIGITS_DIR "a-m");
