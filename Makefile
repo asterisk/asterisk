@@ -138,15 +138,15 @@ CFLAGS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "-DOSP_SUPPORT -I/us
 
 ifeq (${OSARCH},FreeBSD)
 OSVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
-CFLAGS+=$(if ${OSVERSION}<500016,-D_THREAD_SAFE)
-LIBS+=$(if ${OSVERSION}<502102,-lc_r,-pthread)
+CFLAGS+=$(shell if test ${OSVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
+LIBS+=$(shell if test  ${OSVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
 INCLUDE+=-I/usr/local/include
 CFLAGS+=$(shell if [ -d /usr/local/include/spandsp ]; then echo "-I/usr/local/include/spandsp"; fi)
 endif # FreeBSD
 
 ifeq (${OSARCH},NetBSD)
 CFLAGS+=-pthread
-INCLUDE+=-I/usr/local/include
+INCLUDE+=-I/usr/local/include -I/usr/pkg/include
 endif
 
 ifeq (${OSARCH},OpenBSD)
@@ -197,7 +197,7 @@ ifeq (${OSARCH},FreeBSD)
 LIBS+=-lcrypto
 endif
 ifeq (${OSARCH},NetBSD)
-LIBS+=-lpthread -lcrypto -lm -L/usr/local/lib -lncurses
+LIBS+=-lpthread -lcrypto -lm -L/usr/local/lib -L/usr/pkg/lib -lncurses
 endif
 ifeq (${OSARCH},OpenBSD)
 LIBS=-lcrypto -lpthread -lm -lncurses

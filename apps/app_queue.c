@@ -226,6 +226,7 @@ struct ast_call_queue {
 	int wrapped;			/* Round Robin - wrapped around? */
 	int joinempty;			/* Do we care if the queue has no members? */
 	int eventwhencalled;			/* Generate an event when the agent is called (before pickup) */
+	int leavewhenempty;		/* If all agents leave the queue, remove callers from the queue */
 
 	struct member *members;		/* Member channels to be tried */
 	struct queue_ent *head;		/* Start of the actual queue */
@@ -909,6 +910,12 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 		if ( qe->queuetimeout ) {
 			time(&now);
 			if ( (now - qe->start) >= qe->queuetimeout )
+			break;
+		}
+
+		/* leave the queue if no agents, if enabled */
+		if (!(qe->parent->members) && qe->parent->leavewhenempty) {
+			leave_queue(qe);
 			break;
 		}
 
@@ -1626,11 +1633,17 @@ check_turns:
 				/* This is the wait loop for the head caller*/
 				/* To exit, they may get their call answered; */
 				/* they may dial a digit from the queue context; */
-				/* or, they may may timeout. */
+				/* or, they may timeout. */
 
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.queuetimeout && ( (time(NULL) - qe.start) >= qe.queuetimeout) ) {
 					res = 0;
+					break;
+				}
+
+				/* leave the queue if no agents, if enabled */
+				if (!((qe.parent)->members) && (qe.parent)->leavewhenempty) {
+					leave_queue(&qe);
 					break;
 				}
 
@@ -1691,7 +1704,7 @@ check_turns:
 			}
 		}
 		/* Don't allow return code > 0 */
-		if (res > 0 && res != AST_PBX_KEEPALIVE) {
+		if ((res == 0) || (res > 0 && res != AST_PBX_KEEPALIVE)) {
 			res = 0;	
 			if (ringing) {
 				ast_indicate(chan, -1);
@@ -1781,7 +1794,7 @@ static void reload_queues(void)
 				strncpy(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes) - 1);
 				strncpy(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds) - 1);
 				strncpy(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks) - 1);
-				strncpy(q->sound_lessthan, "queue-lessthan", sizeof(q->sound_lessthan) - 1);
+				strncpy(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan) - 1);
 				prev = q->members;
 				if (prev) {
 					/* find the end of any dynamic members */
@@ -1818,7 +1831,7 @@ static void reload_queues(void)
 								q->members = cur;
 							prev = cur;
 						}
-					} else if (!strcasecmp(var->name, "music")) {
+					} else if (!strcasecmp(var->name, "music") || !strcasecmp(var->name, "musiconhold")) {
 						strncpy(q->moh, var->value, sizeof(q->moh) - 1);
 					} else if (!strcasecmp(var->name, "announce")) {
 						strncpy(q->announce, var->value, sizeof(q->announce) - 1);
@@ -1872,6 +1885,8 @@ static void reload_queues(void)
 						}
 					} else if (!strcasecmp(var->name, "joinempty")) {
 						q->joinempty = ast_true(var->value);
+					} else if (!strcasecmp(var->name, "leavewhenempty")) {
+						q->leavewhenempty = ast_true(var->value);
 					} else if (!strcasecmp(var->name, "eventwhencalled")) {
 						q->eventwhencalled = ast_true(var->value);
 					} else {

@@ -180,20 +180,13 @@ static int my_unload_module(void)
 	return 0;
 }
 
-static int my_load_module(void)
+static int process_my_load_module(struct ast_config *cfg)
 {
 	int res;
-	struct ast_config *cfg;
 	struct ast_variable *var;
         char *pgerror;
 	char *tmp;
 
-	cfg = ast_load(config);
-	if (!cfg) {
-		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
-		return 0;
-	}
-	
 	var = ast_variable_browse(cfg, "global");
 	if (!var) {
 		/* nothing configured */
@@ -280,8 +273,6 @@ static int my_load_module(void)
 		pgdbport = "5432";
 	}
 
-	ast_destroy(cfg);
-
 	ast_log(LOG_DEBUG,"cdr_pgsql: got hostname of %s\n",pghostname);
 	ast_log(LOG_DEBUG,"cdr_pgsql: got port of %s\n",pgdbport);
 	if (pgdbsock)
@@ -305,6 +296,20 @@ static int my_load_module(void)
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to register PGSQL CDR handling\n");
 	}
+	return res;
+}
+
+static int my_load_module(void)
+{
+	struct ast_config *cfg;
+	int res;
+	cfg = ast_load(config);
+	if (!cfg) {
+		ast_log(LOG_WARNING, "Unable to load config for PostgreSQL CDR's: %s\n", config);
+		return 0;
+	}
+	res = process_my_load_module(cfg);
+	ast_destroy(cfg);
 	return res;
 }
 

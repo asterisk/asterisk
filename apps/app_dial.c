@@ -281,6 +281,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							numnochan++;
+						} else {
+							/* After calling, set callerid to extension */
+							ast_set_callerid(o->chan, ast_strlen_zero(in->macroexten) ? in->exten : in->macroexten, 0);
 						}
 					}
 					/* Hangup the original channel now, in case we needed it */
@@ -336,7 +339,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_PROGRESS:
 							if (option_verbose > 2)
 								ast_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", o->chan->name,in->name);
-							ast_indicate(in, AST_CONTROL_PROGRESS);
+							if (!outgoing->ringbackonly)
+								ast_indicate(in, AST_CONTROL_PROGRESS);
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
@@ -383,6 +387,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				/* Got hung up */
 				*to=-1;
 				strncpy(status, "CANCEL", statussize - 1);
+				if (f)
+					ast_frfree(f);
 				return NULL;
 			}
 			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect_out &&
@@ -391,6 +397,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
 				strcpy(status, "CANCEL");
+				ast_frfree(f);
 				return NULL;
 			}
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
@@ -841,9 +848,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			free(tmp);
 			cur = rest;
 			continue;
-		} else
+		} else {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Called %s\n", numsubst);
+			ast_set_callerid(tmp->chan, ast_strlen_zero(chan->macroexten) ? chan->exten : chan->macroexten, 0);
+		}
 		/* Put them in the list of outgoing thingies...  We're ready now. 
 		   XXX If we're forcibly removed, these outgoing calls won't get
 		   hung up XXX */

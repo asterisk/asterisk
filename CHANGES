@@ -1,8 +1,63 @@
+ NOTE: Corrections or additions to the ChangeLog may be submitted 
+       to http://bugs.digium.com.  A complete listing of changes
+       is available through the Asterisk-CVS mailing list hosted
+       at http://lists.digium.com.
+
+Asterisk 1.0.4
+ -- general
+    -- fix memory leak evident with extensive use of variables
+    -- update IAXy firmware to version 22
+       -- enable some special write protection
+       -- enable outbound DTMF
+    -- fix seg fault with incorrect usage of SetVar
+    -- other minor fixes including typos and doc updates
+ -- chan_sip
+   -- fix codecs to not be case sensitive
+   -- Re-use auth credentials
+   -- fix MWI when using type=friend
+   -- fix global NAT option
+ -- chan_agent / chan_local
+   -- fix incorrect use count
+ -- chan_zap
+   -- Allow CID rings to be configured in zapata.conf
+      -- no more patching needed for UK CID
+ -- app_macro 
+    -- allow Macros to exit with '*' or '#' like regular extension processing
+ -- app_voicemail
+   -- don't allow '#' as a password
+   -- add option to save voicemail before going to the operator
+   -- fix global operator=yes
+ -- app_read
+   -- return 0 instead of -1 if user enters nothing
+ -- res_agi
+    -- don't exit AGI when file not found to stream
+    -- send script parameter when using FastAGI
+Asterisk 1.0.3
+ -- chan_zap
+    -- fix seg fault when doing *0 to flash a trunk
+ -- rtp
+    -- seg fault fix
+ -- chan_sip
+    -- fix to prevent seg fault when attempting a transfer
+    -- fix bug with supervised transfers
+    -- fix codec preferences
+ -- chan_h323
+    -- fix compilation problem
+ -- chan_iax2
+   -- avoid a deadlock related to a static config of a BUNCH of peers
+ -- cdr_pgsql
+    -- fix memory leak when reading config
+ -- Numerous other minor bug fixes
+Asterisk 1.0.2
+ -- Major bugfix release
+Asterisk 1.0.1
+ -- Added AGI over TCP support
+ -- Add ability to purge callers from queue if no agents are logged in
  -- Fix inband PRI indication detection
  -- Fix for MGCP - always request digits if no RTP stream
  -- Fixed seg fault for ast_control_streamfile
- -- Added AGI over TCP support
  -- Make pick-up extension configurable via features.conf 
+ -- Numerous other bug fixes
 Asterisk 1.0.0
  -- Use Q.931 standard cause codes for asterisk cause codes
  -- Bug fixes from the bug tracker
