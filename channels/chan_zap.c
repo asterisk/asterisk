@@ -1306,6 +1306,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", p->channel);
 	p->outgoing = 1;
 
+	set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain, p->txgain, p->law);
+
 	switch(p->sig) {
 	case SIG_FXOLS:
 	case SIG_FXOGS:
