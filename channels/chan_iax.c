@@ -3409,6 +3409,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	char rel0[256];
 	char rel1[255];
 	char empty[32]="";		/* Safety measure */
+	fr.ts=0;	/* make Valgrind happy */
 	res = recvfrom(netsocket, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
@@ -4417,8 +4418,8 @@ static struct iax_peer *build_peer(char *name, struct ast_variable *v)
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
-			}
-
+			} //else if (strcasecmp(v->name,"type"))
+			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			v=v->next;
 		}
 		if (!strlen(peer->methods))
@@ -4468,7 +4469,8 @@ static struct iax_user *build_user(char *name, struct ast_variable *v)
 				}
 			} else if (!strcasecmp(v->name, "inkeys")) {
 				strncpy(user->inkeys, v->value, sizeof(user->inkeys));
-			}
+			} //else if (strcasecmp(v->name,"type"))
+			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			v = v->next;
 		}
 	}
@@ -4647,7 +4649,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			} else {
 				amaflags = format;
 			}
-		}
+		} //else if (strcasecmp(v->name,"type"))
+		//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
 	iax_capability = capability;

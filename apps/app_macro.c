@@ -184,17 +184,20 @@ out:
   pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
   if (save_macro_priority) free(save_macro_priority);
 
-  if (!strcasecmp(chan->context, fullmacro) && !chan->_softhangup) {
+  if (!strcasecmp(chan->context, fullmacro)) {
   	/* If we're leaving the macro normally, restore original information */
 	chan->priority = oldpriority;
-	strncpy(chan->exten, oldexten, sizeof(chan->exten) - 1);
 	strncpy(chan->context, oldcontext, sizeof(chan->context) - 1);
-	if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
-		/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
-		   normally if there is any problem */
-		if (sscanf(offsets, "%d", &offset) == 1) {
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->callerid)) {
-				chan->priority += offset;
+	if (!chan->_softhangup) {
+		/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
+		strncpy(chan->exten, oldexten, sizeof(chan->exten) - 1);
+		if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
+			/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
+			   normally if there is any problem */
+			if (sscanf(offsets, "%d", &offset) == 1) {
+				if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + offset + 1, chan->callerid)) {
+					chan->priority += offset;
+				}
 			}
 		}
 	}

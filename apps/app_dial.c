@@ -557,6 +557,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		/* If appropriate, log that we have a destination channel */
 		if (chan->cdr)
 			ast_cdr_setdestchan(chan->cdr, peer->name);
+		if (peer->name)
+			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
+		if (numsubst)
+			pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", numsubst);
 		/* Make sure channels are compatible */
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {

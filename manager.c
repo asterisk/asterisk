@@ -772,6 +772,6 @@ int init_manager(void)
 
 int reload_manager(void)
 {
-	manager_event(EVENT_FLAG_SYSTEM, "Reload", NULL);
+	manager_event(EVENT_FLAG_SYSTEM, "Reload", "Message: Reload Requested\r\n");
 	return init_manager();
 }

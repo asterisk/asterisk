@@ -95,8 +95,9 @@ static pthread_t monitor_thread = 0;
 
 static int restart_monitor(void);
 
-/* Just about everybody seems to support ulaw, so make it a nice default */
+/* Codecs that we support by default: */
 static int capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM;
+static int nonCodecCapability = AST_RTP_DTMF;
 
 static char ourhost[256];
 static struct in_addr __ourip;
@@ -105,6 +106,8 @@ static int ourport;
 static int sipdebug = 0;
 
 static int tos = 0;
+
+static int globaldtmfmode = SIP_DTMF_RFC2833;
 
 /* Expire slowly */
 static int expirey = 900;
@@ -143,6 +146,7 @@ static struct sip_pvt {
 	int alreadygone;					/* Whether or not we've already been destroyed by or peer */
 	int needdestroy;					/* if we need to be destroyed */
 	int capability;						/* Special capability */
+	int nonCodecCapability;
 	int outgoing;						/* Outgoing or incoming call? */
 	int insecure;						/* Don't check source port/ip */
 	int expirey;						/* How long we take to expire */
@@ -226,6 +230,7 @@ struct sip_peer {
 	int expire;
 	int expirey;
 	int capability;
+	int nonCodecCapability;
 	int insecure;
 	int nat;
 	int canreinvite;
@@ -299,6 +304,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 static int transmit_request(struct sip_pvt *p, char *msg, int inc);
 static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *vxml_url);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp);
+static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req);
 
@@ -388,6 +394,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 		if (!strcasecmp(p->name, peer)) {
 			found++;
 			r->capability = p->capability;
+			r->nonCodecCapability = p->nonCodecCapability;
 			r->nat = p->nat;
 			if (r->rtp) {
 				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", r->nat);
@@ -399,7 +406,8 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			r->insecure = p->insecure;
 			r->canreinvite = p->canreinvite;
 			r->maxtime = p->maxms;
-			r->dtmfmode = p->dtmfmode;
+			if (p->dtmfmode)
+				r->dtmfmode = p->dtmfmode;
 			strncpy(r->context, p->context,sizeof(r->context)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 				(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
@@ -722,7 +730,7 @@ static int sip_hangup(struct ast_channel *ast)
 			transmit_request(p, "CANCEL", 0);
 		} else {
 			/* Send a hangup */
-			transmit_request(p, "BYE", p->outgoing);
+			transmit_request(p, "BYE", 1);
 		}
 	}
 #if 0
@@ -820,6 +828,9 @@ static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 static int sip_senddigit(struct ast_channel *ast, char digit)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
+	if (p && (p->dtmfmode & SIP_DTMF_INFO)) {
+		transmit_info_with_digit(p, digit);
+	}
 	if (p && p->rtp && (p->dtmfmode & SIP_DTMF_RFC2833)) {
 		ast_rtp_senddigit(p->rtp, digit);
 	}
@@ -1018,21 +1029,41 @@ static struct cfalias {
 	{ "Via", "v" },
 };
 
-static char *get_sdp(struct sip_request *req, char *name)
-{
-	int x;
-	int len = strlen(name);
-	char *r;
-	for (x=0;x<req->lines;x++) {
-		if (!strncasecmp(req->line[x], name, len) && 
-				(req->line[x][len] == '=')) {
-					r = req->line[x] + len + 1;
-					while(*r && (*r < 33))
-							r++;
-					return r;
-		}
-	}
-	return "";
+static char* get_sdp_by_line(char* line, char *name, int nameLen) {
+  if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=') {
+    char* r = line + nameLen + 1;
+    while (*r && (*r < 33)) ++r;
+    return r;
+  }
+
+  return "";
+}
+
+static char *get_sdp(struct sip_request *req, char *name) {
+  int x;
+  int len = strlen(name);
+  char *r;
+
+  for (x=0; x<req->lines; x++) {
+    r = get_sdp_by_line(req->line[x], name, len);
+    if (r[0] != '\0') return r;
+  }
+  return "";
+}
+
+static void sdpLineNum_iterator_init(int* iterator) {
+  *iterator = 0;
+}
+
+static char* get_sdp_iterate(int* iterator,
+			     struct sip_request *req, char *name) {
+  int len = strlen(name);
+  char *r;
+  while (*iterator < req->lines) {
+    r = get_sdp_by_line(req->line[(*iterator)++], name, len);
+    if (r[0] != '\0') return r;
+  }
+  return "";
 }
 
 static char *__get_header(struct sip_request *req, char *name, int *start)
@@ -1161,7 +1192,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
 	/* Assume reinvite OK */
 	p->canreinvite = 1;
-	p->dtmfmode = SIP_DTMF_RFC2833;
+	p->dtmfmode = globaldtmfmode;
 	/* Add to list */
 	ast_pthread_mutex_lock(&iflock);
 	p->next = iflist;
@@ -1346,14 +1377,17 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
 	char *m;
 	char *c;
+	char *a;
 	char host[258];
 	int len = -1;
 	int portno;
-	int peercapability;
+	int peercapability, peerNonCodecCapability;
 	struct sockaddr_in sin;
 	char *codecs;
 	struct hostent *hp;
 	int codec;
+	int iterator;
+
 	/* Get codec and RTP info from SDP */
 	if (strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 		ast_log(LOG_NOTICE, "Content is '%s', not 'application/sdp'\n", get_header(req, "Content-Type"));
@@ -1387,25 +1421,47 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 #if 0
 	printf("Peer RTP is at port %s:%d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 #endif	
-	peercapability = 0;
+	// Scan through the RTP payload types specified in a "m=" line:
+	rtp_pt_init(p->rtp);
 	codecs = m + len;
 	while(strlen(codecs)) {
 		if (sscanf(codecs, "%d %n", &codec, &len) != 1) {
 			ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 			return -1;
 		}
-#if 0
-		printf("Codec: %d\n", codec);
-#endif		
-		codec = rtp2ast(codec);
-		if (codec  > -1)
-			peercapability |= codec;
+		rtp_set_m_type(p->rtp, codec);
 		codecs += len;
 	}
+
+	// Next, scan through each "a=rtpmap:" line, noting each
+	// specified RTP payload type (with corresponding MIME subtype):
+	sdpLineNum_iterator_init(&iterator);
+	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
+          char* mimeSubtype = strdup(a); // ensures we have enough space
+	  int subtypeLen, i;
+	  if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
+	  // Note: should really look at the 'freq' and '#chans' params too
+	  subtypeLen = strlen(mimeSubtype);
+	  // Convert the MIME subtype to upper case, for ease of searching:
+	  for (i = 0; i < subtypeLen; ++i) {
+	    mimeSubtype[i] = toupper(mimeSubtype[i]);
+	  }
+	  rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
+	  free(mimeSubtype);
+	}
+
+	// Now gather all of the codecs that were asked for:
+	rtp_get_current_formats(p->rtp,
+				&peercapability, &peerNonCodecCapability);
 	p->capability = capability & peercapability;
-	if (sipdebug)
+	p->nonCodecCapability = nonCodecCapability & peerNonCodecCapability;
+	if (sipdebug) {
 		ast_verbose("Capabilities: us - %d, them - %d, combined - %d\n",
-		capability, peercapability, p->capability);
+			    capability, peercapability, p->capability);
+		ast_verbose("Non-codec capabilities: us - %d, them - %d, combined - %d\n",
+			    nonCodecCapability, peerNonCodecCapability,
+			    p->nonCodecCapability);
+	}
 	if (!p->capability) {
 		ast_log(LOG_WARNING, "No compatible codecs!\n");
 		return -1;
@@ -1540,7 +1596,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 	for (;;) {
 		tmp = __get_header(orig, field, &start);
 		if (strlen(tmp)) {
-			if (!copied) {
+			if (!copied && p->nat) {
 				if (ntohs(p->recv.sin_port) != DEFAULT_SIP_PORT)
 					snprintf(new, sizeof(new), "%s;received=%s:%d", tmp, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 				else
@@ -1746,6 +1802,20 @@ static int add_text(struct sip_request *req, char *text)
 	return 0;
 }
 
+static int add_digit(struct sip_request *req, char digit)
+{
+	char tmp[256];
+	int len;
+	char clen[256];
+	snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=250\r\n", digit);
+	len = strlen(tmp);
+	snprintf(clen, sizeof(clen), "%d", len);
+	add_header(req, "Content-Type", "application/dtmf-relay");
+	add_header(req, "Content-Length", clen);
+	add_line(req, tmp);
+	return 0;
+}
+
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *rtp)
 {
 	int len;
@@ -1791,33 +1861,51 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 		if (p->capability & cur->codec) {
 			if (sipdebug)
 				ast_verbose("Answering with preferred capability %d\n", cur->codec);
-			if ((codec = ast2rtp(cur->codec)) > -1) {
+			codec = rtp_lookup_code(p->rtp, 1, cur->codec);
+			if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strcat(m, costr);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast2rtpn(rtp2ast(codec)));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, rtp_lookup_mime_subtype(1, cur->codec));
 				strcat(a, costr);
 			}
 		}
 		alreadysent |= cur->codec;
 		cur = cur->next;
 	}
-	/* Now send anything else in no particular order */
-	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	/* Now send any other common codecs, and non-codec formats: */
+	for (x = 1; x <= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if ((p->capability & x) && !(alreadysent & x)) {
 			if (sipdebug)
-				ast_verbose("Answering with capability %d\n", x);
-			if ((codec = ast2rtp(x)) > -1) {
-				snprintf(costr, sizeof(costr), " %d", codec);
+				ast_verbose("Answering with capability %d\n", x);	
+			codec = rtp_lookup_code(p->rtp, 1, x);
+			if (codec > -1) {
+			snprintf(costr, sizeof(costr), " %d", codec);
 				strcat(m, costr);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast2rtpn(x));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, rtp_lookup_mime_subtype(1, x));
 				strcat(a, costr);
 			}
 		}
 	}
-	strcat(m, " 101\r\n");
-	strcat(a, "a=rtpmap:101 telephone-event/8000\r\n");
-	/* Indicate we support DTMF only...  Not sure about 16, but MSN supports it so dang it, we will too... */
-	strcat(a, "a=fmtp:101 0-16\r\n");
+	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
+		if (p->nonCodecCapability & x) {
+			if (sipdebug)
+				ast_verbose("Answering with non-codec capability %d\n", x);
+			codec = rtp_lookup_code(p->rtp, 0, x);
+			if (codec > -1) {
+				snprintf(costr, sizeof(costr), " %d", codec);
+				strcat(m, costr);
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, rtp_lookup_mime_subtype(0, x));
+				strcat(a, costr);
+				if (x == AST_RTP_DTMF) {
+				  /* Indicate we support DTMF...  Not sure about 16, but MSN supports it so dang it, we will too... */
+				  snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n",
+					   codec);
+				  strcat(a, costr);
+				}
+			}
+		}
+	}
+	strcat(m, "\r\n");
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
 	snprintf(costr, sizeof(costr), "%d", len);
 	add_header(resp, "Content-Type", "application/sdp");
@@ -2076,6 +2164,14 @@ static int transmit_message_with_text(struct sip_pvt *p, char *text)
 	struct sip_request req;
 	reqprep(&req, p, "MESSAGE", 1);
 	add_text(&req, text);
+	return send_request(p, &req);
+}
+
+static int transmit_info_with_digit(struct sip_pvt *p, char digit)
+{
+	struct sip_request req;
+	reqprep(&req, p, "INFO", 1);
+	add_digit(&req, digit);
 	return send_request(p, &req);
 }
 
@@ -2574,7 +2670,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 				p->canreinvite = user->canreinvite;
 				p->amaflags = user->amaflags;
-                                p->dtmfmode = user->dtmfmode;
+				if (user->dtmfmode)
+					p->dtmfmode = user->dtmfmode;
 			}
 			break;
 		}
@@ -2772,6 +2869,7 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 static int sip_show_channel(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
+	char tmp[256];
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	ast_pthread_mutex_lock(&iflock);
@@ -2782,6 +2880,14 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "Theoretical Address: %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "Received Address:    %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "NAT Support:         %s\n", cur->nat ? "Yes" : "No");
+			strcpy(tmp, "");
+			if (cur->dtmfmode & SIP_DTMF_RFC2833)
+				strcat(tmp, "rfc2833 ");
+			if (cur->dtmfmode & SIP_DTMF_INFO)
+				strcat(tmp, "info ");
+			if (cur->dtmfmode & SIP_DTMF_INBAND)
+				strcat(tmp, "inband ");
+			ast_cli(fd, "DTMF Mode: %s\n", tmp);
 			break;
 		}
 		cur = cur->next;
@@ -2844,15 +2950,15 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 static int do_register_auth(struct sip_pvt *p, struct sip_request *req) {
 	char digest[256];
 	memset(digest,0,sizeof(digest));
-	reply_digest(p,req, "WWW-Authenticate", "REGISTER", (char *)&digest, sizeof(digest) );
-	return transmit_register(p->registry,"REGISTER",(char *)&digest); 
+	reply_digest(p,req, "WWW-Authenticate", "REGISTER", digest, sizeof(digest) );
+	return transmit_register(p->registry,"REGISTER",digest); 
 }
 
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req) {
 	char digest[256];
 	memset(digest,0,sizeof(digest));
-	reply_digest(p,req, "Proxy-Authenticate", "INVITE", (char *)&digest, sizeof(digest) );
-	return transmit_invite(p,"INVITE",1,(char *)&digest, NULL); 
+	reply_digest(p,req, "Proxy-Authenticate", "INVITE", digest, sizeof(digest) );
+	return transmit_invite(p,"INVITE",1,digest, NULL); 
 }
 
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, char *orig_header, char *digest, int digest_len) {
@@ -3083,7 +3189,6 @@ retrylock:
 				/* char *exp; */
 				int expires;
 				struct sip_registry *r;
-				transmit_request(p, "ACK", 0);
 				r=p->registry;
 				r->regstate=REG_STATE_REGISTERED;
 				ast_log(LOG_NOTICE, "Registration successful\n");
@@ -3829,7 +3934,6 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 		user->canreinvite = 1;
 		/* JK02: set default context */
 		strcpy(user->context, context);
-		user->dtmfmode = SIP_DTMF_RFC2833;
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				strncpy(user->context, v->value, sizeof(user->context));
@@ -3869,7 +3973,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				}
 			} else if (!strcasecmp(v->name, "insecure")) {
 				user->insecure = ast_true(v->value);
-			}
+			} //else if (strcasecmp(v->name,"type"))
+			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			v = v->next;
 		}
 	}
@@ -3924,7 +4029,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->capability = capability;
 		/* Assume can reinvite */
 		peer->canreinvite = 1;
-		peer->dtmfmode = SIP_DTMF_RFC2833;
+		peer->dtmfmode = 0;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
@@ -4017,8 +4122,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
-			}
-
+			} //else if (strcasecmp(v->name,"type"))
+			//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			v=v->next;
 		}
 		if (!strlen(peer->methods))
@@ -4039,6 +4144,8 @@ static int reload_config(void)
 	struct hostent *hp;
 	int format;
 	int oldport = ntohs(bindaddr.sin_port);
+
+	globaldtmfmode = SIP_DTMF_RFC2833;
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, SIP disabled\n");
@@ -4065,6 +4172,17 @@ static int reload_config(void)
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "context")) {
 			strncpy(context, v->value, sizeof(context)-1);
+		} else if (!strcasecmp(v->name, "dtmfmode")) {
+			if (!strcasecmp(v->value, "inband"))
+				globaldtmfmode=SIP_DTMF_INBAND;
+			else if (!strcasecmp(v->value, "rfc2833"))
+				globaldtmfmode = SIP_DTMF_RFC2833;
+			else if (!strcasecmp(v->value, "info"))
+				globaldtmfmode = SIP_DTMF_INFO;
+			else {
+				ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
+				globaldtmfmode = SIP_DTMF_RFC2833;
+			}
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(language, v->value, sizeof(language)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
@@ -4122,9 +4240,9 @@ static int reload_config(void)
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
 			}
-		} else
-			ast_log(LOG_NOTICE, "Ignoring unknown SIP general keyword '%s'\n", v->name);
-		v = v->next;
+		} //else if (strcasecmp(v->name,"type"))
+		//	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
+		 v = v->next;
 	}
 	
 	cat = ast_category_browse(cfg, NULL);
@@ -4181,6 +4299,12 @@ static int reload_config(void)
 		if (sipsock < 0) {
 			ast_log(LOG_WARNING, "Unable to create SIP socket: %s\n", strerror(errno));
 		} else {
+		        // Allow SIP clients on the same host to access us:
+		        const int reuseFlag = 1;
+			setsockopt(sipsock, SOL_SOCKET, SO_REUSEADDR,
+				   (const char*)&reuseFlag,
+				   sizeof reuseFlag);
+
 			if (bind(sipsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 				ast_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
 						inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),

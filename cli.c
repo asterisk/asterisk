@@ -217,6 +217,14 @@ static char showchan_help[] =
 "Usage: show channel <channel>\n"
 "       Shows lots of information about the specified channel.\n";
 
+static char debugchan_help[] = 
+"Usage: debug channel <channel>\n"
+"       Enables debugging on a specific channel.\n";
+
+static char nodebugchan_help[] = 
+"Usage: no debug channel <channel>\n"
+"       Disables debugging on a specific channel.\n";
+
 static char commandcomplete_help[] = 
 "Usage: _command complete \"<line>\" text state\n"
 "       This function is used internally to help with command completion and should.\n"
@@ -323,6 +331,50 @@ static int handle_commandcomplete(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int handle_debugchan(int fd, int argc, char *argv[])
+{
+	struct ast_channel *c=NULL;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	c = ast_channel_walk(NULL);
+	while(c) {
+		if (!strcasecmp(c->name, argv[2])) {
+			c->fin |= 0x80000000;
+			c->fout |= 0x80000000;
+			break;
+		}
+		c = ast_channel_walk(c);
+	}
+	if (c)
+		ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
+	else
+		ast_cli(fd, "No such channel %s\n", argv[2]);
+	return RESULT_SUCCESS;
+}
+
+static int handle_nodebugchan(int fd, int argc, char *argv[])
+{
+	struct ast_channel *c=NULL;
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	c = ast_channel_walk(NULL);
+	while(c) {
+		if (!strcasecmp(c->name, argv[3])) {
+			c->fin &= 0x7fffffff;
+			c->fout &= 0x7fffffff;
+			break;
+		}
+		c = ast_channel_walk(c);
+	}
+	if (c)
+		ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
+	else
+		ast_cli(fd, "No such channel %s\n", argv[2]);
+	return RESULT_SUCCESS;
+}
+		
+	
+
 static int handle_showchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
@@ -343,8 +395,8 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"    WriteFormat: %d\n"
 	"     ReadFormat: %d\n"
 	"1st File Descriptor: %d\n"
-	"      Frames in: %d\n"
-	"     Frames out: %d\n"
+	"      Frames in: %d%s\n"
+	"     Frames out: %d%s\n"
 	" Time to Hangup: %d\n"
 	" --   PBX   --\n"
 	"        Context: %s\n"
@@ -357,7 +409,8 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	c->name, c->type, 
 	(c->callerid ? c->callerid : "(N/A)"),
 	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
-	c->fds[0], c->fin, c->fout, c->whentohangup,
+	c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
+	c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", c->whentohangup,
 	c->context, c->exten, c->priority, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (strlen(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
@@ -406,11 +459,13 @@ static int handle_help(int fd, int argc, char *argv[]);
 
 static struct ast_cli_entry builtins[] = {
 	/* Keep alphabetized */
-	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help },
 	{ { "_command", "complete", NULL }, handle_commandcomplete, "Command complete", commandcomplete_help },
 	{ { "_command", "nummatches", NULL }, handle_commandnummatches, "Returns number of command matches", commandnummatches_help },
 	{ { "_command", "matchesarray", NULL }, handle_commandmatchesarray, "Returns command matches array", commandmatchesarray_help },
+	{ { "debug", "channel", NULL }, handle_debugchan, "Enable debugging on a channel", debugchan_help, complete_ch },
+	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
+	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch },
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch },

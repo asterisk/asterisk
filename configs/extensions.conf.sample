@@ -21,7 +21,8 @@ writeprotect=no
 
 ;
 ; The "Globals" category contains global variables that can be referenced
-; in the dialplan with ${VARIABLE}
+; in the dialplan with ${VARIABLE} or ${ENV(VARIABLE)} for Environmental variable
+; ${${VARIABLE}} or ${text${VARIABLE}} or any hybrid
 ;
 [globals]
 CONSOLE=Console/dsp				; Console interface for demo

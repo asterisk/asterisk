@@ -16,6 +16,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/options.h>
 #include <asterisk/cli.h>
+#include <asterisk/term.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -345,6 +346,161 @@ int ast_getformatbyname(char *name)
 		return 0x7FFFFFFF;
 	return 0;
 }
+
+void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
+{
+	char *n = "unknown";
+	char ftype[40] = "Unknown Frametype";
+	char cft[80];
+	char subclass[40] = "Unknown Subclass";
+	char csub[80];
+	char moreinfo[40] = "";
+	char cn[40];
+	char cp[40];
+	char cmn[40];
+	if (name)
+		n = name;
+	if (!f) {
+		ast_verbose("%s [ %s (NULL) ] [%s]\n", 
+			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
+			term_color(cft, "HANGUP", COLOR_BRRED, COLOR_BLACK, sizeof(cft)), 
+			term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
+		return;
+	}
+	/* XXX We should probably print one each of voice and video when the format changes XXX */
+	if (f->frametype == AST_FRAME_VOICE)
+		return;
+	if (f->frametype == AST_FRAME_VIDEO)
+		return;
+	switch(f->frametype) {
+	case AST_FRAME_DTMF:
+		strcpy(ftype, "DTMF");
+		subclass[0] = f->subclass;
+		subclass[1] = '\0';
+		break;
+	case AST_FRAME_CONTROL:
+		strcpy(ftype, "Control");
+		switch(f->subclass) {
+		case AST_CONTROL_HANGUP:
+			strcpy(subclass, "Hangup");
+			break;
+		case AST_CONTROL_RING:
+			strcpy(subclass, "Ring");
+			break;
+		case AST_CONTROL_RINGING:
+			strcpy(subclass, "Ringing");
+			break;
+		case AST_CONTROL_ANSWER:
+			strcpy(subclass, "Answer");
+			break;
+		case AST_CONTROL_BUSY:
+			strcpy(subclass, "Busy");
+			break;
+		case AST_CONTROL_TAKEOFFHOOK:
+			strcpy(subclass, "Take Off Hook");
+			break;
+		case AST_CONTROL_OFFHOOK:
+			strcpy(subclass, "Line Off Hook");
+			break;
+		case AST_CONTROL_CONGESTION:
+			strcpy(subclass, "Congestion");
+			break;
+		case AST_CONTROL_FLASH:
+			strcpy(subclass, "Flash");
+			break;
+		case AST_CONTROL_WINK:
+			strcpy(subclass, "Wink");
+			break;
+		case AST_CONTROL_OPTION:
+			strcpy(subclass, "Option");
+			break;
+		case AST_CONTROL_RADIO_KEY:
+			strcpy(subclass, "Key Radio");
+			break;
+		case AST_CONTROL_RADIO_UNKEY:
+			strcpy(subclass, "Unkey Radio");
+			break;
+		default:
+			snprintf(subclass, sizeof(subclass), "Unknown control '%d'", f->subclass);
+		}
+	case AST_FRAME_NULL:
+		strcpy(ftype, "Null Frame");
+		strcpy(subclass, "N/A");
+		break;
+	case AST_FRAME_IAX:
+		/* Should never happen */
+		strcpy(ftype, "IAX Specific");
+		snprintf(subclass, sizeof(subclass), "IAX Frametype %d", f->subclass);
+		break;
+	case AST_FRAME_TEXT:
+		strcpy(ftype, "Text");
+		strcpy(subclass, "N/A");
+		strncpy(moreinfo, f->data, sizeof(moreinfo) - 1);
+		break;
+	case AST_FRAME_IMAGE:
+		strcpy(ftype, "Image");
+		snprintf(subclass, sizeof(subclass), "Image format %d\n", f->subclass);
+		break;
+	case AST_FRAME_HTML:
+		strcpy(ftype, "HTML");
+		switch(f->subclass) {
+		case AST_HTML_URL:
+			strcpy(subclass, "URL");
+			strncpy(moreinfo, f->data, sizeof(moreinfo) - 1);
+			break;
+		case AST_HTML_DATA:
+			strcpy(subclass, "Data");
+			break;
+		case AST_HTML_BEGIN:
+			strcpy(subclass, "Begin");
+			break;
+		case AST_HTML_END:
+			strcpy(subclass, "End");
+			break;
+		case AST_HTML_LDCOMPLETE:
+			strcpy(subclass, "Load Complete");
+			break;
+		case AST_HTML_NOSUPPORT:
+			strcpy(subclass, "No Support");
+			break;
+		case AST_HTML_LINKURL:
+			strcpy(subclass, "Link URL");
+			strncpy(moreinfo, f->data, sizeof(moreinfo) - 1);
+			break;
+		case AST_HTML_UNLINK:
+			strcpy(subclass, "Unlink");
+			break;
+		case AST_HTML_LINKREJECT:
+			strcpy(subclass, "Link Reject");
+			break;
+		default:
+			snprintf(subclass, sizeof(subclass), "Unknown HTML frame '%d'\n", f->subclass);
+			break;
+		}
+		break;
+	default:
+		snprintf(ftype, sizeof(ftype), "Unknown Frametype '%d'", f->frametype);
+	}
+	if (strlen(moreinfo))
+		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",  
+			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
+			term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
+			f->frametype, 
+			term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
+			f->subclass, 
+			term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
+			term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
+	else
+		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",  
+			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
+			term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
+			f->frametype, 
+			term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
+			f->subclass, 
+			term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
+
+}
+
 
 #ifdef TRACE_FRAMES
 static int show_frame_stats(int fd, int argc, char *argv[])

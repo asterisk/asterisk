@@ -1043,7 +1043,12 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			ast_deactivate_generator(chan);
 		}
 	}
-	chan->fin++;
+	if (chan->fin & 0x80000000)
+		ast_frame_dump(chan->name, f, "<<");
+	if ((chan->fin & 0x7fffffff) == 0x7fffffff)
+		chan->fin &= 0x80000000;
+	else
+		chan->fin++;
 	return f;
 }
 
@@ -1197,6 +1202,8 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		else
 			return 0;
 	}
+	if (chan->fout & 0x80000000)
+		ast_frame_dump(chan->name, fr, ">>");
 	CHECK_BLOCKING(chan);
 	switch(fr->frametype) {
 	case AST_FRAME_CONTROL:
@@ -1228,8 +1235,13 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 	/* Consider a write failure to force a soft hangup */
 	if (res < 0)
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
-	else
+	else {
+		if ((chan->fout & 0x7fffffff) == 0x7fffffff)
+			chan->fout &= 0x80000000;
+		else
+			chan->fout++;
 		chan->fout++;
+	}
 	return res;
 }
 

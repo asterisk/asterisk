@@ -291,6 +291,8 @@ extern void ast_smoother_reset(struct ast_smoother *s, int bytes);
 extern int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f);
 extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 
+extern void ast_frame_dump(char *name, struct ast_frame *f, char *prefix);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

@@ -34,6 +34,8 @@ Steven Critchfield - Seek and Trunc functions for playback and recording
 		critch@basesys.com
 Jefferson Noxon - app_lookupcidname, app_db, and various other contributions
 Klaus-Peter Junghanns - in-band DTMF on SIP and MGCP
+Ross Finlayson - Dynamic RTP payload support
+
 === OTHER SOURCE CODE IN ASTERISK ===
 
 I did not implement the codecs in asterisk.  Here is the copyright on the

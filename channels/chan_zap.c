@@ -6285,7 +6285,7 @@ int load_module()
 			strncpy(idledial, v->value, sizeof(idledial) - 1);
 #endif		
 		} else
-			ast_log(LOG_DEBUG, "Ignoring %s\n", v->name);
+			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
 	ast_pthread_mutex_unlock(&iflock);
@@ -6638,7 +6638,7 @@ static int reload_zt(void)
 			strncpy(idledial, v->value, sizeof(idledial) - 1);
 #endif
 		} else
-			ast_log(LOG_DEBUG, "Ignoring %s\n", v->name);
+			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		v = v->next;
 	}
 

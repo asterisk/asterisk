@@ -754,6 +754,14 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char *
 									*cp4=ast_var_value(variables);
 							}
 						}
+						if (!(*cp4)) {
+							int len=strlen(cp3);
+							int len_env=strlen("ENV(");
+							if (len > (len_env+1) && !strncasecmp(cp3,"ENV(",len_env) && !strcmp(cp3+len-1,")")) {
+								cp3[len-1]='\0';
+								*cp4=getenv(cp3+len_env);
+							}
+						}
 					}
 }
 
@@ -1101,27 +1109,6 @@ int ast_pbx_run(struct ast_channel *c)
 	c->pbx->rtimeout = 10;
 	c->pbx->dtimeout = 5;
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "PBX_THREAD(%s)\n", c->name);
-	else if (option_verbose > 1) {
-		struct timeval tv;
-		struct tm tm;
-		FILE *LOG;
-
-		gettimeofday(&tv,NULL);
-		localtime_r(&(tv.tv_sec),&tm);
-		LOG = fopen(AST_SPOOL_DIR "/call.log","a");
-
-		if (c->callerid) {
-			ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s' (%s) at %02d-%02d %02d:%02d\n", c->name, c->callerid, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);
-			fprintf(LOG,"%04d-%02d-%02d %02d:%02d:%02d - %s - %s\n",tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, c->name, c->callerid);
-		} else {
-			ast_verbose( VERBOSE_PREFIX_2 "Accepting call on '%s' at %02d-%02d %02d:%02d\n", c->name, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min);
-			fprintf(LOG,"%04d-%02d-%02d %02d:%02d:%02d - %s\n",tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, c->name);
-		}
-		fclose(LOG);
-	}
-		
 	/* Start by trying whatever the channel is set to */
 	if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
 		/* JK02: If not successfull fall back to 's' */

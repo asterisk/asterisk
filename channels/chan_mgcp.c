@@ -40,6 +40,7 @@
 #include <arpa/inet.h>
 #include <sys/signal.h>
 #include <asterisk/dsp.h>
+#include <ctype.h>
 
 #define MGCPDUMPER
 #define DEFAULT_EXPIREY 120
@@ -71,6 +72,7 @@ static int restart_monitor(void);
 
 /* Just about everybody seems to support ulaw, so make it a nice default */
 static int capability = AST_FORMAT_ULAW;
+static int nonCodecCapability = AST_RTP_DTMF;
 
 static char ourhost[256];
 static struct in_addr __ourip;
@@ -133,6 +135,7 @@ struct mgcp_endpoint {
 	int alreadygone;
 	int needdestroy;
 	int capability;
+	int nonCodecCapability;
 	int outgoing;
 	struct ast_dsp *vad;
 	struct ast_channel *owner;
@@ -568,21 +571,41 @@ static struct ast_channel *mgcp_new(struct mgcp_endpoint *i, int state)
 	return tmp;
 }
 
-static char *get_sdp(struct mgcp_request *req, char *name)
-{
-	int x;
-	int len = strlen(name);
-	char *r;
-	for (x=0;x<req->lines;x++) {
-		if (!strncasecmp(req->line[x], name, len) && 
-				(req->line[x][len] == '=')) {
-					r = req->line[x] + len + 1;
-					while(*r && (*r < 33))
-							r++;
-					return r;
-		}
-	}
-	return "";
+static char* get_sdp_by_line(char* line, char *name, int nameLen) {
+  if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=') {
+    char* r = line + nameLen + 1;
+    while (*r && (*r < 33)) ++r;
+    return r;
+  }
+
+  return "";
+}
+
+static char *get_sdp(struct mgcp_request *req, char *name) {
+  int x;
+  int len = strlen(name);
+  char *r;
+
+  for (x=0; x<req->lines; x++) {
+    r = get_sdp_by_line(req->line[x], name, len);
+    if (r[0] != '\0') return r;
+  }
+  return "";
+}
+
+static void sdpLineNum_iterator_init(int* iterator) {
+  *iterator = 0;
+}
+
+static char* get_sdp_iterate(int* iterator,
+			     struct mgcp_request *req, char *name) {
+  int len = strlen(name);
+  char *r;
+  while (*iterator < req->lines) {
+    r = get_sdp_by_line(req->line[(*iterator)++], name, len);
+    if (r[0] != '\0') return r;
+  }
+  return "";
 }
 
 static char *__get_header(struct mgcp_request *req, char *name, int *start)
@@ -803,14 +826,17 @@ static int process_sdp(struct mgcp_endpoint *p, struct mgcp_request *req)
 {
 	char *m;
 	char *c;
+	char *a;
 	char host[258];
 	int len;
 	int portno;
-	int peercapability;
+	int peercapability, peerNonCodecCapability;
 	struct sockaddr_in sin;
 	char *codecs;
 	struct hostent *hp;
 	int codec;
+	int iterator;
+
 	/* Get codec and RTP info from SDP */
 	m = get_sdp(req, "m");
 	c = get_sdp(req, "c");
@@ -840,25 +866,46 @@ static int process_sdp(struct mgcp_endpoint *p, struct mgcp_request *req)
 #if 0
 	printf("Peer RTP is at port %s:%d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
 #endif	
-	peercapability = 0;
+	// Scan through the RTP payload types specified in a "m=" line:
+        rtp_pt_init(p->rtp);
 	codecs = m + len;
 	while(strlen(codecs)) {
 		if (sscanf(codecs, "%d %n", &codec, &len) != 1) {
 			ast_log(LOG_WARNING, "Error in codec string '%s'\n", codecs);
 			return -1;
 		}
-#if 0
-		printf("Codec: %d\n", codec);
-#endif		
-		codec = rtp2ast(codec);
-		if (codec  > -1)
-			peercapability |= codec;
+		rtp_set_m_type(p->rtp, codec);
 		codecs += len;
 	}
+
+        // Next, scan through each "a=rtpmap:" line, noting each
+        // specified RTP payload type (with corresponding MIME subtype):
+        sdpLineNum_iterator_init(&iterator);
+        while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
+          char* mimeSubtype = strdup(a); // ensures we have enough space
+          int subtypeLen, i;
+          if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
+          // Note: should really look at the 'freq' and '#chans' params too
+          subtypeLen = strlen(mimeSubtype);
+          // Convert the MIME subtype to upper case, for ease of searching:
+          for (i = 0; i < subtypeLen; ++i) {
+            mimeSubtype[i] = toupper(mimeSubtype[i]);
+          }
+          rtp_set_rtpmap_type(p->rtp, codec, "audio", mimeSubtype);
+	  free(mimeSubtype);
+        }
+
+        // Now gather all of the codecs that were asked for:
+        rtp_get_current_formats(p->rtp,
+                                &peercapability, &peerNonCodecCapability);
 	p->capability = capability & peercapability;
-	if (mgcpdebug)
+	if (mgcpdebug) {
 		ast_verbose("Capabilities: us - %d, them - %d, combined - %d\n",
 		capability, peercapability, p->capability);
+		ast_verbose("Non-codec capabilities: us - %d, them - %d, combined - %d\n",
+                            nonCodecCapability, peerNonCodecCapability,
+                            p->nonCodecCapability);
+	}
 	if (!p->capability) {
 		ast_log(LOG_WARNING, "No compatible codecs!\n");
 		return -1;
@@ -1014,18 +1061,38 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_endpoint *p, struct as
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", inet_ntoa(dest.sin_addr));
 	snprintf(t, sizeof(t), "t=0 0\r\n");
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
-	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
+	for (x = 1; x <= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
 			if (mgcpdebug)
 				ast_verbose("Answering with capability %d\n", x);
-			if ((codec = ast2rtp(x)) > -1) {
+			codec = rtp_lookup_code(p->rtp, 1, x);
+                        if (codec > -1) {
 				snprintf(costr, sizeof(costr), " %d", codec);
 				strcat(m, costr);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast2rtpn(x));
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, rtp_lookup_mime_subtype(1, x));
 				strcat(a, costr);
 			}
 		}
 	}
+	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
+	        if (p->nonCodecCapability & x) {
+		        if (mgcpdebug)
+			        ast_verbose("Answering with non-codec capability %d\n", x);
+			codec = rtp_lookup_code(p->rtp, 0, x);
+			if (codec > -1) {
+			        snprintf(costr, sizeof(costr), " %d", codec);
+				strcat(m, costr);
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, rtp_lookup_mime_subtype(0, x));
+				strcat(a, costr);
+				if (x == AST_RTP_DTMF) {
+				  /* Indicate we support DTMF...  Not sure about 16, but MSN supports it so dang it, we will too... */
+				  snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n",
+					   codec);
+				  strcat(a, costr);
+				}
+			}
+		}
+        }
 	strcat(m, "\r\n");
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
 	snprintf(costr, sizeof(costr), "%d", len);
@@ -1054,7 +1121,7 @@ static int transmit_modify_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rtp
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
-			snprintf(tmp, sizeof(tmp), ", a:%s", ast2rtpn(x));
+			snprintf(tmp, sizeof(tmp), ", a:%s", rtp_lookup_mime_subtype(1, x));
 			strcat(local, tmp);
 		}
 	}
@@ -1079,7 +1146,7 @@ static int transmit_connect_with_sdp(struct mgcp_endpoint *p, struct ast_rtp *rt
 	snprintf(local, sizeof(local), "p:20");
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
 		if (p->capability & x) {
-			snprintf(tmp, sizeof(tmp), ", a:%s", ast2rtpn(x));
+			snprintf(tmp, sizeof(tmp), ", a:%s", rtp_lookup_mime_subtype(1, x));
 			strcat(local, tmp);
 		}
 	}

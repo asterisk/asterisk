@@ -25,6 +25,14 @@
 extern "C" {
 #endif
 
+/* Codes for RTP-specific data - not defined by our AST_FORMAT codes */
+/*! DTMF (RFC2833) */
+#define AST_RTP_DTMF            (1 << 0)
+/*! 'Comfort Noise' (RFC3389) */
+#define AST_RTP_CN              (1 << 1)
+/*! Maximum RTP-specific code */
+#define AST_RTP_MAX             AST_RTP_CN
+
 struct ast_rtp_protocol {
 	struct ast_rtp *(*get_rtp_info)(struct ast_channel *chan);				/* Get RTP struct, or NULL if unwilling to transfer */
 	int (*set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer);	/* Set RTP peer */
@@ -61,13 +69,23 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit);
 
 int ast_rtp_settos(struct ast_rtp *rtp, int tos);
 
+// Setting RTP payload types from lines in a SDP description:
+void rtp_pt_init(struct ast_rtp* rtp);
+void rtp_set_m_type(struct ast_rtp* rtp, int pt);
+void rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
+			 char* mimeType, char* mimeSubtype);
+
+// Mapping between RTP payload format codes and Asterisk codes:
+struct rtpPayloadType rtp_lookup_pt(struct ast_rtp* rtp, int pt);
+int rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code);
+
+void rtp_get_current_formats(struct ast_rtp* rtp,
+			     int* astFormats, int* nonAstFormats);
+
+// Mapping an Asterisk code into a MIME subtype (string):
+char* rtp_lookup_mime_subtype(int isAstFormat, int code);
+
 void ast_rtp_setnat(struct ast_rtp *rtp, int nat);
-
-int ast2rtp(int id);
-
-int rtp2ast(int id);
-
-char *ast2rtpn(int id);
 
 int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
 
