@@ -3561,7 +3561,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (i->busydetect && CANBUSYDETECT(i)) {
 			features |= DSP_FEATURE_BUSY_DETECT;
 		}
-		if (i->callprogress && CANPROGRESSDETECT(i) && i->outgoing) {
+		if (i->callprogress && CANPROGRESSDETECT(i)) {
 			features |= DSP_FEATURE_CALL_PROGRESS;
 		}
 		features |= DSP_FEATURE_DTMF_DETECT;
