@@ -870,6 +870,9 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 					ast_frfree(f);
 					break;
 				}
+			} else if (f->frametype == AST_FRAME_VIDEO) {
+				/* Write only once */
+				ast_writestream(others[0], f);
 			} else if (f->frametype == AST_FRAME_DTMF) {
 				if (f->subclass == '#') {
 					if (option_verbose > 2) 
