@@ -1,0 +1,53 @@
+Asterisk Patch/Coding Guidelines
+
+To be accepted into the codebase, all non-trivial changes must be
+disclaimed to Digium or placed in the public domain. For more information
+see http://bugs.digium.com
+
+Patches should be in the form of a unified (-u) diff.
+
+Don't annotate your changes with comments like "/* JMG 4/20/04 */";
+Comments should explain what the code does, not when something was changed
+or who changed it.
+
+Don't make unnecessary whitespace changes throughout the code.
+
+Don't use C++ type (//) comments.
+
+Try to match the existing formatting of the file you are working on.
+
+Functions and variables that are not intended to be global must be
+declared static.
+
+Function calls and arguments should be spaced in a consistent way across
+the codebase.
+GOOD: foo(arg1, arg2);
+GOOD: foo(arg1,arg2);	/* Acceptable but not preferred */
+BAD: foo (arg1, arg2);
+BAD: foo( arg1, arg2 );
+BAD: foo(arg1, arg2,arg3);
+
+Following are examples of how code should be formatted.
+
+Functions:
+int foo(int a, char *s)
+{
+	return 0;
+}
+
+If statements:
+if (foo) {
+	bar();
+} else {
+	blah();
+}
+
+Case statements:
+switch (foo) {
+	case BAR:
+		blah();
+		break;
+	case OTHER:
+		other();
+		break;
+}
