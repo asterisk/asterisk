@@ -3963,6 +3963,11 @@ int ast_pbx_outgoing_exten(char *type, int format, void *data, int timeout, char
 		strncpy(as->exten,  exten, sizeof(as->exten) - 1);
 		as->priority = priority;
 		as->timeout = timeout;
+		if (variable) {
+			tmp = ast_strdupa(variable);
+				for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp))
+					pbx_builtin_setvar( chan, var );
+		}
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (pthread_create(&as->p, &attr, async_wait, as)) {
@@ -4068,6 +4073,11 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 		if (appdata)
 			strncpy(as->appdata,  appdata, sizeof(as->appdata) - 1);
 		as->timeout = timeout;
+		if (variable) {
+			tmp = ast_strdupa(variable);
+				for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp))
+					pbx_builtin_setvar( chan, var );
+		}
 		/* Start a new thread, and get something handling this channel. */
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
