@@ -25,7 +25,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include <sys/poll.h>
 #include <asterisk/channel.h>
 #include <asterisk/file.h>
 #include <asterisk/manager.h>
@@ -69,7 +68,8 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	/* Try to write string, but wait no more than ms milliseconds
 	   before timing out */
 	int res=0;
-	struct pollfd fds[1];
+	struct timeval tv;
+	fd_set fds;
 	while(len) {
 		res = write(fd, s, len);
 		if ((res < 0) && (errno != EAGAIN)) {
@@ -78,10 +78,12 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 		if (res < 0) res = 0;
 		len -= res;
 		s += res;
-		fds[0].fd = fd;
-		fds[0].events = POLLOUT;
+		tv.tv_sec = timeoutms / 1000;
+		tv.tv_usec = timeoutms % 1000;
+		FD_ZERO(&fds);
+		FD_SET(fd, &fds);
 		/* Wait until writable again */
-		res = poll(fds, 1, timeoutms);
+		res = select(fd + 1, NULL, &fds, NULL, &tv);
 		if (res < 1)
 			return -1;
 	}
@@ -713,7 +715,7 @@ static int get_input(struct mansession *s, char *output)
 	/* output must have at least sizeof(s->inbuf) space */
 	int res;
 	int x;
-	struct pollfd fds[1];
+	fd_set fds;
 	for (x=1;x<s->inlen;x++) {
 		if ((s->inbuf[x] == '\n') && (s->inbuf[x-1] == '\r')) {
 			/* Copy output data up to and including \r\n */
@@ -730,9 +732,9 @@ static int get_input(struct mansession *s, char *output)
 		ast_log(LOG_WARNING, "Dumping long line with no return from %s: %s\n", inet_ntoa(s->sin.sin_addr), s->inbuf);
 		s->inlen = 0;
 	}
-	fds[0].fd = s->fd;
-	fds[0].events = POLLIN;
-	res = poll(fds, 1, -1);
+	FD_ZERO(&fds);
+	FD_SET(s->fd, &fds);
+	res = ast_select(s->fd + 1, &fds, NULL, NULL, NULL);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 	} else if (res > 0) {

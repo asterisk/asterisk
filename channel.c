@@ -20,7 +20,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <math.h>			/* For PI */
-#include <sys/poll.h>
 #include <asterisk/pbx.h>
 #include <asterisk/frame.h>
 #include <asterisk/sched.h>
@@ -774,40 +773,32 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 	return 0;
 }
 
-static inline int ast_fdisset(struct pollfd *pfds, int fd, int max)
-{
-	int x;
-	for (x=0;x<max;x++)
-		if (pfds[x].fd == fd) 
-			return pfds[x].revents;
-	return 0;
-}
-
 int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 {
 	/* Wait for x amount of time on a file descriptor to have input.  */
-	struct timeval start, now;
+	struct timeval tv;
+	fd_set rfds, efds;
 	int res;
-	int x, y;
+	int x, max=-1;
 	int winner = -1;
-	struct pollfd *pfds;
 	
-	pfds = alloca(sizeof(struct pollfd) * n);
-	if (!pfds) {
-		ast_log(LOG_WARNING, "alloca failed!  bad things will happen.\n");
-		return -1;
-	}
-	if (*ms > 0)
-		gettimeofday(&start, NULL);
-	y = 0;
+	tv.tv_sec = *ms / 1000;
+	tv.tv_usec = (*ms % 1000) * 1000;
+	FD_ZERO(&rfds);
+	FD_ZERO(&efds);
 	for (x=0;x<n;x++) {
 		if (fds[x] > -1) {
-			pfds[y].fd = fds[x];
-			pfds[y].events = POLLIN | POLLPRI;
-			y++;
+			FD_SET(fds[x], &rfds);
+			FD_SET(fds[x], &efds);
+			if (fds[x] > max)
+				max = fds[x];
 		}
 	}
-	res = poll(pfds, y, *ms);
+	if (*ms >= 0)
+		res = ast_select(max + 1, &rfds, NULL, &efds, &tv);
+	else
+		res = ast_select(max + 1, &rfds, NULL, &efds, NULL);
+
 	if (res < 0) {
 		/* Simulate a timeout if we were interrupted */
 		if (errno != EINTR)
@@ -816,29 +807,15 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 			*ms = 0;
 		return -1;
 	}
+
 	for (x=0;x<n;x++) {
-		if (fds[x] > -1) {
-			if ((res = ast_fdisset(pfds, fds[x], y))) {
-				winner = fds[x];
-				if (exception) {
-					if (res & POLLPRI)
-						*exception = -1;
-					else
-						*exception = 0;
-				}
-			}
+		if ((fds[x] > -1) && (FD_ISSET(fds[x], &rfds) || FD_ISSET(fds[x], &efds)) && (winner < 0)) {
+			if (exception)
+				*exception = FD_ISSET(fds[x], &efds);
+			winner = fds[x];
 		}
 	}
-	if (*ms > 0) {
-		long passed;
-		gettimeofday(&now, NULL);
-		passed = (now.tv_sec - start.tv_sec) * 1000;
-		passed += (now.tv_usec - start.tv_usec) / 1000;
-		if (passed <= *ms)
-			*ms -= passed;
-		else
-			*ms = 0;
-	}
+	*ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 	return winner;
 }
 
@@ -846,21 +823,13 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	int *exception, int *outfd, int *ms)
 {
 	/* Wait for x amount of time on a file descriptor to have input.  */
-	struct timeval start, end;
-	struct pollfd *pfds;
+	struct timeval tv;
+	fd_set rfds, efds;
 	int res;
-	long rms;
-	int x, y, max;
+	int x, y, max=-1;
 	time_t now = 0;
 	long whentohangup = 0, havewhen = 0, diff;
 	struct ast_channel *winner = NULL;
-
-	pfds = alloca(sizeof(struct pollfd) * (n * AST_MAX_FDS + nfds));
-	if (!pfds) {
-		ast_log(LOG_WARNING, "alloca failed!  bad things will happen.\n");
-		*outfd = -1;
-		return NULL;
-	}
 	if (outfd)
 		*outfd = -99999;
 	if (exception)
@@ -888,35 +857,41 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		}
 		ast_mutex_unlock(&c[x]->lock);
 	}
-
-	rms = *ms;
+	
+	tv.tv_sec = *ms / 1000;
+	tv.tv_usec = (*ms % 1000) * 1000;
 	
 	if (havewhen) {
 		if ((*ms < 0) || (whentohangup * 1000 < *ms)) {
-			rms =  whentohangup * 1000;
+			tv.tv_sec = whentohangup;
+			tv.tv_usec = 0;
 		}
 	}
-	max = 0;
+	FD_ZERO(&rfds);
+	FD_ZERO(&efds);
+
 	for (x=0;x<n;x++) {
 		for (y=0;y<AST_MAX_FDS;y++) {
 			if (c[x]->fds[y] > -1) {
-				pfds[max].fd = c[x]->fds[y];
-				pfds[max].events = POLLIN | POLLPRI;
-				max++;
+				FD_SET(c[x]->fds[y], &rfds);
+				FD_SET(c[x]->fds[y], &efds);
+				if (c[x]->fds[y] > max)
+					max = c[x]->fds[y];
 			}
 		}
 		CHECK_BLOCKING(c[x]);
 	}
 	for (x=0;x<nfds; x++) {
-		if (fds[x] > -1) {
-			pfds[max].fd = fds[x];
-			pfds[max].events = POLLIN | POLLPRI;
-			max++;
-		}
+		FD_SET(fds[x], &rfds);
+		FD_SET(fds[x], &efds);
+		if (fds[x] > max)
+			max = fds[x];
 	}
-	if (*ms > 0) 
-		gettimeofday(&start, NULL);
-	res = poll(pfds, max, rms);
+	if ((*ms >= 0) || (havewhen))
+		res = ast_select(max + 1, &rfds, NULL, &efds, &tv);
+	else
+		res = ast_select(max + 1, &rfds, NULL, &efds, NULL);
+
 	if (res < 0) {
 		for (x=0;x<n;x++) 
 			c[x]->blocking = 0;
@@ -943,41 +918,26 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		}
 		for (y=0;y<AST_MAX_FDS;y++) {
 			if (c[x]->fds[y] > -1) {
-				if ((res = ast_fdisset(pfds, c[x]->fds[y], max))) {
-					if (res & POLLPRI)
+				if ((FD_ISSET(c[x]->fds[y], &rfds) || FD_ISSET(c[x]->fds[y], &efds)) && !winner) {
+					/* Set exception flag if appropriate */
+					if (FD_ISSET(c[x]->fds[y], &efds))
 						c[x]->exception = 1;
-					else
-						c[x]->exception = 0;
+					c[x]->fdno = y;
 					winner = c[x];
 				}
 			}
 		}
 	}
 	for (x=0;x<nfds;x++) {
-		if (fds[x] > -1) {
-			if ((res = ast_fdisset(pfds, fds[x], max))) {
-				if (outfd)
-					*outfd = fds[x];
-				if (exception) {	
-					if (res & POLLPRI) 
-						*exception = -1;
-					else
-						*exception = 1;
-				}
-				winner = NULL;
-			}
-		}	
+		if ((FD_ISSET(fds[x], &rfds) || FD_ISSET(fds[x], &efds)) && !winner) {
+			if (outfd)
+				*outfd = fds[x];
+			if (FD_ISSET(fds[x], &efds) && exception)
+				*exception = 1;
+			winner = NULL;
+		}
 	}
-	if (*ms > 0) {
-		long diff;
-		gettimeofday(&end, NULL);
-		diff = (end.tv_sec - start.tv_sec) * 1000;
-		diff += (end.tv_usec - start.tv_usec) * 1000;
-		if (diff < *ms)
-			*ms -= diff;
-		else
-			*ms = 0;
-	}
+	*ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 	return winner;
 }
 
