@@ -39,6 +39,9 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <errno.h>
+#if defined(__NetBSD__)
+#include <netinet/in_systm.h>
+#endif
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
@@ -350,6 +353,7 @@ static void dundi_reject(struct dundi_hdr *h, struct sockaddr_in *sin)
 
 static void reset_global_eid(void)
 {
+#if !defined(__NetBSD__)
 	int x,s;
 	char eid_str[20];
 	struct ifreq ifr;
@@ -367,6 +371,7 @@ static void reset_global_eid(void)
 			}
         }
 	}
+#endif
 	ast_log(LOG_NOTICE, "No ethernet interface found for seeding global EID  You will have to set it manually.\n");
 }
 
@@ -3173,7 +3178,7 @@ static void build_mapping(char *name, char *value)
 	struct dundi_mapping *map;
 	int x;
 	int y;
-	t = strdupa(value);
+	t = ast_strdupa(value);
 	if (t) {
 		map = mappings;
 		while(map) {
@@ -3661,12 +3666,18 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 				tos = IPTOS_THROUGHPUT;
 			else if (!strcasecmp(v->value, "reliability"))
 				tos = IPTOS_RELIABILITY;
+#if !defined(__NetBSD__)
 			else if (!strcasecmp(v->value, "mincost"))
 				tos = IPTOS_MINCOST;
+#endif
 			else if (!strcasecmp(v->value, "none"))
 				tos = 0;
 			else
+#if defined(__NetBSD__)
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
+#else
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);
+#endif
 		} else if (!strcasecmp(v->name, "department")) {
 			strncpy(dept, v->value, sizeof(dept) - 1);
 		} else if (!strcasecmp(v->name, "organization")) {
