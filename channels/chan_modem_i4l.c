@@ -26,7 +26,7 @@
 #include <asterisk/options.h>
 #include <asterisk/dsp.h>
 #include <asterisk/callerid.h>
-#include <asterisk/alaw.h>
+#include <asterisk/ulaw.h>
 
 #define STATE_COMMAND 	0
 #define STATE_VOICE 	1
@@ -211,9 +211,9 @@ static int i4l_init(struct ast_modem_pvt *p)
 		return -1;
 	}
 
-	if (ast_modem_send(p, "AT+VSM=5", 0) ||
+	if (ast_modem_send(p, "AT+VSM=6", 0) ||
 	     ast_modem_expect(p, "OK", 5)) {
-		ast_log(LOG_WARNING, "Unable to set to aLAW mode\n");
+		ast_log(LOG_WARNING, "Unable to set to muLAW mode\n");
 		return -1;
 	}
 	if (ast_modem_send(p, "AT+VLS=2", 0) ||
@@ -420,7 +420,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 						if (!f)
 							return NULL;
 					} else {
-						*(b++) = AST_ALAW(result[x]);
+						*(b++) = AST_MULAW(result[x]);
 						p->obuflen += 2;
 					}
 				}
@@ -480,7 +480,7 @@ static int i4l_write(struct ast_modem_pvt *p, struct ast_frame *f)
 		return -1;
 	}
 	for (x=0;x<f->datalen/2;x++) {
-		b = AST_LIN2A(((short *)f->data)[x]);
+		b = AST_LIN2MU(((short *)f->data)[x]);
 		result[bpos++] = b;
 		if (b == CHAR_DLE)
 			result[bpos++]=b;
