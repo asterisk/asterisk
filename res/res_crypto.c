@@ -296,7 +296,7 @@ static char *binary(int y, int len)
 
 #endif
 
-int ast_sign_bin(struct ast_key *key, char *msg, unsigned char *dsig)
+int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
 	int siglen = sizeof(dsig);
@@ -308,7 +308,7 @@ int ast_sign_bin(struct ast_key *key, char *msg, unsigned char *dsig)
 	}
 
 	/* Calculate digest of message */
-	SHA1((unsigned char *)msg, strlen(msg), digest);
+	SHA1((unsigned char *)msg, msglen, digest);
 
 	/* Verify signature */
 	res = RSA_sign(NID_sha1, digest, sizeof(digest), dsig, &siglen, key->rsa);
@@ -332,7 +332,7 @@ int ast_sign(struct ast_key *key, char *msg, char *sig)
 	unsigned char dsig[128];
 	int siglen = sizeof(dsig);
 	int res;
-	res = ast_sign_bin(key, msg, dsig);
+	res = ast_sign_bin(key, msg, strlen(msg), dsig);
 	if (!res)
 		/* Success -- encode (256 bytes max as documented) */
 		ast_base64encode(sig, dsig, siglen, 256);
@@ -340,7 +340,7 @@ int ast_sign(struct ast_key *key, char *msg, char *sig)
 	
 }
 
-int ast_check_signature_bin(struct ast_key *key, char *msg, unsigned char *dsig)
+int ast_check_signature_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
 	int res;
@@ -353,7 +353,7 @@ int ast_check_signature_bin(struct ast_key *key, char *msg, unsigned char *dsig)
 	}
 
 	/* Calculate digest of message */
-	SHA1((unsigned char *)msg, strlen(msg), digest);
+	SHA1((unsigned char *)msg, msglen, digest);
 
 	/* Verify signature */
 	res = RSA_verify(NID_sha1, digest, sizeof(digest), dsig, sizeof(dsig), key->rsa);
@@ -377,7 +377,7 @@ int ast_check_signature(struct ast_key *key, char *msg, char *sig)
 		ast_log(LOG_WARNING, "Signature improper length (expect %d, got %d)\n", (int)sizeof(dsig), (int)res);
 		return -1;
 	}
-	res = ast_check_signature_bin(key, msg, dsig);
+	res = ast_check_signature_bin(key, msg, strlen(msg), dsig);
 	return res;
 }
 

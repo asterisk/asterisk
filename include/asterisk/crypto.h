@@ -62,7 +62,7 @@ extern int ast_check_signature(struct ast_key *key, char *msg, char *sig);
  * Returns 0 if the signature is valid, or -1 otherwise
  *
  */
-extern int ast_check_signature_bin(struct ast_key *key, char *msg, unsigned char *sig);
+extern int ast_check_signature_bin(struct ast_key *key, char *msg, int msglen, unsigned char *sig);
 
 /*!
  * \param key a private key to use to create the signature
@@ -83,7 +83,7 @@ extern int ast_sign(struct ast_key *key, char *msg, char *sig);
  * Returns 0 on success or -1 on failure.
  *
  */
-extern int ast_sign_bin(struct ast_key *key, char *msg, unsigned char *sig);
+extern int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *sig);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
