@@ -1917,9 +1917,10 @@ int main(int argc, char *argv[])
 		}
 
 	} else {
+		struct pollfd silly_macos[1];	
 		/* Do nothing */
 		for(;;) 
-			poll(NULL,0, -1);
+			poll(silly_macos,0, -1);
 	}
 	return 0;
 }
