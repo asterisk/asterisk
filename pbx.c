@@ -367,6 +367,10 @@ int pbx_exec(struct ast_channel *c, /* Channel */
 	/* This function is special.  It saves the stack so that no matter
 	   how many times it is called, it returns to the same place */
 	int res;
+	
+	char *saved_c_appl;
+	char *saved_c_data;
+	
 	int stack = c->stack;
 	int (*execute)(struct ast_channel *chan, void *data) = app->execute; 
 	if (newstack && stack > AST_CHANNEL_MAX_STACK - 2) {
@@ -391,11 +395,18 @@ int pbx_exec(struct ast_channel *c, /* Channel */
 	} else {
 		if (c->cdr)
 			ast_cdr_setapp(c->cdr, app->name, data);
+
+		// save channel values
+		saved_c_appl= c->appl;
+		saved_c_data= c->data;
+
 		c->appl = app->name;
 		c->data = data;		
 		res = execute(c, data);
-		c->appl = NULL;
-		c->data = NULL;		
+		// restore channel values
+		c->appl= saved_c_appl;
+		c->data= saved_c_data;
+
 		/* Any application that returns, we longjmp back, just in case. */
 		if (c->stack != stack + 1)
 			ast_log(LOG_WARNING, "Stack is not at expected value\n");
