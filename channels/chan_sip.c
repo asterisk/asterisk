@@ -158,6 +158,10 @@ static int globalrtpholdtimeout = 0;
 
 static int globaltrustrpid = 0;
 
+#ifdef OSP_SUPPORT
+static int globalospauth = 0;
+#endif
+
 static int usecnt =0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
@@ -318,6 +322,7 @@ static struct sip_pvt {
 	int pendingbye;				/* Need to send bye after we ack? */
 	int gotrefer;				/* Got a refer? */
 #ifdef OSP_SUPPORT
+	int ospauth;				/* Allow OSP Authentication */
 	int osphandle;				/* OSP Handle for call */
 	time_t ospstart;			/* OSP Start time */
 #endif
@@ -384,6 +389,9 @@ struct sip_user {
 	int insecure;
 	int canreinvite;
 	int capability;
+#ifdef OSP_SUPPORT
+	int ospauth;				/* Allow OSP Authentication */
+#endif
 	int dtmfmode;
 	int inUse;
 	int incominglimit;
@@ -422,6 +430,9 @@ struct sip_peer {
 	int rtptimeout;
 	int rtpholdtimeout;
 	int insecure;
+#ifdef OSP_SUPPORT
+	int ospauth;				/* Allow OSP Authentication */
+#endif	
 	int nat;
 	int canreinvite;
 	unsigned int callgroup;
@@ -2216,6 +2227,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->dtmfmode = globaldtmfmode;
 	p->promiscredir = globalpromiscredir;
 	p->trustrpid = globaltrustrpid;
+#ifdef OSP_SUPPORT
+	p->ospauth = globalospauth;
+#endif
 	p->rtptimeout = globalrtptimeout;
 	p->rtpholdtimeout = globalrtpholdtimeout;
 	p->capability = capability;
@@ -4322,8 +4336,16 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	char *reqheader = "Proxy-Authorization";
 	char *respheader = "Proxy-Authenticate";
 	char *authtoken;
+#ifdef OSP_SUPPORT
+	char *osptoken;
+	unsigned int osptimelimit;
+#endif
 	/* Always OK if no secret */
-	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret))
+	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)
+#ifdef OSP_SUPPORT
+		&& !p->ospauth 
+#endif
+		)
 		return 0;
 	if (!strcasecmp(method, "REGISTER")) {
 		/* On a REGISTER, we have to use 401 and its family of headers instead of 407 and its family
@@ -4333,6 +4355,21 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		reqheader = "Authorization";
 		respheader = "WWW-Authenticate";
 	}
+#ifdef OSP_SUPPORT
+	else if (p->ospauth) {
+		ast_log(LOG_DEBUG, "Checking OSP Authentication!\n");
+		osptoken = get_header(req, "P-OSP-Auth-Token");
+		/* Check for token existence */
+		if (!strlen(osptoken))
+			return -1;
+		/* Validate token */
+		if (ast_osp_validate(NULL, osptoken, &p->osphandle, &osptimelimit, p->callerid, p->sa.sin_addr, p->exten) < 1)
+			return -1;
+		/* If ospauth is 'exclusive' don't require further authentication */
+		if ((p->ospauth > 1) || (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)))
+			return 0;
+	}
+#endif	
 	authtoken =  get_header(req, reqheader);	
 	if (ignore && !ast_strlen_zero(randdata) && ast_strlen_zero(authtoken)) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
@@ -4984,6 +5021,18 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	user = find_user(of);
 	if (user && ast_apply_ha(user->ha, sin)) {
 		p->nat = user->nat;
+#ifdef OSP_SUPPORT
+		p->ospauth = user->ospauth;
+#endif
+		p->trustrpid = user->trustrpid;
+		/* replace callerid if rpid found, and not restricted */
+		if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
+		  if (*calleridname)
+		    sprintf(p->callerid,"\"%s\" <%s>",calleridname,rpid_num);
+		  else
+		    strncpy(p->callerid, rpid_num, sizeof(p->callerid) - 1);
+		}
+
 		if (p->rtp) {
 			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
 			ast_rtp_setnat(p->rtp, p->nat);
@@ -5004,7 +5053,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 			strncpy(p->language, user->language, sizeof(p->language)  -1);
 			strncpy(p->musicclass, user->musicclass, sizeof(p->musicclass)  -1);
-			p->trustrpid = user->trustrpid;
 			p->canreinvite = user->canreinvite;
 			p->amaflags = user->amaflags;
 			p->callgroup = user->callgroup;
@@ -5046,6 +5094,17 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 				ast_verbose("Found peer '%s'\n", peer->name);
 			/* Take the peer */
 			p->nat = peer->nat;
+			p->trustrpid = peer->trustrpid;
+			/* replace callerid if rpid found, and not restricted */
+			if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
+			  if (*calleridname)
+			    sprintf(p->callerid,"\"%s\" <%s>",calleridname,rpid_num);
+			  else
+			    strncpy(p->callerid, rpid_num, sizeof(p->callerid) - 1);
+			}
+#ifdef OSP_SUPPORT
+			p->ospauth = peer->ospauth;
+#endif
 			if (p->rtp) {
 				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
 				ast_rtp_setnat(p->rtp, p->nat);
@@ -5087,8 +5146,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 					else
 						p->noncodeccapability &= ~AST_RTP_DTMF;
 				}
-				p->trustrpid = peer->trustrpid;
-
 			}
 			if (peer->temponly) {
 				if (peer->ha) {
@@ -5101,14 +5158,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 				ast_verbose("Found no matching peer or user for '%s:%d'\n", inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
 		ast_mutex_unlock(&peerl.lock);
 
-	}
-
-	/* replace callerid if rpid found, and not restricted */
-	if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
-	  if (*calleridname)
-	    sprintf(p->callerid,"\"%s\" <%s>",calleridname,rpid_num);
-	  else
-	    strncpy(p->callerid, rpid_num, sizeof(p->callerid) - 1);
 	}
 
 	return res;
@@ -7489,6 +7538,9 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 
 		user->canreinvite = globalcanreinvite;
 		user->trustrpid = globaltrustrpid;
+#ifdef OSP_SUPPORT
+		user->ospauth = globalospauth;
+#endif
 		/* set default context */
 		strncpy(user->context, context, sizeof(user->context)-1);
 		strncpy(user->language, language, sizeof(user->language)-1);
@@ -7568,7 +7620,16 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "restrictcid")) {
 				user->restrictcid = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "trustrpid")) {
-                                user->trustrpid = ast_true(v->value);
+				user->trustrpid = ast_true(v->value);
+#ifdef OSP_SUPPORT
+			} else if (!strcasecmp(v->name, "ospauth")) {
+				if (!strcasecmp(v->value, "exclusive")) {
+					user->ospauth = 2;
+				} else if (ast_true(v->value)) {
+					user->ospauth = 1;
+				} else
+					user->ospauth = 0;
+#endif
 			}
 			/*else if (strcasecmp(v->name,"type"))
 			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
@@ -7607,6 +7668,9 @@ static struct sip_peer *temp_peer(char *name)
 	peer->selfdestruct = 1;
 	peer->dynamic = 1;
 	peer->trustrpid = globaltrustrpid;
+#ifdef OSP_SUPPORT
+	peer->ospauth = globalospauth;
+#endif
 	reg_source_db(peer);
 	return peer;
 }
@@ -7668,6 +7732,9 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->dtmfmode = 0;
 		peer->promiscredir = globalpromiscredir;
 		peer->trustrpid = globaltrustrpid;
+#ifdef OSP_SUPPORT
+		peer->ospauth = globalospauth;
+#endif
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
@@ -7795,6 +7862,15 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				}
 			} else if (!strcasecmp(v->name, "trustrpid")) {
                                 peer->trustrpid = ast_true(v->value);
+#ifdef OSP_SUPPORT
+			} else if (!strcasecmp(v->name, "ospauth")) {
+				if (!strcasecmp(v->value, "exclusive")) {
+					peer->ospauth = 2;
+				} else if (ast_true(v->value)) {
+					peer->ospauth = 1;
+				} else
+					peer->ospauth = 0;
+#endif
 			}
 			/* else if (strcasecmp(v->name,"type"))
 			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
@@ -7913,6 +7989,15 @@ static int reload_config(void)
 			srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "trustrpid")) {
 		        globaltrustrpid = ast_true(v->value);
+#ifdef OSP_SUPPORT
+		} else if (!strcasecmp(v->name, "ospauth")) {
+			if (!strcasecmp(v->value, "exclusive")) {
+				globalospauth = 2;
+			} else if (ast_true(v->value)) {
+				globalospauth = 1;
+			} else
+				globalospauth = 0;
+#endif
 		} else if (!strcasecmp(v->name, "pedantic")) {
 			pedanticsipchecking = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "canreinvite")) {

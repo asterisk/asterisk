@@ -14,6 +14,7 @@
 #ifndef _ASTERISK_OSP_H
 #define _ASTERISK_OSP_H
 #include <asterisk/channel.h>
+#include <netinet/in.h>
 #include <time.h>
 
 struct ast_osp_result {
@@ -31,5 +32,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 int ast_osp_next(struct ast_osp_result *result, int cause);
 
 int ast_osp_terminate(int handle, int cause, time_t start, time_t duration);
+
+int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *timeout, char *callerid, struct in_addr addr, char *extension);
 
 #endif

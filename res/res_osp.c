@@ -420,6 +420,67 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
     return retVal;
 }
 
+int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *timelimit, char *callerid, struct in_addr addr, char *extension)
+{
+	char tmp[256]="", *l, *n;
+	char ip[256];
+	char source[OSP_MAX]; /* Same length as osp->source */
+	char *token2;
+	int tokenlen;
+	struct osp_provider *osp;
+	int res = 0;
+	unsigned int authorised, dummy;
+
+	if (!provider || !strlen(provider))
+		provider = "default";
+
+	token2 = ast_strdupa(token);
+	if (!token2)
+		return -1;
+	tokenlen = ast_base64decode(token2, token, strlen(token));
+	*handle = -1;
+	if (!callerid)
+		callerid = "";
+	strncpy(tmp, callerid, sizeof(tmp) - 1);
+	ast_callerid_parse(tmp, &n, &l);
+	if (!l)
+		l = "";
+	else {
+		ast_shrink_phone_number(l);
+		if (!ast_isphonenumber(l))
+			l = "";
+	}
+	callerid = l;
+	ast_mutex_lock(&osplock);
+	strcpy(ip, inet_ntoa(addr));
+	osp = providers;
+	while(osp) {
+		if (!strcasecmp(osp->name, provider)) {
+			if (OSPPTransactionNew(osp->handle, handle)) {
+				ast_log(LOG_WARNING, "Unable to create OSP Transaction handle!\n");
+			} else {
+				strcpy(source, osp->source);
+				res = 1;
+			}
+			break;
+		}
+		osp = osp->next;
+	}
+	ast_mutex_unlock(&osplock);
+	if (res) {
+		res = 0;
+		dummy = 0;
+		if (!OSPPTransactionValidateAuthorisation(*handle, ip, source, NULL, NULL, 
+			callerid, OSPC_E164, extension, OSPC_E164, 0, "", tokenlen, token2, &authorised, timelimit, &dummy, NULL, TOKEN_ALGO_BOTH)) {
+			if (authorised) {
+				ast_log(LOG_DEBUG, "Validated token for '%s' from '%s@%s'\n", extension, callerid, ip);
+				res = 1;
+			}
+		}
+	}
+	return res;	
+}
+
 int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, char *callerid, struct ast_osp_result *result)
 {
 	int cres;
