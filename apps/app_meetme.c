@@ -67,6 +67,7 @@ static char *descrip =
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
 "      'x' -- exit the conference if the last marked user left\n"
+"      'w' -- wait until a marked user has entered the conference\n"
 "      'b' -- run AGI script specified in ${MEETME_AGI_BACKGROUND}\n"
 "         Default: conf-background.agi\n"
 "        (Note: This does not work with non-Zap channels in the same conference)\n"
@@ -146,6 +147,7 @@ static int admin_exec(struct ast_channel *chan, void *data);
 #define CONFFLAG_AGI (1 << 8)		/* Set to run AGI Script in Background */
 #define CONFFLAG_MOH (1 << 9)		/* Set to have music on hold when user is alone in conference */
 #define CONFFLAG_ADMINEXIT (1 << 10)    /* If set the MeetMe will return if all marked with this flag left */
+#define CONFFLAG_WAITMARKED (1 << 11)		/* If set, the MeetMe will wait until a marked user enters */
 
 
 static int careful_write(int fd, unsigned char *data, int len)
@@ -464,6 +466,16 @@ static struct ast_cli_entry cli_conf = {
 	{ "meetme", NULL, NULL }, conf_cmd,
 	"Execute a command on a conference or conferee", conf_usage, complete_confcmd };
 
+static int confnonzero(void *ptr)
+{
+	struct ast_conference *conf = ptr;
+	int res;
+	ast_mutex_lock(&conflock);
+	res = (conf->markedusers < 0);
+	ast_mutex_unlock(&conflock);
+	return res;
+}
+
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
 {
 	struct ast_conference *prev=NULL, *cur;
@@ -482,6 +494,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int origfd;
 	int musiconhold = 0;
 	int firstpass = 0;
+	int origquiet;
 	int ret = -1;
 	int x;
 	int menu_active = 0;
@@ -504,7 +517,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_waitstream(chan, "");
 		goto outrun;
 	}
-	
 	conf->users++;
 	if (confflags & CONFFLAG_ADMINEXIT) {
 		if (conf->markedusers == -1) {
@@ -540,10 +552,36 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	user->userflags = confflags;
 	user->adminflags = 0;
 	ast_mutex_unlock(&conflock);
+	origquiet = confflags & CONFFLAG_QUIET;
+	while((confflags & CONFFLAG_WAITMARKED) && (conf->markedusers < 0)) {
+		confflags &= ~CONFFLAG_QUIET;
+		confflags |= origquiet;
+		/* XXX Announce that we're waiting on the conference lead to join */
+		if (!(confflags & CONFFLAG_QUIET)) {
+			res = ast_streamfile(chan, "vm-dialout", chan->language);
+			if (!res)
+				res = ast_waitstream(chan, "");
+		} else
+			res = 0;
+		/* If we're waiting with hold music, set to silent mode */
+		if (!res) {
+			confflags |= CONFFLAG_QUIET;
+			ast_moh_start(chan, NULL);
+			res = ast_safe_sleep_conditional(chan, 60000, confnonzero, conf);
+			ast_moh_stop(chan);
+		}
+		if (res < 0) {
+			ast_log(LOG_DEBUG, "Got hangup on '%s' already\n", chan->name);
+			goto outrun;
+		}
+	}
 	
 	if (!(confflags & CONFFLAG_QUIET) && conf->users == 1) {
-		if (!ast_streamfile(chan, "conf-onlyperson", chan->language))
-			ast_waitstream(chan, "");
+		if (!ast_streamfile(chan, "conf-onlyperson", chan->language)) {
+			if (ast_waitstream(chan, "") < 0)
+				goto outrun;
+		} else
+			goto outrun;
 	}
 
 	/* Set it into linear mode (write) */
@@ -1137,6 +1175,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			confflags |= CONFFLAG_ADMINEXIT;
 		if (strchr(inflags, 'b'))
 			confflags |= CONFFLAG_AGI;
+		if (strchr(inflags, 'w'))
+			confflags |= CONFFLAG_WAITMARKED;
 		if (strchr(inflags, 'd'))
 			dynamic = 1;
 		if (strchr(inflags, 'D')) {
