@@ -82,7 +82,7 @@ static ast_mutex_t monlock = AST_MUTEX_INITIALIZER;
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
-static pthread_t monitor_thread;
+static ast_mutex_t monitor_thread;
 
 static int mthreadactive = -1; /* Flag for monitoring monitorthread.*/
 
@@ -177,7 +177,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	       bridges[i].fo = fo;
 	       bridges[i].c0 = c0;
 	       bridges[i].c1 = c1;
-	       pthread_mutex_init(&bridges[i].lock, NULL);
+	       ast_mutex_init(&bridges[i].lock, NULL);
 	       pthread_cond_init(&bridges[i].cond, NULL);
 	  } 	       
      } ast_mutex_unlock(&bridge_lock); 
@@ -215,7 +215,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
      
      ast_mutex_lock(&bridge_lock); {
 	  bridges[i].inuse = 0;
-	  pthread_mutex_destroy(&bridges[i].lock);
+	  ast_mutex_destroy(&bridges[i].lock);
 	  pthread_cond_destroy(&bridges[i].cond);	
      } ast_mutex_unlock(&bridge_lock); 
      
@@ -586,7 +586,7 @@ struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, float rxgai
 
      tmp->readthread = 0;
 
-     pthread_mutex_init(&tmp->lock, NULL);
+     ast_mutex_init(&tmp->lock, NULL);
 
      if (setrxgain)      
 	  vpb_record_set_gain(tmp->handle, rxgain);
@@ -1229,7 +1229,7 @@ int unload_module()
 
 		while(iflist) {
 		     p = iflist;		    
-		     pthread_mutex_destroy(&p->lock);
+		     ast_mutex_destroy(&p->lock);
 		     pthread_cancel(p->readthread);
 		     p->readthread = 0;
 		     
@@ -1243,7 +1243,7 @@ int unload_module()
 	ast_mutex_lock(&bridge_lock); {
 	     memset(bridges, 0, sizeof bridges);	     
 	} ast_mutex_unlock(&bridge_lock);
-	pthread_mutex_destroy(&bridge_lock);
+	ast_mutex_destroy(&bridge_lock);
 
 	tcounter = 0;
 	
