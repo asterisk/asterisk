@@ -73,6 +73,12 @@
 ; Either yes, no, or only once; hold time will not be announced if <1 minute
 ;
 ;announce-holdtime = yes|no|once
+
+;
+; What's the rounding time for the seconds?
+; If this is non zero then we announce the seconds as well as the minutes rounded to this value
+;
+; announce-round-seconds = 10
 ;
 ; Use these sound files in making position/holdtime announcements.  The
 ; defaults are as listed below -- change only if you need to.
@@ -82,6 +88,7 @@
 ;queue-callswaiting = queue-callswaiting	;	("calls waiting.")
 ;queue-holdtime = queue-holdtime		;	("The current est. holdtime is")
 ;queue-minutes = queue-minutes			;	("minutes.")
+;queue-seconds = queue-seconds			;	("seconds.")
 ;queue-thankyou = queue-thankyou		;	("Thank you for your patience.")
 ;
 ; Calls may be recorded using Asterisk's monitor resource

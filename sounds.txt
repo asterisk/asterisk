@@ -82,6 +82,8 @@
 
 %queue-minutes.gsm%Minutes
 
+%queue-seconds.gsm%Seconds
+
 %queue-thankyou.gsm%Thank you for your patience
 
 %queue-thereare.gsm%You are currently caller number

@@ -187,6 +187,7 @@ struct ast_call_queue {
 	char context[80];		/* Context for this queue */
 	int strategy;			/* Queueing strategy */
 	int announcefrequency;          /* How often to announce their position */
+	int roundingseconds;            /* How many seconds do we round to? */
 	int announceholdtime;           /* When to announce holdtime: 0 = never, -1 = every announcement, 1 = only once */
 	int holdtime;                   /* Current avg holdtime for this queue, based on recursive boxcar filter */
 	int callscompleted;             /* Number of queue calls completed */
@@ -200,6 +201,7 @@ struct ast_call_queue {
 	char sound_calls[80];           /* Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting)*/
 	char sound_holdtime[80];        /* Sound file: "The current estimated total holdtime is" (def. queue-holdtime) */
 	char sound_minutes[80];         /* Sound file: "minutes." (def. queue-minutes) */
+	char sound_seconds[80];         /* Sound file: "seconds." (def. queue-seconds) */
 	char sound_thanks[80];          /* Sound file: "Thank you for your patience." (def. queue-thankyou) */
 
 	int count;			/* How many entries are in the queue */
@@ -386,7 +388,7 @@ static int play_file(struct ast_channel *chan, char *filename)
 
 static int say_position(struct queue_ent *qe)
 {
-	int res = 0, avgholdmins;
+	int res = 0, avgholdmins, avgholdsecs;
 	time_t now;
 
 	/* Check to see if this is ludicrous -- if we just announced position, don't do it again*/
@@ -408,18 +410,33 @@ static int say_position(struct queue_ent *qe)
 		res += ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
 		res += play_file(qe->chan, qe->parent->sound_calls);
 	}
-
 	/* Round hold time to nearest minute */
-	avgholdmins = ( (qe->parent->holdtime + 30) - (now - qe->start) ) / 60;
+	avgholdmins = abs(( (qe->parent->holdtime + 30) - (now - qe->start) ) / 60);
+
+	/* If they have specified a rounding then round the seconds as well */
+	if(qe->parent->roundingseconds) {
+		avgholdsecs = (abs(( (qe->parent->holdtime + 30) - (now - qe->start) )) - 60 * avgholdmins) / qe->parent->roundingseconds;
+		avgholdsecs*= qe->parent->roundingseconds;
+	} else {
+		avgholdsecs=0;
+	}
+
 	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Hold time for %s is %d minutes\n", qe->parent->name, avgholdmins);
+		ast_verbose(VERBOSE_PREFIX_3 "Hold time for %s is %d minutes %d seconds\n", qe->parent->name, avgholdmins, avgholdsecs);
 
 	/* If the hold time is >1 min, if it's enabled, and if it's not
 	   supposed to be only once and we have already said it, say it */
-	if (avgholdmins > 1 && (qe->parent->announceholdtime) && (!(qe->parent->announceholdtime==1 && qe->last_pos)) ) {
+	if ((avgholdmins+avgholdsecs) > 0 && (qe->parent->announceholdtime) && (!(qe->parent->announceholdtime==1 && qe->last_pos)) ) {
 		res += play_file(qe->chan, qe->parent->sound_holdtime);
-		res += ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
-		res += play_file(qe->chan, qe->parent->sound_minutes);
+		if(avgholdmins>0) {
+			res += ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
+			res += play_file(qe->chan, qe->parent->sound_minutes);
+		}
+		if(avgholdsecs>0) {
+			res += ast_say_number(qe->chan, avgholdsecs, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
+			res += play_file(qe->chan, qe->parent->sound_seconds);
+		}
+
 	}
 
 	posout:
@@ -1708,6 +1725,7 @@ static void reload_queues(void)
 				q->maxlen = 0;
 				q->announcefrequency = 0;
 				q->announceholdtime = 0;
+				q->roundingseconds = 0; /* Default - don't announce seconds */
 				q->holdtime = 0;
 				q->callscompleted = 0;
 				q->callsabandoned = 0;
@@ -1724,6 +1742,7 @@ static void reload_queues(void)
 				strcpy(q->sound_calls, "queue-callswaiting");
 				strcpy(q->sound_holdtime, "queue-holdtime");
 				strcpy(q->sound_minutes, "queue-minutes");
+				strcpy(q->sound_seconds, "queue-seconds");
 				strcpy(q->sound_thanks, "queue-thankyou");
 				prev = q->members;
 				if (prev) {
@@ -1783,10 +1802,18 @@ static void reload_queues(void)
 						strncpy(q->sound_holdtime, var->value, sizeof(q->sound_holdtime) - 1);
 					} else if (!strcasecmp(var->name, "queue-minutes")) {
 						strncpy(q->sound_minutes, var->value, sizeof(q->sound_minutes) - 1);
+					} else if (!strcasecmp(var->name, "queue-seconds")) {
+						strncpy(q->sound_seconds, var->value, sizeof(q->sound_seconds) - 1);
 					} else if (!strcasecmp(var->name, "queue-thankyou")) {
 						strncpy(q->sound_thanks, var->value, sizeof(q->sound_thanks) - 1);
 					} else if (!strcasecmp(var->name, "announce-frequency")) {
 						q->announcefrequency = atoi(var->value);
+					} else if (!strcasecmp(var->name, "announce-round-seconds")) {
+						q->roundingseconds = atoi(var->value);
+						if(q->roundingseconds>60 || q->roundingseconds<0) {
+							ast_log(LOG_WARNING, "'%s' isn't a valid value for queue-rounding-seconds using 0 instead at line %d of queue.conf\n", var->value, var->lineno);
+							q->roundingseconds=0;
+						}
 					} else if (!strcasecmp(var->name, "announce-holdtime")) {
 						q->announceholdtime = (!strcasecmp(var->value,"once")) ? 1 : ast_true(var->value);
 					} else if (!strcasecmp(var->name, "retry")) {
