@@ -2152,6 +2152,7 @@ int ast_do_masquerade(struct ast_channel *original)
 {
 	int x,i;
 	int res=0;
+	int origstate;
 	char *tmp;
 	struct ast_var_t *varptr;
 	struct ast_frame *cur, *prev;
@@ -2234,6 +2235,14 @@ int ast_do_masquerade(struct ast_channel *original)
 	clone->_softhangup = AST_SOFTHANGUP_DEV;
 
 
+	/* And of course, so does our current state.  Note we need not
+	   call ast_setstate since the event manager doesn't really consider
+	   these separate.  We do this early so that the clone has the proper
+	   state of the original channel. */
+	origstate = original->_state;
+	original->_state = clone->_state;
+	clone->_state = origstate;
+
 	if (clone->pvt->fixup){
 		res = clone->pvt->fixup(original, clone);
 		if (res) 
@@ -2302,11 +2311,6 @@ int ast_do_masquerade(struct ast_channel *original)
 	
 	/* Our native formats are different now */
 	original->nativeformats = clone->nativeformats;
-
-	/* And of course, so does our current state.  Note we need not
-	   call ast_setstate since the event manager doesn't really consider
-	   these separate */
-	original->_state = clone->_state;
 	
 	/* Context, extension, priority, app data, jump table,  remain the same */
 	/* pvt switches.  pbx stays the same, as does next */
