@@ -654,7 +654,7 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		time(&externexpire);
 		externexpire += externrefresh;
 		if ((hp = ast_gethostbyname(externhost, &ahp))) {
-			memcpy(&externip, hp->h_addr, sizeof(externip));
+			memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip));
 		} else
 			ast_log(LOG_NOTICE, "Warning: Re-lookup of '%s' failed!\n", externhost);
 	}
