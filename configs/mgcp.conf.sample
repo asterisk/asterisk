@@ -1,0 +1,12 @@
+;
+; MGCP Configuration for Asterisk
+;
+[general]
+;port = 2427
+;bindaddr = 0.0.0.0
+
+;[dlinkgw]
+;host = 192.168.0.64
+;context = default
+;line => aaln/2
+;line => aaln/1
