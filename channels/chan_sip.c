@@ -2278,7 +2278,7 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 }
 
 /*--- build_callid: Build SIP CALLID header ---*/
-static void build_callid(char *callid, int len, struct in_addr ourip)
+static void build_callid(char *callid, int len, struct in_addr ourip, char *fromdomain)
 {
 	int res;
 	int val;
@@ -2290,8 +2290,11 @@ static void build_callid(char *callid, int len, struct in_addr ourip)
 		len -= res;
 		callid += res;
 	}
+	if (!ast_strlen_zero(fromdomain))
+		snprintf(callid, len, "@%s", fromdomain);
+	else
 	/* It's not important that we really use our right IP here... */
-	snprintf(callid, len, "@%s", ast_inet_ntoa(iabuf, sizeof(iabuf), ourip));
+		snprintf(callid, len, "@%s", ast_inet_ntoa(iabuf, sizeof(iabuf), ourip));
 }
 
 /*--- sip_alloc: Allocate SIP_PVT structure and set defaults ---*/
@@ -2345,13 +2348,14 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 			ast_rtp_setnat(p->vrtp, (p->nat & SIP_NAT_ROUTE));
 	}
 
+	strncpy(p->fromdomain, default_fromdomain, sizeof(p->fromdomain) - 1);
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
 	if (p->nat != SIP_NAT_NEVER)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	if (!callid)
-		build_callid(p->callid, sizeof(p->callid), p->ourip);
+		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	else
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
 	/* Assume reinvite OK and via INVITE */
@@ -2371,7 +2375,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	if (p->dtmfmode & SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
 	strncpy(p->context, default_context, sizeof(p->context) - 1);
-	strncpy(p->fromdomain, default_fromdomain, sizeof(p->fromdomain) - 1);
 	/* Add to list */
 	ast_mutex_lock(&iflock);
 	p->next = iflist;
@@ -4052,7 +4055,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			p = r->call;
 	} else {
 		if (!r->callid_valid) {
-			build_callid(r->callid, sizeof(r->callid), __ourip);
+			build_callid(r->callid, sizeof(r->callid), __ourip, default_fromdomain);
 			r->callid_valid = 1;
 		}
 		p=sip_alloc( r->callid, NULL, 0);
@@ -4064,6 +4067,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			sip_destroy(p);
 			return 0;
 		}
+		/* Copy back Call-ID in case create_addr changed it */
+		strncpy(r->callid, p->callid, sizeof(r->callid) - 1);
 		if (r->portno)
 			p->sa.sin_port = htons(r->portno);
 		p->outgoing = 1;
@@ -7643,7 +7648,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else /* UNIDEN UIP200 bug */
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-	build_callid(p->callid, sizeof(p->callid), p->ourip);
+	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	/* Send MWI */
 	p->outgoing = 1;
 	transmit_notify_with_mwi(p, newmsgs, oldmsgs);
@@ -7861,7 +7866,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-	build_callid(p->callid, sizeof(p->callid), p->ourip);
+	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 
 	if (peer->pokeexpire > -1)
 		ast_sched_del(sched, peer->pokeexpire);
@@ -7983,7 +7988,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else /* UNIDEN bug */
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
-	build_callid(p->callid, sizeof(p->callid), p->ourip);
+	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	if (ext)
 		strncpy(p->username, ext, sizeof(p->username) - 1);
 #if 0
