@@ -915,6 +915,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	char *opt_user = NULL;
 	char *options = NULL;
 	char *context = NULL;
+	char *exten = NULL;
 	int play_announcement;
 	char *filename = "agent-loginok";
 	
@@ -934,6 +935,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					*context = '\0';
 					context++;
 				}
+				exten = options;
+				while(*exten && ((*exten < '0') || (*exten > '9'))) exten++;
+				if (!*exten)
+					exten = NULL;
 			}
 		}
 	}
@@ -979,7 +984,11 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						if (callbackmode) {
 							char tmpchan[256] = "";
 							/* Retrieve login chan */
-							res = ast_app_getdata(chan, "agent-newlocation", tmpchan, sizeof(tmpchan) - 1, 0);
+							if (exten) {
+								strncpy(tmpchan, exten, sizeof(tmpchan) - 1);
+								res = 0;
+							} else
+								res = ast_app_getdata(chan, "agent-newlocation", tmpchan, sizeof(tmpchan) - 1, 0);
 							if (!res) {
 								if (context && strlen(context) && strlen(tmpchan))
 									snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
