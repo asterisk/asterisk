@@ -182,6 +182,7 @@ static int pbx_builtin_setglobalvar(struct ast_channel *, void *);
 static int pbx_builtin_noop(struct ast_channel *, void *);
 static int pbx_builtin_gotoif(struct ast_channel *, void *);
 static int pbx_builtin_gotoiftime(struct ast_channel *, void *);
+static int pbx_builtin_execiftime(struct ast_channel *, void *);
 static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
 static int pbx_builtin_saycharacters(struct ast_channel *, void *);
@@ -287,6 +288,14 @@ static struct pbx_builtin {
 	"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]extension|]pri):\n"
 	"If the current time matches the specified time, then branch to the specified\n"
 	"extension. Each of the elements may be specified either as '*' (for always)\n"
+	"or as a range. See the 'include' syntax for details." 
+	},
+
+	{ "ExecIfTime", pbx_builtin_execiftime,
+	"Conditional application execution on current time",
+	"  ExecIfTime(<times>|<weekdays>|<mdays>|<months>?<appname>[|<appdata>]):\n"
+	"If the current time matches the specified time, then execute the specified\n"
+	"application. Each of the elements may be specified either as '*' (for always)\n"
 	"or as a range. See the 'include' syntax for details." 
 	},
 	
@@ -5004,21 +5013,65 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 	char *s, *ts;
 	struct ast_timing timing;
 
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?[[context|]extension|]priority\n");
 		return -1;
 	}
 
-	s = strdup((char *) data);
-	ts = s;
+	if ((s = ast_strdupa((char *) data))) {
+		ts = s;
 
-	/* Separate the Goto path */
-	strsep(&ts,"?");
+		/* Separate the Goto path */
+		strsep(&ts,"?");
 
-	/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
-	if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
-		res = pbx_builtin_goto(chan, (void *)ts);
-	free(s);
+		/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
+		if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
+			res = pbx_builtin_goto(chan, (void *)ts);
+	} else {
+		ast_log(LOG_ERROR, "Memory Error!\n");
+	}
+	return res;
+}
+
+static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
+{
+	int res = 0;
+	char *ptr1, *ptr2;
+	struct ast_timing timing;
+	const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<ptr1>]";
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "%s\n", usage);
+		return -1;
+	}
+
+	if ((ptr1 = ast_strdupa((char *) data))) {
+		ptr2 = ptr1;
+		/* Separate the Application data ptr1 is the time spec ptr2 is the app|data*/
+		strsep(&ptr2,"?");
+		if (ast_build_timing(&timing, ptr1) && ast_check_timing(&timing)) {
+			if (ptr2) {
+				/* ptr2 is now the app name 
+				   we're done with ptr1 now so recycle it and use it to point to the app args*/
+				struct ast_app *app;
+				if((ptr1 = strchr(ptr2, '|'))) {
+					*ptr1 = '\0';
+					ptr1++;
+				}
+				if ((app = pbx_findapp(ptr2))) {
+					pbx_exec(chan, app, ptr1 ? ptr1 : "", 1);
+				} else {
+					ast_log(LOG_WARNING, "Cannot locate application %s\n", ptr2);
+				}
+			} else {
+				ast_log(LOG_WARNING, "%s\n", usage);
+			}
+		} else {
+			ast_log(LOG_WARNING, "Invalid Time Spec: %s\n%s\n", ptr1, usage);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Memory Error!\n");
+	}
 	return res;
 }
 
