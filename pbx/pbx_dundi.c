@@ -249,12 +249,12 @@ static int dundi_xmit(struct dundi_packet *pack);
 static void dundi_debug_output(const char *data)
 {
 	if (dundidebug)
-		ast_verbose(data);
+		ast_verbose("%s", data);
 }
 
 static void dundi_error_output(const char *data)
 {
-	ast_log(LOG_WARNING, data);
+	ast_log(LOG_WARNING, "%s", data);
 }
 
 static int has_permission(struct permission *ps, char *cont)

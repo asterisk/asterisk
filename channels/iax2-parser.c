@@ -32,7 +32,7 @@ static int oframes = 0;
 
 static void internaloutput(const char *str)
 {
-	printf(str);
+	fputs(str, stdout);
 }
 
 static void internalerror(const char *str)

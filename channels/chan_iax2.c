@@ -534,12 +534,12 @@ AST_MUTEX_DEFINE_STATIC(dpcache_lock);
 static void iax_debug_output(const char *data)
 {
 	if (iaxdebug)
-		ast_verbose(data);
+		ast_verbose("%s", data);
 }
 
 static void iax_error_output(const char *data)
 {
-	ast_log(LOG_WARNING, data);
+	ast_log(LOG_WARNING, "%s", data);
 }
 
 /* XXX We probably should use a mutex when working with this XXX */
