@@ -1557,7 +1557,6 @@ static int admin_exec(struct ast_channel *chan, void *data) {
                                                         break;
                                                 } else
 							ast_log(LOG_NOTICE, "Not kicking last user, is an Admin!\n");
-                                        }
                                         break;
 
 				case 77: /* M: Mute */ 
