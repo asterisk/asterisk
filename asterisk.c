@@ -25,6 +25,8 @@
 #include <asterisk/tdd.h>
 #include <asterisk/term.h>
 #include <asterisk/manager.h>
+#include <asterisk/pbx.h>
+#include <sys/resource.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
@@ -36,9 +38,10 @@
 #include <sys/select.h>
 #include <string.h>
 #include <errno.h>
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <ctype.h>
+#include "editline/histedit.h"
 #include "asterisk.h"
+#include <asterisk/config.h>
 
 #define AST_MAX_CONNECTS 128
 #define NUM_MSGS 64
@@ -53,6 +56,8 @@ int option_remote=0;
 int option_exec=0;
 int option_initcrypto=0;
 int option_nocolor;
+int option_dumpcore = 0;
+int option_overrideconfig = 0;
 int fully_booted = 0;
 
 static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
@@ -64,9 +69,30 @@ struct console {
 	pthread_t t;			/* Thread of handler */
 };
 
+static History *el_hist = NULL;
+static EditLine *el = NULL;
+static char *remotehostname;
+
 struct console consoles[AST_MAX_CONNECTS];
 
 char defaultlanguage[MAX_LANGUAGE] = DEFAULT_LANGUAGE;
+
+static int ast_el_add_history(char *);
+static int ast_el_read_history(char *);
+static int ast_el_write_history(char *);
+
+char ast_config_AST_CONFIG_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_CONFIG_FILE[AST_CONFIG_MAX_PATH];
+char ast_config_AST_MODULE_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_SPOOL_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_LOG_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_AGI_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_DB[AST_CONFIG_MAX_PATH];
+char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
+char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
+char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
 
 static int fdprint(int fd, char *s)
 {
@@ -197,7 +223,7 @@ static int ast_makesocket(void)
 	int x;
 	for (x=0;x<AST_MAX_CONNECTS;x++)	
 		consoles[x].fd = -1;
-	unlink(AST_SOCKET);
+	unlink((char *)ast_config_AST_SOCKET);
 	ast_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (ast_socket < 0) {
 		ast_log(LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
@@ -205,17 +231,17 @@ static int ast_makesocket(void)
 	}		
 	memset(&sun, 0, sizeof(sun));
 	sun.sun_family = AF_LOCAL;
-	strncpy(sun.sun_path, AST_SOCKET, sizeof(sun.sun_path)-1);
+	strncpy(sun.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sun.sun_path)-1);
 	res = bind(ast_socket, (struct sockaddr *)&sun, sizeof(sun));
 	if (res) {
-		ast_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", AST_SOCKET, strerror(errno));
+		ast_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", (char *)ast_config_AST_SOCKET, strerror(errno));
 		close(ast_socket);
 		ast_socket = -1;
 		return -1;
 	}
 	res = listen(ast_socket, 2);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to listen on socket %s: %s\n", AST_SOCKET, strerror(errno));
+		ast_log(LOG_WARNING, "Unable to listen on socket %s: %s\n", (char *)ast_config_AST_SOCKET, strerror(errno));
 		close(ast_socket);
 		ast_socket = -1;
 		return -1;
@@ -236,7 +262,7 @@ static int ast_tryconnect(void)
 	}
 	memset(&sun, 0, sizeof(sun));
 	sun.sun_family = AF_LOCAL;
-	strncpy(sun.sun_path, AST_SOCKET, sizeof(sun.sun_path)-1);
+	strncpy(sun.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sun.sun_path)-1);
 	res = connect(ast_consock, (struct sockaddr *)&sun, sizeof(sun));
 	if (res) {
 		close(ast_consock);
@@ -358,8 +384,11 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		if (getenv("HOME")) 
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 		if (strlen(filename))
-			write_history(filename);
-		rl_callback_handler_remove();
+			ast_el_write_history(filename);
+		if (el != NULL)
+			el_end(el);
+		if (el_hist != NULL)
+			history_end(el_hist);
 	}
 	/* Called on exit */
 	if (option_verbose && option_console)
@@ -373,8 +402,8 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	if (ast_consock > -1)
 		close(ast_consock);
 	if (ast_socket > -1)
-		unlink(AST_SOCKET);
-	unlink(AST_PID);
+		unlink((char *)ast_config_AST_SOCKET);
+	unlink((char *)ast_config_AST_PID);
 	printf(term_quit());
 	if (restart) {
 		if (option_verbose || option_console)
@@ -433,7 +462,7 @@ static void consolehandler(char *s)
 	fflush(stdout);
 	/* Called when readline data is available */
 	if (s && strlen(s))
-		add_history(s);
+		ast_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
 		if (s[0] == '!') {
@@ -449,14 +478,12 @@ static void consolehandler(char *s)
 		fprintf(stdout, "\nUse \"quit\" to exit\n");
 }
 
-
-static char cmd[1024];
-
-static void remoteconsolehandler(char *s)
+static int remoteconsolehandler(char *s)
 {
+	int ret = 0;
 	/* Called when readline data is available */
 	if (s && strlen(s))
-		add_history(s);
+		ast_el_add_history(s);
 	/* Give the console access to the shell */
 	if (s) {
 		if (s[0] == '!') {
@@ -464,14 +491,24 @@ static void remoteconsolehandler(char *s)
 				system(s+1);
 			else
 				system(getenv("SHELL") ? getenv("SHELL") : "/bin/sh");
-		} else 
-		strncpy(cmd, s, sizeof(cmd)-1);
-		if (!strcasecmp(s, "help"))
+			ret = 1;
+		}
+		if (!strcasecmp(s, "help")) {
 			fprintf(stdout, "          !<command>   Executes a given shell command\n");
-		if (!strcasecmp(s, "quit"))
+			ret = 0;
+		}
+		if (!strcasecmp(s, "quit")) {
 			quit_handler(0, 0, 0, 0);
+			ret = 1;
+		}
+		if (!strcasecmp(s, "exit")) {
+			quit_handler(0, 0, 0, 0);
+			ret = 1;
+		}
 	} else
 		fprintf(stdout, "\nUse \"quit\" to exit\n");
+
+	return ret;
 }
 
 static char quit_help[] = 
@@ -484,11 +521,11 @@ static char abort_halt_help[] =
 "       call operations.\n";
 
 static char shutdown_now_help[] = 
-"Usage: shutdown now\n"
+"Usage: stop now\n"
 "       Shuts down a running Asterisk immediately, hanging up all active calls .\n";
 
 static char shutdown_gracefully_help[] = 
-"Usage: shutdown gracefully\n"
+"Usage: stop gracefully\n"
 "       Causes Asterisk to not accept new calls, and exit when all\n"
 "       active calls have terminated normally.\n";
 
@@ -511,6 +548,15 @@ static int handle_quit(int fd, int argc, char *argv[])
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
 	quit_handler(0, 0, 1, 0);
+	return RESULT_SUCCESS;
+}
+
+static int no_more_quit(int fd, int argc, char *argv[])
+{
+	if (argc != 1)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "The QUIT and EXIT commands may no longer be used to shutdown the PBX.\n"
+	            "Please use STOP NOW instead, if you wish to shutdown the PBX.\n");
 	return RESULT_SUCCESS;
 }
 
@@ -569,65 +615,353 @@ static int handle_abort_halt(int fd, int argc, char *argv[])
 
 static struct ast_cli_entry aborthalt = { { "abort", "halt", NULL }, handle_abort_halt, "Cancel a running halt", abort_halt_help };
 
-static struct ast_cli_entry quit = 	{ { "quit", NULL }, handle_quit, "Exit Asterisk", quit_help };
+static struct ast_cli_entry quit = 	{ { "quit", NULL }, no_more_quit, "Exit Asterisk", quit_help };
+static struct ast_cli_entry astexit = 	{ { "exit", NULL }, no_more_quit, "Exit Asterisk", quit_help };
 
-static struct ast_cli_entry astshutdownnow = 	{ { "shutdown", "now", NULL }, handle_shutdown_now, "Shut down Asterisk imediately", shutdown_now_help };
-static struct ast_cli_entry astshutdowngracefully = 	{ { "shutdown", "gracefully", NULL }, handle_shutdown_gracefully, "Gracefully shut down Asterisk", shutdown_gracefully_help };
+static struct ast_cli_entry astshutdownnow = 	{ { "stop", "now", NULL }, handle_shutdown_now, "Shut down Asterisk imediately", shutdown_now_help };
+static struct ast_cli_entry astshutdowngracefully = 	{ { "stop", "gracefully", NULL }, handle_shutdown_gracefully, "Gracefully shut down Asterisk", shutdown_gracefully_help };
 static struct ast_cli_entry astrestartnow = 	{ { "restart", "now", NULL }, handle_restart_now, "Restart Asterisk immediately", restart_now_help };
 static struct ast_cli_entry astrestartgracefully = 	{ { "restart", "gracefully", NULL }, handle_restart_gracefully, "Restart Asterisk gracefully", restart_gracefully_help };
 static struct ast_cli_entry astrestartwhenconvenient= 	{ { "restart", "when", "convenient", NULL }, handle_restart_when_convenient, "Restart Asterisk at empty call volume", restart_when_convenient_help };
 
-static char *cli_generator(char *text, int state)
+static int ast_el_read_char(EditLine *el, char *cp)
 {
-	return ast_cli_generator(rl_line_buffer, text, state);
+        int num_read=0;
+	int lastpos=0;
+	fd_set rfds;
+	int res;
+	int max;
+	char buf[512];
+
+	for (;;) {
+		FD_ZERO(&rfds);
+		FD_SET(ast_consock, &rfds);
+		FD_SET(STDIN_FILENO, &rfds);
+		max = ast_consock;
+		if (STDIN_FILENO > max)
+			max = STDIN_FILENO;
+		res = select(max+1, &rfds, NULL, NULL, NULL);
+		if (res < 0) {
+			if (errno == EINTR)
+				continue;
+			ast_log(LOG_ERROR, "select failed: %s\n", strerror(errno));
+			break;
+		}
+
+		if (FD_ISSET(STDIN_FILENO, &rfds)) {
+			num_read = read(STDIN_FILENO, cp, 1);
+			if (num_read < 1) {
+				break;
+			} else 
+				return (num_read);
+		}
+		if (FD_ISSET(ast_consock, &rfds)) {
+			res = read(ast_consock, buf, sizeof(buf) - 1);
+			/* if the remote side disappears exit */
+			if (res < 1) {
+				fprintf(stderr, "\nDisconnected from Asterisk server\n");
+				quit_handler(0, 0, 0, 0);
+			}
+
+			buf[res] = '\0';
+
+			if (!lastpos)
+				write(STDOUT_FILENO, "\r", 1);
+			write(STDOUT_FILENO, buf, res);
+			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
+				break;
+			} else {
+				lastpos = 1;
+			}
+		}
+	}
+
+	*cp = '\0';
+	return (0);
 }
 
-static char *console_cli_generator(char *text, int state)
+static char *cli_prompt(EditLine *el)
 {
+	char prompt[80];
+
+	if (remotehostname)
+		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT2, remotehostname);
+	else
+		snprintf(prompt, sizeof(prompt), ASTERISK_PROMPT);
+
+	return strdup(prompt);
+}
+
+static char **ast_el_strtoarr(char *buf)
+{
+	char **match_list = NULL, *retstr;
+        size_t match_list_len;
+	int matches = 0;
+
+        match_list_len = 1;
+	while ( (retstr = strsep(&buf, " ")) != NULL) {
+
+                if (matches + 1 >= match_list_len) {
+                        match_list_len <<= 1;
+                        match_list = realloc(match_list, match_list_len * sizeof(char *));
+		}
+
+		match_list[matches++] = retstr;
+	}
+
+        if (!match_list)
+                return (char **) NULL;
+
+	if (matches>= match_list_len)
+		match_list = realloc(match_list, (match_list_len + 1) * sizeof(char *));
+
+	match_list[matches] = (char *) NULL;
+
+	return match_list;
+}
+
+static int ast_el_sort_compare(const void *i1, const void *i2)
+{
+	char *s1, *s2;
+
+	s1 = ((char **)i1)[0];
+	s2 = ((char **)i2)[0];
+
+	return strcasecmp(s1, s2);
+}
+
+static int ast_cli_display_match_list(char **matches, int len, int max)
+{
+	int i, idx, limit, count;
+	int screenwidth = 0;
+	int numoutput = 0, numoutputline = 0;
+
+	screenwidth = ast_get_termcols(STDOUT_FILENO);
+
+	/* find out how many entries can be put on one line, with two spaces between strings */
+	limit = screenwidth / (max + 2);
+	if (limit == 0)
+		limit = 1;
+
+	/* how many lines of output */
+	count = len / limit;
+	if (count * limit < len)
+		count++;
+
+	idx = 1;
+
+	qsort(&matches[0], (size_t)(len + 1), sizeof(char *), ast_el_sort_compare);
+
+	for (; count > 0; count--) {
+		numoutputline = 0;
+		for (i=0; i < limit && matches[idx]; i++, idx++) {
+
+			/* Don't print dupes */
+			if ( (matches[idx+1] != NULL && strcmp(matches[idx], matches[idx+1]) == 0 ) ) {
+				i--;
+				continue;
+			}
+
+			numoutput++;  numoutputline++;
+			fprintf(stdout, "%-*s  ", max, matches[idx]);
+		}
+		if (numoutputline > 0)
+			fprintf(stdout, "\n");
+	}
+
+	return numoutput;
+}
+
+
+static char *cli_complete(EditLine *el, int ch)
+{
+	int len=0;
+	char *ptr;
+	int nummatches = 0;
+	char **matches;
+	int retval = CC_ERROR;
 	char buf[1024];
 	int res;
-#if 0
-	fprintf(stderr, "Searching for '%s', %s %d\n", rl_line_buffer, text, state);
-#endif	
-	snprintf(buf, sizeof(buf),"_COMMAND COMPLETE \"%s\" \"%s\" %d", rl_line_buffer, text, state); 
-	fdprint(ast_consock, buf);
-	res = read(ast_consock, buf, sizeof(buf));
-	buf[res] = '\0';
-#if 0
-	printf("res is %d, buf is '%s'\n", res, buf);
-#endif	
-	if (strncmp(buf, "NULL", 4))
-		return strdup(buf);
-	else
-		return NULL;
+
+	LineInfo *lf = (LineInfo *)el_line(el);
+
+	*lf->cursor = '\0';
+	ptr = (char *)lf->cursor-1;
+	if (ptr) {
+		while (ptr > lf->buffer) {
+			if (isspace(*ptr)) {
+				ptr++;
+				break;
+			}
+			ptr--;
+		}
+	}
+
+	len = lf->cursor - ptr;
+
+	if (option_remote) {
+		snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr); 
+		fdprint(ast_consock, buf);
+		res = read(ast_consock, buf, sizeof(buf));
+		buf[res] = '\0';
+		nummatches = atoi(buf);
+
+		if (nummatches > 0) {
+			snprintf(buf, sizeof(buf),"_COMMAND MATCHESARRAY \"%s\" \"%s\"", lf->buffer, ptr); 
+			fdprint(ast_consock, buf);
+			res = read(ast_consock, buf, sizeof(buf));
+			buf[res] = '\0';
+
+			matches = ast_el_strtoarr(buf);
+		} else
+			matches = (char **) NULL;
+
+
+	}  else {
+
+		nummatches = ast_cli_generatornummatches((char *)lf->buffer,ptr);
+		matches = ast_cli_completion_matches((char *)lf->buffer,ptr);
+	}
+
+	if (matches) {
+		int i;
+		int matches_num, maxlen, match_len;
+
+		if (matches[0][0] != '\0') {
+			el_deletestr(el, (int) len);
+			el_insertstr(el, matches[0]);
+			retval = CC_REFRESH;
+		}
+
+		if (nummatches == 1) {
+			/* Found an exact match */
+			el_insertstr(el, strdup(" "));
+			retval = CC_REFRESH;
+		} else {
+			/* Must be more than one match */
+			for (i=1, maxlen=0; matches[i]; i++) {
+				match_len = strlen(matches[i]);
+				if (match_len > maxlen)
+					maxlen = match_len;
+			}
+			matches_num = i - 1;
+			if (matches_num >1) {
+				fprintf(stdout, "\n");
+				ast_cli_display_match_list(matches, nummatches, maxlen);
+				retval = CC_REDISPLAY;
+			} else { 
+				el_insertstr(el,strdup(" "));
+				retval = CC_REFRESH;
+			}
+		}
+
+	}
+
+	return (char *)retval;
+}
+
+static int ast_el_initialize(void)
+{
+	HistEvent ev;
+
+	if (el != NULL)
+		el_end(el);
+	if (el_hist != NULL)
+		history_end(el_hist);
+
+	el = el_init("asterisk", stdin, stdout, stderr);
+	el_set(el, EL_PROMPT, cli_prompt);
+
+	el_set(el, EL_EDITMODE, 1);		
+	el_set(el, EL_EDITOR, "emacs");		
+	el_hist = history_init();
+	if (!el || !el_hist)
+		return -1;
+
+	/* setup history with 100 entries */
+	history(el_hist, &ev, H_SETSIZE, 100);
+
+	el_set(el, EL_HIST, history, el_hist);
+
+	el_set(el, EL_ADDFN, "ed-complete", "Complete argument", cli_complete);
+	/* Bind <tab> to command completion */
+	el_set(el, EL_BIND, "^I", "ed-complete", NULL);
+	/* Bind ? to command completion */
+	el_set(el, EL_BIND, "?", "ed-complete", NULL);
+
+	return 0;
+}
+
+static int ast_el_add_history(char *buf)
+{
+	HistEvent ev;
+
+	if (el_hist == NULL || el == NULL)
+		ast_el_initialize();
+
+	return (history(el_hist, &ev, H_ENTER, buf));
+}
+
+static int ast_el_write_history(char *filename)
+{
+	HistEvent ev;
+
+	if (el_hist == NULL || el == NULL)
+		ast_el_initialize();
+
+	return (history(el_hist, &ev, H_SAVE, filename));
+}
+
+static int ast_el_read_history(char *filename)
+{
+	char buf[256];
+	FILE *f;
+	int ret = -1;
+
+	if (el_hist == NULL || el == NULL)
+		ast_el_initialize();
+
+	if ((f = fopen(filename, "r")) == NULL)
+		return ret;
+
+	while (!feof(f)) {
+		fgets(buf, sizeof(buf), f);
+		if (!strcmp(buf, "_HiStOrY_V2_\n"))
+			continue;
+		if ((ret = ast_el_add_history(buf)) == -1)
+			break;
+	}
+	fclose(f);
+
+	return ret;
 }
 
 static void ast_remotecontrol(char * data)
 {
 	char buf[80];
 	int res;
-	int max;
-	int lastpos = 0;
-	fd_set rfds;
 	char filename[80] = "";
 	char *hostname;
 	char *cpid;
 	char *version;
 	int pid;
-	int lastclear=0;
-	int oldstatus=0;
 	char tmp[80];
+	char *stringp=NULL;
+
+	char *ebuf;
+	int num = 0;
+
 	read(ast_consock, buf, sizeof(buf));
-	if (data) {
-			write(ast_consock, data, strlen(data) + 1);
-			return;
-	}
-	hostname = strtok(buf, "/");
-	cpid = strtok(NULL, "/");
-	version = strtok(NULL, "/");
+	if (data)
+		write(ast_consock, data, strlen(data) + 1);
+	stringp=buf;
+	hostname = strsep(&stringp, "/");
+	cpid = strsep(&stringp, "/");
+	version = strsep(&stringp, "/");
 	if (!version)
 		version = "<Version Unknown>";
-	strtok(hostname, ".");
+	stringp=hostname;
+	strsep(&stringp, ".");
 	if (cpid)
 		pid = atoi(cpid);
 	else
@@ -635,74 +969,44 @@ static void ast_remotecontrol(char * data)
 	snprintf(tmp, sizeof(tmp), "set verbose atleast %d", option_verbose);
 	fdprint(ast_consock, tmp);
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
-	snprintf(tmp, sizeof(tmp), ASTERISK_PROMPT2, hostname);
+	remotehostname = hostname;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
+	if (el_hist == NULL || el == NULL)
+		ast_el_initialize();
+
+	el_set(el, EL_GETCFN, ast_el_read_char);
+
 	if (strlen(filename))
-		read_history(filename);
+		ast_el_read_history(filename);
+
 	ast_cli_register(&quit);
+	ast_cli_register(&astexit);
 #if 0
 	ast_cli_register(&astshutdown);
 #endif	
-	rl_callback_handler_install(tmp, remoteconsolehandler);
-	rl_completion_entry_function = (void *)(Function *)console_cli_generator;
 	for(;;) {
-		FD_ZERO(&rfds);
-		FD_SET(ast_consock, &rfds);
-		FD_SET(STDIN_FILENO, &rfds);
-		max = ast_consock;
-		if (STDIN_FILENO > max)
-			max = STDIN_FILENO;
-		res = select(max + 1, &rfds, NULL, NULL, NULL);
-		if (res < 0) {
-			if (errno == EINTR)
-				continue;
-			ast_log(LOG_ERROR, "select failed: %s\n", strerror(errno));
-			break;
-		}
-		if (FD_ISSET(STDIN_FILENO, &rfds)) {
-			rl_callback_read_char();
-			if (strlen(cmd)) {
-				res = write(ast_consock, cmd, strlen(cmd) + 1);
+		ebuf = (char *)el_gets(el, &num);
+
+		if (data)	/* hack to print output then exit if asterisk -rx is used */
+			ebuf = strdup("quit");
+
+		if (ebuf && strlen(ebuf)) {
+			if (ebuf[strlen(ebuf)-1] == '\n')
+				ebuf[strlen(ebuf)-1] = '\0';
+			if (!remoteconsolehandler(ebuf)) {
+				res = write(ast_consock, ebuf, strlen(ebuf) + 1);
 				if (res < 1) {
 					ast_log(LOG_WARNING, "Unable to write: %s\n", strerror(errno));
 					break;
 				}
-				strcpy(cmd, "");
-			}
-		}
-		if (FD_ISSET(ast_consock, &rfds)) {
-			res = read(ast_consock, buf, sizeof(buf));
-			if (res < 1)
-				break;
-			buf[res] = 0;
-			/* If someone asks for a pass code, hide the password */
-			if (!memcmp(buf, ">>>>", 4)) {
-				printf("Ooh, i should hide password!\n");
-				if (!lastclear) {
-					oldstatus = ast_hide_password(STDIN_FILENO);
-					printf("Oldstatus = %d\n", oldstatus);
-				}
-				lastclear = 1;
-			} else if (lastclear) {
-				ast_restore_tty(STDIN_FILENO, oldstatus);
-				lastclear = 0;
-			}
-			if (!lastpos)
-				write(STDOUT_FILENO, "\r", 2);
-			write(STDOUT_FILENO, buf, res);
-			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
-				rl_forced_update_display();
-				lastpos = 0;
-			} else {
-				lastpos = 1;
 			}
 		}
 	}
 	printf("\nDisconnected from Asterisk server\n");
 }
 
-int show_cli_help(void) {
+static int show_cli_help(void) {
 	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 2000-2002, Digium.\n");
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
@@ -713,6 +1017,7 @@ int show_cli_help(void) {
 	printf("   -p           Run as pseudo-realtime thread\n");
 	printf("   -v           Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -q           Quiet mode (supress output)\n");
+	printf("   -g           Dump core in case of a crash\n");
 	printf("   -x <cmd>     Execute command <cmd> (only valid with -r)\n");
 	printf("   -i           Initializie crypto keys at startup\n");
 	printf("   -c           Provide console CLI\n");
@@ -721,11 +1026,62 @@ int show_cli_help(void) {
 	return 0;
 }
 
+static void ast_readconfig() {
+	struct ast_config *cfg;
+	struct ast_variable *v;
+	char *config = ASTCONFPATH;
+
+	if (option_overrideconfig == 1) {
+	    cfg = ast_load((char *)ast_config_AST_CONFIG_FILE);
+	} else {
+	    cfg = ast_load(config);
+	}
+
+	/* init with buildtime config */
+	strncpy((char *)ast_config_AST_CONFIG_DIR,AST_CONFIG_DIR,sizeof(ast_config_AST_CONFIG_DIR)-1);
+	strncpy((char *)ast_config_AST_SPOOL_DIR,AST_SPOOL_DIR,sizeof(ast_config_AST_SPOOL_DIR)-1);
+	strncpy((char *)ast_config_AST_MODULE_DIR,AST_MODULE_DIR,sizeof(ast_config_AST_VAR_DIR)-1);
+	strncpy((char *)ast_config_AST_VAR_DIR,AST_VAR_DIR,sizeof(ast_config_AST_VAR_DIR)-1);
+	strncpy((char *)ast_config_AST_LOG_DIR,AST_LOG_DIR,sizeof(ast_config_AST_LOG_DIR)-1);
+	strncpy((char *)ast_config_AST_AGI_DIR,AST_AGI_DIR,sizeof(ast_config_AST_AGI_DIR)-1);
+	strncpy((char *)ast_config_AST_DB,AST_DB,sizeof(ast_config_AST_DB)-1);
+	strncpy((char *)ast_config_AST_KEY_DIR,AST_KEY_DIR,sizeof(ast_config_AST_KEY_DIR)-1);
+	strncpy((char *)ast_config_AST_PID,AST_PID,sizeof(ast_config_AST_PID)-1);
+	strncpy((char *)ast_config_AST_SOCKET,AST_SOCKET,sizeof(ast_config_AST_SOCKET)-1);
+	strncpy((char *)ast_config_AST_RUN_DIR,AST_RUN_DIR,sizeof(ast_config_AST_RUN_DIR)-1);
+	
+	/* no asterisk.conf? no problem, use buildtime config! */
+	if (!cfg) {
+	    return;
+	}
+	v = ast_variable_browse(cfg, "directories");
+	while(v) {
+		if (!strcasecmp(v->name, "astetcdir")) {
+		    strncpy((char *)ast_config_AST_CONFIG_DIR,v->value,sizeof(ast_config_AST_CONFIG_DIR)-1);
+		} else if (!strcasecmp(v->name, "astspooldir")) {
+		    strncpy((char *)ast_config_AST_SPOOL_DIR,v->value,sizeof(ast_config_AST_SPOOL_DIR)-1);
+		} else if (!strcasecmp(v->name, "astvarlibdir")) {
+		    strncpy((char *)ast_config_AST_VAR_DIR,v->value,sizeof(ast_config_AST_VAR_DIR)-1);
+		    snprintf((char *)ast_config_AST_DB,sizeof(ast_config_AST_DB)-1,"%s/%s",v->value,"astdb");    
+		} else if (!strcasecmp(v->name, "astlogdir")) {
+		    strncpy((char *)ast_config_AST_LOG_DIR,v->value,sizeof(ast_config_AST_LOG_DIR)-1);
+		} else if (!strcasecmp(v->name, "astagidir")) {
+		    strncpy((char *)ast_config_AST_AGI_DIR,v->value,sizeof(ast_config_AST_AGI_DIR)-1);
+		} else if (!strcasecmp(v->name, "astrundir")) {
+		    snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID)-1,"%s/%s",v->value,"asterisk.pid");    
+		    snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET)-1,"%s/%s",v->value,"asterisk.ctl");    
+		    strncpy((char *)ast_config_AST_RUN_DIR,v->value,sizeof(ast_config_AST_RUN_DIR)-1);
+		} else if (!strcasecmp(v->name, "astmoddir")) {
+		    strncpy((char *)ast_config_AST_MODULE_DIR,v->value,sizeof(ast_config_AST_MODULE_DIR)-1);
+		}
+		v = v->next;
+	}
+	ast_destroy(cfg);
+}
+
 int main(int argc, char *argv[])
 {
 	char c;
-	fd_set rfds;
-	int res;
 	char filename[80] = "";
 	char hostname[256];
 	char tmp[80];
@@ -733,6 +1089,8 @@ int main(int argc, char *argv[])
 	int x;
 	FILE *f;
 	sigset_t sigs;
+	int num;
+	char *buf;
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
@@ -753,12 +1111,14 @@ int main(int argc, char *argv[])
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check if we're root */
+	/*
 	if (geteuid()) {
 		ast_log(LOG_ERROR, "Must be run as root\n");
 		exit(1);
 	}
+	*/
 	/* Check for options */
-	while((c=getopt(argc, argv, "hfdvqprcinx:")) != EOF) {
+	while((c=getopt(argc, argv, "hfdvqprgcinx:C:")) != EOF) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -792,8 +1152,15 @@ int main(int argc, char *argv[])
 			option_exec++;
 			xarg = optarg;
 			break;
+		case 'C':
+			strncpy((char *)ast_config_AST_CONFIG_FILE,optarg,sizeof(ast_config_AST_CONFIG_FILE));
+			option_overrideconfig++;
+			break;
 		case 'i':
 			option_initcrypto++;
+			break;
+		case'g':
+			option_dumpcore++;
 			break;
 		case 'h':
 			show_cli_help();
@@ -803,10 +1170,29 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (option_dumpcore) {
+		struct rlimit l;
+		memset(&l, 0, sizeof(l));
+		l.rlim_cur = RLIM_INFINITY;
+		l.rlim_max = RLIM_INFINITY;
+		if (setrlimit(RLIMIT_CORE, &l)) {
+			ast_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
+		}
+	}
+
 	term_init();
 	printf(term_end());
 	fflush(stdout);
-	
+	if (option_console && !option_verbose) 
+		ast_verbose("[ Reading Master Configuration ]");
+	ast_readconfig();
+
+	if (el_hist == NULL || el == NULL)
+		ast_el_initialize();
+
+	if (strlen(filename))
+		ast_el_read_history(filename);
+
 	if (ast_tryconnect()) {
 		/* One is already running */
 		if (option_remote) {
@@ -824,7 +1210,7 @@ int main(int argc, char *argv[])
 			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
-			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", AST_SOCKET);
+			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", (char *)ast_config_AST_SOCKET);
 			printf(term_quit());
 			exit(1);
 		}
@@ -834,13 +1220,13 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	/* Blindly write pid file since we couldn't connect */
-	unlink(AST_PID);
-	f = fopen(AST_PID, "w");
+	unlink((char *)ast_config_AST_PID);
+	f = fopen((char *)ast_config_AST_PID, "w");
 	if (f) {
 		fprintf(f, "%d\n", getpid());
 		fclose(f);
 	} else
-		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", AST_PID, strerror(errno));
+		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
 
 	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
 #if 1
@@ -908,6 +1294,10 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	if (astdb_init()) {
+		printf(term_quit());
+		exit(1);
+	}
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
 	if (option_console && !option_verbose)
@@ -930,26 +1320,17 @@ int main(int argc, char *argv[])
 		snprintf(title, sizeof(title), "Asterisk Console on '%s' (pid %d)", hostname, mainpid);
 		set_title(title);
 	    ast_cli_register(&quit);
+	    ast_cli_register(&astexit);
 		consolethread = pthread_self();
-		if (strlen(filename))
-			read_history(filename);
-		term_prompt(tmp, ASTERISK_PROMPT, sizeof(tmp));
-		rl_callback_handler_install(tmp, consolehandler);
-		rl_completion_entry_function = (void *)(Function *)cli_generator;
-		for(;;) {
-			FD_ZERO(&rfds);
-			FD_SET(STDIN_FILENO, &rfds);
-			res = select(STDIN_FILENO + 1, &rfds, NULL, NULL, NULL);
-			if (res > 0) {
-				printf(term_prep());
-				rl_callback_read_char();
-				printf(term_end());
-				fflush(stdout);
-			} else if (res < 1) {
-				rl_forced_update_display();
-			}
-	
-		}	
+
+		while ( (buf = (char *)el_gets(el, &num) ) != NULL && num != 0) {
+
+			if (buf[strlen(buf)-1] == '\n')
+				buf[strlen(buf)-1] = '\0';
+
+			consolehandler((char *)buf);
+		}
+
 	} else {
  		/* Do nothing */
 		select(0,NULL,NULL,NULL,NULL);
