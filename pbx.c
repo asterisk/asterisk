@@ -2391,8 +2391,10 @@ static char show_application_help[] =
 "       Describes a particular application.\n";
 
 static char show_applications_help[] =
-"Usage: show applications\n"
-"       List applications which are currently available.\n";
+"Usage: show applications [{like|describing} <text>]\n"
+"       List applications which are currently available.\n"
+"       If 'like', <text> will be a substring of the app name\n"
+"       If 'describing', <text> will be a substring of the description\n";
 
 static char show_dialplan_help[] =
 "Usage: show dialplan [exten@][context]\n"
@@ -2553,6 +2555,7 @@ static int handle_show_switches(int fd, int argc, char *argv[])
 static int handle_show_applications(int fd, int argc, char *argv[])
 {
 	struct ast_app *a;
+	int like=0, describing=0;
 
 	/* try to lock applications list ... */
 	if (ast_mutex_lock(&applock)) {
@@ -2560,32 +2563,89 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 		return -1;
 	}
 
-	/* ... go to first application ... */
-	a = apps; 
-
 	/* ... have we got at least one application (first)? no? */
-	if (!a) {
-		ast_cli(fd, "There is no registered applications\n");
+	if (!apps) {
+		ast_cli(fd, "There are no registered applications\n");
 		ast_mutex_unlock(&applock);
 		return -1;
 	}
 
-	/* ... we have applications ... */
-	ast_cli(fd, "\n    -= Registered Asterisk Applications =-\n");
+	/* show applications like <keyword> */
+	if ((argc == 4) && (!strcmp(argv[2], "like"))) {
+		like = 1;
+	} else if ((argc > 3) && (!strcmp(argv[2], "describing"))) {
+		describing = 1;
+	}
+
+	/* show applications describing <keyword1> [<keyword2>] [...] */
+	if ((!like) && (!describing)) {
+		ast_cli(fd, "    -= Registered Asterisk Applications =-\n");
+	} else {
+		ast_cli(fd, "    -= Matching Asterisk Applications =-\n");
+	}
 
 	/* ... go through all applications ... */
-	while (a) {
+	for (a = apps; a; a = a->next) {
 		/* ... show informations about applications ... */
-		ast_cli(fd,"  %20s: %s\n",
-			a->name,
-			a->synopsis ? a->synopsis : "<Synopsis not available>");
-		a = a->next; 
+		int printapp=0;
+
+		if (like) {
+			if (ast_strcasestr(a->name, argv[3])) {
+				printapp = 1;
+			}
+		} else if (describing) {
+			if (a->description) {
+				/* Match all words on command line */
+				int i;
+				printapp = 1;
+				for (i=3;i<argc;i++) {
+					if (! ast_strcasestr(a->description, argv[i])) {
+						printapp = 0;
+					}
+				}
+			}
+		} else {
+			printapp = 1;
+		}
+
+		if (printapp) {
+			ast_cli(fd,"  %20s: %s\n", a->name, a->synopsis ? a->synopsis : "<Synopsis not available>");
+		}
 	}
 
 	/* ... unlock and return */
 	ast_mutex_unlock(&applock);
 
 	return RESULT_SUCCESS;
+}
+
+static char *complete_show_applications(char *line, char *word, int pos, int state)
+{
+	if (pos == 2) {
+		if (ast_strlen_zero(word)) {
+			switch (state) {
+			case 0:
+				return strdup("like");
+			case 1:
+				return strdup("describing");
+			default:
+				return NULL;
+			}
+		} else if (! strncasecmp(word, "like", strlen(word))) {
+			if (state == 0) {
+				return strdup("like");
+			} else {
+				return NULL;
+			}
+		} else if (! strncasecmp(word, "describing", strlen(word))) {
+			if (state == 0) {
+				return strdup("describing");
+			} else {
+				return NULL;
+			}
+		}
+	}
+	return NULL;
 }
 
 /*
@@ -2824,7 +2884,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 static struct ast_cli_entry show_applications_cli = 
 	{ { "show", "applications", NULL }, 
 	handle_show_applications, "Shows registered applications",
-	show_applications_help };
+	show_applications_help, complete_show_applications };
 
 static struct ast_cli_entry show_application_cli =
 	{ { "show", "application", NULL }, 

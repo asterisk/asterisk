@@ -41,6 +41,7 @@ extern int ast_utils_init(void);
 
 #ifdef LINUX
 #define ast_pthread_create pthread_create
+#define ast_strcasestr strcasestr
 #else
 /* Linux threads have a default 2MB stack size. */
 #ifndef PTHREAD_ATTR_STACKSIZE
@@ -48,5 +49,7 @@ extern int ast_utils_init(void);
 #endif /* PTHREAD_ATTR_STACKSIZE */
 extern int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data);
 #endif /* LINUX */
+
+extern char *ast_strcasestr(const char *, const char *);
 
 #endif

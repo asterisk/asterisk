@@ -9,6 +9,9 @@
  * the GNU General Public License
  */
 
+#ifdef Linux	/* For strcasestr */
+#define __USE_GNU
+#endif
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
@@ -20,6 +23,7 @@
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 #include <asterisk/logger.h>
+#include <alloca.h>
 
 static char base64[64];
 static char b2a[256];
@@ -363,3 +367,46 @@ int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_ro
 	return pthread_create(thread, attr, start_routine, data); /* We're in ast_pthread_create, so it's okay */
 }
 #endif /* ! LINUX */
+
+static char *upper(const char *orig, char *buf, int bufsize)
+{
+	int i;
+	memset(buf, 0, bufsize);
+	for (i=0; i<bufsize - 1; i++) {
+		buf[i] = toupper(orig[i]);
+		if (orig[i] == '\0') {
+			break;
+		}
+	}
+	return buf;
+}
+
+/* Case-insensitive substring matching */
+#ifndef LINUX
+char *ast_strcasestr(const char *haystack, const char *needle)
+{
+	char *u1, *u2;
+	int u1len = strlen(haystack), u2len = strlen(needle);
+
+	u1 = alloca(u1len);
+	u2 = alloca(u2len);
+	if (u1 && u2) {
+		char *offset;
+		if (u2len > u1len) {
+			/* Needle bigger than haystack */
+			return NULL;
+		}
+		offset = strstr(upper(haystack, u1, u1len), upper(needle, u2, u2len));
+		if (offset) {
+			/* Return the offset into the original string */
+			return ((char *)((unsigned int)haystack + (unsigned int)(offset - u1)));
+		} else {
+			return NULL;
+		}
+	} else {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return NULL;
+	}
+}
+#endif
+
