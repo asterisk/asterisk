@@ -3400,6 +3400,10 @@ static int send_trunk(struct iax2_peer *peer)
 	/* Search through trunked calls for a match with this peer */
 	for (x=TRUNK_CALL_START;x<maxtrunkcall; x++) {
 		ast_pthread_mutex_lock(&iaxsl[x]);
+#if 0
+		if (iaxtrunkdebug)
+			ast_verbose("Call %d is at %s:%d (%d)\n", x, inet_ntoa(iaxs[x]->addr.sin_addr), ntohs(iaxs[x]->addr.sin_port), iaxs[x]->addr.sin_family);
+#endif
 		if (iaxs[x] && iaxs[x]->trunk && iaxs[x]->trunkdatalen && !memcmp(&iaxs[x]->addr, &peer->addr, sizeof(iaxs[x]->addr))) {
 			if (iaxtrunkdebug)
 				ast_verbose(" -- Sending call %d via trunk to %s:%d\n", x, inet_ntoa(iaxs[x]->addr.sin_addr), ntohs(iaxs[x]->addr.sin_port));
@@ -3483,7 +3487,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 			processed++;
 			res = send_trunk(peer);
 			if (iaxtrunkdebug)
-				ast_verbose("Processed trunk peer '%s' with %d call(s)\n", peer->name, res);
+				ast_verbose("Processed trunk peer '%s' (%s:%d) with %d call(s)\n", peer->name, inet_ntoa(peer->addr.sin_addr), ntohs(peer->addr.sin_port), res);
 			totalcalls += res;	
 			res = 0;
 		}
@@ -4749,6 +4753,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 		if (!peer->authmethods)
 			peer->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
 		peer->delme = 0;
+		/* Make sure these are IPv4 addresses */
+		peer->addr.sin_family = AF_INET;
 	}
 	return peer;
 }
