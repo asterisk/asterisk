@@ -183,8 +183,9 @@ static int g729_seek(struct ast_filestream *fs, long sample_offset, int whence)
 		offset = max - bytes;
 	if (whence != SEEK_FORCECUR) {
 		offset = (offset > max)?max:offset;
-		offset = (offset < min)?min:offset;
 	}
+	// protect against seeking beyond begining.
+	offset = (offset < min)?min:offset;
 	if (lseek(fs->fd, offset, SEEK_SET) < 0)
 		return -1;
 	return 0;
