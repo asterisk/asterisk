@@ -25,6 +25,16 @@
 ;
 ;announce = queue-markq
 ;
+; A strategy may be specified.  Valid strategies include:
+;
+; ringall - ring all available channels until one answers (default)
+; roundrobin - take turns ringing each available interface 
+; leastrecent - ring interface which least recently had a call
+; fewestcalls - ring interface which has had fewest completed calls
+; random - ring random interface
+;
+;strategy = ringall
+;
 ; A context may be specified, in which if the user types a SINGLE
 ; digit extension while they are in the queue, they will be taken out
 ; of the queue and sent to that extension in this context.
@@ -44,7 +54,9 @@
 ;maxlen = 0
 ;
 ; Each member of this call queue is listed on a separate line in
-; the form technology/dialstring
+; the form technology/dialstring.  "member" means a normal member of a
+; queue.  An optional penalty may be specified after a comma, such that
+; entries with higher penalties are considered last.
 ;
 ;member => Zap/1
 ;member => Zap/2
@@ -52,4 +64,6 @@
 ;member => Agent/1002
 
 ;member => Agent/@1		; Any agent in group 1
-;member => Agent/:1		; Any agent in group 1, wait for first.
+;member => Agent/:1,1		; Any agent in group 1, wait for first
+                                ; available, but consider with penalty
+

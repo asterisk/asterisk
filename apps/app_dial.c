@@ -178,7 +178,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		winner = ast_waitfor_n(watchers, pos, to);
 		o = outgoing;
 		while(o) {
-			if (o->stillgoing && (o->chan->_state == AST_STATE_UP)) {
+			if (o->stillgoing && o->chan && (o->chan->_state == AST_STATE_UP)) {
 				if (!peer) {
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
@@ -206,7 +206,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						o->stillgoing = 0;
 						ast_hangup(o->chan);
 						o->chan = NULL;
-							numbusies++;
+						numbusies++;
 					}
 					continue;
 				}
