@@ -138,7 +138,7 @@ static int iax2_capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
 static int iax2_dropcount = DEFAULT_DROP;
 
-static int use_jitterbuffer = 1;
+static int use_jitterbuffer = 0;
 
 static int iaxdebug = 0;
 
