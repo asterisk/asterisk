@@ -92,7 +92,7 @@ LOCAL_USER_DECL;
 
 static struct ast_conference {
 	char confno[AST_MAX_EXTENSION];		/* Conference */
-	struct ast_channel *chan;		/* Announcements channel */
+	int fd;				/* Announcements fd */
 	int zapconf;			/* Zaptel Conf # */
 	int users;			/* Number of active users */
 	int markedusers;		  /* Number of marked users */
@@ -181,7 +181,7 @@ static void conf_play(struct ast_conference *conf, int sound)
 		len = 0;
 	}
 	if (data) 
-		careful_write(conf->chan->fds[0], data, len);
+		careful_write(conf->fd, data, len);
 	ast_mutex_unlock(&conflock);
 }
 
@@ -203,8 +203,8 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			memset(cnf, 0, sizeof(struct ast_conference));
 			strncpy(cnf->confno, confno, sizeof(cnf->confno) - 1);
 			strncpy(cnf->pin, pin, sizeof(cnf->pin) - 1);
-			cnf->chan = ast_request("zap", AST_FORMAT_ULAW, "pseudo");
-			if (!cnf->chan) {
+			cnf->fd = open("/dev/zap/pseudo", O_RDWR);
+			if (cnf->fd < 0) {
 				ast_log(LOG_WARNING, "Unable to open pseudo channel\n");
 				free(cnf);
 				cnf = NULL;
@@ -214,10 +214,10 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			/* Setup a new zap conference */
 			ztc.chan = 0;
 			ztc.confno = -1;
-			ztc.confmode = ZT_CONF_CONFANN;
-			if (ioctl(cnf->chan->fds[0], ZT_SETCONF, &ztc)) {
+			ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+			if (ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
 				ast_log(LOG_WARNING, "Error setting conference\n");
-				ast_hangup(cnf->chan);
+				close(cnf->fd);
 				free(cnf);
 				cnf = NULL;
 				goto cnfout;
@@ -927,7 +927,7 @@ outrun:
 		}
 		if (!cur) 
 			ast_log(LOG_WARNING, "Conference not found\n");
-		ast_hangup(conf->chan);
+		close(conf->fd);
 		free(conf);
 		} else {
 			/* Remove the user struct */ 
