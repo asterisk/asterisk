@@ -478,12 +478,14 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	distance = (sample_offset/320) * 65;
 	if(whence == SEEK_SET)
 		offset = distance + min;
-	if(whence == SEEK_CUR)
+	else if(whence == SEEK_CUR || whence == SEEK_FORCECUR)
 		offset = distance + cur;
-	if(whence == SEEK_END)
+	else if(whence == SEEK_END)
 		offset = max - distance;
-	offset = (offset < min)?min:offset;
-	offset = (offset > max)?max:offset;
+	if (whence != SEEK_FORCECUR) {
+		offset = (offset < min)?min:offset;
+		offset = (offset > max)?max:offset;
+	}
 	fs->secondhalf = 0;
 	return lseek(fs->fd, offset, SEEK_SET);
 }

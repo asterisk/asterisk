@@ -27,6 +27,8 @@ extern "C" {
 //! Convenient for waiting
 #define AST_DIGIT_ANY "0123456789#*"
 
+#define SEEK_FORCECUR	10
+	
 /* Defined by individual formats.  First item MUST be a
    pointer for use by the stream manager */
 struct ast_filestream;

@@ -185,12 +185,14 @@ static int gsm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	distance = (sample_offset/160) * 33;
 	if(whence == SEEK_SET)
 		offset = distance;
-	if(whence == SEEK_CUR)
+	else if(whence == SEEK_CUR || whence == SEEK_FORCECUR)
 		offset = distance + cur;
-	if(whence == SEEK_END)
+	else if(whence == SEEK_END)
 		offset = max - distance;
-	offset = (offset > max)?max:offset;
-	offset = (offset < min)?min:offset;
+	if (whence != SEEK_FORCECUR) {
+		offset = (offset > max)?max:offset;
+		offset = (offset < min)?min:offset;
+	}
 	return lseek(fs->fd, offset, SEEK_SET);
 }
 

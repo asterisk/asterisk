@@ -41,8 +41,9 @@ struct ast_filestream {
 	struct timeval last;
 };
 
-
+#if 0
 static struct ast_filestream *glist = NULL;
+#endif
 static ast_mutex_t mp3_lock = AST_MUTEX_INITIALIZER;
 static int glistcnt = 0;
 

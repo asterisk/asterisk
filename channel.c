@@ -39,6 +39,11 @@
 #include <linux/zaptel.h>
 #endif
 
+/* uncomment if you have problems with 'monitoring' synchronized files */
+#if 0
+#define MONITOR_CONSTANT_DELAY
+#define MONITOR_DELAY	150 * 8		/* 150 ms of MONITORING DELAY */
+#endif
 
 static int shutting_down = 0;
 static int uniqueint = 0;
@@ -1088,9 +1093,25 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			f = &null_frame;
 		} else {
 			if (chan->monitor && chan->monitor->read_stream ) {
-				if( ast_writestream( chan->monitor->read_stream, f ) < 0 ) {
+#ifndef MONITOR_CONSTANT_DELAY
+				int jump = chan->outsmpl - chan->insmpl - 2 * f->samples;
+				if (jump >= 0) {
+					if (ast_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
+						ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
+					chan->insmpl += jump + 2 * f->samples;
+				} else
+					chan->insmpl+= f->samples;
+#else
+				int jump = chan->outsmpl - chan->insmpl;
+				if (jump - MONITOR_DELAY >= 0) {
+					if (ast_seekstream(chan->monitor->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
+						ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
+					chan->insmpl += jump;
+				} else
+					chan->insmpl += f->samples;
+#endif
+				if (ast_writestream(chan->monitor->read_stream, f) < 0)
 					ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
-				}
 			}
 			if (chan->pvt->readtrans) {
 				f = ast_translate(chan->pvt->readtrans, f, 1);
@@ -1360,18 +1381,32 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				f = ast_translate(chan->pvt->writetrans, fr, 0);
 			} else
 				f = fr;
-			if (f)	
-			{
+			if (f) {
 				res = chan->pvt->write(chan, f);
 				if( chan->monitor &&
 						chan->monitor->write_stream &&
 						f && ( f->frametype == AST_FRAME_VOICE ) ) {
-					if( ast_writestream( chan->monitor->write_stream, f ) < 0 ) {
+#ifndef MONITOR_CONSTANT_DELAY
+					int jump = chan->insmpl - chan->outsmpl - 2 * f->samples;
+					if (jump >= 0) {
+						if (ast_seekstream(chan->monitor->write_stream, jump + f->samples, SEEK_FORCECUR) == -1)
+							ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
+						chan->outsmpl += jump + 2 * f->samples;
+					} else
+						chan->outsmpl += f->samples;
+#else
+					int jump = chan->insmpl - chan->outsmpl;
+					if (jump - MONITOR_DELAY >= 0) {
+						if (ast_seekstream(chan->monitor->write_stream, jump - f->samples, SEEK_FORCECUR) == -1)
+							ast_log(LOG_WARNING, "Failed to perform seek in monitoring write stream, synchronization between the files may be broken\n");
+						chan->outsmpl += jump;
+					} else
+						chan->outsmpl += f->samples;
+#endif
+				if (ast_writestream(chan->monitor->write_stream, f) < 0)
 						ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
-					}
 				}
-			}
-			else
+			} else
 				res = 0;
 		}
 	}

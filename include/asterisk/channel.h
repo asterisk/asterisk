@@ -199,6 +199,10 @@ struct ast_channel {
 	/* Channel monitoring */
 	struct ast_channel_monitor *monitor;
 
+	/*! Track the read/written samples for monitor use */
+	unsigned long insmpl;
+	unsigned long outsmpl;
+
 	/* Frames in/out counters */
 	unsigned int fin;
 	unsigned int fout;

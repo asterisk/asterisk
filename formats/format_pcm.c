@@ -163,14 +163,16 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	min = 0;
 	cur = lseek(fs->fd, 0, SEEK_CUR);
 	max = lseek(fs->fd, 0, SEEK_END);
-	if(whence == SEEK_SET)
+	if (whence == SEEK_SET)
 		offset = sample_offset;
-	if(whence == SEEK_CUR)
+	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
 		offset = sample_offset + cur;
-	if(whence == SEEK_END)
+	else if (whence == SEEK_END)
 		offset = max - sample_offset;
-	offset = (offset > max)?max:offset;
-	offset = (offset < min)?min:offset;
+	if (whence != SEEK_FORCECUR) {
+		offset = (offset > max)?max:offset;
+		offset = (offset < min)?min:offset;
+	}
 	return lseek(fs->fd, offset, SEEK_SET);
 }
 

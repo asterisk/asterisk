@@ -174,14 +174,16 @@ static int g729_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	max = lseek(fs->fd, 0, SEEK_END);
 	
 	bytes = 20 * (sample_offset / 160);
-	if(whence == SEEK_SET)
+	if (whence == SEEK_SET)
 		offset = bytes;
-	if(whence == SEEK_CUR)
+	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
 		offset = cur + bytes;
-	if(whence == SEEK_END)
+	else if (whence == SEEK_END)
 		offset = max - bytes;
-	offset = (offset > max)?max:offset;
-	offset = (offset < min)?min:offset;
+	if (whence != SEEK_FORCECUR) {
+		offset = (offset > max)?max:offset;
+		offset = (offset < min)?min:offset;
+	}
 	if (lseek(fs->fd, offset, SEEK_SET) < 0)
 		return -1;
 	return 0;

@@ -499,14 +499,16 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	min = 44; /* wav header is 44 bytes */
 	cur = lseek(fs->fd, 0, SEEK_CUR);
 	max = lseek(fs->fd, 0, SEEK_END);
-	if(whence == SEEK_SET)
+	if (whence == SEEK_SET)
 		offset = samples + min;
-	if(whence == SEEK_CUR)
+	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
 		offset = samples + cur;
-	if(whence == SEEK_END)
-		offset = max - samples; 
-	offset = (offset > max)?max:offset;
-	offset = (offset < min)?min:offset;
+	else if (whence == SEEK_END)
+		offset = max - samples;
+        if (whence != SEEK_FORCECUR) {
+		offset = (offset > max)?max:offset;
+		offset = (offset < min)?min:offset;
+	}
 	return lseek(fs->fd,offset,SEEK_SET);
 }
 
