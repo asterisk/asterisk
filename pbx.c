@@ -91,6 +91,7 @@ static int pbx_builtin_background(struct ast_channel *, void *);
 static int pbx_builtin_dtimeout(struct ast_channel *, void *);
 static int pbx_builtin_rtimeout(struct ast_channel *, void *);
 static int pbx_builtin_wait(struct ast_channel *, void *);
+static int pbx_builtin_setlanguage(struct ast_channel *, void *);
 
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
@@ -108,6 +109,7 @@ static struct pbx_builtin {
 	{ "Wait", pbx_builtin_wait },
 	{ "StripMSD", pbx_builtin_stripmsd },
 	{ "Prefix", pbx_builtin_prefix },
+	{ "SetLanguage", pbx_builtin_setlanguage },
 };
 
 /* Lock for the application list */
@@ -225,7 +227,8 @@ static int extension_close(char *pattern, char *data)
 	if (strlen(pattern) < strlen(data)) 
 		return 0;
 	
-	if (!strncasecmp(pattern, data, strlen(data))) {
+	
+	if (!strlen((char *)data) || !strncasecmp(pattern, data, strlen(data))) {
 		return 1;
 	}
 	/* All patterns begin with _ */
@@ -254,10 +257,24 @@ static int extension_close(char *pattern, char *data)
 	return match;
 }
 
+struct ast_context *ast_context_find(char *name)
+{
+	struct ast_context *tmp;
+	pthread_mutex_lock(&conlock);
+	tmp = contexts;
+	while(tmp) {
+		if (!strcasecmp(name, tmp->name))
+			break;
+		tmp = tmp->next;
+	}
+	pthread_mutex_unlock(&conlock);
+	return tmp;
+}
+
 static int pbx_extension_helper(struct ast_channel *c, char *context, char *exten, int priority, int action) 
 {
 	struct ast_context *tmp;
-	struct ast_exten *e;
+	struct ast_exten *e, *reale;
 	struct ast_app *app;
 	int newstack = 0;
 	int res;
@@ -280,6 +297,7 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 			while(e) {
 				if (extension_match(e->exten, exten) || 
 					((action == HELPER_CANMATCH) && extension_close(e->exten, exten))) {
+					reale = e;
 					while(e) {
 						if (e->priority == priority) {
 							/* We have a winner! Maybe there are some races
@@ -328,10 +346,10 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 						ast_log(LOG_WARNING, "No such priority '%d' in '%s' in '%s'\n", priority, exten, context);
 						pthread_mutex_unlock(&conlock);
 						return -1;
-					} else {
+					} else if (action != HELPER_CANMATCH) {
 						pthread_mutex_unlock(&conlock);
 						return 0;
-					}
+					} else e = reale; /* Keep going */
 				}
 				e = e->next;
 			}
@@ -413,6 +431,7 @@ static void *pbx_thread(void *data)
 	char exten[256];
 	int pos;
 	int waittime;
+	int res=0;
 	if (option_debug)
 		ast_log(LOG_DEBUG, "PBX_THREAD(%s)\n", c->name);
 	else if (option_verbose > 1)
@@ -426,16 +445,25 @@ static void *pbx_thread(void *data)
 		c->priority = 1;
 	}
 	for(;;) {
-		memset(exten, 0, sizeof(exten));
 		pos = 0;
 		digit = 0;
 		while(ast_exists_extension(c, c->context, c->exten, c->priority)) {
-			if (ast_spawn_extension(c, c->context, c->exten, c->priority)) {
+			memset(exten, 0, sizeof(exten));
+			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority))) {
 				/* Something bad happened, or a hangup has been requested. */
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
-				else if (option_verbose > 1)
-					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				switch(res) {
+				case AST_PBX_KEEPALIVE:
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
+					else if (option_verbose > 1)
+						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited KEEPALIVE on '%s'\n", c->context, c->exten, c->priority, c->name);
+				break;
+				default:
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+					else if (option_verbose > 1)
+						ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s'\n", c->context, c->exten, c->priority, c->name);
+				}
 				goto out;
 			}
 			/* If we're playing something in the background, wait for it to finish or for a digit */
@@ -508,7 +536,8 @@ static void *pbx_thread(void *data)
 out:
 	pbx_destroy(c->pbx);
 	c->pbx = NULL;
-	ast_hangup(c);
+	if (res != AST_PBX_KEEPALIVE)
+		ast_hangup(c);
 	pthread_exit(NULL);
 	
 }
@@ -820,6 +849,13 @@ int pbx_builtin_answer(struct ast_channel *chan, void *data)
 		return ast_answer(chan);
 }
 
+int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
+{
+	/* Copy the language as specified */
+	strncpy(chan->language, (char *)data, sizeof(chan->language));
+	return 0;
+}
+
 int pbx_builtin_hangup(struct ast_channel *chan, void *data)
 {
 	/* Just return non-zero and it will hang up */
@@ -863,10 +899,14 @@ int pbx_builtin_wait(struct ast_channel *chan, void *data)
 int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res;
+	/* Answer if need be */
+	if (chan->state != AST_STATE_UP)
+		if (ast_answer(chan))
+			return -1;
 	/* Stop anything playing */
 	ast_stopstream(chan);
 	/* Stream a file */
-	res = ast_streamfile(chan, (char *)data);
+	res = ast_streamfile(chan, (char *)data, chan->language);
 	return res;
 }
 
