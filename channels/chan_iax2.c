@@ -477,6 +477,7 @@ static struct timeval lastused[IAX_MAX_CALLS];
 
 
 static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
+static int send_command_locked(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
 static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
 static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, char *, int, int);
 static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, char *, int);
@@ -1493,24 +1494,24 @@ static int iax2_transmit(struct iax_frame *fr)
 
 static int iax2_digit(struct ast_channel *c, char digit)
 {
-	return send_command(c->pvt->pvt, AST_FRAME_DTMF, digit, 0, NULL, 0, -1);
+	return send_command_locked(c->pvt->pvt, AST_FRAME_DTMF, digit, 0, NULL, 0, -1);
 }
 
 static int iax2_sendtext(struct ast_channel *c, char *text)
 {
 	
-	return send_command(c->pvt->pvt, AST_FRAME_TEXT,
+	return send_command_locked(c->pvt->pvt, AST_FRAME_TEXT,
 		0, 0, text, strlen(text) + 1, -1);
 }
 
 static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img)
 {
-	return send_command(c->pvt->pvt, AST_FRAME_IMAGE, img->subclass, 0, img->data, img->datalen, -1);
+	return send_command_locked(c->pvt->pvt, AST_FRAME_IMAGE, img->subclass, 0, img->data, img->datalen, -1);
 }
 
 static int iax2_sendhtml(struct ast_channel *c, int subclass, char *data, int datalen)
 {
-	return send_command(c->pvt->pvt, AST_FRAME_HTML, subclass, 0, data, datalen, -1);
+	return send_command_locked(c->pvt->pvt, AST_FRAME_HTML, subclass, 0, data, datalen, -1);
 }
 
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan)
@@ -1897,7 +1898,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		p->pingtime = p->maxtime / 2;
 		p->initid = ast_sched_add(sched, p->maxtime * 2, auto_congest, (void *)(long)p->callno);
 	}
-	send_command(p, AST_FRAME_IAX,
+	send_command_locked(p, AST_FRAME_IAX,
 		IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
 	ast_setstate(c, AST_STATE_RINGING);
 	return 0;
@@ -1939,7 +1940,7 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		h->flag = AST_OPTION_FLAG_REQUEST;
 		h->option = htons(option);
 		memcpy(h->data, data, datalen);
-		res = send_command((struct chan_iax2_pvt *)c->pvt->pvt, AST_FRAME_CONTROL,
+		res = send_command_locked((struct chan_iax2_pvt *)c->pvt->pvt, AST_FRAME_CONTROL,
 			AST_CONTROL_OPTION, 0, (char *)h, datalen + sizeof(struct ast_option_header), -1);
 		free(h);
 		return res;
@@ -1983,6 +1984,22 @@ static int iax2_start_transfer(struct ast_channel *c0, struct ast_channel *c1)
 	return 0;
 }
 
+static void lock_both(struct chan_iax2_pvt *p0, struct chan_iax2_pvt *p1)
+{
+	ast_mutex_lock(&iaxsl[p0->callno]);
+	while (ast_mutex_trylock(&iaxsl[p1->callno])) {
+		ast_mutex_unlock(&iaxsl[p0->callno]);
+		usleep(10);
+		ast_mutex_lock(&iaxsl[p0->callno]);
+	}
+}
+
+static void unlock_both(struct chan_iax2_pvt *p0, struct chan_iax2_pvt *p1)
+{
+	ast_mutex_unlock(&iaxsl[p1->callno]);
+	ast_mutex_unlock(&iaxsl[p0->callno]);
+}
+
 static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
 {
 	struct ast_channel *cs[3];
@@ -1995,9 +2012,11 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 	struct chan_iax2_pvt *p1 = c1->pvt->pvt;
 	struct timeval waittimer = {0, 0}, tv;
 	
+	lock_both(p0, p1);
 	/* Put them in native bridge mode */
 	p0->bridgecallno = p1->callno;
 	p1->bridgecallno = p0->callno;
+	unlock_both(p0, p1);
 
 	/* If not, try to bridge until we can execute a transfer, if we can */
 	cs[0] = c0;
@@ -2008,15 +2027,25 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Can't masquerade, we're different...\n");
 			/* Remove from native mode */
-			p0->bridgecallno = 0;
-			p1->bridgecallno = 0;
+			if (c0->type == type) {
+				ast_mutex_lock(&iaxsl[p0->callno]);
+				p0->bridgecallno = 0;
+				ast_mutex_unlock(&iaxsl[p0->callno]);
+			}
+			if (c1->type == type) {
+				ast_mutex_lock(&iaxsl[p1->callno]);
+				p1->bridgecallno = 0;
+				ast_mutex_unlock(&iaxsl[p1->callno]);
+			}
 			return -2;
 		}
 		if (c0->nativeformats != c1->nativeformats) {
 			ast_verbose(VERBOSE_PREFIX_3 "Operating with different codecs, can't native bridge...\n");
 			/* Remove from native mode */
+			lock_both(p0, p1);
 			p0->bridgecallno = 0;
 			p1->bridgecallno = 0;
+			unlock_both(p0, p1);
 			return -2;
 		}
 		/* check if transfered and if we really want native bridging */
@@ -2112,8 +2141,10 @@ tackygoto:
 		cs[0] = cs[1];
 		cs[1] = cs[2];
 	}
+	lock_both(p0, p1);
 	p0->bridgecallno = 0;
 	p1->bridgecallno = 0;
+	unlock_both(p0, p1);
 	return res;
 }
 
