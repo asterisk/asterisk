@@ -33,7 +33,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <stdint.h>
 #include <limits.h>
 
 #include <asterisk/plc.h>
@@ -43,6 +42,11 @@
 #endif
 #if !defined(TRUE)
 #define TRUE (!FALSE)
+#endif
+
+#if !defined(INT16_MAX)
+#define INT16_MAX	(32767)
+#define INT16_MIN	(-32767-1)
 #endif
 
 /* We do a straight line fade to zero volume in 50ms when we are filling in for missing data. */
