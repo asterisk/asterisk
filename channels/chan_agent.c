@@ -1249,6 +1249,7 @@ static int powerof(unsigned int v)
 	return 0;
 }
 
+/*--- action_agents: Manager routine for listing channels */
 static int action_agents(struct mansession *s, struct message *m)
 {
 	struct agent_pvt *p;
@@ -2116,7 +2117,7 @@ int load_module()
 	ast_register_application(app2, callback_exec, synopsis2, descrip2);
 	ast_register_application(app3, agentmonitoroutgoing_exec, synopsis3, descrip3);
 	/* Manager command */
-	ast_manager_register2("Agents", 0, action_agents, "Agents", mandescr_agents);
+	ast_manager_register2("Agents", 0, action_agents, "Lists agents and their status", mandescr_agents);
 	/* CLI Application */
 	ast_cli_register(&cli_show_agents);
 	ast_cli_register(&cli_agent_logoff);
