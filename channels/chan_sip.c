@@ -5673,8 +5673,15 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 		host++;
 		ext = tmp;
 	} else {
-		host = tmp;
-		ext = NULL;
+		ext = strchr(tmp, '/');
+		if (ext) {
+			*ext++ = '\0';
+			host = tmp;
+		}
+		else {
+			host = tmp;
+			ext = NULL;
+		}
 	}
 
 	/* Assign a default capability */
