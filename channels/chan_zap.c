@@ -6591,6 +6591,10 @@ int load_module()
 		} else if (!strcasecmp(v->name, "switchtype")) {
 			if (!strcasecmp(v->value, "national")) 
 				switchtype = PRI_SWITCH_NI2;
+#ifdef PRI_SWITCH_NI1
+			else if (!strcasecmp(v->value, "ni1"))
+				switchtype = PRI_SWITCH_NI1;
+#endif
 			else if (!strcasecmp(v->value, "dms100"))
 				switchtype = PRI_SWITCH_DMS100;
 			else if (!strcasecmp(v->value, "4ess"))

@@ -15,11 +15,12 @@ context=default
 ;
 ; Switchtype:  Only used for PRI.
 ;
-; national:	  National ISDN
+; national:	  National ISDN 2 (default)
 ; dms100:	  Nortel DMS100
 ; 4ess:           AT&T 4ESS
 ; 5ess:	          Lucent 5ESS
 ; euroisdn:       EuroISDN
+; ni1:            Old National ISDN 1
 ;
 switchtype=national
 ;
