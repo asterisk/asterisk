@@ -378,8 +378,15 @@ int ast_say_date_with_format(struct ast_channel *chan, time_t time, char *ints, 
 				}
 				if (!res) {
 					if (tm.tm_hour != 0) {
-						snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/digits/%d", tm.tm_hour);
-						res = wait_file(chan,ints,nextmsg,lang);
+						int remainder = tm.tm_hour;
+						if (tm.tm_hour > 20) {
+							res = wait_file(chan,ints,AST_SOUNDS "/digits/20",lang);
+							remainder -= 20;
+						}
+						if (!res) {
+							snprintf(nextmsg,sizeof(nextmsg), AST_SOUNDS "/digits/%d", remainder);
+							res = wait_file(chan,ints,nextmsg,lang);
+						}
 					}
 				}
 				break;
