@@ -102,6 +102,7 @@ static int createlink = 0;
 static char urlprefix[AST_MAX_BUF];
 static char savecallsin[AST_MAX_BUF];
 static int updatecdr = 0;
+static char beep[AST_MAX_BUF] = "beep";
 
 #define GETAGENTBYCALLERID	"AGENTBYCALLERID"
 
@@ -459,7 +460,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	ast_verbose( VERBOSE_PREFIX_3 "agent_call, call to agent '%s' call on '%s'\n", p->agent, p->chan->name);
 	ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", p->chan->language);
-	res = ast_streamfile(p->chan, "beep", p->chan->language);
+	res = ast_streamfile(p->chan, beep, p->chan->language);
 	ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
 	if (!res) {
 		res = ast_waitstream(p->chan, "");
@@ -832,6 +833,8 @@ static int read_agent_config(void)
 				snprintf(savecallsin, sizeof(savecallsin) - 2, "/%s", v->value);
 			if (savecallsin[strlen(savecallsin) - 1] != '/')
 				strcat(savecallsin, "/");
+		} else if (!strcasecmp(v->name, "custom_beep")) {
+			strncpy(beep, v->value, sizeof(beep) - 1);
 		}
 		v = v->next;
 	}
@@ -900,7 +903,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 			res = 0;
 		} else {
 			ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
-			res = ast_streamfile(newlyavailable->chan, "beep", newlyavailable->chan->language);
+			res = ast_streamfile(newlyavailable->chan, beep, newlyavailable->chan->language);
 			ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
 			if (!res) {
 				res = ast_waitstream(newlyavailable->chan, "");
@@ -960,7 +963,7 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 	if (p) {
 		ast_mutex_unlock(&newlyavailable->lock);
 		ast_log( LOG_DEBUG, "Playing beep, lang '%s'\n", newlyavailable->chan->language);
-		res = ast_streamfile(newlyavailable->chan, "beep", newlyavailable->chan->language);
+		res = ast_streamfile(newlyavailable->chan, beep, newlyavailable->chan->language);
 		ast_log( LOG_DEBUG, "Played beep, result '%d'\n", res);
 		if (!res) {
 			res = ast_waitstream(newlyavailable->chan, "");

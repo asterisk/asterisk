@@ -59,6 +59,10 @@
 ; The optional directory to save the conversations in. The default is
 ; /var/spool/asterisk/monitor
 ;savecallsin=/var/calls
+;
+; An optional custom beep sound file to play to always-connected agents. 
+;custom_beep=beep
+;
 ; --------------------------------------------------
 ;
 ; This section contains the agent definitions, in the form:
