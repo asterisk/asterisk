@@ -4630,7 +4630,7 @@ static int get_auth_methods(char *value)
 	if (strstr(value, "md5"))
 		methods |= IAX_AUTH_MD5;
 	if (strstr(value, "plaintext"))
-		methods |= IAX_AUTH_RSA;
+		methods |= IAX_AUTH_PLAINTEXT;
 	return methods;
 }
 
