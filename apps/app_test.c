@@ -215,7 +215,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 				/* Step 6: Transmit tone noise */
 				ast_log(LOG_DEBUG, "TestClient: 6.  Transmit tone\n");
 				res = sendnoise(chan, 6000);
-				fprintf(f, "SENDTONE:      %s (%d)\n", (res < 0) ? "FAIL" : "PASS", res);
+				fprintf(f, "SENDTONE:      %s\n", (res < 0) ? "FAIL" : "PASS");
 			}
 			if (!res || (res == '5')) {
 				/* Step 7: Wait for "5" */

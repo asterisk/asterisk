@@ -82,9 +82,9 @@ static char chanlist_help[] =
 "       a more easily machine parsable format\n";
 
 static char reload_help[] = 
-"Usage: reload\n"
-"       Reloads configuration files for all modules which support\n"
-"       reloading.\n";
+"Usage: reload [module ...]\n"
+"       Reloads configuration files for all listed modules which support\n"
+"       reloading, or for all supported modules if none are listed.\n";
 
 static char set_verbose_help[] = 
 "Usage: set verbose <level>\n"

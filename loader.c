@@ -157,10 +157,14 @@ void ast_module_reload(const char *name)
 		ast_verbose("The previous reload command didn't finish yet\n");
 		return;
 	}
-	read_ast_cust_config();
-	reload_manager();
-	ast_enum_reload();
-	ast_rtp_reload();
+	if (!name || !strcasecmp(name, "astconfig"))
+		read_ast_cust_config();
+	if (!name || !strcasecmp(name, "manager"))
+		reload_manager();
+	if (!name || !strcasecmp(name, "enum"))
+		ast_enum_reload();
+	if (!name || !strcasecmp(name, "rtp"))
+		ast_rtp_reload();
 	time(&ast_lastreloadtime);
 
 	ast_mutex_lock(&modlock);
