@@ -4841,6 +4841,7 @@ static struct iax_dpcache *find_cache(struct ast_channel *chan, char *data, char
 		/* We found an entry that matches us! */
 		if (!strcmp(dp->peercontext, data) && !strcmp(dp->exten, exten)) 
 			break;
+		prev = dp;
 		dp = next;
 	}
 	if (!dp) {

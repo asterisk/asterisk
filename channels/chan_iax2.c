@@ -5224,6 +5224,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, char *data, cha
 		/* We found an entry that matches us! */
 		if (!strcmp(dp->peercontext, data) && !strcmp(dp->exten, exten)) 
 			break;
+		perv = dp;
 		dp = next;
 	}
 	if (!dp) {
@@ -5495,6 +5496,7 @@ int load_module(void)
 
 	ast_pthread_mutex_init(&iaxq.lock);
 	ast_pthread_mutex_init(&userl.lock);
+	ast_pthread_mutex_init(&peerl.lock);
 
 	ast_cli_register(&cli_show_users);
 	ast_cli_register(&cli_show_channels);
