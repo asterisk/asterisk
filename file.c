@@ -19,6 +19,7 @@
 #include <asterisk/sched.h>
 #include <asterisk/options.h>
 #include <asterisk/translate.h>
+#include <asterisk/utils.h>
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -444,7 +445,7 @@ struct ast_filestream *ast_openstream(struct ast_channel *chan, char *filename, 
 	/* do this first, otherwise we detect the wrong writeformat */
 	if (chan->generator)
 		ast_deactivate_generator(chan);
-	if (preflang && strlen(preflang)) {
+	if (preflang && !ast_strlen_zero(preflang)) {
 		strncpy(filename3, filename, sizeof(filename3) - 1);
 		endpart = strrchr(filename3, '/');
 		if (endpart) {
@@ -493,7 +494,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, char *filename,
 	char lang2[MAX_LANGUAGE];
 	/* XXX H.263 only XXX */
 	char *fmt = "h263";
-	if (preflang && strlen(preflang)) {
+	if (preflang && !ast_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = ast_fileexists(filename2, fmt, NULL);
 		if (fmts < 1) {
@@ -678,7 +679,7 @@ int ast_fileexists(char *filename, char *fmt, char *preflang)
 	char *c;
 	char lang2[MAX_LANGUAGE];
 	int res = -1;
-	if (preflang && strlen(preflang)) {
+	if (preflang && !ast_strlen_zero(preflang)) {
 		/* Insert the language between the last two parts of the path */
 		strncpy(tmp, filename, sizeof(tmp) - 1);
 		c = strrchr(tmp, '/');
