@@ -87,7 +87,7 @@ static char secret[50];
 /** Private structure of a OpenH323 channel */
 struct oh323_pvt {
 	pthread_mutex_t lock;					/* Channel private lock */
-	call_options_t call_opt;				/* Options to be used during call setup */
+	call_options_t calloptions;				/* Options to be used during call setup */
 	int	alreadygone;						/* Whether or not we've already been destroyed by or peer */
 	int needdestroy;						/* if we need to be destroyed */
 	call_details_t cd;						/* Call details */
@@ -402,7 +402,12 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	memset(called_addr, 0, sizeof(dest));
 	memcpy(called_addr, dest, sizeof(called_addr));
 
-	res = h323_make_call(called_addr, &(p->cd), p->call_opt);
+	/* Copy callerid, if there is any */
+	if (strlen(c->callerid)) {
+		p->calloptions.callerid = strdup(c->callerid);
+	}
+
+	res = h323_make_call(called_addr, &(p->cd), p->calloptions);
 
 	if (res) {
 		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);

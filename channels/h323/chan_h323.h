@@ -84,6 +84,7 @@ struct oh323_alias {
 	PBX application and passed through make_call 
 	function*/
 typedef struct call_options {
+	const char     *callerid;
 	int				noFastStart;
 	int				noH245Tunnelling;
 	int				noSilenceSuppression;
@@ -95,6 +96,7 @@ typedef struct call_options {
 	asterisk channels to acutal h.323 connections */
 typedef struct call_details {	
 	unsigned int call_reference;
+
 	const char *call_token;				
 	const char *call_source_aliases;
 	const char *call_dest_alias;
