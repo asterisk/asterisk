@@ -1455,17 +1455,16 @@ static int zt_hangup(struct ast_channel *ast)
 	index = zt_get_index(ast, p, 1);
 
 	if (p->sig == SIG_PRI) {
-		x = 0;
+		x = 1;
 		ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 	}
 
-	restore_gains(p);
-	
-	if (p->dsp)
-		ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
-
 	x = 0;
 	zt_confmute(p, 0);
+	restore_gains(p);
+	
+	ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
+
 
 	ast_log(LOG_DEBUG, "Hangup: channel: %d index = %d, normal = %d, callwait = %d, thirdcall = %d\n",
 		p->channel, index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
@@ -1654,6 +1653,13 @@ static int zt_hangup(struct ast_channel *ast)
 		p->dialing = 0;
 		strcpy(p->rdnis, "");
 		update_conf(p);
+		/* Restore data mode */
+		if (p->sig == SIG_PRI) {
+			x = 0;
+			ast_channel_setoption(ast,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
+		}
+
+	if (p->dsp)
 		restart_monitor();
 	}
 
@@ -3528,11 +3534,6 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 #ifdef ZAPATA_PRI
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
-		if (i->sig == SIG_PRI) {
-			/* Set to audio mode at this poitn mode */
-			x = 1;
-			ast_channel_setoption(tmp,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
-		}
 #endif
 		/* Assure there is no confmute on this channel */
 		zt_confmute(i, 0);
@@ -5529,6 +5530,9 @@ static void *pri_dchannel(void *vpri)
 					if (strlen(pri->pvt[chan]->exten) && ast_exists_extension(NULL, pri->pvt[chan]->context, pri->pvt[chan]->exten, 1, pri->pvt[chan]->callerid)) {
 						/* Setup law */
 						int law;
+						/* Set to audio mode at this poitn mode */
+						law = 1;
+						ast_channel_setoption(tmp,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 						if (e->ring.layer1 == PRI_LAYER_1_ALAW)
 							law = ZT_LAW_ALAW;
 						else
