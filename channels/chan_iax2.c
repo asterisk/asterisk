@@ -5666,13 +5666,15 @@ retryowner2:
 				if (iaxs[fr.callno]->peerpoke) {
 					peer = iaxs[fr.callno]->peerpoke;
 					if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
-						if (iaxs[fr.callno]->pingtime <= peer->maxms)
+						if (iaxs[fr.callno]->pingtime <= peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr.callno]->pingtime);
 							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
+						}
 					} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
-						if (iaxs[fr.callno]->pingtime > peer->maxms)
+						if (iaxs[fr.callno]->pingtime > peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr.callno]->pingtime);
 							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
+						}
 					}
 					peer->lastms = iaxs[fr.callno]->pingtime;
 					if (peer->pokeexpire > -1)
