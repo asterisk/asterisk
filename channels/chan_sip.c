@@ -481,7 +481,7 @@ static int sip_reloading = 0;
 
 /* sip_registry: Registrations with other SIP proxies */
 struct sip_registry {
-	struct sockaddr_in addr;	/* Who we connect to for registration purposes */
+	int portno;				/* Optional port override */
 	char username[80];		/* Who we are registering as */
 	char authuser[80];		/* Who we *authenticate* as */
 	char hostname[80];
@@ -2371,8 +2371,6 @@ static int sip_register(char *value, int lineno)
 	char *contact=NULL;
 	char *stringp=NULL;
 	
-	struct hostent *hp;
-	struct ast_hostent ahp;
 	if (!value)
 		return -1;
 	strncpy(copy, value, sizeof(copy)-1);
@@ -2408,11 +2406,6 @@ static int sip_register(char *value, int lineno)
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
-	hp = ast_gethostbyname(hostname, &ahp);
-	if (!hp) {
-		ast_log(LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
-		return -1;
-	}
 	reg = malloc(sizeof(struct sip_registry));
 	if (reg) {
 		memset(reg, 0, sizeof(struct sip_registry));
@@ -2428,9 +2421,7 @@ static int sip_register(char *value, int lineno)
 		reg->expire = -1;
 		reg->timeout =  -1;
 		reg->refresh = default_expiry;
-		reg->addr.sin_family = AF_INET;
-		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
-		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(DEFAULT_SIP_PORT);
+		reg->portno = htons(atoi(porta));
 		reg->callid_valid = 0;
 		reg->ocseq = 101;
 		ast_mutex_lock(&regl.lock);
@@ -3875,10 +3866,9 @@ static int sip_reg_timeout(void *data)
 	/* if we are here, our registration timed out, so we'll just do it over */
 	struct sip_registry *r=data;
 	struct sip_pvt *p;
-	char iabuf[INET_ADDRSTRLEN];
 	int res;
 	ast_mutex_lock(&regl.lock);
-	ast_log(LOG_NOTICE, "Registration for '%s@%s' timed out, trying again\n", r->username, ast_inet_ntoa(iabuf, sizeof(iabuf), r->addr.sin_addr)); 
+	ast_log(LOG_NOTICE, "Registration for '%s@%s' timed out, trying again\n", r->username, r->hostname); 
 	if (r->call) {
 		/* Unlink us, destroy old call.  Locking is not relevent here because all this happens
 		   in the single SIP manager thread. */
@@ -3905,8 +3895,6 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	char addr[80];
 	char iabuf[INET_ADDRSTRLEN];
 	struct sip_pvt *p;
-	struct ast_hostent ahp;
-	struct hostent *hp;
 
 	/* exit if we are already in process with this registrar ?*/
 	if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT))) {
@@ -3925,24 +3913,35 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			build_callid(r->callid, sizeof(r->callid), __ourip);
 			r->callid_valid = 1;
 		}
-		p=sip_alloc( r->callid, &r->addr, 0);
+		p=sip_alloc( r->callid, NULL, 0);
 		if (!p) {
 			ast_log(LOG_WARNING, "Unable to allocate registration call\n");
 			return 0;
 		}
+		if (create_addr(p,r->hostname)) {
+			sip_destroy(p);
+			return 0;
+		}
+		if (r->portno)
+			p->sa.sin_port = r->portno;
 		p->outgoing = 1;
 		r->call=p;
 		p->registry=r;
-		strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
-		strncpy(p->peermd5secret, r->md5secret, sizeof(p->peermd5secret)-1);
+		if (!ast_strlen_zero(r->secret))
+			strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
+		if (!ast_strlen_zero(r->md5secret))
+			strncpy(p->peermd5secret, r->md5secret, sizeof(p->peermd5secret)-1);
 		if (!ast_strlen_zero(r->authuser)) {
 			strncpy(p->peername, r->authuser, sizeof(p->peername)-1);
 			strncpy(p->authname, r->authuser, sizeof(p->authname)-1);
 		} else {
-			strncpy(p->peername, r->username, sizeof(p->peername)-1);
-			strncpy(p->authname, r->username, sizeof(p->authname)-1);
+			if (!ast_strlen_zero(r->username)) {
+				strncpy(p->peername, r->username, sizeof(p->peername)-1);
+				strncpy(p->authname, r->username, sizeof(p->authname)-1);
+			}
 		}
-		strncpy(p->username, r->username, sizeof(p->username)-1);
+		if (!ast_strlen_zero(r->username))
+			strncpy(p->username, r->username, sizeof(p->username)-1);
 		strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
 
 		/*
@@ -3950,10 +3949,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		  based on whether the remote host is on the external or
 		  internal network so we can register through nat
 		 */
-		if ((hp = ast_gethostbyname(r->hostname, &ahp))) {
-			if (ast_sip_ouraddrfor((struct in_addr *)hp->h_addr, &p->ourip))
-				memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
-		}
+		if (ast_sip_ouraddrfor(&p->sa.sin_addr, &p->ourip))
+			memcpy(&p->ourip, &bindaddr.sin_addr, sizeof(p->ourip));
 		build_contact(p);
 	}
 
@@ -5586,13 +5583,12 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #define FORMAT  "%-20.20s  %-12.12s  %8d %-20.20s\n"
 	struct sip_registry *reg;
 	char host[80];
-	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&regl.lock);
 	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
 	for (reg = regl.registrations;reg;reg = reg->next) {
-		snprintf(host, sizeof(host), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->addr.sin_addr), ntohs(reg->addr.sin_port));
+		snprintf(host, sizeof(host), "%s:%d", reg->hostname, ntohs(reg->portno ? reg->portno : DEFAULT_SIP_PORT));
 		ast_cli(fd, FORMAT, host,
 					reg->username, reg->refresh, regstate2str(reg->regstate));
 	}
