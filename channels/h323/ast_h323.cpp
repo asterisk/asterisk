@@ -684,6 +684,7 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 	externalIpAddress = PIPSocket::Address("192.168.1.50");
 #endif
 
+	externalIpAddress = PIPSocket::Address(info->addr);
 	externalPort = info->port;
 	
 	if (h323debug) {
