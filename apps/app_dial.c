@@ -207,13 +207,19 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (o->chan->callerid)
 								free(o->chan->callerid);
 							o->chan->callerid = malloc(strlen(in->callerid) + 1);
-							strncpy(o->chan->callerid, in->callerid, strlen(in->callerid) + 1);
+							if (o->chan->callerid)
+								strncpy(o->chan->callerid, in->callerid, strlen(in->callerid) + 1);
+							else
+								ast_log(LOG_WARNING, "Out of memory\n");
 						}
 						if (in->ani) {
 							if (o->chan->ani)
 								free(o->chan->ani);
 							o->chan->ani = malloc(strlen(in->ani) + 1);
-							strncpy(o->chan->ani, in->ani, strlen(in->ani) + 1);
+							if (o->chan->ani)
+								strncpy(o->chan->ani, in->ani, strlen(in->ani) + 1);
+							else
+								ast_log(LOG_WARNING, "Out of memory\n");
 						}
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
