@@ -163,7 +163,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 					j += snprintf(buf+j,sizeof(buf)-j,"%d,",tz->ringcadance[i]);
 				}
 				if (tz->nrringcadance) j--;
-				strncpy(buf+j,"\n",sizeof(buf)-j);
+				strncpy(buf+j,"\n",sizeof(buf)-j-1);
 				ast_cli(fd,buf);
 				for (ts=tz->tones; ts; ts=ts->next)
 					ast_cli(fd,"%-7.7s %-15.15s %s\n",tz->country,ts->name,ts->data);
@@ -241,7 +241,7 @@ static int ind_load_module(void)
 			return -1;
 		}
 		memset(tones,0,sizeof(struct tone_zone));
-		strncpy(tones->country,cxt,sizeof(tones->country));
+		strncpy(tones->country,cxt,sizeof(tones->country) - 1);
 
 		v = ast_variable_browse(cfg, cxt);
 		while(v) {
@@ -282,7 +282,7 @@ static int ind_load_module(void)
 						return -1;
 					}
 					memset(azone,0,sizeof(struct tone_zone));
-					strncpy(azone->country,country,sizeof(azone->country));
+					strncpy(azone->country, country, sizeof(azone->country) - 1);
 					strncpy(azone->alias, cxt, sizeof(azone->alias)-1);
 					if (ast_register_indication_country(azone)) {
 						ast_log(LOG_WARNING, "Unable to register indication alias at line %d.\n",v->lineno);

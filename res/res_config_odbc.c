@@ -38,16 +38,16 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 	struct ast_config *config, *new;
 	struct ast_variable *v, *cur_v, *new_v;
 	struct ast_category *cur_cat, *new_cat;
-	char table[128];
-	char connection[128];
+	char table[128] = "";
+	char connection[128] = "";
 	int configured = 0, res = 0;
 	odbc_obj *obj;
 	SQLINTEGER err=0, commented=0, cat_metric=0, var_metric=0, last_cat_metric=0;
 	SQLBIGINT id;
-	char sql[255], filename[128], category[128], var_name[128], var_val[128];
+	char sql[255] = "", filename[128], category[128], var_name[128], var_val[128];
 	SQLSMALLINT rowcount=0;
 	SQLHSTMT stmt;
-	char last[80];
+	char last[80] = "";
 	int cat_started = 0;
 	int var_started = 0;
 
@@ -68,10 +68,10 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 	if (config) {
 		for (v = ast_variable_browse (config, "settings"); v; v = v->next) {
 			if (!strcmp (v->name, "table")) {
-				strncpy (table, v->value, sizeof (table));
+				strncpy(table, v->value, sizeof(table) - 1);
 				configured++;
 			} else if (!strcmp (v->name, "connection")) {
-				strncpy (connection, v->value, sizeof (connection));
+				strncpy(connection, v->value, sizeof(connection) - 1);
 				configured++;
 			}
 		}
@@ -96,7 +96,7 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 	SQLBindCol (stmt, 7, SQL_C_CHAR, &var_name, sizeof (var_name), &err);
 	SQLBindCol (stmt, 8, SQL_C_CHAR, &var_val, sizeof (var_val), &err);
 
-	sprintf (sql, "select * from %s where filename='%s' and commented=0 order by filename,cat_metric desc,var_metric asc,id", table, file);
+	snprintf(sql, sizeof(sql), "select * from %s where filename='%s' and commented=0 order by filename,cat_metric desc,var_metric asc,id", table, file);
 	res = SQLExecDirect (stmt, sql, SQL_NTS);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -133,7 +133,7 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 				);
 			} else {
 				if (strcmp (last, category) || last_cat_metric != cat_metric) {
-					strcpy (last, category);
+					strncpy(last, category, sizeof(last) - 1);
 					last_cat_metric	= cat_metric;
 					new_cat = (struct ast_category *) ast_new_category (category);
 
@@ -184,7 +184,7 @@ int unload_module (void)
 int load_module (void)
 {
 	memset (&reg1, 0, sizeof (struct ast_config_reg));
-	strcpy (reg1.name, "odbc");
+	strncpy(reg1.name, "odbc", sizeof(reg1.name) - 1);
 	reg1.func = config_odbc;
 	ast_cust_config_register (&reg1);
 	ast_log (LOG_NOTICE, "res_config_odbc loaded.\n");

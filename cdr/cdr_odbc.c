@@ -56,25 +56,25 @@ static int odbc_log(struct ast_cdr *cdr)
 	short int ODBC_mlen;
 	int ODBC_res;
 	char ODBC_msg[200], ODBC_stat[10];
-	char sqlcmd[2048], timestr[128];
+	char sqlcmd[2048] = "", timestr[128];
 	int res = 0;
 	struct tm tm;
 
 	localtime_r(&cdr->start.tv_sec,&tm);
 
 	ast_mutex_lock(&odbc_lock);
-	strftime(timestr,128,DATE_FORMAT,&tm);
+	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 	memset(sqlcmd,0,2048);
 	if((loguniqueid != NULL) && ((strcmp(loguniqueid, "1") == 0) || (strcmp(loguniqueid, "yes") == 0)))
 	{
-		sprintf(sqlcmd,"INSERT INTO cdr "
+		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO cdr "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,"
 		"lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) "
 		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
 	}
 	else
 	{
-		sprintf(sqlcmd,"INSERT INTO cdr "
+		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO cdr "
 		"(calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,"
 		"duration,billsec,disposition,amaflags,accountcode) "
 		"VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)");
@@ -264,8 +264,9 @@ static int odbc_load_module(void)
 		dsn = malloc(strlen(tmp) + 1);
 		if (dsn != NULL)
 		{
+			memset(dsn, 0, strlen(tmp) + 1);
 			dsn_alloc = 1;
-			strcpy(dsn,tmp);
+			strncpy(dsn, tmp, strlen(tmp));
 		}
 		else
 		{
@@ -285,8 +286,9 @@ static int odbc_load_module(void)
 		username = malloc(strlen(tmp) + 1);
 		if (username != NULL)
 		{
+			memset(username, 0, strlen(tmp) + 1);
 			username_alloc = 1;
-			strcpy(username,tmp);
+			strncpy(username, tmp, strlen(tmp));
 		}
 		else
 		{
@@ -306,8 +308,9 @@ static int odbc_load_module(void)
 		password = malloc(strlen(tmp) + 1);
 		if (password != NULL)
 		{
+			memset(password, 0, strlen(tmp) + 1);
 			password_alloc = 1;
-			strcpy(password,tmp);
+			strncpy(password, tmp, strlen(tmp));
 		}
 		else
 		{

@@ -153,7 +153,7 @@ static int spawn_mp3(struct mohclass *class)
 	files = 0;
 	while((de = readdir(dir)) && (files < MAX_MP3S)) {
 		if ((strlen(de->d_name) > 3) && !strcasecmp(de->d_name + strlen(de->d_name) - 4, ".mp3")) {
-			strncpy(fns[files], de->d_name, sizeof(fns[files]));
+			strncpy(fns[files], de->d_name, sizeof(fns[files]) - 1);
 			argv[argc++] = fns[files];
 			files++;
 		}
@@ -340,7 +340,7 @@ static int moh2_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
 		return -1;
 	}
-	strncpy(chan->musicclass, data, sizeof(chan->musicclass));
+	strncpy(chan->musicclass, data, sizeof(chan->musicclass) - 1);
 	return 0;
 }
 

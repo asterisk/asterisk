@@ -1006,13 +1006,13 @@ static void init_state(void)
 
 	for (x=0;x<ADSI_MAX_INTRO;x++)
 		aligns[x] = ADSI_JUST_CENT;
-	strcpy(intro[0], "Welcome to the");
-	strcpy(intro[1], "Asterisk");
-	strcpy(intro[2], "Open Source PBX");
+	strncpy(intro[0], "Welcome to the", sizeof(intro[0]) - 1);
+	strncpy(intro[1], "Asterisk", sizeof(intro[1]) - 1);
+	strncpy(intro[2], "Open Source PBX", sizeof(intro[2]) - 1);
 	total = 3;
 	speeds = 0;
 	for (x=3;x<ADSI_MAX_INTRO;x++)
-		strcpy(intro[x], "");
+		intro[x][0] = '\0';
 	memset(speeddial, 0, sizeof(speeddial));
 	alignment = ADSI_JUST_CENT;
 }
@@ -1034,7 +1034,8 @@ static void adsi_load(void)
 			else if (!strcasecmp(v->name, "greeting")) {
 				if (x < ADSI_MAX_INTRO) {
 					aligns[x] = alignment;
-					strncpy(intro[x], v->value, 20);
+					strncpy(intro[x], v->value, sizeof(intro[x]) - 1);
+					intro[x][sizeof(intro[x]) - 1] = '\0';
 					x++;
 				}
 			} else if (!strcasecmp(v->name, "maxretries")) {
@@ -1056,7 +1057,7 @@ static void adsi_load(void)
 				sname = name;
 			if (x < ADSI_MAX_SPEED_DIAL) {
 				/* Up to 20 digits */
-				strncpy(speeddial[x][0], v->name, 20);
+				strncpy(speeddial[x][0], v->name, sizeof(speeddial[x][0]) - 1);
 				strncpy(speeddial[x][1], name, 18);
 				strncpy(speeddial[x][2], sname, 7);
 				x++;

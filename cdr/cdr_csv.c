@@ -71,16 +71,16 @@ static char *name = "csv";
 
 static FILE *mf = NULL;
 
-static int append_string(char *buf, char *s, int len)
+static int append_string(char *buf, char *s, size_t bufsize)
 {
 	int pos = strlen(buf);
 	int spos = 0;
 	int error = 0;
-	if (pos >= len - 4)
+	if (pos >= bufsize - 4)
 		return -1;
 	buf[pos++] = '\"';
 	error = -1;
-	while(pos < len - 3) {
+	while(pos < bufsize - 3) {
 		if (!s[spos]) {
 			error = 0;
 			break;
@@ -96,87 +96,87 @@ static int append_string(char *buf, char *s, int len)
 	return error;
 }
 
-static int append_int(char *buf, int s, int len)
+static int append_int(char *buf, int s, size_t bufsize)
 {
 	char tmp[32];
 	int pos = strlen(buf);
 	snprintf(tmp, sizeof(tmp), "%d", s);
-	if (pos + strlen(tmp) > len - 3)
+	if (pos + strlen(tmp) > bufsize - 3)
 		return -1;
-	strncat(buf, tmp, len);
+	strncat(buf, tmp, bufsize - strlen(buf) - 1);
 	pos = strlen(buf);
 	buf[pos++] = ',';
 	buf[pos++] = '\0';
 	return 0;
 }
 
-static int append_date(char *buf, struct timeval tv, int len)
+static int append_date(char *buf, struct timeval tv, size_t bufsize)
 {
-	char tmp[80];
+	char tmp[80] = "";
 	struct tm tm;
 	time_t t;
 	t = tv.tv_sec;
-	if (strlen(buf) > len - 3)
+	if (strlen(buf) > bufsize - 3)
 		return -1;
 	if (!tv.tv_sec && !tv.tv_usec) {
-		strncat(buf, ",", len);
+		strncat(buf, ",", bufsize - strlen(buf) - 1);
 		return 0;
 	}
 	localtime_r(&t,&tm);
 	strftime(tmp, sizeof(tmp), DATE_FORMAT, &tm);
-	return append_string(buf, tmp, len);
+	return append_string(buf, tmp, bufsize);
 }
 
-static int build_csv_record(char *buf, int len, struct ast_cdr *cdr)
+static int build_csv_record(char *buf, size_t bufsize, struct ast_cdr *cdr)
 {
 
 	buf[0] = '\0';
 	/* Account code */
-	append_string(buf, cdr->accountcode, len);
+	append_string(buf, cdr->accountcode, bufsize);
 	/* Source */
-	append_string(buf, cdr->src, len);
+	append_string(buf, cdr->src, bufsize);
 	/* Destination */
-	append_string(buf, cdr->dst, len);
+	append_string(buf, cdr->dst, bufsize);
 	/* Destination context */
-	append_string(buf, cdr->dcontext, len);
+	append_string(buf, cdr->dcontext, bufsize);
 	/* Caller*ID */
-	append_string(buf, cdr->clid, len);
+	append_string(buf, cdr->clid, bufsize);
 	/* Channel */
-	append_string(buf, cdr->channel, len);
+	append_string(buf, cdr->channel, bufsize);
 	/* Destination Channel */
-	append_string(buf, cdr->dstchannel, len);
+	append_string(buf, cdr->dstchannel, bufsize);
 	/* Last Application */
-	append_string(buf, cdr->lastapp, len);
+	append_string(buf, cdr->lastapp, bufsize);
 	/* Last Data */
-	append_string(buf, cdr->lastdata, len);
+	append_string(buf, cdr->lastdata, bufsize);
 	/* Start Time */
-	append_date(buf, cdr->start, len);
+	append_date(buf, cdr->start, bufsize);
 	/* Answer Time */
-	append_date(buf, cdr->answer, len);
+	append_date(buf, cdr->answer, bufsize);
 	/* End Time */
-	append_date(buf, cdr->end, len);
+	append_date(buf, cdr->end, bufsize);
 	/* Duration */
-	append_int(buf, cdr->duration, len);
+	append_int(buf, cdr->duration, bufsize);
 	/* Billable seconds */
-	append_int(buf, cdr->billsec, len);
+	append_int(buf, cdr->billsec, bufsize);
 	/* Disposition */
-	append_string(buf, ast_cdr_disp2str(cdr->disposition), len);
+	append_string(buf, ast_cdr_disp2str(cdr->disposition), bufsize);
 	/* AMA Flags */
-	append_string(buf, ast_cdr_flags2str(cdr->amaflags), len);
+	append_string(buf, ast_cdr_flags2str(cdr->amaflags), bufsize);
 
 #ifdef CSV_LOGUNIQUEID
 	/* Unique ID */
-	append_string(buf, cdr->uniqueid, len);
+	append_string(buf, cdr->uniqueid, bufsize);
 #endif
 #ifdef CSV_LOGUSERFIELD
 	/* append the user field */
-	append_string(buf, cdr->userfield,len);	
+	append_string(buf, cdr->userfield,bufsize);	
 #endif
 	/* If we hit the end of our buffer, log an error */
-	if (strlen(buf) < len - 5) {
+	if (strlen(buf) < bufsize - 5) {
 		/* Trim off trailing comma */
 		buf[strlen(buf) - 1] = '\0';
-		strncat(buf, "\n", len);
+		strncat(buf, "\n", bufsize - strlen(buf) - 1);
 		return 0;
 	}
 	return -1;
@@ -205,7 +205,7 @@ static int csv_log(struct ast_cdr *cdr)
 	/* Make sure we have a big enough buf */
 	char buf[1024];
 	char csvmaster[AST_CONFIG_MAX_PATH];
-	snprintf((char *)csvmaster,sizeof(csvmaster)-1,"%s/%s/%s",(char *)ast_config_AST_LOG_DIR,CSV_LOG_DIR,CSV_MASTER);
+	snprintf(csvmaster, sizeof(csvmaster),"%s/%s/%s", ast_config_AST_LOG_DIR, CSV_LOG_DIR, CSV_MASTER);
 #if 0
 	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), cdr->accountcode);
 #endif

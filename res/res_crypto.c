@@ -213,9 +213,9 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	if (found)
 		ast_mutex_lock(&keylock);
 	/* First the filename */
-	strncpy(key->fn, ffname, sizeof(key->fn));
+	strncpy(key->fn, ffname, sizeof(key->fn) - 1);
 	/* Then the name */
-	strncpy(key->name, fname, sizeof(key->name));
+	strncpy(key->name, fname, sizeof(key->name) - 1);
 	key->ktype = ktype;
 	/* Yes, assume we're going to be deleted */
 	key->delme = 1;
@@ -444,14 +444,14 @@ static int init_keys(int fd, int argc, char *argv[])
 	struct ast_key *key;
 	int ign;
 	char *kn;
-	char tmp[256];
+	char tmp[256] = "";
 
 	key = keys;
 	while(key) {
 		/* Reload keys that need pass codes now */
 		if (key->ktype & KEY_NEEDS_PASSCODE) {
 			kn = key->fn + strlen(ast_config_AST_KEY_DIR) + 1;
-			strncpy(tmp, kn, sizeof(tmp));
+			strncpy(tmp, kn, sizeof(tmp) - 1);
 			try_load_key((char *)ast_config_AST_KEY_DIR, tmp, fd, fd, &ign);
 		}
 		key = key->next;

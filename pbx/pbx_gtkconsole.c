@@ -98,7 +98,7 @@ static void __verboser(const char *stuff, int opos, int replacelast, int complet
 	char *s2[2];
 	struct timeval tv;
 	int ms;
-	s2[0] = stuff;
+	s2[0] = (char *)stuff;
 	s2[1] = NULL;
 	gtk_clist_freeze(GTK_CLIST(verb));
 	if (replacelast) 
@@ -232,7 +232,7 @@ static void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
 	char tmp[AST_CONFIG_MAX_PATH];
 	char *module = gtk_file_selection_get_filename(fs);
 	char buf[256];
-	snprintf((char *)tmp,sizeof(tmp)-1,"%s/",(char *)ast_config_AST_MODULE_DIR);
+	snprintf(tmp, sizeof(tmp), "%s/", ast_config_AST_MODULE_DIR);
 	if (!strncmp(module, (char *)tmp, strlen(tmp))) 
 		module += strlen(tmp);
 	gdk_threads_leave();
@@ -251,7 +251,7 @@ static void add_module(void)
 {
 	char tmp[AST_CONFIG_MAX_PATH];
 	GtkWidget *filew;
-	snprintf((char *)tmp,sizeof(tmp)-1,"%s/*.so",(char *)ast_config_AST_MODULE_DIR);
+	snprintf(tmp, sizeof(tmp), "%s/*.so", ast_config_AST_MODULE_DIR);
 	filew = gtk_file_selection_new("Load Module");
 	gtk_signal_connect(GTK_OBJECT (GTK_FILE_SELECTION(filew)->ok_button),
 					"clicked", GTK_SIGNAL_FUNC(file_ok_sel), filew);
@@ -332,8 +332,8 @@ static void *consolethread(void *data)
 
 static int cli_activate(void)
 {
-	char buf[256];
-	strncpy(buf, gtk_entry_get_text(GTK_ENTRY(cli)), sizeof(buf));
+	char buf[256] = "";
+	strncpy(buf, gtk_entry_get_text(GTK_ENTRY(cli)), sizeof(buf) - 1);
 	gtk_entry_set_text(GTK_ENTRY(cli), "");
 	if (strlen(buf)) {
 		ast_cli_command(clipipe[1], buf);

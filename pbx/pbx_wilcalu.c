@@ -259,7 +259,7 @@ int load_module(void)
 {
 	int val;
 
-	snprintf((char *)dialfile, sizeof(dialfile)-1,"%s/%s", (char *)ast_config_AST_RUN_DIR,"autodial.ctl");
+	snprintf((char *)dialfile, sizeof(dialfile), "%s/%s", ast_config_AST_RUN_DIR, "autodial.ctl");
 	if((val=mkfifo(dialfile, 0700))) {
 		if(errno!=EEXIST){
 			ast_log(LOG_ERROR, "Error:%d Creating Autodial FIFO\n",errno);

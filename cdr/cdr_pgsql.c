@@ -49,15 +49,13 @@ PGresult	*result;
 static int pgsql_log(struct ast_cdr *cdr)
 {
 	struct tm tm;
-	char sqlcmd[2048], timestr[128];
+	char sqlcmd[2048] = "", timestr[128];
 	char *pgerror;
 
 	ast_mutex_lock(&pgsql_lock);
 
-	memset(sqlcmd,0,2048);
-
 	localtime_r(&cdr->start.tv_sec,&tm);
-	strftime(timestr,128,DATE_FORMAT,&tm);
+	strftime(timestr, sizeof(timestr), DATE_FORMAT, &tm);
 
 	if ((!connected) && pghostname && pgdbuser && pgpassword && pgdbname) {
 		conn = PQsetdbLogin(pghostname, pgdbport, NULL, NULL, pgdbname, pgdbuser, pgpassword);
@@ -101,7 +99,7 @@ static int pgsql_log(struct ast_cdr *cdr)
 
 		ast_log(LOG_DEBUG,"cdr_pgsql: inserting a CDR record.\n");
 
-		sprintf(sqlcmd,"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s','%s')",timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid, userfield);
+		snprintf(sqlcmd,sizeof(sqlcmd),"INSERT INTO cdr (calldate,clid,src,dst,dcontext,channel,dstchannel,lastapp,lastdata,duration,billsec,disposition,amaflags,accountcode,uniqueid,userfield) VALUES ('%s','%s','%s','%s','%s', '%s','%s','%s','%s',%i,%i,'%s',%i,'%s','%s','%s')",timestr,clid,cdr->src, cdr->dst, dcontext,channel, dstchannel, lastapp, lastdata,cdr->duration,cdr->billsec,ast_cdr_disp2str(cdr->disposition),cdr->amaflags, cdr->accountcode, uniqueid, userfield);
 		ast_log(LOG_DEBUG,"cdr_pgsql: SQL command executed:  %s\n",sqlcmd);
 	
 		/* Test to be sure we're still connected... */
@@ -204,8 +202,9 @@ static int my_load_module(void)
 	if (tmp) {
 		pghostname = malloc(strlen(tmp) + 1);
 		if (pghostname != NULL) {
+			memset(pghostname, 0, strlen(tmp) + 1);
 			hostname_alloc = 1;
-			strcpy(pghostname,tmp);
+			strncpy(pghostname, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"Out of memory error.\n");
 			return -1;
@@ -219,8 +218,9 @@ static int my_load_module(void)
 	if (tmp) {
 		pgdbname = malloc(strlen(tmp) + 1);
 		if (pgdbname != NULL) {
+			memset(pgdbname, 0, strlen(tmp) + 1);
 			dbname_alloc = 1;
-			strcpy(pgdbname,tmp);
+			strncpy(pgdbname, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"Out of memory error.\n");
 			return -1;
@@ -234,8 +234,9 @@ static int my_load_module(void)
 	if (tmp) {
 		pgdbuser = malloc(strlen(tmp) + 1);
 		if (pgdbuser != NULL) {
+			memset(pgdbuser, 0, strlen(tmp) + 1);
 			dbuser_alloc = 1;
-			strcpy(pgdbuser,tmp);
+			strncpy(pgdbuser, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"Out of memory error.\n");
 			return -1;
@@ -249,8 +250,9 @@ static int my_load_module(void)
 	if (tmp) {
 		pgpassword = malloc(strlen(tmp) + 1);
 		if (pgpassword != NULL) {
+			memset(pgpassword, 0, strlen(tmp) + 1);
 			password_alloc = 1;
-			strcpy(pgpassword,tmp);
+			strncpy(pgpassword, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"Out of memory error.\n");
 			return -1;
@@ -264,8 +266,9 @@ static int my_load_module(void)
 	if (tmp) {
 		pgdbport = malloc(strlen(tmp) + 1);
 		if (pgdbport != NULL) {
+			memset(pgdbport, 0, strlen(tmp) + 1);
 			dbport_alloc = 1;
-			strcpy(pgdbport,tmp);
+			strncpy(pgdbport, tmp, strlen(tmp));
 		} else {
 			ast_log(LOG_ERROR,"Out of memory error.\n");
 			return -1;

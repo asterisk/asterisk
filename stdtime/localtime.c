@@ -235,7 +235,7 @@ register struct state * const	sp;
 		** to hold the longest file name string that the implementation
 		** guarantees can be opened."
 		*/
-		char		fullname[FILENAME_MAX + 1];
+		char		fullname[FILENAME_MAX + 1] = "";
 
 		if (name[0] == ':')
 			++name;
@@ -245,9 +245,9 @@ register struct state * const	sp;
 				return -1;
 			if ((strlen(p) + 1 + strlen(name) + 1) >= sizeof fullname)
 				return -1;
-			(void) strcpy(fullname, p);
-			(void) strcat(fullname, "/");
-			(void) strcat(fullname, name);
+			(void) strncpy(fullname, p, sizeof(fullname) - 1);
+			(void) strncat(fullname, "/", sizeof(fullname) - strlen(fullname) - 1);
+			(void) strncat(fullname, name, sizeof(fullname) - strlen(fullname) - 1);
 			/*
 			** Set doaccess if '.' (as in "../") shows up in name.
 			*/
@@ -929,7 +929,7 @@ ast_tzset P((const char *name))
 		cur_state->timecnt = 0;
 		cur_state->ttis[0].tt_gmtoff = 0;
 		cur_state->ttis[0].tt_abbrind = 0;
-		(void) strcpy(cur_state->chars, gmt);
+		(void) strncpy(cur_state->chars, gmt, sizeof(cur_state->chars) - 1);
 	} else if (tzload(name, cur_state) != 0) {
 		if (name[0] == ':') {
 			(void) gmtload(cur_state);
@@ -940,7 +940,7 @@ ast_tzset P((const char *name))
 				(void) gmtload(cur_state);
 		}
 	}
-	strncpy(cur_state->name,name,sizeof(cur_state->name));
+	strncpy(cur_state->name, name, sizeof(cur_state->name) - 1);
 	if (last_lclptr)
 		last_lclptr->next = cur_state;
 	else

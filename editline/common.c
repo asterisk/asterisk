@@ -676,7 +676,7 @@ ed_prev_history(EditLine *el, int c)
 	if (el->el_history.eventno == 0) {	/* save the current buffer
 						 * away */
 		(void) strncpy(el->el_history.buf, el->el_line.buffer,
-		    EL_BUFSIZ);
+		    EL_BUFSIZ - 1);
 		el->el_history.last = el->el_history.buf +
 		    (el->el_line.lastchar - el->el_line.buffer);
 	}
@@ -742,7 +742,7 @@ ed_search_prev_history(EditLine *el, int c)
 	}
 	if (el->el_history.eventno == 0) {
 		(void) strncpy(el->el_history.buf, el->el_line.buffer,
-		    EL_BUFSIZ);
+		    EL_BUFSIZ - 1);
 		el->el_history.last = el->el_history.buf +
 		    (el->el_line.lastchar - el->el_line.buffer);
 	}

@@ -129,7 +129,7 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 							strncpy(o->dest, c2, sizeof(o->dest) - 1);
 						} else {
 							ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, fn);
-							strcpy(o->tech, "");
+							o->tech[0] = '\0';
 						}
 					} else if (!strcasecmp(buf, "callerid")) {
 						strncpy(o->callerid, c, sizeof(o->callerid) - 1);
@@ -375,7 +375,7 @@ int load_module(void)
 {
 	pthread_t thread;
 	pthread_attr_t attr;
-	snprintf((char *)qdir,sizeof(qdir)-1,"%s/%s",(char *)ast_config_AST_SPOOL_DIR,"outgoing");
+	snprintf(qdir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing");
 	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
 		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
 		return 0;

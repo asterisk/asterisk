@@ -106,7 +106,7 @@ hist_get(EditLine *el)
 
 	if (el->el_history.eventno == 0) {	/* if really the current line */
 		(void) strncpy(el->el_line.buffer, el->el_history.buf,
-		    el->el_history.sz);
+		    el->el_history.sz - 1);
 		el->el_line.lastchar = el->el_line.buffer +
 		    (el->el_history.last - el->el_history.buf);
 

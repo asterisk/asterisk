@@ -178,8 +178,8 @@ static struct event {
 static int process_message(struct ast_mansession *s, struct message *m)
 {
 	int x;
-	char event[80];
-	strncpy(event, get_header(m, "Event"), sizeof(event));
+	char event[80] = "";
+	strncpy(event, get_header(m, "Event"), sizeof(event) - 1);
 	if (!strlen(event)) {
 		fprintf(stderr, "Missing event in request");
 		return 0;
