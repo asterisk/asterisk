@@ -573,6 +573,9 @@ static int get_samples(struct ast_frame *f)
 {
 	int samples=0;
 	switch(f->subclass) {
+	case AST_FORMAT_SPEEX:
+		samples = 160;	/* XXX Not necessarily true XXX */
+		break;
 	case AST_FORMAT_G723_1:
 		samples = 240 /* XXX Not necessarily true XXX */;
 		break;
