@@ -1,3 +1,6 @@
+ -- H.323 build improvements
+ -- Agent Callback-login support
+ -- RFC2833 Improvements
  -- Add thread debugging
  -- Add optional pedantic SIP checking for Pingtel
  -- Allow extension names, include context, switch to use global vars.
