@@ -585,7 +585,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_channel_setoption(chan,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 			ast_channel_setoption(peer,AST_OPTION_AUDIO_MODE,&x,sizeof(char),0);
 		}
-		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect | tmp->clearchannel);
+		res = ast_bridge_call(chan, peer, allowredir, allowdisconnect | clearchannel);
 		if (clearchannel)
 		{
 			int x = 1;
