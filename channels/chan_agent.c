@@ -63,13 +63,17 @@ static char *descrip =
 "when a new call comes in.  The agent can dump the call by pressing\n"
 "the star key.\n"
 "The option string may contain zero or more of the following characters:\n"
-"      's' -- silent login - do not announce the login ok segment\n";
+"      's' -- silent login - do not announce the login ok segment after agent logged in/off\n";
 
 static char *descrip2 =
 "  AgentCallbackLogin([AgentNo][|[options][exten]@context]):\n"
-"Asks the agent to login to the system with callback.  Always returns -1.\n"
+"Asks the agent to login to the system with callback.\n"
 "The agent's callback extension is called (optionally with the specified\n"
-"context. \n";
+"context). \n"
+"The option string may contain zero or more of the following characters:\n"
+"      's' -- silent login - do not announce the login ok segment agent logged in/off\n";
+ 
+
 
 static char *descrip3 =
 "  AgentMonitorOutgoing([options]):\n"
@@ -81,6 +85,7 @@ static char moh[80] = "default";
 
 #define AST_MAX_AGENT	80		/* Agent ID or Password max length */
 #define AST_MAX_BUF	256
+#define AST_MAX_FILENAME_LEN	256
 
 static int capability = -1;
 
@@ -88,6 +93,9 @@ static unsigned int group;
 static int autologoff;
 static int wrapuptime;
 static int ackcall;
+
+static int maxlogintries = 3;
+static char agentgoodbye[AST_MAX_FILENAME_LEN] = "vm-goodbye";
 
 static int usecnt =0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -868,10 +876,19 @@ static int read_agent_config(void)
 			wrapuptime = atoi(v->value);
 			if (wrapuptime < 0)
 				wrapuptime = 0;
+		} else if (!strcasecmp(v->name, "maxlogintries") && !ast_strlen_zero(v->value)) {
+			maxlogintries = atoi(v->value);
+			if (maxlogintries < 0)
+				maxlogintries = 0;
+		} else if (!strcasecmp(v->name, "goodbye") && !ast_strlen_zero(v->value)) {
+			strcpy(agentgoodbye,v->value);
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(moh, v->value, sizeof(moh) - 1);
 		} else if (!strcasecmp(v->name, "updatecdr")) {
-			updatecdr = ast_true(v->value);
+			if (ast_true(v->value))
+				updatecdr = 1;
+			else
+				updatecdr = 0;
 		} else if (!strcasecmp(v->name, "recordagentcalls")) {
 			recordagentcalls = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "createlink")) {
@@ -1205,9 +1222,11 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 {
 	int res=0;
 	int tries = 0;
+	int max_login_tries = maxlogintries;
 	struct agent_pvt *p;
 	struct localuser *u;
 	struct timeval tv;
+	int login_state = 0;
 	char user[AST_MAX_AGENT] = "";
 	char pass[AST_MAX_AGENT];
 	char agent[AST_MAX_AGENT] = "";
@@ -1216,9 +1235,15 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	char info[512];
 	char *opt_user = NULL;
 	char *options = NULL;
+	char option;
+	char badoption[2];
+	char *tmpoptions = NULL;
 	char *context = NULL;
 	char *exten = NULL;
-	int play_announcement;
+	int play_announcement = 1;
+	char agent_goodbye[AST_MAX_FILENAME_LEN];
+	strcpy(agent_goodbye, agentgoodbye);
+	int update_cdr = updatecdr;
 	char *filename = "agent-loginok";
 	
 	LOCAL_USER_ADD(u);
@@ -1226,7 +1251,30 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	/* Parse the arguments XXX Check for failure XXX */
 	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
 	opt_user = info;
-	if( opt_user ) {
+	/* Set Channel Specific Login Overrides */
+	if (pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES") && strlen(pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES"))) {
+		max_login_tries = atoi(pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES"));
+		if (max_login_tries < 0)
+			max_login_tries = 0;
+		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES");
+		ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTMAXLOGINTRIES=%s, setting max_login_tries to: %d on Channel '%s'.\n",tmpoptions,max_login_tries,chan->name);
+	}
+	if (pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR") && strlen(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR"))) {
+		if (ast_true(pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR")))
+			update_cdr = 1;
+		else
+			update_cdr = 0;
+		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTUPDATECDR");
+		ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTUPDATECDR=%s, setting update_cdr to: %d on Channel '%s'.\n",tmpoptions,update_cdr,chan->name);
+	}
+	if (pbx_builtin_getvar_helper(chan, "AGENTGOODBYE") && strlen(pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"))) {
+		strcpy(agent_goodbye, pbx_builtin_getvar_helper(chan, "AGENTGOODBYE"));
+		tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTGOODBYE");
+		ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n",tmpoptions,agent_goodbye,chan->name);
+	}
+	/* End Channel Specific Login Overrides */
+	/* Read command line options */
+	 if( opt_user ) {
 		options = strchr(opt_user, '|');
 		if (options) {
 			*options = '\0';
@@ -1243,7 +1291,22 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					exten = NULL;
 			}
 		}
+		if ( options ) {
+			while (*options) {
+				option = (char)options[0];
+				if (option=='s')
+					play_announcement = 0;
+				else {
+					badoption[0] = option;
+					badoption[1] = '\0';
+					tmpoptions=badoption;
+					ast_verbose(VERBOSE_PREFIX_3 "Warning: option %s is unknown.\n",tmpoptions);
+				}
+				options++;
+			}
+		}
 	}
+	/* End command line options */
 
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
@@ -1253,7 +1316,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		else
 			res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
 	}
-	while (!res && (tries < 3)) {
+	while (!res && (max_login_tries==0 || tries < max_login_tries)) {
+		tries++;
 		/* Check for password */
 		ast_mutex_lock(&agentlock);
 		p = agents;
@@ -1282,6 +1346,33 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			ast_mutex_lock(&p->lock);
 			if (!strcmp(p->agent, user) &&
 				!strcmp(p->password, pass) && !p->pending) {
+					login_state = 1; /* Successful Login */
+					/* Set Channel Specific Agent Overides */
+					if (pbx_builtin_getvar_helper(chan, "AGENTACKCALL") && strlen(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"))) {
+						if (!strcasecmp(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"), "always"))
+							p->ackcall = 2;
+						else if (ast_true(pbx_builtin_getvar_helper(chan, "AGENTACKCALL")))
+							p->ackcall = 1;
+						else
+							p->ackcall = 0;
+						tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTACKCALL");
+						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTACKCALL=%s, setting ackcall to: %d for Agent '%s'.\n",tmpoptions,p->ackcall,p->agent);
+					}
+					if (pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF") && strlen(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"))) {
+						p->autologoff = atoi(pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF"));
+						if (p->autologoff < 0)
+							p->autologoff = 0;
+						tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTAUTOLOGOFF");
+						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTAUTOLOGOFF=%s, setting autologff to: %d for Agent '%s'.\n",tmpoptions,p->autologoff,p->agent);
+					}
+					if (pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME") && strlen(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"))) {
+						p->wrapuptime = atoi(pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME"));
+						if (p->wrapuptime < 0)
+							p->wrapuptime = 0;
+						tmpoptions=pbx_builtin_getvar_helper(chan, "AGENTWRAPUPTIME");
+						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n",tmpoptions,p->wrapuptime,p->agent);
+					}
+					/* End Channel Specific Agent Overides */
 					if (!p->chan) {
 						char last_loginchan[80] = "";
 						long logintime;
@@ -1318,6 +1409,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									}
 								}
 							}
+							exten = tmpchan;
 							if (!res) {
 								if (context && !ast_strlen_zero(context) && !ast_strlen_zero(tmpchan))
 									snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
@@ -1325,8 +1417,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	                                                                strncpy(last_loginchan, p->loginchan, sizeof(last_loginchan) - 1);
 									strncpy(p->loginchan, tmpchan, sizeof(p->loginchan) - 1);
 								}
-								if (ast_strlen_zero(p->loginchan))
+								if (ast_strlen_zero(p->loginchan)) {
+									login_state = 2;
 									filename = "agent-loggedoff";
+								}
 								p->acknowledged = 0;
 								/* store/clear the global variable that stores agentid based on the callerid */
 								if (chan->cid.cid_num) {
@@ -1337,7 +1431,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 									else
 										pbx_builtin_setvar_helper(NULL, agentvar, p->agent);
 								}
-								if(updatecdr && chan->cdr)
+								if(update_cdr && chan->cdr)
 									snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 
 							}
@@ -1345,13 +1439,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							p->loginchan[0] = '\0';
 							p->acknowledged = 0;
 						}
-						play_announcement = 1;
-						if( options )
-							if( strchr( options, 's' ) )
-								play_announcement = 0;
 						ast_mutex_unlock(&p->lock);
 						ast_mutex_unlock(&agentlock);
-						if( !res && play_announcement )
+						if( !res && play_announcement==1 )
 							res = ast_streamfile(chan, filename, chan->language);
 						if (!res)
 							ast_waitstream(chan, "");
@@ -1399,11 +1489,6 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							ast_mutex_unlock(&agentlock);
 							if (!res)
 								res = ast_safe_sleep(chan, 500);
-							res = ast_streamfile(chan, "vm-goodbye", chan->language);
-							if (!res)
-								res = ast_waitstream(chan, "");
-							if (!res)
-								res = ast_safe_sleep(chan, 1000);
 							ast_mutex_unlock(&p->lock);
 						} else if (!res) {
 #ifdef HONOR_MUSIC_CLASS
@@ -1419,7 +1504,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								"Channel: %s\r\n"
 								"Uniqueid: %s\r\n",
 								p->agent, chan->name, chan->uniqueid);
-							if (updatecdr && chan->cdr)
+							if (update_cdr && chan->cdr)
 								snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
 							ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", chan->name);
 							if (option_verbose > 2)
@@ -1524,13 +1609,49 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		if (!p)
 			ast_mutex_unlock(&agentlock);
 
-		if (!res)
+		if (!res && (max_login_tries==0 || tries < max_login_tries))
 			res = ast_app_getdata(chan, errmsg, user, sizeof(user) - 1, 0);
 	}
 		
 	LOCAL_USER_REMOVE(u);
-	/* Always hangup */
-	return -1;
+	if (!res)
+		res = ast_safe_sleep(chan, 500);
+
+	/* AgentLogin() exit */
+	if (!callbackmode) {
+		return -1;
+	}
+	/* AgentCallbackLogin() exit*/
+	else {
+		/* Set variables */
+		if (login_state > 0) {
+			pbx_builtin_setvar_helper(chan, "AGENTNUMBER", user);
+			if (login_state==1) {
+				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "on");
+				pbx_builtin_setvar_helper(chan, "AGENTEXTEN", exten);
+			}
+			else {
+				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "off");
+			}
+		}
+		else {
+			pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "fail");
+		}
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num))
+			return 0;
+		/* Do we need to play agent-goodbye now that we will be hanging up? */
+		if (play_announcement==1) {
+			if (!res)
+				res = ast_safe_sleep(chan, 1000);
+			res = ast_streamfile(chan, agent_goodbye, chan->language);
+			if (!res)
+				res = ast_waitstream(chan, "");
+			if (!res)
+				res = ast_safe_sleep(chan, 1000);
+		}
+	}
+	/* We should never get here if next priority exists when in callbackmode */
+ 	return -1;
 }
 
 static int login_exec(struct ast_channel *chan, void *data)
