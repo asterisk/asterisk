@@ -36,3 +36,6 @@ include => default
 exten => 6123,Dial,Tor/1
 
 
+DON'T FORGET TO TAKE THE DEMO CONTEXT OUT OF YOUR DEFAULT CONTEXT.  There
+isn't really a security reason, it just will keep people from wanting to 
+play with your asterisk setup remotely.
