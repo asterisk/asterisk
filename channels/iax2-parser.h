@@ -41,6 +41,7 @@ struct iax_ies {
 	int msgcount;
 	int autoanswer;
 	int musiconhold;
+	unsigned int transferid;
 };
 
 #define DIRECTION_INGRESS 1

@@ -348,6 +348,8 @@ struct chan_iax2_pvt {
 
 	/* Transferring status */
 	int transferring;
+	/* Transfer identifier */
+	int transferid;
 	/* Already disconnected */
 	int alreadygone;
 	/* Who we are IAX transfering to */
@@ -1757,13 +1759,16 @@ static int iax2_start_transfer(struct ast_channel *c0, struct ast_channel *c1)
 	struct iax_ie_data ied1;
 	struct chan_iax2_pvt *p0 = c0->pvt->pvt;
 	struct chan_iax2_pvt *p1 = c1->pvt->pvt;
+	unsigned int transferid = rand();
 	memset(&ied0, 0, sizeof(ied0));
 	iax_ie_append_addr(&ied0, IAX_IE_APPARENT_ADDR, &p1->addr);
 	iax_ie_append_short(&ied0, IAX_IE_CALLNO, p1->peercallno);
+	iax_ie_append_int(&ied0, IAX_IE_TRANSFERID, transferid);
 
 	memset(&ied1, 0, sizeof(ied1));
 	iax_ie_append_addr(&ied1, IAX_IE_APPARENT_ADDR, &p0->addr);
 	iax_ie_append_short(&ied1, IAX_IE_CALLNO, p0->peercallno);
+	iax_ie_append_int(&ied1, IAX_IE_TRANSFERID, transferid);
 	
 	res = send_command(p0, AST_FRAME_IAX, IAX_COMMAND_TXREQ, 0, ied0.buf, ied0.pos, -1);
 	if (res)
@@ -2931,9 +2936,11 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 {
 	int newcall = 0;
 	char newip[256] = "";
-	
+	struct iax_ie_data ied;
 	struct sockaddr_in new;
 	
+	
+	memset(&ied, 0, sizeof(ied));
 	if (ies->apparent_addr)
 		memcpy(&new, ies->apparent_addr, sizeof(new));
 	if (ies->callno)
@@ -2947,7 +2954,10 @@ static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 	inet_aton(newip, &pvt->transfer.sin_addr);
 	pvt->transfer.sin_family = AF_INET;
 	pvt->transferring = TRANSFER_BEGIN;
-	send_command_transfer(pvt, AST_FRAME_IAX, IAX_COMMAND_TXCNT, 0, NULL, 0);
+	pvt->transferid = ies->transferid;
+	if (ies->transferid)
+		iax_ie_append_int(&ied, IAX_IE_TRANSFERID, ies->transferid);
+	send_command_transfer(pvt, AST_FRAME_IAX, IAX_COMMAND_TXCNT, 0, ied.buf, ied.pos);
 	return 0; 
 }
 

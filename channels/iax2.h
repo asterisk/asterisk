@@ -97,6 +97,7 @@
 #define IAX_IE_MSGCOUNT				24		/* How many messages waiting - short */
 #define IAX_IE_AUTOANSWER			25		/* Request auto-answering -- none */
 #define IAX_IE_MUSICONHOLD			26		/* Request musiconhold with QUELCH -- none or string */
+#define IAX_IE_TRANSFERID			27		/* Transfer Request Identifier -- int */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)

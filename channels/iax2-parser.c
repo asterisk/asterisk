@@ -110,6 +110,7 @@ static struct iax2_ie {
 	{ IAX_IE_IAX_UNKNOWN, "UNKNOWN IAX CMD", dump_byte },
 	{ IAX_IE_MSGCOUNT, "MESSAGE COUNT", dump_short },
 	{ IAX_IE_AUTOANSWER, "AUTO ANSWER REQ" },
+	{ IAX_IE_TRANSFERID, "TRANSFER ID", dump_int },
 };
 
 const char *iax_ie2str(int ie)
@@ -477,6 +478,13 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_MUSICONHOLD:
 			ies->musiconhold = 1;
+			break;
+		case IAX_IE_TRANSFERID:
+			if (len != sizeof(unsigned int)) {
+				snprintf(tmp, sizeof(tmp), "Expecting transferid to be %d bytes long but was %d\n", sizeof(unsigned int), len);
+				errorf(tmp);
+			} else
+				ies->transferid = ntohl(*((unsigned int *)(data + 2)));
 			break;
 		default:
 			snprintf(tmp, sizeof(tmp), "Ignoring unknown information element '%s' (%d) of length %d\n", iax_ie2str(ie), ie, len);

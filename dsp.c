@@ -843,7 +843,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 {
 	int x;
 	int pass;
-	int newstate;
+	int newstate = TONE_STATE_SILENCE;
 	int res = 0;
 	while(len) {
 		/* Take the lesser of the number of samples we need and what we have */
