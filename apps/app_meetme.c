@@ -47,8 +47,9 @@ static char *synopsis3 = "MeetMe conference Administration";
 static char *descrip =
 "  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe conference.\n"
 "If the conference number is omitted, the user will be prompted to enter\n"
-"one.  This application always returns -1.  A ZAPTEL INTERFACE MUST BE\n"
-"INSTALLED FOR CONFERENCING TO WORK!\n\n"
+"one. \n"
+"MeetMe returns 0 if user pressed # to exit (see option 'p'), otherwise -1.\n"
+"Please note: A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING TO WORK!\n\n"
 
 "The option string may contain zero or more of the following characters:\n"
 "      'm' -- set monitor only mode (Listen only, no talking)\n"
@@ -1021,7 +1022,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 	char *confnum, *localdata;
 	char val[80] = "0"; 
 
-	if (!data || !strlen(data)) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
 		return -1;
 	}
@@ -1034,7 +1035,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 	else
 		count = 0;
 
-	if (localdata && strlen(localdata)){
+	if (localdata && !ast_strlen_zero(localdata)){
 		/* have var so load it and exit */
 		snprintf(val,sizeof(val), "%i",count);
 		pbx_builtin_setvar_helper(chan, localdata,val);
@@ -1061,7 +1062,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int empty = 0, empty_no_pin = 0;
 	char *notdata, *info, *inflags = NULL, *inpin = NULL, the_pin[AST_MAX_EXTENSION] = "";
 
-	if (!data || !strlen(data)) {
+	if (!data || ast_strlen_zero(data)) {
 		allowretry = 1;
 		notdata = "";
 	} else {
@@ -1076,7 +1077,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	if (info) {
 		char *tmp = strsep(&info, "|");
 		strncpy(confno, tmp, sizeof(confno));
-		if (strlen(confno) == 0) {
+		if (ast_strlen_zero(confno)) {
 			allowretry = 1;
 		}
 	}
@@ -1198,7 +1199,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			}
 
 			/* Not found? */
-			if (!strlen(confno)) {
+			if (ast_strlen_zero(confno)) {
 				res = ast_streamfile(chan, "conf-noempty", chan->language);
 				if (!res)
 					ast_waitstream(chan, "");
@@ -1212,7 +1213,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				}
 			}
 		}
-		while (allowretry && (!strlen(confno)) && (++retrycnt < 4)) {
+		while (allowretry && (ast_strlen_zero(confno)) && (++retrycnt < 4)) {
 			/* Prompt user for conference number */
 			res = ast_app_getdata(chan, "conf-getconfno", confno, sizeof(confno) - 1, 0);
 			if (res < 0) {
@@ -1222,7 +1223,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				break;
 			}
 		}
-		if (strlen(confno)) {
+		if (!ast_strlen_zero(confno)) {
 			/* Check the validity of the conference */
 			cnf = find_conf(chan, confno, 1, dynamic, the_pin);
 			if (!cnf) {
@@ -1233,7 +1234,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				if (allowretry)
 					strcpy(confno, "");
 			} else {
-				if (strlen(cnf->pin)) {
+				if (!ast_strlen_zero(cnf->pin)) {
 					char pin[AST_MAX_EXTENSION];
 
 					if (*the_pin) {
@@ -1301,7 +1302,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 
 	ast_mutex_lock(&conflock);
 	/* The param has the conference number the user and the command to execute */
-	if (data && strlen(data)) {		
+	if (data && !ast_strlen_zero(data)) {		
 		params = ast_strdupa((char *) data);
 		conf = strsep(&params, "|");
 		command = strsep(&params, "|");
