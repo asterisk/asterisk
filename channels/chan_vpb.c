@@ -118,19 +118,18 @@ static int restart_monitor(void);
 /* Pick a country or add your own! */
 /* These are the tones that are played to the user */
 #define TONES_AU
+/* #define TONES_USA */
+
 #ifdef TONES_AU
 static VPB_TONE Dialtone     = {440,   	440, 	440, 	-10,  	-10, 	-10, 	5000,	0   };
 static VPB_TONE Busytone     = {470,   	0,   	0, 	-10,  	-100, 	-100,   5000, 	0 };
 static VPB_TONE Ringbacktone = {400,   	50,   	440, 	-10,  	-10, 	-10,  	1400, 	800 };
 #endif
-/*
-#define TONES_USA
 #ifdef TONES_USA
-static VPB_TONE Dialtone     = {425,   0,   0, -16,  -100, -100, 10000,    0};
-static VPB_TONE Busytone     = {425,   0,   0, -10,  -100, -100,   500,  500};
-static VPB_TONE Ringbacktone = {400,   425,   450, -20,  -20, -20,  1000, 1000};
+static VPB_TONE Dialtone     = {350, 440,   0, -16,   -16, -100, 10000,    0};
+static VPB_TONE Busytone     = {480, 620,   0, -10,   -10, -100,   500,  500};
+static VPB_TONE Ringbacktone = {440, 480,   0, -20,   -20, -100,  2000, 4000};
 #endif
-*/
 
 /* grunt tone defn's */
 static VPB_DETECT toned_grunt = { 3, VPB_GRUNT, 1, 2000, 3000, 0, 0, -40, 0, 0, 0, 40, { { VPB_DELAY, 1000, 0, 0 }, { VPB_RISING, 0, 40, 0 }, { 0, 100, 0, 0 } } };
