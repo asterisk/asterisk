@@ -38,8 +38,7 @@
 
 /* we define USESQLVM when we have MySQL or POSTGRES */
 #ifdef USEMYSQLVM
-#include <mysql.h>
-#include "mysql-vm-routines.h"
+#include <mysql/mysql.h>
 #define USESQLVM 1
 #endif
 
@@ -198,6 +197,10 @@ static void apply_options(struct ast_vm_user *vmu, char *options)
 	}
 	
 }
+
+#ifdef USEMYSQLVM
+#include "mysql-vm-routines.h"
+#endif
 
 #ifdef USEPOSTGRESVM
 

@@ -42,6 +42,10 @@ ifeq ($(USE_POSTGRES_VM_INTERFACE),1)
 CFLAGS+=-DUSEPOSTGRESVM
 endif
 
+ifeq ($(USE_MYSQL_VM_INTERFACE),1)
+CFLAGS+=-DUSEMYSQLVM
+endif
+
 all: $(APPS)
 
 clean:
