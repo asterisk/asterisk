@@ -279,6 +279,7 @@ struct ast_bridge_config {
 	char *warning_sound;
 	char *end_sound;
 	char *start_sound;
+	int firstpass;
 };
 
 struct chanmon;

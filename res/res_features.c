@@ -274,6 +274,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	allowdisconnect_out = config->allowdisconnect_out;
 	allowredirect_in = config->allowredirect_in;
 	allowredirect_out = config->allowredirect_out;
+	config->firstpass = 1;
 
 	/* Answer if need be */
 	if (ast_answer(chan))

@@ -2464,19 +2464,23 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	struct ast_channel *who = NULL;
 	int res=0;
 	int nativefailed=0;
+	int firstpass;
 	struct timeval start_time,precise_now;
 	long elapsed_ms=0, time_left_ms=0;
 	int playit=0, playitagain=1, first_time=1;
 
 	flags = (config->allowdisconnect_out||config->allowredirect_out ? AST_BRIDGE_DTMF_CHANNEL_0 : 0) + (config->allowdisconnect_in||config->allowredirect_in ? AST_BRIDGE_DTMF_CHANNEL_1 : 0);
 
+	firstpass = config->firstpass;
+	config->firstpass = 0;
+
 	/* timestamp */
 	gettimeofday(&start_time,NULL);
 	time_left_ms = config->timelimit;
 
-	if (config->play_to_caller && config->start_sound)
+	if (config->play_to_caller && config->start_sound && firstpass)
 		bridge_playfile(c0,c1,config->start_sound,time_left_ms / 1000);
-	if (config->play_to_callee && config->start_sound)
+	if (config->play_to_callee && config->start_sound && firstpass)
 		bridge_playfile(c1,c0,config->start_sound,time_left_ms / 1000);
 
 	/* Stop if we're a zombie or need a soft hangup */
