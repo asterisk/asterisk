@@ -20,6 +20,14 @@
 #define AST_PTHREADT_NULL (pthread_t) -1
 #define AST_PTHREADT_STOP (pthread_t) -2
 
+#ifdef __APPLE__
+/* Provide the Linux initializers for MacOS X */
+#define PTHREAD_MUTEX_RECURSIVE_NP					PTHREAD_MUTEX_RECURSIVE
+#define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP		 { 0x4d555458, \
+													   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, \
+														 0x20 } }
+#endif
+
 #ifdef DEBUG_THREADS
 
 #ifdef THREAD_CRASH

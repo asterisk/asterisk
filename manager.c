@@ -467,6 +467,10 @@ static int action_redirect(struct mansession *s, struct message *m)
 		return 0;
 	}
 	chan = ast_get_channel_by_name_locked(name);
+	if (!chan) {
+		astman_send_error(s, m, "Channel not existant");
+		return 0;
+	}
 	if (strlen(name2))
 		chan2 = ast_get_channel_by_name_locked(name2);
 	res = ast_async_goto(chan, context, exten, pi);
