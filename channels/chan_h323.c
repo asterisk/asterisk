@@ -986,11 +986,11 @@ int setup_incoming_call(call_details_t cd)
 	p->cd.call_dest_e164 = cd.call_dest_e164;
 
 	if (h323debug) {
-		ast_verbose(VERBOSE_PREFIX_3 "	== Setting up Call\n");
-		ast_verbose(VERBOSE_PREFIX_3 "	   -- Calling party name:  [%s]\n", p->cd.call_source_aliases);
-		ast_verbose(VERBOSE_PREFIX_3 "	   -- Calling party number:  [%s]\n", p->cd.call_source_e164);
-		ast_verbose(VERBOSE_PREFIX_3 "	   -- Called  party name:  [%s]\n", p->cd.call_dest_alias);
-		ast_verbose(VERBOSE_PREFIX_3 "	   -- Called  party number:  [%s]\n", p->cd.call_dest_e164);
+		ast_verbose(VERBOSE_PREFIX_3 "Setting up Call\n");
+		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party name:  [%s]\n", p->cd.call_source_aliases);
+		ast_verbose(VERBOSE_PREFIX_3 "	   Calling party number:  [%s]\n", p->cd.call_source_e164);
+		ast_verbose(VERBOSE_PREFIX_3 "	   Called  party name:  [%s]\n", p->cd.call_dest_alias);
+		ast_verbose(VERBOSE_PREFIX_3 "	   Called  party number:  [%s]\n", p->cd.call_dest_e164);
 	}
 
 	/* Decide if we are allowing Gatekeeper routed calls*/
