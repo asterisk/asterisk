@@ -81,11 +81,13 @@ struct ast_key {
 
 static struct ast_key *keys = NULL;
 
+
+#if 0
 static int fdprint(int fd, char *s)
 {
         return write(fd, s, strlen(s) + 1);
 }
-
+#endif
 static int pw_cb(char *buf, int size, int rwflag, void *userdata)
 {
 	struct ast_key *key = (struct ast_key *)userdata;

@@ -46,6 +46,7 @@ int ast2rtp(int id);
 
 int rtp2ast(int id);
 
+char *ast2rtpn(int id);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
