@@ -1,3 +1,16 @@
+Asterisk 0.1.10
+ -- Make up any missing messages on the fly
+ -- Add support for specific DTMF interruption to saying numbers
+ -- Add new "u" and "b" options to condense busy/unavail handling
+ -- Add support for RSA authentication on IAX calls
+ -- Add support for ADSI compatible CPE
+ -- Outgoing call queue
+ -- Remote dialplan fixes for Quicknet
+ -- Added AGI commands supporting TDD functions (RECEIVE CHAR & TDD MODE)
+ -- Added TDD support (send/receive text in chan_zap)
+ -- Fix all strncpy references
+ -- Implement CSV CDR backend
+ -- Implement Call Detail Records
 Asterisk 0.1.9
  -- Implement IAX quelching
  -- Allow Caller*ID to be overridden and suggested
