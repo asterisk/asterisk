@@ -4990,9 +4990,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int minivid = 0;
 	unsigned int ts;
 	char empty[32]="";		/* Safety measure */
-	dblbuf[0] = 0;	/* Keep GCC from whining */
 	struct iax_frame *duped_fr;
 
+	dblbuf[0] = 0;	/* Keep GCC from whining */
 	fr.callno = 0;
 	
 	res = recvfrom(netsocket, buf, sizeof(buf), 0,(struct sockaddr *) &sin, &len);
