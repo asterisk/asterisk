@@ -107,6 +107,11 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	res = ast_control_streamfile(chan, file, fwd, rev, stop, pause, skipms);
 
 	LOCAL_USER_REMOVE(u);
+	
+	/* If we stopped on one of our stop keys, return 0  */
+	if(stop && strchr(stop, res)) 
+		res = 0;
+	
 	return res;
 }
 

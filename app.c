@@ -472,8 +472,9 @@ int ast_control_streamfile(struct ast_channel *chan, char *file, char *fwd, char
 		if (res == -1)
 			break;
 
+		/* if we get one of our stop chars, return it to the calling function */
 		if (stop && strchr(stop, res)) {
-			res = 0;
+			/* res = 0; */
 			break;
 		}
 	}
