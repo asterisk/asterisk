@@ -103,6 +103,8 @@ static int srvlookup = 0;
 
 static int pedanticsipchecking = 0;
 
+static int autocreatepeer = 0;
+
 static int usecnt =0;
 static ast_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
 
@@ -334,6 +336,7 @@ struct sip_peer {
 	struct sockaddr_in defaddr;
 	struct ast_ha *ha;
 	int delme;
+	int selfdestruct;
 	int lastmsg;
 	struct sip_peer *next;
 };
@@ -403,11 +406,13 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp, st
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
 static int transmit_refer(struct sip_pvt *p, char *dest);
+static struct sip_peer *temp_peer(char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, char *msg, int init);
 static char *getsipuri(char *header);
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, char *orig_header, char *digest, int digest_len);
 static int find_user(struct sip_pvt *fup, int event);
+static void prune_peers(void);
 
 static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
@@ -1354,6 +1359,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		if (strlen(i->rdnis))
 			tmp->rdnis = strdup(i->rdnis);
 		tmp->priority = 1;
+		if (strlen(i->domain)) {
+			pbx_builtin_setvar_helper(tmp, "SIPDOMAIN", i->domain);
+		}
+						
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -3134,6 +3143,10 @@ static int expire_register(void *data)
 	ast_db_del("SIP/Registry", p->name);
 	p->expire = -1;
 	ast_device_state_changed("SIP/%s", p->name);
+	if (p->selfdestruct) {
+		p->delme = 1;
+		prune_peers();
+	}
 	return 0;
 }
 
@@ -3538,7 +3551,11 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	ast_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
 	while(peer) {
-		if (!strcasecmp(peer->name, name) && peer->dynamic) {
+		if (!strcasecmp(peer->name, name)) {
+			if (!peer->dynamic) {
+				ast_log(LOG_NOTICE, "Peer '%s' isn't dynamic\n", peer->name);
+				break;
+			}
 			p->nat = peer->nat;
 			transmit_response(p, "100 Trying", req);
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, "REGISTER", uri, 0))) {
@@ -3555,6 +3572,24 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			break;
 		}	
 		peer = peer->next;
+	}
+	if (!peer && autocreatepeer) {
+		/* Create peer if we have autocreate mode enabled */
+		peer = temp_peer(name);
+		if (peer) {
+			peer->next = peerl.peers;
+			peerl.peers = peer;
+			peer->lastmsgssent = -1;
+			sip_cancel_destroy(p);
+			if (parse_contact(p, peer, req)) {
+				ast_log(LOG_WARNING, "Failed to parse contact info\n");
+			} else {
+				/* Say OK and ask subsystem to retransmit msg counter */
+				transmit_response_with_date(p, "200 OK", req);
+				peer->lastmsgssent = -1;
+				res = 0;
+			}
+		}
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!res) {
@@ -3620,7 +3655,12 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		fr += 4;
 	} else
 		fr = NULL;
-	if ((a = strchr(c, '@')) || (a = strchr(c, ';'))) {
+	if ((a = strchr(c, '@'))) {
+		*a = '\0';
+		a++;
+		strncpy(p->domain, a, sizeof(p->domain)-1);
+	}
+	if ((a = strchr(c, ';'))) {
 		*a = '\0';
 	}
 	if ((a = strchr(fr, '@')) || (a = strchr(fr, ';'))) {
@@ -5748,6 +5788,28 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 	return user;
 }
 
+static struct sip_peer *temp_peer(char *name)
+{
+	struct sip_peer *peer;
+	peer = malloc(sizeof(struct sip_peer));
+	memset(peer, 0, sizeof(struct sip_peer));
+	peer->expire = -1;
+	peer->pokeexpire = -1;
+	strncpy(peer->name, name, sizeof(peer->name)-1);
+	strncpy(peer->context, context, sizeof(peer->context)-1);
+	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+	peer->expiry = expiry;
+	peer->capability = capability;
+	/* Assume can reinvite */
+	peer->canreinvite = globalcanreinvite;
+	peer->dtmfmode = globaldtmfmode;
+	peer->selfdestruct = 1;
+	peer->dynamic = 1;
+	strcpy(peer->methods, "md5,plaintext");
+	reg_source_db(peer);
+	return peer;
+}
+
 static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 {
 	struct sip_peer *peer;
@@ -5978,6 +6040,8 @@ static int reload_config(void)
 			strncpy(fromdomain, v->value, sizeof(fromdomain)-1);
 		} else if (!strcasecmp(v->name, "nat")) {
 			globalnat = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "autocreatepeer")) {
+			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "pedantic")) {

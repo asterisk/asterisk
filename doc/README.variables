@@ -44,6 +44,7 @@ ${UNIQUEID}	Current call unique identifier
 ${DNID}         Dialed Number Identifier
 ${RDNIS}        Redirected Dial Number ID Service
 ${HANGUPCAUSE}	Hangup cause on last PRI hangup
+${SIPDOMAIN}    SIP domain (if appropriate)
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
