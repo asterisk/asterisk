@@ -137,12 +137,12 @@ static int ilbctolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *f
 	int x,i;
 	float tmpf[240];
 	
-	if (f->datalen % 52) {
-		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 52 bytes long from %s (%d)?\n", f->src, f->datalen);
+	if (f->datalen % 50) {
+		ast_log(LOG_WARNING, "Huh?  An ilbc frame that isn't a multiple of 50 bytes long from %s (%d)?\n", f->src, f->datalen);
 		return -1;
 	}
 	
-	for (x=0;x<f->datalen;x+=52) {
+	for (x=0;x<f->datalen;x+=50) {
 		if (tmp->tail + 240 < sizeof(tmp->buf)/2) {	
 			iLBC_decode(tmpf, f->data + x, &tmp->dec, 1);
 			for (i=0;i<240;i++)
@@ -186,14 +186,14 @@ static struct ast_frame *lintoilbc_frameout(struct ast_translator_pvt *tmp)
 	tmp->f.src = __PRETTY_FUNCTION__;
 	tmp->f.data = tmp->outbuf;
 	while(tmp->tail >= 240) {
-		if ((x+1) * 52 >= sizeof(tmp->outbuf)) {
+		if ((x+1) * 50 >= sizeof(tmp->outbuf)) {
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			break;
 		}
 		for (i=0;i<240;i++)
 			tmpf[i] = tmp->buf[i];
 		/* Encode a frame of data */
-		iLBC_encode(((unsigned char *)(tmp->outbuf)) + (x * 52), tmpf, &tmp->enc);
+		iLBC_encode(((unsigned char *)(tmp->outbuf)) + (x * 50), tmpf, &tmp->enc);
 		/* Assume 8000 Hz -- 20 ms */
 		tmp->tail -= 240;
 		/* Move the data at the end of the buffer to the front */
@@ -201,7 +201,7 @@ static struct ast_frame *lintoilbc_frameout(struct ast_translator_pvt *tmp)
 			memmove(tmp->buf, tmp->buf + 240, tmp->tail * 2);
 		x++;
 	}
-	tmp->f.datalen = x * 52;
+	tmp->f.datalen = x * 50;
 	tmp->f.samples = x * 240;
 #if 0
 	{
