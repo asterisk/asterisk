@@ -1954,7 +1954,7 @@ static struct iax2_user *mysql_user(char *user)
 }
 #endif /* MYSQL_FRIENDS */
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *secret, int seclen)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *secret, int seclen, int *ofound)
 {
 	struct ast_hostent ahp; struct hostent *hp;
 	struct iax2_peer *p;
@@ -2010,6 +2010,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 			p = NULL;
 		}
 	}
+	if (ofound)
+		*ofound = found;
 	if (!p && !found) {
 		hp = ast_gethostbyname(peer, &ahp);
 		if (hp) {
@@ -2117,7 +2119,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strsep(&stringp, ":");
 		portno = strsep(&stringp, ":");
 	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, storedsecret, sizeof(storedsecret) - 1)) {
+	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, storedsecret, sizeof(storedsecret) - 1, NULL)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -5689,6 +5691,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	int res;
 	int sendani;
 	int maxtime;
+	int found = 0;
 	int fmt, native;
 	struct sockaddr_in sin;
 	char s[256];
@@ -5720,7 +5723,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	}							
 
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, NULL, 0)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, NULL, 0, &found)) {
 		return NULL;
 	}
 	if (portno) {
@@ -5740,6 +5743,8 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	iaxs[callno]->sendani = sendani;
 	iaxs[callno]->maxtime = maxtime;
 	iaxs[callno]->notransfer = notransfer;
+	if (found)
+		strncpy(iaxs[callno]->host, hostname, sizeof(iaxs[callno]->host) - 1);
 	c = ast_iax2_new(callno, AST_STATE_DOWN, capability);
 	ast_mutex_unlock(&iaxsl[callno]);
 	if (c) {
@@ -6483,7 +6488,7 @@ static int cache_get_callno_locked(char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, 0)) {
+	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, 0, NULL)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);
