@@ -198,9 +198,9 @@ qualify = yes
 ; Sample "push mode" downstream host
 ;
 ;[00:0C:76:96:75:28]
-;model = incoming
+;model = inbound
 ;host = dynamic
-;precache = incoming
+;precache = inbound
 ;inkey = littleguy
 ;outkey = ourkey
 ;include = e164	; In this case used only for precaching
