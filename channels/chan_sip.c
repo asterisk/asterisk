@@ -4407,6 +4407,8 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		expiry = max_expiry;
 	if (!p->temponly)
 		p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
+	else
+		p->expire = -1;
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
 	ast_db_put("SIP/Registry", p->name, data);
