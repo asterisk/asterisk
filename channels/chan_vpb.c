@@ -147,6 +147,9 @@ static int use_ast_ind=0;
 /* Set EC suppression threshold */
 static int ec_supp_threshold=-1;
 
+/* Inter Digit Delay for collecting DTMF's */
+static int dtmf_idd = 3000;
+
 #define TIMER_PERIOD_RINGBACK 2000
 #define TIMER_PERIOD_BUSY 700
 #define TIMER_PERIOD_RING 4000
@@ -259,6 +262,9 @@ static struct vpb_pvt {
 
 	void *ring_timer;			/* Void pointer for ring vpb_timer */
 	int ring_timer_id;			/* unique timer ID for ring timer */
+
+	void *dtmfidd_timer;			/* Void pointer for DTMF IDD vpb_timer */
+	int dtmfidd_timer_id;			/* unique timer ID for DTMF IDD timer */
 
 	double lastgrunt;			/* time stamp (secs since epoc) of last grunt event */
 
@@ -1006,6 +1012,15 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			p->ext[0] = 0;
 			p->state=VPB_STATE_ONHOOK;
 			break;
+		case VPB_TIMEREXP:
+			if (e->data == p->dtmfidd_timer_id) {
+				if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
+					if (option_verbose > 3)
+						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: DTMF IDD timer out, matching on [%s] in [%s]\n", p->dev,p->ext , p->context);
+					vpb_new(p,AST_STATE_RING, p->context);
+				}
+			}
+			break;
 
 		case VPB_DTMF:
 			if (p->state == VPB_STATE_ONHOOK){
@@ -1055,17 +1070,24 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 			s[0] = e->data;
 			strncat(p->ext, s, sizeof(p->ext) - strlen(p->ext) - 1);
 			if (ast_exists_extension(NULL, p->context, p->ext, 1, p->callerid)){
-				if (option_verbose > 3) {
-					ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: Matched on [%s] in [%s]\n", p->dev,p->ext , p->context);
+				if ( ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)){
+					if (option_verbose > 3)
+						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: Multiple matches on [%s] in [%s]\n", p->dev,p->ext , p->context);
+					/* Start DTMF IDD timer */
+					vpb_timer_stop(p->dtmfidd_timer);
+					vpb_timer_start(p->dtmfidd_timer);
 				}
-				vpb_new(p,AST_STATE_RING, p->context);
+				else {
+					if (option_verbose > 3)
+						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: Matched on [%s] in [%s]\n", p->dev,p->ext , p->context);
+					vpb_new(p,AST_STATE_RING, p->context);
+				}
 			} else if (!ast_canmatch_extension(NULL, p->context, p->ext, 1, p->callerid)){
 				if (ast_exists_extension(NULL, "default", p->ext, 1, p->callerid)) {
 					vpb_new(p,AST_STATE_RING, "default");	      
 				} else if (!ast_canmatch_extension(NULL, "default", p->ext, 1, p->callerid)) {
 					if (option_verbose > 3) {
-						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: can't match anything in %s or default\n",
-							 p->dev, p->context);
+						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: can't match anything in %s or default\n", p->dev, p->context);
 					}
 					playtone(p->handle, &Busytone);
 					vpb_timer_stop(p->busy_timer);
@@ -1401,6 +1423,9 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, float txgain, floa
 
 	tmp->ring_timer_id = vpb_timer_get_unique_timer_id();
 	vpb_timer_open(&tmp->ring_timer, tmp->handle, tmp->ring_timer_id, TIMER_PERIOD_RING);
+	      
+	tmp->dtmfidd_timer_id = vpb_timer_get_unique_timer_id();
+	vpb_timer_open(&tmp->dtmfidd_timer, tmp->handle, tmp->dtmfidd_timer_id, dtmf_idd);
 	      
 	if (mode == MODE_FXO){
 		vpb_set_event_mask(tmp->handle, VPB_EVENTS_ALL );
@@ -2454,6 +2479,10 @@ int load_module()
 			}
 			else if (strcasecmp(v->name, "ecsuppthres") ==0) {
 				ec_supp_threshold = atoi(v->value);
+			}
+			else if (strcasecmp(v->name, "dtmfidd") ==0) {
+				dtmf_idd = atoi(v->value);
+				ast_log(LOG_NOTICE,"VPB Driver setting DTMF IDD to [%d]ms\n",dtmf_idd);
 			}
 			v = v->next;
 		}
