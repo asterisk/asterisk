@@ -214,11 +214,9 @@ static char *descrip_vm_box_exists =
 
 
 /* Leave a message */
-static char *capp = "VoiceMail2";
 static char *app = "VoiceMail";
 
 /* Check mail, control, etc */
-static char *capp2 = "VoiceMailMain2";
 static char *app2 = "VoiceMailMain";
 
 static char *app3 = "MailboxExists";
@@ -4235,9 +4233,7 @@ int unload_module(void)
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
 	res = ast_unregister_application(app);
-	res |= ast_unregister_application(capp);
 	res |= ast_unregister_application(app2);
-	res |= ast_unregister_application(capp2);
 	res |= ast_unregister_application(app3);
 	ast_cli_unregister(&show_voicemail_users_cli);
 	ast_cli_unregister(&show_voicemail_zones_cli);
@@ -4248,9 +4244,7 @@ int load_module(void)
 {
 	int res;
 	res = ast_register_application(app, vm_exec, synopsis_vm, descrip_vm);
-	res |= ast_register_application(capp, vm_exec, synopsis_vm, descrip_vm);
 	res |= ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
-	res |= ast_register_application(capp2, vm_execmain, synopsis_vmain, descrip_vmain);
 	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
 	if (res)
 		return(res);
