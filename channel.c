@@ -548,6 +548,8 @@ void ast_channel_free(struct ast_channel *chan)
 		close(fd);
 	if ((fd = chan->pvt->alertpipe[1]) > -1)
 		close(fd);
+	if ((fd = chan->timingfd) > -1)
+		close(fd);
 	f = chan->pvt->readq;
 	chan->pvt->readq = NULL;
 	while(f) {
