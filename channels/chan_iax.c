@@ -1293,22 +1293,22 @@ static int iax_show_cache(int fd, int argc, char *argv[])
 }
 
 static char show_stats_usage[] =
-"Usage: iax show stats\n"
+"Usage: iax1 show stats\n"
 "       Display statistics on IAX channel driver.\n";
 
 
 static char show_cache_usage[] =
-"Usage: iax show cache\n"
+"Usage: iax1 show cache\n"
 "       Display currently cached IAX Dialplan results.\n";
 
 static struct ast_cli_entry cli_set_jitter = 
-{ { "iax", "set", "jitter", NULL }, iax_set_jitter, "Sets IAX jitter buffer", jitter_usage };
+{ { "iax1", "set", "jitter", NULL }, iax_set_jitter, "Sets IAX jitter buffer", jitter_usage };
 
 static struct ast_cli_entry cli_show_stats =
-{ { "iax", "show", "stats", NULL }, iax_show_stats, "Display IAX statistics", show_stats_usage };
+{ { "iax1", "show", "stats", NULL }, iax_show_stats, "Display IAX statistics", show_stats_usage };
 
 static struct ast_cli_entry cli_show_cache =
-{ { "iax", "show", "cache", NULL }, iax_show_cache, "Display IAX cached dialplan", show_cache_usage };
+{ { "iax1", "show", "cache", NULL }, iax_show_cache, "Display IAX cached dialplan", show_cache_usage };
 
 static unsigned int calc_rxstamp(struct chan_iax_pvt *p);
 
@@ -2478,45 +2478,45 @@ static int iax_no_debug(int fd, int argc, char *argv[])
 
 
 static char show_users_usage[] = 
-"Usage: iax show users\n"
+"Usage: iax1 show users\n"
 "       Lists all users known to the IAX (Inter-Asterisk eXchange) subsystem.\n";
 
 static char show_channels_usage[] = 
-"Usage: iax show channels\n"
+"Usage: iax1 show channels\n"
 "       Lists all currently active IAX channels.\n";
 
 static char show_peers_usage[] = 
-"Usage: iax show peers\n"
+"Usage: iax1 show peers\n"
 "       Lists all known IAX peers.\n";
 
 static char show_reg_usage[] =
-"Usage: iax show registry\n"
+"Usage: iax1 show registry\n"
 "       Lists all registration requests and status.\n";
 
 #ifdef DEBUG_SUPPORT
 
 static char debug_usage[] = 
-"Usage: iax debug\n"
+"Usage: iax1 debug\n"
 "       Enables dumping of IAX packets for debugging purposes\n";
 
 static char no_debug_usage[] = 
-"Usage: iax no debug\n"
+"Usage: iax1 no debug\n"
 "       Disables dumping of IAX packets for debugging purposes\n";
 
 #endif
 
 static struct ast_cli_entry  cli_show_users = 
-	{ { "iax", "show", "users", NULL }, iax_show_users, "Show defined IAX users", show_users_usage };
+	{ { "iax1", "show", "users", NULL }, iax_show_users, "Show defined IAX users", show_users_usage };
 static struct ast_cli_entry  cli_show_channels =
-	{ { "iax", "show", "channels", NULL }, iax_show_channels, "Show active IAX channels", show_channels_usage };
+	{ { "iax1", "show", "channels", NULL }, iax_show_channels, "Show active IAX channels", show_channels_usage };
 static struct ast_cli_entry  cli_show_peers =
-	{ { "iax", "show", "peers", NULL }, iax_show_peers, "Show defined IAX peers", show_peers_usage };
+	{ { "iax1", "show", "peers", NULL }, iax_show_peers, "Show defined IAX peers", show_peers_usage };
 static struct ast_cli_entry  cli_show_registry =
-	{ { "iax", "show", "registry", NULL }, iax_show_registry, "Show IAX registration status", show_reg_usage };
+	{ { "iax1", "show", "registry", NULL }, iax_show_registry, "Show IAX registration status", show_reg_usage };
 static struct ast_cli_entry  cli_debug =
-	{ { "iax", "debug", NULL }, iax_do_debug, "Enable IAX debugging", debug_usage };
+	{ { "iax1", "debug", NULL }, iax_do_debug, "Enable IAX debugging", debug_usage };
 static struct ast_cli_entry  cli_no_debug =
-	{ { "iax", "no", "debug", NULL }, iax_no_debug, "Disable IAX debugging", no_debug_usage };
+	{ { "iax1", "no", "debug", NULL }, iax_no_debug, "Disable IAX debugging", no_debug_usage };
 
 static int iax_write(struct ast_channel *c, struct ast_frame *f)
 {
