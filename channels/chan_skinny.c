@@ -617,6 +617,8 @@ struct skinny_subchannel {
 	struct skinny_line *parent;
 	struct ast_rtp *rtp;
 	time_t lastouttime;
+	int progress;
+	int ringing;
 	int lastout;
 	int cxmode;
 	int nat;
@@ -1697,17 +1699,40 @@ static int skinny_indicate(struct ast_channel *ast, int ind)
     	}
 	switch(ind) {
 	case AST_CONTROL_RINGING:
-		transmit_tone(s, SKINNY_ALERT);
-		transmit_callstate(s, l->instance, SKINNY_PROGRESS, sub->callid);
-		break;
+		if (ast->_state == AST_STATE_RINGING) {
+			if (!sub->progress) {		
+				transmit_tone(s, SKINNY_ALERT);
+				transmit_callstate(s, l->instance, SKINNY_RINGOUT, sub->callid);
+				sub->ringing = 1;
+				break;
+			}
+		}
+		return -1;
 	case AST_CONTROL_BUSY:
-		transmit_tone(s, SKINNY_BUSYTONE);
-		transmit_callstate(s, l->instance, SKINNY_BUSY, sub->callid);
-		break;
+		if (ast->_state != AST_STATE_UP) {		
+			transmit_tone(s, SKINNY_BUSYTONE);
+			transmit_callstate(s, l->instance, SKINNY_BUSY, sub->callid);
+			sub->alreadygone = 1;
+			ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
+                        break;
+                }
+                return -1;
 	case AST_CONTROL_CONGESTION:
-		transmit_tone(s, SKINNY_REORDER);
-		transmit_callstate(s, l->instance, SKINNY_CONGESTION, sub->callid);
-		break;
+		if (ast->_state != AST_STATE_UP) {		
+			transmit_tone(s, SKINNY_REORDER);
+			transmit_callstate(s, l->instance, SKINNY_CONGESTION, sub->callid);
+			sub->alreadygone = 1;
+                        ast_softhangup_nolock(ast, AST_SOFTHANGUP_DEV);
+                        break;
+                }
+                return -1;
+	case AST_CONTROL_PROGRESS:
+                if ((ast->_state != AST_STATE_UP) && !sub->progress && !sub->outgoing) {
+			transmit_callstate(s, l->instance, SKINNY_PROGRESS, sub->callid);
+                        sub->progress = 1;
+                        break;
+                }
+                return -1;  
 	case -1:
 		transmit_tone(s, SKINNY_SILENCE);
 		break;		
