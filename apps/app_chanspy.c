@@ -19,7 +19,6 @@
 #include <asterisk/app.h>
 #include <asterisk/utils.h>
 #include <asterisk/say.h>
-#include <asterisk/channel_pvt.h>
 #include <asterisk/pbx.h>
 #include <asterisk/translate.h>
 #include <asterisk/module.h>
