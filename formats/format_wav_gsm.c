@@ -520,7 +520,7 @@ static long wav_tell(struct ast_filestream *fs)
 	offset = lseek(fs->fd, 0, SEEK_CUR);
 	/* since this will most likely be used later in play or record, lets stick
 	 * to that level of resolution, just even frames boundaries */
-	return (offset - 52)/65/320;
+	return (offset - 52)/65*320;
 }
 
 static char *wav_getcomment(struct ast_filestream *s)
