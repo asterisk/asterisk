@@ -3865,7 +3865,9 @@ static int zt_write(struct ast_channel *ast, struct ast_frame *frame)
 		p->proceeding=1;
 	}
 #else
+#ifdef ZAPATA_PRI
 #warning "You need later PRI library"
+#endif
 #endif
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
