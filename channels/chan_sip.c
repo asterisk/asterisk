@@ -6695,7 +6695,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (sip_debug_test_pvt(p))
 				ast_verbose("Receiving DTMF!\n");
 			receive_info(p, req);
+		} else { /* if ignoring, transmit response */
+			transmit_response(p, "200 OK", req);
 		}
+	} else if (!strcasecmp(cmd, "NOTIFY")) {
+		/* XXX we get NOTIFY's from some servers. WHY?? Maybe we should
+			look into this someday XXX */
+		transmit_response(p, "200 OK", req);
+		if (!p->lastinvite) p->needdestroy = 1;
 	} else if (!strcasecmp(cmd, "REGISTER")) {
 		/* Use this as the basis */
 		if (sip_debug_test_pvt(p))
