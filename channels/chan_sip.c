@@ -4499,6 +4499,7 @@ retrylock:
 			ast_pthread_mutex_unlock(&p->lock);
 			/* Sleep infintismly short amount of time */
 			usleep(1);
+			ast_pthread_mutex_lock(&p->lock);
 			goto retrylock;
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
