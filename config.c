@@ -90,6 +90,12 @@ struct ast_variable *ast_variable_browse(struct ast_config *config, char *catego
 	struct ast_category *cat;
 	cat = config->root;
 	while(cat) {
+		if (cat->name == category)
+			return cat->root;
+		cat = cat->next;
+	}
+	cat = config->root;
+	while(cat) {
 		if (!strcasecmp(cat->name, category))
 			return cat->root;
 		cat = cat->next;
@@ -101,6 +107,12 @@ char *ast_variable_retrieve(struct ast_config *config, char *category, char *val
 {
 	struct ast_variable *v;
 	if (category) {
+		v = ast_variable_browse(config, category);
+		while (v) {
+			if (value == v->name)
+				return v->value;
+			v=v->next;
+		}
 		v = ast_variable_browse(config, category);
 		while (v) {
 			if (!strcasecmp(value, v->name))
@@ -186,6 +198,7 @@ struct ast_config *ast_load(char *configfile)
 						c = strchr(cur, ']');
 						if (c) {
 							*c = 0;
+#if 0
 							/* 
 							 * Check category duplicity before structure
 							 * allocation
@@ -199,7 +212,7 @@ struct ast_config *ast_load(char *configfile)
 								fclose(f);
 								return NULL; 
 							}
-						
+#endif						
 							tmpc = malloc(sizeof(struct ast_category));
 							if (!tmpc) {
 								ast_destroy(tmp);
@@ -216,18 +229,12 @@ struct ast_config *ast_load(char *configfile)
 						} else {
 							ast_log(LOG_WARNING, 
 								"parse error: no closing ']', line %d\n", lineno);
-							ast_destroy(tmp);
-							fclose(f);
-							return NULL;
 						}
 					} else {
 						/* Just a line (variable = value) */
 						if (!tmpc) {
 							ast_log(LOG_WARNING,
 								"parse error: No category context for line %d\n", lineno);
-							ast_destroy(tmp);
-							fclose(f);
-							return NULL;
 						}
 						c = strchr(cur, '=');
 						if (c) {
@@ -248,14 +255,13 @@ struct ast_config *ast_load(char *configfile)
 									tmpc->root = v;
 								last = v;
 							} else {
+								ast_destroy(tmp);
 								ast_log(LOG_WARNING, "Out of memory, line %d\n", lineno);
 								fclose(f);
-								ast_destroy(tmp);
+								return NULL;
 							}
 						} else {
-							ast_log(LOG_WARNING, "No = in line %d\n", lineno);
-							fclose(f);
-							ast_destroy(tmp);
+							ast_log(LOG_WARNING, "No '=' (equal sign) in line %d\n", lineno);
 						}
 														
 					}
@@ -280,6 +286,16 @@ char *ast_category_browse(struct ast_config *config, char *prev)
 			return config->root->name;
 		else
 			return NULL;
+	}
+	cat = config->root;
+	while(cat) {
+		if (cat->name == prev) {
+			if (cat->next)
+				return cat->next->name;
+			else
+				return NULL;
+		}
+		cat = cat->next;
 	}
 	cat = config->root;
 	while(cat) {
