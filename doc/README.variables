@@ -103,6 +103,8 @@ ${QUEUE_PRIO}		Queue priority
 
 The following variables can be set to change certian behaviour:
 ${TOUCH_MONITOR}	The filename base to use with Touch Monitor (auto record)
+${EXITCONTEXT}		A context to consider in lieu of the curent context when
+			dropping out of an attempted call into a 1 digit extension.
 
 The monitor application sets the following variable:
 ${MONITOR}		Set to "true" if the channel is/has been monitored.
