@@ -107,6 +107,10 @@ struct ast_modem_pvt {
 	char context[AST_MAX_EXTENSION];
 	/*! Multiple Subscriber Number */
 	char msn[AST_MAX_EXTENSION];	
+	/*! Multiple Subscriber Number we listen to (; seperated list) */
+	char incomingmsn[AST_MAX_EXTENSION];	
+	/*! Group(s) we belong to if available */
+	unsigned int group;
 	/*! Caller ID if available */
 	char cid[AST_MAX_EXTENSION];	
 	/*! Dialed Number if available */
