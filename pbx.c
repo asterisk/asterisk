@@ -3855,13 +3855,13 @@ int ast_add_extension(const char *context, int replace, const char *extension, i
 }
 
 int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority) {
-	if(chan && !ast_check_hangup(chan)) {
+	if(chan) {
 		if (context && !ast_strlen_zero(context))
 			strncpy(chan->context, context, sizeof(chan->context) - 1);
 		if (exten && !ast_strlen_zero(exten))
 			strncpy(chan->exten, exten, sizeof(chan->context) - 1);
 		if (priority)
-			chan->priority = priority - 1;	
+			chan->priority = priority;	
 		return 0;
 	}
 	return -1;
@@ -3874,7 +3874,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 
 	if (chan->pbx) {
 		/* This channel is currently in the PBX */
-		ast_explicit_goto(chan, context, exten, priority);
+		ast_explicit_goto(chan, context, exten, priority - 1);
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
 	} else {
 		/* In order to do it when the channel doesn't really exist within
@@ -5454,7 +5454,7 @@ static int __ast_goto_if_exists(struct ast_channel *chan, char* context, char *e
 			return goto_func(chan,
 								  context ? context : chan->context,
 								  exten ? exten : chan->exten,
-								  priority ? priority : chan->priority);
+								  (priority ? priority : chan->priority) - 1);
 		} else 
 			return -3;
 	}
