@@ -59,6 +59,7 @@
 #include <mysql/mysql.h>
 #endif
 
+#define VIDEO_CODEC_MASK        0x1fc0000 // Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
 #endif
@@ -2058,10 +2059,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				while(*codecs && (*codecs < 33)) codecs++;
 			}
 		}
+		if (p->vrtp)
+			ast_rtp_pt_clear(p->vrtp);  // Must be cleared in case no m=video line exists
+
 		if (p->vrtp && (sscanf(m, "video %d RTP/AVP %n", &x, &len) == 1)) {
 			vportno = x;
 			// Scan through the RTP payload types specified in a "m=" line:
-			ast_rtp_pt_clear(p->vrtp);
 			codecs = m + len;
 			while(strlen(codecs)) {
 				if (sscanf(codecs, "%d%n", &codec, &len) != 1) {
@@ -2781,7 +2784,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	if ((sizeof(m) <= strlen(m) - 2) || (sizeof(m2) <= strlen(m2) - 2) || (sizeof(a) == strlen(a)) || (sizeof(a2) == strlen(a2)))
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
-	if (p->vrtp)
+	if ((p->vrtp) && (p->jointcapability & VIDEO_CODEC_MASK)) // only if video response is appropriate
 		len += strlen(m2) + strlen(a2);
 	snprintf(costr, sizeof(costr), "%d", len);
 	add_header(resp, "Content-Type", "application/sdp");
@@ -2793,7 +2796,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	add_line(resp, t);
 	add_line(resp, m);
 	add_line(resp, a);
-	if (p->vrtp) {
+	if ((p->vrtp) && (p->jointcapability & VIDEO_CODEC_MASK)) { // only if video response is appropriate
 		add_line(resp, m2);
 		add_line(resp, a2);
 	}
