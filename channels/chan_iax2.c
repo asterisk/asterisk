@@ -924,11 +924,28 @@ static int try_firmware(char *s)
 {
 	struct stat stbuf;
 	struct iax_firmware *cur;
+	int ifd;
 	int fd;
 	int res;
+	
 	struct ast_iax2_firmware_header *fwh, fwh2;
 	struct MD5Context md5;
 	unsigned char sum[16];
+	unsigned char buf[1024];
+	int len, chunk;
+	char *s2;
+	char *last;
+	s2 = alloca(strlen(s) + 100);
+	if (!s2) {
+		ast_log(LOG_WARNING, "Alloca failed!\n");
+		return -1;
+	}
+	last = strrchr(s, '/');
+	if (last)
+		last++;
+	else
+		last = s;
+	snprintf(s2, strlen(s) + 100, "/var/tmp/%s-%ld", last, (unsigned long)rand());
 	res = stat(s, &stbuf);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to stat '%s': %s\n", s, strerror(errno));
@@ -937,11 +954,45 @@ static int try_firmware(char *s)
 	/* Make sure it's not a directory */
 	if (S_ISDIR(stbuf.st_mode))
 		return -1;
-	fd = open(s, O_RDONLY);
-	if (fd < 0) {
+	ifd = open(s, O_RDONLY);
+	if (ifd < 0) {
 		ast_log(LOG_WARNING, "Cannot open '%s': %s\n", s, strerror(errno));
 		return -1;
 	}
+	fd = open(s2, O_RDWR | O_CREAT | O_EXCL);
+	if (fd < 0) {
+		ast_log(LOG_WARNING, "Cannot open '%s' for writing: %s\n", s2, strerror(errno));
+		close(ifd);
+		return -1;
+	}
+	/* Unlink our newly created file */
+	unlink(s2);
+	
+	/* Now copy the firmware into it */
+	len = stbuf.st_size;
+	while(len) {
+		chunk = len;
+		if (chunk > sizeof(buf))
+			chunk = sizeof(buf);
+		res = read(ifd, buf, chunk);
+		if (res != chunk) {
+			ast_log(LOG_WARNING, "Only read %d of %d bytes of data :(: %s\n", res, chunk, strerror(errno));
+			close(ifd);
+			close(fd);
+			return -1;
+		}
+		res = write(fd, buf, chunk);
+		if (res != chunk) {
+			ast_log(LOG_WARNING, "Only write %d of %d bytes of data :(: %s\n", res, chunk, strerror(errno));
+			close(ifd);
+			close(fd);
+			return -1;
+		}
+		len -= chunk;
+	}
+	close(ifd);
+	/* Return to the beginning */
+	lseek(fd, 0, SEEK_SET);
 	if ((res = read(fd, &fwh2, sizeof(fwh2))) != sizeof(fwh2)) {
 		ast_log(LOG_WARNING, "Unable to read firmware header in '%s'\n", s);
 		close(fd);
