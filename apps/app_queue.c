@@ -1925,7 +1925,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	/* Our queue entry */
 	struct queue_ent qe;
 	
-	if (!data || !ast_strlen_zero(data)) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Queue requires an argument: queuename[|options[|URL][|announceoverride][|timeout]]\n");
 		return -1;
 	}
