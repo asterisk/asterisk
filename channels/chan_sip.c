@@ -2843,14 +2843,24 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 /*--- copy_via_headers: Copy SIP VIA Headers from one request to another ---*/
 static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field)
 {
-	char *tmp;
+	char tmp[256]="", *oh, *end;
 	int start = 0;
 	int copied = 0;
 	char new[256];
 	char iabuf[INET_ADDRSTRLEN];
 	for (;;) {
-		tmp = __get_header(orig, field, &start);
-		if (!ast_strlen_zero(tmp)) {
+		oh = __get_header(orig, field, &start);
+		if (!ast_strlen_zero(oh)) {
+			/* Strip ;rport */
+			strncpy(tmp, oh, sizeof(tmp) - 1);
+			oh = strstr(tmp, ";rport");
+			if (oh) {
+				end = strchr(oh + 1, ';');
+				if (end)
+					memmove(oh, end, strlen(end) + 1);
+				else
+					*oh = '\0';
+			}
 			if (!copied && (p->nat == SIP_NAT_ALWAYS)) {
 				/* Whoo hoo!  Now we can indicate port address translation too!  Just
 				   another RFC (RFC3581). I'll leave the original comments in for
