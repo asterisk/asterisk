@@ -2375,6 +2375,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_ALARM:
 			p->inalarm = 1;
+			ast_log(LOG_WARNING, "Detected alarm on channel %d\n", p->channel);
 			/* fall through intentionally */
 		case ZT_EVENT_ONHOOK:
 			if (p->radio)
@@ -4075,9 +4076,11 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		break;
 	case ZT_EVENT_NOALARM:
 		i->inalarm = 0;
+		ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", i->channel);
 		break;
 	case ZT_EVENT_ALARM:
 		i->inalarm = 1;
+		ast_log(LOG_WARNING, "Alarm detected on channel %d\n", i->channel);
 		/* fall thru intentionally */
 	case ZT_EVENT_ONHOOK:
 		/* Back on hook.  Hang up. */
@@ -4105,6 +4108,10 @@ static int handle_init_event(struct zt_pvt *i, int event)
 #endif			
 			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
 			zt_set_hook(i->subs[SUB_REAL].zfd, ZT_ONHOOK);
+			break;
+		case SIG_PRI:
+			zt_disable_ec(i);
+			res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, -1);
 			break;
 		default:
 			ast_log(LOG_WARNING, "Don't know how to handle on hook with signalling %s on channel %d\n", sig2str(i->sig), i->channel);

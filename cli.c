@@ -345,6 +345,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"1st File Descriptor: %d\n"
 	"      Frames in: %d\n"
 	"     Frames out: %d\n"
+	" Time to Hangup: %d\n"
 	" --   PBX   --\n"
 	"        Context: %s\n"
 	"      Extension: %s\n"
@@ -356,7 +357,8 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	c->name, c->type, 
 	(c->callerid ? c->callerid : "(N/A)"),
 	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
-	c->fds[0], c->fin, c->fout, c->context, c->exten, c->priority, ( c->appl ? c->appl : "(N/A)" ),
+	c->fds[0], c->fin, c->fout, c->whentohangup,
+	c->context, c->exten, c->priority, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (strlen(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
 	

@@ -1,7 +1,9 @@
 /*
  * Extended AGI test application
  *
- * Copyright (C) 2003, Digium, Inc.
+ * This code is released into public domain
+ * without any warranty of any kind.
+ *
  */
 
 #include <stdio.h>
