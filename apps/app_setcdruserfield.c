@@ -17,6 +17,8 @@
 #include <asterisk/module.h>
 #include <asterisk/pbx.h>
 #include <asterisk/logger.h>
+#include <asterisk/config.h>
+#include <asterisk/manager.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -59,6 +61,39 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
+static int action_setcdruserfield(struct mansession *s, struct message *m)
+{
+	struct ast_channel *c = NULL;
+	char *userfield = astman_get_header(m, "UserField");
+	char *channel = astman_get_header(m, "Channel");
+	char *append = astman_get_header(m, "Append");
+
+	if (!strlen(channel)) {
+		astman_send_error(s, m, "No Channel specified");
+		return 0;
+	}
+	if (!strlen(userfield)) {
+		astman_send_error(s, m, "No UserField specified");
+		return 0;
+	}
+	c = ast_channel_walk(NULL);
+	while (c) {
+		if (!strcasecmp(c->name, channel))
+			break;
+		c = ast_channel_walk(c);
+	}
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return 0;
+	}
+	if (ast_true(append))
+		ast_cdr_appenduserfield(c, userfield);
+	else
+		ast_cdr_setuserfield(c, userfield);
+	astman_send_ack(s, m, "CDR Userfield Set");
+	return 0;
+}
+
 static int setcdruserfield_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
@@ -97,6 +132,7 @@ int unload_module(void)
 	STANDARD_HANGUP_LOCALUSERS;
 	res = ast_unregister_application(setcdruserfield_app);
 	res |= ast_unregister_application(appendcdruserfield_app);
+	ast_manager_unregister("SetCDRUserField");
 	return res;
 }
 
@@ -105,7 +141,7 @@ int load_module(void)
 	int res;
 	res = ast_register_application(setcdruserfield_app, setcdruserfield_exec, setcdruserfield_synopsis, setcdruserfield_descrip);
 	res |= ast_register_application(appendcdruserfield_app, appendcdruserfield_exec, appendcdruserfield_synopsis, appendcdruserfield_descrip);
-
+	ast_manager_register("SetCDRUserField", EVENT_FLAG_CALL, action_setcdruserfield, "Set the CDR UserField");
 	return res;
 }
 
