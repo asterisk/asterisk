@@ -67,7 +67,9 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ; the previous priority was associated with the current extension or not.
 ; The priority "same" or "s" means the same as the previously specified
 ; priority, again regardless of whether the previous entry was for the
-; same extension.  Priorities may also have an alias, or label, in 
+; same extension.  Priorities may be immediately followed by a plus sign
+; and another integer to add that amount (most useful with 's' or 'n').  
+; Priorities may then also have an alias, or label, in 
 ; parenthesis after their name which can be used in goto situations
 ;
 ; Contexts contain several lines, one for each step of each
@@ -78,8 +80,8 @@ TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ; they are listed.
 ;
 ;[context]
-;exten => someexten,priority,application(arg1,arg2,...)
-;exten => someexten,priority,application,arg1|arg2...
+;exten => someexten,priority[+offset][(alias)],application(arg1,arg2,...)
+;exten => someexten,priority[+offset][(alias)],application,arg1|arg2...
 ;
 ; Timing list for includes is 
 ;
@@ -313,7 +315,9 @@ include => demo
 
 ;exten => 6245,hint,SIP/Grandstream1&SIP/Xlite1 ; Channel hints for presence
 ;exten => 6245,1,Dial(SIP/Grandstream1,20,rt)	; permit transfer
-;exten => 6245,1,Dial(${HINT},20,rtT)		; Use hint as listed
+;exten => 6245,n,Dial(${HINT},20,rtT)		; Use hint as listed
+;exten => 6245,n,Voicemail(u6245)		; Voicemail (unavailable)
+;exten => 6245,s+100,Voicemail(b6245)		; Voicemail (busy)
 ;exten => 6361,1,Dial(IAX2/JaneDoe,,rm)		; ring without time limit
 ;exten => 6389,1,Dial(MGCP/aaln/1@192.168.0.14)
 ;exten => 6394,1,Dial(Local/6275/n)		; this will dial ${MARK}

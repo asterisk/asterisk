@@ -1649,6 +1649,7 @@ static int pbx_load_module(void)
 						char *stringp=NULL;
 						int ipri = -2;
 						char realext[256]="";
+						char *plus;
 						tc = strdup(v->value);
 						if(tc!=NULL){
 							stringp=tc;
@@ -1668,6 +1669,11 @@ static int pbx_load_module(void)
 								else
 									ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
 							}
+							plus = strchr(pri, '+');
+							if (plus) {
+								*plus = '\0';
+								plus++;
+							}
 							if (!strcmp(pri,"hint"))
 								ipri=PRIORITY_HINT;
 							else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
@@ -1680,7 +1686,7 @@ static int pbx_load_module(void)
 									ipri = lastpri;
 								else
 									ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
-							} else {
+							} else  {
 								if (sscanf(pri, "%i", &ipri) != 1) {
 									ast_log(LOG_WARNING, "Invalid priority '%s' at line %d\n", pri, v->lineno);
 									ipri = 0;
@@ -1722,6 +1728,8 @@ static int pbx_load_module(void)
 							while(*appl && (*appl < 33)) appl++;
 							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 							if (ipri) {
+								if (plus)
+									ipri += atoi(plus);
 								lastpri = ipri;
 								if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
 									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
