@@ -41,7 +41,7 @@
 #include <sys/file.h>
 #include "../astconf.h"
 
-static char *tdesc = "Basic maths functions";
+static char *tdesc = "Basic Math Functions";
 
 static char *app_math = "Math";
 
