@@ -2473,7 +2473,7 @@ static int reload_config(void)
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
-		return 1;
+		return 0;
 	}
 	cfg = ast_load(config);
 
