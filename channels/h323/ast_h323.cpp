@@ -340,21 +340,24 @@ void MyH323EndPoint::OnConnectionEstablished(H323Connection & connection, const 
   */
 void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PString & clearedCallToken)
 {
-	PString remoteName = connection.GetRemotePartyName();
-	
+	PString remoteName;
 	call_details_t cd;
+        PIPSocket::Address Ip;
+	WORD sourcePort;
+
+	remoteName = connection.GetRemotePartyName();
 
 	cd.call_reference = connection.GetCallReference();
-	cd.call_token = (const char *)connection.GetCallToken();
+	cd.call_token = (const char *)clearedCallToken;
 	cd.call_source_aliases = (const char *)connection.GetRemotePartyName();
+	
+  	connection.GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
+	cd.sourceIp = (const char *)Ip.AsString();
 	
 	/* Convert complex strings */
 	char *s;
 	if ((s = strchr(cd.call_source_aliases, ' ')) != NULL)
 		*s = '\0';
-
-	/* Invoke the PBX application registered callback */
-	on_connection_cleared(cd);
 
 	switch (connection.GetCallEndReason()) {
 		case H323Connection::EndedByCallForwarded :
@@ -434,6 +437,11 @@ void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PStr
 	if(connection.IsEstablished()) 
 		if (h323debug)
 			cout << "	 -- Call duration " << setprecision(0) << setw(5) << (PTime() - connection.GetConnectionStartTime()) << endl;
+
+	/* Invoke the PBX application registered callback */
+	on_connection_cleared(cd);
+
+	return;
 }
 
 
@@ -502,9 +510,9 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	PString destE164;
 	PString sourceAliases;	
 	PString destAliases;
-	PString sourceIp;	
 	PIPSocket::Address Ip;
 	WORD sourcePort;
+	char *s, *s1; 
 
 	sourceAliases = setupPDU.GetSourceAliases();
 	destAliases = setupPDU.GetDestinationAlias();
@@ -516,28 +524,25 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 
 	/* Convert complex strings */
 	//  FIXME: deal more than one source alias 
-	char *s; 
     	if ((s = strchr(sourceAliases, ' ')) != NULL)
                 *s = '\0';
     	if ((s = strchr(sourceAliases, '\t')) != NULL)
                 *s = '\0';
-	char *s1;
  	if ((s1 = strchr(destAliases, ' ')) != NULL)
          	*s1 = '\0';
 	if ((s1 = strchr(destAliases, '\t')) != NULL)
          	*s1 = '\0';
 
-	GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
 
-	sourceIp = Ip.AsString();
-
-	cd.call_reference		= GetCallReference();
-	cd.call_token			= (const char *)GetCallToken();
+	cd.call_reference = GetCallReference();
+	cd.call_token = (const char *)GetCallToken();
 	cd.call_source_aliases  = (const char *)sourceAliases;
-	cd.call_dest_alias		= (const char *)destAliases;
-	cd.call_source_e164		= (const char *)sourceE164;
-	cd.call_dest_e164		= (const char *)destE164;
-	cd.sourceIp				= (const char *)sourceIp;
+	cd.call_dest_alias = (const char *)destAliases;
+	cd.call_source_e164 = (const char *)sourceE164;
+	cd.call_dest_e164 = (const char *)destE164;
+
+	GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
+	cd.sourceIp = (const char *)Ip.AsString();
 	
 	/* Notify Asterisk of the request */
 	int res = on_incoming_call(cd); 
@@ -555,7 +560,8 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 {
 	call_details_t cd;
-	
+	char *s, *s1;
+
 	if (h323debug) { 
 		cout << "	-- Sending SETUP message" << endl;
 	}
@@ -569,12 +575,11 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 
 	/* Convert complex strings */
 	//  FIXME: deal more than one source alias 
-	char *s; 
+	
     	if ((s = strchr(sourceAliases, ' ')) != NULL)
                 *s = '\0';
     	if ((s = strchr(sourceAliases, '\t')) != NULL)
                 *s = '\0';
-	char *s1;
     	if ((s1 = strchr(destAliases, ' ')) != NULL)
         	 *s1 = '\0';
 	if ((s1 = strchr(destAliases, '\t')) != NULL)
