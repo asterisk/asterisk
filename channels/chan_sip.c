@@ -31,7 +31,6 @@
 #include <asterisk/manager.h>
 #include <asterisk/callerid.h>
 #include <asterisk/cli.h>
-#include <asterisk/md5.h>
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/dsp.h>
@@ -4966,21 +4965,6 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		list_route(p->route);
 }
 
-/*--- md5_hash: Produce MD5 hash of value. Used for authentication ---*/
-static void md5_hash(char *output, char *input)
-{
-		struct MD5Context md5;
-		unsigned char digest[16];
-		char *ptr;
-		int x;
-		MD5Init(&md5);
-		MD5Update(&md5, input, strlen(input));
-		MD5Final(digest, &md5);
-		ptr = output;
-		for (x=0;x<16;x++)
-			ptr += sprintf(ptr, "%2.2x", digest[x]);
-}
-
 /*--- check_auth: Check user authorization from peer definition ---*/
 /*      Some actions, like REGISTER and INVITEs from peers require
         authentication (if peer have secret set) */
@@ -5114,10 +5098,10 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		if (!ast_strlen_zero(md5secret))
 		        snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
 		else
-		        md5_hash(a1_hash, a1);
-		md5_hash(a2_hash, a2);
+		        ast_md5_hash(a1_hash, a1);
+		ast_md5_hash(a2_hash, a2);
 		snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, randdata, a2_hash);
-		md5_hash(resp_hash, resp);
+		ast_md5_hash(resp_hash, resp);
 
 		/* resp_hash now has the expected response, compare the two */
 
@@ -7107,15 +7091,15 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	if (!ast_strlen_zero(p->peermd5secret))
 	        strncpy(a1_hash, p->peermd5secret, sizeof(a1_hash) - 1);
 	else
-	        md5_hash(a1_hash,a1);
-	md5_hash(a2_hash,a2);
+	        ast_md5_hash(a1_hash,a1);
+	ast_md5_hash(a2_hash,a2);
 	/* XXX We hard code the nonce-number to 1... What are the odds? Are we seriously going to keep
 	       track of every nonce we've seen? Also we hard code to "auth"...  XXX */
 	if (!ast_strlen_zero(p->qop))
 		snprintf(resp,sizeof(resp),"%s:%s:%s:%s:%s:%s",a1_hash,p->nonce, "00000001", cnonce, "auth", a2_hash);
 	else
 		snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,p->nonce,a2_hash);
-	md5_hash(resp_hash,resp);
+	ast_md5_hash(resp_hash,resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (!ast_strlen_zero(p->qop))
 		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
