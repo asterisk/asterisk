@@ -1510,10 +1510,10 @@ static int pbx_load_module(void)
 							if (!pri)
 								pri="";
 							appl = stringp;
-							if (!(start = strchr(appl, '(')))
-								appl = strsep(&stringp, ",");
 							if (!appl)
 								appl="";
+							if (!(start = strchr(appl, '(')))
+								appl = strsep(&stringp, ",");
 							if (start && (end = strrchr(appl, ')'))) {
 								*start = *end = '\0';
 								data = start + 1;
@@ -1588,7 +1588,10 @@ int load_module(void)
 int reload(void)
 {
 	ast_context_destroy(NULL, registrar);
+	/* For martin's global variables, don't clear them on reload */
+#if 0
 	pbx_builtin_clear_globals();
+#endif	
 	pbx_load_module();
 	return 0;
 }

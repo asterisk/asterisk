@@ -3560,6 +3560,10 @@ static void *ss_thread(void *data)
 	case SIG_FXOKS:
 		/* Read the first digit */
 		timeout = firstdigittimeout;
+		/* If starting a threeway call, never timeout on the first digit so someone
+		   can use flash-hook as a "hold" feature */
+		if (p->subs[SUB_THREEWAY].owner) 
+			timeout = 999999;
 		while(len < AST_MAX_EXTENSION-1) {
 			res = ast_waitfordigit(chan, timeout);
 			timeout = 0;
@@ -3570,7 +3574,7 @@ static void *ss_thread(void *data)
 				return NULL;
 			} else if (res)  {
 				exten[len++]=res;
-            			exten[len] = '\0';
+            	exten[len] = '\0';
 			}
 			if (!ast_ignore_pattern(chan->context, exten))
 				tone_zone_play_tone(p->subs[index].zfd, -1);

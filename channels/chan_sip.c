@@ -797,7 +797,7 @@ static int sip_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	return -1;
 }
 
-static struct ast_channel *sip_new(struct sip_pvt *i, int state)
+static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
 	struct ast_channel *tmp;
 	int fmt;
@@ -807,7 +807,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state)
 		if (!tmp->nativeformats)
 			tmp->nativeformats = capability;
 		fmt = ast_best_codec(tmp->nativeformats);
-		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s:%d", inet_ntoa(i->sa.sin_addr), ntohs(i->sa.sin_port));
+		if (title)
+			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s", title);
+		else
+			snprintf(tmp->name, sizeof(tmp->name), "SIP/%s:%d", inet_ntoa(i->sa.sin_addr), ntohs(i->sa.sin_port));
 		tmp->type = type;
 		tmp->fds[0] = ast_rtp_fd(i->rtp);
 		ast_setstate(tmp, state);
@@ -2256,6 +2259,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
 				if (strlen(user->callerid) && strlen(p->callerid)) 
 					strncpy(p->callerid, user->callerid, sizeof(p->callerid) - 1);
+				strncpy(p->username, user->name, sizeof(p->username) - 1);
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 				p->canreinvite = user->canreinvite;
 				p->amaflags = user->amaflags;
@@ -2992,7 +2996,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				/* Initialize tag */	
 				p->tag = rand();
 				/* First invitation */
-				c = sip_new(p, AST_STATE_DOWN);
+				c = sip_new(p, AST_STATE_DOWN, strlen(p->username) ? p->username : NULL);
 			}
 			
 		} else 
@@ -3388,7 +3392,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 #if 0
 	printf("Setting up to call extension '%s' at '%s'\n", ext ? ext : "<none>", host);
 #endif
-	tmpc = sip_new(p, AST_STATE_DOWN);
+	tmpc = sip_new(p, AST_STATE_DOWN, host);
 	if (!tmpc)
 		sip_destroy(p);
 	restart_monitor();

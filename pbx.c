@@ -145,6 +145,7 @@ static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
 static int pbx_builtin_busy(struct ast_channel *, void *);
 static int pbx_builtin_setvar(struct ast_channel *, void *);
+static int pbx_builtin_setglobalvar(struct ast_channel *, void *);
 static int pbx_builtin_noop(struct ast_channel *, void *);
 static int pbx_builtin_gotoif(struct ast_channel *, void *);
 void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value);
@@ -259,9 +260,13 @@ static struct pbx_builtin {
 "  Busy(): Requests that the channel indicate busy condition and then waits\n"
 "for the user to hang up.  Always returns -1." },
 
-	{ "Setvar", pbx_builtin_setvar,
+	{ "SetVar", pbx_builtin_setvar,
 "Set variable to value",
 "  Setvar(#n=value): Sets variable n to value" },
+
+	{ "SetGlobalVar", pbx_builtin_setglobalvar,
+"Set variable to value",
+"  Setvar(#n=value): Sets global variable n to value" },
 
 	{ "NoOp", pbx_builtin_noop,
 "No operation",
@@ -3579,6 +3584,27 @@ static int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 			
         return(0);
 }
+
+static int pbx_builtin_setglobalvar(struct ast_channel *chan, void *data)
+{
+	char *name;
+	char *value;
+	char *stringp=NULL;
+                
+	if (!data || !strlen(data)) {
+		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
+		return 0;
+	}
+	
+	stringp=data;
+	name=strsep(&stringp,"=");
+	value=strsep(&stringp,"\0"); 
+	
+	pbx_builtin_setvar_helper(NULL,name,value);
+			
+        return(0);
+}
+
 
 static int pbx_builtin_noop(struct ast_channel *chan, void *data)
 {
