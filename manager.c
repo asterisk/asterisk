@@ -418,6 +418,8 @@ static int action_originate(struct mansession *s, struct message *m)
 	char *priority = astman_get_header(m, "Priority");
 	char *timeout = astman_get_header(m, "Timeout");
 	char *callerid = astman_get_header(m, "CallerID");
+    char *variable = astman_get_header(m, "Variable");
+    char *account = astman_get_header(m, "Account");
 	char *app = astman_get_header(m, "Application");
 	char *appdata = astman_get_header(m, "Data");
 	char *tech, *data;
@@ -448,9 +450,9 @@ static int action_originate(struct mansession *s, struct message *m)
 	*data = '\0';
 	data++;
 	if (strlen(app)) {
-           res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, strlen(callerid) ? callerid : NULL, NULL, NULL);
-       	} else {
-	   res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, strlen(callerid) ? callerid : NULL, NULL, NULL);
+        res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, strlen(callerid) ? callerid : NULL, variable, account);
+    } else {
+        res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, strlen(callerid) ? callerid : NULL, variable, account);
 	}   
 	if (!res)
 		astman_send_ack(s, m, "Originate successfully queued");
