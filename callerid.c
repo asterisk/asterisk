@@ -706,9 +706,12 @@ int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int 
 	ast_callerid_parse(tmp, &n, &l);
 	if (n)
 		strncpy(name, n, namelen - 1);
+	else
+		name[0] = '\0';
 	if (l) {
 		ast_shrink_phone_number(l);
 		strncpy(num, l, numlen - 1);
-	}
+	} else
+		num[0] = '\0';
 	return 0;
 }
