@@ -63,7 +63,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	for (; vdata[i] && (vdata[i] != ':') ; i++ ) {
+	for (; vdata[i] && (vdata[i] != ':') && (vdata[i] != '|'); i++ ) {
 		if ((vdata[i] == '%') && (vdata[i+1] == 'd')) {
 			percentflag = 1;                      /* the wildcard is used */
 		}
