@@ -243,9 +243,8 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 	printf("ENUMTXT Called\n");
 #endif
 
-	if(answer != NULL)
-	{
-		c->txtlen = strlen(answer) - 2;
+	if (answer != NULL) {
+		c->txtlen = strlen(answer);
 		strncpy(c->txt, answer, 255);
 		c->txt[c->txtlen] = 0;
 		return 1;
