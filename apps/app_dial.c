@@ -63,6 +63,9 @@ static char *descrip =
 "The option string may contain zero or more of the following characters:\n"
 "      't' -- allow the called user transfer the calling user by hitting #.\n"
 "      'T' -- allow the calling user to transfer the call by hitting #.\n"
+"      'f' -- Forces callerid to be set as the extension of the line making/redirecting the outgoing call.\n"
+"             For example, some PSTNs don't allow callerids from other extensions then the ones\n"
+"             that are assigned to you.\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm' -- provide hold music to the calling party until answered.\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
@@ -99,6 +102,7 @@ struct localuser {
 	int ringbackonly;
 	int musiconhold;
 	int allowdisconnect;
+	int forcecallerid;
 	struct localuser *next;
 };
 
@@ -219,15 +223,28 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						o->stillgoing = 0;
 						numbusies++;
 					} else {
-						if (in->callerid) {
-							if (o->chan->callerid)
-								free(o->chan->callerid);
-							o->chan->callerid = malloc(strlen(in->callerid) + 1);
-							if (o->chan->callerid)
-								strncpy(o->chan->callerid, in->callerid, strlen(in->callerid) + 1);
+						if (o->chan->callerid)
+							free(o->chan->callerid);
+
+						o->chan->callerid = NULL;
+
+						if (o->forcecallerid) {
+							char *newcid = NULL;
+
+							if (strlen(in->macroexten))
+								newcid = in->macroexten;
 							else
+								newcid = in->exten;
+							o->chan->callerid = strdup(newcid);
+							if (!o->chan->callerid)
+								ast_log(LOG_WARNING, "Out of memory\n");
+						} else {
+							if (in->callerid)
+								o->chan->callerid = strdup(in->callerid);
+							if (!o->chan->callerid)
 								ast_log(LOG_WARNING, "Out of memory\n");
 						}
+
 						if (in->ani) {
 							if (o->chan->ani)
 								free(o->chan->ani);
@@ -658,6 +675,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
                         else    allowdisconnect = tmp->allowdisconnect = 0;
 			if(strchr(transfer, 'g'))
 				go_on=1;
+			if (strchr(transfer, 'f'))
+				tmp->forcecallerid = 1;
+			else	tmp->forcecallerid = 0;
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
