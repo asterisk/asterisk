@@ -4752,22 +4752,23 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 						transmit_response_reliable(p, "503 Unavailable", req);
 						c = NULL;
 					}
-				} else if (ast_pickup_call(c)) {
-					ast_log(LOG_NOTICE, "Nothing to pick up\n");
-					transmit_response_reliable(p, "503 Unavailable", req);
-					p->alreadygone = 1;
-					/* Unlock locks so ast_hangup can do its magic */
-					ast_mutex_unlock(&c->lock);
-					ast_mutex_unlock(&p->lock);
-					ast_hangup(c);
-					ast_mutex_lock(&p->lock);
-					c = NULL;
 				} else {
 					ast_mutex_unlock(&c->lock);
-					ast_mutex_unlock(&p->lock);
-					ast_hangup(c);
-					ast_mutex_lock(&p->lock);
-					c = NULL;
+					if (ast_pickup_call(c)) {
+						ast_log(LOG_NOTICE, "Nothing to pick up\n");
+						transmit_response_reliable(p, "503 Unavailable", req);
+						p->alreadygone = 1;
+						/* Unlock locks so ast_hangup can do its magic */
+						ast_mutex_unlock(&p->lock);
+						ast_hangup(c);
+						ast_mutex_lock(&p->lock);
+						c = NULL;
+					} else {
+						ast_mutex_unlock(&p->lock);
+						ast_hangup(c);
+						ast_mutex_lock(&p->lock);
+						c = NULL;
+					}
 				}
 				break;
 			case AST_STATE_RING:
