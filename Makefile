@@ -401,7 +401,7 @@ webvmail:
 	@[ -d $(DESTDIR)$(HTTPDIR) ] || ( echo "No HTTP directory" && exit 1 )
 	@[ -d $(DESTDIR)$(HTTPDIR)/html ] || ( echo "No http directory" && exit 1 )
 	@[ -d $(DESTDIR)$(HTTPDIR)/cgi-bin ] || ( echo "No cgi-bin directory" && exit 1 )
-	install -m 4755 -o root -g root vmail.cgi $(DESTDIR)$(HTTPDIR)/cgi-bin/vmail.cgi
+	install -m 4755 -o root -g root contrib/scripts/vmail.cgi $(DESTDIR)$(HTTPDIR)/cgi-bin/vmail.cgi
 	mkdir -p $(DESTDIR)$(HTTPDIR)/html/_asterisk
 	for x in images/*.gif; do \
 		install -m 644 $$x $(DESTDIR)$(HTTPDIR)/html/_asterisk/; \
@@ -416,7 +416,7 @@ webvmail:
 	@echo " +-------------------------------------------+"  
 
 mailbox:
-	./addmailbox 
+	./contrib/scripts/addmailbox 
 	
 
 rpm: __rpm
