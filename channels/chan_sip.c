@@ -5029,7 +5029,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	build_contact(p);
 	peer = find_peer(name, NULL);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
-		ASTOBJ_UNREF(peer,sip_destroy_peer);
+		if (peer)
+			ASTOBJ_UNREF(peer,sip_destroy_peer);
 	}
 	if (peer) {
 			if (!ast_test_flag(peer, SIP_DYNAMIC)) {
