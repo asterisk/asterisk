@@ -494,3 +494,8 @@ char *description(void)
 {
 	return dtext;
 }
+
+char *key(void)
+{
+	return ASTERISK_GPL_KEY;
+}

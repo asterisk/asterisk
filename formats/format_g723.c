@@ -350,3 +350,8 @@ char *description()
 	return desc;
 }
 
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}

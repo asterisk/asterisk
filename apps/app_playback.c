@@ -75,3 +75,8 @@ int usecount(void)
 	STANDARD_USECOUNT(res);
 	return res;
 }
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}

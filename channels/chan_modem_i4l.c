@@ -358,6 +358,8 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 			if (f)
 				break;
 		}
+		if (f)
+			return f;
 		/* If we get here, we have a complete voice frame */
 		p->fr.frametype = AST_FRAME_VOICE;
 		p->fr.subclass = AST_FORMAT_SLINEAR;
@@ -570,3 +572,7 @@ char *description()
 	return desc;
 }
 
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}

@@ -21,19 +21,64 @@
 #include <asterisk/config.h>
 #include <asterisk/logger.h>
 #include <dlfcn.h>
+#include <asterisk/md5.h>
 #define __USE_GNU
 #include <pthread.h>
 #include "asterisk.h"
+
+static char expected_key[] =
+{ 0x8e, 0x93, 0x22, 0x83, 0xf5, 0xc3, 0xc0, 0x75,
+  0xff, 0x8b, 0xa9, 0xbe, 0x7c, 0x43, 0x74, 0x63 };
 
 struct module {
 	int (*load_module)(void);
 	int (*unload_module)(void);
 	int (*usecount)(void);
 	char *(*description)(void);
+	char *(*key)(void);
+	int (*reload)(void);
 	void *lib;
 	char resource[256];
 	struct module *next;
 };
+
+static int printdigest(unsigned char *d)
+{
+	int x;
+	char buf[256];
+	char buf2[16];
+	snprintf(buf, sizeof(buf), "Unexpected signature:");
+	for (x=0;x<16;x++) {
+		snprintf(buf2, sizeof(buf2), " %02x", *(d++));
+		strcat(buf, buf2);
+	}
+	strcat(buf, "\n");
+	ast_log(LOG_DEBUG, buf);
+	return 0;
+}
+
+static int key_matches(char *key1, char *key2)
+{
+	int match = 1;
+	int x;
+	for (x=0;x<16;x++) {
+		match &= (key1[x] == key2[x]);
+	}
+	return match;
+}
+
+static int verify_key(char *key)
+{
+	struct MD5Context c;
+	char digest[16];
+	MD5Init(&c);
+	MD5Update(&c, key, strlen(key));
+	MD5Final(digest, &c);
+	if (key_matches(expected_key, digest))
+		return 0;
+	printdigest(digest);
+	return -1;
+}
 
 static struct loadupdate {
 	int (*updater)(void);
@@ -94,6 +139,7 @@ int ast_load_resource(char *resource_name)
 	struct module *m;
 	int flags=0;
 	char *val;
+	char *key;
 	int o;
 	struct ast_config *cfg;
 	/* Keep the module file parsing silent */
@@ -158,6 +204,21 @@ int ast_load_resource(char *resource_name)
 		ast_log(LOG_WARNING, "No description in module %s\n", fn);
 		errors++;
 	}
+	m->key = dlsym(m->lib, "key");
+	if (!m->key) {
+		ast_log(LOG_WARNING, "No key routine in module %s\n", fn);
+		errors++;
+	}
+	m->reload = dlsym(m->lib, "reload");
+	if (m->key && !(key = m->key())) {
+		ast_log(LOG_WARNING, "Key routine returned NULL in module %s\n", fn);
+		errors++;
+	} else
+		key = NULL;
+	if (key && verify_key(key)) {
+		ast_log(LOG_WARNING, "Unexpected key returned by module %s\n", fn);
+		errors++;
+	}
 	if (errors) {
 		ast_log(LOG_WARNING, "%d error(s) loading module %s, aborted\n", errors, fn);
 		dlclose(m->lib);
@@ -175,6 +236,7 @@ int ast_load_resource(char *resource_name)
 			ast_verbose(VERBOSE_PREFIX_1 "Loaded %s => (%s)\n", fn, m->description());
 	}
 	m->next = module_list;
+	
 	module_list = m;
 	pthread_mutex_unlock(&modlock);
 	if ((res = m->load_module())) {

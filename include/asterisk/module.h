@@ -25,6 +25,17 @@ int unload_module(void);		/* Cleanup all module structures,
 					   sockets, etc */
 int usecount(void);			/* How many channels provided by this module are in use? */
 char *description(void);		/* Description of this module */
+char *key(void);		/* Return the below mentioned key, unmodified */
+
+int reload(void);
+
+#define ASTERISK_GPL_KEY \
+	"This paragraph is Copyright (C) 2000, Linux Support Services, Inc.  \
+In order for your module to load, it must return this key via a function \
+called \"key\".  Any code which includes this paragraph must be licensed under \
+the GNU General Public License version 2 or later (at your option).   Linux \
+Support Services, Inc. reserves the right to allow other parties to license \
+this paragraph under other terms as well."
 
 #define AST_MODULE_CONFIG "modules.conf" /* Module configuration file */
 
