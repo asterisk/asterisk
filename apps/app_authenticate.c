@@ -18,6 +18,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/app.h>
+#include <asterisk/astdb.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -41,7 +42,11 @@ static char *descrip =
 "an optional set of opions may be provided by concatenating any\n"
 "of the following letters:\n"
 "     a - Set account code to the password that is entered\n"
+"     d - Interpret path as database key, not literal file\n"
+"     r - Remove database key upon successful entry (valid with 'd' only)\n"
 "\n"
+"When using a database key, the value associated with the key can be\n"
+"anything.\n"
 "Returns 0 if the user enters a valid password within three\n"
 "tries, or -1 otherwise (or on hangup).\n";
 
@@ -85,24 +90,36 @@ static int auth_exec(struct ast_channel *chan, void *data)
 			break;
 		res = 0;
 		if (password[0] == '/') {
-			/* Compare against a file */
-			FILE *f;
-			f = fopen(password, "r");
-			if (f) {
-				char buf[256] = "";
-				while(!feof(f)) {
-					fgets(buf, sizeof(buf), f);
-					if (!feof(f) && strlen(buf)) {
-						buf[strlen(buf) - 1] = '\0';
-						if (strlen(buf) && !strcmp(passwd, buf))
-							break;
+			if (strchr(opts, 'd')) {
+				char tmp[256];
+				/* Compare against a database key */
+				if (!ast_db_get(password + 1, passwd, tmp, sizeof(tmp))) {
+					/* It's a good password */
+					if (strchr(opts, 'r')) {
+						ast_db_del(password + 1, passwd);
 					}
-				}
-				fclose(f);
-				if (strlen(buf) && !strcmp(passwd, buf))
 					break;
-			} else 
-				ast_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", password, strerror(errno));
+				}
+			} else {
+				/* Compare against a file */
+				FILE *f;
+				f = fopen(password, "r");
+				if (f) {
+					char buf[256] = "";
+					while(!feof(f)) {
+						fgets(buf, sizeof(buf), f);
+						if (!feof(f) && strlen(buf)) {
+							buf[strlen(buf) - 1] = '\0';
+							if (strlen(buf) && !strcmp(passwd, buf))
+								break;
+						}
+					}
+					fclose(f);
+					if (strlen(buf) && !strcmp(passwd, buf))
+						break;
+				} else 
+					ast_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", password, strerror(errno));
+			}
 		} else {
 			/* Compare against a fixed password */
 			if (!strcmp(passwd, password)) 
