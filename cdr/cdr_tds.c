@@ -322,7 +322,7 @@ static char *anti_injection(const char *str, int len)
 	/* Erase known bad input */
 	for (idx=0; *known_bad[idx]; idx++)
 	{
-		while(srh_ptr = stristr(buf, known_bad[idx])) /* fix me! */
+		while((srh_ptr = stristr(buf, known_bad[idx]))) /* fix me! */
 		{
 			memmove(srh_ptr, srh_ptr+strlen(known_bad[idx]), strlen(srh_ptr+strlen(known_bad[idx]))+1);
 		}
