@@ -76,11 +76,17 @@
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
 #define EXPIRY_GUARD_SECS	15	/* How long before expiry do we reregister */
-#define EXPIRY_GUARD_LIMIT      30	/* Below here, we use EXPIRY_GUARD_PCT instead of EXPIRY_GUARD_SECS */
-#define EXPIRY_GUARD_MIN	500	/* This is the minimum guard time applied. If GUARD_PCT turns out
-					to be lower than this, it will use this time instead. This is in
-					milliseconds. */
-#define EXPIRY_GUARD_PCT        0.20	/* Percentage of expires timeout to use when below EXPIRY_GUARD_LIMIT */
+#define EXPIRY_GUARD_LIMIT      30	/* Below here, we use EXPIRY_GUARD_PCT instead of 
+					   EXPIRY_GUARD_SECS */
+#define EXPIRY_GUARD_MIN	500	/* This is the minimum guard time applied. If 
+					   GUARD_PCT turns out to be lower than this, it 
+					   will use this time instead.
+					   This is in milliseconds. */
+#define EXPIRY_GUARD_PCT        0.20	/* Percentage of expires timeout to use when 
+					   below EXPIRY_GUARD_LIMIT */
+
+static int max_expiry = DEFAULT_MAX_EXPIRY;
+static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -89,23 +95,21 @@
 #define CALLERID_UNKNOWN	"Unknown"
 
 /* --- Choices for DTMF support in SIP channel */
-#define SIP_DTMF_RFC2833	(1 << 0)
-#define SIP_DTMF_INBAND		(1 << 1)
-#define SIP_DTMF_INFO		(1 << 2)
+#define SIP_DTMF_RFC2833	(1 << 0)	/* RTP DTMF */
+#define SIP_DTMF_INBAND		(1 << 1)	/* Inband audio, only for ULAW/ALAW */
+#define SIP_DTMF_INFO		(1 << 2)	/* SIP Info messages */
 
-static int max_expiry = DEFAULT_MAX_EXPIRY;
-static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
-#define DEFAULT_FREQ_OK		60 * 1000		/* How often to check for the host to be up */
-#define DEFAULT_FREQ_NOTOK	10 * 1000		/* How often to check, if the host is down... */
+#define DEFAULT_FREQ_OK		60 * 1000	/* How often to check for the host to be up */
+#define DEFAULT_FREQ_NOTOK	10 * 1000	/* How often to check, if the host is down... */
 
-#define DEFAULT_RETRANS		1000			/* How frequently to retransmit */
-#define MAX_RETRANS		5			/* Try only 5 times for retransmissions */
+#define DEFAULT_RETRANS		1000		/* How frequently to retransmit */
+#define MAX_RETRANS		5		/* Try only 5 times for retransmissions */
 
-							/* SIP Debug		*/
-#define DEBUG_READ	0				/* Recieved data	*/
-#define DEBUG_SEND	1				/* Transmit data	*/
+						/* SIP Debug		*/
+#define DEBUG_READ	0			/* Recieved data	*/
+#define DEBUG_SEND	1			/* Transmit data	*/
 
 static char *desc = "Session Initiation Protocol (SIP)";
 static char *type = "SIP";
@@ -113,7 +117,7 @@ static char *tdesc = "Session Initiation Protocol (SIP)";
 static char *config = "sip.conf";
 
 #define DEFAULT_SIP_PORT	5060	/* From RFC 2543 */
-#define SIP_MAX_PACKET	4096		/* Also from RFC 2543, should sub headers tho */
+#define SIP_MAX_PACKET		4096	/* Also from RFC 2543, should sub headers tho */
 
 #define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER"
 
@@ -146,7 +150,7 @@ static int global_trustrpid = 0;	/* Trust RPID headers? Default off. */
 static int global_progressinband = 0;
 
 #ifdef OSP_SUPPORT
-static int global_ospauth = 0;
+static int global_ospauth = 0;		/* OSP = Open Settlement Protocol */
 #endif
 
 #define DEFAULT_MWITIME 10
@@ -187,11 +191,11 @@ static int videosupport = 0;
 
 static int global_dtmfmode = SIP_DTMF_RFC2833;		/* DTMF mode default */
 static int recordhistory = 0;
-static int global_promiscredir;
+static int global_promiscredir;				/* Support of 302 REDIR - Default off */
 
 static char global_musicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
 static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
-static char regcontext[AST_MAX_EXTENSION] = "";
+static char regcontext[AST_MAX_EXTENSION] = "";		/* Context for auto-extensions */
 
 /* Expire slowly */
 static int expiry = 900;
@@ -216,10 +220,10 @@ static struct sip_codec_pref {
 
 /* sip_request: The data grabbed from the UDP socket */
 struct sip_request {
-  char *rlPart1; /* SIP Method Name or "SIP/2.0" protocol version */
-  char *rlPart2; /* The Request URI or Response Status */
-	int len;
-	int headers;					/* SIP Headers */
+	char *rlPart1; 		/* SIP Method Name or "SIP/2.0" protocol version */
+	char *rlPart2; 		/* The Request URI or Response Status */
+	int len;		/* Length */
+	int headers;		/* # of SIP Headers */
 	char *header[SIP_MAX_HEADERS];
 	int lines;						/* SDP Content */
 	char *line[SIP_MAX_LINES];
@@ -273,7 +277,7 @@ static struct sip_pvt {
 	struct sockaddr_in sa;			/* Our peer */
 	struct sockaddr_in redirip;		/* Where our RTP should be going if not to us */
 	struct sockaddr_in vredirip;		/* Where our Video RTP should be going if not to us */
-	int redircodecs;				/* Redirect codecs */
+	int redircodecs;			/* Redirect codecs */
 	struct sockaddr_in recv;		/* Received as */
 	struct in_addr ourip;			/* Our IP */
 	struct ast_channel *owner;		/* Who owns us */
@@ -298,12 +302,12 @@ static struct sip_pvt {
 	char peername[256];
 	char authname[256];			/* Who we use for authentication */
 	char uri[256];				/* Original requested URI */
-	char peersecret[256];
+	char peersecret[256];			/* Password */
 	char peermd5secret[256];
 	char cid_num[256];			/* Caller*ID */
 	char cid_name[256];			/* Caller*ID */
-	char via[256];
-	char fullcontact[128];		/* Extra parameters to go in the "To" header */
+	char via[256];				/* Via: header */
+	char fullcontact[128];			/* The Contact: that the UA registers with us */
 	char accountcode[20];			/* Account code */
 	char our_contact[256];			/* Our contact header */
 	char realm[256];			/* Authorization realm */
@@ -331,15 +335,15 @@ static struct sip_pvt {
 	int rtptimeout;				/* RTP timeout time */
 	int rtpholdtimeout;			/* RTP timeout when on hold */
 
-	int subscribed;
+	int subscribed;				/* Is this call a subscription?  */
     	int stateid;
 	int dialogver;
 	int promiscredir;			/* Promiscuous redirection */
 	
-	int trustrpid;
+	int trustrpid;				/* Trust RPID headers? */
 	int progressinband;
 	
-	int dtmfmode;
+	int dtmfmode;				/* DTMF to use for this call */
 	struct ast_dsp *vad;
 	
 	struct sip_peer *peerpoke;		/* If this calls is to poke a peer, which one */
@@ -347,7 +351,7 @@ static struct sip_pvt {
 	struct ast_rtp *rtp;			/* RTP Session */
 	struct ast_rtp *vrtp;			/* Video RTP session */
 	struct sip_pkt *packets;		/* Packets scheduled for re-transmission */
-	struct sip_history *history;	/* History of this SIP dialog */
+	struct sip_history *history;		/* History of this SIP dialog */
 	struct sip_pvt *next;			/* Next call in chain */
 } *iflist = NULL;
 
@@ -357,104 +361,104 @@ static struct sip_pvt {
 /* sip packet - read in sipsock_read, transmitted in send_request */
 struct sip_pkt {
 	struct sip_pkt *next;				/* Next packet */
-	int retrans;						/* Retransmission number */
-	int seqno;							/* Sequence number */
-	int flags;							/* non-zero if this is a response packet (e.g. 200 OK) */
+	int retrans;					/* Retransmission number */
+	int seqno;					/* Sequence number */
+	int flags;					/* non-zero if this is a response packet (e.g. 200 OK) */
 	struct sip_pvt *owner;				/* Owner call */
-	int retransid;						/* Retransmission ID */
-	int packetlen;						/* Length of packet */
+	int retransid;					/* Retransmission ID */
+	int packetlen;					/* Length of packet */
 	char data[0];
 };	
 
 /* Structure for SIP user data. User's place calls to us */
 struct sip_user {
 	/* Users who can access various contexts */
-	char name[80];
-	char secret[80];
-	char md5secret[80];
-	char context[80];
-	char cid_num[80];
-	char cid_name[80];
-	char accountcode[20];
-	char language[MAX_LANGUAGE];
+	char name[80];			/* The name in sip.conf */
+	char secret[80];		/* Password */
+	char md5secret[80];		/* Password in md5 */
+	char context[80];		/* Default context for incoming calls */
+	char cid_num[80];		/* Caller ID num */
+	char cid_name[80];		/* Caller ID name */
+	char accountcode[20];		/* Account code */
+	char language[MAX_LANGUAGE];	/* Default language for this user */
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
 	char useragent[256];		/* User agent in SIP request */
-	unsigned int callgroup;
-	unsigned int pickupgroup;
-	int nat;
-	int amaflags;
-	int callingpres;
-	int insecure;
-	int canreinvite;
-	int capability;
+	unsigned int callgroup;		/* Call group */
+	unsigned int pickupgroup;	/* Pickup Group */
+	int nat;			/* NAT setting */
+	int amaflags;			/* AMA flags for billing */
+	int callingpres;		/* Calling id presentation */
+	int insecure;			/* Insecure means don't check password */
+	int canreinvite;		/* Do we support re-invites ? */
+	int capability;			/* Codec capability */
 #ifdef OSP_SUPPORT
-	int ospauth;				/* Allow OSP Authentication */
+	int ospauth;			/* Allow OSP Authentication */
 #endif
-	int dtmfmode;
+	int dtmfmode;			/* DTMF setting */
 	int inUse;
 	int incominglimit;
 	int outUse;
 	int outgoinglimit;
-	int promiscredir;
-	int useclientcode;
-	int trustrpid;
+	int promiscredir;		/* Support of 302 redirect */
+	int useclientcode;		/* SNOM clientcode support */
+	int trustrpid;			/* Trust remote party ID from this UA */
 	int progressinband;
-	struct ast_ha *ha;
-	int temponly;
+	struct ast_ha *ha;		/* ACL setting */
+	int temponly;			/* Flag for temporary users (realtime) */
 	struct sip_user *next;
 };
 
 /* Structure for SIP peer data, we place calls to peers if registred  or fixed IP address (host) */
 struct sip_peer {
-	char name[80];
-	char secret[80];
-	char md5secret[80];
-	char context[80];		/* JK02: peers need context too to allow parking etc */
-	char username[80];
-	char tohost[80];
-	char regexten[AST_MAX_EXTENSION];	/* Extension to register (if regcontext is used) */
-	char fromuser[80];
-	char fromdomain[80];
-	char fullcontact[128];
-	char cid_num[80];
-	char cid_name[80];
-	char mailbox[AST_MAX_EXTENSION];
-	char language[MAX_LANGUAGE];
+	char name[80];			/* Peer name in sip.conf */
+	char secret[80];		/* Password */
+	char md5secret[80];		/* Password in MD5 */
+	char context[80];		/* Default context for incoming calls */
+	char username[80];		/* Temporary username until registration */
+	char tohost[80];		/* If not dynamic, IP address */
+	char regexten[AST_MAX_EXTENSION]; /* Extension to register (if regcontext is used) */
+	char fromuser[80];		/* From: user when calling this peer */
+	char fromdomain[80];		/* From: domain when calling this peer */
+	char fullcontact[128];		/* Contact registred with us (not in sip.conf) */
+	char cid_num[80];		/* Caller ID num */
+	char cid_name[80];		/* Caller ID name */
+	char mailbox[AST_MAX_EXTENSION]; /* Mailbox setting for MWI checks */
+	char language[MAX_LANGUAGE];	/* Default language for prompts */
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
-	char useragent[256];		/* User agent in SIP request */
+	char useragent[256];		/* User agent in SIP request (saved from registration) */
 	int lastmsgssent;
-	time_t	lastmsgcheck;
-	int dynamic;
-	int expire;
+	time_t	lastmsgcheck;		/* Last time we checked for MWI */
+	int dynamic;			/* Dynamic? Yes or no. Dynamic hosts register with us  */
+	int expire;			/* Registration expiration */
 	int expiry;
-	int capability;
+	int capability;			/* Codec capability */
 	int rtptimeout;
 	int rtpholdtimeout;
-	int insecure;
+	int insecure;			/* Do we want to authenticate this peer? */
 #ifdef OSP_SUPPORT
-	int ospauth;				/* Allow OSP Authentication */
+	int ospauth;			/* Allow OSP Authentication */
 #endif	
-	int nat;
-	int canreinvite;
-	unsigned int callgroup;
-	unsigned int pickupgroup;
-	int promiscredir;
-	int dtmfmode;
-	int trustrpid;
-	int useclientcode;
+	int nat;			/* NAT support needed? */
+	int canreinvite;		/* Does the peer support re-invites? */
+	unsigned int callgroup;		/* Call group */
+	unsigned int pickupgroup;	/* Pickup group */
+	int promiscredir;		/* Support of 302 redirect? */
+	int dtmfmode;			/* DTMF mode */
+	int trustrpid;			/* Trust Remote Party ID headers? */
+	int useclientcode;		/* SNOM clientcode support */
 	int progressinband;
-	struct sockaddr_in addr;
+	struct sockaddr_in addr;	/* IP address of peer */
 	struct in_addr mask;
 
 	/* Qualification */
 	struct sip_pvt *call;		/* Call pointer */
-	int pokeexpire;				/* When to expire poke */
-	int lastms;					/* How long last response took (in ms), or -1 for no response */
-	int maxms;					/* Max ms we will accept for the host to be up, 0 to not monitor */
-	struct timeval ps;			/* Ping send time */
+	int pokeexpire;			/* When to expire poke (qualify= checking) */
+	int lastms;			/* How long last response took (in ms), or -1 for no response */
+	int maxms;			/* Max ms we will accept for the host to be up, 0 to not monitor */
+	struct timeval ps;		/* Ping send time */
 	
-	struct sockaddr_in defaddr;
-	struct ast_ha *ha;
+	struct sockaddr_in defaddr;	/* Default IP address, used until registration */
+	struct ast_ha *ha;		/* Access control list */
 	int delme;
 	int selfdestruct;
 	int lastmsg;
@@ -465,25 +469,27 @@ struct sip_peer {
 AST_MUTEX_DEFINE_STATIC(sip_reload_lock);
 static int sip_reloading = 0;
 
-#define REG_STATE_UNREGISTERED 0
-#define REG_STATE_REGSENT	   1
-#define REG_STATE_AUTHSENT 	   2
-#define REG_STATE_REGISTERED   3
-#define REG_STATE_REJECTED	   4
-#define REG_STATE_TIMEOUT	   5
-#define REG_STATE_NOAUTH	   6
+/* States for outbound registrations (with register= lines in sip.conf */
+#define REG_STATE_UNREGISTERED		0
+#define REG_STATE_REGSENT		1
+#define REG_STATE_AUTHSENT		2
+#define REG_STATE_REGISTERED   		3
+#define REG_STATE_REJECTED	   	4
+#define REG_STATE_TIMEOUT	   	5
+#define REG_STATE_NOAUTH	   	6
 
-#define SIP_NAT_NEVER		0
+/* NAT settings */
+#define SIP_NAT_NEVER		0		/* No nat support */
 #define SIP_NAT_RFC3581		(1 << 0)
 #define SIP_NAT_ROUTE		(1 << 2)
 #define SIP_NAT_ALWAYS		(SIP_NAT_ROUTE | SIP_NAT_RFC3581)
 
 /* sip_registry: Registrations with other SIP proxies */
 struct sip_registry {
-	int portno;				/* Optional port override */
+	int portno;			/* Optional port override */
 	char username[80];		/* Who we are registering as */
 	char authuser[80];		/* Who we *authenticate* as */
-	char hostname[80];
+	char hostname[80];		/* Domain or host we register to */
 	char secret[80];		/* Password or key name in []'s */	
 	char md5secret[80];
 	char contact[80];		/* Contact extension */
@@ -492,7 +498,7 @@ struct sip_registry {
 	int timeout; 			/* sched id of sip_reg_timeout */
 	int refresh;			/* How often to refresh */
 	struct sip_pvt *call;		/* create a sip_pvt structure for each outbound "registration call" in progress */
-	int regstate;
+	int regstate;			/* Registration state (see above) */
 	int callid_valid;		/* 0 means we haven't chosen callid for this registry yet. */
 	char callid[80];		/* Global CallID for this registry */
 	unsigned int ocseq;		/* Sequence number we got to for REGISTERs for this registry */
@@ -5262,7 +5268,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	rpid = get_header(req, "Remote-Party-ID");
 	memset(rpid_num,0,sizeof(rpid_num));
 	if(!ast_strlen_zero(rpid)) 
-	  p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
+		p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
 
 	of = ditch_braces(from);
 	if (ast_strlen_zero(p->exten)) {
@@ -5290,7 +5296,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	if (*calleridname)
 		strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
 	if (ast_strlen_zero(of))
-			return 0;
+		return 0;
 	ast_mutex_lock(&userl.lock);
 	user = find_user(of);
 	/* Find user based on user name in the from header */
@@ -5304,10 +5310,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		p->progressinband = user->progressinband;
 		/* replace callerid if rpid found, and not restricted */
 		if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
-		  if (*calleridname)
-		  	strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
-		  strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
-		  ast_shrink_phone_number(p->cid_num);
+			if (*calleridname)
+				strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
+			strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
+			ast_shrink_phone_number(p->cid_num);
 		}
 
 		if (p->rtp) {
@@ -5383,10 +5389,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			p->progressinband = peer->progressinband;
 			/* replace callerid if rpid found, and not restricted */
 			if(!ast_strlen_zero(rpid_num) && p->trustrpid) {
-			  if (*calleridname)
-			  	strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
-			  strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
-			  ast_shrink_phone_number(p->cid_num);
+				if (*calleridname)
+					strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
+				strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
+				ast_shrink_phone_number(p->cid_num);
 			}
 #ifdef OSP_SUPPORT
 			p->ospauth = peer->ospauth;
@@ -5459,11 +5465,14 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 
 	return res;
 }
+
+/*--- check_user: Find user ---*/
 static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
 {
 	return check_user_full(p, req, cmd, uri, reliable, sin, ignore, NULL, 0);
 }
-/*--- get_msg_text: Get text out of a SIP MESSAGE ---*/
+
+/*--- get_msg_text: Get text out of a SIP MESSAGE packet ---*/
 static int get_msg_text(char *buf, int len, struct sip_request *req)
 {
 	int x;
@@ -5491,6 +5500,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024];
 	struct ast_frame f;
+
 	if (get_msg_text(buf, sizeof(buf), req)) {
 		ast_log(LOG_WARNING, "Unable to retrieve text from %s\n", p->callid);
 		return;
@@ -5498,13 +5508,13 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 	if (p->owner) {
 		if (sip_debug_test_pvt(p))
 			ast_verbose("Message received: '%s'\n", buf);
-		  memset(&f, 0, sizeof(f));
-		  f.frametype = AST_FRAME_TEXT;
-		  f.subclass = 0;
-		  f.offset = 0;
-		  f.data = buf;
-		  f.datalen = strlen(buf);
-		  ast_queue_frame(p->owner, &f);
+		memset(&f, 0, sizeof(f));
+		f.frametype = AST_FRAME_TEXT;
+		f.subclass = 0;
+		f.offset = 0;
+		f.data = buf;
+		f.datalen = strlen(buf);
+		ast_queue_frame(p->owner, &f);
 	}
 }
 
@@ -5518,6 +5528,7 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 	char olimits[40] = "";
 	char iused[40];
 	char oused[40];
+
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&userl.lock);
@@ -5678,20 +5689,20 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 /*--- print_group: Print call group and pickup group ---*/
 static void  print_group(int fd, unsigned int group) 
 {
- unsigned int i;
- int first=1;
+	unsigned int i;
+	int first=1;
 
- for (i=0; i<=31; i++) {	/* Max group is 31 */
-	if (group & (1 << i)) {
-	   if (!first) {
-		ast_cli(fd, ", ");
-	   } else {
-		first=0;
-	   }
-	   ast_cli(fd, "%u", i);
-	}
-    }
- ast_cli(fd, " (%u)\n", group);
+	for (i=0; i<=31; i++) {	/* Max group is 31 */
+		if (group & (1 << i)) {
+	   		if (!first) {
+				ast_cli(fd, ", ");
+			} else {
+				first=0;
+	  		}
+			ast_cli(fd, "%u", i);
+		}
+    	}
+	ast_cli(fd, " (%u)\n", group);
 }
 
 /*--- sip_show_peer: Show one peer in detail ---*/
@@ -5811,6 +5822,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 #define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s\n"
 	struct sip_registry *reg;
 	char host[80];
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&regl.lock);
@@ -5854,31 +5866,31 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 	ast_mutex_lock(&iflock);
 	cur = iflist;
 	if (!subscriptions)
-	   ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)",  "Format");
+		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)",  "Format");
 	else
-           ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "URI");
+        	ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "URI");
 	while (cur) {
 		if (!cur->subscribed && !subscriptions) {
-		   ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
-			ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
-			cur->callid, 
-			cur->ocseq, cur->icseq, 
-			ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), cur->needdestroy ? "(d)" : "" );
-		numchans++;
+			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), 
+				ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
+				cur->callid, 
+				cur->ocseq, cur->icseq, 
+				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), cur->needdestroy ? "(d)" : "" );
+			numchans++;
 		}
 		if (cur->subscribed && subscriptions) {
-                   ast_cli(fd, FORMAT3, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
-			ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
-                        cur->callid, cur->uri);
+                	ast_cli(fd, FORMAT3, ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr),
+				ast_strlen_zero(cur->username) ? ( ast_strlen_zero(cur->cid_num) ? "(None)" : cur->cid_num ) : cur->username, 
+                        	cur->callid, cur->uri);
 
                 }
 		cur = cur->next;
 	}
 	ast_mutex_unlock(&iflock);
 	if (!subscriptions)
-	   ast_cli(fd, "%d active SIP channel(s)\n", numchans);
+		ast_cli(fd, "%d active SIP channel(s)\n", numchans);
 	else
-	   ast_cli(fd, "%d active SIP subscriptions(s)\n", numchans);
+		ast_cli(fd, "%d active SIP subscriptions(s)\n", numchans);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -5891,6 +5903,7 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 	int which=0;
 	struct sip_pvt *cur;
 	char *c = NULL;
+
 	ast_mutex_lock(&iflock);
 	cur = iflist;
 	while(cur) {
@@ -5914,6 +5927,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	char iabuf[INET_ADDRSTRLEN];
 	size_t len;
 	int found = 0;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	len = strlen(argv[3]);
@@ -5923,9 +5937,9 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 		if (!strncasecmp(cur->callid, argv[3],len)) {
 			ast_cli(fd,"\n");
 			if (cur->subscribed)
-			   ast_cli(fd, "  * Subscription\n");
+				ast_cli(fd, "  * Subscription\n");
 			else
-			   ast_cli(fd, "  * SIP Call\n");
+				ast_cli(fd, "  * SIP Call\n");
 			ast_cli(fd, "  Direction:              %s\n", cur->outgoing?"Outgoing":"Incoming");
 			ast_cli(fd, "  Call-ID:                %s\n", cur->callid);
 			ast_cli(fd, "  Our Codec Capability:   %d\n", cur->capability);
@@ -5940,13 +5954,13 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
 			if (!ast_strlen_zero(cur->username))
-			   ast_cli(fd, "  Username:               %s\n", cur->username);
+				ast_cli(fd, "  Username:               %s\n", cur->username);
 			if (!ast_strlen_zero(cur->peername))
-			   ast_cli(fd, "  Peername:               %s\n", cur->peername);
+				ast_cli(fd, "  Peername:               %s\n", cur->peername);
 			if (!ast_strlen_zero(cur->uri))
-			   ast_cli(fd, "  Original uri:           %s\n", cur->uri);
+				ast_cli(fd, "  Original uri:           %s\n", cur->uri);
 			if (!ast_strlen_zero(cur->cid_num))
-			   ast_cli(fd, "  Caller-ID:              %s\n", cur->cid_num);
+				ast_cli(fd, "  Caller-ID:              %s\n", cur->cid_num);
 			ast_cli(fd, "  Need Destroy:           %d\n", cur->needdestroy);
 			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(fd, "  Promiscuous Redir:      %s\n", cur->promiscredir ? "Yes" : "No");
@@ -5977,6 +5991,7 @@ static int sip_show_history(int fd, int argc, char *argv[])
 	size_t len;
 	int x;
 	int found = 0;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	if (!recordhistory)
@@ -5988,9 +6003,9 @@ static int sip_show_history(int fd, int argc, char *argv[])
 		if (!strncasecmp(cur->callid, argv[3],len)) {
 			ast_cli(fd,"\n");
 			if (cur->subscribed)
-			   ast_cli(fd, "  * Subscription\n");
+				ast_cli(fd, "  * Subscription\n");
 			else
-			   ast_cli(fd, "  * SIP Call\n");
+				ast_cli(fd, "  * SIP Call\n");
 			x = 0;
 			hist = cur->history;
 			while(hist) {
@@ -6027,43 +6042,43 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 
 		/* Try getting the "signal=" part */
 		if (ast_strlen_zero(c = get_sdp(req, "Signal")) && ast_strlen_zero(c = get_sdp(req, "d"))) {
-		   ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
-		   transmit_response(p, "200 OK", req); /* Should return error */
-		   return;
+			ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
+			transmit_response(p, "200 OK", req); /* Should return error */
+			return;
 		} else {
-		   strncpy(buf, c, sizeof(buf) - 1);
+			strncpy(buf, c, sizeof(buf) - 1);
 		}
 	
 		if (p->owner) {	/* PBX call */
-		   if (!ast_strlen_zero(buf)) {
-			if (sipdebug)
-				ast_verbose("* DTMF received: '%c'\n", buf[0]);
-			if (buf[0] == '*')
-				event = 10;
-			else if (buf[0] == '#')
-				event = 11;
-			else
-				event = atoi(buf);
-                        if (event < 10) {
-                                resp = '0' + event;
-                        } else if (event < 11) {
-                                resp = '*';
-                        } else if (event < 12) {
-                                resp = '#';
-                        } else if (event < 16) {
-                                resp = 'A' + (event - 12);
-                        }
-			/* Build DTMF frame and deliver to PBX for transmission to other call leg*/
-                        memset(&f, 0, sizeof(f));
-                        f.frametype = AST_FRAME_DTMF;
-                        f.subclass = resp;
-                        f.offset = 0;
-                        f.data = NULL;
-                        f.datalen = 0;
-                        ast_queue_frame(p->owner, &f);
-		   }
-		   transmit_response(p, "200 OK", req);
-		   return;
+			if (!ast_strlen_zero(buf)) {
+				if (sipdebug)
+					ast_verbose("* DTMF received: '%c'\n", buf[0]);
+				if (buf[0] == '*')
+					event = 10;
+				else if (buf[0] == '#')
+					event = 11;
+				else
+					event = atoi(buf);
+                        	if (event < 10) {
+                                	resp = '0' + event;
+                        	} else if (event < 11) {
+                                	resp = '*';
+                        	} else if (event < 12) {
+                                	resp = '#';
+                        	} else if (event < 16) {
+                                	resp = 'A' + (event - 12);
+                        	}
+				/* Build DTMF frame and deliver to PBX for transmission to other call leg*/
+                        	memset(&f, 0, sizeof(f));
+                        	f.frametype = AST_FRAME_DTMF;
+                        	f.subclass = resp;
+                        	f.offset = 0;
+                        	f.data = NULL;
+                        	f.datalen = 0;
+                        	ast_queue_frame(p->owner, &f);
+		   	}
+		   	transmit_response(p, "200 OK", req);
+		   	return;
 		} else {
 			transmit_response(p, "481 Call leg/transaction does not exist", req);
 			p->needdestroy = 1;
@@ -6098,6 +6113,7 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 	char iabuf[INET_ADDRSTRLEN];
 	int port = 0;
 	char *p, *arg;
+
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
 	arg = argv[3];
@@ -6169,6 +6185,7 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*--- sip_do_history: Enable SIP History logging (CLI) ---*/
 static int sip_do_history(int fd, int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -6179,6 +6196,7 @@ static int sip_do_history(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*--- sip_no_history: Disable SIP History logging (CLI) ---*/
 static int sip_no_history(int fd, int argc, char *argv[])
 {
 	if (argc != 3) {
@@ -6531,6 +6549,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	struct timeval tv;
 	int seqno=0;
 	char iabuf[INET_ADDRSTRLEN];
+
 	c = get_header(req, "Cseq");
 	if (sscanf(c, "%d ", &seqno) != 1) {
 		ast_log(LOG_WARNING, "Unable to determine sequence number\n");
@@ -6613,12 +6632,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			p->initid = -1;
 		}
 		switch(resp) {
-		case 100:
+		case 100:	/* 100 Trying */
 			if (!strcasecmp(msg, "INVITE")) {
 				sip_cancel_destroy(p);
 			}
 			break;
-		case 183:	
+		case 183:	/* 183 Session Progress */
 			if (!strcasecmp(msg, "INVITE")) {
 				sip_cancel_destroy(p);
 				if (!ast_strlen_zero(get_header(req, "Content-Type")))
@@ -6629,7 +6648,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 			}
 			break;
-		case 180:
+		case 180:	/* 180 Ringing */
 			if (!strcasecmp(msg, "INVITE")) {
 				sip_cancel_destroy(p);
 				if (p->owner) {
@@ -6639,7 +6658,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 			}
 			break;
-		case 200:
+		case 200:	/* 200 OK */
 			if (!strcasecmp(msg, "NOTIFY")) {
 				/* They got the notify, this is the end */
 				if (p->owner) {
@@ -6651,6 +6670,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else if (!strcasecmp(msg, "INVITE")) {
+				/* 200 OK on invite - someone's answering our call */
 				sip_cancel_destroy(p);
 				if (!ast_strlen_zero(get_header(req, "Content-Type")))
 					process_sdp(p, req);
@@ -6751,7 +6771,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else
 				p->needdestroy = 1;
 			break;
-		case 407:
+		case 407:	/* 407 Proxy Authentication Required */
 			if (!strcasecmp(msg, "INVITE")) {
 				/* First we ACK */
 				transmit_request(p, "ACK", seqno, 0, 0);
@@ -6919,6 +6939,7 @@ static void *sip_park_thread(void *stuff)
 	return NULL;
 }
 
+/*--- sip_park: Park a call ---*/
 static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct sip_request *req)
 {
 	struct sip_dual *d;
@@ -7087,7 +7108,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	cmd = req->header[0];
 	/* Must have Cseq */
 	if (ast_strlen_zero(cmd) || ast_strlen_zero(cseq))
-			return -1;
+		return -1;
 	if (sscanf(cseq, "%i%n", &seqno, &len) != 1) {
 		ast_log(LOG_DEBUG, "No seqno in '%s'\n", cmd);
 		return -1;
@@ -7681,6 +7702,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	char name[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	int newmsgs, oldmsgs;
+
 	/* Check for messages */
 	ast_app_messagecount(peer->mailbox, &newmsgs, &oldmsgs);
 	
@@ -7733,6 +7755,7 @@ static void *do_monitor(void *data)
 	int lastpeernum = -1;
 	int curpeernum;
 	int reloading;
+
 	/* Add an I/O event to our UDP socket */
 	if (sipsock > -1) 
 		ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
@@ -8277,6 +8300,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	int maskfound=0;
 	int format;
 	int found=0;
+
 	prev = NULL;
 	ast_mutex_lock(&peerl.lock);
 	if (temponly) {
@@ -8515,7 +8539,7 @@ static int reload_config(void)
 	struct sip_user *user;
 	struct ast_hostent ahp;
 	char *cat;
-    char *utype;
+	char *utype;
 	struct hostent *hp;
 	int format;
 	int oldport = ntohs(bindaddr.sin_port);
