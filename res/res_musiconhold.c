@@ -53,7 +53,9 @@ static char *synopsis2 = "Set default Music On Hold class";
 
 static char *descrip0 = "MusicOnHold(class): "
 "Plays hold music specified by class.  If omitted, the default\n"
-"music source for the channel will be used.  Returns -1 on hangup.\n"
+"music source for the channel will be used. Set the default \n"
+"class with the SetMusicOnHold() application.\n"
+"Returns -1 on hangup.\n"
 "Never returns otherwise.\n";
 
 static char *descrip1 = "WaitMusicOnHold(delay): "
