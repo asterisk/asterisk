@@ -74,15 +74,20 @@ autokill=yes
 ;
 ; dundi_context => local_context,weight,tech,dest[,options]]
 ;
-; dundi_context is the name of the context being requested
+; 'dundi_context' is the name of the context being requested
 ; within the DUNDi request
 ;
-; local_context is the name of the context on the local system
+; 'local_context' is the name of the context on the local system
 ; in which numbers can be looked up for which responses shall be given.
 ;
-; tech is the technology to use (IAX, SIP, H323)
+; 'weight' is the weight to use for the responses provided from this
+; mapping.  The number must be >= 0 and < 60000.  Since it is totally
+; valid to receive multiple reponses to a query, responses received
+; with a lower weight are tried first.
 ;
-; dest is the destination to supply for reaching that number.  The
+; 'tech' is the technology to use (IAX, SIP, H323)
+;
+; 'dest' is the destination to supply for reaching that number.  The
 ; following variables can be used in the destination string and will
 ; be automatically substituted:
 ; ${NUMBER}: The number being requested
