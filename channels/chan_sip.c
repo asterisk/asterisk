@@ -3058,7 +3058,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	req = oreq;
 	if (!req)
 		req = &p->initreq;
-	strncpy(tmp, get_header(oreq, "Diversion"), sizeof(tmp) - 1);
+	strncpy(tmp, get_header(req, "Diversion"), sizeof(tmp) - 1);
 	if (!strlen(tmp))
 		return 0;
 	c = ditch_braces(tmp);
