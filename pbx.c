@@ -1726,6 +1726,7 @@ int ast_pbx_run(struct ast_channel *c)
 			if (ast_exists_extension(c, c->context, "i", 1, c->callerid)) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, c->name);
+				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", c->exten);
 				strncpy(c->exten, "i", sizeof(c->exten)-1);
 				c->priority = 1;
 			} else {
@@ -1770,6 +1771,7 @@ int ast_pbx_run(struct ast_channel *c)
 					if (ast_exists_extension(c, c->context, "i", 1, c->callerid)) {
 						if (option_verbose > 2)
 							ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", exten, c->context, c->name);
+						pbx_builtin_setvar_helper(c, "INVALID_EXTEN", exten);
 						strncpy(c->exten, "i", sizeof(c->exten)-1);
 						c->priority = 1;
 					} else {
