@@ -234,10 +234,15 @@ search_startbit3:
 
 getbyte:
 
-	/* Need at least 80 samples to be sure we'll have a byte */
-	if (*len < 80)
-		return 0;
-
+	/* Need at least 80 samples (for 1200) or
+		1320 (for 45.5) to be sure we'll have a byte */
+	if (fskd->nbit < 8) {
+		if (*len < 1320)
+			return 0;
+	} else {
+		if (*len < 80)
+			return 0;
+	}
 	/* Leemos ahora los bits de datos */
 	j=fskd->nbit;
 	for (a=n1=0;j;j--) {

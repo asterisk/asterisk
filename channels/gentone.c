@@ -69,10 +69,10 @@ int main(int argc, char *argv[])
 	if ((f = fopen(fn, "w"))) {
 		if (freq2) 
 			fprintf(f, "/* %s: Generated from frequencies %d and %d \n"
-			           "   by gensound.  %d samples  */\n", fn, freq1, freq2, samples); 
+			           "   by gentone.  %d samples  */\n", fn, freq1, freq2, samples); 
 		else
 			fprintf(f, "/* %s: Generated from frequency %d\n"
-			           "   by gensound.  %d samples  */\n", fn, freq1, samples); 
+			           "   by gentone.  %d samples  */\n", fn, freq1, samples); 
 		fprintf(f, "static short %s[%d] = {\n\t", argv[1], samples);
 		for (x=0;x<samples;x++) {
 			val = loudness * sin((freq1 * 2.0 * M_PI * x)/8000.0);
