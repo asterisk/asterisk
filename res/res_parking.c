@@ -355,6 +355,7 @@ int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer, int allo
 								,transferee->name, newext, transferer_real_context);
 						if (ast_async_goto(transferee, transferer_real_context, newext, 1, 1))
 							ast_log(LOG_WARNING, "Async goto fialed :(\n");
+						res = -1;
 					} else {
 						/* Set the channel's new extension, since it exists, using transferer context */
 						strncpy(transferee->exten, newext, sizeof(transferee->exten)-1);
