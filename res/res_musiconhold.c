@@ -163,6 +163,8 @@ static int spawn_mp3(struct mohclass *class)
 #endif	
 	if (!files) {
 		ast_log(LOG_WARNING, "Found no files in '%s'\n", class->dir);
+		close(fds[0]);
+		close(fds[1]);
 		return -1;
 	}
 	class->pid = fork();
@@ -189,6 +191,7 @@ static int spawn_mp3(struct mohclass *class)
 		/* Check PATH as a last-ditch effort */
 		execvp("mpg123", argv);
 		ast_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
+		close(fds[1]);
 		exit(1);
 	} else {
 		/* Parent */
