@@ -5,7 +5,7 @@
  * 	Supports RTP and RTCP with Symmetric RTP support for NAT
  * 	traversal
  * 
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

@@ -3,7 +3,7 @@
  *
  * RealTime App
  * 
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Anthony Minessale <anthmct@yahoo.com>
  * Mark Spencer <markster@digium.com>

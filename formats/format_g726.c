@@ -1,7 +1,7 @@
 /*
  * Headerless G.726 (16/24/32/40kbps) data format for Asterisk.
  * 
- * Copyright (c) 2004, inAccess Networks
+ * Copyright (c) 2004 - 2005, inAccess Networks
  *
  * Michael Manousos <manousos@inaccessnetworks.com>
  * 

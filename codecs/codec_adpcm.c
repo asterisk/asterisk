@@ -5,7 +5,7 @@
  * Based on frompcm.c and topcm.c from the Emiliano MIPL browser/
  * interpreter.  See http://www.bsdtelephony.com.mx
  *
- * Copyright (c) 2001-2004 Digium, inc
+ * Copyright (c) 2001 - 2005 Digium, Inc.
  * All rights reserved.
  *
  * Karl Sackett <krs@linux-support.net>, 2001-03-21

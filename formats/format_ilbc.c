@@ -5,7 +5,7 @@
  *
  * Brian K. West <brian@bkw.org>
  * 
- * Copyright (C) 1999-2004, Digium, inc
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

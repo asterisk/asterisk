@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Copyright (C) 2002-2004, Digium, inc
+ * Copyright (C) 2002 - 2005, Digium, Inc.
  *
  * By Matthew Fredrickson <creslin@digium.com>
  *

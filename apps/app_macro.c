@@ -3,7 +3,7 @@
  *
  * Macro Implementation
  * 
- * Copyright (C) 2003-2004, Digium, Inc.
+ * Copyright (C) 2003 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

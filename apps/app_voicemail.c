@@ -3,14 +3,14 @@
  *
  * Voicemail System
  * 
- * Copyright (C) 2003-2004, Digium Inc.
+ * Copyright (C) 2003 - 2005, Digium Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  *
- * 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
+ * 12-16 - 2005 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
  *				 George Konstantoulakis <gkon@inaccessnetworks.com>
  */
 

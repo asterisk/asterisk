@@ -6,7 +6,7 @@
  * Mark Spencer <markster@linux-support.net>
  *
  * res_odbc.h <ODBC resource manager>
- * Copyright (C) 2004 Anthony Minessale II <anthmct@yahoo.com>
+ * Copyright (C) 2004 - 2005 Anthony Minessale II <anthmct@yahoo.com>
  */
 
 #ifndef _RES_ODBC_H

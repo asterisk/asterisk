@@ -3,7 +3,7 @@
  *
  * Applications to test connection and produce report in text file
  * 
- * Copyright (C) 2004, Digium, Inc.
+ * Copyright (C) 2004 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * Russell Bryant <russelb@clemson.edu>

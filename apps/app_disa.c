@@ -3,7 +3,7 @@
  *
  * DISA -- Direct Inward System Access Application  6/20/2001
  * 
- * Copyright (C) 2001-2004, Digium, Inc.
+ * Copyright (C) 2001 - 2005, Digium, Inc.
  *
  * Jim Dixon <jim@lambdatel.com>
  *

@@ -8,7 +8,7 @@
  *
  * See http://www.arl.wustl.edu/~jaf/ 
  * 
- * Copyright (C) 1999-2004  Digium,inc 
+ * Copyright (C) 1999 - 2005  Digium,inc 
  *
  * Mark Spencer <markster@digium.com>
  *

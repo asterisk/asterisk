@@ -5,7 +5,7 @@
  * 
  * Copyright (C) 2003, Paul Bagyenda
  * Paul Bagyenda <bagyenda@dsmagic.com>
- * Copyright (C) 2004, Ben Kramer
+ * Copyright (C) 2004 - 2005, Ben Kramer
  * Ben Kramer <ben@voicetronix.com.au>
  *
  * Daniel Bichara <daniel@bichara.com.br> - Brazilian CallerID detection (c)2004 

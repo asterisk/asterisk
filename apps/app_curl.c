@@ -3,7 +3,7 @@
  *
  * Curl - App to load a URL
  * 
- * Copyright (C) 2004, Tilghman Lesher
+ * Copyright (C)  2004 - 2005, Tilghman Lesher
  *
  * Tilghman Lesher <curl-20041222@the-tilghman.com>
  * and Brian Wilkins <bwilkins@cfl.rr.com> (Added POST option)

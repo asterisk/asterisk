@@ -4,7 +4,7 @@
  *
  * Implementation by Alex Volkov <codepro@usa.net>
  *
- * Copyright (c) 2004, Digium
+ * Copyright (c) 2004 - 2005, Digium
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

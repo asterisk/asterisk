@@ -3,7 +3,7 @@
  *
  * Trivial application to dial a channel and send an URL on answer
  * 
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

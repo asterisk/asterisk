@@ -7,7 +7,7 @@
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
- * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
+ * Copyright (C) 2002 - 2005, Jim Dixon, WB6NIL
  *
  * Jim Dixon, WB6NIL <jim@lambdatel.com>
  * Serious contributions by Steve RoDgers, WA6ZFT <hwstar@rodgers.sdcoxmail.com>

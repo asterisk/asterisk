@@ -3,7 +3,7 @@
  *
  * SMS application - ETSI ES 201 912 protocol 1 implimentation
  * 
- * Copyright (C) 2004, Adrian Kennard, rights assigned to Digium
+ * Copyright (C) 2004 - 2005, Adrian Kennard, rights assigned to Digium
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

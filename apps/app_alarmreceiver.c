@@ -3,7 +3,7 @@
  *
  * Central Station Alarm receiver for Ademco Contact ID  
  * 
- * Copyright (C) 2004 Steve Rodgers
+ * Copyright (C)  2004 - 2005 Steve Rodgers
  *
  * Steve Rodgers <hwstar@rodgers.sdcoxmail.com>
  *

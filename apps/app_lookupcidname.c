@@ -3,7 +3,7 @@
  *
  * App to set callerid name from database, based on directory number
  * 
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

@@ -3,7 +3,7 @@
  *
  * A/Open ITU-56/2 Voice Modem Driver (Rockwell, IS-101, and others)
  * 
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

@@ -3,7 +3,7 @@
  *
  * Implementation of the Skinny protocol
  * 
- * Copyright (C) 1999-2004 Digium, inc
+ * Copyright (C) 1999 - 2005 Digium, inc
  *
  * chan_skinny was developed by Jeremy McNamara & Florian Overkamp
  *

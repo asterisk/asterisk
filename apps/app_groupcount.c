@@ -3,7 +3,7 @@
  *
  * Group Manipulation Applications
  *
- * Copyright (c) 2004 Digium
+ * Copyright (c) 2004 - 2005, Digium Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

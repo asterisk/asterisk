@@ -3,7 +3,7 @@
  *
  * simple maths application
  * 
- * Copyright (C) 2004, Andy Powell 
+ * Copyright (C) 2004 - 2005, Andy Powell 
  *
  * Updated by Mark Spencer <markster@digium.com>
  *

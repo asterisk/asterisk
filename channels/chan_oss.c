@@ -7,7 +7,7 @@
  * VERY BADLY WRITTEN DRIVER so please don't use it as a model for
  * writing a driver.
  * 
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

@@ -3,7 +3,7 @@
  *
  * CallerID Generation support 
  * 
- * Copyright (C) 2001-2004, Digium, Inc.
+ * Copyright (C) 2001 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *

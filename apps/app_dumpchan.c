@@ -3,7 +3,7 @@
  *
  * Application to dump channel variables
  * 
- * Copyright (C) 2004, Anthony Minessale II.
+ * Copyright (C) 2004 - 2005, Anthony Minessale II.
  *
  * Anthony Minessale <anthmct@yahoo.com>
  *

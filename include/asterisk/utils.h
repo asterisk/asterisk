@@ -3,7 +3,7 @@
  *
  * Utility functions
  *
- * Copyright (C) 2004, Digium
+ * Copyright (C) 2004 - 2005, Digium, Inc.
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

@@ -2,7 +2,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * HasVoicemail application
- * Changes Copyright (c) 2004 Todd Freeman <freeman@andrews.edu>
+ * Changes Copyright (c) 2004 - 2005 Todd Freeman <freeman@andrews.edu>
  * 
  * 95% based on HasNewVoicemail by:
  * 

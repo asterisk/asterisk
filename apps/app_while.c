@@ -3,7 +3,7 @@
  *
  * While Loop and ExecIf Implementations
  * 
- * Copyright 2004, Anthony Minessale <anthmct@yahoo.com>
+ * Copyright 2004 - 2005, Anthony Minessale <anthmct@yahoo.com>
  *
  * Anthony Minessale <anthmct@yahoo.com>
  *

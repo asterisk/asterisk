@@ -3,7 +3,7 @@
  *
  * Caller*id name lookup - Look up the caller's name via DNS
  * 
- * Copyright (C) 1999-2004, Digium
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@linux-support.net>
  *

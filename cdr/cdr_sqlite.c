@@ -3,7 +3,7 @@
  *
  * Store CDR records in a SQLite database.
  * 
- * Copyright (C) 2004, Holger Schurig
+ * Copyright (C) 2004 - 2005, Holger Schurig
  *
  * Holger Schurig <hs4233@mail.mn-solutions.de>
  *

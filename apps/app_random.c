@@ -3,7 +3,7 @@
  *
  * Random application
  * 
- * Copyright (c) 2003-2004 Tilghman Lesher.  All rights reserved.
+ * Copyright (c) 2003 - 2005 Tilghman Lesher.  All rights reserved.
  *
  * Tilghman Lesher <asterisk__app_random__20040111@the-tilghman.com>
  *

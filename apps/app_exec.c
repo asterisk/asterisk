@@ -3,7 +3,7 @@
  *
  * Exec application
  *
- * Copyright (c) 2004 Tilghman Lesher.  All rights reserved.
+ * Copyright (c) 2004 - 2005, Tilghman Lesher.  All rights reserved.
  *
  * Tilghman Lesher <app_exec__v001@the-tilghman.com>
  *

@@ -3,7 +3,7 @@
  *
  * Top level source file for asterisk
  * 
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -65,7 +65,7 @@
 #define AST_MAX_CONNECTS 128
 #define NUM_MSGS 64
 
-#define WELCOME_MESSAGE ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999-2004 Digium.\n"); \
+#define WELCOME_MESSAGE ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2005 Digium.\n"); \
 		ast_verbose( "Written by Mark Spencer <markster@digium.com>\n"); \
 		ast_verbose( "=========================================================================\n")
 
@@ -1467,7 +1467,7 @@ static int show_version(void)
 }
 
 static int show_cli_help(void) {
-	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 2000-2004, Digium.\n");
+	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 2000 - 2005, Digium.\n");
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");

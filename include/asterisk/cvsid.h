@@ -3,7 +3,7 @@
  *
  * CVSID Macro for including CVS file Id in source files.
  * 
- * Copyright (C) 2004, William Waites
+ * Copyright (C) 2004 - 2005, William Waites
  *
  * William Waites <ww@styx.org>
  *

@@ -3,7 +3,7 @@
  *
  * Check if Channel is Available
  * 
- * Copyright (C) 2003-2004, Digium, Inc.
+ * Copyright (C) 2003 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  * James Golovich <james@gnuinter.net>

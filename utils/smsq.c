@@ -11,7 +11,7 @@
 #include <time.h>
 
 /* SMS queuing application for use with asterisk app_sms */
-/* by Adrian Kennard, 2004 */
+/* by Adrian Kennard, 2004 - 2005 */
 
 /* reads next USC character from null terminated UTF-8 string and advanced pointer */
 /* for non valid UTF-8 sequences, returns character as is */

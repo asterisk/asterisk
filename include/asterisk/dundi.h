@@ -1,7 +1,7 @@
 /*
  * Distributed Universal Number Discovery (DUNDi)
  *
- * Copyright (C) 2004, Digium Inc.
+ * Copyright (C) 2004 - 2005, Digium Inc.
  *
  * Written by Mark Spencer <markster@digium.com>
  *

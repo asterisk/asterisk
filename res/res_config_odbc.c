@@ -1,12 +1,12 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
  * res_config_odbc.c <odbc+odbc plugin for portable configuration engine >
- * Copyright (C) 2004 Anthony Minessale II <anthmct@yahoo.com>
+ * Copyright (C) 2004 - 2005 Anthony Minessale II <anthmct@yahoo.com>
  */
 
 #include <asterisk/file.h>
