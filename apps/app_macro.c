@@ -28,6 +28,9 @@
 
 #define MAX_ARGS 80
 
+/* special result value used to force macro exit */
+#define MACRO_EXIT_RESULT 1024
+
 static char *tdesc = "Extension Macros";
 
 static char *descrip =
@@ -48,11 +51,20 @@ static char *if_descrip =
 "Executes macro defined in <label_a> if <expr> is true\n"
 "(otherwise <label_b> if provided)\n";
 
+static char *exit_descrip =
+"  MacroExit():\n"
+"Causes the currently running macro to exit as if it had\n"
+"ended normally by running out of priorities to execute.\n"
+"If used outside a macro, will likely cause unexpected\n"
+"behavior.\n";
+
 static char *app = "Macro";
 static char *if_app = "MacroIf";
+static char *exit_app = "MacroExit";
 
 static char *synopsis = "Macro Implementation";
 static char *if_synopsis = "Conditional Macro Implementation";
+static char *exit_synopsis = "Exit From Macro";
 
 STANDARD_LOCAL_USER;
 
@@ -159,6 +171,9 @@ static int macro_exec(struct ast_channel *chan, void *data)
 			break;
 		}
 		switch(res) {
+	        case MACRO_EXIT_RESULT:
+                        res = 0;
+			goto out;
 		case AST_PBX_KEEPALIVE:
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited KEEPALIVE in macro %s on '%s'\n", chan->context, chan->exten, chan->priority, macro, chan->name);
@@ -262,6 +277,11 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 			
+static int macro_exit_exec(struct ast_channel *chan, void *data)
+{
+	return MACRO_EXIT_RESULT;
+}
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
@@ -271,6 +291,7 @@ int unload_module(void)
 
 int load_module(void)
 {
+	ast_register_application(exit_app, macro_exit_exec, exit_synopsis, exit_descrip);
 	ast_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
 	return ast_register_application(app, macro_exec, synopsis, descrip);
 }
