@@ -3577,10 +3577,11 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 			if  (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
 				iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
-			iax2_poke_peer(p);
 		}		
 		/* Update the host */
 		memcpy(&p->addr, sin, sizeof(p->addr));
+		/* Verify that the host is really there */
+		iax2_poke_peer(p);
 		/* Setup the expirey */
 		if (p->expire > -1)
 			ast_sched_del(sched, p->expire);
