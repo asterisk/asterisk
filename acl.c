@@ -378,6 +378,7 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 			if ((portno = atoi(port)) > 0) 
 				sin.sin_port = htons(portno);
 		}
+		inet_aton(tmp, &sin.sin_addr);
 		return ast_netsock_bindaddr(list, ioc, &sin, tos, callback, data);
 	} else
 		ast_log(LOG_WARNING, "Out of memory!\n");
