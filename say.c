@@ -1093,13 +1093,17 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 {
 	int res = 0;
 	int playa = 0;
-	int mf = 1;                            /* +1 = male; -1 = female */
+	int mf = 0;                            /* +1 = male; -1 = female */
 	char fn[256] = "";
 	if (!num) 
 		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
 
-	if (options && !strncasecmp(options, "f",1))
-		mf = -1;
+	if (options) {
+		if (!strncasecmp(options, "f",1))
+			mf = -1;
+		else if (!strncasecmp(options, "m", 1))
+			mf = 1;
+	}
 
 	while (!res && num) {
 		if (num < 0) {
@@ -1110,12 +1114,14 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 				num = 0;
 			}	
 		} else if (playa) {
-			snprintf(fn, sizeof(fn), "digits/y");
+			snprintf(fn, sizeof(fn), "digits/and");
 			playa = 0;
 		} else if (num == 1) {
 			if (mf < 0)
 				snprintf(fn, sizeof(fn), "digits/%dF", num);
-			else
+			else if (mf > 0)
+				snprintf(fn, sizeof(fn), "digits/%dM", num);
+			else 
 				snprintf(fn, sizeof(fn), "digits/%d", num);
 			num = 0;
 		} else if (num < 31) {
@@ -1127,28 +1133,37 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, const char 
 			if (num)
 				playa++;
 		} else if (num == 100) {
-			snprintf(fn, sizeof(fn), "digits/cien");
+			snprintf(fn, sizeof(fn), "digits/100");
 			num = 0;
+		} else if (num < 200) {
+			snprintf(fn, sizeof(fn), "digits/100-and");
+			num -= 100;
 		} else {
 			if (num < 1000) {
 				snprintf(fn, sizeof(fn), "digits/%d", (num/100)*100);
 				num -= ((num/100)*100);
+			} else if (num < 2000) {
+				num = num % 1000;
+				snprintf(fn, sizeof(fn), "digits/thousand");
 			} else {
 				if (num < 1000000) {
 					res = ast_say_number_full_es(chan, num / 1000, ints, language, options, audiofd, ctrlfd);
 					if (res)
 						return res;
 					num = num % 1000;
-					snprintf(fn, sizeof(fn), "digits/mil");
+					snprintf(fn, sizeof(fn), "digits/thousand");
 				} else {
 					if (num < 2147483640) {
-						res = ast_say_number_full_es(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
-						if (res)
-							return res;
 						if ((num/1000000) == 1) {
-							snprintf(fn, sizeof(fn), "digits/millon");
+							res = ast_say_number_full_es(chan, num / 1000000, ints, language, "M", audiofd, ctrlfd);
+							if (res)
+								return res;
+							snprintf(fn, sizeof(fn), "digits/million");
 						} else {
-							snprintf(fn, sizeof(fn), "digits/millones");
+							res = ast_say_number_full_es(chan, num / 1000000, ints, language, options, audiofd, ctrlfd);
+							if (res)
+								return res;
+							snprintf(fn, sizeof(fn), "digits/millions");
 						}
 						num = num % 1000000;
 					} else {
