@@ -5063,6 +5063,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		/* This is a meta header */
 		switch(meta->metacmd) {
 		case IAX_META_TRUNK:
+		        if (meta->cmddata != 0) {
+				ast_log(LOG_WARNING, "meta trunk cmd %d received, I only understand 0 (perhaps the remote side is sending trunk timestamps?)\n", meta->cmddata);
+				return 1;
+		        }
 			if (res < sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr)) {
 				ast_log(LOG_WARNING, "midget meta trunk packet received (%d of %d min)\n", res, (int)sizeof(struct ast_iax2_mini_hdr));
 				return 1;

@@ -11,6 +11,10 @@ Asterisk 1.0.7
        but has now been fixed.
  -- chan_skinny
     -- A check has been added to avoid a crash.
+ -- chan_iax2
+    -- A feature has been added to CVS head to have the option of sending timestamps with
+       trunk frames.  It is not supported in 1.0, but a change has been made so that it
+       will at least not choke if sent trunk timestamps.
  -- app_voicemail
     -- Some checks have been added to avoid a crash.
  -- speex
