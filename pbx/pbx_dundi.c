@@ -399,9 +399,11 @@ static void reset_global_eid(void)
 			if (!ioctl(s, SIOCGIFHWADDR, &ifr)) {
 				memcpy(&global_eid, ((unsigned char *)&ifr.ifr_hwaddr) + 2, sizeof(global_eid));
 				ast_log(LOG_DEBUG, "Seeding global EID '%s' from '%s'\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &global_eid), ifr.ifr_name);
+				close(s);
 				return;
 			}
         }
+		close(s);
 	}
 #else
 #if defined(ifa_broadaddr)
