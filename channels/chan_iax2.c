@@ -31,6 +31,7 @@
 #include <asterisk/manager.h>
 #include <asterisk/callerid.h>
 #include <asterisk/app.h>
+#include <asterisk/astdb.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -3258,6 +3259,7 @@ static int expire_registry(void *data)
 	p->expire = -1;
 	/* Reset expirey value */
 	p->expirey = expirey;
+	ast_db_del("IAX2/Registry", p->name);
 	if (iax2_regfunk)
 		iax2_regfunk(p->name, 0);
 	return 0;
@@ -3266,6 +3268,38 @@ static int expire_registry(void *data)
 
 static int iax2_poke_peer(struct iax2_peer *peer);
 
+static void reg_source_db(struct iax2_peer *p)
+{
+	char data[80];
+	struct in_addr in;
+	char *c, *d;
+	if (!ast_db_get("IAX2/Registry", p->name, data, sizeof(data))) {
+		c = strchr(data, ':');
+		if (c) {
+			*c = '\0';
+			c++;
+			if (inet_aton(data, &in)) {
+				d = strchr(c, ':');
+				if (d) {
+					*d = '\0';
+					d++;
+					ast_verbose(VERBOSE_PREFIX_3 "Seeding '%s' at %s:%d for %d\n", p->name, 
+						inet_ntoa(in), atoi(c), atoi(d));
+					iax2_poke_peer(p);
+					p->expirey = atoi(d);
+					memset(&p->addr, 0, sizeof(p->addr));
+					p->addr.sin_family = AF_INET;
+					p->addr.sin_addr = in;
+					p->addr.sin_port = htons(atoi(c));
+					if (p->expire > -1)
+						ast_sched_del(sched, p->expire);
+					p->expire = ast_sched_add(sched, p->expirey * 1000, expire_registry, (void *)p);
+				}					
+					
+			}
+		}
+	}
+}
 
 static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 {
@@ -3273,15 +3307,18 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 	struct iax_ie_data ied;
 	struct iax2_peer *p;
 	int msgcount;
+	char data[80];
 	memset(&ied, 0, sizeof(ied));
 	for (p = peerl.peers;p;p = p->next) {
 		if (!strcasecmp(name, p->name)) {
 			if (inaddrcmp(&p->addr, sin)) {
 				if (iax2_regfunk)
 					iax2_regfunk(p->name, 1);
+				snprintf(data, sizeof(data), "%s:%d:%d", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port), p->expirey);
+				ast_db_put("IAX2/Registry", p->name, data);
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
-					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), htons(sin->sin_port));
+					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
 				iax2_poke_peer(p);
 			}		
 			/* Update the host */
@@ -4889,6 +4926,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 		peer->delme = 0;
 		/* Make sure these are IPv4 addresses */
 		peer->addr.sin_family = AF_INET;
+		if (!found && peer->dynamic)
+			reg_source_db(peer);
 	}
 	return peer;
 }
