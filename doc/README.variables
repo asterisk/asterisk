@@ -48,28 +48,31 @@ do:
 
 There are also the following special variables: 
 
+${ACCOUNTCODE} 	Account code (if specified)
 ${CALLERID}	Caller ID
 ${CALLERIDNAME}	Caller ID Name only
 ${CALLERIDNUM}	Caller ID Number only
-${EXTEN}	Current extension
-${CONTEXT}      Current context
-${PRIORITY}	Current priority
 ${CHANNEL}	Current channel name
-${ENV(VAR)}	Environmental variable VAR
-${LEN(VAR)}	String length of VAR (integer)
-${EPOCH}	Current unix style epoch
+${CONTEXT}      Current context
 ${DATETIME}	Current date time in the format: YYYY-MM-DD_HH:MM:SS
-${TIMESTAMP}	Current date time in the format: YYYYMMDD-HHMMSS
-${UNIQUEID}	Current call unique identifier
 ${DNID}         Dialed Number Identifier
-${RDNIS}        Redirected Dial Number ID Service
+${ENUM}		Result of application EnumLookup
+${EPOCH}	Current unix style epoch
+${EXTEN}	Current extension
+${ENV(VAR)}	Environmental variable VAR
 ${HANGUPCAUSE}	Asterisk hangup cause
-${ACCOUNTCODE}  Account code (if specified)
+${INVALID_EXTEN}The invalid called extension (used in the "i" extension)
 ${LANGUAGE}	Current language
+${LEN(VAR)}	String length of VAR (integer)
+${MEETMESECS} 	Number of seconds a user participated in a MeetMe conference
+${PRIORITY}	Current priority
+${RDNIS}        Redirected Dial Number ID Service
+${SIPCALLID} 	SIP Call-ID: header verbatim (for logging or CDR matching)
 ${SIPDOMAIN}    SIP destination domain of an inbound call (if appropriate)
 ${SIPUSERAGENT} SIP user agent 
-${SIPCALLID} 	SIP Call-ID: header verbatim (for logging or CDR matching)
-${MEETMESECS} 	Number of seconds a user participated in a MeetMe conference
+${TIMESTAMP}	Current date time in the format: YYYYMMDD-HHMMSS
+${TXTCIDNAME}	Result of application TXTCIDName
+${UNIQUEID}	Current call unique identifier
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
