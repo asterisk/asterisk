@@ -15,9 +15,11 @@
 		       		expat-1.95
 		       		expat-dev-1.95
 
-	Warning: Older versions than listed will NOT work. 
+	Warning: Older versions than listed will NOT work, while newer versions
+	         should work, but most likely have not been well tested.
 
-We have implemented this driver using Asterisk's RTP stack insted of trying
+
+chan_h323 has been implemented using Asterisk's RTP stack insted of trying
 to implement a pseudo sound card driver. 
 
 NOTICE: Whatever you do, DO NOT USE distrubution specific installs
