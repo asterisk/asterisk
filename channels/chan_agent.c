@@ -82,6 +82,10 @@ static char *descrip3 =
 "	'd' - make the app return -1 if there is an error condition and there is no extension n+101\n"
 "	'n' - don't generate the warnings when there is no callerid or the agentid is not known. It's handy if you want to have one context for agent and non-agent calls.\n";
 
+static char mandescr_agents[] =
+"Description: Will list info about all possible agents.\n"
+"Variables: NONE\n";
+
 static char moh[80] = "default";
 
 #define AST_MAX_AGENT	80		/* Agent ID or Password max length */
@@ -1161,6 +1165,71 @@ static int powerof(unsigned int v)
 	return 0;
 }
 
+static int action_agents(struct mansession *s, struct message *m)
+{
+       struct agent_pvt *p;
+       char *username = NULL;
+       char *loginChan = NULL;
+       char *talkingtoChan = NULL;
+       char *status = NULL;
+       ast_mutex_lock(&agentlock);
+       p = agents;
+       while(p) {
+               ast_mutex_lock(&p->lock);
+
+               /* Status Values:       AGENT_LOGGEDOFF - Agent isn't logged in
+                                       AGENT_IDLE      - Agent is logged in, and waiting for call
+                                       AGENT_ONCALL    - Agent is logged in, and on a call
+                                       AGENT_UNKNOWN   - Don't know anything about agent. Shouldn't ever get this. */
+
+               if(!ast_strlen_zero(p->name)) {
+                       username = p->name;
+               } else {
+                       username = "None";
+               }
+
+               /* Set a default status. It 'should' get changed. */
+               status = "AGENT_UNKNOWN";
+
+               if(p->chan) {
+                       loginChan = p->loginchan;
+                       if(p->owner && p->owner->_bridge) {
+                               talkingtoChan = p->chan->cid.cid_num;
+                               status = "AGENT_ONCALL";
+                       } else {
+                               talkingtoChan = "n/a";
+                               status = "AGENT_IDLE";
+                       }
+               } else if(!ast_strlen_zero(p->loginchan)) {
+                       loginChan = p->loginchan;
+                       talkingtoChan = "n/a";
+                       status = "AGENT_IDLE";
+                       if(p->acknowledged) {
+                               sprintf(loginChan, " %s (Confirmed)", loginChan);
+                       }
+               } else {
+                       loginChan = "n/a";
+                       talkingtoChan = "n/a";
+                       status = "AGENT_LOGGEDOFF";
+               }
+
+               ast_cli(s->fd, "Event: Agents\r\n"
+                                       "Agent: %s\r\n"
+                                       "Name: %s\r\n"
+                                       "Status: %s\r\n"
+                                       "LoggedInChan: %s\r\n"
+                                       "LoggedInTime: %ld\r\n"
+                                       "TalkingTo: %s\r\n"
+                                       "\r\n",
+                                       p->agent,p->name,status,loginChan,p->loginstart,talkingtoChan);
+               ast_mutex_unlock(&p->lock);
+               p = p->next;
+       }
+       ast_mutex_unlock(&agentlock);
+        return 0;
+}
+
+
 static int agents_show(int fd, int argc, char **argv)
 {
 	struct agent_pvt *p;
@@ -1784,6 +1853,7 @@ int load_module()
 	ast_register_application(app, login_exec, synopsis, descrip);
 	ast_register_application(app2, callback_exec, synopsis2, descrip2);
 	ast_register_application(app3, agentmonitoroutgoing_exec, synopsis3, descrip3);
+	ast_manager_register2("Agents", 0, action_agents, "Agents", mandescr_agents);
 	ast_cli_register(&cli_show_agents);
 	/* Read in the config */
 	read_agent_config();
@@ -1805,6 +1875,7 @@ int unload_module()
 	ast_unregister_application(app2);
 	ast_unregister_application(app3);
 	ast_channel_unregister(type);
+	ast_manager_unregister("Agents");
 	if (!ast_mutex_lock(&agentlock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = agents;
