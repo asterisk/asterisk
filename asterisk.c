@@ -1341,6 +1341,9 @@ int main(int argc, char *argv[])
 		ast_verbose(term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
 	fully_booted = 1;
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
+#ifdef __AST_DEBUG_MALLOC
+	__ast_mm_init();
+#endif	
 	ast_cli_register(&astshutdownnow);
 	ast_cli_register(&astshutdowngracefully);
 	ast_cli_register(&astrestartnow);

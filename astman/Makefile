@@ -1,4 +1,7 @@
-
+#
+# Don't use ast mm routines
+#
+CFLAGS+=-DNO_AST_MM
 TARGET=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else echo "none" ; fi)
 all: $(TARGET)
 

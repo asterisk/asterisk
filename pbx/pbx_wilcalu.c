@@ -60,6 +60,7 @@ static void *autodial(void *ignore)
 	char * sendbufptr=sendbuf;
 	int fd=open(dialfile,O_RDONLY|O_NONBLOCK);
 	int flags = fcntl(fd, F_GETFL);
+	fd_set fds;
 	fcntl(fd, F_SETFL, flags & ~O_NONBLOCK);
 	printf("Entered Wil-Calu fd=%d\n",fd);
 	if(fd<0) {
@@ -74,7 +75,11 @@ static void *autodial(void *ignore)
 		void *pass;
 
 		memset(buf,0,257);
+		FD_ZERO(&fds);
+		FD_SET(fd, &fds);
+		ast_select(fd + 1, &fds, NULL, NULL, NULL);
 		bytes=read(fd,buf,256);
+		printf("Bytes: %d\n", bytes);
 		buf[(int)bytes]=0;
 
 		if(bytes>0){

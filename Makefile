@@ -24,12 +24,13 @@ PROC=i686
 ifeq (${OSARCH},Linux)
 PROC=$(shell uname -m)
 endif
+PWD=$(shell pwd)
 
 ######### More GSM codec optimization
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
 ######### ppro's, etc, as well as the AMD K6 and K7.  
-K6OPT  = #-DK6OPT
+K6OPT  = -DK6OPT
 
 #Tell gcc to optimize the asterisk's code
 OPTIMIZE=-O6
@@ -42,6 +43,13 @@ DEBUG_THREADS = #-DDO_CRASH -DDEBUG_THREADS
 
 # Uncomment next one to enable ast_frame tracing (for debugging)
 TRACE_FRAMES = #-DTRACE_FRAMES
+
+# Uncomment next one to enable malloc debugging
+# You can view malloc debugging with:
+#   *CLI> show memory allocations [filename]
+#   *CLI> show memory summary [filename]
+#
+MALLOC_DEBUG = #-include $(PWD)/include/asterisk/astmm.h
 
 # Where to install asterisk after compiling
 # Default -> leave empty
@@ -90,6 +98,7 @@ CFLAGS+=-DASTAGIDIR=\"$(AGI_DIR)\"
 
 CFLAGS+= $(DEBUG_THREADS)
 CFLAGS+= $(TRACE_FRAMES)
+CFLAGS+= $(MALLOC_DEBUG)
 CFLAGS+=# -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr astman
 ifeq (${OSARCH},Linux)
@@ -100,7 +109,8 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
 	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ast_expr.o \
-	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o
+	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
+	astmm.o
 CC=gcc
 INSTALL=install
 

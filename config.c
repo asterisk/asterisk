@@ -29,8 +29,10 @@ struct ast_category {
 	char name[80];
 	struct ast_variable *root;
 	struct ast_category *next;
+#ifdef PRESERVE_COMMENTS
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
+#endif	
 };
 
 struct ast_config {
@@ -38,14 +40,18 @@ struct ast_config {
 	   for now */
 	struct ast_category *root;
 	struct ast_category *prev;
+#ifdef PRESERVE_COMMENTS
 	struct ast_comment *trailingcomments;
+#endif	
 };
 
+#ifdef PRESERVE_COMMENTS
 struct ast_comment_struct
 {
 	struct ast_comment *root;
 	struct ast_comment *prev;
 };
+#endif
 
 static char *strip(char *buf)
 {
@@ -60,6 +66,7 @@ static char *strip(char *buf)
 	return start;
 }
 
+#ifdef PRESERVE_COMMENTS
 static void free_comments(struct ast_comment *com)
 {
 	struct ast_comment *l;
@@ -69,6 +76,7 @@ static void free_comments(struct ast_comment *com)
 		free(l);
 	}
 }
+#endif
 
 void ast_destroy(struct ast_config *ast)
 {
@@ -85,18 +93,24 @@ void ast_destroy(struct ast_config *ast)
 			vn = v;
 			free(v->name);
 			free(v->value);
+#ifdef PRESERVE_COMMENTS
 			free_comments(v->precomments);
 			free_comments(v->sameline);
+#endif			
 			v = v->next;
 			free(vn);
 		}
 		catn = cat;
+#ifdef PRESERVE_COMMENTS
 		free_comments(cat->precomments);
 		free_comments(cat->sameline);
+#endif		
 		cat = cat->next;
 		free(catn);
 	}
+#ifdef PRESERVE_COMMENTS
 	free_comments(ast->trailingcomments);
+#endif	
 	free(ast);
 }
 
@@ -164,6 +178,7 @@ char *ast_variable_retrieve(struct ast_config *config, char *category, char *val
 	return NULL;
 }
 
+#ifdef PRESERVE_COMMENTS
 int ast_variable_delete(struct ast_config *cfg, char *category, char *variable, char *value)
 {
 	struct ast_variable *v, *pv, *bv, *bpv;
@@ -377,6 +392,7 @@ struct ast_variable *ast_variable_append_modify(struct ast_config *config, char 
 	}
 	return v;
 }
+#endif		
 
 int ast_category_exist(struct ast_config *config, char *category_name)
 {
@@ -393,6 +409,7 @@ int ast_category_exist(struct ast_config *config, char *category_name)
 	return 0;
 }
 
+#ifdef PRESERVE_COMMENTS
 static struct ast_comment *build_comment(char *cmt)
 {
 	struct ast_comment *c;
@@ -406,22 +423,36 @@ static struct ast_comment *build_comment(char *cmt)
 	}
 	return c;
 }
+#endif
 
-static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel, struct ast_comment_struct *acs);
-static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, char *buf, int lineno, char *configfile, int includelevel, struct ast_comment_struct *acs)
+static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel
+#ifdef PRESERVE_COMMENTS
+, struct ast_comment_struct *acs
+#endif
+);
+
+static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, char *buf, int lineno, char *configfile, int includelevel 
+#ifdef PRESERVE_COMMENTS
+,struct ast_comment_struct *acs
+#endif
+)
 {
 	char *c;
 	char *cur;
 	struct ast_variable *v;
+#ifdef PRESERVE_COMMENTS
 	struct ast_comment *com = NULL;
+#endif	
 	int object;
 	/* Strip off lines using ; as comment */
 	c = strchr(buf, ';');
 	if (c) {
 		*c = '\0';
+#ifdef PRESERVE_COMMENTS
 		c++;
 		if (*c != '!')
 			com = build_comment(c);
+#endif			
 	}
 	cur = strip(buf);
 	if (strlen(cur)) {
@@ -441,16 +472,20 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 				memset(*_tmpc, 0, sizeof(struct ast_category));
 				strncpy((*_tmpc)->name, cur+1, sizeof((*_tmpc)->name) - 1);
 				(*_tmpc)->root =  NULL;
+#ifdef PRESERVE_COMMENTS
 				(*_tmpc)->precomments = acs->root;
 				(*_tmpc)->sameline = com;
+#endif				
 				if (!tmp->prev)
 					tmp->root = *_tmpc;
 				else
 					tmp->prev->next = *_tmpc;
 
 				tmp->prev = *_tmpc;
+#ifdef PRESERVE_COMMENTS
 				acs->root = NULL;
 				acs->prev = NULL;
+#endif				
 				*_last =  NULL;
 			} else {
 				ast_log(LOG_WARNING, 
@@ -484,7 +519,11 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 							break;
 					}
 					if (includelevel < MAX_INCLUDE_LEVEL) {
-						__ast_load(cur, tmp, _tmpc, _last, includelevel + 1, acs);
+						__ast_load(cur, tmp, _tmpc, _last, includelevel + 1
+#ifdef PRESERVE_COMMENTS
+						,acs
+#endif
+						);
 					} else 
 						ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", includelevel);
 				} else
@@ -519,11 +558,13 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 					v->lineno = lineno;
 					v->object = object;
 					/* Put and reset comments */
+#ifdef PRESERVE_COMMENTS
 					v->precomments = acs->root;
-					v->blanklines = 0;
+					v->sameline = com;
 					acs->prev = NULL;
 					acs->root = NULL;
-					v->sameline = com;
+#endif					
+					v->blanklines = 0;
 					if (*_last)
 						(*_last)->next = v;
 					else
@@ -541,6 +582,7 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 		}
 	} else {
 		/* store any comments if there are any */
+#ifdef PRESERVE_COMMENTS
 		if (com) {
 			if (acs->prev)
 				acs->prev->next = com;
@@ -552,10 +594,12 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 			(*_last)->blanklines++;
 
 		}
+#endif
 	}
 	return 0;
 }
 
+#ifdef PRESERVE_COMMENTS
 static void dump_comments(FILE *f, struct ast_comment *comment)
 {
 	while (comment) {
@@ -563,6 +607,7 @@ static void dump_comments(FILE *f, struct ast_comment *comment)
 		comment = comment->next;
 	}
 }
+#endif
 
 int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 {
@@ -591,16 +636,22 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 		fprintf(f, ";!\n");
 		cat = cfg->root;
 		while(cat) {
+#ifdef PRESERVE_COMMENTS
 			/* Dump any precomments */
 			dump_comments(f, cat->precomments);
+#endif
 			/* Dump section with any appropriate comment */
+#ifdef PRESERVE_COMMENTS
 			if (cat->sameline) 
 				fprintf(f, "[%s]  ; %s\n", cat->name, cat->sameline->cmt);
 			else
+#endif
 				fprintf(f, "[%s]\n", cat->name);
 			var = cat->root;
 			while(var) {
+#ifdef PRESERVE_COMMENTS
 				dump_comments(f, var->precomments);
+#endif				
 				if (var->sameline) 
 					fprintf(f, "%s %s %s  ; %s\n", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
 				else	
@@ -621,7 +672,9 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 #endif
 			cat = cat->next;
 		}
+#ifdef PRESERVE_COMMENTS
 		dump_comments(f, cfg->trailingcomments);
+#endif		
 	} else {
 		if (option_debug)
 			printf("Unable to open for writing: %s\n", fn);
@@ -633,7 +686,11 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 	return 0;
 }
 
-static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel, struct ast_comment_struct *acs)
+static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel
+#ifdef PRESERVE_COMMENTS
+, struct ast_comment_struct *acs
+#endif
+)
 {
 	char fn[256];
 	char buf[256];
@@ -671,7 +728,11 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 			fgets(buf, sizeof(buf), f);
 			lineno++;
 			if (!feof(f)) {
-				if (cfg_process(tmp, _tmpc, _last, buf, lineno, configfile, includelevel, acs)) {
+				if (cfg_process(tmp, _tmpc, _last, buf, lineno, configfile, includelevel
+#ifdef PRESERVE_COMMENTS
+				, acs
+#endif
+				)) {
 					fclose(f);
 					return NULL;
 				}
@@ -684,12 +745,14 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 		else if (option_verbose > 1)
 			ast_verbose( "Not found (%s)", strerror(errno));
 	}
+#ifdef PRESERVE_COMMENTS
 	if (master) {
 		/* Keep trailing comments */
 		tmp->trailingcomments = acs->root;
 		acs->root = NULL;
 		acs->prev = NULL;
 	}
+#endif
 	return tmp;
 }
 
@@ -697,8 +760,14 @@ struct ast_config *ast_load(char *configfile)
 {
 	struct ast_category *tmpc=NULL;
 	struct ast_variable *last = NULL;
+#ifdef PRESERVE_COMMENTS
 	struct ast_comment_struct acs = { NULL, NULL };
-	return __ast_load(configfile, NULL, &tmpc, &last, 0, &acs);
+#endif	
+	return __ast_load(configfile, NULL, &tmpc, &last, 0 
+#ifdef PRESERVE_COMMENTS
+	,&acs
+#endif
+	);
 }
 
 char *ast_category_browse(struct ast_config *config, char *prev)
