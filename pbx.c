@@ -4921,18 +4921,21 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t 
 {
 	struct ast_var_t *variables;
 	struct varshead *headp;
+	char *var=NULL ,*val=NULL;
 	int total = 0;
 
 	memset(buf,0,size);
 	if (chan) {
 		headp=&chan->varshead;
 		AST_LIST_TRAVERSE(headp,variables,entries) {
-			snprintf(buf + strlen(buf), size - strlen(buf), "%s=%s\n", ast_var_name(variables), ast_var_value(variables));
-			if(strlen(buf) >= size) {
-				ast_log(LOG_ERROR,"Data Buffer Size Exceeded!\n");
-				break;
+			if(chan && variables && (var=ast_var_name(variables)) && (val=ast_var_value(variables))) {
+				snprintf(buf + strlen(buf), size - strlen(buf), "%s=%s\n", var, val);
+				if(strlen(buf) >= size) {
+					ast_log(LOG_ERROR,"Data Buffer Size Exceeded!\n");
+					break;
+				}
+				total++;
 			}
-			total++;
 		}
 	}
 	
