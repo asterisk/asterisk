@@ -100,7 +100,7 @@ static char reload_extensions_help[] =
 /*
  * Static code
  */
-static char *process_quotes_and_slashes(char* start, char find, char replace_with)
+static char *process_quotes_and_slashes(char *start, char find, char replace_with)
 {
  	char *dataPut = start;
 	int inEscape = 0;
