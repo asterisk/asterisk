@@ -807,9 +807,13 @@ static struct ast_channel *oh323_new(struct oh323_pvt *pvt, int state, const cha
 		}
 		if (!ast_strlen_zero(pvt->cid_num)) {
 			ch->cid.cid_num = strdup(pvt->cid_num);
+		} else if (!ast_strlen_zero(pvt->cd.call_source_e164)) {
+			ch->cid.cid_num = strdup(pvt->cd.call_source_e164);
 		}
 		if (!ast_strlen_zero(pvt->cid_name)) {
 			ch->cid.cid_name = strdup(pvt->cid_name);
+		} else if (!ast_strlen_zero(pvt->cd.call_source_name)) {
+			ch->cid.cid_name = strdup(pvt->cd.call_source_name);
 		}
 		if (!ast_strlen_zero(pvt->rdnis)) {
 			ch->cid.cid_rdnis = strdup(pvt->rdnis);
