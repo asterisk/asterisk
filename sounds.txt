@@ -64,6 +64,8 @@
 
 %dir-intro.gsm%Welcome to the Asterisk directory.  Please enter the first three letters of your parties last name using your touch tone keypad.  Use the 7 key for Q and the 9 key for Z.
 
+%dir-intro-fn.gsm%Welcome to the Asterisk directory.  Please enter the first three letters of your parties first name using your touch tone keypad.  Use the 7 key for Q and the 9 key for Z.
+
 %dir-nomatch.gsm%No directory entries match your search.
 
 %dir-nomore.gsm%There are no more compatible entries in the directory.
