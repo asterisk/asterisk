@@ -2,8 +2,9 @@
 # Retrieves the sip user/peer entries from the database
 # Use these commands to create the appropriate tables in MySQL
 #
-#CREATE TABLE sip (id INT(11) NOT NULL,keyword VARCHAR(20) NOT NULL,data VARCHAR(50),PRIMARY KEY (id,keyword));
+#CREATE TABLE sip (id INT(11) DEFAULT -1 NOT NULL,keyword VARCHAR(20) NOT NULL,data VARCHAR(50) NOT NULL, flags INT(1) DEFAULT 0 NOT NULL,PRIMARY KEY (id,keyword));
 #
+# if flags = 1 then the records are not included in the output file
 
 use DBI;
 ################### BEGIN OF CONFIGURATION ####################
@@ -29,7 +30,7 @@ $additional = "";
 open EXTEN, ">$sip_conf" || die "Cannot create/overwrite extensions file: $sip_conf\n";
 
 $dbh = DBI->connect("dbi:mysql:dbname=$database;host=$hostname", "$username", "$password");
-$statement = "SELECT keyword,data from $table_name where id=0 and keyword <> 'account'";
+$statement = "SELECT keyword,data from $table_name where id=0 and keyword <> 'account' and flags <> 1";
 my $result = $dbh->selectall_arrayref($statement);
 unless ($result) {
   # check for errors after every single database call
@@ -46,7 +47,7 @@ if ( $#resultSet > -1 ) {
 	}
 }
 
-$statement = "SELECT data,id from $table_name where keyword='account' group by data";
+$statement = "SELECT data,id from $table_name where keyword='account' and flags <> 1 group by data";
 
 $result = $dbh->selectall_arrayref($statement);
 unless ($result) {
@@ -66,7 +67,7 @@ foreach my $row ( @{ $result } ) {
 	my $account = @{ $row }[0];
 	my $id = @{ $row }[1];
 	print EXTEN "[$account]\n";
-	$statement = "SELECT keyword,data from $table_name where id=$id and keyword <> 'account' order by keyword";
+	$statement = "SELECT keyword,data from $table_name where id=$id and keyword <> 'account' and flags <> 1 order by keyword";
 	my $result = $dbh->selectall_arrayref($statement);
 	unless ($result) {
 		# check for errors after every single database call
