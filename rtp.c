@@ -449,7 +449,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	if (ext) {
 		/* RTP Extension present */
 		hdrlen += 4;
-		hdrlen += (rtpheader[3] & 0xffff) << 2;
+		hdrlen += (ntohl(rtpheader[3]) & 0xffff) << 2;
 	}
 
 	if (res < hdrlen) {
