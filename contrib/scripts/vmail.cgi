@@ -107,7 +107,7 @@ sub check_login()
 			if (/([^\s]+)\s*\=\>?\s*(.*)/) {
 				@fields = split(/\,\s*/, $2);
 #				print "<p>Mailbox is $1\n";
-				if (($mbox eq $1) && ($pass eq $fields[0]) && ($context eq $category)) {
+				if (($mbox eq $1) && (($pass eq $fields[0]) || ("-${pass}" eq $fields[0])) && ($context eq $category)) {
 					return ($fields[1] ? $fields[1] : "Extension $mbox in $context", $category);
 				}
 			}

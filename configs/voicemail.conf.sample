@@ -90,7 +90,7 @@ maxlogins=3
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
 ; if the e-mail is specified, a message will be sent when a message is
-; received, to the given mailbox. If pager is specified, a message will be sent there as well.
+; received, to the given mailbox. If pager is specified, a message will be sent there as well. If the password is prefixed by '-' then it is considered to be unchangable
 ;
 ; Advanced options example is extension 4069
 ; NOTE: All options can be expressed globally in the general section, and overriden in the per-mailbox 
@@ -126,7 +126,7 @@ central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hour
 1234 => 4242,Example Mailbox,root@localhost
 ;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central
 ;4300 => 3456,Ben Rigas,ben@american-computer.net
-;4310 => 5432,Sales,sales@marko.net
+;4310 => -5432,Sales,sales@marko.net
 ;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes
 ;4073 => 1099,Bianca Paige,bianca@biancapaige.com,,delete=1
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net

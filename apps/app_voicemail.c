@@ -3411,6 +3411,10 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 			cmd = play_record_review(chan,"vm-rec-name",prefile, maxgreet, fmtc, 0, vmu, &duration);
 			break;
 		case '4':
+			if (vmu->password[0] == '-') {
+				cmd = play_and_wait(chan, "vm-no");
+				break;
+			}
 			newpassword[1] = '\0';
 			newpassword[0] = cmd = play_and_wait(chan,"vm-newpassword");
 			if (cmd < 0)
@@ -3540,6 +3544,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	char *context=NULL;
 	int silentexit = 0;
 	char cid[256]="";
+	char *passptr;
 
 	LOCAL_USER_ADD(u);
 	memset(&vms, 0, sizeof(vms));
@@ -3619,7 +3624,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			adsi_password(chan);
 		if (!skipuser)
 			vmu = find_user(&vmus, context, vms.username);
-		if (vmu && vmu->password[0] == '\0') {
+		if (vmu && (vmu->password[0] == '\0' || (vmu->password[0] == '-' && vmu->password[1] == '\0'))) {
 			/* saved password is blank, so don't bother asking */
 			password[0] = '\0';
 		} else {
@@ -3638,7 +3643,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			strncat(fullusername, vms.username, sizeof(fullusername) - 1);
 			strncpy(vms.username, fullusername, sizeof(vms.username) - 1);
 		}
-		if (vmu && !strcmp(vmu->password, password)) 
+		if (vmu) {
+			passptr = vmu->password;
+			if (passptr[0] == '-') passptr++;
+		}
+		if (vmu && !strcmp(passptr, password))
 			valid++;
 		else {
 			if (option_verbose > 2)
