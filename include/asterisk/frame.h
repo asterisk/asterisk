@@ -83,6 +83,7 @@ struct ast_frame_chain {
 #define AST_CONTROL_BUSY		5			/* Remote end is busy */
 #define AST_CONTROL_TAKEOFFHOOK 6			/* Make it go off hook */
 #define AST_CONTROL_OFFHOOK		7			/* Line is off hook */
+#define AST_CONTROL_CONGESTION	8			/* Congestion (circuits busy) */
 
 /* Request a frame be allocated.  source is an optional source of the frame, 
    len is the requested length, or "0" if the caller will supply the buffer */
