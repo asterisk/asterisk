@@ -199,6 +199,7 @@ static struct sip_pvt {
 	char fromuser[AST_MAX_EXTENSION];	/* Domain to show in the user field */
 	char tohost[AST_MAX_EXTENSION];		/* Host we should put in the "to" field */
 	char language[MAX_LANGUAGE];
+	char rdnis[256];				/* Referring DNIS */
 	char theirtag[256];				/* Their tag */
 	char username[81];
 	char peername[81];
@@ -1095,6 +1096,8 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		if (strlen(i->callerid))
 			tmp->callerid = strdup(i->callerid);
+		if (strlen(i->rdnis))
+			tmp->rdnis = strdup(i->rdnis);
 		tmp->priority = 1;
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
@@ -3047,6 +3050,32 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	return res;
 }
 
+static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
+{
+	char tmp[256] = "", *c, *a;
+	struct sip_request *req;
+	
+	req = oreq;
+	if (!req)
+		req = &p->initreq;
+	strncpy(tmp, get_header(oreq, "Diversion"), sizeof(tmp) - 1);
+	if (!strlen(tmp))
+		return 0;
+	c = ditch_braces(tmp);
+	if (strncmp(c, "sip:", 4)) {
+		ast_log(LOG_WARNING, "Huh?  Not an RDNIS SIP header (%s)?\n", c);
+		return -1;
+	}
+	c += 4;
+	if ((a = strchr(c, '@')) || (a = strchr(c, ';'))) {
+		*a = '\0';
+	}
+	if (sipdebug)
+		ast_verbose("RDNIS is %s\n", c);
+	strncpy(p->rdnis, c, sizeof(p->rdnis) - 1);
+
+	return 0;
+}
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *c, *a;
@@ -4185,6 +4214,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				strncpy(p->context, context, sizeof(p->context) - 1);
 			/* Get destination right away */
 			gotdest = get_destination(p, NULL);
+			get_rdnis(p, NULL);
 			build_contact(p);
 
 			if (gotdest) {
