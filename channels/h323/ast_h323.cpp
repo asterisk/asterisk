@@ -205,6 +205,9 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 	
 	*callReference = connection->GetCallReference();
 	
+
+	cout << "Callerid looks like [" << callerid << "]" << endl;
+
 	if (strlen(callerid))
 		connection->SetLocalPartyName(PString(callerid));
 
