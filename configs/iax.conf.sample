@@ -1,4 +1,4 @@
-;
+
 ; Inter-Asterisk eXchange driver definition
 ;
 ;
@@ -141,6 +141,7 @@ permit=216.207.245.47/255.255.255.255
 ;
 [demo]
 type=peer
+username=asteisk
 secret=supersecret
 host=216.207.245.47
 ;sendani=no
