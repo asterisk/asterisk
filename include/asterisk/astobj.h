@@ -179,6 +179,7 @@ extern "C" {
 		while((iterator = (container)->head)) { \
 			(container)->head = (iterator)->next[0]; \
 			ASTOBJ_DESTROY(iterator,destructor); \
+			ASTOBJ_UNREF(iterator,destructor); \
 		} \
 		ASTOBJ_CONTAINER_UNLOCK(container); \
 	} while(0)
@@ -190,7 +191,7 @@ extern "C" {
 		ASTOBJ_CONTAINER_TRAVERSE(container, do { \
 			ASTOBJ_RDLOCK(iterator); \
 			if (!(comparefunc(iterator->field, (data)))) { \
-				found = ASTOBJ_REF(iterator); \
+				found = iterator; \
 				ASTOBJ_CONTAINER_WRLOCK(container); \
 				if (prev) \
 					prev->next[0] = next; \
@@ -232,7 +233,7 @@ extern "C" {
 	do { \
 		ASTOBJ_CONTAINER_WRLOCK(container); \
 		(newobj)->next[0] = (container)->head; \
-		(container)->head = (newobj); \
+		(container)->head = ASTOBJ_REF(newobj); \
 		ASTOBJ_CONTAINER_UNLOCK(container); \
 	} while(0)
 
