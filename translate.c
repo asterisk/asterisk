@@ -29,13 +29,6 @@
 #include <string.h>
 #include <stdio.h>
 
-/* Uncomment the EXPERIMENTAL_TRANSLATION to enable a more complicated, but probably more
-   correct way of handling full duplex translation */
-
-/*
-#define EXPERIMENTAL_TRANSLATION
-*/
-
 /* This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
