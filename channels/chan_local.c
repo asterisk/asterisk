@@ -61,6 +61,7 @@ static struct local_pvt {
 	char context[AST_MAX_EXTENSION];	/* Context to call */
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
 	int reqformat;						/* Requested format */
+	int alreadymasqed;					/* Already masqueraded */
 	struct ast_channel *owner;			/* Master Channel */
 	struct ast_channel *chan;			/* Outbound channel */
 	struct local_pvt *next;				/* Next entity */
@@ -84,6 +85,8 @@ retrylock:
 		ast_pthread_mutex_lock(&p->lock);
 		goto retrylock;
 	}
+	if (f->frametype != AST_FRAME_VOICE)
+		ast_verbose("Queueing frmae %d/%d on %s\n", f->frametype, f->subclass, other->name);
 	ast_queue_frame(other, f, 0);
 	ast_pthread_mutex_unlock(&other->lock);
 	return 0;
@@ -98,11 +101,26 @@ static int local_answer(struct ast_channel *ast)
 	if (isoutbound) {
 		/* Pass along answer since somebody answered us */
 		struct ast_frame answer = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
-		local_queue_frame(p, isoutbound, &answer);
+		res = local_queue_frame(p, isoutbound, &answer);
 	} else
 		ast_log(LOG_WARNING, "Huh?  Local is being asked to answer?\n");
 	ast_pthread_mutex_unlock(&p->lock);
 	return res;
+}
+
+static void check_bridge(struct local_pvt *p, int isoutbound)
+{
+	if (p->alreadymasqed)
+		return;
+	if (isoutbound && p->chan && p->chan->bridge && p->owner) {
+		/* Masquerade bridged channel into owner */
+		ast_channel_masquerade(p->owner, p->chan->bridge);
+		p->alreadymasqed = 1;
+	} else if (!isoutbound && p->owner && p->owner->bridge && p->chan) {
+		/* Masquerade bridged channel into chan */
+		ast_channel_masquerade(p->chan, p->owner->bridge);
+		p->alreadymasqed = 1;
+	}
 }
 
 static struct ast_frame  *local_read(struct ast_channel *ast)
@@ -117,9 +135,11 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	int res = -1;
 	int isoutbound = IS_OUTBOUND(ast, p);
 
+
 	/* Just queue for delivery to the other side */
 	ast_pthread_mutex_lock(&p->lock);
 	res = local_queue_frame(p, isoutbound, f);
+	check_bridge(p, isoutbound);
 	ast_pthread_mutex_unlock(&p->lock);
 	return res;
 }
@@ -232,14 +252,21 @@ static struct local_pvt *local_alloc(char *data, int format)
 		if (c) {
 			*c = '\0';
 			c++;
-			strncpy(tmp->context, data, sizeof(tmp->context) - 1);
-		}
+			strncpy(tmp->context, c, sizeof(tmp->context) - 1);
+		} else
+			strncpy(tmp->context, "default", sizeof(tmp->context) - 1);
 		tmp->reqformat = format;
-		/* Add to list */
-		ast_pthread_mutex_lock(&locallock);
-		tmp->next = locals;
-		locals = tmp;
-		ast_pthread_mutex_unlock(&locallock);
+		if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
+			ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->context, tmp->exten);
+			free(tmp);
+			tmp = NULL;
+		} else {
+			/* Add to list */
+			ast_pthread_mutex_lock(&locallock);
+			tmp->next = locals;
+			locals = tmp;
+			ast_pthread_mutex_unlock(&locallock);
+		}
 		
 	}
 	return tmp;
@@ -259,7 +286,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	}
 	if (tmp) {
 		tmp->nativeformats = p->reqformat;
-		tmp->nativeformats = p->reqformat;
+		tmp2->nativeformats = p->reqformat;
 		snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-1", p->exten, p->context);
 		snprintf(tmp2->name, sizeof(tmp2->name), "Local/%s@%s-2", p->exten, p->context);
 		tmp->type = type;
@@ -316,7 +343,8 @@ static struct ast_channel *local_request(char *type, int format, void *data)
 	struct local_pvt *p;
 	struct ast_channel *chan = NULL;
 	p = local_alloc(data, format);
-	chan = local_new(p, AST_STATE_DOWN);
+	if (p)
+		chan = local_new(p, AST_STATE_DOWN);
 	return chan;
 }
 

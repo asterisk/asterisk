@@ -239,6 +239,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
 							break;
+						case -1:
+							if (option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
+							ast_indicate(in, -1);
+							break;
 						default:
 							ast_log(LOG_DEBUG, "Dunno what to do with control type %d\n", f->subclass);
 						}
