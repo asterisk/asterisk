@@ -3267,10 +3267,9 @@ retrylock:
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, inet_ntoa(p->sa.sin_addr));
 				p->alreadygone = 1;
 				if (p->rtp) {
-					rtp = p->rtp;
-					p->rtp = NULL;
-					/* Immediately stop RTP */
-					ast_rtp_destroy(rtp);
+					struct sockaddr_in sin = { AF_INET, };
+					/* Immediately stop RTP by setting transmit to 0 */
+					ast_rtp_setpeer(p->rtp, &sin);
 				}
 				/* XXX Locking issues?? XXX */
 				switch(resp) {
