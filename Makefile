@@ -23,6 +23,10 @@ PROC=$(shell uname -m)
 else
 ifeq (${OSARCH},FreeBSD)
 PROC=$(shell uname -m)
+else
+ifeq (${OSARCH},OpenBSD)
+PROC=$(shell uname -m)
+endif
 endif
 endif
 # Pentium Pro Optimize

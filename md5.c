@@ -1,6 +1,10 @@
 /* MD5 checksum routines used for authentication.  Not covered by GPL, but
    in the public domain as per the copyright below */
-#if defined( __FreeBSD__ ) || defined( __OpenBSD__ )
+#if defined( __OpenBSD__ )
+#  include <machine/types.h>
+#  include <sys/endian.h>
+#elif defined( __FreeBSD__ )
+#  include <sys/types.h>
 #  include <sys/endian.h>
 #elif defined( BSD ) && ( BSD >= 199103 )
 #  include <machine/endian.h>

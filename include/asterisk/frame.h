@@ -30,6 +30,9 @@ extern "C" {
 #ifdef __linux__
 #include <endian.h>
 #elif defined(__OpenBSD__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__APPLE__)
+#if defined(__OpenBSD__)
+#include <machine/types.h>
+#endif /* __OpenBSD__ */
 #include <machine/endian.h>
 #define __BYTE_ORDER BYTE_ORDER
 #define __LITTLE_ENDIAN LITTLE_ENDIAN

@@ -33,6 +33,19 @@ CHANNEL_LIBS=chan_modem.so chan_sip.so \
 #
 #CHANNEL_LIBS+=chan_vofr
 
+ifeq (${OSARCH},OpenBSD)
+MYSQLLIB=-L/usr/local/lib/mysql -lmysqlclient
+CFLAGS+=-I/usr/local/include
+PTLIB=-lpt_OpenBSD_x86_r
+H323LIB=-lh323_OpenBSD_x86_r
+CHANH323LIB=-L/usr/local/lib
+else
+MYSQLLIB=-L/usr/lib/mysql -lmysqlclient
+PTLIB=-lpt_linux_x86_r
+H323LIB=-lh323_linux_x86_r
+CHANH323LIB=-ldl
+endif
+
 ifneq (${OSARCH},Darwin)
 CHANNEL_LIBS+=chan_oss.so
 endif
@@ -117,14 +130,14 @@ endif
 
 chan_iax2.so: chan_iax2.o iax2-parser.o
 ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o -L/usr/lib/mysql -lmysqlclient -lz
+	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o $(MYSQLLIB) -lz
 else
 	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o
 endif
 
 chan_iax.so: chan_iax.o
 ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_iax.o -L/usr/lib/mysql -lmysqlclient -lz
+	$(CC) $(SOLINK) -o $@ chan_iax.o $(MYSQLLIB) -lz
 else
 	$(CC) $(SOLINK) -o $@ chan_iax.o
 endif
@@ -137,7 +150,7 @@ chan_zap.so: chan_zap.o
 
 chan_sip.so: chan_sip.o
 ifeq ($(USE_MYSQL_FRIENDS),1)
-	$(CC) $(SOLINK) -o $@ chan_sip.o -L/usr/lib/mysql -lmysqlclient -lz
+	$(CC) $(SOLINK) -o $@ chan_sip.o $(MYSQLLIB) -lz
 else
 	$(CC) $(SOLINK) -o $@ chan_sip.o
 endif
@@ -158,7 +171,7 @@ chan_vpb.so: chan_vpb.o
 	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
 
 chan_h323.so: chan_h323.o h323/libchanh323.a
-	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
+	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lpthread -lcrypto -lssl -lexpat
 
 
 #chan_modem.so : chan_modem.o
