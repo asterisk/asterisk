@@ -91,6 +91,7 @@ struct ast_rtp {
 	struct ast_smoother *smoother;
 	int *ioid;
 	unsigned short seqno;
+	unsigned short rxseqno;
 	struct sched_context *sched;
 	struct io_context *io;
 	void *data;
@@ -361,6 +362,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
+			rtp->rxseqno = 0;
 			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
@@ -401,6 +403,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int hdrlen = 12;
 	int mark;
 	int ext;
+	int x;
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
 	unsigned int *rtpheader;
@@ -439,6 +442,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 		    (rtp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
+			rtp->rxseqno = 0;
 			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 		}
 	}
@@ -499,6 +503,19 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	if (!rtp->lastrxts)
 		rtp->lastrxts = timestamp;
+
+	if (rtp->rxseqno) {
+		for (x=rtp->rxseqno + 1; x < seqno; x++) {
+			/* Queue empty frames */
+			rtp->f.mallocd = 0;
+			rtp->f.datalen = 0;
+			rtp->f.data = NULL;
+			rtp->f.offset = 0;
+			rtp->f.samples = 0;
+			rtp->f.src = "RTPMissedFrame";
+		}
+	}
+	rtp->rxseqno = seqno;
 
 	if (rtp->dtmfcount) {
 #if 0
@@ -908,6 +925,7 @@ void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
 		rtp->rtcp->them.sin_port = htons(ntohs(them->sin_port) + 1);
 		rtp->rtcp->them.sin_addr = them->sin_addr;
 	}
+	rtp->rxseqno = 0;
 }
 
 void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them)
