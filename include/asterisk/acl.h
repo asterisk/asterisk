@@ -28,6 +28,7 @@ extern void ast_free_ha(struct ast_ha *ha);
 extern struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path);
 extern int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
 extern int ast_get_ip(struct sockaddr_in *sin, char *value);
+extern int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

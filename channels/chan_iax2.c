@@ -3110,7 +3110,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	}
 	memcpy(&oldus, &reg->us, sizeof(oldus));
 	oldmsgs = reg->messages;
-	if (memcmp(&reg->addr, sin, sizeof(&reg->addr))) {
+	if (inaddrcmp(&reg->addr, sin)) {
 		ast_log(LOG_WARNING, "Received unsolicited registry ack from '%s'\n", inet_ntoa(sin->sin_addr));
 		return -1;
 	}
@@ -3123,7 +3123,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 			ast_sched_del(sched, reg->expire);
 		reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	}
-	if ((memcmp(&oldus, &reg->us, sizeof(oldus)) || (reg->messages != oldmsgs)) && (option_verbose > 2)) {
+	if ((inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) && (option_verbose > 2)) {
 		if (reg->messages > 65534)
 			snprintf(msgstatus, sizeof(msgstatus), " with message(s) waiting\n");
 		else if (reg->messages > 1)
@@ -3222,7 +3222,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno)
 	memset(&ied, 0, sizeof(ied));
 	for (p = peerl.peers;p;p = p->next) {
 		if (!strcasecmp(name, p->name)) {
-			if (memcmp(&p->addr, sin, sizeof(p->addr))) {
+			if (inaddrcmp(&p->addr, sin)) {
 				if (regfunk)
 					regfunk(p->name, 1);
 				if  (option_verbose > 2)
@@ -3292,7 +3292,7 @@ static int registry_rerequest(struct iax_ies *ies, int callno, struct sockaddr_i
 		strncpy(challenge, ies->challenge, sizeof(challenge) - 1);
 	memset(&ied, 0, sizeof(ied));
 	reg = iaxs[callno]->reg;
-			if (memcmp(&reg->addr, sin, sizeof(&reg->addr))) {
+			if (inaddrcmp(&reg->addr, sin)) {
 				ast_log(LOG_WARNING, "Received unsolicited registry authenticate request from '%s'\n", inet_ntoa(sin->sin_addr));
 				return -1;
 			}
@@ -3423,7 +3423,7 @@ static int send_trunk(struct iax2_peer *peer)
 		if (iaxtrunkdebug)
 			ast_verbose("Call %d is at %s:%d (%d)\n", x, inet_ntoa(iaxs[x]->addr.sin_addr), ntohs(iaxs[x]->addr.sin_port), iaxs[x]->addr.sin_family);
 #endif
-		if (iaxs[x] && iaxs[x]->trunk && iaxs[x]->trunkdatalen && !memcmp(&iaxs[x]->addr, &peer->addr, sizeof(iaxs[x]->addr))) {
+		if (iaxs[x] && iaxs[x]->trunk && iaxs[x]->trunkdatalen && !inaddrcmp(&iaxs[x]->addr, &peer->addr)) {
 			if (iaxtrunkdebug)
 				ast_verbose(" -- Sending call %d via trunk to %s:%d\n", x, inet_ntoa(iaxs[x]->addr.sin_addr), ntohs(iaxs[x]->addr.sin_port));
 			if (len >= iaxs[x]->trunkdatalen + sizeof(struct ast_iax2_meta_trunk_entry)) {
@@ -3574,7 +3574,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_pthread_mutex_lock(&peerl.lock);
 			peer = peerl.peers;
 			while(peer) {
-				if (!memcmp(&peer->addr, &sin, sizeof(peer->addr)))
+				if (!inaddrcmp(&peer->addr, &sin))
 					break;
 				peer = peer->next;
 			}
@@ -3693,7 +3693,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			ast_pthread_mutex_unlock(&iaxsl[fr.callno]);
 		return 1;
 	}
-	if (!memcmp(&sin, &iaxs[fr.callno]->addr, sizeof(sin)))
+	if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr))
 		iaxs[fr.callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
 		if (option_debug)
@@ -3757,7 +3757,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 
 		/* Handle implicit ACKing unless this is an INVAL, and only if this is 
 		   from the real peer, not the transfer peer */
-		if (!memcmp(&sin, &iaxs[fr.callno]->addr, sizeof(sin)) && 
+		if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && 
 			(((f.subclass != IAX_COMMAND_INVAL)) ||
 			(f.frametype != AST_FRAME_IAX))) {
 			unsigned char x;
@@ -3800,7 +3800,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 			} else
 				ast_log(LOG_DEBUG, "Received iseqno %d not within window %d->%d\n", fr.iseqno, iaxs[fr.callno]->rseqno, iaxs[fr.callno]->oseqno);
 		}
-		if (memcmp(&sin, &iaxs[fr.callno]->addr, sizeof(sin)) && 
+		if (inaddrcmp(&sin, &iaxs[fr.callno]->addr) && 
 			((f.frametype != AST_FRAME_IAX) || 
 			 ((f.subclass != IAX_COMMAND_TXACC) &&
 			  (f.subclass != IAX_COMMAND_TXCNT)))) {

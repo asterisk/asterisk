@@ -2662,7 +2662,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		expiry = max_expiry;
 	p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
 	pvt->expiry = expiry;
-	if (memcmp(&p->addr, &oldsin, sizeof(oldsin))) {
+	if (inaddrcmp(&p->addr, &oldsin)) {
 		sip_poke_peer(p);
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->username, inet_ntoa(p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
@@ -3203,7 +3203,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 		ast_pthread_mutex_lock(&peerl.lock);
 		peer = peerl.peers;
 		while(peer) {
-			if (!memcmp(&peer->addr, &p->recv, sizeof(peer->addr))) {
+			if (!inaddrcmp(&peer->addr, &p->recv)) {
 				/* Take the peer */
 				p->nat = peer->nat;
 				if (p->rtp) {
