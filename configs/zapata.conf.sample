@@ -76,6 +76,29 @@ switchtype=national
 ;
 ;prilocaldialplan=national
 ;
+; PRI callerid prefixes based on the given TON/NPI (dialplan)
+; This is especially needed for euroisdn E1-PRIs
+; 
+; sample 1 for Germany 
+;internationalprefix = 00
+;nationalprefix = 0
+;localprefix = 0711
+;privateprefix = 07115678
+;unknownprefix = 
+;
+; sample 2 for Germany 
+;internationalprefix = +
+;nationalprefix = +49
+;localprefix = +49711
+;privateprefix = +497115678
+;unknownprefix = 
+;
+; PRI resetinterval: sets the time in seconds between restart of unused channels, defaults to 3600
+; minimum 60 seconds
+; some PBXs don't like channel restarts. so set the interval to a very long interval e.g. 100000000
+;
+;resetinterval = 3600 
+;
 ; Overlap dialing mode (sending overlap digits)
 ;
 ;overlapdial=yes

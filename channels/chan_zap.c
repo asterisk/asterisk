@@ -141,10 +141,9 @@ static char *config = "zapata.conf";
 #define SIG_GR303FXOKS   (0x100000 | ZT_SIG_FXOKS)
 #define SIG_GR303FXSKS   (0x200000 | ZT_SIG_FXSKS)
 
-#define NUM_SPANS 	32
-#define NUM_DCHANS	4		/* No more than 4 d-channels */
-#define MAX_CHANNELS	672	/* No more than a DS3 per trunk group */
-#define RESET_INTERVAL	3600	/* How often (in seconds) to reset unused channels */
+#define NUM_SPANS 		32
+#define NUM_DCHANS		4		/* No more than 4 d-channels */
+#define MAX_CHANNELS	672		/* No more than a DS3 per trunk group */
 
 #define CHAN_PSEUDO	-2
 
@@ -248,6 +247,12 @@ static int minidle = 0;
 static char idleext[AST_MAX_EXTENSION];
 static char idledial[AST_MAX_EXTENSION];
 static int overlapdial = 0;
+static char internationalprefix[10] = "";
+static char nationalprefix[10] = "";
+static char localprefix[20] = "";
+static char privateprefix[20] = "";
+static char unknownprefix[20] = "";
+static long resetinterval = 3600;			/* How often (in seconds) to reset unused channels. Default 1 hour. */
 static struct ast_channel inuse = { "GR-303InUse" };
 #ifdef PRI_GETSET_TIMERS
 static int pritimers[PRI_MAX_TIMERS];
@@ -339,37 +344,43 @@ static int r2prot = -1;
 #define PRI_SPAN(p) (((p) >> 8) & 0xff)
 
 struct zt_pri {
-	pthread_t master;			/* Thread of master */
-	ast_mutex_t lock;		/* Mutex */
+	pthread_t master;						/* Thread of master */
+	ast_mutex_t lock;						/* Mutex */
 	char idleext[AST_MAX_EXTENSION];		/* Where to idle extra calls */
-	char idlecontext[AST_MAX_EXTENSION];		/* What context to use for idle */
+	char idlecontext[AST_MAX_EXTENSION];	/* What context to use for idle */
 	char idledial[AST_MAX_EXTENSION];		/* What to dial before dumping */
-	int minunused;				/* Min # of channels to keep empty */
-	int minidle;				/* Min # of "idling" calls to keep active */
-	int nodetype;				/* Node type */
-	int switchtype;				/* Type of switch to emulate */
-	int nsf;			/* Network-Specific Facilities */
-	int dialplan;			/* Dialing plan */
-	int localdialplan;		/* Local dialing plan */
-	int dchannels[NUM_DCHANS];	/* What channel are the dchannels on */
-	int trunkgroup;			/* What our trunkgroup is */
-	int mastertrunkgroup;	/* What trunk group is our master */
-	int prilogicalspan;		/* Logical span number within trunk group */
-	int numchans;			/* Num of channels we represent */
-	int overlapdial;		/* In overlap dialing mode */
-	struct pri *dchans[NUM_DCHANS];	/* Actual d-channels */
-	int dchanavail[NUM_DCHANS];		/* Whether each channel is available */
-	struct pri *pri;				/* Currently active D-channel */
+	int minunused;							/* Min # of channels to keep empty */
+	int minidle;							/* Min # of "idling" calls to keep active */
+	int nodetype;							/* Node type */
+	int switchtype;							/* Type of switch to emulate */
+	int nsf;								/* Network-Specific Facilities */
+	int dialplan;							/* Dialing plan */
+	int localdialplan;						/* Local dialing plan */
+	char internationalprefix[10];			/* country access code ('00' for european dialplans) */
+	char nationalprefix[10];				/* area access code ('0' for european dialplans) */
+	char localprefix[20];					/* area access code + area code ('0'+area code for european dialplans) */
+	char privateprefix[20];					/* for private dialplans */
+	char unknownprefix[20];					/* for unknown dialplans */
+	int dchannels[NUM_DCHANS];				/* What channel are the dchannels on */
+	int trunkgroup;							/* What our trunkgroup is */
+	int mastertrunkgroup;					/* What trunk group is our master */
+	int prilogicalspan;						/* Logical span number within trunk group */
+	int numchans;							/* Num of channels we represent */
+	int overlapdial;						/* In overlap dialing mode */
+	struct pri *dchans[NUM_DCHANS];			/* Actual d-channels */
+	int dchanavail[NUM_DCHANS];				/* Whether each channel is available */
+	struct pri *pri;						/* Currently active D-channel */
 	int debug;
-	int fds[NUM_DCHANS];	/* FD's for d-channels */
+	int fds[NUM_DCHANS];					/* FD's for d-channels */
 	int offset;
 	int span;
 	int resetting;
 	int resetpos;
-	time_t lastreset;
-	struct zt_pvt *pvts[MAX_CHANNELS];	/* Member channel pvt structs */
-	struct zt_pvt *crvs;				/* Member CRV structs */
-	struct zt_pvt *crvend;				/* Pointer to end of CRV structs */
+	time_t lastreset;						/* time when unused channels were last reset */
+	long resetinterval;						/* Interval (in seconds) for resetting unused channels */
+	struct zt_pvt *pvts[MAX_CHANNELS];		/* Member channel pvt structs */
+	struct zt_pvt *crvs;					/* Member CRV structs */
+	struct zt_pvt *crvend;					/* Pointer to end of CRV structs */
 };
 
 
@@ -475,6 +486,7 @@ static struct zt_pvt {
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];
 	char cid_num[AST_MAX_EXTENSION];
+	int cid_ton;				/* Type Of Number (TON) */
 	char cid_name[AST_MAX_EXTENSION];
 	char lastcid_num[AST_MAX_EXTENSION];
 	char lastcid_name[AST_MAX_EXTENSION];
@@ -503,9 +515,9 @@ static struct zt_pvt {
 	int hidecallerid;
 	int callreturn;
 	int permhidecallerid;		/* Whether to hide our outgoing caller ID or not */
-	int restrictcid;		/* Whether restrict the callerid -> only send ANI */
+	int restrictcid;			/* Whether restrict the callerid -> only send ANI */
 	int use_callingpres;		/* Whether to use the callingpres the calling switch sends */
-	int callingpres;		/* The value of callling presentation that we're going to use when placing a PRI call */
+	int callingpres;			/* The value of callling presentation that we're going to use when placing a PRI call */
 	int callwaitingrepeat;		/* How many samples to wait before repeating call waiting */
 	int cidcwexpire;			/* When to expire our muting for CID/CW */
 	unsigned char *cidspill;
@@ -544,7 +556,7 @@ static struct zt_pvt {
 	int inalarm;
 	char accountcode[20];		/* Account code */
 	int amaflags;				/* AMA Flags */
-	char didtdd;			/* flag to say its done it once */
+	char didtdd;				/* flag to say its done it once */
 	struct tdd_state *tdd;		/* TDD flag */
 	int adsi;
 	int cancallforward;
@@ -554,17 +566,17 @@ static struct zt_pvt {
 	int onhooktime;
 	int msgstate;
 	
-	int confirmanswer;		/* Wait for '#' to confirm answer */
-	int distinctivering;	/* Which distinctivering to use */
-	int cidrings;			/* Which ring to deliver CID on */
+	int confirmanswer;			/* Wait for '#' to confirm answer */
+	int distinctivering;		/* Which distinctivering to use */
+	int cidrings;				/* Which ring to deliver CID on */
 	
-	int faxhandled;			/* Has a fax tone already been handled? */
+	int faxhandled;				/* Has a fax tone already been handled? */
 	
-	char mate;			/* flag to say its in MATE mode */
-	int pulsedial;		/* whether a pulse dial phone is detected */
-	int dtmfrelax;		/* whether to run in relaxed DTMF mode */
+	char mate;					/* flag to say its in MATE mode */
+	int pulsedial;				/* whether a pulse dial phone is detected */
+	int dtmfrelax;				/* whether to run in relaxed DTMF mode */
 	int fake_event;
-	int zaptrcallerid;	/* should we use the callerid from incoming call on zap transfer or not */
+	int zaptrcallerid;			/* should we use the callerid from incoming call on zap transfer or not */
 	int emdigitwait;
 	int hanguponpolarityswitch;
 	int polarityonanswerdelay;
@@ -581,7 +593,7 @@ static struct zt_pvt {
 	int logicalspan;
 	int alreadyhungup;
 	int proceeding;
-	int setup_ack;		/* wheter we received SETUP_ACKNOWLEDGE or not */
+	int setup_ack;				/* whether we received SETUP_ACKNOWLEDGE or not */
 	int dsp_features;
 #endif	
 #ifdef ZAPATA_R2
@@ -921,12 +933,12 @@ static int zt_digit(struct ast_channel *ast, char digit)
 }
 
 static char *events[] = {
-        "No event",
-        "On hook",
-        "Ring/Answered",
-        "Wink/Flash",
-        "Alarm",
-        "No more alarm",
+		"No event",
+		"On hook",
+		"Ring/Answered",
+		"Wink/Flash",
+		"Alarm",
+		"No more alarm",
 		"HDLC Abort",
 		"HDLC Overrun",
 		"HDLC Bad FCS",
@@ -935,10 +947,10 @@ static char *events[] = {
 		"Ringer Off",
 		"Hook Transition Complete",
 		"Bits Changed",
-	        "Pulse Start",
+		"Pulse Start",
 		"Timer Expired",
 		"Timer Ping",
-	        "Polarity Reversal"
+		"Polarity Reversal"
 };
 
 static struct {
@@ -4636,6 +4648,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 
 		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
 		tmp->cid.cid_pres = i->callingpres;
+		tmp->cid.cid_ton = i->cid_ton;
 #ifdef ZAPATA_PRI
 		set_calltype(tmp, ctype);
 		/* Assume calls are not idle calls unless we're told differently */
@@ -6476,6 +6489,12 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 						pris[span].overlapdial = overlapdial;
 						strncpy(pris[span].idledial, idledial, sizeof(pris[span].idledial) - 1);
 						strncpy(pris[span].idleext, idleext, sizeof(pris[span].idleext) - 1);
+						strncpy(pris[span].internationalprefix, internationalprefix, sizeof(pris[span].internationalprefix)-1);
+						strncpy(pris[span].nationalprefix, nationalprefix, sizeof(pris[span].nationalprefix)-1);
+						strncpy(pris[span].localprefix, localprefix, sizeof(pris[span].localprefix)-1);
+						strncpy(pris[span].privateprefix, privateprefix, sizeof(pris[span].privateprefix)-1);
+						strncpy(pris[span].unknownprefix, unknownprefix, sizeof(pris[span].unknownprefix)-1);
+						pris[span].resetinterval = resetinterval;
 						
 						tmp->pri = &pris[span];
 						tmp->prioffset = offset;
@@ -6638,6 +6657,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		strncpy(tmp->musicclass, musicclass, sizeof(tmp->musicclass)-1);
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		strncpy(tmp->cid_num, cid_num, sizeof(tmp->cid_num)-1);
+		tmp->cid_ton = 0;
 		strncpy(tmp->cid_name, cid_name, sizeof(tmp->cid_name)-1);
 		strncpy(tmp->mailbox, mailbox, sizeof(tmp->mailbox)-1);
 		tmp->msgstate = -1;
@@ -7358,6 +7378,8 @@ static void *pri_dchannel(void *vpri)
 	pthread_t threadid;
 	pthread_attr_t attr;
 	char ani2str[6];
+	char plancallingnum[256];
+	char calledtonstr[10];
 	
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -7395,7 +7417,7 @@ static void *pri_dchannel(void *vpri)
 				if (pri->resetpos < 0)
 					pri_check_restart(pri);
 			} else {
-				if (!pri->resetting && ((t - pri->lastreset) >= RESET_INTERVAL)) {
+				if (!pri->resetting	&& (t - pri->lastreset) >= pri->resetinterval) {
 					pri->resetting = 1;
 					pri->resetpos = -1;
 				}
@@ -7566,7 +7588,7 @@ static void *pri_dchannel(void *vpri)
 				time(&pri->lastreset);
 
 				/* Restart in 5 seconds */
-				pri->lastreset -= RESET_INTERVAL;
+				pri->lastreset -= pri->resetinterval;
 				pri->lastreset += 5;
 				pri->resetting = 0;
 				/* Take the channels from inalarm condition */
@@ -7727,13 +7749,35 @@ static void *pri_dchannel(void *vpri)
 					}
 					pri->pvts[chanpos]->call = e->ring.call;
 					/* Get caller ID */
+					switch (e->ring.callingplan) {
+					case PRI_INTERNATIONAL_ISDN:	/* Q.931 dialplan == 0x11 international dialplan => prepend international prefix digits */
+						snprintf(plancallingnum, sizeof(plancallingnum), "%s%s", pri->internationalprefix, e->ring.callingnum);
+						break;
+					case PRI_NATIONAL_ISDN:			/* Q.931 dialplan == 0x21 national dialplan => prepend national prefix digits */
+						snprintf(plancallingnum, sizeof(plancallingnum), "%s%s", pri->nationalprefix, e->ring.callingnum);
+						break;
+					case PRI_LOCAL_ISDN:			/* Q.931 dialplan == 0x41 local dialplan => prepend local prefix digits */
+						snprintf(plancallingnum, sizeof(plancallingnum), "%s%s", pri->localprefix, e->ring.callingnum);
+						break;
+					case PRI_PRIVATE:				/* Q.931 dialplan == 0x49 private dialplan => prepend private prefix digits */
+						snprintf(plancallingnum, sizeof(plancallingnum), "%s%s", pri->privateprefix, e->ring.callingnum);
+						break;
+					case PRI_UNKNOWN:				/* Q.931 dialplan == 0x00 unknown dialplan => prepend unknown prefix digits */
+						snprintf(plancallingnum, sizeof(plancallingnum), "%s%s", pri->unknownprefix, e->ring.callingnum);
+						break;
+					default:						/* other Q.931 dialplan => don't twiddle with callingnum */
+						snprintf(plancallingnum, sizeof(plancallingnum), "%s", e->ring.callingnum);
+						break;
+					}
 					if (pri->pvts[chanpos]->use_callerid) {
-						ast_shrink_phone_number(e->ring.callingnum);
-						strncpy(pri->pvts[chanpos]->cid_num, e->ring.callingnum, sizeof(pri->pvts[chanpos]->cid_num)-1);
+						ast_shrink_phone_number(plancallingnum);
+						strncpy(pri->pvts[chanpos]->cid_num, plancallingnum, sizeof(pri->pvts[chanpos]->cid_num)-1);
 						strncpy(pri->pvts[chanpos]->cid_name, e->ring.callingname, sizeof(pri->pvts[chanpos]->cid_name)-1);
+						pri->pvts[chanpos]->cid_ton = e->ring.callingplan; /* this is the callingplan (TON/NPI), e->ring.callingplan>>4 would be the TON */
 					} else {
 						pri->pvts[chanpos]->cid_num[0] = '\0';
 						pri->pvts[chanpos]->cid_name[0] = '\0';
+						pri->pvts[chanpos]->cid_ton = 0;
 					}
 					strncpy(pri->pvts[chanpos]->rdnis, e->ring.redirectingnum, sizeof(pri->pvts[chanpos]->rdnis) - 1);
 					/* If immediate=yes go to s|1 */
@@ -7788,6 +7832,7 @@ static void *pri_dchannel(void *vpri)
 						}
 						/* Get the use_callingpres state */
 						pri->pvts[chanpos]->callingpres = e->ring.callingpres;
+					
 						/* Start PBX */
 						if (pri->overlapdial && ast_matchmore_extension(NULL, pri->pvts[chanpos]->context, pri->pvts[chanpos]->exten, 1, pri->pvts[chanpos]->cid_num)) {
 							/* Release the PRI lock while we create the channel */
@@ -7801,34 +7846,37 @@ static void *pri_dchannel(void *vpri)
 							} else {
 								c = zt_new(pri->pvts[chanpos], AST_STATE_RESERVED, 0, SUB_REAL, law, e->ring.ctype);
 							}
-							if(!ast_strlen_zero(e->ring.callingsubaddr)) {
+							if (!ast_strlen_zero(e->ring.callingsubaddr)) {
 								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 							}
 							if(e->ring.ani2 >= 0) {
 								snprintf(ani2str, 5, "%.2d", e->ring.ani2);
 								pbx_builtin_setvar_helper(c, "ANI2", ani2str);
 							}
-
-							if(e->ring.redirectingreason >= 0) {
+							if (!ast_strlen_zero(e->ring.useruserinfo)) {
+								pbx_builtin_setvar_helper(c, "USERUSERINFO", e->ring.useruserinfo);
+							}
+							snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
+							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
+							if (e->ring.redirectingreason >= 0) {
 								char redirstr[20] = "";
 								switch (e->ring.redirectingreason) {
-									case 0:
-										snprintf(redirstr, 20, "UNKNOWN");
-										break;
-									case 1:
-										snprintf(redirstr, 20, "BUSY");
-										break;
-									case 2:
-										snprintf(redirstr, 20, "NO_REPLY");
-										break;
-									case 0xF:
-										snprintf(redirstr, 20, "UNCONDITIONAL"); /* Other reason */
-										break;
-									default:
-										snprintf(redirstr, 20, "NOREDIRECT");
-										break;
+								case 0:
+									snprintf(redirstr, sizeof(redirstr), "UNKNOWN");
+									break;
+								case 1:
+									snprintf(redirstr, sizeof(redirstr), "BUSY");
+									break;
+								case 2:
+									snprintf(redirstr, sizeof(redirstr), "NO_REPLY");
+									break;
+								case 0xF:
+									snprintf(redirstr, sizeof(redirstr), "UNCONDITIONAL"); /* Other reason */
+									break;
+								default:
+									snprintf(redirstr, sizeof(redirstr), "NOREDIRECT");
+									break;
 								}
-
 								pbx_builtin_setvar_helper(c, "PRIREDIRECTCAUSE", redirstr);
 							}
 							
@@ -7836,7 +7884,7 @@ static void *pri_dchannel(void *vpri)
 							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting overlap call from '%s' to '%s' on channel %d/%d, span %d\n",
-										e->ring.callingnum, !ast_strlen_zero(pri->pvts[chanpos]->exten) ? pri->pvts[chanpos]->exten : "<unspecified>", 
+										plancallingnum, !ast_strlen_zero(pri->pvts[chanpos]->exten) ? pri->pvts[chanpos]->exten : "<unspecified>", 
 										pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 							} else {
 								ast_log(LOG_WARNING, "Unable to start PBX on channel %d/%d, span %d\n", 
@@ -7858,9 +7906,15 @@ static void *pri_dchannel(void *vpri)
 									snprintf(ani2str, 5, "%d", e->ring.ani2);
 									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
 								}
+								if (!ast_strlen_zero(e->ring.useruserinfo)) {
+									pbx_builtin_setvar_helper(c, "USERUSERINFO", e->ring.useruserinfo);
+								}
+								char calledtonstr[10];
+								snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
+								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
-										e->ring.callingnum, pri->pvts[chanpos]->exten, 
+										plancallingnum, pri->pvts[chanpos]->exten, 
 											pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span);
 								zt_enable_ec(pri->pvts[chanpos]);
 							} else {
@@ -8791,6 +8845,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "Dialing: %s\n", tmp->dialing ? "yes" : "no");
 			ast_cli(fd, "Context: %s\n", tmp->context);
 			ast_cli(fd, "Caller ID: %s\n", tmp->cid_num);
+			ast_cli(fd, "Calling TON: %d\n", tmp->cid_ton);
 			ast_cli(fd, "Caller ID name: %s\n", tmp->cid_name);
 			ast_cli(fd, "Destroy: %d\n", tmp->destroy);
 			ast_cli(fd, "InAlarm: %d\n", tmp->inalarm);
@@ -9771,6 +9826,22 @@ static int setup_zap(int reload)
 					priindication_oob = 0;
 				else
 					ast_log(LOG_WARNING, "'%s' is not a valid pri indication value, should be 'inband' or 'outofband' at line %d\n",
+						v->value, v->lineno);
+			} else if (!strcasecmp(v->name, "internationalprefix")) {
+				strncpy(internationalprefix, v->value, sizeof(internationalprefix)-1);
+			} else if (!strcasecmp(v->name, "nationalprefix")) {
+				strncpy(nationalprefix, v->value, sizeof(nationalprefix)-1);
+			} else if (!strcasecmp(v->name, "localprefix")) {
+				strncpy(localprefix, v->value, sizeof(localprefix)-1);
+			} else if (!strcasecmp(v->name, "privateprefix")) {
+				strncpy(privateprefix, v->value, sizeof(privateprefix)-1);
+			} else if (!strcasecmp(v->name, "unknownprefix")) {
+				strncpy(unknownprefix, v->value, sizeof(unknownprefix)-1);
+			} else if (!strcasecmp(v->name, "resetinterval")) {
+				if( atoi(v->value) >= 60 )
+					resetinterval = atoi(v->value);
+				else
+					ast_log(LOG_WARNING, "'%s' is not a valid reset interval, should be >= 60 seconds at line %d\n",
 						v->value, v->lineno);
 			} else if (!strcasecmp(v->name, "minunused")) {
 				minunused = atoi(v->value);
