@@ -888,7 +888,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 				}
 			}
 		}
-		if (!(*ret) && strcasecmp(var,"LEN(",4) {
+		if (!(*ret) && !strcasecmp(var,"LEN(",4)) {
 			int len=strlen(var);
 			int len_len=4;
 			if (len > (len_len+1) && !strncasecmp(var,"LEN(",len_len) && strchr(var+len_len+2,')')) {
