@@ -74,6 +74,7 @@ ${SIPUSERAGENT} SIP user agent
 ${TIMESTAMP}	Current date time in the format: YYYYMMDD-HHMMSS
 ${TXTCIDNAME}	Result of application TXTCIDName
 ${UNIQUEID}	Current call unique identifier
+${PRIREDIRECTREASON} Reason for redirect, if a call was directed
 
 The dial() application sets the following variables:
 
