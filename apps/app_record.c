@@ -114,6 +114,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 			snprintf(tmp, 256, fil, count);
 			count++;
 		} while ( ast_fileexists(tmp, ext, chan->language) != -1 );
+		pbx_builtin_setvar_helper(chan, "RECORDED_FILE", tmp);
 	} else
 		strncpy(tmp, fil, 256-1);
 	/* end of routine mentioned */
