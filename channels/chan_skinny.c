@@ -1529,7 +1529,14 @@ static int skinny_hangup(struct ast_channel *ast)
 		sub->parent->hookstate = SKINNY_ONHOOK;
 		transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
 		transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
-	}
+	} else if ((sub->parent->type = TYPE_LINE) && (sub->parent->hookstate == SKINNY_ONHOOK)) {
+		transmit_callstate(s, l->instance, SKINNY_ONHOOK, sub->callid);
+		transmit_speaker_mode(s, SKINNY_SPEAKEROFF); 
+		transmit_ringer_mode(s, SKINNY_RING_OFF);
+		transmit_tone(s, SKINNY_SILENCE);
+	} 
+		
+
     ast_mutex_lock(&sub->lock);
     sub->owner = NULL;
     ast->pvt->pvt = NULL;
