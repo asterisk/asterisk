@@ -763,12 +763,13 @@ zapretry:
 
 		if (c) {
 			if (c->fds[0] != origfd) {
-				if (retryzap) {
+				if (using_pseudo) {
 					/* Kill old pseudo */
 					close(fd);
 				}
 				ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
 				retryzap = 0;
+				using_pseudo = 0;
 				goto zapretry;
 			}
 			f = ast_read(c);
@@ -876,7 +877,7 @@ zapretry:
 						if (musiconhold) {
 				   			ast_moh_start(chan, NULL);
 						}
-			} else if (fd != chan->fds[0]) {
+			} else if (using_pseudo) {
 				if (f->frametype == AST_FRAME_VOICE) {
 					if (f->subclass == AST_FORMAT_ULAW) {
 						/* Carefully write */
