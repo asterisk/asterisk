@@ -3628,6 +3628,47 @@ static int get_refer_info(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
+static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
+{
+	char tmp[256] = "", *c, *a;
+	struct sip_request *req;
+	
+	req = oreq;
+	if (!req)
+		req = &p->initreq;
+	strncpy(tmp, get_header(req, "Also"), sizeof(tmp) - 1);
+	
+	c = ditch_braces(tmp);
+	
+		
+	if (strncmp(c, "sip:", 4)) {
+		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+		return -1;
+	}
+	c += 4;
+	if ((a = strchr(c, '@')))
+		*a = '\0';
+	if ((a = strchr(c, ';'))) 
+		*a = '\0';
+	
+	if (sipdebug) {
+		ast_verbose("Looking for %s in %s\n", c, p->context);
+	}
+	if (ast_exists_extension(NULL, p->context, c, 1, NULL)) {
+		/* This is an unsupervised transfer */
+		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
+		strncpy(p->refer_to, c, sizeof(p->refer_to) - 1);
+		strncpy(p->referred_by, "", sizeof(p->referred_by) - 1);
+		strncpy(p->refer_contact, "", sizeof(p->refer_contact) - 1);
+		strncpy(p->remote_party_id, "", sizeof(p->remote_party_id) - 1);
+		p->refer_call = NULL;
+		return 0;
+	} else if (ast_canmatch_extension(NULL, p->context, c, 1, NULL)) {
+		return 1;
+	}
+
+	return -1;
+}
 
 static int check_via(struct sip_pvt *p, struct sip_request *req)
 {
@@ -4631,6 +4672,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	char *from;
 	char *e;
 	struct ast_channel *c=NULL;
+	struct ast_channel *transfer_to;
 	int seqno;
 	int len;
 	int ignore=0;
@@ -4862,7 +4904,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			}
 		}
 	} else if (!strcasecmp(cmd, "REFER")) {
-		struct ast_channel *transfer_to;
 		ast_log(LOG_DEBUG, "We found a REFER!\n");
 		if (!strlen(p->context))
 			strncpy(p->context, context, sizeof(p->context) - 1);
@@ -4920,7 +4961,28 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			/* Immediately stop VRTP */
 			ast_rtp_stop(p->vrtp);
 		}
-		if (p->owner)
+		if (strlen(get_header(req, "Also"))) {
+			ast_log(LOG_NOTICE, "Client '%s' using depreciated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
+				inet_ntoa(p->recv.sin_addr));
+			if (!strlen(p->context))
+				strncpy(p->context, context, sizeof(p->context) - 1);
+			res = get_refer_info(p, req);
+			if (!res) {
+				c = p->owner;
+				if (c) {
+					transfer_to = c->bridge;
+					if (transfer_to) {
+						/* Don't actually hangup here... */
+						ast_moh_stop(transfer_to);
+						ast_async_goto(transfer_to,p->context, p->refer_to,1, 1);
+					} else
+						ast_queue_hangup(p->owner, 0);
+				}
+			} else {
+				ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", inet_ntoa(p->recv.sin_addr));
+				ast_queue_hangup(p->owner, 0);
+			}
+		} else if (p->owner)
 			ast_queue_hangup(p->owner, 0);
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "MESSAGE")) {
