@@ -543,9 +543,11 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		restartnow = 1;
 		/* If there is a consolethread running send it a SIGHUP 
 		   so it can execvp, otherwise we can do it ourselves */
-		if (consolethread != (pthread_t) -1)
+		if (consolethread != (pthread_t) -1) {
 			pthread_kill(consolethread, SIGHUP);
-		else
+			/* Give the signal handler some time to complete */
+			sleep(2);
+		} else
 			execvp(_argv[0], _argv);
 	
 	}
@@ -1471,6 +1473,8 @@ int main(int argc, char *argv[])
 		ast_verbose(" ]\n");
 	if (option_verbose || option_console)
 		ast_verbose(term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
+	if (option_nofork)
+		consolethread = pthread_self();
 	fully_booted = 1;
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 #ifdef __AST_DEBUG_MALLOC
@@ -1485,8 +1489,6 @@ int main(int argc, char *argv[])
 	ast_cli_register(&astshutdownwhenconvenient);
 	ast_cli_register(&aborthalt);
 	ast_cli_register(&astbang);
-	if (option_nofork)
-		consolethread = pthread_self();
 	if (option_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
