@@ -84,7 +84,7 @@ diff -u -r festival-1.4.3/src/arch/festival/wave.cc festival-1.4.3-asterisk/src/
 +    init_subr_1("utt.send.wave.asterisk",utt_send_wave_asterisk,
 + "(utt.send.wave.asterisk UTT)\n\
 +  Sends wave in UTT to client.  If not in server mode gives an error\n\
-+  Note the client must be expecting to receive the waveform. The waveform
++  Note the client must be expecting to receive the waveform. The waveform\n\
 +  is rescaled and resampled according to what asterisk needs");
 +// end asterisk mod
 +
