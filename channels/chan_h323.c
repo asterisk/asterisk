@@ -94,23 +94,23 @@ static char secret[50];
 struct oh323_pvt {
 	ast_mutex_t lock;					/* Channel private lock */
 	call_options_t calloptions;				/* Options to be used during call setup */
-	int	alreadygone;						/* Whether or not we've already been destroyed by or peer */
-	int needdestroy;						/* if we need to be destroyed */
-	call_details_t cd;						/* Call details */
+	int alreadygone;					/* Whether or not we've already been destroyed by or peer */
+	int needdestroy;					/* if we need to be destroyed */
+	call_details_t cd;					/* Call details */
 	struct ast_channel *owner;				/* Who owns us */
-	int capability;							/* Special capability */
-	int nonCodecCapability;
-	int outgoing;							/* Outgoing or incoming call? */
-	int nat;								/* Are we talking to a NAT EP?*/
-	int bridge;								/* Determine of we should native bridge or not*/
-	char exten[AST_MAX_EXTENSION];			/* Requested extension */
-	char context[AST_MAX_EXTENSION];		/* Context where to start */
-	char username[81];						/* H.323 alias using this channel */
+	int capability;						/* audio capability */
+	int nonCodecCapability;					/* non-audio capability */
+	int outgoing;						/* Outgoing or incoming call? */
+	int nat;						/* Are we talking to a NAT EP?*/
+	int bridge;						/* Determine of we should native bridge or not*/
+	char exten[AST_MAX_EXTENSION];				/* Requested extension */
+	char context[AST_MAX_EXTENSION];			/* Context where to start */
+	char username[81];					/* H.323 alias using this channel */
 	char accountcode[256];					/* Account code */
-	int amaflags;							/* AMA Flags */
-	char callerid[80];						/* Caller*ID if available */
+	int amaflags;						/* AMA Flags */
+	char callerid[80];					/* Caller*ID if available */
 	struct ast_rtp *rtp;					/* RTP Session */
-	int dtmfmode;
+	int dtmfmode;						/* What DTMF Mode is being used */
 	struct ast_dsp *vad;					/* Used for in-band DTMF detection */
 	struct oh323_pvt *next;					/* Next channel in list */
 } *iflist = NULL;
@@ -805,7 +805,6 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 		h323_set_id(h323id);
 	}
 		
-	
 	p = oh323_alloc(0);
 
 	if (!p) {
@@ -815,13 +814,15 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 
 	/* Assign a default capability */
 	p->capability = capability;
-
+	
 	if (p->dtmfmode) {
 		if (p->dtmfmode & H323_DTMF_RFC2833)
 			p->nonCodecCapability |= AST_RTP_DTMF;
 		else
 			p->nonCodecCapability &= ~AST_RTP_DTMF;
 	}
+	/* pass on our preferred codec to the H.323 stack */
+	h323_set_capability(format, dtmfmode);
 
 	if (ext) {
 		strncpy(p->username, ext, sizeof(p->username) - 1);
@@ -1435,7 +1436,7 @@ int reload_config(void)
 	struct oh323_alias *alias = NULL;
 	struct hostent *hp;
 	char *cat;
-    char *utype;
+    	char *utype;
 	
 	cfg = ast_load(config);
 
