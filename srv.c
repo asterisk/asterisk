@@ -113,9 +113,10 @@ int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, co
 	if (chan)
 		ret |= ast_autoservice_stop(chan);
 
-	if (ret <= 0)
+	if (ret <= 0) {
+		strcpy(host, "");
+    		*port = -1;
 		return ret;
-	strcpy(host, "");
-    *port = -1;
+	}
 	return ret;
 }

@@ -9,3 +9,8 @@
 ; in the order they are listed here.
 ;
 search => e164.arpa
+;
+; As there are more H323 drivers available you have to select to which
+; drive a H323 URI will map. Default is "H323".
+;
+h323driver => H323

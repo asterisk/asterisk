@@ -112,20 +112,23 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	if ((!strncasecmp(services, "e2u+sip", 7)) || 
 	    (!strncasecmp(services, "sip+e2u", 7))) {
 		strncpy(tech, "sip", techsize -1); 
-	} else if ((!strncasecmp(services, "e2u+h323", 7)) || 
-	    (!strncasecmp(services, "h323+e2u", 7))) {
+	} else if ((!strncasecmp(services, "e2u+h323", 8)) || 
+	    (!strncasecmp(services, "h323+e2u", 8))) {
 		strncpy(tech, "h323", techsize -1); 
 	} else if ((!strncasecmp(services, "e2u+iax", 7)) || 
 	    (!strncasecmp(services, "iax+e2u", 7))) {
 		strncpy(tech, "iax", techsize -1); 
-	} else if ((!strncasecmp(services, "e2u+iax2", 7)) || 
-	    (!strncasecmp(services, "iax2+e2u", 7))) {
+	} else if ((!strncasecmp(services, "e2u+iax2", 8)) || 
+	    (!strncasecmp(services, "iax2+e2u", 8))) {
 		strncpy(tech, "iax2", techsize -1); 
 	} else if ((!strncasecmp(services, "e2u+tel", 7)) || 
 	    (!strncasecmp(services, "tel+e2u", 7))) {
 		strncpy(tech, "tel", techsize -1); 
-	} else if (strncasecmp(services, "e2u+voice:", 10)) {
-		ast_log(LOG_WARNING, "Services must be e2u+sip, sip+e2u, e2u+h323, h323+e2u, e2u+iax, iax+e2u, e2u+iax2, iax2+e2u, e2u+tel, tel+e2u or e2u+voice:\n");
+	} else if (!strncasecmp(services, "e2u+voice:", 10)) {
+		strncpy(tech, services+10, techsize -1); 
+	} else {
+		ast_log(LOG_WARNING, 
+		"Services must be e2u+${tech}, ${tech}+e2u, or e2u+voice: where $tech is from (sip, h323, tel, iax, iax2). \n");
 		return -1;
 	}
 
@@ -202,9 +205,6 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	}
 	*d = 0;
 	strncpy(dst, temp, dstsize);
-	d = strchr(services, ':');
-	if (d) 
-		strncpy(tech, d+1, techsize -1); 
 	return 0;
 }
 

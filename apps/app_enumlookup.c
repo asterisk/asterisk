@@ -16,6 +16,8 @@
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
 #include <asterisk/pbx.h>
+#include <asterisk/options.h>
+#include <asterisk/config.h>
 #include <asterisk/module.h>
 #include <asterisk/enum.h>
 #include <stdlib.h>
@@ -35,13 +37,20 @@ static char *synopsis = "Lookup number in ENUM";
 
 static char *descrip = 
 "  EnumLookup(exten):  Looks up an extension via ENUM and sets\n"
-"the variable 'ENUM'.  Returns -1 on hangup, or 0 on completion\n"
-"regardless of whether the lookup was successful. Currently, the\n"
-"enumservices SIP and TEL are recognized. A good SIP entry\n"
-"will result in normal priority handling, whereas a good TEL entry\n"
-"will increase the priority by 51 (if existing)\n"
+"the variable 'ENUM'. For VoIP URIs this variable will \n"
+"look like 'TECHNOLOGY/URI' with the appropriate technology.\n"
+"Returns -1 on hangup, or 0 on completion regardless of whether the \n"
+"lookup was successful. \n"
+"Currently, the enumservices SIP, H323, IAX, IAX2 and TEL are recognized. \n"
+"A good SIP, H323, IAX or IAX2 entry will result in normal priority handling, \n"
+"whereas a good TEL entry will increase the priority by 51 (if existing).\n"
 "If the lookup was *not* successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
+
+#define ENUM_CONFIG "enum.conf"
+
+static char h323driver[80];
+#define H323DRIVERDEFAULT "H323"
 
 STANDARD_LOCAL_USER;
 
@@ -73,19 +82,23 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				c += 4;
 			snprintf(tmp, sizeof(tmp), "SIP/%s", c);
 			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-		} else if (!strcasecmp(tech, "H323")) {
+		} else if (!strcasecmp(tech, "h323")) {
 			c = dest;
 			if (!strncmp(c, "h323:", 5))
 				c += 5;
-			snprintf(tmp, sizeof(tmp), "H323/%s", c);
+			snprintf(tmp, sizeof(tmp), "%s/%s", h323driver, c);
+/* do a s!;.*!! on the H323 URI */
+			t = strchr(c,';');
+			if (t) 
+				*t = 0;
 			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-		} else if (!strcasecmp(tech, "IAX")) {
+		} else if (!strcasecmp(tech, "iax")) {
 			c = dest;
 			if (!strncmp(c, "iax:", 4))
 				c += 4;
 			snprintf(tmp, sizeof(tmp), "IAX/%s", c);
 			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
-		} else if (!strcasecmp(tech, "IAX2")) {
+		} else if (!strcasecmp(tech, "iax2")) {
 			c = dest;
 			if (!strncmp(c, "iax2:", 5))
 				c += 5;
@@ -129,6 +142,28 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static int load_config(void)
+{
+	struct ast_config *cfg;
+	char *s;
+
+	ast_log(LOG_WARNING, "reading enum config\n");
+
+	cfg = ast_load(ENUM_CONFIG);
+	if (cfg) {
+		if (!(s=ast_variable_retrieve(cfg, "general", "h323driver"))) {
+			strcpy(h323driver, H323DRIVERDEFAULT);
+		} else {
+			strcpy(h323driver, s);
+		}
+		ast_destroy(cfg);
+		return 0;
+	}
+	ast_log(LOG_WARNING, "Error reading enum config\n");
+	return -1;
+}
+
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
@@ -137,8 +172,21 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, enumlookup_exec, synopsis, descrip);
+	int res;
+	res = ast_register_application(app, enumlookup_exec, synopsis, descrip);
+	if (res)
+		return(res);
+	if ((res=load_config())) {
+		return(res);
+	}
+	return(0);
 }
+
+int reload(void)
+{
+	return(load_config());
+}
+
 
 char *description(void)
 {
@@ -156,3 +204,4 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
+
