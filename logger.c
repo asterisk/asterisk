@@ -455,8 +455,8 @@ void close_logger(void)
 {
 	struct msglist *m, *tmp;
 
-	m = list;
 	ast_mutex_lock(&msglist_lock);
+	m = list;
 	while(m) {
 		if (m->msg) {
 			free(m->msg);
@@ -656,8 +656,8 @@ extern void ast_verbose(const char *fmt, ...)
 int ast_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	struct msglist *m;
-	m = list;
 	ast_mutex_lock(&msglist_lock);
+	m = list;
 	while(m) {
 		/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
 		v(m->msg, 0, 0, 1);
