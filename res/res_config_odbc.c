@@ -42,10 +42,10 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 	char connection[128];
 	int configured = 0, res = 0;
 	odbc_obj *obj;
-	SQLINTEGER err, commented, cat_metric, var_metric, last_cat_metric;
+	SQLINTEGER err=0, commented=0, cat_metric=0, var_metric=0, last_cat_metric=0;
 	SQLBIGINT id;
 	char sql[255], filename[128], category[128], var_name[128], var_val[128];
-	SQLSMALLINT rowcount;
+	SQLSMALLINT rowcount=0;
 	SQLHSTMT stmt;
 	char last[80];
 	int cat_started = 0;
