@@ -154,7 +154,7 @@
 #elif defined( __FreeBSD__ )
 #  include <sys/types.h>
 #  include <sys/endian.h>
-#elif defined( BSD ) && ( BSD >= 199103 )
+#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
 #  include <machine/endian.h>
 #elif defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
 #  include <endian.h>

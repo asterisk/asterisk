@@ -6,7 +6,7 @@
 #elif defined( __FreeBSD__ )
 #  include <sys/types.h>
 #  include <sys/endian.h>
-#elif defined( BSD ) && ( BSD >= 199103 )
+#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
 #  include <machine/endian.h>
 #else
 #  include <endian.h>
