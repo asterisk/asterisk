@@ -1899,7 +1899,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			break;
 		case STIMULUS_TRANSFER:
 			if (skinnydebug) {
-				printf("Recieved Stimulus: Transfer(%d)", stimulusInstance);
+				printf("Recieved Stimulus: Transfer(%d)\n", stimulusInstance);
 			}
 			transmit_tone(s, SKINNY_DIALTONE);
 				
@@ -2736,7 +2736,7 @@ int unload_module()
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread) {
+		if (monitor_thread && (monitor_thread != -2)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
