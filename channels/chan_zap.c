@@ -5687,12 +5687,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			int offset;
 			int myswitchtype;
 			offset = 0;
-			pri_resolve_span(&span, channel, (channel - p.chanpos), &si);
-			if (span < 0) {
-				ast_log(LOG_WARNING, "Channel %d: Unable to find locate channel/trunk group!\n", channel);
-				free(tmp);
-				return NULL;
-			}
 			if ((signalling == SIG_PRI) && ioctl(tmp->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &offset)) {
 				ast_log(LOG_ERROR, "Unable to set clear mode on clear channel %d of span %d: %s\n", channel, p.spanno, strerror(errno));
 				free(tmp);
@@ -5709,6 +5703,12 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					free(tmp);
 					return NULL;
 				} 
+				pri_resolve_span(&span, channel, (channel - p.chanpos), &si);
+				if (span < 0) {
+					ast_log(LOG_WARNING, "Channel %d: Unable to find locate channel/trunk group!\n", channel);
+					free(tmp);
+					return NULL;
+				}
 				if (signalling == SIG_PRI)
 					myswitchtype = switchtype;
 				else
