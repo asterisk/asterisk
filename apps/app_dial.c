@@ -21,7 +21,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/say.h>
 #include <asterisk/config.h>
-#include <asterisk/parking.h>
+#include <asterisk/features.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/callerid.h>
 #include <asterisk/utils.h>

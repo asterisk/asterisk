@@ -21,7 +21,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/say.h>
 #include <asterisk/channel_pvt.h>
-#include <asterisk/parking.h>
+#include <asterisk/features.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/config.h>
 #include <asterisk/cli.h>
@@ -697,7 +697,12 @@ int load_module(void)
 
 	ast_cli_register(&showparked);
 
-	cfg = ast_load("parking.conf");
+	cfg = ast_load("features.conf");
+	if (!cfg) {
+		cfg = ast_load("parking.conf");
+		if (cfg)
+			ast_log(LOG_NOTICE, "parking.conf is deprecated in favor of 'features.conf'.  Please rename it.\n");
+	}
 	if (cfg) {
 		var = ast_variable_browse(cfg, "general");
 		while(var) {

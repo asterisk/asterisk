@@ -34,7 +34,7 @@
 #include <asterisk/say.h>
 #include <asterisk/cdr.h>
 #include <asterisk/astdb.h>
-#include <asterisk/parking.h>
+#include <asterisk/features.h>
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/utils.h>

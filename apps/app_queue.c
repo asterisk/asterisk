@@ -38,7 +38,7 @@
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
 #include <asterisk/say.h>
-#include <asterisk/parking.h>
+#include <asterisk/features.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/cli.h>
 #include <asterisk/manager.h>

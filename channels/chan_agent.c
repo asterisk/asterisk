@@ -32,7 +32,7 @@
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/manager.h>
-#include <asterisk/parking.h>
+#include <asterisk/features.h>
 #include <asterisk/utils.h>
 #include <sys/socket.h>
 #include <errno.h>

@@ -34,7 +34,7 @@
 #include <asterisk/app.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/dsp.h>
-#include <asterisk/parking.h>
+#include <asterisk/features.h>
 #include <asterisk/acl.h>
 #include <asterisk/srv.h>
 #include <asterisk/astdb.h>

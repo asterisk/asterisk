@@ -28,7 +28,7 @@
 #include <asterisk/adsi.h>
 #include <asterisk/cli.h>
 #include <asterisk/cdr.h>
-#include <asterisk/parking.h>
+#include <asterisk/features.h>
 #include <asterisk/musiconhold.h>
 #include <asterisk/say.h>
 #include <asterisk/tdd.h>

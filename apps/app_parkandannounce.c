@@ -21,7 +21,7 @@
 #include <asterisk/channel_pvt.h>
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
-#include <asterisk/parking.h>
+#include <asterisk/features.h>
 #include <asterisk/options.h>
 #include <asterisk/logger.h>
 #include <asterisk/say.h>
