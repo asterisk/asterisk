@@ -464,8 +464,8 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	} else {
 		sprintf(called_addr, "%s:%d",addr, pvt->options.port);
 	}
-	ast_log(LOG_DEBUG, "Placing outgoing call to %s\n", called_addr);
-	res = h323_make_call(called_addr, &(pvt->cd), pvt->options);
+	ast_log(LOG_DEBUG, "Placing outgoing call to %s\n", dest);
+	res = h323_make_call(dest, &(pvt->cd), pvt->options);
 	if (res) {
 		ast_log(LOG_NOTICE, "h323_make_call failed(%s)\n", c->name);
 		return -1;
