@@ -22,7 +22,6 @@
          are used for maximum performance, to support multiple inheritance, and
 		 to be easily integrated into existing structures without additional 
 		 malloc calls, etc.
-  
 */
 
 #if defined(__cplusplus) || defined(c_plusplus)
@@ -38,6 +37,10 @@ extern "C" {
 
 /* C++ is simply a syntactic crutch for those who cannot think for themselves
    in an object oriented way. */
+
+#define ASTOBJ_RDLOCK(object) ast_mutex_lock(&(object)->_lock)
+#define ASTOBJ_WRLOCK(object) ast_mutex_lock(&(object)->_lock)
+#define ASTOBJ_UNLOCK(object) ast_mutex_unlock(&(object)->_lock)
 
 #ifdef ASTOBJ_CONTAINER_HASHMODEL 
 #define __ASTOBJ_HASH(type,hashes) \
@@ -57,59 +60,72 @@ extern "C" {
 	ASTOBJ_COMPONENTS_NOLOCK_FULL(type,ASTOBJ_DEFAULT_NAMELEN,1)
 
 #define ASTOBJ_COMPONENTS(type) \
-	ast_mutex_t lock; \
+	ast_mutex_t _lock; \
 	ASTOBJ_COMPONENTS_NOLOCK(type)
 	
 #define ASTOBJ_COMPONENTS_FULL(type,namelen,hashes) \
-	ast_mutex_t lock; \
+	ast_mutex_t _lock; \
 	ASTOBJ_COMPONENTS_NOLOCK_FULL(type,namelen,hashes)
 
 #define ASTOBJ_REF(object) \
-	do { \
-		ast_mutex_lock(&(object)->lock); \
+	({ \
+		ASTOBJ_WRLOCK(object); \
 		(object)->refcount++; \
-		ast_mutex_unlock(&(object)->lock); \
-	} while(0)
+		ASTOBJ_UNLOCK(object); \
+		(object); \
+	})
 	
 #define ASTOBJ_UNREF(object,destructor) \
 	do { \
-		int destroyme; \
-		ast_mutex_lock(&(object)->lock); \
-		if ((object)->refcount > 0) \
+		ASTOBJ_WRLOCK(object); \
+		if (__builtin_expect((object)->refcount, 1)) \
 			(object)->refcount--; \
 		else \
 			ast_log(LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
-		destroyme = (!(object)->refcount) && ((object)->objflags & ASTOBJ_FLAG_DELME); \
-		ast_mutex_unlock(&(object)->lock); \
-		if (destroyme) \
-			destructor((object)); \
+		ASTOBJ_UNLOCK(object); \
+		ASTOBJ_DESTROY(object,destructor); \
+		(object) = NULL; \
 	} while(0)
 
 #define ASTOBJ_MARK(object) \
-	(object)->objflags |= ASTOBJ_FLAG_MARKED;
+	do { \
+		ASTOBJ_WRLOCK(object); \
+		(object)->objflags |= ASTOBJ_FLAG_MARKED; \
+		ASTOBJ_UNLOCK(object); \
+	} while(0)
 	
 #define ASTOBJ_UNMARK(object) \
-	(object)->objflags &= ~ASTOBJ_FLAG_MARKED;
+	do { \
+		ASTOBJ_WRLOCK(object); \
+		(object)->objflags &= ~ASTOBJ_FLAG_MARKED; \
+		ASTOBJ_UNLOCK(object); \
+	} while(0)
 
 #define ASTOBJ_DESTROY(object,destructor) \
 	do { \
-		int destroyme; \
-		ast_mutex_lock(&(object)->lock); \
-		destroyme = (!(object)->refcount); \
-		(object)->objflags |= ASTOBJ_FLAG_DELME; \
-		ast_mutex_unlock(&(object)->lock); \
-		if (destroyme) \
+		if (__builtin_expect((object)->refcount, 1)) { \
+			ASTOBJ_WRLOCK(object); \
+			(object)->objflags |= ASTOBJ_FLAG_DELME; \
+			ASTOBJ_UNLOCK(object); \
+		} else { \
+			ast_mutex_destroy(&(object)->_lock); \
 			destructor((object)); \
+		} \
 	} while(0)
 	
 #define ASTOBJ_INIT(object) \
 	do { \
-		ast_mutex_init(&(object)->lock); \
+		ast_mutex_init(&(object)->_lock); \
 		object->name[0] = '\0'; \
+		object->refcount = 1; \
 	} while(0)
 
 /* Containers for objects -- current implementation is linked lists, but
    should be able to be converted to hashes relatively easily */
+
+#define ASTOBJ_CONTAINER_RDLOCK(container) ast_mutex_lock(&(container)->_lock)
+#define ASTOBJ_CONTAINER_WRLOCK(container) ast_mutex_lock(&(container)->_lock)
+#define ASTOBJ_CONTAINER_UNLOCK(container) ast_mutex_unlock(&(container)->_lock)
 
 #ifdef ASTOBJ_CONTAINER_HASHMODEL
 #error "Hash model for object containers not yet implemented!"
@@ -120,193 +136,145 @@ extern "C" {
 
 #define ASTOBJ_CONTAINER_INIT_FULL(container,hashes,buckets) \
 	do { \
-		ast_mutex_init(&(container)->lock); \
+		ast_mutex_init(&(container)->_lock); \
 	} while(0)
 	
-#define ASTOBJ_CONTAINER_RELEASE_FULL(container,hashes,buckets) \
+#define ASTOBJ_CONTAINER_DESTROY_FULL(container,hashes,buckets) \
 	do { \
-		ast_mutex_destroy(&(container)->lock); \
+		ast_mutex_destroy(&(container)->_lock); \
 	} while(0)
 
-#define ASTOBJ_CONTAINER_TRAVERSE(container,iterator,eval) \
+#define ASTOBJ_CONTAINER_TRAVERSE(container,eval) \
 	do { \
-		ast_mutex_lock(&((container)->lock)); \
-		(iterator) = (container)->head; \
-		while((iterator)) { \
-			ast_mutex_lock(&(iterator)->lock); \
+		typeof((container)->head) iterator; \
+		typeof((container)->head) next; \
+		ASTOBJ_CONTAINER_RDLOCK(container); \
+		next = (container)->head; \
+		while((iterator = next)) { \
+			next = iterator->next[0]; \
 			eval; \
-			ast_mutex_unlock(&(iterator)->lock); \
-			(iterator) = (iterator)->next[0]; \
 		} \
-		ast_mutex_unlock(&(container)->lock); \
+		ASTOBJ_CONTAINER_UNLOCK(container); \
 	} while(0)
 
-#define ASTOBJ_CONTAINER_FIND_FULL(container,iterator,data,field,hashfunc,hashoffset,comparefunc) \
-	do { \
-		int res; \
-		ast_mutex_lock(&((container)->lock)); \
-		(iterator) = (container)->head; \
-		while((iterator)) { \
-			ast_mutex_lock(&(iterator)->lock); \
-			res = (comparefunc((iterator)->field,(data))); \
-			if (!res) \
-				ASTOBJ_REF((iterator)); \
-			ast_mutex_unlock(&(iterator)->lock); \
-			if (!res) \
+#define ASTOBJ_CONTAINER_FIND_FULL(container,data,field,hashfunc,hashoffset,comparefunc) \
+	({ \
+		typeof((container)->head) found = NULL; \
+		ASTOBJ_CONTAINER_TRAVERSE(container, do { \
+			ASTOBJ_RDLOCK(iterator); \
+			if (!(comparefunc(iterator->field, (data)))) { \
+				found = ASTOBJ_REF(iterator); \
+			} \
+			ASTOBJ_UNLOCK(iterator); \
+			if (found) \
 				break; \
-			(iterator) = (iterator)->next[0]; \
-		} \
-		ast_mutex_unlock(&(container)->lock); \
-	} while(0)
+		} while (0)); \
+		found; \
+	})
 
-#define ASTOBJ_CONTAINER_DESTROYALL(container,iterator,destructor) \
+#define ASTOBJ_CONTAINER_DESTROYALL(container,destructor) \
 	do { \
-		ast_mutex_lock(&((container)->lock)); \
-		(iterator) = (container)->head; \
-		while((iterator)) { \
+		typeof((container)->head) iterator; \
+		ASTOBJ_CONTAINER_WRLOCK(container); \
+		while((iterator = (container)->head)) { \
 			(container)->head = (iterator)->next[0]; \
 			ASTOBJ_DESTROY(iterator,destructor); \
-			(iterator) = (container)->head; \
 		} \
-		ast_mutex_unlock(&(container)->lock); \
+		ASTOBJ_CONTAINER_UNLOCK(container); \
 	} while(0)
 
-#define ASTOBJ_CONTAINER_UNLINK_FULL(container,iterator,data,field,hashfunc,hashoffset,comparefunc) \
-	do { \
-		int res=-1; \
-		ast_mutex_lock(&((container)->lock)); \
-		(iterator) = (container)->head; \
-		if ((iterator)) { \
-			ast_mutex_lock(&(iterator)->lock); \
-			res = (comparefunc((iterator)->field,(data))); \
-			if (!res && ((iterator)->refcount < 1)) \
-				ast_log(LOG_WARNING, "Unlink called with refcount < 1!\n"); \
-			ast_mutex_unlock(&(iterator)->lock); \
-			if (!res) \
-				(container)->head = (iterator)->next[0]; \
-			else while((iterator)->next[0]) { \
-				ast_mutex_lock(&(iterator)->next[0]->lock); \
-				res = (comparefunc((iterator)->next[0]->field,(data))); \
-				if (!res && ((iterator)->next[0]->refcount < 1)) \
-					ast_log(LOG_WARNING, "Unlink called with refcount < 1!\n"); \
-				ast_mutex_unlock(&(iterator)->next[0]->lock); \
-				if (!res) { \
-					(iterator)->next[0] = (iterator)->next[0]->next[0]; \
-					break; \
-				} \
-				(iterator) = (iterator)->next[0]; \
-			} \
-		} \
-		ast_mutex_unlock(&(container)->lock); \
-	} while(0)
-
-#define ASTOBJ_CONTAINER_FIND_UNLINK_FULL(container,reiterator,iterator,data,field,hashfunc,hashoffset,comparefunc) \
-	do { \
-		int res=-1; \
-		(reiterator) = NULL; \
-		ast_mutex_lock(&((container)->lock)); \
-		(iterator) = (container)->head; \
-		if ((iterator)) { \
-			ast_mutex_lock(&(iterator)->lock); \
-			res = (comparefunc((iterator)->field,(data))); \
-			if (!res && ((iterator)->refcount < 1)) \
-				ast_log(LOG_WARNING, "Unlink called with refcount < 1!\n"); \
-			ast_mutex_unlock(&(iterator)->lock); \
-			if (!res) {\
-				(reiterator) = (container)->head; \
-				(container)->head = (iterator)->next[0]; \
-			} else while((iterator)->next[0]) { \
-				ast_mutex_lock(&(iterator)->next[0]->lock); \
-				res = (comparefunc((iterator)->next[0]->field,(data))); \
-				ast_mutex_unlock(&(iterator)->next[0]->lock); \
-				if (!res) { \
-					(reiterator) = (iterator)->next[0]; \
-					(iterator)->next[0] = (iterator)->next[0]->next[0]; \
-					break; \
-				} \
-				(iterator) = (iterator)->next[0]; \
-			} \
-		} \
-		ast_mutex_unlock(&(container)->lock); \
-	} while(0)
-
-#define ASTOBJ_CONTAINER_PRUNE_MARKED(container,previ,nexti,iterator,destructor) \
-	do { \
-		(previ) = NULL; \
-		ast_mutex_lock(&((container)->lock)); \
-		(iterator) = (container)->head; \
-		while((iterator)) { \
-			ast_mutex_lock(&(iterator)->lock); \
-			(nexti) = (iterator)->next[0]; \
-			if ((iterator)->objflags & ASTOBJ_FLAG_MARKED) { \
-				if ((previ)) \
-					(previ)->next[0] = (nexti); \
+#define ASTOBJ_CONTAINER_FIND_UNLINK_FULL(container,data,field,hashfunc,hashoffset,comparefunc) \
+	({ \
+		typeof((container)->head) found = NULL; \
+		typeof((container)->head) prev = NULL; \
+		ASTOBJ_CONTAINER_TRAVERSE(container, do { \
+			ASTOBJ_RDLOCK(iterator); \
+			if (!(comparefunc(iterator->field, (data)))) { \
+				found = ASTOBJ_REF(iterator); \
+				ASTOBJ_CONTAINER_WRLOCK(container); \
+				if (prev) \
+					prev->next[0] = next; \
 				else \
-					(container)->head = (nexti); \
-				ast_mutex_unlock(&(iterator)->lock); \
-				ASTOBJ_DESTROY(iterator,destructor); \
-			} else { \
-				(previ) = (iterator); \
-				ast_mutex_unlock(&(iterator)->lock); \
+					(container)->head = next; \
+				ASTOBJ_CONTAINER_UNLOCK(container); \
+				break; \
 			} \
-			(iterator) = (nexti); \
-		} \
-		ast_mutex_unlock(&(container)->lock); \
+			ASTOBJ_UNLOCK(iterator); \
+			if (found) \
+				break; \
+			prev = iterator; \
+		} while (0)); \
+		found; \
+	})
+
+#define ASTOBJ_CONTAINER_PRUNE_MARKED(container,destructor) \
+	do { \
+		typeof((container)->head) prev = NULL; \
+		ASTOBJ_CONTAINER_TRAVERSE(container, do { \
+			ASTOBJ_RDLOCK(iterator); \
+			if (iterator->objflags & ASTOBJ_FLAG_MARKED) { \
+				ASTOBJ_CONTAINER_WRLOCK(container); \
+				if (prev) \
+					prev->next[0] = next; \
+				else \
+					(container)->head = next; \
+				ASTOBJ_CONTAINER_UNLOCK(container); \
+				ASTOBJ_UNLOCK(iterator); \
+				ASTOBJ_DESTROY(iterator,destructor); \
+				continue; \
+			} \
+			ASTOBJ_UNLOCK(iterator); \
+			prev = iterator; \
+		} while (0)); \
 	} while(0)
 
 #define ASTOBJ_CONTAINER_LINK_FULL(container,newobj,data,field,hashfunc,hashoffset,comparefunc) \
 	do { \
-		ASTOBJ_REF(newobj); \
-		ast_mutex_lock(&(container)->lock); \
+		ASTOBJ_CONTAINER_WRLOCK(container); \
 		(newobj)->next[0] = (container)->head; \
 		(container)->head = (newobj); \
-		ast_mutex_unlock(&(container)->lock); \
+		ASTOBJ_CONTAINER_UNLOCK(container); \
 	} while(0)
 
-#endif /* Hash model */
+#endif /* List model */
 
 /* Common to hash and linked list models */
 #define ASTOBJ_CONTAINER_COMPONENTS_NOLOCK(type) \
 	ASTOBJ_CONTAINER_COMPONENTS_NOLOCK_FULL(type,1,ASTOBJ_DEFAULT_BUCKETS)
 
 #define ASTOBJ_CONTAINER_COMPONENTS(type) \
-	ast_mutex_t lock; \
+	ast_mutex_t _lock; \
 	ASTOBJ_CONTAINER_COMPONENTS_NOLOCK(type)
 
 #define ASTOBJ_CONTAINER_INIT(container) \
 	ASTOBJ_CONTAINER_INIT_FULL(container,1,ASTOBJ_DEFAULT_BUCKETS)
 
-#define ASTOBJ_CONTAINER_RELEASE(container) \
-	ASTOBJ_CONTAINER_RELEASE_FULL(container,1,ASTOBJ_DEFAULT_BUCKETS)
+#define ASTOBJ_CONTAINER_DESTROY(container) \
+	ASTOBJ_CONTAINER_DESTROY_FULL(container,1,ASTOBJ_DEFAULT_BUCKETS)
 
-#define ASTOBJ_CONTAINER_FIND(container,iterator,namestr) \
-	ASTOBJ_CONTAINER_FIND_FULL(container,iterator,namestr,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
+#define ASTOBJ_CONTAINER_FIND(container,namestr) \
+	ASTOBJ_CONTAINER_FIND_FULL(container,namestr,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
 
-#define ASTOBJ_CONTAINER_FIND_UNLINK(container,reiterator,iterator,namestr) \
-	ASTOBJ_CONTAINER_FIND_UNLINK_FULL(container,reiterator,iterator,namestr,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
-
-#define ASTOBJ_CONTAINER_UNLINK(container,iterator,namestr) \
-	ASTOBJ_CONTAINER_UNLINK_FULL(container,iterator,namestr,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
+#define ASTOBJ_CONTAINER_FIND_UNLINK(container,namestr) \
+	ASTOBJ_CONTAINER_FIND_UNLINK_FULL(container,namestr,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
 
 #define ASTOBJ_CONTAINER_LINK(container,newobj) \
 	ASTOBJ_CONTAINER_LINK_FULL(container,newobj,(newobj)->name,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
 
-#define ASTOBJ_CONTAINER_MARKALL(container,iterator) \
-	ASTOBJ_CONTAINER_TRAVERSE(container,iterator,(iterator)->objflags |= ASTOBJ_FLAG_MARKED)
+#define ASTOBJ_CONTAINER_MARKALL(container) \
+	ASTOBJ_CONTAINER_TRAVERSE(container,ASTOBJ_MARK(iterator))
 
-#define ASTOBJ_CONTAINER_UNMARKALL(container,iterator) \
-	ASTOBJ_CONTAINER_TRAVERSE(container,iterator,(iterator)->objflags &= ~ASTOBJ_FLAG_MARKED)
+#define ASTOBJ_CONTAINER_UNMARKALL(container) \
+	ASTOBJ_CONTAINER_TRAVERSE(container,ASTOBJ_UNMARK(iterator))
 
 #define ASTOBJ_DUMP(s,slen,obj) \
 	snprintf((s),(slen),"name: %s\nobjflags: %d\nrefcount: %d\n\n", (obj)->name, (obj)->objflags, (obj)->refcount);
 
-#define ASTOBJ_CONTAINER_DUMP(fd,s,slen,container,iterator) \
-	ASTOBJ_CONTAINER_TRAVERSE(container,iterator,do { ASTOBJ_DUMP(s,slen,iterator); ast_cli(fd, s); } while(0))
+#define ASTOBJ_CONTAINER_DUMP(fd,s,slen,container) \
+	ASTOBJ_CONTAINER_TRAVERSE(container,do { ASTOBJ_DUMP(s,slen,iterator); ast_cli(fd, s); } while(0))
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
-
-
 
 #endif

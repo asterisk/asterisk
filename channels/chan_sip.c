@@ -1158,8 +1158,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 		ast_destroy_realtime(var);
 	}
 	if (peer) {
-		/* Reference and destroy, so when our caller unrefs, we disappear */
-		ASTOBJ_REF(peer);
+		/* Destroy, so when our caller unrefs, it will disappear */
 		ASTOBJ_DESTROY(peer, sip_destroy_peer);
 	}
 	return peer;
@@ -1180,9 +1179,9 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin)
 	struct sip_peer *p = NULL;
 
 	if (peer)
-		ASTOBJ_CONTAINER_FIND(&peerl,p,peer);
+		p = ASTOBJ_CONTAINER_FIND(&peerl,peer);
 	else
-		ASTOBJ_CONTAINER_FIND_FULL(&peerl,p,sin,name,sip_addr_hashfunc,1,sip_addrcmp);
+		p = ASTOBJ_CONTAINER_FIND_FULL(&peerl,sin,name,sip_addr_hashfunc,1,sip_addrcmp);
 
 	if (!p) {
 		p = realtime_peer(peer, sin);
@@ -1249,7 +1248,7 @@ static struct sip_user *realtime_user(const char *username)
 static struct sip_user *find_user(const char *name)
 {
 	struct sip_user *u = NULL;
-	ASTOBJ_CONTAINER_FIND(&userl,u,name);
+	u = ASTOBJ_CONTAINER_FIND(&userl,name);
 	if (!u) {
 		u = realtime_user(name);
 	}
@@ -1340,7 +1339,6 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 				memcpy(&r->recv, &r->sa, sizeof(r->recv));
 			} else {
 				ASTOBJ_UNREF(p,sip_destroy_peer);
-				p = NULL;
 			}
 	}
 	if (!p && !found) {
@@ -4091,14 +4089,17 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 static int sip_reregister(void *data) 
 {
 	/* if we are here, we know that we need to reregister. */
-	struct sip_registry *r=(struct sip_registry *)data;
+	struct sip_registry *r= ASTOBJ_REF((struct sip_registry *) data);
+
+	/* if we couldn't get a reference to the registry object, punt */
+	if (!r)
+		return 0;
 
 	/* Since registry's are only added/removed by the the monitor thread, this
 	   may be overkill to reference/dereference at all here */
 	if (sipdebug)
 		ast_log(LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
 
-	ASTOBJ_REF(r);
 	r->expire = -1;
 	__sip_do_register(r);
 	ASTOBJ_UNREF(r,sip_registry_destroy);
@@ -4118,11 +4119,14 @@ static int sip_reg_timeout(void *data)
 {
 
 	/* if we are here, our registration timed out, so we'll just do it over */
-	struct sip_registry *r=data;
+	struct sip_registry *r = ASTOBJ_REF((struct sip_registry *) data);
 	struct sip_pvt *p;
 	int res;
 
-	ASTOBJ_REF(r);
+	/* if we couldn't get a reference to the registry object, punt */
+	if (!r)
+		return 0;
+
 	ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again\n", r->username, r->hostname); 
 	if (r->call) {
 		/* Unlink us, destroy old call.  Locking is not relevent here because all this happens
@@ -4130,7 +4134,6 @@ static int sip_reg_timeout(void *data)
 		p = r->call;
 		if (p->registry)
 			ASTOBJ_UNREF(p->registry, sip_registry_destroy);
-		p->registry = NULL;
 		r->call = NULL;
 		ast_set_flag(p, SIP_NEEDDESTROY);	
 		/* Pretend to ACK anything just in case */
@@ -4195,8 +4198,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			p->sa.sin_port = htons(r->portno);
 		ast_set_flag(p, SIP_OUTGOING);	/* Registration is outgoing call */
 		r->call=p;			/* Save pointer to SIP packet */
-		p->registry=r;			/* Add pointer to registry in packet */
-		ASTOBJ_REF(p->registry);	/* Reference registry to prevent it from disappearing */
+		p->registry=ASTOBJ_REF(r);	/* Add pointer to registry in packet */
 		if (!ast_strlen_zero(r->secret))	/* Secret (password) */
 			strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
 		if (!ast_strlen_zero(r->md5secret))
@@ -5028,7 +5030,6 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	peer = find_peer(name, NULL);
 	if (!(peer && ast_apply_ha(peer->ha, sin))) {
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
-		peer = NULL;
 	}
 	if (peer) {
 			if (!ast_test_flag(peer, SIP_DYNAMIC)) {
@@ -5759,7 +5760,6 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 static int sip_show_inuse(int fd, int argc, char *argv[]) {
 #define FORMAT  "%-15.15s %-15.15s %-15.15s %-15.15s %-15.15s\n"
 #define FORMAT2 "%-15.15s %-15.15s %-15.15s %-15.15s %-15.15s\n"
-	struct sip_user *user;
 	char ilimits[40] = "";
 	char olimits[40] = "";
 	char iused[40];
@@ -5768,18 +5768,20 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Username", "incoming", "Limit","outgoing","Limit");
-	ASTOBJ_CONTAINER_TRAVERSE(&userl,user, do {
-		if (user->incominglimit)
-			snprintf(ilimits, sizeof(ilimits), "%d", user->incominglimit);
+	ASTOBJ_CONTAINER_TRAVERSE(&userl, do {
+		ASTOBJ_RDLOCK(iterator);
+		if (iterator->incominglimit)
+			snprintf(ilimits, sizeof(ilimits), "%d", iterator->incominglimit);
 		else
 			strncpy(ilimits, "N/A", sizeof(ilimits) - 1);
-		if (user->outgoinglimit)
-			snprintf(olimits, sizeof(olimits), "%d", user->outgoinglimit);
+		if (iterator->outgoinglimit)
+			snprintf(olimits, sizeof(olimits), "%d", iterator->outgoinglimit);
 		else
 			strncpy(olimits, "N/A", sizeof(olimits) - 1);
-		snprintf(iused, sizeof(iused), "%d", user->inUse);
-		snprintf(oused, sizeof(oused), "%d", user->outUse);
-		ast_cli(fd, FORMAT2, user->name, iused, ilimits,oused,olimits);
+		snprintf(iused, sizeof(iused), "%d", iterator->inUse);
+		snprintf(oused, sizeof(oused), "%d", iterator->outUse);
+		ast_cli(fd, FORMAT2, iterator->name, iused, ilimits,oused,olimits);
+		ASTOBJ_UNLOCK(iterator);
 	} while (0) );
 	return RESULT_SUCCESS;
 #undef FORMAT
@@ -5806,17 +5808,19 @@ static char *nat2str(int nat)
 static int sip_show_users(int fd, int argc, char *argv[])
 {
 #define FORMAT  "%-15.15s  %-15.15s  %-15.15s %-15.15s %-5.5s%-5.5s\n"
-	struct sip_user *user;
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
-	ASTOBJ_CONTAINER_TRAVERSE(&userl,user,
-		ast_cli(fd, FORMAT, user->name, 
-				user->secret, 
-				user->accountcode,
-				user->context,
-				user->ha ? "Yes" : "No",
-				nat2str(user->nat))
+	ASTOBJ_CONTAINER_TRAVERSE(&userl, do {
+		ASTOBJ_RDLOCK(iterator);
+		ast_cli(fd, FORMAT, iterator->name, 
+			iterator->secret, 
+			iterator->accountcode,
+			iterator->context,
+			iterator->ha ? "Yes" : "No",
+			nat2str(iterator->nat));
+		ASTOBJ_UNLOCK(iterator);
+	} while (0)
 	);
 	return RESULT_SUCCESS;
 #undef FORMAT
@@ -5827,7 +5831,6 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8s %-10s\n"
 #define FORMAT  "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8d %-10s\n"
-	struct sip_peer *peer;
 	char name[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	int total_peers = 0;
@@ -5839,30 +5842,32 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Mask", "Port", "Status");
 	
-	ASTOBJ_CONTAINER_TRAVERSE(&peerl,peer, do {
+	ASTOBJ_CONTAINER_TRAVERSE(&peerl, do {
 		char nm[20] = "";
 		char status[20] = "";
 		int print_line = -1;
 		char srch[2000];
 		
-		ast_inet_ntoa(nm, sizeof(nm), peer->mask);
-		if (!ast_strlen_zero(peer->username))
-			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
+		ASTOBJ_RDLOCK(iterator);
+
+		ast_inet_ntoa(nm, sizeof(nm), iterator->mask);
+		if (!ast_strlen_zero(iterator->username))
+			snprintf(name, sizeof(name), "%s/%s", iterator->name, iterator->username);
 		else
-			strncpy(name, peer->name, sizeof(name) - 1);
-		if (peer->maxms) {
-			if (peer->lastms < 0) {
+			strncpy(name, iterator->name, sizeof(name) - 1);
+		if (iterator->maxms) {
+			if (iterator->lastms < 0) {
 				strncpy(status, "UNREACHABLE", sizeof(status) - 1);
 				peers_offline++;
-			} else if (peer->lastms > peer->maxms) {
-				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
+			} else if (iterator->lastms > iterator->maxms) {
+				snprintf(status, sizeof(status), "LAGGED (%d ms)", iterator->lastms);
 				peers_online++;
-			} else if (peer->lastms) {
-				snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
+			} else if (iterator->lastms) {
+				snprintf(status, sizeof(status), "OK (%d ms)", iterator->lastms);
 				peers_online++;
 			} else {
 				/* Checking if port is 0 */
-				if ( ntohs(peer->addr.sin_port) == 0 ) { 
+				if ( ntohs(iterator->addr.sin_port) == 0 ) { 
 					peers_offline++;
 				} else {
 					peers_online++;
@@ -5872,7 +5877,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		} else { 
 			strncpy(status, "Unmonitored", sizeof(status) - 1);
 			/* Checking if port is 0 */
-			if ( ntohs(peer->addr.sin_port) == 0 ) {
+			if ( ntohs(iterator->addr.sin_port) == 0 ) {
 				peers_offline++;
 			} else {
 				peers_online++;
@@ -5880,11 +5885,11 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		}			
 		
 		snprintf(srch, sizeof(srch), FORMAT, name,
-			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-			ast_test_flag(peer, SIP_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
-			(peer->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
-			peer->ha ? " A " : "   ", 	/* permit/deny */
-			nm, ntohs(peer->addr.sin_port), status);
+			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
+			ast_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
+			(iterator->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
+			iterator->ha ? " A " : "   ", 	/* permit/deny */
+			nm, ntohs(iterator->addr.sin_port), status);
 
 		if (argc == 5) {
 			if (!strcasecmp(argv[3],"include") && strstr(srch,argv[4])) {
@@ -5900,13 +5905,16 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 
 		if (print_line) {
 		    ast_cli(fd, FORMAT, name, 
-			peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)",
-                        ast_test_flag(peer, SIP_DYNAMIC) ? " D " : "   ",  /* Dynamic or not? */
-                        (peer->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
-                        peer->ha ? " A " : "   ",       /* permit/deny */
+			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
+                        ast_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ",  /* Dynamic or not? */
+                        (iterator->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
+                        iterator->ha ? " A " : "   ",       /* permit/deny */
 			nm,
-			ntohs(peer->addr.sin_port), status);
+			ntohs(iterator->addr.sin_port), status);
 		}
+
+		ASTOBJ_UNLOCK(iterator);
+
 		total_peers++;
 	} while(0) );
 	ast_cli(fd,"%d sip peers loaded [%d online , %d offline]\n",total_peers,peers_online,peers_offline);
@@ -5917,18 +5925,15 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 
 static int sip_show_objects(int fd, int argc, char *argv[])
 {
-	struct sip_user *user;
-	struct sip_peer *peer;
-	struct sip_registry *reg;
 	char tmp[256];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, "-= User objects: %d static, %d realtime =-\n\n", suserobjs, ruserobjs);
-	ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &userl, user);
+	ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &userl);
 	ast_cli(fd, "-= Peer objects: %d static, %d realtime, %d autocreate =-\n\n", speerobjs, rpeerobjs, apeerobjs);
-	ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &peerl, peer);
+	ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &peerl);
 	ast_cli(fd, "-= Registry objects: %d =-\n\n", regobjs);
-	ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &regl, reg);
+	ASTOBJ_CONTAINER_DUMP(fd, tmp, sizeof(tmp), &regl);
 	return RESULT_SUCCESS;
 }
 /*--- print_group: Print call group and pickup group ---*/
@@ -6049,16 +6054,16 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-30.30s  %-12.12s  %8.8s %-20.20s\n"
 #define FORMAT  "%-30.30s  %-12.12s  %8d %-20.20s\n"
-	struct sip_registry *reg;
 	char host[80];
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
-	ASTOBJ_CONTAINER_TRAVERSE(&regl,reg, do {
-		snprintf(host, sizeof(host), "%s:%d", reg->hostname, reg->portno ? reg->portno : DEFAULT_SIP_PORT);
-		ast_cli(fd, FORMAT, host,
-					reg->username, reg->refresh, regstate2str(reg->regstate));
+	ASTOBJ_CONTAINER_TRAVERSE(&regl, do {
+		ASTOBJ_RDLOCK(iterator);
+		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : DEFAULT_SIP_PORT);
+		ast_cli(fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate));
+		ASTOBJ_UNLOCK(iterator);
 	} while(0));
 	return RESULT_SUCCESS;
 #undef FORMAT
@@ -8015,7 +8020,7 @@ static void *do_monitor(void *data)
 {
 	int res;
 	struct sip_pvt *sip;
-	struct sip_peer *peer;
+	struct sip_peer *peer = NULL;
 	time_t t;
 	int fastrestart =0;
 	int lastpeernum = -1;
@@ -8107,18 +8112,20 @@ restartsearch:
 		time(&t);
 		fastrestart = 0;
 		curpeernum = 0;
-		ASTOBJ_CONTAINER_TRAVERSE(&peerl,peer, 
-			if ((curpeernum > lastpeernum) && !ast_strlen_zero(peer->mailbox) && ((t - peer->lastmsgcheck) > global_mwitime)) {
+		ASTOBJ_CONTAINER_TRAVERSE(&peerl, do {
+			if ((curpeernum > lastpeernum) && !ast_strlen_zero(iterator->mailbox) && ((t - iterator->lastmsgcheck) > global_mwitime)) {
 				fastrestart = 1;
 				lastpeernum = curpeernum;
-				ASTOBJ_REF(peer);
-				ast_mutex_unlock(&peer->lock);
+				peer = ASTOBJ_REF(iterator);
 				break;
-			}
-			curpeernum++
+			};
+			curpeernum++;
+		} while (0)
 		);
 		if (peer) {
+			ASTOBJ_WRLOCK(peer);
 			sip_send_mwi_to_peer(peer);
+			ASTOBJ_UNLOCK(peer);
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
 		} else {
 			/* Reset where we come from */
@@ -8570,20 +8577,16 @@ static struct sip_peer *temp_peer(char *name)
 /*--- build_peer: Build peer from config file ---*/
 static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
 {
-	struct sip_peer *peer;
-	struct sip_peer *prev;
+	struct sip_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
 	int maskfound=0;
 	int obproxyfound=0;
 	int found=0;
 
-	prev = NULL;
-	if (temponly) {
-		peer = NULL;
-	} else {
+	if (!temponly)
 		/* Note we do NOT use find_peer here, to avoid realtime recursion */
-		ASTOBJ_CONTAINER_FIND_UNLINK(&peerl,peer,prev,name);
-	}
+		peer = ASTOBJ_CONTAINER_FIND_UNLINK(&peerl, name);
+
 	if (peer) {
 		/* Already in the list, remove it and it will be added back (or FREE'd)  */
 		found++;
@@ -8600,7 +8603,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			peer->pokeexpire = -1;
 		}
 	}
-	/* Note that our peer has NOT had its reference count incrased */
+	/* Note that our peer HAS had its reference count incrased */
 	if (peer) {
 		peer->lastmsgssent = -1;
 		if (!found) {
@@ -9391,35 +9394,49 @@ static struct ast_rtp_protocol sip_rtp = {
 /*      Also, check registations with other SIP proxies */
 static void delete_users(void)
 {
-	struct sip_user *user;
-	struct sip_peer *peer;
-	struct sip_registry *reg;
-
 	/* Delete all users */
-	ASTOBJ_CONTAINER_DESTROYALL(&userl,user,sip_destroy_user);
-	ASTOBJ_CONTAINER_DESTROYALL(&regl,reg,sip_registry_destroy);
-	ASTOBJ_CONTAINER_MARKALL(&peerl,peer);
+	ASTOBJ_CONTAINER_DESTROYALL(&userl,sip_destroy_user);
+	ASTOBJ_CONTAINER_DESTROYALL(&regl,sip_registry_destroy);
+	ASTOBJ_CONTAINER_MARKALL(&peerl);
 }
 
 /*--- prune_peers: Delete all peers marked for deletion ---*/
 static void prune_peers(void)
 {
 	/* Prune peers who still are supposed to be deleted */
-	struct sip_peer *peer, *peerlast, *peernext;
-	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl,peerlast,peernext,peer,sip_destroy_peer);
+	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl,sip_destroy_peer);
+}
+
+/*--- sip_poke_all_peers: Send a poke to all known peers */
+static void sip_poke_all_peers(void)
+{
+	ASTOBJ_CONTAINER_TRAVERSE(&peerl, do {
+		ASTOBJ_WRLOCK(iterator);
+		sip_poke_peer(iterator);
+		ASTOBJ_UNLOCK(iterator);
+	} while (0)
+	);
+}
+
+/*--- sip_send_all_registers: Send all known registrations */
+static void sip_send_all_registers(void)
+{
+	ASTOBJ_CONTAINER_TRAVERSE(&regl, do {
+		ASTOBJ_WRLOCK(iterator);
+		__sip_do_register(iterator);
+		ASTOBJ_UNLOCK(iterator);
+	} while (0)
+	);
 }
 
 /*--- sip_do_reload: Reload module */
 static int sip_do_reload(void)
 {
-	struct sip_registry *reg;
-	struct sip_peer *peer;
 	delete_users();
 	reload_config();
 	prune_peers();
-	/* And start the monitor for the first time */
-	ASTOBJ_CONTAINER_TRAVERSE(&regl,reg,__sip_do_register(reg));
-	ASTOBJ_CONTAINER_TRAVERSE(&peerl,peer,sip_poke_peer(peer));
+	sip_poke_all_peers();
+	sip_send_all_registers();
 
 	return 0;
 }
@@ -9450,8 +9467,6 @@ static struct ast_cli_entry  cli_sip_reload =
 int load_module()
 {
 	int res;
-	struct sip_peer *peer;
-	struct sip_registry *reg;
 
 	ASTOBJ_CONTAINER_INIT(&userl);
 	ASTOBJ_CONTAINER_INIT(&peerl);
@@ -9498,8 +9513,8 @@ int load_module()
 		ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
 		ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
 		ast_register_application(app_sipgetheader, sip_getheader, synopsis_sipgetheader, descrip_sipgetheader);
-		ASTOBJ_CONTAINER_TRAVERSE(&peerl,peer,sip_poke_peer(peer));
-		ASTOBJ_CONTAINER_TRAVERSE(&regl,reg,__sip_do_register(reg));
+		sip_poke_all_peers();
+		sip_send_all_registers();
 		
 		/* And start the monitor for the first time */
 		restart_monitor();
@@ -9586,9 +9601,9 @@ int unload_module()
 	}
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);
-	ASTOBJ_CONTAINER_RELEASE(&userl);
-	ASTOBJ_CONTAINER_RELEASE(&peerl);
-	ASTOBJ_CONTAINER_RELEASE(&regl);
+	ASTOBJ_CONTAINER_DESTROY(&userl);
+	ASTOBJ_CONTAINER_DESTROY(&peerl);
+	ASTOBJ_CONTAINER_DESTROY(&regl);
 		
 	return 0;
 }
