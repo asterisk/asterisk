@@ -1112,7 +1112,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
         				strncpy(l->musicclass, musicclass, sizeof(l->musicclass)-1);
 					strncpy(l->mailbox, mailbox, sizeof(l->mailbox)-1);
 					strncpy(l->mailbox, mailbox, sizeof(l->mailbox)-1);
-					if (strlen(mailbox)) {
+					if (!ast_strlen_zero(mailbox)) {
 						ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
 					}
 				
@@ -1203,7 +1203,7 @@ static int skinny_register(skinny_req *req, struct skinnysession *s)
 			/* XXX Deal with IP authentication */
 			s->device = d;
 			d->type = req->data.reg.type;
-			if (!strlen(d->version_id)) {
+			if (ast_strlen_zero(d->version_id)) {
 				strncpy(d->version_id, version_id, sizeof(d->version_id));
 			}
 			d->registered = 1;
@@ -1289,7 +1289,7 @@ static void *skinny_ss(void *data)
                     getforward = 0;
                 } else  {
                     strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-                    if (strlen(l->callerid)) {
+                    if (!ast_strlen_zero(l->callerid)) {
                         if (!l->hidecallerid)
                             chan->callerid = strdup(l->callerid);
                         chan->ani = strdup(l->callerid);
@@ -1350,7 +1350,7 @@ static void *skinny_ss(void *data)
             timeout = firstdigittimeout;
         } else if (l->callreturn && !strcmp(exten, "*69")) {
             res = 0;
-            if (strlen(l->lastcallerid)) {
+            if (!ast_strlen_zero(l->lastcallerid)) {
                 res = ast_say_digit_str(chan, l->lastcallerid, "", chan->language);
             }
             if (!res) {
@@ -1401,7 +1401,7 @@ static void *skinny_ss(void *data)
                 ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
             }
             break;
-        } else if (strlen(l->lastcallerid) && !strcmp(exten, "*80")) {
+        } else if (!ast_strlen_zero(l->lastcallerid) && !strcmp(exten, "*80")) {
             if (option_verbose > 2) {
                 ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", l->lastcallerid);
             }
@@ -1419,14 +1419,14 @@ static void *skinny_ss(void *data)
             l->hidecallerid = 0;
             if (chan->callerid)
                 free(chan->callerid);
-            if (strlen(l->callerid))
+            if (!ast_strlen_zero(l->callerid))
                 chan->callerid = strdup(l->callerid);
             transmit_tone(s, SKINNY_DIALTONE);
             len = 0;
             memset(exten, 0, sizeof(exten));
             timeout = firstdigittimeout;
         } else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->callerid) &&
-                        ((exten[0] != '*') || (strlen(exten) > 2))) {
+                        ((exten[0] != '*') || (!ast_strlen_zero(exten) > 2))) {
             ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, chan->callerid ? chan->callerid : "<Unknown Caller>", chan->context);
             transmit_tone(s, SKINNY_REORDER); 
 			sleep(3); // hang out for 3 seconds to let congestion play
@@ -1770,9 +1770,9 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		tmp->pvt->fixup = skinny_fixup;
 		tmp->pvt->send_digit = skinny_senddigit;
 //		tmp->pvt->bridge = ast_rtp_bridge;
-		if (strlen(l->language))
+		if (!ast_strlen_zero(l->language))
 			strncpy(tmp->language, l->language, sizeof(tmp->language)-1);
-		if (strlen(l->accountcode))
+		if (!ast_strlen_zero(l->accountcode))
 			strncpy(tmp->accountcode, l->accountcode, sizeof(tmp->accountcode)-1);
 		if (l->amaflags)
 			tmp->amaflags = l->amaflags;
@@ -1786,7 +1786,7 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		strncpy(tmp->call_forward, l->call_forward, sizeof(tmp->call_forward));
 		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
-		if (strlen(l->callerid))
+		if (!ast_strlen_zero(l->callerid))
 			tmp->callerid = strdup(l->callerid);
 		tmp->priority = 1;
 		if (state != AST_STATE_DOWN) {
@@ -2456,7 +2456,7 @@ static struct ast_channel *skinny_request(char *type, int format, void *data)
 	}
 	
 	strncpy(tmp, dest, sizeof(tmp) - 1);
-	if (!strlen(tmp)) {
+	if (ast_strlen_zero(tmp)) {
 		ast_log(LOG_NOTICE, "Skinny channels require a device\n");
 		return NULL;
 	}
