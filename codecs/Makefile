@@ -19,7 +19,7 @@
 #MODG723=codec_g723_1.so codec_g723_1b.so
 MODG723=$(shell [ -f g723.1/coder.c ] && echo "codec_g723_1.so")
 MODG723+=$(shell [ -f g723.1b/coder2.c ] && echo "codec_g723_1b.so")
-MODSPEEX=$(shell [ -f /usr/include/speex.h ] && echo "codec_speex.so")
+MODSPEEX=$(shell [ -f /usr/include/speex.h ] || [ -f /usr/local/include/speex.h ] && echo "codec_speex.so")
 CFLAGS+=
 
 LIBG723=g723.1/libg723.a
