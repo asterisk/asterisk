@@ -24,6 +24,7 @@
 #include <asterisk/term.h>
 #include <asterisk/manager.h>
 #include <asterisk/enum.h>
+#include <asterisk/rtp.h>
 #include <dlfcn.h>
 #include <asterisk/md5.h>
 #include <pthread.h>
@@ -146,6 +147,7 @@ void ast_module_reload(void)
 	/* We'll do the logger and manager the favor of calling its reload here first */
 	reload_manager();
 	ast_enum_reload();
+	ast_rtp_reload();
 	time(&ast_lastreloadtime);
 
 	ast_pthread_mutex_lock(&modlock);

@@ -1,0 +1,9 @@
+;
+; RTP Configuration
+;
+[general]
+;
+; RTP start and RTP end configure start and end addresses
+;
+rtpstart=10000
+rtpend=20000

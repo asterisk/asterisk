@@ -27,6 +27,7 @@
 #include <asterisk/manager.h>
 #include <asterisk/pbx.h>
 #include <asterisk/enum.h>
+#include <asterisk/rtp.h>
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -1317,6 +1318,7 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	ast_rtp_init();
 	if (ast_image_init()) {
 		printf(term_quit());
 		exit(1);

@@ -1,3 +1,4 @@
+ -- Make RTP ports configurable
  -- Add RDNIS support to SIP and IAX2
  -- Add transfer app (implement in SIP and IAX2)
  -- Make voicemail segmentable by context (app_voicemail2)

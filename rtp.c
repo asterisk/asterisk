@@ -32,6 +32,7 @@
 #include <asterisk/channel.h>
 #include <asterisk/acl.h>
 #include <asterisk/channel_pvt.h>
+#include <asterisk/config.h>
 
 #define TYPE_HIGH	 0x0
 #define TYPE_LOW	 0x1
@@ -40,6 +41,9 @@
 #define TYPE_MASK	 0x3
 
 static int dtmftimeout = 300;	/* 300 samples */
+
+static int rtpstart = 0;
+static int rtpend = 0;
 
 // The value of each payload format mapping:
 struct rtpPayloadType {
@@ -567,6 +571,7 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io)
 	struct ast_rtp *rtp;
 	int x;
 	int flags;
+	int startplace;
 	rtp = malloc(sizeof(struct ast_rtp));
 	if (!rtp)
 		return NULL;
@@ -583,16 +588,26 @@ struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io)
 	}
 	flags = fcntl(rtp->s, F_GETFL);
 	fcntl(rtp->s, F_SETFL, flags | O_NONBLOCK);
+	/* Find us a place */
+	x = (rand() % (rtpend-rtpstart)) + rtpstart;
+	x = x & ~1;
+	startplace = x;
 	for (;;) {
-		/* Find us a place */
-		x = (rand() % (65000-1025)) + 1025;
 		/* Must be an even port number by RTP spec */
-		x = x & ~1;
 		rtp->us.sin_port = htons(x);
 		if (!bind(rtp->s, &rtp->us, sizeof(rtp->us)))
 			break;
 		if (errno != EADDRINUSE) {
 			ast_log(LOG_WARNING, "Unexpected bind error: %s\n", strerror(errno));
+			close(rtp->s);
+			free(rtp);
+			return NULL;
+		}
+		x += 2;
+		if (x > rtpend)
+			x = (rtpstart + 1) & ~1;
+		if (x == startplace) {
+			ast_log(LOG_WARNING, "No RTP ports remaining\n");
 			close(rtp->s);
 			free(rtp);
 			return NULL;
@@ -1080,4 +1095,42 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		
 	}
 	return -1;
+}
+
+void ast_rtp_reload(void)
+{
+	struct ast_config *cfg;
+	char *s;
+	rtpstart = 5000;
+	rtpend = 31000;
+	cfg = ast_load("rtp.conf");
+	if (cfg) {
+		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
+			rtpstart = atoi(s);
+			if (rtpstart < 1024)
+				rtpstart = 1024;
+			if (rtpstart > 65535)
+				rtpstart = 65535;
+		}
+		if ((s = ast_variable_retrieve(cfg, "general", "rtpend"))) {
+			rtpend = atoi(s);
+			if (rtpend < 1024)
+				rtpend = 1024;
+			if (rtpend > 65535)
+				rtpend = 65535;
+		}
+		ast_destroy(cfg);
+	}
+	if (rtpstart >= rtpend) {
+		ast_log(LOG_WARNING, "Unreasonable values for RTP start/end\n");
+		rtpstart = 5000;
+		rtpend = 31000;
+	}
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "RTP Allocating from port range %d -> %d\n", rtpstart, rtpend);
+}
+
+void ast_rtp_init(void)
+{
+	ast_rtp_reload();
 }
