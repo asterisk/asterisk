@@ -3108,6 +3108,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	return 0;
 }
 
+/*--- reqprep: Initialize a SIP request packet ---*/
 static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int seqno, int newbranch)
 {
 	struct sip_request *orig = &p->initreq;
@@ -3143,9 +3144,12 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 			c = p->okcontacturi;
 		else
 			c = p->initreq.rlPart2;
+	} else if (!ast_strlen_zero(p->okcontacturi)) {
+		c = p->okcontacturi; /* Use for BYE or REINVITE */
 	} else if (!ast_strlen_zero(p->uri)) {
 		c = p->uri;
 	} else {
+		/* We have no URI, use To: or From:  header as URI (depending on direction) */
 		if (p->outgoing)
 			strncpy(stripped, get_header(orig, "To"), sizeof(stripped) - 1);
 		else
@@ -3577,7 +3581,7 @@ static int determine_firstline_parts( struct sip_request *req ) {
       e++;
       if( !*e ) { return -1; }  
     }
-    req->rlPart2= e;
+    req->rlPart2= e;	/* URI */
     if( ( e= strrchr( req->rlPart2, 'S' ) ) == NULL ) {
       return -1;
     }
@@ -3591,9 +3595,12 @@ static int determine_firstline_parts( struct sip_request *req ) {
   return 1;
 }
 
-/* transmit_reinvite_with_sdp: Transmit reinvite with SDP :-) ---*/
-/*   A re-invite is basically a new INVITE with the same CALL-ID and TAG as the
-     INVITE that opened the SIP dialogue */
+/*--- transmit_reinvite_with_sdp: Transmit reinvite with SDP :-) ---*/
+/* 	A re-invite is basically a new INVITE with the same CALL-ID and TAG as the
+	INVITE that opened the SIP dialogue 
+	We reinvite so that the audio stream (RTP) go directly between
+	the SIP UAs. SIP Signalling stays with * in the path.
+*/
 static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 {
 	struct sip_request req;
@@ -3754,7 +3761,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 }
 
         
-/*--- transmit_invite: Build REFER/INVITE/OPTIONS message and trasmit it ---*/
+/*--- transmit_invite: Build REFER/INVITE/OPTIONS message and transmit it ---*/
 static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int addsipheaders, int init)
 {
 	struct sip_request req;
@@ -6744,6 +6751,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	}
 }
 
+/*--- check_pendings: Check pending actions on SIP call ---*/
 static void check_pendings(struct sip_pvt *p)
 {
 	/* Go ahead and send bye at this point */
@@ -9163,6 +9171,7 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 	return rtp;
 }
 
+/*--- sip_set_rtp_peer: Set the RTP peer for this call ---*/
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	struct sip_pvt *p;
