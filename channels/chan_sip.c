@@ -6946,54 +6946,76 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 	return -1;
 }
 
+static void ast_quiet_chan(struct ast_channel *chan) {
+	if(chan && chan->_state == AST_STATE_UP) {
+		if(chan->generatordata)
+			ast_deactivate_generator(chan);
+		
+	}
+}
 
 /*--- attempt_transfer: Attempt transfer of SIP call ---*/
 static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 {
+	int res = 0;
+	struct ast_channel 
+		*chana = NULL,
+		*chanb = NULL,
+		*bridgea = NULL,
+		*bridgeb = NULL,
+		*peera = NULL,
+		*peerb = NULL,
+		*peerc = NULL;
+
 	if (!p1->owner || !p2->owner) {
 		ast_log(LOG_WARNING, "Transfer attempted without dual ownership?\n");
 		return -1;
 	}
-	if (ast_bridged_channel(p1->owner)) {
-		if (ast_bridged_channel(p2->owner))
-			ast_moh_stop(ast_bridged_channel(p2->owner));
-		ast_moh_stop(ast_bridged_channel(p1->owner));
-		ast_moh_stop(ast_bridged_channel(p1->owner));
-		ast_moh_stop(ast_bridged_channel(p2->owner));
-		if (p1->owner->cdr) {
-			p2->owner->cdr = ast_cdr_append(p2->owner->cdr, p1->owner->cdr);
-			p1->owner->cdr = NULL;
+	chana = p1->owner;
+	chanb = p2->owner;
+	bridgea = ast_bridged_channel(chana);
+	bridgeb = ast_bridged_channel(chanb);
+	
+	if (bridgea) {
+		peera = chana;
+		peerb = chanb;
+		peerc = bridgea;
+	} else if(bridgeb) {
+		peera = chanb;
+		peerb = chana;
+		peerc = bridgeb;
+	}
+	
+	if(peera && peerb && peerc) {
+		ast_quiet_chan(peera);
+		ast_quiet_chan(peerb);
+		ast_quiet_chan(peerc);
+
+		if (peera->cdr && peerb->cdr) {
+			peerb->cdr = ast_cdr_append(peerb->cdr, peera->cdr);
+		} else if(peera->cdr) {
+			peerb->cdr = peera->cdr;
 		}
-		if (ast_bridged_channel(p1->owner)->cdr) {
-			p2->owner->cdr = ast_cdr_append(p2->owner->cdr, ast_bridged_channel(p1->owner)->cdr);
-			ast_bridged_channel(p1->owner)->cdr = NULL;
+		peera->cdr = NULL;
+
+		if (peerb->cdr && peerc->cdr) {
+			peerb->cdr = ast_cdr_append(peerb->cdr, peerc->cdr);
+		} else if(peerc->cdr) {
+			peerb->cdr = peerc->cdr;
 		}
-		if (ast_channel_masquerade(p2->owner, ast_bridged_channel(p1->owner))) {
-			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", p2->owner->name, ast_bridged_channel(p1->owner)->name);
-			return -1;
+		peerc->cdr = NULL;
+		
+		if (ast_channel_masquerade(peerb, peerc)) {
+			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name, peerc->name);
+            res = -1;
 		}
-	} else if (ast_bridged_channel(p2->owner)) {
-		ast_moh_stop(ast_bridged_channel(p2->owner));
-		ast_moh_stop(p2->owner);
-		ast_moh_stop(p1->owner);
-		if (p2->owner->cdr) {
-			p1->owner->cdr = ast_cdr_append(p1->owner->cdr, p2->owner->cdr);
-			p2->owner->cdr = NULL;
-		}
-		if (ast_bridged_channel(p2->owner)->cdr) {
-			p1->owner->cdr = ast_cdr_append(p1->owner->cdr, ast_bridged_channel(p2->owner)->cdr);
-			ast_bridged_channel(p2->owner)->cdr = NULL;
-		}
-		if (ast_channel_masquerade(p1->owner, ast_bridged_channel(p2->owner))) {
-			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", p1->owner->name, ast_bridged_channel(p2->owner)->name);
-			return -1;
-		}
+		return res;
 	} else {
 		ast_log(LOG_NOTICE, "Transfer attempted with no bridged calls to transfer\n");
-		if (p1->owner)
-			ast_softhangup_nolock(p1->owner, AST_SOFTHANGUP_DEV);
-		if (p2->owner)
-			ast_softhangup_nolock(p2->owner, AST_SOFTHANGUP_DEV);
+		if (chana)
+			ast_softhangup_nolock(chana, AST_SOFTHANGUP_DEV);
+		if (chanb)
+			ast_softhangup_nolock(chanb, AST_SOFTHANGUP_DEV);
 		return -1;
 	}
 	return 0;

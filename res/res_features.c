@@ -304,6 +304,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int allowdisconnect_in,allowdisconnect_out,allowredirect_in,allowredirect_out;
 	char *monitor_exec;
 
+	if (chan && peer) {
+        pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
+        pbx_builtin_setvar_helper(peer, "BRIDGEPEER", chan->name);
+    } else if (chan)
+		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
+
 	if (monitor_ok) {
 		if (!monitor_app) { 
 			if (!(monitor_app = pbx_findapp("Monitor")))
@@ -482,6 +488,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					}
 					/* XXX Maybe we should have another message here instead of invalid extension XXX */
 				} else if (ast_exists_extension(transferee, transferer_real_context, newext, 1, transferer->cid.cid_num)) {
+					pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
+					pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
 					ast_moh_stop(transferee);
 					res=ast_autoservice_stop(transferee);
 					if (!transferee->pbx) {
