@@ -22,9 +22,10 @@
 #include <asterisk/dundi.h>
 #include "dundi-parser.h"
 #include <asterisk/dundi.h>
+
 static void internaloutput(const char *str)
 {
-	printf(str);
+	fputs(str, stdout);
 }
 
 static void internalerror(const char *str)
@@ -91,6 +92,7 @@ int dundi_str_short_to_eid(dundi_eid *eid, char *s)
 		eid->eid[x] = eid_int[x];
 	return 0;
 }
+
 int dundi_eid_zero(dundi_eid *eid)
 {
 	int x;
@@ -222,8 +224,7 @@ static void dump_byte(char *output, int maxlen, void *value, int len)
 }
 
 static char *proto2str(int proto, char *buf, int bufsiz)
-{
-	
+{	
 	switch(proto) {
 	case DUNDI_PROTO_NONE:
 		strncpy(buf, "None", bufsiz - 1);
@@ -464,14 +465,14 @@ void dundi_showframe(struct dundi_hdr *fhi, int rx, struct sockaddr_in *sin, int
 	}
 	snprintf(subclass2, (int)sizeof(subclass2), "%02x", fhi->cmdflags);
 	subclass = subclass2;
-snprintf(tmp, (int)sizeof(tmp), 
-"%s-Frame Retry[%s] -- OSeqno: %3.3d ISeqno: %3.3d Type: %s (%s)\n",
-	pref[rx],
-	retries, fhi->oseqno, fhi->iseqno, class, fhi->cmdresp & 0x40 ? "Response" : "Command");
+	snprintf(tmp, (int)sizeof(tmp), 
+		"%s-Frame Retry[%s] -- OSeqno: %3.3d ISeqno: %3.3d Type: %s (%s)\n",
+		pref[rx],
+		retries, fhi->oseqno, fhi->iseqno, class, fhi->cmdresp & 0x40 ? "Response" : "Command");
 	outputf(tmp);
-snprintf(tmp, (int)sizeof(tmp), 
-"%s     Flags: %s STrans: %5.5d  DTrans: %5.5d [%s:%d]%s\n", (rx > 1) ? "     " : "",
-	subclass, ntohs(fhi->strans) & ~DUNDI_FLAG_RESERVED, ntohs(fhi->dtrans) & ~DUNDI_FLAG_RETRANS,
+	snprintf(tmp, (int)sizeof(tmp), 
+		"%s     Flags: %s STrans: %5.5d  DTrans: %5.5d [%s:%d]%s\n", (rx > 1) ? "     " : "",
+		subclass, ntohs(fhi->strans) & ~DUNDI_FLAG_RESERVED, ntohs(fhi->dtrans) & ~DUNDI_FLAG_RETRANS,
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port),
 		fhi->cmdresp & 0x80 ? " (Final)" : "");
 	outputf(tmp);
