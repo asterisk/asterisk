@@ -201,7 +201,7 @@ static inline int sched_settime(struct timeval *tv, int when)
 		return -1;
 	}
 	/*ast_log(LOG_DEBUG, "TV -> %lu,%lu\n", tv->tv_sec, tv->tv_usec);*/
-	if (((unsigned long)(tv->tv_sec) > 0)&&((unsigned long)(tv->tv_usec) > 0)) {
+	if (((unsigned long)(tv->tv_sec) > 0)||((unsigned long)(tv->tv_usec) > 0)) {
 		if ((unsigned long)(tv_tmp.tv_usec) < (unsigned long)(tv->tv_usec)) {
 			tv_tmp.tv_usec += 1000000;
 			tv_tmp.tv_sec -= 1;
@@ -218,7 +218,7 @@ static inline int sched_settime(struct timeval *tv, int when)
 		tv->tv_sec = tv_tmp.tv_sec + (when/1000 - error_sec);
 		tv->tv_usec = tv_tmp.tv_usec + ((when % 1000) * 1000 - error_usec);
 	} else {
-		ast_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
+		ast_log(LOG_DEBUG, "Request to schedule in the past?!?!\n");
 		tv->tv_sec = tv_tmp.tv_sec;
 		tv->tv_usec = tv_tmp.tv_usec;
 	}
