@@ -1,9 +1,11 @@
+Asterisk 1.0.1
+ -- Added AGI over TCP support
  -- Add ability to purge callers from queue if no agents are logged in
  -- Fix inband PRI indication detection
  -- Fix for MGCP - always request digits if no RTP stream
  -- Fixed seg fault for ast_control_streamfile
- -- Added AGI over TCP support
  -- Make pick-up extension configurable via features.conf 
+ -- Numerous other bug fixes
 Asterisk 1.0.0
  -- Use Q.931 standard cause codes for asterisk cause codes
  -- Bug fixes from the bug tracker

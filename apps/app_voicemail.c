@@ -215,7 +215,10 @@ static char *descrip_vmain =
 "for the checking of voicemail.  The mailbox can be passed as the option,\n"
 "which will stop the voicemail system from prompting the user for the mailbox.\n"
 "If the mailbox is preceded by 's' then the password check will be skipped.  If\n"
-"a context is specified, logins are considered in that voicemail context only.\n"
+"the mailbox is preceded by 'p' then the supplied mailbox is prepended to the\n"
+"user's entry and the resulting string is used as the mailbox number.  This is\n"
+"useful for virtual hosting of voicemail boxes.  If a context is specified,\n"
+"logins are considered in that voicemail context only.\n"
 "Returns -1 if the user hangs up or 0 otherwise.\n";
 
 static char *synopsis_vm_box_exists =
