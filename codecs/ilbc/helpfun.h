@@ -21,7 +21,7 @@ void autocorr(
     int order       /* largest lag for calculated autocorrelations */ 
 ); 
  
-void window(  
+void lbc_window(  
     float *z,       /* (o) the windowed data */ 
     const float *x, /* (i) the original data vector */ 
     const float *y, /* (i) the window */ 

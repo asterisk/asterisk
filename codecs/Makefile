@@ -40,30 +40,30 @@ all: $(CODECS)
 
 clean:
 	rm -f *.so *.o
-	! [ -d g723.1 ] || make -C g723.1 clean
-	! [ -d g723.1b ] || make -C g723.1b clean
-	make -C gsm clean
-	make -C mp3 clean
-	make -C lpc10 clean
-	make -C ilbc clean
+	! [ -d g723.1 ] || $(MAKE) -C g723.1 clean
+	! [ -d g723.1b ] || $(MAKE) -C g723.1b clean
+	$(MAKE) -C gsm clean
+	$(MAKE) -C mp3 clean
+	$(MAKE) -C lpc10 clean
+	$(MAKE) -C ilbc clean
 
 $(LIBG723):
-	make -C g723.1 all
+	$(MAKE) -C g723.1 all
 
 gsm/lib/libgsm.a:
-	make -C gsm lib/libgsm.a
+	$(MAKE) -C gsm lib/libgsm.a
 
 $(LIBG723B):
-	make -C g723.1b all
+	$(MAKE) -C g723.1b all
 
 $(LIBMP3):
-	make -C mp3 all
+	$(MAKE) -C mp3 all
 
 $(LIBLPC10):
-	make -C lpc10 all
+	$(MAKE) -C lpc10 all
 
 $(LIBILBC):
-	make -C ilbc all
+	$(MAKE) -C ilbc all
 
 codec_ilbc.so: codec_ilbc.o $(LIBILBC)
 	$(CC) -shared -Xlinker -x -o $@ $< $(LIBILBC)

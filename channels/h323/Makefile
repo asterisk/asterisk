@@ -43,7 +43,7 @@ install: all
 	@echo " + configuration file (overwriting existing   +"
 	@echo " + config file), run:                         +"
 	@echo " +                                            +"
-	@echo " +               make samples                 +"
+	@echo " +               $(MAKE) samples                 +"
 	@echo " +                                            +"
 	@echo " +                                            +"
  

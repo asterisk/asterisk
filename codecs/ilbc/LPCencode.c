@@ -41,13 +41,13 @@ void SimpleAnalysis(
         is = LPC_LOOKBACK; 
  
         if (k < (LPC_N - 1)) { 
-            window(temp, lpc_winTbl, lpc_buffer, BLOCKL); 
+            lbc_window(temp, lpc_winTbl, lpc_buffer, BLOCKL); 
         } else { 
-            window(temp, lpc_asymwinTbl, lpc_buffer + is, BLOCKL); 
+            lbc_window(temp, lpc_asymwinTbl, lpc_buffer + is, BLOCKL); 
         } 
          
         autocorr(r, temp, BLOCKL, LPC_FILTERORDER); 
-        window(r, r, lpc_lagwinTbl, LPC_FILTERORDER + 1); 
+        lbc_window(r, r, lpc_lagwinTbl, LPC_FILTERORDER + 1); 
          
         levdurb(lp, temp, r, LPC_FILTERORDER); 
         bwexpand(lp2, lp, LPC_CHIRP_SYNTDENUM, LPC_FILTERORDER+1); 

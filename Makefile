@@ -100,7 +100,7 @@ _all: all
 	@echo " + cannot be run before being installed by   +"  
 	@echo " + running:                                  +"  
 	@echo " +                                           +"
-	@echo " +               make install                +"  
+	@echo " +               $(MAKE) install                +"  
 	@echo " +-------------------------------------------+"  
 
 all: asterisk subdirs
@@ -114,11 +114,11 @@ editline/config.h:
 	fi
 
 editline/libedit.a: editline/config.h
-	make -C editline libedit.a
+	$(MAKE) -C editline libedit.a
 
 db1-ast/libdb1.a: 
 	@if [ -d db1-ast ]; then \
-		make -C db1-ast libdb1.a ; \
+		$(MAKE) -C db1-ast libdb1.a ; \
 	else \
 		echo "You need to do a cvs update -d not just cvs update"; \
 		exit 1; \
@@ -134,8 +134,17 @@ _version:
 
 ast_expr.o: ast_expr.c
 
+cli.o: cli.c build.h
+
+ifneq ($(strip $(ASTERISKVERSION)),)
+asterisk.o: asterisk.c .version
+
+build.h: .version
+	./make_build_h
+else
 build.h:
 	./make_build_h
+endif
 
 asterisk: .version build.h editline/libedit.a db1-ast/libdb1.a $(OBJS)
 	gcc -o asterisk -rdynamic $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a
@@ -148,8 +157,8 @@ clean:
 	rm -f *.o *.so asterisk
 	rm -f build.h 
 	rm -f ast_expr.c
-	@if [ -e editline/Makefile ]; then make -C editline clean ; fi
-	make -C db1-ast clean
+	@if [ -e editline/Makefile ]; then $(MAKE) -C editline clean ; fi
+	$(MAKE) -C db1-ast clean
 
 datafiles: all
 	mkdir -p $(ASTVARLIBDIR)/sounds/digits
@@ -179,7 +188,7 @@ datafiles: all
 update: 
 	@if [ -d CVS ]; then \
 		echo "Updating from CVS..." ; \
-		cvs update -d; \
+		cvs -q update -Pd; \
 		rm -f .version; \
 	else \
 		echo "Not CVS";  \
@@ -216,14 +225,14 @@ bininstall: all
 	@echo " + configuration files (overwriting any      +"
 	@echo " + existing config files), run:              +"  
 	@echo " +                                           +"
-	@echo " +               make samples                +"
+	@echo " +               $(MAKE) samples                +"
 	@echo " +                                           +"
 	@echo " +-----------------  or ---------------------+"
 	@echo " +                                           +"
 	@echo " + You can go ahead and install the asterisk +"
 	@echo " + program documentation now or later run:   +"
 	@echo " +                                           +"
-	@echo " +              make progdocs                +"
+	@echo " +              $(MAKE) progdocs                +"
 	@echo " +                                           +"
 	@echo " + **Note** This requires that you have      +"
 	@echo " + doxygen installed on your local system    +"
@@ -305,8 +314,8 @@ rpm: __rpm
 __rpm: _version
 	rm -rf /tmp/asterisk ; \
 	mkdir -p /tmp/asterisk/redhat/RPMS/i386 ; \
-	make INSTALL_PREFIX=/tmp/asterisk install ; \
-	make INSTALL_PREFIX=/tmp/asterisk samples ; \
+	$(MAKE) INSTALL_PREFIX=/tmp/asterisk install ; \
+	$(MAKE) INSTALL_PREFIX=/tmp/asterisk samples ; \
 	mkdir -p /tmp/asterisk/etc/rc.d/init.d ; \
 	cp -f redhat/asterisk /tmp/asterisk/etc/rc.d/init.d/ ; \
 	cp -f redhat/rpmrc /tmp/asterisk/ ; \
@@ -329,6 +338,6 @@ config:
 
 	
 dont-optimize:
-	make OPTIMIZE= K6OPT= install
+	$(MAKE) OPTIMIZE= K6OPT= install
 
 valgrind: dont-optimize

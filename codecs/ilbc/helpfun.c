@@ -42,7 +42,7 @@ void autocorr(
  *  window multiplication   
  *---------------------------------------------------------------*/ 
  
-void window(  
+void lbc_window(  
     float *z,       /* (o) the windowed data */ 
     const float *x, /* (i) the original data vector */ 
     const float *y, /* (i) the window */ 

@@ -351,12 +351,12 @@ $(LIB):
 
 gsminstall:
 		-if [ x"$(GSM_INSTALL_ROOT)" != x ] ; then	\
-			make $(GSM_INSTALL_TARGETS) ;	\
+			$(MAKE) $(GSM_INSTALL_TARGETS) ;	\
 		fi
 
 toastinstall:
 		-if [ x"$(TOAST_INSTALL_ROOT)" != x ]; then	\
-			make $(TOAST_INSTALL_TARGETS);	\
+			$(MAKE) $(TOAST_INSTALL_TARGETS);	\
 		fi
 
 gsmuninstall:
