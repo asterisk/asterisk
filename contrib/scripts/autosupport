@@ -63,6 +63,13 @@ if [ "$ans" = "y" ]; then
   uname -a >> $OUTPUT;
   echo >> $OUTPUT;
   echo >> $OUTPUT;
+  
+  echo "------------------" >> $OUTPUT;
+  echo "CPU INFO" >> $OUTPUT;
+  echo "------------------" >> $OUTPUT;
+  cat /proc/cpuinfo >> $OUTPUT;
+  echo >> $OUTPUT;
+  echo >> $OUTPUT;
 
   echo "------------------" >> $OUTPUT;
   echo "HDPARM STATUS" >> $OUTPUT;
