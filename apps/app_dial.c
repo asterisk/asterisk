@@ -71,8 +71,8 @@ static char *descrip =
 "             making/redirecting the outgoing call. For example, some PSTNs\n"
 "             don't allow callerids from other extensions then the ones\n"
 "             that are assigned to you.\n"
-"      'p' -- Preserve the incoming Caller*ID on the outbound leg of the call (old style\n"
-"             asterisk behavior)\n"
+"      'o' -- Original (inbound) Caller*ID should be placed on the outbound leg of the call 
+"             instead of using the destination extension (old style asterisk behavior)\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
 "                      with the specified class.\n"
@@ -894,7 +894,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_set2_flag(peerflags, strchr(transfer, 'W'), DIAL_MONITOR_OUT);	
 			ast_set2_flag(peerflags, strchr(transfer, 'd'), DIAL_HALT_ON_DTMF);	
 			ast_set2_flag(peerflags, strchr(transfer, 'g'), DIAL_GO_ON);	
-			ast_set2_flag(peerflags, strchr(transfer, 'p'), DIAL_PRESERVE_CALLERID);	
+			ast_set2_flag(peerflags, strchr(transfer, 'o'), DIAL_PRESERVE_CALLERID);	
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
