@@ -1145,23 +1145,23 @@ static int ast_extension_state2(struct ast_exten *e)
 	
 	res = ast_device_state(cur);
 	switch (res) {
-	    case AST_DEVICE_NOT_INUSE:
+    case AST_DEVICE_NOT_INUSE:
 		allunavailable = 0;
 		allbusy = 0;
 		break;
-	    case AST_DEVICE_INUSE:
+    case AST_DEVICE_INUSE:
 		return AST_EXTENSION_INUSE;
-	    case AST_DEVICE_BUSY:
+    case AST_DEVICE_BUSY:
 		allunavailable = 0;
 		allfree = 0;
 		busy = 1;
 		break;
-	    case AST_DEVICE_UNAVAILABLE:
-	    case AST_DEVICE_INVALID:
+    case AST_DEVICE_UNAVAILABLE:
+    case AST_DEVICE_INVALID:
 		allbusy = 0;
 		allfree = 0;
 		break;
-	    default:
+    default:
 		allunavailable = 0;
 		allbusy = 0;
 		allfree = 0;
@@ -1170,14 +1170,14 @@ static int ast_extension_state2(struct ast_exten *e)
     } while (cur);
 
     if (allfree)
-	return AST_EXTENSION_NOT_INUSE;
+		return AST_EXTENSION_NOT_INUSE;
     if (allbusy)
-	return AST_EXTENSION_BUSY;
+		return AST_EXTENSION_BUSY;
     if (allunavailable)
-	return AST_EXTENSION_UNAVAILABLE;
+		return AST_EXTENSION_UNAVAILABLE;
     if (busy) 
-	return AST_EXTENSION_INUSE;
-
+		return AST_EXTENSION_INUSE;
+	
     return AST_EXTENSION_NOT_INUSE;
 }
 
@@ -1207,6 +1207,11 @@ int ast_device_state_changed(const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(device, sizeof(device)-1, fmt, ap);
     va_end(ap);
+
+    rest = strchr(device, '-');
+    if (rest) {
+	*rest = 0;
+    }
         
     pthread_mutex_lock(&hintlock);
 
@@ -1223,7 +1228,7 @@ int ast_device_state_changed(const char *fmt, ...)
 		rest++;
 	    }
 	    
-	    if (!strncmp(cur, device, strlen(cur))) {
+	    if (!strcmp(cur, device)) {
 	    // Found extension execute callbacks 
 		state = ast_extension_state2(list->exten);
 		if ((state != -1) && (state != list->laststate)) {
@@ -3770,6 +3775,9 @@ int ast_pbx_outgoing_app(char *type, int format, void *data, int timeout, char *
 
 static void destroy_exten(struct ast_exten *e)
 {
+	if (e->priority == PRIORITY_HINT)
+		ast_remove_hint(e);
+
 	if (e->datad)
 		e->datad(e->data);
 	free(e);
@@ -3811,11 +3819,6 @@ void ast_context_destroy(struct ast_context *con, char *registrar)
 				sw = sw->next;
 				free(swl);
 				swl = sw;
-			}
-			for (e = tmp->root; e; ) {
-			    if (e->priority == PRIORITY_HINT)
-				ast_remove_hint(e);
-			    e = e->next;
 			}
 			for (e = tmp->root; e;) {
 				for (en = e->peer; en;) {
