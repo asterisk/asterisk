@@ -5436,7 +5436,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	req.data[res] = '\0';
 	req.len = res;
 	if (sipdebug)
-		ast_verbose("Sip read: \n%s\n", req.data);
+		ast_verbose("\n\nSip read: \n%s\n", req.data);
 	parse(&req);
 	if (req.headers < 2) {
 		/* Must have at least two headers */
