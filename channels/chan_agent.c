@@ -681,6 +681,7 @@ static int agent_hangup(struct ast_channel *ast)
 			ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 			ast_mutex_unlock(&p->chan->lock);
 		} else {
+			ast_device_state_changed("Agent/%s", p->agent);
 			ast_mutex_lock(&p->chan->lock);
 			ast_moh_start(p->chan, p->moh);
 			ast_mutex_unlock(&p->chan->lock);
