@@ -743,23 +743,15 @@ static int retrieve_file(char *dir, int msgnum)
 					goto yuck;
 				}
 				if (!strcmp(coltitle, "recording")) {
+					res = SQLGetData(stmt, x + 1, SQL_BINARY, NULL, 0, &colsize);
 					fdlen = colsize;
 					fd = open(full_fn, O_RDWR | O_TRUNC | O_CREAT, 0770);
 					if (fd > -1) {
-						/* Ugh, gotta fill it  so we can mmap */
-						char tmp[1024]="";
-						size_t left = 0, bytes = 0;
-						left = fdlen;
-						while(left) {
-							bytes = left;
-							if (bytes > sizeof(tmp))
-								bytes = sizeof(tmp);
-							if (write(fd, tmp, bytes) != bytes) {
-								close(fd); 
-								fd = -1;
-								break;
-							}
-							left -= bytes;
+						char tmp[1]="";
+						lseek(fd, fdlen - 1, SEEK_SET);
+						if (write(fd, tmp, 1) != 1) {
+							close(fd);
+							fd = -1;
 						}
 						if (fd > -1)
 							fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -772,8 +764,6 @@ static int retrieve_file(char *dir, int msgnum)
 							SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 							goto yuck;
 						}
-						fdlen = colsize;
-						ftruncate(fd, fdlen);
 					}
 				} else {
 					res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
