@@ -7933,6 +7933,7 @@ static void *pri_dchannel(void *vpri)
 							c = zt_new(pri->pvts[chanpos], AST_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
 							ast_mutex_lock(&pri->lock);
 							if (c) {
+								char calledtonstr[10];
 								if(e->ring.ani2 >= 0) {
 									snprintf(ani2str, 5, "%d", e->ring.ani2);
 									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
@@ -7940,7 +7941,6 @@ static void *pri_dchannel(void *vpri)
 								if (!ast_strlen_zero(e->ring.useruserinfo)) {
 									pbx_builtin_setvar_helper(c, "USERUSERINFO", e->ring.useruserinfo);
 								}
-								char calledtonstr[10];
 								snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 								if (option_verbose > 2)
