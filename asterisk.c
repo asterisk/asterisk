@@ -1058,7 +1058,7 @@ static void ast_remotecontrol(char * data)
 	stringp=buf;
 	hostname = strsep(&stringp, "/");
 	cpid = strsep(&stringp, "/");
-	version = strsep(&stringp, "/");
+	version = strsep(&stringp, "\n");
 	if (!version)
 		version = "<Version Unknown>";
 	stringp=hostname;
