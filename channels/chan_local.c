@@ -65,6 +65,7 @@ static struct local_pvt {
 	int cancelqueue;					/* Cancel queue */
 	int alreadymasqed;					/* Already masqueraded */
 	int launchedpbx;					/* Did we launch the PBX */
+	int nooptimization;
 	struct ast_channel *owner;			/* Master Channel */
 	struct ast_channel *chan;			/* Outbound channel */
 	struct local_pvt *next;				/* Next entity */
@@ -131,7 +132,7 @@ static int local_answer(struct ast_channel *ast)
 
 static void check_bridge(struct local_pvt *p, int isoutbound)
 {
-	if (p->alreadymasqed)
+	if (p->alreadymasqed || p->nooptimization)
 		return;
 	if (isoutbound && p->chan && p->chan->bridge && p->owner) {
 		/* Masquerade bridged channel into owner */
@@ -326,6 +327,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 {
 	struct local_pvt *tmp;
 	char *c;
+	char *opts;
 	tmp = malloc(sizeof(struct local_pvt));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct local_pvt));
@@ -338,6 +340,13 @@ static struct local_pvt *local_alloc(char *data, int format)
 			strncpy(tmp->context, c, sizeof(tmp->context) - 1);
 		} else
 			strncpy(tmp->context, "default", sizeof(tmp->context) - 1);
+		opts = strchr(tmp->context, '/');
+		if (opts) {
+			*opts='\0';
+			opts++;
+			if (strchr(opts, 'n'))
+				tmp->nooptimization = 1;
+		}
 		tmp->reqformat = format;
 		if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
 			ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->context, tmp->exten);
