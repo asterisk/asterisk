@@ -326,26 +326,25 @@ static void rebuild_matrix(int samples)
 static int show_translation(int fd, int argc, char *argv[])
 {
 #define SHOW_TRANS 11
-        int x,y,z;
+	int x, y, z;
 	char line[80];
 	if (argc > 4) 
 		return RESULT_SHOWUSAGE;
 
-	if(argv[2] && !strcasecmp(argv[2],"recalc")) {
-	  z = argv[3] ? atoi(argv[3]) : 1;
+	if (argv[2] && !strcasecmp(argv[2],"recalc")) {
+		z = argv[3] ? atoi(argv[3]) : 1;
 
-	  if(z <= 0) {
-	    ast_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
-	    z = 1;
-	  }
-	  
-	  if(z > MAX_RECALC) {
-	    ast_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n",z-MAX_RECALC,MAX_RECALC);
-	    z = MAX_RECALC;
-	  }
-	  ast_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n",z);
-	  rebuild_matrix(z);
+		if (z <= 0) {
+			ast_cli(fd,"         C'mon let's be serious here... defaulting to 1.\n");
+			z = 1;
+		}
 
+		if (z > MAX_RECALC) {
+			ast_cli(fd,"         Maximum limit of recalc exceeded by %d, truncating value to %d\n",z-MAX_RECALC,MAX_RECALC);
+			z = MAX_RECALC;
+		}
+		ast_cli(fd,"         Recalculating Codec Translation (number of sample seconds: %d)\n\n",z);
+		rebuild_matrix(z);
 	}
 
 	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");

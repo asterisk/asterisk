@@ -441,12 +441,11 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 	char *cur;
 	char *arg=NULL;
 	struct ast_config_reg *reg=NULL;
-    struct ast_config *(*load_func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
+	struct ast_config *(*load_func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
 #ifdef PRESERVE_COMMENTS
 ,struct ast_comment_struct *
 #endif
-);
-	
+	);
 	struct ast_variable *v;
 #ifdef PRESERVE_COMMENTS
 	struct ast_comment *com = NULL;

@@ -502,7 +502,7 @@ char *ast_codec2str(int codec) {
 		"undefined",                  /* 13 */
 		"undefined",                  /* 14 */
 		"Maximum audio format",       /* 15 */
-        /* Image formats */
+		/* Image formats */
 		"JPEG image",                 /* 16 */
 		"PNG image",                  /* 17 */
 		"H.261 Video",                /* 18 */
@@ -511,7 +511,7 @@ char *ast_codec2str(int codec) {
 		"undefined",                  /* 21 */
 		"undefined",                  /* 22 */
 		"undefined",                  /* 23 */
-        "Maximum video format",       /* 24 */
+		"Maximum video format",       /* 24 */
 		};
 	if ((codec >= 0) && (codec <= 24))
 		return codecs[codec];

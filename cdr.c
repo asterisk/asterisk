@@ -503,11 +503,10 @@ void ast_cdr_reset(struct ast_cdr *cdr, int post)
 }
 
 void ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr) {
-	if(cdr) {
+	if (cdr) {
 		while(cdr->next)
 			cdr = cdr->next;
 		cdr->next = newcdr;
-    } else
-        ast_log(LOG_ERROR, "Can't append a CDR to NULL!\n");
-
+	} else
+		ast_log(LOG_ERROR, "Can't append a CDR to NULL!\n");
 }

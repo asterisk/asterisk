@@ -88,7 +88,7 @@ static int srv_callback(void *context, u_char *answer, int len, u_char *fullansw
 	if (!ast_strlen_zero(c->host))
 		return 1;
 
-    return 0;
+	return 0;
 }
 
 int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, const char *service)
@@ -110,7 +110,7 @@ int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, co
 
 	if (ret <= 0) {
 		strcpy(host, "");
-    		*port = -1;
+		*port = -1;
 		return ret;
 	}
 	return ret;

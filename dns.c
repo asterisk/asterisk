@@ -99,7 +99,7 @@ static int dns_parse_answer(void *context,
 	int res;
 	int x;
 
-    h = (dns_HEADER *)answer;
+	h = (dns_HEADER *)answer;
 	answer += sizeof(dns_HEADER);
 	len -= sizeof(dns_HEADER);
 

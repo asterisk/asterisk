@@ -143,20 +143,20 @@ int ast_shutting_down(void)
 
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 {
-time_t	myt;
+	time_t	myt;
 
 	time(&myt);
-        if (offset)
-	  chan->whentohangup = myt + offset;
-        else
-          chan->whentohangup = 0;
+	if (offset)
+		chan->whentohangup = myt + offset;
+	else
+		chan->whentohangup = 0;
 	return;
 }
 
 int ast_channel_register(char *type, char *description, int capabilities,
 		struct ast_channel *(*requester)(char *type, int format, void *data))
 {
-    return ast_channel_register_ex(type, description, capabilities, requester, NULL);
+	return ast_channel_register_ex(type, description, capabilities, requester, NULL);
 }
 
 int ast_channel_register_ex(char *type, char *description, int capabilities,
@@ -169,7 +169,7 @@ int ast_channel_register_ex(char *type, char *description, int capabilities,
 		return -1;
 	}
 	chan = backends;
-	while(chan) {
+	while (chan) {
 		if (!strcasecmp(type, chan->type)) {
 			ast_log(LOG_WARNING, "Already have a handler for type '%s'\n", type);
 			ast_mutex_unlock(&chlock);
@@ -711,9 +711,9 @@ int ast_hangup(struct ast_channel *chan)
 	ast_mutex_unlock(&chan->lock);
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
 			"Channel: %s\r\n"
-                        "Uniqueid: %s\r\n"
-                        "Cause: %i\r\n",
-                        chan->name, chan->uniqueid, chan->hangupcause);
+			"Uniqueid: %s\r\n"
+			"Cause: %i\r\n",
+			chan->name, chan->uniqueid, chan->hangupcause);
 	ast_channel_free(chan);
 	return res;
 }

@@ -167,7 +167,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 	else
 		separator = ",";
 	s = strsep(&stringp,separator);
-        while(s && *s) {
+	while (s && *s) {
 		int freq1, freq2, time, modulate=0;
 
 		if (s[0]=='!')

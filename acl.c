@@ -67,13 +67,11 @@ void ast_free_ha(struct ast_ha *ha)
 
 /* Copy HA structure */
 static void ast_copy_ha(struct ast_ha *from, struct ast_ha *to)
- {
-
-        memcpy(&to->netaddr, &from->netaddr, sizeof(from->netaddr));
-     	memcpy(&to->netmask, &from->netmask, sizeof(from->netmask));
-        to->sense = from->sense;
-
- }
+{
+	memcpy(&to->netaddr, &from->netaddr, sizeof(from->netaddr));
+	memcpy(&to->netmask, &from->netmask, sizeof(from->netmask));
+	to->sense = from->sense;
+}
 
 /* Create duplicate of ha structure */
 static struct ast_ha *ast_duplicate_ha(struct ast_ha *original)
@@ -103,12 +101,11 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 		if (!ret) 
 			ret = link;		/* Save starting point */
 
-               start = start->next;		/* Go to next object */
-               prev = link;			/* Save pointer to this object */
-       }
-       return (ret);    			/* Return start of list */
+		start = start->next;		/* Go to next object */
+		prev = link;			/* Save pointer to this object */
+	}
+	return (ret);    			/* Return start of list */
 }
-
 
 struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 {
