@@ -1215,6 +1215,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
 					res = 't';
+					outmsg=2;
 					ast_frfree(f);
 					break;
 				}
@@ -1441,6 +1442,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 				if (maxtime < (end - start)) {
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Took too long, cutting it short...\n");
+					outmsg = 2;
 					res = 't';
 					ast_frfree(f);
 					break;
