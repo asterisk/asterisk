@@ -5364,6 +5364,10 @@ retryowner:
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_REJECT:
+				memset(&f, 0, sizeof(f));
+				f.frametype = AST_FRAME_CONTROL;
+				f.subclass = AST_CONTROL_CONGESTION;
+				iax2_queue_frame(fr.callno, &f);
 				if (iaxs[fr.callno]->provision) {
 					/* Send ack immediately, before we destroy */
 					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
