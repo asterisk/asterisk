@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 /*
  * Important: I should be made more efficient.  Frame headers should
@@ -108,38 +109,45 @@ struct ast_frame *ast_fr_fdread(int fd)
 {
 	char buf[4096];
 	int res;
+	int ttl = sizeof(struct ast_frame);
 	struct ast_frame *f = (struct ast_frame *)buf;
 	/* Read a frame directly from there.  They're always in the
 	   right format. */
 	
-	if (read(fd, buf, sizeof(struct ast_frame)) 
-						== sizeof(struct ast_frame)) {
-		/* read the frame header */
-		f->mallocd = 0;
-		/* Re-write data position */
-		f->data = buf + sizeof(struct ast_frame);
-		f->offset = 0;
-		/* Forget about being mallocd */
-		f->mallocd = 0;
-		/* Re-write the source */
-		f->src = __FUNCTION__;
-		if (f->datalen > sizeof(buf) - sizeof(struct ast_frame)) {
-			/* Really bad read */
-			ast_log(LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);
+	while(ttl) {
+		res = read(fd, buf, ttl);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Bad read on %d: %s\n", fd, strerror(errno));
 			return NULL;
 		}
-		if (f->datalen) {
-			if ((res = read(fd, f->data, f->datalen)) != f->datalen) {
-				/* Bad read */
-				ast_log(LOG_WARNING, "How very strange, expected %d, got %d\n", f->datalen, res);
-				return NULL;
-			}
+		ttl -= res;
+	}
+	
+	/* read the frame header */
+	f->mallocd = 0;
+	/* Re-write data position */
+	f->data = buf + sizeof(struct ast_frame);
+	f->offset = 0;
+	/* Forget about being mallocd */
+	f->mallocd = 0;
+	/* Re-write the source */
+	f->src = __FUNCTION__;
+	if (f->datalen > sizeof(buf) - sizeof(struct ast_frame)) {
+		/* Really bad read */
+		ast_log(LOG_WARNING, "Strange read (%d bytes)\n", f->datalen);
+		return NULL;
+	}
+	if (f->datalen) {
+		if ((res = read(fd, f->data, f->datalen)) != f->datalen) {
+			/* Bad read */
+			ast_log(LOG_WARNING, "How very strange, expected %d, got %d\n", f->datalen, res);
+			return NULL;
 		}
-		return ast_frisolate(f);
-	} else if (option_debug)
-		ast_log(LOG_DEBUG, "NULL or invalid header\n");
-	/* Null if there was an error */
-	return NULL;
+	}
+	if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
+		return NULL;
+	}
+	return ast_frisolate(f);
 }
 
 /* Some convenient routines for sending frames to/from stream or datagram
@@ -149,14 +157,23 @@ int ast_fr_fdwrite(int fd, struct ast_frame *frame)
 {
 	/* Write the frame exactly */
 	if (write(fd, frame, sizeof(struct ast_frame)) != sizeof(struct ast_frame)) {
-		ast_log(LOG_WARNING, "Write error\n");
+		ast_log(LOG_WARNING, "Write error: %s\n", strerror(errno));
 		return -1;
 	}
 	if (write(fd, frame->data, frame->datalen) != frame->datalen) {
-		ast_log(LOG_WARNING, "Write error\n");
+		ast_log(LOG_WARNING, "Write error: %s\n", strerror(errno));
 		return -1;
 	}
 	return 0;
+}
+
+int ast_fr_fdhangup(int fd)
+{
+	struct ast_frame hangup = {
+		AST_FRAME_CONTROL,
+		AST_CONTROL_HANGUP
+	};
+	return ast_fr_fdwrite(fd, &hangup);
 }
 
 int ast_getformatbyname(char *name)
