@@ -114,6 +114,10 @@ static char *config = "zapata.conf";
 #define SIG_PRI		ZT_SIG_CLEAR
 #define SIG_R2		ZT_SIG_CAS
 #define	SIG_SF		ZT_SIG_SF
+#define SIG_SFWINK 	(0x10000 | ZT_SIG_SF)
+#define SIG_SF_FEATD	(0x20000 | ZT_SIG_SF)
+#define	SIG_SF_FEATDMF	(0x40000 | ZT_SIG_SF)
+#define	SIG_SF_FEATB	(0x80000 | ZT_SIG_SF)
 
 #define NUM_SPANS 	32
 #define RESET_INTERVAL	3600	/* How often (in seconds) to reset unused channels */
@@ -466,8 +470,8 @@ static int cidrings[] = {
 #define ISTRUNK(p) ((p->sig == SIG_FXSLS) || (p->sig == SIG_FXSKS) || \
 			(p->sig == SIG_FXSGS) || (p->sig == SIG_PRI))
 
-#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & SIG_EM) /* || (p->sig & __ZT_SIG_FXO) */)
-#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & SIG_EM) /* || (p->sig & __ZT_SIG_FXO) */)
+#define CANBUSYDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
+#define CANPROGRESSDETECT(p) (ISTRUNK(p) || (p->sig & (SIG_EM | SIG_SF)) /* || (p->sig & __ZT_SIG_FXO) */)
 
 #if 0
 /* return non-zero if clear dtmf is appropriate */
@@ -778,7 +782,15 @@ static char *sig2str(int sig)
 	case SIG_R2:
 		return "R2 Signalling";
 	case SIG_SF:
-		return "SF (Tone) Signalling";
+		return "SF (Tone) Signalling Immediate";
+	case SIG_SFWINK:
+		return "SF (Tone) Signalling Wink";
+	case SIG_SF_FEATD:
+		return "SF (Tone) Signalling with Feature Group D (DTMF)";
+	case SIG_SF_FEATDMF:
+		return "SF (Tone) Signallong with Feature Group D (MF)";
+	case SIG_SF_FEATB:
+		return "SF (Tone) Signalling with Feature Group B (MF)";
 	case 0:
 		return "Pseudo Signalling";
 	default:
@@ -1220,6 +1232,11 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	case SIG_FEATD:
 	case SIG_FEATDMF:
 	case SIG_FEATB:
+	case SIG_SFWINK:
+	case SIG_SF:
+	case SIG_SF_FEATD:
+	case SIG_SF_FEATDMF:
+	case SIG_SF_FEATB:
 		c = strchr(dest, '/');
 		if (c)
 			c++;
@@ -1655,6 +1672,11 @@ static int zt_answer(struct ast_channel *ast)
 	case SIG_FEATD:
 	case SIG_FEATDMF:
 	case SIG_FEATB:
+	case SIG_SF:
+	case SIG_SFWINK:
+	case SIG_SF_FEATD:
+	case SIG_SF_FEATDMF:
+	case SIG_SF_FEATB:
 	case SIG_FXOLS:
 	case SIG_FXOGS:
 	case SIG_FXOKS:
@@ -2411,7 +2433,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				if (ast->_state == AST_STATE_DIALING) {
 					if (p->callprogress && CANPROGRESSDETECT(p) && p->dsp) {
 						ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
-					} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB)))) {
+					} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
 						ast_setstate(ast, AST_STATE_RINGING);
 					} else {
 						ast_setstate(ast, AST_STATE_UP);
@@ -2552,6 +2574,11 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_FEATD:
 			case SIG_FEATDMF:
 			case SIG_FEATB:
+			case SIG_SF:
+			case SIG_SFWINK:
+			case SIG_SF_FEATD:
+			case SIG_SF_FEATDMF:
+			case SIG_SF_FEATB:
 				if (ast->_state == AST_STATE_DOWN) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Ring detected\n");
@@ -2717,6 +2744,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_EM:
 			case SIG_EMWINK:
 			case SIG_FEATD:
+			case SIG_SF:
+			case SIG_SFWINK:
+			case SIG_SF_FEATD:
 			case SIG_FXSLS:
 			case SIG_FXSGS:
 				if (p->dialing)
@@ -2726,6 +2756,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				break;
 			case SIG_FEATDMF:
 			case SIG_FEATB:
+			case SIG_SF_FEATDMF:
+			case SIG_SF_FEATB:
 				/* FGD MF *Must* wait for wink */
 				res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
 				if (res < 0) {
@@ -2750,6 +2782,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_EM:
 			case SIG_EMWINK:
 			case SIG_FEATD:
+			case SIG_SF:
+			case SIG_SFWINK:
+			case SIG_SF_FEATD:
 				res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Unable to initiate dialing on trunk channel %d\n", p->channel);
@@ -2761,6 +2796,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				break;
 			case SIG_FEATDMF:
 			case SIG_FEATB:
+			case SIG_SF_FEATDMF:
+			case SIG_SF_FEATB:
 				ast_log(LOG_DEBUG, "Got hook complete in MF FGD, waiting for wink now on channel %d\n",p->channel);
 				break;
 			default:
@@ -3486,6 +3523,10 @@ static void *ss_thread(void *data)
 	case SIG_FEATDMF:
 	case SIG_FEATB:
 	case SIG_EMWINK:
+	case SIG_SF_FEATD:
+	case SIG_SF_FEATDMF:
+	case SIG_SF_FEATB:
+	case SIG_SFWINK:
 		zt_set_hook(p->subs[index].zfd, ZT_WINK);
 		for(;;)
 		{
@@ -3500,6 +3541,7 @@ static void *ss_thread(void *data)
 		if (ioctl(p->subs[index].zfd,ZT_GETEVENT,&j) == -1) return(NULL);
 		/* Fall through */
 	case SIG_EM:
+	case SIG_SF:
 		res = tone_zone_play_tone(p->subs[index].zfd, -1);
 		if (p->dsp)
 			ast_dsp_digitreset(p->dsp);
@@ -3518,18 +3560,21 @@ static void *ss_thread(void *data)
 			switch(p->sig)
 			{
 			    case SIG_FEATD:
+			    case SIG_SF_FEATD:
 				res = my_getsigstr(chan,dtmfbuf + 1,'*',3000);
 				if (res > 0)
 					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'*',3000);
 				if (res < 1) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATDMF:
+			    case SIG_SF_FEATDMF:
 				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
 				if (res > 0)
 					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'#',3000);
 				if (res < 1) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATB:
+			    case SIG_SF_FEATB:
 				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
 				if (res < 1) ast_dsp_digitreset(p->dsp);
 				break;
@@ -4115,6 +4160,11 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FEATDMF:
 		case SIG_FEATB:
 		case SIG_EM:
+		case SIG_SFWINK:
+		case SIG_SF_FEATD:
+		case SIG_SF_FEATDMF:
+		case SIG_SF_FEATB:
+		case SIG_SF:
 				/* Check for callerid, digits, etc */
 				chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0);
 				if (pthread_create(&threadid, &attr, ss_thread, chan)) {
@@ -4155,6 +4205,11 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FEATB:
 		case SIG_EM:
 		case SIG_EMWINK:
+		case SIG_SF_FEATD:
+		case SIG_SF_FEATDMF:
+		case SIG_SF_FEATB:
+		case SIG_SF:
+		case SIG_SFWINK:
 		case SIG_FXSLS:
 		case SIG_FXSGS:
 		case SIG_FXSKS:
@@ -4651,7 +4706,10 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		if ((signalling == SIG_FXSKS) || (signalling == SIG_FXSLS) ||
 		    (signalling == SIG_EM) || (signalling == SIG_EMWINK) ||
 			(signalling == SIG_FEATD) || (signalling == SIG_FEATDMF) ||
-			  (signalling == SIG_FEATB)) {
+			  (signalling == SIG_FEATB) ||
+		    (signalling == SIG_SF) || (signalling == SIG_SFWINK) ||
+			(signalling == SIG_SF_FEATD) || (signalling == SIG_SF_FEATDMF) ||
+			  (signalling == SIG_SF_FEATB)) {
 			p.starttime = 250;
 			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_PARAMS, &p);
 			if (res < 0) {
@@ -6210,6 +6268,21 @@ int load_module()
 			} else if (!strcasecmp(v->value, "em_txrx")) {
 				cur_signalling = SIG_EM;
 				cur_radio = 2;
+			} else if (!strcasecmp(v->value, "sf")) {
+				cur_signalling = SIG_SF;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_w")) {
+				cur_signalling = SIG_SFWINK;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_featd")) {
+				cur_signalling = SIG_FEATD;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_featdmf")) {
+				cur_signalling = SIG_FEATDMF;
+				cur_radio = 0;
+			} else if (!strcasecmp(v->value, "sf_featb")) {
+				cur_signalling = SIG_SF_FEATB;
+				cur_radio = 0;
 			} else if (!strcasecmp(v->value, "sf")) {
 				cur_signalling = SIG_SF;
 				cur_radio = 0;
