@@ -37,7 +37,7 @@ extern void callerid_init(void);
    at least 32000 bytes in size if you want to be sure you dont
    have an overrun however.  Returns # of bytes written to buffer.
    Use "O" or "P" in name */
-extern int callerid_generate(unsigned char *buf, char *number, char *name, int flags);
+extern int callerid_generate(unsigned char *buf, char *number, char *name, int flags, int callwaiting);
 
 /* Create a callerID state machine */
 extern struct callerid_state *callerid_new(void);
@@ -55,8 +55,15 @@ extern void callerid_free(struct callerid_state *cid);
 /* Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) */
 extern int ast_callerid_generate(unsigned char *buf, char *astcid);
 
+/* Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) 
+   but in a format suitable for Call Waiting(tm) Caller*ID(tm) */
+extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *astcid);
+
 /* Destructively parse inbuf into name and location (or number) */
 extern int ast_callerid_parse(char *inbuf, char **name, char **location);
+
+/* Generate a CAS (CPE Alert Signal) tone for 'n' samples */
+extern int ast_callerid_gen_cas(unsigned char *outbuf, int len);
 
 /* Shrink a phone number in place to just digits (more accurately it just removes ()'s, .'s, and -'s...  */
 extern void ast_shrink_phone_number(char *n);
