@@ -37,6 +37,7 @@ ${CONTEXT}      Current context
 ${PRIORITY}	Current priority
 ${CHANNEL}	Current channel name
 ${ENV(VAR)}	Environmental variable VAR
+${LEN(VAR)}	String length of VAR (integer)
 ${EPOCH}	Current unix style epoch
 ${DATETIME}	Current date time in the format: YYYY-MM-DD_HH:MM:SS
 ${UNIQUEID}	Current call unique identifier
