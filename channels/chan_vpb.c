@@ -964,6 +964,8 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 					get_callerid(p);	/* Australian Caller ID only between 1st and 2nd ring  */
 				}
 				get_callerid_ast(p);	/* Caller ID using the ast functions */
+				vpb_timer_stop(p->ring_timer);
+				vpb_timer_start(p->ring_timer);
 			}
 			break;
 
@@ -1019,7 +1021,13 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_notowned: DTMF IDD timer out, matching on [%s] in [%s]\n", p->dev,p->ext , p->context);
 					vpb_new(p,AST_STATE_RING, p->context);
 				}
-			}
+			} else if (e->data == p->ring_timer_id) {
+				/* We didnt get another ring in time! */
+				if (p->owner->_state != AST_STATE_UP)  {
+					 /* Assume caller has hung up */
+					vpb_timer_stop(p->ring_timer);
+				}
+			} 
 			break;
 
 		case VPB_DTMF:
