@@ -2988,7 +2988,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				snprintf(todir, sizeof(todir), "%s/voicemail/%s/%s/INBOX",  (char *)ast_config_AST_SPOOL_DIR, vmtmp->context, vmtmp->mailbox);
 				snprintf(sys, sizeof(sys), "mkdir -p %s\n", todir);
 				snprintf(ext_context, sizeof(ext_context), "%s@%s", vmtmp->mailbox, vmtmp->context);
-				ast_log(LOG_DEBUG, sys);
+				ast_log(LOG_DEBUG, "%s", sys);
 				ast_safe_system(sys);
 		
 				todircount = count_messages(todir);
@@ -2999,11 +2999,11 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 					if (!strcasecmp(s, "wav49"))
 						s = "WAV";
 					snprintf(sys, sizeof(sys), "cp %s/msg%04d.%s %s/msg%04d.%s\n", dir, curmsg, s, todir, todircount, s);
-					ast_log(LOG_DEBUG, sys);
+					ast_log(LOG_DEBUG, "%s", sys);
 					ast_safe_system(sys);
 				}
 				snprintf(sys, sizeof(sys), "cp %s/msg%04d.txt %s/msg%04d.txt\n", dir, curmsg, todir, todircount);
-				ast_log(LOG_DEBUG, sys);
+				ast_log(LOG_DEBUG, "%s", sys);
 				ast_safe_system(sys);
 				snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
 	
