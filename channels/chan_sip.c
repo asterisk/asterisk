@@ -1679,7 +1679,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 				ast_set_read_format(p->owner, p->owner->readformat, 0);
 				ast_set_write_format(p->owner, p->owner->writeformat, 0);
 			}
-            if (p->dtmfmode & SIP_DTMF_INBAND) {
+            if ((p->dtmfmode & SIP_DTMF_INBAND) && p->vad) {
                    f = ast_dsp_process(p->owner,p->vad,f,0);
             }
 		}
@@ -6729,6 +6729,17 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 			p->dtmfmode = SIP_DTMF_INBAND;
 		else
 			ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n",mode);
+        if (p->dtmfmode & SIP_DTMF_INBAND) {
+				if (!p->vad) {
+	               p->vad = ast_dsp_new();
+	               ast_dsp_set_features(p->vad, DSP_FEATURE_DTMF_DETECT);
+				}
+        } else {
+			if (p->vad) {
+				ast_dsp_free(p->vad);
+				p->vad = NULL;
+			}
+		}
 		ast_mutex_unlock(&p->lock);
 	}
 	ast_mutex_unlock(&chan->lock);
