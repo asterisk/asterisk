@@ -197,7 +197,7 @@ static struct pbx_builtin {
 
 	{ "BackGround", pbx_builtin_background,
 	"Play a file while awaiting extension",
-	"  Background(filename[|options]): Plays a given file, while simultaneously\n"
+	"  Background(filename[|options[|langoverride]]): Plays a given file, while simultaneously\n"
 	"waiting for the user to begin typing an extension. The  timeouts do not\n"
 	"count until the last BackGround application has ended.\n" 
 	"Options may also be  included following a pipe symbol. The 'skip'\n"
@@ -206,8 +206,10 @@ static struct pbx_builtin {
 	"specified, the application will return immediately should the channel not be\n"
 	"off hook.  Otherwise, unless 'noanswer' is specified, the channel channel will\n"
 	"be answered before the sound is played. Not all channels support playing\n"
-	"messages while still hook. Returns -1 if the channel was hung up, or if the\n"
-	"file does not exist. Returns 0 otherwise.\n"
+	"messages while still hook. The 'langoverride' may be a language to use for\n"
+	"playing the prompt which differs from the current language of the channel\n"
+	"Returns -1 if the channel was hung up, or if the file does not exist. \n"
+	"Returns 0 otherwise.\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
@@ -4512,6 +4514,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
         char filename[256] = "";
         char* stringp;
         char* options;
+		char *lang = NULL;
 
         if (!data || ast_strlen_zero(data)) {
                 ast_log(LOG_WARNING, "Background requires an argument(filename)\n");
@@ -4522,6 +4525,10 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
         stringp = filename;
         strsep(&stringp, "|");
         options = strsep(&stringp, "|");
+		if (options)
+	        lang = strsep(&stringp, "|");
+		if (!lang)
+			lang = chan->language;
 
         if (options && !strcasecmp(options, "skip"))
                 option_skip = 1;
@@ -4541,7 +4548,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
                 /* Stop anything playing */
                 ast_stopstream(chan);
                 /* Stream a file */
-                res = ast_streamfile(chan, filename, chan->language);
+                res = ast_streamfile(chan, filename, lang);
                 if (!res) {
                         res = ast_waitstream(chan, AST_DIGIT_ANY);
                         ast_stopstream(chan);
