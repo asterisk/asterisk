@@ -336,7 +336,7 @@ static struct ast_cli_entry reload_logger_cli =
 
 static struct ast_cli_entry rotate_logger_cli = 
 	{ { "logger", "rotate", NULL }, 
-	handle_logger_rotate, "Reopens the log files",
+	handle_logger_rotate, "Rotates and reopens the log files",
 	logger_rotate_help };
 
 static int handle_SIGXFSZ(int sig) {
