@@ -8891,7 +8891,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			} else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;
 				inet_aton(v->value, &peer->mask);
-			} else if (!strcasecmp(v->name, "port") || !strcasecmp(v-name, "bindport") {
+			} else if (!strcasecmp(v->name, "port") || !strcasecmp(v->name, "bindport")) {
 				if (!realtime && ast_test_flag(peer, SIP_DYNAMIC))
 					peer->defaddr.sin_port = htons(atoi(v->value));
 				else
@@ -9086,7 +9086,7 @@ static int reload_config(void)
 			compactheaders = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
 			strncpy(default_notifymime, v->value, sizeof(default_notifymime) - 1);
-		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold") {
+		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
 			strncpy(global_musicclass, v->value, sizeof(global_musicclass) - 1);
 		} else if (!strcasecmp(v->name, "language")) {
 			strncpy(default_language, v->value, sizeof(default_language)-1);
