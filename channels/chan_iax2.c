@@ -6076,8 +6076,18 @@ static void delete_users(void)
 	for (reg = registrations;reg;) {
 		regl = reg;
 		reg = reg->next;
-		if (regl->expire > -1)
+		if (regl->expire > -1) {
 			ast_sched_del(sched, regl->expire);
+		}
+		if (regl->callno) {
+			/* XXX Is this a potential lock?  I don't think so, but you never know */
+			ast_mutex_lock(&iaxsl[regl->callno]);
+			if (iaxs[regl->callno]) {
+				iaxs[regl->callno]->reg = NULL;
+				iax2_destroy_nolock(regl->callno);
+			}
+			ast_mutex_unlock(&iaxsl[regl->callno]);
+		}
 		free(regl);
 	}
 	registrations = NULL;
