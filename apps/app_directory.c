@@ -267,6 +267,9 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 					case '1':
 						/* user pressed '1' and extensions exists */
 						lastuserchoice = res;
+						strncpy(chan->context, dialcontext, sizeof(chan->context) - 1);
+						strncpy(chan->exten, v->name, sizeof(chan->exten) - 1);
+						chan->priority = 0;
 						break;
 					case '*':
 						/* user pressed '*' to skip something found */
@@ -289,7 +292,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 				res = 1;
 			return res;
 		}
-		
+		return 0;
 	}
 	return res;
 }
@@ -301,7 +304,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	struct ast_config *cfg;
 	char *context, *dialcontext, *dirintro;
 	if (!data) {
-		ast_log(LOG_WARNING, "directory requires an argument (context)\n");
+		ast_log(LOG_WARNING, "directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
 	cfg = ast_load(DIRECTORY_CONFIG);
