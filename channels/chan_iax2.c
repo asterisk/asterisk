@@ -62,9 +62,6 @@
 #include <zaptel.h>
 #endif /* __linux__ */
 #endif
-#ifdef MYSQL_FRIENDS
-#include <mysql/mysql.h>
-#endif
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
@@ -99,14 +96,6 @@
 /* Sample over last 100 units to determine historic jitter */
 #define GAMMA (0.01)
 
-#ifdef MYSQL_FRIENDS
-AST_MUTEX_DEFINE_STATIC(mysqllock);
-static MYSQL *mysql;
-static char mydbuser[80];
-static char mydbpass[80];
-static char mydbhost[80];
-static char mydbname[80];
-#endif
 static char *desc = "Inter Asterisk eXchange (Ver 2)";
 static char *tdesc = "Inter Asterisk eXchange Driver (Ver 2)";
 static char *type = "IAX2";
@@ -1990,154 +1979,108 @@ static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newcha
 	return 0;
 }
 
-#ifdef MYSQL_FRIENDS
+static struct iax2_peer *build_peer(const char *name, struct ast_variable *v);
+static struct iax2_user *build_user(const char *name, struct ast_variable *v);
 
-static void mysql_update_peer(char *peer, struct sockaddr_in *sin)
-{
-	if (mysql && (strlen(peer) < 128)) {
-		char query[512];
-		char *name;
-		char iabuf[INET_ADDRSTRLEN];
-		time_t nowtime;
-		name = alloca(strlen(peer) * 2 + 1);
-		time(&nowtime);
-		mysql_real_escape_string(mysql, name, peer, strlen(peer));
-		snprintf(query, sizeof(query), "UPDATE iaxfriends SET ipaddr=\"%s\", port=\"%d\", regseconds=\"%ld\" WHERE name=\"%s\"", 
-			ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), nowtime, name);
-		ast_mutex_lock(&mysqllock);
-		if (mysql_real_query(mysql, query, strlen(query))) 
-			ast_log(LOG_WARNING, "Unable to update database\n");
-			
-		ast_mutex_unlock(&mysqllock);
-	}
-}
+static void destroy_user(struct iax2_user *user);
+static void destroy_peer(struct iax2_peer *peer);
 
-static struct iax2_peer *mysql_peer(char *peer)
+static struct iax2_peer *realtime_peer(const char *peername)
 {
-	struct iax2_peer *p;
-	int success = 0;
-	
-	p = malloc(sizeof(struct iax2_peer));
-	memset(p, 0, sizeof(struct iax2_peer));
-	if (mysql && (strlen(peer) < 128)) {
-		char query[512];
-		char *name;
-		int numfields, x;
-		int port;
-		time_t regseconds, nowtime;
-		MYSQL_RES *result;
-		MYSQL_FIELD *fields;
-		MYSQL_ROW rowval;
-		name = alloca(strlen(peer) * 2 + 1);
-		mysql_real_escape_string(mysql, name, peer, strlen(peer));
-		snprintf(query, sizeof(query), "SELECT name, secret, context, ipaddr, port, regseconds FROM iaxfriends WHERE name=\"%s\"", name);
-		ast_mutex_lock(&mysqllock);
-		mysql_query(mysql, query);
-		if ((result = mysql_store_result(mysql))) {
-			if ((rowval = mysql_fetch_row(result))) {
-				numfields = mysql_num_fields(result);
-				fields = mysql_fetch_fields(result);
-				success = 1;
-				for (x=0;x<numfields;x++) {
-					if (rowval[x]) {
-						if (!strcasecmp(fields[x].name, "secret")) {
-							strncpy(p->secret, rowval[x], sizeof(p->secret) - 1);
-						} else if (!strcasecmp(fields[x].name, "context")) {
-							strncpy(p->context, rowval[x], sizeof(p->context) - 1);
-						} else if (!strcasecmp(fields[x].name, "ipaddr")) {
-							inet_aton(rowval[x], &p->addr.sin_addr);
-						} else if (!strcasecmp(fields[x].name, "port")) {
-							if (sscanf(rowval[x], "%i", &port) != 1)
-								port = 0;
-							p->addr.sin_port = htons(port);
-						} else if (!strcasecmp(fields[x].name, "regseconds")) {
-							if (sscanf(rowval[x], "%li", &regseconds) != 1)
-								regseconds = 0;
-						}
-					}
+	struct ast_variable *var;
+	struct ast_variable *tmp;
+	struct iax2_peer *peer=NULL;
+	time_t regseconds, nowtime;
+	int dynamic=0;
+	var = ast_load_realtime("iaxfriends", "name", peername);
+	if (var) {
+		/* Make sure it's not a user only... */
+		peer = build_peer(peername, var);
+		if (peer) {
+			/* Add some finishing touches, addresses, etc */
+			peer->temponly = 1;
+			tmp = var;
+			while(tmp) {
+				if (!strcasecmp(tmp->name, "type")) {
+					if (strcasecmp(tmp->value, "friend") &&
+						strcasecmp(tmp->value, "peer")) {
+						/* Whoops, we weren't supposed to exist! */
+						destroy_peer(peer);
+						peer = NULL;
+						break;
+					} 
+				} else if (!strcasecmp(tmp->name, "regseconds")) {
+					if (sscanf(tmp->value, "%li", &regseconds) != 1)
+						regseconds = 0;
+				} else if (!strcasecmp(tmp->name, "ipaddr")) {
+					inet_aton(tmp->value, &(peer->addr.sin_addr));
+				} else if (!strcasecmp(tmp->name, "port")) {
+					peer->addr.sin_port = htons(atoi(tmp->value));
+				} else if (!strcasecmp(tmp->name, "host")) {
+					if (!strcasecmp(tmp->value, "dynamic"))
+						dynamic = 1;
 				}
+				tmp = tmp->next;
+			}
+			if (peer && dynamic) {
 				time(&nowtime);
-				if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) 
-					memset(&p->addr, 0, sizeof(p->addr));
-			}
-			mysql_free_result(result);
-			result = NULL;
-		}
-		ast_mutex_unlock(&mysqllock);
-	}
-	if (!success) {
-		free(p);
-		p = NULL;
-	} else {
-		strncpy(p->name, peer, sizeof(p->name) - 1);
-		p->dynamic = 1;
-		p->temponly = 1;
-		p->expire = -1;
-		p->capability = iax2_capability;
-		p->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
-	}
-	return p;
-}
-static struct iax2_user *mysql_user(char *user)
-{
-	struct iax2_user *p;
-	struct iax2_context *con;
-	int success = 0;
-	
-	p = malloc(sizeof(struct iax2_user));
-	memset(p, 0, sizeof(struct iax2_user));
-	con = malloc(sizeof(struct iax2_context));
-	memset(con, 0, sizeof(struct iax2_context));
-	strncpy(con->context, "default", sizeof(con->context) - 1);
-	p->contexts = con;
-	if (mysql && (strlen(user) < 128)) {
-		char query[512];
-		char *name;
-		int numfields, x;
-		MYSQL_RES *result;
-		MYSQL_FIELD *fields;
-		MYSQL_ROW rowval;
-		name = alloca(strlen(user) * 2 + 1);
-		mysql_real_escape_string(mysql, name, user, strlen(user));
-		snprintf(query, sizeof(query), "SELECT name, secret, context, ipaddr, port, regseconds, accountcode FROM iaxfriends WHERE name=\"%s\"", name);
-		ast_mutex_lock(&mysqllock);
-		mysql_query(mysql, query);
-		if ((result = mysql_store_result(mysql))) {
-			if ((rowval = mysql_fetch_row(result))) {
-				numfields = mysql_num_fields(result);
-				fields = mysql_fetch_fields(result);
-				success = 1;
-				for (x=0;x<numfields;x++) {
-					if (rowval[x]) {
-						if (!strcasecmp(fields[x].name, "secret")) {
-							strncpy(p->secret, rowval[x], sizeof(p->secret) - 1);
-						} else if (!strcasecmp(fields[x].name, "context")) {
-							strncpy(p->contexts->context, rowval[x], sizeof(p->contexts->context) - 1);
-						} else if (!strcasecmp(fields[x].name, "accountcode")) {
-							strncpy(p->accountcode, rowval[x], sizeof(p->accountcode) - 1);
-						}
-					}
+				if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) {
+					memset(&peer->addr, 0, sizeof(peer->addr));
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
 				}
 			}
-			mysql_free_result(result);
-			result = NULL;
 		}
-		ast_mutex_unlock(&mysqllock);
+		ast_destroy_realtime(var);
 	}
-	if (!success) {
-		if (p->contexts)
-			free(p->contexts);
-		free(p);
-		p = NULL;
-	} else {
-		strncpy(p->name, user, sizeof(p->name) - 1);
-		p->temponly = 1;
-		p->capability = iax2_capability;
-		p->authmethods = IAX_AUTH_MD5 | IAX_AUTH_PLAINTEXT;
-	}
-	return p;
+	return peer;
 }
-#endif /* MYSQL_FRIENDS */
+
+static struct iax2_user *realtime_user(const char *username)
+{
+	struct ast_variable *var;
+	struct ast_variable *tmp;
+	struct iax2_user *user=NULL;
+	var = ast_load_realtime("iaxfriends", "name", username);
+	if (var) {
+		/* Make sure it's not a user only... */
+		user = build_user(username, var);
+		if (user) {
+			/* Add some finishing touches, addresses, etc */
+			user->temponly = 1;
+			tmp = var;
+			while(tmp) {
+				if (!strcasecmp(tmp->name, "type")) {
+					if (strcasecmp(tmp->value, "friend") &&
+						strcasecmp(tmp->value, "user")) {
+						/* Whoops, we weren't supposed to exist! */
+						destroy_user(user);
+						user = NULL;
+						break;
+					} 
+				}
+				tmp = tmp->next;
+			}
+		}
+		ast_destroy_realtime(var);
+	}
+	return user;
+}
+
+static void realtime_update(const char *peername, struct sockaddr_in *sin)
+{
+	char port[10];
+	char ipaddr[20];
+	char regseconds[20];
+	time_t nowtime;
+	
+	time(&nowtime);
+	snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);
+	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
+	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
+	ast_update_realtime("iaxfriends", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, NULL);
+}
+
 
 static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, int *usejitterbuf, char *username, int usernlen, char *secret, int seclen, int *ofound, char *peercontext)
 {
@@ -2160,10 +2103,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 		p = p->next;
 	}
 	ast_mutex_unlock(&peerl.lock);
-#ifdef MYSQL_FRIENDS
 	if (!p)
-		p = mysql_peer(peer);
-#endif		
+		p = realtime_peer(peer);
 	if (p) {
 		found++;
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
@@ -2197,7 +2138,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 				*usejitterbuf=p->usejitterbuf;
 		} else {
 			if (p->temponly)
-				free(p);
+				destroy_peer(p);
 			p = NULL;
 		}
 	}
@@ -2216,7 +2157,7 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 	} else if (!p)
 		return -1;
 	if (p->temponly)
-		free(p);
+		destroy_peer(p);
 	return 0;
 }
 
@@ -3691,18 +3632,14 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 	}
 	ast_mutex_unlock(&userl.lock);
 	user = best;
-#ifdef MYSQL_FRIENDS
-	if (!user && mysql && !ast_strlen_zero(iaxs[callno]->username) && (strlen(iaxs[callno]->username) < 128)) {
-		user = mysql_user(iaxs[callno]->username);
+	if (!user && !ast_strlen_zero(iaxs[callno]->username) && (strlen(iaxs[callno]->username) < 128)) {
+		user = realtime_user(iaxs[callno]->username);
 		if (user && !ast_strlen_zero(iaxs[callno]->context) &&			/* No context specified */
 			     !apply_context(user->contexts, iaxs[callno]->context)) {			/* Context is permitted */
-			if (user->contexts)
-				free(user->contexts);
-			free(user);
+			destroy_user(user);
 			user = NULL;
 		}
 	}
-#endif	
 	if (user) {
 		/* We found our match (use the first) */
 		
@@ -3874,10 +3811,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		if (!strcasecmp(p->name, peer))
 			break;
 	ast_mutex_unlock(&peerl.lock);
-#ifdef MYSQL_FRIENDS
 	if (!p) 
-		p = mysql_peer(peer);
-#endif
+		p = realtime_peer(peer);
 
 	if (!p) {
 		if (authdebug)
@@ -3889,7 +3824,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Peer '%s' is not dynamic (from %s)\n", peer, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		if (p->temponly)
-			free(p);
+			destroy_peer(p);
 		return -1;
 	}
 
@@ -3897,7 +3832,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Host %s denied access to register peer '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
 		if (p->temponly)
-			free(p);
+			destroy_peer(p);
 		return -1;
 	}
 	strncpy(iaxs[callno]->secret, p->secret, sizeof(iaxs[callno]->secret)-1);
@@ -3923,14 +3858,14 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				if (authdebug)
 					ast_log(LOG_NOTICE, "Host %s failed RSA authentication with inkeys '%s'\n", peer, p->inkeys);
 				if (p->temponly)
-					free(p);
+					destroy_peer(p);
 				return -1;
 			}
 		} else {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host '%s' trying to do RSA authentication, but we have no inkeys\n", peer);
 			if (p->temponly)
-				free(p);
+				destroy_peer(p);
 			return -1;
 		}
 	} else if (!ast_strlen_zero(secret) && (p->authmethods & IAX_AUTH_PLAINTEXT)) {
@@ -3939,7 +3874,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host %s did not provide proper plaintext password for '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name);
 			if (p->temponly)
-				free(p);
+				destroy_peer(p);
 			return -1;
 		} else
 			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
@@ -3956,7 +3891,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name, requeststr, md5secret);
 			if (p->temponly)
-				free(p);
+				destroy_peer(p);
 			return -1;
 		} else
 			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
@@ -3964,7 +3899,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		if (authdebug)
 			ast_log(LOG_NOTICE, "Inappropriate authentication received\n");
 		if (p->temponly)
-			free(p);
+			destroy_peer(p);
 		return -1;
 	}
 	strncpy(iaxs[callno]->peer, peer, sizeof(iaxs[callno]->peer)-1);
@@ -3972,7 +3907,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	if (expire && (expire < iaxs[callno]->expirey)) 
 		iaxs[callno]->expirey = expire;
 	if (p->temponly)
-		free(p);
+		destroy_peer(p);
 	return 0;
 	
 }
@@ -4342,9 +4277,10 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 		strncpy(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi) - 1);
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
-			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, type);
-			else
+			if (onoff) {
+				if (!ast_exists_extension(NULL, regcontext, ext, 1, NULL))
+					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, type);
+			} else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
 	}
@@ -4422,15 +4358,11 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			break;
 		}
 	}
-#ifdef MYSQL_FRIENDS
 	if (!p)
-		p = mysql_peer(name);
-#endif	
+		p = realtime_peer(name);
 	if (p) {
-#ifdef MYSQL_FRIENDS
 		if (p->temponly)
-			mysql_update_peer(name, sin);
-#endif
+			realtime_update(name, sin);
 		if (inaddrcmp(&p->addr, sin)) {
 			if (iax2_regfunk)
 				iax2_regfunk(p->name, 1);
@@ -4490,7 +4422,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 		if (version) 
 			iax_ie_append_short(&ied, IAX_IE_FIRMWAREVER, version);
 		if (p->temponly)
-			free(p);
+			destroy_peer(p);
 		return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
 	}
 	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
@@ -4508,10 +4440,8 @@ static int registry_authrequest(char *name, int callno)
 		}
 	}
 	ast_mutex_unlock(&peerl.lock);
-#ifdef MYSQL_FRIENDS
 	if (!p)
-		p = mysql_peer(name);
-#endif			
+		p = realtime_peer(name);
 	if (p) {
 		memset(&ied, 0, sizeof(ied));
 		iax_ie_append_short(&ied, IAX_IE_AUTHMETHODS, p->authmethods);
@@ -4522,7 +4452,7 @@ static int registry_authrequest(char *name, int callno)
 		}
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, name);
 		if (p->temponly)
-			free(p);
+			destroy_peer(p);
 		return send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGAUTH, 0, ied.buf, ied.pos, -1);;
 	} 
 	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
@@ -6375,7 +6305,7 @@ static int get_auth_methods(char *value)
 	return methods;
 }
 
-static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
+static struct iax2_peer *build_peer(const char *name, struct ast_variable *v)
 {
 	struct iax2_peer *peer;
 	struct iax2_peer *prev;
@@ -6540,7 +6470,7 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 	return peer;
 }
 
-static struct iax2_user *build_user(char *name, struct ast_variable *v)
+static struct iax2_user *build_user(const char *name, struct ast_variable *v)
 {
 	struct iax2_user *prev, *user;
 	struct iax2_context *con, *conl = NULL;
@@ -6702,6 +6632,13 @@ static void delete_users(void)
 	ast_mutex_unlock(&peerl.lock);
 }
 
+static void destroy_user(struct iax2_user *user)
+{
+	ast_free_ha(user->ha);
+	free_context(user->contexts);
+	free(user);
+}
+
 static void prune_users(void)
 {
 	struct iax2_user *user, *usernext, *userlast = NULL;
@@ -6709,9 +6646,7 @@ static void prune_users(void)
 	for (user=userl.users;user;) {
 		usernext = user->next;
 		if (user->delme) {
-			ast_free_ha(user->ha);
-			free_context(user->contexts);
-			free(user);
+			destroy_user(user);
 			if (userlast)
 				userlast->next = usernext;
 			else
@@ -6723,32 +6658,37 @@ static void prune_users(void)
 	ast_mutex_unlock(&userl.lock);
 }
 
+static void destroy_peer(struct iax2_peer *peer)
+{
+	int x;
+	ast_free_ha(peer->ha);
+	for (x=0;x<IAX_MAX_CALLS;x++) {
+		ast_mutex_lock(&iaxsl[x]);
+		if (iaxs[x] && (iaxs[x]->peerpoke == peer)) {
+			iax2_destroy(x);
+		}
+		ast_mutex_unlock(&iaxsl[x]);
+	}
+	/* Delete it, it needs to disappear */
+	if (peer->expire > -1)
+		ast_sched_del(sched, peer->expire);
+	if (peer->pokeexpire > -1)
+		ast_sched_del(sched, peer->pokeexpire);
+	if (peer->callno > 0)
+		iax2_destroy(peer->callno);
+	register_peer_exten(peer, 0);
+	free(peer);
+}
+
 static void prune_peers(void){
 	/* Prune peers who still are supposed to be deleted */
 	struct iax2_peer *peer, *peerlast, *peernext;
-	int x;
 	ast_mutex_lock(&peerl.lock);
 	peerlast = NULL;
 	for (peer=peerl.peers;peer;) {
 		peernext = peer->next;
 		if (peer->delme) {
-			ast_free_ha(peer->ha);
-			for (x=0;x<IAX_MAX_CALLS;x++) {
-				ast_mutex_lock(&iaxsl[x]);
-				if (iaxs[x] && (iaxs[x]->peerpoke == peer)) {
-					iax2_destroy(x);
-				}
-				ast_mutex_unlock(&iaxsl[x]);
-			}
-			/* Delete it, it needs to disappear */
-			if (peer->expire > -1)
-				ast_sched_del(sched, peer->expire);
-			if (peer->pokeexpire > -1)
-				ast_sched_del(sched, peer->pokeexpire);
-			if (peer->callno > 0)
-				iax2_destroy(peer->callno);
-			register_peer_exten(peer, 0);
-			free(peer);
+			destroy_peer(peer);
 			if (peerlast)
 				peerlast->next = peernext;
 			else
@@ -6894,16 +6834,6 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			} else {
 				amaflags = format;
 			}
-#ifdef MYSQL_FRIENDS
-		} else if (!strcasecmp(v->name, "dbuser")) {
-			strncpy(mydbuser, v->value, sizeof(mydbuser) - 1);
-		} else if (!strcasecmp(v->name, "dbpass")) {
-			strncpy(mydbpass, v->value, sizeof(mydbpass) - 1);
-		} else if (!strcasecmp(v->name, "dbhost")) {
-			strncpy(mydbhost, v->value, sizeof(mydbhost) - 1);
-		} else if (!strcasecmp(v->name, "dbname")) {
-			strncpy(mydbname, v->value, sizeof(mydbname) - 1);
-#endif
 		} else if (!strcasecmp(v->name, "language")) {
                         strncpy(language, v->value, sizeof(language) - 1);
 		} //else if (strcasecmp(v->name,"type"))
@@ -6943,21 +6873,6 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 	}
 	ast_destroy(cfg);
 	set_timing();
-#ifdef MYSQL_FRIENDS
-	/* Connect to db if appropriate */
-	if (!mysql && !ast_strlen_zero(mydbname)) {
-		mysql = mysql_init(NULL);
-		if (!mysql_real_connect(mysql, mydbhost[0] ? mydbhost : NULL, mydbuser, mydbpass, mydbname, 0, NULL, 0)) {
-			memset(mydbpass, '*', strlen(mydbpass));
-			ast_log(LOG_WARNING, "Database connection failed (db=%s, host=%s, user=%s, pass=%s)!\n",
-				mydbname, mydbhost, mydbuser, mydbpass);
-			free(mysql);
-			mysql = NULL;
-		} else
-			ast_verbose(VERBOSE_PREFIX_1 "Connected to database '%s' on '%s' as '%s'\n",
-				mydbname, mydbhost, mydbuser);
-	}
-#endif
 	return capability;
 }
 

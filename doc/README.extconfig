@@ -1,0 +1,38 @@
+Asterisk external configuration
+===============================
+
+The Asterisk external configuration engine is the result of work by 
+Anthony Minessale II and Mark Spencer.  It is designed to provide a
+flexible, seamless integration between Asterisk's internal
+configuration structure and external SQL other other databases
+(maybe even LDAP one day).
+
+External configuration is configured in /etc/asterisk/extconfig.conf
+allowing you to map any configuration file (static mappings) to
+be pulled from the database, or to map special runtime entries which
+permit the dynamic creation of objects, entities, peers, etc. without
+the necessity of a reload.
+
+Generally speaking, the columns in your tables should line up with the
+fields you would specify in the given entity declaration.  If an entry
+would appear more than once, in the column it should be separated by a
+semicolon. For example, an entity that looks like:
+
+[foo]
+host=dynamic
+secret=bar
+context=default
+context=local
+
+could be stored in a table like this:
+
++------+--------+-------+--------------+----------+-----+-----------+
+| name | host   | secret| context      | ipaddr   | port| regseconds|
++------+--------+-------+--------------+----------+-----+-----------+
+| foo  | dynamic|  bar  | default;local| 127.0.0.1| 4569| 1096954152|
++------+--------+-------+--------------+----------+-----+-----------+
+
+Note that for use with IAX or SIP, the table will also need the "name", 
+"ipaddr", "port", "regseconds" columns.  If you wanted to be able to 
+configure the callerid, you could just add a callerid column to the 
+table, for example.

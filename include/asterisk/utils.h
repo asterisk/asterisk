@@ -26,6 +26,8 @@ struct ast_hostent {
 	char buf[1024];
 };
 
+
+extern char *ast_strip(char *buf);
 extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 extern int ast_base64encode(char *dst, unsigned char *src, int srclen, int max);
 extern int ast_base64decode(unsigned char *dst, char *src, int max);

@@ -28,6 +28,19 @@
 static char base64[64];
 static char b2a[256];
 
+char *ast_strip(char *buf)
+{
+	char *start;
+	/* Strip off trailing whitespace, returns, etc */
+	while (!ast_strlen_zero(buf) && (buf[strlen(buf)-1]<33))
+		buf[strlen(buf)-1] = '\0';
+	start = buf;
+	/* Strip off leading whitespace, returns, etc */
+	while (*start && (*start < 33))
+		*start++ = '\0';
+	return start;
+}
+
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
 
 /* duh? ERANGE value copied from web... */

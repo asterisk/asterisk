@@ -4,6 +4,7 @@
 extern "C" {
 #endif
 
+#include <stdarg.h>
 #define CONFIG_KEYWORD_STRLEN 128
 #define CONFIG_KEYWORD_ARRAYLEN 512
 #include <asterisk/config.h>
@@ -14,10 +15,6 @@ struct ast_category {
 	char name[80];
 	struct ast_variable *root;
 	struct ast_category *next;
-#ifdef PRESERVE_COMMENTS
-	struct ast_comment *precomments;
-	struct ast_comment *sameline;
-#endif	
 };
 
 struct ast_config {
@@ -25,33 +22,18 @@ struct ast_config {
 	   for now */
 	struct ast_category *root;
 	struct ast_category *prev;
-#ifdef PRESERVE_COMMENTS
-	struct ast_comment *trailingcomments;
-#endif	
 };
 
-#ifdef PRESERVE_COMMENTS
-struct ast_comment_struct
-{
-	struct ast_comment *root;
-	struct ast_comment *prev;
-};
-#endif
 
 struct ast_category;
 
 struct ast_config_reg {
 	char name[CONFIG_KEYWORD_STRLEN];
-	struct ast_config *(*func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
-#ifdef PRESERVE_COMMENTS
-,struct ast_comment_struct *
-#endif
-);
-	char keywords[CONFIG_KEYWORD_STRLEN][CONFIG_KEYWORD_ARRAYLEN];
-	int keycount;
+	struct ast_config *(*static_func)(const char *database, const char *table, const char *, struct ast_config *,struct ast_category **,struct ast_variable **,int);
+	struct ast_variable *(*realtime_func)(const char *database, const char *table,  const char *keyfield, const char *entity);
+	int (*update_func)(const char *database, const char *table, const char *keyfield, const char *entity, va_list ap);
 	struct ast_config_reg *next;
 };
-
 
 
 int ast_config_register(struct ast_config_reg *new);
@@ -59,9 +41,6 @@ int ast_config_deregister(struct ast_config_reg *del);
 void ast_cust_config_on(void);
 void ast_cust_config_off(void);
 int ast_cust_config_active(void);
-struct ast_config_reg *get_config_registrations(void);
-struct ast_config_reg *get_ast_cust_config(char *name);
-struct ast_config_reg *get_ast_cust_config_keyword(char *name);
 void ast_config_destroy_all(void);
 
 

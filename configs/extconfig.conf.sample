@@ -1,6 +1,28 @@
+;
+; Static and realtime external configuration
+; engine configuration
+;
 [settings]
+;
+; Static configuration files: 
+;
+; file.conf => driver,database[,table]
+;
+; maps a particular configuration file to the given
+; database driver, database and table (or uses the
+; name of the file as the table if not specified)
+;
+;uncomment to load queues.conf via the odbc engine.
+;
+;queues.conf => odbc,asterisk,ast_config
 
-;uncomment to load queues.conf via the db engine.
-;queues.conf => odbc
-
+;
+; Realtime configuration engine
+;
+; maps a particular family of realtime
+; configuration to a given database driver,
+; database and table (or uses the name of
+; the family if the table is not specified
+;
+;iaxfriends => odbc,asterisk
 

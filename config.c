@@ -29,74 +29,45 @@
 
 
 static int ast_cust_config=0;
-struct ast_config *(*global_load_func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
-#ifdef PRESERVE_COMMENTS                                                                                                                                     
-,struct ast_comment_struct *
-#endif
-);
+struct ast_config *(*global_load_func)(const char *dbname, const char *table, const char *, struct ast_config *,struct ast_category **,struct ast_variable **,int);
+
+static struct ast_config_map {
+	struct ast_config_map *next;
+	char *name;
+	char *driver;
+	char *database;
+	char *table;
+	char stuff[0];
+} *maps = NULL;
 
 AST_MUTEX_DEFINE_STATIC(ast_cust_config_lock);
 static struct ast_config_reg *ast_cust_config_list;
 static char *config_conf_file = "extconfig.conf";
 
-static char *strip(char *buf)
+void ast_destroy_realtime(struct ast_variable *v)
 {
-	char *start;
-	/* Strip off trailing whitespace, returns, etc */
-	while (!ast_strlen_zero(buf) && (buf[strlen(buf)-1]<33))
-		buf[strlen(buf)-1] = '\0';
-	start = buf;
-	/* Strip off leading whitespace, returns, etc */
-	while (*start && (*start < 33))
-		*start++ = '\0';
-	return start;
-}
-
-#ifdef PRESERVE_COMMENTS
-static void free_comments(struct ast_comment *com)
-{
-	struct ast_comment *l;
-	while (com) {
-		l = com;
-		com = com->next;
-		free(l);
+	struct ast_variable *vn;
+	while(v) {
+		vn = v;
+		v = v->next;
+		free(vn);
 	}
 }
-#endif
 
 void ast_destroy(struct ast_config *ast)
 {
 	struct ast_category *cat, *catn;
-	struct ast_variable *v, *vn;
 
 	if (!ast)
 		return;
 
 	cat = ast->root;
 	while(cat) {
-		v = cat->root;
-		while(v) {
-			vn = v;
-			free(v->name);
-			free(v->value);
-#ifdef PRESERVE_COMMENTS
-			free_comments(v->precomments);
-			free_comments(v->sameline);
-#endif			
-			v = v->next;
-			free(vn);
-		}
+		ast_destroy_realtime(cat->root);
 		catn = cat;
-#ifdef PRESERVE_COMMENTS
-		free_comments(cat->precomments);
-		free_comments(cat->sameline);
-#endif		
 		cat = cat->next;
 		free(catn);
 	}
-#ifdef PRESERVE_COMMENTS
-	free_comments(ast->trailingcomments);
-#endif	
 	free(ast);
 }
 
@@ -180,222 +151,6 @@ char *ast_variable_retrieve(struct ast_config *config, char *category, char *val
 	return NULL;
 }
 
-#ifdef PRESERVE_COMMENTS
-int ast_variable_delete(struct ast_config *cfg, char *category, char *variable, char *value)
-{
-	struct ast_variable *v, *pv, *bv, *bpv;
-	struct ast_category *cat;
-	cat = cfg->root;
-	while(cat) {
-		if (cat->name == category) {
-			break;
-		}
-		cat = cat->next;
-	}
-	if (!cat) {
-		cat = cfg->root;
-		while(cat) {
-			if (!strcasecmp(cat->name, category)) {
-				break;
-			}
-			cat = cat->next;
-		}
-	}
-	if (!cat)
-		return -1;
-	v = cat->root;
-	pv = NULL;
-	while (v) {
-		if ((variable == v->name) && (!value || !strcmp(v->value, value)))
-			break;
-		pv = v;
-		v=v->next;
-	}
-	if (!v) {
-		/* Get the last one that looks like it */
-		bv = NULL;
-		bpv = NULL;
-		v = cat->root;
-		pv = NULL;
-		while (v) {
-			if (!strcasecmp(variable, v->name) && (!value || !strcmp(v->value, value))) {
-				bv = v;
-				bpv = pv;
-			}
-			pv = v;
-			v=v->next;
-		}
-		v = bv;
-	}
-
-	if (v) {
-		/* Unlink from original position */
-		if (pv) 
-			pv->next = v->next;
-		else
-			cat->root = v->next;
-		v->next = NULL;
-		free(v->name);
-		if (v->value)
-			free(v->value);
-		free_comments(v->sameline);
-		free_comments(v->precomments);
-		return 0;
-	}
-	return -1;
-}
-
-int ast_category_delete(struct ast_config *cfg, char *category)
-{
-	struct ast_variable *v, *pv;
-	struct ast_category *cat, *cprev;
-	cat = cfg->root;
-	cprev = NULL;
-	while(cat) {
-		if (cat->name == category) {
-			break;
-		}
-		cprev = cat;
-		cat = cat->next;
-	}
-	if (!cat) {
-		cat = cfg->root;
-		cprev = NULL;
-		while(cat) {
-			if (!strcasecmp(cat->name, category)) {
-				break;
-			}
-			cprev = cat;
-			cat = cat->next;
-		}
-	}
-	if (!cat)
-		return -1;
-	/* Unlink it */
-	if (cprev)
-		cprev->next = cat->next;
-	else
-		cfg->root = cat->next;
-	v = cat->root;
-	while (v) {
-		pv = v;
-		v=v->next;
-		if (pv->value)
-			free(pv->value);
-		if (pv->name)
-			free(pv->name);
-		free_comments(pv->sameline);
-		free_comments(pv->precomments);
-		free(pv);
-	}
-	free_comments(cat->sameline);
-	free_comments(cat->precomments);
-	free(cat);
-	return 0;
-}
-
-struct ast_variable *ast_variable_append_modify(struct ast_config *config, char *category, char *variable, char *value, int newcat, int newvar, int move)
-{
-	struct ast_variable *v, *pv=NULL, *bv, *bpv;
-	struct ast_category *cat, *pcat;
-	cat = config->root;
-	if (!newcat) {
-		while(cat) {
-			if (cat->name == category) {
-				break;
-			}
-			cat = cat->next;
-		}
-		if (!cat) {
-			cat = config->root;
-			while(cat) {
-				if (!strcasecmp(cat->name, category)) {
-					break;
-				}
-				cat = cat->next;
-			}
-		}
-	}
-	if (!cat) {
-		cat = malloc(sizeof(struct ast_category));
-		if (!cat)
-			return NULL;
-		memset(cat, 0, sizeof(struct ast_category));
-		strncpy(cat->name, category, sizeof(cat->name) - 1);
-		if (config->root) {
-			/* Put us at the end */
-			pcat = config->root;
-			while(pcat->next)
-				pcat = pcat->next;
-			pcat->next = cat;
-		} else {
-			/* We're the first one */
-			config->root = cat;
-		}
-			
-	}
-	if (!newvar) {
-		v = cat->root;
-		pv = NULL;
-		while (v) {
-			if (variable == v->name)
-				break;
-			pv = v;
-			v=v->next;
-		}
-		if (!v) {
-			/* Get the last one that looks like it */
-			bv = NULL;
-			bpv = NULL;
-			v = cat->root;
-			pv = NULL;
-			while (v) {
-				if (!strcasecmp(variable, v->name)) {
-					bv = v;
-					bpv = pv;
-				}
-				pv = v;
-				v=v->next;
-			}
-			v = bv;
-		}
-	} else v = NULL;
-	if (v && move) {
-		/* Unlink from original position */
-		if (pv) 
-			pv->next = v->next;
-		else
-			cat->root = v->next;
-		v->next = NULL;
-	}
-	if (!v) {
-		v = malloc(sizeof(struct ast_variable));
-		if (!v)
-			return NULL;
-		memset(v, 0, sizeof(struct ast_variable));
-		v->name = strdup(variable);
-		move = 1;
-	}
-	if (v->value)
-		free(v->value);
-	if (value)
-		v->value = strdup(value);
-	else
-		v->value = strdup("");
-	if (move) {
-		if (cat->root) {
-			pv = cat->root;
-			while (pv->next) 
-				pv = pv->next;
-			pv->next = v;
-		} else {
-			cat->root = v;
-		}
-	}
-	return v;
-}
-#endif		
-
 int ast_category_exist(struct ast_config *config, char *category_name)
 {
 	struct ast_category *category = NULL;
@@ -411,65 +166,73 @@ int ast_category_exist(struct ast_config *config, char *category_name)
 	return 0;
 }
 
-#ifdef PRESERVE_COMMENTS
-static struct ast_comment *build_comment(char *cmt)
+
+static struct ast_config_reg *get_ast_cust_config_keyword(const char *name, char *database, int dbsiz, char *table, int tabsiz) 
 {
-	struct ast_comment *c;
-	int len = strlen(cmt) + 1;
-	c = malloc(sizeof(struct ast_comment) + len);
-	if (c) {
-		/* Memset the header */
-		memset(c, 0, sizeof(struct ast_comment));
-		/* Copy the rest */
-		strcpy(c->cmt, cmt);
+	struct ast_config_reg *reg,*ret=NULL;
+	struct ast_config_map *map;
+
+	ast_mutex_lock(&ast_cust_config_lock);
+	map = maps;
+	while(map) {
+		if (!strcasecmp(name, map->name)) {
+			strncpy(database, map->database, dbsiz - 1);
+			if (map->table)
+				strncpy(table, map->table, tabsiz - 1);
+			else
+				strncpy(table, name, tabsiz - 1);
+			break;
+		}
+		map = map->next;
 	}
-	return c;
+	if (map) {
+		for (reg=ast_cust_config_list;reg && !ret;reg=reg->next) {
+			if (!strcmp(reg->name,map->driver))
+				ret=reg;
+		}
+	}
+	ast_mutex_unlock(&ast_cust_config_lock);
+	return ret;
 }
-#endif
 
-static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel
-#ifdef PRESERVE_COMMENTS
-, struct ast_comment_struct *acs
-#endif
-);
+void ast_config_destroy_all(void) 
+{
+	struct ast_config_reg *key;
+	ast_mutex_lock(&ast_cust_config_lock);
+	for (key=ast_cust_config_list;key;key=key->next) {
+		ast_config_deregister(key);
+	}
+	ast_cust_config_list = NULL;
+	ast_mutex_unlock(&ast_cust_config_lock);
+}
 
-static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, char *buf, int lineno, char *configfile, int includelevel 
-#ifdef PRESERVE_COMMENTS
-,struct ast_comment_struct *acs
-#endif
-)
+static struct ast_config_reg *get_config_registrations(void) 
+{
+	return ast_cust_config_list;
+}
+
+
+static struct ast_config *__ast_load(const char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel);
+
+static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, char *buf, int lineno, const char *configfile, int includelevel )
 {
 	char *c;
 	char *cur;
 	char *arg=NULL;
-	struct ast_config_reg *reg=NULL;
-	struct ast_config *(*load_func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
-#ifdef PRESERVE_COMMENTS
-,struct ast_comment_struct *
-#endif
-	);
 	struct ast_variable *v;
-#ifdef PRESERVE_COMMENTS
-	struct ast_comment *com = NULL;
-#endif	
 	int object;
 	/* Strip off lines using ; as comment */
 	c = strchr(buf, ';');
 	while (c) {
 		if ((c == buf) || (*(c-1) != '\\')) {
 			*c = '\0';
-#ifdef PRESERVE_COMMENTS
-			c++;
-			if (*c != '!')
-				com = build_comment(c);
-#endif			
 		} else {
 			*(c-1) = ';';
 			memmove(c, c + 1, strlen(c + 1));
 		}
 		c = strchr(c + 1, ';');
 	}
-	cur = strip(buf);
+	cur = ast_strip(buf);
 	if (!ast_strlen_zero(cur)) {
 		/* Actually parse the entry */
 		if (cur[0] == '[') {
@@ -487,20 +250,12 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 				memset(*_tmpc, 0, sizeof(struct ast_category));
 				strncpy((*_tmpc)->name, cur+1, sizeof((*_tmpc)->name) - 1);
 				(*_tmpc)->root =  NULL;
-#ifdef PRESERVE_COMMENTS
-				(*_tmpc)->precomments = acs->root;
-				(*_tmpc)->sameline = com;
-#endif				
 				if (!tmp->prev)
 					tmp->root = *_tmpc;
 				else
 					tmp->prev->next = *_tmpc;
 
 				tmp->prev = *_tmpc;
-#ifdef PRESERVE_COMMENTS
-				acs->root = NULL;
-				acs->prev = NULL;
-#endif				
 				*_last =  NULL;
 			} else {
 				ast_log(LOG_WARNING, 
@@ -542,28 +297,9 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 					
 					if (includelevel < MAX_INCLUDE_LEVEL) {
 						if(arg && cur) {
-							load_func = NULL;
-							if(ast_cust_config_list)
-								reg = get_ast_cust_config(cur);
-							if(reg && reg->func)
-								load_func = reg->func;
-							if(load_func) { 
-								ast_log(LOG_NOTICE,"External Include '%s' via '%s' config engine\n",arg,cur);
-								load_func(arg,tmp, _tmpc, _last, includelevel
-#ifdef PRESERVE_COMMENTS
-										  ,&acs
-#endif
-										  );
-							}
-							else 
-								ast_log(LOG_WARNING,"Cant Find Registered Config Engine [%s] for [%s]\n",cur,arg);
-						}
-						else {
-							__ast_load(cur, tmp, _tmpc, _last, includelevel + 1
-#ifdef PRESERVE_COMMENTS
-									   ,acs
-#endif
-									   );
+							ast_log(LOG_WARNING, "Including files with explicit config engine no longer permitted.  Please use extconfig.conf to specify all mappings\n");
+						} else {
+							__ast_load(cur, tmp, _tmpc, _last, includelevel + 1);
 						}
 					} else
 						ast_log(LOG_WARNING, "Maximum Include level (%d) exceeded\n", includelevel);
@@ -591,21 +327,12 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 					c++;
 				} else
 					object = 0;
-				v = malloc(sizeof(struct ast_variable));
+				v = ast_new_variable(ast_strip(cur), ast_strip(c));
 				if (v) {
-					memset(v, 0, sizeof(struct ast_variable));
 					v->next = NULL;
-					v->name = strdup(strip(cur));
-					v->value = strdup(strip(c));
 					v->lineno = lineno;
 					v->object = object;
 					/* Put and reset comments */
-#ifdef PRESERVE_COMMENTS
-					v->precomments = acs->root;
-					v->sameline = com;
-					acs->prev = NULL;
-					acs->root = NULL;
-#endif					
 					v->blanklines = 0;
 					if (*_last)
 						(*_last)->next = v;
@@ -622,33 +349,9 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 			}
 														
 		}
-	} else {
-		/* store any comments if there are any */
-#ifdef PRESERVE_COMMENTS
-		if (com) {
-			if (acs->prev)
-				acs->prev->next = com;
-			else
-				acs->root = com;
-			acs->prev = com;
-		} else {
-			if (*_last) 
-				(*_last)->blanklines++;
-		}
-#endif
 	}
 	return 0;
 }
-
-#ifdef PRESERVE_COMMENTS
-static void dump_comments(FILE *f, struct ast_comment *comment)
-{
-	while (comment) {
-		fprintf(f, ";%s", comment->cmt);
-		comment = comment->next;
-	}
-}
-#endif
 
 int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 {
@@ -677,22 +380,10 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 		fprintf(f, ";!\n");
 		cat = cfg->root;
 		while(cat) {
-#ifdef PRESERVE_COMMENTS
-			/* Dump any precomments */
-			dump_comments(f, cat->precomments);
-#endif
 			/* Dump section with any appropriate comment */
-#ifdef PRESERVE_COMMENTS
-			if (cat->sameline) 
-				fprintf(f, "[%s]  ; %s\n", cat->name, cat->sameline->cmt);
-			else
-#endif
-				fprintf(f, "[%s]\n", cat->name);
+			fprintf(f, "[%s]\n", cat->name);
 			var = cat->root;
 			while(var) {
-#ifdef PRESERVE_COMMENTS
-				dump_comments(f, var->precomments);
-#endif				
 				if (var->sameline) 
 					fprintf(f, "%s %s %s  ; %s\n", var->name, (var->object ? "=>" : "="), var->value, var->sameline->cmt);
 				else	
@@ -713,9 +404,6 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 #endif
 			cat = cat->next;
 		}
-#ifdef PRESERVE_COMMENTS
-		dump_comments(f, cfg->trailingcomments);
-#endif		
 	} else {
 		if (option_debug)
 			printf("Unable to open for writing: %s\n", fn);
@@ -727,46 +415,63 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 	return 0;
 }
 
-static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel
-#ifdef PRESERVE_COMMENTS
-, struct ast_comment_struct *acs
-#endif
-)
+
+struct ast_variable *ast_load_realtime(const char *family, const char *keyfield, const char *lookup)
+{
+	struct ast_config_reg *reg;
+	char db[256]="";
+	char table[256]="";
+	reg = get_ast_cust_config_keyword(family, db, sizeof(db), table, sizeof(table));
+	if (reg && reg->realtime_func) 
+		return reg->realtime_func(db, table, keyfield, lookup);
+	return NULL;
+}
+
+int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...)
+{
+	struct ast_config_reg *reg;
+	int res = -1;
+	char db[256]="";
+	char table[256]="";
+	va_list ap;
+	va_start(ap, lookup);
+	reg = get_ast_cust_config_keyword(family, db, sizeof(db), table, sizeof(table));
+	if (reg && reg->update_func) 
+		res = reg->update_func(db, table, keyfield, lookup, ap);
+	va_end(ap);
+	return res;
+}
+
+static struct ast_config *__ast_load(const char *configfile, struct ast_config *tmp, struct ast_category **_tmpc, struct ast_variable **_last, int includelevel)
 {
 	char fn[256];
 	char buf[8192];
+	char db[256];
+	char table[256];
 	FILE *f;
 	int lineno=0;
 	int master=0;
 	struct ast_config_reg *reg=NULL;
-	struct ast_config *(*load_func)(char *, struct ast_config *,struct ast_category **,struct ast_variable **,int
-#ifdef PRESERVE_COMMENTS
-,struct ast_comment_struct *
-#endif
-);
+	struct ast_config *(*load_func)(const char *database, const char *table, const char *, struct ast_config *,struct ast_category **,struct ast_variable **,int);
 
 	load_func=NULL;
 	if (strcmp(configfile,config_conf_file) && strcmp(configfile,"asterisk.conf") && ast_cust_config_list) {
 		if (global_load_func) {
 			load_func = global_load_func;
 		} else {
-			reg = get_ast_cust_config_keyword(configfile);
-			if (reg && reg->func) {
-				load_func = reg->func;
+			reg = get_ast_cust_config_keyword(configfile, db, sizeof(db), table, sizeof(table));
+			if (reg && reg->static_func) {
+				load_func = reg->static_func;
 			} else {
-				reg = get_ast_cust_config_keyword("global");
-				if (reg && reg->func)
-					global_load_func = load_func = reg->func;
+				reg = get_ast_cust_config_keyword(configfile, db, sizeof(db), table, sizeof(table));
+				if (reg && reg->static_func)
+					global_load_func = load_func = reg->static_func;
 			}
 		}
 
 		if (load_func) {
 			ast_log(LOG_NOTICE,"Loading Config %s via %s engine\n",configfile,reg && reg->name ? reg->name : "global");
-			tmp = load_func(configfile,tmp, _tmpc, _last, includelevel
-#ifdef PRESERVE_COMMENTS
-,&acs
-#endif
-);
+			tmp = load_func(db, table, configfile,tmp, _tmpc, _last, includelevel);
 	    
 			if (tmp)
 				return tmp;
@@ -802,11 +507,7 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 		while(!feof(f)) {
 			lineno++;
 			if (fgets(buf, sizeof(buf), f)) {
-				if (cfg_process(tmp, _tmpc, _last, buf, lineno, configfile, includelevel
-#ifdef PRESERVE_COMMENTS
-				, acs
-#endif
-				)) {
+				if (cfg_process(tmp, _tmpc, _last, buf, lineno, configfile, includelevel)) {
 					fclose(f);
 					return NULL;
 				}
@@ -819,65 +520,13 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 		else if (option_verbose > 1)
 			ast_verbose( "Not found (%s)\n", strerror(errno));
 	}
-#ifdef PRESERVE_COMMENTS
-	if (master) {
-		/* Keep trailing comments */
-		tmp->trailingcomments = acs->root;
-		acs->root = NULL;
-		acs->prev = NULL;
-	}
-#endif
 	return tmp;
-}
-
-struct ast_config_reg *get_ast_cust_config_keyword(char *name) 
-{
-	struct ast_config_reg *reg,*ret=NULL;
-	int x=0;
-	ast_mutex_lock(&ast_cust_config_lock);
-	for (reg=ast_cust_config_list;reg && !ret;reg=reg->next) {
-		for (x=0;x<reg->keycount && !ret ;x++) {
-			if (!strcmp(reg->keywords[x],name))
-				ret=reg;
-		}
-	}
-	ast_mutex_unlock(&ast_cust_config_lock);
-	return ret;
-}
-
-struct ast_config_reg *get_ast_cust_config(char *name) 
-{
-	struct ast_config_reg *ptr=NULL;
-	ast_mutex_lock(&ast_cust_config_lock);
-	for (ptr=ast_cust_config_list;ptr;ptr=ptr->next) {
-		if (!strcmp(name,ptr->name))
-			break;
-	}
-	ast_mutex_unlock(&ast_cust_config_lock);
-	return ptr;
-}
-
-void ast_config_destroy_all(void) 
-{
-	struct ast_config_reg *key;
-	ast_mutex_lock(&ast_cust_config_lock);
-	for (key=ast_cust_config_list;key;key=key->next) {
-		ast_config_deregister(key);
-	}
-	ast_cust_config_list = NULL;
-	ast_mutex_unlock(&ast_cust_config_lock);
-}
-
-struct ast_config_reg *get_config_registrations(void) 
-{
-	return ast_cust_config_list;
 }
 
 int ast_config_register(struct ast_config_reg *new) 
 {
 	struct ast_config_reg *ptr;
 	ast_mutex_lock(&ast_cust_config_lock);
-	new->keycount = 0;
 	if (!ast_cust_config_list) {
 		ast_cust_config_list = new;
 	} else {
@@ -920,17 +569,7 @@ struct ast_config *ast_load(char *configfile)
 	struct ast_category *tmpc=NULL;
 	struct ast_variable *last = NULL;
 
-
-#ifdef PRESERVE_COMMENTS
-	struct ast_comment_struct acs = { NULL, NULL };
-#endif	
-
-
-	return __ast_load(configfile, NULL, &tmpc, &last, 0 
-#ifdef PRESERVE_COMMENTS
-	,&acs
-#endif
-	);
+	return __ast_load(configfile, NULL, &tmpc, &last, 0);
 }
 
 char *ast_category_browse(struct ast_config *config, char *prev)
@@ -991,27 +630,16 @@ struct ast_category *ast_new_category(char *name)
 struct ast_variable *ast_new_variable(char *name, char *value) 
 {
 	struct ast_variable *variable;
-	variable = malloc(sizeof(struct ast_variable));
+	int length = strlen(name) + strlen(value) + 2 + sizeof(struct ast_variable);
+	variable = malloc(length);
 	if (variable) {
-		memset(variable,0,sizeof(struct ast_variable));
+		memset(variable, 0, length);
+		variable->name = variable->stuff;
+		variable->value = variable->stuff + strlen(name) + 1;		
 		variable->object=0;
-		variable->name = malloc(strlen(name)+1);
-		if (variable->name) {
-			strcpy(variable->name,name);
-			variable->value = malloc(strlen(value)+1);
-			if (variable->value) {
-				strcpy(variable->value,value);
-			} else {
-				free(variable->name);
-				variable->name = NULL;
-			}
-		}
+		strcpy(variable->name,name);
+		strcpy(variable->value,value);
 	}
-	if (!variable->value) {
-		free(variable);
-		variable = NULL;
-	}
-		
 	return variable;
 }
 
@@ -1030,29 +658,33 @@ int ast_cust_config_deregister(struct ast_config_reg *new)
 
 static void clear_cust_keywords(void) 
 {
-	struct ast_config_reg *key;
-	int x;
+	struct ast_config_map *map, *prev;
 	ast_mutex_lock(&ast_cust_config_lock);
-	for (key=get_config_registrations();key;key=key->next) {
-		for (x=0;x<key->keycount;x++) {
-			key->keywords[x][0] = '\0';
-		}
-		key->keycount=0;
+	map = maps;
+	while(map) {
+		prev = map;
+		map = map->next;
+		free(prev);
 	}
+	maps = NULL;
 	ast_mutex_unlock(&ast_cust_config_lock);
 }
 
 static int config_command(int fd, int argc, char **argv) 
 {
 	struct ast_config_reg *key;
-	int x;
+	struct ast_config_map *map;
 	
 	ast_cli(fd,"\n\n");
 	ast_mutex_lock(&ast_cust_config_lock);
 	for (key=get_config_registrations();key;key=key->next) {
 		ast_cli(fd,"\nConfig Engine: %s\n",key->name);
-		for (x=0;x<key->keycount;x++)
-			ast_cli(fd,"===>%s\n",key->keywords[x]);
+		map = maps;
+		while(map) {
+			if (!strcasecmp(map->driver, key->name))
+				ast_cli(fd,"===> %s (db=%s, table=%s)\n",map->name, map->database, map->table ? map->table : map->name);
+			map = map->next;
+		}
 	}
 	ast_mutex_unlock(&ast_cust_config_lock);
 	ast_cli(fd,"\n\n");
@@ -1074,29 +706,46 @@ int read_ast_cust_config(void)
 	char *cfg = config_conf_file;
 	struct ast_config *config;
 	struct ast_variable *v;
-	struct ast_config_reg *ptr;
-	struct ast_config_reg *test = NULL;
+	struct ast_config_map *map;
+	int length;
+	char *driver, *table, *database, *stringp;
 
 	clear_cust_keywords();
 	config = ast_load(cfg);
 	if (config) {
 		for (v = ast_variable_browse(config,"settings");v;v=v->next) {
+			stringp = v->value;
+			driver = strsep(&stringp, ",");
+			database = strsep(&stringp, ",");
+			table = strsep(&stringp, ",");
 			
-			ptr = get_ast_cust_config(v->value);
-			if (ptr) {
-				if (ptr->keycount >= CONFIG_KEYWORD_ARRAYLEN) {
-					ast_log(LOG_WARNING,"Max Number of Bindings exceeded for %s->%s %d/%d\n",v->name,v->value,ptr->keycount,CONFIG_KEYWORD_ARRAYLEN);
-				} else {
-					if (strcmp(v->name,config_conf_file) && strcmp(v->name,"asterisk.conf")) {
-						if (!(test = get_ast_cust_config_keyword(v->name))) {
-							ast_log(LOG_NOTICE,"Binding: %s to %s\n",v->name,v->value);
-							strncpy(ptr->keywords[ptr->keycount],v->name,sizeof(ptr->keywords[ptr->keycount]) - 1);
-							ptr->keywords[ptr->keycount][sizeof(ptr->keywords[ptr->keycount])-1] = '\0';
-							ptr->keycount++;
-						}
-					} else {
-						ast_log(LOG_WARNING,"Cannot bind %s, Permission Denied\n",v->name);
-					}
+			if (!strcmp(v->name,config_conf_file) || !strcmp(v->name,"asterisk.conf")) {
+				ast_log(LOG_WARNING, "Cannot bind asterisk.conf or extconfig.conf!\n");
+			} else if (driver && database) {
+				length = sizeof(struct ast_config_map);
+				length += strlen(v->name) + 1;
+				length += strlen(driver) + 1;
+				length += strlen(database) + 1;
+				if (table)
+					length += strlen(table) + 1;
+				map = malloc(length);
+				if (map) {
+					memset(map, 0, length);
+					map->name = map->stuff;
+					strcpy(map->name, v->name);
+					map->driver = map->name + strlen(map->name) + 1;
+					strcpy(map->driver, driver);
+					map->database = map->driver + strlen(map->driver) + 1;
+					strcpy(map->database, database);
+					if (table) {
+						map->table = map->database + strlen(map->database) + 1;
+						strcpy(map->table, table);
+					} else
+						map->table = NULL;
+					map->next = maps;
+					if (option_verbose > 1)
+						ast_verbose(VERBOSE_PREFIX_2 "Binding %s to %s/%s/%s\n",map->name,map->driver, map->database, map->table ? map->table : map->name);
+					maps = map;
 				}
 			}
 		}

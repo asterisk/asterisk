@@ -1,9 +1,9 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * res_odbc.c <ODBC resource manager>
  * Copyright (C) 2004 Anthony Minessale II <anthmct@yahoo.com>
@@ -45,7 +45,7 @@ static void odbc_destroy(void)
 	}
 }
 
-static odbc_obj *odbc_read(struct odbc_list *registry, char *name)
+static odbc_obj *odbc_read(struct odbc_list *registry, const char *name)
 {
 	int x = 0;
 	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
@@ -124,7 +124,7 @@ static int load_odbc_config(void)
 					password = v->value;
 			}
 
-			if (enabled && dsn && username && password) {
+			if (enabled && dsn) {
 				obj = new_odbc_obj(cat, dsn, username, password);
 				if (obj) {
 					register_odbc_obj(cat, obj);
@@ -212,7 +212,7 @@ int register_odbc_obj(char *name, odbc_obj * obj)
 	return 0;
 }
 
-odbc_obj *fetch_odbc_obj(char *name)
+odbc_obj *fetch_odbc_obj(const char *name)
 {
 	return (odbc_obj *) odbc_read(ODBC_REGISTRY, name);
 }
@@ -233,18 +233,22 @@ odbc_obj *new_odbc_obj(char *name, char *dsn, char *username, char *password)
 	if (new->dsn == NULL)
 		return NULL;
 
-	new->username = malloc(strlen(username) + 1);
-	if (new->username == NULL)
-		return NULL;
+	if (username) {
+		new->username = malloc(strlen(username) + 1);
+		if (new->username == NULL)
+			return NULL;
+		strcpy(new->username, username);
+	}
 
-	new->password = malloc(strlen(password) + 1);
-	if (new->password == NULL)
-		return NULL;
+	if (password) {
+		new->password = malloc(strlen(password) + 1);
+		if (new->password == NULL)
+			return NULL;
+		strcpy(new->password, password);
+	}
 
 	strcpy(new->name, name);
 	strcpy(new->dsn, dsn);
-	strcpy(new->username, username);
-	strcpy(new->password, password);
 	new->up = 0;
 	ast_mutex_init(&new->lock);
 	return new;
@@ -261,8 +265,10 @@ void destroy_obdc_obj(odbc_obj ** obj)
 
 	free((*obj)->name);
 	free((*obj)->dsn);
-	free((*obj)->username);
-	free((*obj)->password);
+	if ((*obj)->username)
+		free((*obj)->username);
+	if ((*obj)->password)
+		free((*obj)->password);
 	ast_mutex_unlock(&(*obj)->lock);
 	free(*obj);
 }
@@ -332,6 +338,7 @@ odbc_status odbc_obj_connect(odbc_obj * obj)
 		SQLSetConnectAttr(obj->con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *) 10, 0);
 	}
 
+	ast_log(LOG_NOTICE, "Calling %p/%p\n", obj->username, obj->password);
 	res = SQLConnect(obj->con,
 		   (SQLCHAR *) obj->dsn, SQL_NTS,
 		   (SQLCHAR *) obj->username, SQL_NTS,
@@ -340,13 +347,11 @@ odbc_status odbc_obj_connect(odbc_obj * obj)
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
 		SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
-		if (option_verbose > 3)
-			ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%ld %s\n", res, err, msg);
+		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%ld %s\n", res, err, msg);
 		return ODBC_FAIL;
 	} else {
 
-		if (option_verbose > 3)
-			ast_log(LOG_NOTICE, "res_odbc: Connected to %s [%s]\n", obj->name, obj->dsn);
+		ast_log(LOG_NOTICE, "res_odbc: Connected to %s [%s]\n", obj->name, obj->dsn);
 		obj->up = 1;
 	}
 

@@ -34,6 +34,7 @@ struct ast_variable {
 	struct ast_comment *precomments;
 	struct ast_comment *sameline;
 	struct ast_variable *next;
+	char stuff[0];
 };
 
 //! Load a config file
@@ -103,12 +104,37 @@ int ast_false(char *val);
  * Browse config structure and check for category duplicity Return non-zero if found */
 int ast_category_exist(struct ast_config *config, char *category_name);
 
-/* These are only in the config engine at this point */
-struct ast_variable *ast_variable_append_modify(struct ast_config *cfg, char *category, char *variable, char *newvalue, int newcat, int newvar, int move);
+//! Retrieve realtime configuration
+/*!
+ * \param family which family/config to lookup
+ * \param keyfield which field to use as the key
+ * \param lookup which value to look for in the key field to match the entry.
+ * This will use builtin configuration backends to look up a particular 
+ * entity in realtime and return a variable list of its parameters.  Note
+ * that unlike the variables in ast_config, the resulting list of variables
+ * MUST be fred with ast_free_runtime() as there is no container.
+ */
+struct ast_variable *ast_load_realtime(const char *family, const char *keyfield, const char *lookup);
 
-int ast_category_delete(struct ast_config *cfg, char *category);
-int ast_variable_delete(struct ast_config *cfg, char *category, char *variable, char *value);
-int ast_save(char *filename, struct ast_config *cfg, char *generator);
+//! Update realtime configuration
+/*!
+ * \param family which family/config to be updated
+ * \param keyfield which field to use as the key
+ * \param lookup which value to look for in the key field to match the entry.
+ * \param variable which variable should be updated in the config, NULL to end list
+ * \param value the value to be assigned to that variable in the given entity.
+ * This function is used to update a parameter in realtime configuration space.
+ *
+ */
+int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
+
+//! Free realtime configuration
+/*!
+ * \param var the linked list of variables to free
+ * This command free's a list of variables and should ONLY be used
+ * in conjunction with ast_load_realtime and not with the regular ast_load.
+ */
+void ast_destroy_realtime(struct ast_variable *var);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

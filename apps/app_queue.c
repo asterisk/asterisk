@@ -730,6 +730,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	int numlines;
 	int sentringing = 0;
 	int numbusies = 0;
+	int numnochan = 0;
 	int orig = *to;
 	struct ast_frame *f;
 	struct localuser *peer = NULL;
@@ -754,7 +755,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 			numlines++;
 		}
 		if (found < 0) {
-			if (numlines == numbusies) {
+			if (numlines == (numbusies + numnochan)) {
 				ast_log(LOG_DEBUG, "Everyone is busy at this time\n");
 			} else {
 				ast_log(LOG_NOTICE, "No one is answering queue '%s'\n", queue);
@@ -776,6 +777,77 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					*allowdisconnect_out = o->allowdisconnect_out;
 				}
 			} else if (o->chan && (o->chan == winner)) {
+				if (!ast_strlen_zero(o->chan->call_forward)) {
+					char tmpchan[256]="";
+					char *stuff;
+					char *tech;
+					strncpy(tmpchan, o->chan->call_forward, sizeof(tmpchan) - 1);
+					if ((stuff = strchr(tmpchan, '/'))) {
+						*stuff = '\0';
+						stuff++;
+						tech = tmpchan;
+					} else {
+						snprintf(tmpchan, sizeof(tmpchan), "%s@%s", o->chan->call_forward, o->chan->context);
+						stuff = tmpchan;
+						tech = "Local";
+					}
+					/* Before processing channel, go ahead and check for forwarding */
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
+					/* Setup parameters */
+					o->chan = ast_request(tech, in->nativeformats, stuff);
+					if (!o->chan) {
+						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
+						o->stillgoing = 0;
+						numnochan++;
+					} else {
+						if (o->chan->cid.cid_num)
+							free(o->chan->cid.cid_num);
+						o->chan->cid.cid_num = NULL;
+						if (o->chan->cid.cid_name)
+							free(o->chan->cid.cid_name);
+						o->chan->cid.cid_name = NULL;
+
+						if (in->cid.cid_num) {
+							o->chan->cid.cid_num = strdup(in->cid.cid_num);
+							if (!o->chan->cid.cid_num)
+								ast_log(LOG_WARNING, "Out of memory\n");	
+						}
+						if (in->cid.cid_name) {
+							o->chan->cid.cid_name = strdup(in->cid.cid_name);
+							if (!o->chan->cid.cid_name)
+								ast_log(LOG_WARNING, "Out of memory\n");	
+						}
+						strncpy(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode) - 1);
+						o->chan->cdrflags = in->cdrflags;
+
+						if (in->cid.cid_ani) {
+							if (o->chan->cid.cid_ani)
+								free(o->chan->cid.cid_ani);
+							o->chan->cid.cid_ani = malloc(strlen(in->cid.cid_ani) + 1);
+							if (o->chan->cid.cid_ani)
+								strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
+							else
+								ast_log(LOG_WARNING, "Out of memory\n");
+						}
+						if (o->chan->cid.cid_rdnis) 
+							free(o->chan->cid.cid_rdnis);
+						if (!ast_strlen_zero(in->macroexten))
+							o->chan->cid.cid_rdnis = strdup(in->macroexten);
+						else
+							o->chan->cid.cid_rdnis = strdup(in->exten);
+						if (ast_call(o->chan, tmpchan, 0)) {
+							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
+							o->stillgoing = 0;
+							ast_hangup(o->chan);
+							o->chan = NULL;
+							numnochan++;
+						}
+					}
+					/* Hangup the original channel now, in case we needed it */
+					ast_hangup(winner);
+					continue;
+				}
 				f = ast_read(winner);
 				if (f) {
 					if (f->frametype == AST_FRAME_CONTROL) {

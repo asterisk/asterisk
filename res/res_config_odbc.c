@@ -1,9 +1,9 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * res_config_odbc.c <odbc+odbc plugin for portable configuration engine >
  * Copyright (C) 2004 Anthony Minessale II <anthmct@yahoo.com>
@@ -17,10 +17,12 @@
 #include <asterisk/config_pvt.h>
 #include <asterisk/module.h>
 #include <asterisk/lock.h>
+#include <asterisk/options.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <asterisk/res_odbc.h>
+#include <asterisk/utils.h>
 
 static char *tdesc = "ODBC Configuration";
 static struct ast_config_reg reg1;
@@ -29,18 +31,200 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static struct ast_config *config_odbc (char *file, struct ast_config *new_config_s, struct ast_category **new_cat_p, struct ast_variable **new_v_p, int recur
-#ifdef PRESERVE_COMMENTS
-	, struct ast_comment_struct *acs
-#endif
-)
+static struct ast_variable *realtime_odbc(const char *database, const char *table, const char *keyfield, const char *lookup)
 {
-	struct ast_config *config, *new;
-	struct ast_variable *v, *cur_v, *new_v;
+	odbc_obj *obj;
+	SQLHSTMT stmt;
+	char sql[256];
+	char coltitle[256];
+	char rowdata[2048];
+	char *stringp;
+	char *chunk;
+	SQLSMALLINT collen;
+	int res;
+	int x;
+	struct ast_variable *var=NULL, *prev=NULL;
+	SQLLEN rowcount=0;
+	SQLULEN colsize;
+	SQLSMALLINT colcount=0;
+	SQLSMALLINT datatype;
+	SQLSMALLINT decimaldigits;
+	SQLSMALLINT nullable;
+	
+	if (!table)
+		return NULL;
+
+	obj = fetch_odbc_obj(database);
+	if (!obj)
+		return NULL;
+
+	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		return NULL;
+	}
+
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s=?", table, keyfield);
+	
+	res = SQLPrepare(stmt, sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+	SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(lookup), 0, (void *)lookup, 0, NULL);
+
+	res = SQLExecute(stmt);
+
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	res = SQLRowCount(stmt, &rowcount);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	res = SQLNumResultCols(stmt, &colcount);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return NULL;
+	}
+
+	if (rowcount) {
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			return NULL;
+		}
+		for (x=0;x<colcount;x++) {
+			collen = sizeof(coltitle);
+			res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
+						&datatype, &colsize, &decimaldigits, &nullable);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
+				if (var)
+					ast_destroy_realtime(var);
+				return NULL;
+			}
+			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+				if (var)
+					ast_destroy_realtime(var);
+				return NULL;
+			}
+			stringp = rowdata;
+			while(stringp) {
+				chunk = strsep(&stringp, ";");
+				if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+					if (prev) {
+						prev->next = ast_new_variable(coltitle, chunk);
+						if (prev->next)
+							prev = prev->next;
+					} else 
+						prev = var = ast_new_variable(coltitle, chunk);
+					
+				}
+			}
+		}
+	}
+
+
+	SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+	return var;
+}
+
+static int update_odbc(const char *database, const char *table, const char *keyfield, const char *lookup, va_list ap)
+{
+	odbc_obj *obj;
+	SQLHSTMT stmt;
+	char sql[256];
+	SQLLEN rowcount=0;
+	const char *newparam, *newval;
+	int res;
+	int x;
+	va_list aq;
+	
+	va_copy(aq, ap);
+	
+	if (!table)
+		return -1;
+
+	obj = fetch_odbc_obj (database);
+	if (!obj)
+		return -1;
+
+	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+		return -1;
+	}
+
+	newparam = va_arg(aq, const char *);
+	if (!newparam)  {
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return -1;
+	}
+	newval = va_arg(aq, const char *);
+	snprintf(sql, sizeof(sql), "UPDATE %s SET %s=?", table, newparam);
+	while((newparam = va_arg(aq, const char *))) {
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), ", %s=?", newparam);
+		newval = va_arg(aq, const char *);
+	}
+	va_end(aq);
+	snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " WHERE %s=?", keyfield);
+	
+	res = SQLPrepare(stmt, sql, SQL_NTS);
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return -1;
+	}
+	
+	/* Now bind the parameters */
+	x = 1;
+
+	while((newparam = va_arg(ap, const char *))) {
+		newval = va_arg(ap, const char *);
+		SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(newval), 0, (void *)newval, 0, NULL);
+	}
+		
+	SQLBindParameter(stmt, x++, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(lookup), 0, (void *)lookup, 0, NULL);
+
+	res = SQLExecute(stmt);
+
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		return -1;
+	}
+
+	res = SQLRowCount(stmt, &rowcount);
+	SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+
+	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+		ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+		return -1;
+	}
+
+	if (rowcount) 
+		return 0;
+	return -1;
+}
+
+static struct ast_config *config_odbc (const char *database, const char *table, const char *file, struct ast_config *new_config_s, struct ast_category **new_cat_p, struct ast_variable **new_v_p, int recur)
+{
+	struct ast_config *new;
+	struct ast_variable *cur_v, *new_v;
 	struct ast_category *cur_cat, *new_cat;
-	char table[128] = "";
-	char connection[128] = "";
-	int configured = 0, res = 0;
+	int res = 0;
 	odbc_obj *obj;
 	SQLINTEGER err=0, commented=0, cat_metric=0, var_metric=0, last_cat_metric=0;
 	SQLBIGINT id;
@@ -51,39 +235,15 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 	int cat_started = 0;
 	int var_started = 0;
 
-	if (new_config_s) {
-		new = new_config_s;
-		cat_started++;
-	} else {
-		new = ast_new_config ();
-	}
-
-	last[0] = '\0';
 
 	if (!file || !strcmp (file, "res_config_odbc.conf"))
 		return NULL;		// cant configure myself with myself !
 
-	config = ast_load ("res_config_odbc.conf");
-
-	if (config) {
-		for (v = ast_variable_browse (config, "settings"); v; v = v->next) {
-			if (!strcmp (v->name, "table")) {
-				strncpy(table, v->value, sizeof(table) - 1);
-				configured++;
-			} else if (!strcmp (v->name, "connection")) {
-				strncpy(connection, v->value, sizeof(connection) - 1);
-				configured++;
-			}
-		}
-	ast_destroy (config);
-	}
-
-	if (configured < 2)
-		return NULL;
-
-	obj = fetch_odbc_obj (connection);
+	obj = fetch_odbc_obj(database);
 	if (!obj)
 		return NULL;
+
+	last[0] = '\0';
 
 	res = SQLAllocHandle (SQL_HANDLE_STMT, obj->con, &stmt);
 
@@ -96,7 +256,7 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 	SQLBindCol (stmt, 7, SQL_C_CHAR, &var_name, sizeof (var_name), &err);
 	SQLBindCol (stmt, 8, SQL_C_CHAR, &var_val, sizeof (var_val), &err);
 
-	snprintf(sql, sizeof(sql), "select * from %s where filename='%s' and commented=0 order by filename,cat_metric desc,var_metric asc,category,var_name,var_val,id", table, file);
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE filename='%s' and commented=0 ORDER BY filename,cat_metric desc,var_metric asc,category,var_name,var_val,id", table, file);
 	res = SQLExecDirect (stmt, sql, SQL_NTS);
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
@@ -108,6 +268,19 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log (LOG_WARNING, "SQL select error!\n[%s]\n\n", sql);
+		return NULL;
+	}
+
+	if (new_config_s) {
+		new = new_config_s;
+		cat_started++;
+	} else {
+		new = ast_new_config ();
+	}
+	
+	if (!new) {
+		ast_log(LOG_WARNING, "Out of memory!\n");
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 		return NULL;
 	}
 
@@ -126,11 +299,7 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 		while (res != SQL_NO_DATA) {
 			if (!strcmp (var_name, "#include") && recur < MAX_INCLUDE_LEVEL) {
 
-				config_odbc (var_val, new, &cur_cat, &cur_v, recur + 1
-#ifdef PRESERVE_COMMENTS
-							, acs
-#endif
-				);
+				config_odbc(database, table, var_val, new, &cur_cat, &cur_v, recur + 1);
 			} else {
 				if (strcmp (last, category) || last_cat_metric != cat_metric) {
 					strncpy(last, category, sizeof(last) - 1);
@@ -176,7 +345,8 @@ static struct ast_config *config_odbc (char *file, struct ast_config *new_config
 int unload_module (void)
 {
 	ast_cust_config_deregister (&reg1);
-	ast_log (LOG_NOTICE, "res_config_odbc unloaded.\n");
+	if (option_verbose)
+		ast_verbose("res_config_odbc unloaded.\n");
 	STANDARD_HANGUP_LOCALUSERS;
 	return 0;
 }
@@ -185,9 +355,12 @@ int load_module (void)
 {
 	memset (&reg1, 0, sizeof (struct ast_config_reg));
 	strncpy(reg1.name, "odbc", sizeof(reg1.name) - 1);
-	reg1.func = config_odbc;
+	reg1.static_func = config_odbc;
+	reg1.realtime_func = realtime_odbc;
+	reg1.update_func = update_odbc;
 	ast_cust_config_register (&reg1);
-	ast_log (LOG_NOTICE, "res_config_odbc loaded.\n");
+	if (option_verbose)
+		ast_verbose("res_config_odbc loaded.\n");
 	return 0;
 }
 
