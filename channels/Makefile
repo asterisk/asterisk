@@ -54,6 +54,14 @@ CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/zaptel.h ] && echo "chan_zap.so")
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/nbs.h ] && echo "chan_nbs.so" )
 
+ifndef OPENH323DIR
+OPENH323DIR=$(HOME)/openh323
+endif
+
+ifndef PWLIBDIR
+PWLIBDIR=$(HOME)/pwlib
+endif
+
 #CFLAGS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "-I$(ZAPDIR)")
 
 all: depend $(CHANNEL_LIBS) 
