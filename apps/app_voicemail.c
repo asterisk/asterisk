@@ -574,13 +574,6 @@ static int reset_user_pw(char *context, char *mailbox, char *newpass)
 	return res;
 }
 
-static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
-{
-	char buf[255];
-	snprintf(buf,255,"%s %s %s %s",ext_pass_cmd,vmu->context,vmu->mailbox,newpassword);
-	ast_safe_system(buf);
-}
-
 static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 {
         /*  There's probably a better way of doing this. */
@@ -693,6 +686,13 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 	strncpy(vmu->password, newpassword, sizeof(vmu->password) - 1);
 }
 #endif
+
+static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
+{
+	char buf[255];
+	snprintf(buf,255,"%s %s %s %s",ext_pass_cmd,vmu->context,vmu->mailbox,newpassword);
+	ast_safe_system(buf);
+}
 
 static int make_dir(char *dest, int len, char *context, char *ext, char *mailbox)
 {
