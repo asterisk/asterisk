@@ -673,9 +673,13 @@ static int zt_digit(struct ast_channel *ast, char digit)
 	p = ast->pvt->pvt;
 	index = zt_get_index(ast, p, 0);
 	if (index == SUB_REAL) {
+#ifdef ZAPATA_PRI
 		if (p->sig == SIG_PRI && ast->_state == AST_STATE_DIALING) {
 			pri_information(p->pri->pri,p->call,digit);
 		} else {
+#else
+		{
+#endif
 			zo.op = ZT_DIAL_OP_APPEND;
 			zo.dialstr[0] = 'T';
 			zo.dialstr[1] = digit;
