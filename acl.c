@@ -29,7 +29,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
-#ifdef __OpenBSD__
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 #include <fcntl.h>
 #include <net/route.h>
 
@@ -179,7 +179,7 @@ int ast_lookup_iface(char *iface, struct in_addr *address) {
 
 int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 {
-#ifdef __OpenBSD__
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 	struct sockaddr_in *sin;
 	struct sockaddr *sa;
 	struct {
