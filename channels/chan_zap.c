@@ -6526,7 +6526,21 @@ static void *pri_dchannel(void *vpri)
 						ast_mutex_lock(&pri->pvt[chan]->lock);
 						if (pri->pvt[chan]->owner) {
 							pri->pvt[chan]->owner->hangupcause = hangup_pri2cause(e->hangup.cause);
-							pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							switch(e->hangup.cause) {
+							case PRI_CAUSE_USER_BUSY:
+								pri->pvt[chan]->subs[SUB_REAL].needbusy =1;
+							break;
+							case PRI_CAUSE_CALL_REJECTED:
+							case PRI_CAUSE_NETWORK_OUT_OF_ORDER:
+							case PRI_CAUSE_NORMAL_CIRCUIT_CONGESTION:
+							case PRI_CAUSE_SWITCH_CONGESTION:
+							case PRI_CAUSE_DESTINATION_OUT_OF_ORDER:
+							case PRI_CAUSE_NORMAL_TEMPORARY_FAILURE:
+								pri->pvt[chan]->subs[SUB_REAL].needcongestion =1;
+								break;
+							default:
+								pri->pvt[chan]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							}
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d, span %d got hangup\n", chan, pri->span);
 						} else {
