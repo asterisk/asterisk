@@ -3911,7 +3911,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		default:
 			if ((resp >= 300) && (resp < 700)) {
-				if (option_verbose > 2) 
+				if ((option_verbose > 2) && (resp != 487))
 					ast_verbose(VERBOSE_PREFIX_3 "Got SIP response %d \"%s\" back from %s\n", resp, rest, inet_ntoa(p->sa.sin_addr));
 				p->alreadygone = 1;
 				if (p->rtp) {
