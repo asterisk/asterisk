@@ -182,13 +182,13 @@ sub messages()
 sub getcookie()
 {
 	my ($var) = @_;
-	cookie($var);
+	return cookie($var);
 }
 
 sub makecookie()
 {
 	my ($format) = @_;
-	cookie(-name => "format", -value =>["$format"]);
+	cookie(-name => "format", -value =>["$format"], -expires=>"+1y");
 }
 
 sub getfields()
