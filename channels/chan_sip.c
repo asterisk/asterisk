@@ -8167,6 +8167,8 @@ static int reload_config(void)
 			}
 		} else if (!strcasecmp(v->name, "register")) {
 			sip_register(v->value, v->lineno);
+		} else if (!strcasecmp(v->name, "recordhistory")) {
+			recordhistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (sscanf(v->value, "%i", &format) == 1)
 				tos = format & 0xff;

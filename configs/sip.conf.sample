@@ -22,6 +22,7 @@
 
 [general]
 context=default			; Default context for incoming calls
+;recordhistory=yes		; Record SIP history by default (see sip history / sip no history)
 ;realm=mydomain.tld		; Realm for digest authentication
 				; defaults to "asterisk"
 				; Realms MUST be globally unique according to RFC 3261
