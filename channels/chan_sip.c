@@ -2907,6 +2907,8 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	while(cur) {
 		if (!strcasecmp(cur->callid, argv[3])) {
 			ast_cli(fd, "Call-ID: %s\n", cur->callid);
+			ast_cli(fd, "Codec Capability: %s\n", cur->capability);
+			ast_cli(fd, "Non-Codec Capability: %s\n", cur->nonCodecCapability);
 			ast_cli(fd, "Theoretical Address: %s:%d\n", inet_ntoa(cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "Received Address:    %s:%d\n", inet_ntoa(cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "NAT Support:         %s\n", cur->nat ? "Yes" : "No");
