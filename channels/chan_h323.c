@@ -952,12 +952,6 @@ struct rtp_info *create_connection(unsigned call_reference)
 	info->addr = inet_ntoa(us.sin_addr);
 	info->port = ntohs(us.sin_port);
 
-#if 0
-	printf("  us: %s:%d\n", inet_ntoa(us.sin_addr), ntohs(us.sin_port));
-	printf("them: %s:%d\n", inet_ntoa(them.sin_addr), ntohs(them.sin_port));
-
-	printf("info: %s:%d\n", info->addr, info->port);	
-#endif
 
 	return info;
 }
@@ -992,11 +986,11 @@ int setup_incoming_call(call_details_t cd)
 	p->cd.call_dest_e164 = cd.call_dest_e164;
 
 	if (h323debug) {
-		printf("	== Setting up Call\n");
-		printf("	   -- Calling party name:  [%s]\n", p->cd.call_source_aliases);
-		printf("	   -- Calling party number:  [%s]\n", p->cd.call_source_e164);
-		printf("	   -- Called  party name:  [%s]\n", p->cd.call_dest_alias);
-		printf("	   -- Called  party number:  [%s]\n", p->cd.call_dest_e164);
+		ast_verbose(VERBOSE_PREFIX_3 "	== Setting up Call\n");
+		ast_verbose(VERBOSE_PREFIX_3 "	   -- Calling party name:  [%s]\n", p->cd.call_source_aliases);
+		ast_verbose(VERBOSE_PREFIX_3 "	   -- Calling party number:  [%s]\n", p->cd.call_source_e164);
+		ast_verbose(VERBOSE_PREFIX_3 "	   -- Called  party name:  [%s]\n", p->cd.call_dest_alias);
+		ast_verbose(VERBOSE_PREFIX_3 "	   -- Called  party number:  [%s]\n", p->cd.call_dest_e164);
 	}
 
 	/* Decide if we are allowing Gatekeeper routed calls*/
@@ -1012,8 +1006,6 @@ int setup_incoming_call(call_details_t cd)
 				ast_log(LOG_ERROR, "Call for %s rejected, alias not found\n", cd.call_dest_alias);
 				return 0;
 			}
-			printf("Alias found: %s and %s\n", alias->name, alias->context);
-
 			strncpy(p->exten, alias->name, sizeof(p->exten)-1);
 			strncpy(p->context, alias->context, sizeof(p->context)-1);
 		}
@@ -1074,10 +1066,8 @@ int setup_incoming_call(call_details_t cd)
 
 			if (strlen(p->cd.call_dest_e164)) {
 				strncpy(p->exten, cd.call_dest_e164, sizeof(p->exten)-1);
-				printf("e164: [%s]\n", p->exten);
 			} else {
 				strncpy(p->exten, cd.call_dest_alias, sizeof(p->exten)-1);		
-				printf("dest alias: %s\n", p->exten);
 			}
 			if (strlen(user->accountcode)) {
 				strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)-1);
@@ -1164,7 +1154,7 @@ void connection_made(unsigned call_reference)
 
 
 	if (!p->owner) {
-		printf("Channel has no owner\n");
+		ast_log(LOG_ERROR, "Channel has no owner\n");
 		return;
 	}
 	c = p->owner;	
@@ -1477,7 +1467,7 @@ int reload_config(void)
 				gkroute = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "context")) {
 			strncpy(default_context, v->value, sizeof(default_context)-1);
-			printf("  == Setting default context to %s\n", default_context);	
+			ast_verbose(VERBOSE_PREFIX_3 "  == Setting default context to %s\n", default_context);	
 		} else if (!strcasecmp(v->name, "dtmfmode")) {
 			if (!strcasecmp(v->value, "inband"))
 				dtmfmode=H323_DTMF_INBAND;
@@ -1702,9 +1692,6 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 	ast_rtp_get_peer(rtp, &them);	
 	ast_rtp_get_us(rtp, &us);
 
-	printf("peer is now: %s:%d\n", inet_ntoa(them.sin_addr), htons(them.sin_port));
-	printf("Us is: %s\n", inet_ntoa(us.sin_addr));
-		
 
 	h323_native_bridge(p->cd.call_token, inet_ntoa(them.sin_addr), mode);
 	
