@@ -31,7 +31,7 @@ a make in the asterisk/channels/h323 directory, then go back to the Asterisk sou
 top level directory and issue a make install.
 
 
-Most common compile error:  
+Most common compile error  
 
 If you receive ANYTHING that says 'undefined symbol' you are experiencing
 typical version skew.  For example:
@@ -58,7 +58,7 @@ make install
 (Note: Open H.323 or PWLib never get a 'make install' so don't do it)
  
 
-Most common run-time error:
+Most common run-time error
 
 libpt_linux_x86_r.so.1: cannot open shared object file: No such 
 file or directory
@@ -79,13 +79,31 @@ you do not have to remember to export those values every time you
 want to recompile.
 
 
-Note Upgrading Asterisk:
+Upgrading Asterisk
 
 After you cvs update (or make update) Asterisk you have to go into
 asterisk/channels/h323 and issue a make clean all, before compiling the
 rest of asterisk. Doing this process every time you upgrade Asterisk
 will ensure a sane build.
 
+
+Dialing an H.323 channel
+
+Note: At the present time chan_H323 does not support dialing with a type=peer.
+
+Without a  gatekeeper:
+
+exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}@ip.address.or.hostname/callerid
+
+Using Gatekeeper:
+
+exten => _1NXXNXXXXXX,1,Dial,H323/${EXTEN}
+
+The 'callerid' is optional. If omitted the callerid will be determined by
+any type=h323 stanzas in h323.conf
+
+
+Developer Contact
 
 If you are still having trouble contact 'JerJer' in #Asterisk on 
 irc.freenode.net or send reasonable debug information to support@nufone.net.
