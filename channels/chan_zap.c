@@ -1641,6 +1641,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		}
 		if (pri_grab(p, p->pri)) {
 			ast_log(LOG_WARNING, "Failed to grab PRI!\n");
+			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
 		if (!(p->call = pri_new_call(p->pri->pri))) {
