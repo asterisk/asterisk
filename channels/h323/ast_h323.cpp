@@ -375,11 +375,11 @@ void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PStr
 	remoteName = connection.GetRemotePartyName();
 
 	cd.call_reference = connection.GetCallReference();
-	cd.call_token = (const char *)clearedCallToken;
-	cd.call_source_aliases = (const char *)connection.GetRemotePartyName();
+	cd.call_token = strdup((const char *)clearedCallToken);
+	cd.call_source_aliases = strdup((const char *)connection.GetRemotePartyName());
 	
   	connection.GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
-	cd.sourceIp = (const char *)Ip.AsString();
+	cd.sourceIp = strdup((const char *)Ip.AsString());
 	
 	/* Convert complex strings */
 	char *s;
@@ -539,7 +539,6 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	PString sourceName;
 	PString sourceAliases;	
 	PString destAliases;
-	PString sourceIp;
 	PIPSocket::Address Ip;
 	WORD sourcePort;
 	char *s, *s1; 
@@ -567,18 +566,15 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 
 
 	cd.call_reference = GetCallReference();
-	cd.call_token = (const char *)GetCallToken();
-	cd.call_source_aliases  = (const char *)sourceAliases;
-	cd.call_dest_alias = (const char *)destAliases;
-	cd.call_source_e164 = (const char *)sourceE164;
-	cd.call_dest_e164 = (const char *)destE164;
-	cd.call_source_name = (const char *)sourceName;
+	cd.call_token = strdup((const char *)GetCallToken());
+	cd.call_source_aliases  =  strdup((const char *)sourceAliases);
+	cd.call_dest_alias = strdup((const char *)destAliases);
+	cd.call_source_e164 = strdup((const char *)sourceE164);
+	cd.call_dest_e164 = strdup((const char *)destE164);
+	cd.call_source_name = strdup((const char *)sourceName);
 
 	GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
-  	sourceIp = Ip.AsString();
- 	cd.sourceIp = (const char *)sourceIp;
- 	
-
+ 	cd.sourceIp = strdup((const char *)Ip.AsString());
 
 	/* Notify Asterisk of the request */
 	int res = on_incoming_call(cd); 
@@ -622,11 +618,11 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
          	*s1 = '\0';
 
 	cd.call_reference		= GetCallReference();
-	cd.call_token			= (const char *)GetCallToken();
-	cd.call_source_aliases  = (const char *)sourceAliases;
-	cd.call_dest_alias		= (const char *)destAliases;
-	cd.call_source_e164		= (const char *)sourceE164;
-	cd.call_dest_e164		= (const char *)destE164;
+	cd.call_token			= strdup((const char *)GetCallToken());
+	cd.call_source_aliases  	= strdup((const char *)sourceAliases);
+	cd.call_dest_alias		= strdup((const char *)destAliases);
+	cd.call_source_e164		= strdup((const char *)sourceE164);
+	cd.call_dest_e164		= strdup((const char *)destE164);
 
 	int res = on_outgoing_call(cd);	
 		

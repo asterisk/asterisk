@@ -1054,12 +1054,12 @@ int setup_incoming_call(call_details_t cd)
 	}
 
 	/* Populate the call details in the private structure */
-	p->cd.call_token = cd.call_token;
-	p->cd.call_source_aliases = cd.call_source_aliases;
-	p->cd.call_dest_alias = cd.call_dest_alias;
-	p->cd.call_source_name = cd.call_source_name;
-	p->cd.call_source_e164 = cd.call_source_e164;
-	p->cd.call_dest_e164 = cd.call_dest_e164;
+	p->cd.call_token = strdup(cd.call_token);
+	p->cd.call_source_aliases = strdup(cd.call_source_aliases);
+	p->cd.call_dest_alias = strdup(cd.call_dest_alias);
+	p->cd.call_source_name = strdup(cd.call_source_name);
+	p->cd.call_source_e164 = strdup(cd.call_source_e164);
+	p->cd.call_dest_e164 = strdup(cd.call_dest_e164);
 
 	if (h323debug) {
 		ast_verbose(VERBOSE_PREFIX_3 "Setting up Call\n");
@@ -1291,6 +1291,32 @@ void chan_ringing(unsigned call_reference)
         return;
 }
 
+
+void cleanup_call_details(call_details_t cd) 
+{
+        if (cd.call_token) {
+                free((const char*)cd.call_token);
+        }
+        if (cd.call_source_aliases) {
+                free((const char*)cd.call_source_aliases);
+        }
+        if (cd.call_dest_alias) {
+                free((const char*)cd.call_dest_alias);
+	}
+        if (cd.call_source_name) { 
+                free((const char*)cd.call_source_name);
+        }
+        if (cd.call_source_e164) {
+                free((const char*)cd.call_source_e164);
+        }
+        if (cd.call_dest_e164) {
+                free((const char*)cd.call_dest_e164);
+        }
+        if (cd.sourceIp) {
+                free((const char*)cd.sourceIp);
+        }
+}
+
 /**
   * Call-back function to cleanup communication
   * Returns nothing,
@@ -1335,6 +1361,8 @@ void cleanup_connection(call_details_t cd)
 		ast_rtp_destroy(rtp);
 	}
 
+	cleanup_call_details(p->cd);
+	
 	p->alreadygone = 1;
 	
 	/* Send hangup */	
