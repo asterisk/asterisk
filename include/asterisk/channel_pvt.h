@@ -81,6 +81,8 @@ int ast_queue_control(struct ast_channel *chan, int control, int lock);
 /*! Change the state of a channel */
 int ast_setstate(struct ast_channel *chan, int state);
 
+void ast_change_name(struct ast_channel *chan, char *newname);
+
 //! Free a channel structure
 void  ast_channel_free(struct ast_channel *);
 
