@@ -3960,10 +3960,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 					 (p->sig != SIG_FXSGS)))
 					ast_setstate(chan, AST_STATE_RINGING);
 			}
-#if 0
-                        break;
-#endif
-		/* Fall through */
+            break;
 		case AST_CONTROL_PROGRESS:
 			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef ZAPATA_PRI
