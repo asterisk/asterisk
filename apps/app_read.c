@@ -19,6 +19,7 @@
 #include <asterisk/app.h>
 #include <asterisk/module.h>
 #include <asterisk/translate.h>
+#include <asterisk/options.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -54,6 +55,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 	stringp=tmp;
 	strsep(&stringp, "|");
 	filename = strsep(&stringp, "|");
+	if (!strlen(tmp)) {
+		ast_log(LOG_WARNING, "Read requires an variable name\n");
+		return -1;
+	}
 	LOCAL_USER_ADD(u);
 	if (chan->_state != AST_STATE_UP) {
 		/* Answer if the line isn't up. */
@@ -62,7 +67,9 @@ static int read_exec(struct ast_channel *chan, void *data)
 	if (!res) {
 		ast_stopstream(chan);
 		res = ast_app_getdata(chan, filename, tmp2, sizeof(tmp2) - 1, 0);
-		ast_verbose("You entered '%s'\n", tmp2);
+		if (!res)
+			pbx_builtin_setvar_helper(chan, tmp, tmp2);
+		ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp2);
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
