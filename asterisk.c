@@ -977,7 +977,7 @@ static char *cli_complete(EditLine *el, int ch)
 	int nummatches = 0;
 	char **matches;
 	int retval = CC_ERROR;
-	char buf[1024];
+	char buf[2048];
 	int res;
 
 	LineInfo *lf = (LineInfo *)el_line(el);
