@@ -6289,9 +6289,6 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 				return 1;
 		}
 #endif
-		if ((p->sig == SIG_FXSKS) || (p->sig == SIG_FXSLS) ||
-			(p->sig == SIG_FXSGS) || !p->sig)
-			return 1;
 		if (!p->radio)
 		{
 			/* Check hook state */
@@ -6304,6 +6301,14 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 			}
 			if (res) {
 				ast_log(LOG_WARNING, "Unable to check hook state on channel %d\n", p->channel);
+			} else if ((p->sig == SIG_FXSKS) || (p->sig == SIG_FXSLS) ||
+				(p->sig == SIG_FXSGS) || !p->sig) {
+				/* When "onhook" that means no battery on the line, and thus
+				  it is out of service... */
+				if (par.rxisoffhook)
+					return 1;
+				else
+					return 0;
 			} else if (par.rxisoffhook) {
 				ast_log(LOG_DEBUG, "Channel %d off hook, can't use\n", p->channel);
 				/* Not available when the other end is off hook */
