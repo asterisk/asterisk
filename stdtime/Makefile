@@ -1,7 +1,3 @@
-CC=gcc
-#CFLAGS=-Wall
-INCLUDE=-I../include
-
 OBJS=localtime.o
 
 all: libtime.a
@@ -9,6 +5,8 @@ all: libtime.a
 libtime.a: $(OBJS)
 	ar rv $@ $(OBJS)
 	ranlib $@
+
+install:
 
 clean:
 	rm -f libtime.a *.o test
