@@ -3473,7 +3473,7 @@ static int send_command_transfer(struct chan_iax2_pvt *i, char type, int command
 static int apply_context(struct iax2_context *con, char *context)
 {
 	while(con) {
-		if (!strcmp(con->context, context))
+		if (!strcmp(con->context, context) || !strcmp(con->context, "*"))
 			return -1;
 		con = con->next;
 	}

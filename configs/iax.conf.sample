@@ -250,6 +250,7 @@ host=216.207.245.47
 ;[biggateway]
 ;type=peer
 ;host=192.168.0.1
+;context=*
 ;secret=myscret
 ;trunk=yes		; Use IAX2 trunking with this host
 ;
