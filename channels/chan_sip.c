@@ -4837,6 +4837,8 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", p->nat);
 				ast_rtp_setnat(p->vrtp, p->nat);
 			}
+			strcpy(p->peersecret, peer->secret);
+			strcpy(p->peermd5secret, peer->md5secret);
 			if (peer->insecure > 1) {
 				/* Pretend there is no required authentication if insecure is "very" */
 				strcpy(p->peersecret, "");
