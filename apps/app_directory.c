@@ -250,9 +250,6 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 top:
-	dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
-	if (!dirintro || !strlen(dirintro))
-		dirintro = "dir-intro";
 	context = ast_strdupa(data);
 	dialcontext = strchr(context, '|');
 	if (dialcontext) {
@@ -260,6 +257,11 @@ top:
 		dialcontext++;
 	} else
 		dialcontext = context;
+	dirintro = ast_variable_retrieve(cfg, context, "directoryintro");
+	if (!dirintro || !strlen(dirintro))
+		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
+	if (!dirintro || !strlen(dirintro))
+		dirintro = "dir-intro";
 	if (chan->_state != AST_STATE_UP) 
 		res = ast_answer(chan);
 	if (!res)

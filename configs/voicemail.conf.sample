@@ -115,4 +115,6 @@ yes
 ;
 
 [other]
+;The intro can be customized on a per-context basis
+;directoryintro=dir-company2
 1234 => 5678,Company2 User,root@localhost
