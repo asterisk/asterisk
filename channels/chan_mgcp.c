@@ -448,7 +448,7 @@ static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
 	struct mgcp_gateway  *g;
 	struct mgcp_endpoint *e;
 	int found = 0;
-    char *ename,*gname;
+    char *ename,*gname, *c;
 	if (!mgcpdebug) {
 		return RESULT_SHOWUSAGE;
     }
@@ -465,7 +465,10 @@ static int mgcp_audit_endpoint(int fd, int argc, char *argv[])
         }
         gname++;
     }
-
+	if (gname[0] == '[')
+		gname++;
+	if ((c = strrchr(gname, ']')))
+		*c = '\0';
 	ast_pthread_mutex_lock(&gatelock);
 	g = gateways;
 	while(g) {
@@ -778,7 +781,7 @@ static struct mgcp_endpoint *find_endpoint(char *name, int msgid, struct sockadd
 	struct mgcp_endpoint *p = NULL;
 	struct mgcp_gateway *g;
 	char tmp[256] = "";
-	char *at = NULL;
+	char *at = NULL, *c;
 	if (name) {
 		strncpy(tmp, name, sizeof(tmp) - 1);
 		at = strchr(tmp, '@');
@@ -790,6 +793,12 @@ static struct mgcp_endpoint *find_endpoint(char *name, int msgid, struct sockadd
 		at++;
 	}
 	ast_pthread_mutex_lock(&gatelock);
+	if (at && (at[0] == '[')) {
+		at++;
+		c = strrchr(at, ']');
+		if (c)
+			*c = '\0';
+	}
 	g = gateways;
 	while(g) {
 		if ((!name || !strcasecmp(g->name, at)) && 

@@ -891,6 +891,9 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	struct ast_channel *who, *cs[3];
 	struct ast_rtp *p0, *p1;
 	struct ast_rtp_protocol *pr0, *pr1;
+	struct sockaddr_in ac0, ac1;
+	struct sockaddr_in t0, t1;
+	
 	void *pvt0, *pvt1;
 	int to;
 
@@ -933,8 +936,16 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	}
 	if (pr0->set_rtp_peer(c0, p1)) 
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
-	if (pr1->set_rtp_peer(c1, p0)) 
+	else {
+		/* Store RTP peer */
+		ast_rtp_get_peer(p1, &ac1);
+	}
+	if (pr1->set_rtp_peer(c1, p0))
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
+	else {
+		/* Store RTP peer */
+		ast_rtp_get_peer(p0, &ac0);
+	}
 	ast_pthread_mutex_unlock(&c0->lock);
 	ast_pthread_mutex_unlock(&c1->lock);
 	cs[0] = c0;
@@ -957,6 +968,20 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 				return -3;
 		}
 		to = -1;
+		ast_rtp_get_peer(p1, &t1);
+		ast_rtp_get_peer(p0, &t0);
+		if (inaddrcmp(&t1, &ac1)) {
+			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address\n", c1->name);
+			if (pr0->set_rtp_peer(c0, p1)) 
+				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
+			memcpy(&ac1, &t1, sizeof(ac1));
+		}
+		if (inaddrcmp(&t0, &ac0)) {
+			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address\n", c0->name);
+			if (pr1->set_rtp_peer(c1, p0))
+				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
+			memcpy(&ac0, &t0, sizeof(ac0));
+		}
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			ast_log(LOG_DEBUG, "Ooh, empty read...\n");
