@@ -135,7 +135,7 @@ static int admin_exec(struct ast_channel *chan, void *data);
 #define ENTER	0
 #define LEAVE	1
 
-#define CONF_SIZE 160
+#define CONF_SIZE 320
 
 #define CONFFLAG_ADMIN	(1 << 1)	/* If set the user has admin access on the conference */
 #define CONFFLAG_MONITOR (1 << 2)	/* If set the user can only receive audio from the conference */
@@ -545,30 +545,16 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_waitstream(chan, "");
 	}
 
-	if (confflags & CONFFLAG_VIDEO) {	
-		/* Set it into linear mode (write) */
-		if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
-			ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
-			goto outrun;
-		}
+	/* Set it into linear mode (write) */
+	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
+		ast_log(LOG_WARNING, "Unable to set '%s' to write linear mode\n", chan->name);
+		goto outrun;
+	}
 
-		/* Set it into linear mode (read) */
-		if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0) {
-			ast_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
-			goto outrun;
-		}
-	} else {
-		/* Set it into U-law mode (write) */
-		if (ast_set_write_format(chan, AST_FORMAT_ULAW) < 0) {
-			ast_log(LOG_WARNING, "Unable to set '%s' to write ulaw mode\n", chan->name);
-			goto outrun;
-		}
-
-		/* Set it into U-law mode (read) */
-		if (ast_set_read_format(chan, AST_FORMAT_ULAW) < 0) {
-			ast_log(LOG_WARNING, "Unable to set '%s' to read ulaw mode\n", chan->name);
-			goto outrun;
-		}
+	/* Set it into linear mode (read) */
+	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0) {
+		ast_log(LOG_WARNING, "Unable to set '%s' to read linear mode\n", chan->name);
+		goto outrun;
 	}
 	ast_indicate(chan, -1);
 	retryzap = strcasecmp(chan->type, "Zap");
@@ -595,7 +581,7 @@ zapretry:
 		}
 		/* Setup buffering information */
 		memset(&bi, 0, sizeof(bi));
-		bi.bufsize = CONF_SIZE;
+		bi.bufsize = CONF_SIZE/2;
 		bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
 		bi.numbufs = 4;
@@ -604,13 +590,11 @@ zapretry:
 			close(fd);
 			goto outrun;
 		}
-		if (confflags & CONFFLAG_VIDEO) {	
-			x = 1;
-			if (ioctl(fd, ZT_SETLINEAR, &x)) {
-				ast_log(LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
-				close(fd);
-				goto outrun;
-			}
+		x = 1;
+		if (ioctl(fd, ZT_SETLINEAR, &x)) {
+			ast_log(LOG_WARNING, "Unable to set linear mode: %s\n", strerror(errno));
+			close(fd);
+			goto outrun;
 		}
 		nfds = 1;
 	} else {
@@ -879,11 +863,11 @@ zapretry:
 						}
 			} else if (using_pseudo) {
 				if (f->frametype == AST_FRAME_VOICE) {
-					if (f->subclass == AST_FORMAT_ULAW) {
+					if (f->subclass == AST_FORMAT_SLINEAR) {
 						/* Carefully write */
 						careful_write(fd, f->data, f->datalen);
 					} else
-						ast_log(LOG_WARNING, "Huh?  Got a non-ulaw (%d) frame in the conference\n", f->subclass);
+						ast_log(LOG_WARNING, "Huh?  Got a non-linear (%d) frame in the conference\n", f->subclass);
 				}
 			}
 			ast_frfree(f);
@@ -892,9 +876,9 @@ zapretry:
 			if (res > 0) {
 				memset(&fr, 0, sizeof(fr));
 				fr.frametype = AST_FRAME_VOICE;
-				fr.subclass = AST_FORMAT_ULAW;
+				fr.subclass = AST_FORMAT_SLINEAR;
 				fr.datalen = res;
-				fr.samples = res;
+				fr.samples = res/2;
 				fr.data = buf;
 				fr.offset = AST_FRIENDLY_OFFSET;
 				if (ast_write(chan, &fr) < 0) {

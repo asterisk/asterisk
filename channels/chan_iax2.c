@@ -3382,7 +3382,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				/* Exact match, stop right now. */
 				best = user;
 				break;
-			} else if (ast_strlen_zero(user->secret)) {
+			} else if (ast_strlen_zero(user->secret) && ast_strlen_zero(user->inkeys)) {
 				/* No required authentication */
 				if (user->ha) {
 					/* There was host authentication and we passed, bonus! */
