@@ -433,6 +433,10 @@ int ast_say_digits_full(struct ast_channel *chan, int num, char *ints, char *lan
  pt-meiodia
  pt-sss
 
+ Spanish sound files needed for Time/Date functions:
+ es-de
+ es-el
+
 */
 
 /* Forward declarations of language specific variants of ast_say_number_full */
@@ -452,6 +456,7 @@ static int ast_say_date_nl(struct ast_channel *chan, time_t t, char *ints, char 
 static int ast_say_date_pt(struct ast_channel *chan, time_t t, char *ints, char *lang);
 
 static int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, char *ints, char *lang, char *format, char *timezone);
+static int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, char *ints, char *lang, char *format, char *timezone);
 static int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, char *ints, char *lang, char *format, char *timezone);
 static int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, char *ints, char *lang, char *format, char *timezone);
 static int ast_say_time_en(struct ast_channel *chan, time_t t, char *ints, char *lang);
@@ -1426,6 +1431,8 @@ int ast_say_date_with_format(struct ast_channel *chan, time_t time, char *ints, 
 {
 	if (!strcasecmp(lang, "en") ) {	/* English syntax */
 		return(ast_say_date_with_format_en(chan, time, ints, lang, format, timezone));
+	} else if (!strcasecmp(lang, "es") || !strcasecmp(lang, "mx")) {	/* Spanish syntax */
+		return(ast_say_date_with_format_es(chan, time, ints, lang, format, timezone));
 	} else if (!strcasecmp(lang, "nl") ) {	/* Dutch syntax */
 		return(ast_say_date_with_format_nl(chan, time, ints, lang, format, timezone));
 	} else if (!strcasecmp(lang, "pt") ) {	/* Portuguese syntax */
@@ -1668,6 +1675,191 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, char *int
 				break;
 			case 'R':
 				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				break;
+			case 'S':
+				/* Seconds */
+				if (tm.tm_sec == 0) {
+					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
+					res = wait_file(chan,ints,nextmsg,lang);
+				} else if (tm.tm_sec < 10) {
+					res = wait_file(chan,ints, "digits/oh",lang);
+					if (!res) {
+						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
+						res = wait_file(chan,ints,nextmsg,lang);
+					}
+				} else if ((tm.tm_sec < 21) || (tm.tm_sec % 10 == 0)) {
+					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_sec);
+					res = wait_file(chan,ints,nextmsg,lang);
+				} else {
+					int ten, one;
+					ten = (tm.tm_sec / 10) * 10;
+					one = (tm.tm_sec % 10);
+					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten);
+					res = wait_file(chan,ints,nextmsg,lang);
+					if (!res) {
+						/* Fifty, not fifty-zero */
+						if (one != 0) {
+							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
+							res = wait_file(chan,ints,nextmsg,lang);
+						}
+					}
+				}
+				break;
+			case 'T':
+				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				break;
+			case ' ':
+			case '	':
+				/* Just ignore spaces and tabs */
+				break;
+			default:
+				/* Unknown character */
+				ast_log(LOG_WARNING, "Unknown character in datetime format %s: %c at pos %d\n", format, format[offset], offset);
+		}
+		/* Jump out on DTMF */
+		if (res) {
+			break;
+		}
+	}
+	return res;
+}
+
+/* Spanish syntax */
+int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, char *ints, char *lang, char *format, char *timezone)
+{
+	struct tm tm;
+	int res=0, offset, sndoffset;
+	char sndfile[256], nextmsg[256];
+
+	ast_localtime(&time,&tm,timezone);
+
+	for (offset=0 ; format[offset] != '\0' ; offset++) {
+		ast_log(LOG_DEBUG, "Parsing %c (offset %d) in %s\n", format[offset], offset, format);
+		switch (format[offset]) {
+			/* NOTE:  if you add more options here, please try to be consistent with strftime(3) */
+			case '\'':
+				/* Literal name of a sound file */
+				sndoffset=0;
+				for (sndoffset=0 ; (format[++offset] != '\'') && (sndoffset < 256) ; sndoffset++)
+					sndfile[sndoffset] = format[offset];
+				sndfile[sndoffset] = '\0';
+				snprintf(nextmsg,sizeof(nextmsg), "%s", sndfile);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'A':
+			case 'a':
+				/* Sunday - Saturday */
+				snprintf(nextmsg,sizeof(nextmsg), "digits/day-%d", tm.tm_wday);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'B':
+			case 'b':
+			case 'h':
+				/* January - December */
+				snprintf(nextmsg,sizeof(nextmsg), "digits/mon-%d", tm.tm_mon);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'd':
+			case 'e':
+				/* First - Thirtyfirst */
+				res = ast_say_number(chan, tm.tm_mday, ints, lang, (char *) NULL);
+				break;
+			case 'Y':
+				/* Year */
+				res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+				break;
+			case 'I':
+			case 'l':
+				/* 12-Hour */
+				if (tm.tm_hour == 0)
+					snprintf(nextmsg,sizeof(nextmsg), "digits/12");
+				else if (tm.tm_hour > 12)
+					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour - 12);
+				else
+					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
+				res = wait_file(chan,ints,nextmsg,lang);
+				break;
+			case 'H':
+			case 'k':
+				/* 24-Hour */
+				res = ast_say_number(chan, -tm.tm_hour, ints, lang, NULL);
+				if (!res) {
+					if (tm.tm_hour != 0) {
+						int remainder = tm.tm_hour;
+						if (tm.tm_hour > 20) {
+							res = wait_file(chan,ints, "digits/20",lang);
+							remainder -= 20;
+						}
+						if (!res) {
+							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", remainder);
+							res = wait_file(chan,ints,nextmsg,lang);
+						}
+					}
+				}
+				break;
+			case 'M':
+				/* Minute */
+				res = ast_say_number(chan, tm.tm_min, ints, lang, (char *) NULL);	
+				break;
+			case 'P':
+			case 'p':
+				/* AM/PM */
+				if (tm.tm_hour > 12)
+					res = wait_file(chan, ints, "digits/p-m", lang);
+				else if (tm.tm_hour  && tm.tm_hour < 12)
+					res = wait_file(chan, ints, "digits/a-m", lang);
+				break;
+			case 'Q':
+				/* Shorthand for "Today", "Yesterday", or ABdY */
+				{
+					struct timeval now;
+					struct tm tmnow;
+					time_t beg_today;
+
+					gettimeofday(&now,NULL);
+					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
+					/* In any case, it saves not having to do ast_mktime() */
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					if (beg_today < time) {
+						/* Today */
+						res = wait_file(chan,ints, "digits/today",lang);
+					} else if (beg_today - 86400 < time) {
+						/* Yesterday */
+						res = wait_file(chan,ints, "digits/yesterday",lang);
+					} else {
+						res = ast_say_date_with_format(chan, time, ints, lang, "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y", timezone);
+					}
+				}
+				break;
+			case 'q':
+				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				{
+					struct timeval now;
+					struct tm tmnow;
+					time_t beg_today;
+
+					gettimeofday(&now,NULL);
+					ast_localtime(&now.tv_sec,&tmnow,timezone);
+					/* This might be slightly off, if we transcend a leap second, but never more off than 1 second */
+					/* In any case, it saves not having to do ast_mktime() */
+					beg_today = now.tv_sec - (tmnow.tm_hour * 3600) - (tmnow.tm_min * 60) - (tmnow.tm_sec);
+					if (beg_today < time) {
+						/* Today */
+						res = wait_file(chan,ints, "digits/today",lang);
+					} else if ((beg_today - 86400) < time) {
+						/* Yesterday */
+						res = wait_file(chan,ints, "digits/yesterday",lang);
+					} else if (beg_today - 86400 * 6 < time) {
+						/* Within the last week */
+						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+					} else {
+						res = ast_say_date_with_format(chan, time, ints, lang, "'digits/es-el' Ad 'digits/es-de' B 'digits/es-de' Y", timezone);
+					}
+				}
+				break;
+			case 'R':
+				res = ast_say_date_with_format(chan, time, ints, lang, "H 'digits/y' M", timezone);
 				break;
 			case 'S':
 				/* Seconds */
