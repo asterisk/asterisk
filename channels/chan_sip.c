@@ -1261,6 +1261,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 	struct sip_peer *p;
 	int found=0;
 	char *port;
+	char *callhost;
 	int portno;
 	char host[256], *hostn;
 	char peer[256]="";
@@ -1294,6 +1295,11 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 			strncpy(r->username, p->username, sizeof(r->username)-1);
 			strncpy(r->tohost, p->tohost, sizeof(r->tohost)-1);
 			strncpy(r->fullcontact, p->fullcontact, sizeof(r->fullcontact)-1);
+			if (!r->initreq.headers && !ast_strlen_zero(p->fromdomain)) {
+				if ((callhost = strchr(r->callid, '@'))) {
+					strncpy(callhost + 1, p->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 2);
+				}
+			}
 			if (ast_strlen_zero(r->tohost)) {
 				if (p->addr.sin_addr.s_addr)
 					ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->addr.sin_addr);
