@@ -203,12 +203,12 @@ static void safe_append(struct outgoing *o, time_t now, char *s)
 			fclose(f);
 		} else
 			close(fd);
+		/* Update the file time */
+		tbuf.actime = now;
+		tbuf.modtime = now + o->retrytime;
+		if (utime(o->fn, &tbuf))
+			ast_log(LOG_WARNING, "Unable to set utime on %s: %s\n", o->fn, strerror(errno));
 	}
-	/* Update the file time */
-	tbuf.actime = now;
-	tbuf.modtime = now + o->retrytime;
-	if (utime(o->fn, &tbuf))
-		ast_log(LOG_WARNING, "Unable to set utime on %s: %s\n", o->fn, strerror(errno));
 }
 
 static void *attempt_thread(void *data)
@@ -258,7 +258,6 @@ static void launch_service(struct outgoing *o)
 static int scan_service(char *fn, time_t now, time_t atime)
 {
 	struct outgoing *o;
-	struct utimbuf tbuf;
 	FILE *f;
 	o = malloc(sizeof(struct outgoing));
 	if (o) {
