@@ -595,7 +595,7 @@ static int show_codec_n(int fd, int argc, char *argv[])
 	for (i=0;i<32;i++)
 		if (codec & (1 << i)) {
 			found = 1;
-			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(i));
+			ast_cli(fd, "%11u (1 << %2d)  %s\n",1 << i,i,ast_codec2str(1<<i));
 		}
 
 	if (! found)
