@@ -35,6 +35,8 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
+#include <tonezone.h>
+
 #include <pthread.h>
 
 #define DEFAULT_RETRY		5
@@ -62,6 +64,28 @@ static char *descrip =
 "up by another user.\n"
 "  The optionnal URL will be sent to the called party if the channel supports\n"
 "it.\n";
+
+// [PHM 06/26/03]
+static char *app_aqm = "AddQueueMember" ;
+static char *app_aqm_synopsis = "Dynamically adds queue members" ;
+static char *app_aqm_descrip =
+"   AddQueueMember(queuename[|interface]):\n"
+"Dynamically adds interface to an existing queue\n"
+"Returns -1 if there is an error.\n"
+"Example: AddQueueMember(techsupport|SIP/3000)\n"
+"";
+
+static char *app_rqm = "RemoveQueueMember" ;
+static char *app_rqm_synopsis = "Dynamically removes queue members" ;
+static char *app_rqm_descrip =
+"   RemoveQueueMember(queuename[|interface]):\n"
+"Dynamically removes interface to an existing queue\n"
+"Returns -1 if there is an error.\n"
+"Example: RemoveQueueMember(techsupport|SIP/3000)\n"
+"";
+
+
+
 
 /* We define a customer "local user" structure because we
    use it not only for keeping track of what is in use but
@@ -643,6 +667,217 @@ static int valid_exit(struct queue_ent *qe, char digit)
 	return 0;
 }
 
+// [PHM 06/26/03]
+
+static struct member * interface_exists( struct ast_call_queue * q, char * interface )
+{
+	struct member * ret = NULL ;
+	struct member *mem;
+	char buf[500] ;
+
+	if( q != NULL )
+	{
+		mem = q->members ;
+
+		while( mem != NULL ) {
+			sprintf( buf, "%s/%s", mem->tech, mem->loc);
+
+			if( strcmp( buf, interface ) == 0 ) {
+				ret = mem ;
+				break ;
+			}
+			else
+				mem = mem->next ;
+		}
+	}
+
+	return( ret ) ;
+}
+
+
+static struct member * create_queue_node( char * interface )
+{
+	struct member * cur ;
+	char * tmp ;
+	
+	/* Add a new member */
+
+	cur = malloc(sizeof(struct member));
+
+	if (cur) {
+		memset(cur, 0, sizeof(struct member));
+		strncpy(cur->tech, interface, sizeof(cur->tech) - 1);
+		if ((tmp = strchr(cur->tech, '/')))
+			*tmp = '\0';
+		if ((tmp = strchr(interface, '/'))) {
+			tmp++;
+			strncpy(cur->loc, tmp, sizeof(cur->loc) - 1);
+		} else
+			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
+	}
+
+	return( cur ) ;
+}
+
+
+static int rqm_exec(struct ast_channel *chan, void *data)
+{
+	int res=-1;
+	struct localuser *u;
+	char *queuename;
+	struct member * node ;
+	struct member * look ;
+	char info[512];
+	char *interface=NULL;
+	struct ast_call_queue *q;
+	int found=0 ;
+
+	if (!data) {
+		ast_log(LOG_WARNING, "RemoveQueueMember requires an argument (queuename|optional interface)\n");
+		return -1;
+	}
+	
+	LOCAL_USER_ADD(u); // not sure if we need this, but better be safe than sorry ;-)
+	
+	/* Parse our arguments XXX Check for failure XXX */
+	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+	queuename = info;
+	if (queuename) {
+		interface = strchr(queuename, '|');
+		if (interface) {
+			*interface = '\0';
+			interface++;
+		}
+		else
+			interface = chan->name ;
+	}
+
+	if( ( q = queues) != NULL )
+	{
+		while( q && ( res != 0 ) && (!found) ) 
+		{
+			ast_pthread_mutex_lock(&q->lock);
+			if( strcmp( q->name, queuename) == 0 )
+			{
+				// found queue, try to remove  interface
+				found=1 ;
+
+				if( ( node = interface_exists( q, interface ) ) != NULL )
+				{
+					if( ( look = q->members ) == node )
+					{
+						// 1st
+						q->members = node->next;
+					}
+					else
+					{
+						while( look != NULL )
+							if( look->next == node )
+							{
+								look->next = node->next ;
+								break ;
+							}
+							else
+								look = look->next ;
+					}
+
+					free( node ) ;
+
+					ast_log(LOG_NOTICE, "Removed interface '%s' to queue '%s'\n", 
+						interface, queuename);
+					res = 0 ;
+				}
+				else
+					ast_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': "
+						"Not there\n", interface, queuename);
+			}
+
+			ast_pthread_mutex_unlock(&q->lock);
+			q = q->next;
+		}
+	}
+
+	if( ! found )
+		ast_log(LOG_WARNING, "Unable to remove interface from queue '%s': No such queue\n", queuename);
+
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
+
+
+static int aqm_exec(struct ast_channel *chan, void *data)
+{
+	int res=-1;
+	struct localuser *u;
+	char *queuename;
+	char info[512];
+	char *interface=NULL;
+	struct ast_call_queue *q;
+	struct member *save;
+	int found=0 ;
+
+	if (!data) {
+		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename|optional interface)\n");
+		return -1;
+	}
+	
+	LOCAL_USER_ADD(u); // not sure if we need this, but better be safe than sorry ;-)
+	
+	/* Parse our arguments XXX Check for failure XXX */
+	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+	queuename = info;
+	if (queuename) {
+		interface = strchr(queuename, '|');
+		if (interface) {
+			*interface = '\0';
+			interface++;
+		}
+		else
+			interface = chan->name ;
+	}
+
+	if( ( q = queues) != NULL )
+	{
+		while( q && ( res != 0 ) && (!found) ) 
+		{
+			ast_pthread_mutex_lock(&q->lock);
+			if( strcmp( q->name, queuename) == 0 )
+			{
+				// found queue, try to enable interface
+				found=1 ;
+
+				if( interface_exists( q, interface ) == NULL )
+				{
+					save = q->members ;
+					q->members = create_queue_node( interface ) ;
+
+					if( q->members != NULL )
+						q->members->next = save ;
+					else
+						q->members = save ;
+
+					ast_log(LOG_NOTICE, "Added interface '%s' to queue '%s'\n", interface, queuename);
+					res = 0 ;
+				}
+				else
+					ast_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': "
+						"Already there\n", interface, queuename);
+			}
+
+			ast_pthread_mutex_unlock(&q->lock);
+			q = q->next;
+		}
+	}
+
+	if( ! found )
+		ast_log(LOG_WARNING, "Unable to add interface to queue '%s': No such queue\n", queuename);
+
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
+
 static int queue_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
@@ -944,10 +1179,15 @@ int load_module(void)
 	if (!res) {
 		ast_cli_register(&cli_show_queues);
 		ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
+
+		// [PHM 06/26/03]
+		ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip) ;
+		ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip) ;
 	}
 	reload_queues();
 	return res;
 }
+
 
 int reload(void)
 {
