@@ -367,7 +367,7 @@ struct sip_user {
 	/* Users who can access various contexts */
 	char name[80];
 	char secret[80];
-        char md5secret[80];
+	char md5secret[80];
 	char context[80];
 	char cid_num[80];
 	char cid_name[80];
@@ -378,7 +378,6 @@ struct sip_user {
 	unsigned int callgroup;
 	unsigned int pickupgroup;
 	int nat;
-	int hascallerid;
 	int amaflags;
 	int callingpres;
 	int insecure;
@@ -412,6 +411,8 @@ struct sip_peer {
 	char fromuser[80];
 	char fromdomain[80];
 	char fullcontact[128];
+	char cid_num[80];
+	char cid_name[80];
 	char mailbox[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
@@ -5409,6 +5410,12 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 					strncpy(p->username, peer->username, sizeof(p->username) - 1);
 					strncpy(p->authname, peer->username, sizeof(p->authname) - 1);
 				}
+				if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num))  {
+					strncpy(p->cid_num, user->cid_num, sizeof(p->cid_num) - 1);
+					ast_shrink_phone_number(p->cid_num);
+				}
+				if (!ast_strlen_zero(peer->cid_name) && !ast_strlen_zero(p->cid_name)) 
+					strncpy(p->cid_name, peer->cid_name, sizeof(p->cid_name) - 1);
 				strncpy(p->fullcontact, peer->fullcontact, sizeof(p->fullcontact) - 1);
 				if (!ast_strlen_zero(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
@@ -5682,6 +5689,7 @@ static void  print_group(int fd, unsigned int group)
 static int sip_show_peer(int fd, int argc, char *argv[])
 {
 	char status[30] = "";
+	char cbuf[256];
 	char iabuf[INET_ADDRSTRLEN];
 	struct sip_peer *peer;
 
@@ -5705,6 +5713,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
 		ast_cli(fd, "  Dynamic      : %s\n", (peer->dynamic?"Yes":"No"));
+		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  Expire       : %d\n", peer->expire);
 		ast_cli(fd, "  Expiry       : %d\n", peer->expiry);
 		ast_cli(fd, "  Insecure     : %s\n", (peer->insecure?((peer->insecure == 2)?"Very":"Yes"):"No") );
@@ -8117,7 +8126,6 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 					user->nat = SIP_NAT_RFC3581;
 			} else if (!strcasecmp(v->name, "callerid")) {
 				ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
-				user->hascallerid=1;
 			} else if (!strcasecmp(v->name, "callgroup")) {
 				user->callgroup = ast_get_group(v->value);
 			} else if (!strcasecmp(v->name, "pickupgroup")) {
@@ -8297,6 +8305,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					peer->canreinvite = REINVITE_UPDATE;
 				else
 					peer->canreinvite = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "callerid")) {
+				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name), peer->cid_num, sizeof(peer->cid_num));
 			} else if (!strcasecmp(v->name, "nat")) {
 				if (!strcasecmp(v->value, "rfc3581"))
 					peer->nat = SIP_NAT_RFC3581;
