@@ -24,7 +24,7 @@ PROC=$(shell uname -m)
 ifneq (${OSARCH},FreeBSD)
 ifneq (${OSARCH},NetBSD)
 ifneq (${PROC},ppc)
-CFLAGS += -march=$(ARCH)
+CFLAGS += -march=$(PROC)
 endif
 endif
 endif
