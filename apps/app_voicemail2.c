@@ -1990,6 +1990,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			case '2': /* Change folders */
 				if (useadsi)
 					adsi_folders(chan, 0, "Change to folder...");
+				cmd = get_folder2(chan, "vm-changeto", 0);
 				if (cmd == '#') {
 					cmd = 0;
 				} else if (cmd > 0) {
