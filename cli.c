@@ -250,7 +250,12 @@ static char modlist_help[] =
 
 static char version_help[] =
 "Usage: show version\n"
-"       Shows Asterisk version information.\n ";
+"       Shows Asterisk version information.\n";
+
+static char uptime_help[] =
+"Usage: show uptime [seconds]\n"
+"       Shows Asterisk uptime information.\n"
+"       The seconds word returns the uptime in seconds only.\n";
 
 static char *format_uptimestr(time_t timeval)
 {
@@ -333,22 +338,35 @@ static int handle_showuptime(int fd, int argc, char *argv[])
 {
 	time_t curtime, tmptime;
 	char *timestr;
+	int printsec;
+
+	printsec = ((argc == 3) && (!strcasecmp(argv[2],"seconds")));
+	if ((argc != 2) && (!printsec))
+		return RESULT_SHOWUSAGE;
 
 	time(&curtime);
 	if (ast_startuptime) {
 		tmptime = curtime - ast_startuptime;
-		timestr = format_uptimestr(tmptime);
-		if (timestr) {
-			ast_cli(fd, "System uptime: %s\n", timestr);
-			free(timestr);
+		if (printsec) {
+			ast_cli(fd, "System uptime: %lu\n",tmptime);
+		} else {
+			timestr = format_uptimestr(tmptime);
+			if (timestr) {
+				ast_cli(fd, "System uptime: %s\n", timestr);
+				free(timestr);
+			}
 		}
 	}		
 	if (ast_lastreloadtime) {
 		tmptime = curtime - ast_lastreloadtime;
-		timestr = format_uptimestr(tmptime);
-		if (timestr) {
-			ast_cli(fd, "Last reload: %s\n", timestr);
-			free(timestr);
+		if (printsec) {
+			ast_cli(fd, "Last reload: %lu\n", tmptime);
+		} else {
+			timestr = format_uptimestr(tmptime);
+			if ((timestr) && (!printsec)) {
+				ast_cli(fd, "Last reload: %s\n", timestr);
+				free(timestr);
+			} 
 		}
 	}
 	return RESULT_SUCCESS;
@@ -782,7 +800,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
 	{ { "show", "modules", "like", NULL }, handle_modlist, "List modules and info", modlist_help, complete_mod_4 },
-	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", modlist_help },
+ 	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", uptime_help },
 	{ { "show", "version", NULL }, handle_version, "Display version info", version_help },
 	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch_3 },
 	{ { "unload", NULL }, handle_unload, "Unload a dynamic module by name", unload_help, complete_fn },
