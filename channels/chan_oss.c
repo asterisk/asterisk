@@ -681,6 +681,9 @@ static int oss_indicate(struct ast_channel *chan, int cond)
 	case AST_CONTROL_RINGING:
 		res = 0;
 		break;
+	case -1:
+		cursound = -1;
+		return 0;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
 		return -1;

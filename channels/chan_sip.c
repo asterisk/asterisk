@@ -6899,7 +6899,7 @@ static int reload_config(void)
 		hp = ast_gethostbyname(ourhost, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "Unable to get IP address for %s, SIP disabled\n", ourhost);
-			if (!__ourip.sin_addr.s_addr)
+			if (!__ourip.s_addr)
 				return 0;
 		} else
 			memcpy(&__ourip, hp->h_addr, sizeof(__ourip));
