@@ -4302,6 +4302,8 @@ static void *ss_thread(void *data)
 					swap_subs(p, SUB_REAL, SUB_THREEWAY);
 					unalloc_sub(p, SUB_THREEWAY);
 					p->owner = p->subs[SUB_REAL].owner;
+					if (p->subs[SUB_REAL].owner->bridge)
+						ast_moh_stop(p->subs[SUB_REAL].owner->bridge);
 					ast_hangup(chan);
 					return NULL;
 				} else {
