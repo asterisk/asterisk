@@ -43,20 +43,20 @@ static char *synopsis = "Place a call and connect to the current channel";
 
 static char *descrip =
 "  Dial(Technology/resource[&Technology2/resource2...][|timeout][|options][|URL]):\n"
-"Requests  one  or more channels and places specified outgoing calls on them.\n"
-"As soon as a  channel  answers, the  Dial  app  will  answer the originating\n"
+"Requests one or more channels and places specified outgoing calls on them.\n"
+"As soon as a channel answers, the Dial app will answer the originating\n"
 "channel (if it needs to be answered) and will bridge a call with the channel\n"
-"which first answered. All other calls placed by the Dial app will be hunp up\n"
-"If a timeout is not specified, the Dial  application  will wait indefinitely\n"
-"until either one of the  called channels  answers, the user hangs up, or all\n"
-"channels return busy or  error. In general,  the dialler will return 0 if it\n"
-"was  unable  to  place  the  call, or the timeout expired.  However, if  all\n"
+"which first answered. All other calls placed by the Dial app will be hung up\n"
+"If a timeout is not specified, the Dial application will wait indefinitely\n"
+"until either one of the called channels answers, the user hangs up, or all\n"
+"channels return busy or error. In general, the dialler will return 0 if it\n"
+"was unable to place the call, or the timeout expired. However, if all\n"
 "channels were busy, and there exists an extension with priority n+101 (where\n"
-"n is the priority of  the  dialler  instance), then  it  will  be  the  next\n"
+"n is the priority of the dialler instance), then it will be the next\n"
 "executed extension (this allows you to setup different behavior on busy from\n"
 "no-answer).\n"
 "  This application returns -1 if the originating channel hangs up, or if the\n"
-"call is bridged and  either of the parties in the bridge terminate the call.\n"
+"call is bridged and either of the parties in the bridge terminate the call.\n"
 "The option string may contain zero or more of the following characters:\n"
 "      't' -- allow the called user transfer the calling user\n"
 "      'T' -- to allow the calling user to transfer the call.\n"
@@ -542,8 +542,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		}
 		/* Check for ALERT_INFO in the SetVar list.  This is for   */
 		/* SIP distinctive ring as per the RFC.  For Cisco 7960s,  */
-		/* SetVar(ALERT_INFO=<x>) where x is an integer.  However, */
-		/* the RFC says it should be a URL.  -- km-                */
+		/* SetVar(ALERT_INFO=<x>) where x is an integer value 1-5. */
+		/* However, the RFC says it should be a URL.  -km-         */
 
 		if (strcasecmp(tech,"SIP")==0)
 		{
