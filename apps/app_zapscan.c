@@ -256,6 +256,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
                 ast_answer(chan);
 
         for (;;) {
+		if (ast_waitfor(chan, 100) < 0)
+			break;
 		f = ast_read(chan);
 		if (!f)
 			break;
