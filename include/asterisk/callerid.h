@@ -139,16 +139,16 @@ extern int ast_isphonenumber(char *n);
  * routines (used by ADSI for example)
  */
 
-extern float dr[4];
-extern float di[4];
+extern float cid_dr[4];
+extern float cid_di[4];
 extern float clidsb;
 
 static inline float callerid_getcarrier(float *cr, float *ci, int bit)
 {
 	/* Move along.  There's nothing to see here... */
 	float t;
-	t = *cr * dr[bit] - *ci * di[bit];
-	*ci = *cr * di[bit] + *ci * dr[bit];
+	t = *cr * cid_dr[bit] - *ci * cid_di[bit];
+	*ci = *cr * cid_di[bit] + *ci * cid_dr[bit];
 	*cr = t;
 	
 	t = 2.0 - (*cr * *cr + *ci * *ci);

@@ -43,7 +43,8 @@ struct callerid_state {
 	int len;
 };
 
-float dr[4], di[4];
+
+float cid_dr[4], cid_di[4];
 float clidsb = 8000.0 / 1200.0;
 
 #define CALLERID_SPACE	2200.0		/* 2200 hz for "0" */
@@ -52,10 +53,10 @@ float clidsb = 8000.0 / 1200.0;
 void callerid_init(void)
 {
 	/* Initialize stuff for inverse FFT */
-	dr[0] = cos(CALLERID_SPACE * 2.0 * M_PI / 8000.0);
-	di[0] = sin(CALLERID_SPACE * 2.0 * M_PI / 8000.0);
-	dr[1] = cos(CALLERID_MARK * 2.0 * M_PI / 8000.0);
-	di[1] = sin(CALLERID_MARK * 2.0 * M_PI / 8000.0);
+	cid_dr[0] = cos(CALLERID_SPACE * 2.0 * M_PI / 8000.0);
+	cid_di[0] = sin(CALLERID_SPACE * 2.0 * M_PI / 8000.0);
+	cid_dr[1] = cos(CALLERID_MARK * 2.0 * M_PI / 8000.0);
+	cid_di[1] = sin(CALLERID_MARK * 2.0 * M_PI / 8000.0);
 }
 
 struct callerid_state *callerid_new(void)
