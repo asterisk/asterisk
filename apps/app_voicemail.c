@@ -170,6 +170,14 @@ static char *descrip_vmain =
 "a context is specified, logins are considered in that context only.\n"
 "Returns -1 if the user hangs up or 0 otherwise.\n";
 
+static char *synopsis_vm_box_exists =
+"Check if vmbox exists";
+
+static char *descrip_vm_box_exists =
+"  MailboxExists(mailbox[@context]): Conditionally branches to priority n+101\n"
+"if the specified voice mailbox exists.\n";
+
+
 /* Leave a message */
 static char *capp = "VoiceMail2";
 static char *app = "VoiceMail";
@@ -177,6 +185,8 @@ static char *app = "VoiceMail";
 /* Check mail, control, etc */
 static char *capp2 = "VoiceMailMain2";
 static char *app2 = "VoiceMailMain";
+
+static char *app3 = "MailboxExists";
 
 static ast_mutex_t vmlock = AST_MUTEX_INITIALIZER;
 struct ast_vm_user *users;
@@ -3051,6 +3061,47 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	return 0;
 }
 
+static int vm_box_exists(struct ast_channel *chan, void *data) {
+	struct localuser *u;
+	struct ast_vm_user *user;
+	char *context, *box;
+	int branch=0;
+
+	if (!data) {
+		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+	context = ast_strdupa(data);
+	if (index(context, '@')) {
+		box = strsep(&context, "@");
+	} else {
+		box = context;
+		context = "default";
+	}
+
+	ast_mutex_lock(&vmlock);
+	user = users;
+	while (user) {
+		if ((!strcmp(box,user->mailbox)) && (!strcmp(context,user->context))) {
+			branch = 1;
+			break;
+		}
+	}
+	ast_mutex_unlock(&vmlock);
+
+	if (branch) {
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+			chan->priority += 100;
+		} else
+			ast_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
+	}
+	LOCAL_USER_REMOVE(u);
+	return 0;
+}
+
+
 #ifndef USEMYSQLVM
 /* XXX TL Bug 690 */
 static char show_voicemail_users_help[] =
@@ -3426,6 +3477,7 @@ int unload_module(void)
 	res |= ast_unregister_application(capp);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(capp2);
+	res |= ast_unregister_application(app3);
 	sql_close();
 #ifndef USEMYSQLVM
 	ast_cli_unregister(&show_voicemail_users_cli);
@@ -3441,6 +3493,7 @@ int load_module(void)
 	res |= ast_register_application(capp, vm_exec, synopsis_vm, descrip_vm);
 	res |= ast_register_application(app2, vm_execmain, synopsis_vmain, descrip_vmain);
 	res |= ast_register_application(capp2, vm_execmain, synopsis_vmain, descrip_vmain);
+	res |= ast_register_application(app3, vm_box_exists, synopsis_vm_box_exists, descrip_vm_box_exists);
 	if (res)
 		return(res);
 
