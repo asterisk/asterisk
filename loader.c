@@ -99,6 +99,7 @@ static struct loadupdate {
 } *updaters = NULL;
 
 static ast_mutex_t modlock = AST_MUTEX_INITIALIZER;
+static ast_mutex_t reloadlock = AST_MUTEX_INITIALIZER;
 
 static struct module *module_list=NULL;
 
@@ -149,6 +150,11 @@ void ast_module_reload(void)
 	struct module *m;
 
 	/* We'll do the logger and manager the favor of calling its reload here first */
+
+	if (ast_mutex_trylock(&reloadlock)) {
+		ast_verbose("The previous reload command didn't finish yet\n");
+		return;
+	}
 	reload_manager();
 	ast_enum_reload();
 	ast_rtp_reload();
@@ -165,6 +171,7 @@ void ast_module_reload(void)
 		m = m->next;
 	}
 	ast_mutex_unlock(&modlock);
+	ast_mutex_unlock(&reloadlock);
 }
 
 int ast_load_resource(char *resource_name)
