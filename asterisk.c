@@ -673,10 +673,12 @@ static int ast_el_read_char(EditLine *el, char *cp)
 	for (;;) {
 		FD_ZERO(&rfds);
 		FD_SET(ast_consock, &rfds);
-		FD_SET(STDIN_FILENO, &rfds);
 		max = ast_consock;
-		if (STDIN_FILENO > max)
-			max = STDIN_FILENO;
+		if (!option_exec) {
+			FD_SET(STDIN_FILENO, &rfds);
+			if (STDIN_FILENO > max)
+				max = STDIN_FILENO;
+		}
 		res = ast_select(max+1, &rfds, NULL, NULL, NULL);
 		if (res < 0) {
 			if (errno == EINTR)
@@ -702,7 +704,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 
 			buf[res] = '\0';
 
-			if (!lastpos)
+			if (!option_exec && !lastpos)
 				write(STDOUT_FILENO, "\r", 1);
 			write(STDOUT_FILENO, buf, res);
 			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
@@ -1023,11 +1025,13 @@ static void ast_remotecontrol(char * data)
 #if 0
 	ast_cli_register(&astshutdown);
 #endif	
+	if (option_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
+		char tempchar;
+		ast_el_read_char(el, &tempchar);
+		return;
+	}
 	for(;;) {
 		ebuf = (char *)el_gets(el, &num);
-
-		if (data)	/* hack to print output then exit if asterisk -rx is used */
-			ebuf = strdup("quit");
 
 		if (ebuf && strlen(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
