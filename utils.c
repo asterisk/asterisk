@@ -12,6 +12,9 @@
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
 
@@ -325,6 +328,10 @@ static void base64_init(void)
 #endif
 }
 
+const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
+{
+	return inet_ntop(AF_INET, &ia, buf, bufsiz);
+}
 
 int ast_utils_init(void)
 {

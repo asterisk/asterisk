@@ -491,8 +491,9 @@ static int resend_response(struct mgcp_subchannel *sub, struct mgcp_response *re
 {
     struct mgcp_endpoint *p = sub->parent;
 	int res;
+	char iabuf[80];
 	if (mgcpdebug) {
-		ast_verbose("Retransmitting:\n%s\n to %s:%d\n", resp->buf, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+		ast_verbose("Retransmitting:\n%s\n to %s:%d\n", resp->buf, ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
     }
 	res = __mgcp_xmit(p->parent, resp->buf, resp->len);
 	if (res > 0)
@@ -504,8 +505,9 @@ static int send_response(struct mgcp_subchannel *sub, struct mgcp_request *req)
 {
     struct mgcp_endpoint *p = sub->parent;
 	int res;
+	char iabuf[80];
 	if (mgcpdebug) {
-		ast_verbose("Transmitting:\n%s\n to %s:%d\n", req->data, inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+		ast_verbose("Transmitting:\n%s\n to %s:%d\n", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
     }
 	res = __mgcp_xmit(p->parent, req->data, req->len);
 	if (res > 0)
@@ -698,6 +700,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
 {
     int res = 0;
     struct mgcp_request **queue, *q, *r, *t;
+	char iabuf[80];
     ast_mutex_t *l;
 
     switch (req->cmd) {
@@ -746,7 +749,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
     if (!(*queue)) {
         if (mgcpdebug) {
             ast_verbose("Posting Request:\n%s to %s:%d\n", req->data, 
-                        inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+                        ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
         }
 
         res = mgcp_postrequest(p, sub, req->data, req->len, seqno);
@@ -754,7 +757,7 @@ static int send_request(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
     else {
         if (mgcpdebug) {
             ast_verbose("Queueing Request:\n%s to %s:%d\n", req->data, 
-                        inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+                        ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
         }
     }
 
@@ -934,13 +937,14 @@ static int mgcp_show_endpoints(int fd, int argc, char *argv[])
 	struct mgcp_gateway  *g;
 	struct mgcp_endpoint *e;
 	int hasendpoints = 0;
+	char iabuf[80];
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&gatelock);
 	g = gateways;
 	while(g) {
 		e = g->endpoints;
-		ast_cli(fd, "Gateway '%s' at %s (%s)\n", g->name, g->addr.sin_addr.s_addr ? inet_ntoa(g->addr.sin_addr) : inet_ntoa(g->defaddr.sin_addr), g->dynamic ? "Dynamic" : "Static");
+		ast_cli(fd, "Gateway '%s' at %s (%s)\n", g->name, g->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), g->addr.sin_addr) : ast_inet_ntoa(iabuf, sizeof(iabuf), g->defaddr.sin_addr), g->dynamic ? "Dynamic" : "Static");
 		while(e) {
 			// JS: Don't show wilcard endpoint
 			if (strcmp(e->name, g->wcardep) !=0)
@@ -1358,43 +1362,12 @@ static char *get_csv(char *c, int *len, char **next)
     return s;
 } 
 
-#if 0
-static int rtpready(struct ast_rtp *rtp, struct ast_frame *f, void *data)
-{
-	/* Just deliver the audio directly */
-	struct mgcp_endpoint *p = data;
-	ast_mutex_lock(&p->lock);
-	if (p->owner) {
-		/* Generally, you lock in the order channel lock, followed by private
-		   lock.  Since here we are doing the reverse, there is the possibility
-		   of deadlock.  As a result, in the case of a deadlock, we simply fail out
-		   here. */
-		if (!ast_mutex_trylock(&p->owner->lock)) {
-			if (f->frametype == AST_FRAME_VOICE) {
-				if (f->subclass != p->owner->nativeformats) {
-					ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
-					p->owner->nativeformats = f->subclass;
-					ast_set_read_format(p->owner, p->owner->readformat);
-					ast_set_write_format(p->owner, p->owner->writeformat);
-				}
-				if (p->dtmfinband) {
-				    f = ast_dsp_process(p->owner,p->dsp,f);
-				}
-			}
-			ast_queue_frame(p->owner, f);
-			ast_mutex_unlock(&p->owner->lock);
-		}
-	}
-	ast_mutex_unlock(&p->lock);
-	return 0;
-}
-#endif
-
 static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct sockaddr_in *sin)
 {
 	struct mgcp_endpoint *p = NULL;
 	struct mgcp_subchannel *sub = NULL;
 	struct mgcp_gateway *g;
+	char iabuf[80];
 	char tmp[256] = "";
 	char *at = NULL, *c;
     int found = 0;
@@ -1427,7 +1400,7 @@ static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct soc
 					if (ast_ouraddrfor(&g->addr.sin_addr, &g->ourip))
 						memcpy(&g->ourip, &__ourip, sizeof(g->ourip));
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Registered MGCP gateway '%s' at %s port %d\n", g->name, inet_ntoa(g->addr.sin_addr), ntohs(g->addr.sin_port));
+						ast_verbose(VERBOSE_PREFIX_3 "Registered MGCP gateway '%s' at %s port %d\n", g->name, ast_inet_ntoa(iabuf, sizeof(iabuf), g->addr.sin_addr), ntohs(g->addr.sin_port));
 				}
 			}
             /* SC: not dynamic, check if the name matches */
@@ -1648,7 +1621,7 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	sin.sin_port = htons(portno);
 	ast_rtp_set_peer(sub->rtp, &sin);
 #if 0
-	printf("Peer RTP is at port %s:%d\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+	printf("Peer RTP is at port %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 #endif	
 	// Scan through the RTP payload types specified in a "m=" line:
     ast_rtp_pt_clear(sub->rtp);
@@ -1827,6 +1800,7 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 	char t[256];
 	char m[256];
 	char a[1024] = "";
+	char iabuf[80];
 	int x;
 	struct sockaddr_in dest;
     struct mgcp_endpoint *p = sub->parent;
@@ -1852,12 +1826,12 @@ static int add_sdp(struct mgcp_request *resp, struct mgcp_subchannel *sub, struc
 		}
 	}
 	if (mgcpdebug) {
-		ast_verbose("We're at %s port %d\n", inet_ntoa(p->parent->ourip), ntohs(sin.sin_port));	
+		ast_verbose("We're at %s port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->ourip), ntohs(sin.sin_port));	
     }
 	snprintf(v, sizeof(v), "v=0\r\n");
-	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", getpid(), getpid(), inet_ntoa(dest.sin_addr));
+	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", getpid(), getpid(), ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
 	snprintf(s, sizeof(s), "s=session\r\n");
-	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", inet_ntoa(dest.sin_addr));
+	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
 	snprintf(t, sizeof(t), "t=0 0\r\n");
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
 	for (x = 1; x <= AST_FORMAT_MAX_AUDIO; x <<= 1) {
@@ -2195,6 +2169,7 @@ static struct mgcp_request *find_command(struct mgcp_endpoint *p, struct mgcp_su
                                          struct mgcp_request **queue, ast_mutex_t *l, int ident)
 {
     struct mgcp_request *prev, *req;
+	char iabuf[80];
 
     ast_mutex_lock(l);
     for (prev = NULL, req = *queue; req; prev = req, req = req->next) {
@@ -2209,7 +2184,7 @@ static struct mgcp_request *find_command(struct mgcp_endpoint *p, struct mgcp_su
             if (*queue) {
                 if (mgcpdebug) {
                     ast_verbose("Posting Queued Request:\n%s to %s:%d\n", (*queue)->data, 
-                                inet_ntoa(p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
+                                ast_inet_ntoa(iabuf, sizeof(iabuf), p->parent->addr.sin_addr), ntohs(p->parent->addr.sin_port));
                 }
 
                 mgcp_postrequest(p, sub, (*queue)->data, (*queue)->len, (*queue)->trid);
@@ -2823,6 +2798,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 	struct ast_frame f = { 0, };
     struct mgcp_endpoint *p = sub->parent;
     struct mgcp_gateway *g = NULL;
+	char iabuf[80];
     int res;
 	if (mgcpdebug) {
 		ast_verbose("Handling request '%s' on %s@%s\n", req->verb, p->name, p->parent->name);
@@ -3069,7 +3045,7 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 			ast_log(LOG_NOTICE, "Received unknown event '%s' from %s@%s\n", ev, p->name, p->parent->name);
 		}
 	} else {
-		ast_log(LOG_WARNING, "Unknown verb '%s' received from %s\n", req->verb, inet_ntoa(sin->sin_addr));
+		ast_log(LOG_WARNING, "Unknown verb '%s' received from %s\n", req->verb, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 		transmit_response(sub, "510", req, "Unknown verb");
 	}
 	return 0;
@@ -3116,6 +3092,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	int len;
 	int result;
 	int ident;
+	char iabuf[80];
 	len = sizeof(sin);
 	memset(&req, 0, sizeof(req));
 	res = recvfrom(mgcpsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
@@ -3127,7 +3104,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	req.data[res] = '\0';
 	req.len = res;
 	if (mgcpdebug) {
-		ast_verbose("MGCP read: \n%s\nfrom %s:%d", req.data, inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		ast_verbose("MGCP read: \n%s\nfrom %s:%d", req.data, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
     }
 	parse(&req);
 	if (req.headers < 1) {
@@ -3135,7 +3112,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 		return 1;
 	}
 	if (!req.identifier || !strlen(req.identifier)) {
-		ast_log(LOG_NOTICE, "Message from %s missing identifier\n", inet_ntoa(sin.sin_addr));
+		ast_log(LOG_NOTICE, "Message from %s missing identifier\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
 		return 1;
 	}
 
@@ -3884,6 +3861,7 @@ static int reload_config(void)
 	struct ast_variable *v;
 	struct mgcp_gateway *g;
 	struct mgcp_endpoint *e;
+	char iabuf[80];
 	char *cat;
 	struct ast_hostent ahp; struct hostent *hp;
 	int format;
@@ -4014,14 +3992,14 @@ static int reload_config(void)
 	} else {
 		if (bind(mgcpsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 			ast_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
-					inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),
+					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
 						strerror(errno));
 			close(mgcpsock);
 			mgcpsock = -1;
 		} else {
 			if (option_verbose > 1) {
 				ast_verbose(VERBOSE_PREFIX_2 "MGCP Listening on %s:%d\n", 
-					inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
+					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 				ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 			}
 			if (setsockopt(mgcpsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 

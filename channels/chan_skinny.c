@@ -988,13 +988,14 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 	struct skinny_device  *d;
 	struct skinny_line *l;
 	int haslines = 0;
+	char iabuf[80];
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&devicelock);
 	d = devices;
 	while(d) {
 		l = d->lines;
-		ast_cli(fd, "Device '%s' at %s\n", d->name, inet_ntoa(d->addr.sin_addr));
+		ast_cli(fd, "Device '%s' at %s\n", d->name, ast_inet_ntoa(iabuf, sizeof(iabuf), d->addr.sin_addr));
 		while(l) {
 			ast_cli(fd, "   -- '%s@%s in '%s' is %s\n", l->name, d->name, l->context, l->sub->owner ? "active" : "idle");
 			haslines = 1;
@@ -2326,8 +2327,9 @@ static void *skinny_session(void *data)
 	int res;
 	skinny_req *req;
 	struct skinnysession *s = data;
+	char iabuf[80];
 	
-	ast_verbose(VERBOSE_PREFIX_3 "Starting Skinny session from %s\n",  inet_ntoa(s->sin.sin_addr));
+	ast_verbose(VERBOSE_PREFIX_3 "Starting Skinny session from %s\n",  ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
 
 	for (;;) {
 		res = 0;
@@ -2506,6 +2508,7 @@ static int reload_config(void)
 	struct ast_variable *v;
 	int format;
 	char *cat;
+	char iabuf[80];
 	struct skinny_device *d;
 	int oldport = ntohs(bindaddr.sin_port);
 
@@ -2612,7 +2615,7 @@ static int reload_config(void)
 		} else {
 			if (bind(skinnysock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 				ast_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
-						inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),
+						ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
 							strerror(errno));
 				close(skinnysock);
 				skinnysock = -1;
@@ -2622,7 +2625,7 @@ static int reload_config(void)
 
 			if (listen(skinnysock,DEFAULT_SKINNY_BACKLOG)) {
 					ast_log(LOG_WARNING, "Failed to start listening to %s:%d: %s\n",
-						inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port),
+						ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
 							strerror(errno));
 					close(skinnysock);
 					skinnysock = -1;
@@ -2632,7 +2635,7 @@ static int reload_config(void)
 		
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Skinny listening on %s:%d\n", 
-					inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
+					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 
 			pthread_create(&accept_t,NULL, accept_thread, NULL);
 		}

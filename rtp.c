@@ -34,6 +34,7 @@
 #include <asterisk/channel_pvt.h>
 #include <asterisk/config.h>
 #include <asterisk/lock.h>
+#include <asterisk/utils.h>
 
 #define RTP_MTU		1200
 
@@ -170,15 +171,16 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 {
 	struct timeval tv;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
+	char iabuf[80];
 	gettimeofday(&tv, NULL);
 	if ((tv.tv_sec < rtp->dtmfmute.tv_sec) ||
 	    ((tv.tv_sec == rtp->dtmfmute.tv_sec) && (tv.tv_usec < rtp->dtmfmute.tv_usec))) {
-		ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", inet_ntoa(rtp->them.sin_addr));
+		ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 		rtp->resp = 0;
 		rtp->dtmfduration = 0;
 		return &null_frame;
 	}
-	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, inet_ntoa(rtp->them.sin_addr));
+	ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 	rtp->f.frametype = AST_FRAME_DTMF;
 	rtp->f.subclass = rtp->resp;
 	rtp->f.datalen = 0;
@@ -333,6 +335,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	int res;
 	struct sockaddr_in sin;
 	unsigned int rtcpdata[1024];
+	char iabuf[80];
 	
 	if (!rtp->rtcp)
 		return &null_frame;
@@ -359,7 +362,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
-			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", inet_ntoa(rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
 	if (option_debug)
@@ -397,6 +400,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int payloadtype;
 	int hdrlen = 12;
 	int mark;
+	char iabuf[80];
 	unsigned int timestamp;
 	unsigned int *rtpheader;
 	static struct ast_frame *f, null_frame = { AST_FRAME_NULL, };
@@ -434,7 +438,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		if ((rtp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 		    (rtp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
-			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 		}
 	}
 
@@ -446,7 +450,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	timestamp = ntohl(rtpheader[1]);
 
 #if 0
-	printf("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len = %d)\n", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
+	printf("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len = %d)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 #endif	
 	rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
@@ -937,6 +941,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	int ms;
 	int x;
 	char data[256];
+	char iabuf[80];
 
 	if ((digit <= '9') && (digit >= '0'))
 		digit -= '0';
@@ -979,9 +984,9 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 			if (res <0) 
-				ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+				ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 	#if 0
-		printf("Sent %d bytes of RTP data to %s:%d\n", res, inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+		printf("Sent %d bytes of RTP data to %s:%d\n", res, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 	#endif		
 		}
 		if (x ==0) {
@@ -999,6 +1004,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec)
 {
 	unsigned int *rtpheader;
+	char iabuf[80];
 	int hdrlen = 12;
 	int res;
 	int ms;
@@ -1078,9 +1084,9 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) 
-			ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+			ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
 #if 0
-		printf("Sent %d bytes of RTP data to %s:%d\n", res, inet_ntoa(rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+		printf("Sent %d bytes of RTP data to %s:%d\n", res, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 #endif		
 	}
 	return 0;
@@ -1273,6 +1279,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	struct sockaddr_in vac0, vac1;
 	struct sockaddr_in t0, t1;
 	struct sockaddr_in vt0, vt1;
+	char iabuf[80];
 	
 	void *pvt0, *pvt1;
 	int to;
@@ -1389,13 +1396,13 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			ast_rtp_get_peer(vp0, &vt0);
 		if (inaddrcmp(&t1, &ac1) || (vp1 && inaddrcmp(&vt1, &vac1)) || (codec1 != oldcodec1)) {
 			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
-				c1->name, inet_ntoa(t1.sin_addr), ntohs(t1.sin_port), codec1);
+				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port), codec1);
 			ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
-				c1->name, inet_ntoa(vt1.sin_addr), ntohs(vt1.sin_port), codec1);
+				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vt1.sin_addr), ntohs(vt1.sin_port), codec1);
 			ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
-				c1->name, inet_ntoa(ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
+				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
 			ast_log(LOG_DEBUG, "Oooh, '%s' wasv %s:%d/(format %d)\n", 
-				c1->name, inet_ntoa(vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
+				c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
 			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1)) 
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
@@ -1404,9 +1411,9 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		}
 		if (inaddrcmp(&t0, &ac0) || (vp0 && inaddrcmp(&vt0, &vac0))) {
 			ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
-				c0->name, inet_ntoa(t0.sin_addr), ntohs(t0.sin_port), codec0);
+				c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port), codec0);
 			ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
-				c0->name, inet_ntoa(ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
+				c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
 			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));

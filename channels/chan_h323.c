@@ -918,7 +918,7 @@ struct oh323_alias *find_alias(const char *source_aliases)
 struct oh323_user *find_user(const call_details_t cd)
 {
 	struct oh323_user *u;
-
+	char iabuf[80];
 	u = userl.users;
 	if(userbyalias == 1){
 		while(u) {
@@ -930,7 +930,7 @@ struct oh323_user *find_user(const call_details_t cd)
 
 	} else {
 		while(u) {
-			if (!strcasecmp(cd.sourceIp, inet_ntoa(u->addr.sin_addr))) {
+			if (!strcasecmp(cd.sourceIp, ast_inet_ntoa(iabuf, sizeof(iabuf), u->addr.sin_addr))) {
 				break;
 			}
 			u = u->next;
@@ -998,6 +998,12 @@ struct rtp_info *create_connection(unsigned call_reference)
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 	struct rtp_info *info;
+	char iabuf[80];
+	/* XXX This is sooooo bugus.  inet_ntoa is not reentrant
+	   but this function wants to return a static variable so
+	   the only way to do this will be to declare iabuf within
+	   the oh323_pvt structure XXX */
+	static char iabuf[80];
 
 	info = (struct rtp_info *) malloc(sizeof(struct rtp_info));
 
@@ -1012,7 +1018,7 @@ struct rtp_info *create_connection(unsigned call_reference)
 	ast_rtp_get_us(p->rtp, &us);
 	ast_rtp_get_peer(p->rtp, &them);
 
-	info->addr = inet_ntoa(us.sin_addr);
+	info->addr = ast_inet_ntoa(iabuf, sizeof(iabuf), us.sin_addr);
 	info->port = ntohs(us.sin_port);
 
 	return info;
@@ -1031,6 +1037,7 @@ int setup_incoming_call(call_details_t cd)
 /*	struct ast_channel *c = NULL; */
 	struct oh323_user *user = NULL;
 	struct oh323_alias *alias = NULL;
+	char iabuf[80];
 
 	/* allocate the call*/
 	p = oh323_alloc(cd.call_reference);
@@ -1094,7 +1101,7 @@ int setup_incoming_call(call_details_t cd)
 			ast_log(LOG_DEBUG, "Sending %s to context [%s]\n", cd.call_source_aliases, p->context);
 		} else {					
 			if (user->host) {
-				if (strcasecmp(cd.sourceIp, inet_ntoa(user->addr.sin_addr))){					
+				if (strcasecmp(cd.sourceIp, ast_inet_ntoa(iabuf, sizeof(iabuf), user->addr.sin_addr))){					
 					if (ast_strlen_zero(user->context)) {
 						if (ast_strlen_zero(default_context)) {					
 							ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s) and no default context\n", user->name, cd.sourceIp);
@@ -1833,6 +1840,7 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 	struct sockaddr_in them;
 	struct sockaddr_in us;
 	char *mode;
+	char iabuf[80];
 
 	mode = convertcap(chan->writeformat); 
 
@@ -1849,7 +1857,7 @@ static int oh323_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, str
 	ast_rtp_get_peer(rtp, &them);	
 	ast_rtp_get_us(rtp, &us);
 
-	h323_native_bridge(p->cd.call_token, inet_ntoa(them.sin_addr), mode);
+	h323_native_bridge(p->cd.call_token, ast_inet_ntoa(iabuf, sizeof(iabuf), them.sin_addr), mode);
 	
 	return 0;
 	

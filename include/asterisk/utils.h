@@ -29,6 +29,9 @@ extern int ast_base64encode(char *dst, unsigned char *src, int srclen, int max);
 extern int ast_base64decode(unsigned char *dst, char *src, int max);
 
 extern int test_for_thread_safety(void);
+extern const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 extern int ast_utils_init(void);
+
+#define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
 
 #endif

@@ -16,6 +16,7 @@
 #include <string.h>
 #include <netinet/in.h>
 #include <asterisk/frame.h>
+#include <asterisk/utils.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -44,9 +45,10 @@ static void (*errorf)(const char *str) = internalerror;
 static void dump_addr(char *output, int maxlen, void *value, int len)
 {
 	struct sockaddr_in sin;
+	char iabuf[80];
 	if (len == (int)sizeof(sin)) {
 		memcpy(&sin, value, len);
-		snprintf(output, maxlen, "IPV4 %s:%d", inet_ntoa(sin.sin_addr), ntohs(sin.sin_port));
+		snprintf(output, maxlen, "IPV4 %s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 	} else {
 		snprintf(output, maxlen, "Invalid Address");
 	}
@@ -252,6 +254,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 	char *class;
 	char *subclass;
 	char tmp[256];
+	char iabuf[80];
 	if (f) {
 		fh = f->data;
 		snprintf(retries, (int)sizeof(retries), "%03d", f->retries);
@@ -302,7 +305,7 @@ snprintf(tmp, (int)sizeof(tmp),
 "   Timestamp: %05lums  SCall: %5.5d  DCall: %5.5d [%s:%d]\n",
 	(unsigned long)ntohl(fh->ts),
 	ntohs(fh->scallno) & ~IAX_FLAG_FULL, ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS,
-		inet_ntoa(sin->sin_addr), ntohs(sin->sin_port));
+		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 	outputf(tmp);
 	if (fh->type == AST_FRAME_IAX)
 		dump_ies(fh->iedata, datalen);

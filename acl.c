@@ -170,8 +170,10 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 	/* Start optimistic */
 	int res = AST_SENSE_ALLOW;
 	while(ha) {
+		char tmp[80];
+		char tmp2[80];
 		/* DEBUG */
-		ast_log(LOG_DEBUG, "##### Testing %s with %s\n",inet_ntoa(sin->sin_addr), inet_ntoa(ha->netaddr) );
+		ast_log(LOG_DEBUG, "##### Testing %s with %s\n",ast_inet_ntoa(tmp, sizeof(tmp), sin->sin_addr), ast_inet_ntoa(tmp2, sizeof(tmp2), ha->netaddr));
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
 		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == (ha->netaddr.s_addr))
@@ -226,11 +228,13 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 		struct	rt_msghdr m_rtm;
 		char	m_space[512];
 	} m_rtmsg;
-	char *cp, *p = ast_strdupa(inet_ntoa(*them));
+	char tmp[80];
+	char *cp, *p;
 	int i, l, s, seq, flags;
 	pid_t pid = getpid();
 	static int routeseq;	/* Protected by "routeseq_lock" mutex */
 
+	p = ast_strdupa(ast_inet_ntoa(tmp, sizeof(tmp), *them))
 	memset(us, 0, sizeof(struct in_addr));
 
 	memset(&m_rtmsg, 0, sizeof(m_rtmsg));
@@ -293,7 +297,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 				if (i == RTA_IFA && sa->sa_family == AF_INET) {
 					sin = (struct sockaddr_in *)sa;
 					*us = sin->sin_addr;
-					ast_log(LOG_DEBUG, "Found route to %s, output from our address %s.\n", p, inet_ntoa(*us));
+					ast_log(LOG_DEBUG, "Found route to %s, output from our address %s.\n", p, ast_inet_ntoa(tmp, sizeof(tmp), *us));
 					return 0;
 				}
 				cp += sa->sa_len > 0 ?
@@ -350,7 +354,8 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 			sscanf(fields[2],"%x",&gateway);
 			sscanf(fields[7],"%x",&mask);
 #if 0
-			printf("Addr: %s %08x Dest: %08x Mask: %08x\n", inet_ntoa(*them), remote_ip, dest, mask);
+			{ char tmp[80]; 
+			printf("Addr: %s %08x Dest: %08x Mask: %08x\n", ast_inet_ntoa(tmp, sizeof(tmp), *them), remote_ip, dest, mask); }
 #endif		
 			/* Looks simple, but here is the magic */
 			if (((remote_ip & mask) ^ dest) == 0) {
