@@ -229,6 +229,7 @@ struct ast_call_queue {
 	int eventwhencalled;			/* Generate an event when the agent is called (before pickup) */
 	int leavewhenempty;		/* If all agents leave the queue, remove callers from the queue */
 	int reportholdtime;		/* Should we report caller hold time to member? */
+	int memberdelay;		/* Seconds to delay connecting member to caller */
 
 	struct member *members;		/* Member channels to be tried */
 	struct queue_ent *head;		/* Start of the actual queue */
@@ -1162,15 +1163,19 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		member = lpeer->member;
 		hanguptree(outgoing, peer);
 		outgoing = NULL;
-		if (announce || qe->parent->reportholdtime) {
+		if (announce || qe->parent->reportholdtime || qe->parent->memberdelay) {
 			int res2;
 			res2 = ast_autoservice_start(qe->chan);
 			if (!res2) {
-				if (announce) {
+				if (qe->parent->memberdelay) {
+					ast_log(LOG_NOTICE, "Delaying member connect for %d seconds\n", qe->parent->memberdelay);
+					res2 |= ast_safe_sleep(peer, qe->parent->memberdelay * 1000);
+				}
+				if (!res2 && announce) {
 					if (play_file(peer, announce))
 						ast_log(LOG_WARNING, "Announcement file '%s' is unavailable, continuing anyway...\n", announce);
 				}
-				if (qe->parent->reportholdtime) {
+				if (!res2 && qe->parent->reportholdtime) {
 					if (!play_file(peer, qe->parent->sound_reporthold)) {
 						int holdtime;
 						time_t now;
@@ -1916,6 +1921,8 @@ static void reload_queues(void)
 						q->eventwhencalled = ast_true(var->value);
 					} else if (!strcasecmp(var->name, "reportholdtime")) {
 						q->reportholdtime = ast_true(var->value);
+					} else if (!strcasecmp(var->name, "memberdelay")) {
+						q->memberdelay = atoi(var->value);
 					} else {
 						ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queue.conf\n", cat, var->name, var->lineno);
 					}
