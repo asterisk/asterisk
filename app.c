@@ -1208,3 +1208,180 @@ int ast_record_review(struct ast_channel *chan, const char *playfile, const char
 		cmd = 0;
 	return cmd;
 }
+
+#define RES_UPONE (1 << 16)
+#define RES_EXIT  (1 << 17)
+#define RES_REPEAT (1 << 18)
+#define RES_RESTART ((1 << 19) | RES_REPEAT)
+
+static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_menu *menu, void *cbdata);
+static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option, char *exten, void *cbdata)
+{
+	int res;
+	switch(option->action) {
+	case AST_ACTION_UPONE:
+		return RES_UPONE;
+	case AST_ACTION_EXIT:
+		return RES_EXIT | (((unsigned long)(option->adata)) & 0xffff);
+	case AST_ACTION_REPEAT:
+		return RES_REPEAT | (((unsigned long)(option->adata)) & 0xffff);
+	case AST_ACTION_RESTART:
+		return RES_RESTART ;
+	case AST_ACTION_NOOP:
+		return 0;
+	case AST_ACTION_BACKGROUND:
+		res = ast_streamfile(chan, (char *)option->adata, chan->language);
+		if (!res) {
+			res = ast_waitstream(chan, AST_DIGIT_ANY);
+		} else {
+			ast_log(LOG_NOTICE, "Unable to find file '%s'!\n", (char *)option->adata);
+			res = 0;
+		}
+		return res;
+	case AST_ACTION_PLAYBACK:
+		res = ast_streamfile(chan, (char *)option->adata, chan->language);
+		if (!res) {
+			res = ast_waitstream(chan, "");
+		} else {
+			ast_log(LOG_NOTICE, "Unable to find file '%s'!\n", (char *)option->adata);
+			res = 0;
+		}
+		return res;
+	case AST_ACTION_MENU:
+		res = ast_ivr_menu_run_internal(chan, (struct ast_ivr_menu *)option->adata, cbdata);
+		return res;
+	case AST_ACTION_CALLBACK:
+	case AST_ACTION_PLAYLIST:
+	case AST_ACTION_TRANSFER:
+	case AST_ACTION_WAITOPTION:
+		ast_log(LOG_NOTICE, "Unimplemented dispatch function %d, ignoring!\n", option->action);
+		return 0;
+	default:
+		ast_log(LOG_NOTICE, "Unknown dispatch function %d, ignoring!\n", option->action);
+		return 0;
+	};
+	return -1;
+}
+
+static int option_exists(struct ast_ivr_menu *menu, char *option)
+{
+	int x;
+	for (x=0;menu->options[x].option;x++)
+		if (!strcasecmp(menu->options[x].option, option))
+			return x;
+	return -1;
+}
+
+static int option_matchmore(struct ast_ivr_menu *menu, char *option)
+{
+	int x;
+	for (x=0;menu->options[x].option;x++)
+		if ((!strncasecmp(menu->options[x].option, option, strlen(option))) && 
+				(menu->options[x].option[strlen(option)]))
+			return x;
+	return -1;
+}
+
+static int read_newoption(struct ast_channel *chan, struct ast_ivr_menu *menu, char *exten, int maxexten)
+{
+	int res=0;
+	int ms;
+	while(option_matchmore(menu, exten)) {
+		ms = chan->pbx ? chan->pbx->dtimeout : 5000;
+		if (strlen(exten) >= maxexten - 1) 
+			break;
+		res = ast_waitfordigit(chan, ms);
+		if (res < 1)
+			break;
+		exten[strlen(exten) + 1] = '\0';
+		exten[strlen(exten)] = res;
+	}
+	return res > 0 ? 0 : res;
+}
+
+static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_menu *menu, void *cbdata)
+{
+	/* Execute an IVR menu structure */
+	int res=0;
+	int pos = 0;
+	int retries = 0;
+	char exten[AST_MAX_EXTENSION] = "s";
+	if (option_exists(menu, "s") < 0) {
+		strcpy(exten, "g");
+		if (option_exists(menu, "g") < 0) {
+			ast_log(LOG_WARNING, "No 's' nor 'g' extension in menu '%s'!\n", menu->title);
+			return -1;
+		}
+	}
+	while(!res) {
+		while(menu->options[pos].option) {
+			if (!strcasecmp(menu->options[pos].option, exten)) {
+				res = ivr_dispatch(chan, menu->options + pos, exten, cbdata);
+				if (res < 0)
+					break;
+				else if (res & RES_UPONE)
+					return 0;
+				else if (res & RES_EXIT)
+					return res;
+				else if (res & RES_REPEAT) {
+					int maxretries = res & 0xffff;
+					if (res & RES_RESTART)
+						retries = 0;
+					else
+						retries++;
+					if (!maxretries)
+						maxretries = 3;
+					if ((maxretries > 0) && (retries >= maxretries))
+						return -2;
+					else {
+						if (option_exists(menu, "g") > -1) 
+							strcpy(exten, "g");
+						else if (option_exists(menu, "s") > -1)
+							strcpy(exten, "s");
+					}
+					pos=0;
+				} else if (res && strchr(AST_DIGIT_ANY, res)) {
+					ast_log(LOG_DEBUG, "Got start of extension, %c\n", res);
+					exten[1] = '\0';
+					exten[0] = res;
+					if ((res = read_newoption(chan, menu, exten, sizeof(exten))))
+						break;
+					if (!option_exists(menu, exten)) {
+						if (option_exists(menu, "i")) {
+							strcpy(exten, "i");
+							pos = 0;
+							continue;
+						} else {
+							ast_log(LOG_DEBUG, "Aborting on invalid entry, with no 'i' option!\n");
+							res = -2;
+							break;
+						}
+					} else {
+						pos = 0;
+						continue;
+					}
+				}
+			}
+			pos++;
+		}
+		ast_log(LOG_DEBUG, "Stopping option '%s', res is %d\n", exten, res);
+		pos = 0;
+		if (!strcasecmp(exten, "s"))
+			strcpy(exten, "g");
+		else if (strcasecmp(exten, "t"))
+			strcpy(exten, "t");
+		else
+			break;
+	}
+	return res;
+}
+
+int ast_ivr_menu_run(struct ast_channel *chan, struct ast_ivr_menu *menu, void *cbdata)
+{
+	int res;
+	res = ast_ivr_menu_run_internal(chan, menu, cbdata);
+	/* Hide internal coding */
+	if (res > 0)
+		res = 0;
+	return res;
+}

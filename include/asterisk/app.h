@@ -18,6 +18,53 @@
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
+
+/* IVR stuff */
+
+/* Callback function for IVR, returns 0 on completion, -1 on hangup or digit if
+   interrupted */
+typedef int (*ast_ivr_callback)(struct ast_channel *chan, char *option, void *cbdata);
+
+typedef enum {
+	AST_ACTION_UPONE,		/* adata is unused */
+	AST_ACTION_EXIT,		/* adata is the return value for ast_ivr_menu_run if channel was not hungup */
+	AST_ACTION_CALLBACK,	/* adata is an ast_ivr_callback */
+	AST_ACTION_PLAYBACK,	/* adata is file to play */
+	AST_ACTION_BACKGROUND,	/* adata is file to play */
+	AST_ACTION_PLAYLIST,	/* adata is list of files, separated by ; to play */
+	AST_ACTION_MENU,		/* adata is a pointer to an ast_ivr_menu */
+	AST_ACTION_REPEAT,		/* adata is max # of repeats, cast to a pointer */
+	AST_ACTION_RESTART,		/* adata is like repeat, but resets repeats to 0 */
+	AST_ACTION_TRANSFER,	/* adata is a string with exten[@context] */
+	AST_ACTION_WAITOPTION,	/* adata is a timeout, or 0 for defaults */
+	AST_ACTION_NOOP,		/* adata is unused */
+} ast_ivr_action;
+
+struct ast_ivr_option {
+	char *option;
+	ast_ivr_action action;
+	void *adata;	
+};
+
+/* 
+    Special "options" are: 
+   "s" - "start here (one time greeting)"
+   "g" - "greeting/instructions"
+   "t" - "timeout"
+   "h" - "hangup"
+   "i" - "invalid selection"
+
+*/
+
+struct ast_ivr_menu {
+	char *title;		/* Title of menu */
+	unsigned int flags;	/* Flags */
+	struct ast_ivr_option options[];	/* All options */
+};
+
+/*! Runs an IVR menu, returns 0 on successful completion, -1 on hangup, or -2 on user error in menu */
+extern int ast_ivr_menu_run(struct ast_channel *c, struct ast_ivr_menu *menu, void *cbdata);
+
 /*! Plays a stream and gets DTMF data from a channel */
 /*!
  * \param c Which channel one is interacting with
