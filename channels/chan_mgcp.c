@@ -2334,13 +2334,13 @@ static void handle_response(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
             if (p->sub->next->owner) {
                 ast_log(LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
                         result, p->name, p->parent->name, sub ? sub->id:-1);
-                mgcp_queue_hangup(sub);
+                mgcp_queue_hangup(p->sub);
             }
 
             if (p->sub->owner) {
                 ast_log(LOG_NOTICE, "Terminating on result %d from %s@%s-%d\n", 
                         result, p->name, p->parent->name, sub ? sub->id:-1);
-                mgcp_queue_hangup(sub);
+                mgcp_queue_hangup(p->sub);
             }
 
             dump_cmd_queues(p, NULL);
