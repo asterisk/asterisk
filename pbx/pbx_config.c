@@ -995,13 +995,26 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 							context_header_written = 1;
 						}
 
-						if (ast_get_extension_priority(p)!=PRIORITY_HINT)
-							fprintf(output, "exten => %s,%d,%s,%s\n",
+						if (ast_get_extension_priority(p)!=PRIORITY_HINT) {
+							char *tempdata = NULL, *startdata;
+							tempdata = strdup((char *)ast_get_extension_app_data(p));
+							if (tempdata) {
+								startdata = tempdata;
+								while (*tempdata) {
+									if (*tempdata == '|')
+										*tempdata = ',';
+									tempdata++;
+								}
+								tempdata = startdata;
+							}
+							fprintf(output, "exten => %s,%d,%s(%s)\n",
 							    ast_get_extension_name(p),
 							    ast_get_extension_priority(p),
 							    ast_get_extension_app(p),
-							    (char *)ast_get_extension_app_data(p));
-						else
+							    tempdata);
+							if (tempdata)
+								free(tempdata);
+						} else
 							fprintf(output, "exten => %s,hint,%s\n",
 							    ast_get_extension_name(p),
 							    ast_get_extension_app(p));
