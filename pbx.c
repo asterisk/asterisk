@@ -2822,11 +2822,6 @@ static void get_timerange(struct ast_include *i, char *times)
 
 	//[PHM 07/01/03]
 	//start disabling all times, fill the fields with 0's, as they may contain garbage
-#if 0
-	for(x=0;x<24;x++)
-		i->minmask[x]=0;
-#endif
-	/* this is nicer */
 	memset(i->minmask, 0, sizeof(i->minmask));
 	
 	/* Star is all times */
@@ -2867,14 +2862,13 @@ static void get_timerange(struct ast_include *i, char *times)
 		return;
 	}
 	/* Go through the time and enable each appropriate bit */
-	for (x=s1;x <= e1;x = (x + 1) % (24 * 30)) {
+	for (x=s1;x != e1;x = (x + 1) % (24 * 30)) {
 		i->minmask[x/30] |= (1 << (x % 30));
 	}
-#if 0
 	/* Do the last one */
 	i->minmask[x/30] |= (1 << (x % 30));
 	/* All done */
-#endif
+	return;
 }
 
 static char *days[] =
