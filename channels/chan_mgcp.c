@@ -45,8 +45,15 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/signal.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+
 #include <asterisk/dsp.h>
 #include <ctype.h>
+
+#ifndef IPTOS_MINCOST
+#define IPTOS_MINCOST 0x02
+#endif
 
 #define MGCPDUMPER
 #define DEFAULT_EXPIREY 120
@@ -99,6 +106,8 @@ static unsigned int cur_pickupgroup = 0;
 /*     Doesn't look like the dsp stuff for */
 /*     inbanddtmf is actually hooked up.   */
 /* static int relaxdtmf = 0; */
+
+static int tos = 0;
 
 static int immediate = 0;
 
@@ -2890,6 +2899,21 @@ int load_module()
 				ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
 			else
 				capability &= ~format;
+		} else if (!strcasecmp(v->name, "tos")) {
+			if (sscanf(v->value, "%i", &format) == 1)
+				tos = format & 0xff;
+			else if (!strcasecmp(v->value, "lowdelay"))
+				tos = IPTOS_LOWDELAY;
+			else if (!strcasecmp(v->value, "throughput"))
+				tos = IPTOS_THROUGHPUT;
+			else if (!strcasecmp(v->value, "reliability"))
+				tos = IPTOS_RELIABILITY;
+			else if (!strcasecmp(v->value, "mincost"))
+				tos = IPTOS_MINCOST;
+			else if (!strcasecmp(v->value, "none"))
+				tos = 0;
+			else
+				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "port")) {
 			if (sscanf(v->value, "%i", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
@@ -2943,9 +2967,14 @@ int load_module()
 						strerror(errno));
 			close(mgcpsock);
 			mgcpsock = -1;
-		} else if (option_verbose > 1) {
-			ast_verbose(VERBOSE_PREFIX_2 "MGCP Listening on %s:%d\n", 
-				inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
+		} else {
+			if (option_verbose > 1) {
+				ast_verbose(VERBOSE_PREFIX_2 "MGCP Listening on %s:%d\n", 
+					inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
+				ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
+			}
+			if (setsockopt(mgcpsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
+				ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
         }
 	}
 	pthread_mutex_unlock(&netlock);

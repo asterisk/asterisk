@@ -5654,15 +5654,14 @@ static int reload_config(void)
 							strerror(errno));
 				close(sipsock);
 				sipsock = -1;
-			} else if (option_verbose > 1) {
-				ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
+			} else {
+				if (option_verbose > 1) { 
+						ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
 					inet_ntoa(bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-				if (option_verbose > 1)
 					ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
-
+				}
 				if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
 					ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
-	
 			}
 		}
 	}
