@@ -27,6 +27,7 @@
 #include <asterisk/dsp.h>
 #include <asterisk/callerid.h>
 #include <asterisk/ulaw.h>
+#include <asterisk/pbx.h>
 
 #define STATE_COMMAND 	0
 #define STATE_VOICE 	1
@@ -105,7 +106,7 @@ static int i4l_startrec(struct ast_modem_pvt *p)
 			p->dsp = ast_dsp_new();
 			if (p->dsp) {
 				ast_log(LOG_DEBUG, "Detecting DTMF inband with sw DSP on %s\n",p->dev);
-				ast_dsp_set_features(p->dsp, DSP_FEATURE_DTMF_DETECT);
+				ast_dsp_set_features(p->dsp, DSP_FEATURE_DTMF_DETECT|DSP_FEATURE_FAX_DETECT);
 				ast_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | 0);
 			}
 		}
@@ -451,6 +452,29 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 			f = ast_dsp_process(p->owner, p->dsp, &p->fr);
 			if (f && (f->frametype == AST_FRAME_DTMF)) {
 				ast_log(LOG_DEBUG, "Detected inband DTMF digit: %c on %s\n", f->subclass, p->dev);
+				if (f->subclass == 'f') {
+					/* Fax tone -- Handle and return NULL */
+					struct ast_channel *ast = p->owner;
+					if (!p->faxhandled) {
+						p->faxhandled++;
+						if (strcmp(ast->exten, "fax")) {
+							if (ast_exists_extension(ast, ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext, "fax", 1, ast->cid.cid_num)) {
+								if (option_verbose > 2)
+									ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
+								/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
+								pbx_builtin_setvar_helper(ast,"FAXEXTEN",ast->exten);
+								if (ast_async_goto(ast, ast->context, "fax", 1))
+									ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, ast->context);
+							} else
+								ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
+						} else
+							ast_log(LOG_DEBUG, "Already in a fax extension, not redirecting\n");
+					} else
+						ast_log(LOG_DEBUG, "Fax already handled\n");
+					p->fr.frametype = AST_FRAME_NULL;
+					p->fr.subclass = 0;
+					f = &p->fr;
+				}
 				return f;
 			}
 		}
@@ -553,7 +577,7 @@ static int i4l_answer(struct ast_modem_pvt *p)
 			p->dsp = ast_dsp_new();
 			if (p->dsp) {
 				ast_log(LOG_DEBUG, "Detecting DTMF inband with sw DSP on %s\n",p->dev);
-				ast_dsp_set_features(p->dsp, DSP_FEATURE_DTMF_DETECT);
+				ast_dsp_set_features(p->dsp, DSP_FEATURE_DTMF_DETECT|DSP_FEATURE_FAX_DETECT);
 				ast_dsp_digitmode(p->dsp, DSP_DIGITMODE_DTMF | 0);
 			}
 		}

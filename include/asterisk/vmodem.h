@@ -100,6 +100,8 @@ struct ast_modem_pvt {
 	int escape;					
 	/*! flag to say if has caller*id yet*/
 	int gotclid;				
+	/* Has a fax tone already been handled? */
+	int faxhandled;
 	/*! ringer timeout */
 	int ringt;				
 	/*! actual time of last ring */
