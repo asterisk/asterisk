@@ -146,6 +146,12 @@ persistentmembers = yes
 ;
 ; memberdelay = 0
 ;
+; If timeoutrestart is set to yes, then the timeout for an agent to answer is
+; reset if a BUSY or CONGESTION is received.  This can be useful if agents
+; are able to cancel a call with reject or similar.
+;
+; timeoutrestart = no
+;
 ; Each member of this call queue is listed on a separate line in
 ; the form technology/dialstring.  "member" means a normal member of a
 ; queue.  An optional penalty may be specified after a comma, such that

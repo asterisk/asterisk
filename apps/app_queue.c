@@ -196,6 +196,7 @@ static int use_weight = 0;
 #define QUEUE_FLAG_LEAVEWHENEMPTY	(1 << 11)	/* If all agents leave the queue, remove callers from the queue */
 #define QUEUE_FLAG_REPORTHOLDTIME	(1 << 12)	/* Should we report caller hold time to answering member? */
 #define QUEUE_FLAG_WRAPPED		(1 << 13)	/* Round Robin - wrapped around? */
+#define QUEUE_FLAG_TIMEOUTRESTART 	(1 << 14)	/* Restart timer when member call  */
 
 /* We define a custom "local user" structure because we
    use it not only for keeping track of what is in use but
@@ -1165,8 +1166,11 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 								ast_cdr_busy(in->cdr);
 							ast_hangup(o->chan);
 							o->chan = NULL;
-							if (qe->parent->strategy)
+							if (qe->parent->strategy) {
+								if (ast_test_flag(qe->parent, QUEUE_FLAG_TIMEOUTRESTART))
+									*to = orig;
 								ring_one(qe, outgoing, &numbusies);
+							}
 							numbusies++;
 							break;
 						case AST_CONTROL_CONGESTION:
@@ -1177,8 +1181,11 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 								ast_cdr_busy(in->cdr);
 							ast_hangup(o->chan);
 							o->chan = NULL;
-							if (qe->parent->strategy)
+							if (qe->parent->strategy) {
+								if (ast_test_flag(qe->parent, QUEUE_FLAG_TIMEOUTRESTART))
+									*to = orig;
 								ring_one(qe, outgoing, &numbusies);
+							}
 							numbusies++;
 							break;
 						case AST_CONTROL_RINGING:
@@ -1203,8 +1210,11 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					o->stillgoing = 0;
 					ast_hangup(o->chan);
 					o->chan = NULL;
-					if (qe->parent->strategy)
+					if (qe->parent->strategy) {
+						if (ast_test_flag(qe->parent, QUEUE_FLAG_TIMEOUTRESTART))
+							*to = orig;
 						ring_one(qe, outgoing, &numbusies);
+					}
 				}
 			}
 			o = o->next;
@@ -2598,6 +2608,8 @@ static void reload_queues(void)
 						q->weight = atoi(var->value);
 						if (q->weight)
 							use_weight++;
+					} else if (!strcasecmp(var->name, "timeoutrestart")) {
+						ast_set2_flag(q, ast_true(var->value), QUEUE_FLAG_TIMEOUTRESTART);
 					} else {
 						ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queue.conf\n", cat, var->name, var->lineno);
 					}
