@@ -853,6 +853,7 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
 int h323_set_capability(int cap, int dtmfMode)
 {
 	H323Capabilities oldcaps;
+	PStringArray codecs;
 	int g711Frames = 30;
 	int gsmFrames  = 4;
 
@@ -863,7 +864,10 @@ int h323_set_capability(int cap, int dtmfMode)
 
 	/* clean up old capabilities list before changing */
 	oldcaps = endPoint->GetCapabilities();
-	oldcaps.RemoveAll();
+	for (PINDEX i=0; i< oldcaps.GetSize(); i++) {
+                 codecs.AppendString(oldcaps[i].GetFormatName());
+         }
+         endPoint->RemoveCapabilities(codecs);
 
 	mode = dtmfMode;
 	if (dtmfMode == H323_DTMF_INBAND) {
