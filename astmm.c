@@ -32,6 +32,7 @@
 #define FUNC_REALLOC	3
 #define FUNC_STRDUP		4
 #define FUNC_STRNDUP	5
+#define FUNC_VASPRINTF	6
 
 /* Undefine all our macros */
 #undef malloc
@@ -40,6 +41,7 @@
 #undef strdup
 #undef strndup
 #undef free
+#undef vasprintf
 
 static FILE *mmlog;
 
@@ -215,6 +217,24 @@ char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const
 	if (ptr)
 		strcpy(ptr, s);
 	return ptr;
+}
+
+int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func) 
+{
+	int n, size = strlen(fmt) + 1;
+	if ((*strp = __ast_alloc_region(size, FUNC_VASPRINTF, file, lineno, func)) == NULL)
+		return -1; 
+	for (;;) {
+		n = vsnprintf(*strp, size, fmt, ap);
+		if (n > -1 && n < size)
+			return n;
+		if (n > -1)	/* glibc 2.1 */
+			size = n+1;
+		else		/* glibc 2.0 */
+			size *= 2;
+		if ((*strp = __ast_realloc(*strp, size, file, lineno, func)) == NULL)
+			return -1;
+	}
 }
 
 static int handle_show_memory(int fd, int argc, char *argv[])
