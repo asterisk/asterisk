@@ -620,6 +620,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 				if (vmlen < 20)
 					vmlen = 100;
 				passdata = alloca(vmlen);
+				bzero( passdata, vmlen );
 				pbx_builtin_setvar_helper(ast, "VM_NAME", name);
 				pbx_builtin_setvar_helper(ast, "VM_DUR", dur);
 				sprintf(passdata,"%d",msgnum);
