@@ -881,6 +881,9 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
         } else if (c && !strcmp(var, "ACCOUNTCODE")) {
           strncpy(workspace, c->accountcode, workspacelen - 1);
           *ret = workspace;
+        } else if (c && !strcmp(var, "LANGUAGE")) {
+          strncpy(workspace, c->language, workspacelen - 1);
+          *ret = workspace;
 	} else {
 		if (c) {
 			AST_LIST_TRAVERSE(headp,variables,entries) {
