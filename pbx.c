@@ -2679,7 +2679,9 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 {
 	struct ast_app *a;
 	int like=0, describing=0;
-
+	int total_match = 0; 	/* Number of matches in like clause */
+	int total_apps = 0; 	/* Number of apps registered */
+	
 	/* try to lock applications list ... */
 	if (ast_mutex_lock(&applock)) {
 		ast_log(LOG_ERROR, "Unable to lock application list\n");
@@ -2711,10 +2713,11 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 	for (a = apps; a; a = a->next) {
 		/* ... show informations about applications ... */
 		int printapp=0;
-
+		total_apps++;
 		if (like) {
 			if (ast_strcasestr(a->name, argv[3])) {
 				printapp = 1;
+				total_match++;
 			}
 		} else if (describing) {
 			if (a->description) {
@@ -2724,6 +2727,8 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 				for (i=3;i<argc;i++) {
 					if (! ast_strcasestr(a->description, argv[i])) {
 						printapp = 0;
+					} else {
+						total_match++;
 					}
 				}
 			}
@@ -2735,7 +2740,12 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 			ast_cli(fd,"  %20s: %s\n", a->name, a->synopsis ? a->synopsis : "<Synopsis not available>");
 		}
 	}
-
+        if ((!like) && (!describing)) {
+		ast_cli(fd, "    -= %d Applications Registered =-\n",total_apps);
+	} else {
+		ast_cli(fd, "    -= %d Applications Matching =-\n",total_match);
+	}
+	
 	/* ... unlock and return */
 	ast_mutex_unlock(&applock);
 
