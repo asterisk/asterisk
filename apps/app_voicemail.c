@@ -761,7 +761,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *m
 
 			fprintf(p, "--%s\n", bound);
 		}
-		fprintf(p, "Content-Type: text/plain; charset=ISO-8859-1\nContent-Transfer-Encoding: 8bit\n");
+		fprintf(p, "Content-Type: text/plain; charset=ISO-8859-1\nContent-Transfer-Encoding: 8bit\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 		if (emailbody) {
 			struct ast_channel *ast = ast_channel_alloc(0);
