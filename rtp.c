@@ -70,11 +70,11 @@ struct ast_rtp {
 	struct io_context *io;
 	void *data;
 	ast_rtp_callback callback;
-        struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-        // a cache for the result of rtp_lookup_code():
-        int rtp_lookup_code_cache_isAstFormat;
-        int rtp_lookup_code_cache_code;
-        int rtp_lookup_code_cache_result;
+    struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
+    // a cache for the result of rtp_lookup_code():
+    int rtp_lookup_code_cache_isAstFormat;
+    int rtp_lookup_code_cache_code;
+    int rtp_lookup_code_cache_result;
 };
 
 static struct ast_rtp_protocol *protos = NULL;
@@ -378,7 +378,9 @@ static struct {
   {{1, AST_FORMAT_H263}, "video", "H263"},
 };
 
-// Static (i.e., well-known) RTP payload types for our "AST_FORMAT..."s:
+/* Static (i.e., well-known) RTP payload types for our "AST_FORMAT..."s:
+   also, our own choices for dynamic payload types.  This is our master
+   table for transmission */
 static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [0] = {1, AST_FORMAT_ULAW},
   [3] = {1, AST_FORMAT_GSM},
@@ -398,6 +400,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
   [31] = {1, AST_FORMAT_H261},
   [34] = {1, AST_FORMAT_H263},
   [101] = {0, AST_RTP_DTMF},
+  [110] = {1, AST_FORMAT_SPEEX},
 };
 
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 
@@ -484,6 +487,8 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) {
 int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
   int pt;
 
+  /* Looks up an RTP code out of our *static* outbound list */
+
   if (isAstFormat == rtp->rtp_lookup_code_cache_isAstFormat &&
       code == rtp->rtp_lookup_code_cache_code) {
     // Use our cached mapping, to avoid the overhead of the loop below
@@ -491,8 +496,8 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, int isAstFormat, int code) {
   }
 
   for (pt = 0; pt < MAX_RTP_PT; ++pt) {
-    if (rtp->current_RTP_PT[pt].code == code &&
-	rtp->current_RTP_PT[pt].isAstFormat == isAstFormat) {
+    if (static_RTP_PT[pt].code == code &&
+		static_RTP_PT[pt].isAstFormat == isAstFormat) {
       rtp->rtp_lookup_code_cache_isAstFormat = isAstFormat;
       rtp->rtp_lookup_code_cache_code = code;
       rtp->rtp_lookup_code_cache_result = pt;
