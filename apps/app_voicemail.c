@@ -3179,6 +3179,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 	memset(&vms, 0, sizeof(vms));
+	memset(&vmus, 0, sizeof(vmus));
 	strncpy(fmtc, vmfmts, sizeof(fmtc) - 1);
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
