@@ -3932,7 +3932,6 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		tmppw = ast_strdupa(p->secret);
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
-			printf("Trying '%s'!\n", tmppw);		
 			MD5Init(&md5);
 			MD5Update(&md5, iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
 			MD5Update(&md5, tmppw, strlen(tmppw));
