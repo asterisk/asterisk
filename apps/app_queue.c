@@ -154,6 +154,9 @@ static const char *pm_family = "/Queue/PersistentMembers";
 #define PM_MAX_LEN 2048
 /* queues.conf [general] option */
 static int queue_persistent_members = 0;
+/* queues.conf per-queue weight option */
+static int use_weight = 0;
+
 
 #define QUEUE_FLAG_RINGBACKONLY		(1 << 0)
 #define QUEUE_FLAG_MUSICONHOLD		(1 << 1)
@@ -248,6 +251,7 @@ struct ast_call_queue {
 
 	int retry;			/* Retry calling everyone after this amount of time */
 	int timeout;			/* How long to wait for an answer */
+	int weight;                     /* This queue's respective weight */
 	
 	/* Queue strategy things */
 	int rrpos;			/* Round Robin - position */
@@ -712,13 +716,66 @@ static int update_dial_status(struct ast_call_queue *q, struct member *member, i
 	return update_status(q, member, status);
 }
 
+static int compare_weight(struct ast_call_queue *req_q, struct localuser *req_user, char *qname) 
+{
+/* traverse all defined queues which have calls waiting and contain this member
+   return 0 if no other queue has precedence (higher weight) or 1 if found  */
+	struct ast_call_queue *q;
+	struct member *mem;
+	int found = 0, weight = 0, calls = 0;
+	char name[80] = "";
+	
+	strncpy(name, req_q->name, sizeof(name) - 1);
+	weight = req_q->weight;
+	calls = req_q->count;
+	
+	ast_mutex_lock(&qlock);
+	for (q = queues; q; q = q->next) { /* spin queues */
+		ast_mutex_lock(&q->lock);
+		if (!strcasecmp(q->name, name)) { /* don't check myself */
+			ast_mutex_unlock(&q->lock);
+			continue; 
+		}
+		if (q->count && q->members) { /* check only if calls waiting and has members */
+			for (mem = q->members; mem; mem = mem->next) {  /* spin members */
+				if (!strcasecmp(mem->interface, req_user->interface)) {
+					ast_log(LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
+					if (q->weight > weight) {
+						ast_log(LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, name, weight, calls);
+						found = 1;
+						strncpy(qname, q->name, sizeof(qname) - 1);
+						break;  /* stop looking for more members */
+					}
+				}
+			}
+		}
+		ast_mutex_unlock(&q->lock);
+		if (found) 
+			break;
+	}
+	ast_mutex_unlock(&qlock);
+	return found;
+}
+
+
+
 static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 {
 	int res;
 	int status;
 	char tech[256];
 	char *location;
+	char qname[80] = "";
 
+	if (use_weight) { /* fast path */
+		if (compare_weight(qe->parent,tmp,qname)) {
+			ast_verbose(VERBOSE_PREFIX_3 "Attempt (%s: %s) delayed by higher priority queue (%s).\n", qe->parent->name, tmp->interface, qname);
+			if (qe->chan->cdr)
+				ast_cdr_busy(qe->chan->cdr);
+			tmp->stillgoing = 0;
+			return 0;
+		}
+	}
 	if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Wrapuptime not yet expired for %s\n", tmp->interface);
@@ -2128,6 +2185,7 @@ static void reload_queues(void)
 		return;
 	}
 	ast_mutex_lock(&qlock);
+	use_weight=0;
 	/* Mark all queues as dead for the moment */
 	q = queues;
 	while(q) {
@@ -2281,6 +2339,10 @@ static void reload_queues(void)
 						ast_set2_flag(q, ast_true(var->value), QUEUE_FLAG_REPORTHOLDTIME);
 					} else if (!strcasecmp(var->name, "memberdelay")) {
 						q->memberdelay = atoi(var->value);
+					} else if (!strcasecmp(var->name, "weight")) {
+						q->weight = atoi(var->value);
+						if (q->weight)
+							use_weight++;
 					} else {
 						ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queue.conf\n", cat, var->name, var->lineno);
 					}
@@ -2403,8 +2465,8 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 		sl = 0;
 		if(q->callscompleted > 0)
 			sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-		ast_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), C:%d, A:%d, SL:%2.1f%% within %ds\n",
-			q->name, q->count, max, int2strat(q->strategy), q->holdtime, q->callscompleted, q->callsabandoned,sl,q->servicelevel);
+		ast_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds\n",
+			q->name, q->count, max, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel);
 		if (q->members) {
 			ast_cli(fd, "   Members: \n");
 			for (mem = q->members; mem; mem = mem->next) {
@@ -2511,10 +2573,11 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 					"Abandoned: %d\r\n"
 					"ServiceLevel: %d\r\n"
 					"ServicelevelPerf: %2.1f\r\n"
+					"Weight: %d\r\n"
 					"%s"
 					"\r\n",
 						q->name, q->maxlen, q->count, q->holdtime, q->callscompleted,
-						q->callsabandoned, q->servicelevel, sl, idText);
+						q->callsabandoned, q->servicelevel, sl, q->weight, idText);
 
 		/* List Queue Members */
 		for (mem = q->members; mem; mem = mem->next) 

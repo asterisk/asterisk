@@ -60,6 +60,12 @@ persistentmembers = yes
 ;
 ;retry = 5
 ;
+; Weight of queue - when compared to other queues, higher weights get 
+; first shot at available channels when the same channel is included in 
+; more than one queue.
+;
+;weight=0
+;
 ; After a successful call, how long to wait before sending a potentially
 ; free member another call (default is 0, or no delay)
 ;
