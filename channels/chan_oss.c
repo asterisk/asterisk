@@ -33,6 +33,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/soundcard.h>
+#include "busy.h"
+#include "ringtone.h"
+#include "ring10.h"
+#include "answer.h"
 
 /* Which device to use */
 #define DEV_DSP "/dev/dsp"
@@ -43,7 +47,7 @@
 /* When you set the frame size, you have to come up with
    the right buffer format as well. */
 /* 5 64-byte frames = one frame */
-#define BUFFER_FMT ((buffersize * 5) << 16) | (0x0006);
+#define BUFFER_FMT ((buffersize * 10) << 16) | (0x0006);
 
 /* Don't switch between read/write modes faster than every 300 ms */
 #define MIN_SWITCH_TIME 600
@@ -70,10 +74,32 @@ static char context[AST_MAX_EXTENSION] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char exten[AST_MAX_EXTENSION] = "s";
 
-/* Some pipes to prevent overflow */
-static int funnel[2];
-static pthread_mutex_t sound_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_t silly;
+/* Command pipe */
+static int cmd[2];
+
+int hookstate=0;
+
+static short silence[FRAME_SIZE] = {0, };
+
+struct sound {
+	int ind;
+	short *data;
+	int datalen;
+	int samplen;
+	int silencelen;
+	int repeat;
+};
+
+static struct sound sounds[] = {
+	{ AST_CONTROL_RINGING, ringtone, sizeof(ringtone)/2, 16000, 32000, 1 },
+	{ AST_CONTROL_BUSY, busy, sizeof(busy)/2, 4000, 4000, 1 },
+	{ AST_CONTROL_CONGESTION, busy, sizeof(busy)/2, 2000, 2000, 1 },
+	{ AST_CONTROL_RING, ring10, sizeof(ring10)/2, 16000, 32000, 1 },
+	{ AST_CONTROL_ANSWER, answer, sizeof(answer)/2, 2200, 0, 0 },
+};
+
+/* Sound command pipe */
+static int sndcmd[2];
 
 static struct chan_oss_pvt {
 	/* We only have one OSS structure -- near sighted perhaps, but it
@@ -99,6 +125,7 @@ static int time_has_passed()
    with 160 sample frames, and a buffer size of 3, we have a 60ms buffer, 
    usually plenty. */
 
+pthread_t sthread;
 
 #define MAX_BUFFER_SIZE 100
 static int buffersize = 3;
@@ -127,6 +154,108 @@ static int calc_loudness(short *frame)
 	return sum;
 }
 
+static int cursound = -1;
+static int sampsent = 0;
+static int silencelen=0;
+static int offset=0;
+static int nosound=0;
+
+static int send_sound(void)
+{
+	short myframe[FRAME_SIZE];
+	int total = FRAME_SIZE;
+	short *frame = NULL;
+	int amt=0;
+	int res;
+	int myoff;
+	audio_buf_info abi;
+	if (cursound > -1) {
+		res = ioctl(sounddev, SNDCTL_DSP_GETOSPACE ,&abi);
+		if (res) {
+			ast_log(LOG_WARNING, "Unable to read output space\n");
+			return -1;
+		}
+		/* Calculate how many samples we can send, max */
+		if (total > (abi.fragments * abi.fragsize / 2)) 
+			total = abi.fragments * abi.fragsize / 2;
+		res = total;
+		if (sampsent < sounds[cursound].samplen) {
+			myoff=0;
+			while(total) {
+				amt = total;
+				if (amt > (sounds[cursound].datalen - offset)) 
+					amt = sounds[cursound].datalen - offset;
+				memcpy(myframe + myoff, sounds[cursound].data + offset, amt * 2);
+				total -= amt;
+				offset += amt;
+				sampsent += amt;
+				myoff += amt;
+				if (offset >= sounds[cursound].datalen)
+					offset = 0;
+			}
+			/* Set it up for silence */
+			if (sampsent >= sounds[cursound].samplen) 
+				silencelen = sounds[cursound].silencelen;
+			frame = myframe;
+		} else {
+			if (silencelen > 0) {
+				frame = silence;
+				silencelen -= res;
+			} else {
+				if (sounds[cursound].repeat) {
+					/* Start over */
+					sampsent = 0;
+					offset = 0;
+				} else {
+					cursound = -1;
+					nosound = 0;
+				}
+			}
+		}
+		res = write(sounddev, frame, res * 2);
+		if (res > 0)
+			return 0;
+		return res;
+	}
+	return 0;
+}
+
+static void *sound_thread(void *unused)
+{
+	fd_set rfds;
+	fd_set wfds;
+	int max;
+	int res;
+	for(;;) {
+		FD_ZERO(&rfds);
+		FD_ZERO(&wfds);
+		max = sndcmd[0];
+		FD_SET(sndcmd[0], &rfds);
+		if (cursound > -1) {
+			FD_SET(sounddev, &wfds);
+			if (sounddev > max)
+				max = sounddev;
+		}
+		res = select(max + 1, &rfds, &wfds, NULL, NULL);
+		if (res < 1) {
+			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
+			continue;
+		}
+		if (FD_ISSET(sndcmd[0], &rfds)) {
+			read(sndcmd[0], &cursound, sizeof(cursound));
+			silencelen = 0;
+			offset = 0;
+			sampsent = 0;
+		}
+		if (FD_ISSET(sounddev, &wfds))
+			if (send_sound())
+				ast_log(LOG_WARNING, "Failed to write sound\n");
+	}
+	/* Never reached */
+	return NULL;
+}
+
+#if 0
 static int silence_suppress(short *buf)
 {
 #define SILBUF 3
@@ -159,57 +288,23 @@ static int silence_suppress(short *buf)
 		/* Write any buffered silence we have, it may have something
 		   important */
 		if (silbufcnt) {
-			write(funnel[1], silbuf, silbufcnt * FRAME_SIZE);
+			write(sounddev, silbuf, silbufcnt * FRAME_SIZE);
 			silbufcnt = 0;
 		}
 	}
 	return 0;
 }
-
-static void *silly_thread(void *ignore)
-{
-	char buf[FRAME_SIZE * 2];
-	int pos=0;
-	int res=0;
-	/* Read from the sound device, and write to the pipe. */
-	for (;;) {
-		/* Give the writer a better shot at the lock */
-#if 0
-		usleep(1000);
-#endif		
-		pthread_testcancel();
-		pthread_mutex_lock(&sound_lock);
-		res = read(sounddev, buf + pos, FRAME_SIZE * 2 - pos);
-		pthread_mutex_unlock(&sound_lock);
-		if (res > 0) {
-			pos += res;
-			if (pos == FRAME_SIZE * 2) {
-				if (needhangup || needanswer || strlen(digits) || 
-				    !silence_suppress((short *)buf)) {
-					res = write(funnel[1], buf, sizeof(buf));
-				}
-				pos = 0;
-			}
-		} else {
-			close(funnel[1]);
-			break;
-		}
-		pthread_testcancel();
-	}
-	return NULL;
-}
+#endif
 
 static int setformat(void)
 {
 	int fmt, desired, res, fd = sounddev;
 	static int warnedalready = 0;
 	static int warnedalready2 = 0;
-	pthread_mutex_lock(&sound_lock);
 	fmt = AFMT_S16_LE;
 	res = ioctl(fd, SNDCTL_DSP_SETFMT, &fmt);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set format to 16-bit signed\n");
-		pthread_mutex_unlock(&sound_lock);
 		return -1;
 	}
 	res = ioctl(fd, SNDCTL_DSP_SETDUPLEX, 0);
@@ -222,7 +317,6 @@ static int setformat(void)
 	res = ioctl(fd, SNDCTL_DSP_STEREO, &fmt);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to set audio device to mono\n");
-		pthread_mutex_unlock(&sound_lock);
 		return -1;
 	}
 	/* 8000 Hz desired */
@@ -231,7 +325,6 @@ static int setformat(void)
 	res = ioctl(fd, SNDCTL_DSP_SPEED, &fmt);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Failed to set audio device to mono\n");
-		pthread_mutex_unlock(&sound_lock);
 		return -1;
 	}
 	if (fmt != desired) {
@@ -246,7 +339,6 @@ static int setformat(void)
 			ast_log(LOG_WARNING, "Unable to set fragment size -- sound may be choppy\n");
 	}
 #endif
-	pthread_mutex_unlock(&sound_lock);
 	return 0;
 }
 
@@ -256,7 +348,6 @@ static int soundcard_setoutput(int force)
 	int fd = sounddev;
 	if (full_duplex || (!readmode && !force))
 		return 0;
-	pthread_mutex_lock(&sound_lock);
 	readmode = 0;
 	if (force || time_has_passed()) {
 		ioctl(sounddev, SNDCTL_DSP_RESET);
@@ -264,26 +355,21 @@ static int soundcard_setoutput(int force)
 		   time. */
 		/* dup2(0, sound); */ 
 		close(sounddev);
-		fd = open(DEV_DSP, O_WRONLY);
+		fd = open(DEV_DSP, O_WRONLY |O_NONBLOCK);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to re-open DSP device: %s\n", strerror(errno));
-			pthread_mutex_unlock(&sound_lock);
 			return -1;
 		}
 		/* dup2 will close the original and make fd be sound */
 		if (dup2(fd, sounddev) < 0) {
 			ast_log(LOG_WARNING, "dup2() failed: %s\n", strerror(errno));
-			pthread_mutex_unlock(&sound_lock);
 			return -1;
 		}
 		if (setformat()) {
-			pthread_mutex_unlock(&sound_lock);
 			return -1;
 		}
-		pthread_mutex_unlock(&sound_lock);
 		return 0;
 	}
-	pthread_mutex_unlock(&sound_lock);
 	return 1;
 }
 
@@ -292,41 +378,35 @@ static int soundcard_setinput(int force)
 	int fd = sounddev;
 	if (full_duplex || (readmode && !force))
 		return 0;
-	pthread_mutex_lock(&sound_lock);
 	readmode = -1;
 	if (force || time_has_passed()) {
 		ioctl(sounddev, SNDCTL_DSP_RESET);
 		close(sounddev);
 		/* dup2(0, sound); */
-		fd = open(DEV_DSP, O_RDONLY);
+		fd = open(DEV_DSP, O_RDONLY | O_NONBLOCK);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to re-open DSP device: %s\n", strerror(errno));
-			pthread_mutex_unlock(&sound_lock);
 			return -1;
 		}
 		/* dup2 will close the original and make fd be sound */
 		if (dup2(fd, sounddev) < 0) {
 			ast_log(LOG_WARNING, "dup2() failed: %s\n", strerror(errno));
-			pthread_mutex_unlock(&sound_lock);
 			return -1;
 		}
 		if (setformat()) {
-			pthread_mutex_unlock(&sound_lock);
 			return -1;
 		}
-		pthread_mutex_unlock(&sound_lock);
 		return 0;
 	}
-	pthread_mutex_unlock(&sound_lock);
 	return 1;
 }
 
 static int soundcard_init()
 {
 	/* Assume it's full duplex for starters */
-	int fd = open(DEV_DSP, 	O_RDWR);
+	int fd = open(DEV_DSP, 	O_RDWR | O_NONBLOCK);
 	if (fd < 0) {
-		ast_log(LOG_ERROR, "Unable to open %s: %s\n", DEV_DSP, strerror(errno));
+		ast_log(LOG_WARNING, "Unable to open %s: %s\n", DEV_DSP, strerror(errno));
 		return fd;
 	}
 	gettimeofday(&lasttime, NULL);
@@ -351,33 +431,52 @@ static int oss_text(struct ast_channel *c, char *text)
 
 static int oss_call(struct ast_channel *c, char *dest, int timeout)
 {
+	int res = 3;
 	ast_verbose( " << Call placed to '%s' on console >> \n", dest);
 	if (autoanswer) {
 		ast_verbose( " << Auto-answered >> \n" );
 		needanswer = 1;
 	} else {
 		ast_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
+		write(sndcmd[1], &res, sizeof(res));
 	}
 	return 0;
+}
+
+static void answer_sound(void)
+{
+	int res;
+	nosound = 1;
+	res = 4;
+	write(sndcmd[1], &res, sizeof(res));
+	
 }
 
 static int oss_answer(struct ast_channel *c)
 {
 	ast_verbose( " << Console call has been answered >> \n");
+	answer_sound();
 	c->state = AST_STATE_UP;
+	cursound = -1;
 	return 0;
 }
 
 static int oss_hangup(struct ast_channel *c)
 {
+	int res;
+	cursound = -1;
 	c->pvt->pvt = NULL;
 	oss.owner = NULL;
 	ast_verbose( " << Hangup on console >> \n");
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	usecnt--;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	needhangup = 0;
 	needanswer = 0;
+	if (hookstate) {
+		res = 2;
+		write(sndcmd[1], &res, sizeof(res));
+	}
 	return 0;
 }
 
@@ -390,7 +489,6 @@ static int soundcard_writeframe(short *data)
 	int res;
 	int fd = sounddev;
 	static int warned=0;
-	pthread_mutex_lock(&sound_lock);
 	if (ioctl(fd, SNDCTL_DSP_GETOSPACE, &info)) {
 		if (!warned)
 			ast_log(LOG_WARNING, "Error reading output space\n");
@@ -413,7 +511,6 @@ static int soundcard_writeframe(short *data)
 			res = write(fd, ((void *)buffer), FRAME_SIZE * 2 * buffersize);
 		}
 	}
-	pthread_mutex_unlock(&sound_lock);
 	return res;
 }
 
@@ -425,6 +522,11 @@ static int oss_write(struct ast_channel *chan, struct ast_frame *f)
 	static int sizpos = 0;
 	int len = sizpos;
 	int pos;
+	/* Immediately return if no sound is enabled */
+	if (nosound)
+		return 0;
+	/* Stop any currently playing sound */
+	cursound = -1;
 	if (!full_duplex && (strlen(digits) || needhangup || needanswer)) {
 		/* If we're half duplex, we have to switch to read mode
 		   to honor immediate needs if necessary */
@@ -468,10 +570,17 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 	static char buf[FRAME_SIZE * 2 + AST_FRIENDLY_OFFSET];
 	static int readpos = 0;
 	int res;
+	int b;
+	int nonull=0;
 	
 #if 0
 	ast_log(LOG_DEBUG, "oss_read()\n");
 #endif
+	
+	/* Acknowledge any pending cmd */
+	res = read(cmd[0], &b, sizeof(b));
+	if (res > 0)
+		nonull = 1;
 	
 	f.frametype = AST_FRAME_NULL;
 	f.subclass = 0;
@@ -509,6 +618,9 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 		return &f;
 	}
 	
+	if (nonull)
+		return &f;
+		
 	res = soundcard_setinput(0);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set input mode\n");
@@ -518,14 +630,15 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 		/* Theoretically shouldn't happen, but anyway, return a NULL frame */
 		return &f;
 	}
-	res = read(funnel[0], buf + AST_FRIENDLY_OFFSET + readpos, FRAME_SIZE * 2 - readpos);
+	res = read(sounddev, buf + AST_FRIENDLY_OFFSET + readpos, FRAME_SIZE * 2 - readpos);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Error reading from sound device: %s\n", strerror(errno));
+		CRASH;
 		return NULL;
 	}
 	readpos += res;
 	
-	if (readpos == FRAME_SIZE * 2) {
+	if (readpos >= FRAME_SIZE * 2) {
 		/* A real frame */
 		readpos = 0;
 		f.frametype = AST_FRAME_VOICE;
@@ -536,8 +649,45 @@ static struct ast_frame *oss_read(struct ast_channel *chan)
 		f.offset = AST_FRIENDLY_OFFSET;
 		f.src = type;
 		f.mallocd = 0;
+#if 0
+		{ static int fd = -1;
+		  if (fd < 0)
+		  	fd = open("output.raw", O_RDWR | O_TRUNC | O_CREAT);
+		  write(fd, f.data, f.datalen);
+		}
+#endif		
 	}
 	return &f;
+}
+
+static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
+{
+	struct chan_oss_pvt *p = newchan->pvt->pvt;
+	p->owner = newchan;
+	return 0;
+}
+
+static int oss_indicate(struct ast_channel *chan, int cond)
+{
+	int res;
+	switch(cond) {
+	case AST_CONTROL_BUSY:
+		res = 1;
+		break;
+	case AST_CONTROL_CONGESTION:
+		res = 2;
+		break;
+	case AST_CONTROL_RINGING:
+		res = 0;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
+		return -1;
+	}
+	if (res > -1) {
+		write(sndcmd[1], &res, sizeof(res));
+	}
+	return 0;	
 }
 
 static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
@@ -547,7 +697,8 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 	if (tmp) {
 		snprintf(tmp->name, sizeof(tmp->name), "OSS/%s", DEV_DSP + 5);
 		tmp->type = type;
-		tmp->fd = funnel[0];
+		tmp->fds[0] = sounddev;
+		tmp->fds[1] = cmd[0];
 		tmp->nativeformats = AST_FORMAT_SLINEAR;
 		tmp->pvt->pvt = p;
 		tmp->pvt->send_digit = oss_digit;
@@ -557,6 +708,8 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 		tmp->pvt->read = oss_read;
 		tmp->pvt->call = oss_call;
 		tmp->pvt->write = oss_write;
+		tmp->pvt->indicate = oss_indicate;
+		tmp->pvt->fixup = oss_fixup;
 		if (strlen(p->context))
 			strncpy(tmp->context, p->context, sizeof(tmp->context));
 		if (strlen(p->exten))
@@ -565,9 +718,9 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 			strncpy(tmp->language, language, sizeof(tmp->language));
 		p->owner = tmp;
 		tmp->state = state;
-		pthread_mutex_lock(&usecnt_lock);
+		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
-		pthread_mutex_unlock(&usecnt_lock);
+		ast_pthread_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
@@ -650,7 +803,10 @@ static int console_answer(int fd, int argc, char *argv[])
 		ast_cli(fd, "No one is calling us\n");
 		return RESULT_FAILURE;
 	}
+	hookstate = 1;
+	cursound = -1;
 	needanswer++;
+	answer_sound();
 	return RESULT_SUCCESS;
 }
 
@@ -686,11 +842,14 @@ static int console_hangup(int fd, int argc, char *argv[])
 {
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
-	if (!oss.owner) {
+	cursound = -1;
+	if (!oss.owner && !hookstate) {
 		ast_cli(fd, "No call to hangup up\n");
 		return RESULT_FAILURE;
 	}
-	needhangup++;
+	hookstate = 0;
+	if (oss.owner)
+		needhangup++;
 	return RESULT_SUCCESS;
 }
 
@@ -703,12 +862,15 @@ static int console_dial(int fd, int argc, char *argv[])
 {
 	char tmp[256], *tmp2;
 	char *mye, *myc;
+	int b = 0;
 	if ((argc != 1) && (argc != 2))
 		return RESULT_SHOWUSAGE;
 	if (oss.owner) {
-		if (argc == 2)
+		if (argc == 2) {
 			strncat(digits, argv[1], sizeof(digits) - strlen(digits));
-		else {
+			/* Wake up the polling thread */
+			write(cmd[1], &b, sizeof(b));
+		} else {
 			ast_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
 			return RESULT_FAILURE;
 		}
@@ -728,6 +890,7 @@ static int console_dial(int fd, int argc, char *argv[])
 	if (ast_exists_extension(NULL, myc, mye, 1)) {
 		strncpy(oss.exten, mye, sizeof(oss.exten));
 		strncpy(oss.context, myc, sizeof(oss.context));
+		hookstate = 1;
 		oss_new(&oss, AST_STATE_UP);
 	} else
 		ast_cli(fd, "No such extension '%s' in context '%s'\n", mye, myc);
@@ -754,28 +917,28 @@ int load_module()
 	int flags;
 	struct ast_config *cfg = ast_load(config);
 	struct ast_variable *v;
-	res = pipe(funnel);
+	res = pipe(cmd);
+	res = pipe(sndcmd);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to create pipe\n");
 		return -1;
 	}
-	/* We make the funnel so that writes to the funnel don't block...
-	   Our "silly" thread can read to its heart content, preventing
-	   recording overruns */
-	flags = fcntl(funnel[1], F_GETFL);
-#if 0
-	fcntl(funnel[0], F_SETFL, flags | O_NONBLOCK);
-#endif
-	fcntl(funnel[1], F_SETFL, flags | O_NONBLOCK);
+	flags = fcntl(cmd[0], F_GETFL);
+	fcntl(cmd[0], F_SETFL, flags | O_NONBLOCK);
+	flags = fcntl(cmd[1], F_GETFL);
+	fcntl(cmd[1], F_SETFL, flags | O_NONBLOCK);
 	res = soundcard_init();
 	if (res < 0) {
-		close(funnel[1]);
-		close(funnel[0]);
-		return -1;
+		close(cmd[1]);
+		close(cmd[0]);
+		if (option_verbose > 1) {
+			ast_verbose(VERBOSE_PREFIX_2 "No sound card detected -- console channel will be unavailable\n");
+			ast_verbose(VERBOSE_PREFIX_2 "Turn off OSS support by adding 'noload=chan_oss.so' in /etc/asterisk/modules.conf\n");
+		}
+		return 0;
 	}
 	if (!full_duplex)
 		ast_log(LOG_WARNING, "XXX I don't work right with non-full duplex sound cards XXX\n");
-	pthread_create(&silly, NULL, silly_thread, NULL);
 	res = ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR, oss_request);
 	if (res < 0) {
 		ast_log(LOG_ERROR, "Unable to register channel class '%s'\n", type);
@@ -802,6 +965,7 @@ int load_module()
 		}
 		ast_destroy(cfg);
 	}
+	pthread_create(&sthread, NULL, sound_thread, NULL);
 	return 0;
 }
 
@@ -813,13 +977,13 @@ int unload_module()
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_unregister(myclis + x);
 	close(sounddev);
-	if (funnel[0] > 0) {
-		close(funnel[0]);
-		close(funnel[1]);
+	if (cmd[0] > 0) {
+		close(cmd[0]);
+		close(cmd[1]);
 	}
-	if (silly) {
-		pthread_cancel(silly);
-		pthread_join(silly, NULL);
+	if (sndcmd[0] > 0) {
+		close(sndcmd[0]);
+		close(sndcmd[1]);
 	}
 	if (oss.owner)
 		ast_softhangup(oss.owner);
@@ -836,9 +1000,9 @@ char *description()
 int usecount()
 {
 	int res;
-	pthread_mutex_lock(&usecnt_lock);
+	ast_pthread_mutex_lock(&usecnt_lock);
 	res = usecnt;
-	pthread_mutex_unlock(&usecnt_lock);
+	ast_pthread_mutex_unlock(&usecnt_lock);
 	return res;
 }
 
