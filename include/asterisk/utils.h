@@ -32,6 +32,9 @@ extern int test_for_thread_safety(void);
 extern const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 extern int ast_utils_init(void);
 
+#ifdef inet_ntoa
+#undef inet_ntoa
+#endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
 
 #endif

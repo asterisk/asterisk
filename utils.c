@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <asterisk/lock.h>
 #include <asterisk/utils.h>
@@ -29,6 +30,7 @@ static char b2a[256];
 
 AST_MUTEX_DEFINE_STATIC(__mutex);
 
+/* Recursive replacement for gethostbyname for BSD-based systems */
 static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 				size_t buflen, struct hostent **result, 
 				int *h_errnop) 
@@ -126,6 +128,9 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 
 #endif
 
+/* Recursive thread safe version of gethostbyname that replaces the 
+   standard gethostbyname (which is not recursive)
+*/
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 {
 	int res;
@@ -328,6 +333,7 @@ static void base64_init(void)
 #endif
 }
 
+/* Recursive thread safe replacement of inet_ntoa */
 const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 {
 	return inet_ntop(AF_INET, &ia, buf, bufsiz);
