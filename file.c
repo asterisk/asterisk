@@ -601,12 +601,13 @@ int ast_closestream(struct ast_filestream *f)
 {
 	/* Stop a running stream if there is one */
 	if (f->owner) {
-		f->owner->stream = NULL;
 		if (f->fmt->format < AST_FORMAT_MAX_AUDIO) {
+			f->owner->stream = NULL;
 			if (f->owner->streamid > -1)
 				ast_sched_del(f->owner->sched, f->owner->streamid);
 			f->owner->streamid = -1;
 		} else {
+			f->owner->vstream = NULL;
 			if (f->owner->vstreamid > -1)
 				ast_sched_del(f->owner->sched, f->owner->vstreamid);
 			f->owner->vstreamid = -1;
@@ -766,7 +767,10 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if (res < 0) {
-			ast_closestream(c->stream);
+			if (c->stream)
+				ast_closestream(c->stream);
+			if (c->vstream)
+				ast_closestream(c->vstream);
 			break;
 		}
 		/* Setup timeout if supported */
@@ -822,7 +826,10 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if (res < 0) {
-			ast_closestream(c->stream);
+			if (c->stream)
+				ast_closestream(c->stream);
+			if (c->vstream)
+				ast_closestream(c->vstream);
 			break;
 		}
 		ast_settimeout(c, res);
@@ -886,7 +893,10 @@ char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int 
 	while(c->stream) {
 		ms = ast_sched_wait(c->sched);
 		if (ms < 0) {
-			ast_closestream(c->stream);
+			if (c->stream)
+				ast_closestream(c->stream);
+			if (c->vstream)
+				ast_closestream(c->vstream);
 			break;
 		}
 		ast_settimeout(c, ms);
