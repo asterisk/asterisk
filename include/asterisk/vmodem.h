@@ -78,6 +78,10 @@ struct ast_modem_pvt {
 	int ministate;					/* State of modem in miniature */
 	int stripmsd;					/* Digits to strip on outgoing numbers */
 	int escape;					/* Is the last thing we saw an escape */
+	int gotclid;				/* flag to say if has caller*id yet*/
+	int ringt;				/* ringer timeout */
+	time_t lastring;			/* actual time of last ring */
+	char dtmfrx;				/* dtmf receive state/data */
 	char context[AST_MAX_EXTENSION];
 	char msn[AST_MAX_EXTENSION];	/* Multiple Subscriber Number */
 	char cid[AST_MAX_EXTENSION];	/* Caller ID if available */
