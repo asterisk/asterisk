@@ -858,7 +858,7 @@ int h323_set_capability(int cap, int dtmfMode)
 		return 1;
 	}
 
-	endPoint->SetCapability(0, 0, 0);
+//	endPoint->RemoveCapabilities("ALL");
 
 	mode = dtmfMode;
 	if (dtmfMode == H323_DTMF_INBAND) {
