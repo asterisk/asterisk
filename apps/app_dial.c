@@ -568,6 +568,12 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		tmp->chan->adsicpe = chan->adsicpe;
 		/* Place the call, but don't wait on the answer */
 		res = ast_call(tmp->chan, numsubst, 0);
+
+		/* Save the info in cdr's that we called them */
+		if (chan->cdr)
+			ast_cdr_setdestchan(chan->cdr, tmp->chan->name);
+
+		/* check the restuls of ast_call */
 		if (res) {
 			/* Again, keep going even if there's an error */
 			if (option_debug)
