@@ -7576,7 +7576,7 @@ restartsearch:
 		sip = iflist;
 		while(sip) {
 			ast_mutex_lock(&sip->lock);
-			if (sip->rtp && sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout)) {
+			if (sip->rtp && sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout) && !sip->redirip.sin_addr.s_addr) {
 				if (t > sip->lastrtprx + sip->rtptimeout) {
 					/* Might be a timeout now -- see if we're on hold */
 					struct sockaddr_in sin;
@@ -8592,19 +8592,29 @@ static int reload_config(void)
 static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
+	struct ast_rtp *rtp = NULL;
 	p = chan->pvt->pvt;
-	if (p && p->rtp && p->canreinvite)
-		return p->rtp;
-	return NULL;
+	if (p) {
+		ast_mutex_lock(&p->lock);
+		if (p->rtp && p->canreinvite)
+			rtp =  p->rtp;
+		ast_mutex_unlock(&p->lock);
+	}
+	return rtp;
 }
 
 static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
+	struct ast_rtp *rtp = NULL;
 	p = chan->pvt->pvt;
-	if (p && p->vrtp && p->canreinvite)
-		return p->vrtp;
-	return NULL;
+	if (p) {
+		ast_mutex_lock(&p->lock);
+		if (p->vrtp && p->canreinvite)
+			rtp = p->vrtp;
+		ast_mutex_unlock(&p->lock);
+	}
+	return rtp;
 }
 
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
@@ -8612,6 +8622,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	struct sip_pvt *p;
 	p = chan->pvt->pvt;
 	if (p) {
+		ast_mutex_lock(&p->lock);
 		if (rtp)
 			ast_rtp_get_peer(rtp, &p->redirip);
 		else
@@ -8629,6 +8640,9 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 				p->needreinvite = 1;
 			}
 		}
+		/* Reset lastrtprx timer */
+		time(&p->lastrtprx);
+		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
 	return -1;
