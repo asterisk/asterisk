@@ -27,8 +27,7 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include "asterisk.h"
-
-#define AST_EVENT_LOG AST_LOG_DIR "/" EVENTLOG
+#include "astconf.h"
 
 #define MAX_MSG_QUEUE 200
 
@@ -73,7 +72,9 @@ static int make_components(char *s, int lineno)
 {
 	char *w;
 	int res = 0;
-	w = strtok(s, ",");
+	char *stringp=NULL;
+	stringp=s;
+	w = strsep(&stringp, ",");
 	while(w) {
 		while(*w && (*w < 33))
 			w++;
@@ -88,7 +89,7 @@ static int make_components(char *s, int lineno)
 		else {
 			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
 		}
-		w = strtok(NULL, ",");
+		w = strsep(&stringp, ",");
 	}
 	return res;
 }
@@ -111,7 +112,7 @@ static struct logfile *make_logfile(char *fn, char *components, int lineno)
 			if (fn[0] == '/') 
 				strncpy(tmp, fn, sizeof(tmp) - 1);
 			else
-				snprintf(tmp, sizeof(tmp), "%s/%s", AST_LOG_DIR, fn);
+				snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, fn);
 			f->f = fopen(tmp, "a");
 			if (!f->f) {
 				/* Can't log here, since we're called with a lock */
@@ -179,14 +180,15 @@ static struct verb {
 
 int init_logger(void)
 {
-
-	mkdir(AST_LOG_DIR, 0755);
-	eventlog = fopen(AST_EVENT_LOG, "a");
+	char tmp[AST_CONFIG_MAX_PATH];
+	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
+	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
+	eventlog = fopen((char *)tmp, "a");
 	if (eventlog) {
 		init_logger_chain();
 		ast_log(LOG_EVENT, "Started Asterisk Event Logger\n");
 		if (option_verbose)
-			ast_verbose("Asterisk Event Logger Started\n");
+			ast_verbose("Asterisk Event Logger Started %s\n",(char *)tmp);
 		return 0;
 	} else 
 		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
@@ -196,11 +198,13 @@ int init_logger(void)
 
 int reload_logger(void)
 {
+	char tmp[AST_CONFIG_MAX_PATH];
 	ast_pthread_mutex_lock(&loglock);
 	if (eventlog)
 		fclose(eventlog);
-	mkdir(AST_LOG_DIR, 0755);
-	eventlog = fopen(AST_EVENT_LOG, "a");
+	mkdir((char *)ast_config_AST_LOG_DIR, 0755);
+	snprintf(tmp, sizeof(tmp), "%s/%s", (char *)ast_config_AST_LOG_DIR, EVENTLOG);
+	eventlog = fopen((char *)tmp, "a");
 	ast_pthread_mutex_unlock(&loglock);
 
 	if (eventlog) {

@@ -30,6 +30,7 @@
 #include <asterisk/translate.h>
 #include <asterisk/cli.h>
 #include "asterisk.h"
+#include "astconf.h"
 
 static struct ast_imager *list;
 static pthread_mutex_t listlock = AST_MUTEX_INITIALIZER;
@@ -94,9 +95,9 @@ static void make_filename(char *buf, int len, char *filename, char *preflang, ch
 			snprintf(buf, len, "%s.%s", filename, ext);
 	} else {
 		if (preflang && strlen(preflang))
-			snprintf(buf, len, "%s/%s-%s.%s", AST_IMAGES, filename, preflang, ext);
+			snprintf(buf, len, "%s/%s/%s-%s.%s", ast_config_AST_VAR_DIR, "images", filename, preflang, ext);
 		else
-			snprintf(buf, len, "%s/%s.%s", AST_IMAGES, filename, ext);
+			snprintf(buf, len, "%s/%s/%s.%s", ast_config_AST_VAR_DIR, "images", filename, ext);
 	}
 }
 
@@ -116,8 +117,10 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 	i = list;
 	while(!found && i) {
 		if (i->format & format) {
+			char *stringp=NULL;
 			strncpy(tmp, i->exts, sizeof(tmp)-1);
-			e = strtok(tmp, "|");
+			stringp=tmp;
+			e = strsep(&stringp, "|");
 			while(e) {
 				make_filename(buf, sizeof(buf), filename, preflang, e);
 				if ((len = file_exists(buf))) {
@@ -129,7 +132,7 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 					found = i;
 					break;
 				}
-				e = strtok(NULL, "|");
+				e = strsep(&stringp, "|");
 			}
 		}
 		i = i->next;

@@ -25,15 +25,15 @@
 #include <string.h>
 #include <pthread.h>
 /* For rl_filename_completion */
-#include <readline/readline.h>
+#include "editline/readline/readline.h"
 /* For module directory */
 #include "asterisk.h"
 #include "build.h"
+#include "astconf.h"
 
 #define VERSION_INFO "Asterisk " ASTERISK_VERSION " built by " BUILD_USER "@" BUILD_HOSTNAME \
 	" on a " BUILD_MACHINE " running " BUILD_OS
 	
-
 void ast_cli(int fd, char *fmt, ...)
 {
 	char stuff[4096];
@@ -219,6 +219,16 @@ static char commandcomplete_help[] =
 "       This function is used internally to help with command completion and should.\n"
 "       never be called by the user directly.\n";
 
+static char commandnummatches_help[] = 
+"Usage: _command nummatches \"<line>\" text \n"
+"       This function is used internally to help with command completion and should.\n"
+"       never be called by the user directly.\n";
+
+static char commandmatchesarray_help[] = 
+"Usage: _command matchesarray \"<line>\" text \n"
+"       This function is used internally to help with command completion and should.\n"
+"       never be called by the user directly.\n";
+
 static int handle_softhangup(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
@@ -239,6 +249,56 @@ static int handle_softhangup(int fd, int argc, char *argv[])
 }
 
 static char *__ast_cli_generator(char *text, char *word, int state, int lock);
+
+static int handle_commandmatchesarray(int fd, int argc, char *argv[])
+{
+	char buf[2048];
+	int len = 0;
+	char **matches;
+	int x;
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	buf[len] = '\0';
+	matches = ast_cli_completion_matches(argv[2], argv[3]);
+	if (matches) {
+		for (x=0; matches[x]; x++) {
+#if 0
+			printf("command matchesarray for '%s' %s got '%s'\n", argv[2], argv[3], matches[x]);
+#endif
+			len += sprintf( buf + len, "%s ", matches[x]);
+		}
+	}
+#if 0
+	printf("array for '%s' %s got '%s'\n", argv[2], argv[3], buf);
+#endif
+	
+	if (buf) {
+		ast_cli(fd, buf);
+	} else
+		ast_cli(fd, "NULL\n");
+
+	return RESULT_SUCCESS;
+}
+
+
+
+static int handle_commandnummatches(int fd, int argc, char *argv[])
+{
+	int matches = 0;
+
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+
+	matches = ast_cli_generatornummatches(argv[2], argv[3]);
+
+#if 0
+	printf("Search for '%s' %s got '%d'\n", argv[2], argv[3], matches);
+#endif
+	ast_cli(fd, "%d", matches);
+
+	return RESULT_SUCCESS;
+}
 
 static int handle_commandcomplete(int fd, int argc, char *argv[])
 {
@@ -276,10 +336,12 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	"    DNID Digits: %s\n"
 	"          State: %s (%d)\n"
 	"          Rings: %d\n"
+	"   NativeFormat: %d\n"
 	"    WriteFormat: %d\n"
 	"     ReadFormat: %d\n"
-	"   NativeFormat: %d\n"
 	"1st File Descriptor: %d\n"
+	"      Frames in: %d\n"
+	"     Frames out: %d\n"
 	" --   PBX   --\n"
 	"        Context: %s\n"
 	"      Extension: %s\n"
@@ -291,7 +353,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	c->name, c->type, 
 	(c->callerid ? c->callerid : "(N/A)"),
 	(c->dnid ? c->dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
-	c->fds[0], c->context, c->exten, c->priority, ( c->appl ? c->appl : "(N/A)" ),
+	c->fds[0], c->fin, c->fout, c->context, c->exten, c->priority, ( c->appl ? c->appl : "(N/A)" ),
 	( c-> data ? (strlen(c->data) ? c->data : "(Empty)") : "(None)"),
 	c->stack, (c->blocking ? c->blockproc : "(Not Blocking)"));
 	
@@ -328,10 +390,10 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 	if (word[0] == '/')
 		strncpy(filename, word, sizeof(filename)-1);
 	else
-		snprintf(filename, sizeof(filename), "%s/%s", AST_MODULE_DIR, word);
+		snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_MODULE_DIR, word);
 	c = (char*)filename_completion_function(filename, state);
 	if (c && word[0] != '/')
-		c += (strlen(AST_MODULE_DIR) + 1);
+		c += (strlen((char*)ast_config_AST_MODULE_DIR) + 1);
 	return c ? strdup(c) : c;
 }
 
@@ -341,6 +403,8 @@ static struct ast_cli_entry builtins[] = {
 	/* Keep alphabetized */
 	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help },
 	{ { "_command", "complete", NULL }, handle_commandcomplete, "Command complete", commandcomplete_help },
+	{ { "_command", "nummatches", NULL }, handle_commandnummatches, "Returns number of command matches", commandnummatches_help },
+	{ { "_command", "matchesarray", NULL }, handle_commandmatchesarray, "Returns command matches array", commandmatchesarray_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
@@ -635,6 +699,62 @@ normal:
 		*max = x;
 	}
 	return dup;
+}
+
+/* This returns the number of unique matches for the generator */
+int ast_cli_generatornummatches(char *text, char *word)
+{
+	int matches = 0, i = 0;
+	char *buf, *oldbuf;
+
+
+	while ( (buf = ast_cli_generator(text, word, i)) ) {
+		if (++i > 1 && strcmp(buf,oldbuf) == 0)  
+				continue;
+		oldbuf = buf;
+		matches++;
+	}
+
+	return matches;
+}
+
+char **ast_cli_completion_matches(char *text, char *word)
+{
+	char **match_list = NULL, *retstr, *prevstr;
+	size_t match_list_len, max_equal, which, i;
+	int matches = 0;
+
+	match_list_len = 1;
+	while ((retstr = ast_cli_generator(text, word, matches)) != NULL) {
+		if (matches + 1 >= match_list_len) {
+			match_list_len <<= 1;
+			match_list = realloc(match_list, match_list_len * sizeof(char *));
+		}
+		match_list[++matches] = retstr;
+	}
+
+	if (!match_list)
+		return (char **) NULL;
+
+	which = 2;
+	prevstr = match_list[1];
+	max_equal = strlen(prevstr);
+	for (; which <= matches; which++) {
+		for (i = 0; i < max_equal && prevstr[i] == match_list[which][i]; i++)
+			continue;
+		max_equal = i;
+	}
+
+	retstr = malloc(max_equal + 1);
+	(void) strncpy(retstr, match_list[1], max_equal);
+	retstr[max_equal] = '\0';
+	match_list[0] = retstr;
+
+	if (matches + 1 >= match_list_len)
+		match_list = realloc(match_list, (match_list_len + 1) * sizeof(char *));
+	match_list[matches + 1] = (char *) NULL;
+
+	return (match_list);
 }
 
 static char *__ast_cli_generator(char *text, char *word, int state, int lock)

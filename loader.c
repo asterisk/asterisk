@@ -28,6 +28,7 @@
 #define __USE_GNU
 #include <pthread.h>
 #include "asterisk.h"
+#include "astconf.h"
 
 static char expected_key[] =
 { 0x8e, 0x93, 0x22, 0x83, 0xf5, 0xc3, 0xc0, 0x75,
@@ -204,7 +205,7 @@ int ast_load_resource(char *resource_name)
 	if (resource_name[0] == '/') {
 		strncpy(fn, resource_name, sizeof(fn)-1);
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", AST_MODULE_DIR, resource_name);
+		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_MODULE_DIR, resource_name);
 	}
 	m->lib = dlopen(fn, flags);
 	if (!m->lib) {
@@ -331,7 +332,7 @@ int load_modules()
 		int x;
 		/* Make two passes.  First, load any resource modules, then load the others. */
 		for (x=0;x<2;x++) {
-			mods = opendir(AST_MODULE_DIR);
+			mods = opendir((char *)ast_config_AST_MODULE_DIR);
 			if (mods) {
 				while((d = readdir(mods))) {
 					/* Must end in .so to load it.  */
@@ -374,7 +375,7 @@ int load_modules()
 				closedir(mods);
 			} else {
 				if (!option_quiet)
-					ast_log(LOG_WARNING, "Unable to open modules directory " AST_MODULE_DIR ".\n");
+					ast_log(LOG_WARNING, "Unable to open modules directory %s.\n", (char *)ast_config_AST_MODULE_DIR);
 			}
 		}
 	} 

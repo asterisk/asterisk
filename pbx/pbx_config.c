@@ -23,6 +23,7 @@
 #include <errno.h>
 /* For where to put dynamic tables */
 #include "../asterisk.h"
+#include "../astconf.h"
 
 static char *dtext = "Text Extension Configuration";
 static char *config = "extensions.conf";
@@ -919,7 +920,7 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 	} else
 		/* no config file, default one */
 		snprintf(filename, sizeof(filename), "%s/%s",
-			AST_CONFIG_DIR, config);
+			(char *)ast_config_AST_CONFIG_DIR, config);
 
 	/* try to lock contexts list */
 	if (ast_lock_contexts()) {
@@ -1463,7 +1464,6 @@ static int pbx_load_module(void)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	char *ptrptr;
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
 	struct ast_context *con;
 
@@ -1485,36 +1485,41 @@ static int pbx_load_module(void)
 				v = ast_variable_browse(cfg, cxt);
 				while(v) {
 					if (!strcasecmp(v->name, "exten")) {
+						char *stringp=NULL;
 						tc = strdup(v->value);
-						ext = strtok_r(tc, ",",&ptrptr);
-						if (!ext)
-							ext="";
-						pri = strtok_r(NULL, ",",&ptrptr);
-						if (!pri)
-							pri="";
-						appl = strtok_r(NULL, ",",&ptrptr);
-						if (!appl)
-							appl="";
- 						if (*ptrptr=='"') {
- 							ptrptr++;
- 							data = strtok_r(NULL, "\"",&ptrptr);
- 							ptrptr++;
- 						} else {
- 							data = strtok_r(NULL, ",",&ptrptr);
- 						}
-						cidmatch = strchr(ext, '/');
-						if (cidmatch) {
-							*cidmatch = '\0';
-							cidmatch++;
-						}
-						strtok(ext, "/");
+						if(tc!=NULL){
+							stringp=tc;
+							ext = strsep(&stringp, ",");
+							if (!ext)
+								ext="";
+							pri = strsep(&stringp, ",");
+							if (!pri)
+								pri="";
+							appl = strsep(&stringp, ",");
+							if (!appl)
+								appl="";
+							if (stringp!=NULL && *stringp=='"') {
+								stringp++;
+								data = strsep(&stringp, "\"");
+								stringp++;
+							} else {
+								data = strsep(&stringp, ",");
+							}
+							cidmatch = strchr(ext, '/');
+							if (cidmatch) {
+								*cidmatch = '\0';
+								cidmatch++;
+							}
+							stringp=ext;
+							strsep(&stringp, "/");
 
-						if (!data)
-							data="";
-						if (ast_add_extension2(con, 0, ext, atoi(pri), cidmatch, appl, strdup(data), free, registrar)) {
-							ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
-						}
-						free(tc);
+							if (!data)
+								data="";
+							if (ast_add_extension2(con, 0, ext, atoi(pri), cidmatch, appl, strdup(data), free, registrar)) {
+								ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
+							}
+							free(tc);
+						} else fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
 					} else if(!strcasecmp(v->name, "include")) {
 						if (ast_context_add_include2(con, v->value, registrar))
 							ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
@@ -1522,9 +1527,11 @@ static int pbx_load_module(void)
 						if (ast_context_add_ignorepat2(con, v->value, registrar))
 							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
 					} else if (!strcasecmp(v->name, "switch")) {
+						char *stringp=NULL;
 						tc = strdup(v->value);
-						appl = strtok(tc, "/");
-						data = strtok(NULL, "");
+						stringp=tc;
+						appl = strsep(&stringp, "/");
+						data = strsep(&stringp, "");
 						if (!data)
 							data = "";
 						if (ast_context_add_switch2(con, appl, data, registrar))

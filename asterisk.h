@@ -16,17 +16,20 @@
 
 #define DEFAULT_LANGUAGE "en"
 
-#define AST_CONFIG_DIR "/etc/asterisk"
-#define AST_SOCKET		"/var/run/asterisk.ctl"
-#define AST_PID			"/var/run/asterisk.pid"
-#define AST_MODULE_DIR "/usr/lib/asterisk/modules"
-#define AST_SPOOL_DIR  "/var/spool/asterisk"
-#define AST_VAR_DIR    "/var/lib/asterisk"
-#define AST_LOG_DIR	   "/var/log/asterisk"
-#define AST_AGI_DIR		"/var/lib/asterisk/agi-bin"
-#define AST_KEY_DIR	"/var/lib/asterisk/keys"
+#define AST_CONFIG_MAX_PATH 255
+#define AST_CONFIG_DIR 	ASTETCDIR
+#define AST_RUN_DIR	ASTVARRUNDIR
+#define AST_SOCKET	ASTVARRUNDIR "/asterisk.ctl"
+#define AST_PID		ASTVARRUNDIR "/asterisk.pid"
+#define AST_MODULE_DIR 	ASTMODDIR
+#define AST_SPOOL_DIR  	ASTSPOOLDIR
+#define AST_VAR_DIR    	ASTVARLIBDIR
+#define AST_LOG_DIR	ASTLOGDIR
+#define AST_AGI_DIR	ASTAGIDIR
+#define AST_KEY_DIR	ASTVARLIBDIR "/keys"
+#define AST_DB		ASTVARLIBDIR "/astdb"
 
-#define AST_CONFIG_FILE "asterisk.conf"
+#define AST_CONFIG_FILE ASTCONFPATH
 
 #define AST_SOUNDS AST_VAR_DIR "/sounds"
 #define AST_IMAGES AST_VAR_DIR "/images"
@@ -43,4 +46,7 @@ extern int init_framer(void);
 extern int reload_logger(void);
 /* Provided by term.c */
 extern int term_init(void);
+/* Provided by db.c */
+extern int astdb_init(void);
+
 #endif

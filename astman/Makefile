@@ -1,14 +1,16 @@
 
-TARGET=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; fi)
+TARGET=$(shell if [ -f /usr/include/newt.h ]; then echo "astman"; else echo "none" ; fi)
 all: $(TARGET)
 
 install:
-	mkdir -p /usr/sbin
-	if [ "$(TARGET)" != "" ]; then \
+	if [ "$(TARGET)" != "none" ]; then \
 		for x in $(TARGET); do \
-			install -m 755 $$x /usr/sbin/astman; \
+			install -m 755 $$x $(ASTSBINDIR)/astman; \
 		done ; \
 	fi
+
+none:
+	@echo Not building the Asterisk Manager "astman"
 
 clean:
 	rm -f *.o astman

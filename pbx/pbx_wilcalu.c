@@ -31,10 +31,11 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include "../astconf.h"
 
 
 // Globals
-const   char *dialfile="/var/run/autodial.ctl";
+const   char dialfile[255];
 static  char *tdesc = "Wil Cal U (Auto Dialer)";
 static  pthread_t autodialer_thread;
 static  char buf[257];
@@ -245,6 +246,7 @@ int unload_module(void)
 int load_module(void)
 {
 	int val;
+	snprintf((char *)dialfile,sizeof(dialfile)-1,"%s/%s",(char *)ast_config_AST_RUN_DIR,"autodial.ctl");
 	if((val=mkfifo(dialfile, 0700))){
 		if(errno!=EEXIST){
 			printf("Error:%d Creating Autodial FIFO\n",errno);

@@ -25,6 +25,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include "../asterisk.h"
+#include "../astconf.h"
 
 static char *tdesc = "Extension Directory";
 static char *app = "Directory";
@@ -127,13 +128,12 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 	struct ast_variable *v;
 	int res;
 	int found=0;
-	char *start, *pos, *conv;
+	char *start, *pos, *conv,*stringp=NULL;
 	char fn[256];
 	memset(ext, 0, sizeof(ext));
 	ext[0] = digit;
 	res = 0;
 	if (ast_readstring(chan, ext + 1, NUMDIGITS - 1, 3000, 3000, "#") < 0) res = -1;
-	printf("Res: %d, ext: %s\n", res, ext);
 	if (!res) {
 		/* Search for all names which start with those digits */
 		v = ast_variable_browse(cfg, context);
@@ -143,8 +143,9 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 				/* Find a candidate extension */
 				start = strdup(v->value);
 				if (start) {
-					strtok(start, ",");
-					pos = strtok(NULL, ",");
+					stringp=start;
+					strsep(&stringp, ",");
+					pos = strsep(&stringp, ",");
 					if (pos) {
 						/* Grab the last name */
 						if (strrchr(pos, ' '))
@@ -167,7 +168,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 			}
 			if (v) {
 				/* We have a match -- play a greeting if they have it */
-				snprintf(fn, sizeof(fn), "%s/vm/%s/greet", AST_SPOOL_DIR, v->name);
+				snprintf(fn, sizeof(fn), "%s/vm/%s/greet", (char *)ast_config_AST_SPOOL_DIR, v->name);
 				if (ast_fileexists(fn, NULL, chan->language) > 0) {
 					res = ast_streamfile(chan, fn, chan->language);
 					if (!res)

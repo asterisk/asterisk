@@ -71,8 +71,9 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/file.h>
+#include "../astconf.h"
 
-const   char *qdir="/var/spool/asterisk/qcall";
+char qdir[255];
 static  char *tdesc = "Call from Queue";
 static  pthread_t qcall_thread;
 static int debug = 0;
@@ -132,7 +133,7 @@ pthread_attr_t attr;
 			  /* if not a regular file, skip it */
 			if ((mystat.st_mode & S_IFMT) != S_IFREG) continue;
 			  /* if not yet .... */
-			if (mystat.st_atime == mystat.st_ctime)
+			if (mystat.st_atime == mystat.st_mtime)
 			   {  /* first time */
 				if ((mystat.st_atime + INITIALONE) > t) 
 					continue;
@@ -361,6 +362,7 @@ int unload_module(void)
 
 int load_module(void)
 {
+	snprintf((char *)qdir,sizeof(qdir)-1,"%s/%s",(char *)ast_config_AST_SPOOL_DIR,"qcall");
 	mkdir(qdir,0660);
 	pthread_create(&qcall_thread,NULL,qcall,NULL);
 	return 0;

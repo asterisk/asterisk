@@ -19,9 +19,10 @@
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
 #include "../asterisk.h"
+#include "../astconf.h"
 
-#define CSV_LOG_DIR AST_LOG_DIR "/cdr-csv"
-#define CSV_MASTER CSV_LOG_DIR "/Master.csv"
+#define CSV_LOG_DIR "/cdr-csv"
+#define CSV_MASTER  "/Master.csv"
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 
@@ -35,22 +36,26 @@
 /* The values are as follows:
 
 
-  "accountcode", 
+  "accountcode", 	// accountcode is the account name of detail records, Master.csv contains all records
+  			// Detail records are configured on a channel basis, IAX and SIP are determined by user
+			// Zap is determined by channel in zaptel.conf
   "source",
   "destination",
   "destination context", 
   "callerid",
   "channel",
   "destination channel",	(if applicable)
-  "last application",
-  "last app argument",
+  "last application",	// Last application run on the channel
+  "last app argument",	// argument to the last channel
   "start time", 
   "answer time", 
   "end time", 
-  duration, 
-  billable seconds, 
-  "disposition", 
-  "amaflags",
+  duration,   		// Duration is the whole length that the entire call lasted. ie. call rx'd to hangup 
+  			// "end time" minus "start time"
+  billable seconds, 	// the duration that a call was up after other end answered which will be <= to duration 
+  			// "end time" minus "answer time"
+  "disposition",    	// ANSWERED, NO ANSWER, BUSY
+  "amaflags",       	// DOCUMENTATION, BILL, IGNORE etc, specified on a per channel basis like accountcode.
 
 */
 
@@ -170,7 +175,7 @@ static int writefile(char *s, char *acc)
 		ast_log(LOG_WARNING, "Account code '%s' insecure for writing file\n", acc);
 		return -1;
 	}
-	snprintf(tmp, sizeof(tmp), "%s/%s.csv", CSV_LOG_DIR, acc);
+	snprintf(tmp, sizeof(tmp), "%s/%s/%s.csv", (char *)ast_config_AST_LOG_DIR,CSV_LOG_DIR, acc);
 	f = fopen(tmp, "a");
 	if (!f)
 		return -1;
@@ -184,6 +189,8 @@ static int csv_log(struct ast_cdr *cdr)
 {
 	/* Make sure we have a big enough buf */
 	char buf[1024];
+	char csvmaster[AST_CONFIG_MAX_PATH];
+	snprintf((char *)csvmaster,sizeof(csvmaster)-1,"%s/%s/%s",(char *)ast_config_AST_LOG_DIR,CSV_LOG_DIR,CSV_MASTER);
 #if 0
 	printf("[CDR] %s ('%s' -> '%s') Dur: %ds Bill: %ds Disp: %s Flags: %s Account: [%s]\n", cdr->channel, cdr->src, cdr->dst, cdr->duration, cdr->billsec, ast_cdr_disp2str(cdr->disposition), ast_cdr_flags2str(cdr->amaflags), cdr->accountcode);
 #endif
@@ -193,9 +200,9 @@ static int csv_log(struct ast_cdr *cdr)
 		/* because of the absolutely unconditional need for the
 		   highest reliability possible in writing billing records,
 		   we open write and close the log file each time */
-		mf = fopen(CSV_MASTER, "a");
+		mf = fopen(csvmaster, "a");
 		if (!mf) {
-			ast_log(LOG_ERROR, "Unable to re-open master file %s\n", CSV_MASTER);
+			ast_log(LOG_ERROR, "Unable to re-open master file %s\n", csvmaster);
 		}
 		if (mf) {
 			fputs(buf, mf);

@@ -39,6 +39,7 @@
 #include <glib.h>
 /* For where to put dynamic tables */
 #include "../asterisk.h"
+#include "../astconf.h"
 
 static pthread_mutex_t verb_lock = AST_MUTEX_INITIALIZER;
 
@@ -228,10 +229,12 @@ static void reload_module()
 
 static void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
 {
+	char tmp[AST_CONFIG_MAX_PATH];
 	char *module = gtk_file_selection_get_filename(fs);
 	char buf[256];
-	if (!strncmp(module, AST_MODULE_DIR "/", strlen(AST_MODULE_DIR "/"))) 
-		module += strlen(AST_MODULE_DIR "/");
+	snprintf((char *)tmp,sizeof(tmp)-1,"%s/",(char *)ast_config_AST_MODULE_DIR);
+	if (!strncmp(module, (char *)tmp, strlen(tmp))) 
+		module += strlen(tmp);
 	gdk_threads_leave();
 	if (ast_load_resource(module)) {
 		snprintf(buf, sizeof(buf), "Error loading module '%s'.", module);
@@ -246,13 +249,15 @@ static void file_ok_sel(GtkWidget *w, GtkFileSelection *fs)
 
 static void add_module()
 {
+	char tmp[AST_CONFIG_MAX_PATH];
 	GtkWidget *filew;
+	snprintf((char *)tmp,sizeof(tmp)-1,"%s/*.so",(char *)ast_config_AST_MODULE_DIR);
 	filew = gtk_file_selection_new("Load Module");
 	gtk_signal_connect(GTK_OBJECT (GTK_FILE_SELECTION(filew)->ok_button),
 					"clicked", GTK_SIGNAL_FUNC(file_ok_sel), filew);
 	gtk_signal_connect_object(GTK_OBJECT (GTK_FILE_SELECTION(filew)->cancel_button),
 					"clicked", GTK_SIGNAL_FUNC(gtk_widget_destroy), GTK_OBJECT(filew));
-	gtk_file_selection_set_filename(GTK_FILE_SELECTION(filew), AST_MODULE_DIR "/*.so");
+	gtk_file_selection_set_filename(GTK_FILE_SELECTION(filew), (char *)tmp);
 	gtk_widget_show(filew);
 }
 

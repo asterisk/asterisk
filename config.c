@@ -20,6 +20,7 @@
 #include <asterisk/options.h>
 #include <asterisk/logger.h>
 #include "asterisk.h"
+#include "astconf.h"
 
 #define MAX_INCLUDE_LEVEL 10
 
@@ -228,6 +229,8 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 			if (!*_tmpc) {
 				ast_log(LOG_WARNING,
 					"parse error: No category context for line %d of %s\n", lineno, configfile);
+				ast_destroy(tmp);
+				return -1;
 			}
 			c = strchr(cur, '=');
 			if (c) {
@@ -272,7 +275,7 @@ static struct ast_config *__ast_load(char *configfile, struct ast_config *tmp, s
 	if (configfile[0] == '/') {
 		strncpy(fn, configfile, sizeof(fn)-1);
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", AST_CONFIG_DIR, configfile);
+		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, configfile);
 	}
 	if ((option_verbose > 1) && !option_debug) {
 		ast_verbose(  VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
