@@ -647,6 +647,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		left = FRAME_SIZE;
 		if (chan->_state != AST_STATE_UP) {
 			/* Don't transmit unless it's up */
+			ast_mutex_unlock(&alsalock);
 			return &f;
 		}
 		f.frametype = AST_FRAME_VOICE;

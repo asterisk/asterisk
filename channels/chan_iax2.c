@@ -216,6 +216,7 @@ struct iax2_peer {
 	char secret[80];
 	char outkey[80];		/* What key we use to talk to this peer */
 	char context[AST_MAX_EXTENSION];	/* Default context (for transfer really) */
+	char peercontext[AST_MAX_EXTENSION];	/* Context to pass to peer */
 	char mailbox[AST_MAX_EXTENSION];	/* Mailbox */
 	struct sockaddr_in addr;
 	int formats;
@@ -1960,7 +1961,7 @@ static struct iax2_user *mysql_user(char *user)
 }
 #endif /* MYSQL_FRIENDS */
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *secret, int seclen, int *ofound)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *secret, int seclen, int *ofound, char *peercontext)
 {
 	struct ast_hostent ahp; struct hostent *hp;
 	struct iax2_peer *p;
@@ -1995,6 +1996,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 				*maxtime = p->maxms;		/* Max time they should take */
 			if (context)
 				strncpy(context, p->context, AST_MAX_EXTENSION - 1);
+			if (peercontext)
+				strncpy(peercontext, p->peercontext, AST_MAX_EXTENSION - 1);
 			if (trunk)
 				*trunk = p->trunk;
 			if (capability)
@@ -2079,6 +2082,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	struct iax_ie_data ied;
 	char myrdest [5] = "s";
 	char context[AST_MAX_EXTENSION] ="";
+	char peercontext[AST_MAX_EXTENSION] ="";
 	char *portno = NULL;
 	char *opts = "";
 	unsigned short callno = PTR_TO_CALLNO(c->pvt->pvt);
@@ -2125,7 +2129,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strsep(&stringp, ":");
 		portno = strsep(&stringp, ":");
 	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, storedsecret, sizeof(storedsecret) - 1, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -2168,6 +2172,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iax_ie_append_str(&ied, IAX_IE_DNID, c->dnid);
 	if (rcontext)
 		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, rcontext);
+	else if (strlen(peercontext))
+		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, peercontext);
 	if (username)
 		iax_ie_append_str(&ied, IAX_IE_USERNAME, username);
 	if (!secret && !ast_strlen_zero(storedsecret))
@@ -5785,7 +5791,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	}							
 
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, NULL, 0, &found)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, NULL, 0, &found, NULL)) {
 		return NULL;
 	}
 	if (portno) {
@@ -6012,6 +6018,9 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "context")) {
 				if (ast_strlen_zero(peer->context))
 					strncpy(peer->context, v->value, sizeof(peer->context) - 1);
+			} else if (!strcasecmp(v->name, "peercontext")) {
+				if (ast_strlen_zero(peer->peercontext))
+					strncpy(peer->peercontext, v->value, sizeof(peer->peercontext) - 1);
 			} else if (!strcasecmp(v->name, "port")) {
 				if (peer->dynamic)
 					peer->defaddr.sin_port = htons(atoi(v->value));
@@ -6553,7 +6562,7 @@ static int cache_get_callno_locked(char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, 0, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, 0, NULL, NULL)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);

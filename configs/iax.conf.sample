@@ -208,6 +208,7 @@ host=216.207.245.47
 ;secret=mysecret
 ;mailbox=1234		; Notify about mailbox 1234
 ;inkeys=key1:key2
+;peercontext=local	; Default context to request for calls to peer
 ;defaultip=216.207.245.34
 ;callerid="Some Host" <(256) 428-6011>
 ;

@@ -1687,7 +1687,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char *context;
 	char ecodes[16] = "#";
 	char tmp[256] = "", *tmpptr;
-	char language[MAX_LANGUAGE];
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
 

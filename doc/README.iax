@@ -323,4 +323,8 @@ If the host uses dynamic registration, Asterisk may still be given a
 default IP address to use when dynamic registration has not been performed 
 or has timed out.
 
+> peercontext = <context>
 
+Specifies the context name to be passed to the peer for it to use when routing
+the call through its dial plan. This entry will be used only if a context
+is not included in the IAX2 channel name passed to the Dial command.
