@@ -205,12 +205,12 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token,
 	
 	*callReference = connection->GetCallReference();
 	
-
-	cout << "Callerid looks like [" << callerid << "]" << endl;
-
-	if (strlen(callerid))
+	if (strlen(callerid)) {
+		cout << "Setting callerid: [" << callerid << "]" << endl;
 		connection->SetLocalPartyName(PString(callerid));
-
+	} else {
+		cout << "Callerid NOT SET!" << endl; 
+	}
 	connection->Unlock(); 	
 
 	if (h323debug) {
