@@ -14,6 +14,7 @@
 OSARCH=$(shell uname -s)
 
 USE_MYSQL_FRIENDS=0
+USE_SIP_MYSQL_FRIENDS=0
 
 CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
 	     chan_modem_aopen.so \
@@ -53,6 +54,9 @@ CFLAGS+=-fPIC
 
 ifeq ($(USE_MYSQL_FRIENDS),1)
 CFLAGS+=-DMYSQL_FRIENDS
+endif
+ifeq ($(USE_SIP_MYSQL_FRIENDS),1)
+CFLAGS+=-DSIP_MYSQL_FRIENDS
 endif
 
 CFLAGS+=#-DVOFRDUMPER

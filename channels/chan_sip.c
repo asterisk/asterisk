@@ -54,7 +54,8 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 
-#ifdef MYSQL_FRIENDS
+#ifdef SIP_MYSQL_FRIENDS
+#define MYSQL_FRIENDS
 #include <mysql/mysql.h>
 #endif
 
