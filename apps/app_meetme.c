@@ -699,13 +699,36 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					strcpy(confno, "");
 			} else {
 				if (strlen(cnf->pin)) {
-					/* XXX Should prompt user for pin if pin is required XXX */
+					char pin[AST_MAX_EXTENSION];
 
+					if (inpin && *inpin) {
+						strncpy(pin, inpin, sizeof(pin) - 1);
+					} else {
+						/* Prompt user for pin if pin is required */
+						res = ast_app_getdata(chan, "conf-getpin", pin, sizeof(pin) - 1, 0);
+					}
+					if (res == 0) {
+						if (!strcasecmp(pin, cnf->pin)) {
+							/* Pin correct */
+							allowretry = 0;
+							/* Run the conference */
+							res = conf_run(chan, cnf, confflags);
+						}
+					}
+					/* Pin invalid or error */
+					res = ast_streamfile(chan, "conf-invalidpin", chan->language);
+					if (!res)
+						ast_waitstream(chan, "");
+					res = -1;
+					if (allowretry)
+						strcpy(confno, "");
+				} else {
+					/* No pin required */
+					allowretry = 0;
+
+					/* Run the conference */
+					res = conf_run(chan, cnf, confflags);
 				}
-				allowretry = 0;
-
-				/* Run the conference */
-				res = conf_run(chan, cnf, confflags);
 			}
 		}
 	} while (allowretry);

@@ -1467,8 +1467,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 						myserveremail = vmu->serveremail;
 					sendpage(myserveremail, vmu->pager, msgnum, ext, chan->callerid, end - start, vmu);
 				}
-			} else
+			} else {
+				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
+				if (!res)
+					res = ast_waitstream(chan, "");
 				ast_log(LOG_WARNING, "No more messages possible\n");
+			}
 		} else
 			ast_log(LOG_WARNING, "No format for saving voicemail?\n");					
 		free_user(vmu);

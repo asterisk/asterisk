@@ -28,7 +28,11 @@
 
 %conf-getchannel.gsm%Please enter your channel number followed by the pound key.
 
+%conf-getpin.gsm%Please enter the conference pin number.
+
 %conf-invalid.gsm%That is not a valid conference number.  Please try again.
+
+%conf-invalidpin.gsm%That pin is invalid for this conference.
 
 %conf-onlyperson.gsm%You are currently the only person in this conference.
 
