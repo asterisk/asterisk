@@ -786,6 +786,8 @@ void ast_deactivate_generator(struct ast_channel *chan)
 
 int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, void *params)
 {
+	int res = 0;
+	ast_mutex_lock(&chan->lock);
 	if (chan->generatordata) {
 		if (chan->generator && chan->generator->release)
 			chan->generator->release(chan, chan->generatordata);
@@ -795,9 +797,10 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 	if ((chan->generatordata = gen->alloc(chan, params))) {
 		chan->generator = gen;
 	} else {
-		return -1;
+		res = -1;
 	}
-	return 0;
+	ast_mutex_unlock(&chan->lock);
+	return res;
 }
 
 int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
