@@ -347,7 +347,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int privacy=0;
 	int announce=0;
 	int resetcdr=0;
-	int cnt=0;
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
 	char *transfer = NULL;
@@ -397,6 +396,24 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	
 
 	if (transfer) {
+		/* XXX ANNOUNCE SUPPORT */
+		if ((ann = strstr(transfer, "A("))) {
+			announce = 1;
+			strncpy(announcemsg, ann + 2, sizeof(announcemsg) - 1);
+			/* Overwrite with X's what was the announce info */
+			while(*ann && (*ann != ')')) 
+				*(ann++) = 'X';
+			if (*ann)
+				*ann = 'X';
+			/* Now find the end of the privdb */
+			ann = strchr(announcemsg, ')');
+			if (ann)
+				*ann = '\0';
+			else {
+				ast_log(LOG_WARNING, "Transfer with Announce spec lacking trailing ')'\n");
+				announce = 0;
+			}
+		}
 		/* Extract privacy info from transfer */
 		if ((s = strstr(transfer, "P("))) {
 			privacy = 1;
@@ -411,7 +428,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			if (s)
 				*s = '\0';
 			else {
-				ast_log(LOG_WARNING, "Transfer with privacy lacking trailing '('\n");
+				ast_log(LOG_WARNING, "Transfer with privacy lacking trailing ')'\n");
 				privacy = 0;
 			}
 		} else if (strchr(transfer, 'P')) {
@@ -419,16 +436,6 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			privacy = 1;
 		} else if (strchr(transfer, 'C')) {
 			resetcdr = 1;
-		}
-		/* XXX ANNOUNCE SUPPORT */
-		else if ((ann = strstr(transfer, "A("))) {
-			announce = 1;
-			strncpy(announcemsg, ann + 2, sizeof(announcemsg) - 1);
-			cnt=0;
-			while(announcemsg[cnt] != ')') {
-				cnt++;
-				}
-			announcemsg[cnt]='\0';
 		}
 	}
 	if (resetcdr && chan->cdr)
