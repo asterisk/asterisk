@@ -5768,47 +5768,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		for (x=0;x<3;x++)
 			tmp->subs[x].zfd = -1;
 		tmp->channel = channel;
-		/* nothing on the iflist */
-		if (!*wlist) {
-			*wlist = tmp;
-			tmp->prev = NULL;
-			tmp->next = NULL;
-			*wend = tmp;
-		} else {
-			/* at least one member on the iflist */
-			struct zt_pvt *working = *wlist;
-
-			/* check if we maybe have to put it on the begining */
-			if (working->channel > tmp->channel) {
-				tmp->next = *wlist;
-				tmp->prev = NULL;
-				*wlist = tmp;
-			} else {
-			/* go through all the members and put the member in the right place */
-				while (working) {
-					/* in the middle */
-					if (working->next) {
-						if (working->channel < tmp->channel && working->next->channel > tmp->channel) {
-							tmp->next = working->next;
-							tmp->prev = working;
-							working->next->prev = tmp;
-							working->next = tmp;
-							break;
-						}
-					} else {
-					/* the last */
-						if (working->channel < tmp->channel) {
-							working->next = tmp;
-							tmp->next = NULL;
-							tmp->prev = working;
-							*wend = tmp;
-							break;
-						}
-					}
-					working = working->next;
-				}
-			}
-		}
 	}
 
 	if (tmp) {
@@ -6128,6 +6087,50 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				return NULL;
 			}
 			if (si.alarms) tmp->inalarm = 1;
+		}
+
+	}
+	if (tmp && !here) {
+		/* nothing on the iflist */
+		if (!*wlist) {
+			*wlist = tmp;
+			tmp->prev = NULL;
+			tmp->next = NULL;
+			*wend = tmp;
+		} else {
+			/* at least one member on the iflist */
+			struct zt_pvt *working = *wlist;
+
+			/* check if we maybe have to put it on the begining */
+			if (working->channel > tmp->channel) {
+				tmp->next = *wlist;
+				tmp->prev = NULL;
+				*wlist = tmp;
+			} else {
+			/* go through all the members and put the member in the right place */
+				while (working) {
+					/* in the middle */
+					if (working->next) {
+						if (working->channel < tmp->channel && working->next->channel > tmp->channel) {
+							tmp->next = working->next;
+							tmp->prev = working;
+							working->next->prev = tmp;
+							working->next = tmp;
+							break;
+						}
+					} else {
+					/* the last */
+						if (working->channel < tmp->channel) {
+							working->next = tmp;
+							tmp->next = NULL;
+							tmp->prev = working;
+							*wend = tmp;
+							break;
+						}
+					}
+					working = working->next;
+				}
+			}
 		}
 	}
 	return tmp;
@@ -8262,7 +8265,7 @@ static int __unload_module(void)
 		return -1;
 	}
 	if (!ast_mutex_lock(&monlock)) {
-		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
+		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP) && (monitor_thread != AST_PTHREADT_NULL)) {
 			pthread_cancel(monitor_thread);
 			pthread_kill(monitor_thread, SIGURG);
 			pthread_join(monitor_thread, NULL);
@@ -8301,7 +8304,8 @@ static int __unload_module(void)
 	}
 #ifdef ZAPATA_PRI		
 	for(i=0;i<NUM_SPANS;i++) {
-		pthread_join(pris[i].master, NULL);
+		if (pris[i].master && (pris[i].master != AST_PTHREADT_NULL))
+			pthread_join(pris[i].master, NULL);
 		zt_close(pris[i].fds[i]);
 	}
 #endif
