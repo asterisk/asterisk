@@ -3516,8 +3516,8 @@ static char *get_calleridname(char *input,char *output)
 		/* clear the empty characters in the end */
 		while(*end && (*end < 33) && end > input)
 			end--;
-		if (end > input)
-			strncpy(output,input,(int)(end-input));
+		if (end >= input)
+			strncpy(output,input,(int)(end-input)+1);
 		else
 			output = NULL;
 	}
