@@ -69,13 +69,38 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int handle_showmanconn(int fd, int argc, char *argv[])
+{
+	struct mansession *s;
+
+	ast_pthread_mutex_lock(&sessionlock);
+	s = sessions;
+	ast_cli(fd, "  Username\tIP Address\n");
+	while(s) {
+		ast_cli(fd, "  %s\t\t%s\r\n",s->username, inet_ntoa(s->sin.sin_addr));
+		s = s->next;
+	}
+
+	ast_pthread_mutex_unlock(&sessionlock);
+	return RESULT_SUCCESS;
+}
+
 static char showmancmds_help[] = 
 "Usage: show manager commands\n"
 "	Prints a listing of all the available manager commands.\n";
 
+static char showmanconn_help[] = 
+"Usage: show manager connected\n"
+"	Prints a listing of the users that are connected to the\n"
+"manager interface.\n";
+
 static struct ast_cli_entry show_mancmds_cli =
 	{ { "show", "manager", "commands", NULL },
 	handle_showmancmds, "Show manager commands", showmancmds_help };
+
+static struct ast_cli_entry show_manconn_cli =
+	{ { "show", "manager", "connected", NULL },
+	handle_showmanconn, "Show connected manager users", showmanconn_help };
 
 static void destroy_session(struct mansession *s)
 {
@@ -616,6 +641,7 @@ int init_manager(void)
 		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
 
 		ast_cli_register(&show_mancmds_cli);
+		ast_cli_register(&show_manconn_cli);
 		registered = 1;
 	}
 	portno = DEFAULT_MANAGER_PORT;

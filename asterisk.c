@@ -787,7 +787,7 @@ static char *cli_complete(EditLine *el, int ch)
 	LineInfo *lf = (LineInfo *)el_line(el);
 
 	*lf->cursor = '\0';
-	ptr = (char *)lf->cursor-1;
+	ptr = (char *)lf->cursor;
 	if (ptr) {
 		while (ptr > lf->buffer) {
 			if (isspace(*ptr)) {
