@@ -37,6 +37,8 @@ int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, in
 {
 	int res,to,fto;
 	/* XXX Merge with full version? XXX */
+	if (maxlen)
+		s[0] = '\0';
 	if (prompt) {
 		res = ast_streamfile(c, prompt, c->language);
 		if (res < 0)

@@ -103,9 +103,12 @@ static int read_exec(struct ast_channel *chan, void *data)
 	if (!res) {
 		ast_stopstream(chan);
 		res = ast_app_getdata(chan, filename, tmp, maxdigits, 0);
-		if (res > -1)
+		if (res > -1) {
 			pbx_builtin_setvar_helper(chan, varname, tmp);
-		ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
+			ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
+		} else {
+			ast_verbose(VERBOSE_PREFIX_3 "User entered nothing\n");
+		}
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
