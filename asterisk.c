@@ -949,6 +949,7 @@ static char *cli_complete(EditLine *el, int ch)
 
 	if (matches) {
 		int i;
+		int x;
 		int matches_num, maxlen, match_len;
 
 		if (matches[0][0] != '\0') {
@@ -978,6 +979,10 @@ static char *cli_complete(EditLine *el, int ch)
 				retval = CC_REFRESH;
 			}
 		}
+	for (x=0; matches[x]; x++) {
+		free(matches[x]);
+		matches[x] = NULL;
+	}
 	free(matches);
 	}
 

@@ -864,12 +864,14 @@ int ast_cli_generatornummatches(char *text, char *word)
 
 	while ( (buf = ast_cli_generator(text, word, i)) ) {
 		if (++i > 1 && strcmp(buf,oldbuf) == 0)  {
+				free(buf);
 				continue;
 		}
 		oldbuf = buf;
 		matches++;
 	}
-
+	free(oldbuf);
+	free(buf);
 	return matches;
 }
 
