@@ -12,6 +12,7 @@
  */
 
 #include <sys/types.h>
+#include <osp.h>
 #include <asterisk/file.h>
 #include <asterisk/channel.h>
 #include <asterisk/logger.h>
@@ -29,7 +30,6 @@
 #include <asterisk/lock.h>
 #include <asterisk/causes.h>
 #include <asterisk/callerid.h>
-#include <osp.h>
 #include <openssl/err.h>
 #include <stdio.h>
 #include <dirent.h>
