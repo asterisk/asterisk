@@ -1790,9 +1790,13 @@ int ast_pbx_run(struct ast_channel *c)
 	/* Start by trying whatever the channel is set to */
 	if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
 		/* JK02: If not successfull fall back to 's' */
+		if (option_verbose > 1)
+			ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", c->name, c->context, c->exten, c->priority);
 		strncpy(c->exten, "s", sizeof(c->exten)-1);
 		if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
 			/* JK02: And finally back to default if everything else failed */
+			if (option_verbose > 1)
+				ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d still failed so falling back to context 'default'\n", c->name, c->context, c->exten, c->priority);
 			strncpy(c->context, "default", sizeof(c->context)-1);
 		}
 		c->priority = 1;
