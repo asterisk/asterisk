@@ -220,6 +220,8 @@
 
 %vm-youhave.gsm%you have
 
+%vm-newuser.gsm%Welcome to Comedian Mail. First, I will guide you through a short setup process.
+
 %priv-sayname.gsm%After the tone, please say your name or the company you represent.
 
 %priv-trying.gsm%Please hold while I attempt to contact your party.
