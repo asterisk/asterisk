@@ -78,11 +78,20 @@ We recomend puting the above directives into your /etc/profile so
 you do not have to remember to export those values every time you 
 want to recompile.
 
-If you still have trouble please contact 'JerJer' in #Asterisk on 
-irc.freenode.net or send and email to jj@nufone.net
+
+Note Upgrading Asterisk:
+
+After you cvs update (or make update) Asterisk you have to go into
+asterisk/channels/h323 and issue a make clean, before compiling the
+rest of asterisk. Doing this process every time you upgrade Asterisk
+will ensure a sane build.
+
+
+If you are still having trouble contact 'JerJer' in #Asterisk on 
+irc.freenode.net or send reasonable debug information to support@nufone.net.
 
 If you happen to be lucky enough to segfault this code please run a 
-backtrace  and send me the gory details. Segmentation faults are not
+backtrace and send me the gory details. Segmentation faults are not
 tolerated, no matter what Distro you run!
 
 bt example:
