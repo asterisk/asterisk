@@ -276,6 +276,7 @@ bininstall: all
 	ln -s $(ASTSPOOLDIR)/voicemail/default $(ASTSPOOLDIR)/vm
 	rm -f $(MODULES_DIR)/chan_ixj.so
 	rm -f $(MODULES_DIR)/chan_tor.so
+	rm -f $(MODULES_DIR)/cdr_mysql.so
 	mkdir -p $(ASTVARLIBDIR)/sounds
 	mkdir -p $(ASTLOGDIR)/cdr-csv
 	mkdir -p $(ASTVARLIBDIR)/keys
