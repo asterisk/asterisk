@@ -2660,7 +2660,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				zt_enable_ec(p);
 				p->dialing = 0;
 				if (ast->_state == AST_STATE_DIALING) {
-					if (p->callprogress && CANPROGRESSDETECT(p) && p->dsp) {
+					if (p->callprogress && CANPROGRESSDETECT(p) && p->dsp && i->outgoing) {
 						ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
 					} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
 						ast_setstate(ast, AST_STATE_RINGING);
