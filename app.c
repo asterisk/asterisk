@@ -1060,3 +1060,101 @@ int ast_seperate_app_args(char *buf, char delim, char **array, int arraylen)
 	}
 	return x;
 }
+
+int ast_record_review(struct ast_channel *chan, const char *playfile, const char *recordfile, int maxtime, const char *fmt, int *duration) 
+{
+	int silencethreshold = 128; 
+	int maxsilence=0;
+	int res = 0;
+	int cmd = 0;
+	int max_attempts = 3;
+	int attempts = 0;
+	int recorded = 0;
+	int message_exists = 0;
+	/* Note that urgent and private are for flagging messages as such in the future */
+
+	/* barf if no pointer passed to store duration in */
+	if (duration == NULL) {
+		ast_log(LOG_WARNING, "Error ast_record_review called without duration pointer\n");
+		return -1;
+	}
+
+	cmd = '3';	 /* Want to start by recording */
+
+	while ((cmd >= 0) && (cmd != 't')) {
+		switch (cmd) {
+		case '1':
+			if (!message_exists) {
+				/* In this case, 1 is to record a message */
+				cmd = '3';
+				break;
+			} else {
+				ast_streamfile(chan, "vm-msgsaved", chan->language);
+				ast_waitstream(chan, "");
+				cmd = 't';
+				return res;
+			}
+		case '2':
+			/* Review */
+			ast_verbose(VERBOSE_PREFIX_3 "Reviewing the recording\n");
+			ast_streamfile(chan, recordfile, chan->language);
+			cmd = ast_waitstream(chan, AST_DIGIT_ANY);
+			break;
+		case '3':
+			message_exists = 0;
+			/* Record */
+			if (recorded == 1)
+				ast_verbose(VERBOSE_PREFIX_3 "Re-recording\n");
+			else	
+				ast_verbose(VERBOSE_PREFIX_3 "Recording\n");
+			recorded = 1;
+			cmd = ast_play_and_record(chan, playfile, recordfile, maxtime, fmt, duration, silencethreshold, maxsilence);
+			if (cmd == -1) {
+			/* User has hung up, no options to give */
+				return cmd;
+			}
+			if (cmd == '0') {
+				break;
+			} else if (cmd == '*') {
+				break;
+			} 
+			else {
+				/* If all is well, a message exists */
+				message_exists = 1;
+				cmd = 0;
+			}
+			break;
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+		case '*':
+		case '#':
+			cmd = ast_play_and_wait(chan, "vm-sorry");
+			break;
+		default:
+			if (message_exists) {
+				cmd = ast_play_and_wait(chan, "vm-review");
+			}
+			else {
+				cmd = ast_play_and_wait(chan, "vm-torerecord");
+				if (!cmd)
+					cmd = ast_waitfordigit(chan, 600);
+			}
+			
+			if (!cmd)
+				cmd = ast_waitfordigit(chan, 6000);
+			if (!cmd) {
+				attempts++;
+			}
+			if (attempts > max_attempts) {
+				cmd = 't';
+			}
+		}
+	}
+	if (cmd == 't')
+		cmd = 0;
+	return cmd;
+}

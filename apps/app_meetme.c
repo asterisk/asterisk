@@ -31,6 +31,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include "../asterisk.h"
+#include "../astconf.h"
 
 #ifdef __linux__
 #include <linux/zaptel.h>
@@ -58,6 +60,7 @@ static char *descrip =
 "The option string may contain zero or more of the following characters:\n"
 "      'm' -- set monitor only mode (Listen only, no talking)\n"
 "      't' -- set talk only mode. (Talk only, no listening)\n"
+"      'i' -- announce user join/leave\n"
 "      'p' -- allow user to exit the conference by pressing '#'\n"
 "      'X' -- allow user to exit the conference by entering a valid single\n"
 "             digit extension ${MEETME_EXIT_CONTEXT} or the current context\n"
@@ -124,6 +127,7 @@ struct ast_conf_user {
 	int adminflags;			 /* Flags set by the Admin */
 	struct ast_channel *chan; 	 /* Connected channel */
 	char usrvalue[50];		 /* Custom User Value */
+	char namerecloc[AST_MAX_EXTENSION]; /* Name Recorded file Location */
 	time_t jointime;		 /* Time the user joined the conference */
 };
 
@@ -156,7 +160,7 @@ static int admin_exec(struct ast_channel *chan, void *data);
 #define CONFFLAG_WAITMARKED (1 << 11)	/* If set, the MeetMe will wait until a marked user enters */
 #define CONFFLAG_EXIT_CONTEXT (1 << 12)	/* If set, the MeetMe will exit to the specified context */
 #define CONFFLAG_MARKEDUSER (1 << 13)	/* If set, the user will be marked */
-
+#define CONFFLAG_INTROUSER (1 << 14)	/* If set, user will be ask record name on entry of conference */
 
 static int careful_write(int fd, unsigned char *data, int len)
 {
@@ -515,6 +519,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int x;
 	int menu_active = 0;
 	int using_pseudo = 0;
+	int duration=20;
 
 	struct ast_app *app;
 	char *agifile;
@@ -544,6 +549,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		goto outrun;
 	}
 	conf->users++;
+
 	if (confflags & CONFFLAG_MARKEDUSER)
 		conf->markedusers++;
       
@@ -582,6 +588,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		else
 			strncpy(exitcontext, chan->context, sizeof(exitcontext) - 1);
 	}
+        snprintf(user->namerecloc,sizeof(user->namerecloc),"%s/meetme-username-%s-%d",AST_SPOOL_DIR,conf->confno,user->user_no);
+
+	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER))
+		ast_record_review(chan,"vm-rec-name",user->namerecloc, 10,"sln", &duration);
+
 	while((confflags & CONFFLAG_WAITMARKED) && (conf->markedusers == 0)) {
 		confflags &= ~CONFFLAG_QUIET;
 		confflags |= origquiet;
@@ -690,6 +701,16 @@ zapretry:
 	/* Add us to the conference */
 	ztc.chan = 0;	
 	ztc.confno = conf->zapconf;
+	ast_mutex_lock(&conflock);
+	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER) && conf->users > 1) {
+		if (ast_fileexists(user->namerecloc, NULL, NULL)) {
+			if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
+				ast_waitstream(conf->chan, "");
+			if (!ast_streamfile(conf->chan, "conf-hasjoin", chan->language))
+				ast_waitstream(conf->chan, "");
+		}
+	}
+
 	if (confflags & CONFFLAG_MONITOR)
 		ztc.confmode = ZT_CONF_CONFMON | ZT_CONF_LISTENER;
 	else if (confflags & CONFFLAG_TALKER)
@@ -700,6 +721,7 @@ zapretry:
 	if (ioctl(fd, ZT_SETCONF, &ztc)) {
 		ast_log(LOG_WARNING, "Error setting conference\n");
 		close(fd);
+		ast_mutex_unlock(&conflock);
 		goto outrun;
 	}
 	ast_log(LOG_DEBUG, "Placed channel %s in ZAP conf %d\n", chan->name, conf->zapconf);
@@ -716,7 +738,7 @@ zapretry:
 		if (!(confflags & CONFFLAG_QUIET))
 			conf_play(conf, ENTER);
 	}
-
+	ast_mutex_unlock(&conflock);
 	if (confflags & CONFFLAG_AGI) {
 
 		/* Get name of AGI file to run from $(MEETME_AGI_BACKGROUND)
@@ -989,8 +1011,23 @@ zapretry:
 			ast_log(LOG_WARNING, "Error setting conference\n");
 		}
 	}
+
+	ast_mutex_lock(&conflock);
 	if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
 		conf_play(conf, LEAVE);
+
+	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER) && conf->users > 1) {
+		if (ast_fileexists(user->namerecloc, NULL, NULL)) {
+			if (!ast_streamfile(conf->chan, user->namerecloc, chan->language))
+				ast_waitstream(conf->chan, "");
+			if (!ast_streamfile(conf->chan, "conf-hasleft", chan->language))
+				ast_waitstream(conf->chan, "");
+			ast_filedelete(user->namerecloc, NULL);
+
+		}
+	}
+	ast_mutex_unlock(&conflock);
+
 
 outrun:
 	ast_mutex_lock(&conflock);
@@ -1214,6 +1251,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	if (inflags) {
 		if (strchr(inflags, 'a'))
 			confflags |= CONFFLAG_ADMIN;
+		if (strchr(inflags, 'i'))
+			confflags |= CONFFLAG_INTROUSER;
 		if (strchr(inflags, 'm'))
 			confflags |= CONFFLAG_MONITOR;
 		if (strchr(inflags, 'p'))
@@ -1573,6 +1612,7 @@ int load_module(void)
 	return ast_register_application(app, conf_exec, synopsis, descrip);
 }
 
+
 char *description(void)
 {
 	return tdesc;
@@ -1589,3 +1629,4 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
+ 

@@ -26,6 +26,10 @@
 
 %beeperr.gsm%(this is an error beep tone)
 
+%conf-hasleft.gsm%has left the conference.
+
+%conf-hasjoin.gsm%has joined the conference.
+
 %conf-getconfno.gsm%Please enter your conference number followed by the pound key.
 
 %conf-getchannel.gsm%Please enter your channel number followed by the pound key.
