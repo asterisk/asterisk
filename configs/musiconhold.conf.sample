@@ -1,0 +1,7 @@
+;
+; Music on hold class definitions
+;
+[classes]
+;default => quietmp3:/var/lib/asterisk/mohmp3
+;loud => mp3:/var/lib/asterisk/mohmp3
+;random => quietmp3:/var/lib/asterisk/mohmp3,-z
