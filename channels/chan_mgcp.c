@@ -3,9 +3,9 @@
  *
  * Implementation of Media Gateway Control Protocol
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -1137,8 +1137,10 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 	if (sub) {
 		ast_mutex_lock(&sub->lock);
-		if (sub->rtp) {
-			res =  ast_rtp_write(sub->rtp, frame);
+		if ((sub->parent->sub == sub) || !sub->parent->singlepath) {
+			if (sub->rtp) {
+				res =  ast_rtp_write(sub->rtp, frame);
+			}
 		}
 		ast_mutex_unlock(&sub->lock);
 	}
@@ -3674,6 +3676,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
                     e->callreturn = callreturn;
                     e->cancallforward = cancallforward;
                     e->canreinvite = canreinvite;
+                    e->singlepath = singlepath;
                     e->callwaiting = callwaiting;
             		e->slowsequence = slowsequence;
                     e->transfer = transfer;
