@@ -21,7 +21,6 @@ static int vad = 0;
 static int vbr = 0;
 static int vbr_quality = 0;
 static int abr = 0;
-static int abr_quality = 0;
 static int dtx = 0;
 
 #define TYPE_SILENCE	 0x2
@@ -82,20 +81,21 @@ static struct ast_translator_pvt *lintospeex_new(void)
 			speex_bits_init(&tmp->bits);
 			speex_bits_reset(&tmp->bits);
 			speex_encoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
-			speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &quality);
 			speex_encoder_ctl(tmp->speex, SPEEX_SET_COMPLEXITY, &complexity);
 
-			if (vad)
-				speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
-			if (dtx)
-				speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &vad);
+			if(!abr && !vbr) {
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &quality);
+				if (vad)
+					speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
+				if (dtx)
+					speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &vad);
+			}
 			if (vbr) {
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &vbr);
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &vbr_quality);
 			}
 			if (abr) {
-				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &abr);
-				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR_QUALITY, &abr_quality);
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_ABR, &abr);
 			}
 			tmp->tail = 0;
 		}
@@ -342,15 +342,7 @@ static void parse_config(void)
 					} else 
 						ast_log(LOG_ERROR,"Error! VBR Quality must be 0-10\n");
 				} else if (!strcasecmp(var->name, "abr_quality")) {
-					res = abs(atoi(var->value));
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR Quality to %d\n",res);
-					if (res > -1 && res < 11) {
-						ast_mutex_lock(&localuser_lock);
-						abr_quality = res;
-						ast_mutex_unlock(&localuser_lock);
-					} else 
-						ast_log(LOG_ERROR,"Error! ABR Quality must be 0-10\n");
+					ast_log(LOG_ERROR,"Error! ABR Quality setting obsolete, set ABR to desired bitrate\n");
 				} else if (!strcasecmp(var->name, "enhancement")) {
 					ast_mutex_lock(&localuser_lock);
 					enhancement = ast_true(var->value) ? 1 : 0;
@@ -364,11 +356,18 @@ static void parse_config(void)
 						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VBR Mode. [%s]\n",vbr ? "on" : "off");
 					ast_mutex_unlock(&localuser_lock);
 				} else if (!strcasecmp(var->name, "abr")) {
-					ast_mutex_lock(&localuser_lock);
-					abr = ast_true(var->value) ? 1 : 0;
+					res = abs(atoi(var->value));
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: ABR Mode. [%s]\n",vbr ? "on" : "off");
-					ast_mutex_unlock(&localuser_lock);
+					      if(res > 0)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR target bitrate to %d\n",res);
+					      else
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n",res);
+					if (res >= 0) {
+						ast_mutex_lock(&localuser_lock);
+						abr = res;
+						ast_mutex_unlock(&localuser_lock);
+					} else 
+						ast_log(LOG_ERROR,"Error! ABR target bitrate must be >= 0\n");
 				} else if (!strcasecmp(var->name, "vad")) {
 					ast_mutex_lock(&localuser_lock);
 					vad = ast_true(var->value) ? 1 : 0;

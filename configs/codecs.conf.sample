@@ -9,10 +9,8 @@ enhancement => true
 vad => false
 ; true / false
 vbr => false
-;0-10
-abr_quality => 5
-; true / false
-abr => false
+; 0 = off, otherwise, target bitrate in bps
+abr => 0
 ;0-10
 vbr_quality => 5
 ; true / false
