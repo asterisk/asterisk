@@ -375,6 +375,12 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		/* Call on this agent */
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
+		if (p->chan->callerid)
+			free(p->chan->callerid);
+		if (ast->callerid)
+			p->chan->callerid = strdup(ast->callerid);
+		else
+			p->chan->callerid = NULL;
 		res = ast_call(p->chan, p->loginchan, 0);
 		CLEANUP(ast,p);
 		ast_mutex_unlock(&p->lock);
