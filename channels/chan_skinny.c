@@ -2752,6 +2752,7 @@ int unload_module()
 
 	return 0;
 #endif
+	return -1;
 }
 
 int usecount()
