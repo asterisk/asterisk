@@ -1,0 +1,35 @@
+;
+; Linux Telephony Interface
+;
+; Configuration file
+;
+[interfaces]
+;
+; Select a mode, either the line jack provides dialtone, reads digits,
+; then starts PBX with the given extension (dialtone mode), or 
+; immediately provides the PBX without reading any digits or providing 
+; any dialtone (this is the immediate mode, the default)
+;
+;mode=immediate
+mode=dialtone
+;
+; You can decide which format to use by default, "g723.1" or "slinear".
+; XXX Be careful, sometimes the card causes kernel panics when running
+; in signed linear mode for some reason... XXX
+;
+;format=slinear
+format=g723.1
+;
+; And set the echo cancellation to "off", "low", "medium", and "high".
+; This is not supported on all phones.
+;
+echocancel=medium
+;
+; You can optionally use VAD/CNG silence supression
+;
+;silencesupression=yes
+;
+; List all devices we can use.  Contexts may also be specified
+;
+;context=local
+;device=/dev/ixj0
