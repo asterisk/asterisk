@@ -5484,7 +5484,10 @@ static void *do_monitor(void *data)
 					}
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
+					/* Don't hold iflock while handling init events -- race with chlock */
+					ast_mutex_unlock(&iflock);
 					handle_init_event(i, res);
+					ast_mutex_lock(&iflock);	
 				}
 #ifdef ZAPATA_R2
 				if ((pollres & POLLPRI) || (i->r2 && !i->sigchecked)) 
@@ -5503,7 +5506,10 @@ static void *do_monitor(void *data)
 					res = zt_get_event(i->subs[SUB_REAL].zfd);
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Monitor doohicky got event %s on channel %d\n", event2str(res), i->channel);
+					/* Don't hold iflock while handling init events */
+					ast_mutex_unlock(&iflock);
 					handle_init_event(i, res);
+					ast_mutex_lock(&iflock);	
 				}
 			}
 			i=i->next;
