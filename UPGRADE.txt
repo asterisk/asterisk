@@ -1,0 +1,16 @@
+Information for Upgrading From Asterisk 1.0
+===========================================
+
+Agents:
+
+* The default for ackcall has been changed to "no" instead of "yes" 
+  because of a bug which caused the "yes" behavior to generally act like
+  "no".  You may need to adjust the value if your agents behave 
+  differently than you expect with respect to acknowledgement.
+
+Dialing:
+
+* The Caller*ID of the outbound leg is now the extension that was 
+  called, rather than the Caller*ID of the inbound leg of the call.  The 
+  "o" flag for Dial can be used to restore the original behavior if 
+  desired.

@@ -360,6 +360,8 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			   for us when the PBX instance that called login finishes */
 			if (!ast_strlen_zero(p->loginchan)) {
 				p->chan->_bridge = NULL;
+				if (p->chan)
+					ast_log(LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
 				ast_hangup(p->chan);
 				if (p->wrapuptime) {
 					gettimeofday(&p->lastdisc, NULL);
@@ -375,8 +377,9 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			p->acknowledged = 0;
 		}
 	}
-	if ((p->chan && (p->chan->_state != AST_STATE_UP)) && f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
+	if (p->chan && f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
 /* TC */
+		ast_log(LOG_DEBUG, "Got answer on %s\n", p->chan->name);
 		if (p->ackcall) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
@@ -385,10 +388,8 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			f = &null_frame;
 		} else {
 			p->acknowledged = 1;
+			ast_frfree(f);
 			f = &answer_frame;
-			if (p->chan)
-				p->chan->_bridge = ast;
-
         }
 	}
 	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
@@ -398,8 +399,6 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			p->acknowledged = 1;
 			ast_frfree(f);
 			f = &answer_frame;
-			if (p->chan)
-				p->chan->_bridge = ast;
 		}
 	}
 	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '*')) {
@@ -408,6 +407,13 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		f = NULL;
 	}
 	CLEANUP(ast,p);
+	if (p->chan && !p->chan->_bridge) {
+		if (strcasecmp(p->chan->type, "Local")) {
+			p->chan->_bridge = ast;
+			if (p->chan)
+				ast_log(LOG_DEBUG, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
+		}
+	}
 	ast_mutex_unlock(&p->lock);
 	if (recordagentcalls && f == &answer_frame)
 		agent_start_monitoring(ast,0);
@@ -563,8 +569,6 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 			if (recordagentcalls)
 				agent_start_monitoring(ast,0);
 			p->acknowledged = 1;
-			if (p->chan)
-				p->chan->_bridge = ast;
 		}
 		res = 0;
 	}
@@ -892,7 +896,7 @@ static int read_agent_config(void)
 	group = 0;
 	autologoff = 0;
 	wrapuptime = 0;
-	ackcall = 1;
+	ackcall = 0;
 	cfg = ast_config_load(config);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");

@@ -8186,6 +8186,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					if (c) {
 						transfer_to = ast_bridged_channel(c);
 						if (transfer_to) {
+							ast_log(LOG_DEBUG, "Got SIP blind transfer, applying to '%s'\n", transfer_to->name);
 							ast_moh_stop(transfer_to);
 							if (!strcmp(p->refer_to, ast_parking_ext())) {
 								/* Must release c's lock now, because it will not longer
@@ -8202,6 +8203,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 								ast_async_goto(transfer_to,p->context, p->refer_to,1);
 							}
 						} else {
+							ast_log(LOG_DEBUG, "Got SIP blind transfer but nothing to transfer to.\n");
 							ast_queue_hangup(p->owner);
 						}
 					}
