@@ -5250,6 +5250,7 @@ static int reload_config(void)
 	char *config = "iax.conf";
 	struct iax2_registry *reg;
 	struct sockaddr_in dead_sin;
+	struct iax2_peer *peer;
 	strncpy(accountcode, "", sizeof(accountcode)-1);
 	amaflags = 0;
 	notransfer = 0;
@@ -5259,6 +5260,11 @@ static int reload_config(void)
 	prune_peers();
 	for (reg = registrations; reg; reg = reg->next)
 		iax2_do_register(reg);
+	/* Qualify hosts, too */
+	ast_mutex_lock(&peerl.lock);
+	for (peer = peerl.peers; peer; peer = peer->next)
+		iax2_poke_peer(peer);
+	ast_mutex_unlock(&peerl.lock);
 	return 0;
 }
 
