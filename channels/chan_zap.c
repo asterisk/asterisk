@@ -55,7 +55,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_EVENT_PROGRESS
+#ifndef PRI_SETUP_CALL
 #error "You need newer libpri"
 #endif
 #endif
@@ -1667,6 +1667,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	}
 #ifdef ZAPATA_PRI
 	if (p->pri) {
+		struct pri_sr *sr;
 		c = strchr(dest, '/');
 		if (c)
 			c++;
@@ -1690,7 +1691,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		p->dop.op = ZT_DIAL_OP_REPLACE;
 		s = strchr(c + p->stripmsd, 'w');
 		if (s) {
-			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", s);
+			if (strlen(s))
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", s);
+			else
+				strcpy(p->dop.dialstr, "");
 			*s = '\0';
 		} else {
 			strcpy(p->dop.dialstr, "");
@@ -1706,23 +1710,35 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			ast_mutex_unlock(&p->lock);
 			return -1;
 		}
+		if (!(sr = pri_sr_new())) {
+			ast_log(LOG_WARNING, "Failed to allocate setup request channel %d\n", p->channel);
+			pri_rel(p->pri);
+			ast_mutex_unlock(&p->lock);
+		}
 		if (p->bearer) {
 			ast_log(LOG_DEBUG, "Oooh, I have a bearer on %d (%d:%d)\n", PVT_TO_CHANNEL(p->bearer), p->bearer->logicalspan, p->bearer->channel);
 			pri_set_crv(p->pri->pri, p->call, p->channel, 0);
 			p->bearer->call = p->call;
 		}
 		p->digital = ast_test_flag(ast,AST_FLAG_DIGITAL);
-		if (pri_call(p->pri->pri, p->call, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
-			p->bearer ? PVT_TO_CHANNEL(p->bearer) : PVT_TO_CHANNEL(p), p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1, l, p->pri->dialplan - 1, n,
-			l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : (p->use_callingpres ? ast->callingpres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN)) : PRES_NUMBER_NOT_AVAILABLE,
-			c + p->stripmsd, p->pri->dialplan - 1, 
-			(p->digital ? -1 : 
-			((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)))) {
+		pri_sr_set_channel(sr, p->bearer ? PVT_TO_CHANNEL(p->bearer) : PVT_TO_CHANNEL(p), 
+								p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1);
+		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
+					(p->digital ? -1 : 
+						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
+		pri_sr_set_called(sr, c + p->stripmsd, p->pri->dialplan - 1,  s ? 1 : 0);
+		pri_sr_set_caller(sr, l, n, p->pri->dialplan - 1, 
+					l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : 
+						(p->use_callingpres ? ast->callingpres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN)) : 
+						 PRES_NUMBER_NOT_AVAILABLE);
+		if (pri_setup(p->pri->pri, p->call,  sr)) {
 			ast_log(LOG_WARNING, "Unable to setup call to %s\n", c + p->stripmsd);
 			pri_rel(p->pri);
 			ast_mutex_unlock(&p->lock);
+			pri_sr_free(sr);
 			return -1;
 		}
+		pri_sr_free(sr);
 		ast_setstate(ast, AST_STATE_DIALING);
 		pri_rel(p->pri);
 	}
