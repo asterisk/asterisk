@@ -181,6 +181,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	PHONE_CID cid;
 	time_t UtcTime;
 	struct tm tm;
+	int start;
 
 	time(&UtcTime);
 	localtime_r(&UtcTime,&tm);
@@ -210,7 +211,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Ringing %s on %s (%d)\n", dest, ast->name, ast->fds[0]);
 
-	int start = IXJ_PHONE_RING_START(cid);
+	start = IXJ_PHONE_RING_START(cid);
 	if (start == -1)
 		return -1;
 	
@@ -708,13 +709,13 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *context)
 {
 	struct ast_channel *tmp;
+	struct phone_codec_data codec;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		snprintf(tmp->name, sizeof(tmp->name), "Phone/%s", i->dev + 5);
 		tmp->type = type;
 		tmp->fds[0] = i->fd;
 		/* XXX Switching formats silently causes kernel panics XXX */
-		struct phone_codec_data codec;
 		if (i->mode == MODE_FXS &&
 		    ioctl(i->fd, PHONE_QUERY_CODEC, &codec) == 0) {
 			if (codec.type == LINEAR16)
