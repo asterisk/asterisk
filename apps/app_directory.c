@@ -250,7 +250,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 top:
-	context = strdupa(data);
+	context = ast_strdupa(data);
 	dialcontext = strchr(context, '|');
 	if (dialcontext) {
 		*dialcontext = '\0';
