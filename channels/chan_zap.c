@@ -1,3 +1,4 @@
+
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
@@ -5129,6 +5130,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 		tmp = (struct zt_pvt*)malloc(sizeof(struct zt_pvt));
 		if (!tmp) {
 			ast_log(LOG_ERROR, "MALLOC FAILED\n");
+			free(tmp);
 			return NULL;
 		}
 		memset(tmp, 0, sizeof(struct zt_pvt));
@@ -5200,7 +5202,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio)
 			if (p.sigtype != (signalling & 0xffff)) {
 				ast_log(LOG_ERROR, "Signalling requested is %s but line is in %s signalling\n", sig2str(signalling), sig2str(p.sigtype));
 				free(tmp);
-				return NULL;
+				tmp = NULL;
+				return tmp;
 			}
 			if (here) {
 				if (tmp->sig != signalling) {
@@ -6670,8 +6673,7 @@ static char pri_really_debug_help[] =
 	"       Enables debugging down to the Q.921 level\n";
 
 static struct ast_cli_entry pri_debug = {
-	{ "pri", "debug", "span", NULL }, handle_pri_debug, "Enables PRI debugging on a span", pri_debug_help, complete_span 
-};
+	{ "pri", "debug", "span", NULL }, handle_pri_debug, "Enables PRI debugging on a span", pri_debug_help, complete_span };
 
 static struct ast_cli_entry pri_no_debug = {
 	{ "pri", "no", "debug", "span", NULL }, handle_pri_no_debug, "Disables PRI debugging on a span", pri_no_debug_help, complete_span };
@@ -7026,13 +7028,30 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 
 static int __unload_module(void)
 {
+	int x = 0;
+	int i;
 	struct zt_pvt *p, *pl;
-	/* First, take us out of the channel loop */
-	ast_channel_unregister(type);
-	ast_channel_unregister(typecompat);
+#ifdef ZAPATA_PRI
+	for(i=0;i<NUM_SPANS;i++) {
+		pthread_cancel(pris[i].master);
+	}
+	ast_cli_unregister(&pri_debug);
+	ast_cli_unregister(&pri_no_debug);
+	ast_cli_unregister(&pri_really_debug);
+#endif
+#ifdef ZAPATA_R2
+	ast_cli_unregister(&r2_debug);
+	ast_cli_unregister(&r2_no_debug);
+#endif
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
 	ast_cli_unregister(&cli_destroy_channel);
+	ast_manager_unregister( "ZapDialOffhook" );
+	ast_manager_unregister( "ZapHangup" );
+	ast_manager_unregister( "ZapTransfer" );
+	ast_unregister_application(app_callingpres);
+	ast_channel_unregister(typecompat);
+	ast_channel_unregister(type);
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -7041,7 +7060,6 @@ static int __unload_module(void)
 				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 			p = p->next;
 		}
-		iflist = NULL;
 		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
@@ -7072,8 +7090,11 @@ static int __unload_module(void)
 				zt_close(p->subs[SUB_REAL].zfd);
 			pl = p;
 			p = p->next;
+			x++;
 			/* Free associated memory */
-			free(pl);
+			if(p)
+			  free(pl);
+			ast_verbose(VERBOSE_PREFIX_3 "Unregistered channel %d\n", x);
 		}
 		iflist = NULL;
 		ast_mutex_unlock(&iflock);
@@ -7081,7 +7102,12 @@ static int __unload_module(void)
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
 	}
-		
+#ifdef ZAPATA_PRI		
+	for(i=0;i<NUM_SPANS;i++) {
+		pthread_join(pris[i].master, NULL);
+		zt_close(pris[i].fd);
+	}
+#endif
 	return 0;
 }
 
@@ -7155,6 +7181,7 @@ static int setup_zap(void)
 				}
 				for (x=start;x<=finish;x++) {
 					tmp = mkintf(x, cur_signalling, cur_radio);
+
 					if (tmp) {
 						if (option_verbose > 2)
 							ast_verbose(VERBOSE_PREFIX_3 "Registered channel %d, %s signalling\n", x, sig2str(tmp->sig));
@@ -7162,7 +7189,7 @@ static int setup_zap(void)
 						ast_log(LOG_ERROR, "Unable to register channel '%s'\n", v->value);
 						ast_destroy(cfg);
 						ast_mutex_unlock(&iflock);
-						__unload_module();
+						/*__unload_module();*/
 						return -1;
 					}
 				}
@@ -7482,6 +7509,9 @@ int load_module(void)
 #endif
 	res = setup_zap();
 	/* Make sure we can register our Zap channel type */
+	if(res) {
+	  return -1;
+	}
 	if (ast_channel_register(type, tdesc, AST_FORMAT_SLINEAR |  AST_FORMAT_ULAW, zt_request)) {
 		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 		__unload_module();
