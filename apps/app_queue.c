@@ -7,6 +7,8 @@
  *
  * Mark Spencer <markster@linux-support.net>
  *
+ * 2004-06-04: Priorities in queues added by inAccess Networks (work funded by Hellas On Line (HOL) www.hol.gr).
+ *
  * These features added by David C. Troy <dave@toad.net>:
  *    - Per-queue holdtime calculation
  *    - Estimated holdtime announcement
@@ -154,7 +156,8 @@ struct queue_ent {
 	char moh[80];			/* Name of musiconhold to be used */
 	char announce[80];		/* Announcement to play for member when call is answered */
 	char context[80];		/* Context when user exits queue */
-	int pos;			/* Where we are in the queue */
+	int pos;					/* Where we are in the queue */
+	int prio;					/* Our priority */
 	int last_pos_said;              /* Last position we told the user */
 	time_t last_pos;                /* Last time we told the user their position */
 	int opos;			/* Where we started in the queue */
@@ -166,12 +169,12 @@ struct queue_ent {
 };
 
 struct member {
-	char tech[80];			/* Technology */
-	char loc[256];			/* Location */
-	int penalty;			/* Are we a last resort? */
-	int calls;
-	int dynamic;			/* Are we dynamically added? */
-	time_t lastcall;		/* When last successful call was hungup */
+	char tech[80];				/* Technology */
+	char loc[256];				/* Location */
+	int penalty;				/* Are we a last resort? */
+	int calls;					/* Number of calls serviced by this member */
+	int dynamic;				/* Are we dynamically added? */
+	time_t lastcall;			/* When last successful call was hungup */
 	struct member *next;		/* Next member */
 };
 
@@ -238,12 +241,35 @@ static int strat2int(char *strategy)
 	return -1;
 }
 
+/* Insert the 'new' entry after the 'prev' entry of queue 'q' */
+static inline void insert_entry(struct ast_call_queue *q, 
+					struct queue_ent *prev, struct queue_ent *new, int *pos)
+{
+	struct queue_ent *cur;
+
+	if (!q || !new)
+		return;
+	if (prev) {
+		cur = prev->next;
+		prev->next = new;
+	} else {
+		cur = q->head;
+		q->head = new;
+	}
+	new->next = cur;
+	new->parent = q;
+	new->pos = ++(*pos);
+	new->opos = *pos;
+}
+
 static int join_queue(char *queuename, struct queue_ent *qe)
 {
 	struct ast_call_queue *q;
 	struct queue_ent *cur, *prev = NULL;
 	int res = -1;
 	int pos = 0;
+	int inserted = 0;
+
 	ast_mutex_lock(&qlock);
 	q = queues;
 	while(q) {
@@ -251,32 +277,35 @@ static int join_queue(char *queuename, struct queue_ent *qe)
 			/* This is our one */
 			ast_mutex_lock(&q->lock);
 			if (q->members && (!q->maxlen || (q->count < q->maxlen))) {
-				/* There's space for us, put us at the end */
+				/* There's space for us, put us at the right position inside
+				 * the queue. 
+				 * Take into account the priority of the calling user */
+				inserted = 0;
 				prev = NULL;
 				cur = q->head;
 				while(cur) {
+					/* We have higher priority than the current user, enter
+					 * before him, after all the other users with priority
+					 * higher or equal to our priority. */
+					if ((!inserted) && (qe->prio > cur->prio)) {
+						insert_entry(q, prev, qe, &pos);
+						inserted = 1;
+					}
 					cur->pos = ++pos;
 					prev = cur;
 					cur = cur->next;
 				}
-				if (prev)
-					prev->next = qe;
-				else
-					q->head = qe;
-				/* Fix additional pointers and
-				  information  */
-				qe->next = NULL;
-				qe->parent = q;
-				qe->pos = ++pos;
-				qe->opos = pos;
+				/* No luck, join at the end of the queue */
+				if (!inserted)
+					insert_entry(q, prev, qe, &pos);
 				strncpy(qe->moh, q->moh, sizeof(qe->moh));
 				strncpy(qe->announce, q->announce, sizeof(qe->announce));
 				strncpy(qe->context, q->context, sizeof(qe->context));
 				q->count++;
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
-        	                                               	"Channel: %s\r\nCallerID: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-	                                                       	qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : "unknown"), q->name, qe->pos, q->count );
+					"Channel: %s\r\nCallerID: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
+					qe->chan->name, (qe->chan->callerid ? qe->chan->callerid : "unknown"), q->name, qe->pos, q->count );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
@@ -448,8 +477,8 @@ static void leave_queue(struct queue_ent *qe)
 
 			/* Take us out of the queue */
 			manager_event(EVENT_FLAG_CALL, "Leave",
-                                 "Channel: %s\r\nQueue: %s\r\nCount: %d\r\n",
-				 qe->chan->name, q->name,  q->count);
+				"Channel: %s\r\nQueue: %s\r\nCount: %d\r\n",
+				qe->chan->name, q->name,  q->count);
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name );
 #endif
@@ -565,13 +594,16 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 				}
 			} else {
 				/* Ring just the best channel */
-				ast_log(LOG_DEBUG, "Trying '%s/%s' with metric %d\n", best->tech, best->numsubst, best->metric);
+				if (option_debug)
+					ast_log(LOG_DEBUG, "Trying '%s/%s' with metric %d\n", 
+									best->tech, best->numsubst, best->metric);
 				ring_entry(qe, best);
 			}
 		}
 	} while (best && !best->chan);
 	if (!best) {
-		ast_log(LOG_DEBUG, "Nobody left to try ringing in queue\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Nobody left to try ringing in queue\n");
 		return 0;
 	}
 	return 1;
@@ -784,6 +816,26 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	
 }
 
+static int is_our_turn(struct queue_ent *qe)
+{
+	struct queue_ent *ch;
+	int res;
+
+	/* Atomically read the parent head -- does not need a lock */
+	ch = qe->parent->head;
+	/* If we are now at the top of the head, break out */
+	if (ch == qe) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
+		res = 1;
+	} else {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "It's not our turn (%s).\n", qe->chan->name);
+		res = 0;
+	}
+	return res;
+}
+
 static int wait_our_turn(struct queue_ent *qe, int ringing)
 {
 	struct queue_ent *ch;
@@ -796,8 +848,11 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 		ch = qe->parent->head;
 
 		/* If we are now at the top of the head, break out */
-		if (qe == ch)
+		if (ch == qe) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
 			break;
+		}
 
 		/* If we have timed out, break out */
 		if ( qe->queuetimeout ) {
@@ -809,7 +864,6 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 		/* Make a position announcement, if enabled */
 		if (qe->parent->announcefrequency && !ringing)
 			say_position(qe);
-
 
 		/* Wait a second before checking again */
 		res = ast_waitfordigit(qe->chan, RECHECK * 1000);
@@ -919,6 +973,9 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	struct ast_bridge_config config;
 	/* Hold the lock while we setup the outgoing calls */
 	ast_mutex_lock(&qe->parent->lock);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "%s is trying to call a queue member.\n", 
+							qe->chan->name);
 	strncpy(queuename, qe->parent->name, sizeof(queuename) - 1);
 	time(&now);
 	cur = qe->parent->members;
@@ -952,10 +1009,12 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 			if ((strchr(options, 'n')) && (now - qe->start >= qe->parent->timeout))
 				*go_on = 1;
 		}
-		if (url) {
-			ast_log(LOG_DEBUG, "Queue with URL=%s_\n", url);
-		} else 
-			ast_log(LOG_DEBUG, "Simple queue (no URL)\n");
+		if (option_debug) {
+			if (url)
+				ast_log(LOG_DEBUG, "Queue with URL=%s_\n", url);
+			else 
+				ast_log(LOG_DEBUG, "Simple queue (no URL)\n");
+		}
 
 		tmp->member = cur;		/* Never directly dereference!  Could change on reload */
 		strncpy(tmp->tech, cur->tech, sizeof(tmp->tech)-1);
@@ -1009,6 +1068,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 				/* Nobody answered, next please? */
 				res=0;
 		}
+		if (option_debug)
+			ast_log(LOG_DEBUG, "%s: Nobody answered.\n", qe->chan->name);
 		goto out;
 	}
 	if (peer) {
@@ -1078,7 +1139,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);			
  		if( url && !ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
- 			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
+			if (option_debug)
+	 			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		}
 		ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "CONNECT", "%ld", (long)time(NULL) - qe->start);
@@ -1382,11 +1444,12 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	char *options = NULL;
 	char *url = NULL;
 	char *announceoverride = NULL;
+	char *user_priority;
+	int prio;
 	char *queuetimeoutstr = NULL;
+
 	/* whether to exit Queue application after the timeout hits */
 	int go_on = 0;
-
-
 
 	/* Our queue entry */
 	struct queue_ent qe;
@@ -1424,29 +1487,49 @@ static int queue_exec(struct ast_channel *chan, void *data)
 						qe.queuetimeout = atoi(queuetimeoutstr);
 					} else {
 						qe.queuetimeout = 0;
+					}
 				}
 			}
 		}
 	}
+
+	/* Get the priority from the variable ${QUEUE_PRIO} */
+	user_priority = pbx_builtin_getvar_helper(chan, "QUEUE_PRIO");
+	if (user_priority) {
+		if (sscanf(user_priority, "%d", &prio) == 1) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "%s: Got priority %d from ${QUEUE_PRIO}.\n",
+								chan->name, prio);
+		} else {
+			ast_log(LOG_WARNING, "${QUEUE_PRIO}: Invalid value (%s), channel %s.\n",
+							user_priority, chan->name);
+			prio = 0;
+		}
+	} else {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "NO QUEUE_PRIO variable found. Using default.\n");
+		prio = 0;
 	}
 
 	if (options) {
 		if (strchr(options, 'r')) {
 			ringing = 1;
-	  	}
-        }
+		}
+	}
 
-	printf("queue: %s, options: %s, url: %s, announce: %s, timeout: %d\n",
-		queuename, options, url, announceoverride, qe.queuetimeout);
-
+//	if (option_debug) 
+		ast_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, timeout: %d, priority: %d\n",
+				queuename, options, url, announceoverride, qe.queuetimeout, (int)prio);
 
 	qe.chan = chan;
 	qe.start = time(NULL);
+	qe.prio = (int)prio;
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
 	if (!join_queue(queuename, &qe)) {
 		ast_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "", chan->callerid ? chan->callerid : "");
 		/* Start music on hold */
+check_turns:
 		if (ringing) {
 			ast_indicate(chan, AST_CONTROL_RINGING);
 		} else {              
@@ -1532,7 +1615,15 @@ static int queue_exec(struct ast_channel *chan, void *data)
 					res = 0;
 					break;
 				}
-
+				/* Since this is a priority queue and 
+				 * it is not sure that we are still at the head
+				 * of the queue, go and check for our turn again.
+				 */
+				if (!is_our_turn(&qe)) {
+					ast_log(LOG_DEBUG, "Darn priorities, going back in queue (%s)!\n",
+								qe.chan->name);
+					goto check_turns;
+				}
 			}
 		}
 		/* Don't allow return code > 0 */
@@ -1733,7 +1824,7 @@ static void reload_queues(void)
 			if (!q->count) {
 				free(q);
 			} else
-				ast_log(LOG_WARNING, "XXX Leaking a litttle memory :( XXX\n");
+				ast_log(LOG_WARNING, "XXX Leaking a little memory :( XXX\n");
 		} else
 			ql = q;
 		q = qn;
@@ -1809,8 +1900,8 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 			pos = 1;
 			ast_cli(fd, "   Callers: \n");
 			for (qe = q->head; qe; qe = qe->next) 
-				ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld)\n", pos++, qe->chan->name,
-								(long)(now - qe->start) / 60, (long)(now - qe->start) % 60);
+				ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)\n", pos++, qe->chan->name,
+								(long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio);
 		} else
 			ast_cli(fd, "   No Callers\n");
 		ast_cli(fd, "\n");
