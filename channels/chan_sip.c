@@ -3543,6 +3543,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *c, *a;
+	char tmpf[256]= "", *fr;
 	struct sip_request *req;
 	
 	req = oreq;
@@ -3551,6 +3552,13 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	if (req->rlPart2)
 		strncpy(tmp, req->rlPart2, sizeof(tmp) - 1);
 	c = ditch_braces(tmp);
+	
+	strncpy(tmpf, get_header(oreq, "From"), sizeof(tmpf) - 1);
+	fr = ditch_braces(tmpf);
+	
+	if (fr && !strlen(fr))
+		fr = NULL;
+	
 	if (strncmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
@@ -3561,14 +3569,14 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	}
 	if (sipdebug)
 		ast_verbose("Looking for %s in %s\n", c, p->context);
-	if (ast_exists_extension(NULL, p->context, c, 1, NULL) ||
+	if (ast_exists_extension(NULL, p->context, c, 1, fr) ||
 		!strcmp(c, ast_pickup_ext())) {
 		if (!oreq)
 			strncpy(p->exten, c, sizeof(p->exten) - 1);
 		return 0;
 	}
 
-	if (ast_canmatch_extension(NULL, p->context, c, 1, NULL) ||
+	if (ast_canmatch_extension(NULL, p->context, c, 1, fr) ||
 	    !strncmp(c, ast_pickup_ext(),strlen(c))) {
 		return 1;
 	}
