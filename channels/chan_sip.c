@@ -3741,9 +3741,17 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 100:
 			break;
 		case 183:	/* We don't really need this since we pass in-band audio anyway */
-			/* Not important */
-			if (strlen(get_header(req, "Content-Type")))
-				process_sdp(p, req);
+			{
+				/* Send back an empty audio frame to get things moving, (like in the case of 
+				   back-to-back 183's, getting audio */
+				if (strlen(get_header(req, "Content-Type")))
+					process_sdp(p, req);
+				if (p->owner && p->owner->pvt) {
+					struct ast_frame af = { AST_FRAME_VOICE, };
+					af.subclass = p->owner->pvt->rawreadformat;
+					ast_queue_frame(p->owner, &af, 0);
+				}
+			}
 			break;
 		case 180:
 			if (p->owner) {
