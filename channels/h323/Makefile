@@ -82,6 +82,6 @@ chan_h323_d.so:	chan_h323.o ast_h323.o
 chan_h323_s.so:	chan_h323.o ast_h323.o
 	g++  -shared -Xlinker -x -o chan_h323.so chan_h323.o ast_h323.o -L$(PWLIBDIR)/lib  -lpt_linux_x86_r_s -L$(OPENH323DIR)/lib -lh323_linux_x86_r_s -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
 clean:
-	rm -f *.o *.so core.*
+	rm -f *.o *.so core.* libchanh323.a
 
 
