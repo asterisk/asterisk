@@ -69,7 +69,17 @@
 #define SIPDUMPER
 #define DEFAULT_DEFAULT_EXPIRY  120
 #define DEFAULT_MAX_EXPIRY      3600
-#define EXPIRY_GUARD_SECS	15
+
+/* guard limit must be larger than guard secs */
+/* guard min must be > 1 */
+#define EXPIRY_GUARD_SECS	15	/* How long before expiry do we reregister */
+#define EXPIRY_GUARD_LIMIT      30	/* Below here, we use EXPIRY_GUARD_PCT instead of EXPIRY_GUARD_SECS */
+#define EXPIRY_GUARD_MIN        3	/* Below here, we use expires=1 instead of EXPIRY_GUARD_PCT * expires */
+#define EXPIRY_GUARD_PCT        0.20	/* Percentage of expires timeout to use when below EXPIRY_GUARD_LIMIT */
+
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
 
 #define CALLERID_UNKNOWN	"Unknown"
 
@@ -5341,10 +5351,37 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					/* figure out how long we got registered for */
 					if (r->expire > -1)
 						ast_sched_del(sched, r->expire);
-					expires=atoi(get_header(req, "expires"));
+					/* according to section 6.13 of RFC, contact headers override
+					   expires headers, so check those first */
+					expires = 0;
+					if (strlen(get_header(req, "Contact")) != 0) {
+						char *contact = NULL;
+						char *tmptmp = NULL;
+						int start = 0;
+						for(;;) {
+							contact = __get_header(req, "Contact", &start);
+							/* this loop ensures we get a contact header about our register request */
+							if(strlen(contact)) {
+								if(strstr(contact, p->our_contact))
+									break;
+							} else
+								break;
+						}
+						tmptmp = strstr(contact, "expires=");
+						if (tmptmp) {
+							if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
+								expires = 0;
+						}
+					}
+					if (!expires) expires=atoi(get_header(req, "expires"));
 					if (!expires) expires=default_expiry;
-					if (expires > EXPIRY_GUARD_SECS)
-						expires -= EXPIRY_GUARD_SECS;
+					if (expires <= EXPIRY_GUARD_MIN)
+						expires = 1;
+					else
+						if (expires <= EXPIRY_GUARD_LIMIT)
+							expires -= MAX((expires * EXPIRY_GUARD_PCT),(EXPIRY_GUARD_MIN - 1));
+						else
+							expires -= EXPIRY_GUARD_SECS;
 					r->expire=ast_sched_add(sched, expires*1000, sip_reregister, r); 
 				} else
 					ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
