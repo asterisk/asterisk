@@ -2576,7 +2576,7 @@ static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, 
 	return ms;
 }
 
-static unsigned int fix_peerts(struct iax2_trunk_peer *peer, int callno, unsigned int ts)
+static unsigned int fix_peerts(struct timeval *tv, int callno, unsigned int ts)
 {
 	long ms;	/* NOT unsigned */
 	if (!iaxs[callno]->rxcore.tv_sec && !iaxs[callno]->rxcore.tv_usec) {
@@ -2586,8 +2586,8 @@ static unsigned int fix_peerts(struct iax2_trunk_peer *peer, int callno, unsigne
 		iaxs[callno]->rxcore.tv_usec -= iaxs[callno]->rxcore.tv_usec % 20000;
 	}
 	/* Calculate difference between trunk and channel */
-	ms = (peer->rxtrunktime.tv_sec - iaxs[callno]->rxcore.tv_sec) * 1000 + 
-		(peer->rxtrunktime.tv_usec - iaxs[callno]->rxcore.tv_usec) / 1000;
+	ms = (tv->tv_sec - iaxs[callno]->rxcore.tv_sec) * 1000 + 
+		(tv->tv_usec - iaxs[callno]->rxcore.tv_usec) / 1000;
 	/* Return as the sum of trunk time and the difference between trunk and real time */
 	return ms + ts;
 }
@@ -4570,6 +4570,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct iax2_dpcache *dp;
 	struct iax2_peer *peer;
 	struct iax2_trunk_peer *tpeer;
+	struct timeval rxtrunktime;
 	struct iax_ies ies;
 	struct iax_ie_data ied0, ied1;
 	int format;
@@ -4618,6 +4619,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				tpeer->trunkact = tpeer->rxtrunktime;
 			} else
 				gettimeofday(&tpeer->trunkact, NULL);
+			rxtrunktime = tpeer->rxtrunktime;
+			ast_mutex_unlock(&tpeer->lock);
 			while(res >= sizeof(struct ast_iax2_meta_trunk_entry)) {
 				/* Process channels */
 				mte = (struct ast_iax2_meta_trunk_entry *)ptr;
@@ -4643,7 +4646,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									f.data = ptr;
 								else
 									f.data = NULL;
-								fr.ts = fix_peerts(tpeer, fr.callno, ts);
+								fr.ts = fix_peerts(&rxtrunktime, fr.callno, ts);
 								/* Don't pass any packets until we're started */
 								if ((iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
 									/* Common things */
@@ -4679,7 +4682,6 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				ptr += len;
 				res -= len;
 			}
-			ast_mutex_unlock(&tpeer->lock);
 			
 		}
 		return 1;

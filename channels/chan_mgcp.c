@@ -3912,7 +3912,8 @@ static int reload_config(void)
 		close(mgcpsock);
 
 	if (mgcpsock_read_id != NULL)
-		mgcpsock_read_id = ast_io_remove(io, mgcpsock_read_id);
+		ast_io_remove(io, mgcpsock_read_id);
+	mgcpsock_read_id = NULL;
 
 	mgcpsock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (mgcpsock < 0) {
