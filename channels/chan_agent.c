@@ -1117,8 +1117,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	struct agent_pvt *p;
 	struct localuser *u;
 	struct timeval tv;
+	time_t start;
 	char user[AST_MAX_AGENT];
 	char pass[AST_MAX_AGENT];
+	char agent[AST_MAX_AGENT] = "";
 	char xpass[AST_MAX_AGENT] = "";
 	char *errmsg;
 	char info[512];
@@ -1291,6 +1293,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								"Agent: %s\r\n"
 								"Channel: %s\r\n",
 								p->agent, chan->name);
+							time(&start);
+							snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
+							ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGIN", "%s", chan->name);
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged in (format %s/%s)\n", p->agent,
 												ast_getformatname(chan->readformat), ast_getformatname(chan->writeformat));
@@ -1360,6 +1365,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 							ast_mutex_unlock(&p->lock);
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged out\n", p->agent);
+							ast_queue_log("NONE", chan->uniqueid, agent, "AGENTLOGOFF", "%s|%ld", chan->name, (long)(time(NULL) - start));
 							manager_event(EVENT_FLAG_AGENT, "Agentlogoff",
 								"Agent: %s\r\n",
 								p->agent);

@@ -19,6 +19,13 @@ queue at the time of disconnect.
 AGENTDUMP
 The agent dumped the caller while listening to the queue announcement.
 
+AGENTLOGIN(channel)
+The agent logged in.  The channel is recorded.
+
+AGENTLOGOFF(channel|logintime)
+The agent logged off.  The channel is recorded, along with the total time
+the agent was logged in.
+
 COMPLETEAGENT(holdtime|calltime|origposition)
 The caller was connected to an agent, and the call was terminated normally
 by the *agent*.  The caller's hold time and the length of the call are both
