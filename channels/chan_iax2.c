@@ -1038,9 +1038,11 @@ retry:
 			goto retry;
 		}
 	}
-	iaxs[callno] = NULL;
+	if (!owner)
+		iaxs[callno] = NULL;
 	if (pvt) {
-		pvt->owner = NULL;
+		if (!owner)
+			pvt->owner = NULL;
 		/* No more pings or lagrq's */
 		if (pvt->pingid > -1)
 			ast_sched_del(sched, pvt->pingid);
@@ -1063,7 +1065,6 @@ retry:
 
 		if (owner) {
 			/* If there's an owner, prod it to give up */
-			owner->pvt->pvt = NULL;
 			owner->_softhangup |= AST_SOFTHANGUP_DEV;
 			ast_queue_hangup(owner, 0);
 		}
@@ -1076,7 +1077,8 @@ retry:
 		if (pvt->reg) {
 			pvt->reg->callno = 0;
 		}
-		free(pvt);
+		if (!owner)
+			free(pvt);
 	}
 	if (owner) {
 		ast_mutex_unlock(&owner->lock);
