@@ -6661,7 +6661,7 @@ static void *pri_dchannel(void *vpri)
 			x = 0;
 			res = ioctl(pri->fd, ZT_GETEVENT, &x);
 			if (x) 
-				printf("PRI got event: %d\n", x);
+				ast_log(LOG_NOTICE, "PRI got event: %d on span %d\n", x, pri->span);
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Got event %s (%d) on D-channel for span %d\n", event2str(x), x, pri->span);
 		}

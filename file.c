@@ -274,7 +274,7 @@ static int copy(char *infile, char *outfile)
 static char *build_filename(char *filename, char *ext)
 {
 	char *fn;
-	char tmp[AST_CONFIG_MAX_PATH];
+	char tmp[AST_CONFIG_MAX_PATH]="";
 	snprintf(tmp,sizeof(tmp)-1,"%s/%s",(char *)ast_config_AST_VAR_DIR,"sounds");
 	fn = malloc(strlen(tmp) + strlen(filename) + strlen(ext) + 10);
 	if (fn) {
