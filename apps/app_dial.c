@@ -433,9 +433,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char sdtmfdata[256] = "";
 	char *stack,*var;
 	char status[256];
+	char toast[80];
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
 	int digit = 0;
+	time_t start_time, answer_time, end_time;
 
 	if (!data) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
@@ -828,6 +830,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	} else
 		strcpy(status, "CHANUNAVAIL");
 
+	time(&start_time);
 	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &sentringing, status);
 
 	if (!peer) {
@@ -841,6 +844,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		goto out;
 	}
 	if (peer) {
+		time(&answer_time);
 #ifdef OSP_SUPPORT
 		/* Once call is answered, ditch the OSP Handle */
 		pbx_builtin_setvar_helper(chan, "OSPHANDLE", "");
@@ -921,6 +925,12 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				return -1;
 			}
 			res = ast_bridge_call(chan,peer,&config);
+			time(&end_time);
+			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
+			pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
+			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
+			pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", toast);
+			
 		} else 
 			res = -1;
 		
