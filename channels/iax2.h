@@ -119,6 +119,7 @@
 #define IAX_IE_CAUSECODE			42		/* Hangup cause (u8) */
 #define IAX_IE_ENCRYPTION			43		/* Encryption format (u16) */
 #define IAX_IE_ENCKEY				44		/* Encryption key (raw) */
+#define IAX_IE_CODEC_PREFS          45      /* Codec Negotiation */
 
 #define IAX_AUTH_PLAINTEXT			(1 << 0)
 #define IAX_AUTH_MD5				(1 << 1)

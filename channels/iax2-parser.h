@@ -27,6 +27,7 @@ struct iax_ies {
 	char *password;
 	unsigned int capability;
 	unsigned int format;
+	char *codec_prefs;
 	char *language;
 	int version;
 	unsigned short adsicpe;

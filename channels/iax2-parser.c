@@ -80,6 +80,25 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 	output[maxlen] = '\0';
 }
 
+static void dump_prefs(char *output, int maxlen, void *value, int len)
+{
+	struct ast_codec_pref pref;
+	int total_len = 0;
+
+	maxlen--;
+	total_len = maxlen;
+
+	if (maxlen > len)
+		maxlen = len;
+
+	strncpy(output,value, maxlen);
+	output[maxlen] = '\0';
+	
+	ast_codec_pref_convert(&pref, output, total_len, 0);
+	memset(output,0,total_len);
+	ast_codec_pref_string(&pref, output, total_len);
+}
+
 static void dump_int(char *output, int maxlen, void *value, int len)
 {
 	if (len == (int)sizeof(unsigned int))
@@ -208,6 +227,7 @@ static struct iax2_ie {
 	{ IAX_IE_CAUSECODE, "CAUSE CODE", dump_byte },
 	{ IAX_IE_ENCRYPTION, "ENCRYPTION", dump_short },
 	{ IAX_IE_ENCKEY, "ENCRYPTION KEY" },
+	{ IAX_IE_CODEC_PREFS, "CODEC_PREFS", dump_prefs },
 };
 
 static struct iax2_ie prov_ies[] = {
@@ -563,6 +583,9 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 			break;
 		case IAX_IE_PASSWORD:
 			ies->password = data + 2;
+			break;
+		case IAX_IE_CODEC_PREFS:
+			ies->codec_prefs = data + 2;
 			break;
 		case IAX_IE_CAPABILITY:
 			if (len != (int)sizeof(unsigned int)) {

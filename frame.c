@@ -810,9 +810,9 @@ int init_framer(void)
 	return 0;	
 }
 
-void ast_codec_pref_shift(struct ast_codec_pref *pref, char *buf, size_t size, int right) 
+void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right) 
 {
-	int x = 0, differential = 65, mem = 0;
+	int x = 0, differential = (int) 'A', mem = 0;
 	char *from = NULL, *to = NULL;
 
 	if(right) {

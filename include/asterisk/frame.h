@@ -408,7 +408,7 @@ extern void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, cha
 extern int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);
 
 /* Shift a codec preference list up or down 65 bytes so that it becomes an ASCII string */
-extern void ast_codec_pref_shift(struct ast_codec_pref *pref, char *buf, size_t size, int right);
+extern void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
