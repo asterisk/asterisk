@@ -5,8 +5,8 @@
  *			By Jeremy McNamara
  *                      For The NuFone Network 
  *
- * This code has been derived from code created by 
- *		Michael Manousos and Mark Spencer
+ * This code has been derived from code created by
+ *              Michael Manousos and Mark Spencer
  *
  * This file is part of the chan_h323 driver for Asterisk
  *
@@ -239,6 +239,8 @@ static struct oh323_user *build_user(char *name, struct ast_variable *v)
 				user->noSilenceSuppression = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1);
+			} else if (!strcasecmp(v->name, "callerid")) {
+				strncpy(user->callerid, v->value, sizeof(user->callerid)-1);
 			} else if (!strcasecmp(v->name, "accountcode")) {
 				strncpy(user->accountcode, v->value, sizeof(user->accountcode)-1);
 			} else if (!strcasecmp(v->name, "incominglimit")) {

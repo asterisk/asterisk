@@ -5,8 +5,8 @@
  *			By  Jeremy McNamara
  *			For The NuFone Network
  * 
- * This code has been derived from code created by 
- *		Michael Manousos and Mark Spencer
+ * This code has been derived from code created by
+ *              Michael Manousos and Mark Spencer
  *
  * This file is part of the chan_h323 driver for Asterisk
  *
