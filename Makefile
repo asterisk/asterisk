@@ -66,6 +66,12 @@ MALLOC_DEBUG = #-include $(PWD)/include/asterisk/astmm.h
 # Default -> leave empty
 INSTALL_PREFIX=
 
+# Staging directory
+# Files are copied here temporarily during the install process
+# For example, make DESTDIR=/tmp/asterisk woud put things in
+# /tmp/asterisk/etc/asterisk
+DESTDIR=
+
 # Original busydetect routine
 BUSYDETECT = #-DBUSYDETECT
 
@@ -233,10 +239,10 @@ clean:
 	$(MAKE) -C stdtime clean
 
 datafiles: all
-	mkdir -p $(ASTVARLIBDIR)/sounds/digits
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
 	for x in sounds/digits/*.gsm; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
-			install $$x $(ASTVARLIBDIR)/sounds/digits ; \
+			install $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -244,18 +250,18 @@ datafiles: all
 	done
 	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-*; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
-			install $$x $(ASTVARLIBDIR)/sounds ; \
+			install $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
 		fi; \
 	done
-	mkdir -p $(ASTVARLIBDIR)/mohmp3
-	mkdir -p $(ASTVARLIBDIR)/images
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/images
 	for x in images/*.jpg; do \
-		install $$x $(ASTVARLIBDIR)/images ; \
+		install $$x $(DESTDIR)$(ASTVARLIBDIR)/images ; \
 	done
-	mkdir -p $(AGI_DIR)
+	mkdir -p $(DESTDIR)$(AGI_DIR)
 
 update: 
 	@if [ -d CVS ]; then \
@@ -267,37 +273,37 @@ update:
 	fi
 
 bininstall: all
-	mkdir -p $(MODULES_DIR)
-	mkdir -p $(ASTSBINDIR)
-	mkdir -p $(ASTETCDIR)
-	mkdir -p $(ASTBINDIR)
-	mkdir -p $(ASTSBINDIR)
-	mkdir -p $(ASTVARRUNDIR)
-	mkdir -p $(ASTSPOOLDIR)/voicemail
-	install -m 755 asterisk $(ASTSBINDIR)/
-	install -m 755 astgenkey $(ASTSBINDIR)/
-	install -m 755 safe_asterisk $(ASTSBINDIR)/
+	mkdir -p $(DESTDIR)$(MODULES_DIR)
+	mkdir -p $(DESTDIR)$(ASTSBINDIR)
+	mkdir -p $(DESTDIR)$(ASTETCDIR)
+	mkdir -p $(DESTDIR)$(ASTBINDIR)
+	mkdir -p $(DESTDIR)$(ASTSBINDIR)
+	mkdir -p $(DESTDIR)$(ASTVARRUNDIR)
+	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail
+	install -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/
+	install -m 755 astgenkey $(DESTDIR)$(ASTSBINDIR)/
+	install -m 755 safe_asterisk $(DESTDIR)$(ASTSBINDIR)/
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
-	install -d $(ASTHEADERDIR)
-	install include/asterisk/*.h $(ASTHEADERDIR)
-	rm -f $(ASTVARLIBDIR)/sounds/vm
-	rm -f $(ASTVARLIBDIR)/sounds/voicemail
-	if [ ! -h $(ASTSPOOLDIR)/vm ] && [ -d $(ASTSPOOLDIR)/vm ]; then \
-		mv $(ASTSPOOLDIR)/vm $(ASTSPOOLDIR)/voicemail/default; \
+	install -d $(DESTDIR)$(ASTHEADERDIR)
+	install include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
+	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/vm
+	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail
+	if [ ! -h $(DESTDIR)$(ASTSPOOLDIR)/vm ] && [ -d $(DESTDIR)$(ASTSPOOLDIR)/vm ]; then \
+		mv $(DESTDIR)$(ASTSPOOLDIR)/vm $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default; \
 	else \
-		mkdir -p $(ASTSPOOLDIR)/voicemail/default; \
-		rm -f $(ASTSPOOLDIR)/vm; \
+		mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default; \
+		rm -f $(DESTDIR)$(ASTSPOOLDIR)/vm; \
 	fi
-	ln -s $(ASTSPOOLDIR)/voicemail/default $(ASTSPOOLDIR)/vm
-	rm -f $(MODULES_DIR)/chan_ixj.so
-	rm -f $(MODULES_DIR)/chan_tor.so
-	rm -f $(MODULES_DIR)/cdr_mysql.so
-	mkdir -p $(ASTVARLIBDIR)/sounds
-	mkdir -p $(ASTLOGDIR)/cdr-csv
-	mkdir -p $(ASTVARLIBDIR)/keys
-	install -m 644 keys/iaxtel.pub $(ASTVARLIBDIR)/keys
-	( cd $(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
-	( cd $(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
+	ln -s $(ASTSPOOLDIR)/voicemail/default $(DESTDIR)$(ASTSPOOLDIR)/vm
+	rm -f $(DESTDIR)$(MODULES_DIR)/chan_ixj.so
+	rm -f $(DESTDIR)$(MODULES_DIR)/chan_tor.so
+	rm -f $(DESTDIR)$(MODULES_DIR)/cdr_mysql.so
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
+	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/keys
+	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
+	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
+	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
 	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
@@ -325,58 +331,58 @@ install: all datafiles bininstall
 upgrade: all bininstall
 
 adsi: all
-	mkdir -p $(ASTETCDIR)
+	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	for x in configs/*.adsi; do \
-		if ! [ -f $(ASTETCDIRX)/$$x ]; then \
-			install -m 644 $$x $(ASTETCDIR)/`basename $$x` ; \
+		if ! [ -f $(DESTDIR)$(ASTETCDIRX)/$$x ]; then \
+			install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x` ; \
 		fi ; \
 	done
 
 samples: all datafiles adsi
-	mkdir -p $(ASTETCDIR)
+	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	for x in configs/*.sample; do \
-		if [ -f $(ASTETCDIR)/`basename $$x .sample` ]; then \
-			mv -f $(ASTETCDIR)/`basename $$x .sample` $(ASTETCDIR)/`basename $$x .sample`.old ; \
+		if [ -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ]; then \
+			mv -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample`.old ; \
 		fi ; \
-		install $$x $(ASTETCDIR)/`basename $$x .sample` ;\
+		install $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
 	done
-	echo "[directories]" > $(ASTETCDIR)/asterisk.conf
-	echo "astetcdir => $(ASTETCDIR)" >> $(ASTETCDIR)/asterisk.conf
-	echo "astmoddir => $(MODULES_DIR)" >> $(ASTETCDIR)/asterisk.conf
-	echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(ASTETCDIR)/asterisk.conf
-	echo "astagidir => $(AGI_DIR)" >> $(ASTETCDIR)/asterisk.conf
-	echo "astspooldir => $(ASTSPOOLDIR)" >> $(ASTETCDIR)/asterisk.conf
-	echo "astrundir => $(ASTVARRUNDIR)" >> $(ASTETCDIR)/asterisk.conf
-	echo "astlogdir => $(ASTLOGDIR)" >> $(ASTETCDIR)/asterisk.conf
+	echo "[directories]" > $(DESTDIR)$(ASTETCDIR)/asterisk.conf
+	echo "astetcdir => $(ASTETCDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
+	echo "astmoddir => $(MODULES_DIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
+	echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
+	echo "astagidir => $(AGI_DIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
+	echo "astspooldir => $(ASTSPOOLDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
+	echo "astrundir => $(ASTVARRUNDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
+	echo "astlogdir => $(ASTLOGDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf
 	for x in sounds/demo-*; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
-			install $$x $(ASTVARLIBDIR)/sounds ; \
+			install $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
 		fi; \
 	done
 	for x in sounds/*.mp3; do \
-		install $$x $(ASTVARLIBDIR)/mohmp3 ; \
+		install $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	done
-	mkdir -p $(ASTSPOOLDIR)/voicemail/default/1234/INBOX
-	:> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/unavail.gsm
+	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
+	:> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/unavail.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isunavail; do \
-		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/unavail.gsm ; \
+		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/unavail.gsm ; \
 	done
-	:> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm
+	:> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm
 	for x in vm-theperson digits/1 digits/2 digits/3 digits/4 vm-isonphone; do \
-		cat $(ASTVARLIBDIR)/sounds/$$x.gsm >> $(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm ; \
+		cat $(DESTDIR)$(ASTVARLIBDIR)/sounds/$$x.gsm >> $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail/default/1234/busy.gsm ; \
 	done
 
 webvmail:
-	@[ -d $(HTTPDIR) ] || ( echo "No HTTP directory" && exit 1 )
-	@[ -d $(HTTPDIR)/html ] || ( echo "No http directory" && exit 1 )
-	@[ -d $(HTTPDIR)/cgi-bin ] || ( echo "No cgi-bin directory" && exit 1 )
-	install -m 4755 -o root -g root vmail.cgi $(HTTPDIR)/cgi-bin/vmail.cgi
-	mkdir -p $(HTTPDIR)/html/_asterisk
+	@[ -d $(DESTDIR)$(HTTPDIR) ] || ( echo "No HTTP directory" && exit 1 )
+	@[ -d $(DESTDIR)$(HTTPDIR)/html ] || ( echo "No http directory" && exit 1 )
+	@[ -d $(DESTDIR)$(HTTPDIR)/cgi-bin ] || ( echo "No cgi-bin directory" && exit 1 )
+	install -m 4755 -o root -g root vmail.cgi $(DESTDIR)$(HTTPDIR)/cgi-bin/vmail.cgi
+	mkdir -p $(DESTDIR)$(HTTPDIR)/html/_asterisk
 	for x in images/*.gif; do \
-		install -m 644 $$x $(HTTPDIR)/html/_asterisk/; \
+		install -m 644 $$x $(DESTDIR)$(HTTPDIR)/html/_asterisk/; \
 	done
 	@echo " +--------- Asterisk Web Voicemail ----------+"  
 	@echo " +                                           +"
@@ -396,8 +402,8 @@ rpm: __rpm
 __rpm: _version
 	rm -rf /tmp/asterisk ; \
 	mkdir -p /tmp/asterisk/redhat/RPMS/i386 ; \
-	$(MAKE) INSTALL_PREFIX=/tmp/asterisk install ; \
-	$(MAKE) INSTALL_PREFIX=/tmp/asterisk samples ; \
+	$(MAKE) DESTDIR=/tmp/asterisk install ; \
+	$(MAKE) DESTDIR=/tmp/asterisk samples ; \
 	mkdir -p /tmp/asterisk/etc/rc.d/init.d ; \
 	cp -f redhat/asterisk /tmp/asterisk/etc/rc.d/init.d/ ; \
 	cp -f redhat/rpmrc /tmp/asterisk/ ; \

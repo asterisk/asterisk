@@ -8,7 +8,7 @@ all: depend $(TARGET)
 install:
 	if [ "$(TARGET)" != "none" ]; then \
 		for x in $(TARGET); do \
-			install -m 755 $$x $(ASTSBINDIR)/astman; \
+			install -m 755 $$x $(DESTDIR)$(ASTSBINDIR)/astman; \
 		done ; \
 	fi
 

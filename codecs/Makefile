@@ -97,7 +97,7 @@ codec_mp3_d.so: codec_mp3_d.o $(LIBMP3)
 include .depend
 
 install: all
-	for x in $(CODECS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+	for x in $(CODECS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 depend: .depend
 

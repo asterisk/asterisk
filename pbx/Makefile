@@ -62,7 +62,7 @@ include .depend
 endif
 
 install: all
-	for x in $(PBX_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+	for x in $(PBX_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 depend: .depend
 

@@ -18,7 +18,8 @@ CFLAGS+=
 all: depend $(AGIS)
 
 install: all
-	for x in $(AGIS); do $(INSTALL) -m 755 $$x $(AGI_DIR) ; done
+	mkdir -p $(DESTDIR)$(AGI_DIR)
+	for x in $(AGIS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(AGI_DIR) ; done
 
 eagi-test: eagi-test.o
 	$(CC) -o eagi-test eagi-test.o

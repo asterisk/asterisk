@@ -34,7 +34,7 @@ MLFLAGS+=$(shell if [ -f /usr/lib/libpq.so ]; then echo "-L/usr/lib"; fi)
 all: depend $(MODS)
 
 install: all
-	for x in $(MODS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 clean:
 	rm -f *.so *.o .depend

@@ -25,7 +25,7 @@ CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
 all: depend $(MODS)
 
 install: all
-	for x in $(MODS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 res_crypto.so: res_crypto.o
 	$(CC) -shared -Xlinker -x -o $@ $< $(CRYPTO_LIBS)

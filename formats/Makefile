@@ -40,7 +40,7 @@ format_mp3.so : format_mp3.o
 	$(CC) -shared -Xlinker -x -o $@ $< -lm
 
 install: all
-	for x in $(FORMAT_LIBS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+	for x in $(FORMAT_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 depend: .depend
 

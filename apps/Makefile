@@ -50,7 +50,7 @@ app_rpt.so : app_rpt.o
 	$(CC) -shared -Xlinker -x -o $@ $< -ltonezone
 
 install: all
-	for x in $(APPS); do $(INSTALL) -m 755 $$x $(MODULES_DIR) ; done
+	for x in $(APPS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 app_todd.o: app_todd.c
 	gcc -pipe -O6 -g  -Iinclude -I../include -D_REENTRANT -march=i586 -DDO_CRASH -c -o  app_todd.o app_todd.c
