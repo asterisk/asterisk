@@ -110,7 +110,7 @@ static char *descrip =
 static char *app_aqm = "AddQueueMember" ;
 static char *app_aqm_synopsis = "Dynamically adds queue members" ;
 static char *app_aqm_descrip =
-"   AddQueueMember(queuename[|interface]):\n"
+"   AddQueueMember(queuename[|interface[|penalty]]):\n"
 "Dynamically adds interface to an existing queue.\n"
 "If the interface is already in the queue and there exists an n+101 priority\n"
 "then it will then jump to this priority.  Otherwise it will return an error\n"
@@ -1147,7 +1147,7 @@ static struct member * interface_exists( struct ast_call_queue * q, char * inter
 }
 
 
-static struct member * create_queue_node( char * interface )
+static struct member * create_queue_node( char * interface, int penalty )
 {
 	struct member * cur ;
 	char * tmp ;
@@ -1158,6 +1158,7 @@ static struct member * create_queue_node( char * interface )
 
 	if (cur) {
 		memset(cur, 0, sizeof(struct member));
+		cur->penalty = penalty;
 		strncpy(cur->tech, interface, sizeof(cur->tech) - 1);
 		if ((tmp = strchr(cur->tech, '/')))
 			*tmp = '\0';
@@ -1279,12 +1280,14 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	char info[512];
 	char tmpchan[512]="";
 	char *interface=NULL;
+	char *penaltys=NULL;
+	int penalty = 0;
 	struct ast_call_queue *q;
 	struct member *save;
 	int found=0 ;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename|optional interface)\n");
+		ast_log(LOG_WARNING, "AddQueueMember requires an argument (queuename|optional interface|optional penalty)\n");
 		return -1;
 	}
 	
@@ -1299,12 +1302,25 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 			*interface = '\0';
 			interface++;
 		}
-		else {
+		if (interface) {
+			penaltys = strchr(interface, '|');
+			if (penaltys) {
+				*penaltys = 0;
+				penaltys++;
+			}
+		}
+		if (!interface || !strlen(interface)) {
 			strncpy(tmpchan, chan->name, sizeof(tmpchan) - 1);
 			interface = strrchr(tmpchan, '-');
 			if (interface)
 				*interface = '\0';
 			interface = tmpchan;
+		}
+		if (penaltys && strlen(penaltys)) {
+			if ((sscanf(penaltys, "%d", &penalty) != 1) || penalty < 0) {
+				ast_log(LOG_WARNING, "Penalty '%s' is invalid, must be an integer >= 0\n", penaltys);
+				penalty = 0;
+			}
 		}
 	}
 
@@ -1321,7 +1337,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 				if( interface_exists( q, interface ) == NULL )
 				{
 					save = q->members ;
-					q->members = create_queue_node( interface ) ;
+					q->members = create_queue_node( interface, penalty ) ;
 
 					if( q->members != NULL ) {
 						q->members->dynamic = 1;
