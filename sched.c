@@ -3,7 +3,7 @@
  * 
  * Mark Spencer <markster@marko.net>
  *
- * Copyright(C) 1999, Adtran, Inc.
+ * Copyright(C) Mark Spencer
  * 
  * Distributed under the terms of the GNU General Public License (GPL) Version 2
  *

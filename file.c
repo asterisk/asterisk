@@ -3,7 +3,7 @@
  *
  * Generic File Format Support.
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -168,7 +168,6 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 {
 	struct ast_frame_chain *fc, *f2;
 	int res = -1;
-	int count=0;
 	if (f->frametype != AST_FRAME_VOICE) {
 		ast_log(LOG_WARNING, "Tried to write non-voice frame\n");
 		return -1;
@@ -193,9 +192,6 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 					break;
 				}
 				f2 = f2->next;
-				count++;
-				if (count > 1) 
-					ast_log(LOG_DEBUG, "Count is %d\n", count);
 			}
 			if (fc)
 				ast_frchain(fc);

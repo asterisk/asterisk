@@ -3,7 +3,7 @@
   *
   * Source: gsm.example
   *
-  * Copyright (C) 1999, Mark Spencer and Linux Support Services
+  * Copyright (C) 1999, Mark Spencer
   *
   * Distributed under the terms of the GNU General Public License
   *

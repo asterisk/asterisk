@@ -3,7 +3,7 @@
  *
  * Configuration File Parser
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -95,11 +95,25 @@ struct ast_variable *ast_variable_browse(struct ast_config *config, char *catego
 char *ast_variable_retrieve(struct ast_config *config, char *category, char *value)
 {
 	struct ast_variable *v;
-	v = ast_variable_browse(config, category);
-	while (v) {
-		if (!strcasecmp(value, v->name))
-			return v->value;
-		v=v->next;
+	if (category) {
+		v = ast_variable_browse(config, category);
+		while (v) {
+			if (!strcasecmp(value, v->name))
+				return v->value;
+			v=v->next;
+		}
+	} else {
+		struct ast_category *cat;
+		cat = config->root;
+		while(cat) {
+			v = cat->root;
+			while (v) {
+				if (!strcasecmp(value, v->name))
+					return v->value;
+				v=v->next;
+			}
+			cat = cat->next;
+		}
 	}
 	return NULL;
 }

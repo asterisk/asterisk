@@ -3,7 +3,7 @@
  *
  * Populate and remember extensions from static config file
  * 
- * Copyright (C) 1999, Adtran Inc. and Linux Support Services, LLC
+ * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
  *
@@ -75,8 +75,8 @@ int load_module(void)
 			}
 			cxt = ast_category_browse(cfg, cxt);
 		}
+		ast_destroy(cfg);
 	}
-	ast_destroy(cfg);
 	return 0;
 }
 
