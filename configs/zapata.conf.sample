@@ -66,6 +66,16 @@ switchtype=national
 ;
 ;pridialplan=national
 ;
+; PRI Local Dialplan:  Only RARELY used for PRI (sets the calling number's numbering plan)
+;
+; unknown:        Unknown
+; private:        Private ISDN
+; local:          Local ISDN
+; national:	  National ISDN
+; international:  International ISDN
+;
+;prilocaldialplan=national
+;
 ; Overlap dialing mode (sending overlap digits)
 ;
 ;overlapdial=yes

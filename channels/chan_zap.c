@@ -319,6 +319,7 @@ struct zt_pri {
 	int switchtype;				/* Type of switch to emulate */
 	int nsf;			/* Network-Specific Facilities */
 	int dialplan;			/* Dialing plan */
+	int localdialplan;		/* Local dialing plan */
 	int dchannels[NUM_DCHANS];	/* What channel are the dchannels on */
 	int trunkgroup;			/* What our trunkgroup is */
 	int mastertrunkgroup;	/* What trunk group is our master */
@@ -359,6 +360,7 @@ static inline void pri_rel(struct zt_pri *pri)
 static int switchtype = PRI_SWITCH_NI2;
 static int nsf = PRI_NSF_NONE;
 static int dialplan = PRI_NATIONAL_ISDN + 1;
+static int localdialplan = PRI_NATIONAL_ISDN + 1;
 
 #else
 /* Shut up the compiler */
@@ -1756,7 +1758,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 					(p->digital ? -1 : 
 						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
 		pri_sr_set_called(sr, c + p->stripmsd, p->pri->dialplan - 1,  s ? 1 : 0);
-		pri_sr_set_caller(sr, l, n, p->pri->dialplan - 1, 
+		pri_sr_set_caller(sr, l, n, p->pri->localdialplan - 1, 
 					l ? (ast->restrictcid ? PRES_PROHIB_USER_NUMBER_PASSED_SCREEN : 
 						(p->use_callingpres ? ast->callingpres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN)) : 
 						 PRES_NUMBER_NOT_AVAILABLE);
@@ -5927,6 +5929,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 					pris[span].switchtype = myswitchtype;
 					pris[span].nsf = nsf;
 					pris[span].dialplan = dialplan;
+					pris[span].localdialplan = localdialplan;
 					pris[span].pvts[pris[span].numchans++] = tmp;
 					pris[span].minunused = minunused;
 					pris[span].minidle = minidle;
@@ -8877,6 +8880,20 @@ static int setup_zap(void)
 				dialplan = PRI_INTERNATIONAL_ISDN + 1;
 			} else if (!strcasecmp(v->value, "local")) {
 				dialplan = PRI_LOCAL_ISDN + 1;
+			} else {
+				ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
+			}
+		} else if (!strcasecmp(v->name, "prilocaldialplan")) {
+			if (!strcasecmp(v->value, "national")) {
+				localdialplan = PRI_NATIONAL_ISDN + 1;
+			} else if (!strcasecmp(v->value, "unknown")) {
+				localdialplan = PRI_UNKNOWN + 1;
+			} else if (!strcasecmp(v->value, "private")) {
+				localdialplan = PRI_PRIVATE + 1;
+			} else if (!strcasecmp(v->value, "international")) {
+				localdialplan = PRI_INTERNATIONAL_ISDN + 1;
+			} else if (!strcasecmp(v->value, "local")) {
+				localdialplan = PRI_LOCAL_ISDN + 1;
 			} else {
 				ast_log(LOG_WARNING, "Unknown PRI dialplan '%s' at line %d.\n", v->value, v->lineno);
 			}
