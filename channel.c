@@ -845,8 +845,8 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	
 	if (havewhen) {
 		if ((*ms < 0) || (whentohangup * 1000 < *ms)) {
-			tv.tv_sec = whentohangup / 1000;
-			tv.tv_usec = (whentohangup % 1000) * 1000;
+			tv.tv_sec = whentohangup;
+			tv.tv_usec = 0;
 		}
 	}
 	FD_ZERO(&rfds);
