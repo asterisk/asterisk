@@ -2641,7 +2641,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
-	if (data)
+	if (data && strlen(data))
 		strncpy(tmp, data, sizeof(tmp) - 1);
 	else {
 		res = ast_app_getdata(chan, "vm-whichbox", tmp, sizeof(tmp) - 1, 0);
