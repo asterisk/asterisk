@@ -7242,6 +7242,7 @@ static void *pri_dchannel(void *vpri)
 	struct zt_pvt *crv;
 	pthread_t threadid;
 	pthread_attr_t attr;
+	char ani2str[6];
 	
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -7688,6 +7689,10 @@ static void *pri_dchannel(void *vpri)
 							if(!ast_strlen_zero(e->ring.callingsubaddr)) {
 								pbx_builtin_setvar_helper(c, "CALLINGSUBADDR", e->ring.callingsubaddr);
 							}
+							if(e->ring.ani2 >= 0) {
+								snprintf(ani2str, 5, "%d", e->ring.ani2);
+								pbx_builtin_setvar_helper(c, "ANI2", ani2str);
+							}
 							ast_mutex_lock(&pri->lock);
 							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
 								if (option_verbose > 2)
@@ -7710,6 +7715,10 @@ static void *pri_dchannel(void *vpri)
 							c = zt_new(pri->pvts[chanpos], AST_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
 							ast_mutex_lock(&pri->lock);
 							if (c) {
+								if(e->ring.ani2 >= 0) {
+									snprintf(ani2str, 5, "%d", e->ring.ani2);
+									pbx_builtin_setvar_helper(c, "ANI2", ani2str);
+								}
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d/%d, span %d\n",
 										e->ring.callingnum, pri->pvts[chanpos]->exten, 
