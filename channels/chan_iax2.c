@@ -1051,16 +1051,19 @@ static void reload_firmware(void)
 	/* Now that we've freed them, load the new ones */
 	snprintf(dir, sizeof(dir), "%s/firmware/iax", (char *)ast_config_AST_VAR_DIR);
 	fwd = opendir(dir);
-	while((de = readdir(fwd))) {
-		if (de->d_name[0] != '.') {
-			snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
-			if (!try_firmware(fn)) {
-				if (option_verbose > 1)
-					ast_verbose(VERBOSE_PREFIX_2 "Loaded firmware '%s'\n", de->d_name);
+	if (fwd) {
+		while((de = readdir(fwd))) {
+			if (de->d_name[0] != '.') {
+				snprintf(fn, sizeof(fn), "%s/%s", dir, de->d_name);
+				if (!try_firmware(fn)) {
+					if (option_verbose > 1)
+						ast_verbose(VERBOSE_PREFIX_2 "Loaded firmware '%s'\n", de->d_name);
+				}
 			}
 		}
-	}
-	closedir(fwd);
+		closedir(fwd);
+	} else 
+		ast_log(LOG_WARNING, "Error opening firmware directory '%s': %s\n", dir, strerror(errno));
 
 	/* Clean up leftovers */
 	cur = waresl.wares;
