@@ -1,6 +1,18 @@
 ;
 ; Logging Configuration
 ;
+; In this file, you configure logging to files or to
+; the syslog system.
+;
+; For each file, specify what to log.
+;
+; For console logging, you set options at start of
+; Asterisk with -v for verbose and -d for debug
+; See 'asterisk -h' for more information.
+;
+; Directory for log files is configures in asterisk.conf
+; option astlogdir
+;
 [logfiles]
 ;
 ; Format is "filename" and then "levels" of debugging to be included:
@@ -8,6 +20,7 @@
 ;    notice
 ;    warning
 ;    error
+;    verbose
 ;
 ; Special filename "console" represents the system console
 ;
