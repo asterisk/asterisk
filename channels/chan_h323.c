@@ -96,7 +96,7 @@ static int DEFAULT_H323_PORT = 1720;
 static char gatekeeper[100];
 static int gatekeeper_disable = 1;
 static int gatekeeper_discover = 0;
-static int usingGk;
+static int usingGk = 0;
 static int gkroute = 0;
 static int noFastStart = 0;
 static int noH245Tunneling = 0;
@@ -424,18 +424,10 @@ static int oh323_digit(struct ast_channel *c, char digit)
  */
 static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 {
-	int res;
-	struct oh323_pvt *p = (struct oh323_pvt *) c->pvt->pvt;
+	int res = 0;
+	struct oh323_pvt *p = (struct oh323_pvt *)c->pvt->pvt;
 	char called_addr[256];
 	char *tmp, *cid, *cidname, oldcid[256];
-
-	strtok_r(dest, "/", &(tmp));
-	ast_log(LOG_DEBUG, "dest=%s, timeout=%d.\n", dest, timeout);
-
-	if (strlen(dest) > sizeof(called_addr) - 1) {
-		ast_log(LOG_DEBUG, "Destination is too long (%d)\n", strlen(dest));
-		return -1;
-	}
 
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "Line is already in use (%s)\n", c->name);
@@ -444,17 +436,8 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	
 	/* this is an outgoing call */
 	p->outgoing = 1;
-
-	/* Ensure the call token is allocated */
-	if ((p->cd).call_token == NULL) {
-		(p->cd).call_token = (char *)malloc(128);
-	}
-	memset((char *)(p->cd).call_token, 0, 128);
+	ast_log(LOG_DEBUG, "Outgoing call for %s\n", p->usernmame);
 	
-	if (!p->cd.call_token) {
-		ast_log(LOG_ERROR, "Not enough memory to alocate call token\n");
-		return -1;
-	}
 
 	/* Clear and then set the address to call */
 	memset(called_addr, 0, sizeof(called_addr));
@@ -797,11 +780,9 @@ static struct oh323_pvt *oh323_alloc(int callid)
 		ast_log(LOG_ERROR, "Couldn't allocate private structure. This is bad\n");
 		return NULL;
 	}
-
 	/* Keep track of stuff */
 	memset(p, 0, sizeof(struct oh323_pvt));
 	p->rtp = ast_rtp_new(sched, io, 1, 0);
-
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
 		free(p);
@@ -809,14 +790,22 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	}
 	ast_rtp_settos(p->rtp, tos);
 	ast_mutex_init(&p->lock);
-	
+	/* Ensure the call token is allocated */
+	if ((p->cd).call_token == NULL) {
+		(p->cd).call_token = (char *)malloc(128);
+	}
+	memset((char *)(p->cd).call_token, 0, 128);
+	if (!p->cd.call_token) {
+		ast_log(LOG_ERROR, "Not enough memory to alocate call token\n");
+		return NULL;
+	}
 	p->cd.call_reference = callid;
-	p->bridge = bridgeing;
-	
+	p->bridge = bridging;	
 	p->dtmfmode = dtmfmode;
-	if (p->dtmfmode & H323_DTMF_RFC2833)
+	if (p->dtmfmode & H323_DTMF_RFC2833) {
 		p->nonCodecCapability |= AST_RTP_DTMF;
-
+	}
+	strncpy(p->context, default_context, sizeof(p->context) - 1);
 	/* Add to interface list */
 	ast_mutex_lock(&iflock);
 	p->next = iflist;
@@ -829,14 +818,11 @@ static struct oh323_pvt *find_call(int call_reference, const char *token)
 {  
         struct oh323_pvt *p;
 
-		ast_mutex_lock(&iflock);
+	ast_mutex_lock(&iflock);
         p = iflist; 
-
         while(p) {
                 if ((signed int)p->cd.call_reference == call_reference) {
-                        /* Found the call */
-                         
-                        
+                        /* Found the call */             
                         if ((token != NULL) && (strcmp(p->cd.call_token, token) == 0)) {
         			ast_mutex_unlock(&iflock);
 	        		return p;
@@ -845,13 +831,11 @@ static struct oh323_pvt *find_call(int call_reference, const char *token)
                                 ast_mutex_unlock(&iflock);
                                 return p;
                         }
-                                
                 }
                 p = p->next; 
         }
         ast_mutex_unlock(&iflock);
 	return NULL;
-        
 }
 
 static int create_addr(struct oh323_pvt *r, char *opeer)
@@ -859,10 +843,10 @@ static int create_addr(struct oh323_pvt *r, char *opeer)
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct oh323_peer *p;
+	int portno;
 	int found = 0;
 	char *port;
 	char *callhost;
-	int portno;
 	char host[256], *hostn;
 	char peer[256] = "";
 
@@ -886,7 +870,6 @@ static int create_addr(struct oh323_pvt *r, char *opeer)
 		r->noFastStart = p->noFastStart;
 		r->noH245Tunneling = p->noH245Tunneling;
 		r->noSilenceSuppression = p->noSilenceSuppression;
-		
 		if (p->dtmfmode) {
 			r->dtmfmode = p->dtmfmode;
 			if (r->dtmfmode & H323_DTMF_RFC2833) {
@@ -895,6 +878,32 @@ static int create_addr(struct oh323_pvt *r, char *opeer)
 				p->nonCodecCapability &= ~AST_RTP_DTMF;
 			}
 		}
+		strncpy(r->context,p->context,sizeof(r->context)-1);
+		if (p->addr.sin_addr.s_addr) {
+			r->sa.sin_addr = p->addr.sin_addr;	
+			r->sa.sin_port = p->addr.sin_port;	
+		}
+	}
+	ast_mutex_unlock(&peerl.lock);
+	if (!p && !found) {
+		hostn = peer;
+		if (port) {
+			portno = atoi(port);
+		} else {
+			portno = DEFAULT_H323_PORT;
+		}		
+		hp = ast_gethostbyname(hostn, &ahp);
+		if (hp) {
+			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
+			r->sa.sin_port = htons(portno);
+			return 0;	
+		} else {
+			ast_log(LOG_WARNING, "No such host: %s\n", peer);
+			return -1;
+		}
+	} else if (!p) {
+		return -1;
+	}	
 
 }
 static struct ast_channel *oh323_request(char *type, int format, void *data)
@@ -909,21 +918,20 @@ static struct ast_channel *oh323_request(char *type, int format, void *data)
 	
 	ast_log(LOG_DEBUG, "type=%s, format=%d, data=%s.\n", type, format, (char *)data);
 
+	oldformat = format;
+	format &= ((AST_FORMAT_MAX_AUDIO << 1) - 1);
+	if (!format) {
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
+		return NULL;
+	}
+	/* Assign a default capability */
+	p->capability = capability;
+
 	p = oh323_alloc(0);
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to build pvt data for '%s'\n", (char *)data);
 		return NULL;
 	}	
-	oldformat = format;
-	format &= capability;
-	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
-		return NULL;
-	}
-
-	/* Assign a default capability */
-	p->capability = capability;
-
 	/* pass on our preferred codec to the H.323 stack */
 	ast_mutex_lock(&caplock);
 	h323_set_capability(format, dtmfmode);
@@ -1006,20 +1014,29 @@ struct oh323_user *find_user(const call_details_t cd)
 
 }
 
-struct oh323_peer *find_peer(char *dest_peer)
+struct oh323_peer *find_peer(char *peer, struct sockaddr_in *sin)
 {
-	struct oh323_peer *p;
+	struct oh323_peer *p = NULL;
 
 	p = peerl.peers;
-
-	while(p) {
-		if (!strcasecmp(p->name, dest_peer)) {
-			break;
+	if (peer) {
+		while(p) {
+			if (!strcasecmp(p->name, peer)) {
+				break;
+			}
+			p = p->next;
 		}
-		p = p->next;
+	} else {
+		/* find by sin */
+		while (p) {
+			if ((!inaddrcmp(&p->addr, sin) || 
+			   (p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)) {
+				break;
+			}
+			p = p->next;
+		}
 	}
 	return p;
-
 }
 
 /**
