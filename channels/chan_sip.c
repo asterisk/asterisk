@@ -434,9 +434,7 @@ static int retrans_pkt(void *data)
 				ast_queue_hangup(pkt->owner->owner, 1);
 			} else {
 				/* If no owner, destroy now */
-				ast_mutex_unlock(&pkt->owner->lock);
-				sip_destroy(pkt->owner);
-				pkt = NULL;
+				pkt->owner->needdestroy = 1;
 			}
 		}
 	} else {
@@ -447,9 +445,7 @@ static int retrans_pkt(void *data)
 			ast_queue_hangup(pkt->owner->owner, 1);
 		} else {
 			/* If no owner, destroy now */
-			ast_mutex_unlock(&pkt->owner->lock);
-			sip_destroy(pkt->owner);
-			pkt=NULL;
+			pkt->owner->needdestroy = 1;
 		}
 	}
 	if (pkt)
@@ -4076,7 +4072,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *msg) 
 		/* No way to authenticate */
 		return -1;
 	}
-	return transmit_invite(p,"INVITE",1,digest, NULL,NULL); 
+	return transmit_invite(p,msg,!strcasecmp(msg, "INVITE"),digest, NULL,NULL); 
 }
 
 static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, char *orig_header, char *digest, int digest_len) {
