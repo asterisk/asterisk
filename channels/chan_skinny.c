@@ -63,9 +63,9 @@ static char *config = "skinny.conf";
 /* Just about everybody seems to support ulaw, so make it a nice default */
 static int capability = AST_FORMAT_ULAW;
 
-#define DEFAULT_SKINNY_PORT		2000
-#define DEFAULT_SKINNY_BACKLOG  2 // was 200
-#define SKINNY_MAX_PACKET		1000
+#define DEFAULT_SKINNY_PORT	2000
+#define DEFAULT_SKINNY_BACKLOG  2
+#define SKINNY_MAX_PACKET	1000
 
 static int  keep_alive = 120;
 static char date_format[6] = "D-M-Y";
@@ -506,6 +506,7 @@ static char mailbox[AST_MAX_EXTENSION];
 static int amaflags = 0;
 static int callnums = 1;
 
+
 #define SUB_REAL 0
 #define SUB_ALT  1
 #define MAX_SUBS 2
@@ -668,6 +669,7 @@ static struct skinny_device {
 	/* A device containing one or more lines */
 	char name[80];
 	char id[16];
+	char version_id[16];	
 	int type;
 	int registered;
 	struct sockaddr_in addr;
@@ -1046,55 +1048,56 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 				d->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "device")) {
            		strncpy(d->id, v->value, sizeof(d->id)-1);
-			} else if (!strcasecmp(v->name, "permit") ||
-					   !strcasecmp(v->name, "deny")) {
+			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
 				d->ha = ast_append_ha(v->name, v->value, d->ha);
 			} else if (!strcasecmp(v->name, "context")) {
 				strncpy(context, v->value, sizeof(context) - 1);
+			} else if (!strcasecmp(v->name, "version")) {
+                		strncpy(d->version_id, v->value, sizeof(d->version_id) -1); 
 			} else if (!strcasecmp(v->name, "nat")) {
 				nat = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callerid")) {
-				if (!strcasecmp(v->value, "asreceived"))
+				if (!strcasecmp(v->value, "asreceived")) {
 					strcpy(callerid, "");
-				else
+				} else {
 					strncpy(callerid, v->value, sizeof(callerid) - 1);
+				}
 			} else if (!strcasecmp(v->name, "language")) {
 				strncpy(language, v->value, sizeof(language)-1);
-       		} else if (!strcasecmp(v->name, "accountcode")) {
-           		strncpy(accountcode, v->value, sizeof(accountcode)-1);
-       		} else if (!strcasecmp(v->name, "amaflags")) {
-           		y = ast_cdr_amaflags2int(v->value);
-           		if (y < 0) {
+       			} else if (!strcasecmp(v->name, "accountcode")) {
+           			strncpy(accountcode, v->value, sizeof(accountcode)-1);
+       			} else if (!strcasecmp(v->name, "amaflags")) {
+           			y = ast_cdr_amaflags2int(v->value);
+           			if (y < 0) {
 		   			ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
-          		} else {
+          			} else {
            			amaflags = y;
-            	}
+            			}
 			} else if (!strcasecmp(v->name, "musiconhold")) {
-            	strncpy(musicclass, v->value, sizeof(musicclass)-1);
-            } else if (!strcasecmp(v->name, "callgroup")) {
-             	cur_callergroup = ast_get_group(v->value);
-            } else if (!strcasecmp(v->name, "pickupgroup")) {
-            	cur_pickupgroup = ast_get_group(v->value);
-            } else if (!strcasecmp(v->name, "immediate")) {
-            	immediate = ast_true(v->value);
-            } else if (!strcasecmp(v->name, "cancallforward")) {
-            	cancallforward = ast_true(v->value);
-            } else if (!strcasecmp(v->name, "mailbox")) {
-            	strncpy(mailbox, v->value, sizeof(mailbox) -1);
-            } else if (!strcasecmp(v->name, "callreturn")) {
+            			strncpy(musicclass, v->value, sizeof(musicclass)-1);
+            		} else if (!strcasecmp(v->name, "callgroup")) {
+             			cur_callergroup = ast_get_group(v->value);
+            		} else if (!strcasecmp(v->name, "pickupgroup")) {
+            			cur_pickupgroup = ast_get_group(v->value);
+            		} else if (!strcasecmp(v->name, "immediate")) {
+            			immediate = ast_true(v->value);
+            		} else if (!strcasecmp(v->name, "cancallforward")) {
+            			cancallforward = ast_true(v->value);
+            		} else if (!strcasecmp(v->name, "mailbox")) {
+            			strncpy(mailbox, v->value, sizeof(mailbox) -1);
+	    		} else if (!strcasecmp(v->name, "callreturn")) {
 				callreturn = ast_true(v->value);
-            } else if (!strcasecmp(v->name, "immediate")) {
+            		} else if (!strcasecmp(v->name, "immediate")) {
 				immediate = ast_true(v->value);
-            } else if (!strcasecmp(v->name, "callwaiting")) {
-            	callwaiting = ast_true(v->value);
-            } else if (!strcasecmp(v->name, "transfer")) {
-            	transfer = ast_true(v->value);
-            } else if (!strcasecmp(v->name, "threewaycalling")) {
+            		} else if (!strcasecmp(v->name, "callwaiting")) {
+            			callwaiting = ast_true(v->value);
+            		} else if (!strcasecmp(v->name, "transfer")) {
+            			transfer = ast_true(v->value);
+            		} else if (!strcasecmp(v->name, "threewaycalling")) {
                 		threewaycalling = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "linelabel")) {
-           		strncpy(linelabel, v->value, sizeof(linelabel)-1);
-       		} else if (!strcasecmp(v->name, "trunk") ||
-			           !strcasecmp(v->name, "line")) {
+	    		} else if (!strcasecmp(v->name, "linelabel")) {
+           			strncpy(linelabel, v->value, sizeof(linelabel)-1);
+       	    		} else if (!strcasecmp(v->name, "trunk") || !strcasecmp(v->name, "line")) {
 				l = malloc(sizeof(struct skinny_line));;
 				if (l) {
 					memset(l, 0, sizeof(struct skinny_line));
@@ -1106,65 +1109,67 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 					strncpy(l->callerid, callerid, sizeof(l->callerid) - 1);
 					strncpy(l->label, linelabel, sizeof(l->label) - 1);
 					strncpy(l->language, language, sizeof(l->language) - 1);
-        			strncpy(l->musicclass, musicclass, sizeof(l->musicclass)-1);
+        				strncpy(l->musicclass, musicclass, sizeof(l->musicclass)-1);
+					strncpy(l->mailbox, mailbox, sizeof(l->mailbox)-1);
 					strncpy(l->mailbox, mailbox, sizeof(l->mailbox)-1);
 					if (strlen(mailbox)) {
 						ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
 					}
+				
 					l->msgstate = -1;
 					l->capability = capability;
 					l->parent = d;
-					if (!strcasecmp(v->name, "trunk"))
+					if (!strcasecmp(v->name, "trunk")) {
 						l->type = TYPE_TRUNK;
-					else
+					} else {
 						l->type = TYPE_LINE;
-
+					}
 					l->immediate = immediate;
 					l->callgroup = cur_callergroup;
 					l->pickupgroup = cur_pickupgroup;
 					l->callreturn = callreturn;
-			        l->cancallforward = cancallforward;
-			        l->callwaiting = callwaiting;
-			        l->transfer = transfer;
-			        l->threewaycalling = threewaycalling;
-					
-			        l->onhooktime = time(NULL);
+		        		l->cancallforward = cancallforward;
+		        		l->callwaiting = callwaiting;
+		        		l->transfer = transfer;	
+		        		l->threewaycalling = threewaycalling;
+		        		l->onhooktime = time(NULL);
 					l->instance = 1;
-                    /* ASSUME we're onhook at this point*/
-                    l->hookstate = SKINNY_ONHOOK;
+		        		/* ASSUME we're onhook at this point*/
+              				l->hookstate = SKINNY_ONHOOK;
 
-                    for (i = 0; i < MAX_SUBS; i++) {
-                        sub = malloc(sizeof(struct skinny_subchannel));
-                        if (sub) {
-                            ast_verbose(VERBOSE_PREFIX_3 "Allocating Skinny subchannel '%d' on %s@%s\n", i, l->name, d->name);
-                            memset(sub, 0, sizeof(struct skinny_subchannel));
-                            sub->parent = l;
-                           	/* Make a call*ID */
+		       			for (i = 0; i < MAX_SUBS; i++) {
+               			        	sub = malloc(sizeof(struct skinny_subchannel));
+                       				if (sub) {
+                           				ast_verbose(VERBOSE_PREFIX_3 "Allocating Skinny subchannel '%d' on %s@%s\n", i, l->name, d->name);
+                           				memset(sub, 0, sizeof(struct skinny_subchannel));
+                       					sub->parent = l;
+                       					/* Make a call*ID */
 							sub->callid = callnums;
 							callnums++;
-                            sub->cxmode = SKINNY_CX_INACTIVE;
-                            sub->nat = nat;
-                            sub->next = l->sub;
-                            l->sub = sub;
-                        } else {
-                            /* XXX Should find a way to clean up our memory */
-                            ast_log(LOG_WARNING, "Out of memory allocating subchannel");
-                            return NULL;
-                        }
-                    }
-					l->next = d->lines;
+                      					sub->cxmode = SKINNY_CX_INACTIVE;
+                       					sub->nat = nat;
+                       					sub->next = l->sub;
+                       					l->sub = sub;
+                       				} else {
+                       					/* XXX Should find a way to clean up our memory */
+                       					ast_log(LOG_WARNING, "Out of memory allocating subchannel");
+                      					return NULL;
+                       				}
+                    			}
+		    			l->next = d->lines;
 					d->lines = l;			
-				} else {
-			        /* XXX Should find a way to clean up our memory */
-                    ast_log(LOG_WARNING, "Out of memory allocating line");
-                    return NULL;
+	    			} else {
+			        	/* XXX Should find a way to clean up our memory */
+                    			ast_log(LOG_WARNING, "Out of memory allocating line");
+                    			return NULL;
 				}
-			} else
+			} else {
 				ast_log(LOG_WARNING, "Don't know keyword '%s' at line %d\n", v->name, v->lineno);
+			}
 			v = v->next;
-		}
+	 	}
 	
-		if (!d->lines) {
+	 	if (!d->lines) {
 			ast_log(LOG_ERROR, "A Skinny device must have at least one line!\n");
 			return NULL;
 		}
@@ -1198,6 +1203,9 @@ static int skinny_register(skinny_req *req, struct skinnysession *s)
 			/* XXX Deal with IP authentication */
 			s->device = d;
 			d->type = req->data.reg.type;
+			if (!strlen(d->version_id)) {
+				strncpy(d->version_id, version_id, sizeof(d->version_id));
+			}
 			d->registered = 1;
 			d->session = s;
 			break;
@@ -1924,7 +1932,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = sizeof(version_res_message)+4;
 		req->e = VERSION_RES_MESSAGE;
-		sprintf(req->data.version.version, version_id);
+		sprintf(req->data.version.version, s->device->version_id);
 		transmit_response(s, req);
 		break;
 	case SERVER_REQUEST_MESSAGE:
@@ -2513,8 +2521,6 @@ static int reload_config(void)
 			keep_alive = atoi(v->value);		
 		} else if (!strcasecmp(v->name, "dateFormat")) {
 			strncpy(date_format, v->value, sizeof(date_format) - 1);	
-		} else if (!strcasecmp(v->name, "versionId")) {
-			strncpy(version_id, v->value, sizeof(version_id) - 1);	
 		} else if (!strcasecmp(v->name, "allow")) {
 			format = ast_getformatbyname(v->value);
 			if (format < 1) 
