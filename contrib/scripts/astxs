@@ -95,6 +95,27 @@ if($args{print}) {
 
 my($base,$ext);
 my $cfile = $args{plain}->[0];
+
+
+if($cfile =~ /http:\/\/.*?\/([^\/]+)$/) {
+
+  my $f = $1;
+  if(! -d "/tmp/astbld") {
+    mkdir("/tmp/astbld");
+  }
+  my $pwd = `pwd`;
+  chomp $pwd;
+  chdir("/tmp/astbld");
+  system("/bin/rm $f");
+  system("wget $cfile");
+  chdir($pwd);
+  $cfile = "/tmp/astbld/$f";
+
+
+}
+
+
+
 if($cfile) {
   ($base,$ext) = $cfile =~ /^([^\.]+)\.(.)/;
 }
@@ -109,6 +130,16 @@ $bad = esystem("$vars{CC} $vars{CFLAGS} -c ${base}.c -o ${base}.o");
 $bad = esystem("$vars{CC} $vars{SOLINK} -o $vars{LDFLAGS} ${base}.so $base.o $vars{EXTOBJ}") if(!$bad);
 
 if($args{install} and $vars{MODULES_DIR}) {
+  my $file = "${base}.so";
+  my ($mod) = $file =~ /([^\/]*)$/;
+
+  if($args{autoload}) {
+    $bad = esystem("/usr/sbin/asterisk -rx 'unload $mod'");
+  }
   $bad = esystem("/bin/cp -p ${base}.so $vars{MODULES_DIR}") if(!$bad);
+  
+  if($args{autoload}) {
+    $bad = esystem("/usr/sbin/asterisk -rx 'load $mod'");
+  }
 }
 
