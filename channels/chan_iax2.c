@@ -2320,13 +2320,22 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 #define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %-10s\n"
 	struct iax2_peer *peer;
 	char name[256] = "";
-	if (argc != 3)
+	int registeredonly=0;
+	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
+	if ((argc == 4)) {
+ 		if (!strcasecmp(argv[3], "registered")) {
+			registeredonly = 1;
+		} else
+			return RESULT_SHOWUSAGE;
+ 	}
 	ast_pthread_mutex_lock(&peerl.lock);
 	ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "Status");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
 		char status[20];
+		if (registeredonly && !peer->addr.sin_addr.s_addr)
+			continue;
 		if (strlen(peer->username))
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
 		else
