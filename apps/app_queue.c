@@ -929,6 +929,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	struct member * node ;
 	struct member * look ;
 	char info[512];
+	char tmpchan[256]="";
 	char *interface=NULL;
 	struct ast_call_queue *q;
 	int found=0 ;
@@ -949,8 +950,13 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 			*interface = '\0';
 			interface++;
 		}
-		else
-			interface = chan->name ;
+		else {
+			strncpy(tmpchan, chan->name, sizeof(tmpchan) - 1);
+			interface = strrchr(tmpchan, '-');
+			if (interface)
+				*interface = '\0';
+			interface = tmpchan;
+		}
 	}
 
 	if( ( q = queues) != NULL )
