@@ -3111,8 +3111,14 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
                 } else {
                     /* SC: verbose level check */
                     if (option_verbose > 2) {
-                        ast_verbose(VERBOSE_PREFIX_3 "MGCP handle_request(%s@%s-%d) ast_channel already destroyed\n", 
-                                    p->name, p->parent->name, sub->id);
+						if (option_verbose > 2) {
+							ast_verbose(VERBOSE_PREFIX_3 "MGCP handle_request(%s@%s-%d) ast_channel already destroyed, resending DLCX.\n",
+								p->name, p->parent->name, sub->id);
+						}
+						/* Instruct the other side to remove the connection since it apparently *
+						 * still thinks the channel is active. *
+						 * For Cisco IAD2421 /BAK/ */
+						transmit_connection_del(sub);
                     }
                 }
             }
