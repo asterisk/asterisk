@@ -360,6 +360,8 @@
 
 %privacy-unident.gsm%will_be_added_later
 
+%seconds.gsm%seconds
+
 %star.gsm%star
 
 %thousand.gsm%thousand
