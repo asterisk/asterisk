@@ -773,6 +773,7 @@ sms_nextoutgoing (sms_t * h)
     {				/* no message */
       h->omsg[0] = 0x94;	/* SMS_REL */
       h->omsg[1] = 0;
+      h->hangup = 1;
       sms_messagetx (h);
     }
 }
