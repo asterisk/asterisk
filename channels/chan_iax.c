@@ -5101,6 +5101,8 @@ int load_module(void)
 
 	ast_pthread_mutex_init(&iaxq.lock);
 	ast_pthread_mutex_init(&userl.lock);
+	ast_pthread_mutex_init(&peerl.lock);
+	ast_pthread_mutex_init(&dpcache_lock);
 
 	ast_cli_register(&cli_show_users);
 	ast_cli_register(&cli_show_channels);
