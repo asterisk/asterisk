@@ -834,17 +834,17 @@ int ast_extension_match(char *pattern, char *data)
 	}
 	if (pattern[0] != '_') {
 	    match = (strcmp(pattern, data) == 0);
-	    ast_log(LOG_DEBUG, "ast_extension_match %s == /%s/ => %d\n", data, pattern, match);
+	    /* ast_log(LOG_DEBUG, "ast_extension_match %s == /%s/ => %d\n", data, pattern, match); */
 	} else {
 	    match = ast_extension_patmatch(pattern+1,data);
-	    ast_log(LOG_DEBUG, "ast_extension_match %s =~ /%s/ => %d\n", data, pattern+1, match);
+	    /* ast_log(LOG_DEBUG, "ast_extension_match %s =~ /%s/ => %d\n", data, pattern+1, match); */
 	}
 	return match;
 }
 
 static int extension_close(char *pattern, char *data, int needmore)
 {
-	int match=1;
+	int match=0;
 	/* If "data" is longer, it can'be a subset of pattern unless
 	   pattern is a pattern match */
 	if ((strlen(pattern) < strlen(data)) && (pattern[0] != '_'))
