@@ -2381,8 +2381,8 @@ int load_module(void)
 		ast_cli_register(&cli_remove_queue_member);
 		ast_manager_register( "Queues", 0, manager_queues_show, "Queues" );
 		ast_manager_register( "QueueStatus", 0, manager_queues_status, "Queue Status" );
-		ast_manager_register( "QueueAdd", 0, manager_add_queue_member, "Add interface to queue." );
-		ast_manager_register( "QueueRemove", 0, manager_remove_queue_member, "Remove interface from queue." );
+		ast_manager_register( "QueueAdd", EVENT_FLAG_AGENT, manager_add_queue_member, "Add interface to queue." );
+		ast_manager_register( "QueueRemove", EVENT_FLAG_AGENT, manager_remove_queue_member, "Remove interface from queue." );
 		ast_register_application(app_aqm, aqm_exec, app_aqm_synopsis, app_aqm_descrip) ;
 		ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip) ;
 	}
