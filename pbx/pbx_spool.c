@@ -234,11 +234,6 @@ static int scan_service(char *fn, time_t now, time_t atime)
 		f = fopen(fn, "r+");
 		if (f) {
 			if (!apply_outgoing(o, fn, f)) {
-				/* Update the file time */
-				tbuf.actime = atime;
-				tbuf.modtime = now + o->retrytime;
-				if (utime(o->fn, &tbuf))
-					ast_log(LOG_WARNING, "Unable to set utime on %s: %s\n", fn, strerror(errno));
 				/* Increment retries */
 				o->retries++;
 #if 0
@@ -249,6 +244,11 @@ static int scan_service(char *fn, time_t now, time_t atime)
 					fseek(f, 0L, SEEK_END);
 					fprintf(f, "Retry: %d (%ld)\n", o->retries, (long) now);
 					fclose(f);
+					/* Update the file time */
+					tbuf.actime = atime;
+					tbuf.modtime = now + o->retrytime;
+					if (utime(o->fn, &tbuf))
+						ast_log(LOG_WARNING, "Unable to set utime on %s: %s\n", fn, strerror(errno));
 					now += o->retrytime;
 					launch_service(o);
 					return now;
