@@ -39,9 +39,11 @@ WAV49	= -DWAV49
 
 ifneq (${OSARCH},Darwin)
 ifneq (${PROC},x86_64)
+ifneq (${PROC},ultrasparc)
 ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),alpha)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 endif
@@ -203,7 +205,9 @@ ifeq (${OSARCH},Linux)
 ifneq ($(shell uname -m),x86_64)
 ifneq ($(shell uname -m),ppc)
 ifneq ($(shell uname -m),alpha)
-GSM_SOURCES+=	$(SRC)/k6opt.s
+ifneq ($(shell uname -m),sparc64)
+GSM_SOURCES+= $(SRC)/k6opt.s
+endif
 endif
 endif
 endif
@@ -252,11 +256,14 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/gsm_option.o	\
 		$(SRC)/short_term.o	\
 		$(SRC)/table.o
+
 ifeq (${OSARCH},Linux)
 ifneq ($(shell uname -m), x86_64)
 ifneq ($(shell uname -m), ppc)
 ifneq ($(shell uname -m), alpha)
-GSM_OBJECTS+=	$(SRC)/k6opt.o
+ifneq ($(shell uname -m), sparc64)
+GSM_OBJECTS+= $(SRC)/k6opt.o
+endif
 endif
 endif
 endif

@@ -26,6 +26,11 @@ PROC=k8
 #PROC=athlon
 OPTIONS+=-m64
 endif
+ifeq ($(PROC),sparc64)
+PROC=ultrasparc
+CFLAGS+=$(shell if $(CC) -mtune=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mtune=$(PROC)"; fi)
+endif
+
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
@@ -116,7 +121,11 @@ AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 INCLUDE=-Iinclude -I../include
 CFLAGS=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 CFLAGS+=$(OPTIMIZE)
+
+ifneq ($(PROC),ultrasparc)
 CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+endif
+
 CFLAGS+=$(shell if uname -m | grep -q ppc; then echo "-fsigned-char"; fi)
 CFLAGS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "-DOSP_SUPPORT -I/usr/include/osp" ; fi)
 
