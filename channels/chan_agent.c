@@ -406,6 +406,11 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		ast_frfree(f);
 		f = NULL;
 	}
+	if (f && (f->frametype == AST_FRAME_VOICE) && !p->acknowledged) {
+		/* Don't pass along agent audio until call is acknowledged */
+		ast_frfree(f);
+		f = &null_frame;
+	}
 	CLEANUP(ast,p);
 	if (p->chan && !p->chan->_bridge) {
 		if (strcasecmp(p->chan->type, "Local")) {
