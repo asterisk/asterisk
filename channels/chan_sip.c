@@ -2027,19 +2027,22 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	return send_request(p, &req);
 }
 
-static int transmit_notify(struct sip_pvt *p, int hasmsgs)
+static int transmit_notify(struct sip_pvt *p, int newmsgs, int oldmsgs)
 {
 	struct sip_request req;
 	char tmp[256];
+	char tmp2[256];
 	char clen[20];
 	initreqprep(&req, p, "NOTIFY", NULL);
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", "text/plain");
 
-	snprintf(tmp, sizeof(tmp), "Message-Waiting: %s\n", hasmsgs ? "yes" : "no");
-	snprintf(clen, sizeof(clen), "%d", strlen(tmp));
+	snprintf(tmp, sizeof(tmp), "Message-Waiting: %s\n", (newmsgs + oldmsgs) ? "yes" : "no");
+	snprintf(tmp2, sizeof(tmp2), "Voicemail: %d/%d\n", newmsgs, oldmsgs);
+	snprintf(clen, sizeof(clen), "%d", strlen(tmp) + strlen(tmp2));
 	add_header(&req, "Content-Length", clen);
 	add_line(&req, tmp);
+	add_line(&req, tmp2);
 
 	if (!p->initreq.headers) {
 		/* Use this as the basis */
@@ -3694,15 +3697,15 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 {
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
-	int hasmsgs;
 	char name[256] = "";
+	int newmsgs, oldmsgs;
 	/* Check for messages */
-	hasmsgs = ast_app_has_voicemail(peer->mailbox);
+	ast_app_messagecount(peer->mailbox, &newmsgs, &oldmsgs);
 	
 	time(&peer->lastmsgcheck);
 	
 	/* Return now if it's the same thing we told them last time */
-	if (hasmsgs == peer->lastmsgssent) {
+	if (((newmsgs << 8) | (oldmsgs)) == peer->lastmsgssent) {
 		ast_pthread_mutex_unlock(&peerl.lock);
 		return 0;
 	}
@@ -3714,7 +3717,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return -1;
 	}
 	strncpy(name, peer->name, sizeof(name) - 1);
-	peer->lastmsgssent = hasmsgs;
+	peer->lastmsgssent = ((newmsgs << 8) | (oldmsgs));
 	ast_pthread_mutex_unlock(&peerl.lock);
 	if (create_addr(p, peer->name)) {
 		/* Maybe they're not registered, etc. */
@@ -3726,7 +3729,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=%08x", inet_ntoa(p->ourip), ourport, p->branch);
 	build_callid(p->callid, sizeof(p->callid), p->ourip);
 	/* Send MWI */
-	transmit_notify(p, hasmsgs);
+	transmit_notify(p, newmsgs, oldmsgs);
 	/* Destroy channel */
 	sip_destroy(p);
 	return 0;

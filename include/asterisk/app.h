@@ -40,7 +40,10 @@ extern int ast_app_getdata_full(struct ast_channel *c, char *prompt, char *s, in
 int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prompt, int silence, int maxsec);
 
 //! Determine if a given mailbox has any voicemail
-extern int ast_app_has_voicemail(char *mailbox);
+extern int ast_app_has_voicemail(const char *mailbox);
+
+//! Determine number of new/old messages in a mailbox
+extern int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

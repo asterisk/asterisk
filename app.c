@@ -70,7 +70,7 @@ int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prom
 	int res;
 	struct ast_filestream *writer;
 	int rfmt;
-	int totalms, total;
+	int totalms=0, total;
 	
 	struct ast_frame *f;
 	struct ast_dsp *sildet;
@@ -141,7 +141,7 @@ int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prom
 	return 0;
 }
 
-int ast_app_has_voicemail(char *mailbox)
+int ast_app_has_voicemail(const char *mailbox)
 {
 	DIR *dir;
 	struct dirent *de;
@@ -175,5 +175,68 @@ int ast_app_has_voicemail(char *mailbox)
 	closedir(dir);
 	if (de)
 		return 1;
+	return 0;
+}
+
+int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
+{
+	DIR *dir;
+	struct dirent *de;
+	char fn[256];
+	char tmp[256]="";
+	char *mb, *cur;
+	int ret;
+	if (newmsgs)
+		*newmsgs = 0;
+	if (oldmsgs)
+		*oldmsgs = 0;
+	/* If no mailbox, return immediately */
+	if (!strlen(mailbox))
+		return 0;
+	if (strchr(mailbox, ',')) {
+		int tmpnew, tmpold;
+		strncpy(tmp, mailbox, sizeof(tmp));
+		mb = tmp;
+		ret = 0;
+		while((cur = strsep(&mb, ", "))) {
+			if (strlen(cur)) {
+				if (ast_app_messagecount(cur, newmsgs ? &tmpnew : NULL, oldmsgs ? &tmpold : NULL))
+					return -1;
+				else {
+					if (newmsgs)
+						*newmsgs += tmpnew; 
+					if (oldmsgs)
+						*oldmsgs += tmpold;
+				}
+			}
+		}
+		return 0;
+	}
+	if (newmsgs) {
+		snprintf(fn, sizeof(fn), "%s/vm/%s/INBOX", (char *)ast_config_AST_SPOOL_DIR, mailbox);
+		dir = opendir(fn);
+		if (dir) {
+			while ((de = readdir(dir))) {
+				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
+					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
+						*newmsgs++;
+					
+			}
+			closedir(dir);
+		}
+	}
+	if (oldmsgs) {
+		snprintf(fn, sizeof(fn), "%s/vm/%s/Old", (char *)ast_config_AST_SPOOL_DIR, mailbox);
+		dir = opendir(fn);
+		if (dir) {
+			while ((de = readdir(dir))) {
+				if ((strlen(de->d_name) > 3) && !strncasecmp(de->d_name, "msg", 3) &&
+					!strcasecmp(de->d_name + strlen(de->d_name) - 3, "txt"))
+						*oldmsgs++;
+					
+			}
+			closedir(dir);
+		}
+	}
 	return 0;
 }
