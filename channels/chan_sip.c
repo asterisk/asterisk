@@ -6753,6 +6753,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
 				case 410: /* Gone */
+				case 400: /* Bad Request */
 				case 500: /* Server error */
 					if (owner)
 						ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
