@@ -34,10 +34,10 @@ static char *app_cut = "Cut";
 static char *cut_synopsis = "Cut(newvar=varname|delimiter|fieldspec)";
 
 static char *cut_descrip =
-"Cut(varname=varname,delimiter,field)\n"
-"  newvar    - result string is set to this variable\n"
+"Cut(newvar=varname,delimiter,field)\n"
+"  newvar    - new variable created from result string\n"
 "  varname   - variable you want cut\n"
-"  delimiter - defaults to -\n"
+"  delimiter - defaults to '-'\n"
 "  fieldspec - number of the field you want (1-based offset)\n"
 "            may also be specified as a range (with -)\n"
 "            or group of ranges and fields (with &)\n" 
