@@ -31,9 +31,13 @@ static char *app = "Read";
 static char *synopsis = "Read a variable";
 
 static char *descrip = 
-"  Read(variable[|filename]):  Reads a '#' terminated string of digits from\n"
+"  Read(variable[|filename][|maxdigits]):  Reads a #-terminated string of digits from\n"
 "the user, optionally playing a given filename first.  Returns -1 on hangup or\n"
-"error and 0 otherwise.\n";
+"error and 0 otherwise.\n"
+"  maxdigits   -- maximum acceptable number of digits. Stops reading after maxdigits\n"
+"                 have been entered (without requiring the user press the '#' key).\n"
+"                 Defaults to 0 - no limit - wait for the user press the '#' key.\n"
+"                 Any value below 0 means the same. Max accepted value is 255.\n";	
 
 STANDARD_LOCAL_USER;
 
@@ -44,9 +48,11 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	char tmp[256];
-	char tmp2[128]="";
+	char tmp2[256]="";
 	char *filename;
 	char *stringp;
+	char *maxdigitstr;
+	int maxdigits=255;
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
 		return -1;
@@ -55,6 +61,16 @@ static int read_exec(struct ast_channel *chan, void *data)
 	stringp=tmp;
 	strsep(&stringp, "|");
 	filename = strsep(&stringp, "|");
+	maxdigitstr = strsep(&stringp,"|");
+	if (maxdigitstr)
+	{
+	    maxdigits = atoi(maxdigitstr);
+	    if ((maxdigits<1) || (maxdigits>255)) {
+    		maxdigits = 255;
+	    }
+	    else
+		ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %i digits.\n", maxdigits);
+	}	
 	if (!strlen(tmp)) {
 		ast_log(LOG_WARNING, "Read requires an variable name\n");
 		return -1;
@@ -66,7 +82,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	}
 	if (!res) {
 		ast_stopstream(chan);
-		res = ast_app_getdata(chan, filename, tmp2, sizeof(tmp2) - 1, 0);
+		res = ast_app_getdata(chan, filename, tmp2, maxdigits, 0);
 		if (!res)
 			pbx_builtin_setvar_helper(chan, tmp, tmp2);
 		ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp2);
