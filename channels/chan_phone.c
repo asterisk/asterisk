@@ -270,7 +270,7 @@ static int phone_setup(struct ast_channel *ast)
 			}
 		}
 	} else {
-		ast_log(LOG_WARNING, "Can't do format %d\n", ast->pvt->rawreadformat);
+		ast_log(LOG_WARNING, "Can't do format %s\n", ast_getformatname(ast->pvt->rawreadformat));
 		return -1;
 	}
 	if (ioctl(p->fd, PHONE_REC_START)) {

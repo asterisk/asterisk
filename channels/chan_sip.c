@@ -1724,7 +1724,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					return -1;
 				}
 				if (sipdebug)
-					ast_verbose("Found audio format %d\n", codec);
+					ast_verbose("Found audio format %s\n", ast_getformatname(codec));
 				ast_rtp_set_m_type(p->rtp, codec);
 				codecs += len;
 				/* Skip over any whitespace */
@@ -1742,7 +1742,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					return -1;
 				}
 				if (sipdebug)
-					ast_verbose("Found video format %d\n", codec);
+					ast_verbose("Found video format %s\n", ast_getformatname(codec));
 				ast_rtp_set_m_type(p->vrtp, codec);
 				codecs += len;
 				/* Skip over any whitespace */
@@ -3883,7 +3883,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 static int sip_show_channels(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %d\n"
+#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-6.6s\n"
 	struct sip_pvt *cur;
 	int numchans = 0;
 	if (argc != 3)
@@ -3899,7 +3899,7 @@ static int sip_show_channels(int fd, int argc, char *argv[])
 						cur->ocseq, cur->icseq, 
 						0,
 						0,
-						cur->owner ? cur->owner->nativeformats : 0);
+						ast_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
 		numchans++;
 		}
 		cur = cur->next;
@@ -5223,7 +5223,7 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	oldformat = format;
 	format &= capability;
 	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %d while capability is %d\n", oldformat, capability);
+		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(capability));
 		return NULL;
 	}
 	p = sip_alloc(NULL, NULL, 0);

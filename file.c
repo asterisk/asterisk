@@ -215,7 +215,7 @@ int ast_writestream(struct ast_filestream *fs, struct ast_frame *f)
 		if (!fs->trans) 
 			fs->trans = ast_translator_build_path(fs->fmt->format, f->subclass);
 		if (!fs->trans)
-			ast_log(LOG_WARNING, "Unable to translate to format %s, source format %d\n", fs->fmt->name, f->subclass);
+			ast_log(LOG_WARNING, "Unable to translate to format %s, source format %s\n", fs->fmt->name, ast_getformatname(f->subclass));
 		else {
 			fs->lastwriteformat = f->subclass;
 			res = 0;
@@ -719,7 +719,7 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 #endif
 		return 0;
 	}
-	ast_log(LOG_WARNING, "Unable to open %s (format %d): %s\n", filename, chan->nativeformats, strerror(errno));
+	ast_log(LOG_WARNING, "Unable to open %s (format %s): %s\n", filename, ast_getformatname(chan->nativeformats), strerror(errno));
 	return -1;
 }
 

@@ -1083,7 +1083,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		if (!(f->subclass & chan->nativeformats)) {
 			/* This frame can't be from the current native formats -- drop it on the
 			   floor */
-			ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %d since our native format has changed to %d\n", chan->name, f->subclass, chan->nativeformats);
+			ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, ast_getformatname(f->subclass), ast_getformatname(chan->nativeformats));
 			ast_frfree(f);
 			f = &null_frame;
 		} else {
@@ -1403,7 +1403,8 @@ int ast_set_write_format(struct ast_channel *chan, int fmts)
 	
 	res = ast_translator_best_choice(&native, &fmt);
 	if (res < 0) {
-		ast_log(LOG_NOTICE, "Unable to find a path from %d to %d\n", fmts, chan->nativeformats);
+		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
+			ast_getformatname(fmts), ast_getformatname(chan->nativeformats));
 		return -1;
 	}
 	
@@ -1417,7 +1418,7 @@ int ast_set_write_format(struct ast_channel *chan, int fmts)
 	/* Build a translation path from the user write format to the raw writing format */
 	chan->pvt->writetrans = ast_translator_build_path(chan->pvt->rawwriteformat, chan->writeformat);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Set channel %s to write format %d\n", chan->name, chan->writeformat);
+		ast_log(LOG_DEBUG, "Set channel %s to write format %s\n", chan->name, ast_getformatname(chan->writeformat));
 	return 0;
 }
 
@@ -1432,7 +1433,8 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	/* Find a translation path from the native read format to one of the user's read formats */
 	res = ast_translator_best_choice(&fmt, &native);
 	if (res < 0) {
-		ast_log(LOG_NOTICE, "Unable to find a path from %d to %d\n", chan->nativeformats, fmts);
+		ast_log(LOG_NOTICE, "Unable to find a path from %s to %s\n",
+			ast_getformatname(chan->nativeformats), ast_getformatname(fmts));
 		return -1;
 	}
 	
@@ -1446,7 +1448,8 @@ int ast_set_read_format(struct ast_channel *chan, int fmts)
 	/* Build a translation path from the raw read format to the user reading format */
 	chan->pvt->readtrans = ast_translator_build_path(chan->readformat, chan->pvt->rawreadformat);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Set channel %s to read format %d\n", chan->name, chan->readformat);
+		ast_log(LOG_DEBUG, "Set channel %s to read format %s\n", 
+			chan->name, ast_getformatname(chan->readformat));
 	return 0;
 }
 

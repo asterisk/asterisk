@@ -125,7 +125,8 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 			}
 		} else {
 			/* We shouldn't have allocated any memory */
-			ast_log(LOG_WARNING, "No translator path from %d to %d\n", source, dest);
+			ast_log(LOG_WARNING, "No translator path from %s to %s\n", 
+				ast_getformatname(source), ast_getformatname(dest));
 			return NULL;
 		}
 	}
@@ -199,7 +200,7 @@ static void rebuild_matrix(void)
 									tr_matrix[x][z].cost = tr_matrix[x][y].cost + 
 														   tr_matrix[y][z].cost;
 									if (option_debug)
-										ast_log(LOG_DEBUG, "Discovered %d cost path from %d to %d, via %d\n", tr_matrix[x][z].cost, x, z, y);
+										ast_log(LOG_DEBUG, "Discovered %d cost path from %s to %s, via %d\n", tr_matrix[x][z].cost, ast_getformatname(x), ast_getformatname(z), y);
 									changed++;
 								 }
 		
@@ -252,26 +253,29 @@ static void calc_cost(struct ast_translator *t)
 
 static int show_translation(int fd, int argc, char *argv[])
 {
-#define SHOW_TRANS 14
+#define SHOW_TRANS 11
 	int x,y;
 	char line[80];
 	if (argc != 2) 
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, "                        Translation times between formats (in milliseconds)\n");
-	ast_cli(fd, "                                 Destination Format\n");
+	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");
+	ast_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
 	ast_mutex_lock(&list_lock);
-	for (x=0;x<SHOW_TRANS; x++) {
-		if (x == 1) 
-			strcpy(line, "  Src  ");
-		else if (x == 2)
-			strcpy(line, "  Fmt  ");
-		else
-			strcpy(line, "       ");
-		for (y=0;y<SHOW_TRANS;y++) {
-			if (tr_matrix[x][y].step)
-				snprintf(line + strlen(line), sizeof(line) - strlen(line), " %4d", tr_matrix[x][y].cost);
+	for (x=-1;x<SHOW_TRANS; x++) {
+		strcpy(line, " ");
+		for (y=-1;y<SHOW_TRANS;y++) {
+			/* Skip MP3 (y = 4) as Destination format */
+			if (y != 4 && x >= 0 && y >= 0 && tr_matrix[x][y].step)
+				snprintf(line + strlen(line), sizeof(line) - strlen(line), " %6d", tr_matrix[x][y].cost);
 			else
-				snprintf(line + strlen(line), sizeof(line) - strlen(line), "  n/a");
+				if ((y != 4) && ((x == -1 && y >= 0) || (y == -1 && x >= 0))) {
+					snprintf(line + strlen(line), sizeof(line) - strlen(line), 
+						" %6s", ast_getformatname(1<<(x+y+1)) );
+				} else if (x != -1 && y != -1 && y != 4) {
+					snprintf(line + strlen(line), sizeof(line) - strlen(line), "      -");
+				} else if (y != 4) {
+					snprintf(line + strlen(line), sizeof(line) - strlen(line), "       ");
+				}
 		}
 		snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
 		ast_cli(fd, line);			
@@ -296,12 +300,12 @@ int ast_register_translator(struct ast_translator *t)
 	t->srcfmt = powerof(t->srcfmt);
 	t->dstfmt = powerof(t->dstfmt);
 	if ((t->srcfmt >= MAX_FORMAT) || (t->dstfmt >= MAX_FORMAT)) {
-		ast_log(LOG_WARNING, "Format %d is larger than MAX_FORMAT\n", t->srcfmt);
+		ast_log(LOG_WARNING, "Format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
 		return -1;
 	}
 	calc_cost(t);
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %d to %d, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), t->srcfmt, t->dstfmt, t->cost);
+		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(t->srcfmt), ast_getformatname(t->dstfmt), t->cost);
 	ast_mutex_lock(&list_lock);
 	if (!added_cli) {
 		ast_cli_register(&show_trans);

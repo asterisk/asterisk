@@ -790,7 +790,7 @@ static struct ast_channel *modem_request(char *type, int format, void *data)
 					} else
 						ast_log(LOG_WARNING, "Device '%s' is busy\n", p->dev);
 				} else 
-					ast_log(LOG_WARNING, "Asked for a format %d line on %s\n", format, p->dev);
+					ast_log(LOG_WARNING, "Asked for a format %s line on %s\n", ast_getformatname(format), p->dev);
 				break;
 			}
 		}

@@ -477,7 +477,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			// assumes that the RTP packet contained one Speex frame
 			break;
 		default:
-			ast_log(LOG_NOTICE, "Unable to calculate samples for format %d\n", rtp->f.subclass);
+			ast_log(LOG_NOTICE, "Unable to calculate samples for format %s\n", ast_getformatname(rtp->f.subclass));
 			break;
 		}
 	} else {
@@ -927,7 +927,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			// assumes that the RTP packet contains one Speex frame
 			break;
 		default:
-			ast_log(LOG_WARNING, "Not sure about timestamp format for codec format %d\n", f->subclass);
+			ast_log(LOG_WARNING, "Not sure about timestamp format for codec format %s\n", ast_getformatname(f->subclass));
 		}
 
 		/* Re-calculate last TS */
@@ -995,13 +995,13 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 
 	codec = ast_rtp_lookup_code(rtp, 1, subclass);
 	if (codec < 0) {
-		ast_log(LOG_WARNING, "Don't know how to send format %d packets with RTP\n", _f->subclass);
+		ast_log(LOG_WARNING, "Don't know how to send format %s packets with RTP\n", ast_getformatname(_f->subclass));
 		return -1;
 	}
 
 	if (rtp->lasttxformat != subclass) {
 		/* New format, reset the smoother */
-		ast_log(LOG_DEBUG, "Ooh, format changed from %d to %d\n", rtp->lasttxformat, subclass);
+		ast_log(LOG_DEBUG, "Ooh, format changed from %s to %s\n", ast_getformatname(rtp->lasttxformat), ast_getformatname(subclass));
 		rtp->lasttxformat = subclass;
 		if (rtp->smoother)
 			ast_smoother_free(rtp->smoother);
@@ -1062,7 +1062,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 			ast_rtp_raw_write(rtp, f, codec);
 		break;
 	default:	
-		ast_log(LOG_WARNING, "Not sure about sending format %d packets\n", subclass);
+		ast_log(LOG_WARNING, "Not sure about sending format %s packets\n", ast_getformatname(subclass));
 		// fall through to...
 	case AST_FORMAT_H261:
 	case AST_FORMAT_H263:

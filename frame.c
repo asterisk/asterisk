@@ -343,6 +343,41 @@ int ast_fr_fdhangup(int fd)
 	return ast_fr_fdwrite(fd, &hangup);
 }
 
+char* ast_getformatname(int format)
+{
+	if (format == AST_FORMAT_G723_1) 
+		return "G723";
+	else if (format == AST_FORMAT_GSM)
+		return "GSM";
+	else if (format == AST_FORMAT_ULAW)
+		return "ULAW";
+	else if (format == AST_FORMAT_ALAW)
+		return "ALAW";
+	else if (format == AST_FORMAT_MP3)
+		return "MP3";
+	else if (format == AST_FORMAT_SLINEAR)
+		return "SLINR";
+	else if (format == AST_FORMAT_LPC10)
+		return "LPC10";
+	else if (format == AST_FORMAT_ADPCM)
+		return "ADPCM";
+	else if (format == AST_FORMAT_G729A)
+		return "G729A";
+	else if (format == AST_FORMAT_SPEEX)
+		return "SPEEX";
+	else if (format == AST_FORMAT_ILBC)
+		return "ILBC";
+	else if (format == AST_FORMAT_JPEG)
+		return "JPEG";
+	else if (format == AST_FORMAT_PNG)
+		return "PNG";
+	else if (format == AST_FORMAT_H261)
+		return "H261";
+	else if (format == AST_FORMAT_H263)
+		return "H263";
+	return "UNKN";
+}
+
 int ast_getformatbyname(char *name)
 {
 	if (!strcasecmp(name, "g723.1")) 
@@ -468,7 +503,7 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 		break;
 	case AST_FRAME_IMAGE:
 		strcpy(ftype, "Image");
-		snprintf(subclass, sizeof(subclass), "Image format %d\n", f->subclass);
+		snprintf(subclass, sizeof(subclass), "Image format %s\n", ast_getformatname(f->subclass));
 		break;
 	case AST_FRAME_HTML:
 		strcpy(ftype, "HTML");

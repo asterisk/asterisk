@@ -2256,7 +2256,7 @@ static int iax_show_registry(int fd, int argc, char *argv[])
 static int iax_show_channels(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %d\n"
+#define FORMAT  "%-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-6.6s\n"
 	int x;
 	int numchans = 0;
 	if (argc != 3)
@@ -2271,7 +2271,7 @@ static int iax_show_channels(int fd, int argc, char *argv[])
 						iaxs[x]->oseqno, iaxs[x]->iseqno, 
 						iaxs[x]->lag,
 						iaxs[x]->jitter,
-						iaxs[x]->voiceformat);
+						ast_getformatname(iaxs[x]->voiceformat) );
 			numchans++;
 		}
 		ast_mutex_unlock(&iaxsl[x]);
@@ -3550,7 +3550,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		if (f.frametype == AST_FRAME_VOICE) {
 			if (f.subclass != iaxs[fr.callno]->voiceformat) {
 					iaxs[fr.callno]->voiceformat = f.subclass;
-					ast_log(LOG_DEBUG, "Ooh, voice format changed to %d\n", f.subclass);
+					ast_log(LOG_DEBUG, "Ooh, voice format changed to %s\n", ast_getformatname(f.subclass));
 					if (iaxs[fr.callno]->owner) {
 						int orignative;
 						ast_mutex_lock(&iaxs[fr.callno]->owner->lock);
@@ -3727,7 +3727,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 						iaxs[fr.callno]->peerformat = iax_capability;
 				}
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Call accepted by %s (format %d)\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->peerformat);
+					ast_verbose(VERBOSE_PREFIX_3 "Call accepted by %s (format %s)\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), ast_getformatname(iaxs[fr.callno]->peerformat));
 				if (!(iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability)) {
 					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, AST_IAX_COMMAND_REJECT, 0, "Unable to negotiate codec", strlen("Unable to negotiate codec"), -1);
 					ast_log(LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
@@ -3737,7 +3737,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 						/* Switch us to use a compatible format */
 						iaxs[fr.callno]->owner->nativeformats = iaxs[fr.callno]->peerformat;
 						if (option_verbose > 2)
-							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %d\n", iaxs[fr.callno]->owner->nativeformats);
+							ast_verbose(VERBOSE_PREFIX_3 "Format for call is %s\n", ast_getformatname(iaxs[fr.callno]->owner->nativeformats));
 						/* Setup read/write formats properly. */
 						if (iaxs[fr.callno]->owner->writeformat)
 							ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat);	
@@ -3861,7 +3861,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					/* Select an appropriate format */
 					format = iaxs[fr.callno]->peerformat & iax_capability;
 					if (!format) {
-						ast_log(LOG_DEBUG, "We don't do requested format %d, falling back to peer capability %d\n", iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability);
+						ast_log(LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", ast_getformatname(iaxs[fr.callno]->peerformat), iaxs[fr.callno]->peercapability);
 						format = iaxs[fr.callno]->peercapability & iax_capability;
 						if (!format) {
 							ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iax_capability);
@@ -4224,7 +4224,7 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 			fmt = format;
 			res = ast_translator_best_choice(&fmt, &native);
 			if (res < 0) {
-				ast_log(LOG_WARNING, "Unable to create translator path for %d to %d on %s\n", c->nativeformats, fmt, c->name);
+				ast_log(LOG_WARNING, "Unable to create translator path for %s to %s on %s\n", ast_getformatname(c->nativeformats), ast_getformatname(fmt), c->name);
 				ast_hangup(c);
 				return NULL;
 			}

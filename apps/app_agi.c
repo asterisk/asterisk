@@ -1435,7 +1435,7 @@ static int eagi_exec(struct ast_channel *chan, void *data)
 	res = agi_exec_full(chan, data, 1);
 	if (!res) {
 		if (ast_set_read_format(chan, readformat)) {
-			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %d\n", chan->name, readformat);
+			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, ast_getformatname(readformat));
 		}
 	}
 	return res;

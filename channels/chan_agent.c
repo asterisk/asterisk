@@ -398,7 +398,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		res = ast_set_read_format(p->chan, ast_best_codec(p->chan->nativeformats));
 		ast_log( LOG_DEBUG, "Set read format, result '%d'\n", res);
 		if (res)
-			ast_log(LOG_WARNING, "Unable to set read format to %d\n", ast_best_codec(p->chan->nativeformats));
+			ast_log(LOG_WARNING, "Unable to set read format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
 	} else {
 		// Agent hung-up
 		p->chan = NULL;
@@ -408,7 +408,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_set_write_format(p->chan, ast_best_codec(p->chan->nativeformats));
 		ast_log( LOG_DEBUG, "Set write format, result '%d'\n", res);
 		if (res)
-			ast_log(LOG_WARNING, "Unable to set write format to %d\n", ast_best_codec(p->chan->nativeformats));
+			ast_log(LOG_WARNING, "Unable to set write format to %s\n", ast_getformatname(ast_best_codec(p->chan->nativeformats)));
 	}
 	if( !res )
 	{
@@ -1046,8 +1046,8 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								"Channel: %s\r\n",
 								p->agent, chan->name);
 							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged in (format %d/%d)\n", p->agent,
-												chan->readformat, chan->writeformat);
+								ast_verbose(VERBOSE_PREFIX_3 "Agent '%s' logged in (format %s/%s)\n", p->agent,
+												ast_getformatname(chan->readformat), ast_getformatname(chan->writeformat));
 							/* Login this channel and wait for it to
 							   go away */
 							p->chan = chan;

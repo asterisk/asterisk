@@ -395,7 +395,7 @@ static void moh_release(struct ast_channel *chan, void *data)
 	free(moh);
 	if (chan) {
 		if (oldwfmt && ast_set_write_format(chan, oldwfmt)) 
-			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %d\n", chan->name, oldwfmt);
+			ast_log(LOG_WARNING, "Unable to restore channel '%s' to format %s\n", chan->name, ast_getformatname(oldwfmt));
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Stopped music on hold on %s\n", chan->name);
 	}

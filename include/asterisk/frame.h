@@ -309,6 +309,14 @@ int ast_fr_fdhangup(int fd);
 
 //! Get a format from a name
 /*!
+ * \param format id of format
+ * Gets the name of a format.
+ * This returns the name of the format in a sttring or UNKN if unknown.
+ */
+//! Get the name of a format
+extern char* ast_getformatname(int format);
+
+/*!
  * \param name string of format
  * Gets a format from a name.
  * This returns the form of the format in binary on success, 0 on error.

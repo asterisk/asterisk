@@ -175,14 +175,14 @@ int ast_send_image(struct ast_channel *chan, char *filename)
 static int show_image_formats(int fd, int argc, char *argv[])
 {
 #define FORMAT "%10s %10s %50s %10s\n"
-#define FORMAT2 "%10s %10s %50s %10d\n"
+#define FORMAT2 "%10s %10s %50s %10s\n"
 	struct ast_imager *i;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
 	i = list;
 	while(i) {
-		ast_cli(fd, FORMAT2, i->name, i->exts, i->desc, i->format);
+		ast_cli(fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
 		i = i->next;
 	};
 	return RESULT_SUCCESS;

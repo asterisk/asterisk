@@ -933,7 +933,7 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	}
 	if (rfmt) {
 		if (ast_set_read_format(chan, rfmt)) {
-			ast_log(LOG_WARNING, "Unable to restore format %d to channel '%s'\n", rfmt, chan->name);
+			ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
 		}
 	}
 	if (outmsg) {

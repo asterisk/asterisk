@@ -2842,7 +2842,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to campanded mode.\n", p->channel, index);
 		}
 	} else {
-		ast_log(LOG_WARNING, "Don't know how to read frames in format %d\n", ast->pvt->rawreadformat);
+		ast_log(LOG_WARNING, "Don't know how to read frames in format %s\n", ast_getformatname(ast->pvt->rawreadformat));
 		ast_mutex_unlock(&p->lock);
 		return NULL;
 	}
