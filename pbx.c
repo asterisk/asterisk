@@ -920,7 +920,8 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 				snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
 				*ret = workspace;
 			}
-		}
+		} else
+			goto icky;
 	} else if (c && !strcmp(var, "DNID")) {
 		if (c->cid.cid_dnid) {
 			strncpy(workspace, c->cid.cid_dnid, workspacelen - 1);
@@ -996,6 +997,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		strncpy(workspace, c->language, workspacelen - 1);
 		*ret = workspace;
 	} else {
+icky:
 		if (headp) {
 			AST_LIST_TRAVERSE(headp,variables,entries) {
 #if 0
