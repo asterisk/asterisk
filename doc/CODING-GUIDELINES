@@ -76,3 +76,70 @@ for (x=0;x<5;x++) {
 			baz();
 	}
 }
+
+
+
+Make sure you never use an uninitialized variable.  The compiler will 
+usually warn you if you do so.
+
+Name global variables (or local variables when you have a lot of them or
+are in a long function) something that will make sense to aliens who
+find your code in 100 years.  All variable names should be in lower 
+case.
+
+Make some indication in the name of global variables which represent
+options that they are in fact intended to be global.
+ e.g.: static char global_something[80]
+
+When making applications, always ast_strdupa(data) to a local pointer if
+you intend to parse it.
+ if(data)
+  mydata = ast_strdupa(data);
+
+Always derefrence or localize pointers to things that are not yours like
+channel members in a channel that is not associated with the current 
+thread and for which you do not have a lock.
+ channame = ast_strdupa(otherchan->name);
+
+If you do the same or a similar operation more than 1 time, make it a
+function or macro.
+
+Make sure you are not duplicating any functionality already found in an
+API call somewhere.  If you are duplicating functionality found in 
+another static function, consider the value of creating a new API call 
+which can be shared.
+
+When you achieve your desired functionalty, make another few refactor
+passes over the code to optimize it.
+
+Before submitting a patch, *read* the actual patch file to be sure that 
+all the changes you expect to be there are, and that there are no 
+surprising changes you did not expect.
+
+If you are asked to make changes to your patch, there is a good chance
+the changes will introduce bugs, check it even more at this stage.
+
+Avoid needless malloc(),strdup() calls.  If you only need the value in
+the scope of your function try ast_strdupa() or declare struts static
+and pass them as a pointer with &.
+
+If you are going to reuse a computable value, save it in a variable
+instead of recomputing it over and over.
+
+Just an Example:
+
+ if (strlen(name)) {
+  newname = alloca(strlen(name));
+  strncpy(newname, name, strlen(name);
+ }
+  
+vs
+
+ if((len = strlen(name))) {
+  newname = alloca(len);
+  strncpy(newname, name, len);
+ }
+
+
+Use const on pointers which your function will not be modifying, as this 
+allows the compiler to make certain optimizations.
