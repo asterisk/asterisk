@@ -98,6 +98,36 @@ static char reload_extensions_help[] =
 "Example: extensions reload\n";
 
 /*
+ * Static code
+ */
+static char* process_quotes_and_slashes( char* start, char find, char replace_with )
+{
+ 	char* dataPut   = start;
+	int   inEscape  = 0;
+	int   inQuotes  = 0;
+	for( ; *start; start++ ) {
+		if( inEscape ) {
+			*dataPut++ = *start;       /* Always goes verbatim */
+			inEscape = 0;
+    		}
+		else {
+			if( *start == '\\' ) {
+				inEscape = 1;      /* Do not copy \ into the data */
+			}
+			else if( *start == '\"' ) {
+				inQuotes = 1-inQuotes;   /* Do not copy " into the data */
+			}
+			else {
+				/* Replace , with |, unless in quotes */
+				*dataPut++ = inQuotes ? *start : ((*start==find) ? replace_with : *start);
+			}
+		}
+	}
+	*dataPut = 0;
+	return dataPut;
+}
+
+/*
  * Implementation of functions provided by this module
  */
 
@@ -1144,9 +1174,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	if (app && (start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
 		*start = *end = '\0';
 		app_data = start + 1;
-		for (start = app_data; *start; start++)
-			if (*start == ',')
-				*start = '|';
+		process_quotes_and_slashes(app_data,',','|');
 	} else
 		app_data    = whole_exten;
 
@@ -1615,9 +1643,7 @@ static int pbx_load_module(void)
 							if (start && (end = strrchr(appl, ')'))) {
 								*start = *end = '\0';
 								data = start + 1;
-								for (start = data; *start; start++)
-									if (*start == ',')
-										*start = '|';
+								process_quotes_and_slashes(data,',','|');
 							} else if (stringp!=NULL && *stringp=='"') {
 								stringp++;
 								data = strsep(&stringp, "\"");
