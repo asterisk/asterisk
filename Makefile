@@ -108,6 +108,7 @@ ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
 ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
 ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
 ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
+ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
 
 MODULES_DIR=$(ASTLIBDIR)/modules
 AGI_DIR=$(ASTVARLIBDIR)/agi-bin
@@ -203,7 +204,7 @@ _all: all
 	@echo " +               $(MAKE) install                +"  
 	@echo " +-------------------------------------------+"  
 
-all: depend asterisk subdirs
+all: depend asterisk subdirs 
 
 editline/config.h:
 	cd editline && unset CFLAGS LIBS && ./configure ; \
@@ -239,6 +240,14 @@ ast_expr.o: ast_expr.c
 cli.o: cli.c build.h
 
 asterisk.o: asterisk.c build.h
+
+manpage: asterisk.8.gz
+
+asterisk.8.gz: asterisk.sgml
+	rm -f asterisk.8
+	docbook2man asterisk.sgml
+	mv ./*.8 asterisk.8
+	gzip asterisk.8
 
 ifneq ($(strip $(ASTERISKVERSION)),)
 build.h: .version
@@ -365,6 +374,7 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax
 	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
+	install -m 644 asterisk.8.gz $(DESTDIR)$(ASTMANDIR)/man8
 	if [ -d contrib/firmware/iax ]; then \
 		install -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
 	else \

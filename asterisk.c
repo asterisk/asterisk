@@ -1410,10 +1410,17 @@ static void ast_remotecontrol(char * data)
 	printf("\nDisconnected from Asterisk server\n");
 }
 
+static int show_version(void)
+{
+	printf("Asterisk " ASTERISK_VERSION "\n");
+	return 0;
+}
+
 static int show_cli_help(void) {
 	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 2000-2004, Digium.\n");
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
+	printf("   -V              Display version number and exit\n");
 	printf("   -C <configfile> Use an alternate configuration file\n");
 	printf("   -G <group>      Run as a group other than the caller\n");
 	printf("   -U <user>       Run as a user other than the caller\n");
@@ -1533,7 +1540,7 @@ int main(int argc, char *argv[])
 	}
 	*/
 	/* Check for options */
-	while((c=getopt(argc, argv, "hfdvqprRgcinx:U:G:C:")) != -1) {
+	while((c=getopt(argc, argv, "hfdvVqprRgcinx:U:G:C:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -1584,6 +1591,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'h':
 			show_cli_help();
+			exit(0);
+		case 'V':
+			show_version();
 			exit(0);
 		case 'U':
 			runuser = optarg;

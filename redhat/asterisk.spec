@@ -80,7 +80,10 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0644,root,root)      /var/lib/asterisk/keys/*
 %attr(0755,root,root) %dir /var/lib/asterisk/agi-bin
 %attr(0755,root,root) %dir /var/lib/asterisk/agi-bin/*
-
+#
+# Man page
+#
+%attr(0644,root,root)      /usr/share/man/man8/asterisk.8.gz
 #
 # Firmware
 #

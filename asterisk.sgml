@@ -1,0 +1,295 @@
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
+<refentry>
+<refentryinfo>
+	<date>2004-07-18</date>
+</refentryinfo>
+<refmeta>
+	<refentrytitle>
+		<application>asterisk</application>
+	</refentrytitle>
+	<manvolnum>8</manvolnum>
+	<refmiscinfo>asterisk 1.0</refmiscinfo>
+</refmeta>
+<refnamediv>
+	<refname>
+		<application>asterisk</application>
+	</refname>
+	<refpurpose>
+	All-purpose telephony server.
+	</refpurpose>
+</refnamediv>
+<refsynopsisdiv>
+	<cmdsynopsis>
+	<command>asterisk</command>
+<arg><option>-hfdvVqpRgcin</option></arg>
+<arg><option>-C </option><replaceable class="parameter">file</replaceable></arg>
+<arg><option>-U </option><replaceable class="parameter">user</replaceable></arg>
+<arg><option>-G </option><replaceable class="parameter">group</replaceable></arg>
+<arg><option>-x </option><replaceable class="parameter">command</replaceable></arg>
+	</cmdsynopsis>
+	<cmdsynopsis>
+
+	<command>asterisk -r</command>
+	<arg><option>-v</option></arg>
+<arg><option>-x </option><replaceable class="parameter">command</replaceable></arg>
+	</cmdsynopsis>
+</refsynopsisdiv>
+<refsect1>
+	<refsect1info>
+		<date>2004-07-01</date>
+	</refsect1info>
+	<title>DESCRIPTION</title>
+	<para>
+	<command>asterisk</command> is a full-featured telephony server which
+	provides Private Branch eXchange (PBX), Interactive Voice Response (IVR),
+	Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying, 
+	Conferencing, and a plethora of other telephony applications to a broad
+	range of telephony devices including packet voice (SIP, IAX, MGCP, Skinny,
+	H.323) devices (both endpoints and proxies), as well as traditional TDM
+	hardware including T1, E1, ISDN PRI, GR-303, RBS, Loopstart, Groundstart,
+	ISDN BRI, and many more.
+	</para>
+	<para>
+	Asterisk reads most of its configuration files from configuration files
+	located in /etc/asterisk.  Virtually all aspects of the operation of
+	asterisk's configuration files can be found in the sample configuration
+	files.  The format for those files is generally beyond the scope of this
+	man page.
+	</para>
+	<para>
+	When running with <command>-c</command>, <command>-r</command> or <command>-R</command>
+	options, Asterisk supplies a powerful command line, including command
+	completion, which may be used to monitors its status, perform a variety
+	of administrative actions and even explore the applications that are
+	currently loaded into the system.
+	</para>
+</refsect1>
+<refsect1>
+	<title>OPTIONS</title>
+	<variablelist>
+	<varlistentry>
+		<term>-C <replaceable class="parameter">file</replaceable></term>
+		<listitem>
+			<para>
+			Use <filename>file</filename> as master configuration file
+			instead of the default, /etc/asterisk/asterisk.conf
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-c</term>
+		<listitem>
+			<para>
+			Provide a control console on the calling terminal.
+			Specifying this option implies <command>-f</command> and will cause
+			asterisk to no longer fork or detach from the controlling terminal.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-d</term>
+		<listitem>
+			<para>
+			Enable extra debugging statements.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-f</term>
+		<listitem>
+			<para>
+			Do not fork or detach from controlling terminal.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-g</term>
+		<listitem>
+			<para>
+			Remove resource limit on core size, thus forcing Asterisk to dump
+			core in the unlikely event of a segmentation fault or abort signal.
+			<command>NOTE:</command> in some cases this may be incompatible
+			with the <command>-U</command> or <command>-G</command> flags.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-G <replaceable class="parameter">group</replaceable></term>
+		<listitem>
+			<para>
+			Run as group <replaceable>group</replaceable> instead of the
+			calling group.  <command>NOTE:</command> this requires substantial work
+			to be sure that Asterisk's environment has permission to write
+			the files required for its operation, including logs, its comm
+			socket, the asterisk database, etc.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-h</term>
+		<listitem>
+			<para>
+			Provide brief summary of command line arguments and terminate.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-i</term>
+		<listitem>
+			<para>
+			Prompt user to intialize any encrypted private keys during startup.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-n</term>
+		<listitem>
+			<para>
+			Disable ANSI colors even on terminals capable of displaying them.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-p</term>
+		<listitem>
+			<para>
+			If supported by the operating system (and executing as root),
+			attempt to run with realtime priority for increased performance and
+			responsiveness within the Asterisk process, at the expense of other
+			programs running on the same machine.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-q</term>
+		<listitem>
+			<para>
+			Reduce default console output when running in conjunction with
+			console mode (<command>-c</command>).
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-r</term>
+		<listitem>
+			<para>
+			Instead of running a new Asterisk process, attempt to connect
+			to a running Asterisk process and provide a console interface
+			for controlling it.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-R</term>
+		<listitem>
+			<para>
+			Much like <command>-r</command>.  Instead of running a new Asterisk process, attempt to connect
+			to a running Asterisk process and provide a console interface
+			for controlling it. Additionally, if connection to the Asterisk 
+			process is lost, attempt to reconnect for as long as 30 seconds.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-U <replaceable class="parameter">user</replaceable></term>
+		<listitem>
+			<para>
+			Run as user <replaceable>user</replaceable> instead of the
+			calling user.  <command>NOTE:</command> this requires substantial work
+			to be sure that Asterisk's environment has permission to write
+			the files required for its operation, including logs, its comm
+			socket, the asterisk database, etc.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-v</term>
+		<listitem>
+			<para>
+			Increase the level of verboseness on the console.  The more times
+			<command>-v</command> is specified, the more verbose the output is.
+			Specifying this option implies <command>-f</command> and will cause
+			asterisk to no longer fork or detach from the controlling terminal.
+			This option may also be used in conjunction with <command>-r</command>
+			and <command>-R</command>
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-V</term>
+		<listitem>
+			<para>
+			Display version information and exit immediately.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-x <replaceable class="parameter">command</replaceable></term>
+		<listitem>
+			<para>
+			Connect to a running Asterisk process and execute a command on
+			a command line, passing any output through to standard out and
+			then terminating when the command execution completes.  Implies
+			<command>-r</command> when <command>-R</command> is not explicitly
+			supplied.
+			</para>
+		</listitem>
+	</varlistentry>
+	</variablelist>
+</refsect1>
+<refsect1>
+	<title>EXAMPLES</title>
+	<para>
+	<command>asterisk</command> - Begin Asterisk as a daemon
+	</para>
+	<para>
+	<command>asterisk -vvvgc</command> - Run on controlling terminal
+	</para>
+	<para>
+	<command>asterisk -rx "show channels"</command> - Display channels on running server
+	</para>
+</refsect1>
+<refsect1>
+	<title>BUGS</title>
+	<para>
+	Bug reports and feature requests may be filed at http://bugs.digium.com
+	</para>
+</refsect1>
+<refsect1>
+	<title>SEE ALSO</title>
+	<para>
+	*CLI&gt; <command>help</command> - Help on Asterisk CLI
+	</para>
+	<para>
+	*CLI&gt; <command>show applications</command> - Show loaded applications
+	</para>
+	<para>
+	http://www.asterisk.org - The Asterisk Home Page
+	</para>
+	<para>
+	http://www.asteriskdocs.org - The Asterisk Documentation Project
+	</para>
+	<para>
+	http://www.voip-info.org/wiki-Asterisk - The Asterisk Wiki
+	</para>
+	<para>
+	http://www.digium.com/ - Asterisk sponsor and hardware supplier
+	</para>
+	<para>
+	http://www.markocam.com/ - Asterisk author's web cam
+	</para>
+</refsect1>
+<refsect1>
+	<title>AUTHOR</title>
+	<para>
+	<author>
+		<firstname>Mark Spencer &lt;markster@digium.com&gt;</firstname> 
+	</author>
+	</para>
+	<para>
+	<author>
+		<firstname>Countless other contributers, see CREDITS with distribution for more information</firstname> 
+	</author>
+	</para>
+</refsect1>
+</refentry>
