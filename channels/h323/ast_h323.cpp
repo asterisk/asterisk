@@ -218,13 +218,13 @@ H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) con
   *					transport = ip.
   *					port = 1720.
   */
-int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int *callReference, unsigned int port, char *callerid, char *callername)
+int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int *callReference, unsigned int port, char *cid_name, char *cid_name)
 {
 	PString fullAddress;
 	MyH323Connection * connection;
 
 	/* Determine whether we are using a gatekeeper or not. */
-	if (!GetGatekeeper()) {
+	if (GetGatekeeper()) {
 		fullAddress = dest;
 		if (h323debug) {
 			cout << " -- Making call to " << fullAddress << " using gatekeeper." << endl;
@@ -242,18 +242,15 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
 		return 1;
 	}
 	*callReference = connection->GetCallReference();	
-	if (callerid) {
-		connection->SetLocalPartyName(PString(callerid));
-	}
-	if (callername) {
+	if (cid_name) {
                 localAliasNames.RemoveAll();
-		connection->SetLocalPartyName(PString(callername));
-	        if (callerid) {
-                	localAliasNames.AppendString(PString(callerid));
+		connection->SetLocalPartyName(PString(cid_name));
+	        if (cid_num) {
+                	localAliasNames.AppendString(PString(cid_num));
 		}
-        } else if (callerid) {
+        } else if (cid_num) {
                 localAliasNames.RemoveAll();
-                connection->SetLocalPartyName(PString(callerid));
+                connection->SetLocalPartyName(PString(cid_num));
         }
 	if (h323debug) {
 		cout << "	-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
@@ -747,8 +744,8 @@ MyH323_ExternalRTPChannel::MyH323_ExternalRTPChannel(MyH323Connection & connecti
 		cout << "\tERROR: on_external_rtp_create failure" << endl;
 		return;
 	} else {
-		localIpAddr = (PIPSocket::Address)info->addr;
-		localPort = (WORD)info->port;
+		localIpAddr = info->addr;
+		localPort = info->port;
 		/* tell the H.323 stack  */ 
 		SetExternalAddress(H323TransportAddress(localIpAddr, localPort), H323TransportAddress(localIpAddr, localPort + 1));
 		/* clean up allocated memory */
@@ -1102,7 +1099,7 @@ int h323_make_call(char *host, call_details_t *cd, call_options_t call_options)
 	if (!h323_end_point_exist()) {
 		return 1;
 	}
-	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port, call_options.callerid, call_options.callername);
+	res = endPoint->MakeCall(dest, token, &cd->call_reference, call_options.port, call_options.cid_num, call_options.cid_name);
 	memcpy((char *)(cd->call_token), (const unsigned char *)token, token.GetLength());
 	return res;
 };

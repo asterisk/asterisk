@@ -41,8 +41,6 @@ struct oh323_user {
 	int noFastStart;
 	int noH245Tunneling;
 	int noSilenceSuppression;
-	int inUse;
-	int incominglimit;
 	int bridge;
 	int nat;
 	int dtmfmode;
@@ -61,8 +59,6 @@ struct oh323_peer {
 	int noFastStart;
 	int noH245Tunneling;
 	int noSilenceSuppression;
-	int inUse;
-	int outgoinglimit;
 	int bridge;
 	int nat;
 	int dtmfmode;
@@ -86,8 +82,8 @@ struct oh323_alias {
 /** call_option struct holds various bits 
 	of information for each call */
 typedef struct call_options {
-	char		*callerid;
-	char		*callername;
+	char		*cid_num;
+	char		*cid_name;
 	int	  	noFastStart;
 	int		noH245Tunneling;
 	int		noSilenceSuppression;
