@@ -1836,6 +1836,7 @@ static void mysql_update_peer(char *peer, struct sockaddr_in *sin)
 	if (mysql && (strlen(peer) < 128)) {
 		char query[512];
 		char *name;
+		char iabuf[80];
 		time_t nowtime;
 		name = alloca(strlen(peer) * 2 + 1);
 		time(&nowtime);

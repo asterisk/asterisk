@@ -1031,6 +1031,7 @@ static void mysql_update_peer(char *peer, struct sockaddr_in *sin, char *usernam
 		char query[512];
 		char *name;
 		char *uname;
+		char iabuf[80];
 		time_t nowtime;
 		name = alloca(strlen(peer) * 2 + 1);
 		uname = alloca(strlen(username) * 2 + 1);
@@ -1060,6 +1061,7 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 		char *name = NULL;
 		int numfields, x;
 		int port;
+		char iabuf[80];
 		time_t regseconds, nowtime;
 		MYSQL_RES *result;
 		MYSQL_FIELD *fields;
