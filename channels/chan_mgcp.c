@@ -1785,7 +1785,7 @@ static int init_req(struct mgcp_endpoint *p, struct mgcp_request *req, char *ver
 
 static int respprep(struct mgcp_request *resp, struct mgcp_endpoint *p, char *msg, struct mgcp_request *req, char *msgrest)
 {
-	memset(resp, 0, sizeof(*resp));
+	memset(resp, 0, sizeof(struct mgcp_request));
 	init_resp(resp, msg, req, msgrest);
 	return 0;
 }
@@ -3140,7 +3140,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	int ident;
 	char iabuf[INET_ADDRSTRLEN];
 	len = sizeof(sin);
-	memset(&req, 0, sizeof(req));
+	memset(&req, 0, sizeof(struct mgcp_request));
 	res = recvfrom(mgcpsock, req.data, sizeof(req.data) - 1, 0, (struct sockaddr *)&sin, &len);
 	if (res < 0) {
 		if (errno != ECONNREFUSED)
@@ -3150,8 +3150,8 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	req.data[res] = '\0';
 	req.len = res;
 	if (mgcpdebug) {
-		ast_verbose("MGCP read: \n%s\nfrom %s:%d", req.data, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-    }
+		ast_verbose("MGCP read: \n%s\nfrom %s:%d\n", req.data, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+	}
 	parse(&req);
 	if (req.headers < 1) {
 		/* Must have at least one header */
