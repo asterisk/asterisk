@@ -5175,17 +5175,17 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		return 1;
 	}
 	/* Process request, with netlock held */
+retrylock:
 	ast_mutex_lock(&netlock);
 	p = find_call(&req, &sin);
 	if (p) {
-retrylock:
 		/* Go ahead and lock the owner if it has one -- we may need it */
 		if (p->owner && ast_mutex_trylock(&p->owner->lock)) {
 			ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
 			ast_mutex_unlock(&p->lock);
+			ast_mutex_unlock(&netlock);
 			/* Sleep infintismly short amount of time */
 			usleep(1);
-			ast_mutex_lock(&p->lock);
 			goto retrylock;
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
