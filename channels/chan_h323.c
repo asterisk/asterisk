@@ -1327,6 +1327,10 @@ static int h323_no_debug(int fd, int argc, char *argv[])
 
 static int h323_gk_cycle(int fd, int argc, char *argv[])
 {
+	result RESULT_SUCCESS;
+
+/* This works from a full console, but not -r ?! */
+
 	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
 	}	
@@ -1334,7 +1338,7 @@ static int h323_gk_cycle(int fd, int argc, char *argv[])
 	
 	/* Possibly register with a GK */
 	if (!gatekeeper_disable) {
-		if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
+// boom if -r	if (h323_set_gk(gatekeeper_discover, gatekeeper, secret)) {
 			ast_log(LOG_ERROR, "Gatekeeper registration failed.\n");
 		}
 	}
