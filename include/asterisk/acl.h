@@ -29,6 +29,7 @@ extern struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *pat
 extern int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin);
 extern int ast_get_ip(struct sockaddr_in *sin, char *value);
 extern int inaddrcmp(struct sockaddr_in *sin1, struct sockaddr_in *sin2);
+extern int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
