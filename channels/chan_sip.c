@@ -6887,7 +6887,7 @@ static char no_history_usage[] =
 static char history_usage[] = 
 "Usage: sip history\n"
 "       Enables recording of SIP dialog history for debugging purposes.\n"
-"Use 'sip show hitory' to view the history of a call number.\n";
+"Use 'sip show history' to view the history of a call number.\n";
 
 static char sip_reload_usage[] =
 "Usage: sip reload\n"
