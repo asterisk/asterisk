@@ -5348,7 +5348,7 @@ static int __unload_module(void)
 	for (x=0;x<AST_IAX_MAX_CALLS;x++)
 		if (iaxs[x])
 			iax_destroy(x);
-	ast_manager_unregister( "IAXpeers" );
+	ast_manager_unregister( "IAX1peers" );
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_peers);
@@ -5413,7 +5413,7 @@ int load_module(void)
 	ast_cli_register(&cli_show_stats);
 	ast_cli_register(&cli_show_cache);
 
-	ast_manager_register( "IAXpeers", 0, manager_iax_show_peers, "List IAX Peers" );
+	ast_manager_register( "IAX1peers", 0, manager_iax_show_peers, "List IAX Peers" );
 
 	if (set_config(config,&sin) == -1) {
 		config = IAX_OLD_CONF_FILE;
