@@ -168,18 +168,21 @@ void ast_uninstall_vm_functions(void)
 
 int ast_app_has_voicemail(const char *mailbox, const char *folder)
 {
+	static int warned = 0;
 	if (ast_has_voicemail_func)
 		return ast_has_voicemail_func(mailbox, folder);
 
-        if (option_verbose > 2)
-                ast_verbose(VERBOSE_PREFIX_3 "Message check requested for mailbox %s/folder %s but voicemail not loaded.", mailbox, folder);
-
+	if ((option_verbose > 2) && !warned) {
+		ast_verbose(VERBOSE_PREFIX_3 "Message check requested for mailbox %s/folder %s but voicemail not loaded.", mailbox, folder ? folder : "INBOX");
+		warned++;
+	}
 	return 0;
 }
 
 
 int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
+	static int warned = 0;
 	if (newmsgs)
 		*newmsgs = 0;
 	if (oldmsgs)
@@ -187,8 +190,10 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	if (ast_messagecount_func)
 		return ast_messagecount_func(mailbox, newmsgs, oldmsgs);
 
-        if (option_verbose > 2)
-                ast_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s but voicemail not loaded.", mailbox);
+	if (!warned && (option_verbose > 2)) {
+		warned++;
+		ast_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s but voicemail not loaded.", mailbox);
+	}
 
 	return 0;
 }
