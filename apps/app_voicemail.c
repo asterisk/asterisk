@@ -1400,10 +1400,12 @@ forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int
 	char sys[256];
 	char todir[256];
 	int todircount=0;
+	long duration;
 	struct ast_config *mif;
 	char miffile[256];
-	char *copy, *name, *passwd, *email;
-	char *mycopy, *myname, *mypasswd, *myemail;
+	char *copy, *name, *passwd, *email, *pager;
+	char *mycopy, *myname, *mypasswd, *myemail, *mypager;
+	char *astemail;
 	char fn[256];
 	char callerid[512];
 	
@@ -1454,6 +1456,7 @@ forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int
 			    passwd = strsep(&stringp, ",");
 			    name = strsep(&stringp, ",");
 			    email = strsep(&stringp, ",");
+			    pager = strsep(&stringp, ",");
 			  }
 			  
 			  if ((mycopy = ast_variable_retrieve(cfg, NULL, myusername))) {			  
@@ -1464,18 +1467,22 @@ forward_message(struct ast_channel *chan, struct ast_config *cfg, char *dir, int
 			    mypasswd = strsep(&mystringp, ",");
 			    myname = strsep(&mystringp, ",");
 			    myemail = strsep(&mystringp, ",");
+			    mypager = strsep(&mystringp, ",");
 			  }
 
-			  if (email) {
-			    snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", myname, ast_variable_retrieve(mif, NULL, "callerid"));
-			    sendmail(ast_variable_retrieve(cfg, "general", "serveremail"),
-				     email, name, todircount, username,
-				     callerid,
-				     fn,
-				     "wav",
-				     atol(ast_variable_retrieve(mif, NULL, "duration"))
-				     );
-			  }
+              /* set the outbound email from address */
+              if (!(astemail = ast_variable_retrieve(cfg, "general", "serveremail")))
+              		astemail = ASTERISK_USERNAME;
+
+              /* set callerid and duration variables */
+              snprintf(callerid, sizeof(callerid), "FWD from: %s from %s", myname, ast_variable_retrieve(mif, NULL, "callerid"));
+              duration = atol(ast_variable_retrieve(mif, NULL, "duration"));
+              		
+			  if (email)
+			    sendmail(astemail, email, name, todircount, username, callerid, fn, "wav", atol(ast_variable_retrieve(mif, NULL, "duration")));
+				     
+			  if (pager)
+				sendpage(astemail, pager, todircount, username, callerid, duration);
 			  
 			  free(copy); /* no leaks here */
 			  free(mycopy); /* or here */
