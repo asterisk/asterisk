@@ -27,11 +27,21 @@
 static char *tdesc = "Say time";
 
 static char *app_sayunixtime = "SayUnixTime";
+static char *app_datetime = "DateTime";
 
 static char *sayunixtime_synopsis = "Says a specified time in a custom format";
 
 static char *sayunixtime_descrip =
 "SayUnixTime([unixtime][|[timezone][|format]])\n"
+"  unixtime: time, in seconds since Jan 1, 1970.  May be negative.\n"
+"              defaults to now.\n"
+"  timezone: timezone, see /usr/share/zoneinfo for a list.\n"
+"              defaults to machine default.\n"
+"  format:   a format the time is to be said in.  See voicemail.conf.\n"
+"              defaults to \"ABdY 'digits/at' IMp\"\n"
+"  Returns 0 or -1 on hangup.\n";
+static char *datetime_descrip =
+"DateTime([unixtime][|[timezone][|format]])\n"
 "  unixtime: time, in seconds since Jan 1, 1970.  May be negative.\n"
 "              defaults to now.\n"
 "  timezone: timezone, see /usr/share/zoneinfo for a list.\n"
@@ -94,13 +104,23 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_sayunixtime);
+	res = ast_unregister_application(app_sayunixtime);
+	if (! res)
+		return ast_unregister_application(app_datetime);
+	else
+		return res;
 }
 
 int load_module(void)
 {
-	return ast_register_application(app_sayunixtime, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_descrip);
+	int res;
+	res = ast_register_application(app_sayunixtime, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_descrip);
+	if (! res)
+		return ast_register_application(app_datetime, sayunixtime_exec, sayunixtime_synopsis, datetime_descrip);
+	else
+		return res;
 }
 
 char *description(void)
