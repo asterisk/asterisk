@@ -57,7 +57,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 {
   int res=0;
   char *return_context;
-  int l, lot, timeout, dres;
+  int l, lot, timeout = 0, dres;
   char *working, *context, *exten, *priority, *dial, *dialtech, *dialstr;
   char *template, *tpl_working, *tpl_current;
   char *tmp[100];
