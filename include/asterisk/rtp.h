@@ -78,6 +78,8 @@ int ast_rtcp_fd(struct ast_rtp *rtp);
 
 int ast_rtp_senddigit(struct ast_rtp *rtp, char digit);
 
+int ast_rtp_sendcng(struct ast_rtp *rtp, int level);
+
 int ast_rtp_settos(struct ast_rtp *rtp, int tos);
 
 // Setting RTP payload types from lines in a SDP description:

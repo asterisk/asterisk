@@ -1129,6 +1129,46 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	return 0;
 }
 
+int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
+{
+	unsigned int *rtpheader;
+	int hdrlen = 12;
+	int res;
+	int payload;
+	char data[256];
+	char iabuf[INET_ADDRSTRLEN];
+	level = 127 - (level & 0x7f);
+	payload = ast_rtp_lookup_code(rtp, 0, AST_RTP_CN);
+
+	/* If we have no peer, return immediately */	
+	if (!rtp->them.sin_addr.s_addr)
+		return 0;
+
+	gettimeofday(&rtp->dtmfmute, NULL);
+	rtp->dtmfmute.tv_usec += (500 * 1000);
+	if (rtp->dtmfmute.tv_usec > 1000000) {
+		rtp->dtmfmute.tv_usec -= 1000000;
+		rtp->dtmfmute.tv_sec += 1;
+	}
+	
+	/* Get a pointer to the header */
+	rtpheader = (unsigned int *)data;
+	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
+	rtpheader[1] = htonl(rtp->lastts);
+	rtpheader[2] = htonl(rtp->ssrc); 
+	data[12] = level;
+	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
+		res = sendto(rtp->s, (void *)rtpheader, hdrlen + 1, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
+		if (res <0) 
+			ast_log(LOG_ERROR, "RTP Comfort Noise Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+		if(rtp_debug_test_addr(&rtp->them))
+			ast_verbose("Sent Comfort Noise RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
+					, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastts,res - hdrlen);		   
+		   
+	}
+	return 0;
+}
+
 #ifdef SOLARIS
 static void put_uint32(unsigned char *buf, int i)
 {

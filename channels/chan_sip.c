@@ -151,6 +151,8 @@ static int global_rtptimeout = 0;
 
 static int global_rtpholdtimeout = 0;
 
+static int global_rtpkeepalive = 0;
+
 static int global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 
 /* Object counters */
@@ -379,8 +381,10 @@ static struct sip_pvt {
 	int initid;				/* Auto-congest ID if appropriate */
 	int autokillid;				/* Auto-kill ID */
 	time_t lastrtprx;			/* Last RTP received */
+	time_t lastrtptx;			/* Last RTP sent */
 	int rtptimeout;				/* RTP timeout time */
 	int rtpholdtimeout;			/* RTP timeout when on hold */
+	int rtpkeepalive;			/* Send RTP packets for keepalive */
 
 	int subscribed;				/* Is this call a subscription?  */
     	int stateid;
@@ -468,6 +472,7 @@ struct sip_peer {
 	int capability;			/* Codec capability */
 	int rtptimeout;
 	int rtpholdtimeout;
+	int rtpkeepalive;			/* Send RTP packets for keepalive */
 	unsigned int callgroup;		/* Call group */
 	unsigned int pickupgroup;	/* Pickup group */
 	struct sockaddr_in addr;	/* IP address of peer */
@@ -1821,6 +1826,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
 					ast_set_flag(p, SIP_PROGRESS_SENT);	
 				}
+				time(&p->lastrtptx);
 				res =  ast_rtp_write(p->rtp, frame);
 			}
 			ast_mutex_unlock(&p->lock);
@@ -1833,6 +1839,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
 					ast_set_flag(p, SIP_PROGRESS_SENT);	
 				}
+				time(&p->lastrtptx);
 				res =  ast_rtp_write(p->vrtp, frame);
 			}
 			ast_mutex_unlock(&p->lock);
@@ -2346,6 +2353,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	strncpy(p->musicclass, global_musicclass, sizeof(p->musicclass) - 1);
 	p->rtptimeout = global_rtptimeout;
 	p->rtpholdtimeout = global_rtpholdtimeout;
+	p->rtpkeepalive = global_rtpkeepalive;
 	p->capability = global_capability;
 	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
@@ -2637,6 +2645,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 
 	/* Update our last rtprx when we receive an SDP, too */
 	time(&p->lastrtprx);
+	time(&p->lastrtptx);
 
 	/* Get codec and RTP info from SDP */
 	if (strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
@@ -3550,6 +3559,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 	/* Update lastrtprx when we send our SDP */
 	time(&p->lastrtprx);
+	time(&p->lastrtptx);
 	return 0;
 }
 
@@ -8192,8 +8202,13 @@ restartsearch:
 		sip = iflist;
 		while(sip) {
 			ast_mutex_lock(&sip->lock);
-			if (sip->rtp && sip->owner && (sip->owner->_state == AST_STATE_UP) && sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout) && !sip->redirip.sin_addr.s_addr) {
-				if (t > sip->lastrtprx + sip->rtptimeout) {
+			if (sip->rtp && sip->owner && (sip->owner->_state == AST_STATE_UP) && !sip->redirip.sin_addr.s_addr) {
+				if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive) {
+					/* Need to send an empty RTP packet */
+					time(&sip->lastrtptx);
+					ast_rtp_sendcng(sip->rtp, 0);
+				}
+				if (sip->lastrtprx && (sip->rtptimeout || sip->rtpholdtimeout) && t > sip->lastrtprx + sip->rtptimeout) {
 					/* Might be a timeout now -- see if we're on hold */
 					struct sockaddr_in sin;
 					ast_rtp_get_peer(sip->rtp, &sin);
@@ -8718,6 +8733,7 @@ static struct sip_peer *temp_peer(char *name)
 	peer->capability = global_capability;
 	peer->rtptimeout = global_rtptimeout;
 	peer->rtpholdtimeout = global_rtpholdtimeout;
+	peer->rtpkeepalive = global_rtpkeepalive;
 	ast_set_flag(peer, SIP_SELFDESTRUCT);
 	ast_set_flag(peer, SIP_DYNAMIC);
 	peer->prefs = prefs;
@@ -8883,6 +8899,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 					peer->rtpholdtimeout = global_rtpholdtimeout;
 				}
+			} else if (!strcasecmp(v->name, "rtpkeepalive")) {
+				if ((sscanf(v->value, "%d", &peer->rtpkeepalive) != 1) || (peer->rtpkeepalive < 0)) {
+					ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
+					peer->rtpkeepalive = global_rtpkeepalive;
+				}
 			} else if (!strcasecmp(v->name, "qualify")) {
 				if (!strcasecmp(v->value, "no")) {
 					peer->maxms = 0;
@@ -8968,6 +8989,7 @@ static int reload_config(void)
 	ourport = DEFAULT_SIP_PORT;
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
+	global_rtpkeepalive = 0;
 	pedanticsipchecking = 0;
 	ast_clear_flag(&global_flags, AST_FLAGS_ALL);
 	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);
@@ -9017,6 +9039,11 @@ static int reload_config(void)
 			if ((sscanf(v->value, "%d", &global_rtpholdtimeout) != 1) || (global_rtpholdtimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
 				global_rtpholdtimeout = 0;
+			}
+		} else if (!strcasecmp(v->name, "rtpkeepalive")) {
+			if ((sscanf(v->value, "%d", &global_rtpkeepalive) != 1) || (global_rtpkeepalive < 0)) {
+				ast_log(LOG_WARNING, "'%s' is not a valid RTP keepalive time at line %d.  Using default.\n", v->value, v->lineno);
+				global_rtpkeepalive = 0;
 			}
 		} else if (!strcasecmp(v->name, "videosupport")) {
 			videosupport = ast_true(v->value);
@@ -9276,6 +9303,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		}
 		/* Reset lastrtprx timer */
 		time(&p->lastrtprx);
+		time(&p->lastrtptx);
 		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
