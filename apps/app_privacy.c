@@ -22,9 +22,12 @@
 #include <asterisk/image.h>
 #include <asterisk/callerid.h>
 #include <asterisk/app.h>
+#include <asterisk/config.h>
 #include <string.h>
 #include <stdlib.h>
 #include <pthread.h>
+
+#define PRIV_CONFIG "privacy.conf"
 
 static char *tdesc = "Require phone number to be entered, if no CallerID sent";
 
@@ -51,9 +54,13 @@ privacy_exec (struct ast_channel *chan, void *data)
 {
 	int res=0;
 	int retries;
+	int maxretries = 3;
+	int x;
+	char *s;
 	char phone[10];
 	char new_cid[144];
 	struct localuser *u;
+	struct ast_config *cfg;
 
 	LOCAL_USER_ADD (u);
 	if (chan->callerid)
@@ -71,17 +78,29 @@ privacy_exec (struct ast_channel *chan, void *data)
 				return -1;
 			}
 		}
-		/*Just a quick sleep*/
-		sleep(1);
+		/*Read in the config file*/
+		cfg = ast_load(PRIV_CONFIG);
+		
 		
 		/*Play unidentified call*/
-		res = ast_streamfile(chan, "privacy-unident", chan->language);
+		res = ast_safe_sleep(1);
+		if (!res)
+			res = ast_streamfile(chan, "privacy-unident", chan->language);
 		if (!res)
 			res = ast_waitstream(chan, "");
 
+        if (cfg && (s = ast_variable_retrieve(cfg, "general", "maxretries"))) {
+                if (sscanf(s, "%d", &x) == 1) {
+                        maxretries = x;
+                } else {
+                        ast_log(LOG_WARNING, "Invalid max retries argument\n");
+                }
+        }
+			
 		/*Ask for 10 digit number, give 3 attempts*/
-		for (retries = 0; retries < 3; retries++) {
-			res = ast_app_getdata(chan, "privacy-prompt", phone, sizeof(phone), 0);
+		for (retries = 0; retries < maxretries; retries++) {
+			if (!res)
+				res = ast_app_getdata(chan, "privacy-prompt", phone, sizeof(phone), 0);
 			if (res < 0)
 				break;
 
@@ -96,7 +115,7 @@ privacy_exec (struct ast_channel *chan, void *data)
 		}
 		
 		/*Got a number, play sounds and send them on their way*/
-		if ((retries < 3) && !res) {
+		if ((retries < maxretries) && !res) {
 			res = ast_streamfile(chan, "privacy-thankyou", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");
@@ -109,6 +128,8 @@ privacy_exec (struct ast_channel *chan, void *data)
 			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid))
 				chan->priority+=100;
 		}
+		if (cfg) 
+			ast_destroy(cfg);
 	}
 
   LOCAL_USER_REMOVE (u);
