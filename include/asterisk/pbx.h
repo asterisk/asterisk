@@ -69,6 +69,17 @@ struct ast_switch {
 	int (*matchmore)(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data);
 };
 
+struct ast_timing {
+	int hastime;				/* If time construct exists */
+	unsigned int monthmask;			/* Mask for month */
+	unsigned int daymask;			/* Mask for date */
+	unsigned int dowmask;			/* Mask for day of week (mon-sun) */
+	unsigned int minmask[24];		/* Mask for minute */
+};
+
+extern int ast_build_timing(struct ast_timing *i, char *info);
+extern int ast_check_timing(struct ast_timing *i);
+
 struct ast_pbx {
         int dtimeout;                                   /* Timeout between digits (seconds) */
         int rtimeout;                                   /* Timeout for response

@@ -85,10 +85,7 @@ struct ast_include {
 	char *rname;		/* Context to include */
 	const char *registrar;			/* Registrar */
 	int hastime;				/* If time construct exists */
-	unsigned int monthmask;			/* Mask for month */
-	unsigned int daymask;			/* Mask for date */
-	unsigned int dowmask;			/* Mask for day of week (mon-sun) */
-	unsigned int minmask[24];		/* Mask for minute */
+        struct ast_timing timing;               /* time construct */
 	struct ast_include *next;		/* Link them together */
 	char stuff[0];
 };
@@ -541,41 +538,10 @@ static struct ast_switch *pbx_findswitch(const char *sw)
 
 static inline int include_valid(struct ast_include *i)
 {
-	struct tm tm;
-	time_t t;
-
 	if (!i->hastime)
 		return 1;
-	time(&t);
-	localtime_r(&t,&tm);
 
-	/* If it's not the right month, return */
-	if (!(i->monthmask & (1 << tm.tm_mon))) {
-		return 0;
-	}
-
-	/* If it's not that time of the month.... */
-	/* Warning, tm_mday has range 1..31! */
-	if (!(i->daymask & (1 << (tm.tm_mday-1))))
-		return 0;
-
-	/* If it's not the right day of the week */
-	if (!(i->dowmask & (1 << tm.tm_wday)))
-		return 0;
-
-	/* Sanity check the hour just to be safe */
-	if ((tm.tm_hour < 0) || (tm.tm_hour > 23)) {
-		ast_log(LOG_WARNING, "Insane time...\n");
-		return 0;
-	}
-
-	/* Now the tough part, we calculate if it fits
-	   in the right time based on min/hour */
-	if (!(i->minmask[tm.tm_hour] & (1 << (tm.tm_min / 2))))
-		return 0;
-
-	/* If we got this far, then we're good */
-	return 1;
+	return ast_check_timing(&(i->timing));
 }
 
 static void pbx_destroy(struct ast_pbx *p)
@@ -3149,7 +3115,7 @@ do { \
 	if (*c) { *c = '\0'; c++; } else c = NULL; \
 } while(0)
 
-static void get_timerange(struct ast_include *i, char *times)
+static void get_timerange(struct ast_timing *i, char *times)
 {
 	char *e;
 	int x;
@@ -3390,14 +3356,18 @@ static unsigned int get_month(char *mon)
 	return mask;
 }
 
-static void build_timing(struct ast_include *i, char *info)
+int ast_build_timing(struct ast_timing *i, char *info_in)
 {
+        char info_save[256];
+        char *info;
 	char *c;
 
 	/* Check for empty just in case */
-	if (ast_strlen_zero(info))
-		return;
-	i->hastime = 1;
+	if (ast_strlen_zero(info_in))
+		return 0;
+	/* make a copy just in case we were passed a static string */
+	strncpy(info_save, info_in, sizeof(info_save));
+	info = info_save;
 	/* Assume everything except time */
 	i->monthmask = (1 << 12) - 1;
 	i->daymask = (1 << 30) - 1 + (1 << 30);
@@ -3408,23 +3378,62 @@ static void build_timing(struct ast_include *i, char *info)
 	get_timerange(i, info);
 	info = c;
 	if (!info)
-		return;
+		return 1;
 	FIND_NEXT;
 	/* Now check for day of week */
 	i->dowmask = get_dow(info);
 
 	info = c;
 	if (!info)
-		return;
+		return 1;
 	FIND_NEXT;
 	/* Now check for the day of the month */
 	i->daymask = get_day(info);
 	info = c;
 	if (!info)
-		return;
+		return 1;
 	FIND_NEXT;
 	/* And finally go for the month */
 	i->monthmask = get_month(info);
+
+	return 1;
+}
+
+int ast_check_timing(struct ast_timing *i)
+{
+	struct tm tm;
+	time_t t;
+
+	time(&t);
+	localtime_r(&t,&tm);
+
+	/* If it's not the right month, return */
+	if (!(i->monthmask & (1 << tm.tm_mon))) {
+		return 0;
+	}
+
+	/* If it's not that time of the month.... */
+	/* Warning, tm_mday has range 1..31! */
+	if (!(i->daymask & (1 << (tm.tm_mday-1))))
+		return 0;
+
+	/* If it's not the right day of the week */
+	if (!(i->dowmask & (1 << tm.tm_wday)))
+		return 0;
+
+	/* Sanity check the hour just to be safe */
+	if ((tm.tm_hour < 0) || (tm.tm_hour > 23)) {
+		ast_log(LOG_WARNING, "Insane time...\n");
+		return 0;
+	}
+
+	/* Now the tough part, we calculate if it fits
+	   in the right time based on min/hour */
+	if (!(i->minmask[tm.tm_hour] & (1 << (tm.tm_min / 2))))
+		return 0;
+
+	/* If we got this far, then we're good */
+	return 1;
 }
 
 /*
@@ -3466,7 +3475,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
 	while(*c && (*c != '|')) c++; 
 	/* Process if it's there */
 	if (*c) {
-		build_timing(new_include, c+1);
+	        new_include->hastime = ast_build_timing(&(new_include->timing), c+1);
 		*c = '\0';
 	}
 	new_include->next      = NULL;
@@ -4730,7 +4739,7 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	char *s, *ts;
-	struct ast_include include;
+	struct ast_timing timing;
 
 	if (!data) {
 		ast_log(LOG_WARNING, "GotoIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?[[context|]extension|]priority\n");
@@ -4744,8 +4753,7 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 	strsep(&ts,"?");
 
 	/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
-	build_timing(&include, s);
-	if (include_valid(&include))
+	if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
 		res = pbx_builtin_goto(chan, (void *)ts);
 	free(s);
 	return res;
