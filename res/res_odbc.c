@@ -147,39 +147,28 @@ static int load_odbc_config(void)
 
 int odbc_dump_fd(int fd, odbc_obj * obj)
 {
-	ast_cli(fd, "\n\nName: %s\nDSN: %s\nConnected: %s\n\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
+	ast_cli(fd, "Name: %s\nDSN: %s\nConnected: %s\n", obj->name, obj->dsn, obj->up ? "yes" : "no");
 	return 0;
 }
 
-static int odbc_usage(int fd)
+static int odbc_connect_usage(int fd)
 {
-	ast_cli(fd, "\n\nusage odbc <command> <arg1> .. <argn>\n\n");
+	ast_cli(fd, "usage odbc connect <DSN>\n");
 	return 0;
 }
 
-static int odbc_command(int fd, int argc, char **argv)
+static int odbc_disconnect_usage(int fd)
+{
+	ast_cli(fd, "usage odbc disconnect <DSN>\n");
+	return 0;
+}
+
+static int odbc_show_command(int fd, int argc, char **argv)
 {
 	odbc_obj *obj;
 	int x = 0;
-	if (!argv[1])
-		return odbc_usage(fd);
-
-	ast_cli(fd, "\n\n");
-
-	if (!strcmp(argv[1], "connect") || !strcmp(argv[1], "disconnect")) {
-		if (!argv[2])
-			return odbc_usage(fd);
-
-		obj = odbc_read(ODBC_REGISTRY, argv[2]);
-		if (obj) {
-			if (!strcmp(argv[1], "connect"))
-				odbc_obj_connect(obj);
-
-			if (!strcmp(argv[1], "disconnect"))
-				odbc_obj_disconnect(obj);
-		}
-
-	} else if (!strcmp(argv[1], "show")) {
+	
+	if (!strcmp(argv[1], "show")) {
 		if (!argv[2] || (argv[2] && !strcmp(argv[2], "all"))) {
 			for (x = 0; x < MAX_ODBC_HANDLES; x++) {
 				if (!ODBC_REGISTRY[x].used)
@@ -192,18 +181,66 @@ static int odbc_command(int fd, int argc, char **argv)
 			if (obj)
 				odbc_dump_fd(fd, obj);
 		}
-
-	} else {
-		return odbc_usage(fd);
 	}
-	ast_cli(fd, "\n");
 	return 0;
 }
 
-static struct ast_cli_entry odbc_command_struct = {
-	{"odbc", NULL}, odbc_command,
-	"Execute ODBC Command", "obdc <command> <arg1> .. <argn>", NULL
-};
+static int odbc_disconnect_command(int fd, int argc, char **argv)
+{
+	odbc_obj *obj;
+	if (!strcmp(argv[1], "disconnect")) {
+		if (!argv[2])
+			return odbc_disconnect_usage(fd);
+
+		obj = odbc_read(ODBC_REGISTRY, argv[2]);
+		if (obj) {
+			odbc_obj_disconnect(obj);
+		}
+	} 
+	return 0;
+}
+
+static int odbc_connect_command(int fd, int argc, char **argv)
+{
+	odbc_obj *obj;
+	if (!argv[1])
+		return odbc_connect_usage(fd);
+
+	if (!strcmp(argv[1], "connect") || !strcmp(argv[1], "disconnect")) {
+		if (!argv[2])
+			return odbc_connect_usage(fd);
+
+		obj = odbc_read(ODBC_REGISTRY, argv[2]);
+		if (obj) {
+			odbc_obj_connect(obj);
+		}
+	}
+	return 0;
+}
+
+
+static char connect_usage[] =
+"Usage: odbc connect <DSN>\n"
+"       Connect to ODBC DSN\n";
+
+static char disconnect_usage[] =
+"Usage: odbc connect <DSN>\n"
+"       Disconnect from ODBC DSN\n";
+
+static char show_usage[] =
+"Usage: odbc show {DSN}\n"
+"       Show ODBC {DSN}\n"
+"       Specifying DSN will show that DSN else, all DSNs are shown\n";
+
+static struct ast_cli_entry odbc_connect_struct =
+        { { "odbc", "connect", NULL }, odbc_connect_command, "Connect to ODBC DSN", connect_usage };
+
+
+static struct ast_cli_entry odbc_disconnect_struct =
+        { { "odbc", "disconnect", NULL }, odbc_disconnect_command, "Disconnect from ODBC DSN", disconnect_usage };
+
+static struct ast_cli_entry odbc_show_struct =
+        { { "odbc", "show", NULL }, odbc_show_command, "Show ODBC DSN(s)", show_usage };
 
 /* api calls */
 
@@ -372,7 +409,9 @@ int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 	odbc_destroy();
-	ast_cli_unregister(&odbc_command_struct);
+	ast_cli_unregister(&odbc_disconnect_struct);
+	ast_cli_unregister(&odbc_connect_struct);
+	ast_cli_unregister(&odbc_show_struct);
 	ast_log(LOG_NOTICE, "res_odbc unloaded.\n");
 	return 0;
 }
@@ -381,7 +420,9 @@ int load_module(void)
 {
 	odbc_init();
 	load_odbc_config();
-	ast_cli_register(&odbc_command_struct);
+	ast_cli_register(&odbc_disconnect_struct);
+	ast_cli_register(&odbc_connect_struct);
+	ast_cli_register(&odbc_show_struct);
 	ast_log(LOG_NOTICE, "res_odbc loaded.\n");
 	return 0;
 }
