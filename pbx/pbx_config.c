@@ -113,8 +113,8 @@ static char *process_quotes_and_slashes(char *start, char find, char replace_wit
     		} else {
 			if (*start == '\\') {
 				inEscape = 1;      /* Do not copy \ into the data */
-			} else if (*start == '\"') {
-				inQuotes = 1-inQuotes;   /* Do not copy " into the data */
+			} else if (*start == '\'') {
+				inQuotes = 1-inQuotes;   /* Do not copy ' into the data */
 			} else {
 				/* Replace , with |, unless in quotes */
 				*dataPut++ = inQuotes ? *start : ((*start==find) ? replace_with : *start);
