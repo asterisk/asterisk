@@ -89,7 +89,7 @@ app_sql_odbc.so: app_sql_odbc.o
 	$(CC) $(SOLINK) -o $@ $< -lodbc
 
 look:	look.c
-	gcc -pipe -O6 -g look.c -o look -lncurses
+	$(CC) -pipe -O6 -g look.c -o look -lncurses
 
 ifneq ($(wildcard .depend),)
 include .depend

@@ -1,5 +1,5 @@
 ARCH=$(PROC)
-CFLAGS+=-Wall -Werror -fPIC -O3 -funroll-loops -fomit-frame-pointer
+CFLAGS+=-Wall -fPIC -O3 -funroll-loops -fomit-frame-pointer
 LIB=libilbc.a
 
 OBJS= anaFilter.o iCBSearch.o packing.o \
