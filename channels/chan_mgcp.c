@@ -3072,9 +3072,12 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
             if (strstr(p->curtone, "wt") && (ev[0] == 'A')) {
                 memset(p->curtone, 0, sizeof(p->curtone));
             }
-		} 
-        else if (!strcasecmp(ev, "T")) {
+		}
+	else if (!strcasecmp(ev, "T")) {
 			/* Digit timeout -- unimportant */
+	}
+	else if (!strcasecmp(ev, "ping")) {
+			/* ping -- unimportant */
 		} else {
 			ast_log(LOG_NOTICE, "Received unknown event '%s' from %s@%s\n", ev, p->name, p->parent->name);
 		}
