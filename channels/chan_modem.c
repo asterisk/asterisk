@@ -746,7 +746,7 @@ static struct ast_channel *modem_request(char *type, int format, void *data)
 		p = p->next;
 	}
 	if (!p) 
-		ast_log(LOG_WARNING, "Requested device '%s' does not exist\n", p->dev);
+		ast_log(LOG_WARNING, "Requested device '%s' does not exist\n", dev);
 	
 	ast_pthread_mutex_unlock(&iflock);
 	return tmp;
