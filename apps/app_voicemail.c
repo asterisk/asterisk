@@ -1660,15 +1660,21 @@ static void copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int 
 	notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->callerid);
 }
 
-static void run_externnotify(char *context, char *extension, int numvoicemails)
+static void run_externnotify(char *context, char *extension)
 {
 	char arguments[255];
+	int newvoicemails = 0, oldvoicemails = 0;
 
-	if(!ast_strlen_zero(externnotify)) {
-		snprintf(arguments, sizeof(arguments), "%s %s %s %d&", externnotify, context, extension, numvoicemails);
-		ast_log(LOG_DEBUG,"Executing %s\n", arguments);
-		ast_safe_system(arguments);
-	}
+	if(externnotify[0]) {
+		if (ast_app_messagecount(extension, &newvoicemails, &oldvoicemails)) {
+			ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
+		} else {
+			strncpy(arguments, externnotify, sizeof(arguments));
+			snprintf(arguments, sizeof(arguments)-1, "%s %s %s %d&", externnotify, context, extension, newvoicemails);
+			ast_log(LOG_DEBUG,"Executing %s\n", arguments);
+	  		ast_safe_system(arguments);
+		}
+  	}
 }
 
 
@@ -2581,7 +2587,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 
 	/* Leave voicemail for someone */
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context));
-	run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
+	run_externnotify(chan->context, ext_context);
 	return 0;
 }
 
@@ -2702,7 +2708,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 			}
 			/* Leave voicemail for someone */
 			manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
-			run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
+			run_externnotify(chan->context, ext_context);
 	
 			saved_messages++;
 			vmfree = vmtmp;
@@ -3872,7 +3878,7 @@ out:
 	if (valid) {
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, ast_app_has_voicemail(ext_context));
-		run_externnotify(chan->context, ext_context, ast_app_has_voicemail(ext_context));
+		run_externnotify(chan->context, ext_context);
 	}
 	LOCAL_USER_REMOVE(u);
 
