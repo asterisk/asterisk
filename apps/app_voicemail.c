@@ -325,7 +325,7 @@ LOCAL_USER_DECL;
 
 static void populate_defaults(struct ast_vm_user *vmu)
 {
-	ast_copy_flags(vmu, (&globalflags), VM_ATTACH|VM_REVIEW|VM_OPERATOR|VM_SAYCID|VM_SVMAIL|VM_SAYDURATION|VM_FORCENAME|VM_FORCEGREET);	
+	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
 	if (saydurationminfo>0)
 		vmu->saydurationm = saydurationminfo;
 	if (callcontext)
