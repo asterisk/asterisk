@@ -171,7 +171,7 @@ static int iax2_capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
 static int iax2_dropcount = DEFAULT_DROP;
 
-static int use_jitterbuffer = 0;
+static int globalusejitterbuf = 0;
 
 static int iaxdebug = 0;
 
@@ -212,6 +212,7 @@ struct iax2_user {
 	struct iax2_context *contexts;
 	struct iax2_user *next;
 	int notransfer;
+	int usejitterbuf;
 };
 
 struct iax2_peer {
@@ -255,6 +256,7 @@ struct iax2_peer {
 	struct ast_ha *ha;
 	struct iax2_peer *next;
 	int notransfer;
+	int usejitterbuf;
 };
 
 #define IAX2_TRUNK_PREFACE (sizeof(struct iax_frame) + sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr))
@@ -328,6 +330,9 @@ static struct iax2_registry *registrations;
 #define MAX_TRUNKDATA		640 * 200		/* 40ms, uncompressed linear * 200 channels */
 
 #define MAX_TIMESTAMP_SKEW	640
+
+/* If consecutive voice frame timestamps jump by more than this many milliseconds, then jitter buffer will resync */
+#define TS_GAP_FOR_JB_RESYNC	5000
 
 /* If we have more than this much excess real jitter buffer, shrink it. */
 static int max_jitter_buffer = MAX_JITTER_BUFFER;
@@ -472,6 +477,7 @@ struct chan_iax2_pvt {
 	int trunk;
 	struct iax2_dpcache *dpentries;
 	int notransfer;		/* do we want native bridging */
+	int usejitterbuf;	/* use jitter buffer on this channel? */
 };
 
 static struct ast_iax2_queue {
@@ -872,6 +878,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
 			iaxs[x]->notransfer = globalnotransfer;
+			iaxs[x]->usejitterbuf = globalusejitterbuf;
 			strncpy(iaxs[x]->accountcode, accountcode, sizeof(iaxs[x]->accountcode)-1);
 		} else {
 			ast_log(LOG_WARNING, "Out of resources\n");
@@ -1650,7 +1657,7 @@ static struct ast_cli_entry cli_show_cache =
 { { "iax2", "show", "cache", NULL }, iax2_show_cache, "Display IAX cached dialplan", show_cache_usage };
 
 
-static unsigned int calc_rxstamp(struct chan_iax2_pvt *p);
+static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset);
 
 #ifdef BRIDGE_OPTIMIZATION
 static unsigned int calc_fakestamp(struct chan_iax2_pvt *from, struct chan_iax2_pvt *to, unsigned int ts);
@@ -1659,6 +1666,8 @@ static int forward_delivery(struct iax_frame *fr)
 {
 	struct chan_iax2_pvt *p1, *p2;
 	char iabuf[INET_ADDRSTRLEN];
+	int res, orig_ts;
+
 	p1 = iaxs[fr->callno];
 	p2 = iaxs[p1->bridgecallno];
 	if (!p1)
@@ -1675,79 +1684,133 @@ static int forward_delivery(struct iax_frame *fr)
 				ntohs(p2->addr.sin_port));
 
 	/* Undo wraparound - which can happen when full VOICE frame wasn't sent by our peer.
-	   This is necessary for when our peer is chan_iax2.c v1.175 or earlier which didn't
+	   This is necessary for when our peer is chan_iax2.c v1.1nn or earlier which didn't
 	   send full frame on timestamp wrap when doing optimized bridging
+	   (actually current code STILL doesn't)
 	*/
-	if (fr->ts + 32767 <= p1->last) {
+	if (fr->ts + 50000 <= p1->last) {
 		fr->ts = ( (p1->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
-		p1->last = fr->ts; /* necessary? */
 		if (option_debug)
 			ast_log(LOG_DEBUG, "forward_delivery: pushed forward timestamp to %u\n", fr->ts);
 	}
 
-	/* Fix relative timestamp */
+	/* Send with timestamp adjusted to the origin of the outbound leg */
+	/* But don't destroy inbound timestamp still needed later to set "last" */
+	orig_ts = fr->ts;
 	fr->ts = calc_fakestamp(p1, p2, fr->ts);
-	/* Now just send it send on the 2nd one 
-	   with adjusted timestamp */
-	return iax2_send(p2, &fr->af, fr->ts, -1, 0, 0, 0);
+	res = iax2_send(p2, &fr->af, fr->ts, -1, 0, 0, 0);
+	fr->ts = orig_ts;
+	return res;
 }
 #endif
+
+static void unwrap_timestamp(struct iax_frame *fr)
+{
+	int x;
+
+	if ( (fr->ts & 0xFFFF0000) == (iaxs[fr->callno]->last & 0xFFFF0000) ) {
+		x = fr->ts - iaxs[fr->callno]->last;
+		if (x < -50000) {
+			/* Sudden big jump backwards in timestamp:
+			   What likely happened here is that miniframe timestamp has circled but we haven't
+			   gotten the update from the main packet.  We'll just pretend that we did, and
+			   update the timestamp appropriately. */
+			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "schedule_delivery: pushed forward timestamp\n");
+		}
+		if (x > 50000) {
+			/* Sudden apparent big jump forwards in timestamp:
+			   What's likely happened is this is an old miniframe belonging to the previous
+			   top-16-bit timestamp that has turned up out of order.
+			   Adjust the timestamp appropriately. */
+			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) - 0x10000) | (fr->ts & 0xFFFF);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "schedule_delivery: pushed back timestamp\n");
+		}
+	}
+}
 
 static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int updatehistory)
 {
 	int ms,x;
+	int delay;
+	unsigned int orig_ts;
 	int drops[MEMORY_SIZE];
 	int min, max=0, prevjitterbuffer, maxone=0,y,z, match;
 
 	/* Remember current jitterbuffer so we can log any change */
 	prevjitterbuffer = iaxs[fr->callno]->jitterbuffer;
+	/* Similarly for the frame timestamp */
+	orig_ts = fr->ts;
 
-	/* ms is a measure of the "lateness" of the packet relative to the first
-	   packet we received.  Understand that "ms" can easily be -ve if lag improves
-	   since call start.
-	   Called by IAX thread, with iaxsl lock held. */
-	ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
+#if 0
+	if (option_debug)
+		ast_log(LOG_DEBUG, "schedule_delivery: ts=%d, last=%d, really=%d, update=%d\n",
+				fr->ts, iaxs[fr->callno]->last, reallydeliver, updatehistory);
+#endif
 
-	if (ms > 32767) {
-		/* What likely happened here is that our counter has circled but we haven't
-		   gotten the update from the main packet.  We'll just pretend that we did, and
-		   update the timestamp appropriately. */
-		/*ms -= 65536; 	fr->ts += 65536;*/
-		fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
-		iaxs[fr->callno]->last = fr->ts;
-		ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "schedule_delivery: pushed forward timestamp\n");
-	}
+	/* Attempt to recover wrapped timestamps */
+	unwrap_timestamp(fr);
 
-	if (ms < -32768) {
-		/* We got this packet out of order.  Lets add 65536 to it to bring it into our new
-		   time frame */
-		/*ms += 65536;  fr->ts -= 65536;*/
-		fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) - 0x10000) | (fr->ts & 0xFFFF);
-		iaxs[fr->callno]->last = fr->ts;
-		ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "schedule_delivery: pushed back timestamp\n");
-	}
-
-	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
-	fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
-	fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
-	fr->af.delivery.tv_sec += fr->ts / 1000;
-	fr->af.delivery.tv_usec += (fr->ts % 1000) * 1000;
-	if (fr->af.delivery.tv_usec >= 1000000) {
-		fr->af.delivery.tv_usec -= 1000000;
-		fr->af.delivery.tv_sec += 1;
-	}
-
-	/* Rotate our history queue of "lateness".  Don't worry about those initial
-	   zeros because the first entry will always be zero */
 	if (updatehistory) {
+
+		/* Attempt to spot a change of timebase on timestamps coming from the other side
+		   We detect by noticing a jump in consecutive timestamps that can't reasonably be explained
+		   by network jitter or reordering.  Sometimes, also, the peer stops sending us frames
+		   for a while - in this case this code might also resync us.  But that's not a bad thing.
+		   Be careful of non-voice frames which are timestamped differently (especially ACKS!)
+		   [that's why we only do this when updatehistory is true]
+		*/
+		x = fr->ts - iaxs[fr->callno]->last;
+		if (x > TS_GAP_FOR_JB_RESYNC || x < -TS_GAP_FOR_JB_RESYNC) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "schedule_delivery: call=%d: TS jumped.  resyncing rxcore (ts=%d, last=%d)\n",
+							fr->callno, fr->ts, iaxs[fr->callno]->last);
+			/* zap rxcore - calc_rxstamp will make a new one based on this frame */
+			iaxs[fr->callno]->rxcore.tv_sec = 0;
+			iaxs[fr->callno]->rxcore.tv_usec = 0;
+			/* wipe "last" if stamps have jumped backwards */
+			if (x<0)
+				iaxs[fr->callno]->last = 0;
+			/* should we also empty history? */
+		}
+
+		/* ms is a measure of the "lateness" of the frame relative to the "reference"
+		   frame we received.  (initially the very first, but also see code just above here).
+		   Understand that "ms" can easily be -ve if lag improves since the reference frame.
+		   Called by IAX thread, with iaxsl lock held. */
+		ms = calc_rxstamp(iaxs[fr->callno], fr->ts) - fr->ts;
+	
+		/* Rotate our history queue of "lateness".  Don't worry about those initial
+		   zeros because the first entry will always be zero */
 		for (x=0;x<MEMORY_SIZE - 1;x++) 
 			iaxs[fr->callno]->history[x] = iaxs[fr->callno]->history[x+1];
 		/* Add a history entry for this one */
 		iaxs[fr->callno]->history[x] = ms;
+
+	}
+	else
+		ms = 0;
+
+	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
+	if (iaxs[fr->callno]->rxcore.tv_sec || iaxs[fr->callno]->rxcore.tv_usec) {
+		fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
+		fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
+		fr->af.delivery.tv_sec += fr->ts / 1000;
+		fr->af.delivery.tv_usec += (fr->ts % 1000) * 1000;
+		if (fr->af.delivery.tv_usec >= 1000000) {
+			fr->af.delivery.tv_usec -= 1000000;
+			fr->af.delivery.tv_sec += 1;
+		}
+	}
+	else {
+#if 0
+		if (reallydeliver)
+			ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet.\n");
+#endif
+		fr->af.delivery.tv_sec = 0;
+		fr->af.delivery.tv_usec = 0;
 	}
 
 	/* Initialize the minimum to reasonable values.  It's too much
@@ -1782,7 +1845,8 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	}
 	/* Just for reference, keep the "jitter" value, the difference between the
 	   earliest and the latest. */
-	iaxs[fr->callno]->jitter = max - min;	
+	if (max >= min)
+		iaxs[fr->callno]->jitter = max - min;	
 	
 	/* IIR filter for keeping track of historic jitter, but always increase
 	   historic jitter immediately for increase */
@@ -1805,16 +1869,6 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	if (max > iaxs[fr->callno]->jitterbuffer - min_jitter_buffer)
 		iaxs[fr->callno]->jitterbuffer += jittershrinkrate;
 
-
-#if 1
-	/* Constrain our maximum jitter buffer appropriately */
-	if (max > min + maxjitterbuffer) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Constraining buffer from %d to %d + %d\n", max, min , maxjitterbuffer);
-		max = min + maxjitterbuffer;
-	}
-#endif
-
 	/* If our jitter buffer is smaller than our maximum delay, grow the jitter
 	   buffer immediately to accomodate it (and a little more).  */
 	if (max > iaxs[fr->callno]->jitterbuffer)
@@ -1825,38 +1879,45 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	if (!reallydeliver)
 		return 0;
 
-	if (option_debug)
+	/* Subtract the lateness from our jitter buffer to know how long to wait
+	   before sending our packet.  */
+	delay = iaxs[fr->callno]->jitterbuffer - ms;
+
+	/* Whatever happens, no frame waits longer than maxjitterbuffer */
+	if (delay > maxjitterbuffer)
+		delay = maxjitterbuffer;
+	
+	/* If jitter buffer is disabled then just pretend the frame is "right on time" */
+	if (!iaxs[fr->callno]->usejitterbuf)
+		delay = 0;
+
+	if (option_debug) {
 		/* Log jitter stats for possible offline analysis */
-		ast_log(LOG_DEBUG, "Jitter: call=%d ts=%d %s: min=%d max=%d jb=%d %+d; lateness=%d; jitter=%d historic=%d\n",
-					fr->callno, fr->ts,
+		ast_log(LOG_DEBUG, "Jitter: call=%d ts=%d orig=%d last=%d %s: min=%d max=%d jb=%d %+d lateness=%d jbdelay=%d jitter=%d historic=%d\n",
+					fr->callno, fr->ts, orig_ts, iaxs[fr->callno]->last,
 					(fr->af.frametype == AST_FRAME_VOICE) ? "VOICE" : "CONTROL",
 					min, max, iaxs[fr->callno]->jitterbuffer,
 					iaxs[fr->callno]->jitterbuffer - prevjitterbuffer,
-					ms, iaxs[fr->callno]->jitter, iaxs[fr->callno]->historicjitter);
-	
-	/* Subtract the lateness from our jitter buffer to know how long to wait
-	   before sending our packet.  */
-	ms = iaxs[fr->callno]->jitterbuffer - ms;
-	
-	if (!use_jitterbuffer)
-		ms = 0;
+					ms, delay,
+					iaxs[fr->callno]->jitter, iaxs[fr->callno]->historicjitter);
+	}
 
-	if (ms < 1) {
+	if (delay < 1) {
 		/* Don't deliver it more than 4 ms late */
-		if ((ms > -4) || (fr->af.frametype != AST_FRAME_VOICE)) {
+		if ((delay > -4) || (fr->af.frametype != AST_FRAME_VOICE)) {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "schedule_delivery: Delivering immediately (Calculated ms is %d)\n", ms);
+				ast_log(LOG_DEBUG, "schedule_delivery: Delivering immediately (Calculated delay is %d)\n", delay);
 			__do_deliver(fr);
 		} else {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "schedule_delivery: Dropping voice packet since %d ms is too old\n", ms);
+				ast_log(LOG_DEBUG, "schedule_delivery: Dropping voice packet since %dms delay is too old\n", delay);
 			/* Free our iax frame */
 			iax2_frame_free(fr);
 		}
 	} else {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "schedule_delivery: Scheduling delivery in %d ms\n", ms);
-		fr->retrans = ast_sched_add(sched, ms, do_deliver, fr);
+			ast_log(LOG_DEBUG, "schedule_delivery: Scheduling delivery in %d ms\n", delay);
+		fr->retrans = ast_sched_add(sched, delay, do_deliver, fr);
 	}
 	return 0;
 }
@@ -2072,7 +2133,7 @@ static struct iax2_user *mysql_user(char *user)
 }
 #endif /* MYSQL_FRIENDS */
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, char *username, int usernlen, char *secret, int seclen, int *ofound, char *peercontext)
+static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, int *maxtime, char *peer, char *context, int *trunk, int *notransfer, int *usejitterbuf, char *username, int usernlen, char *secret, int seclen, int *ofound, char *peercontext)
 {
 	struct ast_hostent ahp; struct hostent *hp;
 	struct iax2_peer *p;
@@ -2126,6 +2187,8 @@ static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, i
 			}
 			if (notransfer)
 				*notransfer=p->notransfer;
+			if (usejitterbuf)
+				*usejitterbuf=p->usejitterbuf;
 		} else {
 			if (p->temponly)
 				free(p);
@@ -2242,7 +2305,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		strsep(&stringp, ":");
 		portno = strsep(&stringp, ":");
 	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, storedusern, sizeof(storedusern) - 1, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext)) {
+	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, NULL, storedusern, sizeof(storedusern) - 1, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext)) {
 		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
 		return -1;
 	}
@@ -2296,6 +2359,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	ast_mutex_lock(&iaxsl[callno]);
 	if (!ast_strlen_zero(c->context))
 		strncpy(iaxs[callno]->context, c->context, sizeof(iaxs[callno]->context) - 1);
+	if (username)
+		strncpy(iaxs[callno]->username, username, sizeof(iaxs[callno]->username)-1);
 	if (secret) {
 		if (secret[0] == '[') {
 			/* This is an RSA key, not a normal secret */
@@ -2777,6 +2842,8 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
 		ms = (delivery->tv_sec - p->offset.tv_sec) * 1000 +
 			(1000000 + delivery->tv_usec - p->offset.tv_usec) / 1000 - 1000;
+		if (option_debug)
+			ast_log(LOG_DEBUG, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
 	} else {
 		gettimeofday(&tv, NULL);
 		ms = (tv.tv_sec - p->offset.tv_sec) * 1000 +
@@ -2846,14 +2913,30 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pv
 }
 #endif
 
-static unsigned int calc_rxstamp(struct chan_iax2_pvt *p)
+static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 {
-	/* Returns where in "receive time" we are */
+	/* Returns where in "receive time" we are.  That is, how many ms
+	   since we received (or would have received) the frame with timestamp 0 */
 	struct timeval tv;
 	int ms;
 	/* Setup rxcore if necessary */
-	if (!p->rxcore.tv_sec && !p->rxcore.tv_usec)
+	if (!p->rxcore.tv_sec && !p->rxcore.tv_usec) {
 		gettimeofday(&p->rxcore, NULL);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n",
+					p->callno, (int)(p->rxcore.tv_sec), (int)(p->rxcore.tv_usec), offset);
+		p->rxcore.tv_sec -= offset / 1000;
+		p->rxcore.tv_usec -= (offset % 1000) * 1000;
+		if (p->rxcore.tv_usec < 0) {
+			p->rxcore.tv_usec += 1000000;
+			p->rxcore.tv_sec -= 1;
+		}
+#if 1
+		if (option_debug)
+			ast_log(LOG_DEBUG, "calc_rxstamp: call=%d: works out as %d.%6.6d\n",
+					p->callno, (int)(p->rxcore.tv_sec),(int)( p->rxcore.tv_usec));
+#endif
+	}
 
 	gettimeofday(&tv, NULL);
 	ms = (tv.tv_sec - p->rxcore.tv_sec) * 1000 +
@@ -3272,29 +3355,46 @@ static int jitterbufsize(struct chan_iax2_pvt *pvt) {
 		if (pvt->history[i] < min)
 			min = pvt->history[i];
 	}
-	return pvt->jitterbuffer - min;
+	if (pvt->jitterbuffer - min > maxjitterbuffer)
+		return maxjitterbuffer;
+	else
+		return pvt->jitterbuffer - min;
 }
 
 static int iax2_show_channels(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %-6.6s  %s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-4.4dms  %-6.6s\n"
+#define FORMAT2 "%-20.20s  %-15.15s  %-10.10s  %-11.11s  %-11.11s  %-7.7s  %-6.6s  %-6.6s  %s\n"
+#define FORMAT  "%-20.20s  %-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  %-5.5dms  %-4.4dms  %-4.4dms  %-6.6s\n"
+#define FORMATB "%-20.20s  %-15.15s  %-10.10s  %5.5d/%5.5d  %5.5d/%5.5d  [Native Bridged to ID=%5.5d]\n"
 	int x;
 	int numchans = 0;
 	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, FORMAT2, "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "JitBuf", "Format");
+	ast_cli(fd, FORMAT2, "Channel", "Peer", "Username", "ID (Lo/Rem)", "Seq (Tx/Rx)", "Lag", "Jitter", "JitBuf", "Format");
 	for (x=0;x<IAX_MAX_CALLS;x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
-			ast_cli(fd, FORMAT, ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
+#ifdef BRIDGE_OPTIMIZATION
+			if (iaxs[x]->bridgecallno)
+				ast_cli(fd, FORMATB,
+						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+						ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
+						!ast_strlen_zero(iaxs[x]->username) ? iaxs[x]->username : "(None)", 
+						iaxs[x]->callno, iaxs[x]->peercallno, 
+						iaxs[x]->oseqno, iaxs[x]->iseqno, 
+						iaxs[x]->bridgecallno );
+			else
+#endif
+				ast_cli(fd, FORMAT,
+						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
+						ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[x]->addr.sin_addr), 
 						!ast_strlen_zero(iaxs[x]->username) ? iaxs[x]->username : "(None)", 
 						iaxs[x]->callno, iaxs[x]->peercallno, 
 						iaxs[x]->oseqno, iaxs[x]->iseqno, 
 						iaxs[x]->lag,
 						iaxs[x]->jitter,
-						use_jitterbuffer ? jitterbufsize(iaxs[x]) : 0,
+						iaxs[x]->usejitterbuf ? jitterbufsize(iaxs[x]) : 0,
 						ast_getformatname(iaxs[x]->voiceformat) );
 			numchans++;
 		}
@@ -3626,6 +3726,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		if (!ast_strlen_zero(user->language))
 			strncpy(iaxs[callno]->language, user->language, sizeof(iaxs[callno]->language)-1);
 		iaxs[callno]->notransfer = user->notransfer;
+		iaxs[callno]->usejitterbuf = user->usejitterbuf;
 		res = 0;
 	}
 	iaxs[callno]->trunk = iax2_getpeertrunk(*sin);
@@ -4890,6 +4991,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	unsigned int ts;
 	char empty[32]="";		/* Safety measure */
 	dblbuf[0] = 0;	/* Keep GCC from whining */
+	struct iax_frame *duped_fr;
 
 	fr.callno = 0;
 	
@@ -5052,6 +5154,14 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		fr.oseqno = fh->oseqno;
 		fr.iseqno = fh->iseqno;
 		fr.ts = ntohl(fh->ts);
+#if 0
+		if ( (ntohs(fh->dcallno) & IAX_FLAG_RETRANS) ||
+		     ( (f.frametype != AST_FRAME_VOICE) && ! (f.frametype == AST_FRAME_IAX &&
+								(f.subclass == IAX_COMMAND_NEW ||
+								 f.subclass == IAX_COMMAND_AUTHREQ ||
+								 f.subclass == IAX_COMMAND_ACCEPT ||
+								 f.subclass == IAX_COMMAND_REJECT))      ) )
+#endif
 		if ((ntohs(fh->dcallno) & IAX_FLAG_RETRANS) || (f.frametype != AST_FRAME_VOICE))
 			updatehistory = 0;
 		if ((iaxs[fr.callno]->iseqno != fr.oseqno) &&
@@ -5849,6 +5959,7 @@ retryowner2:
 		else
 			f.data = NULL;
 		fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | ntohs(mh->ts);
+		/* FIXME? Surely right here would be the right place to undo timestamp wraparound? */
 	}
 	/* Don't pass any packets until we're started */
 	if (!(iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
@@ -5867,7 +5978,7 @@ retryowner2:
 
 	/* If this is our most recent packet, use it as our basis for timestamping */
 	if (iaxs[fr.callno]->last < fr.ts) {
-		iaxs[fr.callno]->last = fr.ts;
+		/*iaxs[fr.callno]->last = fr.ts; (do it afterwards cos schedule/forward_delivery needs the last ts too)*/
 		fr.outoforder = 0;
 	} else {
 		if (option_debug)
@@ -5878,11 +5989,24 @@ retryowner2:
 	if (iaxs[fr.callno]->bridgecallno) {
 		forward_delivery(&fr);
 	} else {
-		schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+		duped_fr = iaxfrdup2(&fr);
+		schedule_delivery(duped_fr, 1, updatehistory);
+		fr.ts = duped_fr->ts;
 	}
 #else
-	schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+	duped_fr = iaxfrdup2(&fr);
+	schedule_delivery(duped_fr, 1, updatehistory);
+	fr.ts = duped_fr->ts;
 #endif
+
+	if (iaxs[fr.callno]->last < fr.ts) {
+		iaxs[fr.callno]->last = fr.ts;
+#if 1
+		if (option_debug)
+			ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+#endif
+	}
+
 	/* Always run again */
 	ast_mutex_unlock(&iaxsl[fr.callno]);
 	return 1;
@@ -5943,7 +6067,7 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 	if (end)
 		memcpy(&sin, end, sizeof(sin));
 	else {
-		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL))
+		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL))
 			return -1;
 	}
 	/* Build the rest of the message */
@@ -6076,6 +6200,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	int capability = iax2_capability;
 	int trunk;
 	int notransfer = globalnotransfer;
+	int usejitterbuf = globalusejitterbuf;
 	strncpy(s, (char *)data, sizeof(s)-1);
 	/* FIXME The next two lines seem useless */
 	stringp=s;
@@ -6097,7 +6222,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	}							
 
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, NULL, 0, NULL, 0, &found, NULL)) {
+	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, &usejitterbuf, NULL, 0, NULL, 0, &found, NULL)) {
 		return NULL;
 	}
 	if (portno) {
@@ -6117,6 +6242,7 @@ static struct ast_channel *iax2_request(char *type, int format, void *data)
 	iaxs[callno]->sendani = sendani;
 	iaxs[callno]->maxtime = maxtime;
 	iaxs[callno]->notransfer = notransfer;
+	iaxs[callno]->usejitterbuf = usejitterbuf;
 	if (found)
 		strncpy(iaxs[callno]->host, hostname, sizeof(iaxs[callno]->host) - 1);
 	c = ast_iax2_new(callno, AST_STATE_DOWN, capability);
@@ -6261,8 +6387,9 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 		peer->expire = -1;
 		peer->pokeexpire = -1;
 	}
-	peer->messagedetail = globalmessagedetail;
 	if (peer) {
+		peer->messagedetail = globalmessagedetail;
+		peer->usejitterbuf = globalusejitterbuf;
 		if (!found) {
 			strncpy(peer->name, name, sizeof(peer->name)-1);
 			peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
@@ -6286,6 +6413,8 @@ static struct iax2_peer *build_peer(char *name, struct ast_variable *v)
 				peer->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
 				peer->notransfer = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "jitterbuffer")) {
+				peer->usejitterbuf = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					/* They'll register with us */
@@ -6429,6 +6558,7 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 		user->capability = iax2_capability;
 		strncpy(user->name, name, sizeof(user->name)-1);
 		strncpy(user->language, language, sizeof(user->language) - 1);
+		user->usejitterbuf = globalusejitterbuf;
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				con = build_context(v->value);
@@ -6464,6 +6594,8 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 				user->authmethods = get_auth_methods(v->value);
 			} else if (!strcasecmp(v->name, "notransfer")) {
 				user->notransfer = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "jitterbuffer")) {
+				user->usejitterbuf = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1);
 			} else if (!strcasecmp(v->name, "callerid")) {
@@ -6669,12 +6801,12 @@ static int set_config(char *config_file, struct sockaddr_in* sin){
 			iax2_dropcount = atoi(v->value);
 		else if (!strcasecmp(v->name, "bindaddr"))
 			inet_aton(v->value, &sin->sin_addr);
-		else if (!strcasecmp(v->name, "jitterbuffer"))
-			use_jitterbuffer = ast_true(v->value);
 		else if (!strcasecmp(v->name, "authdebug"))
 			authdebug = ast_true(v->value);
 		else if (!strcasecmp(v->name, "notransfer"))
 			globalnotransfer = ast_true(v->value);
+		else if (!strcasecmp(v->name, "jitterbuffer"))
+			globalusejitterbuf = ast_true(v->value);
 		else if (!strcasecmp(v->name, "delayreject"))
 			delayreject = ast_true(v->value);
 		else if (!strcasecmp(v->name, "mailboxdetail"))
@@ -6815,6 +6947,7 @@ static int reload_config(void)
 	amaflags = 0;
 	delayreject = 0;
 	globalnotransfer = 0;
+	globalusejitterbuf = 0;
 	srand(time(NULL));
 	delete_users();
 	set_config(config,&dead_sin);
@@ -6885,7 +7018,7 @@ static int cache_get_callno_locked(char *data)
 		host = st;
 	}
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL)) {
+	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL)) {
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);

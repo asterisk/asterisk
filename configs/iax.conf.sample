@@ -60,7 +60,8 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; The jitter buffer works for INCOMING audio - the outbound audio
 ; will be dejittered by the jitter buffer at the other end.
 ;
-; jitterbuffer=yes|no: whether you want the jitter buffer at all.
+; jitterbuffer=yes|no: global default as to whether you want
+; the jitter buffer at all.
 ;
 ; dropcount: the jitter buffer is sized such that no more than "dropcount"
 ; frames would have been "too late" over the last 2 seconds.
@@ -68,7 +69,8 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;
 ; maxjitterbuffer: a maximum size for the jitter buffer.
 ; Setting a reasonable maximum here will prevent the call delay
-; from rising to silly values in extreme situations.
+; from rising to silly values in extreme situations; you'll hear
+; SOMETHING, even though it will be jittery.
 ;
 ; maxexcessbuffer: If conditions improve after a period of high jitter,
 ; the jitter buffer can end up bigger than necessary.  If it ends up
@@ -83,7 +85,7 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; (or enlarged), how many millisecs shall we take off per 20ms frame
 ; received?  Use a small number, or you will be able to hear it
 ; changing.  An example: if you set this to 2, then the jitter buffer
-; size will change by 100 millisec per second.
+; size will change by 100 millisecs per second.
 
 jitterbuffer=no
 ;dropcount=2
@@ -217,6 +219,8 @@ inkeys=freeworlddialup
 ;auth=md5,plaintext,rsa
 ;secret=markpasswd
 ;notransfer=yes		; Disable IAX native transfer
+;jitterbuffer=yes	; Override global setting an enable jitter buffer
+;			; for this user
 ;callerid="Mark Spencer" <(256) 428-6275>
 ;deny=0.0.0.0/0.0.0.0
 ;accountcode=markster0101
@@ -236,6 +240,7 @@ host=216.207.245.47
 ;port=5036
 ;mask=255.255.255.255
 ;qualify=yes	; Make sure this peer is alive
+;jitterbuffer=no	; Turn off jitter buffer for this peer
 
 ;
 ; Peers can remotely register as well, so that they can be
