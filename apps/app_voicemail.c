@@ -1949,7 +1949,7 @@ forward_message(struct ast_channel *chan, char *context, char *dir, int curmsg, 
 					attach_user_voicemail = receiver->attach;
 				if (strlen(receiver->serveremail))
 					myserveremail = receiver->serveremail;
-		      sendmail(myserveremail, receiver, todircount, username, callerid, fn, tmp, duration), attach_user_voicemail);
+		      sendmail(myserveremail, receiver, todircount, username, callerid, fn, tmp, duration, attach_user_voicemail);
 	      }
 	     
 			if (strlen(receiver->pager)) {
