@@ -1128,6 +1128,17 @@ static int isslavenative(struct zt_pvt *p, struct zt_pvt **out)
 	return useslavenative;
 }
 
+static int reset_conf(struct zt_pvt *p)
+{
+	ZT_CONFINFO zi;
+	p->confno = -1;
+	if (p->subs[SUB_REAL].zfd > -1) {
+		if (ioctl(p->subs[SUB_REAL].zfd, ZT_SETCONF, &zi))
+			ast_log(LOG_WARNING, "Failed to reset conferencing on channel %d!\n", p->channel);
+	}
+	return 0;
+}
+
 static int update_conf(struct zt_pvt *p)
 {
 	int needconf = 0;
@@ -2177,6 +2188,7 @@ static int zt_hangup(struct ast_channel *ast)
 		p->dialing = 0;
 		p->rdnis[0] = '\0';
 		update_conf(p);
+		reset_conf(p);
 		/* Restore data mode */
 		if (p->sig == SIG_PRI) {
 			x = 0;
@@ -2188,6 +2200,7 @@ static int zt_hangup(struct ast_channel *ast)
 			/* Free up the bearer channel as well, and
 			   don't use its file descriptor anymore */
 			update_conf(p->bearer);
+			reset_conf(p->bearer);
 			p->bearer->owner = NULL;
 			p->bearer = NULL;
 			p->subs[SUB_REAL].zfd = -1;
