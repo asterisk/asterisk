@@ -38,7 +38,7 @@
  * #include <asterisk/cvsid.h>
  * #ifndef lint
  * CVSID("$Id$");
- * #endif /* lint */
+ * #endif
  *
  * You will then be able to run strings(1) on the resulting
  * binary and find out what revisions of each source file were
