@@ -726,7 +726,7 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		if (!first)
 			first = tmpvar + strlen(tmpvar);
 		*first='\0';
-		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,sizeof(workspace));
+		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,workspacelen - 1);
 		if (!(*ret)) return;
 		offset=atoi(first+1);
 	 	if ((second=strchr(first+1,':'))) {
