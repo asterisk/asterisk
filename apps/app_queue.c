@@ -330,8 +330,6 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 	}
 }
 
-#define MAX 256
-
 static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 {
 	int res;
@@ -413,8 +411,27 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 	return 1;
 }
 
-static struct ast_channel *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, char *queue)
+static int valid_exit(struct queue_ent *qe, char digit)
 {
+	char tmp[2];
+	if (!strlen(qe->context))
+		return 0;
+	tmp[0] = digit;
+	tmp[1] = '\0';
+	if (ast_exists_extension(qe->chan, qe->context, tmp, 1, qe->chan->callerid)) {
+		strncpy(qe->chan->context, qe->context, sizeof(qe->chan->context) - 1);
+		strncpy(qe->chan->exten, tmp, sizeof(qe->chan->exten) - 1);
+		qe->chan->priority = 0;
+		return 1;
+	}
+	return 0;
+}
+
+#define MAX 256
+
+static struct ast_channel *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, char *digit)
+{
+	char *queue = qe->parent->name;
 	struct localuser *o;
 	int found;
 	int numlines;
@@ -545,11 +562,17 @@ static struct ast_channel *wait_for_answer(struct queue_ent *qe, struct localuse
 				*to=-1;
 				return NULL;
 			}
-			if (f && (f->frametype == AST_FRAME_DTMF) && allowdisconnect &&
-				(f->subclass == '*')) {
+			if (f && (f->frametype == AST_FRAME_DTMF) && allowdisconnect && (f->subclass == '*')) {
 			    if (option_verbose > 3)
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
+				return NULL;
+			}
+			if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass != '*') && valid_exit(qe, f->subclass)) {
+				if (option_verbose > 3)
+					ast_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c", f->subclass);
+				*to=0;
+				*digit=f->subclass;
 				return NULL;
 			}
 		}
@@ -631,6 +654,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	int zapx = 2;
 	int x=0;
 	char *announce = NULL;
+	char digit = 0;
 	/* Hold the lock while we setup the outgoing calls */
 	ast_pthread_mutex_lock(&qe->parent->lock);
 	cur = qe->parent->members;
@@ -700,15 +724,18 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	if (qe->parent->strategy)
 		ring_one(qe, outgoing);
 	ast_pthread_mutex_unlock(&qe->parent->lock);
-	peer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, qe->parent->name);
+	peer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &digit);
 	if (!peer) {
-		if (to) 
+		if (to) {
 			/* Musta gotten hung up */
 			res = -1;
-		 else 
-		 	/* Nobody answered, next please? */
-			res=0;
-		
+		} else {
+			if (digit && valid_exit(qe, digit))
+				res=digit;
+			else
+				/* Nobody answered, next please? */
+				res=0;
+		}
 		goto out;
 	}
 	if (peer) {
@@ -781,22 +808,6 @@ static int wait_a_bit(struct queue_ent *qe)
 	retrywait = qe->parent->retry * 1000;
 	ast_pthread_mutex_unlock(&qe->parent->lock);
 	return ast_waitfordigit(qe->chan, retrywait);
-}
-
-static int valid_exit(struct queue_ent *qe, char digit)
-{
-	char tmp[2];
-	if (!strlen(qe->context))
-		return 0;
-	tmp[0] = digit;
-	tmp[1] = '\0';
-	if (ast_exists_extension(qe->chan, qe->context, tmp, 1, qe->chan->callerid)) {
-		strncpy(qe->chan->context, qe->context, sizeof(qe->chan->context) - 1);
-		strncpy(qe->chan->exten, tmp, sizeof(qe->chan->exten) - 1);
-		qe->chan->priority = 0;
-		return 1;
-	}
-	return 0;
 }
 
 // [PHM 06/26/03]
