@@ -754,15 +754,10 @@ static int compare_weight(struct ast_call_queue *rq, struct member *member)
 	struct member *mem;
 	int found = 0;
 	
-	/* avoid deadlock which can occur under specific condition.
-	 * another queue-walking func may be waiting for rq->lock, which
-	 * was set by try_calling, but won't unlock til this finishes,
-	 * yet we're waiting for &qlock.  happy fun times! */
-	ast_mutex_unlock(&rq->lock);
-	ast_mutex_lock(&qlock);
-	ast_mutex_lock(&rq->lock);
+	/* &qlock and &rq->lock already set by try_calling()
+	 * to solve deadlock */
 	for (q = queues; q; q = q->next) {
-		if (q == rq) /* don't check myself */
+		if (q == rq) /* don't check myself, could deadlock */
 			continue; 
 		ast_mutex_lock(&q->lock);
 		if (q->count && q->members) {
@@ -1400,6 +1395,8 @@ static int try_calling(struct queue_ent *qe, char *ooptions, char *announceoverr
 	time_t now;
 	struct ast_bridge_config config;
 	/* Hold the lock while we setup the outgoing calls */
+	if (use_weight) 
+		ast_mutex_lock(&qlock);
 	ast_mutex_lock(&qe->parent->lock);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "%s is trying to call a queue member.\n", 
@@ -1416,6 +1413,8 @@ static int try_calling(struct queue_ent *qe, char *ooptions, char *announceoverr
 		tmp = malloc(sizeof(struct localuser));
 		if (!tmp) {
 			ast_mutex_unlock(&qe->parent->lock);
+			if (use_weight) 
+				ast_mutex_unlock(&qlock);
 			ast_log(LOG_WARNING, "Out of memory\n");
 			goto out;
 		}
@@ -1489,6 +1488,8 @@ static int try_calling(struct queue_ent *qe, char *ooptions, char *announceoverr
 		to = -1;
 	ring_one(qe, outgoing, &numbusies);
 	ast_mutex_unlock(&qe->parent->lock);
+	if (use_weight) 
+		ast_mutex_unlock(&qlock);
 	lpeer = wait_for_answer(qe, outgoing, &to, &flags, &digit, numbusies);
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
