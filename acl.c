@@ -207,6 +207,8 @@ int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *se
 	char srv[256];
 	char host[256];
 	int tportno = ntohs(sin->sin_port);
+	if (inet_aton(value, &sin->sin_addr))
+		return 0;
 	if (service) {
 		snprintf(srv, sizeof(srv), "%s.%s", service, value);
 		if (ast_get_srv(NULL, host, sizeof(host), &tportno, srv) > 0) {
