@@ -3732,8 +3732,8 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	dr.maxcount = MAX_RESULTS;
 	dr.expiration = DUNDI_DEFAULT_CACHE_TIME;
 	dr.hmd = &hmd;
-	pipe(dr.pfds);
 	dr.pfds[0] = dr.pfds[1] = -1;
+	pipe(dr.pfds);
 	build_transactions(&dr, ttl, 0, &foundcache, &skipped, 0, 1, 1, NULL, avoids, NULL);
 	optimize_transactions(&dr, 0);
 	foundanswers = 0;
@@ -3785,6 +3785,7 @@ static int dundi_query_eid_internal(struct dundi_entity_info *dei, const char *d
 	memset(&dr, 0, sizeof(dr));
 	dr.hmd = hmd;
 	dr.dei = dei;
+	dr.pfds[0] = dr.pfds[1] = -1;
 	strncpy(dr.dcontext, dcontext ? dcontext : "e164", sizeof(dr.dcontext) - 1);
 	memcpy(&dr.query_eid, eid, sizeof(dr.query_eid));
 	if (rooteid)
