@@ -3904,7 +3904,6 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 {
 	struct sip_request req;
 	char tmp[256];
-	char tmp2[256];
 	char clen[20];
 	initreqprep(&req, p, "NOTIFY", NULL);
 	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
@@ -3916,7 +3915,6 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 	snprintf(clen, sizeof(clen), "%d", (int)(strlen(tmp)));
 	add_header(&req, "Content-Length", clen);
 	add_line(&req, tmp);
-	add_line(&req, tmp2);
 
 	if (!p->initreq.headers) {
 		/* Use this as the basis */
