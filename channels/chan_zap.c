@@ -7132,6 +7132,8 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			} else {
 				ast_cli(fd, "Actual Hookstate: %s\n", ps.rxisoffhook ? "Offhook" : "Onhook");
 			}
+			ast_mutex_unlock(&iflock);
+			return RESULT_SUCCESS;
 		}
 		tmp = tmp->next;
 	}
