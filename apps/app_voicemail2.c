@@ -197,7 +197,7 @@ static int mysql_login(void)
 		ast_log(LOG_WARNING, "Error Logging into database\n");
 		return(-1);
 	}
-	pthread_mutex_init(&mysqllock, NULL);
+	ast_mutex_init(&mysqllock, NULL);
 	return(0);
 }
 
