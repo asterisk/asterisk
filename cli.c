@@ -117,11 +117,21 @@ static int handle_load(int fd, int argc, char *argv[])
 static int handle_reload(int fd, int argc, char *argv[])
 {
 	int x;
+	int res;
 	if (argc < 1)
 		return RESULT_SHOWUSAGE;
 	if (argc > 1) { 
-		for (x=1;x<argc;x++) 
-			ast_module_reload(argv[x]);
+		for (x=1;x<argc;x++) {
+			res = ast_module_reload(argv[x]);
+			switch(res) {
+			case 0:
+				ast_cli(fd, "No such module '%s'\n", argv[x]);
+				break;
+			case 1:
+				ast_cli(fd, "Module '%s' does not support reload\n", argv[x]);
+				break;
+			}
+		}
 	} else
 		ast_module_reload(NULL);
 	return RESULT_SUCCESS;
@@ -684,6 +694,16 @@ static char *complete_ch_4(char *line, char *word, int pos, int state)
 	return complete_ch_helper(line, word, pos, state, 3);
 }
 
+static char *complete_mod_2(char *line, char *word, int pos, int state)
+{
+	return ast_module_helper(line, word, pos, state, 1, 1);
+}
+
+static char *complete_mod_4(char *line, char *word, int pos, int state)
+{
+	return ast_module_helper(line, word, pos, state, 3, 0);
+}
+
 static char *complete_fn(char *line, char *word, int pos, int state)
 {
 	char *c;
@@ -711,12 +731,13 @@ static struct ast_cli_entry builtins[] = {
 	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
 	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch_4 },
-	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help },
+	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help, complete_mod_2 },
 	{ { "set", "debug", NULL }, handle_set_debug, "Set level of debug chattiness", set_debug_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch_3 },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
+	{ { "show", "modules", "like", NULL }, handle_modlist, "List modules and info", modlist_help, complete_mod_4 },
 	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", modlist_help },
 	{ { "show", "version", NULL }, handle_version, "Display version info", version_help },
 	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch_3 },

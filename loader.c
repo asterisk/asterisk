@@ -147,31 +147,81 @@ int ast_unload_resource(char *resource_name, int force)
 	return res;
 }
 
-void ast_module_reload(const char *name)
+char *ast_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload)
 {
 	struct module *m;
+	int which=0;
+	char *ret;
+	if (pos != rpos)
+		return NULL;
+	ast_mutex_lock(&modlock);
+	m = module_list;
+	while(m) {
+		if (!strncasecmp(word, m->resource, strlen(word)) && (m->reload || !needsreload)) {
+			if (++which > state)
+				break;
+		}
+		m = m->next;
+	}
+	if (m) {
+		ret = strdup(m->resource);
+	} else {
+		ret = NULL;
+		if (!strncasecmp(word, "astconfig", strlen(word))) {
+			if (++which > state)
+				ret = strdup("astconfig");
+		} else if (!strncasecmp(word, "manager", strlen(word))) {
+			if (++which > state)
+				ret = strdup("manager");
+		} else if (!strncasecmp(word, "enum", strlen(word))) {
+			if (++which > state)
+				ret = strdup("enum");
+		} else if (!strncasecmp(word, "rtp", strlen(word))) {
+			if (++which > state)
+				ret = strdup("rtp");
+		}
+			
+	}
+	ast_mutex_unlock(&modlock);
+	return ret;
+}
 
+int ast_module_reload(const char *name)
+{
+	struct module *m;
+	int reloaded = 0;
 	/* We'll do the logger and manager the favor of calling its reload here first */
 
 	if (ast_mutex_trylock(&reloadlock)) {
 		ast_verbose("The previous reload command didn't finish yet\n");
-		return;
+		return -1;
 	}
-	if (!name || !strcasecmp(name, "astconfig"))
+	if (!name || !strcasecmp(name, "astconfig")) {
 		read_ast_cust_config();
-	if (!name || !strcasecmp(name, "manager"))
+		reloaded = 2;
+	}
+	if (!name || !strcasecmp(name, "manager")) {
 		reload_manager();
-	if (!name || !strcasecmp(name, "enum"))
+		reloaded = 2;
+	}
+	if (!name || !strcasecmp(name, "enum")) {
 		ast_enum_reload();
-	if (!name || !strcasecmp(name, "rtp"))
+		reloaded = 2;
+	}
+	if (!name || !strcasecmp(name, "rtp")) {
 		ast_rtp_reload();
+		reloaded = 2;
+	}
 	time(&ast_lastreloadtime);
 
 	ast_mutex_lock(&modlock);
 	m = module_list;
 	while(m) {
 		if (!name || !strcasecmp(name, m->resource)) {
+			if (reloaded < 1)
+				reloaded = 1;
 			if (m->reload) {
+				reloaded = 2;
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", m->resource, m->description());
 				m->reload();
@@ -181,6 +231,7 @@ void ast_module_reload(const char *name)
 	}
 	ast_mutex_unlock(&modlock);
 	ast_mutex_unlock(&reloadlock);
+	return reloaded;
 }
 
 int ast_load_resource(char *resource_name)

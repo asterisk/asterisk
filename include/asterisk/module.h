@@ -138,7 +138,9 @@ int ast_loader_unregister(int (*updater)(void));
  * This reloads all modules set to load in asterisk.  It does NOT run the unload
  * routine and then loads them again, it runs the given reload routine.
  */
-void ast_module_reload(const char *name);
+int ast_module_reload(const char *name);
+
+char *ast_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload);
 
 int ast_register_atexit(void (*func)(void));
 void ast_unregister_atexit(void (*func)(void));
