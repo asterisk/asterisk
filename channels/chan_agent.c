@@ -1289,6 +1289,54 @@ static int action_agents(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static int agent_logoff_cmd(int fd, int argc, char **argv)
+{
+	struct agent_pvt *p;
+	char *agent = argv[2] + 6;
+
+	if (argc < 3 || argc > 4)
+		return RESULT_SHOWUSAGE;
+	if (argc == 4 && strcasecmp(argv[3], "soft"))
+		return RESULT_SHOWUSAGE;
+
+	for (p=agents; p; p=p->next) {
+		if (!strcasecmp(p->agent, agent)) {
+			if (argc == 3) {
+				if (p->owner) {
+					ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
+				}
+				if (p->chan) {
+					ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
+				}
+			}
+			p->loginchan[0] = '\0';
+			ast_cli(fd, "Logging out %s\n", agent);
+			break;
+		}
+	}
+	return RESULT_SUCCESS;
+}
+
+static char *complete_agent_logoff_cmd(char *line, char *word, int pos, int state)
+{
+	struct agent_pvt *p;
+	char name[AST_MAX_AGENT];
+	int which = 0;
+
+	if (pos == 2) {
+		for (p=agents; p; p=p->next) {
+			snprintf(name, sizeof(name), "Agent/%s", p->agent);
+			if (!strncasecmp(word, name, strlen(word))) {
+				if (++which > state) {
+					return strdup(name);
+				}
+			}
+		}
+	} else if (pos == 3 && state == 0) {
+		return strdup("soft");
+	}
+	return NULL;
+}
 
 /*--- agents_show: Show agents in cli ---*/
 static int agents_show(int fd, int argc, char **argv)
@@ -1347,9 +1395,18 @@ static char show_agents_usage[] =
 "Usage: show agents\n"
 "       Provides summary information on agents.\n";
 
+static char agent_logoff_usage[] =
+"Usage: agent logoff <channel> [soft]\n"
+"       Sets an agent as no longer logged in.\n"
+"       If 'soft' is specified, do not hangup existing calls.\n";
+
 static struct ast_cli_entry cli_show_agents = {
 	{ "show", "agents", NULL }, agents_show, 
 	"Show status of agents", show_agents_usage, NULL };
+
+static struct ast_cli_entry cli_agent_logoff = {
+	{ "agent", "logoff", NULL }, agent_logoff_cmd, 
+	"Sets an agent offline", agent_logoff_usage, complete_agent_logoff_cmd };
 
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
@@ -2026,6 +2083,7 @@ int load_module()
 	ast_manager_register2("Agents", 0, action_agents, "Agents", mandescr_agents);
 	/* CLI Application */
 	ast_cli_register(&cli_show_agents);
+	ast_cli_register(&cli_agent_logoff);
 	/* Read in the config */
 	read_agent_config();
 	if (persistent_agents)
@@ -2047,6 +2105,7 @@ int unload_module()
 	/* First, take us out of the channel loop */
 	/* Unregister CLI application */
 	ast_cli_unregister(&cli_show_agents);
+	ast_cli_unregister(&cli_agent_logoff);
 	/* Unregister dialplan applications */
 	ast_unregister_application(app);
 	ast_unregister_application(app2);
