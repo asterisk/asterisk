@@ -1810,7 +1810,7 @@ static int transmit_response(struct mgcp_subchannel *sub, char *msg, struct mgcp
 		memcpy(mgr->buf, resp.data, resp.len);
 		mgr->buf[resp.len] = '\0';
 		mgr->next = p->parent->responses;
-		p->parent->responses = mgr->next;
+		p->parent->responses = mgr;
 	}
 	return send_response(sub, &resp);
 }
