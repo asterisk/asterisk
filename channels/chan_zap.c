@@ -6589,6 +6589,7 @@ static void *pri_dchannel(void *vpri)
 	struct zt_pri *pri = vpri;
 	pri_event *e;
 	struct pollfd fds[NUM_DCHANS];
+	struct zt_spaninfo si;
 	int res;
 	int chanpos = 0;
 	int x;
@@ -6719,7 +6720,7 @@ static void *pri_dchannel(void *vpri)
 			/* Find lowest available d-channel */
 			if (!pri->dchannels[i])
 				break;
-			if ((next = pri_schedule_next(pri->pri))) {
+			if ((next = pri_schedule_next(pri->dchans[i]))) {
 				/* We need relative time here */
 				gettimeofday(&tv, NULL);
 				tv.tv_sec = next->tv_sec - tv.tv_sec;
@@ -6777,7 +6778,24 @@ static void *pri_dchannel(void *vpri)
 			for (which=0;which<NUM_DCHANS;which++) {
 				if (!pri->dchans[which])
 					break;
-				if (fds[which].revents & (POLLIN | POLLPRI)) {
+				if (fds[which].revents & POLLPRI) {
+					/* Check for an event */
+					x = 0;
+					res = ioctl(pri->fds[which], ZT_GETEVENT, &x);
+					if (x) 
+						ast_log(LOG_NOTICE, "PRI got event: %d on %s D-channel of span %d\n", x, pri_order(which), pri->span);
+					/* Keep track of alarm state */	
+					if (x == ZT_EVENT_ALARM) {
+						pri->dchanavail[which] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
+						pri_find_dchan(pri);
+					} else if (x == ZT_EVENT_NOALARM) {
+						pri->dchanavail[which] |= DCHAN_NOTINALARM;
+						pri_find_dchan(pri);
+					}
+				
+					if (option_debug)
+						ast_log(LOG_DEBUG, "Got event %s (%d) on D-channel for span %d\n", event2str(x), x, pri->span);
+				} else if (fds[which].revents & POLLIN) {
 					e = pri_check_event(pri->dchans[which]);
 				}
 				if (e)
@@ -7350,28 +7368,6 @@ static void *pri_dchannel(void *vpri)
 				break;
 			default:
 				ast_log(LOG_DEBUG, "Event: %d\n", e->e);
-			}
-		} else {
-			for (i=0;i<NUM_DCHANS;i++) {
-				if (!pri->dchannels[i])
-					break;
-				/* Check for an event */
-				x = 0;
-				res = ioctl(pri->fds[i], ZT_GETEVENT, &x);
-				if (x) 
-					ast_log(LOG_NOTICE, "PRI got event: %d on %s D-channel of span %d\n", x, pri_order(i), pri->span);
-
-				/* Keep track of alarm state */	
-				if (x == ZT_EVENT_ALARM) {
-					pri->dchanavail[i] &= ~(DCHAN_NOTINALARM | DCHAN_UP);
-					pri_find_dchan(pri);
-				} else if (x == ZT_EVENT_NOALARM) {
-					pri->dchanavail[i] |= DCHAN_NOTINALARM;
-					pri_find_dchan(pri);
-				}
-				
-				if (option_debug)
-					ast_log(LOG_DEBUG, "Got event %s (%d) on D-channel for span %d\n", event2str(x), x, pri->span);
 			}
 		}	
 		ast_mutex_unlock(&pri->lock);
