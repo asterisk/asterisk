@@ -202,7 +202,7 @@ static struct ast_frame *aopen_handle_escape(struct ast_modem_pvt *p, char esc)
 		p->fr.frametype = AST_FRAME_CONTROL;
 		p->fr.subclass = AST_CONTROL_RING;
 		if (p->owner)
-			p->owner->state = AST_STATE_UP;
+			ast_setstate(p->owner, AST_STATE_UP);
 		if (aopen_startrec(p))
 			return 	NULL;
 		return &p->fr;

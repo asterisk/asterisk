@@ -506,7 +506,7 @@ static int alsa_answer(struct ast_channel *c)
 {
 	ast_verbose( " << Console call has been answered >> \n");
 	answer_sound();
-	c->state = AST_STATE_UP;
+	ast_setstate(c, AST_STATE_UP);
 	cursound = -1;
 	return 0;
 }
@@ -684,7 +684,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		needanswer = 0;
 		f.frametype = AST_FRAME_CONTROL;
 		f.subclass = AST_CONTROL_ANSWER;
-		chan->state = AST_STATE_UP;
+		ast_setstate(chan, AST_STATE_UP);
 		return &f;
 	}
 	
@@ -722,7 +722,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		/* A real frame */
 		readpos = 0;
 		left = FRAME_SIZE;
-		if (chan->state != AST_STATE_UP) {
+		if (chan->_state != AST_STATE_UP) {
 			/* Don't transmit unless it's up */
 			return &f;
 		}
@@ -806,7 +806,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		if (strlen(language))
 			strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		p->owner = tmp;
-		tmp->state = state;
+		ast_setstate(tmp, state);
 		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_pthread_mutex_unlock(&usecnt_lock);
@@ -1087,7 +1087,7 @@ int unload_module()
 		close(sndcmd[1]);
 	}
 	if (alsa.owner)
-		ast_softhangup(alsa.owner);
+		ast_softhangup(alsa.owner, AST_SOFTHANGUP_APPUNLOAD);
 	if (alsa.owner)
 		return -1;
 	return 0;

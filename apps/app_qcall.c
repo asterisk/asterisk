@@ -247,7 +247,7 @@ time_t	t;
 		if (channel->ani) free(channel->ani);
 		channel->ani = NULL;
 	}
-	if (channel->state == AST_STATE_UP)
+	if (channel->_state == AST_STATE_UP)
 	if (debug) printf("@@@@ Autodial:Line is Up\n");
 	if (option_verbose > 2)
 	ast_verbose(VERBOSE_PREFIX_3 "Qcall waiting for answer on %s\n",
@@ -274,7 +274,7 @@ time_t	t;
 			if (f->subclass == AST_CONTROL_ANSWER)
 			   {
 				if (debug) printf("@@@@ qcall_do:Phone Answered\n");
-				if (channel->state == AST_STATE_UP)
+				if (channel->_state == AST_STATE_UP)
 				   {
 					unlink(fname);
 					if (option_verbose > 2)

@@ -208,7 +208,7 @@ static struct ast_frame *bestdata_handle_escape(struct ast_modem_pvt *p, char es
 		return &p->fr;
 	case '@': /* response from "OK" in command mode */
 		if (p->owner)
-			p->owner->state = AST_STATE_UP;
+			ast_setstate(p->owner, AST_STATE_UP);
 		if (bestdata_startrec(p)) return NULL;
 		p->fr.frametype = AST_FRAME_CONTROL;
 		p->fr.subclass = AST_CONTROL_RING;
@@ -386,7 +386,7 @@ short	*sp;
 unsigned long u;
 #define	DLE	16
 
-	if (p->owner && (p->owner->state == AST_STATE_UP) && 
+	if (p->owner && (p->owner->_state == AST_STATE_UP) && 
 		(p->ministate != STATE_VOICEPLAY) && bestdata_startplay(p)) return -1;
 	sp = (short *) f->data;
 	  /* stick DLE's in ahead of anything else */

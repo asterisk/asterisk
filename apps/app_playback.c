@@ -63,7 +63,7 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	if (options && !strcasecmp(options, "noanswer"))
 		option_noanswer = 1;
 	LOCAL_USER_ADD(u);
-	if (chan->state != AST_STATE_UP) {
+	if (chan->_state != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */
 			LOCAL_USER_REMOVE(u);
@@ -77,8 +77,10 @@ static int playback_exec(struct ast_channel *chan, void *data)
 		res = ast_streamfile(chan, tmp, chan->language);
 		if (!res) 
 			res = ast_waitstream(chan, "");
-		else
+		else {
 			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
+			res = 0;
+		}
 		ast_stopstream(chan);
 	}
 	LOCAL_USER_REMOVE(u);

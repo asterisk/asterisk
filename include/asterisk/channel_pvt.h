@@ -78,6 +78,9 @@ int ast_queue_hangup(struct ast_channel *chan, int lock);
 
 int ast_queue_control(struct ast_channel *chan, int control, int lock);
 
+/*! Change the state of a channel */
+int ast_setstate(struct ast_channel *chan, int state);
+
 //! Free a channel structure
 void  ast_channel_free(struct ast_channel *);
 

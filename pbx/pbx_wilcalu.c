@@ -189,7 +189,7 @@ static void *dialstring(void *string){
 		free(string);
 		pthread_exit(NULL);
 	}
-	if(channel->state==AST_STATE_UP)
+	if(channel->_state==AST_STATE_UP)
 		printf("Autodial:Line is Up\n");
 	while(ms>0){
 		struct ast_frame *f;
@@ -202,7 +202,7 @@ static void *dialstring(void *string){
 		if(f->frametype==AST_FRAME_CONTROL){
 			if(f->subclass==AST_CONTROL_ANSWER){
 				printf("Autodial:Phone Answered\n");
-				if(channel->state==AST_STATE_UP){
+				if(channel->_state==AST_STATE_UP){
 					char res;
 					ast_streamfile(channel,filename,0);
 					// Press Five for snooze

@@ -125,7 +125,7 @@ static void run_ras(struct ast_channel *chan, char *args)
 			res = wait4(pid, &status, WNOHANG, NULL);
 			if (!res) {
 				/* Check for hangup */
-				if (chan->softhangup && !signalled) {
+				if (chan->_softhangup && !signalled) {
 					ast_log(LOG_DEBUG, "Channel '%s' hungup.  Signalling RAS at %d to die...\n", chan->name, pid);
 					kill(pid, SIGTERM);
 					signalled=1;
@@ -182,7 +182,7 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	strncpy(args, data, sizeof(args) - 1);
 	/* Answer the channel if it's not up */
-	if (chan->state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 	if (strcasecmp(chan->type, "Zap")) {
 		/* If it's not a zap channel, we're done.  Wait a couple of

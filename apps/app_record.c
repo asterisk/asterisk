@@ -95,7 +95,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (chan->state != AST_STATE_UP) {
+	if (chan->_state != AST_STATE_UP) {
 		res = ast_answer(chan); /* Shouldn't need this, but checking to see if channel is already answered
 					 * Theoretically asterisk should already have answered before running the app */
 	}

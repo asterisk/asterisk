@@ -45,7 +45,7 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 	ast_stopstream(chan);
-	if (chan->state != AST_STATE_UP) {
+	if (chan->_state != AST_STATE_UP) {
 		if (data && !strcasecmp(data, "answer")) 
 			res = ast_answer(chan);
 		if (!res) {

@@ -208,7 +208,7 @@ static struct ast_frame *i4l_handle_escape(struct ast_modem_pvt *p, char esc)
 		p->fr.frametype = AST_FRAME_CONTROL;
 		p->fr.subclass = AST_CONTROL_ANSWER;
 		if (p->owner)
-			p->owner->state = AST_STATE_UP;
+			ast_setstate(p->owner, AST_STATE_UP);
 		if (i4l_startrec(p))
 			return 	NULL;
 		return &p->fr;

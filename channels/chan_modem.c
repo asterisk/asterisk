@@ -177,7 +177,7 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 	strcpy(dstr,where + p->stripmsd);
 	/* if not a transfer or just sending tones, must be in correct state */
 	if (strcasecmp(rdest, "transfer") && strcasecmp(rdest,"sendtones")) {
-		if ((ast->state != AST_STATE_DOWN) && (ast->state != AST_STATE_RESERVED)) {
+		if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 			ast_log(LOG_WARNING, "modem_call called on %s, neither down nor reserved\n", ast->name);
 			return -1;
 		}
@@ -191,15 +191,15 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 			if (p->mc->setdev(p, MODEM_DEV_HANDSET))
 				return -1;
 		/* Should be immediately up */
-		ast->state = AST_STATE_UP;
+		ast_setstate(ast, AST_STATE_UP);
 	} else {
 		if (p->mc->setdev)
 			if (p->mc->setdev(p, MODEM_DEV_TELCO_SPK))
 				return -1;
 		if (p->mc->dial)
 			p->mc->dial(p, dstr);
-		ast->state = AST_STATE_DIALING;
-		while((ast->state != AST_STATE_UP) && (ms > 0)) {
+		ast_setstate(ast, AST_STATE_DIALING);
+		while((ast->_state != AST_STATE_UP) && (ms > 0)) {
 			ms = ast_waitfor(ast, ms);
 			/* Just read packets and watch what happens */
 			if (ms > 0) {
@@ -410,7 +410,7 @@ static int modem_hangup(struct ast_channel *ast)
 	/* Re-initialize */
 	if (p->mc->init)
 		p->mc->init(p);
-	ast->state = AST_STATE_DOWN;
+	ast_setstate(ast, AST_STATE_DOWN);
 	memset(p->cid, 0, sizeof(p->cid));
 	memset(p->dnid, 0, sizeof(p->dnid));
 	((struct ast_modem_pvt *)(ast->pvt->pvt))->owner = NULL;
@@ -423,7 +423,7 @@ static int modem_hangup(struct ast_channel *ast)
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Hungup '%s'\n", ast->name);
 	ast->pvt->pvt = NULL;
-	ast->state = AST_STATE_DOWN;
+	ast_setstate(ast, AST_STATE_DOWN);
 	restart_monitor();
 	return 0;
 }
@@ -440,7 +440,7 @@ static int modem_answer(struct ast_channel *ast)
 	}
 	if (!res) {
 		ast->rings = 0;
-		ast->state = AST_STATE_UP;
+		ast_setstate(ast, AST_STATE_UP);
 	}
 	return res;
 }
@@ -494,7 +494,7 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		tmp->type = type;
 		tmp->fds[0] = i->fd;
 		tmp->nativeformats = i->mc->formats;
-		tmp->state = state;
+		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING)
 			tmp->rings = 1;
 		tmp->pvt->pvt = i;
@@ -858,7 +858,7 @@ int unload_module()
 		p = iflist;
 		while(p) {
 			if (p->owner)
-				ast_softhangup(p->owner);
+				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 			p = p->next;
 		}
 		iflist = NULL;
