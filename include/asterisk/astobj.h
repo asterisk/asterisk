@@ -35,6 +35,10 @@ extern "C" {
 #define ASTOBJ_FLAG_DELME 	(1 << 0)		/* Object has been deleted, remove on last unref */
 #define ASTOBJ_FLAG_MARKED	(1 << 1)		/* Object has been marked for possible deletion */
 
+#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
+#define __builtin_expect(exp, c) (exp)
+#endif
+
 /* C++ is simply a syntactic crutch for those who cannot think for themselves
    in an object oriented way. */
 
