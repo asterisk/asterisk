@@ -3422,16 +3422,21 @@ static int load_config(void)
 							msg_format = ast_strdupa(var->value);
 							if (msg_format != NULL) {
 								timezone = strsep(&msg_format, "|");
-								strncpy(z->name, var->name, sizeof(z->name) - 1);
-								strncpy(z->timezone, timezone, sizeof(z->timezone) - 1);
-								strncpy(z->msg_format, msg_format, sizeof(z->msg_format) - 1);
-								z->next = NULL;
-								if (zones) {
-									zonesl->next = z;
-									zonesl = z;
+								if (msg_format) {
+									strncpy(z->name, var->name, sizeof(z->name) - 1);
+									strncpy(z->timezone, timezone, sizeof(z->timezone) - 1);
+									strncpy(z->msg_format, msg_format, sizeof(z->msg_format) - 1);
+									z->next = NULL;
+									if (zones) {
+										zonesl->next = z;
+										zonesl = z;
+									} else {
+										zones = z;
+										zonesl = z;
+									}
 								} else {
-									zones = z;
-									zonesl = z;
+									ast_log(LOG_WARNING, "Invalid tonezone definition at line %d\n", var->lineno);
+									free(z);
 								}
 							} else {
 								ast_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
