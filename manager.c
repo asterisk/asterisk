@@ -976,11 +976,17 @@ int init_manager(void)
 	if(val)
 		block_sockets = ast_true(val);
 
-	if ((val = ast_variable_retrieve(cfg, "general", "portno"))) {
+	if ((val = ast_variable_retrieve(cfg, "general", "port"))) {
 		if (sscanf(val, "%d", &portno) != 1) {
 			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
 			portno = DEFAULT_MANAGER_PORT;
 		}
+	} else if ((val = ast_variable_retrieve(cfg, "general", "portno"))) {
+		if (sscanf(val, "%d", &portno) != 1) {
+			ast_log(LOG_WARNING, "Invalid port number '%s'\n", val);
+			portno = DEFAULT_MANAGER_PORT;
+		}
+		ast_log(LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
 	}
 	
 	ba.sin_family = AF_INET;
