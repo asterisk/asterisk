@@ -604,9 +604,40 @@ void close_logger(void)
 	return;
 }
 
+static void strip_coloring(char *str)
+{
+	char *src = str, *dest, *end;
+	
+	if (!src)
+		return;
+
+	/* find the first potential escape sequence in the string */
+
+	while (*src && (*src != '\033'))
+		src++;
+	if (!*src)
+		return;
+
+	dest = src;
+	while (*src) {
+		/* at the top of this loop, *src will always be an ESC character */
+		if ((src[1] == '[') && ((end = strchr(src + 2, 'm'))))
+			src = end + 1;
+		else
+			*dest++ = *src++;
+
+		/* copy characters, checking for ESC as we go */
+		while (*src && (*src != '\033'))
+			*dest++ = *src++;
+	}
+
+	*dest = '\0';
+}
+
 static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
 {
 	char buf[BUFSIZ];
+	char *s;
 
 	if (level >= SYSLOG_NLEVELS) {
 		/* we are locked here, so cannot ast_log() */
@@ -618,9 +649,11 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 		level = __LOG_DEBUG;
 	} else {
 		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
-			levels[level], (long)GETTID(), file, line, function);
+			 levels[level], (long)GETTID(), file, line, function);
 	}
-	vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
+	s = buf + strlen(buf);
+	vsnprintf(s, sizeof(buf) - strlen(buf), fmt, args);
+	strip_coloring(s);
 	syslog(syslog_level_map[level], "%s", buf);
 }
 
@@ -715,6 +748,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 					va_start(ap, fmt);
 					vsnprintf(buf, sizeof(buf), fmt, ap);
 					va_end(ap);
+					strip_coloring(buf);
 					fputs(buf, chan->fileptr);
 					fflush(chan->fileptr);
 				}
