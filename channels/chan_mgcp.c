@@ -1369,6 +1369,7 @@ static int handle_request(struct mgcp_endpoint *p, struct mgcp_request *req, str
 		if (p->owner)
 			ast_softhangup(p->owner, AST_SOFTHANGUP_DEV);
 		transmit_response(p, "200", req, "OK");
+		transmit_notify_request(p, "", 0);
 	} else if (!strcasecmp(req->verb, "NTFY")) {
 		/* Acknowledge and be sure we keep looking for the same things */
 		transmit_response(p, "200", req, "OK");
