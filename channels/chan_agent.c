@@ -1363,6 +1363,7 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
 			ast_queue_log("NONE", "NONE", agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "CommandLogoff");
 			p->loginchan[0] = '\0';
 			ast_cli(fd, "Logging out %s\n", agent);
+			ast_device_state_changed("Agent/%s", p->agent);
 			if (persistent_agents)
 				dump_agents();
 			break;
