@@ -4962,6 +4962,7 @@ retryowner2:
 								ast_set_write_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->writeformat);	
 							if (iaxs[fr.callno]->owner->readformat)
 								ast_set_read_format(iaxs[fr.callno]->owner, iaxs[fr.callno]->owner->readformat);	
+							ast_mutex_unlock(&iaxs[fr.callno]->owner->lock);
 						}
 					}
 				}
