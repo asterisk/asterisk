@@ -65,11 +65,10 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_REMOVE(u);
 	/* Parse it out */
 	if (res > 0) {
-		if(strlen(txt) > 0)
-		{
+		if (!ast_strlen_zero(txt)) {
 			pbx_builtin_setvar_helper(chan, "TXTCIDNAME", txt);
 #if 0
-	printf("TXTCIDNAME got '%s'\n", txt);
+			ast_log(LOG_DEBUG, "TXTCIDNAME got '%s'\n", txt);
 #endif
 		}
 	}
