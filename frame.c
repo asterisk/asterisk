@@ -122,8 +122,9 @@ int ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f)
 		}
 	}
 	memcpy(s->data + s->len, f->data, f->datalen);
-	/* If we're empty, reset delivery time */
-	if (!s->len)
+	/* If either side is empty, reset the delivery time */
+	if (!s->len || (!f->delivery.tv_sec && !f->delivery.tv_usec) ||
+			(!s->delivery.tv_sec && !s->delivery.tv_usec))
 		s->delivery = f->delivery;
 	s->len += f->datalen;
 	return 0;
@@ -166,11 +167,14 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 		/* In principle this should all be fine because if we are sending
 		   G.729 VAD, the next timestamp will take over anyawy */
 		memmove(s->data, s->data + len, s->len);
-		s->delivery.tv_sec += (len * s->samplesperbyte) / 8000.0;
-		s->delivery.tv_usec += (((int)(len * s->samplesperbyte)) % 8000) * 125;
-		if (s->delivery.tv_usec > 1000000) {
-			s->delivery.tv_usec -= 1000000;
-			s->delivery.tv_sec += 1;
+		if (s->delivery.tv_sec || s->delivery.tv_usec) {
+			/* If we have delivery time, increment it, otherwise, leave it at 0 */
+			s->delivery.tv_sec += (len * s->samplesperbyte) / 8000.0;
+			s->delivery.tv_usec += (((int)(len * s->samplesperbyte)) % 8000) * 125;
+			if (s->delivery.tv_usec > 1000000) {
+				s->delivery.tv_usec -= 1000000;
+				s->delivery.tv_sec += 1;
+			}
 		}
 	}
 	/* Return frame */
