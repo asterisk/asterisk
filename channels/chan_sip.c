@@ -8043,7 +8043,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "secret")) {
 				strncpy(user->secret, v->value, sizeof(user->secret)-1); 
 			} else if (!strcasecmp(v->name, "md5secret")) {
-				strncpy(user->md5secret, v->value, sizeof(user->secret)-1); 
+				strncpy(user->md5secret, v->value, sizeof(user->md5secret)-1);
 			} else if (!strcasecmp(v->name, "promiscredir")) {
 				user->promiscredir = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "dtmfmode")) {
