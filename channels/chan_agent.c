@@ -77,6 +77,7 @@ static int capability = -1;
 
 static unsigned int group;
 static int autologoff;
+static int wrapuptime;
 
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
@@ -91,6 +92,8 @@ static struct agent_pvt {
 	int abouttograb;					/* About to grab */
 	int autologoff;					/* Auto timeout time */
 	time_t start;						/* When call started */
+	struct timeval lastdisc;			/* When last disconnected */
+	int wrapuptime;						/* Wrapup time in ms */
 	unsigned int group;					/* Group memberships */
 	int acknowledged;					/* Acknowledged */
 	char moh[80];						/* Which music on hold */
@@ -183,6 +186,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	strncpy(p->name, name ? name : "", sizeof(p->name) - 1);
 	strncpy(p->moh, moh, sizeof(p->moh) - 1);
 	p->autologoff = autologoff;
+	p->wrapuptime = wrapuptime;
 	if (pending)
 		p->dead = 1;
 	else
@@ -225,9 +229,10 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 	else
 		f = &null_frame;
 	if (!f) {
-		/* If there's a channel, hang it up and make it NULL */
+		/* If there's a channel, hang it up  (if it's on a callback) make it NULL */
 		if (p->chan) {
-			ast_hangup(p->chan);
+			if (strlen(p->loginchan))
+				ast_hangup(p->chan);
 			p->chan = NULL;
 		}
 	}
@@ -434,7 +439,9 @@ static int agent_hangup(struct ast_channel *ast)
 	} else if (p->chan) {
 		/* Not dead -- check availability now */
 		ast_pthread_mutex_lock(&p->lock);
-		check_availability(p, 1);
+		/* check_availability(p, 1); */
+		/* Store last disconnect time */
+		gettimeofday(&p->lastdisc, NULL);
 		ast_pthread_mutex_unlock(&p->lock);
 	}
 	return 0;
@@ -443,12 +450,19 @@ static int agent_hangup(struct ast_channel *ast)
 static int agent_cont_sleep( void *data )
 {
 	struct agent_pvt *p;
+	struct timeval tv;
 	int res;
 
 	p = (struct agent_pvt *)data;
 
 	ast_pthread_mutex_lock(&p->lock);
 	res = p->app_sleep_cond;
+	if (p->lastdisc.tv_sec) {
+		gettimeofday(&tv, NULL);
+		if ((tv.tv_sec - p->lastdisc.tv_sec) * 1000 + 
+			(tv.tv_usec - p->lastdisc.tv_usec) / 1000 > p->wrapuptime) 
+			res = 1;
+	}
 	ast_pthread_mutex_unlock(&p->lock);
 #if 0
 	if( !res )
@@ -555,6 +569,7 @@ static int read_agent_config(void)
 	struct agent_pvt *p, *pl, *pn;
 	group = 0;
 	autologoff = 0;
+	wrapuptime = 0;
 	cfg = ast_load(config);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
@@ -578,6 +593,10 @@ static int read_agent_config(void)
 			autologoff = atoi(v->value);
 			if (autologoff < 0)
 				autologoff = 0;
+		} else if (!strcasecmp(v->name, "wrapuptime")) {
+			wrapuptime = atoi(v->value);
+			if (wrapuptime < 0)
+				wrapuptime = 0;
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(moh, v->value, sizeof(moh) - 1);
 		}
@@ -692,8 +711,9 @@ static struct ast_channel *agent_request(char *type, int format, void *data)
 	p = agents;
 	while(p) {
 		ast_pthread_mutex_lock(&p->lock);
-		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
-			/* Agent must be registered, but not have any active call */
+		if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent)) &&
+				!p->lastdisc.tv_sec) {
+			/* Agent must be registered, but not have any active call, and not be in a waiting state */
 			if (!p->owner && p->chan) {
 				/* Fixed agent */
 				chan = agent_new(p, AST_STATE_DOWN);
@@ -776,7 +796,7 @@ static int agents_show(int fd, int argc, char **argv)
 				strcpy(talkingto, "");
 			}
 			if (strlen(p->moh))
-				snprintf(moh, sizeof(moh), "(musiconhold is '%s')", p->moh);
+				snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
 			ast_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, 
 					username, location, talkingto, moh);
 		}
@@ -804,6 +824,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	int tries = 0;
 	struct agent_pvt *p;
 	struct localuser *u;
+	struct timeval tv;
 	char user[AST_MAX_AGENT];
 	char pass[AST_MAX_AGENT];
 	char xpass[AST_MAX_AGENT] = "";
@@ -940,6 +961,17 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								if (res)
 									break;
 
+								ast_pthread_mutex_lock(&p->lock);
+								if (p->lastdisc.tv_sec) {
+									gettimeofday(&tv, NULL);
+									if ((tv.tv_sec - p->lastdisc.tv_sec) * 1000 + 
+										(tv.tv_usec - p->lastdisc.tv_usec) / 1000 > p->wrapuptime) {
+											ast_log(LOG_DEBUG, "Wrapup time expired!\n");
+										memset(&p->lastdisc, 0, sizeof(p->lastdisc));
+										check_availability(p, 1);
+									}
+								}
+								ast_pthread_mutex_unlock(&p->lock);
 								/*	Synchronize channel ownership between call to agent and itself. */
 								pthread_mutex_lock( &p->app_lock );
 								ast_pthread_mutex_lock(&p->lock);

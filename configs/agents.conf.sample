@@ -10,6 +10,12 @@
 ;
 ;autologoff=15
 ;
+; Define wrapuptime.  This is the minimum amount of time when
+; after disconnecting before the caller can receive a new call
+; note this is in milliseconds.
+;
+;wrapuptime=5000
+;
 ; Define the default musiconhold for agents
 ; musiconhold => music_class
 ;

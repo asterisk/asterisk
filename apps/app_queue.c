@@ -345,7 +345,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					*allowredir_out = o->allowredirect_out;
 					*allowdisconnect = o->allowdisconnect;
 				}
-			} else if (o->chan == winner) {
+			} else if (o->chan && (o->chan == winner)) {
 				f = ast_read(winner);
 				if (f) {
 					if (f->frametype == AST_FRAME_CONTROL) {
