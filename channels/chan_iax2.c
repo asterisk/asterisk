@@ -2851,7 +2851,7 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 static int iax2_show_firmware(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-15.15s  %-15.15s %-15.15s\n"
-#define FORMAT "%-15.15s  %-15.4x %-15d\n"
+#define FORMAT "%-15.15s  %-15d %-15d\n"
 	struct iax_firmware *cur;
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
