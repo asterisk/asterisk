@@ -2042,7 +2042,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
-				res = 0;
+				res = -1;
 				break;
 			}
 			continue;

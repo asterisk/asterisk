@@ -1918,7 +1918,7 @@ static int iax_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	struct ast_channel *cs[3];
 	struct ast_channel *who;
 	int to = -1;
-	int res;
+	int res = -1;
 	int transferstarted=0;
 	struct ast_frame *f;
 	struct chan_iax_pvt *p0 = c0->pvt->pvt;
@@ -1963,7 +1963,7 @@ static int iax_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
-				res = 0;
+				res = -1;
 				break;
 			}
 			continue;
