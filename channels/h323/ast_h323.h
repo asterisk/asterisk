@@ -23,6 +23,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
+ * Version Info: $Id$ 
  */
 
 
@@ -153,8 +154,8 @@ class MyH323Connection : public H323Connection {
     PIPSocket::Address remoteIpAddress;		// IP Address of remote endpoint
 	WORD			   externalPort;		// local media server Data port (control is dataPort+1)
 	WORD			   remotePort;			// remote endpoint Data port (control is dataPort+1)
-
-	PSyncPoint bridgeFlag;
+	WORD			   sessionId;
+	BOOL			   bridging;			// Used to help determine which IP to use
 };
 
 

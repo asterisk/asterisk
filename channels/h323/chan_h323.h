@@ -23,6 +23,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
+ * Version Info: $Id$
  */
 
 #include <arpa/inet.h>
@@ -105,6 +106,11 @@ typedef struct call_details {
 	const char *sourceIp;
 } call_details_t;
 
+typedef struct rtp_info {
+	char *addr;
+	unsigned int port;
+} rtp_info_t;
+
 /* This is a callback prototype function, called pass
    DTMF down the RTP. */
 typedef int (*send_digit_cb)(unsigned, char);
@@ -112,7 +118,7 @@ send_digit_cb	on_send_digit;
 
 /* This is a callback prototype function, called to collect
    the external RTP port from Asterisk. */
-typedef int (*on_connection_cb)(unsigned);
+typedef rtp_info_t *(*on_connection_cb)(unsigned);
 on_connection_cb	on_create_connection; 
 
 /* This is a callback prototype function, called upon

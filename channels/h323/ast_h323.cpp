@@ -23,6 +23,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
  *
+ * Version Info: $Id$
  */
 #include "ast_h323.h"
 #include "h323t38.h"
@@ -601,21 +602,29 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
 														     unsigned sessionID,
 														     const H245_H2250LogicalChannelParameters * /*param*/)
 {
-	WORD port; 
-	
-	/* Establish the Local (A side) IP Address */
-	GetControlChannel().GetLocalAddress().GetIpAndPort(externalIpAddress, port);
-	
-	/* Notify Asterisk of the request and get the port */
-	externalPort = on_create_connection(GetCallReference()); 
+	struct rtp_info *info;
+	WORD port;
 
+	/* Determine the Local (A side) IP Address and port */
+	info = on_create_connection(GetCallReference()); 
+	
+//	if (bridging) {
+//		externalIpAddress = PIPSocket::Address(info->addr);
+//	} else {
+        GetControlChannel().GetLocalAddress().GetIpAndPort(externalIpAddress, port);
+//	}
+
+//	externalIpAddress = PIPSocket::Address("192.168.1.50");
+
+	externalPort = info->port;
+	
 	if (h323debug) {
 		cout << "	=*= In CreateRealTimeLogicalChannel for call " << GetCallReference() << endl;
 		cout << "		-- externalIpAddress: " << externalIpAddress << endl;
 		cout << "		-- externalPort: " << externalPort << endl;
+		cout << "		-- SessionID: " << sessionID << endl;
 		cout << "		-- Direction: " << dir << endl;
 	}
-	
 	return new H323_ExternalRTPChannel(*this, capability, dir, sessionID, externalIpAddress, externalPort);
 }
 
@@ -1028,23 +1037,28 @@ int h323_show_codec(int fd, int argc, char *argv[])
 
 
 /* alas, this doesn't work :(   */
-void h323_native_bridge(const char *token, char *them, char *us)
+void h323_native_bridge(const char *token, char *them, char *capability)
 {
 	H323Channel *channel;
-	H323Connection *connection = endPoint->FindConnectionWithLock(token);
-    
+	MyH323Connection *connection = (MyH323Connection *)endPoint->FindConnectionWithLock(token);
+	PString mode(capability);
 	
-	cout << "Native Bridge:  them [" << them << "] us [" << us << "]" << endl; 
-	
-	if (!connection){
-		cout << "ERROR: No connection active.\n";
+	if (!mode) {
 		return;
 	}
 
-    connection->Unlock();
-	channel = connection->FindChannel(RTP_Session::DefaultAudioSessionID, TRUE);
-	H323_ExternalRTPChannel *external = (H323_ExternalRTPChannel *)channel;
-	external->SetExternalAddress(them, us);  // data (RTP), control (Asterisk)
+	if (!connection){
+		cout << "ERROR: No connection found, this is bad\n";
+		return;
+	}
+
+	cout << "Native Bridge:  them [" << them << "]" << endl; 
+
+	channel = connection->FindChannel(connection->sessionId, TRUE);
+	connection->bridging = TRUE;
+	connection->CloseLogicalChannelNumber(channel->GetNumber());
+	connection->RequestModeChange(mode);	
+	connection->Unlock();
 	return;
 
 }
