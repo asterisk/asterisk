@@ -46,3 +46,15 @@ A SIP table would look more like this:
 +------+--------+-------+----------+-----+------------+----------+
 
 in order to store appropriate parameters required for SIP.
+
+A Voicemail table would look more like this:
+
++----------+---------+----------+----------+-----------+---------------+
+| uniqueid | mailbox | context  | password |email      |   fullname    | 
++----------+---------+----------+----------+-----------+---------------+
+|        1 |   1234  | default  |  4242    | a@b.com   | Joe Schmoe    | 
++----------+---------+----------+----------+-----------+---------------+
+
+The uniqueid should be unique to each voicemail user and can be 
+autoincrement.  It need not have any relation to the mailbox or context.
+

@@ -2,6 +2,9 @@
 ; Static and realtime external configuration
 ; engine configuration
 ;
+; Please read doc/README.extconfig for basic table
+; formatting information.
+;
 [settings]
 ;
 ; Static configuration files: 
@@ -26,4 +29,5 @@
 ;
 ;iaxfriends => odbc,asterisk
 ;sipfriends => odbc,asterisk
+;voicemail => odbc,asterisk
 

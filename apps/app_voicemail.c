@@ -40,25 +40,6 @@
 #include <time.h>
 #include <dirent.h>
 
-/* we define USESQLVM when we have MySQL or POSTGRES */
-#ifdef USEMYSQLVM
-#include <mysql/mysql.h>
-#define USESQLVM 1
-#endif
-
-#ifdef USEPOSTGRESVM
-/*
- * PostgreSQL routines written by Otmar Lendl <lendl@nic.at>
- */
-#include <postgresql/libpq-fe.h>
-#define USESQLVM 1
-#endif
-
-#ifndef USESQLVM
-static inline int sql_init(void) { return 0; }
-static inline void sql_close(void) { }
-#endif
-
 #include "../asterisk.h"
 #include "../astconf.h"
 
@@ -139,6 +120,7 @@ struct ast_vm_user {
 	char zonetag[80];		/* Time zone */
 	char callback[80];
 	char dialout[80];
+	char uniqueid[20];		/* Unique integer identifier */
 	char exit[80];
 	int attach;
 	int delete;
@@ -317,125 +299,105 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		strncpy(vmu->exit, exitcontext, sizeof(vmu->exit) -1);
 }
 
-static void apply_options(struct ast_vm_user *vmu, char *options)
+static void apply_option(struct ast_vm_user *vmu, const char *var, const char *value)
 {
-	/* Destructively Parse options and apply */
-	char *stringp = ast_strdupa(options);
+	if (!strcasecmp(var, "attach")) {
+		if (ast_true(value))
+			vmu->attach = 1;
+		else
+			vmu->attach = 0;
+	} else if (!strcasecmp(var, "serveremail")) {
+		strncpy(vmu->serveremail, value, sizeof(vmu->serveremail) - 1);
+	} else if (!strcasecmp(var, "language")) {
+		strncpy(vmu->language, value, sizeof(vmu->language) - 1);
+	} else if (!strcasecmp(var, "tz")) {
+		strncpy(vmu->zonetag, value, sizeof(vmu->zonetag) - 1);
+	} else if (!strcasecmp(var, "delete")) {
+		vmu->delete = ast_true(value);
+	} else if (!strcasecmp(var, "saycid")){
+		if (ast_true(value))
+			vmu->saycid = 1;
+		else
+			vmu->saycid = 0;
+	} else if (!strcasecmp(var,"sendvoicemail")){
+		if (ast_true(value))
+			vmu->svmail =1;
+		else
+			vmu->svmail =0;
+	} else if (!strcasecmp(var, "review")){
+		if (ast_true(value))
+			vmu->review = 1;
+		else
+			vmu->review = 0;
+	} else if (!strcasecmp(var, "operator")){
+		if (ast_true(value))
+			vmu->operator = 1;
+		else
+			vmu->operator = 0;
+	} else if (!strcasecmp(var, "envelope")){
+		if (ast_true(value))
+			vmu->envelope = 1;
+		else
+			vmu->envelope = 0;
+	} else if (!strcasecmp(var, "forcename")){
+		if (ast_true(value))
+			vmu->forcename = 1;
+		else
+			vmu->forcename = 0;
+	} else if (!strcasecmp(var, "forcegreetings")){
+		if (ast_true(value))
+			vmu->forcegreetings = 1;
+		else
+			vmu->forcegreetings = 0;
+	} else if (!strcasecmp(var, "callback")) {
+		strncpy(vmu->callback, value, sizeof(vmu->callback) -1);
+	} else if (!strcasecmp(var, "dialout")) {
+		strncpy(vmu->dialout, value, sizeof(vmu->dialout) -1);
+	} else if (!strcasecmp(var, "exitcontext")) {
+		strncpy(vmu->exit, value, sizeof(vmu->exit) -1);
+	}
+}
+
+static int change_password_realtime(struct ast_vm_user *vmu, const char *password)
+{
+	int res;
+	if (!ast_strlen_zero(vmu->uniqueid)) {
+		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password);
+		if (!res)
+			strncpy(vmu->password, password, sizeof(vmu->password) - 1);
+		return res;
+	}
+	return -1;
+}
+
+static void apply_options(struct ast_vm_user *vmu, const char *options)
+{	/* Destructively Parse options and apply */
+	char *stringp;
 	char *s;
 	char *var, *value;
-	
+	stringp = ast_strdupa(options);
 	while ((s = strsep(&stringp, "|"))) {
 		value = s;
 		if ((var = strsep(&value, "=")) && value) {
-			if (!strcasecmp(var, "attach")) {
-				if (ast_true(value))
-					vmu->attach = 1;
-				else
-					vmu->attach = 0;
-			} else if (!strcasecmp(var, "serveremail")) {
-				strncpy(vmu->serveremail, value, sizeof(vmu->serveremail) - 1);
-			} else if (!strcasecmp(var, "language")) {
-				strncpy(vmu->language, value, sizeof(vmu->language) - 1);
-			} else if (!strcasecmp(var, "tz")) {
-				strncpy(vmu->zonetag, value, sizeof(vmu->zonetag) - 1);
-			} else if (!strcasecmp(var, "delete")) {
-				vmu->delete = ast_true(value);
-			} else if (!strcasecmp(var, "saycid")){
-				if (ast_true(value))
-					vmu->saycid = 1;
-				else
-					vmu->saycid = 0;
-			} else if (!strcasecmp(var,"sendvoicemail")){
-				if (ast_true(value))
-					vmu->svmail =1;
-				else
-					vmu->svmail =0;
-			} else if (!strcasecmp(var, "review")){
-				if (ast_true(value))
-					vmu->review = 1;
-				else
-					vmu->review = 0;
-			} else if (!strcasecmp(var, "operator")){
-				if (ast_true(value))
-					vmu->operator = 1;
-				else
-					vmu->operator = 0;
-			} else if (!strcasecmp(var, "envelope")){
-				if (ast_true(value))
-					vmu->envelope = 1;
-				else
-					vmu->envelope = 0;
-			} else if (!strcasecmp(var, "forcename")){
-				if (ast_true(value))
-					vmu->forcename = 1;
-				else
-					vmu->forcename = 0;
-			} else if (!strcasecmp(var, "forcegreetings")){
-				if (ast_true(value))
-					vmu->forcegreetings = 1;
-				else
-					vmu->forcegreetings = 0;
-			} else if (!strcasecmp(var, "callback")) {
-				strncpy(vmu->callback, value, sizeof(vmu->callback) -1);
-			} else if (!strcasecmp(var, "dialout")) {
-				strncpy(vmu->dialout, value, sizeof(vmu->dialout) -1);
-			} else if (!strcasecmp(var, "exitcontext")) {
-				strncpy(vmu->exit, value, sizeof(vmu->exit) -1);
-
-			}
+			apply_option(vmu, var, value);
 		}
 	}
-	
 }
 
-#ifdef USEMYSQLVM
-#include "mysql-vm-routines.h"
-#endif
-
-#ifdef USEPOSTGRESVM
-
-PGconn *dbhandler;
-char	dboption[256] = "";
-AST_MUTEX_DEFINE_STATIC(postgreslock);
-
-static int sql_init(void)
+static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const char *context, const char *mailbox)
 {
-	ast_verbose( VERBOSE_PREFIX_3 "Logging into postgres database: %s\n", dboption);
-/*	fprintf(stderr,"Logging into postgres database: %s\n", dboption); */
-
-	dbhandler=PQconnectdb(dboption);
-	if (PQstatus(dbhandler) == CONNECTION_BAD) {
-		ast_log(LOG_WARNING, "Error Logging into database %s: %s\n",dboption,PQerrorMessage(dbhandler));
-		return(-1);
-	}
-/*	fprintf(stderr,"postgres login OK\n"); */
-	return(0);
-}
-
-static void sql_close(void)
-{
-	PQfinish(dbhandler);
-}
-
-
-static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
-{
-	PGresult *PGSQLres;
-
-
-	int numFields, i;
-	char *fname;
-	char query[240];
-	char options[160] = "";
+	struct ast_variable *var, *tmp;
 	struct ast_vm_user *retval;
 
-	retval=malloc(sizeof(struct ast_vm_user));
-
-/*	fprintf(stderr,"postgres find_user:\n"); */
+	if (ivm)
+		retval=ivm;
+	else
+		retval=malloc(sizeof(struct ast_vm_user));
 
 	if (retval) {
 		memset(retval, 0, sizeof(struct ast_vm_user));
-		retval->alloced=1;
+		if (!ivm)
+			retval->alloced=1;
 		if (mailbox) {
 			strncpy(retval->mailbox, mailbox, sizeof(retval->mailbox) - 1);
 		}
@@ -447,100 +409,29 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 			strncpy(retval->context, "default", sizeof(retval->context) - 1);
 		}
 		populate_defaults(retval);
-		snprintf(query, sizeof(query), "SELECT password,fullname,email,pager,options FROM voicemail WHERE context='%s' AND mailbox='%s'", retval->context, mailbox);
-		
-/*	fprintf(stderr,"postgres find_user: query = %s\n",query); */
-		ast_mutex_lock(&postgreslock);
-		PGSQLres=PQexec(dbhandler,query);
-		if (PGSQLres!=NULL) {
-			if (PQresultStatus(PGSQLres) == PGRES_BAD_RESPONSE ||
-				PQresultStatus(PGSQLres) == PGRES_NONFATAL_ERROR ||
-				PQresultStatus(PGSQLres) == PGRES_FATAL_ERROR) {
-
-				ast_log(LOG_WARNING,"PGSQL_query: Query Error (%s) Calling PQreset\n",PQcmdStatus(PGSQLres));
-				PQclear(PGSQLres);
-				PQreset(dbhandler);
-				ast_mutex_unlock(&postgreslock);
+		var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", retval->context, NULL);
+		if (var) {
+			tmp = var;
+			while(tmp) {
+				printf("%s => %s\n", tmp->name, tmp->value);
+				if (!strcasecmp(tmp->name, "password")) {
+					strncpy(retval->password, tmp->value, sizeof(retval->password) - 1);
+				} else if (!strcasecmp(tmp->name, "uniqueid")) {
+					strncpy(retval->uniqueid, tmp->value, sizeof(retval->uniqueid) - 1);
+				} else
+					apply_option(retval, tmp->name, tmp->value);
+				tmp = tmp->next;
+			} 
+		} else { 
+			if (!ivm) 
 				free(retval);
-				return(NULL);
-			} else {
-			numFields = PQnfields(PGSQLres);
-/*	fprintf(stderr,"postgres find_user: query found %d rows with %d fields\n",PQntuples(PGSQLres), numFields); */
-			if (PQntuples(PGSQLres) != 1) {
-				ast_log(LOG_WARNING,"PGSQL_query: Did not find a unique mailbox for %s\n",mailbox);
-				PQclear(PGSQLres);
-				ast_mutex_unlock(&postgreslock);
-				free(retval);
-				return(NULL);
-			}
-			for (i=0; i<numFields; i++) {
-				fname = PQfname(PGSQLres,i);
-				if (!strcmp(fname, "password") && !PQgetisnull (PGSQLres,0,i)) {
-					strncpy(retval->password, PQgetvalue(PGSQLres,0,i),sizeof(retval->password) - 1);
-				} else if (!strcmp(fname, "fullname")) {
-					strncpy(retval->fullname, PQgetvalue(PGSQLres,0,i),sizeof(retval->fullname) - 1);
-				} else if (!strcmp(fname, "email")) {
-					strncpy(retval->email, PQgetvalue(PGSQLres,0,i),sizeof(retval->email) - 1);
-				} else if (!strcmp(fname, "pager")) {
-					strncpy(retval->pager, PQgetvalue(PGSQLres,0,i),sizeof(retval->pager) - 1);
-				} else if (!strcmp(fname, "options")) {
-					strncpy(options, PQgetvalue(PGSQLres,0,i), sizeof(options) - 1);
-					apply_options(retval, options);
-				}
-			}
-			}
-			PQclear(PGSQLres);
-			ast_mutex_unlock(&postgreslock);
-			return(retval);
-		}
-		else {
-			ast_log(LOG_WARNING,"PGSQL_query: Connection Error (%s)\n",PQerrorMessage(dbhandler));
-			ast_mutex_unlock(&postgreslock);
-			free(retval);
-			return(NULL);
-		}
-		/* not reached */
-	} /* malloc() retval */
-	return(NULL);
+			retval = NULL;
+		}	
+	} 
+	return retval;
 }
 
-
-static void vm_change_password(struct ast_vm_user *vmu, char *password)
-{
-	char query[400];
-
-	if (*vmu->context) {
-		snprintf(query, sizeof(query), "UPDATE voicemail SET password='%s' WHERE context='%s' AND mailbox='%s' AND (password='%s' OR password IS NULL)", password, vmu->context, vmu->mailbox, vmu->password);
-	} else {
-		snprintf(query, sizeof(query), "UPDATE voicemail SET password='%s' WHERE mailbox='%s' AND (password='%s' OR password IS NULL)", password, vmu->mailbox, vmu->password);
-	}
-/*	fprintf(stderr,"postgres change_password: query = %s\n",query); */
-	ast_mutex_lock(&postgreslock);
-	PQexec(dbhandler, query);
-	strncpy(vmu->password, password, sizeof(vmu->password) - 1);
-	ast_mutex_unlock(&postgreslock);
-}
-
-static void reset_user_pw(char *context, char *mailbox, char *password)
-{
-	char query[320];
-
-	if (context) {
-		snprintf(query, sizeof(query), "UPDATE voicemail SET password='%s' WHERE context='%s' AND mailbox='%s'", password, context, mailbox);
-	} else {
-		snprintf(query, sizeof(query),  "UPDATE voicemail SET password='%s' WHERE mailbox='%s'", password, mailbox);
-	}
-	ast_mutex_lock(&postgreslock);
-/*	fprintf(stderr,"postgres reset_user_pw: query = %s\n",query); */
-	PQexec(dbhandler, query);
-	ast_mutex_unlock(&postgreslock);
-}
-
-#endif	/* Postgres */
-
-#ifndef USESQLVM
-
-static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, char *mailbox)
+static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *context, const char *mailbox)
 {
 	/* This function could be made to generate one from a database, too */
 	struct ast_vm_user *vmu=NULL, *cur;
@@ -566,12 +457,13 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, char *context, cha
 				vmu->alloced = 1;
 			vmu->next = NULL;
 		}
-	}
+	} else
+		vmu = find_user_realtime(ivm, context, mailbox);
 	ast_mutex_unlock(&vmlock);
 	return vmu;
 }
 
-static int reset_user_pw(char *context, char *mailbox, char *newpass)
+static int reset_user_pw(const char *context, const char *mailbox, const char *newpass)
 {
 	/* This function could be made to generate one from a database, too */
 	struct ast_vm_user *cur;
@@ -592,7 +484,7 @@ static int reset_user_pw(char *context, char *mailbox, char *newpass)
 	return res;
 }
 
-static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
+static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 {
 	/*  There's probably a better way of doing this. */
 	/*  That's why I've put the password change in a separate function. */
@@ -608,6 +500,9 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 	char tmpout[AST_CONFIG_MAX_PATH];
 	char *user, *pass, *rest, *trim, *tempcontext;
 	struct stat statbuf;
+
+	if (!change_password_realtime(vmu, newpassword))
+		return;
 
 	tempcontext = NULL;
 	snprintf(tmpin, sizeof(tmpin), "%s/voicemail.conf", ast_config_AST_CONFIG_DIR);
@@ -707,7 +602,6 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 	reset_user_pw(vmu->context, vmu->mailbox, newpassword);
 	strncpy(vmu->password, newpassword, sizeof(vmu->password) - 1);
 }
-#endif
 
 static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
 {
@@ -3850,8 +3744,6 @@ static int vm_box_exists(struct ast_channel *chan, void *data) {
 	return 0;
 }
 
-#ifndef USEMYSQLVM
-/* XXX TL Bug 690 */
 static char show_voicemail_users_help[] =
 "Usage: show voicemail users [for <context>]\n"
 "       Lists all mailboxes currently set up\n";
@@ -3972,8 +3864,6 @@ static struct ast_cli_entry show_voicemail_zones_cli =
 	{ { "show", "voicemail", "zones", NULL },
 	handle_show_voicemail_zones, "List zone message formats",
 	show_voicemail_zones_help, NULL };
-
-#endif
 
 static int load_config(void)
 {
@@ -4207,48 +4097,17 @@ static int load_config(void)
 			exitcontext[0] = '\0';
 		}
 
-#ifdef USEMYSQLVM
-		if (!(s=ast_variable_retrieve(cfg, "general", "dbuser"))) {
-			strncpy(dbuser, "test", sizeof(dbuser) - 1);
-		} else {
-			strncpy(dbuser, s, sizeof(dbuser) - 1);
-		}
-		if (!(s=ast_variable_retrieve(cfg, "general", "dbpass"))) {
-			strncpy(dbpass, "test", sizeof(dbpass) - 1);
-		} else {
-			strncpy(dbpass, s, sizeof(dbpass) - 1);
-		}
-		if (!(s=ast_variable_retrieve(cfg, "general", "dbhost"))) {
-			dbhost[0] = '\0';
-		} else {
-			strncpy(dbhost, s, sizeof(dbhost) - 1);
-		}
-		if (!(s=ast_variable_retrieve(cfg, "general", "dbname"))) {
-			strncpy(dbname, "vmdb", sizeof(dbname) - 1);
-		} else {
-			strncpy(dbname, s, sizeof(dbname) - 1);
-		}
-#endif
 
-#ifdef USEPOSTGRESVM
-		if (!(s=ast_variable_retrieve(cfg, "general", "dboption"))) {
-			strncpy(dboption, "dboption not-specified in voicemail.conf", sizeof(dboption) - 1);
-		} else {
-			strncpy(dboption, s, sizeof(dboption) - 1);
-		}
-#endif
 		cat = ast_category_browse(cfg, NULL);
 		while (cat) {
 			if (strcasecmp(cat, "general")) {
 				var = ast_variable_browse(cfg, cat);
 				if (strcasecmp(cat, "zonemessages")) {
-#ifndef USESQLVM
 					/* Process mailboxes in this context */
 					while (var) {
 						append_mailbox(cat, var->name, var->value);
 						var = var->next;
 					}
-#endif
 				} else {
 					/* Timezones in this context */
 					while (var) {
@@ -4379,11 +4238,8 @@ int unload_module(void)
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(capp2);
 	res |= ast_unregister_application(app3);
-	sql_close();
-#ifndef USEMYSQLVM
 	ast_cli_unregister(&show_voicemail_users_cli);
 	ast_cli_unregister(&show_voicemail_zones_cli);
-#endif
 	return res;
 }
 
@@ -4401,15 +4257,8 @@ int load_module(void)
 	if ((res=load_config())) {
 		return(res);
 	}
-
-	if ((res = sql_init())) {
-		ast_log(LOG_WARNING, "SQL init\n");
-		return res;
-	}
-#ifndef USEMYSQLVM	
 	ast_cli_register(&show_voicemail_users_cli);
 	ast_cli_register(&show_voicemail_zones_cli);
-#endif
 	return res;
 }
 

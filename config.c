@@ -71,7 +71,7 @@ void ast_destroy(struct ast_config *ast)
 	free(ast);
 }
 
-int ast_true(char *s)
+int ast_true(const char *s)
 {
 	if (!s)
 		return 0;
@@ -86,7 +86,7 @@ int ast_true(char *s)
 	return 0;
 }
 
-int ast_false(char *s)
+int ast_false(const char *s)
 {
 	if (!s)
 		return 0;

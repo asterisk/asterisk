@@ -86,7 +86,7 @@ char *ast_variable_retrieve(struct ast_config *config, char *category, char *val
  * This function checks to see whether a string passed to it is an indication of an affirmitave value.  It checks to see if the string is "yes", "true", "y", "t", and "1".  
  * Returns 0 if the value of s is a NULL pointer, 0 on "truth", and -1 on falsehood.
  */
-int ast_true(char *val);
+int ast_true(const char *val);
 
 //! Make sure something is false
 /*!
@@ -94,7 +94,7 @@ int ast_true(char *val);
  * This function checks to see whether a string passed to it is an indication of a negatirve value.  It checks to see if the string is "no", "false", "n", "f", and "0".  
  * Returns 0 if the value of s is a NULL pointer, 0 on "truth", and -1 on falsehood.
  */
-int ast_false(char *val);
+int ast_false(const char *val);
 
 //! Check for category duplicates
 /*!
