@@ -3646,7 +3646,7 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 	struct ast_frame f;
 	char *c;
 	/* Try getting the "signal=" part */
-	if ((c = get_sdp(req, "Signal"))) {
+	if (strlen(c = get_sdp(req, "Signal")) || strlen(c = get_sdp(req, "d"))) {
 		strncpy(buf, c, sizeof(buf) - 1);
 	} else if (get_msg_text(buf, sizeof(buf), req)) {
 		/* Normal INFO method */
