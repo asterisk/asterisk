@@ -3560,7 +3560,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	ast_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
 	while(peer) {
-		if (!strcasecmp(peer->name, name)) {
+		if (!strcasecmp(peer->name, name) && ast_apply_ha(peer->ha,sin)) {
 			if (!peer->dynamic) {
 				ast_log(LOG_NOTICE, "Peer '%s' isn't dynamic\n", peer->name);
 				break;
@@ -3931,7 +3931,7 @@ static char *get_calleridname(char *input,char *output)
 	}
 	return output;
 }
-static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable)
+static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, char *uri, int reliable, struct sockaddr_in *sin)
 {
 	struct sip_user *user;
 	struct sip_peer *peer;
@@ -3967,7 +3967,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 	ast_mutex_lock(&userl.lock);
 	user = userl.users;
 	while(user) {
-		if (!strcasecmp(user->name, of)) {
+		if (!strcasecmp(user->name, of) && ast_apply_ha(user->ha,sin)) {
 			p->nat = user->nat;
 			if (p->rtp) {
 				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", p->nat);
@@ -5020,7 +5020,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_verbose("Ignoring this request\n");
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first invite */
-			res = check_user(p, req, cmd, e, 1);
+			res = check_user(p, req, cmd, e, 1, sin);
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
@@ -5239,7 +5239,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			
 		if (!p->lastinvite) {
 			/* Handle authentication if this is our first subscribe */
-			res = check_user(p, req, cmd, e, 0);
+			res = check_user(p, req, cmd, e, 0, sin);
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
