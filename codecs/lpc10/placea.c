@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.8  2001/04/12 21:27:53  markster
-Version 0.1.9 from FTP
+Revision 1.9  2001/04/12 21:27:53  markster
+Version 0.1.10 from FTP
 
 Revision 1.3  2001/04/12 21:27:53  markh
 app_record now supports wildcards of sort so your output file is not overwritten every time it's run.  File.h got a documentation update on the ast_fileexists to include the return call.  Watch out for the placea.c placev.c code, it's updates have not been tested yet.  Just a few parenthesis to make it compile nicer on newer gcc versions with all the -W flags set.
@@ -32,8 +32,8 @@ extern int placea_(integer *ipitch, integer *voibuf, integer *obound, integer *a
 /* 	PLACEA Version 48 */
 
 /* $Log$
- * Revision 1.8  2001/04/12 21:27:53  markster
- * Version 0.1.9 from FTP
+ * Revision 1.9  2001/04/12 21:27:53  markster
+ * Version 0.1.10 from FTP
  *
 /* Revision 1.3  2001/04/12 21:27:53  markh
 /* app_record now supports wildcards of sort so your output file is not overwritten every time it's run.  File.h got a documentation update on the ast_fileexists to include the return call.  Watch out for the placea.c placev.c code, it's updates have not been tested yet.  Just a few parenthesis to make it compile nicer on newer gcc versions with all the -W flags set.
