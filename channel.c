@@ -1947,6 +1947,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			*fo = NULL;
 			if (who) *rc = who;
 			res = 0;
+			ast_log(LOG_DEBUG, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",c0->name,c1->name,c0->zombie?"Yes":"No",ast_check_hangup(c0)?"Yes":"No",c1->zombie?"Yes":"No",ast_check_hangup(c1)?"Yes":"No");
 			break;
 		}
 		if (c0->pvt->bridge && 
@@ -1961,6 +1962,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 					"Channel1: %s\r\n"
 					"Channel2: %s\r\n",
 					c0->name, c1->name);
+				ast_log(LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n",c0->name ,c1->name);
 				return 0;
 			}
 			/* If they return non-zero then continue on normally.  Let "-2" mean don't worry about
@@ -1992,6 +1994,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			*fo = NULL;
 			*rc = who;
 			res = 0;
+			ast_log(LOG_DEBUG, "Didn't get a frame from channel: %s\n",who->name);
 			break;
 		}
 
@@ -1999,6 +2002,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			*fo = f;
 			*rc = who;
 			res =  0;
+			ast_log(LOG_DEBUG, "Got a FRAME_CONTROL frame on channel %s\n",who->name);
 			break;
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||
@@ -2014,6 +2018,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 						*fo = f;
 						/* Take out of conference mode */
 						res = 0;
+						ast_lop(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_0 on c0 (%s)\n",c0->name);
 						break;
 					} else 
 						goto tackygoto;
@@ -2023,6 +2028,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 						*rc = c1;
 						*fo = f;
 						res =  0;
+						ast_lop(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_1 on c1 (%s)\n",c1->name);
 						break;
 					} else
 						goto tackygoto;
@@ -2056,6 +2062,7 @@ tackygoto:
 					"Channel1: %s\r\n"
 					"Channel2: %s\r\n",
 					c0->name, c1->name);
+	ast_log(LOG_DEBUG, "Bridge stops bridging channels %s and %s\n",c0->name,c1->name);
 	return res;
 }
 
