@@ -1,4 +1,4 @@
- /*
+/*
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Channel Management
@@ -1359,12 +1359,16 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 	} 
 
 	/* Run any generator sitting on the line */
-	if (f && (f->frametype == AST_FRAME_VOICE) && chan->generatordata && !chan->timingfunc) {
+	if (f && (f->frametype == AST_FRAME_VOICE) && chan->generatordata) {
 		/* Mask generator data temporarily and apply.  If there is a timing function, it
 		   will be calling the generator instead */
 		void *tmp;
 		int res;
 		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
+		if (chan->timingfunc) {
+			ast_log(LOG_DEBUG, "Generator got voice, switching to phase locked mode\n");
+			ast_settimeout(chan, 0, NULL, NULL);
+		}
 		tmp = chan->generatordata;
 		chan->generatordata = NULL;
 		generate = chan->generator->generate;
@@ -1373,6 +1377,11 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		if (res) {
 			ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
 			ast_deactivate_generator(chan);
+		}
+	} else if (f && (f->frametype == AST_FRAME_CNG)) {
+		if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
+			ast_log(LOG_DEBUG, "Generator got CNG, switching to zap timed mode\n");
+			ast_settimeout(chan, 160, generator_force, chan);
 		}
 	}
 	if (chan->fin & 0x80000000)
