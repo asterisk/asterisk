@@ -1,3 +1,16 @@
+/*
+ * Asterisk -- A telephony toolkit for Linux.
+ *
+ * Channel Variables
+ * 
+ * Copyright (C) 2002, Mark Spencer
+ *
+ * Mark Spencer <markster@linux-support.net>
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License
+ */
+
 #ifndef _ASTERISK_CHANVARS_INCLUDE
 #define _ASTERISK_CHANVARS_INCLUDE
 

@@ -49,3 +49,26 @@ mode=immediate
 ;
 ;msn=39907835
 ;device => /dev/ttyI0
+
+;===============
+; More complex ISDN example
+;
+; A single device which listens to 3 MSNs
+; the wildcard '*' can be used when all MSN's should be accepted.
+; (The incoming number can be used to go directly into the extension
+; with the matching number. I.e. if MSN 33 is called, (context,33)
+; will tried first, than (context,s) and finally (default,s).
+;
+;msn=50780020
+;incomingmsn=50780020,50780021,50780022
+;device => /dev/ttyI2
+;
+; two other devices, which are in group '1' and are used when an
+; outgoing dial used: exten => s,1,Dial,Modem/g1:1234|60|r
+; (we do not need more outgoing devices, since ISDN2 has only 2 channels.)
+; Lines can be in more than one group (1-31); comma seperated list.
+;
+group=1		; group=1,2,3,9-12
+;msn=50780023
+;device => /dev/ttyI3
+;device => /dev/ttyI4
