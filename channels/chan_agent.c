@@ -383,8 +383,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			/* Don't pass answer along */
 			ast_frfree(f);
 			f = &null_frame;
-	        }
-        else {
+		} else {
 			p->acknowledged = 1;
 			f = &answer_frame;
 			if (p->chan)

@@ -348,6 +348,11 @@ immediate=no
 ;
 ;busycount=4
 ;
+; Use a polarity reversal to mark when a outgoing call is answered by the
+; remote party.
+;
+;answeronpolarityswitch=yes
+;
 ; In some countries, a polarity reversal is used to signal the disconnect
 ; of a phone line.  If the hanguponpolarityswitch option is selected, the
 ; call will be considered "hung up" on a polarity reversal

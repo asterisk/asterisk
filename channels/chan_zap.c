@@ -276,6 +276,9 @@ AST_MUTEX_DEFINE_STATIC(iflock);
 
 static int ifcount = 0;
 
+/* Whether we answer on a Polarity Switch event */
+static int answeronpolarityswitch = 0;
+
 /* Whether we hang up on a Polarity Switch event */
 static int hanguponpolarityswitch = 0;
 
@@ -412,6 +415,10 @@ struct zt_pri;
 #define SUB_REAL		0			/* Active call */
 #define SUB_CALLWAIT	1			/* Call-Waiting call on hold */
 #define SUB_THREEWAY	2			/* Three-way call */
+
+/* Polarity states */
+#define POLARITY_IDLE   0
+#define POLARITY_REV    1
 
 
 static struct zt_distRings drings;
@@ -578,6 +585,7 @@ static struct zt_pvt {
 	int fake_event;
 	int zaptrcallerid;			/* should we use the callerid from incoming call on zap transfer or not */
 	int emdigitwait;
+	int answeronpolarityswitch;
 	int hanguponpolarityswitch;
 	int polarityonanswerdelay;
 	struct timeval polaritydelaytv;
@@ -603,6 +611,7 @@ static struct zt_pvt {
 	int r2blocked;
 	int sigchecked;
 #endif	
+	int polarity;
 } *iflist = NULL, *ifend = NULL;
 
 #ifdef ZAPATA_PRI
@@ -886,6 +895,7 @@ static int unalloc_sub(struct zt_pvt *p, int x)
 	p->subs[x].chan = 0;
 	p->subs[x].owner = NULL;
 	p->subs[x].inthreeway = 0;
+	p->polarity = POLARITY_IDLE;
 	memset(&p->subs[x].curconf, 0, sizeof(p->subs[x].curconf));
 	return 0;
 }
@@ -2027,6 +2037,7 @@ static int zt_hangup(struct ast_channel *ast)
 		p->subs[index].needcongestion = 0;
 		p->subs[index].linear = 0;
 		p->subs[index].needcallerid = 0;
+		p->polarity = POLARITY_IDLE;
 		zt_setlinear(p->subs[index].zfd, 0);
 		if (index == SUB_REAL) {
 			if ((p->subs[SUB_CALLWAIT].zfd > -1) && (p->subs[SUB_THREEWAY].zfd > -1)) {
@@ -3193,7 +3204,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
 						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EM_E1) ||  (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
 							ast_setstate(ast, AST_STATE_RINGING);
-						} else {
+						} else if (!p->answeronpolarityswitch) {
 							ast_setstate(ast, AST_STATE_UP);
 							p->subs[index].f.frametype = AST_FRAME_CONTROL;
 							p->subs[index].f.subclass = AST_CONTROL_ANSWER;
@@ -3442,6 +3453,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				if (ast->_state == AST_STATE_RING) {
 					p->ringt = RINGT;
 				}
+
+				/* If we get a ring then we cannot be in 
+				 * reversed polarity. So we reset to idle */
+				ast_log(LOG_DEBUG, "Setting IDLE polarity due "
+					"to ring. Old polarity was %d\n", 
+					p->polarity);
+				p->polarity = POLARITY_IDLE;
+
 				/* Fall through */
 			case SIG_EM:
 			case SIG_EM_E1:
@@ -3735,14 +3754,22 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		case ZT_EVENT_POLARITY:
 			/*
 			 * If we get a Polarity Switch event, check to see
-			 * if it should be ignored (the off-hook action seems
-			 * to cause a Polarity Switch) or whether it is an
-			 * indication of remote end disconnect, in which case
-			 * we should hang up
+			 * if we should change the polarity state and
+			 * mark the channel as UP or if this is an indication
+			 * of remote end disconnect. 
 			 */
-
-			if(p->hanguponpolarityswitch &&
+			if (p->polarity == POLARITY_IDLE) {
+				p->polarity = POLARITY_REV;
+				if (p->answeronpolarityswitch &&
+				    ((ast->_state == AST_STATE_DIALING) ||
+				     (ast->_state == AST_STATE_RINGING))) {
+					ast_log(LOG_DEBUG, "Answering on polarity switch!\n");
+					ast_setstate(p->owner, AST_STATE_UP);
+				} else 
+					ast_log(LOG_DEBUG, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
+			} else if(p->hanguponpolarityswitch &&
 				(p->polarityonanswerdelay > 0) &&
+			        (p->polarity == POLARITY_REV) &&
 				(ast->_state == AST_STATE_UP)) {
 				struct timeval tv;
 				gettimeofday(&tv, NULL);
@@ -3750,11 +3777,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				if((((tv.tv_sec - p->polaritydelaytv.tv_sec) * 1000) + ((tv.tv_usec - p->polaritydelaytv.tv_usec)/1000)) > p->polarityonanswerdelay) {
 					ast_log(LOG_DEBUG, "Hangup due to Reverse Polarity on channel %d\n", p->channel);
 					ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
+					p->polarity = POLARITY_IDLE;
 				} else {
 					ast_log(LOG_DEBUG, "Ignore Reverse Polarity (too close to answer event) on channel %d, state %d\n", p->channel, ast->_state);
 				}
 			} else {
-				ast_log(LOG_DEBUG, "Ignore Reverse Polarity on channel %d, state %d\n", p->channel, ast->_state);
+				p->polarity = POLARITY_IDLE;
+				ast_log(LOG_DEBUG, "Ignore switch to IDLE Polarity on channel %d, state %d\n", p->channel, ast->_state);
 			}
 			break;
 		default:
@@ -5888,6 +5917,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXSKS:
 		case SIG_FXSGS:
 			if (i->cid_start == CID_START_POLARITY) {
+				i->polarity = POLARITY_REV;
 				ast_verbose(VERBOSE_PREFIX_2 "Starting post polarity "
 					    "CID detection on channel %d\n",
 					    i->channel);
@@ -6696,6 +6726,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		}
 
 		tmp->polarityonanswerdelay = polarityonanswerdelay;
+		tmp->answeronpolarityswitch = answeronpolarityswitch;
 		tmp->hanguponpolarityswitch = hanguponpolarityswitch;
 		tmp->sendcalleridafter = sendcalleridafter;
 
@@ -9973,6 +10004,8 @@ static int setup_zap(int reload)
 				cur_emdigitwait = atoi(v->value);
 			} else if (!strcasecmp(v->name, "polarityonanswerdelay")) {
 				polarityonanswerdelay = atoi(v->value);
+			} else if (!strcasecmp(v->name, "answeronpolarityswitch")) {
+				answeronpolarityswitch = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "hanguponpolarityswitch")) {
 				hanguponpolarityswitch = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "sendcalleridafter")) {
