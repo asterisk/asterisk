@@ -1,10 +1,11 @@
 /*
- * ENUM support
- *
- *
  * ENUM Support for Asterisk
  *
  * Copyright (C) 2003 Digium
+ *
+ * Written by Mark Spencer <markster@digium.com>
+ *
+ * Funding provided by nic.at
  *
  * Distributed under the terms of the GNU GPL
  *
@@ -21,11 +22,20 @@
 #include <asterisk/options.h>
 #include <asterisk/enum.h>
 #include <asterisk/channel.h>
+#include <asterisk/config.h>
 
 #define MAX_SIZE 4096
 
 #define TOPLEV "e164.arpa."
 
+static struct enum_search {
+	char toplev[80];
+	struct enum_search *next;
+} *toplevs;
+
+static int enumver = 0;
+
+static pthread_mutex_t enumlock = AST_MUTEX_INITIALIZER;
 
 static int skip_name(unsigned char *s, int len)
 {
@@ -220,11 +230,13 @@ static int parse_answer(unsigned char *dst, int dstlen, unsigned char *tech, int
 int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen)
 {
 	unsigned char answer[MAX_SIZE];
-	char tmp[259 + strlen(TOPLEV)];
+	char tmp[259 + 80];
 	int pos = strlen(number) - 1;
 	int newpos=0;
-	int res;
+	int res = -1;
 	int ret = -1;
+	struct enum_search *s = NULL;
+	int version = -1;
 	struct __res_state enumstate;
 	res_ninit(&enumstate);	
 	if (chan && ast_autoservice_start(chan) < 0)
@@ -236,11 +248,28 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		tmp[newpos++] = number[pos--];
 		tmp[newpos++] = '.';
 	}
-	strcpy(tmp + newpos, TOPLEV);
 #if 0
 	printf("Looking for '%s'\n", tmp);
 #endif	
-	res = res_nsearch(&enumstate, tmp, C_IN, T_NAPTR, answer, sizeof(answer));
+	
+	for(;;) {
+		ast_pthread_mutex_lock(&enumlock);
+		if (version != enumver) {
+			/* Ooh, a reload... */
+			s = toplevs;
+		} else {
+			s = s->next;
+		}
+		if (s) {
+			strcpy(tmp + newpos, s->toplev);
+		}
+		ast_pthread_mutex_unlock(&enumlock);
+		if (!s)
+			break;
+		res = res_nsearch(&enumstate, tmp, C_IN, T_NAPTR, answer, sizeof(answer));
+		if (res > 0)
+			break;
+	}
 	if (res > 0) {
 		if ((res = parse_answer(dst, dstlen, tech, techlen, answer, res))) {
 			ast_log(LOG_WARNING, "Parse error returned %d\n", res);
@@ -257,4 +286,61 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 		ret |= ast_autoservice_stop(chan);
 	res_nclose(&enumstate);
 	return ret;
+}
+
+static struct enum_search *enum_newtoplev(char *s)
+{
+	struct enum_search *tmp;
+	tmp = malloc(sizeof(struct enum_search));
+	if (tmp) {
+		memset(tmp, 0, sizeof(struct enum_search));
+		strncpy(tmp->toplev, s, sizeof(tmp->toplev) - 1);
+	}
+	return tmp;
+}
+
+int ast_enum_init(void)
+{
+	struct ast_config *cfg;
+	struct enum_search *s, *sl;
+	struct ast_variable *v;
+
+	/* Destroy existing list */
+	ast_pthread_mutex_lock(&enumlock);
+	s = toplevs;
+	while(s) {
+		sl = s;
+		s = s->next;
+		free(sl);
+	}
+	toplevs = NULL;
+	cfg = ast_load("enum.conf");
+	if (cfg) {
+		sl = NULL;
+		v = ast_variable_browse(cfg, "general");
+		while(v) {
+			if (!strcasecmp(v->name, "search")) {
+				s = enum_newtoplev(v->value);
+				if (s) {
+					if (sl)
+						sl->next = s;
+					else
+						toplevs = s;
+					sl = s;
+				}
+			}
+			v = v->next;
+		}
+		ast_destroy(cfg);
+	} else {
+		toplevs = enum_newtoplev(TOPLEV);
+	}
+	enumver++;
+	ast_pthread_mutex_unlock(&enumlock);
+	return 0;
+}
+
+int ast_enum_reload(void)
+{
+	return ast_enum_init();
 }

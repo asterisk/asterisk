@@ -1,0 +1,11 @@
+;
+; ENUM Configuration for resolving phone numbers over DNS
+;
+; Sample config for Asterisk
+;
+[general]
+;
+; The search list for domains may be customized.  Domains are searched
+; in the order they are listed here.
+;
+search => e164.arpa

@@ -26,6 +26,7 @@
 #include <asterisk/term.h>
 #include <asterisk/manager.h>
 #include <asterisk/pbx.h>
+#include <asterisk/enum.h>
 #include <sys/resource.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -1330,6 +1331,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	if (astdb_init()) {
+		printf(term_quit());
+		exit(1);
+	}
+	if (ast_enum_init()) {
 		printf(term_quit());
 		exit(1);
 	}

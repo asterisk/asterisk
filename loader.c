@@ -23,9 +23,9 @@
 #include <asterisk/channel.h>
 #include <asterisk/term.h>
 #include <asterisk/manager.h>
+#include <asterisk/enum.h>
 #include <dlfcn.h>
 #include <asterisk/md5.h>
-#define __USE_GNU
 #include <pthread.h>
 #include "asterisk.h"
 #include "astconf.h"
@@ -145,6 +145,7 @@ void ast_module_reload(void)
 
 	/* We'll do the logger and manager the favor of calling its reload here first */
 	reload_manager();
+	ast_enum_reload();
 
 	ast_pthread_mutex_lock(&modlock);
 	m = module_list;
