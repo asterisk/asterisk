@@ -6556,6 +6556,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			if (working->channel > tmp->channel) {
 				tmp->next = *wlist;
 				tmp->prev = NULL;
+				(*wlist)->prev = tmp;
 				*wlist = tmp;
 			} else {
 			/* go through all the members and put the member in the right place */
