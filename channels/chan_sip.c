@@ -2753,7 +2753,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				&vpeercapability, &vpeernoncodeccapability);
 	p->jointcapability = p->capability & (peercapability | vpeercapability);
 	p->peercapability = (peercapability | vpeercapability);
-	p->noncodeccapability = noncodeccapability & p->peercapability;
+	p->noncodeccapability = noncodeccapability & peernoncodeccapability;
 	
 	if (debug) {
 		const unsigned slen=80;
