@@ -189,6 +189,8 @@ extern char *ast_cdr_disp2str(int disposition);
  */
 extern char *ast_cdr_flags2str(int flags);
 
+extern int ast_cdr_setaccount(struct ast_channel *chan, char *account);
+
 extern int ast_default_amaflags;
 
 extern char ast_default_accountcode[20];
