@@ -20,7 +20,7 @@ CREATE TABLE cdr (
   lastdata varchar(45) NOT NULL default '',
   duration int(11) NOT NULL default '0',
   billsec int(11) NOT NULL default '0',
-  disposition int(11) NOT NULL default '0',
+  disposition varchar(45) NOT NULL default '',
   amaflags int(11) NOT NULL default '0',
   accountcode varchar(45) NOT NULL default '',
   uniqueid varchar(45) NOT NULL default ''
