@@ -1327,7 +1327,7 @@ static int h323_no_debug(int fd, int argc, char *argv[])
 
 static int h323_gk_cycle(int fd, int argc, char *argv[])
 {
-	result RESULT_SUCCESS;
+	return RESULT_SUCCESS;
 
 /* This works from a full console, but not -r ?! */
 
