@@ -1632,7 +1632,9 @@ int main(int argc, char *argv[])
 			ast_verbose("Running as group '%s'\n", rungroup);
 	}
 
-
+	if (set_priority(option_highpriority)) {
+		exit(1);
+	}
 	if (runuser) {
 		struct passwd *pw;
 		pw = getpwnam(runuser);
@@ -1744,10 +1746,6 @@ int main(int argc, char *argv[])
 	signal(SIGCHLD, child_handler);
 	signal(SIGPIPE, SIG_IGN);
 
-	if (set_priority(option_highpriority)) {
-		printf(term_quit());
-		exit(1);
-	}
 	if (init_logger()) {
 		printf(term_quit());
 		exit(1);
