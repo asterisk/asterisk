@@ -454,8 +454,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				tmp->dataquality = 1;
                         else    tmp->dataquality = 0;
 			if (strchr(transfer, 'H'))
-				tmp->allowdisconnect = 1;
-                        else    tmp->allowdisconnect = 0;
+				allowdisconnect = tmp->allowdisconnect = 1;
+                        else    allowdisconnect = tmp->allowdisconnect = 0;
 			if (strchr(transfer, 'c'))
 				clearchannel = 1;
             else    
