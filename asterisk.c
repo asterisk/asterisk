@@ -1623,7 +1623,7 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "No such group '%s'!\n", rungroup);
 			exit(1);
 		}
-		if (setuid(gr->gr_gid)) {
+		if (setgid(gr->gr_gid)) {
 			ast_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
 			exit(1);
 		}
