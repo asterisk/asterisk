@@ -87,7 +87,7 @@ jitterbuffer=no
 ;dropcount=2
 ;maxjitterbuffer=500
 ;maxexcessbuffer=80
-;maxexcessbuffer=80
+;minexcessbuffer=10
 ;jittershrinkrate=1
 
 
