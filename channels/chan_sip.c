@@ -5083,6 +5083,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if (!p->lastinvite && !strlen(p->randdata))
 			p->needdestroy = 1;
 	} else if (!strcasecmp(cmd, "SIP/2.0")) {
+		extract_uri(p, req);
 		while(*e && (*e < 33)) e++;
 		if (sscanf(e, "%i %n", &respid, &len) != 1) {
 			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
