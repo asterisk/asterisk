@@ -36,10 +36,6 @@
 #include "ring10.h"
 #include "answer.h"
 
-#ifdef ALSA_MONITOR
-#include "alsa-monitor.h"
-#endif
-
 #define DEBUG 0
 /* Which device to use */
 #define ALSA_INDEV "default"
@@ -47,32 +43,20 @@
 #define DESIRED_RATE 8000
 
 /* Lets use 160 sample frames, just like GSM.  */
-#define FRAME_SIZE 160
-#define PERIOD_FRAMES 80 /* 80 Frames, at 2 bytes each */
-
-/* When you set the frame size, you have to come up with
-   the right buffer format as well. */
-/* 5 64-byte frames = one frame */
-#define BUFFER_FMT ((buffersize * 10) << 16) | (0x0006);
-
-/* Don't switch between read/write modes faster than every 300 ms */
-#define MIN_SWITCH_TIME 600
+#define PERIOD_SIZE 160
+#define ALSA_MAX_BUF PERIOD_SIZE*4 + AST_FRIENDLY_OFFSET
 
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-//static int block = O_NONBLOCK;
 static char indevname[50] = ALSA_INDEV;
 static char outdevname[50] = ALSA_OUTDEV;
+
+static int usecnt;
+static int silencesuppression = 0;
+static int silencethreshold = 1000;
 
 #if 0
 static struct timeval lasttime;
 #endif
-
-static int usecnt;
-static int needanswer = 0;
-static int needringing = 0;
-static int needhangup = 0;
-static int silencesuppression = 0;
-static int silencethreshold = 1000;
 
 static char digits[80] = "";
 static char text2send[80] = "";
@@ -93,7 +77,7 @@ static int cmd[2];
 
 int hookstate=0;
 
-static short silence[FRAME_SIZE] = {0, };
+static short silence[PERIOD_SIZE] = {0, };
 
 struct sound {
 	int ind;
@@ -115,223 +99,221 @@ static struct sound sounds[] = {
 /* Sound command pipe */
 static int sndcmd[2];
 
-static struct chan_alsa_pvt {
+typedef struct chan_alsa_pvt chan_alsa_pvt_t;
+struct chan_alsa_pvt {
 	/* We only have one ALSA structure -- near sighted perhaps, but it
 	   keeps this driver as simple as possible -- as it should be. */
 	struct ast_channel *owner;
 	char exten[AST_MAX_EXTENSION];
 	char context[AST_MAX_EXTENSION];
-#if 0
-	snd_pcm_t *card;
-#endif
-	snd_pcm_t *icard, *ocard;
+	struct pollfd                *pfd;
+	unsigned int  playback_nfds;
+	unsigned int  capture_nfds;
+	snd_pcm_t *playback_handle;
+	snd_pcm_t *capture_handle;
+	snd_pcm_uframes_t capture_period_size;
+        snd_pcm_uframes_t capture_buffer_size;
 	
-} alsa;
+	pthread_t sound_thread;
+	char buf[ALSA_MAX_BUF];          /* buffer for reading frames */
+	char *capture_buf;             /* malloc buffer for reading frames */
+	struct ast_frame fr;
+	int cursound;
+	int cursound_offset;
+	int nosound;
+};
 
-#if 0
-static int time_has_passed(void)
-{
-	struct timeval tv;
-	int ms;
-	gettimeofday(&tv, NULL);
-	ms = (tv.tv_sec - lasttime.tv_sec) * 1000 +
-			(tv.tv_usec - lasttime.tv_usec) / 1000;
-	if (ms > MIN_SWITCH_TIME)
-		return -1;
-	return 0;
-}
-#endif
-
-/* Number of buffers...  Each is FRAMESIZE/8 ms long.  For example
-   with 160 sample frames, and a buffer size of 3, we have a 60ms buffer, 
-   usually plenty. */
-
-pthread_t sthread;
+static chan_alsa_pvt_t alsa;
 
 #define MAX_BUFFER_SIZE 100
-//static int buffersize = 3;
-
-//static int full_duplex = 0;
-
-/* Are we reading or writing (simulated full duplex) */
-//static int readmode = 1;
-
-/* File descriptors for sound device */
-static int readdev = -1;
-static int writedev = -1;
 
 static int autoanswer = 1;
 
-#if 0 
-static int calc_loudness(short *frame)
+/* Send a announcement */
+static int send_sound(chan_alsa_pvt_t *driver)
 {
-	int sum = 0;
-	int x;
-	for (x=0;x<FRAME_SIZE;x++) {
-		if (frame[x] < 0)
-			sum -= frame[x];
-		else
-			sum += frame[x];
-	}
-	sum = sum/FRAME_SIZE;
-	return sum;
-}
-#endif
-
-static int cursound = -1;
-static int sampsent = 0;
-static int silencelen=0;
-static int offset=0;
-static int nosound=0;
-
-static int send_sound(void)
-{
-	short myframe[FRAME_SIZE];
-	int total = FRAME_SIZE;
-	short *frame = NULL;
-	int amt=0;
 	int res;
-	int myoff;
+	int frames;
+	int cursound=driver->cursound;
 	snd_pcm_state_t state;
 
 	if (cursound > -1) {
-		res = total;
-		if (sampsent < sounds[cursound].samplen) {
-			myoff=0;
-			while(total) {
-				amt = total;
-				if (amt > (sounds[cursound].datalen - offset)) 
-					amt = sounds[cursound].datalen - offset;
-				memcpy(myframe + myoff, sounds[cursound].data + offset, amt * 2);
-				total -= amt;
-				offset += amt;
-				sampsent += amt;
-				myoff += amt;
-				if (offset >= sounds[cursound].datalen)
-					offset = 0;
-			}
-			/* Set it up for silence */
-			if (sampsent >= sounds[cursound].samplen) 
-				silencelen = sounds[cursound].silencelen;
-			frame = myframe;
-		} else {
-			if (silencelen > 0) {
-				frame = silence;
-				silencelen -= res;
-			} else {
-				if (sounds[cursound].repeat) {
-					/* Start over */
-					sampsent = 0;
-					offset = 0;
-				} else {
-					cursound = -1;
-					nosound = 0;
-				}
-			return 0;
-			}
-		}
-		
-		if (res == 0 || !frame) {
-			return 0;
-		}
-#ifdef ALSA_MONITOR
-		alsa_monitor_write((char *)frame, res * 2);
-#endif		
-		state = snd_pcm_state(alsa.ocard);
+		driver->nosound=1;
+		state = snd_pcm_state(alsa.playback_handle);
 		if (state == SND_PCM_STATE_XRUN) {
-			snd_pcm_prepare(alsa.ocard);
+			snd_pcm_prepare(alsa.playback_handle);
 		}
-		res = snd_pcm_writei(alsa.ocard, frame, res);
-		if (res > 0)
+		frames = sounds[cursound].samplen - driver->cursound_offset;
+		if (frames >= PERIOD_SIZE)  {
+			res = snd_pcm_writei(driver->playback_handle,sounds[cursound].data + (driver->cursound_offset*2), PERIOD_SIZE);
+			driver->cursound_offset+=PERIOD_SIZE;
+		} else if (frames > 0) {
+			res = snd_pcm_writei(driver->playback_handle,sounds[cursound].data + (driver->cursound_offset*2), frames);
+			res = snd_pcm_writei(driver->playback_handle,silence, PERIOD_SIZE - frames);
+			driver->cursound_offset+=PERIOD_SIZE;
+			} else {
+			res = snd_pcm_writei(driver->playback_handle,silence, PERIOD_SIZE);
+			driver->cursound_offset+=PERIOD_SIZE;
+		}
+		if (driver->cursound_offset > ( sounds[cursound].samplen + sounds[cursound].silencelen ) ) {
+				if (sounds[cursound].repeat) {
+				driver->cursound_offset=0;
+				} else {
+				driver->cursound = -1;
+				driver->nosound=0;
+				}
+			}
+		}
 			return 0;
-		return 0;
-	}
-	return 0;
 }
 
-static void *sound_thread(void *unused)
+static int sound_capture(chan_alsa_pvt_t *driver)
 {
-	fd_set rfds;
-	fd_set wfds;
-	int max;
-	int res;
-	for(;;) {
-		FD_ZERO(&rfds);
-		FD_ZERO(&wfds);
-		max = sndcmd[0];
-		FD_SET(sndcmd[0], &rfds);
-		if (cursound > -1) {
-			FD_SET(writedev, &wfds);
-			if (writedev > max)
-				max = writedev;
+	struct ast_frame *fr = &driver->fr;
+	char *readbuf = ((char *)driver->buf) + AST_FRIENDLY_OFFSET;
+	snd_pcm_sframes_t err;
+	snd_pcm_sframes_t avail;
+	snd_pcm_state_t alsa_state;
+	
+	/* Update positions */
+	while ((avail = snd_pcm_avail_update (driver->capture_handle)) >= PERIOD_SIZE) {
+	
+		/* capture samples from sound card */
+		err = snd_pcm_readi(driver->capture_handle, readbuf, PERIOD_SIZE);
+		if (err == -EPIPE) {
+			ast_log(LOG_ERROR, "XRUN read avail=%ld\n", avail);
+			snd_pcm_prepare(driver->capture_handle);
+			alsa_state = snd_pcm_state(driver->capture_handle);
+                	if (alsa_state == SND_PCM_STATE_PREPARED) {
+                        	snd_pcm_start(driver->capture_handle);
 		}
-#ifdef ALSA_MONITOR
-		if (!alsa.owner) {
-			FD_SET(readdev, &rfds);
-			if (readdev > max)
-				max = readdev;
-		}
-#endif
-		res = ast_select(max + 1, &rfds, &wfds, NULL, NULL);
-		if (res < 1) {
-			ast_log(LOG_WARNING, "select failed: %s\n", strerror(errno));
 			continue;
+		} else if (err == -ESTRPIPE) {
+			ast_log(LOG_ERROR, "-ESTRPIPE\n");
+			snd_pcm_prepare(driver->capture_handle);
+			alsa_state = snd_pcm_state(driver->capture_handle);
+                	if (alsa_state == SND_PCM_STATE_PREPARED) {
+                        	snd_pcm_start(driver->capture_handle);
 		}
-#ifdef ALSA_MONITOR
-		if (FD_ISSET(readdev, &rfds)) {
-			/* Keep the pipe going with read audio */
-			snd_pcm_state_t state;
-			short buf[FRAME_SIZE];
-			int r;
+			continue;
+		} else if (err < 0) {
+			ast_log(LOG_ERROR, "Read error: %s\n", snd_strerror(err));
+			return -1;
+	}
+
+		/* Now send captures samples */
+		fr->frametype = AST_FRAME_VOICE;
+		fr->src = type;
+		fr->mallocd = 0;
+
+		fr->subclass = AST_FORMAT_SLINEAR;
+		fr->samples = PERIOD_SIZE;
+		fr->datalen = PERIOD_SIZE * 2 ; /* 16bit = X * 2 */
+		fr->data = readbuf;
+		fr->offset = AST_FRIENDLY_OFFSET;
+
+		if (driver->owner) ast_queue_frame(driver->owner, fr, 0);
+	}
+	return 0; /* 0 = OK, !=0 -> Error */
+}
+
+static void *sound_thread(void *pvt)
+{
+	chan_alsa_pvt_t *driver = (chan_alsa_pvt_t *)pvt;
+        unsigned int nfds;
+        unsigned int ci;
+	unsigned short revents;
+	snd_pcm_state_t alsa_state;
+	int res;
+	if (driver->playback_handle) {
+                driver->playback_nfds =
+                        snd_pcm_poll_descriptors_count (
+                                driver->playback_handle);
+        } else {
+                driver->playback_nfds = 0;
+		}
+
+        if (driver->capture_handle) {
+                driver->capture_nfds =
+                        snd_pcm_poll_descriptors_count (driver->capture_handle);
+        } else {
+                driver->capture_nfds = 0;
+		}
+
+        if (driver->pfd) {
+                free (driver->pfd);
+		}
 			
-			state = snd_pcm_state(alsa.ocard);
-			if (state == SND_PCM_STATE_XRUN) {
-				snd_pcm_prepare(alsa.ocard);
+        driver->pfd = (struct pollfd *)
+                malloc (sizeof (struct pollfd) *
+                        (driver->playback_nfds + driver->capture_nfds + 2));
+
+        nfds = 0;
+        if (driver->playback_handle) {
+		snd_pcm_poll_descriptors (driver->playback_handle,
+                                          &driver->pfd[0],
+                                          driver->playback_nfds);
+                nfds += driver->playback_nfds;
 			}
-			r = snd_pcm_readi(alsa.icard, buf, FRAME_SIZE);
-			if (r == -EPIPE) {
-#if DEBUG
-				ast_log(LOG_ERROR, "XRUN read\n");
-#endif
-				snd_pcm_prepare(alsa.icard);
-			} else if (r == -ESTRPIPE) {
-				ast_log(LOG_ERROR, "-ESTRPIPE\n");
-				snd_pcm_prepare(alsa.icard);
-			} else if (r < 0) {
-				ast_log(LOG_ERROR, "Read error: %s\n", snd_strerror(r));
-			} else
-				alsa_monitor_read((char *)buf, r * 2);
+        ci = nfds;
+
+        if (driver->capture_handle) {
+                snd_pcm_poll_descriptors (driver->capture_handle,
+                                          &driver->pfd[ci],
+                                          driver->capture_nfds);
+                nfds += driver->capture_nfds;
 		}		
-#endif		
-		if (FD_ISSET(sndcmd[0], &rfds)) {
-			read(sndcmd[0], &cursound, sizeof(cursound));
-			silencelen = 0;
-			offset = 0;
-			sampsent = 0;
+	
+	while (hookstate) {
+		/* When no doing announcements */
+		if (driver->cursound > -1) {
+			res = poll(&driver->pfd[0], driver->playback_nfds, -1);
+		} else {
+			res = poll(&driver->pfd[ci], driver->capture_nfds, -1);
 		}
-		if (FD_ISSET(writedev, &wfds))
-			if (send_sound())
+
+		/* When doing announcements */
+		if (driver->cursound > -1) {
+			snd_pcm_poll_descriptors_revents(driver->playback_handle, &driver->pfd[0], driver->playback_nfds, &revents);
+		        if (revents & POLLOUT) {
+				if (send_sound(driver)) {
 				ast_log(LOG_WARNING, "Failed to write sound\n");
+	}
+			}
+		} else {
+		snd_pcm_poll_descriptors_revents(driver->capture_handle, &driver->pfd[ci], driver->capture_nfds, &revents);
+	        if (revents & POLLERR) {
+			alsa_state = snd_pcm_state(driver->capture_handle);
+			if (alsa_state == SND_PCM_STATE_XRUN) {
+				snd_pcm_prepare(driver->capture_handle);
+			}
+			alsa_state = snd_pcm_state(driver->capture_handle);
+			if (alsa_state == SND_PCM_STATE_PREPARED) {
+				snd_pcm_start(driver->capture_handle);
+			}
+		}
+	        if (revents & POLLIN) {
+			if (sound_capture(driver)) {
+				ast_log(LOG_WARNING, "Failed to read sound\n");
+			}
+		}
+		}
 	}
 	/* Never reached */
 	return NULL;
 }
 
-static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
+static snd_pcm_t *alsa_card_init(chan_alsa_pvt_t *driver, char *dev, snd_pcm_stream_t stream)
 {
 	int err;
 	int direction;
 	snd_pcm_t *handle = NULL;
 	snd_pcm_hw_params_t *hwparams = NULL;
 	snd_pcm_sw_params_t *swparams = NULL;
-	struct pollfd pfd;
-	snd_pcm_uframes_t period_size = PERIOD_FRAMES * 4;
-	//int period_bytes = 0;
+	snd_pcm_uframes_t period_size = PERIOD_SIZE;
 	snd_pcm_uframes_t buffer_size = 0;
 
 	unsigned int rate = DESIRED_RATE;
-	unsigned int per_min = 1;
-	//unsigned int per_max = 8;
 	snd_pcm_uframes_t start_threshold, stop_threshold;
 
 	err = snd_pcm_open(&handle, dev, stream, O_NONBLOCK);
@@ -368,6 +350,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	}
 
 	direction = 0;
+	buffer_size = 4096 * 2; /* period_size * 16; */
 	err = snd_pcm_hw_params_set_period_size_near(handle, hwparams, &period_size, &direction);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "period_size(%ld frames) is bad: %s\n", period_size, snd_strerror(err));
@@ -375,7 +358,6 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 		ast_log(LOG_DEBUG, "Period size is %d\n", err);
 	}
 
-	buffer_size = 4096 * 2; //period_size * 16;
 	err = snd_pcm_hw_params_set_buffer_size_near(handle, hwparams, &buffer_size);	
 	if (err < 0) {
 		ast_log(LOG_WARNING, "Problem setting buffer size of %ld: %s\n", buffer_size, snd_strerror(err));
@@ -385,7 +367,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 
 #if 0
 	direction = 0;
-	err = snd_pcm_hw_params_set_periods_min(handle,hwparams, &per_min, &direction);
+	err = snd_pcm_hw_params_set_periods_min(handle, hwparams, &per_min, &direction);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "periods_min: %s\n", snd_strerror(err));
 	}
@@ -396,9 +378,15 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	}
 #endif
 
+	if (stream == SND_PCM_STREAM_CAPTURE) {
+		driver->capture_period_size=period_size;
+        	driver->capture_buffer_size=buffer_size;
+	}
+
 	err = snd_pcm_hw_params(handle, hwparams);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "Couldn't set the new hw params: %s\n", snd_strerror(err));
+		return NULL;
 	}
 
 	snd_pcm_sw_params_alloca(&swparams);
@@ -406,7 +394,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 
 #if 1
 	if (stream == SND_PCM_STREAM_PLAYBACK) {
-		start_threshold = period_size;
+		start_threshold = period_size*3;
 	} else {
 		start_threshold = 1;
 	}
@@ -421,7 +409,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	if (stream == SND_PCM_STREAM_PLAYBACK) {
 		stop_threshold = buffer_size;
 	} else {
-		stop_threshold = buffer_size;
+		stop_threshold = buffer_size+1;
 	}
 	err = snd_pcm_sw_params_set_stop_threshold(handle, swparams, stop_threshold);
 	if (err < 0) {
@@ -429,7 +417,7 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 	}
 #endif
 #if 0
-	err = snd_pcm_sw_params_set_xfer_align(handle, swparams, PERIOD_FRAMES);
+	err = snd_pcm_sw_params_set_xfer_align(handle, swparams, PERIOD_SIZE);
 	if (err < 0) {
 		ast_log(LOG_ERROR, "Unable to set xfer alignment: %s\n", snd_strerror(err));
 	}
@@ -455,28 +443,25 @@ static snd_pcm_t *alsa_card_init(char *dev, snd_pcm_stream_t stream)
 		ast_log(LOG_DEBUG, "Can't handle more than one device\n");
 	}
 
-	snd_pcm_poll_descriptors(handle, &pfd, err);
-	ast_log(LOG_DEBUG, "Acquired fd %d from the poll descriptor\n", pfd.fd);
-
-	if (stream == SND_PCM_STREAM_CAPTURE)
-		readdev = pfd.fd;
-	else
-		writedev = pfd.fd;
-
 	return handle;
 }
 
 static int soundcard_init(void)
 {
-	alsa.icard = alsa_card_init(indevname, SND_PCM_STREAM_CAPTURE);
-	alsa.ocard = alsa_card_init(outdevname, SND_PCM_STREAM_PLAYBACK);
+	alsa.capture_handle = alsa_card_init(&alsa, indevname, SND_PCM_STREAM_CAPTURE);
+	alsa.playback_handle = alsa_card_init(&alsa, outdevname, SND_PCM_STREAM_PLAYBACK);
+	if (!alsa.capture_buf) alsa.capture_buf=malloc(alsa.capture_buffer_size * 2);
 
-	if (!alsa.icard || !alsa.ocard) {
+	if (!alsa.capture_handle || !alsa.playback_handle) {
 		ast_log(LOG_ERROR, "Problem opening alsa I/O devices\n");
+		if (alsa.capture_buf) {
+			free (alsa.capture_buf);
+			alsa.capture_buf=0;
+		}
 		return -1;
 	}
 
-	return readdev;
+	return 0; /* Success */
 }
 
 static int alsa_digit(struct ast_channel *c, char digit)
@@ -493,135 +478,96 @@ static int alsa_text(struct ast_channel *c, char *text)
 
 static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 {
+	chan_alsa_pvt_t *driver = (chan_alsa_pvt_t *)c->pvt->pvt;
 	int res = 3;
+        struct ast_frame f = { 0, };
 	ast_verbose( " << Call placed to '%s' on console >> \n", dest);
 	if (autoanswer) {
 		ast_verbose( " << Auto-answered >> \n" );
-		needanswer = 1;
+                f.frametype = AST_FRAME_CONTROL;
+                f.subclass = AST_CONTROL_ANSWER;
+                ast_queue_frame(c, &f, 0);
 	} else {
+                driver->nosound = 1;
 		ast_verbose( " << Type 'answer' to answer, or use 'autoanswer' for future calls >> \n");
-		needringing = 1;
-		write(sndcmd[1], &res, sizeof(res));
+                f.frametype = AST_FRAME_CONTROL;
+                f.subclass = AST_CONTROL_RINGING;
+                ast_queue_frame(c, &f, 0);
+		driver->cursound = res;
 	}
 	return 0;
 }
 
-static void answer_sound(void)
+static void answer_sound(chan_alsa_pvt_t *driver)
 {
 	int res;
-	nosound = 1;
-	res = 4;
-	write(sndcmd[1], &res, sizeof(res));
+	driver->nosound = 1;
+	driver->cursound = 4;
+	driver->cursound_offset = 0;
 	
 }
 
 static int alsa_answer(struct ast_channel *c)
 {
+	chan_alsa_pvt_t *driver = (chan_alsa_pvt_t *)c->pvt->pvt;
 	ast_verbose( " << Console call has been answered >> \n");
-	answer_sound();
+	answer_sound(driver);
 	ast_setstate(c, AST_STATE_UP);
-	cursound = -1;
 	return 0;
 }
 
+/* The new_channel is now freed. */
 static int alsa_hangup(struct ast_channel *c)
 {
 	int res;
-	cursound = -1;
+	chan_alsa_pvt_t *driver = (chan_alsa_pvt_t *)c->pvt->pvt;
+	
+	driver->cursound = -1;
+	driver->nosound = 0;
+        if (hookstate) {
+                hookstate = 0;
+        }
+	pthread_join(driver->sound_thread, NULL);
+/*	snd_pcm_drain(driver->capture_handle); */
+	driver->owner = NULL;
 	c->pvt->pvt = NULL;
-	alsa.owner = NULL;
 	ast_verbose( " << Hangup on console >> \n");
 	ast_mutex_lock(&usecnt_lock);
 	usecnt--;
 	ast_mutex_unlock(&usecnt_lock);
-	needhangup = 0;
-	needanswer = 0;
-	if (hookstate) {
-		res = 2;
-		write(sndcmd[1], &res, sizeof(res));
-	}
 	return 0;
 }
 
-#if 0
-static int soundcard_writeframe(short *data)
-{	
-	/* Write an exactly FRAME_SIZE sized of frame */
-	static int bufcnt = 0;
-	static short buffer[FRAME_SIZE * MAX_BUFFER_SIZE * 5];
-	struct audio_buf_info info;
-	int res;
-	int fd = sounddev;
-	static int warned=0;
-	if (ioctl(fd, SNDCTL_DSP_GETOSPACE, &info)) {
-		if (!warned)
-			ast_log(LOG_WARNING, "Error reading output space\n");
-		bufcnt = buffersize;
-		warned++;
-	}
-	if ((info.fragments >= buffersize * 5) && (bufcnt == buffersize)) {
-		/* We've run out of stuff, buffer again */
-		bufcnt = 0;
-	}
-	if (bufcnt == buffersize) {
-		/* Write sample immediately */
-		res = write(fd, ((void *)data), FRAME_SIZE * 2);
-	} else {
-		/* Copy the data into our buffer */
-		res = FRAME_SIZE * 2;
-		memcpy(buffer + (bufcnt * FRAME_SIZE), data, FRAME_SIZE * 2);
-		bufcnt++;
-		if (bufcnt == buffersize) {
-			res = write(fd, ((void *)buffer), FRAME_SIZE * 2 * buffersize);
-		}
-	}
-	return res;
-}
-#endif
-
 static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 {
+	chan_alsa_pvt_t *driver = (chan_alsa_pvt_t *)chan->pvt->pvt;
 	int res;
 	static char sizbuf[8000];
 	static int sizpos = 0;
 	int len = sizpos;
 	int pos;
-	//size_t frames = 0;
 	snd_pcm_state_t state;
-	/* Immediately return if no sound is enabled */
-	if (nosound)
-		return 0;
-	/* Stop any currently playing sound */
-	if (cursound != -1) {
-		snd_pcm_drop(alsa.ocard);
-		snd_pcm_prepare(alsa.ocard);
-		cursound = -1;
-	}
-	
+	snd_pcm_sframes_t delay = 0;
 
-	/* We have to digest the frame in 160-byte portions */
-	if (f->datalen > sizeof(sizbuf) - sizpos) {
-		ast_log(LOG_WARNING, "Frame too large\n");
-		return -1;
+	if (driver->nosound) {
+		return 0;
 	}
-	memcpy(sizbuf + sizpos, f->data, f->datalen);
-	len += f->datalen;
-	pos = 0;
-#ifdef ALSA_MONITOR
-	alsa_monitor_write(sizbuf, len);
-#endif
-	state = snd_pcm_state(alsa.ocard);
+	state = snd_pcm_state(driver->playback_handle);
 	if (state == SND_PCM_STATE_XRUN) {
-		snd_pcm_prepare(alsa.ocard);
+		snd_pcm_prepare(driver->playback_handle);
 	}
-	res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
+	res = snd_pcm_delay( driver->playback_handle, &delay );
+	if (delay > 4 * PERIOD_SIZE) {
+		return 0;
+	}
+	res = snd_pcm_writei(driver->playback_handle, f->data, f->samples);
 	if (res == -EPIPE) {
 #if DEBUG
 		ast_log(LOG_DEBUG, "XRUN write\n");
 #endif
-		snd_pcm_prepare(alsa.ocard);
-		res = snd_pcm_writei(alsa.ocard, sizbuf, len/2);
-		if (res != len/2) {
+		snd_pcm_prepare(driver->playback_handle);
+		res = snd_pcm_writei(driver->playback_handle, f->data, f->samples);
+		if (res != f->samples) {
 			ast_log(LOG_ERROR, "Write error: %s\n", snd_strerror(res));
 			return -1;
 		} else if (res < 0) {
@@ -641,21 +587,26 @@ static int alsa_write(struct ast_channel *chan, struct ast_frame *f)
 static struct ast_frame *alsa_read(struct ast_channel *chan)
 {
 	static struct ast_frame f;
-	static short __buf[FRAME_SIZE + AST_FRIENDLY_OFFSET/2];
+	static short __buf[PERIOD_SIZE + AST_FRIENDLY_OFFSET/2];
 	short *buf;
 	static int readpos = 0;
-	static int left = FRAME_SIZE;
+	static int left = PERIOD_SIZE;
 	int res;
 	int b;
 	int nonull=0;
 	snd_pcm_state_t state;
 	int r = 0;
 	int off = 0;
-
+	/* FIXME: This should never been called */
+        ast_log(LOG_WARNING, "ALSA_READ!!!!!\n");
+	return NULL;
+}
+#if 0
 	/* Acknowledge any pending cmd */
 	res = read(cmd[0], &b, sizeof(b));
 	if (res > 0)
 		nonull = 1;
+        ast_log(LOG_WARNING, "alsa: %s:%d\n", __FUNCTION__, __LINE__);
 	
 	f.frametype = AST_FRAME_NULL;
 	f.subclass = 0;
@@ -672,11 +623,13 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		needringing = 0;
 		return &f;
 	}
+        ast_log(LOG_WARNING, "alsa: %s:%d\n", __FUNCTION__, __LINE__);
 	
 	if (needhangup) {
 		needhangup = 0;
 		return NULL;
 	}
+        ast_log(LOG_WARNING, "alsa: %s:%d\n", __FUNCTION__, __LINE__);
 	if (strlen(text2send)) {
 		f.frametype = AST_FRAME_TEXT;
 		f.subclass = 0;
@@ -685,6 +638,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		strcpy(text2send,"");
 		return &f;
 	}
+        ast_log(LOG_WARNING, "alsa: %s:%d\n", __FUNCTION__, __LINE__);
 	if (strlen(digits)) {
 		f.frametype = AST_FRAME_DTMF;
 		f.subclass = digits[0];
@@ -693,6 +647,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		return &f;
 	}
 	
+        ast_log(LOG_WARNING, "alsa: %s:%d\n", __FUNCTION__, __LINE__);
 	if (needanswer) {
 		needanswer = 0;
 		f.frametype = AST_FRAME_CONTROL;
@@ -701,26 +656,29 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		return &f;
 	}
 	
+        ast_log(LOG_WARNING, "alsa: %s:%d\n", __FUNCTION__, __LINE__);
 	if (nonull)
 		return &f;
 		
+        ast_log(LOG_WARNING, "alsa: %s:%d\n", __FUNCTION__, __LINE__);
 	
-	state = snd_pcm_state(alsa.ocard);
+	state = snd_pcm_state(alsa.playback_handle);
 	if (state == SND_PCM_STATE_XRUN) {
-		snd_pcm_prepare(alsa.ocard);
+		snd_pcm_prepare(alsa.playback_handle);
 	}
+        ast_log(LOG_WARNING, "alsa: %s:%d\n", __FUNCTION__, __LINE__);
 
 	buf = __buf + AST_FRIENDLY_OFFSET/2;
 
-	r = snd_pcm_readi(alsa.icard, buf + readpos, left);
+	r = snd_pcm_readi(alsa.capture_handle, buf + readpos, left);
 	if (r == -EPIPE) {
 #if DEBUG
 		ast_log(LOG_ERROR, "XRUN read\n");
 #endif
-		snd_pcm_prepare(alsa.icard);
+		snd_pcm_prepare(alsa.capture_handle);
 	} else if (r == -ESTRPIPE) {
 		ast_log(LOG_ERROR, "-ESTRPIPE\n");
-		snd_pcm_prepare(alsa.icard);
+		snd_pcm_prepare(alsa.capture_handle);
 	} else if (r < 0) {
 		ast_log(LOG_ERROR, "Read error: %s\n", snd_strerror(r));
 		return NULL;
@@ -731,25 +689,22 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	readpos += r;
 	left -= r;
 
-	if (readpos >= FRAME_SIZE) {
+	if (readpos >= PERIOD_SIZE) {
 		/* A real frame */
 		readpos = 0;
-		left = FRAME_SIZE;
+		left = PERIOD_SIZE;
 		if (chan->_state != AST_STATE_UP) {
 			/* Don't transmit unless it's up */
 			return &f;
 		}
 		f.frametype = AST_FRAME_VOICE;
 		f.subclass = AST_FORMAT_SLINEAR;
-		f.samples = FRAME_SIZE;
-		f.datalen = FRAME_SIZE * 2;
+		f.samples = PERIOD_SIZE;
+		f.datalen = PERIOD_SIZE * 2;
 		f.data = buf;
 		f.offset = AST_FRIENDLY_OFFSET;
 		f.src = type;
 		f.mallocd = 0;
-#ifdef ALSA_MONITOR
-		alsa_monitor_read((char *)buf, FRAME_SIZE * 2);
-#endif		
 
 #if 0
 		{ static int fd = -1;
@@ -761,6 +716,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	}
 	return &f;
 }
+#endif
 
 static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, int needlock)
 {
@@ -771,6 +727,7 @@ static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan, 
 
 static int alsa_indicate(struct ast_channel *chan, int cond)
 {
+	chan_alsa_pvt_t *driver = (chan_alsa_pvt_t *)chan->pvt->pvt;
 	int res;
 	switch(cond) {
 	case AST_CONTROL_BUSY:
@@ -787,20 +744,25 @@ static int alsa_indicate(struct ast_channel *chan, int cond)
 		return -1;
 	}
 	if (res > -1) {
-		write(sndcmd[1], &res, sizeof(res));
+		driver->cursound = res;
+		driver->cursound_offset = 0;
+		driver->nosound = 1;
 	}
 	return 0;	
 }
 
+/* New channel is about to be used */
 static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 {
 	struct ast_channel *tmp;
+	snd_pcm_state_t alsa_state;
+	if (!p->capture_handle || !p->playback_handle) {
+		return 0;
+	}
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		snprintf(tmp->name, sizeof(tmp->name), "ALSA/%s", indevname);
 		tmp->type = type;
-		tmp->fds[0] = readdev;
-		tmp->fds[1] = cmd[0];
 		tmp->nativeformats = AST_FORMAT_SLINEAR;
 		tmp->pvt->pvt = p;
 		tmp->pvt->send_digit = alsa_digit;
@@ -819,6 +781,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		if (strlen(language))
 			strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		p->owner = tmp;
+		p->pfd = NULL;
 		ast_setstate(tmp, state);
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -830,6 +793,15 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 				ast_hangup(tmp);
 				tmp = NULL;
 			}
+		}
+		pthread_create(&p->sound_thread, NULL, sound_thread, (void *) p);
+		alsa_state = snd_pcm_state(p->capture_handle);
+		if (alsa_state == SND_PCM_STATE_XRUN) {
+			snd_pcm_prepare(p->capture_handle);
+		}
+		alsa_state = snd_pcm_state(p->capture_handle);
+		if (alsa_state == SND_PCM_STATE_PREPARED) {
+			snd_pcm_start(p->capture_handle);
 		}
 	}
 	return tmp;
@@ -899,6 +871,7 @@ static char autoanswer_usage[] =
 
 static int console_answer(int fd, int argc, char *argv[])
 {
+        struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
 	if (!alsa.owner) {
@@ -906,9 +879,8 @@ static int console_answer(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	}
 	hookstate = 1;
-	cursound = -1;
-	needanswer++;
-	answer_sound();
+	ast_queue_frame(alsa.owner, &f, 1);
+	answer_sound(&alsa);
 	return RESULT_SUCCESS;
 }
 
@@ -919,6 +891,7 @@ static char sendtext_usage[] =
 static int console_sendtext(int fd, int argc, char *argv[])
 {
 	int tmparg = 2;
+	struct ast_frame f = { 0, };
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
 	if (!alsa.owner) {
@@ -932,7 +905,13 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send));
 		strncat(text2send, " ", sizeof(text2send) - strlen(text2send));
 	}
-	needanswer++;
+       if (strlen(text2send)) {
+                f.frametype = AST_FRAME_TEXT;
+                f.subclass = 0;
+                f.data = text2send;
+                f.datalen = strlen(text2send);
+                ast_queue_frame(alsa.owner, &f, 1);
+        }
 	return RESULT_SUCCESS;
 }
 
@@ -944,7 +923,8 @@ static int console_hangup(int fd, int argc, char *argv[])
 {
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
-	cursound = -1;
+	alsa.cursound = -1;
+	alsa.nosound = 0;
 	if (!alsa.owner && !hookstate) {
 		ast_cli(fd, "No call to hangup up\n");
 		return RESULT_FAILURE;
@@ -966,13 +946,16 @@ static int console_dial(int fd, int argc, char *argv[])
 	char tmp[256], *tmp2;
 	char *mye, *myc;
 	int b = 0;
+	int x;
+	struct ast_frame f = { AST_FRAME_DTMF, 0 };
 	if ((argc != 1) && (argc != 2))
 		return RESULT_SHOWUSAGE;
 	if (alsa.owner) {
 		if (argc == 2) {
-			strncat(digits, argv[1], sizeof(digits) - strlen(digits));
-			/* Wake up the polling thread */
-			write(cmd[1], &b, sizeof(b));
+			for (x=0;x<strlen(argv[1]);x++) {
+                                f.subclass = argv[1][x];
+                                ast_queue_frame(alsa.owner, &f, 1);
+                        }
 		} else {
 			ast_cli(fd, "You're already in a call.  You can use this only to dial digits until you hangup\n");
 			return RESULT_FAILURE;
@@ -1022,8 +1005,10 @@ int load_module()
 	int flags;
 	struct ast_config *cfg;
 	struct ast_variable *v;
+#if 0
 	res = pipe(cmd);
 	res = pipe(sndcmd);
+	
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to create pipe\n");
 		return -1;
@@ -1032,16 +1017,7 @@ int load_module()
 	fcntl(cmd[0], F_SETFL, flags | O_NONBLOCK);
 	flags = fcntl(cmd[1], F_GETFL);
 	fcntl(cmd[1], F_SETFL, flags | O_NONBLOCK);
-	res = soundcard_init();
-	if (res < 0) {
-		close(cmd[1]);
-		close(cmd[0]);
-		if (option_verbose > 1) {
-			ast_verbose(VERBOSE_PREFIX_2 "No sound card detected -- console channel will be unavailable\n");
-			ast_verbose(VERBOSE_PREFIX_2 "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/asterisk/modules.conf\n");
-		}
-		return 0;
-	}
+#endif
 #if 0
 	if (!full_duplex)
 		ast_log(LOG_WARNING, "XXX I don't work right with non-full duplex sound cards XXX\n");
@@ -1068,20 +1044,24 @@ int load_module()
 				strncpy(language, v->value, sizeof(language)-1);
 			else if (!strcasecmp(v->name, "extension"))
 				strncpy(exten, v->value, sizeof(exten)-1);
-			else if (!strcasecmp(v->name, "input_device"))
+			else if (!strcasecmp(v->name, "input_device")) {
 				strncpy(indevname, v->value, sizeof(indevname)-1);
-			else if (!strcasecmp(v->name, "output_device"))
+			} else if (!strcasecmp(v->name, "output_device"))
 				strncpy(outdevname, v->value, sizeof(outdevname)-1);
 			v=v->next;
 		}
 		ast_destroy(cfg);
 	}
-	pthread_create(&sthread, NULL, sound_thread, NULL);
-#ifdef ALSA_MONITOR
-	if (alsa_monitor_start()) {
-		ast_log(LOG_ERROR, "Problem starting Monitoring\n");
+	res = soundcard_init();
+	if (res < 0) {
+		close(cmd[1]);
+		close(cmd[0]);
+		if (option_verbose > 1) {
+			ast_verbose(VERBOSE_PREFIX_2 "No sound card detected -- console channel will be unavailable\n");
+			ast_verbose(VERBOSE_PREFIX_2 "Turn off ALSA support by adding 'noload=chan_alsa.so' in /etc/asterisk/modules.conf\n");
+		}
+		return 0;
 	}
-#endif	 
 	return 0;
 }
 
@@ -1092,8 +1072,6 @@ int unload_module()
 	int x;
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_unregister(myclis + x);
-	close(readdev);
-	close(writedev);
 	if (cmd[0] > 0) {
 		close(cmd[0]);
 		close(cmd[1]);
@@ -1106,6 +1084,10 @@ int unload_module()
 		ast_softhangup(alsa.owner, AST_SOFTHANGUP_APPUNLOAD);
 	if (alsa.owner)
 		return -1;
+	if (alsa.capture_buf) {
+		free (alsa.capture_buf);
+		alsa.capture_buf=0;
+	}
 	return 0;
 }
 
