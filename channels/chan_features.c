@@ -381,7 +381,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		ast_log(LOG_WARNING, "Called upon channel with no subchan:(\n");
 		return NULL;
 	}
-	if (!p->subs[index].owner) {
+	if (p->subs[index].owner) {
 		ast_log(LOG_WARNING, "Called to put index %d already there!\n", index);
 		return NULL;
 	}
@@ -415,6 +415,8 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		tmp->pvt->indicate = features_indicate;
 		tmp->pvt->fixup = features_fixup;
 		p->subs[index].owner = tmp;
+		if (!p->owner)
+			p->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_mutex_unlock(&usecnt_lock);
