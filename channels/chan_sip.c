@@ -726,10 +726,6 @@ static int sip_hangup(struct ast_channel *ast)
 	ast->pvt->pvt = NULL;
 
 	p->needdestroy = 1;
-#if 0
-	/* Invert sense of outgoing */
-	p->outgoing = 1 - p->outgoing;
-#endif	
 	/* Start the process if it's not already started */
 	if (!p->alreadygone && strlen(p->initreq.data)) {
 		if (needcancel) {
@@ -739,10 +735,6 @@ static int sip_hangup(struct ast_channel *ast)
 			transmit_request(p, "BYE", 1);
 		}
 	}
-#if 0
-	/* Restore sense of outgoing */
-	p->outgoing = 1 - p->outgoing;
-#endif	
 	ast_pthread_mutex_unlock(&p->lock);
 	return 0;
 }

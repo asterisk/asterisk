@@ -22,6 +22,7 @@
 #include <string.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdio.h>
 #include "asterisk.h"
 
 #ifdef TRACE_FRAMES

@@ -1,0 +1,41 @@
+#This valgrind suppresion file is supposed to be working with
+#Red Hat Linux release 8.0 (Psyche)
+#You can use it by calling valgrind this way:
+#cd /usr/src/asterisk
+#valgrind --gdb-attach=yes --suppressions=valgrind-RedHat-8.0.supp asterisk -vvv
+
+{
+	library_1
+	PThread
+	fun:pthread_error
+	fun:__pthread_mutex_destroy
+	obj:/lib/i686/libc-2.2.93.so
+}
+
+{
+	library 2
+	Cond
+	fun:elf_dynamic_do_rel.7
+	fun:_dl_relocate_object_internal
+	obj:/lib/i686/libc-2.2.93.so
+	fun:_dl_catch_error_internal
+}
+
+#==21922== Thread 16:
+#==21922== Syscall param ioctl(generic) contains uninitialised or
+#unaddressable byte(s)
+#==21922==    at 0x420D3454: (within /lib/i686/libc-2.2.93.so)
+#==21922==    by 0x8058D45: ast_call (channel.c:1356)
+#==21922==    by 0x463027A7: ??? (app_dial.c:472)
+#==21922==    by 0x805E2AE: pbx_exec (pbx.c:318)
+#==21922==    Address 0x0 is not stack'd, malloc'd or free'd
+
+{
+	ioctl(........,NULL);
+	Param	
+	ioctl(generic)
+	obj:/lib/i686/libc-2.2.93.so
+	fun:ast_call
+	fun:
+	fun:pbx_exec
+}
