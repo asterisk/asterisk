@@ -2551,12 +2551,12 @@ static struct ast_channel *ast_iax2_new(struct chan_iax2_pvt *i, int state, int 
 
 static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, struct timeval *tv)
 {
-	long int mssincetx;
+	unsigned long int mssincetx; /* unsigned to handle overflows */
 	long int ms, pred;
 
 	tpeer->trunkact = *tv;
 	mssincetx = (tv->tv_sec - tpeer->lasttxtime.tv_sec) * 1000 + (tv->tv_usec - tpeer->lasttxtime.tv_usec) / 1000;
-	if (mssincetx > 5000) {
+	if (mssincetx > 5000 || (!tpeer->txtrunktime.tv_sec && !tpeer->txtrunktime.tv_usec)) {
 		/* If it's been at least 5 seconds since the last time we transmitted on this trunk, reset our timers */
 		tpeer->txtrunktime.tv_sec = tv->tv_sec;
 		tpeer->txtrunktime.tv_usec = tv->tv_usec;
