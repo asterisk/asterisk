@@ -94,8 +94,11 @@ int ast_say_number_full(struct ast_channel *chan, int num, char *ints, char *lan
 	if (0) {
 	/* XXX Only works for english XXX */
 	} else {
-		/* Use english numbers */
-		language = "en";
+		/* Use english numbers if a given language is supported. */
+		/* As a special case, Norwegian has the same numerical grammar
+		   as English */
+		if (strcasecmp(language, "no"))
+			language = "en";
 		while(!res && (num || playh)) {
 			if (playh) {
 				snprintf(fn, sizeof(fn), "digits/hundred");
