@@ -366,7 +366,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin, int lock)
 			CRASH;
 		} else {
 			ast_log(LOG_DEBUG, "Dropping voice to exceptionally long queue on %s\n", chan->name);
-			ast_frfree(fin);
+			ast_frfree(f);
 			if (lock)
 				ast_pthread_mutex_unlock(&chan->lock);
 			return 0;
