@@ -337,6 +337,16 @@ zapretry:
 	}
 	if (fd != chan->fds[0])
 		close(fd);
+	else {
+		/* Take out of conference */
+		/* Add us to the conference */
+		ztc.chan = 0;	
+		ztc.confno = 0;
+		ztc.confmode = 0;
+		if (ioctl(fd, ZT_SETCONF, &ztc)) {
+			ast_log(LOG_WARNING, "Error setting conference\n");
+		}
+	}
 
 	conf_play(conf, LEAVE);
 
@@ -410,7 +420,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 		cnt = conf->users;
 	else
 		cnt = 0;
-	if (chan->state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 	res = ast_say_number(chan, cnt, "", chan->language);
 	LOCAL_USER_REMOVE(u);
@@ -431,7 +441,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		data = "";
 	}
 	LOCAL_USER_ADD(u);
-	if (chan->state != AST_STATE_UP)
+	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 retry:
 	/* Parse out the stuff */
