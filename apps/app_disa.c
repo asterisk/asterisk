@@ -104,7 +104,7 @@ static void play_dialtone(struct ast_channel *chan)
 
 static int disa_exec(struct ast_channel *chan, void *data)
 {
-	int i,j,k,x;
+	int i,j,k,x,did_ignore;
 	struct localuser *u;
 	char tmp[256],arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
 	char *ourcontext,*ourcallerid;
@@ -152,6 +152,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ast_answer(chan);
 	}
 	i = k = x = 0; /* k is 0 for pswd entry, 1 for ext entry */
+	did_ignore = 0;
 	exten[0] = 0;
 	acctcode[0] = 0;
 	/* can we access DISA without password? */ 
@@ -276,10 +277,20 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					continue;
 				}
 			}
+
 			exten[i++] = j;  /* save digit */
 			exten[i] = 0;
 			if (!k) continue; /* if getting password, continue doing it */
 			  /* if this exists */
+
+			if (ast_ignore_pattern(ourcontext, exten)) {
+				play_dialtone(chan);
+				did_ignore = 1;
+			} else
+				if (did_ignore) {
+					ast_playtones_stop(chan);
+					did_ignore = 0;
+				}
 
 			  /* if can do some more, do it */
 			if (!ast_matchmore_extension(chan,ourcontext,exten,1, chan->callerid)) {
