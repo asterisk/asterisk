@@ -76,6 +76,7 @@ static char moh[80] = "default";
 static int capability = -1;
 
 static unsigned int group;
+static int autologoff;
 
 static int usecnt =0;
 static pthread_mutex_t usecnt_lock = AST_MUTEX_INITIALIZER;
@@ -88,6 +89,8 @@ static struct agent_pvt {
 	int dead;							/* Poised for destruction? */
 	int pending;						/* Not a real agent -- just pending a match */
 	int abouttograb;					/* About to grab */
+	int autologoff;					/* Auto timeout time */
+	time_t start;						/* When call started */
 	unsigned int group;					/* Group memberships */
 	int acknowledged;					/* Acknowledged */
 	char moh[80];						/* Which music on hold */
@@ -179,6 +182,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	strncpy(p->password, password ? password : "", sizeof(p->password) - 1);
 	strncpy(p->name, name ? name : "", sizeof(p->name) - 1);
 	strncpy(p->moh, moh, sizeof(p->moh) - 1);
+	p->autologoff = autologoff;
 	if (pending)
 		p->dead = 1;
 	else
@@ -318,6 +322,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_pthread_mutex_unlock(&p->lock);
 		return res;
 	} else if (strlen(p->loginchan)) {
+		time(&p->start);
 		/* Call on this agent */
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
@@ -363,10 +368,14 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 static int agent_hangup(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
+	int howlong = 0;
 	ast_pthread_mutex_lock(&p->lock);
 	p->owner = NULL;
 	ast->pvt->pvt = NULL;
 	p->app_sleep_cond = 1;
+	if (p->start && (ast->_state != AST_STATE_UP))
+		howlong = time(NULL) - p->start;
+	time(&p->start);
 	if (p->chan) {
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (strlen(p->loginchan)) {
@@ -374,6 +383,10 @@ static int agent_hangup(struct ast_channel *ast)
 				/* Recognize the hangup and pass it along immediately */
 				ast_hangup(p->chan);
 				p->chan = NULL;
+			}
+			if (howlong  && p->autologoff && (howlong > p->autologoff)) {
+				ast_log(LOG_NOTICE, "Agent '%s' didn't answer/confirm within %d seconds (waited %d)\n", p->name, p->autologoff, howlong);
+				strcpy(p->loginchan, "");
 			}
 		} else if (p->dead) {
 			ast_pthread_mutex_lock(&p->chan->lock);
@@ -538,6 +551,7 @@ static int read_agent_config(void)
 	struct ast_variable *v;
 	struct agent_pvt *p, *pl, *pn;
 	group = 0;
+	autologoff = 0;
 	cfg = ast_load(config);
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No agent configuration found -- agent support disabled\n");
@@ -557,6 +571,10 @@ static int read_agent_config(void)
 			add_agent(v->value, 0);
 		} else if (!strcasecmp(v->name, "group")) {
 			group = ast_get_group(v->value);
+		} else if (!strcasecmp(v->name, "autologoff")) {
+			autologoff = atoi(v->value);
+			if (autologoff < 0)
+				autologoff = 0;
 		} else if (!strcasecmp(v->name, "musiconhold")) {
 			strncpy(moh, v->value, sizeof(moh) - 1);
 		}
