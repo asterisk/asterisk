@@ -1256,8 +1256,8 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					char *pin, *pinadmin, *conf;
 
 					if ((pinadmin = ast_strdupa(var->value))) {
-						conf = strsep(&pinadmin, "|");
-						pin = strsep(&pinadmin, "|");
+						conf = strsep(&pinadmin, "|,");
+						pin = strsep(&pinadmin, "|,");
 						if (!strcasecmp(conf, confno)) {
 							/* Bingo it's a valid conference */
 							if (pin)
