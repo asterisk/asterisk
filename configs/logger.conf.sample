@@ -13,4 +13,5 @@
 ;
 ;debug => debug
 console => notice,warning,error
+;console => notice,warning,error,debug
 messages => notice,warning,error
