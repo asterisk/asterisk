@@ -272,9 +272,10 @@ static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p
 		return -1;
 	if (!ast->monitor) {
 		snprintf(filename, sizeof(filename), "agent-%s-%s",p->agent, ast->uniqueid);
-		snprintf(tmp, sizeof(tmp), "%s%s",savecallsin ? savecallsin : "", filename);
-		if ((pointer = strchr(tmp, '.')))
+		/* substitute . for - */
+		if ((pointer = strchr(filename, '.')))
 			*pointer = '-';
+		snprintf(tmp, sizeof(tmp), "%s%s",savecallsin ? savecallsin : "", filename);
 		ast_monitor_start(ast, recordformat, tmp, needlock);
 		ast_monitor_setjoinfiles(ast, 1);
 		snprintf(tmp2, sizeof(tmp2), "%s%s.%s", urlprefix ? urlprefix : "", filename, recordformatext);
@@ -1228,11 +1229,14 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								if (!strlen(p->loginchan))
 									filename = "agent-loggedoff";
 								p->acknowledged = 0;
-								/* clear the global variable that stores agentid based on the callerid */
+								/* store/clear the global variable that stores agentid based on the callerid */
 								if (chan->callerid) {
 									char agentvar[AST_MAX_BUF];
 									snprintf(agentvar, sizeof(agentvar), "%s_%s",GETAGENTBYCALLERID, chan->callerid);
-									pbx_builtin_setvar_helper(NULL, agentvar, NULL);
+									if (!strlen(p->loginchan))
+										pbx_builtin_setvar_helper(NULL, agentvar, NULL);
+									else
+										pbx_builtin_setvar_helper(NULL, agentvar, p->agent);
 								}
 							}
 						} else {
@@ -1274,12 +1278,6 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								res = ast_waitstream(chan, "");
 							if (!res)
 								res = ast_safe_sleep(chan, 1000);
-							/* store agent id based on the callerid as a global variable */
-							if (chan->callerid) {
-								char agentvar[AST_MAX_BUF];
-								snprintf(agentvar, sizeof(agentvar), "%s_%s",GETAGENTBYCALLERID, chan->callerid);
-								pbx_builtin_setvar_helper(NULL, agentvar, p->agent);
-							}
 							ast_mutex_unlock(&p->lock);
 						} else if (!res) {
 #ifdef HONOR_MUSIC_CLASS
