@@ -30,10 +30,55 @@
 #include <asterisk/options.h>
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
+#include <asterisk/indications.h>
 #include "asterisk.h"
 #include "astconf.h"
 
 #define MAX_OTHER_FORMATS 10
+
+
+int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
+{
+	struct tone_zone_sound *ts;
+	int res=0, x=0;
+
+	if(!timeout && chan->pbx)
+		timeout = chan->pbx->dtimeout;
+	else if(!timeout)
+		timeout = 5;
+	
+	ts = ast_get_indication_tone(chan->zone,"dial");
+    if (ts && ts->data[0]) {
+        res = ast_playtones_start(chan, 0, ts->data, 0);
+	} else 
+		ast_log(LOG_NOTICE,"Huh....? no dial for indications?\n");
+	
+	memset(collect, 0, size);
+	for (x=0; strlen(collect) < size; ) {
+		res = ast_waitfordigit(chan, timeout);
+		if (!ast_ignore_pattern(context, collect))
+			ast_playtones_stop(chan);
+		if (res < 1)
+			break;
+		collect[x++] = res;
+		if (!ast_matchmore_extension(chan, context, collect, 1, chan->cid.cid_num)) {
+			if (collect[x-1] == '#') {
+				/* Not a valid extension, ending in #, assume the # was to finish dialing */
+				collect[x-1] = '\0';
+			}
+			break;
+		}
+	}
+	if (res >= 0) {
+		if (ast_exists_extension(chan, context, collect, 1, chan->cid.cid_num))
+			res = 1;
+		else
+			res = 0;
+	}
+	return res;
+}
+
+
 
 /* set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
    "ludicrous time" (essentially never times out) */

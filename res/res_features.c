@@ -133,6 +133,54 @@ char *ast_pickup_ext(void)
 	return pickup_ext;
 }
 
+struct ast_bridge_thread_obj 
+{
+	struct ast_bridge_config bconfig;
+	struct ast_channel *chan;
+	struct ast_channel *peer;
+};
+
+static void *ast_bridge_call_thread(void *data) 
+{
+	struct ast_bridge_thread_obj *tobj = data;
+	tobj->chan->appl = "Transferred Call";
+	tobj->chan->data = tobj->peer->name;
+	tobj->peer->appl = "Transferred Call";
+	tobj->peer->data = tobj->chan->name;
+	if (tobj->chan->cdr) {
+		ast_cdr_reset(tobj->chan->cdr,0);
+		ast_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
+	}
+	if (tobj->peer->cdr) {
+		ast_cdr_reset(tobj->peer->cdr,0);
+		ast_cdr_setdestchan(tobj->peer->cdr, tobj->chan->name);
+	}
+
+
+	ast_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
+	ast_hangup(tobj->chan);
+	ast_hangup(tobj->peer);
+	tobj->chan = tobj->peer = NULL;
+	free(tobj);
+	tobj=NULL;
+	return NULL;
+}
+
+static void ast_bridge_call_thread_launch(void *data) 
+{
+	pthread_t thread;
+	pthread_attr_t attr;
+	int result;
+
+	result = pthread_attr_init(&attr);
+	pthread_attr_setschedpolicy(&attr, SCHED_RR);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	result = ast_pthread_create(&thread, &attr,ast_bridge_call_thread, data);
+	result = pthread_attr_destroy(&attr);
+}
+
+
+
 static int adsi_announce_park(struct ast_channel *chan, int parkingnum)
 {
 	int res;
@@ -311,6 +359,30 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 #define FEATURE_SENSE_PEER	(1 << 1)
 #define FEATURE_MAX_LEN		11
 
+static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+{
+	char *args;
+	if (option_verbose > 3)
+        ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call.\n", code);
+	if (monitor_ok) {
+		if (!monitor_app) { 
+			if (!(monitor_app = pbx_findapp("Monitor")))
+				monitor_ok=0;
+		}
+		/* Copy to local variable just in case one of the channels goes away */
+		args = pbx_builtin_getvar_helper(chan, "TOUCH_MONITOR");
+		if (!args)
+			args = pbx_builtin_getvar_helper(peer, "TOUCH_MONITOR");
+		if (!args)
+			args = "WAV||m";
+
+		pbx_exec(peer, monitor_app, args, 1);
+		return FEATURE_RETURN_SUCCESS;
+	}
+
+	return -1;
+}
+
 static int builtin_disconnect(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
 	if (option_verbose > 3)
@@ -369,18 +441,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 		ptr++;
 		len--;
 	}
-	res = 0;
-	while (strlen(newext) < sizeof(newext) - 1) {
-		res = ast_waitfordigit(transferer, transferdigittimeout);
-		if (res < 1) 
-			break;
-		if (res == '#')
-			break;
-		*(ptr++) = res;
-		if (!ast_matchmore_extension(transferer, transferer_real_context, newext, 1, transferer->cid.cid_num)) 
-			break;
-	}
 
+	res = ast_app_dtget(transferer, transferer_real_context, newext, sizeof(newext), 100, transferdigittimeout);
 	if (res < 0) {
 		ast_moh_stop(transferee);
 		ast_autoservice_stop(transferee);
@@ -447,6 +509,184 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 	return FEATURE_RETURN_SUCCESS;
 }
 
+static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+{
+	struct ast_channel *transferer;
+	struct ast_channel *transferee;
+	struct ast_channel *newchan, *xferchan=NULL;
+	int outstate=0;
+	struct ast_bridge_config bconfig;
+	char *transferer_real_context;
+	char xferto[256],dialstr[265];
+	char *cid_num;
+	char *cid_name;
+	int res;
+	struct ast_frame *f = NULL;
+	struct ast_bridge_thread_obj *tobj;
+
+	ast_log(LOG_DEBUG, "Executing Attended Transfer %s, %s (sense=%d) XXX\n", chan->name, peer->name, sense);
+	if (sense == FEATURE_SENSE_PEER) {
+		transferer = peer;
+		transferee = chan;
+	} else {
+		transferer = chan;
+		transferee = peer;
+	}
+	if (!(transferer_real_context=pbx_builtin_getvar_helper(transferee, "TRANSFER_CONTEXT")) &&
+	   !(transferer_real_context=pbx_builtin_getvar_helper(transferer, "TRANSFER_CONTEXT"))) {
+		/* Use the non-macro context to transfer the call */
+		if (!ast_strlen_zero(transferer->macrocontext))
+			transferer_real_context = transferer->macrocontext;
+		else
+			transferer_real_context = transferer->context;
+	}
+	/* Start autoservice on chan while we talk
+	   to the originator */
+	ast_autoservice_start(transferee);
+	ast_moh_start(transferee, NULL);
+
+	/* Transfer */
+	if ((res=ast_streamfile(transferer, "pbx-transfer", transferer->language))) {
+		ast_moh_stop(transferee);
+		ast_autoservice_stop(transferee);
+		return res;
+	}
+	if ((res=ast_waitstream(transferer, AST_DIGIT_ANY)) < 0) {
+		ast_moh_stop(transferee);
+		ast_autoservice_stop(transferee);
+		return res;
+	}
+	if((ast_app_dtget(transferer, transferer_real_context, xferto, sizeof(xferto), 100, transferdigittimeout))) {
+		cid_num = transferer->cid.cid_num;
+		cid_name = transferer->cid.cid_name;
+		if (ast_exists_extension(transferer, transferer_real_context,xferto, 1, cid_num)) {
+			snprintf(dialstr, sizeof(dialstr), "%s@%s/n", xferto, transferer_real_context);
+			if((newchan = ast_request_and_dial("Local", ast_best_codec(transferer->nativeformats), dialstr,30000, &outstate, cid_num, cid_name))) {
+				res = ast_channel_make_compatible(transferer, newchan);
+				if (res < 0) {
+					ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferer->name, newchan->name);
+					ast_hangup(newchan);
+					return -1;
+				}
+				memset(&bconfig,0,sizeof(struct ast_bridge_config));
+				bconfig.features_caller |= AST_FEATURE_DISCONNECT;
+				bconfig.features_callee |= AST_FEATURE_DISCONNECT;
+				res = ast_bridge_call(transferer,newchan,&bconfig);
+				if(newchan->_softhangup || newchan->_state != AST_STATE_UP) {
+					ast_hangup(newchan);
+					if (f) {
+						ast_frfree(f);
+						f = NULL;
+					}
+					if (!ast_streamfile(transferer, "beep", transferer->language)) {
+						if (ast_waitstream(transferer, "") < 0) {
+							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+						}
+					}
+					ast_moh_stop(transferee);
+					ast_autoservice_stop(transferee);
+					transferer->_softhangup = 0;
+					return FEATURE_RETURN_SUCCESS;
+				}
+				
+				res = ast_channel_make_compatible(transferee, newchan);
+				if (res < 0) {
+					ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferee->name, newchan->name);
+					ast_hangup(newchan);
+					return -1;
+				}
+				
+				
+				ast_moh_stop(transferee);
+				
+				if((ast_autoservice_stop(transferee) < 0)
+				   ||(ast_waitfordigit(transferee,100) < 0)
+				   || (ast_waitfordigit(newchan,100) < 0) 
+				   || ast_check_hangup(transferee) 
+				   || ast_check_hangup(newchan)) {
+					ast_hangup(newchan);
+					res = -1;
+					return -1;
+				}
+
+				if ((xferchan = ast_channel_alloc(0))) {
+					snprintf(xferchan->name, sizeof (xferchan->name), "Transfered/%s",transferee->name);
+					/* Make formats okay */
+					xferchan->readformat = transferee->readformat;
+					xferchan->writeformat = transferee->writeformat;
+					ast_channel_masquerade(xferchan, transferee);
+					ast_explicit_goto(xferchan, transferee->context, transferee->exten, transferee->priority);
+					xferchan->_state = AST_STATE_UP;
+					xferchan->flags = 0;
+					xferchan->_softhangup = 0;
+
+					if((f = ast_read(xferchan))) {
+						ast_frfree(f);
+						f = NULL;
+					}
+					
+				} else {
+					ast_hangup(newchan);
+					return -1;
+				}
+
+				newchan->_state = AST_STATE_UP;
+				newchan->flags = 0;
+				newchan->_softhangup = 0;
+
+				tobj = malloc(sizeof(struct ast_bridge_thread_obj));
+				if (tobj) {
+					memset(tobj,0,sizeof(struct ast_bridge_thread_obj));
+					tobj->chan = xferchan;
+					tobj->peer = newchan;
+					tobj->bconfig = *config;
+	
+					if (!ast_streamfile(newchan, "beep", newchan->language)) {
+						if (ast_waitstream(newchan, "") < 0) {
+							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+						}
+					}
+					ast_bridge_call_thread_launch(tobj);
+				} else {
+					ast_log(LOG_WARNING, "Out of memory!\n");
+					ast_hangup(xferchan);
+					ast_hangup(newchan);
+				}
+				return -1;
+				
+			} else {
+				ast_log(LOG_WARNING, "Unable to create channel Local/%s do you have chan_local?\n",dialstr);
+				ast_moh_stop(transferee);
+				ast_autoservice_stop(transferee);
+				res = ast_streamfile(transferer, "beeperr", transferer->language);
+				if (!res && (ast_waitstream(transferer, "") < 0)) {
+					return -1;
+				}
+				return -1;
+			}
+		} else {
+			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
+			ast_moh_stop(transferee);
+			ast_autoservice_stop(transferee);
+			res = ast_streamfile(transferer, "beeperr", transferer->language);
+			if (!res && (ast_waitstream(transferer, "") < 0)) {
+				return -1;
+			}
+		}
+	}  else {
+		ast_log(LOG_WARNING, "Did not read data.\n");
+		res = ast_streamfile(transferer, "beeperr", transferer->language);
+		if (ast_waitstream(transferer, "") < 0) {
+			return -1;
+		}
+	}
+	ast_moh_stop(transferee);
+	ast_autoservice_stop(transferee);
+
+
+	return FEATURE_RETURN_SUCCESS;
+}
+
 struct ast_call_feature {
 	int feature_mask;
 	char *fname;
@@ -457,10 +697,13 @@ struct ast_call_feature {
 	unsigned int flags;
 };
 
+/* add atxfer and automon as undefined so you can only use em if you configure them */
 #define FEATURES_COUNT (sizeof(builtin_features) / sizeof(builtin_features[0]))
 struct ast_call_feature builtin_features[] = 
 {
 	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF },
+	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF },
+	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF },
 	{ AST_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, AST_FEATURE_FLAG_NEEDSDTMF },
 };
 

@@ -17,5 +17,7 @@ context => parkedcalls		; Which context parked calls are in
 				; feature activation.  Default is 500
 
 [featuremap]
-;blindxfer => #			; Blind transfer
-;disconnect => *		; Disconnect
+;blindxfer => #1		; Blind transfer
+;disconnect => *0		; Disconnect
+;automon => *1			; One Touch Record
+;atxfer => *2			; Attended transfer

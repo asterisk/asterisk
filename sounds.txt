@@ -24,6 +24,8 @@
 
 %beep.gsm%(this is a simple beep tone)
 
+%beeperr.gsm%(this is an error beep tone)
+
 %conf-getconfno.gsm%Please enter your conference number followed by the pound key.
 
 %conf-getchannel.gsm%Please enter your channel number followed by the pound key.

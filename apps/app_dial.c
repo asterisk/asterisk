@@ -60,8 +60,10 @@ static char *descrip =
 "  This application returns -1 if the originating channel hangs up, or if the\n"
 "call is bridged and either of the parties in the bridge terminate the call.\n"
 "The option string may contain zero or more of the following characters:\n"
-"      't' -- allow the called user transfer the calling user by hitting #.\n"
+"      't' -- allow the called user to transfer the calling user by hitting #.\n"
 "      'T' -- allow the calling user to transfer the call by hitting #.\n"
+"      'w' -- allow the called user to write the conversation to disk via app_monitor\n"
+"      'W' -- allow the calling user to write the conversation to disk via app_monitor\n"
 "      'f' -- Forces callerid to be set as the extension of the line \n"
 "             making/redirecting the outgoing call. For example, some PSTNs\n"
 "             don't allow callerids from other extensions then the ones\n"
@@ -474,6 +476,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int to;
 	int allowredir_in=0;
 	int allowredir_out=0;
+	int monitor_in = 0;
+	int monitor_out = 0;
 	int allowdisconnect_in=0;
 	int allowdisconnect_out=0;
 	int hasmacro = 0;
@@ -789,21 +793,25 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		}
 		memset(tmp, 0, sizeof(struct localuser));
 		if (transfer) {
+			if (strchr(transfer, 'w'))
+				monitor_in = 1;
+			if (strchr(transfer, 'W'))
+				monitor_out = 1;
 			if (strchr(transfer, 't'))
 				tmp->allowredirect_in = 1;
-                        else    tmp->allowredirect_in = 0;
+			else    tmp->allowredirect_in = 0;
 			if (strchr(transfer, 'T'))
 				tmp->allowredirect_out = 1;
-                        else    tmp->allowredirect_out = 0;
+			else    tmp->allowredirect_out = 0;
 			if (strchr(transfer, 'r'))
 				tmp->ringbackonly = 1;
-                        else    tmp->ringbackonly = 0;
+			else    tmp->ringbackonly = 0;
 			if (strchr(transfer, 'm'))
 				tmp->musiconhold = 1;
-                        else    tmp->musiconhold = 0;
+			else    tmp->musiconhold = 0;
 			if (strchr(transfer, 'H'))
 				allowdisconnect_out = tmp->allowdisconnect_out = 1;
-                        else    allowdisconnect_out = tmp->allowdisconnect_out = 0;
+			else    allowdisconnect_out = tmp->allowdisconnect_out = 0;
 			if(strchr(transfer, 'h'))
 				allowdisconnect_in = tmp->allowdisconnect_in = 1;
 			else	allowdisconnect_in = tmp->allowdisconnect_in = 0;
@@ -1143,6 +1151,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				config.features_callee |= AST_FEATURE_REDIRECT;
 			if (allowredir_out)
 				config.features_caller |= AST_FEATURE_REDIRECT;
+			if (monitor_in)
+				config.features_callee |= AST_FEATURE_AUTOMON;
+			if (monitor_out)
+				config.features_caller |= AST_FEATURE_AUTOMON;
 			if (allowdisconnect_in)
 				config.features_callee |= AST_FEATURE_DISCONNECT;
 			if (allowdisconnect_out)

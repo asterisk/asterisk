@@ -236,6 +236,8 @@ struct ast_channel {
 #define AST_FEATURE_PLAY_WARNING	(1 << 0)
 #define AST_FEATURE_REDIRECT		(1 << 1)
 #define AST_FEATURE_DISCONNECT		(1 << 2)
+#define AST_FEATURE_ATXFER			(1 << 3)
+#define AST_FEATURE_AUTOMON			(1 << 4)
 
 #define AST_FEATURE_FLAG_NEEDSDTMF		(1 << 0)
 
