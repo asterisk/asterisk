@@ -1715,6 +1715,21 @@ static int init_req(struct sip_request *req, char *resp, char *recip)
 	return 0;
 }
 
+static void append_contact(struct sip_request *req, struct sip_pvt *p)
+{
+	/* Add contact header */
+	char contact2[256] ="", *c, contact[256];
+	char *from;
+	if (p->outgoing)
+		from = get_header(req, "From");
+	else
+		from = get_header(req, "To");
+	strncpy(contact2, from, sizeof(contact2)-1);
+	c = ditch_braces(contact2);
+	snprintf(contact, sizeof(contact), "<%s>", c);
+	add_header(req, "Contact", contact);
+}
+
 static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, struct sip_request *req)
 {
 	char newto[256] = "", *ot;
@@ -1723,6 +1738,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_via_headers(p, resp, req, "Via");
 	copy_header(resp, req, "From");
 	ot = get_header(req, "To");
+	append_contact(resp, p);
 	if (strlen(get_header(req, "Record-Route")))
 		copy_header(resp, req, "Record-Route");
 	if (!strstr(ot, "tag=")) {
@@ -1825,6 +1841,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int in
 		add_header(req, "From", ot);
 		add_header(req, "To", of);
 	}
+	append_contact(req, p);
 	copy_header(req, orig, "Call-ID");
 	add_header(req, "CSeq", tmp);
 
@@ -2029,23 +2046,10 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 static int transmit_reinvite_with_sdp(struct sip_pvt *p, struct ast_rtp *rtp)
 {
 	struct sip_request resp;
-	char *from;
 	if (p->canreinvite == REINVITE_UPDATE)
 		reqprep(&resp, p, "UPDATE", 1);
 	else
 		reqprep(&resp, p, "INVITE", 1);
-	if (p->outgoing)
-		from = get_header(&p->initreq, "From");
-	else
-		from = get_header(&p->initreq, "To");
-	{
-		/* Add contact header */
-		char contact2[256] ="", *c, contact[256];
-		strncpy(contact2, from, sizeof(contact2)-1);
-		c = ditch_braces(contact2);
-		snprintf(contact, sizeof(contact), "<%s>", c);
-		add_header(&resp, "Contact", contact);
-	}
 	add_sdp(&resp, p, rtp);
 	return send_request(p, &resp, 1, p->ocseq);
 }
