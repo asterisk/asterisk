@@ -2010,6 +2010,8 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* Signal any blocker */
 	if (original->blocking)
 		pthread_kill(original->blocker, SIGURG);
+	ast_log(LOG_DEBUG, "Done Masquerading %s (%d)\n",
+		original->name, original->_state);
 	return 0;
 }
 
@@ -2102,7 +2104,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 
 	for (/* ever */;;) {
 		/* Stop if we're a zombie or need a soft hangup */
-		if (c0->zombie || ast_check_hangup(c0) || c1->zombie || ast_check_hangup(c1)) {
+		if (c0->zombie || ast_check_hangup_locked(c0) || c1->zombie || ast_check_hangup_locked(c1)) {
 			*fo = NULL;
 			if (who) *rc = who;
 			res = 0;
