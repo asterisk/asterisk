@@ -1065,7 +1065,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
-			monitorfilename = pbx_builtin_getvar_helper( peer, "MONITOR_FILENAME");
+			monitorfilename = pbx_builtin_getvar_helper( qe->chan, "MONITOR_FILENAME");
 			if(monitorfilename) {
 				ast_monitor_start( peer, qe->parent->monfmt, monitorfilename, 1 );
 			} else {
