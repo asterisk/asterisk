@@ -44,6 +44,7 @@ context = default		; Default for incoming calls
 ;[cisco1]
 ;type=friend
 ;username=cisco1
+;fromuser=markster		; Specify user to put in "from" instead of callerid
 ;secret=blah
 ;host=dynamic
 ;defaultip=192.168.0.4

@@ -185,6 +185,7 @@ static struct sip_pvt {
 	char remote_party_id[256];
 	char context[AST_MAX_EXTENSION];
 	char fromdomain[AST_MAX_EXTENSION];	/* Domain to show in the from field */
+	char fromuser[AST_MAX_EXTENSION];	/* Domain to show in the user field */
 	char language[MAX_LANGUAGE];
 	char theirtag[256];				/* Their tag */
 	char username[81];
@@ -256,6 +257,7 @@ struct sip_peer {
 	char context[80];		/* JK02: peers need context too to allow parking etc */
 	char methods[80];
 	char username[80];
+	char fromuser[80];
 	char fromdomain[80];
 	char mailbox[AST_MAX_EXTENSION];
 	int lastmsgssent;
@@ -588,6 +590,8 @@ static int create_addr(struct sip_pvt *r, char *peer)
 			strncpy(r->username, p->username, sizeof(r->username)-1);
 			if (strlen(p->fromdomain))
 				strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
+			if (strlen(p->fromuser))
+				strncpy(r->fromuser, p->fromuser, sizeof(r->fromuser)-1);
 			r->insecure = p->insecure;
 			r->canreinvite = p->canreinvite;
 			r->maxtime = p->maxms;
@@ -2262,7 +2266,10 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	}
 	if (!n)
 		n = l;
-	if (ourport != 5060)
+	/* Allow user to be overridden */
+	if (strlen(p->fromuser))
+		l = p->fromuser;
+	if ((ourport != 5060) && !strlen(p->fromdomain))
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), p->tag);
@@ -4898,6 +4905,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
 			else if (!strcasecmp(v->name, "fromdomain"))
 				strncpy(peer->fromdomain, v->value, sizeof(peer->fromdomain)-1);
+			else if (!strcasecmp(v->name, "fromuser"))
+				strncpy(peer->fromuser, v->value, sizeof(peer->fromuser)-1);
             else if (!strcasecmp(v->name, "dtmfmode")) {
 				if (!strcasecmp(v->value, "inband"))
 					peer->dtmfmode=SIP_DTMF_INBAND;
