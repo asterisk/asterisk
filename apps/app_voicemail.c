@@ -589,6 +589,7 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 		char tmpin[AST_CONFIG_MAX_PATH];
 		char tmpout[AST_CONFIG_MAX_PATH];
 		char *user, *pass, *rest, *trim, *tempcontext;
+		struct stat statbuf;
 		tempcontext = NULL;
 		snprintf(tmpin, sizeof(tmpin), "%s/voicemail.conf", ast_config_AST_CONFIG_DIR);
 		snprintf(tmpout, sizeof(tmpout), "%s/voicemail.conf.new", ast_config_AST_CONFIG_DIR);
@@ -663,7 +664,7 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
 				
 				/* Compare user, pass AND context */
 				if (user && *user && !strcmp(user, vmu->mailbox) &&
-					 pass && *pass && !strcmp(pass, vmu->password) &&
+					 pass && !strcmp(pass, vmu->password) &&
 					 currcontext && *currcontext && !strcmp(currcontext, vmu->context)) {
 					/* This is the line */
 					if (rest) {
@@ -680,6 +681,9 @@ static void vm_change_password(struct ast_vm_user *vmu, char *newpassword)
         fclose(configin);
         fclose(configout);
 
+		stat((char *)tmpin, &statbuf);
+		chmod((char *)tmpout, statbuf.st_mode);
+		chown((char *)tmpout, statbuf.st_uid, statbuf.st_gid);
         unlink((char *)tmpin);
         rename((char *)tmpout,(char *)tmpin);
 	reset_user_pw(vmu->context, vmu->mailbox, newpassword);
