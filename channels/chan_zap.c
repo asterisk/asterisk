@@ -408,6 +408,8 @@ static struct zt_pvt {
 	int echotraining;
 	int echocanbridged;
 	int echocanon;
+	int echobreak;
+	char echorest[10];
 	int permcallwaiting;
 	int callwaitingcallerid;
 	int threewaycalling;
@@ -1497,7 +1499,14 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		if (p->sig == SIG_FEATB) {
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c + p->stripmsd);
 		} else 
-			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%s", c + p->stripmsd);
+			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c + p->stripmsd);
+		if (strlen(p->dop.dialstr) > 4) {
+			strcpy(p->echorest, "w");
+			strcpy(p->echorest + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
+			p->echobreak = 1;
+			p->dop.dialstr[strlen(p->dop.dialstr)-2] = '\0';
+		} else
+			p->echobreak = 0;
 		if (!res) {
 			if (ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop)) {
 				x = ZT_ONHOOK;
@@ -2713,16 +2722,24 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			if (!x) { /* if not still dialing in driver */
 				zt_enable_ec(p);
-				p->dialing = 0;
-				if (ast->_state == AST_STATE_DIALING) {
-					if (p->callprogress && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
-						ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
-					} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
-						ast_setstate(ast, AST_STATE_RINGING);
-					} else {
-						ast_setstate(ast, AST_STATE_UP);
-						p->subs[index].f.frametype = AST_FRAME_CONTROL;
-						p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+				zt_train_ec(p);
+				if (p->echobreak) {
+					strcpy(p->dop.dialstr, p->echorest);
+					p->dop.op = ZT_DIAL_OP_REPLACE;
+					res = ioctl(p->subs[SUB_REAL].zfd, ZT_DIAL, &p->dop);
+					p->echobreak = 0;
+				} else {
+					p->dialing = 0;
+					if (ast->_state == AST_STATE_DIALING) {
+						if (p->callprogress && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
+							ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
+						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
+							ast_setstate(ast, AST_STATE_RINGING);
+						} else {
+							ast_setstate(ast, AST_STATE_UP);
+							p->subs[index].f.frametype = AST_FRAME_CONTROL;
+							p->subs[index].f.subclass = AST_CONTROL_ANSWER;
+						}
 					}
 				}
 			}
