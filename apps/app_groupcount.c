@@ -68,7 +68,7 @@ static int group_get_count(char *group)
 		chan = ast_channel_walk(NULL);
 		while(chan) {
 			test = pbx_builtin_getvar_helper(chan, "GROUP");
-			if (!strcasecmp(test, group))
+			if (test && !strcasecmp(test, group))
 				count++;
 			chan = ast_channel_walk(chan);
 		}
