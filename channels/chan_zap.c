@@ -5349,7 +5349,7 @@ static void *pri_dchannel(void *vpri)
 	fd_set efds;
 	fd_set rfds;
 	int res;
-	int chan;
+	int chan = 0;
 	int x;
 	int haveidles;
 	int activeidles;
