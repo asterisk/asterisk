@@ -438,10 +438,12 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		p->app_sleep_cond = 0;
 		if( pthread_mutex_trylock(&p->app_lock) )
 		{
-			ast_queue_frame(p->chan, &null_frame, 1);
-			ast_pthread_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
-			ast_pthread_mutex_lock(&p->app_lock);
-			ast_pthread_mutex_lock(&p->lock);
+			if (p->chan) {
+				ast_queue_frame(p->chan, &null_frame, 1);
+				ast_pthread_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
+				ast_pthread_mutex_lock(&p->app_lock);
+				ast_pthread_mutex_lock(&p->lock);
+			}
 			if( !p->chan )
 			{
 				ast_log(LOG_WARNING, "Agent disconnected while we were connecting the call\n");
