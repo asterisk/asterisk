@@ -8457,6 +8457,49 @@ static int action_zapdialoffhook(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static int action_zapshowchannels(struct mansession *s, struct message *m)
+{
+	struct zt_pvt *tmp = NULL;
+	char *id = astman_get_header(m, "ActionID");
+	char idText[256] = "";
+
+	astman_send_ack(s, m, "Zapata channel status will follow");
+	if (id && !ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText) - 1, "ActionID: %s\r\n", id);
+
+	ast_mutex_lock(&iflock);
+	
+	tmp = iflist;
+	while (tmp) {
+		if (tmp->channel > 0) {
+			int alarm = get_alarms(tmp);
+		
+			ast_cli(s->fd,
+				"Event: ZapShowChannels\r\n"
+				"Channel: %d\r\n"
+				"Signalling: %s\r\n"
+				"Context: %s\r\n"
+				"Alarm: %s\r\n"
+				"%s"
+				"\r\n",
+				tmp->channel, sig2str(tmp->sig), tmp->context, 
+				alarm2str(alarm), idText);
+		} 
+
+		tmp = tmp->next;
+	}
+
+	ast_mutex_unlock(&iflock);
+	
+	ast_cli(s->fd, 
+		"Event: ZapShowChannelsComplete\r\n"
+		"%s"
+		"\r\n", 
+		idText);
+
+	return 0;
+}
+
 static int __unload_module(void)
 {
 	int x = 0;
@@ -8485,6 +8528,7 @@ static int __unload_module(void)
 	ast_manager_unregister( "ZapTransfer" );
 	ast_manager_unregister( "ZapDNDoff" );
 	ast_manager_unregister( "ZapDNDon" );
+	ast_manager_unregister("ZapShowChannels");
 	ast_unregister_application(app_callingpres);
 	ast_channel_unregister(typecompat);
 	ast_channel_unregister(type);
@@ -9262,6 +9306,7 @@ int load_module(void)
 	ast_manager_register( "ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
     ast_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
     ast_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
+	ast_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
 
 	return res;
 }
