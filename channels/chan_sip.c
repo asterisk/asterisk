@@ -692,6 +692,7 @@ static int retrans_pkt(void *data)
 				ast_mutex_lock(&pkt->owner->lock);
 			}
 			if (pkt->owner->owner) {
+				pkt->owner->alreadygone=1;
 				ast_queue_hangup(pkt->owner->owner);
 				ast_mutex_unlock(&pkt->owner->owner->lock);
 			} else {

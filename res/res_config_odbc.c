@@ -31,13 +31,28 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
+static void parseop(char *newp, int newplen, char **opo, const char *newparam)
+{
+	char *op;
+	strncpy(newp, newparam, newplen - 1);
+	op = strchr(newp, ' ');
+	if (op) {
+		*op = '\0';
+		op++;
+	} else
+		op = "=";
+	*opo = op;
+}
+
 static struct ast_variable *realtime_odbc(const char *database, const char *table, va_list ap)
 {
 	odbc_obj *obj;
 	SQLHSTMT stmt;
-	char sql[256];
+	char sql[1024];
 	char coltitle[256];
 	char rowdata[2048];
+	char newp[256];
+	char *op;
 	const char *newparam, *newval;
 	char *stringp;
 	char *chunk;
@@ -75,10 +90,11 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		return NULL;
 	}
 	newval = va_arg(aq, const char *);
-	
-	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s=?", table, newparam);
+	parseop(newp, sizeof(newp), &op, newparam);
+	snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE %s %s ?", table, newp, op);
 	while((newparam = va_arg(aq, const char *))) {
-		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s=?", newparam);
+		parseop(newp, sizeof(newp), &op, newparam);
+		snprintf(sql + strlen(sql), sizeof(sql) - strlen(sql), " AND %s %s ?", newparam, op);
 		newval = va_arg(aq, const char *);
 	}
 	va_end(aq);
