@@ -224,7 +224,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						}
 						if (o->chan->rdnis) 
 							free(o->chan->rdnis);
-						in->rdnis = strdup(in->exten);
+						if (strlen(in->macroexten))
+							o->chan->rdnis = strdup(in->macroexten);
+						else
+							o->chan->rdnis = strdup(in->exten);
 						if (ast_call(o->chan, tmpchan, 0)) {
 							ast_log(LOG_NOTICE, "Failed to dial on local channel for call forward to '%s'\n", tmpchan);
 							o->stillgoing = 0;
