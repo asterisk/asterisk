@@ -455,13 +455,19 @@ static int cfg_process(struct ast_config *tmp, struct ast_category **_tmpc, stru
 	int object;
 	/* Strip off lines using ; as comment */
 	c = strchr(buf, ';');
-	if (c) {
-		*c = '\0';
+	while (c) {
+		if ((c == buf) || (*(c-1) != '\\')) {
+			*c = '\0';
 #ifdef PRESERVE_COMMENTS
-		c++;
-		if (*c != '!')
-			com = build_comment(c);
+			c++;
+			if (*c != '!')
+				com = build_comment(c);
 #endif			
+		} else {
+			*(c-1) = ';';
+			memmove(c, c + 1, strlen(c + 1));
+		}
+		c = strchr(c + 1, ';');
 	}
 	cur = strip(buf);
 	if (!ast_strlen_zero(cur)) {
