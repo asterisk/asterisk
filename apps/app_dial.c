@@ -67,6 +67,7 @@ static char *descrip =
 "             that are assigned to you.\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm' -- provide hold music to the calling party until answered.\n"
+"      'h' -- allow callee to hang up by hitting *.\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'C' -- reset call detail record for this call.\n"
 "      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
@@ -108,7 +109,8 @@ struct localuser {
 	int allowredirect_out;
 	int ringbackonly;
 	int musiconhold;
-	int allowdisconnect;
+	int allowdisconnect_in;
+	int allowdisconnect_out;
 	int forcecallerid;
 	struct localuser *next;
 };
@@ -131,7 +133,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define AST_MAX_WATCHERS 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, int *sentringing, char *status, size_t statussize)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, int *sentringing, char *status, size_t statussize)
 {
 	struct localuser *o;
 	int found;
@@ -202,7 +204,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					peer = o->chan;
 					*allowredir_in = o->allowredirect_in;
 					*allowredir_out = o->allowredirect_out;
-					*allowdisconnect = o->allowdisconnect;
+					*allowdisconnect_in = o->allowdisconnect_in;
+					*allowdisconnect_out = o->allowdisconnect_out;
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				if (!ast_strlen_zero(o->chan->call_forward)) {
@@ -294,7 +297,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								peer = o->chan;
 								*allowredir_in = o->allowredirect_in;
 								*allowredir_out = o->allowredirect_out;
-								*allowdisconnect = o->allowdisconnect;
+								*allowdisconnect_in = o->allowdisconnect_in;
+								*allowdisconnect_out = o->allowdisconnect_out;
 							}
 							break;
 						case AST_CONTROL_BUSY:
@@ -379,7 +383,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				strncpy(status, "CANCEL", statussize - 1);
 				return NULL;
 			}
-			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect &&
+			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect_out &&
 				(f->subclass == '*')) {
 			    if (option_verbose > 3)
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
@@ -413,7 +417,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int to;
 	int allowredir_in=0;
 	int allowredir_out=0;
-	int allowdisconnect=0;
+	int allowdisconnect_in=0;
+	int allowdisconnect_out=0;
 	int privacy=0;
 	int announce=0;
 	int resetcdr=0;
@@ -683,8 +688,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				tmp->musiconhold = 1;
                         else    tmp->musiconhold = 0;
 			if (strchr(transfer, 'H'))
-				allowdisconnect = tmp->allowdisconnect = 1;
-                        else    allowdisconnect = tmp->allowdisconnect = 0;
+				allowdisconnect_out = tmp->allowdisconnect_out = 1;
+                        else    allowdisconnect_out = tmp->allowdisconnect_out = 0;
+			if(strchr(transfer, 'h'))
+				allowdisconnect_in = tmp->allowdisconnect_in = 1;
+			else	allowdisconnect_in = tmp->allowdisconnect_in = 0;
 			if(strchr(transfer, 'g'))
 				go_on=1;
 			if (strchr(transfer, 'f'))
@@ -843,7 +851,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		strncpy(status, "CHANUNAVAIL", sizeof(status) - 1);
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &sentringing, status, sizeof(status));
+	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &sentringing, status, sizeof(status));
 
 	if (!peer) {
 		if (to) 
@@ -913,7 +921,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			config.play_to_callee=play_to_callee;
 			config.allowredirect_in = allowredir_in;
 			config.allowredirect_out = allowredir_out;
-			config.allowdisconnect = allowdisconnect;
+			config.allowdisconnect_in = allowdisconnect_in;
+			config.allowdisconnect_out = allowdisconnect_out;
 			config.timelimit = timelimit;
 			config.play_warning = play_warning;
 			config.warning_freq = warning_freq;

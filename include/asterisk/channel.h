@@ -271,7 +271,8 @@ struct ast_bridge_config {
 	int play_to_callee;
 	int allowredirect_in;
 	int allowredirect_out;
-	int allowdisconnect;
+	int allowdisconnect_in;
+	int allowdisconnect_out;
 	long timelimit;
 	long play_warning;
 	long warning_freq;

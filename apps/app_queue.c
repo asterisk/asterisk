@@ -101,6 +101,7 @@ static char *descrip =
 "      't' -- allow the called user transfer the calling user\n"
 "      'T' -- to allow the calling user to transfer the call.\n"
 "      'd' -- data-quality (modem) call (minimum delay).\n"
+"      'h' -- allow callee to hang up by hitting *.\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'n' -- no retries on the timeout; will exit this application and go to the next step.\n"
 "      'r' -- ring instead of playing MOH\n"
@@ -149,7 +150,8 @@ struct localuser {
 	int ringbackonly;
 	int musiconhold;
 	int dataquality;
-	int allowdisconnect;
+	int allowdisconnect_in;
+	int allowdisconnect_out;
 	time_t lastcall;
 	struct member *member;
 	struct localuser *next;
@@ -703,7 +705,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 #define AST_MAX_WATCHERS 256
 
-static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, char *digit)
+static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, char *digit)
 {
 	char *queue = qe->parent->name;
 	struct localuser *o;
@@ -753,7 +755,8 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					peer = o;
 					*allowredir_in = o->allowredirect_in;
 					*allowredir_out = o->allowredirect_out;
-					*allowdisconnect = o->allowdisconnect;
+					*allowdisconnect_in = o->allowdisconnect_in;
+					*allowdisconnect_out = o->allowdisconnect_out;
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				f = ast_read(winner);
@@ -768,7 +771,8 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 								peer = o;
 								*allowredir_in = o->allowredirect_in;
 								*allowredir_out = o->allowredirect_out;
-								*allowdisconnect = o->allowdisconnect;
+								*allowdisconnect_in = o->allowdisconnect_out;
+								*allowdisconnect_out = o->allowdisconnect_out;
 							}
 							break;
 						case AST_CONTROL_BUSY:
@@ -836,7 +840,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 				*to=-1;
 				return NULL;
 			}
-			if (f && (f->frametype == AST_FRAME_DTMF) && allowdisconnect && (f->subclass == '*')) {
+			if (f && (f->frametype == AST_FRAME_DTMF) && allowdisconnect_out && (f->subclass == '*')) {
 			    if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
@@ -995,7 +999,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	int to;
 	int allowredir_in=0;
 	int allowredir_out=0;
-	int allowdisconnect=0;
+	int allowdisconnect_in=0;
+	int allowdisconnect_out=0;
 	char restofit[AST_MAX_EXTENSION];
 	char oldexten[AST_MAX_EXTENSION]="";
 	char oldcontext[AST_MAX_EXTENSION]="";
@@ -1046,8 +1051,10 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 				tmp->musiconhold = 1;
 			if (strchr(options, 'd'))
 				tmp->dataquality = 1;
+			if (strchr(options, 'h'))
+				tmp->allowdisconnect_in = 1;
 			if (strchr(options, 'H'))
-				tmp->allowdisconnect = 1;
+				tmp->allowdisconnect_out = 1;
 			if ((strchr(options, 'n')) && (now - qe->start >= qe->parent->timeout))
 				*go_on = 1;
 		}
@@ -1089,7 +1096,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		to = -1;
 	ring_one(qe, outgoing);
 	ast_mutex_unlock(&qe->parent->lock);
-	lpeer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &digit);
+	lpeer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &digit);
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
 		store_next(qe, outgoing);
@@ -1194,7 +1201,8 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		memset(&config,0,sizeof(struct ast_bridge_config));
         config.allowredirect_in = allowredir_in;
         config.allowredirect_out = allowredir_out;
-        config.allowdisconnect = allowdisconnect;
+        config.allowdisconnect_in = allowdisconnect_in;
+	config.allowdisconnect_out = allowdisconnect_out;
         bridge = ast_bridge_call(qe->chan,peer,&config);
 
 		if (strcasecmp(oldcontext, qe->chan->context) || strcasecmp(oldexten, qe->chan->exten)) {

@@ -226,9 +226,10 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
 	char *transferer_real_context;
-	int allowdisconnect,allowredirect_in,allowredirect_out;
+	int allowdisconnect_in,allowdisconnect_out,allowredirect_in,allowredirect_out;
 
-	allowdisconnect = config->allowdisconnect;
+	allowdisconnect_in = config->allowdisconnect_in;
+	allowdisconnect_out = config->allowdisconnect_out;
 	allowredirect_in = config->allowredirect_in;
 	allowredirect_out = config->allowredirect_out;
 
@@ -283,14 +284,16 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					ast_channel_setoption(chan, ntohs(aoh->option), aoh->data, f->datalen - sizeof(struct ast_option_header), 0);
 			}
 		}
-            if (f && (f->frametype == AST_FRAME_DTMF) && (who == chan) && allowdisconnect &&
-		     (f->subclass == '*')) {
-		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
+		/* check for '*', if we find it it's time to disconnect */
+		if (f && (f->frametype == AST_FRAME_DTMF) &&
+			(((who == chan) && allowdisconnect_out) || ((who == peer) && allowdisconnect_in)) &&
+			(f->subclass == '*')) {
+			
+			if (option_verbose > 3)
+				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 			res = -1;
 			break;
-
-			}
+		}
 
 		if ((f->frametype == AST_FRAME_DTMF) &&
 			((allowredirect_in && who == peer) || (allowredirect_out && who == chan)) &&
@@ -586,7 +589,8 @@ static int park_exec(struct ast_channel *chan, void *data)
 		memset(&config,0,sizeof(struct ast_bridge_config));
 		config.allowredirect_in = 1;
 		config.allowredirect_out = 1;
-		config.allowdisconnect = 0;
+		config.allowdisconnect_out = 0;
+		config.allowdisconnect_in = 0;
 		config.timelimit = 0;
 		config.play_warning = 0;
 		config.warning_freq = 0;
