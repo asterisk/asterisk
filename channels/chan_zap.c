@@ -3132,6 +3132,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						p->callwaitingrepeat = 0;
 						p->cidcwexpire = 0;
 						p->owner = NULL;
+						/* Don't start streaming audio yet if the incoming call isn't up yet */
+						if (p->subs[SUB_REAL].owner->_state != AST_STATE_UP)
+							p->dialing = 1;
 						zt_ring_phone(p);
 					} else if (p->subs[SUB_THREEWAY].owner) {
 						struct timeval tv;
@@ -3619,6 +3622,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 			zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 			if (p->owner && (p->owner->_state == AST_STATE_RINGING)) {
 				p->subs[SUB_REAL].needanswer = 1;
+				p->dialing = 0;
 			}
 			break;
 		case ZT_EVENT_HOOKCOMPLETE:
@@ -3976,17 +3980,11 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 		} else
 			zt_confmute(p, 0);
 	}
-#if 0
-	if (f->frametype == AST_FRAME_VOICE && (ast->_state == AST_STATE_UP)) {
-		p->subs[index].f.frametype = AST_FRAME_NULL;
-		p->subs[index].f.subclass = 0;
-		f = &p->subs[index].f;
-	}
-#endif	
+
 	/* If we have a fake_event, trigger exception to handle it */
 	if (p->fake_event)
 		ast->exception = 1;
-	
+
 	ast_mutex_unlock(&p->lock);
 	return f;
 }
@@ -8011,6 +8009,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "File Descriptor: %d\n", tmp->subs[SUB_REAL].zfd);
 			ast_cli(fd, "Span: %d\n", tmp->span);
 			ast_cli(fd, "Extension: %s\n", tmp->exten);
+			ast_cli(fd, "Dialing: %s\n", tmp->dialing ? "yes" : "no");
 			ast_cli(fd, "Context: %s\n", tmp->context);
 			ast_cli(fd, "Caller ID string: %s\n", tmp->callerid);
 			ast_cli(fd, "Destroy: %d\n", tmp->destroy);
