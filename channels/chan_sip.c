@@ -877,6 +877,7 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 				numfields = mysql_num_fields(result);
 				fields = mysql_fetch_fields(result);
 				success = 1;
+				p->addr.sin_family = AF_INET;
 				for (x=0;x<numfields;x++) {
 					if (rowval[x]) {
 						if (!strcasecmp(fields[x].name, "secret")) {

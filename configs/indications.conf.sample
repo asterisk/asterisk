@@ -8,7 +8,7 @@
 ; Please note that there are NOT spaces allowed in lists!
 ;
 [general]
-country=us
+country=tw
 
 ; [example]
 ; description = string
@@ -45,6 +45,33 @@ country=us
 ; In tech-talk:
 ;   tonelist = element[,element]*
 ;   element = [!]freq[+freq2][/duration]
+
+[tw]
+; 參考資料 :
+; http://nemesis.lonestar.org/reference/telecom/signaling/dialtone.html
+; http://nemesis.lonestar.org/reference/telecom/signaling/busy.html
+; http://www.iproducts.com.tw/ee/kylink/06ky-1000a.htm
+; http://www.pbx-manufacturer.com/ky120dx.htm
+; http://www.nettwerked.net/tones.txt
+; http://www.cisco.com/univercd/cc/td/doc/product/tel_pswt/vco_prod/taiw_sup/taiw2.htm
+;
+; 詢問中華電信後得到的回覆 :
+; dial tone 350+440Hz continuous
+; busy tone 480+620Hz 0.5 sec. on ,0.5 sec. off
+; reorder tone 480+620Hz 0.25 sec. on,0.25 sec. off
+; ringing tone 440+480Hz 1 sec. on ,2 sec. off
+;
+description = Taiwan
+alias = tw
+ringcadance = 1000,4000
+dial = 350+440
+busy = 480+620/500,0/500
+ring = 440+480/1000,0/2000
+congestion = 480+620/250,0/250
+callwaiting = 350+440/250,0/250,350+440/250,0/3250
+dialrecall = 300/1500,0/500
+record = 1400/500,0/15000
+info = !950/330,!1400/330,!1800/330,0
 
 [us]
 description = United States / North America
