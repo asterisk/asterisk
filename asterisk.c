@@ -1404,6 +1404,8 @@ static void ast_remotecontrol(char * data)
 		pid = -1;
 	snprintf(tmp, sizeof(tmp), "set verbose atleast %d", option_verbose);
 	fdprint(ast_consock, tmp);
+	snprintf(tmp, sizeof(tmp), "set debug atleast %d", option_debug);
+	fdprint(ast_consock, tmp);
 	ast_verbose("Connected to Asterisk %s currently running on %s (pid = %d)\n", version, hostname, pid);
 	remotehostname = hostname;
 	if (getenv("HOME")) 

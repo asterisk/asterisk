@@ -89,7 +89,14 @@ static char reload_help[] =
 static char set_verbose_help[] = 
 "Usage: set verbose <level>\n"
 "       Sets level of verbose messages to be displayed.  0 means\n"
-"       no messages should be displayed.\n";
+"       no messages should be displayed. Equivalent to -v[v[v...]]\n"
+"       on startup\n";
+
+static char set_debug_help[] = 
+"Usage: set debug <level>\n"
+"       Sets level of core debug messages to be displayed.  0 means\n"
+"       no messages should be displayed. Equivalent to -d[d[d...]]\n"
+"       on startup.\n";
 
 static char softhangup_help[] =
 "Usage: soft hangup <channel>\n"
@@ -122,12 +129,14 @@ static int handle_reload(int fd, int argc, char *argv[])
 
 static int handle_set_verbose(int fd, int argc, char *argv[])
 {
-	int val;
+	int val = 0;
+	int oldval = 0;
 	/* Has a hidden 'at least' argument */
 	if ((argc != 3) && (argc != 4))
 		return RESULT_SHOWUSAGE;
 	if ((argc == 4) && strcasecmp(argv[2], "atleast"))
 		return RESULT_SHOWUSAGE;
+	oldval = option_verbose;
 	if (argc == 3)
 		option_verbose = atoi(argv[2]);
 	else {
@@ -135,6 +144,38 @@ static int handle_set_verbose(int fd, int argc, char *argv[])
 		if (val > option_verbose)
 			option_verbose = val;
 	}
+	if (oldval != option_verbose && option_verbose > 0)
+		ast_cli(fd, "Verbosity was %d and is now %d\n", oldval, option_verbose);
+	else if (oldval > 0 && option_verbose > 0)
+		ast_cli(fd, "Verbosity is atleast %d\n", option_verbose);
+	else if (oldval > 0 && option_debug == 0)
+		ast_cli(fd, "Verbosity is now OFF\n");
+	return RESULT_SUCCESS;
+}
+
+static int handle_set_debug(int fd, int argc, char *argv[])
+{
+	int val = 0;
+	int oldval = 0;
+	/* Has a hidden 'at least' argument */
+	if ((argc != 3) && (argc != 4))
+		return RESULT_SHOWUSAGE;
+	if ((argc == 4) && strcasecmp(argv[2], "atleast"))
+		return RESULT_SHOWUSAGE;
+	oldval = option_debug;
+	if (argc == 3)
+		option_debug = atoi(argv[2]);
+	else {
+		val = atoi(argv[3]);
+		if (val > option_debug)
+			option_debug = val;
+	}
+	if (oldval != option_debug && option_debug > 0)
+		ast_cli(fd, "Core debug was %d and is now %d\n", oldval, option_debug);
+	else if (oldval > 0 && option_debug > 0)
+		ast_cli(fd, "Core debug is atleast %d\n", option_debug);
+	else if (oldval > 0 && option_debug == 0)
+		ast_cli(fd, "Core debug is now OFF\n");
 	return RESULT_SUCCESS;
 }
 
@@ -652,6 +693,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
 	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch_4 },
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help },
+	{ { "set", "debug", NULL }, handle_set_debug, "Set level of debug chattiness", set_debug_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
 	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch_3 },
