@@ -5731,7 +5731,7 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Username", "incoming", "Limit","outgoing","Limit");
-	ASTOBJ_CONTAINER_TRAVERSE(&userl, do {
+	ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		if (iterator->incominglimit)
 			snprintf(ilimits, sizeof(ilimits), "%d", iterator->incominglimit);
@@ -5774,7 +5774,7 @@ static int sip_show_users(int fd, int argc, char *argv[])
 	if (argc != 3) 
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
-	ASTOBJ_CONTAINER_TRAVERSE(&userl, do {
+	ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		ast_cli(fd, FORMAT, iterator->name, 
 			iterator->secret, 
@@ -5805,7 +5805,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Mask", "Port", "Status");
 	
-	ASTOBJ_CONTAINER_TRAVERSE(&peerl, do {
+	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		char nm[20] = "";
 		char status[20] = "";
 		int print_line = -1;
@@ -6029,7 +6029,7 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT2, "Host", "Username", "Refresh", "State");
-	ASTOBJ_CONTAINER_TRAVERSE(&regl, do {
+	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
 		snprintf(host, sizeof(host), "%s:%d", iterator->hostname, iterator->portno ? iterator->portno : DEFAULT_SIP_PORT);
 		ast_cli(fd, FORMAT, host, iterator->username, iterator->refresh, regstate2str(iterator->regstate));
@@ -8083,12 +8083,12 @@ restartsearch:
 		time(&t);
 		fastrestart = 0;
 		curpeernum = 0;
-		ASTOBJ_CONTAINER_TRAVERSE(&peerl, do {
+		peer = NULL;
+		ASTOBJ_CONTAINER_TRAVERSE(&peerl, !peer, do {
 			if ((curpeernum > lastpeernum) && !ast_strlen_zero(iterator->mailbox) && ((t - iterator->lastmsgcheck) > global_mwitime)) {
 				fastrestart = 1;
 				lastpeernum = curpeernum;
 				peer = ASTOBJ_REF(iterator);
-				break;
 			};
 			curpeernum++;
 		} while (0)
@@ -9313,7 +9313,7 @@ static void prune_peers(void)
 /*--- sip_poke_all_peers: Send a poke to all known peers */
 static void sip_poke_all_peers(void)
 {
-	ASTOBJ_CONTAINER_TRAVERSE(&peerl, do {
+	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
 		sip_poke_peer(iterator);
 		ASTOBJ_UNLOCK(iterator);
@@ -9324,7 +9324,7 @@ static void sip_poke_all_peers(void)
 /*--- sip_send_all_registers: Send all known registrations */
 static void sip_send_all_registers(void)
 {
-	ASTOBJ_CONTAINER_TRAVERSE(&regl, do {
+	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
 		__sip_do_register(iterator);
 		ASTOBJ_UNLOCK(iterator);

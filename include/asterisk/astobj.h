@@ -148,13 +148,13 @@ extern "C" {
 		ast_mutex_destroy(&(container)->_lock); \
 	} while(0)
 
-#define ASTOBJ_CONTAINER_TRAVERSE(container,eval) \
+#define ASTOBJ_CONTAINER_TRAVERSE(container,continue,eval) \
 	do { \
 		typeof((container)->head) iterator; \
 		typeof((container)->head) next; \
 		ASTOBJ_CONTAINER_RDLOCK(container); \
 		next = (container)->head; \
-		while((iterator = next)) { \
+		while((continue) && (iterator = next)) { \
 			next = iterator->next[0]; \
 			eval; \
 		} \
@@ -164,14 +164,12 @@ extern "C" {
 #define ASTOBJ_CONTAINER_FIND_FULL(container,data,field,hashfunc,hashoffset,comparefunc) \
 	({ \
 		typeof((container)->head) found = NULL; \
-		ASTOBJ_CONTAINER_TRAVERSE(container, do { \
+		ASTOBJ_CONTAINER_TRAVERSE(container, !found, do { \
 			ASTOBJ_RDLOCK(iterator); \
 			if (!(comparefunc(iterator->field, (data)))) { \
 				found = ASTOBJ_REF(iterator); \
 			} \
 			ASTOBJ_UNLOCK(iterator); \
-			if (found) \
-				break; \
 		} while (0)); \
 		found; \
 	})
@@ -192,7 +190,7 @@ extern "C" {
 	({ \
 		typeof((container)->head) found = NULL; \
 		typeof((container)->head) prev = NULL; \
-		ASTOBJ_CONTAINER_TRAVERSE(container, do { \
+		ASTOBJ_CONTAINER_TRAVERSE(container, !found, do { \
 			ASTOBJ_RDLOCK(iterator); \
 			if (!(comparefunc(iterator->field, (data)))) { \
 				found = iterator; \
@@ -204,8 +202,6 @@ extern "C" {
 				ASTOBJ_CONTAINER_UNLOCK(container); \
 			} \
 			ASTOBJ_UNLOCK(iterator); \
-			if (found) \
-				break; \
 			prev = iterator; \
 		} while (0)); \
 		found; \
@@ -214,7 +210,7 @@ extern "C" {
 #define ASTOBJ_CONTAINER_PRUNE_MARKED(container,destructor) \
 	do { \
 		typeof((container)->head) prev = NULL; \
-		ASTOBJ_CONTAINER_TRAVERSE(container, do { \
+		ASTOBJ_CONTAINER_TRAVERSE(container, 1, do { \
 			ASTOBJ_RDLOCK(iterator); \
 			if (iterator->objflags & ASTOBJ_FLAG_MARKED) { \
 				ASTOBJ_CONTAINER_WRLOCK(container); \
@@ -266,16 +262,16 @@ extern "C" {
 	ASTOBJ_CONTAINER_LINK_FULL(container,newobj,(newobj)->name,name,ASTOBJ_DEFAULT_HASH,0,strcasecmp)
 
 #define ASTOBJ_CONTAINER_MARKALL(container) \
-	ASTOBJ_CONTAINER_TRAVERSE(container,ASTOBJ_MARK(iterator))
+	ASTOBJ_CONTAINER_TRAVERSE(container, 1, ASTOBJ_MARK(iterator))
 
 #define ASTOBJ_CONTAINER_UNMARKALL(container) \
-	ASTOBJ_CONTAINER_TRAVERSE(container,ASTOBJ_UNMARK(iterator))
+	ASTOBJ_CONTAINER_TRAVERSE(container, 1, ASTOBJ_UNMARK(iterator))
 
 #define ASTOBJ_DUMP(s,slen,obj) \
 	snprintf((s),(slen),"name: %s\nobjflags: %d\nrefcount: %d\n\n", (obj)->name, (obj)->objflags, (obj)->refcount);
 
 #define ASTOBJ_CONTAINER_DUMP(fd,s,slen,container) \
-	ASTOBJ_CONTAINER_TRAVERSE(container,do { ASTOBJ_DUMP(s,slen,iterator); ast_cli(fd, s); } while(0))
+	ASTOBJ_CONTAINER_TRAVERSE(container, 1, do { ASTOBJ_DUMP(s,slen,iterator); ast_cli(fd, s); } while(0))
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
