@@ -7022,8 +7022,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					}
 					if (found)
 						transmit_response(p, "200 OK", req);
-					else
+					else {
 						transmit_response(p, "403 Forbidden", req);
+						p->needdestroy = 1;
+					}
 					
 				} else
 				    p->subscribed = 1;
