@@ -3326,7 +3326,7 @@ static char *get_calleridname(char *input,char *output)
 {
 	char *end = strchr(input,'<');
 	char *tmp = strchr(input,'\"');
-	if (!end) return NULL;
+	if (!end || (end == input)) return NULL;
 	/* move away from "<" */
 	end--;
 	/* we found "name" */
@@ -3342,7 +3342,10 @@ static char *get_calleridname(char *input,char *output)
 		/* clear the empty characters in the end */
 		while(*end && (*end < 33) && end > input)
 			end--;
-		strncpy(output,input,(int)(end-input));
+		if (end > input)
+			strncpy(output,input,(int)(end-input));
+		else
+			output = NULL;
 	}
 	return output;
 }
