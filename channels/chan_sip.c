@@ -98,10 +98,6 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #define CALLERID_UNKNOWN	"Unknown"
 
-/* --- Choices for DTMF support in SIP channel */
-#define SIP_DTMF_RFC2833	(1 << 0)	/* RTP DTMF */
-#define SIP_DTMF_INBAND		(1 << 1)	/* Inband audio, only for ULAW/ALAW */
-#define SIP_DTMF_INFO		(1 << 2)	/* SIP Info messages */
 
 
 #define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
@@ -154,8 +150,6 @@ static int global_rtptimeout = 0;
 
 static int global_rtpholdtimeout = 0;
 
-static int global_progressinband = 0;
-
 static int global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 
 /* Object counters */
@@ -165,10 +159,6 @@ static int speerobjs = 0;
 static int rpeerobjs = 0;
 static int apeerobjs = 0;
 static int regobjs = 0;
-
-#ifdef OSP_SUPPORT
-static int global_ospauth = 0;		/* OSP = Open Settlement Protocol */
-#endif
 
 #define DEFAULT_MWITIME 10
 static int global_mwitime = DEFAULT_MWITIME;	/* Time between MWI checks for peers */
@@ -210,7 +200,6 @@ static int videosupport = 0;
 
 static int compactheaders = 0; 						/* send compact sip headers */
 
-static int global_dtmfmode = SIP_DTMF_RFC2833;		/* DTMF mode default */
 static int recordhistory = 0;				/* Record SIP history. Off by default */
 
 static char global_musicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
@@ -265,7 +254,7 @@ struct sip_history {
 #define SIP_NEEDDESTROY		(1 << 1)	/* if we need to be destroyed */
 #define SIP_NOVIDEO		(1 << 2)	/* Didn't get video in invite, don't offer */
 #define SIP_RINGING		(1 << 3)	/* Have sent 180 ringing */
-#define SIP_PROGRESS		(1 << 4)	/* Have sent 183 message progress */
+#define SIP_PROGRESS_SENT		(1 << 4)	/* Have sent 183 message progress */
 #define SIP_NEEDREINVITE	(1 << 5)	/* Do we need to send another reinvite? */
 #define SIP_PENDINGBYE		(1 << 6)	/* Need to send bye after we ack? */
 #define SIP_GOTREFER		(1 << 7)	/* Got a refer? */
@@ -277,6 +266,36 @@ struct sip_history {
 #define SIP_OUTGOING		(1 << 13)	/* Is this an outgoing call? */
 #define SIP_SELFDESTRUCT	(1 << 14)	
 #define SIP_DYNAMIC		(1 << 15)	/* Is this a dynamic peer? */
+/* --- Choices for DTMF support in SIP channel */
+#define SIP_DTMF		(3 << 16)	/* three settings, uses two bits */
+#define SIP_DTMF_RFC2833	(0 << 16)	/* RTP DTMF */
+#define SIP_DTMF_INBAND		(1 << 16)	/* Inband audio, only for ULAW/ALAW */
+#define SIP_DTMF_INFO		(2 << 16)	/* SIP Info messages */
+/* NAT settings */
+#define SIP_NAT			(3 << 18)	/* four settings, uses two bits */
+#define SIP_NAT_NEVER		(0 << 18)	/* No nat support */
+#define SIP_NAT_RFC3581		(1 << 18)
+#define SIP_NAT_ROUTE		(2 << 18)
+#define SIP_NAT_ALWAYS		(3 << 18)
+/* re-INVITE related settings */
+#define SIP_REINVITE		(3 << 20)	/* two bits used */
+#define SIP_CAN_REINVITE	(1 << 20)	/* allow peers to be reinvited to send media directly to us */
+#define SIP_REINVITE_UPDATE	(2 << 20)	/* use UPDATE (RFC3311) when reinviting this peer */
+/* "insecure" settings */
+#define SIP_INSECURE		(3 << 22)	/* three settings, uses two bits */
+#define SIP_SECURE		(0 << 22)
+#define SIP_INSECURE_NORMAL	(1 << 22)
+#define SIP_INSECURE_VERY	(2 << 22)
+/* Sending PROGRESS in-band settings */
+#define SIP_PROG_INBAND		(3 << 24)	/* three settings, uses two bits */
+#define SIP_PROG_INBAND_NEVER	(0 << 24)
+#define SIP_PROG_INBAND_NO	(1 << 24)
+#define SIP_PROG_INBAND_YES	(2 << 24)
+/* Open Settlement Protocol authentication */
+#define SIP_OSPAUTH		(3 << 26)	/* three settings, uses two bits */
+#define SIP_OSPAUTH_NO		(0 << 26)
+#define SIP_OSPAUTH_YES		(1 << 26)
+#define SIP_OSPAUTH_EXCLUSIVE	(2 << 26)
 
 /* sip_pvt: PVT structures are used for each SIP conversation, ie. a call  */
 static struct sip_pvt {
@@ -297,12 +316,9 @@ static struct sip_pvt {
 	int noncodeccapability;
 	int callingpres;			/* Calling presentation */
 	int authtries;				/* Times we've tried to authenticate */
-	int insecure;				/* Don't check source port/ip */
 	int expiry;				/* How long we take to expire */
 	int branch;				/* One random number */
-	int canreinvite;			/* Do we support reinvite */
 	int tag;				/* Another random number */
-	int nat;				/* Whether to try to support NAT */
 	int sessionid;				/* SDP Session ID */
 	int sessionversion;			/* SDP Session Version */
 	struct sockaddr_in sa;			/* Our peer */
@@ -351,7 +367,6 @@ static struct sip_pvt {
 	int amaflags;				/* AMA Flags */
 	int pendinginvite;			/* Any pending invite */
 #ifdef OSP_SUPPORT
-	int ospauth;				/* Allow OSP Authentication */
 	int osphandle;				/* OSP Handle for call */
 	time_t ospstart;			/* OSP Start time */
 #endif
@@ -368,9 +383,6 @@ static struct sip_pvt {
     	int stateid;
 	int dialogver;
 	
-	int progressinband;
-	
-	int dtmfmode;				/* DTMF to use for this call */
 	struct ast_dsp *vad;
 	
 	struct sip_peer *peerpoke;		/* If this calls is to poke a peer, which one */
@@ -415,21 +427,13 @@ struct sip_user {
 	unsigned int callgroup;		/* Call group */
 	unsigned int pickupgroup;	/* Pickup Group */
 	int flags;			/* SIP_ flags */	
-	int nat;			/* NAT setting */
 	int amaflags;			/* AMA flags for billing */
 	int callingpres;		/* Calling id presentation */
-	int insecure;			/* Insecure means don't check password */
-	int canreinvite;		/* Do we support re-invites ? */
 	int capability;			/* Codec capability */
-#ifdef OSP_SUPPORT
-	int ospauth;			/* Allow OSP Authentication */
-#endif
-	int dtmfmode;			/* DTMF setting */
 	int inUse;
 	int incominglimit;
 	int outUse;
 	int outgoinglimit;
-	int progressinband;
 	struct ast_ha *ha;		/* ACL setting */
 	struct ast_variable *vars;
 };
@@ -461,16 +465,8 @@ struct sip_peer {
 	int capability;			/* Codec capability */
 	int rtptimeout;
 	int rtpholdtimeout;
-	int insecure;			/* Do we want to authenticate this peer? */
-#ifdef OSP_SUPPORT
-	int ospauth;			/* Allow OSP Authentication */
-#endif	
-	int nat;			/* NAT support needed? */
-	int canreinvite;		/* Does the peer support re-invites? */
 	unsigned int callgroup;		/* Call group */
 	unsigned int pickupgroup;	/* Pickup group */
-	int dtmfmode;			/* DTMF mode */
-	int progressinband;
 	struct sockaddr_in addr;	/* IP address of peer */
 	struct in_addr mask;
 
@@ -498,11 +494,6 @@ static int sip_reloading = 0;
 #define REG_STATE_TIMEOUT	   	5
 #define REG_STATE_NOAUTH	   	6
 
-/* NAT settings */
-#define SIP_NAT_NEVER		0		/* No nat support */
-#define SIP_NAT_RFC3581		(1 << 0)
-#define SIP_NAT_ROUTE		(1 << 2)
-#define SIP_NAT_ALWAYS		(SIP_NAT_ROUTE | SIP_NAT_RFC3581)
 
 /* sip_registry: Registrations with other SIP proxies */
 struct sip_registry {
@@ -552,14 +543,9 @@ static struct ast_register_list {
 } regl;
 
 
-#define REINVITE_INVITE		1
-#define REINVITE_UPDATE		2
-
 static int __sip_do_register(struct sip_registry *r);
 
 static int sipsock  = -1;
-static int global_nat = SIP_NAT_RFC3581;
-static int global_canreinvite = REINVITE_INVITE;
 
 
 static struct sockaddr_in bindaddr;
@@ -607,7 +593,7 @@ static inline int sip_debug_test_pvt(struct sip_pvt *p)
 {
 	if (sipdebug == 0)
 		return 0;
-	return sip_debug_test_addr(((p->nat & SIP_NAT_ROUTE) ? &p->recv : &p->sa));
+	return sip_debug_test_addr(((ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) ? &p->recv : &p->sa));
 }
 
 
@@ -616,7 +602,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
-	if (p->nat & SIP_NAT_ROUTE)
+	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
 	    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
 	else
 	    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->sa, sizeof(struct sockaddr_in));
@@ -705,7 +691,7 @@ static int retrans_pkt(void *data)
 	if (pkt->retrans < MAX_RETRANS) {
 		pkt->retrans++;
 		if (sip_debug_test_pvt(pkt->owner)) {
-			if (pkt->owner->nat & SIP_NAT_ROUTE)
+			if (ast_test_flag(pkt->owner, SIP_NAT) & SIP_NAT_ROUTE)
 				ast_verbose("Retransmitting #%d (NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port));
 			else
 				ast_verbose("Retransmitting #%d (no NAT):\n%s\n to %s:%d\n", pkt->retrans, pkt->data, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port));
@@ -915,7 +901,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 	struct sip_request tmp;
 	char tmpmsg[80];
 	if (sip_debug_test_pvt(p)) {
-		if (p->nat & SIP_NAT_ROUTE)
+		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
 			ast_verbose("%sTransmitting (NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
 		else
 			ast_verbose("%sTransmitting (no NAT):\n%s\n to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
@@ -948,7 +934,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 	struct sip_request tmp;
 	char tmpmsg[80];
 	if (sip_debug_test_pvt(p)) {
-		if (p->nat & SIP_NAT_ROUTE)
+		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
 			ast_verbose("%sTransmitting:\n%s (NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
 		else
 			ast_verbose("%sTransmitting:\n%s (no NAT) to %s:%d\n", reliable ? "Reliably " : "", req->data, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
@@ -1169,7 +1155,7 @@ static int sip_addrcmp(char *name, struct sockaddr_in *sin)
 	/* We know name is the first field, so we can cast */
 	struct sip_peer *p = (struct sip_peer *)name;
 	return 	!(!inaddrcmp(&p->addr, sin) || 
-					(p->insecure &&
+					(ast_test_flag(p, SIP_INSECURE) &&
 					(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)));
 }
 
@@ -1281,15 +1267,15 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 
 	if (p) {
 			found++;
+			ast_copy_flags(r, p, SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE);
 			r->capability = p->capability;
-			r->nat = p->nat;
 			if (r->rtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (r->nat & SIP_NAT_ROUTE));
-				ast_rtp_setnat(r->rtp, (r->nat & SIP_NAT_ROUTE));
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+				ast_rtp_setnat(r->rtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 			}
 			if (r->vrtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (r->nat & SIP_NAT_ROUTE));
-				ast_rtp_setnat(r->vrtp, (r->nat & SIP_NAT_ROUTE));
+				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+				ast_rtp_setnat(r->vrtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 			}
 			strncpy(r->peername, p->username, sizeof(r->peername)-1);
 			strncpy(r->authname, p->username, sizeof(r->authname)-1);
@@ -1313,19 +1299,13 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 				strncpy(r->fromdomain, p->fromdomain, sizeof(r->fromdomain)-1);
 			if (!ast_strlen_zero(p->fromuser))
 				strncpy(r->fromuser, p->fromuser, sizeof(r->fromuser)-1);
-			r->insecure = p->insecure;
-			r->canreinvite = p->canreinvite;
 			r->maxtime = p->maxms;
 			r->callgroup = p->callgroup;
 			r->pickupgroup = p->pickupgroup;
-			if (p->dtmfmode) {
-				r->dtmfmode = p->dtmfmode;
-				if (r->dtmfmode & SIP_DTMF_RFC2833)
-					r->noncodeccapability |= AST_RTP_DTMF;
-				else
-					r->noncodeccapability &= ~AST_RTP_DTMF;
-			}
-			ast_copy_flags(r, p, SIP_PROMISCREDIR | SIP_USEREQPHONE);	
+			if (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833)
+				r->noncodeccapability |= AST_RTP_DTMF;
+			else
+				r->noncodeccapability &= ~AST_RTP_DTMF;
 			strncpy(r->context, p->context,sizeof(r->context)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 				(!p->maxms || ((p->lastms >= 0)  && (p->lastms <= p->maxms)))) {
@@ -1818,9 +1798,9 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (p) {
 			ast_mutex_lock(&p->lock);
 			if (p->rtp) {
-				if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS) && !ast_test_flag(p, SIP_OUTGOING)) {
+				if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
-					ast_set_flag(p, SIP_PROGRESS);	
+					ast_set_flag(p, SIP_PROGRESS_SENT);	
 				}
 				res =  ast_rtp_write(p->rtp, frame);
 			}
@@ -1830,9 +1810,9 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (p) {
 			ast_mutex_lock(&p->lock);
 			if (p->vrtp) {
-				if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS) && !ast_test_flag(p, SIP_OUTGOING)) {
+				if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
-					ast_set_flag(p, SIP_PROGRESS);	
+					ast_set_flag(p, SIP_PROGRESS_SENT);	
 				}
 				res =  ast_rtp_write(p->vrtp, frame);
 			}
@@ -1871,15 +1851,18 @@ static int sip_senddigit(struct ast_channel *ast, char digit)
 	struct sip_pvt *p = ast->pvt->pvt;
 	int res = 0;
 	ast_mutex_lock(&p->lock);
-	if (p && (p->dtmfmode & SIP_DTMF_INFO)) {
+	switch (ast_test_flag(p, SIP_DTMF)) {
+	case SIP_DTMF_INFO:
 		transmit_info_with_digit(p, digit);
-	}
-	if (p && p->rtp && (p->dtmfmode & SIP_DTMF_RFC2833)) {
-		ast_rtp_senddigit(p->rtp, digit);
-	}
-	/* If in-band DTMF is desired, send that */
-	if (p->dtmfmode & SIP_DTMF_INBAND)
+		break;
+	case SIP_DTMF_RFC2833:
+		if (p->rtp)
+			ast_rtp_senddigit(p->rtp, digit);
+		break;
+	case SIP_DTMF_INBAND:
 		res = -1;
+		break;
+	}
 	ast_mutex_unlock(&p->lock);
 	return res;
 }
@@ -1908,11 +1891,12 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
-			if (!ast_test_flag(p, SIP_PROGRESS) || !p->progressinband) {
+			if (!ast_test_flag(p, SIP_PROGRESS_SENT) ||
+			    (ast_test_flag(p, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER)) {
 				/* Send 180 ringing if out-of-band seems reasonable */
 				transmit_response(p, "180 Ringing", &p->initreq);
 				ast_set_flag(p, SIP_RINGING);
-				if (p->progressinband < 2)
+				if (ast_test_flag(p, SIP_PROG_INBAND) != SIP_PROG_INBAND_YES)
 					break;
 			} else {
 				/* Well, if it's not reasonable, just send in-band */
@@ -1940,9 +1924,9 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		break;
 	case AST_CONTROL_PROGRESS:
 	case AST_CONTROL_PROCEEDING:
-		if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS) && !ast_test_flag(p, SIP_OUTGOING)) {
+		if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
 			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
-			ast_set_flag(p, SIP_PROGRESS);	
+			ast_set_flag(p, SIP_PROGRESS_SENT);	
 			break;
 		}
 		res = -1;
@@ -1997,7 +1981,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 				snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
 			}
 		tmp->type = channeltype;
-                if (i->dtmfmode & SIP_DTMF_INBAND) {
+                if (ast_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND) {
                     i->vad = ast_dsp_new();
                     ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
 		    if (relaxdtmf)
@@ -2223,7 +2207,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 		f = &null_frame;
 	}
 	/* Don't send RFC2833 if we're not supposed to */
-	if (f && (f->frametype == AST_FRAME_DTMF) && !(p->dtmfmode & SIP_DTMF_RFC2833))
+	if (f && (f->frametype == AST_FRAME_DTMF) && (ast_test_flag(p, SIP_DTMF) != SIP_DTMF_RFC2833))
 		return &null_frame;
 	if (p->owner) {
 		/* We already hold the channel lock */
@@ -2234,7 +2218,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 				ast_set_read_format(p->owner, p->owner->readformat);
 				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
-            if ((p->dtmfmode & SIP_DTMF_INBAND) && p->vad) {
+            if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) && p->vad) {
                    f = ast_dsp_process(p->owner,p->vad,f);
 		   if (f && (f->frametype == AST_FRAME_DTMF)) 
 			ast_log(LOG_DEBUG, "Detected DTMF '%c'\n", f->subclass);
@@ -2326,16 +2310,16 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		ast_rtp_settos(p->vrtp, tos);
 	if (useglobal_nat && sin) {
 		/* Setup NAT structure according to global settings if we have an address */
-		p->nat = global_nat;
+		ast_copy_flags(p, &global_flags, SIP_NAT);
 		memcpy(&p->recv, sin, sizeof(p->recv));
-		ast_rtp_setnat(p->rtp, (p->nat & SIP_NAT_ROUTE));
+		ast_rtp_setnat(p->rtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 		if (p->vrtp)
-			ast_rtp_setnat(p->vrtp, (p->nat & SIP_NAT_ROUTE));
+			ast_rtp_setnat(p->vrtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 	}
 
 	strncpy(p->fromdomain, default_fromdomain, sizeof(p->fromdomain) - 1);
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (p->nat != SIP_NAT_NEVER)
+	if (ast_test_flag(p, SIP_NAT) != SIP_NAT_NEVER)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
@@ -2343,20 +2327,13 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	else
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
-	/* Assume reinvite OK and via INVITE */
-	p->canreinvite = global_canreinvite;
+	ast_copy_flags(p, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_DTMF | SIP_REINVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
 	/* Assign default music on hold class */
 	strncpy(p->musicclass, global_musicclass, sizeof(p->musicclass) - 1);
-	p->dtmfmode = global_dtmfmode;
-	ast_copy_flags(p, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID); 	
-	p->progressinband = global_progressinband;
-#ifdef OSP_SUPPORT
-	p->ospauth = global_ospauth;
-#endif
 	p->rtptimeout = global_rtptimeout;
 	p->rtpholdtimeout = global_rtpholdtimeout;
 	p->capability = global_capability;
-	if (p->dtmfmode & SIP_DTMF_RFC2833)
+	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
 	strncpy(p->context, default_context, sizeof(p->context) - 1);
 	/* Add to list */
@@ -2947,7 +2924,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 				else
 					*oh = '\0';
 			}
-			if (!copied && (p->nat == SIP_NAT_ALWAYS)) {
+			if (!copied && (ast_test_flag(p, SIP_NAT) == SIP_NAT_ALWAYS)) {
 				/* Whoo hoo!  Now we can indicate port address translation too!  Just
 				   another RFC (RFC3581). I'll leave the original comments in for
 				   posterity.  */
@@ -3160,7 +3137,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int se
 	
 	if (newbranch) {
 		p->branch ^= rand();
-		if (p->nat & SIP_NAT_RFC3581)
+		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
 			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 		else /* Some implementations (e.g. Uniden UIP200) can't handle rport being in the message!! */
 			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
@@ -3634,7 +3611,7 @@ static int determine_firstline_parts( struct sip_request *req ) {
 static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 {
 	struct sip_request req;
-	if (p->canreinvite == REINVITE_UPDATE)
+	if (ast_test_flag(p, SIP_REINVITE_UPDATE))
 		reqprep(&req, p, "UPDATE", 0, 1);
 	else 
 		reqprep(&req, p, "INVITE", 0, 1);
@@ -3800,7 +3777,7 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 	if (init) {
 		/* Bump branch even on initial requests */
 		p->branch ^= rand();
-		if (p->nat & SIP_NAT_RFC3581)
+		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
 			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 		else /* Work around buggy UNIDEN UIP200 firmware */
 			snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
@@ -4269,7 +4246,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 	p->ocseq = r->ocseq;
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (p->nat & SIP_NAT_RFC3581)
+	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
 		snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else /* Work around buggy UNIDEN UIP200 firmware */
 		snprintf(via, sizeof(via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
@@ -4548,7 +4525,7 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 
 	memcpy(&oldsin, &pvt->sa, sizeof(oldsin));
 
-	if (!(pvt->nat & SIP_NAT_ROUTE)) {
+	if (!(ast_test_flag(pvt, SIP_NAT) & SIP_NAT_ROUTE)) {
 		/* XXX This could block for a long time XXX */
 		/* We should only do this if it's a name, not an IP */
 		hp = ast_gethostbyname(n, &ahp);
@@ -4649,7 +4626,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	} else
 		port = DEFAULT_SIP_PORT;
 	memcpy(&oldsin, &p->addr, sizeof(oldsin));
-	if (!(p->nat & SIP_NAT_ROUTE)) {
+	if (!(ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)) {
 		/* XXX This could block for a long time XXX */
 		hp = ast_gethostbyname(n, &ahp);
 		if (!hp)  {
@@ -4851,7 +4828,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	/* Always OK if no secret */
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)
 #ifdef OSP_SUPPORT
-		&& !p->ospauth 
+	    && ast_test_flag(p, SIP_OSPAUTH)
 #endif
 		)
 		return 0;
@@ -4864,7 +4841,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		respheader = "WWW-Authenticate";
 	}
 #ifdef OSP_SUPPORT
-	else if (p->ospauth) {
+	else if (ast_test_flag(p, SIP_OSPAUTH)) {
 		ast_log(LOG_DEBUG, "Checking OSP Authentication!\n");
 		osptoken = get_header(req, "P-OSP-Auth-Token");
 		/* Check for token existence */
@@ -4878,7 +4855,8 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		pbx_builtin_setvar_helper(p->owner, "OSPHANDLE", tmp);
 
 		/* If ospauth is 'exclusive' don't require further authentication */
-		if ((p->ospauth > 1) || (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)))
+		if ((ast_test_flag(p, SIP_OSPAUTH) == SIP_OSPAUTH_EXCLUSIVE) ||
+		    (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)))
 			return 0;
 	}
 #endif	
@@ -5038,7 +5016,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			if (!ast_test_flag(peer, SIP_DYNAMIC)) {
 				ast_log(LOG_NOTICE, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 			} else {
-				p->nat = peer->nat;
+				ast_copy_flags(p, peer, SIP_NAT);
 				transmit_response(p, "100 Trying", req);
 				if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, "REGISTER", uri, 0, ignore))) {
 					sip_cancel_destroy(p);
@@ -5396,9 +5374,9 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
 		c = strstr(via, ";rport");
 		if (c && (c[6] != '='))
-			p->nat |= SIP_NAT_ROUTE;
+			ast_set_flag(p, SIP_NAT_ROUTE);
 		if (sip_debug_test_pvt(p)) {
-			if (p->nat & SIP_NAT_ROUTE)
+			if (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
 				ast_verbose("Sending to %s : %d (NAT)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
 			else
 				ast_verbose("Sending to %s : %d (non-NAT)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
@@ -5543,6 +5521,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 	user = find_user(of);
 	/* Find user based on user name in the from header */
 	if (!mailbox && user && ast_apply_ha(user->ha, sin)) {
+		ast_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
 		/* copy vars */
 		for (v = user->vars ; v ; v = v->next) {
 			if((tmpvar = ast_new_variable(v->name, v->value))) {
@@ -5551,12 +5530,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			}
 		}
 		p->prefs = user->prefs;
-		p->nat = user->nat;
-#ifdef OSP_SUPPORT
-		p->ospauth = user->ospauth;
-#endif
-		ast_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE);	
-		p->progressinband = user->progressinband;
 		/* replace callerid if rpid found, and not restricted */
 		if(!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
 			if (*calleridname)
@@ -5566,15 +5539,16 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 		}
 
 		if (p->rtp) {
-			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (p->nat & SIP_NAT_ROUTE));
-			ast_rtp_setnat(p->rtp, (p->nat & SIP_NAT_ROUTE));
+			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			ast_rtp_setnat(p->rtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 		}
 		if (p->vrtp) {
-			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (p->nat & SIP_NAT_ROUTE));
-			ast_rtp_setnat(p->vrtp, (p->nat & SIP_NAT_ROUTE));
+			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			ast_rtp_setnat(p->vrtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 		}
 		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, cmd, uri, reliable, ignore))) {
 			sip_cancel_destroy(p);
+			ast_copy_flags(p, user, SIP_PROMISCREDIR | SIP_DTMF | SIP_REINVITE);
 			if (!ast_strlen_zero(user->context))
 				strncpy(p->context, user->context, sizeof(p->context) - 1);
 			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num))  {
@@ -5589,7 +5563,6 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			strncpy(p->accountcode, user->accountcode, sizeof(p->accountcode)  -1);
 			strncpy(p->language, user->language, sizeof(p->language)  -1);
 			strncpy(p->musicclass, user->musicclass, sizeof(p->musicclass)  -1);
-			p->canreinvite = user->canreinvite;
 			p->amaflags = user->amaflags;
 			p->callgroup = user->callgroup;
 			p->pickupgroup = user->pickupgroup;
@@ -5598,14 +5571,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			p->jointcapability = user->capability;
 			if (p->peercapability)
 				p->jointcapability &= p->peercapability;
-			ast_copy_flags(p, user, SIP_PROMISCREDIR);	
-			if (user->dtmfmode) {
-				p->dtmfmode = user->dtmfmode;
-				if (p->dtmfmode & SIP_DTMF_RFC2833)
-					p->noncodeccapability |= AST_RTP_DTMF;
-				else
-					p->noncodeccapability &= ~AST_RTP_DTMF;
-			}
+			if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
+				p->noncodeccapability |= AST_RTP_DTMF;
+			else
+				p->noncodeccapability &= ~AST_RTP_DTMF;
 		}
 		if (user && debug)
 			ast_verbose("Found user '%s'\n", user->name);
@@ -5629,9 +5598,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			if (debug)
 				ast_verbose("Found peer '%s'\n", peer->name);
 			/* Take the peer */
-			p->nat = peer->nat;
-			ast_copy_flags(p, peer, SIP_TRUSTRPID | SIP_USECLIENTCODE);	
-			p->progressinband = peer->progressinband;
+			ast_copy_flags(p, peer, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
 			/* replace callerid if rpid found, and not restricted */
 			if(!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
 				if (*calleridname)
@@ -5639,28 +5606,25 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 				strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
 				ast_shrink_phone_number(p->cid_num);
 			}
-#ifdef OSP_SUPPORT
-			p->ospauth = peer->ospauth;
-#endif
 			if (p->rtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (p->nat & SIP_NAT_ROUTE));
-				ast_rtp_setnat(p->rtp, (p->nat & SIP_NAT_ROUTE));
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+				ast_rtp_setnat(p->rtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 			}
 			if (p->vrtp) {
-				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (p->nat & SIP_NAT_ROUTE));
-				ast_rtp_setnat(p->vrtp, (p->nat & SIP_NAT_ROUTE));
+				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+				ast_rtp_setnat(p->vrtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 			}
 			strncpy(p->peersecret, peer->secret, sizeof(p->peersecret)-1);
 			p->peersecret[sizeof(p->peersecret)-1] = '\0';
 			strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret)-1);
 			p->peermd5secret[sizeof(p->peermd5secret)-1] = '\0';
-			if (peer->insecure > 1) {
+			if (ast_test_flag(peer, SIP_INSECURE) == SIP_INSECURE_VERY) {
 				/* Pretend there is no required authentication if insecure is "very" */
 				p->peersecret[0] = '\0';
 				p->peermd5secret[0] = '\0';
 			}
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, cmd, uri, reliable, ignore))) {
-				p->canreinvite = peer->canreinvite;
+				ast_copy_flags(p, peer, SIP_PROMISCREDIR | SIP_DTMF | SIP_REINVITE);
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
 				strncpy(p->authname, peer->name, sizeof(p->authname) - 1);
 				if (mailbox)
@@ -5687,14 +5651,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 				p->jointcapability = peer->capability;
 				if (p->peercapability)
 					p->jointcapability &= p->peercapability;
-				ast_copy_flags(p, peer, SIP_PROMISCREDIR);	
-				if (peer->dtmfmode) {
-					p->dtmfmode = peer->dtmfmode;
-					if (p->dtmfmode & SIP_DTMF_RFC2833)
-						p->noncodeccapability |= AST_RTP_DTMF;
-					else
-						p->noncodeccapability &= ~AST_RTP_DTMF;
-				}
+				if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
+					p->noncodeccapability |= AST_RTP_DTMF;
+				else
+					p->noncodeccapability &= ~AST_RTP_DTMF;
 			}
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
 		} else if (debug)
@@ -5821,7 +5781,7 @@ static int sip_show_users(int fd, int argc, char *argv[])
 			iterator->accountcode,
 			iterator->context,
 			iterator->ha ? "Yes" : "No",
-			nat2str(iterator->nat));
+			nat2str(ast_test_flag(iterator, SIP_NAT)));
 		ASTOBJ_UNLOCK(iterator);
 	} while (0)
 	);
@@ -5890,7 +5850,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		snprintf(srch, sizeof(srch), FORMAT, name,
 			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
 			ast_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
-			(iterator->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
+			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ", 	/* permit/deny */
 			nm, ntohs(iterator->addr.sin_port), status);
 
@@ -5910,7 +5870,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 		    ast_cli(fd, FORMAT, name, 
 			iterator->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), iterator->addr.sin_addr) : "(Unspecified)",
                         ast_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ",  /* Dynamic or not? */
-                        (iterator->nat & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
+                        (ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
                         iterator->ha ? " A " : "   ",       /* permit/deny */
 			nm,
 			ntohs(iterator->addr.sin_port), status);
@@ -5958,6 +5918,30 @@ static void  print_group(int fd, unsigned int group)
 	ast_cli(fd, " (%u)\n", group);
 }
 
+static const char *dtmfmode2str(int mode)
+{
+	switch (mode) {
+	case SIP_DTMF_RFC2833:
+		return "rfc2833";
+	case SIP_DTMF_INFO:
+		return "info";
+	case SIP_DTMF_INBAND:
+		return "inband";
+	}
+}
+
+static const char *insecure2str(int mode)
+{
+	switch (mode) {
+	case SIP_SECURE:
+		return "no";
+	case SIP_INSECURE_NORMAL:
+		return "yes";
+	case SIP_INSECURE_VERY:
+		return "very";
+	}
+}
+
 /*--- sip_show_peer: Show one peer in detail ---*/
 static int sip_show_peer(int fd, int argc, char *argv[])
 {
@@ -5991,22 +5975,15 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  Expire       : %d\n", peer->expire);
 		ast_cli(fd, "  Expiry       : %d\n", peer->expiry);
-		ast_cli(fd, "  Insecure     : %s\n", (peer->insecure?((peer->insecure == 2)?"Very":"Yes"):"No") );
-		ast_cli(fd, "  Nat          : %s\n", nat2str(peer->nat));
+		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(peer, SIP_INSECURE)));
+		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(peer, SIP_NAT)));
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
-		ast_cli(fd, "  CanReinvite  : %s\n", (peer->canreinvite?"Yes":"No"));
+		ast_cli(fd, "  CanReinvite  : %s\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Yes":"No"));
 		ast_cli(fd, "  PromiscRedir : %s\n", (ast_test_flag(peer, SIP_PROMISCREDIR)?"Yes":"No"));
 		ast_cli(fd, "  User=Phone   : %s\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Yes":"No"));
 
 		/* - is enumerated */
-		ast_cli(fd, "  DTMFmode     : ");
-		if (peer->dtmfmode == SIP_DTMF_RFC2833)
-                       ast_cli(fd, "rfc2833 ");
-                if (peer->dtmfmode == SIP_DTMF_INFO)
-                       ast_cli(fd, "info ");
-                if (peer->dtmfmode == SIP_DTMF_INBAND)
-                        ast_cli(fd, "inband ");
-                ast_cli(fd, "\n" );
+		ast_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
 		ast_cli(fd, "  LastMsg      : %d\n", peer->lastmsg);
 		ast_cli(fd, "  ToHost       : %s\n", peer->tohost);
 		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
@@ -6158,7 +6135,6 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 static int sip_show_channel(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
-	char tmp[256];
 	char iabuf[INET_ADDRSTRLEN];
 	size_t len;
 	int found = 0;
@@ -6184,7 +6160,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Format                  %s\n", ast_getformatname(cur->owner ? cur->owner->nativeformats : 0) );
 			ast_cli(fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
-			ast_cli(fd, "  NAT Support:            %s\n", nat2str(cur->nat));
+			ast_cli(fd, "  NAT Support:            %s\n", nat2str(ast_test_flag(cur, SIP_NAT)));
 			ast_cli(fd, "  Our Tag:                %08d\n", cur->tag);
 			ast_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
@@ -6200,14 +6176,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(fd, "  Promiscuous Redir:      %s\n", ast_test_flag(cur, SIP_PROMISCREDIR) ? "Yes" : "No");
 			ast_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
-			tmp[0] = '\0';
-			if (cur->dtmfmode & SIP_DTMF_RFC2833)
-				strncat(tmp, "rfc2833 ", sizeof(tmp) - strlen(tmp) - 1);
-			if (cur->dtmfmode & SIP_DTMF_INFO)
-				strncat(tmp, "info ", sizeof(tmp) - strlen(tmp) - 1);
-			if (cur->dtmfmode & SIP_DTMF_INBAND)
-				strncat(tmp, "inband ", sizeof(tmp) - strlen(tmp) - 1);
-			ast_cli(fd, "  DTMF Mode:              %s\n\n", tmp);
+			ast_cli(fd, "  DTMF Mode:              %s\n\n", dtmfmode2str(ast_test_flag(cur, SIP_DTMF)));
 			found++;
 		}
 		cur = cur->next;
@@ -8015,7 +7984,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (p->nat & SIP_NAT_RFC3581)
+	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else /* UNIDEN UIP200 bug */
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
@@ -8246,7 +8215,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (p->nat & SIP_NAT_RFC3581)
+	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
@@ -8370,7 +8339,7 @@ static struct ast_channel *sip_request(const char *type, int format, void *data,
 	if (ast_sip_ouraddrfor(&p->sa.sin_addr,&p->ourip))
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (p->nat & SIP_NAT_RFC3581)
+	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else /* UNIDEN bug */
 		snprintf(p->via, sizeof(p->via), "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
@@ -8398,6 +8367,82 @@ static struct ast_channel *sip_request(const char *type, int format, void *data,
 	return tmpc;
 }
 
+/*--- handle_common_options: Handle flag-type options common to users and peers ---*/
+static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask, struct ast_variable *v)
+{
+	int res = 0;
+
+	if (!strcasecmp(v->name, "trustrpid")) {
+		ast_set_flag(mask, SIP_TRUSTRPID);
+		ast_set2_flag(flags, ast_true(v->value), SIP_TRUSTRPID);
+		res = 1;
+	} else if (!strcasecmp(v->name, "useclientcode")) {
+		ast_set_flag(mask, SIP_USECLIENTCODE);
+		ast_set2_flag(flags, ast_true(v->value), SIP_USECLIENTCODE);
+		res = 1;
+	} else if (!strcasecmp(v->name, "dtmfmode")) {
+		ast_set_flag(mask, SIP_DTMF);
+		ast_clear_flag(flags, SIP_DTMF);
+		if (!strcasecmp(v->value, "inband"))
+			ast_set_flag(flags, SIP_DTMF_INBAND);
+		else if (!strcasecmp(v->value, "rfc2833"))
+			ast_set_flag(flags, SIP_DTMF_RFC2833);
+		else if (!strcasecmp(v->value, "info"))
+			ast_set_flag(flags, SIP_DTMF_INFO);
+		else {
+			ast_log(LOG_WARNING, "Unknown dtmf mode '%s' on line %d, using rfc2833\n", v->value, v->lineno);
+			ast_set_flag(flags, SIP_DTMF_RFC2833);
+		}
+	} else if (!strcasecmp(v->name, "nat")) {
+		ast_set_flag(mask, SIP_NAT);
+		ast_clear_flag(flags, SIP_NAT);
+		if (!strcasecmp(v->value, "never"))
+			ast_set_flag(flags, SIP_NAT_NEVER);
+		else if (!strcasecmp(v->value, "route"))
+			ast_set_flag(flags, SIP_NAT_ROUTE);
+		else if (ast_true(v->value))
+			ast_set_flag(flags, SIP_NAT_ALWAYS);
+		else
+			ast_set_flag(flags, SIP_NAT_RFC3581);
+	} else if (!strcasecmp(v->name, "canreinvite")) {
+		ast_set_flag(mask, SIP_REINVITE);
+		ast_clear_flag(flags, SIP_REINVITE);
+		if (!strcasecmp(v->value, "update"))
+			ast_set_flag(flags, SIP_REINVITE_UPDATE | SIP_CAN_REINVITE);
+		else
+			ast_set2_flag(flags, ast_true(v->value), SIP_CAN_REINVITE);
+	} else if (!strcasecmp(v->name, "insecure")) {
+		ast_set_flag(mask, SIP_INSECURE);
+		ast_clear_flag(flags, SIP_INSECURE);
+		if (!strcasecmp(v->value, "very"))
+			ast_set_flag(flags, SIP_INSECURE_VERY);
+		else
+			ast_set2_flag(flags, ast_true(v->value), SIP_INSECURE_NORMAL);
+	} else if (!strcasecmp(v->name, "progressinband")) {
+		ast_set_flag(mask, SIP_PROG_INBAND);
+		ast_clear_flag(flags, SIP_PROG_INBAND);
+		if (ast_true(v->value))
+			ast_set_flag(flags, SIP_PROG_INBAND_YES);
+		else if (strcasecmp(v->value, "never"))
+			ast_set_flag(flags, SIP_PROG_INBAND_NO);
+#ifdef OSP_SUPPORT
+	} else if (!strcasecmp(v->name, "ospauth")) {
+		ast_set_flag(mask, SIP_OSPAUTH);
+		ast_clear_flag(flags, SIP_OSPAUTH);
+		if (!strcasecmp(v->value, "exclusive"))
+			ast_set_flag(flags, SIP_OSPAUTH_EXCLUSIVE);
+		else
+			ast_set2_flag(flags, ast_true(v->value), SIP_OSPAUTH_YES);
+#endif
+	} else if (!strcasecmp(v->name, "promiscredir")) {
+		ast_set_flag(mask, SIP_PROMISCREDIR);
+		ast_set2_flag(flags, ast_true(v->value), SIP_PROMISCREDIR);
+		res = 1;
+	}
+
+	return res;
+}
+
 /*--- build_user: Initiate a SIP user structure from sip.conf ---*/
 static struct sip_user *build_user(const char *name, struct ast_variable *v)
 {
@@ -8409,6 +8454,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 
 	user = (struct sip_user *)malloc(sizeof(struct sip_user));
 	if (user) {
+		struct ast_flags userflags = {(0)};
+		struct ast_flags mask = {(0)};
+
 		memset(user, 0, sizeof(struct sip_user));
 		suserobjs++;
 		ASTOBJ_INIT(user);
@@ -8418,21 +8466,19 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 		/* set the usage flag to a sane staring value*/
 		user->inUse = 0;
 		user->outUse = 0;
+		ast_copy_flags(user, &global_flags, SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE | SIP_PROG_INBAND | SIP_OSPAUTH);
 		user->capability = global_capability;
-		user->canreinvite = global_canreinvite;
-		ast_copy_flags(user, (&global_flags), SIP_TRUSTRPID);
-		user->dtmfmode = global_dtmfmode;
-		user->nat = global_nat;
-		user->progressinband = global_progressinband;
 		user->prefs = prefs;
-#ifdef OSP_SUPPORT
-		user->ospauth = global_ospauth;
-#endif
 		/* set default context */
 		strncpy(user->context, default_context, sizeof(user->context)-1);
 		strncpy(user->language, default_language, sizeof(user->language)-1);
 		strncpy(user->musicclass, global_musicclass, sizeof(user->musicclass)-1);
 		while(v) {
+			if (handle_common_options(&userflags, &mask, v)) {
+				v = v->next;
+				continue;
+			}
+
 			if (!strcasecmp(v->name, "context")) {
 				strncpy(user->context, v->value, sizeof(user->context) - 1);
 			} else if (!strcasecmp(v->name, "setvar")) {
@@ -8453,33 +8499,6 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 				strncpy(user->secret, v->value, sizeof(user->secret)-1); 
 			} else if (!strcasecmp(v->name, "md5secret")) {
 				strncpy(user->md5secret, v->value, sizeof(user->md5secret)-1);
-			} else if (!strcasecmp(v->name, "promiscredir")) {
-				ast_set2_flag(user, ast_true(v->value), SIP_PROMISCREDIR);	
-			} else if (!strcasecmp(v->name, "dtmfmode")) {
-				if (!strcasecmp(v->value, "inband"))
-					user->dtmfmode=SIP_DTMF_INBAND;
-				else if (!strcasecmp(v->value, "rfc2833"))
-					user->dtmfmode = SIP_DTMF_RFC2833;
-				else if (!strcasecmp(v->value, "info"))
-					user->dtmfmode = SIP_DTMF_INFO;
-				else {
-					ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
-					user->dtmfmode = SIP_DTMF_RFC2833;
-				}
-			} else if (!strcasecmp(v->name, "canreinvite")) {
-				if (!strcasecmp(v->value, "update"))
-					user->canreinvite = REINVITE_UPDATE;
-				else
-					user->canreinvite = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "nat")) {
-				if (!strcasecmp(v->value, "never"))
-					user->nat = SIP_NAT_NEVER;
-				else if (!strcasecmp(v->value, "route"))
-					user->nat = SIP_NAT_ROUTE;
-				else if (ast_true(v->value))
-					user->nat = SIP_NAT_ALWAYS;
-				else
-					user->nat = SIP_NAT_RFC3581;
 			} else if (!strcasecmp(v->name, "callerid")) {
 				ast_callerid_split(v->value, user->cid_name, sizeof(user->cid_name), user->cid_num, sizeof(user->cid_num));
 			} else if (!strcasecmp(v->name, "callgroup")) {
@@ -8511,36 +8530,15 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v)
 				ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 1);
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 0);
-			} else if (!strcasecmp(v->name, "insecure")) {
-				user->insecure = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "callingpres")) {
 				user->callingpres = atoi(v->value);
-			} else if (!strcasecmp(v->name, "trustrpid")) {
-				ast_set2_flag(user, ast_true(v->value), SIP_TRUSTRPID);	
-			} else if (!strcasecmp(v->name, "useclientcode")) {
-				ast_set2_flag(user, ast_true(v->value), SIP_USECLIENTCODE);	
-			} else if (!strcasecmp(v->name, "progressinband")) {
-				if (!strcasecmp(v->value, "never"))
-					user->progressinband = 0;
-				else if (ast_true(v->value))
-					user->progressinband = 2;
-				else
-					user->progressinband = 1;
-#ifdef OSP_SUPPORT
-			} else if (!strcasecmp(v->name, "ospauth")) {
-				if (!strcasecmp(v->value, "exclusive")) {
-					user->ospauth = 2;
-				} else if (ast_true(v->value)) {
-					user->ospauth = 1;
-				} else
-					user->ospauth = 0;
-#endif
 			}
 			/*else if (strcasecmp(v->name,"type"))
 			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			 */
 			v = v->next;
 		}
+		ast_copy_flags(user, &userflags, mask.flags);
 	}
 	ast_free_ha(oldha);
 	return user;
@@ -8561,6 +8559,7 @@ static struct sip_peer *temp_peer(char *name)
 	peer->expire = -1;
 	peer->pokeexpire = -1;
 	strncpy(peer->name, name, sizeof(peer->name)-1);
+	ast_copy_flags(peer, &global_flags, SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE | SIP_PROG_INBAND | SIP_OSPAUTH);
 	strncpy(peer->context, default_context, sizeof(peer->context)-1);
 	strncpy(peer->language, default_language, sizeof(peer->language)-1);
 	strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
@@ -8568,20 +8567,11 @@ static struct sip_peer *temp_peer(char *name)
 	peer->addr.sin_family = AF_INET;
 	peer->expiry = expiry;
 	peer->capability = global_capability;
-	/* Assume can reinvite */
-	peer->canreinvite = global_canreinvite;
-	peer->dtmfmode = global_dtmfmode;
-	ast_copy_flags(peer, (&global_flags), SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_TRUSTRPID);	
-	peer->nat = global_nat;
 	peer->rtptimeout = global_rtptimeout;
 	peer->rtpholdtimeout = global_rtpholdtimeout;
 	ast_set_flag(peer, SIP_SELFDESTRUCT);
 	ast_set_flag(peer, SIP_DYNAMIC);
-	peer->progressinband = global_progressinband;
 	peer->prefs = prefs;
-#ifdef OSP_SUPPORT
-	peer->ospauth = global_ospauth;
-#endif
 	reg_source_db(peer);
 	return peer;
 }
@@ -8617,6 +8607,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	}
 	/* Note that our peer HAS had its reference count incrased */
 	if (peer) {
+		struct ast_flags peerflags = {(0)};
+		struct ast_flags mask = {(0)};
+
 		peer->lastmsgssent = -1;
 		if (!found) {
 			if (name)
@@ -8628,68 +8621,39 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			peer->addr.sin_family = AF_INET;
 			peer->defaddr.sin_family = AF_INET;
 			peer->expiry = expiry;
-			ast_copy_flags(peer, (&global_flags), SIP_USEREQPHONE);
+			ast_copy_flags(peer, &global_flags, SIP_USEREQPHONE);
 		}
 		peer->prefs = prefs;
 		oldha = peer->ha;
 		peer->ha = NULL;
 		peer->addr.sin_family = AF_INET;
+		ast_copy_flags(peer, &global_flags, SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_REINVITE | SIP_INSECURE | SIP_PROG_INBAND | SIP_OSPAUTH);
 		peer->capability = global_capability;
-		/* Assume can reinvite */
-		peer->canreinvite = global_canreinvite;
 		peer->rtptimeout = global_rtptimeout;
 		peer->rtpholdtimeout = global_rtpholdtimeout;
-		peer->dtmfmode = global_dtmfmode;
-		ast_copy_flags(peer, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID);	
-		peer->progressinband = global_progressinband;
-#ifdef OSP_SUPPORT
-		peer->ospauth = global_ospauth;
-#endif
 		while(v) {
+			if (handle_common_options(&peerflags, &mask, v)) {
+				v = v->next;
+				continue;
+			}
+
 			if (!strcasecmp(v->name, "name"))
 				strncpy(peer->name, v->value, sizeof(peer->name)-1);
 			else if (!strcasecmp(v->name, "secret")) 
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
 			else if (!strcasecmp(v->name, "md5secret")) 
 				strncpy(peer->md5secret, v->value, sizeof(peer->md5secret)-1);
-			else if (!strcasecmp(v->name, "canreinvite")) {
-				if (!strcasecmp(v->value, "update"))
-					peer->canreinvite = REINVITE_UPDATE;
-				else
-					peer->canreinvite = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "callerid")) {
+			else if (!strcasecmp(v->name, "callerid")) {
 				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name), peer->cid_num, sizeof(peer->cid_num));
-			} else if (!strcasecmp(v->name, "nat")) {
-				if (!strcasecmp(v->value, "rfc3581"))
-					peer->nat = SIP_NAT_RFC3581;
-				else if (!strcasecmp(v->value, "route")) 
-					peer->nat = SIP_NAT_ROUTE;
-				else if (ast_true(v->value))
-					peer->nat = SIP_NAT_ALWAYS;
-				else
-					peer->nat = SIP_NAT_NEVER;
 			} else if (!strcasecmp(v->name, "context"))
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
 			else if (!strcasecmp(v->name, "fromdomain"))
 				strncpy(peer->fromdomain, v->value, sizeof(peer->fromdomain)-1);
 			else if (!strcasecmp(v->name, "usereqphone"))
 				ast_set2_flag(peer, ast_true(v->value), SIP_USEREQPHONE);
-			else if (!strcasecmp(v->name, "promiscredir"))
-				ast_set2_flag(peer, ast_true(v->value), SIP_PROMISCREDIR);
 			else if (!strcasecmp(v->name, "fromuser"))
 				strncpy(peer->fromuser, v->value, sizeof(peer->fromuser)-1);
-            else if (!strcasecmp(v->name, "dtmfmode")) {
-				if (!strcasecmp(v->value, "inband"))
-					peer->dtmfmode=SIP_DTMF_INBAND;
-				else if (!strcasecmp(v->value, "rfc2833"))
-					peer->dtmfmode = SIP_DTMF_RFC2833;
-				else if (!strcasecmp(v->value, "info"))
-					peer->dtmfmode = SIP_DTMF_INFO;
-				else {
-					ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
-					peer->dtmfmode = SIP_DTMF_RFC2833;
-				}
-			} else if (!strcasecmp(v->name, "host") || !strcasecmp(v->name, "outboundproxy")) {
+			else if (!strcasecmp(v->name, "host") || !strcasecmp(v->name, "outboundproxy")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					if (!strcasecmp(v->name, "outboundproxy") || obproxyfound) {
 						ast_log(LOG_WARNING, "You can't have a dynamic outbound proxy, you big silly head at line %d.\n", v->lineno);
@@ -8760,13 +8724,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 1);
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
-			} else if (!strcasecmp(v->name, "insecure")) {
-				if (!strcasecmp(v->value, "very")) {
-					peer->insecure = 2;
-				} else if (ast_true(v->value))
-					peer->insecure = 1;
-				else
-					peer->insecure = 0;
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
 				if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
 					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
@@ -8786,32 +8743,13 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of sip.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
-			} else if (!strcasecmp(v->name, "useclientcode")) {
-				ast_set2_flag(peer, ast_true(v->value), SIP_USECLIENTCODE);
-			} else if (!strcasecmp(v->name, "trustrpid")) {
-				ast_set2_flag(peer, ast_true(v->value), SIP_TRUSTRPID);
-			} else if (!strcasecmp(v->name, "progressinband")) {
-				if (!strcasecmp(v->value, "never"))
-					peer->progressinband = 0;
-				else if (ast_true(v->value))
-					peer->progressinband = 2;
-				else
-					peer->progressinband = 1;
-#ifdef OSP_SUPPORT
-			} else if (!strcasecmp(v->name, "ospauth")) {
-				if (!strcasecmp(v->value, "exclusive")) {
-					peer->ospauth = 2;
-				} else if (ast_true(v->value)) {
-					peer->ospauth = 1;
-				} else
-					peer->ospauth = 0;
-#endif
 			}
 			/* else if (strcasecmp(v->name,"type"))
 			 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 			 */
 			v=v->next;
 		}
+		ast_copy_flags(peer, &peerflags, mask.flags);
 		if (!found && ast_test_flag(peer, SIP_DYNAMIC))
 			reg_source_db(peer);
 		ASTOBJ_UNMARK(peer);
@@ -8861,7 +8799,6 @@ static int reload_config(void)
 	memset(&prefs, 0 , sizeof(struct ast_codec_pref));
 
 	/* Initialize some reasonable defaults at SIP reload */
-	global_nat = SIP_NAT_RFC3581;
 	strncpy(default_context, DEFAULT_CONTEXT, sizeof(default_context) - 1);
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
@@ -8876,7 +8813,6 @@ static int reload_config(void)
 	memset(&outboundproxyip, 0, sizeof(outboundproxyip));
 	outboundproxyip.sin_port = htons(DEFAULT_SIP_PORT);
 	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
-	global_canreinvite = REINVITE_INVITE;
 	videosupport = 0;
 	compactheaders = 0;
 	relaxdtmf = 0;
@@ -8884,24 +8820,26 @@ static int reload_config(void)
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
 	pedanticsipchecking = 0;
-	global_dtmfmode = SIP_DTMF_RFC2833;
-	ast_clear_flag((&global_flags), SIP_PROMISCREDIR);	
-	ast_clear_flag((&global_flags), SIP_TRUSTRPID);	
-	global_progressinband = 0;
+	ast_clear_flag(&global_flags, AST_FLAGS_ALL);
+	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);
+	ast_set_flag(&global_flags, SIP_NAT_RFC3581);
+	ast_set_flag(&global_flags, SIP_CAN_REINVITE);
 	global_mwitime = DEFAULT_MWITIME;
 	srvlookup = 0;
 	autocreatepeer = 0;
 	regcontext[0] = '\0';
 	tos = 0;
 	expiry = DEFAULT_EXPIRY;
+	struct ast_flags dummy;
 
-#ifdef OSP_SUPPORT
-	global_ospauth = 0;		/* OSP = Open Settlement Protocol */
-#endif
-	
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
+		if (handle_common_options(&global_flags, &dummy, v)) {
+			v = v->next;
+			continue;
+		}
+
 		/* Create the interface list */
 		if (!strcasecmp(v->name, "context")) {
 			strncpy(default_context, v->value, sizeof(default_context)-1);
@@ -8916,19 +8854,6 @@ static int reload_config(void)
 			ast_set2_flag((&global_flags), ast_true(v->value), SIP_USEREQPHONE);	
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			relaxdtmf = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "promiscredir")) {
-			ast_set2_flag((&global_flags), ast_true(v->value), SIP_PROMISCREDIR);	
-		} else if (!strcasecmp(v->name, "dtmfmode")) {
-			if (!strcasecmp(v->value, "inband"))
-				global_dtmfmode=SIP_DTMF_INBAND;
-			else if (!strcasecmp(v->value, "rfc2833"))
-				global_dtmfmode = SIP_DTMF_RFC2833;
-			else if (!strcasecmp(v->value, "info"))
-				global_dtmfmode = SIP_DTMF_INFO;
-			else {
-				ast_log(LOG_WARNING, "Unknown dtmf mode '%s', using rfc2833\n", v->value);
-				global_dtmfmode = SIP_DTMF_RFC2833;
-			}
 		} else if (!strcasecmp(v->name, "checkmwi")) {
 			if ((sscanf(v->value, "%d", &global_mwitime) != 1) || (global_mwitime < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
@@ -8963,15 +8888,6 @@ static int reload_config(void)
 			strncpy(default_callerid, v->value, sizeof(default_callerid)-1);
 		} else if (!strcasecmp(v->name, "fromdomain")) {
 			strncpy(default_fromdomain, v->value, sizeof(default_fromdomain)-1);
-		} else if (!strcasecmp(v->name, "nat")) {
-			if (!strcasecmp(v->value, "rfc3581"))
-				global_nat = SIP_NAT_RFC3581;
-			else if (!strcasecmp(v->value, "route"))
-				global_nat = SIP_NAT_ROUTE;
-			else if (ast_true(v->value))
-				global_nat = SIP_NAT_ALWAYS;
-			else
-				global_nat = SIP_NAT_NEVER;
 		} else if (!strcasecmp(v->name, "outboundproxy")) {
 			if (ast_get_ip_or_srv(&outboundproxyip, v->value, "_sip._udp") < 0)
 				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
@@ -8983,31 +8899,8 @@ static int reload_config(void)
 			autocreatepeer = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "srvlookup")) {
 			srvlookup = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "trustrpid")) {
-			ast_set2_flag((&global_flags), ast_true(v->value), SIP_TRUSTRPID);	
-		} else if (!strcasecmp(v->name, "progressinband")) {
-			if (!strcasecmp(v->value, "never"))
-				global_progressinband = 0;
-			else if (ast_true(v->value))
-				global_progressinband = 2;
-			else
-				global_progressinband = 1;
-#ifdef OSP_SUPPORT
-		} else if (!strcasecmp(v->name, "ospauth")) {
-			if (!strcasecmp(v->value, "exclusive")) {
-				global_ospauth = 2;
-			} else if (ast_true(v->value)) {
-				global_ospauth = 1;
-			} else
-				global_ospauth = 0;
-#endif
 		} else if (!strcasecmp(v->name, "pedantic")) {
 			pedanticsipchecking = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "canreinvite")) {
-			if (!strcasecmp(v->value, "update"))
-				global_canreinvite = REINVITE_UPDATE;
-			else
-				global_canreinvite = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxexpirey") || !strcasecmp(v->name, "maxexpiry")) {
 			max_expiry = atoi(v->value);
 			if (max_expiry < 1)
@@ -9180,7 +9073,7 @@ static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
 	p = chan->pvt->pvt;
 	if (p) {
 		ast_mutex_lock(&p->lock);
-		if (p->rtp && p->canreinvite)
+		if (p->rtp && ast_test_flag(p, SIP_CAN_REINVITE))
 			rtp =  p->rtp;
 		ast_mutex_unlock(&p->lock);
 	}
@@ -9194,7 +9087,7 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 	p = chan->pvt->pvt;
 	if (p) {
 		ast_mutex_lock(&p->lock);
-		if (p->vrtp && p->canreinvite)
+		if (p->vrtp && ast_test_flag(p, SIP_CAN_REINVITE))
 			rtp = p->vrtp;
 		ast_mutex_unlock(&p->lock);
 	}
@@ -9279,20 +9172,26 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 	p = chan->pvt->pvt;
 	if (p) {
 		ast_mutex_lock(&p->lock);
-		if (!strcasecmp(mode,"info"))
-			p->dtmfmode = SIP_DTMF_INFO;
-		else if (!strcasecmp(mode,"rfc2833"))
-			p->dtmfmode = SIP_DTMF_RFC2833;
-		else if (!strcasecmp(mode,"inband"))
-			p->dtmfmode = SIP_DTMF_INBAND;
+		if (!strcasecmp(mode,"info")) {
+			ast_clear_flag(p, SIP_DTMF);
+			ast_set_flag(p, SIP_DTMF_INFO);
+		}
+		else if (!strcasecmp(mode,"rfc2833")) {
+			ast_clear_flag(p, SIP_DTMF);
+			ast_set_flag(p, SIP_DTMF_RFC2833);
+		}
+		else if (!strcasecmp(mode,"inband")) { 
+			ast_clear_flag(p, SIP_DTMF);
+			ast_set_flag(p, SIP_DTMF_INBAND);
+		}
 		else
 			ast_log(LOG_WARNING, "I don't know about this dtmf mode: %s\n",mode);
-        if (p->dtmfmode & SIP_DTMF_INBAND) {
-				if (!p->vad) {
-	               p->vad = ast_dsp_new();
-	               ast_dsp_set_features(p->vad, DSP_FEATURE_DTMF_DETECT);
-				}
-        } else {
+		if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_INBAND) {
+			if (!p->vad) {
+				p->vad = ast_dsp_new();
+				ast_dsp_set_features(p->vad, DSP_FEATURE_DTMF_DETECT);
+			}
+		} else {
 			if (p->vad) {
 				ast_dsp_free(p->vad);
 				p->vad = NULL;
