@@ -70,6 +70,9 @@ static char *descrip =
 "      'e' -- select an empty conference\n"
 "      'E' -- select an empty pinless conference\n"
 "      'v' -- video mode\n"
+"      'r' -- Record conference (records as ${MEETME_RECORDINGFILE}\n"
+"             using format ${MEETME_RECORDINGFORMAT}). Default filename is\n"
+"             meetme-conf-rec-${CONFNO}-${UNIQUEID} and the default format is wav.\n"
 "      'q' -- quiet mode (don't play enter/leave sounds)\n"
 "      'M' -- enable music on hold when the conference has a single caller\n"
 "      'x' -- close the conference when last marked user exits\n"
@@ -114,8 +117,13 @@ static struct ast_conference {
 	struct ast_conf_user *firstuser;  /* Pointer to the first user struct */
 	struct ast_conf_user *lastuser;   /* Pointer to the last user struct */
 	time_t start;			/* Start time (s) */
+	int recording;			/* recording status */
 	int isdynamic;			/* Created on the fly? */
 	int locked;			  /* Is the conference locked? */
+	pthread_t recordthread;		/* thread for recording */
+	pthread_attr_t attr;		/* thread attribute */
+	char *recordingfilename;	/* Filename to record the Conference into */
+	char *recordingformat;		/* Format to record the Conference in */
 	char pin[AST_MAX_EXTENSION];			/* If protected by a PIN */
 	struct ast_conference *next;
 } *confs;
@@ -140,11 +148,17 @@ AST_MUTEX_DEFINE_STATIC(conflock);
 
 static int admin_exec(struct ast_channel *chan, void *data);
 
+static void *recordthread(void *args);
+
 #include "enter.h"
 #include "leave.h"
 
 #define ENTER	0
 #define LEAVE	1
+
+#define MEETME_RECORD_OFF	0
+#define MEETME_RECORD_ACTIVE	1
+#define MEETME_RECORD_TERMINATE	2
 
 #define CONF_SIZE 320
 
@@ -162,6 +176,7 @@ static int admin_exec(struct ast_channel *chan, void *data);
 #define CONFFLAG_EXIT_CONTEXT (1 << 12)	/* If set, the MeetMe will exit to the specified context */
 #define CONFFLAG_MARKEDUSER (1 << 13)	/* If set, the user will be marked */
 #define CONFFLAG_INTROUSER (1 << 14)	/* If set, user will be ask record name on entry of conference */
+#define CONFFLAG_RECORDCONF (1<< 15)	/* If set, the MeetMe will be recorded */
 
 static int careful_write(int fd, unsigned char *data, int len)
 {
@@ -244,7 +259,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 			/* Setup a new zap conference */
 			ztc.chan = 0;
 			ztc.confno = -1;
-			ztc.confmode = ZT_CONF_CONFANN;
+			ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
 			if (ioctl(cnf->fd, ZT_SETCONF, &ztc)) {
 				ast_log(LOG_WARNING, "Error setting conference\n");
 				if (cnf->chan)
@@ -528,6 +543,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char *agifiledefault = "conf-background.agi";
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_EXTENSION] = "";
+	char recordingtmp[AST_MAX_EXTENSION] = "";
 	int dtmf;
 
 	ZT_BUFFERINFO bi;
@@ -539,6 +555,23 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		return(ret);
 	}
 	memset(user, 0, sizeof(struct ast_conf_user));
+
+	if (confflags & CONFFLAG_RECORDCONF && conf->recording !=MEETME_RECORD_ACTIVE) {
+		conf->recordingfilename = pbx_builtin_getvar_helper(chan,"MEETME_RECORDINGFILE");
+		if (!conf->recordingfilename) {
+			snprintf(recordingtmp,sizeof(recordingtmp),"meetme-conf-rec-%s-%s",conf->confno,chan->uniqueid);
+			conf->recordingfilename = ast_strdupa(recordingtmp);
+		}
+		conf->recordingformat = pbx_builtin_getvar_helper(chan, "MEETME_RECORDINGFORMAT");
+		if (!conf->recordingformat) {
+			snprintf(recordingtmp,sizeof(recordingtmp), "wav");
+			conf->recordingformat = ast_strdupa(recordingtmp);
+		}
+		pthread_attr_init(&conf->attr);
+		pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
+		ast_verbose(VERBOSE_PREFIX_4 "Starting recording of MeetMe Conference %s into file %s.%s.\n", conf->confno, conf->recordingfilename, conf->recordingformat);
+		ast_pthread_create(&conf->recordthread, &conf->attr, recordthread, conf);
+	}
 
 	user->user_no = 0; /* User number 0 means starting up user! (dead - not in the list!) */
 
@@ -1070,6 +1103,16 @@ outrun:
 			}
 			if (!cur) 
 				ast_log(LOG_WARNING, "Conference not found\n");
+			if (conf->recording == MEETME_RECORD_ACTIVE) {
+				conf->recording = MEETME_RECORD_TERMINATE;
+				ast_mutex_unlock(&conflock);
+				while (1) {
+					ast_mutex_lock(&conflock);
+					if (conf->recording == MEETME_RECORD_OFF)
+						break;
+					ast_mutex_unlock(&conflock);
+				}
+			}
 			if (conf->chan)
 				ast_hangup(conf->chan);
 			else
@@ -1287,6 +1330,8 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			confflags |= CONFFLAG_AGI;
 		if (strchr(inflags, 'w'))
 			confflags |= CONFFLAG_WAITMARKED;
+		if (strchr(inflags, 'r'))
+			confflags |= CONFFLAG_RECORDCONF;	
 		if (strchr(inflags, 'd'))
 			dynamic = 1;
 		if (strchr(inflags, 'D')) {
@@ -1611,6 +1656,45 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	}
 	ast_mutex_unlock(&conflock);
 	return 0;
+}
+
+static void *recordthread(void *args)
+{
+	struct ast_conference *cnf;
+	struct ast_frame *f=NULL;
+	int flags;
+	struct ast_filestream *s;
+	int res=0;
+
+	cnf = (struct ast_conference *)args;
+	ast_stopstream(cnf->chan);
+	flags = O_CREAT|O_TRUNC|O_WRONLY;
+	s = ast_writefile(cnf->recordingfilename, cnf->recordingformat, NULL, flags, 0, 0644);
+
+	if (s) {
+		cnf->recording = MEETME_RECORD_ACTIVE;
+		while (ast_waitfor(cnf->chan, -1) > -1) {
+			f = ast_read(cnf->chan);
+			if (!f) {
+				res = -1;
+				break;
+			}
+			if (f->frametype == AST_FRAME_VOICE) {
+				res = ast_writestream(s, f);
+				if (res) 
+					break;
+			}
+			ast_frfree(f);
+			if (cnf->recording == MEETME_RECORD_TERMINATE) {
+				ast_mutex_lock(&conflock);
+				ast_mutex_unlock(&conflock);
+				break;
+			}
+		}
+		cnf->recording = MEETME_RECORD_OFF;
+		ast_closestream(s);
+	}
+	pthread_exit(0);
 }
 
 int unload_module(void)
