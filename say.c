@@ -166,7 +166,7 @@ int ast_say_number(struct ast_channel *chan, int num, char *ints, char *language
 	}
 
 	/* Default to english */
-        return(ast_say_number_full_en(chan, num, ints, language, NULL, NULL));
+        return(ast_say_number_full_en(chan, num, ints, language, -1, -1));
 }
 
 /*--- ast_say_number_full_en: English syntax */
