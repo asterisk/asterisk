@@ -530,7 +530,8 @@ static int phone_write_buf(struct phone_pvt *p, char *buf, int len, int frlen)
 static int phone_send_text(struct ast_channel *ast, char *text)
 {
     int length = strlen(text);
-    return phone_write_buf(ast->pvt->pvt, text, length, length);
+    return phone_write_buf(ast->pvt->pvt, text, length, length) == 
+           length ? 0 : -1;
 }
 
 static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
