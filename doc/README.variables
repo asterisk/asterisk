@@ -69,6 +69,7 @@ ${LANGUAGE}	Current language
 ${SIPDOMAIN}    SIP destination domain of an inbound call (if appropriate)
 ${SIPUSERAGENT} SIP user agent 
 ${SIPCALLID} 	SIP Call-ID: header verbatim (for logging or CDR matching)
+${MEETMESECS} 	Number of seconds a user participated in a MeetMe conference
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 

@@ -34,21 +34,21 @@
 #include <pthread.h>
 #include <linux/zaptel.h>
 
-static char *tdesc = "Simple MeetMe conference bridge";
+static char *tdesc = "MeetMe conference bridge";
 
 static char *app = "MeetMe";
 static char *app2 = "MeetMeCount";
 static char *app3 = "MeetMeAdmin";
 
-static char *synopsis = "Simple MeetMe conference bridge";
+static char *synopsis = "MeetMe conference bridge";
 static char *synopsis2 = "MeetMe participant count";
-static char *synopsis3 = "Send Admin Commands to a conference";
+static char *synopsis3 = "MeetMe conference Administration";
 
 static char *descrip =
-"  MeetMe(confno[,[options][,pin]]): Enters the user into a specified MeetMe conference.\n"
+"  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe conference.\n"
 "If the conference number is omitted, the user will be prompted to enter\n"
-"one.  This application always returns -1.  A ZAPTEL INTERFACE MUST BE INSTALLED\n"
-"FOR CONFERENCING TO WORK!\n\n"
+"one.  This application always returns -1.  A ZAPTEL INTERFACE MUST BE\n"
+"INSTALLED FOR CONFERENCING TO WORK!\n\n"
 
 "The option string may contain zero or more of the following characters:\n"
 "      'm' -- set monitor only mode (Listen only, no talking\n"
@@ -74,7 +74,15 @@ static char *descrip2 =
 "will be returned in the variable. Returns 0 on success or -1 on a hangup.\n"
 "A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
-static char *descrip3 = "";
+static char *descrip3 = 
+"  MeetMeAdmin(confno,command[,user]): Run admin command for conference\n"
+"      'K' -- Kick all users out of conference\n"
+"      'k' -- Kick one user out of conference\n"
+"      'L' -- Lock conference\n"
+"      'l' -- Unlock conference\n"
+"      'M' -- Mute conference\n"
+"      'm' -- Unmute conference\n"
+"";
 
 STANDARD_LOCAL_USER;
 
@@ -130,7 +138,7 @@ static int admin_exec(struct ast_channel *chan, void *data);
 #define CONFFLAG_QUIET (1 << 6)		/* If set there will be no enter or leave sounds */
 #define CONFFLAG_VIDEO (1 << 7)		/* Set to enable video mode */
 #define CONFFLAG_AGI (1 << 8)		/* Set to run AGI Script in Background */
-#define CONFFLAG_MOH (1 << 9)		/* Set to have music on hold when */
+#define CONFFLAG_MOH (1 << 9)		/* Set to have music on hold when user is alone in conference */
 #define CONFFLAG_ADMINEXIT (1 << 10)    /* If set the MeetMe will return if all marked with this flag left */
 
 
@@ -220,7 +228,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
                         cnf->lastuser = NULL;
                         cnf->locked = 0;
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Created ZapTel conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
+				ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 			cnf->next = confs;
 			confs = cnf;
 		} else	
@@ -249,11 +257,12 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	struct ast_conference *cnf;
 	struct ast_conf_user *user;
 	int hr, min, sec;
-	int i = 0;
+	int i = 0, total = 0;
 	time_t now;
 	char *header_format = "%-14s %-14s %-8s  %-8s\n";
 	char *data_format = "%-12.12s   %4.4d           %02d:%02d:%02d  %-8s\n";
 	char cmdline[1024] = "";
+
 	if (argc > 8)
 		ast_cli(fd, "Invalid Arguments.\n");
 	/* Check for length so no buffer will overflow... */
@@ -262,11 +271,11 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			ast_cli(fd, "Invalid Arguments.\n");
 	}
 	if (argc == 1) {
-		/* List all the conferences */	
+		/* 'MeetMe': List all the conferences */	
 	now = time(NULL);
 	        cnf = confs;
 	        if (!cnf) {
-		ast_cli(fd, "No active conferences.\n");
+		ast_cli(fd, "No active MeetMe conferences.\n");
 		return RESULT_SUCCESS;
 	}
 	ast_cli(fd, header_format, "Conf Num", "Parties", "Activity", "Creation");
@@ -277,17 +286,19 @@ static int conf_cmd(int fd, int argc, char **argv) {
 
 	                if (cnf->isdynamic)
 	                        ast_cli(fd, data_format, cnf->confno, cnf->users, hr, min, sec, "Dynamic");
-		else
+			else
 	                        ast_cli(fd, data_format, cnf->confno, cnf->users, hr, min, sec, "Static");
 
-	                cnf = cnf->next;
-	}
-	return RESULT_SUCCESS;
+			total += cnf->users; 	
+			cnf = cnf->next;
+		}
+		ast_cli(fd, "* Total number of MeetMe users: %d\n", total);
+		return RESULT_SUCCESS;
 	}
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
-	strncpy(cmdline, argv[2], 100);
-	if (strstr(argv[1], "lock")) {
+	strncpy(cmdline, argv[2], 100);	/* Argv 2: conference number */
+	if (strstr(argv[1], "lock")) {	
 		if (strcmp(argv[1], "lock") == 0) {
 			/* Lock */
 			strcat(cmdline, "|L");
@@ -295,7 +306,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			/* Unlock */
 			strcat(cmdline, "|l");
 		}
-	} else if (strstr(argv[1], "mute")) {
+	} else if (strstr(argv[1], "mute")) { 
 		if (argc < 4)
 			return RESULT_SHOWUSAGE;
 		if (strcmp(argv[1], "mute") == 0) {
@@ -339,13 +350,13 @@ static int conf_cmd(int fd, int argc, char **argv) {
 		/* Show all the users */
 		user = cnf->firstuser;
 		while(user) {
-			ast_cli(fd, "User Number: %i  on Channel: %s\n", user->user_no, user->chan->name);
+			ast_cli(fd, "User #: %i  Channel: %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "" );
 			user = user->nextuser;
 		}
 		return RESULT_SUCCESS;
 	} else 
 		return RESULT_SHOWUSAGE;
-	ast_log(LOG_NOTICE, "Cmdline: %s\n", cmdline);
+	ast_log(LOG_DEBUG, "Cmdline: %s\n", cmdline);
 	admin_exec(NULL, cmdline);
 	return 0;
 }
@@ -425,7 +436,7 @@ static char *complete_confcmd(char *line, char *word, int pos, int state) {
 }
         
 static char conf_usage[] =
-"Usage: meetme  (un)lock|(un)mute|kick|list confno usernumber\n"
+"Usage: meetme  (un)lock|(un)mute|kick|list <confno> <usernumber>\n"
 "       Executes a command for the conference or on a conferee\n";
 
 static struct ast_cli_entry cli_conf = {
@@ -665,27 +676,27 @@ zapretry:
                         ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
                 }	
 	        for(;;) {
-		outfd = -1;
-		ms = -1;
-		c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
+			outfd = -1;
+			ms = -1;
+			c = ast_waitfor_nandfds(&chan, 1, &fd, nfds, NULL, &outfd, &ms);
 	                
-	                /* Update the struct with the actual confflags */
-	                user->userflags = confflags;
+	        	/* Update the struct with the actual confflags */
+	        	user->userflags = confflags;
 	                
-		/* trying to add moh for single person conf */
-		if (confflags & CONFFLAG_MOH) {
-			if (conf->users == 1) {
-				if (musiconhold == 0) {
-					ast_moh_start(chan, NULL);
-					musiconhold = 1;
-				} 
-			} else {
-				if (musiconhold) {
-					ast_moh_stop(chan);
-					musiconhold = 0;
+			/* trying to add moh for single person conf */
+			if (confflags & CONFFLAG_MOH) {
+				if (conf->users == 1) {
+					if (musiconhold == 0) {
+						ast_moh_start(chan, NULL);
+						musiconhold = 1;
+					} 
+				} else {
+					if (musiconhold) {
+						ast_moh_stop(chan);
+						musiconhold = 0;
+					}
 				}
 			}
-		}
 	                
 	                /* Leave if the last marked user left */
 	                if ((confflags & CONFFLAG_ADMINEXIT) && (conf->markedusers == 0)) {
@@ -1000,6 +1011,7 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	return cnf;
 }
 
+/*--- count_exec: The MeetmeCount application */
 static int count_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
@@ -1035,6 +1047,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+/*--- conf_exec: The meetme() application */
 static int conf_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
@@ -1279,8 +1292,9 @@ static struct ast_conf_user* find_user(struct ast_conference *conf, char *caller
 	return NULL;
 }
 
+/*--- admin_exec: The MeetMeadmin application */
+/* MeetMeAdmin(confno, command, caller) */
 static int admin_exec(struct ast_channel *chan, void *data) {
-	/* MeetMeAdmin(confno, command, caller) */
 	char *params, *command = NULL, *caller = NULL, *conf = NULL;
 	struct ast_conference *cnf;
 	struct ast_conf_user *user = NULL;
