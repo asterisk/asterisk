@@ -328,8 +328,8 @@ static int action_status(struct mansession *s, struct message *m)
 			"Extension: %s\r\n"
 			"Priority: %d\r\n"
 			"%s"
-			"\r\n"
-			"Uniqueid: %s\r\n",
+			"Uniqueid: %s\r\n"
+			"\r\n",
 			c->name, c->callerid ? c->callerid : "<unknown>", 
 			ast_state2str(c->_state), c->context,
 			c->exten, c->priority, bridge, c->uniqueid);
