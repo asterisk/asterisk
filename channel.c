@@ -1996,26 +1996,32 @@ int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *pe
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone)
 {
 	struct ast_frame null = { AST_FRAME_NULL, };
+	int res = -1;
+	ast_mutex_lock(&original->lock);
+	while(ast_mutex_trylock(&clone->lock)) {
+		ast_mutex_unlock(&original->lock);
+		usleep(1);
+		ast_mutex_lock(&original->lock);
+	}
 	ast_log(LOG_DEBUG, "Planning to masquerade %s into the structure of %s\n",
 		clone->name, original->name);
 	if (original->masq) {
 		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n", 
 			original->masq->name, original->name);
-		return -1;
-	}
-	if (clone->masqr) {
+	} else if (clone->masqr) {
 		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n", 
 			clone->name, clone->masqr->name);
-		return -1;
+	} else {
+		original->masq = clone;
+		clone->masqr = original;
+		ast_queue_frame(original, &null);
+		ast_queue_frame(clone, &null);
+		ast_log(LOG_DEBUG, "Done planning to masquerade %s into the structure of %s\n", original->name, clone->name);
+		res = 0;
 	}
-	original->masq = clone;
-	clone->masqr = original;
-	/* XXX can't really hold the lock here, but at the same time, it' s
-	   not really safe not to XXX */
-	ast_queue_frame(original, &null);
-	ast_queue_frame(clone, &null);
-	ast_log(LOG_DEBUG, "Done planning to masquerade %s into the structure of %s\n", original->name, clone->name);
-	return 0;
+	ast_mutex_unlock(&clone->lock);
+	ast_mutex_unlock(&original->lock);
+	return res;
 }
 
 void ast_change_name(struct ast_channel *chan, char *newname)
