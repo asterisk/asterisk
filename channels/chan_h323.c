@@ -448,7 +448,7 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
         /* Clear and then set the address to call */
         memset(addr, 0, sizeof(addr));
         if (usingGk) {
-                memcpy(addr, dest, strlen(addr));
+                memcpy(called_addr, dest, strlen(called_addr));
                 pvt->options.noFastStart = noFastStart;
                 pvt->options.noH245Tunneling = noH245Tunneling;
                 pvt->options.noSilenceSuppression = noSilenceSuppression;
@@ -456,12 +456,11 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
         } else {
                 ast_inet_ntoa(addr, sizeof(addr), pvt->sa.sin_addr);
                 pvt->options.port = htons(pvt->sa.sin_port);
-        }
-	if (pvt->username) {
-	        sprintf(called_addr, "%s@%s", pvt->username, addr);
-        } else {
-		memcpy(called_addr, addr, strlen(called_addr));
-	}
+		if (pvt->username) {
+		        sprintf(called_addr, "%s@%s", pvt->username, addr);
+
+        	}
+	}       
 	pvt->outgoing = 1;
 	ast_log(LOG_DEBUG, "Placing outgoing call to %s:%d\n", called_addr, pvt->options.port);
 	res = h323_make_call(called_addr, &(pvt->cd), pvt->options);
@@ -949,7 +948,7 @@ static int create_addr(struct oh323_pvt *pvt, char *opeer)
 		return 0;
 	}
 }
-static struct ast_channel *oh323_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *oh323_request(const char *type, int format, void *data)
 {
 	int oldformat;
 	struct oh323_pvt *pvt;
