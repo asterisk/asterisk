@@ -3673,11 +3673,13 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 					f = NULL;
 				}
 			} else if (f->frametype == AST_FRAME_DTMF) {
+#ifdef ZAPATA_PRI
 				if (!p->proceeding && p->sig==SIG_PRI && p->pri && p->pri->overlapdial) {
 					/* Don't accept in-band DTMF when in overlap dial mode */
 					f->frametype = AST_FRAME_NULL;
 					f->subclass = 0;
 				}
+#endif				
 				/* DSP clears us of being pulse */
 				p->pulsedial = 0;
 			}
