@@ -1,4 +1,4 @@
-CFLAGS+= -fPIC -O3
+CFLAGS+=-Wall -Werror -fPIC -O3 -march=$(shell uname -m) -funroll-loops -fomit-frame-pointer
 LIB=libilbc.a
 
 OBJS= anaFilter.o iCBSearch.o packing.o \
