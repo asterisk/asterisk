@@ -80,9 +80,9 @@
 #define	MAX_DTMF_DIGITS 128
 
 /*
- * Comment out the following line to use the new DSP routines.
+ * Uncomment to use old-style DSP routines 
  */
-#define OLD_DSP_ROUTINES
+/* #define OLD_DSP_ROUTINES */
 
 /* Basic DTMF specs:
  *
