@@ -115,6 +115,9 @@ ifeq (${OSARCH},OpenBSD)
 CFLAGS+=-pthread
 endif
 
+# Comment this out if you have trouble with Feature B signalling (rare)
+CFLAGS+=-DOLD_DSP_ROUTINES
+
 CFLAGS+=$(shell if [ -f /usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
 
 LIBEDIT=editline/libedit.a
