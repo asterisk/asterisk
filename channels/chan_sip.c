@@ -1297,6 +1297,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 					return NULL;
 			}
 #endif
+			ast_pthread_mutex_lock(&p->lock);
 			ast_pthread_mutex_unlock(&iflock);
 			return p;
 		}
@@ -1848,13 +1849,27 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, char *msg, int in
 	return 0;
 }
 
-static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req)
+static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req, int reliable)
 {
 	struct sip_request resp;
+	int seqno = 0;
+	if (reliable && (sscanf(get_header(req, "CSeq"), "%i ", &seqno) != 1)) {
+		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
+		return -1;
+	}
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Content-Length", "0");
 	add_blank_header(&resp);
-	return send_response(p, &resp, 0, 0);
+	return send_response(p, &resp, reliable, seqno);
+}
+
+static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req) 
+{
+	return __transmit_response(p, msg, req, 0);
+}
+static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req)
+{
+	return __transmit_response(p, msg, req, 1);
 }
 
 static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req)
@@ -2853,7 +2868,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 		  f.offset = 0;
 		  f.data = buf;
 		  f.datalen = strlen(buf);
-		  ast_queue_frame(p->owner, &f, 1);
+		  ast_queue_frame(p->owner, &f, 0);
 	}
 }
 
@@ -3068,7 +3083,7 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 			f.offset = 0;
 			f.data = NULL;
 			f.datalen = 0;
-			ast_queue_frame(p->owner, &f, 1);
+			ast_queue_frame(p->owner, &f, 0);
 		}
 	}
 }
@@ -3261,16 +3276,6 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	}
 	msg = strchr(c, ' ');
 	if (!msg) msg = ""; else msg++;
-retrylock:
-	ast_pthread_mutex_lock(&p->lock);
-	/* Go ahead and lock the owner if it has one -- we may need it */
-	if (p->owner && pthread_mutex_trylock(&p->owner->lock)) {
-		ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
-		ast_pthread_mutex_unlock(&p->lock);
-		/* Sleep infintismly short amount of time */
-		usleep(1);
-		goto retrylock;
-	}
 	owner = p->owner;
 	if (p->peerpoke) {
 		/* We don't really care what the response is, just that it replied back. 
@@ -3296,8 +3301,7 @@ retrylock:
 				ast_sched_del(sched, peer->pokeexpire);
 			if (!strcasecmp(msg, "INVITE"))
 				transmit_request(p, "ACK", 0, 0);
-			sip_destroy(p);
-			p = NULL;
+			p->needdestroy = 1;
 			/* Try again eventually */
 			if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
 				peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
@@ -3555,6 +3559,8 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 
 static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin)
 {
+	/* Called with p->lock held, as well as p->owner->lock if appropriate, keeping things
+	   relatively static */
 	struct sip_request resp;
 	char *cmd;
 	char *cseq;
@@ -3613,7 +3619,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		/* Response to our request -- Do some sanity checks */	
 		if (!p->initreq.headers) {
 			ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about.\n");
-			sip_destroy(p);
+			p->needdestroy = 1;
 			return 0;
 		} else if (p->ocseq && (p->ocseq < seqno)) {
 			ast_log(LOG_DEBUG, "Ignoring out of order response %d (expecting %d)\n", seqno, p->ocseq);
@@ -3673,7 +3679,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			if (res) {
 				if (res < 0) {
 					ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
-					sip_destroy(p);
+					p->needdestroy = 1;
 				}
 				return 0;
 			}
@@ -3685,9 +3691,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 					transmit_response(p, "404 Not Found", req);
 				else
 					transmit_response(p, "484 Address Incomplete", req);
-				sip_destroy(p);
-				p = NULL;
-				c = NULL;
+				p->needdestroy = 1;
 			} else {
 				/* If no extension was specified, use the s one */
 				if (!strlen(p->exten))
@@ -3696,6 +3700,10 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				p->tag = rand();
 				/* First invitation */
 				c = sip_new(p, AST_STATE_DOWN, strlen(p->username) ? p->username : NULL);
+				if (c) {
+					/* Pre-lock the call */
+					ast_pthread_mutex_lock(&c->lock);
+				}
 			}
 			
 		} else 
@@ -3709,9 +3717,9 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 				ast_setstate(c, AST_STATE_RING);
 				if (ast_pbx_start(c)) {
 					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
-					ast_hangup(c);
-					transmit_response(p, "503 Unavailable", req);
-					sip_destroy(p);
+					sip_hangup(c);
+					transmit_response_reliable(p, "503 Unavailable", req);
+					c = NULL;
 				}
 				break;
 			case AST_STATE_RING:
@@ -3730,8 +3738,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		} else {
 			if (p) {
 				ast_log(LOG_NOTICE, "Unable to create/find channel\n");
-				transmit_response(p, "503 Unavailable", req);
-				sip_destroy(p);
+				transmit_response_reliable(p, "503 Unavailable", req);
+				p->needdestroy = 1;
 			}
 		}
 	} else if (!strcasecmp(cmd, "REFER")) {
@@ -3772,7 +3780,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_rtp_stop(p->rtp);
 		}
 		if (p->owner)
-			ast_queue_hangup(p->owner, 1);
+			ast_queue_hangup(p->owner, 0);
 		transmit_response(p, "200 OK", req);
 	} else if (!strcasecmp(cmd, "MESSAGE")) {
 		if (sipdebug)
@@ -3793,7 +3801,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		if ((res = register_verify(p, sin, req, e)) < 0) 
 			ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), inet_ntoa(sin->sin_addr));
 		if (res < 1) {
-			sip_destroy(p);
+			p->needdestroy = 1;
 		}
 	} else if (!strcasecmp(cmd, "ACK")) {
 		/* Uhm, I haven't figured out the point of the ACK yet.  Are we
@@ -3849,8 +3857,20 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	ast_pthread_mutex_lock(&netlock);
 	p = find_call(&req, &sin);
 	if (p) {
+retrylock:
+		/* Go ahead and lock the owner if it has one -- we may need it */
+		if (p->owner && pthread_mutex_trylock(&p->owner->lock)) {
+			ast_log(LOG_DEBUG, "Failed to grab lock, trying again...\n");
+			ast_pthread_mutex_unlock(&p->lock);
+			/* Sleep infintismly short amount of time */
+			usleep(1);
+			goto retrylock;
+		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
 		handle_request(p, &req, &sin);
+		if (p->owner)
+			ast_pthread_mutex_unlock(&p->owner->lock);
+		ast_pthread_mutex_unlock(&p->lock);
 	}
 	ast_pthread_mutex_unlock(&netlock);
 	return 1;
