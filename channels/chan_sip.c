@@ -4520,8 +4520,8 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp)
 	struct sip_pvt *p;
 	p = chan->pvt->pvt;
 	if (p) {
-		p->outgoing = 1;
 		transmit_reinvite_with_sdp(p, rtp);
+		p->outgoing = 1;
 		return 0;
 	}
 	return -1;
