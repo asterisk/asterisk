@@ -3648,6 +3648,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	int expiry = atoi(expires);
 	char *c, *n, *pt;
 	int port;
+	char *useragent;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sockaddr_in oldsin;
@@ -3679,6 +3680,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_sched_del(sched, p->expire);
 		p->expire = -1;
 		ast_db_del("SIP/Registry", p->name);
+		strcpy(p->useragent, "");
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
 		return 0;
@@ -3744,10 +3746,13 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	}
 
 	/* Save User agent */
-	strncpy(p->useragent, get_header(req, "User-Agent"),sizeof(p->useragent));
-	if (option_verbose > 2) 
-		ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
-
+	useragent = get_header(req, "User-Agent");
+	if(useragent && strcasecmp(useragent, p->useragent)) {
+		strncpy(p->useragent, get_header(req, "User-Agent"),sizeof(p->useragent));
+		if (option_verbose > 2) {
+			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
+		}
+	}
 	return 0;
 }
 
