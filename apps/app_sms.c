@@ -38,7 +38,7 @@
 /* user ref field */
 
 static volatile unsigned char message_ref;      /* arbitary message ref */
-static volatile unsigned int seq;      /* arbitrary message sequence number for unqiue files */
+static volatile unsigned int seq;       /* arbitrary message sequence number for unqiue files */
 
 static char log_file[255];
 static char spool_dir[255];
@@ -108,6 +108,7 @@ static const unsigned short escapes[] = {
 typedef struct sms_s
 {
    unsigned char hangup;        /* we are done... */
+   unsigned char err;           /* set for any errors */
    unsigned char smsc:1;        /* we are SMSC */
    unsigned char rx:1;          /* this is a received message */
    char queue[30];              /* queue name */
@@ -1200,6 +1201,7 @@ sms_messagerx (sms_t * h)
       }
       break;
    case 0x92:                  /* SMS_ERROR */
+      h->err = 1;
       sms_messagetx (h);        /* send whatever we sent again */
       break;
    case 0x93:                  /* SMS_EST */
@@ -1213,6 +1215,7 @@ sms_messagerx (sms_t * h)
       sms_nextoutgoing (h);
       break;
    case 0x96:                  /* SMS_NACK */
+      h->err = 1;
       sms_log (h, 'N');
       sms_nextoutgoing (h);
       break;
@@ -1429,9 +1432,11 @@ sms_process (sms_t * h, int samples, signed short *data)
          {                      /* nothing happening */
             ast_log (LOG_EVENT, "No data, hanging up\n");
             h->hangup = 1;
+            h->err = 1;
          }
          if (h->ierr)
          {                      /* error */
+            h->err = 1;
             h->omsg[0] = 0x92;  /* error */
             h->omsg[1] = 1;
             h->omsg[2] = h->ierr;
@@ -1608,7 +1613,7 @@ sms_exec (struct ast_channel *chan, void *data)
    sms_log (&h, '?');           /* log incomplete message */
 
    LOCAL_USER_REMOVE (u);
-   return (h.hangup);
+   return (h.err);
 }
 
 int

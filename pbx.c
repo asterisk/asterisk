@@ -3925,7 +3925,7 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
 	return res;
 }
 
-static void ext_strncpy(char *dst, const char *src, int len)
+static int ext_strncpy(char *dst, const char *src, int len)
 {
 	int count=0;
 
@@ -3944,6 +3944,8 @@ static void ext_strncpy(char *dst, const char *src, int len)
 		count++;
 	}
 	*dst = '\0';
+
+	return count;
 }
 
 /*
@@ -4002,13 +4004,11 @@ int ast_add_extension2(struct ast_context *con,
 			p += strlen(label) + 1;
 		}
 		tmp->exten = p;
-		ext_strncpy(tmp->exten, extension, strlen(extension) + 1);
-		p += strlen(extension) + 1;
+		p += ext_strncpy(tmp->exten, extension, strlen(extension) + 1) + 1;
 		tmp->priority = priority;
 		tmp->cidmatch = p;
 		if (callerid) {
-			ext_strncpy(tmp->cidmatch, callerid, strlen(callerid) + 1);
-			p += strlen(callerid) + 1;
+			p += ext_strncpy(tmp->cidmatch, callerid, strlen(callerid) + 1) + 1;
 			tmp->matchcid = 1;
 		} else {
 			tmp->cidmatch[0] = '\0';
