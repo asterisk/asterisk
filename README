@@ -18,20 +18,11 @@ on the project itself, please visit the Asterisk home page at:
 Linux OS, although it may be portable to other UNIX-like operating systems
 as well.
 
-== libaudiofile ==
-
-  If you want to use format_wav module, then you need a very recent
-version of libaudiofile (at least version 0.2.0, or you can apply the
-included patch.  RPMS for the patched libaudiofile are available at:
-ftp://ftp.asteriskpbx.com/pub/asterisk/support
-
 
 * GETTING STARTED
 
-First, be sure you've installed the required libaudiofile upgrade if 
-you want to use the non-GSM WAV format.  Next, be sure you've got
-supported hardware.  To use Asterisk right now, you will need one of 
-the following:
+First, be sure you've got supported hardware.  To use Asterisk right now,
+you will need one of the following:
 
 	* Adtran Atlas 800 Plus
 	* QuickNet Internet PhoneJack
@@ -56,13 +47,10 @@ Finally, you can launch Asterisk with:
 
 	./asterisk -vvvc
 
-If you get an error about unresolved symbols, install the updated
-libaudiofile (available at ftp://ftp.asteriskpbx.com/pub/asterisk/support
-
 You'll see a bunch of verbose messages fly by your screen as Asterisk
 initializes (that's the "very very verbose" mode).  When it's ready, if
 you specified the "c" then you'll get a command line console, that looks
-like this: 
+like this:
 
 *CLI>
 
@@ -76,6 +64,44 @@ won't work right (not yet).
 
 Feel free to look over the configuration files in /etc/asterisk, where
 you'll find a lot of information about what you can do with Asterisk.
+
+* ABOUT CONFIGURATION FILES
+
+All Asterisk configuration files share a common format.  Comments are
+delimited by ';' (since '#' of course, being a DTMF digit, may occur in
+many places).  A configuration file is divided into sections whose names
+appear in []'s.  Each section typically contains two types of statements,
+those of the form 'variable = value', and those of the form 'object =>
+parameters'.  Internally the use of '=' and '=>' is exactly the same, so 
+they're used only to help make the configuration file easier to
+understand, and do not affect how it is actually parsed.
+
+Entries of the form 'variable=value' set the value of some parameter in
+asterisk.  For example, in tormenta.conf, one might specify:
+
+	switchtype=national
+
+In order to indicate to Asterisk that the switch they are connecting to is
+of the type "national".  In general, the parameter will apply to
+instantiations which occur below its specification.  For example, if the
+configuration file read:
+
+	switchtype = national
+	channel => 1-4
+	channel => 10-12
+	switchtype = dms100
+	channel => 25-47
+
+Then, the "national" switchtype would be applied to channels one through
+four and channels 10 through 12, whereas the "dms100" switchtype would
+apply to channels 25 through 47.
+  
+The "object => parameters" instantiates an object with the given
+parameters.  For example, the line "channel => 25-47" creates objects for
+the channels 25 through 47 of the tormenta card, obtaining the settings
+from the variables specified above.
+
+* MORE INFORMATION
 
 Finally, you may wish to visit the web site and join the mailing list if
 you're interested in getting more information.
