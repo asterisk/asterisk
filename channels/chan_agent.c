@@ -50,9 +50,11 @@ static char *config = "agents.conf";
 
 static char *app = "AgentLogin";
 static char *app2 = "AgentCallbackLogin";
+static char *app3 = "AgentMonitorOutgoing";
 
 static char *synopsis = "Call agent login";
 static char *synopsis2 = "Call agent callback login";
+static char *synopsis3 = "Record agent's outgoing call";
 
 static char *descrip =
 "  AgentLogin([AgentNo][|options]):\n"
@@ -68,6 +70,13 @@ static char *descrip2 =
 "Asks the agent to login to the system with callback.  Always returns -1.\n"
 "The agent's callback extension is called (optionally with the specified\n"
 "context. \n";
+
+static char *descrip3 =
+"  AgentMonitorOutgoing([options]):\n"
+"Tries to figure out the id of the agent who is placing outgoing call based on comparision of the callerid of the current interface and the global variable placed by the AgentCallbackLogin application. That's why it should be used only with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent instead of Monitor application. That have to be configured in the agents.conf file. Normally the app returns 0 unless the options are passed. Also if the callerid or the agentid are not specified it'll look for n+101 priority. The options are:\n"
+"	'd' - make the app return -1 if there is an error condition and there is no extension n+101\n"
+"	'c' - change the source channel in the CDR record for this call to agent/agent_id so that we know which agent generates the call\n"
+"	'n' - don't generate the warnings when there is no callerid or the agentid is not known. It's handy if you want to have one context for agent and non-agent calls.\n";
 
 static char moh[80] = "default";
 
@@ -93,6 +102,8 @@ char recordformatext[AST_MAX_BUF];
 int createlink = 0;
 char urlprefix[AST_MAX_BUF];
 char savecallsin[AST_MAX_BUF];
+
+#define GETAGENTBYCALLERID	"AGENTBYCALLERID"
 
 static struct agent_pvt {
 	ast_mutex_t lock;				/* Channel private lock */
@@ -252,9 +263,8 @@ static int agent_answer(struct ast_channel *ast)
 	return -1;
 }
 
-static int agent_start_monitoring(struct ast_channel *ast, int needlock)
+static int __agent_start_monitoring(struct ast_channel *ast, struct agent_pvt *p, int needlock)
 {
-	struct agent_pvt *p = ast->pvt->pvt;
 	char tmp[AST_MAX_BUF],tmp2[AST_MAX_BUF], *pointer;
 	char filename[AST_MAX_BUF];
 	int res = -1;
@@ -279,6 +289,12 @@ static int agent_start_monitoring(struct ast_channel *ast, int needlock)
 		ast_log(LOG_ERROR, "Recording already started on that call.\n");
 	return res;
 }
+
+static int agent_start_monitoring(struct ast_channel *ast, int needlock)
+{
+	return __agent_start_monitoring(ast, ast->pvt->pvt, needlock);
+}
+
 static struct ast_frame  *agent_read(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
@@ -1212,6 +1228,12 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								if (!strlen(p->loginchan))
 									filename = "agent-loggedoff";
 								p->acknowledged = 0;
+								/* clear the global variable that stores agentid based on the callerid */
+								if (chan->callerid) {
+									char agentvar[AST_MAX_BUF];
+									snprintf(agentvar, sizeof(agentvar), "%s_%s",GETAGENTBYCALLERID, chan->callerid);
+									pbx_builtin_setvar_helper(NULL, agentvar, NULL);
+								}
 							}
 						} else {
 							strcpy(p->loginchan, "");
@@ -1252,6 +1274,12 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								res = ast_waitstream(chan, "");
 							if (!res)
 								res = ast_safe_sleep(chan, 1000);
+							/* store agent id based on the callerid as a global variable */
+							if (chan->callerid) {
+								char agentvar[AST_MAX_BUF];
+								snprintf(agentvar, sizeof(agentvar), "%s_%s",GETAGENTBYCALLERID, chan->callerid);
+								pbx_builtin_setvar_helper(NULL, agentvar, p->agent);
+							}
 							ast_mutex_unlock(&p->lock);
 						} else if (!res) {
 #ifdef HONOR_MUSIC_CLASS
@@ -1377,6 +1405,62 @@ static int callback_exec(struct ast_channel *chan, void *data)
 	return __login_exec(chan, data, 1);
 }
 
+static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
+{
+	int exitifnoagentid = 0;
+	int nowarnings = 0;
+	int updatecdr = 0;
+	int res = 0;
+	char agent[AST_MAX_AGENT], *tmp;
+	if (data) {
+		if (strchr(data, 'd'))
+			exitifnoagentid = 1;
+		if (strchr(data, 'n'))
+			nowarnings = 1;
+		if (strchr(data, 'c'))
+			updatecdr = 1;
+	}
+	if (chan->callerid) {
+		char agentvar[AST_MAX_BUF];
+		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID, chan->callerid);
+		if ((tmp = pbx_builtin_getvar_helper(NULL, agentvar))) {
+			struct agent_pvt *p = agents;
+			strncpy(agent, tmp, sizeof(agent) - 1);
+			ast_mutex_lock(&agentlock);
+			while (p) {
+				if (!strcasecmp(p->agent, tmp)) {
+					__agent_start_monitoring(chan, p, 1);
+					if (updatecdr && chan->cdr) {
+						snprintf(chan->cdr->channel, sizeof(chan->cdr->channel), "Agent/%s", p->agent);
+					}
+					break;
+				}
+				p = p->next;
+			}
+			ast_mutex_unlock(&agentlock);
+			
+		} else {
+			res = -1;
+			if (!nowarnings)
+				ast_log(LOG_WARNING, "Couldn't find the global variable %s, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n", agentvar);
+		}
+	} else {
+		res = -1;
+		if (!nowarnings)
+			ast_log(LOG_WARNING, "There is no callerid on that call, so I can't figure out which agent (if it's an agent) is placing outgoing call.\n");
+	}
+	/* check if there is n + 101 priority */
+	if (res) {
+	       if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->callerid)) {
+			chan->priority+=100;
+			ast_verbose(VERBOSE_PREFIX_3 "Going to %d priority because there is no callerid or the agentid cannot be found.\n",chan->priority);
+	       }
+		else if (exitifnoagentid)
+			return res;
+	}
+	return 0;
+}
+
 int load_module()
 {
 	/* Make sure we can register our sip channel type */
@@ -1386,6 +1470,7 @@ int load_module()
 	}
 	ast_register_application(app, login_exec, synopsis, descrip);
 	ast_register_application(app2, callback_exec, synopsis2, descrip2);
+	ast_register_application(app3, agentmonitoroutgoing_exec, synopsis3, descrip3);
 	ast_cli_register(&cli_show_agents);
 	/* Read in the config */
 	read_agent_config();
@@ -1405,6 +1490,7 @@ int unload_module()
 	ast_cli_unregister(&cli_show_agents);
 	ast_unregister_application(app);
 	ast_unregister_application(app2);
+	ast_unregister_application(app3);
 	ast_channel_unregister(type);
 	if (!ast_mutex_lock(&agentlock)) {
 		/* Hangup all interfaces if they have an owner */
