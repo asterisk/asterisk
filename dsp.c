@@ -1196,10 +1196,10 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 		}
 #endif
 		if (avgtone > dsp->historicnoise[x]) {
-			if (avgtone - (avgtone / BUSY_PERCENT) <= dsp->historicsilence[x])
+			if (avgtone - (avgtone / BUSY_PERCENT) <= dsp->historicnoise[x])
 				hittone++;
 		} else {
-			if (avgtone + (avgtone / BUSY_PERCENT) >= dsp->historicsilence[x])
+			if (avgtone + (avgtone / BUSY_PERCENT) >= dsp->historicnoise[x])
 				hittone++;
 		}
 	}
