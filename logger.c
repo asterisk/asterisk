@@ -474,6 +474,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		    vsnprintf(buf, sizeof(buf), fmt, ap);
 		    va_end(ap);
 		    fprintf(chan->fileptr, buf);
+		    fflush(chan->fileptr);
 	    }
 	    chan = chan->next;
 	}
