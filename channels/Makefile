@@ -39,7 +39,8 @@ CFLAGS+=-I/usr/local/include
 PTLIB=-lpt_OpenBSD_x86_r
 H323LIB=-lh323_OpenBSD_x86_r
 CHANH323LIB=-L/usr/local/lib
-else
+endif
+ifeq (${OSARCH},Linux)
 MYSQLLIB=-L/usr/lib/mysql -lmysqlclient
 PTLIB=-lpt_linux_x86_r
 H323LIB=-lh323_linux_x86_r
@@ -50,6 +51,9 @@ ifneq (${OSARCH},Darwin)
 CHANNEL_LIBS+=chan_oss.so
 endif
 ifeq (${OSARCH},FreeBSD)
+PTLIB=-lpt_FreeBSD_x86_r
+H323LIB=-lh323_FreeBSD_x86_r
+CHANH323LIB=-pthread
 SOLINK+=-L/usr/local/lib
 CHANNEL_LIBS+=chan_oss.so
 endif
@@ -179,7 +183,7 @@ chan_vpb.so: chan_vpb.o
 	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
 
 chan_h323.so: chan_h323.o h323/libchanh323.a
-	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lpthread -lcrypto -lssl -lexpat
+	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
 
 
 #chan_modem.so : chan_modem.o

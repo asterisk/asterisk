@@ -896,8 +896,6 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 			*ret = workspace;
 		} else 
 			*ret = NULL;
-	} else if (c && !strcmp(var, "CALLERTON")) {
-		snprintf(workspace, workspacelen, "%d", c->callerton);
 	} else if (c && !strcmp(var, "DNID")) {
 		if (c->dnid) {
 			strncpy(workspace, c->dnid, workspacelen - 1);
