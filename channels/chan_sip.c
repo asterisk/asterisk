@@ -4416,7 +4416,7 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 			snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, p->tohost);
 	}
 	
-	snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
+	snprintf(addr, sizeof(addr), "sip:%s", p->tohost);
 	strncpy(p->uri, addr, sizeof(p->uri) - 1);
 
 	p->branch ^= rand();
@@ -8766,7 +8766,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		strncpy (p->fullcontact, peer->fullcontact, sizeof(p->fullcontact));
 	}
 
-	if (!ast_strlen_zero(p->tohost))
+	if (!ast_strlen_zero(peer->tohost))
 		strncpy(p->tohost, peer->tohost, sizeof(p->tohost) - 1);
 	else
 		ast_inet_ntoa(p->tohost, sizeof(p->tohost), peer->addr.sin_addr);
