@@ -1048,6 +1048,7 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 				ast_verbose( VERBOSE_PREFIX_3 "User hung up\n");
 			res = -1;
 			outmsg=1;
+#if 0
 			/* delete all the prepend files */
 			for (x=0;x<fmtcnt;x++) {
 				if (!others[x])
@@ -1055,15 +1056,20 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 				ast_closestream(others[x]);
 				ast_filedelete(prependfile, sfmt[x]);
 			}
+#endif
 		}
 	} else {
 		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", prependfile, sfmt[x]); 
 	}
+#if 0
 	if (outmsg > 1) {
+#else
+	if (outmsg) {
+#endif
 		struct ast_frame *fr;
 		for (x=0;x<fmtcnt;x++) {
 			snprintf(comment, sizeof(comment), "Opening the real file %s.%s\n", recordfile, sfmt[x]);
-			realfiles[x] = ast_writefile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
+			realfiles[x] = ast_readfile(recordfile, sfmt[x], comment, O_RDONLY, 0, 0);
 			if (!others[x] || !realfiles[x])
 				break;
 			if (totalsilence)
