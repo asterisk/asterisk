@@ -140,6 +140,7 @@ static struct ast_frame *phone_read(struct ast_channel *ast);
 static int phone_write(struct ast_channel *ast, struct ast_frame *frame);
 static struct ast_frame *phone_exception(struct ast_channel *ast);
 static int phone_send_text(struct ast_channel *ast, const char *text);
+static int phone_fixup(struct ast_channel *old, struct ast_channel *new);
 
 static const struct ast_channel_tech phone_tech = {
 	.type = type,
@@ -153,6 +154,7 @@ static const struct ast_channel_tech phone_tech = {
 	.read = phone_read,
 	.write = phone_write,
 	.exception = phone_exception,
+	.fixup = phone_fixup
 };
 
 static struct ast_channel_tech phone_tech_fxs = {
@@ -168,9 +170,18 @@ static struct ast_channel_tech phone_tech_fxs = {
 	.exception = phone_exception,
 	.write_video = phone_write,
 	.send_text = phone_send_text,
+	.fixup = phone_fixup
 };
 
 static struct ast_channel_tech *cur_tech;
+
+static int phone_fixup(struct ast_channel *old, struct ast_channel *new)
+{
+	struct phone_pvt *pvt = old->tech_pvt;
+	if (pvt && pvt->owner == old)
+		pvt->owner = new;
+	return 0;
+}
 
 static int phone_digit(struct ast_channel *ast, char digit)
 {
