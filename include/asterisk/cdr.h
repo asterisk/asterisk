@@ -20,6 +20,10 @@
 #include <asterisk/channel.h>
 #include <sys/time.h>
 
+#define AST_CDR_FLAG_POSTED			(1 << 1)
+#define AST_CDR_FLAG_LOCKED			(1 << 2)
+#define AST_CDR_FLAG_CHILD			(1 << 3)
+
 #define AST_CDR_NOANSWER			(1 << 0)
 #define AST_CDR_BUSY				(1 << 1)
 #define AST_CDR_ANSWERED			(1 << 2)
@@ -68,10 +72,10 @@ struct ast_cdr {
 	int amaflags;				
 	/*! What account number to use */
 	char accountcode[20];			
-	/*! Whether or not the record has been posted */
-	int posted;				
-        /* Unique Channel Identifier */
-        char uniqueid[32];
+	/*! flags */
+	int flags;				
+	/* Unique Channel Identifier */
+	char uniqueid[32];
 	/* User field */
 	char userfield[AST_MAX_USER_FIELD];
 	struct ast_cdr *next;
@@ -242,5 +246,11 @@ extern int ast_cdr_update(struct ast_channel *chan);
 extern int ast_default_amaflags;
 
 extern char ast_default_accountcode[20];
+
+#define ast_cdr_has_flag(cdr, flag) ((cdr)->flags & (flag))
+#define ast_cdr_add_flag(cdr, flag) ((cdr)->flags |= (flag))
+#define ast_cdr_del_flag(cdr, flag) ((cdr)->flags &= ~(flag))
+
+extern void ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
 
 #endif /* _CDR_H */
