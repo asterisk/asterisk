@@ -305,7 +305,7 @@ int ast_register_translator(struct ast_translator *t)
 	}
 	calc_cost(t);
 	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(t->srcfmt), ast_getformatname(t->dstfmt), t->cost);
+		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
 	ast_mutex_lock(&list_lock);
 	if (!added_cli) {
 		ast_cli_register(&show_trans);
