@@ -3,7 +3,7 @@
  *
  * While Loop and ExecIf Implementations
  * 
- * Copyright Anthony Minessale <anthmct@yahoo.com>
+ * Copyright 2004, Anthony Minessale <anthmct@yahoo.com>
  *
  * Anthony Minessale <anthmct@yahoo.com>
  *
@@ -56,13 +56,13 @@ LOCAL_USER_DECL;
 
 static int execif_exec(struct ast_channel *chan, void *data) {
 	int res=0;
-    struct localuser *u;
-	LOCAL_USER_ADD(u);
+	struct localuser *u;
 	char *myapp = NULL;
 	char *mydata = NULL;
 	char *expr = NULL;
 	struct ast_app *app = NULL;
 
+	LOCAL_USER_ADD(u);
 	expr = ast_strdupa((char *) data);
 	if ((myapp = strchr(expr,'|'))) {
 		*myapp = '\0';
