@@ -25,7 +25,11 @@
 #include <asterisk/manager.h>
 #include <asterisk/enum.h>
 #include <asterisk/rtp.h>
+#ifdef __APPLE__
+#include <asterisk/dlfcn-compat.h>
+#else
 #include <dlfcn.h>
+#endif
 #include <asterisk/md5.h>
 #include <pthread.h>
 #include "asterisk.h"

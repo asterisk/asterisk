@@ -75,9 +75,11 @@ dbopen(fname, flags, mode, type, openinfo)
 	return (NULL);
 }
 #undef dbopen
+#ifndef __APPLE__
 #define weak_alias(original, alias) \
         asm (".weak " #alias "\n" #alias " = " #original);
 weak_alias (__dbopen, dbopen)
+#endif
 
 static int
 __dberr __P((void))

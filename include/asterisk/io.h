@@ -14,7 +14,11 @@
 #ifndef _IO_H
 #define _IO_H
 
+#ifdef __APPLE__
+#include <asterisk/poll-compat.h>
+#else
 #include <sys/poll.h>		/* For POLL* constants */
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

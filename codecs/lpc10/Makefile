@@ -26,8 +26,10 @@ CFLAGS = $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS) -fPIC
 #CFLAGS+= $(shell if uname -m | grep -q 86; then echo "-mpentium" ; fi)
 
 #fix for PPC processors
+ifneq ($(OSARCH),Darwin)
 ifneq ($(PROC),ppc)
 	CFLAGS+= -march=$(PROC)
+endif
 endif
 
 LIB = $(LIB_TARGET_DIR)/liblpc10.a

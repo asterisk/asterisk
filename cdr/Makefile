@@ -40,14 +40,14 @@ clean:
 	rm -f *.so *.o .depend
 
 %.so : %.o
-	$(CC) -shared -Xlinker -x -o $@ $<
+	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
 include .depend
 endif
 
 cdr_pgsql.so: cdr_pgsql.o
-	$(CC) -shared -Xlinker -x -o $@ $< -lpq -lz $(MLFLAGS)
+	$(CC) $(SOLINK) -o $@ $< -lpq -lz $(MLFLAGS)
 
 depend: .depend
 

@@ -15,7 +15,7 @@ USE_MYSQL_VM_INTERFACE=0
 USE_POSTGRES_VM_INTERFACE=0
 
 #APPS=app_dial.so app_playback.so app_directory.so app_intercom.so app_mp3.so 
-APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.so app_mp3.so \
+APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_system.so app_echo.so app_record.so app_image.so app_url.so app_disa.so \
      app_agi.so app_qcall.so app_adsiprog.so app_getcpeid.so app_milliwatt.so \
      app_zapateller.so app_datetime.so app_setcallerid.so app_festival.so \
@@ -25,6 +25,10 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_intercom.
      app_waitforring.so app_privacy.so app_db.so app_chanisavail.so \
      app_enumlookup.so app_voicemail2.so app_transfer.so app_setcidnum.so app_cdr.so \
      app_hasnewvoicemail.so app_sayunixtime.so app_cut.so
+
+ifneq (${OSARCH},Darwin)
+APPS+=app_intercom.so
+endif
 
 #APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so
@@ -44,10 +48,10 @@ clean:
 	rm -f *.so *.o look .depend
 
 %.so : %.o
-	$(CC) -shared -Xlinker -x -o $@ $<
+	$(CC) $(SOLINK) -o $@ $<
 
 app_rpt.so : app_rpt.o
-	$(CC) -shared -Xlinker -x -o $@ $< -ltonezone
+	$(CC) $(SOLINK) -o $@ $< -ltonezone
 
 install: all
 	for x in $(APPS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
@@ -56,16 +60,16 @@ app_todd.o: app_todd.c
 	gcc -pipe -O6 -g  -Iinclude -I../include -D_REENTRANT -march=i586 -DDO_CRASH -c -o  app_todd.o app_todd.c
 
 app_todd.so: app_todd.o
-	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/local/ssl/lib -lssl -lcrypto
+	$(CC) $(SOLINK) -o $@ $< -L/usr/local/ssl/lib -lssl -lcrypto
 
 app_voicemail2.so : app_voicemail2.o
 ifeq ($(USE_MYSQL_VM_INTERFACE),1)
-	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $< -lmysqlclient -lz
+	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< -lmysqlclient -lz
 else
 ifeq ($(USE_POSTGRES_VM_INTERFACE),1)
-	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $< -lpq
+	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< -lpq
 else
-	$(CC) -shared -Xlinker -x -o $@ $(MLFLAGS) $< 
+	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< 
 endif
 endif
 
@@ -73,10 +77,10 @@ app_sql_postgres.o: app_sql_postgres.c
 	$(CC) -pipe -I/usr/local/pgsql/include $(CFLAGS) -c -o app_sql_postgres.o app_sql_postgres.c
 
 app_sql_postgres.so: app_sql_postgres.o
-	$(CC) -shared -Xlinker -x -o $@ $< -L/usr/local/pgsql/lib -lpq
+	$(CC) $(SOLINK) -o $@ $< -L/usr/local/pgsql/lib -lpq
 
 app_sql_odbc.so: app_sql_odbc.o
-	$(CC) -shared -Xlinker -x -o $@ $< -lodbc
+	$(CC) $(SOLINK) -o $@ $< -lodbc
 
 look:	look.c
 	gcc -pipe -O6 -g look.c -o look -lncurses

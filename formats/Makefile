@@ -30,14 +30,14 @@ clean:
 	rm -f *.so *.o .depend
 
 %.so : %.o
-	$(CC) -shared -Xlinker -x -o $@ $<
+	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
 include .depend
 endif
 
 format_mp3.so : format_mp3.o
-	$(CC) -shared -Xlinker -x -o $@ $< -lm
+	$(CC) $(SOLINK) -o $@ $< -lm
 
 install: all
 	for x in $(FORMAT_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done

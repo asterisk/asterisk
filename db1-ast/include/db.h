@@ -51,7 +51,7 @@
 
 #ifndef	__BIT_TYPES_DEFINED__
 #define	__BIT_TYPES_DEFINED__
-#ifndef __FreeBSD__
+#if (!defined(__FreeBSD__) && !defined(__APPLE__))
 typedef	__signed char		   int8_t;
 typedef	unsigned char		 u_int8_t;
 typedef	short			  int16_t;

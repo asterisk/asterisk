@@ -68,31 +68,31 @@ $(LIBILBC):
 	$(MAKE) -C ilbc all
 
 codec_ilbc.so: codec_ilbc.o $(LIBILBC)
-	$(CC) -shared -Xlinker -x -o $@ $< $(LIBILBC)
+	$(CC) $(SOLINK) -o $@ $< $(LIBILBC)
 
 codec_g723_1.so : codec_g723_1.o $(LIBG723)
-	$(CC) -shared -Xlinker -x -o $@ $< $(LIBG723)
+	$(CC) $(SOLINK) -o $@ $< $(LIBG723)
 
 codec_g723_1b.o : codec_g723_1.c
 	$(CC) -c -o $@ $(CFLAGS) -DANNEX_B -Dsingle $<
 
 codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
-	$(CC) -shared -Xlinker -x -o $@ $< $(LIBG723B) -lm
+	$(CC) $(SOLINK) -o $@ $< $(LIBG723B) -lm
 
 codec_gsm.so: codec_gsm.o $(LIBGSMT) 
-	$(CC) -shared -Xlinker -x -o $@ $< $(LIBGSM)
+	$(CC) $(SOLINK) -o $@ $< $(LIBGSM)
 
 codec_speex.so: codec_speex.o
-	$(CC) -shared -Xlinker -x -o $@ $< $(LIBSPEEX)
+	$(CC) $(SOLINK) -o $@ $< $(LIBSPEEX)
 
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
-	$(CC) -shared -Xlinker -x -o $@ $< $(LIBLPC10) -lm
+	$(CC) $(SOLINK) -o $@ $< $(LIBLPC10) -lm
 
 codec_mp3_d.so: codec_mp3_d.o $(LIBMP3)
-	$(CC) -lm -shared -Xlinker -x -o $@ $< $(LIBMP3)
+	$(CC) -lm $(SOLINK) -o $@ $< $(LIBMP3)
 
 %.so : %.o
-	$(CC) -shared -Xlinker -x -o $@ $<
+	$(CC) $(SOLINK) -o $@ $<
 
 include .depend
 

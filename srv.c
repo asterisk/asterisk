@@ -25,6 +25,11 @@
 #include <asterisk/dns.h>
 #include <asterisk/options.h>
 
+#ifdef __APPLE__
+#undef T_SRV
+#define T_SRV 33
+#endif
+
 struct srv {
 	unsigned short priority;
 	unsigned short weight;

@@ -28,13 +28,13 @@ install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 res_crypto.so: res_crypto.o
-	$(CC) -shared -Xlinker -x -o $@ $< $(CRYPTO_LIBS)
+	$(CC) $(SOLINK) -o $@ $< $(CRYPTO_LIBS)
 
 clean:
 	rm -f *.so *.o .depend
 
 %.so : %.o
-	$(CC) -shared -Xlinker -x -o $@ $<
+	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
 include .depend

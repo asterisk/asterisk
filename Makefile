@@ -95,7 +95,6 @@ ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
 ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
 ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
 
-
 MODULES_DIR=$(ASTLIBDIR)/modules
 AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 
@@ -158,6 +157,15 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ast_expr.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	astmm.o enum.o srv.o dns.o
+ifeq (${OSARCH},Darwin)
+OBJS+=poll.o dlfcn.o
+ASTLINK=-Wl,-dynamic
+SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
+else
+ASTLINK=-Wl,-E 
+SOLINK=-shared -Xlinker -x
+endif
+
 CC=gcc
 INSTALL=install
 
@@ -224,7 +232,7 @@ stdtime/libtime.a: FORCE
 	fi
 
 asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
-	$(CC) $(DEBUG) -o asterisk -Wl,-E $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a
+	$(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) $(LIBS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a
 
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done

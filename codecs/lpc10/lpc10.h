@@ -1,8 +1,11 @@
 /*
 
 $Log$
-Revision 1.16  2003/04/23 19:13:35  markster
-More OpenBSD patches
+Revision 1.17  2003/10/26 18:50:49  markster
+Make it build and run on MacOS X
+
+Revision 1.3  2003/10/26 18:50:49  markster
+Make it build and run on MacOS X
 
 Revision 1.2  2003/04/23 19:13:35  markster
 More OpenBSD patches
@@ -49,6 +52,10 @@ typedef int		INT16;
 typedef long		INT32;
 #endif
 
+#if defined(__APPLE__)
+typedef short		INT16;
+typedef int		INT32;
+#endif
 
 
 /* The initial values for every member of this structure is 0, except

@@ -30,6 +30,11 @@
 #include <asterisk/channel.h>
 #include <asterisk/config.h>
 
+#ifdef __APPLE__
+#undef T_NAPTR
+#define T_NAPTR 35
+#endif
+
 #define TOPLEV "e164.arpa."
 
 static struct enum_search {

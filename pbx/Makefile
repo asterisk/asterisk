@@ -40,7 +40,7 @@ pbx_gtkconsole.o: pbx_gtkconsole.c
 	$(CC) $(CFLAGS) $(GTK_FLAGS) -c -o $@ $<
 
 pbx_gtkconsole.so: pbx_gtkconsole.o
-	$(CC) -shared -Xlinker -x -o $@ $< $(GTK_LIBS)
+	$(CC) $(SOLINK) -o $@ $< $(GTK_LIBS)
 
 pbx_kdeconsole.o: pbx_kdeconsole.cc pbx_kdeconsole.moc
 	$(CXX) $(CFLAGS) $(KDE_FLAGS) -c -o $@ $<
@@ -49,13 +49,13 @@ pbx_kdeconsole_main.o: pbx_kdeconsole_main.cc pbx_kdeconsole.h
 	$(CXX) $(CFLAGS) $(KDE_FLAGS) -c -o $@ $<
 
 pbx_kdeconsole.so: $(KDE_CONSOLE_OBJS)
-	$(CC) -shared -Xlinker -x -o $@ $(KDE_CONSOLE_OBJS) $(KDE_LIBS)
+	$(CC) $(SOLINK) -o $@ $(KDE_CONSOLE_OBJS) $(KDE_LIBS)
 
 %.moc : %.h
 	$(MOC) $< -o $@
 
 %.so : %.o
-	$(CC) -shared -Xlinker -x -o $@ $<
+	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
 include .depend

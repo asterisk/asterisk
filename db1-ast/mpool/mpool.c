@@ -316,6 +316,8 @@ mpool_sync(mp)
 #undef mpool_put
 #undef mpool_close
 #undef mpool_sync
+
+#ifndef __APPLE__
 #define weak_alias(original, alias) \
 	asm (".weak " #alias "\n" #alias " = " #original);
 weak_alias (__mpool_open, mpool_open)
@@ -325,6 +327,7 @@ weak_alias (__mpool_get, mpool_get)
 weak_alias (__mpool_put, mpool_put)
 weak_alias (__mpool_close, mpool_close)
 weak_alias (__mpool_sync, mpool_sync)
+#endif
 
 /*
  * mpool_bkt

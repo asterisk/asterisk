@@ -1187,7 +1187,7 @@ register struct tm * const		tmp;
 #endif /* defined TM_GMTOFF */
 }
 
-char *
+static char *
 ctime(timep)
 const time_t * const	timep;
 {
@@ -1200,7 +1200,7 @@ const time_t * const	timep;
 	return asctime(localtime(timep));
 }
 
-char *
+static char *
 ctime_r(timep, buf)
 const time_t * const	timep;
 char *buf;

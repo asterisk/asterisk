@@ -178,10 +178,12 @@ int ast_search_dns(void *context,
 		else
 			ret = 1;
 	}
-#ifdef __Linux__
+#if defined(__Linux__)
 	res_nclose(&srvstate);
 #else
+#ifndef __APPLE__
 	res_close();
+#endif
 #endif
 	return ret;
 }

@@ -14,7 +14,7 @@
 OSARCH=$(shell uname -s)
 
 CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
-	     chan_modem_aopen.so chan_oss.so \
+	     chan_modem_aopen.so \
              chan_modem_bestdata.so chan_modem_i4l.so \
              chan_agent.so chan_mgcp.so chan_iax2.so \
 	     chan_local.so chan_skinny.so
@@ -23,6 +23,10 @@ CHANNEL_LIBS=chan_modem.so chan_iax.so chan_sip.so \
 # If you really want VoFR you can have it :-P
 #
 #CHANNEL_LIBS+=chan_vofr
+
+ifneq (${OSARCH},Darwin)
+CHANNEL_LIBS+=chan_oss.so
+endif
 
 CHANNEL_LIBS+=$(shell [ -f /usr/include/linux/ixjuser.h ] && echo chan_phone.so)
 CHANNEL_LIBS+=$(shell [ -f h323/libchanh323.a ] && echo chan_h323.so)
@@ -71,7 +75,7 @@ clean:
 	rm -f busy.h ringtone.h gentone gentone-ulaw
 
 %.so : %.o
-	$(CC) -shared -Xlinker -x -o $@ $<
+	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
 include .depend
@@ -93,35 +97,35 @@ chan_oss.o: chan_oss.c  busy.h ringtone.h
 
 ifeq (${OSARCH},OpenBSD)
 chan_oss.so: chan_oss.o
-	$(CC) -shared -Xlinker -x -o $@ chan_oss.o -lossaudio
+	$(CC) $(SOLINK) -o $@ chan_oss.o -lossaudio
 endif
 
 chan_iax2.so: chan_iax2.o iax2-parser.o
-	$(CC) -shared -Xlinker -x -o $@ chan_iax2.o iax2-parser.o
+	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o
 
 chan_zap.o: $(CHANZAP)
 	$(CC) -c $(CFLAGS) -o chan_zap.o $(CHANZAP)
 
 chan_zap.so: chan_zap.o
-	$(CC) -shared -Xlinker -x -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone $(ZAPLIB)
+	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone $(ZAPLIB)
 
 chan_alsa.o: $(ALSA_SRC)
 
 
 chan_alsa.so: chan_alsa.o
-	$(CC) -shared -Xlinker -x -o $@ $< -lasound -lm -ldl
+	$(CC) $(SOLINK) -o $@ $< -lasound -lm -ldl
 
 chan_nbs.so: chan_nbs.o
-	$(CC) -shared -Xlinker -x -o $@ $< -lnbs
+	$(CC) $(SOLINK) -o $@ $< -lnbs
 
 chan_vpb.o: chan_vpb.c
 	$(CXX) -c $(CFLAGS) -o $@ chan_vpb.c
 
 chan_vpb.so: chan_vpb.o
-	 $(CXX) -shared -Xlinker -x -o $@ $< -lvpb -lpthread -lm -ldl
+	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
 
 chan_h323.so: chan_h323.o h323/libchanh323.a
-	$(CC) -shared -Xlinker -x -o $@ $< h323/libchanh323.a -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
+	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a -L$(PWLIBDIR)/lib  -lpt_linux_x86_r -L$(OPENH323DIR)/lib -lh323_linux_x86_r -L/usr/lib -lpthread -ldl -lcrypto -lssl -lexpat
 
 
 #chan_modem.so : chan_modem.o
