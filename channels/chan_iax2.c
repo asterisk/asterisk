@@ -318,6 +318,8 @@ static struct iax2_registry *registrations;
 #define DEFAULT_TRUNKDATA	640 * 10		/* 40ms, uncompressed linear * 10 channels */
 #define MAX_TRUNKDATA		640 * 200		/* 40ms, uncompressed linear * 200 channels */
 
+#define MAX_TIMESTAMP_SKEW	640
+
 /* If we have more than this much excess real jitter buffer, srhink it. */
 static int max_jitter_buffer = MAX_JITTER_BUFFER;
 
@@ -1113,17 +1115,8 @@ static int __do_deliver(void *data)
 	  the IAX thread with the iaxsl lock held. */
 	struct iax_frame *fr = data;
 	fr->retrans = -1;
-	if (iaxs[fr->callno] && !iaxs[fr->callno]->alreadygone) {
-		if (fr->af.frametype == AST_FRAME_IAX && 
-		    fr->af.subclass == IAX_COMMAND_LAGRQ) {
-			/* send a lag response to a lag request that has
-			 * gone through our jitter buffer */
-				fr->af.subclass = IAX_COMMAND_LAGRP;
-				iax2_send(iaxs[fr->callno], &fr->af, fr->ts, -1, 0, 0, 0);
-		} else {
-			iax2_queue_frame(fr->callno, &fr->af);
-		}
-	}
+	if (iaxs[fr->callno] && !iaxs[fr->callno]->alreadygone)
+		iax2_queue_frame(fr->callno, &fr->af);
 	/* Free our iax frame */
 	iax2_frame_free(fr);
 	/* And don't run again */
@@ -1606,9 +1599,11 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	int ms,x;
 	int drops[MEMORY_SIZE];
 	int min, max=0, maxone=0,y,z, match;
+
 	/* ms is a measure of the "lateness" of the packet relative to the first
-	   packet we received, which always has a lateness of 1.  Called by
-	   IAX thread, with iaxsl lock held. */
+	   packet we received.  Understand that "ms" can easily be -ve if lag improves
+	   since call start.
+	   Called by IAX thread, with iaxsl lock held. */
 	ms = calc_rxstamp(iaxs[fr->callno]) - fr->ts;
 
 	if (ms > 32767) {
@@ -1626,6 +1621,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		fr->ts -= 65536;
 	}
 
+	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
 	fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
 	fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
 	fr->af.delivery.tv_sec += fr->ts / 1000;
@@ -1635,7 +1631,6 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		fr->af.delivery.tv_sec += 1;
 	}
 
-	
 	/* Rotate our history queue of "lateness".  Don't worry about those initial
 	   zeros because the first entry will always be zero */
 	if (updatehistory) {
@@ -1708,10 +1703,16 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	if (max > iaxs[fr->callno]->jitterbuffer)
 		iaxs[fr->callno]->jitterbuffer = max 
 			/* + ((float)iaxs[fr->callno]->jitter) * 0.1 */;
-		
+
+	/* If the caller just wanted us to update, return now */
+	if (!reallydeliver)
+		return 0;
 
 	if (option_debug)
-		ast_log(LOG_DEBUG, "min = %d, max = %d, jb = %d, lateness = %d\n", min, max, iaxs[fr->callno]->jitterbuffer, ms);
+		/* Log jitter stats for possible offline analysis */
+		ast_log(LOG_DEBUG, "Jitter: call=%d ts=%d: min=%d max=%d jb=%d; lateness=%d; jitter=%d historic=%d\n",
+					fr->callno, fr->ts, min, max, iaxs[fr->callno]->jitterbuffer, ms,
+					iaxs[fr->callno]->jitter, iaxs[fr->callno]->historicjitter);
 	
 	/* Subtract the lateness from our jitter buffer to know how long to wait
 	   before sending our packet.  */
@@ -1720,25 +1721,21 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	if (!use_jitterbuffer)
 		ms = 0;
 
-	/* If the caller just wanted us to update, return now */
-	if (!reallydeliver)
-		return 0;
-		
 	if (ms < 1) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Calculated ms is %d\n", ms);
 		/* Don't deliver it more than 4 ms late */
 		if ((ms > -4) || (fr->af.frametype != AST_FRAME_VOICE)) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "schedule_delivery: Delivering immediately (Calculated ms is %d)\n", ms);
 			__do_deliver(fr);
 		} else {
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Dropping voice packet since %d ms is, too old\n", ms);
+				ast_log(LOG_DEBUG, "schedule_delivery: Dropping voice packet since %d ms is too old\n", ms);
 			/* Free our iax frame */
 			iax2_frame_free(fr);
 		}
 	} else {
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Scheduling delivery in %d ms\n", ms);
+			ast_log(LOG_DEBUG, "schedule_delivery: Scheduling delivery in %d ms\n", ms);
 		fr->retrans = ast_sched_add(sched, ms, do_deliver, fr);
 	}
 	return 0;
@@ -2588,7 +2585,7 @@ static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, 
 	ms = (tv->tv_sec - tpeer->txtrunktime.tv_sec) * 1000 + (tv->tv_usec - tpeer->txtrunktime.tv_usec) / 1000;
 	/* Predict from last value */
 	pred = tpeer->lastsent + sampms;
-	if (abs(ms - pred) < 640)
+	if (abs(ms - pred) < MAX_TIMESTAMP_SKEW)
 		ms = pred;
 	
 	/* We never send the same timestamp twice, so fudge a little if we must */
@@ -2621,6 +2618,13 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	int voice = 0;
 	int genuine = 0;
 	struct timeval *delivery = NULL;
+
+	/* What sort of frame do we have?: voice is self-explanatory
+	   "genuine" means an IAX frame - things like LAGRQ/RP, PING/PONG, ACK
+	   non-genuine frames are CONTROL frames [ringing etc], DTMF
+	   The "genuine" distinction is needed because genuine frames must get a clock-based timestamp,
+	   the others need a timestamp slaved to the voice frames so that they go in sequence
+	*/
 	if (f) {
 		if (f->frametype == AST_FRAME_VOICE) {
 			voice = 1;
@@ -2637,6 +2641,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	/* If the timestamp is specified, just send it as is */
 	if (ts)
 		return ts;
+	/* If we have a time that the frame arrived, always use it to make our timestamp */
 	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
 		ms = (delivery->tv_sec - p->offset.tv_sec) * 1000 + (delivery->tv_usec - p->offset.tv_usec) / 1000;
 	} else {
@@ -2646,19 +2651,24 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			ms = 0;
 		if (voice) {
 			/* On a voice frame, use predicted values if appropriate */
-			if (abs(ms - p->nextpred) <= 640) {
-				if (!p->nextpred)
-					p->nextpred = f->samples / 8;
+			if (abs(ms - p->nextpred) <= MAX_TIMESTAMP_SKEW) {
+				if (!p->nextpred) {
+					p->nextpred = ms; /*f->samples / 8;*/
+					if (p->nextpred <= p->lastsent)
+						p->nextpred = p->lastsent + 3;
+				}
 				ms = p->nextpred;
 			} else
 				p->nextpred = ms;
 		} else {
-			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinkign) if appropriate unless
+			/* On a dataframe, use last value + 3 (to accomodate jitter buffer shrinking) if appropriate unless
 			   it's a genuine frame */
 			if (genuine) {
+				/* genuine (IAX LAGRQ etc) must keep their clock-based stamps */
 				if (ms <= p->lastsent)
 					ms = p->lastsent + 3;
-			} else if (abs(ms - p->lastsent) <= 640) {
+			} else if (abs(ms - p->lastsent) <= MAX_TIMESTAMP_SKEW) {
+				/* non-genuine frames (!?) (DTMF, CONTROL) should be pulled into the predicted stream stamps */
 				ms = p->lastsent + 3;
 			}
 		}
@@ -4955,10 +4965,8 @@ retryowner:
 			/* Handle the IAX pseudo frame itself */
 			if (option_debug)
 				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
-			/* Go through the motions of delivering the packet without actually doing so,
-			   unless this is a lag request since it will be done for real */
-			if (f.subclass != IAX_COMMAND_LAGRQ)
-				schedule_delivery(&fr, 0, updatehistory);
+			/* Go through the motions of delivering the packet without actually doing so */
+			schedule_delivery(&fr, 0, updatehistory);
 			switch(f.subclass) {
 			case IAX_COMMAND_ACK:
 				/* Do nothing */
@@ -5248,15 +5256,18 @@ retryowner2:
 					f.samples = 0;
 					iax_frame_wrap(&fr, &f);
 					if(f.subclass == IAX_COMMAND_LAGRQ) {
-						/* A little strange -- We have to actually go through the motions of
-						delivering the packet.  In the very last step, it will be properly
-						handled by do_deliver */
-					    schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+					    /* Received a LAGRQ - echo back a LAGRP */
+					    fr.af.subclass = IAX_COMMAND_LAGRP;
+					    iax2_send(iaxs[fr.callno], &fr.af, fr.ts, -1, 0, 0, 0);
 					} else {
+					    /* Received LAGRP in response to our LAGRQ */
 					    unsigned int ts;
 					    /* This is a reply we've been given, actually measure the difference */
 					    ts = calc_timestamp(iaxs[fr.callno], 0, &fr.af);
 					    iaxs[fr.callno]->lag = ts - fr.ts;
+					    if (option_debug)
+						ast_log(LOG_DEBUG, "Peer %s lag measured as %dms\n",
+								inet_ntoa(iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->lag);
 					}
 #ifdef BRIDGE_OPTIMIZATION
 				}
