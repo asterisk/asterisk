@@ -35,7 +35,7 @@
 #ifdef SOLARIS
 #include <sys/int_types.h>
 #else
-#ifdef __FreeBSD__
+#if defined(__OpenBSD__) || defined( __FreeBSD__)
 #include <inttypes.h>
 #else
 #include <stdint.h>
