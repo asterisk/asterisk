@@ -569,6 +569,10 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	char *sfmt[MAX_OTHER_FORMATS];
 	char *stringp=NULL;
 	time_t start, end;
+	struct ast_dsp *sildet;   	/* silence detector dsp */
+	int totalsilence = 0;
+	int dspsilence = 0;
+	int gotsilence = 0;		/* did we timeout for silence? */
 	
 	
 	ast_log(LOG_DEBUG,"play_and_record: %s, %s, '%s'\n", playfile ? playfile : "<None>", recordfile, fmt);
@@ -609,6 +613,23 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 			break;
 		}
 	}
+	
+	sildet = ast_dsp_new(); //Create the silence detector
+	if (!sildet) {
+		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+		return -1;
+	}
+	ast_dsp_set_threshold(sildet, 50);
+	
+	if (maxsilence > 0) {
+		//rfmt = chan->readformat;
+		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			return -1;
+		}
+	}
+						
 	if (x == fmtcnt) {
 	/* Loop forever, writing the packets we read to the writer(s), until
 	   we read a # or get a hangup */
@@ -636,6 +657,24 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 				/* write each format */
 				for (x=0;x<fmtcnt;x++) {
 					res = ast_writestream(others[x], f);
+				}
+				
+				/* Silence Detection */
+				if (maxsilence > 0) {
+					dspsilence = 0;
+					ast_dsp_silence(sildet, f, &dspsilence);
+					if (dspsilence)
+						totalsilence = dspsilence;
+					else
+						totalsilence = 0;
+					
+					if (totalsilence > maxsilence) {
+					/* Ended happily with silence */
+					ast_frfree(f);
+					gotsilence = 1;
+					outmsg=2;
+					break;
+					}
 				}
 				/* Exit on any error */
 				if (res) {
@@ -678,7 +717,10 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 	for (x=0;x<fmtcnt;x++) {
 		if (!others[x])
 			break;
-		ast_stream_rewind(others[x], 1000);
+		if (gotsilence)
+			ast_stream_rewind(others[x], totalsilence-1000);
+		else
+			ast_stream_rewind(others[x], 1000);
 		ast_truncstream(others[x]);
 		ast_closestream(others[x]);
 	}
@@ -717,14 +759,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	char *stringp;
 	time_t start;
 	time_t end;
-#if 0
-	/* XXX Need to be moved to play_and_record */
-	struct ast_dsp *sildet;   	/* silence detector dsp */
-	int totalsilence = 0;
-	int dspsilence = 0;
-	int gotsilence = 0;		/* did we timeout for silence? */
-#endif	
-
 	char tmp[256] = "";
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
@@ -866,24 +900,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			} else
 				ast_log(LOG_WARNING, "No more messages possible\n");
 		} else
-			ast_log(LOG_WARNING, "No format for saving voicemail?\n");
-	
-#if 0
-						sildet = ast_dsp_new(); //Create the silence detector
-						if (silence > 0) {
-							rfmt = chan->readformat;
-							res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-							if (res < 0) {
-								ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-								return -1;
-							}
-							if (!sildet) {
-								ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-								return -1;
-							}
-							ast_dsp_set_threshold(sildet, 50);
-						}
-#endif						
+			ast_log(LOG_WARNING, "No format for saving voicemail?\n");					
 		free_user(vmu);
 	} else
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
