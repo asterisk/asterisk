@@ -4200,7 +4200,8 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if ((i->callprogress & 1) && CANPROGRESSDETECT(i)) {
 			features |= DSP_FEATURE_CALL_PROGRESS;
 		}
-		if (i->callprogress & 2) {
+		if ((!i->outgoing && (i->callprogress & 4)) || 
+		    (i->outgoing && (i->callprogress & 2))) {
 			features |= DSP_FEATURE_FAX_DETECT;
 		}
 		features |= DSP_FEATURE_DTMF_DETECT;
@@ -8413,10 +8414,16 @@ static int setup_zap(void)
 			else
 				callprogress &= ~1;
 		} else if (!strcasecmp(v->name, "faxdetect")) {
-			if (ast_true(v->value))
-				callprogress |= 2;
-			else
+			if (!strcasecmp(v->value, "incoming")) {
+				callprogress |= 4;
 				callprogress &= ~2;
+			} else if (!strcasecmp(v->value, "outgoing")) {
+				callprogress &= ~4;
+				callprogress |= 2;
+			} else if (!strcasecmp(v->value, "both") || ast_true(v->value))
+				callprogress |= 6;
+			else
+				callprogress &= ~6;
 		} else if (!strcasecmp(v->name, "echocancel")) {
 			if (v->value && !ast_strlen_zero(v->value)) {
 				y = atoi(v->value);

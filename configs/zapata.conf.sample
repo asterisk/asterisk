@@ -279,9 +279,12 @@ immediate=no
 ;callprogress=yes
 ;progzone=us
 ;
-; For fax detection, uncomment the following line.  The default is *OFF*
+; For fax detection, uncomment one of the following lines.  The default is *OFF*
 ;
-;faxdetect=yes
+;faxdetect=both
+;faxdetect=incoming
+;faxdetect=outgoing
+;faxdetect=no
 ;
 ; Select which class of music to use for music on hold.  If not specified
 ; then the default will be used.
