@@ -2601,6 +2601,45 @@ static int reload_config(void)
 	return 0;
 }
 
+void delete_devices(void)
+{
+	struct skinny_device *d, *dlast;
+	struct skinny_line *l, *llast;
+	struct skinny_subchannel *sub, *slast;
+	
+	ast_mutex_lock(&devicelock);
+	
+	/* Delete all devices */
+	for (d=devices;d;) {
+		
+		/* Delete all lines for this device */
+		for (l=d->lines;l;) {
+			/* Delete all subchannels for this line */
+			for (sub=l->sub;sub;) {
+				slast = sub;
+				sub = sub->next;
+				free(slast);
+			}
+			llast = l;
+			l = l->next;
+			free(llast);
+		}
+		dlast = d;
+		d = d->next;
+		free(dlast);
+	}
+	devices=NULL;
+	ast_mutex_unlock(&devicelock);
+}
+
+int reload(void)
+{
+	delete_devices();
+	reload_config();
+	restart_monitor();
+	return 0;
+}
+
 
 int load_module()
 {
