@@ -2578,7 +2578,7 @@ static unsigned int fix_peerts(struct iax2_peer *peer, int callno, unsigned int 
 static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct timeval *delivery)
 {
 	struct timeval tv;
-	unsigned int ms;
+	int ms;
 	if (!p->offset.tv_sec && !p->offset.tv_usec) {
 		gettimeofday(&p->offset, NULL);
 		/* Round to nearest 20ms */
@@ -2592,6 +2592,8 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	} else {
 		gettimeofday(&tv, NULL);
 		ms = (tv.tv_sec - p->offset.tv_sec) * 1000 + (tv.tv_usec - p->offset.tv_usec) / 1000;
+		if (ms < 0)
+			ms = 0;
 	}
 	/* We never send the same timestamp twice, so fudge a little if we must */
 	if (ms <= p->lastsent) {
@@ -2632,7 +2634,7 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p)
 {
 	/* Returns where in "receive time" we are */
 	struct timeval tv;
-	unsigned int ms;
+	int ms;
 	/* Setup rxcore if necessary */
 	if (!p->rxcore.tv_sec && !p->rxcore.tv_usec)
 		gettimeofday(&p->rxcore, NULL);
