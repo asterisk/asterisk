@@ -1060,13 +1060,16 @@ static struct mgcp_subchannel *find_subchannel(char *name, int msgid, struct soc
 			}
 			p = g->endpoints;
 			while(p) {
-                ast_log(LOG_DEBUG, "Searching on %s@%s for subchannel\n", p->name, g->name);
+				if (option_debug)
+	                ast_log(LOG_DEBUG, "Searching on %s@%s for subchannel\n", p->name, g->name);
                 if (msgid) {
                     sub = p->sub;
                     do {
-                        ast_log(LOG_DEBUG, "Searching on %s@%s-%d for subchannel with lastout: %d\n", p->name, g->name, sub->id, msgid);
+						if (option_debug)
+    	                    ast_log(LOG_DEBUG, "Searching on %s@%s-%d for subchannel with lastout: %d\n", p->name, g->name, sub->id, msgid);
                         if (sub->lastout == msgid) {
-                            ast_log(LOG_DEBUG, "Found subchannel sub%d to handle request %d sub->lastout: %d\n", sub->id, msgid, sub->lastout);
+							if (option_debug)
+            	                ast_log(LOG_DEBUG, "Found subchannel sub%d to handle request %d sub->lastout: %d\n", sub->id, msgid, sub->lastout);
                             found = 1;
                             break;
                         }
