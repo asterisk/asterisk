@@ -28,6 +28,7 @@
 #include <asterisk/io.h>
 #include <asterisk/rtp.h>
 #include <asterisk/acl.h>
+#include <asterisk/manager.h>
 #include <asterisk/callerid.h>
 #include <asterisk/cli.h>
 #include <asterisk/md5.h>
@@ -4019,6 +4020,7 @@ static int sip_reg_timeout(void *data)
 		p->needdestroy = 1;
 	}
 	r->regstate=REG_STATE_UNREGISTERED;
+	manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 	r->timeout = -1;
 	res=transmit_register(r, "REGISTER", NULL, NULL);
 	ast_mutex_unlock(&regl.lock);
@@ -4271,6 +4273,7 @@ static int expire_register(void *data)
 	struct sip_peer *p = data;
 	memset(&p->addr, 0, sizeof(p->addr));
 	ast_db_del("SIP/Registry", p->name);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", p->name);
 	register_peer_exten(p, 0);
 	p->expire = -1;
 	ast_device_state_changed("SIP/%s", p->name);
@@ -4395,6 +4398,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		p->lastms = 0;
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Unregistered SIP '%s'\n", p->name);
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\n", p->name);
 		return 0;
 	}
 	strncpy(p->fullcontact, c, sizeof(p->fullcontact) - 1);
@@ -4455,6 +4459,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
 	ast_db_put("SIP/Registry", p->name, data);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
 	if (inaddrcmp(&p->addr, &oldsin)) {
 		sip_poke_peer(p);
 		if (option_verbose > 2)
@@ -4849,6 +4854,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 				ast_log(LOG_WARNING, "Failed to parse contact info\n");
 			} else {
 				/* Say OK and ask subsystem to retransmit msg counter */
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", peer->name);
 				transmit_response_with_date(p, "200 OK", req);
 				peer->lastmsgssent = -1;
 				res = 0;
@@ -6559,6 +6565,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		   need to hang around for something more "difinitive" */
 		if (resp != 100) {
 			int statechanged = 0;
+			int newstate = 0;
 			peer = p->peerpoke;
 			gettimeofday(&tv, NULL);
 			pingtime = (tv.tv_sec - peer->ps.tv_sec) * 1000 +
@@ -6569,19 +6576,27 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				if (pingtime <= peer->maxms) {
 					ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE!\n", peer->name);
 					statechanged = 1;
+					newstate = 1;
 				}
 			} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
 				if (pingtime > peer->maxms) {
 					ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED!\n", peer->name);
 					statechanged = 1;
+					newstate = 2;
 				}
 			}
 			if (!peer->lastms)
 			    statechanged = 1;
 			peer->lastms = pingtime;
 			peer->call = NULL;
-			if (statechanged)
-			    ast_device_state_changed("SIP/%s", peer->name);
+			if (statechanged) {
+				ast_device_state_changed("SIP/%s", peer->name);
+				if (newstate == 2) {
+					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
+				} else {
+					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
+				}
+			}
 
 			if (peer->pokeexpire > -1)
 				ast_sched_del(sched, peer->pokeexpire);
@@ -6669,6 +6684,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				r=p->registry;
 				if (r) {
 					r->regstate=REG_STATE_REGISTERED;
+					manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
 					ast_log(LOG_DEBUG, "Registration successful\n");
 					if (r->timeout > -1) {
 						ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
@@ -7817,8 +7833,10 @@ static int sip_poke_noanswer(void *data)
 	struct sip_peer *peer = data;
 	
 	peer->pokeexpire = -1;
-	if (peer->lastms > -1)
+	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!\n", peer->name);
+		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name, -1);
+	}
 	if (peer->call)
 		sip_destroy(peer->call);
 	peer->call = NULL;

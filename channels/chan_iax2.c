@@ -4152,6 +4152,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 			snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
 		snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
 		ast_verbose(VERBOSE_PREFIX_3 "Registered to '%s', who sees us as %s%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ourip, msgstatus);
+		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nDomain: %s\r\nStatus: Registered\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 	}
 	reg->regstate = REG_STATE_REGISTERED;
 	return 0;
@@ -4319,11 +4320,13 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered '%s' (%s) at %s:%d\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);+                               manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
 				register_peer_exten(p, 1);
 			} else {
 				if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Unregistered '%s' (%s)\n", p->name, 
 					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
 				register_peer_exten(p, 0);
 				ast_db_del("IAX/Registry", p->name);
 			}
@@ -5499,9 +5502,11 @@ retryowner2:
 					if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime <= peer->maxms)
 							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE!\n", peer->name);
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name,iaxs[fr.callno]->pingtime); 
 					} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime > peer->maxms)
 							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr.callno]->pingtime);
+							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name,iaxs[fr.callno]->pingtime); 
 					}
 					peer->lastms = iaxs[fr.callno]->pingtime;
 					if (peer->pokeexpire > -1)
@@ -5694,8 +5699,10 @@ retryowner2:
 				break;
 			case IAX_COMMAND_REGREJ:
 				if (iaxs[fr.callno]->reg) {
-					if (authdebug)
+					if (authdebug) {
 						ast_log(LOG_NOTICE, "Registration of '%s' rejected: %s\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
+						manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nUsername: %s\r\nStatus: Rejected\r\nCause: %s\r\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
+					}
 					iaxs[fr.callno]->reg->regstate = REG_STATE_REJECTED;
 				}
 				/* Send ack immediately, before we destroy */
@@ -5996,8 +6003,10 @@ static int iax2_poke_noanswer(void *data)
 {
 	struct iax2_peer *peer = data;
 	peer->pokeexpire = -1;
-	if (peer->lastms > -1)
+	if (peer->lastms > -1) {
 		ast_log(LOG_NOTICE, "Peer '%s' is now UNREACHABLE!\n", peer->name);
+		manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unreachable\r\nTime: %d\r\n", peer->name,peer->lastms);
+	}
 	if (peer->callno > 0)
 		iax2_destroy(peer->callno);
 	peer->callno = 0;
