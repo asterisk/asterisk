@@ -5162,6 +5162,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					break;
 				case 486: /* Busy here */
 				case 600: /* Busy everywhere */
+				case 603: /* Decline */
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY, 0);
 					break;
