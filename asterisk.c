@@ -51,6 +51,8 @@
 #include <asterisk/config.h>
 #include <asterisk/config_pvt.h>
 #include <sys/resource.h>
+#include <grp.h>
+#include <pwd.h>
 
 #if  defined(__FreeBSD__)
 #include <netdb.h>
@@ -1413,6 +1415,8 @@ static int show_cli_help(void) {
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -C <configfile> Use an alternate configuration file\n");
+	printf("   -G <group>      Run as a group other than the caller\n");
+	printf("   -U <user>       Run as a user other than the caller\n");
 	printf("   -c              Provide console CLI\n");
 	printf("   -d              Enable extra debugging\n");
 	printf("   -f              Do not fork\n");
@@ -1495,6 +1499,7 @@ int main(int argc, char *argv[])
 	sigset_t sigs;
 	int num;
 	char *buf;
+	char *runuser=NULL, *rungroup=NULL;
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
@@ -1528,7 +1533,7 @@ int main(int argc, char *argv[])
 	}
 	*/
 	/* Check for options */
-	while((c=getopt(argc, argv, "hfdvqprRgcinx:C:")) != -1) {
+	while((c=getopt(argc, argv, "hfdvqprRgcinx:U:G:C:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -1580,6 +1585,12 @@ int main(int argc, char *argv[])
 		case 'h':
 			show_cli_help();
 			exit(0);
+		case 'U':
+			runuser = optarg;
+			break;
+		case 'G':
+			rungroup = optarg;
+			break;
 		case '?':
 			exit(1);
 		}
@@ -1593,6 +1604,37 @@ int main(int argc, char *argv[])
 		if (setrlimit(RLIMIT_CORE, &l)) {
 			ast_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
 		}
+	}
+
+	if (rungroup) {
+		struct group *gr;
+		gr = getgrnam(rungroup);
+		if (!gr) {
+			ast_log(LOG_WARNING, "No such group '%s'!\n", rungroup);
+			exit(1);
+		}
+		if (setuid(gr->gr_gid)) {
+			ast_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
+			exit(1);
+		}
+		if (option_verbose)
+			ast_verbose("Running as group '%s'\n", rungroup);
+	}
+
+
+	if (runuser) {
+		struct passwd *pw;
+		pw = getpwnam(runuser);
+		if (!pw) {
+			ast_log(LOG_WARNING, "No such user '%s'!\n", runuser);
+			exit(1);
+		}
+		if (setuid(pw->pw_uid)) {
+			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
+			exit(1);
+		}
+		if (option_verbose)
+			ast_verbose("Running as user '%s'\n", runuser);
 	}
 
 	term_init();
