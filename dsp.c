@@ -1633,6 +1633,8 @@ struct ast_dsp *ast_dsp_new(void)
 		dsp->busycount = DSP_HISTORY;
 		/* Initialize DTMF detector */
 		ast_dtmf_detect_init(&dsp->td.dtmf);
+		/* Initialize initial DSP progress detect parameters */
+		ast_dsp_prog_reset(dsp);
 	}
 	return dsp;
 }
