@@ -290,7 +290,6 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			if (!ast_strlen_zero(cdr->channel)) 
 				ast_log(LOG_WARNING, "CDR already initialized on '%s'\n", chan); 
 			strncpy(cdr->channel, c->name, sizeof(cdr->channel) - 1);
-			cdr->chan = c;
 			/* Grab source from ANI or normal Caller*ID */
 			if (c->cid.cid_ani)
 				num = c->cid.cid_ani;
