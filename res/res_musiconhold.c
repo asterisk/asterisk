@@ -713,8 +713,10 @@ static int moh_scan_files(struct mohclass *class) {
 		if (!S_ISREG(statbuf.st_mode))
 			continue;
 
-		if ((ext = strrchr(filepath, '.')))
+		if ((ext = strrchr(filepath, '.'))) {
 			*ext = '\0';
+			ext++;
+		}
 
 		/* check to see if this file's format can be opened */
 		if (ast_fileexists(filepath, ext, NULL) == -1)
