@@ -491,12 +491,6 @@ static int agent_hangup(struct ast_channel *ast)
 		/* Store last disconnect time */
 		gettimeofday(&p->lastdisc, NULL);
 		ast_mutex_unlock(&p->lock);
-	} else if (strlen(p->loginchan)) {
-		if (!p->wrapuptime)
-			check_availability(p, 1);
-		else {
-			/* XXX Need to add support for wrapuptime on callback agents */
-		}
 	}
 	return 0;
 }
@@ -707,21 +701,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 		if (!p->abouttograb && p->pending && ((p->group && (newlyavailable->group & p->group)) || !strcmp(p->agent, newlyavailable->agent))) {
 			ast_log(LOG_DEBUG, "Call '%s' looks like a winner for agent '%s'\n", p->owner->name, newlyavailable->agent);
 			/* We found a pending call, time to merge */
-			if (strlen(newlyavailable->loginchan)) {
-				/* Adjustable agent */
-				newlyavailable->chan = ast_request("Local", AST_FORMAT_SLINEAR, newlyavailable->loginchan);
-				if (newlyavailable->chan) {
-					if (ast_call(newlyavailable->chan, newlyavailable->loginchan, 0))
-						ast_log(LOG_WARNING, "Call failed on channel '%s'\n", newlyavailable->chan->name);
-					chan = agent_new(p, AST_STATE_DOWN);
-				} else {
-					ast_log(LOG_WARNING, "I didn't expect to ever get here...\n");
-					ast_mutex_unlock(&p->lock);
-					p = p->next;
-					continue;
-				}
-			} else 
-				chan = agent_new(newlyavailable, AST_STATE_DOWN);
+			chan = agent_new(newlyavailable, AST_STATE_DOWN);
 			parent = p->owner;
 			p->abouttograb = 1;
 			ast_mutex_unlock(&p->lock);
