@@ -2628,8 +2628,10 @@ tackygoto:
 		cs[1] = cs[2];
 	}
 	lock_both(callno0, callno1);
-	iaxs[callno0]->bridgecallno = 0;
-	iaxs[callno1]->bridgecallno = 0;
+	if(iaxs[callno0])
+		iaxs[callno0]->bridgecallno = 0;
+	if(iaxs[callno1])
+		iaxs[callno1]->bridgecallno = 0;
 	unlock_both(callno0, callno1);
 	return res;
 }
