@@ -1368,21 +1368,22 @@ static void ast_remotecontrol(char * data)
 }
 
 static int show_cli_help(void) {
-	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 2000-2002, Digium.\n");
+	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 2000-2004, Digium.\n");
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
-	printf("   -h           This help screen\n");
-	printf("   -r           Connect to Asterisk on this machine\n");
-	printf("   -f           Do not fork\n");
-	printf("   -n           Disable console colorization\n");
-	printf("   -p           Run as pseudo-realtime thread\n");
-	printf("   -v           Increase verbosity (multiple v's = more verbose)\n");
-	printf("   -q           Quiet mode (supress output)\n");
-	printf("   -g           Dump core in case of a crash\n");
-	printf("   -x <cmd>     Execute command <cmd> (only valid with -r)\n");
-	printf("   -i           Initializie crypto keys at startup\n");
-	printf("   -c           Provide console CLI\n");
-	printf("   -d           Enable extra debugging\n");
+	printf("   -C <configfile> Use an alternate configuration file\n");
+	printf("   -c              Provide console CLI\n");
+	printf("   -d              Enable extra debugging\n");
+	printf("   -f              Do not fork\n");
+	printf("   -g              Dump core in case of a crash\n");
+	printf("   -h              This help screen\n");
+	printf("   -i              Initializie crypto keys at startup\n");
+	printf("   -n              Disable console colorization\n");
+	printf("   -p              Run as pseudo-realtime thread\n");
+	printf("   -q              Quiet mode (supress output)\n");
+	printf("   -r              Connect to Asterisk on this machine\n");
+	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
+	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
 	printf("\n");
 	return 0;
 }
