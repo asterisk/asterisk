@@ -427,6 +427,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	struct sockaddr_in sin;
 	int len;
 	unsigned int seqno;
+	int version;
 	int payloadtype;
 	int hdrlen = 12;
 	int mark;
@@ -477,6 +478,12 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	/* Get fields */
 	seqno = ntohl(rtpheader[0]);
+
+	/* Check RTP version */
+	version = (seqno & 0xC0000000) >> 30;
+	if (version != 2)
+		return &null_frame;
+	
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	mark = seqno & (1 << 23);
 	ext = seqno & (1 << 28);
