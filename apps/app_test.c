@@ -27,7 +27,7 @@
 #include "../astconf.h"
 
 
-static char *tdesc = "Make sure asterisk doesn't save CDR for a certain call";
+static char *tdesc = "Interface Test Application";
 
 static char *tests_descrip = "TestServer(): Perform test server function and write call report"
 							 "Results stored in /var/log/asterisk/testreports/<testid>.txt";

@@ -24,6 +24,14 @@
 #define CID_UNKNOWN_NAME		(1 << 2)
 #define CID_UNKNOWN_NUMBER		(1 << 3)
 
+#define CID_SIG_BELL	1
+#define CID_SIG_V23	2
+#define CID_SIG_DTMF	3
+
+#define CID_START_RING	1
+#define CID_START_POLARITY 2
+
+
 #define AST_LIN2X(a) ((codec == AST_FORMAT_ALAW) ? (AST_LIN2A(a)) : (AST_LIN2MU(a)))
 #define AST_XLAW(a) ((codec == AST_FORMAT_ALAW) ? (AST_ALAW(a)) : (AST_MULAW(a)))
 
@@ -51,10 +59,12 @@ extern int callerid_generate(unsigned char *buf, char *number, char *name, int f
 
 //! Create a callerID state machine
 /*!
+ * \param cid_signalling Type of signalling in use
+ *
  * This function returns a malloc'd instance of the callerid_state data structure.
  * Returns a pointer to a malloc'd callerid_state structure, or NULL on error.
  */
-extern struct callerid_state *callerid_new(void);
+extern struct callerid_state *callerid_new(int cid_signalling);
 
 //! Read samples into the state machine.
 /*!
@@ -83,6 +93,15 @@ extern int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int sa
  * Returns nothing.
  */
 void callerid_get(struct callerid_state *cid, char **number, char **name, int *flags);
+
+//! Get and parse DTMF-based callerid 
+/*!
+ * \param cidstring The actual transmitted string.
+ * \param number The cid number is returned here.
+ * \param flags The cid flags are returned here.
+ * This function parses DTMF callerid.
+ */
+void callerid_get_dtmf(char *cidstring, char *number, int *flags);
 
 //! Free a callerID state
 /*!

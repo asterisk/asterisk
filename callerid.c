@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <ctype.h>
 #include <asterisk/ulaw.h>
 #include <asterisk/alaw.h>
 #include <asterisk/frame.h>
@@ -107,7 +108,7 @@ void callerid_init(void)
 	casdi2 = sin(CAS_FREQ2 * 2.0 * M_PI / 8000.0);
 }
 
-struct callerid_state *callerid_new(void)
+struct callerid_state *callerid_new(int cid_signalling)
 {
 	struct callerid_state *cid;
 	cid = malloc(sizeof(struct callerid_state));
@@ -119,8 +120,13 @@ struct callerid_state *callerid_new(void)
 		cid->fskd.nstop = 1;	/* 1 stop bit */
 		cid->fskd.paridad = 0;	/* No parity */
 		cid->fskd.bw=1;			/* Filter 800 Hz */
-		cid->fskd.f_mark_idx =  2;	/* 1200 Hz */
-		cid->fskd.f_space_idx = 3;	/* 2200 Hz */
+		if (cid_signalling == 2) { /* v23 signalling */
+			cid->fskd.f_mark_idx =  4;	/* 1300 Hz */
+			cid->fskd.f_space_idx = 5;	/* 2100 Hz */
+		} else { /* Bell 202 signalling as default */ 
+			cid->fskd.f_mark_idx =  2;	/* 1200 Hz */
+			cid->fskd.f_space_idx = 3;	/* 2200 Hz */
+		}
 		cid->fskd.pcola = 0;		/* No clue */
 		cid->fskd.cont = 0;			/* Digital PLL reset */
 		cid->fskd.x0 = 0.0;
@@ -145,6 +151,67 @@ void callerid_get(struct callerid_state *cid, char **name, char **number, int *f
 		*number = NULL;
 	else
 		*number = cid->number;
+}
+
+void callerid_get_dtmf(char *cidstring, char *number, int *flags)
+{
+	int i;
+	int code;
+
+	/* "Clear" the number-buffer. */
+	number[0] = 0;
+
+	if (strlen(cidstring) < 2) {
+		ast_log(LOG_DEBUG, "No cid detected\n");
+		*flags = CID_UNKNOWN_NUMBER;
+		return;
+	}
+	
+	/* Detect protocol and special types */
+	if (cidstring[0] == 'B') {
+		/* Handle special codes */
+		code = atoi(&cidstring[1]);
+		if (code == 0)
+			*flags = CID_UNKNOWN_NUMBER;
+		else if (code == 10) 
+			*flags = CID_PRIVATE_NUMBER;
+		else
+			ast_log(LOG_DEBUG, "Unknown DTMF code %d\n", code);
+	} else if (cidstring[0] == 'D' && cidstring[2] == '#') {
+		/* .DK special code */
+		if (cidstring[1] == '1')
+			*flags = CID_PRIVATE_NUMBER;
+		if (cidstring[1] == '2' || cidstring[1] == '3')
+			*flags = CID_UNKNOWN_NUMBER;
+	} else if (cidstring[0] == 'D' || cidstring[0] == 'A') {
+		/* "Standard" callerid */
+		for (i = 1; i < strlen(cidstring); i++ ) {
+			if (cidstring[i] == 'C' || cidstring[i] == '#')
+				break;
+			if (isdigit(cidstring[i]))
+				number[i-1] = cidstring[i];
+			else
+				ast_log(LOG_DEBUG, "Unknown CID digit '%c'\n",
+					cidstring[i]);
+		}
+		number[i-1] = 0;
+	} else if (isdigit(cidstring[0])) {
+		/* It begins with a digit, so we parse it as a number and hope
+		 * for the best */
+		ast_log(LOG_WARNING, "Couldn't detect start-character. CID "
+			"parsing might be unreliable\n");
+		for (i = 0; i < strlen(cidstring); i++) {
+			if (isdigit(cidstring[i]))
+                                number[i] = cidstring[i];
+			else
+				break;
+		}
+		number[i] = 0;
+	} else {
+		ast_log(LOG_DEBUG, "Unknown CID protocol, start digit '%c'\n", 
+			cidstring[0]);
+		*flags = CID_UNKNOWN_NUMBER;
+	}
 }
 
 int ast_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
@@ -277,6 +344,8 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 							memcpy(cid->name, cid->rawdata + x + 1, res);
 							cid->name[res] = '\0';
 							break;
+						case 17: /* UK: Call type, 1=Voice Call, 2=Ringback when free, 129=Message waiting  */
+						case 19: /* UK: Network message system status (Number of messages waiting) */
 						case 22: /* Something French */
 							break;
 						default:

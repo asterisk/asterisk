@@ -3,9 +3,9 @@
  *
  * General Asterisk channel definitions.
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2004, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -338,6 +338,8 @@ struct outgoing_helper {
 #define AST_STATE_BUSY  	7		
 /*! Digits (or equivalent) have been dialed while offhook */
 #define AST_STATE_DIALING_OFFHOOK	8
+/*! Channel has detected an incoming call and is waiting for ring */
+#define AST_STATE_PRERING       9
 
 /* Bits 16-32 of state are reserved for flags */
 /*! Do not transmit voice data */

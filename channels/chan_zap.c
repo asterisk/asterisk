@@ -163,6 +163,8 @@ static char progzone[10]= "";
 static int usedistinctiveringdetection = 0;
 
 static int use_callerid = 1;
+static int cid_signalling = CID_SIG_BELL;
+static int cid_start = CID_START_RING;
 static int zaptrcallerid = 0;
 static int cur_signalling = -1;
 
@@ -473,6 +475,8 @@ static struct zt_pvt {
 	time_t guardtime;			/* Must wait this much time before using for new call */
 	int dialednone;
 	int use_callerid;			/* Whether or not to use caller id on this channel */
+	int cid_signalling;			/* CID signalling type bell202 or v23 */
+	int cid_start;				/* CID start indicator, polarity or ring */
 	int hidecallerid;
 	int callreturn;
 	int permhidecallerid;		/* Whether to hide our outgoing caller ID or not */
@@ -900,7 +904,10 @@ static char *events[] = {
 		"Ringer Off",
 		"Hook Transition Complete",
 		"Bits Changed",
-		"Pulse Start"
+	        "Pulse Start",
+		"Timer Expired",
+		"Timer Ping",
+	        "Polarity Reversal"
 };
 
 static struct {
@@ -929,7 +936,7 @@ static char *alarm2str(int alarm)
 static char *event2str(int event)
 {
         static char buf[256];
-        if ((event < 15) && (event > -1))
+        if ((event < 18) && (event > -1))
                 return events[event];
         sprintf(buf, "Event %d", event); /* safe */
         return buf;
@@ -3373,6 +3380,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_SF_FEATD:
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
+				if (ast->_state == AST_STATE_PRERING)
+					ast_setstate(ast, AST_STATE_RING);
 				if ((ast->_state == AST_STATE_DOWN) || (ast->_state == AST_STATE_RING)) {
 					if (option_debug)
 						ast_log(LOG_DEBUG, "Ring detected\n");
@@ -4540,6 +4549,7 @@ static void *ss_thread(void *data)
 	char exten2[AST_MAX_EXTENSION]="";
 	unsigned char buf[256];
 	char cid[256];
+	char dtmfcid[300];
 	char dtmfbuf[300];
 	struct callerid_state *cs;
 	char *name=NULL, *number=NULL;
@@ -5083,8 +5093,219 @@ static void *ss_thread(void *data)
 			}
 		}
 #endif
-		if (p->use_callerid) {
-			cs = callerid_new();
+		/* If we want caller id, we're in a prering state due to a polarity reversal
+		 * and we're set to use a polarity reversal to trigger the start of caller id,
+		 * grab the caller id and wait for ringing to start... */
+		if (p->use_callerid && (chan->_state == AST_STATE_PRERING && p->cid_start == CID_START_POLARITY)) {
+			/* If set to use DTMF CID signalling, listen for DTMF */
+			if (p->cid_signalling == CID_SIG_DTMF) {
+				int i = 0;
+				cs = NULL;
+				ast_log(LOG_DEBUG, "Receiving DTMF cid on "
+					"channel %s\n", chan->name);
+				zt_setlinear(p->subs[index].zfd, 0);
+				res = 2000;
+				for (;;) {
+					struct ast_frame *f;
+					res = ast_waitfor(chan, res);
+					if (res <= 0) {
+						ast_log(LOG_WARNING, "DTMFCID timed out waiting for ring. "
+							"Exiting simple switch\n");
+						ast_hangup(chan);
+						return NULL;
+					} 
+					f = ast_read(chan);
+					if (f->frametype == AST_FRAME_DTMF) {
+						dtmfbuf[i++] = f->subclass;
+						ast_log(LOG_DEBUG, "CID got digit '%c'\n", f->subclass);
+						res = 2000;
+					}
+					ast_frfree(f);
+					if (chan->_state == AST_STATE_RING ||
+					    chan->_state == AST_STATE_RINGING) 
+						break; /* Got ring */
+				}
+				dtmfbuf[i] = 0;
+				zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
+				/* Got cid and ring. */
+				ast_log(LOG_DEBUG, "CID got string '%s'\n", dtmfbuf);
+				callerid_get_dtmf(dtmfbuf, dtmfcid, &flags);
+				ast_log(LOG_DEBUG, "CID is '%s', flags %d\n", 
+					dtmfcid, flags);
+				/* If first byte is NULL, we have no cid */
+				if (dtmfcid[0]) 
+					number = dtmfcid;
+				else
+					number = 0;
+			/* If set to use V23 Signalling, launch our FSK gubbins and listen for it */
+			} else if (p->cid_signalling == CID_SIG_V23) {
+				cs = callerid_new(cid_signalling);
+				if (cs) {
+#if 1
+					bump_gains(p);
+#endif				
+					/* Take out of linear mode for Caller*ID processing */
+					zt_setlinear(p->subs[index].zfd, 0);
+					
+					/* First we wait and listen for the Caller*ID */
+					for(;;) {	
+						i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
+						if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))	{
+							ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
+							callerid_free(cs);
+							ast_hangup(chan);
+							return NULL;
+						}
+						if (i & ZT_IOMUX_SIGEVENT) {
+							res = zt_get_event(p->subs[index].zfd);
+							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+							res = 0;
+						} else if (i & ZT_IOMUX_READ) {
+							res = read(p->subs[index].zfd, buf, sizeof(buf));
+							if (res < 0) {
+								if (errno != ELAST) {
+									ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
+									callerid_free(cs);
+									ast_hangup(chan);
+									return NULL;
+								}
+								break;
+							}
+							res = callerid_feed(cs, buf, res, AST_LAW(p));
+							if (res < 0) {
+								ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
+								break;
+							} else if (res)
+								break;
+						}
+					}
+					if (res == 1) {
+						callerid_get(cs, &name, &number, &flags);
+						if (option_debug)
+							ast_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
+					}
+					if (res < 0) {
+						ast_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", chan->name);
+					}
+
+					/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */ 
+					res = 2000;
+					for (;;) {
+						struct ast_frame *f;
+						res = ast_waitfor(chan, res);
+						if (res <= 0) {
+							ast_log(LOG_WARNING, "CID timed out waiting for ring. "
+								"Exiting simple switch\n");
+							ast_hangup(chan);
+							return NULL;
+						} 
+						f = ast_read(chan);
+						ast_frfree(f);
+						if (chan->_state == AST_STATE_RING ||
+						    chan->_state == AST_STATE_RINGING) 
+							break; /* Got ring */
+					}
+	
+					/* We must have a ring by now, so, if configured, lets try to listen for
+					 * distinctive ringing */ 
+					if (p->usedistinctiveringdetection == 1) {
+						len = 0;
+						distMatches = 0;
+						/* Clear the current ring data array so we dont have old data in it. */
+						for (receivedRingT=0; receivedRingT < 3; receivedRingT++) {
+							curRingData[receivedRingT] = 0;
+						}
+						receivedRingT = 0;
+						counter = 0;
+						counter1 = 0;
+						/* Check to see if context is what it should be, if not set to be. */
+						if (strcmp(p->context,p->defcontext) != 0) {
+							strncpy(p->context, p->defcontext, sizeof(p->context)-1);
+							strncpy(chan->context,p->defcontext,sizeof(chan->context)-1);
+						}
+		
+						for(;;) {	
+							i = ZT_IOMUX_READ | ZT_IOMUX_SIGEVENT;
+							if ((res = ioctl(p->subs[index].zfd, ZT_IOMUX, &i)))	{
+								ast_log(LOG_WARNING, "I/O MUX failed: %s\n", strerror(errno));
+								callerid_free(cs);
+								ast_hangup(chan);
+								return NULL;
+							}
+							if (i & ZT_IOMUX_SIGEVENT) {
+								res = zt_get_event(p->subs[index].zfd);
+								ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
+								res = 0;
+								/* Let us detect distinctive ring */
+		
+								curRingData[receivedRingT] = p->ringt;
+		
+								if (p->ringt < RINGT/2)
+									break;
+								++receivedRingT; /* Increment the ringT counter so we can match it against
+										values in zapata.conf for distinctive ring */
+							} else if (i & ZT_IOMUX_READ) {
+								res = read(p->subs[index].zfd, buf, sizeof(buf));
+								if (res < 0) {
+									if (errno != ELAST) {
+										ast_log(LOG_WARNING, "read returned error: %s\n", strerror(errno));
+										callerid_free(cs);
+										ast_hangup(chan);
+										return NULL;
+									}
+									break;
+								}
+								if (p->ringt) 
+									p->ringt--;
+								if (p->ringt == 1) {
+									res = -1;
+									break;
+								}
+							}
+						}
+						if(option_verbose > 2)
+							/* this only shows up if you have n of the dring patterns filled in */
+							ast_verbose( VERBOSE_PREFIX_3 "Detected ring pattern: %d,%d,%d\n",curRingData[0],curRingData[1],curRingData[2]);
+	
+						for (counter=0; counter < 3; counter++) {
+							/* Check to see if the rings we received match any of the ones in zapata.conf for this
+							channel */
+							distMatches = 0;
+							for (counter1=0; counter1 < 3; counter1++) {
+								if (curRingData[counter1] <= (p->drings.ringnum[counter].ring[counter1]+10) && curRingData[counter1] >=
+								(p->drings.ringnum[counter].ring[counter1]-10)) {
+									distMatches++;
+								}
+							}
+							if (distMatches == 3) {
+								/* The ring matches, set the context to whatever is for distinctive ring.. */
+								strncpy(p->context, p->drings.ringContext[counter].contextData, sizeof(p->context)-1);
+								strncpy(chan->context, p->drings.ringContext[counter].contextData, sizeof(chan->context)-1);
+								if(option_verbose > 2)
+									ast_verbose( VERBOSE_PREFIX_3 "Distinctive Ring matched context %s\n",p->context);
+								break;
+							}
+						}
+					}
+					/* Restore linear mode (if appropriate) for Caller*ID processing */
+					zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
+#if 1
+					restore_gains(p);
+#endif				
+				} else
+					ast_log(LOG_WARNING, "Unable to get caller ID space\n");			
+			} else {
+				ast_log(LOG_WARNING, "Channel %s in prering "
+					"state, but I have nothing to do. "
+					"Terminating simple switch, should be "
+					"restarted by the actual ring.\n", 
+					chan->name);
+				ast_hangup(chan);
+				return NULL;
+			}
+		} else if (p->use_callerid && p->cid_start == CID_START_RING) {
+			/* FSK Bell202 callerID */
+			cs = callerid_new(cid_signalling);
 			if (cs) {
 #if 1
 				bump_gains(p);
@@ -5444,6 +5665,26 @@ static int handle_init_event(struct zt_pvt *i, int event)
 			return -1;
 		}
 		break;
+	case ZT_EVENT_POLARITY:
+		switch(i->sig) {
+		case SIG_FXSLS:
+		case SIG_FXSKS:
+		case SIG_FXSGS:
+			if (i->cid_start == CID_START_POLARITY) {
+				ast_verbose(VERBOSE_PREFIX_2 "Starting post polarity "
+					    "CID detection on channel %d\n",
+					    i->channel);
+				chan = zt_new(i, AST_STATE_PRERING, 0, SUB_REAL, 0, 0);
+				if (chan && ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
+					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
+				}
+			}
+			break;
+		default:
+			ast_log(LOG_WARNING, "handle_init_event detected "
+				"polarity reversal on non-FXO (SIG_FXS) "
+				"interface %d\n", i->channel);
+		}
 	}
 	return 0;
 }
@@ -6193,6 +6434,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->channel = channel;
 		tmp->stripmsd = stripmsd;
 		tmp->use_callerid = use_callerid;
+		tmp->cid_signalling = cid_signalling;
+		tmp->cid_start = cid_start;
 		tmp->zaptrcallerid = zaptrcallerid;
 		tmp->restrictcid = restrictcid;
 		tmp->use_callingpres = use_callingpres;
@@ -8891,6 +9134,22 @@ static int setup_zap(void)
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
 		} else if (!strcasecmp(v->name, "usecallerid")) {
 			use_callerid = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "cidsignalling")) {
+			if (!strcasecmp(v->value, "bell"))
+				cid_signalling = CID_SIG_BELL;
+			else if (!strcasecmp(v->value, "v23"))
+				cid_signalling = CID_SIG_V23;
+			else if (!strcasecmp(v->value, "dtmf"))
+				cid_signalling = CID_SIG_DTMF;
+			else if (ast_true(v->value))
+				cid_signalling = CID_SIG_BELL;
+		} else if (!strcasecmp(v->name, "cidstart")) {
+			if (!strcasecmp(v->value, "ring"))
+				cid_start = CID_START_RING;
+			else if (!strcasecmp(v->value, "polarity"))
+				cid_start = CID_START_POLARITY;
+			else if (ast_true(v->value))
+				cid_start = CID_START_RING;
 		} else if (!strcasecmp(v->name, "threewaycalling")) {
 			threewaycalling = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cancallforward")) {
@@ -9420,6 +9679,8 @@ static int reload_zt(void)
 	language[0] = '\0'; 
 	musicclass[0] = '\0';
 	use_callerid = 1;
+	cid_signalling = CID_SIG_BELL;
+	cid_start = CID_START_RING;
 	cur_signalling = -1;
 	cur_group = 0;
 	cur_callergroup = 0;
@@ -9557,8 +9818,24 @@ static int reload_zt(void)
 		} else if (!strcasecmp(v->name, "dring3")) {
 			ringc = v->value;
 			sscanf(ringc, "%d,%d,%d", &drings.ringnum[2].ring[0], &drings.ringnum[2].ring[1], &drings.ringnum[2].ring[2]);
-		} else if (!strcasecmp(v->name, "usecallerid")) {
-			use_callerid = ast_true(v->value);
+ 		} else if (!strcasecmp(v->name, "usecallerid")) {
+ 			use_callerid = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "cidsignalling")) {
+			if (!strcasecmp(v->value, "bell")) 
+				cid_signalling = CID_SIG_BELL;
+			else if (!strcasecmp(v->value, "v23")) 
+				cid_signalling = CID_SIG_V23;
+			else if (!strcasecmp(v->value, "dtmf"))
+				cid_signalling = CID_SIG_DTMF;
+			else if (ast_true(v->value)) 
+				cid_signalling = CID_SIG_BELL;
+		} else if (!strcasecmp(v->name, "cidstart")) {
+			if (!strcasecmp(v->value, "ring"))
+				cid_start = CID_START_RING;
+			else if (!strcasecmp(v->value, "polarity"))
+				cid_start = CID_START_POLARITY;
+			else if (ast_true(v->value))
+				cid_start = CID_START_RING;
 		} else if (!strcasecmp(v->name, "threewaycalling")) {
 			threewaycalling = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "transfer")) {

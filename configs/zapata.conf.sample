@@ -150,6 +150,16 @@ rxwink=300		; Atlas seems to use long (250ms) winks
 ;
 usecallerid=yes
 ;
+; Type of caller ID signalling in use
+; bell = bell202 as used in US, v23 = v23 as used in the UK, dtmf = DTMF as used in Denmark, Sweden and Netherlands
+;
+;cidsignalling=bell
+;
+; What signals the start of caller ID
+; ring = a ring signals the start, polarity = polarity reversal signals the start
+;
+;cidstart=ring
+;
 ; Whether or not to hide outgoing caller ID (Override with *67 or *82)
 ;
 hidecallerid=no

@@ -20,8 +20,8 @@
 
 #define NBW	2
 #define BWLIST	{75,800}
-#define	NF	4
-#define	FLIST {1400,1800,1200,2200}
+#define	NF	6
+#define	FLIST {1400,1800,1200,2200,1300,2100}
 
 #define STATE_SEARCH_STARTBIT	0
 #define STATE_SEARCH_STARTBIT2	1
