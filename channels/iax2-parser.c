@@ -92,7 +92,7 @@ static struct iax2_ie {
 } ies[] = {
 	{ IAX_IE_CALLED_NUMBER, "CALLED NUMBER", dump_string },
 	{ IAX_IE_CALLING_NUMBER, "CALLING NUMBER", dump_string },
-	{ IAX_IE_CALLING_NUMBER, "ANI", dump_string },
+	{ IAX_IE_CALLING_ANI, "ANI", dump_string },
 	{ IAX_IE_CALLING_NAME, "CALLING NAME", dump_string },
 	{ IAX_IE_CALLED_CONTEXT, "CALLED CONTEXT", dump_string },
 	{ IAX_IE_USERNAME, "USERNAME", dump_string },
