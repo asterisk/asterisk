@@ -122,6 +122,7 @@ struct localuser {
 	int allowdisconnect_in;
 	int allowdisconnect_out;
 	int forcecallerid;
+	int forwards;
 	struct localuser *next;
 };
 
@@ -140,6 +141,8 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 		free(oo);
 	}
 }
+
+#define AST_MAX_FORWARDS   8
 
 #define AST_MAX_WATCHERS 256
 
@@ -255,12 +258,21 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						tech = "Local";
 					}
 					/* Before processing channel, go ahead and check for forwarding */
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
-					/* Setup parameters */
-					o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
+					o->forwards++;
+					if (o->forwards < AST_MAX_FORWARDS) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
+						/* Setup parameters */
+						o->chan = ast_request(tech, in->nativeformats, stuff, &cause);
+						if (!o->chan)
+							ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+					} else {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", o->chan->name);
+						cause = AST_CAUSE_CONGESTION;
+						o->chan = NULL;
+					}
 					if (!o->chan) {
-						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
 						o->stillgoing = 0;
 						HANDLE_CAUSE(cause, in);
 					} else {
@@ -804,14 +816,23 @@ static int dial_exec(struct ast_channel *chan, void *data)
 				stuff = tmpchan;
 				tech = "Local";
 			}
-			/* Before processing channel, go ahead and check for forwarding */
-			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
-			/* Setup parameters */
-			ast_hangup(tmp->chan);
-			tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
+			tmp->forwards++;
+			if (tmp->forwards < AST_MAX_FORWARDS) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", chan->name, tech, stuff, tmp->chan->name);
+				ast_hangup(tmp->chan);
+				/* Setup parameters */
+				tmp->chan = ast_request(tech, chan->nativeformats, stuff, &cause);
+				if (!tmp->chan)
+					ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause = %d)\n", tech, stuff, cause);
+			} else {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Too many forwards from %s\n", tmp->chan->name);
+				ast_hangup(tmp->chan);
+				tmp->chan = NULL;
+				cause = AST_CAUSE_CONGESTION;
+			}
 			if (!tmp->chan) {
-				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s' (cause %d)\n", tech, stuff, cause);
 				HANDLE_CAUSE(cause, chan);
 				cur = rest;
 				continue;
