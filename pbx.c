@@ -797,6 +797,12 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 			*ret = workspace;
 		} else 
 			*ret = NULL;
+	} else if (c && !strcmp(var, "DNID")) {
+		if (c->dnid) {
+			strncpy(workspace, c->dnid, workspacelen - 1);
+			*ret = workspace;
+		} else
+			*ret = NULL;
 	} else if (c && !strcmp(var, "HINT")) {
 		if (!ast_get_hint(workspace, workspacelen - 1, c, c->context, c->exten))
 			*ret = NULL;

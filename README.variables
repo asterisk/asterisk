@@ -40,6 +40,8 @@ ${ENV(VAR)}	Environmental variable VAR
 ${EPOCH}	Current unix style epoch
 ${DATETIME}	Current date time in the format: YYYY-MM-DD_HH:MM:SS
 ${UNIQUEID}	Current call unique identifier
+${DNID}         Dialed Number Identifier
+${RDNIS}        Redirected Dial Number ID Service
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
