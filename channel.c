@@ -29,6 +29,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/say.h>
 #include <asterisk/file.h>
+#include <asterisk/cli.h>
 #include <asterisk/translate.h>
 #include <asterisk/manager.h>
 #include <asterisk/chanvars.h>
@@ -49,6 +50,7 @@
 #error "You need newer zaptel!  Please cvs update zaptel"
 #endif
 #endif
+#include "asterisk.h"
 
 /* uncomment if you have problems with 'monitoring' synchronized files */
 #if 0
@@ -77,6 +79,32 @@ struct ast_channel *channels = NULL;
    it at the same time, but still! */
    
 AST_MUTEX_DEFINE_STATIC(chlock);
+
+static int show_channeltypes(int fd, int argc, char *argv[])
+{
+#define FORMAT  "%-7.7s  %-50.50s\n"
+	struct chanlist *cl = backends;
+	ast_cli(fd, FORMAT, "Type", "Description");
+	ast_cli(fd, FORMAT, "------", "-----------");
+	if (ast_mutex_lock(&chlock)) {
+		ast_log(LOG_WARNING, "Unable to lock channel list\n");
+		return -1;
+	}
+	while (cl) {
+		ast_cli(fd, FORMAT, cl->type, cl->description);
+		cl = cl->next;
+	}
+	ast_mutex_unlock(&chlock);
+	return RESULT_SUCCESS;
+
+}
+
+static char show_channeltypes_usage[] = 
+"Usage: show channeltypes\n"
+"       Shows available channel types registred in your Asterisk server.";
+
+static struct ast_cli_entry cli_show_channeltypes = 
+	{ { "show", "channeltypes", NULL }, show_channeltypes, "Show available channel types", show_channeltypes_usage };
 
 int ast_check_hangup(struct ast_channel *chan)
 {
@@ -3011,3 +3039,7 @@ void ast_moh_cleanup(struct ast_channel *chan)
         ast_moh_cleanup_ptr(chan);
 }
 
+void ast_channels_init(void)
+{
+	ast_cli_register(&cli_show_channeltypes);
+}

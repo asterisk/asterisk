@@ -1832,6 +1832,7 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	ast_channels_init();
 	if (init_manager()) {
 		printf(term_quit());
 		exit(1);

@@ -50,5 +50,7 @@ extern int reload_logger(int);
 extern int term_init(void);
 /* Provided by db.c */
 extern int astdb_init(void);
+/* Provided by channel.c */
+extern void ast_channels_init(void);
 
 #endif
