@@ -571,6 +571,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 	struct tm tm;
 	if (!strcmp(format, "wav49"))
 		format = "WAV";
+	ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, attach_voicemail);
 	p = popen(SENDMAIL, "w");
 	if (p) {
 		gethostname(host, sizeof(host));
@@ -589,7 +590,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 		fprintf(p, "Subject: [PBX]: New message %d in mailbox %s\n", msgnum, mailbox);
 		fprintf(p, "Message-ID: <Asterisk-%d-%s-%d@%s>\n", msgnum, mailbox, getpid(), host);
 		fprintf(p, "MIME-Version: 1.0\n");
-		if ((attach_user_voicemail==-1 && attach_voicemail) || attach_user_voicemail==1) {
+		if (attach_user_voicemail) {
 			// Something unique.
 			snprintf(bound, sizeof(bound), "Boundary=%d%s%d", msgnum, mailbox, getpid());
 
@@ -604,7 +605,7 @@ static int sendmail(char *srcemail, char *email, char *name, int msgnum, char *m
 			"in mailbox %s from %s, on %s so you might\n"
 			"want to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n\n", name, 
 			dur, msgnum, mailbox, (callerid ? callerid : "an unknown caller"), date);
-		if ((attach_user_voicemail==-1 && attach_voicemail) || attach_user_voicemail==1) {
+		if (attach_user_voicemail) {
 			fprintf(p, "--%s\n", bound);
 			fprintf(p, "Content-Type: audio/x-wav; name=\"msg%04d.%s\"\n", msgnum, format);
 			fprintf(p, "Content-Transfer-Encoding: BASE64\n");
@@ -2396,6 +2397,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 		memset(vmu, 0, sizeof(struct ast_vm_user));
 		strncpy(vmu->context, context, sizeof(vmu->context));
 		strncpy(vmu->mailbox, mbox, sizeof(vmu->mailbox));
+		vmu->attach = -1;
 		stringp = tmp;
 		if ((s = strsep(&stringp, ","))) 
 			strncpy(vmu->password, s, sizeof(vmu->password));
