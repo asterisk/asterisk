@@ -10,3 +10,29 @@
 ;context = default
 ;line => aaln/2
 ;line => aaln/1
+
+;; The MGCP channel supports the following service codes:
+;; # - Transfer
+;; *67 - Calling Number Delivery Blocking 
+;; *70 - Cancel Call Waiting 
+;; *72 - Call Forwarding Activation 
+;; *73 - Call Forwarding Deactivation 
+;; *78 - Do Not Disturb Activation 
+;; *79 - Do Not Disturb Deactivation 
+;; *8 - Call pick-up
+;
+; known to work with Swissvoice IP10s 
+;[192.168.1.20] 
+;context=local 
+;host=192.168.1.20 
+;callerid = "John Doe" <123> 
+;callgroup=0 
+;pickupgroup=0
+;nat=no 
+;threewaycalling=yes 
+;transfer=yes     ; transfer requires threewaycalling=yes. Use FLASH to
+transfer
+;callwaiting=yes  ; this might be a cause of trouble for ip10s
+;cancallforward=yes 
+;line => aaln/1 
+;
