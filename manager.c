@@ -1470,7 +1470,7 @@ static int ast_manager_register_struct(struct manager_action *act)
 	return 0;
 }
 
-int ast_manager_register2(char *action, int auth, int (*func)(struct mansession *s, struct message *m), char *synopsis, char *description)
+int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, struct message *m), const char *synopsis, const char *description)
 {
 	struct manager_action *cur;
 

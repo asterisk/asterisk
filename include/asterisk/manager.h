@@ -92,11 +92,11 @@ struct message {
 
 struct manager_action {
 	/*! Name of the action */
-	char *action;
+	const char *action;
 	/*! Short description of the action */
-	char *synopsis;
+	const char *synopsis;
 	/*! Detailed description of the action */
-	char *description;
+	const char *description;
 	/*! Permission required for action.  EVENT_FLAG_* */
 	int authority;
 	/*! Function to be called */
@@ -120,11 +120,11 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms);
 	\param description Help text, several lines
 */
 int ast_manager_register2( 
-	char *action, 
+	const char *action, 
 	int authority, 
 	int (*func)(struct mansession *s, struct message *m), 
-	char *synopsis,
-	char *description);
+	const char *synopsis,
+	const char *description);
 
 /*! Unregister a registred manager command */
 /*!	\param action Name of registred Action:
