@@ -1271,8 +1271,6 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	put_uint32(rtpheader + 4, htonl(rtp->lastts));
 	put_uint32(rtpheader + 8, htonl(rtp->ssrc)); 
 
-	rtp->seqno++;
-
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
 		if (res <0) 
@@ -1281,6 +1279,9 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 			ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
 					, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
 	}
+
+	rtp->seqno++;
+
 	return 0;
 }
 
