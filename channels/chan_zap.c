@@ -4183,6 +4183,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			if (p->priindication_oob && p->sig == SIG_PRI) {
 				chan->hangupcause = AST_CAUSE_USER_BUSY;
 				chan->_softhangup |= AST_SOFTHANGUP_DEV;
+				res = 0;
 			} else
 #endif
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_BUSY);
@@ -4252,6 +4253,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			if (p->priindication_oob && p->sig == SIG_PRI) {
 				chan->hangupcause = AST_CAUSE_SWITCH_CONGESTION;
 				chan->_softhangup |= AST_SOFTHANGUP_DEV;
+				res = 0;
 			} else
 #endif
 				res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_CONGESTION);
