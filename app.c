@@ -1227,6 +1227,10 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option, char *exten, void *cbdata)
 {
 	int res;
+	int (*ivr_func)(struct ast_channel *, void *);
+	char *c;
+	char *n;
+	
 	switch(option->action) {
 	case AST_ACTION_UPONE:
 		return RES_UPONE;
@@ -1258,13 +1262,33 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 		return res;
 	case AST_ACTION_MENU:
 		res = ast_ivr_menu_run_internal(chan, (struct ast_ivr_menu *)option->adata, cbdata);
+		/* Do not pass entry errors back up, treaat ast though ti was an "UPONE" */
+		if (res == -2)
+			res = 0;
+		return res;
+	case AST_ACTION_WAITOPTION:
+		res = ast_waitfordigit(chan, 1000 * (chan->pbx ? chan->pbx->rtimeout : 10));
+		if (!res)
+			return 't';
 		return res;
 	case AST_ACTION_CALLBACK:
-	case AST_ACTION_PLAYLIST:
+		ivr_func = option->adata;
+		res = ivr_func(chan, cbdata);
+		return res;
 	case AST_ACTION_TRANSFER:
-	case AST_ACTION_WAITOPTION:
-		ast_log(LOG_NOTICE, "Unimplemented dispatch function %d, ignoring!\n", option->action);
+		res = ast_parseable_goto(chan, option->adata);
 		return 0;
+	case AST_ACTION_PLAYLIST:
+	case AST_ACTION_BACKLIST:
+		res = 0;
+		c = ast_strdupa(option->adata);
+		if (c) {
+			while((n = strsep(&c, ";")))
+				if ((res = ast_streamfile(chan, n, chan->language)) || (res = ast_waitstream(chan, (option->action == AST_ACTION_BACKLIST) ? AST_DIGIT_ANY : "")))
+					break;
+			ast_stopstream(chan);
+		}
+		return res;
 	default:
 		ast_log(LOG_NOTICE, "Unknown dispatch function %d, ignoring!\n", option->action);
 		return 0;
@@ -1326,6 +1350,7 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 		while(menu->options[pos].option) {
 			if (!strcasecmp(menu->options[pos].option, exten)) {
 				res = ivr_dispatch(chan, menu->options + pos, exten, cbdata);
+				ast_log(LOG_DEBUG, "IVR Dispatch of '%s' (pos %d) yields %d\n", exten, pos, res);
 				if (res < 0)
 					break;
 				else if (res & RES_UPONE)
@@ -1334,29 +1359,32 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 					return res;
 				else if (res & RES_REPEAT) {
 					int maxretries = res & 0xffff;
-					if (res & RES_RESTART)
+					if ((res & RES_RESTART) == RES_RESTART) {
 						retries = 0;
-					else
+					} else
 						retries++;
 					if (!maxretries)
 						maxretries = 3;
-					if ((maxretries > 0) && (retries >= maxretries))
+					if ((maxretries > 0) && (retries >= maxretries)) {
+						ast_log(LOG_DEBUG, "Max retries %d exceeded\n", maxretries);
 						return -2;
-					else {
+					} else {
 						if (option_exists(menu, "g") > -1) 
 							strcpy(exten, "g");
 						else if (option_exists(menu, "s") > -1)
 							strcpy(exten, "s");
 					}
 					pos=0;
+					continue;
 				} else if (res && strchr(AST_DIGIT_ANY, res)) {
 					ast_log(LOG_DEBUG, "Got start of extension, %c\n", res);
 					exten[1] = '\0';
 					exten[0] = res;
 					if ((res = read_newoption(chan, menu, exten, sizeof(exten))))
 						break;
-					if (!option_exists(menu, exten)) {
+					if (option_exists(menu, exten) < 0) {
 						if (option_exists(menu, "i")) {
+							ast_log(LOG_DEBUG, "Invalid extension entered, going to 'i'!\n");
 							strcpy(exten, "i");
 							pos = 0;
 							continue;
@@ -1366,6 +1394,7 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 							break;
 						}
 					} else {
+						ast_log(LOG_DEBUG, "New existing extension: %s\n", exten);
 						pos = 0;
 						continue;
 					}
@@ -1377,8 +1406,6 @@ static int ast_ivr_menu_run_internal(struct ast_channel *chan, struct ast_ivr_me
 		pos = 0;
 		if (!strcasecmp(exten, "s"))
 			strcpy(exten, "g");
-		else if (strcasecmp(exten, "t"))
-			strcpy(exten, "t");
 		else
 			break;
 	}

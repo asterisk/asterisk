@@ -61,7 +61,7 @@ endif
 #So we go lowest common available by gcc and go a step down, still a step up from
 #the default as we now have a better instruction set to work with. - Belgarath
 ifeq (${PROC},ultrasparc)
-OPTIMIZE+=-mcpu=v8 -mtune=$(PROC) -O3 -fomit-frame-pointer
+OPTIMIZE+=-mcpu=v8 -mtune=$(PROC) -O3 
 endif
 
 PG =
@@ -82,7 +82,7 @@ PG =
 # CCFLAGS 	= -c -O
 
 CC		?= gcc
-CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -funroll-loops -fPIC $(OPTIMIZE) -fomit-frame-pointer
+CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -funroll-loops -fPIC $(OPTIMIZE)
 
 LD 		= $(CC)
 

@@ -38,6 +38,7 @@ typedef enum {
 	AST_ACTION_TRANSFER,	/* adata is a string with exten[@context] */
 	AST_ACTION_WAITOPTION,	/* adata is a timeout, or 0 for defaults */
 	AST_ACTION_NOOP,		/* adata is unused */
+	AST_ACTION_BACKLIST,	/* adata is list of files separated by ; allows interruption */
 } ast_ivr_action;
 
 struct ast_ivr_option {
@@ -61,6 +62,8 @@ struct ast_ivr_menu {
 	unsigned int flags;	/* Flags */
 	struct ast_ivr_option *options;	/* All options */
 };
+
+#define AST_IVR_FLAG_AUTORESTART (1 << 0)
 
 #define AST_IVR_DECLARE_MENU(holder,title,flags,foo...) \
 	static struct ast_ivr_option __options_##holder[] = foo;\

@@ -199,7 +199,7 @@ CFLAGS+= $(TRACE_FRAMES)
 CFLAGS+= $(MALLOC_DEBUG)
 CFLAGS+= $(BUSYDETECT)
 CFLAGS+= $(OPTIONS)
-CFLAGS+=# -fomit-frame-pointer 
+CFLAGS+= -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr utils stdtime
 ifeq (${OSARCH},Linux)
 LIBS=-ldl -lpthread

@@ -36,14 +36,17 @@ static int ivr_demo_func(struct ast_channel *chan, void *data)
 
 AST_IVR_DECLARE_MENU(ivr_submenu, "IVR Demo Sub Menu", 0, 
 {
-		{ "s", AST_ACTION_BACKGROUND, "demo-abouttotry" },
-		{ "1", AST_ACTION_PLAYBACK, "digits/1" },
-		{ "1", AST_ACTION_PLAYBACK, "digits/1" },
-		{ "1", AST_ACTION_RESTART },
-		{ "2", AST_ACTION_PLAYLIST, "digits/2;digits/3" },
-		{ "*", AST_ACTION_REPEAT },
-		{ "#", AST_ACTION_UPONE  },
-		{ NULL }
+	{ "s", AST_ACTION_BACKGROUND, "demo-abouttotry" },
+	{ "s", AST_ACTION_WAITOPTION },
+	{ "1", AST_ACTION_PLAYBACK, "digits/1" },
+	{ "1", AST_ACTION_PLAYBACK, "digits/1" },
+	{ "1", AST_ACTION_RESTART },
+	{ "2", AST_ACTION_PLAYLIST, "digits/2;digits/3" },
+	{ "3", AST_ACTION_CALLBACK, ivr_demo_func },
+	{ "4", AST_ACTION_TRANSFER, "demo|s|1" },
+	{ "*", AST_ACTION_REPEAT },
+	{ "#", AST_ACTION_UPONE  },
+	{ NULL }
 });
 
 AST_IVR_DECLARE_MENU(ivr_demo, "IVR Demo Main Menu", 0, 
@@ -56,7 +59,7 @@ AST_IVR_DECLARE_MENU(ivr_demo, "IVR Demo Main Menu", 0,
 	{ "2", AST_ACTION_MENU, &ivr_submenu },
 	{ "2", AST_ACTION_RESTART },
 	{ "i", AST_ACTION_PLAYBACK, "invalid" },
-	{ "i", AST_ACTION_REPEAT, (void *)2 },
+	{ "i", AST_ACTION_REPEAT, (void *)(unsigned long)2 },
 	{ "#", AST_ACTION_EXIT },
 	{ NULL },
 });
