@@ -2589,7 +2589,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 			exten   = strsep(&splitter, "@");
 			context = splitter;
 
-			/* check for length and change to NULL if !strlen() */
+			/* check for length and change to NULL if ast_strlen_zero() */
 			if (ast_strlen_zero(exten))   exten = NULL;
 			if (ast_strlen_zero(context)) context = NULL;
 		} else
