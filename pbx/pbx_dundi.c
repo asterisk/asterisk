@@ -39,7 +39,7 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <errno.h>
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(SOLARIS) || defined(__OSX__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(SOLARIS) || defined(__OSX__)
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #endif
@@ -47,7 +47,7 @@
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OSX__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__OSX__)
 #include <net/if_dl.h>
 #include <ifaddrs.h>
 #endif
@@ -4534,14 +4534,14 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 				tos = IPTOS_THROUGHPUT;
 			else if (!strcasecmp(v->value, "reliability"))
 				tos = IPTOS_RELIABILITY;
-#if !defined(__NetBSD__) && !defined(SOLARIS)
+#if !defined(__NetBSD__) && !defined(__OpenBSD__) && !defined(SOLARIS)
 			else if (!strcasecmp(v->value, "mincost"))
 				tos = IPTOS_MINCOST;
 #endif
 			else if (!strcasecmp(v->value, "none"))
 				tos = 0;
 			else
-#if defined(__NetBSD__) && !defined(SOLARIS)
+#if !defined(__NetBSD__) && !defined(__OpenBSD__) && !defined(SOLARIS)
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 #else
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);

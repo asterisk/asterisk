@@ -53,6 +53,9 @@ APPS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "app_osplookup.so" ; f
 CURLLIBS=$(shell curl-config --libs)
 ifneq (${CURLLIBS},)
 	APPS+=app_curl.so
+	ifeq (${OSARCH},OpenBSD)
+		CFLAGS+=-I/usr/local/include
+	endif
 endif
 
 CFLAGS+=-fPIC
