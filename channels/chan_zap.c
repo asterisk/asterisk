@@ -7006,10 +7006,12 @@ static void *pri_dchannel(void *vpri)
 								pri_hangup_all(pri->pvts[chanpos]->master);
 							else
 								pri->pvts[chanpos]->owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 							chanpos = -1;
 						}
 					}
-					ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+					if (chanpos > -1)
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 				}
 				if ((chanpos < 0) && (e->ring.flexible))
 					chanpos = pri_find_empty_chan(pri, 1);
