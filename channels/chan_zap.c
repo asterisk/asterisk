@@ -3495,15 +3495,19 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									if (p->zaptrcallerid) {
 										if (!p->origcid_num) {
 											p->origcid_num = malloc(strlen(p->cid_num) + 1);
-											strncpy(p->origcid_num, p->cid_num, strlen(p->cid_num)); /* safe */
-											/* make sure p->origcallerid is terminated */
-											p->origcid_num[strlen(p->cid_num)] = '\0';
+											if (p->origcid_num) {
+												strncpy(p->origcid_num, p->cid_num, strlen(p->cid_num)); /* safe */
+												/* make sure p->origcallerid is terminated */
+												p->origcid_num[strlen(p->cid_num)] = '\0';
+											}
 										}
 										if (!p->origcid_name) {
 											p->origcid_name = malloc(strlen(p->cid_name) + 1);
-											strncpy(p->origcid_name, p->cid_name, strlen(p->cid_name)); /* safe */
-											/* make sure p->origcallerid is terminated */
-											p->origcid_name[strlen(p->cid_name)] = '\0';
+											if (p->origcid_name) {
+												strncpy(p->origcid_name, p->cid_name, strlen(p->cid_name)); /* safe */
+												/* make sure p->origcallerid is terminated */
+												p->origcid_name[strlen(p->cid_name)] = '\0';
+											}
 										}
 										strncpy(p->cid_num, cid_num, sizeof(p->cid_num) -1);
 										strncpy(p->cid_name, cid_name, sizeof(p->cid_name) -1);
