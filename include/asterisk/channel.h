@@ -152,14 +152,27 @@ struct ast_channel_tech {
 	struct ast_channel *(* const bridged_channel)(struct ast_channel *chan, struct ast_channel *bridge);
 };
 
+
+#define CHANSPY_NEW 0
+#define CHANSPY_RUNNING 1
+#define CHANSPY_DONE 2
+
+struct ast_channel_spy {
+	struct ast_frame *queue[2];
+	ast_mutex_t lock;
+	char status;
+	struct ast_channel_spy *next;
+};
+
+
 /*! Main Channel structure associated with a channel. */
 /*! 
  * This is the side of it mostly used by the pbx and call management.
  */
 struct ast_channel {
 	/*! ASCII Description of channel name */
-	char name[AST_CHANNEL_NAME];		
-
+	char name[AST_CHANNEL_NAME];
+	
 	/*! Technology */
 	const struct ast_channel_tech *tech;
 	/*! Private data used by the technology driver */
@@ -313,6 +326,9 @@ struct ast_channel {
 	/*! Raw write format */
 	int rawwriteformat;
 
+	/*! Chan Spy stuff */
+	struct ast_channel_spy *spiers;
+
 	/*! For easy linking */
 	struct ast_channel *next;
 
@@ -329,6 +345,8 @@ struct ast_channel {
 #define AST_FLAG_ZOMBIE		(1 << 4)	/* if we are a zombie */
 #define AST_FLAG_EXCEPTION	(1 << 5)	/* if there is a pending exception */
 #define AST_FLAG_MOH        (1 << 6)    /* XXX anthm promises me this will disappear XXX listening to moh */
+#define AST_FLAG_SPYING		(1 << 7)    /* XXX might also go away XXX is spying on someone */
+#define AST_FLAG_NBRIDGE	(1 << 8)    /* is it in a native bridge */
 
 #define AST_FEATURE_PLAY_WARNING	(1 << 0)
 #define AST_FEATURE_REDIRECT		(1 << 1)
@@ -389,6 +407,7 @@ struct outgoing_helper {
 #define AST_SOFTHANGUP_TIMEOUT		(1 << 3)
 #define AST_SOFTHANGUP_APPUNLOAD	(1 << 4)
 #define AST_SOFTHANGUP_EXPLICIT		(1 << 5)
+#define AST_SOFTHANGUP_UNBRIDGE     (1 << 6)
 
 /* Bits 0-15 of state are reserved for the state (up/down) of the line */
 /*! Channel is down and available */

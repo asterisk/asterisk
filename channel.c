@@ -675,6 +675,29 @@ void ast_channel_free(struct ast_channel *chan)
 	ast_device_state_changed(name);
 }
 
+static void ast_spy_detach(struct ast_channel *chan) 
+{
+	struct ast_channel_spy *chanspy;
+	int to=3000;
+	int sleepms = 100;
+
+	for (chanspy = chan->spiers; chanspy; chanspy = chanspy->next) {
+		if (chanspy->status == CHANSPY_RUNNING) {
+			chanspy->status = CHANSPY_DONE;
+		}
+	}
+
+	/* signal all the spys to get lost and allow them time to unhook themselves 
+	   god help us if they don't......
+	*/
+	while (chan->spiers && to >= 0) {
+		ast_safe_sleep(chan, sleepms);
+		to -= sleepms;
+	}
+	chan->spiers = NULL;
+	return;
+}
+
 int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
 	int res = 0;
@@ -699,6 +722,42 @@ int ast_softhangup(struct ast_channel *chan, int cause)
 	return res;
 }
 
+static void ast_queue_spy_frame(struct ast_channel_spy *spy, struct ast_frame *f, int pos) 
+{
+	struct ast_frame *tmpf = NULL;
+	int count = 0;
+
+	ast_mutex_lock(&spy->lock);
+	for (tmpf=spy->queue[pos]; tmpf && tmpf->next; tmpf=tmpf->next) {
+		count++;
+	}
+	if (count > 100) {
+		struct ast_frame *freef, *headf;
+
+		ast_log(LOG_ERROR, "Too Many frames queued at once, flushing cache.");
+		headf = spy->queue[pos];
+		/* deref the queue right away so it looks empty */
+		spy->queue[pos] = NULL;
+		tmpf = headf;
+		/* free the wasted frames */
+		while (tmpf) {
+			freef = tmpf;
+			tmpf = tmpf->next;
+			ast_frfree(freef);
+		}
+		ast_mutex_unlock(&spy->lock);
+		return;
+	}
+
+	if (tmpf) {
+		tmpf->next = ast_frdup(f);
+	} else {
+		spy->queue[pos] = ast_frdup(f);
+	}
+
+	ast_mutex_unlock(&spy->lock);
+}
+
 static void free_translation(struct ast_channel *clone)
 {
 	if (clone->writetrans)
@@ -717,6 +776,10 @@ int ast_hangup(struct ast_channel *chan)
 	/* Don't actually hang up a channel that will masquerade as someone else, or
 	   if someone is going to masquerade as us */
 	ast_mutex_lock(&chan->lock);
+
+	/* get rid of spies */
+	ast_spy_detach(chan);
+
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) 
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
@@ -1344,6 +1407,12 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			ast_frfree(f);
 			f = &null_frame;
 		} else {
+			if (chan->spiers) {
+				struct ast_channel_spy *spying;
+				for (spying = chan->spiers; spying; spying=spying->next) {
+					ast_queue_spy_frame(spying, f, 0);
+				}
+			}
 			if (chan->monitor && chan->monitor->read_stream ) {
 #ifndef MONITOR_CONSTANT_DELAY
 				int jump = chan->outsmpl - chan->insmpl - 2 * f->samples;
@@ -2780,6 +2849,18 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			}
 			
 		}
+
+		if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
+			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+				c0->_softhangup = 0;
+			if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+				c1->_softhangup = 0;
+			c0->_bridge = c1;
+			c1->_bridge = c0;
+			ast_log(LOG_DEBUG, "UNBRIDGE SIGNAL RECEIVED! ENDING NATIVE BRIDGE IF IT EXISTS.\n");
+			continue;
+		}
+		
 		/* Stop if we're a zombie or need a soft hangup */
 		if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) || ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
 			*fo = NULL;
@@ -2789,10 +2870,12 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			break;
 		}
 		if (c0->tech->bridge && config->timelimit==0 &&
-			(c0->tech->bridge == c1->tech->bridge) && !nativefailed && !c0->monitor && !c1->monitor) {
+			(c0->tech->bridge == c1->tech->bridge) && !nativefailed && !c0->monitor && !c1->monitor && !c0->spiers && !c1->spiers) {
 				/* Looks like they share a bridge code */
 			if (option_verbose > 2) 
 				ast_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
+			ast_set_flag(c0, AST_FLAG_NBRIDGE);
+			ast_set_flag(c1, AST_FLAG_NBRIDGE);
 			if (!(res = c0->tech->bridge(c0, c1, config->flags, fo, rc))) {
 				c0->_bridge = NULL;
 				c1->_bridge = NULL;
@@ -2803,8 +2886,20 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 					"Uniqueid2: %s\r\n",
 					c0->name, c1->name, c0->uniqueid, c1->uniqueid);
 				ast_log(LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n",c0->name ,c1->name);
+				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
+				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
+				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
+					c0->_bridge = c1;
+					c1->_bridge = c0;
+					continue;
+				}
+				else 
 				return 0;
+			} else {
+				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
+				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
 			}
+			
 			/* If they return non-zero then continue on normally.  Let "-2" mean don't worry about
 			   my not wanting to bridge */
 			if ((res != -2) && (res != -3))
@@ -2825,11 +2920,22 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				return -1;
 			}
 			o0nativeformats = c0->nativeformats;
+
 			o1nativeformats = c1->nativeformats;
 		}
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			ast_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
+		if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
+			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+                c0->_softhangup = 0;
+            if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+                c1->_softhangup = 0;
+			c0->_bridge = c1;
+			c1->_bridge = c0;
+			continue;
+		}
+
 			continue;
 		}
 		f = ast_read(who);
@@ -2858,6 +2964,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			(f->frametype == AST_FRAME_IMAGE) ||
 			(f->frametype == AST_FRAME_HTML) ||
 			(f->frametype == AST_FRAME_DTMF)) {
+
 			if ((f->frametype == AST_FRAME_DTMF) && 
 				(config->flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
 				if ((who == c0)) {
