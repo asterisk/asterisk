@@ -1,3 +1,6 @@
+* Asterisk 0.1.5
+ -- Fix a small mistake in IAX
+ -- Fix the QuickNet driver to work with newer cards
 * Asterisk 0.1.4
  -- Update VoFR some more
  -- Fix the QuickNet driver to work with LineJack

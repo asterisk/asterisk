@@ -284,7 +284,8 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 
 	phonee.bytes = ioctl(p->fd, PHONE_EXCEPTION);
 	if (phonee.bits.dtmf_ready)  {
-		ast_log(LOG_DEBUG, "phone_read(): DTMF\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "phone_read(): DTMF\n");
 	
 		/* We've got a digit -- Just handle this nicely and easily */
 		digit =  ioctl(p->fd, PHONE_GET_DTMF_ASCII);
@@ -293,10 +294,12 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 		return &p->fr;
 	}
 	if (phonee.bits.hookstate) {
-		ast_log(LOG_DEBUG, "Hookstate changed\n");
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Hookstate changed\n");
 		res = ioctl(p->fd, PHONE_HOOKSTATE);
 		/* See if we've gone on hook, if so, notify by returning NULL */
-		ast_log(LOG_DEBUG, "New hookstate: %d\n", res);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "New hookstate: %d\n", res);
 		if (!res && (p->mode != MODE_FXO))
 			return NULL;
 		else {
@@ -396,6 +399,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 	char *pos;
 	int sofar;
 	int expected;
+	int codecset = 0;
 	char tmpbuf[4];
 	/* Write a frame of (presumably voice) data */
 	if (frame->frametype != AST_FRAME_VOICE) {
@@ -429,6 +433,7 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 			p->lastinput = AST_FORMAT_G723_1;
 			/* Reset output buffer */
 			p->obuflen = 0;
+			codecset = 1;
 		}
 		if (frame->datalen > 24) {
 			ast_log(LOG_WARNING, "Frame size too large for G.723.1 (%d bytes)\n", frame->datalen);
@@ -449,20 +454,23 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 			}
 			p->lastformat = AST_FORMAT_SLINEAR;
 			p->lastinput = AST_FORMAT_SLINEAR;
+			codecset = 1;
 			/* Reset output buffer */
 			p->obuflen = 0;
 		}
 		maxfr = 480;
 	}
-	ioctl(p->fd, PHONE_REC_DEPTH, 3);
-	ioctl(p->fd, PHONE_PLAY_DEPTH, 3);
-	if (ioctl(p->fd, PHONE_PLAY_START)) {
-		ast_log(LOG_WARNING, "Failed to start playback\n");
-		return -1;
-	}
-	if (ioctl(p->fd, PHONE_REC_START)) {
-		ast_log(LOG_WARNING, "Failed to start recording\n");
-		return -1;
+	if (codecset) {
+		ioctl(p->fd, PHONE_REC_DEPTH, 3);
+		ioctl(p->fd, PHONE_PLAY_DEPTH, 3);
+		if (ioctl(p->fd, PHONE_PLAY_START)) {
+			ast_log(LOG_WARNING, "Failed to start playback\n");
+			return -1;
+		}
+		if (ioctl(p->fd, PHONE_REC_START)) {
+			ast_log(LOG_WARNING, "Failed to start recording\n");
+			return -1;
+		}
 	}
 	/* If we get here, we have a voice frame of Appropriate data */
 	sofar = 0;

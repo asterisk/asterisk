@@ -1893,7 +1893,7 @@ static struct ast_channel *iax_request(char *type, int format, void *data)
 	char *st;
 	struct ast_channel *c;
 	strncpy(s, (char *)data, sizeof(s));
-	strtok(s, ":");
+	strtok(s, "/");
 	strtok(s, "@");
 	st = strtok(NULL, "@");
 	if (!st)
