@@ -76,9 +76,9 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 				if (s) {
 					format = s;
 				}
-			} else {
-				ast_log(LOG_ERROR, "Out of memory error\n");
 			}
+		} else {
+			ast_log(LOG_ERROR, "Out of memory error\n");
 		}
 	}
 
