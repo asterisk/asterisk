@@ -36,6 +36,10 @@
 
 %conf-onlyperson.gsm%You are currently the only person in this conference.
 
+%conf-noempty%No empty conferences currently exist.
+
+%conf-enteringno%You are entering conference number
+
 %demo-abouttotry.gsm%I am about to attempt an Inter-Asterisk Exchange connection to a demonstration server located at Digium.  In order for this to work you must already be connected to the Internet.  Please wait a moment while I attempt to make the connection.
 
 %demo-congrats.gsm%Congratulations.  You have successfully installed and executed the Asterisk open source PBX.  You have also installed a set of sample sounds and configuration files that should help you to get started.  Like a normal PBX you will navigate this demonstration by dialing digits.  If you are using a console channel driver instead of a real phone you can use the dial, answer, and hang up commands to simulate the actions of a standard telephone.
