@@ -280,6 +280,14 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	struct vpb_pvt *p1 = (struct vpb_pvt *)c1->pvt->pvt;
 	int i, res;
 
+	struct ast_channel *cs[3];
+	struct ast_channel *who;
+	int to = -1;
+	struct ast_frame *f;
+
+	cs[0] = c0;
+	cs[1] = c1;
+
 	#ifdef BAD_V4PCI_BRIDGE
 	if(p0->vpb_model==vpb_model_v4pci)
 		return -2;
@@ -311,7 +319,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	} ast_mutex_unlock(&bridge_lock); 
 
 	if (i == max_bridges) {
-		ast_log(LOG_WARNING, "Failed to bridge %s and %s!\n", c0->name, c1->name);
+		ast_log(LOG_WARNING, "vpb_bridge: Failed to bridge %s and %s!\n", c0->name, c1->name);
 		ast_mutex_unlock(&p0->lock);
 		ast_mutex_unlock(&p1->lock);
 		return -2;
@@ -326,13 +334,13 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 		} ast_mutex_unlock(&p1->lock);
 
 		if (option_verbose>1) 
-			ast_verbose(VERBOSE_PREFIX_2 "Bridging call entered with [%s, %s]\n", c0->name, c1->name);
+			ast_verbose(VERBOSE_PREFIX_2 "vpb_bridge: Bridging call entered with [%s, %s]\n", c0->name, c1->name);
 	}
 
 	#ifdef HALF_DUPLEX_BRIDGE
 
 	if (option_verbose>1) 
-		ast_verbose(VERBOSE_PREFIX_2 "Starting half-duplex bridge [%s, %s]\n", c0->name, c1->name);
+		ast_verbose(VERBOSE_PREFIX_2 "vpb_bridge: Starting half-duplex bridge [%s, %s]\n", c0->name, c1->name);
 
 	int dir = 0;
 
@@ -365,7 +373,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	vpb_play_buf_finish(p1->handle);
 
 	if (option_verbose>1) 
-		ast_verbose(VERBOSE_PREFIX_2 "Finished half-duplex bridge [%s, %s]\n", c0->name, c1->name);
+		ast_verbose(VERBOSE_PREFIX_2 "vpb_bridge: Finished half-duplex bridge [%s, %s]\n", c0->name, c1->name);
 
 	res = VPB_OK;
 
@@ -374,7 +382,57 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	res = vpb_bridge(p0->handle, p1->handle, VPB_BRIDGE_ON, i+1 /* resource 1 & 2 only for V4PCI*/ );
 	if (res == VPB_OK) {
 		//pthread_cond_wait(&bridges[i].cond, &bridges[i].lock); /* Wait for condition signal. */
-		while( !bridges[i].endbridge ) {};
+		while( !bridges[i].endbridge ) {
+			// Are we really ment to be doing nothing ?!?!
+			who = ast_waitfor_n(cs, 2, &to);
+			if (!who) {
+				ast_log(LOG_DEBUG, "vpb_bridge: Empty frame read...\n");
+				/* check for hangup / whentohangup */
+				if (ast_check_hangup(c0) || ast_check_hangup(c1))
+					break;
+				continue;
+			}
+			f = ast_read(who);
+			if (!f || ((f->frametype == AST_FRAME_DTMF) &&
+					   (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) || 
+				       ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))))) {
+				*fo = f;
+				*rc = who;
+				ast_log(LOG_DEBUG, "vpb_bridge: Got a [%s]\n", f ? "digit" : "hangup");
+/*
+				if ((c0->pvt->pvt == pvt0) && (!c0->_softhangup)) {
+					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
+						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
+				}
+				if ((c1->pvt->pvt == pvt1) && (!c1->_softhangup)) {
+					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
+						ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
+				}
+*/
+				/* That's all we needed */
+				//return 0;
+				break;
+			} else {
+				if ((f->frametype == AST_FRAME_DTMF) || 
+					(f->frametype == AST_FRAME_VOICE) || 
+					(f->frametype == AST_FRAME_VIDEO)) 
+					{
+					/* Forward voice or DTMF frames if they happen upon us */
+					/* Actually I dont think we want to forward on any frames!
+					if (who == c0) {
+						ast_write(c1, f);
+					} else if (who == c1) {
+						ast_write(c0, f);
+					}
+					*/
+				}
+				ast_frfree(f);
+			}
+			/* Swap priority not that it's a big deal at this point */
+			cs[2] = cs[0];
+			cs[0] = cs[1];
+			cs[1] = cs[2];
+		};
 		vpb_bridge(p0->handle, p1->handle, VPB_BRIDGE_OFF, i+1 /* resource 1 & 2 only for V4PCI*/ ); 
 	}
 
@@ -645,10 +703,6 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			break;
 	}
 
-	if (option_verbose > 3) 
-		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: putting frame type[%d]subclass[%d], bridge=%p\n",
-			p->dev, f.frametype, f.subclass, (void *)p->bridge);
-
 /*
 	if (option_verbose > 3) ast_verbose("%s: LOCKING in handle_owned [%d]\n", p->dev,res);
 	res = ast_mutex_lock(&p->lock); 
@@ -702,6 +756,10 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		return 0;
 	}
 
+	if (option_verbose > 3) 
+		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: Prepared frame type[%d]subclass[%d], bridge=%p owner=[%s]\n",
+			p->dev, f.frametype, f.subclass, (void *)p->bridge, p->owner->name);
+
 	// Trylock used here to avoid deadlock that can occur if we
 	// happen to be in here handling an event when hangup is called
 	// Problem is that hangup holds p->owner->lock
@@ -709,6 +767,8 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 		if (ast_mutex_trylock(&p->owner->lock)==0)  {
 			ast_queue_frame(p->owner, &f);
 			ast_mutex_unlock(&p->owner->lock);
+			if (option_verbose > 3) 
+				ast_verbose(VERBOSE_PREFIX_4 "%s: handled_owned: Queued Frame to [%s]\n", p->dev,p->owner->name);
 		} else {
 			ast_verbose("%s: handled_owned: Missed event %d/%d \n",
 				p->dev,f.frametype, f.subclass);
@@ -1667,18 +1727,18 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 //		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
-	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame type..\n", p->dev);
+//	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame type..\n", p->dev);
 
 	fmt = ast2vpbformat(frame->subclass);
 	if (fmt < 0) {
 		ast_log(LOG_WARNING, "%s: vpb_write: Cannot handle frames of %d format!\n",ast->name, frame->subclass);
 		return -1;
 	}
-	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame format..\n", p->dev);
+//	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame format..\n", p->dev);
 
 	ast_mutex_lock(&p->play_lock);
 
-	ast_log(LOG_DEBUG, "%s: vpb_write: Got play lock..\n", p->dev);
+//	ast_log(LOG_DEBUG, "%s: vpb_write: Got play lock..\n", p->dev);
 
 	/* Check if we have set up the play_buf */
 	if (p->lastoutput == -1) {
@@ -1700,7 +1760,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	if( p->txswgain > MAX_VPB_GAIN )
 		a_gain_vector(p->txswgain - MAX_VPB_GAIN , (short*)frame->data, frame->datalen/sizeof(short));
 
-	ast_log(LOG_DEBUG, "%s: vpb_write: Applied gain..\n", p->dev);
+//	ast_log(LOG_DEBUG, "%s: vpb_write: Applied gain..\n", p->dev);
 
 //	gettimeofday(&tv, NULL);
 //	return ((double)tv.tv_sec*1000)+((double)tv.tv_usec/1000);
@@ -1850,11 +1910,11 @@ static void *do_chanreads(void *pvt)
 //		afmt = (p->owner) ? p->owner->pvt->rawreadformat : AST_FORMAT_SLINEAR;
 		if (p->owner){
 			afmt = p->owner->pvt->rawreadformat;
-			ast_log(LOG_DEBUG,"%s: Record using owner format [%s]\n", p->dev, ast2vpbformatname(afmt));
+//			ast_log(LOG_DEBUG,"%s: Record using owner format [%s]\n", p->dev, ast2vpbformatname(afmt));
 		}
 		else {
 			afmt = AST_FORMAT_SLINEAR;
-			ast_log(LOG_DEBUG,"%s: Record using default format [%s]\n", p->dev, ast2vpbformatname(afmt));
+//			ast_log(LOG_DEBUG,"%s: Record using default format [%s]\n", p->dev, ast2vpbformatname(afmt));
 		}
 		fmt = ast2vpbformat(afmt);
 		if (fmt < 0) {
