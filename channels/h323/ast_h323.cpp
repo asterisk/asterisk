@@ -764,6 +764,11 @@ int h323_set_capability(int cap, int dtmfMode)
 		endPoint->SetCapability(0, 0, new SpeexNarrow6AudioCapability());
 	}
 
+	if (cap & AST_FORMAT_G729A) {
+		H323_G729ACapability *g729aCap;
+		endPoint->SetCapability(0, 0, g729aCap = new H323_G729ACapability);
+	}
+	
 	if (cap & AST_FORMAT_G723_1) {
 		H323_G7231Capability *g7231Cap;
 		endPoint->SetCapability(0, 0, g7231Cap = new H323_G7231Capability);
@@ -773,11 +778,6 @@ int h323_set_capability(int cap, int dtmfMode)
 		H323_GSM0610Capability *gsmCap;
 	    endPoint->SetCapability(0, 0, gsmCap = new H323_GSM0610Capability);
 	    gsmCap->SetTxFramesInPacket(gsmFrames);
-	}
-
-	if (cap & AST_FORMAT_G729A) {
-		H323_G729ACapability *g729aCap;
-		endPoint->SetCapability(0, 0, g729aCap = new H323_G729ACapability);
 	} 
 
 	if (cap & AST_FORMAT_ULAW) {
