@@ -164,7 +164,7 @@ static int rpeerobjs = 0;
 static int apeerobjs = 0;
 static int regobjs = 0;
 
-static int global_allowguest = 0;    /* allow unauthenticated users/peers to connect? */
+static int global_allowguest = 1;    /* allow unauthenticated users/peers to connect? */
 
 #define DEFAULT_MWITIME 10
 static int global_mwitime = DEFAULT_MWITIME;	/* Time between MWI checks for peers */
@@ -5000,6 +5000,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)
 #ifdef OSP_SUPPORT
 	    && ast_test_flag(p, SIP_OSPAUTH)
+	    && global_allowguest != 2
 #endif
 		)
 		return 0;
@@ -8978,6 +8979,16 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_set_flag(flags, SIP_PROG_INBAND_NO);
 		else if (ast_true(v->value))
 			ast_set_flag(flags, SIP_PROG_INBAND_YES);
+  	} else if (!strcasecmp(v->name, "allowguest")) {
+#ifdef OSP_SUPPORT
+  		if(!strcasecmp(v->value, "osp"))
+   			global_allowguest = 2;
+    		else 
+#endif
+	     		if (ast_true(v->value)) 
+		      		global_allowguest = 1;
+			else
+				global_allowguest = 0;
 #ifdef OSP_SUPPORT
 	} else if (!strcasecmp(v->name, "ospauth")) {
 		ast_set_flag(mask, SIP_OSPAUTH);
