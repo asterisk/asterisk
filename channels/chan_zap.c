@@ -6245,7 +6245,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 	if (p->dnd)
 		return 0;
 	/* If guard time, definitely not */
-	if (time(NULL) < p->guardtime)
+	if (p->guardtime && (time(NULL) < p->guardtime)) 
 		return 0;
 		
 	/* If no owner definitely available */
@@ -6503,7 +6503,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 		if (roundrobin)
 			round_robin[x] = p;
 #if 0 
-		ast_verbose("name = %s, %d\n",p->owner->name,p->channel);
+		ast_verbose("name = %s, %d, %d, %d\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
 #endif
 		if (p && available(p, channelmatch, groupmatch, &busy)) {
 			if (option_debug)
@@ -6595,7 +6595,7 @@ next:
 	ast_mutex_unlock(lock);
 	restart_monitor();
 	if (!tmp) {
-		if (busy) {
+		if (busy && (channelmatch != CHAN_PSEUDO)) {
 			tmp = zt_request("Zap", format, "pseudo");
 			if (tmp) {
 				char newname[80];
@@ -6605,6 +6605,8 @@ next:
 				ast_setstate(tmp, AST_STATE_BUSY);
 				ast_mutex_unlock(&tmp->lock);
 			}
+		} else if (busy) {
+			ast_log(LOG_WARNING, "Whoa, the pseudo was busy somehow!\n");
 		}
 	}
 	return tmp;
