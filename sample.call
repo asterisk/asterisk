@@ -42,3 +42,8 @@ Priority: 1
 #SetVar: file1=/tmp/to
 #SetVar: file2=/tmp/msg
 #SetVar: timestamp=20021023104500
+
+#
+# You may specify an account to be passed to CDRs
+#
+#Account: markster
