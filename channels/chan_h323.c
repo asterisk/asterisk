@@ -1769,7 +1769,7 @@ int load_module()
 		ast_cli_register(&cli_trace);
 		ast_cli_register(&cli_no_trace);
 		ast_cli_register(&cli_show_codecs);
-		ast_cli_register(&cli_gk_cycle);
+//		ast_cli_register(&cli_gk_cycle);
 		ast_cli_register(&cli_hangup_call);
 		ast_cli_register(&cli_show_tokens);
 
