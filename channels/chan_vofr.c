@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
@@ -355,7 +356,7 @@ static int vofr_call(struct ast_channel *ast, char *dest, int timeout)
 	while(otimeout) {
 		otimeout = ast_waitfor(ast, 1000);
 		if (otimeout < 1) {
-			ast_log(LOG_WARNING, "Unable to take line off hook\n");
+			ast_log(LOG_WARNING, "Unable to take line '%s' off hook\n", ast->name);
 			/* Musta gotten hung up, or no ack on off hook */
 			return -1;	
 		}
@@ -551,18 +552,32 @@ static struct ast_frame  *vofr_read(struct ast_channel *ast)
 	/* Read into the right place in the buffer, in case we send this
 	   as a voice frame. */
 	CHECK_BLOCKING(ast);
+retry:
 	res = read(p->s, ((char *)vh)  - FR_API_MESS, 
 				G723_MAX_BUF - AST_FRIENDLY_OFFSET - sizeof(struct ast_frame) + sizeof(struct vofr_hdr) + FR_API_MESS);
+	if (res < 0) {
+		/*  XXX HUGE BUG IN SANGOMA'S STACK: IT IGNORES O_NONBLOCK XXX */
+		if (errno == EAGAIN) {
+			fd_set fds;
+			FD_ZERO(&fds);
+			FD_SET(p->s, &fds);
+			select(p->s + 1, &fds, NULL, NULL, NULL);
+			goto retry;
+		}
+		ast->blocking = 0;
+		ast_log(LOG_WARNING, "Read error on %s: %s (%d)\n", ast->name, strerror(errno));
+		return NULL;
+	}
+	ast->blocking = 0;
+		
 #ifdef VOFRDUMPER
 	vofr_dump_packet((void *)(vh), res);
 #endif
-	ast->blocking = 0;
 	res -= FR_API_MESS;		
-	if (res < sizeof(struct vofr_hdr *)) {
+	if (res < sizeof(struct vofr_hdr)) {
 		ast_log(LOG_WARNING, "Nonsense frame on %s\n", ast->name);
 		return NULL;
 	}
-
 	/* Some nice norms */
 	fr->datalen = 0;
 	fr->timelen = 0;
@@ -684,7 +699,7 @@ static struct ast_frame  *vofr_read(struct ast_channel *ast)
 			ast->state = AST_STATE_UP;
 			return fr;
 		} else if (ast->state !=  AST_STATE_UP) {
-			ast_log(LOG_WARNING, "Voice in weird state %d\n", ast->state);
+			ast_log(LOG_WARNING, "%s: Voice in weird state %d\n", ast->name, ast->state);
 		}
 		fr->frametype = AST_FRAME_VOICE;
 		fr->subclass = AST_FORMAT_G723_1;
@@ -1001,7 +1016,7 @@ static struct vofr_pvt *mkif(char *type, char *iface)
 	/* Make a vofr_pvt structure for this interface */
 	struct vofr_pvt *tmp;
 	int sndbuf = 4096;
-	
+
 	tmp = malloc(sizeof(struct vofr_pvt));
 	if (tmp) {
 
@@ -1098,7 +1113,7 @@ static struct ast_channel *vofr_request(char *type, int format, void *data)
 	}
 	p = iflist;
 	while(p) {
-		if (!p->owner) {
+		if (!p->owner && p->outgoing) {
 			tmp = vofr_new(p, AST_STATE_DOWN);
 			break;
 		}
