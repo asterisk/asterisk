@@ -576,6 +576,8 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	struct hostent *hp;
 	struct sip_peer *p;
 	int found=0;
+	char *port;
+
 	r->sa.sin_family = AF_INET;
 	ast_pthread_mutex_lock(&peerl.lock);
 	p = peerl.peers;
@@ -625,10 +627,18 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	}
 	ast_pthread_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
+		if ((port=strchr(peer, ':'))) {
+			*port='\0';
+			port++;
+		}
 		hp = gethostbyname(peer);
 		if (hp) {
 			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
-			r->sa.sin_port = htons(DEFAULT_SIP_PORT);
+			if (port) {
+				r->sa.sin_port = htons(atoi(port));
+			} else {
+				r->sa.sin_port = htons(DEFAULT_SIP_PORT);
+			}
 			memcpy(&r->recv, &r->sa, sizeof(r->recv));
 			return 0;
 		} else {
