@@ -457,8 +457,8 @@ static int globalcanreinvite = REINVITE_INVITE;
 
 static struct sockaddr_in bindaddr;
 static struct sockaddr_in localnet;
-static struct sockaddr_in localmask;
 static struct sockaddr_in externip;
+static struct ast_ha *localaddr;
 
 static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
@@ -500,13 +500,19 @@ static void sip_destroy(struct sip_pvt *p);
 static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 {
 	/*
-	  check to see if them is contained in our localnet/mask,
-	  if not, use our externip for us, otherwise use the 
-	  real internal address in bindaddr
-         */
-	if (localnet.sin_addr.s_addr && externip.sin_addr.s_addr &&
-      	    ((htonl(them->s_addr) & htonl(localnet.sin_addr.s_addr)) != htonl(localnet.sin_addr.s_addr)))
+	 * Using the localaddr structure built up with localnet statements
+	 * apply it to their address to see if we need to substitute our
+	 * externip or can get away with our internal bindaddr
+	 */
+	struct sockaddr_in theirs;
+	theirs.sin_addr = *them;
+	if (localaddr && externip.sin_addr.s_addr &&
+	   ast_apply_ha(localaddr, &theirs)) {
+		char t[256];
 		memcpy(us, &externip.sin_addr, sizeof(struct in_addr));
+		strcpy(t, inet_ntoa(*(struct in_addr *)&them->s_addr));
+		ast_log(LOG_DEBUG, "Target address %s is not local, substituting externip\n", t);
+	}
 	else if (bindaddr.sin_addr.s_addr)
 		memcpy(us, &bindaddr.sin_addr, sizeof(struct in_addr));
 	else
@@ -1976,7 +1982,7 @@ static int sip_register(char *value, int lineno)
 		*hostname = '\0';
 		hostname++;
 	}
-	if (!username || ast_strlen_zero(username) || !hostname || !strlen(hostname)) {
+	if (!username || ast_strlen_zero(username) || !hostname || ast_strlen_zero(hostname)) {
 		ast_log(LOG_WARNING, "Format for registration is user[:secret[:authuser]]@host[:port][/contact] at line %d", lineno);
 		return -1;
 	}
@@ -3122,9 +3128,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 		l = p->fromuser;
 
 	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? inet_ntoa(p->ourip) : p->fromdomain, ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, strlen(p->fromdomain) ? p->fromdomain : inet_ntoa(p->ourip), p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? inet_ntoa(p->ourip) : p->fromdomain, p->tag);
 
 	if (!ast_strlen_zero(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
@@ -4654,8 +4660,8 @@ static int sip_show_users(int fd, int argc, char *argv[])
 
 static int sip_show_peers(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-15.15s  %-15.15s %s %s %s  %-15.15s  %-8s %-10s\n"
-#define FORMAT "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8d %-10s\n"
+#define FORMAT2 "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8s %-10s\n"
+#define FORMAT  "%-15.15s  %-15.15s %s %s %s %-15.15s  %-8d %-10s\n"
 	struct sip_peer *peer;
 	char name[256] = "";
 	if (argc != 3 && argc != 5)
@@ -4741,6 +4747,25 @@ static char *regstate2str(int regstate)
 	}
 }
 
+/*--- print_group: Print call group and pickup group ---*/
+static void  print_group(int fd, unsigned int group) 
+{
+ unsigned int i;
+ int first=1;
+
+ for (i=0; i<=31; i++) {	/* Max group is 31 */
+	if (group & (1 << i)) {
+	   if (!first) {
+		ast_cli(fd, ", ");
+	   } else {
+		first=0;
+	   }
+	   ast_cli(fd, "%u", i);
+	}
+    }
+ ast_cli(fd, " (%u)\n", group);
+}
+
 /*--- sip_show_peer: Show one peer in detail ---*/
 static int sip_show_peer(int fd, int argc, char *argv[])
 {
@@ -4754,15 +4779,17 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 	if (peer) {
 		ast_cli(fd,"\n\n");
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
-		ast_cli(fd, "  Secret       : %s\n", strlen(peer->secret)?"<Set>":"<Not set>");
-		ast_cli(fd, "  MD5Secret    : %s\n", strlen(peer->md5secret)?"<Set>":"<Not set>");
+		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
+		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  Context      : %s\n", peer->context);
 		ast_cli(fd, "  Methods      : %s\n", peer->methods);
 		ast_cli(fd, "  Language     : %s\n", peer->language);
 		ast_cli(fd, "  FromUser     : %s\n", peer->fromuser);
 		ast_cli(fd, "  FromDomain   : %s\n", peer->fromdomain);
-		ast_cli(fd, "  Callgroup    : %d (bitfield, decimal)\n", peer->callgroup);
-		ast_cli(fd, "  Pickupgroup  : %d (bitfield, decimal)\n", peer->pickupgroup);
+		ast_cli(fd, "  Callgroup    : ");
+		print_group(fd, peer->callgroup);
+		ast_cli(fd, "  Pickupgroup  : ");
+		print_group(fd, peer->pickupgroup);
 		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
 		ast_cli(fd, "  Dynamic      : %s\n", (peer->dynamic?"Yes":"No"));
@@ -4841,8 +4868,8 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 
 static int sip_show_registry(int fd, int argc, char *argv[])
 {
-#define FORMAT2 "%-20.20s  %-10.10s  %8.8s %-20.20s\n"
-#define FORMAT "%-20.20s  %-10.10s  %8d %-20.20s\n"
+#define FORMAT2 "%-20.20s  %-12.12s  %8.8s %-20.20s\n"
+#define FORMAT  "%-20.20s  %-12.12s  %8d %-20.20s\n"
 	struct sip_registry *reg;
 	char host[80];
 	if (argc != 3)
@@ -4994,7 +5021,7 @@ static void receive_info(struct sip_pvt *p, struct sip_request *req)
 	if (!strcasecmp(get_header(req, "Content-Type"), "application/dtmf-relay")) {
 
 		/* Try getting the "signal=" part */
-		if (strlen(c = get_sdp(req, "Signal")) || strlen(c = get_sdp(req, "d"))) {
+		if (ast_strlen_zero(c = get_sdp(req, "Signal")) && ast_strlen_zero(c = get_sdp(req, "d"))) {
 		   strncpy(buf, c, sizeof(buf) - 1);
 		} else {
 		   ast_log(LOG_WARNING, "Unable to retrieve DTMF signal from INFO message from %s\n", p->callid);
@@ -6981,7 +7008,7 @@ static int reload_config(void)
 	
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&localnet, 0, sizeof(localnet));
-	memset(&localmask, 0, sizeof(localmask));
+	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 
 	/* Initialize some reasonable defaults */
@@ -7053,15 +7080,13 @@ static int reload_config(void)
 				memcpy(&bindaddr.sin_addr, hp->h_addr, sizeof(bindaddr.sin_addr));
 			}
 		} else if (!strcasecmp(v->name, "localnet")) {
-			if (!(hp = ast_gethostbyname(v->value, &ahp)))
-				ast_log(LOG_WARNING, "Invalid localnet keyword: %s\n", v->value);
-			else 
-				memcpy(&localnet.sin_addr, hp->h_addr, sizeof(localnet.sin_addr));
-		} else if (!strcasecmp(v->name, "localmask")) {
-			if (!(hp = ast_gethostbyname(v->value, &ahp)))
-				ast_log(LOG_WARNING, "Invalid localmask keyword: %s\n", v->value);
+			struct ast_ha *na;
+			if (!(na = ast_append_ha("d", v->value, localaddr)))
+				ast_log(LOG_WARNING, "Invalid localnet value: %s\n", v->value);
 			else
-				memcpy(&localmask.sin_addr, hp->h_addr, sizeof(localmask.sin_addr));
+				localaddr = na;
+		} else if (!strcasecmp(v->name, "localmask")) {
+			ast_log(LOG_WARNING, "Use of localmask is deprecated; use localnet with mask syntax\n");
 		} else if (!strcasecmp(v->name, "externip")) {
 			if (!(hp = ast_gethostbyname(v->value, &ahp))) 
 				ast_log(LOG_WARNING, "Invalid address for externip keyword: %s\n", v->value);
@@ -7559,6 +7584,10 @@ int unload_module()
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		return -1;
+	}
+	/* Free memory for local network address mask */
+	if (localaddr) {
+		ast_free_ha(localaddr);
 	}
 		
 	return 0;

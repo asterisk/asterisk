@@ -68,11 +68,15 @@ context = default		; Default context for incoming calls
 
 ;externip = 200.201.202.203	; Address that we're going to put in outbound SIP messages
 				; if we're behind a NAT
-;localnet = 192.168.1.0		; Internal NETWORK address
-;localmask = 255.255.255.0     	; Internal netmask
-				; The externip, localnet and localmask is used
-				; when registering and communication with other proxies
+
+				; The externip and localnet is used
+				; when registering and communicating with other proxies
 				; that we're registered with
+				; You may add multiple local networks.  A reasonable set of defaults
+				; are:
+;localnet=192.168.0.0/255.255.0.0; All RFC 1918 addresses are local networks
+;localnet=10.0.0.0/255.0.0.0	; Also RFC1918
+;localnet=169.254.0.0/255.255.0.0 ;Zero conf local network
 
 ;[snomsip]
 ;type=friend
