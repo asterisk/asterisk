@@ -39,7 +39,9 @@ WAV49	= -DWAV49
 
 ifneq (${OSARCH},Darwin)
 ifneq (${PROC},x86_64)
+ifneq ($(shell uname -m),ppc)
 OPTIMIZE+=-march=$(PROC)
+endif
 endif
 endif
 
@@ -197,7 +199,9 @@ GSM_SOURCES =	$(SRC)/add.c		\
 		$(SRC)/table.c
 ifeq (${OSARCH},Linux)
 ifneq (${PROC},x86_64)
+ifneq ($(shell uname -m),ppc)
 GSM_SOURCES+=	$(SRC)/k6opt.s
+endif
 endif
 endif
 
@@ -246,7 +250,9 @@ GSM_OBJECTS =	$(SRC)/add.o		\
 		$(SRC)/table.o
 ifeq (${OSARCH},Linux)
 ifneq (${PROC},x86_64)
+ifneq ($(shell uname -m), ppc)
 GSM_OBJECTS+=	$(SRC)/k6opt.o
+endif
 endif
 endif
 
