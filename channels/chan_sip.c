@@ -901,6 +901,7 @@ static int sip_hangup(struct ast_channel *ast)
 {
 	struct sip_pvt *p = ast->pvt->pvt;
 	int needcancel = 0;
+	int needdestroy = 0;
 	if (option_debug)
 		ast_log(LOG_DEBUG, "sip_hangup(%s)\n", ast->name);
 	if (!ast->pvt->pvt) {
@@ -924,7 +925,7 @@ static int sip_hangup(struct ast_channel *ast)
 	p->owner = NULL;
 	ast->pvt->pvt = NULL;
 
-	p->needdestroy = 1;
+	needdestroy = 1;
 	/* Start the process if it's not already started */
 	if (!p->alreadygone && strlen(p->initreq.data)) {
 		if (needcancel) {
@@ -932,7 +933,7 @@ static int sip_hangup(struct ast_channel *ast)
 				transmit_request_with_auth(p, "CANCEL", p->ocseq, 1);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
 				   INVITE, but do set an autodestruct just in case. */
-				p->needdestroy = 0;
+				needdestroy = 0;
 				sip_scheddestroy(p, 15000);
 			} else
 				transmit_response_reliable(p, "403 Forbidden", &p->initreq);
@@ -941,11 +942,13 @@ static int sip_hangup(struct ast_channel *ast)
 				/* Send a hangup */
 				transmit_request_with_auth(p, "BYE", 0, 1);
 			} else {
-				/* Note we will need a BYE when this all settles out */
+				/* Note we will need a BYE when this all settles out
+				   but we can't send one while we have "INVITE" outstanding. */
 				p->pendingbye = 1;
 			}
 		}
 	}
+	p->needdestroy = needdestroy;
 	ast_pthread_mutex_unlock(&p->lock);
 	return 0;
 }
@@ -1433,6 +1436,7 @@ static int sip_register(char *value, int lineno)
 		if (secret)
 			strncpy(reg->secret, secret, sizeof(reg->secret)-1);
 		reg->expire = -1;
+		reg->timeout =  -1;
 		reg->refresh = default_expiry;
 		reg->addr.sin_family = AF_INET;
 		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
@@ -2437,8 +2441,9 @@ static int sip_reregister(void *data)
 {
 	/* if we are here, we know that we need to reregister. */
 	struct sip_registry *r=(struct sip_registry *)data;
-	return sip_do_register(r);
-	
+	r->expire = -1;
+	sip_do_register(r);
+	return 0;
 }
 
 
@@ -2455,15 +2460,23 @@ static int sip_reg_timeout(void *data)
 {
 	/* if we are here, our registration timed out, so we'll just do it over */
 	struct sip_registry *r=data;
+	struct sip_pvt *p;
 	int res;
 	ast_pthread_mutex_lock(&r->lock);
-	ast_log(LOG_NOTICE, "Registration timed out, trying again\n"); 
+	ast_log(LOG_NOTICE, "Registration for '%s@%s' timed out, trying again\n", r->username, inet_ntoa(r->addr.sin_addr)); 
+	if (r->call) {
+		/* Unlink us, destroy old call.  Locking is not relevent here because all this happens
+		   in the single SIP manager thread. */
+		p = r->call;
+		p->registry = NULL;
+		r->call = NULL;
+		p->needdestroy = 1;
+	}
 	r->regstate=REG_STATE_UNREGISTERED;
-	/* cancel ourselves first!!! */
-	/* ast_sched_del(sched,r->timeout); */
+	r->timeout = -1;
 	res=transmit_register(r, "REGISTER", NULL);
 	ast_pthread_mutex_unlock(&r->lock);
-	return res;
+	return 0;
 }
 
 static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
@@ -2481,25 +2494,32 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 		return 0;
 	}
 
-
-	if (!(p=r->call)) {
-		if (!r->callid_valid) {
-		  build_callid(r->callid, sizeof(r->callid), __ourip);
-		  r->callid_valid=1;
-		}
-		p=sip_alloc( r->callid, &r->addr, 0);
-		p->outgoing = 1;
-		r->call=p;
-		p->registry=r;
-		strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
-		strncpy(p->peername, r->username, sizeof(p->peername)-1);
-		strncpy(p->username, r->username, sizeof(p->username)-1);
+	if (r->call) {
+		ast_log(LOG_WARNING, "Already have a call??\n");
 	}
+	build_callid(r->callid, sizeof(r->callid), __ourip);
+	p=sip_alloc( r->callid, &r->addr, 0);
+	if (!p) {
+		ast_log(LOG_WARNING, "Unable to allocate registration call\n");
+		return 0;
+	}
+	p->outgoing = 1;
+	r->call=p;
+	p->registry=r;
+	strncpy(p->peersecret, r->secret, sizeof(p->peersecret)-1);
+	strncpy(p->peername, r->username, sizeof(p->peername)-1);
+	strncpy(p->username, r->username, sizeof(p->username)-1);
+	strncpy(p->exten, r->contact, sizeof(p->exten) - 1);
+	build_contact(p);
 
 	/* set up a timeout */
-	if (auth==NULL && !r->timeout)  {
+	if (auth==NULL)  {
+		if (r->timeout > -1) {
+			ast_log(LOG_WARNING, "Still have a timeout, %d\n", r->timeout);
+			ast_sched_del(sched, r->timeout);
+		}
 		r->timeout = ast_sched_add(sched, 10*1000, sip_reg_timeout, r);
-		ast_log(LOG_NOTICE, "Scheduled a timeout # %d\n", r->timeout);
+		ast_log(LOG_DEBUG, "Scheduled a timeout # %d\n", r->timeout);
 	}
 
 	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, inet_ntoa(r->addr.sin_addr), p->tag);
@@ -2516,11 +2536,6 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 	add_header(&req, "Via", via);
 	add_header(&req, "From", from);
 	add_header(&req, "To", to);
-	{
-		char contact[256];
-		snprintf(contact, sizeof(contact), "<sip:%s@%s:%d;transport=udp>", r->contact, inet_ntoa(p->ourip), ourport);
-		add_header(&req, "Contact", contact);
-	}
 	add_header(&req, "Call-ID", p->callid);
 	add_header(&req, "CSeq", tmp);
 	add_header(&req, "User-Agent", "Asterisk PBX");
@@ -3816,19 +3831,23 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				int expires;
 				struct sip_registry *r;
 				r=p->registry;
-				r->regstate=REG_STATE_REGISTERED;
-				ast_log(LOG_NOTICE, "Registration successful\n");
-				ast_log(LOG_NOTICE, "Cancelling timeout %d\n", r->timeout);
-				if (r->timeout) 
-					ast_sched_del(sched, r->timeout);
-				r->timeout=0;
-				/* set us up for re-registering */
-				/* figure out how long we got registered for */
-				if (r->expire != -1)
-					ast_sched_del(sched, r->expire);
-				expires=atoi(get_header(req, "expires"));
-				if (!expires) expires=default_expiry;
-					r->expire=ast_sched_add(sched, (expires-2)*1000, sip_reregister, r); 
+				if (r) {
+					r->regstate=REG_STATE_REGISTERED;
+					ast_log(LOG_NOTICE, "Registration successful\n");
+					if (r->timeout > -1) {
+						ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
+						ast_sched_del(sched, r->timeout);
+					}
+					r->timeout=-1;
+					/* set us up for re-registering */
+					/* figure out how long we got registered for */
+					if (r->expire > -1)
+						ast_sched_del(sched, r->expire);
+					expires=atoi(get_header(req, "expires"));
+					if (!expires) expires=default_expiry;
+						r->expire=ast_sched_add(sched, (expires-2)*1000, sip_reregister, r); 
+				} else
+					ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
 
 			}
 			break;
@@ -4475,10 +4494,13 @@ static void *do_monitor(void *data)
 restartsearch:		
 		sip = iflist;
 		while(sip) {
+			ast_pthread_mutex_lock(&sip->lock);
 			if (sip->needdestroy && !sip->packets) {
+				ast_pthread_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
 				goto restartsearch;
 			}
+			ast_pthread_mutex_unlock(&sip->lock);
 			sip = sip->next;
 		}
 		ast_pthread_mutex_unlock(&iflock);
