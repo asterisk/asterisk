@@ -7,7 +7,7 @@ addition to the realtime architecture, we now have the ability to create
 templates in configuration files, and use these as templates when we
 configure phones, voicemail accounts and queues.
 
-This changes are general to the configuration parser, and works in
+These changes are general to the configuration parser, and works in
 all configuration files. 
 
 General syntax
@@ -43,6 +43,26 @@ The options field is used to define templates, refer to templates and hide
 templates. Any object can be used as a template.
 
 No whitespace is allowed between the closing "]" and the parenthesis "(".
+
+Including other files
+---------------------
+In all of the configuration files, you may include the content of another
+file with the #include statement. The content of the other file will be
+included at the row that the #include statement occured.
+	
+	#include myusers.conf
+
+You may also include the output of a program with the #exec directive,
+if you enable it in asterisk.conf
+	
+In asterisk.conf, add the execincludes = yes statement in the options
+section:
+	[options]
+	execincludes=yes
+
+The exec directive is used like this:
+	
+	#exec /usr/local/bin/myasteriskconfigurator.sh
 
 
 Adding to an existing section
