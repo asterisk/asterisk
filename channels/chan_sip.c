@@ -1980,6 +1980,27 @@ static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_r
 	return __transmit_response(p, msg, req, 1);
 }
 
+static void append_date(struct sip_request *req)
+{
+	char tmpdat[256];
+	struct tm tm;
+	time_t t;
+	time(&t);
+	gmtime_r(&t, &tm);
+	strftime(tmpdat, sizeof(tmpdat), "%a, %d %b %Y %T GMT", &tm);
+	add_header(req, "Date", tmpdat);
+}
+
+static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_request *req)
+{
+	struct sip_request resp;
+	respprep(&resp, p, msg, req);
+	append_date(&resp);
+	add_header(&resp, "Content-Length", "0");
+	add_blank_header(&resp);
+	return send_response(p, &resp, 0, 0);
+}
+
 static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip_request *req)
 {
 	struct sip_request resp;
@@ -2770,7 +2791,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 					ast_log(LOG_WARNING, "Failed to parse contact info\n");
 				} else {
 					/* Say OK and ask subsystem to retransmit msg counter */
-					transmit_response(p, "200 OK", req);
+					transmit_response_with_date(p, "200 OK", req);
 					peer->lastmsgssent = -1;
 					res = 0;
 				}
@@ -4178,7 +4199,7 @@ static void *do_monitor(void *data)
 restartsearch:		
 		sip = iflist;
 		while(sip) {
-			if (sip->needdestroy) {
+			if (sip->needdestroy && !sip->packets) {
 				__sip_destroy(sip, 1);
 				goto restartsearch;
 			}
