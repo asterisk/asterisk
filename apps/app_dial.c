@@ -287,7 +287,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				*to=-1;
 				return NULL;
 			}
-			if (f && (f->frametype == AST_FRAME_DTMF) && allowdisconnect &&
+			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect &&
 				(f->subclass == '*')) {
 			    if (option_verbose > 3)
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
