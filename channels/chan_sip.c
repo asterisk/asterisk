@@ -3968,8 +3968,8 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth, char
 		snprintf(from, sizeof(from), "<sip:%s>;tag=as%08x", r->username, p->tag);
 		snprintf(to, sizeof(to),     "<sip:%s>", r->username);
 	} else {
-		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, r->hostname, p->tag);
-		snprintf(to, sizeof(to),     "<sip:%s@%s>", r->username, r->hostname);
+		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, p->tohost, p->tag);
+		snprintf(to, sizeof(to),     "<sip:%s@%s>", r->username, p->tohost);
 	}
 	
 	snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
