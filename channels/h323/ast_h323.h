@@ -111,7 +111,6 @@ class MyH323EndPoint : public H323EndPoint {
 	void OnConnectionEstablished(H323Connection &, const PString &);
 	void OnConnectionCleared(H323Connection &, const PString &);
 	H323Connection * CreateConnection(unsigned, void *);
-	H323Connection * SetupTransfer(const PString &, const PString &, const PString &, PString &, void *);
 	void SendUserTone(const PString &, char);
 	H323Capabilities GetCapabilities(void);
 	BOOL OnConnectionForwarded(H323Connection &, const PString &, const H323SignalPDU &);
