@@ -67,6 +67,7 @@ static char *descrip =
 "             that are assigned to you.\n"
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm' -- provide hold music to the calling party until answered.\n"
+"      'M(x) -- Executes the macro (x) upon connect of the call\n"
 "      'h' -- allow callee to hang up by hitting *.\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'C' -- reset call detail record for this call.\n"
@@ -420,6 +421,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int allowredir_out=0;
 	int allowdisconnect_in=0;
 	int allowdisconnect_out=0;
+	int hasmacro = 0;
 	int privacy=0;
 	int announce=0;
 	int resetcdr=0;
@@ -448,6 +450,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char *sdtmfptr;
 	char sdtmfdata[256] = "";
 	char *stack,*var;
+	char *mac = NULL, macroname[256] = "";
 	char status[256]="";
 	char toast[80];
 	int play_to_caller=0,play_to_callee=0;
@@ -608,6 +611,27 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			else {
 				ast_log(LOG_WARNING, "Transfer with Announce spec lacking trailing ')'\n");
 				announce = 0;
+			}
+		}
+		
+		/* Get the macroname from the dial option string */
+		if ((mac = strstr(transfer, "M("))) {
+			hasmacro = 1;
+			strncpy(macroname, mac + 2, sizeof(macroname) - 1);
+			while (*mac && (*mac != ')'))
+				*(mac++) = 'X';
+			if (*mac)
+				*mac = 'X';
+			else {
+				ast_log(LOG_WARNING, "Could not find macro to which we should jump.\n");
+				hasmacro = 0;
+			}
+			mac = strchr(macroname, ')');
+			if (mac)
+				*mac = '\0';
+			else {
+				ast_log(LOG_WARNING, "Macro flag set without trailing ')'\n");
+				hasmacro = 0;
 			}
 		}
 		/* Extract privacy info from transfer */
@@ -906,6 +930,32 @@ static int dial_exec(struct ast_channel *chan, void *data)
 
 		} else
 			res = 0;
+
+		if (hasmacro && macroname) {
+			void *app = NULL;
+
+			res = ast_autoservice_start(chan);
+			if (res) {
+				ast_log(LOG_ERROR, "Unable to start autoservice on calling channel\n");
+				res = -1;
+			}
+
+			app = pbx_findapp("Macro");
+
+			if (app && !res) {
+				res = pbx_exec(peer, app, macroname, 1);
+				ast_log(LOG_DEBUG, "Macro exited with status %d\n", res);
+				res = 0;
+			} else {
+				ast_log(LOG_ERROR, "Could not find application Macro\n");
+				res = -1;
+			}
+
+			if (ast_autoservice_stop(chan) < 0) {
+				ast_log(LOG_ERROR, "Could not stop autoservice on calling channel\n");
+				res = -1;
+			}
+		}
 
 		if (!res) {
 			if (calldurationlimit > 0) {
