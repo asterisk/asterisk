@@ -19,6 +19,7 @@
 #include <asterisk/logger.h>
 #include <asterisk/file.h>
 #include <asterisk/callerid.h>
+#include <asterisk/cdr.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -126,6 +127,7 @@ static int pbx_builtin_hangup(struct ast_channel *, void *);
 static int pbx_builtin_background(struct ast_channel *, void *);
 static int pbx_builtin_dtimeout(struct ast_channel *, void *);
 static int pbx_builtin_rtimeout(struct ast_channel *, void *);
+static int pbx_builtin_atimeout(struct ast_channel *, void *);
 static int pbx_builtin_wait(struct ast_channel *, void *);
 static int pbx_builtin_setlanguage(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
@@ -177,6 +179,11 @@ static struct pbx_builtin {
 "begin typing an extension.  If the user does not type an extension in this\n"
 "amount of time, control will pass to the 't' extension if  it  exists, and\n"
 "if not the call would be terminated.  Always returns 0.\n"  },
+
+	{ "AbsoluteTimeout", pbx_builtin_atimeout,
+"Set absolute maximum time of call",
+"  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
+"for a call. Always returns 0.\n" },
 
 	{ "BackGround", pbx_builtin_background,
 "Play a file while awaiting extension",
@@ -277,6 +284,8 @@ int pbx_exec(struct ast_channel *c, /* Channel */
 		c->stack = stack;
 		return res;
 	} else {
+		if (c->cdr)
+			ast_cdr_setapp(c->cdr, app->name, data);
 		c->appl = app->name;
 		c->data = data;		
 		res = execute(c, data);
@@ -467,7 +476,7 @@ static int matchcid(char *cidpattern, char *callerid)
 		return failresult;
 
 	/* Copy original Caller*ID */
-	strncpy(tmp, callerid, sizeof(tmp));
+	strncpy(tmp, callerid, sizeof(tmp)-1);
 	/* Parse Number */
 	if (ast_callerid_parse(tmp, &name, &num)) 
 		return failresult;
@@ -598,8 +607,8 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 			app = pbx_findapp(e->app);
 			pthread_mutex_unlock(&conlock);
 			if (app) {
-				strncpy(c->context, context, sizeof(c->context));
-				strncpy(c->exten, exten, sizeof(c->exten));
+				strncpy(c->context, context, sizeof(c->context-1));
+				strncpy(c->exten, exten, sizeof(c->exten)-1);
 				c->priority = priority;
 				if (option_debug)
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
@@ -733,6 +742,19 @@ int ast_pbx_run(struct ast_channel *c)
 		ast_log(LOG_WARNING, "Out of memory\n");
 		return -1;
 	}
+	if (c->amaflags) {
+		if (c->cdr) {
+			ast_log(LOG_WARNING, "%s already has a call record??\n");
+		} else {
+			c->cdr = ast_cdr_alloc();
+			if (!c->cdr) {
+				ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+				free(c->pbx);
+				return -1;
+			}
+			ast_cdr_init(c->cdr, c);
+		}
+	}
 	memset(c->pbx, 0, sizeof(struct ast_pbx));
 	/* Set reasonable defaults */
 	c->pbx->rtimeout = 10;
@@ -750,10 +772,12 @@ int ast_pbx_run(struct ast_channel *c)
 	
 	/* Start by trying whatever the channel is set to */
 	if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->callerid)) {
-		strncpy(c->context, "default", sizeof(c->context));
-		strncpy(c->exten, "s", sizeof(c->exten));
+		strncpy(c->context, "default", sizeof(c->context)-1);
+		strncpy(c->exten, "s", sizeof(c->exten)-1);
 		c->priority = 1;
 	}
+	if (c->cdr)
+		ast_cdr_start(c->cdr);
 	for(;;) {
 		pos = 0;
 		digit = 0;
@@ -804,7 +828,7 @@ int ast_pbx_run(struct ast_channel *c)
 			if (ast_exists_extension(c, c->context, "i", 1, c->callerid)) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, c->name);
-				strncpy(c->exten, "i", sizeof(c->exten));
+				strncpy(c->exten, "i", sizeof(c->exten)-1);
 				c->priority = 1;
 			} else {
 				ast_log(LOG_WARNING, "Channel '%s' sent into invalid extension '%s' in context '%s', but no invalid handler\n",
@@ -833,7 +857,7 @@ int ast_pbx_run(struct ast_channel *c)
 			}
 			if (ast_exists_extension(c, c->context, exten, 1, c->callerid)) {
 				/* Prepare the next cycle */
-				strncpy(c->exten, exten, sizeof(c->exten));
+				strncpy(c->exten, exten, sizeof(c->exten)-1);
 				c->priority = 1;
 			} else {
 				/* No such extension */
@@ -842,7 +866,7 @@ int ast_pbx_run(struct ast_channel *c)
 					if (ast_exists_extension(c, c->context, "i", 1, c->callerid)) {
 						if (option_verbose > 2)
 							ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", exten, c->context, c->name);
-						strncpy(c->exten, "i", sizeof(c->exten));
+						strncpy(c->exten, "i", sizeof(c->exten)-1);
 						c->priority = 1;
 					} else {
 						ast_log(LOG_WARNING, "Invalid extension, but no rule 'i' in context '%s'\n", c->context);
@@ -853,7 +877,7 @@ int ast_pbx_run(struct ast_channel *c)
 					if (ast_exists_extension(c, c->context, "t", 1, c->callerid)) {
 						if (option_verbose > 2)
 							ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
-						strncpy(c->exten, "t", sizeof(c->exten));
+						strncpy(c->exten, "t", sizeof(c->exten)-1);
 						c->priority = 1;
 					} else {
 						ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
@@ -1206,7 +1230,7 @@ int ast_register_application(char *app, int (*execute)(struct ast_channel *, voi
 	}
 	tmp = malloc(sizeof(struct ast_app));
 	if (tmp) {
-		strncpy(tmp->name, app, sizeof(tmp->name));
+		strncpy(tmp->name, app, sizeof(tmp->name)-1);
 		tmp->execute = execute;
 		tmp->synopsis = synopsis;
 		tmp->description = description;
@@ -1746,7 +1770,7 @@ struct ast_context *ast_context_create(char *name, char *registrar)
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct ast_context));
 		pthread_mutex_init(&tmp->lock, NULL);
-		strncpy(tmp->name, name, sizeof(tmp->name));
+		strncpy(tmp->name, name, sizeof(tmp->name)-1);
 		tmp->root = NULL;
 		tmp->registrar = registrar;
 		tmp->next = contexts;
@@ -1818,7 +1842,7 @@ int ast_context_add_include2(struct ast_context *con, char *value,
 	}
 	
 	/* ... fill in this structure ... */
-	strncpy(new_include->name, value, sizeof(new_include->name));
+	strncpy(new_include->name, value, sizeof(new_include->name)-1);
 	new_include->next      = NULL;
 	new_include->registrar = registrar;
 
@@ -1908,11 +1932,11 @@ int ast_context_add_switch2(struct ast_context *con, char *value,
 	}
 	
 	/* ... fill in this structure ... */
-	strncpy(new_sw->name, value, sizeof(new_sw->name));
+	strncpy(new_sw->name, value, sizeof(new_sw->name)-1);
 	if (data)
-		strncpy(new_sw->data, data, sizeof(new_sw->data));
+		strncpy(new_sw->data, data, sizeof(new_sw->data)-1);
 	else
-		strncpy(new_sw->data, "", sizeof(new_sw->data));
+		strncpy(new_sw->data, "", sizeof(new_sw->data)-1);
 	new_sw->next      = NULL;
 	new_sw->registrar = registrar;
 
@@ -2044,7 +2068,7 @@ int ast_context_add_ignorepat2(struct ast_context *con, char *value, char *regis
 		errno = ENOMEM;
 		return -1;
 	}
-	strncpy(ignorepat->pattern, value, sizeof(ignorepat->pattern));
+	strncpy(ignorepat->pattern, value, sizeof(ignorepat->pattern)-1);
 	ignorepat->next = NULL;
 	ignorepat->registrar = registrar;
 	pthread_mutex_lock(&con->lock);
@@ -2179,7 +2203,7 @@ int ast_add_extension2(struct ast_context *con,
 			strcpy(tmp->cidmatch, "");
 			tmp->matchcid = 0;
 		}
-		strncpy(tmp->app, application, sizeof(tmp->app));
+		strncpy(tmp->app, application, sizeof(tmp->app)-1);
 		tmp->data = data;
 		tmp->datad = datad;
 		tmp->registrar = registrar;
@@ -2409,7 +2433,7 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 {
 	/* Copy the language as specified */
-	strncpy(chan->language, (char *)data, sizeof(chan->language));
+	strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
 	return 0;
 }
 
@@ -2427,9 +2451,9 @@ static int pbx_builtin_stripmsd(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	if (strlen(chan->exten) > atoi(data)) {
-		strncpy(newexten, chan->exten + atoi(data), sizeof(newexten));
+		strncpy(newexten, chan->exten + atoi(data), sizeof(newexten)-1);
 	}
-	strncpy(chan->exten, newexten, sizeof(chan->exten));
+	strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
 	return 0;
 }
 
@@ -2441,7 +2465,7 @@ static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	snprintf(newexten, sizeof(newexten), "%s%s", (char *)data, chan->exten);
-	strncpy(chan->exten, newexten, sizeof(chan->exten));
+	strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Prepended prefix, new extension is %s\n", chan->exten);
 	return 0;
@@ -2449,9 +2473,23 @@ static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 {
+	int ms;
+	struct ast_frame *f;
 	/* Wait for "n" seconds */
-	if (data && atoi((char *)data))
-		sleep(atoi((char *)data));
+	if (data && atoi((char *)data)) {
+		ms = atoi((char *)data) * 1000;
+		while(ms > 0) {
+			ms = ast_waitfor(chan, ms);
+			if (ms <0)
+				return -1;
+			if (ms > 0) {
+				f = ast_read(chan);
+				if (!f)
+					return -1;
+				ast_frfree(f);
+			}
+		}
+	}
 	return 0;
 }
 
@@ -2467,6 +2505,16 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	/* Stream a file */
 	res = ast_streamfile(chan, (char *)data, chan->language);
 	return res;
+}
+
+static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
+{
+	int x = atoi((char *) data);
+	/* Set the timeout for how long to wait between digits */
+	ast_channel_setwhentohangup(chan,x);
+	if (option_verbose > 2)
+		ast_verbose( VERBOSE_PREFIX_3 "Set Absolute Timeout to %d\n", x);
+	return 0;
 }
 
 static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
@@ -2520,9 +2568,9 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 	/* At this point we have a priority and maybe an extension and a context */
 	chan->priority = atoi(pri) - 1;
 	if (exten && strcasecmp(exten, "BYEXTENSION"))
-		strncpy(chan->exten, exten, sizeof(chan->exten));
+		strncpy(chan->exten, exten, sizeof(chan->exten)-1);
 	if (context)
-		strncpy(chan->context, context, sizeof(chan->context));
+		strncpy(chan->context, context, sizeof(chan->context)-1);
 	if (option_verbose > 2)
 		ast_verbose( VERBOSE_PREFIX_3 "Goto (%s,%s,%d)\n", chan->context,chan->exten, chan->priority+1);
 	return 0;
