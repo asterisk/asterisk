@@ -2613,8 +2613,13 @@ static int transmit_register(struct sip_registry *r, char *cmd, char *auth)
 		ast_log(LOG_DEBUG, "Scheduled a timeout # %d\n", r->timeout);
 	}
 
-	snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, r->hostname, p->tag);
-	snprintf(to, sizeof(to),     "<sip:%s@%s>", r->username, r->hostname);
+	if (strchr(r->username, '@')) {
+		snprintf(from, sizeof(from), "<sip:%s>;tag=as%08x", r->username, p->tag);
+		snprintf(to, sizeof(to),     "<sip:%s>", r->username);
+	} else {
+		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, r->hostname, p->tag);
+		snprintf(to, sizeof(to),     "<sip:%s@%s>", r->username, r->hostname);
+	}
 	
 	snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
 	strncpy(p->uri, addr, sizeof(p->uri) - 1);
