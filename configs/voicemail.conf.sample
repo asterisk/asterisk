@@ -62,7 +62,7 @@ maxlogins=3
 ; 
 ; 
 [zonemessages] 
-eastern=America/NewYork|'vm-received' Q 'digits/at' IMp 
+eastern=America/New_York|'vm-received' Q 'digits/at' IMp 
 central=America/Chicago|'vm-received' Q 'digits/at' IMp 
 central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'digits/hours'
 
