@@ -1546,28 +1546,43 @@ static void ast_readconfig(void) {
 	}
 	v = ast_variable_browse(cfg, "options");
 	while(v) {
+		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
 			option_verbose= atoi(v->value);
+		/* whether or not to support #exec in config files */
 		} else if (!strcasecmp(v->name, "execincludes")) {
 			option_exec_includes = ast_true(v->value);
+		/* debug level (-v at startup) */
 		} else if (!strcasecmp(v->name, "debug")) {
-			option_debug= ast_true(v->value);
+			option_debug = 0;
+			if (sscanf(v->value, "%d", &option_debug) != 1) {
+				option_debug = ast_true(v->value);
+			}
+		/* Disable forking (-f at startup) */
 		} else if (!strcasecmp(v->name, "nofork")) {
 			option_nofork = ast_true(v->value);
+		/* Run quietly (-q at startup ) */
 		} else if (!strcasecmp(v->name, "quiet")) {
 			option_quiet = ast_true(v->value);
+		/* Run as console (-c at startup, implies nofork) */
 		} else if (!strcasecmp(v->name, "console")) {
 			option_console = ast_true(v->value);
+		/* Run with highg priority if the O/S permits (-p at startup) */
 		} else if (!strcasecmp(v->name, "highpriority")) {
 			option_highpriority = ast_true(v->value);
+		/* Initialize RSA auth keys (IAX2) (-i at startup) */
 		} else if (!strcasecmp(v->name, "initcrypto")) {
 			option_initcrypto = ast_true(v->value);
+		/* Disable ANSI colors for console (-c at startup) */
 		} else if (!strcasecmp(v->name, "nocolor")) {
 			option_nocolor = ast_true(v->value);
+		/* Dump core in case of crash (-g) */
 		} else if (!strcasecmp(v->name, "dumpcore")) {
 			option_dumpcore = ast_true(v->value);
+		/* Cache recorded sound files to another directory during recording */
 		} else if (!strcasecmp(v->name, "cache_record_files")) {
 			option_cache_record_files = ast_true(v->value);
+		/* Specify cache directory */
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
 			strncpy(record_cache_dir,v->value,AST_CACHE_DIR_LEN);
 		}
