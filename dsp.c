@@ -718,7 +718,7 @@ static int mf_detect (mf_detect_state_t *s,
 			/* Check for 2nd harmonic */
 			if (goertzel_result(&s->tone_out2nd[best1]) * MF_2ND_HARMONIC > tone_energy[best1]) 
 				sofarsogood = 0;
-			else if (goertzel_result(&s->tone_out2nd[best1]) * MF_2ND_HARMONIC > tone_energy[best2])
+			else if (goertzel_result(&s->tone_out2nd[best2]) * MF_2ND_HARMONIC > tone_energy[best2])
 				sofarsogood = 0;
 		}
 		if (sofarsogood) {
