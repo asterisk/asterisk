@@ -1140,7 +1140,6 @@ static int is_our_turn(struct queue_ent *qe)
 
 static int wait_our_turn(struct queue_ent *qe, int ringing)
 {
-	struct queue_ent *ch;
 	int res = 0;
 
 	/* This is the holding pen for callers 2 through maxlen */
@@ -1288,24 +1287,34 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		}
 		memset(tmp, 0, sizeof(struct localuser));
 		tmp->stillgoing = -1;
-		if (options) {
-			if (strchr(options, 't'))
+		for (; options && *options; options++)
+			switch (*options) {
+			case 't':
 				ast_set_flag(tmp, QUEUE_FLAG_REDIR_IN);
-			if (strchr(options, 'T'))
+				break;
+			case 'T':
 				ast_set_flag(tmp, QUEUE_FLAG_REDIR_OUT);
-			if (strchr(options, 'r'))
+				break;
+			case 'r':
 				ast_set_flag(tmp, QUEUE_FLAG_RINGBACKONLY);
-			if (strchr(options, 'm'))
+				break;
+			case 'm':
 				ast_set_flag(tmp, QUEUE_FLAG_MUSICONHOLD);
-			if (strchr(options, 'd'))
+				break;
+			case 'd':
 				ast_set_flag(tmp, QUEUE_FLAG_DATAQUALITY);
-			if (strchr(options, 'h'))
+				break;
+			case 'h':
 				ast_set_flag(tmp, QUEUE_FLAG_DISCON_IN);
-			if (strchr(options, 'H'))
+				break;
+			case 'H':
 				ast_set_flag(tmp, QUEUE_FLAG_DISCON_OUT);
-			if ((strchr(options, 'n')) && (now - qe->start >= qe->parent->timeout))
-				*go_on = 1;
-		}
+				break;
+			case 'n':
+			        if ((now - qe->start >= qe->parent->timeout))
+					*go_on = 1;
+				break;
+			}
 		if (option_debug) {
 			if (url)
 				ast_log(LOG_DEBUG, "Queue with URL=%s_\n", url);
