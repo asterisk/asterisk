@@ -1,12 +1,16 @@
-EXTENSION LOGIC : 
+Asterisk dial plan variables 
+---------------------------
 
-There are two levels of parameter evaluation done in asterisk in 
-extensions.conf.
-The first, and most frequently used, is the substitution of variable
-references with their values. 
+There are two levels of parameter evaluation done in the Asterisk
+dial plan in extensions.conf.
+* The first, and most frequently used, is the substitution of variable
+  references with their values. 
+* Then there are the evaluations of expressions done in $[ .. ]. 
+  This will be discussed below.
 
-Then there are the evaluations done in $[ .. ]. This will be
-discussed below.
+Asterisk has user-defined variables and standard variables set
+by various modules in Asterisk. These standard variables are
+listed at the end of this document.
 
 ___________________________
 PARAMETER QUOTING: 
@@ -28,7 +32,6 @@ asterisk config file parser.
 
 Double quotes can also be used inside expressions, as discussed below.
 
-
 ___________________________
 VARIABLES: 
 ---------------------------
@@ -38,81 +41,14 @@ They are stored in the respective channel structure.
 
 To set a variable to a particular value, do : 
 
-    exten => 1,2,SetVar,varname=value
+    exten => 1,2,SetVar(varname=value)
 
 You can substitute the value of a variable everywhere using ${variablename}.
 For example, to stringwise append $lala to $blabla and store result in $koko, 
 do: 
 
-   exten => 1,2,SetVar,koko=${blabla}${lala}
+   exten => 1,2,SetVar(koko=${blabla}${lala})
 
-There are also the following special variables: 
-
-${ACCOUNTCODE} 	Account code (if specified)
-${CALLERID}	Caller ID
-${CALLERIDNAME}	Caller ID Name only
-${CALLERIDNUM}	Caller ID Number only
-${CALLINGPRES}	PRI Caller ID presentation for incoming calls
-${CHANNEL}	Current channel name
-${CONTEXT}      Current context
-${DATETIME}	Current date time in the format: YYYY-MM-DD_HH:MM:SS
-${DNID}         Dialed Number Identifier
-${ENUM}		Result of application EnumLookup
-${EPOCH}	Current unix style epoch
-${EXTEN}	Current extension
-${ENV(VAR)}	Environmental variable VAR
-${HANGUPCAUSE}	Asterisk hangup cause
-${HINT}		Channel hints for this extension
-${HINTNAME}	Suggested Caller*ID name for this extension
-${INVALID_EXTEN}The invalid called extension (used in the "i" extension)
-${LANGUAGE}	Current language
-${LEN(VAR)}	String length of VAR (integer)
-${MEETMESECS} 	Number of seconds a user participated in a MeetMe conference
-${PRIORITY}	Current priority
-${RDNIS}        Redirected Dial Number ID Service
-${SIPCALLID} 	SIP Call-ID: header verbatim (for logging or CDR matching)
-${SIPDOMAIN}    SIP destination domain of an inbound call (if appropriate)
-${SIPUSERAGENT} SIP user agent 
-${TIMESTAMP}	Current date time in the format: YYYYMMDD-HHMMSS
-${TXTCIDNAME}	Result of application TXTCIDName
-${UNIQUEID}	Current call unique identifier
-${PRIREDIRECTREASON} Reason for redirect, if a call was directed
-
-NOTE: Attempting to set any of these "special" variables will not change 
-their value, but will not display any warning either.
-
-The dial() application sets the following variables:
-
-${DIALEDPEERNAME} Dialed peer name
-${DIALEDPEERNUMBER} Dialed peer number
-${DIALEDTIME}   Total time for the call in seconds (Network time).
-${ANSWEREDTIME} Time from answer to end of call in seconds (Billable time).
-${DIALSTATUS}   Status of the call, one of:
-                CHANUNAVAIL | CONGESTION | BUSY | NOANSWER | ANSWER | CANCEL
-
-The agent channel uses the following variables:
-${AGENTMAXLOGINTRIES}	Set the maximum number of failed logins
-${AGENTUPDATECDR}	Whether to update the CDR record with Agent channel data
-${AGENTGOODBYE}		Sound file to use for "Good Bye" when agent logs out
-${AGENTACKCALL} 	Whether the agent should acknowledge the incoming call
-${AGENTAUTOLOGOFF}	Auto logging off for an agent
-${AGENTWRAPUPTIME}	Setting the time for wrapup between incoming calls
-${AGENTNUMBER}		Agent number (username) set at login
-${AGENTSTATUS}		Status of login	( fail | on | off )
-${AGENTEXTEN}		Extension for logged in agent
-
-The queue() application uses the following variables:
-${MONITOR_FILENAME}	File for monitoring (recording) calls in queue
-${QUEUE_PRIO}		Queue priority
-
-
-The following variables can be set to change certian behaviour:
-${TOUCH_MONITOR}	The filename base to use with Touch Monitor (auto record)
-${EXITCONTEXT}		A context to consider in lieu of the curent context when
-			dropping out of an attempted call into a 1 digit extension.
-
-The monitor application sets the following variable:
-${MONITOR}		Set to "true" if the channel is/has been monitored.
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
@@ -120,8 +56,8 @@ requires a variable), just write the name. To refer to the variable's value,
 enclose it inside ${}. For example, SetVar takes as the first argument 
 (before the =) a variable name, so: 
 
-;exten => 1,2,SetVar,koko=lala
-;exten => 1,3,SetVar,${koko}=blabla
+;exten => 1,2,SetVar(koko=lala)
+;exten => 1,3,SetVar(${koko}=blabla)
 
 stores to the variable "koko" the value "lala" and to variable "lala" the 
 value "blabla". 
@@ -137,20 +73,21 @@ Everything contained inside a bracket pair prefixed by a $ (like $[this]) is
 considered as an expression and it is evaluated. Evaluation works similar to 
 (but is done on a later stage than) variable substitution: the expression 
 (including the square brackets) is replaced by the result of the expression 
-evaluation. The arguments and operands of the expression MUST BE separated 
+evaluation. 
+Note: The arguments and operands of the expression MUST BE separated 
 by at least one space. 
 
 
 For example, after the sequence: 
 
-exten => 1,1,SetVar,"lala=$[1 + 2]";
-exten => 1,2,SetVar,"koko=$[2 * ${lala}]";
+exten => 1,1,SetVar(lala=$[1 + 2])
+exten => 1,2,SetVar(koko=$[2 * ${lala}])
 
 the value of variable koko is "6".
 
 And, further:
 
-exten => 1,1,SetVar,"lala=$[1+2]";
+exten => 1,1,SetVar(lala=$[1+2]);
 
 will not work as you might have expected. Since all the chars in the single 
 token "1+2" are not numbers, it will be evaluated as the string "1+2". Again,
@@ -243,7 +180,7 @@ CONDITIONALS
 
 There is one conditional operator - the conditional goto : 
 
-;exten => 1,2,gotoif,condition?label1:label2
+	exten => 1,2,gotoif(condition?label1:label2)
 
 If condition is true go to label1, else go to label2. Labels are interpreted
 exactly as in the normal goto command.
@@ -253,15 +190,15 @@ is considered to be false, if it's anything else, the condition is true.
 This is designed to be used together with the expression syntax described 
 above, eg : 
 
-exten => 1,2,gotoif,$[${CALLERID} = 123456]?2|1:3|1
+	exten => 1,2,gotoif($[${CALLERID} = 123456]?2|1:3|1)
 
 
 Example of use : 
 
-exten => s,2,SetVar,"vara=1"
-exten => s,3,SetVar,"varb=$[${vara} + 2]"
-exten => s,4,SetVar,"varc=$[${varb} * 2]"
-exten => s,5,GotoIf,"$[${varc} = 6]?99|1:s|6";
+exten => s,2,SetVar(vara=1)
+exten => s,3,SetVar(varb=$[${vara} + 2])
+exten => s,4,SetVar(varc=$[${varb} * 2])
+exten => s,5,GotoIf($[${varc} = 6]?99|1:s|6)
 
 ___________________________
 PARSE ERRORS
@@ -271,7 +208,7 @@ Syntax errors are now output with 3 lines.
 
 If the extensions.conf file contains a line like:
 
-exten => s,6,GotoIf($[ "${CALLERIDNUM}"  = "3071234567" & "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
+exten => s,6,GotoIf($[ "${CALLERIDNUM}"  = "3071234567" & &  "${CALLERIDNAME}" : "Privacy Manager" ]?callerid-liar|s|1:s|7)
 
 You may see an error in /var/log/asterisk/messages like this:
 
@@ -300,9 +237,9 @@ NULL STRINGS
 
 Testing to see if a string is null can be done in one of two different ways:
 
-exten => _XX.,1,GotoIf($["${calledid}" != ""]?3) 
+	exten => _XX.,1,GotoIf($["${calledid}" != ""]?3) 
 
-exten => _XX.,1,GotoIf($[foo${calledid} != foo]?3) 
+	exten => _XX.,1,GotoIf($[foo${calledid} != foo]?3) 
 
 
 The second example above is the way suggested by the WIKI. It will 
@@ -321,4 +258,175 @@ excellent option to this need, and make available the full power of
 whatever language you desire, be it Perl, C, C++, Cobol, RPG, Java,
 Snobol, PL/I, Scheme, Common Lisp, Shell scripts, Tcl, Forth, Modula,
 Pascal, APL, assembler, etc.
+
+---------------------------------------------------------
+Asterisk standard channel variables 
+---------------------------------------------------------
+There are a number of variables that are defined or read
+by Asterisk. Here is a list of them. More information is
+available in each application's help text. All these variables
+are in UPPER CASE only.
+
+Variables marked with a * are builtin functions and can't be set,
+only read in the dialplan.  Writes to such variables are silently 
+ignored.
+
+${ACCOUNTCODE} 	 * Account code (if specified)
+${BLINDTRANSFER} The name of the channel on the other side a blind transfer
+${BRIDGEPEER}	 Bridged peer
+${CALLERANI}	 * Caller ANI (PRI channels)
+${CALLERID}	 * Caller ID
+${CALLERIDNAME}	 * Caller ID Name only
+${CALLERIDNUM}	 * Caller ID Number only
+${CALLINGANI2}	 * Caller ANI2 (PRI channels)
+${CALLINGPRES}	 * Caller ID presentation for incoming calls (PRI channels)
+${CALLINGTNS} 	 * Transit Network Selector (PRI channels)
+${CALLINGTON}    * Caller Type of Number (PRI channels)
+${CHANNEL}	 * Current channel name
+${CONTEXT}       * Current context
+${DATETIME}	 * Current date time in the format: YYYY-MM-DD_HH:MM:SS
+${DNID}          * Dialed Number Identifier
+${EPOCH}	 * Current unix style epoch
+${EXTEN}	 * Current extension
+${ENV(VAR)}	 * Environmental variable VAR
+${HANGUPCAUSE}	 * Asterisk cause of hangup (inbound/outbound)
+${HINT}          * Channel hints for this extension
+${HINTNAME}      * Suggested Caller*ID name for this extension
+${INVALID_EXTEN} The invalid called extension (used in the "i" extension)
+${LANGUAGE}	 * Current language
+${LEN(VAR)}	 * String length of VAR (integer)
+${PRIORITY}	 * Current priority in the dialplan
+${PRIREDIRECTREASON} Reason for redirect on PRI, if a call was directed
+${RDNIS}         * Redirected Dial Number ID Service
+${TIMESTAMP}	 * Current date time in the format: YYYYMMDD-HHMMSS
+${TRANSFER_CONTEXT} Context for transferred calls
+${UNIQUEID}	 * Current call unique identifier
+
+Various application variables
+-----------------------------
+${CURL}		Resulting page content for curl()
+${ENUM}		Result of application EnumLookup
+${EXITCONTEXT}	Context to exit to in IVR menu (app background())
+		or in the RetryDial() application
+${GROUPCOUNT}	Result from groupcount()
+${MONITOR}	Set to "TRUE" if the channel is/has been monitored (app monitor())
+${MONITOR_EXEC}	Application to execute after monitoring a call
+${MONITOR_EXEC_ARGS}	Arguments to application
+${MONITOR_FILENAME} File for monitoring (recording) calls in queue
+${QUEUE_PRIO}	Queue priority
+${RECORDED_FILE} Recorded file in record()
+${TALK_DETECED} Result from talkdetect()
+${TOUCH_MONITOR} The filename base to use with Touch Monitor (auto record)
+${TXTCIDNAME}	Result of application TXTCIDName
+${VPB_GETDTMF}	chan_vpb
+
+The MeetMe Conference Bridge uses the following variables:
+----------------------------------------------------------
+${MEETME_RECORDINGFILE} Name of file for recording a conference with 
+		the "r" option
+${MEETME_RECORDINGFORMAT} Format of file to be recorded
+${MEETME_EXIT_CONTEXT} 	Context for exit out of meetme meeting
+${MEETME_AGI_BACKGROUND} AGI script for Meetme (zap only)
+
+Meetme() sets the following variable:
+${MEETMESECS} 	Number of seconds a user participated in a MeetMe conference
+
+The voicemail() application uses the following variables:
+---------------------------------------------------------
+${VM_CATEGORY}	Sets voicemail category
+
+The following variables are set by voicemail()
+${VM_NAME}	Full name in voicemail
+${VM_DUR}	Voicemail duration
+${VM_MSGNUM}	Number of voicemail message in mailbox
+${VM_CALLERID}	Voicemail Caller ID (Person leaving vm)
+${VM_CIDNAME}	Voicemail Caller ID Name
+${VM_CIDNUM}	Voicemail Caller ID Number
+${VM_DATE}	Voicemail Date
+
+The following variables are set by vmauthenticate()
+${AUTH_MAILBOX}	Authenticated mailbox
+${AUTH_CONTEXT}	Authenticated mailbox context
+${DIFF_DAY}	Day difference (internal use)
+
+Dundi() uses the following variables
+---------------------------------------------------------
+${DUNDTECH}	Technology
+${DUNDDEST}	Destination
+
+The Zaptel channel sets the following variables:
+---------------------------------------------------------
+${ANI2}			The ANI2 Code provided by the network on the incoming call. 
+			(ie, Code 29 identifies call as a Prison/Inmate Call)
+${CALLTYPE}		Type of call (Speech, Digital, etc)
+${CALLEDTON}		Type of number for incoming PRI extension
+			i.e. 0=unknown, 1=international, 2=domestic, 3=net_specific, 
+			4=subscriber, 6=abbreviated, 7=reserved 
+${CALLINGSUBADDR}	Called PRI Subaddress
+${FAXEXTEN}	 	The extension called before being redirected to "fax"	
+${PRIREDIRECTREASON}	Reason for redirect, if a call was directed
+
+The SIP channel sets the following variables:
+---------------------------------------------------------
+${SIPCALLID} 		SIP Call-ID: header verbatim (for logging or CDR matching)
+${SIPDOMAIN}    	SIP destination domain of an inbound call (if appropriate)
+${SIPUSERAGENT} 	SIP user agent 
+${SIPURI}		SIP uri
+
+The SIP channel reads the following variable:
+${SIP_CODEC} 		Set the SIP codec for a call	
+
+The Agent channel uses the following variables:
+---------------------------------------------------------
+${AGENTMAXLOGINTRIES}	Set the maximum number of failed logins
+${AGENTUPDATECDR}	Whether to update the CDR record with Agent channel data
+${AGENTGOODBYE}		Sound file to use for "Good Bye" when agent logs out
+${AGENTACKCALL} 	Whether the agent should acknowledge the incoming call
+${AGENTAUTOLOGOFF}	Auto logging off for an agent
+${AGENTWRAPUPTIME}	Setting the time for wrapup between incoming calls
+${AGENTNUMBER}		Agent number (username) set at login
+${AGENTSTATUS}		Status of login	( fail | on | off )
+${AGENTEXTEN}		Extension for logged in agent
+
+The Dial() application sets the following variables:
+---------------------------------------------------------
+${DIALEDPEERNAME} Dialed peer name
+${DIALEDPEERNUMBER} Dialed peer number
+${DIALEDTIME}   Time for the call (seconds)
+${ANSWEREDTIME} Time from dial to answer (seconds)
+${DIALSTATUS}   Status of the call, one of:
+                CHANUNAVAIL | CONGESTION | BUSY | NOANSWER | ANSWER | CANCEL
+
+The dial() application reads the following variables
+${LIMIT_PLAYAUDIO_CALLER}	Soundfile for call limits
+${LIMIT_PLAYAUDIO_CALLEE}	Soundfile for call limits
+${LIMIT_WARNING_FILE}		Soundfile for call limits
+${LIMIT_TIMEOUT_FILE}		Soundfile for call limits
+${LIMIT_CONNECT_FILE}		Soundfile for call limits
+${OUTBOUND_GROUP}	Default groups for peer channels (as in SetGroup)
+* See "show application dial" for more information
+
+
+
+The chanisavail() application sets the following variables:
+-----------------------------------------------------------
+${AVAILCHAN}		return value
+${AVAILORIGCHAN} 	return value
+${AVAILSTATUS}		Status of requested channel
+
+When using macros in the dialplan, these variables are available
+---------------------------------------------------------
+${MACRO_EXTEN}		The calling extensions
+${MACRO_CONTEXT}	The calling context
+${MACRO_PRIORITY}	The calling priority
+${MACRO_OFFSET}		Offset to add to priority at return from macro
+
+If you compile with OSP support in the SIP channel, these
+variables are used:
+---------------------------------------------------------
+${OSPHANDLE}		Handle from the OSP Library
+${OSPTECH}		OSP Technology from Library
+${OSPDEST}		OSP Destination from Library
+${OSPTOKEN}		OSP Token to use for call from Library
+${OSPRESULTS}		Number of OSP results
 
