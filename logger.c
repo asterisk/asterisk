@@ -615,6 +615,7 @@ extern void ast_verbose(const char *fmt, ...)
 	vsnprintf(stuff + pos, sizeof(stuff) - pos, fmt, ap);
 	opos = pos;
 	pos = strlen(stuff);
+
 	if (stuff[strlen(stuff)-1] == '\n') 
 		complete = 1;
 	else
@@ -656,11 +657,12 @@ extern void ast_verbose(const char *fmt, ...)
 		fprintf(stdout, stuff + opos); */
 
 	ast_log(LOG_VERBOSE, stuff);
-
-	if (fmt[strlen(fmt)-1] != '\n') 
-		replacelast = 1;
-	else 
-		replacelast = pos = 0;
+	if (strlen(stuff)) {
+		if (stuff[strlen(stuff)-1] != '\n') 
+			replacelast = 1;
+		else 
+			replacelast = pos = 0;
+	}
 	va_end(ap);
 
 	ast_mutex_unlock(&msglist_lock);
