@@ -40,6 +40,9 @@
 #include <asterisk/astdb.h>
 #include <asterisk/causes.h>
 #include <asterisk/utils.h>
+#ifdef OSP_SUPPORT
+#include <asterisk/astosp.h>
+#endif
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
@@ -314,6 +317,10 @@ static struct sip_pvt {
 	int needreinvite;			/* Do we need to send another reinvite? */
 	int pendingbye;				/* Need to send bye after we ack? */
 	int gotrefer;				/* Got a refer? */
+#ifdef OSP_SUPPORT
+	int osphandle;				/* OSP Handle for call */
+	time_t ospstart;			/* OSP Start time */
+#endif
 	struct sip_request initreq;		/* Initial request */
 	
 	int maxtime;				/* Max time for first response */
@@ -514,7 +521,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header);
 static int transmit_request(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, char *msg, int inc, int reliable, int newbranch);
-static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *authheader, char *vxml_url,char *distinctive_ring, int init);
+static int transmit_invite(struct sip_pvt *p, char *msg, int sendsdp, char *auth, char *authheader, char *vxml_url,char *distinctive_ring, char *osptoken,int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, char *text);
@@ -1355,6 +1362,10 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	struct sip_pvt *p;
 	char *vxml_url = NULL;
 	char *distinctive_ring = NULL;
+	char *osptoken = NULL;
+#ifdef OSP_SUPPORT
+	char *osphandle = NULL;
+#endif	
 	struct varshead *headp;
 	struct ast_var_t *current;
 	
@@ -1371,24 +1382,37 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		if (strcasecmp(ast_var_name(current),"VXML_URL")==0)
 	        {
 			vxml_url = ast_var_value(current);
-			break;
-		}
+		} else
 		/* Check whether there is a ALERT_INFO variable */
 		if (strcasecmp(ast_var_name(current),"ALERT_INFO")==0)
 	        {
 			distinctive_ring = ast_var_value(current);
-			break;
 		}
+#ifdef OSP_SUPPORT
+		else if (!strcasecmp(ast_var_name(current), "OSPTOKEN")) {
+			osptoken = ast_var_value(current);
+		} else if (!strcasecmp(ast_var_name(current), "OSPHANDLE")) {
+			osphandle = ast_var_value(current);
+		}
+#endif
 	}
 	
 	res = 0;
 	p->outgoing = 1;
+#ifdef OSP_SUPPORT
+	if (!osptoken || !osphandle || (sscanf(osphandle, "%i", &p->osphandle) != 1)) {
+		/* Force Disable OSP support */
+		osptoken = NULL;
+		osphandle = NULL;
+		p->osphandle = -1;
+	}
+#endif
 	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
 	res = update_user_counter(p,INC_OUT_USE);
 	if ( res != -1 ) {
 		p->restrictcid = ast->restrictcid;
 		p->jointcapability = p->capability;
-		transmit_invite(p, "INVITE", 1, NULL, NULL, vxml_url,distinctive_ring, 1);
+		transmit_invite(p, "INVITE", 1, NULL, NULL, vxml_url,distinctive_ring, osptoken, 1);
 		if (p->maxtime) {
 			/* Initialize auto-congest time */
 			p->initid = ast_sched_add(sched, p->maxtime * 4, auto_congest, p);
@@ -1606,6 +1630,11 @@ static int sip_hangup(struct ast_channel *ast)
 		return 0;
 	}
 	ast_mutex_lock(&p->lock);
+#ifdef OSP_SUPPORT
+	if ((p->osphandle > -1) && (ast->_state == AST_STATE_UP)) {
+		ast_osp_terminate(p->osphandle, AST_CAUSE_NORMAL, p->ospstart, time(NULL) - p->ospstart);
+	}
+#endif	
 	if ( p->outgoing ) {
 		ast_log(LOG_DEBUG, "update_user_counter(%s) - decrement outUse counter\n", p->username);
 		update_user_counter(p, DEC_OUT_USE);
@@ -1687,8 +1716,9 @@ static int sip_answer(struct ast_channel *ast)
 
 	ast_mutex_lock(&p->lock);
 	if (ast->_state != AST_STATE_UP) {
-	
-	
+#ifdef OSP_SUPPORT	
+		time(&p->ospstart);
+#endif
 	
 		codec=pbx_builtin_getvar_helper(p->owner,"SIP_CODEC");
 		if (codec) {
@@ -2137,6 +2167,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->initid = -1;
 	p->autokillid = -1;
 	p->stateid = -1;
+#ifdef OSP_SUPPORT
+	p->osphandle = -1;
+#endif	
 	p->rtp = ast_rtp_new(sched, io, 1, 0);
 	if (videosupport)
 		p->vrtp = ast_rtp_new(sched, io, 1, 0);
@@ -3543,7 +3576,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 
         
 /*--- transmit_invite: Build REFER/INVITE/OPTIONS message and trasmit it ---*/
-static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, int init)
+static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int init)
 {
 	struct sip_request req;
 	
@@ -3564,7 +3597,11 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		if (!ast_strlen_zero(p->referred_by))
 			add_header(&req, "Referred-By", p->referred_by);
 	}
-	
+#ifdef OSP_SUPPORT
+	if (osptoken && !ast_strlen_zero(osptoken)) {
+		add_header(&req, "P-OSP-Auth-Token", osptoken);
+	}	
+#endif
 	if (distinctive_ring && !ast_strlen_zero(distinctive_ring))
 	{
 		add_header(&req, "Alert-info",distinctive_ring);
@@ -5792,7 +5829,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 		/* No way to authenticate */
 		return -1;
 	}
-	return transmit_invite(p,msg,!strcasecmp(msg, "INVITE"),digest, respheader, NULL,NULL, init); 
+	return transmit_invite(p,msg,!strcasecmp(msg, "INVITE"),digest, respheader, NULL,NULL,NULL, init); 
 }
 
 /*--- reply_digest: reply to authentication for outbound registrations ---*/
@@ -6222,6 +6259,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				build_route(p, req, 1);
 				if (p->owner) {
 					if (p->owner->_state != AST_STATE_UP) {
+#ifdef OSP_SUPPORT	
+						time(&p->ospstart);
+#endif
 						ast_setstate(p->owner, AST_STATE_UP);
 						ast_queue_control(p->owner, AST_CONTROL_ANSWER);
 					} else {
@@ -7303,9 +7343,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 	p->outgoing = 1;
 #ifdef VOCAL_DATA_HACK
 	strncpy(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-	transmit_invite(p, "INVITE", 0, NULL, NULL, NULL,NULL, 1);
+	transmit_invite(p, "INVITE", 0, NULL, NULL, NULL,NULL,NULL, 1);
 #else
-	transmit_invite(p, "OPTIONS", 0, NULL, NULL, NULL,NULL, 1);
+	transmit_invite(p, "OPTIONS", 0, NULL, NULL, NULL,NULL,NULL, 1);
 #endif
 	gettimeofday(&peer->ps, NULL);
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);

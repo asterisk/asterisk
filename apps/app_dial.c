@@ -362,6 +362,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to=-1;
+				strcpy(status, "CANCEL");
 				return NULL;
 			}
 			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect &&
@@ -722,36 +723,21 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		/* If creating a SIP channel, look for a variable called */
 		/* VXML_URL in the calling channel and copy it to the    */
 		/* new channel.                                          */
-		if (strcasecmp(tech,"SIP")==0)
-		{
-			headp=&chan->varshead;
-			AST_LIST_TRAVERSE(headp,current,entries) {
-				if (strcasecmp(ast_var_name(current),"VXML_URL")==0)
-				{
-					newvar=ast_var_assign(ast_var_name(current),ast_var_value(current));
-					newheadp=&tmp->chan->varshead;
-					AST_LIST_INSERT_HEAD(newheadp,newvar,entries);
-					break;
-				}
-			}
-		}
+
 		/* Check for ALERT_INFO in the SetVar list.  This is for   */
 		/* SIP distinctive ring as per the RFC.  For Cisco 7960s,  */
 		/* SetVar(ALERT_INFO=<x>) where x is an integer value 1-5. */
 		/* However, the RFC says it should be a URL.  -km-         */
-
-		if (strcasecmp(tech,"SIP")==0)
-		{
-			headp=&chan->varshead;
-			AST_LIST_TRAVERSE(headp,current,entries) {
-				/* Search for ALERT_INFO */
-				if (strcasecmp(ast_var_name(current),"ALERT_INFO")==0)
-				{
-					newvar=ast_var_assign(ast_var_name(current),ast_var_value(current));
-					newheadp=&tmp->chan->varshead;
-					AST_LIST_INSERT_HEAD(newheadp,newvar,entries);
-					break;
-				}
+		headp=&chan->varshead;
+		AST_LIST_TRAVERSE(headp,current,entries) {
+			if (!strcasecmp(ast_var_name(current),"VXML_URL") ||
+			    !strcasecmp(ast_var_name(current), "ALERT_INFO") ||
+				!strcasecmp(ast_var_name(current), "OSPTOKEN") ||
+				!strcasecmp(ast_var_name(current), "OSPHANDLE"))
+			{
+				newvar=ast_var_assign(ast_var_name(current),ast_var_value(current));
+				newheadp=&tmp->chan->varshead;
+				AST_LIST_INSERT_HEAD(newheadp,newvar,entries);
 			}
 		}
 		
@@ -850,6 +836,10 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		goto out;
 	}
 	if (peer) {
+#ifdef OSP_SUPPORT
+		/* Once call is answered, ditch the OSP Handle */
+		pbx_builtin_setvar_helper(chan, "OSPHANDLE", "");
+#endif		
 		strcpy(status, "ANSWER");
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
