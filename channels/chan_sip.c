@@ -1236,7 +1236,7 @@ static struct sip_user *find_user(char *name)
 /*--- create_addr: create address structure from peer definition ---*/
 /*      Or, if peer not found, find it in the global DNS */
 /*      returns TRUE on failure, FALSE on success */
-static int create_addr(struct sip_pvt *r, char *peer)
+static int create_addr(struct sip_pvt *r, char *opeer)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -1245,7 +1245,14 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	char *port;
 	int portno;
 	char host[256], *hostn;
+	char peer[256]="";
 
+	strncpy(peer, opeer, sizeof(peer) - 1);
+	port = strchr(peer, ':');
+	if (port) {
+		*port = '\0';
+		port++;
+	}
 	r->sa.sin_family = AF_INET;
 	ast_mutex_lock(&peerl.lock);
 	p = find_peer(peer, NULL);
@@ -1314,10 +1321,6 @@ static int create_addr(struct sip_pvt *r, char *peer)
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if (!p && !found) {
-		if ((port=strchr(peer, ':'))) {
-			*port='\0';
-			port++;
-		}
 		hostn = peer;
 		if (port)
 			portno = atoi(port);
