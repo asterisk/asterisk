@@ -1880,7 +1880,7 @@ int	x;
 			x = 1;
 		}
 		if (ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x) == -1)
-			ast_log(LOG_WARNING, "Unable to set audio mode on channel %d\n", p->channel);
+			ast_log(LOG_WARNING, "Unable to set audio mode on channel %d to %d\n", p->channel, x);
 		break;
 	}
 	errno = 0;
