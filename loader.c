@@ -280,11 +280,11 @@ int ast_load_resource(char *resource_name)
 	m->reload = dlsym(m->lib, "reload");
 	if (m->reload == NULL)
 		m->reload = dlsym(m->lib, "_reload");
-	if (m->key && !(key = m->key())) {
+	if (!m->key || !(key = m->key())) {
 		ast_log(LOG_WARNING, "Key routine returned NULL in module %s\n", fn);
-		errors++;
-	} else
 		key = NULL;
+		errors++;
+	}
 	if (key && verify_key(key)) {
 		ast_log(LOG_WARNING, "Unexpected key returned by module %s\n", fn);
 		errors++;
