@@ -6994,7 +6994,8 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		*bridgeb = NULL,
 		*peera = NULL,
 		*peerb = NULL,
-		*peerc = NULL;
+		*peerc = NULL,
+		*peerd = NULL;
 
 	if (!p1->owner || !p2->owner) {
 		ast_log(LOG_WARNING, "Transfer attempted without dual ownership?\n");
@@ -7009,16 +7010,19 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 		peera = chana;
 		peerb = chanb;
 		peerc = bridgea;
+		peerd = bridgeb;
 	} else if (bridgeb) {
 		peera = chanb;
 		peerb = chana;
 		peerc = bridgeb;
+		peerd = bridgea;
 	}
 	
 	if (peera && peerb && peerc) {
 		ast_quiet_chan(peera);
 		ast_quiet_chan(peerb);
 		ast_quiet_chan(peerc);
+		ast_quiet_chan(peerd);
 
 		if (peera->cdr && peerb->cdr) {
 			peerb->cdr = ast_cdr_append(peerb->cdr, peera->cdr);
