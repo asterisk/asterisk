@@ -129,11 +129,10 @@ int load_module(void)
 	int res;
 
 	res = load_config(0);
-	if (!res)
+	if (!res) {
 		res = ast_cdr_register(name, desc, custom_log);
-	if (res) {
-		ast_log(LOG_ERROR, "Unable to register custom CDR handling\n");
-		res = 0;
+		if (res)
+			ast_log(LOG_ERROR, "Unable to register custom CDR handling\n");
 		if (mf)
 			fclose(mf);
 	}
