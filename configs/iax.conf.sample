@@ -72,6 +72,15 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;
 tos=lowdelay
 ;
+; Guest sections for unauthenticated connection attempts.  Just
+; specify an empty secret, or provide no secret section.
+;
+[guest]
+type=user
+context=default
+callerid="Guest IAX User"
+
+;
 ; Trust Caller*ID Coming from iaxtel.com
 ;
 [iaxtel]
@@ -89,14 +98,6 @@ context=default
 deny=0.0.0.0/0.0.0.0
 permit=216.207.245.47/255.255.255.255
 
-;
-; Guest sections for unauthenticated connection attempts.  Just
-; specify an empty secret, or provide no secret section.
-;
-[guest]
-type=user
-context=default
-callerid="Guest IAX User"
 ;
 ; Further user sections may be added, specifying a context and a
 ; secret used for connections with that given authentication name.

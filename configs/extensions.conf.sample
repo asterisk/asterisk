@@ -26,6 +26,12 @@ writeprotect=no
 ;exten => s,1,Dial,AdtranVoFR/4200&AdtranVoFR/4151&AdtranVoFR/4300|15
 ;exten => s,2,Goto,default|s|2
 ;include => default
+;
+; Timing list for includes is 
+;
+;   <time range>|<days of week>|<days of month>|<months>
+;
+;include => daytime|9:00-17:00|mon-fri|*|*
 
 ;
 ; Here are the entries you need to participate in the IAXTEL
@@ -58,6 +64,7 @@ ignorepat => 9
 ;exten => _9NXXXXXX,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
 ;exten => _91NXXNXXXXXX,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
 ;exten => _9911,1,Dial,IAX/user:[key]@myserver/BYEXTENSION
+include => parkedcalls
 include => default
 include => provider
 include => iaxtel
