@@ -96,8 +96,8 @@ int ast_format_register(char *name, char *exts, int format,
 		ast_pthread_mutex_unlock(&formatlock);
 		return -1;
 	}
-	strncpy(tmp->name, name, sizeof(tmp->name));
-	strncpy(tmp->exts, exts, sizeof(tmp->exts));
+	strncpy(tmp->name, name, sizeof(tmp->name)-1);
+	strncpy(tmp->exts, exts, sizeof(tmp->exts)-1);
 	tmp->open = open;
 	tmp->rewrite = rewrite;
 	tmp->apply = apply;
@@ -369,7 +369,7 @@ int ast_fileexists(char *filename, char *fmt, char *preflang)
 		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
 		res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 		if (res < 1) {
-			strncpy(lang2, preflang, sizeof(lang2));
+			strncpy(lang2, preflang, sizeof(lang2)-1);
 			strtok(lang2, "_");
 			if (strcmp(lang2, preflang)) {
 				snprintf(filename2, sizeof(filename2), "%s-%s", filename, lang2);
@@ -422,13 +422,13 @@ int ast_streamfile(struct ast_channel *chan, char *filename, char *preflang)
 		snprintf(filename2, sizeof(filename2), "%s-%s", filename, preflang);
 		fmts = ast_fileexists(filename2, NULL, NULL);
 		if (fmts < 1) {
-			strncpy(lang2, preflang, sizeof(lang2));
+			strncpy(lang2, preflang, sizeof(lang2)-1);
 			snprintf(filename2, sizeof(filename2), "%s-%s", filename, lang2);
 			fmts = ast_fileexists(filename2, NULL, NULL);
 		}
 	}
 	if (fmts < 1) {
-		strncpy(filename2, filename, sizeof(filename2));
+		strncpy(filename2, filename, sizeof(filename2)-1);
 		fmts = ast_fileexists(filename2, NULL, NULL);
 	}
 	if (fmts < 1) {

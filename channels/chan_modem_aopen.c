@@ -54,7 +54,7 @@ static int aopen_setdev(struct ast_modem_pvt *p, int dev)
 		return -1;
 	}
 	ast_modem_trim(p->response);
-	strncpy(cmd, p->response, sizeof(cmd));
+	strncpy(cmd, p->response, sizeof(cmd)-1);
 	if (ast_modem_expect(p, "OK", 5)) {
 		ast_log(LOG_WARNING, "Modem did not respond properly\n");
 		return -1;
@@ -344,17 +344,17 @@ static char *aopen_identify(struct ast_modem_pvt *p)
 	char rev[80];
 	ast_modem_send(p, "AT#MDL?", 0);
 	ast_modem_read_response(p, 5);
-	strncpy(mdl, p->response, sizeof(mdl));
+	strncpy(mdl, p->response, sizeof(mdl)-1);
 	ast_modem_trim(mdl);
 	ast_modem_expect(p, "OK", 5);
 	ast_modem_send(p, "AT#MFR?", 0);
 	ast_modem_read_response(p, 5);
-	strncpy(mfr, p->response, sizeof(mfr));
+	strncpy(mfr, p->response, sizeof(mfr)-1);
 	ast_modem_trim(mfr);
 	ast_modem_expect(p, "OK", 5);
 	ast_modem_send(p, "AT#REV?", 0);
 	ast_modem_read_response(p, 5);
-	strncpy(rev, p->response, sizeof(rev));
+	strncpy(rev, p->response, sizeof(rev)-1);
 	ast_modem_trim(rev);
 	ast_modem_expect(p, "OK", 5);
 	snprintf(identity, sizeof(identity), "%s Model %s Revision %s", mfr, mdl, rev);

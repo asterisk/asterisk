@@ -114,7 +114,7 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 	i = list;
 	while(!found && i) {
 		if (i->format & format) {
-			strncpy(tmp, i->exts, sizeof(tmp));
+			strncpy(tmp, i->exts, sizeof(tmp)-1);
 			e = strtok(tmp, "|");
 			while(e) {
 				make_filename(buf, sizeof(buf), filename, preflang, e);

@@ -823,13 +823,13 @@ static struct ast_channel *vofr_new(struct vofr_pvt *i, int state)
 		tmp->pvt->write = vofr_write;
 		tmp->pvt->fixup = vofr_fixup;
 		if (strlen(i->language))
-			strncpy(tmp->language, i->language, sizeof(tmp->language));
+			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		i->owner = tmp;
 		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
 		ast_pthread_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
-		strncpy(tmp->context, i->context, sizeof(tmp->context));
+		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
 				ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
@@ -1050,7 +1050,7 @@ static struct vofr_pvt *mkif(char *type, char *iface)
 #ifdef OLD_SANGOMA_API
 		/* Prepare sockaddr for binding */
 		memset(&tmp->sa, 0, sizeof(tmp->sa));
-		strncpy(tmp->sa.spkt_device, iface, sizeof(tmp->sa.spkt_device));
+		strncpy(tmp->sa.spkt_device, iface, sizeof(tmp->sa.spkt_device)-1);
 		tmp->sa.spkt_protocol = htons(0x16);
 		tmp->sa.spkt_family = AF_PACKET;
 		if (bind(tmp->s, (struct sockaddr *)&tmp->sa, sizeof(struct sockaddr))) {
@@ -1059,8 +1059,8 @@ static struct vofr_pvt *mkif(char *type, char *iface)
 		memset(&tmp->sa, 0, sizeof(tmp->sa));
 		tmp->sa.sll_family = AF_WANPIPE;
 		tmp->sa.sll_protocol = htons(ETH_P_IP);
-		strncpy(tmp->sa.sll_device, iface, sizeof(tmp->sa.sll_device));
-		strncpy(tmp->sa.sll_card, "wanpipe1", sizeof(tmp->sa.sll_card));
+		strncpy(tmp->sa.sll_device, iface, sizeof(tmp->sa.sll_device)-1);
+		strncpy(tmp->sa.sll_card, "wanpipe1", sizeof(tmp->sa.sll_card)-1);
 		tmp->sa.sll_ifindex = 0;
 		if (bind(tmp->s, (struct sockaddr *)&tmp->sa, sizeof(struct wan_sockaddr_ll))) {
 #endif		
@@ -1088,8 +1088,8 @@ static struct vofr_pvt *mkif(char *type, char *iface)
 		tmp->dlcih = 0;
 		tmp->cid = 1;
 		tmp->ringgothangup = 0;
-		strncpy(tmp->language, language, sizeof(tmp->language));
-		strncpy(tmp->context, context, sizeof(tmp->context));
+		strncpy(tmp->language, language, sizeof(tmp->language)-1);
+		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		/* User terminations are game for outgoing connections */
 		if (!strcasecmp(type, "user")) 
 			tmp->outgoing = 1;
@@ -1169,9 +1169,9 @@ int load_module()
 					return -1;
 				}
 		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(context, v->value, sizeof(context));
+			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "language")) {
-			strncpy(language, v->value, sizeof(language));
+			strncpy(language, v->value, sizeof(language)-1);
 		}
 		v = v->next;
 	}

@@ -165,7 +165,7 @@ static int modem_call(struct ast_channel *ast, char *idest, int timeout)
 	struct ast_modem_pvt *p;
 	int ms = timeout;
 	char rdest[80], *where, dstr[100];
-	strncpy(rdest, idest, sizeof(rdest));
+	strncpy(rdest, idest, sizeof(rdest)-1);
 	strtok(rdest, ":");
 	where = strtok(NULL, ":");
 	if (!where) {
@@ -245,7 +245,7 @@ int ast_modem_read_response(struct ast_modem_pvt *p, int timeout)
 	do {
 		res = ast_waitfor_n_fd(&p->fd, 1, &timeout, NULL);
 		if (res < 0) {
-			strncpy(p->response, "(No Response)", sizeof(p->response));
+			strncpy(p->response, "(No Response)", sizeof(p->response)-1);
 			return -1;
 		}
 		  /* get no more then buffer length */
@@ -257,7 +257,7 @@ int ast_modem_read_response(struct ast_modem_pvt *p, int timeout)
 				  /* if nothing in buffer, go back into timeout stuff */
 				if (errno == EWOULDBLOCK) break;
 				/* return as error */
-				strncpy(p->response, "(No Response)", sizeof(p->response));
+				strncpy(p->response, "(No Response)", sizeof(p->response)-1);
 				return -1;
 			}
 		 	  /* save char */
@@ -281,7 +281,7 @@ int ast_modem_read_response(struct ast_modem_pvt *p, int timeout)
 			}
 		}
 	} while(timeout > 0);
-	strncpy(p->response, "(No Response)", sizeof(p->response));
+	strncpy(p->response, "(No Response)", sizeof(p->response)-1);
 	return -1;
 }
 
@@ -289,7 +289,7 @@ int ast_modem_expect(struct ast_modem_pvt *p, char *result, int timeout)
 {
 	int res = -1;
 	timeout *= 1000;
-	strncpy(p->response, "(No Response)", sizeof(p->response));
+	strncpy(p->response, "(No Response)", sizeof(p->response)-1);
 	do {
 		res = ast_waitfor_n_fd(&p->fd, 1, &timeout, NULL);
 		if (res < 0) {
@@ -363,7 +363,7 @@ static int modem_setup(struct ast_modem_pvt *p, int baudrate)
 		ast_log(LOG_WARNING, "Modem did not provide identification\n");
 		return -1;
 	}
-	strncpy(identity, p->response, sizeof(identity));
+	strncpy(identity, p->response, sizeof(identity)-1);
 	ast_modem_trim(identity);
 	if (ast_modem_expect(p, "OK", ECHO_TIMEOUT)) {
 		ast_log(LOG_WARNING, "Modem did not provide identification\n");
@@ -493,11 +493,11 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		tmp->pvt->answer = modem_answer;
 		tmp->pvt->read = modem_read;
 		tmp->pvt->write = modem_write;
-		strncpy(tmp->context, i->context, sizeof(tmp->context));
+		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		if (strlen(i->cid))
 			tmp->callerid = strdup(i->cid);
 		if (strlen(i->language))
-			strncpy(tmp->language,i->language, sizeof(tmp->language));
+			strncpy(tmp->language,i->language, sizeof(tmp->language)-1);
 		i->owner = tmp;
 		ast_pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -677,9 +677,9 @@ static struct ast_modem_pvt *mkif(char *iface)
 			free(tmp);
 			return NULL;
 		}
-		strncpy(tmp->language, language, sizeof(tmp->language));
-		strncpy(tmp->msn, msn, sizeof(tmp->msn));
-		strncpy(tmp->dev, iface, sizeof(tmp->dev));
+		strncpy(tmp->language, language, sizeof(tmp->language)-1);
+		strncpy(tmp->msn, msn, sizeof(tmp->msn)-1);
+		strncpy(tmp->dev, iface, sizeof(tmp->dev)-1);
 		/* Maybe in the future we want to allow variable
 		   serial settings */
 		stty(tmp);
@@ -701,8 +701,8 @@ static struct ast_modem_pvt *mkif(char *iface)
 		tmp->dialtype = dialtype;
 		tmp->mode = gmode;
 		memset(tmp->cid, 0, sizeof(tmp->cid));
-		strncpy(tmp->context, context, sizeof(tmp->context));
-		strncpy(tmp->initstr, initstr, sizeof(tmp->initstr));
+		strncpy(tmp->context, context, sizeof(tmp->context)-1);
+		strncpy(tmp->initstr, initstr, sizeof(tmp->initstr)-1);
 		tmp->next = NULL;
 		tmp->obuflen = 0;
 		
@@ -721,7 +721,7 @@ static struct ast_channel *modem_request(char *type, int format, void *data)
 	struct ast_modem_pvt *p;
 	struct ast_channel *tmp = NULL;
 	char dev[80];
-	strncpy(dev, (char *)data, sizeof(dev));
+	strncpy(dev, (char *)data, sizeof(dev)-1);
 	strtok(dev, ":");
 	oldformat = format;
 	/* Search for an unowned channel */
@@ -811,17 +811,17 @@ int load_module()
 		} else if (!strcasecmp(v->name, "stripmsd")) {
 			stripmsd = atoi(v->value);
 		} else if (!strcasecmp(v->name, "type")) {
-			strncpy(mtype, v->value, sizeof(mtype));
+			strncpy(mtype, v->value, sizeof(mtype)-1);
 		} else if (!strcasecmp(v->name, "initstr")) {
-			strncpy(initstr, v->value, sizeof(initstr));
+			strncpy(initstr, v->value, sizeof(initstr)-1);
 		} else if (!strcasecmp(v->name, "dialtype")) {
 			dialtype = toupper(v->value[0]);
 		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(context, v->value, sizeof(context));
+			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "msn")) {
-			strncpy(msn, v->value, sizeof(msn));
+			strncpy(msn, v->value, sizeof(msn)-1);
 		} else if (!strcasecmp(v->name, "language")) {
-			strncpy(language, v->value, sizeof(language));
+			strncpy(language, v->value, sizeof(language)-1);
 		}
 		v = v->next;
 	}

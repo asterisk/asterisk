@@ -189,7 +189,7 @@ static struct ast_frame *bestdata_handle_escape(struct ast_modem_pvt *p, char es
 			char res[1000];
 
 			if (ast_modem_read_response(p, 5)) break;
-			strncpy(res, p->response, sizeof(res));
+			strncpy(res, p->response, sizeof(res)-1);
 			ast_modem_trim(res);
 			if (!strncmp(res,"\020.",2)) break;
 			if (!strncmp(res,"NAME",4)) strcpy(name,res + 7);
@@ -419,17 +419,17 @@ static char *bestdata_identify(struct ast_modem_pvt *p)
 	char rev[80];
 	ast_modem_send(p, "AT+FMM", 0);
 	ast_modem_read_response(p, 5);
-	strncpy(mdl, p->response, sizeof(mdl));
+	strncpy(mdl, p->response, sizeof(mdl)-1);
 	ast_modem_trim(mdl);
 	ast_modem_expect(p, "OK", 5);
 	ast_modem_send(p, "AT+FMI", 0);
 	ast_modem_read_response(p, 5);
-	strncpy(mfr, p->response, sizeof(mfr));
+	strncpy(mfr, p->response, sizeof(mfr)-1);
 	ast_modem_trim(mfr);
 	ast_modem_expect(p, "OK", 5);
 	ast_modem_send(p, "AT+FMR", 0);
 	ast_modem_read_response(p, 5);
-	strncpy(rev, p->response, sizeof(rev));
+	strncpy(rev, p->response, sizeof(rev)-1);
 	ast_modem_trim(rev);
 	ast_modem_expect(p, "OK", 5);
 	snprintf(identity, sizeof(identity), "%s Model %s Revision %s", mfr, mdl, rev);

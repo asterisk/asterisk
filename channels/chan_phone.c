@@ -599,11 +599,11 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		tmp->pvt->read = phone_read;
 		tmp->pvt->write = phone_write;
 		tmp->pvt->exception = phone_exception;
-		strncpy(tmp->context, context, sizeof(tmp->context));
+		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		if (strlen(i->ext))
-			strncpy(tmp->exten, i->ext, sizeof(tmp->exten));
+			strncpy(tmp->exten, i->ext, sizeof(tmp->exten)-1);
 		if (strlen(i->language))
-			strncpy(tmp->language, i->language, sizeof(tmp->language));
+			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (strlen(i->callerid))
 			tmp->callerid = strdup(i->callerid);
 		i->owner = tmp;
@@ -934,14 +934,14 @@ static struct phone_pvt *mkif(char *iface, int mode, int txgain, int rxgain)
 		tmp->lastinput = -1;
 		tmp->ministate = 0;
 		memset(tmp->ext, 0, sizeof(tmp->ext));
-		strncpy(tmp->language, language, sizeof(tmp->language));
-		strncpy(tmp->dev, iface, sizeof(tmp->dev));
-		strncpy(tmp->context, context, sizeof(tmp->context));
+		strncpy(tmp->language, language, sizeof(tmp->language)-1);
+		strncpy(tmp->dev, iface, sizeof(tmp->dev)-1);
+		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		tmp->next = NULL;
 		tmp->obuflen = 0;
 		tmp->dialtone = 0;
 		tmp->cpt = 0;
-		strncpy(tmp->callerid, callerid, sizeof(tmp->callerid));
+		strncpy(tmp->callerid, callerid, sizeof(tmp->callerid)-1);
 		tmp->txgain = txgain;
 		ioctl(tmp->fd, PHONE_PLAY_VOLUME, tmp->txgain);
 		tmp->rxgain = rxgain;
@@ -1044,9 +1044,9 @@ int load_module()
 		} else if (!strcasecmp(v->name, "silencesupression")) {
 			silencesupression = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "language")) {
-			strncpy(language, v->value, sizeof(language));
+			strncpy(language, v->value, sizeof(language)-1);
 		} else if (!strcasecmp(v->name, "callerid")) {
-			strncpy(callerid, v->value, sizeof(callerid));
+			strncpy(callerid, v->value, sizeof(callerid)-1);
 		} else if (!strcasecmp(v->name, "mode")) {
 			if (!strncasecmp(v->value, "di", 2)) 
 				mode = MODE_DIALTONE;
@@ -1057,7 +1057,7 @@ int load_module()
 			else
 				ast_log(LOG_WARNING, "Unknown mode: %s\n", v->value);
 		} else if (!strcasecmp(v->name, "context")) {
-			strncpy(context, v->value, sizeof(context));
+			strncpy(context, v->value, sizeof(context)-1);
 		} else if (!strcasecmp(v->name, "format")) {
 			if (!strcasecmp(v->value, "g723.1")) {
 				prefformat = AST_FORMAT_G723_1;

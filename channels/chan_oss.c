@@ -727,11 +727,11 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 		tmp->pvt->indicate = oss_indicate;
 		tmp->pvt->fixup = oss_fixup;
 		if (strlen(p->context))
-			strncpy(tmp->context, p->context, sizeof(tmp->context));
+			strncpy(tmp->context, p->context, sizeof(tmp->context)-1);
 		if (strlen(p->exten))
-			strncpy(tmp->exten, p->exten, sizeof(tmp->exten));
+			strncpy(tmp->exten, p->exten, sizeof(tmp->exten)-1);
 		if (strlen(language))
-			strncpy(tmp->language, language, sizeof(tmp->language));
+			strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		p->owner = tmp;
 		tmp->state = state;
 		ast_pthread_mutex_lock(&usecnt_lock);
@@ -895,7 +895,7 @@ static int console_dial(int fd, int argc, char *argv[])
 	mye = exten;
 	myc = context;
 	if (argc == 2) {
-		strncpy(tmp, argv[1], sizeof(tmp));
+		strncpy(tmp, argv[1], sizeof(tmp)-1);
 		strtok(tmp, "@");
 		tmp2 = strtok(NULL, "@");
 		if (strlen(tmp))
@@ -904,8 +904,8 @@ static int console_dial(int fd, int argc, char *argv[])
 			myc = tmp2;
 	}
 	if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {
-		strncpy(oss.exten, mye, sizeof(oss.exten));
-		strncpy(oss.context, myc, sizeof(oss.context));
+		strncpy(oss.exten, mye, sizeof(oss.exten)-1);
+		strncpy(oss.context, myc, sizeof(oss.context)-1);
 		hookstate = 1;
 		oss_new(&oss, AST_STATE_UP);
 	} else
@@ -972,11 +972,11 @@ int load_module()
 			else if (!strcasecmp(v->name, "silencethreshold"))
 				silencethreshold = atoi(v->value);
 			else if (!strcasecmp(v->name, "context"))
-				strncpy(context, v->value, sizeof(context));
+				strncpy(context, v->value, sizeof(context)-1);
 			else if (!strcasecmp(v->name, "language"))
-				strncpy(language, v->value, sizeof(language));
+				strncpy(language, v->value, sizeof(language)-1);
 			else if (!strcasecmp(v->name, "extension"))
-				strncpy(exten, v->value, sizeof(exten));
+				strncpy(exten, v->value, sizeof(exten)-1);
 			v=v->next;
 		}
 		ast_destroy(cfg);

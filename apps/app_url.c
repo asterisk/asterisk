@@ -55,7 +55,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "SendURL requires an argument (URL)\n");
 		return -1;
 	}
-	strncpy(tmp, (char *)data, sizeof(tmp));
+	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	strtok(tmp, "|");
 	options = strtok(NULL, "|");
 	if (options && !strcasecmp(options, "wait"))

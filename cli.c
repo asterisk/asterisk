@@ -325,7 +325,7 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 	if (pos != 1)
 		return NULL;
 	if (word[0] == '/')
-		strncpy(filename, word, sizeof(filename));
+		strncpy(filename, word, sizeof(filename)-1);
 	else
 		snprintf(filename, sizeof(filename), "%s/%s", AST_MODULE_DIR, word);
 	c = (char*)filename_completion_function(filename, state);
