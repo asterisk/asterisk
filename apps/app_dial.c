@@ -210,16 +210,27 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				if (!ast_strlen_zero(o->chan->call_forward)) {
-					char tmpchan[256];
+					char tmpchan[256]="";
+					char *stuff;
+					char *tech;
+					strncpy(tmpchan, o->chan->call_forward, sizeof(tmpchan) - 1);
+					if ((stuff = strchr(tmpchan, '/'))) {
+						*stuff = '\0';
+						stuff++;
+						tech = tmpchan;
+					} else {
+						snprintf(tmpchan, sizeof(tmpchan), "%s@%s", o->chan->call_forward, o->chan->context);
+						stuff = tmpchan;
+						tech = "Local";
+					}
 					/* Before processing channel, go ahead and check for forwarding */
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s@%s' (thanks to %s)\n", in->name, o->chan->call_forward, o->chan->context, o->chan->name);
+						ast_verbose(VERBOSE_PREFIX_3 "Now forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, o->chan->name);
 					/* Setup parameters */
-					snprintf(tmpchan, sizeof(tmpchan),"%s@%s", o->chan->call_forward, o->chan->context);
 					ast_hangup(o->chan);
-					o->chan = ast_request("Local", in->nativeformats, tmpchan);
+					o->chan = ast_request(tech, in->nativeformats, stuff);
 					if (!o->chan) {
-						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s'\n", tmpchan);
+						ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
 						o->stillgoing = 0;
 						numbusies++;
 					} else {
@@ -699,14 +710,27 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			continue;
 		}
 		if (!ast_strlen_zero(tmp->chan->call_forward)) {
-			char tmpchan[256];
+			char tmpchan[256]="";
+			char *stuff;
+			char *tech;
+			strncpy(tmpchan, o->chan->call_forward, sizeof(tmpchan) - 1);
+			if ((stuff = strchr(tmpchan, '/'))) {
+				*stuff = '\0';
+				stuff++;
+				tech = tmpchan;
+			} else {
+				snprintf(tmpchan, sizeof(tmpchan), "%s@%s", tmp->chan->call_forward, tmp->chan->context);
+				stuff = tmpchan;
+				tech = "Local";
+			}
+			/* Before processing channel, go ahead and check for forwarding */
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Forwarding call to '%s@%s'\n", tmp->chan->call_forward, tmp->chan->context);
-			snprintf(tmpchan, sizeof(tmpchan),"%s@%s", tmp->chan->call_forward, tmp->chan->context);
-			ast_hangup(tmp->chan);
-			tmp->chan = ast_request("Local", chan->nativeformats, tmpchan);
+				ast_verbose(VERBOSE_PREFIX_3 "Forwarding %s to '%s/%s' (thanks to %s)\n", in->name, tech, stuff, tmp->chan->name);
+			/* Setup parameters */
+			ast_hangup(o->chan);
+			tmp->chan = ast_request(tech, in->nativeformats, stuff);
 			if (!tmp->chan) {
-				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s'\n", tmpchan);
+				ast_log(LOG_NOTICE, "Unable to create local channel for call forward to '%s/%s'\n", tech, stuff);
 				free(tmp);
 				cur = rest;
 				continue;

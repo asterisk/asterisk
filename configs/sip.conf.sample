@@ -59,7 +59,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; when we're on hold (must be > rtptimeout)
 ;trustrpid = no			; If Remote-Party-ID should be trusted
 ;useragent=Asterisk PBX		; Allows you to change the user agent string
-
+;promiscredir = no      ; If yes, allows 302 or REDIR to non-local SIP address
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
 ;       register => user[:secret[:authuser]]@host[:port][/extension]
@@ -123,6 +123,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; disallow                    disallow
 ; insecure                    insecure
 ; trustrpid                   trustrpid
+; promiscredir                promiscredir
 ; callerid
 ; accountcode
 ; amaflags

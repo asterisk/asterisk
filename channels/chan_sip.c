@@ -191,6 +191,7 @@ static int videosupport = 0;
 
 static int globaldtmfmode = SIP_DTMF_RFC2833;		/* DTMF mode default */
 static int recordhistory = 0;
+static int globalpromiscredir;
 
 static char globalmusicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
 static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
@@ -327,6 +328,7 @@ static struct sip_pvt {
 	int subscribed;
     	int stateid;
 	int dialogver;
+	int promiscredir;			/* Promiscuous redirection */
 	
         int trustrpid;
 	
@@ -382,6 +384,7 @@ struct sip_user {
 	int incominglimit;
 	int outUse;
 	int outgoinglimit;
+	int promiscredir;
 	int restrictcid;
         int trustrpid;
 	struct ast_ha *ha;
@@ -415,6 +418,7 @@ struct sip_peer {
 	int canreinvite;
 	unsigned int callgroup;
 	unsigned int pickupgroup;
+	int promiscredir;
         int dtmfmode;
         int trustrpid;
 	struct sockaddr_in addr;
@@ -978,6 +982,7 @@ static struct sip_peer *mysql_peer(char *peer, struct sockaddr_in *sin)
 		p->capability = capability;
 		p->nat = globalnat;
 		p->dtmfmode = globaldtmfmode;
+		p->promiscredir = globalpromiscredir;
 		p->insecure = 1;
 		p->expire = -1;
 		p->temponly = 1;
@@ -1106,6 +1111,7 @@ static int create_addr(struct sip_pvt *r, char *peer)
 				else
 					r->noncodeccapability &= ~AST_RTP_DTMF;
 			}
+			r->promiscredir = p->promiscredir;
 			strncpy(r->context, p->context,sizeof(r->context)-1);
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 				(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
@@ -2089,6 +2095,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	/* Assign default music on hold class */
         strncpy(p->musicclass, globalmusicclass, sizeof(p->musicclass));
 	p->dtmfmode = globaldtmfmode;
+	p->promiscredir = globalpromiscredir;
 	p->trustrpid = globaltrustrpid;
 	p->rtptimeout = globalrtptimeout;
 	p->rtpholdtimeout = globalrtpholdtimeout;
@@ -4886,6 +4893,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 			p->restrictcid = user->restrictcid;
 			p->capability = user->capability;
 			p->jointcapability = user->capability;
+			p->promiscredir = user->promiscredir;
 			if (user->dtmfmode) {
 				p->dtmfmode = user->dtmfmode;
 				if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -4946,6 +4954,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
 				p->jointcapability = peer->capability;
+				p->promiscredir = peer->promiscredir;
 				if (peer->dtmfmode) {
 					p->dtmfmode = peer->dtmfmode;
 					if (p->dtmfmode & SIP_DTMF_RFC2833)
@@ -5221,8 +5230,9 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Nat          : %s\n", (peer->nat?"Yes":"No"));
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
 		ast_cli(fd, "  CanReinvite  : %s\n", (peer->canreinvite?"Yes":"No"));
+		ast_cli(fd, "  PromiscRedir : %s\n", (peer->promiscredir?"Yes":"No"));
 
-		/* DTMFmode is enumerated */
+		/* - is enumerated */
 		ast_cli(fd, "  DTMFmode     : ");
 		if (peer->dtmfmode == SIP_DTMF_RFC2833)
                        ast_cli(fd, "rfc2833 ");
@@ -5431,6 +5441,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			   ast_cli(fd, "  Caller-ID:              %s\n", cur->callerid);
 			ast_cli(fd, "  Need Destroy:           %d\n", cur->needdestroy);
 			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
+			ast_cli(fd, "  Promiscuous Redir:      %s\n", cur->promiscredir ? "Yes" : "No");
 			ast_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
 			strcpy(tmp, "");
 			if (cur->dtmfmode & SIP_DTMF_RFC2833)
@@ -5953,14 +5964,28 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	char *s, *e;
 	strncpy(tmp, get_header(req, "Contact"), sizeof(tmp) - 1);
 	s = ditch_braces(tmp);
-	e = strchr(tmp, '@');
-	if (e)
-		*e = '\0';
-	if (!strncasecmp(s, "sip:", 4))
-		s += 4;
-	ast_log(LOG_DEBUG, "Found 302 Redirect to extension '%s'\n", s);
-	if (p->owner)
-		strncpy(p->owner->call_forward, s, sizeof(p->owner->call_forward) - 1);
+	if (p->promiscredir) {
+		if (!strncasecmp(s, "sip:", 4))
+			s += 4;
+		e = strchr(s, '/');
+		if (e)
+			*e = '\0';
+		ast_log(LOG_DEBUG, "Found promiscuous redirection to 'SIP/%s'\n", s);
+		if (p->owner)
+			snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "SIP/%s", s);
+	} else {
+		e = strchr(tmp, '@');
+		if (e)
+			*e = '\0';
+		e = strchr(tmp, '/');
+		if (e)
+			*e = '\0';
+		if (!strncasecmp(s, "sip:", 4))
+			s += 4;
+		ast_log(LOG_DEBUG, "Found 302 Redirect to extension '%s'\n", s);
+		if (p->owner)
+			strncpy(p->owner->call_forward, s, sizeof(p->owner->call_forward) - 1);
+	}
 }
 
 static void check_pendings(struct sip_pvt *p)
@@ -7329,6 +7354,8 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 				strncpy(user->secret, v->value, sizeof(user->secret)-1); 
 			} else if (!strcasecmp(v->name, "md5secret")) {
 				strncpy(user->md5secret, v->value, sizeof(user->secret)-1); 
+			} else if (!strcasecmp(v->name, "promiscredir")) {
+				user->promiscredir = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "dtmfmode")) {
 				if (!strcasecmp(v->value, "inband"))
 					user->dtmfmode=SIP_DTMF_INBAND;
@@ -7424,6 +7451,7 @@ static struct sip_peer *temp_peer(char *name)
 	/* Assume can reinvite */
 	peer->canreinvite = globalcanreinvite;
 	peer->dtmfmode = globaldtmfmode;
+	peer->promiscredir = globalpromiscredir;
 	peer->nat = globalnat;
 	peer->rtptimeout = globalrtptimeout;
 	peer->rtpholdtimeout = globalrtpholdtimeout;
@@ -7489,6 +7517,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 		peer->rtptimeout = globalrtptimeout;
 		peer->rtpholdtimeout = globalrtpholdtimeout;
 		peer->dtmfmode = 0;
+		peer->promiscredir = globalpromiscredir;
 		peer->trustrpid = globaltrustrpid;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) 
@@ -7506,6 +7535,8 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 				strncpy(peer->context, v->value, sizeof(peer->context)-1);
 			else if (!strcasecmp(v->name, "fromdomain"))
 				strncpy(peer->fromdomain, v->value, sizeof(peer->fromdomain)-1);
+			else if (!strcasecmp(v->name, "promiscredir"))
+				peer->promiscredir = ast_true(v->value);
 			else if (!strcasecmp(v->name, "fromuser"))
 				strncpy(peer->fromuser, v->value, sizeof(peer->fromuser)-1);
                        else if (!strcasecmp(v->name, "dtmfmode")) {
@@ -7645,6 +7676,7 @@ static int reload_config(void)
 	int oldport = ntohs(bindaddr.sin_port);
 
 	globaldtmfmode = SIP_DTMF_RFC2833;
+	globalpromiscredir = 0;
 	
 	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, SIP disabled\n");
@@ -7689,6 +7721,8 @@ static int reload_config(void)
 			ast_log(LOG_DEBUG, "Setting User Agent Name to %s\n", useragent);
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
 			relaxdtmf = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "promiscredir")) {
+			globalpromiscredir = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "dtmfmode")) {
 			if (!strcasecmp(v->value, "inband"))
 				globaldtmfmode=SIP_DTMF_INBAND;
