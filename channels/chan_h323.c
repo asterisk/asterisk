@@ -1410,6 +1410,9 @@ int reload_config(void)
 		return 1;
 	}
 	
+       /* fire up the H.323 Endpoint */
+        h323_end_point_create();        
+
 	h323debug=0;
 	dtmfmode = H323_DTMF_RFC2833;
 
@@ -1718,12 +1721,12 @@ int load_module()
 {
 	int res;
 
-	/* fire up the H.323 Endpoint */ 
-	h323_end_point_create();
-
 	res = reload_config();
-	if (!res) {
-	/* Make sure we can register our channel type */
+
+	if (res) {
+		return 0;
+	} else {
+		/* Make sure we can register our channel type */
 		if (ast_channel_register(type, tdesc, capability, oh323_request)) {
 			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
 			h323_end_process();
@@ -1774,8 +1777,6 @@ int load_module()
 		}
 		/* And start the monitor for the first time */
 		restart_monitor();
-	} else {
-		h323_end_process();
 	}
 	return res;
 }
