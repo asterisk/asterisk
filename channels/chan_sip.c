@@ -1135,14 +1135,11 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 
 	tmp = var;
 	while(tmp) {
-		if (strcasecmp(tmp->name, "type"))
-			continue;
-
-		if (!strcasecmp(tmp->value, "user")) {
+		if (!strcasecmp(tmp->name, "type") &&
+		    !strcasecmp(tmp->value, "user")) {
 			ast_destroy_realtime(var);
 			return NULL;
 		}
-
 		tmp = tmp->next;
 	}
 
@@ -1207,10 +1204,8 @@ static struct sip_user *realtime_user(const char *username)
 
 	tmp = var;
 	while (tmp) {
-		if (strcasecmp(tmp->name, "type"))
-			continue;
-
-		if (!strcasecmp(tmp->value, "peer")) {
+		if (!strcasecmp(tmp->name, "type") &&
+		    !strcasecmp(tmp->value, "peer")) {
 			ast_destroy_realtime(var);
 			return NULL;
 		}
