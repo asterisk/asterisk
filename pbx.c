@@ -1135,7 +1135,8 @@ int ast_pbx_run(struct ast_channel *c)
 				c->name, c->context, c->exten, c->priority);			
 			if ((res = ast_spawn_extension(c, c->context, c->exten, c->priority, c->callerid))) {
 				/* Something bad happened, or a hangup has been requested. */
-				if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F'))) {
+				if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
+					(res == '*') || (res == '#')) {
 					ast_log(LOG_DEBUG, "Oooh, got something to jump out with ('%c')!\n", res);
 					exten[pos++] = digit = res;
 					break;

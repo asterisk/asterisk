@@ -196,6 +196,8 @@ static struct ast_frame *lintogsm_frameout(struct ast_translator_pvt *tmp)
 
 static void gsm_destroy_stuff(struct ast_translator_pvt *pvt)
 {
+	if (pvt->gsm)
+		gsm_destroy(pvt->gsm);
 	free(pvt);
 	localusecnt--;
 }

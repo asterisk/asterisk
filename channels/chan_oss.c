@@ -819,7 +819,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 	if (strlen(text2send))
 		ast_cli(fd, "Warning: message already waiting to be sent, overwriting\n");
 	strcpy(text2send, "");
-	while(tmparg <= argc) {
+	while(tmparg < argc) {
 		strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send));
 		strncat(text2send, " ", sizeof(text2send) - strlen(text2send));
 	}
