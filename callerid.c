@@ -549,8 +549,11 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 			*name = NULL;
 			*location = instr;
 		} else {
-			/* Assume it's just a name */
+			/* Assume it's just a name.  Make sure it's not quoted though */
 			*name = instr;
+			while(*(*name) && ((*(*name) < 33) || (*(*name) == '\"'))) (*name)++;
+			ne = *name + strlen(*name) - 1;
+			while((ne > *name) && ((*ne < 33) || (*ne == '\"'))) { *ne = '\0'; ne--; }
 			*location = NULL;
 		}
 		return 0;
