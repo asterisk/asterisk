@@ -899,7 +899,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 		res = -1;
 	}
 	ast_mutex_unlock(&sub->lock);
-	ast_queue_frame(ast, AST_CONTROL_RINGING);
+	ast_queue_control(ast, AST_CONTROL_RINGING);
 	return res;
 }
 

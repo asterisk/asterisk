@@ -48,7 +48,7 @@ static int syslog_level_map[] = {
 
 #define MAX_MSG_QUEUE 200
 
-#ifdef __linux__
+#if defined(__linux__) && defined(__NR_gettid)
 #include <asm/unistd.h>
 #define GETTID() syscall(__NR_gettid)
 #else
