@@ -592,11 +592,12 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 	/* Re-calculate last TS */
 	rtp->lastts = ms * 8;
-	
+#if 0	/* XXX Experiment -- Make timestamp always relative XXX */
 	/* If it's close to ou prediction, go for it */
 	if (abs(rtp->lastts - pred) < 640)
+#endif	
 		rtp->lastts = pred;
-#if 1
+#if 0
 	else
 		printf("Difference is %d, ms is %d\n", abs(rtp->lastts - pred), ms);
 #endif			

@@ -1632,8 +1632,10 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 {
 	int len;
 	int codec;
+	int alreadysent = 0;
 	char costr[80];
 	struct sockaddr_in sin;
+	struct sip_codec_pref *cur;
 	char v[256];
 	char s[256];
 	char o[256];
@@ -1665,8 +1667,25 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p, struct ast_rtp *
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", inet_ntoa(dest.sin_addr));
 	snprintf(t, sizeof(t), "t=0 0\r\n");
 	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
+	/* Start by sending our preferred codecs */
+	cur = prefs;
+	while(cur) {
+		if (p->capability & cur->codec) {
+			if (sipdebug)
+				ast_verbose("Answering with preferred capability %d\n", cur->codec);
+			if ((codec = ast2rtp(cur->codec)) > -1) {
+				snprintf(costr, sizeof(costr), " %d", codec);
+				strcat(m, costr);
+				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast2rtpn(x));
+				strcat(a, costr);
+			}
+		}
+		alreadysent |= cur->codec;
+		cur = cur->next;
+	}
+	/* Now send anything else in no particular order */
 	for (x=1;x<= AST_FORMAT_MAX_AUDIO; x <<= 1) {
-		if (p->capability & x) {
+		if ((p->capability & x) && !(alreadysent & x)) {
 			if (sipdebug)
 				ast_verbose("Answering with capability %d\n", x);
 			if ((codec = ast2rtp(x)) > -1) {
