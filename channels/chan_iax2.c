@@ -1729,7 +1729,7 @@ static void unwrap_timestamp(struct iax_frame *fr)
 	}
 }
 
-static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int updatehistory)
+static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int updatehistory, int fromtrunk)
 {
 	int ms,x;
 	int delay;
@@ -1792,7 +1792,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		ms = 0;
 
 	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
-	if (iaxs[fr->callno]->rxcore.tv_sec || iaxs[fr->callno]->rxcore.tv_usec) {
+	if ( (!fromtrunk) && (iaxs[fr->callno]->rxcore.tv_sec || iaxs[fr->callno]->rxcore.tv_usec) ) {
 		fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
 		fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
 		fr->af.delivery.tv_sec += fr->ts / 1000;
@@ -1805,7 +1805,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	else {
 #if 0
 		if (reallydeliver)
-			ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet.\n");
+			ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
 #endif
 		fr->af.delivery.tv_sec = 0;
 		fr->af.delivery.tv_usec = 0;
@@ -1886,7 +1886,8 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 		delay = maxjitterbuffer;
 	
 	/* If jitter buffer is disabled then just pretend the frame is "right on time" */
-	if (!iaxs[fr->callno]->usejitterbuf)
+	/* If frame came from trunk, also don't do any delay */
+	if ( (!iaxs[fr->callno]->usejitterbuf) || fromtrunk )
 		delay = 0;
 
 	if (option_debug) {
@@ -5090,10 +5091,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									if (iaxs[fr.callno]->bridgecallno) {
 										forward_delivery(&fr);
 									} else {
-										schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+										schedule_delivery(iaxfrdup2(&fr), 1, updatehistory, 1);
 									}
 #else
-									schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+									schedule_delivery(iaxfrdup2(&fr), 1, updatehistory, 1);
 #endif
 								}
 							} else {
@@ -5346,7 +5347,7 @@ retryowner:
 			if (option_debug)
 				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
 			/* Go through the motions of delivering the packet without actually doing so */
-			schedule_delivery(&fr, 0, updatehistory);
+			schedule_delivery(&fr, 0, updatehistory, 0);
 			switch(f.subclass) {
 			case IAX_COMMAND_ACK:
 				/* Do nothing */
@@ -6004,12 +6005,12 @@ retryowner2:
 		forward_delivery(&fr);
 	} else {
 		duped_fr = iaxfrdup2(&fr);
-		schedule_delivery(duped_fr, 1, updatehistory);
+		schedule_delivery(duped_fr, 1, updatehistory, 0);
 		fr.ts = duped_fr->ts;
 	}
 #else
 	duped_fr = iaxfrdup2(&fr);
-	schedule_delivery(duped_fr, 1, updatehistory);
+	schedule_delivery(duped_fr, 1, updatehistory, 0);
 	fr.ts = duped_fr->ts;
 #endif
 
