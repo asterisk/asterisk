@@ -513,7 +513,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 	}
       
-      	ast_mutex_lock(&conflock);
+   	ast_mutex_lock(&conflock);
 	if (conf->firstuser == NULL) {
 		/* Fill the first new User struct */
 		user->user_no = 1;
@@ -906,13 +906,14 @@ zapretry:
 		conf_play(conf, LEAVE);
 
 outrun:
+	ast_mutex_lock(&conflock);
 	if (user->user_no) { /* Only cleanup users who really joined! */
 		manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"Meetme: %s\r\n",
 			chan->name, chan->uniqueid, conf->confno);
-		ast_mutex_lock(&conflock);
+		prev = NULL;
 		conf->users--;
 		cur = confs;
 		if (!conf->users) {
