@@ -155,6 +155,9 @@ static int send_waveform_to_channel(struct ast_channel *chan, char *waveform, in
         	return -1;
         }
 	                                                
+	/* Answer if it's not already going */
+	if (chan->_state != AST_STATE_UP)
+		ast_answer(chan);
 	ast_stopstream(chan);
 
 	owriteformat = chan->writeformat;
