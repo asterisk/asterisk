@@ -237,12 +237,16 @@ static struct ast_frame  *agent_read(struct ast_channel *ast)
 		}
 	}
 	if (f && (f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
 		/* Don't pass answer along */
 		ast_frfree(f);
 		f = &null_frame;
 	}
 	if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass == '#')) {
 		if (!p->acknowledged) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "%s acknowledged\n", p->chan->name);
 			p->acknowledged = 1;
 			ast_frfree(f);
 			f = &answer_frame;

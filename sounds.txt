@@ -330,55 +330,57 @@
 
 %privacy-unident.gsm%will_be_added_later
 
-%h-1%first
+%at.gsm%at
 
-%h-2%second
+%h-1.gsm%first
 
-%h-3%third
+%h-2.gsm%second
 
-%h-4%fourth
+%h-3.gsm%third
 
-%h-5%fifth
+%h-4.gsm%fourth
 
-%h-6%sixth
+%h-5.gsm%fifth
 
-%h-7%seventh
+%h-6.gsm%sixth
 
-%h-8%eighth
+%h-7.gsm%seventh
 
-%h-9%ninth
+%h-8.gsm%eighth
 
-%h-10%tenth
+%h-9.gsm%ninth
 
-%h-11%eleventh
+%h-10.gsm%tenth
 
-%h-12%twelfth
+%h-11.gsm%eleventh
 
-%h-13%thirteenth
+%h-12.gsm%twelfth
 
-%h-14%fourteenth
+%h-13.gsm%thirteenth
 
-%h-15%fifteenth
+%h-14.gsm%fourteenth
 
-%h-16%sixteenth
+%h-15.gsm%fifteenth
 
-%h-17%seventeenth
+%h-16.gsm%sixteenth
 
-%h-18%eighteenth
+%h-17.gsm%seventeenth
 
-%h-19%nineteenth
+%h-18.gsm%eighteenth
 
-%h-20%twentieth
+%h-19.gsm%nineteenth
 
-%h-30%thirtieth
+%h-20.gsm%twentieth
 
-%at%at
+%h-30.gsm%thirtieth
 
-%today%today
+%at.gsm%at
 
-%tomorrow%tomorrow
+%today.gsm%today
 
-%yesterday%yesterday
+%tomorrow.gsm%tomorrow
 
-%vm-received%received
+%yesterday.gsm%yesterday
+
+%vm-received.gsm%received
 
