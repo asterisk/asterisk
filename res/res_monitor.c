@@ -235,7 +235,7 @@ int ast_monitor_stop( struct ast_channel *chan, int need_lock )
 			}			
 			snprintf(tmp, sizeof(tmp), "%s %s/%s-in.%s %s/%s-out.%s %s/%s.%s &", execute, dir, name, format, dir, name, format, dir, name, format);
 			if (soxmix) {
-			  snprintf(tmp2,sizeof(tmp2), "( %s && rm -f %s/%s-* ) &",tmp, dir ,name); /* remove legs when done mixing */
+			  snprintf(tmp2,sizeof(tmp2), "( %s& rm -f %s/%s-* ) &",tmp, dir ,name); /* remove legs when done mixing */
 			  strncpy(tmp, tmp2, sizeof(tmp) - 1);
 			}
 			ast_verbose("monitor executing %s\n",tmp);
