@@ -35,6 +35,7 @@ ${CALLERIDNUM}	Caller ID Number only
 ${EXTEN}	Current extension
 ${CONTEXT}      Current context
 ${PRIORITY}	Current priority
+${CHANNEL}	Current channel name
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 

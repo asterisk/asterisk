@@ -132,6 +132,22 @@ struct ast_app {
 	struct ast_app *next;
 };
 
+/* An extension state notify */
+struct ast_notify_cb {
+    int id;
+    void *data;
+    ast_notify_cb_type callback;
+    struct ast_notify_cb *next;
+};
+	    
+struct ast_notify {
+    struct ast_exten *exten;
+    int laststate; 
+    struct ast_notify_cb *callbacks;
+    struct ast_notify *next;
+};
+
+
 static int pbx_builtin_prefix(struct ast_channel *, void *);
 static int pbx_builtin_stripmsd(struct ast_channel *, void *);
 static int pbx_builtin_answer(struct ast_channel *, void *);
@@ -293,6 +309,11 @@ static struct ast_app *apps = NULL;
 /* Lock for switches */
 static pthread_mutex_t switchlock = AST_MUTEX_INITIALIZER;
 struct ast_switch *switches = NULL;
+
+/* Lock for extension state notifys */
+static pthread_mutex_t notifylock = AST_MUTEX_INITIALIZER;
+static int notifycnt = 0;
+struct ast_notify *notifys = NULL;
 
 int pbx_exec(struct ast_channel *c, /* Channel */
 					struct ast_app *app,
@@ -676,20 +697,19 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	return NULL;
 }
 
-static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char **cp4)
+static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char **cp4, char *workspace, int workspacelen)
 {
 	char *first,*second;
 	int offset,offset2;
 	struct ast_var_t *variables;
 	char *name, *num; /* for callerid name + num variables */
 	struct varshead *headp;
-	char pri[80];
         headp=&c->varshead;
         *cp4=NULL;
         /* Now we have the variable name on cp3 */
 	if ((first=strchr(cp3,':'))) {
 		*first='\0';
-		pbx_substitute_variables_temp(c,cp3,cp4);
+		pbx_substitute_variables_temp(c,cp3,cp4,workspace,workspacelen);
 		if (!(*cp4)) return;
 		offset=atoi(first+1);
 	 	if ((second=strchr(first+1,':'))) {
@@ -711,20 +731,18 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char *
 			*cp4+=strlen(*cp4)+offset;
 		(*cp4)[offset2] = '\0';
 	} else if (!strcmp(cp3, "CALLERIDNUM")) {
-		char cid[256] = "";
 		if (c->callerid)
-			strncpy(cid, c->callerid, sizeof(cid) - 1);
-		ast_callerid_parse(cid, &name, &num);
+			strncpy(workspace, c->callerid, workspacelen - 1);
+		ast_callerid_parse(workspace, &name, &num);
 		if (num) {
 			ast_shrink_phone_number(num);
 			*cp4 = num;
 		} else
 			*cp4 = "";
 	} else if (!strcmp(cp3, "CALLERIDNAME")) {
-		char cid[256] = "";
 		if (c->callerid)
-			strncpy(cid, c->callerid, sizeof(cid) - 1);
-		ast_callerid_parse(cid, &name, &num);
+			strncpy(workspace, c->callerid, workspacelen - 1);
+		ast_callerid_parse(workspace, &name, &num);
 		if (name)
 			*cp4 = name;
 		else
@@ -733,6 +751,11 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char *
 		*cp4 = c->callerid;
 		if (!(*cp4))
 			*cp4 = "";
+	} else if (!strcmp(cp3, "HINT")) {
+		if (!ast_get_hint(workspace, workspacelen - 1, c, c->context, c->exten))
+			*cp4 = "";
+		else
+			*cp4 = workspace;
 	} else if (!strcmp(cp3, "EXTEN")) {
 		*cp4 = c->exten;
 	} else if (!strncmp(cp3, "EXTEN-", strlen("EXTEN-")) && 
@@ -760,8 +783,10 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,char *cp3,char *
 	} else if (!strcmp(cp3, "CONTEXT")) {
 		*cp4 = c->context;
 	} else if (!strcmp(cp3, "PRIORITY")) {
-		snprintf(pri, sizeof(pri), "%d", c->priority);
-		*cp4 = pri;
+		snprintf(workspace, workspacelen, "%d", c->priority);
+		*cp4 = workspace;
+	} else if (!strcmp(cp3, "CHANNEL")) {
+		*cp4 = c->name;
 	} else {
 		AST_LIST_TRAVERSE(headp,variables,entries) {
 #if 0
@@ -796,6 +821,7 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,char *cp1,char
 	char *cp4,*cp2;
 	char *tmp,*wherearewe,*finish=NULL,*ltmp,*lval,*nextvar;
 	int length,variables=0;
+	char workspace[256];
 
 	wherearewe=tmp=cp1;
 	cp2=*ecp2;
@@ -854,7 +880,7 @@ static void pbx_substitute_variables_helper(struct ast_channel *c,char *cp1,char
 				cp1=cp2;
 			}
 			if (count) {			
-				pbx_substitute_variables_temp(c,cp1,&cp4);
+				pbx_substitute_variables_temp(c,cp1,&cp4, workspace, sizeof(workspace));
 				if (cp4) {
 					/* reset output variable so we could store the result */
 					*cp2='\0';
@@ -1078,6 +1104,300 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 			return 0;
 	}
 
+}
+
+static struct ast_exten *ast_hint_extension(struct ast_channel *c, char *context, char *exten)
+{
+	struct ast_exten *e;
+	struct ast_switch *sw;
+	char *data;
+	int status = 0;
+	char *incstack[AST_PBX_MAX_STACK];
+	int stacklen = 0;
+
+	if (ast_pthread_mutex_lock(&conlock)) {
+		ast_log(LOG_WARNING, "Unable to obtain lock\n");
+		return NULL;
+	}
+	e = pbx_find_extension(c, context, exten, PRIORITY_HINT, "", HELPER_EXISTS, incstack, &stacklen, &status, &sw, &data);
+	ast_pthread_mutex_unlock(&conlock);	
+	return e;
+}
+
+static int ast_extension_state2(struct ast_exten *e)
+{
+    char hint[AST_MAX_EXTENSION] = "";    
+    char *cur, *rest;
+    int res = -1;
+    int allunavailable = 1, allbusy = 1, allfree = 1;
+    int busy = 0;
+
+    strncpy(hint, ast_get_extension_app(e), sizeof(hint)-1);
+    
+    cur = hint;    
+    do {
+	rest = strchr(cur, '&');
+	if (rest) {
+	    *rest = 0;
+	    rest++;
+	}
+	
+	res = ast_device_state(cur);
+	switch (res) {
+	    case AST_DEVICE_NOT_INUSE:
+		allunavailable = 0;
+		allbusy = 0;
+		break;
+	    case AST_DEVICE_INUSE:
+		return AST_EXTENSION_INUSE;
+	    case AST_DEVICE_BUSY:
+		allunavailable = 0;
+		allfree = 0;
+		busy = 1;
+		break;
+	    case AST_DEVICE_UNAVAILABLE:
+	    case AST_DEVICE_INVALID:
+		allbusy = 0;
+		allfree = 0;
+		break;
+	    default:
+		allunavailable = 0;
+		allbusy = 0;
+		allfree = 0;
+	}
+        cur = rest;
+    } while (cur);
+
+    if (allfree)
+	return AST_EXTENSION_NOT_INUSE;
+    if (allbusy)
+	return AST_EXTENSION_BUSY;
+    if (allunavailable)
+	return AST_EXTENSION_UNAVAILABLE;
+    if (busy) 
+	return AST_EXTENSION_INUSE;
+
+    return AST_EXTENSION_NOT_INUSE;
+}
+
+
+int ast_extension_state(struct ast_channel *c, char *context, char *exten)
+{
+    struct ast_exten *e;
+
+    e = ast_hint_extension(c, context, exten);    
+    if (!e) 
+	return -1;
+
+    return ast_extension_state2(e);    
+}
+
+int ast_device_state_changed(char *device) 
+{
+    struct ast_notify *list;
+    struct ast_notify_cb *cblist;
+    char hint[AST_MAX_EXTENSION];
+    char *cur, *rest;
+    int state;
+        
+    pthread_mutex_lock(&notifylock);
+
+    list = notifys;
+    
+    while (list) {
+	
+	strcpy(hint, ast_get_extension_app(list->exten));
+	cur = hint;
+	do {
+	    rest = strchr(cur, '&');
+	    if (rest) {
+		*rest = 0;
+		rest++;
+	    }
+	    
+	    if (!strncmp(cur, device, strlen(cur))) {
+	    // Found extension execute callbacks 
+		state = ast_extension_state2(list->exten);
+		if ((state != -1) && (state != list->laststate)) {
+    		    cblist = list->callbacks;
+		    while (cblist) {
+			cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
+			cblist = cblist->next;
+		    }
+		    list->laststate = state;
+		}
+		break;
+	    }
+	    cur = rest;
+	} while (cur);
+	
+	list = list->next;
+    }
+
+    pthread_mutex_unlock(&notifylock);
+    return 1;
+}
+			
+int ast_extension_state_add(char *context, char *exten, 
+			    ast_notify_cb_type callback, void *data)
+{
+    struct ast_notify *list;
+    struct ast_notify_cb *cblist;
+    struct ast_exten *e;
+
+    pthread_mutex_lock(&notifylock);
+    list = notifys;        
+    
+    while (list) {
+	if (!strcmp(list->exten->parent->name, context) && 
+	    !strcmp(list->exten->exten, exten))
+	    break;	    
+	list = list->next;    
+    }
+
+    if (!list) {
+	e = ast_hint_extension(NULL, context, exten);    
+	if (!e) {
+	    pthread_mutex_unlock(&notifylock);
+	    return -1;
+	}
+	list = malloc(sizeof(struct ast_notify));
+	if (!list) {
+	    pthread_mutex_unlock(&notifylock);
+	    return -1;
+	}
+	/* Initialize and insert new item */
+	memset(list, 0, sizeof(struct ast_notify));	    
+	list->exten = e;
+	list->laststate = -1;
+	list->next = notifys;
+	notifys = list;
+    }
+    
+    /* Now inserts the callback */
+    cblist = malloc(sizeof(struct ast_notify_cb));
+    if (!cblist) {
+	pthread_mutex_unlock(&notifylock);
+	return -1;
+    }
+    memset(cblist, 0, sizeof(struct ast_notify_cb));
+    cblist->id = notifycnt++;
+    cblist->callback = callback;
+    cblist->data = data;
+
+    cblist->next = list->callbacks;
+    list->callbacks = cblist;
+
+    pthread_mutex_unlock(&notifylock);
+    return cblist->id;
+}
+
+static int ast_extension_state_clean(struct ast_exten *e)
+{
+    /* Cleanup the Notifys if hint is removed */
+    struct ast_notify *list, *prev = NULL;
+    struct ast_notify_cb *cblist, *cbprev;
+
+    pthread_mutex_lock(&notifylock);
+
+    list = notifys;    
+    while(list) {
+	if (list->exten==e) {
+	    cbprev = NULL;
+	    cblist = list->callbacks;
+	    while (cblist) {	    
+		cbprev = cblist;	    
+		cblist = cblist->next;
+		cblist->callback(list->exten->parent->name, list->exten->exten, -1, cblist->data);
+		free(cbprev);
+	    }
+	    list->callbacks = NULL;
+
+	    if (!prev) {
+		notifys = list->next;
+		free(list);
+		list = notifys;
+	    } else {
+		prev->next = list->next;
+		free(list);
+		list = prev->next;
+	    }
+	} else {
+	    prev = list;
+    	    list = list->next;    
+	}
+    }
+
+    pthread_mutex_unlock(&notifylock);
+    return 1;
+}
+
+int ast_extension_state_del(int id)
+{
+    struct ast_notify *list, *prev = NULL;
+    struct ast_notify_cb *cblist, *cbprev;
+            
+    pthread_mutex_lock(&notifylock);
+
+    list = notifys;
+    while (list) {
+	cblist = list->callbacks;
+	cbprev = NULL;
+	while (cblist) {
+	    if (cblist->id==id) {
+		if (!cbprev) {
+		    list->callbacks = cblist->next;		
+		    free(cblist);
+		    cblist = list->callbacks;
+		} else {
+		    cbprev->next = cblist->next;
+		    free(cblist);
+		    cblist = cbprev->next;
+		}
+		
+		if (!list->callbacks) {
+		    if (!prev) {
+			notifys = list->next;
+			free(list);
+			list = notifys;
+		    } else {
+			prev->next = list->next;
+			free(list);
+			list = prev->next;
+		    }
+		}
+		break;
+	    } else {
+    		cbprev = cblist;				
+		cblist = cblist->next;
+	    }
+	}
+
+	// we can have only one item
+	if (cblist)
+	    break;	    
+	    
+	prev = list;
+	list = list->next;
+    }
+    
+    pthread_mutex_unlock(&notifylock);
+    if (list) 
+	return 0;
+    else
+	return -1;
+	
+}
+
+int ast_get_hint(char *hint, int maxlen, struct ast_channel *c, char *context, char *exten)
+{
+	struct ast_exten *e;
+	e = ast_hint_extension(c, context, exten);
+	if (e) {	
+	    strncpy(hint, ast_get_extension_app(e), maxlen);
+	    return -1;
+	}
+	return 0;	
 }
 
 int ast_exists_extension(struct ast_channel *c, char *context, char *exten, int priority, char *callerid) 
@@ -1544,6 +1864,9 @@ int ast_context_remove_extension2(struct ast_context *con, char *extension, int 
 				peer = exten; 
 				while (peer) {
 					exten = peer->peer;
+					
+					if (!peer->priority==PRIORITY_HINT) 
+					    ast_extension_state_clean(peer);
 
 					peer->datad(peer->data);
 					free(peer);
@@ -1589,6 +1912,8 @@ int ast_context_remove_extension2(struct ast_context *con, char *extension, int 
 						}
 
 						/* now, free whole priority extension */
+						if (peer->priority==PRIORITY_HINT)
+						    ast_extension_state_clean(peer);
 						peer->datad(peer->data);
 						free(peer);
 
@@ -2956,6 +3281,7 @@ int ast_add_extension2(struct ast_context *con,
 			tmp->matchcid = 0;
 		}
 		strncpy(tmp->app, application, sizeof(tmp->app)-1);
+		tmp->parent = con;
 		tmp->data = data;
 		tmp->datad = datad;
 		tmp->registrar = registrar;

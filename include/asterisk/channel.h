@@ -233,6 +233,19 @@ struct chanmon;
 /*! Do not transmit voice data */
 #define AST_STATE_MUTE		(1 << 16)	
 
+/*! Device is valid but channel didn't know state */
+#define AST_DEVICE_UNKNOWN	0
+/*! Device is not used */
+#define AST_DEVICE_NOT_INUSE	1
+/*! Device is in use */
+#define AST_DEVICE_INUSE	2
+/*! Device is busy */
+#define AST_DEVICE_BUSY		3
+/*! Device is invalid */
+#define AST_DEVICE_INVALID	4
+/*! Device is unavailable */
+#define AST_DEVICE_UNAVAILABLE	5
+
 //! Requests a channel
 /*! 
  * \param type type of channel to request
@@ -243,6 +256,27 @@ struct chanmon;
  * Returns an ast_channel on success, NULL on failure.
  */
 struct ast_channel *ast_request(char *type, int format, void *data);
+
+//! Search the Channels by Name
+/*!
+ * \param device like a dialstring
+ * Search the Device in active channels by compare the channelname against 
+ * the devicename. Compared are only the first chars to the first '-' char.
+ * Returns an AST_DEVICE_UNKNOWN if no channel found or
+ * AST_DEVICE_INUSE if a channel is found
+ */
+int ast_parse_device_state(char *device);
+
+//! Asks a channel for device state
+/*!
+ * \param device like a dialstring
+ * Asks a channel for device state, data is  normaly a number from dialstring
+ * used by the low level module
+ * Trys the channel devicestate callback if not supported search in the
+ * active channels list for the device.
+ * Returns an AST_DEVICE_??? state -1 on failure
+ */
+int ast_device_state(char *device);
 
 /*!
  * \param type type of channel to request
@@ -270,6 +304,11 @@ struct ast_channel *ast_request_and_dial(char *type, int format, void *data, int
  */
 int ast_channel_register(char *type, char *description, int capabilities, 
 			struct ast_channel* (*requester)(char *type, int format, void *data));
+
+/* Same like the upper function but with support for devicestate */
+int ast_channel_register_ex(char *type, char *description, int capabilities,
+		struct ast_channel *(*requester)(char *type, int format, void *data),
+		int (*devicestate)(void *data));
 
 //! Unregister a channel class
 /*

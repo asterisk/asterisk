@@ -64,7 +64,7 @@ static char *exts = "alaw|al";
 
 
 /* Returns time in msec since system boot. */
-static unsigned long get_time()
+static unsigned long get_time(void)
 {
 	struct tms buf;
 	clock_t cur;

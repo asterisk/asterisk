@@ -344,14 +344,16 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
 		 * why? because atoi (strtol) returns 0 if any characters in
 		 * string and whole extension will be removed, it's not good
 		 */
-		while (*c != '\0') {
+		if (strcmp("hint", c)) {
+    		    while (*c != '\0') {
 			if (!isdigit(*c++)) {
 				ast_cli(fd, "Invalid priority '%s'\n", argv[3]);
 				return RESULT_FAILURE;
 			}
-		}
-
-		removing_priority = atoi(argv[3]);
+		    }
+		    removing_priority = atoi(argv[3]);
+		} else
+		    removing_priority = PRIORITY_HINT;
 
 		if (removing_priority == 0) {
 			ast_cli(fd, "If you want to remove whole extension, please " \
@@ -983,11 +985,17 @@ static int handle_save_dialplan(int fd, int argc, char *argv[])
 							context_header_written = 1;
 						}
 
-						fprintf(output, "exten => %s,%d,%s,%s\n",
-							ast_get_extension_name(p),
-							ast_get_extension_priority(p),
-							ast_get_extension_app(p),
-							(char *)ast_get_extension_app_data(p));
+						if (!ast_get_extension_priority(p)==PRIORITY_HINT)
+							fprintf(output, "exten => %s,%d,%s,%s\n",
+							    ast_get_extension_name(p),
+							    ast_get_extension_priority(p),
+							    ast_get_extension_app(p),
+							    (char *)ast_get_extension_app_data(p));
+						else
+							fprintf(output, "exten => %s,hint,%s\n",
+							    ast_get_extension_name(p),
+							    ast_get_extension_app(p));
+						
 					}
 					p = ast_walk_extension_priorities(e, p);
 				}
@@ -1058,6 +1066,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 {
 	char *whole_exten;
 	char *exten, *prior;
+	int iprior = -2;
 	char *cidmatch, *app, *app_data;
 	char *start, *end;
 
@@ -1075,6 +1084,11 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 		cidmatch = NULL;
 	}
 	prior       = strsep(&whole_exten,",");
+	if (!strcmp(prior, "hint")) {
+	    iprior = PRIORITY_HINT;
+	} else {
+	    iprior = atoi(prior);
+	}
 	app         = strsep(&whole_exten,",");
 	if ((start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
 		*start = *end = '\0';
@@ -1085,9 +1099,11 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	} else
 		app_data    = whole_exten;
 
-	if (!exten || !prior || !app || !app_data) return RESULT_SHOWUSAGE;
+	if (!exten || !prior || !app || (!app_data && iprior != PRIORITY_HINT)) return RESULT_SHOWUSAGE;
 
-	if (ast_add_extension(argv[4], argc == 6 ? 1 : 0, exten, atoi(prior), cidmatch, app,
+	if (!app_data)
+	    app_data="";
+	if (ast_add_extension(argv[4], argc == 6 ? 1 : 0, exten, iprior, cidmatch, app,
 		(void *)strdup(app_data), free, registrar)) {
 		switch (errno) {
 			case ENOMEM:
@@ -1500,6 +1516,7 @@ static int pbx_load_module(void)
 				while(v) {
 					if (!strcasecmp(v->name, "exten")) {
 						char *stringp=NULL;
+						int ipri = -2;
 						tc = strdup(v->value);
 						if(tc!=NULL){
 							stringp=tc;
@@ -1509,6 +1526,10 @@ static int pbx_load_module(void)
 							pri = strsep(&stringp, ",");
 							if (!pri)
 								pri="";
+							if (!strcmp(pri,"hint"))
+								ipri=PRIORITY_HINT;
+							else
+								ipri=atoi(pri);
 							appl = stringp;
 							if (!appl)
 								appl="";
@@ -1544,7 +1565,7 @@ static int pbx_load_module(void)
 
 							if (!data)
 								data="";
-							if (ast_add_extension2(con, 0, ext, atoi(pri), cidmatch, appl, strdup(data), free, registrar)) {
+							if (ast_add_extension2(con, 0, ext, ipri, cidmatch, appl, strdup(data), free, registrar)) {
 								ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 							}
 							free(tc);

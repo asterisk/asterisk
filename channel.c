@@ -64,6 +64,7 @@ struct chanlist {
 	char description[80];
 	int capabilities;
 	struct ast_channel * (*requester)(char *type, int format, void *data);
+	int (*devicestate)(void *data);
 	struct chanlist *next;
 } *backends = NULL;
 struct ast_channel *channels = NULL;
@@ -144,6 +145,13 @@ time_t	myt;
 int ast_channel_register(char *type, char *description, int capabilities,
 		struct ast_channel *(*requester)(char *type, int format, void *data))
 {
+    return ast_channel_register_ex(type, description, capabilities, requester, NULL);
+}
+
+int ast_channel_register_ex(char *type, char *description, int capabilities,
+		struct ast_channel *(*requester)(char *type, int format, void *data),
+		int (*devicestate)(void *data))
+{
 	struct chanlist *chan, *last=NULL;
 	if (PTHREAD_MUTEX_LOCK(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
@@ -169,6 +177,7 @@ int ast_channel_register(char *type, char *description, int capabilities,
 	strncpy(chan->description, description, sizeof(chan->description)-1);
 	chan->capabilities = capabilities;
 	chan->requester = requester;
+	chan->devicestate = devicestate;
 	chan->next = NULL;
 	if (last)
 		last->next = chan;
@@ -469,6 +478,7 @@ void ast_channel_free(struct ast_channel *chan)
 	struct ast_var_t *vardata;
 	struct ast_frame *f, *fp;
 	struct varshead *headp;
+	char name[AST_CHANNEL_NAME];
 	
 	headp=&chan->varshead;
 	
@@ -489,10 +499,14 @@ void ast_channel_free(struct ast_channel *chan)
 		ast_log(LOG_WARNING, "Unable to find channel in list\n");
 	if (chan->pvt->pvt)
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
+
+	strncpy(name, chan->name, sizeof(name)-1);
+	
 	/* Stop monitoring */
 	if (chan->monitor) {
 		chan->monitor->stop( chan, 0 );
 	}
+
 	/* Free translatosr */
 	if (chan->pvt->readtrans)
 		ast_translator_free_path(chan->pvt->readtrans);
@@ -537,6 +551,8 @@ void ast_channel_free(struct ast_channel *chan)
 	chan->pvt = NULL;
 	free(chan);
 	PTHREAD_MUTEX_UNLOCK(&chlock);
+
+	ast_device_state_changed(name);
 }
 
 int ast_softhangup_nolock(struct ast_channel *chan, int cause)
@@ -1409,6 +1425,7 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 			if (chan->requester)
 				c = chan->requester(type, capabilities, data);
 			if (c) {
+//				ast_device_state_changed(c->name);
 				manager_event(EVENT_FLAG_CALL, "Newchannel",
 				"Channel: %s\r\n"
 				"State: %s\r\n"
@@ -1423,6 +1440,66 @@ struct ast_channel *ast_request(char *type, int format, void *data)
 		ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
 	PTHREAD_MUTEX_UNLOCK(&chlock);
 	return c;
+}
+
+int ast_parse_device_state(char *device)
+{
+	char name[AST_CHANNEL_NAME] = "";
+	char *cut;
+	struct ast_channel *chan;
+
+	chan = ast_channel_walk(NULL);
+	while (chan) {
+		strncpy(name, chan->name, sizeof(name)-1);
+		cut = strchr(name,'-');
+		if (cut)
+		        *cut = 0;
+		if (!strcmp(name, device))
+		        return AST_DEVICE_INUSE;
+		chan = ast_channel_walk(chan);
+	}
+	return AST_DEVICE_UNKNOWN;
+}
+
+int ast_device_state(char *device)
+{
+	char tech[AST_MAX_EXTENSION] = "";
+	char *number;
+	struct chanlist *chanls;
+	int res = 0;
+	
+	strncpy(tech, device, sizeof(tech)-1);
+	number = strchr(tech, '/');
+	if (!number) {
+	    return AST_DEVICE_INVALID;
+	}
+	*number = 0;
+	number++;
+		
+	if (PTHREAD_MUTEX_LOCK(&chlock)) {
+		ast_log(LOG_WARNING, "Unable to lock channel list\n");
+		return -1;
+	}
+	chanls = backends;
+	while(chanls) {
+		if (!strcasecmp(tech, chanls->type)) {
+			PTHREAD_MUTEX_UNLOCK(&chlock);
+			if (!chanls->devicestate) 
+				return ast_parse_device_state(device);
+			else {
+				res = chanls->devicestate(number);
+				if (res == AST_DEVICE_UNKNOWN)
+					return ast_parse_device_state(device);
+				else
+					return res;
+			}
+		}
+		chanls = chanls->next;
+	}
+	if (!chanls)
+		ast_log(LOG_WARNING, "No channel type registered for '%s'\n", tech);
+	PTHREAD_MUTEX_UNLOCK(&chlock);
+	return AST_DEVICE_INVALID;
 }
 
 int ast_call(struct ast_channel *chan, char *addr, int timeout) 
@@ -1813,6 +1890,7 @@ int ast_setstate(struct ast_channel *chan, int state)
 		int oldstate = chan->_state;
 		chan->_state = state;
 		if (oldstate == AST_STATE_DOWN) {
+			ast_device_state_changed(chan->name);
 			manager_event(EVENT_FLAG_CALL, "Newchannel",
 			"Channel: %s\r\n"
 			"State: %s\r\n"

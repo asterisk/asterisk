@@ -1740,10 +1740,10 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		char contact[256];
 		char *c;
 		if ((c=getsipuri(ot))) {
-			snprintf(contact, sizeof(contact), "<%s@%s>", c, inet_ntoa(p->ourip));
+			snprintf(contact, sizeof(contact), "<%s@%s:%d>", c, inet_ntoa(p->ourip), ourport);
 			free(c);
 		} else {
-			snprintf(contact, sizeof(contact), "<%s>", inet_ntoa(p->ourip));
+			snprintf(contact, sizeof(contact), "<%s:%d>", inet_ntoa(p->ourip), ourport);
 		}
 		snprintf(tmp, sizeof(tmp), "%d", p->expirey);
 		add_header(resp, "Expires", tmp);
@@ -1754,10 +1754,10 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		       very stupidly *sigh* XXX */
 		char *c;
 		if ((c=getsipuri(ot))) {
-			snprintf(contact, sizeof(contact), "<%s@%s>", c, inet_ntoa(p->ourip));
+			snprintf(contact, sizeof(contact), "<%s@%s:%d>", c, inet_ntoa(p->ourip), ourport);
 			free(c);
 		} else {
-			snprintf(contact, sizeof(contact), "<%s>", inet_ntoa(p->ourip));
+			snprintf(contact, sizeof(contact), "<%s:%d>", inet_ntoa(p->ourip), ourport);
 		}
 		add_header(resp, "Contact", contact);
 	}
@@ -2048,7 +2048,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, char *cmd, c
 	}
 	if (!n)
 		n = l;
-	snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%08x", n, l, inet_ntoa(p->ourip), p->tag);
+	snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%08x", n, l, inet_ntoa(p->ourip), ourport, p->tag);
+
 	if (strlen(p->username)) {
 		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
 			snprintf(invite, sizeof(invite), "sip:%s@%s:%d",p->username, inet_ntoa(p->sa.sin_addr), ntohs(p->sa.sin_port));

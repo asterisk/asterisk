@@ -29,11 +29,26 @@ extern "C" {
 //! Special return values from applications to the PBX
 #define AST_PBX_KEEPALIVE	10		/* Destroy the thread, but don't hang up the channel */
 
+//! Special Priority for an hint
+#define PRIORITY_HINT	-1
+
+//! Extension states
+//! No device INUSE or BUSY 
+#define AST_EXTENSION_NOT_INUSE		0
+//! One or more devices INUSE
+#define AST_EXTENSION_INUSE		1
+//! All devices BUSY
+#define AST_EXTENSION_BUSY		2
+//! All devices UNAVAILABLE/UNREGISTERED
+#define AST_EXTENSION_UNAVAILABLE 	3
+
 struct ast_context;
 struct ast_exten;     
 struct ast_include;
 struct ast_ignorepat;
 struct ast_sw;
+
+typedef int (*ast_notify_cb_type)(char *context, char* id, int state, void *data);
 
 //! Data structure associated with an asterisk switch
 struct ast_switch {
@@ -188,6 +203,57 @@ int ast_register_application(char *app, int (*execute)(struct ast_channel *, voi
  * It returns 0 on success, and -1 on failure.
  */
 int ast_unregister_application(char *app);
+
+//! Uses hint and devicestate callback to get the state of an extension
+/*!
+ * \param c this is not important
+ * \param context which context to look in
+ * \param exten which extension to get state
+ * Returns extension state !! = AST_EXTENSION_???
+ */
+int ast_extension_state(struct ast_channel *c, char *context, char *exten);
+
+//! Tells Asterisk the State for Device is changed
+/*!
+ * \param device devicename like a dialstring
+ * Asterisk polls the new extensionstates and calls the registered
+ * callbacks for the changed extensions
+ * Returns 0 on success, -1 on failure
+ */
+int ast_device_state_changed(char *device);
+
+//! Registers a state change callback
+/*!
+ * \param context which context to look in
+ * \param exten which extension to get state
+ * \param callback callback to call if state changed
+ * \param data to pass to callback
+ * The callback is called if the state for extension is changed
+ * Return -1 on failure, ID on success
+ */ 
+int ast_extension_state_add(char *context, char *exten, 
+			    ast_notify_cb_type callback, void *data);
+
+//! Deletes a registered state change callback by ID
+/*!
+ * \param id of the callback to delete
+ * Removes the callback from list of callbacks
+ * Return 0 on success, -1 on failure
+ */
+int ast_extension_state_del(int id);
+
+//! If an extension exists, return non-zero
+/*!
+ * \param hint buffer for hint
+ * \param maxlen size of hint buffer
+ * \param c this is not important
+ * \param context which context to look in
+ * \param exten which extension to search for
+ * If an extension within the given context with the priority PRIORITY_HINT
+ * is found a non zero value will be returned.
+ * Otherwise, 0 is returned.
+ */
+int ast_get_hint(char *hint, int maxlen, struct ast_channel *c, char *context, char *exten);
 
 //! If an extension exists, return non-zero
 // work

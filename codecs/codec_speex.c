@@ -58,7 +58,7 @@ struct ast_translator_pvt {
 
 #define speex_coder_pvt ast_translator_pvt
 
-static struct ast_translator_pvt *lintospeex_new()
+static struct ast_translator_pvt *lintospeex_new(void)
 {
 	struct speex_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct speex_coder_pvt));
@@ -77,7 +77,7 @@ static struct ast_translator_pvt *lintospeex_new()
 	return tmp;
 }
 
-static struct ast_translator_pvt *speextolin_new()
+static struct ast_translator_pvt *speextolin_new(void)
 {
 	struct speex_coder_pvt *tmp;
 	tmp = malloc(sizeof(struct speex_coder_pvt));
@@ -95,7 +95,7 @@ static struct ast_translator_pvt *speextolin_new()
 	return tmp;
 }
 
-static struct ast_frame *lintospeex_sample()
+static struct ast_frame *lintospeex_sample(void)
 {
 	static struct ast_frame f;
 	f.frametype = AST_FRAME_VOICE;
@@ -110,7 +110,7 @@ static struct ast_frame *lintospeex_sample()
 	return &f;
 }
 
-static struct ast_frame *speextolin_sample()
+static struct ast_frame *speextolin_sample(void)
 {
 	static struct ast_frame f;
 	f.frametype = AST_FRAME_VOICE;
