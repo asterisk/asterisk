@@ -31,7 +31,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_talkdetect.so app_alarmreceiver.so app_userevent.so app_verbose.so \
      app_test.so app_forkcdr.so app_math.so app_realtime.so \
      app_dumpchan.so app_waitforsilence.so app_while.so app_setrdnis.so \
-     app_md5.so app_readfile.so app_chanspy.so
+     app_md5.so app_readfile.so app_chanspy.so app_settransfercapability.so
 
 ifneq (${OSARCH},Darwin)
 ifneq (${OSARCH},SunOS)

@@ -38,6 +38,7 @@
 #include <asterisk/causes.h>
 #include <asterisk/term.h>
 #include <asterisk/utils.h>
+#include <asterisk/transcap.h>
 #include <sys/signal.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -1866,13 +1867,15 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				ast_log(LOG_DEBUG, "I'm being setup with no bearer right now...\n");
 			pri_set_crv(p->pri->pri, p->call, p->channel, 0);
 		}
-		p->digital = ast_test_flag(ast,AST_FLAG_DIGITAL);
+		p->digital = IS_DIGITAL(ast->transfercapability);
 		pri_sr_set_channel(sr, p->bearer ? PVT_TO_CHANNEL(p->bearer) : PVT_TO_CHANNEL(p), 
 								p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1);
-		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : PRI_TRANS_CAP_SPEECH, 
+		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : ast->transfercapability, 
 					(p->digital ? -1 : 
 						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
- 		dp_strip = 0;
+		if (option_verbose > 2)
+			ast_verbose(VERBOSE_PREFIX_3 "Requested transfer capability: 0x%.2x - %s\n", ast->transfercapability, ast_transfercapability2str(ast->transfercapability));
+		dp_strip = 0;
  		pridialplan = p->pri->dialplan - 1;
  		if (pridialplan == -2) { /* compute dynamically */
  			if (strncmp(c + p->stripmsd, p->pri->internationalprefix, strlen(p->pri->internationalprefix)) == 0) {
@@ -4604,35 +4607,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 	return res;
 }
 
-#ifdef ZAPATA_PRI
-static void set_calltype(struct ast_channel *chan, int ctype)
-{
-	char *s = "UNKNOWN";
-	switch(ctype) {
-	case PRI_TRANS_CAP_SPEECH:
-		s = "SPEECH";
-		break;
-	case PRI_TRANS_CAP_DIGITAL:
-		s = "DIGITAL";
-		break;
-	case PRI_TRANS_CAP_RESTRICTED_DIGITAL:
-		s = "RESTRICTED_DIGITAL";
-		break;
-	case PRI_TRANS_CAP_3_1K_AUDIO:
-		s = "31KAUDIO";
-		break;
-	case PRI_TRANS_CAP_7K_AUDIO:
-		s = "7KAUDIO";
-		break;
-	case PRI_TRANS_CAP_VIDEO:
-		s = "VIDEO";
-		break;
-	}
-	pbx_builtin_setvar_helper(chan, "CALLTYPE", s);
-}
-#endif
-
-static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int index, int law, int ctype)
+static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int index, int law, int transfercapability)
 {
 	struct ast_channel *tmp;
 	int deflaw;
@@ -4764,14 +4739,14 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		tmp->cid.cid_pres = i->callingpres;
 		tmp->cid.cid_ton = i->cid_ton;
 #ifdef ZAPATA_PRI
-		set_calltype(tmp, ctype);
+		tmp->transfercapability = transfercapability;
+		pbx_builtin_setvar_helper(tmp, "TRANSFERCAPABILITY", ast_transfercapability2str(transfercapability));
+		if (transfercapability & PRI_TRANS_CAP_DIGITAL) {
+			i->digital = 1;
+		}
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
 		i->alreadyhungup = 0;
-		if (ctype & PRI_TRANS_CAP_DIGITAL) {
-			i->digital = 1;
-			ast_set_flag(tmp, AST_FLAG_DIGITAL);
-		}
 #endif
 		/* clear the fake event in case we posted one before we had ast_chanenl */
 		i->fake_event = 0;

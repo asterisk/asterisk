@@ -315,6 +315,9 @@ struct ast_channel {
 	/*! channel flags of AST_FLAG_ type */
 	unsigned int flags;
 	
+	/* ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
+	unsigned short transfercapability;
+
 	struct ast_frame *readq;
 	int alertpipe[2];
 	/*! Write translation path */
@@ -338,7 +341,8 @@ struct ast_channel {
 /* Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
 #define AST_CHAN_TP_WANTSJITTER	(1 << 0)	
 
-#define AST_FLAG_DIGITAL	(1 << 0)	/* if the call is a digital ISDN call */
+/* This flag has been deprecated by the transfercapbilty data member in struct ast_channel */
+/* #define AST_FLAG_DIGITAL	(1 << 0) */	/* if the call is a digital ISDN call */
 #define AST_FLAG_DEFER_DTMF	(1 << 1)	/* if dtmf should be deferred */
 #define AST_FLAG_WRITE_INT	(1 << 2)	/* if write should be interrupt generator */
 #define AST_FLAG_BLOCKING	(1 << 3)	/* if we are blocking */
@@ -810,6 +814,15 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
  * Returns the text form of the binary state given
  */
 char *ast_state2str(int state);
+
+/*! Gives the string form of a given transfer capability */
+/*!
+ * \param transercapability transfercapabilty to get the name of
+ * Give a name to a transfercapbility
+ * See above
+ * Returns the text form of the binary transfer capbility
+ */
+char *ast_transfercapability2str(int transfercapability);
 
 /* Options: Some low-level drivers may implement "options" allowing fine tuning of the
    low level channel.  See frame.h for options.  Note that many channel drivers may support

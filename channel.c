@@ -39,6 +39,7 @@
 #include <asterisk/utils.h>
 #include <asterisk/lock.h>
 #include <asterisk/app.h>
+#include <asterisk/transcap.h>
 #ifdef ZAPTEL_OPTIMIZATIONS
 #include <sys/ioctl.h>
 #ifdef __linux__
@@ -243,6 +244,25 @@ char *ast_state2str(int state)
 	}
 }
 
+char *ast_transfercapability2str(int transfercapability)
+{
+	switch(transfercapability) {
+	case AST_TRANS_CAP_SPEECH:
+		return "SPEECH";
+	case AST_TRANS_CAP_DIGITAL:
+		return "DIGITAL";
+	case AST_TRANS_CAP_RESTRICTED_DIGITAL:
+		return "RESTRICTED_DIGITAL";
+	case AST_TRANS_CAP_3_1K_AUDIO:
+		return "3K1AUDIO";
+	case AST_TRANS_CAP_DIGITAL_W_TONES:
+		return "DIGITAL_W_TONES";
+	case AST_TRANS_CAP_VIDEO:
+		return "VIDEO";
+	default:
+		return "UNKNOWN";
+	}
+}
 
 int ast_best_codec(int fmts)
 {

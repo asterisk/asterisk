@@ -77,8 +77,8 @@ static char *descrip =
 "      'r' -- indicate ringing to the calling party, pass no audio until answered.\n"
 "      'm[(class)]' -- provide hold music to the calling party until answered (optionally\n"
 "                      with the specified class.\n"
-"      'M(x[^arg]) -- Executes the macro (x with ^ delim arg list) upon connect of the call.\n"
-"                     Also, the macro can set the MACRO_RESULT variable to do the following:\n"
+"      'M(x[^arg])' -- Executes the macro (x with ^ delim arg list) upon connect of the call.\n"
+"                      Also, the macro can set the MACRO_RESULT variable to do the following:\n"
 "                     -- ABORT - Hangup both legs of the call.\n"
 "                     -- CONGESTION - Behave as if line congestion was encountered.\n"
 "                     -- BUSY - Behave as if a busy signal was encountered. (n+101)\n"
@@ -1039,8 +1039,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		tmp->chan->cid.cid_tns = chan->cid.cid_tns;
 		/* Presense of ADSI CPE on outgoing channel follows ours */
 		tmp->chan->adsicpe = chan->adsicpe;
-		/* pass the digital flag */
-		ast_copy_flags(tmp->chan, chan, AST_FLAG_DIGITAL);
+		/* Pass the transfer capability */
+		tmp->chan->transfercapability = chan->transfercapability;
 
 		/* If we have an outbound group, set this peer channel to it */
 		if (outbound_group)
