@@ -257,14 +257,14 @@ static void *listener(void *unused)
 		FD_SET(ast_socket, &fds);
 		s = ast_select(ast_socket + 1, &fds, NULL, NULL, NULL);
 		if (s < 0) {
-			ast_log(LOG_WARNING, "Select retured error: %s\n", strerror(errno));
+			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
 			continue;
 		}
 		len = sizeof(sun);
 		s = accept(ast_socket, (struct sockaddr *)&sun, &len);
 		if (s < 0) {
 			if (errno != EINTR)
-				ast_log(LOG_WARNING, "Accept retured %d: %s\n", s, strerror(errno));
+				ast_log(LOG_WARNING, "Accept returned %d: %s\n", s, strerror(errno));
 		} else {
 			for (x=0;x<AST_MAX_CONNECTS;x++) {
 				if (consoles[x].fd < 0) {
