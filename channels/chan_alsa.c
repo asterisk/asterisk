@@ -485,6 +485,8 @@ static int alsa_call(struct ast_channel *c, char *dest, int timeout)
 		}
 		write(sndcmd[1], &res, sizeof(res));
 	}
+	snd_pcm_prepare(alsa.icard);
+	snd_pcm_start(alsa.icard);
 	ast_mutex_unlock(&alsalock);
 	return 0;
 }
@@ -505,6 +507,8 @@ static int alsa_answer(struct ast_channel *c)
 	answer_sound();
 	ast_setstate(c, AST_STATE_UP);
 	cursound = -1;
+	snd_pcm_prepare(alsa.icard);
+	snd_pcm_start(alsa.icard);
 	ast_mutex_unlock(&alsalock);
 	return 0;
 }
@@ -524,6 +528,7 @@ static int alsa_hangup(struct ast_channel *c)
 		res = 2;
 		write(sndcmd[1], &res, sizeof(res));
 	}
+	snd_pcm_drop(alsa.icard);
 	ast_mutex_unlock(&alsalock);
 	return 0;
 }
@@ -616,9 +621,10 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	f.delivery.tv_sec = 0;
 	f.delivery.tv_usec = 0;
 
-	state = snd_pcm_state(alsa.ocard);
-	if (state == SND_PCM_STATE_XRUN) {
-		snd_pcm_prepare(alsa.ocard);
+	state = snd_pcm_state(alsa.icard);
+	if ((state != SND_PCM_STATE_PREPARED) && 
+	    (state != SND_PCM_STATE_RUNNING)) {
+		snd_pcm_prepare(alsa.icard);
 	}
 
 	buf = __buf + AST_FRIENDLY_OFFSET/2;
@@ -832,6 +838,8 @@ static int console_answer(int fd, int argc, char *argv[])
 		}
 		answer_sound();
 	}
+	snd_pcm_prepare(alsa.icard);
+	snd_pcm_start(alsa.icard);
 	ast_mutex_unlock(&alsalock);
 	return RESULT_SUCCESS;
 }
@@ -977,6 +985,29 @@ int load_module()
 	int x;
 	struct ast_config *cfg;
 	struct ast_variable *v;
+	if ((cfg = ast_load(config))) {
+		v = ast_variable_browse(cfg, "general");
+		while(v) {
+			if (!strcasecmp(v->name, "autoanswer"))
+				autoanswer = ast_true(v->value);
+			else if (!strcasecmp(v->name, "silencesuppression"))
+				silencesuppression = ast_true(v->value);
+			else if (!strcasecmp(v->name, "silencethreshold"))
+				silencethreshold = atoi(v->value);
+			else if (!strcasecmp(v->name, "context"))
+				strncpy(context, v->value, sizeof(context)-1);
+			else if (!strcasecmp(v->name, "language"))
+				strncpy(language, v->value, sizeof(language)-1);
+			else if (!strcasecmp(v->name, "extension"))
+				strncpy(exten, v->value, sizeof(exten)-1);
+			else if (!strcasecmp(v->name, "input_device"))
+				strncpy(indevname, v->value, sizeof(indevname)-1);
+			else if (!strcasecmp(v->name, "output_device"))
+				strncpy(outdevname, v->value, sizeof(outdevname)-1);
+			v=v->next;
+		}
+		ast_destroy(cfg);
+	}
 	res = pipe(sndcmd);
 	if (res) {
 		ast_log(LOG_ERROR, "Unable to create pipe\n");
@@ -1001,29 +1032,6 @@ int load_module()
 	}
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_register(myclis + x);
-	if ((cfg = ast_load(config))) {
-		v = ast_variable_browse(cfg, "general");
-		while(v) {
-			if (!strcasecmp(v->name, "autoanswer"))
-				autoanswer = ast_true(v->value);
-			else if (!strcasecmp(v->name, "silencesuppression"))
-				silencesuppression = ast_true(v->value);
-			else if (!strcasecmp(v->name, "silencethreshold"))
-				silencethreshold = atoi(v->value);
-			else if (!strcasecmp(v->name, "context"))
-				strncpy(context, v->value, sizeof(context)-1);
-			else if (!strcasecmp(v->name, "language"))
-				strncpy(language, v->value, sizeof(language)-1);
-			else if (!strcasecmp(v->name, "extension"))
-				strncpy(exten, v->value, sizeof(exten)-1);
-			else if (!strcasecmp(v->name, "input_device"))
-				strncpy(indevname, v->value, sizeof(indevname)-1);
-			else if (!strcasecmp(v->name, "output_device"))
-				strncpy(outdevname, v->value, sizeof(outdevname)-1);
-			v=v->next;
-		}
-		ast_destroy(cfg);
-	}
 	pthread_create(&sthread, NULL, sound_thread, NULL);
 #ifdef ALSA_MONITOR
 	if (alsa_monitor_start()) {
