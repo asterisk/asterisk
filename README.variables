@@ -36,6 +36,8 @@ ${EXTEN}	Current extension
 ${CONTEXT}      Current context
 ${PRIORITY}	Current priority
 ${CHANNEL}	Current channel name
+${EPOCH}	Current unix style epoch
+${DATETIME}	Current date time in the format: YYYY-MM-DD_HH:MM:SS
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
