@@ -480,18 +480,21 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct agent_pvt *p = ast->pvt->pvt;
 	int res = -1;
+	int newstate=0;
 	ast_mutex_lock(&p->lock);
 	p->acknowledged = 0;
 	if (!p->chan) {
 		if (p->pending) {
 			ast_log(LOG_DEBUG, "Pretending to dial on pending agent\n");
-			ast_setstate(ast, AST_STATE_DIALING);
+			newstate = AST_STATE_DIALING;
 			res = 0;
 		} else {
 			ast_log(LOG_NOTICE, "Whoa, they hung up between alloc and call...  what are the odds of that?\n");
 			res = -1;
 		}
 		ast_mutex_unlock(&p->lock);
+		if (newstate)
+			ast_setstate(ast, newstate);
 		return res;
 	} else if (!ast_strlen_zero(p->loginchan)) {
 		time(&p->start);
@@ -543,9 +546,9 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	{
 		/* Call is immediately up, or might need ack */
 		if (p->ackcall > 1)
-			ast_setstate(ast, AST_STATE_RINGING);
+			newstate = AST_STATE_RINGING;
 		else {
-			ast_setstate(ast, AST_STATE_UP);
+			newstate = AST_STATE_UP;
 			if (recordagentcalls)
 				agent_start_monitoring(ast,0);
 			p->acknowledged = 1;
@@ -554,6 +557,8 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	CLEANUP(ast,p);
 	ast_mutex_unlock(&p->lock);
+	if (newstate)
+		ast_setstate(ast, newstate);
 	return res;
 }
 
@@ -797,6 +802,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		else
 			snprintf(tmp->name, sizeof(tmp->name), "Agent/%s", p->agent);
 		tmp->type = channeltype;
+		/* Safe, agentlock already held */
 		ast_setstate(tmp, state);
 		tmp->pvt->pvt = p;
 		tmp->pvt->send_digit = agent_digit;
@@ -1037,6 +1043,7 @@ static int check_availability(struct agent_pvt *newlyavailable, int needlock)
 			/* Note -- parent may have disappeared */
 			if (p->abouttograb) {
 				newlyavailable->acknowledged = 1;
+				/* Safe -- agent lock already held */
 				ast_setstate(parent, AST_STATE_UP);
 				ast_setstate(chan, AST_STATE_UP);
 				strncpy(parent->context, chan->context, sizeof(parent->context) - 1);
