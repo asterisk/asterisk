@@ -826,12 +826,14 @@ int h323_start_listener(int listenPort, struct sockaddr_in bindaddr)
 
 	if (!endPoint->StartListener(tcpListener)) {
 		cout << "ERROR: Could not open H.323 listener port on " << ((H323ListenerTCP *) tcpListener)->GetListenerPort() << endl;
+		delete tcpListener;
 		return 1;
 		
 	}
 		
-	cout << "  == H.323 listener started on " << ((H323ListenerTCP *) tcpListener)->GetTransportAddress() << endl;
-	
+//	cout << "  == H.323 listener started on " << ((H323ListenerTCP *) tcpListener)->GetTransportAddress() << endl;
+	cout << "  == H.323 listener started" << endl;
+
 	return 0;
 };
  
@@ -914,6 +916,10 @@ int h323_set_gk(int gatekeeper_discover, char *gatekeeper, char *secret)
 			cout << "  == Using " << (endPoint->GetGatekeeper())->GetName() << " as our Gatekeeper." << endl;
 		} else {
 			cout << "  *** Error registering with gatekeeper \"" << gkName << "\". " << endl;
+			
+			/* XXX Maybe we should fire a new thread to attempt to re-register later and not kill asterisk here? */
+
+			delete rasChannel;
 			return 1;
 		}
 	}
