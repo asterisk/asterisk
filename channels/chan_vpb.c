@@ -550,14 +550,8 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 		case VPB_DTMF:
 			if (p->owner->_state == AST_STATE_UP) {
-				if ((strcmp(p->owner->type,"vpb"))||(e->data == '#')||(e->data == '*')){
 					f.frametype = AST_FRAME_DTMF;
 					f.subclass = e->data;
-				}
-				else {
-					if (option_verbose > 3) 
-						ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: Not transmiting DTMF frame on native bridge\n", p->dev);
-				}
 			} else
 				f.frametype = -1;
 			break;
@@ -1835,9 +1829,15 @@ static void *do_chanreads(void *pvt)
 			// This DTMF is played by asterisk and leads to an annoying trailing beep on CISCO phones
 			if( !ignore_dtmf) 
 				vpb_set_event_mask(p->handle, VPB_EVENTS_NODTMF );
-			vpb_dial_sync(p->handle,p->play_dtmf);
-			if(option_verbose>1) 
-				ast_verbose( VERBOSE_PREFIX_2 "%s: Played DTMF %s\n",p->dev,p->play_dtmf);
+			if (strcmp(p->owner->type,"vpb")){
+				vpb_dial_sync(p->handle,p->play_dtmf);
+				if(option_verbose>1) 
+					ast_verbose( VERBOSE_PREFIX_2 "%s: chanreads: Played DTMF %s\n",p->dev,p->play_dtmf);
+			}
+			else {
+				if (option_verbose > 1) 
+					ast_verbose(VERBOSE_PREFIX_2 "%s: chanreads: Not playing DTMF frame on native bridge\n", p->dev);
+			}
 			p->play_dtmf[0] = '\0';
 			ast_mutex_unlock(&p->play_dtmf_lock);
 			vpb_sleep(700); // Long enough to miss echo and DTMF event
