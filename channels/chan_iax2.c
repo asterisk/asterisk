@@ -4556,43 +4556,45 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 					   drop it, since we don't have a scallno to use for an INVAL */
 					/* Process as a mini frame */
 					f.frametype = AST_FRAME_VOICE;
-					if (iaxs[fr.callno]->voiceformat > 0) {
-						f.subclass = iaxs[fr.callno]->voiceformat;
-						f.datalen = len;
-						if (f.datalen >= 0) {
-							if (f.datalen)
-								f.data = ptr;
-							else
-								f.data = NULL;
-							fr.ts = fix_peerts(peer, fr.callno, ts);
-							/* Don't pass any packets until we're started */
-							if ((iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
-								/* Common things */
-								f.src = "IAX2";
-								f.mallocd = 0;
-								f.offset = 0;
-								if (f.datalen && (f.frametype == AST_FRAME_VOICE)) 
-									f.samples = get_samples(&f);
+					if (iaxs[fr.callno]) {
+						if (iaxs[fr.callno]->voiceformat > 0) {
+							f.subclass = iaxs[fr.callno]->voiceformat;
+							f.datalen = len;
+							if (f.datalen >= 0) {
+								if (f.datalen)
+									f.data = ptr;
 								else
-									f.samples = 0;
-								fr.outoforder = 0;
-								iax_frame_wrap(&fr, &f);
+									f.data = NULL;
+								fr.ts = fix_peerts(peer, fr.callno, ts);
+								/* Don't pass any packets until we're started */
+								if ((iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
+									/* Common things */
+									f.src = "IAX2";
+									f.mallocd = 0;
+									f.offset = 0;
+									if (f.datalen && (f.frametype == AST_FRAME_VOICE)) 
+										f.samples = get_samples(&f);
+									else
+										f.samples = 0;
+									fr.outoforder = 0;
+									iax_frame_wrap(&fr, &f);
 #ifdef BRIDGE_OPTIMIZATION
-								if (iaxs[fr.callno]->bridgecallno) {
-									forward_delivery(&fr);
-								} else {
-									schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
-								}
+									if (iaxs[fr.callno]->bridgecallno) {
+										forward_delivery(&fr);
+									} else {
+										schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+									}
 #else
-								schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
+									schedule_delivery(iaxfrdup2(&fr), 1, updatehistory);
 #endif
+								}
+							} else {
+								ast_log(LOG_WARNING, "Datalen < 0?\n");
 							}
 						} else {
-							ast_log(LOG_WARNING, "Datalen < 0?\n");
+							ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n ");
+							iax2_vnak(fr.callno);
 						}
-					} else {
-						ast_log(LOG_WARNING, "Received trunked frame before first full voice frame\n ");
-						iax2_vnak(fr.callno);
 					}
 					ast_mutex_unlock(&iaxsl[fr.callno]);
 				}
