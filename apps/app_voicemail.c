@@ -1250,6 +1250,8 @@ static int play_and_prepend(struct ast_channel *chan, char *playfile, char *reco
 					
 					if (totalsilence > maxsilence) {
 					/* Ended happily with silence */
+					if (option_verbose > 2) 
+						ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
 					ast_frfree(f);
 					gotsilence = 1;
 					outmsg=2;
@@ -1468,6 +1470,8 @@ static int play_and_record(struct ast_channel *chan, char *playfile, char *recor
 
 					if (totalsilence > maxsilence) {
 					/* Ended happily with silence */
+                                        if (option_verbose > 2)
+                                                ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
 					ast_frfree(f);
 					gotsilence = 1;
 					outmsg=2;
@@ -1902,7 +1906,10 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 						close(fd);
 				}
 				if (duration < vmminmessage) {
+					if (option_verbose > 2) 
+						ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
 					vm_delete(fn);
+					/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
 					goto leave_vm_out;
 				}
 				/* Are there to be more recipients of this message? */
@@ -4286,6 +4293,8 @@ static int load_config(void)
 		if ((s = ast_variable_retrieve(cfg, "general", "minmessage"))) {
 			if (sscanf(s, "%d", &x) == 1) {
 				vmminmessage = x;
+				if (maxsilence <= vmminmessage)
+					ast_log(LOG_WARNING, "maxsilence should be less than minmessage or you may get empty messages\n");
 			} else {
 				ast_log(LOG_WARNING, "Invalid min message time length\n");
 			}
