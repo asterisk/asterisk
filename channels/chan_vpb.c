@@ -97,9 +97,9 @@ static int restart_monitor(void);
 #define MODE_FXO	3
 
 
-static VPB_TONE Dialtone     = {440, 440, 440, 0,  0, 0, 5000, 0   };
-static VPB_TONE Busytone     = {440,   0,   0, 0,  -100, -100,   500,  500};
-static VPB_TONE Ringbacktone = {440,   0,   0, 0,  -100, -100,  100, 100};
+static VPB_TONE Dialtone     = {440, 440, 440, -10,  -100, -100, 5000, 0   };
+static VPB_TONE Busytone     = {440,   0,   0, -10,  -100, -100,   500,  500};
+static VPB_TONE Ringbacktone = {440,   0,   0, -10,  -100, -100,  100, 100};
 
 
 
