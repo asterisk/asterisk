@@ -720,7 +720,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 	}
 	myflags = 0;
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
-	//if (!(flags & O_APPEND)) myflags = O_TRUNC;
+	if (!(flags & O_APPEND)) myflags = O_TRUNC;
 	f = formats;
 	while(f) {
 		if (!strcasecmp(f->name, type)) {
