@@ -6178,6 +6178,10 @@ static void *pri_dchannel(void *vpri)
 	int i;
 	pthread_t threadid;
 	pthread_attr_t attr;
+	
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	gettimeofday(&lastidle, NULL);
 	if (!ast_strlen_zero(pri->idledial) && !ast_strlen_zero(pri->idleext)) {
 		/* Need to do idle dialing, check to be sure though */
