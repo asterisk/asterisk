@@ -52,11 +52,13 @@ static char *app = "AgentLogin";
 static char *synopsis = "Call agent login";
 
 static char *descrip =
-"  AgentLogin():\n"
+"  AgentLogin([AgentNo][|options]):\n"
 "Asks the agent to login to the system.  Always returns -1.  While\n"
 "logged in, the agent can receive calls and will hear a 'beep'\n"
 "when a new call comes in.  The agent can dump the call by pressing\n"
-"the star key.\n";
+"the star key.\n"
+"The option string may contain zero or more of the following characters:\n"
+"      's' -- silent login - do not announce the login ok segment\n";
 
 static char moh[80] = "default";
 
@@ -77,6 +79,9 @@ static struct agent_pvt {
 	char agent[AST_MAX_AGENT];			/* Agent ID */
 	char password[AST_MAX_AGENT];		/* Password for Agent login */
 	char name[AST_MAX_AGENT];
+	pthread_mutex_t app_lock;			/* Synchronization between owning applications */
+	volatile pthread_t owning_app;		/* Owning application thread id */
+	volatile int app_sleep_cond;		/* Sleep condition for the login app */
 	struct ast_channel *owner;			/* Agent */
 	struct ast_channel *chan;			/* Channel we use */
 	struct agent_pvt *next;				/* Agent */
@@ -119,6 +124,10 @@ static int add_agent(struct ast_variable *var)
 		if (p) {
 			memset(p, 0, sizeof(struct agent_pvt));
 			strncpy(p->agent, tmp, sizeof(p->agent) -1);
+			ast_pthread_mutex_init( &p->lock );
+			ast_pthread_mutex_init( &p->app_lock );
+			p->owning_app = -1;
+			p->app_sleep_cond = 1;
 			p->next = agents;
 			agents = p;
 			
@@ -179,6 +188,7 @@ static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	ast_pthread_mutex_lock(&p->lock);
 	if (p->owner != oldchan) {
 		ast_log(LOG_WARNING, "old channel wasn't %p but was %p\n", oldchan, p->owner);
+		ast_pthread_mutex_unlock(&p->lock);
 		return -1;
 	}
 	p->owner = newchan;
@@ -228,6 +238,7 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 	/* Call is immediately up */
 	ast_setstate(ast, AST_STATE_UP);
+	CLEANUP(ast,p);
 	ast_pthread_mutex_unlock(&p->lock);
 	return res;
 }
@@ -238,21 +249,43 @@ static int agent_hangup(struct ast_channel *ast)
 	ast_pthread_mutex_lock(&p->lock);
 	p->owner = NULL;
 	ast->pvt->pvt = NULL;
+	p->app_sleep_cond = 1;
 	ast_pthread_mutex_unlock(&p->lock);
+	/* Release ownership of the agent to other threads (presumably running the login app). */
+	ast_pthread_mutex_unlock(&p->app_lock);
 	if (p->chan) {
 		/* If they're dead, go ahead and hang up on the agent now */
+		ast_pthread_mutex_lock(&p->chan->lock);
 		if (p->dead)
 			ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 		ast_moh_start(p->chan, p->moh);
-	} else if (p->dead) 
+		ast_pthread_mutex_unlock(&p->chan->lock);
+	} else if (p->dead)
 		/* Go ahead and lose it */
 		free(p);
+
 	return 0;
+}
+
+static int agent_cont_sleep( void *data )
+{
+	struct agent_pvt *p;
+	int res;
+
+	p = (struct agent_pvt *)data;
+
+	ast_pthread_mutex_lock(&p->lock);
+	res = p->app_sleep_cond;
+	ast_pthread_mutex_unlock(&p->lock);
+	if( !res )
+		ast_log( LOG_DEBUG, "agent_cont_sleep() returning %d\n", res );
+	return res;
 }
 
 static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 {
 	struct ast_channel *tmp;
+	struct ast_frame null_frame = { AST_FRAME_NULL };
 	if (!p->chan) {
 		ast_log(LOG_WARNING, "No channel? :(\n");
 		return NULL;
@@ -286,12 +319,26 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		strncpy(tmp->context, p->chan->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, p->chan->exten, sizeof(tmp->exten)-1);
 		tmp->priority = 1;
-		/* Wake up any waiting blockers (by definition the login app) */
+		/* Wake up and wait for other applications (by definition the login app)
+		 * to release this channel). Takes ownership of the agent channel
+		 * to this thread only.
+		 * For signalling the other thread, ast_queue_frame is used until we
+		 * can safely use signals for this purpose. The pselect() needs to be
+		 * implemented in the kernel for this.
+		 */
+		p->app_sleep_cond = 0;
+		if( pthread_mutex_trylock(&p->app_lock) )
+		{
+			ast_queue_frame(p->chan, &null_frame, 1);
+			ast_pthread_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
+			ast_pthread_mutex_lock(&p->app_lock);
+			ast_pthread_mutex_lock(&p->lock);
+		}
+		p->owning_app = pthread_self();
+		/* After the above step, there should not be any blockers. */
 		if (p->chan->blocking) {
-			pthread_kill(p->chan->blocker, SIGURG);
-			/* Wait until the blocker releases it */
-			while(p->chan->blocking)
-				usleep(1000);
+			ast_log( LOG_ERROR, "A blocker exists after agent channel ownership acquired\n" );
+			CRASH;
 		}
 		ast_moh_stop(p->chan);
 	} else
@@ -435,11 +482,35 @@ static int login_exec(struct ast_channel *chan, void *data)
 	char pass[AST_MAX_AGENT];
 	char xpass[AST_MAX_AGENT] = "";
 	char *errmsg;
+	char info[512];
+	char *opt_user = NULL;
+	char *options = NULL;
+	int play_announcement;
+	struct timespec required;
+	struct timespec remaining;
+	int delay;
+	
 	LOCAL_USER_ADD(u);
+
+	/* Parse the arguments XXX Check for failure XXX */
+	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+	opt_user = info;
+	if( opt_user ) {
+		options = strchr(opt_user, '|');
+		if (options) {
+			*options = '\0';
+			options++;
+		}
+	}
+
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
-	if (!res)
-		res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
+	if (!res) {
+		if( opt_user )
+			strncpy( user, opt_user, AST_MAX_AGENT );
+		else
+			res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
+	}
 	while (!res && (tries < 3)) {
 		/* Check for password */
 		ast_pthread_mutex_lock(&agentlock);
@@ -451,7 +522,7 @@ static int login_exec(struct ast_channel *chan, void *data)
 		}
 		ast_pthread_mutex_unlock(&agentlock);
 		if (!res) {
-			if (strlen(xpass) || !p)
+			if (strlen(xpass))
 				res = ast_app_getdata(chan, "agent-pass", pass, sizeof(pass) - 1, 0);
 			else
 				strcpy(pass, "");
@@ -470,7 +541,12 @@ static int login_exec(struct ast_channel *chan, void *data)
 			if (!strcmp(p->agent, user) &&
 				!strcmp(p->password, pass)) {
 					if (!p->chan) {
-						res = ast_streamfile(chan, "agent-loginok", chan->language);
+						play_announcement = 1;
+						if( options )
+							if( strchr( options, 's' ) )
+								play_announcement = 0;
+						if( play_announcement )
+							res = ast_streamfile(chan, "agent-loginok", chan->language);
 						if (!res)
 							ast_waitstream(chan, "");
 						if (!res) {
@@ -500,13 +576,33 @@ static int login_exec(struct ast_channel *chan, void *data)
 							p->chan = chan;
 							ast_pthread_mutex_unlock(&p->lock);
 							ast_pthread_mutex_unlock(&agentlock);
-							while ((res >= 0) && (p->chan == chan)) {
-								/* True sleep here, since we're being monitored
-								   elsewhere instead */
+							while (res >= 0) {
+								/* If we are not the owner, delay here for a while
+								 * so other interested threads can kick in. */
+								delay = 0;
+								ast_pthread_mutex_lock(&p->lock);
+								if (p->chan != chan)
+									res = -1;
 								if (p->owner) 
-									sleep(1);
-								else
-									res = ast_safe_sleep(chan, 1000);
+									delay = 1;
+								ast_pthread_mutex_unlock(&p->lock);
+								if (delay) {
+									sched_yield();
+									required.tv_sec = 0;
+									required.tv_nsec = 20 * 1000 * 1000;
+									nanosleep( &required, &remaining );
+								}
+								if (res)
+									break;
+
+								/*	Synchronize channel ownership between call to agent and itself. */
+								pthread_mutex_lock( &p->app_lock );
+								ast_pthread_mutex_lock(&p->lock);
+								p->owning_app = pthread_self();
+								ast_pthread_mutex_unlock(&p->lock);
+								res = ast_safe_sleep_conditional( chan, 1000,
+														agent_cont_sleep, p );
+								pthread_mutex_unlock( &p->app_lock );
 							}
 							if (res && p->owner) 
 								ast_log(LOG_WARNING, "Huh?  We broke out when there was still an owner?\n");
@@ -521,6 +617,10 @@ static int login_exec(struct ast_channel *chan, void *data)
 							/* If there is no owner, go ahead and kill it now */
 							if (p->dead && !p->owner)
 								free(p);
+						}
+						else {
+							ast_pthread_mutex_unlock(&p->lock);
+							p = NULL;
 						}
 						res = -1;
 					} else {
