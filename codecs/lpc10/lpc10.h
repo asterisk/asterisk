@@ -1,8 +1,8 @@
 /*
 
 $Log$
-Revision 1.4  2000/01/05 00:20:06  markster
-Version 0.1.5 from FTP
+Revision 1.5  2000/01/05 00:20:06  markster
+Version 0.1.6 from FTP
 
 Revision 1.1  2000/01/05 00:20:06  markster
 Add broken lpc10 code...  It's not too far from working I don't think...
