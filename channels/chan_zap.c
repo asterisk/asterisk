@@ -5547,8 +5547,11 @@ static void *pri_dchannel(void *vpri)
 							strcpy(pri->pvt[chan]->callerid, "");
 						strncpy(pri->pvt[chan]->rdnis, e->ring.redirectingnum, sizeof(pri->pvt[chan]->rdnis));
 					}
+					/* If immediate=yes go to s|1 */
+					if (pri->pvt[chan]->immediate)
+						strcpy(pri->pvt[chan]->exten, "s");
 					/* Get called number */
-					if (strlen(e->ring.callednum)) {
+					else if (strlen(e->ring.callednum)) {
 						strncpy(pri->pvt[chan]->exten, e->ring.callednum, sizeof(pri->pvt[chan]->exten)-1);
 					} 
 #if 0
