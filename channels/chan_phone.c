@@ -44,6 +44,8 @@ static char *config = "phone.conf";
 /* Default context for dialtone mode */
 static char context[AST_MAX_EXTENSION] = "default";
 
+/* Default language */
+static char language[MAX_LANGUAGE] = "";
 static int usecnt =0;
 
 static int echocancel = AEC_OFF;
@@ -91,6 +93,7 @@ static struct phone_pvt {
 	char context[AST_MAX_EXTENSION];
 	char obuf[phone_MAX_BUF * 2];
 	char ext[AST_MAX_EXTENSION];
+	char language[MAX_LANGUAGE];
 } *iflist = NULL;
 
 static int phone_digit(struct ast_channel *ast, char digit)
@@ -428,6 +431,8 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 		}
 		maxfr = 480;
 	}
+	ioctl(p->fd, PHONE_REC_DEPTH, 3);
+	ioctl(p->fd, PHONE_PLAY_DEPTH, 3);
 	if (ioctl(p->fd, PHONE_PLAY_START)) {
 		ast_log(LOG_WARNING, "Failed to start playback\n");
 		return -1;
@@ -494,6 +499,8 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		strncpy(tmp->context, context, sizeof(tmp->context));
 		if (strlen(i->ext))
 			strncpy(tmp->exten, i->ext, sizeof(tmp->exten));
+		if (strlen(i->language))
+			strncpy(tmp->language, i->language, sizeof(tmp->language));
 		i->owner = tmp;
 		pthread_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -790,12 +797,13 @@ static struct phone_pvt *mkif(char *iface, int mode)
 		ioctl(tmp->fd, PHONE_REC_STOP);
 		ioctl(tmp->fd, PHONE_RING_STOP);
 		ioctl(tmp->fd, PHONE_CPT_STOP);
-		ioctl(tmp->fd, PHONE_REC_DEPTH, 4);
 		if (echocancel != AEC_OFF)
 			ioctl(tmp->fd, IXJCTL_AEC_START, echocancel);
 		if (silencesupression) 
 			tmp->silencesupression = 1;
+#ifdef PHONE_VAD
 		ioctl(tmp->fd, PHONE_VAD, tmp->silencesupression);
+#endif
 		tmp->mode = mode;
 #if 0
 		flags = fcntl(tmp->fd, F_GETFL);
@@ -806,6 +814,7 @@ static struct phone_pvt *mkif(char *iface, int mode)
 		tmp->lastinput = -1;
 		tmp->ministate = 0;
 		memset(tmp->ext, 0, sizeof(tmp->ext));
+		strncpy(tmp->language, language, sizeof(tmp->language));
 		strncpy(tmp->dev, iface, sizeof(tmp->dev));
 		strncpy(tmp->context, context, sizeof(tmp->context));
 		tmp->next = NULL;
@@ -884,6 +893,8 @@ int load_module()
 				}
 		} else if (!strcasecmp(v->name, "silencesupression")) {
 			silencesupression = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "language")) {
+			strncpy(language, v->value, sizeof(language));
 		} else if (!strcasecmp(v->name, "mode")) {
 			if (!strncasecmp(v->value, "di", 2)) 
 				mode = MODE_DIALTONE;

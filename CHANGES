@@ -1,3 +1,12 @@
+* Asterisk 0.1.3
+ -- Update VoFR for latest sangoma code
+ -- Update QuickNet Driver
+ -- Add text message handling
+ -- Fix transfers to use "default" if not in current context
+ -- Add call parking
+ -- Improve format/content negotiation
+ -- Added support for multiple languages
+ -- Bug fixes, as always...
 * Asterisk 0.1.2
  -- Updated README file with a "Getting Started" section
  -- Added sample sounds and configuration files.

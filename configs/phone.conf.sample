@@ -10,15 +10,15 @@
 ; immediately provides the PBX without reading any digits or providing 
 ; any dialtone (this is the immediate mode, the default)
 ;
-;mode=immediate
-mode=dialtone
+mode=immediate
+;mode=dialtone
 ;
 ; You can decide which format to use by default, "g723.1" or "slinear".
 ; XXX Be careful, sometimes the card causes kernel panics when running
 ; in signed linear mode for some reason... XXX
 ;
-;format=slinear
-format=g723.1
+format=slinear
+;format=g723.1
 ;
 ; And set the echo cancellation to "off", "low", "medium", and "high".
 ; This is not supported on all phones.
@@ -32,4 +32,4 @@ echocancel=medium
 ; List all devices we can use.  Contexts may also be specified
 ;
 ;context=local
-;device=/dev/ixj0
+;device=/dev/phone0
