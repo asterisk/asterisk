@@ -56,7 +56,7 @@ include .depend
 endif
 
 cdr_odbc.so: cdr_odbc.o
-	$(CC) $(SOLINK) -o $@ $< -lodbc -I/usr/include $(MLFLAGS)
+	$(CC) $(SOLINK) -o $@ $< -lodbc $(MLFLAGS)
 
 cdr_pgsql.so: cdr_pgsql.o
 	$(CC) $(SOLINK) -o $@ $< -lpq -lz $(MLFLAGS)
