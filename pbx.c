@@ -777,10 +777,11 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 	struct ast_var_t *variables;
 	char *name, *num; /* for callerid name + num variables */
 	struct varshead *headp=NULL;
-    if (c) 
+
+	if (c) 
 		headp=&c->varshead;
-    *ret=NULL;
-        /* Now we have the variable name on cp3 */
+	*ret=NULL;
+	/* Now we have the variable name on cp3 */
 	if (!strncasecmp(var,"LEN(",4)) {
 		int len=strlen(var);
 		int len_len=4;
@@ -888,45 +889,45 @@ static void pbx_substitute_variables_temp(struct ast_channel *c,const char *var,
 		strncpy(workspace, c->name, workspacelen - 1);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "EPOCH")) {
-	  snprintf(workspace, workspacelen -1, "%u",(int)time(NULL));
-	  *ret = workspace;
+		snprintf(workspace, workspacelen -1, "%u",(int)time(NULL));
+		*ret = workspace;
 	} else if (c && !strcmp(var, "DATETIME")) {
-	  thistime=time(NULL);
-	  localtime_r(&thistime, &brokentime);
-	  snprintf(workspace, workspacelen -1, "%02d%02d%04d-%02d:%02d:%02d",
-		   brokentime.tm_mday,
-		   brokentime.tm_mon+1,
-		   brokentime.tm_year+1900,
-		   brokentime.tm_hour,
-		   brokentime.tm_min,
-		   brokentime.tm_sec
-		   );
-	  *ret = workspace;
+		thistime=time(NULL);
+		localtime_r(&thistime, &brokentime);
+		snprintf(workspace, workspacelen -1, "%02d%02d%04d-%02d:%02d:%02d",
+			brokentime.tm_mday,
+			brokentime.tm_mon+1,
+			brokentime.tm_year+1900,
+			brokentime.tm_hour,
+			brokentime.tm_min,
+			brokentime.tm_sec
+		);
+		*ret = workspace;
 	} else if (c && !strcmp(var, "TIMESTAMP")) {
-	  thistime=time(NULL);
-	  localtime_r(&thistime, &brokentime);
+		thistime=time(NULL);
+		localtime_r(&thistime, &brokentime);
 		/* 20031130-150612 */
-	  snprintf(workspace, workspacelen -1, "%04d%02d%02d-%02d%02d%02d",
-		   brokentime.tm_year+1900,
-		   brokentime.tm_mon+1,
-		   brokentime.tm_mday,
-		   brokentime.tm_hour,
-		   brokentime.tm_min,
-		   brokentime.tm_sec
-		   );
-	  *ret = workspace;
+		snprintf(workspace, workspacelen -1, "%04d%02d%02d-%02d%02d%02d",
+			brokentime.tm_year+1900,
+			brokentime.tm_mon+1,
+			brokentime.tm_mday,
+			brokentime.tm_hour,
+			brokentime.tm_min,
+			brokentime.tm_sec
+		);
+		*ret = workspace;
 	} else if (c && !strcmp(var, "UNIQUEID")) {
-	  snprintf(workspace, workspacelen -1, "%s", c->uniqueid);
-	  *ret = workspace;
-        } else if (c && !strcmp(var, "HANGUPCAUSE")) {
-          snprintf(workspace, workspacelen -1, "%i", c->hangupcause);
-          *ret = workspace;
-        } else if (c && !strcmp(var, "ACCOUNTCODE")) {
-          strncpy(workspace, c->accountcode, workspacelen - 1);
-          *ret = workspace;
-        } else if (c && !strcmp(var, "LANGUAGE")) {
-          strncpy(workspace, c->language, workspacelen - 1);
-          *ret = workspace;
+		snprintf(workspace, workspacelen -1, "%s", c->uniqueid);
+		*ret = workspace;
+	} else if (c && !strcmp(var, "HANGUPCAUSE")) {
+		snprintf(workspace, workspacelen -1, "%i", c->hangupcause);
+		*ret = workspace;
+	} else if (c && !strcmp(var, "ACCOUNTCODE")) {
+		strncpy(workspace, c->accountcode, workspacelen - 1);
+		*ret = workspace;
+	} else if (c && !strcmp(var, "LANGUAGE")) {
+		strncpy(workspace, c->language, workspacelen - 1);
+		*ret = workspace;
 	} else {
 		if (c) {
 			AST_LIST_TRAVERSE(headp,variables,entries) {
@@ -1342,13 +1343,13 @@ static int ast_extension_state2(struct ast_exten *e)
 
 int ast_extension_state(struct ast_channel *c, char *context, char *exten)
 {
-    struct ast_exten *e;
+	struct ast_exten *e;
 
-    e = ast_hint_extension(c, context, exten);    
-    if (!e) 
-	return -1;
+	e = ast_hint_extension(c, context, exten);    
+	if (!e) 
+		return -1;
 
-    return ast_extension_state2(e);    
+	return ast_extension_state2(e);    
 }
 
 int ast_device_state_changed(const char *fmt, ...) 
@@ -4418,12 +4419,13 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name) {
+char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name) 
+{
 	struct ast_var_t *variables;
 	struct varshead *headp;
 
-    if (chan)
-        headp=&chan->varshead;
+	if (chan)
+		headp=&chan->varshead;
 	else
 		headp=&globals;
 
@@ -4444,11 +4446,12 @@ char *pbx_builtin_getvar_helper(struct ast_channel *chan, char *name) {
 	return NULL;
 }
 
-void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value) {
+void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value) 
+{
 	struct ast_var_t *newvariable;
-        struct varshead *headp;
-    if (chan)
-        headp=&chan->varshead;
+	struct varshead *headp;
+	if (chan)
+		headp=&chan->varshead;
 	else
 		headp=&globals;
                 
@@ -4526,7 +4529,8 @@ void pbx_builtin_clear_globals(void)
 	}
 }
 
-static int pbx_checkcondition(char *condition) {
+static int pbx_checkcondition(char *condition) 
+{
 	char *s;
 	int ret;
 	
@@ -4599,8 +4603,6 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
                    return -1;
 		}
 	}
-
-
 	return res = ast_say_number(chan, atoi((char *) tmp), "", chan->language, options);
 }
 
