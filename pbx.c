@@ -167,6 +167,7 @@ static int pbx_builtin_setlanguage(struct ast_channel *, void *);
 static int pbx_builtin_resetcdr(struct ast_channel *, void *);
 static int pbx_builtin_setaccount(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
+static int pbx_builtin_progress(struct ast_channel *, void *);
 static int pbx_builtin_congestion(struct ast_channel *, void *);
 static int pbx_builtin_busy(struct ast_channel *, void *);
 static int pbx_builtin_setglobalvar(struct ast_channel *, void *);
@@ -273,6 +274,11 @@ static struct pbx_builtin {
 "executed will be priority 4 of 5551212. If  you  switch  into an  extension\n"
 "which has no first step, the PBX will treat it as though the user dialed an\n"
 "invalid extension.\n" },
+
+	{ "Progress", pbx_builtin_progress,
+"Indicate progress",
+"  Progress(): Request that the channel indicate in-band progress is available to the user.\n"
+"Always returns 0.\n" },
 
 	{ "ResetCDR", pbx_builtin_resetcdr,
 "Resets the Call Data Record",
@@ -4201,6 +4207,12 @@ static void wait_for_hangup(struct ast_channel *chan)
 		if (f)
 			ast_frfree(f);
 	} while(f);
+}
+
+static int pbx_builtin_progress(struct ast_channel *chan, void *data)
+{
+	ast_indicate(chan, AST_CONTROL_PROGRESS);
+	return 0;
 }
 
 static int pbx_builtin_ringing(struct ast_channel *chan, void *data)
