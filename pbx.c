@@ -862,37 +862,65 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		else
 			*ret+=strlen(*ret)+offset;
 		(*ret)[offset2] = '\0';
-	} else if (c && !strcmp(var, "CALLERIDNUM")) {
-		if (c->cid.cid_num) {
-			strncpy(workspace, c->cid.cid_num, workspacelen - 1);
-			*ret = workspace;
-		} else
-			*ret = NULL;
-	} else if (c && !strcmp(var, "CALLERANI")) {
-		if (c->cid.cid_ani) {
-			strncpy(workspace, c->cid.cid_ani, workspacelen - 1);
-			*ret = workspace;
-		} else
-			*ret = NULL;
-	} else if (c && !strcmp(var, "CALLERIDNAME")) {
-		if (c->cid.cid_name) {
-			strncpy(workspace, c->cid.cid_name, workspacelen - 1);
-			*ret = workspace;
-		} else
-			*ret = NULL;
-	} else if (c && !strcmp(var, "CALLERID")) {
-		if (c->cid.cid_num) {
-			if (c->cid.cid_name) {
-				snprintf(workspace, workspacelen, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
-			} else {
-				strncpy(workspace, c->cid.cid_num, workspacelen - 1);
+	} else if (c && !strncmp(var, "CALL", 4)) {
+		if (!strncmp(var + 4, "ER", 2)) {
+			if (!strncmp(var + 6, "ID", 2)) {
+				if (!var[8]) {
+					/* CALLERID */
+					if (c->cid.cid_num) {
+						if (c->cid.cid_name) {
+							snprintf(workspace, workspacelen, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
+						} else {
+							strncpy(workspace, c->cid.cid_num, workspacelen - 1);
+						}
+						*ret = workspace;
+					} else if (c->cid.cid_name) {
+						strncpy(workspace, c->cid.cid_name, workspacelen - 1);
+						*ret = workspace;
+					} else
+						*ret = NULL;
+				} else if (!strcmp(var + 8, "NUM")) {
+					/* CALLERIDNUM */
+					if (c->cid.cid_num) {
+						strncpy(workspace, c->cid.cid_num, workspacelen - 1);
+						*ret = workspace;
+					} else
+						*ret = NULL;
+				} else if (!strcmp(var + 8, "NAME")) {
+					/* CALLERIDNAME */
+					if (c->cid.cid_name) {
+						strncpy(workspace, c->cid.cid_name, workspacelen - 1);
+						*ret = workspace;
+					} else
+						*ret = NULL;
+				}
+			} else if (!strcmp(var + 6, "ANI")) {
+				/* CALLERANI */
+				if (c->cid.cid_ani) {
+					strncpy(workspace, c->cid.cid_ani, workspacelen - 1);
+					*ret = workspace;
+				} else
+					*ret = NULL;
 			}
-			*ret = workspace;
-		} else if (c->cid.cid_name) {
-			strncpy(workspace, c->cid.cid_name, workspacelen - 1);
-			*ret = workspace;
-		} else
-			*ret = NULL;
+		} else if (!strncmp(var + 4, "ING", 3)) {
+			if (!strcmp(var + 7, "PRES")) {
+				/* CALLINGPRES */
+				snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
+				*ret = workspace;
+			} else if (!strcmp(var + 7, "ANI2")) {
+				/* CALLINGANI2 */
+				snprintf(workspace, workspacelen, "%d", c->cid.cid_ani2);
+				*ret = workspace;
+			} else if (!strcmp(var + 7, "TON")) {
+				/* CALLINGTON */
+				snprintf(workspace, workspacelen, "%d", c->cid.cid_ton);
+				*ret = workspace;
+			} else if (!strcmp(var + 7, "TNS")) {
+				/* CALLINGTNS */
+				snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
+				*ret = workspace;
+			}
+		}
 	} else if (c && !strcmp(var, "DNID")) {
 		if (c->cid.cid_dnid) {
 			strncpy(workspace, c->cid.cid_dnid, workspacelen - 1);
@@ -924,25 +952,13 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 	} else if (c && !strcmp(var, "PRIORITY")) {
 		snprintf(workspace, workspacelen, "%d", c->priority);
 		*ret = workspace;
-	} else if (c && !strcmp(var, "CALLINGPRES")) {
-		snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "CALLINGANI2")) {
-		snprintf(workspace, workspacelen, "%d", c->cid.cid_ani2);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "CALLINGTON")) {
-		snprintf(workspace, workspacelen, "%d", c->cid.cid_ton);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "CALLINGTNS")) {
-		snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
-		*ret = workspace;
 	} else if (c && !strcmp(var, "CHANNEL")) {
 		strncpy(workspace, c->name, workspacelen - 1);
 		*ret = workspace;
-	} else if (c && !strcmp(var, "EPOCH")) {
+	} else if (!strcmp(var, "EPOCH")) {
 		snprintf(workspace, workspacelen, "%u",(int)time(NULL));
 		*ret = workspace;
-	} else if (c && !strcmp(var, "DATETIME")) {
+	} else if (!strcmp(var, "DATETIME")) {
 		thistime=time(NULL);
 		localtime_r(&thistime, &brokentime);
 		snprintf(workspace, workspacelen, "%02d%02d%04d-%02d:%02d:%02d",
@@ -954,7 +970,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			brokentime.tm_sec
 		);
 		*ret = workspace;
-	} else if (c && !strcmp(var, "TIMESTAMP")) {
+	} else if (!strcmp(var, "TIMESTAMP")) {
 		thistime=time(NULL);
 		localtime_r(&thistime, &brokentime);
 		/* 20031130-150612 */
