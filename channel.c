@@ -1873,7 +1873,7 @@ static int ast_do_masquerade(struct ast_channel *original)
 	/* We need the clone's lock, too */
 	ast_pthread_mutex_lock(&clone->lock);
 
-	ast_log(LOG_DEBUG, "Got clone lock on '%s'\n", clone->name);
+	ast_log(LOG_DEBUG, "Got clone lock on '%s' at %p\n", clone->name, &clone->lock);
 
 	/* Having remembered the original read/write formats, we turn off any translation on either
 	   one */

@@ -297,7 +297,7 @@ static int local_hangup(struct ast_channel *ast)
 		/* Need to actually hangup since there is no PBX */
 		ochan = p->chan;
 	else
-		local_queue_frame(p, isoutbound, &f, ast);
+		local_queue_frame(p, isoutbound, &f, NULL);
 	ast_pthread_mutex_unlock(&p->lock);
 	if (ochan)
 		ast_hangup(ochan);
