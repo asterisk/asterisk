@@ -124,12 +124,11 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define MAX 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect, int *sentringing)
 {
 	struct localuser *o;
 	int found;
 	int numlines;
-	int sentringing = 0;
 	int numbusies = 0;
 	int orig = *to;
 	struct ast_frame *f;
@@ -137,8 +136,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	struct ast_channel *watchers[MAX];
 	int pos;
 	int single;
-	int moh=0;
-	int ringind=0;
 	struct ast_channel *winner;
 	
 	single = (outgoing && !outgoing->next && !outgoing->musiconhold && !outgoing->ringbackonly);
@@ -150,16 +147,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		ast_channel_make_compatible(outgoing->chan, in);
 	}
 	
-	if (outgoing) {
-		moh = outgoing->musiconhold;
-		ringind = outgoing->ringbackonly;
-		if (outgoing->musiconhold) {
-			ast_moh_start(in, NULL);
-		} else if (outgoing->ringbackonly) {
-			ast_indicate(in, AST_CONTROL_RINGING);
-			sentringing++;
-		}
-	}
 	
 	while(*to && !peer) {
 		o = outgoing;
@@ -188,12 +175,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					ast_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time\n");
 			}
 			*to = 0;
-			/* if no one available we'd better stop MOH/ringing to */
-			if (moh) {
-				ast_moh_stop(in);
-			} else if (sentringing) {
-				ast_indicate(in, -1);
-			}
 			return NULL;
 		}
 		winner = ast_waitfor_n(watchers, pos, to);
@@ -321,9 +302,9 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_RINGING:
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", o->chan->name);
-							if (!sentringing && !moh) {
+							if (!*sentringing && !outgoing->musiconhold) {
 								ast_indicate(in, AST_CONTROL_RINGING);
-								sentringing++;
+								*sentringing++;
 							}
 							break;
 						case AST_CONTROL_PROGRESS:
@@ -335,11 +316,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							/* Ignore going off hook */
 							break;
 						case -1:
-							if (!ringind && !moh) {
+							if (!outgoing->ringbackonly && !outgoing->musiconhold) {
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
 								ast_indicate(in, -1);
-								sentringing = 0;
+								*sentringing = 0;
 							}
 							break;
 						default:
@@ -393,11 +374,6 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 		if (!*to && (option_verbose > 2))
 			ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
 	}
-	if (moh) {
-		ast_moh_stop(in);
-	} else if (sentringing) {
-		ast_indicate(in, -1);
-	}
 
 	return peer;
 	
@@ -445,7 +421,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	char sdtmfdata[256] = "";
 	char *stack,*var;
 	int play_to_caller=0,play_to_callee=0;
-	int playargs=0;
+	int playargs=0, sentringing=0, moh=0;
 	int digit = 0;
 
 	if (!data) {
@@ -840,7 +816,17 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Invalid timeout specified: '%s'\n", timeout);
 	} else
 		to = -1;
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect);
+
+	if (outgoing->musiconhold) {
+		moh=1;
+		ast_moh_start(chan, NULL);
+	} else if (outgoing->ringbackonly) {
+		ast_indicate(chan, AST_CONTROL_RINGING);
+		sentringing++;
+	}
+
+	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect, &sentringing);
+
 	if (!peer) {
 		if (to) 
 			/* Musta gotten hung up */
@@ -917,6 +903,13 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			config.warning_sound = warning_sound;
 			config.end_sound = end_sound;
 			config.start_sound = start_sound;
+			if (moh) {
+				moh = 0;
+				ast_moh_stop(chan);
+			} else if (sentringing) {
+				sentringing = 0;
+				ast_indicate(chan, -1);
+			}
 			res = ast_bridge_call(chan,peer,&config);
 		} else 
 			res = -1;
@@ -928,6 +921,13 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		}
 	}	
 out:
+	if (moh) {
+		moh = 0;
+		ast_moh_stop(chan);
+	} else if (sentringing) {
+		sentringing = 0;
+		ast_indicate(chan, -1);
+	}
 	hanguptree(outgoing, NULL);
 	LOCAL_USER_REMOVE(u);
 	
