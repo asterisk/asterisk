@@ -237,8 +237,8 @@ bininstall: all
 	else \
 		mkdir -p $(ASTSPOOLDIR)/voicemail/default; \
 		rm -f $(ASTSPOOLDIR)/vm; \
-		ln -s $(ASTSPOOLDIR)/voicemail/default $(ASTSPOOLDIR)/vm; \
 	fi
+	ln -s $(ASTSPOOLDIR)/voicemail/default $(ASTSPOOLDIR)/vm
 	rm -f $(ASTMODULESDIR)/chan_ixj.so
 	rm -f $(ASTMODULESDIR)/chan_tor.so
 	mkdir -p $(ASTVARLIBDIR)/sounds
