@@ -964,7 +964,7 @@ zapretry:
 			}
 
 			/* trying to add moh for single person conf */
-			if ((confflags & CONFFLAG_MOH) && !( confflags & CONFFLAG_WAITMARKED)) {
+			if (confflags & CONFFLAG_MOH)  {
 				if (conf->users == 1) {
 					if (musiconhold == 0) {
 						ast_moh_start(chan, NULL);
@@ -979,7 +979,7 @@ zapretry:
 			}
 			
 			/* Leave if the last marked user left */
-			if (currentmarked == 0 && (confflags & CONFFLAG_MARKEDEXIT)) {
+			if (currentmarked == 0 && lastmarked != 0 && (confflags & CONFFLAG_MARKEDEXIT)) {
 				ret = -1;
 				break;
 			}
