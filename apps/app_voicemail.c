@@ -1437,12 +1437,6 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			free_user(vmu);
 			return 0;
 		}
-		if (res >= 0) {
-			/* Unless we're *really* silent, try to send the beep */
-			res = ast_streamfile(chan, "beep", chan->language);
-			if (!res)
-				res = ast_waitstream(chan, "");
-		}
 		if (res < 0) {
 			free_user(vmu);
 			return -1;
@@ -1457,6 +1451,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					break;
 				msgnum++;
 			} while (msgnum < MAXMSG);
+			if (res >= 0) {
+				/* Unless we're *really* silent, try to send the beep */
+				res = ast_streamfile(chan, "beep", chan->language);
+				if (!res)
+					res = ast_waitstream(chan, "");
+			}
 			if (msgnum < MAXMSG) {
 				/* Store information */
 				snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
