@@ -2789,6 +2789,13 @@ static int transmit_invite(struct sip_pvt *p, char *cmd, int sdp, char *auth, ch
 		
 	if (auth)
 		add_header(&req, authheader, auth);
+
+	if (!strcasecmp(cmd, "REFER")) {
+		if (strlen(p->refer_to))
+			add_header(&req, "Refer-To", p->refer_to);
+		if (strlen(p->referred_by))
+			add_header(&req, "Referred-By", p->referred_by);
+	}
 	
 	if (distinctive_ring)
 	{
@@ -3104,9 +3111,14 @@ static int transmit_refer(struct sip_pvt *p, char *dest)
 		snprintf(referto, sizeof(referto), "<sip:%s>", dest);
 	}
 
+	/* save in case we get 407 challenge */
+	strncpy(p->refer_to, referto, sizeof(p->refer_to) - 1); 
+	strncpy(p->referred_by, p->our_contact, sizeof(p->referred_by) - 1); 
+
 	reqprep(&req, p, "REFER", 0);
 	add_header(&req, "Refer-To", referto);
-	add_header(&req, "Referred-By", callerid);
+	if (strlen(p->our_contact))
+		add_header(&req, "Referred-By", p->our_contact);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
@@ -4027,7 +4039,7 @@ static int check_user(struct sip_pvt *p, struct sip_request *req, char *cmd, cha
 				}
 				p->canreinvite = peer->canreinvite;
 				if (strlen(peer->username))
-				strncpy(p->username, peer->name, sizeof(p->username) - 1);
+					strncpy(p->username, peer->username, sizeof(p->username) - 1);
 				strncpy(p->peername, peer->name, sizeof(p->peername) - 1);
 				if (strlen(peer->context))
 					strncpy(p->context, peer->context, sizeof(p->context) - 1);
@@ -4761,12 +4773,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
-			} else if (!strcasecmp(msg, "BYE")) {
+			} else if (!strcasecmp(msg, "BYE") || !strcasecmp(msg, "REFER")) {
 				if (!strlen(p->peername))
-					ast_log(LOG_WARNING, "Asked to authenticate BYE, to %s:%d but we have no matching peer!\n",
-							inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", "BYE", 0)) {
-					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
+					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
+							msg, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", msg, 0)) {
+					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
 			} else if (p->registry && !strcasecmp(msg, "REGISTER")) {
@@ -4840,12 +4852,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				transmit_request(p, "ACK", seqno, 0);
 			break;
 		case 407:
-			if (!strcasecmp(msg, "BYE")) {
+			if (!strcasecmp(msg, "BYE") || !strcasecmp(msg, "REFER")) {
 				if (!strlen(p->peername))
-					ast_log(LOG_WARNING, "Asked to authenticate BYE, to %s:%d but we have no matching peer!\n",
-							inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", "BYE", 0)) {
-					ast_log(LOG_NOTICE, "Failed to authenticate on BYE to '%s'\n", get_header(&p->initreq, "From"));
+					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
+							msg, inet_ntoa(p->recv.sin_addr), ntohs(p->recv.sin_port));
+				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", msg, 0)) {
+					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					p->needdestroy = 1;
 				}
 			}
