@@ -462,6 +462,9 @@ struct ast_frame *ast_read(struct ast_channel *chan);
  */
 int ast_write(struct ast_channel *chan, struct ast_frame *frame);
 
+/* Send empty audio to prime a channel driver */
+int ast_prod(struct ast_channel *chan);
+
 //! Sets read format on channel chan
 /*! 
  * \param chan channel to change

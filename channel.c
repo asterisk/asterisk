@@ -726,6 +726,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 		chan->generator->release(chan, chan->generatordata);
 		chan->generatordata = NULL;
 	}
+	ast_prod(chan);
 	if ((chan->generatordata = gen->alloc(chan, params))) {
 		chan->generator = gen;
 	} else {
@@ -1206,6 +1207,18 @@ static int do_senddigit(struct ast_channel *chan, char digit)
 			ast_log(LOG_WARNING, "Unable to handle DTMF tone '%c' for '%s'\n", digit, chan->name);
 			return -1;
 		}
+	}
+	return 0;
+}
+
+int ast_prod(struct ast_channel *chan)
+{
+	struct ast_frame a = { AST_FRAME_VOICE };
+	char nothing[128];
+	/* Send an empty audio frame to get things moving */
+	if (chan->_state != AST_STATE_UP) {
+		a.subclass = chan->pvt->rawwriteformat;
+		a.data = nothing + AST_FRIENDLY_OFFSET;
 	}
 	return 0;
 }
