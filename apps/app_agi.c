@@ -1476,6 +1476,8 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 
 static int agi_exec(struct ast_channel *chan, void *data)
 {
+	if (chan->_softhangup)
+		ast_log(LOG_WARNING, "If you want to run AGI on hungup channels you should use DeadAGI!\n");
 	return agi_exec_full(chan, data, 0, 0);
 }
 
@@ -1483,6 +1485,8 @@ static int eagi_exec(struct ast_channel *chan, void *data)
 {
 	int readformat;
 	int res;
+	if (chan->_softhangup)
+		ast_log(LOG_WARNING, "If you want to run AGI on hungup channels you should use DeadAGI!\n");
 	readformat = chan->readformat;
 	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set channel '%s' to linear mode\n", chan->name);
