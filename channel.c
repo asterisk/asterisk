@@ -2478,12 +2478,12 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 		res = ast_waitstream(chan, "");
 		if (min) {
 			res = ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, (char *) NULL);
-			res = ast_streamfile(chan, "minutes", chan->language);
+			res = ast_streamfile(chan, "queue-minutes", chan->language);
 			res = ast_waitstream(chan, "");
 		}
 		if (sec) {
 			res = ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, (char *) NULL);
-			res = ast_streamfile(chan, "seconds", chan->language);
+			res = ast_streamfile(chan, "queue-seconds", chan->language);
 			res = ast_waitstream(chan, "");
 		}
 	} else {
