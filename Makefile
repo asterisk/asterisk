@@ -38,6 +38,7 @@ OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1
 OPTIONS+=-fomit-frame-pointer
 endif
 
+MPG123TARG=linux
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
@@ -142,11 +143,13 @@ CFLAGS+=$(shell if test ${OSVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi
 LIBS+=$(shell if test  ${OSVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
 INCLUDE+=-I/usr/local/include
 CFLAGS+=$(shell if [ -d /usr/local/include/spandsp ]; then echo "-I/usr/local/include/spandsp"; fi)
+MPG123TARG=freebsd
 endif # FreeBSD
 
 ifeq (${OSARCH},NetBSD)
 CFLAGS+=-pthread
 INCLUDE+=-I/usr/local/include -I/usr/pkg/include
+MPG123TARG=netbsd
 endif
 
 ifeq (${OSARCH},OpenBSD)
@@ -307,7 +310,7 @@ clean:
 	rm -f build.h 
 	rm -f ast_expr.c
 	@if [ -e editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
-	@if [ -d mpg123-0.59r ]; then make -C mpg123-0.59r clean; fi
+	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi	
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
 
@@ -405,7 +408,7 @@ bininstall: all
 	fi 
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
-	if [ -f mpg123-0.59r/mpg123 ]; then make -C mpg123-0.59r install; fi
+	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
 	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
@@ -518,7 +521,7 @@ mpg123:
 	@wget -V >/dev/null || (echo "You need wget" ; false )
 	[ -f mpg123-0.59r.tar.gz ] || wget http://www.mpg123.de/mpg123/mpg123-0.59r.tar.gz
 	[ -d mpg123-0.59r ] || tar xfz mpg123-0.59r.tar.gz
-	make -C mpg123-0.59r linux
+	$(MAKE) -C mpg123-0.59r $(MPG123TARG)
 
 config:
 	if [ -d /etc/rc.d/init.d ]; then \
@@ -542,7 +545,7 @@ depend: .depend
 FORCE:
 
 %_env:
-	make -C $(shell echo $@ | sed "s/_env//g") env
+	$(MAKE) -C $(shell echo $@ | sed "s/_env//g") env
 
 env:
 	env
