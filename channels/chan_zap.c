@@ -2511,7 +2511,7 @@ static int zt_ring_phone(struct zt_pvt *p)
 
 static void *ss_thread(void *data);
 
-static struct ast_channel *zt_new(struct zt_pvt *, int, int, int, int);
+static struct ast_channel *zt_new(struct zt_pvt *, int, int, int, int, int);
 
 static int attempt_transfer(struct zt_pvt *p)
 {
@@ -3018,7 +3018,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									(ast->_state == AST_STATE_RING)) {
 								if (!alloc_sub(p, SUB_THREEWAY)) {
 									/* Make new channel */
-									chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0);
+									chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
 									/* Swap things around between the three-way and real call */
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
 									/* Disable echo canceller for better dialing */
@@ -3727,7 +3727,34 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 	return res;
 }
 
-static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int index, int law)
+#ifdef ZAPATA_PRI
+static void set_calltype(struct ast_channel *chan, int ctype)
+{
+	char *s = "UNKNOWN";
+	switch(ctype) {
+	case PRI_TRANS_CAP_SPEECH:
+		s = "SPEECH";
+		break;
+	case PRI_TRANS_CAP_DIGITAL:
+		s = "DIGITAL";
+		break;
+	case PRI_TRANS_CAP_RESTRICTED_DIGITAL:
+		s = "RESTRICTED_DIGITAL";
+		break;
+	case PRI_TRANS_CAP_3_1K_AUDIO:
+		s = "31KAUDIO";
+		break;
+	case PRI_TRANS_CAP_7K_AUDIO:
+		s = "7KAUDIO";
+		break;
+	case PRI_TRANS_CAP_VIDEO:
+		s = "VIDEO";
+		break;
+	}
+	pbx_builtin_setvar_helper(chan, "CALLTYPE", s);
+}
+#endif
+static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int index, int law, int ctype)
 {
 	struct ast_channel *tmp;
 	int deflaw;
@@ -3853,6 +3880,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		tmp->restrictcid = i->restrictcid;
 		tmp->callingpres = i->callingpres;
 #ifdef ZAPATA_PRI
+		set_calltype(tmp, ctype);
 		/* Assume calls are not idle calls unless we're told differently */
 		i->isidlecall = 0;
 		i->alreadyhungup = 0;
@@ -4560,7 +4588,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				zt_enable_ec(i);
 				/* The channel is immediately up.  Start right away */
 				res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
-				chan = zt_new(i, AST_STATE_RING, 1, SUB_REAL, 0);
+				chan = zt_new(i, AST_STATE_RING, 1, SUB_REAL, 0, 0);
 				if (!chan) {
 					ast_log(LOG_WARNING, "Unable to start PBX on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
@@ -4569,7 +4597,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 				}
 			} else {
 				/* Check for callerid, digits, etc */
-				chan = zt_new(i, AST_STATE_RESERVED, 0, SUB_REAL, 0);
+				chan = zt_new(i, AST_STATE_RESERVED, 0, SUB_REAL, 0, 0);
 				if (chan) {
 					if (has_voicemail(i))
 #ifdef ZT_TONE_STUTTER
@@ -4611,7 +4639,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_SF_FEATB:
 		case SIG_SF:
 				/* Check for callerid, digits, etc */
-				chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0);
+				chan = zt_new(i, AST_STATE_RING, 0, SUB_REAL, 0, 0);
 				if (pthread_create(&threadid, &attr, ss_thread, chan)) {
 					ast_log(LOG_WARNING, "Unable to start simple switch thread on channel %d\n", i->channel);
 					res = tone_zone_play_tone(i->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
@@ -5527,7 +5555,7 @@ static struct ast_channel *zt_request(char *type, int format, void *data)
 				}
 			}
 			p->outgoing = 1;
-			tmp = zt_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0);
+			tmp = zt_new(p, AST_STATE_RESERVED, 0, p->owner ? SUB_CALLWAIT : SUB_REAL, 0, 0);
 			/* Make special notes */
 			if (res > 1) {
 				if (opt == 'c') {
@@ -6061,7 +6089,7 @@ static void *pri_dchannel(void *vpri)
 						/* Get the use_callingpres state */
 						pri->pvt[chan]->callingpres = e->ring.callingpres;
 						/* Start PBX */
-						c = zt_new(pri->pvt[chan], AST_STATE_RING, 1, SUB_REAL, law);
+						c = zt_new(pri->pvt[chan], AST_STATE_RING, 1, SUB_REAL, law, e->ring.ctype);
 						if (c) {
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Accepting call from '%s' to '%s' on channel %d, span %d\n",

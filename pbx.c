@@ -2342,8 +2342,7 @@ static char *complete_show_application(char *line, char *word,
 static int handle_show_application(int fd, int argc, char *argv[])
 {
 	struct ast_app *a;
-	int n, app, no_registered_app = 1;
-	char *buf;
+	int app, no_registered_app = 1;
 
 	if (argc < 3) return RESULT_SHOWUSAGE;
 
@@ -2360,19 +2359,46 @@ static int handle_show_application(int fd, int argc, char *argv[])
 		 * to 'show application' command ... */
 		for (app = 2; app < argc; app++) {
 			if (!strcasecmp(a->name, argv[app])) {
+				/* Maximum number of characters added by terminal coloring is 22 */
+				char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40];
+				char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL;
+				int synopsis_size, description_size;
+
 				no_registered_app = 0;
 
-				/* ... one of our applications, show info ...*/
-				n = asprintf(&buf,
-					"\n  -= Info about application '%s' =- \n\n"
-					"[Synopsis]:\n  %s\n\n"
-					"[Description]:\n%s\n",
-					a->name,
-					a->synopsis ? a->synopsis : "Not available",
-					a->description ? a-> description : "Not available");
-				if (n >= 0) {
-					ast_cli(fd, buf);
-					free(buf);
+				if (a->synopsis)
+					synopsis_size = strlen(a->synopsis) + 23;
+				else
+					synopsis_size = strlen("Not available") + 23;
+				synopsis = alloca(synopsis_size);
+
+				if (a->description)
+					description_size = strlen(a->description) + 23;
+				else
+					description_size = strlen("Not available") + 23;
+				description = alloca(description_size);
+
+				if (synopsis && description) {
+					snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about application '%s' =- \n\n", a->name);
+					term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + AST_MAX_APP + 22);
+					term_color(syntitle, "[Synopsis]:\n", COLOR_MAGENTA, 0, 40);
+					term_color(destitle, "[Description]:\n", COLOR_MAGENTA, 0, 40);
+					term_color(synopsis,
+									a->synopsis ? a->synopsis : "Not available",
+									COLOR_CYAN, 0, synopsis_size);
+					term_color(description,
+									a->description ? a->description : "Not available",
+									COLOR_CYAN, 0, description_size);
+
+					ast_cli(fd,"%s%s%s\n\n%s%s\n", infotitle, syntitle, synopsis, destitle, description);
+				} else {
+					/* ... one of our applications, show info ...*/
+					ast_cli(fd,"\n  -= Info about application '%s' =- \n\n"
+						"[Synopsis]:\n  %s\n\n"
+						"[Description]:\n%s\n",
+						a->name,
+						a->synopsis ? a->synopsis : "Not available",
+						a->description ? a->description : "Not available");
 				}
 			}
 		}

@@ -21,6 +21,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <pthread.h>
+
 #include <asterisk/sched.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -39,6 +41,7 @@ struct sched {
 };
 
 struct sched_context {
+	ast_mutex_t lock;
 	/* Number of events processed */
 	int eventcnt;
 
@@ -60,6 +63,7 @@ struct sched_context *sched_context_create(void)
 	struct sched_context *tmp;
 	tmp = malloc(sizeof(struct sched_context));
 	if (tmp) {
+		ast_mutex_init(&tmp->lock);
 		tmp->eventcnt = 1;
 		tmp->schedcnt = 0;
 		tmp->schedq = NULL;
@@ -74,6 +78,7 @@ struct sched_context *sched_context_create(void)
 void sched_context_destroy(struct sched_context *con)
 {
 	struct sched *s, *sl;
+	ast_mutex_lock(&con->lock);
 #ifdef SCHED_MAX_CACHE
 	/* Eliminate the cache */
 	s = con->schedc;
@@ -91,6 +96,7 @@ void sched_context_destroy(struct sched_context *con)
 		free(sl);
 	}
 	/* And the context */
+	ast_mutex_unlock(&con->lock);
 	free(con);
 }
 
@@ -138,16 +144,19 @@ int ast_sched_wait(struct sched_context *con)
 	struct timeval tv;
 	int ms;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_wait()\n"));
-	if (!con->schedq)
-		return -1;
-	if (gettimeofday(&tv, NULL) < 0) {
+	ast_mutex_lock(&con->lock);
+	if (!con->schedq) {
+		ms = -1;
+	} else if (gettimeofday(&tv, NULL) < 0) {
 		/* This should never happen */
-		return 0;
-	};
-	ms = (con->schedq->when.tv_sec - tv.tv_sec) * 1000;
-	ms += (con->schedq->when.tv_usec - tv.tv_usec) / 1000;
-	if (ms < 0)
 		ms = 0;
+	} else {
+		ms = (con->schedq->when.tv_sec - tv.tv_sec) * 1000;
+		ms += (con->schedq->when.tv_usec - tv.tv_usec) / 1000;
+		if (ms < 0)
+			ms = 0;
+	}
+	ast_mutex_unlock(&con->lock);
 	return ms;
 	
 }
@@ -223,11 +232,13 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 	 * Schedule callback(data) to happen when ms into the future
 	 */
 	struct sched *tmp;
+	int res = -1;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_add()\n"));
 	if (!when) {
 		ast_log(LOG_NOTICE, "Scheduled event in 0 ms?\n");
 		return -1;
 	}
+	ast_mutex_lock(&con->lock);
 	if ((tmp = sched_alloc(con))) {
 		tmp->id = con->eventcnt++;
 		tmp->callback = callback;
@@ -237,12 +248,13 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 		tmp->when.tv_usec = 0;
 		if (sched_settime(&tmp->when, when)) {
 			sched_release(con, tmp);
-			return -1;
-		} else
+		} else {
 			schedule(con, tmp);
-	} else 
-		return -1;
-	return tmp->id;
+			res = tmp->id;
+		}
+	}
+	ast_mutex_lock(&con->lock);
+	return res;
 }
 
 int ast_sched_del(struct sched_context *con, int id)
@@ -255,6 +267,7 @@ int ast_sched_del(struct sched_context *con, int id)
 	 */
 	struct sched *last=NULL, *s;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_del()\n"));
+	ast_mutex_lock(&con->lock);
 	s = con->schedq;
 	while(s) {
 		if (s->id == id) {
@@ -264,16 +277,20 @@ int ast_sched_del(struct sched_context *con, int id)
 				con->schedq = s->next;
 			con->schedcnt--;
 			sched_release(con, s);
-			return 0;
+			break;
 		}
 		last = s;
 		s = s->next;
 	}
-	ast_log(LOG_NOTICE, "Attempted to delete non-existant schedule entry %d!\n", id);
+	ast_mutex_unlock(&con->lock);
+	if (!s) {
+		ast_log(LOG_NOTICE, "Attempted to delete non-existant schedule entry %d!\n", id);
 #ifdef DO_CRASH
-	CRASH;
+		CRASH;
 #endif
-	return -1;
+		return -1;
+	} else
+		return 0;
 }
 
 void ast_sched_dump(struct sched_context *con)
@@ -327,13 +344,14 @@ int ast_sched_runq(struct sched_context *con)
 	int x=0;
 	DEBUG(ast_log(LOG_DEBUG, "ast_sched_runq()\n"));
 		
+	ast_mutex_lock(&con->lock);
 	for(;;) {
 		if (!con->schedq)
 			break;
 		if (gettimeofday(&tv, NULL)) {
 			/* This should never happen */
 			ast_log(LOG_NOTICE, "gettimeofday() failed!\n");
-			return 0;
+			break;
 		}
 		/* We only care about millisecond accuracy anyway, so this will
 		   help us get more than one event at one time if they are very
@@ -369,5 +387,6 @@ int ast_sched_runq(struct sched_context *con)
 		} else
 			break;
 	}
+	ast_mutex_unlock(&con->lock);
 	return x;
 }
