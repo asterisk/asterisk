@@ -126,7 +126,7 @@ static char ourhost[256];
 static struct in_addr __ourip;
 static int ourport;
 
-static int sipdebug = 1;
+static int sipdebug = 0;
 
 static int tos = 0;
 
