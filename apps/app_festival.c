@@ -409,9 +409,8 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 		if (strcmp(ack,"WV\n") == 0) {         /* receive a waveform */
 			ast_log(LOG_WARNING,"Festival WV command");
 			waveform = socket_receive_file_to_buff(fd,&filesize);
-			send_waveform_to_channel(chan,waveform,filesize, intstr);
+			res = send_waveform_to_channel(chan,waveform,filesize, intstr);
 			free(waveform);
-			res=0;
 			break;
 		}
 		else if (strcmp(ack,"LP\n") == 0) {   /* receive an s-expr */
