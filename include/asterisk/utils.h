@@ -16,6 +16,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <asterisk/lock.h>
+#include <limits.h>
 
 #define ast_test_flag(p,flag) 		((p)->flags & (flag))
 
@@ -28,6 +29,8 @@
 
 #define ast_set2_flag(p,value,flag)	((value) ? ast_set_flag(p,flag) : ast_clear_flag(p,flag))	
 
+#define AST_FLAGS_ALL UINT_MAX
+
 static inline int ast_strlen_zero(const char *s)
 {
 	return (*s == '\0');
@@ -39,7 +42,7 @@ struct ast_hostent {
 };
 
 struct ast_flags {
-	int flags;
+	unsigned int flags;
 };
 
 extern char *ast_strip(char *buf);
