@@ -13,6 +13,8 @@ Asterisk 1.0.7
     -- A check has been added to avoid a crash.
  -- app_voicemail
     -- Some checks have been added to avoid a crash.
+ -- speex
+    -- The path /usr/include/speex has been added for a place to look for the speex header.
 
 Asterisk 1.0.6
 
