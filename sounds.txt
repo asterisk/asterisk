@@ -399,3 +399,4 @@
 %vm-forwardoptions.gsm%press 1 to prepend a message or 2 to forward the
  message without prepending
 
+%vm-mailboxfull.gsm%sorry but the users mail box can't accept more messages
