@@ -132,11 +132,23 @@ cancallforward=yes
 ;
 callreturn=yes
 ;
-; Stutter dialtone support: If a mailbox is specified, then when voicemail
-; is received in that mailbox, taking the phone off hook will cause
-; a stutter dialtone instead of a normal one
+; Stutter dialtone support: If a mailbox is specified without a voicemail 
+; context, then when voicemail is received in a mailbox in the default 
+; voicemail context in voicemail.conf, taking the phone off hook will 
+; cause a stutter dialtone instead of a normal one. 
+;
+; If a mailbox is specified *with* a voicemail context, the same will 
+; result if voicemail recieved in mailbox in the specified voicemail 
+; context
+;
+; for default voicemail context, the example below is fine:
 ;
 ;mailbox=1234
+;
+; for any other voicemail context, the following will produce the 
+; stutter tone:
+;
+;mailbox=1234@context 
 ;
 ; Enable echo cancellation 
 ; Use either "yes", "no", or a power of two from 32 to 256 if you wish
