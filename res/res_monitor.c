@@ -386,6 +386,20 @@ static int change_monitor_exec(struct ast_channel *chan, void *data)
 	return ast_monitor_change_fname(chan, (const char*)data, 1);
 }
 
+static char start_monitor_action_help[] =
+"Description: The 'Monitor' action may be used to record the audio on a\n"
+"  specified channel.  The following parameters may be used to control\n"
+"  this:\n"
+"  Channel     - Required.  Used to specify the channel to record.\n"
+"  File        - Optional.  Is the name of the file created in the\n"
+"                monitor spool directory.  Defaults to the same name\n"
+"                as the channel (with slashes replaced with dashes).\n"
+"  Format      - Optional.  Is the audio recording format.  Defaults\n"
+"                to \"wav\".\n"
+"  Mix         - Optional.  Boolean parameter as to whether to mix\n"
+"                the input and output channels together after the\n"
+"                recording is finished.\n";
+
 static int start_monitor_action(struct mansession *s, struct message *m)
 {
 	struct ast_channel *c = NULL;
@@ -443,6 +457,11 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char stop_monitor_action_help[] =
+"Description: The 'StopMonitor' action may be used to end a previously\n"
+"  started 'Monitor' action.  The only parameter is 'Channel', the name\n"
+"  of the channel monitored.\n";
+
 static int stop_monitor_action(struct mansession *s, struct message *m)
 {
 	struct ast_channel *c = NULL;
@@ -473,6 +492,14 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 	astman_send_ack(s, m, "Stopped monitoring channel");
 	return 0;
 }
+
+static char change_monitor_action_help[] =
+"Description: The 'ChangeMonitor' action may be used to change the file\n"
+"  started by a previous 'Monitor' action.  The following parameters may\n"
+"  be used to control this:\n"
+"  Channel     - Required.  Used to specify the channel to record.\n"
+"  File        - Required.  Is the new name of the file created in the\n"
+"                monitor spool directory.\n";
 
 static int change_monitor_action(struct mansession *s, struct message *m)
 {
@@ -520,9 +547,9 @@ int load_module(void)
 	ast_register_application("Monitor", start_monitor_exec, monitor_synopsis, monitor_descrip);
 	ast_register_application("StopMonitor", stop_monitor_exec, stopmonitor_synopsis, stopmonitor_descrip);
 	ast_register_application("ChangeMonitor", change_monitor_exec, changemonitor_synopsis, changemonitor_descrip);
-	ast_manager_register("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis);
-	ast_manager_register("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis);
-	ast_manager_register("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis);
+	ast_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
+	ast_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
+	ast_manager_register2("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis, change_monitor_action_help);
 
 	return 0;
 }
