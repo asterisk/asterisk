@@ -168,6 +168,7 @@ struct iax2_user {
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
 	int amaflags;
 	int hascallerid;
+	int capability;
 	int trunk;
 	char callerid[AST_MAX_EXTENSION];
 	struct ast_ha *ha;
@@ -2673,6 +2674,7 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 				strncpy(iaxs[callno]->username, user->name, sizeof(iaxs[callno]->username)-1);
 			/* Store whether this is a trunked call, too, of course, and move if appropriate */
 			iaxs[callno]->trunk = user->trunk;
+			iaxs[callno]->capability = user->capability;
 			/* And use the default context */
 			if (!strlen(iaxs[callno]->context)) {
 				if (user->contexts)
@@ -4036,23 +4038,23 @@ retryowner:
 						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, request '%s@%s' does not exist\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 					} else {
 						/* Select an appropriate format */
-						format = iaxs[fr.callno]->peerformat & iax2_capability;
+						format = iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability;
 						if (!format) {
-							format = iaxs[fr.callno]->peercapability & iax2_capability;
+							format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
 							if (!format) {
 								memset(&ied0, 0, sizeof(ied0));
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 								send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
-								ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iax2_capability);
+								ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 							} else {
 								/* Pick one... */
-								format = ast_best_codec(iaxs[fr.callno]->peercapability & iax2_capability);
+								format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
 								if (!format) {
 									memset(&ied0, 0, sizeof(ied0));
 									iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
-									ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iax2_capability);
+									ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
 									send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
-									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iax2_capability);
+									ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 									iaxs[fr.callno]->alreadygone = 1;
 									break;
 								}
@@ -4145,7 +4147,7 @@ retryowner:
 					if (iaxs[fr.callno]->owner)
 						iaxs[fr.callno]->peerformat = iaxs[fr.callno]->owner->nativeformats;
 					else
-						iaxs[fr.callno]->peerformat = iax2_capability;
+						iaxs[fr.callno]->peerformat = iaxs[fr.callno]->capability;
 				}
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Call accepted by %s (format %s)\n", inet_ntoa(iaxs[fr.callno]->addr.sin_addr), ast_getformatname(iaxs[fr.callno]->peerformat));
@@ -4284,21 +4286,21 @@ retryowner:
 					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				} else {
 					/* Select an appropriate format */
-					format = iaxs[fr.callno]->peerformat & iax2_capability;
+					format = iaxs[fr.callno]->peerformat & iaxs[fr.callno]->capability;
 					if (!format) {
 						ast_log(LOG_DEBUG, "We don't do requested format %s, falling back to peer capability %d\n", ast_getformatname(iaxs[fr.callno]->peerformat), iaxs[fr.callno]->peercapability);
-						format = iaxs[fr.callno]->peercapability & iax2_capability;
+						format = iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability;
 						if (!format) {
-							ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iax2_capability);
+							ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 							memset(&ied0, 0, sizeof(ied0));
 							iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 							send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 						} else {
 							/* Pick one... */
-							format = ast_best_codec(iaxs[fr.callno]->peercapability & iax2_capability);
+							format = ast_best_codec(iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
 							if (!format) {
-								ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iax2_capability);
-								ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iax2_capability);
+								ast_log(LOG_ERROR, "No best format in 0x%x???\n", iaxs[fr.callno]->peercapability & iaxs[fr.callno]->capability);
+								ast_log(LOG_NOTICE, "Rejected connect attempt from %s, requested/capability 0x%x/0x%x incompatible  with our capability 0x%x.\n", inet_ntoa(sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->peercapability, iaxs[fr.callno]->capability);
 								memset(&ied0, 0, sizeof(ied0));
 								iax_ie_append_str(&ied0, IAX_IE_CAUSE, "Unable to negotiate codec");
 								send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
@@ -4947,6 +4949,7 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 	user = (struct iax2_user *)malloc(sizeof(struct iax2_user));
 	if (user) {
 		memset(user, 0, sizeof(struct iax2_user));
+		user->capability = iax2_capability;
 		strncpy(user->name, name, sizeof(user->name)-1);
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
@@ -4961,6 +4964,18 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "permit") ||
 					   !strcasecmp(v->name, "deny")) {
 				user->ha = ast_append_ha(v->name, v->value, user->ha);
+			} else if (!strcasecmp(v->name, "allow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) 
+					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
+				else
+					user->capability |= format;
+			} else if (!strcasecmp(v->name, "disallow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) 
+					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
+				else
+					user->capability &= ~format;
 			} else if (!strcasecmp(v->name, "trunk")) {
 				user->trunk = ast_true(v->value);
 				if (user->trunk && (timingfd < 0)) {
