@@ -8251,7 +8251,9 @@ static int set_config(char *config_file, int reload)
 	v = ast_variable_browse(cfg, "general");
 	/* Reset Global Flags */
 	memset(&globalflags, 0, sizeof(globalflags));
+#ifdef SO_NO_CHECK
 	nochecksums = 0;
+#endif
 
 	while(v) {
 		if (!strcasecmp(v->name, "bindport")){ 
