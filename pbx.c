@@ -1183,6 +1183,41 @@ static char *builtin_function_exists(struct ast_channel *chan, char *cmd, char *
 	return cmd ? ret_true : ret_false;
 }
 
+static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	char *ret = NULL;
+	char *mydata = NULL;
+	char *expr = NULL;
+	char *iftrue = NULL;
+	char *iffalse = NULL;
+
+	if((mydata = ast_strdupa(data))) {
+		expr = mydata;
+		if ((iftrue = strchr(mydata, '?'))) {
+			*iftrue = '\0';
+			iftrue++;
+			if ((iffalse = strchr(iftrue, ':'))) {
+				*iffalse = '\0';
+				iffalse++;
+			}
+		} else 
+			iffalse = "";
+		if (expr && iftrue) {
+			ret = ast_true(expr) ? iftrue : iffalse;
+			strncpy(buf, ret, len);
+			ret = buf;
+		} else {
+			ast_log(LOG_WARNING, "Syntax $(if <expr>?[<truecond>][:<falsecond>])\n");
+			ret = NULL;
+		}
+	} else {
+		ast_log(LOG_WARNING, "Memory Error!\n");
+		ret = NULL;
+	}
+
+	return ret;
+}
+
 static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *ret_true = "1", *ret_false = "0", *ret;
@@ -3391,6 +3426,14 @@ static struct ast_custom_function_obj exists_function = {
     .syntax = "$(exists <data>)",
     .function = builtin_function_exists,
 };
+
+static struct ast_custom_function_obj if_function = {
+    .name = "if",
+    .desc = "Conditional: Returns the data following '?' if true else the data following ':'",
+    .syntax = "$(if <expr>?<true>:<false>)",
+    .function = builtin_function_if,
+};
+
 
 /*
  * CLI entries for upper commands ...
@@ -5766,6 +5809,7 @@ int load_pbx(void)
 	ast_custom_function_register(&regex_function);
 	ast_custom_function_register(&isnull_function);
 	ast_custom_function_register(&exists_function);
+	ast_custom_function_register(&if_function);
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
