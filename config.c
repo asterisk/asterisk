@@ -66,6 +66,7 @@ static void free_comments(struct ast_comment *com)
 	while (com) {
 		l = com;
 		com = com->next;
+		free(l->comment);
 		free(l);
 	}
 }
