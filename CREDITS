@@ -12,8 +12,10 @@ Telesthetic - for supporting SIP development
 Christos Ricudis - for substantial code contributions
 
 === WISHLIST CONTRIBUTERS ===
-Jeremy McNamera - SpeeX support
-
+Jeremy McNamara - SpeeX support
+Nick Seraphin - RDNIS support
+Gary - Phonejack ADSI (in progress)
+Wasim - Hangup detect
 
 === HARDWARE DONORS === 
 * Thanks to QuickNet Technologies for their donation of an Internet
@@ -21,6 +23,15 @@ PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 
 === MISCELLANEOUS PATCHES ===
 Oliver Daudey - ISDN4Linux fixes
+Pauline Middelink - ISDN4Linux patches and some general patches.
+       She can be found at http://www.polyware.nl/~middelink/En/
+Jean-Denis Girard - Various contributions from the South Pacific Islands
+       jd-girard@esoft.pf             http://www.esoft.pf
+Jac Kersing - Various fixes
+James Golovch - Various contributions
+       You can find him and asterisk-perl at http://asterisk.gnuinter.net
+Steven Critchfield - Seek and Trunc functions for playback and recording
+		critch@basesys.com
 
 === OTHER SOURCE CODE IN ASTERISK ===
 
