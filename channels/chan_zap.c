@@ -778,7 +778,8 @@ static int zt_open(char *fn)
 
 static void zt_close(int fd)
 {
-	close(fd);
+	if(fd > 0)
+		close(fd);
 }
 
 int zt_setlinear(int zfd, int linear)
@@ -6076,7 +6077,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		x = channels[y];
 		if (ioctl(fd, ZT_SPECIFY, &x)) {
 			ast_log(LOG_WARNING, "Failed to specify channel %d: %s\n", channels[y], strerror(errno));
-			close(fd);
+			zt_close(fd);
 			return -1;
 		}
 		if (ioctl(fd, ZT_GET_PARAMS, &p)) {
@@ -6085,18 +6086,18 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		}
 		if (ioctl(fd, ZT_SPANSTAT, &si)) {
 			ast_log(LOG_WARNING, "Failed go get span information on channel %d (span %d)\n", channels[y], p.spanno);
-			close(fd);
+			zt_close(fd);
 			return -1;
 		}
 		span = p.spanno - 1;
 		if (pris[span].trunkgroup) {
 			ast_log(LOG_WARNING, "Span %d is already provisioned for trunk group %d\n", span + 1, pris[span].trunkgroup);
-			close(fd);
+			zt_close(fd);
 			return -1;
 		}
 		if (pris[span].pvts[0]) {
 			ast_log(LOG_WARNING, "Span %d is already provisioned with channels (implicit PRI maybe?)\n", span + 1);
-			close(fd);
+			zt_close(fd);
 			return -1;
 		}
 		if (!y) {
@@ -6107,7 +6108,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 		pris[ospan].dchannels[y] = channels[y];
 		pris[ospan].dchanavail[y] |= DCHAN_PROVISIONED;
 		pris[span].span = span + 1;
-		close(fd);
+		zt_close(fd);
 	}
 	return 0;	
 }
@@ -7051,7 +7052,7 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 			else {
 				/* Looks good.  Drop the pseudo channel now, clear up the assignment, and
 				   wakeup the potential sleeper */
-				close(crv->subs[SUB_REAL].zfd);
+				zt_close(crv->subs[SUB_REAL].zfd);
 				pri->pvts[principle]->call = crv->call;
 				pri_assign_bearer(crv, pri, pri->pvts[principle]);
 				ast_log(LOG_DEBUG, "Assigning bearer %d/%d to CRV %d:%d\n",
@@ -8055,13 +8056,13 @@ static int start_pri(struct zt_pri *pri)
 		}
 		res = ioctl(pri->fds[i], ZT_GET_PARAMS, &p);
 		if (res) {
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "Unable to get parameters for D-channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
 		if (p.sigtype != ZT_SIG_HDLCFCS) {
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x);
 			return -1;
@@ -8069,7 +8070,7 @@ static int start_pri(struct zt_pri *pri)
 		memset(&si, 0, sizeof(si));
 		res = ioctl(pri->fds[i], ZT_SPANSTAT, &si);
 		if (res) {
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "Unable to get span state for D-channel %d (%s)\n", x, strerror(errno));
 		}
@@ -8083,7 +8084,7 @@ static int start_pri(struct zt_pri *pri)
 		bi.bufsize = 1024;
 		if (ioctl(pri->fds[i], ZT_SET_BUFINFO, &bi)) {
 			ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d\n", x);
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			return -1;
 		}
@@ -8096,7 +8097,7 @@ static int start_pri(struct zt_pri *pri)
 		if (i)
 			pri_enslave(pri->dchans[0], pri->dchans[i]);
 		if (!pri->dchans[i]) {
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "Unable to create PRI structure\n");
 			return -1;
@@ -8117,7 +8118,7 @@ static int start_pri(struct zt_pri *pri)
 		for (i=0;i<NUM_DCHANS;i++) {
 			if (!pri->dchannels[i])
 				break;
-			close(pri->fds[i]);
+			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 		}
 		ast_log(LOG_ERROR, "Unable to spawn D-channel: %s\n", strerror(errno));
