@@ -47,6 +47,11 @@ switchtype=national
 ; fxo_ks:  FXO (Kewl Start)
 ; pri_cpe: PRI signalling, CPE side
 ; pri_net: PRI signalling, Network side
+; sf:	      SF (Inband Tone) Signalling
+; sf_w:	      SF Wink
+; sf_featd:   SF Feature Group D (The fake, Adtran style, DTMF)
+; sf_featdmf: SF Feature Group D (The real thing, MF (domestic, US))
+; sf_featb:   SF Feature Group B (MF (domestic, US))
 ; The following are used for Radio interfaces:
 ; fxs_rx:  Receive audio/COR on an FXS kewlstart interface (FXO at the channel bank)
 ; fxs_tx:  Transmit audio/PTT on an FXS loopstart interface (FXO at the channel bank)
@@ -56,6 +61,10 @@ switchtype=national
 ; em_tx:   Transmit audio/PTT on an E&M interface (1-way)
 ; em_txrx: Receive audio/COR AND Transmit audio/PTT on an E&M interface (2-way)
 ; em_rxtx: same as em_txrx (for our dyslexic friends)
+; sf_rx:   Receive audio/COR on an SF interface (1-way)
+; sf_tx:   Transmit audio/PTT on an SF interface (1-way)
+; sf_txrx: Receive audio/COR AND Transmit audio/PTT on an SF interface (2-way)
+; sf_rxtx: same as sf_txrx (for our dyslexic friends)
 ;
 signalling=fxo_ls
 ;
