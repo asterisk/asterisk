@@ -133,7 +133,9 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 			;     determined by the password being the same as
 			;     the mailbox number.  The default is "no".
 ; forcegreetings=no	; This is the same as forcename, except for recording
-			;     greetings.  The default is "no".			
+			;     greetings.  The default is "no".
+; hidefromdir=yes	; Hide this mailbox from the directory produced by app_directory
+			;     The default is "no".
 
 [zonemessages]
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp

@@ -48,7 +48,7 @@ static char *descrip =
 /* For simplicity, I'm keeping the format compatible with the voicemail config,
    but i'm open to suggestions for isolating it */
 
-#define DIRECTORY_CONFIG "voicemail.conf"
+#define VOICEMAIL_CONFIG "voicemail.conf"
 
 /* How many digits to read in */
 #define NUMDIGITS 3
@@ -215,66 +215,59 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 
 static struct ast_config *realtime_directory(char *context)
 {
-	struct ast_config *cfg = NULL;
-	struct ast_variable *rtvar = NULL;
-	struct ast_category *cat = NULL;
-	char fullname[50] = "";
-	char mailbox[50] = "";
-	char tmp[100] = "";
-	int havename = 0;
-	int havemailbox = 0;
+	struct ast_config *cfg;
+	struct ast_config *rtdata;
+	struct ast_category *cat;
+	struct ast_variable *var;
+	char *mailbox;
+	char *fullname;
+	char *hidefromdir;
+	char tmp[100];
 
 	/* Load flat file config. */
-	cfg = ast_config_load(DIRECTORY_CONFIG);
+	cfg = ast_config_load(VOICEMAIL_CONFIG);
 
 	if (!cfg) {
-		/* Loading config failed. Even if config file doesn't exist, we should still have an ast_config. */
-		ast_log(LOG_WARNING, "Loading/Creating config failed.\n");
+		/* Loading config failed. */
+		ast_log(LOG_WARNING, "Loading config failed.\n");
 		return NULL;
 	}
 
-	/* Load RealTime voicemail users for this context. */
-	rtvar = ast_load_realtime("voicemail", "context", context, NULL);
+	/* Get realtime entries, categorized by their mailbox number
+	   and present in the requested context */
+	rtdata = ast_load_realtime_multientry("voicemail", "mailbox LIKE", "%", "context", context, NULL);
 
-	/* If we got nothing from RealTime, we can just return the Flatfile. */
-	if (!rtvar)
+	/* if there are no results, just return the entries from the config file */
+	if (!rtdata)
 		return cfg;
 
-	/* Does the context exist within the Flatfile? */
-	if (ast_category_exist(cfg, context)) {
-		/* If so, get a pointer to it so we can append RealTime variables to it. */
-		cat = ast_category_get(cfg, context);
-	} else {
-		/* If not, make a fresh one and append it to the master config. */
+	/* Does the context exist within the config file? If not, make one */
+	cat = ast_category_get(cfg, context);
+	if (!cat) {
 		cat = ast_category_new(context);
 		if (!cat) {
-			ast_log(LOG_WARNING, "Ran out of memory while creating new ast_category!\n");
+			ast_log(LOG_WARNING, "Out of memory\n");
 			ast_config_destroy(cfg);
 			return NULL;
 		}
 		ast_category_append(cfg, cat);
 	}
 
-	/* We now have a category: from the Flatfile or freshly created. */
-	while (rtvar) {
-		if (!strcasecmp(rtvar->name, "fullname")) {
-			strncpy(fullname, rtvar->value, sizeof(fullname)-1);
-			havename = 1;
-		} else if (!strcasecmp(rtvar->name, "mailbox")) {
-			strncpy(mailbox, rtvar->value, sizeof(mailbox)-1);
-			havemailbox = 1;
-		}
-
-		/* app_directory needs only mailbox and fullname. Fill password and email with dummy values. */
-		if (havemailbox && havename) {
-			sprintf(tmp, "9999,%s,email@email.com", fullname);
-			ast_variable_append(cat, ast_variable_new(mailbox, tmp));
-			havemailbox = 0;
-			havename = 0;
-		}
-
-		rtvar = rtvar->next;
+	mailbox = ast_category_browse(rtdata, NULL);
+	while (mailbox) {
+		fullname = ast_variable_retrieve(rtdata, mailbox, "fullname");
+		hidefromdir = ast_variable_retrieve(rtdata, mailbox, "hidefromdir");
+		snprintf(tmp, sizeof(tmp), "no-password,%s,hidefromdir=%s",
+			 fullname ? fullname : "",
+			 hidefromdir ? hidefromdir : "no");
+		var = ast_variable_new(mailbox, tmp);
+		if (var)
+			ast_variable_append(cat, var);
+		else
+			ast_log(LOG_WARNING, "Out of memory adding mailbox '%s'\n", mailbox);
+		mailbox = ast_category_browse(rtdata, mailbox);
 	}
+	ast_config_destroy(rtdata);
 
 	return cfg;
 }
@@ -336,7 +329,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 			while(v) {
 				/* Find a candidate extension */
 				start = strdup(v->value);
-				if (start) {
+				if (start && !strcasestr(start, "hidefromdir=yes")) {
 					stringp=start;
 					strsep(&stringp, ",");
 					pos = strsep(&stringp, ",");
@@ -435,10 +428,8 @@ top:
 		dialcontext = context;
 
 	cfg = realtime_directory(context);
-	if (!cfg) {
-		ast_log(LOG_WARNING, "Unable to open/create directory configuration %s\n", DIRECTORY_CONFIG);
+	if (!cfg)
 		return -1;
-	}
 
 	LOCAL_USER_ADD(u);
 
