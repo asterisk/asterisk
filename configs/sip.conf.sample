@@ -172,6 +172,23 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 								; same as the registration interval
 
 
+[authentication]
+; Global credentials for outbound calls, i.e. when a proxy challenges your
+; Asterisk server for authentication. These credentials override
+; any credentials in peer/register definition if realm is matched.
+;
+; This way, Asterisk can authenticate for outbound calls to other
+; realms. We match realm on the proxy challenge and pick an set of 
+; credentials from this list
+; Syntax:
+;	auth = <user>:<secret>@<realm>
+;	auth = <user>#<md5secret>@<realm>
+; Example:
+;auth=mark:topsecret@digium.com
+; 
+; You may also add auth= statements to [peer] definitions 
+; Peer auth= override all other authentication settings if we match on realm
+
 ;-----------------------------------------------------------------------------------
 ; Users and peers have different settings available. Friends have all settings,
 ; since a friend is both a peer and a user

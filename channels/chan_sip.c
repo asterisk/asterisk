@@ -291,9 +291,19 @@ struct sip_route {
 	char hop[0];
 };
 
+/* sip_history: Structure for saving transactions within a SIP dialog */
 struct sip_history {
 	char event[80];
 	struct sip_history *next;
+};
+
+/* sip_auth: Creadentials for authentication to other SIP services */
+struct sip_auth {
+	char realm[AST_MAX_EXTENSION];  /* Realm in which these credentials are valid */
+	char username[256];             /* Username */
+	char secret[256];               /* Secret */
+	char md5secret[256];            /* MD5Secret */
+	struct sip_auth *next;          /* Next auth structure in list */
 };
 
 #define SIP_ALREADYGONE		(1 << 0)	/* Whether or not we've already been destroyed by our peer */
@@ -410,6 +420,7 @@ static struct sip_pvt {
 	char okcontacturi[256];			/* URI from the 200 OK on INVITE */
 	char peersecret[256];			/* Password */
 	char peermd5secret[256];
+	struct sip_auth *peerauth;		/* Realm authentication */
 	char cid_num[256];			/* Caller*ID */
 	char cid_name[256];			/* Caller*ID */
 	char via[256];				/* Via: header */
@@ -505,6 +516,7 @@ struct sip_peer {
 					/* peer->name is the unique name of this object */
 	char secret[80];		/* Password */
 	char md5secret[80];		/* Password in MD5 */
+	struct sip_auth *auth;		/* Realm authentication list */
 	char context[80];		/* Default context for incoming calls */
 	char username[80];		/* Temporary username until registration */ 
 	char accountcode[20];		/* Account code */
@@ -630,6 +642,9 @@ static struct ast_ha *localaddr;
 /* The list of manual NOTIFY types we know how to send */
 struct ast_config *notify_types;
 
+static struct sip_auth *authl;          /* Authentication list */
+
+
 static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
@@ -667,6 +682,9 @@ static int sip_transfer(struct ast_channel *ast, char *dest);
 static int sip_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int sip_senddigit(struct ast_channel *ast, char digit);
 static int sip_sendtext(struct ast_channel *ast, char *text);
+static int clear_realm_authentication(struct sip_auth *authlist);                            /* Clear realm authentication list (at reload) */
+static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);   /* Add realm authentication in list */
+static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm);         /* Find authentication for a specific realm */
 
 /* Definition of this channel for channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -716,6 +734,7 @@ static inline int sip_debug_test_addr(struct sockaddr_in *addr)
 	return 1;
 }
 
+/*--- sip_debug_test_pvt: Test PVT for debugging output */
 static inline int sip_debug_test_pvt(struct sip_pvt *p) 
 {
 	if (sipdebug == 0)
@@ -1234,6 +1253,8 @@ static void sip_destroy_peer(struct sip_peer *peer)
 		rpeerobjs--;
 	else
 		speerobjs--;
+	clear_realm_authentication(peer->auth);
+	peer->auth = (struct sip_auth *) NULL;
 	free(peer);
 }
 
@@ -6513,6 +6534,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	char codec_buf[512];
 	struct ast_codec_pref *pref;
 	struct ast_variable *v;
+	struct sip_auth *auth;
 	int x = 0, codec = 0, load_realtime = 0;
 
 	if (argc < 4)
@@ -6536,6 +6558,12 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  * Name       : %s\n", peer->name);
 		ast_cli(fd, "  Secret       : %s\n", ast_strlen_zero(peer->secret)?"<Not set>":"<Set>");
 		ast_cli(fd, "  MD5Secret    : %s\n", ast_strlen_zero(peer->md5secret)?"<Not set>":"<Set>");
+		auth = peer->auth;
+		while(auth) {
+			ast_cli(fd, "  Realm-auth   : Realm %-15.15s User %-10.20s ", auth->realm, auth->username);
+			ast_cli(fd, "%s\n", !ast_strlen_zero(auth->secret)?"<Secret set>":(!ast_strlen_zero(auth->md5secret)?"<MD5secret set>" : "<Not set>"));
+			auth = auth->next;
+		}
 		ast_cli(fd, "  Context      : %s\n", peer->context);
 		ast_cli(fd, "  Language     : %s\n", peer->language);
 		if (!ast_strlen_zero(peer->accountcode))
@@ -7458,6 +7486,10 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	char uri[256] = "";
 	char cnonce[80];
 	char iabuf[INET_ADDRSTRLEN];
+	char *username;
+	char *secret;
+	char *md5secret;
+	struct sip_auth *auth = (struct sip_auth *) NULL;	/* Realm authentication */
 
 	if (!ast_strlen_zero(p->domain))
 		strncpy(uri, p->domain, sizeof(uri) - 1);
@@ -7468,10 +7500,25 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 
 	snprintf(cnonce, sizeof(cnonce), "%08x", rand());
 
-	snprintf(a1,sizeof(a1),"%s:%s:%s",p->authname,p->realm,p->peersecret);
+ 	/* Check if we have separate auth credentials */
+ 	if ((auth = find_realm_authentication(authl, p->realm))) {
+ 		username = auth->username;
+ 		secret = auth->secret;
+ 		md5secret = auth->md5secret;
+ 		ast_log(LOG_NOTICE,"Using realm %s authentication for this call\n", p->realm);
+ 	} else {
+ 		/* No authentication, use peer or register= config */
+ 		username = p->authname;
+ 		secret =  p->peersecret;
+ 		md5secret = p->peermd5secret;
+ 	}
+ 
+
+ 	/* Calculate SIP digest response */
+ 	snprintf(a1,sizeof(a1),"%s:%s:%s",username,p->realm,secret);
 	snprintf(a2,sizeof(a2),"%s:%s", sip_methods[method].text, uri);
-	if (!ast_strlen_zero(p->peermd5secret))
-	        strncpy(a1_hash, p->peermd5secret, sizeof(a1_hash) - 1);
+	if (!ast_strlen_zero(md5secret))
+	        strncpy(a1_hash, md5secret, sizeof(a1_hash) - 1);
 	else
 	        ast_md5_hash(a1_hash,a1);
 	ast_md5_hash(a2_hash,a2);
@@ -7484,9 +7531,9 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	ast_md5_hash(resp_hash,resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (!ast_strlen_zero(p->qop))
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
+		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s", username, p->realm, uri, p->nonce, resp_hash, p->opaque, "auth", cnonce, "00000001");
 	else
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque);
+		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"", username, p->realm, uri, p->nonce, resp_hash, p->opaque);
 
 	return 0;
 }
@@ -9525,6 +9572,105 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	return res;
 }
 
+/*--- add_realm_authentication: Add realm authentication in list ---*/
+static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno)
+{
+        char authcopy[256] = "";
+        char *username=NULL, *realm=NULL, *secret=NULL, *md5secret=NULL;
+	char *stringp;
+	struct sip_auth *auth;
+	struct sip_auth *b = NULL, *a = authlist;
+                 
+        if (!configuration || ast_strlen_zero(configuration))
+                return (authlist);
+
+	ast_log(LOG_DEBUG, "Auth config ::  %s\n", configuration);
+
+        strncpy(authcopy, configuration, sizeof(authcopy)-1);
+        stringp = authcopy;
+
+        username = stringp;
+        realm = strrchr(stringp, '@');
+        if (realm) {
+                *realm = '\0';
+                realm++;
+        }
+        if (!username || ast_strlen_zero(username) || !realm || ast_strlen_zero(realm)) {
+                ast_log(LOG_WARNING, "Format for authentication entry is user[:secret]@realm at line %d", lineno);
+                return (authlist);
+        }
+        stringp = username;
+        username = strsep(&stringp, ":");
+        if (username) {
+                secret = strsep(&stringp, ":");
+		if (!secret) {
+        		stringp = username;
+			md5secret = strsep(&stringp,"#");
+		}
+        }
+	auth = malloc(sizeof(struct sip_auth));
+        if (auth) {
+                memset(auth, 0, sizeof(struct sip_auth));
+		strncpy(auth->realm, realm, sizeof(auth->realm)-1);
+		strncpy(auth->username, username, sizeof(auth->username)-1);
+		if (secret)
+			strncpy(auth->secret, secret, sizeof(auth->secret)-1);
+		if (md5secret)
+			strncpy(auth->md5secret, md5secret, sizeof(auth->md5secret)-1);
+        } else {
+                ast_log(LOG_ERROR, "Allocation of auth structure failed, Out of memory\n");
+                return (authlist);
+        }
+
+	/* Add authentication to authl */
+	if (!authlist) {	/* No existing list */
+		return(auth);
+	} else {
+		while(a) {
+			b = a;
+			a = a->next;
+		}
+		b->next = auth;	/* Add structure add end of list */
+	}
+
+	if (option_verbose > 2)
+		ast_verbose("Added authentication for realm %s\n", realm);
+
+        return(authlist);
+
+}
+
+/*--- clear_realm_authentication: Clear realm authentication list (at reload) ---*/
+static int clear_realm_authentication(struct sip_auth *authlist)
+{
+	struct sip_auth *a = authlist;
+	struct sip_auth *b;
+
+        while(a) {
+                b = a;
+                a = a->next;
+                free(b);
+        }
+
+
+	return(1);
+}
+
+/*--- find_realm_authentication: Find authentication for a specific realm ---*/
+static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm)
+{
+	struct sip_auth *a = authlist; 	/* First entry in auth list */
+
+	while (a) {
+		if (!strcasecmp(a->realm, realm)){
+			break;
+		}
+		a = a->next;
+	}
+	
+	return(a);
+}
+
 /*--- build_user: Initiate a SIP user structure from sip.conf ---*/
 static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime)
 {
@@ -9754,6 +9900,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				strncpy(peer->secret, v->value, sizeof(peer->secret)-1);
 			else if (!strcasecmp(v->name, "md5secret")) 
 				strncpy(peer->md5secret, v->value, sizeof(peer->md5secret)-1);
+			else if (!strcasecmp(v->name, "auth"))
+				peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
 			else if (!strcasecmp(v->name, "callerid")) {
 				ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name), peer->cid_num, sizeof(peer->cid_num));
 			} else if (!strcasecmp(v->name, "context"))
@@ -10166,10 +10314,21 @@ static int reload_config(void)
 		 v = v->next;
 	}
 	
+	/* Build list of authentication to various SIP realms, i.e. service providers */
+ 	v = ast_variable_browse(cfg, "authentication");
+ 	while(v) {
+ 		/* Format for authentication is auth = username:password@realm */
+ 		if (!strcasecmp(v->name, "auth")) {
+ 			authl = add_realm_authentication(authl, v->value, v->lineno);
+ 		}
+ 		v = v->next;
+ 	}
+ 	
+	
 	/* Load peers, users and friends */
 	cat = ast_category_browse(cfg, NULL);
 	while(cat) {
-		if (strcasecmp(cat, "general")) {
+		if (strcasecmp(cat, "general") && strcasecmp(cat, "authentication")) {
 			utype = ast_variable_retrieve(cfg, cat, "type");
 			if (utype) {
 				if (!strcasecmp(utype, "user") || !strcasecmp(utype, "friend")) {
@@ -10611,6 +10770,9 @@ static void sip_send_all_registers(void)
 /*--- sip_do_reload: Reload module */
 static int sip_do_reload(void)
 {
+	clear_realm_authentication(authl);
+	authl = (struct sip_auth *) NULL;
+
 	delete_users();
 	reload_config();
 	prune_peers();
@@ -10735,6 +10897,8 @@ int unload_module()
 	ast_manager_unregister("SIPpeers");
 	ast_manager_unregister("SIPshowpeer");
 	ast_channel_unregister(&sip_tech);
+
+
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
@@ -10787,6 +10951,8 @@ int unload_module()
 	ASTOBJ_CONTAINER_DESTROY(&userl);
 	ASTOBJ_CONTAINER_DESTROY(&peerl);
 	ASTOBJ_CONTAINER_DESTROY(&regl);
+
+	clear_realm_authentication(authl);
 		
 	return 0;
 }
