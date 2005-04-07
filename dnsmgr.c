@@ -86,13 +86,13 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result
 
 void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 {
-	/* if there is an entry (and not the special flag value), remove/free it */
-	if (entry && (entry != (typeof(entry)) -1)) {
-		AST_LIST_LOCK(&entry_list);
-		AST_LIST_REMOVE(&entry_list, entry, list);
-		AST_LIST_UNLOCK(&entry_list);
-		free(entry);
-	};
+	if (!entry)
+		return;
+
+	AST_LIST_LOCK(&entry_list);
+	AST_LIST_REMOVE(&entry_list, entry, list);
+	AST_LIST_UNLOCK(&entry_list);
+	free(entry);
 }
 
 int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr)
@@ -119,15 +119,13 @@ int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmg
 
 		if ((hp = ast_gethostbyname(name, &ahp)))
 			memcpy(result, hp->h_addr, sizeof(result));
-		/* flag value to indicate no manager was allocated */
-		*dnsmgr = (typeof(*dnsmgr)) -1;
+		return 0;
 	} else {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_2 "adding manager for '%s'\n", name);
 		*dnsmgr = ast_dnsmgr_get(name, result);
+		return !*dnsmgr;
 	}
-
-	return !*dnsmgr;
 }
 
 static void *do_refresh(void *data)
