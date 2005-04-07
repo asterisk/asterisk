@@ -482,7 +482,7 @@ connect_fail:
 	return -1;
 }
 
-int unload_module(void)
+static int tds_unload_module(void)
 {
 	mssql_disconnect();
 
@@ -498,7 +498,7 @@ int unload_module(void)
 	return 0;
 }
 
-int load_module(void)
+static int tds_load_module(void)
 {
 	int res = 0;
 	struct ast_config *cfg;
@@ -570,8 +570,18 @@ int load_module(void)
 
 int reload(void)
 {
-	unload_module();
-	return load_module();
+	tds_unload_module();
+	return tds_load_module();
+}
+
+int load_module(void)
+{
+	return tds_load_module();
+}
+
+int unload_module(void)
+{
+	return tds_unload_module();
 }
 
 int usecount(void)
