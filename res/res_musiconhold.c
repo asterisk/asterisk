@@ -1013,7 +1013,8 @@ static struct ast_cli_entry  cli_moh = { { "moh", "reload"}, moh_cli, "Music On 
 
 static struct ast_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
 
-static void init_classes(void) {
+static void init_classes(void) 
+{
 	struct mohclass *moh;
     
 	load_moh_classes();
