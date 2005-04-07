@@ -104,11 +104,7 @@ static int curl_exec(struct ast_channel *chan, void *data)
 
 		curl_easy_setopt(curl, CURLOPT_URL, url);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-#ifdef CURLOPT_WRITEDATA
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
-#else
-		curl_easy_setopt(curl, CURLOPT_WRITEINFO, (void *)&chunk);
-#endif
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, "asterisk-libcurl-agent/1.0");
 
 		if (post_data) {
