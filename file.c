@@ -280,22 +280,28 @@ static int copy(const char *infile, const char *outfile)
 
 static char *build_filename(const char *filename, const char *ext)
 {
-	char *fn;
+	char *fn, type[16];
 	int fnsize = 0;
 
+	if (!strcmp(ext, "wav49")) {
+		strncpy(type, "WAV", sizeof(type) - 1);
+	} else {
+		strncpy(type, ext, sizeof(type) - 1);
+	}
+
 	if (filename[0] == '/') {
-		fnsize = strlen(filename) + strlen(ext) + 2;
+		fnsize = strlen(filename) + strlen(type) + 2;
 		fn = malloc(fnsize);
 		if (fn)
-			snprintf(fn, fnsize, "%s.%s", filename, ext);
+			snprintf(fn, fnsize, "%s.%s", filename, type);
 	} else {
 		char tmp[AST_CONFIG_MAX_PATH] = "";
 
 		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_VAR_DIR, "sounds");
-		fnsize = strlen(tmp) + strlen(filename) + strlen(ext) + 3;
+		fnsize = strlen(tmp) + strlen(filename) + strlen(type) + 3;
 		fn = malloc(fnsize);
 		if (fn)
-			snprintf(fn, fnsize, "%s/%s.%s", tmp, filename, ext);
+			snprintf(fn, fnsize, "%s/%s.%s", tmp, filename, type);
 	}
 
 	return fn;
@@ -355,9 +361,6 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 			/* Try each kind of extension */
 			stringp=exts;
 			ext = strsep(&stringp, "|");
-			if (!strcmp(ext,"wav49")) {
-				ext = "WAV";
-			}
 			do {
 				fn = build_filename(filename, ext);
 				if (fn) {
