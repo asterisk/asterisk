@@ -2883,6 +2883,8 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 	time_t now;
 	int pos;
 	char *id = astman_get_header(m,"ActionID");
+	char *queuefilter = astman_get_header(m,"Queue");
+	char *memberfilter = astman_get_header(m,"Member");
 	char idText[256] = "";
 	struct ast_call_queue *q;
 	struct queue_ent *qe;
@@ -2899,57 +2901,60 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 		ast_mutex_lock(&q->lock);
 
 		/* List queue properties */
-		if(q->callscompleted > 0)
-			sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-		ast_mutex_lock(&s->lock);
-		ast_cli(s->fd, "Event: QueueParams\r\n"
+		if (ast_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter)) {
+			if(q->callscompleted > 0)
+				sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
+			ast_mutex_lock(&s->lock);
+			ast_cli(s->fd, "Event: QueueParams\r\n"
+						"Queue: %s\r\n"
+						"Max: %d\r\n"
+						"Calls: %d\r\n"
+						"Holdtime: %d\r\n"
+						"Completed: %d\r\n"
+						"Abandoned: %d\r\n"
+						"ServiceLevel: %d\r\n"
+						"ServicelevelPerf: %2.1f\r\n"
+						"Weight: %d\r\n"
+						"%s"
+						"\r\n",
+							q->name, q->maxlen, q->count, q->holdtime, q->callscompleted,
+							q->callsabandoned, q->servicelevel, sl, q->weight, idText);
+			/* List Queue Members */
+			for (mem = q->members; mem; mem = mem->next) {
+				if (ast_strlen_zero(memberfilter) || !strcmp(mem->interface, memberfilter)) {
+					ast_cli(s->fd, "Event: QueueMember\r\n"
+						"Queue: %s\r\n"
+						"Location: %s\r\n"
+						"Membership: %s\r\n"
+						"Penalty: %d\r\n"
+						"CallsTaken: %d\r\n"
+						"LastCall: %ld\r\n"
+						"Status: %d\r\n"
+						"Paused: %d\r\n"
+						"%s"
+						"\r\n",
+							q->name, mem->interface, mem->dynamic ? "dynamic" : "static",
+							mem->penalty, mem->calls, mem->lastcall, mem->status, mem->paused, idText);
+				}
+			}
+			/* List Queue Entries */
+			pos = 1;
+			for (qe = q->head; qe; qe = qe->next) {
+				ast_cli(s->fd, "Event: QueueEntry\r\n"
 					"Queue: %s\r\n"
-					"Max: %d\r\n"
-					"Calls: %d\r\n"
-					"Holdtime: %d\r\n"
-					"Completed: %d\r\n"
-					"Abandoned: %d\r\n"
-					"ServiceLevel: %d\r\n"
-					"ServicelevelPerf: %2.1f\r\n"
-					"Weight: %d\r\n"
+					"Position: %d\r\n"
+					"Channel: %s\r\n"
+					"CallerID: %s\r\n"
+					"CallerIDName: %s\r\n"
+					"Wait: %ld\r\n"
 					"%s"
-					"\r\n",
-						q->name, q->maxlen, q->count, q->holdtime, q->callscompleted,
-						q->callsabandoned, q->servicelevel, sl, q->weight, idText);
-
-		/* List Queue Members */
-		for (mem = q->members; mem; mem = mem->next) 
-			ast_cli(s->fd, "Event: QueueMember\r\n"
-				"Queue: %s\r\n"
-				"Location: %s\r\n"
-				"Membership: %s\r\n"
-				"Penalty: %d\r\n"
-				"CallsTaken: %d\r\n"
-				"LastCall: %ld\r\n"
-				"Status: %d\r\n"
-				"Paused: %d\r\n"
-				"%s"
-				"\r\n",
-					q->name, mem->interface, mem->dynamic ? "dynamic" : "static",
-					mem->penalty, mem->calls, mem->lastcall, mem->status, mem->paused, idText);
-
-		/* List Queue Entries */
-
-		pos = 1;
-		for (qe = q->head; qe; qe = qe->next) 
-			ast_cli(s->fd, "Event: QueueEntry\r\n"
-				"Queue: %s\r\n"
-				"Position: %d\r\n"
-				"Channel: %s\r\n"
-				"CallerID: %s\r\n"
-				"CallerIDName: %s\r\n"
-				"Wait: %ld\r\n"
-				"%s"
-				"\r\n", 
-					q->name, pos++, qe->chan->name, 
-					qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
-					qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
-					(long)(now - qe->start), idText);
+					"\r\n", 
+						q->name, pos++, qe->chan->name, 
+						qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
+						qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
+						(long)(now - qe->start), idText);
+			}
+		}
 		ast_mutex_unlock(&s->lock);
 		ast_mutex_unlock(&q->lock);
 	}
