@@ -265,7 +265,6 @@ struct ast_call_queue {
 	char moh[80];			/* Music On Hold class to be used */
 	char announce[80];		/* Announcement to play when call is answered */
 	char context[80];		/* Exit context */
-	struct {
 		unsigned int monjoin:1;
 		unsigned int dead:1;
 		unsigned int joinempty:2;
@@ -276,7 +275,6 @@ struct ast_call_queue {
 		unsigned int timeoutrestart:1;
 		unsigned int announceholdtime:2;
 		unsigned int strategy:3;
-	};
 	int announcefrequency;          /* How often to announce their position */
 	int roundingseconds;            /* How many seconds do we round to? */
 	int holdtime;                   /* Current avg holdtime, based on recursive boxcar filter */
