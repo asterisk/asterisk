@@ -513,6 +513,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								!(ast_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
 						if (ast_write(in, f))
 							ast_log(LOG_WARNING, "Unable to forward image\n");
+					} else if (single && (f->frametype == AST_FRAME_TEXT) && 
+								!(ast_test_flag(outgoing, DIAL_RINGBACKONLY|DIAL_MUSICONHOLD))) {
+						if (ast_write(in, f))
+							ast_log(LOG_WARNING, "Unable to text\n");
 					} else if (single && (f->frametype == AST_FRAME_HTML) && !ast_test_flag(outgoing, DIAL_NOFORWARDHTML))
 						ast_channel_sendhtml(in, f->subclass, f->data, f->datalen);
 
