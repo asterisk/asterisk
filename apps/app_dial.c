@@ -92,8 +92,9 @@ static char *descrip =
 "      'G(context^exten^pri)' -- If the call is answered transfer both parties to the specified exten.\n"
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
 "      'S(x)' -- hangup the call after x seconds AFTER called party picked up\n"  	
-"      'D([digits])'  -- Send DTMF digit string *after* called party has answered\n"
-"             but before the bridge. (w=500ms sec pause)\n"
+"      'D([called][:calling])'  -- Send DTMF strings *after* called party has answered, but before the\n"
+"             call gets bridged. The 'called' DTMF string is sent to the called party, and the\n"
+"             'calling' DTMF string is sent to the calling party. Both parameters can be used alone.\n"  	
 "      'L(x[:y][:z])' -- Limit the call to 'x' ms warning when 'y' ms are left\n"
 "             repeated every 'z' ms) Only 'x' is required, 'y' and 'z' are optional.\n"
 "             The following special variables are optional:\n"
@@ -630,7 +631,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char *limitptr;
 	char limitdata[256];
 	char *sdtmfptr;
-	char sdtmfdata[256] = "";
+	char *dtmfcalled=NULL, *dtmfcalling=NULL;
 	char *stack,*var;
 	char *mac = NULL, *macroname = NULL;
 	char status[256]="";
@@ -698,22 +699,26 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %i seconds.\n",calldurationlimit);			
 		} 
 
-		/* DTMF SCRIPT*/
+		/* Extract DTMF strings to send upon successfull connect */
 		if ((sdtmfptr = strstr(transfer, "D("))) {
-			strncpy(sdtmfdata, sdtmfptr + 2, sizeof(sdtmfdata) - 1);
+			dtmfcalled = ast_strdupa(sdtmfptr + 2);
+			dtmfcalling = strchr(dtmfcalled, ')');
+			if (dtmfcalling)
+				*dtmfcalling = '\0';
+			dtmfcalling = strchr(dtmfcalled, ':');
+			if (dtmfcalling) {
+				*dtmfcalling = '\0';
+				dtmfcalling++;
+			}				
 			/* Overwrite with X's what was the sdtmf info */
 			while (*sdtmfptr && (*sdtmfptr != ')')) 
 				*(sdtmfptr++) = 'X';
 			if (*sdtmfptr)
 				*sdtmfptr = 'X';
-			/* Now find the end  */
-			sdtmfptr = strchr(sdtmfdata, ')');
-			if (sdtmfptr)
-				*sdtmfptr = '\0';
 			else 
 				ast_log(LOG_WARNING, "D( Data lacking trailing ')'\n");
 		}
-		
+  
 		/* XXX LIMIT SUPPORT */
 		if ((limitptr = strstr(transfer, "L("))) {
 			strncpy(limitdata, limitptr + 2, sizeof(limitdata) - 1);
@@ -1259,8 +1264,16 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				time(&now);
 				chan->whentohangup = now + calldurationlimit;
 			}
-			if (!ast_strlen_zero(sdtmfdata)) 
-				res = ast_dtmf_stream(peer,chan,sdtmfdata,250);
+			if (dtmfcalled && !ast_strlen_zero(dtmfcalled)) { 
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the called party.\n",dtmfcalled);
+				res = ast_dtmf_stream(peer,chan,dtmfcalled,250);
+			}
+			if (dtmfcalling && !ast_strlen_zero(dtmfcalling)) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the calling party.\n",dtmfcalling);
+				res = ast_dtmf_stream(chan,peer,dtmfcalling,250);
+			}
 		}
 		
 		if (!res) {
