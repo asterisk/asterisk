@@ -275,6 +275,7 @@ struct ast_call_queue {
 		unsigned int timeoutrestart:1;
 		unsigned int announceholdtime:2;
 		unsigned int strategy:3;
+		unsigned int maskmemberstatus:1;
 	int announcefrequency;          /* How often to announce their position */
 	int roundingseconds;            /* How many seconds do we round to? */
 	int holdtime;                   /* Current avg holdtime, based on recursive boxcar filter */
@@ -424,17 +425,19 @@ static void *changethread(void *data)
 			if (!strcasecmp(sc->dev, cur->interface)) {
 				if (cur->status != sc->state) {
 					cur->status = sc->state;
-					manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
-						"Queue: %s\r\n"
-						"Location: %s\r\n"
-						"Membership: %s\r\n"
-						"Penalty: %d\r\n"
-						"CallsTaken: %d\r\n"
-						"LastCall: %ld\r\n"
-						"Status: %d\r\n"
-						"Paused: %d\r\n",
-					q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
-					cur->penalty, cur->calls, cur->lastcall, cur->status, cur->paused);
+					if (!q->maskmemberstatus) {
+						manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+							"Queue: %s\r\n"
+							"Location: %s\r\n"
+							"Membership: %s\r\n"
+							"Penalty: %d\r\n"
+							"CallsTaken: %d\r\n"
+							"LastCall: %ld\r\n"
+							"Status: %d\r\n"
+							"Paused: %d\r\n",
+						q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
+						cur->penalty, cur->calls, cur->lastcall, cur->status, cur->paused);
+					}
 				}
 			}
 			cur = cur->next;
@@ -765,17 +768,19 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 	while(cur) {
 		if (member == cur) {
 			cur->status = status;
-			manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
-				"Queue: %s\r\n"
-				"Location: %s\r\n"
-				"Membership: %s\r\n"
-				"Penalty: %d\r\n"
-				"CallsTaken: %d\r\n"
-				"LastCall: %ld\r\n"
-				"Status: %d\r\n"
-				"Paused: %d\r\n",
-					q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
-					cur->penalty, cur->calls, cur->lastcall, cur->status, cur->paused);
+			if (!q->maskmemberstatus) {
+				manager_event(EVENT_FLAG_AGENT, "QueueMemberStatus",
+					"Queue: %s\r\n"
+					"Location: %s\r\n"
+					"Membership: %s\r\n"
+					"Penalty: %d\r\n"
+					"CallsTaken: %d\r\n"
+					"LastCall: %ld\r\n"
+					"Status: %d\r\n"
+					"Paused: %d\r\n",
+				q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
+				cur->penalty, cur->calls, cur->lastcall, cur->status, cur->paused);
+			}
 			break;
 		}
 		cur = cur->next;
@@ -2667,6 +2672,8 @@ static void reload_queues(void)
 							q->leavewhenempty = QUEUE_EMPTY_NORMAL;
 						else
 							q->leavewhenempty = 0;
+					} else if (!strcasecmp(var->name, "eventmemberstatus")) {
+						q->maskmemberstatus = !ast_true(var->value);
 					} else if (!strcasecmp(var->name, "eventwhencalled")) {
 						q->eventwhencalled = ast_true(var->value);
 					} else if (!strcasecmp(var->name, "reportholdtime")) {
