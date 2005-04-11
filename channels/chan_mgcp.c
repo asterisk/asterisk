@@ -375,6 +375,7 @@ struct mgcp_endpoint {
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
 	int callwaiting;
+	int hascallwaiting;
 	int transfer;
 	int threewaycalling;
 	int singlepath;
@@ -1048,6 +1049,11 @@ static int mgcp_hangup(struct ast_channel *ast)
 
 	if ((p->hookstate == MGCP_ONHOOK) && (!sub->next->rtp)) {
 		p->hidecallerid = 0;
+		if (p->hascallwaiting && !p->callwaiting) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Enabling call waiting on %s\n", ast->name);
+			p->callwaiting = -1;
+		}
 		if (has_voicemail(p)) {
 			if (mgcpdebug) {
 				ast_verbose(VERBOSE_PREFIX_3 "MGCP mgcp_hangup(%s) on %s@%s set vmwi(+)\n", 
@@ -2646,7 +2652,7 @@ static void *mgcp_ss(void *data)
 			/*zt_wait_event(p->subs[index].zfd);*/
 			ast_hangup(chan);
 			return NULL;
-		} else if (p->callwaiting && !strcmp(exten, "*70")) {
+		} else if (p->hascallwaiting && p->callwaiting && !strcmp(exten, "*70")) {
 			if (option_verbose > 2) {
 				ast_verbose(VERBOSE_PREFIX_3 "Disabling call waiting on %s\n", chan->name);
 			}
@@ -3192,6 +3198,12 @@ static int handle_request(struct mgcp_subchannel *sub, struct mgcp_request *req,
 				}
 			}
 			if ((p->hookstate == MGCP_ONHOOK) && (!sub->rtp) && (!sub->next->rtp)) {
+				p->hidecallerid = 0;
+				if (p->hascallwaiting && !p->callwaiting) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "Enabling call waiting on MGCP/%s@%s-%d\n", p->name, p->parent->name, sub->id);
+					p->callwaiting = -1;
+				}
 				if (has_voicemail(p)) {
 					if (option_verbose > 2) {
 						ast_verbose(VERBOSE_PREFIX_3 "MGCP handle_request(%s@%s) set vmwi(+)\n", p->name, p->parent->name);
@@ -3726,6 +3738,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->singlepath = singlepath;
 					e->canreinvite = canreinvite;
 					e->callwaiting = callwaiting;
+					e->hascallwaiting = callwaiting;
 					e->slowsequence = slowsequence;
 					e->transfer = transfer;
 					e->threewaycalling = threewaycalling;
@@ -3830,6 +3843,7 @@ static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 					e->canreinvite = canreinvite;
 					e->singlepath = singlepath;
 					e->callwaiting = callwaiting;
+					e->hascallwaiting = callwaiting;
 					e->slowsequence = slowsequence;
 					e->transfer = transfer;
 					e->threewaycalling = threewaycalling;
