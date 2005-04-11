@@ -649,6 +649,43 @@ static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *ar
 		return RESULT_FAILURE;
 }
 
+static int handle_saydatetime(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+	int res=0;
+	long unixtime;
+	char *format, *zone=NULL;
+	
+	if (argc < 4)
+		return RESULT_SHOWUSAGE;
+
+	if (argc > 4) {
+		format = argv[4];
+	} else {
+		if (!strcasecmp(chan->language, "de")) {
+			format = "A dBY HMS";
+		} else {
+			format = "ABdY 'digits/at' IMp"; 
+		}
+	}
+
+	if (argc > 5 && !ast_strlen_zero(argv[5]))
+		zone = argv[5];
+
+	if (sscanf(argv[2], "%ld", &unixtime) != 1)
+		return RESULT_SHOWUSAGE;
+
+	res = ast_say_date_with_format(chan, (time_t) unixtime, argv[3], chan->language, format, zone);
+	if (res == 1)
+		return RESULT_SUCCESS;
+
+	fdprintf(agi->fd, "200 result=%d\n", res);
+
+	if (res >= 0)
+		return RESULT_SUCCESS;
+	else
+		return RESULT_FAILURE;
+}
+
 static int handle_sayphonetic(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
@@ -1389,6 +1426,17 @@ static char usage_saytime[] =
 " completes without a digit being pressed, or the ASCII numerical value of the\n"
 " digit if one was pressed or -1 on error/hangup.\n";
 
+static char usage_saydatetime[] =
+" Usage: SAY DATETIME <time> <escape digits> [format] [timezone]\n"
+"	Say a given time, returning early if any of the given DTMF digits are\n"
+" received on the channel.  <time> is number of seconds elapsed since 00:00:00\n"
+" on January 1, 1970, Coordinated Universal Time (UTC). [format] is the format\n"
+" the time should be said in.  See voicemail.conf (defaults to \"ABdY\n"
+" 'digits/at' IMp\").  Acceptable values for [timezone] can be found in\n"
+" /usr/share/zoneinfo.  Defaults to machine default. Returns 0 if playback\n"
+" completes without a digit being pressed, or the ASCII numerical value of the\n"
+" digit if one was pressed or -1 on error/hangup.\n";
+
 static char usage_sayphonetic[] =
 " Usage: SAY PHONETIC <string> <escape digits>\n"
 "	Say a given character string with phonetics, returning early if any of the\n"
@@ -1457,6 +1505,7 @@ static agi_command commands[MAX_COMMANDS] = {
 	{ { "say", "phonetic", NULL }, handle_sayphonetic, "Says a given character string with phonetics", usage_sayphonetic },
 	{ { "say", "date", NULL }, handle_saydate, "Says a given date", usage_saydate },
 	{ { "say", "time", NULL }, handle_saytime, "Says a given time", usage_saytime },
+	{ { "say", "datetime", NULL }, handle_saydatetime, "Says a given time as specfied by the format given", usage_saydatetime },
 	{ { "send", "image", NULL }, handle_sendimage, "Sends images to channels supporting it", usage_sendimage },
 	{ { "send", "text", NULL }, handle_sendtext, "Sends text to channels supporting it", usage_sendtext },
 	{ { "set", "autohangup", NULL }, handle_autohangup, "Autohangup channel in some time", usage_autohangup },
