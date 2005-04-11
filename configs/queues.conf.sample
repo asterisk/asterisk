@@ -126,8 +126,8 @@ persistentmembers = yes
 ; choices:
 ;
 ; yes - callers can join a queue with no members or only unavailable members
-; no - callers cannot join a queue with no members or only unavailable members
-; strict - callers cannot join a queue with no members
+; no - callers cannot join a queue with no members
+; strict - callers cannot join a queue with no members or only unavailable members
 ;
 ; joinempty = yes
 ;
