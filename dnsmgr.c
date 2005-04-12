@@ -55,6 +55,7 @@ static int refresh_interval;
 struct refresh_info {
 	struct entry_list *entries;
 	int verbose;
+	unsigned int regex_present:1;
 	regex_t filter;
 };
 
@@ -157,7 +158,7 @@ static int refresh_list(void *data)
 		ast_verbose(VERBOSE_PREFIX_2 "Refreshing DNS lookups.\n");
 	AST_LIST_LOCK(info->entries);
 	AST_LIST_TRAVERSE(info->entries, entry, list) {
-		if (info->filter.used && regexec(&info->filter, entry->name, 0, NULL, 0))
+		if (info->regex_present && regexec(&info->filter, entry->name, 0, NULL, 0))
 		    continue;
 
 		if (info->verbose && (option_verbose > 2))
@@ -200,11 +201,13 @@ static int handle_cli_refresh(int fd, int argc, char *argv[])
 	if (argc == 3) {
 		if (regcomp(&info.filter, argv[2], REG_EXTENDED | REG_NOSUB))
 			return RESULT_SHOWUSAGE;
+		else
+			info.regex_present = 1;
 	}
 
 	refresh_list(&info);
 
-	if (info.filter.used)
+	if (info.regex_present)
 		regfree(&info.filter);
 
 	return 0;
@@ -297,7 +300,7 @@ static int do_reload(int loading)
 		ast_sched_del(sched, refresh_sched);
 
 	if ((config = ast_config_load("dnsmgr.conf"))) {
-		if ((enabled_value = ast_variable_retrieve(config, "general", "enabled"))) {
+		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
 			enabled = ast_true(enabled_value);
 		}
 		if ((interval_value = ast_variable_retrieve(config, "general", "refreshinterval"))) {
