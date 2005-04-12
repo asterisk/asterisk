@@ -357,7 +357,7 @@ static void parse_config(void)
                                if (!strcasecmp(var->name, "genericplc")) {
                                        useplc = ast_true(var->value) ? 1 : 0;
                                        if (option_verbose > 2)
-                                               ast_verbose(VERBOSE_PREFIX_3 "CODEC ULAW: %susing generic PLC\n", useplc ? "" : "not ");
+                                               ast_verbose(VERBOSE_PREFIX_3 "codec_lpc10: %susing generic PLC\n", useplc ? "" : "not ");
                                }
                                var = var->next;
                         }

@@ -14,11 +14,6 @@
  * the GNU General Public License
  */
 
-#define TYPE_SILENCE	 0x2
-#define TYPE_HIGH	 0x0
-#define TYPE_LOW	 0x1
-#define TYPE_MASK	 0x3
-
 #include <asterisk/lock.h>
 #include <asterisk/translate.h>
 #include <asterisk/config.h>
@@ -282,7 +277,7 @@ static void parse_config(void)
 			       if (!strcasecmp(var->name, "genericplc")) {
 				       useplc = ast_true(var->value) ? 1 : 0;
 				       if (option_verbose > 2)
-					       ast_verbose(VERBOSE_PREFIX_3 "CODEC ULAW: %susing generic PLC\n", useplc ? "" : "not ");
+					       ast_verbose(VERBOSE_PREFIX_3 "codec_gsm: %susing generic PLC\n", useplc ? "" : "not ");
 			       }
 			       var = var->next;
 			}
