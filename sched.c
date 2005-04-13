@@ -399,3 +399,28 @@ int ast_sched_runq(struct sched_context *con)
 	ast_mutex_unlock(&con->lock);
 	return x;
 }
+
+long ast_sched_when(struct sched_context *con,int id)
+{
+	struct sched *s;
+	long secs;
+	struct timeval now;
+	DEBUG(ast_log(LOG_DEBUG, "ast_sched_when()\n"));
+
+	ast_mutex_lock(&con->lock);
+	s=con->schedq;
+	while (s!=NULL) {
+		if (s->id==id) break;
+		s=s->next;
+	}
+	secs=-1;
+	if (s!=NULL) {
+		if (gettimeofday(&now, NULL)) {
+			ast_log(LOG_NOTICE, "gettimeofday() failed!\n");
+		} else {
+			secs=s->when.tv_sec-now.tv_sec;
+		}
+	}
+	ast_mutex_unlock(&con->lock);
+	return secs;
+}
