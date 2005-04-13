@@ -1713,8 +1713,11 @@ static int vpb_digit(struct ast_channel *ast, char digit)
 	char s[2];
 	int res = 0;
 
-	if (!use_ast_dtmf)
+	if (use_ast_dtmf){
+		if (option_verbose > 3)
+			ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_digit: asked to play digit[%c] but we are using asterisk dtmf play back?!\n", p->dev, digit);
 		return 0;
+	}
 
 /*
 	if (option_verbose > 3) ast_verbose("%s: LOCKING in digit \n", p->dev);
