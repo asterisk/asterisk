@@ -686,6 +686,8 @@ static int action_getvar(struct mansession *s, struct message *m)
 }
 
 
+/*--- action_status: Manager "status" command to show channels */
+/* Needs documentation... */
 static int action_status(struct mansession *s, struct message *m)
 {
 	char *id = astman_get_header(m,"ActionID");
@@ -781,6 +783,17 @@ static int action_status(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_redirect[] = 
+"Description: Redirect (transfer) a call.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel to redirect\n"
+"	ExtraChannel: Second call leg to transfer (optional)\n"
+"	*Exten: Extension to transfer to\n"
+"	*Context: Context to transfer to\n"
+"	*Priority: Priority to transfer to\n"
+"	ActionID: Optional Action id for message matching.\n";
+
+/*--- action_redirect: The redirect manager command */
 static int action_redirect(struct mansession *s, struct message *m)
 {
 	char *name = astman_get_header(m, "Channel");
@@ -791,6 +804,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 	struct ast_channel *chan, *chan2 = NULL;
 	int pi = 0;
 	int res;
+
 	if (!name || ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
@@ -801,7 +815,9 @@ static int action_redirect(struct mansession *s, struct message *m)
 	}
 	chan = ast_get_channel_by_name_locked(name);
 	if (!chan) {
-		astman_send_error(s, m, "Channel not existant");
+		char buf[BUFSIZ];
+		snprintf(buf, sizeof(buf), "Channel does not exist: %s", name);
+		astman_send_error(s, m, buf);
 		return 0;
 	}
 	if (!ast_strlen_zero(name2))
@@ -833,6 +849,8 @@ static char mandescr_command[] =
 "Variables: (Names marked with * are required)\n"
 "	*Command: Asterisk CLI command to run\n"
 "	ActionID: Optional Action id for message matching.\n";
+
+/*--- action_command: Manager command "command" - execute CLI command */
 static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
@@ -1519,16 +1537,16 @@ int init_manager(void)
 		ast_manager_register2("Events", 0, action_events, "Control Event Flow", mandescr_events);
 		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
 		ast_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
-		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Lists channel status" );
-		ast_manager_register2( "Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
-		ast_manager_register2( "Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
-		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call" );
+		ast_manager_register("Status", EVENT_FLAG_CALL, action_status, "Lists channel status" );
+		ast_manager_register2("Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
+		ast_manager_register2("Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
+		ast_manager_register2("Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect (transfer) a call", mandescr_redirect );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
-		ast_manager_register2( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Asterisk CLI Command", mandescr_command );
-		ast_manager_register2( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
-		ast_manager_register2( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
-		ast_manager_register2( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
-		ast_manager_register2( "MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
+		ast_manager_register2("Command", EVENT_FLAG_COMMAND, action_command, "Execute Asterisk CLI Command", mandescr_command );
+		ast_manager_register2("ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
+		ast_manager_register2("AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
+		ast_manager_register2("MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
+		ast_manager_register2("MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
 		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
 
 		ast_cli_register(&show_mancmd_cli);
