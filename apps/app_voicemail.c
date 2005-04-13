@@ -219,9 +219,9 @@ static char *synopsis_vm =
 "Leave a voicemail message";
 
 static char *descrip_vm =
-"  VoiceMail([s|u|b]extension[@context][&extension[@context]][...]):  Leaves"
+"  VoiceMail(extension[@context][&extension[@context]][...][|options]):  Leaves"
 "voicemail for a given extension (must be configured in voicemail.conf).\n"
-" If the extension is preceded by \n"
+" If the options contain: \n"
 "* 's' then instructions for leaving the message will be skipped.\n"
 "* 'u' then the \"unavailable\" message will be played.\n"
 "  (/var/lib/asterisk/sounds/vm/<exten>/unavail) if it exists.\n"
@@ -241,11 +241,11 @@ static char *synopsis_vmain =
 "Enter voicemail system";
 
 static char *descrip_vmain =
-"  VoiceMailMain([[s]mailbox][@context]): Enters the main voicemail system\n"
-"for the checking of voicemail.  The mailbox can be passed as the option,\n"
+"  VoiceMailMain([mailbox][@context][|options]): Enters the main voicemail system\n"
+"for the checking of voicemail. The mailbox can be passed in,\n"
 "which will stop the voicemail system from prompting the user for the mailbox.\n"
-"If the mailbox is preceded by 's' then the password check will be skipped.  If\n"
-"the mailbox is preceded by 'p' then the supplied mailbox is prepended to the\n"
+"If the options contain 's' then the password check will be skipped.  If\n"
+"the options contain 'p' then the supplied mailbox is prepended to the\n"
 "user's entry and the resulting string is used as the mailbox number.  This is\n"
 "useful for virtual hosting of voicemail boxes.  If a context is specified,\n"
 "logins are considered in that voicemail context only.\n"
@@ -4488,6 +4488,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	struct ast_vm_user *vmu = NULL, vmus;
 	char *context=NULL;
 	int silentexit = 0;
+	char *options;
 
 	LOCAL_USER_ADD(u);
 	memset(&vms, 0, sizeof(vms));
@@ -4500,17 +4501,32 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		strncpy(tmp, data, sizeof(tmp) - 1);
 		ext = tmp;
 
-		switch (*ext) {
-			case 's':
-		 /* We should skip the user's password */
-				valid++;
-				ext++;
-				break;
-			case 'p':
-		 /* We should prefix the mailbox with the supplied data */
-				prefix++;
-				ext++;
-				break;
+		/* option 's': don't request a password */
+		/* option 'p': the supplied name is actually a prefix to be added to the mailbox
+		   number entered by the user */
+		if ((options = strchr(ext, '|'))) {
+			*options++ = '\0';
+			while (*options)
+				switch (*options++) {
+				case 's':
+					valid++;
+					break;
+				case 'p':
+					prefix++;
+					break;
+				}
+		} else {
+			/* old style options parsing */
+			while (*ext) {
+				if (*ext == 's') {
+					valid++;
+					ext++;
+				} else if (*ext == 'p') {
+					prefix++;
+					ext++;
+				} else
+					break;
+			}
 		}
 
 		context = strchr(ext, '@');
@@ -4852,7 +4868,8 @@ static int vm_exec(struct ast_channel *chan, void *data)
 {
 	int res=0, silent=0, busy=0, unavail=0;
 	struct localuser *u;
-	char tmp[256], *ext;
+	char tmp[256];
+	char *ext, *options;
 	
 	LOCAL_USER_ADD(u);
 	if (chan->_state != AST_STATE_UP)
@@ -4866,20 +4883,41 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		if (ast_strlen_zero(tmp))
 			return 0;
 	}
-	ext = tmp;
-	while (*ext) {
-		if (*ext == 's') {
-			silent = 2;
-			ext++;
-		} else if (*ext == 'b') {
-			busy=1;
-			ext++;
-		} else if (*ext == 'u') {
-			unavail=1;
-			ext++;
-		} else 
-			break;
-	}
+
+	ext = tmp;	
+	/* option 's': skip intro message with instructions */
+	/* option 'b': play 'busy' greeting */
+	/* option 'u': play 'unavailable' greeting */
+	if ((options = strchr(ext, '|'))) {
+		*options++ = '\0';
+		while (*options)
+			switch (*options++) {
+			case 's':
+				silent = 2;
+				break;
+			case 'b':
+				busy = 1;
+				break;
+			case 'u':
+				unavail = 1;
+				break;
+			}
+	} else {
+		/* old style options parsing */
+		while (*ext) {
+			if (*ext == 's') {
+				silent = 2;
+				ext++;
+			} else if (*ext == 'b') {
+				busy = 1;
+				ext++;
+			} else if (*ext == 'u') {
+				unavail = 1;
+				ext++;
+			} else 
+				break;
+		}
+	}	
 	res = leave_voicemail(chan, ext, silent, busy, unavail);
 	LOCAL_USER_REMOVE(u);
 	return res;
@@ -4925,26 +4963,15 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_vm_user svm;
 	char *context, *box;
-	char tmp[256];
 
-	if (!data || !strlen(data)) {
+	if (!data || !(box = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
 		return -1;
-	} else {
-		strncpy(tmp, data, sizeof(tmp) - 1);
 	}
 
 	LOCAL_USER_ADD(u);
-	box = tmp;
-	while (*box) {
-		if ((*box == 's') || (*box == 'b') || (*box == 'u')) {
-			box++;
-		} else
-			break;
-	}
 
-	context = strchr(tmp, '@');
-	if (context) {
+	if ((context = strchr(box, '@'))) {
 		*context = '\0';
 		context++;
 	}
