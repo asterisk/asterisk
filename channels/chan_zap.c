@@ -6287,7 +6287,7 @@ static int pri_resolve_span(int *span, int channel, int offset, struct zt_spanin
 				return 0;
 			}
 		}
-		ast_log(LOG_WARNING, "Channel %d on span %d configured to use non-existant trunk group %d\n", channel, *span, trunkgroup);
+		ast_log(LOG_WARNING, "Channel %d on span %d configured to use nonexistent trunk group %d\n", channel, *span, trunkgroup);
 		*span = -1;
 	} else {
 		if (pris[*span].trunkgroup) {

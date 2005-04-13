@@ -1571,7 +1571,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 									if (!found) {
 										/* At this point, we have a confno_tmp (static conference) that is empty */
 										if ((empty_no_pin && ((!stringp) || (stringp && (stringp[0] == '\0')))) || (!empty_no_pin)) {
-										/* Case 1:  empty_no_pin and pin is nonexistant (NULL)
+										/* Case 1:  empty_no_pin and pin is nonexistent (NULL)
 										 * Case 2:  empty_no_pin and pin is blank (but not NULL)
 										 * Case 3:  not empty_no_pin
 										 */

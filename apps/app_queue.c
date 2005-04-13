@@ -108,7 +108,7 @@ static char *descrip =
 "Queues an incoming call in a particular call queue as defined in queues.conf.\n"
 "  This application returns -1 if the originating channel hangs up, or if the\n"
 "call is bridged and  either of the parties in the bridge terminate the call.\n"
-"Returns 0 if the queue is full, nonexistant, or has no members.\n"
+"Returns 0 if the queue is full, nonexistent, or has no members.\n"
 "The option string may contain zero or more of the following characters:\n"
 "      't' -- allow the called user transfer the calling user\n"
 "      'T' -- to allow the calling user to transfer the call.\n"

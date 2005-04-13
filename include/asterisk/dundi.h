@@ -46,7 +46,7 @@ struct dundi_ie_hdr {
 #define DUNDI_PROTO_SIP				2	/* Session Initiation Protocol */
 #define DUNDI_PROTO_H323			3	/* ITU H.323 */
 
-#define DUNDI_FLAG_NONEXISTANT		(0)				/* Isn't and can't be a valid number */
+#define DUNDI_FLAG_NONEXISTENT		(0)				/* Isn't and can't be a valid number */
 #define DUNDI_FLAG_EXISTS			(1 << 0)		/* Is a valid number */
 #define DUNDI_FLAG_MATCHMORE		(1 << 1)		/* Might be valid if you add more digits */
 #define DUNDI_FLAG_CANMATCH			(1 << 2)		/* Might be a match */

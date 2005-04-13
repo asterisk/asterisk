@@ -287,7 +287,7 @@ int ast_sched_del(struct sched_context *con, int id)
 	}
 	ast_mutex_unlock(&con->lock);
 	if (!s) {
-		ast_log(LOG_NOTICE, "Attempted to delete non-existant schedule entry %d!\n", id);
+		ast_log(LOG_NOTICE, "Attempted to delete nonexistent schedule entry %d!\n", id);
 #ifdef DO_CRASH
 		CRASH;
 #endif

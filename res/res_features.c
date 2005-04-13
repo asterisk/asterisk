@@ -1385,7 +1385,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 			dres = 0;
 		}
 		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to non-existant parked call %d\n", chan->name, park);
+			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);
 		res = -1;
 	}
 	LOCAL_USER_REMOVE(u);

@@ -210,7 +210,7 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
     struct varshead *headp;
 	
     if (!cdr) {
-		ast_log(LOG_ERROR, "Attempt to set a variable on a nonexistant CDR record.\n");
+		ast_log(LOG_ERROR, "Attempt to set a variable on a nonexistent CDR record.\n");
 		return -1;
 	}
 	while (cdr) {

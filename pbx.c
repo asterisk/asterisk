@@ -6108,7 +6108,7 @@ int ast_context_verify_includes(struct ast_context *con)
 	for (inc = ast_walk_context_includes(con, NULL); inc; inc = ast_walk_context_includes(con, inc))
 		if (!ast_context_find(inc->rname)) {
 			res = -1;
-			ast_log(LOG_WARNING, "Context '%s' tries includes non-existant context '%s'\n",
+			ast_log(LOG_WARNING, "Context '%s' tries includes nonexistent context '%s'\n",
 					ast_get_context_name(con), inc->rname);
 		}
 	return res;

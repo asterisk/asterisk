@@ -231,7 +231,7 @@ int ast_app_has_voicemail(const char *mailbox, const char *folder)
 		return ast_has_voicemail_func(mailbox, folder);
 
 	if ((option_verbose > 2) && !warned) {
-		ast_verbose(VERBOSE_PREFIX_3 "Message check requested for mailbox %s/folder %s but voicemail not loaded.", mailbox, folder ? folder : "INBOX");
+		ast_verbose(VERBOSE_PREFIX_3 "Message check requested for mailbox %s/folder %s but voicemail not loaded.\n", mailbox, folder ? folder : "INBOX");
 		warned++;
 	}
 	return 0;
@@ -250,7 +250,7 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 
 	if (!warned && (option_verbose > 2)) {
 		warned++;
-		ast_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s but voicemail not loaded.", mailbox);
+		ast_verbose(VERBOSE_PREFIX_3 "Message count requested for mailbox %s but voicemail not loaded.\n", mailbox);
 	}
 
 	return 0;

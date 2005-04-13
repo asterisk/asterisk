@@ -2598,7 +2598,7 @@ static void destroy_session(struct skinnysession *s)
 		ast_mutex_destroy(&s->lock);
 		free(s);
 	} else
-		ast_log(LOG_WARNING, "Trying to delete non-existant session %p?\n", s);
+		ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 	ast_mutex_unlock(&sessionlock);
 }
 
