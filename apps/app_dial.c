@@ -138,20 +138,20 @@ static char *rdescrip =
    use it not only for keeping track of what is in use but
    also for keeping track of who we're dialing. */
 
-#define DIAL_STILLGOING				(1 << 0)
+#define DIAL_STILLGOING			(1 << 0)
 #define DIAL_ALLOWREDIRECT_IN		(1 << 1)
 #define DIAL_ALLOWREDIRECT_OUT		(1 << 2)
 #define DIAL_ALLOWDISCONNECT_IN		(1 << 3)
 #define DIAL_ALLOWDISCONNECT_OUT	(1 << 4)
-#define DIAL_RINGBACKONLY			(1 << 5)
-#define DIAL_MUSICONHOLD			(1 << 6)
-#define DIAL_FORCECALLERID			(1 << 7)
-#define DIAL_MONITOR_IN				(1 << 8)
-#define DIAL_MONITOR_OUT			(1 << 9)
-#define DIAL_GO_ON					(1 << 10)
-#define DIAL_HALT_ON_DTMF 			(1 << 11)
+#define DIAL_RINGBACKONLY		(1 << 5)
+#define DIAL_MUSICONHOLD		(1 << 6)
+#define DIAL_FORCECALLERID		(1 << 7)
+#define DIAL_MONITOR_IN			(1 << 8)
+#define DIAL_MONITOR_OUT		(1 << 9)
+#define DIAL_GO_ON			(1 << 10)
+#define DIAL_HALT_ON_DTMF		(1 << 11)
 #define DIAL_PRESERVE_CALLERID		(1 << 12)
-#define DIAL_NOFORWARDHTML			(1 << 13)
+#define DIAL_NOFORWARDHTML		(1 << 13)
 
 struct localuser {
 	struct ast_channel *chan;
@@ -247,15 +247,15 @@ static char *get_cid_name(char *name, int namelen, struct ast_channel *chan)
 static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 {
 	manager_event(EVENT_FLAG_CALL, "Dial", 
-								   "Source: %s\r\n"
-								   "Destination: %s\r\n"
-								   "CallerID: %s\r\n"
-								   "CallerIDName: %s\r\n"
-								   "SrcUniqueID: %s\r\n"
-								   "DestUniqueID: %s\r\n",
-								   src->name, dst->name, src->cid.cid_num ? src->cid.cid_num : "<unknown>",
-								   src->cid.cid_name ? src->cid.cid_name : "<unknown>", src->uniqueid,
-								   dst->uniqueid);
+			   "Source: %s\r\n"
+			   "Destination: %s\r\n"
+			   "CallerID: %s\r\n"
+			   "CallerIDName: %s\r\n"
+			   "SrcUniqueID: %s\r\n"
+			   "DestUniqueID: %s\r\n",
+			   src->name, dst->name, src->cid.cid_num ? src->cid.cid_num : "<unknown>",
+			   src->cid.cid_name ? src->cid.cid_name : "<unknown>", src->uniqueid,
+			   dst->uniqueid);
 }
 
 static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int *result)
