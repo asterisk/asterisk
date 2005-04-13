@@ -175,31 +175,31 @@ int ast_say_phonetic_str(struct ast_channel *chan, const char *fn2, const char *
 				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
 				break;
 			case ('!'):
-				strncpy(fn, "exclaimation-point", sizeof(fn));
-				break;    	
+				strncpy(fn, "letters/exclaimation-point", sizeof(fn));
+				break;
 			case ('@'):
-				strncpy(fn, "at", sizeof(fn));
+				strncpy(fn, "letters/at", sizeof(fn));
 				break;
 			case ('$'):
-				strncpy(fn, "dollar", sizeof(fn));
+				strncpy(fn, "letters/dollar", sizeof(fn));
 				break;	
 			case ('-'):
-				strncpy(fn, "dash", sizeof(fn));
+				strncpy(fn, "letters/dash", sizeof(fn));
 				break;
 			case ('.'):
-				strncpy(fn, "dot", sizeof(fn));
+				strncpy(fn, "letters/dot", sizeof(fn));
 				break;
 			case ('='):
-				strncpy(fn, "equals", sizeof(fn));
+				strncpy(fn, "letters/equals", sizeof(fn));
 				break;
 			case ('+'):
-				strncpy(fn, "plus", sizeof(fn));
+				strncpy(fn, "letters/plus", sizeof(fn));
 				break;
 			case ('/'):
-				strncpy(fn, "slash", sizeof(fn));
+				strncpy(fn, "letters/slash", sizeof(fn));
 				break;
 			case (' '):
-				strncpy(fn, "space", sizeof(fn));
+				strncpy(fn, "letters/space", sizeof(fn));
 				break;
 			case ('%'):
 				play=0;
@@ -287,31 +287,31 @@ int ast_say_character_str_full(struct ast_channel *chan, const char *fn2, const 
 				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
 				break;
 			case ('!'):
-				strncpy(fn, "exclaimation-point", sizeof(fn));
-				break;    	
+				strncpy(fn, "letters/exclaimation-point", sizeof(fn));
+				break;
 			case ('@'):
-				strncpy(fn, "at", sizeof(fn));
+				strncpy(fn, "letters/at", sizeof(fn));
 				break;
 			case ('$'):
-				strncpy(fn, "dollar", sizeof(fn));
+				strncpy(fn, "letters/dollar", sizeof(fn));
 				break;
 			case ('-'):
-				strncpy(fn, "dash", sizeof(fn));
+				strncpy(fn, "letters/dash", sizeof(fn));
 				break;
 			case ('.'):
-				strncpy(fn, "dot", sizeof(fn));
+				strncpy(fn, "letters/dot", sizeof(fn));
 				break;
 			case ('='):
-				strncpy(fn, "equals", sizeof(fn));
+				strncpy(fn, "letters/equals", sizeof(fn));
 				break;
 			case ('+'):
-				strncpy(fn, "plus", sizeof(fn));
+				strncpy(fn, "letters/plus", sizeof(fn));
 				break;
 			case ('/'):
-				strncpy(fn, "slash", sizeof(fn));
+				strncpy(fn, "letters/slash", sizeof(fn));
 				break;
 			case (' '):
-				strncpy(fn, "space", sizeof(fn));
+				strncpy(fn, "letters/space", sizeof(fn));
 				break;
 			default:
 				ltr = fn2[num];
@@ -354,31 +354,31 @@ int ast_say_phonetic_str_full(struct ast_channel *chan, const char *fn2, const c
 				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
 				break;
 			case ('!'):
-				strncpy(fn, "exclaimation-point", sizeof(fn));
-				break;    	
+				strncpy(fn, "letters/exclaimation-point", sizeof(fn));
+				break;
 			case ('@'):
-				strncpy(fn, "at", sizeof(fn));
+				strncpy(fn, "letters/at", sizeof(fn));
 				break;
 			case ('$'):
-				strncpy(fn, "dollar", sizeof(fn));
+				strncpy(fn, "letters/dollar", sizeof(fn));
 				break;
 			case ('-'):
-				strncpy(fn, "dash", sizeof(fn));
+				strncpy(fn, "letters/dash", sizeof(fn));
 				break;
 			case ('.'):
-				strncpy(fn, "dot", sizeof(fn));
+				strncpy(fn, "letters/dot", sizeof(fn));
 				break;
 			case ('='):
-				strncpy(fn, "equals", sizeof(fn));
+				strncpy(fn, "letters/equals", sizeof(fn));
 				break;
 			case ('+'):
-				strncpy(fn, "plus", sizeof(fn));
+				strncpy(fn, "letters/plus", sizeof(fn));
 				break;
 			case ('/'):
-				strncpy(fn, "slash", sizeof(fn));
+				strncpy(fn, "letters/slash", sizeof(fn));
 				break;
 			case (' '):
-				strncpy(fn, "space", sizeof(fn));
+				strncpy(fn, "letters/space", sizeof(fn));
 				break;
 			default:	/* '9' falls here... */
 				ltr = fn2[num];
