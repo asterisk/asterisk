@@ -1922,6 +1922,12 @@ int main(int argc, char *argv[])
 	signal(SIGCHLD, child_handler);
 	signal(SIGPIPE, SIG_IGN);
 
+	/* ensure that the random number generators are seeded with a different value every time
+	   Asterisk is started
+	*/
+	srand((unsigned int) getpid() + (unsigned int) time(NULL));
+	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
+
 	if (init_logger()) {
 		printf(term_quit());
 		exit(1);

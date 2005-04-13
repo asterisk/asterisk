@@ -8465,7 +8465,6 @@ static int reload_config(void)
 	ast_clear_flag((&globalflags), IAX_NOTRANSFER);	
 	ast_clear_flag((&globalflags), IAX_USEJITTERBUF);	
 	ast_clear_flag((&globalflags), IAX_FORCEJITTERBUF);	
-	srand(time(NULL));
 	delete_users();
 	set_config(config,1);
 	prune_peers();

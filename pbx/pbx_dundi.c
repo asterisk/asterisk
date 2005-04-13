@@ -4632,9 +4632,6 @@ int load_module(void)
 	dundi_set_output(dundi_debug_output);
 	dundi_set_error(dundi_error_output);
 	
-	/* Seed random number generator */
-	srand(time(NULL));
-	
 	sin.sin_family = AF_INET;
 	sin.sin_port = ntohs(DUNDI_PORT);
 	sin.sin_addr.s_addr = INADDR_ANY;
