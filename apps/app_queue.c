@@ -1285,7 +1285,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 			}
 			if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass != '*') && valid_exit(qe, f->subclass)) {
 				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c", f->subclass);
+					ast_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c\n", f->subclass);
 				*to=0;
 				*digit=f->subclass;
 				return NULL;
