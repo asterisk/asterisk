@@ -96,7 +96,7 @@ Parameters: Mailbox, ActionID
 
 Command: Originate
 Parameters: Channel, Exten, Context, Priority, Timeout, 
-CallerID, Variable, Account, Application, Data, Async
+   CallerID, Variable, Account, Application, Data, Async
 
 Command: Ping
 Parameters: None
@@ -157,18 +157,21 @@ Some standard AMI headers:
 --------------------------
 
  Account: 			-- Account Code (Status)
+ AccountCode:			-- Account Code (cdr_manager)
  ACL: <Y | N>			-- Does ACL exist for object ?
  Action: <action>		-- request or notification of a particular action
  Address-IP:			-- IPaddress 
  Address-Port:			-- IP port number
  Agent: <string>		-- Agent name
- AMAflags:			-- AMA flag
+ AMAflags:			-- AMA flag (cdr_manager, sippeers)
+ AnswerTime:			-- Time of answer (cdr_manager)
  Append: <bool>			-- CDR userfield Append flag
  Application:			-- Application to use
  Async:				-- Whether or not to use fast setup
  AuthType: 			-- Authentication type (for login or challenge)
 					"md5"
- CallerID:			-- Caller id (name and number in Originate)
+ BillableSeconds:		-- Billable seconds for call (cdr_manager)
+ CallerID:			-- Caller id (name and number in Originate & cdr_manager)
  CallerID:			-- CallerID number
 				   Number or "<unknown>" or "unknown" 
 					(should change to "<unknown>" in app_queue)
@@ -197,10 +200,15 @@ Some standard AMI headers:
  Data:				-- Application data
  Default-addr-IP:		-- IP address to use before registration
  Default-Username:		-- Username part of URI to use before registration
- Destination:			-- Destination for call (Dialstring ) Dial event
+ Destination:			-- Destination for call (Dialstring ) (dial, cdr_manager)
+ DestinationContext:		-- Destination context (cdr_manager)
+ DestinationChannel:		-- Destination channel (cdr_manager)
  DestUniqueID:			-- UniqueID of destination (dial event)
+ Disposition:			-- Call disposition (CDR manager)
  Domain: <domain>		-- DNS domain
+ Duration: <secs>		-- Duration of call (cdr_manager)
  Dynamic: <Y |  N>		-- Device registration supported?
+ Endtime:			-- End time stamp of call (cdr_manager)
  EventList: <flag>		-- Flag being "Start", "End", "Cancelled" or "ListObject"
  Events: <eventmask>		-- Eventmask filter ("on", "off", "system", "call", "log")
  Exten:				-- Extension (Redirect command)
@@ -213,7 +221,9 @@ Some standard AMI headers:
  Incominglimit:			-- SIP Peer incoming limit
  Key:
  Key:				-- ASTdb Database key
+ LastApplication:		-- Last application executed (cdr_manager)
  LastCall: <num>		-- Last call in queue
+ LastData:			-- Data for last application (cdr_manager)
  Link:				-- (Status)
  ListItems: <number>		-- Number of items in Eventlist (Optionally sent in "end" packet)
  Location:			-- Interface (whatever that is -maybe tech/name in app_queue )
@@ -256,8 +266,9 @@ Some standard AMI headers:
  SIP-FromUser:			-- Peer FromUser
  SIP-NatSupport:
  SIPLastMsg:
- Source:			-- Source of call (dial event)
+ Source:			-- Source of call (dial event, cdr_manager)
  SrcUniqueID:			-- UniqueID of source (dial event)
+ StartTime: 			-- Start time of call (cdr_manager)
  State:				-- Channel state
  Status:			-- Registration status (Registry events SIP)
  Status:			-- Extension status (Extensionstate)
@@ -272,7 +283,7 @@ Some standard AMI headers:
  Uniqueid1:			-- Channel 1 Unique ID (Link event)
  Uniqueid2:			-- Channel 2 Unique ID (Link event)
  User:				-- Username (SIP registry)
- UserField:			-- CDR userfield
+ UserField:			-- CDR userfield (cdr_manager)
  Val:				-- Value to set/read in ASTdb
  Variable:			-- Variable AND value to set (multiple separated with | in Originate)
  Variable: <name>		-- For channel variables
