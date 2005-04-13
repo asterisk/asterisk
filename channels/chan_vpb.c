@@ -325,7 +325,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 static int vpb_indicate(struct ast_channel *ast, int condition);
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
-static const struct ast_channel_tech vpb_tech = {
+static struct ast_channel_tech vpb_tech = {
 	type: type,
 	description: tdesc,
 	capabilities: AST_FORMAT_SLINEAR,
@@ -344,6 +344,33 @@ static const struct ast_channel_tech vpb_tech = {
 	exception: NULL,
 	bridge: vpb_bridge,
 	indicate: vpb_indicate,
+	fixup: vpb_fixup,
+	setoption: NULL,
+	queryoption: NULL,
+	transfer: NULL,
+	write_video: NULL,
+	bridged_channel: NULL
+};
+
+static struct ast_channel_tech vpb_tech_indicate = {
+	type: type,
+	description: tdesc,
+	capabilities: AST_FORMAT_SLINEAR,
+	properties: NULL,
+	requester: vpb_request,
+	devicestate: NULL,
+	send_digit: vpb_digit,
+	call: vpb_call,
+	hangup: vpb_hangup,
+	answer: vpb_answer,
+	read: vpb_read,
+	write: vpb_write,
+	send_text: NULL,
+	send_image: NULL,
+	send_html: NULL,
+	exception: NULL,
+	bridge: vpb_bridge,
+	indicate: NULL,
 	fixup: vpb_fixup,
 	setoption: NULL,
 	queryoption: NULL,
@@ -1613,8 +1640,11 @@ static int vpb_indicate(struct ast_channel *ast, int condition)
 	int res = 0;
 	int tmp = 0;
 
-	if (!use_ast_ind)
+	if (use_ast_ind == 1) {
+		if (option_verbose > 3)
+			ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_indicate called when using Ast Indications !?!\n", p->dev);
 		return 0;
+	}
 
 	if (option_verbose > 3)
 		ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_indicate [%d] state[%d]\n", p->dev, condition,ast->_state);
@@ -1694,10 +1724,16 @@ static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 	}
 
 	if (newchan->_state == AST_STATE_RINGING){
-		if (use_ast_ind == 1)
+		if (use_ast_ind == 1) {
+			if (option_verbose > 3)
+				ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_fixup Calling ast_indicate\n", p->dev);
 			ast_indicate(newchan, AST_CONTROL_RINGING);
-		else
+		}
+		else {
+			if (option_verbose > 3)
+				ast_verbose(VERBOSE_PREFIX_4 "%s: vpb_fixup Calling vpb_indicate\n", p->dev);
 			vpb_indicate(newchan, AST_CONTROL_RINGING);
+		}
 	}
 
 	res= ast_mutex_unlock(&p->lock);
@@ -2498,7 +2534,13 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 	    
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
-		tmp->tech = &vpb_tech;
+		if (use_ast_ind == 1){
+			tmp->tech = &vpb_tech_indicate;
+		}
+		else {
+			tmp->tech = &vpb_tech;
+		}
+
 		strncpy(tmp->name, me->dev, sizeof(tmp->name) - 1);
 		tmp->type = type;
 		
@@ -2800,9 +2842,23 @@ int load_module()
 
 	ast_config_destroy(cfg);
 
-	if (!error && ast_channel_register(&vpb_tech) != 0) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-		error = -1;
+	if (use_ast_ind == 1){
+		if (!error && ast_channel_register(&vpb_tech_indicate) != 0) {
+			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			error = -1;
+		}
+		else {
+			ast_log(LOG_NOTICE,"VPB driver Registered (w/AstIndication)\n");
+		}
+	}
+	else {
+		if (!error && ast_channel_register(&vpb_tech) != 0) {
+			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			error = -1;
+		}
+		else {
+			ast_log(LOG_NOTICE,"VPB driver Registered )\n");
+		}
 	}
 
 
@@ -2819,7 +2875,12 @@ int unload_module()
 {
 	struct vpb_pvt *p;
 	/* First, take us out of the channel loop */
-	ast_channel_unregister(&vpb_tech);
+	if (use_ast_ind == 1){
+		ast_channel_unregister(&vpb_tech_indicate);
+	}
+	else {
+		ast_channel_unregister(&vpb_tech);
+	}
 
 	ast_mutex_lock(&iflock); {
 		/* Hangup all interfaces if they have an owner */
