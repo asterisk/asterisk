@@ -57,12 +57,14 @@ APPS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ]; then
 APPS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h ]; then echo "app_osplookup.so" ; fi)
 
 CURLLIBS=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
-ifneq (${CURLLIBS},)
-	APPS+=app_curl.so
-	ifeq (${OSARCH},OpenBSD)
-		CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
-	endif
-endif 
+ifneq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
+	ifneq (${CURLLIBS},)
+		APPS+=app_curl.so
+		ifeq (${OSARCH},OpenBSD)
+			CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
+		endif
+	endif 
+endif
 CFLAGS+=-fPIC
 #
 # If you have MySQL 4.1 or later you can use ODBC
