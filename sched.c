@@ -1,13 +1,13 @@
 /*
- * Asterisk
+ * Asterisk -- A telephony toolkit for Linux.
  * 
- * Mark Spencer <markster@marko.net>
+ * Mark Spencer <markster@digium.com>
  *
  * Copyright(C) Mark Spencer
  * 
  * Distributed under the terms of the GNU General Public License (GPL) Version 2
  *
- * Scheduler Routines (form cheops-NG)
+ * Scheduler Routines (from cheops-NG)
  *
  */
 
@@ -33,11 +33,11 @@
 					 (((b).tv_sec == (a).tv_sec) && ((b).tv_usec > (a).tv_usec)))
 
 struct sched {
-	struct sched *next;				/* Next event in the list */
-	int id; 						/* ID number of event */
-	struct timeval when;			/* Absolute time event should take place */
-	int resched;					/* When to reschedule */
-	void *data; 					/* Data */
+	struct sched *next;		/* Next event in the list */
+	int id; 			/* ID number of event */
+	struct timeval when;		/* Absolute time event should take place */
+	int resched;			/* When to reschedule */
+	void *data; 			/* Data */
 	ast_sched_cb callback;		/* Callback */
 };
 
