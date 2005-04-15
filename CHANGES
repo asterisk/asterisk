@@ -20,6 +20,8 @@
  -- chan_agent
     -- We now will not pass audio until the agent has acked the call if the configuration
        is set up for the agent to do so.
+ -- chan_alsa
+    -- Fixed problems with the unloading of this module
  -- res_agi
     -- A fix has been added to prevent calls from being hung up when more than one
        call is executing an AGI script calling the GET DATA command.

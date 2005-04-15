@@ -1053,10 +1053,12 @@ int load_module()
 int unload_module()
 {
 	int x;
+	
+	ast_channel_unregister(type);
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_unregister(myclis + x);
-	close(readdev);
-	close(writedev);
+	snd_pcm_close(alsa.icard);
+	snd_pcm_close(alsa.ocard);
 	if (sndcmd[0] > 0) {
 		close(sndcmd[0]);
 		close(sndcmd[1]);
