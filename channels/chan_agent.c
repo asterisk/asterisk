@@ -193,12 +193,12 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	if ((password = strchr(tmp, ','))) {
 		*password = '\0';
 		password++;
-		while (*password < 33) password++;
+		while (*password && *password < 33) password++;
 	}
 	if (password && (name = strchr(password, ','))) {
 		*name = '\0';
 		name++;
-		while (*name < 33) name++; 
+		while (*name && *name < 33) name++; 
 	}
 	prev=NULL;
 	p = agents;
