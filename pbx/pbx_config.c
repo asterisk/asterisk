@@ -1738,6 +1738,8 @@ static int pbx_load_module(void)
 								if (plus)
 									ipri += atoi(plus);
 								lastpri = ipri;
+								if (!strcmp(realext, "_."))
+									ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
 								if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
 									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}
