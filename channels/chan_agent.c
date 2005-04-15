@@ -300,7 +300,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	}
 	
 	strncpy(p->password, password ? password : "", sizeof(p->password) - 1);
-	strncpy(p->name, !ast_strlen_zero(name) ? name : "---", sizeof(p->name) - 1);
+	strncpy(p->name, name ? name : "", sizeof(p->name) - 1);
 	strncpy(p->moh, moh, sizeof(p->moh) - 1);
 	p->ackcall = ackcall;
 	p->autologoff = autologoff;
