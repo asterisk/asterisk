@@ -30,6 +30,8 @@
 #include <asterisk/say.h>
 #include <asterisk/utils.h>
 #include <asterisk/causes.h>
+#include <asterisk/musiconhold.h>
+#include <asterisk/app.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -63,6 +65,20 @@
 #define	VAR_NORMAL		1
 #define	VAR_SOFTTRAN	2
 #define	VAR_HARDTRAN	3
+
+#define BACKGROUND_SKIP		(1 << 0)
+#define BACKGROUND_NOANSWER	(1 << 1)
+
+AST_DECLARE_OPTIONS(background_opts,{
+	['s'] = { BACKGROUND_SKIP },
+	['n'] = { BACKGROUND_NOANSWER },
+});
+
+#define WAITEXTEN_MOH		(1 << 0)
+
+AST_DECLARE_OPTIONS(waitexten_opts,{
+	['m'] = { WAITEXTEN_MOH, 1 },
+});
 
 struct ast_context;
 
@@ -230,17 +246,17 @@ static struct pbx_builtin {
 	"Play a file while awaiting extension",
 	"  Background(filename1[&filename2...][|options[|langoverride]]): Plays\n"
 	"given files, while simultaneously waiting for the user to begin typing\n"
-	"an extension. The  timeouts do not count until the last BackGround\n"
-	"application has ended. Options may also be  included following a pipe \n"
-	"symbol. The 'skip' option causes the playback of the message to  be \n"
-	"skipped  if  the  channel is not in the 'up' state (i.e. it hasn't been\n"
-	"answered  yet. If 'skip' is specified, the application will return\n"
-	"immediately should the channel not be off hook.  Otherwise, unless \n"
-	"'noanswer' is specified, the channel channel will be answered before the\n"
-	"sound is played. Not all channels support playing messages while still\n"
-	"hook. The 'langoverride' may be a language to use for playing the prompt\n"
-	"which differs from the current language of the channel.  Returns -1 if \n"
-	"the channel was hung up, or if the file does not exist. Returns 0 otherwise.\n"
+	"an extension. The timeouts do not count until the last BackGround\n"
+	"application has ended. Options may also be included following a pipe \n"
+	"symbol. The 'langoverride' may be a language to use for playing the prompt\n"
+	"which differs from the current language of the channel. Returns -1 if \n"
+	"the channel was hung up, or if the file does not exist. Returns 0 otherwise.\n\n"
+	"  Options:\n"
+	"    's' - causes the playback of the message to be skipped\n"
+	"          if the channel is not in the 'up' state (i.e. it\n"
+	"          hasn't been answered yet.) If this happens, the\n"
+	"          application will return immediately.\n"
+	"    'n' - don't answer the channel before playing the files\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
@@ -461,10 +477,13 @@ static struct pbx_builtin {
 
 	{ "WaitExten", pbx_builtin_waitexten, 
 	"Waits for an extension to be entered", 
-	"  WaitExten([seconds]): Waits for the user to enter a new extension for the \n"
+	"  WaitExten([seconds][|options]): Waits for the user to enter a new extension for the \n"
 	"specified number of seconds, then returns 0. Seconds can be passed with\n"
 	"fractions of a seconds (eg: 1.5 = 1.5 seconds) or if unspecified the\n"
-	"default extension timeout will be used.\n" 
+	"default extension timeout will be used.\n"
+	"  Options:\n"
+	"    'm[(x)]' - Provide music on hold to the caller while waiting for an extension.\n"
+	"               Optionally, specify the class for music on hold within parenthesis.\n"
 	},
 
 };
@@ -5458,11 +5477,38 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 {
-	int ms;
-	int res;
+	int ms, res, argc;
+	char *args;
+	char *argv[2];
+	char *options = NULL; 
+	char *mohclass = NULL;
+	char *timeout = NULL;
+	struct ast_flags flags = {0};
+
+	args = ast_strdupa(data);
+
+	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
+		if (argc > 0) {
+			timeout = argv[0];
+			if (argc > 1)
+				options = argv[1];
+		}
+	}
+
+	if (options) {
+		char *opts[1];
+		ast_parseoptions(waitexten_opts, &flags, opts, options);
+		if (ast_test_flag(&flags, WAITEXTEN_MOH)) {
+			mohclass = opts[0];
+		}
+	}
+	
+	if (ast_test_flag(&flags, WAITEXTEN_MOH))
+		ast_moh_start(chan, mohclass);
+
 	/* Wait for "n" seconds */
-	if (data && atof((char *)data)) 
-		ms = atof((char *)data) * 1000;
+	if (timeout && atof((char *)timeout)) 
+		ms = atof((char *)timeout) * 1000;
 	else if (chan->pbx)
 		ms = chan->pbx->rtimeout * 1000;
 	else
@@ -5482,43 +5528,53 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 			res = -1;
 		}
 	}
+
+	if (ast_test_flag(&flags, WAITEXTEN_MOH))
+		ast_moh_stop(chan);
+
 	return res;
 }
 
 static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	int option_skip = 0;
-	int option_noanswer = 0;
+	int argc;
+	char *args;
+	char *argv[3];
+	char *options = NULL; 
 	char *filename = NULL;
-	char* stringp;
-	char* options;
-	char *lang = NULL;
 	char *front = NULL, *back = NULL;
+	char *lang = NULL;
+	struct ast_flags flags = {0};
 
-	if (!data || ast_strlen_zero(data) || !(filename = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Background requires an argument(filename)\n");
-		return -1;
+	args = ast_strdupa(data);
+
+	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
+		if (argc > 0) {
+			filename = argv[0];
+			if (argc > 1)
+				options = argv[1];
+			if (argc > 2)
+				lang = argv[2];
+		} else {
+			ast_log(LOG_WARNING, "Background requires an argument (filename)\n");
+		}
 	}
 
-	stringp = filename;
-	strsep(&stringp, "|");
-	options = strsep(&stringp, "|");
-	if (options)
-		lang = strsep(&stringp, "|");
-	if (!lang)
-		lang = chan->language;
-
-	if (options && !strcasecmp(options, "skip"))
-		option_skip = 1;
-	if (options && !strcasecmp(options, "noanswer"))
-		option_noanswer = 1;
+	if (options) {
+		if (!strcasecmp(options, "skip"))
+			flags.flags = BACKGROUND_SKIP;
+		else if (!strcasecmp(options, "noanswer"))
+			flags.flags = BACKGROUND_NOANSWER;
+		else
+			ast_parseoptions(background_opts, &flags, NULL, options);
+	}
 
 	/* Answer if need be */
 	if (chan->_state != AST_STATE_UP) {
-		if (option_skip) {
+		if (ast_test_flag(&flags, BACKGROUND_SKIP)) {
 			return 0;
-		} else if (!option_noanswer) {
+		} else if (!ast_test_flag(&flags, BACKGROUND_NOANSWER)) {
 			res = ast_answer(chan);
 		}
 	}
