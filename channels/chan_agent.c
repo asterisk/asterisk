@@ -245,25 +245,34 @@ static void agent_unlink(struct agent_pvt *agent)
 
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
-	char tmp[AST_MAX_BUF] = "";
-	char *password=NULL, *name=NULL;
+	int argc;
+	char *argv[3];
+	char *args;
+	char *password = NULL;
+	char *name = NULL;
+	char *agt = NULL;
 	struct agent_pvt *p, *prev;
+
+	args = ast_strdupa(agent);
+
+	if ((argc = ast_separate_app_args(args, ',', argv, sizeof(argv) / sizeof(argv[0])))) {
+		agt = argv[0];
+		if (argc > 1) {
+			password = argv[1];
+			while (*password && *password < 33) password++;
+		} 
+		if (argc > 2) {
+			name = argv[2];
+			while (*name && *name < 33) name++;
+		}
+	} else {
+		ast_log(LOG_WARNING, "A blank agent line!\n");
+	}
 	
-	strncpy(tmp, agent, sizeof(tmp) - 1);
-	if ((password = strchr(tmp, ','))) {
-		*password = '\0';
-		password++;
-		while (*password < 33) password++;
-	}
-	if (password && (name = strchr(password, ','))) {
-		*name = '\0';
-		name++;
-		while (*name < 33) name++; 
-	}
 	prev=NULL;
 	p = agents;
 	while(p) {
-		if (!pending && !strcmp(p->agent, tmp))
+		if (!pending && !strcmp(p->agent, agt))
 			break;
 		prev = p;
 		p = p->next;
@@ -272,7 +281,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 		p = malloc(sizeof(struct agent_pvt));
 		if (p) {
 			memset(p, 0, sizeof(struct agent_pvt));
-			strncpy(p->agent, tmp, sizeof(p->agent) -1);
+			strncpy(p->agent, agt, sizeof(p->agent) -1);
 			ast_mutex_init(&p->lock);
 			ast_mutex_init(&p->app_lock);
 			p->owning_app = (pthread_t) -1;
@@ -285,12 +294,13 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 			else
 				agents = p;
 			
+		} else {
+			return NULL;
 		}
 	}
-	if (!p)
-		return NULL;
+	
 	strncpy(p->password, password ? password : "", sizeof(p->password) - 1);
-	strncpy(p->name, name ? name : "", sizeof(p->name) - 1);
+	strncpy(p->name, !ast_strlen_zero(name) ? name : "---", sizeof(p->name) - 1);
 	strncpy(p->moh, moh, sizeof(p->moh) - 1);
 	p->ackcall = ackcall;
 	p->autologoff = autologoff;
