@@ -603,6 +603,7 @@ static int __sip_xmit(struct sip_pvt *p, char *data, int len)
 {
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
+// ast_log(LOG_WARNING, "__sip_xmit from '%s' to '%s'\n", "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
 	if (p->nat & SIP_NAT_ROUTE)
 	    res=sendto(sipsock, data, len, 0, (struct sockaddr *)&p->recv, sizeof(struct sockaddr_in));
 	else
@@ -5809,7 +5810,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
 		ast_cli(fd, "  Dynamic      : %s\n", (peer->dynamic?"Yes":"No"));
-		ast_cli(fd, "  Expire       : %d\n", peer->expire);
+		ast_cli(fd, "  Expire       : %ld seconds\n", ast_sched_when(sched,peer->expire));
 		ast_cli(fd, "  Expiry       : %d\n", peer->expiry);
 		ast_cli(fd, "  Insecure     : %s\n", (peer->insecure?((peer->insecure == 2)?"Very":"Yes"):"No") );
 		ast_cli(fd, "  Nat          : %s\n", nat2str(peer->nat));
