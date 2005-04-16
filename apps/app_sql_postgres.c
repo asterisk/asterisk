@@ -106,8 +106,6 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-extern void pbx_builtin_setvar_helper(struct ast_channel *chan, char *name, char *value); 
-
 #define AST_PGSQL_ID_DUMMY 0
 #define AST_PGSQL_ID_CONNID 1
 #define AST_PGSQL_ID_RESID 2
