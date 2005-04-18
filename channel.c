@@ -2242,54 +2242,48 @@ int ast_channel_sendurl(struct ast_channel *chan, const char *url)
 
 int ast_channel_make_compatible(struct ast_channel *chan, struct ast_channel *peer)
 {
-	int peerf;
-	int chanf;
-	int res;
+	int src;
+	int dst;
 
 	/* Set up translation from the chan to the peer */
-	peerf = peer->nativeformats;
-	chanf = chan->nativeformats;
-	res = ast_translator_best_choice(&peerf, &chanf);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, chanf, peer->name, peerf);
+	src = chan->nativeformats;
+	dst = peer->nativeformats;
+	if (ast_translator_best_choice(&dst, &src) < 0) {
+		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", chan->name, src, peer->name, dst);
 		return -1;
 	}
-	/* if desired, force all transcode paths to use SLINEAR between channels */
-	if (option_transcode_slin)
-		peerf = AST_FORMAT_SLINEAR;
-	/* Set read format on chan */
-	res = ast_set_read_format(chan, peerf);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, chanf);
+	/* if the best path is not 'pass through', then
+	   transcoding is needed; if desired, force transcode path
+	   to use SLINEAR between channels */
+	if ((src != dst) && option_transcode_slin)
+		dst = AST_FORMAT_SLINEAR;
+	if (ast_set_read_format(chan, dst) < 0) {
+		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", chan->name, dst);
 		return -1;
 	}
-	/* Set write format on peer */
-	res = ast_set_write_format(peer, peerf);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, peerf);
+	if (ast_set_write_format(peer, dst) < 0) {
+		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", peer->name, dst);
 		return -1;
 	}
-	/* Now we go the other way (peer to chan) */
-	peerf = peer->nativeformats;
-	chanf = chan->nativeformats;
-	res = ast_translator_best_choice(&chanf, &peerf);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer->name, peerf, chan->name, chanf);
+
+	/* Set up translation from the peer to the chan */
+	src = peer->nativeformats;
+	dst = chan->nativeformats;
+	if (ast_translator_best_choice(&dst, &src) < 0) {
+		ast_log(LOG_WARNING, "No path to translate from %s(%d) to %s(%d)\n", peer->name, src, chan->name, dst);
 		return -1;
 	}
-	/* if desired, force all transcode paths to use SLINEAR between channels */
-	if (option_transcode_slin)
-		chanf = AST_FORMAT_SLINEAR;
-	/* Set read format on peer */
-	res = ast_set_read_format(peer, chanf);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, peerf);
+	/* if the best path is not 'pass through', then
+	   transcoding is needed; if desired, force transcode path
+	   to use SLINEAR between channels */
+	if ((src != dst) && option_transcode_slin)
+		dst = AST_FORMAT_SLINEAR;
+	if (ast_set_read_format(peer, dst) < 0) {
+		ast_log(LOG_WARNING, "Unable to set read format on channel %s to %d\n", peer->name, dst);
 		return -1;
 	}
-	/* Set write format on chan */
-	res = ast_set_write_format(chan, chanf);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, chanf);
+	if (ast_set_write_format(chan, dst) < 0) {
+		ast_log(LOG_WARNING, "Unable to set write format on channel %s to %d\n", chan->name, dst);
 		return -1;
 	}
 	return 0;
