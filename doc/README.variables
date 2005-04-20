@@ -69,28 +69,49 @@ _______________________________
 REMOVING CHARACTERS FROM STRING
 -------------------------------
 
-If you want to remove the first N characters from a string, you just
-add a colon and the number of characters, like
+The format for removing characters from a variable can be expressed as:
+
+	${variable_name[:offset[:length]]}
+
+If you want to remove the first N characters from the string assigned
+to a variable, simply append a colon and the number of characters to
+remove from the beginning of the string to the variable name.
 
 	;Remove the first character of extension, save in "number" variable
-	exten => _9X.,1,setvar(number=${EXTEN:1})
+	exten => _9X.,1,SetVar(number=${EXTEN:1})
 
-A second colon limits the number of characters used from the original
-string. 
-	;Strip five characters from the start of string, use only two 
-	; (character 6 and 7 in the original string)
-	exten => 1000,4,setvar(skrep=${STRING:5:2})
+Assuming we've dialed 918005551234, the value saved to the 'number' variable
+would be 18005551234. This is useful in situations when we require users to 
+dial a number to access an outside line, but do not wish to pass the first 
+digit.
 
-You can also count from the end of the string by giving a negative
-position:
+If you use a negative offset number, Asterisk starts counting from the end 
+of the string and then removes everything before the new position. The following
+example will save the numbers 1234 to the 'number' variable, still assuming
+we've dialed 918005551234.
 
-	;Use the two first of the three last characters in the account code
-	exten => 4500,4,setvar(acc=${ACCOUNTCODE:-3:2})
+	;Remove everything before the last four digits of the dialed string
+	exten => _9X.,1,SetVar(number=${EXTEN:-4})
 
-Or 
-	;Use the last three digits of the phone number
-	exten => 6112,4,goto(${EXTEN:-3},1)
+We can also limit the number of characters from our offset position that we
+wish to use. This is done by appending a second colon and length value to the
+variable name. The following example will save the numbers 555 to the 'number'
+variable.
 
+	;Only save the middle numbers 555 from the string 918005551234
+	exten => _9X.,1,SetVar(number=${EXTEN:5:3})
+
+The length value can also be used in conjunction with a negative offset. This
+may be useful if the length of the string is unknown, but the trailing digits
+are. The following example will save the numbers 555 to the 'number' variable,
+even if the string starts with more characters than expected (unlike the
+previous example).
+
+	;Save the numbers 555 to the 'number' variable
+	exten => _9X.,1,SetVar(number=${EXTEN:-7:3})
+
+If a negative length value is entered, it is ignored and Asterisk will match
+to the end of the string.
 ___________________________
 EXPRESSIONS: 
 ---------------------------
