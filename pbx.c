@@ -282,7 +282,8 @@ static struct pbx_builtin {
 	"typed in is valid, it will not have to timeout to be tested, so typically\n"
 	"at the expiry of this timeout, the extension will be considered invalid\n"
 	"(and thus control would be passed to the 'i' extension, or if it doesn't\n"
-	"exist the call would be terminated). Always returns 0.\n" 
+	"exist the call would be terminated). The default timeout is 5 seconds.\n"
+	"Always returns 0.\n" 
 	},
 
 	{ "Goto", pbx_builtin_goto, 
@@ -364,7 +365,8 @@ static struct pbx_builtin {
 	"falling through a series of priorities for a channel in which the user may\n"
 	"begin typing an extension. If the user does not type an extension in this\n"
 	"amount of time, control will pass to the 't' extension if it exists, and\n"
-	"if not the call would be terminated.\nAlways returns 0.\n"  
+	"if not the call would be terminated. The default timeout is 10 seconds.\n"
+	"Always returns 0.\n"  
 	},
 
 	{ "Ringing", pbx_builtin_ringing,
