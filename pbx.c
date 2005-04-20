@@ -5566,6 +5566,9 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 		}
 	}
 
+	if (!lang)
+		lang = chan->language;
+
 	if (options) {
 		if (!strcasecmp(options, "skip"))
 			flags.flags = BACKGROUND_SKIP;
