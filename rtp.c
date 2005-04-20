@@ -1167,11 +1167,12 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 			rtpheader[3] |= htonl((1 << 23));
 		}
 	}
-	/* Increment the digit timestamp by 100ms, to ensure that digits
+	/* Increment the digit timestamp by 120ms, to ensure that digits
 	   sent sequentially with no intervening non-digit packets do not
-	   get sent with the same timestamp.
+	   get sent with the same timestamp, and that sequential digits
+	   have some 'dead air' in between them
 	*/
-	rtp->lastdigitts += 800;
+	rtp->lastdigitts += 960;
 	return 0;
 }
 
