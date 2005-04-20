@@ -1423,6 +1423,7 @@ static struct ast_cli_entry showfeatures =
 static int handle_parkedcalls(int fd, int argc, char *argv[])
 {
 	struct parkeduser *cur;
+	int numparked = 0;
 
 	ast_cli(fd, "%4s %25s (%-15s %-12s %-4s) %-6s \n", "Num", "Channel"
 		, "Context", "Extension", "Pri", "Timeout");
@@ -1436,7 +1437,9 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 			,cur->priority, cur->start.tv_sec + (cur->parkingtime/1000) - time(NULL));
 
 		cur = cur->next;
+		numparked++;
 	}
+	ast_cli(fd, "%d parked call(s).\n",numparked);
 
 	ast_mutex_unlock(&parking_lock);
 
