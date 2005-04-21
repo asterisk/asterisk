@@ -17,7 +17,7 @@
 #ifndef _CDR_H
 #define _CDR_H
 
-#include <asterisk/channel.h>
+#include "asterisk/channel.h"
 #include <sys/time.h>
 #define AST_CDR_FLAG_KEEP_VARS		(1 << 0)
 #define AST_CDR_FLAG_POSTED			(1 << 1)

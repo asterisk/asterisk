@@ -11,15 +11,15 @@
  * the GNU General Public License
  */
  
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/options.h>
-#include <asterisk/transcap.h>
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/options.h"
+#include "asterisk/transcap.h"
 #include <string.h>
 #include <stdlib.h>
-#include <asterisk/transcap.h>
+#include "asterisk/transcap.h"
 
 
 static char *app = "SetTransferCapability";

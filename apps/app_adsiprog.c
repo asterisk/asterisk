@@ -12,15 +12,15 @@
  */
 
 #include <sys/types.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/adsi.h>
-#include <asterisk/options.h>
-#include <asterisk/utils.h>
-#include <asterisk/lock.h>
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/adsi.h"
+#include "asterisk/options.h"
+#include "asterisk/utils.h"
+#include "asterisk/lock.h"
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -30,8 +30,8 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "../asterisk.h"
-#include "../astconf.h"
+#include "asterisk.h"
+#include "astconf.h"
 
 static char *tdesc = "Asterisk ADSI Programming Application";
 

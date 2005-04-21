@@ -22,12 +22,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/srv.h>
-#include <asterisk/dns.h>
-#include <asterisk/options.h>
-#include <asterisk/utils.h>
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/srv.h"
+#include "asterisk/dns.h"
+#include "asterisk/options.h"
+#include "asterisk/utils.h"
 
 #ifdef __APPLE__
 #undef T_SRV

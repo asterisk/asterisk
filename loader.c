@@ -16,22 +16,22 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <asterisk/module.h>
-#include <asterisk/options.h>
-#include <asterisk/config.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/term.h>
-#include <asterisk/manager.h>
-#include <asterisk/enum.h>
-#include <asterisk/rtp.h>
-#include <asterisk/lock.h>
+#include "asterisk/module.h"
+#include "asterisk/options.h"
+#include "asterisk/config.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/term.h"
+#include "asterisk/manager.h"
+#include "asterisk/enum.h"
+#include "asterisk/rtp.h"
+#include "asterisk/lock.h"
 #ifdef __APPLE__
-#include <asterisk/dlfcn-compat.h>
+#include "asterisk/dlfcn-compat.h"
 #else
 #include <dlfcn.h>
 #endif
-#include <asterisk/md5.h>
+#include "asterisk/md5.h"
 #include "asterisk.h"
 #include "astconf.h"
 

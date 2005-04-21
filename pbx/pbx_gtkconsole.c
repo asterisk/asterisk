@@ -20,13 +20,13 @@
  */
 
 #include <sys/types.h>
-#include <asterisk/pbx.h>
-#include <asterisk/config.h>
-#include <asterisk/module.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
-#include <asterisk/utils.h>
+#include "asterisk/pbx.h"
+#include "asterisk/config.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/cli.h"
+#include "asterisk/utils.h"
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -39,8 +39,8 @@
 #include <gtk/gtk.h>
 #include <glib.h>
 /* For where to put dynamic tables */
-#include "../asterisk.h"
-#include "../astconf.h"
+#include "asterisk.h"
+#include "astconf.h"
 
 AST_MUTEX_DEFINE_STATIC(verb_lock);
 

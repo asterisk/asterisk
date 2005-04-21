@@ -11,33 +11,33 @@
  * the GNU General Public License
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/frame.h> 
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/module.h>
-#include <asterisk/pbx.h>
-#include <asterisk/sched.h>
-#include <asterisk/io.h>
-#include <asterisk/config.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
-#include <asterisk/translate.h>
-#include <asterisk/md5.h>
-#include <asterisk/cdr.h>
-#include <asterisk/crypto.h>
-#include <asterisk/acl.h>
-#include <asterisk/manager.h>
-#include <asterisk/callerid.h>
-#include <asterisk/app.h>
-#include <asterisk/astdb.h>
-#include <asterisk/musiconhold.h>
-#include <asterisk/features.h>
-#include <asterisk/utils.h>
-#include <asterisk/causes.h>
-#include <asterisk/localtime.h>
-#include <asterisk/aes.h>
-#include <asterisk/dnsmgr.h>
+#include "asterisk/lock.h"
+#include "asterisk/frame.h" 
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/module.h"
+#include "asterisk/pbx.h"
+#include "asterisk/sched.h"
+#include "asterisk/io.h"
+#include "asterisk/config.h"
+#include "asterisk/options.h"
+#include "asterisk/cli.h"
+#include "asterisk/translate.h"
+#include "asterisk/md5.h"
+#include "asterisk/cdr.h"
+#include "asterisk/crypto.h"
+#include "asterisk/acl.h"
+#include "asterisk/manager.h"
+#include "asterisk/callerid.h"
+#include "asterisk/app.h"
+#include "asterisk/astdb.h"
+#include "asterisk/musiconhold.h"
+#include "asterisk/features.h"
+#include "asterisk/utils.h"
+#include "asterisk/causes.h"
+#include "asterisk/localtime.h"
+#include "asterisk/aes.h"
+#include "asterisk/dnsmgr.h"
 #include <sys/mman.h>
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -69,7 +69,7 @@
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
-#include "../astconf.h"
+#include "astconf.h"
 
 /* Define NEWJB to use the new channel independent jitterbuffer,
  * otherwise, use the old jitterbuffer */

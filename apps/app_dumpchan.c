@@ -11,15 +11,15 @@
  * the GNU General Public License (and disclaimed to Digium)
  */
 
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/options.h>
-#include <asterisk/utils.h>
-#include <asterisk/lock.h>
-#include <asterisk/utils.h>
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/options.h"
+#include "asterisk/utils.h"
+#include "asterisk/lock.h"
+#include "asterisk/utils.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>

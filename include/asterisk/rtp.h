@@ -14,10 +14,10 @@
 #ifndef _ASTERISK_RTP_H
 #define _ASTERISK_RTP_H
 
-#include <asterisk/frame.h>
-#include <asterisk/io.h>
-#include <asterisk/sched.h>
-#include <asterisk/channel.h>
+#include "asterisk/frame.h"
+#include "asterisk/io.h"
+#include "asterisk/sched.h"
+#include "asterisk/channel.h"
 
 #include <netinet/in.h>
 

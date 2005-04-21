@@ -1,7 +1,7 @@
 #ifndef ASTERISK_LINKEDLISTS_H
 #define ASTERISK_LINKEDLISTS_H
 
-#include <asterisk/lock.h>
+#include "asterisk/lock.h"
 
 /*!
   \file linkedlists.h

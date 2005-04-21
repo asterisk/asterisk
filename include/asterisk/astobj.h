@@ -15,7 +15,7 @@
 #define _ASTERISK_ASTOBJ_H
 
 #include <string.h>
-#include <asterisk/lock.h>
+#include "asterisk/lock.h"
 
 /*!
   \file astobj.h

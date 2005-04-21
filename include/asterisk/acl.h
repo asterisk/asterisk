@@ -20,8 +20,8 @@ extern "C" {
 #endif
 
 #include <netinet/in.h>
-#include <asterisk/io.h>
-#include <asterisk/astobj.h>
+#include "asterisk/io.h"
+#include "asterisk/astobj.h"
 
 #define AST_SENSE_DENY                  0
 #define AST_SENSE_ALLOW                 1

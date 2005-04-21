@@ -15,9 +15,9 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <netinet/in.h>
-#include <asterisk/frame.h>
-#include <asterisk/utils.h>
-#include <asterisk/unaligned.h>
+#include "asterisk/frame.h"
+#include "asterisk/utils.h"
+#include "asterisk/unaligned.h"
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>

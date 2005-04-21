@@ -12,14 +12,14 @@
  */
 
 #include <sys/types.h>
-#include <asterisk/channel.h>
-#include <asterisk/cdr.h>
-#include <asterisk/module.h>
-#include <asterisk/pbx.h>
-#include <asterisk/logger.h>
-#include <asterisk/config.h>
-#include <asterisk/manager.h>
-#include <asterisk/utils.h>
+#include "asterisk/channel.h"
+#include "asterisk/cdr.h"
+#include "asterisk/module.h"
+#include "asterisk/pbx.h"
+#include "asterisk/logger.h"
+#include "asterisk/config.h"
+#include "asterisk/manager.h"
+#include "asterisk/utils.h"
 #include <stdlib.h>
 #include <string.h>
 

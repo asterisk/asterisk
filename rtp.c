@@ -26,18 +26,18 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
-#include <asterisk/rtp.h>
-#include <asterisk/frame.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/acl.h>
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/lock.h>
-#include <asterisk/utils.h>
-#include <asterisk/cli.h>
-#include <asterisk/unaligned.h>
+#include "asterisk/rtp.h"
+#include "asterisk/frame.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/acl.h"
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/lock.h"
+#include "asterisk/utils.h"
+#include "asterisk/cli.h"
+#include "asterisk/unaligned.h"
 
 #define MAX_TIMESTAMP_SKEW	640
 

@@ -23,14 +23,14 @@
 #include <regex.h>
 #include <signal.h>
 
-#include <asterisk/dnsmgr.h>
-#include <asterisk/linkedlists.h>
-#include <asterisk/utils.h>
-#include <asterisk/config.h>
-#include <asterisk/logger.h>
-#include <asterisk/sched.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
+#include "asterisk/dnsmgr.h"
+#include "asterisk/linkedlists.h"
+#include "asterisk/utils.h"
+#include "asterisk/config.h"
+#include "asterisk/logger.h"
+#include "asterisk/sched.h"
+#include "asterisk/options.h"
+#include "asterisk/cli.h"
 #include "asterisk.h"
 
 static struct sched_context *sched;

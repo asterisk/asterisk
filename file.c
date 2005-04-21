@@ -12,17 +12,17 @@
  */
 
 #include <sys/types.h>
-#include <asterisk/frame.h>
-#include <asterisk/file.h>
-#include <asterisk/cli.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/sched.h>
-#include <asterisk/options.h>
-#include <asterisk/translate.h>
-#include <asterisk/utils.h>
-#include <asterisk/lock.h>
-#include <asterisk/app.h>
+#include "asterisk/frame.h"
+#include "asterisk/file.h"
+#include "asterisk/cli.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/sched.h"
+#include "asterisk/options.h"
+#include "asterisk/translate.h"
+#include "asterisk/utils.h"
+#include "asterisk/lock.h"
+#include "asterisk/app.h"
 #include <errno.h>
 #include <unistd.h>
 #include <stdlib.h>

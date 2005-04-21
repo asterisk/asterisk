@@ -21,16 +21,16 @@
 #include <unistd.h>
 #include <math.h>
 #include <errno.h>
-#include <asterisk/ulaw.h>
-#include <asterisk/alaw.h>
-#include <asterisk/callerid.h>
-#include <asterisk/logger.h>
-#include <asterisk/fskmodem.h>
-#include <asterisk/channel.h>
-#include <asterisk/adsi.h>
-#include <asterisk/module.h>
-#include <asterisk/config.h>
-#include <asterisk/file.h>
+#include "asterisk/ulaw.h"
+#include "asterisk/alaw.h"
+#include "asterisk/callerid.h"
+#include "asterisk/logger.h"
+#include "asterisk/fskmodem.h"
+#include "asterisk/channel.h"
+#include "asterisk/adsi.h"
+#include "asterisk/module.h"
+#include "asterisk/config.h"
+#include "asterisk/file.h"
 
 #define DEFAULT_ADSI_MAX_RETRIES 3
 

@@ -9,15 +9,15 @@
  */
 
 #include <sys/types.h>
-#include <asterisk/channel.h>
-#include <asterisk/cdr.h>
-#include <asterisk/module.h>
-#include <asterisk/logger.h>
-#include <asterisk/utils.h>
-#include <asterisk/manager.h>
-#include <asterisk/config.h>
-#include "../asterisk.h"
-#include "../astconf.h"
+#include "asterisk/channel.h"
+#include "asterisk/cdr.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
+#include "asterisk/utils.h"
+#include "asterisk/manager.h"
+#include "asterisk/config.h"
+#include "asterisk.h"
+#include "astconf.h"
 #include <strings.h>
 #include <unistd.h>
 #include <time.h>

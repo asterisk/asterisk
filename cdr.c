@@ -14,14 +14,14 @@
  *
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/channel.h>
-#include <asterisk/cdr.h>
-#include <asterisk/logger.h>
-#include <asterisk/callerid.h>
-#include <asterisk/causes.h>
-#include <asterisk/options.h>
-#include <asterisk/utils.h>
+#include "asterisk/lock.h"
+#include "asterisk/channel.h"
+#include "asterisk/cdr.h"
+#include "asterisk/logger.h"
+#include "asterisk/callerid.h"
+#include "asterisk/causes.h"
+#include "asterisk/options.h"
+#include "asterisk/utils.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>

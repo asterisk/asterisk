@@ -11,7 +11,7 @@
  * the GNU General Public License
  */
 
-#include <asterisk/alaw.h>
+#include "asterisk/alaw.h"
 
 #define AMI_MASK 0x55
 

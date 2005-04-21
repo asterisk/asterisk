@@ -29,12 +29,12 @@
 */
 
 #include <sys/types.h>
-#include <asterisk/frame.h>
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/dsp.h>
-#include <asterisk/ulaw.h>
-#include <asterisk/alaw.h>
+#include "asterisk/frame.h"
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/dsp.h"
+#include "asterisk/ulaw.h"
+#include "asterisk/alaw.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>

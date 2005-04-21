@@ -19,10 +19,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <asterisk/cli.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/lock.h>
+#include "asterisk/cli.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/lock.h"
 
 #define SOME_PRIME 563
 

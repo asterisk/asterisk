@@ -21,13 +21,13 @@
 #include <time.h>
 #include <ctype.h>
 #include <math.h>
-#include <asterisk/file.h>
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/say.h>
-#include <asterisk/lock.h>
-#include <asterisk/localtime.h>
-#include <asterisk/utils.h>
+#include "asterisk/file.h"
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/say.h"
+#include "asterisk/lock.h"
+#include "asterisk/localtime.h"
+#include "asterisk/utils.h"
 #include "asterisk.h"
 #include <stdio.h>
 

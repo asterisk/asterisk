@@ -16,8 +16,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-#include <asterisk/config.h>
-#include <asterisk/logger.h>
+#include "asterisk/config.h"
+#include "asterisk/logger.h"
 
 struct ast_config *ast_load(char *configfile)
 {

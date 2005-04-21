@@ -18,7 +18,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <pthread.h>
-#include <asterisk/lock.h>
+#include "asterisk/lock.h"
 #include <limits.h>
 
 /* Note:

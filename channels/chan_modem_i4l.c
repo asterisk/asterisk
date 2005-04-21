@@ -18,16 +18,16 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <asterisk/lock.h>
-#include <asterisk/vmodem.h>
-#include <asterisk/module.h>
-#include <asterisk/frame.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/dsp.h>
-#include <asterisk/callerid.h>
-#include <asterisk/ulaw.h>
-#include <asterisk/pbx.h>
+#include "asterisk/lock.h"
+#include "asterisk/vmodem.h"
+#include "asterisk/module.h"
+#include "asterisk/frame.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/dsp.h"
+#include "asterisk/callerid.h"
+#include "asterisk/ulaw.h"
+#include "asterisk/pbx.h"
 
 #define STATE_COMMAND 	0
 #define STATE_VOICE 	1

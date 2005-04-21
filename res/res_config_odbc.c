@@ -9,19 +9,19 @@
  * Copyright (C) 2004 - 2005 Anthony Minessale II <anthmct@yahoo.com>
  */
 
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/config.h>
-#include <asterisk/module.h>
-#include <asterisk/lock.h>
-#include <asterisk/options.h>
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/config.h"
+#include "asterisk/module.h"
+#include "asterisk/lock.h"
+#include "asterisk/options.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <asterisk/res_odbc.h>
-#include <asterisk/utils.h>
+#include "asterisk/res_odbc.h"
+#include "asterisk/utils.h"
 
 static char *tdesc = "ODBC Configuration";
 STANDARD_LOCAL_USER;

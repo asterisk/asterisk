@@ -9,15 +9,15 @@
  * the GNU General Public License
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/alaw.h>
-#include <asterisk/callerid.h>
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/alaw.h"
+#include "asterisk/callerid.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -27,7 +27,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <ctype.h>
-#include "../astconf.h"
+#include "astconf.h"
 
 /* output using Alaw rather than linear */
 /*#define OUTALAW */

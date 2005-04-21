@@ -17,14 +17,14 @@
 #ifdef SOLARIS
 #include <solaris-compat/compat.h>
 #endif
-#include <asterisk/frame.h>
-#include <asterisk/sched.h>
-#include <asterisk/chanvars.h>
+#include "asterisk/frame.h"
+#include "asterisk/sched.h"
+#include "asterisk/chanvars.h"
 
 #include <unistd.h>
 #include <setjmp.h>
 #if defined(__APPLE__)
-#include <asterisk/poll-compat.h>
+#include "asterisk/poll-compat.h"
 #else
 #include <sys/poll.h>
 #endif
@@ -33,14 +33,14 @@
 extern "C" {
 #endif
 
-#include <asterisk/lock.h>
+#include "asterisk/lock.h"
 
 /*! Max length of an extension */
 #define AST_MAX_EXTENSION 80
 
-#include <asterisk/cdr.h>
-#include <asterisk/monitor.h>
-#include <asterisk/utils.h>
+#include "asterisk/cdr.h"
+#include "asterisk/monitor.h"
+#include "asterisk/utils.h"
 
 
 #define AST_CHANNEL_NAME 80

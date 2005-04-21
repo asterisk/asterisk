@@ -14,8 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <asterisk/chanvars.h>
-#include <asterisk/logger.h>
+#include "asterisk/chanvars.h"
+#include "asterisk/logger.h"
 
 struct ast_var_t *ast_var_assign(const char *name, const char *value)
 {

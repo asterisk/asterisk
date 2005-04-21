@@ -36,7 +36,7 @@ struct ast_variable {
 	char stuff[0];
 };
 
-#include <asterisk/config_old.h>
+#include "asterisk/config_old.h"
 
 typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config);
 typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);

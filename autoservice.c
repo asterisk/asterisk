@@ -19,20 +19,20 @@
 #include <errno.h>
 #include <unistd.h>
 #include <math.h>			/* For PI */
-#include <asterisk/pbx.h>
-#include <asterisk/frame.h>
-#include <asterisk/sched.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/file.h>
-#include <asterisk/translate.h>
-#include <asterisk/manager.h>
-#include <asterisk/chanvars.h>
-#include <asterisk/linkedlists.h>
-#include <asterisk/indications.h>
-#include <asterisk/lock.h>
-#include <asterisk/utils.h>
+#include "asterisk/pbx.h"
+#include "asterisk/frame.h"
+#include "asterisk/sched.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/file.h"
+#include "asterisk/translate.h"
+#include "asterisk/manager.h"
+#include "asterisk/chanvars.h"
+#include "asterisk/linkedlists.h"
+#include "asterisk/indications.h"
+#include "asterisk/lock.h"
+#include "asterisk/utils.h"
 
 #define MAX_AUTOMONS 256
 

@@ -21,14 +21,14 @@
 #include <unistd.h>
 #include <math.h>
 #include <ctype.h>
-#include <asterisk/ulaw.h>
-#include <asterisk/alaw.h>
-#include <asterisk/frame.h>
-#include <asterisk/channel.h>
-#include <asterisk/callerid.h>
-#include <asterisk/logger.h>
-#include <asterisk/fskmodem.h>
-#include <asterisk/utils.h>
+#include "asterisk/ulaw.h"
+#include "asterisk/alaw.h"
+#include "asterisk/frame.h"
+#include "asterisk/channel.h"
+#include "asterisk/callerid.h"
+#include "asterisk/logger.h"
+#include "asterisk/fskmodem.h"
+#include "asterisk/utils.h"
 
 struct callerid_state {
 	fsk_data fskd;

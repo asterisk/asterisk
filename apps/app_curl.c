@@ -12,14 +12,14 @@
  * redistribution.
  */
  
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/cli.h>
-#include <asterisk/options.h>
-#include <asterisk/module.h>
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/cli.h"
+#include "asterisk/options.h"
+#include "asterisk/module.h"
 #include <stdlib.h>
 #include <string.h>
 #include <curl/curl.h>

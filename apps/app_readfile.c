@@ -16,13 +16,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/app.h>
-#include <asterisk/module.h>
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/app.h"
+#include "asterisk/module.h"
 
 static char *tdesc = "Stores output of file into a variable";
 

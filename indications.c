@@ -20,13 +20,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>			/* For PI */
-#include <asterisk/indications.h>
-#include <asterisk/frame.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/lock.h>
-#include <asterisk/utils.h>
+#include "asterisk/indications.h"
+#include "asterisk/frame.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/lock.h"
+#include "asterisk/utils.h"
 
 struct playtones_item {
 	int freq1;

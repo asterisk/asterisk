@@ -16,10 +16,10 @@
 #include <resolv.h>
 #include <unistd.h>
 
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/dns.h>
-#include <asterisk/endian.h>
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/dns.h"
+#include "asterisk/endian.h"
 
 #define MAX_SIZE 4096
 

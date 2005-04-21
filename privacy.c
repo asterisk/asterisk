@@ -19,17 +19,18 @@
 #include <errno.h>
 #include <unistd.h>
 #include <dirent.h>
-#include <asterisk/channel.h>
-#include <asterisk/file.h>
-#include <asterisk/app.h>
-#include <asterisk/dsp.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/astdb.h>
-#include <asterisk/callerid.h>
-#include <asterisk/privacy.h>
-#include <asterisk/utils.h>
-#include <asterisk/lock.h>
+
+#include "asterisk/channel.h"
+#include "asterisk/file.h"
+#include "asterisk/app.h"
+#include "asterisk/dsp.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/astdb.h"
+#include "asterisk/callerid.h"
+#include "asterisk/privacy.h"
+#include "asterisk/utils.h"
+#include "asterisk/lock.h"
 #include "asterisk.h"
 
 int ast_privacy_check(char *dest, char *cid)

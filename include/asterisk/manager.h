@@ -23,7 +23,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <asterisk/lock.h>
+#include "asterisk/lock.h"
 
 /*!
   \file manager.h

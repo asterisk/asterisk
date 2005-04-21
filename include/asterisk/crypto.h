@@ -14,8 +14,8 @@
 #ifndef _ASTERISK_CRYPTO_H
 #define _ASTERISK_CRYPTO_H
 
-#include <asterisk/channel.h>
-#include <asterisk/file.h>
+#include "asterisk/channel.h"
+#include "asterisk/file.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

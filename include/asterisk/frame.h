@@ -22,7 +22,7 @@ extern "C" {
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include <asterisk/endian.h>
+#include "asterisk/endian.h"
 
 struct ast_codec_pref {
 	char order[32];

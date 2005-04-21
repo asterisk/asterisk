@@ -6,20 +6,20 @@
 #include <sys/stat.h>
 #include <libgen.h>		/* dirname() */
 
-#include <asterisk/lock.h>
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/file.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/manager.h>
-#include <asterisk/cli.h>
-#include <asterisk/monitor.h>
-#include <asterisk/app.h>
-#include <asterisk/utils.h>
-#include <asterisk/config.h>
-#include "../asterisk.h"
-#include "../astconf.h"
+#include "asterisk/lock.h"
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/file.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/manager.h"
+#include "asterisk/cli.h"
+#include "asterisk/monitor.h"
+#include "asterisk/app.h"
+#include "asterisk/utils.h"
+#include "asterisk/config.h"
+#include "asterisk.h"
+#include "astconf.h"
 
 #define AST_MONITOR_DIR	AST_SPOOL_DIR "/monitor"
 

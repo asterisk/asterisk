@@ -12,19 +12,19 @@
  *
  */
 
-#include <asterisk/config.h>
-#include <asterisk/logger.h>
-#include <asterisk/cli.h>
-#include <asterisk/lock.h>
-#include <asterisk/frame.h>
-#include <asterisk/options.h>
-#include <asterisk/md5.h>
-#include <asterisk/astdb.h>
+#include "asterisk/config.h"
+#include "asterisk/logger.h"
+#include "asterisk/cli.h"
+#include "asterisk/lock.h"
+#include "asterisk/frame.h"
+#include "asterisk/options.h"
+#include "asterisk/md5.h"
+#include "asterisk/astdb.h"
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/socket.h>
-#include <asterisk/utils.h>
+#include "asterisk/utils.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>

@@ -13,7 +13,7 @@
 
 #ifndef _ASTERISK_OSP_H
 #define _ASTERISK_OSP_H
-#include <asterisk/channel.h>
+#include "asterisk/channel.h"
 #include <netinet/in.h>
 #include <time.h>
 

@@ -49,23 +49,23 @@
 #ifdef __cplusplus
 extern "C" {
 #endif   
-#include <asterisk/lock.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/module.h>
-#include <asterisk/pbx.h>
-#include <asterisk/options.h>
-#include <asterisk/utils.h>
-#include <asterisk/lock.h>
-#include <asterisk/sched.h>
-#include <asterisk/io.h>
-#include <asterisk/rtp.h>
-#include <asterisk/acl.h>
-#include <asterisk/callerid.h>
-#include <asterisk/cli.h>
-#include <asterisk/dsp.h>
-#include <asterisk/causes.h>
+#include "asterisk/lock.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/module.h"
+#include "asterisk/pbx.h"
+#include "asterisk/options.h"
+#include "asterisk/utils.h"
+#include "asterisk/lock.h"
+#include "asterisk/sched.h"
+#include "asterisk/io.h"
+#include "asterisk/rtp.h"
+#include "asterisk/acl.h"
+#include "asterisk/callerid.h"
+#include "asterisk/cli.h"
+#include "asterisk/dsp.h"
+#include "asterisk/causes.h"
 #ifdef __cplusplus
 }
 #endif

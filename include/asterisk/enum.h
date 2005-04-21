@@ -17,7 +17,7 @@
 
 #ifndef _ASTERISK_ENUM_H
 #define _ASTERISK_ENUM_H
-#include <asterisk/channel.h>
+#include "asterisk/channel.h"
 /*! \brief Lookup entry in ENUM Returns 1 if found, 0 if not found, -1 on hangup 
 	\param chan	Channel
 	\param number	Number in E164 format without the + (for e164.arpa) or format 

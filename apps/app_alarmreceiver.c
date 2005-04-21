@@ -18,21 +18,21 @@
  *
  */ 
  
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/translate.h>
-#include <asterisk/ulaw.h>
-#include <asterisk/options.h>
-#include <asterisk/app.h>
-#include <asterisk/dsp.h>
-#include <asterisk/config.h>
-#include <asterisk/localtime.h>
-#include <asterisk/callerid.h>
-#include <asterisk/astdb.h>
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/translate.h"
+#include "asterisk/ulaw.h"
+#include "asterisk/options.h"
+#include "asterisk/app.h"
+#include "asterisk/dsp.h"
+#include "asterisk/config.h"
+#include "asterisk/localtime.h"
+#include "asterisk/callerid.h"
+#include "asterisk/astdb.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>

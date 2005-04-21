@@ -14,8 +14,8 @@
 #ifndef _ASTERISK_VMODEM_H
 #define _ASTERISK_VMODEM_H
 
-#include <asterisk/frame.h>
-#include <asterisk/channel.h>
+#include "asterisk/frame.h"
+#include "asterisk/channel.h"
 
 #define CHAR_DLE		0x10
 #define CHAR_ETX		0x03

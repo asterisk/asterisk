@@ -28,13 +28,13 @@ static int dtx = 0;
 #define TYPE_LOW	 0x1
 #define TYPE_MASK	 0x3
 
-#include <asterisk/lock.h>
-#include <asterisk/translate.h>
-#include <asterisk/module.h>
-#include <asterisk/config.h>
-#include <asterisk/options.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
+#include "asterisk/lock.h"
+#include "asterisk/translate.h"
+#include "asterisk/module.h"
+#include "asterisk/config.h"
+#include "asterisk/options.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>

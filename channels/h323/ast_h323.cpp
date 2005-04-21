@@ -40,7 +40,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif   
-#include <asterisk/logger.h>
+#include "asterisk/logger.h"
 #ifdef __cplusplus
 }
 #endif

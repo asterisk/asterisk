@@ -14,13 +14,13 @@
  * the GNU General Public License
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/translate.h>
-#include <asterisk/config.h>
-#include <asterisk/options.h>
-#include <asterisk/module.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
+#include "asterisk/lock.h"
+#include "asterisk/translate.h"
+#include "asterisk/config.h"
+#include "asterisk/options.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>

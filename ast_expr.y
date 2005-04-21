@@ -21,8 +21,8 @@
 #include <errno.h>
 #include <regex.h>
 #include <limits.h>
-#include <asterisk/ast_expr.h>
-#include <asterisk/logger.h>
+#include "asterisk/ast_expr.h"
+#include "asterisk/logger.h"
 
 #ifndef QUAD_MIN
 #ifdef LONG_LONG_MIN

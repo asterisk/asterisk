@@ -26,20 +26,21 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include <asterisk/channel.h>
-#include <asterisk/file.h>
-#include <asterisk/manager.h>
-#include <asterisk/config.h>
-#include <asterisk/callerid.h>
-#include <asterisk/lock.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
-#include <asterisk/app.h>
-#include <asterisk/pbx.h>
-#include <asterisk/md5.h>
-#include <asterisk/acl.h>
-#include <asterisk/utils.h>
+
+#include "asterisk/channel.h"
+#include "asterisk/file.h"
+#include "asterisk/manager.h"
+#include "asterisk/config.h"
+#include "asterisk/callerid.h"
+#include "asterisk/lock.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/cli.h"
+#include "asterisk/app.h"
+#include "asterisk/pbx.h"
+#include "asterisk/md5.h"
+#include "asterisk/acl.h"
+#include "asterisk/utils.h"
 
 struct fast_originate_helper
 {

@@ -20,8 +20,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-#include <asterisk/md5.h>
-#include <asterisk/manager.h>
+#include "asterisk/md5.h"
+#include "asterisk/manager.h"
 
 #undef gethostbyname
 

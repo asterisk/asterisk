@@ -11,29 +11,29 @@
  * the GNU General Public License
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/config.h>
-#include <asterisk/app.h>
-#include <asterisk/dsp.h>
-#include <asterisk/musiconhold.h>
-#include <asterisk/manager.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
-#include <asterisk/say.h>
-#include <asterisk/utils.h>
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/config.h"
+#include "asterisk/app.h"
+#include "asterisk/dsp.h"
+#include "asterisk/musiconhold.h"
+#include "asterisk/manager.h"
+#include "asterisk/options.h"
+#include "asterisk/cli.h"
+#include "asterisk/say.h"
+#include "asterisk/utils.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/ioctl.h>
-#include "../asterisk.h"
-#include "../astconf.h"
+#include "asterisk.h"
+#include "astconf.h"
 
 #ifdef __linux__
 #include <linux/zaptel.h>

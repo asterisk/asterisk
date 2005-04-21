@@ -135,8 +135,8 @@
 #ifndef _AESOPT_H
 #define _AESOPT_H
 
-#include <asterisk/aes.h>
-#include <asterisk/endian.h>
+#include "asterisk/aes.h"
+#include "asterisk/endian.h"
 
 /*  CONFIGURATION - USE OF DEFINES
 

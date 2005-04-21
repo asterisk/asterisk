@@ -35,13 +35,13 @@ CREATE TABLE [dbo].[cdr] (
 */
 
 #include <sys/types.h>
-#include <asterisk/config.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/cdr.h>
-#include <asterisk/module.h>
-#include <asterisk/logger.h>
-#include "../asterisk.h"
+#include "asterisk/config.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/cdr.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
+#include "asterisk.h"
 
 #include <stdio.h>
 #include <string.h>

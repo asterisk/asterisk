@@ -22,17 +22,17 @@ extern "C" {
 
 #include <stdio.h>
 #include <string.h>
-#include <asterisk/lock.h>
-#include <asterisk/utils.h>
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/logger.h>
-#include <asterisk/module.h>
-#include <asterisk/pbx.h>
-#include <asterisk/options.h>
-#include <asterisk/callerid.h>
-#include <asterisk/dsp.h>
-#include <asterisk/features.h>
+#include "asterisk/lock.h"
+#include "asterisk/utils.h"
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/logger.h"
+#include "asterisk/module.h"
+#include "asterisk/pbx.h"
+#include "asterisk/options.h"
+#include "asterisk/callerid.h"
+#include "asterisk/dsp.h"
+#include "asterisk/features.h"
 
 }
 

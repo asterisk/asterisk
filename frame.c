@@ -11,14 +11,14 @@
  * the GNU General Public License
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/frame.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/cli.h>
-#include <asterisk/term.h>
-#include <asterisk/utils.h>
+#include "asterisk/lock.h"
+#include "asterisk/frame.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/cli.h"
+#include "asterisk/term.h"
+#include "asterisk/utils.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>

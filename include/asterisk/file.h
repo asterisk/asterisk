@@ -14,8 +14,8 @@
 #ifndef _ASTERISK_FILE_H
 #define _ASTERISK_FILE_H
 
-#include <asterisk/channel.h>
-#include <asterisk/frame.h>
+#include "asterisk/channel.h"
+#include "asterisk/frame.h"
 #include <fcntl.h>
 
 

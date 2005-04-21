@@ -12,20 +12,20 @@
  */
 
 #include <sys/types.h>
-#include <asterisk/pbx.h>
-#include <asterisk/config.h>
-#include <asterisk/module.h>
-#include <asterisk/logger.h>
-#include <asterisk/cli.h>
-#include <asterisk/callerid.h>
+#include "asterisk/pbx.h"
+#include "asterisk/config.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
+#include "asterisk/cli.h"
+#include "asterisk/callerid.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
 /* For where to put dynamic tables */
-#include "../asterisk.h"
-#include "../astconf.h"
+#include "asterisk.h"
+#include "astconf.h"
 
 #ifdef __AST_DEBUG_MALLOC
 static void FREE(void *ptr)

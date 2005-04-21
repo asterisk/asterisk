@@ -11,10 +11,10 @@
  * the GNU General Public License
  */
 
-#include <asterisk/module.h>
-#include <asterisk/channel.h>
-#include <asterisk/logger.h>
-#include <asterisk/lock.h>
+#include "asterisk/module.h"
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/lock.h"
 #include "pbx_kdeconsole.h"
 
 static char *dtext = "KDE Console Monitor";

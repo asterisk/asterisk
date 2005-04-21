@@ -21,16 +21,16 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/cli.h>
-#include <asterisk/logger.h>
-#include <asterisk/config.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/translate.h>
-#include <asterisk/indications.h>
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/cli.h"
+#include "asterisk/logger.h"
+#include "asterisk/config.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/translate.h"
+#include "asterisk/indications.h"
 
 
 /* Globals */

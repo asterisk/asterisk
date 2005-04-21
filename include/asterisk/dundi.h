@@ -11,7 +11,7 @@
 #ifndef _ASTERISK_DUNDI_H 
 #define _ASTERISK_DUNDI_H
 
-#include <asterisk/channel.h>
+#include "asterisk/channel.h"
 
 #define DUNDI_PORT 4520
 

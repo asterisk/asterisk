@@ -20,8 +20,8 @@
 extern "C" {
 #endif
 
-#include <asterisk/frame.h>
-#include <asterisk/plc.h>
+#include "asterisk/frame.h"
+#include "asterisk/plc.h"
 
 /* Declared by individual translators */
 struct ast_translator_pvt;

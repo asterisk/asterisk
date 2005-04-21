@@ -26,13 +26,13 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/enum.h>
-#include <asterisk/dns.h>
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/utils.h>
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/enum.h"
+#include "asterisk/dns.h"
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/utils.h"
 
 #ifdef __APPLE__
 #undef T_NAPTR

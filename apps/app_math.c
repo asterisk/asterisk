@@ -9,20 +9,20 @@
  *
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/options.h>
-#include <asterisk/config.h>
-#include <asterisk/say.h>
-#include <asterisk/module.h>
-#include <asterisk/app.h>
-#include <asterisk/manager.h>
-#include <asterisk/localtime.h>
-#include <asterisk/cli.h>
-#include <asterisk/utils.h>
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/options.h"
+#include "asterisk/config.h"
+#include "asterisk/say.h"
+#include "asterisk/module.h"
+#include "asterisk/app.h"
+#include "asterisk/manager.h"
+#include "asterisk/localtime.h"
+#include "asterisk/cli.h"
+#include "asterisk/utils.h"
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -34,11 +34,11 @@
 #include <sys/types.h>
 #include <time.h>
 #include <dirent.h>
-#include <asterisk/module.h>
-#include <asterisk/translate.h>
+#include "asterisk/module.h"
+#include "asterisk/translate.h"
 #include <ctype.h>
 #include <sys/file.h>
-#include "../astconf.h"
+#include "astconf.h"
 
 static char *tdesc = "Basic Math Functions";
 

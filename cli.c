@@ -13,15 +13,15 @@
 
 #include <unistd.h>
 #include <stdlib.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
-#include <asterisk/module.h>
-#include <asterisk/pbx.h>
-#include <asterisk/channel.h>
-#include <asterisk/manager.h>
-#include <asterisk/utils.h>
-#include <asterisk/lock.h>
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/cli.h"
+#include "asterisk/module.h"
+#include "asterisk/pbx.h"
+#include "asterisk/channel.h"
+#include "asterisk/manager.h"
+#include "asterisk/utils.h"
+#include "asterisk/lock.h"
 #include <sys/signal.h>
 #include <stdio.h>
 #include <signal.h>

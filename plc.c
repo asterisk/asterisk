@@ -35,7 +35,7 @@
 #include <math.h>
 #include <limits.h>
 
-#include <asterisk/plc.h>
+#include "asterisk/plc.h"
 
 #if !defined(FALSE)
 #define FALSE 0

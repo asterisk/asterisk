@@ -22,7 +22,7 @@
 #ifndef _ASTERISK_INDICATIONS_H
 #define _ASTERISK_INDICATIONS_H
 
-#include <asterisk/lock.h>
+#include "asterisk/lock.h"
 
 /* forward reference */
 struct ast_channel;

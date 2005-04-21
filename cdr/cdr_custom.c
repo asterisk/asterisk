@@ -15,15 +15,15 @@
  */
 
 #include <sys/types.h>
-#include <asterisk/channel.h>
-#include <asterisk/cdr.h>
-#include <asterisk/module.h>
-#include <asterisk/config.h>
-#include <asterisk/pbx.h>
-#include <asterisk/logger.h>
-#include <asterisk/utils.h>
-#include "../asterisk.h"
-#include "../astconf.h"
+#include "asterisk/channel.h"
+#include "asterisk/cdr.h"
+#include "asterisk/module.h"
+#include "asterisk/config.h"
+#include "asterisk/pbx.h"
+#include "asterisk/logger.h"
+#include "asterisk/utils.h"
+#include "asterisk.h"
+#include "astconf.h"
 
 #define CUSTOM_LOG_DIR "/cdr_custom"
 

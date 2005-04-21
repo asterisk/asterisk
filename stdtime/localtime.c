@@ -26,8 +26,8 @@
 #endif
 #define TZ_STRLEN_MAX	255
 /* #define DEBUG */
-#include <asterisk/lock.h>
-#include <asterisk/localtime.h>
+#include "asterisk/lock.h"
+#include "asterisk/localtime.h"
 
 
 #ifndef lint

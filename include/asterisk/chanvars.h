@@ -14,7 +14,7 @@
 #ifndef _ASTERISK_CHANVARS_INCLUDE
 #define _ASTERISK_CHANVARS_INCLUDE
 
-#include <asterisk/linkedlists.h>
+#include "asterisk/linkedlists.h"
 
 struct ast_var_t {
 	AST_LIST_ENTRY(ast_var_t) entries;

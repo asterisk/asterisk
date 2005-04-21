@@ -15,7 +15,7 @@
 #define _IO_H
 
 #ifdef __APPLE__
-#include <asterisk/poll-compat.h>
+#include "asterisk/poll-compat.h"
 #else
 #include <sys/poll.h>		/* For POLL* constants */
 #endif

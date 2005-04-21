@@ -13,15 +13,15 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <netinet/in.h>
-#include <asterisk/frame.h>
-#include <asterisk/utils.h>
+#include "asterisk/frame.h"
+#include "asterisk/utils.h"
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <asterisk/dundi.h>
+#include "asterisk/dundi.h"
 #include "dundi-parser.h"
-#include <asterisk/dundi.h>
+#include "asterisk/dundi.h"
 
 static void internaloutput(const char *str)
 {

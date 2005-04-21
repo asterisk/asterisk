@@ -22,11 +22,11 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <asterisk/lock.h>
-#include <asterisk/utils.h>
-#include <asterisk/io.h>
-#include <asterisk/logger.h>
-#include <asterisk/md5.h>
+#include "asterisk/lock.h"
+#include "asterisk/utils.h"
+#include "asterisk/io.h"
+#include "asterisk/logger.h"
+#include "asterisk/md5.h"
 
 static char base64[64];
 static char b2a[256];

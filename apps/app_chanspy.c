@@ -11,25 +11,26 @@
  * the GNU General Public License
  */
 
-#define AST_MONITOR_DIR AST_SPOOL_DIR "/monitor"
-
-#include <../asterisk.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/features.h>
-#include <asterisk/options.h>
-#include <asterisk/app.h>
-#include <asterisk/utils.h>
-#include <asterisk/say.h>
-#include <asterisk/pbx.h>
-#include <asterisk/translate.h>
-#include <asterisk/module.h>
-#include <asterisk/lock.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+
+#include "asterisk.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/features.h"
+#include "asterisk/options.h"
+#include "asterisk/app.h"
+#include "asterisk/utils.h"
+#include "asterisk/say.h"
+#include "asterisk/pbx.h"
+#include "asterisk/translate.h"
+#include "asterisk/module.h"
+#include "asterisk/lock.h"
+
+#define AST_MONITOR_DIR AST_SPOOL_DIR "/monitor"
 
 AST_MUTEX_DEFINE_STATIC(modlock);
 

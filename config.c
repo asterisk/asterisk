@@ -24,14 +24,14 @@
 #endif
 # include <glob.h>
 #endif
-#include <asterisk/config.h>
-#include <asterisk/cli.h>
-#include <asterisk/lock.h>
-#include <asterisk/options.h>
-#include <asterisk/logger.h>
-#include <asterisk/utils.h>
-#include <asterisk/channel.h>
-#include <asterisk/app.h>
+#include "asterisk/config.h"
+#include "asterisk/cli.h"
+#include "asterisk/lock.h"
+#include "asterisk/options.h"
+#include "asterisk/logger.h"
+#include "asterisk/utils.h"
+#include "asterisk/channel.h"
+#include "asterisk/app.h"
 #include "asterisk.h"
 #include "astconf.h"
 

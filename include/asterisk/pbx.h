@@ -13,8 +13,8 @@
 #ifndef _ASTERISK_PBX_H
 #define _ASTERISK_PBX_H
 
-#include <asterisk/sched.h>
-#include <asterisk/channel.h>
+#include "asterisk/sched.h"
+#include "asterisk/channel.h"
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {

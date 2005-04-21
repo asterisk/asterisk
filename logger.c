@@ -16,14 +16,14 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
-#include <asterisk/lock.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/term.h>
-#include <asterisk/cli.h>
-#include <asterisk/utils.h>
-#include <asterisk/manager.h>
+#include "asterisk/lock.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/term.h"
+#include "asterisk/cli.h"
+#include "asterisk/utils.h"
+#include "asterisk/manager.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -45,7 +45,7 @@ static int syslog_level_map[] = {
 
 #define SYSLOG_NLEVELS 6
 
-#include <asterisk/logger.h>
+#include "asterisk/logger.h"
 
 #define MAX_MSG_QUEUE 200
 

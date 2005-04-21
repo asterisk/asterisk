@@ -16,18 +16,18 @@
  * GPL application.
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/config.h>
-#include <asterisk/app.h>
-#include <asterisk/options.h>
-#include <asterisk/utils.h>
-#include <asterisk/cli.h>
-#include <asterisk/say.h>
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/config.h"
+#include "asterisk/app.h"
+#include "asterisk/options.h"
+#include "asterisk/utils.h"
+#include "asterisk/cli.h"
+#include "asterisk/say.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>

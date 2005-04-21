@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-#include <asterisk/channel.h>
+#include "asterisk/channel.h"
 
 struct ast_channel;
 

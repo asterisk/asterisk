@@ -9,26 +9,26 @@
  * of the GNU General Public License.
  */
 
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/config.h>
-#include <asterisk/options.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/frame.h>
-#include <asterisk/file.h>
-#include <asterisk/cli.h>
-#include <asterisk/lock.h>
-#include <asterisk/md5.h>
-#include <asterisk/dundi.h>
-#include <asterisk/sched.h>
-#include <asterisk/io.h>
-#include <asterisk/utils.h>
-#include <asterisk/crypto.h>
-#include <asterisk/astdb.h>
-#include <asterisk/acl.h>
-#include <asterisk/aes.h>
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/options.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/frame.h"
+#include "asterisk/file.h"
+#include "asterisk/cli.h"
+#include "asterisk/lock.h"
+#include "asterisk/md5.h"
+#include "asterisk/dundi.h"
+#include "asterisk/sched.h"
+#include "asterisk/io.h"
+#include "asterisk/utils.h"
+#include "asterisk/crypto.h"
+#include "asterisk/astdb.h"
+#include "asterisk/acl.h"
+#include "asterisk/aes.h"
 
 #include "dundi-parser.h"
 #include <stdlib.h>

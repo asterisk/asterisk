@@ -14,24 +14,24 @@
  *				 George Konstantoulakis <gkon@inaccessnetworks.com>
  */
 
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/options.h>
-#include <asterisk/config.h>
-#include <asterisk/say.h>
-#include <asterisk/module.h>
-#include <asterisk/adsi.h>
-#include <asterisk/app.h>
-#include <asterisk/manager.h>
-#include <asterisk/dsp.h>
-#include <asterisk/localtime.h>
-#include <asterisk/cli.h>
-#include <asterisk/utils.h>
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/options.h"
+#include "asterisk/config.h"
+#include "asterisk/say.h"
+#include "asterisk/module.h"
+#include "asterisk/adsi.h"
+#include "asterisk/app.h"
+#include "asterisk/manager.h"
+#include "asterisk/dsp.h"
+#include "asterisk/localtime.h"
+#include "asterisk/cli.h"
+#include "asterisk/utils.h"
 #ifdef USE_ODBC_STORAGE
-#include <asterisk/res_odbc.h>
+#include "asterisk/res_odbc.h"
 #endif
 #include <stdlib.h>
 #include <errno.h>
@@ -46,8 +46,8 @@
 #include <time.h>
 #include <dirent.h>
 
-#include "../asterisk.h"
-#include "../astconf.h"
+#include "asterisk.h"
+#include "astconf.h"
 
 #define COMMAND_TIMEOUT 5000
 

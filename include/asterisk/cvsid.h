@@ -35,7 +35,7 @@
 /*
  * To use this macro, in the source file put the lines:
  *
- * #include <asterisk/cvsid.h>
+ * #include "asterisk/cvsid.h"
  * #ifndef lint
  * CVSID("$Id$");
  * #endif

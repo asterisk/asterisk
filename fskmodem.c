@@ -14,7 +14,7 @@
  *
  */
 
-#include <asterisk/fskmodem.h>
+#include "asterisk/fskmodem.h"
 
 #include <stdio.h>
 
