@@ -98,10 +98,12 @@ void jb_destroy(jitterbuf *jb)
 /* maybe later we can make the history buckets variable size, or something? */
 /* drop parameter determines whether we will drop outliers to minimize
  * delay */
+#if 0
 static int longcmp(const void *a, const void *b) 
 {
 	return *(long *)a - *(long *)b;
 }
+#endif
 
 static void history_put(jitterbuf *jb, long ts, long now) 
 {

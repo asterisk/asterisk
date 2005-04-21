@@ -123,6 +123,7 @@ static inline int indexof(struct feature_pvt *p, struct ast_channel *owner, int 
 	return -1;
 }
 
+#if 0
 static void wakeup_sub(struct feature_pvt *p, int a)
 {
 	struct ast_frame null = { AST_FRAME_NULL, };
@@ -141,6 +142,7 @@ static void wakeup_sub(struct feature_pvt *p, int a)
 			break;
 	}
 }
+#endif
 
 static void restore_channel(struct feature_pvt *p, int index)
 {
@@ -180,6 +182,7 @@ static void update_features(struct feature_pvt *p, int index)
 	}
 }
 
+#if 0
 static void swap_subs(struct feature_pvt *p, int a, int b)
 {
 	int tinthreeway;
@@ -200,6 +203,7 @@ static void swap_subs(struct feature_pvt *p, int a, int b)
 	wakeup_sub(p, a);
 	wakeup_sub(p, b);
 }
+#endif
 
 static int features_answer(struct ast_channel *ast)
 {

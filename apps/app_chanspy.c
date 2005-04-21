@@ -104,7 +104,6 @@ struct chanspy_translation_helper {
 };
 
 /* Prototypes */
-static struct ast_channel *local_get_channel_by_name(char *name);
 static struct ast_channel *local_get_channel_begin_name(char *name);
 static struct ast_channel *local_channel_walk(struct ast_channel *chan);
 static void spy_release(struct ast_channel *chan, void *data);
@@ -118,6 +117,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 static int chanspy_exec(struct ast_channel *chan, void *data);
 
 
+#if 0
 static struct ast_channel *local_get_channel_by_name(char *name) 
 {
 	struct ast_channel *ret;
@@ -129,6 +129,7 @@ static struct ast_channel *local_get_channel_by_name(char *name)
 
 	return ret;
 }
+#endif
 
 static struct ast_channel *local_channel_walk(struct ast_channel *chan) 
 {

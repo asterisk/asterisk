@@ -46,7 +46,6 @@ void Gsm_Preprocess P3((S, s, so),
 
 	word		SO;
 
-	longword	ltmp;		/* for   ADD */
 	ulongword	utmp;		/* for L_ADD */
 
 	register int		k = 160;
@@ -86,7 +85,10 @@ void Gsm_Preprocess P3((S, s, so),
 		/*   Execution of a 31 bv 16 bits multiplication
 		 */
 		{
-		word		msp, lsp;
+		word		msp;
+#ifndef __GNUC__ 
+		word		lsp;
+#endif
 		longword L_s2;
 		longword L_temp;
 		

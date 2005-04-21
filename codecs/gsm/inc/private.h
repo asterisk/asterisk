@@ -151,13 +151,18 @@ static __inline__ short GSM_SUB(short a, short b)
  */
 /* Nonportable, but faster: */
 
-#define	GSM_ADD(a, b)	\
-	((ulongword)((ltmp = (longword)(a) + (longword)(b)) - MIN_WORD) > \
-		MAX_WORD - MIN_WORD ? (ltmp > 0 ? MAX_WORD : MIN_WORD) : ltmp)
+# define GSM_ADD(a, b) ({ \
+		register longword ltmp; \
+		ltmp = (longword) (a) + (longword) (b); \
+		((ulongword) (ltmp - MIN_WORD) > MAX_WORD - MIN_WORD ? \
+			(ltmp > 0 ? MAX_WORD : MIN_WORD) : ltmp); \
+	})
 
-# define GSM_SUB(a, b)	\
-	((ltmp = (longword)(a) - (longword)(b)) >= MAX_WORD \
-	? MAX_WORD : ltmp <= MIN_WORD ? MIN_WORD : ltmp)
+#define GSM_SUB(a, b) ({ \
+		register longword ltmp; \
+		ltmp = (longword) (a) - (longword) (b); \
+		(ltmp >= MAX_WORD ? MAX_WORD : ltmp <= MIN_WORD ? MIN_WORD : ltmp); \
+	})
 
 #endif
 

@@ -119,7 +119,7 @@ static struct chan_oss_pvt {
 
 static struct ast_channel *oss_request(const char *type, int format, void *data, int *cause);
 static int oss_digit(struct ast_channel *c, char digit);
-static int oss_text(struct ast_channel *c, char *text);
+static int oss_text(struct ast_channel *c, const char *text);
 static int oss_hangup(struct ast_channel *c);
 static int oss_answer(struct ast_channel *c);
 static struct ast_frame *oss_read(struct ast_channel *chan);
@@ -484,7 +484,7 @@ static int oss_digit(struct ast_channel *c, char digit)
 	return 0;
 }
 
-static int oss_text(struct ast_channel *c, char *text)
+static int oss_text(struct ast_channel *c, const char *text)
 {
 	ast_verbose( " << Console Received text %s >> \n", text);
 	return 0;
