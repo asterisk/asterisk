@@ -402,8 +402,9 @@ static int update_odbc(const char *database, const char *table, const char *keyf
 		return -1;
 	}
 
-	if (rowcount) 
-		return 0;
+       if (rowcount >= 0)
+               return (int)rowcount;
+
 	return -1;
 }
 
