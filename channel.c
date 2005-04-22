@@ -1251,9 +1251,10 @@ char ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd
 		return -1;
 	/* Wait for a digit, no more than ms milliseconds total. */
 	while(ms) {
+		errno = 0;
 		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if ((!rchan) && (outfd < 0) && (ms)) { 
-			if (errno == EINTR)
+			if (errno == 0 || errno == EINTR)
 				continue;
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
