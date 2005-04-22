@@ -49,6 +49,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 	SQLSMALLINT datatype;
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
+	SQLINTEGER indicator;
 	va_list aq;
 	
 	va_copy(aq, ap);
@@ -136,7 +137,12 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 					ast_variables_destroy(var);
 				return NULL;
 			}
-			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+
+			indicator = 0;
+			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &indicator);
+			if (indicator == SQL_NULL_DATA)
+				continue;
+
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 				if (var)
@@ -189,6 +195,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 	SQLSMALLINT datatype;
 	SQLSMALLINT decimaldigits;
 	SQLSMALLINT nullable;
+	SQLINTEGER indicator;
 
 	va_list aq;
 	va_copy(aq, ap);
@@ -293,7 +300,12 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 				ast_category_destroy(cat);
 				continue;
 			}
-			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+
+			indicator = 0;
+			res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), &indicator);
+			if (indicator == SQL_NULL_DATA)
+				continue;
+
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 				ast_category_destroy(cat);
