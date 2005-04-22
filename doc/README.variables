@@ -319,7 +319,7 @@ only read in the dialplan.  Writes to such variables are silently
 ignored.
 
 ${ACCOUNTCODE} 	 	* Account code (if specified)
-${BLINDTRANSFER} 	The name of the channel on the other side a blind transfer
+${BLINDTRANSFER} 	The name of the channel on the other side of a blind transfer
 ${BRIDGEPEER}	 	Bridged peer
 ${CALLERANI}	 	* Caller ANI (PRI channels)
 ${CALLERID}	 	* Caller ID
@@ -336,6 +336,10 @@ ${DNID}          	* Dialed Number Identifier
 ${EPOCH}	 	* Current unix style epoch
 ${EXTEN}	 	* Current extension
 ${ENV(VAR)}	 	* Environmental variable VAR
+${GOTO_ON_BLINDXFR}	Transfer to the specified context/extension/priority
+			after a blind transfer (use ^ characters in place of
+			| to separate context/extension/priority when setting
+			this variable from the dialplan)
 ${HANGUPCAUSE}	 	* Asterisk cause of hangup (inbound/outbound)
 ${HINT}          	* Channel hints for this extension
 ${HINTNAME}      	* Suggested Caller*ID name for this extension

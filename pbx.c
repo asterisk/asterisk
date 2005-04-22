@@ -6271,8 +6271,7 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 	if (mode) 
 		ipri = chan->priority + (ipri * mode);
 
-	/* This channel is currently in the PBX */
-	ast_explicit_goto(chan, context, exten, ipri - 1);
+	ast_explicit_goto(chan, context, exten, chan->pbx ? ipri - 1 : ipri);
 	ast_cdr_update(chan);
 	return 0;
 

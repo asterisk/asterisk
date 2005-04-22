@@ -144,6 +144,40 @@ struct ast_bridge_thread_obj
 	struct ast_channel *peer;
 };
 
+static void check_goto_on_transfer(struct ast_channel *chan) 
+{
+	struct ast_channel *xferchan;
+	char *goto_on_transfer;
+
+	goto_on_transfer = pbx_builtin_getvar_helper(chan, "GOTO_ON_BLINDXFR");
+
+	if (goto_on_transfer && !ast_strlen_zero(goto_on_transfer) && (xferchan = ast_channel_alloc(0))) {
+		char *x;
+		struct ast_frame *f;
+		
+		for (x = goto_on_transfer; x && *x; x++)
+			if (*x == '^')
+				*x = '|';
+
+		strcpy(xferchan->name, chan->name);
+		/* Make formats okay */
+		xferchan->readformat = chan->readformat;
+		xferchan->writeformat = chan->writeformat;
+		ast_channel_masquerade(xferchan, chan);
+		ast_parseable_goto(xferchan, goto_on_transfer);
+		xferchan->_state = AST_STATE_UP;
+		ast_clear_flag(xferchan, AST_FLAGS_ALL);	
+		xferchan->_softhangup = 0;
+		if ((f = ast_read(xferchan))) {
+			ast_frfree(f);
+			f = NULL;
+			ast_pbx_start(xferchan);
+		} else {
+			ast_hangup(xferchan);
+		}
+	}
+}
+
 static void *ast_bridge_call_thread(void *data) 
 {
 	struct ast_bridge_thread_obj *tobj = data;
@@ -550,6 +584,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			strncpy(transferee->context, transferer_real_context, sizeof(transferee->context)-1);
 			transferee->priority = 0;
 		}
+		check_goto_on_transfer(transferer);
 		return res;
 	} else {
 		if (option_verbose > 2)	
