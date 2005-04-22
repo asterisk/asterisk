@@ -6751,6 +6751,11 @@ retryowner:
 				memset(&f, 0, sizeof(f));
 				f.frametype = AST_FRAME_CONTROL;
 				f.subclass = AST_CONTROL_CONGESTION;
+
+				/* Set hangup cause according to remote */
+				if (ies.causecode && iaxs[fr.callno]->owner)
+					iaxs[fr.callno]->owner->hangupcause = ies.causecode;
+
 				iax2_queue_frame(fr.callno, &f);
 				if (ast_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
 					/* Send ack immediately, before we destroy */
