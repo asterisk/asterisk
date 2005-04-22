@@ -18,6 +18,7 @@
  * will fill a supplied 16-byte array with the digest.
  */
 #include <string.h>		/* for memcpy() */
+
 #include "asterisk/endian.h"
 #include "asterisk/md5.h"
 

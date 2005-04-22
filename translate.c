@@ -11,6 +11,13 @@
  * the GNU General Public License
  */
 
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
@@ -20,12 +27,6 @@
 #include "asterisk/sched.h"
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
-#include <sys/socket.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
 
 #define MAX_RECALC 200 /* max sample recalc */
 

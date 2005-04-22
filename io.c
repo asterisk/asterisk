@@ -17,6 +17,7 @@
 #include <termios.h>
 #include <string.h> /* for memset */
 #include <sys/ioctl.h>
+
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
 

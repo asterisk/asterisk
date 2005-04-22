@@ -21,12 +21,12 @@
 #include <unistd.h>
 #include <math.h>
 #include <ctype.h>
+
 #include "asterisk/ulaw.h"
 #include "asterisk/tdd.h"
 #include "asterisk/logger.h"
 #include "asterisk/fskmodem.h"
 #include "ecdisa.h"
-
 
 struct tdd_state {
 	fsk_data fskd;

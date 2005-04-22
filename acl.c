@@ -18,13 +18,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include "asterisk/acl.h"
-#include "asterisk/logger.h"
-#include "asterisk/channel.h"
-#include "asterisk/options.h"
-#include "asterisk/utils.h"
-#include "asterisk/lock.h"
-#include "asterisk/srv.h"
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -32,15 +25,26 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
+
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 #include <fcntl.h>
 #include <net/route.h>
-
-AST_MUTEX_DEFINE_STATIC(routeseq_lock);
 #endif
 
 #if defined (SOLARIS)
 #include <sys/sockio.h>
+#endif
+
+#include "asterisk/acl.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/options.h"
+#include "asterisk/utils.h"
+#include "asterisk/lock.h"
+#include "asterisk/srv.h"
+
+#if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
+AST_MUTEX_DEFINE_STATIC(routeseq_lock);
 #endif
 
 struct ast_netsock {

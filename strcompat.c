@@ -2,8 +2,9 @@
 
 #include <sys/types.h>
 #include <stdio.h>
+
 #ifdef SOLARIS
-#include <solaris-compat/compat.h>
+#include "solaris-compat/compat.h"
 #endif
 
 char* strsep(char** str, const char* delims)

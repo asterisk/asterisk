@@ -29,18 +29,19 @@
 */
 
 #include <sys/types.h>
-#include "asterisk/frame.h"
-#include "asterisk/channel.h"
-#include "asterisk/logger.h"
-#include "asterisk/dsp.h"
-#include "asterisk/ulaw.h"
-#include "asterisk/alaw.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <math.h>
 #include <errno.h>
 #include <stdio.h>
+
+#include "asterisk/frame.h"
+#include "asterisk/channel.h"
+#include "asterisk/logger.h"
+#include "asterisk/dsp.h"
+#include "asterisk/ulaw.h"
+#include "asterisk/alaw.h"
 
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE_NA 183			/* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */

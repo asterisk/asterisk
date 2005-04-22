@@ -13,6 +13,26 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/resource.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <signal.h>
+#include <sched.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <sys/wait.h>
+#include <string.h>
+#include <errno.h>
+#include <ctype.h>
+#include <sys/resource.h>
+#include <grp.h>
+#include <pwd.h>
+#include <sys/stat.h>
+
+#if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
+#include <netdb.h>
+#endif
+
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
@@ -32,30 +52,11 @@
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/file.h"
-#include <sys/resource.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sched.h>
 #include "asterisk/io.h"
 #include "asterisk/lock.h"
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/wait.h>
-#include <string.h>
-#include <errno.h>
-#include <ctype.h>
 #include "editline/histedit.h"
 #include "asterisk.h"
 #include "asterisk/config.h"
-#include <sys/resource.h>
-#include <grp.h>
-#include <pwd.h>
-#include <sys/stat.h>
-
-#if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
-#include <netdb.h>
-#endif
 
 #ifndef AF_LOCAL
 #define AF_LOCAL AF_UNIX

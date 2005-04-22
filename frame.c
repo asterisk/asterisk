@@ -11,6 +11,12 @@
  * the GNU General Public License
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+#include <stdio.h>
+
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"
 #include "asterisk/logger.h"
@@ -19,11 +25,6 @@
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
 #include "asterisk/utils.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
-#include <stdio.h>
 #include "asterisk.h"
 
 #ifdef TRACE_FRAMES

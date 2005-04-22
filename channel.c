@@ -19,6 +19,19 @@
 #include <errno.h>
 #include <unistd.h>
 #include <math.h>			/* For PI */
+
+#ifdef ZAPTEL_OPTIMIZATIONS
+#include <sys/ioctl.h>
+#ifdef __linux__
+#include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
+#ifndef ZT_TIMERPING
+#error "You need newer zaptel!  Please cvs update zaptel"
+#endif
+#endif
+
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
 #include "asterisk/sched.h"
@@ -40,17 +53,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/transcap.h"
-#ifdef ZAPTEL_OPTIMIZATIONS
-#include <sys/ioctl.h>
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
-#include <zaptel.h>
-#endif /* __linux__ */
-#ifndef ZT_TIMERPING
-#error "You need newer zaptel!  Please cvs update zaptel"
-#endif
-#endif
 #include "asterisk.h"
 
 /* uncomment if you have problems with 'monitoring' synchronized files */

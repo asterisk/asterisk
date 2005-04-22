@@ -13,6 +13,16 @@
 
 #include <sys/types.h>
 #include <regex.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <setjmp.h>
+#include <ctype.h>
+#include <errno.h>
+#include <time.h>
+#include <sys/time.h>
+
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
 #include "asterisk/pbx.h"
@@ -32,15 +42,6 @@
 #include "asterisk/causes.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
-#include <string.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <setjmp.h>
-#include <ctype.h>
-#include <errno.h>
-#include <time.h>
-#include <sys/time.h>
 #include "asterisk.h"
 
 /*

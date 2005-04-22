@@ -47,6 +47,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #ifndef __BSD_VISIBLE
 #define __BSD_VISIBLE 1
 #endif
+
 #include "asterisk/dlfcn-compat.h"
 
 #ifndef dl_restrict

@@ -14,9 +14,9 @@
  *
  */
 
-#include "asterisk/fskmodem.h"
-
 #include <stdio.h>
+
+#include "asterisk/fskmodem.h"
 
 #define NBW	2
 #define BWLIST	{75,800}

@@ -10,6 +10,7 @@
  * Distributed under the terms of the GNU General Public License version 2.0 
  *
  */
+
 #include <linux/soundcard.h>
 #include <stdio.h>
 #include <errno.h>

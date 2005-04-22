@@ -14,6 +14,10 @@
  *
  */
 
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
@@ -22,9 +26,6 @@
 #include "asterisk/causes.h"
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
 char ast_default_accountcode[20] = "";

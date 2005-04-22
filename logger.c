@@ -16,6 +16,15 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <time.h>
+#include <string.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <sys/stat.h>
+
+#define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
+		        from <syslog.h> which is included by logger.h */
+#include <syslog.h>
+
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
@@ -24,16 +33,9 @@
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <sys/stat.h>
 #include "asterisk.h"
 #include "astconf.h"
 
-#define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
-		        from <syslog.h> which is included by logger.h */
-#include <syslog.h>
 static int syslog_level_map[] = {
 	LOG_DEBUG,
 	LOG_INFO,    /* arbitrary equivalent of LOG_EVENT */

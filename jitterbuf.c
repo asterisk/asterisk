@@ -13,10 +13,11 @@
  * Copyright on this file is disclaimed to Digium for inclusion in Asterisk
  */
 
-#include "jitterbuf.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "jitterbuf.h"
 
 /* define these here, just for ancient compiler systems */
 #define JB_LONGMAX 2147483647L
