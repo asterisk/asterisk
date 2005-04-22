@@ -164,7 +164,7 @@ from the variables specified above.
 
 * SPECIAL NOTE ON TIME
   
-  Those using SIP phones should be aware the Asterisk is sensitive to
+  Those using SIP phones should be aware that Asterisk is sensitive to
 large jumps in time.  Manually changing the system time using date(1)
 (or other similar commands) may cause SIP registrations and other
 internal processes to fail.  If your system cannot keep accurate time
