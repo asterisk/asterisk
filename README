@@ -164,20 +164,27 @@ from the variables specified above.
 
 * SPECIAL NOTE ON TIME
   
-  Those using SIP phones should be aware the Asterisk is sensitive to large
-jumps in time. Those who live in areas that are on Daylight Savings Time (or
-equivalent) should set their system and hardware clocks to use UTC in order
-to avoid any possible jumps in system time. There should be no noticeable
-effects to the user, as you should still set your system to use the local
-offset from UTC.
+  Those using SIP phones should be aware the Asterisk is sensitive to
+large jumps in time.  Manually changing the system time using date(1)
+(or other similar commands) may cause SIP registrations and other
+internal processes to fail.  If your system cannot keep accurate time
+by itself use NTP (http://www.ntp.org/) to keep the system clock
+synchronized to "real time".  NTP is designed to keep the system clock
+synchronized by speeding up or slowing down the system clock until it
+is synchronized to "real time" rather than by jumping the time and
+causing discontinuities. Most Linux distributions include precompiled
+versions of NTP.  Beware of some time synchronization methods that get
+the correct real time periodically and then manually set the system
+clock.
 
-  Even for those who don't live in DST zones, this issue may manifest itself
-if the administrator makes large manual time adjustments. Thus, it is good
-practice to keep the time on your Asterisk server synced to a reliable
-source, such as an NTP server. 
+  Apparent time changes due to daylight savings time are just that,
+apparent.  The use of daylight savings time in a Linux system is
+purely a user interface issue and does not affect the operation of the
+Linux kernel or Asterisk.  The system clock on Linux kernels operates
+on UTC.  UTC does not use daylight savings time.
 
-  Also note that this issue is separate from the clocking of TDM channels, and
-is known to at least affect SIP registrations.
+  Also note that this issue is separate from the clocking of TDM
+channels, and is known to at least affect SIP registrations.
 
 * MORE INFORMATION
 
