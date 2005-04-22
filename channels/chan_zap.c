@@ -124,6 +124,7 @@ static const char config[] = "zapata.conf";
 #define	SIG_FEATDMF	(0x400000 | ZT_SIG_EM)
 #define	SIG_FEATB	(0x800000 | ZT_SIG_EM)
 #define	SIG_E911	(0x1000000 | ZT_SIG_EM)
+#define	SIG_FEATDMF_TA	(0x2000000 | ZT_SIG_EM)
 #define SIG_FXSLS	ZT_SIG_FXSLS
 #define SIG_FXSGS	ZT_SIG_FXSGS
 #define SIG_FXSKS	ZT_SIG_FXSKS
@@ -158,6 +159,8 @@ static int cur_emdigitwait = 250; /* Wait time in ms for digits on EM channel */
 static char context[AST_MAX_EXTENSION] = "default";
 static char cid_num[256] = "";
 static char cid_name[256] = "";
+static char defaultcic[64] = "";
+static char defaultozz[64] = "";
 
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_LANGUAGE] = "";
@@ -274,7 +277,11 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 /* Protect the interface list (of zt_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
+
 static int ifcount = 0;
+
+AST_MUTEX_DEFINE_STATIC(pridebugfdlock);
+static int pridebugfd = -1;
 
 /* Whether we answer on a Polarity Switch event */
 static int answeronpolarityswitch = 0;
@@ -558,6 +565,8 @@ static struct zt_pvt {
 	struct ast_dsp *dsp;
 	int cref;					/* Call reference number */
 	ZT_DIAL_OPERATION dop;
+	int whichwink;			/* SIG_FEATDMF_TA Which wink are we on? */
+	char finaldial[64];
 	int destroy;
 	int ignoredtmf;				
 	int inalarm;
@@ -1071,6 +1080,8 @@ static char *zap_sig2str(int sig)
 		return "Feature Group D (DTMF)";
 	case SIG_FEATDMF:
 		return "Feature Group D (MF)";
+	case SIG_FEATDMF_TA:
+		return "Feature Groud D (MF) Tandem Access";
 	case SIG_FEATB:
 		return "Feature Group B (MF)";
 	case SIG_E911:
@@ -1719,6 +1730,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	case SIG_SF:
 	case SIG_SF_FEATD:
 	case SIG_SF_FEATDMF:
+	case SIG_FEATDMF_TA:
 	case SIG_SF_FEATB:
 		c = strchr(dest, '/');
 		if (c)
@@ -1762,6 +1774,24 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			else
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*02#*%s#", c + p->stripmsd);
 		} else 
+		if (p->sig == SIG_FEATDMF_TA) {
+			char *cic = NULL, *ozz = NULL;
+			/* If you have to go through a Tandem Access point you need to use this */
+			ozz = pbx_builtin_getvar_helper(p->owner, "FEATDMF_OZZ");
+			if (!ozz)
+				ozz = defaultozz;
+			cic = pbx_builtin_getvar_helper(p->owner, "FEATDMF_CIC");
+			if (!cic)
+				cic = defaultcic;
+			if (!ozz || !cic) {
+				ast_log(LOG_WARNING, "Unable to dial channel of type feature group D MF tandem access without CIC or OZZ set\n");
+				ast_mutex_unlock(&p->lock);
+				return -1;
+			}
+			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s%s#", ozz, cic);
+			snprintf(p->finaldial, sizeof(p->finaldial), "M*%s#", c + p->stripmsd);
+			p->whichwink = 0;
+		} else
 		if (p->sig == SIG_E911) {
 			strncpy(p->dop.dialstr, "M*911#", sizeof(p->dop.dialstr) - 1);
 		} else
@@ -3565,6 +3595,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_EMWINK:
 			case SIG_FEATD:
 			case SIG_FEATDMF:
+			case SIG_FEATDMF_TA:
 			case SIG_E911:
 			case SIG_FEATB:
 			case SIG_SF:
@@ -3793,6 +3824,21 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				else
 					ast_log(LOG_DEBUG, "Got wink in weird state %d on channel %d\n", ast->_state, p->channel);
 				break;
+			case SIG_FEATDMF_TA:
+				switch (p->whichwink) {
+				case 0:
+					ast_log(LOG_DEBUG, "ANI2 set to '%d' and ANI is '%s'\n", p->owner->cid.cid_ani2, p->owner->cid.cid_ani);
+					snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%d%s#", p->owner->cid.cid_ani2, p->owner->cid.cid_ani);
+					break;
+				case 1:
+					strncpy(p->dop.dialstr, p->finaldial, sizeof(p->dop.dialstr));
+					break;
+				case 2:
+					ast_log(LOG_WARNING, "Received unexpected wink on channel of type SIG_FEATDMF_TA\n");
+					return NULL;
+				}
+				p->whichwink++;
+				/* Fall through */
 			case SIG_FEATDMF:
 			case SIG_E911:
 			case SIG_FEATB:
@@ -4931,7 +4977,7 @@ static void *ss_thread(void *data)
 			ast_dsp_digitreset(p->dsp);
 		/* set digit mode appropriately */
 		if (p->dsp) {
-			if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB)) 
+			if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATDMF_TA) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB)) 
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrelax); 
 			else 
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
@@ -6630,7 +6676,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		/* Adjust starttime on loopstart and kewlstart trunks to reasonable values */
 		if ((signalling == SIG_FXSKS) || (signalling == SIG_FXSLS) ||
 		    (signalling == SIG_EM) || (signalling == SIG_EM_E1) ||  (signalling == SIG_EMWINK) ||
-			(signalling == SIG_FEATD) || (signalling == SIG_FEATDMF) ||
+			(signalling == SIG_FEATD) || (signalling == SIG_FEATDMF) || (signalling == SIG_FEATDMF_TA) ||
 			  (signalling == SIG_FEATB) || (signalling == SIG_E911) ||
 		    (signalling == SIG_SF) || (signalling == SIG_SFWINK) ||
 			(signalling == SIG_SF_FEATD) || (signalling == SIG_SF_FEATDMF) ||
@@ -7392,11 +7438,25 @@ static void *do_idle_thread(void *vchan)
 static void zt_pri_message(char *s)
 {
 	ast_verbose("%s", s);
+
+	ast_mutex_lock(&pridebugfdlock);
+
+	if (pridebugfd >= 0)
+		write (pridebugfd, s, strlen(s));
+
+	ast_mutex_unlock(&pridebugfdlock);
 }
 
 static void zt_pri_error(char *s)
 {
 	ast_log(LOG_WARNING, "PRI: %s", s);
+
+	ast_mutex_lock(&pridebugfdlock);
+
+	if (pridebugfd >= 0)
+		write(pridebugfd, s, strlen(s));
+
+	ast_mutex_unlock(&pridebugfdlock);
 }
 
 static int pri_check_restart(struct zt_pri *pri)
@@ -8571,6 +8631,44 @@ static char *complete_span_5(char *line, char *word, int pos, int state)
 	return complete_span_helper(line,word,pos,state,4);
 }
 
+static int handle_pri_set_debug_file(int fd, int argc, char **argv)
+{
+	int myfd;
+
+	if (!strncasecmp(argv[1], "set", 3)) {
+		if (argc < 5) 
+			return RESULT_SHOWUSAGE;
+
+		if (!argv[4] || ast_strlen_zero(argv[4]))
+			return RESULT_SHOWUSAGE;
+
+		myfd = open(argv[4], O_CREAT|O_WRONLY);
+		if (myfd < 0) {
+			ast_cli(fd, "Unable to open '%s' for writing\n", argv[4]);
+			return RESULT_SUCCESS;
+		}
+
+		ast_mutex_lock(&pridebugfdlock);
+
+		if (pridebugfd >= 0)
+			close(pridebugfd);
+
+		pridebugfd = myfd;
+		ast_mutex_unlock(&pridebugfdlock);
+
+		ast_cli(fd, "PRI debug output will be sent to '%s'\n", argv[4]);
+	} else {
+		/* Assume it is unset */
+		ast_mutex_lock(&pridebugfdlock);
+		close(pridebugfd);
+		pridebugfd = -1;
+		ast_cli(fd, "PRI debug output to file disabled\n");
+		ast_mutex_unlock(&pridebugfdlock);
+	}
+
+	return RESULT_SUCCESS;
+}
+
 static int handle_pri_debug(int fd, int argc, char *argv[])
 {
 	int span;
@@ -8730,6 +8828,13 @@ static struct ast_cli_entry pri_really_debug = {
 
 static struct ast_cli_entry pri_show_span = {
 	{ "pri", "show", "span", NULL }, handle_pri_show_span, "Displays PRI Information", pri_show_span_help, complete_span_4 };
+
+static struct ast_cli_entry pri_set_debug_file = {
+	{ "pri", "set", "debug", "file", NULL }, handle_pri_set_debug_file, "Sends PRI debug output to the specified file", NULL, NULL };
+
+static struct ast_cli_entry pri_unset_debug_file = {
+	{ "pri", "unset", "debug", "file", NULL }, handle_pri_set_debug_file, "Ends PRI debug output to file", NULL, NULL };
+
 
 #endif /* ZAPATA_PRI */
 
@@ -9283,6 +9388,8 @@ static int __unload_module(void)
 	ast_cli_unregister(&pri_no_debug);
 	ast_cli_unregister(&pri_really_debug);
 	ast_cli_unregister(&pri_show_span);
+	ast_cli_unregister(&pri_set_debug_file);
+	ast_cli_unregister(&pri_unset_debug_file);
 #endif
 #ifdef ZAPATA_R2
 	ast_cli_unregister(&r2_debug);
@@ -9811,6 +9918,9 @@ static int setup_zap(int reload)
 				} else if (!strcasecmp(v->value, "featdmf")) {
 					cur_signalling = SIG_FEATDMF;
 					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "featdmf_ta")) {
+					cur_signalling = SIG_FEATDMF_TA;
+					cur_radio = 0;
 				} else if (!strcasecmp(v->value, "e911")) {
 					cur_signalling = SIG_E911;
 					cur_radio = 0;
@@ -10079,6 +10189,10 @@ static int setup_zap(int reload)
 				hanguponpolarityswitch = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "sendcalleridafter")) {
 				sendcalleridafter = atoi(v->value);
+			} else if (!strcasecmp(v->name, "defaultcic")) {
+				strncpy(defaultcic, v->value, sizeof(defaultcic));
+			} else if (!strcasecmp(v->name, "defaultozz")) {
+				strncpy(defaultozz, v->value, sizeof(defaultozz));
 			} 
 		} else 
 			ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
@@ -10153,6 +10267,8 @@ int load_module(void)
 	ast_cli_register(&pri_no_debug);
 	ast_cli_register(&pri_really_debug);
 	ast_cli_register(&pri_show_span);
+	ast_cli_register(&pri_set_debug_file);
+	ast_cli_register(&pri_unset_debug_file);
 #endif	
 #ifdef ZAPATA_R2
 	ast_cli_register(&r2_debug);
@@ -10167,8 +10283,8 @@ int load_module(void)
 	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
 	ast_manager_register( "ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
 	ast_manager_register( "ZapDialOffhook", 0, action_zapdialoffhook, "Dial over Zap channel while offhook" );
-    ast_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
-    ast_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
+	ast_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
+	ast_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
 	ast_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
 
 	return res;

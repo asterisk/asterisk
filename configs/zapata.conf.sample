@@ -135,6 +135,7 @@ switchtype=national
 ; em_w:    E & M Wink
 ; featd:   Feature Group D (The fake, Adtran style, DTMF)
 ; featdmf: Feature Group D (The real thing, MF (domestic, US))
+; featdmf_ta : Feature Group D (The real thing, MF (domestic, US)) through a Tandem Access point
 ; featb:   Feature Group B (MF (domestic, US))
 ; fxs_ls:  FXS (Loop Start)
 ; fxs_gs:  FXS (Ground Start)
@@ -166,6 +167,11 @@ switchtype=national
 ; sf_rxtx: same as sf_txrx (for our dyslexic friends)
 ;
 signalling=fxo_ls
+;
+; For Feature Group D Tandem access, to set the default CIC and OZZ use
+; these parameters
+;defaultozz=0000
+;defaultcic=303
 ;
 ; A variety of timing parameters can be specified as well
 ; Including:
