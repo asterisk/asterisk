@@ -24,6 +24,10 @@ Try to match the existing formatting of the file you are working on.
 Functions and variables that are not intended to be global must be
 declared static.
 
+When reading integer numeric input with scanf (or variants), do _NOT_ use '%i'
+unless specifically want to allow non-base-10 input; '%d' is always a better
+choice, since it will not silently turn numbers with leading zeros into base-8.
+
 Roughly, Asterisk coding guidelines are generally equivalent to the 
 following:
 
