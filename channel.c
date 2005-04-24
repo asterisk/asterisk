@@ -1126,6 +1126,12 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 #endif			
 		}
 		return NULL;
+        } else {
+        	/* If no fds signalled, then timeout. So set ms = 0
+		   since we may not have an exact timeout.
+		*/
+		if (res == 0)
+			*ms = 0;
 	}
 
 	if (havewhen)
