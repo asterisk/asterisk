@@ -438,6 +438,8 @@ bininstall: all
 	@echo " + a stable release, remember to delete      +"
 	@echo " + everything from your asterisk modules     +"
 	@echo " + directory (/usr/lib/asterisk/modules/)    +"
+	@echo " + and the asterisk header directory         +"
+	@echo " + (/usr/include/asterisk/)                  +"
 	@echo " + before doing a '$(MAKE) install'.            +"
 	@echo " +                                           +"
 	@echo " +-------------------------------------------+"
