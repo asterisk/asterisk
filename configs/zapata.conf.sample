@@ -152,6 +152,7 @@ switchtype=national
 ; sf_featd:   SF Feature Group D (The fake, Adtran style, DTMF)
 ; sf_featdmf: SF Feature Group D (The real thing, MF (domestic, US))
 ; sf_featb:   SF Feature Group B (MF (domestic, US))
+; e911:    E911 (MF) style signalling
 ; The following are used for Radio interfaces:
 ; fxs_rx:  Receive audio/COR on an FXS kewlstart interface (FXO at the channel bank)
 ; fxs_tx:  Transmit audio/PTT on an FXS loopstart interface (FXO at the channel bank)
