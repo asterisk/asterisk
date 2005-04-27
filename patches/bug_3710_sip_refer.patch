@@ -1,0 +1,780 @@
+Index: channels/chan_sip.c
+===================================================================
+RCS file: /usr/cvsroot/asterisk/channels/chan_sip.c,v
+retrieving revision 1.703
+diff -u -r1.703 chan_sip.c
+--- channels/chan_sip.c	6 Apr 2005 21:12:32 -0000	1.703
++++ channels/chan_sip.c	9 Apr 2005 00:13:25 -0000
+@@ -71,6 +71,7 @@
+ 
+ /* #define VOCAL_DATA_HACK */
+ 
++#define SIP_RETVAL_IGNORE 42 /* shrug */
+ #define SIPDUMPER
+ #define DEFAULT_DEFAULT_EXPIRY  120
+ #define DEFAULT_MAX_EXPIRY      3600
+@@ -668,6 +669,7 @@
+ static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
+ static int sip_do_reload(void);
+ static int expire_register(void *data);
++static int sip_addheader(struct ast_channel *chan, void *data);
+ static int callevents = 0;
+ 
+ static struct ast_channel *sip_request(const char *type, int format, void *data, int *cause);
+@@ -1237,7 +1239,7 @@
+ 	/* Delete it, it needs to disappear */
+ 	if (peer->call)
+ 		sip_destroy(peer->call);
+-	if(peer->chanvars) {
++	if (peer->chanvars) {
+ 		ast_variables_destroy(peer->chanvars);
+ 		peer->chanvars = NULL;
+ 	}
+@@ -1302,7 +1304,7 @@
+ 		    !strcasecmp(tmp->value, "user")) {
+ 			ast_variables_destroy(var);
+ 			return NULL;
+-		} else if(!newpeername && !strcasecmp(tmp->name, "name")) {
++		} else if (!newpeername && !strcasecmp(tmp->name, "name")) {
+ 			newpeername = tmp->value;
+ 		}
+ 		tmp = tmp->next;
+@@ -1312,9 +1314,9 @@
+ 		peer = build_peer(newpeername, var, ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS) ? 0 : 1);
+ 
+ 		if (peer) {
+-			if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
++			if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+ 				ast_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
+-				if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
++				if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
+ 					if (peer->expire > -1) {
+ 						ast_sched_del(sched, peer->expire);
+ 					}
+@@ -1364,7 +1366,7 @@
+ static void sip_destroy_user(struct sip_user *user)
+ {
+ 	ast_free_ha(user->ha);
+-	if(user->chanvars) {
++	if (user->chanvars) {
+ 		ast_variables_destroy(user->chanvars);
+ 		user->chanvars = NULL;
+ 	}
+@@ -1405,7 +1407,7 @@
+ 	
+ 	if (user) {
+ 		/* Add some finishing touches, addresses, etc */
+-		if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
++		if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+ 			suserobjs++;
+ 
+         		ASTOBJ_CONTAINER_LINK(&userl,user);
+@@ -1515,6 +1517,8 @@
+ 		}
+ 	}
+ 	if (!p && !found) {
++		char *ptr, *hostp;
++
+ 		hostn = peer;
+ 		if (port)
+ 			portno = atoi(port);
+@@ -1531,7 +1535,15 @@
+ 				portno = tportno;
+ 			}
+ 		}
+-		hp = ast_gethostbyname(hostn, &ahp);
++		if ((hostp = ast_strdupa(hostn))) {
++			if ((ptr = strchr(hostp, '?'))) {
++				*ptr = '\0';
++			}
++		} else {
++			hostp = peer;
++		}
++		
++		hp = ast_gethostbyname(hostp, &ahp);
+ 		if (hp) {
+ 			strncpy(r->tohost, peer, sizeof(r->tohost) - 1);
+ 			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
+@@ -1731,7 +1743,7 @@
+ 			free(cp);
+ 		}
+ 		ast_mutex_destroy(&p->lock);
+-		if(p->chanvars) {
++		if (p->chanvars) {
+ 			ast_variables_destroy(p->chanvars);
+ 			p->chanvars = NULL;
+ 		}
+@@ -2520,7 +2532,7 @@
+ 	if (!p->rtp) {
+ 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
+                 ast_mutex_destroy(&p->lock);
+-		if(p->chanvars) {
++		if (p->chanvars) {
+ 			ast_variables_destroy(p->chanvars);
+ 			p->chanvars = NULL;
+ 		}
+@@ -3086,7 +3098,7 @@
+ 			if (!strcasecmp(aliases[x].fullname, var))
+ 				shortname = aliases[x].shortname;
+ 	}
+-	if(!ast_strlen_zero(shortname)) {
++	if (!ast_strlen_zero(shortname)) {
+ 		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", shortname, value);
+ 	} else {
+ 		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
+@@ -3703,7 +3715,7 @@
+ 	}
+ 	/* Start by sending our preferred codecs */
+ 	for (x = 0 ; x < 32 ; x++) {
+-		if(!(pref_codec = ast_codec_pref_index(&p->prefs,x)))
++		if (!(pref_codec = ast_codec_pref_index(&p->prefs,x)))
+ 			break; 
+ 		if ((capability & pref_codec) && !(alreadysent & pref_codec)) {
+ 			if (debug)
+@@ -3850,7 +3862,7 @@
+ 	while( *e && ( *e < 33 ) ) {
+ 		e++; 
+ 	}
+-	if( !*e ) {
++	if ( !*e ) {
+ 		return -1;
+ 	}
+     
+@@ -3858,7 +3870,7 @@
+ 		/* We have a response */
+ 		req->rlPart2 = e;
+ 		len = strlen( req->rlPart2 );
+-		if( len < 2 ) { 
++		if ( len < 2 ) { 
+ 			return -1;
+ 		}
+ 		e+= len - 1;
+@@ -3868,18 +3880,18 @@
+ 		*(++e)= '\0';
+ 	} else {
+ 		/* We have a request */
+-		if( *e == '<' ) { 
++		if ( *e == '<' ) { 
+ 			e++;
+-			if( !*e ) { 
++			if ( !*e ) { 
+ 				return -1; 
+ 			}  
+ 		}
+ 		req->rlPart2 = e;	/* URI */
+-		if( ( e= strrchr( req->rlPart2, 'S' ) ) == NULL ) {
++		if ( ( e= strrchr( req->rlPart2, 'S' ) ) == NULL ) {
+ 			return -1;
+ 		}
+ 		while( isspace( *(--e) ) ) {}
+-		if( *e == '>' ) {
++		if ( *e == '>' ) {
+ 			*e = '\0';
+ 		} else {
+ 			*(++e)= '\0';
+@@ -4984,7 +4996,7 @@
+ 
+ 	/* Save User agent */
+ 	useragent = get_header(req, "User-Agent");
+-	if(useragent && strcasecmp(useragent, p->useragent)) {
++	if (useragent && strcasecmp(useragent, p->useragent)) {
+ 		strncpy(p->useragent, useragent, sizeof(p->useragent) - 1);
+ 		if (option_verbose > 3) {
+ 			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
+@@ -5212,12 +5224,12 @@
+ 				c+= strlen("response=");
+ 				if ((*c == '\"')) {
+ 					response=++c;
+-					if((c = strchr(c,'\"')))
++					if ((c = strchr(c,'\"')))
+ 						*c = '\0';
+ 
+ 				} else {
+ 					response=c;
+-					if((c = strchr(c,',')))
++					if ((c = strchr(c,',')))
+ 						*c = '\0';
+ 				}
+ 
+@@ -5225,11 +5237,11 @@
+ 				c+= strlen("uri=");
+ 				if ((*c == '\"')) {
+ 					resp_uri=++c;
+-					if((c = strchr(c,'\"')))
++					if ((c = strchr(c,'\"')))
+ 						*c = '\0';
+ 				} else {
+ 					resp_uri=c;
+-					if((c = strchr(c,',')))
++					if ((c = strchr(c,',')))
+ 						*c = '\0';
+ 				}
+ 
+@@ -5239,7 +5251,7 @@
+ 				c++;
+ 		}
+ 		snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
+-		if(!ast_strlen_zero(resp_uri))
++		if (!ast_strlen_zero(resp_uri))
+ 			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, resp_uri);
+ 		else
+ 			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, uri);
+@@ -5473,8 +5485,23 @@
+ 	return 0;
+ }
+ 
++static int sip_extract_tag(char **in) 
++{
++	char *tag;
++
++	if ((tag = ast_strcasestr(*in, "tag="))) {
++		char *ptr;
++		tag += 4;
++		if ((ptr = strchr(tag, ';'))) {
++			*ptr = '\0';
++		}
++		return 0;
++	}
++	return -1;
++}
++
+ /*--- get_sip_pvt_byid_locked: Lock interface lock and find matching pvt lock  ---*/
+-static struct sip_pvt *get_sip_pvt_byid_locked(char *callid) 
++static struct sip_pvt *get_sip_pvt_byid_locked(char *callid, struct sip_request *req, char *totag, char *fromtag) 
+ {
+ 	struct sip_pvt *sip_pvt_ptr = NULL;
+ 	
+@@ -5483,8 +5510,38 @@
+ 	sip_pvt_ptr = iflist;
+ 	while(sip_pvt_ptr) {
+ 		if (!strcmp(sip_pvt_ptr->callid, callid)) {
++			char *real_totag = NULL, *real_fromtag = NULL;
++			int match = 1;
++
+ 			/* Go ahead and lock it (and its owner) before returning */
+ 			ast_mutex_lock(&sip_pvt_ptr->lock);
++
++			if (req && pedanticsipchecking) {
++				if (totag) {
++					real_totag = ast_strdupa(get_header(req, "To"));
++					if (sip_extract_tag(&real_totag)) {
++						real_totag = NULL;
++					}
++					if (strcmp(real_totag, totag)) {
++						match = 0;
++					}
++				}
++				if (match && fromtag) {
++					real_fromtag = ast_strdupa(get_header(req, "From"));
++					if (sip_extract_tag(&real_fromtag)) {
++						real_fromtag = NULL;
++					}
++					if (strcmp(real_fromtag, fromtag)) {
++						match = 0;
++					}
++				}
++			}
++			
++			if (!match) {
++				ast_mutex_unlock(&sip_pvt_ptr->lock);
++				break;
++			}
++			
+ 			if (sip_pvt_ptr->owner) {
+ 				while(ast_mutex_trylock(&sip_pvt_ptr->owner->lock)) {
+ 					ast_mutex_unlock(&sip_pvt_ptr->lock);
+@@ -5521,14 +5578,12 @@
+ 	return replaced;
+ }
+ 
+-
+-
+ /*--- get_refer_info: Call transfer support (new standard) ---*/
+ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
+ {
+ 
+ 	char *p_refer_to = NULL, *p_referred_by = NULL, *h_refer_to = NULL, *h_referred_by = NULL, *h_contact = NULL;
+-	char *replace_callid = "", *refer_to = NULL, *referred_by = NULL, *ptr = NULL;
++	char *replace_callid = "", *refer_to = NULL, *referred_by = NULL, *ptr = NULL, *replaces_header=NULL, *refer_uri;
+ 	struct sip_request *req = NULL;
+ 	struct sip_pvt *sip_pvt_ptr = NULL;
+ 	struct ast_channel *chan = NULL, *peer = NULL;
+@@ -5539,14 +5594,14 @@
+ 		req = &sip_pvt->initreq;
+ 	}
+ 	
+-	if(!( (p_refer_to = get_header(req, "Refer-To")) && (h_refer_to = ast_strdupa(p_refer_to)) )) {
++	if (!( (p_refer_to = get_header(req, "Refer-To")) && (h_refer_to = ast_strdupa(p_refer_to)) )) {
+ 		ast_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
+ 		return -1;
+ 	}
+ 
+ 	refer_to = ditch_braces(h_refer_to);
+ 
+-	if(!( (p_referred_by = get_header(req, "Referred-By")) && (h_referred_by = ast_strdupa(p_referred_by)) )) {
++	if (!( (p_referred_by = get_header(req, "Referred-By")) && (h_referred_by = ast_strdupa(p_referred_by)) )) {
+ 		ast_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
+ 		return -1;
+ 	}
+@@ -5559,9 +5614,11 @@
+ 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", referred_by);
+ 		return -1;
+ 	}
++
++
+ 	refer_to += 4;
+ 	referred_by += 4;
+-	
++	refer_uri = ast_strdupa(refer_to);	
+ 	
+ 	if ((ptr = strchr(refer_to, '?'))) {
+ 		/* Search for arguemnts */
+@@ -5569,10 +5626,7 @@
+ 		ptr++;
+ 		if (!strncasecmp(ptr, "REPLACES=", 9)) {
+ 			replace_callid = ast_strdupa(ptr + 9);
+-			/* someday soon to support invite/replaces properly!
+-			   replaces_header = ast_strdupa(replace_callid); 
+-			   -anthm
+-			*/
++			replaces_header = ast_strdupa(replace_callid); 
+ 			sip_unescape_uri(replace_callid);
+ 			if ((ptr = strchr(replace_callid, '%'))) 
+ 				*ptr = '\0';
+@@ -5606,19 +5660,50 @@
+ 		strncpy(sip_pvt->referred_by, "", sizeof(sip_pvt->referred_by) - 1);
+ 		strncpy(sip_pvt->refer_contact, "", sizeof(sip_pvt->refer_contact) - 1);
+ 		sip_pvt->refer_call = NULL;
+-		if ((sip_pvt_ptr = get_sip_pvt_byid_locked(replace_callid))) {
++		if ((sip_pvt_ptr = get_sip_pvt_byid_locked(replace_callid, req, NULL, NULL))) {
+ 			sip_pvt->refer_call = sip_pvt_ptr;
+ 			if (sip_pvt->refer_call == sip_pvt) {
+ 				ast_log(LOG_NOTICE, "Supervised transfer attempted to transfer into same call id (%s == %s)!\n", replace_callid, sip_pvt->callid);
+ 				sip_pvt->refer_call = NULL;
+-			} else
+-				return 0;
++			} 
++			return 0;
+ 		} else {
+-			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on Asterisk box to transfer at this time.\n", replace_callid);
+-			/* XXX The refer_to could contain a call on an entirely different machine, requiring an 
+-	    		  INVITE with a replaces header -anthm XXX */
++			/* Don't ask me =0 ?, SIP made do it! */
++			int cause = 0, res = -1;
++			struct ast_channel *ichan = NULL;
+ 
+-			
++			transmit_notify_with_sipfrag(sip_pvt, sip_pvt->ocseq);
++			if ((ptr = strchr(refer_uri, ';'))) {
++				*ptr = '\0';
++			}
++
++			if ((ichan = sip_request("SIP", sip_pvt->owner ? sip_pvt->owner->readformat : AST_FORMAT_ULAW, refer_uri, &cause))) {
++				struct ast_frame *f;
++				char *rbuf;	
++				ast_log(LOG_DEBUG, "Going hunting for a remote INVITE/Replaces at [%s] Wish me luck!\n", refer_uri);
++				if ((rbuf = alloca(strlen(replaces_header) + 10))) {
++					sprintf(rbuf, "Replaces: %s", replaces_header);
++					sip_addheader(ichan, rbuf);
++					sip_call(ichan, refer_uri, 20000);
++					ast_channel_masquerade(sip_pvt->owner, ichan);
++					if ((f = ast_read(ichan))) {
++						ast_log(LOG_DEBUG, "WooHoo! The INVITE/Replaces Worked!\n");
++						ast_frfree(f);
++						transmit_response(sip_pvt, "202 Accepted", req);
++						res = SIP_RETVAL_IGNORE; /* means do nothing more */
++					} else {
++						res = -1;
++					}
++				} else {
++					ast_log(LOG_ERROR,"Memory Error!\n");
++					res = -1;
++				}
++
++				ast_hangup(ichan);
++			} else {
++				res = -1;
++			}
++			return res;
+ 		}
+ 	} else if (ast_exists_extension(NULL, sip_pvt->context, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
+ 		/* This is an unsupervised transfer */
+@@ -5632,7 +5717,7 @@
+ 			strncpy(sip_pvt->refer_contact, h_contact, sizeof(sip_pvt->refer_contact) - 1);
+ 		}
+ 		sip_pvt->refer_call = NULL;
+-		if((chan = sip_pvt->owner) && (peer = ast_bridged_channel(sip_pvt->owner))) {
++		if ((chan = sip_pvt->owner) && (peer = ast_bridged_channel(sip_pvt->owner))) {
+ 			pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
+ 			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
+ 		}
+@@ -5807,7 +5892,7 @@
+ 		*end = '\0';
+ 	else
+ 		output[0] = '\0';
+-	if(strstr(input,"privacy=full") || strstr(input,"privacy=uri"))
++	if (strstr(input,"privacy=full") || strstr(input,"privacy=uri"))
+ 		return AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
+ 
+ 	return 0;
+@@ -5840,7 +5925,7 @@
+ 
+ 	rpid = get_header(req, "Remote-Party-ID");
+ 	memset(rpid_num,0,sizeof(rpid_num));
+-	if(!ast_strlen_zero(rpid)) 
++	if (!ast_strlen_zero(rpid)) 
+ 		p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
+ 
+ 	of = ditch_braces(from);
+@@ -5876,14 +5961,14 @@
+ 		ast_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
+ 		/* copy channel vars */
+ 		for (v = user->chanvars ; v ; v = v->next) {
+-			if((tmpvar = ast_variable_new(v->name, v->value))) {
++			if ((tmpvar = ast_variable_new(v->name, v->value))) {
+ 				tmpvar->next = p->chanvars; 
+ 				p->chanvars = tmpvar;
+ 			}
+ 		}
+ 		p->prefs = user->prefs;
+ 		/* replace callerid if rpid found, and not restricted */
+-		if(!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
++		if (!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
+ 			if (*calleridname)
+ 				strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
+ 			strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
+@@ -5955,7 +6040,7 @@
+ 			/* Take the peer */
+ 			ast_copy_flags(p, peer, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
+ 			/* replace callerid if rpid found, and not restricted */
+-			if(!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
++			if (!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
+ 				if (*calleridname)
+ 					strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
+ 				strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
+@@ -5988,7 +6073,7 @@
+ 				strncpy(p->authname, peer->name, sizeof(p->authname) - 1);
+ 				/* copy channel vars */
+ 				for (v = peer->chanvars ; v ; v = v->next) {
+-					if((tmpvar = ast_variable_new(v->name, v->value))) {
++					if ((tmpvar = ast_variable_new(v->name, v->value))) {
+ 						tmpvar->next = p->chanvars; 
+ 						p->chanvars = tmpvar;
+ 					}
+@@ -6466,7 +6551,7 @@
+ 		sip_do_reload();
+ 		ast_cli(fd, "OK. Cache is flushed.\n");
+ 	} else if ((peer = find_peer(argv[3], NULL, 0))) {
+-		if(ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
++		if (ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+ 			ast_set_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR);
+ 			expire_register(peer);
+ 			ast_cli(fd, "OK. Peer %s was removed from the cache.\n", argv[3]);
+@@ -6606,10 +6691,10 @@
+ 		pref = &peer->prefs;
+ 		for(x = 0; x < 32 ; x++) {
+ 			codec = ast_codec_pref_index(pref,x);
+-			if(!codec)
++			if (!codec)
+ 				break;
+ 			ast_cli(fd, "%s", ast_getformatname(codec));
+-			if(x < 31 && ast_codec_pref_index(pref,x+1))
++			if (x < 31 && ast_codec_pref_index(pref,x+1))
+ 				ast_cli(fd, "|");
+ 		}
+ 
+@@ -6689,10 +6774,10 @@
+ 		pref = &peer->prefs;
+ 		for(x = 0; x < 32 ; x++) {
+ 			codec = ast_codec_pref_index(pref,x);
+-			if(!codec)
++			if (!codec)
+ 				break;
+ 			ast_cli(fd, "%s", ast_getformatname(codec));
+-			if(x < 31 && ast_codec_pref_index(pref,x+1))
++			if (x < 31 && ast_codec_pref_index(pref,x+1))
+ 				ast_cli(fd, ",");
+ 		}
+ 
+@@ -6765,10 +6850,10 @@
+ 		pref = &user->prefs;
+ 		for(x = 0; x < 32 ; x++) {
+ 			codec = ast_codec_pref_index(pref,x);
+-			if(!codec)
++			if (!codec)
+ 				break;
+ 			ast_cli(fd, "%s", ast_getformatname(codec));
+-			if(x < 31 && ast_codec_pref_index(pref,x+1))
++			if (x < 31 && ast_codec_pref_index(pref,x+1))
+ 				ast_cli(fd, "|");
+ 		}
+ 
+@@ -7816,12 +7901,12 @@
+ 		}
+ 		switch(resp) {
+ 		case 100:	/* 100 Trying */
+-			if(sipmethod == SIP_INVITE) {
++			if (sipmethod == SIP_INVITE) {
+ 				sip_cancel_destroy(p);
+ 			}
+ 			break;
+ 		case 183:	/* 183 Session Progress */
+-			if(sipmethod == SIP_INVITE) {
++			if (sipmethod == SIP_INVITE) {
+ 				sip_cancel_destroy(p);
+ 				if (!ast_strlen_zero(get_header(req, "Content-Type")))
+ 					process_sdp(p, req);
+@@ -7832,7 +7917,7 @@
+ 			}
+ 			break;
+ 		case 180:	/* 180 Ringing */
+-			if(sipmethod == SIP_INVITE) {
++			if (sipmethod == SIP_INVITE) {
+ 				sip_cancel_destroy(p);
+ 				if (p->owner) {
+ 					ast_queue_control(p->owner, AST_CONTROL_RINGING);
+@@ -7911,8 +7996,8 @@
+ 						for(;;) {
+ 							contact = __get_header(req, "Contact", &start);
+ 							/* this loop ensures we get a contact header about our register request */
+-							if(!ast_strlen_zero(contact)) {
+-								if( (tmptmp=strstr(contact, p->our_contact))) {
++							if (!ast_strlen_zero(contact)) {
++								if ( (tmptmp=strstr(contact, p->our_contact))) {
+ 									contact=tmptmp;
+ 									break;
+ 								}
+@@ -7986,7 +8071,7 @@
+ 				transmit_request(p, SIP_ACK, seqno, 0, 0);
+ 				/* Then we AUTH */
+ 				/* But only if the packet wasn't marked as ignore in handle_request */
+-				if(!ignore){
++				if (!ignore){
+ 					p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
+ 					if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", SIP_INVITE, 1)) {
+ 						ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
+@@ -8259,18 +8344,19 @@
+ 
+ 		if (peera->cdr && peerb->cdr) {
+ 			peerb->cdr = ast_cdr_append(peerb->cdr, peera->cdr);
+-		} else if(peera->cdr) {
++		} else if (peera->cdr) {
+ 			peerb->cdr = peera->cdr;
+ 		}
+ 		peera->cdr = NULL;
+ 
+ 		if (peerb->cdr && peerc->cdr) {
+ 			peerb->cdr = ast_cdr_append(peerb->cdr, peerc->cdr);
+-		} else if(peerc->cdr) {
++		} else if (peerc->cdr) {
+ 			peerb->cdr = peerc->cdr;
+ 		}
+ 		peerc->cdr = NULL;
+ 		
++		ast_log(LOG_DEBUG, "XXXX Trying to masquerade %s and %s\n", peerb->name, peerc->name);
+ 		if (ast_channel_masquerade(peerb, peerc)) {
+ 			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name, peerc->name);
+ 			res = -1;
+@@ -8318,7 +8404,24 @@
+ 	struct ast_channel *c=NULL;
+ 	int gotdest;
+ 	struct ast_frame af = { AST_FRAME_NULL, };
++	char *p_replaces, *replace_id = NULL;
+ 
++	if ((p_replaces = get_header(req, "Replaces"))) {
++		if (ast_strlen_zero(p_replaces)) {
++			p_replaces = NULL;
++		} else {
++			char *ptr;
++			ast_log(LOG_DEBUG, "I SEE a Replaces [%s]\n", p_replaces);
++			replace_id = ast_strdupa(p_replaces);
++			if (strchr(replace_id, '%')) {
++				sip_unescape_uri(replace_id);
++			}
++			if ((ptr = strchr(replace_id, ';'))) {
++				*ptr = '\0';
++			}
++		}
++	}
++	
+ 	if (ast_test_flag(p, SIP_OUTGOING) && p->owner && (p->owner->_state != AST_STATE_UP)) {
+ 		/* This is a call to ourself.  Send ourselves an error code and stop
+ 		   processing immediately, as SIP really has no good mechanism for
+@@ -8327,6 +8430,7 @@
+ 		/* We do NOT destroy p here, so that our response will be accepted */
+ 		return 0;
+ 	}
++	
+ 	if (!ignore) {
+ 		/* Use this as the basis */
+ 		if (debug)
+@@ -8351,8 +8455,10 @@
+ 				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
+ 			}
+ 		}
+-	} else if (debug)
++	} else if (debug) {
+ 		ast_verbose("Ignoring this request\n");
++	}
++	
+ 	if (!p->lastinvite && !ignore && !p->owner) {
+ 		/* Handle authentication if this is our first invite */
+ 		res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);
+@@ -8403,22 +8509,22 @@
+ 		get_rdnis(p, NULL);
+ 		extract_uri(p, req);
+ 		build_contact(p);
+-
+-		if (gotdest) {
++		
++		if (!replace_id && gotdest) {
+ 			if (gotdest < 0) {
+ 				if (ignore)
+ 					transmit_response(p, "404 Not Found", req);
+ 				else
+ 					transmit_response_reliable(p, "404 Not Found", req, 1);
+ 				update_user_counter(p,DEC_IN_USE);
+-			} else {
+-				if (ignore)
+-					transmit_response(p, "484 Address Incomplete", req);
+-				else
+-					transmit_response_reliable(p, "484 Address Incomplete", req, 1);
+-				update_user_counter(p,DEC_IN_USE);
+-			}
+-			ast_set_flag(p, SIP_NEEDDESTROY);		
++				} else {
++					if (ignore)
++						transmit_response(p, "484 Address Incomplete", req);
++					else
++						transmit_response_reliable(p, "484 Address Incomplete", req, 1);
++					update_user_counter(p,DEC_IN_USE);
++				}
++				ast_set_flag(p, SIP_NEEDDESTROY);		
+ 		} else {
+ 			/* If no extension was specified, use the s one */
+ 			if (ast_strlen_zero(p->exten))
+@@ -8431,16 +8537,41 @@
+ 			/* Save Record-Route for any later requests we make on this dialogue */
+ 			build_route(p, req, 0);
+ 			if (c) {
++				if (replace_id) {
++					struct sip_pvt *refer_pvt;
++					struct ast_frame *f;
++					
++					if ((refer_pvt = get_sip_pvt_byid_locked(replace_id, req, NULL, p->theirtag))) {
++						ast_log(LOG_DEBUG, "XXXXXXXX I PARSED a Replaces [%s]\n", p_replaces);
++						transmit_response(p, "100 Trying", req);
++						ast_mutex_unlock(&refer_pvt->owner->lock);
++						ast_mutex_unlock(&refer_pvt->lock);
++						ast_channel_masquerade(refer_pvt->owner, c );
++						ast_hangup(c);
++						c = refer_pvt->owner;
++						if ((f = ast_read(c))) {
++							ast_log(LOG_DEBUG, "XXXXXXXX I DID a Replaces [%s]\n", p_replaces);
++							ast_frfree(f);
++							ast_setstate(c, AST_STATE_UP);
++						}
++					} else {
++						transmit_response_with_allow(p, "481 Call/Transaction Does Not Exist", req, 0);
++						return 0;
++					}
++				}
+ 				/* Pre-lock the call */
+ 				ast_mutex_lock(&c->lock);
+ 			}
+ 		}
+-		
+-	} else 
++	} else {
+ 		c = p->owner;
+-	if (!ignore && p)
++	}
++	
++	if (!ignore && p) {
+ 		p->lastinvite = seqno;
++	}
+ 	if (c) {
++
+ 		switch(c->_state) {
+ 		case AST_STATE_DOWN:
+ 			transmit_response(p, "100 Trying", req);
+@@ -8528,11 +8659,13 @@
+ 	if (ast_strlen_zero(p->context))
+ 		strncpy(p->context, default_context, sizeof(p->context) - 1);
+ 	res = get_refer_info(p, req);
+-	if (res < 0)
++	if (res == SIP_RETVAL_IGNORE) {
++		ignore = 1;
++	} else if (res < 0) {
+ 		transmit_response_with_allow(p, "404 Not Found", req, 1);
+-	else if (res > 0)
++	} else if (res > 0) {
+ 		transmit_response_with_allow(p, "484 Address Incomplete", req, 1);
+-	else {
++	} else {
+ 		int nobye = 0;
+ 		if (!ignore) {
+ 			if (p->refer_call) {
+@@ -8856,7 +8989,7 @@
+ 	cseq += len;
+ 
+ 	/* Determine the request URI for sip, sips or tel URIs */
+-	if( determine_firstline_parts( req ) < 0 ) {
++	if ( determine_firstline_parts( req ) < 0 ) {
+ 		return -1; 
+ 	}
+ 	cmd = req->rlPart1;
+@@ -9548,7 +9681,7 @@
+ 			ast_set_flag(flags, SIP_PROG_INBAND_YES);
+   	} else if (!strcasecmp(v->name, "allowguest")) {
+ #ifdef OSP_SUPPORT
+-  		if(!strcasecmp(v->value, "osp"))
++  		if (!strcasecmp(v->value, "osp"))
+    			global_allowguest = 2;
+     		else 
+ #endif
+@@ -9716,7 +9849,7 @@
+ 				if (varname && (varval = strchr(varname,'='))) {
+ 					*varval = '\0';
+ 					varval++;
+-					if((tmpvar = ast_variable_new(varname, varval))) {
++					if ((tmpvar = ast_variable_new(varname, varval))) {
+ 						tmpvar->next = user->chanvars;
+ 						user->chanvars = tmpvar;
+ 					}
+@@ -9857,7 +9990,7 @@
+ 			peer->expiry = expiry;
+ 		}
+ 		/* If we have channel variables, remove them (reload) */
+-		if(peer->chanvars) {
++		if (peer->chanvars) {
+ 			ast_variables_destroy(peer->chanvars);
+ 			peer->chanvars = NULL;
+ 		}
+@@ -10027,7 +10160,7 @@
+ 				if (varname && (varval = strchr(varname,'='))) {
+ 					*varval = '\0';
+ 					varval++;
+-					if((tmpvar = ast_variable_new(varname, varval))) {
++					if ((tmpvar = ast_variable_new(varname, varval))) {
+ 						tmpvar->next = peer->chanvars;
+ 						peer->chanvars = tmpvar;
+ 					}
+@@ -10164,7 +10297,7 @@
+ 			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTNOUPDATE);	
+ 		} else if (!strcasecmp(v->name, "rtautoclear")) {
+ 			int i = atoi(v->value);
+-			if(i > 0)
++			if (i > 0)
+ 				global_rtautoclear = i;
+ 			else
+ 				i = 0;
+@@ -10937,7 +11070,7 @@
+ 			p = p->next;
+ 			/* Free associated memory */
+ 			ast_mutex_destroy(&pl->lock);
+-			if(pl->chanvars) {
++			if (pl->chanvars) {
+ 				ast_variables_destroy(pl->chanvars);
+ 				pl->chanvars = NULL;
+ 			}
