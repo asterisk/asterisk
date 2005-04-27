@@ -70,6 +70,10 @@ static int parking_start = 701;
 /* Last available extension for parking */
 static int parking_stop = 750;
 
+static int parking_offset = 0;
+
+static int parkfindnext = 0;
+
 static int adsipark = 0;
 
 static int transferdigittimeout = DEFAULT_TRANSFER_DIGIT_TIMEOUT;
@@ -240,14 +244,16 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	/* We put the user in the parking list, then wake up the parking thread to be sure it looks
 	   after these channels too */
 	struct parkeduser *pu, *cur;
-	int x;
+	int i,x,parking_range;
 	char exten[AST_MAX_EXTENSION];
 	struct ast_context *con;
 	pu = malloc(sizeof(struct parkeduser));
 	if (pu) {
 		memset(pu,0,sizeof(struct parkeduser));
 		ast_mutex_lock(&parking_lock);
-		for (x=parking_start;x<=parking_stop;x++) {
+		parking_range=parking_stop-parking_start+1;
+		for (i=0;i<parking_range;i++) {
+			x=(i+parking_offset)%parking_range + parking_start;
 			cur = parkinglot;
 			while(cur) {
 				if (cur->parkingnum == x) 
@@ -257,7 +263,9 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			if (!cur)
 				break;
 		}
-		if (x <= parking_stop) {
+
+		if (i < parking_range) {
+			if (parkfindnext) parking_offset=x-parking_start+1;
 			chan->appl = "Parked Call";
 			chan->data = NULL; 
 
@@ -1569,6 +1577,8 @@ static int load_config(void)
 					parking_start = start;
 					parking_stop = end;
 				}
+			} else if (!strcasecmp(var->name, "findslot")) {
+				parkfindnext = (!strcasecmp(var->value, "next"));
 			} else if (!strcasecmp(var->name, "adsipark")) {
 				adsipark = ast_true(var->value);
 			} else if (!strcasecmp(var->name, "transferdigittimeout")) {

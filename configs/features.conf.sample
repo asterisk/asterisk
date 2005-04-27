@@ -14,6 +14,7 @@ context => parkedcalls		; Which context parked calls are in
 ;xfersound = beep		; to indicate an attended transfer is complete
 ;xferfailsound = beeperr	; to indicate a failed transfer
 ;adsipark = yes			; if you want ADSI parking announcements
+;findslot => next		; Continue to the 'next' parking space. Defaults to 'first' available
 ;pickupexten = *8		; Configure the pickup extension.  Default is *8
 ;featuredigittimeout = 500	; Max time (ms) between digits for 
 				; feature activation.  Default is 500
