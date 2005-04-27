@@ -7182,7 +7182,7 @@ retryowner2:
 			case IAX_COMMAND_REGREJ:
 				if (iaxs[fr.callno]->reg) {
 					if (authdebug) {
-						ast_log(LOG_NOTICE, "Registration of '%s' rejected: %s\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
+						ast_log(LOG_NOTICE, "Registration of '%s' rejected: '%s' from: '%s'\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
 						manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: IAX2\r\nUsername: %s\r\nStatus: Rejected\r\nCause: %s\r\n", iaxs[fr.callno]->reg->username, ies.cause ? ies.cause : "<unknown>");
 					}
 					iaxs[fr.callno]->reg->regstate = REG_STATE_REJECTED;
