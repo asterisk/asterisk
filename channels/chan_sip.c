@@ -1017,8 +1017,19 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 /* Pretend to ack all packets */
 static int __sip_pretend_ack(struct sip_pvt *p)
 {
+	char method[128]="";
+	struct sip_pkt *cur=NULL;
+	char *c;
 	while(p->packets) {
-		
+		if (cur == p) {
+			ast_log(LOG_WARNING, "Have a packet that doesn't want to give up!\n");
+			return -1;
+		}
+		cur = p;
+		strncpy(method, p->packets->data, sizeof(method) - 1);
+		c = method;
+		while(*c && (*c < 33)) c++;
+		*c = '\0;;
 		__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(p->packets->data));
 	}
 	return 0;
