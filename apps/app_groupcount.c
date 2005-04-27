@@ -186,24 +186,24 @@ static char *app_group_set = "SetGroup";
 static char *app_group_check = "CheckGroup";
 static char *app_group_match_count = "GetGroupMatchCount";
 
-static char *group_count_synopsis = "GetGroupCount([groupname][@category])";
-static char *group_set_synopsis = "SetGroup(groupname[@category])";
-static char *group_check_synopsis = "CheckGroup(max[@category])";
-static char *group_match_count_synopsis = "GetGroupMatchCount(groupmatch[@category])";
+static char *group_count_synopsis = "Get the channel count of a group";
+static char *group_set_synopsis = "Set the channel's group";
+static char *group_check_synopsis = "Check the channel count of a group against a limit";
+static char *group_match_count_synopsis = "Get the channel count of all groups that match a pattern";
 
 static char *group_count_descrip =
-"GetGroupCount([group][@category])\n"
+"Usage: GetGroupCount([groupname][@category])\n"
 "  Calculates the group count for the specified group, or uses\n"
 "the current channel's group if not specifed (and non-empty).\n"
 "Stores result in GROUPCOUNT.  Always returns 0.\n";
 
 static char *group_set_descrip =
-"SetGroup(group)\n"
+"Usage: SetGroup(groupname[@category])\n"
 "  Sets the channel group to the specified value.  Equivalent to\n"
 "SetVar(GROUP=group).  Always returns 0.\n";
 
 static char *group_check_descrip =
-"CheckGroup(max[@category])\n"
+"Usage: CheckGroup(max[@category])\n"
 "  Checks that the current number of total channels in the\n"
 "current channel's group does not exceed 'max'.  If the number\n"
 "does not exceed 'max', we continue to the next step. If the\n"
@@ -211,7 +211,7 @@ static char *group_check_descrip =
 "execution continues at that step, otherwise -1 is returned.\n";
 
 static char *group_match_count_descrip =
-"GetGroupMatchCount(groupmatch[@category])\n"
+"Usage: GetGroupMatchCount(groupmatch[@category])\n"
 "  Calculates the group count for all groups that match the specified\n"
 "pattern. Uses standard regular expression matching (see regex(7)).\n"
 "Stores result in GROUPCOUNT.  Always returns 0.\n";

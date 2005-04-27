@@ -31,13 +31,14 @@ static char *tdesc = "Executes applications";
 
 static char *app_exec = "Exec";
 
-static char *exec_synopsis = "Exec(Appname(arguments))";
+static char *exec_synopsis = "Executes internal application";
 
 static char *exec_descrip =
-"Exec(appname(arguments))\n"
+"Usage: Exec(appname(arguments))\n"
 "  Allows an arbitrary application to be invoked even when not\n"
-"hardcoded into the dialplan.  Returns whatever value the\n"
-"app returns or a non-zero value when the app cannot be found.\n";
+"hardcoded into the dialplan. To invoke external applications\n"
+"see the application System. Returns whatever value the\n"
+"app returns or a non-zero value if the app cannot be found.\n";
 
 STANDARD_LOCAL_USER;
 

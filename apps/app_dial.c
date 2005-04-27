@@ -122,7 +122,7 @@ static char *descrip =
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
 static char *rapp = "RetryDial";
-static char *rsynopsis = "Place a call, retrying on failure allowing optional exit extension.\n";
+static char *rsynopsis = "Place a call, retrying on failure allowing optional exit extension.";
 static char *rdescrip =
 "  RetryDial(announce|sleep|loops|Technology/resource[&Technology2/resource2...][|timeout][|options][|URL]):\n"
 "Attempt to place a call.  If no channel can be reached, play the file defined by 'announce'\n"

@@ -28,14 +28,16 @@
 
 
 static char *exec_app = "ExecIf";
-static char *exec_desc = "  ExecIF (<expr>|<app>|<data>)\n"
+static char *exec_desc = 
+"Usage:  ExecIF (<expr>|<app>|<data>)\n"
 "If <expr> is true, execute and return the result of <app>(<data>).\n"
 "If <expr> is true, but <app> is not found, then the application\n"
 "will return a non-zero value.";
-static char *exec_synopsis = "ExecIF (<expr>|<app>|<data>)";
+static char *exec_synopsis = "Conditional exec";
 
 static char *start_app = "While";
-static char *start_desc = "  While(<expr>)\n"
+static char *start_desc = 
+"Usage:  While(<expr>)\n"
 "Start a While Loop.  Execution will return to this point when\n"
 "EndWhile is called until expr is no longer true.\n";
 
@@ -43,7 +45,8 @@ static char *start_synopsis = "Start A While Loop";
 
 
 static char *stop_app = "EndWhile";
-static char *stop_desc = "  EndWhile()\n"
+static char *stop_desc = 
+"Usage:  EndWhile()\n"
 "Return to the previous called While\n\n";
 
 static char *stop_synopsis = "End A While Loop";
