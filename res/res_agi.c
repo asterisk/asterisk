@@ -350,7 +350,7 @@ static int handle_waitfordigit(struct ast_channel *chan, AGI *agi, int argc, cha
 	int to;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[3], "%i", &to) != 1)
+	if (sscanf(argv[3], "%d", &to) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_waitfordigit_full(chan, to, agi->audio, agi->ctrl);
 	fdprintf(agi->fd, "200 result=%d\n", res);
@@ -583,7 +583,7 @@ static int handle_saydigits(struct ast_channel *chan, AGI *agi, int argc, char *
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%i", &num) != 1)
+	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 
 	res = ast_say_digit_str_full(chan, argv[2], argv[3], chan->language, agi->audio, agi->ctrl);
@@ -619,7 +619,7 @@ static int handle_saydate(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	int num;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%i", &num) != 1)
+	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_say_date(chan, num, argv[3], chan->language);
 	if (res == 1)
@@ -637,7 +637,7 @@ static int handle_saytime(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	int num;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%i", &num) != 1)
+	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_say_time(chan, num, argv[3], chan->language);
 	if (res == 1)
@@ -756,7 +756,7 @@ static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, char
 	int pri;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;	
-	if (sscanf(argv[2], "%i", &pri) != 1)
+	if (sscanf(argv[2], "%d", &pri) != 1)
 		return RESULT_SHOWUSAGE;
 	chan->priority = pri - 1;
 	fdprintf(agi->fd, "200 result=0\n");
@@ -785,7 +785,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 
 	if (argc < 6)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[5], "%i", &ms) != 1)
+	if (sscanf(argv[5], "%d", &ms) != 1)
 		return RESULT_SHOWUSAGE;
 
 	if (argc > 6)
