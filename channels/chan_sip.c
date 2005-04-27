@@ -1021,16 +1021,16 @@ static int __sip_pretend_ack(struct sip_pvt *p)
 	struct sip_pkt *cur=NULL;
 	char *c;
 	while(p->packets) {
-		if (cur == p) {
+		if (cur == p->packets) {
 			ast_log(LOG_WARNING, "Have a packet that doesn't want to give up!\n");
 			return -1;
 		}
-		cur = p;
+		cur = p->packets;
 		strncpy(method, p->packets->data, sizeof(method) - 1);
 		c = method;
 		while(*c && (*c < 33)) c++;
-		*c = '\0;;
-		__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(p->packets->data));
+		*c = '\0';
+		__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(method));
 	}
 	return 0;
 }
