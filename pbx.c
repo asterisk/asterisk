@@ -5626,6 +5626,10 @@ static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
 {
+	/* If the channel is not in a PBX, return now */
+	if (!chan->pbx)
+		return 0;
+
 	/* Set the timeout for how long to wait between digits */
 	chan->pbx->rtimeout = atoi((char *)data);
 	if (option_verbose > 2)
@@ -5635,6 +5639,10 @@ static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_dtimeout(struct ast_channel *chan, void *data)
 {
+	/* If the channel is not in a PBX, return now */
+	if (!chan->pbx)
+		return 0;
+
 	/* Set the timeout for how long to wait between digits */
 	chan->pbx->dtimeout = atoi((char *)data);
 	if (option_verbose > 2)
