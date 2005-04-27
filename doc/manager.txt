@@ -275,6 +275,7 @@ Some standard AMI headers:
  Status:			-- Peer status (if monitored)  ** Will change name **
 					"unknown", "lagged", "ok"
  Status: <num>			-- Queue Status
+ Status:			-- DND status (DNDState)
  Time: <sec>			-- Roundtrip time (latency)
  Timeout:			-- Parking timeout time
  Timeout:			-- Timeout for call setup (Originate)
