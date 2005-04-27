@@ -188,6 +188,8 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
 static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, struct vm_state *vms, char *fmtc);
 static int vm_play_folder_name(struct ast_channel *chan, char *mbox);
 
+static void apply_options(struct ast_vm_user *vmu, const char *options);
+
 #ifdef USE_ODBC_STORAGE
 static char odbc_database[80];
 #define RETRIEVE(a,b) retrieve_file(a,b)
@@ -376,6 +378,8 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		strncpy(vmu->dialout, value, sizeof(vmu->dialout) -1);
 	} else if (!strcasecmp(var, "exitcontext")) {
 		strncpy(vmu->exit, value, sizeof(vmu->exit) -1);
+	} else if (!strcasecmp(var, "options")) {
+		apply_options(vmu, value);
 	}
 }
 
