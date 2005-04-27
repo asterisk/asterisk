@@ -466,6 +466,9 @@ update:
 		echo "Not CVS";  \
 	fi
 
+NEWHEADERS=$(subst include/asterisk/,,$(wildcard include/asterisk/*.h))
+OLDHEADERS=$(filter-out $(NEWHEADERS),$(subst $(DESTDIR)$(ASTHEADERDIR)/,,$(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
+
 bininstall: all
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
@@ -486,6 +489,9 @@ bininstall: all
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d $(DESTDIR)$(ASTHEADERDIR)
 	install -m 644 include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
+	if [ -n "$(OLDHEADERS)" ]; then \
+		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
+	fi
 	rm -f $(DESTDIR)$(ASTVARLIBDIR)/sounds/voicemail
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds
 	mkdir -p $(DESTDIR)$(ASTLOGDIR)/cdr-csv
