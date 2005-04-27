@@ -1662,7 +1662,8 @@ static int pbx_load_module(void)
 							ext = strsep(&stringp, ",");
 							if (!ext)
 								ext="";
-							cidmatch = strchr(ext, '/');
+							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
+							cidmatch = strchr(realext, '/');
 							if (cidmatch) {
 								*cidmatch = '\0';
 								cidmatch++;
@@ -1700,7 +1701,7 @@ static int pbx_load_module(void)
 									ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
 							} else  {
 								if (sscanf(pri, "%i", &ipri) != 1) {
-									if ((ipri = ast_findlabel_extension2(NULL, con, ext, pri, cidmatch)) < 1) {
+									if ((ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
 										ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 										ipri = 0;
 									}
@@ -1733,7 +1734,6 @@ static int pbx_load_module(void)
 							if (!data)
 								data="";
 							while(*appl && (*appl < 33)) appl++;
-							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 							if (ipri) {
 								if (plus)
 									ipri += atoi(plus);
