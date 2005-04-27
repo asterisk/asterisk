@@ -6679,6 +6679,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 #endif
 		} else {
 			signalling = tmp->sig;
+			radio = tmp->radio;
 			memset(&p, 0, sizeof(p));
 			if (tmp->subs[SUB_REAL].zfd > -1)
 				res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_GET_PARAMS, &p);
@@ -9074,6 +9075,7 @@ static int zap_show_channel(int fd, int argc, char **argv)
 			ast_cli(fd, "Destroy: %d\n", tmp->destroy);
 			ast_cli(fd, "InAlarm: %d\n", tmp->inalarm);
 			ast_cli(fd, "Signalling Type: %s\n", sig2str(tmp->sig));
+			ast_cli(fd, "Radio: %d\n", tmp->radio);
 			ast_cli(fd, "Owner: %s\n", tmp->owner ? tmp->owner->name : "<None>");
 			ast_cli(fd, "Real: %s%s%s\n", tmp->subs[SUB_REAL].owner ? tmp->subs[SUB_REAL].owner->name : "<None>", tmp->subs[SUB_REAL].inthreeway ? " (Confed)" : "", tmp->subs[SUB_REAL].linear ? " (Linear)" : "");
 			ast_cli(fd, "Callwait: %s%s%s\n", tmp->subs[SUB_CALLWAIT].owner ? tmp->subs[SUB_CALLWAIT].owner->name : "<None>", tmp->subs[SUB_CALLWAIT].inthreeway ? " (Confed)" : "", tmp->subs[SUB_CALLWAIT].linear ? " (Linear)" : "");
