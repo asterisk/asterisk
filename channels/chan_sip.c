@@ -5319,24 +5319,24 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			ASTOBJ_UNREF(peer,sip_destroy_peer);
 	}
 	if (peer) {
-			if (!ast_test_flag(peer, SIP_DYNAMIC)) {
-				ast_log(LOG_NOTICE, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
-			} else {
-				ast_copy_flags(p, peer, SIP_NAT);
-				transmit_response(p, "100 Trying", req);
-				if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, 0, ignore))) {
-					sip_cancel_destroy(p);
-					if (parse_contact(p, peer, req)) {
-						ast_log(LOG_WARNING, "Failed to parse contact info\n");
-					} else {
-						update_peer(peer, p->expiry);
-						/* Say OK and ask subsystem to retransmit msg counter */
-						transmit_response_with_date(p, "200 OK", req);
-						peer->lastmsgssent = -1;
-						res = 0;
-					}
-				} 
-			}
+		if (!ast_test_flag(peer, SIP_DYNAMIC)) {
+			ast_log(LOG_NOTICE, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
+		} else {
+			ast_copy_flags(p, peer, SIP_NAT);
+			transmit_response(p, "100 Trying", req);
+			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, peer->secret, peer->md5secret, SIP_REGISTER, uri, 0, ignore))) {
+				sip_cancel_destroy(p);
+				if (parse_contact(p, peer, req)) {
+					ast_log(LOG_WARNING, "Failed to parse contact info\n");
+				} else {
+					update_peer(peer, p->expiry);
+					/* Say OK and ask subsystem to retransmit msg counter */
+					transmit_response_with_date(p, "200 OK", req);
+					peer->lastmsgssent = -1;
+					res = 0;
+				}
+			} 
+		}
 	}
 	if (!peer && autocreatepeer) {
 		/* Create peer if we have autocreate mode enabled */
