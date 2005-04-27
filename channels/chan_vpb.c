@@ -1793,6 +1793,8 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
 	ast_mutex_lock(&p->lock);
+	if (option_verbose > 3)
+		ast_verbose(VERBOSE_PREFIX_4 "%s: starting call to [%s]\n", p->dev,dest);
 
 	if (s)
 		s = s + 1;
@@ -1805,8 +1807,6 @@ static int vpb_call(struct ast_channel *ast, char *dest, int timeout)
 		else if ((dialstring[i] == 'f') || (dialstring[i] == 'F'))
 			dialstring[i] = '&';
 	}	
-	if (option_verbose > 3)
-		ast_verbose(VERBOSE_PREFIX_4 "%s: starting call\n", p->dev);
 
 	if (ast->_state != AST_STATE_DOWN && ast->_state != AST_STATE_RESERVED) {
 		ast_log(LOG_WARNING, "vpb_call on %s neither down nor reserved!\n", ast->name);
