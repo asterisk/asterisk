@@ -338,10 +338,8 @@ struct sip_auth {
 #define SIP_CAN_REINVITE	(1 << 20)	/* allow peers to be reinvited to send media directly p2p */
 #define SIP_REINVITE_UPDATE	(2 << 20)	/* use UPDATE (RFC3311) when reinviting this peer */
 /* "insecure" settings */
-#define SIP_INSECURE		(3 << 22)	/* three settings, uses two bits */
-#define SIP_SECURE		(0 << 22)
-#define SIP_INSECURE_NORMAL	(1 << 22)
-#define SIP_INSECURE_VERY	(2 << 22)
+#define SIP_INSECURE_PORT	(1 << 22)	/* don't require matching port for incoming requests */
+#define SIP_INSECURE_INVITE	(1 << 23)	/* don't require authentication for incoming INVITEs */
 /* Sending PROGRESS in-band settings */
 #define SIP_PROG_INBAND		(3 << 24)	/* three settings, uses two bits */
 #define SIP_PROG_INBAND_NEVER	(0 << 24)
@@ -1350,7 +1348,7 @@ static int sip_addrcmp(char *name, struct sockaddr_in *sin)
 	/* We know name is the first field, so we can cast */
 	struct sip_peer *p = (struct sip_peer *)name;
 	return 	!(!inaddrcmp(&p->addr, sin) || 
-					(ast_test_flag(p, SIP_INSECURE) &&
+					(ast_test_flag(p, SIP_INSECURE_PORT) &&
 					(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr)));
 }
 
@@ -1471,7 +1469,9 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 
 	if (p) {
 		found++;
-		ast_copy_flags(r, p, SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE);
+		ast_copy_flags(r, p,
+			       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE |
+			       SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		r->capability = p->capability;
 		if (r->rtp) {
 			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
@@ -5985,8 +5985,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret)-1);
 			p->peermd5secret[sizeof(p->peermd5secret)-1] = '\0';
 			p->callingpres = peer->callingpres;
-			if (ast_test_flag(peer, SIP_INSECURE) == SIP_INSECURE_VERY) {
-				/* Pretend there is no required authentication if insecure is "very" */
+			if (ast_test_flag(peer, SIP_INSECURE_INVITE)) {
+				/* Pretend there is no required authentication */
 				p->peersecret[0] = '\0';
 				p->peermd5secret[0] = '\0';
 			}
@@ -6452,17 +6452,16 @@ static const char *dtmfmode2str(int mode)
 }
 
 /*--- insecure2str: Convert Insecure setting to printable string ---*/
-static const char *insecure2str(int mode)
+static const char *insecure2str(int port, int invite)
 {
-	switch (mode) {
-	case SIP_SECURE:
+	if (port && invite)
+		return "port,invite";
+	else if (port)
+		return "port";
+	else if (invite)
+		return "invite";
+	else
 		return "no";
-	case SIP_INSECURE_NORMAL:
-		return "yes";
-	case SIP_INSECURE_VERY:
-		return "very";
-	}
-	return "<error>";
 }
 
 /*--- sip_prune_realtime: Remove temporary realtime object from memory (CLI) ---*/
@@ -6596,7 +6595,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  Expire       : %d\n", peer->expire);
 		ast_cli(fd, "  Expiry       : %d\n", peer->expiry);
-		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(peer, SIP_INSECURE)));
+		ast_cli(fd, "  Insecure     : %s\n", insecure2str(ast_test_flag(peer, SIP_INSECURE_PORT), ast_test_flag(peer, SIP_INSECURE_INVITE)));
 		ast_cli(fd, "  Nat          : %s\n", nat2str(ast_test_flag(peer, SIP_NAT)));
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
 		ast_cli(fd, "  CanReinvite  : %s\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Yes":"No"));
@@ -6679,7 +6678,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
 		ast_cli(fd, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
 		ast_cli(fd, "RegExpiry: %d\r\n", peer->expiry);
-		ast_cli(fd, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(peer, SIP_INSECURE)));
+		ast_cli(fd, "SIP-AuthInsecure: %s\r\n", insecure2str(ast_test_flag(peer, SIP_INSECURE_PORT), ast_test_flag(peer, SIP_INSECURE_INVITE)));
 		ast_cli(fd, "SIP-NatSupport: %s\r\n", nat2str(ast_test_flag(peer, SIP_NAT)));
 		ast_cli(fd, "ACL: %s\r\n", (peer->ha?"Y":"N"));
 		ast_cli(fd, "SIP-CanReinvite: %s\r\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Y":"N"));
@@ -9544,12 +9543,27 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		else
 			ast_set2_flag(flags, ast_true(v->value), SIP_CAN_REINVITE);
 	} else if (!strcasecmp(v->name, "insecure")) {
-		ast_set_flag(mask, SIP_INSECURE);
-		ast_clear_flag(flags, SIP_INSECURE);
+		ast_set_flag(mask, SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
+		ast_clear_flag(flags, SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 		if (!strcasecmp(v->value, "very"))
-			ast_set_flag(flags, SIP_INSECURE_VERY);
-		else
-			ast_set2_flag(flags, ast_true(v->value), SIP_INSECURE_NORMAL);
+			ast_set_flag(flags, SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
+		else if (ast_true(v->value))
+			ast_set_flag(flags, SIP_INSECURE_PORT);
+		else if (!ast_false(v->value)) {
+			char buf[64];
+			char *word, *next;
+
+			strncpy(buf, v->value, sizeof(buf)-1);
+			next = buf;
+			while ((word = strsep(&next, ","))) {
+				if (!strcasecmp(word, "port"))
+					ast_set_flag(flags, SIP_INSECURE_PORT);
+				else if (!strcasecmp(word, "invite"))
+					ast_set_flag(flags, SIP_INSECURE_INVITE);
+				else
+					ast_log(LOG_WARNING, "Unknown insecure mode '%s' on line %d\n", v->value, v->lineno);
+			}
+		}
 	} else if (!strcasecmp(v->name, "progressinband")) {
 		ast_set_flag(mask, SIP_PROG_INBAND);
 		ast_clear_flag(flags, SIP_PROG_INBAND);
@@ -9707,7 +9721,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 		/* set the usage flag to a sane staring value*/
 		user->inUse = 0;
 		user->outUse = 0;
-		ast_copy_flags(user, &global_flags, SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE | SIP_PROG_INBAND | SIP_OSPAUTH);
+		ast_copy_flags(user, &global_flags,
+			       SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_NAT |
+			       SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
 		user->capability = global_capability;
 		user->prefs = prefs;
 		/* set default context */
@@ -9802,7 +9818,10 @@ static struct sip_peer *temp_peer(char *name)
 	peer->expire = -1;
 	peer->pokeexpire = -1;
 	strncpy(peer->name, name, sizeof(peer->name)-1);
-	ast_copy_flags(peer, &global_flags, SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE | SIP_PROG_INBAND | SIP_OSPAUTH);
+	ast_copy_flags(peer, &global_flags,
+		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_TRUSTRPID | SIP_USECLIENTCODE |
+		       SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
+		       SIP_PROG_INBAND | SIP_OSPAUTH);
 	strncpy(peer->context, default_context, sizeof(peer->context)-1);
 	strncpy(peer->language, default_language, sizeof(peer->language)-1);
 	strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
@@ -9892,7 +9911,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		oldha = peer->ha;
 		peer->ha = NULL;
 		peer->addr.sin_family = AF_INET;
-		ast_copy_flags(peer, &global_flags, SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_REINVITE | SIP_INSECURE | SIP_PROG_INBAND | SIP_OSPAUTH);
+		ast_copy_flags(peer, &global_flags,
+			       SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE |
+			       SIP_DTMF | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
+			       SIP_PROG_INBAND | SIP_OSPAUTH);
 		peer->capability = global_capability;
 		peer->rtptimeout = global_rtptimeout;
 		peer->rtpholdtimeout = global_rtpholdtimeout;

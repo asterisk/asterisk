@@ -331,8 +331,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;username=pingtel
 ;secret=blah
 ;host=dynamic
-;insecure=yes			; To match a peer based by IP address only and not peer name
-;insecure=very			; To allow registered hosts to call without re-authenticating
+;insecure=port			; Allow matching of peer by IP address without matching port number
+;insecure=invite		; Do not require authentication of incoming INVITEs
+;insecure=port,invite		; (both)
 ;qualify=1000			; Consider it down if it's 1 second to reply
 				; Helps with NAT session
 				; qualify=yes uses default value
