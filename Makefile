@@ -466,8 +466,11 @@ update:
 		echo "Not CVS";  \
 	fi
 
-NEWHEADERS=$(subst include/asterisk/,,$(wildcard include/asterisk/*.h))
-OLDHEADERS=$(filter-out $(NEWHEADERS),$(subst $(DESTDIR)$(ASTHEADERDIR)/,,$(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
+NEWHEADERS=$(notdir $(wildcard include/asterisk/*.h))
+OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
+
+NEWMODS=$(notdir $(wildcard */*.so))
+OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
 
 bininstall: all
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
@@ -531,6 +534,22 @@ bininstall: all
 	@echo " + **Note** This requires that you have      +"
 	@echo " + doxygen installed on your local system    +"
 	@echo " +-------------------------------------------+"
+	@if [ -n "$(OLDMODS)" ]; then \
+		echo " WARNING WARNING WARNING" ;\
+		echo "" ;\
+		echo " Your Asterisk modules directory, located at" ;\
+		echo " $(DESTDIR)$(MODULES_DIR)" ;\
+		echo " contains modules that were not installed by this " ;\
+		echo " version of Asterisk. Please ensure that these" ;\
+		echo " modules are compatible with this version before" ;\
+		echo " attempting to run Asterisk." ;\
+		echo "" ;\
+		for f in $(OLDMODS); do \
+			echo "    $$f" ;\
+		done ;\
+		echo "" ;\
+		echo " WARNING WARNING WARNING" ;\
+	fi
 
 install: all datafiles bininstall
 
