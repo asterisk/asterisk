@@ -24,6 +24,8 @@
 ;        backup1     is an optional list of backup d-channels.
 ;
 ;trunkgroup => 1,24,48
+;trunkgroup => 1,24
+ss7linkset = 1,24
 ;
 ; Spanmap: Associates a span with a trunk group
 ;        spanmap => <zapspan>,<trunkgroup>[,<logicalspan>]
@@ -56,6 +58,7 @@ context=default
 ; 5ess:	          Lucent 5ESS
 ; euroisdn:       EuroISDN
 ; ni1:            Old National ISDN 1
+; qsig:           Q.SIG
 ;
 switchtype=national
 ;
@@ -145,6 +148,7 @@ switchtype=national
 ; fxo_ks:  FXO (Kewl Start)
 ; pri_cpe: PRI signalling, CPE side
 ; pri_net: PRI signalling, Network side
+; ss7:	SS7 Signalling
 ; gr303fxoks_net: GR-303 Signalling, FXO Loopstart, Network side
 ; gr303fxsks_cpe: GR-303 Signalling, FXS Loopstart, CPE side
 ; sf:	      SF (Inband Tone) Signalling
@@ -170,7 +174,7 @@ switchtype=national
 signalling=fxo_ls
 ;
 ; For Feature Group D Tandem access, to set the default CIC and OZZ use
-; these parameters
+; these parameters:
 ;defaultozz=0000
 ;defaultcic=303
 ;
@@ -508,6 +512,11 @@ immediate=no
 ; channel => 1-23
 
 ;
+
+ss7link=1
+signalling = ss7
+channel => 1-23
+
 ;  Used for distintive ring support for x100p.
 ;  You can see the dringX patterns is to set any one of the dringXcontext fields
 ;  and they will be printed on the console when an inbound call comes in.
