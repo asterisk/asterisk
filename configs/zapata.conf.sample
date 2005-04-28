@@ -25,7 +25,6 @@
 ;
 ;trunkgroup => 1,24,48
 ;trunkgroup => 1,24
-ss7linkset = 1,24
 ;
 ; Spanmap: Associates a span with a trunk group
 ;        spanmap => <zapspan>,<trunkgroup>[,<logicalspan>]
@@ -148,7 +147,6 @@ switchtype=national
 ; fxo_ks:  FXO (Kewl Start)
 ; pri_cpe: PRI signalling, CPE side
 ; pri_net: PRI signalling, Network side
-; ss7:	SS7 Signalling
 ; gr303fxoks_net: GR-303 Signalling, FXO Loopstart, Network side
 ; gr303fxsks_cpe: GR-303 Signalling, FXS Loopstart, CPE side
 ; sf:	      SF (Inband Tone) Signalling
@@ -512,10 +510,6 @@ immediate=no
 ; channel => 1-23
 
 ;
-
-ss7link=1
-signalling = ss7
-channel => 1-23
 
 ;  Used for distintive ring support for x100p.
 ;  You can see the dringX patterns is to set any one of the dringXcontext fields
