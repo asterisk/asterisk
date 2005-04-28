@@ -8943,6 +8943,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_cache);
 	ast_cli_unregister(&cli_show_peer);
 	ast_cli_unregister(&cli_prune_realtime);
+	ast_cli_unregister(&cli_reload);
 	ast_unregister_switch(&iax2_switch);
 	ast_channel_unregister(&iax2_tech);
 	delete_users();
