@@ -854,7 +854,7 @@ int ast_hangup(struct ast_channel *chan)
 	manager_event(EVENT_FLAG_CALL, "Hangup", 
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
-			"Cause: %i\r\n",
+			"Cause: %d\r\n",
 			chan->name, chan->uniqueid, chan->hangupcause);
 	ast_channel_free(chan);
 	return res;

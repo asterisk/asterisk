@@ -147,8 +147,8 @@ static int tds_log(struct ast_cdr *cdr)
 			"%s, "		/* start */
 			"%s, "		/* answer */
 			"%s, "		/* end */
-			"%i, "		/* duration */
-			"%i, "		/* billsec */
+			"%d, "		/* duration */
+			"%d, "		/* billsec */
 			"'%s', "	/* disposition */
 			"'%s', "	/* amaflags */
 			"'%s'"		/* uniqueid */

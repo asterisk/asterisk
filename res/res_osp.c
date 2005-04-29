@@ -151,22 +151,22 @@ static int osp_build(struct ast_config *cfg, char *cat)
 			} else
 				ast_log(LOG_WARNING, "Too many Service points at line %d\n", v->lineno);
 		} else if (!strcasecmp(v->name, "maxconnections")) {
-			if ((sscanf(v->value, "%i", &x) == 1) && (x > 0) && (x <= 1000)) {
+			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x <= 1000)) {
 				osp->maxconnections = x;
 			} else
 				ast_log(LOG_WARNING, "maxconnections should be an integer from 1 to 1000, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "retrydelay")) {
-			if ((sscanf(v->value, "%i", &x) == 1) && (x >= 0) && (x <= 10)) {
+			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 0) && (x <= 10)) {
 				osp->retrydelay = x;
 			} else
 				ast_log(LOG_WARNING, "retrydelay should be an integer from 0 to 10, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "retrylimit")) {
-			if ((sscanf(v->value, "%i", &x) == 1) && (x >= 0) && (x <= 100)) {
+			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 0) && (x <= 100)) {
 				osp->retrylimit = x;
 			} else
 				ast_log(LOG_WARNING, "retrylimit should be an integer from 0 to 100, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "timeout")) {
-			if ((sscanf(v->value, "%i", &x) == 1) && (x >= 200) && (x <= 10000)) {
+			if ((sscanf(v->value, "%d", &x) == 1) && (x >= 200) && (x <= 10000)) {
 				osp->timeout = x;
 			} else
 				ast_log(LOG_WARNING, "timeout should be an integer from 200 to 10000, not '%s' at line %d\n", v->value, v->lineno);

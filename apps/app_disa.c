@@ -143,8 +143,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
 	}
-	ast_log(LOG_DEBUG, "Digittimeout: %i\n", digittimeout);
-	ast_log(LOG_DEBUG, "Responsetimeout: %i\n", firstdigittimeout);
+	ast_log(LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
+	ast_log(LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
 	strncpy(tmp, (char *)data, sizeof(tmp)-1);
 	stringp=tmp;
 	strsep(&stringp, "|");

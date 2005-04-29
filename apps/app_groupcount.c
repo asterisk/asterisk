@@ -114,7 +114,7 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 
   	ast_app_group_split_group(data, limit, sizeof(limit), category, sizeof(category));
 
- 	if ((sscanf(limit, "%i", &max) == 1) && (max > -1)) {
+ 	if ((sscanf(limit, "%d", &max) == 1) && (max > -1)) {
 		count = ast_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
 		if (count > max) {
 			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))

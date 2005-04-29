@@ -108,7 +108,7 @@ static void loopback_subst(char **newexten, char **newcontext, int *priority, ch
 	if (con && !ast_strlen_zero(con))
 		*newcontext = con;
 	if (pri && !ast_strlen_zero(pri))
-		sscanf(pri, "%i", priority);
+		sscanf(pri, "%d", priority);
 }
 
 static int loopback_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)

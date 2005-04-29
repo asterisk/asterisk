@@ -119,7 +119,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 		if ((maxdigits<1) || (maxdigits>255)) {
     			maxdigits = 255;
 		} else if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %i digits.\n", maxdigits);
+			ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %d digits.\n", maxdigits);
 	}
 	if (!(varname) || ast_strlen_zero(varname)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");

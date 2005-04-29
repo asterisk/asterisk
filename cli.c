@@ -583,7 +583,7 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 	char *filename = "<any>";
 	if ((argc < 3) || (argc > 4))
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%i", &newlevel) != 1)
+	if (sscanf(argv[2], "%d", &newlevel) != 1)
 		return RESULT_SHOWUSAGE;
 	option_debug = newlevel;
 	if (argc == 4) {

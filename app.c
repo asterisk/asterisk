@@ -571,7 +571,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	end=start;  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x=0;x<fmtcnt;x++) {
 		others[x] = ast_writefile(recordfile, sfmt[x], comment, O_TRUNC, 0, 0700);
-		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s, %p\n", x, recordfile, sfmt[x], others[x]);
+		ast_verbose( VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, recordfile, sfmt[x], others[x]);
 
 		if (!others[x]) {
 			break;
@@ -793,7 +793,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 	end=start;  /* pre-initialize end to be same as start in case we never get into loop */
 	for (x=0;x<fmtcnt;x++) {
 		others[x] = ast_writefile(prependfile, sfmt[x], comment, O_TRUNC, 0, 0700);
-		ast_verbose( VERBOSE_PREFIX_3 "x=%i, open writing:  %s format: %s, %p\n", x, prependfile, sfmt[x], others[x]);
+		ast_verbose( VERBOSE_PREFIX_3 "x=%d, open writing:  %s format: %s, %p\n", x, prependfile, sfmt[x], others[x]);
 		if (!others[x]) {
 			break;
 		}

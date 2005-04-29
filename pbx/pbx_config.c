@@ -1191,7 +1191,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
     	if (!strcmp(prior, "hint")) {
 			iprior = PRIORITY_HINT;
 		} else {
-			if (sscanf(prior, "%i", &iprior) != 1) {
+			if (sscanf(prior, "%d", &iprior) != 1) {
 				ast_cli(fd, "'%s' is not a valid priority\n", prior);
 				prior = NULL;
 			}
@@ -1700,7 +1700,7 @@ static int pbx_load_module(void)
 								else
 									ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
 							} else  {
-								if (sscanf(pri, "%i", &ipri) != 1) {
+								if (sscanf(pri, "%d", &ipri) != 1) {
 									if ((ipri = ast_findlabel_extension2(NULL, con, realext, pri, cidmatch)) < 1) {
 										ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
 										ipri = 0;

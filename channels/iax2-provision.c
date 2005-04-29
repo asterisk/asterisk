@@ -287,7 +287,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 	v = ast_variable_browse(cfg, s);
 	while(v) {
 		if (!strcasecmp(v->name, "port") || !strcasecmp(v->name, "serverport")) {
-			if ((sscanf(v->value, "%i", &x) == 1) && (x > 0) && (x < 65535)) {
+			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x < 65535)) {
 				if (!strcasecmp(v->name, "port")) {
 					cur->port = x;
 					foundportno = 1;
@@ -313,7 +313,7 @@ static int iax_template_parse(struct iax_template *cur, struct ast_config *cfg, 
 			} else
 				ast_log(LOG_WARNING, "Ignoring invalid codec '%s' for '%s' at line %d\n", v->value, s, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%i", &x) == 1)
+			if (sscanf(v->value, "%d", &x) == 1)
 				cur->tos = x & 0xff;
 			else if (!strcasecmp(v->value, "lowdelay"))
 				cur->tos = IPTOS_LOWDELAY;

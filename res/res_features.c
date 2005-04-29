@@ -1571,7 +1571,7 @@ static int load_config(void)
 				} else
 					parkingtime = parkingtime * 1000;
 			} else if (!strcasecmp(var->name, "parkpos")) {
-				if (sscanf(var->value, "%i-%i", &start, &end) != 2) {
+				if (sscanf(var->value, "%d-%d", &start, &end) != 2) {
 					ast_log(LOG_WARNING, "Format for parking positions is a-b, where a and b are numbers at line %d of parking.conf\n", var->lineno);
 				} else {
 					parking_start = start;

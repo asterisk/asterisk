@@ -8360,7 +8360,7 @@ static int set_config(char *config_file, int reload)
 			if (trunkfreq < 10)
 				trunkfreq = 10;
 		} else if (!strcasecmp(v->name, "autokill")) {
-			if (sscanf(v->value, "%i", &x) == 1) {
+			if (sscanf(v->value, "%d", &x) == 1) {
 				if (x >= 0)
 					autokill = x;
 				else
@@ -8393,7 +8393,7 @@ static int set_config(char *config_file, int reload)
 			if (!ast_context_find(regcontext))
 				ast_context_create(NULL, regcontext, channeltype);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%i", &format) == 1)
+			if (sscanf(v->value, "%d", &format) == 1)
 				tos = format & 0xff;
 			else if (!strcasecmp(v->value, "lowdelay"))
 				tos = IPTOS_LOWDELAY;

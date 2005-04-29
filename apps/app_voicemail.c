@@ -859,7 +859,7 @@ static int last_message_index(char *dir)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		if (sscanf(rowdata, "%i", &x) != 1)
+		if (sscanf(rowdata, "%d", &x) != 1)
 			ast_log(LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
@@ -920,7 +920,7 @@ static int message_exists(char *dir, int msgnum)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		if (sscanf(rowdata, "%i", &x) != 1)
+		if (sscanf(rowdata, "%d", &x) != 1)
 			ast_log(LOG_WARNING, "Failed to read message count!\n");
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
@@ -4072,7 +4072,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 		vm_change_password(vmu,newpassword);
 	else 
 		vm_change_password_shell(vmu,newpassword);
-	ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",vms->username,newpassword,(int)strlen(newpassword));
+	ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
 	cmd = ast_play_and_wait(chan,"vm-passchanged");
 
 	/* If forcename is set, have the user record their name */	
@@ -4174,7 +4174,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 				vm_change_password(vmu,newpassword);
 			else 
 				vm_change_password_shell(vmu,newpassword);
-			ast_log(LOG_DEBUG,"User %s set password to %s of length %i\n",vms->username,newpassword,(int)strlen(newpassword));
+			ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
 			cmd = ast_play_and_wait(chan,"vm-passchanged");
 			break;
 		case '*': 

@@ -347,7 +347,7 @@ static int myatoi(char *str)
 int	ret;
 
 	if (str == NULL) return -1;
-	if (sscanf(str,"%i",&ret) != 1) return -1;
+	if (sscanf(str,"%d",&ret) != 1) return -1;
 	return ret;
 }
 

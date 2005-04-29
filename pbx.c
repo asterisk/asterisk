@@ -1057,7 +1057,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		snprintf(workspace, workspacelen, "%s", c->uniqueid);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "HANGUPCAUSE")) {
-		snprintf(workspace, workspacelen, "%i", c->hangupcause);
+		snprintf(workspace, workspacelen, "%d", c->hangupcause);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "ACCOUNTCODE")) {
 		strncpy(workspace, c->accountcode, workspacelen - 1);
@@ -5261,7 +5261,7 @@ static void wait_for_hangup(struct ast_channel *chan, void *data)
 	struct ast_frame *f;
 	int waittime;
 	
-	if (!data || !strlen(data) || (sscanf(data, "%i", &waittime) != 1) || (waittime < 0))
+	if (!data || !strlen(data) || (sscanf(data, "%d", &waittime) != 1) || (waittime < 0))
 		waittime = -1;
 	if (waittime > -1) {
 		ast_safe_sleep(chan, waittime * 1000);

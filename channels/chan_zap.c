@@ -8331,7 +8331,7 @@ static void *pri_dchannel(void *vpri)
 						}
 						if (e->hangup.aoc_units > -1)
 							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d received AOC-E charging %i unit%s\n",
+								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d received AOC-E charging %d unit%s\n",
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					} else {
@@ -8377,7 +8377,7 @@ static void *pri_dchannel(void *vpri)
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup request\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
 							if (e->hangup.aoc_units > -1)
 								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d received AOC-E charging %i unit%s\n",
+									ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d received AOC-E charging %d unit%s\n",
 										pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
 						} else {
 							pri_hangup(pri->pri, pri->pvts[chanpos]->call, e->hangup.cause);
@@ -9771,7 +9771,7 @@ static int setup_zap(int reload)
 					echocancel=128;
 			}
 		} else if (!strcasecmp(v->name, "echotraining")) {
-			if (sscanf(v->value, "%i", &y) == 1) {
+			if (sscanf(v->value, "%d", &y) == 1) {
 				if ((y < 10) || (y > 4000)) {
 					ast_log(LOG_WARNING, "Echo training time must be within the range of 10 to 2000 ms at line %d\n", v->lineno);					
 				} else {

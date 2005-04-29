@@ -896,7 +896,7 @@ static void *fast_originate(void *data)
 			"Channel: %s/%s\r\n"
 			"Context: %s\r\n"
 			"Exten: %s\r\n"
-			"Reason: %i\r\n"
+			"Reason: %d\r\n"
 			"Uniqueid: %s\r\n",
 			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
 	else
@@ -906,7 +906,7 @@ static void *fast_originate(void *data)
 			"Channel: %s/%s\r\n"
 			"Context: %s\r\n"
 			"Exten: %s\r\n"
-			"Reason: %i\r\n"
+			"Reason: %d\r\n"
 			"Uniqueid: %s\r\n",
 			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
 

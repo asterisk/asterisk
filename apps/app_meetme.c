@@ -464,7 +464,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 		/* Show all the users */
 		user = cnf->firstuser;
 		while(user) {
-			ast_cli(fd, "User #: %i  Channel: %s %s %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
+			ast_cli(fd, "User #: %d  Channel: %s %s %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
 			user = user->nextuser;
 		}
 		ast_cli(fd,"%d users in that conference.\n",cnf->users);
@@ -535,7 +535,7 @@ static char *complete_confcmd(char *line, char *word, int pos, int state) {
 				/* Search for the user */
 				usr = cnf->firstuser;
 				while(usr) {
-					snprintf(usrno, sizeof(usrno), "%i", usr->user_no);
+					snprintf(usrno, sizeof(usrno), "%d", usr->user_no);
 					if (!strncasecmp(word, usrno, strlen(word))) {
 						if (++which > state)
 							break;
@@ -839,7 +839,7 @@ zapretry:
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"Meetme: %s\r\n"
-			"Usernum: %i\r\n",
+			"Usernum: %d\r\n",
 			chan->name, chan->uniqueid, conf->confno, user->user_no);
 
 	if (!firstpass && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN)) {
@@ -1047,7 +1047,7 @@ zapretry:
 								"Channel: %s\r\n"
 								"Uniqueid: %s\r\n"
 								"Meetme: %s\r\n"
-								"Usernum: %i\r\n",
+								"Usernum: %d\r\n",
 								chan->name, chan->uniqueid, conf->confno, user->user_no);
 						}
 						if (user->talking && totalsilence > MEETME_DELAYDETECTENDTALK) {
@@ -1056,7 +1056,7 @@ zapretry:
 								"Channel: %s\r\n"
 								"Uniqueid: %s\r\n"
 								"Meetme: %s\r\n"
-								"Usernum: %i\r\n",
+								"Usernum: %d\r\n",
 								chan->name, chan->uniqueid, conf->confno, user->user_no);
 						}
 					}
@@ -1273,7 +1273,7 @@ outrun:
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"Meetme: %s\r\n"
-			"Usernum: %i\r\n",
+			"Usernum: %d\r\n",
 			chan->name, chan->uniqueid, conf->confno, user->user_no);
 		prev = NULL;
 		conf->users--;
@@ -1340,7 +1340,7 @@ outrun:
 			}
 		}
 		/* Return the number of seconds the user was in the conf */
-		snprintf(meetmesecs, sizeof(meetmesecs), "%i", (int) (time(NULL) - user->jointime));
+		snprintf(meetmesecs, sizeof(meetmesecs), "%d", (int) (time(NULL) - user->jointime));
 		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
 	}
 	free(user);
@@ -1451,7 +1451,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 
 	if (localdata && !ast_strlen_zero(localdata)){
 		/* have var so load it and exit */
-		snprintf(val,sizeof(val), "%i",count);
+		snprintf(val,sizeof(val), "%d",count);
 		pbx_builtin_setvar_helper(chan, localdata,val);
 	} else {
 		if (chan->_state != AST_STATE_UP)
@@ -1706,7 +1706,7 @@ static struct ast_conf_user* find_user(struct ast_conference *conf, char *caller
 	if (conf && callerident) {
 		user = conf->firstuser;
 		while(user) {
-			snprintf(usrno, sizeof(usrno), "%i", user->user_no);
+			snprintf(usrno, sizeof(usrno), "%d", user->user_no);
 			if (strcmp(usrno, callerident) == 0)
 				return user;
 			user = user->nextuser;

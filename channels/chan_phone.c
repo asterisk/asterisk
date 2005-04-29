@@ -219,7 +219,7 @@ static int phone_digit(struct ast_channel *ast, char digit)
 		ast_log(LOG_WARNING, "Unknown digit '%c'\n", digit);
 		return -1;
 	}
-	ast_log(LOG_NOTICE, "Dialed %i\n", outdigit);
+	ast_log(LOG_NOTICE, "Dialed %d\n", outdigit);
 	ioctl(p->fd, PHONE_PLAY_TONE, outdigit);
 	p->lastformat = -1;
 	return 0;

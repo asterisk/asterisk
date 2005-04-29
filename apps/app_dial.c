@@ -693,7 +693,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if ((cdl = strstr(transfer, "S("))) {
 			calldurationlimit=atoi(cdl+2);
 			if (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %i seconds.\n",calldurationlimit);			
+				ast_verbose(VERBOSE_PREFIX_3 "Setting call duration limit to %d seconds.\n",calldurationlimit);			
 		} 
 
 		/* Extract DTMF strings to send upon successfull connect */

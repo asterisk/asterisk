@@ -4059,7 +4059,7 @@ static void build_mapping(char *name, char *value)
 			} else if (x >= 4) {
 				strncpy(map->dcontext, name, sizeof(map->dcontext) - 1);
 				strncpy(map->lcontext, fields[0], sizeof(map->lcontext) - 1);
-				if ((sscanf(fields[1], "%i", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
+				if ((sscanf(fields[1], "%d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
 					strncpy(map->dest, fields[3], sizeof(map->dest) - 1);
 					if ((map->tech = str2tech(fields[2]))) {
 						map->dead = 0;
@@ -4502,14 +4502,14 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 		} else if (!strcasecmp(v->name, "authdebug")) {
 			authdebug = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "ttl")) {
-			if ((sscanf(v->value, "%i", &x) == 1) && (x > 0) && (x < DUNDI_DEFAULT_TTL)) {
+			if ((sscanf(v->value, "%d", &x) == 1) && (x > 0) && (x < DUNDI_DEFAULT_TTL)) {
 				dundi_ttl = x;
 			} else {
 				ast_log(LOG_WARNING, "'%s' is not a valid TTL at line %d, must be number from 1 to %d\n",
 					v->value, v->lineno, DUNDI_DEFAULT_TTL);
 			}
 		} else if (!strcasecmp(v->name, "autokill")) {
-			if (sscanf(v->value, "%i", &x) == 1) {
+			if (sscanf(v->value, "%d", &x) == 1) {
 				if (x >= 0)
 					global_autokilltimeout = x;
 				else
@@ -4525,7 +4525,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			else
 				ast_log(LOG_WARNING, "Invalid global endpoint identifier '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%i", &format) == 1)
+			if (sscanf(v->value, "%d", &format) == 1)
 				tos = format & 0xff;
 			else if (!strcasecmp(v->value, "lowdelay"))
 				tos = IPTOS_LOWDELAY;

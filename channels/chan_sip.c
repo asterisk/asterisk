@@ -1630,7 +1630,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	res = 0;
 	ast_set_flag(p, SIP_OUTGOING);
 #ifdef OSP_SUPPORT
-	if (!osptoken || !osphandle || (sscanf(osphandle, "%i", &p->osphandle) != 1)) {
+	if (!osptoken || !osphandle || (sscanf(osphandle, "%d", &p->osphandle) != 1)) {
 		/* Force Disable OSP support */
 		ast_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", osptoken, osphandle);
 		osptoken = NULL;
@@ -3510,7 +3510,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 	struct sip_request resp;
 	int seqno = 0;
 
-	if (reliable && (sscanf(get_header(req, "CSeq"), "%i ", &seqno) != 1)) {
+	if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)) {
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -3574,7 +3574,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 	char tmp[256];
 	int seqno = 0;
 
-	if (reliable && (sscanf(get_header(req, "CSeq"), "%i ", &seqno) != 1)) {
+	if (reliable && (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1)) {
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -3825,7 +3825,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 {
 	struct sip_request resp;
 	int seqno;
-	if (sscanf(get_header(req, "CSeq"), "%i ", &seqno) != 1) {
+	if (sscanf(get_header(req, "CSeq"), "%d ", &seqno) != 1) {
 		ast_log(LOG_WARNING, "Unable to get seqno from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
@@ -8858,7 +8858,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	/* Must have Cseq */
 	if (ast_strlen_zero(cmd) || ast_strlen_zero(cseq))
 		return -1;
-	if (sscanf(cseq, "%i%n", &seqno, &len) != 1) {
+	if (sscanf(cseq, "%d%n", &seqno, &len) != 1) {
 		ast_log(LOG_DEBUG, "No seqno in '%s'\n", cmd);
 		return -1;
 	}
@@ -8897,7 +8897,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		extract_uri(p, req);
 		while(*e && (*e < 33)) 
 			e++;
-		if (sscanf(e, "%i %n", &respid, &len) != 1) {
+		if (sscanf(e, "%d %n", &respid, &len) != 1) {
 			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
 		} else {
 			handle_response(p, respid, e + len, req,ignore, seqno);
@@ -10250,7 +10250,7 @@ static int reload_config(void)
 				ast_log(LOG_WARNING, "Unable to locate host '%s'\n", v->value);
 		} else if (!strcasecmp(v->name, "outboundproxyport")) {
 			/* Port needs to be after IP */
-			sscanf(v->value, "%i", &format);
+			sscanf(v->value, "%d", &format);
 			outboundproxyip.sin_port = htons(format);
 		} else if (!strcasecmp(v->name, "autocreatepeer")) {
 			autocreatepeer = ast_true(v->value);
@@ -10298,7 +10298,7 @@ static int reload_config(void)
 				memcpy(&externip.sin_addr, hp->h_addr, sizeof(externip.sin_addr));
 			time(&externexpire);
 		} else if (!strcasecmp(v->name, "externrefresh")) {
-			if (sscanf(v->value, "%i", &externrefresh) != 1) {
+			if (sscanf(v->value, "%d", &externrefresh) != 1) {
 				ast_log(LOG_WARNING, "Invalid externrefresh value '%s', must be an integer >0 at line %d\n", v->value, v->lineno);
 				externrefresh = 10;
 			}
@@ -10311,7 +10311,7 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "recordhistory")) {
 			recordhistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%i", &format) == 1)
+			if (sscanf(v->value, "%d", &format) == 1)
 				tos = format & 0xff;
 			else if (!strcasecmp(v->value, "lowdelay"))
 				tos = IPTOS_LOWDELAY;
@@ -10326,7 +10326,7 @@ static int reload_config(void)
 			else
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
-			if (sscanf(v->value, "%i", &ourport) == 1) {
+			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
 			} else {
 				ast_log(LOG_WARNING, "Invalid port number '%s' at line %d of %s\n", v->value, v->lineno, config);
