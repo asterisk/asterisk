@@ -559,6 +559,7 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
 static int oh323_digit(struct ast_channel *c, char digit)
 {
 	struct oh323_pvt *p = (struct oh323_pvt *) c->tech_pvt;
+	char *token;
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Sending digit %c on %s\n", digit, c->name);
 	if (!p)
@@ -569,10 +570,15 @@ static int oh323_digit(struct ast_channel *c, char digit)
 	}
 	/* If in-band DTMF is desired, send that */
 	if ((p->dtmfmode & H323_DTMF_INBAND)) {
-		h323_send_tone(p->cd.call_token, digit);
+		token = p->cd.call_token ? strdup(p->cd.call_token) : NULL;
+		ast_mutex_unlock(&p->lock);
+		h323_send_tone(token, digit);
+		if (token)
+			free(token);
+		oh323_update_info(c);
 	}
-	ast_mutex_unlock(&p->lock);
-	oh323_update_info(c);
+	else
+		ast_mutex_unlock(&p->lock);
 	return 0;
 }
 
@@ -1014,6 +1020,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 	pvt->cd.call_reference = callid;
 	pvt->bridge = bridging;	
 	pvt->dtmfmode = dtmfmode;
+	pvt->capability = capability;
 	if (pvt->dtmfmode & H323_DTMF_RFC2833) {
 		pvt->nonCodecCapability |= AST_RTP_DTMF;
 	}
@@ -1194,10 +1201,6 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
 	}
-	/* Assign default capabilities */
-	pvt->capability = capability;
-	pvt->dtmfmode = H323_DTMF_RFC2833;
-
 	strncpy(tmp, dest, sizeof(tmp) - 1);	
 	host = strchr(tmp, '@');
 	if (host) {
@@ -1222,6 +1225,8 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 			return NULL;
 		}
 	}
+	else
+		memcpy(&pvt->options, &global_options, sizeof(pvt->options));
 
 	/* pass on our capabilites to the H.323 stack */
 	ast_mutex_lock(&caplock);
@@ -1291,7 +1296,7 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 	struct oh323_pvt *pvt;
 	struct sockaddr_in us;
 	struct rtp_info *info;
-       	static char iabuf[INET_ADDRSTRLEN];
+	char iabuf[INET_ADDRSTRLEN];
 
 	info = (struct rtp_info *)malloc(sizeof(struct rtp_info));
 	if (!info) {
@@ -2405,6 +2410,12 @@ int unload_module()
 	}
 	h323_gk_urq();
 	h323_end_process();
+	io_context_destroy(io);
+	sched_context_destroy(sched);
+	delete_users();
+	delete_aliases();
+	prune_peers();
+	ast_mutex_destroy(&aliasl.lock);
 	ast_mutex_destroy(&userl.lock);
 	ast_mutex_destroy(&peerl.lock);
 	return 0; 

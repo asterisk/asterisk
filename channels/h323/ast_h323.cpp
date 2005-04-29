@@ -97,7 +97,7 @@ int PAsteriskLog::Buffer::overflow(int c)
 {
 	if (pptr() >= epptr()) {
 		int ppos = pptr() - pbase();
-		char *newptr = string.GetPointer(string.GetSize() + 10);
+		char *newptr = string.GetPointer(string.GetSize() + 2000);
 		setp(newptr, newptr + string.GetSize() - 1);
 		pbump(ppos);
 	}
@@ -134,7 +134,7 @@ int PAsteriskLog::Buffer::sync()
 	free(str);
 
 	string = PString();
-	char *base = string.GetPointer(10);
+	char *base = string.GetPointer(2000);
 	setp(base, base + string.GetSize() - 1);
 	return 0;
 }
@@ -1092,6 +1092,7 @@ void h323_end_process(void)
 	endPoint->ClearAllCalls();
 	endPoint->RemoveListener(NULL);
 	delete endPoint;
+	endPoint = NULL;
 	PTrace::SetLevel(0);
 	delete localProcess;
 	delete logstream;
