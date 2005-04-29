@@ -350,6 +350,19 @@ asterisk.8.gz: asterisk.sgml
 	mv ./*.8 asterisk.8
 	gzip asterisk.8
 
+asterisk.pdf: asterisk.sgml
+	docbook2pdf asterisk.sgml
+
+asterisk.ps: asterisk.sgml
+	docbook2ps asterisk.sgml
+
+asterisk.html: asterisk.sgml
+	docbook2html asterisk.sgml
+	mv r1.html asterisk.html
+
+asterisk.txt: asterisk.sgml
+	docbook2txt asterisk.sgml
+
 ifneq ($(strip $(ASTERISKVERSION)),)
 build.h: .version
 	./make_build_h
