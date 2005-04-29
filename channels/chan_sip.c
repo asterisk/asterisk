@@ -497,6 +497,7 @@ struct sip_user {
 	ast_group_t callgroup;		/* Call group */
 	ast_group_t pickupgroup;	/* Pickup Group */
 	unsigned int flags;		/* SIP_ flags */	
+	struct ast_flags flags_page2;	/* SIP_PAGE2 flags */
 	int amaflags;			/* AMA flags for billing */
 	int callingpres;		/* Calling id presentation */
 	int capability;			/* Codec capability */
@@ -1413,17 +1414,16 @@ static struct sip_user *realtime_user(const char *username)
 	user = build_user(username, var, !ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS));
 	
 	if (user) {
-		/* Add some finishing touches, addresses, etc */
 		if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+			ast_set_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS);
 			suserobjs++;
-
         		ASTOBJ_CONTAINER_LINK(&userl,user);
         	} else {
 			/* Move counter from s to r... */
 			suserobjs--;
 			ruserobjs++;
 			ast_set_flag(user, SIP_REALTIME);
-        }
+		}
 	}
 	ast_variables_destroy(var);
 	return user;
@@ -6464,29 +6464,150 @@ static const char *insecure2str(int port, int invite)
 		return "no";
 }
 
-/*--- sip_prune_realtime: Remove temporary realtime object from memory (CLI) ---*/
+/*--- sip_prune_realtime: Remove temporary realtime objects from memory (CLI) ---*/
 static int sip_prune_realtime(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
+	struct sip_user *user;
+	int pruneuser = 0;
+	int prunepeer = 0;
+	int multi = 0;
+	char *name = NULL;
+	int more;
+	regex_t regexbuf;
 
-	if (argc != 4)
+	if ((argc < 4) || (argc > 6))
         	return RESULT_SHOWUSAGE;
 
-	if (!strcmp(argv[3],"all")) {
-		sip_do_reload();
-		ast_cli(fd, "OK. Cache is flushed.\n");
-	} else if ((peer = find_peer(argv[3], NULL, 0))) {
-		if(ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
-			ast_set_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR);
-			expire_register(peer);
-			ast_cli(fd, "OK. Peer %s was removed from the cache.\n", argv[3]);
-		} else {
-			ast_cli(fd, "SORRY. Peer %s is not eligible for this operation.\n", argv[3]);
+	more = 1;
+	if (!strcasecmp(argv[3], "user")) {
+		if (argc > 4)
+			pruneuser = 1;
+		else
+			return RESULT_SHOWUSAGE;
+	} else if (!strcasecmp(argv[3], "peer")) {
+		if (argc > 4)
+			prunepeer = 1;
+		else
+			return RESULT_SHOWUSAGE;
+	} else if (!strcasecmp(argv[3], "like")) {
+		if (argc == 5) {
+			multi = 1;
+			name = argv[4];
+			pruneuser = prunepeer = 1;
+			more = 0;
+		} else
+			return RESULT_SHOWUSAGE;
+	} else if (!strcasecmp(argv[3], "all")) {
+		if (argc == 4) {
+			multi = 1;
+			pruneuser = prunepeer = 1;
+			more = 0;
+		} else
+			return RESULT_SHOWUSAGE;
+	} else if (argc == 4) {
+		more = 0;
+		pruneuser = prunepeer = 1;
+		name = argv[3];
+	} else
+		return RESULT_SHOWUSAGE;
+
+	if (more) {
+		if (!strcasecmp(argv[4], "like")) {
+			if (argc == 6) {
+				multi = 1;
+				name = argv[5];
+			} else
+				return RESULT_SHOWUSAGE;
+		} else if (!strcasecmp(argv[4], "all")) {
+			if (argc == 5)
+				multi = 1;
+			else
+				return RESULT_SHOWUSAGE;
+		} else if (argc == 5)
+			name = argv[4];
+		else
+			return RESULT_SHOWUSAGE;
+	}
+
+	if (multi && name) {
+		if (regcomp(&regexbuf, name, REG_EXTENDED | REG_NOSUB))
+			return RESULT_SHOWUSAGE;
+	}
+
+	if (multi) {
+		if (prunepeer) {
+			int pruned = 0;
+
+			ASTOBJ_CONTAINER_WRLOCK(&peerl);
+			ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
+				ASTOBJ_RDLOCK(iterator);
+				if (name && regexec(&regexbuf, iterator->name, 0, NULL, 0)) {
+					ASTOBJ_UNLOCK(iterator);
+					continue;
+				};
+				if (ast_test_flag((&iterator->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+					expire_register(iterator);
+					ASTOBJ_MARK(iterator);
+					pruned++;
+				}
+				ASTOBJ_UNLOCK(iterator);
+			} while (0) );
+			if (pruned) {
+				ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, sip_destroy_peer);
+				ast_cli(fd, "%d peers pruned.\n", pruned);
+			} else
+				ast_cli(fd, "No peers found to prune.\n");
+			ASTOBJ_CONTAINER_UNLOCK(&peerl);
+		}
+		if (pruneuser) {
+			int pruned = 0;
+
+			ASTOBJ_CONTAINER_WRLOCK(&userl);
+			ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
+				ASTOBJ_RDLOCK(iterator);
+				if (name && regexec(&regexbuf, iterator->name, 0, NULL, 0)) {
+					ASTOBJ_UNLOCK(iterator);
+					continue;
+				};
+				if (ast_test_flag((&iterator->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+					ASTOBJ_MARK(iterator);
+					pruned++;
+				}
+				ASTOBJ_UNLOCK(iterator);
+			} while (0) );
+			if (pruned) {
+				ASTOBJ_CONTAINER_PRUNE_MARKED(&userl, sip_destroy_user);
+				ast_cli(fd, "%d users pruned.\n", pruned);
+			} else
+				ast_cli(fd, "No users found to prune.\n");
+			ASTOBJ_CONTAINER_UNLOCK(&userl);
 		}
 	} else {
-		ast_cli(fd, "SORRY. Peer %s was not found in the cache.\n", argv[3]);
+		if (prunepeer) {
+			if ((peer = ASTOBJ_CONTAINER_FIND_UNLINK(&peerl, name))) {
+				if (ast_test_flag(&peer->flags_page2, SIP_PAGE2_RTCACHEFRIENDS))
+					expire_register(peer);
+				else {
+					ast_cli(fd, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", name);
+					ASTOBJ_CONTAINER_LINK(&peerl, peer);
+				}
+				ASTOBJ_UNREF(peer, sip_destroy_peer);
+			} else
+				ast_cli(fd, "Peer '%s' not found.\n", name);
+		}
+		if (pruneuser) {
+			if ((user = ASTOBJ_CONTAINER_FIND_UNLINK(&userl, name))) {
+				if (!ast_test_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+					ast_cli(fd, "User '%s' is not a Realtime user, cannot be pruned.\n", name);
+					ASTOBJ_CONTAINER_LINK(&userl, user);
+				}
+				ASTOBJ_UNREF(user, sip_destroy_user);
+			} else
+				ast_cli(fd, "User '%s' not found.\n", name);
+		}
 	}
-	
+
 	return RESULT_SUCCESS;
 }
 
@@ -6906,15 +7027,17 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 }
 
 /*--- complete_sip_peer: Do completion on peer name ---*/
-static char *complete_sip_peer(char *word, int state)
+static char *complete_sip_peer(char *word, int state, int flags2)
 {
 	char *result = NULL;
 	int wordlen = strlen(word);
 	int which = 0;
 
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, !result, do {
-		/* locking of the object is not required because only the name is being compared */
+		/* locking of the object is not required because only the name and flags are being compared */
 		if (!strncasecmp(word, iterator->name, wordlen)) {
+			if (flags2 && !ast_test_flag((&iterator->flags_page2), flags2))
+				continue;
 			if (++which > state) {
 				result = strdup(iterator->name);
 			}
@@ -6927,7 +7050,7 @@ static char *complete_sip_peer(char *word, int state)
 static char *complete_sip_show_peer(char *line, char *word, int pos, int state)
 {
 	if (pos == 3)
-		return complete_sip_peer(word, state);
+		return complete_sip_peer(word, state, 0);
 
 	return NULL;
 }
@@ -6936,21 +7059,23 @@ static char *complete_sip_show_peer(char *line, char *word, int pos, int state)
 static char *complete_sip_debug_peer(char *line, char *word, int pos, int state)
 {
 	if (pos == 3)
-		return complete_sip_peer(word, state);
+		return complete_sip_peer(word, state, 0);
 
 	return NULL;
 }
 
 /*--- complete_sip_user: Do completion on user name ---*/
-static char *complete_sip_user(char *word, int state)
+static char *complete_sip_user(char *word, int state, int flags2)
 {
 	char *result = NULL;
 	int wordlen = strlen(word);
 	int which = 0;
 
 	ASTOBJ_CONTAINER_TRAVERSE(&userl, !result, do {
-		/* locking of the object is not required because only the name is being compared */
+		/* locking of the object is not required because only the name and flags are being compared */
 		if (!strncasecmp(word, iterator->name, wordlen)) {
+			if (flags2 && !ast_test_flag(&(iterator->flags_page2), flags2))
+				continue;
 			if (++which > state) {
 				result = strdup(iterator->name);
 			}
@@ -6963,7 +7088,7 @@ static char *complete_sip_user(char *word, int state)
 static char *complete_sip_show_user(char *line, char *word, int pos, int state)
 {
 	if (pos == 3)
-		return complete_sip_user(word, state);
+		return complete_sip_user(word, state, 0);
 
 	return NULL;
 }
@@ -6996,7 +7121,24 @@ static char *complete_sipnotify(char *line, char *word, int pos, int state)
 	}
 
 	if (pos > 2)
-		return complete_sip_peer(word, state);
+		return complete_sip_peer(word, state, 0);
+
+	return NULL;
+}
+
+/*--- complete_sip_prune_realtime_peer: Support routine for 'sip prune realtime peer' CLI ---*/
+static char *complete_sip_prune_realtime_peer(char *line, char *word, int pos, int state)
+{
+	if (pos == 4)
+		return complete_sip_peer(word, state, SIP_PAGE2_RTCACHEFRIENDS);
+	return NULL;
+}
+
+/*--- complete_sip_prune_realtime_user: Support routine for 'sip prune realtime user' CLI ---*/
+static char *complete_sip_prune_realtime_user(char *line, char *word, int pos, int state)
+{
+	if (pos == 4)
+		return complete_sip_user(word, state, SIP_PAGE2_RTCACHEFRIENDS);
 
 	return NULL;
 }
@@ -7593,8 +7735,9 @@ static char show_peer_usage[] =
 "       Option \"load\" forces lookup of peer in realtime storage.\n";
 
 static char prune_realtime_usage[] =
-"Usage: sip prune realtime [<peername>|all]\n"
-"       Prunes object(s) from the cache\n";
+"Usage: sip prune realtime [peer|user] [<name>|all|like <pattern>]\n"
+"       Prunes object(s) from the cache.\n"
+"       Optional regular expression pattern is used to filter the objects.\n";
 
 static char show_reg_usage[] =
 "Usage: sip show registry\n"
@@ -7662,7 +7805,14 @@ static struct ast_cli_entry  cli_show_peer =
 static struct ast_cli_entry  cli_show_peers =
 	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
 static struct ast_cli_entry  cli_prune_realtime =
-	{ { "sip", "prune", "realtime", NULL }, sip_prune_realtime, "Prune a cached realtime lookup", prune_realtime_usage, complete_sip_show_peer };
+	{ { "sip", "prune", "realtime", NULL }, sip_prune_realtime,
+	  "Prune cached Realtime object(s)", prune_realtime_usage };
+static struct ast_cli_entry  cli_prune_realtime_peer =
+	{ { "sip", "prune", "realtime", "peer", NULL }, sip_prune_realtime,
+	  "Prune cached Realtime peer(s)", prune_realtime_usage, complete_sip_prune_realtime_peer };
+static struct ast_cli_entry  cli_prune_realtime_user =
+	{ { "sip", "prune", "realtime", "user", NULL }, sip_prune_realtime,
+	  "Prune cached Realtime user(s)", prune_realtime_usage, complete_sip_prune_realtime_user };
 static struct ast_cli_entry  cli_inuse_show =
 	{ { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limits", show_inuse_usage };
 static struct ast_cli_entry  cli_show_registry =
@@ -10875,6 +11025,8 @@ int load_module()
 		ast_cli_register(&cli_show_channel);
 		ast_cli_register(&cli_show_history);
 		ast_cli_register(&cli_prune_realtime);
+		ast_cli_register(&cli_prune_realtime_peer);
+		ast_cli_register(&cli_prune_realtime_user);
 		ast_cli_register(&cli_show_peer);
 		ast_cli_register(&cli_show_peers);
 		ast_cli_register(&cli_show_registry);
@@ -10916,6 +11068,8 @@ int unload_module()
 	ast_cli_unregister(&cli_show_channels);
 	ast_cli_unregister(&cli_show_channel);
 	ast_cli_unregister(&cli_show_history);
+	ast_cli_unregister(&cli_prune_realtime_user);
+	ast_cli_unregister(&cli_prune_realtime_peer);
 	ast_cli_unregister(&cli_prune_realtime);
 	ast_cli_unregister(&cli_show_peer);
 	ast_cli_unregister(&cli_show_peers);
