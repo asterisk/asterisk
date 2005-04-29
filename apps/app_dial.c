@@ -201,24 +201,19 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 } while (0)
 
 
-static int ast_onedigit_goto(struct ast_channel *chan, char *context, char exten, int pri, char *cid) 
+static int onedigit_goto(struct ast_channel *chan, char *context, char exten, int pri) 
 {
-	char rexten[2];
-	snprintf(rexten, 2, "%c", exten);
+	char rexten[2] = { exten, '\0' };
+
 	if (context) {
-		if (ast_exists_extension(chan, context, rexten, pri, cid)) {
-			ast_explicit_goto(chan, context, rexten, pri-1);
+		if (ast_goto_if_exists(chan, context, rexten, pri))
 			return 1;
-		}
 	} else {
-		if (ast_exists_extension(chan, chan->context, rexten, pri, cid)) {
-			ast_explicit_goto(chan, chan->context, rexten, pri-1);
+		if (ast_goto_if_exists(chan, chan->context, rexten, pri))
 			return 1;
-		} else if (!ast_strlen_zero(chan->macrocontext)) {
-			if (ast_exists_extension(chan, chan->macrocontext, rexten, pri, cid)) {
-				ast_explicit_goto(chan, chan->macrocontext, rexten, pri-1);
+		else if (!ast_strlen_zero(chan->macrocontext)) {
+			if (ast_goto_if_exists(chan, chan->macrocontext, rexten, pri))
 				return 1;
-			}
 		}
 	}
 	return 0;
@@ -552,7 +547,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			if (f && (f->frametype == AST_FRAME_DTMF)) {
 				if (ast_test_flag(peerflags, DIAL_HALT_ON_DTMF)) {
 					context = pbx_builtin_getvar_helper(in, "EXITCONTEXT");
-					if (ast_onedigit_goto(in, context, (char) f->subclass, 1, in->cid.cid_num)) {
+					if (onedigit_goto(in, context, (char) f->subclass, 1)) {
 						if (option_verbose > 3)
 							ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 						*to=0;
@@ -1448,7 +1443,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 		if (res < 0)
 			break;
 		else if (res > 0) { /* Trying to send the call elsewhere (1 digit ext) */
-			if (ast_onedigit_goto(chan, context, (char) res, 1, chan->cid.cid_num)) {
+			if (onedigit_goto(chan, context, (char) res, 1)) {
 				res = 0;
 				break;
 			}

@@ -2243,6 +2243,7 @@ int ast_pbx_run(struct ast_channel *c)
 	int pos;
 	int waittime;
 	int res=0;
+	int autoloopflag;
 
 	/* A little initial setup here */
 	if (c->pbx)
@@ -2268,9 +2269,12 @@ int ast_pbx_run(struct ast_channel *c)
 	c->pbx->rtimeout = 10;
 	c->pbx->dtimeout = 5;
 
+	autoloopflag = ast_test_flag(c, AST_FLAG_IN_AUTOLOOP);
+	ast_set_flag(c, AST_FLAG_IN_AUTOLOOP);
+
 	/* Start by trying whatever the channel is set to */
 	if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
-		/* JK02: If not successfull fall back to 's' */
+		/* If not successful fall back to 's' */
 		if (option_verbose > 1)
 			ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", c->name, c->context, c->exten, c->priority);
 		strncpy(c->exten, "s", sizeof(c->exten)-1);
@@ -2420,6 +2424,7 @@ int ast_pbx_run(struct ast_channel *c)
 			    }
 			} else {
 				char *status;
+
 				status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
 				if (!status)
 					status = "UNKNOWN";
@@ -2454,6 +2459,7 @@ out:
 			c->priority++;
 		}
 	}
+	ast_set2_flag(c, autoloopflag, AST_FLAG_IN_AUTOLOOP);
 
 	pbx_destroy(c->pbx);
 	c->pbx = NULL;
@@ -4415,27 +4421,34 @@ int ast_add_extension(const char *context, int replace, const char *extension, i
 	return -1;
 }
 
-int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority) {
-	if(chan) {
-		if (context && !ast_strlen_zero(context))
-			strncpy(chan->context, context, sizeof(chan->context) - 1);
-		if (exten && !ast_strlen_zero(exten))
-			strncpy(chan->exten, exten, sizeof(chan->context) - 1);
-		if(priority > -1)
-			chan->priority = priority;
-		return 0;
+int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority)
+{
+	if (!chan)
+		return -1;
+
+	if (context && !ast_strlen_zero(context))
+		strncpy(chan->context, context, sizeof(chan->context) - 1);
+	if (exten && !ast_strlen_zero(exten))
+		strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
+	if (priority > -1) {
+		chan->priority = priority;
+		/* see flag description in channel.h for explanation */
+		if (ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP))
+			chan->priority--;
 	}
-	return -1;
+	
+	return 0;
 }
 
 int ast_async_goto(struct ast_channel *chan, const char *context, const char *exten, int priority)
 {
 	int res = 0;
+
 	ast_mutex_lock(&chan->lock);
 
 	if (chan->pbx) {
 		/* This channel is currently in the PBX */
-		ast_explicit_goto(chan, context, exten, priority - 1);
+		ast_explicit_goto(chan, context, exten, priority);
 		ast_softhangup_nolock(chan, AST_SOFTHANGUP_ASYNCGOTO);
 	} else {
 		/* In order to do it when the channel doesn't really exist within
@@ -4451,9 +4464,9 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 			tmpchan->writeformat = chan->writeformat;
 			/* Setup proper location */
 			ast_explicit_goto(tmpchan,
-							  (context && !ast_strlen_zero(context)) ? context : chan->context,
-							  (exten && !ast_strlen_zero(exten)) ? exten : chan->exten,
-							  priority);
+					  (context && !ast_strlen_zero(context)) ? context : chan->context,
+					  (exten && !ast_strlen_zero(exten)) ? exten : chan->exten,
+					  priority);
 
 			/* Masquerade into temp channel */
 			ast_channel_masquerade(tmpchan, chan);
@@ -6188,35 +6201,21 @@ int ast_context_verify_includes(struct ast_context *con)
 }
 
 
-static int __ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority, int async) 
+static int __ast_goto_if_exists(struct ast_channel *chan, char *context, char *exten, int priority, int async) 
 {
-	int (*goto_func)(struct ast_channel *chan, const char *context, const char *exten, int priority) = NULL;
+	int (*goto_func)(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
-	if(chan) {
+	if (!chan)
+		return -2;
 
-		if (async) {
-			goto_func = ast_async_goto;
-		} else { 
-			goto_func = ast_explicit_goto;
-			priority--;
-			if(priority < 0)
-				priority = 0;
-		}
-
-		if (ast_exists_extension(chan, 
-								 context ? context : chan->context,
-								 exten ? exten : chan->exten,
-								 priority,
-								 chan->cid.cid_num)) {
-			return goto_func(chan,
-							 context ? context : chan->context,
-							 exten ? exten : chan->exten,
-							 priority);
-		} else 
-			return -3;
-	}
-	
-	return -2;
+	goto_func = (async) ? ast_async_goto : ast_explicit_goto;
+	if (ast_exists_extension(chan, context ? context : chan->context,
+				 exten ? exten : chan->exten, priority,
+				 chan->cid.cid_num))
+		return goto_func(chan, context ? context : chan->context,
+				 exten ? exten : chan->exten, priority);
+	else 
+		return -3;
 }
 
 int ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority) {
@@ -6264,7 +6263,7 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 		mode = -1;
 		pri++;
 	}
-	if (sscanf(pri, "%i", &ipri) != 1) {
+	if (sscanf(pri, "%d", &ipri) != 1) {
 		if ((ipri = ast_findlabel_extension(chan, context ? context : chan->context, (exten && strcasecmp(exten, "BYEXTENSION")) ? exten : chan->exten, 
 			pri, chan->cid.cid_num)) < 1) {
 			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0, or valid label\n", pri);
@@ -6280,10 +6279,8 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 	if (mode) 
 		ipri = chan->priority + (ipri * mode);
 
-	ast_explicit_goto(chan, context, exten, chan->pbx ? ipri - 1 : ipri);
+	ast_explicit_goto(chan, context, exten, ipri);
 	ast_cdr_update(chan);
 	return 0;
 
 }
-
-

@@ -348,17 +348,21 @@ struct ast_channel {
 #define AST_FLAG_BLOCKING	(1 << 3)	/* if we are blocking */
 #define AST_FLAG_ZOMBIE		(1 << 4)	/* if we are a zombie */
 #define AST_FLAG_EXCEPTION	(1 << 5)	/* if there is a pending exception */
-#define AST_FLAG_MOH        (1 << 6)    /* XXX anthm promises me this will disappear XXX listening to moh */
-#define AST_FLAG_SPYING		(1 << 7)    /* XXX might also go away XXX is spying on someone */
-#define AST_FLAG_NBRIDGE	(1 << 8)    /* is it in a native bridge */
+#define AST_FLAG_MOH		(1 << 6)	/* XXX anthm promises me this will disappear XXX listening to moh */
+#define AST_FLAG_SPYING		(1 << 7)	/* XXX might also go away XXX is spying on someone */
+#define AST_FLAG_NBRIDGE	(1 << 8)	/* is it in a native bridge */
+#define AST_FLAG_IN_AUTOLOOP	(1 << 9)	/* the channel is in an auto-incrementing dialplan processor,
+						   so when ->priority is set, it will get incremented before
+						   finding the next priority to run
+						*/
 
 #define AST_FEATURE_PLAY_WARNING	(1 << 0)
 #define AST_FEATURE_REDIRECT		(1 << 1)
 #define AST_FEATURE_DISCONNECT		(1 << 2)
-#define AST_FEATURE_ATXFER			(1 << 3)
-#define AST_FEATURE_AUTOMON			(1 << 4)
+#define AST_FEATURE_ATXFER		(1 << 3)
+#define AST_FEATURE_AUTOMON		(1 << 4)
 
-#define AST_FEATURE_FLAG_NEEDSDTMF		(1 << 0)
+#define AST_FEATURE_FLAG_NEEDSDTMF	(1 << 0)
 
 struct ast_bridge_config {
 	struct ast_flags features_caller;

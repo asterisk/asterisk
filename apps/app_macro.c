@@ -88,6 +88,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	char *offsets;
 	int offset;
 	int setmacrocontext=0;
+	int autoloopflag;
   
 	char *save_macro_exten;
 	char *save_macro_context;
@@ -166,6 +167,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, varname, cur);
 		argc++;
 	}
+	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
+	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
 		if ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 			/* Something bad happened, or a hangup has been requested. */
@@ -208,6 +211,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		chan->priority++;
   	}
 	out:
+	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
   	for (x=1; x<argc; x++) {
   		/* Restore old arguments and delete ours */
 		snprintf(varname, sizeof(varname), "ARG%d", x);
