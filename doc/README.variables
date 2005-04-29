@@ -368,7 +368,7 @@ ${QUEUE_PRIO}		Queue priority
 ${QUEUESTATUS} 		Status of the call, one of:
 			(TIMEOUT | FULL | JOINEMPTY | LEAVEEMPTY | JOINUNAVAIL | LEAVEUNAVAIL)
 ${RECORDED_FILE} 	* Recorded file in record()
-${TALK_DETECED} 	* Result from talkdetect()
+${TALK_DETECTED} 	* Result from talkdetect()
 ${TOUCH_MONITOR} 	The filename base to use with Touch Monitor (auto record)
 ${TXTCIDNAME}		* Result of application TXTCIDName
 ${VPB_GETDTMF}		chan_vpb
