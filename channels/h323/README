@@ -19,10 +19,10 @@ your distro did not install them for you without your knowledge.
 
 To compile this code
 --------------------
-Once PWLib and Open H.323 have been compiled per their specific build 
-instructions, issue  a make in the asterisk/channels/h323 directory, 
-then go back to the Asterisk source top level directory and issue a make
-install.
+Once PWLib and Open H.323 have been compiled per their specific build
+instructions, issue a make in the asterisk/channels/h323 directory with
+argument used to build PWLib and OpenH323 (for example, make opt), then go
+back to the Asterisk source top level directory and issue a make install.
 
 
 The most common compile error  
@@ -45,7 +45,7 @@ cd /path/to/openh323
 ./configure
 make clean opt 
 cd /path/to/asterisk/channels/h323
-make  
+make opt
 cd /path/to/asterisk
 make install 
 
