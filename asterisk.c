@@ -13,7 +13,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
-#include <sys/resource.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <signal.h>
