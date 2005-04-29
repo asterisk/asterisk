@@ -121,6 +121,10 @@ ifneq ($(wildcard .depend),)
 include .depend
 endif
 
+ifneq ($(wildcard h323/Makefile.ast),)
+include h323/Makefile.ast
+endif
+
 ifeq ($(CROSS_COMPILE),)
 gentone: gentone.c
 	$(CC) -o gentone gentone.c -lm
@@ -178,8 +182,13 @@ chan_vpb.o: chan_vpb.c
 chan_vpb.so: chan_vpb.o
 	 $(CXX) $(SOLINK) -o $@ $< -lvpb -lpthread -lm -ldl
 
+ifeq (${OSARCH},Linux)
+chan_h323.so: chan_h323.o h323/libchanh323.a h323/Makefile.ast
+	$(CC) $(SOLINK) $(H323LDFLAGS) -o $@ $< h323/libchanh323.a $(H323LDLIBS) -lstdc++
+else
 chan_h323.so: chan_h323.o h323/libchanh323.a
 	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
+endif
 
 
 #chan_modem.so : chan_modem.o
