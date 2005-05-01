@@ -4717,8 +4717,10 @@ static int expire_register(void *data)
 	register_peer_exten(peer, 0);
 	peer->expire = -1;
 	ast_device_state_changed("SIP/%s", peer->name);
-	if (ast_test_flag(peer, SIP_SELFDESTRUCT) || ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR))
-		ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
+	if (ast_test_flag(peer, SIP_SELFDESTRUCT) || ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
+		peer = ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
+		ASTOBJ_UNREF(peer, sip_destroy_peer);
+	}
 
 	return 0;
 }
