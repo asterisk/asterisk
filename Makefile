@@ -482,9 +482,6 @@ update:
 NEWHEADERS=$(notdir $(wildcard include/asterisk/*.h))
 OLDHEADERS=$(filter-out $(NEWHEADERS),$(notdir $(wildcard $(DESTDIR)$(ASTHEADERDIR)/*.h)))
 
-NEWMODS=$(notdir $(wildcard */*.so))
-OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
-
 bininstall: all
 	mkdir -p $(DESTDIR)$(MODULES_DIR)
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
@@ -547,6 +544,12 @@ bininstall: all
 	@echo " + **Note** This requires that you have      +"
 	@echo " + doxygen installed on your local system    +"
 	@echo " +-------------------------------------------+"
+	@$(MAKE) -s oldmodcheck
+
+NEWMODS=$(notdir $(wildcard */*.so))
+OLDMODS=$(filter-out $(NEWMODS),$(notdir $(wildcard $(DESTDIR)$(MODULES_DIR)/*.so)))
+
+oldmodcheck:
 	@if [ -n "$(OLDMODS)" ]; then \
 		echo " WARNING WARNING WARNING" ;\
 		echo "" ;\
