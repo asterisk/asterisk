@@ -1137,8 +1137,8 @@ int ast_custom_function_unregister(struct ast_custom_function_obj *acf)
 				} else {
 					acf_root = acf->next;
 				}
-				if (option_verbose)
-					ast_verbose(VERBOSE_PREFIX_1 "Unregistered custom function %s\n", acf->name);
+				if (option_verbose > 1)
+					ast_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
 				return 0;
 			}
 			lastacf = acfptr;
@@ -1158,8 +1158,8 @@ int ast_custom_function_register(struct ast_custom_function_obj *acf)
 		}
 		acf->next = acf_root;
 		acf_root = acf;
-		if (option_verbose)
-			ast_verbose(VERBOSE_PREFIX_1 "Registered custom function %s\n", acf->name);
+		if (option_verbose > 1)
+			ast_verbose(VERBOSE_PREFIX_2 "Registered custom function %s\n", acf->name);
 		return 0;
 	}
 
