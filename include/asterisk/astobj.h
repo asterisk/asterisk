@@ -187,6 +187,26 @@ extern "C" {
 		ASTOBJ_CONTAINER_UNLOCK(container); \
 	} while(0)
 
+#define ASTOBJ_CONTAINER_UNLINK(container,obj) \
+	({ \
+		typeof((container)->head) found = NULL; \
+		typeof((container)->head) prev = NULL; \
+		ASTOBJ_CONTAINER_TRAVERSE(container, !found, do { \
+			if (iterator == obj) { \
+				found = iterator; \
+				found->next[0] = NULL; \
+				ASTOBJ_CONTAINER_WRLOCK(container); \
+				if (prev) \
+					prev->next[0] = next; \
+				else \
+					(container)->head = next; \
+				ASTOBJ_CONTAINER_UNLOCK(container); \
+			} \
+			prev = iterator; \
+		} while (0)); \
+		found; \
+	})
+
 #define ASTOBJ_CONTAINER_FIND_UNLINK(container,namestr) \
 	({ \
 		typeof((container)->head) found = NULL; \

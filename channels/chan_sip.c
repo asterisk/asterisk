@@ -657,12 +657,11 @@ static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int sip_sipredirect(struct sip_pvt *p, const char *dest);
-static struct sip_peer *temp_peer(char *name);
+static struct sip_peer *temp_peer(const char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
 static int update_user_counter(struct sip_pvt *fup, int event);
-static void prune_peers(void);
 static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime);
 static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
 static int sip_do_reload(void);
@@ -2558,14 +2557,14 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		strncpy(p->callid, callid, sizeof(p->callid) - 1);
 	ast_copy_flags(p, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_DTMF | SIP_REINVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
 	/* Assign default music on hold class */
-	strncpy(p->musicclass, global_musicclass, sizeof(p->musicclass) - 1);
+	strcpy(p->musicclass, global_musicclass);
 	p->rtptimeout = global_rtptimeout;
 	p->rtpholdtimeout = global_rtpholdtimeout;
 	p->rtpkeepalive = global_rtpkeepalive;
 	p->capability = global_capability;
 	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
-	strncpy(p->context, default_context, sizeof(p->context) - 1);
+	strcpy(p->context, default_context);
 	/* Add to list */
 	ast_mutex_lock(&iflock);
 	p->next = iflist;
@@ -4710,17 +4709,17 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 /*--- expire_register: Expire registration of SIP peer ---*/
 static int expire_register(void *data)
 {
-	struct sip_peer *p = data;
-	memset(&p->addr, 0, sizeof(p->addr));
-	ast_db_del("SIP/Registry", p->name);
-	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", p->name);
-	register_peer_exten(p, 0);
-	p->expire = -1;
-	ast_device_state_changed("SIP/%s", p->name);
-	if (ast_test_flag(p, SIP_SELFDESTRUCT) || ast_test_flag((&p->flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
-		ASTOBJ_MARK(p);	
-		prune_peers();
-	}
+	struct sip_peer *peer = data;
+
+	memset(&peer->addr, 0, sizeof(peer->addr));
+	ast_db_del("SIP/Registry", peer->name);
+	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Unregistered\r\nCause: Expired\r\n", peer->name);
+	register_peer_exten(peer, 0);
+	peer->expire = -1;
+	ast_device_state_changed("SIP/%s", peer->name);
+	if (ast_test_flag(peer, SIP_SELFDESTRUCT) || ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR))
+		ASTOBJ_CONTAINER_UNLINK(&peerl, peer);
+
 	return 0;
 }
 
@@ -8456,7 +8455,7 @@ static int handle_request_options(struct sip_pvt *p, struct sip_request *req, in
 	build_contact(p);
 	/* XXX Should we authenticate OPTIONS? XXX */
 	if (ast_strlen_zero(p->context))
-		strncpy(p->context, default_context, sizeof(p->context) - 1);
+		strcpy(p->context, default_context);
 	if (res < 0)
 		transmit_response_with_allow(p, "404 Not Found", req, 0);
 	else if (res > 0)
@@ -8543,7 +8542,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			ast_queue_frame(p->owner, &af);
 		/* Initialize the context if it hasn't been already */
 		if (ast_strlen_zero(p->context))
-			strncpy(p->context, default_context, sizeof(p->context) - 1);
+			strcpy(p->context, default_context);
 		/* Check number of concurrent calls -vs- incoming limit HERE */
 		ast_log(LOG_DEBUG, "Check for res for %s\n", p->username);
 		res = update_user_counter(p,INC_IN_USE);
@@ -8686,7 +8685,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "We found a REFER!\n");
 	if (ast_strlen_zero(p->context))
-		strncpy(p->context, default_context, sizeof(p->context) - 1);
+		strcpy(p->context, default_context);
 	res = get_refer_info(p, req);
 	if (res < 0)
 		transmit_response_with_allow(p, "404 Not Found", req, 1);
@@ -8795,7 +8794,7 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
 		ast_log(LOG_NOTICE, "Client '%s' using deprecated BYE/Also transfer method.  Ask vendor to support REFER instead\n",
 			ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
 		if (ast_strlen_zero(p->context))
-			strncpy(p->context, default_context, sizeof(p->context) - 1);
+			strcpy(p->context, default_context);
 		res = get_also_info(p, req);
 		if (!res) {
 			c = p->owner;
@@ -8870,7 +8869,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 		/* Initialize the context if it hasn't been already */
 		if (ast_strlen_zero(p->context))
-			strncpy(p->context, default_context, sizeof(p->context) - 1);
+			strcpy(p->context, default_context);
 		/* Get destination right away */
 		gotdest = get_destination(p, NULL);
 		build_contact(p);
@@ -9823,12 +9822,11 @@ static int clear_realm_authentication(struct sip_auth *authlist)
 	struct sip_auth *a = authlist;
 	struct sip_auth *b;
 
-        while(a) {
+        while (a) {
                 b = a;
                 a = a->next;
                 free(b);
         }
-
 
 	return(1);
 }
@@ -9877,9 +9875,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 		user->capability = global_capability;
 		user->prefs = prefs;
 		/* set default context */
-		strncpy(user->context, default_context, sizeof(user->context)-1);
-		strncpy(user->language, default_language, sizeof(user->language)-1);
-		strncpy(user->musicclass, global_musicclass, sizeof(user->musicclass)-1);
+		strcpy(user->context, default_context);
+		strcpy(user->language, default_language);
+		strcpy(user->musicclass, global_musicclass);
 		while(v) {
 			if (handle_common_options(&userflags, &mask, v)) {
 				v = v->next;
@@ -9954,14 +9952,15 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 }
 
 /*--- temp_peer: Create temporary peer (used in autocreatepeer mode) ---*/
-static struct sip_peer *temp_peer(char *name)
+static struct sip_peer *temp_peer(const char *name)
 {
 	struct sip_peer *peer;
-	peer = malloc(sizeof(struct sip_peer));
+
+	peer = malloc(sizeof(*peer));
 	if (!peer)
 		return NULL;
 
-	memset(peer, 0, sizeof(struct sip_peer));
+	memset(peer, 0, sizeof(*peer));
 	apeerobjs++;
 	ASTOBJ_INIT(peer);
 
@@ -9972,9 +9971,9 @@ static struct sip_peer *temp_peer(char *name)
 		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_TRUSTRPID | SIP_USECLIENTCODE |
 		       SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
 		       SIP_PROG_INBAND | SIP_OSPAUTH);
-	strncpy(peer->context, default_context, sizeof(peer->context)-1);
-	strncpy(peer->language, default_language, sizeof(peer->language)-1);
-	strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
+	strcpy(peer->context, default_context);
+	strcpy(peer->language, default_language);
+	strcpy(peer->musicclass, global_musicclass);
 	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 	peer->addr.sin_family = AF_INET;
 	peer->expiry = expiry;
@@ -9986,6 +9985,7 @@ static struct sip_peer *temp_peer(char *name)
 	ast_set_flag(peer, SIP_DYNAMIC);
 	peer->prefs = prefs;
 	reg_source_db(peer);
+
 	return peer;
 }
 
@@ -10041,9 +10041,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			ast_variables_destroy(peer->chanvars);
 			peer->chanvars = NULL;
 		}
-		strncpy(peer->context, default_context, sizeof(peer->context)-1);
-		strncpy(peer->language, default_language, sizeof(peer->language)-1);
-		strncpy(peer->musicclass, global_musicclass, sizeof(peer->musicclass)-1);
+		strcpy(peer->context, default_context);
+		strcpy(peer->language, default_language);
+		strcpy(peer->musicclass, global_musicclass);
 		ast_copy_flags(peer, &global_flags, SIP_USEREQPHONE);
 		peer->secret[0] = '\0';
 		peer->md5secret[0] = '\0';
@@ -10274,16 +10274,15 @@ static int reload_config(void)
 
 	/* We *must* have a config file otherwise stop immediately */
 	if (!cfg) {
-		ast_log(LOG_NOTICE, "Unable to load config %s, SIP disabled\n", config);
-		return 0;
+		ast_log(LOG_NOTICE, "Unable to load config %s\n", config);
+		return -1;
 	}
-	
 	
 	/* Reset IP addresses  */
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
-	memset(&prefs, 0 , sizeof(struct ast_codec_pref));
+	memset(&prefs, 0 , sizeof(prefs));
 
 	/* Initialize some reasonable defaults at SIP reload */
 	strncpy(default_context, DEFAULT_CONTEXT, sizeof(default_context) - 1);
@@ -10508,7 +10507,6 @@ static int reload_config(void)
  		}
  		v = v->next;
  	}
- 	
 	
 	/* Load peers, users and friends */
 	cat = ast_category_browse(cfg, NULL);
@@ -10769,7 +10767,6 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-
 /*--- sip_getheader: Get a SIP header (dialplan app) ---*/
 static int sip_getheader(struct ast_channel *chan, void *data)
 {
@@ -10910,23 +10907,6 @@ static struct ast_rtp_protocol sip_rtp = {
 	get_codec: sip_get_codec,
 };
 
-/*--- delete_users: Delete all registred users ---*/
-/*      Also, check registations with other SIP proxies */
-static void delete_users(void)
-{
-	/* Delete all users */
-	ASTOBJ_CONTAINER_DESTROYALL(&userl,sip_destroy_user);
-	ASTOBJ_CONTAINER_DESTROYALL(&regl,sip_registry_destroy);
-	ASTOBJ_CONTAINER_MARKALL(&peerl);
-}
-
-/*--- prune_peers: Delete all peers marked for deletion ---*/
-static void prune_peers(void)
-{
-	/* Prune peers who still are supposed to be deleted */
-	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl,sip_destroy_peer);
-}
-
 /*--- sip_poke_all_peers: Send a poke to all known peers */
 static void sip_poke_all_peers(void)
 {
@@ -10942,6 +10922,7 @@ static void sip_poke_all_peers(void)
 static void sip_send_all_registers(void)
 {
 	int ms;
+
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
 		if (iterator->expire > -1)
@@ -10957,11 +10938,15 @@ static void sip_send_all_registers(void)
 static int sip_do_reload(void)
 {
 	clear_realm_authentication(authl);
-	authl = (struct sip_auth *) NULL;
+	authl = NULL;
 
-	delete_users();
+	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
+	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
+	ASTOBJ_CONTAINER_MARKALL(&peerl);
 	reload_config();
-	prune_peers();
+	/* Prune peers who still are supposed to be deleted */
+	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, sip_destroy_peer);
+
 	sip_poke_all_peers();
 	sip_send_all_registers();
 
@@ -10979,6 +10964,7 @@ static int sip_reload(int fd, int argc, char *argv[])
 		sip_reloading = 1;
 	ast_mutex_unlock(&sip_reload_lock);
 	restart_monitor();
+
 	return 0;
 }
 
@@ -10994,8 +10980,6 @@ static struct ast_cli_entry  cli_sip_reload =
 /*--- load_module: PBX load module - initialization ---*/
 int load_module()
 {
-	int res;
-
 	ASTOBJ_CONTAINER_INIT(&userl);
 	ASTOBJ_CONTAINER_INIT(&peerl);
 	ASTOBJ_CONTAINER_INIT(&regl);
@@ -11007,60 +10991,65 @@ int load_module()
 	if (!io) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 	}
-
-
-	res = reload_config();
-	if (!res) {
-		/* Make sure we can register our sip channel type */
-		if (ast_channel_register(&sip_tech)) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
-			return -1;
-		}
-		ast_cli_register(&cli_notify);
-		ast_cli_register(&cli_show_users);
-		ast_cli_register(&cli_show_user);
-		ast_cli_register(&cli_show_objects);
-		ast_cli_register(&cli_show_subscriptions);
-		ast_cli_register(&cli_show_channels);
-		ast_cli_register(&cli_show_channel);
-		ast_cli_register(&cli_show_history);
-		ast_cli_register(&cli_prune_realtime);
-		ast_cli_register(&cli_prune_realtime_peer);
-		ast_cli_register(&cli_prune_realtime_user);
-		ast_cli_register(&cli_show_peer);
-		ast_cli_register(&cli_show_peers);
-		ast_cli_register(&cli_show_registry);
-		ast_cli_register(&cli_debug);
-		ast_cli_register(&cli_debug_ip);
-		ast_cli_register(&cli_debug_peer);
-		ast_cli_register(&cli_no_debug);
-		ast_cli_register(&cli_history);
-		ast_cli_register(&cli_no_history);
-		ast_cli_register(&cli_sip_reload);
-		ast_cli_register(&cli_inuse_show);
-		ast_rtp_proto_register(&sip_rtp);
-		ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
-		ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
-		ast_register_application(app_sipgetheader, sip_getheader, synopsis_sipgetheader, descrip_sipgetheader);
-		ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers, "List SIP peers (text format)", mandescr_show_peers);
-		ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM, manager_sip_show_peer, "Show SIP peer (text format)", mandescr_show_peer);
-		sip_poke_all_peers();
-		sip_send_all_registers();
-		
-		/* And start the monitor for the first time */
-		restart_monitor();
+	/* Make sure we can register our sip channel type */
+	if (ast_channel_register(&sip_tech)) {
+		ast_log(LOG_ERROR, "Unable to register channel type %s\n", channeltype);
+		return -1;
 	}
-	return res;
+
+	if (reload_config())
+		return -1;
+
+	ast_cli_register(&cli_notify);
+	ast_cli_register(&cli_show_users);
+	ast_cli_register(&cli_show_user);
+	ast_cli_register(&cli_show_objects);
+	ast_cli_register(&cli_show_subscriptions);
+	ast_cli_register(&cli_show_channels);
+	ast_cli_register(&cli_show_channel);
+	ast_cli_register(&cli_show_history);
+	ast_cli_register(&cli_prune_realtime);
+	ast_cli_register(&cli_prune_realtime_peer);
+	ast_cli_register(&cli_prune_realtime_user);
+	ast_cli_register(&cli_show_peer);
+	ast_cli_register(&cli_show_peers);
+	ast_cli_register(&cli_show_registry);
+	ast_cli_register(&cli_debug);
+	ast_cli_register(&cli_debug_ip);
+	ast_cli_register(&cli_debug_peer);
+	ast_cli_register(&cli_no_debug);
+	ast_cli_register(&cli_history);
+	ast_cli_register(&cli_no_history);
+	ast_cli_register(&cli_sip_reload);
+	ast_cli_register(&cli_inuse_show);
+	ast_rtp_proto_register(&sip_rtp);
+	ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
+	ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
+	ast_register_application(app_sipgetheader, sip_getheader, synopsis_sipgetheader, descrip_sipgetheader);
+	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
+			      "List SIP peers (text format)", mandescr_show_peers);
+	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM, manager_sip_show_peer,
+			      "Show SIP peer (text format)", mandescr_show_peer);
+	sip_poke_all_peers();
+	sip_send_all_registers();
+	
+	/* And start the monitor for the first time */
+	restart_monitor();
+
+	return 0;
 }
 
 int unload_module()
 {
 	struct sip_pvt *p, *pl;
 	
-	/* First, take us out of the channel loop */
+	/* First, take us out of the channel type list */
+	ast_channel_unregister(&sip_tech);
+
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
 	ast_unregister_application(app_sipgetheader);
+
 	ast_cli_unregister(&cli_notify);
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_user);
@@ -11083,16 +11072,16 @@ int unload_module()
 	ast_cli_unregister(&cli_no_history);
 	ast_cli_unregister(&cli_sip_reload);
 	ast_cli_unregister(&cli_inuse_show);
+
 	ast_rtp_proto_unregister(&sip_rtp);
+
 	ast_manager_unregister("SIPpeers");
 	ast_manager_unregister("SIPshowpeer");
-	ast_channel_unregister(&sip_tech);
-
 
 	if (!ast_mutex_lock(&iflock)) {
 		/* Hangup all interfaces if they have an owner */
 		p = iflist;
-		while(p) {
+		while (p) {
 			if (p->owner)
 				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 			p = p->next;
@@ -11103,6 +11092,7 @@ int unload_module()
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		return -1;
 	}
+
 	if (!ast_mutex_lock(&monlock)) {
 		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
 			pthread_cancel(monitor_thread);
@@ -11119,12 +11109,12 @@ int unload_module()
 	if (!ast_mutex_lock(&iflock)) {
 		/* Destroy all the interfaces and free their memory */
 		p = iflist;
-		while(p) {
+		while (p) {
 			pl = p;
 			p = p->next;
 			/* Free associated memory */
 			ast_mutex_destroy(&pl->lock);
-			if(pl->chanvars) {
+			if (pl->chanvars) {
 				ast_variables_destroy(pl->chanvars);
 				pl->chanvars = NULL;
 			}
@@ -11136,10 +11126,15 @@ int unload_module()
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
 		return -1;
 	}
+
 	/* Free memory for local network address mask */
 	ast_free_ha(localaddr);
+
+	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
 	ASTOBJ_CONTAINER_DESTROY(&userl);
+	ASTOBJ_CONTAINER_DESTROYALL(&peerl, sip_destroy_peer);
 	ASTOBJ_CONTAINER_DESTROY(&peerl);
+	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&regl);
 
 	clear_realm_authentication(authl);
@@ -11150,9 +11145,11 @@ int unload_module()
 int usecount()
 {
 	int res;
+
 	ast_mutex_lock(&usecnt_lock);
 	res = usecnt;
 	ast_mutex_unlock(&usecnt_lock);
+
 	return res;
 }
 
