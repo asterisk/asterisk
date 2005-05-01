@@ -4,7 +4,13 @@ To be accepted into the codebase, all non-trivial changes must be
 disclaimed to Digium or placed in the public domain. For more information
 see http://bugs.digium.com
 
-Patches should be in the form of a unified (-u) diff.
+Patches should be in the form of a unified (-u) diff, made from the directory
+above the top-level Asterisk source directory. For example:
+
+- the base code you are working from is in ~/work/asterisk-base
+- the changes are in ~/work/asterisk-new
+
+~/work$ diff -urN asterisk-base asterisk-new
 
 All code, filenames, function names and comments must be in ENGLISH.
 
@@ -168,3 +174,21 @@ and then any parameters that the command needs. For example:
 not
 
 *CLI> show iax2 peer <peername>
+
+== New dialplan applications/functions ==
+
+There are two methods of adding functionality to the Asterisk
+dialplan: applications and functions. Applications (found generally in
+the apps/ directory) should be collections of code that interact with
+a channel and/or user in some significant way. Functions (which can be
+provided by any type of module) are used when the provided
+functionality is simple... getting/retrieving a value, for
+example. Functions should also be used when the operation is in no way
+related to a channel (a computation or string operation, for example).
+
+Applications are registered and invoked using the
+ast_register_application function; see the apps/app_skel.c file for an
+example.
+
+Functions are registered using 'struct ast_custom_function_obj'
+structures and the ast_custom_function_register function.
