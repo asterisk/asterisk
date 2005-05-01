@@ -1463,7 +1463,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 				/* Evaluate function */
 				cp4 = ast_func_read(c, vars, workspace, sizeof(workspace));
 
-				ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4);
+				ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
 				pbx_retrieve_variable(c, vars, &cp4, workspace, sizeof(workspace), headp);

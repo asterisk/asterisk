@@ -7777,7 +7777,37 @@ static char show_objects_usage[] =
 "       Shows status of known SIP objects\n";
 
 
+static char *func_header_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	struct sip_pvt *p;
+	char *content;
+	
+ 	if (!data) {
+		ast_log(LOG_WARNING, "This function requires a header name.\n");
+		return NULL;
+	}
 
+	ast_mutex_lock(&chan->lock);
+	if (chan->type != channeltype) {
+		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
+		ast_mutex_unlock(&chan->lock);
+		return NULL;
+	}
+
+	p = chan->tech_pvt;
+	content = get_header(&p->initreq, data);
+
+	if (ast_strlen_zero(content)) {
+		ast_mutex_unlock(&chan->lock);
+		return NULL;
+	}
+
+	strncpy(buf, content, len);
+	buf[len-1] = '\0';
+	ast_mutex_unlock(&chan->lock);
+
+	return buf;
+}
 
 static struct ast_cli_entry  cli_notify =
 	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sipnotify };
@@ -7824,6 +7854,13 @@ static struct ast_cli_entry  cli_no_history =
 	{ { "sip", "no", "history", NULL }, sip_no_history, "Disable SIP history", no_history_usage };
 static struct ast_cli_entry  cli_no_debug =
 	{ { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage };
+
+static struct ast_custom_function_obj sip_header_function = {
+	.name = "SIP_HEADER",
+	.desc = "Gets or sets the specified SIP header",
+	.syntax = "SIP_HEADER(<name>)",
+	.read = func_header_read,
+};
 
 /*--- parse_moved_contact: Parse 302 Moved temporalily response */
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
@@ -10770,9 +10807,15 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 /*--- sip_getheader: Get a SIP header (dialplan app) ---*/
 static int sip_getheader(struct ast_channel *chan, void *data)
 {
+	static int dep_warning = 0;
 	struct sip_pvt *p;
 	char *argv, *varname = NULL, *header = NULL, *content;
 	
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "SIPGetHeader is deprecated, use the SIP_HEADER function instead.\n");
+		dep_warning = 1;
+	}
+
 	argv = ast_strdupa(data);
 	if (!argv) {
 		ast_log(LOG_DEBUG, "Memory allocation failed\n");
@@ -10802,8 +10845,7 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, varname, content);
 	} else {
 		ast_log(LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, varname);
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	}
 	
 	ast_mutex_unlock(&chan->lock);
@@ -11022,14 +11064,20 @@ int load_module()
 	ast_cli_register(&cli_no_history);
 	ast_cli_register(&cli_sip_reload);
 	ast_cli_register(&cli_inuse_show);
+
 	ast_rtp_proto_register(&sip_rtp);
+
 	ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
 	ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
 	ast_register_application(app_sipgetheader, sip_getheader, synopsis_sipgetheader, descrip_sipgetheader);
+
 	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
 			      "List SIP peers (text format)", mandescr_show_peers);
 	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM, manager_sip_show_peer,
 			      "Show SIP peer (text format)", mandescr_show_peer);
+
+	ast_custom_function_register(&sip_header_function);
+
 	sip_poke_all_peers();
 	sip_send_all_registers();
 	
@@ -11045,6 +11093,8 @@ int unload_module()
 	
 	/* First, take us out of the channel type list */
 	ast_channel_unregister(&sip_tech);
+
+	ast_custom_function_unregister(&sip_header_function);
 
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
