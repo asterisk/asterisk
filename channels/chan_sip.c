@@ -1318,7 +1318,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	}
 	
 	if (newpeername) {
-		peer = build_peer(newpeername, var, ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS) ? 0 : 1);
+		peer = build_peer(newpeername, var, !ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS));
 
 		if (peer) {
 			if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
@@ -4733,61 +4733,63 @@ static int sip_poke_peer_s(void *data)
 	return 0;
 }
 
-/*--- reg_source_db: Save registration in Asterisk DB ---*/
-static void reg_source_db(struct sip_peer *p)
+/*--- reg_source_db: Get registration details from Asterisk DB ---*/
+static void reg_source_db(struct sip_peer *peer)
 {
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
 	struct in_addr in;
-	char *c, *d, *u, *e;
 	int expiry;
-	if (!ast_db_get("SIP/Registry", p->name, data, sizeof(data))) {
-		c = strchr(data, ':');
-		if (c) {
-			*c = '\0';
-			c++;
-			if (inet_aton(data, &in)) {
-				d = strchr(c, ':');
-				if (d) {
-					*d = '\0';
-					d++;
-					u = strchr(d, ':');
-					if (u) {
-						*u = '\0';
-						u++;
-						e = strchr(u, ':');
-						if (e) {
-							*e = '\0';
-							e++;
-							strncpy(p->fullcontact, e, sizeof(p->fullcontact) - 1);
-						}
-						strncpy(p->username, u, sizeof(p->username) - 1);
-						
-					}
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding peers from Astdb: '%s' at %s@%s:%d for %d\n", p->name, 
-									p->username, ast_inet_ntoa(iabuf, sizeof(iabuf), in), atoi(c), atoi(d));
-					expiry = atoi(d);
-					memset(&p->addr, 0, sizeof(p->addr));
-					p->addr.sin_family = AF_INET;
-					p->addr.sin_addr = in;
-					p->addr.sin_port = htons(atoi(c));
-					if (sipsock < 0) {
-						/* SIP isn't up yet, so schedule a poke only, pretty soon */
-						if (p->pokeexpire > -1)
-							ast_sched_del(sched, p->pokeexpire);
-						p->pokeexpire = ast_sched_add(sched, rand() % 5000 + 1, sip_poke_peer_s, p);
-					} else
-						sip_poke_peer(p);
-					if (p->expire > -1)
-						ast_sched_del(sched, p->expire);
-					p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, (void *)p);
-					register_peer_exten(p, 1);
-				}					
-					
-			}
-		}
-	}
+	int port;
+	char *scan, *addr, *port_str, *expiry_str, *username, *contact;
+
+	if (ast_db_get("SIP/Registry", peer->name, data, sizeof(data)))
+		return;
+
+	scan = data;
+	addr = strsep(&scan, ":");
+	port_str = strsep(&scan, ":");
+	expiry_str = strsep(&scan, ":");
+	username = strsep(&scan, ":");
+	contact = strsep(&scan, ":");
+
+	if (!inet_aton(addr, &in))
+		return;
+
+	if (port_str)
+		port = atoi(port_str);
+	else
+		return;
+
+	if (expiry_str)
+		expiry = atoi(expiry_str);
+	else
+		return;
+
+	if (username)
+		strncpy(peer->username, username, sizeof(peer->username)-1);
+	if (contact)
+		strncpy(peer->fullcontact, contact, sizeof(peer->fullcontact)-1);
+
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "SIP Seeding peer from astdb: '%s' at %s@%s:%d for %d\n",
+			    peer->name, peer->username, ast_inet_ntoa(iabuf, sizeof(iabuf), in), port, expiry);
+
+	memset(&peer->addr, 0, sizeof(peer->addr));
+	peer->addr.sin_family = AF_INET;
+	peer->addr.sin_addr = in;
+	peer->addr.sin_port = htons(port);
+	if (sipsock < 0) {
+		/* SIP isn't up yet, so schedule a poke only, pretty soon */
+		if (peer->pokeexpire > -1)
+			ast_sched_del(sched, peer->pokeexpire);
+		peer->pokeexpire = ast_sched_add(sched, rand() % 5000 + 1, sip_poke_peer_s, peer);
+	} else
+		sip_poke_peer(peer);
+	if (peer->expire > -1)
+		ast_sched_del(sched, peer->expire);
+	peer->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, peer);
+	register_peer_exten(peer, 1);
 }
 
 /*--- parse_ok_contact: Parse contact header for 200 OK on INVITE ---*/
@@ -10074,7 +10076,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			peer->expiry = expiry;
 		}
 		/* If we have channel variables, remove them (reload) */
-		if(peer->chanvars) {
+		if (peer->chanvars) {
 			ast_variables_destroy(peer->chanvars);
 			peer->chanvars = NULL;
 		}
@@ -10176,8 +10178,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 					ASTOBJ_UNREF(peer, sip_destroy_peer);
 					return NULL;
 				}
-			} else if (!strcasecmp(v->name, "permit") ||
-					   !strcasecmp(v->name, "deny")) {
+			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
 				peer->ha = ast_append_ha(v->name, v->value, peer->ha);
 			} else if (!strcasecmp(v->name, "mask")) {
 				maskfound++;
