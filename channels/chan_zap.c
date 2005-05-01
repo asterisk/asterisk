@@ -10085,7 +10085,7 @@ static int setup_zap(int reload)
 					if (!timer)
 						ast_log(LOG_WARNING, "'%s' is not a valid value for an ISDN timer\n", timerc);
 					else {
-						if ((timeridx = pri_timer2idx(timerc)))
+						if ((timeridx = pri_timer2idx(timerc)) >= 0)
 							pritimers[timeridx] = timer;
 						else
 							ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer\n", timerc);
