@@ -1,10 +1,10 @@
 Index: channels/chan_sip.c
 ===================================================================
 RCS file: /usr/cvsroot/asterisk/channels/chan_sip.c,v
-retrieving revision 1.703
-diff -u -r1.703 chan_sip.c
---- channels/chan_sip.c	6 Apr 2005 21:12:32 -0000	1.703
-+++ channels/chan_sip.c	9 Apr 2005 00:13:25 -0000
+retrieving revision 1.711
+diff -u -u -r1.711 chan_sip.c
+--- channels/chan_sip.c	29 Apr 2005 20:42:48 -0000	1.711
++++ channels/chan_sip.c	1 May 2005 03:27:31 -0000
 @@ -71,6 +71,7 @@
  
  /* #define VOCAL_DATA_HACK */
@@ -13,7 +13,7 @@ diff -u -r1.703 chan_sip.c
  #define SIPDUMPER
  #define DEFAULT_DEFAULT_EXPIRY  120
  #define DEFAULT_MAX_EXPIRY      3600
-@@ -668,6 +669,7 @@
+@@ -667,6 +668,7 @@
  static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
  static int sip_do_reload(void);
  static int expire_register(void *data);
@@ -21,7 +21,7 @@ diff -u -r1.703 chan_sip.c
  static int callevents = 0;
  
  static struct ast_channel *sip_request(const char *type, int format, void *data, int *cause);
-@@ -1237,7 +1239,7 @@
+@@ -1247,7 +1249,7 @@
  	/* Delete it, it needs to disappear */
  	if (peer->call)
  		sip_destroy(peer->call);
@@ -30,7 +30,7 @@ diff -u -r1.703 chan_sip.c
  		ast_variables_destroy(peer->chanvars);
  		peer->chanvars = NULL;
  	}
-@@ -1302,7 +1304,7 @@
+@@ -1312,7 +1314,7 @@
  		    !strcasecmp(tmp->value, "user")) {
  			ast_variables_destroy(var);
  			return NULL;
@@ -39,7 +39,7 @@ diff -u -r1.703 chan_sip.c
  			newpeername = tmp->value;
  		}
  		tmp = tmp->next;
-@@ -1312,9 +1314,9 @@
+@@ -1322,9 +1324,9 @@
  		peer = build_peer(newpeername, var, ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS) ? 0 : 1);
  
  		if (peer) {
@@ -51,7 +51,7 @@ diff -u -r1.703 chan_sip.c
  					if (peer->expire > -1) {
  						ast_sched_del(sched, peer->expire);
  					}
-@@ -1364,7 +1366,7 @@
+@@ -1374,7 +1376,7 @@
  static void sip_destroy_user(struct sip_user *user)
  {
  	ast_free_ha(user->ha);
@@ -60,16 +60,7 @@ diff -u -r1.703 chan_sip.c
  		ast_variables_destroy(user->chanvars);
  		user->chanvars = NULL;
  	}
-@@ -1405,7 +1407,7 @@
- 	
- 	if (user) {
- 		/* Add some finishing touches, addresses, etc */
--		if(ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
-+		if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
- 			suserobjs++;
- 
-         		ASTOBJ_CONTAINER_LINK(&userl,user);
-@@ -1515,6 +1517,8 @@
+@@ -1526,6 +1528,8 @@
  		}
  	}
  	if (!p && !found) {
@@ -78,7 +69,7 @@ diff -u -r1.703 chan_sip.c
  		hostn = peer;
  		if (port)
  			portno = atoi(port);
-@@ -1531,7 +1535,15 @@
+@@ -1542,7 +1546,15 @@
  				portno = tportno;
  			}
  		}
@@ -95,7 +86,7 @@ diff -u -r1.703 chan_sip.c
  		if (hp) {
  			strncpy(r->tohost, peer, sizeof(r->tohost) - 1);
  			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
-@@ -1731,7 +1743,7 @@
+@@ -1742,7 +1754,7 @@
  			free(cp);
  		}
  		ast_mutex_destroy(&p->lock);
@@ -104,7 +95,7 @@ diff -u -r1.703 chan_sip.c
  			ast_variables_destroy(p->chanvars);
  			p->chanvars = NULL;
  		}
-@@ -2520,7 +2532,7 @@
+@@ -2531,7 +2543,7 @@
  	if (!p->rtp) {
  		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
                  ast_mutex_destroy(&p->lock);
@@ -113,7 +104,7 @@ diff -u -r1.703 chan_sip.c
  			ast_variables_destroy(p->chanvars);
  			p->chanvars = NULL;
  		}
-@@ -3086,7 +3098,7 @@
+@@ -3097,7 +3109,7 @@
  			if (!strcasecmp(aliases[x].fullname, var))
  				shortname = aliases[x].shortname;
  	}
@@ -122,7 +113,7 @@ diff -u -r1.703 chan_sip.c
  		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", shortname, value);
  	} else {
  		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
-@@ -3703,7 +3715,7 @@
+@@ -3714,7 +3726,7 @@
  	}
  	/* Start by sending our preferred codecs */
  	for (x = 0 ; x < 32 ; x++) {
@@ -131,7 +122,7 @@ diff -u -r1.703 chan_sip.c
  			break; 
  		if ((capability & pref_codec) && !(alreadysent & pref_codec)) {
  			if (debug)
-@@ -3850,7 +3862,7 @@
+@@ -3861,7 +3873,7 @@
  	while( *e && ( *e < 33 ) ) {
  		e++; 
  	}
@@ -140,7 +131,7 @@ diff -u -r1.703 chan_sip.c
  		return -1;
  	}
      
-@@ -3858,7 +3870,7 @@
+@@ -3869,7 +3881,7 @@
  		/* We have a response */
  		req->rlPart2 = e;
  		len = strlen( req->rlPart2 );
@@ -149,7 +140,7 @@ diff -u -r1.703 chan_sip.c
  			return -1;
  		}
  		e+= len - 1;
-@@ -3868,18 +3880,18 @@
+@@ -3879,18 +3891,18 @@
  		*(++e)= '\0';
  	} else {
  		/* We have a request */
@@ -172,7 +163,7 @@ diff -u -r1.703 chan_sip.c
  			*e = '\0';
  		} else {
  			*(++e)= '\0';
-@@ -4984,7 +4996,7 @@
+@@ -4995,7 +5007,7 @@
  
  	/* Save User agent */
  	useragent = get_header(req, "User-Agent");
@@ -181,7 +172,7 @@ diff -u -r1.703 chan_sip.c
  		strncpy(p->useragent, useragent, sizeof(p->useragent) - 1);
  		if (option_verbose > 3) {
  			ast_verbose(VERBOSE_PREFIX_3 "Saved useragent \"%s\" for peer %s\n",p->useragent,p->name);  
-@@ -5212,12 +5224,12 @@
+@@ -5223,12 +5235,12 @@
  				c+= strlen("response=");
  				if ((*c == '\"')) {
  					response=++c;
@@ -196,7 +187,7 @@ diff -u -r1.703 chan_sip.c
  						*c = '\0';
  				}
  
-@@ -5225,11 +5237,11 @@
+@@ -5236,11 +5248,11 @@
  				c+= strlen("uri=");
  				if ((*c == '\"')) {
  					resp_uri=++c;
@@ -210,7 +201,7 @@ diff -u -r1.703 chan_sip.c
  						*c = '\0';
  				}
  
-@@ -5239,7 +5251,7 @@
+@@ -5250,7 +5262,7 @@
  				c++;
  		}
  		snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
@@ -219,7 +210,7 @@ diff -u -r1.703 chan_sip.c
  			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, resp_uri);
  		else
  			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, uri);
-@@ -5473,8 +5485,23 @@
+@@ -5484,8 +5496,23 @@
  	return 0;
  }
  
@@ -244,7 +235,7 @@ diff -u -r1.703 chan_sip.c
  {
  	struct sip_pvt *sip_pvt_ptr = NULL;
  	
-@@ -5483,8 +5510,38 @@
+@@ -5494,8 +5521,38 @@
  	sip_pvt_ptr = iflist;
  	while(sip_pvt_ptr) {
  		if (!strcmp(sip_pvt_ptr->callid, callid)) {
@@ -283,7 +274,7 @@ diff -u -r1.703 chan_sip.c
  			if (sip_pvt_ptr->owner) {
  				while(ast_mutex_trylock(&sip_pvt_ptr->owner->lock)) {
  					ast_mutex_unlock(&sip_pvt_ptr->lock);
-@@ -5521,14 +5578,12 @@
+@@ -5532,14 +5589,12 @@
  	return replaced;
  }
  
@@ -299,7 +290,7 @@ diff -u -r1.703 chan_sip.c
  	struct sip_request *req = NULL;
  	struct sip_pvt *sip_pvt_ptr = NULL;
  	struct ast_channel *chan = NULL, *peer = NULL;
-@@ -5539,14 +5594,14 @@
+@@ -5550,14 +5605,14 @@
  		req = &sip_pvt->initreq;
  	}
  	
@@ -316,7 +307,7 @@ diff -u -r1.703 chan_sip.c
  		ast_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
  		return -1;
  	}
-@@ -5559,9 +5614,11 @@
+@@ -5570,9 +5625,11 @@
  		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", referred_by);
  		return -1;
  	}
@@ -329,7 +320,7 @@ diff -u -r1.703 chan_sip.c
  	
  	if ((ptr = strchr(refer_to, '?'))) {
  		/* Search for arguemnts */
-@@ -5569,10 +5626,7 @@
+@@ -5580,10 +5637,7 @@
  		ptr++;
  		if (!strncasecmp(ptr, "REPLACES=", 9)) {
  			replace_callid = ast_strdupa(ptr + 9);
@@ -341,7 +332,7 @@ diff -u -r1.703 chan_sip.c
  			sip_unescape_uri(replace_callid);
  			if ((ptr = strchr(replace_callid, '%'))) 
  				*ptr = '\0';
-@@ -5606,19 +5660,50 @@
+@@ -5617,19 +5671,50 @@
  		strncpy(sip_pvt->referred_by, "", sizeof(sip_pvt->referred_by) - 1);
  		strncpy(sip_pvt->refer_contact, "", sizeof(sip_pvt->refer_contact) - 1);
  		sip_pvt->refer_call = NULL;
@@ -399,7 +390,7 @@ diff -u -r1.703 chan_sip.c
  		}
  	} else if (ast_exists_extension(NULL, sip_pvt->context, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
  		/* This is an unsupervised transfer */
-@@ -5632,7 +5717,7 @@
+@@ -5643,7 +5728,7 @@
  			strncpy(sip_pvt->refer_contact, h_contact, sizeof(sip_pvt->refer_contact) - 1);
  		}
  		sip_pvt->refer_call = NULL;
@@ -408,7 +399,7 @@ diff -u -r1.703 chan_sip.c
  			pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
  			pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
  		}
-@@ -5807,7 +5892,7 @@
+@@ -5818,7 +5903,7 @@
  		*end = '\0';
  	else
  		output[0] = '\0';
@@ -417,7 +408,7 @@ diff -u -r1.703 chan_sip.c
  		return AST_PRES_PROHIB_USER_NUMBER_NOT_SCREENED;
  
  	return 0;
-@@ -5840,7 +5925,7 @@
+@@ -5851,7 +5936,7 @@
  
  	rpid = get_header(req, "Remote-Party-ID");
  	memset(rpid_num,0,sizeof(rpid_num));
@@ -426,7 +417,7 @@ diff -u -r1.703 chan_sip.c
  		p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
  
  	of = ditch_braces(from);
-@@ -5876,14 +5961,14 @@
+@@ -5887,14 +5972,14 @@
  		ast_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
  		/* copy channel vars */
  		for (v = user->chanvars ; v ; v = v->next) {
@@ -443,7 +434,7 @@ diff -u -r1.703 chan_sip.c
  			if (*calleridname)
  				strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
  			strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
-@@ -5955,7 +6040,7 @@
+@@ -5966,7 +6051,7 @@
  			/* Take the peer */
  			ast_copy_flags(p, peer, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
  			/* replace callerid if rpid found, and not restricted */
@@ -452,7 +443,7 @@ diff -u -r1.703 chan_sip.c
  				if (*calleridname)
  					strncpy(p->cid_name, calleridname, sizeof(p->cid_name) - 1);
  				strncpy(p->cid_num, rpid_num, sizeof(p->cid_num) - 1);
-@@ -5988,7 +6073,7 @@
+@@ -5999,7 +6084,7 @@
  				strncpy(p->authname, peer->name, sizeof(p->authname) - 1);
  				/* copy channel vars */
  				for (v = peer->chanvars ; v ; v = v->next) {
@@ -461,16 +452,7 @@ diff -u -r1.703 chan_sip.c
  						tmpvar->next = p->chanvars; 
  						p->chanvars = tmpvar;
  					}
-@@ -6466,7 +6551,7 @@
- 		sip_do_reload();
- 		ast_cli(fd, "OK. Cache is flushed.\n");
- 	} else if ((peer = find_peer(argv[3], NULL, 0))) {
--		if(ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
-+		if (ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
- 			ast_set_flag((&peer->flags_page2), SIP_PAGE2_RTAUTOCLEAR);
- 			expire_register(peer);
- 			ast_cli(fd, "OK. Peer %s was removed from the cache.\n", argv[3]);
-@@ -6606,10 +6691,10 @@
+@@ -6737,10 +6822,10 @@
  		pref = &peer->prefs;
  		for(x = 0; x < 32 ; x++) {
  			codec = ast_codec_pref_index(pref,x);
@@ -483,7 +465,7 @@ diff -u -r1.703 chan_sip.c
  				ast_cli(fd, "|");
  		}
  
-@@ -6689,10 +6774,10 @@
+@@ -6820,10 +6905,10 @@
  		pref = &peer->prefs;
  		for(x = 0; x < 32 ; x++) {
  			codec = ast_codec_pref_index(pref,x);
@@ -496,7 +478,7 @@ diff -u -r1.703 chan_sip.c
  				ast_cli(fd, ",");
  		}
  
-@@ -6765,10 +6850,10 @@
+@@ -6896,10 +6981,10 @@
  		pref = &user->prefs;
  		for(x = 0; x < 32 ; x++) {
  			codec = ast_codec_pref_index(pref,x);
@@ -509,7 +491,7 @@ diff -u -r1.703 chan_sip.c
  				ast_cli(fd, "|");
  		}
  
-@@ -7816,12 +7901,12 @@
+@@ -7976,12 +8061,12 @@
  		}
  		switch(resp) {
  		case 100:	/* 100 Trying */
@@ -524,7 +506,7 @@ diff -u -r1.703 chan_sip.c
  				sip_cancel_destroy(p);
  				if (!ast_strlen_zero(get_header(req, "Content-Type")))
  					process_sdp(p, req);
-@@ -7832,7 +7917,7 @@
+@@ -7992,7 +8077,7 @@
  			}
  			break;
  		case 180:	/* 180 Ringing */
@@ -533,7 +515,7 @@ diff -u -r1.703 chan_sip.c
  				sip_cancel_destroy(p);
  				if (p->owner) {
  					ast_queue_control(p->owner, AST_CONTROL_RINGING);
-@@ -7911,8 +7996,8 @@
+@@ -8071,8 +8156,8 @@
  						for(;;) {
  							contact = __get_header(req, "Contact", &start);
  							/* this loop ensures we get a contact header about our register request */
@@ -544,7 +526,7 @@ diff -u -r1.703 chan_sip.c
  									contact=tmptmp;
  									break;
  								}
-@@ -7986,7 +8071,7 @@
+@@ -8146,7 +8231,7 @@
  				transmit_request(p, SIP_ACK, seqno, 0, 0);
  				/* Then we AUTH */
  				/* But only if the packet wasn't marked as ignore in handle_request */
@@ -553,7 +535,7 @@ diff -u -r1.703 chan_sip.c
  					p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
  					if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", SIP_INVITE, 1)) {
  						ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
-@@ -8259,18 +8344,19 @@
+@@ -8419,18 +8504,19 @@
  
  		if (peera->cdr && peerb->cdr) {
  			peerb->cdr = ast_cdr_append(peerb->cdr, peera->cdr);
@@ -575,7 +557,7 @@ diff -u -r1.703 chan_sip.c
  		if (ast_channel_masquerade(peerb, peerc)) {
  			ast_log(LOG_WARNING, "Failed to masquerade %s into %s\n", peerb->name, peerc->name);
  			res = -1;
-@@ -8318,7 +8404,24 @@
+@@ -8478,7 +8564,24 @@
  	struct ast_channel *c=NULL;
  	int gotdest;
  	struct ast_frame af = { AST_FRAME_NULL, };
@@ -600,7 +582,7 @@ diff -u -r1.703 chan_sip.c
  	if (ast_test_flag(p, SIP_OUTGOING) && p->owner && (p->owner->_state != AST_STATE_UP)) {
  		/* This is a call to ourself.  Send ourselves an error code and stop
  		   processing immediately, as SIP really has no good mechanism for
-@@ -8327,6 +8430,7 @@
+@@ -8487,6 +8590,7 @@
  		/* We do NOT destroy p here, so that our response will be accepted */
  		return 0;
  	}
@@ -608,7 +590,7 @@ diff -u -r1.703 chan_sip.c
  	if (!ignore) {
  		/* Use this as the basis */
  		if (debug)
-@@ -8351,8 +8455,10 @@
+@@ -8511,8 +8615,10 @@
  				ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
  			}
  		}
@@ -620,7 +602,7 @@ diff -u -r1.703 chan_sip.c
  	if (!p->lastinvite && !ignore && !p->owner) {
  		/* Handle authentication if this is our first invite */
  		res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);
-@@ -8403,22 +8509,22 @@
+@@ -8563,22 +8669,22 @@
  		get_rdnis(p, NULL);
  		extract_uri(p, req);
  		build_contact(p);
@@ -653,7 +635,7 @@ diff -u -r1.703 chan_sip.c
  		} else {
  			/* If no extension was specified, use the s one */
  			if (ast_strlen_zero(p->exten))
-@@ -8431,16 +8537,41 @@
+@@ -8591,16 +8697,41 @@
  			/* Save Record-Route for any later requests we make on this dialogue */
  			build_route(p, req, 0);
  			if (c) {
@@ -698,7 +680,7 @@ diff -u -r1.703 chan_sip.c
  		switch(c->_state) {
  		case AST_STATE_DOWN:
  			transmit_response(p, "100 Trying", req);
-@@ -8528,11 +8659,13 @@
+@@ -8688,11 +8819,13 @@
  	if (ast_strlen_zero(p->context))
  		strncpy(p->context, default_context, sizeof(p->context) - 1);
  	res = get_refer_info(p, req);
@@ -715,7 +697,7 @@ diff -u -r1.703 chan_sip.c
  		int nobye = 0;
  		if (!ignore) {
  			if (p->refer_call) {
-@@ -8856,7 +8989,7 @@
+@@ -9016,7 +9149,7 @@
  	cseq += len;
  
  	/* Determine the request URI for sip, sips or tel URIs */
@@ -724,7 +706,7 @@ diff -u -r1.703 chan_sip.c
  		return -1; 
  	}
  	cmd = req->rlPart1;
-@@ -9548,7 +9681,7 @@
+@@ -9723,7 +9856,7 @@
  			ast_set_flag(flags, SIP_PROG_INBAND_YES);
    	} else if (!strcasecmp(v->name, "allowguest")) {
  #ifdef OSP_SUPPORT
@@ -733,7 +715,7 @@ diff -u -r1.703 chan_sip.c
     			global_allowguest = 2;
      		else 
  #endif
-@@ -9716,7 +9849,7 @@
+@@ -9893,7 +10026,7 @@
  				if (varname && (varval = strchr(varname,'='))) {
  					*varval = '\0';
  					varval++;
@@ -742,7 +724,7 @@ diff -u -r1.703 chan_sip.c
  						tmpvar->next = user->chanvars;
  						user->chanvars = tmpvar;
  					}
-@@ -9857,7 +9990,7 @@
+@@ -10037,7 +10170,7 @@
  			peer->expiry = expiry;
  		}
  		/* If we have channel variables, remove them (reload) */
@@ -751,7 +733,7 @@ diff -u -r1.703 chan_sip.c
  			ast_variables_destroy(peer->chanvars);
  			peer->chanvars = NULL;
  		}
-@@ -10027,7 +10160,7 @@
+@@ -10210,7 +10343,7 @@
  				if (varname && (varval = strchr(varname,'='))) {
  					*varval = '\0';
  					varval++;
@@ -760,7 +742,7 @@ diff -u -r1.703 chan_sip.c
  						tmpvar->next = peer->chanvars;
  						peer->chanvars = tmpvar;
  					}
-@@ -10164,7 +10297,7 @@
+@@ -10347,7 +10480,7 @@
  			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTNOUPDATE);	
  		} else if (!strcasecmp(v->name, "rtautoclear")) {
  			int i = atoi(v->value);
@@ -769,7 +751,7 @@ diff -u -r1.703 chan_sip.c
  				global_rtautoclear = i;
  			else
  				i = 0;
-@@ -10937,7 +11070,7 @@
+@@ -11124,7 +11257,7 @@
  			p = p->next;
  			/* Free associated memory */
  			ast_mutex_destroy(&pl->lock);
