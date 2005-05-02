@@ -298,7 +298,7 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
 			cout << " -- Making call to " << fullAddress << " without gatekeeper." << endl;
 		}
 	}
-	if (!(connection = (MyH323Connection *)H323EndPoint::MakeCallLocked(fullAddress, token))) {
+	if (!(connection = (MyH323Connection *)H323EndPoint::MakeCallLocked(fullAddress, token, opts))) {
 		if (h323debug) {
 			cout << "Error making call to \"" << fullAddress << '"' << endl;
 		}
