@@ -71,6 +71,12 @@
 #error "Your zaptel is too old.  please cvs update"
 #endif
 
+#ifndef ZT_TONEDETECT
+/* Work around older code with no tone detect */
+#define ZT_EVENT_DTMFDOWN 0
+#define ZT_EVENT_DTMFUP 0
+#endif
+
 /*
  * Define ZHONE_HACK to cause us to go off hook and then back on hook when
  * the user hangs up to reset the state machine so ring works properly.
@@ -3267,7 +3273,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	} else
 		res = zt_get_event(p->subs[index].zfd);
 	ast_log(LOG_DEBUG, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
-	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFDIGIT)) {
+	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFUP)) {
 		if (res & ZT_EVENT_PULSEDIGIT)
 			p->pulsedial = 1;
 		else
@@ -3275,7 +3281,16 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "Pulse dial '%c'\n", res & 0xff);
 		p->subs[index].f.frametype = AST_FRAME_DTMF;
 		p->subs[index].f.subclass = res & 0xff;
-		/* Return the captured digit */
+		/* Unmute conference, return the captured digit */
+		zt_confmute(p, 0);
+		return &p->subs[index].f;
+	}
+	if (res & ZT_EVENT_DTMFDOWN) {
+		ast_log(LOG_DEBUG, "DTMF Down '%c'\n", res & 0xff);
+		p->subs[index].f.frametype = AST_FRAME_NULL;
+		p->subs[index].f.subclass = 0;
+		zt_confmute(p, 1);
+		/* Mute conference, return null frame */
 		return &p->subs[index].f;
 	}
 	switch(res) {
@@ -4725,7 +4740,11 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		    (i->outgoing && (i->callprogress & 2))) {
 			features |= DSP_FEATURE_FAX_DETECT;
 		}
-		features |= DSP_FEATURE_DTMF_DETECT;
+#ifdef ZT_TONEDETECT
+		x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
+		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x))
+#endif		
+			features |= DSP_FEATURE_DTMF_DETECT;
 		if (features) {
 			if (i->dsp) {
 				ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
