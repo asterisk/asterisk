@@ -418,6 +418,15 @@ int ast_wait_for_input(int fd, int ms)
 	return poll(pfd, 1, ms);
 }
 
+void ast_copy_string(char *dst, const char *src, size_t size)
+{
+	while (*src && size--)
+		*dst++ = *src++;
+	if (__builtin_expect(!size, 0))
+		dst--;
+	*dst = '\0';
+}
+
 /* Case-insensitive substring matching */
 #ifndef LINUX
 static char *upper(const char *orig, char *buf, int bufsize)

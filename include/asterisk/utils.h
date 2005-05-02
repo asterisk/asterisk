@@ -9,17 +9,19 @@
  * the GNU General Public License
  */
 
-#ifndef _ASTERISK_UTIL_H
-#define _ASTERISK_UTIL_H
+#ifndef _ASTERISK_UTILS_H
+#define _ASTERISK_UTILS_H
 
 #ifdef SOLARIS
 #include <solaris-compat/compat.h>
 #endif
+
 #include <netinet/in.h>
 #include <netdb.h>
 #include <pthread.h>
-#include "asterisk/lock.h"
 #include <limits.h>
+
+#include "asterisk/lock.h"
 
 /* Note:
    It is very important to use only unsigned variables to hold
@@ -166,10 +168,33 @@ struct ast_realloca {
 
 #define AST_STACKSIZE 256 * 1024
 #define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)
+extern int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
+
 #ifdef __linux__
 #define ast_strcasestr strcasestr
 #else
 extern char *ast_strcasestr(const char *, const char *);
 #endif /* __linux__ */
-extern int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
+
+#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
+#define __builtin_expect(exp, c) (exp)
 #endif
+
+/*!
+  \brief Size-limited null-terminating string copy.
+  \param dst The destination buffer.
+  \param src The source string
+  \param size The size of the destination buffer
+
+  This is similar to \a strncpy, with two important differences:
+    - the destination buffer will \b always be null-terminated
+    - the destination buffer is not filled with zeros past the copied string length
+  These differences make it slightly more efficient, and safer to use since it will
+  not leave the destination buffer unterminated. There is no need to pass an artificially
+  reduced buffer size to this function (unlike \a strncpy), and the buffer does not need
+  to be initialized to zeroes prior to calling this function.
+  No return value.
+*/
+void ast_copy_string(char *dst, const char *src, size_t size);
+
+#endif /* _ASTERISK_UTILS_H */
