@@ -186,6 +186,42 @@ on UTC.  UTC does not use daylight savings time.
   Also note that this issue is separate from the clocking of TDM
 channels, and is known to at least affect SIP registrations.
 
+* FILE DESCRIPTORS
+
+  Depending on the size of your system and your configuration,
+Asterisk can consume a large number of file descriptors.  In UNIX,
+file descriptors are used for more than just files on disk.  File
+descriptors are also used for handling network communication
+(e.g. SIP, IAX2, or H.323 calls) and hardware access (e.g. analog and
+digital trunk hardware).  Asterisk accesses many on-disk files for
+everything from configuration information to voicemail storage.
+
+  Most systems limit the number of file descriptors that Asterisk can
+have open at one time.  This can limit the number of simultaneous
+calls that your system can handle.  For example, if the limit is set
+at 1024 (a common default value) Asterisk can handle approxiately 150
+SIP calls simultaneously.  To change the number of file descriptors
+follow the instructions for your system below:
+
+== PAM-based Linux System ==
+
+  If your system uses PAM (Pluggable Authentication Modules) edit
+/etc/security/limits.conf.  Add these lines to the bottom of the file:
+
+root            soft    nofile          4096
+root            hard    nofile          8196
+asterisk        soft    nofile          4096
+asterisk        hard    nofile          8196
+
+(adjust the numbers to taste).  You may need to reboot the system for
+these changes to take effect.
+
+== Generic UNIX System ==
+
+  If there are no instructions specifically adapted to your system
+above you can try adding the command "ulimit -n 8192" to the script
+that starts Asterisk.
+
 * MORE INFORMATION
 
   See the doc directory for more documentation.
