@@ -3980,14 +3980,18 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 	char auth[90] = "";
 	char *pstr = "";
 
-	if (argc < 3 || argc > 4)
-		return RESULT_SHOWUSAGE;
-	
-	if (argc == 4) {
-		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+	switch (argc) {
+	case 5:
+		if (!strcasecmp(argv[3], "like")) {
+			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
+				return RESULT_SHOWUSAGE;
+			havepattern = 1;
+		} else
 			return RESULT_SHOWUSAGE;
-
-		havepattern = 1;
+	case 3:
+		break;
+	default:
+		return RESULT_SHOWUSAGE;
 	}
 
 	ast_mutex_lock(&userl.lock);
@@ -4042,36 +4046,38 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 	char iabuf[INET_ADDRSTRLEN];
 	int registeredonly=0;
 
-	if (argc > 5)
-		return RESULT_SHOWUSAGE;
-
-	if (argc > 3) {
- 		if (!strcasecmp(argv[3], "registered")) {
+	switch (argc) {
+	case 6:
+ 		if (!strcasecmp(argv[3], "registered"))
 			registeredonly = 1;
-		} else {
-			if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+		else
+			return RESULT_SHOWUSAGE;
+		if (!strcasecmp(argv[4], "like")) {
+			if (regcomp(&regexbuf, argv[5], REG_EXTENDED | REG_NOSUB))
 				return RESULT_SHOWUSAGE;
-
 			havepattern = 1;
-		}
- 	}
-
-	if (argc > 4) {
- 		if (!strcasecmp(argv[4], "registered")) {
-			if (registeredonly)
-				return RESULT_SHOWUSAGE;
-
-			registeredonly = 1;
-		} else {
-			if (havepattern)
-				return RESULT_SHOWUSAGE;
-
+		} else
+			return RESULT_SHOWUSAGE;
+		break;
+	case 5:
+		if (!strcasecmp(argv[3], "like")) {
 			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
 				return RESULT_SHOWUSAGE;
-
 			havepattern = 1;
-		}
- 	}
+		} else
+			return RESULT_SHOWUSAGE;
+		break;
+	case 4:
+ 		if (!strcasecmp(argv[3], "registered"))
+			registeredonly = 1;
+		else
+			return RESULT_SHOWUSAGE;
+		break;
+	case 3:
+		break;
+	default:
+		return RESULT_SHOWUSAGE;
+	}
 
 	ast_mutex_lock(&peerl.lock);
 	ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status");
@@ -4416,7 +4422,7 @@ static int iax2_no_debug(int fd, int argc, char *argv[])
 
 
 static char show_users_usage[] = 
-"Usage: iax2 show users [pattern]\n"
+"Usage: iax2 show users [like <pattern>]\n"
 "       Lists all known IAX2 users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
@@ -4429,9 +4435,9 @@ static char show_netstats_usage[] =
 "       Lists network status for all currently active IAX channels.\n";
 
 static char show_peers_usage[] = 
-"Usage: iax2 show peers [registered] [pattern]\n"
+"Usage: iax2 show peers [registered] [like <pattern>]\n"
 "       Lists all known IAX2 peers.\n"
-"	Optional 'registered' argument lists only peers with known addresses.\n"
+"       Optional 'registered' argument lists only peers with known addresses.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
 static char show_firmware_usage[] = 

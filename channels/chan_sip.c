@@ -6205,14 +6205,18 @@ static int sip_show_users(int fd, int argc, char *argv[])
 
 #define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-10.10s\n"
 
-	if (argc > 4)
-		return RESULT_SHOWUSAGE;
-	
-	if (argc == 4) {
-		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+	switch (argc) {
+	case 5:
+		if (!strcasecmp(argv[3], "like")) {
+			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
+				return RESULT_SHOWUSAGE;
+			havepattern = 1;
+		} else
 			return RESULT_SHOWUSAGE;
-
-		havepattern = 1;
+	case 3:
+		break;
+	default:
+		return RESULT_SHOWUSAGE;
 	}
 
 	ast_cli(fd, FORMAT, "Username", "Secret", "Accountcode", "Def.Context", "ACL", "NAT");
@@ -6303,14 +6307,18 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
                		snprintf(idtext,256,"ActionID: %s\r\n",id);
 	}
 
-	if (argc > 4)
-		return RESULT_SHOWUSAGE;
-	
-	if (argc == 4) {
-		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+	switch (argc) {
+	case 5:
+		if (!strcasecmp(argv[3], "like")) {
+			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
+				return RESULT_SHOWUSAGE;
+			havepattern = 1;
+		} else
 			return RESULT_SHOWUSAGE;
-
-		havepattern = 1;
+	case 3:
+		break;
+	default:
+		return RESULT_SHOWUSAGE;
 	}
 
 	if (!s) { /* Normal list */
@@ -7707,7 +7715,7 @@ static char notify_usage[] =
 "       Message types are defined in sip_notify.conf\n";
 
 static char show_users_usage[] = 
-"Usage: sip show users [pattern]\n"
+"Usage: sip show users [like <pattern>]\n"
 "       Lists all known SIP users.\n"
 "       Optional regular expression pattern is used to filter the user list.\n";
 
@@ -7734,7 +7742,7 @@ static char show_history_usage[] =
 "       Provides detailed dialog history on a given SIP channel.\n";
 
 static char show_peers_usage[] = 
-"Usage: sip show peers [pattern]\n"
+"Usage: sip show peers [like <pattern>]\n"
 "       Lists all known SIP peers.\n"
 "       Optional regular expression pattern is used to filter the peer list.\n";
 
