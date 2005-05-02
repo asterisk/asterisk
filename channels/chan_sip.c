@@ -133,23 +133,24 @@ static const char notify_config[] = "sip_notify.conf";
 
 const struct  cfsip_methods { 
 	int id;
+	int need_rtp;		/* when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char *text;
 } sip_methods[] = {
-	{ 0,		"-UNKNOWN-" },
-	{ SIP_REGISTER,	"REGISTER" },
- 	{ SIP_OPTIONS,	"OPTIONS" },
-	{ SIP_NOTIFY,	"NOTIFY" },
-	{ SIP_INVITE,	"INVITE" },
-	{ SIP_ACK,	"ACK"	},
-	{ SIP_PRACK,	"PRACK"	},
-	{ SIP_BYE,	"BYE"	},
-	{ SIP_REFER,	"REFER"	},
-	{ SIP_SUBSCRIBE,"SUBSCRIBE" },
-	{ SIP_MESSAGE,	"MESSAGE" },
-	{ SIP_UPDATE,	"UPDATE" },
-	{ SIP_INFO,	"INFO" },
-	{ SIP_CANCEL,	"CANCEL" },
-	{ SIP_PUBLISH,	"PUBLISH" }
+	{ 0,		 1, "-UNKNOWN-" },
+	{ SIP_REGISTER,	 0, "REGISTER" },
+ 	{ SIP_OPTIONS,	 0, "OPTIONS" },
+	{ SIP_NOTIFY,	 0, "NOTIFY" },
+	{ SIP_INVITE,	 1, "INVITE" },
+	{ SIP_ACK,	 0, "ACK" },
+	{ SIP_PRACK,	 0, "PRACK" },
+	{ SIP_BYE,	 0, "BYE" },
+	{ SIP_REFER,	 0, "REFER" },
+	{ SIP_SUBSCRIBE, 0, "SUBSCRIBE" },
+	{ SIP_MESSAGE,	 0, "MESSAGE" },
+	{ SIP_UPDATE,	 0, "UPDATE" },
+	{ SIP_INFO,	 0, "INFO" },
+	{ SIP_CANCEL,	 0, "CANCEL" },
+	{ SIP_PUBLISH,	 0, "PUBLISH" }
 };
 
 
@@ -2494,7 +2495,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 }
 
 /*--- sip_alloc: Allocate SIP_PVT structure and set defaults ---*/
-static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat)
+static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method)
 {
 	struct sip_pvt *p;
 
@@ -2519,32 +2520,40 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	} else {
 		memcpy(&p->ourip, &__ourip, sizeof(p->ourip));
 	}
-	p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-	if (videosupport)
-		p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+
 	p->branch = rand();	
 	p->tag = rand();
-	
 	/* Start with 101 instead of 1 */
 	p->ocseq = 101;
-	if (!p->rtp) {
-		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
-                ast_mutex_destroy(&p->lock);
-		if(p->chanvars) {
-			ast_variables_destroy(p->chanvars);
-			p->chanvars = NULL;
+
+	if (sip_methods[intended_method].need_rtp) {
+		p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+		if (videosupport)
+			p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
+		if (!p->rtp) {
+			ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
+			ast_mutex_destroy(&p->lock);
+			if(p->chanvars) {
+				ast_variables_destroy(p->chanvars);
+				p->chanvars = NULL;
+			}
+			free(p);
+			return NULL;
 		}
-		free(p);
-		return NULL;
+		ast_rtp_settos(p->rtp, tos);
+		if (p->vrtp)
+			ast_rtp_settos(p->vrtp, tos);
+		p->rtptimeout = global_rtptimeout;
+		p->rtpholdtimeout = global_rtpholdtimeout;
+		p->rtpkeepalive = global_rtpkeepalive;
 	}
-	ast_rtp_settos(p->rtp, tos);
-	if (p->vrtp)
-		ast_rtp_settos(p->vrtp, tos);
+
 	if (useglobal_nat && sin) {
 		/* Setup NAT structure according to global settings if we have an address */
 		ast_copy_flags(p, &global_flags, SIP_NAT);
 		memcpy(&p->recv, sin, sizeof(p->recv));
-		ast_rtp_setnat(p->rtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+		if (p->rtp)
+			ast_rtp_setnat(p->rtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 		if (p->vrtp)
 			ast_rtp_setnat(p->vrtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 	}
@@ -2558,9 +2567,6 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	ast_copy_flags(p, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_DTMF | SIP_REINVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
 	/* Assign default music on hold class */
 	strcpy(p->musicclass, global_musicclass);
-	p->rtptimeout = global_rtptimeout;
-	p->rtpholdtimeout = global_rtpholdtimeout;
-	p->rtpkeepalive = global_rtpkeepalive;
 	p->capability = global_capability;
 	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
@@ -2577,7 +2583,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
 /*--- find_call: Connect incoming SIP message to current call or create new call structure */
 /*               Called by handle_request ,sipsock_read */
-static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin)
+static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
 	struct sip_pvt *p;
 	char *callid;
@@ -2633,7 +2639,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		p = p->next;
 	}
 	ast_mutex_unlock(&iflock);
-	p = sip_alloc(callid, sin, 1);
+	p = sip_alloc(callid, sin, 1, intended_method);
 	if (p)
 		ast_mutex_lock(&p->lock);
 	return p;
@@ -4479,7 +4485,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			r->callid_valid = 1;
 		}
 		/* Allocate SIP packet for registration */
-		p=sip_alloc( r->callid, NULL, 0);
+		p=sip_alloc( r->callid, NULL, 0, SIP_REGISTER);
 		if (!p) {
 			ast_log(LOG_WARNING, "Unable to allocate registration call\n");
 			return 0;
@@ -7423,7 +7429,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		struct sip_request req;
 		struct ast_variable *var;
 
-		p = sip_alloc(NULL, NULL, 0);
+		p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
 		if (!p) {
 			ast_log(LOG_WARNING, "Unable to build sip pvt data for notify\n");
 			return RESULT_FAILURE;
@@ -9055,10 +9061,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	/* Get the command */
 	cseq += len;
 
-	/* Determine the request URI for sip, sips or tel URIs */
-	if( determine_firstline_parts( req ) < 0 ) {
-		return -1; 
-	}
 	cmd = req->rlPart1;
 	e = req->rlPart2;
 
@@ -9066,7 +9068,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	useragent = get_header(req, "User-Agent");
 	strncpy(p->useragent, useragent, sizeof(p->useragent)-1);
 
-	
 	/* Find out SIP method for incoming request */
 	if (!strcasecmp(cmd, "SIP/2.0")) {	/* Response to our request */
 		p->method = SIP_RESPONSE;
@@ -9246,10 +9247,15 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		/* Must have at least two headers */
 		return 1;
 	}
+
+	/* Determine the request URI for sip, sips or tel URIs */
+	if (determine_firstline_parts(&req) < 0)
+		return 1; 
+
 	/* Process request, with netlock held */
 retrylock:
 	ast_mutex_lock(&netlock);
-	p = find_call(&req, &sin);
+	p = find_call(&req, &sin, find_sip_method(req.rlPart1));
 	if (p) {
 		/* Go ahead and lock the owner if it has one -- we may need it */
 		if (p->owner && ast_mutex_trylock(&p->owner->lock)) {
@@ -9298,7 +9304,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return 0;
 	}
 	
-	p = sip_alloc(NULL, NULL, 0);
+	p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
 		return -1;
@@ -9523,7 +9529,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		ast_log(LOG_NOTICE, "Still have a call...\n");
 		sip_destroy(peer->call);
 	}
-	p = peer->call = sip_alloc(NULL, NULL, 0);
+	p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
 	if (!peer->call) {
 		ast_log(LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
 		return -1;
@@ -9626,7 +9632,7 @@ static struct ast_channel *sip_request(const char *type, int format, void *data,
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(global_capability));
 		return NULL;
 	}
-	p = sip_alloc(NULL, NULL, 0);
+	p = sip_alloc(NULL, NULL, 0, SIP_INVITE);
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
 		return NULL;
