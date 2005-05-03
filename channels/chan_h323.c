@@ -1321,7 +1321,6 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 	struct oh323_pvt *pvt;
 	struct sockaddr_in us;
 	struct rtp_info *info;
-	char iabuf[INET_ADDRSTRLEN];
 
 	info = (struct rtp_info *)malloc(sizeof(struct rtp_info));
 	if (!info) {
@@ -1330,6 +1329,7 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 	}
 	pvt = find_call(call_reference, token); 
 	if (!pvt) {
+		free(info);
 		ast_log(LOG_ERROR, "Unable to find call %s(%d)\n", token, call_reference);
 		return NULL;
 	}
@@ -1338,7 +1338,7 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 	ast_rtp_get_us(pvt->rtp, &us);
 	ast_mutex_unlock(&pvt->lock);
 	/* evil hack, until I (or someone?) figures out a better way */
-	info->addr = ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr);
+	ast_inet_ntoa(info->addr, sizeof(info->addr), bindaddr.sin_addr);
 	info->port = ntohs(us.sin_port);
 	ast_log(LOG_DEBUG, "Sending RTP 'US' %s:%d\n", info->addr, info->port);
 	return info;
