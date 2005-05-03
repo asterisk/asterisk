@@ -4759,7 +4759,7 @@ static void reg_source_db(struct sip_peer *peer)
 	port_str = strsep(&scan, ":");
 	expiry_str = strsep(&scan, ":");
 	username = strsep(&scan, ":");
-	contact = strsep(&scan, ":");
+	contact = scan;	/* Contact include sip: and has to be the last part of the database entry as long as we use : as a separator */
 
 	if (!inet_aton(addr, &in))
 		return;
