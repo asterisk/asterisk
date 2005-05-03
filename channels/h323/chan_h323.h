@@ -106,7 +106,7 @@ typedef struct call_details {
 } call_details_t;
 
 typedef struct rtp_info {
-	const char *addr;
+	char addr[32];
 	unsigned int port;
 } rtp_info_t;
 
