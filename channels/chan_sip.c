@@ -131,26 +131,28 @@ static const char notify_config[] = "sip_notify.conf";
 #define SIP_PUBLISH	14
 #define SIP_RESPONSE	100
 
+#define RTP 	1
+#define NO_RTP	0
 const struct  cfsip_methods { 
 	int id;
 	int need_rtp;		/* when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char *text;
 } sip_methods[] = {
-	{ 0,		 1, "-UNKNOWN-" },
-	{ SIP_REGISTER,	 0, "REGISTER" },
- 	{ SIP_OPTIONS,	 0, "OPTIONS" },
-	{ SIP_NOTIFY,	 0, "NOTIFY" },
-	{ SIP_INVITE,	 1, "INVITE" },
-	{ SIP_ACK,	 0, "ACK" },
-	{ SIP_PRACK,	 0, "PRACK" },
-	{ SIP_BYE,	 0, "BYE" },
-	{ SIP_REFER,	 0, "REFER" },
-	{ SIP_SUBSCRIBE, 0, "SUBSCRIBE" },
-	{ SIP_MESSAGE,	 0, "MESSAGE" },
-	{ SIP_UPDATE,	 0, "UPDATE" },
-	{ SIP_INFO,	 0, "INFO" },
-	{ SIP_CANCEL,	 0, "CANCEL" },
-	{ SIP_PUBLISH,	 0, "PUBLISH" }
+	{ 0,		 RTP, "-UNKNOWN-" },
+	{ SIP_REGISTER,	 NO_RTP, "REGISTER" },
+ 	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS" },
+	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY" },
+	{ SIP_INVITE,	 RTP, "INVITE" },
+	{ SIP_ACK,	 NO_RTP, "ACK" },
+	{ SIP_PRACK,	 NO_RTP, "PRACK" },
+	{ SIP_BYE,	 NO_RTP, "BYE" },
+	{ SIP_REFER,	 NO_RTP, "REFER" },
+	{ SIP_SUBSCRIBE, NO_RTP, "SUBSCRIBE" },
+	{ SIP_MESSAGE,	 NO_RTP, "MESSAGE" },
+	{ SIP_UPDATE,	 NO_RTP, "UPDATE" },
+	{ SIP_INFO,	 NO_RTP, "INFO" },
+	{ SIP_CANCEL,	 NO_RTP, "CANCEL" },
+	{ SIP_PUBLISH,	 NO_RTP, "PUBLISH" }
 };
 
 
@@ -2571,17 +2573,17 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
 	strcpy(p->context, default_context);
-	/* Add to list */
+	/* Add to active dialog list */
 	ast_mutex_lock(&iflock);
 	p->next = iflist;
 	iflist = p;
 	ast_mutex_unlock(&iflock);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Allocating new SIP call for %s\n", callid);
+		ast_log(LOG_DEBUG, "Allocating new SIP dialog for %s - %s (%s)\n", callid ? callid : "(No Call-ID)", sip_methods[intended_method].text, p->rtp ? "With RTP" : "No RTP");
 	return p;
 }
 
-/*--- find_call: Connect incoming SIP message to current call or create new call structure */
+/*--- find_call: Connect incoming SIP message to current dialog or create new dialog structure */
 /*               Called by handle_request ,sipsock_read */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
