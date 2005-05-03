@@ -420,8 +420,10 @@ int ast_wait_for_input(int fd, int ms)
 
 void ast_copy_string(char *dst, const char *src, size_t size)
 {
-	while (*src && size--)
+	while (*src && size) {
 		*dst++ = *src++;
+		size--;
+	}
 	if (__builtin_expect(!size, 0))
 		dst--;
 	*dst = '\0';

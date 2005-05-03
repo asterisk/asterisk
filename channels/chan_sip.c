@@ -1492,7 +1492,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 		ast_copy_string(r->fullcontact, p->fullcontact, sizeof(r->fullcontact));
 		if (!r->initreq.headers && !ast_strlen_zero(p->fromdomain)) {
 			if ((callhost = strchr(r->callid, '@'))) {
-				ast_copy_string(callhost + 1, p->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 1);
+				strncpy(callhost + 1, p->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 2);
 			}
 		}
 		if (ast_strlen_zero(r->tohost)) {
@@ -3243,7 +3243,7 @@ static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct s
 static void add_route(struct sip_request *req, struct sip_route *route)
 {
 	char r[256], *p;
-	int n, rem = 255; /* sizeof(r)-1: Room for terminating 0 */
+	int n, rem = sizeof(r);
 
 	if (!route) return;
 
@@ -3292,10 +3292,10 @@ static void set_destination(struct sip_pvt *p, char *uri)
 		else if (strncmp(h, "sips:", 5) == 0)
 			h += 5;
 	}
-	hn = strcspn(h, ":;>");
-	if (hn > (sizeof(hostname) - 1)) hn = sizeof(hostname) - 1;
+	hn = strcspn(h, ":;>") + 1;
+	if (hn > sizeof(hostname)) hn = sizeof(hostname);
 	ast_copy_string(hostname, h, hn);
-	h+=hn;
+	h += hn - 1;
 
 	/* Is "port" present? if not default to 5060 */
 	if (*h == ':') {
@@ -3310,9 +3310,9 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	maddr = strstr(h, "maddr=");
 	if (maddr) {
 		maddr += 6;
-		hn = strspn(maddr, "0123456789.");
-		if (hn > (sizeof(hostname) - 1)) hn = sizeof(hostname) - 1;
-		ast_copy_string(hostname, maddr, hn);
+		hn = strspn(maddr, "0123456789.") + 1;
+		if (hn > sizeof(hostname)) hn = sizeof(hostname);
+		ast_copy_string(hostname, h, hn);
 	}
 	
 	hp = ast_gethostbyname(hostname, &ahp);
@@ -5073,9 +5073,9 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 			rr = strchr(rr, '<');
 			if (!rr) break; /* No more hops */
 			++rr;
-			len = strcspn(rr, ">");
+			len = strcspn(rr, ">") + 1;
 			/* Make a struct route */
-			thishop = (struct sip_route *)malloc(sizeof(struct sip_route)+len+1);
+			thishop = malloc(sizeof(*thishop) + len);
 			if (thishop) {
 				ast_copy_string(thishop->hop, rr, len);
 				ast_log(LOG_DEBUG, "build_route: Record-Route hop: <%s>\n", thishop->hop);
@@ -5096,7 +5096,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 					tail = thishop;
 				}
 			}
-			rr += len+1;
+			rr += len;
 		}
 	}
 	/* 2nd append the Contact: if there is one */
@@ -5109,12 +5109,13 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		if (c) {
 			/* Take to > */
 			++c;
-			len = strcspn(c, ">");
+			len = strcspn(c, ">") + 1;
 		} else {
 			/* No <> - just take the lot */
-			c = contact; len = strlen(contact);
+			c = contact;
+			len = strlen(contact) + 1;
 		}
-		thishop = (struct sip_route *)malloc(sizeof(struct sip_route)+len+1);
+		thishop = malloc(sizeof(*thishop) + len);
 		if (thishop) {
 			ast_copy_string(thishop->hop, c, len);
 			thishop->next = NULL;
@@ -5758,7 +5759,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*--- get_calleridname: Get caller id name from SIP headers ---*/
-static char *get_calleridname(char *input,char *output, size_t outputsize)
+static char *get_calleridname(char *input, char *output, size_t outputsize)
 {
 	char *end = strchr(input,'<');
 	char *tmp = strchr(input,'\"');
@@ -5770,15 +5771,13 @@ static char *get_calleridname(char *input,char *output, size_t outputsize)
 	end--;
 	/* we found "name" */
 	if (tmp && tmp < end) {
-		end = strchr(tmp+1,'\"');
+		end = strchr(tmp+1, '\"');
 		if (!end) return NULL;
-		bytes = (int)(end-tmp-1);
+		bytes = (int) (end - tmp);
 		/* protect the output buffer */
-		if (bytes > maxbytes) {
+		if (bytes > maxbytes)
 			bytes = maxbytes;
-		}
-		ast_copy_string(output, tmp+1, bytes); /* safe */
-		output[maxbytes] = '\0';
+		ast_copy_string(output, tmp + 1, bytes);
 	} else {
 		/* we didn't find "name" */
 		/* clear the empty characters in the begining*/
@@ -5788,13 +5787,12 @@ static char *get_calleridname(char *input,char *output, size_t outputsize)
 		while(*end && (*end < 33) && end > input)
 			end--;
 		if (end >= input) {
-			bytes = (int)(end-input)+1;
+			bytes = (int) (end - input) + 2;
 			/* protect the output buffer */
 			if (bytes > maxbytes) {
 				bytes = maxbytes;
 			}
-			ast_copy_string(output, input, bytes); /* safe */
-			output[maxbytes] = '\0';
+			ast_copy_string(output, input, bytes);
 		}
 		else
 			return(NULL);
@@ -7819,7 +7817,6 @@ static char *func_header_read(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	ast_copy_string(buf, content, len);
-	buf[len-1] = '\0';
 	ast_mutex_unlock(&chan->lock);
 
 	return buf;
