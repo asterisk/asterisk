@@ -6490,61 +6490,62 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 	int prunepeer = 0;
 	int multi = 0;
 	char *name = NULL;
-	int more;
 	regex_t regexbuf;
 
-	if ((argc < 4) || (argc > 6))
-        	return RESULT_SHOWUSAGE;
-
-	more = 1;
-	if (!strcasecmp(argv[3], "user")) {
-		if (argc > 4)
-			pruneuser = 1;
-		else
+	switch (argc) {
+	case 4:
+		if (!strcasecmp(argv[3], "user"))
 			return RESULT_SHOWUSAGE;
-	} else if (!strcasecmp(argv[3], "peer")) {
-		if (argc > 4)
-			prunepeer = 1;
-		else
+		if (!strcasecmp(argv[3], "peer"))
 			return RESULT_SHOWUSAGE;
-	} else if (!strcasecmp(argv[3], "like")) {
-		if (argc == 5) {
+		if (!strcasecmp(argv[3], "like"))
+			return RESULT_SHOWUSAGE;
+		if (!strcasecmp(argv[3], "all")) {
+			multi = 1;
+			pruneuser = prunepeer = 1;
+		} else {
+			pruneuser = prunepeer = 1;
+			name = argv[3];
+		}
+		break;
+	case 5:
+		if (!strcasecmp(argv[4], "like"))
+			return RESULT_SHOWUSAGE;
+		if (!strcasecmp(argv[3], "all"))
+			return RESULT_SHOWUSAGE;
+		if (!strcasecmp(argv[3], "like")) {
 			multi = 1;
 			name = argv[4];
 			pruneuser = prunepeer = 1;
-			more = 0;
-		} else
-			return RESULT_SHOWUSAGE;
-	} else if (!strcasecmp(argv[3], "all")) {
-		if (argc == 4) {
-			multi = 1;
-			pruneuser = prunepeer = 1;
-			more = 0;
-		} else
-			return RESULT_SHOWUSAGE;
-	} else if (argc == 4) {
-		more = 0;
-		pruneuser = prunepeer = 1;
-		name = argv[3];
-	} else
-		return RESULT_SHOWUSAGE;
-
-	if (more) {
-		if (!strcasecmp(argv[4], "like")) {
-			if (argc == 6) {
-				multi = 1;
-				name = argv[5];
-			} else
-				return RESULT_SHOWUSAGE;
-		} else if (!strcasecmp(argv[4], "all")) {
-			if (argc == 5)
+		} else if (!strcasecmp(argv[3], "user")) {
+			pruneuser = 1;
+			if (!strcasecmp(argv[4], "all"))
 				multi = 1;
 			else
-				return RESULT_SHOWUSAGE;
-		} else if (argc == 5)
-			name = argv[4];
-		else
+				name = argv[4];
+		} else if (!strcasecmp(argv[3], "peer")) {
+			prunepeer = 1;
+			if (!strcasecmp(argv[4], "all"))
+				multi = 1;
+			else
+				name = argv[4];
+		} else
 			return RESULT_SHOWUSAGE;
+		break;
+	case 6:
+		if (strcasecmp(argv[4], "like"))
+			return RESULT_SHOWUSAGE;
+		if (!strcasecmp(argv[3], "user")) {
+			pruneuser = 1;
+			name = argv[5];
+		} else if (!strcasecmp(argv[3], "peer")) {
+			prunepeer = 1;
+			name = argv[5];
+		} else
+			return RESULT_SHOWUSAGE;
+		break;
+	default:
+		return RESULT_SHOWUSAGE;
 	}
 
 	if (multi && name) {
@@ -6564,7 +6565,6 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 					continue;
 				};
 				if (ast_test_flag((&iterator->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
-					expire_register(iterator);
 					ASTOBJ_MARK(iterator);
 					pruned++;
 				}
@@ -6603,12 +6603,11 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 	} else {
 		if (prunepeer) {
 			if ((peer = ASTOBJ_CONTAINER_FIND_UNLINK(&peerl, name))) {
-				if (ast_test_flag(&peer->flags_page2, SIP_PAGE2_RTCACHEFRIENDS))
-					expire_register(peer);
-				else {
+				if (!ast_test_flag((&peer->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
 					ast_cli(fd, "Peer '%s' is not a Realtime peer, cannot be pruned.\n", name);
 					ASTOBJ_CONTAINER_LINK(&peerl, peer);
-				}
+				} else
+					ast_cli(fd, "Peer '%s' pruned.\n", name);
 				ASTOBJ_UNREF(peer, sip_destroy_peer);
 			} else
 				ast_cli(fd, "Peer '%s' not found.\n", name);
@@ -6618,7 +6617,8 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 				if (!ast_test_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
 					ast_cli(fd, "User '%s' is not a Realtime user, cannot be pruned.\n", name);
 					ASTOBJ_CONTAINER_LINK(&userl, user);
-				}
+				} else
+					ast_cli(fd, "User '%s' pruned.\n", name);
 				ASTOBJ_UNREF(user, sip_destroy_user);
 			} else
 				ast_cli(fd, "User '%s' not found.\n", name);
@@ -6683,8 +6683,6 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	struct ast_variable *v;
 	struct sip_auth *auth;
 	int x = 0, codec = 0, load_realtime = 0;
-
-	if (argc < 4)
 
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
