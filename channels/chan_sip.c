@@ -1490,7 +1490,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 		ast_copy_string(r->fullcontact, p->fullcontact, sizeof(r->fullcontact));
 		if (!r->initreq.headers && !ast_strlen_zero(p->fromdomain)) {
 			if ((callhost = strchr(r->callid, '@'))) {
-				ast_copy_string(callhost + 1, p->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 2);
+				ast_copy_string(callhost + 1, p->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 1);
 			}
 		}
 		if (ast_strlen_zero(r->tohost)) {
