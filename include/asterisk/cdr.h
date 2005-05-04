@@ -23,8 +23,6 @@
 #define AST_CDR_FLAG_POSTED			(1 << 1)
 #define AST_CDR_FLAG_LOCKED			(1 << 2)
 #define AST_CDR_FLAG_CHILD			(1 << 3)
-#define AST_CDR_FLAG_SETVAR			(1 << 4)
-#define AST_CDR_FLAG_RECUR		 	(1 << 5)
 
 #define AST_CDR_NOANSWER			(1 << 0)
 #define AST_CDR_BUSY				(1 << 1)

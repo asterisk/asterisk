@@ -430,16 +430,15 @@ static struct pbx_builtin {
 	},
 
 	{ "SetVar", pbx_builtin_setvar,
-	"Set channel variable to value",
-	"  SetVar(#n1=value|#n2=value|..[|options]) \n"
-	"You can specify an endless list of name / value pairs to be set as channel variables.\n"
-	"  #n=value: Sets variable n to value. If prefixed with _, single\n"
-	"inheritance assumed. If prefixed with __, infinite inheritance is assumed.\n" 
-	"The last arg (if it doesn't contain an '=' ) is intrepreted as a string of\n"
-	"options. Valid Options:\n"
-	"  - c - CDR, if set set the var as a CDR variable also.\n"
-	"  - r - Recursive CDR, if there are any stacked CDRs, also apply to all as a cdr var.\n"
-	"  - g - Set a global variable not a channel variable.\n"
+	"Set channel variable(s)",
+	"  SetVar(name1=value1|name2=value2|..[|options])\n"
+	"You can specify up to 24 name / value pairs to be set as channel variables.\n"
+	"If a variable name is prefixed with _, it will be inherited into channels\n"
+        "created from this one. If a variable name is prefixed with __, it will be\n"
+        "inherited into channels created from this one and all child channels.\n"
+	"The last arg (if it doesn't contain '=') is interpreted as a string of\n"
+	"options. Valid options are:\n"
+	"  g - Set variable globally instead of on the channel\n"
 	},
 
 	{ "ImportVar", pbx_builtin_importvar,
@@ -1320,17 +1319,56 @@ static char *builtin_function_len(struct ast_channel *chan, char *cmd, char *dat
 static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *ret;
-	if (chan && chan->cdr && data) {
-		ast_cdr_getvar(chan->cdr, data, &ret, buf, len, 1);
+	char *mydata;
+	int argc;
+	char *argv[2];
+	int recursive = 0;
+
+	if (!data || ast_strlen_zero(data))
+		return NULL;
+	
+	if (!chan->cdr)
+		return NULL;
+
+	mydata = ast_strdupa(data);
+	argc = ast_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
+
+	/* check for a trailing flags argument */
+	if (argc > 1) {
+		argc--;
+		if (strchr(argv[argc], 'r'))
+			recursive = 1;
 	}
+
+	ast_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
+
 	return ret;
 }
 
 static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	if (chan && chan->cdr && data) {
-		ast_cdr_setvar(chan->cdr, data, value, 1);
+	char *mydata;
+	int argc;
+	char *argv[2];
+	int recursive = 0;
+
+	if (!data || ast_strlen_zero(data) || !value)
+		return;
+	
+	if (!chan->cdr)
+		return;
+
+	mydata = ast_strdupa(data);
+	argc = ast_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
+
+	/* check for a trailing flags argument */
+	if (argc > 1) {
+		argc--;
+		if (strchr(argv[argc], 'r'))
+			recursive = 1;
 	}
+
+	ast_cdr_setvar(chan->cdr, argv[0], value, recursive);
 }
 
 static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
@@ -3593,8 +3631,8 @@ static struct ast_custom_function_obj len_function = {
 
 static struct ast_custom_function_obj cdr_function = {
 	.name = "CDR",
-	.desc = "Gets or sets the CDR variable specified",
-	.syntax = "CDR(<cdrvarname>)",
+	.desc = "Gets or sets a CDR variable; option 'r' searches the entire stack of CDRs on the channel",
+	.syntax = "CDR(<name>[|options])",
 	.read = builtin_function_cdr_read,
 	.write = builtin_function_cdr_write,
 };
@@ -5795,26 +5833,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	if (name[strlen(name)-1] == ')')
 		return ast_func_write(chan, name, value);
 
-	if (chan) {
-		headp = &chan->varshead;
-		if (!strncasecmp(name, "CDR(", 4)) { /* CDR VARS */
-			char *vtmp, *nt; 
-			int recur = 0;
-			if ((vtmp = ast_strdupa((char *) name + 4)) && (nt = strchr(vtmp, ')'))) {
-				*nt = '\0';
-				if(vtmp[0] == '-') {
-					vtmp++;
-					recur = 1;
-				}
-				ast_cdr_setvar(chan->cdr, vtmp, value, recur);
-			} else {
-				ast_log(LOG_WARNING, "Invalid CDR variable.\n");
-			}
-			return;
-		}
-	}
-	else
-		headp = &globals;
+	headp = (chan) ? &chan->varshead : &globals;
 
 	AST_LIST_TRAVERSE (headp, newvariable, entries) {
 		if (strcasecmp(ast_var_name(newvariable), name) == 0) {
@@ -5827,7 +5846,7 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 
 	if (value) {
 		if ((option_verbose > 1) && (headp == &globals))
-			ast_verbose(VERBOSE_PREFIX_3 "Setting global variable '%s' to '%s'\n", name, value);
+			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
 		newvariable = ast_var_assign(name, value);	
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
@@ -5835,44 +5854,37 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 
 int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 {
-	char *name, *value, *mydata, *next, *fstr = NULL;
-	struct ast_flags flags = {0};
+	char *name, *value, *mydata;
+	int argc;
+	char *argv[24];		/* this will only support a maximum of 24 variables being set in a single operation */
+	int global = 0;
+	int x;
 
-	if (data && !ast_strlen_zero(data) && (mydata = ast_strdupa(data))) {
-		next = mydata;
-		while(next) {
-			name = next;
-			if ((next = strchr(next, '|'))) {
-				*next = '\0';
-				next++;
-			}
-
-			if ((value = strchr(name, '='))) {
-				*value = '\0';
-				value++;
-				if( fstr && strchr(fstr, 'g') ) {
-					pbx_builtin_setvar_helper(NULL, name, value);
-				}
-				else {
-					pbx_builtin_setvar_helper(chan, name, value);
-					if (ast_test_flag(&flags, AST_CDR_FLAG_SETVAR)) {
-						ast_cdr_setvar(chan->cdr, name, value, ast_test_flag(&flags, AST_CDR_FLAG_RECUR));
-					}
-				}
-			} else if (!next) {
-				name++;
-				if (strchr(name, 'c') ) {
-					ast_set_flag(&flags, AST_CDR_FLAG_SETVAR);
-				} else if (strchr(name, 'r') ) {
-					ast_set_flag(&flags, AST_CDR_FLAG_RECUR | AST_CDR_FLAG_SETVAR);
-				}
-			} else
-				ast_log(LOG_WARNING, "Ignoring entry '%s' with no = (and not last 'options' entry)\n", name);
-		}
-	} else {
-		ast_log(LOG_WARNING, "Ignoring, since there is no variable to set\n");
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "SetVar requires at least one variable name/value pair.\n");
+		return 0;
 	}
-	
+
+	mydata = ast_strdupa(data);
+	argc = ast_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
+
+	/* check for a trailing flags argument */
+	if ((argc > 1) && !strchr(argv[argc-1], '=')) {
+		argc--;
+		if (strchr(argv[argc], 'g'))
+			global = 1;
+	}
+
+	for (x = 0; x < argc; x++) {
+		name = argv[x];
+		if ((value = strchr(name, '='))) {
+			*value = '\0';
+			value++;
+			pbx_builtin_setvar_helper((global) ? NULL : chan, name, value);
+		} else
+			ast_log(LOG_WARNING, "Ignoring entry '%s' with no = (and not last 'options' entry)\n", name);
+	}
+
 	return(0);
 }
 
