@@ -252,16 +252,17 @@ int test_for_thread_safety(void)
 /*--- ast_md5_hash: Produce 16 char MD5 hash of value. ---*/
 void ast_md5_hash(char *output, char *input)
 {
-		struct MD5Context md5;
-		unsigned char digest[16];
-		char *ptr;
-		int x;
-		MD5Init(&md5);
-		MD5Update(&md5, input, strlen(input));
-		MD5Final(digest, &md5);
-		ptr = output;
-		for (x=0;x<16;x++)
-			ptr += sprintf(ptr, "%2.2x", digest[x]);
+	struct MD5Context md5;
+	unsigned char digest[16];
+	char *ptr;
+	int x;
+
+	MD5Init(&md5);
+	MD5Update(&md5, input, strlen(input));
+	MD5Final(digest, &md5);
+	ptr = output;
+	for (x=0; x<16; x++)
+		ptr += sprintf(ptr, "%2.2x", digest[x]);
 }
 
 int ast_base64decode(unsigned char *dst, char *src, int max)

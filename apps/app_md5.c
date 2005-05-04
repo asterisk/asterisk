@@ -48,6 +48,12 @@ static int md5_exec(struct ast_channel *chan, void *data)
 	char *varname= NULL; /* Variable to set */
 	char *string = NULL; /* String to calculate on */
 	char retvar[50]; /* Return value */
+	static int dep_warning = 0;
+
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "This application has been deprecated, please use the MD5 function instead.\n");
+		dep_warning = 1;
+	}	
 
 	if (!data) {
 		ast_log(LOG_WARNING, "Syntax: md5(<varname>=<string>) - missing argument!\n");
@@ -77,7 +83,13 @@ static int md5check_exec(struct ast_channel *chan, void *data)
 	char *hash= NULL; /* Hash to compare with */
 	char *string = NULL; /* String to calculate on */
 	char newhash[50]; /* Return value */
+	static int dep_warning = 0;
 
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "This application has been deprecated, please use the CHECK_MD5 function instead.\n");
+		dep_warning = 1;
+	}
+	
 	if (!data) {
 		ast_log(LOG_WARNING, "Syntax: MD5Check(<md5hash>,<string>) - missing argument!\n");
 		return -1;
