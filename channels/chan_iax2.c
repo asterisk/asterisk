@@ -1464,7 +1464,7 @@ static int send_packet(struct iax_frame *f)
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
 	/* Called with iaxsl held */
-	if (option_debug)
+	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
 	/* Don't send if there was an error, but return error instead */
 	if (!f->callno) {
@@ -3436,7 +3436,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
 		ms = (delivery->tv_sec - p->offset.tv_sec) * 1000 +
 			(1000000 + delivery->tv_usec - p->offset.tv_usec) / 1000 - 1000;
-		if (option_debug)
+		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
 	} else {
 		gettimeofday(&tv, NULL);
@@ -8879,7 +8879,7 @@ static int iax2_devicestate(void *data)
 		ext = NULL;
 	}
 
-	if (option_debug > 1)
+	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "Checking device state for device %s\n", dest);
 
 	p = find_peer(host, 1);
