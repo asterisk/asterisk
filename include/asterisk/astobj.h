@@ -466,7 +466,8 @@ extern "C" {
  * \note This macro does not destroy any objects, it simply unlinks
  * them from the list.  No destructors are called.
  *
- * \return The object unlinked or NULL if no matching object was found.
+ * \return The container's reference to the removed object or NULL if no
+ * matching object was found.
  */
 #define ASTOBJ_CONTAINER_UNLINK(container,obj) \
 	({ \
