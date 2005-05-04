@@ -11200,6 +11200,7 @@ int unload_module()
 	ASTOBJ_CONTAINER_DESTROY(&regl);
 
 	clear_realm_authentication(authl);
+	close(sipsock);
 		
 	return 0;
 }
