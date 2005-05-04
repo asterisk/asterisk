@@ -1090,7 +1090,8 @@ int ast_separate_app_args(char *buf, char delim, char **array, int arraylen)
 			break;
 	}
 
-	array[x++] = scan;
+	if (scan)
+		array[x++] = scan;
 
 	return x;
 }
