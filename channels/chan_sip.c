@@ -10384,7 +10384,6 @@ static int reload_config(void)
 			ast_copy_string(default_context, v->value, sizeof(default_context));
 		} else if (!strcasecmp(v->name, "realm")) {
 			ast_copy_string(global_realm, v->value, sizeof(global_realm));
-			global_realm[sizeof(global_realm)-1] = '\0';
 		} else if (!strcasecmp(v->name, "useragent")) {
 			ast_copy_string(default_useragent, v->value, sizeof(default_useragent));
 			ast_log(LOG_DEBUG, "Setting User Agent Name to %s\n",
