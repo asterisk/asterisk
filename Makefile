@@ -15,7 +15,6 @@
 
 # Create OPTIONS variable
 OPTIONS=
-
 # If cross compiling, define these to suit
 # CROSS_COMPILE=/opt/montavista/pro/devkit/arm/xscale_be/bin/xscale_be-
 # CROSS_COMPILE_BIN=/opt/montavista/pro/devkit/arm/xscale_be/bin/
@@ -411,6 +410,15 @@ datafiles: all
 			exit 1; \
 		fi; \
 	done
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate
+	for x in sounds/dictate/*.gsm; do \
+		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
+			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate ; \
+		else \
+			echo "No description for $$x"; \
+			exit 1; \
+		fi; \
+	done
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters
 	for x in sounds/letters/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
@@ -490,6 +498,7 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
 	mkdir -p $(DESTDIR)$(ASTVARRUNDIR)
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail
+	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/dictate
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/system
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/tmp
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/meetme

@@ -268,6 +268,34 @@
 
 %tt-weasels.gsm%Weasels have eaten our phone system
 
+;dictate directory - app_dictate
+
+%both_help.gsm%press * to toggle pause, press # to enter a new dictation filename
+
+%enter_filename.gsm%Enter a numeric dictation filename followed by # or just # to exit
+
+%forhelp.gsm%press 0 for help
+
+%inithelp.gsm%1 to switch to playback mode
+
+%pause.gsm%pause
+
+%paused.gsm%paused
+
+%play_help.gsm%press 1 to switch to record mode, press 2 to toggle fast playback, press 7 to jump backwards, press 8 to jump forwards
+
+%playback.gsm%playback
+
+%playback_mode.gsm%playback mode
+
+%record.gsm%record
+
+%record_help.gsm%press 1 to switch to playback mode, press 8 to truncate the file and start over
+
+%record_mode.gsm%record mode
+
+%truncating_audio.gsm%truncating audio
+
 ;digits directory  - File Name Sound File Script
 
 %minus.gsm%minus
