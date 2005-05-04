@@ -1375,7 +1375,6 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 	struct mgcp_endpoint *i = sub->parent;
 	int fmt;
 
-	i = sub->parent;
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		tmp->tech = &mgcp_tech;
@@ -1809,12 +1808,11 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 	/* specified RTP payload type (with corresponding MIME subtype): */
 	sdpLineNum_iterator_init(&iterator);
 	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-		char* mimeSubtype = strdup(a); /* ensures we have enough space */
+		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */
 		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2)
 			continue;
 		/* Note: should really look at the 'freq' and '#chans' params too */
 		ast_rtp_set_rtpmap_type(sub->rtp, codec, "audio", mimeSubtype);
-		free(mimeSubtype);
 	}
 
 	/* Now gather all of the codecs that were asked for: */
@@ -4318,23 +4316,22 @@ int reload(void)
 
 int unload_module()
 {
-#if 0
-	struct mgcp_endpoint *p, *pl;
+	struct mgcp_endpoint *e;
+	struct mgcp_gateway *g;
+
+	/* Check to see if we're reloading */
+	if (ast_mutex_trylock(&mgcp_reload_lock)) {
+		ast_log(LOG_WARNING, "MGCP is currently reloading.  Unable to remove module.\n");
+		return -1;
+	} else {
+		mgcp_reloading = 1;
+		ast_mutex_unlock(&mgcp_reload_lock);
+	}
+
 	/* First, take us out of the channel loop */
 	ast_channel_unregister(&mgcp_tech);
-	if (!ast_mutex_lock(&gatelock)) {
-		/* Hangup all interfaces if they have an owner */
-		p = iflist;
-		while(p) {
-			mgcp_queue_hangup(p);
-			p = p->next;
-		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
-		return -1;
-	}
+
+	/* Shut down the monitoring thread */
 	if (!ast_mutex_lock(&monlock)) {
 		if (monitor_thread && (monitor_thread != AST_PTHREADT_STOP)) {
 			pthread_cancel(monitor_thread);
@@ -4345,29 +4342,47 @@ int unload_module()
 		ast_mutex_unlock(&monlock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		/* We always want to leave this in a consistent state */
+		ast_channel_register(&mgcp_tech);
+		mgcp_reloading = 0;
+		mgcp_reload(0, 0, NULL);
 		return -1;
 	}
 
-	if (!ast_mutex_lock(&iflock)) {
-		/* Destroy all the interfaces and free their memory */
-		p = iflist;
-		while(p) {
-			pl = p;
-			p = p->next;
-			/* Free associated memory */
-			ast_mutex_destroy(&pl->lock);
-			ast_mutex_destroy(&pl->rqnt_queue_lock);
-			ast_mutex_destroy(&pl->cmd_queue_lock);
-			free(pl);
+	if (!ast_mutex_lock(&gatelock)) {
+		g = gateways;
+		while (g) {
+			g->delme = 1;
+			e = g->endpoints;
+			while (e) {
+				e->delme = 1;
+				e = e->next;
+			}
+			g = g->next;
 		}
-		iflist = NULL;
-		ast_mutex_unlock(&iflock);
+
+		prune_gateways();
+		ast_mutex_unlock(&gatelock);
 	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+		ast_log(LOG_WARNING, "Unable to lock the gateways list.\n");
+		/* We always want to leave this in a consistent state */
+		ast_channel_register(&mgcp_tech);
+		/* Allow the monitor to restart */
+		monitor_thread = AST_PTHREADT_NULL;
+		mgcp_reloading = 0;
+		mgcp_reload(0, 0, NULL);
 		return -1;
 	}
-#endif		
-	return -1;
+
+	close(mgcpsock);
+	ast_rtp_proto_unregister(&mgcp_rtp);
+	ast_cli_unregister(&cli_show_endpoints);
+	ast_cli_unregister(&cli_audit_endpoint);
+	ast_cli_unregister(&cli_debug);
+	ast_cli_unregister(&cli_no_debug);
+	ast_cli_unregister(&cli_mgcp_reload);
+
+	return 0;
 }
 
 int usecount()
