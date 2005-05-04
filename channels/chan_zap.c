@@ -42,7 +42,7 @@
 #include <sys/signal.h>
 #include <errno.h>
 #include <stdlib.h>
-#ifndef SOLARIS
+#if !defined(SOLARIS) && !defined(__FreeBSD__)
 #include <stdint.h>
 #endif
 #include <unistd.h>
