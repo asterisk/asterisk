@@ -359,7 +359,6 @@ ${CURL}			* Resulting page content for curl()
 ${ENUM}			* Result of application EnumLookup
 ${EXITCONTEXT}		Context to exit to in IVR menu (app background())
 			or in the RetryDial() application
-${GROUPCOUNT}		* Result from groupcount()
 ${MONITOR}		* Set to "TRUE" if the channel is/has been monitored (app monitor())
 ${MONITOR_EXEC}		Application to execute after monitoring a call
 ${MONITOR_EXEC_ARGS}	Arguments to application
