@@ -1069,16 +1069,29 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 
 int ast_separate_app_args(char *buf, char delim, char **array, int arraylen)
 {
-	int x = 0;
-	memset(array, 0, arraylen * sizeof(char *));
-	if (!buf)
+	int x;
+	char *scan;
+	char delims[2];
+
+	if (!buf || !array || !arraylen)
 		return 0;
-	for (array[x] = buf ; x < arraylen && array[x]; x++) {
-		if ((array[x+1] = strchr(array[x], delim))) {
-			*array[x+1] = '\0';
-			array[x+1]++;
-		}
+
+	memset(array, 0, arraylen * sizeof(*array));
+
+	scan = buf;
+	delims[0] = delim;
+	delims[1] = '\0';
+	x = 0;
+
+	while (x < arraylen - 1) {
+		array[x] = strsep(&scan, delims);
+		x++;
+		if (!scan)
+			break;
 	}
+
+	array[x++] = scan;
+
 	return x;
 }
 

@@ -162,7 +162,18 @@ int ast_app_group_get_count(char *group, char *category);
 /*! Get the current channel count of all groups that match the specified pattern and category. */
 int ast_app_group_match_get_count(char *groupmatch, char *category);
 
-/*! Create an argc argv type structure for app args */
+/*!
+  \brief Separate a string into arguments in an array
+  \param buf The string to be parsed (this must be a writable copy, as it will be modified)
+  \param delim The character to be used to delimit arguments
+  \param array An array of 'char *' to be filled in with pointers to the found arguments
+  \param arraylen The number of elements in the array (i.e. the number of arguments you will accept)
+
+  Note: if there are more arguments in the string than the array will hold, the last element of
+  the array will contain the remaining arguments, not separated.
+
+  \return The number of arguments found, or zero if the function arguments are not valid.
+*/
 int ast_separate_app_args(char *buf, char delim, char **array, int arraylen);
 
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
