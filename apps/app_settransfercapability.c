@@ -99,7 +99,7 @@ int load_module(void)
 
 char *description(void)
 {
-	return descrip;
+	return synopsis;
 }
 
 int usecount(void)
