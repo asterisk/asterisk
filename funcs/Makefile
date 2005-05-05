@@ -21,6 +21,8 @@ FUNCS+=$(STANDALONE_FUNCS:.o=.so)
 
 FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(BUILTINS:.o=.c) | awk '{print $$3};')
 
+CFLAGS+=-fPIC
+
 all: $(FUNCS)
 
 clean:
