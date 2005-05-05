@@ -1,9 +1,10 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * MD5 digest related dialplan functions
+ * Conditional logic dialplan functions
  * 
  * Copyright (C) 2005, Digium, Inc.
+ * Portions Copyright (C) 2005, Anthony Minessale II
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

@@ -4,6 +4,8 @@
  * String manipulation dialplan functions
  * 
  * Copyright (C) 2005, Digium, Inc.
+ * Portions Copyright (C) 2005, Tilghman Lesher.  All rights reserved.
+ * Portions Copyright (C) 2005, Anthony Minessale II
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

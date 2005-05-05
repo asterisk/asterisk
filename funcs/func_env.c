@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * MD5 digest related dialplan functions
+ * Environment related dialplan functions
  * 
  * Copyright (C) 2005, Digium, Inc.
  *

@@ -4,6 +4,7 @@
  * MD5 digest related dialplan functions
  * 
  * Copyright (C) 2005, Digium, Inc.
+ * Copyright (C) 2005, Olle E. Johansson, Edvina.net
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
