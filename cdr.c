@@ -209,7 +209,19 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 {
 	struct ast_var_t *newvariable;
     struct varshead *headp;
+	const char *read_only[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
+								"lastapp", "lastdata", "start", "answer", "end", "duration",
+								"billsec", "disposition", "amaflags", "accountcode", "uniqueid",
+								"userfield", NULL };
+	int x;
 	
+	for(x = 0; read_only[x]; x++) {
+		if (!strcasecmp(name, read_only[x])) {
+			ast_log(LOG_ERROR, "Attempt to set a read-only variable!.\n");
+			return -1;
+		}
+	}
+
     if (!cdr) {
 		ast_log(LOG_ERROR, "Attempt to set a variable on a nonexistent CDR record.\n");
 		return -1;

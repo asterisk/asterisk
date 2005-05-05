@@ -207,8 +207,6 @@ static int pbx_builtin_saycharacters(struct ast_channel *, void *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
-static char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, size_t len);
-static void ast_func_write(struct ast_channel *chan, const char *in, const char *value);
 
 static struct varshead globals;
 
@@ -1313,7 +1311,7 @@ char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, s
 	return ret;
 }
 
-static void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
+void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
 {
 	char *args = NULL, *function, *p;
 	struct ast_custom_function *acfptr;

@@ -602,6 +602,29 @@ int ast_async_goto_if_exists(struct ast_channel *chan, char* context, char *exte
 struct ast_custom_function* ast_custom_function_find(char *name);
 int ast_custom_function_unregister(struct ast_custom_function *acf);
 int ast_custom_function_register(struct ast_custom_function *acf);
+	
+/*! executes a read operation on a function */
+/*!
+ * \param chan Channel to execute on
+ * \param in Data containing the function call string
+ * \param workspace A pointer to safe memory to use for a return value 
+ * \param len the number of bytes in workspace
+ * This application executes an function in read mode on a given channel.
+ * It returns a pointer to workspace if the buffer contains any new data
+ * or NULL if there was a problem.
+ */
+	
+char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, size_t len);
+
+/*! executes a write operation on a function */
+/*!
+ * \param chan Channel to execute on
+ * \param in Data containing the function call string
+ * \param value A value parameter to pass for writing
+ * This application executes an function in write mode on a given channel.
+ * It has no return value.
+ */
+void ast_func_write(struct ast_channel *chan, const char *in, const char *value);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
