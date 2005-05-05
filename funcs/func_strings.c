@@ -19,6 +19,7 @@
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
+#include "asterisk/localtime.h"
 
 static char *function_fieldqty(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
@@ -114,4 +115,57 @@ struct ast_custom_function len_function = {
 	.synopsis = "Returns the length of the argument given",
 	.syntax = "LEN(<string>)",
 	.read = builtin_function_len,
+};
+
+static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	char *format, *epoch, *timezone;
+	long epochi;
+	struct timeval tv;
+	struct tm time;
+
+	if (data) {
+		format = ast_strdupa(data);
+		if (format) {
+			epoch = strsep(&format, "|");
+			timezone = strsep(&format, "|");
+
+			if (epoch && !ast_strlen_zero(epoch) && sscanf(epoch, "%ld", &epochi) == 1) {
+			} else if (!gettimeofday(&tv, NULL)) {
+				epochi = tv.tv_sec;
+			} else {
+				ast_log(LOG_ERROR, "Cannot gettimeofday() ?!!\n");
+				return "";
+			}
+
+			ast_localtime(&epochi, &time, timezone);
+
+			if (!format) {
+				format = "%c";
+			}
+
+			buf[0] = '\0';
+			if (! strftime(buf, len, format, &time)) {
+				ast_log(LOG_WARNING, "C function strftime() output nothing?!!\n");
+			}
+			buf[len - 1] = '\0';
+
+			return buf;
+		} else {
+			ast_log(LOG_ERROR, "Out of memory\n");
+		}
+	} else {
+		ast_log(LOG_ERROR, "Asterisk function STRFTIME() requires an argument.\n");
+	}
+	return "";
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function strftime_function = {
+	.name = "STRFTIME",
+	.synopsis = "Returns the current date/time in a specified format.",
+	.syntax = "STRFTIME([<epoch>][,[timezone][,format]])",
+	.read = acf_strftime,
 };
