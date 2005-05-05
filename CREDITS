@@ -66,6 +66,8 @@ Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
 	rich@whiteoaklabs.com  http://whiteoaklabs.com
 Simon Lockhart - Porting to Solaris (based on work of Logan ???)	
 	simon@slimey.org
+Olle Johansson - SIP RFC compliance and testing, testing, testing
+	oej@edvina.net
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
