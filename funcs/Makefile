@@ -23,25 +23,27 @@ FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(BUILTINS:.o=.c) | awk '
 
 CFLAGS+=-fPIC
 
+FUNC_SOURCES=$(BUILTINS:.o=.c)
+
 all: $(FUNCS)
 
 clean:
-	rm -f *.so *.o .depend
+	rm -f *.so *.o .depend pbx_functions.h
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ $<
 
-$(BUILTINS) : CFLAGS += -DBUILTIN_FUNC
+#$(BUILTINS) : CFLAGS += -DBUILTIN_FUNC
 
 pbx_functions.h: $(BUILTINS:.o=.c)
 	@echo "/* Automatically generated - do not edit */" > $@
-	@for f in $(FUNC_STRUCTS); do echo "extern struct ast_custom_function $$f;" >> $@; done
+	@for f in $(FUNC_SOURCES); do echo "#include \"$$f\"" >> $@; done
 	@echo "static struct ast_custom_function *builtins[] = {" >> $@
 	@for f in $(FUNC_STRUCTS); do echo "&$$f," >> $@; done
 	@echo "};" >> $@
 
-pbx_functions.so: pbx_functions.o $(BUILTINS)
-	$(CC) $(SOLINK) -o $@ $(BUILTINS) $<
+pbx_functions.so: pbx_functions.o #$(BUILTINS)
+	$(CC) $(SOLINK) -o $@ $<
 	strip $(foreach f,$(FUNC_STRUCTS),-N $(f)) $@
 
 install: all
