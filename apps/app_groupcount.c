@@ -34,68 +34,6 @@ LOCAL_USER_DECL;
 
 static int deprecation_warning = 0;
 
-static char *group_count_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	int count;
-	struct localuser *u;
-	char group[80] = "";
-	char category[80] = "";
-	char *grp;
-
-	LOCAL_USER_ADD(u);
-
-	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
-
-	if (ast_strlen_zero(group)) {
-		grp = pbx_builtin_getvar_helper(chan, category);
-		strncpy(group, grp, sizeof(group) - 1);
-	}
-
-	count = ast_app_group_get_count(group, category);
-	snprintf(buf, len, "%d", count);
-
-	LOCAL_USER_REMOVE(u);
-
-	return buf;
-}
-
-static struct ast_custom_function_obj group_count_function_obj = {
-	.name = "GROUP_COUNT",
-	.desc = "Calculates the group count for the specified group, or uses the current channel's group if not specifed (and non-empty).",
-	.syntax = "GROUP_COUNT([groupname][@category])",
-	.read = group_count_function_read,
-	.write = NULL,
-};
-
-static char *group_match_count_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	int count;
-	struct localuser *u;
-	char group[80] = "";
-	char category[80] = "";
-
-	LOCAL_USER_ADD(u);
-
-	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
-
-	if (!ast_strlen_zero(group)) {
-		count = ast_app_group_match_get_count(group, category);
-		snprintf(buf, len, "%d", count);
-	}
-
-	LOCAL_USER_REMOVE(u);
-
-	return buf;
-}
-
-static struct ast_custom_function_obj group_match_count_function_obj = {
-	.name = "GROUP_MATCH_COUNT",
-	.desc = "Calculates the group count for all groups that match the specified pattern. Uses standard regular expression matching (see regex(7)).",
-	.syntax = "GROUP_MATCH_COUNT(groupmatch[@category])",
-	.read = group_match_count_function_read,
-	.write = NULL,
-};
-
 static int group_count_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
@@ -311,8 +249,6 @@ int unload_module(void)
 	res |= ast_unregister_application(app_group_set);
 	res |= ast_unregister_application(app_group_check);
 	res |= ast_unregister_application(app_group_match_count);
-	res |= ast_custom_function_unregister(&group_count_function_obj);
-	res |= ast_custom_function_unregister(&group_match_count_function_obj);
 	return res;
 }
 
@@ -323,8 +259,6 @@ int load_module(void)
 	res |= ast_register_application(app_group_set, group_set_exec, group_set_synopsis, group_set_descrip);
 	res |= ast_register_application(app_group_check, group_check_exec, group_check_synopsis, group_check_descrip);
 	res |= ast_register_application(app_group_match_count, group_match_count_exec, group_match_count_synopsis, group_match_count_descrip);
-	res |= ast_custom_function_register(&group_count_function_obj);
-	res |= ast_custom_function_register(&group_match_count_function_obj);
 	ast_cli_register(&cli_show_channels);
 	return res;
 }

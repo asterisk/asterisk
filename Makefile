@@ -233,7 +233,7 @@ CFLAGS+= $(MALLOC_DEBUG)
 CFLAGS+= $(BUSYDETECT)
 CFLAGS+= $(OPTIONS)
 CFLAGS+= -fomit-frame-pointer 
-SUBDIRS=res channels pbx apps codecs formats agi cdr utils stdtime
+SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime
 ifeq (${OSARCH},Linux)
 LIBS=-ldl -lpthread
 endif

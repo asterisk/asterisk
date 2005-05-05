@@ -12,7 +12,6 @@
  */
 
 #include <sys/types.h>
-#include <regex.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -215,7 +214,8 @@ static struct varshead globals;
 
 static int autofallthrough = 0;
 
-static struct ast_custom_function_obj *acf_root = NULL;
+AST_MUTEX_DEFINE_STATIC(acflock); 		/* Lock for the custom function list */
+static struct ast_custom_function *acf_root = NULL;
 
 static struct pbx_builtin {
 	char name[AST_MAX_APP];
@@ -1101,75 +1101,187 @@ icky:
 
 static int handle_show_functions(int fd, int argc, char *argv[])
 {
-	struct ast_custom_function_obj *acfptr;
+	struct ast_custom_function *acf;
 
 	ast_cli(fd, "Installed Custom Functions:\n--------------------------------------------------------------------------------\n");
-	for (acfptr = acf_root ; acfptr ; acfptr = acfptr->next) {
-		ast_cli(fd, "%s\t(%s)\t[%s]\n", acfptr->name, acfptr->desc, acfptr->syntax);
+	for (acf = acf_root ; acf; acf = acf->next) {
+		ast_cli(fd, "%s\t(%s)\t[%s]\n", acf->name, acf->synopsis, acf->syntax);
 	}
 	ast_cli(fd, "\n");
 	return 0;
 }
 
-struct ast_custom_function_obj* ast_custom_function_find_obj(char *name) 
+static int handle_show_function(int fd, int argc, char *argv[])
 {
-	struct ast_custom_function_obj *acfptr;
+	struct ast_custom_function *acf;
+	/* Maximum number of characters added by terminal coloring is 22 */
+	char infotitle[64 + AST_MAX_APP + 22], syntitle[40], destitle[40];
+	char info[64 + AST_MAX_APP], *synopsis = NULL, *description = NULL;
+	char stxtitle[40], *syntax = NULL;
+	int synopsis_size, description_size, syntax_size;
 
-	for (acfptr = acf_root ; acfptr ; acfptr = acfptr->next) {
+	if (argc < 3) return RESULT_SHOWUSAGE;
+
+	if (!(acf = ast_custom_function_find(argv[2]))) {
+		ast_cli(fd, "No function by that name registered.\n");
+		return RESULT_FAILURE;
+
+	}
+
+	if (acf->synopsis)
+		synopsis_size = strlen(acf->synopsis) + 23;
+	else
+		synopsis_size = strlen("Not available") + 23;
+	synopsis = alloca(synopsis_size);
+	
+	if (acf->desc)
+		description_size = strlen(acf->desc) + 23;
+	else
+		description_size = strlen("Not available") + 23;
+	description = alloca(description_size);
+
+	if (acf->syntax)
+		syntax_size = strlen(acf->syntax) + 23;
+	else
+		syntax_size = strlen("Not available") + 23;
+	syntax = alloca(syntax_size);
+
+	snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about function '%s' =- \n\n", acf->name);
+	term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + AST_MAX_APP + 22);
+	term_color(stxtitle, "[Syntax]\n", COLOR_MAGENTA, 0, 40);
+	term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
+	term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
+	term_color(syntax,
+		   acf->syntax ? acf->syntax : "Not available",
+		   COLOR_CYAN, 0, syntax_size);
+	term_color(synopsis,
+		   acf->synopsis ? acf->synopsis : "Not available",
+		   COLOR_CYAN, 0, synopsis_size);
+	term_color(description,
+		   acf->desc ? acf->desc : "Not available",
+		   COLOR_CYAN, 0, description_size);
+	
+	ast_cli(fd,"%s%s%s\n\n%s%s\n\n%s%s\n", infotitle, stxtitle, syntax, syntitle, synopsis, destitle, description);
+
+	return RESULT_SUCCESS;
+}
+
+static char *complete_show_function(char *line, char *word, int pos, int state)
+{
+	struct ast_custom_function *acf;
+	int which = 0;
+
+	/* try to lock functions list ... */
+	if (ast_mutex_lock(&acflock)) {
+		ast_log(LOG_ERROR, "Unable to lock function list\n");
+		return NULL;
+	}
+
+	acf = acf_root;
+	while (acf) {
+		if (!strncasecmp(word, acf->name, strlen(word))) {
+			if (++which > state) {
+				char *ret = strdup(acf->name);
+				ast_mutex_unlock(&acflock);
+				return ret;
+			}
+		}
+		acf = acf->next; 
+	}
+
+	ast_mutex_unlock(&acflock);
+	return NULL; 
+}
+
+struct ast_custom_function* ast_custom_function_find(char *name) 
+{
+	struct ast_custom_function *acfptr;
+
+	/* try to lock functions list ... */
+	if (ast_mutex_lock(&acflock)) {
+		ast_log(LOG_ERROR, "Unable to lock function list\n");
+		return NULL;
+	}
+
+	for (acfptr = acf_root; acfptr; acfptr = acfptr->next) {
 		if (!strcmp(name, acfptr->name)) {
 			break;
 		}
-	}	
+	}
+
+	ast_mutex_unlock(&acflock);
 	
 	return acfptr;
 }
 
-int ast_custom_function_unregister(struct ast_custom_function_obj *acf) 
+int ast_custom_function_unregister(struct ast_custom_function *acf) 
 {
-	struct ast_custom_function_obj *acfptr, *lastacf = NULL;
+	struct ast_custom_function *acfptr, *lastacf = NULL;
+	int res = -1;
 
-	if (acf) {
-		for (acfptr = acf_root ; acfptr ; acfptr = acfptr->next) {
-			if (acfptr == acf) {
-				if (lastacf) {
-					lastacf->next = acf->next;
-				} else {
-					acf_root = acf->next;
-				}
-				if (option_verbose > 1)
-					ast_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
-				return 0;
-			}
-			lastacf = acfptr;
-		}
+	if (!acf)
+		return -1;
+
+	/* try to lock functions list ... */
+	if (ast_mutex_lock(&acflock)) {
+		ast_log(LOG_ERROR, "Unable to lock function list\n");
+		return -1;
 	}
-	return -1;
+
+	for (acfptr = acf_root; acfptr; acfptr = acfptr->next) {
+		if (acfptr == acf) {
+			if (lastacf) {
+				lastacf->next = acf->next;
+			} else {
+				acf_root = acf->next;
+			}
+			res = 0;
+			break;
+		}
+		lastacf = acfptr;
+	}
+
+	ast_mutex_unlock(&acflock);
+
+	if (!res && (option_verbose > 1))
+		ast_verbose(VERBOSE_PREFIX_2 "Unregistered custom function %s\n", acf->name);
+
+	return res;
 }
 
-int ast_custom_function_register(struct ast_custom_function_obj *acf) 
+int ast_custom_function_register(struct ast_custom_function *acf) 
 {
-	struct ast_custom_function_obj *acfptr;
+	if (!acf)
+		return -1;
 
-	if (acf) {
-		if((acfptr = ast_custom_function_find_obj(acf->name))) {
-			ast_log(LOG_ERROR, "Function %s already in use.\n", acf->name);
-			return -1;
-		}
-		acf->next = acf_root;
-		acf_root = acf;
-		if (option_verbose > 1)
-			ast_verbose(VERBOSE_PREFIX_2 "Registered custom function %s\n", acf->name);
-		return 0;
+	/* try to lock functions list ... */
+	if (ast_mutex_lock(&acflock)) {
+		ast_log(LOG_ERROR, "Unable to lock function list\n");
+		return -1;
 	}
 
-	return -1;
+	if (ast_custom_function_find(acf->name)) {
+		ast_log(LOG_ERROR, "Function %s already registered.\n", acf->name);
+		ast_mutex_unlock(&acflock);
+		return -1;
+	}
+
+	acf->next = acf_root;
+	acf_root = acf;
+
+	ast_mutex_unlock(&acflock);
+
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Registered custom function %s\n", acf->name);
+
+	return 0;
 }
 
 char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, size_t len)
 {
 	char *args = NULL, *function, *p;
 	char *ret = "0";
-	struct ast_custom_function_obj *acfptr;
+	struct ast_custom_function *acfptr;
 
 	function = ast_strdupa(in);
 	if (function) {
@@ -1185,7 +1297,7 @@ char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, s
 			ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
 		}
 
-		if ((acfptr = ast_custom_function_find_obj(function))) {
+		if ((acfptr = ast_custom_function_find(function))) {
 			/* run the custom function */
 			if (acfptr->read) {
 				return acfptr->read(chan, function, args, workspace, len);
@@ -1204,7 +1316,7 @@ char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, s
 static void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
 {
 	char *args = NULL, *function, *p;
-	struct ast_custom_function_obj *acfptr;
+	struct ast_custom_function *acfptr;
 
 	function = ast_strdupa(in);
 	if (function) {
@@ -1220,7 +1332,7 @@ static void ast_func_write(struct ast_channel *chan, const char *in, const char 
 			ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
 		}
 
-		if ((acfptr = ast_custom_function_find_obj(function))) {
+		if ((acfptr = ast_custom_function_find(function))) {
 			/* run the custom function */
 			if (acfptr->write) {
 				acfptr->write(chan, function, args, value);
@@ -1233,224 +1345,6 @@ static void ast_func_write(struct ast_channel *chan, const char *in, const char 
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
 	}
-}
-
-static char *builtin_function_isnull(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char *ret_true = "1", *ret_false = "0";
-	return data && *data ? ret_false : ret_true;
-}
-
-static char *builtin_function_exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char *ret_true = "1", *ret_false = "0";
-	return data && *data ? ret_true : ret_false;
-}
-
-static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char *ret = NULL;
-	char *mydata = NULL;
-	char *expr = NULL;
-	char *iftrue = NULL;
-	char *iffalse = NULL;
-
-	if((mydata = ast_strdupa(data))) {
-		expr = mydata;
-		if ((iftrue = strchr(mydata, '?'))) {
-			*iftrue = '\0';
-			iftrue++;
-			if ((iffalse = strchr(iftrue, ':'))) {
-				*iffalse = '\0';
-				iffalse++;
-			}
-		} else 
-			iffalse = "";
-		if (expr && iftrue) {
-			ret = ast_true(expr) ? iftrue : iffalse;
-			strncpy(buf, ret, len);
-			ret = buf;
-		} else {
-			ast_log(LOG_WARNING, "Syntax $(if <expr>?[<truecond>][:<falsecond>])\n");
-			ret = NULL;
-		}
-	} else {
-		ast_log(LOG_WARNING, "Memory Error!\n");
-		ret = NULL;
-	}
-
-	return ret;
-}
-
-static char *builtin_function_env_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char *ret = "";
-	if (data) {
-		ret = getenv(data);
-		if (!ret)
-			ret = "";
-	}
-	strncpy(buf, ret, len);
-	buf[len - 1] = '\0';
-	return buf;
-}
-
-static void builtin_function_env_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
-{
-	if (data && !ast_strlen_zero(data)) {
-		if (value && !ast_strlen_zero(value)) {
-			setenv(data, value, 1);
-		} else {
-			unsetenv(data);
-		}
-	}
-}
-
-static char *builtin_function_len(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	int length = 0;
-	if (data) {
-		length = strlen(data);
-	}
-	snprintf(buf, len, "%d", length);
-	return buf;
-}
-
-static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char *ret;
-	char *mydata;
-	int argc;
-	char *argv[2];
-	int recursive = 0;
-
-	if (!data || ast_strlen_zero(data))
-		return NULL;
-	
-	if (!chan->cdr)
-		return NULL;
-
-	mydata = ast_strdupa(data);
-	argc = ast_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	/* check for a trailing flags argument */
-	if (argc > 1) {
-		argc--;
-		if (strchr(argv[argc], 'r'))
-			recursive = 1;
-	}
-
-	ast_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
-
-	return ret;
-}
-
-static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
-{
-	char *mydata;
-	int argc;
-	char *argv[2];
-	int recursive = 0;
-
-	if (!data || ast_strlen_zero(data) || !value)
-		return;
-	
-	if (!chan->cdr)
-		return;
-
-	mydata = ast_strdupa(data);
-	argc = ast_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	/* check for a trailing flags argument */
-	if (argc > 1) {
-		argc--;
-		if (strchr(argv[argc], 'r'))
-			recursive = 1;
-	}
-
-	ast_cdr_setvar(chan->cdr, argv[0], value, recursive);
-}
-
-static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char *ret_true = "1", *ret_false = "0", *ret;
-	char *arg, *earg, *tmp, errstr[256] = "";
-	int errcode;
-	regex_t regexbuf;
-
-	ret = ret_false; /* convince me otherwise */
-	tmp = ast_strdupa(data);
-	if (tmp) {
-		/* Regex in quotes */
-		arg = strchr(tmp, '"');
-		if (arg) {
-			arg++;
-			earg = strrchr(arg, '"');
-			if (earg) {
-				*earg = '\0';
-			}
-		} else {
-			arg = tmp;
-		}
-
-		if ((errcode = regcomp(&regexbuf, arg, REG_EXTENDED | REG_NOSUB))) {
-			regerror(errcode, &regexbuf, errstr, sizeof(errstr));
-			ast_log(LOG_WARNING, "Malformed input %s(%s): %s\n", cmd, data, errstr);
-			ret = NULL;
-		} else {
-			ret = regexec(&regexbuf, data, 0, NULL, 0) ? ret_false : ret_true;
-		}
-		regfree(&regexbuf);
-	} else {
-		ast_log(LOG_ERROR, "Out of memory in %s(%s)\n", cmd, data);
-	}
-
-	return ret;
-}
-
-static char *builtin_function_md5(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	char md5[33];
-
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: MD5(<data>) - missing argument!\n");
-		return NULL;
-	}
-
-	ast_md5_hash(md5, data);
-	ast_copy_string(buf, md5, len);
-	
-	return buf;
-}
-
-static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
-{
-	int argc;
-	char *argv[2];
-	char *args;
-	char newmd5[33];
-
-	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
-		return NULL;
-	}
-
-	args = ast_strdupa(data);	
-	argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	if (argc < 2) {
-		ast_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
-		return NULL;
-	}
-
-	ast_md5_hash(newmd5, argv[1]);
-
-	if (!strcasecmp(newmd5, argv[0]))	/* they match */
-		ast_copy_string(buf, "1", len);
-	else
-		ast_copy_string(buf, "0", len);
-	
-	return buf;
 }
 
 static void pbx_substitute_variables_helper_full(struct ast_channel *c, const char *cp1, char *cp2, int count, struct varshead *headp)
@@ -2995,7 +2889,11 @@ static char show_application_help[] =
 
 static char show_functions_help[] =
 "Usage: show functions\n"
-"       List builtin functions accessable as $(function args)";
+"       List builtin functions accessable as $(function args)\n";
+
+static char show_function_help[] =
+"Usage: show function <function>\n"
+"       Describe a particular dialplan function.\n";
 
 static char show_applications_help[] =
 "Usage: show applications [{like|describing} <text>]\n"
@@ -3104,8 +3002,8 @@ static int handle_show_application(int fd, int argc, char *argv[])
 				if (synopsis && description) {
 					snprintf(info, 64 + AST_MAX_APP, "\n  -= Info about application '%s' =- \n\n", a->name);
 					term_color(infotitle, info, COLOR_MAGENTA, 0, 64 + AST_MAX_APP + 22);
-					term_color(syntitle, "[Synopsis]:\n", COLOR_MAGENTA, 0, 40);
-					term_color(destitle, "[Description]:\n", COLOR_MAGENTA, 0, 40);
+					term_color(syntitle, "[Synopsis]\n", COLOR_MAGENTA, 0, 40);
+					term_color(destitle, "[Description]\n", COLOR_MAGENTA, 0, 40);
 					term_color(synopsis,
 									a->synopsis ? a->synopsis : "Not available",
 									COLOR_CYAN, 0, synopsis_size);
@@ -3117,8 +3015,8 @@ static int handle_show_application(int fd, int argc, char *argv[])
 				} else {
 					/* ... one of our applications, show info ...*/
 					ast_cli(fd,"\n  -= Info about application '%s' =- \n\n"
-						"[Synopsis]:\n  %s\n\n"
-						"[Description]:\n%s\n",
+						"[Synopsis]\n  %s\n\n"
+						"[Description]\n%s\n",
 						a->name,
 						a->synopsis ? a->synopsis : "Not available",
 						a->description ? a->description : "Not available");
@@ -3578,81 +3476,6 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-
-/* custom commands */
-
-static struct ast_custom_function_obj regex_function = {
-	.name = "regex",
-	.desc = "Regular Expression: Returns 1 if data matches regular expression.",
-	.syntax = "regex(\"<regular expression>\" <data>)",
-	.read = builtin_function_regex,
-	.write = NULL,
-};
-
-static struct ast_custom_function_obj isnull_function = {
-	.name = "isnull",
-	.desc = "NULL Test: Returns 1 if NULL or 0 otherwise",
-	.syntax = "isnull(<data>)",
-	.read = builtin_function_isnull,
-	.write = NULL,
-};
-
-static struct ast_custom_function_obj exists_function = {
-	.name = "exists",
-	.desc = "Existence Test: Returns 1 if exists, 0 otherwise",
-	.syntax = "exists(<data>)",
-	.read = builtin_function_exists,
-	.write = NULL,
-};
-
-static struct ast_custom_function_obj if_function = {
-	.name = "if",
-	.desc = "Conditional: Returns the data following '?' if true else the data following ':'",
-	.syntax = "if(<expr>?<true>:<false>)",
-	.read = builtin_function_if,
-	.write = NULL,
-};
-
-static struct ast_custom_function_obj env_function = {
-	.name = "ENV",
-	.desc = "Gets or sets the environment variable specified",
-	.syntax = "ENV(<envname>)",
-	.read = builtin_function_env_read,
-	.write = builtin_function_env_write,
-};
-
-static struct ast_custom_function_obj len_function = {
-	.name = "LEN",
-	.desc = "Returns the length of the arguments given",
-	.syntax = "LEN(<string>)",
-	.read = builtin_function_len,
-	.write = NULL,
-};
-
-static struct ast_custom_function_obj cdr_function = {
-	.name = "CDR",
-	.desc = "Gets or sets a CDR variable; option 'r' searches the entire stack of CDRs on the channel",
-	.syntax = "CDR(<name>[|options])",
-	.read = builtin_function_cdr_read,
-	.write = builtin_function_cdr_write,
-};
-
-static struct ast_custom_function_obj md5_function = {
-	.name = "MD5",
-	.desc = "Computes an MD5 digest",
-	.syntax = "MD5(<data>)",
-	.read = builtin_function_md5,
-	.write = NULL,
-};
-
-static struct ast_custom_function_obj checkmd5_function = {
-	.name = "CHECK_MD5",
-	.desc = "Checks an MD5 digest. Returns 1 on a match, 0 otherwise",
-	.syntax = "CHECK_MD5(<digest>,<data>)",
-	.read = builtin_function_checkmd5,
-	.write = NULL,
-};
-
 /*
  * CLI entries for upper commands ...
  */
@@ -3661,10 +3484,20 @@ static struct ast_cli_entry show_applications_cli =
 	handle_show_applications, "Shows registered dialplan applications",
 	show_applications_help, complete_show_applications };
 
-static struct ast_cli_entry show_functions_cli = 
-	{ { "show", "functions", NULL }, 
-	handle_show_functions, "Shows registered dialplan functions",
-	show_functions_help};
+static struct ast_cli_entry show_functions_cli = {
+	{ "show", "functions", NULL }, 
+	handle_show_functions,
+	"Shows registered dialplan functions",
+	show_functions_help,
+};
+
+static struct ast_cli_entry show_function_cli = {
+	{ "show" , "function", NULL },
+	handle_show_function,
+	"Describe a specific dialplan function",
+	show_function_help,
+	complete_show_function,
+};
 
 static struct ast_cli_entry show_application_cli =
 	{ { "show", "application", NULL }, 
@@ -6060,20 +5893,12 @@ int load_pbx(void)
 	}
 	AST_LIST_HEAD_INIT(&globals);
 	ast_cli_register(&show_applications_cli);
+	ast_cli_register(&show_function_cli);
 	ast_cli_register(&show_functions_cli);
 	ast_cli_register(&show_application_cli);
 	ast_cli_register(&show_dialplan_cli);
 	ast_cli_register(&show_switches_cli);
 	ast_cli_register(&show_hints_cli);
-	ast_custom_function_register(&regex_function);
-	ast_custom_function_register(&isnull_function);
-	ast_custom_function_register(&exists_function);
-	ast_custom_function_register(&if_function);
-	ast_custom_function_register(&env_function);
-	ast_custom_function_register(&len_function);
-	ast_custom_function_register(&cdr_function);
-	ast_custom_function_register(&md5_function);
-	ast_custom_function_register(&checkmd5_function);
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {

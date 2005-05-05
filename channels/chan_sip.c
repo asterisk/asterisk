@@ -7875,9 +7875,9 @@ static struct ast_cli_entry  cli_no_history =
 static struct ast_cli_entry  cli_no_debug =
 	{ { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage };
 
-static struct ast_custom_function_obj sip_header_function = {
+static struct ast_custom_function sip_header_function = {
 	.name = "SIP_HEADER",
-	.desc = "Gets or sets the specified SIP header",
+	.synopsis = "Gets or sets the specified SIP header",
 	.syntax = "SIP_HEADER(<name>)",
 	.read = func_header_read,
 };
