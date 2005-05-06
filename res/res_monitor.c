@@ -297,7 +297,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 
 		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : AST_MONITOR_DIR, fname_base);
 	} else {
-		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started", chan->name, fname_base);
+		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
 	}
 
 	if (need_lock)
