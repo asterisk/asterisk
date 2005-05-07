@@ -5,6 +5,7 @@
  * 
  * Copyright (C) 2005, Digium, Inc.
  * Copyright (C) 2005, Olle E. Johansson, Edvina.net
+ * Copyright (C) 2005, Russell Bryant <russelb@clemson.edu> 
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
