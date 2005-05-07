@@ -62,16 +62,16 @@ struct feature_sub {
 };
 
 static struct feature_pvt {
-	ast_mutex_t lock;				/* Channel private lock */
-	char tech[AST_MAX_EXTENSION];	/* Technology to abstract */
-	char dest[AST_MAX_EXTENSION];	/* Destination to abstract */
+	ast_mutex_t lock;			/* Channel private lock */
+	char tech[AST_MAX_EXTENSION];		/* Technology to abstract */
+	char dest[AST_MAX_EXTENSION];		/* Destination to abstract */
 	struct ast_channel *subchan;
 	struct feature_sub subs[3];		/* Subs */
-	struct ast_channel *owner;			/* Current Master Channel */
-	struct feature_pvt *next;				/* Next entity */
+	struct ast_channel *owner;		/* Current Master Channel */
+	struct feature_pvt *next;		/* Next entity */
 } *features = NULL;
 
-#define SUB_REAL		0			/* Active call */
+#define SUB_REAL	0			/* Active call */
 #define SUB_CALLWAIT	1			/* Call-Waiting call on hold */
 #define SUB_THREEWAY	2			/* Three-way call */
 
@@ -453,33 +453,33 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
 	}
-		tmp->tech = &features_tech;
-		for (x=1;x<4;x++) {
-			snprintf(tmp->name, sizeof(tmp->name), "Feature/%s/%s-%d", p->tech, p->dest, x);
-			for (y=0;y<3;y++) {
-				if (y == index)
-					continue;
-				if (p->subs[x].owner && !strcasecmp(p->subs[x].owner->name, tmp->name))
-					break;
-			}
-			if (y >= 3)
+	tmp->tech = &features_tech;
+	for (x=1;x<4;x++) {
+		snprintf(tmp->name, sizeof(tmp->name), "Feature/%s/%s-%d", p->tech, p->dest, x);
+		for (y=0;y<3;y++) {
+			if (y == index)
+				continue;
+			if (p->subs[x].owner && !strcasecmp(p->subs[x].owner->name, tmp->name))
 				break;
 		}
-		tmp->type = type;
-		ast_setstate(tmp, state);
-		tmp->writeformat = p->subchan->writeformat;
-		tmp->rawwriteformat = p->subchan->rawwriteformat;
-		tmp->readformat = p->subchan->readformat;
-		tmp->rawreadformat = p->subchan->rawreadformat;
-		tmp->nativeformats = p->subchan->readformat;
-		tmp->tech_pvt = p;
-		p->subs[index].owner = tmp;
-		if (!p->owner)
-			p->owner = tmp;
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
+		if (y >= 3)
+			break;
+	}
+	tmp->type = type;
+	ast_setstate(tmp, state);
+	tmp->writeformat = p->subchan->writeformat;
+	tmp->rawwriteformat = p->subchan->rawwriteformat;
+	tmp->readformat = p->subchan->readformat;
+	tmp->rawreadformat = p->subchan->rawreadformat;
+	tmp->nativeformats = p->subchan->readformat;
+	tmp->tech_pvt = p;
+	p->subs[index].owner = tmp;
+	if (!p->owner)
+		p->owner = tmp;
+	ast_mutex_lock(&usecnt_lock);
+	usecnt++;
+	ast_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
 	return tmp;
 }
 
