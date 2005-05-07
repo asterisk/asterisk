@@ -449,9 +449,10 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		return NULL;
 	}
 	tmp = ast_channel_alloc(0);
-	if (!tmp)
+	if (!tmp) {
+		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 		return NULL;
-	if (tmp) {
+	}
 		tmp->tech = &features_tech;
 		for (x=1;x<4;x++) {
 			snprintf(tmp->name, sizeof(tmp->name), "Feature/%s/%s-%d", p->tech, p->dest, x);
@@ -479,8 +480,6 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		usecnt++;
 		ast_mutex_unlock(&usecnt_lock);
 		ast_update_use_count();
-	} else
-		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
 	return tmp;
 }
 
