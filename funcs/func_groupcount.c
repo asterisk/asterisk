@@ -30,7 +30,7 @@ static char *group_count_function_read(struct ast_channel *chan, char *cmd, char
 
 	if (ast_strlen_zero(group)) {
 		grp = pbx_builtin_getvar_helper(chan, category);
-		strncpy(group, grp, sizeof(group) - 1);
+		ast_copy_string(group, grp, sizeof(group));
 	}
 
 	count = ast_app_group_get_count(group, category);
@@ -79,3 +79,89 @@ struct ast_custom_function group_match_count_function = {
 	.read = group_match_count_function_read,
 	.write = NULL,
 };
+
+static char *group_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char varname[256];
+	char *group;
+
+	if (data && !ast_strlen_zero(data)) {
+		snprintf(varname, sizeof(varname), "%s_%s", GROUP_CATEGORY_PREFIX, data);
+	} else {
+		ast_copy_string(varname, GROUP_CATEGORY_PREFIX, sizeof(varname));
+	}
+
+	group = pbx_builtin_getvar_helper(chan, varname);
+	if (group)
+		ast_copy_string(buf, group, len);
+
+	return buf;
+}
+
+static void group_function_write(struct ast_channel *chan, char *cmd, char *data, const char *value)
+{
+	char grpcat[256];
+
+	if (data && !ast_strlen_zero(data)) {
+		snprintf(grpcat, sizeof(grpcat), "%s@%s", data, value);
+	} else {
+		ast_copy_string(grpcat, value, sizeof(grpcat));
+	}
+
+        if (ast_app_group_set_channel(chan, grpcat))
+                ast_log(LOG_WARNING, "Setting a group requires an argument (group name)\n");
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function group_function = {
+	.name = "GROUP",
+	.syntax = "GROUP([category])",
+	.synopsis = "Gets or sets the channel group.",
+	.desc = "Gets or sets the channel group.\n",
+	.read = group_function_read,
+	.write = group_function_write,
+};
+
+static char *group_list_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	struct ast_var_t *current;
+	struct varshead *headp;
+	char tmp1[1024] = "";
+	char tmp2[1024] = "";
+
+	headp=&chan->varshead;
+	AST_LIST_TRAVERSE(headp,current,entries) {
+		if (!strncmp(ast_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
+			if (!ast_strlen_zero(tmp1)) {
+				ast_copy_string(tmp2, tmp1, sizeof(tmp2));
+				snprintf(tmp1, sizeof(tmp1), "%s %s@%s", tmp2, ast_var_value(current), (ast_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+			} else {
+				snprintf(tmp1, sizeof(tmp1), "%s@%s", ast_var_value(current), (ast_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+			}
+		} else if (!strcmp(ast_var_name(current), GROUP_CATEGORY_PREFIX)) {
+			if (!ast_strlen_zero(tmp1)) {
+				ast_copy_string(tmp2, tmp1, sizeof(tmp2));
+				snprintf(tmp1, sizeof(tmp1), "%s %s", tmp2, ast_var_value(current));
+			} else {
+				snprintf(tmp1, sizeof(tmp1), "%s", ast_var_value(current));
+			}
+		}
+	}
+	ast_copy_string(buf, tmp1, len);
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function group_list_function = {
+	.name = "GROUP_LIST",
+	.syntax = "GROUP_LIST()",
+	.synopsis = "Gets a list of the groups set on a channel.",
+	.desc = "Gets a list of the groups set on a channel.\n",
+	.read = group_list_function_read,
+	.write = NULL,
+};
+

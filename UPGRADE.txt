@@ -38,6 +38,27 @@ Applications:
 * The CallerPres application has been removed.  Use SetCallerPres 
   instead.  It accepts both numeric and symbolic names.
 
+* The applications GetGroupCount, GetGroupMatchCount, SetGroup, and
+  CheckGroup have been deprecated in favor of functions.  Here is a
+  table of their replacements:
+
+  GetGroupCount([groupname][@category]	       GROUP_COUNT([groupname][@category])	SetVar(GROUPCOUNT=${GROUP_COUNT()})
+  GroupMatchCount(groupmatch[@category])       GROUP_MATCH_COUNT(groupmatch[@category])	SetVar(GROUPCOUNT=${GROUP_MATCH_COUNT(SIP/.*)})
+  SetGroup(groupname[@category])	       GROUP([category])=groupname		SetVar(GROUP()=test)
+  CheckGroup(max[@category])		       N/A					GotoIf($[ ${GROUP_COUNT()} > 5 ]?103)
+
+  Note that CheckGroup does not have a direct replacement.  There is
+  also a new function called GROUP_LIST() which will return a space
+  separated list of all of the groups set on a channel.  The GROUP()
+  function can also return the name of the group set on a channel when
+  used in a read environment.
+
+* The applications DBGet and DBPut have been deprecated in favor of
+  functions.  Here is a table of their replacements:
+
+  DBGet(foo=family/key)        SetVar(foo=${DB(family/key)})
+  DBPut(family/key=${foo})     SetVar(${DB(family/key)}=${foo})
+
 Queues:
 
 * A queue is now considered empty not only if there are no members but if

@@ -32,8 +32,6 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int deprecation_warning = 0;
-
 static int group_count_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
@@ -43,11 +41,12 @@ static int group_count_exec(struct ast_channel *chan, void *data)
 	char category[80] = "";
 	char ret[80] = "";
 	char *grp;
+	static int deprecation_warning = 0;
 
 	LOCAL_USER_ADD(u);
 
 	if (!deprecation_warning) {
-	        ast_log(LOG_WARNING, "The GetGroupCount and GetGroupMatchCount applications have been deprecated, please use the GROUP_COUNT and GROUP_MATCH_COUNT functions.\n");
+	        ast_log(LOG_WARNING, "The GetGroupCount application has been deprecated, please use the GROUP_COUNT function.\n");
 		deprecation_warning = 1;
 	}
 
@@ -75,11 +74,12 @@ static int group_match_count_exec(struct ast_channel *chan, void *data)
 	char group[80] = "";
 	char category[80] = "";
 	char ret[80] = "";
+	static int deprecation_warning = 0;
 
 	LOCAL_USER_ADD(u);
 
 	if (!deprecation_warning) {
-	        ast_log(LOG_WARNING, "The GetGroupCount and GetGroupMatchCount applications have been deprecated, please use the GROUP_COUNT and GROUP_MATCH_COUNT functions.\n");
+	        ast_log(LOG_WARNING, "The GetGroupMatchCount application has been deprecated, please use the GROUP_MATCH_COUNT function.\n");
 		deprecation_warning = 1;
 	}
 
@@ -100,6 +100,12 @@ static int group_set_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+	        ast_log(LOG_WARNING, "The SetGroup application has been deprecated, please use the GROUP() function.\n");
+		deprecation_warning = 1;
+	}
 
 	LOCAL_USER_ADD(u);
 
@@ -117,8 +123,14 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char limit[80]="";
 	char category[80]="";
+	static int deprecation_warning = 0;
 
 	LOCAL_USER_ADD(u);
+
+	if (!deprecation_warning) {
+	        ast_log(LOG_WARNING, "The CheckGroup application has been deprecated, please use a combination of the GotoIf application and the GROUP_COUNT() function.\n");
+		deprecation_warning = 1;
+	}
 
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "CheckGroup requires an argument(max[@category])\n");
