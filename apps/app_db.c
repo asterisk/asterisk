@@ -137,7 +137,13 @@ static int put_exec(struct ast_channel *chan, void *data)
 {
 	int arglen;
 	char *argv, *value, *family, *key;
+	static int dep_warning = 0;
 
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
+		dep_warning = 1;
+	}
+	
 	arglen = strlen(data);
 	argv = alloca(arglen + 1);
 	if (!argv) {	/* Why would this fail? */
@@ -172,7 +178,13 @@ static int get_exec(struct ast_channel *chan, void *data)
 	int arglen;
 	char *argv, *varname, *family, *key;
 	char dbresult[256];
+	static int dep_warning = 0;
 
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "This application has been deprecated, please use the ${DB(family/key)} function instead.\n");
+		dep_warning = 1;
+	}
+	
 	arglen = strlen(data);
 	argv = alloca(arglen + 1);
 	if (!argv) {	/* Why would this fail? */
