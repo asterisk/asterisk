@@ -45,7 +45,6 @@ pbx_functions.h: $(BUILTINS:.o=.c)
 
 pbx_functions.so: pbx_functions.o #$(BUILTINS)
 	$(CC) $(SOLINK) -o $@ $<
-	strip $(foreach f,$(FUNC_STRUCTS),-N $(f)) $@
 
 install: all
 	for x in $(FUNCS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
