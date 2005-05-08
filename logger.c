@@ -75,7 +75,7 @@ static struct msglist {
 	struct msglist *next;
 } *list = NULL, *last = NULL;
 
-static char hostname[256];
+static char hostname[MAXHOSTNAMELEN];
 
 enum logtypes {
 	LOGTYPE_SYSLOG,
@@ -294,7 +294,7 @@ static void init_logger_chain(void)
 	ast_mutex_lock(&loglock);
 	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
 		if(ast_true(s)) {
-			if(gethostname(hostname, sizeof(hostname))) {
+			if(gethostname(hostname, sizeof(hostname)-1)) {
 				strncpy(hostname, "unknown", sizeof(hostname)-1);
 				ast_log(LOG_WARNING, "What box has no hostname???\n");
 			}

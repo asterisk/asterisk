@@ -405,7 +405,7 @@ struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_co
 
 int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 {
-	char ourhost[256];
+	char ourhost[MAXHOSTNAMELEN]="";
 	struct ast_hostent ahp;
 	struct hostent *hp;
 	struct in_addr saddr;
@@ -416,7 +416,7 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 		return 0;
 	}
 	/* try to use our hostname */
-	if (gethostname(ourhost, sizeof(ourhost))) {
+	if (gethostname(ourhost, sizeof(ourhost)-1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname\n");
 	} else {
 		hp = ast_gethostbyname(ourhost, &ahp);

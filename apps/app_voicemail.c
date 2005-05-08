@@ -1463,7 +1463,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	FILE *p=NULL;
 	int pfd;
 	char date[256];
-	char host[256];
+	char host[MAXHOSTNAMELEN] = "";
 	char who[256];
 	char bound[256];
 	char fname[256];
@@ -1491,7 +1491,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		}
 	}
 	if (p) {
-		gethostname(host, sizeof(host));
+		gethostname(host, sizeof(host)-1);
 		if (strchr(srcemail, '@'))
 			strncpy(who, srcemail, sizeof(who)-1);
 		else {
@@ -1618,7 +1618,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	FILE *p=NULL;
 	int pfd;
 	char date[256];
-	char host[256];
+	char host[MAXHOSTNAMELEN]="";
 	char who[256];
 	char dur[256];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
@@ -1637,7 +1637,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	}
 
 	if (p) {
-		gethostname(host, sizeof(host));
+		gethostname(host, sizeof(host)-1);
 		if (strchr(srcemail, '@'))
 			strncpy(who, srcemail, sizeof(who)-1);
 		else {

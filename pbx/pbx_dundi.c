@@ -4453,7 +4453,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	char *cat;
 	int format;
 	int x;
-	char hn[256];
+	char hn[MAXHOSTNAMELEN]="";
 	struct ast_hostent he;
 	struct hostent *hp;
 	struct sockaddr_in sin2;
@@ -4470,7 +4470,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 		return -1;
 	}
 	ipaddr[0] = '\0';
-	if (!gethostname(hn, sizeof(hn))) {
+	if (!gethostname(hn, sizeof(hn)-1)) {
 		hp = ast_gethostbyname(hn, &he);
 		if (hp) {
 			memcpy(&sin2.sin_addr, hp->h_addr, sizeof(sin2.sin_addr));
