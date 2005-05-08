@@ -3743,6 +3743,8 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				else
 					snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_hour);
 				res = wait_file(chan,ints,nextmsg,lang);
+				if (!res)
+					res = wait_file(chan,ints, "digits/oclock",lang);
 				break;
 			case 'H':
 			case 'k':
@@ -3753,13 +3755,15 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/oclock",lang);
 					}
 				}
+				if (!res)
+					res = wait_file(chan,ints, "digits/oclock",lang);
 				break;
 			case 'M':
 				/* Minute */
-				res = wait_file(chan,ints, "digits/oclock",lang);
-				if (res) break;
-				if (tm.tm_min == 0) break;
-				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char * ) NULL);
+				if (tm.tm_min == 0) {
+					break;
+				}
+				res = ast_say_number(chan, tm.tm_min, ints, lang, (char * ) NULL);
 				break;
 			case 'P':
 			case 'p':
