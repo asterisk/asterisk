@@ -115,6 +115,12 @@ app_sql_odbc.so: app_sql_odbc.o
 look:	look.c
 	$(CC) -pipe -O6 -g look.c -o look -lncurses
 
+ifeq (SunOS,$(shell uname))
+app_chanspy.so: app_chanspy.o
+	$(CC) $(SOLINK) -o $@ $< -lrt
+endif
+
+
 ifneq ($(wildcard .depend),)
 include .depend
 endif
