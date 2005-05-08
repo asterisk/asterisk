@@ -1919,11 +1919,12 @@ int ast_extension_state_add(const char *context, const char *exten,
 			if (cblist->callback == callback) {
 				cblist->data = data;
 				ast_mutex_unlock(&hintlock);
+				return 0;
 			}
 			cblist = cblist->next;
 		}
 	
-		/* Now inserts the callback */
+		/* Now insert the callback */
 		cblist = malloc(sizeof(struct ast_state_cb));
 		if (!cblist) {
 			ast_mutex_unlock(&hintlock);
