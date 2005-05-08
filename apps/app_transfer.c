@@ -49,18 +49,21 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	int len;
 	struct localuser *u;
 	char *slash;
+	char *dest = data;
 	if (!data || !strlen(data)) {
 		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
 		res = 1;
 	}
 	if ((slash = strchr((char *)data, '/')) && (len = (slash - (char *)data))) {
+		dest = slash + 1;
 		/* Allow execution only if the Tech/destination agrees with the type of the channel */
 		if (strncasecmp(chan->type, (char *)data, len))
 			return 0;
 	}
 	LOCAL_USER_ADD(u);
 	if (!res) {
-		res = ast_transfer(chan, data + strlen(chan->type) + 1);
+		res = ast_transfer(chan, dest);
+
 	}
 	if (!res) {
 		/* Look for a "busy" place */
