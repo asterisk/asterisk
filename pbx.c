@@ -1103,7 +1103,7 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "Installed Custom Functions:\n--------------------------------------------------------------------------------\n");
 	for (acf = acf_root ; acf; acf = acf->next) {
-		ast_cli(fd, "%s\t(%s)\t[%s]\n", acf->name, acf->synopsis, acf->syntax);
+		ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
 	}
 	ast_cli(fd, "\n");
 	return 0;
