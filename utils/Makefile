@@ -21,12 +21,12 @@ all: depend $(TARGET)
 install:
 	for x in $(TARGET); do \
 		if [ "$$x" != "none" ]; then \
-			install -m 755 $$x $(DESTDIR)$(ASTSBINDIR)/$$x; \
+			$(INSTALL) -m 755 $$x $(DESTDIR)$(ASTSBINDIR)/$$x; \
 		fi; \
 	done 
 
 clean:
-	rm -f *.o astman smsq .depend
+	rm -f *.o astman smsq stereoize .depend
 
 astman: astman.o ../md5.o
 	$(CC) $(CFLAGS) -o astman astman.o ../md5.o -lnewt
