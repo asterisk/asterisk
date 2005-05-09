@@ -53,7 +53,10 @@ char *ast_strip(char *buf)
 
 AST_MUTEX_DEFINE_STATIC(__mutex);
 
-/* Recursive replacement for gethostbyname for BSD-based systems */
+/* Recursive replacement for gethostbyname for BSD-based systems.  This
+routine is derived from code originally written and placed in the public 
+domain by Enzo Michelangeli <em@em.no-ip.com> */
+
 static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 				size_t buflen, struct hostent **result, 
 				int *h_errnop) 
