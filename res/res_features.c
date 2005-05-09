@@ -39,6 +39,15 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
 #define DEFAULT_FEATURE_DIGIT_TIMEOUT 500
@@ -341,7 +350,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			}
 			if (con) {
 				snprintf(exten, sizeof(exten), "%d", x);
-				ast_add_extension2(con, 1, exten, 1, NULL, NULL, parkedcall, strdup(exten), free, registrar);
+				ast_add_extension2(con, 1, exten, 1, NULL, NULL, parkedcall, strdup(exten), FREE, registrar);
 			}
 			if (peer) ast_say_digits(peer, pu->parkingnum, "", peer->language);
 			if (pu->notquiteyet) {
@@ -1167,7 +1176,7 @@ static void *do_parking_thread(void *ignore)
 					}
 					if (con) {
 						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
-						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), free, registrar);
+						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), FREE, registrar);
 					}
 					strncpy(pu->chan->exten, peername, sizeof(pu->chan->exten) - 1);
 					strncpy(pu->chan->context, parking_con_dial, sizeof(pu->chan->context) - 1);
@@ -1622,7 +1631,7 @@ static int load_config(void)
 			return -1;
 		}
 	}
-	return ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, strdup(""),free, registrar);
+	return ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, NULL, parkcall, strdup(""), FREE, registrar);
 }
 
 int reload(void) {
