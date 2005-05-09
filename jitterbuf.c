@@ -489,7 +489,7 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 
 
 	/* target */
-	jb->info.target = jb->info.jitter + jb->info.min + 2 * jb->info.last_voice_ms; 
+	jb->info.target = jb->info.jitter + jb->info.min + JB_TARGET_EXTRA; 
 
 	/* if a hard clamp was requested, use it */
 	if ((jb->info.max_jitterbuf) && ((jb->info.target - jb->info.min) > jb->info.max_jitterbuf)) {
@@ -509,8 +509,8 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 	if (!jb->info.silence) { 
 		/* we want to grow */
 		if ((diff > 0) && 
-			/* we haven't grown in 2 frames' length */
-			(((jb->info.last_adjustment + 2 * jb->info.last_voice_ms ) < now) || 
+			/* we haven't grown in the delay length */
+			(((jb->info.last_adjustment + JB_ADJUST_DELAY) < now) || 
 			/* we need to grow more than the "length" we have left */
 			(diff > queue_last(jb)  - queue_next(jb)) ) ) {
 			
@@ -558,7 +558,10 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 		}
 
 		/* we want to shrink; shrink at 1 frame / 500ms */
-		if (diff < -2 * jb->info.last_voice_ms && 
+		/* unless we don't have a frame, then shrink 1 frame */
+		/* every 80ms (though perhaps we can shrink even faster */
+		/* in this case) */
+		if (diff < -JB_TARGET_EXTRA && 
 		((!frame && jb->info.last_adjustment + 80 < now) || 
 			(jb->info.last_adjustment + 500 < now))) {
 

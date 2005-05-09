@@ -30,6 +30,10 @@ extern "C" {
 #define JB_HISTORY_DROPPCT_MAX	4
 	/* the size of the buffer we use to keep the top and botton timestamps for dropping */
 #define JB_HISTORY_MAXBUF_SZ	JB_HISTORY_SZ * JB_HISTORY_DROPPCT_MAX / 100 
+	/* amount of additional jitterbuffer adjustment  */
+#define JB_TARGET_EXTRA 40
+	/* ms between growing and shrinking; may not be honored if jitterbuffer runs out of space */
+#define JB_ADJUST_DELAY 40
 
 
 /* return codes */
