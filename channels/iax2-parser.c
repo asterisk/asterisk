@@ -299,7 +299,9 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"NULL   ",
 		"IAX    ",
 		"TEXT   ",
-		"IMAGE  " };
+		"IMAGE  ",
+		"HTML   ",
+		"CNG    " };
 	char *iaxs[] = {
 		"(0?)",
 		"NEW    ",
@@ -371,7 +373,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		/* Don't mess with mini-frames */
 		return;
 	}
-	if (fh->type > (int)sizeof(frames)/(int)sizeof(char *)) {
+	if (fh->type >= (int)sizeof(frames)/(int)sizeof(frames[0])) {
 		snprintf(class2, (int)sizeof(class2), "(%d?)", fh->type);
 		class = class2;
 	} else {
