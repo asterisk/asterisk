@@ -288,6 +288,7 @@ static int ifcount = 0;
 
 AST_MUTEX_DEFINE_STATIC(pridebugfdlock);
 static int pridebugfd = -1;
+static char pridebugfilename[1024]="";
 
 /* Whether we answer on a Polarity Switch event */
 static int answeronpolarityswitch = 0;
@@ -8684,6 +8685,8 @@ static int handle_pri_set_debug_file(int fd, int argc, char **argv)
 			close(pridebugfd);
 
 		pridebugfd = myfd;
+		strncpy(pridebugfilename,argv[4],sizeof(pridebugfilename)-1);
+		
 		ast_mutex_unlock(&pridebugfdlock);
 
 		ast_cli(fd, "PRI debug output will be sent to '%s'\n", argv[4]);
@@ -8831,6 +8834,36 @@ static int handle_pri_show_span(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int handle_pri_show_debug(int fd, int argc, char *argv[])
+{
+	int x;
+	int span;
+	int count=0;
+	int debug=0;
+
+	for(span=0;span<NUM_SPANS;span++) {
+	        if (pris[span].pri) {
+			for(x=0;x<NUM_DCHANS;x++) {
+				debug=0;
+	        		if (pris[span].dchans[x]) {
+	        			debug = pri_get_debug(pris[span].dchans[x]);
+					ast_cli(fd, "Span %d: Debug: %s\tIntense: %s\n", span+1, (debug&PRI_DEBUG_Q931_STATE)? "Yes" : "No" ,(debug&PRI_DEBUG_Q921_RAW)? "Yes" : "No" );
+					count++;
+				}
+			}
+		}
+
+	}
+	ast_mutex_lock(&pridebugfdlock);
+	if (pridebugfd >= 0) 
+		ast_cli(fd, "Logging PRI debug to file %s\n", pridebugfilename);
+	ast_mutex_unlock(&pridebugfdlock);
+	    
+	if (!count) 
+		ast_cli(fd, "No debug set or no PRI running\n");
+	return RESULT_SUCCESS;
+}
+
 static char pri_debug_help[] = 
 	"Usage: pri debug span <span>\n"
 	"       Enables debugging on a given PRI span\n";
@@ -8858,6 +8891,9 @@ static struct ast_cli_entry pri_really_debug = {
 
 static struct ast_cli_entry pri_show_span = {
 	{ "pri", "show", "span", NULL }, handle_pri_show_span, "Displays PRI Information", pri_show_span_help, complete_span_4 };
+
+static struct ast_cli_entry pri_show_debug= {
+	{ "pri", "show", "debug", NULL }, handle_pri_show_debug, "Displays current PRI debug settings", NULL, NULL };
 
 static struct ast_cli_entry pri_set_debug_file = {
 	{ "pri", "set", "debug", "file", NULL }, handle_pri_set_debug_file, "Sends PRI debug output to the specified file", NULL, NULL };
@@ -9421,6 +9457,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&pri_no_debug);
 	ast_cli_unregister(&pri_really_debug);
 	ast_cli_unregister(&pri_show_span);
+	ast_cli_unregister(&pri_show_debug);
 	ast_cli_unregister(&pri_set_debug_file);
 	ast_cli_unregister(&pri_unset_debug_file);
 #endif
@@ -10300,6 +10337,7 @@ int load_module(void)
 	ast_cli_register(&pri_no_debug);
 	ast_cli_register(&pri_really_debug);
 	ast_cli_register(&pri_show_span);
+	ast_cli_register(&pri_show_debug);
 	ast_cli_register(&pri_set_debug_file);
 	ast_cli_register(&pri_unset_debug_file);
 #endif	
