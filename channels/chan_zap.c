@@ -4406,7 +4406,8 @@ static int my_zt_write(struct zt_pvt *p, unsigned char *buf, int len, int index,
 			size = (linear ? READ_SIZE * 2 : READ_SIZE);
 		res = write(fd, buf, size);
 		if (res != size) {
-			ast_log(LOG_WARNING, "Write returned %d (%s) on channel %d - audio may have been lost\n", res, strerror(errno), p->channel);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Write returned %d (%s) on channel %d\n", res, strerror(errno), p->channel);
 			return sent;
 		}
 		len -= size;
