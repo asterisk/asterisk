@@ -4409,6 +4409,14 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		}
 		if (useadsi)
 			adsi_password(chan);
+
+		if (prefix && !ast_strlen_zero(prefix)) {
+			char fullusername[80] = "";
+			strncpy(fullusername, prefix, sizeof(fullusername) - 1);
+			strncat(fullusername, mailbox, sizeof(fullusername) - 1 - strlen(fullusername));
+			strncpy(mailbox, fullusername, mailbox_size - 1);
+		}
+
 		vmu = find_user(&vmus, context, mailbox);
 		if (vmu && (vmu->password[0] == '\0' || (vmu->password[0] == '-' && vmu->password[1] == '\0'))) {
 			/* saved password is blank, so don't bother asking */
@@ -4423,12 +4431,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 				return -1;
 			}
 		}
-		if (prefix && !ast_strlen_zero(prefix)) {
-			char fullusername[80] = "";
-			strncpy(fullusername, prefix, sizeof(fullusername) - 1);
-			strncat(fullusername, mailbox, sizeof(fullusername) - 1 - strlen(fullusername));
-			strncpy(mailbox, fullusername, mailbox_size - 1);
-		}
+
 		if (vmu) {
 			passptr = vmu->password;
 			if (passptr[0] == '-') passptr++;
