@@ -668,6 +668,14 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 	return 0;
 }
 
+static int phone_fixup(struct ast_channel *old, struct ast_channel *new)
+{
+	struct phone_pvt *pvt = old->pvt->pvt;
+	if (pvt && pvt->owner == old)
+		pvt->owner = new;
+	return 0;
+}
+
 static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *context)
 {
 	struct ast_channel *tmp;
@@ -691,6 +699,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		tmp->pvt->read = phone_read;
 		tmp->pvt->write = phone_write;
 		tmp->pvt->exception = phone_exception;
+		tmp->pvt->fixup = phone_fixup;	
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		if (strlen(i->ext))
 			strncpy(tmp->exten, i->ext, sizeof(tmp->exten)-1);
