@@ -558,6 +558,7 @@ static struct zt_pvt {
 	int logicalspan;
 	int alreadyhungup;
 	int proceeding;
+	int alerting;
 	int setup_ack;		/* wheter we received SETUP_ACKNOWLEDGE or not */
 #endif	
 #ifdef ZAPATA_R2
@@ -2087,6 +2088,7 @@ static int zt_hangup(struct ast_channel *ast)
 		p->onhooktime = time(NULL);
 #ifdef ZAPATA_PRI
 		p->proceeding = 0;
+		p->alerting = 0;
 		p->setup_ack = 0;
 #endif		
 		if (p->dsp) {
@@ -2576,7 +2578,6 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	/* if need DTMF, cant native bridge */
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return -2;
-		
 		
 	ast_mutex_lock(&c0->lock);
 	ast_mutex_lock(&c1->lock);
@@ -4231,7 +4232,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			break;
 		case AST_CONTROL_RINGING:
 #ifdef ZAPATA_PRI
-			if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			if ((!p->alerting) && p->sig==SIG_PRI && p->pri && !p->outgoing && (chan->_state != AST_STATE_UP)) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_acknowledge(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -4240,7 +4241,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 					else
 						ast_log(LOG_WARNING, "Unable to grab PRI on span %d\n", p->span);
 				}
-				p->proceeding=2;
+				p->alerting=1;
 			}
 #endif
 			res = tone_zone_play_tone(p->subs[index].zfd, ZT_TONE_RINGTONE);
