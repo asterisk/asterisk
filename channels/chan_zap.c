@@ -7981,6 +7981,9 @@ static void *pri_dchannel(void *vpri)
 						strncpy(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid) - 1);
 					} else
 						pri->pvts[chanpos]->exten[0] = '\0';
+					/* Set DNID on all incoming calls -- even immediate */
+					if (!ast_strlen_zero(e->ring.callednum))
+						strncpy(pri->pvts[chanpos]->dnid, e->ring.callednum, sizeof(pri->pvts[chanpos]->dnid) - 1);
 					/* No number yet, but received "sending complete"? */
 					if (e->ring.complete && (ast_strlen_zero(e->ring.callednum))) {
 						if (option_verbose > 2)
