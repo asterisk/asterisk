@@ -1013,21 +1013,27 @@ BOOL MyH323_ExternalRTPChannel::Start(void)
 		return FALSE;
 	}
 
-	/* Collect the remote information */
-	H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddr, remotePort);
-
-        if (h323debug) {
-        	cout << "\t\tExternal RTP Session Starting" << endl;
-        	cout << "\t\tRTP channel id " << sessionID << " parameters:" << endl;
-                cout << "\t\t-- remoteIpAddress: " << remoteIpAddr << endl;
-                cout << "\t\t-- remotePort: " << remotePort << endl;
-                cout << "\t\t-- ExternalIpAddress: " <<  localIpAddr << endl;
-                cout << "\t\t-- ExternalPort: " << localPort << endl;
+	if (h323debug) {
+		cout << "\t\tExternal RTP Session Starting" << endl;
+		cout << "\t\tRTP channel id " << sessionID << " parameters:" << endl;
 	}
 
-	/* Notify Asterisk of remote RTP information */
-	on_start_rtp_channel(connection.GetCallReference(), (const char *)remoteIpAddr.AsString(), remotePort, 
-		(const char *)connection.GetCallToken(), (int)payloadCode);
+	/* Update RTP parameters by outgoing voice path only */
+	if (GetDirection() == IsTransmitter) {
+		/* Collect the remote information */
+		H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddr, remotePort);
+
+		if (h323debug) {
+			cout << "\t\t-- remoteIpAddress: " << remoteIpAddr << endl;
+			cout << "\t\t-- remotePort: " << remotePort << endl;
+			cout << "\t\t-- ExternalIpAddress: " <<  localIpAddr << endl;
+			cout << "\t\t-- ExternalPort: " << localPort << endl;
+		}
+
+		/* Notify Asterisk of remote RTP information */
+		on_start_rtp_channel(connection.GetCallReference(), (const char *)remoteIpAddr.AsString(), remotePort, 
+			(const char *)connection.GetCallToken(), (int)payloadCode);
+	}
 	return TRUE;
 }
 
