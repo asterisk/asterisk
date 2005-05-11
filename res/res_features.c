@@ -38,6 +38,15 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
 
@@ -235,7 +244,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			}
 			if (con) {
 				snprintf(exten, sizeof(exten), "%d", x);
-				ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
+				ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), FREE, registrar);
 			}
 			if (pu->notquiteyet) {
 				/* Wake up parking thread if we're really done */
@@ -937,7 +946,7 @@ int load_module(void)
 			return -1;
 		}
 	}
-	ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, parkcall, strdup(""),free, registrar);
+	ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, parkcall, strdup(""), FREE, registrar);
 	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	if (!res)
