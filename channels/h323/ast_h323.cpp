@@ -128,7 +128,7 @@ int PAsteriskLog::Buffer::sync()
 			s1++;
 		c = *s1;
 		*s1 = '\0';
-		ast_verbose(s);
+		ast_verbose("%s", s);
 		*s1 = c;
 	}
 	free(str);
@@ -144,6 +144,8 @@ int PAsteriskLog::Buffer::sync()
 MyProcess::MyProcess(): PProcess("The NuFone Network's", "H.323 Channel Driver for Asterisk",
              MAJOR_VERSION, MINOR_VERSION, BUILD_TYPE, BUILD_NUMBER)
 {
+	/* Fix missed one in PWLib */
+	PX_firstTimeStart = FALSE;
 	Resume();
 }
 
@@ -153,6 +155,12 @@ void MyProcess::Main()
 	endPoint = new MyH323EndPoint();
 	PTrace::Initialise(0, NULL, PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine);
 	PTrace::SetStream(logstream);
+}
+
+void PAssertFunc(const char *msg)
+{
+	ast_log(LOG_ERROR, "%s\n", msg);
+	/* XXX: Probably we need to crash here */
 }
 
 H323_REGISTER_CAPABILITY(H323_G7231Capability, OPAL_G7231);
@@ -318,7 +326,7 @@ int MyH323EndPoint::MakeCall(const PString & dest, PString & token, unsigned int
 
 	if (h323debug) {
 		cout << "\t-- " << GetLocalUserName() << " is calling host " << fullAddress << endl;
-		cout << "\t--" << "Call token is " << (const char *)token << endl;
+		cout << "\t-- Call token is " << (const char *)token << endl;
 		cout << "\t-- Call reference is " << *callReference << endl;
 		cout << "\t-- DTMF Payload is " << connection->dtmfCodec << endl;
 	}
@@ -736,9 +744,7 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
 	}
 
 	cd.call_reference = GetCallReference();
-	Lock();
 	cd.call_token = strdup((const char *)GetCallToken());
-	Unlock();
 	cd.call_source_aliases = strdup((const char *)sourceAliases);
 	cd.call_dest_alias = strdup((const char *)destAliases);
 	cd.call_source_e164 = strdup((const char *)sourceE164);
@@ -1093,17 +1099,6 @@ void h323_gk_urq(void)
 	endPoint->RemoveGatekeeper();
 }
 
-void h323_end_process(void)
-{
-	endPoint->ClearAllCalls();
-	endPoint->RemoveListener(NULL);
-	delete endPoint;
-	endPoint = NULL;
-	PTrace::SetLevel(0);
-	delete localProcess;
-	delete logstream;
-}
-
 void h323_debug(int flag, unsigned level)
 {
 	if (flag) {
@@ -1258,6 +1253,7 @@ int h323_set_alias(struct oh323_alias *alias)
 	char *num;
 	PString h323id(alias->name);
 	PString e164(alias->e164);
+	char *prefix;
 	
 	if (!h323_end_point_exist()) {
 		cout << "ERROR: [h323_set_alias] No Endpoint, this is bad!" << endl;
@@ -1273,14 +1269,14 @@ int h323_set_alias(struct oh323_alias *alias)
 		endPoint->AddAliasName(e164);
 	}
 	if (strlen(alias->prefix)) {
-		p = alias->prefix;
-		num = strsep(&p, ",");
-		while(num) {
+		p = prefix = strdup(alias->prefix);
+		while((num = strsep(&p, ",")) != (char *)NULL) {
 	        cout << "== Adding Prefix \"" << num << "\" to endpoint" << endl;
-		endPoint->SupportedPrefixes += PString(num);
-		endPoint->SetGateway();
-	        num = strsep(&p, ",");		
+			endPoint->SupportedPrefixes += PString(num);
+			endPoint->SetGateway();
 		}
+		if (prefix)
+			free(prefix);
 	}
 	return 0;
 }
@@ -1396,6 +1392,7 @@ int h323_clear_call(const char *call_token, int cause)
 	connection = (MyH323Connection *)endPoint->FindConnectionWithLock(currentToken);
 	if (connection) {
 		connection->SetCause(cause);
+		connection->SetCallEndReason(r);
 		connection->Unlock();
 	}
 	endPoint->ClearCall(currentToken, r);
@@ -1501,6 +1498,27 @@ void h323_native_bridge(const char *token, const char *them, char *capability)
 	connection->Unlock();
 	return;
 
+}
+
+#undef cout
+void h323_end_process(void)
+{
+	if (endPoint) {
+		endPoint->ClearAllCalls();
+		endPoint->RemoveListener(NULL);
+		delete endPoint;
+		endPoint = NULL;
+	}
+	if (localProcess) {
+		delete localProcess;
+		localProcess = NULL;
+	}
+	PTrace::SetLevel(0);
+	PTrace::SetStream(&cout);
+	if (logstream) {
+		delete logstream;
+		logstream = NULL;
+	}
 }
 
 } /* extern "C" */
