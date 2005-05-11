@@ -9,8 +9,8 @@
 	       			expat-1.95+
 	       			expat-dev-1.95+
 
-Tested with Open H.323 version v1.17.1 and PWLib v1.9.0. Usage of any
-other versions is not supported.
+Tested with Open H.323 version v1.17.1, PWLib v1.9.0 and GCC v3.2.2. Usage of any
+other versions is not supported. 
 
 NOTICE: Whatever you do, DO NOT USE distrubution specific installs
 of Open H.323 and PWLib. In fact, you should check to make sure 
