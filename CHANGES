@@ -31,6 +31,9 @@
        GET DATA command.
     -- When calling SAY NUMBER with a number like 09, we will now say "nine" instead
        of "zero"
+ -- app_dial
+    -- There was a problem where text frames would not be forwarded before the channel
+       has been answered. 
  -- app_disa
     -- Fixed the timeout used when no password is set
  -- rtp

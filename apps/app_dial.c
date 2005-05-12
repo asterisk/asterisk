@@ -364,6 +364,10 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								!(outgoing->ringbackonly || outgoing->musiconhold)) {
 						if (ast_write(in, f))
 							ast_log(LOG_WARNING, "Unable to forward image\n");
+					} else if (single && (f->frametype == AST_FRAME_TEXT) && 
+								!(outgoing->ringbackonly || outgoing->musiconhold)) {
+						if (ast_write(in, f))
+							ast_log(LOG_WARNING, "Unable to text\n");
 					} else if (single && (f->frametype == AST_FRAME_HTML) && !outgoing->noforwardhtml) {
 						ast_channel_sendhtml(in, f->subclass, f->data, f->datalen);
 					}

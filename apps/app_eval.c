@@ -31,10 +31,10 @@ static char *tdesc = "Reevaluates strings";
 
 static char *app_eval = "Eval";
 
-static char *eval_synopsis = "Eval(newvar=somestring)";
+static char *eval_synopsis = "Evaluates a string";
 
 static char *eval_descrip =
-"Eval(newvar=somestring)\n"
+"Usage: Eval(newvar=somestring)\n"
 "  Normally Asterisk evaluates variables inline.  But what if you want to\n"
 "store variable offsets in a database, to be evaluated later?  Eval is\n"
 "the answer, by allowing a string to be evaluated twice in the dialplan,\n"
