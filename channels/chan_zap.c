@@ -57,7 +57,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_AOC_UNITS
+#ifndef PRI_FACILITY_ENABLE
 #error "You need newer libpri"
 #endif
 #endif
@@ -256,6 +256,7 @@ static int minidle = 0;
 static char idleext[AST_MAX_EXTENSION];
 static char idledial[AST_MAX_EXTENSION];
 static int overlapdial = 0;
+static int facilityenable = 0;
 static char internationalprefix[10] = "";
 static char nationalprefix[10] = "";
 static char localprefix[20] = "";
@@ -384,6 +385,7 @@ struct zt_pri {
 	int prilogicalspan;						/* Logical span number within trunk group */
 	int numchans;							/* Num of channels we represent */
 	int overlapdial;						/* In overlap dialing mode */
+	int facilityenable;						/* Enable facility IEs */
 	struct pri *dchans[NUM_DCHANS];			/* Actual d-channels */
 	int dchanavail[NUM_DCHANS];				/* Whether each channel is available */
 	struct pri *pri;						/* Currently active D-channel */
@@ -1912,6 +1914,9 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : ast->transfercapability, 
 					(p->digital ? -1 : 
 						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
+		if (p->pri->facilityenable)
+			pri_facility_enable(p->pri->pri);
+
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Requested transfer capability: 0x%.2x - %s\n", ast->transfercapability, ast_transfercapability2str(ast->transfercapability));
 		dp_strip = 0;
@@ -6655,6 +6660,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 						pris[span].minunused = minunused;
 						pris[span].minidle = minidle;
 						pris[span].overlapdial = overlapdial;
+						pris[span].facilityenable = facilityenable;
 						strncpy(pris[span].idledial, idledial, sizeof(pris[span].idledial) - 1);
 						strncpy(pris[span].idleext, idleext, sizeof(pris[span].idleext) - 1);
 						strncpy(pris[span].internationalprefix, internationalprefix, sizeof(pris[span].internationalprefix)-1);
@@ -10154,7 +10160,9 @@ static int setup_zap(int reload)
 					ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string\n", v->value);
 #endif /* PRI_GETSET_TIMERS */
 #endif /* ZAPATA_PRI */
-			
+
+			} else if (!strcasecmp(v->name, "faclityenable")) {
+				facilityenable = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "cadence")) {
 				/* setup to scan our argument */
 				int element_count, c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
