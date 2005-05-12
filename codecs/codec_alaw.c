@@ -364,6 +364,7 @@ parse_config(void)
        var = var->next;
       }
     }
+    ast_config_destroy(cfg);
   }
 }
 
