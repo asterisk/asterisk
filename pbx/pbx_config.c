@@ -83,7 +83,7 @@ static char context_add_extension_help[] =
 
 static char context_add_ignorepat_help[] =
 "Usage: add ignorepat <pattern> into <context>\n"
-"       This command add new ignore pattern into context <context>\n"
+"       This command adds a new ignore pattern into context <context>\n"
 "\n"
 "Example: add ignorepat _3XX into local\n";
 
