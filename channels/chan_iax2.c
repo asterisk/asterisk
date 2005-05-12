@@ -2147,12 +2147,16 @@ static int get_from_jb(void *p) {
     pvt->jbid = -1;
 
     gettimeofday(&tv,NULL);
+    /* round up a millisecond since ast_sched_runq does; */
+    /* prevents us from spinning while waiting for our now */
+    /* to catch up with runq's now */
+    tv.tv_usec += 1000;
 
     now = (tv.tv_sec - pvt->rxcore.tv_sec) * 1000 +
 	  (tv.tv_usec - pvt->rxcore.tv_usec) / 1000;
 
-    if(now > (next = jb_next(pvt->jb))) {
-	ret = jb_get(pvt->jb,&frame,now);
+    if(now >= (next = jb_next(pvt->jb))) {
+	ret = jb_get(pvt->jb,&frame,now,ast_codec_interp_len(pvt->voiceformat));
 	switch(ret) {
 	    case JB_OK:
 		/*if(frame.type == JB_TYPE_VOICE && next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */

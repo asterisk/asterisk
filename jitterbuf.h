@@ -63,7 +63,7 @@ typedef struct jb_info {
 	long current; 		/* the present jitterbuffer adjustment */
 	long target; 		/* the target jitterbuffer adjustment */
 	long losspct; 		/* recent lost frame percentage (* 1000) */
-	long last_voice_ts;	/* the last ts that was read from the jb - in receiver's time */
+	long next_voice_ts;	/* the ts of the next frame to be read from the jb - in receiver's time */
 	long last_voice_ms;	/* the duration of the last voice frame */
 	long silence_begin_ts;	/* the time of the last CNG frame, when in silence */
 	long last_adjustment;   /* the time of the last adjustment */
@@ -115,10 +115,10 @@ int 			jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now);
  * JB_OK:  You've got frame!
  * JB_DROP: Here's an audio frame you should just drop.  Ask me again for this time..
  * JB_NOFRAME: There's no frame scheduled for this time.
- * JB_INTERP: Please interpolate an audio frame for this time (either we need to grow, or there was a lost frame 
+ * JB_INTERP: Please interpolate an interpl-length frame for this time (either we need to grow, or there was a lost frame) 
  * JB_EMPTY: The jb is empty.
  */
-int			jb_get(jitterbuf *jb, jb_frame *frame, long now);
+int			jb_get(jitterbuf *jb, jb_frame *frame, long now, long interpl);
 
 /* unconditionally get frames from jitterbuf until empty */
 int jb_getall(jitterbuf *jb, jb_frame *frameout);

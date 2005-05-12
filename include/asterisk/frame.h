@@ -399,6 +399,12 @@ extern int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t 
 /* Shift a codec preference list up or down 65 bytes so that it becomes an ASCII string */
 extern void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right);
 
+/* Gets duration in ms of interpolation frame for a format */
+static inline int ast_codec_interp_len(int format) 
+{ 
+	return (format == AST_FORMAT_ILBC) ? 30 : 20;
+}
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

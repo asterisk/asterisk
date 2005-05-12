@@ -359,7 +359,7 @@ static jb_frame *_queue_get(jitterbuf *jb, long ts, int all)
 
 	/*jb_warn("queue_get: ASK %ld FIRST %ld\n", ts, frame->ts); */
 
-	if (all || ts > frame->ts) {
+	if (all || ts >= frame->ts) {
 		/* remove this frame */
 		frame->prev->next = frame->next;
 		frame->next->prev = frame->prev;
@@ -414,7 +414,7 @@ static void jb_dbginfo(jitterbuf *jb)
 	jb_dbg("jb info: queue %d -> %d.  last_ts %d (queue len: %d) last_ms %d\n",
 		queue_next(jb), 
 		queue_last(jb),
-		jb->info.last_voice_ts, 
+		jb->info.next_voice_ts, 
 		queue_last(jb) - queue_next(jb),
 		jb->info.last_voice_ms);
 }
@@ -478,7 +478,7 @@ int jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now)
 }
 
 
-static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now) 
+static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl) 
 {
 	jb_frame *frame;
 	long diff;
@@ -494,16 +494,13 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 	/* if a hard clamp was requested, use it */
 	if ((jb->info.max_jitterbuf) && ((jb->info.target - jb->info.min) > jb->info.max_jitterbuf)) {
 		jb_dbg("clamping target from %d to %d\n", (jb->info.target - jb->info.min), jb->info.max_jitterbuf);
-			jb->info.target = jb->info.min + jb->info.max_jitterbuf;
+		jb->info.target = jb->info.min + jb->info.max_jitterbuf;
 	}
 
 	diff = jb->info.target - jb->info.current;
 
 	/* jb_warn("diff = %d lms=%d last = %d now = %d\n", diff,  */
 	/*	jb->info.last_voice_ms, jb->info.last_adjustment, now); */
-
-	/* move up last_voice_ts; it is now the expected voice ts */
-	jb->info.last_voice_ts += jb->info.last_voice_ms;
 
 	/* let's work on non-silent case first */
 	if (!jb->info.silence_begin_ts) { 
@@ -513,20 +510,19 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 			(((jb->info.last_adjustment + JB_ADJUST_DELAY) < now) || 
 			/* we need to grow more than the "length" we have left */
 			(diff > queue_last(jb)  - queue_next(jb)) ) ) {
-			
-			jb->info.current += jb->info.last_voice_ms;
+			/* grow by interp frame length */
+			jb->info.current += interpl;
+			jb->info.next_voice_ts += interpl;
+			jb->info.last_voice_ms = interpl;
 			jb->info.last_adjustment = now;
 			jb_dbg("G");
 			return JB_INTERP;
 		}
 
-		frame = queue_get(jb, jb->info.last_voice_ts - jb->info.current);
+		frame = queue_get(jb, jb->info.next_voice_ts - jb->info.current);
 
 		/* not a voice frame; just return it. */
 		if (frame && frame->type != JB_TYPE_VOICE) {
-			/* rewind last_voice_ts, since this isn't voice */
-			jb->info.last_voice_ts -= jb->info.last_voice_ms;
-
 			if (frame->type == JB_TYPE_SILENCE) 
 				jb->info.silence_begin_ts = frame->ts;
 
@@ -537,19 +533,30 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 		}
 
 
-		/* voice frame is late */
-		if (frame && frame->ts + jb->info.current < jb->info.last_voice_ts - jb->info.last_voice_ms ) {
-			*frameout = *frame;
-			/* rewind last_voice, since we're just dumping */
-			jb->info.last_voice_ts -= jb->info.last_voice_ms;
-			jb->info.frames_out++;
-			decrement_losspct(jb);
-			jb->info.frames_late++;
-			jb->info.frames_lost--;
-			jb_dbg("l");
-			/*jb_warn("\nlate: wanted=%ld, this=%ld, next=%ld\n", jb->info.last_voice_ts - jb->info.current, frame->ts, queue_next(jb));
-			jb_warninfo(jb); */
-			return JB_DROP;
+		/* voice frame is later than expected */
+		if (frame && frame->ts + jb->info.current < jb->info.next_voice_ts) {
+			if (frame->ts + jb->info.current > jb->info.next_voice_ts - jb->info.last_voice_ms) {
+				/* either we interpolated past this frame in the last jb_get */
+				/* or the frame is still in order, but came a little too quick */ 
+				*frameout = *frame;
+				/* reset expectation for next frame */
+				jb->info.next_voice_ts = frame->ts + jb->info.current + frame->ms;
+				jb->info.frames_out++;
+				decrement_losspct(jb);
+				jb_dbg("v");
+				return JB_OK;
+			} else {
+				/* voice frame is late */
+				*frameout = *frame;
+				jb->info.frames_out++;
+				decrement_losspct(jb);
+				jb->info.frames_late++;
+				jb->info.frames_lost--;
+				jb_dbg("l");
+				/*jb_warn("\nlate: wanted=%ld, this=%ld, next=%ld\n", jb->info.next_voice_ts - jb->info.current, frame->ts, queue_next(jb));
+				jb_warninfo(jb); */
+				return JB_DROP;
+			}
 		}
 
 		/* keep track of frame sizes, to allow for variable sized-frames */
@@ -562,22 +569,24 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 		/* every 80ms (though perhaps we can shrink even faster */
 		/* in this case) */
 		if (diff < -JB_TARGET_EXTRA && 
-		((!frame && jb->info.last_adjustment + 80 < now) || 
+			((!frame && jb->info.last_adjustment + 80 < now) || 
 			(jb->info.last_adjustment + 500 < now))) {
 
-			/* don't increment last_ts ?? */
-			jb->info.last_voice_ts -= jb->info.last_voice_ms;
-			jb->info.current -= jb->info.last_voice_ms;
 			jb->info.last_adjustment = now;
 
 			if (frame) {
 				*frameout = *frame;
+				/* shrink by frame size we're throwing out */
+				jb->info.current -= frame->ms;
 				jb->info.frames_out++;
 				decrement_losspct(jb);
 				jb->info.frames_dropped++;
 				jb_dbg("s");
 				return JB_DROP;
 			} else {
+				/* shrink by last_voice_ms */
+				jb->info.current -= jb->info.last_voice_ms;
+				jb->info.frames_lost++;
 				increment_losspct(jb);
 				jb_dbg("S");
 				return JB_NOFRAME;
@@ -609,12 +618,15 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 			} */
 			jb->info.frames_lost++;
 			increment_losspct(jb);
+			jb->info.next_voice_ts += interpl;
+			jb->info.last_voice_ms = interpl;
 			jb_dbg("L");
 			return JB_INTERP;
 		}
 
 		/* normal case; return the frame, increment stuff */
 		*frameout = *frame;
+		jb->info.next_voice_ts += frame->ms;
 		jb->info.frames_out++;
 		decrement_losspct(jb);
 		jb_dbg("v");
@@ -622,10 +634,17 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 	} else {     
 		/* TODO: after we get the non-silent case down, we'll make the
 		 * silent case -- basically, we'll just grow and shrink faster
-		 * here, plus handle last_voice_ts a bit differently */
+		 * here, plus handle next_voice_ts a bit differently */
       
 		/* to disable silent special case altogether, just uncomment this: */
 		/* jb->info.silence_begin_ts = 0; */
+
+ 		/* shrink interpl len every 10ms during silence */
+ 		if (diff < -JB_TARGET_EXTRA &&
+ 			jb->info.last_adjustment + 10 <= now) {
+ 			jb->info.current -= interpl;
+ 			jb->info.last_adjustment = now;
+ 		}
 
 		frame = queue_get(jb, now - jb->info.current);
 		if (!frame) {
@@ -633,19 +652,18 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 		} else if (frame->type != JB_TYPE_VOICE) {
 			/* normal case; in silent mode, got a non-voice frame */
 			*frameout = *frame;
+			jb->info.frames_out++;
 			return JB_OK;
 		}
 		if (frame->ts < jb->info.silence_begin_ts) {
 			/* voice frame is late */
 			*frameout = *frame;
-			/* rewind last_voice, since we're just dumping */
-			jb->info.last_voice_ts -= jb->info.last_voice_ms;
 			jb->info.frames_out++;
 			decrement_losspct(jb);
 			jb->info.frames_late++;
 			jb->info.frames_lost--;
 			jb_dbg("l");
-			/*jb_warn("\nlate: wanted=%ld, this=%ld, next=%ld\n", jb->info.last_voice_ts - jb->info.current, frame->ts, queue_next(jb));
+			/*jb_warn("\nlate: wanted=%ld, this=%ld, next=%ld\n", jb->info.next_voice_ts - jb->info.current, frame->ts, queue_next(jb));
 			jb_warninfo(jb); */
 			return JB_DROP;
 		} else {
@@ -653,8 +671,10 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now)
 			/* try setting current to target right away here */
 			jb->info.current = jb->info.target;
 			jb->info.silence_begin_ts = 0;
-			jb->info.last_voice_ts = frame->ts + jb->info.current + frame->ms;
+			jb->info.next_voice_ts = frame->ts + jb->info.current + frame->ms;
 			jb->info.last_voice_ms = frame->ms;
+			jb->info.frames_out++;
+			decrement_losspct(jb);
 			*frameout = *frame;
 			jb_dbg("V");
 			return JB_OK;
@@ -668,18 +688,21 @@ long jb_next(jitterbuf *jb)
 		long next = queue_next(jb);
 		if (next > 0) { 
 			history_get(jb);
+			/* shrink during silence */
+			if (jb->info.target - jb->info.current < -JB_TARGET_EXTRA)
+				return jb->info.last_adjustment + 10;
 			return next + jb->info.target;
 		}
 		else 
 			return JB_LONGMAX;
 	} else {
-		return jb->info.last_voice_ts + jb->info.last_voice_ms;
+		return jb->info.next_voice_ts;
 	}
 }
 
-int jb_get(jitterbuf *jb, jb_frame *frameout, long now) 
+int jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl) 
 {
-	int ret = _jb_get(jb,frameout,now);
+	int ret = _jb_get(jb,frameout,now,interpl);
 #if 0
 	static int lastts=0;
 	int thists = ((ret == JB_OK) || (ret == JB_DROP)) ? frameout->ts : 0;
