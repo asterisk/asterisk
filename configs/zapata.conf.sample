@@ -131,6 +131,10 @@ switchtype=national
 ; pritimer => t200,1000
 ; pritimer => t313,4000
 ;
+; To enable transmission of facility-based ISDN supplementary services (such
+; as caller name from CPE over facility) enable this option.
+; facilityenable = yes
+;
 ;
 ; Signalling method (default is fxs).  Valid values:
 ; em:      E & M
