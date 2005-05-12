@@ -10159,7 +10159,7 @@ static int setup_zap(int reload)
 				} else
 					ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string\n", v->value);
 
-			} else if (!strcasecmp(v->name, "faclityenable")) {
+			} else if (!strcasecmp(v->name, "facilityenable")) {
 				facilityenable = ast_true(v->value);
 #endif /* PRI_GETSET_TIMERS */
 #endif /* ZAPATA_PRI */
