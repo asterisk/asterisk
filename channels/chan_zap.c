@@ -10158,11 +10158,11 @@ static int setup_zap(int reload)
 					}
 				} else
 					ast_log(LOG_WARNING, "'%s' is not a valid ISDN timer configuration string\n", v->value);
-#endif /* PRI_GETSET_TIMERS */
-#endif /* ZAPATA_PRI */
 
 			} else if (!strcasecmp(v->name, "faclityenable")) {
 				facilityenable = ast_true(v->value);
+#endif /* PRI_GETSET_TIMERS */
+#endif /* ZAPATA_PRI */
 			} else if (!strcasecmp(v->name, "cadence")) {
 				/* setup to scan our argument */
 				int element_count, c[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
