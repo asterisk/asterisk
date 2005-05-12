@@ -310,10 +310,15 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 		jb->frames = frame;
 		frame->next = frame;
 		frame->prev = frame;
+	} else if (ts < jb->frames->ts) {
+		frame->next = jb->frames;
 		frame->prev = jb->frames->prev;
 
 		frame->next->prev = frame;
 		frame->prev->next = frame;
+
+		/* frame is out of order */
+		jb->info.frames_ooo++;
 
 		jb->frames = frame;
 	} else { 
