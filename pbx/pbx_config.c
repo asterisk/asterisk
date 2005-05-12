@@ -52,17 +52,18 @@ static struct ast_context *local_contexts = NULL;
  * Help for commands provided by this module ...
  */
 static char context_dont_include_help[] =
-"Usage: dont include context in include\n"
-"       Remove include from context.\n";
+"Usage: dont include <context> in <context>\n"
+"       Remove an included context from another context.\n";
 
 static char context_remove_extension_help[] =
 "Usage: remove extension exten@context [priority]\n"
-"       Remove whole extension from context. If priority is set, we are only\n"
-"       removing extension with given priority.\n";
+"       Remove an extension from a given context. If a priority\n"
+"       is given, only that specific priority from the given extension\n"
+"       will be removed.\n";
 
 static char context_add_include_help[] =
-"Usage: include context in context\n"
-"       Include context in other context.\n";
+"Usage: include <context> in <context>\n"
+"       Include a context in another context.\n";
 
 static char save_dialplan_help[] =
 "Usage: save dialplan [/path/to/extension/file]\n"
@@ -89,7 +90,7 @@ static char context_add_ignorepat_help[] =
 
 static char context_remove_ignorepat_help[] =
 "Usage: remove ignorepat <pattern> from <context>\n"
-"       This command remove ignore pattern from context <context>\n"
+"       This command removes an ignore pattern from context <context>\n"
 "\n"
 "Example: remove ignorepat _3XX from local\n";
 
