@@ -330,263 +330,6 @@ static void oh323_destroy(struct oh323_pvt *pvt)
 	ast_mutex_unlock(&iflock);
 }
 
-static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
-{
-	struct oh323_alias *alias;
-
-	alias = (struct oh323_alias *)malloc(sizeof(struct oh323_alias));
-	if (alias) {
-		memset(alias, 0, sizeof(struct oh323_alias));
-		strncpy(alias->name, name, sizeof(alias->name) - 1);
-		while (v) {
-			if (!strcasecmp(v->name, "e164")) {
-				strncpy(alias->e164,  v->value, sizeof(alias->e164) - 1);
-			} else if (!strcasecmp(v->name, "prefix")) {
-				strncpy(alias->prefix,  v->value, sizeof(alias->prefix) - 1);
-			} else if (!strcasecmp(v->name, "context")) {
-				strncpy(alias->context,  v->value, sizeof(alias->context) - 1);
-			} else if (!strcasecmp(v->name, "secret")) {
-				strncpy(alias->secret,  v->value, sizeof(alias->secret) - 1);
-			} else {
-				if (strcasecmp(v->value, "h323")) { 	
-					ast_log(LOG_WARNING, "Keyword %s does not make sense in type=h323\n", v->value);
-				}
-			}
-			v = v->next;
-		}
-	}
-	return alias;
-}
-
-static struct oh323_user *build_user(char *name, struct ast_variable *v)
-{
-	struct oh323_user *user;
-	int format;
-	
-	user = (struct oh323_user *)malloc(sizeof(struct oh323_user));
-	if (user) {
-		memset(user, 0, sizeof(struct oh323_user));
-		strncpy(user->name, name, sizeof(user->name) - 1);
-		memcpy(&user->options, &global_options, sizeof(user->options));
-		user->capability = capability;
-		/* set a native brigding default value */
-		user->bridge = bridging;
-		/* and default context */
-		strncpy(user->context, default_context, sizeof(user->context) - 1);
-		while(v) {
-			if (!strcasecmp(v->name, "context")) {
-				strncpy(user->context, v->value, sizeof(user->context) - 1);
-			} else if (!strcasecmp(v->name, "bridge")) {
-				user->bridge = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "nat")) {
-				user->nat = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "noFastStart")) {
-				user->options.noFastStart = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "noH245Tunneling")) {
-				user->options.noH245Tunneling = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
-				user->options.noSilenceSuppression = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "secret")) {
-				strncpy(user->secret, v->value, sizeof(user->secret) - 1);
-			} else if (!strcasecmp(v->name, "callerid")) {
-				strncpy(user->callerid, v->value, sizeof(user->callerid) - 1);
-			} else if (!strcasecmp(v->name, "accountcode")) {
-				strncpy(user->accountcode, v->value, sizeof(user->accountcode) - 1);
-			} else if (!strcasecmp(v->name, "progress_setup")) {
-				int progress_setup = atoi(v->value);
-				if ((progress_setup != 0) &&
-				   (progress_setup != 1) &&
-				   (progress_setup != 3) &&
-				   (progress_setup != 8)) {
-					ast_log(LOG_WARNING, "Invalid value %d for progress_setup at line %d, assuming 0\n", progress_setup, v->lineno);
-					progress_setup = 0;
-				}
-				user->options.progress_setup = progress_setup;
-			} else if (!strcasecmp(v->name, "progress_alert")) {
-				int progress_alert = atoi(v->value);
-				if ((progress_alert != 0) &&
-				   (progress_alert != 8)) {
-					ast_log(LOG_WARNING, "Invalud value %d for progress_alert at line %d, assuming 0\n", progress_alert, v->lineno);
-					progress_alert = 0;
-				}
-				user->options.progress_alert = progress_alert;
-			} else if (!strcasecmp(v->name, "progress_audio")) {
-				user->options.progress_audio = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "dtmfcodec")) {
-				user->options.dtmfcodec = atoi(v->value);
-			} else if (!strcasecmp(v->name, "dtmfmode")) {
-				if (!strcasecmp(v->value, "inband")) {
-					user->dtmfmode = H323_DTMF_INBAND;
-				} else if (!strcasecmp(v->value, "rfc2833")) {
-					user->dtmfmode = H323_DTMF_RFC2833;
-				} else {
-					ast_log(LOG_WARNING, "Unknown DTMF Mode %s, using RFC2833\n", v->value);
-					user->dtmfmode = H323_DTMF_RFC2833;
-				}	
-			} else if (!strcasecmp(v->name, "allow")) {
-				format = ast_getformatbyname(v->value);
-				if (format < 1) {
-					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
-				} else {
-					user->capability |= format;
-				}
-			} else if (!strcasecmp(v->name, "disallow")) {
-				format = ast_getformatbyname(v->value);
-				if (format < 1) {
-					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
-				} else {
-					user->capability &= ~format;
-				}
-			} else if (!strcasecmp(v->name, "host")) {
-				if (!strcasecmp(v->value, "dynamic")) {
-					ast_log(LOG_ERROR, "A dynamic host on a type=user does not make any sense\n");
-					free(user);
-					return NULL;
-				} else if (ast_get_ip(&user->addr, v->value)) {
-					free(user);
-					return NULL;
-				} 
-				/* Let us know we need to use ip authentication */
-				user->host = 1;
-			} else if (!strcasecmp(v->name, "amaflags")) {
-				format = ast_cdr_amaflags2int(v->value);
-				if (format < 0) {
-					ast_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
-				} else {
-					user->amaflags = format;
-				}
-			}
-			v = v->next;
-		}
-	}
-	return user;
-}
-
-static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
-{
-	struct oh323_peer *peer;
-	struct oh323_peer *prev;
-	struct ast_ha *oldha = NULL;
-	int found=0;
-	int format;	
-
-	prev = NULL;
-	ast_mutex_lock(&peerl.lock);
-	peer = peerl.peers;
-
-	while(peer) {
-		if (!strcasecmp(peer->name, name)) {	
-			break;
-		}
-		prev = peer;
-		peer = peer->next;
-	}
-
-	if (peer) {
-		found++;
-		/* Already in the list, remove it and it will be added back (or FREE'd) */
-		if (prev) {
-			prev->next = peer->next;
-		} else {
-			peerl.peers = peer->next;
-		}
-		ast_mutex_unlock(&peerl.lock);
- 	} else {
-		ast_mutex_unlock(&peerl.lock);
-		peer = (struct oh323_peer*)malloc(sizeof(struct oh323_peer));
-		if (peer)
-			memset(peer, 0, sizeof(struct oh323_peer));
-	}
-	if (peer) {
-		if (!found) {
-			strncpy(peer->name, name, sizeof(peer->name) - 1);
-			peer->addr.sin_port = htons(h323_signalling_port);
-			peer->addr.sin_family = AF_INET;
-		}
-		oldha = peer->ha;
-		peer->ha = NULL;
-		peer->addr.sin_family = AF_INET;
-		peer->capability = capability;
-		peer->dtmfmode = dtmfmode;
-		peer->bridge = bridging;
-		memcpy(&peer->options, &global_options, sizeof(peer->options));
-
-		while(v) {
-			if (!strcasecmp(v->name, "bridge")) {
-				peer->bridge = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "nat")) {
-				peer->nat = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "noFastStart")) {
-				peer->options.noFastStart = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "noH245Tunneling")) {
-				peer->options.noH245Tunneling = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
-				peer->options.noSilenceSuppression = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "progress_setup")) {
-				int progress_setup = atoi(v->value);
-				if ((progress_setup != 0) &&
-				   (progress_setup != 1) &&
-				   (progress_setup != 3) &&
-				   (progress_setup != 8)) {
-					ast_log(LOG_WARNING, "Invalid value %d for progress_setup at line %d, assuming 0\n", progress_setup, v->lineno);
-					progress_setup = 0;
-				}
-				peer->options.progress_setup = progress_setup;
-			} else if (!strcasecmp(v->name, "progress_alert")) {
-				int progress_alert = atoi(v->value);
-				if ((progress_alert != 0) &&
-				   (progress_alert != 8)) {
-					ast_log(LOG_WARNING, "Invalid value %d for progress_alert at line %d, assuming 0\n", progress_alert, v->lineno);
-					progress_alert = 0;
-				}
-				peer->options.progress_alert = progress_alert;
-			} else if (!strcasecmp(v->name, "progress_audio")) {
-				peer->options.progress_audio = ast_true(v->value);
-			} else if (!strcasecmp(v->name, "dtmfcodec")) {
-				peer->options.dtmfcodec = atoi(v->value);
-			} else if (!strcasecmp(v->name, "dtmfmode")) {
-				if (!strcasecmp(v->value, "inband")) {
-					peer->dtmfmode = H323_DTMF_INBAND;
-				} else if (!strcasecmp(v->value, "rfc2833")) {
-					peer->dtmfmode = H323_DTMF_RFC2833;
-				} else {
-					ast_log(LOG_WARNING, "Unknown DTMF Mode %s, using RFC2833\n", v->value);
-					peer->dtmfmode = H323_DTMF_RFC2833;
-				}	
-			} else if (!strcasecmp(v->name, "allow")) {
-				format = ast_getformatbyname(v->value);
-				if (format < 1) {
-					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
-				} else {
-					peer->capability |= format;
-				}
-			} else if (!strcasecmp(v->name, "disallow")) {
-				format = ast_getformatbyname(v->value);
-				if (format < 1) {
-					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
-				} else {
-					peer->capability &= ~format;
-				}
-			} else if (!strcasecmp(v->name, "host")) {
-				if (!strcasecmp(v->value, "dynamic")) {
-					ast_log(LOG_ERROR, "Dynamic host configuration not implemented.\n");
-					free(peer);
-					return NULL;
-				}
-				if (ast_get_ip(&peer->addr, v->value)) {
-						ast_log(LOG_ERROR, "Could not determine IP for %s\n", v->value);
-						free(peer);
-						return NULL;
-				}
-			} else if (!strcasecmp(v->name, "port")) {
-				peer->addr.sin_port = htons(atoi(v->value));
-			}
-			v=v->next;
-		}
-	}
-	return peer;
-}
-
 /**
  * Send (play) the specified digit to the channel.
  * 
@@ -1985,6 +1728,263 @@ static struct ast_cli_entry  cli_hangup_call =
 static struct ast_cli_entry  cli_show_tokens =
 	{ { "h.323", "show", "tokens", NULL }, h323_tokens_show, "Show all active call tokens", show_tokens_usage };
 
+static struct oh323_alias *build_alias(char *name, struct ast_variable *v)
+{
+	struct oh323_alias *alias;
+
+	alias = (struct oh323_alias *)malloc(sizeof(struct oh323_alias));
+	if (alias) {
+		memset(alias, 0, sizeof(struct oh323_alias));
+		strncpy(alias->name, name, sizeof(alias->name) - 1);
+		while (v) {
+			if (!strcasecmp(v->name, "e164")) {
+				strncpy(alias->e164,  v->value, sizeof(alias->e164) - 1);
+			} else if (!strcasecmp(v->name, "prefix")) {
+				strncpy(alias->prefix,  v->value, sizeof(alias->prefix) - 1);
+			} else if (!strcasecmp(v->name, "context")) {
+				strncpy(alias->context,  v->value, sizeof(alias->context) - 1);
+			} else if (!strcasecmp(v->name, "secret")) {
+				strncpy(alias->secret,  v->value, sizeof(alias->secret) - 1);
+			} else {
+				if (strcasecmp(v->value, "h323")) { 	
+					ast_log(LOG_WARNING, "Keyword %s does not make sense in type=h323\n", v->value);
+				}
+			}
+			v = v->next;
+		}
+	}
+	return alias;
+}
+
+static struct oh323_user *build_user(char *name, struct ast_variable *v)
+{
+	struct oh323_user *user;
+	int format;
+
+	user = (struct oh323_user *)malloc(sizeof(struct oh323_user));
+	if (user) {
+		memset(user, 0, sizeof(struct oh323_user));
+		strncpy(user->name, name, sizeof(user->name) - 1);
+		memcpy(&user->options, &global_options, sizeof(user->options));
+		user->capability = capability;
+		/* set a native brigding default value */
+		user->bridge = bridging;
+		/* and default context */
+		strncpy(user->context, default_context, sizeof(user->context) - 1);
+		while(v) {
+			if (!strcasecmp(v->name, "context")) {
+				strncpy(user->context, v->value, sizeof(user->context) - 1);
+			} else if (!strcasecmp(v->name, "bridge")) {
+				user->bridge = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "nat")) {
+				user->nat = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "noFastStart")) {
+				user->options.noFastStart = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "noH245Tunneling")) {
+				user->options.noH245Tunneling = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
+				user->options.noSilenceSuppression = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "secret")) {
+				strncpy(user->secret, v->value, sizeof(user->secret) - 1);
+			} else if (!strcasecmp(v->name, "callerid")) {
+				strncpy(user->callerid, v->value, sizeof(user->callerid) - 1);
+			} else if (!strcasecmp(v->name, "accountcode")) {
+				strncpy(user->accountcode, v->value, sizeof(user->accountcode) - 1);
+			} else if (!strcasecmp(v->name, "progress_setup")) {
+				int progress_setup = atoi(v->value);
+				if ((progress_setup != 0) &&
+				   (progress_setup != 1) &&
+				   (progress_setup != 3) &&
+				   (progress_setup != 8)) {
+					ast_log(LOG_WARNING, "Invalid value %d for progress_setup at line %d, assuming 0\n", progress_setup, v->lineno);
+					progress_setup = 0;
+				}
+				user->options.progress_setup = progress_setup;
+			} else if (!strcasecmp(v->name, "progress_alert")) {
+				int progress_alert = atoi(v->value);
+				if ((progress_alert != 0) &&
+				   (progress_alert != 8)) {
+					ast_log(LOG_WARNING, "Invalud value %d for progress_alert at line %d, assuming 0\n", progress_alert, v->lineno);
+					progress_alert = 0;
+				}
+				user->options.progress_alert = progress_alert;
+			} else if (!strcasecmp(v->name, "progress_audio")) {
+				user->options.progress_audio = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "dtmfcodec")) {
+				user->options.dtmfcodec = atoi(v->value);
+			} else if (!strcasecmp(v->name, "dtmfmode")) {
+				if (!strcasecmp(v->value, "inband")) {
+					user->dtmfmode = H323_DTMF_INBAND;
+				} else if (!strcasecmp(v->value, "rfc2833")) {
+					user->dtmfmode = H323_DTMF_RFC2833;
+				} else {
+					ast_log(LOG_WARNING, "Unknown DTMF Mode %s, using RFC2833\n", v->value);
+					user->dtmfmode = H323_DTMF_RFC2833;
+				}	
+			} else if (!strcasecmp(v->name, "allow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) {
+					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
+				} else {
+					user->capability |= format;
+				}
+			} else if (!strcasecmp(v->name, "disallow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) {
+					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
+				} else {
+					user->capability &= ~format;
+				}
+			} else if (!strcasecmp(v->name, "host")) {
+				if (!strcasecmp(v->value, "dynamic")) {
+					ast_log(LOG_ERROR, "A dynamic host on a type=user does not make any sense\n");
+					free(user);
+					return NULL;
+				} else if (ast_get_ip(&user->addr, v->value)) {
+					free(user);
+					return NULL;
+				} 
+				/* Let us know we need to use ip authentication */
+				user->host = 1;
+			} else if (!strcasecmp(v->name, "amaflags")) {
+				format = ast_cdr_amaflags2int(v->value);
+				if (format < 0) {
+					ast_log(LOG_WARNING, "Invalid AMA Flags: %s at line %d\n", v->value, v->lineno);
+				} else {
+					user->amaflags = format;
+				}
+			}
+			v = v->next;
+		}
+	}
+	return user;
+}
+
+static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
+{
+	struct oh323_peer *peer;
+	struct oh323_peer *prev;
+	struct ast_ha *oldha = NULL;
+	int found=0;
+	int format;	
+
+	prev = NULL;
+	ast_mutex_lock(&peerl.lock);
+	peer = peerl.peers;
+
+	while(peer) {
+		if (!strcasecmp(peer->name, name)) {	
+			break;
+		}
+		prev = peer;
+		peer = peer->next;
+	}
+
+	if (peer) {
+		found++;
+		/* Already in the list, remove it and it will be added back (or FREE'd) */
+		if (prev) {
+			prev->next = peer->next;
+		} else {
+			peerl.peers = peer->next;
+		}
+		ast_mutex_unlock(&peerl.lock);
+	} else {
+		ast_mutex_unlock(&peerl.lock);
+		peer = (struct oh323_peer*)malloc(sizeof(struct oh323_peer));
+		if (peer)
+			memset(peer, 0, sizeof(struct oh323_peer));
+	}
+	if (peer) {
+		if (!found) {
+			strncpy(peer->name, name, sizeof(peer->name) - 1);
+			peer->addr.sin_port = htons(h323_signalling_port);
+			peer->addr.sin_family = AF_INET;
+		}
+		oldha = peer->ha;
+		peer->ha = NULL;
+		peer->addr.sin_family = AF_INET;
+		peer->capability = capability;
+		peer->dtmfmode = dtmfmode;
+		peer->bridge = bridging;
+		memcpy(&peer->options, &global_options, sizeof(peer->options));
+
+		while(v) {
+			if (!strcasecmp(v->name, "bridge")) {
+				peer->bridge = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "nat")) {
+				peer->nat = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "noFastStart")) {
+				peer->options.noFastStart = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "noH245Tunneling")) {
+				peer->options.noH245Tunneling = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "noSilenceSuppression")) {
+				peer->options.noSilenceSuppression = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "progress_setup")) {
+				int progress_setup = atoi(v->value);
+				if ((progress_setup != 0) &&
+				   (progress_setup != 1) &&
+				   (progress_setup != 3) &&
+				   (progress_setup != 8)) {
+					ast_log(LOG_WARNING, "Invalid value %d for progress_setup at line %d, assuming 0\n", progress_setup, v->lineno);
+					progress_setup = 0;
+				}
+				peer->options.progress_setup = progress_setup;
+			} else if (!strcasecmp(v->name, "progress_alert")) {
+				int progress_alert = atoi(v->value);
+				if ((progress_alert != 0) &&
+				   (progress_alert != 8)) {
+					ast_log(LOG_WARNING, "Invalid value %d for progress_alert at line %d, assuming 0\n", progress_alert, v->lineno);
+					progress_alert = 0;
+				}
+				peer->options.progress_alert = progress_alert;
+			} else if (!strcasecmp(v->name, "progress_audio")) {
+				peer->options.progress_audio = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "dtmfcodec")) {
+				peer->options.dtmfcodec = atoi(v->value);
+			} else if (!strcasecmp(v->name, "dtmfmode")) {
+				if (!strcasecmp(v->value, "inband")) {
+					peer->dtmfmode = H323_DTMF_INBAND;
+				} else if (!strcasecmp(v->value, "rfc2833")) {
+					peer->dtmfmode = H323_DTMF_RFC2833;
+				} else {
+					ast_log(LOG_WARNING, "Unknown DTMF Mode %s, using RFC2833\n", v->value);
+					peer->dtmfmode = H323_DTMF_RFC2833;
+				}	
+			} else if (!strcasecmp(v->name, "allow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) {
+					ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
+				} else {
+					peer->capability |= format;
+				}
+			} else if (!strcasecmp(v->name, "disallow")) {
+				format = ast_getformatbyname(v->value);
+				if (format < 1) {
+					ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
+				} else {
+					peer->capability &= ~format;
+				}
+			} else if (!strcasecmp(v->name, "host")) {
+				if (!strcasecmp(v->value, "dynamic")) {
+					ast_log(LOG_ERROR, "Dynamic host configuration not implemented.\n");
+					free(peer);
+					return NULL;
+				}
+				if (ast_get_ip(&peer->addr, v->value)) {
+						ast_log(LOG_ERROR, "Could not determine IP for %s\n", v->value);
+						free(peer);
+						return NULL;
+				}
+			} else if (!strcasecmp(v->name, "port")) {
+				peer->addr.sin_port = htons(atoi(v->value));
+			}
+			v=v->next;
+		}
+	}
+	return peer;
+}
+
 int reload_config(void)
 {	
 	int format;
@@ -2237,24 +2237,24 @@ void prune_peers(void)
 static int h323_reload(int fd, int argc, char *argv[])
 {
 	ast_mutex_lock(&h323_reload_lock);
-        if (h323_reloading) {
-                ast_verbose("Previous H.323 reload not yet done\n");
-        } else {
-                h323_reloading = 1;
-        }
+	if (h323_reloading) {
+		ast_verbose("Previous H.323 reload not yet done\n");
+	} else {
+		h323_reloading = 1;
+	}
 	ast_mutex_unlock(&h323_reload_lock);
-        restart_monitor();
-        return 0;
+	restart_monitor();
+	return 0;
 }
 
 static int h323_do_reload(void)
 {
 	delete_users();
-        delete_aliases();
-        prune_peers();
-        reload_config();
-        restart_monitor();
-        return 0;
+	delete_aliases();
+	prune_peers();
+	reload_config();
+	restart_monitor();
+	return 0;
 }
 
 int reload(void)
@@ -2263,7 +2263,7 @@ int reload(void)
 }
 
 static struct ast_cli_entry  cli_h323_reload =
-        { { "h.323", "reload", NULL }, h323_reload, "Reload H.323 configuration", h323_reload_usage };
+	{ { "h.323", "reload", NULL }, h323_reload, "Reload H.323 configuration", h323_reload_usage };
 
 static struct ast_rtp *oh323_get_rtp_peer(struct ast_channel *chan)
 {
