@@ -705,7 +705,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		chan = logchannels;
 		while(chan && !chan->disabled) {
 			/* Check syslog channels */
-			if (chan->type == LOG_SYSLOG && (chan->logmask & (1 << level))) {
+			if (chan->type == LOGTYPE_SYSLOG && (chan->logmask & (1 << level))) {
 				va_start(ap, fmt);
 				ast_log_vsyslog(level, file, line, function, fmt, ap);
 				va_end(ap);
