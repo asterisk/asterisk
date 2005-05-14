@@ -859,48 +859,6 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 	return tmp;
 }
 
-static int get_samples(struct ast_frame *f)
-{
-	int samples=0;
-	switch(f->subclass) {
-	case AST_FORMAT_SPEEX:
-		samples = 160;	/* XXX Not necessarily true XXX */
-		break;
-	case AST_FORMAT_G723_1:
-		samples = 240 /* XXX Not necessarily true XXX */;
-		break;
-	case AST_FORMAT_ILBC:
-		samples = 240 * (f->datalen / 50);
-		break;
-	case AST_FORMAT_GSM:
-		samples = 160 * (f->datalen / 33);
-		break;
-	case AST_FORMAT_G729A:
-		samples = 160 * (f->datalen / 20);
-		break;
-	case AST_FORMAT_SLINEAR:
-		samples = f->datalen / 2;
-		break;
-	case AST_FORMAT_LPC10:
-		samples = 22 * 8;
-		samples += (((char *)(f->data))[7] & 0x1) * 8;
-		break;
-	case AST_FORMAT_ULAW:
-		samples = f->datalen;
-		break;
-	case AST_FORMAT_ALAW:
-		samples = f->datalen;
-		break;
-	case AST_FORMAT_ADPCM:
-	case AST_FORMAT_G726:
-		samples = f->datalen *2;
-		break;
-	default:
-		ast_log(LOG_WARNING, "Don't know how to calculate samples on %d packets\n", f->subclass);
-	}
-	return samples;
-}
-
 static struct iax_frame *iaxfrdup2(struct iax_frame *fr)
 {
 	/* Malloc() a copy of a frame */
@@ -2347,7 +2305,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 
 	if(fr->af.frametype == AST_FRAME_VOICE) {
 		type = JB_TYPE_VOICE;
-		len = get_samples(&fr->af)/8;
+                len = ast_codec_get_samples(&fr->af) / 8;
 	} else if(fr->af.frametype == AST_FRAME_CNG) {
 		type = JB_TYPE_SILENCE;
 	}
@@ -6240,7 +6198,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									f.mallocd = 0;
 									f.offset = 0;
 									if (f.datalen && (f.frametype == AST_FRAME_VOICE)) 
-										f.samples = get_samples(&f);
+										f.samples = ast_codec_get_samples(&f);
 									else
 										f.samples = 0;
 									fr.outoforder = 0;
@@ -7355,7 +7313,7 @@ retryowner2:
 	f.mallocd = 0;
 	f.offset = 0;
 	if (f.datalen && (f.frametype == AST_FRAME_VOICE)) {
-		f.samples = get_samples(&f);
+		f.samples = ast_codec_get_samples(&f);
 		/* We need to byteswap incoming slinear samples from network byte order */
 		if (f.subclass == AST_FORMAT_SLINEAR)
 			ast_frame_byteswap_be(&f);

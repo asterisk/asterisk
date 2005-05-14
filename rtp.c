@@ -43,12 +43,6 @@
 
 #define RTP_MTU		1200
 
-#define TYPE_HIGH	 0x0
-#define TYPE_LOW	 0x1
-#define TYPE_SILENCE	 0x2
-#define TYPE_DONTSEND	 0x3
-#define TYPE_MASK	 0x3
-
 static int dtmftimeout = 3000;	/* 3000 samples */
 
 static int rtpstart = 0;
@@ -126,42 +120,6 @@ int ast_rtcp_fd(struct ast_rtp *rtp)
 	if (rtp->rtcp)
 		return rtp->rtcp->s;
 	return -1;
-}
-
-static int g723_len(unsigned char buf)
-{
-	switch(buf & TYPE_MASK) {
-	case TYPE_DONTSEND:
-		return 0;
-		break;
-	case TYPE_SILENCE:
-		return 4;
-		break;
-	case TYPE_HIGH:
-		return 24;
-		break;
-	case TYPE_LOW:
-		return 20;
-		break;
-	default:
-		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
-	}
-	return -1;
-}
-
-static int g723_samples(unsigned char *buf, int maxlen)
-{
-	int pos = 0;
-	int samples = 0;
-	int res;
-	while(pos < maxlen) {
-		res = g723_len(buf[pos]);
-		if (res <= 0)
-			break;
-		samples += 240;
-		pos += res;
-	}
-	return samples;
 }
 
 void ast_rtp_set_data(struct ast_rtp *rtp, void *data)
@@ -594,43 +552,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	rtp->f.data = rtp->rawdata + hdrlen + AST_FRIENDLY_OFFSET;
 	rtp->f.offset = hdrlen + AST_FRIENDLY_OFFSET;
 	if (rtp->f.subclass < AST_FORMAT_MAX_AUDIO) {
-		switch(rtp->f.subclass) {
-		case AST_FORMAT_ULAW:
-		case AST_FORMAT_ALAW:
-			rtp->f.samples = rtp->f.datalen;
-			break;
-		case AST_FORMAT_SLINEAR:
-			rtp->f.samples = rtp->f.datalen / 2;
+		rtp->f.samples = ast_codec_get_samples(&rtp->f);
+		if (rtp->f.subclass == AST_FORMAT_SLINEAR) 
 			ast_frame_byteswap_be(&rtp->f);
-			break;
-		case AST_FORMAT_GSM:
-			rtp->f.samples = 160 * (rtp->f.datalen / 33);
-			break;
-		case AST_FORMAT_ILBC:
-			rtp->f.samples = 240 * (rtp->f.datalen / 50);
-			break;
-		case AST_FORMAT_ADPCM:
-		case AST_FORMAT_G726:
-			rtp->f.samples = rtp->f.datalen * 2;
-			break;
-		case AST_FORMAT_G729A:
-			rtp->f.samples = rtp->f.datalen * 8;
-			break;
-		case AST_FORMAT_G723_1:
-			rtp->f.samples = g723_samples(rtp->f.data, rtp->f.datalen);
-			break;
-		case AST_FORMAT_SPEEX:
-			/* assumes that the RTP packet contained one Speex frame */
-	        	rtp->f.samples = 160;
-			break;
-		case AST_FORMAT_LPC10:
-		    	rtp->f.samples = 22 * 8;
-			rtp->f.samples += (((char *)(rtp->f.data))[7] & 0x1) * 8;
-			break;
-		default:
-			ast_log(LOG_NOTICE, "Unable to calculate samples for format %s\n", ast_getformatname(rtp->f.subclass));
-			break;
-		}
 		calc_rxstamp(&rtp->f.delivery, rtp, timestamp, mark);
 	} else {
 		/* Video -- samples is # of samples vs. 90000 */
@@ -1233,45 +1157,8 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
 	if (f->subclass < AST_FORMAT_MAX_AUDIO) {
-		pred = rtp->lastts + ms * 8;
-		
-		switch(f->subclass) {
-		case AST_FORMAT_ULAW:
-		case AST_FORMAT_ALAW:
-			/* If we're within +/- 20ms from when where we
-			   predict we should be, use that */
-			pred = rtp->lastts + f->datalen;
-			break;
-		case AST_FORMAT_ADPCM:
-		case AST_FORMAT_G726:
-			/* If we're within +/- 20ms from when where we
-			   predict we should be, use that */
-			pred = rtp->lastts + f->datalen * 2;
-			break;
-		case AST_FORMAT_G729A:
-			pred = rtp->lastts + f->datalen * 8;
-			break;
-		case AST_FORMAT_GSM:
-			pred = rtp->lastts + (f->datalen * 160 / 33);
-			break;
-		case AST_FORMAT_ILBC:
-			pred = rtp->lastts + (f->datalen * 240 / 50);
-			break;
-		case AST_FORMAT_G723_1:
-			pred = rtp->lastts + g723_samples(f->data, f->datalen);
-			break;
-		case AST_FORMAT_SPEEX:
-		    pred = rtp->lastts + 160;
-			/* assumes that the RTP packet contains one Speex frame */
-			break;
-		case AST_FORMAT_LPC10:
-			/* assumes that the RTP packet contains one LPC10 frame */
-			pred = rtp->lastts + 22 * 8;
-			pred += (((char *)(f->data))[7] & 0x1) * 8;
-			break;
-		default:
-			ast_log(LOG_WARNING, "Not sure about timestamp format for codec format %s\n", ast_getformatname(f->subclass));
-		}
+                pred = rtp->lastts + ast_codec_get_samples(f);
+
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 8;
 		if (!f->delivery.tv_sec && !f->delivery.tv_usec) {

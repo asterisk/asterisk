@@ -35,6 +35,12 @@ AST_MUTEX_DEFINE_STATIC(framelock);
 
 #define SMOOTHER_SIZE 8000
 
+#define TYPE_HIGH	 0x0
+#define TYPE_LOW	 0x1
+#define TYPE_SILENCE	 0x2
+#define TYPE_DONTSEND	 0x3
+#define TYPE_MASK	 0x3
+
 struct ast_format_list {
 	int visible; /* Can we see this entry */
 	int bits; /* bitmask value */
@@ -1008,4 +1014,190 @@ void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, char *list
 	}
 }
 
+static int g723_len(unsigned char buf)
+{
+	switch(buf & TYPE_MASK) {
+	case TYPE_DONTSEND:
+		return 0;
+		break;
+	case TYPE_SILENCE:
+		return 4;
+		break;
+	case TYPE_HIGH:
+		return 24;
+		break;
+	case TYPE_LOW:
+		return 20;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Badly encoded frame (%d)\n", buf & TYPE_MASK);
+	}
+	return -1;
+}
+
+static int g723_samples(unsigned char *buf, int maxlen)
+{
+	int pos = 0;
+	int samples = 0;
+	int res;
+	while(pos < maxlen) {
+		res = g723_len(buf[pos]);
+		if (res <= 0)
+			break;
+		samples += 240;
+		pos += res;
+	}
+	return samples;
+}
+
+static unsigned char get_n_bits_at(unsigned char *data, int n, int bit)
+{
+	int byte = bit / 8;       /* byte containing first bit */
+	int rem = 8 - (bit % 8);  /* remaining bits in first byte */
+	unsigned char ret = 0;
+	
+	if (n <= 0 || n > 8)
+		return 0;
+
+	if (rem < n) {
+		ret = (data[byte] << (n - rem));
+		ret |= (data[byte + 1] >> (8 - n + rem));
+	} else {
+		ret = (data[byte] >> (rem - n));
+	}
+
+	return (ret & (0xff >> (8 - n)));
+}
+
+static int speex_get_wb_sz_at(unsigned char *data, int len, int bit)
+{
+	static int SpeexWBSubModeSz[] = {
+		0, 36, 112, 192,
+		352, 0, 0, 0 };
+	int off = bit;
+	unsigned char c;
+
+	/* skip up to two wideband frames */
+	if (((len * 8 - off) >= 5) && 
+		get_n_bits_at(data, 1, off)) {
+		c = get_n_bits_at(data, 3, off + 1);
+		off += SpeexWBSubModeSz[c];
+
+		if (((len * 8 - off) >= 5) && 
+			get_n_bits_at(data, 1, off)) {
+			c = get_n_bits_at(data, 3, off + 1);
+			off += SpeexWBSubModeSz[c];
+
+			if (((len * 8 - off) >= 5) && 
+				get_n_bits_at(data, 1, off)) {
+				ast_log(LOG_WARNING, "Encountered corrupt speex frame; too many wideband frames in a row.\n");
+				return -1;
+			}
+		}
+
+	}
+	return off - bit;
+}
+
+static int speex_samples(unsigned char *data, int len)
+{
+	static int SpeexSubModeSz[] = {
+		0, 43, 119, 160, 
+		220, 300, 364, 492, 
+		79, 0, 0, 0,
+		0, 0, 0, 0 };
+	static int SpeexInBandSz[] = { 
+		1, 1, 4, 4,
+		4, 4, 4, 4,
+		8, 8, 16, 16,
+		32, 32, 64, 64 };
+	int bit = 0;
+	int cnt = 0;
+	int off = 0;
+	unsigned char c;
+
+	while ((len * 8 - bit) >= 5) {
+		/* skip wideband frames */
+		off = speex_get_wb_sz_at(data, len, bit);
+		if (off < 0)  {
+			ast_log(LOG_WARNING, "Had error while reading wideband frames for speex samples\n");
+			break;
+		}
+		bit += off;
+
+		if ((len * 8 - bit) < 5) {
+			ast_log(LOG_WARNING, "Not enough bits remaining after wide band for speex samples.\n");
+			break;
+		}
+
+		/* get control bits */
+		c = get_n_bits_at(data, 5, bit);
+		bit += 5;
+
+		if (c == 15) { 
+			/* terminator */
+			break; 
+		} else if (c == 14) {
+			/* in-band signal; next 4 bits contain signal id */
+			c = get_n_bits_at(data, 4, bit);
+			bit += 4;
+			bit += SpeexInBandSz[c];
+		} else if (c == 13) {
+			/* user in-band; next 5 bits contain msg len */
+			c = get_n_bits_at(data, 5, bit);
+			bit += 5;
+			bit += c * 8;
+		} else if (c > 8) {
+			/* unknown */
+			break;
+		} else {
+			/* skip number bits for submode (less the 5 control bits) */
+			bit += SpeexSubModeSz[c] - 5;
+			cnt += 160; /* new frame */
+		}
+	}
+	return cnt;
+}
+
+
+int ast_codec_get_samples(struct ast_frame *f)
+{
+	int samples=0;
+	switch(f->subclass) {
+	case AST_FORMAT_SPEEX:
+		samples = speex_samples(f->data, f->datalen);
+		break;
+	case AST_FORMAT_G723_1:
+                samples = g723_samples(f->data, f->datalen);
+		break;
+	case AST_FORMAT_ILBC:
+		samples = 240 * (f->datalen / 50);
+		break;
+	case AST_FORMAT_GSM:
+		samples = 160 * (f->datalen / 33);
+		break;
+	case AST_FORMAT_G729A:
+		samples = f->datalen * 8;
+		break;
+	case AST_FORMAT_SLINEAR:
+		samples = f->datalen / 2;
+		break;
+	case AST_FORMAT_LPC10:
+                /* assumes that the RTP packet contains one LPC10 frame */
+		samples = 22 * 8;
+		samples += (((char *)(f->data))[7] & 0x1) * 8;
+		break;
+	case AST_FORMAT_ULAW:
+	case AST_FORMAT_ALAW:
+		samples = f->datalen;
+		break;
+	case AST_FORMAT_ADPCM:
+	case AST_FORMAT_G726:
+		samples = f->datalen * 2;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Unable to calculate samples for format %s\n", ast_getformatname(f->subclass));
+	}
+	return samples;
+}
 

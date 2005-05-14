@@ -399,6 +399,9 @@ extern int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t 
 /* Shift a codec preference list up or down 65 bytes so that it becomes an ASCII string */
 extern void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right);
 
+/* Returns the number of samples contained in the frame */
+extern int ast_codec_get_samples(struct ast_frame *f);
+
 /* Gets duration in ms of interpolation frame for a format */
 static inline int ast_codec_interp_len(int format) 
 { 
