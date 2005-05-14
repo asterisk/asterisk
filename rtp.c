@@ -429,6 +429,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	int version;
 	int payloadtype;
 	int hdrlen = 12;
+	int padding;
 	int mark;
 	int ext;
 	int x;
@@ -482,10 +483,17 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		return &null_frame;
 	
 	payloadtype = (seqno & 0x7f0000) >> 16;
+	padding = seqno & (1 << 29);
 	mark = seqno & (1 << 23);
 	ext = seqno & (1 << 28);
 	seqno &= 0xffff;
 	timestamp = ntohl(rtpheader[1]);
+	
+	if (padding) {
+		/* Remove padding bytes */
+		res -= rtp->rawdata[AST_FRIENDLY_OFFSET + res - 1];
+	}
+	
 	if (ext) {
 		/* RTP Extension present */
 		hdrlen += 4;
