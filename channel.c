@@ -1520,6 +1520,7 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 			ast_settimeout(chan, 160, generator_force, chan);
 		}
 	}
+	/* High bit prints debugging */
 	if (chan->fin & 0x80000000)
 		ast_frame_dump(chan->name, f, "<<");
 	if ((chan->fin & 0x7fffffff) == 0x7fffffff)
@@ -1729,6 +1730,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			return 0;
 		}
 	}
+	/* High bit prints debugging */
 	if (chan->fout & 0x80000000)
 		ast_frame_dump(chan->name, fr, ">>");
 	CHECK_BLOCKING(chan);
@@ -1817,7 +1819,6 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			chan->fout &= 0x80000000;
 		else
 			chan->fout++;
-		chan->fout++;
 	}
 	ast_mutex_unlock(&chan->lock);
 	return res;
