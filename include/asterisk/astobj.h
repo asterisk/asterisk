@@ -129,8 +129,8 @@ extern "C" {
  */
 #define ASTOBJ_COMPONENTS_NOLOCK_FULL(type,namelen,hashes) \
 	char name[namelen]; \
-	int refcount; \
-	int objflags; \
+	unsigned int refcount; \
+	unsigned int objflags; \
 	__ASTOBJ_HASH(type,hashes)
 	
 /*! \brief Add ASTOBJ components to a struct (without locking support).
@@ -213,7 +213,7 @@ extern "C" {
 	do { \
 		int newcount = 0; \
 		ASTOBJ_WRLOCK(object); \
-		if (__builtin_expect((object)->refcount, 1)) \
+		if (__builtin_expect((object)->refcount > 0, 1)) \
 			newcount = --((object)->refcount); \
 		else \
 			ast_log(LOG_WARNING, "Unreferencing unreferenced (object)!\n"); \
