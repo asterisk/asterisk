@@ -459,7 +459,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		for (y=0;y<3;y++) {
 			if (y == index)
 				continue;
-			if (p->subs[x].owner && !strcasecmp(p->subs[x].owner->name, tmp->name))
+			if (p->subs[y].owner && !strcasecmp(p->subs[y].owner->name, tmp->name))
 				break;
 		}
 		if (y >= 3)
