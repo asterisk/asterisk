@@ -440,10 +440,16 @@ static struct pbx_builtin {
 	},
 
 	{ "ImportVar", pbx_builtin_importvar,
-	"Set variable to value",
-	"  ImportVar(#n=channel|variable): Sets variable n to variable as evaluated on\n"
-	"the specified channel (instead of current). If prefixed with _, single\n"
-	"inheritance assumed. If prefixed with __, infinite inheritance is assumed.\n" },
+	"Import a variable from a channel into a new variable",
+	"  ImportVar(newvar=channelname|variable): This application imports a\n"
+	"variable from the specified channel (as opposed to the current one)\n"
+	"and stores it as a variable in the current channel (the channel that\n"
+	"is calling this application). If the new variable name is prefixed by\n"
+	"a single underscore \"_\", then it will be inherited into any channels\n"
+	"created from this one. If it is prefixed with two underscores,then\n"
+	"the variable will have infinite inheritance, meaning that it will be\n"
+	"present in any descendent channel of this one.\n"
+	},
 
 	{ "StripMSD", pbx_builtin_stripmsd,
 	"Strip leading digits",
