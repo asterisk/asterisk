@@ -214,7 +214,7 @@ static int fmult(int an, int srn)
 	int		retval;
 
 	anmag = (an > 0) ? an : ((-an) & 0x1FFF);
-	anexp = log2(anmag) - 5;
+	anexp = ilog2(anmag) - 5;
 	anmant = (anmag == 0) ? 32 :
 	    (anexp >= 0) ? anmag >> anexp : anmag << -anexp;
 	wanexp = anexp + ((srn >> 6) & 0xF) - 13;
@@ -297,7 +297,7 @@ static int quantize(
 	 * Compute base 2 log of 'd', and store in 'dl'.
 	 */
 	dqm = abs(d);
-	exp = log2(dqm);
+	exp = ilog2(dqm);
 	if (exp < 0)
 		exp = 0;
 	mant = ((dqm << 7) >> exp) & 0x7F;	/* Fractional portion. */
@@ -515,7 +515,7 @@ static void update(
 	if (mag == 0) {
 		state_ptr->dq[0] = (dq >= 0) ? 0x20 : 0x20 - 0x400;
 	} else {
-		exp = log2(mag) + 1;
+		exp = ilog2(mag) + 1;
 		state_ptr->dq[0] = (dq >= 0) ?
 		    (exp << 6) + ((mag << 6) >> exp) :
 		    (exp << 6) + ((mag << 6) >> exp) - 0x400;
@@ -530,11 +530,11 @@ static void update(
 	if (sr == 0) {
 		state_ptr->sr[0] = 0x20;
 	} else if (sr > 0) {
-		exp = log2(sr) + 1;
+		exp = ilog2(sr) + 1;
 		state_ptr->sr[0] = (exp << 6) + ((sr << 6) >> exp);
 	} else if (sr > -0x8000) {
 		mag = -sr;
-		exp = log2(mag) + 1;
+		exp = ilog2(mag) + 1;
 		state_ptr->sr[0] =  (exp << 6) + ((mag << 6) >> exp) - 0x400;
 	} else
 		state_ptr->sr[0] = 0x20 - 0x400;

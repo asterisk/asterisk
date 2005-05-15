@@ -24,7 +24,7 @@
 #if defined(WANT_ASM) && defined(_MSC_VER) && defined(_M_IX86)
 /* MS C Inline Asm */
 #	pragma warning( disable : 4035 )
-static inline int log2(int val) { __asm
+static inline int ilog2(int val) { __asm
 {
 	xor		eax, eax
 	dec		eax
@@ -33,7 +33,7 @@ static inline int log2(int val) { __asm
 #	pragma warning( default : 4035 )
 #elif defined(WANT_ASM) && defined(__GNUC__) && (defined(__i386__) || defined(i386))
 /* GNU Inline Asm */
-static inline int log2(int val)
+static inline int ilog2(int val)
 {
 	int a;
 	__asm__
@@ -48,12 +48,22 @@ static inline int log2(int val)
 	);
 	return a;
 }
+#elif defined(WANT_ASM) && defined(__GNUC__) && defined(__powerpc__)
+static inline int ilog2(int val)
+{
+	int a;
+	__asm__ ("cntlzw %0,%1" 
+		 : "=r" (a) 
+		 : "r" (val)
+		 );
+	return 31-a;
+}
 #else
 /* no ASM for this compiler and/or platform */
 /* rather slow base 2 log computation
  * Using looped shift.
  */
-static inline int log2(int val)
+static inline int ilog2(int val)
 {
 	int i;
 	for (i = -1; val; ++i, val >>= 1)
