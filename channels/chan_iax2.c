@@ -2509,64 +2509,69 @@ static struct iax2_peer *realtime_peer(const char *peername)
 	struct iax2_peer *peer=NULL;
 	time_t regseconds, nowtime;
 	int dynamic=0;
+
 	var = ast_load_realtime("iaxpeers", "name", peername, NULL);
-	if (var) {
+	if (!var)
+		return NULL;
+
+	peer = build_peer(peername, var, ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS) ? 0 : 1);
+	
+	if (!peer)
+		return NULL;
+
+	tmp = var;
+	while(tmp) {
 		/* Make sure it's not a user only... */
-		peer = build_peer(peername, var, ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS) ? 0 : 1);
-
-		if (peer) {
-			tmp = var;
-			while(tmp) {
-				if (!strcasecmp(tmp->name, "type")) {
-					if (strcasecmp(tmp->value, "friend") &&
-						strcasecmp(tmp->value, "peer")) {
-						/* Whoops, we weren't supposed to exist! */
-						destroy_peer(peer);
-						peer = NULL;
-						break;
-					} 
-				} else if (!strcasecmp(tmp->name, "regseconds")) {
-					if (sscanf(tmp->value, "%li", &regseconds) != 1)
-						regseconds = 0;
-				} else if (!strcasecmp(tmp->name, "ipaddr")) {
-					inet_aton(tmp->value, &(peer->addr.sin_addr));
-				} else if (!strcasecmp(tmp->name, "port")) {
-					peer->addr.sin_port = htons(atoi(tmp->value));
-				} else if (!strcasecmp(tmp->name, "host")) {
-					if (!strcasecmp(tmp->value, "dynamic"))
-						dynamic = 1;
-				}
-				tmp = tmp->next;
-			}
-
-			/* Add some finishing touches, addresses, etc */
-		  	if(ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
-				ast_mutex_lock(&peerl.lock);
-				peer->next = peerl.peers;
-				peerl.peers = peer;
-				ast_mutex_unlock(&peerl.lock);
-				ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
-				if (ast_test_flag(peer, IAX_RTAUTOCLEAR)) {
-					if (peer->expire > -1) {
-						ast_sched_del(sched, peer->expire);
-					}
-					peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, (void *)peer);
-				}
-			} else {
-		    		ast_set_flag(peer, IAX_TEMPONLY);	
-			}
-
-			if (peer && dynamic) {
-				time(&nowtime);
-				if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) {
-					memset(&peer->addr, 0, sizeof(peer->addr));
-					if (option_debug)
-						ast_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
-				}
-			}
+		if (!strcasecmp(tmp->name, "type")) {
+			if (strcasecmp(tmp->value, "friend") &&
+			    strcasecmp(tmp->value, "peer")) {
+				/* Whoops, we weren't supposed to exist! */
+				destroy_peer(peer);
+				peer = NULL;
+				break;
+			} 
+		} else if (!strcasecmp(tmp->name, "regseconds")) {
+			if (sscanf(tmp->value, "%li", &regseconds) != 1)
+				regseconds = 0;
+		} else if (!strcasecmp(tmp->name, "ipaddr")) {
+			inet_aton(tmp->value, &(peer->addr.sin_addr));
+		} else if (!strcasecmp(tmp->name, "port")) {
+			peer->addr.sin_port = htons(atoi(tmp->value));
+		} else if (!strcasecmp(tmp->name, "host")) {
+			if (!strcasecmp(tmp->value, "dynamic"))
+				dynamic = 1;
 		}
-		ast_variables_destroy(var);
+		tmp = tmp->next;
 	}
+	if (!peer)
+		return NULL;
+
+	ast_variables_destroy(var);
+
+	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
+		ast_copy_flags(peer, &globalflags, IAX_RTAUTOCLEAR|IAX_RTCACHEFRIENDS);
+		if (ast_test_flag(peer, IAX_RTAUTOCLEAR)) {
+			if (peer->expire > -1)
+				ast_sched_del(sched, peer->expire);
+			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_registry, peer);
+		}
+		ast_mutex_lock(&peerl.lock);
+		peer->next = peerl.peers;
+		peerl.peers = peer;
+		ast_mutex_unlock(&peerl.lock);
+	} else {
+		ast_set_flag(peer, IAX_TEMPONLY);	
+	}
+
+	if (dynamic) {
+		time(&nowtime);
+		if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) {
+			memset(&peer->addr, 0, sizeof(peer->addr));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
+		}
+	}
+
 	return peer;
 }
 
@@ -2575,37 +2580,39 @@ static struct iax2_user *realtime_user(const char *username)
 	struct ast_variable *var;
 	struct ast_variable *tmp;
 	struct iax2_user *user=NULL;
+
 	var = ast_load_realtime("iaxusers", "name", username, NULL);
-	if (var) {
-		/* Make sure it's not a user only... */
-		user = build_user(username, var, !ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS));
-		if (user) {
-			/* Add some finishing touches, addresses, etc */
-		  	if(ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
-				ast_mutex_lock(&userl.lock);
-				user->next = userl.users;
-				userl.users = user;
-				ast_mutex_unlock(&userl.lock);
-				ast_set_flag(user, IAX_RTCACHEFRIENDS);
-			} else {
-				ast_set_flag(user, IAX_TEMPONLY);	
-			}
-			tmp = var;
-			while(tmp) {
-				if (!strcasecmp(tmp->name, "type")) {
-					if (strcasecmp(tmp->value, "friend") &&
-						strcasecmp(tmp->value, "user")) {
-						/* Whoops, we weren't supposed to exist! */
-						destroy_user(user);
-						user = NULL;
-						break;
-					} 
-				}
-				tmp = tmp->next;
-			}
+	if (!var)
+		return NULL;
+
+	tmp = var;
+	while(tmp) {
+		/* Make sure it's not a peer only... */
+		if (!strcasecmp(tmp->name, "type")) {
+			if (strcasecmp(tmp->value, "friend") &&
+			    strcasecmp(tmp->value, "user")) {
+				return NULL;
+			} 
 		}
-		ast_variables_destroy(var);
+		tmp = tmp->next;
 	}
+
+	user = build_user(username, var, !ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS));
+	if (!user)
+		return NULL;
+
+	ast_variables_destroy(var);
+
+	if (ast_test_flag((&globalflags), IAX_RTCACHEFRIENDS)) {
+		ast_set_flag(user, IAX_RTCACHEFRIENDS);
+		ast_mutex_lock(&userl.lock);
+ 		user->next = userl.users;
+		userl.users = user;
+		ast_mutex_unlock(&userl.lock);
+	} else {
+		ast_set_flag(user, IAX_TEMPONLY);	
+	}
+
 	return user;
 }
 
