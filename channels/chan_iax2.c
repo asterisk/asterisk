@@ -6219,8 +6219,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 								else
 									f.data = NULL;
 								if(trunked_ts) {
-									fr.ts = trunked_ts;
-									fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | (fr.ts & 0xffff);
+									fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | (trunked_ts & 0xffff);
 								} else
 									fr.ts = fix_peerts(&rxtrunktime, fr.callno, ts);
 								/* Don't pass any packets until we're started */
