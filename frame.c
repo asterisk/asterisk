@@ -259,6 +259,11 @@ void ast_frfree(struct ast_frame *fr)
 	}
 }
 
+/*
+ * 'isolates' a frame by duplicating non-malloc'ed components
+ * (header, src, data).
+ * On return all components are malloc'ed
+ */
 struct ast_frame *ast_frisolate(struct ast_frame *fr)
 {
 	struct ast_frame *out;
@@ -271,11 +276,11 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr)
 		}
 		out->frametype = fr->frametype;
 		out->subclass = fr->subclass;
-		out->datalen = 0;
+		out->datalen = fr->datalen;
 		out->samples = fr->samples;
-		out->offset = 0;
+		out->offset = fr->offset;
 		out->src = NULL;
-		out->data = NULL;
+		out->data = fr->data;
 	} else {
 		out = fr;
 	}
@@ -308,6 +313,10 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	/* Start with standard stuff */
 	len = sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET + f->datalen;
 	/* If we have a source, add space for it */
+	/*
+	 * XXX Watch out here - if we receive a src which is not terminated
+	 * properly, we can be easily attacked. Should limit the size we deal with.
+	 */
 	if (f->src)
 		srclen = strlen(f->src);
 	if (srclen > 0)
@@ -338,6 +347,13 @@ struct ast_frame *ast_frdup(struct ast_frame *f)
 	return out;
 }
 
+#if 0
+/*
+ * XXX
+ * This function is badly broken - it does not handle correctly
+ * partial reads on either header or body.
+ * However is it never used anywhere so we leave it commented out
+ */
 struct ast_frame *ast_fr_fdread(int fd)
 {
 	char buf[65536];
@@ -386,6 +402,11 @@ struct ast_frame *ast_fr_fdread(int fd)
 /* Some convenient routines for sending frames to/from stream or datagram
    sockets, pipes, etc (maybe even files) */
 
+/*
+ * XXX this function is also partly broken because it does not handle
+ * partial writes. We comment it out too, and also the unique
+ * client it has, ast_fr_fdhangup()
+ */
 int ast_fr_fdwrite(int fd, struct ast_frame *frame)
 {
 	/* Write the frame exactly */
@@ -409,6 +430,7 @@ int ast_fr_fdhangup(int fd)
 	return ast_fr_fdwrite(fd, &hangup);
 }
 
+#endif /* unused functions */
 void ast_swapcopy_samples(void *dst, const void *src, int samples)
 {
 	int i;
