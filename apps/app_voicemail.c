@@ -12,6 +12,7 @@
  *
  * 12-16 - 2005 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
  *				 George Konstantoulakis <gkon@inaccessnetworks.com>
+ * 05-10 - 2005 : Support for Swedish and Norwegian added by Daniel Nylander, http://www.danielnylander.se/
  */
 
 #include "asterisk/lock.h"
@@ -96,6 +97,8 @@ static int load_config(void);
 	nl - Dutch
 	pt - Portuguese
 	gr - Greek
+	no - Norwegian
+	se - Swedish
 
 German requires the following additional soundfile:
 1F	einE (feminine)
@@ -111,12 +114,24 @@ NB these are plural:
 vm-INBOX	nieuwe (nl)
 vm-Old		oude (nl)
 
+Swedish uses:
+vm-nytt		singular of 'new'
+vm-nya		plural of 'new'
+vm-gammalt	singular of 'old'
+vm-gamla	plural of 'old'
+digits/ett	'one', not always same as 'digits/1'
+
+Norwegian uses:
+vm-ny		singular of 'new'
+vm-nye		plural of 'new'
+vm-gammel	singular of 'old'
+vm-gamle	plural of 'old'
+
 Dutch also uses:
 nl-om		'at'?
 
 Spanish also uses:
 vm-youhaveno
-
 
 Italian requires the following additional soundfile:
 
@@ -125,8 +140,9 @@ vm-nuovo	new
 vm-nuovi	new plural
 vm-vecchio	old
 vm-vecchi	old plural
-Don't use vm-INBOX or vm-Old, because they are the name of the INBOX and Old folderS, spelled among others when you have to change folder.
-For the above reasons, vm-INBOX and vm-Old are spelled plural, to make them sound more as folder name than an adjective.
+Don't use vm-INBOX or vm-Old, because they are the name of the INBOX and Old folders,
+spelled among others when you have to change folder. For the above reasons, vm-INBOX
+and vm-Old are spelled plural, to make them sound more as folder name than an adjective.
 
 */
 
@@ -3634,6 +3650,93 @@ static int vm_intro_it(struct ast_channel *chan,struct vm_state *vms)
 	return res;
 }
 
+/* SWEDISH syntax */
+static int vm_intro_se(struct ast_channel *chan, struct vm_state *vms)
+{
+        /* Introduce messages they have */
+        int res;
+
+	res = ast_play_and_wait(chan, "vm-youhave");
+	if (res)
+		return res;
+
+        if (!vms->oldmessages && !vms->newmessages) {
+		res = ast_play_and_wait(chan, "vm-no");
+		res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		return res;
+        }
+
+	if (vms->newmessages) {
+		if ((vms->newmessages == 1)) {
+			res = ast_play_and_wait(chan, "digits/ett");
+			res = res ? res : ast_play_and_wait(chan, "vm-nytt");
+			res = res ? res : ast_play_and_wait(chan, "vm-message");
+		} else {
+			res = say_and_wait(chan, vms->newmessages, chan->language);
+			res = res ? res : ast_play_and_wait(chan, "vm-nya");
+			res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		}
+		if (!res && vms->oldmessages)
+			res = ast_play_and_wait(chan, "vm-and");
+	}
+	if (!res && vms->oldmessages) {
+		if (vms->oldmessages == 1) {
+			res = ast_play_and_wait(chan, "digits/ett");
+			res = res ? res : ast_play_and_wait(chan, "vm-gammalt");
+			res = res ? res : ast_play_and_wait(chan, "vm-message");
+		} else {
+			res = say_and_wait(chan, vms->oldmessages, chan->language);
+			res = res ? res : ast_play_and_wait(chan, "vm-gamla");
+			res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		}
+	}
+
+	return res;
+}
+
+/* NORWEGIAN syntax */
+static int vm_intro_no(struct ast_channel *chan,struct vm_state *vms)
+{
+        /* Introduce messages they have */
+        int res;
+
+	res = ast_play_and_wait(chan, "vm-youhave");
+	if (res)
+		return res;
+
+        if (!vms->oldmessages && !vms->newmessages) {
+		res = ast_play_and_wait(chan, "vm-no");
+		res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		return res;
+        }
+
+	if (vms->newmessages) {
+		if ((vms->newmessages == 1)) {
+			res = ast_play_and_wait(chan, "digits/1");
+			res = res ? res : ast_play_and_wait(chan, "vm-ny");
+			res = res ? res : ast_play_and_wait(chan, "vm-message");
+		} else {
+			res = say_and_wait(chan, vms->newmessages, chan->language);
+			res = res ? res : ast_play_and_wait(chan, "vm-nye");
+			res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		}
+		if (!res && vms->oldmessages)
+			res = ast_play_and_wait(chan, "vm-and");
+	}
+	if (!res && vms->oldmessages) {
+		if (vms->oldmessages == 1) {
+			res = ast_play_and_wait(chan, "digits/1");
+			res = res ? res : ast_play_and_wait(chan, "vm-gamel");
+			res = res ? res : ast_play_and_wait(chan, "vm-message");
+		} else {
+			res = say_and_wait(chan, vms->oldmessages, chan->language);
+			res = res ? res : ast_play_and_wait(chan, "vm-gamle");
+			res = res ? res : ast_play_and_wait(chan, "vm-messages");
+		}
+	}
+
+	return res;
+}
 
 /* GERMAN syntax */
 static int vm_intro_de(struct ast_channel *chan,struct vm_state *vms)
@@ -3970,11 +4073,15 @@ static int vm_intro(struct ast_channel *chan,struct vm_state *vms)
 		return vm_intro_nl(chan, vms);
 	} else if (!strcasecmp(chan->language, "pt")) {	/* PORTUGUESE syntax */
 		return vm_intro_pt(chan, vms);
-	} else if (!strcasecmp(chan->language, "cz")) { /* CZECH syntax */
+	} else if (!strcasecmp(chan->language, "cz")) {	/* CZECH syntax */
 		return vm_intro_cz(chan, vms);
-	} else if (!strcasecmp(chan->language, "gr")){ /*	GREEK syntax */
+	} else if (!strcasecmp(chan->language, "gr")) {	/* GREEK syntax */
 		return vm_intro_gr(chan, vms);
-	} else {	/* Default to ENGLISH */
+	} else if (!strcasecmp(chan->language, "se")) {	/* SWEDISH syntax */
+		return vm_intro_se(chan, vms);
+	} else if (!strcasecmp(chan->language, "no")) {	/* NORWEGIAN syntax */
+		return vm_intro_no(chan, vms);
+	} else {					/* Default to ENGLISH */
 		return vm_intro_en(chan, vms);
 	}
 }
