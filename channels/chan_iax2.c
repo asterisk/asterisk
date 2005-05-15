@@ -4465,7 +4465,7 @@ static struct ast_cli_entry  cli_show_registry =
 static struct ast_cli_entry  cli_debug =
 	{ { "iax2", "debug", NULL }, iax2_do_debug, "Enable IAX debugging", debug_usage };
 static struct ast_cli_entry  cli_trunk_debug =
-	{ { "iax2", "trunk", "debug", NULL }, iax2_do_trunk_debug, "Request IAX trunk debug", debug_trunk_usage };
+	{ { "iax2", "trunk", "debug", NULL }, iax2_do_trunk_debug, "Request snapshot of IAX trunk states", debug_trunk_usage };
 static struct ast_cli_entry  cli_no_debug =
 	{ { "iax2", "no", "debug", NULL }, iax2_no_debug, "Disable IAX debugging", no_debug_usage };
 static struct ast_cli_entry  cli_test_losspct =
@@ -5779,11 +5779,11 @@ static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now)
 		/* Any appropriate call will do */
 		fr->data = fr->afdata;
 		fr->datalen = tpeer->trunkdatalen + sizeof(struct ast_iax2_meta_hdr) + sizeof(struct ast_iax2_meta_trunk_hdr);
-#if 0
-		ast_log(LOG_DEBUG, "Trunking %d calls in %d bytes, ts=%d\n", calls, fr->datalen, ntohl(mth->ts));
-#endif		
 		res = transmit_trunk(fr, &tpeer->addr, tpeer->sockfd);
 		calls = tpeer->calls;
+#if 0
+		ast_log(LOG_DEBUG, "Trunking %d call chunks in %d bytes to %s:%d, ts=%d\n", calls, fr->datalen, ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), ntohl(mth->ts));
+#endif		
 		/* Reset transmit trunk side data */
 		tpeer->trunkdatalen = 0;
 		tpeer->calls = 0;
@@ -5814,7 +5814,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 #endif
 	struct timeval now;
 	if (iaxtrunkdebug)
-		ast_verbose("Beginning trunk processing\n");
+		ast_verbose("Beginning trunk processing. Trunk queue ceiling is %d bytes per host\n", MAX_TRUNKDATA);
 	gettimeofday(&now, NULL);
 	if (events & AST_IO_PRI) {
 #ifdef ZT_TIMERACK
@@ -5852,7 +5852,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		} else {
 			res = send_trunk(tpeer, &now);
 			if (iaxtrunkdebug)
-				ast_verbose("Processed trunk peer (%s:%d) with %d call(s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res);
+				ast_verbose(" - Trunk peer (%s:%d) has %d call chunk(s) in transit, %d bytes backloged and has hit a high water mark of %d bytes\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res, tpeer->trunkdatalen, tpeer->trunkdataalloc);
 		}		
 		totalcalls += res;	
 		res = 0;
@@ -5873,7 +5873,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		
 	}
 	if (iaxtrunkdebug)
-		ast_verbose("Ending trunk processing with %d peers and %d calls processed\n", processed, totalcalls);
+		ast_verbose("Ending trunk processing with %d peers and %d call chunks processed\n", processed, totalcalls);
 	iaxtrunkdebug =0;
 	return 1;
 }
