@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -431,6 +432,28 @@ void ast_copy_string(char *dst, const char *src, size_t size)
 	if (__builtin_expect(!size, 0))
 		dst--;
 	*dst = '\0';
+}
+
+int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
+{
+	va_list ap;
+	int result;
+
+	if (!buffer || !*buffer || !space || !*space)
+		return -1;
+
+	va_start(ap, fmt);
+	result = vsnprintf(*buffer, *space, fmt, ap);
+	va_end(ap);
+
+	if (result < 0)
+		return -1;
+	else if (result > *space)
+		result = *space;
+
+	*buffer += result;
+	*space -= result;
+	return 0;
 }
 
 /* Case-insensitive substring matching */

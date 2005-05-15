@@ -185,6 +185,7 @@ extern char *ast_strcasestr(const char *, const char *);
   \param dst The destination buffer.
   \param src The source string
   \param size The size of the destination buffer
+  \return Nothing.
 
   This is similar to \a strncpy, with two important differences:
     - the destination buffer will \b always be null-terminated
@@ -193,8 +194,20 @@ extern char *ast_strcasestr(const char *, const char *);
   not leave the destination buffer unterminated. There is no need to pass an artificially
   reduced buffer size to this function (unlike \a strncpy), and the buffer does not need
   to be initialized to zeroes prior to calling this function.
-  No return value.
 */
 void ast_copy_string(char *dst, const char *src, size_t size);
+
+/*!
+  \brief Build a string in a buffer, designed to be called repeatedly
+  
+  This is a wrapper for snprintf, that properly handles the buffer pointer
+  and buffer space available.
+
+  \return 0 on success, non-zero on failure.
+  \param buffer current position in buffer to place string into (will be updated on return)
+  \param space remaining space in buffer (will be updated on return)
+  \param fmt printf-style format string
+*/
+int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
 #endif /* _ASTERISK_UTILS_H */
