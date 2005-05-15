@@ -5,7 +5,7 @@
  * 
  * Copyright (C) 2002, Digium
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License.
