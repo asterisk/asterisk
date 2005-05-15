@@ -94,6 +94,10 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 	int res=0;
 	struct pollfd fds[1];
 	while(len) {
+		/* Wait until writable */
+		res = poll(fds, 1, timeoutms);
+		if (res < 1)
+			return -1;
 		res = write(fd, s, len);
 		if ((res < 0) && (errno != EAGAIN)) {
 			return -1;
