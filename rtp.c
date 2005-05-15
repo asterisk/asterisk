@@ -1077,21 +1077,25 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
 	for (x=0;x<6;x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
-			res = sendto(rtp->s, (void *)rtpheader, hdrlen + 4, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
+			res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
 			if (res < 0) 
-				ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
-			if(rtp_debug_test_addr(&rtp->them))
-				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
-						, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);		   
-		   
+				ast_log(LOG_ERROR, "RTP Transmission error to %s:%d: %s\n",
+					ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
+					ntohs(rtp->them.sin_port), strerror(errno));
+			if (rtp_debug_test_addr(&rtp->them))
+				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
+					    ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
+					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
 		/* Clear marker bit and increment seqno */
-		rtpheader[0] = htonl((2 << 30)  | (payload << 16) | (rtp->seqno++));
+		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno++));
 		/* For the last three packets, set the duration and the end bit */
 		if (x == 2) {
+			rtp->lastdigitts++; /* or else the SPA3000 will click instead of beeping... */
+			rtpheader[1] = htonl(rtp->lastdigitts);
 			/* Make duration 800 (100ms) */
 			rtpheader[3] |= htonl((800));
-			/* Set the End bit for the last 3 */
+			/* Set the End bit */
 			rtpheader[3] |= htonl((1 << 23));
 		}
 	}
