@@ -57,7 +57,7 @@ void jb_reset(jitterbuf *jb)
 	memset(jb,0,sizeof(jitterbuf));
 
 	/* initialize length */
-	jb->info.current = jb->info.target = 0; 
+	jb->info.current = jb->info.target = JB_TARGET_EXTRA; 
 	jb->info.silence_begin_ts = -1; 
 }
 
