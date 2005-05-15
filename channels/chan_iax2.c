@@ -603,6 +603,7 @@ static struct iax2_dpcache {
 AST_MUTEX_DEFINE_STATIC(dpcache_lock);
 
 static void destroy_peer(struct iax2_peer *peer);
+static int ast_cli_netstats(int fd, int limit_fmt);
 
 static void iax_debug_output(const char *data)
 {
@@ -4107,6 +4108,13 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 #undef FORMAT2
 }
 
+static int manager_iax2_show_netstats( struct mansession *s, struct message *m )
+{
+	ast_cli_netstats(s->fd, 0);
+	ast_cli(s->fd, "\r\n");
+	return RESULT_SUCCESS;
+}
+
 static int iax2_show_firmware(int fd, int argc, char *argv[])
 {
 #define FORMAT2 "%-15.15s  %-15.15s %-15.15s\n"
@@ -4272,25 +4280,26 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 #undef FORMATB
 }
 
-static int iax2_show_netstats(int fd, int argc, char *argv[])
+static int ast_cli_netstats(int fd, int limit_fmt)
 {
 	int x;
 	int numchans = 0;
-	if (argc != 3)
-		return RESULT_SHOWUSAGE;
-	ast_cli(fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
-	ast_cli(fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
 	for (x=0;x<IAX_MAX_CALLS;x++) {
 		ast_mutex_lock(&iaxsl[x]);
 		if (iaxs[x]) {
 #ifdef BRIDGE_OPTIMIZATION
-			if (iaxs[x]->bridgecallno)
-				ast_cli(fd, "%-25.25s <NATIVE BRIDGED>",
+			if (iaxs[x]->bridgecallno) {
+				if (limit_fmt)	
+					ast_cli(fd, "%-25.25s <NATIVE BRIDGED>",
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
-			else
+				else
+					ast_cli(fd, "%s <NATIVE BRIDGED>",
+						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)");
+                        } else
 #endif
 			{
 				int localjitter, localdelay, locallost, locallosspct, localdropped, localooo;
+				char *fmt;
 #ifdef NEWJB
 				jb_info jbinfo;
 
@@ -4321,7 +4330,11 @@ static int iax2_show_netstats(int fd, int argc, char *argv[])
 				}
 				locallost = locallosspct = localooo = -1;
 #endif
-				ast_cli(fd, "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n",
+				if (limit_fmt)
+					fmt = "%-25.25s %4d %4d %4d %5d %3d %5d %4d %6d %4d %4d %5d %3d %5d %4d %6d\n";
+				else
+					fmt = "%s %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n";
+				ast_cli(fd, fmt,
 						iaxs[x]->owner ? iaxs[x]->owner->name : "(None)",
 						iaxs[x]->pingtime,
 						localjitter, 
@@ -4344,6 +4357,17 @@ static int iax2_show_netstats(int fd, int argc, char *argv[])
 		}
 		ast_mutex_unlock(&iaxsl[x]);
 	}
+	return numchans;
+}
+
+static int iax2_show_netstats(int fd, int argc, char *argv[])
+{
+	int numchans = 0;
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
+	ast_cli(fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
+	numchans = ast_cli_netstats(fd, 1);
 	ast_cli(fd, "%d active IAX channel(s)\n", numchans);
 	return RESULT_SUCCESS;
 }
@@ -8906,6 +8930,7 @@ static int __unload_module(void)
 		if (iaxs[x])
 			iax2_destroy(x);
 	ast_manager_unregister( "IAXpeers" );
+	ast_manager_unregister( "IAXnetstats" );
 	ast_unregister_application(papp);
 	ast_cli_unregister(&cli_show_users);
 	ast_cli_unregister(&cli_show_channels);
@@ -9015,6 +9040,7 @@ int load_module(void)
 	ast_register_application(papp, iax2_prov_app, psyn, pdescrip);
 	
 	ast_manager_register( "IAXpeers", 0, manager_iax2_show_peers, "List IAX Peers" );
+	ast_manager_register( "IAXnetstats", 0, manager_iax2_show_netstats, "Show IAX Netstats" );
 
 	set_config(config, 0);
 
