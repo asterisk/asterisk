@@ -156,10 +156,10 @@ const struct  cfsip_methods {
 };
 
 
-#define DEFAULT_SIP_PORT	5060	/* From RFC 2543 */
-#define SIP_MAX_PACKET		4096	/* Also from RFC 2543, should sub headers tho */
+#define DEFAULT_SIP_PORT	5060	/* From RFC 3261 (former 2543) */
+#define SIP_MAX_PACKET		4096	/* Also from RFC 3261 (2543), should sub headers tho */
 
-#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER"
+#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY"
 
 static char default_useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
 
@@ -2181,6 +2181,25 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		}
 		res = -1;
 		break;
+	case AST_CONTROL_HOLD:	/* We are put on hold */
+		/* The PBX is providing us with onhold music, but 
+			should we clear the RTP stream with the other 
+			end? Guess we could do that if there's no
+			musiconhold class defined for this channel
+		*/
+		if (sipdebug)
+			ast_log(LOG_DEBUG, "SIP dialog on hold: %s\n", p->callid);
+		res = -1;
+		ast_set_flag(p, SIP_CALL_ONHOLD);
+		break;
+	case AST_CONTROL_UNHOLD:	/* We are back from hold */
+		/* Open RTP stream if we decide to close it 
+		*/
+		if (sipdebug)
+			ast_log(LOG_DEBUG, "SIP dialog off hold: %s\n", p->callid);
+		res = -1;
+		ast_clear_flag(p, SIP_CALL_ONHOLD);
+		break;
 	case -1:
 		res = -1;
 		break;
@@ -2196,7 +2215,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 
 
 /*--- sip_new: Initiate a call in the SIP channel */
-/*      called from sip_request_call (calls from the pbx ) */
+/*      called from sip_request (calls from the pbx ) */
 static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
 	struct ast_channel *tmp;
@@ -3456,7 +3475,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		else
 			c = p->initreq.rlPart2;
 	} else if (!ast_strlen_zero(p->okcontacturi)) {
-		c = p->okcontacturi; /* Use for BYE or REINVITE */
+		c = p->okcontacturi; /* Use for BYE, REFER or REINVITE */
 	} else if (!ast_strlen_zero(p->uri)) {
 		c = p->uri;
 	} else {
@@ -5552,7 +5571,7 @@ static int sip_unescape_uri(char *uri)
 
 
 
-/*--- get_refer_info: Call transfer support (new standard) ---*/
+/*--- get_refer_info: Call transfer support (the REFER method) ---*/
 static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
 {
 
@@ -5576,24 +5595,28 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 	refer_to = ditch_braces(h_refer_to);
 
 	if (!( (p_referred_by = get_header(req, "Referred-By")) && (h_referred_by = ast_strdupa(p_referred_by)) )) {
-		ast_log(LOG_WARNING, "No Refer-To Header That's illegal\n");
+		ast_log(LOG_WARNING, "No Referrred-By Header That's not illegal\n");
+	} else {
+		referred_by = ditch_braces(h_referred_by);
+	}
+	h_contact = get_header(req, "Contact");
+	
+	if (strncmp(refer_to, "sip:", 4)) {
+		ast_log(LOG_WARNING, "Refer-to: Huh?  Not a SIP header (%s)?\n", refer_to);
 		return -1;
 	}
 
-	referred_by = ditch_braces(h_referred_by);
-	h_contact = get_header(req, "Contact");
-	
-	if (strncmp(refer_to, "sip:", 4) && strncmp(referred_by, "sip:", 4)) {
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", refer_to);
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", referred_by);
-		return -1;
+	if (strncmp(referred_by, "sip:", 4)) {
+		ast_log(LOG_WARNING, "Referred-by: Huh?  Not a SIP header (%s) Ignoring?\n", referred_by);
+		referred_by = NULL;
 	}
+
 	refer_to += 4;
 	referred_by += 4;
 	
 	
 	if ((ptr = strchr(refer_to, '?'))) {
-		/* Search for arguemnts */
+		/* Search for arguments */
 		*ptr = '\0';
 		ptr++;
 		if (!strncasecmp(ptr, "REPLACES=", 9)) {
@@ -5613,19 +5636,22 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		}
 	}
 	
-	if ((ptr = strchr(refer_to, '@')))
+	if ((ptr = strchr(refer_to, '@')))	/* Skip domain (should be saved in SIPDOMAIN) */
 		*ptr = '\0';
 	if ((ptr = strchr(refer_to, ';'))) 
 		*ptr = '\0';
 	
-	if ((ptr = strchr(referred_by, '@')))
-		*ptr = '\0';
-	if ((ptr = strchr(referred_by, ';'))) 
-		*ptr = '\0';
+	if (referred_by) {
+		if ((ptr = strchr(referred_by, '@')))
+			*ptr = '\0';
+		if ((ptr = strchr(referred_by, ';'))) 
+			*ptr = '\0';
+	}
 	
 	if (sip_debug_test_pvt(sip_pvt)) {
-		ast_verbose("Looking for %s in %s\n", refer_to, sip_pvt->context);
-		ast_verbose("Looking for %s in %s\n", referred_by, sip_pvt->context);
+		ast_verbose("Transfer to %s in %s\n", refer_to, sip_pvt->context);
+		if (referred_by)
+			ast_verbose("Transfer from %s in %s\n", referred_by, sip_pvt->context);
 	}
 	if (!ast_strlen_zero(replace_callid)) {	
 		/* This is a supervised transfer */
@@ -5646,15 +5672,15 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			ast_log(LOG_NOTICE, "Supervised transfer requested, but unable to find callid '%s'.  Both legs must reside on Asterisk box to transfer at this time.\n", replace_callid);
 			/* XXX The refer_to could contain a call on an entirely different machine, requiring an 
 	    		  INVITE with a replaces header -anthm XXX */
-
-			
+			/* The only way to find out is to use the dialplan - oej */
 		}
 	} else if (ast_exists_extension(NULL, sip_pvt->context, refer_to, 1, NULL) || !strcmp(refer_to, ast_parking_ext())) {
-		/* This is an unsupervised transfer */
+		/* This is an unsupervised transfer (blind transfer) */
 		
-		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", refer_to);
-		ast_log(LOG_DEBUG,"Assigning Extension %s to REFERRED-BY\n", referred_by);
-		ast_log(LOG_DEBUG,"Assigning Contact Info %s to REFER_CONTACT\n", h_contact);
+		ast_log(LOG_DEBUG,"Unsupervised transfer to (Refer-To): %s\n", refer_to);
+		if (referred_by)
+			ast_log(LOG_DEBUG,"Transferred by  (Referred-by: ) %s \n", referred_by);
+		ast_log(LOG_DEBUG,"Transfer Contact Info %s (REFER_CONTACT)\n", h_contact);
 		ast_copy_string(sip_pvt->refer_to, refer_to, sizeof(sip_pvt->refer_to));
 		ast_copy_string(sip_pvt->referred_by, referred_by, sizeof(sip_pvt->referred_by));
 		if (h_contact) {
@@ -8536,6 +8562,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	int gotdest;
 	struct ast_frame af = { AST_FRAME_NULL, };
 
+	/* Check if this is a loop */
+	/* This happens since we do not properly support SIP domain
+	   handling yet... -oej */
 	if (ast_test_flag(p, SIP_OUTGOING) && p->owner && (p->owner->_state != AST_STATE_UP)) {
 		/* This is a call to ourself.  Send ourselves an error code and stop
 		   processing immediately, as SIP really has no good mechanism for
@@ -8547,7 +8576,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!ignore) {
 		/* Use this as the basis */
 		if (debug)
-			ast_verbose("Using latest request as basis request\n");
+			ast_verbose("Using INVITE request as basis request - %s\n", p->callid);
 		sip_cancel_destroy(p);
 		/* This call is no longer outgoing if it ever was */
 		ast_clear_flag(p, SIP_OUTGOING);
@@ -8557,7 +8586,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		check_via(p, req);
 		if (p->owner) {
 			/* Handle SDP here if we already have an owner */
-			if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
+			if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 				if (process_sdp(p, req)) {
 					transmit_response(p, "488 Not acceptable here", req);
 					ast_set_flag(p, SIP_NEEDDESTROY);	
@@ -8602,11 +8631,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (ast_strlen_zero(p->context))
 			strcpy(p->context, default_context);
 		/* Check number of concurrent calls -vs- incoming limit HERE */
-		ast_log(LOG_DEBUG, "Check for res for %s\n", p->username);
-		res = update_user_counter(p,INC_IN_USE);
+		ast_log(LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
+		res = update_user_counter(p, INC_IN_USE);
 		if (res) {
 			if (res < 0) {
-				ast_log(LOG_DEBUG, "Failed to place call for user %s, too many calls\n", p->username);
+				ast_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
 				if (ignore)
 					transmit_response(p, "480 Temporarily Unavailable (Call limit)", req);
 				else
@@ -8653,8 +8682,11 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 		}
 		
-	} else 
+	} else {
+		if (option_debug > 1 && sipdebug)
+			ast_log(LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
 		c = p->owner;
+	}
 	if (!ignore && p)
 		p->lastinvite = seqno;
 	if (c) {
@@ -8741,7 +8773,7 @@ static int handle_request_refer(struct sip_pvt *p, struct sip_request *req, int 
 	struct ast_channel *transfer_to;
 
 	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "We found a REFER!\n");
+		ast_log(LOG_DEBUG, "SIP call transfer received for call %s (REFER)!\n", p->callid);
 	if (ast_strlen_zero(p->context))
 		strcpy(p->context, default_context);
 	res = get_refer_info(p, req);
