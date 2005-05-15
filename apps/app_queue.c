@@ -516,9 +516,9 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 				/* No luck, join at the end of the queue */
 				if (!inserted)
 					insert_entry(q, prev, qe, &pos);
-				strncpy(qe->moh, q->moh, sizeof(qe->moh) - 1);
-				strncpy(qe->announce, q->announce, sizeof(qe->announce) - 1);
-				strncpy(qe->context, q->context, sizeof(qe->context) - 1);
+				ast_copy_string(qe->moh, q->moh, sizeof(qe->moh));
+				ast_copy_string(qe->announce, q->announce, sizeof(qe->announce));
+				ast_copy_string(qe->context, q->context, sizeof(qe->context));
 				q->count++;
 				res = 0;
 				manager_event(EVENT_FLAG_CALL, "Join", 
@@ -589,17 +589,30 @@ static int play_file(struct ast_channel *chan, char *filename)
 	res = ast_streamfile(chan, filename, chan->language);
 
 	if (!res)
-		res = ast_waitstream(chan, "");
+		res = ast_waitstream(chan, AST_DIGIT_ANY);
 	else
 		res = 0;
 
-	if (res) {
-		ast_log(LOG_WARNING, "ast_streamfile failed on %s \n", chan->name);
-		res = 0;
-	}
 	ast_stopstream(chan);
 
 	return res;
+}
+
+static int valid_exit(struct queue_ent *qe, char digit)
+{
+	char tmp[2];
+
+	if (ast_strlen_zero(qe->context))
+		return 0;
+	tmp[0] = digit;
+	tmp[1] = '\0';
+	if (ast_exists_extension(qe->chan, qe->context, tmp, 1, qe->chan->cid.cid_num)) {
+		ast_copy_string(qe->chan->context, qe->context, sizeof(qe->chan->context));
+		ast_copy_string(qe->chan->exten, tmp, sizeof(qe->chan->exten));
+		qe->chan->priority = 0;
+		return 1;
+	}
+	return 0;
 }
 
 static int say_position(struct queue_ent *qe)
@@ -610,21 +623,29 @@ static int say_position(struct queue_ent *qe)
 	/* Check to see if this is ludicrous -- if we just announced position, don't do it again*/
 	time(&now);
 	if ( (now - qe->last_pos) < 15 )
-		return -1;
+		return 0;
 
 	/* If either our position has changed, or we are over the freq timer, say position */
 	if ( (qe->last_pos_said == qe->pos) && ((now - qe->last_pos) < qe->parent->announcefrequency) )
-		return -1;
+		return 0;
 
 	ast_moh_stop(qe->chan);
 	/* Say we're next, if we are */
 	if (qe->pos == 1) {
-		res += play_file(qe->chan, qe->parent->sound_next);
-		goto posout;
+		res = play_file(qe->chan, qe->parent->sound_next);
+		if (res && valid_exit(qe, res))
+			goto playout;
+		else
+			goto posout;
 	} else {
-		res += play_file(qe->chan, qe->parent->sound_thereare);
-		res += ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
-		res += play_file(qe->chan, qe->parent->sound_calls);
+		res = play_file(qe->chan, qe->parent->sound_thereare);
+			goto playout;
+		res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
+		if (res && valid_exit(qe, res))
+			goto playout;
+		res = play_file(qe->chan, qe->parent->sound_calls);
+		if (res && valid_exit(qe, res))
+			goto playout;
 	}
 	/* Round hold time to nearest minute */
 	avgholdmins = abs(( (qe->parent->holdtime + 30) - (now - qe->start) ) / 60);
@@ -644,33 +665,54 @@ static int say_position(struct queue_ent *qe)
 	   supposed to be only once and we have already said it, say it */
 	if ((avgholdmins+avgholdsecs) > 0 && (qe->parent->announceholdtime) &&
 	    (!(qe->parent->announceholdtime == ANNOUNCEHOLDTIME_ONCE) && qe->last_pos)) {
-		res += play_file(qe->chan, qe->parent->sound_holdtime);
-		if(avgholdmins>0) {
+		res = play_file(qe->chan, qe->parent->sound_holdtime);
+		if (res && valid_exit(qe, res))
+			goto playout;
+
+		if (avgholdmins>0) {
 			if (avgholdmins < 2) {
-				res += play_file(qe->chan, qe->parent->sound_lessthan);
-				res += ast_say_number(qe->chan, 2, AST_DIGIT_ANY, qe->chan->language, (char *)NULL);
-			} else 
-				res += ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
-			res += play_file(qe->chan, qe->parent->sound_minutes);
+				res = play_file(qe->chan, qe->parent->sound_lessthan);
+				if (res && valid_exit(qe, res))
+					goto playout;
+
+				res = ast_say_number(qe->chan, 2, AST_DIGIT_ANY, qe->chan->language, (char *)NULL);
+				if (res && valid_exit(qe, res))
+					goto playout;
+			} else {
+				res = ast_say_number(qe->chan, avgholdmins, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
+				if (res && valid_exit(qe, res))
+					goto playout;
+			}
+			
+			res = play_file(qe->chan, qe->parent->sound_minutes);
+			if (res && valid_exit(qe, res))
+				goto playout;
 		}
-		if(avgholdsecs>0) {
-			res += ast_say_number(qe->chan, avgholdsecs, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
-			res += play_file(qe->chan, qe->parent->sound_seconds);
+		if (avgholdsecs>0) {
+			res = ast_say_number(qe->chan, avgholdsecs, AST_DIGIT_ANY, qe->chan->language, (char*) NULL);
+			if (res && valid_exit(qe, res))
+				goto playout;
+
+			res = play_file(qe->chan, qe->parent->sound_seconds);
+			if (res && valid_exit(qe, res))
+				goto playout;
 		}
 
 	}
 
-	posout:
+ posout:
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n",
+			    qe->chan->name, qe->parent->name, qe->pos);
+	res = play_file(qe->chan, qe->parent->sound_thanks);
+
+ playout:
 	/* Set our last_pos indicators */
  	qe->last_pos = now;
 	qe->last_pos_said = qe->pos;
-
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Told %s in %s their queue position (which was %d)\n", qe->chan->name, qe->parent->name, qe->pos);
-	res += play_file(qe->chan, qe->parent->sound_thanks);
 	ast_moh_start(qe->chan, qe->moh);
 
-	return (res>0);
+	return res;
 }
 
 static void record_abandoned(struct queue_ent *qe)
@@ -871,7 +913,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 		return 0;
 	}
 
-	strncpy(tech, tmp->interface, sizeof(tech) - 1);
+	ast_copy_string(tech, tmp->interface, sizeof(tech));
 	if ((location = strchr(tech, '/')))
 		*location++ = '\0';
 	else
@@ -1033,23 +1075,6 @@ static int store_next(struct queue_ent *qe, struct localuser *outgoing)
 	return 0;
 }
 
-static int valid_exit(struct queue_ent *qe, char digit)
-{
-	char tmp[2];
-
-	if (ast_strlen_zero(qe->context))
-		return 0;
-	tmp[0] = digit;
-	tmp[1] = '\0';
-	if (ast_exists_extension(qe->chan, qe->context, tmp, 1, qe->chan->cid.cid_num)) {
-		strncpy(qe->chan->context, qe->context, sizeof(qe->chan->context) - 1);
-		strncpy(qe->chan->exten, tmp, sizeof(qe->chan->exten) - 1);
-		qe->chan->priority = 0;
-		return 1;
-	}
-	return 0;
-}
-
 #define AST_MAX_WATCHERS 256
 
 #define BUILD_WATCHERS do { \
@@ -1122,7 +1147,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					char tmpchan[256]="";
 					char *stuff;
 					char *tech;
-					strncpy(tmpchan, o->chan->call_forward, sizeof(tmpchan) - 1);
+					ast_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
 					if ((stuff = strchr(tmpchan, '/'))) {
 						*stuff = '\0';
 						stuff++;
@@ -1161,7 +1186,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 							if (!o->chan->cid.cid_name)
 								ast_log(LOG_WARNING, "Out of memory\n");	
 						}
-						strncpy(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode) - 1);
+						ast_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
 						o->chan->cdrflags = in->cdrflags;
 
 						if (in->cid.cid_ani) {
@@ -1354,7 +1379,9 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 
 		/* Make a position announcement, if enabled */
 		if (qe->parent->announcefrequency && !ringing)
-			say_position(qe);
+			res = say_position(qe);
+		if (res)
+			break;
 
 		/* Wait a second before checking again */
 		res = ast_waitfordigit(qe->chan, RECHECK * 1000);
@@ -1494,7 +1521,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	if (option_debug)
 		ast_log(LOG_DEBUG, "%s is trying to call a queue member.\n", 
 							qe->chan->name);
-	strncpy(queuename, qe->parent->name, sizeof(queuename) - 1);
+	ast_copy_string(queuename, qe->parent->name, sizeof(queuename));
 	time(&now);
 	cur = qe->parent->members;
 	if (!ast_strlen_zero(qe->announce))
@@ -1523,7 +1550,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		tmp->member = cur;		/* Never directly dereference!  Could change on reload */
 		tmp->oldstatus = cur->status;
 		tmp->lastcall = cur->lastcall;
-		strncpy(tmp->interface, cur->interface, sizeof(tmp->interface)-1);
+		ast_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(tmp->interface, "/BYEXTENSION"))) {
 			newnum++;
@@ -1690,8 +1717,8 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				      "Holdtime: %ld\r\n",
 				      queuename, qe->chan->uniqueid, peer->name, member->interface,
 				      (long)time(NULL) - qe->start);
-		strncpy(oldcontext, qe->chan->context, sizeof(oldcontext) - 1);
-		strncpy(oldexten, qe->chan->exten, sizeof(oldexten) - 1);
+		ast_copy_string(oldcontext, qe->chan->context, sizeof(oldcontext));
+		ast_copy_string(oldexten, qe->chan->exten, sizeof(oldexten));
 		time(&callstart);
 
 		bridge = ast_bridge_call(qe->chan,peer, &bridge_config);
@@ -1772,7 +1799,7 @@ static struct member *create_queue_node(char *interface, int penalty, int paused
 		memset(cur, 0, sizeof(struct member));
 		cur->penalty = penalty;
 		cur->paused = paused;
-		strncpy(cur->interface, interface, sizeof(cur->interface) - 1);
+		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
 		if (!strchr(cur->interface, '/'))
 			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
 		cur->status = ast_device_state(interface);
@@ -2159,7 +2186,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 			interface++;
 		}
 		else {
-			strncpy(tmpchan, chan->name, sizeof(tmpchan) - 1);
+			ast_copy_string(tmpchan, chan->name, sizeof(tmpchan));
 			interface = strrchr(tmpchan, '-');
 			if (interface)
 				*interface = '\0';
@@ -2230,7 +2257,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 			}
 		}
 		if (!interface || ast_strlen_zero(interface)) {
-			strncpy(tmpchan, chan->name, sizeof(tmpchan) - 1);
+			ast_copy_string(tmpchan, chan->name, sizeof(tmpchan));
 			interface = strrchr(tmpchan, '-');
 			if (interface)
 				*interface = '\0';
@@ -2303,7 +2330,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.start = time(NULL);
 	
 	/* Parse our arguments XXX Check for failure XXX */
-	strncpy(info, (char *) data, sizeof(info) - 1);
+	ast_copy_string(info, (char *) data, sizeof(info));
 	queuename = strsep(&info_ptr, "|");
 	options = strsep(&info_ptr, "|");
 	url = strsep(&info_ptr, "|");
@@ -2396,7 +2423,12 @@ check_turns:
 				if (makeannouncement) {
 					/* Make a position announcement, if enabled */
 					if (qe.parent->announcefrequency && !ringing)
-						say_position(&qe);
+						res = say_position(&qe);
+					if (res && valid_exit(&qe, res)) {
+						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+						break;
+					}
+
 				}
 				makeannouncement = 1;
 
@@ -2534,7 +2566,7 @@ static void reload_queues(void)
 					/* Initialize it */
 					memset(q, 0, sizeof(struct ast_call_queue));
 					ast_mutex_init(&q->lock);
-					strncpy(q->name, cat, sizeof(q->name) - 1);
+					ast_copy_string(q->name, cat, sizeof(q->name));
 					new = 1;
 				} else new = 0;
 			} else
@@ -2561,15 +2593,15 @@ static void reload_queues(void)
 				q->announce[0] = '\0';
 				q->context[0] = '\0';
 				q->monfmt[0] = '\0';
-				strncpy(q->sound_next, "queue-youarenext", sizeof(q->sound_next) - 1);
-				strncpy(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare) - 1);
-				strncpy(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls) - 1);
-				strncpy(q->sound_holdtime, "queue-holdtime", sizeof(q->sound_holdtime) - 1);
-				strncpy(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes) - 1);
-				strncpy(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds) - 1);
-				strncpy(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks) - 1);
-				strncpy(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan) - 1);
-				strncpy(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold) - 1);
+				ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
+				ast_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
+				ast_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
+				ast_copy_string(q->sound_holdtime, "queue-holdtime", sizeof(q->sound_holdtime));
+				ast_copy_string(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes));
+				ast_copy_string(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds));
+				ast_copy_string(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks));
+				ast_copy_string(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan));
+				ast_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
 				prev = q->members;
 				if (prev) {
 					/* find the end of any dynamic members */
@@ -2583,7 +2615,7 @@ static void reload_queues(void)
 						cur = malloc(sizeof(struct member));
 						if (cur) {
 							memset(cur, 0, sizeof(struct member));
-							strncpy(cur->interface, var->value, sizeof(cur->interface) - 1);
+							ast_copy_string(cur->interface, var->value, sizeof(cur->interface));
 							if ((tmp = strchr(cur->interface, ','))) {
 								*tmp = '\0';
 								tmp++;
@@ -2600,35 +2632,35 @@ static void reload_queues(void)
 							prev = cur;
 						}
 					} else if (!strcasecmp(var->name, "music") || !strcasecmp(var->name, "musiconhold")) {
-						strncpy(q->moh, var->value, sizeof(q->moh) - 1);
+						ast_copy_string(q->moh, var->value, sizeof(q->moh));
 					} else if (!strcasecmp(var->name, "announce")) {
-						strncpy(q->announce, var->value, sizeof(q->announce) - 1);
+						ast_copy_string(q->announce, var->value, sizeof(q->announce));
 					} else if (!strcasecmp(var->name, "context")) {
-						strncpy(q->context, var->value, sizeof(q->context) - 1);
+						ast_copy_string(q->context, var->value, sizeof(q->context));
 					} else if (!strcasecmp(var->name, "timeout")) {
 						q->timeout = atoi(var->value);
 					} else if (!strcasecmp(var->name, "monitor-join")) {
 						q->monjoin = ast_true(var->value);
 					} else if (!strcasecmp(var->name, "monitor-format")) {
-						strncpy(q->monfmt, var->value, sizeof(q->monfmt) - 1);
+						ast_copy_string(q->monfmt, var->value, sizeof(q->monfmt));
 					} else if (!strcasecmp(var->name, "queue-youarenext")) {
-						strncpy(q->sound_next, var->value, sizeof(q->sound_next) - 1);
+						ast_copy_string(q->sound_next, var->value, sizeof(q->sound_next));
 					} else if (!strcasecmp(var->name, "queue-thereare")) {
-						strncpy(q->sound_thereare, var->value, sizeof(q->sound_thereare) - 1);
+						ast_copy_string(q->sound_thereare, var->value, sizeof(q->sound_thereare));
 					} else if (!strcasecmp(var->name, "queue-callswaiting")) {
-						strncpy(q->sound_calls, var->value, sizeof(q->sound_calls) - 1);
+						ast_copy_string(q->sound_calls, var->value, sizeof(q->sound_calls));
 					} else if (!strcasecmp(var->name, "queue-holdtime")) {
-						strncpy(q->sound_holdtime, var->value, sizeof(q->sound_holdtime) - 1);
+						ast_copy_string(q->sound_holdtime, var->value, sizeof(q->sound_holdtime));
 					} else if (!strcasecmp(var->name, "queue-minutes")) {
-						strncpy(q->sound_minutes, var->value, sizeof(q->sound_minutes) - 1);
+						ast_copy_string(q->sound_minutes, var->value, sizeof(q->sound_minutes));
 					} else if (!strcasecmp(var->name, "queue-seconds")) {
-						strncpy(q->sound_seconds, var->value, sizeof(q->sound_seconds) - 1);
+						ast_copy_string(q->sound_seconds, var->value, sizeof(q->sound_seconds));
 					} else if (!strcasecmp(var->name, "queue-lessthan")) {
-						strncpy(q->sound_lessthan, var->value, sizeof(q->sound_lessthan) - 1);
+						ast_copy_string(q->sound_lessthan, var->value, sizeof(q->sound_lessthan));
 					} else if (!strcasecmp(var->name, "queue-thankyou")) {
-						strncpy(q->sound_thanks, var->value, sizeof(q->sound_thanks) - 1);
+						ast_copy_string(q->sound_thanks, var->value, sizeof(q->sound_thanks));
 					} else if (!strcasecmp(var->name, "queue-reporthold")) {
-						strncpy(q->sound_reporthold, var->value, sizeof(q->sound_reporthold) - 1);
+						ast_copy_string(q->sound_reporthold, var->value, sizeof(q->sound_reporthold));
 					} else if (!strcasecmp(var->name, "announce-frequency")) {
 						q->announcefrequency = atoi(var->value);
 					} else if (!strcasecmp(var->name, "announce-round-seconds")) {
@@ -2740,22 +2772,22 @@ static char *status2str(int status, char *buf, int buflen)
 {
 	switch(status) {
 	case AST_DEVICE_UNKNOWN:
-		strncpy(buf, "unknown", buflen - 1);
+		ast_copy_string(buf, "unknown", buflen);
 		break;
 	case AST_DEVICE_NOT_INUSE:
-		strncpy(buf, "notinuse", buflen - 1);
+		ast_copy_string(buf, "notinuse", buflen);
 		break;
 	case AST_DEVICE_INUSE:
-		strncpy(buf, "inuse", buflen - 1);
+		ast_copy_string(buf, "inuse", buflen);
 		break;
 	case AST_DEVICE_BUSY:
-		strncpy(buf, "busy", buflen - 1);
+		ast_copy_string(buf, "busy", buflen);
 		break;
 	case AST_DEVICE_INVALID:
-		strncpy(buf, "invalid", buflen - 1);
+		ast_copy_string(buf, "invalid", buflen);
 		break;
 	case AST_DEVICE_UNAVAILABLE:
-		strncpy(buf, "unavailable", buflen - 1);
+		ast_copy_string(buf, "unavailable", buflen);
 		break;
 	default:
 		snprintf(buf, buflen, "unknown status %d", status);
@@ -2804,7 +2836,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 		if (q->maxlen)
 			snprintf(max, sizeof(max), "%d", q->maxlen);
 		else
-			strncpy(max, "unlimited", sizeof(max) - 1);
+			ast_copy_string(max, "unlimited", sizeof(max));
 		sl = 0;
 		if(q->callscompleted > 0)
 			sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
@@ -2827,7 +2859,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 					snprintf(calls, sizeof(calls), " has taken %d calls (last was %ld secs ago)",
 							mem->calls, (long)(time(NULL) - mem->lastcall));
 				} else
-					strncpy(calls, " has taken no calls yet", sizeof(calls) - 1);
+					ast_copy_string(calls, " has taken no calls yet", sizeof(calls));
 				ast_cli(fd, "      %s%s%s\n", mem->interface, max, calls);
 			}
 		} else
