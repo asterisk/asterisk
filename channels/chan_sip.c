@@ -1230,7 +1230,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 /*--- register_peer_exten: Automatically add peer extension to dial plan ---*/
 static void register_peer_exten(struct sip_peer *peer, int onoff)
 {
-	unsigned char multi[256]="";
+	char multi[256]="";
 	char *stringp, *ext;
 	if (!ast_strlen_zero(regcontext)) {
 		ast_copy_string(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi));
@@ -9207,7 +9207,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	struct sockaddr_in sin = { 0, };
 	struct sip_pvt *p;
 	int res;
-	int len;
+	socklen_t len;
 	int nounlock;
 	int recount = 0;
 	int debug;

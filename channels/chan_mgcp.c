@@ -297,7 +297,7 @@ struct mgcp_message {
 	unsigned int seqno;
 	int len;
 	struct mgcp_message *next;
-	unsigned char buf[0];
+	char buf[0];
 };
 
 #define RESPONSE_TIMEOUT 30	/* in seconds */
@@ -307,7 +307,7 @@ struct mgcp_response {
 	int len;
 	int seqno;
 	struct mgcp_response *next;
-	unsigned char buf[0];
+	char buf[0];
 };
 
 #define MAX_SUBS 2
@@ -722,7 +722,7 @@ static int retrans_pkt(void *data)
 
 /* SC: modified for the new transaction mechanism */
 static int mgcp_postrequest(struct mgcp_endpoint *p, struct mgcp_subchannel *sub, 
-                            unsigned char *data, int len, unsigned int seqno)
+                            char *data, int len, unsigned int seqno)
 {
 	struct mgcp_message *msg = malloc(sizeof(struct mgcp_message) + len);
 	struct mgcp_message *cur;
@@ -3286,7 +3286,7 @@ static int mgcpsock_read(int *id, int fd, short events, void *ignore)
 	struct sockaddr_in sin;
 	struct mgcp_subchannel *sub;
 	int res;
-	int len;
+	socklen_t len;
 	int result;
 	int ident;
 	char iabuf[INET_ADDRSTRLEN];

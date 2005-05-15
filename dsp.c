@@ -1303,7 +1303,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 	int res;
 	int digit;
 	int x;
-	unsigned short *shortdata;
+	short *shortdata;
 	unsigned char *odata;
 	int len;
 	int writeback = 0;
@@ -1315,11 +1315,11 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 				break; \
 			case AST_FORMAT_ULAW: \
 				for (x=0;x<len;x++) \
-					odata[x] = AST_LIN2MU(shortdata[x]); \
+					odata[x] = AST_LIN2MU((unsigned short)shortdata[x]); \
 				break; \
 			case AST_FORMAT_ALAW: \
 				for (x=0;x<len;x++) \
-					odata[x] = AST_LIN2A(shortdata[x]); \
+					odata[x] = AST_LIN2A((unsigned short)shortdata[x]); \
 				break; \
 			} \
 		} \

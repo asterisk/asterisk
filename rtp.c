@@ -313,7 +313,7 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 {
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
-	int len;
+	socklen_t len;
 	int hdrlen = 8;
 	int res;
 	struct sockaddr_in sin;
@@ -382,7 +382,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 {
 	int res;
 	struct sockaddr_in sin;
-	int len;
+	socklen_t len;
 	unsigned int seqno;
 	int version;
 	int payloadtype;

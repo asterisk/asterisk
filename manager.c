@@ -1358,7 +1358,7 @@ static void *accept_thread(void *ignore)
 {
 	int as;
 	struct sockaddr_in sin;
-	int sinlen;
+	socklen_t sinlen;
 	struct mansession *s;
 	struct protoent *p;
 	int arg = 1;

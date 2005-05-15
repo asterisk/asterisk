@@ -6089,7 +6089,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int updatehistory=1;
 	int new = NEW_PREVENT;
 	char buf[4096], *ptr;
-	int len = sizeof(sin);
+	socklen_t len = sizeof(sin);
 	int dcallno = 0;
 	struct ast_iax2_full_hdr *fh = (struct ast_iax2_full_hdr *)buf;
 	struct ast_iax2_mini_hdr *mh = (struct ast_iax2_mini_hdr *)buf;

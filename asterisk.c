@@ -327,7 +327,7 @@ static void *listener(void *unused)
 {
 	struct sockaddr_un sunaddr;
 	int s;
-	int len;
+	socklen_t len;
 	int x;
 	int flags;
 	struct pollfd fds[1];
