@@ -13,7 +13,9 @@
 #include <solaris-compat/compat.h>
 #define     POPT_ARGFLAG_SHOW_DEFAULT 0x00800000
 #endif
-
+#if !defined(POPT_ARGFLAG_SHOW_DEFAULT)
+#define     POPT_ARGFLAG_SHOW_DEFAULT 0x00800000
+#endif
 
 /* SMS queuing application for use with asterisk app_sms */
 /* by Adrian Kennard, 2004 - 2005 */
