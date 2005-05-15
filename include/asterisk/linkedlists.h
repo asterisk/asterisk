@@ -39,19 +39,47 @@
   to hold a list of the entries of type \a type. It does not actually
   declare (allocate) a structure; to do that, either follow this
   macro with the desired name of the instance you wish to declare,
-  or use the specified \a name to declare instances elsewhere. It is
-  frequently used as follows:
+  or use the specified \a name to declare instances elsewhere.
+
+  Example usage:
   \code
   static AST_LIST_HEAD(entry_list, entry) entries;
   \endcode
-  This would define \a struct \a entry_list, and declare an instance of it named
-  \a entries, all intended to hold a list of type \a struct \a entry.
+
+  This would define \c struct \c entry_list, and declare an instance of it named
+  \a entries, all intended to hold a list of type \c struct \c entry.
 */
 #define AST_LIST_HEAD(name, type)					\
 struct name {								\
 	struct type *first;						\
 	ast_mutex_t lock;						\
 }
+
+/*!
+  \brief Defines a structure to be used to hold a list of specified type, statically initialized.
+  \param name This will be the name of the defined structure.
+  \param type This is the type of each list entry.
+
+  This macro creates a structure definition that can be used
+  to hold a list of the entries of type \a type, and allocates an instance
+  of it, initialized to be empty.
+
+  Example usage:
+  \code
+  static AST_LIST_HEAD_STATIC(entry_list, entry) entries;
+  \endcode
+
+  This would define \c struct \c entry_list, and declare an instance of it named
+  \a entries, all intended to hold a list of type \c struct \c entry.
+*/
+#define AST_LIST_HEAD_STATIC(name, type)				\
+struct name {							\
+	struct type *first;						\
+	ast_mutex_t lock;						\
+} name = {								\
+	.first = NULL,							\
+	.lock = AST_MUTEX_INIT_VALUE,					\
+};
 
 /*!
   \brief Initializes a list head structure with a specified first entry.
@@ -73,12 +101,14 @@ struct name {								\
   This macro declares a structure to be used to link list entries together.
   It must be used inside the definition of the structure named in
   \a type, as follows:
+
   \code
   struct list_entry {
   	...
   	AST_LIST_ENTRY(list_entry) list;
   }
   \endcode
+
   The field name \a list here is arbitrary, and can be anything you wish.
 */
 #define AST_LIST_ENTRY(type)						\
@@ -159,6 +189,7 @@ struct {								\
   This macro is used to safely loop over (traverse) the entries in a list. It
   uses a \a for loop, and supplies the enclosed code with a pointer to each list
   entry as it loops. It is typically used as follows:
+
   \code
   static AST_LIST_HEAD(entry_list, list_entry) entries;
   ...
@@ -172,19 +203,38 @@ struct {								\
   AST_LIST_TRAVERSE_SAFE_BEGIN(&entries, current, list) {
      (do something with current here)
   }
-  AST_LIST_TRAVERSE_SAFE_END
+  AST_LIST_TRAVERSE_SAFE_END;
   \endcode
 
-  It differs from AST_LIST_TRAVERSE in that the code inside the loop can modify
-  (or even free) the entry pointed to by the \a current pointer without affecting
-  the loop traversal.
+  It differs from AST_LIST_TRAVERSE() in that the code inside the loop can modify
+  (or even free, after calling AST_LIST_REMOVE_CURRENT()) the entry pointed to by
+  the \a current pointer without affecting the loop traversal.
 */
 #define AST_LIST_TRAVERSE_SAFE_BEGIN(head, var, field) {				\
 	typeof((head)->first) __list_next;						\
+	typeof((head)->first) __list_prev = NULL;					\
 	for ((var) = (head)->first,  __list_next = (var) ? (var)->field.next : NULL;	\
 	     (var);									\
-	     (var) = __list_next,  __list_next = (var) ? (var)->field.next : NULL	\
+	     __list_prev = (var), (var) = __list_next,					\
+	     __list_next = (var) ? (var)->field.next : NULL				\
 	    )
+
+/*!
+  \brief Removes the \a current entry from a list during a traversal.
+  \param head This is a pointer to the list head structure
+  \param field This is the name of the field (declared using AST_LIST_ENTRY())
+  used to link entries of this list together.
+
+  \note This macro can \b only be used inside an AST_LIST_TRAVERSE_SAFE_BEGIN()
+  block; it is used to unlink the current entry from the list without affecting
+  the list traversal (and without having to re-traverse the list to modify the
+  previous entry, if any).
+ */
+#define AST_LIST_REMOVE_CURRENT(head, field)						\
+	if (__list_prev)								\
+		__list_prev->field.next = __list_next;					\
+	else										\
+		(head)->first = __list_next;
 
 /*!
   \brief Closes a safe loop traversal block.
