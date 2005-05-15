@@ -293,18 +293,18 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			if (extout)
 				*extout = x;
 			if (peer) {
-				strncpy(pu->peername,peer->name,sizeof(pu->peername) - 1);
+				ast_copy_string(pu->peername,peer->name,sizeof(pu->peername));
 			}
 			/* Remember what had been dialed, so that if the parking
 			   expires, we try to come back to the same place */
 			if (!ast_strlen_zero(chan->macrocontext))
-				strncpy(pu->context, chan->macrocontext, sizeof(pu->context)-1);
+				ast_copy_string(pu->context, chan->macrocontext, sizeof(pu->context));
 			else
-				strncpy(pu->context, chan->context, sizeof(pu->context)-1);
+				ast_copy_string(pu->context, chan->context, sizeof(pu->context));
 			if (!ast_strlen_zero(chan->macroexten))
-				strncpy(pu->exten, chan->macroexten, sizeof(pu->exten)-1);
+				ast_copy_string(pu->exten, chan->macroexten, sizeof(pu->exten));
 			else
-				strncpy(pu->exten, chan->exten, sizeof(pu->exten)-1);
+				ast_copy_string(pu->exten, chan->exten, sizeof(pu->exten));
 			if (chan->macropriority)
 				pu->priority = chan->macropriority;
 			else
@@ -387,8 +387,8 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 		chan->writeformat = rchan->writeformat;
 		ast_channel_masquerade(chan, rchan);
 		/* Setup the extensions and such */
-		strncpy(chan->context, rchan->context, sizeof(chan->context) - 1);
-		strncpy(chan->exten, rchan->exten, sizeof(chan->exten) - 1);
+		ast_copy_string(chan->context, rchan->context, sizeof(chan->context));
+		ast_copy_string(chan->exten, rchan->exten, sizeof(chan->exten));
 		chan->priority = rchan->priority;
 		/* Make the masq execute */
 		f = ast_read(chan);
@@ -597,8 +597,8 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 			res = -1;
 		} else {
 			/* Set the channel's new extension, since it exists, using transferer context */
-			strncpy(transferee->exten, newext, sizeof(transferee->exten)-1);
-			strncpy(transferee->context, transferer_real_context, sizeof(transferee->context)-1);
+			ast_copy_string(transferee->exten, newext, sizeof(transferee->exten));
+			ast_copy_string(transferee->context, transferer_real_context, sizeof(transferee->context));
 			transferee->priority = 0;
 		}
 		check_goto_on_transfer(transferer);
@@ -852,7 +852,7 @@ static int remap_feature(const char *name, const char *value)
 	int res = -1;
 	for (x=0;x<FEATURES_COUNT;x++) {
 		if (!strcasecmp(name, builtin_features[x].sname)) {
-			strncpy(builtin_features[x].exten, value, sizeof(builtin_features[x].exten) - 1);
+			ast_copy_string(builtin_features[x].exten, value, sizeof(builtin_features[x].exten));
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Remapping feature %s (%s) to sequence '%s'\n", builtin_features[x].fname, builtin_features[x].sname, builtin_features[x].exten);
 			res = 0;
@@ -1178,15 +1178,15 @@ static void *do_parking_thread(void *ignore)
 						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
 						ast_add_extension2(con, 1, peername, 1, NULL, NULL, "Dial", strdup(returnexten), FREE, registrar);
 					}
-					strncpy(pu->chan->exten, peername, sizeof(pu->chan->exten) - 1);
-					strncpy(pu->chan->context, parking_con_dial, sizeof(pu->chan->context) - 1);
+					ast_copy_string(pu->chan->exten, peername, sizeof(pu->chan->exten));
+					ast_copy_string(pu->chan->context, parking_con_dial, sizeof(pu->chan->context));
 					pu->chan->priority = 1;
 
 				} else {
 					/* They've been waiting too long, send them back to where they came.  Theoretically they
 					   should have their original extensions and such, but we copy to be on the safe side */
-					strncpy(pu->chan->exten, pu->exten, sizeof(pu->chan->exten)-1);
-					strncpy(pu->chan->context, pu->context, sizeof(pu->chan->context)-1);
+					ast_copy_string(pu->chan->exten, pu->exten, sizeof(pu->chan->exten));
+					ast_copy_string(pu->chan->context, pu->context, sizeof(pu->chan->context));
 					pu->chan->priority = pu->priority;
 				}
 
@@ -1570,9 +1570,9 @@ static int load_config(void)
 		var = ast_variable_browse(cfg, "general");
 		while(var) {
 			if (!strcasecmp(var->name, "parkext")) {
-				strncpy(parking_ext, var->value, sizeof(parking_ext) - 1);
+				ast_copy_string(parking_ext, var->value, sizeof(parking_ext));
 			} else if (!strcasecmp(var->name, "context")) {
-				strncpy(parking_con, var->value, sizeof(parking_con) - 1);
+				ast_copy_string(parking_con, var->value, sizeof(parking_con));
 			} else if (!strcasecmp(var->name, "parkingtime")) {
 				if ((sscanf(var->value, "%d", &parkingtime) != 1) || (parkingtime < 1)) {
 					ast_log(LOG_WARNING, "%s is not a valid parkingtime\n", var->value);
@@ -1602,13 +1602,13 @@ static int load_config(void)
 					featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 				}
 			} else if (!strcasecmp(var->name, "courtesytone")) {
-				strncpy(courtesytone, var->value, sizeof(courtesytone) - 1);
+				ast_copy_string(courtesytone, var->value, sizeof(courtesytone));
 			} else if (!strcasecmp(var->name, "xfersound")) {
-				strncpy(xfersound, var->value, sizeof(xfersound) - 1);
+				ast_copy_string(xfersound, var->value, sizeof(xfersound));
 			} else if (!strcasecmp(var->name, "xferfailsound")) {
-				strncpy(xferfailsound, var->value, sizeof(xferfailsound) - 1);
+				ast_copy_string(xferfailsound, var->value, sizeof(xferfailsound));
 			} else if (!strcasecmp(var->name, "pickupexten")) {
-				strncpy(pickup_ext, var->value, sizeof(pickup_ext) - 1);
+				ast_copy_string(pickup_ext, var->value, sizeof(pickup_ext));
 			}
 			var = var->next;
 		}

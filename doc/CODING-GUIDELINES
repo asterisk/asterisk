@@ -164,6 +164,11 @@ if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newn
 Use const on pointers which your function will not be modifying, as this 
 allows the compiler to make certain optimizations.
 
+Don't use strncpy for copying whole strings; it does not guarantee that the
+output buffer will be null-terminated. Use ast_copy_string instead, which
+is also slightly more efficient (and allows passing the actual buffer
+size, which makes the code clearer).
+
 == CLI Commands ==
 
 New CLI commands should be named using the module's name, followed by a verb
@@ -190,5 +195,5 @@ Applications are registered and invoked using the
 ast_register_application function; see the apps/app_skel.c file for an
 example.
 
-Functions are registered using 'struct ast_custom_function_obj'
+Functions are registered using 'struct ast_custom_function'
 structures and the ast_custom_function_register function.
