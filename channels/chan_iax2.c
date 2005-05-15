@@ -6187,9 +6187,10 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									f.data = ptr;
 								else
 									f.data = NULL;
-								if(trunked_ts)
+								if(trunked_ts) {
 									fr.ts = trunked_ts;
-								else
+									fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | (fr.ts & 0xffff);
+								} else
 									fr.ts = fix_peerts(&rxtrunktime, fr.callno, ts);
 								/* Don't pass any packets until we're started */
 								if ((iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
@@ -6207,11 +6208,22 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									if (iaxs[fr.callno]->bridgecallno) {
 										forward_delivery(&fr);
 									} else {
-										schedule_delivery(iaxfrdup2(&fr), 1, updatehistory, 1);
+										duped_fr = iaxfrdup2(&fr);
+										schedule_delivery(duped_fr, 1, updatehistory, 1);
+										fr.ts = duped_fr->ts;
 									}
 #else
-									schedule_delivery(iaxfrdup2(&fr), 1, updatehistory, 1);
+									duped_fr = iaxfrdup2(&fr);
+									schedule_delivery(duped_fr, 1, updatehistory, 1);
+									fr.ts = duped_fr->ts;
 #endif
+									if (iaxs[fr.callno]->last < fr.ts) {
+										iaxs[fr.callno]->last = fr.ts;
+#if 1
+										if (option_debug)
+											ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+#endif
+									}
 								}
 							} else {
 								ast_log(LOG_WARNING, "Datalen < 0?\n");
