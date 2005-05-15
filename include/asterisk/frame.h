@@ -347,10 +347,6 @@ extern int ast_getformatbyname(char *name);
  */
 extern char *ast_codec2str(int codec);
 
-/*! Pick the best codec  */
-/* Choose the best codec...  Uhhh...   Yah. */
-extern int ast_best_codec(int fmts);
-
 struct ast_smoother;
 
 extern struct ast_format_list *ast_get_format_list_index(int index);

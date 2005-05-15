@@ -105,19 +105,24 @@ static char show_channeltypes_usage[] =
 static struct ast_cli_entry cli_show_channeltypes = 
 	{ { "show", "channeltypes", NULL }, show_channeltypes, "Show available channel types", show_channeltypes_usage };
 
+/*--- ast_check_hangup: Checks to see if a channel is needing hang up */
 int ast_check_hangup(struct ast_channel *chan)
 {
-time_t	myt;
+	time_t	myt;
 
-	  /* if soft hangup flag, return true */
-	if (chan->_softhangup) return 1;
-	  /* if no technology private data, return true */
-	if (!chan->tech_pvt) return 1;
-	  /* if no hangup scheduled, just return here */
-	if (!chan->whentohangup) return 0;
+	/* if soft hangup flag, return true */
+	if (chan->_softhangup) 
+		return 1;
+	/* if no technology private data, return true */
+	if (!chan->tech_pvt) 
+		return 1;
+	/* if no hangup scheduled, just return here */
+	if (!chan->whentohangup) 
+		return 0;
 	time(&myt); /* get current time */
-	  /* return, if not yet */
-	if (chan->whentohangup > myt) return 0;
+	/* return, if not yet */
+	if (chan->whentohangup > myt) 
+		return 0;
 	chan->_softhangup |= AST_SOFTHANGUP_TIMEOUT;
 	return 1;
 }
@@ -131,6 +136,7 @@ static int ast_check_hangup_locked(struct ast_channel *chan)
 	return res;
 }
 
+/*--- ast_begin_shutdown: Initiate system shutdown */
 void ast_begin_shutdown(int hangup)
 {
 	struct ast_channel *c;
@@ -146,6 +152,7 @@ void ast_begin_shutdown(int hangup)
 	}
 }
 
+/*--- ast_active_channels: returns number of active/allocated channels */
 int ast_active_channels(void)
 {
 	struct ast_channel *c;
@@ -160,16 +167,19 @@ int ast_active_channels(void)
 	return cnt;
 }
 
+/*--- ast_cancel_shutdown: Cancel a shutdown in progress */
 void ast_cancel_shutdown(void)
 {
 	shutting_down = 0;
 }
 
+/*--- ast_shutting_down: Returns non-zero if Asterisk is being shut down */
 int ast_shutting_down(void)
 {
 	return shutting_down;
 }
 
+/*--- ast_channel_setwhentohangup: Set when to hangup channel */
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 {
 	time_t	myt;
@@ -182,6 +192,7 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 	return;
 }
 
+/*--- ast_channel_register: Register a new telephony channel in Asterisk */
 int ast_channel_register(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan;
@@ -219,6 +230,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 	return 0;
 }
 
+/*--- ast_state2str: Gives the string form of a given channel state */
 char *ast_state2str(int state)
 {
 	/* XXX Not reentrant XXX */
@@ -246,6 +258,7 @@ char *ast_state2str(int state)
 	}
 }
 
+/*--- ast_transfercapability2str: Gives the string form of a given transfer capability */
 char *ast_transfercapability2str(int transfercapability)
 {
 	switch(transfercapability) {
@@ -266,6 +279,7 @@ char *ast_transfercapability2str(int transfercapability)
 	}
 }
 
+/*--- ast_best_codec: Pick the best codec */
 int ast_best_codec(int fmts)
 {
 	/* This just our opinion, expressed in code.  We are asked to choose
@@ -300,7 +314,8 @@ int ast_best_codec(int fmts)
 	};
 	
 	
-	for (x=0;x<sizeof(prefs) / sizeof(prefs[0]); x++)
+	/* Find the first prefered codec in the format given */
+	for (x=0; x < (sizeof(prefs) / sizeof(prefs[0]) ); x++)
 		if (fmts & prefs[x])
 			return prefs[x];
 	ast_log(LOG_WARNING, "Don't know any of 0x%x formats\n", fmts);
@@ -312,6 +327,7 @@ static const struct ast_channel_tech null_tech = {
 	.description = "Null channel (should not see this)",
 };
 
+/*--- ast_channel_alloc: Create a new channel structure */
 struct ast_channel *ast_channel_alloc(int needqueue)
 {
 	struct ast_channel *tmp;
@@ -321,24 +337,26 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	        
 
 	/* If shutting down, don't allocate any new channels */
-	if (shutting_down)
+	if (shutting_down) {
+		ast_log(LOG_WARNING, "Channel allocation failed: Refusing due to active shutdown\n");
 		return NULL;
+	}
 
 	tmp = malloc(sizeof(struct ast_channel));
 	if (!tmp) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_WARNING, "Channel allocation failed: Out of memory\n");
 		return NULL;
 	}
 
 	memset(tmp, 0, sizeof(struct ast_channel));
 	tmp->sched = sched_context_create();
 	if (!tmp->sched) {
-		ast_log(LOG_WARNING, "Unable to create schedule context\n");
+		ast_log(LOG_WARNING, "Channel allocation failed: Unable to create schedule context\n");
 		free(tmp);
 		return NULL;
 	}
 	
-	for (x=0;x<AST_MAX_FDS - 1;x++)
+	for (x=0; x<AST_MAX_FDS - 1; x++)
 		tmp->fds[x] = -1;
 
 #ifdef ZAPTEL_OPTIMIZATIONS
@@ -356,7 +374,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 
 	if (needqueue) {
 		if (pipe(tmp->alertpipe)) {
-			ast_log(LOG_WARNING, "Alert pipe creation failed!\n");
+			ast_log(LOG_WARNING, "Channel allocation failed: Can't create alert pipe!\n");
 			free(tmp);
 			return NULL;
 		} else {
@@ -402,6 +420,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	return tmp;
 }
 
+/*--- ast_queue_frame: Queue an outgoing media frame */
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 {
 	struct ast_frame *f;
@@ -459,6 +478,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 	return 0;
 }
 
+/*--- ast_queue_hangup: Queue a hangup frame for channel */
 int ast_queue_hangup(struct ast_channel *chan)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
@@ -466,6 +486,7 @@ int ast_queue_hangup(struct ast_channel *chan)
 	return ast_queue_frame(chan, &f);
 }
 
+/*--- ast_queue_control: Queue a control frame */
 int ast_queue_control(struct ast_channel *chan, int control)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, };
@@ -473,6 +494,7 @@ int ast_queue_control(struct ast_channel *chan, int control)
 	return ast_queue_frame(chan, &f);
 }
 
+/*--- ast_channel_defer_dtmf: Set defer DTMF flag on channel */
 int ast_channel_defer_dtmf(struct ast_channel *chan)
 {
 	int pre = 0;
@@ -483,12 +505,14 @@ int ast_channel_defer_dtmf(struct ast_channel *chan)
 	return pre;
 }
 
+/*--- ast_channel_undefer_dtmf: Unset defer DTMF flag on channel */
 void ast_channel_undefer_dtmf(struct ast_channel *chan)
 {
 	if (chan)
 		ast_clear_flag(chan, AST_FLAG_DEFER_DTMF);
 }
 
+/*--- ast_channel_walk_locked: Browse channels in use */
 struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev)
 {
 	/* Returns next channel (locked) */
@@ -542,6 +566,7 @@ retry:
 	
 }
 
+/*--- ast_get_channel_by_name_locked: Get channel by name and lock it */
 struct ast_channel *ast_get_channel_by_name_locked(char *channame)
 {
 	struct ast_channel *chan;
@@ -555,8 +580,9 @@ struct ast_channel *ast_get_channel_by_name_locked(char *channame)
 	return NULL;
 }
 
+/*--- ast_safe_sleep_conditional: Wait, look for hangups and condition arg */
 int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
-								int (*cond)(void*), void *data )
+	int (*cond)(void*), void *data )
 {
 	struct ast_frame *f;
 
@@ -576,6 +602,7 @@ int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
 	return 0;
 }
 
+/*--- ast_safe_sleep: Wait, look for hangups */
 int ast_safe_sleep(struct ast_channel *chan, int ms)
 {
 	struct ast_frame *f;
@@ -607,6 +634,7 @@ static void free_cid(struct ast_callerid *cid)
 		free(cid->cid_rdnis);
 }
 
+/*--- ast_channel_free: Free a channel structure */
 void ast_channel_free(struct ast_channel *chan)
 {
 	struct ast_channel *last=NULL, *cur;
@@ -684,7 +712,6 @@ void ast_channel_free(struct ast_channel *chan)
 	
 	while (!AST_LIST_EMPTY(headp)) {           /* List Deletion. */
 	            vardata = AST_LIST_REMOVE_HEAD(headp, entries);
-/*	            printf("deleting var %s=%s\n",ast_var_name(vardata),ast_var_value(vardata)); */
 	            ast_var_delete(vardata);
 	}
 
@@ -717,6 +744,7 @@ static void ast_spy_detach(struct ast_channel *chan)
 	return;
 }
 
+/*--- ast_softhangup_nolock: Softly hangup a channel, don't lock */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
 	int res = 0;
@@ -732,6 +760,7 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 	return res;
 }
 
+/*--- ast_softhangup_nolock: Softly hangup a channel, lock */
 int ast_softhangup(struct ast_channel *chan, int cause)
 {
 	int res;
@@ -789,6 +818,7 @@ static void free_translation(struct ast_channel *clone)
 	clone->rawreadformat = clone->nativeformats;
 }
 
+/*--- ast_hangup: Hangup a channel */
 int ast_hangup(struct ast_channel *chan)
 {
 	int res = 0;
@@ -796,8 +826,8 @@ int ast_hangup(struct ast_channel *chan)
 	   if someone is going to masquerade as us */
 	ast_mutex_lock(&chan->lock);
 
-	/* get rid of spies */
-	ast_spy_detach(chan);
+	
+	ast_spy_detach(chan);		/* get rid of spies */
 
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) 
@@ -817,22 +847,20 @@ int ast_hangup(struct ast_channel *chan)
 		return 0;
 	}
 	free_translation(chan);
-	if (chan->stream) 
+	if (chan->stream) 		/* Close audio stream */
 		ast_closestream(chan->stream);
-	if (chan->vstream)
+	if (chan->vstream)		/* Close video stream */
 		ast_closestream(chan->vstream);
 	if (chan->sched)
 		sched_context_destroy(chan->sched);
-	/* Clear any tone stuff remaining */
-	if (chan->generatordata)
+	
+	if (chan->generatordata)	/* Clear any tone stuff remaining */ 
 		chan->generator->release(chan, chan->generatordata);
 	chan->generatordata = NULL;
 	chan->generator = NULL;
-	if (chan->cdr) {
-		/* End the CDR if it hasn't already */
+	if (chan->cdr) {		/* End the CDR if it hasn't already */ 
 		ast_cdr_end(chan->cdr);
-		/* Post and Free the CDR */
-		ast_cdr_post(chan->cdr);
+		ast_cdr_post(chan->cdr);	/* Post and Free the CDR */ 
 		ast_cdr_free(chan->cdr);
 	}
 	if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
@@ -855,7 +883,9 @@ int ast_hangup(struct ast_channel *chan)
 			"Channel: %s\r\n"
 			"Uniqueid: %s\r\n"
 			"Cause: %d\r\n",
-			chan->name, chan->uniqueid, chan->hangupcause);
+			chan->name, 
+			chan->uniqueid, 
+			chan->hangupcause);
 	ast_channel_free(chan);
 	return res;
 }
@@ -2067,8 +2097,13 @@ int ast_parse_device_state(char *device)
 		cut = strchr(name,'-');
 		if (cut)
 		        *cut = 0;
-		if (!strcmp(name, device))
-		        return AST_DEVICE_INUSE;
+		if (!strcmp(name, device)) {
+			if (chan->_state == AST_STATE_RINGING) {
+				return AST_DEVICE_RINGING;
+			} else {
+				return AST_DEVICE_INUSE;
+			}
+		}
 		chan = ast_channel_walk_locked(chan);
 	}
 	return AST_DEVICE_UNKNOWN;
@@ -2726,6 +2761,7 @@ static long tvdiff(struct timeval *now, struct timeval *then)
 #endif
 }
 
+/*--- Find bridged channel */
 struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
 {
 	struct ast_channel *bridged;
@@ -2752,7 +2788,7 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 		}
 	}
 	
-	if (!strcmp(sound,"timeleft")) {
+	if (!strcmp(sound,"timeleft")) {	/* Queue support */
 		res = ast_streamfile(chan, "vm-youhave", chan->language);
 		res = ast_waitstream(chan, "");
 		if (min) {
@@ -2828,16 +2864,15 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct timeval *sta
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			ast_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
-		if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
-			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-                c0->_softhangup = 0;
-            if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-                c1->_softhangup = 0;
-			c0->_bridge = c1;
-			c1->_bridge = c0;
-			continue;
-		}
-
+			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
+				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+                			c0->_softhangup = 0;
+            			if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+                			c1->_softhangup = 0;
+				c0->_bridge = c1;
+				c1->_bridge = c0;
+				continue;
+			}
 			continue;
 		}
 		f = ast_read(who);
@@ -2916,6 +2951,7 @@ tackygoto:
 	return res;
 }
 
+/*--- ast_channel_bridge: Bridge two channels together */
 int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) 
 {
 	/* Copy voice back and forth between the two channels.	Give the peer
@@ -3000,7 +3036,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				if ((ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING)) && config->end_sound)
 					bridge_playfile(c1,c0,config->end_sound,0);
 				*fo = NULL;
-				if (who) *rc = who;
+				if (who) 
+					*rc = who;
 				res = 0;
 				break;
 			}
@@ -3028,7 +3065,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 		/* Stop if we're a zombie or need a soft hangup */
 		if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) || ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
 			*fo = NULL;
-			if (who) *rc = who;
+			if (who)
+				*rc = who;
 			res = 0;
 			ast_log(LOG_DEBUG, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",c0->name,c1->name,ast_test_flag(c0, AST_FLAG_ZOMBIE)?"Yes":"No",ast_check_hangup(c0)?"Yes":"No",ast_test_flag(c1, AST_FLAG_ZOMBIE)?"Yes":"No",ast_check_hangup(c1)?"Yes":"No");
 			break;
@@ -3102,6 +3140,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	return res;
 }
 
+/*--- ast_channel_setoption: Sets an option on a channel */
 int ast_channel_setoption(struct ast_channel *chan, int option, void *data, int datalen, int block)
 {
 	int res;

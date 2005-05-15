@@ -455,16 +455,23 @@ struct outgoing_helper {
 #define AST_DEVICE_INVALID	4
 /*! Device is unavailable */
 #define AST_DEVICE_UNAVAILABLE	5
+/*! Device is ringing */
+#define AST_DEVICE_RINGING	6
 
 /*! Create a channel structure */
-/*! Returns NULL on failure to allocate */
+/*! Returns NULL on failure to allocate. New channels are 
+	by default set to the "default" context and
+	extension "s"
+ */
 struct ast_channel *ast_channel_alloc(int needalertpipe);
 
 /*! Queue an outgoing frame */
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
 
+/*! Queue a hangup frame */
 int ast_queue_hangup(struct ast_channel *chan);
 
+/*! Queue a control frame */
 int ast_queue_control(struct ast_channel *chan, int control);
 
 /*! Change the state of a channel */
@@ -552,9 +559,12 @@ int ast_hangup(struct ast_channel *chan);
  * \param chan channel to be soft-hung-up
  * Call the protocol layer, but don't destroy the channel structure (use this if you are trying to
  * safely hangup a channel managed by another thread.
+ * \param cause	Ast hangupcause for hangup
  * Returns 0 regardless
  */
 int ast_softhangup(struct ast_channel *chan, int cause);
+/*! Softly hangup up a channel (no channel lock) 
+ * \param cause	Ast hangupcause for hangup */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause);
 
 /*! Check to see if a channel is needing hang up */
@@ -810,11 +820,10 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
    channel is hung up.  */
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone);
 
-/*! Gives the string form of a given state */
+/*! Gives the string form of a given channel state */
 /*! 
  * \param state state to get the name of
  * Give a name to a state 
- * Pretty self explanatory.
  * Returns the text form of the binary state given
  */
 char *ast_state2str(int state);
@@ -844,6 +853,11 @@ char *ast_transfercapability2str(int transfercapability);
  * Returns 0 on success and -1 on failure
  */
 int ast_channel_setoption(struct ast_channel *channel, int option, void *data, int datalen, int block);
+
+/*! Pick the best codec  */
+/* Choose the best codec...  Uhhh...   Yah. */
+extern int ast_best_codec(int fmts);
+
 
 /*! Checks the value of an option */
 /*! 
@@ -913,13 +927,18 @@ int ast_autoservice_stop(struct ast_channel *chan);
    timer fd, at which point we call the callback function / data */
 int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), void *data);
 
-/* Transfer a channel (if supported).  Returns -1 on error, 0 if not supported
-   and 1 if supported and requested */
+/*!	\brief Transfer a channel (if supported).  Returns -1 on error, 0 if not supported
+   and 1 if supported and requested 
+	\param chan current channel
+	\param dest destination extension for transfer
+*/
 int ast_transfer(struct ast_channel *chan, char *dest);
 
 int ast_do_masquerade(struct ast_channel *chan);
 
-/* Find bridged channel */
+/*!	\brief Find bridged channel 
+	\param chan Current channel
+*/
 struct ast_channel *ast_bridged_channel(struct ast_channel *chan);
 
 /*!
