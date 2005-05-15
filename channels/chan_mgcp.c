@@ -239,7 +239,7 @@ static int restart_monitor(void);
 static int capability = AST_FORMAT_ULAW;
 static int nonCodecCapability = AST_RTP_DTMF;
 
-static char ourhost[256];
+static char ourhost[MAXHOSTNAMELEN];
 static struct in_addr __ourip;
 static int ourport;
 
@@ -3944,7 +3944,7 @@ static int reload_config(void)
 	struct ast_hostent ahp; struct hostent *hp;
 	int format;
 	
-	if (gethostname(ourhost, sizeof(ourhost))) {
+	if (gethostname(ourhost, sizeof(ourhost)-1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname, MGCP disabled\n");
 		return 0;
 	}

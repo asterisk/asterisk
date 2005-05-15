@@ -205,7 +205,7 @@ static int recordhistory = 0;
 static int global_promiscredir;
 
 static char global_musicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
-static char global_realm[AST_MAX_EXTENSION] = "asterisk"; 	/* Default realm */
+static char global_realm[MAXHOSTNAMELEN] = "asterisk"; 	/* Default realm */
 static char regcontext[AST_MAX_EXTENSION] = "";
 
 /* Expire slowly */
@@ -299,10 +299,10 @@ static struct sip_pvt {
 	char from[256];				/* The From: header */
 	char useragent[256];			/* User agent in SIP request */
 	char context[AST_MAX_EXTENSION];	/* Context for this call */
-	char fromdomain[AST_MAX_EXTENSION];	/* Domain to show in the from field */
+	char fromdomain[MAXHOSTNAMELEN];	/* Domain to show in the from field */
 	char fromuser[AST_MAX_EXTENSION];	/* User to show in the user field */
 	char fromname[AST_MAX_EXTENSION];	/* Name to show in the user field */
-	char tohost[AST_MAX_EXTENSION];		/* Host we should put in the "to" field */
+	char tohost[MAXHOSTNAMELEN];		/* Host we should put in the "to" field */
 	char language[MAX_LANGUAGE];		/* Default language for this call */
 	char musicclass[MAX_LANGUAGE];          /* Music on Hold class */
 	char rdnis[256];			/* Referring DNIS */
@@ -316,14 +316,14 @@ static struct sip_pvt {
 	char callerid[256];			/* Caller*ID */
 	int restrictcid;			/* hide presentation from remote user */
 	char via[256];
-	char fullcontact[128];		/* Extra parameters to go in the "To" header */
+	char fullcontact[128];			/* Extra parameters to go in the "To" header */
 	char accountcode[20];			/* Account code */
 	char our_contact[256];			/* Our contact header */
-	char realm[256];			/* Authorization realm */
+	char realm[MAXHOSTNAMELEN];		/* Authorization realm */
 	char nonce[256];			/* Authorization nonce */
 	char opaque[256];			/* Opaque nonsense */
 	char qop[80];				/* Quality of Protection, since SIP wasn't complicated enough yet. */
-	char domain[256];			/* Authorization domain */
+	char domain[MAXHOSTNAMELEN];		/* Authorization domain */
 	char lastmsg[256];			/* Last Message sent/received */
 	int amaflags;				/* AMA Flags */
 	int pendinginvite;			/* Any pending invite */
@@ -385,7 +385,7 @@ struct sip_user {
 	char name[80];
 	char secret[80];
         char md5secret[80];
-	char context[80];
+	char context[AST_MAX_EXTENSION];
 	char callerid[80];
 	char accountcode[20];
 	char language[MAX_LANGUAGE];
@@ -424,13 +424,13 @@ struct sip_peer {
 	char name[80];
 	char secret[80];
 	char md5secret[80];
-	char context[80];		/* JK02: peers need context too to allow parking etc */
+	char context[AST_MAX_EXTENSION];	/* JK02: peers need context too to allow parking etc */
 	char username[80];
-	char tohost[80];
+	char tohost[MAXHOSTNAMELEN];
 	char regexten[AST_MAX_EXTENSION];	/* Extension to register (if regcontext is used) */
 	char fromuser[80];
-	char fromdomain[80];
-	char fullcontact[128];
+	char fromdomain[MAXHOSTNAMELEN];
+	char fullcontact[256];
 	char mailbox[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
@@ -496,10 +496,10 @@ struct sip_registry {
 	int portno;				/* Optional port override */
 	char username[80];		/* Who we are registering as */
 	char authuser[80];		/* Who we *authenticate* as */
-	char hostname[80];
+	char hostname[MAXHOSTNAMELEN];
 	char secret[80];		/* Password or key name in []'s */	
 	char md5secret[80];
-	char contact[80];		/* Contact extension */
+	char contact[256];		/* Contact extension */
 	char random[80];
 	int expire;			/* Sched ID of expiration */
 	int timeout; 			/* sched id of sip_reg_timeout */
@@ -512,9 +512,9 @@ struct sip_registry {
 	struct sockaddr_in us;		/* Who the server thinks we are */
  	
  					/* Saved headers */
- 	char realm[256];		/* Authorization realm */
+ 	char realm[MAXHOSTNAMELEN];	/* Authorization realm */
  	char nonce[256];		/* Authorization nonce */
- 	char domain[256];		/* Authorization domain */
+ 	char domain[MAXHOSTNAMELEN];	/* Authorization domain */
  	char opaque[256];		/* Opaque nonsense */
  	char qop[80];			/* Quality of Protection. */
  
@@ -1289,7 +1289,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 	char *port;
 	char *callhost;
 	int portno;
-	char host[256], *hostn;
+	char host[MAXHOSTNAMELEN], *hostn;
 	char peer[256]="";
 
 	strncpy(peer, opeer, sizeof(peer) - 1);
@@ -1378,7 +1378,7 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 		else
 			portno = DEFAULT_SIP_PORT;
 		if (srvlookup) {
-			char service[256];
+			char service[MAXHOSTNAMELEN];
 			int tportno;
 			int ret;
 			snprintf(service, sizeof(service), "_sip._udp.%s", peer);
