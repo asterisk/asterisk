@@ -264,12 +264,13 @@ static char *synopsis_vmauthenticate =
 "Authenticate off voicemail passwords";
 
 static char *descrip_vmauthenticate =
-"  VMAuthenticate([mailbox][@context]): Behaves identically to the Authenticate\n"
-"application, with the exception that the passwords are taken from\n"
-"voicemail.conf.\n"
+"  VMAuthenticate([mailbox][@context][|options]): Behaves identically to\n"
+"the Authenticate application, with the exception that the passwords are\n"
+"taken from voicemail.conf.\n"
 "  If the mailbox is specified, only that mailbox's password will be considered\n"
 "valid. If the mailbox is not specified, the channel variable AUTH_MAILBOX will\n"
-"be set with the authenticated mailbox.\n";
+"be set with the authenticated mailbox.\n"
+"If the options contain 's' then no initial prompts will be played.\n";
 
 /* Leave a message */
 static char *app = "VoiceMail";
@@ -4375,7 +4376,9 @@ static int vm_browse_messages(struct ast_channel *chan, struct vm_state *vms, st
 	}
 }
 
-static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_size, struct ast_vm_user *res_vmu, const char *context, const char *prefix, int skipuser, int maxlogins)
+static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_size,
+			   struct ast_vm_user *res_vmu, const char *context, const char *prefix,
+			   int skipuser, int maxlogins, int silent)
 {
 	int useadsi, valid=0, logretries=0;
 	char password[AST_MAX_EXTENSION]="", *passptr;
@@ -4385,7 +4388,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 	adsi_begin(chan, &useadsi);
 	if (!skipuser && useadsi)
 		adsi_login(chan);
-	if (!skipuser && ast_streamfile(chan, "vm-login", chan->language)) {
+	if (!silent && !skipuser && ast_streamfile(chan, "vm-login", chan->language)) {
 		ast_log(LOG_WARNING, "Couldn't stream login file\n");
 		return -1;
 	}
@@ -4553,7 +4556,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	}
 
 	if (!valid) {
-		res = vm_authenticate(chan, vms.username, sizeof(vms.username), &vmus, context, prefixstr, skipuser, maxlogins);
+		res = vm_authenticate(chan, vms.username, sizeof(vms.username), &vmus, context, prefixstr, skipuser, maxlogins, 0);
 	}
 
 	if (!res) {
@@ -4993,10 +4996,14 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static int vmauthenticate(struct ast_channel *chan, void *data) {
+static int vmauthenticate(struct ast_channel *chan, void *data)
+{
 	struct localuser *u;
 	char *s = data, *user=NULL, *context=NULL, mailbox[AST_MAX_EXTENSION];
 	struct ast_vm_user vmus;
+	char *options = NULL;
+	int silent = 0;
+	int res = -1;
 
 	if (s) {
 		s = ast_strdupa(s);
@@ -5004,20 +5011,30 @@ static int vmauthenticate(struct ast_channel *chan, void *data) {
 			ast_log(LOG_ERROR, "Out of memory\n");
 			return -1;
 		}
-		user = strsep(&s, "@");
-		context = strsep(&s, "");
+		user = strsep(&s, "|");
+		options = strsep(&s, "|");
+		if (user) {
+			s = user;
+			user = strsep(&s, "@");
+			context = strsep(&s, "");
+		}
 	}
+
+	if (options) {
+		silent = (strchr(options, 's')) != NULL;
+	}
+
 	LOCAL_USER_ADD(u);
 
-	if (!vm_authenticate(chan, mailbox, sizeof(mailbox), &vmus, context, NULL, 0, 3)) {
+	if (!vm_authenticate(chan, mailbox, sizeof(mailbox), &vmus, context, NULL, 0, 3, silent)) {
 		pbx_builtin_setvar_helper(chan, "AUTH_MAILBOX", mailbox);
 		pbx_builtin_setvar_helper(chan, "AUTH_CONTEXT", vmus.context);
 		LOCAL_USER_REMOVE(u);
-		return 0;
-	} else {
-		LOCAL_USER_REMOVE(u);
-		return -1;
+		res = 0;
 	}
+
+	LOCAL_USER_REMOVE(u);
+	return res;
 }
 
 static char show_voicemail_users_help[] =
