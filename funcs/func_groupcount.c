@@ -165,3 +165,10 @@ struct ast_custom_function group_list_function = {
 	.write = NULL,
 };
 
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

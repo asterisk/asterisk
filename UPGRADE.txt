@@ -59,6 +59,33 @@ Applications:
   DBGet(foo=family/key)        SetVar(foo=${DB(family/key)})
   DBPut(family/key=${foo})     SetVar(${DB(family/key)}=${foo})
 
+* The application SetLanguage has been deprecated in favor of the
+  function LANGUAGE().
+
+  SetLanguage(fr)		SetVar(LANGUAGE()=fr)
+
+  The LANGUAGE function can also return the currently set language:
+
+  SetVar(MYLANG=${LANGUAGE()})
+
+* The applications AbsoluteTimeout, DigitTimeout, and ResponseTimeout
+  have been deprecated in favor of the function TIMEOUT(timeouttype):
+
+  AbsoluteTimeout(300)		SetVar(TIMEOUT(absolute)=300)
+  DigitTimeout(15)		SetVar(TIMEOUT(digit)=15)
+  ResponseTimeout(15)		SetVar(TIMEOUT(response)=15)
+
+  The TIMEOUT() function can also return the currently set timeouts:
+
+  SetVar(DTIMEOUT=${TIMEOUT(digit)})
+
+* The applications SetCIDName, SetCIDNum, and SetRDNIS have been
+  deprecated in favor of the CALLERID(datatype) function:
+
+  SetCIDName(Joe Cool)		SetVar(CALLERID(name)=Joe Cool)
+  SetCIDNum(2025551212)		SetVar(CALLERID(number)=2025551212)
+  SetRDNIS(2024561414)		SetVar(CALLERID(RDNIS)=2024561414)
+
 Queues:
 
 * A queue is now considered empty not only if there are no members but if

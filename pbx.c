@@ -231,6 +231,7 @@ static struct pbx_builtin {
 	"Set absolute maximum time of call",
 	"  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
 	"for a call.  A setting of 0 disables the timeout.  Always returns 0.\n" 
+	"AbsoluteTimeout has been deprecated in favor of SetVar(TIMEOUT(absolute)=timeout)\n"
 	},
 
 	{ "Answer", pbx_builtin_answer, 
@@ -283,6 +284,7 @@ static struct pbx_builtin {
 	"(and thus control would be passed to the 'i' extension, or if it doesn't\n"
 	"exist the call would be terminated). The default timeout is 5 seconds.\n"
 	"Always returns 0.\n" 
+	"DigitTimeout has been deprecated in favor of SetVar(TIMEOUT(digit)=timeout)\n"
 	},
 
 	{ "Goto", pbx_builtin_goto, 
@@ -366,6 +368,7 @@ static struct pbx_builtin {
 	"amount of time, control will pass to the 't' extension if it exists, and\n"
 	"if not the call would be terminated. The default timeout is 10 seconds.\n"
 	"Always returns 0.\n"  
+	"ResponseTimeout has been deprecated in favor of SetVar(TIMEOUT(response)=timeout)\n"
 	},
 
 	{ "Ringing", pbx_builtin_ringing,
@@ -425,6 +428,7 @@ static struct pbx_builtin {
 	"For some language codes, SetLanguage also changes the syntax of some\n"
 	"Asterisk functions, like SayNumber.\n"
 	"Always returns 0.\n"
+	"SetLanguage has been deprecated in favor of SetVar(LANGUAGE()=language)\n"
 	},
 
 	{ "SetVar", pbx_builtin_setvar,
@@ -5253,9 +5257,17 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 {
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "SetLanguage is deprecated, please use SetVar(LANGUAGE()=language) instead.\n");
+		deprecation_warning = 1;
+	}
+
 	/* Copy the language as specified */
 	if (data)
 		strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
+
 	return 0;
 }
 
@@ -5564,8 +5576,14 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
 {
+	static int deprecation_warning = 0;
 	int x = atoi((char *) data);
 
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "AbsoluteTimeout is deprecated, please use SetVar(TIMEOUT(absolute)=timeout) instead.\n");
+		deprecation_warning = 1;
+	}
+			
 	/* Set the absolute maximum time how long a call can be connected */
 	ast_channel_setwhentohangup(chan,x);
 	if (option_verbose > 2)
@@ -5575,6 +5593,13 @@ static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
 {
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "ResponseTimeout is deprecated, please use SetVar(TIMEOUT(response)=timeout) instead.\n");
+		deprecation_warning = 1;
+	}
+
 	/* If the channel is not in a PBX, return now */
 	if (!chan->pbx)
 		return 0;
@@ -5588,6 +5613,13 @@ static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_dtimeout(struct ast_channel *chan, void *data)
 {
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "DigitTimeout is deprecated, please use SetVar(TIMEOUT(digit)=timeout) instead.\n");
+		deprecation_warning = 1;
+	}
+
 	/* If the channel is not in a PBX, return now */
 	if (!chan->pbx)
 		return 0;

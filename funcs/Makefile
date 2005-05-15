@@ -13,8 +13,15 @@
 
 FUNCS=pbx_functions.so
 
-BUILTINS=func_md5.o func_groupcount.o func_strings.o func_cdr.o \
-         func_logic.o func_env.o func_db.o
+BUILTINS=func_md5.o \
+         func_groupcount.o \
+         func_strings.o \
+         func_cdr.o \
+         func_logic.o \
+         func_env.o \
+         func_db.o \
+         func_timeout.o \
+         func_language.o \
 
 STANDALONE_FUNCS=$(filter-out $(BUILTINS),$(patsubst %.c,%.o,$(wildcard func*.c)))
 

@@ -33,7 +33,9 @@ static char *synopsis = "Set RDNIS Number";
 
 static char *descrip = 
 "  SetRDNIS(cnum): Set RDNIS Number on a call to a new\n"
-"value.  Always returns 0\n";
+"value.  Always returns 0\n"
+"SetRDNIS has been deprecated in favor of the function\n"
+"CALLERID(rdnis)\n";
 
 STANDARD_LOCAL_USER;
 
@@ -44,6 +46,13 @@ static int setrdnis_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *opt, *n, *l;
 	char tmp[256];
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "SetRDNIS is deprecated, please use SetVar(CALLERID(rdnis)=value) instead.\n");
+		deprecation_warning = 1;
+	}
+
 	if (data)
 		strncpy(tmp, (char *)data, sizeof(tmp) - 1);
 	else

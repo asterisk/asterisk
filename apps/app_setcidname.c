@@ -34,7 +34,9 @@ static char *descrip =
 "  SetCIDName(cname[|a]): Set Caller*ID Name on a call to a new\n"
 "value, while preserving the original Caller*ID number.  This is\n"
 "useful for providing additional information to the called\n"
-"party. Always returns 0\n";
+"party. Always returns 0\n"
+"SetCIDName has been deprecated in favor of the function\n"
+"CALLERID(name)\n";
 
 STANDARD_LOCAL_USER;
 
@@ -46,6 +48,13 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	char tmp[256] = "";
 	struct localuser *u;
 	char *opt;
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "SetCIDName is deprecated, please use SetVar(CALLERID(name)=value) instead.\n");
+		deprecation_warning = 1;
+	}
+
 	if (data)
 		strncpy(tmp, (char *)data, sizeof(tmp) - 1);
 	opt = strchr(tmp, '|');
