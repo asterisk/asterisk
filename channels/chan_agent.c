@@ -1434,7 +1434,9 @@ static int agents_show(int fd, int argc, char **argv)
 	char location[AST_MAX_BUF] = "";
 	char talkingto[AST_MAX_BUF] = "";
 	char moh[AST_MAX_BUF];
-
+	int count_agents = 0;		/* Number of agents configured */
+	int online_agents = 0;		/* Number of online agents */
+	int offline_agents = 0;		/* Number of offline agents */
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
 	ast_mutex_lock(&agentlock);
@@ -1458,24 +1460,33 @@ static int agents_show(int fd, int argc, char **argv)
 				} else {
 					strncpy(talkingto, " is idle", sizeof(talkingto) - 1);
 				}
+				online_agents++;
 			} else if (!ast_strlen_zero(p->loginchan)) {
 				snprintf(location, sizeof(location) - 20, "available at '%s'", p->loginchan);
 				talkingto[0] = '\0';
+				online_agents++;
 				if (p->acknowledged)
 					strncat(location, " (Confirmed)", sizeof(location) - strlen(location) - 1);
 			} else {
 				strncpy(location, "not logged in", sizeof(location) - 1);
 				talkingto[0] = '\0';
+				offline_agents++;
 			}
 			if (!ast_strlen_zero(p->moh))
 				snprintf(moh, sizeof(moh), " (musiconhold is '%s')", p->moh);
 			ast_cli(fd, "%-12.12s %s%s%s%s\n", p->agent, 
 					username, location, talkingto, moh);
+			count_agents++;
 		}
 		ast_mutex_unlock(&p->lock);
 		p = p->next;
 	}
 	ast_mutex_unlock(&agentlock);
+	if ( !count_agents ) {
+		ast_cli(fd, "No Agents are configured in %s\n",config);
+	} else {
+		ast_cli(fd, "%d agents configured [%d online , %d offline]\n",count_agents, online_agents, offline_agents);
+	}
 	return RESULT_SUCCESS;
 }
 
