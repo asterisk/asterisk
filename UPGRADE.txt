@@ -35,6 +35,9 @@ IAX:
 
 Applications:
 
+* With the addition of dialplan functions (which operate similarly
+  to variables), the SetVar application has been renamed to Set.
+
 * The CallerPres application has been removed.  Use SetCallerPres 
   instead.  It accepts both numeric and symbolic names.
 
@@ -42,9 +45,9 @@ Applications:
   CheckGroup have been deprecated in favor of functions.  Here is a
   table of their replacements:
 
-  GetGroupCount([groupname][@category]	       GROUP_COUNT([groupname][@category])	SetVar(GROUPCOUNT=${GROUP_COUNT()})
-  GroupMatchCount(groupmatch[@category])       GROUP_MATCH_COUNT(groupmatch[@category])	SetVar(GROUPCOUNT=${GROUP_MATCH_COUNT(SIP/.*)})
-  SetGroup(groupname[@category])	       GROUP([category])=groupname		SetVar(GROUP()=test)
+  GetGroupCount([groupname][@category]	       GROUP_COUNT([groupname][@category])	Set(GROUPCOUNT=${GROUP_COUNT()})
+  GroupMatchCount(groupmatch[@category])       GROUP_MATCH_COUNT(groupmatch[@category])	Set(GROUPCOUNT=${GROUP_MATCH_COUNT(SIP/.*)})
+  SetGroup(groupname[@category])	       GROUP([category])=groupname		Set(GROUP()=test)
   CheckGroup(max[@category])		       N/A					GotoIf($[ ${GROUP_COUNT()} > 5 ]?103)
 
   Note that CheckGroup does not have a direct replacement.  There is
@@ -56,35 +59,35 @@ Applications:
 * The applications DBGet and DBPut have been deprecated in favor of
   functions.  Here is a table of their replacements:
 
-  DBGet(foo=family/key)        SetVar(foo=${DB(family/key)})
-  DBPut(family/key=${foo})     SetVar(${DB(family/key)}=${foo})
+  DBGet(foo=family/key)        Set(foo=${DB(family/key)})
+  DBPut(family/key=${foo})     Set(${DB(family/key)}=${foo})
 
 * The application SetLanguage has been deprecated in favor of the
   function LANGUAGE().
 
-  SetLanguage(fr)		SetVar(LANGUAGE()=fr)
+  SetLanguage(fr)		Set(LANGUAGE()=fr)
 
   The LANGUAGE function can also return the currently set language:
 
-  SetVar(MYLANG=${LANGUAGE()})
+  Set(MYLANG=${LANGUAGE()})
 
 * The applications AbsoluteTimeout, DigitTimeout, and ResponseTimeout
   have been deprecated in favor of the function TIMEOUT(timeouttype):
 
-  AbsoluteTimeout(300)		SetVar(TIMEOUT(absolute)=300)
-  DigitTimeout(15)		SetVar(TIMEOUT(digit)=15)
-  ResponseTimeout(15)		SetVar(TIMEOUT(response)=15)
+  AbsoluteTimeout(300)		Set(TIMEOUT(absolute)=300)
+  DigitTimeout(15)		Set(TIMEOUT(digit)=15)
+  ResponseTimeout(15)		Set(TIMEOUT(response)=15)
 
   The TIMEOUT() function can also return the currently set timeouts:
 
-  SetVar(DTIMEOUT=${TIMEOUT(digit)})
+  Set(DTIMEOUT=${TIMEOUT(digit)})
 
 * The applications SetCIDName, SetCIDNum, and SetRDNIS have been
   deprecated in favor of the CALLERID(datatype) function:
 
-  SetCIDName(Joe Cool)		SetVar(CALLERID(name)=Joe Cool)
-  SetCIDNum(2025551212)		SetVar(CALLERID(number)=2025551212)
-  SetRDNIS(2024561414)		SetVar(CALLERID(RDNIS)=2024561414)
+  SetCIDName(Joe Cool)		Set(CALLERID(name)=Joe Cool)
+  SetCIDNum(2025551212)		Set(CALLERID(number)=2025551212)
+  SetRDNIS(2024561414)		Set(CALLERID(RDNIS)=2024561414)
 
 Queues:
 

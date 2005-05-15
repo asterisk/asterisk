@@ -113,7 +113,7 @@ persistentmembers = yes
 ; To enable monitoring, simply specify "monitor-format";  it will be disabled
 ; otherwise.
 ;
-; You can specify the monitor filename with by calling SetVar(MONITOR_FILENAME=foo)
+; You can specify the monitor filename with by calling Set(MONITOR_FILENAME=foo)
 ; Otherwise it will use ${UNIQUEID}
 ;
 ; monitor-format = gsm|wav|wav49

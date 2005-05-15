@@ -53,7 +53,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	static int deprecation_warning = 0;
 
 	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "SetCIDNum is deprecated, please use SetVar(CALLERID(number)=value) instead.\n");
+		ast_log(LOG_WARNING, "SetCIDNum is deprecated, please use Set(CALLERID(number)=value) instead.\n");
 		deprecation_warning = 1;
 	}
 

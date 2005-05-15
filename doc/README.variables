@@ -41,23 +41,23 @@ They are stored in the respective channel structure.
 
 To set a variable to a particular value, do : 
 
-    exten => 1,2,SetVar(varname=value)
+    exten => 1,2,Set(varname=value)
 
 You can substitute the value of a variable everywhere using ${variablename}.
 For example, to stringwise append $lala to $blabla and store result in $koko, 
 do: 
 
-   exten => 1,2,SetVar(koko=${blabla}${lala})
+   exten => 1,2,Set(koko=${blabla}${lala})
 
 
 There are two reference modes - reference by value and reference by name. 
 To refer to a variable with its name (as an argument to a function that 
 requires a variable), just write the name. To refer to the variable's value, 
-enclose it inside ${}. For example, SetVar takes as the first argument 
+enclose it inside ${}. For example, Set takes as the first argument 
 (before the =) a variable name, so: 
 
-	exten => 1,2,SetVar(koko=lala)
-	exten => 1,3,SetVar(${koko}=blabla)
+	exten => 1,2,Set(koko=lala)
+	exten => 1,3,Set(${koko}=blabla)
 
 stores to the variable "koko" the value "lala" and to variable "lala" the 
 value "blabla". 
@@ -78,7 +78,7 @@ to a variable, simply append a colon and the number of characters to
 remove from the beginning of the string to the variable name.
 
 	;Remove the first character of extension, save in "number" variable
-	exten => _9X.,1,SetVar(number=${EXTEN:1})
+	exten => _9X.,1,Set(number=${EXTEN:1})
 
 Assuming we've dialed 918005551234, the value saved to the 'number' variable
 would be 18005551234. This is useful in situations when we require users to 
@@ -91,7 +91,7 @@ example will save the numbers 1234 to the 'number' variable, still assuming
 we've dialed 918005551234.
 
 	;Remove everything before the last four digits of the dialed string
-	exten => _9X.,1,SetVar(number=${EXTEN:-4})
+	exten => _9X.,1,Set(number=${EXTEN:-4})
 
 We can also limit the number of characters from our offset position that we
 wish to use. This is done by appending a second colon and length value to the
@@ -99,7 +99,7 @@ variable name. The following example will save the numbers 555 to the 'number'
 variable.
 
 	;Only save the middle numbers 555 from the string 918005551234
-	exten => _9X.,1,SetVar(number=${EXTEN:5:3})
+	exten => _9X.,1,Set(number=${EXTEN:5:3})
 
 The length value can also be used in conjunction with a negative offset. This
 may be useful if the length of the string is unknown, but the trailing digits
@@ -108,7 +108,7 @@ even if the string starts with more characters than expected (unlike the
 previous example).
 
 	;Save the numbers 555 to the 'number' variable
-	exten => _9X.,1,SetVar(number=${EXTEN:-7:3})
+	exten => _9X.,1,Set(number=${EXTEN:-7:3})
 
 If a negative length value is entered, it is ignored and Asterisk will match
 to the end of the string.
@@ -127,14 +127,14 @@ by at least one space.
 
 For example, after the sequence: 
 
-exten => 1,1,SetVar(lala=$[1 + 2])
-exten => 1,2,SetVar(koko=$[2 * ${lala}])
+exten => 1,1,Set(lala=$[1 + 2])
+exten => 1,2,Set(koko=$[2 * ${lala}])
 
 the value of variable koko is "6".
 
 And, further:
 
-exten => 1,1,SetVar(lala=$[1+2]);
+exten => 1,1,Set(lala=$[1+2]);
 
 will not work as you might have expected. Since all the chars in the single 
 token "1+2" are not numbers, it will be evaluated as the string "1+2". Again,
@@ -143,7 +143,7 @@ uses a space (at least one), to separate "tokens".
 
 and, further:
 
-exten => 1,1,SetVar,"lala=$[  1 +    2   ]";
+exten => 1,1,Set,"lala=$[  1 +    2   ]";
 
 will parse as intended. Extra spaces are ignored.
 
@@ -242,9 +242,9 @@ above, eg :
 
 Example of use : 
 
-exten => s,2,SetVar(vara=1)
-exten => s,3,SetVar(varb=$[${vara} + 2])
-exten => s,4,SetVar(varc=$[${varb} * 2])
+exten => s,2,Set(vara=1)
+exten => s,3,Set(varb=$[${vara} + 2])
+exten => s,4,Set(varc=$[${varb} * 2])
 exten => s,5,GotoIf($[${varc} = 6]?99|1:s|6)
 
 ___________________________

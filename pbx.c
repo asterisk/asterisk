@@ -205,6 +205,7 @@ static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
 static int pbx_builtin_saycharacters(struct ast_channel *, void *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
+static int pbx_builtin_setvar_old(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 
@@ -231,7 +232,7 @@ static struct pbx_builtin {
 	"Set absolute maximum time of call",
 	"  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
 	"for a call.  A setting of 0 disables the timeout.  Always returns 0.\n" 
-	"AbsoluteTimeout has been deprecated in favor of SetVar(TIMEOUT(absolute)=timeout)\n"
+	"AbsoluteTimeout has been deprecated in favor of Set(TIMEOUT(absolute)=timeout)\n"
 	},
 
 	{ "Answer", pbx_builtin_answer, 
@@ -284,7 +285,7 @@ static struct pbx_builtin {
 	"(and thus control would be passed to the 'i' extension, or if it doesn't\n"
 	"exist the call would be terminated). The default timeout is 5 seconds.\n"
 	"Always returns 0.\n" 
-	"DigitTimeout has been deprecated in favor of SetVar(TIMEOUT(digit)=timeout)\n"
+	"DigitTimeout has been deprecated in favor of Set(TIMEOUT(digit)=timeout)\n"
 	},
 
 	{ "Goto", pbx_builtin_goto, 
@@ -368,7 +369,7 @@ static struct pbx_builtin {
 	"amount of time, control will pass to the 't' extension if it exists, and\n"
 	"if not the call would be terminated. The default timeout is 10 seconds.\n"
 	"Always returns 0.\n"  
-	"ResponseTimeout has been deprecated in favor of SetVar(TIMEOUT(response)=timeout)\n"
+	"ResponseTimeout has been deprecated in favor of Set(TIMEOUT(response)=timeout)\n"
 	},
 
 	{ "Ringing", pbx_builtin_ringing,
@@ -428,19 +429,29 @@ static struct pbx_builtin {
 	"For some language codes, SetLanguage also changes the syntax of some\n"
 	"Asterisk functions, like SayNumber.\n"
 	"Always returns 0.\n"
-	"SetLanguage has been deprecated in favor of SetVar(LANGUAGE()=language)\n"
+	"SetLanguage has been deprecated in favor of Set(LANGUAGE()=language)\n"
 	},
 
-	{ "SetVar", pbx_builtin_setvar,
-	"Set channel variable(s)",
-	"  SetVar(name1=value1|name2=value2|..[|options])\n"
-	"You can specify up to 24 name / value pairs to be set as channel variables.\n"
-	"If a variable name is prefixed with _, it will be inherited into channels\n"
-        "created from this one. If a variable name is prefixed with __, it will be\n"
-        "inherited into channels created from this one and all child channels.\n"
-	"The last arg (if it doesn't contain '=') is interpreted as a string of\n"
-	"options. Valid options are:\n"
-	"  g - Set variable globally instead of on the channel\n"
+	{ "Set", pbx_builtin_setvar,
+	  "Set channel variable(s) or function value(s)",
+	  "  Set(name1=value1|name2=value2|..[|options])\n"
+	  "This function can be used to set the value of channel variables\n"
+	  "or dialplan functions. It will accept up to 24 name/value pairs.\n"
+	  "When setting variables, if the variable name is prefixed with _,\n"
+	  "the variable will be inherited into channels created from the\n"
+	  "current channel. If the variable name is prefixed with __,\n"
+	  "the variable will be inherited into channels created from the\n"
+	  "current channel and all child channels.\n"
+	  "The last argument, if it does not contain '=', is interpreted\n"
+	  "as a string of options. The valid options are:\n"
+	  "  g - Set variable globally instead of on the channel\n"
+	  "      (applies only to variables, not functions)\n"
+	},
+
+	{ "SetVar", pbx_builtin_setvar_old,
+	  "Set channel variable(s)",
+	  "  SetVar(name1=value1|name2=value2|..[|options])\n"
+	  "SetVar has been deprecated in favor of Set.\n"
 	},
 
 	{ "ImportVar", pbx_builtin_importvar,
@@ -5260,7 +5271,7 @@ static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 	static int deprecation_warning = 0;
 
 	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "SetLanguage is deprecated, please use SetVar(LANGUAGE()=language) instead.\n");
+		ast_log(LOG_WARNING, "SetLanguage is deprecated, please use Set(LANGUAGE()=language) instead.\n");
 		deprecation_warning = 1;
 	}
 
@@ -5580,7 +5591,7 @@ static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
 	int x = atoi((char *) data);
 
 	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "AbsoluteTimeout is deprecated, please use SetVar(TIMEOUT(absolute)=timeout) instead.\n");
+		ast_log(LOG_WARNING, "AbsoluteTimeout is deprecated, please use Set(TIMEOUT(absolute)=timeout) instead.\n");
 		deprecation_warning = 1;
 	}
 			
@@ -5596,7 +5607,7 @@ static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
 	static int deprecation_warning = 0;
 
 	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "ResponseTimeout is deprecated, please use SetVar(TIMEOUT(response)=timeout) instead.\n");
+		ast_log(LOG_WARNING, "ResponseTimeout is deprecated, please use Set(TIMEOUT(response)=timeout) instead.\n");
 		deprecation_warning = 1;
 	}
 
@@ -5616,7 +5627,7 @@ static int pbx_builtin_dtimeout(struct ast_channel *chan, void *data)
 	static int deprecation_warning = 0;
 
 	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "DigitTimeout is deprecated, please use SetVar(TIMEOUT(digit)=timeout) instead.\n");
+		ast_log(LOG_WARNING, "DigitTimeout is deprecated, please use Set(TIMEOUT(digit)=timeout) instead.\n");
 		deprecation_warning = 1;
 	}
 
@@ -5722,6 +5733,18 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 	}
 }
 
+int pbx_builtin_setvar_old(struct ast_channel *chan, void *data)
+{
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "SetVar is deprecated, please use Set instead.\n");
+		deprecation_warning = 1;
+	}
+
+	return pbx_builtin_setvar(chan, data);
+}
+
 int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 {
 	char *name, *value, *mydata;
@@ -5731,7 +5754,7 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	int x;
 
 	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "SetVar requires at least one variable name/value pair.\n");
+		ast_log(LOG_WARNING, "Set requires at least one variable name/value pair.\n");
 		return 0;
 	}
 

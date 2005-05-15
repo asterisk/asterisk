@@ -30,7 +30,6 @@ Applications
     * Authenticate 		Authenticates and sets the account code
     * SetCDRUserField   	Set CDR user field
     * AppendCDRUserField   	Append data to CDR User field 
-    * SetVarCDR			Set CDR Vars
 
 For more information, use the "show application" command.
 You can set default account codes and AMA flags for devices in 
@@ -77,7 +76,7 @@ ____________________________________
 CDR Variables
 ------------------------------------
 
-If the channel has a cdr, that cdr record has it's own set of variables which 
+If the channel has a cdr, that cdr record has its own set of variables which 
 can be accessed just like channel variables. The following builtin variables
 are available.
 
@@ -100,11 +99,7 @@ ${CDR(accountcode)}		The channel's account code.
 ${CDR(uniqueid)}		The channel's unique id.
 ${CDR(userfield)}		The channels uses specified field.
 
-
-In addition, you can set your own extra variables with the application SetVarCDR(var=val)
-or a traditional SetVAR(CDR(var=val) to anything you want.
-
-SetVar(CDR(var)=val) will set the var to all cdr in a stack of cdrs.
+In addition, you can set your own extra variables by using Set(CDR(name)=value).
 
 ______________________________
 cdr_csv2

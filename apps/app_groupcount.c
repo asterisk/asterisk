@@ -227,7 +227,7 @@ static char *group_count_descrip =
 static char *group_set_descrip =
 "Usage: SetGroup(groupname[@category])\n"
 "  Sets the channel group to the specified value.  Equivalent to\n"
-"SetVar(GROUP=group).  Always returns 0.\n";
+"Set(GROUP=group).  Always returns 0.\n";
 
 static char *group_check_descrip =
 "Usage: CheckGroup(max[@category])\n"
