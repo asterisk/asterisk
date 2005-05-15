@@ -171,3 +171,35 @@ struct ast_custom_function strftime_function = {
 	.syntax = "STRFTIME([<epoch>][,[timezone][,format]])",
 	.read = acf_strftime,
 };
+
+static char *function_eval(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "EVAL requires an argument: EVAL(<variable>)\n");
+		return buf;
+	}
+	
+	pbx_substitute_variables_helper(chan, data, buf, len - 1);
+
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function eval_function = {
+	.name = "EVAL",
+	.synopsis = "Evaluate stored variables.",
+	.syntax = "EVAL(<variable>)",
+	.desc = "Using EVAL basically causes a string to be evaluated twice.\n"
+		"When a variable or expression is in the dialplan, it will be\n"
+		"evaluated at runtime. However, if the result of the evaluation\n"
+		"is in fact a variable or expression, using EVAL will have it\n"
+		"evaluated a second time. For example, if the variable ${MYVAR}\n"
+		"contains \"${OTHERVAR}\", then the result of putting ${EVAL(${MYVAR})}\n"
+		"in the dialplan will be the contents of the variable, OTHERVAR.\n"
+		"Normally, by just putting ${MYVAR} in the dialplan, you would be\n"
+		"left with \"${OTHERVAR}\".\n", 
+	.read = function_eval,
+};
+
