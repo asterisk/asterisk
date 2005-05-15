@@ -596,15 +596,6 @@ static char frame_show_codecs_usage[] =
 "Usage: show [audio|video|image] codecs\n"
 "       Displays codec mapping\n";
 
-struct ast_cli_entry cli_show_codecs =
-{ { "show", "codecs", NULL }, show_codecs, "Shows codecs", frame_show_codecs_usage };
-struct ast_cli_entry cli_show_codecs_audio =
-{ { "show", "audio", "codecs", NULL }, show_codecs, "Shows audio codecs", frame_show_codecs_usage };
-struct ast_cli_entry cli_show_codecs_video =
-{ { "show", "video", "codecs", NULL }, show_codecs, "Shows video codecs", frame_show_codecs_usage };
-struct ast_cli_entry cli_show_codecs_image =
-{ { "show", "image", "codecs", NULL }, show_codecs, "Shows image codecs", frame_show_codecs_usage };
-
 static int show_codec_n(int fd, int argc, char *argv[])
 {
 	int codec, i, found=0;
@@ -630,9 +621,6 @@ static int show_codec_n(int fd, int argc, char *argv[])
 static char frame_show_codec_n_usage[] =
 "Usage: show codec <number>\n"
 "       Displays codec mapping\n";
-
-struct ast_cli_entry cli_show_codec_n =
-{ { "show", "codec", NULL }, show_codec_n, "Shows a specific codec", frame_show_codec_n_usage };
 
 void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 {
@@ -815,21 +803,23 @@ static int show_frame_stats(int fd, int argc, char *argv[])
 static char frame_stats_usage[] =
 "Usage: show frame stats\n"
 "       Displays debugging statistics from framer\n";
-
-struct ast_cli_entry cli_frame_stats =
-{ { "show", "frame", "stats", NULL }, show_frame_stats, "Shows frame statistics", frame_stats_usage };
 #endif
+
+/* XXX no unregister function here ??? */
+static struct ast_cli_entry my_clis[] = {
+{ { "show", "codecs", NULL }, show_codecs, "Shows codecs", frame_show_codecs_usage },
+{ { "show", "audio", "codecs", NULL }, show_codecs, "Shows audio codecs", frame_show_codecs_usage },
+{ { "show", "video", "codecs", NULL }, show_codecs, "Shows video codecs", frame_show_codecs_usage },
+{ { "show", "image", "codecs", NULL }, show_codecs, "Shows image codecs", frame_show_codecs_usage },
+{ { "show", "codec", NULL }, show_codec_n, "Shows a specific codec", frame_show_codec_n_usage },
+#ifdef TRACE_FRAMES
+{ { "show", "frame", "stats", NULL }, show_frame_stats, "Shows frame statistics", frame_stats_usage },
+#endif
+};
 
 int init_framer(void)
 {
-#ifdef TRACE_FRAMES
-	ast_cli_register(&cli_frame_stats);
-#endif
-	ast_cli_register(&cli_show_codecs);
-	ast_cli_register(&cli_show_codecs_audio);
-	ast_cli_register(&cli_show_codecs_video);
-	ast_cli_register(&cli_show_codecs_image);
-	ast_cli_register(&cli_show_codec_n);
+	ast_cli_register_multiple(my_clis, sizeof(my_clis)/sizeof(my_clis[0]) );
 	return 0;	
 }
 

@@ -7856,51 +7856,6 @@ static char *func_header_read(struct ast_channel *chan, char *cmd, char *data, c
 	return buf;
 }
 
-static struct ast_cli_entry  cli_notify =
-	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sipnotify };
-static struct ast_cli_entry  cli_show_objects = 
-	{ { "sip", "show", "objects", NULL }, sip_show_objects, "Show all SIP object allocations", show_objects_usage };
-static struct ast_cli_entry  cli_show_users = 
-	{ { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage };
-static struct ast_cli_entry  cli_show_user =
-	{ { "sip", "show", "user", NULL }, sip_show_user, "Show details on specific SIP user", show_user_usage, complete_sip_show_user };
-static struct ast_cli_entry  cli_show_subscriptions =
-	{ { "sip", "show", "subscriptions", NULL }, sip_show_subscriptions, "Show active SIP subscriptions", show_subscriptions_usage};
-static struct ast_cli_entry  cli_show_channels =
-	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage};
-static struct ast_cli_entry  cli_show_channel =
-	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  };
-static struct ast_cli_entry  cli_show_history =
-	{ { "sip", "show", "history", NULL }, sip_show_history, "Show SIP dialog history", show_history_usage, complete_sipch  };
-static struct ast_cli_entry  cli_debug_ip =
-	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage };
-static struct ast_cli_entry  cli_debug_peer =
-	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage, complete_sip_debug_peer };
-static struct ast_cli_entry  cli_show_peer =
-	{ { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage, complete_sip_show_peer };
-static struct ast_cli_entry  cli_show_peers =
-	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage };
-static struct ast_cli_entry  cli_prune_realtime =
-	{ { "sip", "prune", "realtime", NULL }, sip_prune_realtime,
-	  "Prune cached Realtime object(s)", prune_realtime_usage };
-static struct ast_cli_entry  cli_prune_realtime_peer =
-	{ { "sip", "prune", "realtime", "peer", NULL }, sip_prune_realtime,
-	  "Prune cached Realtime peer(s)", prune_realtime_usage, complete_sip_prune_realtime_peer };
-static struct ast_cli_entry  cli_prune_realtime_user =
-	{ { "sip", "prune", "realtime", "user", NULL }, sip_prune_realtime,
-	  "Prune cached Realtime user(s)", prune_realtime_usage, complete_sip_prune_realtime_user };
-static struct ast_cli_entry  cli_inuse_show =
-	{ { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limits", show_inuse_usage };
-static struct ast_cli_entry  cli_show_registry =
-	{ { "sip", "show", "registry", NULL }, sip_show_registry, "Show SIP registration status", show_reg_usage };
-static struct ast_cli_entry  cli_debug =
-	{ { "sip", "debug", NULL }, sip_do_debug, "Enable SIP debugging", debug_usage };
-static struct ast_cli_entry  cli_history =
-	{ { "sip", "history", NULL }, sip_do_history, "Enable SIP history", history_usage };
-static struct ast_cli_entry  cli_no_history =
-	{ { "sip", "no", "history", NULL }, sip_no_history, "Disable SIP history", no_history_usage };
-static struct ast_cli_entry  cli_no_debug =
-	{ { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage };
 
 static struct ast_custom_function sip_header_function = {
 	.name = "SIP_HEADER",
@@ -11067,8 +11022,34 @@ int reload(void)
 	return sip_reload(0, 0, NULL);
 }
 
-static struct ast_cli_entry  cli_sip_reload =
-	{ { "sip", "reload", NULL }, sip_reload, "Reload SIP configuration", sip_reload_usage };
+// static struct ast_cli_entry  cli_sip_reload =
+static struct ast_cli_entry  my_clis[] = {
+	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sipnotify },
+	{ { "sip", "show", "objects", NULL }, sip_show_objects, "Show all SIP object allocations", show_objects_usage },
+	{ { "sip", "show", "users", NULL }, sip_show_users, "Show defined SIP users", show_users_usage },
+	{ { "sip", "show", "user", NULL }, sip_show_user, "Show details on specific SIP user", show_user_usage, complete_sip_show_user },
+	{ { "sip", "show", "subscriptions", NULL }, sip_show_subscriptions, "Show active SIP subscriptions", show_subscriptions_usage},
+	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage},
+	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  },
+	{ { "sip", "show", "history", NULL }, sip_show_history, "Show SIP dialog history", show_history_usage, complete_sipch  },
+	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage },
+	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage, complete_sip_debug_peer },
+	{ { "sip", "show", "peer", NULL }, sip_show_peer, "Show details on specific SIP peer", show_peer_usage, complete_sip_show_peer },
+	{ { "sip", "show", "peers", NULL }, sip_show_peers, "Show defined SIP peers", show_peers_usage },
+	{ { "sip", "prune", "realtime", NULL }, sip_prune_realtime,
+	  "Prune cached Realtime object(s)", prune_realtime_usage },
+	{ { "sip", "prune", "realtime", "peer", NULL }, sip_prune_realtime,
+	  "Prune cached Realtime peer(s)", prune_realtime_usage, complete_sip_prune_realtime_peer },
+	{ { "sip", "prune", "realtime", "user", NULL }, sip_prune_realtime,
+	  "Prune cached Realtime user(s)", prune_realtime_usage, complete_sip_prune_realtime_user },
+	{ { "sip", "show", "inuse", NULL }, sip_show_inuse, "List all inuse/limits", show_inuse_usage },
+	{ { "sip", "show", "registry", NULL }, sip_show_registry, "Show SIP registration status", show_reg_usage },
+	{ { "sip", "debug", NULL }, sip_do_debug, "Enable SIP debugging", debug_usage },
+	{ { "sip", "history", NULL }, sip_do_history, "Enable SIP history", history_usage },
+	{ { "sip", "no", "history", NULL }, sip_no_history, "Disable SIP history", no_history_usage },
+	{ { "sip", "no", "debug", NULL }, sip_no_debug, "Disable SIP debugging", no_debug_usage },
+	{ { "sip", "reload", NULL }, sip_reload, "Reload SIP configuration", sip_reload_usage },
+};
 
 /*--- load_module: PBX load module - initialization ---*/
 int load_module()
@@ -11093,28 +11074,7 @@ int load_module()
 	if (reload_config())
 		return -1;
 
-	ast_cli_register(&cli_notify);
-	ast_cli_register(&cli_show_users);
-	ast_cli_register(&cli_show_user);
-	ast_cli_register(&cli_show_objects);
-	ast_cli_register(&cli_show_subscriptions);
-	ast_cli_register(&cli_show_channels);
-	ast_cli_register(&cli_show_channel);
-	ast_cli_register(&cli_show_history);
-	ast_cli_register(&cli_prune_realtime);
-	ast_cli_register(&cli_prune_realtime_peer);
-	ast_cli_register(&cli_prune_realtime_user);
-	ast_cli_register(&cli_show_peer);
-	ast_cli_register(&cli_show_peers);
-	ast_cli_register(&cli_show_registry);
-	ast_cli_register(&cli_debug);
-	ast_cli_register(&cli_debug_ip);
-	ast_cli_register(&cli_debug_peer);
-	ast_cli_register(&cli_no_debug);
-	ast_cli_register(&cli_history);
-	ast_cli_register(&cli_no_history);
-	ast_cli_register(&cli_sip_reload);
-	ast_cli_register(&cli_inuse_show);
+	ast_cli_register_multiple(my_clis, sizeof(my_clis)/ sizeof(my_clis[0]));
 
 	ast_rtp_proto_register(&sip_rtp);
 
@@ -11151,28 +11111,7 @@ int unload_module()
 	ast_unregister_application(app_sipaddheader);
 	ast_unregister_application(app_sipgetheader);
 
-	ast_cli_unregister(&cli_notify);
-	ast_cli_unregister(&cli_show_users);
-	ast_cli_unregister(&cli_show_user);
-	ast_cli_unregister(&cli_show_objects);
-	ast_cli_unregister(&cli_show_channels);
-	ast_cli_unregister(&cli_show_channel);
-	ast_cli_unregister(&cli_show_history);
-	ast_cli_unregister(&cli_prune_realtime_user);
-	ast_cli_unregister(&cli_prune_realtime_peer);
-	ast_cli_unregister(&cli_prune_realtime);
-	ast_cli_unregister(&cli_show_peer);
-	ast_cli_unregister(&cli_show_peers);
-	ast_cli_unregister(&cli_show_registry);
-	ast_cli_unregister(&cli_show_subscriptions);
-	ast_cli_unregister(&cli_debug);
-	ast_cli_unregister(&cli_debug_ip);
-	ast_cli_unregister(&cli_debug_peer);
-	ast_cli_unregister(&cli_no_debug);
-	ast_cli_unregister(&cli_history);
-	ast_cli_unregister(&cli_no_history);
-	ast_cli_unregister(&cli_sip_reload);
-	ast_cli_unregister(&cli_inuse_show);
+	ast_cli_unregister_multiple(my_clis, sizeof(my_clis)/ sizeof(my_clis[0]));
 
 	ast_rtp_proto_unregister(&sip_rtp);
 

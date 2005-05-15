@@ -992,6 +992,25 @@ int ast_cli_register(struct ast_cli_entry *e)
 	return 0;
 }
 
+/*
+ * register/unregister an array of entries.
+ */
+void ast_cli_register_multiple(struct ast_cli_entry *e, int len)
+{
+	int i;
+
+	for (i=0; i < len; i++)
+		ast_cli_register(e + i);
+}
+
+void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
+{
+	int i;
+
+	for (i=0; i < len; i++)
+		ast_cli_unregister(e + i);
+}
+
 static int help_workhorse(int fd, char *match[])
 {
 	char fullcmd1[80] = "";

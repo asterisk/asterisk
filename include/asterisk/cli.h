@@ -57,22 +57,35 @@ struct ast_cli_entry {
  */
 extern int ast_cli_command(int fd, char *s);
 
-/*! Registers a command */
+/*! Registers a command or an array of commands */
 /*! 
- * \param fd File descriptor that I/O is done to
- * \param s string given at prompt
+ * \param e which cli entry to register
  * Register your own command
  * Returns 0 on success, -1 on failure
  */
 extern int ast_cli_register(struct ast_cli_entry *e);
 
-/*! Unregisters a command */
+/*! 
+ * \param e pointer to first cli entry to register
+ * \param len number of entries to register
+ * Register multiple commands
+ */
+extern void ast_cli_register_multiple(struct ast_cli_entry *e, int len);
+
+/*! Unregisters a command or an array of commands */
 /*!
  * \param e which cli entry to unregister
- * Unregister your own command.  You must pass a completed ast_cli_entry structur
- * Returns 0 on success, -1 on failure
+ * Unregister your own command.  You must pass a completed ast_cli_entry structure
+ * Returns 0.
  */
 extern int ast_cli_unregister(struct ast_cli_entry *e);
+
+/*!
+ * \param e pointer to first cli entry to unregister
+ * \param len number of entries to unregister
+ * Unregister multiple commands
+ */
+extern void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
 
 /*! Readline madness */
 /* Useful for readline, that's about it
