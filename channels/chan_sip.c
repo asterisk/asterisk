@@ -1643,6 +1643,10 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 			ast_log(LOG_ERROR, "update_user_counter(%s,%d) called with no event!\n",u->name,event);
 	}
 	ast_mutex_unlock(&userl.lock);
+#ifdef MYSQL_USERS
+	if (u && u->temponly)
+		free(u);
+#endif	
 	return 0;
 }
 
