@@ -258,10 +258,21 @@ ifeq (${OSARCH},SunOS)
 LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
 endif
 LIBS+=-lssl
+
+FLEXVER_GT_2_5_31=$(shell ./vercomp.sh flex \>= 2.5.31)
+BISONVER=$(shell bison --version | grep \^bison | egrep -o '[0-9]+\.[-0-9.]+[a-z]?' )
+BISONVERGE_85=$(shell ./vercomp.sh bison \>= 1.85 )
+
+ifeq (${FLEXVER_GT_2_5_31},true)
+FLEXOBJS=ast_expr2.o ast_expr2f.o
+else
+FLEXOBJS=ast_expr.o
+endif
+
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
-	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ast_expr.o \
+	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ${FLEXOBJS}  \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o config_old.o plc.o jitterbuf.o dnsmgr.o
@@ -333,13 +344,45 @@ _version:
 .version: _version
 
 .y.c:
-	bison $< --name-prefix=ast_yy -o $@
+	@if (($(BISONVERGE_85) = false)); then \
+		echo ================================================================================= ;\
+		echo NOTE: you may have trouble if you do not have bison-1.85 or higher installed! ;\
+		echo NOTE: you can pick up a copy at: http://ftp.gnu.org/ or its mirrors ;\
+		echo NOTE: You Have: $(BISONVER) ;\
+		echo ================================================================================; \
+	else \
+		echo EXCELLENT-- You have Bison version $(BISONVER), this should work just fine...;\
+	fi
+	bison -v -d --name-prefix=ast_yy $< -o $@
 
 ast_expr.o: ast_expr.c
+	@echo NOTE:
+	@echo NOTE:
+	@echo NOTE: Using older version of ast_expr. To use the newer version,
+	@echo NOTE: Upgrade to flex 2.5.31 or higher, which can be found at http://
+	@echo NOTE:  http://sourceforge.net/project/showfiles.php?group_id=72099
+	@echo NOTE:
+	@echo NOTE:
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) ast_expr.c
+
+ast_expr2.o: ast_expr2.c
+
+ast_expr2f.o: ast_expr2f.c
+ast_expr2f.c: ast_expr2.fl
+	flex ast_expr2.fl
 
 cli.o: cli.c build.h
 
 asterisk.o: asterisk.c build.h
+
+testexpr2 :
+	flex ast_expr2.fl
+	bison -v -d --name-prefix=ast_yy -o ast_expr2.c ast_expr2.y
+	gcc -g -c -DSTANDALONE ast_expr2f.c
+	gcc -g -c -DSTANDALONE ast_expr2.c
+	gcc -g -o testexpr2 ast_expr2f.o ast_expr2.o
+	rm ast_expr2.c ast_expr2.o ast_expr2f.o ast_expr2f.c
+
 
 manpage: asterisk.8.gz
 

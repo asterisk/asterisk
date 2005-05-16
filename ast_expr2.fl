@@ -1,0 +1,167 @@
+%{
+#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <locale.h>
+#include <ctype.h>
+#include <err.h>
+#include <errno.h>
+#include <regex.h>
+#include <limits.h>
+#include <asterisk/ast_expr.h>
+#include <asterisk/logger.h>
+
+enum valtype {
+	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
+} ;
+
+struct val {
+	enum valtype type;
+	union {
+		char *s;
+		quad_t i;
+	} u;
+} ;
+
+#include "ast_expr2.h" /* the o/p of the bison on ast_expr2.y */
+
+#define SET_COLUMNS yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);yylloc_param->last_column = yylloc_param->last_column + yyleng - 1; yylloc_param->first_line = yylloc_param->last_line = 1
+#define SET_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_string; yylval_param->val->u.s = strdup(yytext);
+
+struct parse_io
+{
+	char *string;
+	struct val *val;
+	yyscan_t scanner;
+};
+ 
+
+%}
+
+%option prefix="ast_yy"
+%option batch
+%option outfile="ast_expr2f.c"
+%option reentrant
+%option bison-bridge
+%option bison-locations
+%option noyywrap
+
+%%
+
+\|	{ SET_COLUMNS; SET_STRING; return TOK_OR;}
+\&	{ SET_COLUMNS; SET_STRING; return TOK_AND;}
+\=	{ SET_COLUMNS; SET_STRING; return TOK_EQ;}
+\>	{ SET_COLUMNS; SET_STRING; return TOK_GT;}
+\<	{ SET_COLUMNS; SET_STRING; return TOK_LT;}
+\>\=	{ SET_COLUMNS; SET_STRING; return TOK_GE;}
+\<\=	{ SET_COLUMNS; SET_STRING; return TOK_LE;}
+\!\=	{ SET_COLUMNS; SET_STRING; return TOK_NE;}
+\+	{ SET_COLUMNS; SET_STRING; return TOK_PLUS;}
+\-	{ SET_COLUMNS; SET_STRING; return TOK_MINUS;}
+\*	{ SET_COLUMNS; SET_STRING; return TOK_MULT;}
+\/	{ SET_COLUMNS; SET_STRING; return TOK_DIV;}
+\%	{ SET_COLUMNS; SET_STRING; return TOK_MOD;}
+\:	{ SET_COLUMNS; SET_STRING; return TOK_COLON;}
+\(	{ SET_COLUMNS; SET_STRING; return TOK_LP;}
+\)	{ SET_COLUMNS; SET_STRING; return TOK_RP;}
+
+[ 	\r]		{}
+\"[^"]*\"   {SET_COLUMNS; SET_STRING; return TOKEN;}
+
+[\n]	{/* what to do with eol */}
+[0-9]+		{   SET_COLUMNS; 
+				yylval_param->val = (struct val *)calloc(sizeof(struct val),1);
+				yylval_param->val->type = AST_EXPR_integer; 
+				yylval_param->val->u.i = atoi(yytext); 
+				return TOKEN;}
+[a-zA-Z0-9,.?';{}\\_^%$#@!]+	{SET_COLUMNS; SET_STRING; return TOKEN;}
+
+%%
+
+/* I'm putting the interface routine to the whole parse here in the flexer input file
+   mainly because of all the flexer initialization that has to be done. Shouldn't matter
+   where it is, as long as it's somewhere. I didn't want to define a prototype for the
+   ast_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
+	UGH! that would be inappropriate. */
+
+int ast_yyparse( void *); /* need to/should define this prototype for the call to yyparse */
+char *ast_expr(char *arg); /* and this prototype for the following func */
+int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *); /* likewise */
+
+char *ast_expr (char *arg)
+{
+	struct parse_io *io;
+	char *pirouni;
+	
+	io = (struct parse_io *)calloc(sizeof(struct parse_io),1);
+	io->string = arg;  /* to pass to the error routine */
+	
+	ast_yylex_init(&io->scanner);
+	
+	ast_yy_scan_string(arg,io->scanner);
+	
+	ast_yyparse ((void *)io);
+
+	ast_yylex_destroy(io->scanner);
+	
+
+	if (io->val==NULL) {
+		pirouni=strdup("0");
+		return(pirouni);
+	} else {
+		if (io->val->type == AST_EXPR_integer) {
+			pirouni=malloc(256);
+			sprintf (pirouni,"%lld", (long long)io->val->u.i);
+		}
+		else {
+			pirouni=strdup(io->val->u.s);
+		}
+		free(io->val);
+	}
+	free(io);
+	return(pirouni);
+}
+
+int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
+{	
+	struct yyguts_t * yyg = (struct yyguts_t*)(parseio->scanner);
+	char spacebuf[8000]; /* best safe than sorry */
+	char spacebuf2[8000]; /* best safe than sorry */
+	int i=0;
+	spacebuf[0] = 0;
+	
+#ifdef WHEN_LOC_MEANS_SOMETHING
+	if( loc->first_column > 7990 ) /* if things get out of whack, why crash? */
+		loc->first_column = 7990;
+	if( loc->last_column > 7990 )
+		loc->last_column = 7990;
+	for(i=0;i<loc->first_column;i++) spacebuf[i] = ' ';
+	for(   ;i<loc->last_column;i++) spacebuf[i] = '^';
+	spacebuf[i] = 0;
+#endif
+	for(i=0;i< (int)(yytext - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);i++) spacebuf2[i] = ' ';  /* uh... assuming yyg is defined, then I can use the yycolumn macro,
+													which is the same thing as... get this:
+													yyg->yy_buffer_stack[yyg->yy_buffer_stack_top]->yy_bs_column
+													I was tempted to just use yy_buf_pos in the STATE, but..., well:
+														a. the yy_buf_pos is the current position in the buffer, which
+															may not relate to the entire string/buffer because of the
+															buffering.
+														b. but, analysis of the situation is that when you use the
+															yy_scan_string func, it creates a single buffer the size of
+															string, so the two would be the same... 
+													so, in the end, the yycolumn macro is available, shorter, therefore easier. */
+	spacebuf2[i++]='^';
+	spacebuf2[i]= 0;
+
+#ifdef STANDALONE
+	/* easier to read in the standalone version */
+	printf("ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
+			s, parseio->string,spacebuf2);
+#else
+	ast_log(LOG_WARNING,"ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
+			s, parseio->string,spacebuf2);
+	ast_log(LOG_WARNING,"If you have questions, please refer to doc/README.variables2 in the asterisk source.\n");
+#endif
+	return(0);
+}

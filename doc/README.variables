@@ -1,5 +1,6 @@
+----------------------------
 Asterisk dial plan variables 
----------------------------
+----------------------------
 
 There are two levels of parameter evaluation done in the Asterisk
 dial plan in extensions.conf.
@@ -11,6 +12,15 @@ dial plan in extensions.conf.
 Asterisk has user-defined variables and standard variables set
 by various modules in Asterisk. These standard variables are
 listed at the end of this document.
+
+NOTE: During the Asterisk build process, the versions of bison and
+flex available on your system are probed. If you have versions of
+flex greater than or equal to 2.5.31, it will use flex to build a 
+"pure" (re-entrant) tokenizer for expressions. If you use bison version 
+greater than 1.85, it will use a bison grammar to generate a pure (re-entrant) 
+parser for $[] expressions. 
+Notes specific to the flex parser are marked with "**" at the beginning
+of the line.
 
 ___________________________
 PARAMETER QUOTING: 
@@ -123,6 +133,10 @@ considered as an expression and it is evaluated. Evaluation works similar to
 evaluation. 
 Note: The arguments and operands of the expression MUST BE separated 
 by at least one space. 
+** Using the Flex generated tokenizer, this is no longer the case. Spaces
+** are only required where they would seperate tokens that would normally
+** be merged into a single token. Using the new tokenizer, spaces can be
+** used freely.
 
 
 For example, after the sequence: 
@@ -131,6 +145,11 @@ exten => 1,1,Set(lala=$[1 + 2])
 exten => 1,2,Set(koko=$[2 * ${lala}])
 
 the value of variable koko is "6".
+
+** Using the new Flex generated tokenizer, the expressions above are still
+** legal, but so are the following:
+** exten => 1,1,Set(lala=$[1+2])
+** exten => 1,2,Set(koko=$[2*    ${lala}])
 
 And, further:
 
@@ -141,15 +160,19 @@ token "1+2" are not numbers, it will be evaluated as the string "1+2". Again,
 please do not forget, that this is a very simple parsing engine, and it
 uses a space (at least one), to separate "tokens".
 
+** Please note that spaces are not required to separate tokens if you have
+** Flex version 2.5.31 or higher on your system.
+ 
 and, further:
 
 exten => 1,1,Set,"lala=$[  1 +    2   ]";
 
 will parse as intended. Extra spaces are ignored.
 
-___________________________
-SPACES INSIDE VARIABLE
----------------------------
+
+______________________________
+SPACES INSIDE VARIABLE VALUES
+------------------------------
 If the variable being evaluated contains spaces, there can be problems.
 
 For these cases, double quotes around text that may contain spaces
@@ -173,7 +196,7 @@ DELOREAN MOTORS : Privacy Manager
 
 and will result in syntax errors, because token DELOREAN is immediately
 followed by token MOTORS and the expression parser will not know how to 
-evaluate this expression.
+evaluate this expression, because it does not match its grammar.
 
 _____________________
 OPERATORS
@@ -204,6 +227,14 @@ with equal precedence are grouped within { } symbols.
              Return the results of multiplication, integer division, or
              remainder of integer-valued arguments.
 
+**   - expr1
+**          Return the result of subtracting expr1 from 0.
+**
+**   ! expr1
+**          Return the result of a logical complement of expr1.
+**          In other words, if expr1 is null, 0, an empty string,
+**          or the string "0", return a 1. Otherwise, return a "0". (only with flex >= 2.5.31)
+
      expr1 : expr2
              The `:' operator matches expr1 against expr2, which must be a
              regular expression.  The regular expression is anchored to the
@@ -216,11 +247,70 @@ with equal precedence are grouped within { } symbols.
              the pattern contains a regular expression subexpression the null
              string is returned; otherwise 0.
 
+             Normally, the double quotes wrapping a string are left as part
+             of the string. This is disastrous to the : operator. Therefore,
+             before the regex match is made, beginning and ending double quote
+             characters are stripped from both the pattern and the string.
+
+**    expr1 =~ expr2
+**             Exactly the same as the ':' operator, except that the match is
+**             not anchored to the beginning of the string. Pardon any similarity
+**             to seemingly similar operators in other programming languages!
+**             (only if flex >= 2.5.31)
+
+
+
 Parentheses are used for grouping in the usual manner.
 
-The parser must be parsed with bison (bison is REQUIRED - yacc cannot 
-produce pure parsers, which are reentrant) 
+Operator precedence is applied as one would expect in any of the C
+or C derived languages.
 
+The parser must be generated with bison (bison is REQUIRED - yacc cannot 
+produce pure parsers, which are reentrant)  The same with flex, if flex
+is at 2.5.31 or greater; Re-entrant scanners were not available before that
+version.
+
+
+
+Examples
+
+** "One Thousand Five Hundred" =~ "(T[^ ]+)"
+**	returns: Thousand
+
+** "One Thousand Five Hundred" =~ "T[^ ]+"
+**	returns: 8
+
+ "One Thousand Five Hundred" : "T[^ ]+"
+	returns: 0
+
+ "8015551212" : "(...)"
+	returns: 801
+
+ "3075551212":"...(...)"
+	returns: 555
+
+** ! "One Thousand Five Hundred" =~ "T[^ ]+"
+**	returns: 0 (because it applies to the string, which is non-null, which it turns to "0",
+                    and then looks for the pattern in the "0", and doesn't find it)
+
+** !( "One Thousand Five Hundred" : "T[^ ]+" )
+**	returns: 1  (because the string doesn't start with a word starting with T, so the
+                     match evals to 0, and the ! operator inverts it to 1 ).
+
+ 2 + 8 / 2
+	returns 6. (because of operator precedence; the division is done first, then the addition).
+
+** 2+8/2
+**	returns 6. Spaces aren't necessary.
+
+**(2+8)/2
+**	returns 5, of course.
+
+Of course, all of the above examples use constants, but would work the same if any of the
+numeric or string constants were replaced with a variable reference ${CALLERIDNUM}, for
+instance.
+
+ 
 ___________________________
 CONDITIONALS
 ---------------------------
@@ -277,6 +367,26 @@ going to be somewhere between the last '^' on the second line, and the
 '^' on the third line. That's right, in the example above, there are two
 '&' chars, separated by a space, and this is a definite no-no!
 
+** WITH FLEX >= 2.5.31, this has changed slightly. The line showing the 
+** part of the expression that was successfully parsed has been dropped,
+** and the parse error is explained in a somewhat cryptic format in the log.
+** 
+** The same line in extensions.conf as above, will now generate an error 
+** message in /var/log/asterisk/messages that looks like this:
+**
+** Jul 15 21:27:49 WARNING[1251240752]: ast_yyerror(): syntax error: parse error, unexpected TOK_AND, expecting TOK_MINUS or TOK_LP or TOKEN; Input:
+** "3072312154"  = "3071234567" & & "Steves Extension" : "Privacy Manager" 
+**                                ^
+**
+** The log line tells you that a syntax error was encountered. It now
+** also tells you (in grand standard bison format) that it hit an "AND" (&)
+** token unexpectedly, and that was hoping for for a MINUS (-), LP (left parenthesis),
+** or a plain token (a string or number).
+** 
+** As before, the next line shows the evaluated expression, and the line after
+** that, the position of the parser in the expression when it became confused,
+** marked with the "^" character.
+
 
 ___________________________
 NULL STRINGS
@@ -305,6 +415,89 @@ excellent option to this need, and make available the full power of
 whatever language you desire, be it Perl, C, C++, Cobol, RPG, Java,
 Snobol, PL/I, Scheme, Common Lisp, Shell scripts, Tcl, Forth, Modula,
 Pascal, APL, assembler, etc.
+
+----------------------------
+INCOMPATIBILITIES
+----------------------------
+
+The asterisk expression parser has undergone some evolution. It is hoped
+that the changes will be viewed as positive. 
+
+The "original" expression parser had a simple, hand-written scanner, and 
+a simple bison grammar. This was upgraded to a more involved bison grammar,
+and a hand-written scanner upgraded to allow extra spaces, and to generate
+better error diagnostics. This upgrade required bison 1.85, and a [art of the user
+community felt the pain of having to upgrade their bison version.
+
+The next upgrade included new bison and flex input files, and the makefile
+was upgraded to detect current version of both flex and bison, conditionally
+compiling and linking the new files if the versions of flex and bison would
+allow it.
+
+If you have not touched your extensions.conf files in a year or so, the
+above upgrades may cause you some heartburn in certain circumstances, as
+several changes have been made, and these will affect asterisk's behavior on 
+legacy extension.conf constructs.  The changes have been engineered
+to minimize these conflicts, but there are bound to be problems.
+
+The following list gives some (and most likely, not all) of areas
+of possible concern with "legacy" extension.conf files:
+
+1. Tokens separated by space(s).
+   Previously, tokens were separated by spaces. Thus, ' 1 + 1 ' would evaluate
+  to the value '2', but '1+1' would evaluate to the string '1+1'. If this
+  behavior was depended on, then the expression evaluation will break. '1+1'
+  will now evaluate to '2', and something is not going to work right.
+  To keep such strings from being evaluated, simply wrap them in double 
+  quotes: '  "1+1" '
+
+2. The colon operator. In versions previous to double quoting, the
+   colon operator takes the right hand string, and using it as a 
+   regex pattern, looks for it in the left hand string. It is given
+   an implicit ^ operator at the beginning, meaning the pattern 
+   will match only at the beginning of the left hand string. 
+     If the pattern or the matching string had double quotes around
+   them, these could get in the way of the pattern match. Now,
+   the wrapping double quotes are stripped from both the pattern 
+   and the left hand string before applying the pattern. This
+   was done because it recognized that the new way of
+   scanning the expression doesn't use spaces to separate tokens,
+   and the average regex expression is full of operators that 
+   the scanner will recognize as expression operators. Thus, unless
+   the pattern is wrapped in double quotes, there will be trouble.
+   For instance,      ${VAR1} : (Who|What*)+
+   may have have worked before, but unless you wrap the pattern
+   in double quotes now, look out for trouble! This is better:
+         "${VAR1}" : "(Who|What*)+"
+   and should work as previous.
+
+3. Variables and Double Quotes
+   Before these changes, if a variable's value contained one or more double
+   quotes, it was no reason for concern. It is now!
+
+4. LE, GE, NE operators removed. The code supported these operators,
+   but they were not documented. The symbolic operators, <=, >=, and !=
+   should be used instead.
+
+**5. flex 2.5.31 or greater should be used. Bison-1.875 or greater. In
+**   the case of flex, earlier versions do not generate 'pure', or 
+**   reentrant C scanners. In the case of bison-1.875, earlier versions
+**   didn't support the location tracking mechanism.
+
+**    http://ftp.gnu.org/gnu/bison/bison-1.875.tar.bz2
+**    http://prdownloads.sourceforge.net/lex/flex-2.5.31.tar.bz2?download
+**	or http://lex.sourceforge.net/
+
+**6.  Added the unary '-' operator. So you can 3+ -4 and get -1.
+
+**7.  Added the unary '!' operator, which is a logical complement.
+**    Basically, if the string or number is null, empty, or '0',
+**    a '1' is returned. Otherwise a '0' is returned.
+
+**8.  Added the '=~' operator, just in case someone is just looking for
+**    match anywhere in the string. The only diff with the ':' is that
+**    match doesn't have to be anchored to the beginning of the string.
+
 
 ---------------------------------------------------------
 Asterisk standard channel variables 
