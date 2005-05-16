@@ -417,7 +417,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
-	char *touch_monitor = NULL, *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL;
+	char *touch_monitor = NULL, *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_format = NULL;
 	int x = 0;
 	size_t len;
 	struct ast_channel *caller_chan = NULL, *callee_chan = NULL;
@@ -465,6 +465,10 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	}
 
 	if (caller_chan && callee_chan) {
+		touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_FORMAT");
+		if (!touch_format)
+			touch_format = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR_FORMAT");
+
 		touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR");
 		if (!touch_monitor)
 			touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR");
@@ -472,13 +476,13 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 		if (touch_monitor) {
 			len = strlen(touch_monitor) + 50;
 			args = alloca(len);
-			snprintf(args, len, "WAV|auto-%ld-%s|m", time(NULL), touch_monitor);
+			snprintf(args, len, "%s|auto-%ld-%s|m", (touch_format) ? touch_format : "WAV", time(NULL), touch_monitor);
 		} else {
 			caller_chan_id = ast_strdupa(caller_chan->cid.cid_num ? caller_chan->cid.cid_num : caller_chan->name);
 			callee_chan_id = ast_strdupa(callee_chan->cid.cid_num ? callee_chan->cid.cid_num : callee_chan->name);
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
-			snprintf(args, len, "WAV|auto-%ld-%s-%s|m", time(NULL), caller_chan_id, callee_chan_id);
+			snprintf(args, len, "%s|auto-%ld-%s-%s|m", (touch_format) ? touch_format : "WAV", time(NULL), caller_chan_id, callee_chan_id);
 		}
 
 		for( x = 0; x < strlen(args); x++)

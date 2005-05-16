@@ -562,6 +562,7 @@ ${QUEUESTATUS} 		Status of the call, one of:
 ${RECORDED_FILE} 	* Recorded file in record()
 ${TALK_DETECTED} 	* Result from talkdetect()
 ${TOUCH_MONITOR} 	The filename base to use with Touch Monitor (auto record)
+${TOUCH_MONITOR_FORMAT} The audio format to use with Touch Monitor (auto record)
 ${TXTCIDNAME}		* Result of application TXTCIDName
 ${VPB_GETDTMF}		chan_vpb
 
