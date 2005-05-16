@@ -9233,6 +9233,69 @@ static int handle_zap_show_cadences(int fd, int argc, char *argv[])
 	return 0;
 }
 
+/* Based on irqmiss.c */
+static int zap_show_status(int fd, int argc, char *argv[]) {
+	#define FORMAT "%-40.40s %-10.10s %10d %10d %10d\n"
+	#define FORMAT2 "%-40.40s %-10.10s %-10.10s %-10.10s %-10.10s\n"
+
+	int span;
+	int res;
+	char alarms[50];
+
+	int ctl;
+	ZT_SPANINFO s;
+
+	ctl = open("/dev/zap/ctl", O_RDWR);
+	if (ctl < 0) {
+		fprintf(stderr, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
+		return RESULT_FAILURE;
+	}
+	ast_cli(fd,FORMAT2, "Description", "Alarms","IRQ","bpviol","CRC4");
+
+	for (span=1;span < ZT_MAX_SPANS;++span) {
+		s.spanno = span;
+		res = ioctl(ctl, ZT_SPANSTAT, &s);
+		if (res) {
+			continue;
+		}
+		alarms[0] = '\0';
+		if (s.alarms > 0) {
+			if (s.alarms & ZT_ALARM_BLUE)
+				strcat(alarms,"BLU/");
+			if (s.alarms & ZT_ALARM_YELLOW)
+				strcat(alarms, "YEL/");
+			if (s.alarms & ZT_ALARM_RED)
+				strcat(alarms, "RED/");
+			if (s.alarms & ZT_ALARM_LOOPBACK)
+				strcat(alarms,"LB/");
+			if (s.alarms & ZT_ALARM_RECOVER)
+				strcat(alarms,"REC/");
+			if (s.alarms & ZT_ALARM_NOTOPEN)
+				strcat(alarms, "NOP/");
+			if (!strlen(alarms))
+				strcat(alarms, "UUU/");
+			if (strlen(alarms)) {
+				/* Strip trailing / */
+				alarms[strlen(alarms)-1]='\0';
+			}
+		} else {
+			if (s.numchans)
+				strcpy(alarms, "OK");
+			else
+				strcpy(alarms, "UNCONFIGURED");
+		}
+
+		ast_cli(fd, FORMAT, s.desc, alarms, s.irqmisses, s.bpvcount, s.crc4count);
+	}
+	close(ctl);
+
+	#undef FORMAT
+	#undef FORMAT2
+	return RESULT_SUCCESS;
+}
+
+
+
 static struct ast_cli_entry zap_show_cadences_cli =
 	{ { "zap", "show", "cadences", NULL },
 	handle_zap_show_cadences, "List cadences",
@@ -9246,6 +9309,10 @@ static char show_channel_usage[] =
 	"Usage: zap show channel <chan num>\n"
 	"	Detailed information about a given channel\n";
 
+static char zap_show_status_usage[] =
+	"Usage: zap show status\n"
+	"       Shows a list of Zaptel cards with status\n";
+
 static char destroy_channel_usage[] =
 	"Usage: zap destroy channel <chan num>\n"
 	"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
@@ -9258,6 +9325,9 @@ static struct ast_cli_entry cli_show_channel = {
 
 static struct ast_cli_entry cli_destroy_channel = { 
 	{"zap", "destroy", "channel", NULL}, zap_destroy_channel, "Destroy a channel", destroy_channel_usage, NULL };
+
+static struct ast_cli_entry cli_zap_show_status = {
+{"zap", "show", "status", NULL}, zap_show_status, "Show all Zaptel cards status", zap_show_status_usage, NULL };
 
 #define TRANSFER	0
 #define HANGUP		1
@@ -9466,6 +9536,7 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_show_channel);
 	ast_cli_unregister(&cli_destroy_channel);
 	ast_cli_unregister(&zap_show_cadences_cli);
+	ast_cli_unregister(&cli_zap_show_status);
 	ast_manager_unregister( "ZapDialOffhook" );
 	ast_manager_unregister( "ZapHangup" );
 	ast_manager_unregister( "ZapTransfer" );
@@ -10348,7 +10419,8 @@ int load_module(void)
 	ast_cli_register(&cli_show_channel);
 	ast_cli_register(&cli_destroy_channel);
 	ast_cli_register(&zap_show_cadences_cli);
-
+	ast_cli_register(&cli_zap_show_status);
+	
 	memset(round_robin, 0, sizeof(round_robin));
 	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
 	ast_manager_register( "ZapHangup", 0, action_transferhangup, "Hangup Zap Channel" );
