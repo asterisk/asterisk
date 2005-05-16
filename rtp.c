@@ -212,6 +212,9 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	return f;
 }
 
+/* process_rfc2833: Process RTP DTMF and events according to RFC 2833:
+	"RTP Payload for DTMF Digits, Telephony Tones and Telephony Signals"
+*/
 static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len)
 {
 	unsigned int event;
@@ -226,9 +229,8 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	event_end >>= 24;
 	duration = ntohl(*((unsigned int *)(data)));
 	duration &= 0xFFFF;
-#if 0
-	printf("Event: %08x (len = %d)\n", event, len);
-#endif
+	if (rtpdebug)
+		ast_log(LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
@@ -237,23 +239,19 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 		resp = '#';
 	} else if (event < 16) {
 		resp = 'A' + (event - 12);
-	} else if (event < 17) {
-		resp = 'X';
+	} else if (event < 17) {	/* Event 16: Hook flash */
+		resp = 'X';	
 	}
 	if (rtp->resp && (rtp->resp != resp)) {
 		f = send_dtmf(rtp);
-	}
-	else if(event_end & 0x80)
-	{
+	} else if(event_end & 0x80) {
 		if (rtp->resp) {
 			f = send_dtmf(rtp);
 			rtp->resp = 0;
 		}
 		resp = 0;
 		duration = 0;
-	}
-	else if(rtp->dtmfduration && (duration < rtp->dtmfduration))
-	{
+	} else if(rtp->dtmfduration && (duration < rtp->dtmfduration)) {
 		f = send_dtmf(rtp);
 	}
 	if (!(event_end & 0x80))
@@ -263,17 +261,20 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	return f;
 }
 
+/*--- process_rfc3389: Process Comfort Noice RTP. 
+	This is incomplete at the moment.
+*/
 static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *data, int len)
 {
 	struct ast_frame *f = NULL;
 	/* Convert comfort noise into audio with various codecs.  Unfortunately this doesn't
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
-#if 1
-	printf("RFC3389: %d bytes, level %d...\n", len, rtp->lastrxformat);
-#endif	
+	if (rtpdebug)
+		ast_log(LOG_DEBUG, "- RTP 3389 Comfort noice event: Level %d (len = %d)\n", rtp->lastrxformat, len);
 	if (!(rtp->flags & FLAG_3389_WARNING)) {
-		ast_log(LOG_NOTICE, "RFC3389 support incomplete.  Turn off on client if possible\n");
+		char iabuf[INET_ADDRSTRLEN];
+		ast_log(LOG_NOTICE, "Comfort noice support incomplete in Asterisk (RFC 3389).  Please turn off on client if possible. Client IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 		rtp->flags |= FLAG_3389_WARNING;
 	}
 	/* Must have at least one byte */
@@ -902,7 +903,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 		if (x > rtpend)
 			x = (rtpstart + 1) & ~1;
 		if (x == startplace) {
-			ast_log(LOG_ERROR, "No RTP ports remaining\n");
+			ast_log(LOG_ERROR, "No RTP ports remaining. Can't setup media stream for this call.\n");
 			close(rtp->s);
 			if (rtp->rtcp) {
 				close(rtp->rtcp->s);
@@ -1413,6 +1414,9 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 	return NULL;
 }
 
+/* ast_rtp_bridge: Bridge calls. If possible and allowed, initiate
+	re-invite so the peers exchange media directly outside 
+	of Asterisk. */
 int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
 {
 	struct ast_frame *f;
@@ -1485,14 +1489,16 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	else
 		codec1 = 0;
 	if (pr0->get_codec && pr1->get_codec) {
-		/* Hey, we can't do reinvite if both parties speak diffrent codecs */
+		/* Hey, we can't do reinvite if both parties speak different codecs */
 		if (!(codec0 & codec1)) {
-			ast_log(LOG_WARNING, "codec0 = %d is not codec1 = %d, cannot native bridge.\n",codec0,codec1);
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
 			ast_mutex_unlock(&c0->lock);
 			ast_mutex_unlock(&c1->lock);
 			return -2;
 		}
 	}
+	/* Ok, we should be able to redirect the media. Start with one channel */
 	if (pr0->set_rtp_peer(c0, p1, vp1, codec1)) 
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
 	else {
@@ -1501,6 +1507,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if (vp1)
 			ast_rtp_get_peer(vp1, &vac1);
 	}
+	/* Then test the other channel */
 	if (pr1->set_rtp_peer(c1, p0, vp0, codec0))
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
 	else {
@@ -1577,7 +1584,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if (!who) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Ooh, empty read...\n");
-			/* check for hagnup / whentohangup */
+			/* check for hangup / whentohangup */
 			if (ast_check_hangup(c0) || ast_check_hangup(c1))
 				break;
 			continue;
@@ -1729,7 +1736,7 @@ void ast_rtp_reload(void)
 		ast_config_destroy(cfg);
 	}
 	if (rtpstart >= rtpend) {
-		ast_log(LOG_WARNING, "Unreasonable values for RTP start in rtp.conf/end\n");
+		ast_log(LOG_WARNING, "Unreasonable values for RTP start/end port in rtp.conf\n");
 		rtpstart = 5000;
 		rtpend = 31000;
 	}
