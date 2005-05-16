@@ -8285,16 +8285,14 @@ static void *pri_dchannel(void *vpri)
 						chanpos = -1;
 					} else {
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
-#ifdef PRI_PROGRESS_MASK
-						if (e->answer.progressmask & PRI_PROG_INBAND_AVAILABLE) {
-#else
-						if (e->answer.progress == 8) {
-#endif
-							/* Now we can do call progress detection */
-							if(pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
-								ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
-								pri->pvts[chanpos]->dsp_features = 0;
-							}
+						/* Now we can do call progress detection */
+
+						/* We changed this so it turns on the DSP no matter what... progress or no progress.
+						 * By this time, we need DTMF detection and other features that were previously disabled
+						 * -- Matt F */
+						if(pri->pvts[chanpos]->dsp && pri->pvts[chanpos]->dsp_features) {
+							ast_dsp_set_features(pri->pvts[chanpos]->dsp, pri->pvts[chanpos]->dsp_features);
+							pri->pvts[chanpos]->dsp_features = 0;
 						}
 						if (pri->pvts[chanpos]->realcall && (pri->pvts[chanpos]->realcall->sig == SIG_FXSKS)) {
 							ast_log(LOG_DEBUG, "Starting up GR-303 trunk now that we got CONNECT...\n");
