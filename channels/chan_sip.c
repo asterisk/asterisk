@@ -2136,7 +2136,7 @@ static int sip_answer(struct ast_channel *ast)
 	return res;
 }
 
-/*--- sip_write: Send response, support audio media ---*/
+/*--- sip_write: Send frame to media channel (rtp) ---*/
 static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct sip_pvt *p = ast->tech_pvt;
@@ -2151,6 +2151,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (p) {
 			ast_mutex_lock(&p->lock);
 			if (p->rtp) {
+				/* If channel is not up, activate early media session */
 				if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
 					ast_set_flag(p, SIP_PROGRESS_SENT);	
@@ -2165,6 +2166,7 @@ static int sip_write(struct ast_channel *ast, struct ast_frame *frame)
 		if (p) {
 			ast_mutex_lock(&p->lock);
 			if (p->vrtp) {
+				/* Activate video early media */
 				if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
 					transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
 					ast_set_flag(p, SIP_PROGRESS_SENT);	
@@ -2562,7 +2564,7 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	default:
 		f = &null_frame;
 	}
-	/* Don't send RFC2833 if we're not supposed to */
+	/* Don't forward RFC2833 if we're not supposed to */
 	if (f && (f->frametype == AST_FRAME_DTMF) && (ast_test_flag(p, SIP_DTMF) != SIP_DTMF_RFC2833))
 		return &null_frame;
 	if (p->owner) {
@@ -2953,7 +2955,7 @@ static void parse(struct sip_request *req)
 		ast_log(LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
 }
 
-/*--- process_sdp: Process SIP SDP ---*/
+/*--- process_sdp: Process SIP SDP and activate RTP channels---*/
 static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 {
 	char *m;
@@ -3161,7 +3163,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_log(LOG_NOTICE, "No compatible codecs!\n");
 		return -1;
 	}
-	if (p->owner) {
+	if (p->owner) {	/* There's an open channel owning us */
+		struct ast_channel *bridgepeer = NULL;
 		if (!(p->owner->nativeformats & p->jointcapability)) {
 			const unsigned slen=512;
 			char s1[slen], s2[slen];
@@ -3172,28 +3175,49 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_set_read_format(p->owner, p->owner->readformat);
 			ast_set_write_format(p->owner, p->owner->writeformat);
 		}
-		if (ast_bridged_channel(p->owner)) {
+		if ((bridgepeer=ast_bridged_channel(p->owner))) {
+			/* We have a bridge */
 			/* Turn on/off music on hold if we are holding/unholding */
 			if (sin.sin_addr.s_addr && !sendonly) {
-				ast_moh_stop(ast_bridged_channel(p->owner));
+				ast_moh_stop(bridgepeer);
+				/* Indicate UNHOLD status to the other channel */
+				ast_indicate(bridgepeer, AST_CONTROL_UNHOLD);
+				append_history(p, "Unhold", req->data);
 				if (callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
 					manager_event(EVENT_FLAG_CALL, "Unhold",
 						"Channel: %s\r\n"
 						"Uniqueid: %s\r\n",
 						p->owner->name, 
 						p->owner->uniqueid);
-					ast_clear_flag(p, SIP_CALL_ONHOLD);
 				}
+				ast_clear_flag(p, SIP_CALL_ONHOLD);
+				/* Somehow, we need to check if we need to re-invite here */
+				/* If this call had a native bridge, it's broken
+					now and we need to start all over again.
+					The bridged peer, if SIP, now listens
+					to RTP from Asterisk instead of from
+					the peer 
+		
+				  So IF we had a native bridge before
+				  the HOLD, we need to somehow re-invite
+				  into a NATIVE bridge afterwards...
+				
+				*/
+	
 			} else {
+				/* No address for RTP, we're on hold */
+				append_history(p, "Hold", req->data);
 				if (callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
 					manager_event(EVENT_FLAG_CALL, "Hold",
 						"Channel: %s\r\n"
 						"Uniqueid: %s\r\n",
 						p->owner->name, 
 						p->owner->uniqueid);
-						ast_set_flag(p, SIP_CALL_ONHOLD);
 				}
-				ast_moh_start(ast_bridged_channel(p->owner), NULL);
+				ast_set_flag(p, SIP_CALL_ONHOLD);
+				/* Indicate HOLD status to the other channel */
+				ast_indicate(bridgepeer, AST_CONTROL_HOLD);
+				ast_moh_start(bridgepeer, NULL);
 				if (sendonly)
 					ast_rtp_stop(p->rtp);
 			}
@@ -10734,7 +10758,7 @@ static int reload_config(void)
 	return 0;
 }
 
-/*--- sip_get_rtp_peer: Returns null if we can't reinvite */
+/*--- sip_get_rtp_peer: Returns null if we can't reinvite (part of RTP interface) */
 static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
@@ -10749,6 +10773,7 @@ static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
 	return rtp;
 }
 
+/*--- sip_get_vrtp_peer: Returns null if we can't reinvite video (part of RTP interface) */
 static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 {
 	struct sip_pvt *p;
@@ -10764,7 +10789,8 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 	return rtp;
 }
 
-/*--- sip_set_rtp_peer: Set the RTP peer for this call ---*/
+/*--- sip_set_rtp_peer: Set the data needed to RE-INVITE this call
+	so that the peers media go  between them, outside of Asterisk.  ---*/
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	struct sip_pvt *p;
@@ -11042,7 +11068,7 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	return -1;
 }
 
-/*--- sip_get_codec: Return peers codec ---*/
+/*--- sip_get_codec: Return SIP UA's codec (part of the RTP interface) ---*/
 static int sip_get_codec(struct ast_channel *chan)
 {
 	struct sip_pvt *p = chan->tech_pvt;
