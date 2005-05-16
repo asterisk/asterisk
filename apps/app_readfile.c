@@ -34,7 +34,7 @@ static char *readfile_descrip =
 "ReadFile(varname=file,length)\n"
 "  Varname - Result stored here.\n"
 "  File - The name of the file to read.\n"
-"  Length   - Maximum number of lines to capture.\n";
+"  Length - Maximum number of characters to capture.\n";
 
 STANDARD_LOCAL_USER;
 
