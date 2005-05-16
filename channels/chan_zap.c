@@ -7847,6 +7847,34 @@ static void *pri_dchannel(void *vpri)
 						}
 				}
 				break;
+			case PRI_EVENT_KEYPAD_DIGIT:
+				chanpos = pri_find_principle(pri, e->digit.channel);
+				if (chanpos < 0) {
+					ast_log(LOG_WARNING, "KEYPAD_DIGITs received on unconfigured channel %d/%d span %d\n", 
+						PRI_SPAN(e->digit.channel), PRI_CHANNEL(e->digit.channel), pri->span);
+				} else {
+					chanpos = pri_fixup_principle(pri, chanpos, e->digit.call);
+					if (chanpos > -1) {
+						ast_mutex_lock(&pri->pvts[chanpos]->lock);
+						/* queue DTMF frame if the PBX for this call was already started (we're forwarding KEYPAD_DIGITs further on */
+						if (pri->overlapdial && pri->pvts[chanpos]->call==e->digit.call && pri->pvts[chanpos]->owner) {
+							/* how to do that */
+							int digitlen = strlen(e->digit.digits);
+							char digit;
+							int i;					
+							for (i=0; i<digitlen; i++) {	
+								digit = e->digit.digits[i];
+								{
+									struct ast_frame f = { AST_FRAME_DTMF, digit, };
+									zap_queue_frame(pri->pvts[chanpos], &f, pri);
+								}
+							}
+						}
+						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
+					}
+				}
+				break;
+				
 			case PRI_EVENT_INFO_RECEIVED:
 				chanpos = pri_find_principle(pri, e->ring.channel);
 				if (chanpos < 0) {
