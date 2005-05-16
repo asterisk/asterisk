@@ -189,10 +189,14 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 		numbusy++; \
 		break; \
 	case AST_CAUSE_CONGESTION: \
-	case AST_CAUSE_UNREGISTERED: \
 		if (chan->cdr) \
 			ast_cdr_busy(chan->cdr); \
 		numcongestion++; \
+		break; \
+	case AST_CAUSE_UNREGISTERED: \
+		if (chan->cdr) \
+			ast_cdr_busy(chan->cdr); \
+		numnochan++; \
 		break; \
 	default: \
 		numnochan++; \
