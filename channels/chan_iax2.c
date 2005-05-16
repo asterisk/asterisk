@@ -7020,7 +7020,6 @@ static int reload_config(void)
 	delayreject = 0;
 	globalnotransfer = 0;
 	globalusejitterbuf = 0;
-	srand(time(NULL));
 	delete_users();
 	set_config(config,&dead_sin);
 	prune_peers();
