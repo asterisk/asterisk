@@ -52,12 +52,14 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 				*iffalse = '\0';
 				iffalse++;
 			}
-		} else 
-			iffalse = "";
+		} 
+
 		if (expr && iftrue) {
 			ret = ast_true(expr) ? iftrue : iffalse;
-			strncpy(buf, ret, len);
-			ret = buf;
+			if (ret) {
+				ast_copy_string(buf, ret, len);
+				ret = buf;
+			}
 		} else {
 			ast_log(LOG_WARNING, "Syntax $(if <expr>?[<truecond>][:<falsecond>])\n");
 			ret = NULL;
