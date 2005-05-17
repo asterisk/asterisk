@@ -60,7 +60,7 @@ Applications:
   functions.  Here is a table of their replacements:
 
   DBGet(foo=family/key)        Set(foo=${DB(family/key)})
-  DBPut(family/key=${foo})     Set(${DB(family/key)}=${foo})
+  DBPut(family/key=${foo})     Set(DB(family/key)=${foo})
 
 * The application SetLanguage has been deprecated in favor of the
   function LANGUAGE().
