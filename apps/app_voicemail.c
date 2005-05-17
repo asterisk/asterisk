@@ -5133,7 +5133,6 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 	if (!vm_authenticate(chan, mailbox, sizeof(mailbox), &vmus, context, NULL, 0, 3, silent)) {
 		pbx_builtin_setvar_helper(chan, "AUTH_MAILBOX", mailbox);
 		pbx_builtin_setvar_helper(chan, "AUTH_CONTEXT", vmus.context);
-		LOCAL_USER_REMOVE(u);
 		res = 0;
 	}
 
