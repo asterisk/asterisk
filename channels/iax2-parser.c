@@ -89,7 +89,7 @@ static void dump_int(char *output, int maxlen, void *value, int len)
 	if (len == (int)sizeof(unsigned int))
 		snprintf(output, maxlen, "%lu", (unsigned long)ntohl(get_unaligned_uint32(value)));
 	else
-		snprintf(output, maxlen, "Invalid INT");
+		ast_copy_string(output, "Invalid INT", maxlen);	
 }
 
 static void dump_short(char *output, int maxlen, void *value, int len)
@@ -97,7 +97,7 @@ static void dump_short(char *output, int maxlen, void *value, int len)
 	if (len == (int)sizeof(unsigned short))
 		snprintf(output, maxlen, "%d", ntohs(get_unaligned_uint16(value)));
 	else
-		snprintf(output, maxlen, "Invalid SHORT");
+		ast_copy_string(output, "Invalid SHORT", maxlen);
 }
 
 static void dump_byte(char *output, int maxlen, void *value, int len)
@@ -105,7 +105,23 @@ static void dump_byte(char *output, int maxlen, void *value, int len)
 	if (len == (int)sizeof(unsigned char))
 		snprintf(output, maxlen, "%d", *((unsigned char *)value));
 	else
-		snprintf(output, maxlen, "Invalid BYTE");
+		ast_copy_string(output, "Invalid BYTE", maxlen);
+}
+
+static void dump_datetime(char *output, int maxlen, void *value, int len)
+{
+	struct tm tm;
+	unsigned long val = (unsigned long) ntohl(get_unaligned_uint32(value));
+	if (len == (int)sizeof(unsigned int)) {
+		tm.tm_sec  = (val & 0x1f) << 1;
+		tm.tm_min  = (val >> 5) & 0x3f;
+		tm.tm_hour = (val >> 11) & 0x1f;
+		tm.tm_mday = (val >> 16) & 0x1f;
+		tm.tm_mon  = ((val >> 21) & 0x0f) - 1;
+		tm.tm_year = ((val >> 25) & 0x7f) + 100;
+		strftime(output, maxlen, "%F  %T", &tm); 
+	} else
+		ast_copy_string(output, "Invalid DATETIME format!", maxlen);
 }
 
 static void dump_ipaddr(char *output, int maxlen, void *value, int len)
@@ -117,7 +133,7 @@ static void dump_ipaddr(char *output, int maxlen, void *value, int len)
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr);
 		snprintf(output, maxlen, "%s", iabuf);
 	} else
-		snprintf(output, maxlen, "Invalid IPADDR");
+		ast_copy_string(output, "Invalid IPADDR", maxlen);
 }
 
 
@@ -128,7 +144,7 @@ static void dump_prov_flags(char *output, int maxlen, void *value, int len)
 		snprintf(output, maxlen, "%lu (%s)", (unsigned long)ntohl(get_unaligned_uint32(value)),
 			iax_provflags2str(buf, sizeof(buf), ntohl(get_unaligned_uint32(value))));
 	else
-		snprintf(output, maxlen, "Invalid INT");
+		ast_copy_string(output, "Invalid INT", maxlen);
 }
 
 static void dump_samprate(char *output, int maxlen, void *value, int len)
@@ -150,11 +166,11 @@ static void dump_samprate(char *output, int maxlen, void *value, int len)
 		if (sr & IAX_RATE_48KHZ)
 			strcat(tmp, ",48khz");
 		if (strlen(tmp))
-			strncpy(output, &tmp[1], maxlen - 1);
+			ast_copy_string(output, &tmp[1], maxlen);
 		else
-			strncpy(output, "None specified!\n", maxlen - 1);
+			ast_copy_string(output, "None Specified!\n", maxlen);
 	} else
-		snprintf(output, maxlen, "Invalid SHORT");
+		ast_copy_string(output, "Invalid SHORT", maxlen);
 
 }
 
@@ -198,7 +214,7 @@ static struct iax2_ie {
 	{ IAX_IE_RDNIS, "REFERRING DNIS", dump_string },
 	{ IAX_IE_PROVISIONING, "PROVISIONING", dump_prov },
 	{ IAX_IE_AESPROVISIONING, "AES PROVISIONG" },
-	{ IAX_IE_DATETIME, "DATE TIME", dump_int },
+	{ IAX_IE_DATETIME, "DATE TIME", dump_datetime },
 	{ IAX_IE_DEVICETYPE, "DEVICE TYPE", dump_string },
 	{ IAX_IE_SERVICEIDENT, "SERVICE IDENT", dump_string },
 	{ IAX_IE_FIRMWAREVER, "FIRMWARE VER", dump_short },
@@ -269,8 +285,9 @@ static void dump_prov_ies(char *output, int maxlen, unsigned char *iedata, int l
 		ielen = iedata[1];
 		if (ielen + 2> len) {
 			snprintf(tmp, (int)sizeof(tmp), "Total Prov IE length of %d bytes exceeds remaining prov frame length of %d bytes\n", ielen + 2, len);
-			strncpy(output, tmp, maxlen - 1);
-			maxlen -= strlen(output); output += strlen(output);
+			ast_copy_string(output, tmp, maxlen);
+			maxlen -= strlen(output);
+			output += strlen(output);
 			return;
 		}
 		found = 0;
