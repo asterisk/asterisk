@@ -602,6 +602,9 @@ int ast_async_goto_if_exists(struct ast_channel *chan, char* context, char *exte
 struct ast_custom_function* ast_custom_function_find(char *name);
 int ast_custom_function_unregister(struct ast_custom_function *acf);
 int ast_custom_function_register(struct ast_custom_function *acf);
+
+/* Number of active calls */
+int ast_active_calls(void);
 	
 /*! executes a read operation on a function */
 /*!

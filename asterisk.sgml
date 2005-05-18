@@ -26,6 +26,7 @@
 <arg><option>-U </option><replaceable class="parameter">user</replaceable></arg>
 <arg><option>-G </option><replaceable class="parameter">group</replaceable></arg>
 <arg><option>-x </option><replaceable class="parameter">command</replaceable></arg>
+<arg><option>-M </option><replaceable class="parameter">value</replaceable></arg>
 	</cmdsynopsis>
 	<cmdsynopsis>
 
@@ -138,6 +139,16 @@
 		<listitem>
 			<para>
 			Prompt user to intialize any encrypted private keys during startup.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
+		<term>-M <replaceable class="parameter">value</replaceable></term>
+		<listitem>
+			<para>
+			Limits the maximum number of calls to the specified value.  This can
+			be useful to prevent a system from being brought down by terminating
+			too many simultaneous calls.
 			</para>
 		</listitem>
 	</varlistentry>

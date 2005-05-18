@@ -33,6 +33,7 @@ extern int option_exec_includes;
 extern int option_cache_record_files;
 extern int option_timestamp;
 extern int option_transcode_slin;
+extern int option_maxcalls;
 extern char defaultlanguage[];
 extern time_t ast_startuptime;
 extern time_t ast_lastreloadtime;

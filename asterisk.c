@@ -87,6 +87,7 @@ int option_timestamp = 0;
 int option_overrideconfig = 0;
 int option_reconnect = 0;
 int option_transcode_slin = 1;
+int option_maxcalls = 0;
 int fully_booted = 0;
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
@@ -1658,6 +1659,11 @@ static void ast_readconfig(void) {
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
 			option_transcode_slin = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "maxcalls")) {
+			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) ||
+			    (option_maxcalls < 0)) {
+				option_maxcalls = 0;
+			}
 		}
 		v = v->next;
 	}
@@ -1711,7 +1717,7 @@ int main(int argc, char *argv[])
 	}
 	*/
 	/* Check for options */
-	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:")) != -1) {
+	while((c=getopt(argc, argv, "tThfdvVqprRgcinx:U:G:C:M:")) != -1) {
 		switch(c) {
 		case 'd':
 			option_debug++;
@@ -1742,6 +1748,10 @@ int main(int argc, char *argv[])
 		case 'v':
 			option_verbose++;
 			option_nofork++;
+			break;
+		case 'M':
+			if ((sscanf(optarg, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0))
+				option_maxcalls = 0;
 			break;
 		case 'q':
 			option_quiet++;

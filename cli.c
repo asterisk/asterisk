@@ -429,8 +429,13 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		ast_mutex_unlock(&c->lock);
 		c = ast_channel_walk_locked(c);
 	}
-	if(!concise)
+	if(!concise) {
 		ast_cli(fd, "%d active channel(s)\n", numchans);
+		if (option_maxcalls)
+			ast_cli(fd, "%d of %d max active call(s) (%5.2f%% of capacity)\n", ast_active_calls(), option_maxcalls, ((float)ast_active_calls() / (float)option_maxcalls) * 100.0);
+		else
+			ast_cli(fd, "%d active call(s)\n", ast_active_calls());
+	}
 	return RESULT_SUCCESS;
 }
 

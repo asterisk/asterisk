@@ -213,6 +213,9 @@ static struct varshead globals;
 
 static int autofallthrough = 0;
 
+AST_MUTEX_DEFINE_STATIC(maxcalllock);
+static int countcalls = 0;
+
 AST_MUTEX_DEFINE_STATIC(acflock); 		/* Lock for the custom function list */
 static struct ast_custom_function *acf_root = NULL;
 
@@ -2232,7 +2235,7 @@ int ast_exec_extension(struct ast_channel *c, const char *context, const char *e
 	return pbx_extension_helper(c, NULL, context, exten, priority, NULL, callerid, HELPER_EXEC);
 }
 
-int ast_pbx_run(struct ast_channel *c)
+static int __ast_pbx_run(struct ast_channel *c)
 {
 	int firstpass = 1;
 	char digit;
@@ -2495,6 +2498,34 @@ int ast_pbx_start(struct ast_channel *c)
 		return -1;
 	}
 	return 0;
+}
+
+int ast_pbx_run(struct ast_channel *c)
+{
+	int res = 0;
+	ast_mutex_lock(&maxcalllock);
+	if (option_maxcalls) {
+		if (countcalls >= option_maxcalls) {
+			ast_log(LOG_NOTICE, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
+			res = -1;
+		}
+	}
+	if (!res)
+		countcalls++;	
+	ast_mutex_unlock(&maxcalllock);
+	if (!res) {
+		res = __ast_pbx_run(c);
+		ast_mutex_lock(&maxcalllock);
+		if (countcalls > 0)
+			countcalls--;
+		ast_mutex_unlock(&maxcalllock);
+	}
+	return res;
+}
+
+int ast_active_calls(void)
+{
+	return countcalls;
 }
 
 int pbx_set_autofallthrough(int newval)
