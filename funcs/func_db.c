@@ -102,3 +102,47 @@ struct ast_custom_function db_function = {
 	.write = function_db_write,
 };
 
+static char *function_db_exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	int argc;	
+	char *args;
+	char *argv[2];
+	char *family;
+	char *key;
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
+		return buf;
+	}
+
+	args = ast_strdupa(data);
+	argc = ast_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	
+	if (argc > 1) {
+		family = argv[0];
+		key = argv[1];
+	} else {
+		ast_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
+		return buf;
+	}
+
+	if (ast_db_get(family, key, buf, len-1))
+		ast_copy_string(buf, "0", len);	
+	else
+		ast_copy_string(buf, "1", len);
+	
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function db_exists_function = {
+	.name = "DB_EXISTS",
+	.synopsis = "Check to see if a key exists in the Asterisk database",
+	.syntax = "DB_EXISTS(<family>/<key>)",
+	.desc = "This function will check to see if a key exists in the Asterisk\n"
+		"database. If it exists, the function will return \"1\". If not,\n"
+		"it will return \"0\".",
+	.read = function_db_exists,
+};
