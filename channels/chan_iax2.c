@@ -6527,8 +6527,17 @@ retryowner:
 			/* Handle the IAX pseudo frame itself */
 			if (option_debug)
 				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
-			/* Go through the motions of delivering the packet without actually doing so */
-			schedule_delivery(&fr, 0, updatehistory, 0);
+
+                        /* Update last ts unless the frame's timestamp originated with us. */
+			if (iaxs[fr.callno]->last < fr.ts &&
+                            f.subclass != IAX_COMMAND_ACK &&
+                            f.subclass != IAX_COMMAND_PONG &&
+                            f.subclass != IAX_COMMAND_LAGRP) {
+				iaxs[fr.callno]->last = fr.ts;
+				if (option_debug)
+					ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
+			}
+
 			switch(f.subclass) {
 			case IAX_COMMAND_ACK:
 				/* Do nothing */
