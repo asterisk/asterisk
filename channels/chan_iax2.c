@@ -186,6 +186,12 @@ static int iaxdebug = 0;
 static int iaxtrunkdebug = 0;
 
 static int test_losspct = 0;
+#ifdef IAXTESTS
+static int test_late = 0;
+static int test_resync = 0;
+static int test_jit = 0;
+static int test_jitpct = 0;
+#endif /* IAXTESTS */
 
 static char accountcode[20];
 static int amaflags = 0;
@@ -1787,6 +1793,40 @@ static int iax2_test_losspct(int fd, int argc, char *argv[])
 
        return RESULT_SUCCESS;
 }
+
+#ifdef IAXTESTS
+static int iax2_test_late(int fd, int argc, char *argv[])
+{
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+
+	test_late = atoi(argv[3]);
+
+	return RESULT_SUCCESS;
+}
+
+static int iax2_test_resync(int fd, int argc, char *argv[])
+{
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+
+	test_resync = atoi(argv[3]);
+
+	return RESULT_SUCCESS;
+}
+
+static int iax2_test_jitter(int fd, int argc, char *argv[])
+{
+	if (argc < 4 || argc > 5)
+		return RESULT_SHOWUSAGE;
+
+	test_jit = atoi(argv[3]);
+	if (argc == 5) 
+		test_jitpct = atoi(argv[4]);
+
+	return RESULT_SUCCESS;
+}
+#endif /* IAXTESTS */
 
 /*--- iax2_show_peer: Show one peer in detail ---*/
 static int iax2_show_peer(int fd, int argc, char *argv[])
@@ -3504,6 +3544,9 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 	   since we received (or would have received) the frame with timestamp 0 */
 	struct timeval tv;
 	int ms;
+#ifdef IAXTESTS
+	int jit;
+#endif /* IAXTESTS */
 	/* Setup rxcore if necessary */
 	if (!p->rxcore.tv_sec && !p->rxcore.tv_usec) {
 		gettimeofday(&p->rxcore, NULL);
@@ -3526,6 +3569,20 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 	gettimeofday(&tv, NULL);
 	ms = (tv.tv_sec - p->rxcore.tv_sec) * 1000 +
 		(1000000 + tv.tv_usec - p->rxcore.tv_usec) / 1000 - 1000;
+#ifdef IAXTESTS
+	if (test_jit) {
+		if (!test_jitpct || ((100.0 * rand() / (RAND_MAX + 1.0)) < test_jitpct)) {
+			jit = (int)((float)test_jit * rand() / (RAND_MAX + 1.0));
+			if ((int)(2.0 * rand() / (RAND_MAX + 1.0)))
+				jit = -jit;
+			ms += jit;
+		}
+	}
+	if (test_late) {
+		ms += test_late;
+		test_late = 0;
+	}
+#endif /* IAXTESTS */
 	return ms;
 }
 
@@ -4456,6 +4513,17 @@ static char debug_trunk_usage[] =
 static char iax2_test_losspct_usage[] =
 "Usage: iax2 test losspct <percentage>\n"
 "       For testing, throws away <percentage> percent of incoming packets\n";
+#ifdef IAXTESTS
+static char iax2_test_late_usage[] =
+"Usage: iax2 test late <ms>\n"
+"       For testing, count the next frame as <ms> ms late\n";
+static char iax2_test_resync_usage[] =
+"Usage: iax2 test resync <ms>\n"
+"       For testing, adjust all future frames by <ms> ms\n";
+static char iax2_test_jitter_usage[] =
+"Usage: iax2 test jitter <ms> <pct>\n"
+"       For testing, simulate maximum jitter of +/- <ms> on <pct> percentage of packets. If <pct> is not specified, adds jitter to all packets.\n";
+#endif /* IAXTESTS */
 
 static struct ast_cli_entry  cli_show_users = 
 	{ { "iax2", "show", "users", NULL }, iax2_show_users, "Show defined IAX users", show_users_usage };
@@ -4477,6 +4545,14 @@ static struct ast_cli_entry  cli_no_debug =
 	{ { "iax2", "no", "debug", NULL }, iax2_no_debug, "Disable IAX debugging", no_debug_usage };
 static struct ast_cli_entry  cli_test_losspct =
 	{ { "iax2", "test", "losspct", NULL }, iax2_test_losspct, "Set IAX2 incoming frame loss percentage", iax2_test_losspct_usage };
+#ifdef IAXTESTS
+static struct ast_cli_entry  cli_test_late =
+	{ { "iax2", "test", "late", NULL }, iax2_test_late, "Test the receipt of a late frame", iax2_test_late_usage };
+static struct ast_cli_entry  cli_test_resync =
+	{ { "iax2", "test", "resync", NULL }, iax2_test_resync, "Test a resync in received timestamps", iax2_test_resync_usage };
+static struct ast_cli_entry  cli_test_jitter =
+	{ { "iax2", "test", "jitter", NULL }, iax2_test_jitter, "Simulates jitter for testing", iax2_test_jitter_usage };
+#endif /* IAXTESTS */
 
 static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 {
@@ -6344,6 +6420,13 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		fr.oseqno = fh->oseqno;
 		fr.iseqno = fh->iseqno;
 		fr.ts = ntohl(fh->ts);
+#ifdef IAXTESTS
+		if (test_resync) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Simulating frame ts resync, was %u now %u\n", fr.ts, fr.ts + test_resync);
+			fr.ts += test_resync;
+		}
+#endif /* IAXTESTS */
 #if 0
 		if ( (ntohs(fh->dcallno) & IAX_FLAG_RETRANS) ||
 		     ( (f.frametype != AST_FRAME_VOICE) && ! (f.frametype == AST_FRAME_IAX &&
@@ -7329,6 +7412,11 @@ retryowner2:
 			f.data = buf + sizeof(struct ast_iax2_video_hdr);
 		else
 			f.data = NULL;
+#ifdef IAXTESTS
+		if (test_resync) {
+			fr.ts = (iaxs[fr.callno]->last & 0xFFFF8000L) | ((ntohs(mh->ts) + test_resync) & 0x7fff);
+		} else
+#endif /* IAXTESTS */
 		fr.ts = (iaxs[fr.callno]->last & 0xFFFF8000L) | (ntohs(mh->ts) & 0x7fff);
 	} else {
 		/* A mini frame */
@@ -7351,6 +7439,11 @@ retryowner2:
 			f.data = buf + sizeof(struct ast_iax2_mini_hdr);
 		else
 			f.data = NULL;
+#ifdef IAXTESTS
+		if (test_resync) {
+			fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | ((ntohs(mh->ts) + test_resync) & 0xffff);
+		} else
+#endif /* IAXTESTS */
 		fr.ts = (iaxs[fr.callno]->last & 0xFFFF0000L) | ntohs(mh->ts);
 		/* FIXME? Surely right here would be the right place to undo timestamp wraparound? */
 	}
@@ -8958,6 +9051,11 @@ static int __unload_module(void)
 	ast_cli_unregister(&cli_trunk_debug);
 	ast_cli_unregister(&cli_no_debug);
 	ast_cli_unregister(&cli_test_losspct);
+#ifdef IAXTESTS
+	ast_cli_unregister(&cli_test_late);
+	ast_cli_unregister(&cli_test_resync);
+	ast_cli_unregister(&cli_test_jitter);
+#endif /* IAXTESTS */
 	ast_cli_unregister(&cli_set_jitter);
 	ast_cli_unregister(&cli_show_stats);
 	ast_cli_unregister(&cli_show_cache);
@@ -9046,6 +9144,11 @@ int load_module(void)
 	ast_cli_register(&cli_trunk_debug);
 	ast_cli_register(&cli_no_debug);
 	ast_cli_register(&cli_test_losspct);
+#ifdef IAXTESTS
+	ast_cli_register(&cli_test_late);
+	ast_cli_register(&cli_test_resync);
+	ast_cli_register(&cli_test_jitter);
+#endif /* IAXTESTS */
 	ast_cli_register(&cli_set_jitter);
 	ast_cli_register(&cli_show_stats);
 	ast_cli_register(&cli_show_cache);
