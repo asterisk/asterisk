@@ -18,8 +18,12 @@
 ;                               ; addresses, but the first will be the 
 ;                               ; default
 ;
-; Set iaxcompat to yes if you plan to use layered 
-; switches.  It incurs a small performance hit to enable it
+; Set iaxcompat to yes if you plan to use layered switches or
+; some other scenario which may cause some delay when doing a
+; lookup in the dialplan. It incurs a small performance hit to
+; enable it. This option causes Asterisk to spawn a separate thread
+; when it receives an IAX DPREQ (Dialplan Request) instead of
+; blocking while it waits for a response.
 ;
 ;iaxcompat=yes
 ;
