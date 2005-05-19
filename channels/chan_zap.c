@@ -4044,6 +4044,8 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 			p->subs[index].f.subclass = AST_CONTROL_ANSWER;
 			ast_setstate(ast, AST_STATE_UP);
 			f = &p->subs[index].f;
+			/* Reset confirmanswer so DTMF's will behave properly for the duration of the call */
+			p->confirmanswer = 0;
 		} else if (p->callwaitcas) {
 			if ((f->subclass == 'A') || (f->subclass == 'D')) {
 				ast_log(LOG_DEBUG, "Got some DTMF, but it's for the CAS\n");
