@@ -756,9 +756,13 @@ static int handle_setpriority(struct ast_channel *chan, AGI *agi, int argc, char
 	int pri;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;	
-	if (sscanf(argv[2], "%d", &pri) != 1)
-		return RESULT_SHOWUSAGE;
-	chan->priority = pri - 1;
+
+	if (sscanf(argv[2], "%d", &pri) != 1) {
+		if ((pri = ast_findlabel_extension(chan, chan->context, chan->exten, argv[2], chan->cid.cid_num)) < 1)
+			return RESULT_SHOWUSAGE;
+	}
+
+	ast_explicit_goto(chan, NULL, NULL, pri);
 	fdprintf(agi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -1458,8 +1462,9 @@ static char usage_setextension[] =
 "	Changes the extension for continuation upon exiting the application.\n";
 
 static char usage_setpriority[] =
-" Usage: SET PRIORITY <num>\n"
-"	Changes the priority for continuation upon exiting the application.\n";
+" Usage: SET PRIORITY <priority>\n"
+"	Changes the priority for continuation upon exiting the application.\n"
+" The priority must be a valid priority or label.\n";
 
 static char usage_recordfile[] =
 " Usage: RECORD FILE <filename> <format> <escape digits> <timeout> \\\n"
