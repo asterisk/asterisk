@@ -578,7 +578,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 	if ((argc < 2) || (argc > 3))
 		return RESULT_SHOWUSAGE;
 
-	if (getenv("I_AM_NOT_AN_IDIOT") == NULL)
+	if (!option_dontwarn)
 		ast_cli(fd, "Disclaimer: this command is for informational purposes only.\n"
 				"\tIt does not indicate anything about your configuration.\n");
 

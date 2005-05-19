@@ -88,6 +88,7 @@ int option_overrideconfig = 0;
 int option_reconnect = 0;
 int option_transcode_slin = 1;
 int option_maxcalls = 0;
+int option_dontwarn = 0;
 int fully_booted = 0;
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
@@ -1647,6 +1648,9 @@ static void ast_readconfig(void) {
 		/* Disable ANSI colors for console (-c at startup) */
 		} else if (!strcasecmp(v->name, "nocolor")) {
 			option_nocolor = ast_true(v->value);
+		/* Disable some usage warnings for picky people :p */
+		} else if (!strcasecmp(v->name, "dontwarn")) {
+			option_dontwarn = ast_true(v->value);
 		/* Dump core in case of crash (-g) */
 		} else if (!strcasecmp(v->name, "dumpcore")) {
 			option_dumpcore = ast_true(v->value);
