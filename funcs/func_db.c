@@ -51,8 +51,10 @@ static char *function_db_read(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	if (ast_db_get(family, key, buf, len-1)) {
-		ast_log(LOG_WARNING, "DB: %s/%s not found in database.\n", family, key);
-	}
+		ast_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", family, key);
+	} else
+		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
+
 	
 	return buf;
 }
@@ -93,11 +95,12 @@ struct ast_custom_function db_function = {
 	.name = "DB",
 	.synopsis = "Read or Write from/to the Asterisk database",
 	.syntax = "DB(<family>/<key>)",
-	.desc = "This function will read or write a value from/to the Asterisk database."
-		"DB(...) will read a value from the database, while DB(...)=value"
-		"will write a value to the database.  On a read, this function"
-		"returns the value from the datase, or NULL if it does not exist."
-		"On a write, this function will always return NULL.",
+	.desc = "This function will read or write a value from/to the Asterisk database.\n"
+		"DB(...) will read a value from the database, while DB(...)=value\n"
+		"will write a value to the database.  On a read, this function\n"
+		"returns the value from the datase, or NULL if it does not exist.\n"
+		"On a write, this function will always return NULL.  Reading a database value\n"
+		"will also set the global variable DB_RESULT.\n",
 	.read = function_db_read,
 	.write = function_db_write,
 };
@@ -128,8 +131,10 @@ static char *function_db_exists(struct ast_channel *chan, char *cmd, char *data,
 
 	if (ast_db_get(family, key, buf, len-1))
 		ast_copy_string(buf, "0", len);	
-	else
+	else {
+		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
 		ast_copy_string(buf, "1", len);
+	}
 	
 	return buf;
 }
@@ -143,6 +148,7 @@ struct ast_custom_function db_exists_function = {
 	.syntax = "DB_EXISTS(<family>/<key>)",
 	.desc = "This function will check to see if a key exists in the Asterisk\n"
 		"database. If it exists, the function will return \"1\". If not,\n"
-		"it will return \"0\".",
+		"it will return \"0\".  Checking for existance of database value will\n"
+		"also set the global variable DB_RESULT to that value if it exists.\n",
 	.read = function_db_exists,
 };
