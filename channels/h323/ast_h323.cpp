@@ -434,23 +434,8 @@ void MyH323EndPoint::OnConnectionEstablished(H323Connection & connection, const 
   */
 void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PString & clearedCallToken)
 {
-	PString remoteName;
-	call_details_t cd;
-        PIPSocket::Address Ip;
-	WORD sourcePort;
+	PString remoteName = connection.GetRemotePartyName();
 
-	remoteName = connection.GetRemotePartyName();
-	cd.call_reference = connection.GetCallReference();
-	cd.call_token = strdup((const char *)clearedCallToken);
-	cd.call_source_aliases = strdup((const char *)connection.GetRemotePartyName());
-  	connection.GetSignallingChannel()->GetRemoteAddress().GetIpAndPort(Ip, sourcePort);
-	cd.sourceIp = strdup((const char *)Ip.AsString());
-	
-	/* Convert complex strings */
-	char *s;
-	if ((s = strchr(cd.call_source_aliases, ' ')) != NULL) {
-		*s = '\0';
-	}
 	switch (connection.GetCallEndReason()) {
 		case H323Connection::EndedByCallForwarded:
 			if (h323debug) {
@@ -549,7 +534,7 @@ void MyH323EndPoint::OnConnectionCleared(H323Connection & connection, const PStr
 		}
 	}	
 	/* Invoke the PBX application registered callback */
-	on_connection_cleared(cd);
+	on_connection_cleared(connection.GetCallReference(), clearedCallToken);
 	return;
 }
 
@@ -743,6 +728,7 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
          	*s1 = '\0';
 	}
 
+	memset(&cd, 0, sizeof(cd));
 	cd.call_reference = GetCallReference();
 	cd.call_token = strdup((const char *)GetCallToken());
 	cd.call_source_aliases = strdup((const char *)sourceAliases);
@@ -755,7 +741,7 @@ BOOL MyH323Connection::OnReceivedSignalSetup(const H323SignalPDU & setupPDU)
  	cd.sourceIp = strdup((const char *)Ip.AsString());
 
 	/* Notify Asterisk of the request */
-	call_options_t *res = on_incoming_call(cd); 
+	call_options_t *res = on_incoming_call(&cd);
 
 	if (!res) {
 		if (h323debug) {
@@ -815,16 +801,16 @@ BOOL MyH323Connection::OnSendSignalSetup(H323SignalPDU & setupPDU)
 	if ((s1 = strchr(destAliases, '\t')) != NULL) {
          	*s1 = '\0';
 	}
+
+	memset(&cd, 0, sizeof(cd));
 	cd.call_reference = GetCallReference();
-	Lock();
 	cd.call_token = strdup((const char *)GetCallToken());
-	Unlock();
 	cd.call_source_aliases = strdup((const char *)sourceAliases);
 	cd.call_dest_alias = strdup((const char *)destAliases);
 	cd.call_source_e164 = strdup((const char *)sourceE164);
 	cd.call_dest_e164 = strdup((const char *)destE164);
 
-	int res = on_outgoing_call(cd);		
+	int res = on_outgoing_call(&cd);
 	if (!res) {
 		if (h323debug) {
 			cout << "\t-- Call Failed" << endl;

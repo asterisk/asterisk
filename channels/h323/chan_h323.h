@@ -36,7 +36,7 @@ typedef struct call_options {
 	int				noFastStart;
 	int				noH245Tunneling;
 	int				noSilenceSuppression;
-	unsigned int	port;
+/*	unsigned int	port; */
 	int				progress_setup;
 	int				progress_alert;
 	int				progress_audio;
@@ -132,12 +132,12 @@ extern progress_cb on_progress;
 
 /* This is a callback prototype function, called upon
    an incoming call happens. */
-typedef call_options_t *(*setup_incoming_cb)(call_details_t);
+typedef call_options_t *(*setup_incoming_cb)(call_details_t *);
 extern setup_incoming_cb on_incoming_call;
 
 /* This is a callback prototype function, called upon
    an outbound call. */
-typedef int (*setup_outbound_cb)(call_details_t);
+typedef int (*setup_outbound_cb)(call_details_t *);
 extern setup_outbound_cb on_outgoing_call; 
 
 /* This is a callback prototype function, called when
@@ -152,7 +152,7 @@ extern con_established_cb on_connection_established;
 
 /* This is a callback prototype function, called when
    OnConnectionCleared callback is invoked */
-typedef void (*clear_con_cb)(call_details_t);
+typedef void (*clear_con_cb)(unsigned, const char *);
 extern clear_con_cb on_connection_cleared;
 
 /* This is a callback prototype function, called when
@@ -231,6 +231,3 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-
-

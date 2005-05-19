@@ -1240,7 +1240,7 @@ int progress(unsigned call_reference, const char *token, int inband)
  *
  *  Returns 1 on success
  */
-call_options_t *setup_incoming_call(call_details_t cd)
+call_options_t *setup_incoming_call(call_details_t *cd)
 {
 	struct oh323_pvt *pvt;
 	struct oh323_user *user = NULL;
@@ -1248,10 +1248,10 @@ call_options_t *setup_incoming_call(call_details_t cd)
 	char iabuf[INET_ADDRSTRLEN];
 
 	if (h323debug)
-		ast_log(LOG_DEBUG, "Setting up incoming call for %s\n", cd.call_token);
+		ast_log(LOG_DEBUG, "Setting up incoming call for %s\n", cd->call_token);
 
 	/* allocate the call*/
-	pvt = oh323_alloc(cd.call_reference);
+	pvt = oh323_alloc(cd->call_reference);
 
 	if (!pvt) {
 		ast_log(LOG_ERROR, "Unable to allocate private structure, this is bad.\n");
@@ -1259,12 +1259,8 @@ call_options_t *setup_incoming_call(call_details_t cd)
 	}
 
 	/* Populate the call details in the private structure */
-	pvt->cd.call_token = strdup(cd.call_token);
-	pvt->cd.call_source_aliases = strdup(cd.call_source_aliases);
-	pvt->cd.call_dest_alias = strdup(cd.call_dest_alias);
-	pvt->cd.call_source_name = strdup(cd.call_source_name);
-	pvt->cd.call_source_e164 = strdup(cd.call_source_e164);
-	pvt->cd.call_dest_e164 = strdup(cd.call_dest_e164);
+	memcpy(&pvt->cd, cd, sizeof(pvt->cd));
+	memcpy(&pvt->options, &global_options, sizeof(pvt->options));
 
 	if (h323debug) {
 		ast_verbose(VERBOSE_PREFIX_3 "Setting up Call\n");
@@ -1276,14 +1272,14 @@ call_options_t *setup_incoming_call(call_details_t cd)
 	}
 
 	/* Decide if we are allowing Gatekeeper routed calls*/
-	if ((!strcasecmp(cd.sourceIp, gatekeeper)) && (gkroute == -1) && (usingGk)) {
-		if (!ast_strlen_zero(cd.call_dest_e164)) {
-			strncpy(pvt->exten, cd.call_dest_e164, sizeof(pvt->exten) - 1);
+	if ((!strcasecmp(cd->sourceIp, gatekeeper)) && (gkroute == -1) && (usingGk)) {
+		if (!ast_strlen_zero(cd->call_dest_e164)) {
+			strncpy(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten) - 1);
 			strncpy(pvt->context, default_context, sizeof(pvt->context) - 1); 
 		} else {
-			alias = find_alias(cd.call_dest_alias);
+			alias = find_alias(cd->call_dest_alias);
 			if (!alias) {
-				ast_log(LOG_ERROR, "Call for %s rejected, alias not found\n", cd.call_dest_alias);
+				ast_log(LOG_ERROR, "Call for %s rejected, alias not found\n", cd->call_dest_alias);
 				return NULL;
 			}
 			strncpy(pvt->exten, alias->name, sizeof(pvt->exten) - 1);
@@ -1292,26 +1288,27 @@ call_options_t *setup_incoming_call(call_details_t cd)
 	} else {
 		/* Either this call is not from the Gatekeeper 
 		   or we are not allowing gk routed calls */
-		user  = find_user(&cd);
+		user  = find_user(cd);
 		if (!user) {
 			if (!ast_strlen_zero(pvt->cd.call_dest_e164)) {
-				strncpy(pvt->exten, cd.call_dest_e164, sizeof(pvt->exten) - 1);
+				strncpy(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten) - 1);
 			} else {
-				strncpy(pvt->exten, cd.call_dest_alias, sizeof(pvt->exten) - 1);
+				strncpy(pvt->exten, cd->call_dest_alias, sizeof(pvt->exten) - 1);
 			}
 			if (ast_strlen_zero(default_context)) {
 				ast_log(LOG_ERROR, "Call from '%s' rejected due to no default context\n", pvt->cd.call_source_aliases);
 				return NULL;
 			}
 			strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
-			ast_log(LOG_DEBUG, "Sending %s to context [%s]\n", cd.call_source_aliases, pvt->context);
+			ast_log(LOG_DEBUG, "Sending %s to context [%s]\n", cd->call_source_aliases, pvt->context);
+			/* XXX: Is it really required??? */
 			memset(&pvt->options, 0, sizeof(pvt->options));
-		} else {					
+		} else {
 			if (user->host) {
-				if (strcasecmp(cd.sourceIp, ast_inet_ntoa(iabuf, sizeof(iabuf), user->addr.sin_addr))) {
+				if (strcasecmp(cd->sourceIp, ast_inet_ntoa(iabuf, sizeof(iabuf), user->addr.sin_addr))) {
 					if (ast_strlen_zero(user->context)) {
 						if (ast_strlen_zero(default_context)) {
-							ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s) and no default context\n", user->name, cd.sourceIp);
+							ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s) and no default context\n", user->name, cd->sourceIp);
                 					return NULL;
 						}
 						strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
@@ -1320,8 +1317,8 @@ call_options_t *setup_incoming_call(call_details_t cd)
 					}
 					pvt->exten[0] = 'i';
 					pvt->exten[1] = '\0';
-					ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s)s\n", user->name, cd.sourceIp);
-					return NULL;
+					ast_log(LOG_ERROR, "Call from '%s' rejected due to non-matching IP address (%s)s\n", user->name, cd->sourceIp);
+					return NULL;	/* XXX: Hmmm... Why to setup context if we drop connection immediately??? */
 				}
 			}
 			strncpy(pvt->context, user->context, sizeof(pvt->context) - 1);
@@ -1329,9 +1326,9 @@ call_options_t *setup_incoming_call(call_details_t cd)
 			pvt->nat = user->nat;
 			memcpy(&pvt->options, &user->options, sizeof(pvt->options));
 			if (!ast_strlen_zero(pvt->cd.call_dest_e164)) {
-				strncpy(pvt->exten, cd.call_dest_e164, sizeof(pvt->exten) - 1);
+				strncpy(pvt->exten, cd->call_dest_e164, sizeof(pvt->exten) - 1);
 			} else {
-				strncpy(pvt->exten, cd.call_dest_alias, sizeof(pvt->exten) - 1);
+				strncpy(pvt->exten, cd->call_dest_alias, sizeof(pvt->exten) - 1);
 			}
 			if (!ast_strlen_zero(user->accountcode)) {
 				strncpy(pvt->accountcode, user->accountcode, sizeof(pvt->accountcode) - 1);
@@ -1380,8 +1377,11 @@ static int answer_call(unsigned call_reference, const char *token)
  * 
  * Returns 1 on success 
  */
-int setup_outgoing_call(call_details_t cd)
-{	
+int setup_outgoing_call(call_details_t *cd)
+{
+	/* Use argument here or free it immediately */
+	cleanup_call_details(cd);
+
 	return 1;
 }
 
@@ -1391,8 +1391,8 @@ int setup_outgoing_call(call_details_t cd)
   */
 void chan_ringing(unsigned call_reference, const char *token)
 {
-        struct ast_channel *c = NULL;
-        struct oh323_pvt *pvt;
+	struct ast_channel *c = NULL;
+	struct oh323_pvt *pvt;
 
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Ringing on %s\n", token);
@@ -1401,55 +1401,53 @@ void chan_ringing(unsigned call_reference, const char *token)
         if (!pvt) {
                 ast_log(LOG_ERROR, "Something is wrong: ringing\n");
 	}
-        if (!pvt->owner) {
-        	ast_mutex_unlock(&pvt->lock);
-                ast_log(LOG_ERROR, "Channel has no owner\n");
-                return;
-        }
-        ast_mutex_lock(&pvt->owner->lock);
-        c = pvt->owner;
-        ast_setstate(c, AST_STATE_RINGING);
-        ast_queue_control(c, AST_CONTROL_RINGING);
-        ast_mutex_unlock(&pvt->owner->lock);
-        ast_mutex_unlock(&pvt->lock);
-        return;
+	if (!pvt->owner) {
+		ast_mutex_unlock(&pvt->lock);
+		ast_log(LOG_ERROR, "Channel has no owner\n");
+		return;
+	}
+	ast_mutex_lock(&pvt->owner->lock);
+	c = pvt->owner;
+	ast_setstate(c, AST_STATE_RINGING);
+	ast_queue_control(c, AST_CONTROL_RINGING);
+	ast_mutex_unlock(&pvt->owner->lock);
+	ast_mutex_unlock(&pvt->lock);
+	return;
 }
 
 /**
   * Call-back function to cleanup communication
   * Returns nothing,
   */
-static void cleanup_connection(call_details_t cd)
+static void cleanup_connection(unsigned call_reference, const char *call_token)
 {	
 	struct oh323_pvt *pvt;
-	struct ast_rtp *rtp = NULL;
 
-	ast_log(LOG_DEBUG, "Cleaning connection to %s\n", cd.call_token);
+	ast_log(LOG_DEBUG, "Cleaning connection to %s\n", call_token);
 	
 	while (1) {
-		pvt = find_call_locked(cd.call_reference, cd.call_token); 
+		pvt = find_call_locked(call_reference, call_token); 
 		if (!pvt) {
 			if (h323debug)
-				ast_log(LOG_DEBUG, "No connection for %s\n", cd.call_token);
+				ast_log(LOG_DEBUG, "No connection for %s\n", call_token);
 			return;
 		}
 		if (!pvt->owner || !ast_mutex_trylock(&pvt->owner->lock))
 			break;
 #if 1
 #ifdef DEBUG_THREADS
-		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s, locked at %ld/%d by %s (%s:%d)\n", cd.call_token, pvt->owner->lock.thread, pvt->owner->lock.reentrancy, pvt->owner->lock.func, pvt->owner->lock.file, pvt->owner->lock.lineno);
+		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s, locked at %ld/%d by %s (%s:%d)\n", call_token, pvt->owner->lock.thread, pvt->owner->lock.reentrancy, pvt->owner->lock.func, pvt->owner->lock.file, pvt->owner->lock.lineno);
 #else
-		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s\n", cd.call_token);
+		ast_log(LOG_NOTICE, "Avoiding H.323 destory deadlock on %s\n", call_token);
 #endif
 #endif
 		ast_mutex_unlock(&pvt->lock);
 		usleep(1);
 	}
 	if (pvt->rtp) {
-		rtp = pvt->rtp;
-		pvt->rtp = NULL;
 		/* Immediately stop RTP */
-		ast_rtp_destroy(rtp);
+		ast_rtp_destroy(pvt->rtp);
+		pvt->rtp = NULL;
 	}
 	/* Free dsp used for in-band DTMF detection */
 	if (pvt->vad) {
@@ -1466,7 +1464,7 @@ static void cleanup_connection(call_details_t cd)
 	}
 	ast_mutex_unlock(&pvt->lock);
 	if (h323debug)
-		ast_log(LOG_DEBUG, "Connection to %s cleaned\n", cd.call_token);
+		ast_log(LOG_DEBUG, "Connection to %s cleaned\n", call_token);
 	return;	
 }
 
@@ -1520,17 +1518,17 @@ static void *do_monitor(void *data)
 	struct oh323_pvt *oh323 = NULL;
 	
 	for(;;) {
-		 /* Check for a reload request */
-                ast_mutex_lock(&h323_reload_lock);
-                reloading = h323_reloading;
-                h323_reloading = 0;
-                ast_mutex_unlock(&h323_reload_lock);
-                if (reloading) {
-                        if (option_verbose > 0) {
-                                ast_verbose(VERBOSE_PREFIX_1 "Reloading H.323\n");
+		/* Check for a reload request */
+		ast_mutex_lock(&h323_reload_lock);
+		reloading = h323_reloading;
+		h323_reloading = 0;
+		ast_mutex_unlock(&h323_reload_lock);
+		if (reloading) {
+			if (option_verbose > 0) {
+				ast_verbose(VERBOSE_PREFIX_1 "Reloading H.323\n");
 			}
-                        h323_do_reload();
-                }
+			h323_do_reload();
+		}
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
 restartsearch:		
