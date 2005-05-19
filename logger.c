@@ -671,7 +671,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 	va_list ap;
 	
-	if (!option_verbose && !option_debug && (level == __LOG_DEBUG)) {
+	if ((!option_verbose && (level == __LOG_VERBOSE)) || (!option_debug && (level == __LOG_DEBUG))) {
 		return;
 	}
 	/* Ignore anything that never gets logged anywhere */
