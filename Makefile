@@ -342,7 +342,6 @@ ast_expr: vercomp
 
 ifeq ($(MAKECMDGOALS),ast_expr.a)
 FLEXVER_GT_2_5_31=$(shell ./vercomp flex \>= 2.5.31)
-BISONVER=$(shell bison --version | grep \^bison | sed 's/.* \([0-9]\+\.[-0-9.]\+[a-z]\?\)/\1/' )
 BISONVER_GE_1_85=$(shell ./vercomp bison \>= 1.85 )
 endif
 
@@ -352,35 +351,36 @@ else
 FLEXOBJS=ast_expr.o
 endif
 
-ast_expr.a: $(FLEXOBJS)
-	@rm -f $@
-	ar r $@ $(FLEXOBJS)
-	ranlib $@
+ast_expr.o:: ast_expr.c
+	@echo "================================================================================="
+	@echo "NOTE: Using older version of expression parser. To use the newer version,"
+	@echo "NOTE: upgrade to flex 2.5.31 or higher, which can be found at"
+	@echo "NOTE: http://sourceforge.net/project/showfiles.php?group_id=72099"
+	@echo "================================================================================="
+
+ast_expr.o:: ast_expr.c
 
 ifeq ($(BISONVER_GE_1_85),false)
 .y.c:
-	@echo "=================================================================================" ;\
-	echo "NOTE: You may have trouble if you do not have bison-1.85 or higher installed!" ;\
-	echo "NOTE: You can pick up a copy at: http://ftp.gnu.org/ or its mirrors" ;\
-	echo "NOTE: You have: $(BISONVER)" ;\
-	echo "================================================================================" ;\
+	@echo "================================================================================="
+	@echo "NOTE: You may have trouble if you do not have bison-1.85 or higher installed!"
+	@echo "NOTE: You can pick up a copy at: http://ftp.gnu.org or its mirrors"
+	@echo "NOTE: You have:"
+	@bison --version
+	@echo "================================================================================"
 	bison -v -d --name-prefix=ast_yy $< -o $@
 else
 .y.c:
 	bison -v -d --name-prefix=ast_yy $< -o $@
 endif
 
-ast_expr.o:: ast_expr.c
-	@echo "=================================================================================" ;\
-	echo "NOTE: Using older version of expression parser. To use the newer version," ;\
-	echo "NOTE: upgrade to flex 2.5.31 or higher, which can be found at" ;\
-	echo "NOTE: http://sourceforge.net/project/showfiles.php?group_id=72099" ;\
-	echo "=================================================================================" ;\
-
-ast_expr.o:: ast_expr.c
-
 ast_expr2f.c: ast_expr2.fl
 	flex ast_expr2.fl
+
+ast_expr.a: $(FLEXOBJS)
+	@rm -f $@
+	ar r $@ $(FLEXOBJS)
+	ranlib $@
 
 cli.o: cli.c build.h
 
@@ -762,7 +762,8 @@ depend: .depend
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend:
-	./mkdep ${CFLAGS} `ls *.c`
+	./mkdep ${CFLAGS} $(filter-out ast_expr.c,$(wildcard *.c))
+	./mkdep -a -d ${CFLAGS} ast_expr.c
 
 .tags-depend:
 	@echo -n ".tags-depend: " > $@

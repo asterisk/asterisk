@@ -40,6 +40,7 @@
 D=.depend			# default dependency file is .depend
 append=0
 pflag=
+dflag=
 
 while :
 	do case "$1" in
@@ -58,13 +59,19 @@ while :
 		-p)
 			pflag=p
 			shift ;;
+
+      		# the -d flag produces double-colon rules instead of single-colon rules
+      		-d)
+			dflag=d
+			shift ;;
+
 		*)
 			break ;;
 	esac
 done
 
 if [ $# = 0 ] ; then
-	echo 'usage: mkdep [-p] [-f depend_file] [cc_flags] file ...'
+	echo 'usage: mkdep [-p] [-d] [-f depend_file] [cc_flags] file ...'
 	exit 1
 fi
 
@@ -82,10 +89,12 @@ fi
 umask $um
 trap 'rm -rf $DTMP ; trap 2 ; kill -2 $$' 1 2 3 13 15
 
-if [ x$pflag = x ]; then
-	${CC:-cc} -M "$@" 2>/dev/null | sed -e 's; \./; ;g' > $TMP
-else
+if [ x$pflag = xp ]; then
 	${CC:-cc} -M "$@" 2>/dev/null | sed -e 's;\.o :; :;' -e 's; \./; ;g' > $TMP
+elif [ x$dflag = xd ]; then
+	${CC:-cc} -M "$@" 2>/dev/null | sed -e 's;\.o:;\.o::;' -e 's; \./; ;g' > $TMP
+else
+	${CC:-cc} -M "$@" 2>/dev/null | sed -e 's; \./; ;g' > $TMP
 fi
 
 if [ $? != 0 ]; then
