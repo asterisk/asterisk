@@ -100,7 +100,7 @@ struct ast_custom_function db_function = {
 		"will write a value to the database.  On a read, this function\n"
 		"returns the value from the datase, or NULL if it does not exist.\n"
 		"On a write, this function will always return NULL.  Reading a database value\n"
-		"will also set the global variable DB_RESULT.\n",
+		"will also set the variable DB_RESULT.\n",
 	.read = function_db_read,
 	.write = function_db_write,
 };
@@ -148,7 +148,7 @@ struct ast_custom_function db_exists_function = {
 	.syntax = "DB_EXISTS(<family>/<key>)",
 	.desc = "This function will check to see if a key exists in the Asterisk\n"
 		"database. If it exists, the function will return \"1\". If not,\n"
-		"it will return \"0\".  Checking for existance of database value will\n"
-		"also set the global variable DB_RESULT to that value if it exists.\n",
+		"it will return \"0\".  Checking for existence of a database key will\n"
+		"also set the variable DB_RESULT to the key's value if it exists.\n",
 	.read = function_db_exists,
 };
