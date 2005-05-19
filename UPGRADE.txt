@@ -33,6 +33,13 @@ IAX:
 * The naming convention for IAX channels has changed in a minor way such 
   that the call number follows a "-" rather than a "/" character.
 
+SIP:
+
+* The global option "port" in 1.0.X that is used to set which port to
+  bind to has been changed to "bindport" to be more consistent with
+  the other channel drivers and to avoid confusion with the "port"
+  option for users/peers.
+
 Applications:
 
 * With the addition of dialplan functions (which operate similarly
