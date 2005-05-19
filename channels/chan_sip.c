@@ -1356,22 +1356,23 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	/* Peer found in realtime, now build it in memory */
 	peer = build_peer(newpeername, var, !ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS));
 
-	if (peer) {
-		if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
-			/* Cache peer */
-			ast_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
-			if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
-				if (peer->expire > -1) {
-					ast_sched_del(sched, peer->expire);
-				}
-				peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
-			}
-			ASTOBJ_CONTAINER_LINK(&peerl,peer);
-		} else {
-			ast_set_flag(peer, SIP_REALTIME);
-		}
+	if (!peer) {
+		ast_variables_destroy(var);
+		return (struct sip_peer *) NULL;
 	}
-	
+	if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+		/* Cache peer */
+		ast_copy_flags((&peer->flags_page2),(&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR|SIP_PAGE2_RTCACHEFRIENDS);
+		if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTAUTOCLEAR)) {
+			if (peer->expire > -1) {
+				ast_sched_del(sched, peer->expire);
+			}
+			peer->expire = ast_sched_add(sched, (global_rtautoclear) * 1000, expire_register, (void *)peer);
+		}
+		ASTOBJ_CONTAINER_LINK(&peerl,peer);
+	} else {
+		ast_set_flag(peer, SIP_REALTIME);
+	}
 	ast_variables_destroy(var);
 	return peer;
 }
@@ -1448,17 +1449,20 @@ static struct sip_user *realtime_user(const char *username)
 
 	user = build_user(username, var, !ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS));
 	
-	if (user) {
-		if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
-			ast_set_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS);
-			suserobjs++;
-        		ASTOBJ_CONTAINER_LINK(&userl,user);
-        	} else {
-			/* Move counter from s to r... */
-			suserobjs--;
-			ruserobjs++;
-			ast_set_flag(user, SIP_REALTIME);
-		}
+	if (!user) {	/* No user found */
+		ast_variables_destroy(var);
+		return NULL;
+	}
+
+	if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTCACHEFRIENDS)) {
+		ast_set_flag((&user->flags_page2), SIP_PAGE2_RTCACHEFRIENDS);
+		suserobjs++;
+       		ASTOBJ_CONTAINER_LINK(&userl,user);
+       	} else {
+		/* Move counter from s to r... */
+		suserobjs--;
+		ruserobjs++;
+		ast_set_flag(user, SIP_REALTIME);
 	}
 	ast_variables_destroy(var);
 	return user;
@@ -2608,7 +2612,7 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 	int val;
 	int x;
 	char iabuf[INET_ADDRSTRLEN];
-	for (x=0;x<4;x++) {
+	for (x=0; x<4; x++) {
 		val = rand();
 		res = snprintf(callid, len, "%08x", val);
 		len -= res;
@@ -2698,6 +2702,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
 		p->noncodeccapability |= AST_RTP_DTMF;
 	strcpy(p->context, default_context);
+
 	/* Add to active dialog list */
 	ast_mutex_lock(&iflock);
 	p->next = iflist;
@@ -2981,6 +2986,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int sendonly = 0;
 	int x,y;
 	int debug=sip_debug_test_pvt(p);
+	struct ast_channel *bridgepeer = NULL;
 
 	/* Update our last rtprx when we receive an SDP, too */
 	time(&p->lastrtprx);
@@ -3166,68 +3172,68 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		ast_log(LOG_NOTICE, "No compatible codecs!\n");
 		return -1;
 	}
-	if (p->owner) {	/* There's an open channel owning us */
-		struct ast_channel *bridgepeer = NULL;
-		if (!(p->owner->nativeformats & p->jointcapability)) {
-			const unsigned slen=512;
-			char s1[slen], s2[slen];
-			ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
-					ast_getformatname_multiple(s1, slen, p->jointcapability),
-					ast_getformatname_multiple(s2, slen, p->owner->nativeformats));
-			p->owner->nativeformats = ast_codec_choose(&p->prefs, p->jointcapability, 1);
-			ast_set_read_format(p->owner, p->owner->readformat);
-			ast_set_write_format(p->owner, p->owner->writeformat);
-		}
-		if ((bridgepeer=ast_bridged_channel(p->owner))) {
-			/* We have a bridge */
-			/* Turn on/off music on hold if we are holding/unholding */
-			if (sin.sin_addr.s_addr && !sendonly) {
-				ast_moh_stop(bridgepeer);
-				/* Indicate UNHOLD status to the other channel */
-				ast_indicate(bridgepeer, AST_CONTROL_UNHOLD);
-				append_history(p, "Unhold", req->data);
-				if (callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
-					manager_event(EVENT_FLAG_CALL, "Unhold",
-						"Channel: %s\r\n"
-						"Uniqueid: %s\r\n",
-						p->owner->name, 
-						p->owner->uniqueid);
-				}
-				ast_clear_flag(p, SIP_CALL_ONHOLD);
-				/* Somehow, we need to check if we need to re-invite here */
-				/* If this call had a native bridge, it's broken
-					now and we need to start all over again.
-					The bridged peer, if SIP, now listens
-					to RTP from Asterisk instead of from
-					the peer 
-		
+
+	if (!p->owner) 	/* There's no open channel owning us */
+		return 0;
+
+	if (!(p->owner->nativeformats & p->jointcapability)) {
+		const unsigned slen=512;
+		char s1[slen], s2[slen];
+		ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
+				ast_getformatname_multiple(s1, slen, p->jointcapability),
+				ast_getformatname_multiple(s2, slen, p->owner->nativeformats));
+		p->owner->nativeformats = ast_codec_choose(&p->prefs, p->jointcapability, 1);
+		ast_set_read_format(p->owner, p->owner->readformat);
+		ast_set_write_format(p->owner, p->owner->writeformat);
+	}
+	if ((bridgepeer=ast_bridged_channel(p->owner))) {
+		/* We have a bridge */
+		/* Turn on/off music on hold if we are holding/unholding */
+		if (sin.sin_addr.s_addr && !sendonly) {
+			ast_moh_stop(bridgepeer);
+			/* Indicate UNHOLD status to the other channel */
+			ast_indicate(bridgepeer, AST_CONTROL_UNHOLD);
+			append_history(p, "Unhold", req->data);
+			if (callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
+				manager_event(EVENT_FLAG_CALL, "Unhold",
+					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n",
+					p->owner->name, 
+					p->owner->uniqueid);
+			}
+			ast_clear_flag(p, SIP_CALL_ONHOLD);
+			/* Somehow, we need to check if we need to re-invite here */
+			/* If this call had a external native bridge, it's broken
+				now and we need to start all over again.
+				The bridged peer, if SIP, now listens
+				to RTP from Asterisk instead of from
+				the peer 
+	
 				  So IF we had a native bridge before
 				  the HOLD, we need to somehow re-invite
 				  into a NATIVE bridge afterwards...
 				
 				*/
 	
-			} else {
-				/* No address for RTP, we're on hold */
-				append_history(p, "Hold", req->data);
-				if (callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
-					manager_event(EVENT_FLAG_CALL, "Hold",
-						"Channel: %s\r\n"
-						"Uniqueid: %s\r\n",
-						p->owner->name, 
-						p->owner->uniqueid);
-				}
-				ast_set_flag(p, SIP_CALL_ONHOLD);
-				/* Indicate HOLD status to the other channel */
-				ast_indicate(bridgepeer, AST_CONTROL_HOLD);
-				ast_moh_start(bridgepeer, NULL);
-				if (sendonly)
-					ast_rtp_stop(p->rtp);
+		} else {
+			/* No address for RTP, we're on hold */
+			append_history(p, "Hold", req->data);
+			if (callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
+				manager_event(EVENT_FLAG_CALL, "Hold",
+					"Channel: %s\r\n"
+					"Uniqueid: %s\r\n",
+					p->owner->name, 
+					p->owner->uniqueid);
 			}
+			ast_set_flag(p, SIP_CALL_ONHOLD);
+			/* Indicate HOLD status to the other channel */
+			ast_indicate(bridgepeer, AST_CONTROL_HOLD);
+			ast_moh_start(bridgepeer, NULL);
+			if (sendonly)
+				ast_rtp_stop(p->rtp);
 		}
 	}
 	return 0;
-	
 }
 
 /*--- add_header: Add header to SIP message */
@@ -3256,12 +3262,11 @@ static int add_header(struct sip_request *req, char *var, char *value)
 		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
 	}
 	req->len += strlen(req->header[req->headers]);
-	if (req->headers < SIP_MAX_HEADERS)
-		req->headers++;
-	else {
-		ast_log(LOG_WARNING, "Out of header space\n");
+	if (req->headers == SIP_MAX_HEADERS) {
+		ast_log(LOG_WARNING, "Out of SIP header space\n");
 		return -1;
 	}
+	req->headers++;
 	return 0;	
 }
 
@@ -3279,12 +3284,11 @@ static int add_blank_header(struct sip_request *req)
 	req->header[req->headers] = req->data + req->len;
 	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "\r\n");
 	req->len += strlen(req->header[req->headers]);
-	if (req->headers < SIP_MAX_HEADERS)
-		req->headers++;
-	else {
-		ast_log(LOG_WARNING, "Out of header space\n");
+	if (req->headers == SIP_MAX_HEADERS)  {
+		ast_log(LOG_WARNING, "Out of SIP header space\n");
 		return -1;
 	}
+	req->headers++;
 	return 0;	
 }
 
@@ -3303,12 +3307,11 @@ static int add_line(struct sip_request *req, const char *line)
 	req->line[req->lines] = req->data + req->len;
 	snprintf(req->line[req->lines], sizeof(req->data) - req->len, "%s", line);
 	req->len += strlen(req->line[req->lines]);
-	if (req->lines < SIP_MAX_LINES)
-		req->lines++;
-	else {
-		ast_log(LOG_WARNING, "Out of line space\n");
+	if (req->lines == SIP_MAX_LINES)  {
+		ast_log(LOG_WARNING, "Out of SIP line space\n");
 		return -1;
 	}
+	req->lines++;
 	return 0;	
 }
 
