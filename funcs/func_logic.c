@@ -72,6 +72,29 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 	return ret;
 }
 
+static char *builtin_function_set(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	char *ret = NULL, *varname, *val;
+
+	if ((varname = ast_strdupa(data))) {
+		if ((val = strchr(varname, '='))) {
+			*val = '\0';
+			val++;
+			varname = ast_strip(varname);
+			val = ast_strip(val);
+			pbx_builtin_setvar_helper(chan, varname, val);
+			ast_copy_string(buf, val, len);
+		} else {
+			ast_log(LOG_WARNING, "Syntax Error!\n");
+		}
+		
+	} else {
+        ast_log(LOG_WARNING, "Memory Error!\n");
+    }
+
+	return ret;
+}
+
 #ifndef BUILTIN_FUNC
 static
 #endif
@@ -80,6 +103,16 @@ struct ast_custom_function isnull_function = {
 	.synopsis = "NULL Test: Returns 1 if NULL or 0 otherwise",
 	.syntax = "ISNULL(<data>)",
 	.read = builtin_function_isnull,
+};
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function set_function = {
+	.name = "SET",
+	.synopsis = "SET assigns a value to a function call.",
+	.syntax = "SET(<varname>=<value>)",
+	.read = builtin_function_set,
 };
 
 #ifndef BUILTIN_FUNC
