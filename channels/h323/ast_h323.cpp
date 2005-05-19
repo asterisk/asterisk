@@ -282,7 +282,15 @@ H323Codec * AST_G729ACapability::CreateCodec(H323Codec::Direction direction) con
 }
 
 /** MyH323EndPoint 
-  * The fullAddress parameter is used directly in the MakeCall method so
+  */
+MyH323EndPoint::MyH323EndPoint()
+		: H323EndPoint()
+{
+	// Capabilities will be negotiated on per-connection basis
+	capabilities.RemoveAll();
+}
+
+/** The fullAddress parameter is used directly in the MakeCall method so
   * the General form for the fullAddress argument is :
   * [alias@][transport$]host[:port]
   * default values:	alias = the same value as host.
@@ -357,11 +365,6 @@ void MyH323EndPoint::SetEndpointTypeInfo( H225_EndpointType & info ) const
 void MyH323EndPoint::SetGateway(void)
 {
 	terminalType = e_GatewayOnly;
-}
-
-H323Capabilities MyH323EndPoint::GetCapabilities(void)
-{
-	return capabilities;
 }
 
 BOOL MyH323EndPoint::ClearCall(const PString & token, H323Connection::CallEndReason reason)
@@ -915,6 +918,12 @@ void MyH323Connection::OnSendCapabilitySet(H245_TerminalCapabilitySet & pdu)
 	}
 }
 
+void MyH323Connection::OnSetLocalCapabilities()
+{
+	if (on_setcapabilities)
+		on_setcapabilities(GetCallReference(), (const char *)callToken);
+}
+
 BOOL MyH323Connection::OnReceivedCapabilitySet(const H323Capabilities & remoteCaps,
 					       const H245_MultiplexCapability * muxCap,
 					       H245_TerminalCapabilitySetReject & reject)
@@ -961,6 +970,73 @@ BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 		cout <<  "\t\t-- channelsOpen = " << channelsOpen << endl;
 	}
 	return connectionState != ShuttingDownConnection;
+}
+
+void MyH323Connection::SetCapabilities(int cap, int dtmfMode)
+{
+	int g711Frames = 20;
+//	int gsmFrames  = 4;
+	PINDEX lastcap = -1; /* last common capability index */
+
+#if 0
+	if (cap & AST_FORMAT_SPEEX) {
+		/* Not real sure if Asterisk acutally supports all
+		   of the various different bit rates so add them 
+		   all and figure it out later*/
+
+		localCapabilities.SetCapability(0, 0, new SpeexNarrow2AudioCapability());
+		localCapabilities.SetCapability(0, 0, new SpeexNarrow3AudioCapability());
+		localCapabilities.SetCapability(0, 0, new SpeexNarrow4AudioCapability());
+		localCapabilities.SetCapability(0, 0, new SpeexNarrow5AudioCapability());
+		localCapabilities.SetCapability(0, 0, new SpeexNarrow6AudioCapability());
+	}
+#endif 
+	if (cap & AST_FORMAT_G729A) {
+		AST_G729ACapability *g729aCap;
+		AST_G729Capability *g729Cap;
+		lastcap = localCapabilities.SetCapability(0, 0, g729aCap = new AST_G729ACapability);
+		lastcap = localCapabilities.SetCapability(0, 0, g729Cap = new AST_G729Capability);
+	}
+	
+	if (cap & AST_FORMAT_G723_1) {
+		H323_G7231Capability *g7231Cap;
+		lastcap = localCapabilities.SetCapability(0, 0, g7231Cap = new H323_G7231Capability);
+	} 
+#if 0
+	if (cap & AST_FORMAT_GSM) {
+		H323_GSM0610Capability *gsmCap;
+	    	lastcap = localCapabilities.SetCapability(0, 0, gsmCap = new H323_GSM0610Capability);
+	    	gsmCap->SetTxFramesInPacket(gsmFrames);
+	} 
+#endif
+	if (cap & AST_FORMAT_ULAW) {
+		H323_G711Capability *g711uCap;
+	    	lastcap = localCapabilities.SetCapability(0, 0, g711uCap = new H323_G711Capability(H323_G711Capability::muLaw));
+		g711uCap->SetTxFramesInPacket(g711Frames);
+	} 
+
+	if (cap & AST_FORMAT_ALAW) {
+		H323_G711Capability *g711aCap;
+		lastcap = localCapabilities.SetCapability(0, 0, g711aCap = new H323_G711Capability(H323_G711Capability::ALaw));
+		g711aCap->SetTxFramesInPacket(g711Frames);
+	}
+
+	lastcap++;
+	lastcap = localCapabilities.SetCapability(0, lastcap, new H323_UserInputCapability(H323_UserInputCapability::HookFlashH245));
+
+	lastcap++;
+	mode = dtmfMode;
+	if (dtmfMode == H323_DTMF_INBAND) {
+		localCapabilities.SetCapability(0, lastcap, new H323_UserInputCapability(H323_UserInputCapability::SignalToneH245));
+		sendUserInputMode = SendUserInputAsTone;
+	} else {
+		localCapabilities.SetCapability(0, lastcap, new H323_UserInputCapability(H323_UserInputCapability::SignalToneRFC2833));
+		sendUserInputMode = SendUserInputAsInlineRFC2833;
+	}
+
+	if (h323debug) {
+		cout <<  "Allowed Codecs:\n\t" << setprecision(2) << localCapabilities << endl;
+	}
 }
 
 /* MyH323_ExternalRTPChannel */
@@ -1106,7 +1182,8 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
  			    answer_call_cb	acfunc,
 			    progress_cb		pgfunc,
 			    rfc2833_cb		dtmffunc,
-			    hangup_cb		hangupfunc)
+			    hangup_cb		hangupfunc,
+			    setcapabilities_cb	capabilityfunc)
 {
 	on_incoming_call = ifunc;
 	on_outgoing_call = sfunc;
@@ -1120,90 +1197,30 @@ void h323_callback_register(setup_incoming_cb  	ifunc,
 	on_progress = pgfunc;
 	on_set_rfc2833_payload = dtmffunc;
 	on_hangup = hangupfunc;
+	on_setcapabilities = capabilityfunc;
 }
 
 /**
  * Add capability to the capability table of the end point. 
  */
-int h323_set_capability(int cap, int dtmfMode)
+int h323_set_capabilities(const char *token, int cap, int dtmfMode)
 {
-	H323Capabilities oldcaps;
-	PStringArray codecs;
-	int g711Frames = 20;
-//	int gsmFrames  = 4;
-	PINDEX lastcap = -1; /* last common capability index */
+	MyH323Connection *conn;
 
 	if (!h323_end_point_exist()) {
 		cout << " ERROR: [h323_set_capablity] No Endpoint, this is bad" << endl;
 		return 1;
 	}
 
-	/* clean up old capabilities list before changing */
-	oldcaps = endPoint->GetCapabilities();
-	for (PINDEX i=0; i< oldcaps.GetSize(); i++) {
-                 codecs.AppendString(oldcaps[i].GetFormatName());
-        }
-        endPoint->RemoveCapabilities(codecs);
-
-#if 0
-	if (cap & AST_FORMAT_SPEEX) {
-		/* Not real sure if Asterisk acutally supports all
-		   of the various different bit rates so add them 
-		   all and figure it out later*/
-
-		endPoint->SetCapability(0, 0, new SpeexNarrow2AudioCapability());
-		endPoint->SetCapability(0, 0, new SpeexNarrow3AudioCapability());
-		endPoint->SetCapability(0, 0, new SpeexNarrow4AudioCapability());
-		endPoint->SetCapability(0, 0, new SpeexNarrow5AudioCapability());
-		endPoint->SetCapability(0, 0, new SpeexNarrow6AudioCapability());
+	PString myToken(token);
+	conn = (MyH323Connection *)endPoint->FindConnectionWithLock(myToken);
+	if (!conn) {
+		cout << " ERROR: [h323_set_capability] Unable to find connection " << token << endl;
+		return 1;
 	}
-#endif 
-	if (cap & AST_FORMAT_G729A) {
-		AST_G729ACapability *g729aCap;
-		AST_G729Capability *g729Cap;
-		lastcap = endPoint->SetCapability(0, 0, g729aCap = new AST_G729ACapability);
-		lastcap = endPoint->SetCapability(0, 0, g729Cap = new AST_G729Capability);
-	}
-	
-	if (cap & AST_FORMAT_G723_1) {
-		H323_G7231Capability *g7231Cap;
-		lastcap = endPoint->SetCapability(0, 0, g7231Cap = new H323_G7231Capability);
-	} 
-#if 0
-	if (cap & AST_FORMAT_GSM) {
-		H323_GSM0610Capability *gsmCap;
-	    	lastcap = endPoint->SetCapability(0, 0, gsmCap = new H323_GSM0610Capability);
-	    	gsmCap->SetTxFramesInPacket(gsmFrames);
-	} 
-#endif
-	if (cap & AST_FORMAT_ULAW) {
-		H323_G711Capability *g711uCap;
-	    	lastcap = endPoint->SetCapability(0, 0, g711uCap = new H323_G711Capability(H323_G711Capability::muLaw));
-		g711uCap->SetTxFramesInPacket(g711Frames);
-	} 
+	conn->SetCapabilities(cap, dtmfMode);
+	conn->Unlock();
 
-	if (cap & AST_FORMAT_ALAW) {
-		H323_G711Capability *g711aCap;
-		lastcap = endPoint->SetCapability(0, 0, g711aCap = new H323_G711Capability(H323_G711Capability::ALaw));
-		g711aCap->SetTxFramesInPacket(g711Frames);
-	}
-
-	lastcap++;
-	lastcap = endPoint->SetCapability(0, lastcap, new H323_UserInputCapability(H323_UserInputCapability::HookFlashH245));
-
-	lastcap++;
-	mode = dtmfMode;
-	if (dtmfMode == H323_DTMF_INBAND) {
-		endPoint->SetCapability(0, lastcap, new H323_UserInputCapability(H323_UserInputCapability::SignalToneH245));
-		endPoint->SetSendUserInputMode(H323Connection::SendUserInputAsTone);
-	} else {
-		endPoint->SetCapability(0, lastcap, new H323_UserInputCapability(H323_UserInputCapability::SignalToneRFC2833));
-		endPoint->SetSendUserInputMode(H323Connection::SendUserInputAsInlineRFC2833);
-	}
-
-	if (h323debug) {
-		cout <<  "Allowed Codecs:\n\t" << setprecision(2) << endPoint->GetCapabilities() << endl;
-	}
 	return 0;
 }
 

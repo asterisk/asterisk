@@ -169,6 +169,9 @@ extern rfc2833_cb on_set_rfc2833_payload;
 typedef void (*hangup_cb)(unsigned, const char *, int);
 extern hangup_cb on_hangup;
 
+typedef void (*setcapabilities_cb)(unsigned, const char *);
+extern setcapabilities_cb on_setcapabilities;
+
 /* debug flag */
 extern int h323debug;
 
@@ -202,8 +205,9 @@ extern "C" {
  				    answer_call_cb,
 				    progress_cb,
 				    rfc2833_cb,
-				    hangup_cb);
-	int h323_set_capability(int, int);
+				    hangup_cb,
+				    setcapabilities_cb);
+	int h323_set_capabilities(const char *, int, int);
 	int h323_set_alias(struct oh323_alias *);
 	int h323_set_gk(int, char *, char *);
 	void h323_set_id(char *);

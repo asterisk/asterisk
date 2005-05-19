@@ -128,6 +128,7 @@ class MyH323EndPoint : public H323EndPoint {
 	PCLASSINFO(MyH323EndPoint, H323EndPoint);
 
 	public:
+	MyH323EndPoint();
 	int MakeCall(const PString &, PString &, unsigned int *, call_options_t *opts);
 	BOOL ClearCall(const PString &, H323Connection::CallEndReason reason);
 	BOOL ClearCall(const PString &);
@@ -137,7 +138,6 @@ class MyH323EndPoint : public H323EndPoint {
 	void OnConnectionCleared(H323Connection &, const PString &);
 	H323Connection * CreateConnection(unsigned, void *);
 	void SendUserTone(const PString &, char);
-	H323Capabilities GetCapabilities(void);
 	BOOL OnConnectionForwarded(H323Connection &, const PString &, const H323SignalPDU &);
 	BOOL ForwardConnection(H323Connection &, const PString &, const H323SignalPDU &);
     	void SetEndpointTypeInfo( H225_EndpointType & info ) const;
@@ -173,6 +173,8 @@ class MyH323Connection : public H323Connection {
 	void OnUserInputString(const PString &value);
 	BOOL OnReceivedProgress(const H323SignalPDU &);
 	void OnSendCapabilitySet(H245_TerminalCapabilitySet &);
+	void OnSetLocalCapabilities();
+	void SetCapabilities(int, int);
 	BOOL OnReceivedCapabilitySet(const H323Capabilities &, const H245_MultiplexCapability *,
 				     H245_TerminalCapabilitySetReject &);
 	void SetCause(int _cause) { cause = _cause; };

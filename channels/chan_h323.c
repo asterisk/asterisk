@@ -83,6 +83,7 @@ answer_call_cb on_answer_call;
 progress_cb on_progress;
 rfc2833_cb on_set_rfc2833_payload;
 hangup_cb on_hangup;
+setcapabilities_cb on_setcapabilities;
 
 /* global debug flag */
 int h323debug;
@@ -1014,9 +1015,7 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 	else
 		memcpy(&pvt->options, &global_options, sizeof(pvt->options));
 
-	/* pass on our capabilites to the H.323 stack */
 	ast_mutex_lock(&caplock);
-	h323_set_capability(pvt->capability, pvt->dtmfmode);
 	/* Generate unique channel identifier */
 	snprintf(tmp1, sizeof(tmp1)-1, "%s-%u", host, ++unique);
 	tmp1[sizeof(tmp1)-1] = '\0';
@@ -1509,6 +1508,26 @@ void set_dtmf_payload(unsigned call_reference, const char *token, int payload)
 	ast_mutex_unlock(&pvt->lock);
 	if (h323debug)
 		ast_log(LOG_DEBUG, "DTMF payload on %s set to %d\n", token, payload);
+}
+
+static void set_local_capabilities(unsigned call_reference, const char *token)
+{
+	struct oh323_pvt *pvt;
+	int capability, dtmfmode;
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Setting capabilities for connection %s\n", token);
+
+	pvt = find_call_locked(call_reference, token);
+	if (!pvt)
+		return;
+	capability = pvt->capability;
+	dtmfmode = pvt->dtmfmode;
+	ast_mutex_unlock(&pvt->lock);
+	h323_set_capabilities(token, capability, dtmfmode);
+
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Capabilities for connection %s is set\n", token);
 }
 
 static void *do_monitor(void *data)
@@ -2160,14 +2179,6 @@ int reload_config(void)
 		alias = alias->next;
 	}
 
-	/* Add our capabilities */
-	ast_mutex_lock(&caplock);
-	if (h323_set_capability(capability, dtmfmode)) {
-		ast_log(LOG_ERROR, "Capabilities failure, this is bad.\n");
-		ast_mutex_unlock(&caplock);
-		return -1;
-	}
-	ast_mutex_unlock(&caplock);
 	return 0;
 }
 
@@ -2383,7 +2394,8 @@ int load_module()
 						answer_call,
 						progress,
 						set_dtmf_payload,
-						hangup_connection);
+						hangup_connection,
+						set_local_capabilities);
 		/* start the h.323 listener */
 		if (h323_start_listener(h323_signalling_port, bindaddr)) {
 			ast_log(LOG_ERROR, "Unable to create H323 listener.\n");
