@@ -103,6 +103,13 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; from rising to silly values in extreme situations; you'll hear
 ; SOMETHING, even though it will be jittery.
 ;
+; resyncthreshold: when the jitterbuffer notices a significant change in delay
+; that continues over a few frames, it will resync, assuming that the change in
+; delay was caused by a timestamping mix-up. The threshold for noticing a change
+; in delay is measured as twice the measured jitter plus this resync threshold.
+; Resycning can be disabled by setting this parameter to -1.
+; [This option presently applies only to the new jitterbuffer implementation]
+;
 ; maxexcessbuffer: If conditions improve after a period of high jitter,
 ; the jitter buffer can end up bigger than necessary.  If it ends up
 ; more than "maxexcessbuffer" bigger than needed, Asterisk will start
@@ -124,7 +131,8 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 jitterbuffer=no
 forcejitterbuffer=no
 ;dropcount=2
-;maxjitterbuffer=500
+;maxjitterbuffer=1000
+;resyncthreshold=1000
 ;maxexcessbuffer=80
 ;minexcessbuffer=10
 ;jittershrinkrate=1

@@ -106,14 +106,37 @@ static int longcmp(const void *a, const void *b)
 }
 #endif
 
-static void history_put(jitterbuf *jb, long ts, long now) 
+static int history_put(jitterbuf *jb, long ts, long now, long ms) 
 {
-	long delay = now - ts;
+	long delay = now - (ts - jb->info.resync_offset);
+	long threshold = 2 * jb->info.jitter + jb->info.resync_threshold;
 	long kicked;
 
 	/* don't add special/negative times to history */
 	if (ts <= 0) 
-		return;
+		return 0;
+
+	/* check for drastic change in delay */
+	if (jb->info.resync_threshold != -1) {
+		if (abs(delay - jb->info.last_delay) > threshold) {
+			jb->info.cnt_delay_discont++;
+			if (jb->info.cnt_delay_discont > 3) {
+				/* resync the jitterbuffer */
+				jb->info.cnt_delay_discont = 0;
+				jb->hist_ptr = 0;
+				jb->hist_maxbuf_valid = 0;
+
+				jb_warn("Resyncing the jb. last_delay %ld, this delay %ld, threshold %ld, new offset %ld\n", jb->info.last_delay, delay, threshold, ts - now);
+				jb->info.resync_offset = ts - now;
+				jb->info.last_delay = 0; /* after resync, frame is right on time */
+			} else {
+				return -1;
+			}
+		} else {
+			jb->info.last_delay = delay;
+			jb->info.cnt_delay_discont = 0;
+		}
+	}
 
 	kicked = jb->history[jb->hist_ptr & JB_HISTORY_SZ];
 
@@ -125,7 +148,7 @@ static void history_put(jitterbuf *jb, long ts, long now)
 	 * We do a number of comparisons, but it's probably still worthwhile, because it will usually
 	 * succeed, and should be a lot faster than going through all 500 packets in history */
 	if (!jb->hist_maxbuf_valid)
-		return;
+		return 0;
 
 	/* don't do this until we've filled history 
 	 * (reduces some edge cases below) */
@@ -149,13 +172,13 @@ static void history_put(jitterbuf *jb, long ts, long now)
 
 	/* if we got here, we don't need to invalidate, 'cause this delay didn't 
 	 * affect things */
-	return;
+	return 0;
 	/* end optimization */
 
 
 invalidate:
 	jb->hist_maxbuf_valid = 0;
-	return;
+	return 0;
 }
 
 static void history_calc_maxbuf(jitterbuf *jb) 
@@ -281,6 +304,7 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 {
 	jb_frame *frame;
 	jb_frame *p;
+	long resync_ts = ts - jb->info.resync_offset;
 
 	frame = jb->free;
 	if (frame) {
@@ -297,7 +321,7 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 	jb->info.frames_cur++;
 
 	frame->data = data;
-	frame->ts = ts;
+	frame->ts = resync_ts;
 	frame->ms = ms;
 	frame->type = type;
 
@@ -310,7 +334,7 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 		jb->frames = frame;
 		frame->next = frame;
 		frame->prev = frame;
-	} else if (ts < jb->frames->ts) {
+	} else if (resync_ts < jb->frames->ts) {
 		frame->next = jb->frames;
 		frame->prev = jb->frames->prev;
 
@@ -325,9 +349,9 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 		p = jb->frames;
 
 		/* frame is out of order */
-		if (ts < p->prev->ts) jb->info.frames_ooo++;
+		if (resync_ts < p->prev->ts) jb->info.frames_ooo++;
 
-		while (ts < p->prev->ts && p->prev != jb->frames) 
+		while (resync_ts < p->prev->ts && p->prev != jb->frames) 
 			p = p->prev;
 
 		frame->next = p;
@@ -474,7 +498,8 @@ int jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now)
 	if (type == JB_TYPE_VOICE) {
 		/* presently, I'm only adding VOICE frames to history and drift calculations; mostly because with the
 		 * IAX integrations, I'm sending retransmitted control frames with their awkward timestamps through */
-		history_put(jb,ts,now);
+		if (history_put(jb,ts,now,ms))
+			return JB_DROP;
 	}
 
 	queue_put(jb,data,type,ms,ts);
@@ -750,6 +775,7 @@ int jb_setinfo(jitterbuf *jb, jb_info *settings)
 	/* take selected settings from the struct */
 
 	jb->info.max_jitterbuf = settings->max_jitterbuf;
+ 	jb->info.resync_threshold = settings->resync_threshold;
 
 	return JB_OK;
 }

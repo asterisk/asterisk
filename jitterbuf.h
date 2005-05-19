@@ -67,9 +67,13 @@ typedef struct jb_info {
 	long last_voice_ms;	/* the duration of the last voice frame */
 	long silence_begin_ts;	/* the time of the last CNG frame, when in silence */
 	long last_adjustment;   /* the time of the last adjustment */
+ 	long last_delay;        /* the last now added to history */
+ 	long cnt_delay_discont;	/* the count of discontinuous delays */
+ 	long resync_offset;     /* the amount to offset ts to support resyncs */
 
 	/* settings */
 	long max_jitterbuf;	/* defines a hard clamp to use in setting the jitter buffer delay */
+ 	long resync_threshold;  /* the jb will resync when delay increases to (2 * jitter) + this param */
 } jb_info;
 
 typedef struct jb_frame {

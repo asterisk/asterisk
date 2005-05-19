@@ -129,6 +129,9 @@ static int lagrq_time = 10;
 static int maxtrunkcall = TRUNK_CALL_START;
 static int maxnontrunkcall = 1;
 static int maxjitterbuffer=1000;
+#ifdef NEWJB
+static int resyncthreshold=1000;
+#endif
 static int jittershrinkrate=2;
 static int trunkfreq = 20;
 static int send_trunktimestamps = 1;
@@ -859,6 +862,7 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 			tmp->jb = jb_new();
 			tmp->jbid = -1;
 			jbinfo.max_jitterbuf = maxjitterbuffer;
+			jbinfo.resync_threshold = resyncthreshold;
 			jb_setinfo(tmp->jb,&jbinfo);
 		}
 #endif
@@ -2216,10 +2220,10 @@ static int get_from_jb(void *p) {
  * make preprocessor swiss-cheese out of this one.  I'm not sure which is less revolting.. */
 static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int updatehistory, int fromtrunk)
 {
-	int x;
 #ifdef NEWJB
 	int type, len;
 #else
+	int x;
 	int ms;
 	int delay;
 	unsigned int orig_ts;
@@ -2242,6 +2246,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	unwrap_timestamp(fr);
 
 	if (updatehistory) {
+#ifndef NEWJB
 
 		/* Attempt to spot a change of timebase on timestamps coming from the other side
 		   We detect by noticing a jump in consecutive timestamps that can't reasonably be explained
@@ -2263,7 +2268,6 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 				iaxs[fr->callno]->last = 0;
 			/* should we also empty history? */
 		}
-#ifndef NEWJB
 		/* ms is a measure of the "lateness" of the frame relative to the "reference"
 		   frame we received.  (initially the very first, but also see code just above here).
 		   Understand that "ms" can easily be -ve if lag improves since the reference frame.
@@ -2386,8 +2390,9 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	if(jb_put(iaxs[fr->callno]->jb, fr, type, len, fr->ts,
 	     calc_rxstamp(iaxs[fr->callno],fr->ts)) == JB_DROP) {
 		iax2_frame_free(fr);
+	} else {
+		update_jbsched(iaxs[fr->callno]);
 	}
-	update_jbsched(iaxs[fr->callno]);
 #else
 	/* Just for reference, keep the "jitter" value, the difference between the
 	   earliest and the latest. */
@@ -8411,6 +8416,10 @@ static int set_config(char *config_file, int reload)
 		}
 		else if (!strcasecmp(v->name, "maxjitterbuffer")) 
 			maxjitterbuffer = atoi(v->value);
+#ifdef NEWJB
+		else if (!strcasecmp(v->name, "resyncthreshold")) 
+			resyncthreshold = atoi(v->value);
+#endif
 		else if (!strcasecmp(v->name, "jittershrinkrate")) 
 			jittershrinkrate = atoi(v->value);
 		else if (!strcasecmp(v->name, "maxexcessbuffer")) 
