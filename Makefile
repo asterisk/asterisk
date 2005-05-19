@@ -357,22 +357,25 @@ ast_expr.a: $(FLEXOBJS)
 	ar r $@ $(FLEXOBJS)
 	ranlib $@
 
+ifeq ($(BISONVER_GE_1_85),false)
 .y.c:
-	@if (($(BISONVER_GE_1_85) = false)); then \
-		echo ================================================================================= ;\
-		echo NOTE: You may have trouble if you do not have bison-1.85 or higher installed! ;\
-		echo NOTE: You can pick up a copy at: http://ftp.gnu.org/ or its mirrors ;\
-		echo NOTE: You have: $(BISONVER) ;\
-		echo ================================================================================; \
-	fi
+	@echo "=================================================================================" ;\
+	echo "NOTE: You may have trouble if you do not have bison-1.85 or higher installed!" ;\
+	echo "NOTE: You can pick up a copy at: http://ftp.gnu.org/ or its mirrors" ;\
+	echo "NOTE: You have: $(BISONVER)" ;\
+	echo "================================================================================" ;\
 	bison -v -d --name-prefix=ast_yy $< -o $@
+else
+.y.c:
+	bison -v -d --name-prefix=ast_yy $< -o $@
+endif
 
 ast_expr.o:: ast_expr.c
-	@echo ================================================================================= ;\
-	echo NOTE: Using older version of expression parser. To use the newer version, ;\
-	echo NOTE: upgrade to flex 2.5.31 or higher, which can be found at ;\
-	echo NOTE: http://sourceforge.net/project/showfiles.php?group_id=72099 ;\
-	echo ================================================================================= ;\
+	@echo "=================================================================================" ;\
+	echo "NOTE: Using older version of expression parser. To use the newer version," ;\
+	echo "NOTE: upgrade to flex 2.5.31 or higher, which can be found at" ;\
+	echo "NOTE: http://sourceforge.net/project/showfiles.php?group_id=72099" ;\
+	echo "=================================================================================" ;\
 
 ast_expr.o:: ast_expr.c
 

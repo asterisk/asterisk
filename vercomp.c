@@ -3,7 +3,7 @@
  *
  * A simple program version comparison tool.
  * 
- * Copyright (C) 2005, 'murf'.
+ * Copyright (C) 2005, Steven Michael Murphy (murf at e-tools dot com).
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
