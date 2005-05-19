@@ -10023,14 +10023,14 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	struct ast_ha *oldha = NULL;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
+	struct ast_flags userflags = {(0)};
+	struct ast_flags mask = {(0)};
+
 
 	user = (struct sip_user *)malloc(sizeof(struct sip_user));
 	if (!user) {
 		return NULL;
 	}
-	struct ast_flags userflags = {(0)};
-	struct ast_flags mask = {(0)};
-
 	memset(user, 0, sizeof(struct sip_user));
 	suserobjs++;
 	ASTOBJ_INIT(user);
@@ -10170,6 +10170,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	time_t regseconds;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
+	struct ast_flags peerflags = {(0)};
+	struct ast_flags mask = {(0)};
+
 
 	if (!realtime)
 		/* Note we do NOT use find_peer here, to avoid realtime recursion */
@@ -10196,9 +10199,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	/* Note that our peer HAS had its reference count incrased */
 	if (!peer)
 		return NULL;
-
-	struct ast_flags peerflags = {(0)};
-	struct ast_flags mask = {(0)};
 
 	peer->lastmsgssent = -1;
 	if (!found) {
