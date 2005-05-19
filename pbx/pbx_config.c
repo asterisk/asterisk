@@ -1619,7 +1619,7 @@ static int pbx_load_module(void)
 	struct ast_variable *v;
 	char *cxt, *ext, *pri, *appl, *data, *tc, *cidmatch;
 	struct ast_context *con;
-	char *start, *end;
+	char *end;
 	char *label;
 	char realvalue[256];
 	int lastpri = -2;
@@ -1656,7 +1656,7 @@ static int pbx_load_module(void)
 						char *stringp=NULL;
 						int ipri = -2;
 						char realext[256]="";
-						char *plus;
+						char *plus, *firstp, *firstc;
 						tc = strdup(v->value);
 						if(tc!=NULL){
 							stringp=tc;
@@ -1711,25 +1711,28 @@ static int pbx_load_module(void)
 							appl = stringp;
 							if (!appl)
 								appl="";
-							if (!(start = strchr(appl, '('))) {
-								if (stringp)
-									appl = strsep(&stringp, ",");
-								else
-									appl = "";
-							}
-							if (start && (end = strrchr(appl, ')'))) {
-								*start = *end = '\0';
-								data = start + 1;
-								process_quotes_and_slashes(data, ',', '|');
-							} else if (stringp!=NULL && *stringp=='"') {
-								stringp++;
-								data = strsep(&stringp, "\"");
-								stringp++;
+							/* Find the first occurrence of either '(' or ',' */
+							firstc = strchr(appl, ',');
+							firstp = strchr(appl, '(');
+							if (firstc && ((!firstp) || (firstc < firstp))) {
+								/* comma found, no parenthesis */
+								/* or both found, but comma found first */
+								appl = strsep(&stringp, ",");
+								data = stringp;
+							} else if ((!firstc) && (!firstp)) {
+								/* Neither found */
+								data = "";
 							} else {
-								if (stringp)
-									data = strsep(&stringp, ",");
-								else
-									data = "";
+								/* Final remaining case is parenthesis found first */
+								appl = strsep(&stringp, "(");
+								data = stringp;
+								end = strrchr(data, ')');
+								if ((end = strrchr(data, ')'))) {
+									*end = '\0';
+								} else {
+									ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
+								}
+								process_quotes_and_slashes(data, ',', '|');
 							}
 
 							if (!data)
