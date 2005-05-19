@@ -9329,7 +9329,9 @@ int unload_module()
         ast_mutex_destroy(&userl.lock);
         ast_mutex_destroy(&peerl.lock);
         ast_mutex_destroy(&regl.lock);
-		
+	
+	close(sipsock);	
+	
 	return 0;
 }
 
