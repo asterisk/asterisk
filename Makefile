@@ -20,6 +20,7 @@ OPTIONS=
 # CROSS_COMPILE_BIN=/opt/montavista/pro/devkit/arm/xscale_be/bin/
 # CROSS_COMPILE_TARGET=/opt/montavista/pro/devkit/arm/xscale_be/target
 CC=$(CROSS_COMPILE)gcc
+HOST_CC=gcc
 # CROSS_ARCH=Linux
 # CROSS_PROC=arm
 # SUB_PROC=xscale # or maverick
@@ -259,20 +260,10 @@ LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local
 endif
 LIBS+=-lssl
 
-#FLEXVER_GT_2_5_31=$(shell ./vercomp.sh flex \>= 2.5.31)
-#BISONVER=$(shell bison --version | grep \^bison | egrep -o '[0-9]+\.[-0-9.]+[a-z]?' )
-#BISONVERGE_85=$(shell ./vercomp.sh bison \>= 1.85 )
-
-ifeq (${FLEXVER_GT_2_5_31},true)
-FLEXOBJS=ast_expr2.o ast_expr2f.o
-else
-FLEXOBJS=ast_expr.o
-endif
-
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
-	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o ${FLEXOBJS}  \
+	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o config_old.o plc.o jitterbuf.o dnsmgr.o
@@ -336,38 +327,54 @@ ifneq ($(wildcard .tags-depend),)
 include .tags-depend
 endif
 
-.PHONY: _version
+.PHONY: _version ast_expr
 
 _version: 
 	if [ -d CVS ] && [ ! -f .version ]; then echo $(ASTERISKVERSION) > .version; fi 
 
 .version: _version
 
+vercomp: vercomp.c
+	$(HOST_CC) -o $@ $<
+
+ast_expr: vercomp
+	$(MAKE) ast_expr.a
+
+ifeq ($(MAKECMDGOALS),ast_expr.a)
+FLEXVER_GT_2_5_31=$(shell ./vercomp flex \>= 2.5.31)
+BISONVER=$(shell bison --version | grep \^bison | sed 's/.* \([0-9]\+\.[-0-9.]\+[a-z]\?\)/\1/' )
+BISONVER_GE_1_85=$(shell ./vercomp bison \>= 1.85 )
+endif
+
+ifeq ($(FLEXVER_GT_2_5_31),true)
+FLEXOBJS=ast_expr2.o ast_expr2f.o
+else
+FLEXOBJS=ast_expr.o
+endif
+
+ast_expr.a: $(FLEXOBJS)
+	@rm -f $@
+	ar r $@ $(FLEXOBJS)
+	ranlib $@
+
 .y.c:
-#	@if (($(BISONVERGE_85) = false)); then \
-#		echo ================================================================================= ;\
-#		echo NOTE: you may have trouble if you do not have bison-1.85 or higher installed! ;\
-#		echo NOTE: you can pick up a copy at: http://ftp.gnu.org/ or its mirrors ;\
-#		echo NOTE: You Have: $(BISONVER) ;\
-#		echo ================================================================================; \
-#	else \
-#		echo EXCELLENT-- You have Bison version $(BISONVER), this should work just fine...;\
-#	fi
+	@if (($(BISONVER_GE_1_85) = false)); then \
+		echo ================================================================================= ;\
+		echo NOTE: You may have trouble if you do not have bison-1.85 or higher installed! ;\
+		echo NOTE: You can pick up a copy at: http://ftp.gnu.org/ or its mirrors ;\
+		echo NOTE: You have: $(BISONVER) ;\
+		echo ================================================================================; \
+	fi
 	bison -v -d --name-prefix=ast_yy $< -o $@
 
-ast_expr.o: ast_expr.c
-#	@echo NOTE:
-#	@echo NOTE:
-#	@echo NOTE: Using older version of ast_expr. To use the newer version,
-#	@echo NOTE: Upgrade to flex 2.5.31 or higher, which can be found at http://
-#	@echo NOTE:  http://sourceforge.net/project/showfiles.php?group_id=72099
-#	@echo NOTE:
-#	@echo NOTE:
-	$(CC) -c $(CPPFLAGS) $(CFLAGS) ast_expr.c
+ast_expr.o:: ast_expr.c
+	@echo ================================================================================= ;\
+	echo NOTE: Using older version of expression parser. To use the newer version, ;\
+	echo NOTE: upgrade to flex 2.5.31 or higher, which can be found at ;\
+	echo NOTE: http://sourceforge.net/project/showfiles.php?group_id=72099 ;\
+	echo ================================================================================= ;\
 
-ast_expr2.o: ast_expr2.c
-
-ast_expr2f.o: ast_expr2f.c
+ast_expr.o:: ast_expr.c
 
 ast_expr2f.c: ast_expr2.fl
 	flex ast_expr2.fl
@@ -421,8 +428,8 @@ stdtime/libtime.a: FORCE
 		exit 1; \
 	fi
 
-asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
-	$(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
+asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS) ast_expr
+	$(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) ast_expr.a $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
 
 muted: muted.o
 	$(CC) -o muted muted.o
@@ -434,7 +441,9 @@ clean:
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
 	rm -f *.o *.so asterisk .depend
 	rm -f build.h 
-	rm -f ast_expr.c
+	rm -f ast_expr.c ast_expr.h ast_expr.output
+	rm -f ast_expr2.c ast_expr2f.c ast_expr2.h ast_expr2.output
+	rm -f ast_expr.a vercomp
 	rm -f .version
 	rm -f .tags-depend .tags-sources tags TAGS
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
