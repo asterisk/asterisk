@@ -640,7 +640,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			ast_waitstream(chan, "");
 		goto outrun;
 	}
-	conf->users++;
 
 	if (confflags & CONFFLAG_MARKEDUSER)
 		conf->markedusers++;
@@ -686,6 +685,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		snprintf(user->namerecloc,sizeof(user->namerecloc),"%s/meetme/meetme-username-%s-%d",ast_config_AST_SPOOL_DIR,conf->confno,user->user_no);
 		ast_record_review(chan,"vm-rec-name",user->namerecloc, 10,"sln", &duration, NULL);
 	}
+
+	conf->users++;
 
 	if (!(confflags & CONFFLAG_QUIET)) {
 		if (conf->users == 1 && !(confflags & CONFFLAG_WAITMARKED))
