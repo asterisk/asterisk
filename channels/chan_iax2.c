@@ -8980,6 +8980,82 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	return -1;
 }
 
+static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *ret = NULL;
+	struct iax2_peer *peer;
+	char *peername, *colname;
+	char iabuf[INET_ADDRSTRLEN];
+
+	if (!(peername = ast_strdupa(data))) {
+		ast_log(LOG_ERROR, "Memory Error!\n");
+		return ret;
+	}
+
+	if ((colname = strchr(peername, ':'))) {
+		*colname = '\0';
+		colname++;
+	} else {
+		colname = "ip";
+	}
+	if (!(peer = find_peer(peername, 1)))
+		return ret;
+
+	if (!strcasecmp(colname, "ip")) {
+		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
+	} else  if (!strcasecmp(colname, "mailbox")) {
+		ast_copy_string(buf, peer->mailbox, len);
+	} else  if (!strcasecmp(colname, "context")) {
+		ast_copy_string(buf, peer->context, len);
+	} else  if (!strcasecmp(colname, "expire")) {
+		snprintf(buf, len, "%d", peer->expire);
+	} else  if (!strcasecmp(colname, "dynamic")) {
+		ast_copy_string(buf, (ast_test_flag(peer, IAX_DYNAMIC) ? "yes" : "no"), len);
+	} else  if (!strcasecmp(colname, "callerid_name")) {
+		ast_copy_string(buf, peer->cid_name, len);
+	} else  if (!strcasecmp(colname, "callerid_num")) {
+		ast_copy_string(buf, peer->cid_num, len);
+	} else  if (!strcasecmp(colname, "codecs")) {
+		ast_getformatname_multiple(buf, len -1, peer->capability);
+	} else  if (!strncasecmp(colname, "codec[", 6)) {
+		char *codecnum, *ptr;
+		int index = 0, codec = 0;
+		
+		codecnum = strchr(colname, '[');
+		*codecnum = '\0';
+		codecnum++;
+		if ((ptr = strchr(codecnum, ']'))) {
+			*ptr = '\0';
+		}
+		index = atoi(codecnum);
+		if((codec = ast_codec_pref_index(&peer->prefs, index))) {
+			ast_copy_string(buf, ast_getformatname(codec), len);
+		}
+	}
+	ret = buf;
+
+	return ret;
+}
+
+struct ast_custom_function iaxpeer_function = {
+    .name = "IAXPEER",
+    .synopsis = "Gets IAX peer information",
+    .syntax = "IAXPEER(<peername>[:item])",
+    .read = function_iaxpeer,
+	.desc = "Valid items are:\n"
+	"- ip (default)          The IP address.\n"
+	"- mailbox               The configured mailbox.\n"
+	"- context               The configured context.\n"
+	"- expire                The epoch time of the next expire.\n"
+	"- dynamic               Is it dynamic? (yes/no).\n"
+	"- callerid_name         The configured Caller ID name.\n"
+	"- callerid_num          The configured Caller ID number.\n"
+	"- codecs                The configured codecs.\n"
+	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
+	"\n"
+};
+
+
 /*--- iax2_devicestate: Part of the device state notification system ---*/
 static int iax2_devicestate(void *data) 
 {
@@ -9091,6 +9167,7 @@ int unload_module()
 	ast_mutex_destroy(&userl.lock);
 	ast_mutex_destroy(&peerl.lock);
 	ast_mutex_destroy(&waresl.lock);
+	ast_custom_function_unregister(&iaxpeer_function);
 	return __unload_module();
 }
 
@@ -9106,6 +9183,8 @@ int load_module(void)
 	
 	struct ast_netsock *ns;
 	struct sockaddr_in sin;
+	
+	ast_custom_function_register(&iaxpeer_function);
 
 	iax_set_output(iax_debug_output);
 	iax_set_error(iax_error_output);

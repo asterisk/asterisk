@@ -34,7 +34,7 @@ When reading integer numeric input with scanf (or variants), do _NOT_ use '%i'
 unless specifically want to allow non-base-10 input; '%d' is always a better
 choice, since it will not silently turn numbers with leading zeros into base-8.
 
-Roughly, Asterisk coding guidelines are generally equivalent to the 
+Roughly, Asterisk code formatting guidelines are generally equivalent to the 
 following:
 
 # indent -i4 -ts4 -br -brs -cdw -cli0 -ce -nbfda -npcs -npsl foo.c
@@ -87,7 +87,30 @@ for (x=0;x<5;x++) {
 	}
 }
 
+Don't build code like this:
 
+if (foo) {
+   .... 50 lines of code ...
+} else {
+  result = 0;
+  return;
+}
+
+Instead, try to minimize the number of lines of code that need to be
+indented, by only indenting the shortest case of the 'if'
+statement, like so:
+
+if !(foo) {
+  result = 0;
+  return;
+}
+
+.... 50 lines of code ....
+
+When this technique is used properly, it makes functions much easier to read
+and follow, especially those with more than one or two 'setup' operations
+that must succeed for the rest of the function to be able to execute.
+       
 Make sure you never use an uninitialized variable.  The compiler will 
 usually warn you if you do so.
 
