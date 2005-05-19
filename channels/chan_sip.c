@@ -1546,6 +1546,12 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 		else
 			r->noncodeccapability &= ~AST_RTP_DTMF;
 		ast_copy_string(r->context, p->context,sizeof(r->context));
+		if (!p->rtptimeout)
+			r->rtptimeout = p->rtptimeout;
+		if (!p->rtpholdtimeout)
+			r->rtpholdtimeout = p->rtpholdtimeout;
+		if (!p->rtpkeepalive)
+			r->rtpkeepalive = p->rtpkeepalive;
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 		    (!p->maxms || ((p->lastms >= 0)  && (p->lastms <= p->maxms)))) {
 			if (p->addr.sin_addr.s_addr) {
