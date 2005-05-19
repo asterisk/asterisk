@@ -42,6 +42,7 @@ extern "C" {
 #define JB_NOFRAME	2
 #define JB_INTERP	3
 #define JB_DROP		4
+#define JB_SCHED	5
 
 /* frame types */
 #define JB_TYPE_CONTROL	0
@@ -112,7 +113,11 @@ void			jb_destroy(jitterbuf *jb);
 void			jb_reset(jitterbuf *jb);
 
 /* queue a frame data=frame data, timings (in ms): ms=length of frame (for voice), ts=ts (sender's time) 
- * now=now (in receiver's time)*/
+ * now=now (in receiver's time) return value is one of 
+ * JB_OK: Frame added. Last call to jb_next() still valid
+ * JB_DROP: Drop this frame immediately
+ * JB_SCHED: Frame added. Call jb_next() to get a new time for the next frame
+ */
 int 			jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now);
 
 /* get a frame for time now (receiver's time)  return value is one of

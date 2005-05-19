@@ -2222,6 +2222,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 {
 #ifdef NEWJB
 	int type, len;
+	int ret;
 #else
 	int x;
 	int ms;
@@ -2387,10 +2388,11 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 
 	/* insert into jitterbuffer */
 	/* TODO: Perhaps we could act immediately if it's not droppable and late */
-	if(jb_put(iaxs[fr->callno]->jb, fr, type, len, fr->ts,
-	     calc_rxstamp(iaxs[fr->callno],fr->ts)) == JB_DROP) {
+	ret = jb_put(iaxs[fr->callno]->jb, fr, type, len, fr->ts,
+			calc_rxstamp(iaxs[fr->callno],fr->ts));
+	if (ret == JB_DROP) {
 		iax2_frame_free(fr);
-	} else {
+	} else if (ret == JB_SCHED) {
 		update_jbsched(iaxs[fr->callno]);
 	}
 #else

@@ -300,10 +300,12 @@ static void history_get(jitterbuf *jb)
 	jb->info.jitter = jitter;
 }
 
-static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts) 
+/* returns 1 if frame was inserted into head of queue, 0 otherwise */
+static int queue_put(jitterbuf *jb, void *data, int type, long ms, long ts) 
 {
 	jb_frame *frame;
 	jb_frame *p;
+	int head = 0;
 	long resync_ts = ts - jb->info.resync_offset;
 
 	frame = jb->free;
@@ -315,7 +317,7 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 
 	if (!frame) {
 		jb_err("cannot allocate frame\n");
-		return;
+		return 0;
 	}
 
 	jb->info.frames_cur++;
@@ -334,6 +336,7 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 		jb->frames = frame;
 		frame->next = frame;
 		frame->prev = frame;
+		head = 1;
 	} else if (resync_ts < jb->frames->ts) {
 		frame->next = jb->frames;
 		frame->prev = jb->frames->prev;
@@ -345,6 +348,7 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 		jb->info.frames_ooo++;
 
 		jb->frames = frame;
+		head = 1;
 	} else { 
 		p = jb->frames;
 
@@ -360,6 +364,7 @@ static void queue_put(jitterbuf *jb, void *data, int type, long ms, long ts)
 		frame->next->prev = frame;
 		frame->prev->next = frame;
 	}
+	return head;
 }
 
 static long queue_next(jitterbuf *jb) 
@@ -502,8 +507,10 @@ int jb_put(jitterbuf *jb, void *data, int type, long ms, long ts, long now)
 			return JB_DROP;
 	}
 
-	queue_put(jb,data,type,ms,ts);
-
+	/* if put into head of queue, caller needs to reschedule */
+	if (queue_put(jb,data,type,ms,ts)) {
+		return JB_SCHED;
+	}
 	return JB_OK;
 }
 
