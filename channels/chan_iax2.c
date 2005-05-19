@@ -375,7 +375,7 @@ static struct iax2_registry *registrations;
 #define DEFAULT_TRUNKDATA	640 * 10		/* 40ms, uncompressed linear * 10 channels */
 #define MAX_TRUNKDATA		640 * 200		/* 40ms, uncompressed linear * 200 channels */
 
-#define MAX_TIMESTAMP_SKEW	640
+#define MAX_TIMESTAMP_SKEW	160			/* maximum difference between actual and predicted ts for sending */
 
 /* If consecutive voice frame timestamps jump by more than this many milliseconds, then jitter buffer will resync */
 #define TS_GAP_FOR_JB_RESYNC	5000
@@ -3476,6 +3476,11 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* next multiple of frame size (so our
 				* silent periods are multiples of
 				* frame size too) */
+
+				if (abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW)
+					ast_log(LOG_DEBUG,"predicted timestamp skew (%u) > max (%u), using real ts instead.",
+						abs(ms - p->nextpred), MAX_TIMESTAMP_SKEW);
+
 				if (f->samples >= 8) /* check to make sure we dont core dump */
 				{
 					int diff = ms % (f->samples / 8);
