@@ -33,17 +33,33 @@
 static char base64[64];
 static char b2a[256];
 
-char *ast_strip(char *buf)
+char *ast_strip(char *s)
 {
-	char *start;
-	/* Strip off trailing whitespace, returns, etc */
-	while (!ast_strlen_zero(buf) && (buf[strlen(buf)-1]<33))
-		buf[strlen(buf)-1] = '\0';
-	start = buf;
-	/* Strip off leading whitespace, returns, etc */
-	while (*start && (*start < 33))
-		*start++ = '\0';
-	return start;
+	char *e;
+
+	while (*s && (*s < 33)) s++;
+	e = s + strlen(s) - 1;
+	while ((e > s) && (*e < 33)) e--;
+	*++e = '\0';
+
+	return s;
+} 
+
+char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
+{
+	char *e;
+	char *q;
+
+	s = ast_strip(s);
+	if ((q = strchr(beg_quotes, *s))) {
+		e = s + strlen(s) - 1;
+		if (*e == *(end_quotes + (q - beg_quotes))) {
+			s++;
+			*e = '\0';
+		}
+	}
+
+	return s;
 }
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)

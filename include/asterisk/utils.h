@@ -130,7 +130,43 @@ struct ast_hostent {
 	char buf[1024];
 };
 
-extern char *ast_strip(char *buf);
+/*!
+  \brief Strip leading/trailing whitespace from a string.
+  \param s The string to be stripped (will be modified).
+  \return The stripped string.
+
+  This functions strips all leading and trailing whitespace
+  characters from the input string, and returns a pointer to
+  the resulting string. The string is modified in place.
+*/
+char *ast_strip(char *s);
+
+/*!
+  \brief Strip leading/trailing whitespace and quotes from a string.
+  \param s The string to be stripped (will be modified).
+  \param beg_quotes The list of possible beginning quote characters.
+  \param end_quotes The list of matching ending quote characters.
+  \return The stripped string.
+
+  This functions strips all leading and trailing whitespace
+  characters from the input string, and returns a pointer to
+  the resulting string. The string is modified in place.
+
+  It can also remove beginning and ending quote (or quote-like)
+  characters, in matching pairs. If the first character of the
+  string matches any character in beg_quotes, and the last
+  character of the string is the matching character in
+  end_quotes, then they are removed from the string.
+
+  Examples:
+  \code
+  ast_strip_quoted(buf, "\"", "\"");
+  ast_strip_quoted(buf, "'", "'");
+  ast_strip_quoted(buf, "[{(", "]})");
+  \endcode
+ */
+char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
+
 extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 /* ast_md5_hash: Produces MD5 hash based on input string */
 extern void ast_md5_hash(char *output, char *input);

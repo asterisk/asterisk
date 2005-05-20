@@ -55,6 +55,12 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 		} 
 
 		if (expr && iftrue) {
+			expr = ast_strip_quoted(expr, "\"", "\"");
+			iftrue = ast_strip_quoted(iftrue, "\"", "\"");
+
+			if (iffalse) {
+				iffalse = ast_strip_quoted(iffalse, "\"", "\"");
+			}
 			ret = ast_true(expr) ? iftrue : iffalse;
 			if (ret) {
 				ast_copy_string(buf, ret, len);
