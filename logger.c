@@ -671,11 +671,12 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 	va_list ap;
 	
-	/* skip this message unless:
-	   - option_verbose is greater than zero _or_
-	   - option_debug is greater than zero _or_
-	   - the message is of level LOG_DEBUG (which allows for 'level zero' LOG_DEBUG messages)
-	 */
+	/* don't display LOG_DEBUG messages unless option_verbose _or_ option_debug
+	   are non-zero; LOG_DEBUG messages can still be displayed if option_debug
+	   is zero, if option_verbose is non-zero (this allows for 'level zero'
+	   LOG_DEBUG messages to be displayed, if the logmask on any channel
+	   allows it)
+	*/
 	if (!option_verbose && !option_debug && (level == __LOG_DEBUG)) {
 		return;
 	}
