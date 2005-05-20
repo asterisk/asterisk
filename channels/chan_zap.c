@@ -360,6 +360,7 @@ static int r2prot = -1;
 #define PVT_TO_CHANNEL(p) (((p)->prioffset) | ((p)->logicalspan << 8))
 #define PRI_CHANNEL(p) ((p) & 0xff)
 #define PRI_SPAN(p) (((p) >> 8) & 0xff)
+#define PRI_EXPLICIT(p) (((p) >> 16) & 0x01)
 
 struct zt_pri {
 	pthread_t master;						/* Thread of master */
@@ -2075,6 +2076,18 @@ static char *pri_order(int level)
 	default:
 		return "<Unknown>";
 	}		
+}
+
+/* Returns fd of the active dchan */
+int pri_active_dchan_fd(struct zt_pri *pri)
+{
+	int x = -1;
+
+	for (x = 0; x < NUM_DCHANS; x++)
+		if ((pri->dchans[x] == pri->pri))
+			break;
+
+	return pri->fds[x];
 }
 
 int pri_find_dchan(struct zt_pri *pri)
@@ -7316,10 +7329,17 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 {
 	int x;
 	int span;
+	int spanfd;
+	struct zt_params param;
 	int principle = -1;
 	span = PRI_SPAN(channel);
 	channel = PRI_CHANNEL(channel);
 	
+	if (!PRI_EXPLICIT(channel)) {
+		spanfd = pri_active_dchan_fd(pri);
+		span = ioctl(spanfd, ZT_GET_PARAMS, &param);
+	}
+
 	for (x=0;x<pri->numchans;x++) {
 		if (pri->pvts[x] && (pri->pvts[x]->prioffset == channel) && (pri->pvts[x]->logicalspan == span)) {
 			principle = x;
