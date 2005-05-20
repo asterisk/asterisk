@@ -58,14 +58,16 @@ endif
 depend: .depend
 
 .depend:
-	@if ! which mpg123 &>/dev/null ; then \
-		echo "*** You don't have mpg123 installed. You're going to need ***";\
-		echo "***       it if you want MusicOnHold                      ***";\
-	elif ! mpg123 --longhelp 2>&1 | grep .59r &>/dev/null ; then \
+	@if [ x`which mpg123 2>/dev/null | grep -v '^no'` != x ] ; then \
+	  if mpg123 --longhelp 2>&1 | grep -q .59r 2>&1 >/dev/null ; then echo ; else \
 			echo "*************************************************************";\
 			echo "*** You have the WRONG version of mpg123... you need .59r ***";\
 			echo "*** Use 'make mpg123' to get the right verison            ***";\
 			echo "*************************************************************";\
+	  fi ;\
+	else \
+		echo "*** You don't have mpg123 installed. You're going to need ***";\
+		echo "***       it if you want MusicOnHold                      ***";\
  	fi
 	../mkdep $(CFLAGS) `ls *.c`	
 

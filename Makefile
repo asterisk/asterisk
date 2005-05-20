@@ -512,7 +512,7 @@ update:
 		if [ -f patches/.applied ]; then \
 			patches=`cat patches/.applied`; \
 		fi; \
-		if ! [ -z "$$patches" ]; then \
+		if [ ! -z "$$patches" ]; then \
 			for x in $$patches; do \
 				echo "Unapplying $$x..."; \
 				patch -R -p0 < patches/$$x; \
@@ -527,7 +527,7 @@ update:
 			grep ^C update.out | cut -d' ' -f2- ; \
 		fi ; \
 		rm -f update.out; \
-		if ! [ -z "$$patches" ]; then \
+		if [ ! -z "$$patches" ]; then \
 			for x in $$patches; do \
 				if [ -f patches/$$x ]; then \
 					echo "Applying patch $$x..."; \
@@ -638,7 +638,7 @@ upgrade: all bininstall
 adsi: all
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	for x in configs/*.adsi; do \
-		if ! [ -f $(DESTDIR)$(ASTETCDIRX)/$$x ]; then \
+		if [ ! -f $(DESTDIR)$(ASTETCDIRX)/$$x ]; then \
 			install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x` ; \
 		fi ; \
 	done
@@ -806,7 +806,7 @@ env:
 # We can avoid this by making noclean
 
 cleantest:
-	if ! cmp -s .cleancount .lastclean ; then \
+	if cmp -s .cleancount .lastclean ; then echo ; else \
 		$(MAKE) clean; cp -f .cleancount .lastclean;\
 	fi
 
@@ -840,7 +840,7 @@ apply:
 unapply: 
 	@if [ -z "$(PATCH)" ]; then \
 		echo "Usage: make PATCH=<patchname> unapply"; \
-	elif ! grep -q ^$(PATCH)$$ patches/.applied 2>/dev/null; then \
+	elif grep -v -q ^$(PATCH)$$ patches/.applied 2>/dev/null; then \
 		echo "Patch $(PATCH) is not applied"; \
 	elif [ -f "patches/$(PATCH)" ]; then \
 		echo "Un-applying patch $(PATCH)"; \
