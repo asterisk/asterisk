@@ -36,11 +36,14 @@ typedef struct call_options {
 	int				noFastStart;
 	int				noH245Tunneling;
 	int				noSilenceSuppression;
-/*	unsigned int	port; */
 	int				progress_setup;
 	int				progress_alert;
 	int				progress_audio;
 	int				dtmfcodec;
+	int				dtmfmode;
+	int				capability;
+	int				bridge;
+	int				nat;
 } call_options_t;
 
 /* structure to hold the valid asterisk users */
@@ -51,14 +54,10 @@ struct oh323_user {
 	char callerid[80];
 	char accountcode[20];
 	int amaflags;
-	int capability;
-	int bridge;
-	int nat;
-	int dtmfmode;
 	int host;
-	call_options_t options;
-	struct ast_ha *ha;
 	struct sockaddr_in addr;
+	struct ast_ha *ha;
+	call_options_t options;
 	struct oh323_user *next;
 };
 
@@ -67,10 +66,6 @@ struct oh323_user {
 struct oh323_peer {
 	char name[80];
 	char mailbox[80];
-	int capability;
-	int bridge;
-	int nat;
-	int dtmfmode;
 	int delme;
 	struct sockaddr_in addr;
 	struct ast_ha *ha;
