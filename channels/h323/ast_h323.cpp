@@ -957,16 +957,13 @@ H323Channel * MyH323Connection::CreateRealTimeLogicalChannel(const H323Capabilit
   */
 BOOL MyH323Connection::OnStartLogicalChannel(H323Channel & channel)
 {    
-	if (h323debug) {
-		cout << "\t-- Started logical channel: ";	
-		cout << ((channel.GetDirection()==H323Channel::IsTransmitter)?"sending ":((channel.GetDirection()==H323Channel::IsReceiver)?"receiving ":" ")); 
-		cout << (const char *)(channel.GetCapability()).GetFormatName() << endl;
-	}
-
 	/* Increase the count of channels we have open */
 	channelsOpen++;
 
 	if (h323debug) {
+		cout << "\t-- Started logical channel: ";
+		cout << ((channel.GetDirection()==H323Channel::IsTransmitter)?"sending ":((channel.GetDirection()==H323Channel::IsReceiver)?"receiving ":" "));
+		cout << (const char *)(channel.GetCapability()).GetFormatName() << endl;
 		cout <<  "\t\t-- channelsOpen = " << channelsOpen << endl;
 	}
 	return connectionState != ShuttingDownConnection;
@@ -1208,14 +1205,18 @@ int h323_set_capabilities(const char *token, int cap, int dtmfMode)
 	MyH323Connection *conn;
 
 	if (!h323_end_point_exist()) {
-		cout << " ERROR: [h323_set_capablity] No Endpoint, this is bad" << endl;
+		cout << " ERROR: [h323_set_capablities] No Endpoint, this is bad" << endl;
+		return 1;
+	}
+	if (!token || !*token) {
+		cout << " ERROR: [h323_set_capabilities] Invalid call token specified." << endl;
 		return 1;
 	}
 
 	PString myToken(token);
 	conn = (MyH323Connection *)endPoint->FindConnectionWithLock(myToken);
 	if (!conn) {
-		cout << " ERROR: [h323_set_capability] Unable to find connection " << token << endl;
+		cout << " ERROR: [h323_set_capabilities] Unable to find connection " << token << endl;
 		return 1;
 	}
 	conn->SetCapabilities(cap, dtmfMode);
@@ -1274,7 +1275,7 @@ int h323_set_alias(struct oh323_alias *alias)
 	if (strlen(alias->prefix)) {
 		p = prefix = strdup(alias->prefix);
 		while((num = strsep(&p, ",")) != (char *)NULL) {
-	        cout << "== Adding Prefix \"" << num << "\" to endpoint" << endl;
+			cout << "== Adding Prefix \"" << num << "\" to endpoint" << endl;
 			endPoint->SupportedPrefixes += PString(num);
 			endPoint->SetGateway();
 		}
