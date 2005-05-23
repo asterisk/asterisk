@@ -7337,7 +7337,9 @@ static int pri_find_principle(struct zt_pri *pri, int channel)
 	
 	if (!PRI_EXPLICIT(channel)) {
 		spanfd = pri_active_dchan_fd(pri);
-		span = ioctl(spanfd, ZT_GET_PARAMS, &param);
+		if (ioctl(spanfd, ZT_GET_PARAMS, &param))
+			return -1;
+		span = param.spanno - 1;
 	}
 
 	for (x=0;x<pri->numchans;x++) {
