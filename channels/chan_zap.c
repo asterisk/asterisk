@@ -7480,7 +7480,7 @@ static void *do_idle_thread(void *vchan)
 	return NULL;
 }
 
-static void zt_pri_message(char *s)
+static void zt_pri_message(struct pri *pri, char *s)
 {
 	ast_verbose("%s", s);
 
@@ -7492,7 +7492,10 @@ static void zt_pri_message(char *s)
 	ast_mutex_unlock(&pridebugfdlock);
 }
 
-static void zt_pri_error(char *s)
+#ifndef PRI_NEW_SET_API
+#error "Upgrade your libpri"
+#endif
+static void zt_pri_error(struct pri *pri, char *s)
 {
 	ast_log(LOG_WARNING, "PRI: %s", s);
 
