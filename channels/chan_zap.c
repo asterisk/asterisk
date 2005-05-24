@@ -7325,21 +7325,22 @@ static struct zt_pvt *pri_find_crv(struct zt_pri *pri, int crv)
 }
 
 
-static int pri_find_principle(struct zt_pri *pri, int channel)
+static int pri_find_principle(struct zt_pri *pri, int prichannel)
 {
 	int x;
-	int span;
+	int span = PRI_SPAN(prichannel);
 	int spanfd;
-	struct zt_params param;
+	ZT_PARAMS param;
 	int principle = -1;
-	span = PRI_SPAN(channel);
-	channel = PRI_CHANNEL(channel);
+	int channel = PRI_CHANNEL(prichannel);
 	
-	if (!PRI_EXPLICIT(channel)) {
+	/* For implicit channel selection, the channel specified is on the
+	 * span with the active d channel */
+	if (!PRI_EXPLICIT(prichannel)) {
 		spanfd = pri_active_dchan_fd(pri);
 		if (ioctl(spanfd, ZT_GET_PARAMS, &param))
 			return -1;
-		span = param.spanno - 1;
+		span = pris[param.spanno - 1].prilogicalspan;
 	}
 
 	for (x=0;x<pri->numchans;x++) {
