@@ -1065,9 +1065,14 @@ static int handle_help(int fd, int argc, char *argv[]) {
 		return RESULT_SHOWUSAGE;
 	if (argc > 1) {
 		e = find_cli(argv + 1, 1);
-		if (e) 
-			ast_cli(fd, e->usage);
-		else {
+		if (e) {
+			if (e->usage)
+				ast_cli(fd, e->usage);
+			else {
+				join(fullcmd, sizeof(fullcmd), argv+1);
+				ast_cli(fd, "No help text available for '%s'.\n", fullcmd);
+			}
+		} else {
 			if (find_cli(argv + 1, -1)) {
 				return help_workhorse(fd, argv + 1);
 			} else {
