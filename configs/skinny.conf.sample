@@ -14,6 +14,8 @@ keepAlive = 120
 ; Typical config for 12SP+
 ;[florian]
 ;device=SEP00D0BA847E6B
+;model=12SP		; Specific model of device, for button templates 
+			; Valid models: 12SP, 30VIP, 7910, 7920 (so far)
 ;version=P002G204 	; Thanks critch
 ;context=did
 ;line => 120		; Dial(Skinny/120@florian)
@@ -21,6 +23,7 @@ keepAlive = 120
 
 ; Typical config for a 7910
 ;[duba]  		; Device name
+;model=7910		; Device model
 ;device=SEP0007EB463101	; Offical identifier
 ;version=P002F202	; Firmware version identifier
 ;host=192.168.1.144	; 
