@@ -357,7 +357,7 @@ static int r2prot = -1;
 
 #ifdef ZAPATA_PRI
 
-#define PVT_TO_CHANNEL(p) (((p)->prioffset) | ((p)->logicalspan << 8))
+#define PVT_TO_CHANNEL(p) (((p)->prioffset) | ((p)->logicalspan << 8) | (p->pri->mastertrunkgroup ? 0x10000 : 0))
 #define PRI_CHANNEL(p) ((p) & 0xff)
 #define PRI_SPAN(p) (((p) >> 8) & 0xff)
 #define PRI_EXPLICIT(p) (((p) >> 16) & 0x01)
@@ -2083,9 +2083,10 @@ int pri_active_dchan_fd(struct zt_pri *pri)
 {
 	int x = -1;
 
-	for (x = 0; x < NUM_DCHANS; x++)
+	for (x = 0; x < NUM_DCHANS; x++) {
 		if ((pri->dchans[x] == pri->pri))
 			break;
+	}
 
 	return pri->fds[x];
 }
@@ -7325,18 +7326,18 @@ static struct zt_pvt *pri_find_crv(struct zt_pri *pri, int crv)
 }
 
 
-static int pri_find_principle(struct zt_pri *pri, int prichannel)
+static int pri_find_principle(struct zt_pri *pri, int channel)
 {
 	int x;
-	int span = PRI_SPAN(prichannel);
+	int span = PRI_SPAN(channel);
 	int spanfd;
 	ZT_PARAMS param;
 	int principle = -1;
-	int channel = PRI_CHANNEL(prichannel);
-	
-	/* For implicit channel selection, the channel specified is on the
-	 * span with the active d channel */
-	if (!PRI_EXPLICIT(prichannel)) {
+	int explicit = PRI_EXPLICIT(channel);
+	span = PRI_SPAN(channel);
+	channel = PRI_CHANNEL(channel);
+
+	if (!explicit) {
 		spanfd = pri_active_dchan_fd(pri);
 		if (ioctl(spanfd, ZT_GET_PARAMS, &param))
 			return -1;
@@ -7483,9 +7484,33 @@ static void *do_idle_thread(void *vchan)
 	return NULL;
 }
 
+#ifndef PRI_NEW_SET_API
+#error "Upgrade your libpri"
+#endif
 static void zt_pri_message(struct pri *pri, char *s)
 {
-	ast_verbose("%s", s);
+	int x, y;
+	int dchan = -1, span = -1;
+
+	if (pri) {
+		for (x = 0; x < NUM_SPANS; x++) {
+			for (y = 0; y < NUM_DCHANS; y++) {
+				if (pris[x].dchans[y] == pri) {
+					dchan = y;
+					break;
+				}
+			}
+			if (dchan >= 0) {
+				span = x;
+				break;
+			}
+		}
+		if ((dchan >= 0) && (span >= 0))
+			ast_verbose("[Span %d D-Channel %d]%s", span, dchan, s);
+		else
+			ast_verbose("PRI debug error: could not find pri associated it with debug message output\n");
+	} else
+		ast_verbose("%s", s);
 
 	ast_mutex_lock(&pridebugfdlock);
 
@@ -7495,12 +7520,30 @@ static void zt_pri_message(struct pri *pri, char *s)
 	ast_mutex_unlock(&pridebugfdlock);
 }
 
-#ifndef PRI_NEW_SET_API
-#error "Upgrade your libpri"
-#endif
 static void zt_pri_error(struct pri *pri, char *s)
 {
-	ast_log(LOG_WARNING, "PRI: %s", s);
+	int x, y;
+	int dchan = -1, span = -1;
+
+	if (pri) {
+		for (x = 0; x < NUM_SPANS; x++) {
+			for (y = 0; y < NUM_DCHANS; y++) {
+				if (pris[x].dchans[y] == pri) {
+					dchan = y;
+					break;
+				}
+			}
+			if (dchan >= 0) {
+				span = x;
+				break;
+			}
+		}
+		if ((dchan >= 0) && (span >= 0))
+			ast_log(LOG_WARNING, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
+		else
+			ast_verbose("PRI debug error: could not find pri associated it with debug message output\n");
+	} else
+		ast_log(LOG_WARNING, "%s", s);
 
 	ast_mutex_lock(&pridebugfdlock);
 
@@ -7788,7 +7831,7 @@ static void *pri_dchannel(void *vpri)
 				if (option_verbose > 1) 
 					ast_verbose(VERBOSE_PREFIX_2 "%s D-Channel on span %d up\n", pri_order(which), pri->span);
 				pri->dchanavail[which] |= DCHAN_UP;
-				pri_find_dchan(pri);
+				if (!pri->pri) pri_find_dchan(pri);
 
 				/* Note presense of D-channel */
 				time(&pri->lastreset);
@@ -8060,10 +8103,10 @@ static void *pri_dchannel(void *vpri)
 						res = set_actual_gain(pri->pvts[chanpos]->subs[SUB_REAL].zfd, 0, pri->pvts[chanpos]->rxgain, pri->pvts[chanpos]->txgain, law);
 						if (res < 0)
 							ast_log(LOG_WARNING, "Unable to set gains on channel %d\n", pri->pvts[chanpos]->channel);
-						if (e->ring.complete || !pri->overlapdial) {
+						if (e->ring.complete || !pri->overlapdial)
 							/* Just announce proceeding */
 							pri_proceeding(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 0);
-						} else  {
+						else  {
 							if (pri->switchtype != PRI_SWITCH_GR303_TMC) 
 								pri_need_more_info(pri->pri, e->ring.call, PVT_TO_CHANNEL(pri->pvts[chanpos]), 1);
 							else
@@ -10416,7 +10459,7 @@ static int setup_zap(int reload)
 				if (start_pri(pris + x)) {
 					ast_log(LOG_ERROR, "Unable to start D-channel on span %d\n", x + 1);
 					return -1;
-				} else if (option_verbose > 1) 
+				} else if (option_verbose > 1)
 					ast_verbose(VERBOSE_PREFIX_2 "Starting D-Channel on span %d\n", x + 1);
 			}
 		}
