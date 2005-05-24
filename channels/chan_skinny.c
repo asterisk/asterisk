@@ -276,113 +276,108 @@ typedef struct server_res_message {
 } server_res_message;
 
 #define BUTTON_TEMPLATE_RES_MESSAGE 0x0097
-/* 
-   Define the template for a 30VIP phone, this is the older Selsius systems
-   model that has 30 buttons for your button-pushing enjoyment. Each 
-   softbutton defition goes by a 'index' of a button followed by that buttons
-   assignment for example "\x01\x09" means Line 1, while "\x02\x09" means Line 2
-   comments on what each assignment means is below 
-*/
-static const char *thirtyvip_button_definition_hack = {
-	"\x01\x09"	/* Line 1 */
-	"\x02\x09"	/* Line 2 */
-	"\x03\x09"	/* Line 3 */
-	"\x04\x09"	/* Line 4 */
-	"\x01\x7e"
-	"\x01\x01"	/* Redial */
-	"\x00\xff"	
-	"\x01\x02"	/* Speeddial 1 */
-	"\x02\x02"	/* Speeddial 2 */
-	"\x03\x02"	/* Speeddial 3 */
-	"\x04\x02"	/* Speeddial 4 */
-	"\x05\x02"	/* Speeddial 5 */
-	"\x06\x02"	/* Speeddial 6 */
-	"\x01\x0f"	/* Voicemail */
-	"\x01\x05"	/* Forward all */
-	"\x01\x7d"	/* Conference */
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x07\x02"	/* Speeddial 7 */
-	"\x08\x02"	/* Speeddial 8 */
-	"\x09\x02"	/* Speeddial 9 */
-	"\x0A\x02"	/* Speeddial 10 */
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-};
-
-/* 
-   Now, define the buttons on the 12SP, you 79XX series folks, you get this 
-   too, as I don't know how the buttons are laid out, and I don't care as I 
-   don't have one. Code your own damn buttons or send me a 7960
-*/
-
-static const char *twelvesp_button_definition_hack = {
-	"\x01\x09"	/* Line 1 */
-	"\x01\x09"	/* Line 2 */	
-	"\x01\x02"	/* Speeddial 1 */
-	"\x02\x02"	/* Speeddial 2 */
-	"\x03\x02"	/* Speeddial 3 */
-	"\x04\x02"	/* Speeddial 4 */
-	"\x01\x0f"	/* Voicemail */
-	"\x05\x02"	/* Speeddial 5 */
-	"\x06\x02"	/* Speeddial 6 */
-	"\x07\x02"	/* Speeddial 7 */
-	"\x08\x02"	/* Speeddial 8 */
-	"\x09\x02"	/* Speeddial 9 */
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-	"\x00\xff"
-};
 
 typedef struct buttondefinition {
 	UINT8 instanceNumber;
 	UINT8 buttonDefinition;
 } button_definition;
+
+#define STIMULUS_REDIAL 	0x01
+#define STIMULUS_SPEEDDIAL 	0x02
+#define STIMULUS_HOLD 		0x03
+#define STIMULUS_TRANSFER 	0x04
+#define STIMULUS_FORWARDALL 	0x05
+#define STIMULUS_FORWARDBUSY 	0x06
+#define STIMULUS_FORWARDNOANSWER 0x07
+#define STIMULUS_DISPLAY 	0x08
+#define STIMULUS_LINE 		0x09
+#define STIMULUS_VOICEMAIL 	0x0F
+#define STIMULUS_AUTOANSWER 	0x11
+#define STIMULUS_CONFERENCE 	0x7D
+#define STIMULUS_CALLPARK 	0x7E
+#define STIMULUS_CALLPICKUP 	0x7F
+#define STIMULUS_NONE	 	0xFF
+
+button_definition button_def_30vip[] = {
+	{ 1, STIMULUS_LINE },		/* Line 1 */
+	{ 2, STIMULUS_LINE },		/* Line 2 */
+	{ 3, STIMULUS_LINE },		/* Line 3 */
+	{ 4, STIMULUS_LINE },		/* Line 4 */
+	{ 1, STIMULUS_CALLPARK },	/* Call Park */
+	{ 0, STIMULUS_NONE },
+	{ 1, STIMULUS_SPEEDDIAL },	/* Speeddial 1 */
+	{ 2, STIMULUS_SPEEDDIAL },	/* Speeddial 2 */
+	{ 3, STIMULUS_SPEEDDIAL },	/* Speeddial 3 */
+	{ 4, STIMULUS_SPEEDDIAL },	/* Speeddial 4 */
+	{ 5, STIMULUS_SPEEDDIAL },	/* Speeddial 5 */
+	{ 6, STIMULUS_SPEEDDIAL },	/* Speeddial 6 */
+	{ 1, STIMULUS_VOICEMAIL },	/* Voicemail */
+	{ 1, STIMULUS_FORWARDALL },	/* Forward All */
+	{ 1, STIMULUS_CONFERENCE },	/* Conference */
+	{ 0, STIMULUS_NONE },
+	{ 0, STIMULUS_NONE },
+	{ 0, STIMULUS_NONE },
+	{ 0, STIMULUS_NONE },
+	{ 0, STIMULUS_NONE },
+	{ 7, STIMULUS_SPEEDDIAL },	/* Speeddial 7 */
+	{ 8, STIMULUS_SPEEDDIAL },	/* Speeddial 8 */
+	{ 9, STIMULUS_SPEEDDIAL },	/* Speeddial 9 */
+	{ 10, STIMULUS_SPEEDDIAL }	/* Speeddial 10 */
+};
+
+button_definition button_def_12sp[] = {
+	{ 1, STIMULUS_LINE },		/* Line 1 */
+	{ 1, STIMULUS_LINE },		/* Line 1 */
+	{ 1, STIMULUS_SPEEDDIAL },	/* Speeddial 1 */
+	{ 2, STIMULUS_SPEEDDIAL },	/* Speeddial 2 */
+	{ 3, STIMULUS_SPEEDDIAL },	/* Speeddial 3 */
+	{ 4, STIMULUS_SPEEDDIAL },	/* Speeddial 4 */
+	{ 1, STIMULUS_VOICEMAIL },	/* Voicemail */
+	{ 5, STIMULUS_SPEEDDIAL },	/* Speeddial 5 */
+	{ 6, STIMULUS_SPEEDDIAL },	/* Speeddial 6 */
+	{ 7, STIMULUS_SPEEDDIAL },	/* Speeddial 7 */
+	{ 8, STIMULUS_SPEEDDIAL },	/* Speeddial 8 */
+	{ 9, STIMULUS_SPEEDDIAL }	/* Speeddial 9 */
+};
+
+button_definition button_def_7910[] = {
+	{ 1, STIMULUS_LINE },		/* Line 1 */
+	{ 1, STIMULUS_HOLD },		/* Hold */
+	{ 1, STIMULUS_TRANSFER }, 	
+	{ 1, STIMULUS_DISPLAY },
+	{ 1, STIMULUS_VOICEMAIL },
+	{ 1, STIMULUS_CONFERENCE },
+	{ 1, STIMULUS_FORWARDALL },
+	{ 1, STIMULUS_SPEEDDIAL },	/* Speeddial 1 */
+	{ 2, STIMULUS_SPEEDDIAL },	/* Speeddial 2 */
+	{ 1, STIMULUS_REDIAL }
+};
+
+button_definition button_def_7920[] = {
+	{ 1, STIMULUS_LINE },		/* Line 1 */
+	{ 2, STIMULUS_LINE },		/* Line 2 */
+	{ 1, STIMULUS_SPEEDDIAL },	/* Speeddial 1 */
+	{ 2, STIMULUS_SPEEDDIAL },	/* Speeddial 2 */
+	{ 3, STIMULUS_SPEEDDIAL },	/* Speeddial 3 */
+	{ 4, STIMULUS_SPEEDDIAL }	/* Speeddial 4 */
+};
+
+button_definition button_def_none = { 0, STIMULUS_NONE };
+
+typedef struct button_defs {
+	char *type;
+	int num_buttons;
+	button_definition *button_def;
+} button_defs_t;
+
+button_defs_t button_defs[] = {
+	{ "12SP", 	12,	button_def_12sp }, /* First one is used if 
+						      there's no match */
+	{ "30VIP", 	26,	button_def_30vip },
+	{ "7910",	10,	button_def_7910 },
+	{ "7920",	6,	button_def_7920 },
+	{ NULL,		0,	NULL }
+};
 
 typedef struct button_template_res_message {
 	UINT32 buttonOffset;
@@ -415,39 +410,32 @@ typedef struct close_recieve_channel_message {
 } close_recieve_channel_message;
 
 #define	SOFT_KEY_TEMPLATE_RES_MESSAGE 0x0108
-static const char *soft_key_template_hack = {
-	"\x52\x65\x64\x69\x61\x6c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-	"\x01\x00\x00\x00\x4e\x65\x77\x43\x61\x6c\6c\\x00\x00\x00\x00\x00"
-	"\x00\x00\x00\x00\x02\x00\x00\x00\x48\x6f\x6c\x64\x00\x00\x00\x00"
-	"\x00\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x54\x72\x6e\x73"
-	"\x66\x65\x72\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04\x00\x00\x00"
-	"\x43\x46\x77\x64\x41\x6c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05"
-	"\x00\x00\x00\x43\x46\x77\x64\x20\x42\x75\x73\x79\x00\x00\x00\x00"
-	"\x00\x00\x00\x06\x00\x00\x00\x43\x46\x77\x64\x4e\x6f\x41\x6e\x73"
-	"\x77\x65\x72\x00\x00\x00\x00\x07\x00\x00\x00\x3c\x3c\x00\x00\x00"
-	"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x08\x00\x00\x00\x45"
-	"\x6e\x64\x43\x61\x6c\x6c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x09"
-	"\x00\x00\x00\x52\x65\x73\x75\x6d\x65\x00\x00\x00\x00\x00\x00\x00"
-	"\x00\x00\x0a\x00\x00\x00\x41\x6e\x73\x77\x65\x72\x00\x00\x00\x00"
-	"\x00\x00\x00\x00\x00\x00\x0b\x00\x00\x00\x49\x6e\x66\x6f\x00\x00"
-	"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0c\x00\x00\x00\x43\x6f"
-	"\x6e\x66\x72\x6e\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0d\x00\x00"
-	"\x00\x50\x61\x72\x6b\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-	"\x00\x0e\x00\x00\x00\x4a\x6f\x69\x6e\x00\x00\x00\x00\x00\x00\x00"
-	"\x00\x00\x00\x00\x0f\x00\x00\x00\x4d\x65\x65\x74\x4d\x65\x00\x00"
-	"\x00\x00\x00\x00\x00\x00\x00\x00\x10\x00\x00\x00\x50\x69\x63\x6b"
-	"\x55\x70\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x11\x00\x00\x00"
-	"\x47\x50\x69\x63\x6b\x55\x70\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-	"\x12\x00\x00\x00\x52\x6d\x4c\x73\x43\x00\x00\x00\x00\x00\x00\x00"
-	"\x00\x00\x00\x13\x00\x00\x00\x42\x61\x72\x67\x65\x00\x00\x00\x00"
-	"\x00\x00\x00\x00\x00\x00\x00\x14\x00\x00\x00\x42\x61\x72\x67\x65"
-	"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x15\x00\x00\x00"
-};
 
 typedef struct soft_key_template_definition {
 	char softKeyLabel[16];
 	int softKeyEvent;
 } soft_key_template_definition;
+
+soft_key_template_definition soft_key_template_default[] = {
+	{ "Redial",	 1 },
+	{ "NewCall",	 2 },
+	{ "Hold",	 3 },
+	{ "Trnsfer",	 4 },
+	{ "CFwdAll",	 5 },
+	{ "CFwdBusy",	 6 },
+	{ "CFwdNoAnswer", 7 },
+	{ "<<",		 8 },
+	{ "EndCall",	 9 },
+	{ "Resume",	10 },
+	{ "Answer",	11 },
+	{ "Info",	12 },
+	{ "Confrn",	13 },
+	{ "Park",	14 },
+	{ "Join",	15 },
+	{ "MeetMe",	16 },
+	{ "PickUp",	17 },
+	{ "GPickUp",	18 }
+};
 
 typedef struct soft_key_template {
 	int softKeyOffset;
@@ -643,22 +631,6 @@ static int callnums = 1;
 
 #define TYPE_TRUNK 1
 #define TYPE_LINE 2
-
-#define STIMULUS_REDIAL 1
-#define STIMULUS_SPEEDDIAL 2
-#define STIMULUS_HOLD 3
-#define STIMULUS_TRANSFER 4
-#define STIMULUS_FORWARDALL 5
-#define STIMULUS_FORWARDBUSY 6
-#define STIMULUS_FORWARDNOANSWER 7
-#define STIMULUS_DISPLAY 8
-#define STIMULUS_LINE 9
-#define STIMULUS_VOICEMAIL 15
-#define STIMULUS_AUTOANSWER 17
-#define STIMULUS_CONFERENCE 125
-#define STIMULUS_CALLPARK 126
-#define STIMULUS_CALLPICKUP 127
-
 
 /* Skinny rtp stream modes. Do we really need this? */
 #define SKINNY_CX_SENDONLY 0
@@ -2077,6 +2049,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 	time_t timer;
 	struct tm *cmtime;
 	pthread_t t;
+	button_defs_t *b, *buse;
 	
 	if ( (!s->device) && (req->e != REGISTER_MESSAGE && req->e != ALARM_MESSAGE)) {
 		ast_log(LOG_WARNING, "Client sent message #%d without first registering.\n", req->e);
@@ -2261,44 +2234,45 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		if (skinnydebug) {
 			ast_verbose("Buttontemplate requested\n");
 		}
+
+		sub = find_subchannel_by_line(s->device->lines);
+
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->e = BUTTON_TEMPLATE_RES_MESSAGE;	
-		/* XXX Less of a hack, more of a kludge now */
-		sub = find_subchannel_by_line(s->device->lines);
 		req->len = sizeof(button_template_res_message)+4;
-		if (!strcmp(s->device->model,"30VIP")){
-			req->data.buttontemplate.buttonOffset = 0;
-			req->data.buttontemplate.buttonCount  = 30;
-			req->data.buttontemplate.totalButtonCount = 30;
-			memcpy(req->data.buttontemplate.definition,
-				thirtyvip_button_definition_hack, 
-				sizeof(req->data.buttontemplate.definition));
-			if(skinnydebug){			
-				ast_verbose("Sending 30VIP template to %s@%s (%s)\n",sub->parent->name, sub->parent->parent->name, s->device->model);
-			}
-		}else if(!strcmp(s->device->model,"12SP")){
-			req->data.buttontemplate.buttonOffset = 0;
-			req->data.buttontemplate.buttonCount  = 12;
-			req->data.buttontemplate.totalButtonCount = 12;
-			memcpy(req->data.buttontemplate.definition,
-				twelvesp_button_definition_hack, 
-				sizeof(req->data.buttontemplate.definition));
-			if(skinnydebug){			
-				ast_verbose("Sending 12SP template to %s@%s (%s)\n",sub->parent->name, sub->parent->parent->name, s->device->model);
-			}		
-		}else{
-			req->data.buttontemplate.buttonOffset = 0;
-			req->data.buttontemplate.buttonCount  = 12;
-			req->data.buttontemplate.totalButtonCount = 12;
-			memcpy(req->data.buttontemplate.definition,
-				twelvesp_button_definition_hack, 
-				sizeof(req->data.buttontemplate.definition));
-			if(skinnydebug){			
-				ast_verbose("Sending default template to %s@%s (%s)\n",sub->parent->name, sub->parent->parent->name, s->device->model);
-			}
 
+		/* Find a matching button definition, default to first in the
+		   list */
+		buse = button_defs;
+		for(b=button_defs; b->type; b++) {
+			if (!strcmp(s->device->model, b->type)) {
+				buse = b;
+			}
 		}
-		
+
+		req->data.buttontemplate.buttonOffset = 0;
+		req->data.buttontemplate.buttonCount  = buse->num_buttons;
+		req->data.buttontemplate.totalButtonCount = buse->num_buttons;
+		for (i=0; i<42; i++) {
+			if (i < buse->num_buttons) {
+				memcpy(&(req->data.buttontemplate.definition[i]),
+					&(buse->button_def[i]),
+					sizeof(button_definition));
+			} else {
+				memcpy(&(req->data.buttontemplate.definition[i]),
+					&(button_def_none),
+					sizeof(button_definition));
+			}
+		}
+
+		if(skinnydebug){			
+			ast_verbose("Sending %s template to %s@%s (%s)\n",
+						buse->type, 
+						sub->parent->name, 
+						sub->parent->parent->name, 
+						s->device->model);
+		}
+
 		transmit_response(s, req);
 		break;
 	case SOFT_KEY_SET_REQ_MESSAGE:
@@ -2325,12 +2299,11 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		req->len = sizeof(soft_key_template)+4;
 		req->e = SOFT_KEY_TEMPLATE_RES_MESSAGE;
 		req->data.softkeytemplate.softKeyOffset		= 0;
-		req->data.softkeytemplate.softKeyCount		= 21;
-		req->data.softkeytemplate.totalSoftKeyCount = 21; 
-		/* XXX Another wicked hack XXX */
+		req->data.softkeytemplate.softKeyCount		= sizeof(soft_key_template_default) / sizeof(soft_key_template_definition);
+		req->data.softkeytemplate.totalSoftKeyCount 	= sizeof(soft_key_template_default) / sizeof(soft_key_template_definition); 
 		memcpy(req->data.softkeytemplate.softKeyTemplateDefinition,
-			   soft_key_template_hack,
-			   sizeof(req->data.softkeytemplate.softKeyTemplateDefinition));
+			   soft_key_template_default,
+			   sizeof(soft_key_template_default));
 		transmit_response(s,req);
 		break;
 	case TIME_DATE_REQ_MESSAGE:
