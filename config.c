@@ -486,7 +486,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				/* #exec </path/to/executable>
 				   We create a tmp file, then we #include it, then we delete it. */
 				if (do_exec) { 
-					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%ld.%ld", time(NULL), pthread_self());
+					snprintf(exec_file, sizeof(exec_file), "/var/tmp/exec.%ld.%ld", time(NULL), (long)pthread_self());
 					snprintf(cmd, sizeof(cmd), "%s > %s 2>&1", cur, exec_file);
 					ast_safe_system(cmd);
 					cur = exec_file;

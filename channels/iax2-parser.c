@@ -119,7 +119,7 @@ static void dump_datetime(char *output, int maxlen, void *value, int len)
 		tm.tm_mday = (val >> 16) & 0x1f;
 		tm.tm_mon  = ((val >> 21) & 0x0f) - 1;
 		tm.tm_year = ((val >> 25) & 0x7f) + 100;
-		strftime(output, maxlen, "%F  %T", &tm); 
+		strftime(output, maxlen, "%Y-%m-%d  %T", &tm); 
 	} else
 		ast_copy_string(output, "Invalid DATETIME format!", maxlen);
 }

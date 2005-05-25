@@ -65,24 +65,19 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	file = tmp;
 
 	if ((skip=strchr(tmp,'|'))) {
-		*skip = '\0';
-		*skip++;
+		*skip++ = '\0';
 		fwd=strchr(skip,'|');
 		if (fwd) {
-			*fwd = '\0';
-			*fwd++;
+			*fwd++ = '\0';
 			rev = strchr(fwd,'|');
 			if (rev) {
-				*rev = '\0';
-				*rev++;
+				*rev++ = '\0';
 				stop = strchr(rev,'|');
 				if (stop) {
-					*stop = '\0';
-					*stop++;
+					*stop++ = '\0';
 					pause = strchr(stop,'|');
 					if (pause) {
-						*pause = '\0';
-						*pause++;
+						*pause++ = '\0';
 					}
 				}
 			}

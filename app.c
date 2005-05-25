@@ -271,7 +271,7 @@ int ast_dtmf_stream(struct ast_channel *chan,struct ast_channel *peer,char *digi
 	if (!res) {
 		res = ast_waitfor(chan,100);
 		if (res > -1) {
-			for (ptr=digits;*ptr;*ptr++) {
+			for (ptr=digits; *ptr; ptr++) {
 				if (*ptr == 'w') {
 					res = ast_safe_sleep(chan, 500);
 					if (res) 

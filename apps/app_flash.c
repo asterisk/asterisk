@@ -11,6 +11,9 @@
  * the GNU General Public License
  */
  
+#include <string.h>
+#include <errno.h>
+#include <stdlib.h>
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -26,9 +29,6 @@
 #else
 #include <zaptel.h>
 #endif /* __linux__ */
-#include <string.h>
-#include <errno.h>
-#include <stdlib.h>
 
 static char *tdesc = "Flash zap trunk application";
 

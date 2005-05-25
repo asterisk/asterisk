@@ -267,6 +267,8 @@ static struct ast_channel inuse = { "GR-303InUse" };
 #ifdef PRI_GETSET_TIMERS
 static int pritimers[PRI_MAX_TIMERS];
 #endif
+static int pridebugfd = -1;
+static char pridebugfilename[1024]="";
 #endif
 
 /* Wait up to 16 seconds for first digit (FXO logic) */
@@ -288,8 +290,6 @@ AST_MUTEX_DEFINE_STATIC(iflock);
 static int ifcount = 0;
 
 AST_MUTEX_DEFINE_STATIC(pridebugfdlock);
-static int pridebugfd = -1;
-static char pridebugfilename[1024]="";
 
 /* Whether we answer on a Polarity Switch event */
 static int answeronpolarityswitch = 0;
