@@ -29,7 +29,7 @@
 #include "asterisk/utils.h"
 
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
-char ast_default_accountcode[20] = "";
+char ast_default_accountcode[AST_MAX_ACCOUNT_CODE] = "";
 
 struct ast_cdr_beitem {
 	char name[20];

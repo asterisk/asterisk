@@ -278,7 +278,7 @@ struct ast_channel {
 	/*! Set BEFORE PBX is started to determine AMA flags */
 	int 	amaflags;			
 	/*! Account code for billing */
-	char 	accountcode[20];		
+	char 	accountcode[AST_MAX_ACCOUNT_CODE];		
 	/*! Call Detail Record */
 	struct ast_cdr *cdr;			
 	/*! Whether or not ADSI is detected on CPE */

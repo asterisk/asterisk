@@ -585,7 +585,7 @@ static int threewaycalling = 0;
 static int transfer = 0;
 static int cancallforward = 0;
 /* static int busycount = 3;*/
-static char accountcode[20] = "";
+static char accountcode[AST_MAX_ACCOUNT_CODE] = "";
 static char mailbox[AST_MAX_EXTENSION];
 static int amaflags = 0;
 static int callnums = 1;
@@ -704,7 +704,7 @@ struct skinny_line {
 	char name[80];
 	char label[42];					/* Label that shows next to the line buttons */
   	struct skinny_subchannel *sub;			/* pointer to our current connection, channel and stuff */
-	char accountcode[80];
+	char accountcode[AST_MAX_ACCOUNT_CODE];
 	char exten[AST_MAX_EXTENSION];			/* Extention where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];

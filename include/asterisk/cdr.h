@@ -35,6 +35,7 @@
 #define AST_CDR_DOCUMENTATION			(3)
 
 #define AST_MAX_USER_FIELD			256
+#define AST_MAX_ACCOUNT_CODE			20
 
 struct ast_channel;
 AST_LIST_HEAD(varshead,ast_var_t);
@@ -72,7 +73,7 @@ struct ast_cdr {
 	/*! What flags to use */
 	int amaflags;				
 	/*! What account number to use */
-	char accountcode[20];			
+	char accountcode[AST_MAX_ACCOUNT_CODE];			
 	/*! flags */
 	unsigned int flags;				
 	/* Unique Channel Identifier */
@@ -258,7 +259,7 @@ extern int ast_cdr_update(struct ast_channel *chan);
 
 extern int ast_default_amaflags;
 
-extern char ast_default_accountcode[20];
+extern char ast_default_accountcode[AST_MAX_ACCOUNT_CODE];
 
 extern struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
 

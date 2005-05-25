@@ -211,7 +211,7 @@ static int canreinvite = CANREINVITE;
 
 /*static int callprogress = 0;*/
 
-static char accountcode[20] = "";
+static char accountcode[AST_MAX_ACCOUNT_CODE] = "";
 
 static char mailbox[AST_MAX_EXTENSION];
 
@@ -361,7 +361,7 @@ struct mgcp_endpoint {
 	ast_mutex_t lock;
 	char name[80];
 	struct mgcp_subchannel *sub;		/* pointer to our current connection, channel and stuff */
-	char accountcode[20];
+	char accountcode[AST_MAX_ACCOUNT_CODE];
 	char exten[AST_MAX_EXTENSION];		/* Extention where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];

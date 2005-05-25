@@ -229,7 +229,7 @@ static int busycount = 3;
 
 static int callprogress = 0;
 
-static char accountcode[20] = "";
+static char accountcode[AST_MAX_ACCOUNT_CODE] = "";
 
 static char mailbox[AST_MAX_EXTENSION];
 
@@ -580,7 +580,7 @@ static struct zt_pvt {
 	int destroy;
 	int ignoredtmf;				
 	int inalarm;
-	char accountcode[20];		/* Account code */
+	char accountcode[AST_MAX_ACCOUNT_CODE];		/* Account code */
 	int amaflags;				/* AMA Flags */
 	char didtdd;				/* flag to say its done it once */
 	struct tdd_state *tdd;		/* TDD flag */

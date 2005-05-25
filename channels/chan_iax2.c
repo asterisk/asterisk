@@ -196,7 +196,7 @@ static int test_jit = 0;
 static int test_jitpct = 0;
 #endif /* IAXTESTS */
 
-static char accountcode[20];
+static char accountcode[AST_MAX_ACCOUNT_CODE];
 static int amaflags = 0;
 static int delayreject = 0;
 static int iax2_encryption = 0;
@@ -249,7 +249,7 @@ struct iax2_user {
 	char dbsecret[80];
 	int authmethods;
 	int encmethods;
-	char accountcode[20];
+	char accountcode[AST_MAX_ACCOUNT_CODE];
 	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
 	char language[MAX_LANGUAGE];
 	int amaflags;
@@ -544,7 +544,7 @@ struct chan_iax2_pvt {
 	int calling_tns;
 	int calling_pres;
 	char dproot[AST_MAX_EXTENSION];
-	char accountcode[20];
+	char accountcode[AST_MAX_ACCOUNT_CODE];
 	int amaflags;
 	struct iax2_dpcache *dpentries;
 	struct ast_variable *vars;

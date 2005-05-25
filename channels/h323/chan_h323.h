@@ -52,7 +52,7 @@ struct oh323_user {
 	char context[80];
 	char secret[80];
 	char callerid[80];
-	char accountcode[20];
+	char accountcode[AST_MAX_ACCOUNT_CODE];
 	int amaflags;
 	int host;
 	struct sockaddr_in addr;

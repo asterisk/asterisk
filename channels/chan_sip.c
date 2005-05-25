@@ -446,7 +446,7 @@ static struct sip_pvt {
 	char cid_name[256];			/* Caller*ID */
 	char via[256];				/* Via: header */
 	char fullcontact[128];			/* The Contact: that the UA registers with us */
-	char accountcode[20];			/* Account code */
+	char accountcode[AST_MAX_ACCOUNT_CODE];	/* Account code */
 	char our_contact[256];			/* Our contact header */
 	char realm[MAXHOSTNAMELEN];		/* Authorization realm */
 	char nonce[256];			/* Authorization nonce */
@@ -512,7 +512,7 @@ struct sip_user {
 	char context[AST_MAX_EXTENSION];	/* Default context for incoming calls */
 	char cid_num[80];		/* Caller ID num */
 	char cid_name[80];		/* Caller ID name */
-	char accountcode[20];		/* Account code */
+	char accountcode[AST_MAX_ACCOUNT_CODE];	/* Account code */
 	char language[MAX_LANGUAGE];	/* Default language for this user */
 	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
 	char useragent[256];		/* User agent in SIP request */
@@ -541,7 +541,7 @@ struct sip_peer {
 	struct sip_auth *auth;		/* Realm authentication list */
 	char context[AST_MAX_EXTENSION];	/* Default context for incoming calls */
 	char username[80];		/* Temporary username until registration */ 
-	char accountcode[20];		/* Account code */
+	char accountcode[AST_MAX_ACCOUNT_CODE];	/* Account code */
 	int amaflags;			/* AMA Flags (for billing) */
 	char tohost[MAXHOSTNAMELEN];	/* If not dynamic, IP address */
 	char regexten[AST_MAX_EXTENSION]; /* Extension to register (if regcontext is used) */
