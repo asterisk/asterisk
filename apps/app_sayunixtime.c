@@ -67,7 +67,9 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	gettimeofday(&tv,NULL);
 	unixtime = (time_t)tv.tv_sec;
 
-	if( !strcasecmp(chan->language, "de" ) ) {
+	if( !strcasecmp(chan->language, "da" ) ) {
+		format = "A dBY HMS";
+	} else if ( !strcasecmp(chan->language, "de" ) ) {
 		format = "A dBY HMS";
 	} else {
 		format = "ABdY 'digits/at' IMp";
