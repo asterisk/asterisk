@@ -7605,7 +7605,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 		if (create_addr(p, argv[i])) {
 			/* Maybe they're not registered, etc. */
 			sip_destroy(p);
-			ast_cli(fd, "Could not create address fo '%s'\n", argv[i]);
+			ast_cli(fd, "Could not create address for '%s'\n", argv[i]);
 			continue;
 		}
 
