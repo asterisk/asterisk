@@ -1305,8 +1305,6 @@ static void update_peer(struct sip_peer *p, int expiry)
 	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_RTNOUPDATE) && 
 		(ast_test_flag(p, SIP_REALTIME) || 
 		 ast_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))) {
-		if (p->expire == -1)
-			expiry = 0;	/* Unregister realtime peer */
 		realtime_update_peer(p->name, &p->addr, p->username, expiry);
 	}
 }
@@ -5145,7 +5143,8 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		p->expire = -1;
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
-	ast_db_put("SIP/Registry", p->name, data);
+	if (!ast_test_flag(p, SIP_REALTIME))
+		ast_db_put("SIP/Registry", p->name, data);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
 	if (inaddrcmp(&p->addr, &oldsin)) {
 		sip_poke_peer(p);
@@ -10419,7 +10418,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		}
 	}
 	ast_copy_flags(peer, &peerflags, mask.flags);
-	if (!found && ast_test_flag(peer, SIP_DYNAMIC))
+	if (!found && ast_test_flag(peer, SIP_DYNAMIC) && !ast_test_flag(peer, SIP_REALTIME))
 		reg_source_db(peer);
 	ASTOBJ_UNMARK(peer);
 	ast_free_ha(oldha);
