@@ -19,7 +19,7 @@
 #include <time.h>
 #define AST_INCLUDE_GLOB 1
 #ifdef AST_INCLUDE_GLOB
-#ifdef __OSX__
+#ifdef __Darwin__
 #define GLOB_ABORTED GLOB_ABEND
 #endif
 # include <glob.h>

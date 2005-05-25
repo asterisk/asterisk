@@ -244,7 +244,7 @@ LIBS+=-lresolv  #-lnjamd
 endif
 ifeq (${OSARCH},Darwin)
 LIBS+=-lresolv
-CFLAGS+=-D__OSX__
+CFLAGS+=-D__Darwin__
 endif
 ifeq (${OSARCH},FreeBSD)
 LIBS+=-lcrypto
