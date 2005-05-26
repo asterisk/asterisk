@@ -5443,7 +5443,12 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 		ptr2 = ptr1;
 		/* Separate the Application data ptr1 is the time spec ptr2 is the app|data*/
 		strsep(&ptr2,"?");
-		if (ast_build_timing(&timing, ptr1) && ast_check_timing(&timing)) {
+		if(!(res = ast_build_timing(&timing, ptr1))) {
+			ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", ptr1, usage);
+			res = -1;
+		}
+		
+		if (!res && ast_check_timing(&timing)) {
 			if (ptr2) {
 				/* ptr2 is now the app name 
 				   we're done with ptr1 now so recycle it and use it to point to the app args*/
@@ -5461,9 +5466,6 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 			} else {
 				ast_log(LOG_WARNING, "%s\n", usage);
 			}
-		} else {
-			ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", ptr1, usage);
-			res = -1;
 		}
 	} else {
 		ast_log(LOG_ERROR, "Memory Error!\n");
