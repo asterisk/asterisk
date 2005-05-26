@@ -712,13 +712,15 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	}
 
 	for(;;) {
-		res = ast_streamfile(chan, "beep", chan->language);
-		if (!res)
-			res = ast_waitstream(chan, "");
-		if (res < 0) {
-			ast_clear_flag(chan, AST_FLAG_SPYING);
-			break;
-		}			
+		if (!silent) {
+			res = ast_streamfile(chan, "beep", chan->language);
+			if (!res)
+				res = ast_waitstream(chan, "");
+			if (res < 0) {
+				ast_clear_flag(chan, AST_FLAG_SPYING);
+				break;
+			}
+		}
 
 		count = 0;
 		res = ast_waitfordigit(chan, waitms);
