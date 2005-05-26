@@ -3459,7 +3459,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 		maddr += 6;
 		hn = strspn(maddr, "0123456789.") + 1;
 		if (hn > sizeof(hostname)) hn = sizeof(hostname);
-		ast_copy_string(hostname, h, hn);
+		ast_copy_string(hostname, maddr, hn);
 	}
 	
 	hp = ast_gethostbyname(hostname, &ahp);
