@@ -115,13 +115,15 @@ static int curl_exec(struct ast_channel *chan, void *data)
 		curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 
-		chunk.memory[chunk.size] = '\0';
-		if (chunk.memory[chunk.size - 1] == 10)
-			chunk.memory[chunk.size - 1] = '\0';
+		if (chunk.memory) {
+			chunk.memory[chunk.size] = '\0';
+			if (chunk.memory[chunk.size - 1] == 10)
+				chunk.memory[chunk.size - 1] = '\0';
 
-		pbx_builtin_setvar_helper(chan, "CURL", chunk.memory);
+			pbx_builtin_setvar_helper(chan, "CURL", chunk.memory);
 
-		free(chunk.memory);
+			free(chunk.memory);
+		}
 	} else {
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
 		res = -1;
