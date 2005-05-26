@@ -705,14 +705,12 @@ static int agent_hangup(struct ast_channel *ast)
 				snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 				ast_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Autologoff");
 				p->loginchan[0] = '\0';
-			    ast_device_state_changed("Agent/%s", p->agent);
 			}
 		} else if (p->dead) {
 			ast_mutex_lock(&p->chan->lock);
 			ast_softhangup(p->chan, AST_SOFTHANGUP_EXPLICIT);
 			ast_mutex_unlock(&p->chan->lock);
 		} else {
-			ast_device_state_changed("Agent/%s", p->agent);
 			ast_mutex_lock(&p->chan->lock);
 			ast_moh_start(p->chan, p->moh);
 			ast_mutex_unlock(&p->chan->lock);
@@ -734,6 +732,7 @@ static int agent_hangup(struct ast_channel *ast)
 	}
 #endif	
 	ast_mutex_unlock(&p->lock);
+	ast_device_state_changed("Agent/%s", p->agent);
 
 	if (p->pending) {
 		ast_mutex_lock(&agentlock);
