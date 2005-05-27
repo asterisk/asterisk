@@ -503,7 +503,7 @@ char *ast_strcasestr(const char *haystack, const char *needle)
 		offset = strstr(upper(haystack, u1, u1len), upper(needle, u2, u2len));
 		if (offset) {
 			/* Return the offset into the original string */
-			return ((char *)((unsigned int)haystack + (unsigned int)(offset - u1)));
+			return ((char *)((unsigned long)haystack + (unsigned long)(offset - u1)));
 		} else {
 			return NULL;
 		}
