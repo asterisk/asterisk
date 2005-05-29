@@ -3444,14 +3444,14 @@ static void set_destination(struct sip_pvt *p, char *uri)
 	ast_copy_string(hostname, h, hn);
 	h += hn - 1;
 
-	/* Is "port" present? if not default to 5060 */
+	/* Is "port" present? if not default to DEFAULT_SIP_PORT */
 	if (*h == ':') {
 		/* Parse port */
 		++h;
 		port = strtol(h, &h, 10);
 	}
 	else
-		port = 5060;
+		port = DEFAULT_SIP_PORT;
 
 	/* Got the hostname:port - but maybe there's a "maddr=" to override address? */
 	maddr = strstr(h, "maddr=");
@@ -4108,7 +4108,7 @@ static void build_contact(struct sip_pvt *p)
 	char iabuf[INET_ADDRSTRLEN];
 
 	/* Construct Contact: header */
-	if (ourport != 5060)
+	if (ourport != DEFAULT_SIP_PORT)
 		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport);
 	else
 		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
@@ -4179,7 +4179,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	else /* Save for any further attempts */
 		ast_copy_string(p->fromname, n, sizeof(p->fromname));
 
-	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))
+	if ((ourport != DEFAULT_SIP_PORT) && ast_strlen_zero(p->fromdomain))
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
