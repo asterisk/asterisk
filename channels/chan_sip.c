@@ -3239,12 +3239,16 @@ static int add_header(struct sip_request *req, char *var, char *value)
 {
 	int x = 0;
 	char *shortname = "";
-	if (req->len >= sizeof(req->data) - 4) {
-		ast_log(LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
+	if (req->headers == SIP_MAX_HEADERS) {
+		ast_log(LOG_WARNING, "Out of SIP header space\n");
 		return -1;
 	}
 	if (req->lines) {
 		ast_log(LOG_WARNING, "Can't add more headers when lines have been added\n");
+		return -1;
+	}
+	if (req->len >= sizeof(req->data) - 4) {
+		ast_log(LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
 		return -1;
 	}
 
@@ -3260,10 +3264,6 @@ static int add_header(struct sip_request *req, char *var, char *value)
 		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
 	}
 	req->len += strlen(req->header[req->headers]);
-	if (req->headers == SIP_MAX_HEADERS) {
-		ast_log(LOG_WARNING, "Out of SIP header space\n");
-		return -1;
-	}
 	req->headers++;
 	return 0;	
 }
@@ -3271,21 +3271,21 @@ static int add_header(struct sip_request *req, char *var, char *value)
 /*--- add_blank_header: Add blank header to SIP message */
 static int add_blank_header(struct sip_request *req)
 {
-	if (req->len >= sizeof(req->data) - 4) {
-		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
+	if (req->headers == SIP_MAX_HEADERS)  {
+		ast_log(LOG_WARNING, "Out of SIP header space\n");
 		return -1;
 	}
 	if (req->lines) {
 		ast_log(LOG_WARNING, "Can't add more headers when lines have been added\n");
 		return -1;
 	}
+	if (req->len >= sizeof(req->data) - 4) {
+		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
+		return -1;
+	}
 	req->header[req->headers] = req->data + req->len;
 	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "\r\n");
 	req->len += strlen(req->header[req->headers]);
-	if (req->headers == SIP_MAX_HEADERS)  {
-		ast_log(LOG_WARNING, "Out of SIP header space\n");
-		return -1;
-	}
 	req->headers++;
 	return 0;	
 }
@@ -3293,8 +3293,8 @@ static int add_blank_header(struct sip_request *req)
 /*--- add_line: Add content (not header) to SIP message */
 static int add_line(struct sip_request *req, const char *line)
 {
-	if (req->len >= sizeof(req->data) - 4) {
-		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
+	if (req->lines == SIP_MAX_LINES)  {
+		ast_log(LOG_WARNING, "Out of SIP line space\n");
 		return -1;
 	}
 	if (!req->lines) {
@@ -3302,13 +3302,13 @@ static int add_line(struct sip_request *req, const char *line)
 		snprintf(req->data + req->len, sizeof(req->data) - req->len, "\r\n");
 		req->len += strlen(req->data + req->len);
 	}
+	if (req->len >= sizeof(req->data) - 4) {
+		ast_log(LOG_WARNING, "Out of space, can't add anymore\n");
+		return -1;
+	}
 	req->line[req->lines] = req->data + req->len;
 	snprintf(req->line[req->lines], sizeof(req->data) - req->len, "%s", line);
 	req->len += strlen(req->line[req->lines]);
-	if (req->lines == SIP_MAX_LINES)  {
-		ast_log(LOG_WARNING, "Out of SIP line space\n");
-		return -1;
-	}
 	req->lines++;
 	return 0;	
 }
@@ -3485,10 +3485,7 @@ static int init_resp(struct sip_request *req, char *resp, struct sip_request *or
 	req->header[req->headers] = req->data + req->len;
 	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "SIP/2.0 %s\r\n", resp);
 	req->len += strlen(req->header[req->headers]);
-	if (req->headers < SIP_MAX_HEADERS)
-		req->headers++;
-	else
-		ast_log(LOG_WARNING, "Out of header space\n");
+	req->headers++;
 	return 0;
 }
 
@@ -3503,10 +3500,7 @@ static int init_req(struct sip_request *req, int sipmethod, char *recip)
 	req->header[req->headers] = req->data + req->len;
 	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
 	req->len += strlen(req->header[req->headers]);
-	if (req->headers < SIP_MAX_HEADERS)
-		req->headers++;
-	else
-		ast_log(LOG_WARNING, "Out of header space\n");
+	req->headers++;
 	return 0;
 }
 
