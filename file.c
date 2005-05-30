@@ -729,23 +729,31 @@ int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 			*c = '\0';
 			postfix = c+1;
 			prefix = tmp;
+			snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, preflang, postfix);
 		} else {
 			postfix = tmp;
 			prefix="";
+			snprintf(filename2, sizeof(filename2), "%s/%s", preflang, postfix);
 		}
-		snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, preflang, postfix);
 		res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 		if (res < 1) {
 			char *stringp=NULL;
 			strncpy(lang2, preflang, sizeof(lang2)-1);
 			stringp=lang2;
 			strsep(&stringp, "_");
+			/* If language is a specific locality of a language (like es_MX), strip the locality and try again */
 			if (strcmp(lang2, preflang)) {
-				snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, lang2, postfix);
+				if (ast_strlen_zero(prefix)) {
+					snprintf(filename2, sizeof(filename2), "%s/%s", lang2, postfix);
+				} else {
+					snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, lang2, postfix);
+				}
 				res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 			}
 		}
 	}
+
+	/* Fallback to no language (usually winds up being American English) */
 	if (res < 1) {
 		res = ast_filehelper(filename, NULL, fmt, ACTION_EXISTS);
 	}
