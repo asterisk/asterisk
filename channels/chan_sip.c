@@ -170,6 +170,7 @@ static struct cfalias {
 	{ "To", "t" },
 	{ "Supported", "k" },
 	{ "Refer-To", "r" },
+	{ "Referred-By", "b" },
 	{ "Allow-Events", "u" },
 	{ "Event", "o" },
 	{ "Via", "v" },
@@ -5712,6 +5713,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 
 	if (!( (p_referred_by = get_header(req, "Referred-By")) && (h_referred_by = ast_strdupa(p_referred_by)) )) {
 		ast_log(LOG_WARNING, "No Referrred-By Header That's not illegal\n");
+		return -1;
 	} else {
 		referred_by = ditch_braces(h_referred_by);
 	}
