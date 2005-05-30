@@ -17,7 +17,6 @@
 #ifndef _CDR_H
 #define _CDR_H
 
-#include "asterisk/channel.h"
 #include <sys/time.h>
 #define AST_CDR_FLAG_KEEP_VARS		(1 << 0)
 #define AST_CDR_FLAG_POSTED			(1 << 1)
@@ -36,6 +35,9 @@
 
 #define AST_MAX_USER_FIELD			256
 #define AST_MAX_ACCOUNT_CODE			20
+
+/* Include channel.h after relevant declarations it will need */
+#include "asterisk/channel.h"
 
 struct ast_channel;
 AST_LIST_HEAD(varshead,ast_var_t);
