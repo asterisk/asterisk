@@ -7784,11 +7784,13 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 
 	/* Save auth data for following registrations */
 	if (p->registry) {
-		ast_copy_string(p->registry->realm, realm, sizeof(p->realm));
-		ast_copy_string(p->registry->nonce, nonce, sizeof(p->nonce));
-		ast_copy_string(p->registry->domain, domain, sizeof(p->domain));
-		ast_copy_string(p->registry->opaque, opaque, sizeof(p->opaque));
-		ast_copy_string(p->registry->qop, qop, sizeof(p->qop));
+		struct sip_registry *r = p->registry;
+
+		ast_copy_string(r->realm, p->realm, sizeof(r->realm));
+		ast_copy_string(r->nonce, p->nonce, sizeof(r->nonce));
+		ast_copy_string(r->domain, p->domain, sizeof(r->domain));
+		ast_copy_string(r->opaque, p->opaque, sizeof(r->opaque));
+		ast_copy_string(r->qop, p->qop, sizeof(r->qop));
 	}
 	build_reply_digest(p, sipmethod, digest, digest_len); 
 	return 0;
