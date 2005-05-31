@@ -36,7 +36,9 @@
        has been answered. 
  -- app_disa
     -- Fixed the timeout used when no password is set
- -- rtp
+ -- app_queue
+    -- Distinctive ring has been fixed to work for queue members
+  -- rtp
     -- Fixed a logic error when setting the "rtpchecksums" option
  -- say.c
     -- A problem has been fixed with saying the date in Spanish.
