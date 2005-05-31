@@ -1235,9 +1235,9 @@ static int mgcp_indicate(struct ast_channel *ast, int ind)
 static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 {
 	struct ast_channel *tmp;
-    struct mgcp_endpoint *i = sub->parent;
+	struct mgcp_endpoint *i = sub->parent;
 	int fmt;
-    i = sub->parent;
+	
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		tmp->nativeformats = i->capability;
@@ -1675,14 +1675,13 @@ static int process_sdp(struct mgcp_subchannel *sub, struct mgcp_request *req)
 
         /* Next, scan through each "a=rtpmap:" line, noting each
          specified RTP payload type (with corresponding MIME subtype): */
-        sdpLineNum_iterator_init(&iterator);
-        while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
-          char* mimeSubtype = strdup(a); // ensures we have enough space
-          if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
-          /* Note: should really look at the 'freq' and '#chans' params too */
-          ast_rtp_set_rtpmap_type(sub->rtp, codec, "audio", mimeSubtype);
-	  free(mimeSubtype);
-        }
+	sdpLineNum_iterator_init(&iterator);
+	while ((a = get_sdp_iterate(&iterator, req, "a"))[0] != '\0') {
+		char* mimeSubtype = ast_strdupa(a); /* ensures we have enough space */          
+		if (sscanf(a, "rtpmap: %u %[^/]/", &codec, mimeSubtype) != 2) continue;
+		/* Note: should really look at the 'freq' and '#chans' params too */
+		ast_rtp_set_rtpmap_type(sub->rtp, codec, "audio", mimeSubtype);
+	}
 
         /* Now gather all of the codecs that were asked for: */
         ast_rtp_get_current_formats(sub->rtp,
