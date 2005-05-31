@@ -1350,6 +1350,8 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 			}
 			r->promiscredir = p->promiscredir;
 			strncpy(r->context, p->context,sizeof(r->context)-1);
+			r->rtptimeout = p->rtptimeout;
+			r->rtpholdtimeout = p->rtpholdtimeout;
 			if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
 				(!p->maxms || ((p->lastms >= 0)  && (p->lastms <= p->maxms)))) {
 				if (p->addr.sin_addr.s_addr) {
