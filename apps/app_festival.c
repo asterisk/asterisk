@@ -131,7 +131,6 @@ static int send_waveform_to_fd(char *waveform, int length, int fd) {
 #endif
 	
 	write(fd,waveform,length);
-	write(fd,"a",1);
 	close(fd);
 	exit(0);
 }
