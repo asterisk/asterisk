@@ -2369,7 +2369,7 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	if (secret) {
 		if (secret[0] == '[') {
 			/* This is an RSA key, not a normal secret */
-			strncpy(iaxs[callno]->outkey, secret + 1, sizeof(iaxs[callno]->secret)-1);
+			strncpy(iaxs[callno]->outkey, secret + 1, sizeof(iaxs[callno]->outkey)-1);
 			if (!ast_strlen_zero(iaxs[callno]->outkey)) {
 				iaxs[callno]->outkey[strlen(iaxs[callno]->outkey) - 1] = '\0';
 			}
