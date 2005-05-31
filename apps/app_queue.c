@@ -548,6 +548,8 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 {
 	int res;
+	struct ast_var_t *current, *newvar;
+	struct varshead *headp, *newheadp;
 	if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime)) {
 		ast_log(LOG_DEBUG, "Wrapuptime not yet expired for %s/%s\n", tmp->tech, tmp->numsubst);
 		if (qe->chan->cdr)
@@ -567,6 +569,26 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 		tmp->stillgoing = 0;
 		(*busies)++;
 		return 0;
+	}
+	/* If creating a SIP channel, look for a variable called */
+	/* VXML_URL in the calling channel and copy it to the    */
+	/* new channel.                                          */
+
+	/* Check for ALERT_INFO in the SetVar list.  This is for   */
+	/* SIP distinctive ring as per the RFC.  For Cisco 7960s,  */
+	/* SetVar(ALERT_INFO=<x>) where x is an integer value 1-5. */
+	/* However, the RFC says it should be a URL.  -km-         */
+	headp=&qe->chan->varshead;
+	AST_LIST_TRAVERSE(headp,current,entries) {
+		if (!strcasecmp(ast_var_name(current),"VXML_URL") ||
+			!strcasecmp(ast_var_name(current), "ALERT_INFO") ||
+			!strcasecmp(ast_var_name(current), "OSPTOKEN") ||
+			!strcasecmp(ast_var_name(current), "OSPHANDLE"))
+		{
+			newvar=ast_var_assign(ast_var_name(current),ast_var_value(current));
+			newheadp=&tmp->chan->varshead;
+			AST_LIST_INSERT_HEAD(newheadp,newvar,entries);
+		}
 	}
 	tmp->chan->appl = "AppQueue";
 	tmp->chan->data = "(Outgoing Line)";
