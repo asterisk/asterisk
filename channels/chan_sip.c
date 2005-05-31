@@ -6391,11 +6391,13 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header
 
 	/* Save auth data for following registrations */
 	if (p->registry) {
-		strncpy(p->registry->realm, realm, sizeof(p->realm)-1);
-		strncpy(p->registry->nonce, nonce, sizeof(p->nonce)-1);
-		strncpy(p->registry->domain, domain, sizeof(p->domain)-1);
-		strncpy(p->registry->opaque, opaque, sizeof(p->opaque)-1);
-		strncpy(p->registry->qop, qop, sizeof(p->qop)-1);
+		struct sip_registry *r = p->registry;
+
+		strncpy(r->realm, p->realm, sizeof(r->realm)-1);
+		strncpy(r->nonce, p->nonce, sizeof(r->nonce)-1);
+		strncpy(r->domain, p->domain, sizeof(r->domain)-1);
+		strncpy(r->opaque, p->opaque, sizeof(r->opaque)-1);
+		strncpy(r->qop, p->qop, sizeof(r->qop)-1);
 	}
 	build_reply_digest(p, orig_header, digest, digest_len); 
 	return 0;
