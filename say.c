@@ -1990,7 +1990,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, char *int
 					/* Between 21 and 29 - two sounds */
 					res = wait_file(chan,ints, "digits/20",lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_mday - 20);
+						snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mday - 20);
 						res = wait_file(chan,ints,nextmsg,lang);
 					}
 				}
