@@ -210,13 +210,13 @@ static int onedigit_goto(struct ast_channel *chan, char *context, char exten, in
 	char rexten[2] = { exten, '\0' };
 
 	if (context) {
-		if (ast_goto_if_exists(chan, context, rexten, pri))
+		if (!ast_goto_if_exists(chan, context, rexten, pri))
 			return 1;
 	} else {
-		if (ast_goto_if_exists(chan, chan->context, rexten, pri))
+		if (!ast_goto_if_exists(chan, chan->context, rexten, pri))
 			return 1;
 		else if (!ast_strlen_zero(chan->macrocontext)) {
-			if (ast_goto_if_exists(chan, chan->macrocontext, rexten, pri))
+			if (!ast_goto_if_exists(chan, chan->macrocontext, rexten, pri))
 				return 1;
 		}
 	}
@@ -1439,7 +1439,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 					if (!ast_test_flag(chan, AST_FLAG_MOH))
 						ast_moh_start(chan, NULL);
 					if (!res) 
-						res = ast_safe_sleep(chan, sleep);
+						res = ast_waitfordigit(chan, sleep);
 				}
 			}
 		}
