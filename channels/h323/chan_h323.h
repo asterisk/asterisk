@@ -26,8 +26,6 @@
  * Version Info: $Id$
  */
 
-#define AST_MAX_ACCOUNTCODE 20
-
 #include <arpa/inet.h>
 
 /** call_option struct holds various bits

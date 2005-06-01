@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 /*
  * ast_h323.cpp
  *
@@ -39,8 +40,9 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif   
+#endif
 #include "asterisk/logger.h"
+#include "asterisk/channel.h"
 #ifdef __cplusplus
 }
 #endif
