@@ -86,6 +86,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	maxdigitstr = args[x++];
 	options = args[x++];
 	loops = args[x++];
+	timeout = args[x++];
 	
 	if (options) { 
 		if (!strcasecmp(options, "skip"))
@@ -108,8 +109,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 
 	if(timeout) {
 		to = atoi(timeout);
-		if(to <= 0)
+		if (to <= 0)
 			to = 0;
+		else
+			to *= 1000;
 	}
 
 	if (!(filename) || ast_strlen_zero(filename)) 
@@ -140,7 +143,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	if (!res) {
 		while(tries && !res) {
 			ast_stopstream(chan);
-			res = ast_app_getdata(chan, filename, tmp, maxdigits, 0);
+			res = ast_app_getdata(chan, filename, tmp, maxdigits, to);
 			if (res > -1) {
 				pbx_builtin_setvar_helper(chan, varname, tmp);
 				if (!ast_strlen_zero(tmp)) {
