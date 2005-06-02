@@ -1126,8 +1126,6 @@ char ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd
 			ast_frfree(fr);
 		}
 		ast_sched_runq(c->sched);
-	
-		
 	}
 	return (c->_softhangup ? -1 : 0);
 }
