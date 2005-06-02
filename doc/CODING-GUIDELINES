@@ -1,4 +1,4 @@
-Asterisk Patch/Coding Guidelines
+== Asterisk Patch/Coding Guidelines ==
 
 To be accepted into the codebase, all non-trivial changes must be
 disclaimed to Digium or placed in the public domain. For more information
@@ -242,3 +242,52 @@ example.
 
 Functions are registered using 'struct ast_custom_function'
 structures and the ast_custom_function_register function.
+
+== Doxygen API Documentation Guidelines ==
+
+When writing Asterisk API documentation the following format should be
+followed.
+
+/*!
+ * \brief Do interesting stuff.
+ * \param thing1 interesting parameter 1.
+ * \param thing2 interesting parameter 2.
+ *
+ * This function does some interesting stuff.
+ *
+ * \return zero on success, -1 on error.
+ */
+int ast_interesting_stuff(int thing1, int thing2)
+{
+	return 0;
+}
+
+Notice the use of the \param, \brief, and \return constructs.  These should be
+used to describe the corresponding pieces of the function being documented.
+Also notice the blank line after the last \param directive.  All doxygen
+comments must be in one /*! */ block.  If the function or struct does not need
+an extended description it can be left out.
+
+Please make sure to review the doxygen manual and make liberal use of the \a,
+\code, \c, \b, \note, \li and \e modifiers as appropriate.
+
+When documenting a 'static' function or an internal structure in a module,
+use the \internal modifier to ensure that the resulting documentation
+explicitly says 'for internal use only'.
+
+Structures should be documented as follows.
+
+/*!
+ * \brief A very interesting structure.
+ */
+struct interesting_struct
+{
+	/*! \brief A data member. */
+	int member1;
+
+	int member2; /*!< \brief Another data member. */
+}
+
+Note that /*! */ blocks document the construct immediately following them
+unless they are written, /*!< */, in which case they document the construct
+preceding them.
