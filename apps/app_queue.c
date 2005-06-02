@@ -639,6 +639,7 @@ static int say_position(struct queue_ent *qe)
 			goto posout;
 	} else {
 		res = play_file(qe->chan, qe->parent->sound_thereare);
+		if (res && valid_exit(qe, res))
 			goto playout;
 		res = ast_say_number(qe->chan, qe->pos, AST_DIGIT_ANY, qe->chan->language, (char *) NULL); /* Needs gender */
 		if (res && valid_exit(qe, res))
