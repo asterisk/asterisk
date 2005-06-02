@@ -96,6 +96,9 @@ Applications:
   SetCIDNum(2025551212)		Set(CALLERID(number)=2025551212)
   SetRDNIS(2024561414)		Set(CALLERID(RDNIS)=2024561414)
 
+* The application Record now uses the period to separate the filename
+  from the format, rather than the colon.
+
 Queues:
 
 * A queue is now considered empty not only if there are no members but if
