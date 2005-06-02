@@ -820,17 +820,17 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			dblgoto = ast_strdupa(mac + 2);
 			while (*mac && (*mac != ')'))
 				*(mac++) = 'X';
-			if (*mac)
+			if (*mac) {
 				*mac = 'X';
-			else {
+				mac = strchr(dblgoto, ')');
+				if (mac)
+					*mac = '\0';
+				else {
+					ast_log(LOG_WARNING, "Goto flag set without trailing ')'\n");
+					dblgoto = NULL;
+				}
+			} else {
 				ast_log(LOG_WARNING, "Could not find exten to which we should jump.\n");
-				dblgoto = NULL;
-			}
-			mac = strchr(dblgoto, ')');
-			if (mac)
-				*mac = '\0';
-			else {
-				ast_log(LOG_WARNING, "Goto flag set without trailing ')'\n");
 				dblgoto = NULL;
 			}
 		}
@@ -841,17 +841,17 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			macroname = ast_strdupa(mac + 2);
 			while (*mac && (*mac != ')'))
 				*(mac++) = 'X';
-			if (*mac)
+			if (*mac) {
 				*mac = 'X';
-			else {
+				mac = strchr(macroname, ')');
+				if (mac)
+					*mac = '\0';
+				else {
+					ast_log(LOG_WARNING, "Macro flag set without trailing ')'\n");
+					hasmacro = 0;
+				}
+			} else {
 				ast_log(LOG_WARNING, "Could not find macro to which we should jump.\n");
-				hasmacro = 0;
-			}
-			mac = strchr(macroname, ')');
-			if (mac)
-				*mac = '\0';
-			else {
-				ast_log(LOG_WARNING, "Macro flag set without trailing ')'\n");
 				hasmacro = 0;
 			}
 		}
@@ -898,8 +898,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		} else if (strchr(transfer, 'C')) {
 			resetcdr = 1;
 		} else if (strchr(transfer, 'n')) {
-		        nojump = 1;
-                }
+			nojump = 1;
+		}
 	}
 	if (resetcdr && chan->cdr)
 		ast_cdr_reset(chan->cdr, 0);
