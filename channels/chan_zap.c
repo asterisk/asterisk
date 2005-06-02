@@ -7281,6 +7281,8 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 				} else if (opt == 'd') {
 					/* If this is an ISDN call, make it digital */
 					p->digital = 1;
+					if (tmp)
+						tmp->transfercapability = AST_TRANS_CAP_DIGITAL;
 				} else {
 					ast_log(LOG_WARNING, "Unknown option '%c' in '%s'\n", opt, (char *)data);
 				}
