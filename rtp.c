@@ -261,7 +261,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	return f;
 }
 
-/*--- process_rfc3389: Process Comfort Noice RTP. 
+/*--- process_rfc3389: Process Comfort Noise RTP. 
 	This is incomplete at the moment.
 */
 static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *data, int len)
@@ -271,10 +271,11 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 	   totally help us out becuase we don't have an engine to keep it going and we are not
 	   guaranteed to have it every 20ms or anything */
 	if (rtpdebug)
-		ast_log(LOG_DEBUG, "- RTP 3389 Comfort noice event: Level %d (len = %d)\n", rtp->lastrxformat, len);
+		ast_log(LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
 	if (!(rtp->flags & FLAG_3389_WARNING)) {
 		char iabuf[INET_ADDRSTRLEN];
-		ast_log(LOG_NOTICE, "Comfort noice support incomplete in Asterisk (RFC 3389).  Please turn off on client if possible. Client IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+		ast_log(LOG_NOTICE, "Comfort noise support incomplete in Asterisk (RFC 3389).  Please turn off on 
+client if possible. Client IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 		rtp->flags |= FLAG_3389_WARNING;
 	}
 	/* Must have at least one byte */
@@ -321,7 +322,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	unsigned int rtcpdata[1024];
 	char iabuf[INET_ADDRSTRLEN];
 	
-	if (!rtp->rtcp)
+	if (!rtp)
 		return &null_frame;
 
 	len = sizeof(sin);
