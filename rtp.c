@@ -274,8 +274,7 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 		ast_log(LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
 	if (!(rtp->flags & FLAG_3389_WARNING)) {
 		char iabuf[INET_ADDRSTRLEN];
-		ast_log(LOG_NOTICE, "Comfort noise support incomplete in Asterisk (RFC 3389).  Please turn off on 
-client if possible. Client IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+		ast_log(LOG_NOTICE, "Comfort noise support incomplete in Asterisk (RFC 3389).  Please turn off on client if possible. Client IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 		rtp->flags |= FLAG_3389_WARNING;
 	}
 	/* Must have at least one byte */
