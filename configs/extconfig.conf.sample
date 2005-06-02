@@ -34,4 +34,6 @@
 ;sippeers => odbc,asterisk
 ;voicemail => odbc,asterisk
 ;extensions => odbc,asterisk
+;queues => odbc,asterisk
+;queue_members => odbc,asterisk
 

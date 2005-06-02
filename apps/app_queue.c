@@ -250,6 +250,7 @@ struct member {
 	int status;			/* Status of queue member */
 	int paused;			/* Are we paused (not accepting calls)? */
 	time_t lastcall;		/* When last successful call was hungup */
+	int dead;			/* Used to detect members deleted in realtime */
 	struct member *next;		/* Next member */
 };
 
@@ -276,6 +277,7 @@ struct ast_call_queue {
 		unsigned int announceholdtime:2;
 		unsigned int strategy:3;
 		unsigned int maskmemberstatus:1;
+		unsigned int realtime:1;
 	int announcefrequency;          /* How often to announce their position */
 	int roundingseconds;            /* How many seconds do we round to? */
 	int holdtime;                   /* Current avg holdtime, based on recursive boxcar filter */
@@ -336,7 +338,7 @@ static char *int2strat(int strategy)
 	return "<unknown>";
 }
 
-static int strat2int(char *strategy)
+static int strat2int(const char *strategy)
 {
 	int x;
 	for (x=0;x<sizeof(strategies) / sizeof(strategies[0]);x++) {
@@ -473,68 +475,439 @@ static int statechange_queue(const char *dev, int state, void *ign)
 	return 0;
 }
 
+static struct member *create_queue_member(char *interface, int penalty, int paused)
+{
+	struct member *cur;
+	
+	/* Add a new member */
+
+	cur = malloc(sizeof(struct member));
+
+	if (cur) {
+		memset(cur, 0, sizeof(struct member));
+		cur->penalty = penalty;
+		cur->paused = paused;
+		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
+		if (!strchr(cur->interface, '/'))
+			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
+		cur->status = ast_device_state(interface);
+	}
+
+	return cur;
+}
+
+static struct ast_call_queue *alloc_queue(const char *queuename)
+{
+	struct ast_call_queue *q;
+
+	q = malloc(sizeof(*q));
+	if (q) {
+		memset(q, 0, sizeof(*q));
+		ast_mutex_init(&q->lock);
+		ast_copy_string(q->name, queuename, sizeof(q->name));
+	}
+	return q;
+}
+
+static void init_queue(struct ast_call_queue *q)
+{
+	q->dead = 0;
+	q->retry = DEFAULT_RETRY;
+	q->timeout = -1;
+	q->maxlen = 0;
+	q->announcefrequency = 0;
+	q->announceholdtime = 0;
+	q->roundingseconds = 0; /* Default - don't announce seconds */
+	q->servicelevel = 0;
+	q->moh[0] = '\0';
+	q->announce[0] = '\0';
+	q->context[0] = '\0';
+	q->monfmt[0] = '\0';
+	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
+	ast_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
+	ast_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
+	ast_copy_string(q->sound_holdtime, "queue-holdtime", sizeof(q->sound_holdtime));
+	ast_copy_string(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes));
+	ast_copy_string(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds));
+	ast_copy_string(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks));
+	ast_copy_string(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan));
+	ast_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
+}
+
+static void clear_queue(struct ast_call_queue *q)
+{
+	q->holdtime = 0;
+	q->callscompleted = 0;
+	q->callsabandoned = 0;
+	q->callscompletedinsl = 0;
+	q->wrapuptime = 0;
+}
+
+/* Configure a queue parameter.
+   For error reporting, line number is passed for .conf static configuration.
+   For Realtime queues, linenum is -1.
+   The failunknown flag is set for config files (and static realtime) to show
+   errors for unknown parameters. It is cleared for dynamic realtime to allow
+   extra fields in the tables. */
+static void queue_set_param(struct ast_call_queue *q, const char *param, const char *val, int linenum, int failunknown)
+{
+	if (!strcasecmp(param, "music") || !strcasecmp(param, "musiconhold")) {
+		ast_copy_string(q->moh, val, sizeof(q->moh));
+	} else if (!strcasecmp(param, "announce")) {
+		ast_copy_string(q->announce, val, sizeof(q->announce));
+	} else if (!strcasecmp(param, "context")) {
+		ast_copy_string(q->context, val, sizeof(q->context));
+	} else if (!strcasecmp(param, "timeout")) {
+		q->timeout = atoi(val);
+		if (q->timeout < 0)
+			q->timeout = DEFAULT_TIMEOUT;
+	} else if (!strcasecmp(param, "monitor-join")) {
+		q->monjoin = ast_true(val);
+	} else if (!strcasecmp(param, "monitor-format")) {
+		ast_copy_string(q->monfmt, val, sizeof(q->monfmt));
+	} else if (!strcasecmp(param, "queue-youarenext")) {
+		ast_copy_string(q->sound_next, val, sizeof(q->sound_next));
+	} else if (!strcasecmp(param, "queue-thereare")) {
+		ast_copy_string(q->sound_thereare, val, sizeof(q->sound_thereare));
+	} else if (!strcasecmp(param, "queue-callswaiting")) {
+		ast_copy_string(q->sound_calls, val, sizeof(q->sound_calls));
+	} else if (!strcasecmp(param, "queue-holdtime")) {
+		ast_copy_string(q->sound_holdtime, val, sizeof(q->sound_holdtime));
+	} else if (!strcasecmp(param, "queue-minutes")) {
+		ast_copy_string(q->sound_minutes, val, sizeof(q->sound_minutes));
+	} else if (!strcasecmp(param, "queue-seconds")) {
+		ast_copy_string(q->sound_seconds, val, sizeof(q->sound_seconds));
+	} else if (!strcasecmp(param, "queue-lessthan")) {
+		ast_copy_string(q->sound_lessthan, val, sizeof(q->sound_lessthan));
+	} else if (!strcasecmp(param, "queue-thankyou")) {
+		ast_copy_string(q->sound_thanks, val, sizeof(q->sound_thanks));
+	} else if (!strcasecmp(param, "queue-reporthold")) {
+		ast_copy_string(q->sound_reporthold, val, sizeof(q->sound_reporthold));
+	} else if (!strcasecmp(param, "announce-frequency")) {
+		q->announcefrequency = atoi(val);
+	} else if (!strcasecmp(param, "announce-round-seconds")) {
+		q->roundingseconds = atoi(val);
+		if (q->roundingseconds>60 || q->roundingseconds<0) {
+			if (linenum >= 0) {
+				ast_log(LOG_WARNING, "'%s' isn't a valid value for %s "
+					"using 0 instead for queue '%s' at line %d of queues.conf\n",
+					val, param, q->name, linenum);
+			} else {
+				ast_log(LOG_WARNING, "'%s' isn't a valid value for %s "
+					"using 0 instead for queue '%s'\n", val, param, q->name);
+			}
+			q->roundingseconds=0;
+		}
+	} else if (!strcasecmp(param, "announce-holdtime")) {
+		if (!strcasecmp(val, "once"))
+			q->announceholdtime = ANNOUNCEHOLDTIME_ONCE;
+		else if (ast_true(val))
+			q->announceholdtime = ANNOUNCEHOLDTIME_ALWAYS;
+		else
+			q->announceholdtime = 0;
+	} else if (!strcasecmp(param, "retry")) {
+		q->retry = atoi(val);
+		if (q->retry < 0)
+			q->retry = DEFAULT_RETRY;
+	} else if (!strcasecmp(param, "wrapuptime")) {
+		q->wrapuptime = atoi(val);
+	} else if (!strcasecmp(param, "maxlen")) {
+		q->maxlen = atoi(val);
+		if (q->maxlen < 0)
+			q->maxlen = 0;
+	} else if (!strcasecmp(param, "servicelevel")) {
+		q->servicelevel= atoi(val);
+	} else if (!strcasecmp(param, "strategy")) {
+		q->strategy = strat2int(val);
+		if (q->strategy < 0) {
+			ast_log(LOG_WARNING, "'%s' isn't a valid strategy for queue '%s', using ringall instead\n",
+				val, q->name);
+			q->strategy = 0;
+		}
+	} else if (!strcasecmp(param, "joinempty")) {
+		if (!strcasecmp(val, "strict"))
+			q->joinempty = QUEUE_EMPTY_STRICT;
+		else if (ast_true(val))
+			q->joinempty = QUEUE_EMPTY_NORMAL;
+		else
+			q->joinempty = 0;
+	} else if (!strcasecmp(param, "leavewhenempty")) {
+		if (!strcasecmp(val, "strict"))
+			q->leavewhenempty = QUEUE_EMPTY_STRICT;
+		else if (ast_true(val))
+			q->leavewhenempty = QUEUE_EMPTY_NORMAL;
+		else
+			q->leavewhenempty = 0;
+	} else if (!strcasecmp(param, "eventmemberstatus")) {
+		q->maskmemberstatus = !ast_true(val);
+	} else if (!strcasecmp(param, "eventwhencalled")) {
+		q->eventwhencalled = ast_true(val);
+	} else if (!strcasecmp(param, "reportholdtime")) {
+		q->reportholdtime = ast_true(val);
+	} else if (!strcasecmp(param, "memberdelay")) {
+		q->memberdelay = atoi(val);
+	} else if (!strcasecmp(param, "weight")) {
+		q->weight = atoi(val);
+		if (q->weight)
+			use_weight++;
+		/* With Realtime queues, if the last queue using weights is deleted in realtime,
+		   we will not see any effect on use_weight until next reload. */
+	} else if (!strcasecmp(param, "timeoutrestart")) {
+		q->timeoutrestart = ast_true(val);
+	} else if(failunknown) {
+		if (linenum >= 0) {
+			ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queues.conf\n",
+				q->name, param, linenum);
+		} else {
+			ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s\n", q->name, param);
+		}
+	}
+}
+
+static void rt_handle_member_record(struct ast_call_queue *q, char *interface, const char *penalty_str)
+{
+	struct member *m, *prev_m;
+	int penalty = 0;
+
+	if(penalty_str) {
+		penalty = atoi(penalty_str);
+		if(penalty < 0)
+			penalty = 0;
+	}
+
+	/* Find the member, or the place to put a new one. */
+	prev_m = NULL;
+	m = q->members;
+	while (m && strcmp(m->interface, interface)) {
+		prev_m = m;
+		m = m->next;
+	}
+
+	/* Create a new one if not found, else update penalty */
+	if (!m) {
+		m = create_queue_member(interface, penalty, 0);
+		if (m) {
+			m->dead = 0;
+			if (prev_m) {
+				prev_m->next = m;
+			} else {
+				q->members = m;
+			}
+		}
+	} else {
+		m->dead = 0;	/* Do not delete this one. */
+		m->penalty = penalty;
+	}
+}
+
+
+/* Reload a single queue via realtime. Return the queue, or NULL if it doesn't exist.
+   Should be called with the global qlock locked.
+   When found, the queue is returned with q->lock locked. */
+static struct ast_call_queue *reload_queue_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
+{
+	struct ast_variable *v;
+	struct ast_call_queue *q, *prev_q;
+	struct member *m, *prev_m, *next_m;
+	char *interface;
+	char *tmp, *tmp_name;
+	char tmpbuf[64];	/* Must be longer than the longest queue param name. */
+
+	/* Find the queue in the in-core list (we will create a new one if not found). */
+	q = queues;
+	prev_q = NULL;
+	while (q) {
+		if (!strcasecmp(q->name, queuename)) {
+			break;
+		}
+		q = q->next;
+		prev_q = q;
+	}
+
+	/* Static queues override realtime. */
+	if (q) {
+		ast_mutex_lock(&q->lock);
+		if (!q->realtime) {
+			if (q->dead) {
+				ast_mutex_unlock(&q->lock);
+				return NULL;
+			} else {
+				return q;
+			}
+		}
+	}
+
+	/* Check if queue is defined in realtime. */
+	if (!queue_vars) {
+		/* Delete queue from in-core list if it has been deleted in realtime. */
+		if (q) {
+			/* Hmm, can't seem to distinguish a DB failure from a not
+			   found condition... So we might delete an in-core queue
+			   in case of DB failure. */
+			ast_log(LOG_DEBUG, "Queue %s not found in realtime.\n", queuename);
+
+			q->dead = 1;
+			/* Delete if unused (else will be deleted when last caller leaves). */
+			if (!q->count) {
+				/* Delete. */
+				if (!prev_q) {
+					queues = q->next;
+				} else {
+					prev_q->next = q->next;
+				}
+				ast_mutex_unlock(&q->lock);
+				free(q);
+			} else
+				ast_mutex_unlock(&q->lock);
+		}
+		return NULL;
+	}
+
+	/* Create a new queue if an in-core entry does not exist yet. */
+	if (!q) {
+		q = alloc_queue(queuename);
+		if (!q)
+			return NULL;
+		ast_mutex_lock(&q->lock);
+		clear_queue(q);
+		q->realtime = 1;
+		q->next = queues;
+		queues = q;
+	}
+	init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
+
+	v = queue_vars;
+	memset(tmpbuf, 0, sizeof(tmpbuf));
+	while(v) {
+		/* Convert to dashes `-' from underscores `_' as the latter are more SQL friendly. */
+		if((tmp = strchr(v->name, '_')) != NULL) {
+			ast_copy_string(tmpbuf, v->name, sizeof(tmpbuf));
+			tmp_name = tmpbuf;
+			tmp = tmp_name;
+			while((tmp = strchr(tmp, '_')) != NULL)
+				*tmp++ = '-';
+		} else
+			tmp_name = v->name;
+		queue_set_param(q, tmp_name, v->value, -1, 0);
+		v = v->next;
+	}
+
+	/* Temporarily set members dead so we can detect deleted ones. */
+	m = q->members;
+	while (m) {
+		m->dead = 1;
+		m = m->next;
+	}
+
+	interface = ast_category_browse(member_config, NULL);
+	while (interface) {
+		rt_handle_member_record(q, interface, ast_variable_retrieve(member_config, interface, "penalty"));
+		interface = ast_category_browse(member_config, interface);
+	}
+
+	/* Delete all realtime members that have been deleted in DB. */
+	m = q->members;
+	prev_m = NULL;
+	while (m) {
+		next_m = m->next;
+		if (m->dead) {
+			if (prev_m) {
+				prev_m->next = next_m;
+			} else {
+				q->members = next_m;
+			}
+			free(m);
+		} else {
+			prev_m = m;
+		}
+		m = next_m;
+	}
+
+	return q;
+}
+
 static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *reason)
 {
+	struct ast_variable *queue_vars = NULL;
+	struct ast_config *member_config = NULL;
 	struct ast_call_queue *q;
 	struct queue_ent *cur, *prev = NULL;
 	int res = -1;
 	int pos = 0;
 	int inserted = 0;
+	enum queue_member_status stat;
+
+	/* Load from realtime before taking the global qlock, to avoid blocking all
+	   queue operations while waiting for the DB.
+
+	   This will be two separate database transactions, so we might
+	   see queue parameters as they were before another process
+	   changed the queue and member list as it was after the change.
+	   Thus we might see an empty member list when a queue is
+	   deleted. In practise, this is unlikely to cause a problem. */
+	queue_vars = ast_load_realtime("queues", "name", queuename, NULL);
+	if(queue_vars)
+		member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, NULL);
 
 	ast_mutex_lock(&qlock);
-	for (q = queues; q; q = q->next) {
-		if (!strcasecmp(q->name, queuename)) {
-			enum queue_member_status stat;
-			/* This is our one */
-			ast_mutex_lock(&q->lock);
-			stat = get_member_status(q);
-			if (!q->joinempty && (stat == QUEUE_NO_MEMBERS))
-				*reason = QUEUE_JOINEMPTY;
-			else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
-				*reason = QUEUE_JOINUNAVAIL;
-			else if (q->maxlen && (q->count >= q->maxlen))
-				*reason = QUEUE_FULL;
-			else {
-				/* There's space for us, put us at the right position inside
-				 * the queue. 
-				 * Take into account the priority of the calling user */
-				inserted = 0;
-				prev = NULL;
-				cur = q->head;
-				while(cur) {
-					/* We have higher priority than the current user, enter
-					 * before him, after all the other users with priority
-					 * higher or equal to our priority. */
-					if ((!inserted) && (qe->prio > cur->prio)) {
-						insert_entry(q, prev, qe, &pos);
-						inserted = 1;
-					}
-					cur->pos = ++pos;
-					prev = cur;
-					cur = cur->next;
-				}
-				/* No luck, join at the end of the queue */
-				if (!inserted)
-					insert_entry(q, prev, qe, &pos);
-				ast_copy_string(qe->moh, q->moh, sizeof(qe->moh));
-				ast_copy_string(qe->announce, q->announce, sizeof(qe->announce));
-				ast_copy_string(qe->context, q->context, sizeof(qe->context));
-				q->count++;
-				res = 0;
-				manager_event(EVENT_FLAG_CALL, "Join", 
-					"Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
-					qe->chan->name, 
-					qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
-					qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
-					q->name, qe->pos, q->count );
+	q = reload_queue_rt(queuename, queue_vars, member_config);
+	/* Note: If found, reload_queue_rt() returns with q->lock locked. */
+	if(member_config)
+		ast_config_destroy(member_config);
+	if(queue_vars)
+		ast_variables_destroy(queue_vars);
+
+	if (!q) {
+		ast_mutex_unlock(&qlock);
+		return res;
+	}
+
+	/* This is our one */
+	stat = get_member_status(q);
+	if (!q->joinempty && (stat == QUEUE_NO_MEMBERS))
+		*reason = QUEUE_JOINEMPTY;
+	else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
+		*reason = QUEUE_JOINUNAVAIL;
+	else if (q->maxlen && (q->count >= q->maxlen))
+		*reason = QUEUE_FULL;
+	else {
+		/* There's space for us, put us at the right position inside
+		 * the queue. 
+		 * Take into account the priority of the calling user */
+		inserted = 0;
+		prev = NULL;
+		cur = q->head;
+		while(cur) {
+			/* We have higher priority than the current user, enter
+			 * before him, after all the other users with priority
+			 * higher or equal to our priority. */
+			if ((!inserted) && (qe->prio > cur->prio)) {
+				insert_entry(q, prev, qe, &pos);
+				inserted = 1;
+			}
+			cur->pos = ++pos;
+			prev = cur;
+			cur = cur->next;
+		}
+		/* No luck, join at the end of the queue */
+		if (!inserted)
+			insert_entry(q, prev, qe, &pos);
+		ast_copy_string(qe->moh, q->moh, sizeof(qe->moh));
+		ast_copy_string(qe->announce, q->announce, sizeof(qe->announce));
+		ast_copy_string(qe->context, q->context, sizeof(qe->context));
+		q->count++;
+		res = 0;
+		manager_event(EVENT_FLAG_CALL, "Join", 
+			      "Channel: %s\r\nCallerID: %s\r\nCallerIDName: %s\r\nQueue: %s\r\nPosition: %d\r\nCount: %d\r\n",
+			      qe->chan->name, 
+			      qe->chan->cid.cid_num ? qe->chan->cid.cid_num : "unknown",
+			      qe->chan->cid.cid_name ? qe->chan->cid.cid_name : "unknown",
+			      q->name, qe->pos, q->count );
 #if 0
 ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, qe->chan->name, qe->pos );
 #endif
-			}
-			ast_mutex_unlock(&q->lock);
-			break;
-		}
 	}
+	ast_mutex_unlock(&q->lock);
 	ast_mutex_unlock(&qlock);
 	return res;
 }
@@ -1793,27 +2166,6 @@ static struct member * interface_exists(struct ast_call_queue *q, char *interfac
 }
 
 
-static struct member *create_queue_node(char *interface, int penalty, int paused)
-{
-	struct member *cur;
-	
-	/* Add a new member */
-
-	cur = malloc(sizeof(struct member));
-
-	if (cur) {
-		memset(cur, 0, sizeof(struct member));
-		cur->penalty = penalty;
-		cur->paused = paused;
-		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
-		if (!strchr(cur->interface, '/'))
-			ast_log(LOG_WARNING, "No location at interface '%s'\n", interface);
-		cur->status = ast_device_state(interface);
-	}
-
-	return cur;
-}
-
 /* Dump all members in a specific queue to the databse
  *
  * <pm_family>/<queuename> = <interface>;<penalty>;<paused>[|...]
@@ -1909,7 +2261,7 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
 		ast_mutex_lock(&q->lock);
 		if (!strcmp(q->name, queuename)) {
 			if (interface_exists(q, interface) == NULL) {
-				new_member = create_queue_node(interface, penalty, paused);
+				new_member = create_queue_member(interface, penalty, paused);
 
 				if (new_member != NULL) {
 					new_member->dynamic = 1;
@@ -2540,12 +2892,15 @@ static void reload_queues(void)
 	struct member *prev, *cur;
 	int new;
 	char *general_val = NULL;
+	char interface[80];
+	int penalty;
 	
 	cfg = ast_config_load("queues.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "No call queueing config file (queues.conf), so no call queues\n");
 		return;
 	}
+	memset(interface, 0, sizeof(interface));
 	ast_mutex_lock(&qlock);
 	use_weight=0;
 	/* Mark all queues as dead for the moment */
@@ -2557,7 +2912,12 @@ static void reload_queues(void)
 	/* Chug through config file */
 	cat = ast_category_browse(cfg, NULL);
 	while(cat) {
-		if (strcasecmp(cat, "general")) {	/* Define queue */
+		if (!strcasecmp(cat, "general")) {	
+			/* Initialize global settings */
+			queue_persistent_members = 0;
+			if ((general_val = ast_variable_retrieve(cfg, "general", "persistentmembers")))
+				queue_persistent_members = ast_true(general_val);
+		} else {	/* Define queue */
 			/* Look for an existing one */
 			q = queues;
 			while(q) {
@@ -2567,47 +2927,17 @@ static void reload_queues(void)
 			}
 			if (!q) {
 				/* Make one then */
-				q = malloc(sizeof(struct ast_call_queue));
-				if (q) {
-					/* Initialize it */
-					memset(q, 0, sizeof(struct ast_call_queue));
-					ast_mutex_init(&q->lock);
-					ast_copy_string(q->name, cat, sizeof(q->name));
-					new = 1;
-				} else new = 0;
+				q = alloc_queue(cat);
+				new = 1;
 			} else
-					new = 0;
+				new = 0;
 			if (q) {
-				if (!new) 
+				if (!new)
 					ast_mutex_lock(&q->lock);
-				/* Re-initialize the queue */
-				q->dead = 0;
-				q->retry = DEFAULT_RETRY;
-				q->timeout = -1;
-				q->maxlen = 0;
-				q->announcefrequency = 0;
-				q->announceholdtime = 0;
-				q->roundingseconds = 0; /* Default - don't announce seconds */
-				q->holdtime = 0;
-				q->callscompleted = 0;
-				q->callsabandoned = 0;
-				q->callscompletedinsl = 0;
-				q->servicelevel = 0;
-				q->wrapuptime = 0;
+				/* Re-initialize the queue, and clear statistics */
+				init_queue(q);
+				clear_queue(q);
 				free_members(q, 0);
-				q->moh[0] = '\0';
-				q->announce[0] = '\0';
-				q->context[0] = '\0';
-				q->monfmt[0] = '\0';
-				ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
-				ast_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
-				ast_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
-				ast_copy_string(q->sound_holdtime, "queue-holdtime", sizeof(q->sound_holdtime));
-				ast_copy_string(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes));
-				ast_copy_string(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds));
-				ast_copy_string(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks));
-				ast_copy_string(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan));
-				ast_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
 				prev = q->members;
 				if (prev) {
 					/* find the end of any dynamic members */
@@ -2618,123 +2948,29 @@ static void reload_queues(void)
 				while(var) {
 					if (!strcasecmp(var->name, "member")) {
 						/* Add a new member */
-						cur = malloc(sizeof(struct member));
-						if (cur) {
-							memset(cur, 0, sizeof(struct member));
-							ast_copy_string(cur->interface, var->value, sizeof(cur->interface));
-							if ((tmp = strchr(cur->interface, ','))) {
-								*tmp = '\0';
-								tmp++;
-								cur->penalty = atoi(tmp);
-								if (cur->penalty < 0)
-									cur->penalty = 0;
+						ast_copy_string(interface, var->value, sizeof(interface));
+						if ((tmp = strchr(interface, ','))) {
+							*tmp = '\0';
+							tmp++;
+							penalty = atoi(tmp);
+							if (penalty < 0) {
+								penalty = 0;
 							}
-							if (!strchr(cur->interface, '/'))
-								ast_log(LOG_WARNING, "No location at line %d of queue.conf\n", var->lineno);
+						} else
+							penalty = 0;
+						cur = create_queue_member(interface, penalty, 0);
+						if (cur) {
 							if (prev)
 								prev->next = cur;
 							else
 								q->members = cur;
 							prev = cur;
 						}
-					} else if (!strcasecmp(var->name, "music") || !strcasecmp(var->name, "musiconhold")) {
-						ast_copy_string(q->moh, var->value, sizeof(q->moh));
-					} else if (!strcasecmp(var->name, "announce")) {
-						ast_copy_string(q->announce, var->value, sizeof(q->announce));
-					} else if (!strcasecmp(var->name, "context")) {
-						ast_copy_string(q->context, var->value, sizeof(q->context));
-					} else if (!strcasecmp(var->name, "timeout")) {
-						q->timeout = atoi(var->value);
-					} else if (!strcasecmp(var->name, "monitor-join")) {
-						q->monjoin = ast_true(var->value);
-					} else if (!strcasecmp(var->name, "monitor-format")) {
-						ast_copy_string(q->monfmt, var->value, sizeof(q->monfmt));
-					} else if (!strcasecmp(var->name, "queue-youarenext")) {
-						ast_copy_string(q->sound_next, var->value, sizeof(q->sound_next));
-					} else if (!strcasecmp(var->name, "queue-thereare")) {
-						ast_copy_string(q->sound_thereare, var->value, sizeof(q->sound_thereare));
-					} else if (!strcasecmp(var->name, "queue-callswaiting")) {
-						ast_copy_string(q->sound_calls, var->value, sizeof(q->sound_calls));
-					} else if (!strcasecmp(var->name, "queue-holdtime")) {
-						ast_copy_string(q->sound_holdtime, var->value, sizeof(q->sound_holdtime));
-					} else if (!strcasecmp(var->name, "queue-minutes")) {
-						ast_copy_string(q->sound_minutes, var->value, sizeof(q->sound_minutes));
-					} else if (!strcasecmp(var->name, "queue-seconds")) {
-						ast_copy_string(q->sound_seconds, var->value, sizeof(q->sound_seconds));
-					} else if (!strcasecmp(var->name, "queue-lessthan")) {
-						ast_copy_string(q->sound_lessthan, var->value, sizeof(q->sound_lessthan));
-					} else if (!strcasecmp(var->name, "queue-thankyou")) {
-						ast_copy_string(q->sound_thanks, var->value, sizeof(q->sound_thanks));
-					} else if (!strcasecmp(var->name, "queue-reporthold")) {
-						ast_copy_string(q->sound_reporthold, var->value, sizeof(q->sound_reporthold));
-					} else if (!strcasecmp(var->name, "announce-frequency")) {
-						q->announcefrequency = atoi(var->value);
-					} else if (!strcasecmp(var->name, "announce-round-seconds")) {
-						q->roundingseconds = atoi(var->value);
-						if(q->roundingseconds>60 || q->roundingseconds<0) {
-							ast_log(LOG_WARNING, "'%s' isn't a valid value for queue-rounding-seconds using 0 instead at line %d of queue.conf\n", var->value, var->lineno);
-							q->roundingseconds=0;
-						}
-					} else if (!strcasecmp(var->name, "announce-holdtime")) {
-						if (!strcasecmp(var->value, "once"))
-							q->announceholdtime = ANNOUNCEHOLDTIME_ONCE;
-						else if (ast_true(var->value))
-							q->announceholdtime = ANNOUNCEHOLDTIME_ALWAYS;
-						else
-							q->announceholdtime = 0;
-					} else if (!strcasecmp(var->name, "retry")) {
-						q->retry = atoi(var->value);
-					} else if (!strcasecmp(var->name, "wrapuptime")) {
-						q->wrapuptime = atoi(var->value);
-					} else if (!strcasecmp(var->name, "maxlen")) {
-						q->maxlen = atoi(var->value);
-					} else if (!strcasecmp(var->name, "servicelevel")) {
-						q->servicelevel= atoi(var->value);
-					} else if (!strcasecmp(var->name, "strategy")) {
-						q->strategy = strat2int(var->value);
-						if (q->strategy < 0) {
-							ast_log(LOG_WARNING, "'%s' isn't a valid strategy, using ringall instead\n", var->value);
-							q->strategy = 0;
-						}
-					} else if (!strcasecmp(var->name, "joinempty")) {
-						if (!strcasecmp(var->value, "strict"))
-							q->joinempty = QUEUE_EMPTY_STRICT;
-						else if (ast_true(var->value))
-							q->joinempty = QUEUE_EMPTY_NORMAL;
-						else
-							q->joinempty = 0;
-					} else if (!strcasecmp(var->name, "leavewhenempty")) {
-						if (!strcasecmp(var->value, "strict"))
-							q->leavewhenempty = QUEUE_EMPTY_STRICT;
-						else if (ast_true(var->value))
-							q->leavewhenempty = QUEUE_EMPTY_NORMAL;
-						else
-							q->leavewhenempty = 0;
-					} else if (!strcasecmp(var->name, "eventmemberstatus")) {
-						q->maskmemberstatus = !ast_true(var->value);
-					} else if (!strcasecmp(var->name, "eventwhencalled")) {
-						q->eventwhencalled = ast_true(var->value);
-					} else if (!strcasecmp(var->name, "reportholdtime")) {
-						q->reportholdtime = ast_true(var->value);
-					} else if (!strcasecmp(var->name, "memberdelay")) {
-						q->memberdelay = atoi(var->value);
-					} else if (!strcasecmp(var->name, "weight")) {
-						q->weight = atoi(var->value);
-						if (q->weight)
-							use_weight++;
-					} else if (!strcasecmp(var->name, "timeoutrestart")) {
-						q->timeoutrestart = ast_true(var->value);
 					} else {
-						ast_log(LOG_WARNING, "Unknown keyword in queue '%s': %s at line %d of queue.conf\n", cat, var->name, var->lineno);
+						queue_set_param(q, var->name, var->value, var->lineno, 1);
 					}
 					var = var->next;
 				}
-				if (q->retry < 0)
-					q->retry = DEFAULT_RETRY;
-				if (q->timeout < 0)
-					q->timeout = DEFAULT_TIMEOUT;
-				if (q->maxlen < 0)
-					q->maxlen = 0;
 				if (!new) 
 					ast_mutex_unlock(&q->lock);
 				if (new) {
@@ -2742,11 +2978,6 @@ static void reload_queues(void)
 					queues = q;
 				}
 			}
-		} else {	
-			/* Initialize global settings */
-			queue_persistent_members = 0;
-			if ((general_val = ast_variable_retrieve(cfg, "general", "persistentmembers")))
-			    queue_persistent_members = ast_true(general_val);
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
