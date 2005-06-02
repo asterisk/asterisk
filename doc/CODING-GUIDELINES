@@ -192,6 +192,28 @@ output buffer will be null-terminated. Use ast_copy_string instead, which
 is also slightly more efficient (and allows passing the actual buffer
 size, which makes the code clearer).
 
+When allocating/zeroing memory for a structure, try to use code like this:
+
+struct foo *tmp;
+
+...
+
+tmp = malloc(sizeof(*tmp));
+if (tmp)
+  memset(tmp, 0, sizeof(*tmp));
+
+This eliminates duplication of the 'struct foo' identifier, which makes the
+code easier to read and also ensures that if it is copy-and-pasted it won't
+require as much editing. In fact, you can even use:
+
+struct foo *tmp;
+
+...
+
+tmp = calloc(1, sizeof(*tmp));
+
+This will allocate and zero the memory in a single operation.
+
 == CLI Commands ==
 
 New CLI commands should be named using the module's name, followed by a verb
