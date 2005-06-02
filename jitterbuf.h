@@ -50,7 +50,16 @@ extern "C" {
 #define JB_TYPE_VIDEO	2  /* reserved */
 #define JB_TYPE_SILENCE	3
 
+
+typedef struct jb_conf {
+	/* settings */
+	long max_jitterbuf;	/* defines a hard clamp to use in setting the jitter buffer delay */
+ 	long resync_threshold;  /* the jb will resync when delay increases to (2 * jitter) + this param */
+} jb_conf;
+
 typedef struct jb_info {
+	jb_conf conf;
+
 	/* statistics */
 	long frames_in;  	/* number of frames input to the jitterbuffer.*/
 	long frames_out;  	/* number of frames output from the jitterbuffer.*/
@@ -71,10 +80,6 @@ typedef struct jb_info {
  	long last_delay;        /* the last now added to history */
  	long cnt_delay_discont;	/* the count of discontinuous delays */
  	long resync_offset;     /* the amount to offset ts to support resyncs */
-
-	/* settings */
-	long max_jitterbuf;	/* defines a hard clamp to use in setting the jitter buffer delay */
- 	long resync_threshold;  /* the jb will resync when delay increases to (2 * jitter) + this param */
 } jb_info;
 
 typedef struct jb_frame {
@@ -139,11 +144,11 @@ long			jb_next(jitterbuf *jb);
 /* get jitterbuf info: only "statistics" may be valid */
 int			jb_getinfo(jitterbuf *jb, jb_info *stats);
 
-/* set jitterbuf info: only "settings" may be honored */
-int			jb_setinfo(jitterbuf *jb, jb_info *settings);
+/* set jitterbuf conf */
+int			jb_setconf(jitterbuf *jb, jb_conf *conf);
 
 typedef 		void (*jb_output_function_t)(const char *fmt, ...);
-void 			jb_setoutput(jb_output_function_t warn, jb_output_function_t err, jb_output_function_t dbg);
+void 			jb_setoutput(jb_output_function_t err, jb_output_function_t warn, jb_output_function_t dbg);
 
 #ifdef __cplusplus
 }

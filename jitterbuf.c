@@ -35,10 +35,10 @@
 
 static jb_output_function_t warnf, errf, dbgf;
 
-void jb_setoutput(jb_output_function_t warn, jb_output_function_t err, jb_output_function_t dbg) 
+void jb_setoutput(jb_output_function_t err, jb_output_function_t warn, jb_output_function_t dbg) 
 {
-	warnf = warn;
 	errf = err;
+	warnf = warn;
 	dbgf = dbg;
 }
 
@@ -54,7 +54,10 @@ static void decrement_losspct(jitterbuf *jb)
 
 void jb_reset(jitterbuf *jb) 
 {
+	/* only save settings */
+	jb_conf s = jb->info.conf;
 	memset(jb,0,sizeof(jitterbuf));
+	jb->info.conf = s;
 
 	/* initialize length */
 	jb->info.current = jb->info.target = JB_TARGET_EXTRA; 
@@ -109,7 +112,7 @@ static int longcmp(const void *a, const void *b)
 static int history_put(jitterbuf *jb, long ts, long now, long ms) 
 {
 	long delay = now - (ts - jb->info.resync_offset);
-	long threshold = 2 * jb->info.jitter + jb->info.resync_threshold;
+	long threshold = 2 * jb->info.jitter + jb->info.conf.resync_threshold;
 	long kicked;
 
 	/* don't add special/negative times to history */
@@ -117,7 +120,7 @@ static int history_put(jitterbuf *jb, long ts, long now, long ms)
 		return 0;
 
 	/* check for drastic change in delay */
-	if (jb->info.resync_threshold != -1) {
+	if (jb->info.conf.resync_threshold != -1) {
 		if (abs(delay - jb->info.last_delay) > threshold) {
 			jb->info.cnt_delay_discont++;
 			if (jb->info.cnt_delay_discont > 3) {
@@ -529,9 +532,9 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 	jb->info.target = jb->info.jitter + jb->info.min + JB_TARGET_EXTRA; 
 
 	/* if a hard clamp was requested, use it */
-	if ((jb->info.max_jitterbuf) && ((jb->info.target - jb->info.min) > jb->info.max_jitterbuf)) {
-		jb_dbg("clamping target from %d to %d\n", (jb->info.target - jb->info.min), jb->info.max_jitterbuf);
-		jb->info.target = jb->info.min + jb->info.max_jitterbuf;
+	if ((jb->info.conf.max_jitterbuf) && ((jb->info.target - jb->info.min) > jb->info.conf.max_jitterbuf)) {
+		jb_dbg("clamping target from %d to %d\n", (jb->info.target - jb->info.min), jb->info.conf.max_jitterbuf);
+		jb->info.target = jb->info.min + jb->info.conf.max_jitterbuf;
 	}
 
 	diff = jb->info.target - jb->info.current;
@@ -777,12 +780,12 @@ int jb_getinfo(jitterbuf *jb, jb_info *stats)
 	return JB_OK;
 }
 
-int jb_setinfo(jitterbuf *jb, jb_info *settings) 
+int jb_setconf(jitterbuf *jb, jb_conf *conf) 
 {
 	/* take selected settings from the struct */
 
-	jb->info.max_jitterbuf = settings->max_jitterbuf;
- 	jb->info.resync_threshold = settings->resync_threshold;
+	jb->info.conf.max_jitterbuf = conf->max_jitterbuf;
+ 	jb->info.conf.resync_threshold = conf->resync_threshold;
 
 	return JB_OK;
 }

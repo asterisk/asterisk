@@ -857,13 +857,13 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 		ast_copy_string(tmp->host, host, sizeof(tmp->host));
 #ifdef NEWJB
 		{
-			jb_info jbinfo;
+			jb_conf jbconf;
 
 			tmp->jb = jb_new();
 			tmp->jbid = -1;
-			jbinfo.max_jitterbuf = maxjitterbuffer;
-			jbinfo.resync_threshold = resyncthreshold;
-			jb_setinfo(tmp->jb,&jbinfo);
+			jbconf.max_jitterbuf = maxjitterbuffer;
+			jbconf.resync_threshold = resyncthreshold;
+			jb_setconf(tmp->jb,&jbconf);
 		}
 #endif
 	}
