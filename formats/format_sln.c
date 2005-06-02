@@ -156,6 +156,7 @@ static int slinear_seek(struct ast_filestream *fs, long sample_offset, int whenc
 	off_t offset=0,min,cur,max;
 
 	min = 0;
+	sample_offset <<= 1;
 	cur = lseek(fs->fd, 0, SEEK_CUR);
 	max = lseek(fs->fd, 0, SEEK_END);
 	if (whence == SEEK_SET)
