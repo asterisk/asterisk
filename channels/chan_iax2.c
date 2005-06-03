@@ -2677,114 +2677,107 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin)
 	ast_update_realtime("iaxpeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, NULL);
 }
 
+struct create_addr_info {
+	int capability;
+	unsigned int flags;
+	int maxtime;
+	int encmethods;
+	int found;
+	int sockfd;
+	char username[80];
+	char secret[80];
+	char outkey[80];
+	char timezone[80];
+	char prefs[32];
+	char context[AST_MAX_EXTENSION];
+	char peercontext[AST_MAX_EXTENSION];
+};
 
-static int create_addr(struct sockaddr_in *sin, int *capability, int *sendani, 
-					   int *maxtime, char *peer, char *context, int *trunk, 
-					   int *notransfer, int *usejitterbuf, int *forcejitterbuf, int *encmethods, 
-					   char *username, int usernlen, char *secret, int seclen, 
-					   int *ofound, char *peercontext, char *timezone, int tzlen, char *pref_str, size_t pref_size,
-					   int *sockfd)
+static int create_addr(const char *peername, struct sockaddr_in *sin, struct create_addr_info *cai)
 {
-	struct ast_hostent ahp; struct hostent *hp;
-	struct iax2_peer *p;
-	int found=0;
-	if (sendani)
-		*sendani = 0;
-	if (maxtime)
-		*maxtime = 0;
-	if (trunk)
-		*trunk = 0;
-	if (sockfd)
-		*sockfd = defaultsockfd;
+	struct ast_hostent ahp;
+	struct hostent *hp;
+	struct iax2_peer *peer;
+
+	ast_clear_flag(cai, IAX_SENDANI | IAX_TRUNK);
+	cai->sockfd = defaultsockfd;
+	cai->maxtime = 0;
 	sin->sin_family = AF_INET;
-	p = find_peer(peer, 1);
-	if (p) {
-		found++;
-		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-			(!p->maxms || ((p->lastms > 0)  && (p->lastms <= p->maxms)))) {
 
-			if(pref_str) {
-				ast_codec_pref_convert(&p->prefs, pref_str, pref_size, 1);
-			}
-			if (sendani)
-				*sendani = ast_test_flag(p, IAX_SENDANI);		/* Whether we transmit ANI */
-			if (maxtime)
-				*maxtime = p->maxms;		/* Max time they should take */
-			if (context)
-				ast_copy_string(context, p->context, sizeof(context));
-			if (peercontext)
-				ast_copy_string(peercontext, p->peercontext, sizeof(peercontext));
-			if (trunk)
-				*trunk = ast_test_flag(p, IAX_TRUNK);
-			if (capability)
-				*capability = p->capability;
-			if (encmethods)
-				*encmethods = p->encmethods;
-			if (username)
-				ast_copy_string(username, p->username, usernlen);
-			if (p->addr.sin_addr.s_addr) {
-				sin->sin_addr = p->addr.sin_addr;
-				sin->sin_port = p->addr.sin_port;
-			} else {
-				sin->sin_addr = p->defaddr.sin_addr;
-				sin->sin_port = p->defaddr.sin_port;
-			}
-			if (sockfd)
-				*sockfd = p->sockfd;
-			if (notransfer)
-				*notransfer = ast_test_flag(p, IAX_NOTRANSFER);
-			if (usejitterbuf)
-				*usejitterbuf = ast_test_flag(p, IAX_USEJITTERBUF);
-			if (forcejitterbuf)
-				*forcejitterbuf = ast_test_flag(p, IAX_FORCEJITTERBUF);
-			if (secret) {
-				if (!ast_strlen_zero(p->dbsecret)) {
-					char *family, *key=NULL;
-					family = ast_strdupa(p->dbsecret);
-					if (family) {
-						key = strchr(family, '/');
-						if (key) {
-							*key = '\0';
-							key++;
-						}
-					}
-					if (!family || !key || ast_db_get(family, key, secret, seclen)) {
-						ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", p->dbsecret);
-						if (ast_test_flag(p, IAX_TEMPONLY))
-							destroy_peer(p);
-						p = NULL;
-					}
-				} else
-					ast_copy_string(secret, p->secret, seclen);
-			}
-			if (timezone)
-				snprintf(timezone, tzlen-1, "%s", p->zonetag);
-		} else {
-			if (ast_test_flag(p, IAX_TEMPONLY))
-				destroy_peer(p);
-			p = NULL;
-		}
-	}
-	if (ofound)
-		*ofound = found;
-	if (!p && !found) {
-		if(pref_str) { /* use global iax prefs for unknown peer/user */
-			ast_codec_pref_convert(&prefs, pref_str, pref_size, 1);
-		}
+	if (!(peer = find_peer(peername, 1))) {
+		cai->found = 0;
 
-		hp = ast_gethostbyname(peer, &ahp);
+		hp = ast_gethostbyname(peername, &ahp);
 		if (hp) {
 			memcpy(&sin->sin_addr, hp->h_addr, sizeof(sin->sin_addr));
 			sin->sin_port = htons(IAX_DEFAULT_PORTNO);
+			/* use global iax prefs for unknown peer/user */
+			ast_codec_pref_convert(&prefs, cai->prefs, sizeof(cai->prefs), 1);
 			return 0;
 		} else {
-			ast_log(LOG_WARNING, "No such host: %s\n", peer);
+			ast_log(LOG_WARNING, "No such host: %s\n", peername);
 			return -1;
 		}
-	} else if (!p)
+	}
+
+	cai->found = 1;
+	
+	/* if the peer has no address (current or default), return failure */
+	if (!(peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr)) {
+		if (ast_test_flag(peer, IAX_TEMPONLY))
+			destroy_peer(peer);
 		return -1;
-	if (ast_test_flag(p, IAX_TEMPONLY))
-		destroy_peer(p);
+	}
+
+	/* if the peer is being monitored and is currently unreachable, return failure */
+	if (peer->maxms && (peer->lastms > peer->maxms)) {
+		if (ast_test_flag(peer, IAX_TEMPONLY))
+			destroy_peer(peer);
+		return -1;
+	}
+
+	ast_copy_flags(cai, peer, IAX_SENDANI | IAX_TRUNK | IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
+	cai->maxtime = peer->maxms;
+	cai->capability = peer->capability;
+	cai->encmethods = peer->encmethods;
+	cai->sockfd = peer->sockfd;
+	ast_codec_pref_convert(&peer->prefs, cai->prefs, sizeof(cai->prefs), 1);
+	ast_copy_string(cai->context, peer->context, sizeof(cai->context));
+	ast_copy_string(cai->peercontext, peer->peercontext, sizeof(cai->peercontext));
+	ast_copy_string(cai->username, peer->username, sizeof(cai->username));
+	ast_copy_string(cai->timezone, peer->zonetag, sizeof(cai->timezone));
+	ast_copy_string(cai->outkey, peer->outkey, sizeof(cai->outkey));
+	if (ast_strlen_zero(peer->dbsecret)) {
+		ast_copy_string(cai->secret, peer->secret, sizeof(cai->secret));
+	} else {
+		char *family;
+		char *key = NULL;
+
+		family = ast_strdupa(peer->dbsecret);
+		if (family) {
+			key = strchr(family, '/');
+			if (key)
+				*key++ = '\0';
+		}
+		if (!family || !key || ast_db_get(family, key, cai->secret, sizeof(cai->secret))) {
+			ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", peer->dbsecret);
+			if (ast_test_flag(peer, IAX_TEMPONLY))
+				destroy_peer(peer);
+			return -1;
+		}
+	}
+
+	if (peer->addr.sin_addr.s_addr) {
+		sin->sin_addr = peer->addr.sin_addr;
+		sin->sin_port = peer->addr.sin_port;
+	} else {
+		sin->sin_addr = peer->defaddr.sin_addr;
+		sin->sin_port = peer->defaddr.sin_port;
+	}
+
+	if (ast_test_flag(peer, IAX_TEMPONLY))
+		destroy_peer(peer);
+
 	return 0;
 }
 
@@ -2820,148 +2813,189 @@ static unsigned int iax2_datetime(char *tz)
 	return tmp;
 }
 
+struct parsed_dial_string {
+	char *username;
+	char *password;
+	char *key;
+	char *peer;
+	char *port;
+	char *exten;
+	char *context;
+	char *options;
+};
+
+/*!
+ * \brief Parses an IAX dial string into its component parts.
+ * \param data the string to be parsed
+ * \param pds pointer to a \c struct \c parsed_dial_string to be filled in
+ * \return nothing
+ *
+ * This function parses the string and fills the structure
+ * with pointers to its component parts. The input string
+ * will be modified.
+ *
+ * \note This function supports both plaintext passwords and RSA
+ * key names; if the password string is formatted as '[keyname]',
+ * then the keyname will be placed into the key field, and the
+ * password field will be set to NULL.
+ *
+ * \note The dial string format is:
+ *       [username[:password]@]peer[:port][/exten[@@context]][/options]
+ */
+static void parse_dial_string(char *data, struct parsed_dial_string *pds)
+{
+	if (!data || ast_strlen_zero(data))
+		return;
+
+	pds->peer = strsep(&data, "/");
+	pds->exten = strsep(&data, "/");
+	pds->options = data;
+
+	if (pds->exten) {
+		data = pds->exten;
+		pds->exten = strsep(&data, "@");
+		pds->context = data;
+	}
+
+	if (strchr(pds->peer, '@')) {
+		data = pds->peer;
+		pds->username = strsep(&data, "@");
+		pds->peer = data;
+	}
+
+	if (pds->username) {
+		data = pds->username;
+		pds->username = strsep(&data, ":");
+		pds->password = data;
+	}
+
+	data = pds->peer;
+	pds->peer = strsep(&data, ":");
+	pds->port = data;
+
+	/* check for a key name wrapped in [] in the secret position, if found,
+	   move it to the key field instead
+	*/
+	if (pds->password && (pds->password[0] == '[')) {
+		int len = strlen(pds->password);
+
+		if ((len > 2) && (pds->password[len - 1] == ']')) {
+			pds->key = ++(pds->password);
+			pds->password[len - 1] = '\0';
+			pds->password = NULL;
+		}
+	}
+}
+
 static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 {
 	struct sockaddr_in sin;
-	char host[256];
-	char *rdest;
-	char *rcontext;
-	char *username;
-	char *secret = NULL;
-	char *hname;
 	char *l=NULL, *n=NULL;
 	struct iax_ie_data ied;
-	char myrdest [5] = "s";
-	char context[AST_MAX_EXTENSION] ="";
-	char peercontext[AST_MAX_EXTENSION] ="";
-	char *portno = NULL;
-	char *opts = "";
-	int encmethods=iax2_encryption;
+	char *defaultrdest = "s";
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
-	char *stringp=NULL;
-	char storedusern[80], storedsecret[80];
-	char tz[80] = "";	
-	char out_prefs[32];
-
-	memset(out_prefs,0,32);
+	struct parsed_dial_string pds;
+	struct create_addr_info cai;
 
 	if ((c->_state != AST_STATE_DOWN) && (c->_state != AST_STATE_RESERVED)) {
-		ast_log(LOG_WARNING, "Line is already in use (%s)?\n", c->name);
+		ast_log(LOG_WARNING, "Channel is already in use (%s)?\n", c->name);
 		return -1;
 	}
-	ast_copy_string(host, dest, sizeof(host));
-	stringp=host;
-	strsep(&stringp, "/");
-	/* If no destination extension specified, use 's' */
-	rdest = strsep(&stringp, "/");
-	if (!rdest) 
-		rdest = myrdest;
-	else {
-		/* Check for trailing options */
-		opts = strsep(&stringp, "/");
-		if (!opts)
-			opts = "";
-	}
-	stringp=rdest;
-	strsep(&stringp, "@");
-	rcontext = strsep(&stringp, "@");
-	stringp=host;
-	strsep(&stringp, "@");
-	username = strsep(&stringp, "@");
-	if (username) {
-		/* Really the second argument is the host, not the username */
-		hname = username;
-		username = host;
-	} else {
-		hname = host;
-	}
-	if (username) {
-		stringp=username;
-		username = strsep(&stringp, ":");
-		secret = strsep(&stringp, ":");
-	}
-	stringp=hname;
-	if (strsep(&stringp, ":")) {
-		stringp=hname;
-		strsep(&stringp, ":");
-		portno = strsep(&stringp, ":");
-	}
-	if (create_addr(&sin, NULL, NULL, NULL, hname, context, NULL, NULL, NULL, NULL, &encmethods, storedusern, sizeof(storedusern) - 1, storedsecret, sizeof(storedsecret) - 1, NULL, peercontext, tz, sizeof(tz), out_prefs, sizeof(out_prefs), NULL)) {
-		ast_log(LOG_WARNING, "No address associated with '%s'\n", hname);
+
+	memset(&cai, 0, sizeof(cai));
+	cai.encmethods = iax2_encryption;
+
+	memset(&pds, 0, sizeof(pds));
+	parse_dial_string(ast_strdupa(dest), &pds);
+
+	if (!pds.exten)
+		pds.exten = defaultrdest;
+
+	if (create_addr(pds.peer, &sin, &cai)) {
+		ast_log(LOG_WARNING, "No address associated with '%s'\n", pds.peer);
 		return -1;
 	}
+
+	if (!pds.username && !ast_strlen_zero(cai.username))
+		pds.username = cai.username;
+	if (!pds.password && !ast_strlen_zero(cai.secret))
+		pds.password = cai.secret;
+	if (!pds.key && !ast_strlen_zero(cai.outkey))
+		pds.key = cai.outkey;
+	if (!pds.context && !ast_strlen_zero(cai.peercontext))
+		pds.context = cai.peercontext;
+
 	/* Keep track of the context for outgoing calls too */
-	ast_copy_string(c->context, context, sizeof(c->context));
-	if (portno) {
-		sin.sin_port = htons(atoi(portno));
-	}
+	ast_copy_string(c->context, cai.context, sizeof(c->context));
+
+	if (pds.port)
+		sin.sin_port = htons(atoi(pds.port));
+
 	l = c->cid.cid_num;
 	n = c->cid.cid_name;
+
 	/* Now build request */	
 	memset(&ied, 0, sizeof(ied));
+
 	/* On new call, first IE MUST be IAX version of caller */
 	iax_ie_append_short(&ied, IAX_IE_VERSION, IAX_PROTO_VERSION);
-	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, rdest);
-	if (strchr(opts, 'a')) {
+	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, pds.exten);
+	if (pds.options && strchr(pds.options, 'a')) {
 		/* Request auto answer */
 		iax_ie_append(&ied, IAX_IE_AUTOANSWER);
 	}
-	iax_ie_append_str(&ied, IAX_IE_CODEC_PREFS, out_prefs);
+
+	iax_ie_append_str(&ied, IAX_IE_CODEC_PREFS, cai.prefs);
 
 	if (l) {
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, l);
 		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->cid.cid_pres);
-	} else
+	} else {
 		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, AST_PRES_NUMBER_NOT_AVAILABLE);
+	}
+
 	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, c->cid.cid_ton);
 	iax_ie_append_short(&ied, IAX_IE_CALLINGTNS, c->cid.cid_tns);
+
 	if (n)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, n);
-	if (ast_test_flag(iaxs[callno], IAX_SENDANI) && c->cid.cid_ani) {
+	if (ast_test_flag(iaxs[callno], IAX_SENDANI) && c->cid.cid_ani)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_ANI, c->cid.cid_ani);
-	}
+
 	if (c->language && !ast_strlen_zero(c->language))
 		iax_ie_append_str(&ied, IAX_IE_LANGUAGE, c->language);
 	if (c->cid.cid_dnid && !ast_strlen_zero(c->cid.cid_dnid))
 		iax_ie_append_str(&ied, IAX_IE_DNID, c->cid.cid_dnid);
-	if (rcontext)
-		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, rcontext);
-	else if (strlen(peercontext))
-		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, peercontext);
-	if (!username && !ast_strlen_zero(storedusern))
-		username = storedusern;
-	if (username)
-		iax_ie_append_str(&ied, IAX_IE_USERNAME, username);
-	if (encmethods)
-		iax_ie_append_short(&ied, IAX_IE_ENCRYPTION, encmethods);
-	if (!secret && !ast_strlen_zero(storedsecret))
-		secret = storedsecret;
+
+	if (pds.context)
+		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, pds.context);
+
+	if (pds.username)
+		iax_ie_append_str(&ied, IAX_IE_USERNAME, pds.username);
+
+	if (cai.encmethods)
+		iax_ie_append_short(&ied, IAX_IE_ENCRYPTION, cai.encmethods);
+
 	ast_mutex_lock(&iaxsl[callno]);
+
 	if (!ast_strlen_zero(c->context))
 		ast_copy_string(iaxs[callno]->context, c->context, sizeof(iaxs[callno]->context));
-	if (username)
-		ast_copy_string(iaxs[callno]->username, username, sizeof(iaxs[callno]->username));
-	iaxs[callno]->encmethods = encmethods;
-	if (secret) {
-		if (secret[0] == '[') {
-			/* This is an RSA key, not a normal secret */
-			ast_copy_string(iaxs[callno]->outkey, secret + 1, sizeof(iaxs[callno]->outkey));
-			if (!ast_strlen_zero(iaxs[callno]->outkey)) {
-				iaxs[callno]->outkey[strlen(iaxs[callno]->outkey) - 1] = '\0';
-			}
-		} else
-			ast_copy_string(iaxs[callno]->secret, secret, sizeof(iaxs[callno]->secret));
-	}
+
+	if (pds.username)
+		ast_copy_string(iaxs[callno]->username, pds.username, sizeof(iaxs[callno]->username));
+
+	iaxs[callno]->encmethods = cai.encmethods;
+
+	if (pds.key)
+		ast_copy_string(iaxs[callno]->outkey, pds.key, sizeof(iaxs[callno]->outkey));
+	if (pds.password)
+		ast_copy_string(iaxs[callno]->secret, pds.password, sizeof(iaxs[callno]->secret));
+
 	iax_ie_append_int(&ied, IAX_IE_FORMAT, c->nativeformats);
 	iax_ie_append_int(&ied, IAX_IE_CAPABILITY, iaxs[callno]->capability);
 	iax_ie_append_short(&ied, IAX_IE_ADSICPE, c->adsicpe);
-	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(tz));
-	/* Transmit the string in a "NEW" request */
-#if 0
-	/* XXX We have no equivalent XXX */
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Calling using options '%s'\n", requeststr);
-#endif		
+	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(cai.timezone));
+
 	if (iaxs[callno]->maxtime) {
 		/* Initialize pingtime and auto-congest time */
 		iaxs[callno]->pingtime = iaxs[callno]->maxtime / 2;
@@ -2970,10 +3004,13 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iaxs[callno]->pingtime = autokill / 2;
 		iaxs[callno]->initid = ast_sched_add(sched, autokill * 2, auto_congest, CALLNO_TO_PTR(callno));
 	}
-	send_command(iaxs[callno], AST_FRAME_IAX,
-		IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
+
+	/* Transmit the string in a "NEW" request */
+	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
+
 	ast_mutex_unlock(&iaxsl[callno]);
 	ast_setstate(c, AST_STATE_RINGING);
+	
 	return 0;
 }
 
@@ -7559,26 +7596,31 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 	unsigned int sig;
 	struct sockaddr_in sin;
 	int callno;
-	int sockfd = defaultsockfd;
+	struct create_addr_info cai;
+
+	memset(&cai, 0, sizeof(cai));
+
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Provisioning '%s' from template '%s'\n", dest, template);
+
 	if (iax_provision_build(&provdata, &sig, template, force)) {
 		ast_log(LOG_DEBUG, "No provisioning found for template '%s'\n", template);
 		return 0;
 	}
+
 	if (end)
 		memcpy(&sin, end, sizeof(sin));
-	else {
-		if (create_addr(&sin, NULL, NULL, NULL, dest, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0, NULL, 0, &sockfd))
-			return -1;
-	}
+	else if (create_addr(dest, &sin, &cai))
+		return -1;
+
 	/* Build the rest of the message */
 	memset(&ied, 0, sizeof(ied));
 	iax_ie_append_raw(&ied, IAX_IE_PROVISIONING, provdata.buf, provdata.pos);
 
-	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, sockfd);
+	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
 	if (!callno)
 		return -1;
+
 	ast_mutex_lock(&iaxsl[callno]);
 	if (iaxs[callno]) {
 		/* Schedule autodestruct in case they don't ever give us anything back */
@@ -7590,6 +7632,7 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 		send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_PROVISION, 0, ied.buf, ied.pos, -1);
 	}
 	ast_mutex_unlock(&iaxsl[callno]);
+
 	return 1;
 }
 
@@ -7729,72 +7772,50 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 {
 	int callno;
 	int res;
-	int sendani;
-	int maxtime;
-	int found = 0;
 	int fmt, native;
 	struct sockaddr_in sin;
-	char s[256];
-	char *st, *hostname;
 	struct ast_channel *c;
-	char *stringp=NULL;
-	char *portno=NULL;
 	int capability = iax2_capability;
-	int trunk;
-	int sockfd = defaultsockfd;
-	int notransfer = ast_test_flag((&globalflags), IAX_NOTRANSFER);
-	int usejitterbuf = ast_test_flag((&globalflags), IAX_USEJITTERBUF);
-	int forcejitterbuf = ast_test_flag((&globalflags), IAX_FORCEJITTERBUF);
+	struct parsed_dial_string pds;
+	struct create_addr_info cai;
 
-	ast_copy_string(s, (char *)data, sizeof(s));
-	/* FIXME The next two lines seem useless */
-	stringp=s;
-	strsep(&stringp, "/");
+	memset(&pds, 0, sizeof(pds));
+	parse_dial_string(ast_strdupa(data), &pds);
 
-	stringp=s;
-	strsep(&stringp, "@");
-	st = strsep(&stringp, "@");
-	
-	if (!st)
-	{
-		st = s;
-	}
-			
-	hostname = strsep(&st, ":");
-	
-        if (st) {	
-		portno = strsep(&st, ":");
-	}							
+	memset(&cai, 0, sizeof(cai));
+
+	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 
 	/* Populate our address from the given */
-	if (create_addr(&sin, &capability, &sendani, &maxtime, hostname, NULL, &trunk, &notransfer, &usejitterbuf, &forcejitterbuf, NULL, NULL, 0, NULL, 0, &found, NULL, NULL, 0, NULL, 0, &sockfd)) {
+	if (create_addr(pds.peer, &sin, &cai)) {
 		*cause = AST_CAUSE_UNREGISTERED;
 		return NULL;
 	}
-	if (portno) {
-		sin.sin_port = htons(atoi(portno));
-	}
-	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, sockfd);
+
+	if (pds.port)
+		sin.sin_port = htons(atoi(pds.port));
+
+	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		*cause = AST_CAUSE_CONGESTION;
 		return NULL;
 	}
+
 	ast_mutex_lock(&iaxsl[callno]);
+
 	/* If this is a trunk, update it now */
-	ast_set2_flag(iaxs[callno], trunk, IAX_TRUNK);	
-	if (trunk) 
+	ast_copy_flags(iaxs[callno], &cai, IAX_TRUNK | IAX_SENDANI | IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
+	if (ast_test_flag(&cai, IAX_TRUNK))
 		callno = make_trunk(callno, 1);
-	/* Keep track of sendani flag */
-	ast_set2_flag(iaxs[callno], sendani, IAX_SENDANI);	
-	iaxs[callno]->maxtime = maxtime;
-	ast_set2_flag(iaxs[callno], notransfer, IAX_NOTRANSFER);	
-	ast_set2_flag(iaxs[callno], usejitterbuf, IAX_USEJITTERBUF);	
-	ast_set2_flag(iaxs[callno], forcejitterbuf, IAX_FORCEJITTERBUF);	
-	if (found)
-		ast_copy_string(iaxs[callno]->host, hostname, sizeof(iaxs[callno]->host));
+	iaxs[callno]->maxtime = cai.maxtime;
+	if (cai.found)
+		ast_copy_string(iaxs[callno]->host, pds.peer, sizeof(iaxs[callno]->host));
+
 	c = ast_iax2_new(callno, AST_STATE_DOWN, capability);
+
 	ast_mutex_unlock(&iaxsl[callno]);
+
 	if (c) {
 		/* Choose a format we can live with */
 		if (c->nativeformats & format) 
@@ -7804,7 +7825,8 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 			fmt = format;
 			res = ast_translator_best_choice(&fmt, &native);
 			if (res < 0) {
-				ast_log(LOG_WARNING, "Unable to create translator path for %s to %s on %s\n", ast_getformatname(c->nativeformats), ast_getformatname(fmt), c->name);
+				ast_log(LOG_WARNING, "Unable to create translator path for %s to %s on %s\n",
+					ast_getformatname(c->nativeformats), ast_getformatname(fmt), c->name);
 				ast_hangup(c);
 				return NULL;
 			}
@@ -7813,6 +7835,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 		c->readformat = ast_best_codec(c->nativeformats);
 		c->writeformat = c->readformat;
 	}
+
 	return c;
 }
 
@@ -8628,82 +8651,65 @@ static int cache_get_callno_locked(const char *data)
 {
 	struct sockaddr_in sin;
 	int x;
-	int sockfd = defaultsockfd;
-	char st[256], *s;
-	char *host;
-	char *username=NULL;
-	char *password=NULL;
-	char *context=NULL;
 	int callno;
 	struct iax_ie_data ied;
-	for (x=0;x<IAX_MAX_CALLS; x++) {
+	struct create_addr_info cai;
+	struct parsed_dial_string pds;
+
+	for (x=0; x<IAX_MAX_CALLS; x++) {
 		/* Look for an *exact match* call.  Once a call is negotiated, it can only
 		   look up entries for a single context */
 		if (!ast_mutex_trylock(&iaxsl[x])) {
-			if (iaxs[x] && !strcasecmp(data, iaxs[x]->dproot)) {
+			if (iaxs[x] && !strcasecmp(data, iaxs[x]->dproot))
 				return x;
-			}
 			ast_mutex_unlock(&iaxsl[x]);
 		}
 	}
-	memset(&ied, 0, sizeof(ied));
+
 	/* No match found, we need to create a new one */
-	ast_copy_string(st, data, sizeof(st));
-	/* Grab the host */
-	s = strchr(st, '/');
-	if (s) {
-		*s = '\0';
-		s++;
-		context = s;
-	}
-	s = strchr(st, '@');
-	if (s) {
-		/* Get username/password if there is one */
-		*s='\0';
-		username=st;
-		password = strchr(username, ':');
-		if (password) {
-			*password = '\0';
-			password++;
-		}
-		s++;
-		host = s;
-	} else {
-		/* Just a hostname */
-		host = st;
-	}
+
+	memset(&cai, 0, sizeof(cai));
+	memset(&ied, 0, sizeof(ied));
+	memset(&pds, 0, sizeof(pds));
+
+	parse_dial_string(ast_strdupa(data), &pds);
+
 	/* Populate our address from the given */
-	if (create_addr(&sin, NULL, NULL, NULL, host, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0, NULL, 0, &sockfd)) {
+	if (create_addr(pds.peer, &sin, &cai))
 		return -1;
-	}
-	ast_log(LOG_DEBUG, "host: %s, user: %s, password: %s, context: %s\n", host, username, password, context);
-	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, sockfd);
+
+	ast_log(LOG_DEBUG, "peer: %s, username: %s, password: %s, context: %s\n",
+		pds.peer, pds.username, pds.password, pds.context);
+
+	callno = find_callno(0, 0, &sin, NEW_FORCE, 1, cai.sockfd);
 	if (callno < 1) {
 		ast_log(LOG_WARNING, "Unable to create call\n");
 		return -1;
 	}
+
 	ast_mutex_lock(&iaxsl[callno]);
 	ast_copy_string(iaxs[callno]->dproot, data, sizeof(iaxs[callno]->dproot));
 	iaxs[callno]->capability = IAX_CAPABILITY_FULLBANDWIDTH;
 
 	iax_ie_append_short(&ied, IAX_IE_VERSION, IAX_PROTO_VERSION);
 	iax_ie_append_str(&ied, IAX_IE_CALLED_NUMBER, "TBD");
-	if (context)
-		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, context);
-	if (username)
-		iax_ie_append_str(&ied, IAX_IE_USERNAME, username);
+	/* the string format is slightly different from a standard dial string,
+	   because the context appears in the 'exten' position
+	*/
+	if (pds.exten)
+		iax_ie_append_str(&ied, IAX_IE_CALLED_CONTEXT, pds.exten);
+	if (pds.username)
+		iax_ie_append_str(&ied, IAX_IE_USERNAME, pds.username);
 	iax_ie_append_int(&ied, IAX_IE_FORMAT, IAX_CAPABILITY_FULLBANDWIDTH);
 	iax_ie_append_int(&ied, IAX_IE_CAPABILITY, IAX_CAPABILITY_FULLBANDWIDTH);
 	/* Keep password handy */
-	if (password)
-		ast_copy_string(iaxs[callno]->secret, password, sizeof(iaxs[callno]->secret));
-#if 0
-	/* XXX Need equivalent XXX */
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Calling TBD using options '%s'\n", requeststr);
-#endif		
+	if (pds.password)
+		ast_copy_string(iaxs[callno]->secret, pds.password, sizeof(iaxs[callno]->secret));
+	if (pds.key)
+		ast_copy_string(iaxs[callno]->outkey, pds.key, sizeof(iaxs[callno]->outkey));
 	/* Start the call going */
 	send_command(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_NEW, 0, ied.buf, ied.pos, -1);
+
 	return callno;
 }
 

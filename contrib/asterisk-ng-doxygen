@@ -451,7 +451,15 @@ WARN_LOGFILE           =
 # with spaces.
 
 INPUT                  = ./ \
-                         include/asterisk
+                         include/asterisk \
+			 channels \
+			 funcs \
+			 apps \
+			 cdr \
+			 codecs \
+			 formats \
+			 pbx \
+			 res
 
 # If the value of the INPUT tag contains directories, you can use the 
 # FILE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp 
