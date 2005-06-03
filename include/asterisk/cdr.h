@@ -14,14 +14,15 @@
  *
  */
 
-#ifndef _CDR_H
-#define _CDR_H
+#ifndef _ASTERISK_CDR_H
+#define _ASTERISK_CDR_H
 
 #include <sys/time.h>
-#define AST_CDR_FLAG_KEEP_VARS		(1 << 0)
+#define AST_CDR_FLAG_KEEP_VARS			(1 << 0)
 #define AST_CDR_FLAG_POSTED			(1 << 1)
 #define AST_CDR_FLAG_LOCKED			(1 << 2)
 #define AST_CDR_FLAG_CHILD			(1 << 3)
+#define AST_CDR_FLAG_POST_DISABLED		(1 << 4)
 
 #define AST_CDR_NOANSWER			(1 << 0)
 #define AST_CDR_BUSY				(1 << 1)
@@ -189,13 +190,22 @@ extern int ast_cdr_disposition(struct ast_cdr *cdr, int cause);
  */
 extern void ast_cdr_end(struct ast_cdr *cdr);
 
-/*! Post the detail record */
+/*! Detaches the detail record for posting (and freeing) either now or at a
+ * later time in bulk with other records during batch mode operation */
 /*! 
- * \param cdr Which cdr to post
- * Actually outputs the CDR record to the CDR plugins installed
+ * \param cdr Which CDR to detach from the channel thread
+ * Prevents the channel thread from blocking on the CDR handling
  * Returns nothing
  */
-extern void ast_cdr_post(struct ast_cdr *cdr);
+extern void ast_cdr_detach(struct ast_cdr *cdr);
+
+/*! Spawns (possibly) a new thread to submit a batch of CDRs to the backend engines */
+/*!
+ * \param shutdown Whether or not we are shutting down
+ * Blocks the asterisk shutdown procedures until the CDR data is submitted.
+ * Returns nothing
+ */
+extern void ast_cdr_submit_batch(int shutdown);
 
 /*! Set the destination channel, if there was one */
 /*!
@@ -265,4 +275,13 @@ extern char ast_default_accountcode[AST_MAX_ACCOUNT_CODE];
 
 extern struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
 
-#endif /* _CDR_H */
+/*! Reload the configuration file cdr.conf and start/stop CDR scheduling thread */
+extern void ast_cdr_engine_reload(void);
+
+/*! Load the configuration file cdr.conf and possibly start the CDR scheduling thread */
+extern int ast_cdr_engine_init(void);
+
+/*! Submit any remaining CDRs and prepare for shutdown */
+extern void ast_cdr_engine_term(void);
+
+#endif /* _ASTERISK_CDR_H */

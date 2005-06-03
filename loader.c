@@ -24,6 +24,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/term.h"
 #include "asterisk/manager.h"
+#include "asterisk/cdr.h"
 #include "asterisk/enum.h"
 #include "asterisk/rtp.h"
 #include "asterisk/lock.h"
@@ -206,6 +207,10 @@ int ast_module_reload(const char *name)
 	}
 	if (!name || !strcasecmp(name, "manager")) {
 		reload_manager();
+		reloaded = 2;
+	}
+	if (!name || !strcasecmp(name, "cdr")) {
+		ast_cdr_engine_reload();
 		reloaded = 2;
 	}
 	if (!name || !strcasecmp(name, "enum")) {

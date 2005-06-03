@@ -17,6 +17,8 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <signal.h>
 
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
@@ -27,6 +29,10 @@
 #include "asterisk/options.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
+#include "asterisk/sched.h"
+#include "asterisk/config.h"
+#include "asterisk/cli.h"
+#include "asterisk/module.h"
 
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
 char ast_default_accountcode[AST_MAX_ACCOUNT_CODE] = "";
@@ -39,6 +45,39 @@ struct ast_cdr_beitem {
 };
 
 static AST_LIST_HEAD_STATIC(be_list, ast_cdr_beitem);
+
+struct ast_cdr_batch_item {
+	struct ast_cdr *cdr;
+	struct ast_cdr_batch_item *next;
+};
+
+static struct ast_cdr_batch {
+	int size;
+	struct ast_cdr_batch_item *head;
+	struct ast_cdr_batch_item *tail;
+} *batch = NULL;
+
+static struct sched_context *sched;
+static int cdr_sched = -1;
+static pthread_t cdr_thread = AST_PTHREADT_NULL;
+
+#define BATCH_SIZE_DEFAULT 100
+#define BATCH_TIME_DEFAULT 300
+#define BATCH_SCHEDULER_ONLY_DEFAULT 0
+#define BATCH_SAFE_SHUTDOWN_DEFAULT 1
+
+static int enabled;
+static int batchmode;
+static int batchsize;
+static int batchtime;
+static int batchscheduleronly;
+static int batchsafeshutdown;
+
+AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
+
+/* these are used to wake up the CDR thread when there's work to do */
+AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
+pthread_cond_t cdr_pending_cond;
 
 /*
  * We do a lot of checking here in the CDR code to try to be sure we don't ever let a CDR slip
@@ -370,7 +409,7 @@ void ast_cdr_free(struct ast_cdr *cdr)
 	while (cdr) {
 		next = cdr->next;
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
-		if (!ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
+		if (!ast_test_flag(cdr, AST_CDR_FLAG_POSTED) && !ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
 		if (!cdr->end.tv_sec && !cdr->end.tv_usec)
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
@@ -724,7 +763,7 @@ int ast_cdr_amaflags2int(const char *flag)
 	return -1;
 }
 
-void ast_cdr_post(struct ast_cdr *cdr)
+static void post_cdr(struct ast_cdr *cdr)
 {
 	char *chan;
 	struct ast_cdr_beitem *i;
@@ -755,13 +794,17 @@ void ast_cdr_post(struct ast_cdr *cdr)
 void ast_cdr_reset(struct ast_cdr *cdr, int flags)
 {
 	struct ast_flags tmp = {flags};
+	struct ast_cdr *dup;
 
 	while (cdr) {
-		/* Post if requested */
+		/* Detach if post is requested */
 		if (ast_test_flag(&tmp, AST_CDR_FLAG_LOCKED) || !ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			if (ast_test_flag(&tmp, AST_CDR_FLAG_POSTED)) {
 				ast_cdr_end(cdr);
-				ast_cdr_post(cdr);
+				dup = ast_cdr_alloc();
+				memcpy(dup, cdr, sizeof(*dup));
+				ast_cdr_detach(dup);
+				ast_set_flag(cdr, AST_CDR_FLAG_POSTED);
 			}
 
 			/* clear variables */
@@ -800,3 +843,393 @@ struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr)
 
 	return ret;
 }
+
+/* Don't call without cdr_batch_lock */
+static void reset_batch(void)
+{
+	batch->size = 0;
+	batch->head = NULL;
+	batch->tail = NULL;
+}
+
+/* Don't call without cdr_batch_lock */
+static int init_batch(void)
+{
+	/* This is the single meta-batch used to keep track of all CDRs during the entire life of the program */
+	batch = malloc(sizeof(*batch));
+	if (!batch) {
+		ast_log(LOG_WARNING, "CDR: out of memory while trying to handle batched records, data will most likely be lost\n");
+		return -1;
+	}
+
+	reset_batch();
+
+	return 0;
+}
+
+static void *do_batch_backend_process(void *data)
+{
+	struct ast_cdr_batch_item *processeditem;
+	struct ast_cdr_batch_item *batchitem = data;
+
+	/* Push each CDR into storage mechanism(s) and free all the memory */
+	while (batchitem) {
+		post_cdr(batchitem->cdr);
+		ast_cdr_free(batchitem->cdr);
+		processeditem = batchitem;
+		batchitem = batchitem->next;
+		free(processeditem);
+	}
+
+	return NULL;
+}
+
+void ast_cdr_submit_batch(int shutdown)
+{
+	struct ast_cdr_batch_item *oldbatchitems = NULL;
+	pthread_attr_t attr;
+	pthread_t batch_post_thread = AST_PTHREADT_NULL;
+
+	/* if there's no batch, or no CDRs in the batch, then there's nothing to do */
+	if (!batch || !batch->head)
+		return;
+
+	/* move the old CDRs aside, and prepare a new CDR batch */
+	ast_mutex_lock(&cdr_batch_lock);
+	oldbatchitems = batch->head;
+	reset_batch();
+	ast_mutex_unlock(&cdr_batch_lock);
+
+	/* if configured, spawn a new thread to post these CDRs,
+	   also try to save as much as possible if we are shutting down safely */
+	if (batchscheduleronly || shutdown) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "CDR single-threaded batch processing begins now\n");
+		do_batch_backend_process(oldbatchitems);
+	} else {
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (ast_pthread_create(&batch_post_thread, &attr, do_batch_backend_process, oldbatchitems)) {
+			ast_log(LOG_WARNING, "CDR processing thread could not detach, now trying in this thread\n");
+			do_batch_backend_process(oldbatchitems);
+		} else {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "CDR multi-threaded batch processing begins now\n");
+		}
+	}
+}
+
+static int submit_scheduled_batch(void *data)
+{
+	ast_cdr_submit_batch(0);
+	/* manually reschedule from this point in time */
+	cdr_sched = ast_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
+	/* returning zero so the scheduler does not automatically reschedule */
+	return 0;
+}
+
+static void submit_unscheduled_batch(void)
+{
+	/* this is okay since we are not being called from within the scheduler */
+	if (cdr_sched > -1)
+		ast_sched_del(sched, cdr_sched);
+	/* schedule the submission to occur ASAP (1 ms) */
+	cdr_sched = ast_sched_add(sched, 1, submit_scheduled_batch, NULL);
+	/* signal the do_cdr thread to wakeup early and do some work (that lazy thread ;) */
+	pthread_mutex_lock(&cdr_pending_lock);
+	pthread_cond_signal(&cdr_pending_cond);
+	pthread_mutex_unlock(&cdr_pending_lock);
+}
+
+void ast_cdr_detach(struct ast_cdr *cdr)
+{
+	struct ast_cdr_batch_item *newtail;
+	int curr;
+
+	/* maybe they disabled CDR stuff completely, so just drop it */
+	if (!enabled) {
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Dropping CDR !\n");
+		ast_set_flag(cdr, AST_CDR_FLAG_POST_DISABLED);
+		ast_cdr_free(cdr);
+		return;
+	}
+
+	/* post stuff immediately if we are not in batch mode, this is legacy behaviour */
+	if (!batchmode) {
+		post_cdr(cdr);
+		ast_cdr_free(cdr);
+		return;
+	}
+
+	/* otherwise, each CDR gets put into a batch list (at the end) */
+	if (option_debug)
+		ast_log(LOG_DEBUG, "CDR detaching from this thread\n");
+
+	/* we'll need a new tail for every CDR */
+	newtail = malloc(sizeof(*newtail));
+	if (!newtail) {
+		ast_log(LOG_WARNING, "CDR: out of memory while trying to detach, will try in this thread instead\n");
+		post_cdr(cdr);
+		ast_cdr_free(cdr);
+		return;
+	}
+	memset(newtail, 0, sizeof(*newtail));
+
+	/* don't traverse a whole list (just keep track of the tail) */
+	ast_mutex_lock(&cdr_batch_lock);
+	if (!batch)
+		init_batch();
+	if (!batch->head) {
+		/* new batch is empty, so point the head at the new tail */
+		batch->head = newtail;
+	} else {
+		/* already got a batch with something in it, so just append a new tail */
+		batch->tail->next = newtail;
+	}
+	newtail->cdr = cdr;
+	batch->tail = newtail;
+	curr = batch->size++;
+	ast_mutex_unlock(&cdr_batch_lock);
+
+	/* if we have enough stuff to post, then do it */
+	if (curr >= (batchsize - 1))
+		submit_unscheduled_batch();
+}
+
+static void *do_cdr(void *data)
+{
+	struct timeval now;
+	struct timespec timeout;
+	int schedms;
+	int numevents = 0;
+
+	for(;;) {
+		gettimeofday(&now, NULL);
+		schedms = ast_sched_wait(sched);
+		/* this shouldn't happen, but provide a 1 second default just in case */
+		if (schedms <= 0)
+			schedms = 1000;
+		timeout.tv_sec = now.tv_sec + (schedms / 1000);
+		timeout.tv_nsec = (now.tv_usec * 1000) + ((schedms % 1000) * 1000);
+		/* prevent stuff from clobbering cdr_pending_cond, then wait on signals sent to it until the timeout expires */
+		pthread_mutex_lock(&cdr_pending_lock);
+		pthread_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
+		numevents = ast_sched_runq(sched);
+		pthread_mutex_unlock(&cdr_pending_lock);
+		if (option_debug > 1)
+			ast_log(LOG_DEBUG, "Processed %d scheduled CDR batches from the run queue\n", numevents);
+	}
+
+	return NULL;
+}
+
+static int handle_cli_status(int fd, int argc, char *argv[])
+{
+	struct ast_cdr_beitem *beitem=NULL;
+	int cnt=0;
+	long nextbatchtime=0;
+
+	if (argc > 2)
+		return RESULT_SHOWUSAGE;
+
+	ast_cli(fd, "CDR logging: %s\n", enabled ? "enabled" : "disabled");
+	ast_cli(fd, "CDR mode: %s\n", batchmode ? "batch" : "simple");
+	if (enabled) {
+		if (batchmode) {
+			if (batch)
+				cnt = batch->size;
+			if (cdr_sched > -1)
+				nextbatchtime = ast_sched_when(sched, cdr_sched);
+			ast_cli(fd, "CDR safe shut down: %s\n", batchsafeshutdown ? "enabled" : "disabled");
+			ast_cli(fd, "CDR batch threading model: %s\n", batchscheduleronly ? "scheduler only" : "scheduler plus separate threads");
+			ast_cli(fd, "CDR current batch size: %d record(s)\n", cnt);
+			ast_cli(fd, "CDR maximum batch size: %d record(s)\n", batchsize);
+			ast_cli(fd, "CDR maximum batch time: %d second(s)\n", batchtime);
+			ast_cli(fd, "CDR next scheduled batch processing time: %ld second(s)\n", nextbatchtime);
+		}
+		AST_LIST_LOCK(&be_list);
+		AST_LIST_TRAVERSE(&be_list, beitem, list) {
+			ast_cli(fd, "CDR registered backend: %s\n", beitem->name);
+		}
+		AST_LIST_UNLOCK(&be_list);
+	}
+
+	return 0;
+}
+
+static int handle_cli_submit(int fd, int argc, char *argv[])
+{
+	if (argc > 2)
+		return RESULT_SHOWUSAGE;
+
+	submit_unscheduled_batch();
+	ast_cli(fd, "Submitted CDRs to backend engines for processing.  This may take a while.\n");
+
+	return 0;
+}
+
+static struct ast_cli_entry cli_submit = {
+	.cmda = { "cdr", "submit", NULL },
+	.handler = handle_cli_submit,
+	.summary = "Posts all pending batched CDR data",
+	.usage =
+	"Usage: cdr submit\n"
+	"       Posts all pending batched CDR data to the configured CDR backend engine modules.\n"
+};
+
+static struct ast_cli_entry cli_status = {
+	.cmda = { "cdr", "status", NULL },
+	.handler = handle_cli_status,
+	.summary = "Display the CDR status",
+	.usage =
+	"Usage: cdr status\n"
+	"	Displays the Call Detail Record engine system status.\n"
+};
+
+static int do_reload(void)
+{
+	struct ast_config *config;
+	const char *enabled_value;
+	const char *batched_value;
+	const char *scheduleronly_value;
+	const char *batchsafeshutdown_value;
+	const char *size_value;
+	const char *time_value;
+	int cfg_size;
+	int cfg_time;
+	int was_enabled;
+	int was_batchmode;
+	int res=0;
+	pthread_attr_t attr;
+
+	ast_mutex_lock(&cdr_batch_lock);
+
+	batchsize = BATCH_SIZE_DEFAULT;
+	batchtime = BATCH_TIME_DEFAULT;
+	batchscheduleronly = BATCH_SCHEDULER_ONLY_DEFAULT;
+	batchsafeshutdown = BATCH_SAFE_SHUTDOWN_DEFAULT;
+	was_enabled = enabled;
+	was_batchmode = batchmode;
+	enabled = 1;
+	batchmode = 0;
+
+	/* don't run the next scheduled CDR posting while reloading */
+	if (cdr_sched > -1)
+		ast_sched_del(sched, cdr_sched);
+
+	if ((config = ast_config_load("cdr.conf"))) {
+		if ((enabled_value = ast_variable_retrieve(config, "general", "enable"))) {
+			enabled = ast_true(enabled_value);
+		}
+		if ((batched_value = ast_variable_retrieve(config, "general", "batch"))) {
+			batchmode = ast_true(batched_value);
+		}
+		if ((scheduleronly_value = ast_variable_retrieve(config, "general", "scheduleronly"))) {
+			batchscheduleronly = ast_true(scheduleronly_value);
+		}
+		if ((batchsafeshutdown_value = ast_variable_retrieve(config, "general", "safeshutdown"))) {
+			batchsafeshutdown = ast_true(batchsafeshutdown_value);
+		}
+		if ((size_value = ast_variable_retrieve(config, "general", "size"))) {
+			if (sscanf(size_value, "%d", &cfg_size) < 1)
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", size_value);
+			else if (size_value < 0)
+				ast_log(LOG_WARNING, "Invalid maximum batch size '%d' specified, using default\n", cfg_size);
+			else
+				batchsize = cfg_size;
+		}
+		if ((time_value = ast_variable_retrieve(config, "general", "time"))) {
+			if (sscanf(time_value, "%d", &cfg_time) < 1)
+				ast_log(LOG_WARNING, "Unable to convert '%s' to a numeric value.\n", time_value);
+			else if (time_value < 0)
+				ast_log(LOG_WARNING, "Invalid maximum batch time '%d' specified, using default\n", cfg_time);
+			else
+				batchtime = cfg_time;
+		}
+	}
+
+	if (enabled && !batchmode) {
+		ast_log(LOG_NOTICE, "CDR simple logging enabled.\n");
+	} else if (enabled && batchmode) {
+		cdr_sched = ast_sched_add(sched, batchtime * 1000, submit_scheduled_batch, NULL);
+		ast_log(LOG_NOTICE, "CDR batch mode logging enabled, first of either size %d or time %d seconds.\n", batchsize, batchtime);
+	} else {
+		ast_log(LOG_NOTICE, "CDR logging disabled, data will be lost.\n");
+	}
+
+	/* if this reload enabled the CDR batch mode, create the background thread
+	   if it does not exist */
+	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == AST_PTHREADT_NULL)) {
+		pthread_cond_init(&cdr_pending_cond, NULL);
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (ast_pthread_create(&cdr_thread, &attr, do_cdr, NULL) < 0) {
+			ast_log(LOG_ERROR, "Unable to start CDR thread.\n");
+			ast_sched_del(sched, cdr_sched);
+		} else {
+			ast_cli_register(&cli_submit);
+			ast_register_atexit(ast_cdr_engine_term);
+			res = 0;
+		}
+	/* if this reload disabled the CDR and/or batch mode and there is a background thread,
+	   kill it */
+	} else if (((!enabled && was_enabled) || (!batchmode && was_batchmode)) && (cdr_thread != AST_PTHREADT_NULL)) {
+		/* wake up the thread so it will exit */
+		pthread_cancel(cdr_thread);
+		pthread_kill(cdr_thread, SIGURG);
+		pthread_join(cdr_thread, NULL);
+		cdr_thread = AST_PTHREADT_NULL;
+		pthread_cond_destroy(&cdr_pending_cond);
+		ast_cli_unregister(&cli_submit);
+		ast_unregister_atexit(ast_cdr_engine_term);
+		res = 0;
+		/* if leaving batch mode, then post the CDRs in the batch,
+		   and don't reschedule, since we are stopping CDR logging */
+		if (!batchmode && was_batchmode) {
+			ast_cdr_engine_term();
+		}
+	} else {
+		res = 0;
+	}
+
+	ast_mutex_unlock(&cdr_batch_lock);
+	ast_config_destroy(config);
+
+	return res;
+}
+
+int ast_cdr_engine_init(void)
+{
+	int res;
+
+	sched = sched_context_create();
+	if (!sched) {
+		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
+		return -1;
+	}
+
+	ast_cli_register(&cli_status);
+
+	res = do_reload();
+	if (res) {
+		ast_mutex_lock(&cdr_batch_lock);
+		res = init_batch();
+		ast_mutex_unlock(&cdr_batch_lock);
+	}
+
+	return res;
+}
+
+/* This actually gets called a couple of times at shutdown.  Once, before we start
+   hanging up channels, and then again, after the channel hangup timeout expires */
+void ast_cdr_engine_term(void)
+{
+	ast_cdr_submit_batch(batchsafeshutdown);
+}
+
+void ast_cdr_engine_reload(void)
+{
+	do_reload();
+}
+

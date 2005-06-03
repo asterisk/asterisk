@@ -4839,8 +4839,7 @@ int ast_pbx_outgoing_cdr_failed(void)
 	ast_cdr_start(chan->cdr);       /* record the start and stop time */
 	ast_cdr_end(chan->cdr);
 	ast_cdr_failed(chan->cdr);      /* set the status to failed */
-	ast_cdr_post(chan->cdr);        /* post the record */
-	ast_cdr_free(chan->cdr);        /* free the cdr */
+	ast_cdr_detach(chan->cdr);      /* post and free the record */
 	ast_channel_free(chan);         /* free the channel */
 	
 	return 0;  /* success */

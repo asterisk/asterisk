@@ -45,6 +45,7 @@
 #include "asterisk/tdd.h"
 #include "asterisk/term.h"
 #include "asterisk/manager.h"
+#include "asterisk/cdr.h"
 #include "asterisk/pbx.h"
 #include "asterisk/enum.h"
 #include "asterisk/rtp.h"
@@ -601,6 +602,8 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	char filename[80] = "";
 	time_t s,e;
 	int x;
+	/* Try to get as many CDRs as possible submitted to the backend engines (if in batch mode) */
+	ast_cdr_engine_term();
 	if (safeshutdown) {
 		shuttingdown = 1;
 		if (!nice) {
@@ -1949,6 +1952,10 @@ int main(int argc, char *argv[])
 	}
 	ast_channels_init();
 	if (init_manager()) {
+		printf(term_quit());
+		exit(1);
+	}
+	if (ast_cdr_engine_init()) {
 		printf(term_quit());
 		exit(1);
 	}

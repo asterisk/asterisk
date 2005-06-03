@@ -26,7 +26,7 @@
 #define CONF_FILE	"cdr_manager.conf"
 
 static char *desc = "Asterisk Call Manager CDR Backend";
-static char *name = "cdr_as";
+static char *name = "cdr_manager";
 
 static int enablecdr = 0;
 
