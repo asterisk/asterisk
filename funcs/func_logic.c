@@ -23,82 +23,114 @@
 
 static char *builtin_function_isnull(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	char *ret_true = "1", *ret_false = "0";
-
-	return data && *data ? ret_false : ret_true;
+	return data && *data ? "0" : "1";
 }
 
 static char *builtin_function_exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	char *ret_true = "1", *ret_false = "0";
+	return data && *data ? "1" : "0";
+}
 
-	return data && *data ? ret_true : ret_false;
+static char *builtin_function_iftime(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	struct ast_timing timing;
+	char *ret;
+	char *expr;
+	char *iftrue;
+	char *iffalse;
+
+	if (!(data = ast_strdupa(data))) {
+		ast_log(LOG_WARNING, "Memory Error!\n");
+		return NULL;
+	}
+
+	data = ast_strip_quoted(data, "\"", "\"");
+	expr = strsep(&data, "?");
+	iftrue = strsep(&data, ":");
+	iffalse = data;
+
+	if (!expr || ast_strlen_zero(expr) || !(iftrue || iffalse)) {
+		ast_log(LOG_WARNING, "Syntax IFTIME(<timespec>?[<true>][:<false>])\n");
+		return NULL;
+	}
+
+	if (!ast_build_timing(&timing, expr)) {
+		ast_log(LOG_WARNING, "Invalid Time Spec.\n");
+		return NULL;
+	}
+
+	if (iftrue)
+		iftrue = ast_strip_quoted(iftrue, "\"", "\"");
+	if (iffalse)
+		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
+
+	if ((ret = ast_check_timing(&timing) ? iftrue : iffalse)) {
+		ast_copy_string(buf, ret, len);
+		ret = buf;
+	} 
+	
+	return ret;
 }
 
 static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	char *ret = NULL;
-	char *mydata = NULL;
-	char *expr = NULL;
-	char *iftrue = NULL;
-	char *iffalse = NULL;
+	char *ret;
+	char *expr;
+	char *iftrue;
+	char *iffalse;
 
-	if((mydata = ast_strdupa(data))) {
-		expr = mydata;
-		if ((iftrue = strchr(mydata, '?'))) {
-			*iftrue = '\0';
-			iftrue++;
-			if ((iffalse = strchr(iftrue, ':'))) {
-				*iffalse = '\0';
-				iffalse++;
-			}
-		} 
-
-		if (expr && iftrue) {
-			expr = ast_strip_quoted(expr, "\"", "\"");
-			iftrue = ast_strip_quoted(iftrue, "\"", "\"");
-
-			if (iffalse) {
-				iffalse = ast_strip_quoted(iffalse, "\"", "\"");
-			}
-			ret = ast_true(expr) ? iftrue : iffalse;
-			if (ret) {
-				ast_copy_string(buf, ret, len);
-				ret = buf;
-			}
-		} else {
-			ast_log(LOG_WARNING, "Syntax $(if <expr>?[<truecond>][:<falsecond>])\n");
-			ret = NULL;
-		}
-	} else {
+	if (!(data = ast_strdupa(data))) {
 		ast_log(LOG_WARNING, "Memory Error!\n");
-		ret = NULL;
+		return NULL;
 	}
 
+	data = ast_strip_quoted(data, "\"", "\"");
+	expr = strsep(&data, "?");
+	iftrue = strsep(&data, ":");
+	iffalse = data;
+
+	if (!expr || ast_strlen_zero(expr) || !(iftrue || iffalse)) {
+		ast_log(LOG_WARNING, "Syntax IF(<timespec>?[<true>][:<false>])\n");
+		return NULL;
+	}
+
+	if (iftrue)
+		iftrue = ast_strip_quoted(iftrue, "\"", "\"");
+	if (iffalse)
+		iffalse = ast_strip_quoted(iffalse, "\"", "\"");
+
+	if ((ret = ast_true(expr) ? iftrue : iffalse)) {
+		ast_copy_string(buf, ret, len);
+		ret = buf;
+	} 
+	
 	return ret;
 }
 
 static char *builtin_function_set(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	char *ret = NULL, *varname, *val;
+	char *varname;
+	char *val;
 
-	if ((varname = ast_strdupa(data))) {
-		if ((val = strchr(varname, '='))) {
-			*val = '\0';
-			val++;
-			varname = ast_strip(varname);
-			val = ast_strip(val);
-			pbx_builtin_setvar_helper(chan, varname, val);
-			ast_copy_string(buf, val, len);
-		} else {
-			ast_log(LOG_WARNING, "Syntax Error!\n");
-		}
-		
-	} else {
-        ast_log(LOG_WARNING, "Memory Error!\n");
-    }
+	if (!(data = ast_strdupa(data))) {
+		ast_log(LOG_WARNING, "Memory Error!\n");
+		return NULL;
+	}
 
-	return ret;
+	varname = strsep(&data, "=");
+	val = data;
+
+	if (!varname || ast_strlen_zero(varname) || !val) {
+		ast_log(LOG_WARNING, "Syntax SET(<varname>=[<value>])\n");
+		return NULL;
+	}
+
+	varname = ast_strip(varname);
+	val = ast_strip(val);
+	pbx_builtin_setvar_helper(chan, varname, val);
+	ast_copy_string(buf, val, len);
+
+	return buf;
 }
 
 #ifndef BUILTIN_FUNC
@@ -116,8 +148,8 @@ static
 #endif
 struct ast_custom_function set_function = {
 	.name = "SET",
-	.synopsis = "SET assigns a value to a function call.",
-	.syntax = "SET(<varname>=<value>)",
+	.synopsis = "SET assigns a value to a channel variable",
+	.syntax = "SET(<varname>=[<value>])",
 	.read = builtin_function_set,
 };
 
@@ -137,6 +169,17 @@ static
 struct ast_custom_function if_function = {
 	.name = "IF",
 	.synopsis = "Conditional: Returns the data following '?' if true else the data following ':'",
-	.syntax = "IF(<expr>?<true>:<false>)",
+	.syntax = "IF(<expr>?[<true>][:<false>])",
 	.read = builtin_function_if,
+};
+
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function if_time_function = {
+	.name = "IFTIME",
+	.synopsis = "Temporal Conditional: Returns the data following '?' if true else the data following ':'",
+	.syntax = "IFTIME(<timespec>?[<true>][:<false>])",
+	.read = builtin_function_iftime,
 };
