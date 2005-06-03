@@ -14,7 +14,7 @@
 FORMAT_LIBS=format_gsm.so format_wav.so \
 	format_wav_gsm.so format_vox.so format_pcm.so format_g729.so \
 	format_pcm_alaw.so format_h263.so format_g726.so format_ilbc.so \
-	format_sln.so
+	format_sln.so format_au.so
 FORMAT_LIBS+=format_jpeg.so
 #
 # G723 simple frame is depricated
