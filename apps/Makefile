@@ -36,7 +36,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
 
 ifneq (${OSARCH},Darwin)
 ifneq (${OSARCH},SunOS)
-APPS+=app_intercom.so
+#APPS+=app_intercom.so
 endif
 endif
 
