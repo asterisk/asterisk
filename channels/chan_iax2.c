@@ -2877,13 +2877,8 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 	   move it to the key field instead
 	*/
 	if (pds->password && (pds->password[0] == '[')) {
-		int len = strlen(pds->password);
-
-		if ((len > 2) && (pds->password[len - 1] == ']')) {
-			pds->key = ++(pds->password);
-			pds->password[len - 1] = '\0';
-			pds->password = NULL;
-		}
+		pds->key = ast_strip_quoted(pds->password, "[", "]");
+		pds->password = NULL;
 	}
 }
 
