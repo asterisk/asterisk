@@ -75,6 +75,7 @@
 #define DEFAULT_DEFAULT_EXPIRY  120
 #define DEFAULT_MAX_EXPIRY      3600
 #define DEFAULT_REGISTRATION_TIMEOUT	20
+#define DEFAULT_REGATTEMPTS_MAX	10
 
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
@@ -103,7 +104,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEFAULT_FREQ_OK		60 * 1000	/* How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK	10 * 1000	/* How often to check, if the host is down... */
 
-#define DEFAULT_RETRANS		1000		/* How frequently to retransmit */
+#define DEFAULT_RETRANS		2000		/* How frequently to retransmit */
 #define MAX_RETRANS		5		/* Try only 5 times for retransmissions */
 
 
@@ -217,7 +218,8 @@ static int global_rtpholdtimeout = 0;
 
 static int global_rtpkeepalive = 0;
 
-static int global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
+static int global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;	
+static int global_regattempts_max = DEFAULT_REGATTEMPTS_MAX;
 
 /* Object counters */
 static int suserobjs = 0;
@@ -303,7 +305,7 @@ struct sip_request {
 	int headers;		/* # of SIP Headers */
 	int method;		/* Method of this request */
 	char *header[SIP_MAX_HEADERS];
-	int lines;						/* SDP Content */
+	int lines;		/* SDP Content */
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
 };
@@ -601,6 +603,7 @@ static int sip_reloading = 0;
 #define REG_STATE_REJECTED	   	4
 #define REG_STATE_TIMEOUT	   	5
 #define REG_STATE_NOAUTH	   	6
+#define REG_STATE_GAVEUP		7
 
 
 /* sip_registry: Registrations with other SIP proxies */
@@ -615,6 +618,7 @@ struct sip_registry {
 	char contact[256];		/* Contact extension */
 	char random[80];
 	int expire;			/* Sched ID of expiration */
+	int regattempts;		/* Number of attempts */
 	int timeout; 			/* sched id of sip_reg_timeout */
 	int refresh;			/* How often to refresh */
 	struct sip_pvt *call;		/* create a sip_pvt structure for each outbound "registration call" in progress */
@@ -1008,10 +1012,8 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	/* Just in case... */
 	char *msg;
 
-	if (sipmethod > 0) {
-		msg = sip_methods[sipmethod].text;
-	} else 
-		msg = "___NEVER___";
+	msg = sip_methods[sipmethod].text;
+
 	cur = p->packets;
 	while(cur) {
 		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
@@ -1483,7 +1485,7 @@ static struct sip_user *find_user(const char *name, int realtime)
 
 /*--- create_addr: create address structure from peer definition ---*/
 /*      Or, if peer not found, find it in the global DNS */
-/*      returns TRUE on failure, FALSE on success */
+/*      returns TRUE (-1) on failure, FALSE on success */
 static int create_addr(struct sip_pvt *r, char *opeer)
 {
 	struct hostent *hp;
@@ -2636,6 +2638,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	memset(p, 0, sizeof(struct sip_pvt));
         ast_mutex_init(&p->lock);
 
+	p->method = intended_method;
 	p->initid = -1;
 	p->autokillid = -1;
 	p->stateid = -1;
@@ -2688,7 +2691,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 			ast_rtp_setnat(p->vrtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 	}
 
-	ast_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
+	if (p->method != SIP_REGISTER)
+		ast_copy_string(p->fromdomain, default_fromdomain, sizeof(p->fromdomain));
 	build_via(p, p->via, sizeof(p->via));
 	if (!callid)
 		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
@@ -4516,6 +4520,8 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 static char *regstate2str(int regstate)
 {
 	switch(regstate) {
+	case REG_STATE_GAVEUP:
+		return "Gave up.";
 	case REG_STATE_UNREGISTERED:
 		return "Unregistered";
 	case REG_STATE_REGSENT:
@@ -4579,7 +4585,7 @@ static int sip_reg_timeout(void *data)
 	if (!r)
 		return 0;
 
-	ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again\n", r->username, r->hostname); 
+	ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts); 
 	if (r->call) {
 		/* Unlink us, destroy old call.  Locking is not relevent here because all this happens
 		   in the single SIP manager thread. */
@@ -4589,12 +4595,21 @@ static int sip_reg_timeout(void *data)
 		r->call = NULL;
 		ast_set_flag(p, SIP_NEEDDESTROY);	
 		/* Pretend to ACK anything just in case */
+		/* OEJ: Ack what??? */
 		__sip_pretend_ack(p);
 	}
-	r->regstate=REG_STATE_UNREGISTERED;
+	/* If we have a limit, stop registration and give up */
+	if (global_regattempts_max && r->regattempts > global_regattempts_max) {
+		/* Ok, enough is enough. Don't try any more */
+		/* We could add an external notification here... 
+			steal it from app_voicemail :-) */
+		r->regstate=REG_STATE_GAVEUP;
+	} else {
+		r->regstate=REG_STATE_UNREGISTERED;
+		r->timeout = -1;
+		res=transmit_register(r, SIP_REGISTER, NULL, NULL);
+	}
 	manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nUser: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
-	r->timeout = -1;
-	res=transmit_register(r, SIP_REGISTER, NULL, NULL);
 	ASTOBJ_UNREF(r,sip_registry_destroy);
 	return 0;
 }
@@ -4612,13 +4627,13 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 
 	/* exit if we are already in process with this registrar ?*/
 	if ( r == NULL || ((auth==NULL) && (r->regstate==REG_STATE_REGSENT || r->regstate==REG_STATE_AUTHSENT))) {
-		ast_log(LOG_NOTICE, "Strange, trying to register when registration already pending\n");
+		ast_log(LOG_NOTICE, "Strange, trying to register %s@%s when registration already pending\n", r->username, r->hostname);
 		return 0;
 	}
 
-	if (r->call) {
+	if (r->call) {	/* We have a registration */
 		if (!auth) {
-			ast_log(LOG_WARNING, "Already have a call??\n");
+			ast_log(LOG_WARNING, "Already have a REGISTER going on to %s@%s?? \n", r->username, r->hostname);
 			return 0;
 		} else {
 			p = r->call;
@@ -4643,10 +4658,14 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			 * probably DNS.  We need to reschedule a registration try */
 			sip_destroy(p);
 			if (r->timeout > -1) {
-				ast_log(LOG_WARNING, "Still have a registration timeout (create_addr() error), %d\n", r->timeout);
 				ast_sched_del(sched, r->timeout);
+				r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+				ast_log(LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
+			} else {
+				r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+				ast_log(LOG_WARNING, "Propably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout * 1000);
 			}
-			r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
+			r->regattempts++;
 			return 0;
 		}
 
@@ -4689,13 +4708,13 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	}
 
 	/* set up a timeout */
-	if (auth==NULL)  {
+	if (auth == NULL)  {
 		if (r->timeout > -1) {
 			ast_log(LOG_WARNING, "Still have a registration timeout, %d\n", r->timeout);
 			ast_sched_del(sched, r->timeout);
 		}
-		r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
-		ast_log(LOG_DEBUG, "Scheduled a registration timeout # %d\n", r->timeout);
+		r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
+		ast_log(LOG_DEBUG, "Scheduled a registration timeout for %s : %d\n", r->hostname, r->timeout);
 	}
 
 	if (strchr(r->username, '@')) {
@@ -4712,7 +4731,12 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			snprintf(to, sizeof(to), "<sip:%s@%s>", r->username, p->tohost);
 	}
 	
-	snprintf(addr, sizeof(addr), "sip:%s", p->tohost);
+	/* Fromdomain is what we are registering to, regardless of actual
+	   host name from SRV */
+	if (p->fromdomain && !ast_strlen_zero(p->fromdomain))
+		snprintf(addr, sizeof(addr), "sip:%s", p->fromdomain);
+	else
+		snprintf(addr, sizeof(addr), "sip:%s", r->hostname);
 	ast_copy_string(p->uri, addr, sizeof(p->uri));
 
 	p->branch ^= rand();
@@ -4761,10 +4785,14 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
-	if (sip_debug_test_pvt(p))
-		ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+	if (sip_debug_test_pvt(p)) {
+		ast_verbose("REGISTER %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
+	}
 	determine_firstline_parts(&p->initreq);
 	r->regstate=auth?REG_STATE_AUTHSENT:REG_STATE_REGSENT;
+	r->regattempts++;	/* Another attempt */
+	if (option_debug > 3)
+		ast_verbose("REGISTER attempt %d to %s@%s\n", r->regattempts, r->username, r->hostname);
 	return send_request(p, &req, 2, p->ocseq);
 }
 
@@ -8114,17 +8142,187 @@ static void check_pendings(struct sip_pvt *p)
 	}
 }
 
+/*--- handle_response_register: Handle responses on REGISTER to services ---*/
+static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+{
+	struct sip_registry *r;
+	r=p->registry;
+
+	switch (resp) {
+	case 401:	/* Unauthorized */
+		if ((p->authtries > 1) || do_register_auth(p, req, "WWW-Authenticate", "Authorization")) {
+			ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s@%s' (Tries %d)\n", p->registry->username, p->registry->hostname, p->authtries);
+			ast_set_flag(p, SIP_NEEDDESTROY);	
+			}
+		break;
+	case 403:	/* Forbidden */
+		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
+		p->registry->regattempts = global_regattempts_max+1;
+		ast_sched_del(sched, r->timeout);
+		ast_set_flag(p, SIP_NEEDDESTROY);	
+		break;
+	case 404:	/* Not found */
+		ast_log(LOG_WARNING, "Got 404 Not found on SIP register to service %s@%s, giving up\n", p->registry->username,p->registry->hostname);
+		p->registry->regattempts = global_regattempts_max+1;
+		ast_set_flag(p, SIP_NEEDDESTROY);	
+		r->call = NULL;
+		ast_sched_del(sched, r->timeout);
+		break;
+	case 407:	/* Proxy auth */
+		if ((p->authtries > 1) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization")) {
+			ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
+			ast_set_flag(p, SIP_NEEDDESTROY);	
+		}
+		break;
+	case 479:	/* SER: Not able to process the URI - address is wrong in register*/
+		ast_log(LOG_WARNING, "Got error 479 on register to %s@%s, giving up (check config)\n", p->registry->username,p->registry->hostname);
+		p->registry->regattempts = global_regattempts_max+1;
+		ast_set_flag(p, SIP_NEEDDESTROY);	
+		r->call = NULL;
+		ast_sched_del(sched, r->timeout);
+		break;
+	case 200:
+		if (r) {
+			int expires, expires_ms;
+
+			r->regstate=REG_STATE_REGISTERED;
+			manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
+			ast_log(LOG_DEBUG, "Registration successful\n");
+			if (r->timeout > -1) {
+				ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
+				ast_sched_del(sched, r->timeout);
+			}
+			r->timeout=-1;
+			r->call = NULL;
+			p->registry = NULL;
+			/* Let this one hang around until we have all the responses */
+			sip_scheddestroy(p, 32000);
+			/* ast_set_flag(p, SIP_NEEDDESTROY);	*/
+
+			/* set us up for re-registering */
+			/* figure out how long we got registered for */
+			if (r->expire > -1)
+				ast_sched_del(sched, r->expire);
+			/* according to section 6.13 of RFC, contact headers override
+			   expires headers, so check those first */
+			expires = 0;
+			if (!ast_strlen_zero(get_header(req, "Contact"))) {
+				char *contact = NULL;
+				char *tmptmp = NULL;
+				int start = 0;
+				for(;;) {
+					contact = __get_header(req, "Contact", &start);
+					/* this loop ensures we get a contact header about our register request */
+					if(!ast_strlen_zero(contact)) {
+						if( (tmptmp=strstr(contact, p->our_contact))) {
+							contact=tmptmp;
+							break;
+						}
+					} else
+						break;
+				}
+				tmptmp = strstr(contact, "expires=");
+				if (tmptmp) {
+					if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
+						expires = 0;
+				}
+			}
+			if (!expires) 
+				expires=atoi(get_header(req, "expires"));
+			if (!expires)
+				expires=default_expiry;
+
+			expires_ms = expires * 1000;
+			if (expires <= EXPIRY_GUARD_LIMIT)
+				expires_ms -= MAX((expires_ms * EXPIRY_GUARD_PCT),EXPIRY_GUARD_MIN);
+			else
+				expires_ms -= EXPIRY_GUARD_SECS * 1000;
+			if (sipdebug)
+				ast_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d ms)\n", r->hostname, expires, expires_ms); 
+
+			r->refresh= (int) expires_ms / 1000;
+
+			/* Schedule re-registration before we expire */
+			r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
+			ASTOBJ_UNREF(r, sip_registry_destroy);
+		} else {
+			if (r->expire)
+				ast_log(LOG_WARNING, "Got 200 OK on REGISTER that is already done\n");
+			else
+				ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
+			ast_set_flag(p, SIP_NEEDDESTROY);	
+			return 0;
+		}
+
+	}
+	return 1;
+}
+
+/*--- handle_response_peerpoke: Handle qualification responses (OPTIONS) */
+static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno, int sipmethod)
+{
+	struct sip_peer *peer;
+	int pingtime;
+	struct timeval tv;
+	if (resp != 100) {
+		int statechanged = 0;
+		int newstate = 0;
+		peer = p->peerpoke;
+		gettimeofday(&tv, NULL);
+		pingtime = (tv.tv_sec - peer->ps.tv_sec) * 1000 +
+					(tv.tv_usec - peer->ps.tv_usec) / 1000;
+		if (pingtime < 1)
+			pingtime = 1;
+		if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
+			if (pingtime <= peer->maxms) {
+				ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
+				statechanged = 1;
+				newstate = 1;
+			}
+		} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
+			if (pingtime > peer->maxms) {
+				ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
+				statechanged = 1;
+				newstate = 2;
+			}
+		}
+		if (!peer->lastms)
+		    statechanged = 1;
+		peer->lastms = pingtime;
+		peer->call = NULL;
+		if (statechanged) {
+			ast_device_state_changed("SIP/%s", peer->name);
+			if (newstate == 2) {
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
+			} else {
+				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
+			}
+		}
+
+		if (peer->pokeexpire > -1)
+			ast_sched_del(sched, peer->pokeexpire);
+		if (sipmethod == SIP_INVITE)	/* Does this really happen? */
+			transmit_request(p, SIP_ACK, seqno, 0, 0);
+		ast_set_flag(p, SIP_NEEDDESTROY);	
+
+		/* Try again eventually */
+		if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
+    			peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
+		else
+			peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
+	}
+	return 1;
+}
+
 /*--- handle_response: Handle SIP response in dialogue ---*/
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
 	char *to;
 	char *msg, *c;
 	struct ast_channel *owner;
-	struct sip_peer *peer;
-	int pingtime;
-	struct timeval tv;
 	char iabuf[INET_ADDRSTRLEN];
 	int sipmethod;
+	int res = 1;
 
 	c = get_header(req, "Cseq");
 	msg = strchr(c, ' ');	/* Find method */
@@ -8146,65 +8344,23 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		__sip_ack(p, seqno, 0, sipmethod);
 
 	/* Get their tag if we haven't already */
-	to = get_header(req, "To");
-	to = ast_strcasestr(to, "tag=");
-	if (to) {
-		to += 4;
-		ast_copy_string(p->theirtag, to, sizeof(p->theirtag));
-		to = strchr(p->theirtag, ';');
-		if (to)
-			*to = '\0';
+	if (ast_strlen_zero(p->theirtag)) {
+		to = get_header(req, "To");
+		to = ast_strcasestr(to, "tag=");
+		if (to) {
+			to += 4;
+			ast_copy_string(p->theirtag, to, sizeof(p->theirtag));
+			to = strchr(p->theirtag, ';');
+			if (to)
+				*to = '\0';
+		}
 	}
 	if (p->peerpoke) {
 		/* We don't really care what the response is, just that it replied back. 
 		   Well, as long as it's not a 100 response...  since we might
 		   need to hang around for something more "definitive" */
-		if (resp != 100) {
-			int statechanged = 0;
-			int newstate = 0;
-			peer = p->peerpoke;
-			gettimeofday(&tv, NULL);
-			pingtime = (tv.tv_sec - peer->ps.tv_sec) * 1000 +
-						(tv.tv_usec - peer->ps.tv_usec) / 1000;
-			if (pingtime < 1)
-				pingtime = 1;
-			if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
-				if (pingtime <= peer->maxms) {
-					ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-					statechanged = 1;
-					newstate = 1;
-				}
-			} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
-				if (pingtime > peer->maxms) {
-					ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED! (%dms / %dms)\n", peer->name, pingtime, peer->maxms);
-					statechanged = 1;
-					newstate = 2;
-				}
-			}
-			if (!peer->lastms)
-			    statechanged = 1;
-			peer->lastms = pingtime;
-			peer->call = NULL;
-			if (statechanged) {
-				ast_device_state_changed("SIP/%s", peer->name);
-				if (newstate == 2) {
-					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, pingtime);
-				} else {
-					manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, pingtime);
-				}
-			}
 
-			if (peer->pokeexpire > -1)
-				ast_sched_del(sched, peer->pokeexpire);
-			if (!strcasecmp(msg, "INVITE"))
-				transmit_request(p, SIP_ACK, seqno, 0, 0);
-			ast_set_flag(p, SIP_NEEDDESTROY);	
-			/* Try again eventually */
-			if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
-    				peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, sip_poke_peer_s, peer);
-			else
-				peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_OK, sip_poke_peer_s, peer);
-		}
+		res = handle_response_peerpoke(p, resp, rest, req, ignore, seqno, sipmethod);
 	} else if (ast_test_flag(p, SIP_OUTGOING)) {
 		/* Acknowledge sequence number */
 		if (p->initid > -1) {
@@ -8280,72 +8436,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				transmit_request(p, SIP_ACK, seqno, 0, 1);
 				check_pendings(p);
 			} else if (sipmethod == SIP_REGISTER) {
-				int expires, expires_ms;
-				struct sip_registry *r;
-				r=p->registry;
-				if (r) {
-					r->regstate=REG_STATE_REGISTERED;
-					manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
-					ast_log(LOG_DEBUG, "Registration successful\n");
-					if (r->timeout > -1) {
-						ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
-						ast_sched_del(sched, r->timeout);
-					}
-					r->timeout=-1;
-					r->call = NULL;
-					p->registry = NULL;
-					ast_set_flag(p, SIP_NEEDDESTROY);	
-					/* set us up for re-registering */
-					/* figure out how long we got registered for */
-					if (r->expire > -1)
-						ast_sched_del(sched, r->expire);
-					/* according to section 6.13 of RFC, contact headers override
-					   expires headers, so check those first */
-					expires = 0;
-					if (!ast_strlen_zero(get_header(req, "Contact"))) {
-						char *contact = NULL;
-						char *tmptmp = NULL;
-						int start = 0;
-						for(;;) {
-							contact = __get_header(req, "Contact", &start);
-							/* this loop ensures we get a contact header about our register request */
-							if (!ast_strlen_zero(contact)) {
-								if ( (tmptmp=strstr(contact, p->our_contact))) {
-									contact=tmptmp;
-									break;
-								}
-							} else
-								break;
-						}
-						tmptmp = strstr(contact, "expires=");
-						if (tmptmp) {
-							if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
-								expires = 0;
-						}
-					}
-					if (!expires) expires=atoi(get_header(req, "expires"));
-					if (!expires) expires=default_expiry;
-
-
-					expires_ms = expires * 1000;
-					if (expires <= EXPIRY_GUARD_LIMIT)
-						expires_ms -= MAX((expires_ms * EXPIRY_GUARD_PCT),EXPIRY_GUARD_MIN);
-					else
-						expires_ms -= EXPIRY_GUARD_SECS * 1000;
-					if (sipdebug)
-						ast_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d ms)\n", r->hostname, expires, expires_ms); 
-
-					r->refresh= (int) expires_ms / 1000;
-
-					/* Schedule re-registration before we expire */
-					r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
-					ASTOBJ_UNREF(r, sip_registry_destroy);
-				} else
-					ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
-
+				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			}
 			break;
-		case 401: /* Not www-authorized on REGISTER */
+		case 401: /* Not www-authorized on SIP method */
 			if (sipmethod == SIP_INVITE) {
 				/* First we ACK */
 				transmit_request(p, SIP_ACK, seqno, 0, 0);
@@ -8356,12 +8450,11 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_set_flag(p, SIP_NEEDDESTROY);	
 				}
 			} else if (p->registry && sipmethod == SIP_REGISTER) {
-				if ((p->authtries > 1) || do_register_auth(p, req, "WWW-Authenticate", "Authorization")) {
-					ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s'\n", get_header(&p->initreq, "From"));
-					ast_set_flag(p, SIP_NEEDDESTROY);	
-				}
-			} else
+				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+			} else {
+				ast_log(LOG_WARNING, "Got authentication request (401) on unknown %s to '%s'\n", sip_methods[sipmethod].text, get_header(req, "To"));
 				ast_set_flag(p, SIP_NEEDDESTROY);	
+			}
 			break;
 		case 403: /* Forbidden - we failed authentication */
 			if (sipmethod == SIP_INVITE) {
@@ -8372,11 +8465,16 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			} else if (p->registry && sipmethod == SIP_REGISTER) {
-				ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for REGISTER for '%s' to '%s'\n", p->registry->username, p->registry->hostname);
-				ast_set_flag(p, SIP_NEEDDESTROY);	
+				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			} else {
 				ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for %s\n", msg);
 			}
+			break;
+		case 404: /* Not found */
+			if (p->registry && sipmethod == SIP_REGISTER) {
+				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+			} else if (owner)
+				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			break;
 		case 407: /* Proxy auth required */
 			if (sipmethod == SIP_INVITE) {
@@ -8395,15 +8493,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+					ast_set_flag(p, SIP_NEEDDESTROY);	
 				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(p, SIP_NEEDDESTROY);	
 				}
 			} else if (p->registry && sipmethod == SIP_REGISTER) {
-				if ((p->authtries > 1) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization")) {
-					ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
-					ast_set_flag(p, SIP_NEEDDESTROY);	
-				}
+				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			} else
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 
@@ -8495,13 +8591,19 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			} else
 				ast_log(LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 		}
-	} else {
+	} else {	
+		/* Not outgoing - what is it? Unsolicited replies? */
+		/* When do we get here? ---------??????????------------*/
+		/* INCOMING Calls */
+		if (option_debug > 2) {
+			ast_verbose("!!!!!!!---------------************* Why are we here with this packet???? %s\n", msg);
+		}
 		if (sip_debug_test_pvt(p))
 			ast_verbose("Response message is %s\n", msg);
 		switch(resp) {
 		case 200:
 			/* Change branch since this is a 200 response */
-			if (sipmethod == SIP_INVITE || sipmethod == SIP_REGISTER)
+			if (sipmethod == SIP_INVITE)
 				transmit_request(p, SIP_ACK, seqno, 0, 1);
 			break;
 		case 407:
@@ -9272,7 +9374,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		p->method = SIP_RESPONSE;
 		/* Response to our request -- Do some sanity checks */	
 		if (!p->initreq.headers) {
-			ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about.\n");
+			ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 			return 0;
 		} else if (p->ocseq && (p->ocseq < seqno)) {
@@ -9884,7 +9986,7 @@ static struct ast_channel *sip_request(const char *type, int format, void *data,
 #endif
 	p->prefcodec = format;
 	ast_mutex_lock(&p->lock);
-	tmpc = sip_new(p, AST_STATE_DOWN, host);
+	tmpc = sip_new(p, AST_STATE_DOWN, host);	/* Place the call */
 	ast_mutex_unlock(&p->lock);
 	if (!tmpc)
 		sip_destroy(p);
@@ -10539,6 +10641,7 @@ static int reload_config(void)
 	externhost[0] = '\0';
 	externexpire = 0;
 	externrefresh = 10;
+	sipdebug = 0;
 	ast_copy_string(default_useragent, DEFAULT_USERAGENT, sizeof(default_useragent));
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
@@ -10555,8 +10658,9 @@ static int reload_config(void)
 	global_rtptimeout = 0;
 	global_rtpholdtimeout = 0;
 	global_rtpkeepalive = 0;
-	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
 	pedanticsipchecking = 0;
+	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
+	global_regattempts_max = DEFAULT_REGATTEMPTS_MAX;
 	ast_clear_flag(&global_flags, AST_FLAGS_ALL);
 	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);
 	ast_set_flag(&global_flags, SIP_NAT_RFC3581);
@@ -10661,10 +10765,14 @@ static int reload_config(void)
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
+		} else if (!strcasecmp(v->name, "sipdebug")){
+			sipdebug = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "registertimeout")){
 			global_reg_timeout = atoi(v->value);
 			if (global_reg_timeout < 1)
 				global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
+		} else if (!strcasecmp(v->name, "registerattempts")){
+			global_regattempts_max = atoi(v->value);
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
 				ast_log(LOG_WARNING, "Invalid address: %s\n", v->value);
