@@ -4514,6 +4514,10 @@ static int ext_strncpy(char *dst, const char *src, int len)
 	return count;
 }
 
+static void null_datad(void *foo)
+{
+}
+
 /*
  * EBUSY - can't lock
  * EEXIST - extension with the same priority exist and no replace is set
@@ -4560,6 +4564,8 @@ int ast_add_extension2(struct ast_context *con,
 		length ++;
 
 	/* Be optimistic:  Build the extension structure first */
+	if (datad == NULL)
+		datad = null_datad;
 	tmp = malloc(length);
 	if (tmp) {
 		memset(tmp, 0, length);
