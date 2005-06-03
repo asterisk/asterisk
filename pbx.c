@@ -3530,46 +3530,22 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 /*
  * CLI entries for upper commands ...
  */
-static struct ast_cli_entry show_applications_cli = 
-	{ { "show", "applications", NULL }, 
-	handle_show_applications, "Shows registered dialplan applications",
-	show_applications_help, complete_show_applications };
-
-static struct ast_cli_entry show_functions_cli = {
-	{ "show", "functions", NULL }, 
-	handle_show_functions,
-	"Shows registered dialplan functions",
-	show_functions_help,
+static struct ast_cli_entry pbx_cli[] = {
+	{ { "show", "applications", NULL }, handle_show_applications,
+	  "Shows registered dialplan applications", show_applications_help, complete_show_applications },
+	{ { "show", "functions", NULL }, handle_show_functions,
+	  "Shows registered dialplan functions", show_functions_help },
+	{ { "show" , "function", NULL }, handle_show_function,
+	  "Describe a specific dialplan function", show_function_help, complete_show_function },
+	{ { "show", "application", NULL }, handle_show_application,
+	  "Describe a specific dialplan application", show_application_help, complete_show_application },
+	{ { "show", "dialplan", NULL }, handle_show_dialplan,
+	  "Show dialplan", show_dialplan_help, complete_show_dialplan_context },
+	{ { "show", "switches", NULL },	handle_show_switches,
+	  "Show alternative switches", show_switches_help },
+	{ { "show", "hints", NULL }, handle_show_hints,
+	  "Show dialplan hints", show_hints_help },
 };
-
-static struct ast_cli_entry show_function_cli = {
-	{ "show" , "function", NULL },
-	handle_show_function,
-	"Describe a specific dialplan function",
-	show_function_help,
-	complete_show_function,
-};
-
-static struct ast_cli_entry show_application_cli =
-	{ { "show", "application", NULL }, 
-	handle_show_application, "Describe a specific dialplan application",
-	show_application_help, complete_show_application };
-
-static struct ast_cli_entry show_dialplan_cli =
-	{ { "show", "dialplan", NULL },
-		handle_show_dialplan, "Show dialplan",
-		show_dialplan_help, complete_show_dialplan_context };
-
-static struct ast_cli_entry show_switches_cli =
-	{ { "show", "switches", NULL },
-		handle_show_switches, "Show alternative switches",
-		show_switches_help, NULL };
-
-static struct ast_cli_entry show_hints_cli =
-	{ { "show", "hints", NULL },
-		handle_show_hints, "Show dialplan hints",
-		show_hints_help, NULL };
-
 
 int ast_unregister_application(const char *app) {
 	struct ast_app *tmp, *tmpl = NULL;
@@ -5990,13 +5966,7 @@ int load_pbx(void)
 		ast_verbose( "Registering builtin applications:\n");
 	}
 	AST_LIST_HEAD_INIT(&globals);
-	ast_cli_register(&show_applications_cli);
-	ast_cli_register(&show_function_cli);
-	ast_cli_register(&show_functions_cli);
-	ast_cli_register(&show_application_cli);
-	ast_cli_register(&show_dialplan_cli);
-	ast_cli_register(&show_switches_cli);
-	ast_cli_register(&show_hints_cli);
+	ast_cli_register_multiple(pbx_cli, sizeof(pbx_cli) / sizeof(pbx_cli[0]));
 
 	/* Register builtin applications */
 	for (x=0; x<sizeof(builtins) / sizeof(struct pbx_builtin); x++) {
