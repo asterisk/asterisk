@@ -672,7 +672,7 @@ static struct sip_auth *authl;          /* Authentication list */
 static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
-static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header);
+static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header, int stale);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, char *auth, char *authheader, char *vxml_url, char *distinctive_ring, char *osptoken, int addsipheaders, int init);
@@ -3717,7 +3717,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 }
 
 /* transmit_response_with_auth: Respond with authorization request */
-static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *randdata, int reliable, char *header)
+static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *randdata, int reliable, char *header, int stale)
 {
 	struct sip_request resp;
 	char tmp[256];
@@ -3727,7 +3727,9 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 		ast_log(LOG_WARNING, "Unable to determine sequence number from '%s'\n", get_header(req, "CSeq"));
 		return -1;
 	}
-	snprintf(tmp, sizeof(tmp), "Digest realm=\"%s\", nonce=\"%s\"", global_realm, randdata);
+	/* Stale means that they sent us correct authentication, but 
+	   based it on an old challenge (nonce) */
+	snprintf(tmp, sizeof(tmp), "Digest realm=\"%s\", nonce=\"%s\" %s", global_realm, randdata, stale ? ", stale=true" : "");
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp);
 	add_header(&resp, "Content-Length", "0");
@@ -5338,7 +5340,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			if (!reliable) {
 				/* Resend message if this was NOT a reliable delivery.   Otherwise the
 				   retransmission should get it */
-				transmit_response_with_auth(p, response, req, randdata, reliable, respheader);
+				transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
 				/* Schedule auto destroy in 15 seconds */
 				sip_scheddestroy(p, 15000);
 			}
@@ -5346,7 +5348,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		}
 	} else if (ast_strlen_zero(randdata) || ast_strlen_zero(authtoken)) {
 		snprintf(randdata, randlen, "%08x", rand());
-		transmit_response_with_auth(p, response, req, randdata, reliable, respheader);
+		transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
 		/* Schedule auto destroy in 15 seconds */
 		sip_scheddestroy(p, 15000);
 		res = 1;
@@ -5362,8 +5364,12 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		char tmp[256] = "";
 		char *c;
 		char *z;
-		char *response ="";
+		char *ua_hash ="";
 		char *resp_uri ="";
+		char *nonce = "";
+		char *digestusername = "";
+		int  wrongnonce = 0;
+		char *usednonce = randdata;
 
 		/* Find their response among the mess that we'r sent for comparison */
 		ast_copy_string(tmp, authtoken, sizeof(tmp));
@@ -5376,12 +5382,12 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			if (!strncasecmp(c, "response=", strlen("response="))) {
 				c+= strlen("response=");
 				if ((*c == '\"')) {
-					response=++c;
+					ua_hash=++c;
 					if ((c = strchr(c,'\"')))
 						*c = '\0';
 
 				} else {
-					response=c;
+					ua_hash=c;
 					if ((c = strchr(c,',')))
 						*c = '\0';
 				}
@@ -5398,32 +5404,86 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 						*c = '\0';
 				}
 
+			} else if (!strncasecmp(c, "username=", strlen("username="))) {
+				c+= strlen("username=");
+				if ((*c == '\"')) {
+					digestusername=++c;
+					if((c = strchr(c,'\"')))
+						*c = '\0';
+				} else {
+					digestusername=c;
+					if((c = strchr(c,',')))
+						*c = '\0';
+				}
+			} else if (!strncasecmp(c, "nonce=", strlen("nonce="))) {
+				c+= strlen("nonce=");
+				if ((*c == '\"')) {
+					nonce=++c;
+					if ((c = strchr(c,'\"')))
+						*c = '\0';
+				} else {
+					nonce=c;
+					if ((c = strchr(c,',')))
+						*c = '\0';
+				}
+
 			} else
 				if ((z = strchr(c,' ')) || (z = strchr(c,','))) c=z;
 			if (c)
 				c++;
 		}
+		/* Verify that digest username matches  the username we auth as */
+		if (strcmp(username, digestusername)) {
+			/* Oops, we're trying something here */
+			return -2;
+		}
+
+                /* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
+		if (strncasecmp(randdata, nonce, randlen)) {
+			wrongnonce = 1;
+			usednonce = nonce;
+		}
+
 		snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
+
 		if (!ast_strlen_zero(resp_uri))
 			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, resp_uri);
 		else
 			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, uri);
+
 		if (!ast_strlen_zero(md5secret))
-		        snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
+			snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
 		else
-		        ast_md5_hash(a1_hash, a1);
+			ast_md5_hash(a1_hash, a1);
+
 		ast_md5_hash(a2_hash, a2);
-		snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, randdata, a2_hash);
+
+		snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, usednonce, a2_hash);
 		ast_md5_hash(resp_hash, resp);
 
-		/* resp_hash now has the expected response, compare the two */
+		if (wrongnonce) {
+			ast_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
+                        
+			snprintf(randdata, randlen, "%08x", rand());
+			if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash))) {
+				/* We got working auth token, based on stale nonce . */
+				transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 1);
+			} else {
+				/* Everything was wrong, so give the device one more try */
+				transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
+			}
 
-		if (response && !strncasecmp(response, resp_hash, strlen(resp_hash))) {
+			/* Schedule auto destroy in 15 seconds */
+			sip_scheddestroy(p, 15000);
+			return 1;
+		} 
+		/* resp_hash now has the expected response, compare the two */
+		if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash))) {
 			/* Auth is OK */
 			res = 0;
 		}
-		/* Assume success ;-) */
 	}
+	/* Failure */
 	return res;
 }
 
@@ -5524,8 +5584,21 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	if (!res) {
 	    ast_device_state_changed("SIP/%s", peer->name);
 	}
-	if (res < 0)
-		transmit_response(p, "403 Forbidden", &p->initreq);
+	if (res < 0) {
+		switch (res) {
+		case -1:
+			/* Wrong password in authentication. Go away, don't try again until you fixed it */
+			transmit_response(p, "403 Forbidden", &p->initreq);
+			break;
+		case -2:
+			/* Username and digest username does not match. 
+			   Asterisk uses the From: username for authentication. We need the
+			   users to use the same authentication user name until we support
+			   proper authentication by digest auth name */
+			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
+			break;
+		}
+	}
 	if (peer)
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
 	return res;
