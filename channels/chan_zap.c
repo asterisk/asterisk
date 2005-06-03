@@ -8974,27 +8974,22 @@ static char pri_show_span_help[] =
 	"Usage: pri show span <span>\n"
 	"       Displays PRI Information\n";
 
-static struct ast_cli_entry pri_debug = {
-	{ "pri", "debug", "span", NULL }, handle_pri_debug, "Enables PRI debugging on a span", pri_debug_help, complete_span_4 };
-
-static struct ast_cli_entry pri_no_debug = {
-	{ "pri", "no", "debug", "span", NULL }, handle_pri_no_debug, "Disables PRI debugging on a span", pri_no_debug_help, complete_span_5 };
-
-static struct ast_cli_entry pri_really_debug = {
-	{ "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug, "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span_5 };
-
-static struct ast_cli_entry pri_show_span = {
-	{ "pri", "show", "span", NULL }, handle_pri_show_span, "Displays PRI Information", pri_show_span_help, complete_span_4 };
-
-static struct ast_cli_entry pri_show_debug= {
-	{ "pri", "show", "debug", NULL }, handle_pri_show_debug, "Displays current PRI debug settings", NULL, NULL };
-
-static struct ast_cli_entry pri_set_debug_file = {
-	{ "pri", "set", "debug", "file", NULL }, handle_pri_set_debug_file, "Sends PRI debug output to the specified file", NULL, NULL };
-
-static struct ast_cli_entry pri_unset_debug_file = {
-	{ "pri", "unset", "debug", "file", NULL }, handle_pri_set_debug_file, "Ends PRI debug output to file", NULL, NULL };
-
+static struct ast_cli_entry zap_pri_cli[] = {
+	{ { "pri", "debug", "span", NULL }, handle_pri_debug,
+	  "Enables PRI debugging on a span", pri_debug_help, complete_span_4 },
+	{ { "pri", "no", "debug", "span", NULL }, handle_pri_no_debug,
+	  "Disables PRI debugging on a span", pri_no_debug_help, complete_span_5 },
+	{ { "pri", "intense", "debug", "span", NULL }, handle_pri_really_debug,
+	  "Enables REALLY INTENSE PRI debugging", pri_really_debug_help, complete_span_5 },
+	{ { "pri", "show", "span", NULL }, handle_pri_show_span,
+	  "Displays PRI Information", pri_show_span_help, complete_span_4 },
+	{ { "pri", "show", "debug", NULL }, handle_pri_show_debug,
+	  "Displays current PRI debug settings" },
+	{ { "pri", "set", "debug", "file", NULL }, handle_pri_set_debug_file,
+	  "Sends PRI debug output to the specified file" },
+	{ { "pri", "unset", "debug", "file", NULL }, handle_pri_set_debug_file,
+	  "Ends PRI debug output to file" },
+};
 
 #endif /* ZAPATA_PRI */
 
@@ -9068,11 +9063,12 @@ static char r2_no_debug_help[] =
 	"Usage: r2 no debug channel <channel>\n"
 	"       Enables R2 protocol level debugging on a given channel\n";
 
-static struct ast_cli_entry r2_debug = {
-	{ "r2", "debug", "channel", NULL }, handle_r2_debug, "Enables R2 debugging on a channel", r2_debug_help };
-
-static struct ast_cli_entry r2_no_debug = {
-	{ "r2", "no", "debug", "channel", NULL }, handle_r2_no_debug, "Disables R2 debugging on a channel", r2_no_debug_help };
+static struct ast_cli_entry zap_r2_cli[] = {
+	{ { "r2", "debug", "channel", NULL }, handle_r2_debug,
+	  "Enables R2 debugging on a channel", r2_debug_help },
+	{ { "r2", "no", "debug", "channel", NULL }, handle_r2_no_debug,
+	  "Disables R2 debugging on a channel", r2_no_debug_help },
+};
 
 #endif
 
@@ -9391,13 +9387,6 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-
-
-static struct ast_cli_entry zap_show_cadences_cli =
-	{ { "zap", "show", "cadences", NULL },
-	handle_zap_show_cadences, "List cadences",
-	zap_show_cadences_help, NULL };
-
 static char show_channels_usage[] =
 	"Usage: zap show channels\n"
 	"	Shows a list of available channels\n";
@@ -9414,17 +9403,18 @@ static char destroy_channel_usage[] =
 	"Usage: zap destroy channel <chan num>\n"
 	"	DON'T USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING.  Immediately removes a given channel, whether it is in use or not\n";
 
-static struct ast_cli_entry cli_show_channels = { 
-	{"zap", "show", "channels", NULL}, zap_show_channels, "Show active zapata channels", show_channels_usage, NULL };
-
-static struct ast_cli_entry cli_show_channel = { 
-	{"zap", "show", "channel", NULL}, zap_show_channel, "Show information on a channel", show_channel_usage, NULL };
-
-static struct ast_cli_entry cli_destroy_channel = { 
-	{"zap", "destroy", "channel", NULL}, zap_destroy_channel, "Destroy a channel", destroy_channel_usage, NULL };
-
-static struct ast_cli_entry cli_zap_show_status = {
-{"zap", "show", "status", NULL}, zap_show_status, "Show all Zaptel cards status", zap_show_status_usage, NULL };
+static struct ast_cli_entry zap_cli[] = {
+	{ { "zap", "show", "cadences", NULL }, handle_zap_show_cadences,
+	  "List cadences", zap_show_cadences_help },
+	{ {"zap", "show", "channels", NULL}, zap_show_channels,
+	  "Show active zapata channels", show_channels_usage },
+	{ {"zap", "show", "channel", NULL}, zap_show_channel,
+	  "Show information on a channel", show_channel_usage },
+	{ {"zap", "destroy", "channel", NULL}, zap_destroy_channel,
+	  "Destroy a channel", destroy_channel_usage },
+	{ {"zap", "show", "status", NULL}, zap_show_status,
+	  "Show all Zaptel cards status", zap_show_status_usage },
+};
 
 #define TRANSFER	0
 #define HANGUP		1
@@ -9617,23 +9607,12 @@ static int __unload_module(void)
 		if (pris[i].master != AST_PTHREADT_NULL) 
 			pthread_cancel(pris[i].master);
 	}
-	ast_cli_unregister(&pri_debug);
-	ast_cli_unregister(&pri_no_debug);
-	ast_cli_unregister(&pri_really_debug);
-	ast_cli_unregister(&pri_show_span);
-	ast_cli_unregister(&pri_show_debug);
-	ast_cli_unregister(&pri_set_debug_file);
-	ast_cli_unregister(&pri_unset_debug_file);
+	ast_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
 #endif
 #ifdef ZAPATA_R2
-	ast_cli_unregister(&r2_debug);
-	ast_cli_unregister(&r2_no_debug);
+	ast_cli_unregister_multiple(zap_r2_cli, sizeof(zap_r2_cli) / sizeof(zap_r2_cli[0]));
 #endif
-	ast_cli_unregister(&cli_show_channels);
-	ast_cli_unregister(&cli_show_channel);
-	ast_cli_unregister(&cli_destroy_channel);
-	ast_cli_unregister(&zap_show_cadences_cli);
-	ast_cli_unregister(&cli_zap_show_status);
+	ast_cli_unregister_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
 	ast_manager_unregister( "ZapDialOffhook" );
 	ast_manager_unregister( "ZapHangup" );
 	ast_manager_unregister( "ZapTransfer" );
@@ -10500,23 +10479,12 @@ int load_module(void)
 		return -1;
 	}
 #ifdef ZAPATA_PRI
-	ast_cli_register(&pri_debug);
-	ast_cli_register(&pri_no_debug);
-	ast_cli_register(&pri_really_debug);
-	ast_cli_register(&pri_show_span);
-	ast_cli_register(&pri_show_debug);
-	ast_cli_register(&pri_set_debug_file);
-	ast_cli_register(&pri_unset_debug_file);
+	ast_cli_register_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
 #endif	
 #ifdef ZAPATA_R2
-	ast_cli_register(&r2_debug);
-	ast_cli_register(&r2_no_debug);
+	ast_cli_register_multiple(zap_r2_cli, sizeof(zap_r2_cli) / sizeof(zap_r2_cli[0]));
 #endif	
-	ast_cli_register(&cli_show_channels);
-	ast_cli_register(&cli_show_channel);
-	ast_cli_register(&cli_destroy_channel);
-	ast_cli_register(&zap_show_cadences_cli);
-	ast_cli_register(&cli_zap_show_status);
+	ast_cli_register_multiple(zap_cli, sizeof(zap_cli) / sizeof(zap_cli[0]));
 	
 	memset(round_robin, 0, sizeof(round_robin));
 	ast_manager_register( "ZapTransfer", 0, action_transfer, "Transfer Zap Channel" );
