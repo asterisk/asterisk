@@ -34,7 +34,16 @@ writeprotect=no
 ; (this is the original behavior of Asterisk 1.0 and earlier).
 ;
 autofallthrough=yes
-
+;
+; If clearglobalvars is set, global variables will be cleared 
+; and reparsed on an extensions reload, or Asterisk reload.
+;
+; If clearglobalvars is not set, then global variables will persist
+; through reloads, and even if deleted from the extensions.conf or
+; one if its included files, will remain set to the previous value.
+;
+clearglobalvars=no
+;
 ; You can include other config files, use the #include command (without the ';')
 ; Note that this is different from the "include" command that includes contexts within 
 ; other contexts. The #include command works in all asterisk configuration files.

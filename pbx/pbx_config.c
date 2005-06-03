@@ -44,6 +44,7 @@ static char *registrar = "pbx_config";
 static int static_config = 0;
 static int write_protect_config = 1;
 static int autofallthrough_config = 0;
+static int clearglobalvars_config = 0;
 
 AST_MUTEX_DEFINE_STATIC(save_dialplan_lock);
 
@@ -97,7 +98,8 @@ static char context_remove_ignorepat_help[] =
 
 static char reload_extensions_help[] =
 "Usage: reload extensions.conf without reloading any other modules\n"
-"       This command does not delete global variables\n"
+"       This command does not delete global variables unless\n"
+"       clearglobalvars is set to yes in extensions.conf\n"
 "\n"
 "Example: extensions reload\n";
 
@@ -1636,6 +1638,9 @@ static int pbx_load_module(void)
 		autofallthrough_config = ast_true(ast_variable_retrieve(cfg, "general",
 			"autofallthrough"));
 
+		clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", 
+			"clearglobalvars"));
+
 		v = ast_variable_browse(cfg, "globals");
 		while(v) {
 			memset(realvalue, 0, sizeof(realvalue));
@@ -1816,10 +1821,8 @@ int load_module(void)
 int reload(void)
 {
 	ast_context_destroy(NULL, registrar);
-	/* For martin's global variables, don't clear them on reload */
-#if 0
-	pbx_builtin_clear_globals();
-#endif	
+	if (clearglobalvars_config)
+		pbx_builtin_clear_globals();
 	pbx_load_module();
 	return 0;
 }
