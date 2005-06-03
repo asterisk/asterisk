@@ -467,7 +467,7 @@ static int ast_makesocket(void)
 
 	if (perms!=NULL) {
 		mode_t p;
-		sscanf(perms,"%o",&p);
+		sscanf(perms, "%o", (int *) &p);
 		if ((chmod(ast_config_AST_SOCKET,p))<0)
 			ast_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", ast_config_AST_SOCKET,strerror(errno));
 	}
@@ -1690,7 +1690,6 @@ int main(int argc, char *argv[])
 	int num;
 	char *buf;
 	char *runuser=NULL, *rungroup=NULL;
-	struct pollfd silly_macos[1];	
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
@@ -2060,7 +2059,9 @@ int main(int argc, char *argv[])
 
 	}
 	/* Do nothing */
-	for(;;) 
-		poll(silly_macos,0, -1);
+	for(;;)  {	/* apparently needed for the MACos */
+		struct pollfd p = { -1 /* no descriptor */, 0, 0 };
+		poll(&p, 0, -1);
+	}
 	return 0;
 }
