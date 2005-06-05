@@ -81,16 +81,16 @@ AST_MUTEX_DEFINE_STATIC(chlock);
 
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
-#define FORMAT  "%-10.10s  %-50.50s\n"
+#define FORMAT  "%-10.10s  %-50.50s %-12.12s\n"
 	struct chanlist *cl = backends;
-	ast_cli(fd, FORMAT, "Type", "Description");
-	ast_cli(fd, FORMAT, "----------", "-----------");
+	ast_cli(fd, FORMAT, "Type", "Description",       "Devicestate");
+	ast_cli(fd, FORMAT, "----------", "-----------", "-----------");
 	if (ast_mutex_lock(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
 	while (cl) {
-		ast_cli(fd, FORMAT, cl->tech->type, cl->tech->description);
+		ast_cli(fd, FORMAT, cl->tech->type, cl->tech->description, (cl->tech->devicestate)?"yes":"no");
 		cl = cl->next;
 	}
 	ast_mutex_unlock(&chlock);
