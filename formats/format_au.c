@@ -10,8 +10,6 @@
  * the GNU General Public License
  */
  
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <stdio.h>
@@ -190,7 +188,7 @@ static struct ast_filestream *au_open(int fd)
 	struct ast_filestream *tmp;
 
 	if (!(tmp = malloc(sizeof(struct ast_filestream)))) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 
@@ -222,7 +220,7 @@ static struct ast_filestream *au_rewrite(int fd, const char *comment)
 	struct ast_filestream *tmp;
 
 	if ((tmp = malloc(sizeof(struct ast_filestream))) == NULL) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+		ast_log(LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 
