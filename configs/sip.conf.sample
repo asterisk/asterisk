@@ -82,6 +82,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; inband : Inband audio (requires 64 kbit codec -alaw, ulaw)
 
 ;compactheaders = yes		; send compact sip headers.
+;sipdebug = yes			; Turn on SIP debugging by default, from
+				; the moment the channel loads this configuration
 
 ;
 ; If regcontext is specified, Asterisk will dynamically 
@@ -121,6 +123,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;               (instead of type=friend) if you have calls in both directions
   
 ;registertimeout=20		; retry registration calls every 20 seconds (default)
+;registerattempts=10		; Number of registration attempts before we give up
+				; 0 = continue forever, hammering the other server until it 
+				; accepts the registration
+				; Default is 10 tries
 ;callevents=no			; generate manager events when sip ua performs events (e.g. hold)
 
 ;---------------------------------------------- NAT SUPPORT ------------------------

@@ -613,7 +613,7 @@ static int sip_reloading = 0;
 #define REG_STATE_REJECTED	   	4
 #define REG_STATE_TIMEOUT	   	5
 #define REG_STATE_NOAUTH	   	6
-#define REG_STATE_GAVEUP		7
+#define REG_STATE_FAILED		7
 
 
 /* sip_registry: Registrations with other SIP proxies */
@@ -4527,8 +4527,8 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 static char *regstate2str(int regstate)
 {
 	switch(regstate) {
-	case REG_STATE_GAVEUP:
-		return "Gave up.";
+	case REG_STATE_FAILED:
+		return "Failed";
 	case REG_STATE_UNREGISTERED:
 		return "Unregistered";
 	case REG_STATE_REGSENT:
@@ -4610,7 +4610,7 @@ static int sip_reg_timeout(void *data)
 		/* Ok, enough is enough. Don't try any more */
 		/* We could add an external notification here... 
 			steal it from app_voicemail :-) */
-		r->regstate=REG_STATE_GAVEUP;
+		r->regstate=REG_STATE_FAILED;
 	} else {
 		r->regstate=REG_STATE_UNREGISTERED;
 		r->timeout = -1;
