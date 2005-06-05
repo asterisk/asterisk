@@ -238,7 +238,6 @@ struct iax2_context {
 
 static int global_rtautoclear = 120;
 
-static struct iax2_peer *realtime_peer(const char *peername);
 static int reload_config(void);
 static int iax2_reload(int fd, int argc, char *argv[]);
 
@@ -610,6 +609,9 @@ static struct iax2_dpcache {
 } *dpcache;
 
 AST_MUTEX_DEFINE_STATIC(dpcache_lock);
+
+static void reg_source_db(struct iax2_peer *p);
+static struct iax2_peer *realtime_peer(const char *peername);
 
 static void destroy_peer(struct iax2_peer *peer);
 static int ast_cli_netstats(int fd, int limit_fmt);
@@ -2567,6 +2569,8 @@ static struct iax2_peer *realtime_peer(const char *peername)
 		peer->next = peerl.peers;
 		peerl.peers = peer;
 		ast_mutex_unlock(&peerl.lock);
+		if (ast_test_flag(peer, IAX_DYNAMIC))
+			reg_source_db(peer);
 	} else {
 		ast_set_flag(peer, IAX_TEMPONLY);	
 	}
@@ -7957,8 +7961,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		ast_clear_flag(peer, IAX_DELME);	
 		/* Make sure these are IPv4 addresses */
 		peer->addr.sin_family = AF_INET;
-		if (!found && ast_test_flag(peer, IAX_DYNAMIC) && !temponly)
-			reg_source_db(peer);
 	}
 	if (oldha)
 		ast_free_ha(oldha);
@@ -8458,6 +8460,8 @@ static int set_config(char *config_file, int reload)
 						peer->next = peerl.peers;
 						peerl.peers = peer;
 						ast_mutex_unlock(&peerl.lock);
+						if (ast_test_flag(peer, IAX_DYNAMIC))
+							reg_source_db(peer);
 					}
 				} else if (strcasecmp(utype, "user")) {
 					ast_log(LOG_WARNING, "Unknown type '%s' for '%s' in %s\n", utype, cat, config_file);
