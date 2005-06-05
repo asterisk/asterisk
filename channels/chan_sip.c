@@ -8181,79 +8181,74 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		r->call = NULL;
 		ast_sched_del(sched, r->timeout);
 		break;
-	case 200:
-		if (r) {
-			int expires, expires_ms;
-
-			r->regstate=REG_STATE_REGISTERED;
-			manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
-			ast_log(LOG_DEBUG, "Registration successful\n");
-			if (r->timeout > -1) {
-				ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
-				ast_sched_del(sched, r->timeout);
-			}
-			r->timeout=-1;
-			r->call = NULL;
-			p->registry = NULL;
-			/* Let this one hang around until we have all the responses */
-			sip_scheddestroy(p, 32000);
-			/* ast_set_flag(p, SIP_NEEDDESTROY);	*/
-
-			/* set us up for re-registering */
-			/* figure out how long we got registered for */
-			if (r->expire > -1)
-				ast_sched_del(sched, r->expire);
-			/* according to section 6.13 of RFC, contact headers override
-			   expires headers, so check those first */
-			expires = 0;
-			if (!ast_strlen_zero(get_header(req, "Contact"))) {
-				char *contact = NULL;
-				char *tmptmp = NULL;
-				int start = 0;
-				for(;;) {
-					contact = __get_header(req, "Contact", &start);
-					/* this loop ensures we get a contact header about our register request */
-					if(!ast_strlen_zero(contact)) {
-						if( (tmptmp=strstr(contact, p->our_contact))) {
-							contact=tmptmp;
-							break;
-						}
-					} else
-						break;
-				}
-				tmptmp = strstr(contact, "expires=");
-				if (tmptmp) {
-					if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
-						expires = 0;
-				}
-			}
-			if (!expires) 
-				expires=atoi(get_header(req, "expires"));
-			if (!expires)
-				expires=default_expiry;
-
-			expires_ms = expires * 1000;
-			if (expires <= EXPIRY_GUARD_LIMIT)
-				expires_ms -= MAX((expires_ms * EXPIRY_GUARD_PCT),EXPIRY_GUARD_MIN);
-			else
-				expires_ms -= EXPIRY_GUARD_SECS * 1000;
-			if (sipdebug)
-				ast_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d ms)\n", r->hostname, expires, expires_ms); 
-
-			r->refresh= (int) expires_ms / 1000;
-
-			/* Schedule re-registration before we expire */
-			r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
-			ASTOBJ_UNREF(r, sip_registry_destroy);
-		} else {
-			if (r->expire)
-				ast_log(LOG_WARNING, "Got 200 OK on REGISTER that is already done\n");
-			else
-				ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
+	case 200:	/* 200 OK */
+		if (!r) {
+			ast_log(LOG_WARNING, "Got 200 OK on REGISTER that isn't a register\n");
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 			return 0;
 		}
+		int expires, expires_ms;
 
+		r->regstate=REG_STATE_REGISTERED;
+		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
+		ast_log(LOG_DEBUG, "Registration successful\n");
+		if (r->timeout > -1) {
+			ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
+			ast_sched_del(sched, r->timeout);
+		}
+		r->timeout=-1;
+		r->call = NULL;
+		p->registry = NULL;
+		/* Let this one hang around until we have all the responses */
+		sip_scheddestroy(p, 32000);
+		/* ast_set_flag(p, SIP_NEEDDESTROY);	*/
+
+		/* set us up for re-registering */
+		/* figure out how long we got registered for */
+		if (r->expire > -1)
+			ast_sched_del(sched, r->expire);
+		/* according to section 6.13 of RFC, contact headers override
+		   expires headers, so check those first */
+		expires = 0;
+		if (!ast_strlen_zero(get_header(req, "Contact"))) {
+			char *contact = NULL;
+			char *tmptmp = NULL;
+			int start = 0;
+			for(;;) {
+				contact = __get_header(req, "Contact", &start);
+				/* this loop ensures we get a contact header about our register request */
+				if(!ast_strlen_zero(contact)) {
+					if( (tmptmp=strstr(contact, p->our_contact))) {
+						contact=tmptmp;
+						break;
+					}
+				} else
+					break;
+			}
+			tmptmp = strstr(contact, "expires=");
+			if (tmptmp) {
+				if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
+					expires = 0;
+			}
+		}
+		if (!expires) 
+			expires=atoi(get_header(req, "expires"));
+		if (!expires)
+			expires=default_expiry;
+
+		expires_ms = expires * 1000;
+		if (expires <= EXPIRY_GUARD_LIMIT)
+			expires_ms -= MAX((expires_ms * EXPIRY_GUARD_PCT),EXPIRY_GUARD_MIN);
+		else
+			expires_ms -= EXPIRY_GUARD_SECS * 1000;
+		if (sipdebug)
+			ast_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d ms)\n", r->hostname, expires, expires_ms); 
+
+		r->refresh= (int) expires_ms / 1000;
+
+		/* Schedule re-registration before we expire */
+		r->expire=ast_sched_add(sched, expires_ms, sip_reregister, r); 
+		ASTOBJ_UNREF(r, sip_registry_destroy);
 	}
 	return 1;
 }
