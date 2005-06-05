@@ -5038,7 +5038,8 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				if (tmp) {
 					memset(tmp, 0, sizeof(struct app_tmp));
 					strncpy(tmp->app, app, sizeof(tmp->app) - 1);
-					strncpy(tmp->data, appdata, sizeof(tmp->data) - 1);
+					if (appdata)
+						ast_copy_string(tmp->data, appdata, sizeof(tmp->data));
 					tmp->chan = chan;
 					if (sync > 1) {
 						if (locked_channel)
