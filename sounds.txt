@@ -22,9 +22,9 @@
 
 %auth-thankyou.gsm%Thank you.
 
-%beep.gsm%(this is a simple beep tone)
+%beep.gsm%[this is a simple beep tone]
 
-%beeperr.gsm%(this is an error beep tone)
+%beeperr.gsm%[this is an error beep tone]
 
 %conf-hasleft.gsm%has left the conference.
 
@@ -410,21 +410,11 @@
 
 %pound.gsm%pound
 
-%privacy-incorrect.gsm%will_be_added_later
-
-%privacy-prompt.gsm%will_be_added_later
-
-%privacy-thankyou.gsm%will_be_added_later
-
-%privacy-unident.gsm%will_be_added_later
-
 %seconds.gsm%seconds
 
 %star.gsm%star
 
 %thousand.gsm%thousand
-
-%at.gsm%at
 
 %h-1.gsm%first
 
@@ -467,8 +457,6 @@
 %h-20.gsm%twentieth
 
 %h-30.gsm%thirtieth
-
-%at.gsm%at
 
 %today.gsm%today
 
