@@ -414,11 +414,11 @@ static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	if (!strncasecmp(argv[2],"tdd",3))
 		x = 1;
 	res = ast_channel_setoption(chan, AST_OPTION_TDD, &x, sizeof(char), 0);
-	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0) 
-		return RESULT_SUCCESS;
+	if(res != RESULT_SUCCESS)
+		fdprintf(agi->fd, "200 result=0\n");
 	else
-		return RESULT_FAILURE;
+		fdprintf(agi->fd, "200 result=1\n");
+	return RESULT_SUCCESS;
 }
 
 static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
