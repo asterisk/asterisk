@@ -393,7 +393,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	tmp->fds[AST_MAX_FDS-1] = tmp->alertpipe[0];
 	/* And timing pipe */
 	tmp->fds[AST_MAX_FDS-2] = tmp->timingfd;
-	strncpy(tmp->name, "**Unknown**", sizeof(tmp->name)-1);
+	ast_copy_string(tmp->name, "**Unknown**", sizeof(tmp->name));
 	/* Initial state */
 	tmp->_state = AST_STATE_DOWN;
 	tmp->streamid = -1;
@@ -405,12 +405,12 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	headp = &tmp->varshead;
 	ast_mutex_init(&tmp->lock);
 	AST_LIST_HEAD_INIT(headp);
-	strncpy(tmp->context, "default", sizeof(tmp->context)-1);
-	strncpy(tmp->language, defaultlanguage, sizeof(tmp->language)-1);
-	strncpy(tmp->exten, "s", sizeof(tmp->exten)-1);
+	ast_copy_string(tmp->context, "default", sizeof(tmp->context));
+	ast_copy_string(tmp->language, defaultlanguage, sizeof(tmp->language));
+	ast_copy_string(tmp->exten, "s", sizeof(tmp->exten));
 	tmp->priority = 1;
 	tmp->amaflags = ast_default_amaflags;
-	strncpy(tmp->accountcode, ast_default_accountcode, sizeof(tmp->accountcode)-1);
+	ast_copy_string(tmp->accountcode, ast_default_accountcode, sizeof(tmp->accountcode));
 
 	tmp->tech = &null_tech;
 
@@ -674,7 +674,7 @@ void ast_channel_free(struct ast_channel *chan)
 		free(chan->tech_pvt);
 	}
 
-	strncpy(name, chan->name, sizeof(name)-1);
+	ast_copy_string(name, chan->name, sizeof(name));
 	
 	/* Stop monitoring */
 	if (chan->monitor) {
@@ -1994,9 +1994,9 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 		/* Final fixups */
 		if (oh) {
 			if (oh->context && *oh->context)
-				strncpy(chan->context, oh->context, sizeof(chan->context) - 1);
+				ast_copy_string(chan->context, oh->context, sizeof(chan->context));
 			if (oh->exten && *oh->exten)
-				strncpy(chan->exten, oh->exten, sizeof(chan->exten) - 1);
+				ast_copy_string(chan->exten, oh->exten, sizeof(chan->exten));
 			chan->priority = oh->priority;
 		}
 		if (chan->_state == AST_STATE_UP) 
@@ -2093,7 +2093,7 @@ int ast_parse_device_state(char *device)
 
 	chan = ast_channel_walk_locked(NULL);
 	while (chan) {
-		strncpy(name, chan->name, sizeof(name)-1);
+		ast_copy_string(name, chan->name, sizeof(name));
 		ast_mutex_unlock(&chan->lock);
 		cut = strchr(name,'-');
 		if (cut)
@@ -2117,7 +2117,7 @@ int ast_device_state(char *device)
 	struct chanlist *chanls;
 	int res = 0;
 	
-	strncpy(tech, device, sizeof(tech)-1);
+	ast_copy_string(tech, device, sizeof(tech));
 	number = strchr(tech, '/');
 	if (!number) {
 	    return AST_DEVICE_INVALID;
@@ -2373,8 +2373,8 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 void ast_change_name(struct ast_channel *chan, char *newname)
 {
 	char tmp[256];
-	strncpy(tmp, chan->name, sizeof(tmp) - 1);
-	strncpy(chan->name, newname, sizeof(chan->name) - 1);
+	ast_copy_string(tmp, chan->name, sizeof(tmp));
+	ast_copy_string(chan->name, newname, sizeof(chan->name));
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
 }
 
@@ -2495,17 +2495,17 @@ int ast_do_masquerade(struct ast_channel *original)
 	clone->masqr = NULL;
 	
 	/* Save the original name */
-	strncpy(orig, original->name, sizeof(orig) - 1);
+	ast_copy_string(orig, original->name, sizeof(orig));
 	/* Save the new name */
-	strncpy(newn, clone->name, sizeof(newn) - 1);
+	ast_copy_string(newn, clone->name, sizeof(newn));
 	/* Create the masq name */
 	snprintf(masqn, sizeof(masqn), "%s<MASQ>", newn);
 		
 	/* Copy the name from the clone channel */
-	strncpy(original->name, newn, sizeof(original->name)-1);
+	ast_copy_string(original->name, newn, sizeof(original->name));
 
 	/* Mangle the name of the clone channel */
-	strncpy(clone->name, masqn, sizeof(clone->name) - 1);
+	ast_copy_string(clone->name, masqn, sizeof(clone->name));
 	
 	/* Notify any managers of the change, first the masq then the other */
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clone->uniqueid);
@@ -2589,14 +2589,14 @@ int ast_do_masquerade(struct ast_channel *original)
 	
 	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig);
 	/* Mangle the name of the clone channel */
-	strncpy(clone->name, zombn, sizeof(clone->name) - 1);
+	ast_copy_string(clone->name, zombn, sizeof(clone->name));
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clone->uniqueid);
 
 	/* Update the type. */
 	original->type = clone->type;
 	
 	/* Keep the same language.  */
-	strncpy(original->language, clone->language, sizeof(original->language));
+	ast_copy_string(original->language, clone->language, sizeof(original->language));
 	/* Copy the FD's */
 	for (x=0;x<AST_MAX_FDS;x++) {
 		original->fds[x] = clone->fds[x];
@@ -2638,7 +2638,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_set_read_format(original, rformat);
 
 	/* Copy the music class */
-	strncpy(original->musicclass, clone->musicclass, sizeof(original->musicclass) - 1);
+	ast_copy_string(original->musicclass, clone->musicclass, sizeof(original->musicclass));
 
 	ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 

@@ -119,8 +119,8 @@ int ast_format_register(const char *name, const char *exts, int format,
 		ast_mutex_unlock(&formatlock);
 		return -1;
 	}
-	strncpy(tmp->name, name, sizeof(tmp->name)-1);
-	strncpy(tmp->exts, exts, sizeof(tmp->exts)-1);
+	ast_copy_string(tmp->name, name, sizeof(tmp->name));
+	ast_copy_string(tmp->exts, exts, sizeof(tmp->exts));
 	tmp->open = open;
 	tmp->rewrite = rewrite;
 	tmp->read = read;
@@ -285,9 +285,9 @@ static char *build_filename(const char *filename, const char *ext)
 	int fnsize = 0;
 
 	if (!strcmp(ext, "wav49")) {
-		strncpy(type, "WAV", sizeof(type) - 1);
+		ast_copy_string(type, "WAV", sizeof(type));
 	} else {
-		strncpy(type, ext, sizeof(type) - 1);
+		ast_copy_string(type, ext, sizeof(type));
 	}
 
 	if (filename[0] == '/') {
@@ -313,7 +313,7 @@ static int exts_compare(const char *exts, const char *type)
 	char *stringp = NULL, *ext;
 	char tmp[256];
 
-	strncpy(tmp, exts, sizeof(tmp) - 1);
+	ast_copy_string(tmp, exts, sizeof(tmp));
 	stringp = tmp;
 	while ((ext = strsep(&stringp, "|"))) {
 		if (!strcmp(ext, type)) {
@@ -472,7 +472,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 			ast_deactivate_generator(chan);
 	}
 	if (preflang && !ast_strlen_zero(preflang)) {
-		strncpy(filename3, filename, sizeof(filename3) - 1);
+		ast_copy_string(filename3, filename, sizeof(filename3));
 		endpart = strrchr(filename3, '/');
 		if (endpart) {
 			*endpart = '\0';
@@ -483,7 +483,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 		fmts = ast_fileexists(filename2, NULL, NULL);
 	}
 	if (fmts < 1) {
-		strncpy(filename2, filename, sizeof(filename2)-1);
+		ast_copy_string(filename2, filename, sizeof(filename2));
 		fmts = ast_fileexists(filename2, NULL, NULL);
 	}
 	if (fmts < 1) {
@@ -524,13 +524,13 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = ast_fileexists(filename2, fmt, NULL);
 		if (fmts < 1) {
-			strncpy(lang2, preflang, sizeof(lang2)-1);
+			ast_copy_string(lang2, preflang, sizeof(lang2));
 			snprintf(filename2, sizeof(filename2), "%s/%s", lang2, filename);
 			fmts = ast_fileexists(filename2, fmt, NULL);
 		}
 	}
 	if (fmts < 1) {
-		strncpy(filename2, filename, sizeof(filename2)-1);
+		ast_copy_string(filename2, filename, sizeof(filename2));
 		fmts = ast_fileexists(filename2, fmt, NULL);
 	}
 	if (fmts < 1) {
@@ -723,7 +723,7 @@ int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 	int res = -1;
 	if (preflang && !ast_strlen_zero(preflang)) {
 		/* Insert the language between the last two parts of the path */
-		strncpy(tmp, filename, sizeof(tmp) - 1);
+		ast_copy_string(tmp, filename, sizeof(tmp));
 		c = strrchr(tmp, '/');
 		if (c) {
 			*c = '\0';
@@ -738,7 +738,7 @@ int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 		res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 		if (res < 1) {
 			char *stringp=NULL;
-			strncpy(lang2, preflang, sizeof(lang2)-1);
+			ast_copy_string(lang2, preflang, sizeof(lang2));
 			stringp=lang2;
 			strsep(&stringp, "_");
 			/* If language is a specific locality of a language (like es_MX), strip the locality and try again */

@@ -282,7 +282,7 @@ static void *netconsole(void *vconsole)
 	struct pollfd fds[2];
 	
 	if (gethostname(hostname, sizeof(hostname)-1))
-		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
+		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
 	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, ast_mainpid, ASTERISK_VERSION);
 	fdprint(con->fd, tmp);
 	for(;;) {
@@ -413,7 +413,7 @@ static int ast_makesocket(void)
 	}		
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_LOCAL;
-	strncpy(sunaddr.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sunaddr.sun_path)-1);
+	ast_copy_string(sunaddr.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sunaddr.sun_path));
 	res = bind(ast_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
 		ast_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", (char *)ast_config_AST_SOCKET, strerror(errno));
@@ -486,7 +486,7 @@ static int ast_tryconnect(void)
 	}
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_LOCAL;
-	strncpy(sunaddr.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sunaddr.sun_path)-1);
+	ast_copy_string(sunaddr.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sunaddr.sun_path));
 	res = connect(ast_consock, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
 		close(ast_consock);
@@ -1558,17 +1558,17 @@ static void ast_readconfig(void) {
 	}
 
 	/* init with buildtime config */
-	strncpy((char *)ast_config_AST_CONFIG_DIR,AST_CONFIG_DIR,sizeof(ast_config_AST_CONFIG_DIR)-1);
-	strncpy((char *)ast_config_AST_SPOOL_DIR,AST_SPOOL_DIR,sizeof(ast_config_AST_SPOOL_DIR)-1);
-	strncpy((char *)ast_config_AST_MODULE_DIR,AST_MODULE_DIR,sizeof(ast_config_AST_VAR_DIR)-1);
-	strncpy((char *)ast_config_AST_VAR_DIR,AST_VAR_DIR,sizeof(ast_config_AST_VAR_DIR)-1);
-	strncpy((char *)ast_config_AST_LOG_DIR,AST_LOG_DIR,sizeof(ast_config_AST_LOG_DIR)-1);
-	strncpy((char *)ast_config_AST_AGI_DIR,AST_AGI_DIR,sizeof(ast_config_AST_AGI_DIR)-1);
-	strncpy((char *)ast_config_AST_DB,AST_DB,sizeof(ast_config_AST_DB)-1);
-	strncpy((char *)ast_config_AST_KEY_DIR,AST_KEY_DIR,sizeof(ast_config_AST_KEY_DIR)-1);
-	strncpy((char *)ast_config_AST_PID,AST_PID,sizeof(ast_config_AST_PID)-1);
-	strncpy((char *)ast_config_AST_SOCKET,AST_SOCKET,sizeof(ast_config_AST_SOCKET)-1);
-	strncpy((char *)ast_config_AST_RUN_DIR,AST_RUN_DIR,sizeof(ast_config_AST_RUN_DIR)-1);
+	ast_copy_string((char *)ast_config_AST_CONFIG_DIR,AST_CONFIG_DIR,sizeof(ast_config_AST_CONFIG_DIR));
+	ast_copy_string((char *)ast_config_AST_SPOOL_DIR,AST_SPOOL_DIR,sizeof(ast_config_AST_SPOOL_DIR));
+	ast_copy_string((char *)ast_config_AST_MODULE_DIR,AST_MODULE_DIR,sizeof(ast_config_AST_VAR_DIR));
+	ast_copy_string((char *)ast_config_AST_VAR_DIR,AST_VAR_DIR,sizeof(ast_config_AST_VAR_DIR));
+	ast_copy_string((char *)ast_config_AST_LOG_DIR,AST_LOG_DIR,sizeof(ast_config_AST_LOG_DIR));
+	ast_copy_string((char *)ast_config_AST_AGI_DIR,AST_AGI_DIR,sizeof(ast_config_AST_AGI_DIR));
+	ast_copy_string((char *)ast_config_AST_DB,AST_DB,sizeof(ast_config_AST_DB));
+	ast_copy_string((char *)ast_config_AST_KEY_DIR,AST_KEY_DIR,sizeof(ast_config_AST_KEY_DIR));
+	ast_copy_string((char *)ast_config_AST_PID,AST_PID,sizeof(ast_config_AST_PID));
+	ast_copy_string((char *)ast_config_AST_SOCKET,AST_SOCKET,sizeof(ast_config_AST_SOCKET));
+	ast_copy_string((char *)ast_config_AST_RUN_DIR,AST_RUN_DIR,sizeof(ast_config_AST_RUN_DIR));
 	
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (!cfg) {
@@ -1585,22 +1585,22 @@ static void ast_readconfig(void) {
 	v = ast_variable_browse(cfg, "directories");
 	while(v) {
 		if (!strcasecmp(v->name, "astetcdir")) {
-			strncpy((char *)ast_config_AST_CONFIG_DIR,v->value,sizeof(ast_config_AST_CONFIG_DIR)-1);
+			ast_copy_string((char *)ast_config_AST_CONFIG_DIR,v->value,sizeof(ast_config_AST_CONFIG_DIR));
 		} else if (!strcasecmp(v->name, "astspooldir")) {
-			strncpy((char *)ast_config_AST_SPOOL_DIR,v->value,sizeof(ast_config_AST_SPOOL_DIR)-1);
+			ast_copy_string((char *)ast_config_AST_SPOOL_DIR,v->value,sizeof(ast_config_AST_SPOOL_DIR));
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
-			strncpy((char *)ast_config_AST_VAR_DIR,v->value,sizeof(ast_config_AST_VAR_DIR)-1);
+			ast_copy_string((char *)ast_config_AST_VAR_DIR,v->value,sizeof(ast_config_AST_VAR_DIR));
 			snprintf((char *)ast_config_AST_DB,sizeof(ast_config_AST_DB),"%s/%s",v->value,"astdb");    
 		} else if (!strcasecmp(v->name, "astlogdir")) {
-			strncpy((char *)ast_config_AST_LOG_DIR,v->value,sizeof(ast_config_AST_LOG_DIR)-1);
+			ast_copy_string((char *)ast_config_AST_LOG_DIR,v->value,sizeof(ast_config_AST_LOG_DIR));
 		} else if (!strcasecmp(v->name, "astagidir")) {
-			strncpy((char *)ast_config_AST_AGI_DIR,v->value,sizeof(ast_config_AST_AGI_DIR)-1);
+			ast_copy_string((char *)ast_config_AST_AGI_DIR,v->value,sizeof(ast_config_AST_AGI_DIR));
 		} else if (!strcasecmp(v->name, "astrundir")) {
 			snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID),"%s/%s",v->value,"asterisk.pid");
 			snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET),"%s/%s",v->value,v_ctlfile==NULL?"asterisk.ctl":v_ctlfile->value);
-			strncpy((char *)ast_config_AST_RUN_DIR,v->value,sizeof(ast_config_AST_RUN_DIR)-1);
+			ast_copy_string((char *)ast_config_AST_RUN_DIR,v->value,sizeof(ast_config_AST_RUN_DIR));
 		} else if (!strcasecmp(v->name, "astmoddir")) {
-			strncpy((char *)ast_config_AST_MODULE_DIR,v->value,sizeof(ast_config_AST_MODULE_DIR)-1);
+			ast_copy_string((char *)ast_config_AST_MODULE_DIR,v->value,sizeof(ast_config_AST_MODULE_DIR));
 		}
 		v = v->next;
 	}
@@ -1650,7 +1650,7 @@ static void ast_readconfig(void) {
 			option_cache_record_files = ast_true(v->value);
 		/* Specify cache directory */
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
-			strncpy(record_cache_dir,v->value,AST_CACHE_DIR_LEN);
+			ast_copy_string(record_cache_dir,v->value,AST_CACHE_DIR_LEN);
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
 			option_transcode_slin = ast_true(v->value);
@@ -1694,7 +1694,7 @@ int main(int argc, char *argv[])
 		option_nofork++;
 	}
 	if (gethostname(hostname, sizeof(hostname)-1))
-		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
+		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
 	ast_mainpid = getpid();
 	ast_ulaw_init();
 	ast_alaw_init();
@@ -1761,7 +1761,7 @@ int main(int argc, char *argv[])
 			xarg = optarg;
 			break;
 		case 'C':
-			strncpy((char *)ast_config_AST_CONFIG_FILE,optarg,sizeof(ast_config_AST_CONFIG_FILE) - 1);
+			ast_copy_string((char *)ast_config_AST_CONFIG_FILE,optarg,sizeof(ast_config_AST_CONFIG_FILE));
 			option_overrideconfig++;
 			break;
 		case 'i':

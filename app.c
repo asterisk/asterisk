@@ -384,7 +384,7 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 			return -1;
 		autoclose = 1;
 		if (filename[0] == '/') 
-			strncpy(tmpf, filename, sizeof(tmpf) - 1);
+			ast_copy_string(tmpf, filename, sizeof(tmpf));
 		else
 			snprintf(tmpf, sizeof(tmpf), "%s/%s/%s", (char *)ast_config_AST_VAR_DIR, "sounds", filename);
 		fd = open(tmpf, O_RDONLY);
@@ -773,7 +773,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 		if (d < 0)
 			return -1;
 	}
-	strncpy(prependfile, recordfile, sizeof(prependfile) -1);	
+	ast_copy_string(prependfile, recordfile, sizeof(prependfile));	
 	strncat(prependfile, "-prepend", sizeof(prependfile) - strlen(prependfile) - 1);
 			
 	fmts = ast_strdupa(fmt);
@@ -971,7 +971,7 @@ int ast_app_group_split_group(char *data, char *group, int group_max, char *cate
 	char *grp=NULL, *cat=NULL;
 
 	if (data && !ast_strlen_zero(data)) {
-		strncpy(tmp, data, sizeof(tmp) - 1);
+		ast_copy_string(tmp, data, sizeof(tmp));
 		grp = tmp;
 		cat = strchr(tmp, '@');
 		if (cat) {
@@ -981,14 +981,14 @@ int ast_app_group_split_group(char *data, char *group, int group_max, char *cate
 	}
 
 	if (grp && !ast_strlen_zero(grp))
-		strncpy(group, grp, group_max -1);
+		ast_copy_string(group, grp, group_max);
 	else
 		res = -1;
 
 	if (cat)
 		snprintf(category, category_max, "%s_%s", GROUP_CATEGORY_PREFIX, cat);
 	else
-		strncpy(category, GROUP_CATEGORY_PREFIX, category_max - 1);
+		ast_copy_string(category, GROUP_CATEGORY_PREFIX, category_max);
 
 	return res;
 }
@@ -1015,9 +1015,9 @@ int ast_app_group_get_count(char *group, char *category)
 	char cat[80] = "";
 
 	if (category && !ast_strlen_zero(category)) {
-		strncpy(cat, category, sizeof(cat) - 1);
+		ast_copy_string(cat, category, sizeof(cat));
 	} else {
-		strncpy(cat, GROUP_CATEGORY_PREFIX, sizeof(cat) - 1);
+		ast_copy_string(cat, GROUP_CATEGORY_PREFIX, sizeof(cat));
 	}
 
 	if (group && !ast_strlen_zero(group)) {
@@ -1050,9 +1050,9 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 		return 0;
 
 	if (category && !ast_strlen_zero(category)) {
-		strncpy(cat, category, sizeof(cat) - 1);
+		ast_copy_string(cat, category, sizeof(cat));
 	} else {
-		strncpy(cat, GROUP_CATEGORY_PREFIX, sizeof(cat) - 1);
+		ast_copy_string(cat, GROUP_CATEGORY_PREFIX, sizeof(cat));
 	}
 
 	chan = ast_channel_walk_locked(NULL);

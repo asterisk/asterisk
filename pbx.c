@@ -913,7 +913,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		headp=&c->varshead;
 	*ret=NULL;
 	if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
-		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
+		ast_copy_string(tmpvar, var, sizeof(tmpvar));
 		first = strchr(tmpvar, ':');
 		if (!first)
 			first = tmpvar + strlen(tmpvar);
@@ -959,25 +959,25 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 						if (c->cid.cid_name) {
 							snprintf(workspace, workspacelen, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
 						} else {
-							strncpy(workspace, c->cid.cid_num, workspacelen - 1);
+							ast_copy_string(workspace, c->cid.cid_num, workspacelen);
 						}
 						*ret = workspace;
 					} else if (c->cid.cid_name) {
-						strncpy(workspace, c->cid.cid_name, workspacelen - 1);
+						ast_copy_string(workspace, c->cid.cid_name, workspacelen);
 						*ret = workspace;
 					} else
 						*ret = NULL;
 				} else if (!strcmp(var + 8, "NUM")) {
 					/* CALLERIDNUM */
 					if (c->cid.cid_num) {
-						strncpy(workspace, c->cid.cid_num, workspacelen - 1);
+						ast_copy_string(workspace, c->cid.cid_num, workspacelen);
 						*ret = workspace;
 					} else
 						*ret = NULL;
 				} else if (!strcmp(var + 8, "NAME")) {
 					/* CALLERIDNAME */
 					if (c->cid.cid_name) {
-						strncpy(workspace, c->cid.cid_name, workspacelen - 1);
+						ast_copy_string(workspace, c->cid.cid_name, workspacelen);
 						*ret = workspace;
 					} else
 						*ret = NULL;
@@ -985,7 +985,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			} else if (!strcmp(var + 6, "ANI")) {
 				/* CALLERANI */
 				if (c->cid.cid_ani) {
-					strncpy(workspace, c->cid.cid_ani, workspacelen - 1);
+					ast_copy_string(workspace, c->cid.cid_ani, workspacelen);
 					*ret = workspace;
 				} else
 					*ret = NULL;
@@ -1014,7 +1014,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			goto icky;
 	} else if (c && !strcmp(var, "DNID")) {
 		if (c->cid.cid_dnid) {
-			strncpy(workspace, c->cid.cid_dnid, workspacelen - 1);
+			ast_copy_string(workspace, c->cid.cid_dnid, workspacelen);
 			*ret = workspace;
 		} else
 			*ret = NULL;
@@ -1029,22 +1029,22 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		else
 			*ret = workspace;
 	} else if (c && !strcmp(var, "EXTEN")) {
-		strncpy(workspace, c->exten, workspacelen - 1);
+		ast_copy_string(workspace, c->exten, workspacelen);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "RDNIS")) {
 		if (c->cid.cid_rdnis) {
-			strncpy(workspace, c->cid.cid_rdnis, workspacelen - 1);
+			ast_copy_string(workspace, c->cid.cid_rdnis, workspacelen);
 			*ret = workspace;
 		} else
 			*ret = NULL;
 	} else if (c && !strcmp(var, "CONTEXT")) {
-		strncpy(workspace, c->context, workspacelen - 1);
+		ast_copy_string(workspace, c->context, workspacelen);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "PRIORITY")) {
 		snprintf(workspace, workspacelen, "%d", c->priority);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "CHANNEL")) {
-		strncpy(workspace, c->name, workspacelen - 1);
+		ast_copy_string(workspace, c->name, workspacelen);
 		*ret = workspace;
 	} else if (!strcmp(var, "EPOCH")) {
 		snprintf(workspace, workspacelen, "%u",(int)time(NULL));
@@ -1081,10 +1081,10 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		snprintf(workspace, workspacelen, "%d", c->hangupcause);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "ACCOUNTCODE")) {
-		strncpy(workspace, c->accountcode, workspacelen - 1);
+		ast_copy_string(workspace, c->accountcode, workspacelen);
 		*ret = workspace;
 	} else if (c && !strcmp(var, "LANGUAGE")) {
-		strncpy(workspace, c->language, workspacelen - 1);
+		ast_copy_string(workspace, c->language, workspacelen);
 		*ret = workspace;
 	} else {
 icky:
@@ -1096,7 +1096,7 @@ icky:
 				if (strcasecmp(ast_var_name(variables),var)==0) {
 					*ret=ast_var_value(variables);
 					if (*ret) {
-						strncpy(workspace, *ret, workspacelen - 1);
+						ast_copy_string(workspace, *ret, workspacelen);
 						*ret = workspace;
 					}
 					break;
@@ -1112,7 +1112,7 @@ icky:
 				if (strcasecmp(ast_var_name(variables),var)==0) {
 					*ret=ast_var_value(variables);
 					if (*ret) {
-						strncpy(workspace, *ret, workspacelen - 1);
+						ast_copy_string(workspace, *ret, workspacelen);
 						*ret = workspace;
 					}
 				}
@@ -1444,7 +1444,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 
 			/* Store variable name (and truncate) */
 			memset(var, 0, sizeof(var));
-			strncpy(var, vars, sizeof(var) - 1);
+			ast_copy_string(var, vars, sizeof(var));
 			var[len] = '\0';
 
 			/* Substitute if necessary */
@@ -1508,7 +1508,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			
 			/* Store variable name (and truncate) */
 			memset(var, 0, sizeof(var));
-			strncpy(var, vars, sizeof(var) - 1);
+			ast_copy_string(var, vars, sizeof(var));
 			var[len] = '\0';
 			
 			/* Substitute if necessary */
@@ -1555,7 +1555,7 @@ static void pbx_substitute_variables(char *passdata, int datalen, struct ast_cha
 		
 	/* No variables or expressions in e->data, so why scan it? */
 	if (!strstr(e->data,"${") && !strstr(e->data,"$[") && !strstr(e->data,"$(")) {
-		strncpy(passdata, e->data, datalen - 1);
+		ast_copy_string(passdata, e->data, datalen);
 		passdata[datalen-1] = '\0';
 		return;
 	}
@@ -1613,9 +1613,9 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 			ast_mutex_unlock(&conlock);
 			if (app) {
 				if (c->context != context)
-					strncpy(c->context, context, sizeof(c->context)-1);
+					ast_copy_string(c->context, context, sizeof(c->context));
 				if (c->exten != exten)
-					strncpy(c->exten, exten, sizeof(c->exten)-1);
+					ast_copy_string(c->exten, exten, sizeof(c->exten));
 				c->priority = priority;
 				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 				if (option_debug) {
@@ -1741,7 +1741,7 @@ static int ast_extension_state2(struct ast_exten *e)
 	if (!e)
 		return -1;
 
-	strncpy(hint, ast_get_extension_app(e), sizeof(hint)-1);
+	ast_copy_string(hint, ast_get_extension_app(e), sizeof(hint));
 
 	cur = hint;    	/* On or more devices separated with a & character */
 	do {
@@ -1845,7 +1845,7 @@ int ast_device_state_changed(const char *fmt, ...)
 
 	while (list) {
 
-		strncpy(hint, ast_get_extension_app(list->exten), sizeof(hint) - 1);
+		ast_copy_string(hint, ast_get_extension_app(list->exten), sizeof(hint));
 		cur = hint;
 		do {
 			rest = strchr(cur, '&');
@@ -2186,14 +2186,15 @@ int ast_get_hint(char *hint, int hintsize, char *name, int namesize, struct ast_
 {
 	struct ast_exten *e;
 	void *tmp;
+
 	e = ast_hint_extension(c, context, exten);
 	if (e) {
 		if (hint) 
-		    strncpy(hint, ast_get_extension_app(e), hintsize - 1);
+		    ast_copy_string(hint, ast_get_extension_app(e), hintsize);
 		if (name) {
 			tmp = ast_get_extension_app_data(e);
 			if (tmp)
-				strncpy(name, (char *)tmp, namesize - 1);
+				ast_copy_string(name, (char *) tmp, namesize);
 		}
 	    return -1;
 	}
@@ -2277,12 +2278,12 @@ static int __ast_pbx_run(struct ast_channel *c)
 		/* If not successful fall back to 's' */
 		if (option_verbose > 1)
 			ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d failed so falling back to exten 's'\n", c->name, c->context, c->exten, c->priority);
-		strncpy(c->exten, "s", sizeof(c->exten)-1);
+		ast_copy_string(c->exten, "s", sizeof(c->exten));
 		if (!ast_exists_extension(c, c->context, c->exten, c->priority, c->cid.cid_num)) {
 			/* JK02: And finally back to default if everything else failed */
 			if (option_verbose > 1)
 				ast_verbose( VERBOSE_PREFIX_2 "Starting %s at %s,%s,%d still failed so falling back to context 'default'\n", c->name, c->context, c->exten, c->priority);
-			strncpy(c->context, "default", sizeof(c->context)-1);
+			ast_copy_string(c->context, "default", sizeof(c->context));
 		}
 		c->priority = 1;
 	}
@@ -2332,7 +2333,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				}
 			}
 			if ((c->_softhangup == AST_SOFTHANGUP_TIMEOUT) && (ast_exists_extension(c,c->context,"T",1,c->cid.cid_num))) {
-				strncpy(c->exten,"T",sizeof(c->exten) - 1);
+				ast_copy_string(c->exten, "T", sizeof(c->exten));
 				/* If the AbsoluteTimeout is not reset to 0, we'll get an infinite loop */
 				c->whentohangup = 0;
 				c->priority = 0;
@@ -2351,7 +2352,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sent into invalid extension '%s' in context '%s' on %s\n", c->exten, c->context, c->name);
 				pbx_builtin_setvar_helper(c, "INVALID_EXTEN", c->exten);
-				strncpy(c->exten, "i", sizeof(c->exten)-1);
+				ast_copy_string(c->exten, "i", sizeof(c->exten));
 				c->priority = 1;
 			} else {
 				ast_log(LOG_WARNING, "Channel '%s' sent into invalid extension '%s' in context '%s', but no invalid handler\n",
@@ -2388,7 +2389,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 				}
 				if (ast_exists_extension(c, c->context, exten, 1, c->cid.cid_num)) {
 					/* Prepare the next cycle */
-					strncpy(c->exten, exten, sizeof(c->exten)-1);
+					ast_copy_string(c->exten, exten, sizeof(c->exten));
 					c->priority = 1;
 				} else {
 					/* No such extension */
@@ -2398,7 +2399,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "Invalid extension '%s' in context '%s' on %s\n", exten, c->context, c->name);
 							pbx_builtin_setvar_helper(c, "INVALID_EXTEN", exten);
-							strncpy(c->exten, "i", sizeof(c->exten)-1);
+							ast_copy_string(c->exten, "i", sizeof(c->exten));
 							c->priority = 1;
 						} else {
 							ast_log(LOG_WARNING, "Invalid extension '%s', but no rule 'i' in context '%s'\n", exten, c->context);
@@ -2409,7 +2410,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 						if (ast_exists_extension(c, c->context, "t", 1, c->cid.cid_num)) {
 							if (option_verbose > 2)
 								ast_verbose( VERBOSE_PREFIX_3 "Timeout on %s\n", c->name);
-							strncpy(c->exten, "t", sizeof(c->exten)-1);
+							ast_copy_string(c->exten, "t", sizeof(c->exten));
 							c->priority = 1;
 						} else {
 							ast_log(LOG_WARNING, "Timeout, but no rule 't' in context '%s'\n", c->context);
@@ -3941,7 +3942,7 @@ int ast_build_timing(struct ast_timing *i, char *info_in)
 	if (ast_strlen_zero(info_in))
 		return 0;
 	/* make a copy just in case we were passed a static string */
-	strncpy(info_save, info_in, sizeof(info_save));
+	ast_copy_string(info_save, info_in, sizeof(info_save));
 	info = info_save;
 	/* Assume everything except time */
 	i->monthmask = (1 << 12) - 1;
@@ -4385,9 +4386,9 @@ int ast_explicit_goto(struct ast_channel *chan, const char *context, const char 
 		return -1;
 
 	if (context && !ast_strlen_zero(context))
-		strncpy(chan->context, context, sizeof(chan->context) - 1);
+		ast_copy_string(chan->context, context, sizeof(chan->context));
 	if (exten && !ast_strlen_zero(exten))
-		strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
+		ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 	if (priority > -1) {
 		chan->priority = priority;
 		/* see flag description in channel.h for explanation */
@@ -4769,9 +4770,9 @@ static void *async_wait(void *data)
 				ast_log(LOG_WARNING, "No such application '%s'\n", as->app);
 		} else {
 			if (!ast_strlen_zero(as->context))
-				strncpy(chan->context, as->context, sizeof(chan->context) - 1);
+				ast_copy_string(chan->context, as->context, sizeof(chan->context));
 			if (!ast_strlen_zero(as->exten))
-				strncpy(chan->exten, as->exten, sizeof(chan->exten) - 1);
+				ast_copy_string(chan->exten, as->exten, sizeof(chan->exten));
 			if (as->priority > 0)
 				chan->priority = as->priority;
 			/* Run the PBX */
@@ -4911,10 +4912,10 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			if (ast_exists_extension(chan, context, "failed", 1, NULL)) {
 				chan = ast_channel_alloc(0);
 				if(chan) {
-					strncpy(chan->name, "OutgoingSpoolFailed", sizeof(chan->name) - 1);
+					ast_copy_string(chan->name, "OutgoingSpoolFailed", sizeof(chan->name));
 					if (context && !ast_strlen_zero(context))
-						strncpy(chan->context, context, sizeof(chan->context) - 1);
-					strncpy(chan->exten, "failed", sizeof(chan->exten) - 1);
+						ast_copy_string(chan->context, context, sizeof(chan->context));
+					ast_copy_string(chan->exten, "failed", sizeof(chan->exten));
 					chan->priority = 1;
 					if (variable) {
 						tmp = ast_strdupa(variable);
@@ -4945,8 +4946,8 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		if (account)
 			ast_cdr_setaccount(chan, account);
 		as->chan = chan;
-		strncpy(as->context, context, sizeof(as->context) - 1);
-		strncpy(as->exten,  exten, sizeof(as->exten) - 1);
+		ast_copy_string(as->context, context, sizeof(as->context));
+		ast_copy_string(as->exten,  exten, sizeof(as->exten));
 		as->priority = priority;
 		as->timeout = timeout;
 		if (variable) {
@@ -5037,7 +5038,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				tmp = malloc(sizeof(struct app_tmp));
 				if (tmp) {
 					memset(tmp, 0, sizeof(struct app_tmp));
-					strncpy(tmp->app, app, sizeof(tmp->app) - 1);
+					ast_copy_string(tmp->app, app, sizeof(tmp->app));
 					if (appdata)
 						ast_copy_string(tmp->data, appdata, sizeof(tmp->data));
 					tmp->chan = chan;
@@ -5101,9 +5102,9 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 		if (account)
 			ast_cdr_setaccount(chan, account);
 		as->chan = chan;
-		strncpy(as->app, app, sizeof(as->app) - 1);
+		ast_copy_string(as->app, app, sizeof(as->app));
 		if (appdata)
-			strncpy(as->appdata,  appdata, sizeof(as->appdata) - 1);
+			ast_copy_string(as->appdata,  appdata, sizeof(as->appdata));
 		as->timeout = timeout;
 		if (variable) {
 			vartmp = ast_strdupa(variable);
@@ -5290,7 +5291,7 @@ static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 
 	/* Copy the language as specified */
 	if (data)
-		strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
+		ast_copy_string(chan->language, (char *) data, sizeof(chan->language));
 
 	return 0;
 }
@@ -5347,9 +5348,9 @@ static int pbx_builtin_stripmsd(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	if (strlen(chan->exten) > atoi(data)) {
-		strncpy(newexten, chan->exten + atoi(data), sizeof(newexten)-1);
+		ast_copy_string(newexten, chan->exten + atoi(data), sizeof(newexten));
 	}
-	strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
+	ast_copy_string(chan->exten, newexten, sizeof(chan->exten));
 	return 0;
 }
 
@@ -5362,7 +5363,7 @@ static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	snprintf(newexten, sizeof(newexten), "%s%s", (char *)data, chan->exten);
-	strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
+	ast_copy_string(chan->exten, newexten, sizeof(chan->exten));
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Prepended prefix, new extension is %s\n", chan->exten);
 	return 0;
@@ -5377,7 +5378,7 @@ static int pbx_builtin_suffix(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	snprintf(newexten, sizeof(newexten), "%s%s", chan->exten, (char *)data);
-	strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
+	ast_copy_string(chan->exten, newexten, sizeof(chan->exten));
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Appended suffix, new extension is %s\n", chan->exten);
 	return 0;
@@ -5514,7 +5515,7 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		} else if (ast_exists_extension(chan, chan->context, "t", 1, chan->cid.cid_num)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Timeout on %s, going to 't'\n", chan->name);
-			strncpy(chan->exten, "t", sizeof(chan->exten));
+			ast_copy_string(chan->exten, "t", sizeof(chan->exten));
 			chan->priority = 0;
 		} else {
 			ast_log(LOG_WARNING, "Timeout but no rule 't' in context '%s'\n", chan->context);
@@ -5916,7 +5917,7 @@ static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "SayNumber requires an argument (number)\n");
 		return -1;
 	}
-	strncpy(tmp, (char *)data, sizeof(tmp)-1);
+	ast_copy_string(tmp, (char *) data, sizeof(tmp));
 	number=tmp;
 	strsep(&number, "|");
 	options = strsep(&number, "|");
