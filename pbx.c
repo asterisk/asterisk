@@ -2238,7 +2238,7 @@ int ast_exec_extension(struct ast_channel *c, const char *context, const char *e
 static int __ast_pbx_run(struct ast_channel *c)
 {
 	int firstpass = 1;
-	char digit;
+	int digit;
 	char exten[256];
 	int pos;
 	int waittime;

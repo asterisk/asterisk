@@ -1235,11 +1235,11 @@ int ast_waitfor(struct ast_channel *c, int ms)
 	return ms;
 }
 
-char ast_waitfordigit(struct ast_channel *c, int ms)
+int ast_waitfordigit(struct ast_channel *c, int ms)
 {
 	/* XXX Should I be merged with waitfordigit_full XXX */
 	struct ast_frame *f;
-	char result = 0;
+	int result = 0;
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c)) 
 		return -1;
@@ -1279,7 +1279,7 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
 #endif	
 	return res;
 }
-char ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
+int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 {
 	struct ast_frame *f;
 	struct ast_channel *rchan;
@@ -2188,7 +2188,7 @@ int ast_readstring(struct ast_channel *c, char *s, int len, int timeout, int fti
 {
 	int pos=0;
 	int to = ftimeout;
-	char d;
+	int d;
 	/* XXX Merge with full version? XXX */
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c)) 
@@ -2227,7 +2227,7 @@ int ast_readstring_full(struct ast_channel *c, char *s, int len, int timeout, in
 {
 	int pos=0;
 	int to = ftimeout;
-	char d;
+	int d;
 	/* Stop if we're a zombie or need a soft hangup */
 	if (ast_test_flag(c, AST_FLAG_ZOMBIE) || ast_check_hangup(c)) 
 		return -1;

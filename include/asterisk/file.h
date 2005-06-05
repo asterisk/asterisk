@@ -122,7 +122,7 @@ int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-char ast_waitstream(struct ast_channel *c, const char *breakon);
+int ast_waitstream(struct ast_channel *c, const char *breakon);
 
 /*! Same as waitstream but allows stream to be forwarded or rewound */
 /*!
@@ -135,11 +135,11 @@ char ast_waitstream(struct ast_channel *c, const char *breakon);
  * Wait for a stream to stop or for any one of a given digit to arrive,  Returns 0 
  * if the stream finishes, the character if it was interrupted, and -1 on error 
  */
-char ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
+int ast_waitstream_fr(struct ast_channel *c, const char *breakon, const char *forward, const char *rewind, int ms);
 
 /* Same as waitstream, but with audio output to fd and monitored fd checking.  Returns
    1 if monfd is ready for reading */
-char ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd, int monfd);
+int ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd, int monfd);
 
 /*! Starts reading from a file */
 /*!
