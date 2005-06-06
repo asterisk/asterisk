@@ -56,3 +56,8 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
+
+const char *version()
+{
+	return "$Revision$";
+}

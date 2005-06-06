@@ -227,19 +227,18 @@ static int handle_unload(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-#define MODLIST_FORMAT  "%-25s %-40.40s %-10d\n"
-#define MODLIST_FORMAT2 "%-25s %-40.40s %-10s\n"
+#define MODLIST_FORMAT  "%-30s %-40.40s %-20.20s %-10d\n"
+#define MODLIST_FORMAT2 "%-30s %-40.40s %-20.20s %-10s\n"
 
 AST_MUTEX_DEFINE_STATIC(climodentrylock);
 static int climodentryfd = -1;
 
-static int modlist_modentry(char *module, char *description, int usecnt, char *like)
+static int modlist_modentry(const char *module, const char *description, int usecnt, const char *version, const char *like)
 {
 	/* Comparing the like with the module */
-	if ( strstr(module,like) != NULL) {
-		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt);
+	if (strstr(module, like) != NULL) {
+		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, version, usecnt);
 		return 1;
-		
 	} 
 	return 0;
 }
@@ -385,8 +384,8 @@ static int handle_modlist(int fd, int argc, char *argv[])
 		
 	ast_mutex_lock(&climodentrylock);
 	climodentryfd = fd;
-	ast_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Use Count");
-	ast_cli(fd,"%d modules loaded\n",ast_update_module_list(modlist_modentry,like));
+	ast_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Version", "Use Count");
+	ast_cli(fd,"%d modules loaded\n", ast_update_module_list(modlist_modentry, like));
 	climodentryfd = -1;
 	ast_mutex_unlock(&climodentrylock);
 	return RESULT_SUCCESS;

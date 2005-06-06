@@ -66,6 +66,8 @@ char *key(void);		/*! Return the below mentioned key, unmodified */
  */
 int reload(void);		/*! reload configs */
 
+const char *version(void);
+
 #define ASTERISK_GPL_KEY \
 	"This paragraph is Copyright (C) 2000, Linux Support Services, Inc.  \
 In order for your module to load, it must return this key via a function \
@@ -112,9 +114,10 @@ void ast_update_use_count(void);
 /*!
  * \param modentry a callback to an updater function
  * For each of the modules loaded, modentry will be executed with the resource, description,
- * and usecount values of each particular module.
+ * version, and usecount values of each particular module.
  */
-int ast_update_module_list(int (*modentry)(char *module, char *description, int usecnt, char *like), char *like);
+int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *version, const char *like),
+			   const char *like);
 
 /*! Ask this procedure to be run with modules have been updated */
 /*!
