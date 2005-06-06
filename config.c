@@ -25,6 +25,10 @@
 # include <glob.h>
 #endif
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/config.h"
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
@@ -33,7 +37,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
-#include "asterisk.h"
 
 #define MAX_NESTED_COMMENTS 128
 #define COMMENT_START ";--"

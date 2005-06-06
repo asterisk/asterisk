@@ -14,6 +14,10 @@
 #include <sys/types.h>
 #include <stdlib.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "pbx_functions.h"
@@ -55,9 +59,4 @@ int usecount(void)
 char *key()
 {
 	return ASTERISK_GPL_KEY;
-}
-
-const char *version()
-{
-	return "$Revision$";
 }

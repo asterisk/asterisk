@@ -20,6 +20,10 @@
 #include <unistd.h>
 #include <math.h>			/* For PI */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
 #include "asterisk/sched.h"

@@ -22,6 +22,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
 #include "asterisk/srv.h"

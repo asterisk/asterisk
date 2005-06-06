@@ -22,6 +22,10 @@
 #include <time.h>
 #include <sys/time.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/cli.h"
 #include "asterisk/pbx.h"
@@ -41,7 +45,6 @@
 #include "asterisk/causes.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
-#include "asterisk.h"
 
 /*
  * I M P O R T A N T :

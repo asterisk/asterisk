@@ -21,10 +21,15 @@
 #include <time.h>
 #include <ctype.h>
 #include <math.h>
+#include <stdio.h>
 
 #ifdef SOLARIS
 #include <iso/limits_iso.h>
 #endif
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
 
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
@@ -33,8 +38,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/localtime.h"
 #include "asterisk/utils.h"
-#include "asterisk.h"
-#include <stdio.h>
 
 /* Forward declaration */
 static int wait_file(struct ast_channel *chan, const char *ints, const char *file, const char *lang);

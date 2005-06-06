@@ -22,6 +22,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/term.h"
 #include "asterisk/options.h"
 #include "asterisk/lock.h"

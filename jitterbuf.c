@@ -17,6 +17,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "jitterbuf.h"
 
 /* define these here, just for ancient compiler systems */

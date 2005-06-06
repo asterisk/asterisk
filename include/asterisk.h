@@ -3,9 +3,9 @@
  *
  * General Definitions for Asterisk top level program
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2005, Mark Spencer
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -54,4 +54,21 @@ extern void ast_channels_init(void);
 extern int dnsmgr_init(void);
 extern void dnsmgr_reload(void);
 
-#endif
+void ast_register_file_version(const char *file, const char *version);
+void ast_unregister_file_version(const char *file);
+
+#ifdef __GNUC__
+#define ASTERISK_FILE_VERSION(x) \
+	static void __attribute__((constructor)) __register_file_version(void) \
+	{ \
+		ast_register_file_version(__FILE__, x); \
+	} \
+	static void __attribute__((destructor)) __unregister_file_version(void) \
+	{ \
+		ast_unregister_file_version(__FILE__); \
+	}
+#else /* ! __GNUC__ */
+#define ASTERISK_FILE_VERSION(x) static const char __file_version[] = x;
+#endif /* __GNUC__ */
+
+#endif /* _ASTERISK_H */

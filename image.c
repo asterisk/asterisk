@@ -20,6 +20,10 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/sched.h"
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
@@ -29,7 +33,6 @@
 #include "asterisk/translate.h"
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
-#include "asterisk.h"
 
 static struct ast_imager *list;
 AST_MUTEX_DEFINE_STATIC(listlock);

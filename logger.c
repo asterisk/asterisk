@@ -25,6 +25,10 @@
 		        from <syslog.h> which is included by logger.h */
 #include <syslog.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
@@ -33,7 +37,6 @@
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
-#include "asterisk.h"
 
 static int syslog_level_map[] = {
 	LOG_DEBUG,

@@ -24,6 +24,10 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/io.h"

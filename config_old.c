@@ -17,6 +17,10 @@
 #include <string.h>
 #include <errno.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/config.h"
 #include "asterisk/logger.h"
 

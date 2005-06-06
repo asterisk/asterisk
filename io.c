@@ -18,6 +18,10 @@
 #include <string.h> /* for memset */
 #include <sys/ioctl.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
 

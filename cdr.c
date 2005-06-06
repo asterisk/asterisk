@@ -20,6 +20,10 @@
 #include <stdio.h>
 #include <signal.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"

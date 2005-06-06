@@ -19,6 +19,10 @@
  */
 #include <string.h>		/* for memcpy() */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/endian.h"
 #include "asterisk/md5.h"
 

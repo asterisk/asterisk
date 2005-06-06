@@ -66,14 +66,14 @@ struct name {								\
 
   Example usage:
   \code
-  static AST_LIST_HEAD_STATIC(entry_list, entry) entries;
+  static AST_LIST_HEAD_STATIC(entry_list, entry);
   \endcode
 
-  This would define \c struct \c entry_list, and declare an instance of it named
-  \a entries, all intended to hold a list of type \c struct \c entry.
+  This would define \c struct \c entry_list, intended to hold a list of
+  type \c struct \c entry.
 */
 #define AST_LIST_HEAD_STATIC(name, type)				\
-struct name {							\
+struct name {								\
 	struct type *first;						\
 	ast_mutex_t lock;						\
 } name = {								\

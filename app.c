@@ -23,6 +23,10 @@
 #include <sys/stat.h>
 #include <regex.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/file.h"
@@ -33,7 +37,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/indications.h"
-#include "asterisk.h"
 
 #define MAX_OTHER_FORMATS 10
 

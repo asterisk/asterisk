@@ -23,6 +23,10 @@
 #include <regex.h>
 #include <signal.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/dnsmgr.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/utils.h"
@@ -31,7 +35,6 @@
 #include "asterisk/sched.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
-#include "asterisk.h"
 
 static struct sched_context *sched;
 static int refresh_sched = -1;

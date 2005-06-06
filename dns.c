@@ -16,6 +16,10 @@
 #include <resolv.h>
 #include <unistd.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/dns.h"

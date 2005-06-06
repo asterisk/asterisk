@@ -19,6 +19,10 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
@@ -31,7 +35,6 @@
 /* For rl_filename_completion */
 #include "editline/readline/readline.h"
 /* For module directory */
-#include "asterisk.h"
 #include "asterisk/version.h"
 #include "asterisk/build.h"
 
@@ -227,17 +230,17 @@ static int handle_unload(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-#define MODLIST_FORMAT  "%-30s %-40.40s %-20.20s %-10d\n"
-#define MODLIST_FORMAT2 "%-30s %-40.40s %-20.20s %-10s\n"
+#define MODLIST_FORMAT  "%-30s %-40.40s %-10d\n"
+#define MODLIST_FORMAT2 "%-30s %-40.40s %-10s\n"
 
 AST_MUTEX_DEFINE_STATIC(climodentrylock);
 static int climodentryfd = -1;
 
-static int modlist_modentry(const char *module, const char *description, int usecnt, const char *version, const char *like)
+static int modlist_modentry(const char *module, const char *description, int usecnt, const char *like)
 {
 	/* Comparing the like with the module */
 	if (strstr(module, like) != NULL) {
-		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, version, usecnt);
+		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt);
 		return 1;
 	} 
 	return 0;
@@ -384,7 +387,7 @@ static int handle_modlist(int fd, int argc, char *argv[])
 		
 	ast_mutex_lock(&climodentrylock);
 	climodentryfd = fd;
-	ast_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Version", "Use Count");
+	ast_cli(fd, MODLIST_FORMAT2, "Module", "Description", "Use Count");
 	ast_cli(fd,"%d modules loaded\n", ast_update_module_list(modlist_modentry, like));
 	climodentryfd = -1;
 	ast_mutex_unlock(&climodentrylock);
@@ -822,6 +825,22 @@ static struct ast_cli_entry *find_cli(char *cmds[], int exact)
 	int y;
 	int match;
 	struct ast_cli_entry *e=NULL;
+
+	for (e=helpers;e;e=e->next) {
+		match = 1;
+		for (y=0;match && cmds[y]; y++) {
+			if (!e->cmda[y] && !exact)
+				break;
+			if (!e->cmda[y] || strcasecmp(e->cmda[y], cmds[y]))
+				match = 0;
+		}
+		if ((exact > -1) && e->cmda[y])
+			match = 0;
+		if (match)
+			break;
+	}
+	if (e)
+		return e;
 	for (x=0;builtins[x].cmda[0];x++) {
 		/* start optimistic */
 		match = 1;
@@ -843,20 +862,7 @@ static struct ast_cli_entry *find_cli(char *cmds[], int exact)
 		if (match)
 			return &builtins[x];
 	}
-	for (e=helpers;e;e=e->next) {
-		match = 1;
-		for (y=0;match && cmds[y]; y++) {
-			if (!e->cmda[y] && !exact)
-				break;
-			if (!e->cmda[y] || strcasecmp(e->cmda[y], cmds[y]))
-				match = 0;
-		}
-		if ((exact > -1) && e->cmda[y])
-			match = 0;
-		if (match)
-			break;
-	}
-	return e;
+	return NULL;
 }
 
 static void join(char *dest, size_t destsize, char *w[])

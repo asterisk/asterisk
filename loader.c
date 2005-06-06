@@ -17,6 +17,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 #include "asterisk/config.h"
@@ -34,7 +38,6 @@
 #include <dlfcn.h>
 #endif
 #include "asterisk/md5.h"
-#include "asterisk.h"
 
 #ifndef RTLD_NOW
 #define RTLD_NOW 0
@@ -51,7 +54,6 @@ struct module {
 	char *(*description)(void);
 	char *(*key)(void);
 	int (*reload)(void);
-	const char *(*version)(void);
 	void *lib;
 	char resource[256];
 	struct module *next;
@@ -253,11 +255,6 @@ int ast_module_reload(const char *name)
 	return reloaded;
 }
 
-static const char *unknown_version(void)
-{
-	return "--unknown--";
-}
-
 static int __load_resource(const char *resource_name, const struct ast_config *cfg)
 {
 	static char fn[256];
@@ -357,12 +354,6 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 	m->reload = dlsym(m->lib, "reload");
 	if (m->reload == NULL)
 		m->reload = dlsym(m->lib, "_reload");
-
-	m->version = dlsym(m->lib, "version");
-	if (m->version == NULL)
-		m->version = dlsym(m->lib, "_version");
-	if (m->version == NULL)
-		m->version = unknown_version;
 
 	if (!m->key || !(key = m->key())) {
 		ast_log(LOG_WARNING, "Key routine returned NULL in module %s\n", fn);
@@ -563,7 +554,7 @@ void ast_update_use_count(void)
 	
 }
 
-int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *version, const char *like),
+int ast_update_module_list(int (*modentry)(const char *module, const char *description, int usecnt, const char *like),
 			   const char *like)
 {
 	struct module *m;
@@ -574,10 +565,7 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 		unlock = 0;
 	m = module_list;
 	while (m) {
-		char ver_string[80];
-
-		ast_copy_string(ver_string, m->version(), sizeof(ver_string));
-		total_mod_loaded += modentry(m->resource, m->description(), m->usecount(), ast_strip(ast_strip_quoted(ver_string, "$", "$")), like);
+		total_mod_loaded += modentry(m->resource, m->description(), m->usecount(), like);
 		m = m->next;
 	}
 	if (unlock)

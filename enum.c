@@ -26,6 +26,10 @@
 #include <unistd.h>
 #include <errno.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/enum.h"

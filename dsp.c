@@ -36,6 +36,10 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/frame.h"
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"

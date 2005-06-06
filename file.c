@@ -22,6 +22,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/frame.h"
 #include "asterisk/file.h"
 #include "asterisk/cli.h"
@@ -33,7 +37,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
-#include "asterisk.h"
 
 struct ast_format {
 	/* Name of format */

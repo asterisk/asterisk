@@ -24,6 +24,10 @@
 #include <unistd.h>
 #include <dirent.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/file.h"
 #include "asterisk/app.h"
@@ -36,7 +40,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/manager.h"
 #include "db1-ast/include/db.h"
-#include "asterisk.h"
 
 static DB *astdb;
 AST_MUTEX_DEFINE_STATIC(dblock);

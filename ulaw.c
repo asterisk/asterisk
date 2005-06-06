@@ -11,6 +11,10 @@
  * the GNU General Public License
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/ulaw.h"
 
 #define ZEROTRAP    /* turn on the trap as per the MIL-STD */

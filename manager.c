@@ -27,6 +27,10 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/file.h"
 #include "asterisk/manager.h"

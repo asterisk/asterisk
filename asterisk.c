@@ -28,12 +28,16 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <regex.h>
 
 #if  defined(__FreeBSD__) || defined( __NetBSD__ ) || defined(SOLARIS)
 #include <netdb.h>
 #endif
 
 #include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
@@ -60,6 +64,7 @@
 #include "asterisk/config.h"
 #include "asterisk/version.h"
 #include "asterisk/build.h"
+#include "asterisk/linkedlists.h"
 
 #include "defaults.h"
 
@@ -146,6 +151,85 @@ static char *_argv[256];
 static int shuttingdown = 0;
 static int restartnow = 0;
 static pthread_t consolethread = AST_PTHREADT_NULL;
+
+struct file_version {
+	const char *file;
+	const char *version;
+	AST_LIST_ENTRY(file_version) list;
+};
+
+static AST_LIST_HEAD_STATIC(file_versions, file_version);
+
+void ast_register_file_version(const char *file, const char *version)
+{
+	struct file_version *new;
+
+	new = calloc(1, sizeof(*new));
+	if (!new)
+		return;
+
+	new->file = file;
+	new->version = version;
+	AST_LIST_LOCK(&file_versions);
+	AST_LIST_INSERT_HEAD(&file_versions, new, list);
+	AST_LIST_UNLOCK(&file_versions);
+}
+
+void ast_unregister_file_version(const char *file)
+{
+	struct file_version *find;
+
+	AST_LIST_LOCK(&file_versions);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&file_versions, find, list) {
+		if (!strcasecmp(find->file, file)) {
+			AST_LIST_REMOVE_CURRENT(&file_versions, list);
+			break;
+		}
+	}
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&file_versions);
+}
+
+static char show_version_files_help[] = 
+"Usage: show version files [like <pattern>]\n"
+"       Shows the revision numbers of the files used to build this copy of Asterisk.\n"
+"       Optional regular expression pattern is used to filter the file list.\n";
+
+static int handle_show_version_files(int fd, int argc, char *argv[])
+{
+	struct file_version *iterator;
+
+	AST_LIST_LOCK(&file_versions);
+	AST_LIST_TRAVERSE(&file_versions, iterator, list) {
+		ast_cli(fd, "%-25.25s %-20.20s\n", iterator->file, iterator->version);
+	}
+	AST_LIST_UNLOCK(&file_versions);
+	return RESULT_SUCCESS;
+}
+
+static char *complete_show_version_files(char *line, char *word, int pos, int state)
+{
+	struct file_version *find;
+	int which = 0;
+	char *ret = NULL;
+	int matchlen = strlen(word);
+
+	if (pos != 3)
+		return NULL;
+
+	AST_LIST_LOCK(&file_versions);
+	AST_LIST_TRAVERSE(&file_versions, find, list) {
+		if (!strncasecmp(word, find->file, matchlen)) {
+			if (++which > state) {
+				ret = strdup(find->file);
+				break;
+			}
+		}
+	}
+	AST_LIST_UNLOCK(&file_versions);
+
+	return ret;
+}
 
 int ast_register_atexit(void (*func)(void))
 {
@@ -936,6 +1020,8 @@ static struct ast_cli_entry core_cli[] = {
 	  "Restart Asterisk at empty call volume", restart_when_convenient_help },
 	{ { "!", NULL }, handle_bang,
 	  "Execute a shell command", bang_help },
+	{ { "show", "version", "files", NULL }, handle_show_version_files,
+	  "Show versions of files used to build Asterisk", show_version_files_help, complete_show_version_files },
 };
 
 static int ast_el_read_char(EditLine *el, char *cp)

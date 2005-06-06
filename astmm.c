@@ -20,6 +20,10 @@
 #include <string.h>
 #include <time.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/cli.h"
 #include "asterisk/logger.h"
 #include "asterisk/options.h"

@@ -14,6 +14,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/chanvars.h"
 #include "asterisk/logger.h"
 

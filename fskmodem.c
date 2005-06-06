@@ -16,6 +16,10 @@
 
 #include <stdio.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/fskmodem.h"
 
 #define NBW	2

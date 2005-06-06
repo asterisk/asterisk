@@ -36,6 +36,10 @@
 #include <sys/sockio.h>
 #endif
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/acl.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"

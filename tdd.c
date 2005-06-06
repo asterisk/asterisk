@@ -22,6 +22,10 @@
 #include <math.h>
 #include <ctype.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/ulaw.h"
 #include "asterisk/tdd.h"
 #include "asterisk/logger.h"

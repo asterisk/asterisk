@@ -17,6 +17,10 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"
 #include "asterisk/logger.h"
@@ -25,7 +29,6 @@
 #include "asterisk/cli.h"
 #include "asterisk/term.h"
 #include "asterisk/utils.h"
-#include "asterisk.h"
 
 #ifdef TRACE_FRAMES
 static int headers = 0;

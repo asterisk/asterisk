@@ -32,6 +32,10 @@
 #endif
 #endif
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/pbx.h"
 #include "asterisk/frame.h"
 #include "asterisk/sched.h"
@@ -53,7 +57,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/transcap.h"
-#include "asterisk.h"
 
 /* uncomment if you have problems with 'monitoring' synchronized files */
 #if 0

@@ -35,6 +35,10 @@
 #include <math.h>
 #include <limits.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/plc.h"
 
 #if !defined(FALSE)
