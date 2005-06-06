@@ -1671,7 +1671,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 
 		
 #ifdef OSP_SUPPORT
-		else if (!osptoken && !strcasecmp(ast_var_name(current), "OSPTOKEN")) {
+		else if (!options.osptoken && !strcasecmp(ast_var_name(current), "OSPTOKEN")) {
 			options.osptoken = ast_var_value(current);
 		} else if (!osphandle && !strcasecmp(ast_var_name(current), "OSPHANDLE")) {
 			osphandle = ast_var_value(current);
@@ -5351,7 +5351,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		ast_log(LOG_DEBUG, "Checking OSP Authentication!\n");
 		osptoken = get_header(req, "P-OSP-Auth-Token");
 		/* Check for token existence */
-		if (!strlen(osptoken))
+		if (ast_strlen_zero(osptoken))
 			return -1;
 		/* Validate token */
 		if (ast_osp_validate(NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1)
