@@ -34,7 +34,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 static int syslog_level_map[] = {
 	LOG_DEBUG,

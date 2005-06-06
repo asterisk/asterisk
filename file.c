@@ -34,7 +34,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 struct ast_format {
 	/* Name of format */

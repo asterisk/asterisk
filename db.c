@@ -37,7 +37,6 @@
 #include "asterisk/manager.h"
 #include "db1-ast/include/db.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 static DB *astdb;
 AST_MUTEX_DEFINE_STATIC(dblock);

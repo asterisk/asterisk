@@ -33,7 +33,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "asterisk.h"
-#include "astconf.h"
 
 /*
  * Asterisk uses RSA keys with SHA-1 message digests for its

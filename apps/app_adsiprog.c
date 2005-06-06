@@ -31,7 +31,6 @@
 #include <errno.h>
 
 #include "asterisk.h"
-#include "astconf.h"
 
 static char *tdesc = "Asterisk ADSI Programming Application";
 

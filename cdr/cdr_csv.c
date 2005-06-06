@@ -21,7 +21,6 @@
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 #define CSV_LOG_DIR "/cdr-csv"
 #define CSV_MASTER  "/Master.csv"

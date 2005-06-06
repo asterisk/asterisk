@@ -17,23 +17,21 @@
 #define DEFAULT_LANGUAGE "en"
 
 #define AST_CONFIG_MAX_PATH 255
-#define AST_CONFIG_DIR 	ASTETCDIR
-#define AST_RUN_DIR	ASTVARRUNDIR
-#define AST_SOCKET	ASTVARRUNDIR "/asterisk.ctl"
-#define AST_PID		ASTVARRUNDIR "/asterisk.pid"
-#define AST_MODULE_DIR 	ASTMODDIR
-#define AST_SPOOL_DIR  	ASTSPOOLDIR
-#define AST_VAR_DIR    	ASTVARLIBDIR
-#define AST_LOG_DIR	ASTLOGDIR
-#define AST_AGI_DIR	ASTAGIDIR
-#define AST_KEY_DIR	ASTVARLIBDIR "/keys"
-#define AST_DB		ASTVARLIBDIR "/astdb"
-#define AST_TMP_DIR	ASTSPOOLDIR "/tmp"
 
-#define AST_CONFIG_FILE ASTCONFPATH
-
-#define AST_SOUNDS AST_VAR_DIR "/sounds"
-#define AST_IMAGES AST_VAR_DIR "/images"
+/* provided in asterisk.c */
+extern char ast_config_AST_CONFIG_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_CONFIG_FILE[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_MODULE_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_SPOOL_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_MONITOR_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_LOG_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_AGI_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_DB[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
 
 /* Provided by module.c */
 extern int load_modules(void);

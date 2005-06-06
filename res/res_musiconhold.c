@@ -16,7 +16,6 @@
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
-#include "astconf.h"
 #include "asterisk/options.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"

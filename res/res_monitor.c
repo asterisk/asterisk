@@ -19,9 +19,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/config.h"
 #include "asterisk.h"
-#include "astconf.h"
-
-#define AST_MONITOR_DIR	AST_SPOOL_DIR "/monitor"
 
 AST_MUTEX_DEFINE_STATIC(monitorlock);
 
@@ -83,7 +80,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		char *channel_name, *p;
 
 		/* Create monitoring directory if needed */
-		if (mkdir(AST_MONITOR_DIR, 0770) < 0) {
+		if (mkdir(ast_config_AST_MONITOR_DIR, 0770) < 0) {
 			if (errno != EEXIST) {
 				ast_log(LOG_WARNING, "Unable to create audio monitor directory: %s\n",
 					strerror(errno));
@@ -109,16 +106,16 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 				ast_safe_system(tmp);
 			}
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/%s-in",
-						directory ? "" : AST_MONITOR_DIR, fname_base);
+						directory ? "" : ast_config_AST_MONITOR_DIR, fname_base);
 			snprintf(monitor->write_filename, FILENAME_MAX, "%s/%s-out",
-						directory ? "" : AST_MONITOR_DIR, fname_base);
+						directory ? "" : ast_config_AST_MONITOR_DIR, fname_base);
 			strncpy(monitor->filename_base, fname_base, sizeof(monitor->filename_base) - 1);
 		} else {
 			ast_mutex_lock(&monitorlock);
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
-						AST_MONITOR_DIR, seq);
+						ast_config_AST_MONITOR_DIR, seq);
 			snprintf(monitor->write_filename, FILENAME_MAX, "%s/audio-out-%ld",
-						AST_MONITOR_DIR, seq);
+						ast_config_AST_MONITOR_DIR, seq);
 			seq++;
 			ast_mutex_unlock(&monitorlock);
 
@@ -127,7 +124,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 					*p = '-';
 				}
 				snprintf(monitor->filename_base, FILENAME_MAX, "%s/%ld-%s",
-						 AST_MONITOR_DIR, time(NULL),channel_name);
+						 ast_config_AST_MONITOR_DIR, time(NULL),channel_name);
 				monitor->filename_changed = 1;
 			} else {
 				ast_log(LOG_ERROR,"Failed to allocate Memory\n");
@@ -236,7 +233,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 			char *format = !strcasecmp(chan->monitor->format,"wav49") ? "WAV" : chan->monitor->format;
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
-			char *dir = directory ? "" : AST_MONITOR_DIR;
+			char *dir = directory ? "" : ast_config_AST_MONITOR_DIR;
 
 			/* Set the execute application */
 			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");
@@ -295,7 +292,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 			ast_safe_system(tmp);
 		}
 
-		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : AST_MONITOR_DIR, fname_base);
+		snprintf(chan->monitor->filename_base, FILENAME_MAX, "%s/%s", directory ? "" : ast_config_AST_MONITOR_DIR, fname_base);
 	} else {
 		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
 	}

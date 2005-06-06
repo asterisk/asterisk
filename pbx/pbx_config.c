@@ -26,7 +26,6 @@
 #include <errno.h>
 /* For where to put dynamic tables */
 #include "asterisk.h"
-#include "astconf.h"
 
 #ifdef __AST_DEBUG_MALLOC
 static void FREE(void *ptr)

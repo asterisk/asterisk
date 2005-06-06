@@ -32,11 +32,11 @@
 #include "editline/readline/readline.h"
 /* For module directory */
 #include "asterisk.h"
-#include "build.h"
-#include "astconf.h"
+#include "asterisk/version.h"
+#include "asterisk/build.h"
 
 #define VERSION_INFO "Asterisk " ASTERISK_VERSION " built by " BUILD_USER "@" BUILD_HOSTNAME \
-	" on a " BUILD_MACHINE " running " BUILD_OS
+	" on a " BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE
 	
 extern unsigned long global_fin, global_fout;
 	

@@ -23,7 +23,6 @@
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 #define CUSTOM_LOG_DIR "/cdr_custom"
 

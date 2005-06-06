@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include "astconf.h"
+#include "asterisk.h"
 
 
 static char *tdesc = "Interface Test Application";

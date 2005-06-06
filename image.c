@@ -30,7 +30,6 @@
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 static struct ast_imager *list;
 AST_MUTEX_DEFINE_STATIC(listlock);

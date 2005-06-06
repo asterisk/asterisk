@@ -17,7 +17,6 @@
 #include "asterisk/manager.h"
 #include "asterisk/config.h"
 #include "asterisk.h"
-#include "astconf.h"
 #include <strings.h>
 #include <unistd.h>
 #include <time.h>

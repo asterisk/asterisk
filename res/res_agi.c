@@ -47,7 +47,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/agi.h"
 #include "asterisk.h"
-#include "astconf.h"
 #ifdef SOLARIS
 #include "asterisk/astmm.h"
 #endif

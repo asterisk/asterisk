@@ -35,7 +35,6 @@
 #endif
 #include "asterisk/md5.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 #ifndef RTLD_NOW
 #define RTLD_NOW 0

@@ -4,9 +4,8 @@ KERNEL=`uname -r`
 MACHINE=`uname -m`
 OS=`uname -s`
 USER=`whoami`
-VERSION=`cat .version`
-rm -f build.h
-cat > build.h << END
+DATE=`date --utc "+%Y-%m-%d %H:%M:%S"`
+cat << END
 /*
  * build.h 
  * Automatically generated
@@ -15,6 +14,7 @@ cat > build.h << END
 #define BUILD_KERNEL "${KERNEL}"
 #define BUILD_MACHINE "${MACHINE}"
 #define BUILD_OS "${OS}"
-#define BUILD_VERSION "${VERSION}"
+#define BUILD_DATE "${DATE}"
 #define BUILD_USER "${USER}"
+
 END

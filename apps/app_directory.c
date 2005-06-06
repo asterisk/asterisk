@@ -25,7 +25,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "asterisk.h"
-#include "astconf.h"
 
 static char *tdesc = "Extension Directory";
 static char *app = "Directory";

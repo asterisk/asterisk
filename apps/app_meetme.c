@@ -33,7 +33,6 @@
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include "asterisk.h"
-#include "astconf.h"
 
 #ifdef __linux__
 #include <linux/zaptel.h>

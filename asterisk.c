@@ -33,6 +33,7 @@
 #include <netdb.h>
 #endif
 
+#include "asterisk.h"
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/cli.h"
@@ -56,8 +57,11 @@
 #include "asterisk/io.h"
 #include "asterisk/lock.h"
 #include "editline/histedit.h"
-#include "asterisk.h"
 #include "asterisk/config.h"
+#include "asterisk/version.h"
+#include "asterisk/build.h"
+
+#include "defaults.h"
 
 #ifndef AF_LOCAL
 #define AF_LOCAL AF_UNIX
@@ -128,6 +132,7 @@ char ast_config_AST_CONFIG_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_CONFIG_FILE[AST_CONFIG_MAX_PATH];
 char ast_config_AST_MODULE_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_SPOOL_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_MONITOR_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_VAR_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_LOG_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_AGI_DIR[AST_CONFIG_MAX_PATH];
@@ -395,7 +400,7 @@ static int ast_makesocket(void)
 	int x;
 
 	struct ast_config *cfg;
-	char *config = ASTCONFPATH;
+	char *config = AST_CONFIG_FILE;
 	char *owner;
 	char *group;
 	char *perms;
@@ -1547,7 +1552,7 @@ static void ast_readconfig(void) {
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	struct ast_variable *v_ctlfile;
-	char *config = ASTCONFPATH;
+	char *config = AST_CONFIG_FILE;
 
 	if (option_overrideconfig == 1) {
 		cfg = ast_config_load((char *)ast_config_AST_CONFIG_FILE);
@@ -1561,6 +1566,7 @@ static void ast_readconfig(void) {
 	ast_copy_string((char *)ast_config_AST_CONFIG_DIR,AST_CONFIG_DIR,sizeof(ast_config_AST_CONFIG_DIR));
 	ast_copy_string((char *)ast_config_AST_SPOOL_DIR,AST_SPOOL_DIR,sizeof(ast_config_AST_SPOOL_DIR));
 	ast_copy_string((char *)ast_config_AST_MODULE_DIR,AST_MODULE_DIR,sizeof(ast_config_AST_VAR_DIR));
+ 	snprintf((char *)ast_config_AST_MONITOR_DIR,sizeof(ast_config_AST_MONITOR_DIR)-1,"%s/monitor",ast_config_AST_SPOOL_DIR);
 	ast_copy_string((char *)ast_config_AST_VAR_DIR,AST_VAR_DIR,sizeof(ast_config_AST_VAR_DIR));
 	ast_copy_string((char *)ast_config_AST_LOG_DIR,AST_LOG_DIR,sizeof(ast_config_AST_LOG_DIR));
 	ast_copy_string((char *)ast_config_AST_AGI_DIR,AST_AGI_DIR,sizeof(ast_config_AST_AGI_DIR));
@@ -1588,6 +1594,7 @@ static void ast_readconfig(void) {
 			ast_copy_string((char *)ast_config_AST_CONFIG_DIR,v->value,sizeof(ast_config_AST_CONFIG_DIR));
 		} else if (!strcasecmp(v->name, "astspooldir")) {
 			ast_copy_string((char *)ast_config_AST_SPOOL_DIR,v->value,sizeof(ast_config_AST_SPOOL_DIR));
+			snprintf((char *)ast_config_AST_MONITOR_DIR,sizeof(ast_config_AST_MONITOR_DIR)-1,"%s/monitor",v->value);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
 			ast_copy_string((char *)ast_config_AST_VAR_DIR,v->value,sizeof(ast_config_AST_VAR_DIR));
 			snprintf((char *)ast_config_AST_DB,sizeof(ast_config_AST_DB),"%s/%s",v->value,"astdb");    

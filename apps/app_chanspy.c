@@ -30,8 +30,6 @@
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 
-#define AST_MONITOR_DIR AST_SPOOL_DIR "/monitor"
-
 AST_MUTEX_DEFINE_STATIC(modlock);
 
 #define ast_fit_in_short(in) (in < -32768 ? -32768 : in > 32767 ? 32767 : in)
@@ -704,7 +702,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 
 	if (recbase) {
 		char filename[512];
-		snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",AST_MONITOR_DIR, recbase, time(NULL));
+		snprintf(filename,sizeof(filename),"%s/%s.%ld.raw",ast_config_AST_MONITOR_DIR, recbase, time(NULL));
 		if ((fd = open(filename, O_CREAT | O_WRONLY, O_TRUNC)) <= 0) {
 			ast_log(LOG_WARNING, "Cannot open %s for recording\n", filename);
 			fd = 0;

@@ -211,22 +211,10 @@ CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ]; th
 
 LIBEDIT=editline/libedit.a
 
-ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS ]; then if [ -f CVS/Tag ] ; then echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`"; else echo "CVS-HEAD-`date +"%D-%T"`"; fi; fi; fi)
+ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS ]; then if [ -f CVS/Tag ] ; then echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`"; else echo "CVS-HEAD"; fi; fi; fi)
 ASTERISKVERSIONNUM=$(shell if [ -d CVS ]; then echo 999999 ; else if [ -f .version ] ; then awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version ; else echo 000000 ; fi ; fi)
 HTTPDIR=$(shell if [ -d $(CROSS_COMPILE_TARGET)/var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
 RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
-CFLAGS+=-DASTERISK_VERSION=\"$(ASTERISKVERSION)\"
-CFLAGS+=-DASTERISK_VERSION_NUM=$(ASTERISKVERSIONNUM)
-CFLAGS+=-DINSTALL_PREFIX=\"$(INSTALL_PREFIX)\"
-CFLAGS+=-DASTETCDIR=\"$(ASTETCDIR)\"
-CFLAGS+=-DASTLIBDIR=\"$(ASTLIBDIR)\"
-CFLAGS+=-DASTVARLIBDIR=\"$(ASTVARLIBDIR)\"
-CFLAGS+=-DASTVARRUNDIR=\"$(ASTVARRUNDIR)\"
-CFLAGS+=-DASTSPOOLDIR=\"$(ASTSPOOLDIR)\"
-CFLAGS+=-DASTLOGDIR=\"$(ASTLOGDIR)\"
-CFLAGS+=-DASTCONFPATH=\"$(ASTCONFPATH)\"
-CFLAGS+=-DASTMODDIR=\"$(MODULES_DIR)\"
-CFLAGS+=-DASTAGIDIR=\"$(AGI_DIR)\"
 
 CFLAGS+= $(DEBUG_THREADS)
 CFLAGS+= $(TRACE_FRAMES)
@@ -327,12 +315,7 @@ ifneq ($(wildcard .tags-depend),)
 include .tags-depend
 endif
 
-.PHONY: _version ast_expr
-
-_version: 
-	if [ -d CVS ] && [ ! -f .version ]; then echo $(ASTERISKVERSION) > .version; fi 
-
-.version: _version
+.PHONY: ast_expr
 
 vercomp: vercomp.c
 	$(HOST_CC) -o $@ $<
@@ -382,10 +365,6 @@ ast_expr.a: $(FLEXOBJS)
 	ar r $@ $(FLEXOBJS)
 	ranlib $@
 
-cli.o: cli.c build.h
-
-asterisk.o: asterisk.c build.h
-
 testexpr2 :
 	flex ast_expr2.fl
 	bison -v -d --name-prefix=ast_yy -o ast_expr2.c ast_expr2.y
@@ -415,13 +394,26 @@ asterisk.html: asterisk.sgml
 asterisk.txt: asterisk.sgml
 	docbook2txt asterisk.sgml
 
-ifneq ($(strip $(ASTERISKVERSION)),)
-build.h: .version
-	./make_build_h
-else
-build.h:
-	./make_build_h
-endif
+defaults.h: FORCE
+	./make_defaults_h > $@.tmp
+	if ! cmp -s $@.tmp $@ ; then \
+		mv $@.tmp $@ ; \
+	fi
+	rm -f $@.tmp
+
+include/asterisk/build.h: FORCE
+	./make_build_h > $@.tmp
+	if ! cmp -s $@.tmp $@ ; then \
+		mv $@.tmp $@ ; \
+	fi
+	rm -f $@.tmp
+
+include/asterisk/version.h: FORCE
+	./make_version_h > $@.tmp
+	if ! cmp -s $@.tmp $@ ; then \
+		mv $@.tmp $@ ; \
+	fi
+	rm -f $@.tmp
 
 stdtime/libtime.a: FORCE
 	@if [ -d stdtime ]; then \
@@ -443,7 +435,9 @@ subdirs:
 clean:
 	for x in $(SUBDIRS); do $(MAKE) -C $$x clean || exit 1 ; done
 	rm -f *.o *.so asterisk .depend
-	rm -f build.h 
+	rm -f defaults.h
+	rm -f include/asterisk/build.h
+	rm -f include/asterisk/version.h
 	rm -f ast_expr.c ast_expr.h ast_expr.output
 	rm -f ast_expr2.c ast_expr2f.c ast_expr2.h ast_expr2.output
 	rm -f ast_expr.a vercomp
@@ -758,7 +752,7 @@ dont-optimize:
 
 valgrind: dont-optimize
 
-depend: .depend
+depend: .depend defaults.h include/asterisk/build.h include/asterisk/version.h
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend:

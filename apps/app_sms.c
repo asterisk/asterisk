@@ -27,7 +27,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <ctype.h>
-#include "astconf.h"
+#include "asterisk.h"
 
 /* output using Alaw rather than linear */
 /* #define OUTALAW */

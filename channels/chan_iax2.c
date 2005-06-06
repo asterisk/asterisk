@@ -69,7 +69,7 @@
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
-#include "astconf.h"
+#include "asterisk.h"
 
 /* Define NEWJB to use the new channel independent jitterbuffer,
  * otherwise, use the old jitterbuffer */

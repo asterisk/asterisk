@@ -34,7 +34,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/indications.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 #define MAX_OTHER_FORMATS 10
 

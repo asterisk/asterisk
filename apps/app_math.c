@@ -38,7 +38,7 @@
 #include "asterisk/translate.h"
 #include <ctype.h>
 #include <sys/file.h>
-#include "astconf.h"
+#include "asterisk.h"
 
 static char *tdesc = "Basic Math Functions";
 

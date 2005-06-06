@@ -31,7 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include "astconf.h"
+#include "asterisk.h"
 
 /*
  * pbx_spool is similar in spirit to qcall, but with substantially enhanced functionality...

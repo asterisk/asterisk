@@ -67,7 +67,7 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
-#include "astconf.h"
+#include "asterisk.h"
 
 #define QUEUE_STRATEGY_RINGALL		0
 #define QUEUE_STRATEGY_ROUNDROBIN	1

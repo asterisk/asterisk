@@ -27,7 +27,7 @@
 #include <fcntl.h>
 #include <sys/time.h>
 #include <errno.h>
-#include "astconf.h"
+#include "asterisk.h"
 
 #define ICES "/usr/bin/ices"
 #define LOCAL_ICES "/usr/local/bin/ices"

@@ -48,7 +48,6 @@
 #include <dirent.h>
 
 #include "asterisk.h"
-#include "astconf.h"
 
 #define COMMAND_TIMEOUT 5000
 

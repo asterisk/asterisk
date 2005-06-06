@@ -34,7 +34,6 @@
 #include "asterisk/channel.h"
 #include "asterisk/app.h"
 #include "asterisk.h"
-#include "astconf.h"
 
 #define MAX_NESTED_COMMENTS 128
 #define COMMENT_START ";--"
@@ -687,7 +686,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	int blanklines = 0;
 
 	if (configfile[0] == '/') {
-		strncpy(fn, configfile, sizeof(fn)-1);
+		ast_copy_string(fn, configfile, sizeof(fn));
 	} else {
 		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, configfile);
 	}
