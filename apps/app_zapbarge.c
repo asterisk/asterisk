@@ -14,18 +14,6 @@
  * GPL application.
  */
 
-#include "asterisk/lock.h"
-#include "asterisk/file.h"
-#include "asterisk/logger.h"
-#include "asterisk/channel.h"
-#include "asterisk/pbx.h"
-#include "asterisk/module.h"
-#include "asterisk/config.h"
-#include "asterisk/app.h"
-#include "asterisk/options.h"
-#include "asterisk/cli.h"
-#include "asterisk/say.h"
-#include "asterisk/utils.h"
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
@@ -38,6 +26,23 @@
 #else
 #include <zaptel.h>
 #endif /* __linux__ */
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/config.h"
+#include "asterisk/app.h"
+#include "asterisk/options.h"
+#include "asterisk/cli.h"
+#include "asterisk/say.h"
+#include "asterisk/utils.h"
 
 static char *tdesc = "Barge in on Zap channel application";
 

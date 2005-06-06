@@ -15,6 +15,23 @@
  * 05-10 - 2005 : Support for Swedish and Norwegian added by Daniel Nylander, http://www.danielnylander.se/
  */
 
+#include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <time.h>
+#include <dirent.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -34,20 +51,6 @@
 #ifdef USE_ODBC_STORAGE
 #include "asterisk/res_odbc.h"
 #endif
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <time.h>
-#include <dirent.h>
-
-#include "asterisk.h"
 
 #define COMMAND_TIMEOUT 5000
 

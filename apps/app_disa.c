@@ -13,6 +13,16 @@
  * the GNU General Public License
  */
  
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <sys/time.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -24,12 +34,6 @@
 #include "asterisk/translate.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/callerid.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <sys/time.h>
-
 
 static char *tdesc = "DISA (Direct Inward System Access) Application";
 

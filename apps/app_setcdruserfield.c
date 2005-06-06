@@ -12,6 +12,13 @@
  */
 
 #include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
@@ -20,8 +27,6 @@
 #include "asterisk/config.h"
 #include "asterisk/manager.h"
 #include "asterisk/utils.h"
-#include <stdlib.h>
-#include <string.h>
 
 
 static char *tdesc = "CDR user field apps";

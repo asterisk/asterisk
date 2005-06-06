@@ -210,6 +210,7 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 	struct file_version *iterator;
 	regex_t regexbuf;
 	int havepattern = 0;
+	int havename = 0;
 
 	switch (argc) {
 	case 5:
@@ -219,6 +220,9 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 			havepattern = 1;
 		} else
 			return RESULT_SHOWUSAGE;
+		break;
+	case 4:
+		havename = 1;
 		break;
 	case 3:
 		break;
@@ -230,10 +234,16 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 	ast_cli(fd, FORMAT, "----", "--------");
 	AST_LIST_LOCK(&file_versions);
 	AST_LIST_TRAVERSE(&file_versions, iterator, list) {
+		if (havename && strcasecmp(iterator->file, argv[3]))
+			continue;
+
 		if (havepattern && regexec(&regexbuf, iterator->file, 0, NULL, 0))
 			continue;
 
 		ast_cli(fd, FORMAT, iterator->file, iterator->version);
+
+		if (havename)
+			break;
 	}
 	AST_LIST_UNLOCK(&file_versions);
 

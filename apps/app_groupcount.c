@@ -18,6 +18,10 @@
 #include <sys/types.h>
 #include <regex.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/options.h"

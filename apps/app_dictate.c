@@ -17,6 +17,11 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>	/* for mkdir */
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -25,7 +30,6 @@
 #include "asterisk/say.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
-#include "asterisk.h"
 
 static char *tdesc = "Virtual Dictation Machine";
 static char *app = "Dictate";

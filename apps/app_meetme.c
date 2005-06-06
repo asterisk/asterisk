@@ -11,6 +11,22 @@
  * the GNU General Public License
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#ifdef __linux__
+#include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -26,19 +42,6 @@
 #include "asterisk/cli.h"
 #include "asterisk/say.h"
 #include "asterisk/utils.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <sys/ioctl.h>
-#include "asterisk.h"
-
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
-#include <zaptel.h>
-#endif /* __linux__ */
 
 static char *tdesc = "MeetMe conference bridge";
 

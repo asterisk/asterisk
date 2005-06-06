@@ -12,16 +12,20 @@
  */
 
 #include <sys/types.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
 
 static char *synopsis = "Soft Hangup Application";
 

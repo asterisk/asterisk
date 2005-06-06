@@ -18,6 +18,18 @@
  *
  */ 
  
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <sys/time.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -33,13 +45,6 @@
 #include "asterisk/localtime.h"
 #include "asterisk/callerid.h"
 #include "asterisk/astdb.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <sys/time.h>
 
 #define ALMRCV_CONFIG "alarmreceiver.conf"
 #define ADEMCO_CONTACT_ID "ADEMCO_CONTACT_ID"

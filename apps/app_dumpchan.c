@@ -11,6 +11,14 @@
  * the GNU General Public License (and disclaimed to Digium)
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -20,9 +28,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
 static char *tdesc = "Dump Info About The Calling Channel";
 static char *app = "DumpChan";

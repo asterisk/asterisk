@@ -12,10 +12,15 @@
  */
 
 #include <sys/types.h>
+#include <stdlib.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
-#include <stdlib.h>
 
 
 static char *tdesc = "Make sure asterisk doesn't save CDR for a certain call";

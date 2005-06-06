@@ -15,6 +15,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/options.h"

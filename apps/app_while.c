@@ -11,6 +11,13 @@
  * the GNU General Public License
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -20,9 +27,6 @@
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
 #define ALL_DONE(u,ret) {LOCAL_USER_REMOVE(u); return ret;}
 

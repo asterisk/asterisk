@@ -9,6 +9,19 @@
  * the GNU General Public License
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <ctype.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -18,16 +31,6 @@
 #include "asterisk/module.h"
 #include "asterisk/alaw.h"
 #include "asterisk/callerid.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
-#include <ctype.h>
-#include "asterisk.h"
 
 /* output using Alaw rather than linear */
 /* #define OUTALAW */

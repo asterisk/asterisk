@@ -9,6 +9,14 @@
  * the GNU General Public License
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
@@ -17,9 +25,6 @@
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 
 static char *tdesc_md5 = "MD5 checksum applications";
 static char *app_md5 = "MD5";

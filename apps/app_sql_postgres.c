@@ -11,6 +11,17 @@
  * the GNU General Public License
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <unistd.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -19,13 +30,7 @@
 #include "asterisk/linkedlists.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/lock.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <stdio.h>
-#include <unistd.h>
+
 #include "libpq-fe.h"
 
 #define EXTRA_LOG 0

@@ -120,20 +120,6 @@ enum {SOURCE_RPT, SOURCE_LNK, SOURCE_RMT};
 
 enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 
-#include <asterisk/utils.h>
-#include <asterisk/lock.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/callerid.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/translate.h>
-#include <asterisk/options.h>
-#include <asterisk/cli.h>
-#include <asterisk/config.h>
-#include <asterisk/say.h>
-#include <asterisk/localtime.h>
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -153,6 +139,25 @@ enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 #include <math.h>
 #include <tonezone.h>
 #include <linux/zaptel.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/utils.h"
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/callerid.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/translate.h"
+#include "asterisk/options.h"
+#include "asterisk/cli.h"
+#include "asterisk/config.h"
+#include "asterisk/say.h"
+#include "asterisk/localtime.h"
 
 static  char *tdesc = "Radio Repeater / Remote Base  version 0.24  05/15/2005";
 

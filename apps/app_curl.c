@@ -12,6 +12,14 @@
  * redistribution.
  */
  
+#include <stdlib.h>
+#include <string.h>
+#include <curl/curl.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -20,9 +28,6 @@
 #include "asterisk/cli.h"
 #include "asterisk/options.h"
 #include "asterisk/module.h"
-#include <stdlib.h>
-#include <string.h>
-#include <curl/curl.h>
 
 static char *tdesc = "Load external URL";
 

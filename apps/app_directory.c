@@ -11,6 +11,15 @@
  * the GNU General Public License
  */
  
+#include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -20,11 +29,6 @@
 #include "asterisk/config.h"
 #include "asterisk/say.h"
 #include "asterisk/utils.h"
-#include <string.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "asterisk.h"
 
 static char *tdesc = "Extension Directory";
 static char *app = "Directory";

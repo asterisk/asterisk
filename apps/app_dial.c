@@ -11,6 +11,20 @@
  * the GNU General Public License
  */
 
+#include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <sys/signal.h>
+#include <netinet/in.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -28,15 +42,6 @@
 #include "asterisk/app.h"
 #include "asterisk/causes.h"
 #include "asterisk/manager.h"
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/time.h>
-#include <sys/signal.h>
-#include <netinet/in.h>
 
 static char *tdesc = "Dialing Application";
 
