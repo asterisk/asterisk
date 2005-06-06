@@ -13,6 +13,21 @@
 
 #include <sys/types.h>
 #include <osp.h>
+#include <openssl/err.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <openssl/bio.h>
+#include <openssl/pem.h>
+#include <openssl/evp.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
@@ -30,19 +45,6 @@
 #include "asterisk/lock.h"
 #include "asterisk/causes.h"
 #include "asterisk/callerid.h"
-#include <openssl/err.h>
-#include <stdio.h>
-#include <dirent.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include "asterisk.h"
-#include "astconf.h"
-#include <openssl/bio.h>
-#include <openssl/pem.h>
-#include <openssl/evp.h>
-
 
 #define MAX_CERTS 10
 #define MAX_SERVICEPOINTS 10

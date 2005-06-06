@@ -11,20 +11,7 @@
  * the GNU General Public License
  */
 
-#include "asterisk/lock.h"
-#include "asterisk/file.h"
-#include "asterisk/logger.h"
-#include "asterisk/channel.h"
-#include "asterisk/pbx.h"
-#include "asterisk/options.h"
-#include "asterisk/module.h"
-#include "asterisk/translate.h"
-#include "asterisk/say.h"
-#include "asterisk/musiconhold.h"
-#include "asterisk/config.h"
-#include "asterisk/utils.h"
 #include <stdlib.h>
-#include "asterisk/cli.h"
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
@@ -45,6 +32,25 @@
 #endif
 #include <unistd.h>
 #include <sys/ioctl.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/lock.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/options.h"
+#include "asterisk/module.h"
+#include "asterisk/translate.h"
+#include "asterisk/say.h"
+#include "asterisk/musiconhold.h"
+#include "asterisk/config.h"
+#include "asterisk/utils.h"
+#include "asterisk/cli.h"
+
 #define MAX_MOHFILES 512
 #define MAX_MOHFILE_LEN 128
 

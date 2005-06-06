@@ -9,13 +9,6 @@
  * the GNU General Public License
  */
  
-#include "asterisk/lock.h"
-#include "asterisk/channel.h"
-#include "asterisk/file.h"
-#include "asterisk/logger.h"
-#include "asterisk/sched.h"
-#include "asterisk/module.h"
-#include "asterisk/endian.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
@@ -24,6 +17,18 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/lock.h"
+#include "asterisk/channel.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/sched.h"
+#include "asterisk/module.h"
+#include "asterisk/endian.h"
 
 #define BUF_SIZE 320		/* 320 samples */
 

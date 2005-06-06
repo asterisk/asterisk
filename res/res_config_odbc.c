@@ -9,6 +9,14 @@
  * Copyright (C) 2004 - 2005 Anthony Minessale II <anthmct@yahoo.com>
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -17,9 +25,6 @@
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
 #include "asterisk/res_odbc.h"
 #include "asterisk/utils.h"
 

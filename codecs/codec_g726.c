@@ -13,6 +13,17 @@
  * the GNU General Public License
  */
 
+#include <fcntl.h>
+#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/logger.h"
 #include "asterisk/module.h"
@@ -20,12 +31,6 @@
 #include "asterisk/options.h"
 #include "asterisk/translate.h"
 #include "asterisk/channel.h"
-#include <fcntl.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #define WANT_ASM
 #include "log2comp.h"

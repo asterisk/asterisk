@@ -12,6 +12,19 @@
  */
 
 #include <sys/types.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/channel.h"
 #include "asterisk/logger.h"
@@ -24,15 +37,6 @@
 #include "asterisk/io.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <stdio.h>
-#include <dirent.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include "asterisk.h"
 
 /*
  * Asterisk uses RSA keys with SHA-1 message digests for its

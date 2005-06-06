@@ -9,6 +9,31 @@
  * of the GNU General Public License.
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <string.h>
+#include <errno.h>
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(SOLARIS) || defined(__Darwin__)
+#include <sys/types.h>
+#include <netinet/in_systm.h>
+#endif
+#include <netinet/ip.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__Darwin__)
+#include <net/if_dl.h>
+#include <ifaddrs.h>
+#endif
+#include <zlib.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -31,26 +56,6 @@
 #include "asterisk/aes.h"
 
 #include "dundi-parser.h"
-#include <stdlib.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <string.h>
-#include <errno.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(SOLARIS) || defined(__Darwin__)
-#include <sys/types.h>
-#include <netinet/in_systm.h>
-#endif
-#include <netinet/ip.h>
-#include <sys/ioctl.h>
-#include <netinet/in.h>
-#include <net/if.h>
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__Darwin__)
-#include <net/if_dl.h>
-#include <ifaddrs.h>
-#endif
-#include <zlib.h>
 
 #define MAX_RESULTS	64
 

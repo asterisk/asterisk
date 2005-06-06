@@ -25,7 +25,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION("$Revision$")
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/config.h"
 #include "asterisk/options.h"

@@ -21,6 +21,11 @@
 #else
 #include <machine/endian.h>
 #endif
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/file.h"

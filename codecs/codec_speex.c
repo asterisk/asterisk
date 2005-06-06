@@ -14,6 +14,14 @@
  * hacked to be configurable by anthm and bkw 9/28/2004
  */
 
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <stdio.h>
+#include <speex.h>
+
 static int quality = 8;
 static int complexity = 2;
 static int enhancement = 0;
@@ -28,6 +36,10 @@ static int dtx = 0;
 #define TYPE_LOW	 0x1
 #define TYPE_MASK	 0x3
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/translate.h"
 #include "asterisk/module.h"
@@ -35,14 +47,6 @@ static int dtx = 0;
 #include "asterisk/options.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
-#include <fcntl.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <netinet/in.h>
-#include <string.h>
-#include <stdio.h>
-
-#include <speex.h>
 
 /* Sample frame data */
 #include "slin_speex_ex.h"

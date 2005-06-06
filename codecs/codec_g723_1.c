@@ -22,17 +22,22 @@
 #define TYPE_MASK	 0x3
 
 #include <sys/types.h>
-#include "asterisk/lock.h"
-#include "asterisk/translate.h"
-#include "asterisk/module.h"
-#include "asterisk/logger.h"
-#include "asterisk/channel.h"
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <stdio.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
+#include "asterisk/lock.h"
+#include "asterisk/translate.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
 
 #ifdef ANNEX_B
 #include "g723.1b/typedef2.h"

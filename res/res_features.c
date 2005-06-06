@@ -11,6 +11,21 @@
  * the GNU General Public License
  */
 
+#include <pthread.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/time.h>
+#include <sys/signal.h>
+#include <netinet/in.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
@@ -28,16 +43,6 @@
 #include "asterisk/manager.h"
 #include "asterisk/utils.h"
 #include "asterisk/adsi.h"
-#include <pthread.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/time.h>
-#include <sys/signal.h>
-#include <netinet/in.h>
 
 #ifdef __AST_DEBUG_MALLOC
 static void FREE(void *ptr)

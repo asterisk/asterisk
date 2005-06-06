@@ -12,14 +12,6 @@
  */
  
 #include <sys/types.h>
-#include "asterisk/channel.h"
-#include "asterisk/file.h"
-#include "asterisk/logger.h"
-#include "asterisk/sched.h"
-#include "asterisk/module.h"
-#include "asterisk/image.h"
-#include "asterisk/lock.h"
-#include "asterisk/endian.h"
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
@@ -29,6 +21,18 @@
 #include <errno.h>
 #include <string.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/channel.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/sched.h"
+#include "asterisk/module.h"
+#include "asterisk/image.h"
+#include "asterisk/lock.h"
+#include "asterisk/endian.h"
 
 static char *desc = "JPEG (Joint Picture Experts Group) Image Format";
 

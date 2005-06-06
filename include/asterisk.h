@@ -58,14 +58,14 @@ void ast_register_file_version(const char *file, const char *version);
 void ast_unregister_file_version(const char *file);
 
 #ifdef __GNUC__
-#define ASTERISK_FILE_VERSION(x) \
+#define ASTERISK_FILE_VERSION(file, version) \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
-		ast_register_file_version(__FILE__, x); \
+		ast_register_file_version(file, version); \
 	} \
 	static void __attribute__((destructor)) __unregister_file_version(void) \
 	{ \
-		ast_unregister_file_version(__FILE__); \
+		ast_unregister_file_version(file); \
 	}
 #else /* ! __GNUC__ */
 #define ASTERISK_FILE_VERSION(x) static const char __file_version[] = x;

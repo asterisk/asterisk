@@ -17,13 +17,6 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include "asterisk/file.h"
-#include "asterisk/logger.h"
-#include "asterisk/channel.h"
-#include "asterisk/pbx.h"
-#include "asterisk/module.h"
-#include "asterisk/astdb.h"
-#include "asterisk/callerid.h"
 #include <math.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -34,6 +27,18 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/astdb.h"
+#include "asterisk/callerid.h"
 #include "asterisk/cli.h"
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
@@ -46,7 +51,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/agi.h"
-#include "asterisk.h"
 #ifdef SOLARIS
 #include "asterisk/astmm.h"
 #endif

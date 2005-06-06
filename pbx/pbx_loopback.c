@@ -9,6 +9,15 @@
  * of the GNU General Public License.
  */
 
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
@@ -28,11 +37,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/crypto.h"
 #include "asterisk/astdb.h"
-
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
 
 static char *tdesc = "Loopback Switch";
 

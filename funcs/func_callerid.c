@@ -13,6 +13,10 @@
 #include <string.h>
 #include <sys/types.h>
 
+#include "asterisk.h"
+
+/* ASTERISK_FILE_VERSION("$Revision$") */
+
 #ifndef BUILTIN_FUNC
 #include "asterisk/module.h"
 #endif /* BUILTIN_FUNC */
