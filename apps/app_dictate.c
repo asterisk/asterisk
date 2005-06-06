@@ -25,7 +25,7 @@
 #include "asterisk/say.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
-#include "astconf.h"
+#include "asterisk.h"
 
 static char *tdesc = "Virtual Dictation Machine";
 static char *app = "Dictate";
