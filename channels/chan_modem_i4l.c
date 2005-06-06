@@ -18,6 +18,11 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/vmodem.h"
 #include "asterisk/module.h"

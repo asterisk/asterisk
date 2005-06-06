@@ -22,6 +22,11 @@ extern "C" {
 
 #include <stdio.h>
 #include <string.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 #include "asterisk/channel.h"
@@ -33,7 +38,6 @@ extern "C" {
 #include "asterisk/callerid.h"
 #include "asterisk/dsp.h"
 #include "asterisk/features.h"
-
 }
 
 #include <sys/socket.h>

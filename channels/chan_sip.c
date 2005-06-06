@@ -15,6 +15,25 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <signal.h>
+#include <sys/signal.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <regex.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
@@ -45,20 +64,6 @@
 #ifdef OSP_SUPPORT
 #include "asterisk/astosp.h"
 #endif
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <signal.h>
-#include <sys/signal.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <regex.h>
 
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "Asterisk PBX"

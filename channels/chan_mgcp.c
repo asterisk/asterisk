@@ -55,6 +55,25 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/signal.h>
+#include <signal.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <ctype.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
@@ -77,22 +96,7 @@
 #include "asterisk/musiconhold.h"
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/signal.h>
-#include <signal.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-
 #include "asterisk/dsp.h"
-#include <ctype.h>
 
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02

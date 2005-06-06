@@ -9,17 +9,6 @@
  * the GNU General Public License
  */
 
-#include "asterisk/frame.h"
-#include "asterisk/logger.h"
-#include "asterisk/channel.h"
-#include "asterisk/module.h"
-#include "asterisk/options.h"
-#include "asterisk/pbx.h"
-#include "asterisk/config.h"
-#include "asterisk/cli.h"
-#include "asterisk/utils.h"
-#include "asterisk/causes.h"
-#include "asterisk/endian.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -32,6 +21,22 @@
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API
 #include <alsa/asoundlib.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
+#include "asterisk/frame.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/module.h"
+#include "asterisk/options.h"
+#include "asterisk/pbx.h"
+#include "asterisk/config.h"
+#include "asterisk/cli.h"
+#include "asterisk/utils.h"
+#include "asterisk/causes.h"
+#include "asterisk/endian.h"
 
 #include "busy.h"
 #include "ringtone.h"

@@ -9,6 +9,14 @@
  */
 
 #include <sys/types.h>
+#include <strings.h>
+#include <unistd.h>
+#include <time.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
@@ -16,10 +24,6 @@
 #include "asterisk/utils.h"
 #include "asterisk/manager.h"
 #include "asterisk/config.h"
-#include "asterisk.h"
-#include <strings.h>
-#include <unistd.h>
-#include <time.h>
 
 #define DATE_FORMAT 	"%Y-%m-%d %T"
 #define CONF_FILE	"cdr_manager.conf"

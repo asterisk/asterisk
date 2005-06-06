@@ -16,6 +16,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/vmodem.h"
 #include "asterisk/module.h"

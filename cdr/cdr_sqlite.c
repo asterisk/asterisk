@@ -14,18 +14,20 @@
  */
 
 #include <sys/types.h>
-#include "asterisk/channel.h"
-#include "asterisk/module.h"
-#include "asterisk/logger.h"
-#include "asterisk/utils.h"
-#include "asterisk.h"
-#include "astconf.h"
 
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sqlite.h>
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
+#include "asterisk/channel.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
+#include "asterisk/utils.h"
 
 #define LOG_UNIQUEID	0
 #define LOG_USERFIELD	0

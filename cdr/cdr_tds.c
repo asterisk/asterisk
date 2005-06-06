@@ -35,14 +35,6 @@ CREATE TABLE [dbo].[cdr] (
 */
 
 #include <sys/types.h>
-#include "asterisk/config.h"
-#include "asterisk/options.h"
-#include "asterisk/channel.h"
-#include "asterisk/cdr.h"
-#include "asterisk/module.h"
-#include "asterisk/logger.h"
-#include "asterisk.h"
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -53,6 +45,17 @@ CREATE TABLE [dbo].[cdr] (
 #include <tds.h>
 #include <tdsconvert.h>
 #include <ctype.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
+#include "asterisk/config.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/cdr.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
 
 #if !defined(TDS_INT_EXIT) 
 #define TDS_PRE_0_62

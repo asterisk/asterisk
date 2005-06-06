@@ -14,16 +14,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include "asterisk/lock.h"
-#include "asterisk/channel.h"
-#include "asterisk/config.h"
-#include "asterisk/logger.h"
-#include "asterisk/module.h"
-#include "asterisk/pbx.h"
-#include "asterisk/options.h"
-#include "asterisk/utils.h"
-#include "asterisk/callerid.h"
-#include "asterisk/causes.h"
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <errno.h>
@@ -39,6 +29,21 @@
 # include <linux/compiler.h>
 #endif
 #include <linux/ixjuser.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
+#include "asterisk/lock.h"
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/logger.h"
+#include "asterisk/module.h"
+#include "asterisk/pbx.h"
+#include "asterisk/options.h"
+#include "asterisk/utils.h"
+#include "asterisk/callerid.h"
+#include "asterisk/causes.h"
 #include "DialTone.h"
 
 #ifdef QTI_PHONEJACK_TJ_PCI	/* check for the newer quicknet driver v.3.1.0 which has this symbol */

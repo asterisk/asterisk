@@ -12,6 +12,10 @@
  *
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/config.h"
 #include "asterisk/logger.h"
 #include "asterisk/cli.h"

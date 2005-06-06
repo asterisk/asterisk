@@ -13,32 +13,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "asterisk/lock.h"
-#include "asterisk/channel.h"
-#include "asterisk/config.h"
-#include "asterisk/logger.h"
-#include "asterisk/module.h"
-#include "asterisk/pbx.h"
-#include "asterisk/options.h"
-#include "asterisk/file.h"
-#include "asterisk/ulaw.h"
-#include "asterisk/alaw.h"
-#include "asterisk/callerid.h"
-#include "asterisk/adsi.h"
-#include "asterisk/cli.h"
-#include "asterisk/cdr.h"
-#include "asterisk/features.h"
-#include "asterisk/musiconhold.h"
-#include "asterisk/say.h"
-#include "asterisk/tdd.h"
-#include "asterisk/app.h"
-#include "asterisk/dsp.h"
-#include "asterisk/astdb.h"
-#include "asterisk/manager.h"
-#include "asterisk/causes.h"
-#include "asterisk/term.h"
-#include "asterisk/utils.h"
-#include "asterisk/transcap.h"
 #include <sys/signal.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -66,6 +40,35 @@
 #endif
 
 #include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
+#include "asterisk/lock.h"
+#include "asterisk/channel.h"
+#include "asterisk/config.h"
+#include "asterisk/logger.h"
+#include "asterisk/module.h"
+#include "asterisk/pbx.h"
+#include "asterisk/options.h"
+#include "asterisk/file.h"
+#include "asterisk/ulaw.h"
+#include "asterisk/alaw.h"
+#include "asterisk/callerid.h"
+#include "asterisk/adsi.h"
+#include "asterisk/cli.h"
+#include "asterisk/cdr.h"
+#include "asterisk/features.h"
+#include "asterisk/musiconhold.h"
+#include "asterisk/say.h"
+#include "asterisk/tdd.h"
+#include "asterisk/app.h"
+#include "asterisk/dsp.h"
+#include "asterisk/astdb.h"
+#include "asterisk/manager.h"
+#include "asterisk/causes.h"
+#include "asterisk/term.h"
+#include "asterisk/utils.h"
+#include "asterisk/transcap.h"
 
 #ifndef ZT_SIG_EM_E1
 #error "Your zaptel is too old.  please cvs update"

@@ -15,12 +15,16 @@
  */
 
 #include <sys/types.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/channel.h"
 #include "asterisk/cdr.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
-#include "asterisk.h"
 
 #define CSV_LOG_DIR "/cdr-csv"
 #define CSV_MASTER  "/Master.csv"

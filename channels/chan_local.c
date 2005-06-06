@@ -13,6 +13,19 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/signal.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/channel.h"
 #include "asterisk/config.h"
@@ -31,14 +44,6 @@
 #include "asterisk/app.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/manager.h"
-#include <sys/socket.h>
-#include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/signal.h>
 
 static const char desc[] = "Local Proxy Channel";
 static const char type[] = "Local";

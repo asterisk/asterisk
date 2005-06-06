@@ -49,6 +49,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif   
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"

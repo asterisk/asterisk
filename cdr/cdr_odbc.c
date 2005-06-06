@@ -12,14 +12,6 @@
  */
 
 #include <sys/types.h>
-#include "asterisk/config.h"
-#include "asterisk/options.h"
-#include "asterisk/channel.h"
-#include "asterisk/cdr.h"
-#include "asterisk/module.h"
-#include "asterisk/logger.h"
-#include "asterisk.h"
-
 #include <stdio.h>
 #include <string.h>
 
@@ -30,6 +22,17 @@
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
+#include "asterisk/config.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/cdr.h"
+#include "asterisk/module.h"
+#include "asterisk/logger.h"
 
 #define DATE_FORMAT "%Y-%m-%d %T"
 

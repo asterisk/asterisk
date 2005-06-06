@@ -15,18 +15,6 @@
  * the GNU General Public License
  */
 
-#include "asterisk/lock.h"
-#include "asterisk/frame.h"
-#include "asterisk/logger.h"
-#include "asterisk/channel.h"
-#include "asterisk/module.h"
-#include "asterisk/options.h"
-#include "asterisk/pbx.h"
-#include "asterisk/config.h"
-#include "asterisk/cli.h"
-#include "asterisk/utils.h"
-#include "asterisk/causes.h"
-#include "asterisk/endian.h"
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -43,6 +31,24 @@
 #else
 #include <soundcard.h>
 #endif
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
+#include "asterisk/lock.h"
+#include "asterisk/frame.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/module.h"
+#include "asterisk/options.h"
+#include "asterisk/pbx.h"
+#include "asterisk/config.h"
+#include "asterisk/cli.h"
+#include "asterisk/utils.h"
+#include "asterisk/causes.h"
+#include "asterisk/endian.h"
+
 #include "busy.h"
 #include "ringtone.h"
 #include "ring10.h"

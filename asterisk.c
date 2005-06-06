@@ -153,9 +153,9 @@ static int restartnow = 0;
 static pthread_t consolethread = AST_PTHREADT_NULL;
 
 struct file_version {
-	const char *file;
-	const char *version;
 	AST_LIST_ENTRY(file_version) list;
+	const char *file;
+	char *version;
 };
 
 static AST_LIST_HEAD_STATIC(file_versions, file_version);
@@ -163,13 +163,20 @@ static AST_LIST_HEAD_STATIC(file_versions, file_version);
 void ast_register_file_version(const char *file, const char *version)
 {
 	struct file_version *new;
+	char *work;
+	size_t version_length;
 
-	new = calloc(1, sizeof(*new));
+	work = ast_strdupa(version);
+	work = ast_strip(ast_strip_quoted(work, "$", "$"));
+	version_length = strlen(work) + 1;
+
+	new = calloc(1, sizeof(*new) + version_length);
 	if (!new)
 		return;
 
 	new->file = file;
-	new->version = version;
+	new->version = (char *) new + sizeof(*new);
+	memcpy(new->version, work, version_length);
 	AST_LIST_LOCK(&file_versions);
 	AST_LIST_INSERT_HEAD(&file_versions, new, list);
 	AST_LIST_UNLOCK(&file_versions);
@@ -188,6 +195,8 @@ void ast_unregister_file_version(const char *file)
 	}
 	AST_LIST_TRAVERSE_SAFE_END;
 	AST_LIST_UNLOCK(&file_versions);
+	if (find)
+		free(find);
 }
 
 static char show_version_files_help[] = 
@@ -197,14 +206,42 @@ static char show_version_files_help[] =
 
 static int handle_show_version_files(int fd, int argc, char *argv[])
 {
+#define FORMAT "%-25.25s %-20.20s\n"
 	struct file_version *iterator;
+	regex_t regexbuf;
+	int havepattern = 0;
 
+	switch (argc) {
+	case 5:
+		if (!strcasecmp(argv[3], "like")) {
+			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
+				return RESULT_SHOWUSAGE;
+			havepattern = 1;
+		} else
+			return RESULT_SHOWUSAGE;
+		break;
+	case 3:
+		break;
+	default:
+		return RESULT_SHOWUSAGE;
+	}
+
+	ast_cli(fd, FORMAT, "File", "Revision");
+	ast_cli(fd, FORMAT, "----", "--------");
 	AST_LIST_LOCK(&file_versions);
 	AST_LIST_TRAVERSE(&file_versions, iterator, list) {
-		ast_cli(fd, "%-25.25s %-20.20s\n", iterator->file, iterator->version);
+		if (havepattern && regexec(&regexbuf, iterator->file, 0, NULL, 0))
+			continue;
+
+		ast_cli(fd, FORMAT, iterator->file, iterator->version);
 	}
 	AST_LIST_UNLOCK(&file_versions);
+
+	if (havepattern)
+		regfree(&regexbuf);
+
 	return RESULT_SUCCESS;
+#undef FORMAT
 }
 
 static char *complete_show_version_files(char *line, char *word, int pos, int state)

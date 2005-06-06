@@ -11,6 +11,10 @@
  * the GNU General Public License
  */
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION("$Revision$")
+
 #include "asterisk/lock.h"
 #include "asterisk/frame.h" 
 #include "asterisk/channel.h"
