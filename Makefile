@@ -3,9 +3,9 @@
 # 
 # Top level Makefile
 #
-# Copyright (C) 1999, Mark Spencer
+# Copyright (C) 1999-2005, Mark Spencer
 #
-# Mark Spencer <markster@linux-support.net>
+# Mark Spencer <markster@digium.com>
 #
 # This program is free software, distributed under the terms of
 # the GNU General Public License
@@ -401,12 +401,18 @@ defaults.h: FORCE
 	fi
 	rm -f $@.tmp
 
-include/asterisk/build.h: FORCE
+
+include/asterisk/build.h:
 	./make_build_h > $@.tmp
 	if ! cmp -s $@.tmp $@ ; then \
 		mv $@.tmp $@ ; \
 	fi
 	rm -f $@.tmp
+
+# only force 'build.h' to be made for a non-'install' run
+ifeq ($(findstring install,$(MAKECMDGOALS)),)
+include/asterisk/build.h: FORCE
+endif
 
 include/asterisk/version.h: FORCE
 	./make_version_h > $@.tmp
