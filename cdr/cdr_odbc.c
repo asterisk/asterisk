@@ -284,9 +284,6 @@ static int odbc_load_module(void)
 			res = -1;
 			goto out;
 		}
-	} else {
-		ast_log(LOG_WARNING,"cdr_odbc: username not specified.  Assuming root\n");
-		username = "root";
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","password");
@@ -301,9 +298,6 @@ static int odbc_load_module(void)
 			res = -1;
 			goto out;
 		}
-	} else {
-		ast_log(LOG_WARNING,"cdr_odbc: database password not specified.  Assuming blank\n");
-		password = "";
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","loguniqueid");
@@ -352,8 +346,13 @@ static int odbc_load_module(void)
 	ast_config_destroy(cfg);
 	if (option_verbose > 2) {
 		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: dsn is %s\n",dsn);
-		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: username is %s\n",username);
-		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: password is [secret]\n");
+		if (username)
+		{
+			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: username is %s\n",username);
+			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: password is [secret]\n");
+		}
+		else
+			ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: retreiving username and password from odbc config\n");
 		ast_verbose( VERBOSE_PREFIX_3 "cdr_odbc: table is %s\n",table);
 	}
 	
