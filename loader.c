@@ -574,7 +574,10 @@ int ast_update_module_list(int (*modentry)(const char *module, const char *descr
 		unlock = 0;
 	m = module_list;
 	while (m) {
-		total_mod_loaded += modentry(m->resource, m->description(), m->usecount(), m->version(), like);
+		char ver_string[80];
+
+		ast_copy_string(ver_string, m->version(), sizeof(ver_string));
+		total_mod_loaded += modentry(m->resource, m->description(), m->usecount(), ast_strip(ast_strip_quoted(ver_string, "$", "$")), like);
 		m = m->next;
 	}
 	if (unlock)
