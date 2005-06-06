@@ -4453,14 +4453,7 @@ int ast_async_goto_by_name(const char *channame, const char *context, const char
 	struct ast_channel *chan;
 	int res = -1;
 
-	chan = ast_channel_walk_locked(NULL);
-	while(chan) {
-		if (!strcasecmp(channame, chan->name))
-			break;
-		ast_mutex_unlock(&chan->lock);
-		chan = ast_channel_walk_locked(chan);
-	}
-	
+	chan = ast_get_channel_by_name_locked(channame);
 	if (chan) {
 		res = ast_async_goto(chan, context, exten, priority);
 		ast_mutex_unlock(&chan->lock);
@@ -5803,7 +5796,7 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 	char *value;
 	char *stringp=NULL;
 	char *channel;
-	struct ast_channel *chan2=NULL;
+	struct ast_channel *chan2;
 	char tmp[4096]="";
 	char *s;
 
@@ -5817,11 +5810,7 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 	channel = strsep(&stringp,"|"); 
 	value = strsep(&stringp,"\0");
 	if (channel && value && name) {
-		while((chan2 = ast_channel_walk_locked(chan2))) {
-			if (!strcmp(chan2->name, channel))
-				break;
-			ast_mutex_unlock(&chan2->lock);
-		}
+		chan2 = ast_get_channel_by_name_locked(channel);
 		if (chan2) {
 			s = alloca(strlen(value) + 4);
 			if (s) {

@@ -574,14 +574,7 @@ static int action_hangup(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, name)) {
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
+	c = ast_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -615,14 +608,7 @@ static int action_setvar(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, name)) {
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
+	c = ast_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -660,14 +646,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, name)) {
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
+	c = ast_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -702,25 +681,22 @@ static int action_status(struct mansession *s, struct message *m)
 	char bridge[256];
 	struct timeval now;
 	long elapsed_seconds=0;
+	int all = !name || ast_strlen_zero(name); /* set if we want all channels */
 
 	gettimeofday(&now, NULL);
 	astman_send_ack(s, m, "Channel status will follow");
-	c = ast_channel_walk_locked(NULL);
         if (id && !ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
-	if (name && !ast_strlen_zero(name)) {
-		while (c) {
-			if (!strcasecmp(c->name, name)) {
-				break;
-			}
-			ast_mutex_unlock(&c->lock);
-			c = ast_channel_walk_locked(c);
-		}
+	if (all)
+		c = ast_channel_walk_locked(NULL);
+	else {
+		c = ast_get_channel_by_name_locked(name);
 		if (!c) {
 			astman_send_error(s, m, "No such channel");
 			return 0;
 		}
 	}
+	/* if we look by name, we break after the first iteration */
 	while(c) {
 		if (c->_bridge)
 			snprintf(bridge, sizeof(bridge), "Link: %s\r\n", c->_bridge->name);
@@ -773,10 +749,8 @@ static int action_status(struct mansession *s, struct message *m)
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
 		ast_mutex_unlock(&s->lock);
-		ast_mutex_unlock(&c->lock);
-		if (name && !ast_strlen_zero(name)) {
+		if (!all)
 			break;
-		}
 		c = ast_channel_walk_locked(c);
 	}
 	ast_mutex_lock(&s->lock);
@@ -1175,14 +1149,7 @@ static int action_timeout(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No timeout specified");
 		return 0;
 	}
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, name)) {
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
+	c = ast_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;

@@ -76,13 +76,7 @@ static int action_setcdruserfield(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No UserField specified");
 		return 0;
 	}
-	c = ast_channel_walk_locked(NULL);
-	while (c) {
-		if (!strcasecmp(c->name, channel))
-			break;
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
+	c = ast_get_channel_by_name_locked(channel);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;

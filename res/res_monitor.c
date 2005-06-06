@@ -413,14 +413,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	c = ast_channel_walk_locked(NULL);
-	while (c) {
-		if (!strcasecmp(c->name, name)) {
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
+	c = ast_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -471,14 +464,7 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, name)) {
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
+	c = ast_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;
@@ -514,14 +500,7 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No filename specified");
 		return 0;
 	}
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, name)) {
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
+	c = ast_get_channel_by_name_locked(name);
 	if (!c) {
 		astman_send_error(s, m, "No such channel");
 		return 0;

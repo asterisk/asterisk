@@ -1661,10 +1661,9 @@ int load_module(void)
 
 int ast_pickup_call(struct ast_channel *chan)
 {
-	struct ast_channel *cur;
+	struct ast_channel *cur = NULL;
 	int res = -1;
-	cur = ast_channel_walk_locked(NULL);
-	while(cur) {
+	while ( (cur = ast_channel_walk_locked(cur)) != NULL) {
 		if (!cur->pbx && 
 			(cur != chan) &&
 			(chan->pickupgroup & cur->callgroup) &&
@@ -1673,7 +1672,6 @@ int ast_pickup_call(struct ast_channel *chan)
 			 	break;
 		}
 		ast_mutex_unlock(&cur->lock);
-		cur = ast_channel_walk_locked(cur);
 	}
 	if (cur) {
 		if (option_debug)

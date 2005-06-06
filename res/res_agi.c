@@ -960,19 +960,15 @@ static int handle_hangup(struct ast_channel *chan, AGI *agi, int argc, char **ar
 		ast_softhangup(chan,AST_SOFTHANGUP_EXPLICIT);
 		fdprintf(agi->fd, "200 result=1\n");
 		return RESULT_SUCCESS;
-        } else if (argc == 2) {
+	} else if (argc == 2) {
 		/* one argument: look for info on the specified channel */
-		c = ast_channel_walk_locked(NULL);
-		while (c) {
-			if (strcasecmp(argv[1], c->name) == 0) {
-				/* we have a matching channel */
-				ast_softhangup(c,AST_SOFTHANGUP_EXPLICIT);
-				fdprintf(agi->fd, "200 result=1\n");
-				ast_mutex_unlock(&c->lock);
-       				return RESULT_SUCCESS;
-			}
+		c = ast_get_channel_by_name_locked(argv[1]);
+		if (c) {
+			/* we have a matching channel */
+			ast_softhangup(c,AST_SOFTHANGUP_EXPLICIT);
+			fdprintf(agi->fd, "200 result=1\n");
 			ast_mutex_unlock(&c->lock);
-			c = ast_channel_walk_locked(c);
+			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
 		fdprintf(agi->fd, "200 result=-1\n");
@@ -1036,15 +1032,11 @@ static int handle_channelstatus(struct ast_channel *chan, AGI *agi, int argc, ch
 		return RESULT_SUCCESS;
 	} else if (argc == 3) {
 		/* one argument: look for info on the specified channel */
-		c = ast_channel_walk_locked(NULL);
-		while (c) {
-			if (strcasecmp(argv[2],c->name)==0) {
-				fdprintf(agi->fd, "200 result=%d\n", c->_state);
-				ast_mutex_unlock(&c->lock);
-				return RESULT_SUCCESS;
-			}
+		c = ast_get_channel_by_name_locked(argv[2]);
+		if (c) {
+			fdprintf(agi->fd, "200 result=%d\n", c->_state);
 			ast_mutex_unlock(&c->lock);
-			c = ast_channel_walk_locked(c);
+			return RESULT_SUCCESS;
 		}
 		/* if we get this far no channel name matched the argument given */
 		fdprintf(agi->fd, "200 result=-1\n");
@@ -1087,15 +1079,11 @@ static int handle_getvariablefull(struct ast_channel *chan, AGI *agi, int argc, 
 	if ((argc != 4) && (argc != 5))
 		return RESULT_SHOWUSAGE;
 	if (argc == 5) {
-		while((chan2 = ast_channel_walk_locked(chan2))) {
-			if (!strcmp(chan2->name, argv[4]))
-				break;
-			ast_mutex_unlock(&chan2->lock);
-		}
+		chan2 = ast_get_channel_by_name_locked(argv[4]);
 	} else {
 		chan2 = chan;
 	}
-	if (chan) {
+	if (chan) { /* XXX isn't this chan2 ? */
 		pbx_substitute_variables_helper(chan2, argv[3], tmp, sizeof(tmp) - 1);
 		fdprintf(agi->fd, "200 result=1 (%s)\n", tmp);
 	} else {

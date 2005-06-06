@@ -61,7 +61,11 @@
 #define MONITOR_DELAY	150 * 8		/* 150 ms of MONITORING DELAY */
 #endif
 
+/*
+ * Prevent new channel allocation if shutting down.
+ */
 static int shutting_down = 0;
+
 static int uniqueint = 0;
 
 unsigned long global_fin = 0, global_fout = 0;
@@ -71,12 +75,17 @@ unsigned long global_fin = 0, global_fout = 0;
 struct chanlist {
 	const struct ast_channel_tech *tech;
 	struct chanlist *next;
-} *backends = NULL;
-struct ast_channel *channels = NULL;
+};
 
-/* Protect the channel list (highly unlikely that two things would change
-   it at the same time, but still! */
-   
+static struct chanlist *backends = NULL;
+
+/*
+ * the list of channels we have
+ */
+static struct ast_channel *channels = NULL;
+
+/* Protect the channel list, both backends and channels.
+ */
 AST_MUTEX_DEFINE_STATIC(chlock);
 
 static int show_channeltypes(int fd, int argc, char *argv[])
@@ -514,72 +523,70 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
 		ast_clear_flag(chan, AST_FLAG_DEFER_DTMF);
 }
 
-/*--- ast_channel_walk_locked: Browse channels in use */
-struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev)
+/*
+ * Helper function to return the channel after prev, or the one matching name,
+ * with the channel's lock held. If getting the individual lock fails,
+ * unlock and retry quickly up to 10 times, then give up.
+ * 
+ * XXX Note that this code has cost O(N) because of the need to verify
+ * that the object is still on the global list.
+ *
+ * XXX also note that accessing fields (e.g. c->name in ast_log())
+ * can only be done with the lock held or someone could delete the
+ * object while we work on it. This causes some ugliness in the code.
+ * Note that removing the first ast_log() may be harmful, as it would
+ * shorten the retry period and possibly cause failures.
+ * We should definitely go for a better scheme that is deadlock-free.
+ */
+static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
+					       const char *name)
 {
-	/* Returns next channel (locked) */
-	struct ast_channel *l, *ret;
-	int retries = 0;	
-retry:
-	ret=NULL;
-	ast_mutex_lock(&chlock);
-	l = channels;
-	if (!prev) {
-		if (l) {
-			if (ast_mutex_trylock(&l->lock)) {
-				if (retries < 10)
-					ast_log(LOG_DEBUG, "Avoiding initial deadlock for '%s'\n", l->name);
-				else
-					ast_log(LOG_WARNING, "Avoided initial deadlock for '%s', %d retries!\n", l->name, retries);
-				ast_mutex_unlock(&chlock);
-				if (retries < 10) {
-					usleep(1);
-					retries++;
-					goto retry;
-				} else
-					return NULL;
+	const char *msg = prev ? "initial deadlock" : "deadlock";
+	int retries, done;
+	struct ast_channel *c;
+
+	for (retries = 0; retries < 10; retries++) {
+		ast_mutex_lock(&chlock);
+		for (c = channels; c; c = c->next) {
+			if (prev == NULL) {
+				/* want either head of list or match by name */
+				if (name == NULL || !strcasecmp(name, c->name))
+					break;
+			} else if (c == prev) { /* found, return c->next */
+				c = c->next;
+				break;
 			}
 		}
+		/* exit if chan not found or mutex acquired successfully */
+		done = (c == NULL) || (ast_mutex_trylock(&c->lock) == 0);
+		/* this is slightly unsafe, as we _should_ hold the lock to access c->name */
+		if (!done && c)
+			ast_log(LOG_DEBUG, "Avoiding %s for '%s'\n", msg, c->name);
 		ast_mutex_unlock(&chlock);
-		return l;
+		if (done)
+			return c;
+		usleep(1);
 	}
-	while(l) {
-		if (l == prev)
-			ret = l->next;
-		l = l->next;
-	}
-	if (ret) {
-		if (ast_mutex_trylock(&ret->lock)) {
-			if (retries < 10)
-				ast_log(LOG_DEBUG, "Avoiding deadlock for '%s'\n", ret->name);
-			else
-				ast_log(LOG_WARNING, "Avoided deadlock for '%s', %d retries!\n", ret->name, retries);
-			ast_mutex_unlock(&chlock);
-			if (retries < 10) {
-				usleep(1);
-				retries++;
-				goto retry;
-			} else
-				return NULL;
-		}
-	}
-	ast_mutex_unlock(&chlock);
-	return ret;
-	
+	/*
+ 	 * c is surely not null, but we don't have the lock so cannot
+	 * access c->name
+	 */
+	ast_log(LOG_WARNING, "Avoided %s for '%p', %d retries!\n",
+		msg, c, retries);
+
+	return NULL;
+}
+
+/*--- ast_channel_walk_locked: Browse channels in use */
+struct ast_channel *ast_channel_walk_locked(const struct ast_channel *prev)
+{
+	return channel_find_locked(prev, NULL);
 }
 
 /*--- ast_get_channel_by_name_locked: Get channel by name and lock it */
-struct ast_channel *ast_get_channel_by_name_locked(char *channame)
+struct ast_channel *ast_get_channel_by_name_locked(const char *name)
 {
-	struct ast_channel *chan;
-	chan = ast_channel_walk_locked(NULL);
-	while(chan) {
-		if (!strcasecmp(chan->name, channame))
-			return chan;
-		ast_mutex_unlock(&chan->lock);
-		chan = ast_channel_walk_locked(chan);
-	}
-	return NULL;
+	return channel_find_locked(NULL, name);
 }
 
 /*--- ast_safe_sleep_conditional: Wait, look for hangups and condition arg */

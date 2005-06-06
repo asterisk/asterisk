@@ -962,10 +962,11 @@ static void ast_moh_destroy(void)
 	ast_mutex_unlock(&moh_lock);
 }
 
-static void moh_on_off(int on) {
-	struct ast_channel *chan = ast_channel_walk_locked(NULL);
+static void moh_on_off(int on)
+{
+	struct ast_channel *chan = NULL;
 
-	while (chan) {
+	while ( (chan = ast_channel_walk_locked(chan)) != NULL) {
 		if (ast_test_flag(chan, AST_FLAG_MOH)) {
 			if (on)
 				local_ast_moh_start(chan, NULL);
@@ -973,7 +974,6 @@ static void moh_on_off(int on) {
 				ast_deactivate_generator(chan);
 		}
 		ast_mutex_unlock(&chan->lock);
-		chan = ast_channel_walk_locked(chan);
 	}
 }
 

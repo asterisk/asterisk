@@ -1013,22 +1013,20 @@ int ast_app_group_get_count(char *group, char *category)
 	int count = 0;
 	char *test;
 	char cat[80] = "";
+	char *s;
 
-	if (category && !ast_strlen_zero(category)) {
-		ast_copy_string(cat, category, sizeof(cat));
-	} else {
-		ast_copy_string(cat, GROUP_CATEGORY_PREFIX, sizeof(cat));
-	}
+	if (group == NULL || ast_strlen_zero(group))
+		return 0;
 
-	if (group && !ast_strlen_zero(group)) {
-		chan = ast_channel_walk_locked(NULL);
-		while(chan) {
-			test = pbx_builtin_getvar_helper(chan, cat);
-			if (test && !strcasecmp(test, group))
-				count++;
-			ast_mutex_unlock(&chan->lock);
-			chan = ast_channel_walk_locked(chan);
-		}
+ 	s = (category && !ast_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+	ast_copy_string(cat, s, sizeof(cat));
+
+	chan = NULL;
+	while ((chan = ast_channel_walk_locked(chan)) != NULL) {
+ 		test = pbx_builtin_getvar_helper(chan, cat);
+		if (test && !strcasecmp(test, group))
+ 			count++;
+		ast_mutex_unlock(&chan->lock);
 	}
 
 	return count;
@@ -1041,6 +1039,7 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 	int count = 0;
 	char *test;
 	char cat[80] = "";
+	char *s;
 
 	if (!groupmatch || ast_strlen_zero(groupmatch))
 		return 0;
@@ -1049,14 +1048,11 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	if (category && !ast_strlen_zero(category)) {
-		ast_copy_string(cat, category, sizeof(cat));
-	} else {
-		ast_copy_string(cat, GROUP_CATEGORY_PREFIX, sizeof(cat));
-	}
+	s = (category && !ast_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+	ast_copy_string(cat, s, sizeof(cat));
 
-	chan = ast_channel_walk_locked(NULL);
-	while(chan) {
+	chan = NULL;
+	while ((chan = ast_channel_walk_locked(chan)) != NULL) {
 		test = pbx_builtin_getvar_helper(chan, cat);
 		if (test && !regexec(&regexbuf, test, 0, NULL, 0))
 			count++;

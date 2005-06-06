@@ -174,9 +174,8 @@ static int group_show_channels(int fd, int argc, char *argv[])
 		havepattern = 1;
 	}
 
-	c = ast_channel_walk_locked(NULL);
 	ast_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
-	while(c) {
+	while ( (c = ast_channel_walk_locked(c)) != NULL) {
 		headp=&c->varshead;
 		AST_LIST_TRAVERSE(headp,current,entries) {
 			if (!strncmp(ast_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
@@ -194,7 +193,6 @@ static int group_show_channels(int fd, int argc, char *argv[])
 		}
 		numchans++;
 		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
 	}
 
 	if (havepattern)

@@ -412,10 +412,9 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	
 	concise = (argc == 3 && (!strcasecmp(argv[2],"concise")));
-	c = ast_channel_walk_locked(NULL);
 	if(!concise)
 		ast_cli(fd, FORMAT_STRING2, "Channel", "Context", "Extension", "Pri", "State", "Appl.", "Data");
-	while(c) {
+	while ( (c = ast_channel_walk_locked(c)) != NULL) {
 		if(concise)
 			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
 					c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "" ): "",
@@ -427,7 +426,6 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 
 		numchans++;
 		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
 	}
 	if(!concise) {
 		ast_cli(fd, "%d active channel(s)\n", numchans);
@@ -476,18 +474,12 @@ static int handle_softhangup(int fd, int argc, char *argv[])
 	struct ast_channel *c=NULL;
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, argv[2])) {
-			ast_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
-			ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
-			ast_mutex_unlock(&c->lock);
-			break;
-		}
+	c = ast_get_channel_by_name_locked(argv[2]);
+	if (c) {
+		ast_cli(fd, "Requested Hangup on channel '%s'\n", c->name);
+		ast_softhangup(c, AST_SOFTHANGUP_EXPLICIT);
 		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
-	if (!c) 
+	} else
 		ast_cli(fd, "%s is not a known channel\n", argv[2]);
 	return RESULT_SUCCESS;
 }
@@ -601,6 +593,8 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+#define	DEBUGCHAN_FLAG	0x80000000
+/* XXX todo: merge next two functions!!! */
 static int handle_debugchan(int fd, int argc, char *argv[])
 {
 	struct ast_channel *c=NULL;
@@ -610,31 +604,26 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 
 	is_all = !strcasecmp("all", argv[2]);
 	if (is_all) {
-		global_fin |= 0x80000000;
-		global_fout |= 0x80000000;
-	}
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (is_all || !strcasecmp(c->name, argv[2])) {
-			if (!(c->fin & 0x80000000) || !(c->fout & 0x80000000)) {
-				c->fin |= 0x80000000;
-				c->fout |= 0x80000000;
-				ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
-			}
-			if (!is_all)
-				break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
-	if (!is_all) {
-		if (c)
-			ast_mutex_unlock(&c->lock);
-		else
+		global_fin |= DEBUGCHAN_FLAG;
+		global_fout |= DEBUGCHAN_FLAG;
+		c = ast_channel_walk_locked(NULL);
+	} else {
+		c = ast_get_channel_by_name_locked(argv[2]);
+		if (c == NULL)
 			ast_cli(fd, "No such channel %s\n", argv[2]);
 	}
-	else
-		ast_cli(fd, "Debugging on new channels is enabled\n");
+	while(c) {
+		if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
+			c->fin |= DEBUGCHAN_FLAG;
+			c->fout |= DEBUGCHAN_FLAG;
+			ast_cli(fd, "Debugging enabled on channel %s\n", c->name);
+		}
+		ast_mutex_unlock(&c->lock);
+		if (!is_all)
+			break;
+		c = ast_channel_walk_locked(c);
+	}
+	ast_cli(fd, "Debugging on new channels is enabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -646,31 +635,26 @@ static int handle_nodebugchan(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	is_all = !strcasecmp("all", argv[3]);
 	if (is_all) {
-		global_fin &= ~0x80000000;
-		global_fout &= ~0x80000000;
-	}
-	c = ast_channel_walk_locked(NULL);
+		global_fin &= ~DEBUGCHAN_FLAG;
+		global_fout &= ~DEBUGCHAN_FLAG;
+		c = ast_channel_walk_locked(NULL);
+	} else {
+		c = ast_get_channel_by_name_locked(argv[3]);
+		if (c == NULL)
+			ast_cli(fd, "No such channel %s\n", argv[3]);
+    }
 	while(c) {
-		if (is_all || !strcasecmp(c->name, argv[3])) {
-			if ((c->fin & 0x80000000) || (c->fout & 0x80000000)) {
-				c->fin &= 0x7fffffff;
-				c->fout &= 0x7fffffff;
-				ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
-			}
-			if (!is_all)
-				break;
+		if ((c->fin & DEBUGCHAN_FLAG) || (c->fout & DEBUGCHAN_FLAG)) {
+			c->fin &= ~DEBUGCHAN_FLAG;
+			c->fout &= ~DEBUGCHAN_FLAG;
+			ast_cli(fd, "Debugging disabled on channel %s\n", c->name);
 		}
 		ast_mutex_unlock(&c->lock);
+		if (!is_all)
+			break;
 		c = ast_channel_walk_locked(c);
 	}
-	if (!is_all) {
-		if (c)
-			ast_mutex_unlock(&c->lock);
-		else
-			ast_cli(fd, "No such channel %s\n", argv[3]);
-	}
-	else
-		ast_cli(fd, "Debugging on new channels is disabled\n");
+	ast_cli(fd, "Debugging on new channels is disabled\n");
 	return RESULT_SUCCESS;
 }
 		
@@ -688,94 +672,86 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	gettimeofday(&now, NULL);
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, argv[2])) {
-			if(c->cdr) {
-				elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
-				hour = elapsed_seconds / 3600;
-				min = (elapsed_seconds % 3600) / 60;
-				sec = elapsed_seconds % 60;
-				snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
-			} else
-				strncpy(cdrtime, "N/A", sizeof(cdrtime) -1);
-			ast_cli(fd, 
-				" -- General --\n"
-				"           Name: %s\n"
-				"           Type: %s\n"
-				"       UniqueID: %s\n"
-				"      Caller ID: %s\n"
-				" Caller ID Name: %s\n"
-				"    DNID Digits: %s\n"
-				"          State: %s (%d)\n"
-				"          Rings: %d\n"
-				"   NativeFormat: %d\n"
-				"    WriteFormat: %d\n"
-				"     ReadFormat: %d\n"
-				"1st File Descriptor: %d\n"
-				"      Frames in: %d%s\n"
-				"     Frames out: %d%s\n"
-				" Time to Hangup: %ld\n"
-				"   Elapsed Time: %s\n"
-				"  Direct Bridge: %s\n"
-				"Indirect Bridge: %s\n"
-				" --   PBX   --\n"
-				"        Context: %s\n"
-				"      Extension: %s\n"
-				"       Priority: %d\n"
-				"     Call Group: %d\n"
-				"   Pickup Group: %d\n"
-				"    Application: %s\n"
-				"           Data: %s\n"
-				"    Blocking in: %s\n",
-				c->name, c->type, c->uniqueid,
-				(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
-				(c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
-				(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
-				c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
-				c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
-				cdrtime, c->_bridge ? c->_bridge->name : "<none>", ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 
-				c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
-				( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
-				(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
-			
-				if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
-					ast_cli(fd,"      Variables:\n%s\n",buf);
-				if(c->cdr && ast_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
-					ast_cli(fd,"  CDR Variables:\n%s\n",buf);
-
-			ast_mutex_unlock(&c->lock);
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
-	if (!c) 
+	c = ast_get_channel_by_name_locked(argv[2]);
+	if (!c) {
 		ast_cli(fd, "%s is not a known channel\n", argv[2]);
+		return RESULT_SUCCESS;
+	}
+	if(c->cdr) {
+		elapsed_seconds = now.tv_sec - c->cdr->start.tv_sec;
+		hour = elapsed_seconds / 3600;
+		min = (elapsed_seconds % 3600) / 60;
+		sec = elapsed_seconds % 60;
+		snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
+	} else
+		strncpy(cdrtime, "N/A", sizeof(cdrtime) -1);
+	ast_cli(fd, 
+		" -- General --\n"
+		"           Name: %s\n"
+		"           Type: %s\n"
+		"       UniqueID: %s\n"
+		"      Caller ID: %s\n"
+		" Caller ID Name: %s\n"
+		"    DNID Digits: %s\n"
+		"          State: %s (%d)\n"
+		"          Rings: %d\n"
+		"   NativeFormat: %d\n"
+		"    WriteFormat: %d\n"
+		"     ReadFormat: %d\n"
+		"1st File Descriptor: %d\n"
+		"      Frames in: %d%s\n"
+		"     Frames out: %d%s\n"
+		" Time to Hangup: %ld\n"
+		"   Elapsed Time: %s\n"
+		"  Direct Bridge: %s\n"
+		"Indirect Bridge: %s\n"
+		" --   PBX   --\n"
+		"        Context: %s\n"
+		"      Extension: %s\n"
+		"       Priority: %d\n"
+		"     Call Group: %d\n"
+		"   Pickup Group: %d\n"
+		"    Application: %s\n"
+		"           Data: %s\n"
+		"    Blocking in: %s\n",
+		c->name, c->type, c->uniqueid,
+		(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
+		(c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
+		(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
+		c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
+		c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
+		cdrtime, c->_bridge ? c->_bridge->name : "<none>", ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 
+		c->context, c->exten, c->priority, c->callgroup, c->pickupgroup, ( c->appl ? c->appl : "(N/A)" ),
+		( c-> data ? (!ast_strlen_zero(c->data) ? c->data : "(Empty)") : "(None)"),
+		(ast_test_flag(c, AST_FLAG_BLOCKING) ? c->blockproc : "(Not Blocking)"));
+	
+	if(pbx_builtin_serialize_variables(c,buf,sizeof(buf)))
+		ast_cli(fd,"      Variables:\n%s\n",buf);
+	if(c->cdr && ast_cdr_serialize_variables(c->cdr,buf, sizeof(buf), '=', '\n', 1))
+		ast_cli(fd,"  CDR Variables:\n%s\n",buf);
+	
+	ast_mutex_unlock(&c->lock);
 	return RESULT_SUCCESS;
 }
 
 static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
 {
-	struct ast_channel *c;
+	struct ast_channel *c = NULL;
 	int which=0;
-	char *ret;
+	char *ret = NULL;
+
 	if (pos != rpos)
 		return NULL;
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
+	while ( (c = ast_channel_walk_locked(c)) != NULL) {
 		if (!strncasecmp(word, c->name, strlen(word))) {
-			if (++which > state)
+			if (++which > state) {
+				ret = strdup(c->name);
+				ast_mutex_unlock(&c->lock);
 				break;
+			}
 		}
 		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
 	}
-	if (c) {
-		ret = strdup(c->name);
-		ast_mutex_unlock(&c->lock);
-	} else
-		ret = NULL;
 	return ret;
 }
 

@@ -744,10 +744,10 @@ int ast_recvchar(struct ast_channel *chan, int timeout);
  * Returns the next channel in the list, NULL on end.
  * If it returns a channel, that channel *has been locked*!
  */
-struct ast_channel *ast_channel_walk_locked(struct ast_channel *prev);
+struct ast_channel *ast_channel_walk_locked(const struct ast_channel *prev);
 
 /*! Get channel by name (locks channel) */
-struct ast_channel *ast_get_channel_by_name_locked(char *channame);
+struct ast_channel *ast_get_channel_by_name_locked(const char *chan);
 
 /*! Waits for a digit */
 /*! 

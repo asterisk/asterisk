@@ -64,15 +64,7 @@ static struct ast_channel *get_zap_channel_locked(int num) {
 	char name[80];
 	
 	snprintf(name,sizeof(name),"Zap/%d-1",num);
-	c = ast_channel_walk_locked(NULL);
-	while(c) {
-		if (!strcasecmp(c->name, name)) {
-			break;
-		}
-		ast_mutex_unlock(&c->lock);
-		c = ast_channel_walk_locked(c);
-	}
-	return c;
+	return ast_get_channel_by_name_locked(name);
 }
 
 static int careful_write(int fd, unsigned char *data, int len)

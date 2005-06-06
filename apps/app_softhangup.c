@@ -60,6 +60,7 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 	while (c) {
 		strncpy(name, c->name, sizeof(name)-1);
 		ast_mutex_unlock(&c->lock);
+		/* XXX watch out, i think it is wrong to access c-> after unlocking! */
 		if (all) {
 			/* CAPI is set up like CAPI[foo/bar]/clcnt */ 
 			if (!strcmp(c->type,"CAPI")) 
