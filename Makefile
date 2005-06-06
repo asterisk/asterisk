@@ -727,7 +727,7 @@ spec:
 
 rpm: __rpm
 
-__rpm: _version spec
+__rpm: include/asterisk/version.h spec
 	rm -rf /tmp/asterisk ; \
 	mkdir -p /tmp/asterisk/redhat/RPMS/i386 ; \
 	$(MAKE) DESTDIR=/tmp/asterisk install ; \
