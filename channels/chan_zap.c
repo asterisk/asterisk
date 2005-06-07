@@ -368,42 +368,42 @@ static int r2prot = -1;
 struct zt_pri {
 	pthread_t master;						/* Thread of master */
 	ast_mutex_t lock;						/* Mutex */
-	char idleext[AST_MAX_EXTENSION];		/* Where to idle extra calls */
-	char idlecontext[AST_MAX_EXTENSION];	/* What context to use for idle */
-	char idledial[AST_MAX_EXTENSION];		/* What to dial before dumping */
+	char idleext[AST_MAX_EXTENSION];				/* Where to idle extra calls */
+	char idlecontext[AST_MAX_EXTENSION];				/* What context to use for idle */
+	char idledial[AST_MAX_EXTENSION];				/* What to dial before dumping */
 	int minunused;							/* Min # of channels to keep empty */
 	int minidle;							/* Min # of "idling" calls to keep active */
 	int nodetype;							/* Node type */
 	int switchtype;							/* Type of switch to emulate */
-	int nsf;								/* Network-Specific Facilities */
+	int nsf;							/* Network-Specific Facilities */
 	int dialplan;							/* Dialing plan */
 	int localdialplan;						/* Local dialing plan */
-	char internationalprefix[10];			/* country access code ('00' for european dialplans) */
-	char nationalprefix[10];				/* area access code ('0' for european dialplans) */
-	char localprefix[20];					/* area access code + area code ('0'+area code for european dialplans) */
-	char privateprefix[20];					/* for private dialplans */
-	char unknownprefix[20];					/* for unknown dialplans */
-	int dchannels[NUM_DCHANS];				/* What channel are the dchannels on */
+	char internationalprefix[10];					/* country access code ('00' for european dialplans) */
+	char nationalprefix[10];					/* area access code ('0' for european dialplans) */
+	char localprefix[20];						/* area access code + area code ('0'+area code for european dialplans) */
+	char privateprefix[20];						/* for private dialplans */
+	char unknownprefix[20];						/* for unknown dialplans */
+	int dchannels[NUM_DCHANS];					/* What channel are the dchannels on */
 	int trunkgroup;							/* What our trunkgroup is */
-	int mastertrunkgroup;					/* What trunk group is our master */
+	int mastertrunkgroup;						/* What trunk group is our master */
 	int prilogicalspan;						/* Logical span number within trunk group */
 	int numchans;							/* Num of channels we represent */
 	int overlapdial;						/* In overlap dialing mode */
 	int facilityenable;						/* Enable facility IEs */
-	struct pri *dchans[NUM_DCHANS];			/* Actual d-channels */
-	int dchanavail[NUM_DCHANS];				/* Whether each channel is available */
+	struct pri *dchans[NUM_DCHANS];					/* Actual d-channels */
+	int dchanavail[NUM_DCHANS];					/* Whether each channel is available */
 	struct pri *pri;						/* Currently active D-channel */
 	int debug;
-	int fds[NUM_DCHANS];					/* FD's for d-channels */
+	int fds[NUM_DCHANS];						/* FD's for d-channels */
 	int offset;
 	int span;
 	int resetting;
 	int resetpos;
 	time_t lastreset;						/* time when unused channels were last reset */
 	long resetinterval;						/* Interval (in seconds) for resetting unused channels */
-	struct zt_pvt *pvts[MAX_CHANNELS];		/* Member channel pvt structs */
-	struct zt_pvt *crvs;					/* Member CRV structs */
-	struct zt_pvt *crvend;					/* Pointer to end of CRV structs */
+	struct zt_pvt *pvts[MAX_CHANNELS];				/* Member channel pvt structs */
+	struct zt_pvt *crvs;						/* Member CRV structs */
+	struct zt_pvt *crvend;						/* Pointer to end of CRV structs */
 };
 
 
@@ -466,14 +466,14 @@ struct zt_subchannel {
 	int chan;
 	short buffer[AST_FRIENDLY_OFFSET/2 + READ_SIZE];
 	struct ast_frame f;		/* One frame for each channel.  How did this ever work before? */
-	int needringing;
-	int needbusy;
-	int needcongestion;
-	int needcallerid;
-	int needanswer;
-	int needflash;
-	int linear;
-	int inthreeway;
+	unsigned int needringing:1;
+	unsigned int needbusy:1;
+	unsigned int needcongestion:1;
+	unsigned int needcallerid:1;
+	unsigned int needanswer:1;
+	unsigned int needflash:1;
+	unsigned int linear:1;
+	unsigned int inthreeway:1;
 	ZT_CONFINFO curconf;
 };
 
@@ -484,28 +484,80 @@ struct zt_subchannel {
 
 static struct zt_pvt {
 	ast_mutex_t lock;
-	struct ast_channel *owner;	/* Our current active owner (if applicable) */
-		/* Up to three channels can be associated with this call */
+	struct ast_channel *owner;			/* Our current active owner (if applicable) */
+							/* Up to three channels can be associated with this call */
 		
-	struct zt_subchannel sub_unused;	/* Just a safety precaution */
-	struct zt_subchannel subs[3];	/* Sub-channels */
-	struct zt_confinfo saveconf;	/* Saved conference info */
+	struct zt_subchannel sub_unused;		/* Just a safety precaution */
+	struct zt_subchannel subs[3];			/* Sub-channels */
+	struct zt_confinfo saveconf;			/* Saved conference info */
 
-	struct zt_pvt *slaves[MAX_SLAVES];	/* Slave to us (follows our conferencing) */
-	struct zt_pvt *master;	/* Master to us (we follow their conferencing) */
-	int inconference;		/* If our real should be in the conference */
+	struct zt_pvt *slaves[MAX_SLAVES];		/* Slave to us (follows our conferencing) */
+	struct zt_pvt *master;				/* Master to us (we follow their conferencing) */
+	int inconference;				/* If our real should be in the conference */
 	
 	int sig;					/* Signalling style */
-	int radio;				/* radio type */
-	int firstradio;				/* first radio flag */
+	int radio;					/* radio type */
 	float rxgain;
 	float txgain;
-	int tonezone;				/* tone zone for this chan, or -1 for default */
-	struct zt_pvt *next;			/* Next channel in list */
-	struct zt_pvt *prev;			/* Prev channel in list */
+	int tonezone;					/* tone zone for this chan, or -1 for default */
+	struct zt_pvt *next;				/* Next channel in list */
+	struct zt_pvt *prev;				/* Prev channel in list */
+
+	/* flags */
+	unsigned int adsi:1;
+	unsigned int answeronpolarityswitch:1;
+	unsigned int busydetect:1;
+	unsigned int callreturn:1;
+	unsigned int callwaiting:1;
+	unsigned int callwaitingcallerid:1;
+	unsigned int cancallforward:1;
+	unsigned int canpark:1;
+	unsigned int confirmanswer:1;			/* Wait for '#' to confirm answer */
+	unsigned int destroy:1;
+	unsigned int didtdd:1;				/* flag to say its done it once */
+	unsigned int dialednone:1;
+	unsigned int dialing:1;
+	unsigned int digital:1;
+	unsigned int dnd:1;
+	unsigned int echobreak:1;
+	unsigned int echocanbridged:1;
+	unsigned int echocanon:1;
+	unsigned int faxhandled:1;			/* Has a fax tone already been handled? */
+	unsigned int firstradio:1;
+	unsigned int hanguponpolarityswitch:1;
+	unsigned int hidecallerid;
+	unsigned int ignoredtmf:1;
+	unsigned int immediate:1;			/* Answer before getting digits? */
+	unsigned int inalarm:1;
+	unsigned int mate:1;				/* flag to say its in MATE mode */
+	unsigned int outgoing:1;
+	unsigned int overlapdial:1;
+	unsigned int permcallwaiting:1;
+	unsigned int permhidecallerid:1;		/* Whether to hide our outgoing caller ID or not */
+	unsigned int priindication_oob:1;
+	unsigned int pulse:1;
+	unsigned int pulsedial:1;			/* whether a pulse dial phone is detected */
+	unsigned int restrictcid:1;			/* Whether restrict the callerid -> only send ANI */
+	unsigned int threewaycalling:1;
+	unsigned int transfer:1;
+	unsigned int use_callerid:1;			/* Whether or not to use caller id on this channel */
+	unsigned int use_callingpres:1;			/* Whether to use the callingpres the calling switch sends */
+	unsigned int usedistinctiveringdetection:1;
+	unsigned int zaptrcallerid:1;			/* should we use the callerid from incoming call on zap transfer or not */
+#if defined(ZAPATA_PRI)
+	unsigned int alerting:1;
+	unsigned int alreadyhungup:1;
+	unsigned int isidlecall:1;
+	unsigned int resetting:1;
+	unsigned int setup_ack:1;
+#endif
+#if defined(ZAPATA_R2)
+	unsigned int hasr2call:1;
+	unsigned int r2blocked:1;
+	unsigned int sigchecked:1;
+#endif
 
 	struct zt_distRings drings;
-	int usedistinctiveringdetection;
 
 	char context[AST_MAX_EXTENSION];
 	char defcontext[AST_MAX_EXTENSION];
@@ -513,12 +565,12 @@ static struct zt_pvt {
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_LANGUAGE];
 	char cid_num[AST_MAX_EXTENSION];
-	int cid_ton;				/* Type Of Number (TON) */
+	int cid_ton;					/* Type Of Number (TON) */
 	char cid_name[AST_MAX_EXTENSION];
 	char lastcid_num[AST_MAX_EXTENSION];
 	char lastcid_name[AST_MAX_EXTENSION];
-	char *origcid_num;			/* malloced original callerid */
-	char *origcid_name;			/* malloced original callerid */
+	char *origcid_num;				/* malloced original callerid */
+	char *origcid_name;				/* malloced original callerid */
 	char callwait_num[AST_MAX_EXTENSION];
 	char callwait_name[AST_MAX_EXTENSION];
 	char rdnis[AST_MAX_EXTENSION];
@@ -526,89 +578,49 @@ static struct zt_pvt {
 	unsigned int group;
 	int law;
 	int confno;					/* Our conference */
-	int confusers;				/* Who is using our conference */
-	int propconfno;				/* Propagated conference number */
+	int confusers;					/* Who is using our conference */
+	int propconfno;					/* Propagated conference number */
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
-	int immediate;				/* Answer before getting digits? */
-	int channel;				/* Channel Number or CRV */
+	int channel;					/* Channel Number or CRV */
 	int span;					/* Span number */
-	int dialing;
-	time_t guardtime;			/* Must wait this much time before using for new call */
-	int dialednone;
-	int use_callerid;			/* Whether or not to use caller id on this channel */
-	int cid_signalling;			/* CID signalling type bell202 or v23 */
-	int cid_start;				/* CID start indicator, polarity or ring */
-	int hidecallerid;
-	int callreturn;
-	int permhidecallerid;		/* Whether to hide our outgoing caller ID or not */
-	int restrictcid;			/* Whether restrict the callerid -> only send ANI */
-	int use_callingpres;		/* Whether to use the callingpres the calling switch sends */
-	int callingpres;			/* The value of callling presentation that we're going to use when placing a PRI call */
-	int callwaitingrepeat;		/* How many samples to wait before repeating call waiting */
-	int cidcwexpire;			/* When to expire our muting for CID/CW */
+	time_t guardtime;				/* Must wait this much time before using for new call */
+	int cid_signalling;				/* CID signalling type bell202 or v23 */
+	int cid_start;					/* CID start indicator, polarity or ring */
+	int callingpres;				/* The value of callling presentation that we're going to use when placing a PRI call */
+	int callwaitingrepeat;				/* How many samples to wait before repeating call waiting */
+	int cidcwexpire;				/* When to expire our muting for CID/CW */
 	unsigned char *cidspill;
 	int cidpos;
 	int cidlen;
 	int ringt;
 	int stripmsd;
-	int callwaiting;
 	int callwaitcas;
 	int callwaitrings;
 	int echocancel;
 	int echotraining;
-	int pulse;
-	int echocanbridged;
-	int echocanon;
-	int echobreak;
 	char echorest[20];
-	int permcallwaiting;
-	int callwaitingcallerid;
-	int threewaycalling;
-	int transfer;
-	int canpark;
-	int digital;
-	int outgoing;
-	int dnd;
-	int busydetect;
 	int busycount;
 	int callprogress;
-	int priindication_oob;
-	struct timeval flashtime;	/* Last flash-hook time */
+	struct timeval flashtime;			/* Last flash-hook time */
 	struct ast_dsp *dsp;
 	int cref;					/* Call reference number */
 	ZT_DIAL_OPERATION dop;
-	int whichwink;			/* SIG_FEATDMF_TA Which wink are we on? */
+	int whichwink;					/* SIG_FEATDMF_TA Which wink are we on? */
 	char finaldial[64];
-	int destroy;
-	int ignoredtmf;				
-	int inalarm;
 	char accountcode[AST_MAX_ACCOUNT_CODE];		/* Account code */
-	int amaflags;				/* AMA Flags */
-	char didtdd;				/* flag to say its done it once */
-	struct tdd_state *tdd;		/* TDD flag */
-	int adsi;
-	int cancallforward;
+	int amaflags;					/* AMA Flags */
+	struct tdd_state *tdd;				/* TDD flag */
 	char call_forward[AST_MAX_EXTENSION];
 	char mailbox[AST_MAX_EXTENSION];
 	char dialdest[256];
 	int onhooktime;
 	int msgstate;
-	
-	int confirmanswer;			/* Wait for '#' to confirm answer */
-	int distinctivering;		/* Which distinctivering to use */
-	int cidrings;				/* Which ring to deliver CID on */
-	
-	int faxhandled;				/* Has a fax tone already been handled? */
-	
-	char mate;					/* flag to say its in MATE mode */
-	int pulsedial;				/* whether a pulse dial phone is detected */
-	int dtmfrelax;				/* whether to run in relaxed DTMF mode */
+	int distinctivering;				/* Which distinctivering to use */
+	int cidrings;					/* Which ring to deliver CID on */
+	int dtmfrelax;					/* whether to run in relaxed DTMF mode */
 	int fake_event;
-	int zaptrcallerid;			/* should we use the callerid from incoming call on zap transfer or not */
 	int emdigitwait;
-	int answeronpolarityswitch;
-	int hanguponpolarityswitch;
 	int polarityonanswerdelay;
 	struct timeval polaritydelaytv;
 	int sendcalleridafter;
@@ -617,24 +629,17 @@ static struct zt_pvt {
 	struct zt_pvt *bearer;
 	struct zt_pvt *realcall;
 	q931_call *call;
-	int isidlecall;
-	int resetting;
 	int prioffset;
 	int logicalspan;
-	int alreadyhungup;
 	int proceeding;
-	int alerting;
-	int setup_ack;				/* whether we received SETUP_ACKNOWLEDGE or not */
 	int dsp_features;
 #endif	
 #ifdef ZAPATA_R2
 	int r2prot;
 	mfcr2_t *r2;
-	int hasr2call;
-	int r2blocked;
-	int sigchecked;
 #endif	
 	int polarity;
+
 } *iflist = NULL, *ifend = NULL;
 
 static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause);
@@ -4209,7 +4214,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 			p->subs[index].linear = 0;
 			res = zt_setlinear(p->subs[index].zfd, p->subs[index].linear);
 			if (res) 
-				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to campanded mode.\n", p->channel, index);
+				ast_log(LOG_WARNING, "Unable to set channel %d (index %d) to companded mode.\n", p->channel, index);
 		}
 	} else {
 		ast_log(LOG_WARNING, "Don't know how to read frames in format %s\n", ast_getformatname(ast->rawreadformat));
