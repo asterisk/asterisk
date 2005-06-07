@@ -65,7 +65,6 @@ LOCAL_USER_DECL;
 #define CONF_SIZE 160
 
 static struct ast_channel *get_zap_channel_locked(int num) {
-	struct ast_channel *c=NULL;
 	char name[80];
 	
 	snprintf(name,sizeof(name),"Zap/%d-1",num);

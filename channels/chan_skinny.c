@@ -866,12 +866,12 @@ static struct skinny_device {
 	struct skinny_device *next;
 } *devices = NULL;
 
-static struct skinny_paging_device {
+struct skinny_paging_device {
 	char name[80];
 	char id[16];
 	struct skinny_device ** devices;
 	struct skinny_paging_device *next;
-} *paging_devices = NULL;
+};
 
 static struct skinnysession {
 	pthread_t t;
@@ -3118,7 +3118,6 @@ static int reload_config(void)
 	char *cat;
 	char iabuf[INET_ADDRSTRLEN];
 	struct skinny_device *d;
-	struct skinny_paging_device *p;
 	int oldport = ntohs(bindaddr.sin_port);
 
 #if 0		

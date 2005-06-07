@@ -8162,6 +8162,7 @@ static void check_pendings(struct sip_pvt *p)
 /*--- handle_response_register: Handle responses on REGISTER to services ---*/
 static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
+	int expires, expires_ms;
 	struct sip_registry *r;
 	r=p->registry;
 
@@ -8204,7 +8205,6 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 			return 0;
 		}
-		int expires, expires_ms;
 
 		r->regstate=REG_STATE_REGISTERED;
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
