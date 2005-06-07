@@ -16,11 +16,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#ifdef __linux__
-#include <endian.h>
-#else
-#include <machine/endian.h>
-#endif
 
 #include "asterisk.h"
 
@@ -32,6 +27,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/sched.h"
 #include "asterisk/module.h"
+#include "asterisk/endian.h"
 
 #define BUF_SIZE		160
 
