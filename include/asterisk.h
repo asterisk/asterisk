@@ -54,9 +54,44 @@ extern void ast_channels_init(void);
 extern int dnsmgr_init(void);
 extern void dnsmgr_reload(void);
 
+/*!
+ * \brief Register the version of a source code file with the core.
+ * \param file the source file name
+ * \param version the version string (typically a CVS revision keyword string)
+ * \return nothing
+ *
+ * This function should not be called directly, but instead the
+ * ASTERISK_FILE_VERSION macro should be used to register a file with the core.
+ */
 void ast_register_file_version(const char *file, const char *version);
+
+/*!
+ * \brief Unregister a source code file from the core.
+ * \param file the source file name
+ * \return nothing
+ *
+ * This function should not be called directly, but instead the
+ * ASTERISK_FILE_VERSION macro should be used to automatically unregister
+ * the file when the module is unloaded.
+ */
 void ast_unregister_file_version(const char *file);
 
+/*!
+ * \brief Register/unregister a source code file with the core.
+ * \param file the source file name
+ * \param version the version string (typically a CVS revision keyword string)
+ *
+ * This macro will place a file-scope constructor and destructor into the
+ * source of the module using it; this will cause the version of this file
+ * to registered with the Asterisk core (and unregistered) at the appropriate
+ * times.
+ *
+ * Example:
+ *
+ * \code
+ * ASTERISK_FILE_VERSION(__FILE__, "\$Revision\$")
+ * \endcode
+ */
 #ifdef __GNUC__
 #define ASTERISK_FILE_VERSION(file, version) \
 	static void __attribute__((constructor)) __register_file_version(void) \
