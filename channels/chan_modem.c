@@ -13,18 +13,18 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <errno.h>
-#include <unistd.h>
-#include <stdlib.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/termios.h>
 #include <sys/signal.h>
-#include <ctype.h>
 
 #include "asterisk.h"
 

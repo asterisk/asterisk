@@ -11,6 +11,7 @@
  * the GNU General Public License
  */
  
+#include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
@@ -18,7 +19,6 @@
 #include <sys/times.h>
 #include <sys/types.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <errno.h>
 #include <string.h>
 

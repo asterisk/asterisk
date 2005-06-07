@@ -55,19 +55,20 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <netdb.h>
-#include <arpa/inet.h>
 #include <sys/signal.h>
 #include <signal.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 #include <ctype.h>
 
 #include "asterisk.h"

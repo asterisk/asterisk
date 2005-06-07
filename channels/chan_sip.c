@@ -15,18 +15,19 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <netdb.h>
-#include <arpa/inet.h>
 #include <signal.h>
 #include <sys/signal.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <arpa/inet.h>
 #include <netinet/ip.h>
 #include <regex.h>
 

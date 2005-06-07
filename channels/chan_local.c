@@ -13,12 +13,13 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <errno.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/signal.h>
 
