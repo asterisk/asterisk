@@ -53,6 +53,17 @@ static struct ast_chan {
 	struct ast_chan *next;
 } *chans;
 
+/* dummy functions to be compatible with the Asterisk core for md5.c */
+void ast_register_file_version(const char *file, const char *version);
+void ast_register_file_version(const char *file, const char *version)
+{
+}
+
+void ast_unregister_file_version(const char *file);
+void ast_unregister_file_version(const char *file)
+{
+}
+
 static struct ast_chan *find_chan(char *name)
 {
 	struct ast_chan *prev = NULL, *chan = chans;
