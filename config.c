@@ -499,7 +499,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				if(!ast_strlen_zero(exec_file))
 					unlink(exec_file);
 				if(!do_include)
-					return -1;
+					return 0;
 
 			} else {
 				ast_log(LOG_WARNING, "Directive '#%s' needs an argument (%s) at line %d of %s\n", 
@@ -556,6 +556,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	int lineno=0;
 	int comment = 0, nest[MAX_NESTED_COMMENTS];
 	struct ast_category *cat = NULL;
+	int count = 0;
 	
 	cat = ast_config_get_current_category(cfg);
 
@@ -592,6 +593,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 		fflush(stdout);
 	}
 	if ((f = fopen(fn, "r"))) {
+		count++;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
 		else if (option_verbose > 1)
@@ -674,6 +676,8 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			}
 		}
 #endif
+	if (count == 0)
+		return NULL;
 
 	return cfg;
 }
@@ -793,17 +797,19 @@ static int append_mapping(char *name, char *driver, char *database, char *table)
 
 void read_config_maps(void) 
 {
-	struct ast_config *config;
+	struct ast_config *config, *configtmp;
 	struct ast_variable *v;
 	char *driver, *table, *database, *stringp;
 
 	clear_config_maps();
 
-	config = ast_config_new();
-	config->max_include_level = 1;
-	config = ast_config_internal_load(extconfig_conf, config);
-	if (!config)
+	configtmp = ast_config_new();
+	configtmp->max_include_level = 1;
+	config = ast_config_internal_load(extconfig_conf, configtmp);
+	if (!config) {
+		ast_config_destroy(configtmp);
 		return;
+	}
 
 	for (v = ast_variable_browse(config, "settings"); v; v = v->next) {
 		stringp = v->value;
