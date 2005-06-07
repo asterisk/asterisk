@@ -97,7 +97,7 @@ void ast_unregister_file_version(const char *file);
  * not be present and CVS would expand the Revision keyword into the file's
  * revision number.
  */
-#ifdef __GNUC__
+#if defined(__GNUC__) && !defined(LOW_MEMORY)
 #define ASTERISK_FILE_VERSION(file, version) \
 	static void __attribute__((constructor)) __register_file_version(void) \
 	{ \
@@ -107,8 +107,10 @@ void ast_unregister_file_version(const char *file);
 	{ \
 		ast_unregister_file_version(file); \
 	}
-#else /* ! __GNUC__ */
-#define ASTERISK_FILE_VERSION(x) static const char __file_version[] = x;
+#elif !defined(LOW_MEMORY) /* ! __GNUC__  && ! LOW_MEMORY*/
+#define ASTERISK_FILE_VERSION(file, x) static const char __file_version[] = x;
+#else /* LOW_MEMORY */
+#define ASTERISK_FILE_VERSION(file, x)
 #endif /* __GNUC__ */
 
 #endif /* _ASTERISK_H */

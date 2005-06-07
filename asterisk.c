@@ -152,6 +152,7 @@ static int shuttingdown = 0;
 static int restartnow = 0;
 static pthread_t consolethread = AST_PTHREADT_NULL;
 
+#if !defined(LOW_MEMORY)
 struct file_version {
 	AST_LIST_ENTRY(file_version) list;
 	const char *file;
@@ -277,6 +278,7 @@ static char *complete_show_version_files(char *line, char *word, int pos, int st
 
 	return ret;
 }
+#endif /* ! LOW_MEMORY */
 
 int ast_register_atexit(void (*func)(void))
 {
@@ -1067,8 +1069,10 @@ static struct ast_cli_entry core_cli[] = {
 	  "Restart Asterisk at empty call volume", restart_when_convenient_help },
 	{ { "!", NULL }, handle_bang,
 	  "Execute a shell command", bang_help },
+#if !defined(LOW_MEMORY)
 	{ { "show", "version", "files", NULL }, handle_show_version_files,
 	  "Show versions of files used to build Asterisk", show_version_files_help, complete_show_version_files },
+#endif /* ! LOW_MEMORY */
 };
 
 static int ast_el_read_char(EditLine *el, char *cp)
