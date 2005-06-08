@@ -885,15 +885,15 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 			else if (e->data == VPB_FAX){
 				if (!p->faxhandled){
 					if (strcmp(p->owner->exten, "fax")) {
-						const char *target_context = ast_strlen_zero(ast->macrocontext) ? ast->context : ast->macrocontext;
+						const char *target_context = ast_strlen_zero(p->owner->macrocontext) ? p->owner->context : p->owner->macrocontext;
 						
-						if (ast_exists_extension(ast, target_context, "fax", 1, ast->cid.cid_num)) {
+						if (ast_exists_extension(p->owner, target_context, "fax", 1, p->owner->cid.cid_num)) {
 							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", ast->name);
+								ast_verbose(VERBOSE_PREFIX_3 "Redirecting %s to fax extension\n", p->owner->name);
 							/* Save the DID/DNIS when we transfer the fax call to a "fax" extension */
-							pbx_builtin_setvar_helper(ast, "FAXEXTEN", ast->exten);
-							if (ast_async_goto(ast, target_context, "fax", 1))
-								ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", ast->name, target_context);
+							pbx_builtin_setvar_helper(p->owner, "FAXEXTEN", p->owner->exten);
+							if (ast_async_goto(p->owner, target_context, "fax", 1))
+								ast_log(LOG_WARNING, "Failed to async goto '%s' into fax of '%s'\n", p->owner->name, target_context);
 						} else
 							ast_log(LOG_NOTICE, "Fax detected, but no fax extension\n");
 					} else
