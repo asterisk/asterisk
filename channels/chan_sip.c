@@ -2251,6 +2251,8 @@ static int sip_senddigit(struct ast_channel *ast, char digit)
 	return res;
 }
 
+#define DEFAULT_MAX_FORWARDS   70
+
 
 /*--- sip_transfer: Transfer SIP call */
 static int sip_transfer(struct ast_channel *ast, const char *dest)
@@ -4826,6 +4828,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	char from[256];
 	char *of, *c;
 	char referto[256];
+       char tmp[80];
 
 	if (ast_test_flag(p, SIP_OUTGOING)) 
 		of = get_header(&p->initreq, "To");
@@ -4839,7 +4842,9 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	} else
 		of += 4;
 	/* Get just the username part */
-	if ((c = strchr(of, '@'))) {
+       if ((c = strchr(dest, '@'))) {
+               c = NULL;
+       } else if ((c = strchr(of, '@'))) {
 		*c = '\0';
 		c++;
 	}
@@ -4849,16 +4854,26 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 		snprintf(referto, sizeof(referto), "<sip:%s>", dest);
 	}
 
-	/* save in case we get 407 challenge */
-	ast_copy_string(p->refer_to, referto, sizeof(p->refer_to)); 
-	ast_copy_string(p->referred_by, p->our_contact, sizeof(p->referred_by)); 
+       ast_copy_string(tmp, get_header(&p->initreq, "Max-Forwards"), sizeof(tmp));
+       if (strlen(tmp) && atoi(tmp)) {
+               p->maxforwards = atoi(tmp) - 1;
+       } else {
+               p->maxforwards = DEFAULT_MAX_FORWARDS - 1;
+       }
+       if (p->maxforwards > -1) {
+               /* save in case we get 407 challenge */
+               ast_copy_string(p->refer_to, referto, sizeof(p->refer_to));
+               ast_copy_string(p->referred_by, p->our_contact, sizeof(p->referred_by));
 
-	reqprep(&req, p, SIP_REFER, 0, 1);
-	add_header(&req, "Refer-To", referto);
-	if (!ast_strlen_zero(p->our_contact))
-		add_header(&req, "Referred-By", p->our_contact);
-	add_blank_header(&req);
-	return send_request(p, &req, 1, p->ocseq);
+               reqprep(&req, p, SIP_REFER, 0, 1);
+               add_header(&req, "Refer-To", referto);
+               if (!ast_strlen_zero(p->our_contact))
+                       add_header(&req, "Referred-By", p->our_contact);
+               add_blank_header(&req);
+               return send_request(p, &req, 1, p->ocseq);
+       } else {
+               return -1;
+       }
 }
 
 /*--- transmit_info_with_digit: Send SIP INFO dtmf message, see Cisco documentation on cisco.co
@@ -11186,8 +11201,6 @@ static int sip_getheader(struct ast_channel *chan, void *data)
 	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
-
-#define DEFAULT_MAX_FORWARDS	70
 
 /*--- sip_sipredirect: Transfer call before connect with a 302 redirect ---*/
 /* Called by the transfer() dialplan application through the sip_transfer() */
