@@ -1,19 +1,28 @@
 
-Mathematical functions application
+Mathematical dialplan function
 
 Yeah, I thought it was a little insane too.. 
 
 adds:
 
-Sum, Multiply, Divide, Subtract, Modulus, GT, LT, GTE, LTE, EQ functions to asterisk
+Sum, Multiply, Divide, Subtract, Modulus, GT, LT, GTE, LTE, EQ functions to Asterisk
 
 All functions follow the same basic pattern for parameters:
 
-parameter 1 = the name of the return variable
-parameter 2 = the operation
-parameter 3 = the second number
+parameter 1 = the math expression
+parameter 2 = the type of result
 
-Each action is perfromed as
+Perform calculation on number 1 to number 2. Valid ops are:
+    +,-,/,*,%,<,>,>=,<=,==
+and behave as their C equivalents.
+
+<type_of_result> - wanted type of result:
+	f, float - float(default)
+	i, int - integer,
+	h, hex - hex,
+	c, char - char
+
+Each math expression is performed as
 
  Action param1 on param2
 
@@ -30,31 +39,31 @@ Results in
 
 Example dialplan:
 
-exten => 11099,1,Math(RV,1+20)
-exten => 11099,2,NOOP(${RV})
-exten => 11099,3,Math(RV,10*2)
-exten => 11099,4,NOOP(${RV})
-exten => 11099,5,Math(RV,10*2)
-exten => 11099,6,NOOP(${RV})
-exten => 11099,7,Math(RV,10-2)
-exten => 11099,8,NOOP(${RV})
-exten => 11099,9,Math(RV,2%10)
-exten => 11099,10,NOOP(${RV})
-exten => 11099,11,Math(RV,10/0)
-exten => 11099,12,NOOP(${RV})
-exten => 11099,13,math(RV,10-200)
-exten => 11099,14,NOOP(${RV})
-exten => 11099,15,Math(RV,1-20)
-exten => 11099,16,NOOP(${RV})
-exten => 11099,17,Math(RV,1<20)
-exten => 11099,18,NOOP(${RV})
-exten => 11099,19,Math(RV,1>=20)
-exten => 11099,20,NOOP(${RV})
-exten => 11099,21,Math(RV,101>20)
-exten => 11099,22,NOOP(${RV})
-exten => 11099,23,Math(RV,1==20)
-exten => 11099,24,NOOP(${RV})
-exten => 11099,25,Math(RV,20<=20)
-exten => 11099,26,NOOP(${RV})
-
-
+exten => 11099,1,Set(RV=${MATH(1+20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10*2)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10*2)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10-2)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(2%10)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10/0)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(10-200)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(1-20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(1<20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(1>=20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(101>20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(1==20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(20<=20)})
+exten => 11099,n,NOOP(${RV})
+exten => 11099,n,Set(RV=${MATH(123%16,int)})
+exten => 11099,n,NOOP(${RV})

@@ -14,6 +14,7 @@
 FUNCS=pbx_functions.so
 
 BUILTINS=func_md5.o \
+         func_math.o \
          func_groupcount.o \
          func_strings.o \
          func_cdr.o \

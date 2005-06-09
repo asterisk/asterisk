@@ -80,6 +80,12 @@ static int math_exec(struct ast_channel *chan, void *data)
 	float ftmp = 0;
 	char *op;
 	int iaction=-1;
+	static int deprecation_warning = 0;
+
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "Math() is deprecated, please use Set(var=${MATH(...)} instead.\n");
+		deprecation_warning = 1;
+	}
 
 	/* dunno, big calulations :D */
 	char user_result[30];
