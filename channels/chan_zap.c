@@ -4992,6 +4992,13 @@ static void *ss_thread(void *data)
 			} else
 				break;
 		}
+		/* if no extension was received ('unspecified') on overlap call, use the 's' extension */
+		if (ast_strlen_zero(exten)) {
+			if (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Going to extension s|1 because of empty extension received on overlap call\n");
+			exten[0] = 's';
+			exten[1] = '\0';
+		}
 		tone_zone_play_tone(p->subs[index].zfd, -1);
 		if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
 			/* Start the real PBX */
