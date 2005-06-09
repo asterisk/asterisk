@@ -753,6 +753,7 @@ static int action_status(struct mansession *s, struct message *m)
 			ast_state2str(c->_state), bridge, c->uniqueid, idText);
 		}
 		ast_mutex_unlock(&s->lock);
+		ast_mutex_unlock(&c->lock);
 		if (!all)
 			break;
 		c = ast_channel_walk_locked(c);

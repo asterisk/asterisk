@@ -1059,7 +1059,6 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 		if (test && !regexec(&regexbuf, test, 0, NULL, 0))
 			count++;
 		ast_mutex_unlock(&chan->lock);
-		chan = ast_channel_walk_locked(chan);
 	}
 
 	regfree(&regexbuf);
