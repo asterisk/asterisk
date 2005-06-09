@@ -247,4 +247,17 @@ void ast_copy_string(char *dst, const char *src, size_t size);
 */
 int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
+/* functions for working with 'struct timeval' instances */
+
+/*!
+ * \brief Computes the difference (in milliseconds) between two \c struct \c timeval instances.
+ * \param start the beginning of the time period
+ * \param end the end of the time period
+ * \return the difference in milliseconds
+ */
+static inline int ast_tvdiff_ms(struct timeval *start, struct timeval *end)
+{
+	return ((end->tv_sec - start->tv_sec) * 1000) + ((end->tv_usec - start->tv_usec) / 1000);
+}
+
 #endif /* _ASTERISK_UTILS_H */

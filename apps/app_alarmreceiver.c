@@ -219,20 +219,6 @@ static int send_tone_burst(struct ast_channel *chan, float freq, int duration, i
 }
 
 /*
-* Return the difference in milliseconds between two timeval structs
-*/
-
-static int ms_diff(struct timeval *tv1, struct timeval *tv2){
-
-	int	ms;
-	
-	ms = (tv1->tv_sec - tv2->tv_sec) * 1000;
-	ms += (tv1->tv_usec - tv2->tv_usec) / 1000;
-	
-	return(ms);
-}
-
-/*
 * Receive a string of DTMF digits where the length of the digit string is known in advance. Do not give preferential
 * treatment to any digit value, and allow separate time out values to be specified for the first digit and all subsequent
 * digits.
@@ -256,7 +242,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 		gettimeofday(&now,NULL);
 		
 		  /* if outa time, leave */
-		if (ms_diff(&now,&lastdigittime) > 
+		if (ast_tvdiff_ms(&lastdigittime, &now) > 
 		    ((i > 0) ? sdto : fdto)){
 			if(option_verbose >= 4)
 				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: DTMF Digit Timeout on %s\n", chan->name);
