@@ -658,17 +658,7 @@ static int retrans_pkt(void *data)
 {
 	struct mgcp_gateway *gw = (struct mgcp_gateway *)data;
 	struct mgcp_message *cur, *exq = NULL, *w, *prev;
- 	struct timeval tv;
-	unsigned long t;
 	int res = 0;
-
-	if (gettimeofday(&tv, NULL) < 0) {
-		/* This shouldn't ever happen, but let's be sure */
-		ast_log(LOG_NOTICE, "gettimeofday() failed!\n");
-		return 0;
-	}
-
-	t = tv.tv_sec * 1000 + tv.tv_usec / 1000;
 
 	/* find out expired msgs */
 	ast_mutex_lock(&gw->msgs_lock);
