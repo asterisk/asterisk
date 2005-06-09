@@ -2854,7 +2854,7 @@ static void parse_dial_string(char *data, struct parsed_dial_string *pds)
 static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 {
 	struct sockaddr_in sin;
-	char *l=NULL, *n=NULL;
+	char *l=NULL, *n=NULL, *tmpstr;
 	struct iax_ie_data ied;
 	char *defaultrdest = "s";
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
@@ -2870,7 +2870,8 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 	cai.encmethods = iax2_encryption;
 
 	memset(&pds, 0, sizeof(pds));
-	parse_dial_string(ast_strdupa(dest), &pds);
+	tmpstr = ast_strdupa(dest);
+	parse_dial_string(tmpstr, &pds);
 
 	if (!pds.exten)
 		pds.exten = defaultrdest;
@@ -7651,9 +7652,11 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	int capability = iax2_capability;
 	struct parsed_dial_string pds;
 	struct create_addr_info cai;
+	char *tmpstr;
 
 	memset(&pds, 0, sizeof(pds));
-	parse_dial_string(ast_strdupa(data), &pds);
+	tmpstr = ast_strdupa(data);
+	parse_dial_string(tmpstr, &pds);
 
 	memset(&cai, 0, sizeof(cai));
 
@@ -8528,6 +8531,7 @@ static int cache_get_callno_locked(const char *data)
 	struct iax_ie_data ied;
 	struct create_addr_info cai;
 	struct parsed_dial_string pds;
+	char *tmpstr;
 
 	for (x=0; x<IAX_MAX_CALLS; x++) {
 		/* Look for an *exact match* call.  Once a call is negotiated, it can only
@@ -8545,7 +8549,8 @@ static int cache_get_callno_locked(const char *data)
 	memset(&ied, 0, sizeof(ied));
 	memset(&pds, 0, sizeof(pds));
 
-	parse_dial_string(ast_strdupa(data), &pds);
+	tmpstr = ast_strdupa(data);
+	parse_dial_string(tmpstr, &pds);
 
 	/* Populate our address from the given */
 	if (create_addr(pds.peer, &sin, &cai))
