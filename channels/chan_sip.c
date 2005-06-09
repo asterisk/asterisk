@@ -400,6 +400,7 @@ struct sip_auth {
 #define SIP_PAGE2_RTCACHEFRIENDS 	(1 << 0)
 #define SIP_PAGE2_RTNOUPDATE 		(1 << 1)
 #define SIP_PAGE2_RTAUTOCLEAR 		(1 << 2)
+#define SIP_PAGE2_RTIGNOREREGEXPIRE       (1 << 3)
 
 static int global_rtautoclear = 120;
 
@@ -5181,7 +5182,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		p->expire = -1;
 	pvt->expiry = expiry;
 	snprintf(data, sizeof(data), "%s:%d:%d:%s:%s", ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry, p->username, p->fullcontact);
-	if (!ast_test_flag(p, SIP_REALTIME))
+	if (!(ast_test_flag(p, SIP_REALTIME) && ast_test_flag((&p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS)))
 		ast_db_put("SIP/Registry", p->name, data);
 	manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: SIP/%s\r\nPeerStatus: Registered\r\n", p->name);
 	if (inaddrcmp(&p->addr, &oldsin)) {
@@ -10453,9 +10454,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			peer->auth = add_realm_authentication(peer->auth, v->value, v->lineno);
 		else if (!strcasecmp(v->name, "callerid")) {
 			ast_callerid_split(v->value, peer->cid_name, sizeof(peer->cid_name), peer->cid_num, sizeof(peer->cid_num));
-		} else if (!strcasecmp(v->name, "context"))
+		} else if (!strcasecmp(v->name, "context")) {
 			ast_copy_string(peer->context, v->value, sizeof(peer->context));
-		else if (!strcasecmp(v->name, "fromdomain"))
+		} else if (!strcasecmp(v->name, "fromdomain"))
 			ast_copy_string(peer->fromdomain, v->value, sizeof(peer->fromdomain));
 		else if (!strcasecmp(v->name, "usereqphone"))
 			ast_set2_flag(peer, ast_true(v->value), SIP_USEREQPHONE);
@@ -10593,7 +10594,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		 */
 		v=v->next;
 	}
-	if (realtime && ast_test_flag(peer, SIP_DYNAMIC)) {
+	if (realtime && !ast_test_flag((&global_flags_page2), SIP_PAGE2_RTIGNOREREGEXPIRE) && ast_test_flag(peer, SIP_DYNAMIC)) {
 		time_t nowtime;
 
 		time(&nowtime);
@@ -10707,6 +10708,8 @@ static int reload_config(void)
 			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
 		} else if (!strcasecmp(v->name, "rtnoupdate")) {
 			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTNOUPDATE);	
+		} else if (!strcasecmp(v->name, "rtignoreregexpire")) {
+			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTIGNOREREGEXPIRE);	
 		} else if (!strcasecmp(v->name, "rtautoclear")) {
 			int i = atoi(v->value);
 			if (i > 0)

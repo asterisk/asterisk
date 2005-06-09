@@ -264,6 +264,10 @@ autokill=yes
 ;
 ;rtautoclear=yes 
 ;
+;rtignoreexpire=yes		; when reading a peer from Realtime, if the peer's registration
+				; has expired based on its registration interval, used the stored
+				; address information regardless
+
 ; Guest sections for unauthenticated connection attempts.  Just
 ; specify an empty secret, or provide no secret section.
 ;

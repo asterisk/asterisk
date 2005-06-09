@@ -174,8 +174,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
                                 ; as if it had just registered when the registration expires
                                 ; the friend will vanish from the configuration until requested
                                 ; again.  If set to an integer, friends expire
-								; within this number of seconds instead of the
-								; same as the registration interval
+				; within this number of seconds instead of the
+				; same as the registration interval
+;rtignoreexpire=yes		; when reading a peer from Realtime, if the peer's registration
+				; has expired based on its registration interval, used the stored
+				; address information regardless
 
 
 [authentication]

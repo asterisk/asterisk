@@ -239,6 +239,7 @@ struct iax2_context {
 #define IAX_RTNOUPDATE 		(1 << 18) 	/* Don't send a realtime update */
 #define IAX_RTAUTOCLEAR 	(1 << 19) 	/* erase me on expire */ 
 #define IAX_FORCEJITTERBUF	(1 << 20)	/* Force jitterbuffer, even when bridged to a channel that can take jitter */ 
+#define IAX_RTIGNOREREGEXPIRE		(1 << 21)
 
 static int global_rtautoclear = 120;
 
@@ -2579,7 +2580,7 @@ static struct iax2_peer *realtime_peer(const char *peername)
 		ast_set_flag(peer, IAX_TEMPONLY);	
 	}
 
-	if (dynamic) {
+	if (!ast_test_flag(&globalflags, IAX_RTIGNOREREGEXPIRE) && dynamic) {
 		time(&nowtime);
 		if ((nowtime - regseconds) > IAX_DEFAULT_REG_EXPIRE) {
 			memset(&peer->addr, 0, sizeof(peer->addr));
@@ -8371,6 +8372,8 @@ static int set_config(char *config_file, int reload)
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_MESSAGEDETAIL);	
 		else if (!strcasecmp(v->name, "rtcachefriends"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTCACHEFRIENDS);	
+		else if (!strcasecmp(v->name, "rtignoreregexpire"))
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTIGNOREREGEXPIRE);	
 		else if (!strcasecmp(v->name, "rtnoupdate"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTNOUPDATE);	
 		else if (!strcasecmp(v->name, "rtautoclear")) {
