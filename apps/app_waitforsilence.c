@@ -40,6 +40,9 @@ static char *synopsis = "Waits for a specified amount of silence";
 static char *descrip = 
 "  WaitForSilence(x[|y]) Wait for Silence: Waits for up to 'x' \n"
 "milliseconds of silence, 'y' times or 1 if omitted\n"
+"Set the channel variable WAITSTATUS with to one of these values:"
+"SILENCE - if silence of x ms was detected"
+"TIMEOUT - if silence of x ms was not detected."
 "Examples:\n"
 "  - WaitForSilence(500,2) will wait for 1/2 second of silence, twice\n"
 "  - WaitForSilence(1000) will wait for 1 second of silence, once\n";
@@ -58,6 +61,8 @@ static int do_waiting(struct ast_channel *chan, int maxsilence) {
 	int rfmt = 0;
 	int res = 0;
 	struct ast_dsp *sildet;	 /* silence detector dsp */
+	time_t start, now;
+	time(&start);
 
 	rfmt = chan->readformat; /* Set to linear mode */
 	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
@@ -97,17 +102,26 @@ static int do_waiting(struct ast_channel *chan, int maxsilence) {
 		if (f->frametype == AST_FRAME_VOICE) {
 			dspsilence = 0;
 			ast_dsp_silence(sildet, f, &dspsilence);
-			if (dspsilence)
+			if (dspsilence) {
 				totalsilence = dspsilence;
-			else
+				time(&start);
+			} else {
 				totalsilence = 0;
+			}
 
 			if (totalsilence >= maxsilence) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Exiting with %dms silence > %dms required\n", totalsilence, maxsilence);
 				/* Ended happily with silence */
-				ast_frfree(f);
 				gotsilence = 1;
+				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "SILENCE");
+				ast_log(LOG_DEBUG, "WAITSTATUS was set to SILENCE\n");
+				ast_frfree(f);
+				break;
+			} else if ( difftime(time(&now),start) >= maxsilence/1000 ) {
+				pbx_builtin_setvar_helper(chan, "WAITSTATUS", "TIMEOUT");
+				ast_log(LOG_DEBUG, "WAITSTATUS was set to TIMEOUT\n");
+				ast_frfree(f);
 				break;
 			}
 		}
