@@ -3486,13 +3486,24 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								/* In any case this isn't a threeway call anymore */
 								p->subs[SUB_REAL].inthreeway = 0;
 								p->subs[SUB_THREEWAY].inthreeway = 0;
-								if ((res = attempt_transfer(p)) < 0)
-									p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
-								else if (res) {
-									/* Don't actually hang up at this point */
-									if (p->subs[SUB_THREEWAY].owner)
-										ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
-									break;
+								if((p->owner->_state == AST_STATE_RINGING) ||
+										(p->owner->_state == AST_STATE_UP)){
+									/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
+									if ((res = attempt_transfer(p)) < 0)
+										p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+									else if (res) {
+										/* Don't actually hang up at this point */
+										if (p->subs[SUB_THREEWAY].owner)
+											ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+										break;
+									}
+								} else {
+									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+									/* Swap subs and dis-own channel */
+									swap_subs(p, SUB_THREEWAY, SUB_REAL);
+									p->owner = NULL;
+									/* Ring the phone */
+									zt_ring_phone(p);
 								}
 							} else
 								p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -3803,8 +3814,11 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							p->subs[SUB_THREEWAY].inthreeway = 0;
 						} else {
 							/* Lets see what we're up to */
-							if ((ast->pbx) ||
-									(ast->_state == AST_STATE_UP)) {
+							if (((ast->pbx) || (ast->_state == AST_STATE_UP)) && 
+								/* Only conference if it's ringing or answered */
+								((p->owner->_state == AST_STATE_RINGING) ||
+								(p->owner->_state == AST_STATE_UP))){
+
 								int otherindex = SUB_THREEWAY;
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Building conference on call on %s and %s\n", p->subs[SUB_THREEWAY].owner->name, p->subs[SUB_REAL].owner->name);
