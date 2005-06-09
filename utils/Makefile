@@ -26,7 +26,7 @@ install:
 	done 
 
 clean:
-	rm -f *.o astman smsq stereorize .depend
+	rm -f *.o astman smsq stereorize check_expr .depend
 
 astman: astman.o ../md5.o
 	$(CC) $(CFLAGS) -o astman astman.o ../md5.o -lnewt
