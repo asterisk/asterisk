@@ -1149,8 +1149,13 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 				}
 			} else if (e->data == p->ring_timer_id) {
 				/* We didnt get another ring in time! */
-				if (p->owner->_state != AST_STATE_UP)  {
-					 /* Assume caller has hung up */
+				if (p->owner){
+					if (p->owner->_state != AST_STATE_UP)  {
+						 /* Assume caller has hung up */
+						vpb_timer_stop(p->ring_timer);
+					}
+				} else {
+					 /* No owner any more, Assume caller has hung up */
 					vpb_timer_stop(p->ring_timer);
 				}
 			} 
@@ -2238,21 +2243,21 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 /*	return ((double)tv.tv_sec*1000)+((double)tv.tv_usec/1000); */
 
 	if ((p->read_state == 1)&&(p->play_buf_time<5)){
-	gettimeofday(&play_buf_time_start,NULL);
-	res = vpb_play_buf_sync(p->handle, (char*)frame->data, frame->datalen);
-	if( (res == VPB_OK) && (option_verbose > 5) ) {
-		short * data = (short*)frame->data;
-		ast_verbose("%s: vpb_write: Wrote chan (codec=%d) %d %d\n", p->dev, fmt, data[0],data[1]);
-	}
-	gettimeofday(&play_buf_time_finish,NULL);
-	if (play_buf_time_finish.tv_sec == play_buf_time_start.tv_sec){
-		p->play_buf_time=(int)((play_buf_time_finish.tv_usec-play_buf_time_start.tv_usec)/1000);
-/*		ast_log(LOG_DEBUG, "%s: vpb_write: Timing start(%d) finish(%d)\n", p->dev,play_buf_time_start.tv_usec,play_buf_time_finish.tv_usec); */
-	}
-	else {
-		p->play_buf_time=(int)((play_buf_time_finish.tv_sec - play_buf_time_start.tv_sec)*100)+(int)((play_buf_time_finish.tv_usec-play_buf_time_start.tv_usec)/1000);
-	}
-/*	ast_log(LOG_DEBUG, "%s: vpb_write: Wrote data [%d](%d=>%s) to play_buf in [%d]ms..\n", p->dev,frame->datalen,fmt,ast2vpbformatname(frame->subclass),p->play_buf_time); */
+		gettimeofday(&play_buf_time_start,NULL);
+		res = vpb_play_buf_sync(p->handle, (char*)frame->data, frame->datalen);
+		if( (res == VPB_OK) && (option_verbose > 5) ) {
+			short * data = (short*)frame->data;
+			ast_verbose("%s: vpb_write: Wrote chan (codec=%d) %d %d\n", p->dev, fmt, data[0],data[1]);
+		}
+		gettimeofday(&play_buf_time_finish,NULL);
+		if (play_buf_time_finish.tv_sec == play_buf_time_start.tv_sec){
+			p->play_buf_time=(int)((play_buf_time_finish.tv_usec-play_buf_time_start.tv_usec)/1000);
+	/*		ast_log(LOG_DEBUG, "%s: vpb_write: Timing start(%d) finish(%d)\n", p->dev,play_buf_time_start.tv_usec,play_buf_time_finish.tv_usec); */
+		}
+		else {
+			p->play_buf_time=(int)((play_buf_time_finish.tv_sec - play_buf_time_start.tv_sec)*100)+(int)((play_buf_time_finish.tv_usec-play_buf_time_start.tv_usec)/1000);
+		}
+	/*	ast_log(LOG_DEBUG, "%s: vpb_write: Wrote data [%d](%d=>%s) to play_buf in [%d]ms..\n", p->dev,frame->datalen,fmt,ast2vpbformatname(frame->subclass),p->play_buf_time); */
 	}
 	else {
 		p->chuck_count++;
