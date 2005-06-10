@@ -1067,72 +1067,62 @@ static int handle_help(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static char *parse_args(char *s, int *max, char *argv[])
+static char *parse_args(char *s, int *argc, char *argv[], int max)
 {
 	char *dup, *cur;
-	int x=0;
-	int quoted=0;
-	int escaped=0;
-	int whitespace=1;
+	int x = 0;
+	int quoted = 0;
+	int escaped = 0;
+	int whitespace = 1;
 
-	dup = strdup(s);
-	if (dup) {
-		cur = dup;
-		while(*s) {
-			switch(*s) {
-			case '"':
-				/* If it's escaped, put a literal quote */
-				if (escaped) 
-					goto normal;
-				else 
-					quoted = !quoted;
-				if (quoted && whitespace) {
-					/* If we're starting a quote, coming off white space start a new word, too */
-					argv[x++] = cur;
-					whitespace=0;
+	if (!(dup = strdup(s)))
+		return NULL;
+
+	cur = dup;
+	while (*s) {
+		if ((*s == '"') && !escaped) {
+			quoted = !quoted;
+			if (quoted & whitespace) {
+				/* If we're starting a quoted string, coming off white space, start a new argument */
+				if (x >= (max - 1)) {
+					ast_log(LOG_WARNING, "Too many arguments, truncating\n");
+					break;
 				}
-				escaped = 0;
-				break;
-			case ' ':
-			case '\t':
-				if (!quoted && !escaped) {
-					/* If we're not quoted, mark this as whitespace, and
-					   end the previous argument */
-					whitespace = 1;
-					*(cur++) = '\0';
-				} else
-					/* Otherwise, just treat it as anything else */ 
-					goto normal;
-				break;
-			case '\\':
-				/* If we're escaped, print a literal, otherwise enable escaping */
-				if (escaped) {
-					goto normal;
-				} else {
-					escaped=1;
-				}
-				break;
-			default:
-normal:
-				if (whitespace) {
-					if (x >= AST_MAX_ARGS -1) {
-						ast_log(LOG_WARNING, "Too many arguments, truncating\n");
-						break;
-					}
-					/* Coming off of whitespace, start the next argument */
-					argv[x++] = cur;
-					whitespace=0;
-				}
-				*(cur++) = *s;
-				escaped=0;
+				argv[x++] = cur;
+				whitespace = 0;
 			}
-			s++;
+			escaped = 0;
+		} else if (((*s == ' ') || (*s == '\t')) && !(quoted || escaped)) {
+			/* If we are not already in whitespace, and not in a quoted string or
+			   processing an escape sequence, and just entered whitespace, then
+			   finalize the previous argument and remember that we are in whitespace
+			*/
+			if (!whitespace) {
+				*(cur++) = '\0';
+				whitespace = 1;
+			}
+		} else if ((*s == '\\') && !escaped) {
+			escaped = 1;
+		} else {
+			if (whitespace) {
+				/* If we are coming out of whitespace, start a new argument */
+				if (x >= (max - 1)) {
+					ast_log(LOG_WARNING, "Too many arguments, truncating\n");
+					break;
+				}
+				argv[x++] = cur;
+				whitespace = 0;
+			}
+			*(cur++) = *s;
+			escaped = 0;
 		}
-		/* Null terminate */
-		*(cur++) = '\0';
-		argv[x] = NULL;
-		*max = x;
+		s++;
 	}
+	/* Null terminate */
+	*(cur++) = '\0';
+	argv[x] = NULL;
+	*argc = x;
+
 	return dup;
 }
 
@@ -1204,7 +1194,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 	char matchstr[80];
 	char *fullcmd = NULL;
 
-	if ((dup = parse_args(text, &x, argv))) {
+	if ((dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0])))) {
 		join(matchstr, sizeof(matchstr), argv);
 		if (lock)
 			ast_mutex_lock(&clilock);
@@ -1277,8 +1267,8 @@ int ast_cli_command(int fd, char *s)
 	struct ast_cli_entry *e;
 	int x;
 	char *dup;
-	x = AST_MAX_ARGS;
-	if ((dup = parse_args(s, &x, argv))) {
+
+	if ((dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0])))) {
 		/* We need at least one entry, or ignore */
 		if (x > 0) {
 			ast_mutex_lock(&clilock);
