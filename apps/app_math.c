@@ -82,11 +82,6 @@ static int math_exec(struct ast_channel *chan, void *data)
 	int iaction=-1;
 	static int deprecation_warning = 0;
 
-	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "Math() is deprecated, please use Set(var=${MATH(...)} instead.\n");
-		deprecation_warning = 1;
-	}
-
 	/* dunno, big calulations :D */
 	char user_result[30];
 
@@ -94,6 +89,11 @@ static int math_exec(struct ast_channel *chan, void *data)
 	char *mvar, *mvalue1, *mvalue2=NULL;
 		
 	struct localuser *u;
+
+	if (!deprecation_warning) {
+		ast_log(LOG_WARNING, "Math() is deprecated, please use Set(var=${MATH(...)} instead.\n");
+		deprecation_warning = 1;
+	}
 
 	if (!data) {
 		ast_log(LOG_WARNING, "No parameters passed. !\n");
