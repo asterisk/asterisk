@@ -4776,8 +4776,9 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		char tmp[256] = "";
 		char *c;
 		char *z;
-		char *response ="";
+		char *ua_hash ="";
 		char *resp_uri ="";
+		char *nonce = "";
 
 		/* Find their response among the mess that we'r sent for comparison */
 		strncpy(tmp, authtoken, sizeof(tmp) - 1);
@@ -4790,12 +4791,12 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 			if (!strncasecmp(c, "response=", strlen("response="))) {
 				c+= strlen("response=");
 				if ((*c == '\"')) {
-					response=++c;
+					ua_hash=++c;
 					if((c = strchr(c,'\"')))
 						*c = '\0';
 
 				} else {
-					response=c;
+					ua_hash=c;
 					if((c = strchr(c,',')))
 						*c = '\0';
 				}
@@ -4812,31 +4813,52 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 						*c = '\0';
 				}
 
+			} else if (!strncasecmp(c, "nonce=", strlen("nonce=")))
+{
+				c+= strlen("nonce=");
+				if ((*c == '\"')) {
+					nonce=++c;
+					if ((c = strchr(c,'\"')))
+						*c = '\0';
+				} else {
+					nonce=c;
+					if ((c = strchr(c,',')))
+						*c = '\0';
+				}
 			} else
 				if ((z = strchr(c,' ')) || (z = strchr(c,','))) c=z;
 			if (c)
 				c++;
 		}
-		snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
-		if(!ast_strlen_zero(resp_uri))
-			snprintf(a2, sizeof(a2), "%s:%s", method, resp_uri);
-		else
-			snprintf(a2, sizeof(a2), "%s:%s", method, uri);
-		if (!ast_strlen_zero(md5secret))
-		        snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
-		else
-		        md5_hash(a1_hash, a1);
-		md5_hash(a2_hash, a2);
-		snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, randdata, a2_hash);
-		md5_hash(resp_hash, resp);
+		/* Check if the nonce the client sends is the same as we are testing authentication with */
+		if (strncasecmp(randdata, nonce, randlen)) {
+			ast_log(LOG_WARNING, "Stale nonce received from '%s'\n", get_header(req, "To"));
+			snprintf(randdata, randlen, "%08x", rand());
+			transmit_response_with_auth(p, response, req, randdata, reliable, respheader);
+			/* Schedule auto destroy in 15 seconds */
+			sip_scheddestroy(p, 15000);
+			return 1;
+		} else {
+			snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
+			if(!ast_strlen_zero(resp_uri))
+				snprintf(a2, sizeof(a2), "%s:%s", method, resp_uri);
+			else
+				snprintf(a2, sizeof(a2), "%s:%s", method, uri);
+			if (!ast_strlen_zero(md5secret))
+		        	snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
+			else
+		        	md5_hash(a1_hash, a1);
+			md5_hash(a2_hash, a2);
+			snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, randdata, a2_hash);
+			md5_hash(resp_hash, resp);
+	
+			/* resp_hash now has the expected response, compare the two */
 
-		/* resp_hash now has the expected response, compare the two */
-
-		if (response && !strncasecmp(response, resp_hash, strlen(resp_hash))) {
-			/* Auth is OK */
-			res = 0;
+			if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash))) {
+				/* Auth is OK */
+				return 0;
+			}
 		}
-		/* Assume success ;-) */
 	}
 	return res;
 }
