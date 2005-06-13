@@ -94,10 +94,11 @@ static int nochecksums = 0;
 /*
  * Uncomment to try experimental IAX bridge optimization,
  * designed to reduce latency when IAX calls cannot
- * be trasnferred
+ * be trasnferred -- obsolete
  */
 
-#define BRIDGE_OPTIMIZATION 
+/* #define BRIDGE_OPTIMIZATION  */
+
 
 #define PTR_TO_CALLNO(a) ((unsigned short)(unsigned long)(a))
 #define CALLNO_TO_PTR(a) ((void *)(unsigned long)(a))
@@ -2319,7 +2320,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 
 	if(fr->af.frametype == AST_FRAME_VOICE) {
 		type = JB_TYPE_VOICE;
-                len = ast_codec_get_samples(&fr->af) / 8;
+		len = ast_codec_get_samples(&fr->af) / 8;
 	} else if(fr->af.frametype == AST_FRAME_CNG) {
 		type = JB_TYPE_SILENCE;
 	}
@@ -2347,9 +2348,9 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 
 		iaxs[fr->callno]->jbid = -1;
 
-                /* deliver this frame now */
-                __do_deliver(fr);
-                return 0;
+		/* deliver this frame now */
+		__do_deliver(fr);
+		return 0;
 
 	}
 
@@ -6249,13 +6250,17 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 										forward_delivery(&fr);
 									} else {
 										duped_fr = iaxfrdup2(&fr);
-										schedule_delivery(duped_fr, 1, updatehistory, 1);
-										fr.ts = duped_fr->ts;
+										if (duped_fr) {
+											schedule_delivery(duped_fr, 1, updatehistory, 1);
+											fr.ts = duped_fr->ts;
+										}
 									}
 #else
 									duped_fr = iaxfrdup2(&fr);
-									schedule_delivery(duped_fr, 1, updatehistory, 1);
-									fr.ts = duped_fr->ts;
+									if (duped_fr) {
+										schedule_delivery(duped_fr, 1, updatehistory, 1);
+										fr.ts = duped_fr->ts;
+									}
 #endif
 									if (iaxs[fr.callno]->last < fr.ts) {
 										iaxs[fr.callno]->last = fr.ts;
@@ -7413,13 +7418,17 @@ retryowner2:
 		forward_delivery(&fr);
 	} else {
 		duped_fr = iaxfrdup2(&fr);
-		schedule_delivery(duped_fr, 1, updatehistory, 0);
-		fr.ts = duped_fr->ts;
+		if (duped_fr) {
+			schedule_delivery(duped_fr, 1, updatehistory, 0);
+			fr.ts = duped_fr->ts;
+		}
 	}
 #else
 	duped_fr = iaxfrdup2(&fr);
-	schedule_delivery(duped_fr, 1, updatehistory, 0);
-	fr.ts = duped_fr->ts;
+	if (duped_fr) {
+		schedule_delivery(duped_fr, 1, updatehistory, 0);
+		fr.ts = duped_fr->ts;
+	}
 #endif
 
 	if (iaxs[fr.callno]->last < fr.ts) {

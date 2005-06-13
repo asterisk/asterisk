@@ -880,7 +880,7 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 	if (fr->af.datalen) {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 		/* We need to byte-swap slinear samples from network byte order */
-		if (fr->af.subclass == AST_FORMAT_SLINEAR) {
+		if ((fr->af.frametype == AST_FRAME_VOICE) && (fr->af.subclass == AST_FORMAT_SLINEAR)) {
 			ast_swapcopy_samples(fr->af.data, f->data, fr->af.samples);
 		} else
 #endif
