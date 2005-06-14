@@ -544,7 +544,7 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
 static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 					       const char *name)
 {
-	const char *msg = prev ? "initial deadlock" : "deadlock";
+	const char *msg = prev ? "deadlock" : "initial deadlock";
 	int retries, done;
 	struct ast_channel *c;
 
