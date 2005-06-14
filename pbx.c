@@ -1775,7 +1775,7 @@ int ast_spawn_extension(struct ast_channel *c, char *context, char *exten, int p
 int ast_pbx_run(struct ast_channel *c)
 {
 	int firstpass = 1;
-	char digit;
+	int digit;
 	char exten[256];
 	int pos;
 	int waittime;

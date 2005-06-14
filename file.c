@@ -932,7 +932,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 	return fs;
 }
 
-char ast_waitstream(struct ast_channel *c, char *breakon)
+int ast_waitstream(struct ast_channel *c, char *breakon)
 {
 	/* XXX Maybe I should just front-end ast_waitstream_full ? XXX */
 	int res;
@@ -988,7 +988,7 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	return (c->_softhangup ? -1 : 0);
 }
 
-char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind, int ms)
+int ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind, int ms)
 {
 	int res;
 	struct ast_frame *fr;
@@ -1057,7 +1057,7 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 	return (c->_softhangup ? -1 : 0);
 }
 
-char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int cmdfd)
+int ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int cmdfd)
 {
 	int res;
 	int ms;

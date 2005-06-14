@@ -520,7 +520,8 @@ static int global_maxsilence = 0;
 
 int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path)
 {
-	char d, *fmts;
+	int d;
+	char *fmts;
 	char comment[256];
 	int x, fmtcnt=1, res=-1,outmsg=0;
 	struct ast_frame *f;
@@ -736,7 +737,8 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence)
 {
-	char d = 0, *fmts;
+	int d = 0;
+	char *fmts;
 	char comment[256];
 	int x, fmtcnt=1, res=-1,outmsg=0;
 	struct ast_frame *f;
