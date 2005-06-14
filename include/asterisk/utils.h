@@ -19,7 +19,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
-#include <pthread.h>
 #include <limits.h>
 
 #include "asterisk/lock.h"

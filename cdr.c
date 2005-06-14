@@ -940,9 +940,9 @@ static void submit_unscheduled_batch(void)
 	/* schedule the submission to occur ASAP (1 ms) */
 	cdr_sched = ast_sched_add(sched, 1, submit_scheduled_batch, NULL);
 	/* signal the do_cdr thread to wakeup early and do some work (that lazy thread ;) */
-	pthread_mutex_lock(&cdr_pending_lock);
+	ast_mutex_lock(&cdr_pending_lock);
 	pthread_cond_signal(&cdr_pending_cond);
-	pthread_mutex_unlock(&cdr_pending_lock);
+	ast_mutex_unlock(&cdr_pending_lock);
 }
 
 void ast_cdr_detach(struct ast_cdr *cdr)
@@ -1017,10 +1017,10 @@ static void *do_cdr(void *data)
 		timeout.tv_sec = now.tv_sec + (schedms / 1000);
 		timeout.tv_nsec = (now.tv_usec * 1000) + ((schedms % 1000) * 1000);
 		/* prevent stuff from clobbering cdr_pending_cond, then wait on signals sent to it until the timeout expires */
-		pthread_mutex_lock(&cdr_pending_lock);
+		ast_mutex_lock(&cdr_pending_lock);
 		pthread_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
 		numevents = ast_sched_runq(sched);
-		pthread_mutex_unlock(&cdr_pending_lock);
+		ast_mutex_unlock(&cdr_pending_lock);
 		if (option_debug > 1)
 			ast_log(LOG_DEBUG, "Processed %d scheduled CDR batches from the run queue\n", numevents);
 	}
