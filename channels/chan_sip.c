@@ -2234,10 +2234,8 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 			}
             if ((p->dtmfmode & SIP_DTMF_INBAND) && p->vad) {
                    f = ast_dsp_process(p->owner,p->vad,f);
-		   if (f && (f->frametype == AST_FRAME_DTMF)) {
+		   if (f && (f->frametype == AST_FRAME_DTMF))
 			ast_log(LOG_DEBUG, "Detected DTMF '%c'\n", f->subclass);
-			ast_log(LOG_NOTICE, "Detected inband DTMF '%c'\n", f->subclass);
-		   }
             }
 		}
 	}
