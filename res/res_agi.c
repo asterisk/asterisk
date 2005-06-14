@@ -397,9 +397,9 @@ static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	if (!strncasecmp(argv[2],"tdd",3)) x = 1;
 	res = ast_channel_setoption(chan,AST_OPTION_TDD,&x,sizeof(char),0);
 	if (res == RESULT_SUCCESS)
-		fprintf(agi->fd, "200 result=1\n");
+		fdprintf(agi->fd, "200 result=1\n");
 	else
-		fprintf(agi->fd, "200 result=0\n");
+		fdprintf(agi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
 
