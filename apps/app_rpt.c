@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.24 05/15/05
+ *  version 0.25 06/14/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -120,6 +120,10 @@ enum {SOURCE_RPT, SOURCE_LNK, SOURCE_RMT};
 
 enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -140,10 +144,6 @@ enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 #include <tonezone.h>
 #include <linux/zaptel.h>
 
-#include "asterisk.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
-
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/file.h"
@@ -159,7 +159,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.24  05/15/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.25  06/14/2005";
 
 static char *app = "Rpt";
 
@@ -409,7 +409,6 @@ static int rpt_do_debug(int fd, int argc, char *argv[])
 
 static int play_tone_pair(struct ast_channel *chan, int f1, int f2, int duration, int amplitude)
 {
-	int flags = ZT_IOMUX_WRITEEMPTY;
 	int res;
 
         if ((res = ast_tonepair_start(chan, f1, f2, duration, amplitude)))
@@ -419,13 +418,6 @@ static int play_tone_pair(struct ast_channel *chan, int f1, int f2, int duration
 		if (ast_safe_sleep(chan,1)) return -1;
 	}
 
-	/*
-	* Wait for the zaptel driver to physically write the tone blocks to the hardware
-	*/
-
-	res = ioctl(chan->fds[0], ZT_IOMUX, &flags);
-	if (res < 0)
-		return -1;
         return 0;
 }
 
@@ -514,8 +506,9 @@ static struct morse_bits mbits[] = {
 	int len, ddcomb;
 	int res;
 	int c;
-		
-	
+	int i;
+	int flags;
+			
 	res = 0;
 	
 	/* Approximate the dot time from the speed arg. */
@@ -581,7 +574,23 @@ static struct morse_bits mbits[] = {
 	if (!res) 
 		res = ast_waitstream(chan, "");
 	ast_stopstream(chan);
-		
+	
+	/*
+	* Wait for the zaptel driver to physically write the tone blocks to the hardware
+	*/
+
+	for(i = 0; i < 20 ; i++){
+		flags =  ZT_IOMUX_WRITEEMPTY | ZT_IOMUX_NOWAIT; 
+		res = ioctl(chan->fds[0], ZT_IOMUX, &flags);
+		if(flags & ZT_IOMUX_WRITEEMPTY)
+			break;
+		if( ast_safe_sleep(chan, 50)){
+			res = -1;
+			break;
+		}
+	}
+
+	
 	return res;
 }
 
@@ -593,6 +602,8 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 	int duration;
 	int amplitude;
 	int res;
+	int i;
+	int flags;
 	
 	res = 0;
 	
@@ -614,7 +625,22 @@ static int send_tone_telemetry(struct ast_channel *chan, char *tonestring)
 	if (!res) 
 		res = ast_waitstream(chan, "");
 	ast_stopstream(chan);
-			
+
+	/*
+	* Wait for the zaptel driver to physically write the tone blocks to the hardware
+	*/
+
+	for(i = 0; i < 20 ; i++){
+		flags =  ZT_IOMUX_WRITEEMPTY | ZT_IOMUX_NOWAIT; 
+		res = ioctl(chan->fds[0], ZT_IOMUX, &flags);
+		if(flags & ZT_IOMUX_WRITEEMPTY)
+			break;
+		if( ast_safe_sleep(chan, 50)){
+			res = -1;
+			break;
+		}
+	}
+		
 	return res;
 		
 }
