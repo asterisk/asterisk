@@ -203,13 +203,13 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 			strftime(workspace, workspacelen, fmt, &tm);
 		}
 	} else if (!strcasecmp(name, "answer")) {
-		t = cdr->start.tv_sec;
+		t = cdr->answer.tv_sec;
 		if (t) {
 			localtime_r(&t, &tm);
 			strftime(workspace, workspacelen, fmt, &tm);
 		}
 	} else if (!strcasecmp(name, "end")) {
-		t = cdr->start.tv_sec;
+		t = cdr->end.tv_sec;
 		if (t) {
 			localtime_r(&t, &tm);
 			strftime(workspace, workspacelen, fmt, &tm);
