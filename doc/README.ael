@@ -1,0 +1,246 @@
+The Asterisk Extension Language
+===================================
+
+Over time, people have been pushing to add features to extensions.conf to make
+it more like a programming language.  AEL is intended to provide an actual
+programming language that can be used to write an Asterisk dialplan.
+
+
+Contexts
+-------------------------
+Contexts in AEL represent a set of extensions in the same way that they do
+in extensions.conf.
+
+context default {
+
+};
+
+
+Extensions
+-------------------------
+To specify an extension in a context, the following syntax is used.  If more
+than one application is be called in an extension, they can be listed in order
+inside of a block.
+
+context default {
+	1234 => Playback(tt-monkeys);
+	8000 => {
+		NoOp(one);
+		NoOp(two);
+		NoOp(three);
+	};
+	_5XXX => NoOp(it's a pattern!);
+};
+
+
+Includes
+-------------------------
+Contexts can be included in other contexts.  All included contexts are listed
+within a single block.
+
+context default {
+	includes {
+		local;
+		longdistance;
+		international;
+	};
+};
+
+
+Dialplan Switches
+-------------------------
+Switches are listed in their own block within a context.
+
+context default {
+	switches {
+		DUNDi/e164;
+		IAX2/box5;
+	};
+	eswitches {
+		IAX2/context@${CURSERVER};
+	};
+};
+
+
+Ignorepat
+-------------------------
+ignorepat can be used to instruct channel drivers to not cancel dialtone upon
+receipt of a particular pattern.  The most commonly used example is '9'.
+
+context outgoing {
+	ignorepat => 9;
+};
+
+
+Variables
+-------------------------
+Variables in Asterisk do not have a type, so to define a variable, it just has
+to be specified with a value.
+
+Global variables are set in their own block.
+
+globals {
+	CONSOLE=Console/dsp;
+	TRUNK=Zap/g2;
+};
+
+Variables can be set within extensions as well.
+
+context foo {
+	555 => {
+		x=5;
+		y=blah;
+		NoOp(x is ${x} and y is ${y} !);
+	};
+};
+
+Writing to a dialplan function is treated the same as writing to a variable.
+
+context blah {
+	s => {
+		CALLERID(name)=ChickenMan;
+		NoOp(My name is ${CALLERID(name)} !);
+	};
+}; 
+
+
+Loops
+-------------------------
+AEL has implementations of 'for' and 'while' loops.
+
+context loops {
+	1 => {
+		for (x=0; ${x} < 3; x=${x} + 1) {
+			Verbose(x is ${x} !);
+		};
+	};
+	2 => {
+		y=10;
+		while (${y} >= 0) {
+			Verbose(y is ${y} !);
+			y=${y}-1;
+		};
+	};
+};
+
+
+Conditionals
+-------------------------
+AEL supports if and switch statements.  Note that if you have an else 
+clause, you MUST place braces around the non-else portion of the if 
+statement.
+
+context conditional {
+	_8XXX => {
+		Dial(SIP/${EXTEN});
+		if (${DIALSTATUS} = "BUSY") {
+			Voicemail(${EXTEN}|b);
+		} else
+			Voicemail(${EXTEN}|u);
+	};
+	_777X => {
+		switch (${EXTEN}) {
+			case 7771:
+				NoOp(You called 7771!);
+				break;
+			case 7772:
+				NoOp(You called 7772!);
+				break;
+			case 7773:
+				NoOp(You called 7773!);
+				// fall through
+			default:
+				NoOp(In the default clause!);
+		};
+	};
+};
+
+
+goto and labels
+-------------------------
+This is an example of how to do a goto in AEL.
+
+context gotoexample {
+	s => {
+begin:
+		NoOp(Infinite Loop!  yay!);
+		Wait(1);
+		goto begin;
+	};
+};
+
+
+Macros
+-------------------------
+A macro is defined in its own block like this.  The arguments to the macro are
+specified with the name of the macro.  They are then reffered to by that same
+name.  A catch block can be specified to catch special extensions.
+
+macro std-exten( ext , dev ) {
+        Dial(${ext}/${dev},20);
+        switch(${DIALSTATUS) {
+        case BUSY:
+                Voicemail(b${ext});
+                break;
+        default:
+                Voicemail(u${ext});
+        };
+        catch a {
+                VoiceMailMain(${ext});
+                return;
+        };
+};
+
+A macro is then called by preceeding the macro name with an ampersand.
+
+context example {
+	_5XXX => &std-exten(${EXTEN});
+};
+
+
+Examples
+------------------------
+
+context demo {
+	s => {
+		Wait(1);
+		Answer();
+		TIMEOUT(digit)=5;
+		TIMEOUT(response)=10;
+restart:
+		Background(demo-congrats);
+instructions:
+		for (x=0; ${x} < 3; x=${x} + 1) {
+			Background(demo-instruct);
+			WaitExten();
+		};
+	};
+	2 => {
+		Background(demo-moreinfo);
+		goto instructions;
+	};
+	3 => {
+		LANGUAGE()=fr;
+		goto restart;
+	};
+	500 => {
+		Playback(demo-abouttotry);
+		exten => 500,n,Dial(IAX2/guest@misery.digium.com)
+		Playback(demo-nogo);
+		goto instructions;
+	};
+	600 => {
+		Playback(demo-echotest);
+		Echo();
+		Playback(demo-echodone);
+		goto instructions;
+	};
+	# => {
+hangup:
+		Playback(demo-thanks);
+		Hangup();
+	};
+	t => goto hangup;
+	i => Playback(invalid);
+};
+
