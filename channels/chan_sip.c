@@ -7740,95 +7740,58 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 /*--- reply_digest: reply to authentication for outbound registrations ---*/
 /*      This is used for register= servers in sip.conf, SIP proxies we register
         with  for receiving calls from.  */
-static int reply_digest(struct sip_pvt *p, struct sip_request *req, char *header, int sipmethod,  char *digest, int digest_len) {
-
+static int reply_digest(struct sip_pvt *p, struct sip_request *req,
+	char *header, int sipmethod,  char *digest, int digest_len)
+{
 	char tmp[512] = "";
-	char *realm = "";
-	char *nonce = "";
-	char *domain = "";
-	char *opaque = "";
-	char *qop = "";
 	char *c;
 
+	/* table of recognised keywords, and places where they should be copied */
+	const struct x {
+		const char *key;
+		char *dst;
+		int dstlen;
+	} *i, keys[] = {
+		{ "realm=", p->realm, sizeof(p->realm) },
+		{ "nonce=", p->nonce, sizeof(p->nonce) },
+		{ "opaque=", p->opaque, sizeof(p->opaque) },
+		{ "qop=", p->qop, sizeof(p->qop) },
+		{ "domain=", p->domain, sizeof(p->domain) },
+		{ NULL, NULL, 0 },
+	};
 
-	ast_copy_string(tmp, get_header(req, header),sizeof(tmp));
+	ast_copy_string(tmp, get_header(req, header), sizeof(tmp));
 	if (ast_strlen_zero(tmp)) 
 		return -1;
-	c = tmp;
-	c+=strlen("Digest ");
-	while (c) {
-		while (*c && (*c < 33)) c++;
-		if (!*c)
-			break;
-		if (!strncasecmp(c,"realm=", strlen("realm="))) {
-			c+=strlen("realm=");
-			if ((*c == '\"')) {
-				realm=++c;
-				if ((c = strchr(c,'\"')))
-					*c = '\0';
-			} else {
-				realm = c;
-				if ((c = strchr(c,',')))
-					*c = '\0';
-			}
-		} else if (!strncasecmp(c, "nonce=", strlen("nonce="))) {
-			c+=strlen("nonce=");
-			if ((*c == '\"')) {
-				nonce=++c;
-				if ((c = strchr(c,'\"')))
-					*c = '\0';
-			} else {
-				nonce = c;
-				if ((c = strchr(c,',')))
-					*c = '\0';
-			}
-		} else if (!strncasecmp(c, "opaque=", strlen("opaque="))) {
-			c+=strlen("opaque=");
-			if ((*c == '\"')) {
-				opaque=++c;
-				if ((c = strchr(c,'\"')))
-					*c = '\0';
-			} else {
-				opaque = c;
-				if ((c = strchr(c,',')))
-					*c = '\0';
-			}
-		} else if (!strncasecmp(c, "qop=", strlen("qop="))) {
-			c+=strlen("qop=");
-			if ((*c == '\"')) {
-				qop=++c;
-				if ((c = strchr(c,'\"')))
-					*c = '\0';
-			} else {
-				qop = c;
-				if ((c = strchr(c,',')))
-					*c = '\0';
-			}
-		} else if (!strncasecmp(c, "domain=", strlen("domain="))) {
-			c+=strlen("domain=");
-			if ((*c == '\"')) {
-				domain=++c;
-				if ((c = strchr(c,'\"')))
-					*c = '\0';
-			} else {
-				domain = c;
-				if ((c = strchr(c,',')))
-					*c = '\0';
-			}
-		} else
-			c = strchr(c,',');
-		if (c)
-			c++;
+	if (strstr(tmp, "Digest ") != tmp) {
+		ast_log(LOG_WARNING, "missing Digest.\n");
+		return -1;
 	}
-	if (strlen(tmp) >= sizeof(tmp))
-		ast_log(LOG_WARNING, "Buffer overflow detected!  Please file a bug.\n");
-
-	/* copy realm and nonce for later authorization of CANCELs and BYEs */
-	ast_copy_string(p->realm, realm, sizeof(p->realm));
-	ast_copy_string(p->nonce, nonce, sizeof(p->nonce));
-	ast_copy_string(p->domain, domain, sizeof(p->domain));
-	ast_copy_string(p->opaque, opaque, sizeof(p->opaque));
-	ast_copy_string(p->qop, qop, sizeof(p->qop));
+	c = tmp + strlen("Digest ");
+	for (i = keys; i->key != NULL; i++)
+		i->dst[0] = '\0';	/* init all to empty strings */
+	for (; c && *(c = ast_skip_blanks(c)) ; c++) {	/* lookup for keys */
+		for (i = keys; i->key != NULL; i++) {
+			char *src;
+			if (strncasecmp(c, i->key, strlen(i->key)) != 0)
+				continue;
+			/* Found. Skip keyword, take text in quotes or up to the separator. */
+			c += strlen(i->key);
+			if ((*c == '\"')) {
+				src = ++c;
+				if ((c = strchr(c,'\"')))
+					*c = '\0';
+			} else {
+				src = c;
+				if ((c = strchr(c,',')))
+					*c = '\0';
+			}
+			ast_copy_string(i->dst, src, i->dstlen);
+			break;
+		}
+		if (i->key == NULL)
+			c = strchr(c,',');
+	}
 
 	/* Save auth data for following registrations */
 	if (p->registry) {
