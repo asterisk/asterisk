@@ -175,7 +175,7 @@ static int slinear_seek(struct ast_filestream *fs, long sample_offset, int whenc
 	}
 	/* always protect against seeking past begining. */
 	offset = (offset < min)?min:offset;
-	return lseek(fs->fd, offset, SEEK_SET);
+	return lseek(fs->fd, offset, SEEK_SET) / 2;
 }
 
 static int slinear_trunc(struct ast_filestream *fs)
@@ -187,7 +187,7 @@ static long slinear_tell(struct ast_filestream *fs)
 {
 	off_t offset;
 	offset = lseek(fs->fd, 0, SEEK_CUR);
-	return offset;
+	return offset / 2;
 }
 
 static char *slinear_getcomment(struct ast_filestream *s)
