@@ -37,15 +37,36 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char base64[64];
 static char b2a[256];
 
+char *ast_skip_blanks(char *str)
+{
+	while (*str && *str < 33)
+		str++;
+	return str;
+}
+ 
+char *ast_trim_blanks(char *str)
+{
+	if (str) {
+		str += strlen(str) - 1;
+		while (*str && *str < 33)
+			str--;
+		*(++str) = '\0'; /* terminate string */
+	}
+	return str;
+}
+
+char *ast_skip_nonblanks(char *str)
+{
+	while (*str && *str > 32)
+		str++;
+	return str;
+}
+
 char *ast_strip(char *s)
 {
-	char *e;
-
-	while (*s && (*s < 33)) s++;
-	e = s + strlen(s) - 1;
-	while ((e > s) && (*e < 33)) e--;
-	*++e = '\0';
-
+	s = ast_skip_blanks(s);
+	if (s)
+		ast_trim_blanks(s);
 	return s;
 } 
 

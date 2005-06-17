@@ -131,6 +131,27 @@ struct ast_hostent {
 };
 
 /*!
+  \brief Gets a pointer to the first non-whitespace character in a string.
+  \param str the input string
+  \return a pointer to the first non-whitespace character
+ */
+char *ast_skip_blanks(char *str);
+
+/*!
+  \brief Trims trailing whitespace characters from a string.
+  \param str the input string
+  \return a pointer to the NULL following the string
+ */
+char *ast_trim_blanks(char *str);
+
+/*!
+  \brief Gets a pointer to first whitespace character in a string.
+  \param str the input string
+  \return a pointer to the first whitespace character
+ */
+char *ast_skip_nonblanks(char *str);
+  
+/*!
   \brief Strip leading/trailing whitespace from a string.
   \param s The string to be stripped (will be modified).
   \return The stripped string.

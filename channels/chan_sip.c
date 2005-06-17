@@ -763,6 +763,24 @@ int find_sip_method(char *msg)
 	return res;
 }
 
+/*
+ * If there is a string in <brackets>, strip everything around and return
+ * the content. Otherwise return the original argument.
+ */
+static char *get_in_brackets(char *c)
+{
+	char *n = strchr(c, '<');
+
+	if (n) {
+		c = n + 1;
+		n = strchr(c, '>');
+		/* Lose the part after the > */
+		if (n) 
+			*n = '\0';
+	}
+	return c;
+}
+
 /*--- sip_debug_test_addr: See if we pass debug IP filter */
 static inline int sip_debug_test_addr(struct sockaddr_in *addr) 
 {
@@ -1072,8 +1090,7 @@ static int __sip_pretend_ack(struct sip_pvt *p)
 		}
 		cur = p->packets;
 		ast_copy_string(method, p->packets->data, sizeof(method));
-		c = method;
-		while(*c && (*c < 33)) c++;
+		c = ast_skip_blanks(method); /* XXX what ? */
 		*c = '\0';
 		__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(method));
 	}
@@ -1183,27 +1200,19 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 	return res;
 }
 
-/*--- url_decode: Decode SIP URL  ---*/
+/*--- url_decode: Decode SIP URL (overwrite the string)  ---*/
 static void url_decode(char *s) 
 {
-	char *o = s;
+	char *o;
 	unsigned int tmp;
-	while(*s) {
-		switch(*s) {
-		case '%':
-			if (strlen(s) > 2) {
-				if (sscanf(s + 1, "%2x", &tmp) == 1) {
-					*o = tmp;
-					s += 2;	/* Will be incremented once more when we break out */
-					break;
-				}
-			}
-			/* Fall through if something wasn't right with the formatting */
-		default:
+
+	for (o = s; *s; s++, o++) {
+		if (*s == '%' && strlen(s) > 2 && sscanf(s + 1, "%2x", &tmp) == 1) {
+			/* have '%', two chars and correct parsing */
+			*o = tmp;
+			s += 2;	/* Will be incremented once more when we break out */
+		} else /* all other cases, just copy */
 			*o = *s;
-		}
-		s++;
-		o++;
 	}
 	*o = '\0';
 }
@@ -2469,10 +2478,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 static char* get_sdp_by_line(char* line, char *name, int nameLen)
 {
 	if (strncasecmp(line, name, nameLen) == 0 && line[nameLen] == '=') {
-		char* r = line + nameLen + 1;
-		while (*r && (*r < 33)) 
-			++r;
-		return r;
+		return ast_skip_blanks(line + nameLen + 1);
 	}
 	return "";
 }
@@ -2513,49 +2519,45 @@ static char* get_sdp_iterate(int* iterator,
 	return "";
 }
 
-static char *__get_header(struct sip_request *req, char *name, int *start)
+static char *find_alias(const char *name, char *_default)
 {
 	int x;
-	int len = strlen(name);
-	char *r;
-	if (pedanticsipchecking) {
-		/* Technically you can place arbitrary whitespace both before and after the ':' in
-		   a header, although RFC3261 clearly says you shouldn't before, and place just
-		   one afterwards.  If you shouldn't do it, what absolute idiot decided it was 
-		   a good idea to say you can do it, and if you can do it, why in the hell would 
-		   you say you shouldn't.  */
+	for (x=0;x<sizeof(aliases) / sizeof(aliases[0]); x++) 
+		if (!strcasecmp(aliases[x].fullname, name))
+			return aliases[x].shortname;
+	return _default;
+}
+
+static char *__get_header(struct sip_request *req, char *name, int *start)
+{
+	int pass;
+
+	/*
+	 * Technically you can place arbitrary whitespace both before and after the ':' in
+	 * a header, although RFC3261 clearly says you shouldn't before, and place just
+	 * one afterwards.  If you shouldn't do it, what absolute idiot decided it was 
+	 * a good idea to say you can do it, and if you can do it, why in the hell would.
+	 * you say you shouldn't.
+	 * Anyways, pedanticsipchecking controls whether we allow spaces before ':',
+	 * and we always allow spaces after that for compatibility.
+	 */
+	for (pass = 0; name && pass < 2;pass++) {
+		int x, len = strlen(name);
 		for (x=*start; x<req->headers; x++) {
 			if (!strncasecmp(req->header[x], name, len)) {
-				r = req->header[x] + len;
-				while(*r && (*r < 33))
-					r++;
+				char *r = req->header[x] + len;	/* skip name */
+				if (pedanticsipchecking)
+					r = ast_skip_blanks(r);
+
 				if (*r == ':') {
-					r++ ;
-					while(*r && (*r < 33))
-						r++;
 					*start = x+1;
-					return r;
+					return ast_skip_blanks(r+1);
 				}
 			}
 		}
-	} else {
-		/* We probably shouldn't even bother counting whitespace afterwards but
-		   I guess for backwards compatibility we will */
-		for (x=*start;x<req->headers;x++) {
-			if (!strncasecmp(req->header[x], name, len) && 
-					(req->header[x][len] == ':')) {
-				r = req->header[x] + len + 1;
-				while(*r && (*r < 33))
-					r++;
-				*start = x+1;
-				return r;
-			}
-		}
+		if (pass == 0) /* Try aliases */
+			name = find_alias(name, NULL);
 	}
-	/* Try aliases */
-	for (x=0;x<sizeof(aliases) / sizeof(aliases[0]); x++) 
-		if (!strcasecmp(aliases[x].fullname, name))
-			return __get_header(req, aliases[x].shortname, start);
 
 	/* Don't return NULL, so get_header is always a valid pointer */
 	return "";
@@ -3054,9 +3056,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				if (debug)
 					ast_verbose("Found RTP audio format %d\n", codec);
 				ast_rtp_set_m_type(p->rtp, codec);
-				codecs += len;
-				/* Skip over any whitespace */
-				while(*codecs && (*codecs < 33)) codecs++;
+				codecs = ast_skip_blanks(codecs + len);
 			}
 		}
 		if (p->vrtp)
@@ -3076,9 +3076,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 				if (debug)
 					ast_verbose("Found video format %s\n", ast_getformatname(codec));
 				ast_rtp_set_m_type(p->vrtp, codec);
-				codecs += len;
-				/* Skip over any whitespace */
-				while(*codecs && (*codecs < 33)) codecs++;
+				codecs = ast_skip_blanks(codecs + len);
 			}
 		}
 		if (!found )
@@ -3617,19 +3615,9 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		c = p->uri;
 	} else {
 		/* We have no URI, use To: or From:  header as URI (depending on direction) */
-		if (ast_test_flag(p, SIP_OUTGOING))
-			ast_copy_string(stripped, get_header(orig, "To"), sizeof(stripped));
-		else
-			ast_copy_string(stripped, get_header(orig, "From"), sizeof(stripped));
-		
-		c = strchr(stripped, '<');
-		if (c) 
-			c++;
-		else
-			c = stripped;
-		n = strchr(c, '>');
-		if (n)
-			*n = '\0';
+		c = get_header(orig, (ast_test_flag(p, SIP_OUTGOING)) ? "To" : "From");
+		ast_copy_string(stripped, c, sizeof(stripped));
+		c = get_in_brackets(stripped);
 		n = strchr(c, ';');
 		if (n)
 			*n = '\0';
@@ -4014,29 +4002,17 @@ static int determine_firstline_parts( struct sip_request *req )
 	char *e, *cmd;
 	int len;
   
-	cmd = req->header[0];
-	while(*cmd && (*cmd < 33)) {
-		cmd++;
-	}
-	if (!*cmd) {
+	cmd = ast_skip_blanks(req->header[0]);
+	if (!*cmd)
 		return -1;
-	}
-	e = cmd;
-	while(*e && (*e > 32)) {
-		e++;
-	}
-	/* Get the command */
-	if (*e) {
-		*e = '\0';
-		e++;
-	}
 	req->rlPart1 = cmd;
-	while( *e && ( *e < 33 ) ) {
-		e++; 
-	}
-	if ( !*e ) {
+	e = ast_skip_nonblanks(cmd);
+	/* Get the command */
+	if (*e)
+		*e++ = '\0';
+	e = ast_skip_blanks(e);
+	if ( !*e )
 		return -1;
-	}
     
 	if ( !strcasecmp(cmd, "SIP/2.0") ) {
 		/* We have a response */
@@ -4045,11 +4021,7 @@ static int determine_firstline_parts( struct sip_request *req )
 		if ( len < 2 ) { 
 			return -1;
 		}
-		e+= len - 1;
-		while( *e && *e < 33 ) {
-			e--; 
-		}
-		*(++e)= '\0';
+		ast_trim_blanks(e);
 	} else {
 		/* We have a request */
 		if ( *e == '<' ) { 
@@ -4062,6 +4034,7 @@ static int determine_firstline_parts( struct sip_request *req )
 		if ( ( e= strrchr( req->rlPart2, 'S' ) ) == NULL ) {
 			return -1;
 		}
+		/* XXX maybe trim_blanks() ? */
 		while( isspace( *(--e) ) ) {}
 		if ( *e == '>' ) {
 			*e = '\0';
@@ -4106,14 +4079,7 @@ static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 	char stripped[256]="";
 	char *c, *n;
 	ast_copy_string(stripped, get_header(req, "Contact"), sizeof(stripped));
-	c = strchr(stripped, '<');
-	if (c) 
-		c++;
-	else
-		c = stripped;
-	n = strchr(c, '>');
-	if (n)
-		*n = '\0';
+	c = get_in_brackets(stripped);
 	n = strchr(c, ';');
 	if (n)
 		*n = '\0';
@@ -5016,16 +4982,7 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 
 	/* Look for brackets */
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
-	c = contact;
-	
-	if ((n=strchr(c, '<'))) {
-		c = n + 1;
-		n = strchr(c, '>');
-		/* Lose the part after the > */
-		if (n) 
-			*n = '\0';
-	}
-
+	c = get_in_brackets(contact);
 
 	/* Save full contact to call pvt for later bye or re-invite */
 	ast_copy_string(pvt->fullcontact, c, sizeof(pvt->fullcontact));	
@@ -5110,15 +5067,8 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	}
 	/* Look for brackets */
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
-	c = contact;
-	
-	if ((n=strchr(c, '<'))) {
-		c = n + 1;
-		n = strchr(c, '>');
-		/* Lose the part after the > */
-		if (n) 
-			*n = '\0';
-	}
+	c = get_in_brackets(contact);
+
 	if (!strcasecmp(c, "*") || !expiry) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
 		memset(&p->addr, 0, sizeof(p->addr));
@@ -5433,7 +5383,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		c = tmp;
 
 		while(c) {
-			while (*c && (*c < 33)) c++;
+			c = ast_skip_blanks(c);
 			if (!*c)
 				break;
 			if (!strncasecmp(c, "response=", strlen("response="))) {
@@ -5755,19 +5705,6 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
-/*--- hex2int: Convert hex code to integer ---*/
-static int hex2int(char a)
-{
-	if ((a >= '0') && (a <= '9')) {
-		return a - '0';
-	} else if ((a >= 'a') && (a <= 'f')) {
-		return a - 'a' + 10;
-	} else if ((a >= 'A') && (a <= 'F')) {
-		return a - 'A' + 10;
-	}
-	return 0;
-}
-
 /*--- get_sip_pvt_byid_locked: Lock interface lock and find matching pvt lock  ---*/
 static struct sip_pvt *get_sip_pvt_byid_locked(char *callid) 
 {
@@ -5796,27 +5733,6 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 	ast_mutex_unlock(&iflock);
 	return sip_pvt_ptr;
 }
-
-/*--- sip_unescape_uri: Turn %XX into and ascii char ---*/
-static int sip_unescape_uri(char *uri) 
-{
-	char *ptr = uri;
-	int replaced = 0;
-
-	while ((ptr = strchr(ptr, '%'))) {
-		/* un-escape urlencoded text */
-		if (strlen(ptr) < 3)
-			break;
-		*ptr = hex2int(ptr[1]) * 16 + hex2int(ptr[2]);
-		memmove(ptr+1, ptr+3, strlen(ptr+3) + 1);
-		ptr++;
-		replaced++;
-	}
-
-	return replaced;
-}
-
-
 
 /*--- get_refer_info: Call transfer support (the REFER method) ---*/
 static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
@@ -5868,19 +5784,21 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		*ptr = '\0';
 		ptr++;
 		if (!strncasecmp(ptr, "REPLACES=", 9)) {
+			char *p;
 			replace_callid = ast_strdupa(ptr + 9);
 			/* someday soon to support invite/replaces properly!
 			   replaces_header = ast_strdupa(replace_callid); 
 			   -anthm
 			*/
-			sip_unescape_uri(replace_callid);
+			url_decode(replace_callid);
 			if ((ptr = strchr(replace_callid, '%'))) 
 				*ptr = '\0';
 			if ((ptr = strchr(replace_callid, ';'))) 
 				*ptr = '\0';
-			/* Skip leading whitespace */
-			while(replace_callid[0] && (replace_callid[0] < 33))
-				memmove(replace_callid, replace_callid+1, strlen(replace_callid));
+			/* Skip leading whitespace XXX memmove behaviour with overlaps ? */
+			p = ast_skip_blanks(replace_callid);
+			if (p != replace_callid)
+				memmove(replace_callid, p, strlen(p));
 		}
 	}
 	
@@ -6006,18 +5924,14 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 	c = strchr(via, ' ');
 	if (c) {
 		*c = '\0';
-		c++;
-		while(*c && (*c < 33))
-			c++;
+		c = ast_skip_blanks(c+1);
 		if (strcmp(via, "SIP/2.0/UDP")) {
 			ast_log(LOG_WARNING, "Don't know how to respond via '%s'\n", via);
 			return -1;
 		}
 		pt = strchr(c, ':');
-		if (pt) {
-			*pt = '\0';
-			pt++;
-		}
+		if (pt)
+			*pt++ = '\0';	/* remeber port pointer */
 		hp = ast_gethostbyname(c, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "'%s' is not a valid host\n", c);
@@ -6028,13 +5942,11 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
 		c = strstr(via, ";rport");
-		if (c && (c[6] != '='))
+		if (c && (c[6] != '='))	/* XXX some special hack ? */
 			ast_set_flag(p, SIP_NAT_ROUTE);
 		if (sip_debug_test_pvt(p)) {
-			if (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
-				ast_verbose("Sending to %s : %d (NAT)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
-			else
-				ast_verbose("Sending to %s : %d (non-NAT)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port));
+			c = (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) ? "NAT" : "non-NAT";
+			ast_verbose("Sending to %s : %d (%s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), c);
 		}
 	}
 	return 0;
@@ -6063,8 +5975,7 @@ static char *get_calleridname(char *input, char *output, size_t outputsize)
 	} else {
 		/* we didn't find "name" */
 		/* clear the empty characters in the begining*/
-		while(*input && (*input < 33))
-			input++;
+		input = ast_skip_blanks(input);
 		/* clear the empty characters in the end */
 		while(*end && (*end < 33) && end > input)
 			end--;
@@ -9388,8 +9299,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		ast_log(LOG_DEBUG, "No seqno in '%s'\n", cmd);
 		return -1;
 	}
-	/* Get the command */
-	cseq += len;
+	/* Get the command XXX */
 
 	cmd = req->rlPart1;
 	e = req->rlPart2;
@@ -9416,8 +9326,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 	
 		extract_uri(p, req);
-		while(*e && (*e < 33)) 
-			e++;
+		e = ast_skip_blanks(e);
 		if (sscanf(e, "%d %n", &respid, &len) != 1) {
 			ast_log(LOG_WARNING, "Invalid response: '%s'\n", e);
 		} else {
@@ -9425,7 +9334,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 		return 0;
 	}
-
+	/* XXX what if not SIP/2.0 ? */
 	/* New SIP request coming in 
 	   (could be new request in existing SIP dialog as well...) 
 	 */			
