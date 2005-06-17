@@ -26,6 +26,8 @@
 #include "asterisk/cli.h"
 #include "asterisk/callerid.h"
 
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 struct stringlink {
 	struct stringlink *next;
 	unsigned char data[0];
@@ -57,7 +59,7 @@ static void FREE(void *ptr)
 
 static int aeldebug = 0;
 
-static char *dtext = "Asterisk Extension Logic Compiler";
+static char *dtext = "Asterisk Extension Language Compiler";
 static char *config = "extensions.ael";
 static char *registrar = "pbx_ael";
 
