@@ -4,7 +4,7 @@
 
 macro std-exten-ael( ext , dev ) {
         Dial(${ext}/${dev},20);
-        switch(${DIALSTATUS) {
+        switch(${DIALSTATUS}) {
         case BUSY:
                 Voicemail(b${ext});
                 break;
