@@ -828,7 +828,7 @@ static void build_via(struct sip_pvt *p, char *buf, int len)
 	char iabuf[INET_ADDRSTRLEN];
 
 	/* z9hG4bK is a magic cookie.  See RFC 3261 section 8.1.1.7 */
-	if (ast_test_flag(p, SIP_NAT) != SIP_NAT_NEVER)
+	if (ast_test_flag(p, SIP_NAT) & SIP_NAT_RFC3581)
 		snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x;rport", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
 	else /* Work around buggy UNIDEN UIP200 firmware */
 		snprintf(buf, len, "SIP/2.0/UDP %s:%d;branch=z9hG4bK%08x", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport, p->branch);
