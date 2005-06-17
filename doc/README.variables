@@ -310,7 +310,13 @@ Of course, all of the above examples use constants, but would work the same if a
 numeric or string constants were replaced with a variable reference ${CALLERIDNUM}, for
 instance.
 
- 
+__________________________
+NUMBERS VS STRINGS
+--------------------------
+
+Tokens consisting only of numbers are converted to 64-bit numbers for most of the
+operators. This means that overflows can occur when the numbers get above 18 digits.
+Warnings will appear in the logs in this case.
 ___________________________
 CONDITIONALS
 ---------------------------

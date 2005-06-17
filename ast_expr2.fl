@@ -32,6 +32,7 @@ struct val {
 
 #define SET_COLUMNS yylloc_param->first_column = (int)(yyg->yytext_r - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);yylloc_param->last_column = yylloc_param->last_column + yyleng - 1; yylloc_param->first_line = yylloc_param->last_line = 1
 #define SET_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_string; yylval_param->val->u.s = strdup(yytext);
+#define SET_NUMERIC_STRING yylval_param->val = (struct val *)calloc(sizeof(struct val),1); yylval_param->val->type = AST_EXPR_numeric_string; yylval_param->val->u.s = strdup(yytext);
 
 struct parse_io
 {
@@ -74,10 +75,8 @@ struct parse_io
 \"[^"]*\"   {SET_COLUMNS; SET_STRING; return TOKEN;}
 
 [\n]	{/* what to do with eol */}
-[0-9]+		{   SET_COLUMNS; 
-				yylval_param->val = (struct val *)calloc(sizeof(struct val),1);
-				yylval_param->val->type = AST_EXPR_integer; 
-				yylval_param->val->u.i = atoi(yytext); 
+[0-9]+		{   SET_COLUMNS;  /* the original behavior of the expression parser was to bring in numbers as a numeric string */
+				SET_NUMERIC_STRING;
 				return TOKEN;}
 [a-zA-Z0-9,.?';{}\\_^%$#@!]+	{SET_COLUMNS; SET_STRING; return TOKEN;}
 

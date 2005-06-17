@@ -296,10 +296,11 @@ to_integer (struct val *vp)
 
 	/* vp->type == AST_EXPR_numeric_string, make it numeric */
 	errno = 0;
-	i  = strtoq(vp->u.s, (char**)NULL, 10);
+	i  = strtoll(vp->u.s, (char**)NULL, 10);
 	if (errno != 0) {
+		ast_log(LOG_WARNING,"Conversion of %s to integer under/overflowed!\n", vp->u.s);
 		free(vp->u.s);
-		ast_log(LOG_WARNING,"overflow\n");
+		vp->u.s = 0;
 		return(0);
 	}
 	free (vp->u.s);
@@ -433,8 +434,15 @@ op_eq (struct val *a, struct val *b)
 		to_string (b);	
 		r = make_integer ((quad_t)(strcoll (a->u.s, b->u.s) == 0));
 	} else {
+#ifdef DEBUG_FOR_CONVERSIONS
+		char buffer[2000];
+		sprintf(buffer,"Converting '%s' and '%s' ", a->u.s, b->u.s);
+#endif
 		(void)to_integer(a);
 		(void)to_integer(b);
+#ifdef DEBUG_FOR_CONVERSIONS
+		ast_log(LOG_WARNING,"%s to '%lld' and '%lld'\n", buffer, a->u.i, b->u.i);
+#endif
 		r = make_integer ((quad_t)(a->u.i == b->u.i));
 	}
 
