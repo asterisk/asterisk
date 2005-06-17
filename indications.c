@@ -33,6 +33,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
 
+static int midi_tohz[128] = {
+			8,8,9,9,10,10,11,12,12,13,14,
+			15,16,17,18,19,20,21,23,24,25,
+			27,29,30,32,34,36,38,41,43,46,
+			48,51,55,58,61,65,69,73,77,82,
+			87,92,97,103,110,116,123,130,138,146,
+			155,164,174,184,195,207,220,233,246,261,
+			277,293,311,329,349,369,391,415,440,466,
+			493,523,554,587,622,659,698,739,783,830,
+			880,932,987,1046,1108,1174,1244,1318,1396,1479,
+			1567,1661,1760,1864,1975,2093,2217,2349,2489,2637,
+			2793,2959,3135,3322,3520,3729,3951,4186,4434,4698,
+			4978,5274,5587,5919,6271,6644,7040,7458,7902,8372,
+			8869,9397,9956,10548,11175,11839,12543
+			};
+
 struct playtones_item {
 	int freq1;
 	int freq2;
@@ -178,7 +194,7 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 		separator = ",";
 	s = strsep(&stringp,separator);
 	while (s && *s) {
-		int freq1, freq2, time, modulate=0;
+		int freq1, freq2, time, modulate=0, midinote=0;
 
 		if (s[0]=='!')
 			s++;
@@ -203,14 +219,54 @@ int ast_playtones_start(struct ast_channel *chan, int vol, const char *playlst, 
 			/* f1 format */
 			freq2 = 0;
 			time = 0;
+		} else if (sscanf(s, "M%d+M%d/%d", &freq1, &freq2, &time) == 3) {
+			/* Mf1+Mf2/time format */
+			midinote = 1;
+		} else if (sscanf(s, "M%d+M%d", &freq1, &freq2) == 2) {
+			/* Mf1+Mf2 format */
+			time = 0;
+			midinote = 1;
+		} else if (sscanf(s, "M%d*M%d/%d", &freq1, &freq2, &time) == 3) {
+			/* Mf1*Mf2/time format */
+			modulate = 1;
+			midinote = 1;
+		} else if (sscanf(s, "M%d*M%d", &freq1, &freq2) == 2) {
+			/* Mf1*Mf2 format */
+			time = 0;
+			modulate = 1;
+			midinote = 1;
+		} else if (sscanf(s, "M%d/%d", &freq1, &time) == 2) {
+			/* Mf1/time format */
+			freq2 = -1;
+			midinote = 1;
+		} else if (sscanf(s, "M%d", &freq1) == 1) {
+			/* Mf1 format */
+			freq2 = -1;
+			time = 0;
+			midinote = 1;
 		} else {
 			ast_log(LOG_WARNING,"%s: tone component '%s' of '%s' is no good\n",chan->name,s,playlst);
 			return -1;
 		}
 
+		if (midinote) {
+			/* midi notes must be between 0 and 127 */
+			if ((freq1 >= 0) && (freq1 <= 127))
+				freq1 = midi_tohz[freq1];
+			else
+				freq1 = 0;
+
+			if ((freq2 >= 0) && (freq2 <= 127))
+				freq2 = midi_tohz[freq2];
+			else
+				freq2 = 0;
+		}
+
 		d.items = realloc(d.items,(d.nitems+1)*sizeof(struct playtones_item));
-		if (d.items == NULL)
+		if (d.items == NULL) {
+			ast_log(LOG_WARNING, "Realloc failed!\n");
 			return -1;
+		}
 		d.items[d.nitems].freq1    = freq1;
 		d.items[d.nitems].freq2    = freq2;
 		d.items[d.nitems].duration = time;
