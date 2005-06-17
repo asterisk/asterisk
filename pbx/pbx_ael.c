@@ -17,16 +17,17 @@
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
-/* For where to put dynamic tables */
+
 #include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/pbx.h"
 #include "asterisk/config.h"
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/cli.h"
 #include "asterisk/callerid.h"
-
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct stringlink {
 	struct stringlink *next;
