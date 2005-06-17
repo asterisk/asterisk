@@ -699,8 +699,6 @@ static int __build_step(const char *what, const char *name, const char *filename
 		while(*args && (*args < 33)) args++;
 		if (aeldebug & DEBUG_TOKENS)
 			ast_verbose("--JUMP to : '%s'\n", args);
-		mlen = strlen(exten) + 128 + strlen(args) + strlen(name) + (c ? strlen(c) : 0);
-		margs = alloca(mlen);
 		p = strchr(args, ',');
 		if (p) {
 			*p = '\0';
@@ -712,6 +710,8 @@ static int __build_step(const char *what, const char *name, const char *filename
 			*c = '\0';
 			c++;
 		}
+		mlen = strlen(exten) + 128 + strlen(args) + strlen(name) + (c ? strlen(c) : 0);
+		margs = alloca(mlen);
 		if (c) 
 			snprintf(margs, mlen, "%s|%s|%s", c,args, p);
 		else
