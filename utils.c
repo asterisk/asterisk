@@ -46,13 +46,15 @@ char *ast_skip_blanks(char *str)
  
 char *ast_trim_blanks(char *str)
 {
-	if (str) {
-		str += strlen(str) - 1;
-		while (*str && *str < 33)
-			str--;
-		*(++str) = '\0'; /* terminate string */
+	char *work = str;
+
+	if (work && !ast_strlen_zero(work)) {
+		work += strlen(work) - 1;
+		while ((work >= str) && *work && *work < 33)
+			work--;
+		*(++work) = '\0'; /* terminate string */
 	}
-	return str;
+	return work;
 }
 
 char *ast_skip_nonblanks(char *str)
