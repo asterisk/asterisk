@@ -447,6 +447,10 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  					f = &null_frame;
  				} else {
  					p->acknowledged = 1;
+ 					/* Use the builtin answer frame for the 
+					   recording start check below. */
+ 					ast_frfree(f);
+ 					f = &answer_frame;
  				}
  			}
  			break;
