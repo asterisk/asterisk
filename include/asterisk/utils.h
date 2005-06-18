@@ -20,6 +20,7 @@
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
 #include <limits.h>
+#include <string.h>
 
 #include "asterisk/lock.h"
 
@@ -135,21 +136,59 @@ struct ast_hostent {
   \param str the input string
   \return a pointer to the first non-whitespace character
  */
+#ifdef LOW_MEMORY
 char *ast_skip_blanks(char *str);
+#else
+static inline char *ast_skip_blanks(char *str)
+{
+	while (*str && *str < 33)
+		str++;
+	return str;
+}
+#endif
 
 /*!
   \brief Trims trailing whitespace characters from a string.
   \param str the input string
   \return a pointer to the NULL following the string
  */
+#ifdef LOW_MEMORY
 char *ast_trim_blanks(char *str);
+#else
+static inline char *ast_trim_blanks(char *str)
+{
+	char *work = str;
+
+	if (work) {
+		work += strlen(work) - 1;
+		/* It's tempting to only want to erase after we exit this loop, 
+		   but since ast_trim_blanks *could* receive a constant string
+		   (which we presumably wouldn't have to touch), we shouldn't
+		   actually set anything unless we must, and it's easier just
+		   to set each position to \0 than to keep track of a variable
+		   for it */
+		while ((work >= str) && *work < 33)
+			*(work--) = '\0';
+	}
+	return str;
+}
+#endif
 
 /*!
   \brief Gets a pointer to first whitespace character in a string.
   \param str the input string
   \return a pointer to the first whitespace character
  */
+#ifdef LOW_MEMORY
 char *ast_skip_nonblanks(char *str);
+#else
+static inline char *ast_skip_nonblanks(char *str)
+{
+	while (*str && *str > 32)
+		str++;
+	return str;
+}
+#endif
   
 /*!
   \brief Strip leading/trailing whitespace from a string.
@@ -160,7 +199,17 @@ char *ast_skip_nonblanks(char *str);
   characters from the input string, and returns a pointer to
   the resulting string. The string is modified in place.
 */
+#ifdef LOW_MEMORY
 char *ast_strip(char *s);
+#else
+static inline char *ast_strip(char *s)
+{
+	s = ast_skip_blanks(s);
+	if (s)
+		ast_trim_blanks(s);
+	return s;
+} 
+#endif
 
 /*!
   \brief Strip leading/trailing whitespace and quotes from a string.

@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char base64[64];
 static char b2a[256];
 
+#ifdef LOW_MEMORY
 char *ast_skip_blanks(char *str)
 {
 	while (*str && *str < 33)
@@ -48,13 +49,18 @@ char *ast_trim_blanks(char *str)
 {
 	char *work = str;
 
-	if (work && !ast_strlen_zero(work)) {
+	if (work) {
 		work += strlen(work) - 1;
-		while ((work >= str) && *work && *work < 33)
-			work--;
-		*(++work) = '\0'; /* terminate string */
+		/* It's tempting to only want to erase after we exit this loop, 
+		   but since ast_trim_blanks *could* receive a constant string
+		   (which we presumably wouldn't have to touch), we shouldn't
+		   actually set anything unless we must, and it's easier just
+		   to set each position to \0 than to keep track of a variable
+		   for it */
+		while ((work >= str) && *work < 33)
+			*(work--) = '\0';
 	}
-	return work;
+	return str;
 }
 
 char *ast_skip_nonblanks(char *str)
@@ -71,6 +77,7 @@ char *ast_strip(char *s)
 		ast_trim_blanks(s);
 	return s;
 } 
+#endif
 
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 {
