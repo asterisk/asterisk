@@ -1096,7 +1096,11 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno++));
 		/* For the last three packets, set the duration and the end bit */
 		if (x == 2) {
+#if 0
+			/* No, this is wrong...  Do not increment lastdigitts, that's not according
+			   to the RFC, as best we can determine */
 			rtp->lastdigitts++; /* or else the SPA3000 will click instead of beeping... */
+#endif			
 			rtpheader[1] = htonl(rtp->lastdigitts);
 			/* Make duration 800 (100ms) */
 			rtpheader[3] |= htonl((800));
