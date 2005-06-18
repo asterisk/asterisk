@@ -5925,13 +5925,13 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 	if (c) {
 		*c = '\0';
 		c = ast_skip_blanks(c+1);
-		if (strcmp(via, "SIP/2.0/UDP")) {
+		if (strcasecmp(via, "SIP/2.0/UDP")) {
 			ast_log(LOG_WARNING, "Don't know how to respond via '%s'\n", via);
 			return -1;
 		}
 		pt = strchr(c, ':');
 		if (pt)
-			*pt++ = '\0';	/* remeber port pointer */
+			*pt++ = '\0';	/* remember port pointer */
 		hp = ast_gethostbyname(c, &ahp);
 		if (!hp) {
 			ast_log(LOG_WARNING, "'%s' is not a valid host\n", c);
@@ -5942,7 +5942,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
 		c = strstr(via, ";rport");
-		if (c && (c[6] != '='))	/* XXX some special hack ? */
+		if (c && (c[6] != '='))	/* rport query, not answer */
 			ast_set_flag(p, SIP_NAT_ROUTE);
 		if (sip_debug_test_pvt(p)) {
 			c = (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) ? "NAT" : "non-NAT";
