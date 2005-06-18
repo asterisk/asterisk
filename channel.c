@@ -2858,8 +2858,10 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct timeval *sta
 			time_left_ms = config->timelimit - elapsed_ms;
 
 			if (*playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 
-				res = -3;
-				break;
+				if (config->warning_freq == 0 || time_left_ms == config->play_warning || (time_left_ms % config->warning_freq) <= 50) {
+					res = -3;
+					break;
+				}
 			}
 			if (time_left_ms <= 0) {
 				res = -3;
