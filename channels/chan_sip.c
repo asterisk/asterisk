@@ -7770,7 +7770,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 	c = tmp + strlen("Digest ");
 	for (i = keys; i->key != NULL; i++)
 		i->dst[0] = '\0';	/* init all to empty strings */
-	for (; c && *(c = ast_skip_blanks(c)) ; c++) {	/* lookup for keys */
+	while (c && *(c = ast_skip_blanks(c))) {	/* lookup for keys */
 		for (i = keys; i->key != NULL; i++) {
 			char *src;
 			if (strncasecmp(c, i->key, strlen(i->key)) != 0)
@@ -7779,12 +7779,16 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 			c += strlen(i->key);
 			if ((*c == '\"')) {
 				src = ++c;
-				if ((c = strchr(c,'\"')))
+				if ((c = strchr(c,'\"'))) {
 					*c = '\0';
+					c++;
+				}
 			} else {
 				src = c;
-				if ((c = strchr(c,',')))
+				if ((c = strchr(c,','))) {
 					*c = '\0';
+					c++;
+				}
 			}
 			ast_copy_string(i->dst, src, i->dstlen);
 			break;
