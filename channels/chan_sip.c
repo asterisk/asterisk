@@ -9189,10 +9189,18 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 		/* Go ahead and free RTP port */
 		if (p->rtp) {
+			if (p->owner) {
+				p->owner->fds[0] = -1;
+				p->owner->fds[1] = -1;
+			}
 			ast_rtp_destroy(p->rtp);
 			p->rtp = NULL;
 		}
 		if (p->vrtp) {
+			if (p->owner) {
+				p->owner->fds[2] = -1;
+				p->owner->fds[3] = -1;
+			}
 			ast_rtp_destroy(p->vrtp);
 			p->vrtp = NULL;
 		}
@@ -9219,10 +9227,18 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
 	if (res < 1) {
 		/* Go ahead and free RTP port */
 		if (p->rtp) {
+			if (p->owner) {
+				p->owner->fds[0] = -1;
+				p->owner->fds[1] = -1;
+			}
 			ast_rtp_destroy(p->rtp);
 			p->rtp = NULL;
 		}
 		if (p->vrtp) {
+			if (p->owner) {
+				p->owner->fds[2] = -1;
+				p->owner->fds[3] = -1;
+			}
 			ast_rtp_destroy(p->vrtp);
 			p->vrtp = NULL;
 		}
