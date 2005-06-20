@@ -324,17 +324,14 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 	return x;
 }
 
-#define CDR_CLEN 18
 int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur) 
 {
 	struct ast_var_t *variables;
-	struct varshead *headp;
-	char *var=NULL ,*val=NULL;
-	char *tmp = NULL;
+	char *var, *val;
+	char *tmp;
 	char workspace[256];
-	int workspacelen;
-	int total = 0, x = 0, i = 0;
-	const char *cdrcols[CDR_CLEN] = { 
+	int total = 0, x = 0, i;
+	const char *cdrcols[] = { 
 		"clid",
 		"src",
 		"dst",
@@ -355,46 +352,36 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, cha
 		"userfield"
 	};
 
+	memset(buf, 0, size);
 
-	memset(buf,0,size);
-	while (cdr) {
-		x++;
-		if (x > 1) {
-			strncat(buf, "\n", size);
-		}
-		headp = &cdr->varshead;
-		AST_LIST_TRAVERSE(headp,variables,entries) {
-			if (cdr && variables &&
+	for (; cdr; cdr = recur ? cdr->next : NULL) {
+		if (++x > 1)
+			ast_build_string(&buf, &size, "\n");
+
+		AST_LIST_TRAVERSE(&cdr->varshead, variables, entries) {
+			if (variables &&
 			    (var = ast_var_name(variables)) && (val = ast_var_value(variables)) &&
 			    !ast_strlen_zero(var) && !ast_strlen_zero(val)) {
-				snprintf(buf + strlen(buf), size - strlen(buf), "level %d: %s%c%s%c", x, var, delim, val, sep);
-				if (strlen(buf) >= size) {
-					ast_log(LOG_ERROR,"Data Buffer Size Exceeded!\n");
-					break;
-				}
-				total++;
+				if (ast_build_string(&buf, &size, "level %d: %s%c%s%c", x, var, delim, val, sep)) {
+ 					ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
+ 					break;
+				} else
+					total++;
 			} else 
 				break;
 		}
-		for (i = 0 ; i < CDR_CLEN; i++) {
-			workspacelen = sizeof(workspace);
-			ast_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, workspacelen, 0);
+
+		for (i = 0; i < (sizeof(cdrcols) / sizeof(cdrcols[0])); i++) {
+			ast_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, sizeof(workspace), 0);
 			if (!tmp)
 				continue;
 			
-			snprintf(buf + strlen(buf), size - strlen(buf), "level %d: %s%c%s%c", x, cdrcols[i], delim, tmp, sep);
-			if (strlen(buf) >= size) {
-				ast_log(LOG_ERROR,"Data Buffer Size Exceeded!\n");
+			if (ast_build_string(&buf, &size, "level %d: %s%c%s%c", x, cdrcols[i], delim, tmp, sep)) {
+				ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
 				break;
-			}
-			total++;
+			} else
+				total++;
 		}
-
-		if (!recur) {
-			break;
-		}
-
-		cdr = cdr->next;
 	}
 
 	return total;
