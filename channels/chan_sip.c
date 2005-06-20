@@ -7772,29 +7772,24 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 		i->dst[0] = '\0';	/* init all to empty strings */
 	while (c && *(c = ast_skip_blanks(c))) {	/* lookup for keys */
 		for (i = keys; i->key != NULL; i++) {
-			char *src;
+			char *src, *separator;
 			if (strncasecmp(c, i->key, strlen(i->key)) != 0)
 				continue;
 			/* Found. Skip keyword, take text in quotes or up to the separator. */
 			c += strlen(i->key);
-			if ((*c == '\"')) {
+			if (*c == '\"') {
 				src = ++c;
-				if ((c = strchr(c,'\"'))) {
-					*c = '\0';
-					c++;
-				}
+				separator = "\"";
 			} else {
 				src = c;
-				if ((c = strchr(c,','))) {
-					*c = '\0';
-					c++;
-				}
+				separator = ",";
 			}
+			strsep(&c, separator); /* clear separator and move ptr */
 			ast_copy_string(i->dst, src, i->dstlen);
 			break;
 		}
-		if (i->key == NULL)
-			c = strchr(c,',');
+		if (i->key == NULL) /* not found, try ',' */
+			strsep(&c, ",");
 	}
 
 	/* Save auth data for following registrations */
