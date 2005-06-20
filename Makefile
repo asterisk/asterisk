@@ -317,15 +317,15 @@ endif
 
 .PHONY: ast_expr
 
-vercomp: vercomp.c
+build_tools/vercomp: build_tools/vercomp.c
 	$(HOST_CC) -o $@ $<
 
-ast_expr: vercomp
+ast_expr: build_tools/vercomp
 	$(MAKE) ast_expr.a
 
 ifeq ($(MAKECMDGOALS),ast_expr.a)
-FLEXVER_GT_2_5_31=$(shell ./vercomp flex \>= 2.5.31)
-BISONVER_GE_1_85=$(shell ./vercomp bison \>= 1.85 )
+FLEXVER_GT_2_5_31=$(shell build_tools/vercomp flex \>= 2.5.31)
+BISONVER_GE_1_85=$(shell build_tools/vercomp bison \>= 1.85 )
 endif
 
 ifeq ($(FLEXVER_GT_2_5_31),true)
@@ -395,7 +395,7 @@ asterisk.txt: asterisk.sgml
 	docbook2txt asterisk.sgml
 
 defaults.h: FORCE
-	./make_defaults_h > $@.tmp
+	build_tools/make_defaults_h > $@.tmp
 	if ! cmp -s $@.tmp $@ ; then \
 		mv $@.tmp $@ ; \
 	fi
@@ -403,7 +403,7 @@ defaults.h: FORCE
 
 
 include/asterisk/build.h:
-	./make_build_h > $@.tmp
+	build_tools/make_build_h > $@.tmp
 	if ! cmp -s $@.tmp $@ ; then \
 		mv $@.tmp $@ ; \
 	fi
@@ -415,7 +415,7 @@ include/asterisk/build.h: FORCE
 endif
 
 include/asterisk/version.h: FORCE
-	./make_version_h > $@.tmp
+	build_tools/make_version_h > $@.tmp
 	if ! cmp -s $@.tmp $@ ; then \
 		mv $@.tmp $@ ; \
 	fi
@@ -446,7 +446,7 @@ clean:
 	rm -f include/asterisk/version.h
 	rm -f ast_expr.c ast_expr.h ast_expr.output
 	rm -f ast_expr2.c ast_expr2f.c ast_expr2.h ast_expr2.output
-	rm -f ast_expr.a vercomp
+	rm -f ast_expr.a build_tools/vercomp
 	rm -f .version
 	rm -f .tags-depend .tags-sources tags TAGS
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
@@ -762,8 +762,8 @@ depend: .depend defaults.h include/asterisk/build.h include/asterisk/version.h
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend:
-	./mkdep ${CFLAGS} $(filter-out ast_expr.c,$(wildcard *.c))
-	./mkdep -a -d ${CFLAGS} ast_expr.c
+	build_tools/mkdep ${CFLAGS} $(filter-out ast_expr.c,$(wildcard *.c))
+	build_tools/mkdep -a -d ${CFLAGS} ast_expr.c
 
 .tags-depend:
 	@echo -n ".tags-depend: " > $@

@@ -14,7 +14,7 @@ clean:
 depend: .depend
 
 .depend:
-	../mkdep $(CFLAGS) *.c
+	../build_tools/mkdep $(CFLAGS) *.c
 
 test: test.c
 	${CC} ${CFLAGS} -o test test.c

@@ -1,11 +1,11 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
 # 
-# Makefile for CDR backends (dynamically loaded)
+# Makefile for resource modules
 #
-# Copyright (C) 1999, Mark Spencer
+# Copyright (C) 1999-2005, Digium
 #
-# Mark Spencer <markster@linux-support.net>
+# Mark Spencer <markster@digium.com>
 #
 # This program is free software, distributed under the terms of
 # the GNU General Public License
@@ -68,8 +68,8 @@ depend: .depend
 	else \
 		echo "*** You don't have mpg123 installed. You're going to need ***";\
 		echo "***       it if you want MusicOnHold                      ***";\
- 	fi
-	../mkdep $(CFLAGS) `ls *.c`	
+	fi
+	../build_tools/mkdep $(CFLAGS) `ls *.c`	
 
 env:
 	env

@@ -1,11 +1,11 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
 # 
-# Makefile for Channel backends (dynamically loaded)
+# Makefile for channel drivers
 #
-# Copyright (C) 1999, Mark Spencer
+# Copyright (C) 1999-2005, Mark Spencer
 #
-# Mark Spencer <markster@linux-support.net>
+# Mark Spencer <markster@digium.com>
 #
 # Edited By Belgarath <> Aug 28 2004
 # Added bare bones ultrasparc-linux support.
@@ -13,6 +13,7 @@
 # This program is free software, distributed under the terms of
 # the GNU General Public License
 #
+
 ifeq ($(CROSS_COMPILE),)
 OSARCH=$(shell uname -s)
 PROC=$(shell uname -m)
@@ -201,7 +202,7 @@ install: all
 depend: .depend
 
 .depend:
-	../mkdep $(CFLAGS) `ls *.c`
+	../build_tools/mkdep $(CFLAGS) `ls *.c`
 
 env:
 	env

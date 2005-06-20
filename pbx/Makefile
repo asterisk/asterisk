@@ -1,17 +1,15 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
 # 
-# Makefile for PBX frontends (dynamically loaded)
+# Makefile for PBX modules
 #
-# Copyright (C) 1999, Mark Spencer
+# Copyright (C) 1999-2005, Mark Spencer
 #
-# Mark Spencer <markster@linux-support.net>
+# Mark Spencer <markster@digium.com>
 #
 # This program is free software, distributed under the terms of
 # the GNU General Public License
 #
-
-
 
 PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so pbx_loopback.so pbx_realtime.so \
          pbx_ael.so
@@ -69,4 +67,4 @@ install: all
 depend: .depend
 
 .depend:
-	../mkdep $(CFLAGS) `ls *.c`
+	../build_tools/mkdep $(CFLAGS) `ls *.c`

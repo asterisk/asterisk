@@ -1,11 +1,11 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
 # 
-# Makefile for PBX frontends (dynamically loaded)
+# Makefile for AGI-related stuff
 #
-# Copyright (C) 1999, Mark Spencer
+# Copyright (C) 1999-2005, Digium
 #
-# Mark Spencer <markster@linux-support.net>
+# Mark Spencer <markster@digium.com>
 #
 # This program is free software, distributed under the terms of
 # the GNU General Public License
@@ -45,4 +45,4 @@ endif
 depend: .depend
 
 .depend:
-	../mkdep $(CFLAGS) `ls *.c`
+	../build_tools/mkdep $(CFLAGS) `ls *.c`

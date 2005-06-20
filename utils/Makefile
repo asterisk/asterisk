@@ -1,4 +1,17 @@
 #
+# Asterisk -- A telephony toolkit for Linux.
+# 
+# Various utilities
+#
+# Copyright (C) 1999-2005, Digium
+#
+# Mark Spencer <markster@digium.com>
+#
+# This program is free software, distributed under the terms of
+# the GNU General Public License
+#
+
+#
 # Don't use ast mm routines
 #
 CFLAGS+=-DNO_AST_MM
@@ -44,5 +57,5 @@ endif
 depend: .depend
 
 .depend:
-	../mkdep $(CFLAGS) `ls *.c`
+	../build_tools/mkdep $(CFLAGS) `ls *.c`
 

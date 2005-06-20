@@ -3,7 +3,7 @@
 # 
 # Makefile for dialplan functions
 #
-# Copyright (C) 2005, Digium, Inc.
+# Copyright (C) 2005, Digium
 #
 # Kevin P. Fleming <kpfleming@digium.com>
 #
@@ -64,7 +64,7 @@ endif
 depend: .depend
 
 .depend: pbx_functions.h
-	../mkdep $(CFLAGS) `ls *.c`
+	../build_tools/mkdep $(CFLAGS) `ls *.c`
 
 env:
 	env
