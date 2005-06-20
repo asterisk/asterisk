@@ -117,8 +117,8 @@ static int osp_build(struct ast_config *cfg, char *cat)
 		osp->handle = -1;
 	}
 	strncpy(osp->name, cat, sizeof(osp->name) - 1);
-	snprintf(osp->localpvtkey, sizeof(osp->localpvtkey), AST_KEY_DIR "/%s-privatekey.pem", cat);
-	snprintf(osp->localcert, sizeof(osp->localpvtkey), AST_KEY_DIR "/%s-localcert.pem", cat);
+	snprintf(osp->localpvtkey, sizeof(osp->localpvtkey) ,"%s/%s-privatekey.pem", ast_config_AST_KEY_DIR, cat);
+	snprintf(osp->localcert, sizeof(osp->localpvtkey), "%s/%s-localcert.pem", ast_config_AST_KEY_DIR, cat);
 	osp->maxconnections=OSP_DEFAULT_MAX_CONNECTIONS;
 	osp->retrydelay = OSP_DEFAULT_RETRY_DELAY;
 	osp->retrylimit = OSP_DEFAULT_RETRY_LIMIT;
@@ -131,18 +131,18 @@ static int osp_build(struct ast_config *cfg, char *cat)
 			if (v->value[0] == '/')
 				strncpy(osp->localpvtkey, v->value, sizeof(osp->localpvtkey) - 1);
 			else
-				snprintf(osp->localpvtkey, sizeof(osp->localpvtkey), AST_KEY_DIR "/%s", v->value);
+				snprintf(osp->localpvtkey, sizeof(osp->localpvtkey), "%s/%s", ast_config_AST_KEY_DIR , v->value);
 		} else if (!strcasecmp(v->name, "localcert")) {
 			if (v->value[0] == '/')
 				strncpy(osp->localcert, v->value, sizeof(osp->localcert) - 1);
 			else
-				snprintf(osp->localcert, sizeof(osp->localcert), AST_KEY_DIR "/%s", v->value);
+				snprintf(osp->localcert, sizeof(osp->localcert), "%s/%s", ast_config_AST_KEY_DIR, v->value);
 		} else if (!strcasecmp(v->name, "cacert")) {
 			if (osp->cacount < MAX_CERTS) {
 				if (v->value[0] == '/')
 					strncpy(osp->cacerts[osp->cacount], v->value, sizeof(osp->cacerts[0]) - 1);
 				else
-					snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), AST_KEY_DIR "/%s", v->value);
+					snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s", ast_config_AST_KEY_DIR, v->value);
 				osp->cacount++;
 			} else
 				ast_log(LOG_WARNING, "Too many CA Certificates at line %d\n", v->lineno);
@@ -178,7 +178,7 @@ static int osp_build(struct ast_config *cfg, char *cat)
 		v = v->next;
 	}
 	if (osp->cacount < 1) {
-		snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), AST_KEY_DIR "/%s-cacert.pem", cat);
+		snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s-cacert.pem", ast_config_AST_KEY_DIR, cat);
 		osp->cacount++;
 	}
 	for (x=0;x<osp->cacount;x++)
