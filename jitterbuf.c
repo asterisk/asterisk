@@ -564,6 +564,10 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 			jb->info.next_voice_ts += interpl;
 			jb->info.last_voice_ms = interpl;
 			jb->info.last_adjustment = now;
+			jb->info.cnt_contig_interp++;
+			if (jb->info.conf.max_contig_interp && jb->info.cnt_contig_interp >= jb->info.conf.max_contig_interp) {
+				jb->info.silence_begin_ts = jb->info.next_voice_ts - jb->info.current;
+			}
 			jb_dbg("G");
 			return JB_INTERP;
 		}
@@ -572,8 +576,10 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 
 		/* not a voice frame; just return it. */
 		if (frame && frame->type != JB_TYPE_VOICE) {
-			if (frame->type == JB_TYPE_SILENCE) 
+			if (frame->type == JB_TYPE_SILENCE) {
 				jb->info.silence_begin_ts = frame->ts;
+				jb->info.cnt_contig_interp = 0;
+			}
 
 			*frameout = *frame;
 			jb->info.frames_out++;
@@ -592,6 +598,7 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 				jb->info.next_voice_ts = frame->ts + jb->info.current + frame->ms;
 				jb->info.frames_out++;
 				decrement_losspct(jb);
+				jb->info.cnt_contig_interp = 0;
 				jb_dbg("v");
 				return JB_OK;
 			} else {
@@ -622,6 +629,7 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 			(jb->info.last_adjustment + 500 < now))) {
 
 			jb->info.last_adjustment = now;
+			jb->info.cnt_contig_interp = 0;
 
 			if (frame) {
 				*frameout = *frame;
@@ -669,6 +677,10 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 			increment_losspct(jb);
 			jb->info.next_voice_ts += interpl;
 			jb->info.last_voice_ms = interpl;
+			jb->info.cnt_contig_interp++;
+			if (jb->info.conf.max_contig_interp && jb->info.cnt_contig_interp >= jb->info.conf.max_contig_interp) {
+				jb->info.silence_begin_ts = jb->info.next_voice_ts - jb->info.current;
+			}
 			jb_dbg("L");
 			return JB_INTERP;
 		}
@@ -677,6 +689,7 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 		*frameout = *frame;
 		jb->info.next_voice_ts += frame->ms;
 		jb->info.frames_out++;
+		jb->info.cnt_contig_interp = 0;
 		decrement_losspct(jb);
 		jb_dbg("v");
 		return JB_OK;
@@ -795,6 +808,7 @@ int jb_setconf(jitterbuf *jb, jb_conf *conf)
 
 	jb->info.conf.max_jitterbuf = conf->max_jitterbuf;
  	jb->info.conf.resync_threshold = conf->resync_threshold;
+	jb->info.conf.max_contig_interp = conf->max_contig_interp;
 
 	return JB_OK;
 }

@@ -55,6 +55,7 @@ typedef struct jb_conf {
 	/* settings */
 	long max_jitterbuf;	/* defines a hard clamp to use in setting the jitter buffer delay */
  	long resync_threshold;  /* the jb will resync when delay increases to (2 * jitter) + this param */
+	long max_contig_interp; /* the max interp frames to return in a row */
 } jb_conf;
 
 typedef struct jb_info {
@@ -80,6 +81,7 @@ typedef struct jb_info {
  	long last_delay;        /* the last now added to history */
  	long cnt_delay_discont;	/* the count of discontinuous delays */
  	long resync_offset;     /* the amount to offset ts to support resyncs */
+	long cnt_contig_interp; /* the number of contiguous interp frames returned */
 } jb_info;
 
 typedef struct jb_frame {

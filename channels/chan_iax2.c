@@ -136,6 +136,7 @@ static int maxnontrunkcall = 1;
 static int maxjitterbuffer=1000;
 #ifdef NEWJB
 static int resyncthreshold=1000;
+static int maxjitterinterps=10;
 #endif
 static int jittershrinkrate=2;
 static int trunkfreq = 20;
@@ -870,6 +871,7 @@ static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, cons
 			tmp->jbid = -1;
 			jbconf.max_jitterbuf = maxjitterbuffer;
 			jbconf.resync_threshold = resyncthreshold;
+			jbconf.max_contig_interp = maxjitterinterps;
 			jb_setconf(tmp->jb,&jbconf);
 		}
 #endif
@@ -8343,6 +8345,8 @@ static int set_config(char *config_file, int reload)
 #ifdef NEWJB
 		else if (!strcasecmp(v->name, "resyncthreshold")) 
 			resyncthreshold = atoi(v->value);
+		else if (!strcasecmp(v->name, "maxjitterinterps")) 
+			maxjitterinterps = atoi(v->value);
 #endif
 		else if (!strcasecmp(v->name, "jittershrinkrate")) 
 			jittershrinkrate = atoi(v->value);

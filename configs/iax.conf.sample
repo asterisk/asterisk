@@ -110,6 +110,12 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; Resycning can be disabled by setting this parameter to -1.
 ; [This option presently applies only to the new jitterbuffer implementation]
 ;
+; maxjitterinterps: the maximum number of interpolation frames the jitterbuffer should
+; return in a row. Since some clients do not send CNG/DTX frames to indicate
+; silence, the jitterbuffer will assume silence has begun after returning this
+; many interpolations. This prevents interpolating throughout a long silence.
+; [This option presently applies only to the new jitterbuffer implementation]
+;
 ; maxexcessbuffer: If conditions improve after a period of high jitter,
 ; the jitter buffer can end up bigger than necessary.  If it ends up
 ; more than "maxexcessbuffer" bigger than needed, Asterisk will start
@@ -132,6 +138,7 @@ jitterbuffer=no
 forcejitterbuffer=no
 ;dropcount=2
 ;maxjitterbuffer=1000
+;maxjitterinterps=10
 ;resyncthreshold=1000
 ;maxexcessbuffer=80
 ;minexcessbuffer=10
