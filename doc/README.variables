@@ -229,11 +229,15 @@ with equal precedence are grouped within { } symbols.
 
 **   - expr1
 **          Return the result of subtracting expr1 from 0.
+**          This, the unary minus operator, is right associative, and
+**          has the same precedence as the ! operator.
 **
 **   ! expr1
 **          Return the result of a logical complement of expr1.
 **          In other words, if expr1 is null, 0, an empty string,
 **          or the string "0", return a 1. Otherwise, return a "0". (only with flex >= 2.5.31)
+**          It has the same precedence as the unary minus operator, and
+**          is also right associative.
 
      expr1 : expr2
              The `:' operator matches expr1 against expr2, which must be a
@@ -253,12 +257,22 @@ with equal precedence are grouped within { } symbols.
              characters are stripped from both the pattern and the string.
 
 **    expr1 =~ expr2
-**             Exactly the same as the ':' operator, except that the match is
-**             not anchored to the beginning of the string. Pardon any similarity
-**             to seemingly similar operators in other programming languages!
-**             (only if flex >= 2.5.31)
+**           Exactly the same as the ':' operator, except that the match is
+**           not anchored to the beginning of the string. Pardon any similarity
+**           to seemingly similar operators in other programming languages!
+**           (only if flex >= 2.5.31). The ":" and "=~" operators share the 
+**           same precedence.
 
-
+**    expr1 ? expr2 :: expr3
+**           Traditional Conditional operator. If expr1 is a number that evaluates
+**           to 0 (false), expr3 is result of the this expression evaluation.
+**           Otherwise, expr2 is the result.
+**           If expr1 is a string, and evaluates to an empty string, or the two
+**           characters (""), then expr3 is the result. Otherwise, expr2 is the result.
+**           In Asterisk, all 3 exprs will be "evaluated"; if expr1 is "true",
+**           expr2 will be the result of the "evaluation" of this expression.
+**           expr3 will be the result otherwise. This operator has the lowest
+**           precedence.
 
 Parentheses are used for grouping in the usual manner.
 
@@ -321,7 +335,7 @@ ___________________________
 CONDITIONALS
 ---------------------------
 
-There is one conditional operator - the conditional goto : 
+There is one conditional application - the conditional goto : 
 
 	exten => 1,2,gotoif(condition?label1:label2)
 
@@ -504,6 +518,73 @@ of possible concern with "legacy" extension.conf files:
 **    match anywhere in the string. The only diff with the ':' is that
 **    match doesn't have to be anchored to the beginning of the string.
 
+--------------------------------------------------------
+DEBUGGING HINTS FOR $[  ]  EXPRESSIONS
+--------------------------------------------------------
+
+** THE FOLLOWING UTILITIES ARE PROVIDED ONLY FOR SYSTEMS THAT
+** HAVE FLEX-2.5.31 OR GREATER, AND USE THE UPGRADED LEXER!!!
+**
+** There are two utilities you can build to help debug the $[ ] in
+** your extensions.conf file.
+**
+** The first, and most simplistic, is to issue the command:
+**
+** make testexpr2
+**
+** in the top level asterisk source directory. This will build
+** a small executable, that is able to take the first command line
+** argument, and run it thru the expression parser. No variable
+** substitutions will be performed. It might be safest to wrap
+** the expression in single quotes...
+**
+** testexpr2 '2*2+2/2'
+**
+** is an example.
+**
+** And, in the utils directory, you can say:
+**
+** make check_expr
+**
+** and a small program will be built, that will check the file
+** mentioned in the first command line argument, for any expressions
+** that might be have problems when you move to flex-2.5.31.
+** It was originally designed to help spot possible incompatibilities
+** when moving from the pre-2.5.31 world to the upgraded version of
+** the lexer.
+**
+** But one more capability has been added to check_expr, that might
+** make it more generally useful. It now does a simple minded evaluation of
+** all variables, and then passes the $[] exprs to the parser. If there are
+** any parse errors, they will be reported in the log file. You can use
+** check_expr to do a quick sanity check of the expressions in your 
+** extensions.conf file, to see if they pass a crude syntax check.
+**
+** The "simple-minded" variable substitution replaces ${varname} variable
+** references with '555'. You can override the 555 for variable values,
+** by entering in var=val arguments after the filename on the command line.
+** So...
+**
+** check_expr /etc/asterisk/extensions.conf CALLERIDNUM=3075551212 DIALSTATUS=TORTURE EXTEN=121
+**
+** will substitute any ${CALLERIDNUM} variable references with 3075551212, any ${DIALSTATUS} 
+** variable references with 'TORTURE', and any ${EXTEN} references with '121'.
+** If there is any fancy stuff going on in the reference, like ${EXTEN:2}, then the
+** override will not work. Everything in the ${...} has to match. So, to substitute
+** #{EXTEN:2} references, you'd best say:
+**
+** check_expr /etc/asterisk/extensions.conf CALLERIDNUM=3075551212 DIALSTATUS=TORTURE EXTEN:2=121
+**
+** on stdout, you will see something like:
+**
+** OK -- $[ "${DIALSTATUS}"  = "TORTURE" | "${DIALSTATUS}" = "DONTCALL" ] at line 416
+**
+** In the expr2_log file that is generated, you will see:
+**
+** line 416, evaluation of $[  "TORTURE"  = "TORTURE" | "TORTURE" = "DONTCALL"  ] result: 1
+**
+** check_expr is a very simplistic algorithm, and it is far from being guaranteed 
+** to work in all cases, but it is hoped that it will be useful.
 
 ---------------------------------------------------------
 Asterisk standard channel variables 
@@ -642,7 +723,8 @@ ${DIALEDPEERNUMBER} 		* Dialed peer number
 ${DIALEDTIME}   		* Time for the call (seconds)
 ${ANSWEREDTIME} 		* Time from dial to answer (seconds)
 ${DIALSTATUS}   		* Status of the call, one of:
-                		(CHANUNAVAIL | CONGESTION | BUSY | NOANSWER | ANSWER | CANCEL)
+                		(CHANUNAVAIL | CONGESTION | BUSY | NOANSWER 
+					| ANSWER | CANCEL | DONTCALL | TORTURE)
 ${LIMIT_PLAYAUDIO_CALLER}	Soundfile for call limits
 ${LIMIT_PLAYAUDIO_CALLEE}	Soundfile for call limits
 ${LIMIT_WARNING_FILE}		Soundfile for call limits
