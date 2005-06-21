@@ -3482,7 +3482,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* frame size too) */
 
 				if (abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW)
-					ast_log(LOG_DEBUG,"predicted timestamp skew (%u) > max (%u), using real ts instead.",
+					ast_log(LOG_DEBUG,"predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
 						abs(ms - p->nextpred), MAX_TIMESTAMP_SKEW);
 
 				if (f->samples >= 8) /* check to make sure we dont core dump */
