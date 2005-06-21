@@ -28,10 +28,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 
 static char *tdesc = "Trivial skeleton Application";
-static char *app = "skel";
+static char *app = "Skel";
 static char *synopsis = 
-"  This is a skeleton application that shows you the basic structure to create your\n"
-"own asterisk applications.\n";
+"Skeleton application.";
+static char *descrip = "This application is a template to build other applications from.\n"
+ " It shows you the basic structure to create your own Asterisk applications.\n";
 
 #define OPTION_A	(1 << 0)	/* Option A */
 #define OPTION_B	(1 << 1)	/* Option B(n) */
@@ -71,12 +72,11 @@ static int app_exec(struct ast_channel *chan, void *data)
 	}
 
 	LOCAL_USER_ADD(u);
-	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(char *)))) {
+	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		dummy = argv[0];
 		options = argv[1];
 		ast_parseoptions(app_opts, &flags, opts, options);
 	}
-
 
 	if (dummy && !ast_strlen_zero(dummy)) 
 		ast_log(LOG_NOTICE, "Dummy value is : %s\n", dummy);
@@ -103,7 +103,7 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app, app_exec, tdesc, synopsis);
+	return ast_register_application(app, app_exec, synopsis, descrip);
 }
 
 char *description(void)
