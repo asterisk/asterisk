@@ -175,6 +175,8 @@ Some standard AMI headers:
  CallerID:			-- CallerID number
 				   Number or "<unknown>" or "unknown" 
 					(should change to "<unknown>" in app_queue)
+ CallerID1:                     -- Channel 1 CallerID (Link event)
+ CallerID2:                     -- Channel 2 CallerID (Link event)
  CallerIDName:			-- CallerID name
 				   Name or "<unknown>" or "unknown" 
 					(should change to "<unknown>" in app_queue)

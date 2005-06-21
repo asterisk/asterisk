@@ -3051,8 +3051,11 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			"Channel1: %s\r\n"
 			"Channel2: %s\r\n"
 			"Uniqueid1: %s\r\n"
-			"Uniqueid2: %s\r\n",
-			c0->name, c1->name, c0->uniqueid, c1->uniqueid);
+			"Uniqueid2: %s\r\n"
+                        "CallerID1: %s\r\n"
+			"CallerID2: %s\r\n",
+			c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+                                                                        
 	o1nativeformats = c1->nativeformats;
 	o0nativeformats = c0->nativeformats;
 	for (/* ever */;;) {
@@ -3132,8 +3135,10 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 					"Channel1: %s\r\n"
 					"Channel2: %s\r\n"
 					"Uniqueid1: %s\r\n"
-					"Uniqueid2: %s\r\n",
-					c0->name, c1->name, c0->uniqueid, c1->uniqueid);
+					"Uniqueid2: %s\r\n"
+                                        "CallerID1: %s\r\n"
+                                        "CallerID2: %s\r\n",
+					c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
 				ast_log(LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n",c0->name ,c1->name);
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
@@ -3160,12 +3165,14 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			!(c0->generator || c1->generator))  {
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
-				manager_event(EVENT_FLAG_CALL, "Unlink", 
-					"Channel1: %s\r\n"
-					"Channel2: %s\r\n"
-					"Uniqueid1: %s\r\n"
-					"Uniqueid2: %s\r\n",
-					c0->name, c1->name, c0->uniqueid, c1->uniqueid);
+                                manager_event(EVENT_FLAG_CALL, "Unlink",
+                                        "Channel1: %s\r\n"
+                                        "Channel2: %s\r\n"
+                                        "Uniqueid1: %s\r\n"
+                                        "Uniqueid2: %s\r\n"
+                                        "CallerID1: %s\r\n"
+                                        "CallerID2: %s\r\n",
+                                        c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
 				return -1;
 			}
 			o0nativeformats = c0->nativeformats;
@@ -3177,12 +3184,14 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	}
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;
-	manager_event(EVENT_FLAG_CALL, "Unlink", 
+	manager_event(EVENT_FLAG_CALL, "Unlink",
 					"Channel1: %s\r\n"
 					"Channel2: %s\r\n"
 					"Uniqueid1: %s\r\n"
-					"Uniqueid2: %s\r\n",
-					c0->name, c1->name, c0->uniqueid, c1->uniqueid);
+					"Uniqueid2: %s\r\n"
+					"CallerID1: %s\r\n"
+					"CallerID2: %s\r\n",
+					c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
 	ast_log(LOG_DEBUG, "Bridge stops bridging channels %s and %s\n",c0->name,c1->name);
 	return res;
 }
