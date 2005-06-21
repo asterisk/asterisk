@@ -9407,7 +9407,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 		break;
 	default:
-		transmit_response_with_allow(p, "405 Method Not Allowed", req, 0);
+		transmit_response_with_allow(p, "501 Method Not Implemented", req, 0);
 		ast_log(LOG_NOTICE, "Unknown SIP command '%s' from '%s'\n", 
 			cmd, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 		/* If this is some new method, and we don't have a call, destroy it now */
