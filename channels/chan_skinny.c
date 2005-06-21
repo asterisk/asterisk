@@ -774,8 +774,10 @@ AST_MUTEX_DEFINE_STATIC(netlock);
 AST_MUTEX_DEFINE_STATIC(sessionlock);
 /* Protect the device list */
 AST_MUTEX_DEFINE_STATIC(devicelock);
+#if 0
 /* Protect the paging device list */
 AST_MUTEX_DEFINE_STATIC(pagingdevicelock);
+#endif
 
 /* This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
@@ -1070,10 +1072,14 @@ static void transmit_callinfo(struct skinnysession *s, char *fromname, char *fro
 	req->len = htolel(sizeof(struct call_info_message));
 	req->e = htolel(CALL_INFO_MESSAGE);
 
-	strncpy(req->data.callinfo.callingPartyName, fromname, 39);
-	strncpy(req->data.callinfo.callingParty, fromnum, 23);
-	strncpy(req->data.callinfo.calledPartyName, toname, 39);
-	strncpy(req->data.callinfo.calledParty, tonum, 23);
+	if (fromname)
+		ast_copy_string(req->data.callinfo.callingPartyName, fromname, sizeof(req->data.callinfo.callingPartyName));
+	if (fromnum)
+		ast_copy_string(req->data.callinfo.callingParty, fromnum, sizeof(req->data.callinfo.callingParty));
+	if (toname)
+		ast_copy_string(req->data.callinfo.calledPartyName, toname, sizeof(req->data.callinfo.calledPartyName));
+	if (tonum)
+		ast_copy_string(req->data.callinfo.calledParty, tonum, sizeof(req->data.callinfo.calledParty));
 
 	req->data.callinfo.instance = htolel(instance);
 	req->data.callinfo.reference = htolel(callid);
@@ -1452,10 +1458,12 @@ static struct ast_cli_entry  cli_debug =
 static struct ast_cli_entry  cli_no_debug =
 	{ { "skinny", "no", "debug", NULL }, skinny_no_debug, "Disable Skinny debugging", no_debug_usage };
 
+#if 0
 static struct skinny_paging_device *build_paging_device(char *cat, struct ast_variable *v)
 {
 	return NULL;
 }
+#endif
 
 static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 {
@@ -1933,49 +1941,34 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	transmit_lamp_indication(session, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
 	transmit_ringer_mode(session, SKINNY_RING_INSIDE);
 	
-	if (ast->cid.cid_num){ 
-
-		char ciddisplay[41] = "";
+	if (ast->cid.cid_num) { 
+		char ciddisplay[41];
+		char *work;
+		int size = sizeof(ciddisplay);
 
 		/* We'll assume that if it is 10 numbers, it is a standard NANPA number
 		   Why? Because I am bloody American, and I'm bigoted that way. */
 
 		if (strlen(ast->cid.cid_num) == 10) {
-
-			strcat (ciddisplay, "(");
-			strncat (ciddisplay, ast->cid.cid_num,3);
-			strcat (ciddisplay, ") ");
-
-			strncat (ciddisplay, &ast->cid.cid_num[3],3);
-			strcat (ciddisplay,"-");
-			strncat (ciddisplay, &ast->cid.cid_num[6],4);
-
-			strncat (ciddisplay, "      ", 6);
-
-			strncat (ciddisplay, ast->cid.cid_name,17);
+			ast_build_string(&work, &size, "(xxx)xxx-xxxx      %s",
+					 ast->cid.cid_name ? ast->cid.cid_name : "");
+			memcpy(&ciddisplay[1], ast->cid.cid_num, 3);
+			memcpy(&ciddisplay[5], &ast->cid.cid_num[3], 3);
+			memcpy(&ciddisplay[9], &ast->cid.cid_num[6], 4);
 		} else {
-			if (strlen(ast->cid.cid_num) < 40) {
-				strncpy(ciddisplay,ast->cid.cid_num,strlen(ast->cid.cid_num));
-				strcat (ciddisplay," -- ");
-				
-				if (sizeof(ast->cid.cid_name) > (40 - (strlen(ast->cid.cid_num) + 4))) {
-					strncat (ciddisplay, ast->cid.cid_name, (40 - (strlen(ast->cid.cid_num) + 4)));
-				} else {
-					strncat (ciddisplay, ast->cid.cid_name, strlen(ast->cid.cid_name));
-				}
-			} else {
+			if (strlen(ast->cid.cid_num) < 41)
+				ast_build_string(&work, &size, "%s -- %s", ast->cid.cid_num,
+						 ast->cid.cid_name ? ast->cid.cid_name : "");
+			else
 				strncpy(ciddisplay, "Number too long!", 15);
-			}
 		}
 
-		if (skinnydebug) {
+		if (skinnydebug)
 			ast_verbose("Trying to send: '%s'\n",ciddisplay);
-		}
 
 		transmit_displaymessage(session, ciddisplay);
-	}else{
+	} else
 		transmit_displaymessage(session, "Unknown Name");
-	}
 
 	transmit_tone(session, tone);
 	transmit_callstate(session, l->instance, SKINNY_RINGIN, sub->callid);
