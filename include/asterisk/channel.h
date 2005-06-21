@@ -737,6 +737,15 @@ int ast_senddigit(struct ast_channel *chan, char digit);
 
 int ast_recvchar(struct ast_channel *chan, int timeout);
 
+/*! Receives a text string from a channel */
+/*! 
+ * \param chan channel to act upon
+ * \param timeout timeout in milliseconds (0 for infinite wait)
+ * \return the received text, or NULL to signify failure.
+ * Read a string of text from a channel
+ */
+char *ast_recvtext(struct ast_channel *chan, int timeout);
+
 /*! Browse channels in use */
 /*! 
  * \param prev where you want to start in the channel list

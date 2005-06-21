@@ -1652,6 +1652,40 @@ int ast_recvchar(struct ast_channel *chan, int timeout)
 	}
 }
 
+char *ast_recvtext(struct ast_channel *chan, int timeout)
+{
+	int res,ourto;
+	struct ast_frame *f;
+	char *buf;
+	
+	ourto = timeout;
+	for(;;) {
+		if (ast_check_hangup(chan)) return NULL;
+		res = ast_waitfor(chan,ourto);
+		if (res <= 0) { 
+			/* if timeout */
+			return NULL;
+		}
+		ourto = res;
+		f = ast_read(chan);
+		if (f == NULL) return NULL; /* no frame */
+		if ((f->frametype == AST_FRAME_CONTROL) && 
+			(f->subclass == AST_CONTROL_HANGUP)) return NULL; /* if hangup */
+		if (f->frametype == AST_FRAME_TEXT) {
+			/* if a text frame */
+			buf = (char *)malloc(strlen((char *)f->data));
+			if (buf) {
+				strcpy(buf, (char *)f->data);
+				ast_frfree(f);
+				return(buf);
+		   	} else {
+				return NULL;
+			}
+		}
+		ast_frfree(f);
+	}
+}
+
 int ast_sendtext(struct ast_channel *chan, char *text)
 {
 	int res = 0;

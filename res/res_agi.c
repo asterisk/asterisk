@@ -403,6 +403,23 @@ static int handle_recvchar(struct ast_channel *chan, AGI *agi, int argc, char *a
 	}
 }
 
+static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+	char *buf;
+	
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	buf = ast_recvtext(chan,atoi(argv[2]));
+	if (buf) {
+		fdprintf(agi->fd, "200 result=1 (%s)\n", buf);
+		free(buf);
+		return RESULT_SUCCESS;
+	} else {	
+		fdprintf(agi->fd, "200 result=-1\n");
+		return RESULT_FAILURE;
+	}
+}
+
 static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res,x;
@@ -1358,6 +1375,12 @@ static char usage_recvchar[] =
 " if one is received, or 0 if the channel does not support text reception.  Returns\n"
 " -1 only on error/hangup.\n";
 
+static char usage_recvtext[] =
+" Usage: RECEIVE CHAR <timeout>\n"
+"	Receives a string of text on a channel. Specify timeout to be the\n"
+" maximum time to wait for input in milliseconds, or 0 for infinite. Most channels\n"
+" do not support the reception of text. Returns -1 for failure or 1 for success, and the string in parentheses.\n";
+
 static char usage_tddmode[] =
 " Usage: TDD MODE <on|off>\n"
 "	Enable/Disable TDD transmission/reception on a channel. Returns 1 if\n"
@@ -1493,7 +1516,8 @@ static agi_command commands[MAX_COMMANDS] = {
 	{ { "get", "variable", NULL }, handle_getvariable, "Gets a channel variable", usage_getvariable },
 	{ { "hangup", NULL }, handle_hangup, "Hangup the current channel", usage_hangup },
 	{ { "noop", NULL }, handle_noop, "Does nothing", usage_noop },
-	{ { "receive", "char", NULL }, handle_recvchar, "Receives text from channels supporting it", usage_recvchar },
+	{ { "receive", "char", NULL }, handle_recvchar, "Receives one character from channels supporting it", usage_recvchar },
+	{ { "receive", "text", NULL }, handle_recvtext, "Receives text from channels supporting it", usage_recvtext },
 	{ { "record", "file", NULL }, handle_recordfile, "Records to a given file", usage_recordfile },
 	{ { "say", "alpha", NULL }, handle_sayalpha, "Says a given character string", usage_sayalpha },
 	{ { "say", "digits", NULL }, handle_saydigits, "Says a given digit string", usage_saydigits },
