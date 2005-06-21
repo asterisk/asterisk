@@ -1035,7 +1035,6 @@ static int config_command(int fd, int argc, char **argv)
 			if (!strcasecmp(map->driver, eng->name)) {
 				ast_cli(fd, "===> %s (db=%s, table=%s)\n", map->name, map->database,
 					map->table ? map->table : map->name);
-				break;
 			}
 	}
 	ast_cli(fd,"\n\n");
