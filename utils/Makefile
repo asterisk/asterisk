@@ -47,6 +47,9 @@ astman: astman.o ../md5.o
 stereorize: stereorize.o frame.o
 	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
 
+check_expr : check_expr.c ../ast_expr.a
+	$(CC) $(CFLAGS) -o check_expr check_expr.c ../ast_expr.a
+
 smsq: smsq.o
 	$(CC) $(CFLAGS) -o smsq ${SOL} smsq.o -lpopt
 
