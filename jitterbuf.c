@@ -135,7 +135,7 @@ static int history_put(jitterbuf *jb, long ts, long now, long ms)
 
 				jb_warn("Resyncing the jb. last_delay %ld, this delay %ld, threshold %ld, new offset %ld\n", jb->info.last_delay, delay, threshold, ts - now);
 				jb->info.resync_offset = ts - now;
-				jb->info.last_delay = 0; /* after resync, frame is right on time */
+				jb->info.last_delay = delay = 0; /* after resync, frame is right on time */
 			} else {
 				return -1;
 			}
