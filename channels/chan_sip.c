@@ -5270,7 +5270,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		c++;
 		while(*c && (*c < 33))
 			c++;
-		if (strcmp(via, "SIP/2.0/UDP")) {
+		if (strcasecmp(via, "SIP/2.0/UDP")) {
 			ast_log(LOG_WARNING, "Don't know how to respond via '%s'\n", via);
 			return -1;
 		}
