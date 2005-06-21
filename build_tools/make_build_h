@@ -4,7 +4,7 @@ KERNEL=`uname -r`
 MACHINE=`uname -m`
 OS=`uname -s`
 USER=`whoami`
-DATE=`date --utc "+%Y-%m-%d %H:%M:%S"`
+DATE=`date -u "+%Y-%m-%d %H:%M:%S"`
 cat << END
 /*
  * build.h 
