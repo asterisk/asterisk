@@ -27,7 +27,7 @@ static int complexity = 2;
 static int enhancement = 0;
 static int vad = 0;
 static int vbr = 0;
-static int vbr_quality = 0;
+static float vbr_quality = 0;
 static int abr = 0;
 static int dtx = 0;
 
@@ -92,7 +92,7 @@ static struct ast_translator_pvt *lintospeex_new(void)
 				if (vad)
 					speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
 				if (dtx)
-					speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &vad);
+					speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx); 
 			}
 			if (vbr) {
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &vbr);
@@ -326,6 +326,7 @@ static void parse_config(void)
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	int res;
+	float res_f;
 
 	if ((cfg = ast_config_load("codecs.conf"))) {
 		if ((var = ast_variable_browse(cfg, "speex"))) {
@@ -351,12 +352,12 @@ static void parse_config(void)
 					} else 
 						ast_log(LOG_ERROR,"Error! Complexity must be 0-10\n");
 				} else if (!strcasecmp(var->name, "vbr_quality")) {
-					res = abs(atoi(var->value));
+					res_f = abs(atof(var->value));
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %d\n",res);
-					if (res > -1 && res < 11) {
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
+					if (res_f >= 0 && res_f <= 10) {
 						ast_mutex_lock(&localuser_lock);
-						vbr_quality = res;
+						vbr_quality = res_f;
 						ast_mutex_unlock(&localuser_lock);
 					} else 
 						ast_log(LOG_ERROR,"Error! VBR Quality must be 0-10\n");
@@ -392,7 +393,7 @@ static void parse_config(void)
 					ast_mutex_lock(&localuser_lock);
 					vad = ast_true(var->value) ? 1 : 0;
 					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VAD Mode. [%s]\n",vbr ? "on" : "off");
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: VAD Mode. [%s]\n",vad ? "on" : "off");
 					ast_mutex_unlock(&localuser_lock);
 				} else if (!strcasecmp(var->name, "dtx")) {
 					ast_mutex_lock(&localuser_lock);
