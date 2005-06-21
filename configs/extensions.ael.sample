@@ -41,7 +41,7 @@ instructions:
 	};
 	500 => {
 		Playback(demo-abouttotry);
-		exten => 500,n,Dial(IAX2/guest@misery.digium.com)
+		Dial(IAX2/guest@misery.digium.com);
 		Playback(demo-nogo);
 		goto instructions;
 	};
