@@ -396,7 +396,7 @@ asterisk.txt: asterisk.sgml
 
 defaults.h: FORCE
 	build_tools/make_defaults_h > $@.tmp
-	if ! cmp -s $@.tmp $@ ; then \
+	if cmp -s $@.tmp $@ ; then echo ; else \
 		mv $@.tmp $@ ; \
 	fi
 	rm -f $@.tmp
@@ -404,7 +404,7 @@ defaults.h: FORCE
 
 include/asterisk/build.h:
 	build_tools/make_build_h > $@.tmp
-	if ! cmp -s $@.tmp $@ ; then \
+	if cmp -s $@.tmp $@ ; then echo ; else \
 		mv $@.tmp $@ ; \
 	fi
 	rm -f $@.tmp
@@ -416,7 +416,7 @@ endif
 
 include/asterisk/version.h: FORCE
 	build_tools/make_version_h > $@.tmp
-	if ! cmp -s $@.tmp $@ ; then \
+	if cmp -s $@.tmp $@ ; then echo; else \
 		mv $@.tmp $@ ; \
 	fi
 	rm -f $@.tmp
