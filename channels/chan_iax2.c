@@ -662,7 +662,6 @@ static void jb_debug_output(const char *fmt, ...)
 {
 	va_list args;
 	char buf[1024];
-	if(!iaxdebug) return;
 
 	va_start(args, fmt);
 	vsnprintf(buf, 1024, fmt, args);
@@ -2187,7 +2186,7 @@ static int get_from_jb(void *p) {
 
 /* while we transition from the old JB to the new one, we can either make two schedule_delivery functions, or 
  * make preprocessor swiss-cheese out of this one.  I'm not sure which is less revolting.. */
-static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int updatehistory, int fromtrunk)
+static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtrunk)
 {
 #ifdef NEWJB
 	int type, len;
@@ -2208,8 +2207,8 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 
 #if 0
 	if (option_debug)
-		ast_log(LOG_DEBUG, "schedule_delivery: ts=%d, last=%d, really=%d, update=%d\n",
-				fr->ts, iaxs[fr->callno]->last, reallydeliver, updatehistory);
+		ast_log(LOG_DEBUG, "schedule_delivery: ts=%d, last=%d, update=%d\n",
+				fr->ts, iaxs[fr->callno]->last, updatehistory);
 #endif
 
 	/* Attempt to recover wrapped timestamps */
@@ -2271,8 +2270,7 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 	}
 	else {
 #if 0
-		if (reallydeliver)
-			ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
+		ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
 #endif
 		fr->af.delivery.tv_sec = 0;
 		fr->af.delivery.tv_usec = 0;
@@ -2312,9 +2310,6 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 #endif
 
 #ifdef NEWJB
-	if(!reallydeliver)
-	    	return 0;
-
 	type = JB_TYPE_CONTROL;
 	len = 0;
 
@@ -2399,10 +2394,6 @@ static int schedule_delivery(struct iax_frame *fr, int reallydeliver, int update
 
 	/* update "min", just for RRs and stats */
 	iaxs[fr->callno]->min = min; 
-
-	/* If the caller just wanted us to update, return now */
-	if (!reallydeliver)
-		return 0;
 
 	/* Subtract the lateness from our jitter buffer to know how long to wait
 	   before sending our packet.  */
@@ -4454,6 +4445,15 @@ static int iax2_show_netstats(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static int iax2_do_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 2)
+		return RESULT_SHOWUSAGE;
+	iaxdebug = 1;
+	ast_cli(fd, "IAX2 Debugging Enabled\n");
+	return RESULT_SUCCESS;
+}
+
 static int iax2_do_trunk_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
@@ -4463,15 +4463,14 @@ static int iax2_do_trunk_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static int iax2_do_debug(int fd, int argc, char *argv[])
+static int iax2_do_jb_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	iaxdebug = 1;
 #ifdef NEWJB
 	jb_setoutput(jb_error_output, jb_warning_output, jb_debug_output);
 #endif
-	ast_cli(fd, "IAX2 Debugging Enabled\n");
+	ast_cli(fd, "IAX2 Jitterbuffer Debugging Enabled\n");
 	return RESULT_SUCCESS;
 }
 
@@ -4480,14 +4479,30 @@ static int iax2_no_debug(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	iaxdebug = 0;
-#ifdef NEWJB
-	jb_setoutput(jb_error_output, jb_warning_output, NULL);
-#endif
 	ast_cli(fd, "IAX2 Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
 
+static int iax2_no_trunk_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+	iaxtrunkdebug = 0;
+	ast_cli(fd, "IAX2 Trunk Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
 
+static int iax2_no_jb_debug(int fd, int argc, char *argv[])
+{
+	if (argc != 4)
+		return RESULT_SHOWUSAGE;
+#ifdef NEWJB
+	jb_setoutput(jb_error_output, jb_warning_output, NULL);
+#endif
+	jb_debug_output("\n");
+	ast_cli(fd, "IAX2 Jitterbuffer Debugging Disabled\n");
+	return RESULT_SUCCESS;
+}
 
 static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 {
@@ -6251,14 +6266,14 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 									} else {
 										duped_fr = iaxfrdup2(&fr);
 										if (duped_fr) {
-											schedule_delivery(duped_fr, 1, updatehistory, 1);
+											schedule_delivery(duped_fr, updatehistory, 1);
 											fr.ts = duped_fr->ts;
 										}
 									}
 #else
 									duped_fr = iaxfrdup2(&fr);
 									if (duped_fr) {
-										schedule_delivery(duped_fr, 1, updatehistory, 1);
+										schedule_delivery(duped_fr, updatehistory, 1);
 										fr.ts = duped_fr->ts;
 									}
 #endif
@@ -7419,14 +7434,14 @@ retryowner2:
 	} else {
 		duped_fr = iaxfrdup2(&fr);
 		if (duped_fr) {
-			schedule_delivery(duped_fr, 1, updatehistory, 0);
+			schedule_delivery(duped_fr, updatehistory, 0);
 			fr.ts = duped_fr->ts;
 		}
 	}
 #else
 	duped_fr = iaxfrdup2(&fr);
 	if (duped_fr) {
-		schedule_delivery(duped_fr, 1, updatehistory, 0);
+		schedule_delivery(duped_fr, updatehistory, 0);
 		fr.ts = duped_fr->ts;
 	}
 #endif
@@ -9079,6 +9094,18 @@ static char debug_trunk_usage[] =
 "Usage: iax2 trunk debug\n"
 "       Requests current status of IAX trunking\n";
 
+static char no_debug_trunk_usage[] =
+"Usage: iax2 no trunk debug\n"
+"       Requests current status of IAX trunking\n";
+
+static char debug_jb_usage[] =
+"Usage: iax2 jb debug\n"
+"       Enables jitterbuffer debugging information\n";
+
+static char no_debug_jb_usage[] =
+"Usage: iax2 no jb debug\n"
+"       Disables jitterbuffer debugging information\n";
+
 static char iax2_test_losspct_usage[] =
 "Usage: iax2 test losspct <percentage>\n"
 "       For testing, throws away <percentage> percent of incoming packets\n";
@@ -9125,9 +9152,15 @@ static struct ast_cli_entry iax2_cli[] = {
 	{ { "iax2", "debug", NULL }, iax2_do_debug,
 	  "Enable IAX debugging", debug_usage },
 	{ { "iax2", "trunk", "debug", NULL }, iax2_do_trunk_debug,
-	  "Request snapshot of IAX trunk states", debug_trunk_usage },
+	  "Enable IAX trunk debugging", debug_trunk_usage },
+	{ { "iax2", "jb", "debug", NULL }, iax2_do_jb_debug,
+	  "Enable IAX jitterbuffer debugging", debug_jb_usage },
 	{ { "iax2", "no", "debug", NULL }, iax2_no_debug,
 	  "Disable IAX debugging", no_debug_usage },
+	{ { "iax2", "no", "trunk", "debug", NULL }, iax2_no_trunk_debug,
+	  "Disable IAX trunk debugging", no_debug_trunk_usage },
+	{ { "iax2", "no", "jb", "debug", NULL }, iax2_no_jb_debug,
+	  "Disable IAX jitterbuffer debugging", no_debug_jb_usage },
 	{ { "iax2", "test", "losspct", NULL }, iax2_test_losspct,
 	  "Set IAX2 incoming frame loss percentage", iax2_test_losspct_usage },
 	{ { "iax2", "provision", NULL }, iax2_prov_cmd,

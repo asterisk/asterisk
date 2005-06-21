@@ -526,11 +526,16 @@ static int _jb_get(jitterbuf *jb, jb_frame *frameout, long now, long interpl)
 {
 	jb_frame *frame;
 	long diff;
+	static int dbg_cnt = 0;
 
 	/*if ((now - jb_next(jb)) > 2 * jb->info.last_voice_ms) jb_warn("SCHED: %ld", (now - jb_next(jb))); */
 	/* get jitter info */
 	history_get(jb);
 
+	if (dbg_cnt && dbg_cnt % 50 == 0) {
+		jb_dbg("\n");
+	}
+	dbg_cnt++;
 
 	/* target */
 	jb->info.target = jb->info.jitter + jb->info.min + JB_TARGET_EXTRA; 
