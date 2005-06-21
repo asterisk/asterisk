@@ -183,11 +183,80 @@ static struct cfalias {
 	{ "Via", "v" },
 };
 
+/* Define SIP option tags, used in Require: and Supported: headers */
+/* 	We need to be aware of these properties in the phones to use 
+	the replace: header. We should not do that without knowing
+	that the other end supports it... 
+	This is nothing we can configure, we learn by the dialog
+	Supported: header on the REGISTER (peer) or the INVITE
+	(other devices)
+	We are not using many of these today, but will in the future.
+	This is documented in RFC 3261
+*/
+#define SUPPORTED		1
+#define NOT_SUPPORTED		0
+
+#define SIP_OPT_REPLACES	(1 << 0)
+#define SIP_OPT_100REL		(1 << 1)
+#define SIP_OPT_TIMER		(1 << 2)
+#define SIP_OPT_EARLY_SESSION	(1 << 3)
+#define SIP_OPT_JOIN		(1 << 4)
+#define SIP_OPT_PATH		(1 << 5)
+#define SIP_OPT_PREF		(1 << 6)
+#define SIP_OPT_PRECONDITION	(1 << 7)
+#define SIP_OPT_PRIVACY		(1 << 8)
+#define SIP_OPT_SDP_ANAT	(1 << 9)
+#define SIP_OPT_SEC_AGREE	(1 << 10)
+#define SIP_OPT_EVENTLIST	(1 << 11)
+#define SIP_OPT_GRUU		(1 << 12)
+#define SIP_OPT_TARGET_DIALOG	(1 << 13)
+
+/* List of well-known SIP options. If we get this in a require,
+   we should check the list and answer accordingly. */
+const struct cfsip_options {
+	int id;			/* Bitmap ID */
+	int supported;		/* Supported by Asterisk ? */
+	char *text;		/* Text id, as in standard */
+} sip_options[] = {
+	/* Replaces: header for transfer */
+	{ SIP_OPT_REPLACES,	SUPPORTED,	"replaces" },	
+	/* RFC3262: PRACK 100% reliability */
+	{ SIP_OPT_100REL,	NOT_SUPPORTED,	"100rel" },	
+	/* SIP Session Timers */
+	{ SIP_OPT_TIMER,	NOT_SUPPORTED,	"timer" },
+	/* RFC3959: SIP Early session support */
+	{ SIP_OPT_EARLY_SESSION, NOT_SUPPORTED,	"early-session" },
+	/* SIP Join header support */
+	{ SIP_OPT_JOIN,		NOT_SUPPORTED,	"join" },
+	/* RFC3327: Path support */
+	{ SIP_OPT_PATH,		NOT_SUPPORTED,	"path" },
+	/* RFC3840: Callee preferences */
+	{ SIP_OPT_PREF,		NOT_SUPPORTED,	"pref" },
+	/* RFC3312: Precondition support */
+	{ SIP_OPT_PRECONDITION,	NOT_SUPPORTED,	"precondition" },
+	/* RFC3323: Privacy with proxies*/
+	{ SIP_OPT_PRIVACY,	NOT_SUPPORTED,	"privacy" },
+	/* Not yet RFC, but registred with IANA */
+	{ SIP_OPT_SDP_ANAT,	NOT_SUPPORTED,	"sdp_anat" },
+	/* RFC3329: Security agreement mechanism */
+	{ SIP_OPT_SEC_AGREE,	NOT_SUPPORTED,	"sec_agree" },
+	/* SIMPLE events:  draft-ietf-simple-event-list-07.txt */
+	{ SIP_OPT_EVENTLIST,	NOT_SUPPORTED,	"eventlist" },
+	/* GRUU: Globally Routable User Agent URI's */
+	{ SIP_OPT_GRUU,		NOT_SUPPORTED,	"gruu" },
+	/* Target-dialog: draft-ietf-sip-target-dialog-00.txt */
+	{ SIP_OPT_TARGET_DIALOG,NOT_SUPPORTED,	"target-dialog" },
+};
+
+
+/* SIP Methods we support */
+#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY"
+
+/* SIP Extensions we support */
+#define SUPPORTED_EXTENSIONS "replaces" 
 
 #define DEFAULT_SIP_PORT	5060	/* From RFC 3261 (former 2543) */
 #define SIP_MAX_PACKET		4096	/* Also from RFC 3261 (2543), should sub headers tho */
-
-#define ALLOWED_METHODS "INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY"
 
 static char default_useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
 
@@ -417,6 +486,7 @@ static struct sip_pvt {
 	ast_group_t pickupgroup;		/* Pickup group */
 	int lastinvite;				/* Last Cseq of invite */
 	unsigned int flags;			/* SIP_ flags */	
+	unsigned int sipoptions;		/* Supported SIP sipoptions on the other end */
 	int capability;				/* Special capability (codec) */
 	int jointcapability;			/* Supported capability at both ends (codecs ) */
 	int peercapability;			/* Supported peer capability */
@@ -539,7 +609,8 @@ struct sip_user {
 	struct ast_codec_pref prefs;	/* codec prefs */
 	ast_group_t callgroup;		/* Call group */
 	ast_group_t pickupgroup;	/* Pickup Group */
-	unsigned int flags;		/* SIP_ flags */	
+	unsigned int flags;		/* SIP flags */	
+	unsigned int sipoptions;	/* Supported SIP options */
 	struct ast_flags flags_page2;	/* SIP_PAGE2 flags */
 	int amaflags;			/* AMA flags for billing */
 	int callingpres;		/* Calling id presentation */
@@ -582,7 +653,8 @@ struct sip_peer {
 	struct ast_codec_pref prefs;	/* codec prefs */
 	int lastmsgssent;
 	time_t	lastmsgcheck;		/* Last time we checked for MWI */
-	unsigned int flags;		/* SIP_ flags */	
+	unsigned int flags;		/* SIP flags */	
+	unsigned int sipoptions;	/* Supported SIP options */
 	struct ast_flags flags_page2;	/* SIP_PAGE2 flags */
 	int expire;			/* When to expire this peer registration */
 	int expiry;			/* Duration of registration */
@@ -693,6 +765,7 @@ static struct sip_auth *authl;          /* Authentication list */
 static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
+static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header, int stale);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
@@ -728,6 +801,7 @@ static int sip_senddigit(struct ast_channel *ast, char digit);
 static int clear_realm_authentication(struct sip_auth *authlist);                            /* Clear realm authentication list (at reload) */
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);   /* Add realm authentication in list */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm);         /* Find authentication for a specific realm */
+static void append_date(struct sip_request *req);	/* Append date to SIP packet */
 
 /* Definition of this channel for channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -779,6 +853,52 @@ static char *get_in_brackets(char *c)
 			*n = '\0';
 	}
 	return c;
+}
+
+/*--- parse_sip_options: Parse supported header in incoming packet */
+unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
+{
+	char *next = NULL;
+	char *sep = NULL;
+	char *temp = ast_strdupa(supported);
+	int i;
+	unsigned int profile = 0;
+
+	if (!supported || ast_strlen_zero(supported) )
+		return 0;
+
+	if (option_debug > 2 && sipdebug)
+		ast_log(LOG_DEBUG, "Begin: parsing SIP \"Supported: %s\"\n", supported);
+
+	next = temp;
+	while (next) {
+		char res=0;
+		if ( (sep = strchr(next, ',')) != NULL) {
+			*sep = '\0';
+			sep++;
+		}
+		while (*next == ' ')	/* Skip spaces */
+			next++;
+		if (option_debug > 2 && sipdebug)
+			ast_log(LOG_DEBUG, "Found SIP option: -%s-\n", next);
+		for (i=0; (i < (sizeof(sip_options) / sizeof(sip_options[0]))) && !res; i++) {
+			if (!strcasecmp(next, sip_options[i].text)) {
+				profile |= sip_options[i].id;
+				res = 1;
+				if (option_debug > 2 && sipdebug)
+					ast_log(LOG_DEBUG, "Matched SIP option: %s\n", next);
+			}
+		}
+		if (!res) 
+			if (option_debug > 2 && sipdebug)
+				ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
+		next = sep;
+	}
+	if (pvt)
+		pvt->sipoptions = profile;
+	
+	ast_log(LOG_DEBUG, "* SIP extension value: %d for call %s\n", profile, pvt->callid);
+	return(profile);
 }
 
 /*--- sip_debug_test_addr: See if we pass debug IP filter */
@@ -3685,7 +3805,17 @@ static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *r
 	return __transmit_response(p, msg, req, 0);
 }
 
-/*--- transmit_response: Transmit response, Make sure you get a reply */
+/*--- transmit_response_with_unsupported: Transmit response, no retransmits */
+static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported) 
+{
+	struct sip_request resp;
+	respprep(&resp, p, msg, req);
+	append_date(&resp);
+	add_header(&resp, "Unsupported", unsupported);
+	return send_response(p, &resp, 0, 0);
+}
+
+/*--- transmit_response_reliable: Transmit response, Make sure you get a reply */
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req, int fatal)
 {
 	return __transmit_response(p, msg, req, fatal ? 2 : 1);
@@ -5079,6 +5209,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 		register_peer_exten(p, 0);
 		p->fullcontact[0] = '\0';
 		p->useragent[0] = '\0';
+		p->sipoptions = 0;
 		p->lastms = 0;
 
 		if (option_verbose > 2)
@@ -5156,6 +5287,9 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 			ast_verbose(VERBOSE_PREFIX_3 "Registered SIP '%s' at %s port %d expires %d\n", p->name, ast_inet_ntoa(iabuf, sizeof(iabuf), p->addr.sin_addr), ntohs(p->addr.sin_port), expiry);
 		register_peer_exten(p, 1);
 	}
+	
+	/* Save SIP options profile */
+	p->sipoptions = pvt->sipoptions;
 
 	/* Save User agent */
 	useragent = get_header(req, "User-Agent");
@@ -6112,6 +6246,10 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore))) {
 			sip_cancel_destroy(p);
 			ast_copy_flags(p, user, SIP_PROMISCREDIR | SIP_DTMF | SIP_REINVITE);
+			/* Copy SIP extensions profile from INVITE */
+			if (p->sipoptions)
+				user->sipoptions = p->sipoptions;
+
 			/* If we have a call limit, set flag */
 			if (user->incominglimit)
 				ast_set_flag(p, SIP_CALL_LIMIT);
@@ -6165,6 +6303,11 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				ast_verbose("Found peer '%s'\n", peer->name);
 			/* Take the peer */
 			ast_copy_flags(p, peer, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
+
+			/* Copy SIP extensions profile to peer */
+			if (p->sipoptions)
+				peer->sipoptions = p->sipoptions;
+
 			/* replace callerid if rpid found, and not restricted */
 			if (!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
 				if (*calleridname)
@@ -6937,6 +7080,16 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Addr->IP     : %s Port %d\n",  peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "(Unspecified)", ntohs(peer->addr.sin_port));
 		ast_cli(fd, "  Defaddr->IP  : %s Port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), peer->defaddr.sin_addr), ntohs(peer->defaddr.sin_port));
 		ast_cli(fd, "  Def. Username: %s\n", peer->username);
+		ast_cli(fd, "  SIP Options  : ");
+		if (peer->sipoptions) {
+			for (x=0 ; (x < (sizeof(sip_options) / sizeof(sip_options[0]))); x++) {
+				if (peer->sipoptions & sip_options[x].id)
+					ast_cli(fd, "%s ", sip_options[x].text);
+			}
+		} else
+			ast_cli(fd, "(none)");
+
+		ast_cli(fd, "\n");
 		ast_cli(fd, "  Codecs       : ");
 		ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
 		ast_cli(fd, "%s\n", codec_buf);
@@ -7395,7 +7548,17 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Last Message:           %s\n", cur->lastmsg);
 			ast_cli(fd, "  Promiscuous Redir:      %s\n", ast_test_flag(cur, SIP_PROMISCREDIR) ? "Yes" : "No");
 			ast_cli(fd, "  Route:                  %s\n", cur->route ? cur->route->hop : "N/A");
-			ast_cli(fd, "  DTMF Mode:              %s\n\n", dtmfmode2str(ast_test_flag(cur, SIP_DTMF)));
+			ast_cli(fd, "  DTMF Mode:              %s\n", dtmfmode2str(ast_test_flag(cur, SIP_DTMF)));
+			ast_cli(fd, "  SIP Options  : ");
+			if (cur->sipoptions) {
+				int x;
+				for (x=0 ; (x < (sizeof(sip_options) / sizeof(sip_options[0]))); x++) {
+					if (cur->sipoptions & sip_options[x].id)
+						ast_cli(fd, "%s ", sip_options[x].text);
+				}
+			} else
+				ast_cli(fd, "(none)\n");
+			ast_cli(fd, "\n\n");
 			found++;
 		}
 		cur = cur->next;
@@ -8721,6 +8884,27 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	struct ast_channel *c=NULL;
 	int gotdest;
 	struct ast_frame af = { AST_FRAME_NULL, };
+	char *supported;
+	char *required;
+	unsigned int required_profile = 0;
+
+	/* Find out what they support */
+	if (!p->sipoptions) {
+		supported = get_header(req, "Supported");
+		if (supported)
+			parse_sip_options(p, supported);
+	}
+	required = get_header(req, "Required");
+	if (required && !ast_strlen_zero(required)) {
+		required_profile = parse_sip_options(NULL, required);
+		if (required_profile) { 	/* They require something */
+			/* At this point we support no extensions, so fail */
+			transmit_response_with_unsupported(p, "420 Bad extension", req, required);
+			ast_set_flag(p, SIP_NEEDDESTROY);	
+			return -1;
+			
+		}
+	}
 
 	/* Check if this is a loop */
 	/* This happens since we do not properly support SIP domain
