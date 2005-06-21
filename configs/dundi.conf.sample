@@ -34,6 +34,11 @@
 ;
 ;entityid=00:07:E9:3B:76:60
 ;
+; Peers shall cache our query responses for the specified time,
+; given in seconds. Default is 3600.
+;
+;cachetime=3600
+;
 ; This defines the max depth in which to search the DUNDi system.
 ; Note that the maximum time that we will wait for a response is
 ; (2000 + 200 * ttl) ms.

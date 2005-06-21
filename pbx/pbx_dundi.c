@@ -113,6 +113,7 @@ static int dundidebug = 0;
 static int authdebug = 0;
 static int dundi_ttl = DUNDI_DEFAULT_TTL;
 static int dundi_key_ttl = DUNDI_DEFAULT_KEY_EXPIRE;
+static int dundi_cache_time = DUNDI_DEFAULT_CACHE_TIME;
 static int global_autokilltimeout = 0;
 static dundi_eid global_eid;
 static int default_expiration = 60;
@@ -538,7 +539,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			ast_copy_flags(dr + anscnt, &flags, AST_FLAGS_ALL);
 			dr[anscnt].techint = map->tech;
 			dr[anscnt].weight = map->weight;
-			dr[anscnt].expiration = DUNDI_DEFAULT_CACHE_TIME;
+			dr[anscnt].expiration = dundi_cache_time;
 			strncpy(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
 			dr[anscnt].eid = *us_eid;
 			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
@@ -594,7 +595,7 @@ static void *dundi_lookup_thread(void *data)
 	int res, x;
 	int ouranswers=0;
 	int max = 999999;
-	int expiration = DUNDI_DEFAULT_CACHE_TIME;
+	int expiration = dundi_cache_time;
 
 	ast_log(LOG_DEBUG, "Whee, looking up '%s@%s' for '%s'\n", st->called_number, st->called_context, 
 		st->eids[0] ? dundi_eid_to_str(eid_str, sizeof(eid_str), st->eids[0]) :  "ourselves");
@@ -812,7 +813,7 @@ static int cache_save_hint(dundi_eid *eidpeer, struct dundi_request *req, struct
 	time_t timeout;
 
 	if (expiration < 0)
-		expiration = DUNDI_DEFAULT_CACHE_TIME;
+		expiration = dundi_cache_time;
 
 	/* Only cache hint if "don't ask" is there... */
 	if (!ast_test_flag_nonstd(hint, htons(DUNDI_HINT_DONT_ASK)))	
@@ -847,7 +848,7 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 	time_t timeout;
 
 	if (expiration < 1)	
-		expiration = DUNDI_DEFAULT_CACHE_TIME;
+		expiration = dundi_cache_time;
 
 	/* Keep pushes a little longer, cut pulls a little short */
 	if (push)
@@ -903,7 +904,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	hmd.flags = DUNDI_HINT_DONT_ASK | DUNDI_HINT_UNAFFECTED;
 	dr.dr = dr2;
 	dr.maxcount = MAX_RESULTS;
-	dr.expiration = DUNDI_DEFAULT_CACHE_TIME;
+	dr.expiration = dundi_cache_time;
 	dr.hmd = &hmd;
 	dr.pfds[0] = dr.pfds[1] = -1;
 	trans->parent = &dr;
@@ -927,7 +928,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 				if (ies->expiration > 0)
 					trans->parent->dr[trans->parent->respcount].expiration = ies->expiration;
 				else
-					trans->parent->dr[trans->parent->respcount].expiration = DUNDI_DEFAULT_CACHE_TIME;
+					trans->parent->dr[trans->parent->respcount].expiration = dundi_cache_time;
 				dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 					sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 					&ies->answers[x]->eid);
@@ -1662,7 +1663,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 								if (ies.expiration > 0)
 									trans->parent->dr[trans->parent->respcount].expiration = ies.expiration;
 								else
-									trans->parent->dr[trans->parent->respcount].expiration = DUNDI_DEFAULT_CACHE_TIME;
+									trans->parent->dr[trans->parent->respcount].expiration = dundi_cache_time;
 								dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 									sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 									&ies.answers[x]->eid);
@@ -3119,7 +3120,7 @@ static int precache_trans(struct dundi_transaction *trans, struct dundi_mapping 
 	struct dundi_ie_data ied;
 	int x, res;
 	int max = 999999;
-	int expiration = DUNDI_DEFAULT_CACHE_TIME;
+	int expiration = dundi_cache_time;
 	int ouranswers=0;
 	dundi_eid *avoid[1] = { NULL, };
 	int direct[1] = { 0, };
@@ -3629,7 +3630,7 @@ int dundi_lookup(struct dundi_result *result, int maxret, struct ast_channel *ch
 	struct dundi_hint_metadata hmd;
 	dundi_eid *avoid[1] = { NULL, };
 	int direct[1] = { 0, };
-	int expiration = DUNDI_DEFAULT_CACHE_TIME;
+	int expiration = dundi_cache_time;
 	memset(&hmd, 0, sizeof(hmd));
 	hmd.flags = DUNDI_HINT_DONT_ASK | DUNDI_HINT_UNAFFECTED;
 	return dundi_lookup_internal(result, maxret, chan, dcontext, number, dundi_ttl, 0, &hmd, &expiration, cbypass, 0, NULL, avoid, direct);
@@ -3752,7 +3753,7 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	strncpy(dr.number, number, sizeof(dr.number) - 1);
 	strncpy(dr.dcontext, context ? context : "e164", sizeof(dr.dcontext) - 1);
 	dr.maxcount = MAX_RESULTS;
-	dr.expiration = DUNDI_DEFAULT_CACHE_TIME;
+	dr.expiration = dundi_cache_time;
 	dr.hmd = &hmd;
 	dr.pfds[0] = dr.pfds[1] = -1;
 	pipe(dr.pfds);
@@ -4467,6 +4468,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	dundi_eid testeid;
 
 	dundi_ttl = DUNDI_DEFAULT_TTL;
+	dundi_cache_time = DUNDI_DEFAULT_CACHE_TIME;
 	cfg = ast_config_load(config_file);
 	
 	
@@ -4566,6 +4568,13 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 			strncpy(phone, v->value, sizeof(phone) - 1);
 		} else if (!strcasecmp(v->name, "storehistory")) {
 			global_storehistory = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "cachetime")) {
+			if ((sscanf(v->value, "%d", &x) == 1)) {
+				dundi_cache_time = x;
+			} else {
+				ast_log(LOG_WARNING, "'%s' is not a valid cache time at line %d. Using default value '%d'.\n",
+					v->value, v->lineno, DUNDI_DEFAULT_CACHE_TIME);
+			}
 		}
 		v = v->next;
 	}
