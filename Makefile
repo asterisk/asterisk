@@ -33,7 +33,7 @@ endif
 
 ifeq (${OSARCH},Linux)
 ifeq ($(CROSS_COMPILE),)
-PROC=$(shell uname -m)
+PROC?=$(shell uname -m)
 else
 PROC=$(CROSS_PROC)
 endif
