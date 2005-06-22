@@ -28,6 +28,14 @@
 #define MAX_HEADERS 80
 #define MAX_LEN 256
 
+/*
+ * 2005.05.27 - different versions of newt define the type of the buffer
+ * for the 5th argument to newtEntry() as char ** or const char ** . To 
+ * let the code compile cleanly with -Werror, we cast it to void * through 
+ * _NEWT_CAST.
+ */
+#define _NEWT_CAST (void *)
+
 static struct ast_mansession {
 	struct sockaddr_in sin;
 	int fd;
@@ -436,7 +444,7 @@ static int get_user_input(char *msg, char *buf, int buflen)
 
 	newtCenteredWindow(60,7, msg);
 
-	inpfield = newtEntry(5, 2, "", 50, &input, 0);
+	inpfield = newtEntry(5, 2, "", 50, _NEWT_CAST &input, 0);
 	ok = newtButton(22, 3, "OK");
 	cancel = newtButton(32, 3, "Cancel");
 	form = newtForm(NULL, NULL, 0);
@@ -603,8 +611,8 @@ static int login(char *hostname)
 	ulabel = newtLabel(4,2,"Username:");
 	plabel = newtLabel(4,3,"Password:");
 	
-	username = newtEntry(14, 2, "", 20, &user, 0);
-	password = newtEntry(14, 3, "", 20, &pass, NEWT_FLAG_HIDDEN);
+	username = newtEntry(14, 2, "", 20, _NEWT_CAST &user, 0);
+	password = newtEntry(14, 3, "", 20, _NEWT_CAST &pass, NEWT_FLAG_HIDDEN);
 	
 	form = newtForm(NULL, NULL, 0);
 	newtFormAddComponents(form, username, password, login, cancel, label, ulabel, plabel,NULL);

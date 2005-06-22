@@ -59,6 +59,8 @@ ln -sf /var/spool/asterisk/vm /var/lib/asterisk/sounds/vm
 %attr(0755,root,root)      /usr/sbin/safe_asterisk
 %attr(0755,root,root)      /usr/sbin/astgenkey
 %attr(0755,root,root)      /usr/sbin/astman
+%attr(0755,root,root)      /usr/sbin/autosupport
+
 
 #
 # Sound files

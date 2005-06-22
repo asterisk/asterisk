@@ -5,6 +5,8 @@
 ;
 ; RTP start and RTP end configure start and end addresses
 ;
+; Defaults are rtpstart=5000 and rtpend=31000
+;
 rtpstart=10000
 rtpend=20000
 ;

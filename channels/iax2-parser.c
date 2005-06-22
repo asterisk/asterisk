@@ -32,7 +32,7 @@ static int oframes = 0;
 
 static void internaloutput(const char *str)
 {
-	printf(str);
+	fputs(str, stdout);
 }
 
 static void internalerror(const char *str)
@@ -299,7 +299,9 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"NULL   ",
 		"IAX    ",
 		"TEXT   ",
-		"IMAGE  " };
+		"IMAGE  ",
+		"HTML   ",
+		"CNG    " };
 	char *iaxs[] = {
 		"(0?)",
 		"NEW    ",
@@ -371,7 +373,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		/* Don't mess with mini-frames */
 		return;
 	}
-	if (fh->type > (int)sizeof(frames)/(int)sizeof(char *)) {
+	if (fh->type >= (int)sizeof(frames)/(int)sizeof(frames[0])) {
 		snprintf(class2, (int)sizeof(class2), "(%d?)", fh->type);
 		class = class2;
 	} else {
@@ -688,8 +690,15 @@ void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f)
 	fr->af.delivery.tv_sec = 0;
 	fr->af.delivery.tv_usec = 0;
 	fr->af.data = fr->afdata;
-	if (fr->af.datalen) 
+	if (fr->af.datalen) {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+		/* We need to byte-swap slinear samples from network byte order */
+		if (fr->af.subclass == AST_FORMAT_SLINEAR) {
+			ast_memcpy_byteswap(fr->af.data, f->data, fr->af.samples);
+		} else
+#endif
 		memcpy(fr->af.data, f->data, fr->af.datalen);
+	}
 }
 
 struct iax_frame *iax_frame_new(int direction, int datalen)

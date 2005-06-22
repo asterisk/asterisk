@@ -11,12 +11,12 @@
  * the GNU General Public License
  */
 
+#include <sys/types.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
 #include <asterisk/file.h>
 #include <asterisk/logger.h>
 #include <asterisk/channel.h>
@@ -119,7 +119,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	struct pollfd pfds[1];
 	char *host;
 	char *c; int port = AGI_PORT;
-	char *script;
+	char *script = "";
 	struct sockaddr_in sin;
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -136,7 +136,7 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 	if ((c = strchr(host, ':'))) {
 		*c = '\0';
 		c++;
-		port = atoi(c + 1);
+		port = atoi(c);
 	}
 	if (efd) {
 		ast_log(LOG_WARNING, "AGI URI's don't support Enhanced AGI yet\n");
@@ -185,6 +185,9 @@ static int launch_netscript(char *agiurl, char *argv[], int *fds, int *efd, int 
 		return -1;
 	}
 	ast_log(LOG_DEBUG, "Wow, connected!\n");
+	/* Send the script parameter */
+	if (!ast_strlen_zero(script))
+		fdprintf(s, "agi_network_script: %s\n", script);
 	fds[0] = s;
 	fds[1] = s;
 	*opid = -1;
@@ -393,11 +396,11 @@ static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *ar
 	if (!strncasecmp(argv[2],"mate",4)) x = 2;
 	if (!strncasecmp(argv[2],"tdd",3)) x = 1;
 	res = ast_channel_setoption(chan,AST_OPTION_TDD,&x,sizeof(char),0);
-	fdprintf(agi->fd, "200 result=%d\n", res);
-	if (res >= 0) 
-		return RESULT_SUCCESS;
+	if (res == RESULT_SUCCESS)
+		fdprintf(agi->fd, "200 result=1\n");
 	else
-		return RESULT_FAILURE;
+		fdprintf(agi->fd, "200 result=0\n");
+	return RESULT_SUCCESS;
 }
 
 static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
@@ -432,8 +435,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 	fs = ast_openstream(chan, argv[2], chan->language);
 	if(!fs){
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
-		ast_log(LOG_WARNING, "Unable to open %s\n", argv[2]);
-		return RESULT_FAILURE;
+		return RESULT_SUCCESS;
 	}
 	ast_seekstream(fs, 0, SEEK_END);
 	max_length = ast_tellstream(fs);
@@ -472,7 +474,7 @@ static int handle_saynumber(struct ast_channel *chan, AGI *agi, int argc, char *
 	int num;
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	if (sscanf(argv[2], "%i", &num) != 1)
+	if (sscanf(argv[2], "%d", &num) != 1)
 		return RESULT_SHOWUSAGE;
 	res = ast_say_number_full(chan, num, argv[3], chan->language, (char *) NULL, agi->audio, agi->ctrl);
 	if (res == 1)
@@ -559,10 +561,7 @@ static int handle_getdata(struct ast_channel *chan, AGI *agi, int argc, char *ar
 		fdprintf(agi->fd, "200 result=-1\n");
 	else
 		fdprintf(agi->fd, "200 result=%s\n", data);
-	if (res >= 0)
-		return RESULT_SUCCESS;
-	else
-		return RESULT_FAILURE;
+	return RESULT_SUCCESS;
 }
 
 static int handle_setcontext(struct ast_channel *chan, AGI *agi, int argc, char *argv[])

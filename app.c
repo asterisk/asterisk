@@ -278,7 +278,7 @@ int ast_dtmf_stream(struct ast_channel *chan,struct ast_channel *peer,char *digi
 	if (!res) {
 		res = ast_waitfor(chan,100);
 		if (res > -1) {
-			for (ptr=digits;*ptr;*ptr++) {
+			for (ptr=digits; *ptr; ptr++) {
 				if (*ptr == 'w') {
 					res = ast_safe_sleep(chan, 500);
 					if (res) 
@@ -518,9 +518,10 @@ int ast_play_and_wait(struct ast_channel *chan, char *fn)
 static int global_silence_threshold = 128;
 static int global_maxsilence = 0;
 
-int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int silencethreshold, int maxsilence)
+int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int silencethreshold, int maxsilence, const char *path)
 {
-	char d, *fmts;
+	int d;
+	char *fmts;
 	char comment[256];
 	int x, fmtcnt=1, res=-1,outmsg=0;
 	struct ast_frame *f;
@@ -528,7 +529,7 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 	char *sfmt[MAX_OTHER_FORMATS];
 	char *stringp=NULL;
 	time_t start, end;
-	struct ast_dsp *sildet;   	/* silence detector dsp */
+	struct ast_dsp *sildet=NULL;   	/* silence detector dsp */
 	int totalsilence = 0;
 	int dspsilence = 0;
 	int gotsilence = 0;		/* did we timeout for silence? */
@@ -585,18 +586,22 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 		}
 	}
 
-	sildet = ast_dsp_new(); /* Create the silence detector */
-	if (!sildet) {
-		ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-		return -1;
-	}
-	ast_dsp_set_threshold(sildet, silencethreshold);
+	if (path)
+		ast_unlock_path(path);
+
 	
 	if (maxsilence > 0) {
+		sildet = ast_dsp_new(); /* Create the silence detector */
+		if (!sildet) {
+			ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+			return -1;
+		}
+		ast_dsp_set_threshold(sildet, silencethreshold);
 		rfmt = chan->readformat;
 		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			ast_dsp_free(sildet);
 			return -1;
 		}
 	}
@@ -640,13 +645,13 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 						totalsilence = 0;
 
 					if (totalsilence > maxsilence) {
-					/* Ended happily with silence */
-                                        if (option_verbose > 2)
-                                                ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
-					ast_frfree(f);
-					gotsilence = 1;
-					outmsg=2;
-					break;
+						/* Ended happily with silence */
+                                        	if (option_verbose > 2)
+                                                	ast_verbose( VERBOSE_PREFIX_3 "Recording automatically stopped after a silence of %d seconds\n", totalsilence/1000);
+						ast_frfree(f);
+						gotsilence = 1;
+						outmsg=2;
+						break;
 					}
 				}
 				/* Exit on any error */
@@ -706,10 +711,12 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 	for (x=0;x<fmtcnt;x++) {
 		if (!others[x])
 			break;
-		if (totalsilence)
-			ast_stream_rewind(others[x], totalsilence-200);
-		else
-			ast_stream_rewind(others[x], 200);
+		if (res > 0) {
+			if (totalsilence)
+				ast_stream_rewind(others[x], totalsilence-200);
+			else
+				ast_stream_rewind(others[x], 200);
+		}
 		ast_truncstream(others[x]);
 		ast_closestream(others[x]);
 	}
@@ -718,20 +725,20 @@ int ast_play_and_record(struct ast_channel *chan, char *playfile, char *recordfi
 			ast_log(LOG_WARNING, "Unable to restore format %s to channel '%s'\n", ast_getformatname(rfmt), chan->name);
 		}
 	}
-	if (outmsg) {
-		if (outmsg > 1) {
+	if (outmsg > 1) {
 		/* Let them know recording is stopped */
-			ast_streamfile(chan, "auth-thankyou", chan->language);
+		if(!ast_streamfile(chan, "auth-thankyou", chan->language))
 			ast_waitstream(chan, "");
-		}
 	}
-
+	if (sildet)
+		ast_dsp_free(sildet);
 	return res;
 }
 
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence)
 {
-	char d = 0, *fmts;
+	int d = 0;
+	char *fmts;
 	char comment[256];
 	int x, fmtcnt=1, res=-1,outmsg=0;
 	struct ast_frame *f;
@@ -959,5 +966,48 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 		}
 	}	
 	return res;
+}
+
+int ast_lock_path(const char *path)
+{
+	char *s;
+	char *fs;
+	int res;
+	int fd;
+	time_t start;
+	s = alloca(strlen(path) + 10);
+	fs = alloca(strlen(path) + 20);
+	if (!fs || !s) {
+		ast_log(LOG_WARNING, "Out of memory!\n");
+		return -1;
+	}
+	snprintf(fs, strlen(path) + 19, "%s/%s-%08x", path, ".lock", rand());
+	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
+	if (fd < 0) {
+		fprintf(stderr, "Unable to create lock file: %s\n", strerror(errno));
+		return -1;
+	}
+	close(fd);
+	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
+	time(&start);
+	while (((res = link(fs, s)) < 0) && (errno == EEXIST) && (time(NULL) - start < 5))
+		usleep(1);
+	if (res < 0) {
+		ast_log(LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
+	}
+	unlink(fs);
+	ast_log(LOG_DEBUG, "Locked path '%s'\n", path);
+	return res;
+}
+
+int ast_unlock_path(const char *path)
+{
+	char *s;
+	s = alloca(strlen(path) + 10);
+	if (!s)
+		return -1;
+	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
+	ast_log(LOG_DEBUG, "Unlocked path '%s'\n", path);
+	return unlink(s);
 }
 

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Applictions connected with CDR engine
+ * Applications to test connection and produce report in text file
  * 
  * Copyright (C) 2004, Digium, Inc.
  *
@@ -14,6 +14,7 @@
 
 #include <sys/types.h>
 #include <asterisk/channel.h>
+#include <asterisk/options.h>
 #include <asterisk/module.h>
 #include <asterisk/logger.h>
 #include <asterisk/lock.h>
@@ -29,13 +30,15 @@
 
 static char *tdesc = "Interface Test Application";
 
-static char *tests_descrip = "TestServer(): Perform test server function and write call report"
-							 "Results stored in /var/log/asterisk/testreports/<testid>.txt";
+static char *tests_descrip = 
+	 "TestServer(): Perform test server function and write call report.\n"
+	 "Results stored in /var/log/asterisk/testreports/<testid>-server.txt";
 static char *tests_app = "TestServer";
 static char *tests_synopsis = "Execute Interface Test Server";
 
-static char *testc_descrip = "TestClient(testid): Executes test client with given testid.\n"
-							 "Results stored in /var/log/asterisk/testreports/<testid>.txt";
+static char *testc_descrip = 
+	 "TestClient(testid): Executes test client with given testid.\n"
+	 "Results stored in /var/log/asterisk/testreports/<testid>-client.txt";
 
 static char *testc_app = "TestClient";
 static char *testc_synopsis = "Execute Interface Test Client";

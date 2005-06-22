@@ -524,7 +524,9 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	memset(user, 0, sizeof(struct ast_conf_user));
 
 	user->user_no = 0; /* User number 0 means starting up user! (dead - not in the list!) */
-	
+
+	time(&user->jointime);
+
 	if (conf->locked) {
 		/* Sorry, but this confernce is locked! */	
 		if (!ast_streamfile(chan, "conf-locked", chan->language))
@@ -557,7 +559,6 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 			conf->lastuser = user;
 		}
 	}
-	strncpy(user->usrvalue, "test", sizeof(user->usrvalue) - 1);
 	user->chan = chan;
 	user->userflags = confflags;
 	user->adminflags = 0;
@@ -1043,10 +1044,10 @@ outrun:
 				else
 					ast_log(LOG_ERROR, "Bad! Bad! Bad! user->prevuser is NULL but we're not the beginning!\n");
 			}
-			/* Return the number of seconds the user was in the conf */
-			snprintf(meetmesecs, sizeof(meetmesecs), "%i", (int) (user->jointime - time(NULL)));
-			pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
 		}
+		/* Return the number of seconds the user was in the conf */
+		snprintf(meetmesecs, sizeof(meetmesecs), "%i", (int) (time(NULL) - user->jointime));
+		pbx_builtin_setvar_helper(chan, "MEETMESECS", meetmesecs);
 	}
 	free(user);
 	ast_mutex_unlock(&conflock);
@@ -1298,7 +1299,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 									if (!found) {
 										/* At this point, we have a confno_tmp (static conference) that is empty */
 										if ((empty_no_pin && ((!stringp) || (stringp && (stringp[0] == '\0')))) || (!empty_no_pin)) {
-										/* Case 1:  empty_no_pin and pin is nonexistant (NULL)
+										/* Case 1:  empty_no_pin and pin is nonexistent (NULL)
 										 * Case 2:  empty_no_pin and pin is blank (but not NULL)
 										 * Case 3:  not empty_no_pin
 										 */
@@ -1454,14 +1455,17 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		command = strsep(&params, "|");
 		caller = strsep(&params, "|");
 		
-		ast_mutex_lock(&conflock);
+		if (!command) {
+			ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
+			ast_mutex_unlock(&conflock);
+			return -1;
+		}
 		cnf = confs;
 		while (cnf) {
 			if (strcmp(cnf->confno, conf) == 0) 
 				break;
 			cnf = cnf->next;
 		}
-		ast_mutex_unlock(&conflock);
 		
 		if (caller)
 			user = find_user(cnf, caller);

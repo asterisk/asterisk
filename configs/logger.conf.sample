@@ -3,6 +3,9 @@
 ;
 ; In this file, you configure logging to files or to
 ; the syslog system.
+;
+; "logger reload" at the CLI will reload configuration
+; of the logging system.
 
 [general]
 ; Customize the display of debug message time stamps
@@ -40,10 +43,6 @@ console => notice,warning,error
 messages => notice,warning,error
 ;full => notice,warning,error,debug,verbose
 ;
-; Uncomment the following line (with *no* events) if you want the
-; queue log to automatically rotate.
-;
-;queue_log =>
 
 ;syslog keyword : This special keyword logs to syslog facility 
 ;

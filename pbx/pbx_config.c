@@ -1687,6 +1687,7 @@ static int pbx_load_module(void)
 								else
 									data = "";
 							}
+							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext)-1);	
 							cidmatch = strchr(ext, '/');
 							if (cidmatch) {
 								*cidmatch = '\0';
@@ -1698,8 +1699,9 @@ static int pbx_load_module(void)
 							if (!data)
 								data="";
 							while(*appl && (*appl < 33)) appl++;
-							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
 							if (ipri) {
+								if (!strcmp(realext, "_."))
+									ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
 								if (ast_add_extension2(con, 0, realext, ipri, cidmatch, appl, strdup(data), FREE, registrar)) {
 									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
 								}

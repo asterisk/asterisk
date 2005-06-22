@@ -48,8 +48,8 @@ extern int ast_utils_init(void);
 #define	PTHREAD_ATTR_STACKSIZE		2097152
 #endif /* PTHREAD_ATTR_STACKSIZE */
 extern int ast_pthread_create(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data);
+extern char *ast_strcasestr(const char *, const char *);
 #endif /* LINUX */
 
-extern char *ast_strcasestr(const char *, const char *);
 
 #endif

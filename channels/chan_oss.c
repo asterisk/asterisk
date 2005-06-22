@@ -34,6 +34,24 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#if defined( __OpenBSD__ )
+#  include <sys/endian.h>
+#elif defined( __FreeBSD__ ) || defined( __NetBSD__ )
+#  include <sys/endian.h>   
+#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
+#  include <machine/endian.h>
+#elif defined ( SOLARIS )
+#  include <solaris-compat/compat.h>
+#elif defined( __GNUC__ ) || defined( __GNU_LIBRARY__ )
+#  include <endian.h>
+#if !defined(__APPLE__)
+#  include <byteswap.h>
+#endif
+#elif defined( linux )
+#  include <endian.h>
+#endif
+
 #ifdef __linux
 #include <linux/soundcard.h>
 #elif defined(__FreeBSD__)
@@ -322,7 +340,13 @@ static int setformat(void)
 	int fmt, desired, res, fd = sounddev;
 	static int warnedalready = 0;
 	static int warnedalready2 = 0;
+
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 	fmt = AFMT_S16_LE;
+#else
+	fmt = AFMT_S16_BE;
+#endif
+
 	res = ioctl(fd, SNDCTL_DSP_SETFMT, &fmt);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set format to 16-bit signed\n");

@@ -722,7 +722,7 @@ void MyH323Connection::SendUserInputTone(char tone, unsigned duration)
 	if (h323debug) {
 		cout << "	-- Sending user input tone (" << tone << ") to remote" << endl;
 	}
-	on_send_digit(GetCallReference(), tone);	
+	on_send_digit(GetCallReference(), tone, (const char *)GetCallToken());	
 	H323Connection::SendUserInputTone(tone, duration);
 }
 
@@ -732,7 +732,7 @@ void MyH323Connection::OnUserInputTone(char tone, unsigned duration, unsigned lo
 		if (h323debug) {
 			cout << "	-- Received user input tone (" << tone << ") from remote" << endl;
 		}
-		on_send_digit(GetCallReference(), tone);
+		on_send_digit(GetCallReference(), tone, (const char *)GetCallToken());	
 	}
 	H323Connection::OnUserInputTone(tone, duration, logicalChannel, rtpTimestamp);
 }
@@ -743,7 +743,7 @@ void MyH323Connection::OnUserInputString(const PString &value)
 		if (h323debug) {
 			cout <<  "	-- Received user input string (" << value << ") from remote." << endl;
 		}
-		on_send_digit(GetCallReference(), value[0]);
+		on_send_digit(GetCallReference(), value[0], (const char *)GetCallToken());
 	}	
 }
 

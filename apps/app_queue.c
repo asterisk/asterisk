@@ -96,7 +96,7 @@ static char *descrip =
 "Queues an incoming call in a particular call queue as defined in queues.conf.\n"
 "  This application returns -1 if the originating channel hangs up, or if the\n"
 "call is bridged and  either of the parties in the bridge terminate the call.\n"
-"Returns 0 if the queue is full, nonexistant, or has no members.\n"
+"Returns 0 if the queue is full, nonexistent, or has no members.\n"
 "The option string may contain zero or more of the following characters:\n"
 "      't' -- allow the called user transfer the calling user\n"
 "      'T' -- to allow the calling user to transfer the call.\n"
@@ -226,6 +226,7 @@ struct ast_call_queue {
 	int wrapped;			/* Round Robin - wrapped around? */
 	int joinempty;			/* Do we care if the queue has no members? */
 	int eventwhencalled;			/* Generate an event when the agent is called (before pickup) */
+	int leavewhenempty;		/* If all agents leave the queue, remove callers from the queue */
 
 	struct member *members;		/* Member channels to be tried */
 	struct queue_ent *head;		/* Start of the actual queue */
@@ -544,14 +545,17 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 	}
 }
 
-static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
+static int ring_entry(struct queue_ent *qe, struct localuser *tmp, int *busies)
 {
 	int res;
+	struct ast_var_t *current, *newvar;
+	struct varshead *headp, *newheadp;
 	if (qe->parent->wrapuptime && (time(NULL) - tmp->lastcall < qe->parent->wrapuptime)) {
 		ast_log(LOG_DEBUG, "Wrapuptime not yet expired for %s/%s\n", tmp->tech, tmp->numsubst);
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	}
 	/* Request the peer */
@@ -563,7 +567,28 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		if (qe->chan->cdr)
 			ast_cdr_busy(qe->chan->cdr);
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
+	}
+	/* If creating a SIP channel, look for a variable called */
+	/* VXML_URL in the calling channel and copy it to the    */
+	/* new channel.                                          */
+
+	/* Check for ALERT_INFO in the SetVar list.  This is for   */
+	/* SIP distinctive ring as per the RFC.  For Cisco 7960s,  */
+	/* SetVar(ALERT_INFO=<x>) where x is an integer value 1-5. */
+	/* However, the RFC says it should be a URL.  -km-         */
+	headp=&qe->chan->varshead;
+	AST_LIST_TRAVERSE(headp,current,entries) {
+		if (!strcasecmp(ast_var_name(current),"VXML_URL") ||
+			!strcasecmp(ast_var_name(current), "ALERT_INFO") ||
+			!strcasecmp(ast_var_name(current), "OSPTOKEN") ||
+			!strcasecmp(ast_var_name(current), "OSPHANDLE"))
+		{
+			newvar=ast_var_assign(ast_var_name(current),ast_var_value(current));
+			newheadp=&tmp->chan->varshead;
+			AST_LIST_INSERT_HEAD(newheadp,newvar,entries);
+		}
 	}
 	tmp->chan->appl = "AppQueue";
 	tmp->chan->data = "(Outgoing Line)";
@@ -593,6 +618,7 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		ast_hangup(tmp->chan);
 		tmp->chan = NULL;
 		tmp->stillgoing = 0;
+		(*busies)++;
 		return 0;
 	} else {
 		if (qe->parent->eventwhencalled) {
@@ -610,10 +636,10 @@ static int ring_entry(struct queue_ent *qe, struct localuser *tmp)
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Called %s/%s\n", tmp->tech, tmp->numsubst);
 	}
-	return 0;
+	return 1;
 }
 
-static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
+static int ring_one(struct queue_ent *qe, struct localuser *outgoing, int *busies)
 {
 	struct localuser *cur;
 	struct localuser *best;
@@ -635,9 +661,9 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 				/* Ring everyone who shares this best metric (for ringall) */
 				cur = outgoing;
 				while(cur) {
-					if (cur->stillgoing && !cur->chan && (cur->metric == bestmetric)) {
+					if (cur->stillgoing && !cur->chan && (cur->metric <= bestmetric)) {
 						ast_log(LOG_DEBUG, "(Parallel) Trying '%s/%s' with metric %d\n", cur->tech, cur->numsubst, cur->metric);
-						ring_entry(qe, cur);
+						ring_entry(qe, cur, busies);
 					}
 					cur = cur->next;
 				}
@@ -646,7 +672,7 @@ static int ring_one(struct queue_ent *qe, struct localuser *outgoing)
 				if (option_debug)
 					ast_log(LOG_DEBUG, "Trying '%s/%s' with metric %d\n", 
 									best->tech, best->numsubst, best->metric);
-				ring_entry(qe, best);
+				ring_entry(qe, best, busies);
 			}
 		}
 	} while (best && !best->chan);
@@ -710,15 +736,36 @@ static int valid_exit(struct queue_ent *qe, char digit)
 
 #define AST_MAX_WATCHERS 256
 
-static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, char *digit)
+#define BUILD_STATS do { \
+		o = outgoing; \
+		found = -1; \
+		pos = 1; \
+		numlines = 0; \
+		watchers[0] = in; \
+		while(o) { \
+			/* Keep track of important channels */ \
+			if (o->stillgoing) { \
+				stillgoing = 1; \
+				if (o->chan) { \
+					watchers[pos++] = o->chan; \
+					found = 1; \
+				} \
+			} \
+			o = o->next; \
+			numlines++; \
+		} \
+	} while(0)
+
+static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, char *digit, int prebusies)
 {
 	char *queue = qe->parent->name;
 	struct localuser *o;
 	int found;
 	int numlines;
 	int sentringing = 0;
-	int numbusies = 0;
+	int numbusies = prebusies;
 	int orig = *to;
+	int stillgoing = 0;
 	struct ast_frame *f;
 	struct localuser *peer = NULL;
 	struct ast_channel *watchers[AST_MAX_WATCHERS];
@@ -727,25 +774,18 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 	struct ast_channel *in = qe->chan;
 	
 	while(*to && !peer) {
-		o = outgoing;
-		found = -1;
-		pos = 1;
-		numlines = 0;
-		watchers[0] = in;
-		while(o) {
-			/* Keep track of important channels */
-			if (o->stillgoing && o->chan) {
-				watchers[pos++] = o->chan;
-				found = 1;
-			}
-			o = o->next;
-			numlines++;
+		BUILD_STATS;
+		if ((found < 0) && stillgoing && !qe->parent->strategy) {
+			/* On "ringall" strategy we only move to the next penalty level
+			   when *all* ringing phones are done in the current penalty level */
+			ring_one(qe, outgoing, &numbusies);
+			BUILD_STATS;
 		}
 		if (found < 0) {
 			if (numlines == numbusies) {
 				ast_log(LOG_DEBUG, "Everyone is busy at this time\n");
 			} else {
-				ast_log(LOG_NOTICE, "No one is answering queue '%s'\n", queue);
+				ast_log(LOG_NOTICE, "No one is answering queue '%s' (%d/%d)\n", queue, numlines, numbusies);
 			}
 			*to = 0;
 			return NULL;
@@ -789,7 +829,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							if (qe->parent->strategy)
-								ring_one(qe, outgoing);
+								ring_one(qe, outgoing, &numbusies);
 							numbusies++;
 							break;
 						case AST_CONTROL_CONGESTION:
@@ -801,7 +841,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 							ast_hangup(o->chan);
 							o->chan = NULL;
 							if (qe->parent->strategy)
-								ring_one(qe, outgoing);
+								ring_one(qe, outgoing, &numbusies);
 							numbusies++;
 							break;
 						case AST_CONTROL_RINGING:
@@ -827,7 +867,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					ast_hangup(o->chan);
 					o->chan = NULL;
 					if (qe->parent->strategy)
-						ring_one(qe, outgoing);
+						ring_one(qe, outgoing, &numbusies);
 				}
 			}
 			o = o->next;
@@ -843,21 +883,30 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to=-1;
+				if (f)
+					ast_frfree(f);
 				return NULL;
 			}
-			if (f && (f->frametype == AST_FRAME_DTMF) && allowdisconnect_out && (f->subclass == '*')) {
+			if ((f->frametype == AST_FRAME_DTMF) && allowdisconnect_out && (f->subclass == '*')) {
 			    if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
+				if (f)
+					ast_frfree(f);	
 				return NULL;
 			}
-			if (f && (f->frametype == AST_FRAME_DTMF) && (f->subclass != '*') && valid_exit(qe, f->subclass)) {
+			if ((f->frametype == AST_FRAME_DTMF) && (f->subclass != '*') && valid_exit(qe, f->subclass)) {
 				if (option_verbose > 3)
-					ast_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c", f->subclass);
+					ast_verbose(VERBOSE_PREFIX_3 "User pressed digit: %c\n", f->subclass);
 				*to=0;
 				*digit=f->subclass;
+				if (f)
+					ast_frfree(f);
 				return NULL;
 			}
+			if (f)
+				ast_frfree(f);
+			
 		}
 		if (!*to && (option_verbose > 2))
 			ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
@@ -909,6 +958,12 @@ static int wait_our_turn(struct queue_ent *qe, int ringing)
 		if ( qe->queuetimeout ) {
 			time(&now);
 			if ( (now - qe->start) >= qe->queuetimeout )
+			break;
+		}
+
+		/* leave the queue if no agents, if enabled */
+		if (!(qe->parent->members) && qe->parent->leavewhenempty) {
+			leave_queue(qe);
 			break;
 		}
 
@@ -1017,6 +1072,7 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 	struct member *member;
 	int res = 0, bridge = 0;
 	int zapx = 2;
+	int numbusies = 0;
 	int x=0;
 	char *announce = NULL;
 	char digit = 0;
@@ -1099,9 +1155,9 @@ static int try_calling(struct queue_ent *qe, char *options, char *announceoverri
 		to = qe->parent->timeout * 1000;
 	else
 		to = -1;
-	ring_one(qe, outgoing);
+	ring_one(qe, outgoing, &numbusies);
 	ast_mutex_unlock(&qe->parent->lock);
-	lpeer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &digit);
+	lpeer = wait_for_answer(qe, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &digit, numbusies);
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
 		store_next(qe, outgoing);
@@ -1626,11 +1682,17 @@ check_turns:
 				/* This is the wait loop for the head caller*/
 				/* To exit, they may get their call answered; */
 				/* they may dial a digit from the queue context; */
-				/* or, they may may timeout. */
+				/* or, they may timeout. */
 
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.queuetimeout && ( (time(NULL) - qe.start) >= qe.queuetimeout) ) {
 					res = 0;
+					break;
+				}
+
+				/* leave the queue if no agents, if enabled */
+				if (!((qe.parent)->members) && (qe.parent)->leavewhenempty) {
+					leave_queue(&qe);
 					break;
 				}
 
@@ -1691,7 +1753,7 @@ check_turns:
 			}
 		}
 		/* Don't allow return code > 0 */
-		if (res > 0 && res != AST_PBX_KEEPALIVE) {
+		if ((res == 0) || (res > 0 && res != AST_PBX_KEEPALIVE)) {
 			res = 0;	
 			if (ringing) {
 				ast_indicate(chan, -1);
@@ -1781,7 +1843,7 @@ static void reload_queues(void)
 				strncpy(q->sound_minutes, "queue-minutes", sizeof(q->sound_minutes) - 1);
 				strncpy(q->sound_seconds, "queue-seconds", sizeof(q->sound_seconds) - 1);
 				strncpy(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks) - 1);
-				strncpy(q->sound_lessthan, "queue-lessthan", sizeof(q->sound_lessthan) - 1);
+				strncpy(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan) - 1);
 				prev = q->members;
 				if (prev) {
 					/* find the end of any dynamic members */
@@ -1818,7 +1880,7 @@ static void reload_queues(void)
 								q->members = cur;
 							prev = cur;
 						}
-					} else if (!strcasecmp(var->name, "music")) {
+					} else if (!strcasecmp(var->name, "music") || !strcasecmp(var->name, "musiconhold")) {
 						strncpy(q->moh, var->value, sizeof(q->moh) - 1);
 					} else if (!strcasecmp(var->name, "announce")) {
 						strncpy(q->announce, var->value, sizeof(q->announce) - 1);
@@ -1872,6 +1934,8 @@ static void reload_queues(void)
 						}
 					} else if (!strcasecmp(var->name, "joinempty")) {
 						q->joinempty = ast_true(var->value);
+					} else if (!strcasecmp(var->name, "leavewhenempty")) {
+						q->leavewhenempty = ast_true(var->value);
 					} else if (!strcasecmp(var->name, "eventwhencalled")) {
 						q->eventwhencalled = ast_true(var->value);
 					} else {
