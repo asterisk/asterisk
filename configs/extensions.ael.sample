@@ -3,7 +3,7 @@
 //
 
 macro std-exten-ael( ext , dev ) {
-        Dial(${ext}/${dev},20);
+        Dial(${dev}/${ext},20);
         switch(${DIALSTATUS}) {
         case BUSY:
                 Voicemail(b${ext});
@@ -51,7 +51,7 @@ instructions:
 		Playback(demo-echodone);
 		goto instructions;
 	};
-	_1234 => &std-exten-ael(${EXTEN});
+	_1234 => &std-exten-ael(${EXTEN}, "IAX2");
 	# => {
 		Playback(demo-thanks);
 		Hangup();
