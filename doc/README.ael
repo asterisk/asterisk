@@ -5,6 +5,25 @@ Over time, people have been pushing to add features to extensions.conf to make
 it more like a programming language.  AEL is intended to provide an actual
 programming language that can be used to write an Asterisk dialplan.
 
+Getting Started
+-------------------------
+The AEL configuration parser (pbx_ael.so) is completely separate from the module
+that parses extensions.conf (pbx_config.so).  To use AEL, the only thing that
+has to be done is the module pbx_ael.so must be loaded by Asterisk.  This will
+be done automatically if using 'autoload=yes' in /etc/asterisk/modules.conf.
+When thenmodule is loaded, it will look for 'extensions.ael' in /etc/asterisk/.
+Both extensions.conf and extensions.ael can be used in conjunction with each 
+other if that is what is desired.  Some users may want to keep extensions.conf
+for the features that are configured in the 'general' section of 
+extensions.conf.
+
+
+Reloading extensions.ael
+-------------------------
+To reload extensions.ael, the following command can be issued at the CLI.
+
+	*CLI> reload pbx_ael.so
+
 
 Contexts
 -------------------------
