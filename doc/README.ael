@@ -7,7 +7,7 @@ programming language that can be used to write an Asterisk dialplan.
 
 Getting Started
 -------------------------
-The AEL configuration parser (pbx_ael.so) is completely separate from the module
+The AEL parser (pbx_ael.so) is completely separate from the module
 that parses extensions.conf (pbx_config.so).  To use AEL, the only thing that
 has to be done is the module pbx_ael.so must be loaded by Asterisk.  This will
 be done automatically if using 'autoload=yes' in /etc/asterisk/modules.conf.
