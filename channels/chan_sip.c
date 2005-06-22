@@ -5439,7 +5439,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	/* Always OK if no secret */
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)
 #ifdef OSP_SUPPORT
-	    && ast_test_flag(p, SIP_OSPAUTH)
+	    && !ast_test_flag(p, SIP_OSPAUTH)
 	    && global_allowguest != 2
 #endif
 		)
