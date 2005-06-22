@@ -170,6 +170,7 @@ static int dtmf_idd = 3000;
 #define TIMER_PERIOD_RINGBACK 2000
 #define TIMER_PERIOD_BUSY 700
 #define TIMER_PERIOD_RING 4000
+static int timer_period_ring = TIMER_PERIOD_RING;
 	  
 #define VPB_EVENTS_ALL (VPB_MRING|VPB_MDIGIT|VPB_MDTMF|VPB_MTONEDETECT|VPB_MTIMEREXP|VPB_MPLAY_UNDERFLOW \
 			|VPB_MRECORD_OVERFLOW|VPB_MSTATION_OFFHOOK|VPB_MSTATION_ONHOOK \
@@ -604,13 +605,16 @@ static void get_callerid(struct vpb_pvt *p)
 	double cid_record_time;
 	int rc;
 	struct ast_channel *owner = p->owner;
+/*
 	void * ws;
+	char callerid[AST_MAX_EXTENSION] = ""; 
+*/
+#ifdef ANALYSE_CID
 	char * file="cidsams.wav";
+#endif
 
 
 	if( ast_mutex_trylock(&p->record_lock) == 0 ) {
-
-		char callerid[AST_MAX_EXTENSION] = ""; 
 
 		cid_record_time = get_time_in_ms();
 		if (option_verbose>3) 
@@ -692,10 +696,14 @@ static void get_callerid_ast(struct vpb_pvt *p)
 	int rc=0,vrc;
 	int sam_count=0;
 	struct ast_channel *owner = p->owner;
-	float old_gain;
 	int which_cid;
+/*
+	float old_gain;
+*/
+#ifdef ANALYSE_CID
 	void * ws;
 	char * file="cidsams.wav";
+#endif
 
 	if(p->callerid_type == 1) {
 	if (option_verbose>3) ast_verbose(VERBOSE_PREFIX_4 "Collected caller ID already\n");
@@ -1070,7 +1078,9 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 	struct ast_channel *owner = p->owner;
 	char cid_num[256];
 	char cid_name[256];
+/*
 	struct ast_channel *c;
+*/
 
 	if (option_verbose > 3) {
 		char str[VPB_MAX_STR];
@@ -1601,7 +1611,7 @@ static struct vpb_pvt *mkif(int board, int channel, int mode, int gains, float t
 	vpb_timer_open(&tmp->ringback_timer, tmp->handle, tmp->ringback_timer_id, TIMER_PERIOD_RINGBACK);
 
 	tmp->ring_timer_id = vpb_timer_get_unique_timer_id();
-	vpb_timer_open(&tmp->ring_timer, tmp->handle, tmp->ring_timer_id, TIMER_PERIOD_RING);
+	vpb_timer_open(&tmp->ring_timer, tmp->handle, tmp->ring_timer_id, timer_period_ring);
 	      
 	tmp->dtmfidd_timer_id = vpb_timer_get_unique_timer_id();
 	vpb_timer_open(&tmp->dtmfidd_timer, tmp->handle, tmp->dtmfidd_timer_id, dtmf_idd);
@@ -2033,10 +2043,10 @@ static int vpb_hangup(struct ast_channel *ast)
 static int vpb_answer(struct ast_channel *ast)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt;
-	VPB_EVENT je;
-	int ret;
 	int res = 0;
 /*
+	VPB_EVENT je;
+	int ret;
 	if (option_verbose > 3) ast_verbose("%s: LOCKING in answer \n", p->dev);
 	if (option_verbose > 3) ast_verbose("%s: LOCKING count[%d] owner[%d] \n", p->dev, p->lock.__m_count,p->lock.__m_owner);
 */
@@ -2750,6 +2760,9 @@ int load_module()
 			else if (strcasecmp(v->name, "relaxdtmf") == 0) {
 				relaxdtmf = 1;
 				ast_log(LOG_NOTICE,"VPB driver using Relaxed DTMF with Asterisk DTMF detections functions!\n");
+			}
+			else if (strcasecmp(v->name, "timer_period_ring") ==0) {
+				timer_period_ring = atoi(v->value);
 			}
 			else if (strcasecmp(v->name, "ecsuppthres") ==0) {
 				ec_supp_threshold = atoi(v->value);
