@@ -177,7 +177,7 @@ specified with the name of the macro.  They are then reffered to by that same
 name.  A catch block can be specified to catch special extensions.
 
 macro std-exten( ext , dev ) {
-        Dial(${ext}/${dev},20);
+        Dial(${dev}/${ext},20);
         switch(${DIALSTATUS) {
         case BUSY:
                 Voicemail(b${ext});
@@ -194,7 +194,7 @@ macro std-exten( ext , dev ) {
 A macro is then called by preceeding the macro name with an ampersand.
 
 context example {
-	_5XXX => &std-exten(${EXTEN});
+	_5XXX => &std-exten(${EXTEN}, "IAX2");
 };
 
 
