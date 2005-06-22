@@ -33,23 +33,23 @@ instructions:
 	};
 	2 => {
 		Background(demo-moreinfo);
-		goto instructions;
+		goto s|instructions;
 	};
 	3 => {
 		LANGUAGE()=fr;
-		goto restart;
+		goto s|restart;
 	};
 	500 => {
 		Playback(demo-abouttotry);
 		Dial(IAX2/guest@misery.digium.com);
 		Playback(demo-nogo);
-		goto instructions;
+		goto s|instructions;
 	};
 	600 => {
 		Playback(demo-echotest);
 		Echo();
 		Playback(demo-echodone);
-		goto instructions;
+		goto s|instructions;
 	};
 	_1234 => &std-exten-ael(${EXTEN}, "IAX2");
 	# => {
