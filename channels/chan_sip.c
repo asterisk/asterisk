@@ -7926,7 +7926,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 	ast_copy_string(tmp, get_header(req, header), sizeof(tmp));
 	if (ast_strlen_zero(tmp)) 
 		return -1;
-	if (strstr(tmp, "Digest ") != tmp) {
+	if (strncasecmp(tmp, "Digest ", strlen("Digest "))) {
 		ast_log(LOG_WARNING, "missing Digest.\n");
 		return -1;
 	}
