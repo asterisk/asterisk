@@ -13,6 +13,7 @@ Asterisk 1.0.8
     -- On some systems, ALERTING will be sent after PROCEEDING, so code has been
        added to account for this case.
     -- If no extension is specified on an overlap call, the 's' extension will be used.
+    -- Add support for feautres of 2nd gen hardware
  -- chan_sip
     -- We no longer send a "to" tag on "100 Trying" messages, as it is inappropriate
        to do so.
