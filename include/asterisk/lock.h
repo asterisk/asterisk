@@ -67,17 +67,17 @@
 
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
-	char *file;
+	const char *file;
 	int lineno;
 	int reentrancy;
-	char *func;
+	const char *func;
 	pthread_t thread;
 };
 
 typedef struct ast_mutex_info ast_mutex_t;
 
-static inline int __ast_pthread_mutex_init_attr(char *filename, int lineno, char *func,
-						char* mutex_name, ast_mutex_t *t,
+static inline int __ast_pthread_mutex_init_attr(const char *filename, int lineno, const char *func,
+						const char *mutex_name, ast_mutex_t *t,
 						pthread_mutexattr_t *attr) 
 {
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
@@ -100,8 +100,8 @@ static inline int __ast_pthread_mutex_init_attr(char *filename, int lineno, char
 	return pthread_mutex_init(&t->mutex, attr);
 }
 
-static inline int __ast_pthread_mutex_init(char *filename, int lineno, char *func,
-						char *mutex_name, ast_mutex_t *t)
+static inline int __ast_pthread_mutex_init(const char *filename, int lineno, const char *func,
+						const char *mutex_name, ast_mutex_t *t)
 {
 	static pthread_mutexattr_t  attr;
 	pthread_mutexattr_init(&attr);
@@ -112,8 +112,8 @@ static inline int __ast_pthread_mutex_init(char *filename, int lineno, char *fun
 #define ast_mutex_init(pmutex) __ast_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
 #define ast_pthread_mutex_init(pmutex,attr) __ast_pthread_mutex_init_attr(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex, attr)
 
-static inline int __ast_pthread_mutex_destroy(char *filename, int lineno, char *func,
-						char *mutex_name, ast_mutex_t *t)
+static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, const char *func,
+						const char *mutex_name, ast_mutex_t *t)
 {
 	int res;
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
@@ -183,8 +183,8 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 
 
 
-static inline int __ast_pthread_mutex_lock(char *filename, int lineno, char *func,
-                                           char* mutex_name, ast_mutex_t *t)
+static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
+                                           const char* mutex_name, ast_mutex_t *t)
 {
 	int res;
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE)
@@ -235,8 +235,8 @@ static inline int __ast_pthread_mutex_lock(char *filename, int lineno, char *fun
 
 #define ast_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 
-static inline int __ast_pthread_mutex_trylock(char *filename, int lineno, char *func,
-                                              char* mutex_name, ast_mutex_t *t)
+static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, const char *func,
+                                              const char* mutex_name, ast_mutex_t *t)
 {
 	int res;
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE)
@@ -261,8 +261,8 @@ static inline int __ast_pthread_mutex_trylock(char *filename, int lineno, char *
 
 #define ast_mutex_trylock(a) __ast_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 
-static inline int __ast_pthread_mutex_unlock(char *filename, int lineno, char *func,
-			char* mutex_name, ast_mutex_t *t) {
+static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *func,
+			const char *mutex_name, ast_mutex_t *t) {
 	int res;
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
 	if ((t->mutex) == ((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER)) {
