@@ -4,6 +4,8 @@
        is available through the Asterisk-CVS mailing list hosted
        at http://lists.digium.com.
 
+Asterisk 1.0.8
+
  -- chan_zap
     -- Asterisk will now also look in the regular context for the fax extension while
        executing a macro.  Previously, for this to work, the fax extension would have
