@@ -3229,6 +3229,10 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 #endif
 	if (the_zone)
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, the_zone->msg_format, the_zone->timezone);
+       else if(!strcasecmp(chan->language,"se"))       /* SWEDISH syntax */
+               res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' dB 'digits/at' k 'and' M", NULL);
+       else if(!strcasecmp(chan->language,"no"))       /* NORWEGIAN syntax */
+               res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' Q 'digits/at' HM", NULL);
 	else if(!strcasecmp(chan->language,"de"))	/* GERMAN syntax */
 		res = ast_say_date_with_format(chan, t, AST_DIGIT_ANY, chan->language, "'vm-received' Q 'digits/at' HM", NULL);
 	else if (!strcasecmp(chan->language,"nl"))	/* DUTCH syntax */
@@ -3347,7 +3351,12 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	else if (vms->curmsg == vms->lastmsg)
 		res = wait_file2(chan, vms, "vm-last");		/* "last" */
 	if (!res) {
-		res = wait_file2(chan, vms, "vm-message");	/* "message" */
+               if (!strcasecmp(chan->language, "se")) {             /* SWEDISH syntax */
+                       res = wait_file2(chan, vms, "vm-meddelandet");  /* "message" */
+               }
+               else {
+                       res = wait_file2(chan, vms, "vm-message");      /* "message" */
+               }
 		if (vms->curmsg && (vms->curmsg != vms->lastmsg)) {
 			if (!res)
 				res = ast_say_number(chan, vms->curmsg + 1, AST_DIGIT_ANY, chan->language, (char *) NULL);
