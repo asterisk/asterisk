@@ -74,7 +74,7 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result
 	if (!name || !result || ast_strlen_zero(name))
 		return NULL;
 
-	entry = calloc(1, sizeof(*result) + strlen(name));
+	entry = calloc(1, sizeof(*entry) + strlen(name));
 	if (!entry)
 		return NULL;
 
