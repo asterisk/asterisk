@@ -1625,65 +1625,40 @@ int ast_indicate(struct ast_channel *chan, int condition)
 
 int ast_recvchar(struct ast_channel *chan, int timeout)
 {
-	int res,ourto,c;
-	struct ast_frame *f;
-	
-	ourto = timeout;
-	for(;;)
-	   {
-		if (ast_check_hangup(chan)) return -1;
-		res = ast_waitfor(chan,ourto);
-		if (res <= 0) /* if timeout */
-		   {
-			return 0;
-		   }
-		ourto = res;
-		f = ast_read(chan);
-		if (f == NULL) return -1; /* if hangup */
-		if ((f->frametype == AST_FRAME_CONTROL) &&
-		    (f->subclass == AST_CONTROL_HANGUP)) return -1; /* if hangup */
-		if (f->frametype == AST_FRAME_TEXT)  /* if a text frame */
-		   {
-			c = *((char *)f->data);  /* get the data */
-			ast_frfree(f);
-			return(c);
-		   }
-		ast_frfree(f);
-	}
+	int c;
+	char *buf = ast_recvtext(chan, timeout);
+	if (buf == NULL)
+		return -1;	/* error or timeout */
+	c = *(unsigned char *)buf;
+	free(buf);
+	return c;
 }
 
 char *ast_recvtext(struct ast_channel *chan, int timeout)
 {
-	int res,ourto;
-	struct ast_frame *f;
-	char *buf;
+	int res, done = 0;
+	char *buf = NULL;
 	
-	ourto = timeout;
-	for(;;) {
-		if (ast_check_hangup(chan)) return NULL;
-		res = ast_waitfor(chan,ourto);
-		if (res <= 0) { 
-			/* if timeout */
-			return NULL;
-		}
-		ourto = res;
+	while (!done) {
+		struct ast_frame *f;
+		if (ast_check_hangup(chan))
+			break;
+		res = ast_waitfor(chan, timeout);
+		if (res <= 0) /* timeout or error */
+			break;
+		timeout = res;	/* update timeout */
 		f = ast_read(chan);
-		if (f == NULL) return NULL; /* no frame */
-		if ((f->frametype == AST_FRAME_CONTROL) && 
-			(f->subclass == AST_CONTROL_HANGUP)) return NULL; /* if hangup */
-		if (f->frametype == AST_FRAME_TEXT) {
-			/* if a text frame */
-			buf = (char *)malloc(strlen((char *)f->data));
-			if (buf) {
-				strcpy(buf, (char *)f->data);
-				ast_frfree(f);
-				return(buf);
-		   	} else {
-				return NULL;
-			}
+		if (f == NULL)
+			break; /* no frame */
+		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP)
+			done = 1;	/* force a break */
+		else if (f->frametype == AST_FRAME_TEXT) {	/* what we want */
+			buf = strdup((char *)f->data);	/* dup and break */
+			done = 1;
 		}
 		ast_frfree(f);
 	}
+	return buf;
 }
 
 int ast_sendtext(struct ast_channel *chan, char *text)
