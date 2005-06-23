@@ -39,7 +39,7 @@ static char *app = "TXTCIDName";
 static char *synopsis = "Lookup caller name from TXT record";
 
 static char *descrip = 
-"  TXTLookup(CallerID):  Looks up a Caller Name via DNS and sets\n"
+"  TXTCIDName(<CallerIDNumber>):  Looks up a Caller Name via DNS and sets\n"
 "the variable 'TXTCIDNAME'. TXTCIDName will either be blank\n"
 "or return the value found in the TXT record in DNS.\n" ;
 
