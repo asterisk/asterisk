@@ -136,10 +136,13 @@ struct ast_hostent {
   \param str the input string
   \return a pointer to the first non-whitespace character
  */
-#ifdef LOW_MEMORY
+#if defined(LOW_MEMORY)
 char *ast_skip_blanks(char *str);
 #else
-static inline char *ast_skip_blanks(char *str)
+static inline
+#endif
+#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
+char *ast_skip_blanks(char *str)
 {
 	while (*str && *str < 33)
 		str++;
@@ -152,10 +155,13 @@ static inline char *ast_skip_blanks(char *str)
   \param str the input string
   \return a pointer to the NULL following the string
  */
-#ifdef LOW_MEMORY
+#if defined(LOW_MEMORY)
 char *ast_trim_blanks(char *str);
 #else
-static inline char *ast_trim_blanks(char *str)
+static inline
+#endif
+#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
+char *ast_trim_blanks(char *str)
 {
 	char *work = str;
 
@@ -179,10 +185,13 @@ static inline char *ast_trim_blanks(char *str)
   \param str the input string
   \return a pointer to the first whitespace character
  */
-#ifdef LOW_MEMORY
+#if defined(LOW_MEMORY)
 char *ast_skip_nonblanks(char *str);
 #else
-static inline char *ast_skip_nonblanks(char *str)
+static inline
+#endif
+#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
+char *ast_skip_nonblanks(char *str)
 {
 	while (*str && *str > 32)
 		str++;
@@ -199,10 +208,13 @@ static inline char *ast_skip_nonblanks(char *str)
   characters from the input string, and returns a pointer to
   the resulting string. The string is modified in place.
 */
-#ifdef LOW_MEMORY
+#if defined(LOW_MEMORY)
 char *ast_strip(char *s);
 #else
-static inline char *ast_strip(char *s)
+static inline
+#endif
+#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
+char *ast_strip(char *s)
 {
 	s = ast_skip_blanks(s);
 	if (s)
@@ -301,7 +313,23 @@ extern char *ast_strcasestr(const char *, const char *);
   reduced buffer size to this function (unlike \a strncpy), and the buffer does not need
   to be initialized to zeroes prior to calling this function.
 */
+#if defined(LOW_MEMORY)
 void ast_copy_string(char *dst, const char *src, size_t size);
+#else
+static inline
+#endif
+#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
+void ast_copy_string(char *dst, const char *src, size_t size)
+{
+	while (*src && size) {
+		*dst++ = *src++;
+		size--;
+	}
+	if (__builtin_expect(!size, 0))
+		dst--;
+	*dst = '\0';
+}
+#endif
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
@@ -324,9 +352,17 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attri
  * \param end the end of the time period
  * \return the difference in milliseconds
  */
-static inline int ast_tvdiff_ms(struct timeval *start, struct timeval *end)
+#if defined(LOW_MEMORY)
+int ast_tvdiff_ms(const struct timeval *start, const struct timeval *end);
+#else
+static inline
+#endif
+#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
+int ast_tvdiff_ms(const struct timeval *start, const struct timeval *end)
 {
 	return ((end->tv_sec - start->tv_sec) * 1000) + ((end->tv_usec - start->tv_usec) / 1000);
 }
+#endif
 
+#undef AST_API_MODULE
 #endif /* _ASTERISK_UTILS_H */

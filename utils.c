@@ -29,55 +29,15 @@
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/lock.h"
-#include "asterisk/utils.h"
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
 #include "asterisk/md5.h"
 
+#define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#include "asterisk/utils.h"
+
 static char base64[64];
 static char b2a[256];
-
-#ifdef LOW_MEMORY
-char *ast_skip_blanks(char *str)
-{
-	while (*str && *str < 33)
-		str++;
-	return str;
-}
- 
-char *ast_trim_blanks(char *str)
-{
-	char *work = str;
-
-	if (work) {
-		work += strlen(work) - 1;
-		/* It's tempting to only want to erase after we exit this loop, 
-		   but since ast_trim_blanks *could* receive a constant string
-		   (which we presumably wouldn't have to touch), we shouldn't
-		   actually set anything unless we must, and it's easier just
-		   to set each position to \0 than to keep track of a variable
-		   for it */
-		while ((work >= str) && *work < 33)
-			*(work--) = '\0';
-	}
-	return str;
-}
-
-char *ast_skip_nonblanks(char *str)
-{
-	while (*str && *str > 32)
-		str++;
-	return str;
-}
-
-char *ast_strip(char *s)
-{
-	s = ast_skip_blanks(s);
-	if (s)
-		ast_trim_blanks(s);
-	return s;
-} 
-#endif
 
 char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 {
@@ -471,17 +431,6 @@ int ast_wait_for_input(int fd, int ms)
 	pfd[0].fd = fd;
 	pfd[0].events = POLLIN|POLLPRI;
 	return poll(pfd, 1, ms);
-}
-
-void ast_copy_string(char *dst, const char *src, size_t size)
-{
-	while (*src && size) {
-		*dst++ = *src++;
-		size--;
-	}
-	if (__builtin_expect(!size, 0))
-		dst--;
-	*dst = '\0';
 }
 
 int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
