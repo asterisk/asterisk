@@ -482,14 +482,7 @@ int unload_module()
 
 int usecount()
 {
-	int res;
-	if (ast_mutex_lock(&g726_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock g726 list.\n");
-		return -1;
-	}
-	res = glistcnt;
-	ast_mutex_unlock(&g726_lock);
-	return res;
+	return glistcnt;
 }
 
 char *description()

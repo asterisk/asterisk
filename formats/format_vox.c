@@ -222,14 +222,7 @@ int unload_module()
 
 int usecount()
 {
-	int res;
-	if (ast_mutex_lock(&vox_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock vox list\n");
-		return -1;
-	}
-	res = glistcnt;
-	ast_mutex_unlock(&vox_lock);
-	return res;
+	return glistcnt;
 }
 
 char *description()

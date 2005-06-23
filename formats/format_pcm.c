@@ -219,14 +219,7 @@ int unload_module()
 
 int usecount()
 {
-	int res;
-	if (ast_mutex_lock(&pcm_lock)) {
-		ast_log(LOG_WARNING, "Unable to lock pcm list\n");
-		return -1;
-	}
-	res = glistcnt;
-	ast_mutex_unlock(&pcm_lock);
-	return res;
+	return glistcnt;
 }
 
 char *description()
