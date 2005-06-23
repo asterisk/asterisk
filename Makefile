@@ -550,7 +550,6 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSBINDIR)
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	mkdir -p $(DESTDIR)$(ASTBINDIR)
-	mkdir -p $(DESTDIR)$(ASTSBINDIR)
 	mkdir -p $(DESTDIR)$(ASTVARRUNDIR)
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/dictate
