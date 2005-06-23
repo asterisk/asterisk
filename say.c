@@ -95,6 +95,7 @@ int ast_say_character_str_full(struct ast_channel *chan, const char *str, const 
 		case ('6'):
 		case ('7'):
 		case ('8'):
+		case ('9'):
 			strcpy(fnbuf, "digits/X");
 			fnbuf[7] = str[num];
 			fn = fnbuf;
