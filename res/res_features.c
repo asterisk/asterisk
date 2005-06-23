@@ -32,6 +32,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/options.h"
+#include "asterisk/causes.h"
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/app.h"
@@ -56,6 +57,8 @@ static void FREE(void *ptr)
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
 #define DEFAULT_FEATURE_DIGIT_TIMEOUT 500
+
+#define AST_MAX_WATCHERS 256
 
 static char *parkedcall = "ParkedCall";
 
@@ -195,6 +198,9 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 		}
 	}
 }
+
+static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name);
+
 
 static void *ast_bridge_call_thread(void *data) 
 {
@@ -697,7 +703,9 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 		cid_name = transferer->cid.cid_name;
 		if (ast_exists_extension(transferer, transferer_real_context,xferto, 1, cid_num)) {
 			snprintf(dialstr, sizeof(dialstr), "%s@%s/n", xferto, transferer_real_context);
-			if ((newchan = ast_request_and_dial("Local", ast_best_codec(transferer->nativeformats), dialstr,30000, &outstate, cid_num, cid_name))) {
+			newchan = ast_feature_request_and_dial(transferer, "Local", ast_best_codec(transferer->nativeformats), dialstr, 15000, &outstate, cid_num, cid_name);
+			ast_indicate(transferer, -1);
+			if(newchan){
 				res = ast_channel_make_compatible(transferer, newchan);
 				if (res < 0) {
 					ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", transferer->name, newchan->name);
@@ -708,7 +716,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				ast_set_flag(&(bconfig.features_caller), AST_FEATURE_DISCONNECT);
 				ast_set_flag(&(bconfig.features_callee), AST_FEATURE_DISCONNECT);
 				res = ast_bridge_call(transferer,newchan,&bconfig);
-				if (newchan->_softhangup || newchan->_state != AST_STATE_UP) {
+				if (newchan->_softhangup || newchan->_state != AST_STATE_UP || !transferer->_softhangup) {
 					ast_hangup(newchan);
 					if (f) {
 						ast_frfree(f);
@@ -792,17 +800,17 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				return -1;
 				
 			} else {
-				ast_log(LOG_WARNING, "Unable to create channel Local/%s do you have chan_local?\n",dialstr);
 				ast_moh_stop(transferee);
 				ast_autoservice_stop(transferee);
 				ast_indicate(transferee, AST_CONTROL_UNHOLD);
-				if (!ast_strlen_zero(xferfailsound)) {
+				/* any reason besides user requested cancel and busy triggers the failed sound */
+				if (outstate != AST_CONTROL_UNHOLD && outstate != AST_CONTROL_BUSY && !ast_strlen_zero(xferfailsound)) {
 					res = ast_streamfile(transferer, xferfailsound, transferer->language);
 					if (!res && (ast_waitstream(transferer, "") < 0)) {
 						return -1;
 					}
 				}
-				return -1;
+				return FEATURE_RETURN_SUCCESS;
 			}
 		} else {
 			ast_log(LOG_WARNING, "Extension %s does not exist in context %s\n",xferto,transferer_real_context);
@@ -912,6 +920,178 @@ static void set_config_flags(struct ast_bridge_config *config)
 				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
 		}
 	}
+}
+
+
+static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *caller, const char *type, int format, void *data, int timeout, int *outstate, const char *cid_num, const char *cid_name)
+{
+	int state = 0;
+	int cause = 0;
+	int to;
+	struct ast_channel *chan;
+	struct ast_channel *monitor_chans[2];
+	struct ast_channel *active_channel;
+	struct ast_frame *f = NULL;
+	int res = 0, ready = 0;
+	
+	if ((chan = ast_request(type, format, data, &cause))) {
+		ast_set_callerid(chan, cid_num, cid_name, cid_num);
+		
+		if (!ast_call(chan, data, timeout)) {
+			struct timeval started, ended;
+			int x, len = 0;
+			char *disconnect_code = NULL, *dialed_code = NULL;
+
+			ast_indicate(caller, AST_CONTROL_RINGING);
+			/* support dialing of the featuremap disconnect code while performing an attended tranfer */
+			for (x=0; x<FEATURES_COUNT; x++) {
+				if (strcasecmp(builtin_features[x].sname, "disconnect"))
+					continue;
+
+				disconnect_code = builtin_features[x].exten;
+				len = strlen(disconnect_code) + 1;
+				dialed_code = alloca(len);
+				memset(dialed_code, 0, len);
+				break;
+			}
+			x = 0;
+			gettimeofday(&started, NULL);
+			to = timeout;
+			while (!ast_check_hangup(caller) && timeout && (chan->_state != AST_STATE_UP)) {
+				monitor_chans[0] = caller;
+				monitor_chans[1] = chan;
+				active_channel = ast_waitfor_n(monitor_chans, 2, &to);
+
+				/* see if the timeout has been violated */
+				gettimeofday(&ended,NULL);
+				if(ast_tvdiff_ms(&started, &ended) > timeout) {
+					state = AST_CONTROL_UNHOLD;
+					ast_log(LOG_NOTICE, "We exceeded our AT-timeout\n");
+					break; /*doh! timeout*/
+				}
+
+				if (!active_channel) {
+					continue;
+				}
+
+				if (chan && (chan == active_channel)){
+					f = ast_read(chan);
+					if (f == NULL) { /*doh! where'd he go?*/
+						state = AST_CONTROL_HANGUP;
+						res = 0;
+						break;
+					}
+					
+					if (f->frametype == AST_FRAME_CONTROL || f->frametype == AST_FRAME_DTMF || f->frametype == AST_FRAME_TEXT) {
+						if (f->subclass == AST_CONTROL_RINGING) {
+							state = f->subclass;
+							if (option_verbose > 2)
+								ast_verbose( VERBOSE_PREFIX_3 "%s is ringing\n", chan->name);
+							ast_indicate(caller, AST_CONTROL_RINGING);
+						} else if ((f->subclass == AST_CONTROL_BUSY) || (f->subclass == AST_CONTROL_CONGESTION)) {
+							state = f->subclass;
+							ast_frfree(f);
+							f = NULL;
+							break;
+						} else if (f->subclass == AST_CONTROL_ANSWER) {
+							/* This is what we are hoping for */
+							state = f->subclass;
+							ast_frfree(f);
+							f = NULL;
+							ready=1;
+							break;
+						} else {
+							ast_log(LOG_NOTICE, "Don't know what to do about control frame: %d\n", f->subclass);
+						}
+						/* else who cares */
+					}
+
+				} else if (caller && (active_channel == caller)) {
+					f = ast_read(caller);
+					if (f == NULL) { /*doh! where'd he go?*/
+						if (caller->_softhangup && !chan->_softhangup) {
+							/* make this a blind transfer */
+							ready = 1;
+							break;
+						}
+						state = AST_CONTROL_HANGUP;
+						res = 0;
+						break;
+					}
+					
+					if (f->frametype == AST_FRAME_DTMF) {
+						dialed_code[x++] = f->subclass;
+						dialed_code[x] = '\0';
+						if (strlen(dialed_code) == len) {
+							x = 0;
+						} else if (x && strncmp(dialed_code, disconnect_code, x)) {
+							x = 0;
+							dialed_code[x] = '\0';
+						}
+						if (*dialed_code && !strcmp(dialed_code, disconnect_code)) {
+							/* Caller Canceled the call */
+							state = AST_CONTROL_UNHOLD;
+							ast_frfree(f);
+							f = NULL;
+							break;
+						}
+					}
+				}
+				if (f) {
+					ast_frfree(f);
+				}
+			}
+		} else
+			ast_log(LOG_NOTICE, "Unable to call channel %s/%s\n", type, (char *)data);
+	} else {
+		ast_log(LOG_NOTICE, "Unable to request channel %s/%s\n", type, (char *)data);
+		switch(cause) {
+		case AST_CAUSE_BUSY:
+			state = AST_CONTROL_BUSY;
+			break;
+		case AST_CAUSE_CONGESTION:
+			state = AST_CONTROL_CONGESTION;
+			break;
+		}
+	}
+	
+	ast_indicate(caller, -1);
+	if (chan && ready) {
+		if (chan->_state == AST_STATE_UP) 
+			state = AST_CONTROL_ANSWER;
+		res = 0;
+	} else if(chan) {
+		res = -1;
+		ast_hangup(chan);
+		chan = NULL;
+	} else {
+		res = -1;
+	}
+	
+	if (outstate)
+		*outstate = state;
+
+	if (chan && res <= 0) {
+		if (!chan->cdr) {
+			chan->cdr = ast_cdr_alloc();
+		}
+		if (chan->cdr) {
+			char tmp[256];
+			ast_cdr_init(chan->cdr, chan);
+			snprintf(tmp, 256, "%s/%s", type, (char *)data);
+			ast_cdr_setapp(chan->cdr,"Dial",tmp);
+			ast_cdr_update(chan);
+			ast_cdr_start(chan->cdr);
+			ast_cdr_end(chan->cdr);
+			/* If the cause wasn't handled properly */
+			if (ast_cdr_disposition(chan->cdr,chan->hangupcause))
+				ast_cdr_failed(chan->cdr);
+		} else {
+			ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
+		}
+	}
+	
+	return chan;
 }
 
 int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast_bridge_config *config)
