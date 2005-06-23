@@ -177,6 +177,8 @@ static char progzone[10]= "";
 
 static int usedistinctiveringdetection = 0;
 
+static int transfertobusy = 1;
+
 static int use_callerid = 1;
 static int cid_signalling = CID_SIG_BELL;
 static int cid_start = CID_START_RING;
@@ -544,6 +546,7 @@ static struct zt_pvt {
 	unsigned int use_callingpres:1;			/* Whether to use the callingpres the calling switch sends */
 	unsigned int usedistinctiveringdetection:1;
 	unsigned int zaptrcallerid:1;			/* should we use the callerid from incoming call on zap transfer or not */
+	unsigned int transfertobusy:1;			/* allow flash-transfers to busy channels */
 #if defined(ZAPATA_PRI)
 	unsigned int alerting:1;
 	unsigned int alreadyhungup:1;
@@ -3486,8 +3489,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								/* In any case this isn't a threeway call anymore */
 								p->subs[SUB_REAL].inthreeway = 0;
 								p->subs[SUB_THREEWAY].inthreeway = 0;
-								if((p->owner->_state == AST_STATE_RINGING) ||
-										(p->owner->_state == AST_STATE_UP)){
+								if (!p->transfertobusy && p->owner->_state == AST_STATE_BUSY) {
+									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+									/* Swap subs and dis-own channel */
+									swap_subs(p, SUB_THREEWAY, SUB_REAL);
+									p->owner = NULL;
+									/* Ring the phone */
+									zt_ring_phone(p);
+								} else {
 									/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
 									if ((res = attempt_transfer(p)) < 0)
 										p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -3497,13 +3506,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 											ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 										break;
 									}
-								} else {
-									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
-									/* Swap subs and dis-own channel */
-									swap_subs(p, SUB_THREEWAY, SUB_REAL);
-									p->owner = NULL;
-									/* Ring the phone */
-									zt_ring_phone(p);
 								}
 							} else
 								p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -3815,11 +3817,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						} else {
 							/* Lets see what we're up to */
 							if (((ast->pbx) || (ast->_state == AST_STATE_UP)) && 
-								/* Only conference if it's ringing or answered */
-								((p->owner->_state == AST_STATE_RINGING) ||
-								(p->owner->_state == AST_STATE_UP))){
-
+							    (!p->transfertobusy && (p->owner->_state != AST_STATE_BUSY))) {
 								int otherindex = SUB_THREEWAY;
+
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Building conference on call on %s and %s\n", p->subs[SUB_THREEWAY].owner->name, p->subs[SUB_REAL].owner->name);
 								/* Put them in the threeway, and flip */
@@ -6808,6 +6808,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		}
 #endif
 		tmp->immediate = immediate;
+		tmp->transfertobusy = transfertobusy;
 		tmp->sig = signalling;
 		tmp->radio = radio;
 		tmp->firstradio = 0;
@@ -10043,6 +10044,8 @@ static int setup_zap(int reload)
 			cur_pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "immediate")) {
 			immediate = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "transfertobusy")) {
+			transfertobusy = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "rxgain")) {
 			if (sscanf(v->value, "%f", &rxgain) != 1) {
 				ast_log(LOG_WARNING, "Invalid rxgain: %s\n", v->value);

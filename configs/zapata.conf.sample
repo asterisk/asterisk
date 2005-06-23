@@ -335,6 +335,11 @@ pickupgroup=1
 ;
 immediate=no
 ;
+; Specify whether flash-hook transfers to 'busy' channels should complete
+; or return to the caller performing the transfer (default is yes).
+;
+;transfertobusy=no
+;
 ; CallerID can be set to "asreceived" or a specific number
 ; if you want to override it.  Note that "asreceived" only
 ; applies to trunk interfaces.
