@@ -3113,13 +3113,10 @@ static int reload_config(void)
 	struct skinny_device *d;
 	int oldport = ntohs(bindaddr.sin_port);
 
-#if 0		
-	hp = ast_gethostbyname(ourhost, &ahp);
-	if (!hp) {
+	if (gethostname(ourhost, sizeof(ourhost))) {
 		ast_log(LOG_WARNING, "Unable to get hostname, Skinny disabled\n");
 		return 0;
 	}
-#endif
 	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
