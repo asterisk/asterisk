@@ -7676,7 +7676,6 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	int fmt, native;
 	struct sockaddr_in sin;
 	struct ast_channel *c;
-	int capability = iax2_capability;
 	struct parsed_dial_string pds;
 	struct create_addr_info cai;
 	char *tmpstr;
@@ -7686,6 +7685,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	parse_dial_string(tmpstr, &pds);
 
 	memset(&cai, 0, sizeof(cai));
+	cai.capability = iax2_capability;
 
 	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 
@@ -7715,7 +7715,7 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 	if (cai.found)
 		ast_copy_string(iaxs[callno]->host, pds.peer, sizeof(iaxs[callno]->host));
 
-	c = ast_iax2_new(callno, AST_STATE_DOWN, capability);
+	c = ast_iax2_new(callno, AST_STATE_DOWN, cai.capability);
 
 	ast_mutex_unlock(&iaxsl[callno]);
 
