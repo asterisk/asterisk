@@ -9233,9 +9233,6 @@ int load_module(void)
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
 #endif
 	
-	/* Seed random number generator */
-	srand(time(NULL));
-	
 	sin.sin_family = AF_INET;
 	sin.sin_port = htons(IAX_DEFAULT_PORTNO);
 	sin.sin_addr.s_addr = INADDR_ANY;
