@@ -4,6 +4,10 @@
        is available through the Asterisk-CVS mailing list hosted
        at http://lists.digium.com.
 
+ -- chan_mgcp
+    -- *70 is used to disable call waiting.  Call waiting will now be re-enabled
+       on hangup.
+
 Asterisk 1.0.8
 
  -- chan_zap
