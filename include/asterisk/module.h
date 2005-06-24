@@ -210,9 +210,7 @@ void ast_unregister_atexit(void (*func)(void));
 }
 
 #define STANDARD_USECOUNT(res) { \
-	ast_mutex_lock(&localuser_lock); \
 	res = localusecnt; \
-	ast_mutex_unlock(&localuser_lock); \
 }
 	
 	

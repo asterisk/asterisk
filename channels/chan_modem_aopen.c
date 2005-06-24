@@ -465,11 +465,7 @@ static struct ast_modem_driver aopen_driver =
 
 int usecount(void)
 {
-	int res;
-	ast_mutex_lock(&usecnt_lock);
-	res = usecnt;
-	ast_mutex_unlock(&usecnt_lock);
-	return res;
+	return usecnt;
 }
 
 int load_module(void)
