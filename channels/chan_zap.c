@@ -3817,7 +3817,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						} else {
 							/* Lets see what we're up to */
 							if (((ast->pbx) || (ast->_state == AST_STATE_UP)) && 
-							    (!p->transfertobusy && (p->owner->_state != AST_STATE_BUSY))) {
+							    (p->transfertobusy || (p->owner->_state != AST_STATE_BUSY))) {
 								int otherindex = SUB_THREEWAY;
 
 								if (option_verbose > 2)
