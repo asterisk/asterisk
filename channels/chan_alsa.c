@@ -27,7 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <endian.h>
+#include "asterisk/endian.h"
 
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API

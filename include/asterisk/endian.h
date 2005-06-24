@@ -57,4 +57,3 @@
 #endif /* __BYTE_ORDER */
 
 #endif /* _ASTERISK_ENDIAN_H */
-

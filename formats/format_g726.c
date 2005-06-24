@@ -24,11 +24,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#ifdef __linux__
-#include <endian.h>
-#else
-#include <machine/endian.h>
-#endif
+#include "asterisk/endian.h"
 
 #define	RATE_40		0
 #define	RATE_32		1
