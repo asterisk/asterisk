@@ -9373,6 +9373,7 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 	ctl = open("/dev/zap/ctl", O_RDWR);
 	if (ctl < 0) {
 		fprintf(stderr, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
+		ast_cli(fd, "No Zaptel interface found.\n");
 		return RESULT_FAILURE;
 	}
 	ast_cli(fd,FORMAT2, "Description", "Alarms","IRQ","bpviol","CRC4");
