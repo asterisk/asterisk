@@ -99,24 +99,6 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
  */
 char *ast_variable_retrieve(const struct ast_config *config, const char *category, const char *variable);
 
-/*! Make sure something is true */
-/*!
- * Determine if a string containing a boolean value is "true".
- * This function checks to see whether a string passed to it is an indication of an "true" value.  It checks to see if the string is "yes", "true", "y", "t", "on" or "1".  
- *
- * Returns 0 if val is a NULL pointer, -1 if "true", and 0 otherwise.
- */
-int ast_true(const char *val);
-
-/*! Make sure something is false */
-/*!
- * Determine if a string containing a boolean value is "false".
- * This function checks to see whether a string passed to it is an indication of an "false" value.  It checks to see if the string is "no", "false", "n", "f", "off" or "0".  
- *
- * Returns 0 if val is a NULL pointer, -1 if "false", and 0 otherwise.
- */
-int ast_false(const char *val);
-
 /*! Retrieve a category if it exists */
 /*!
  * \param config which config to use

@@ -82,36 +82,6 @@ struct ast_config {
 	int max_include_level;
 };
 
-int ast_true(const char *s)
-{
-	if (!s)
-		return 0;
-	/* Determine if this is a true value */
-	if (!strcasecmp(s, "yes") ||
-	    !strcasecmp(s, "true") ||
-	    !strcasecmp(s, "y") ||
-	    !strcasecmp(s, "t") ||
-	    !strcasecmp(s, "1") ||
-	    !strcasecmp(s, "on"))
-		return -1;
-	return 0;
-}
-
-int ast_false(const char *s)
-{
-	if (!s)
-		return 0;
-	/* Determine if this is a false value */
-	if (!strcasecmp(s, "no") ||
-	    !strcasecmp(s, "false") ||
-	    !strcasecmp(s, "n") ||
-	    !strcasecmp(s, "f") ||
-	    !strcasecmp(s, "0") ||
-	    !strcasecmp(s, "off"))
-		return -1;
-	return 0;
-}
-
 struct ast_variable *ast_variable_new(const char *name, const char *value) 
 {
 	struct ast_variable *variable;

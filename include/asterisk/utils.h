@@ -20,9 +20,10 @@
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
 #include <limits.h>
-#include <string.h>
 
 #include "asterisk/lock.h"
+#include "asterisk/time.h"
+#include "asterisk/strings.h"
 
 /* Note:
    It is very important to use only unsigned variables to hold
@@ -121,133 +122,10 @@ struct ast_flags {
 	unsigned int flags;
 };
 
-static inline int ast_strlen_zero(const char *s)
-{
-	return (*s == '\0');
-}
-
 struct ast_hostent {
 	struct hostent hp;
 	char buf[1024];
 };
-
-/*!
-  \brief Gets a pointer to the first non-whitespace character in a string.
-  \param str the input string
-  \return a pointer to the first non-whitespace character
- */
-#if defined(LOW_MEMORY)
-char *ast_skip_blanks(char *str);
-#else
-static inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-char *ast_skip_blanks(char *str)
-{
-	while (*str && *str < 33)
-		str++;
-	return str;
-}
-#endif
-
-/*!
-  \brief Trims trailing whitespace characters from a string.
-  \param str the input string
-  \return a pointer to the NULL following the string
- */
-#if defined(LOW_MEMORY)
-char *ast_trim_blanks(char *str);
-#else
-static inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-char *ast_trim_blanks(char *str)
-{
-	char *work = str;
-
-	if (work) {
-		work += strlen(work) - 1;
-		/* It's tempting to only want to erase after we exit this loop, 
-		   but since ast_trim_blanks *could* receive a constant string
-		   (which we presumably wouldn't have to touch), we shouldn't
-		   actually set anything unless we must, and it's easier just
-		   to set each position to \0 than to keep track of a variable
-		   for it */
-		while ((work >= str) && *work < 33)
-			*(work--) = '\0';
-	}
-	return str;
-}
-#endif
-
-/*!
-  \brief Gets a pointer to first whitespace character in a string.
-  \param str the input string
-  \return a pointer to the first whitespace character
- */
-#if defined(LOW_MEMORY)
-char *ast_skip_nonblanks(char *str);
-#else
-static inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-char *ast_skip_nonblanks(char *str)
-{
-	while (*str && *str > 32)
-		str++;
-	return str;
-}
-#endif
-  
-/*!
-  \brief Strip leading/trailing whitespace from a string.
-  \param s The string to be stripped (will be modified).
-  \return The stripped string.
-
-  This functions strips all leading and trailing whitespace
-  characters from the input string, and returns a pointer to
-  the resulting string. The string is modified in place.
-*/
-#if defined(LOW_MEMORY)
-char *ast_strip(char *s);
-#else
-static inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-char *ast_strip(char *s)
-{
-	s = ast_skip_blanks(s);
-	if (s)
-		ast_trim_blanks(s);
-	return s;
-} 
-#endif
-
-/*!
-  \brief Strip leading/trailing whitespace and quotes from a string.
-  \param s The string to be stripped (will be modified).
-  \param beg_quotes The list of possible beginning quote characters.
-  \param end_quotes The list of matching ending quote characters.
-  \return The stripped string.
-
-  This functions strips all leading and trailing whitespace
-  characters from the input string, and returns a pointer to
-  the resulting string. The string is modified in place.
-
-  It can also remove beginning and ending quote (or quote-like)
-  characters, in matching pairs. If the first character of the
-  string matches any character in beg_quotes, and the last
-  character of the string is the matching character in
-  end_quotes, then they are removed from the string.
-
-  Examples:
-  \code
-  ast_strip_quoted(buf, "\"", "\"");
-  ast_strip_quoted(buf, "'", "'");
-  ast_strip_quoted(buf, "[{(", "]})");
-  \endcode
- */
-char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
 
 extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 /* ast_md5_hash: Produces MD5 hash based on input string */
@@ -261,24 +139,6 @@ extern const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 extern int ast_utils_init(void);
 extern int ast_wait_for_input(int fd, int ms);
 
-/* The realloca lets us ast_restrdupa(), but you can't mix any other ast_strdup calls! */
-
-struct ast_realloca {
-	char *ptr;
-	int alloclen;
-};
-
-#define ast_restrdupa(ra, s) \
-	({ \
-		if ((ra)->ptr && strlen(s) + 1 < (ra)->alloclen) { \
-			strcpy((ra)->ptr, s); \
-		} else { \
-			(ra)->ptr = alloca(strlen(s) + 1 - (ra)->alloclen); \
-			if ((ra)->ptr) (ra)->alloclen = strlen(s) + 1; \
-		} \
-		(ra)->ptr; \
-	})
-
 #ifdef inet_ntoa
 #undef inet_ntoa
 #endif
@@ -287,82 +147,6 @@ struct ast_realloca {
 #define AST_STACKSIZE 256 * 1024
 #define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)
 extern int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
-
-#ifdef __linux__
-#define ast_strcasestr strcasestr
-#else
-extern char *ast_strcasestr(const char *, const char *);
-#endif /* __linux__ */
-
-#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
-#define __builtin_expect(exp, c) (exp)
-#endif
-
-/*!
-  \brief Size-limited null-terminating string copy.
-  \param dst The destination buffer.
-  \param src The source string
-  \param size The size of the destination buffer
-  \return Nothing.
-
-  This is similar to \a strncpy, with two important differences:
-    - the destination buffer will \b always be null-terminated
-    - the destination buffer is not filled with zeros past the copied string length
-  These differences make it slightly more efficient, and safer to use since it will
-  not leave the destination buffer unterminated. There is no need to pass an artificially
-  reduced buffer size to this function (unlike \a strncpy), and the buffer does not need
-  to be initialized to zeroes prior to calling this function.
-*/
-#if defined(LOW_MEMORY)
-void ast_copy_string(char *dst, const char *src, size_t size);
-#else
-static inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-void ast_copy_string(char *dst, const char *src, size_t size)
-{
-	while (*src && size) {
-		*dst++ = *src++;
-		size--;
-	}
-	if (__builtin_expect(!size, 0))
-		dst--;
-	*dst = '\0';
-}
-#endif
-
-/*!
-  \brief Build a string in a buffer, designed to be called repeatedly
-  
-  This is a wrapper for snprintf, that properly handles the buffer pointer
-  and buffer space available.
-
-  \return 0 on success, non-zero on failure.
-  \param buffer current position in buffer to place string into (will be updated on return)
-  \param space remaining space in buffer (will be updated on return)
-  \param fmt printf-style format string
-*/
-int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
-
-/* functions for working with 'struct timeval' instances */
-
-/*!
- * \brief Computes the difference (in milliseconds) between two \c struct \c timeval instances.
- * \param start the beginning of the time period
- * \param end the end of the time period
- * \return the difference in milliseconds
- */
-#if defined(LOW_MEMORY)
-int ast_tvdiff_ms(const struct timeval *start, const struct timeval *end);
-#else
-static inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-int ast_tvdiff_ms(const struct timeval *start, const struct timeval *end)
-{
-	return ((end->tv_sec - start->tv_sec) * 1000) + ((end->tv_usec - start->tv_usec) / 1000);
-}
-#endif
 
 #undef AST_API_MODULE
 #endif /* _ASTERISK_UTILS_H */

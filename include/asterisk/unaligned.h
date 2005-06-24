@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Asterisk internal frame definitions.
+ * Handle unaligned data access
  * 
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *

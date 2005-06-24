@@ -15,7 +15,9 @@
 #define _ASTERISK_ASTOBJ_H
 
 #include <string.h>
+
 #include "asterisk/lock.h"
+#include "asterisk/compiler.h"
 
 /*! \file
  * \brief A set of macros implementing objects and containers.
@@ -83,10 +85,6 @@ extern "C" {
 #define ASTOBJ_DEFAULT_HASH		ast_strhash
 
 #define ASTOBJ_FLAG_MARKED	(1 << 0)		/* Object has been marked for future operation */
-
-#if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
-#define __builtin_expect(exp, c) (exp)
-#endif
 
 /* C++ is simply a syntactic crutch for those who cannot think for themselves
    in an object oriented way. */

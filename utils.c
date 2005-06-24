@@ -34,27 +34,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/md5.h"
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#include "asterisk/strings.h"
+
+#define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#include "asterisk/time.h"
+
+#define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "asterisk/utils.h"
 
 static char base64[64];
 static char b2a[256];
-
-char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
-{
-	char *e;
-	char *q;
-
-	s = ast_strip(s);
-	if ((q = strchr(beg_quotes, *s))) {
-		e = s + strlen(s) - 1;
-		if (*e == *(end_quotes + (q - beg_quotes))) {
-			s++;
-			*e = '\0';
-		}
-	}
-
-	return s;
-}
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__) || defined( __NetBSD__ ) || defined(__APPLE__)
 
@@ -433,6 +422,23 @@ int ast_wait_for_input(int fd, int ms)
 	return poll(pfd, 1, ms);
 }
 
+char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
+{
+	char *e;
+	char *q;
+
+	s = ast_strip(s);
+	if ((q = strchr(beg_quotes, *s))) {
+		e = s + strlen(s) - 1;
+		if (*e == *(end_quotes + (q - beg_quotes))) {
+			s++;
+			*e = '\0';
+		}
+	}
+
+	return s;
+}
+
 int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
 {
 	va_list ap;
@@ -452,6 +458,40 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
 
 	*buffer += result;
 	*space -= result;
+	return 0;
+}
+
+int ast_true(const char *s)
+{
+	if (!s || ast_strlen_zero(s))
+		return 0;
+
+	/* Determine if this is a true value */
+	if (!strcasecmp(s, "yes") ||
+	    !strcasecmp(s, "true") ||
+	    !strcasecmp(s, "y") ||
+	    !strcasecmp(s, "t") ||
+	    !strcasecmp(s, "1") ||
+	    !strcasecmp(s, "on"))
+		return -1;
+
+	return 0;
+}
+
+int ast_false(const char *s)
+{
+	if (!s || ast_strlen_zero(s))
+		return 0;
+
+	/* Determine if this is a false value */
+	if (!strcasecmp(s, "no") ||
+	    !strcasecmp(s, "false") ||
+	    !strcasecmp(s, "n") ||
+	    !strcasecmp(s, "f") ||
+	    !strcasecmp(s, "0") ||
+	    !strcasecmp(s, "off"))
+		return -1;
+
 	return 0;
 }
 
