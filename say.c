@@ -100,7 +100,7 @@ int ast_say_character_str_full(struct ast_channel *chan, const char *str, const 
 			fnbuf[7] = str[num];
 			fn = fnbuf;
 			break;
-		default:	/* '9' falls here... */
+		default:
 			ltr = str[num];
 			if ('A' <= ltr && ltr <= 'Z') ltr += 'a' - 'A';		/* file names are all lower-case */
 			strcpy(fnbuf, "letters/X");
