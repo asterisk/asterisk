@@ -67,7 +67,9 @@ struct parse_io
 \*	{ SET_COLUMNS; SET_STRING; return TOK_MULT;}
 \/	{ SET_COLUMNS; SET_STRING; return TOK_DIV;}
 \%	{ SET_COLUMNS; SET_STRING; return TOK_MOD;}
+\?	{ SET_COLUMNS; SET_STRING; return TOK_COND;}
 \:	{ SET_COLUMNS; SET_STRING; return TOK_COLON;}
+\:\:	{ SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 \(	{ SET_COLUMNS; SET_STRING; return TOK_LP;}
 \)	{ SET_COLUMNS; SET_STRING; return TOK_RP;}
 
@@ -78,7 +80,7 @@ struct parse_io
 [0-9]+		{   SET_COLUMNS;  /* the original behavior of the expression parser was to bring in numbers as a numeric string */
 				SET_NUMERIC_STRING;
 				return TOKEN;}
-[a-zA-Z0-9,.?';{}\\_^%$#@!]+	{SET_COLUMNS; SET_STRING; return TOKEN;}
+[a-zA-Z0-9,.';{}\\_^%$#@!]+	{SET_COLUMNS; SET_STRING; return TOKEN;}
 
 %%
 
@@ -157,14 +159,16 @@ int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
 	spacebuf2[i++]='^';
 	spacebuf2[i]= 0;
 
-#ifdef STANDALONE
+#ifdef STANDALONE3
 	/* easier to read in the standalone version */
 	printf("ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
 			s, parseio->string,spacebuf2);
 #else
 	ast_log(LOG_WARNING,"ast_yyerror(): syntax error: %s; Input:\n%s\n%s\n",  
 			s, parseio->string,spacebuf2);
-	ast_log(LOG_WARNING,"If you have questions, please refer to doc/README.variables2 in the asterisk source.\n");
+#endif
+#ifndef STANDALONE
+	ast_log(LOG_WARNING,"If you have questions, please refer to doc/README.variables in the asterisk source.\n");
 #endif
 	return(0);
 }

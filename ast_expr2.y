@@ -37,22 +37,23 @@
 #endif
 
 #  if ! defined(QUAD_MIN)
-#   define QUAD_MIN     (-0x7fffffffffffffffL-1)
+#   define QUAD_MIN     (-0x7fffffffffffffffLL-1)
 #  endif
 #  if ! defined(QUAD_MAX)
-#   define QUAD_MAX     (0x7fffffffffffffffL)
+#   define QUAD_MAX     (0x7fffffffffffffffLL)
 #  endif
 
 #define YYPARSE_PARAM parseio
 #define YYLEX_PARAM ((struct parse_io *)parseio)->scanner
 #define YYERROR_VERBOSE 1
 
-/* #define ast_log fprintf
-#define LOG_WARNING stderr */
-  
 enum valtype {
 	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
 } ;
+
+#ifdef STANDALONE
+void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...) __attribute__ ((format (printf,5,6)));
+#endif
 
 struct val {
 	enum valtype type;
@@ -89,6 +90,7 @@ static struct val	*op_ge __P((struct val *, struct val *));
 static struct val	*op_gt __P((struct val *, struct val *));
 static struct val	*op_le __P((struct val *, struct val *));
 static struct val	*op_lt __P((struct val *, struct val *));
+static struct val	*op_cond __P((struct val *, struct val *, struct val *));
 static struct val	*op_minus __P((struct val *, struct val *));
 static struct val	*op_negate __P((struct val *));
 static struct val	*op_compl __P((struct val *));
@@ -136,21 +138,19 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
 	struct val *val;
 }
 
-/* IN_ANOTHER_LIFE
 %{
-static int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
+extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %}
-*/
-
+%left <val> TOK_COND TOK_COLONCOLON
 %left <val> TOK_OR
 %left <val> TOK_AND
 %left <val> TOK_EQ TOK_GT TOK_LT TOK_GE TOK_LE TOK_NE
 %left <val> TOK_PLUS TOK_MINUS
 %left <val> TOK_MULT TOK_DIV TOK_MOD
-%left <val> TOK_COMPL TOK_EQTILDE
-%left UMINUS
-%left <val> TOK_COLON
+%right <val> TOK_COMPL
+%left <val> TOK_COLON TOK_EQTILDE
 %left <val> TOK_RP TOK_LP
+
 
 %token <val> TOKEN
 %type <val> start expr
@@ -172,11 +172,11 @@ expr:	TOKEN   { $$= $1;}
 	| expr TOK_AND expr { $$ = op_and ($1, $3); 
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
                           @$.first_line=0; @$.last_line=0;}
-	| expr TOK_EQ expr { $$ = op_eq ($1, $3); 
-	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+	| expr TOK_EQ expr { $$ = op_eq ($1, $3);
+	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_GT expr { $$ = op_gt ($1, $3);
-                         @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+                         @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_LT expr { $$ = op_lt ($1, $3); 
 	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
@@ -196,10 +196,10 @@ expr:	TOKEN   { $$= $1;}
 	| expr TOK_MINUS expr { $$ = op_minus ($1, $3); 
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
-	| TOK_MINUS expr %prec UMINUS { $$ = op_negate ($2); 
+	| TOK_MINUS expr %prec TOK_COMPL { $$ = op_negate ($2); 
 	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
 							@$.first_line=0; @$.last_line=0;}
-	| TOK_COMPL expr %prec UMINUS { $$ = op_compl ($2); 
+	| TOK_COMPL expr   { $$ = op_compl ($2); 
 	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_MULT expr { $$ = op_times ($1, $3); 
@@ -215,6 +215,9 @@ expr:	TOKEN   { $$= $1;}
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_EQTILDE expr { $$ = op_eqtilde ($1, $3); 
+	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
+							@$.first_line=0; @$.last_line=0;}
+	| expr TOK_COND expr TOK_COLONCOLON expr  { $$ = op_cond ($1, $3, $5); 
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	;
@@ -282,7 +285,7 @@ static quad_t
 to_integer (struct val *vp)
 {
 	quad_t i;
-
+	
 	if (vp == NULL) {
 		ast_log(LOG_WARNING,"vp==NULL in to_integer()\n");
 		return(0);
@@ -375,10 +378,16 @@ is_zero_or_null (struct val *vp)
 
 void ast_log(int level, const char *file, int line, const char *function, const char *fmt, ...)
 {
-	printf("LOG: lev:%d file:%s  line:%d func: %s  fmt:%s\n",
-		   level, file, line, function, fmt);
+	va_list vars;
+	va_start(vars,fmt);
+	
+        printf("LOG: lev:%d file:%s  line:%d func: %s  ",
+                   level, file, line, function);
+	vprintf(fmt, vars);
 	fflush(stdout);
+	va_end(vars);
 }
+
 
 int main(int argc,char **argv) {
 	char *s;
@@ -528,6 +537,45 @@ op_le (struct val *a, struct val *b)
 
 	free_value (a);
 	free_value (b);
+	return r;
+}
+
+static struct val *
+op_cond (struct val *a, struct val *b, struct val *c)
+{
+	struct val *r;
+
+	if( isstring(a) )
+	{
+		if( strlen(a->u.s) && strcmp(a->u.s, "\"\"") != 0 && strcmp(a->u.s,"0") != 0 )
+		{
+			free_value(a);
+			free_value(c);
+			r = b;
+		}
+		else
+		{
+			free_value(a);
+			free_value(b);
+			r = c;
+		}
+	}
+	else
+	{
+		(void)to_integer(a);
+		if( a->u.i )
+		{
+			free_value(a);
+			free_value(c);
+			r = b;
+		}
+		else
+		{
+			free_value(a);
+			free_value(b);
+			r = c;
+		}
+	}
 	return r;
 }
 

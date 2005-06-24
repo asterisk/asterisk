@@ -518,6 +518,12 @@ of possible concern with "legacy" extension.conf files:
 **    match anywhere in the string. The only diff with the ':' is that
 **    match doesn't have to be anchored to the beginning of the string.
 
+**9.  Added the conditional operator  'expr1 ? true_expr :: false_expr'
+**    First, all 3 exprs are evaluated, and if expr1 is false, the 'false_expr'
+**    is returned as the result. See above for details. 
+
+**10. Unary operators '-' and '!' were made right associative.
+
 --------------------------------------------------------
 DEBUGGING HINTS FOR $[  ]  EXPRESSIONS
 --------------------------------------------------------
