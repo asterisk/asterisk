@@ -264,7 +264,7 @@ static void add_module(void)
 	gtk_widget_show(filew);
 }
 
-static int add_mod(char *module, char *description, int usecount)
+static int add_mod(const char *module, const char *description, int usecount, const char *like)
 {
 	char use[10];
 	char *pass[4];
@@ -288,7 +288,7 @@ static int mod_update(void)
 	}
 	gtk_clist_freeze(GTK_CLIST(modules));
 	gtk_clist_clear(GTK_CLIST(modules));
-	ast_update_module_list(add_mod);
+	ast_update_module_list(add_mod, NULL);
 	if (module)
 		gtk_clist_select_row(GTK_CLIST(modules), gtk_clist_find_row_from_data(GTK_CLIST(modules), module), -1);
 	gtk_clist_thaw(GTK_CLIST(modules));
