@@ -41,6 +41,7 @@
 #define DSP_TONE_STATE_SPECIAL1	5
 #define DSP_TONE_STATE_SPECIAL2 6
 #define DSP_TONE_STATE_SPECIAL3 7
+#define DSP_TONE_STATE_HUNGUP 	8
 
 struct ast_dsp;
 

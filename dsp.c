@@ -50,9 +50,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* Number of goertzels for progress detect */
 #define GSAMP_SIZE_NA 183			/* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */
 #define GSAMP_SIZE_CR 188			/* Costa Rica, Brazil - Only care about 425 Hz */
+#define GSAMP_SIZE_UK 160			/* UK disconnect goertzel feed - shoud trigger 400hz */
 
 #define PROG_MODE_NA		0
 #define PROG_MODE_CR		1	
+#define PROG_MODE_UK		2	
 
 /* For US modes */
 #define HZ_350  0
@@ -66,6 +68,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /* For CR/BR modes */
 #define HZ_425	0
 
+/* For UK mode */
+#define HZ_400	0
+
 static struct progalias {
 	char *name;
 	int mode;
@@ -74,6 +79,7 @@ static struct progalias {
 	{ "ca", PROG_MODE_NA },
 	{ "cr", PROG_MODE_CR },
 	{ "br", PROG_MODE_CR },
+	{ "uk", PROG_MODE_UK },
 };
 
 static struct progress {
@@ -82,6 +88,7 @@ static struct progress {
 } modes[] = {
 	{ GSAMP_SIZE_NA, { 350, 440, 480, 620, 950, 1400, 1800 } },	/* North America */
 	{ GSAMP_SIZE_CR, { 425 } },
+	{ GSAMP_SIZE_UK, { 400 } },
 };
 
 #define DEFAULT_THRESHOLD	512
@@ -100,6 +107,8 @@ static struct progress {
 #define TONE_THRESH		10.0	/* How much louder the tone should be than channel energy */
 #define TONE_MIN_THRESH 	1e8	/* How much tone there should be at least to attempt */
 #define COUNT_THRESH		3	/* Need at least 50ms of stuff to count it */
+#define UK_HANGUP_THRESH	60	/* This is the threshold for the UK */
+
 
 #define	MAX_DTMF_DIGITS		128
 
@@ -1009,6 +1018,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 	int pass;
 	int newstate = DSP_TONE_STATE_SILENCE;
 	int res = 0;
+	int thresh = (dsp->progmode == PROG_MODE_UK) ? UK_HANGUP_THRESH : COUNT_THRESH;
 	while(len) {
 		/* Take the lesser of the number of samples we need and what we have */
 		pass = len;
@@ -1060,12 +1070,17 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 				} else
 					newstate = DSP_TONE_STATE_SILENCE;
 				break;
+			case PROG_MODE_UK:
+				if (hz[HZ_400] > TONE_MIN_THRESH * TONE_THRESH) {
+					newstate = DSP_TONE_STATE_HUNGUP;
+				}
+				break;
 			default:
 				ast_log(LOG_WARNING, "Can't process in unknown prog mode '%d'\n", dsp->progmode);
 			}
 			if (newstate == dsp->tstate) {
 				dsp->tcount++;
-				if (dsp->tcount == COUNT_THRESH) {
+				if (dsp->tcount == thresh) {
 					if ((dsp->features & DSP_PROGRESS_BUSY) && 
 					    dsp->tstate == DSP_TONE_STATE_BUSY) {
 						res = AST_CONTROL_BUSY;
@@ -1080,6 +1095,10 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 					else if ((dsp->features & DSP_PROGRESS_CONGESTION) && 
 						 dsp->tstate == DSP_TONE_STATE_SPECIAL3) {
 						res = AST_CONTROL_CONGESTION;
+						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+					} else if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
+						dsp->tstate == DSP_TONE_STATE_HUNGUP) {
+						res = AST_CONTROL_HANGUP;
 						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 					}
 				}
@@ -1478,6 +1497,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			case AST_CONTROL_BUSY:
 			case AST_CONTROL_RINGING:
 			case AST_CONTROL_CONGESTION:
+			case AST_CONTROL_HANGUP:
 				memset(&dsp->f, 0, sizeof(dsp->f));
 				dsp->f.frametype = AST_FRAME_CONTROL;
 				dsp->f.subclass = res;
