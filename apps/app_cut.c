@@ -31,10 +31,10 @@ static char *tdesc = "Cuts up variables";
 
 static char *app_cut = "Cut";
 
-static char *cut_synopsis = "Cut(newvar=varname|delimiter|fieldspec)";
+static char *cut_synopsis = "Splits a variable's content using the specified delimiter";
 
 static char *cut_descrip =
-"Cut(newvar=varname,delimiter,field)\n"
+"Usage: Cut(newvar=varname,delimiter,fieldspec)\n"
 "  newvar    - new variable created from result string\n"
 "  varname   - variable you want cut\n"
 "  delimiter - defaults to '-'\n"

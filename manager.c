@@ -1,6 +1,8 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
+ * The Asterisk Management Interface - AMI
+ *
  * Channel Management and more
  * 
  * Copyright (C) 1999-2004, Digium, Inc.
@@ -117,6 +119,9 @@ static char *authority_to_str(int authority, char *res, int reslen)
 			strncat(res, perms[i].label, (reslen > running_total) ? reslen - running_total : 0);
 			running_total += strlen(perms[i].label);
 		}
+	}
+	if (ast_strlen_zero(res)) {
+		strncpy(res, "<none>", reslen);
 	}
 	return res;
 }
@@ -243,7 +248,7 @@ static void destroy_session(struct mansession *s)
 		ast_mutex_destroy(&s->lock);
 		free(s);
 	} else
-		ast_log(LOG_WARNING, "Trying to delete non-existant session %p?\n", s);
+		ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
 	ast_mutex_unlock(&sessionlock);
 	
 }
@@ -463,7 +468,7 @@ static int authenticate(struct mansession *s, struct message *m)
 			set_eventmask(s, events);
 		return 0;
 	}
-	ast_log(LOG_NOTICE, "%s tried to authenticate with non-existant user '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
+	ast_log(LOG_NOTICE, "%s tried to authenticate with nonexistent user '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr), user);
 	ast_destroy(cfg);
 	return -1;
 }
@@ -570,6 +575,13 @@ static int action_hangup(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_setvar[] = 
+"Description: Set a local channel variable.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel to set variable for\n"
+"	*Variable: Variable name\n"
+"	*Value: Value\n";
+
 static int action_setvar(struct mansession *s, struct message *m)
 {
         struct ast_channel *c = NULL;
@@ -605,6 +617,13 @@ static int action_setvar(struct mansession *s, struct message *m)
 	astman_send_ack(s, m, "Variable Set");
 	return 0;
 }
+
+static char mandescr_getvar[] = 
+"Description: Get the value of a local channel variable.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel to read variable from\n"
+"	*Variable: Variable name\n"
+"	ActionID: Optional Action id for message matching.\n";
 
 static int action_getvar(struct mansession *s, struct message *m)
 {
@@ -758,7 +777,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 	}
 	chan = ast_get_channel_by_name_locked(name);
 	if (!chan) {
-		astman_send_error(s, m, "Channel not existant");
+		astman_send_error(s, m, "Channel not existent");
 		return 0;
 	}
 	if (!ast_strlen_zero(name2))
@@ -785,6 +804,11 @@ static int action_redirect(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_command[] = 
+"Description: Run a CLI command.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Command: Asterisk CLI command to run\n"
+"	ActionID: Optional Action id for message matching.\n";
 static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
@@ -922,10 +946,10 @@ static int action_originate(struct mansession *s, struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
-        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 0, !ast_strlen_zero(callerid) ? callerid : NULL, variable, account);
+        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, !ast_strlen_zero(callerid) ? callerid : NULL, variable, account);
     	} else {
 		if (exten && context && pi)
-	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 0, !ast_strlen_zero(callerid) ? callerid : NULL, variable, account);
+	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, !ast_strlen_zero(callerid) ? callerid : NULL, variable, account);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
@@ -938,6 +962,16 @@ static int action_originate(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_mailboxstatus[] = 
+"Description: Checks a voicemail account for status.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
+"	ActionID: Optional ActionID for message matching.\n"
+"Returns number of messages.\n"
+"	Message: Mailbox Status\n"
+"	Mailbox: <mailboxid>\n"
+"	Waiting: <count>\n"
+"\n";
 static int action_mailboxstatus(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
@@ -961,6 +995,17 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	return 0;
 }
 
+static char mandescr_mailboxcount[] = 
+"Description: Checks a voicemail account for new messages.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Mailbox: Full mailbox ID <mailbox>@<vm-context>\n"
+"	ActionID: Optional ActionID for message matching.\n"
+"Returns number of new and old messages.\n"
+"	Message: Mailbox Message Count\n"
+"	Mailbox: <mailboxid>\n"
+"	NewMessages: <count>\n"
+"	OldMessages: <count>\n"
+"\n";
 static int action_mailboxcount(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
@@ -987,6 +1032,17 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	ast_mutex_unlock(&s->lock);
 	return 0;
 }
+
+static char mandescr_extensionstate[] = 
+"Description: Report the extension state for given extension.\n"
+"  If the extension has a hint, will use devicestate to check\n"
+"  the status of the device connected to the extension.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Exten: Extension to check state on\n"
+"	*Context: Context for extension\n"
+"	ActionId: Optional ID for this transaction\n"
+"Will return an \"Extension Status\" message.\n"
+"The response will include the hint for the extension and the status.\n";
 
 static int action_extensionstate(struct mansession *s, struct message *m)
 {
@@ -1019,6 +1075,13 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	ast_mutex_unlock(&s->lock);
 	return 0;
 }
+
+static char mandescr_timeout[] = 
+"Description: Hangup a channel after a certain time.\n"
+"Variables: (Names marked with * are required)\n"
+"	*Channel: Channel name to hangup\n"
+"	*Timeout: Maximum duration of the call (sec)\n"
+"Acknowledges set time with 'Timeout Set' message\n";
 
 static int action_timeout(struct mansession *s, struct message *m)
 {
@@ -1392,15 +1455,15 @@ int init_manager(void)
 		ast_manager_register2("Logoff", 0, action_logoff, "Logoff Manager", mandescr_logoff);
 		ast_manager_register2("Hangup", EVENT_FLAG_CALL, action_hangup, "Hangup Channel", mandescr_hangup);
 		ast_manager_register( "Status", EVENT_FLAG_CALL, action_status, "Status" );
-		ast_manager_register( "Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable" );
-		ast_manager_register( "Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable" );
+		ast_manager_register2( "Setvar", EVENT_FLAG_CALL, action_setvar, "Set Channel Variable", mandescr_setvar );
+		ast_manager_register2( "Getvar", EVENT_FLAG_CALL, action_getvar, "Gets a Channel Variable", mandescr_getvar );
 		ast_manager_register( "Redirect", EVENT_FLAG_CALL, action_redirect, "Redirect" );
 		ast_manager_register2("Originate", EVENT_FLAG_CALL, action_originate, "Originate Call", mandescr_originate);
-		ast_manager_register( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox" );
-		ast_manager_register( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command" );
-		ast_manager_register( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status" );
-		ast_manager_register( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout" );
-		ast_manager_register( "MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count" );
+		ast_manager_register2( "Command", EVENT_FLAG_COMMAND, action_command, "Execute Command", mandescr_command );
+		ast_manager_register2( "ExtensionState", EVENT_FLAG_CALL, action_extensionstate, "Check Extension Status", mandescr_extensionstate );
+		ast_manager_register2( "AbsoluteTimeout", EVENT_FLAG_CALL, action_timeout, "Set Absolute Timeout", mandescr_timeout );
+		ast_manager_register2( "MailboxStatus", EVENT_FLAG_CALL, action_mailboxstatus, "Check Mailbox", mandescr_mailboxstatus );
+		ast_manager_register2( "MailboxCount", EVENT_FLAG_CALL, action_mailboxcount, "Check Mailbox Message Count", mandescr_mailboxcount );
 		ast_manager_register2("ListCommands", 0, action_listcommands, "List available manager commands", mandescr_listcommands);
 
 		ast_cli_register(&show_mancmd_cli);

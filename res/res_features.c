@@ -38,6 +38,15 @@
 #include <sys/signal.h>
 #include <netinet/in.h>
 
+#ifdef __AST_DEBUG_MALLOC
+static void FREE(void *ptr)
+{
+	free(ptr);
+}
+#else
+#define FREE free
+#endif
+
 #define DEFAULT_PARK_TIME 45000
 #define DEFAULT_TRANSFER_DIGIT_TIMEOUT 3000
 
@@ -48,6 +57,9 @@ static int parkingtime = DEFAULT_PARK_TIME;
 
 /* Context for which parking is made accessible */
 static char parking_con[AST_MAX_EXTENSION] = "parkedcalls";
+
+/* Context for dialback for parking (KLUDGE) */
+static char parking_con_dial[AST_MAX_EXTENSION] = "park-dial";
 
 /* Extension you type to park the call */
 static char parking_ext[AST_MAX_EXTENSION] = "700";
@@ -103,6 +115,8 @@ struct parkeduser {
 	int priority;
 	int parkingtime;
 	int notquiteyet;
+	char peername[1024];
+	unsigned char moh_trys;
 	struct parkeduser *next;
 };
 
@@ -152,6 +166,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	struct ast_context *con;
 	pu = malloc(sizeof(struct parkeduser));
 	if (pu) {
+		memset(pu,0,sizeof(struct parkeduser));
 		ast_mutex_lock(&parking_lock);
 		for (x=parking_start;x<=parking_stop;x++) {
 			cur = parkinglot;
@@ -179,6 +194,8 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				pu->parkingtime = parkingtime;
 			if (extout)
 				*extout = x;
+			if (peer)
+				strncpy(pu->peername, peer->name, sizeof(pu->peername) - 1);
 			/* Remember what had been dialed, so that if the parking
 			   expires, we try to come back to the same place */
 			if (!ast_strlen_zero(chan->macrocontext))
@@ -223,12 +240,6 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				if (adsipark && adsi_available(peer)) {
 					adsi_unload_session(peer);
 				}
-				if (pu->notquiteyet) {
-					/* Wake up parking thread if we're really done */
-					ast_moh_start(pu->chan, NULL);
-					pu->notquiteyet = 0;
-					pthread_kill(parking_thread, SIGURG);
-				}
 			}
 			con = ast_context_find(parking_con);
 			if (!con) {
@@ -239,8 +250,15 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 			}
 			if (con) {
 				snprintf(exten, sizeof(exten), "%d", x);
-				ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), free, registrar);
+				ast_add_extension2(con, 1, exten, 1, NULL, parkedcall, strdup(exten), FREE, registrar);
 			}
+			if (pu->notquiteyet) {
+				/* Wake up parking thread if we're really done */
+				ast_moh_start(pu->chan, NULL);
+				pu->notquiteyet = 0;
+				pthread_kill(parking_thread, SIGURG);
+			}
+
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No more parking spaces\n");
@@ -301,6 +319,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	char *transferer_real_context;
 	int allowdisconnect_in,allowdisconnect_out,allowredirect_in,allowredirect_out;
 	char *monitor_exec;
+
+	if (chan && peer) {
+		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
+		pbx_builtin_setvar_helper(peer, "BRIDGEPEER", chan->name);
+	} else if (chan)
+		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
 
 	if (monitor_ok) {
 		if (!monitor_app) { 
@@ -480,6 +504,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					}
 					/* XXX Maybe we should have another message here instead of invalid extension XXX */
 				} else if (ast_exists_extension(transferee, transferer_real_context, newext, 1, transferer->callerid)) {
+					pbx_builtin_setvar_helper(peer, "BLINDTRANSFER", chan->name);
+					pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", peer->name);
 					ast_moh_stop(transferee);
 					res=ast_autoservice_stop(transferee);
 					if (!transferee->pbx) {
@@ -540,20 +566,21 @@ static void *do_parking_thread(void *ignore)
 	struct timeval tv;
 	struct ast_frame *f;
 	char exten[AST_MAX_EXTENSION];
+	char *peername,*cp;
+	char returnexten[AST_MAX_EXTENSION];
 	struct ast_context *con;
 	int x;
-	int gc=0;
 	fd_set rfds, efds;
 	fd_set nrfds, nefds;
 	FD_ZERO(&rfds);
 	FD_ZERO(&efds);
+
 	for (;;) {
 		ms = -1;
 		max = -1;
 		ast_mutex_lock(&parking_lock);
 		pl = NULL;
 		pu = parkinglot;
-		gettimeofday(&tv, NULL);
 		FD_ZERO(&nrfds);
 		FD_ZERO(&nefds);
 		while(pu) {
@@ -563,21 +590,42 @@ static void *do_parking_thread(void *ignore)
 				pu = pu->next;
 				continue;
 			}
-			if (gc < 5 && !pu->chan->generator) {
-				gc++;
-				ast_moh_start(pu->chan,NULL);
-			}
+			gettimeofday(&tv, NULL);
 			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
 			if (tms > pu->parkingtime) {
-				/* They've been waiting too long, send them back to where they came.  Theoretically they
-				   should have their original extensions and such, but we copy to be on the safe side */
-				strncpy(pu->chan->exten, pu->exten, sizeof(pu->chan->exten)-1);
-				strncpy(pu->chan->context, pu->context, sizeof(pu->chan->context)-1);
-				pu->chan->priority = pu->priority;
-				if (option_verbose > 1) 
-					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->chan->context, pu->chan->exten, pu->chan->priority);
 				/* Stop music on hold */
 				ast_moh_stop(pu->chan);
+				/* Get chan, exten from derived kludge */
+				if (pu->peername[0]) {
+					peername = ast_strdupa(pu->peername);
+					cp = strrchr(peername, '-');
+					if (cp) 
+						*cp = 0;
+					con = ast_context_find(parking_con_dial);
+					if (!con) {
+						con = ast_context_create(NULL, parking_con_dial, registrar);
+						if (!con) {
+							ast_log(LOG_ERROR, "Parking dial context '%s' does not exist and unable to create\n", parking_con_dial);
+						}
+					}
+					if (con) {
+						snprintf(returnexten, sizeof(returnexten), "%s||t", peername);
+						ast_add_extension2(con, 1, peername, 1, NULL, "Dial", strdup(returnexten), free, registrar);
+					}
+					strncpy(pu->chan->exten, peername, sizeof(pu->chan->exten) - 1);
+					strncpy(pu->chan->context, parking_con_dial, sizeof(pu->chan->context) - 1);
+					pu->chan->priority = 1;
+
+				} else {
+					/* They've been waiting too long, send them back to where they came.  Theoretically they
+					   should have their original extensions and such, but we copy to be on the safe side */
+					strncpy(pu->chan->exten, pu->exten, sizeof(pu->chan->exten)-1);
+					strncpy(pu->chan->context, pu->context, sizeof(pu->chan->context)-1);
+					pu->chan->priority = pu->priority;
+				}
+
+				if (option_verbose > 1) 
+					ast_verbose(VERBOSE_PREFIX_2 "Timeout for %s parked on %d. Returning to %s,%s,%d\n", pu->chan->name, pu->parkingnum, pu->chan->context, pu->chan->exten, pu->chan->priority);
 				/* Start up the PBX, or hang them up */
 				if (ast_pbx_start(pu->chan))  {
 					ast_log(LOG_WARNING, "Unable to restart the PBX for user on '%s', hanging them up...\n", pu->chan->name);
@@ -599,14 +647,17 @@ static void *do_parking_thread(void *ignore)
 					ast_log(LOG_WARNING, "Whoa, no parking context?\n");
 				free(pt);
 			} else {
-				for (x=0;x<AST_MAX_FDS;x++) {
+				for (x=0; x<AST_MAX_FDS; x++) {
 					if ((pu->chan->fds[x] > -1) && (FD_ISSET(pu->chan->fds[x], &rfds) || FD_ISSET(pu->chan->fds[x], &efds))) {
 						if (FD_ISSET(pu->chan->fds[x], &efds))
 							pu->chan->exception = 1;
+						else
+							pu->chan->exception = 0;	
 						pu->chan->fdno = x;
 						/* See if they need servicing */
 						f = ast_read(pu->chan);
 						if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
+
 							/* There's a problem, hang them up*/
 							if (option_verbose > 1) 
 								ast_verbose(VERBOSE_PREFIX_2 "%s got tired of being parked\n", pu->chan->name);
@@ -630,12 +681,17 @@ static void *do_parking_thread(void *ignore)
 						} else {
 							/* XXX Maybe we could do something with packets, like dial "0" for operator or something XXX */
 							ast_frfree(f);
+							if (pu->moh_trys < 3 && !pu->chan->generatordata) {
+								ast_log(LOG_DEBUG, "MOH on parked call stopped by outside source.  Restarting.\n");
+								ast_moh_start(pu->chan, NULL);
+								pu->moh_trys++;
+							}
 							goto std;	/* XXX Ick: jumping into an else statement??? XXX */
 						}
 					}
 				}
 				if (x >= AST_MAX_FDS) {
-std:					for (x=0;x<AST_MAX_FDS;x++) {
+std:					for (x=0; x<AST_MAX_FDS; x++) {
 						/* Keep this one for next one */
 						if (pu->chan->fds[x] > -1) {
 							FD_SET(pu->chan->fds[x], &nrfds);
@@ -784,7 +840,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 	    dres = 0;
 	  }
 		if (option_verbose > 2) 
-			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to non-existant parked call %d\n", chan->name, park);
+			ast_verbose(VERBOSE_PREFIX_3 "Channel %s tried to talk to nonexistent parked call %d\n", chan->name, park);
 		res = -1;
 	}
 	LOCAL_USER_REMOVE(u);
@@ -926,7 +982,7 @@ int load_module(void)
 			return -1;
 		}
 	}
-	ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, parkcall, strdup(""),free, registrar);
+	ast_add_extension2(con, 1, ast_parking_ext(), 1, NULL, parkcall, strdup(""), FREE, registrar);
 	ast_pthread_create(&parking_thread, NULL, do_parking_thread, NULL);
 	res = ast_register_application(parkedcall, park_exec, synopsis, descrip);
 	if (!res)

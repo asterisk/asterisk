@@ -54,12 +54,12 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 	}
 
 	strncpy(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION-1);
+	snprintf(eventname, sizeof(eventname), "UserEvent%s", info);
 	eventbody = strchr(eventname, '|');
 	if (eventbody) {
 		*eventbody = '\0';
 		eventbody++;
 	}
-	snprintf(eventname, sizeof(eventname), "UserEvent%s", info);
 	LOCAL_USER_ADD(u);
 
 	if(eventbody) {

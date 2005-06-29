@@ -88,7 +88,7 @@ MSSQL:		Asterisk can currently store CDRs into an MSSQL database in
 		        [lastdata]      [varchar] (80)          NOT NULL ,
 		        [duration]      [int]                   NOT NULL ,
 		        [billsec]       [int]                   NOT NULL ,
-		        [disposition]   [varchar] (45)          NOT NULL ,
+		        [disposition]   [int] 	                NOT NULL ,
 		        [amaflags]      [int]                   NOT NULL ,
 		        [accountcode]   [varchar] (20)          NOT NULL ,
 		        [uniqueid]      [varchar] (32)          NOT NULL ,

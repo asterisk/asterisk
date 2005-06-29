@@ -55,7 +55,7 @@ ${CALLERIDNUM}	Caller ID Number only
 ${CALLINGPRES}	PRI Caller ID presentation for incoming calls
 ${CHANNEL}	Current channel name
 ${CONTEXT}      Current context
-${DATETIME}	Current date time in the format: YYYY-MM-DD_HH:MM:SS
+${DATETIME}	Current date time in the format: DDMMYYYY-HH:MM:SS
 ${DNID}         Dialed Number Identifier
 ${ENUM}		Result of application EnumLookup
 ${EPOCH}	Current unix style epoch
@@ -75,12 +75,15 @@ ${TIMESTAMP}	Current date time in the format: YYYYMMDD-HHMMSS
 ${TXTCIDNAME}	Result of application TXTCIDName
 ${UNIQUEID}	Current call unique identifier
 
+NOTE: Attempting to set any of these "special" variables will not change 
+      their value, but will not display any warning either.
+
 The dial() application sets the following variables:
 
 ${DIALEDPEERNAME} Dialed peer name
 ${DIALEDPEERNUMBER} Dialed peer number
-${DIALEDTIME}   Time for the call (seconds)
-${ANSWEREDTIME} Time from dial to answer (seconds)
+${DIALEDTIME}   Total time for the call in seconds (Network time).
+${ANSWEREDTIME} Time from answer to end of call in seconds (Billable time).
 ${DIALSTATUS}   Status of the call, one of:
                 CHANUNAVAIL | CONGESTION | BUSY | NOANSWER | ANSWER | CANCEL
 

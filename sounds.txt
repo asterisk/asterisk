@@ -248,6 +248,8 @@
 
 ;digits directory  - File Name Sound File Script
 
+%minus.gsm%minus
+
 %0.gsm%zero
 
 %1.gsm%one
@@ -446,6 +448,8 @@
 %vm-unknown-caller.gsm%from an unknown caller
 
 %vm-advopts.gsm%press 3 for advanced options
+
+%vm-saveoper.gsm%press 1 to accept this recording, or continue to hold
 
 %vm-toreply.gsm%press 1 to send a reply
 

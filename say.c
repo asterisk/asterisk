@@ -47,6 +47,9 @@ int ast_say_digit_str(struct ast_channel *chan, char *fn2, char *ints, char *lan
 			case ('#'):
 				snprintf(fn, sizeof(fn), "digits/pound");
 				break;
+			case ('-'):
+				snprintf(fn, sizeof(fn), "digits/minus");
+				break;
 			default:
 				if((fn2[num] >= '0') && (fn2[num] <= '9')){ /* Must be in {0-9} */
 					snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
@@ -165,31 +168,31 @@ int ast_say_phonetic_str(struct ast_channel *chan, char *fn2, char *ints, char *
 				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
 				break;
 			case ('!'):
-				strncpy(fn, "exclaimation-point", sizeof(fn));
-				break;    	
+				strncpy(fn, "letters/exclaimation-point", sizeof(fn));
+				break;
 			case ('@'):
-				strncpy(fn, "at", sizeof(fn));
+				strncpy(fn, "letters/at", sizeof(fn));
 				break;
 			case ('$'):
-				strncpy(fn, "dollar", sizeof(fn));
+				strncpy(fn, "letters/dollar", sizeof(fn));
 				break;	
 			case ('-'):
-				strncpy(fn, "dash", sizeof(fn));
+				strncpy(fn, "letters/dash", sizeof(fn));
 				break;
 			case ('.'):
-				strncpy(fn, "dot", sizeof(fn));
+				strncpy(fn, "letters/dot", sizeof(fn));
 				break;
 			case ('='):
-				strncpy(fn, "equals", sizeof(fn));
+				strncpy(fn, "letters/equals", sizeof(fn));
 				break;
 			case ('+'):
-				strncpy(fn, "plus", sizeof(fn));
+				strncpy(fn, "letters/plus", sizeof(fn));
 				break;
 			case ('/'):
-				strncpy(fn, "slash", sizeof(fn));
+				strncpy(fn, "letters/slash", sizeof(fn));
 				break;
 			case (' '):
-				strncpy(fn, "space", sizeof(fn));
+				strncpy(fn, "letters/space", sizeof(fn));
 				break;
 			case ('%'):
 				play=0;
@@ -278,31 +281,31 @@ int ast_say_character_str_full(struct ast_channel *chan, char *fn2, char *ints, 
 				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
 				break;
 			case ('!'):
-				strncpy(fn, "exclaimation-point", sizeof(fn));
-				break;    	
+				strncpy(fn, "letters/exclaimation-point", sizeof(fn));
+				break;
 			case ('@'):
-				strncpy(fn, "at", sizeof(fn));
+				strncpy(fn, "letters/at", sizeof(fn));
 				break;
 			case ('$'):
-				strncpy(fn, "dollar", sizeof(fn));
+				strncpy(fn, "letters/dollar", sizeof(fn));
 				break;
 			case ('-'):
-				strncpy(fn, "dash", sizeof(fn));
+				strncpy(fn, "letters/dash", sizeof(fn));
 				break;
 			case ('.'):
-				strncpy(fn, "dot", sizeof(fn));
+				strncpy(fn, "letters/dot", sizeof(fn));
 				break;
 			case ('='):
-				strncpy(fn, "equals", sizeof(fn));
+				strncpy(fn, "letters/equals", sizeof(fn));
 				break;
 			case ('+'):
-				strncpy(fn, "plus", sizeof(fn));
+				strncpy(fn, "letters/plus", sizeof(fn));
 				break;
 			case ('/'):
-				strncpy(fn, "slash", sizeof(fn));
+				strncpy(fn, "letters/slash", sizeof(fn));
 				break;
 			case (' '):
-				strncpy(fn, "space", sizeof(fn));
+				strncpy(fn, "letters/space", sizeof(fn));
 				break;
 			default:
 				ltr = fn2[num];
@@ -345,31 +348,31 @@ int ast_say_phonetic_str_full(struct ast_channel *chan, char *fn2, char *ints, c
 				snprintf(fn, sizeof(fn), "digits/%c", fn2[num]);
 				break;
 			case ('!'):
-				strncpy(fn, "exclaimation-point", sizeof(fn));
-				break;    	
+				strncpy(fn, "letters/exclaimation-point", sizeof(fn));
+				break;
 			case ('@'):
-				strncpy(fn, "at", sizeof(fn));
+				strncpy(fn, "letters/at", sizeof(fn));
 				break;
 			case ('$'):
-				strncpy(fn, "dollar", sizeof(fn));
+				strncpy(fn, "letters/dollar", sizeof(fn));
 				break;
 			case ('-'):
-				strncpy(fn, "dash", sizeof(fn));
+				strncpy(fn, "letters/dash", sizeof(fn));
 				break;
 			case ('.'):
-				strncpy(fn, "dot", sizeof(fn));
+				strncpy(fn, "letters/dot", sizeof(fn));
 				break;
 			case ('='):
-				strncpy(fn, "equals", sizeof(fn));
+				strncpy(fn, "letters/equals", sizeof(fn));
 				break;
 			case ('+'):
-				strncpy(fn, "plus", sizeof(fn));
+				strncpy(fn, "letters/plus", sizeof(fn));
 				break;
 			case ('/'):
-				strncpy(fn, "slash", sizeof(fn));
+				strncpy(fn, "letters/slash", sizeof(fn));
 				break;
 			case (' '):
-				strncpy(fn, "space", sizeof(fn));
+				strncpy(fn, "letters/space", sizeof(fn));
 				break;
 			default:	/* '9' falls here... */
 				ltr = fn2[num];
@@ -579,7 +582,7 @@ static int ast_say_number_full_en(struct ast_channel *chan, int num, char *ints,
 			}
 			if (!res) {
 				if(!ast_streamfile(chan, fn, language)) {
-					if (audiofd && ctrlfd)
+					if ((audiofd > -1) && (ctrlfd > -1))
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					else
 						res = ast_waitstream(chan, ints);
@@ -682,7 +685,7 @@ static int ast_say_number_full_da(struct ast_channel *chan, int num, char *ints,
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) 
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
 					res = ast_waitstream(chan, ints);
@@ -791,14 +794,14 @@ static int ast_say_number_full_de(struct ast_channel *chan, int num, char *ints,
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) 
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
 					res = ast_waitstream(chan, ints);
 			}
 			ast_stopstream(chan);
 			if(!ast_streamfile(chan, fna, language)) {
-				if (audiofd && ctrlfd) 
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else  
 					res = ast_waitstream(chan, ints);
@@ -881,7 +884,7 @@ static int ast_say_number_full_es(struct ast_channel *chan, int num, char *ints,
 
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
 					res = ast_waitstream(chan, ints);
@@ -967,7 +970,7 @@ static int ast_say_number_full_fr(struct ast_channel *chan, int num, char *ints,
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
 					res = ast_waitstream(chan, ints);
@@ -1113,7 +1116,7 @@ static int ast_say_number_full_it(struct ast_channel *chan, int num, char *ints,
 			}
 			if (!res) {
 				if(!ast_streamfile(chan, fn, language)) {
-					if (audiofd && ctrlfd)
+					if ((audiofd > -1) && (ctrlfd > -1))
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					else
 						res = ast_waitstream(chan, ints);
@@ -1183,7 +1186,7 @@ static int ast_say_number_full_nl(struct ast_channel *chan, int num, char *ints,
 
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				else
 					res = ast_waitstream(chan, ints);
@@ -1238,7 +1241,7 @@ static void pl_odtworz_plik(struct ast_channel *chan, char *language, int audiof
 	strcat(file_name, fn);
 	ast_log(LOG_DEBUG, "Trying to play: %s\n", file_name);
 	if (!ast_streamfile(chan, file_name, language)) {
-		if (audiofd && ctrlfd)
+		if ((audiofd > -1) && (ctrlfd > -1))
 			ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 		else
 			ast_waitstream(chan, ints);
@@ -1566,18 +1569,18 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, char *ints,
 				playh = 1;
 			num = num % 1000000;
 		}
-		if (!res && playh) {
-			res = wait_file(chan, ints, "digits/pt-e", language);
-			ast_stopstream(chan);
-			playh = 0;
-		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd)
+				if ((audiofd > -1) && (ctrlfd > -1))
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);			else
 					res = ast_waitstream(chan, ints);
 			}
 			ast_stopstream(chan);
+		}
+		if (!res && playh) {
+			res = wait_file(chan, ints, "digits/pt-e", language);
+			ast_stopstream(chan);
+			playh = 0;
 		}
 	}
 	return res;
@@ -1638,7 +1641,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, char *ints,
 			}
 			 if (!res) {
                                 if(!ast_streamfile(chan, fn, language)) {
-                                    if (audiofd && ctrlfd)
+                                    if ((audiofd > -1) && (ctrlfd > -1))
                                         res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
                                     else
                                          res = ast_waitstream(chan, ints);
@@ -1699,7 +1702,7 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, char *ints,
 			}
 			if (!res) {
 				if(!ast_streamfile(chan, fn, language)) {
-					if (audiofd && ctrlfd)
+					if ((audiofd > -1) && (ctrlfd > -1))
 						res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 					else
 						res = ast_waitstream(chan, ints);
@@ -1808,7 +1811,7 @@ static int ast_say_number_full_cz(struct ast_channel *chan, int num, char *ints,
 		}
 		if (!res) {
 			if(!ast_streamfile(chan, fn, language)) {
-				if (audiofd && ctrlfd) {
+				if ((audiofd > -1) && (ctrlfd > -1)) {
 					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
 				} else {
 					res = ast_waitstream(chan, ints);
@@ -1987,7 +1990,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, char *int
 					/* Between 21 and 29 - two sounds */
 					res = wait_file(chan,ints, "digits/20",lang);
 					if (!res) {
-						snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_mday - 20);
+						snprintf(nextmsg,sizeof(nextmsg), "digits/h-%d", tm.tm_mday - 20);
 						res = wait_file(chan,ints,nextmsg,lang);
 					}
 				}
@@ -2976,20 +2979,7 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, char *int
 			case 'H':
 			case 'k':
 				/* 24-Hour */
-				res = ast_say_number(chan, -tm.tm_hour, ints, lang, NULL);
-				if (!res) {
-					if (tm.tm_hour != 0) {
-						int remainder = tm.tm_hour;
-						if (tm.tm_hour > 20) {
-							res = wait_file(chan,ints, "digits/20",lang);
-							remainder -= 20;
-						}
-						if (!res) {
-							snprintf(nextmsg,sizeof(nextmsg), "digits/%d", remainder);
-							res = wait_file(chan,ints,nextmsg,lang);
-						}
-					}
-				}
+				res = ast_say_number(chan, tm.tm_hour, ints, lang, NULL);
 				break;
 			case 'M':
 				/* Minute */

@@ -62,7 +62,7 @@ typedef int (*ast_sched_cb)(void *data);
  * Schedule an event to take place at some point in the future.  callback 
  * will be called with data as the argument, when milliseconds into the
  * future (approximately)
- * Returns 0 on success, -1 on failure
+ * Returns a schedule item ID on success, -1 on failure
  */
 extern int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data);
 
@@ -101,6 +101,14 @@ extern int ast_sched_runq(struct sched_context *con);
  * Debugging: Dump the contents of the scheduler to stderr
  */
 extern void ast_sched_dump(struct sched_context *con);
+
+/*!Returns the number of seconds before an event takes place */
+/*!
+ * \param con Context to use
+ * \param id Id to dump
+ */
+extern long ast_sched_when(struct sched_context *con,int id);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -89,7 +89,9 @@ static const char	elsieid[] = "@(#)localtime.c	7.57";
 
 static char		wildabbr[] = "WILDABBR";
 
-static const char	gmt[] = "GMT";
+/* FreeBSD defines 'zone' in 'struct tm' as non-const, so don't declare this
+   string as const. */
+static char		gmt[] = "GMT";
 
 struct ttinfo {				/* time type information */
 	long		tt_gmtoff;	/* GMT offset in seconds */

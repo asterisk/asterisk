@@ -254,6 +254,6 @@ extern char ast_default_accountcode[20];
 #define ast_cdr_add_flag(cdr, flag) ((cdr)->flags |= (flag))
 #define ast_cdr_del_flag(cdr, flag) ((cdr)->flags &= ~(flag))
 
-extern void ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
+extern struct ast_cdr *ast_cdr_append(struct ast_cdr *cdr, struct ast_cdr *newcdr);
 
 #endif /* _CDR_H */

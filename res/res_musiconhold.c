@@ -224,8 +224,11 @@ static int spawn_mp3(struct mohclass *class)
 		/* Stdout goes to pipe */
 		dup2(fds[1], STDOUT_FILENO);
 		/* Close unused file descriptors */
-		for (x=3;x<8192;x++)
-			close(x);
+		for (x=3;x<8192;x++) {
+			if (-1 != fcntl(x, F_GETFL)) {
+				close(x);
+			}
+		}
 		/* Child */
 		chdir(class->dir);
 		if(class->custom) {
@@ -352,6 +355,7 @@ static int moh0_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	while(!ast_safe_sleep(chan, 10000));
+	ast_moh_stop(chan);
 	return -1;
 }
 
@@ -363,7 +367,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	if (ast_moh_start(chan, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
+		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi((char *)data), chan->name);
 		return -1;
 	}
 	res = ast_safe_sleep(chan, atoi(data) * 1000);

@@ -113,6 +113,7 @@ struct localuser {
 	int allowdisconnect_in;
 	int allowdisconnect_out;
 	int forcecallerid;
+	int noforwardhtml;
 	struct localuser *next;
 };
 
@@ -134,7 +135,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 
 #define AST_MAX_WATCHERS 256
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, int *sentringing, char *status, size_t statussize)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, int *allowredir_in, int *allowredir_out, int *allowdisconnect_in, int *allowdisconnect_out, int *noforwardhtml, int *sentringing, char *status, size_t statussize)
 {
 	struct localuser *o;
 	int found;
@@ -207,6 +208,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					*allowredir_out = o->allowredirect_out;
 					*allowdisconnect_in = o->allowdisconnect_in;
 					*allowdisconnect_out = o->allowdisconnect_out;
+					*noforwardhtml = o->noforwardhtml;
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				if (!ast_strlen_zero(o->chan->call_forward)) {
@@ -301,6 +303,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								*allowredir_out = o->allowredirect_out;
 								*allowdisconnect_in = o->allowdisconnect_in;
 								*allowdisconnect_out = o->allowdisconnect_out;
+								*noforwardhtml = o->noforwardhtml;
 							}
 							break;
 						case AST_CONTROL_BUSY:
@@ -336,13 +339,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						case AST_CONTROL_PROGRESS:
 							if (option_verbose > 2)
 								ast_verbose ( VERBOSE_PREFIX_3 "%s is making progress passing it to %s\n", o->chan->name,in->name);
-							ast_indicate(in, AST_CONTROL_PROGRESS);
+							if (!outgoing->ringbackonly)
+								ast_indicate(in, AST_CONTROL_PROGRESS);
 							break;
 						case AST_CONTROL_OFFHOOK:
 							/* Ignore going off hook */
 							break;
 						case -1:
-							if (!outgoing->ringbackonly && !outgoing->musiconhold) {
+							if (!outgoing->ringbackonly || !outgoing->musiconhold) {
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
 								ast_indicate(in, -1);
@@ -360,7 +364,14 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								!(outgoing->ringbackonly || outgoing->musiconhold)) {
 						if (ast_write(in, f))
 							ast_log(LOG_WARNING, "Unable to forward image\n");
+					} else if (single && (f->frametype == AST_FRAME_TEXT) && 
+								!(outgoing->ringbackonly || outgoing->musiconhold)) {
+						if (ast_write(in, f))
+							ast_log(LOG_WARNING, "Unable to text\n");
+					} else if (single && (f->frametype == AST_FRAME_HTML) && !outgoing->noforwardhtml) {
+						ast_channel_sendhtml(in, f->subclass, f->data, f->datalen);
 					}
+						
 					ast_frfree(f);
 				} else {
 					in->hangupcause = o->chan->hangupcause;
@@ -383,6 +394,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				/* Got hung up */
 				*to=-1;
 				strncpy(status, "CANCEL", statussize - 1);
+				if (f)
+					ast_frfree(f);
 				return NULL;
 			}
 			if (f && (f->frametype == AST_FRAME_DTMF) && *allowdisconnect_out &&
@@ -391,8 +404,13 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				ast_verbose(VERBOSE_PREFIX_3 "User hit %c to disconnect call.\n", f->subclass);
 				*to=0;
 				strcpy(status, "CANCEL");
+				ast_frfree(f);
 				return NULL;
 			}
+
+			if (single && f && (f->frametype == AST_FRAME_HTML) && !outgoing->noforwardhtml)
+				ast_channel_sendhtml(outgoing->chan, f->subclass, f->data, f->datalen);
+
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
 				if (ast_write(outgoing->chan, f))
 					ast_log(LOG_WARNING, "Unable to forward voice\n");
@@ -421,6 +439,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 	int allowredir_out=0;
 	int allowdisconnect_in=0;
 	int allowdisconnect_out=0;
+	int noforwardhtml=0;
 	int hasmacro = 0;
 	int privacy=0;
 	int announce=0;
@@ -726,6 +745,9 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			if (strchr(transfer, 'f'))
 				tmp->forcecallerid = 1;
 			else	tmp->forcecallerid = 0;
+			if (url)
+				tmp->noforwardhtml = 1;
+			else 	tmp->noforwardhtml = 0;
 		}
 		strncpy(numsubst, number, sizeof(numsubst)-1);
 		/* If we're dialing by extension, look at the extension to know what to dial */
@@ -746,6 +768,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			cur = rest;
 			continue;
 		}
+		pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", numsubst);
 		if (!ast_strlen_zero(tmp->chan->call_forward)) {
 			char tmpchan[256]="";
 			char *stuff;
@@ -879,7 +902,7 @@ static int dial_exec(struct ast_channel *chan, void *data)
 		strncpy(status, "CHANUNAVAIL", sizeof(status) - 1);
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &sentringing, status, sizeof(status));
+	peer = wait_for_answer(chan, outgoing, &to, &allowredir_in, &allowredir_out, &allowdisconnect_in, &allowdisconnect_out, &sentringing, &noforwardhtml, status, sizeof(status));
 
 	if (!peer) {
 		if (to) 
@@ -908,8 +931,11 @@ static int dial_exec(struct ast_channel *chan, void *data)
 			ast_cdr_setdestchan(chan->cdr, peer->name);
 		if (peer->name)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
-		if (numsubst)
-			pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", numsubst);
+
+		number = pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
+		if (!number)
+			number = numsubst;
+		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
  		/* JDG: sendurl */
  		if( url && !ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
@@ -1029,7 +1055,7 @@ out:
 	
 	LOCAL_USER_REMOVE(u);
 	
-	if((go_on>0) && (!chan->_softhangup))
+	if((go_on>0) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE))
 	    res=0;
 	    
 	return res;

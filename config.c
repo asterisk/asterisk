@@ -662,7 +662,7 @@ int ast_save(char *configfile, struct ast_config *cfg, char *generator)
 	if (configfile[0] == '/') {
 		strncpy(fn, configfile, sizeof(fn)-1);
 	} else {
-		snprintf(fn, sizeof(fn), "%s/%s", AST_CONFIG_DIR, configfile);
+		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, configfile);
 	}
 	time(&t);
 	strncpy(date, ctime(&t), sizeof(date) - 1);

@@ -133,10 +133,12 @@ The first line of the "general" section is always:
 
 Following the first line are a number of other possibilities:
 
-> port = <portnum>
+> bindport = <portnum>
 
-This sets the port that IAX will bind to.  The default IAX port number is 
-5036.  It is recommended that this value not be altered in general.
+This sets the port that IAX will bind to.  The default IAX version 1 
+port number is 5036.  For IAX version 2, that is now the default in
+Asterisk, the default port is 4569.
+It is recommended that this value not be altered in general.
 
 > bindaddr = <ipaddr>
 
@@ -170,12 +172,15 @@ disallow the LPC10 codec just because it doesn't sound very good.
 
 These parameters control the operation of the jitter buffer.  The 
 jitterbuffer should always be enabled unless you expect all your 
-connections to be over a LAN.  The drop count is the maximum number of 
-voice packets to allow to drop (out of 100).  Useful values are 3-10.  The 
-maxjitterbuffer is the maximum amount of jitter buffer to permit to be 
-used.  The "maxexcessbuffer" is the maximum amount of excess jitter buffer 
-that is permitted before the jitter buffer is slowly shrunk to eliminate 
-latency.
+connections to be over a LAN.  
+* drop count is the maximum number of voice packets to allow to drop 
+  (out of 100).  Useful values are 3-10.  
+* maxjitterbuffer is the maximum amount of jitter buffer to permit to be 
+  used.  
+* maxexcessbuffer is the maximum amount of excess jitter buffer 
+  that is permitted before the jitter buffer is slowly shrunk to eliminate 
+  latency.
+* minexcessbuffer is the minimum amout of excess jitter buffer
 
 > accountcode = <code>
 > amaflags = [default|omit|billing|documentation]
@@ -208,13 +213,20 @@ The name is a required field, and is the remote peer name that we wish to
 identify ourselves as.  A secret may be provided as well.  The secret is 
 generally a shared password between the local server and the remote 
 server.  However, if the secret is in square brackets ([]'s) then it is 
-interpreted as the name of a key to use.  In that case, the local Asterisk 
+interpreted as the name of a RSA key to use.  In that case, the local Asterisk 
 server must have the *private* key (/var/lib/asterisk/keys/<name>.key) and 
 the remote server will have to have the corresponding public key.
 
 The "host" is a required field and is the hostname or IP address of the 
 remote Asterisk server.  The port specification is optional and is by 
-default 5036 if not specified.
+default 4569 for iax2 if not specified.
+
+> notransfer = yes | no
+
+If an IAX phone calls another IAX phone by using a Asterisk server, 
+Asterisk will transfer the call to go peer to peer. If you do not
+want this, turn on notransfer with a "yes". This is also settable
+for peers and users.
 
 -------------
 
@@ -232,7 +244,7 @@ should be an alphanumeric string.
 > type = [user|peer|friend]
 
 This line tells Asterisk how to interpret this entity.  Users are things 
-that connect to us, while peers are people we connect to, and a friend is 
+that connect to us, while peers are phones we connect to, and a friend is 
 shorthand for creating a user and a peer with identical information
 
 ----------------
@@ -262,8 +274,8 @@ the final result being the decision.  For example:
 would deny anyone in 192.168.0.0 with a netmask of 24 bits (class C), 
 whereas:
 
-> deny = 192.168.0.0/255.255.255.0
-> permit = 0.0.0.0/0.0.0.0
+> deny = 192.168.0.0/24
+> permit = 0.0.0.0/0
 
 would not deny anyone since the final rule would permit anyone, thus 
 overriding the denial.  
@@ -281,8 +293,8 @@ perspective of your server.
 
 You may select which authentication methods are permitted to be used by 
 the user to authenticate to us.  Multiple methods may be specified, 
-separated by commas.  If md5 or plaintext authentication is selected, a 
-secret must be provided.  If RSA authentication is specified, then one or 
+separated by commas. If md5 or plaintext authentication is selected, a 
+secret must be provided. If RSA authentication is specified, then one or 
 more key names must be specified with "inkeys"
 
 If no secret is specified and no authentication method is specified, then 
@@ -328,3 +340,30 @@ or has timed out.
 Specifies the context name to be passed to the peer for it to use when routing
 the call through its dial plan. This entry will be used only if a context
 is not included in the IAX2 channel name passed to the Dial command.
+
+> qualify = [yes | no | <value>]
+
+Qualify turns on checking of availability of the remote peer. If the 
+peer becomes unavailable, no calls are placed to the peer until
+it is reachable again. This is also helpful in certain NAT situations.
+
+> jitterbuffer = [yes | no]
+
+Turns on or off the jitterbuffer for this peer
+
+> mailbox = <mailbox>[@mailboxcontext]
+
+Specifies a mailbox to check for voicemail notification.
+
+> permit = <ipaddr>/<netmask>
+> deny = <ipaddr>/<netmask>
+
+Permit and deny rules may be applied to users, allowing them to connect 
+from certain IP addresses and not others.  The permit and deny rules are 
+interpreted in sequence and all are evaluated on a given IP address, with 
+the final result being the decision.  See the user section above 
+for examples.
+
+----------------------------------------------------------------------
+For more examples of a configuration, please see the iax.conf.sample in
+your the /configs directory of you source code distribution

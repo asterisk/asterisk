@@ -38,6 +38,7 @@
 #include <asterisk/pbx.h>
 #include <asterisk/module.h>
 #include <asterisk/lock.h>
+#include <asterisk/utils.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -70,7 +71,7 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	char vmpath[256], *input, *varname = NULL, *vmbox, *vmfolder = "INBOX", *context = "default";
+	char vmpath[256], *temps, *input, *varname = NULL, *vmbox, *vmfolder = "INBOX", *context = "default";
 	DIR *vmdir;
 	struct dirent *vment;
 	int vmcount = 0;
@@ -83,21 +84,22 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 
 	input = ast_strdupa((char *)data);
 	if (input) {
-		if ((vmbox = strsep(&input,":")))
-			if ((vmfolder = strsep(&input,"|")))
+		temps = input;
+		if ((temps = strsep(&input, "|"))) {
+			if (input && !ast_strlen_zero(input))
 				varname = input;
-			else
-				vmfolder = input;
-		else
-			if ((vmbox = strsep(&input,"|")))
-				varname = input;
-			else
-				vmbox = input;
-
-		if (index(vmbox,'@')) {
-			context = vmbox;
-			vmbox = strsep(&context,"@");
+			input = temps;
 		}
+		if ((temps = strsep(&input, ":"))) {
+			if (input && !ast_strlen_zero(input))
+				vmfolder = input;
+			input = temps;
+		}
+		if ((vmbox = strsep(&input, "@")))
+			if (input && !ast_strlen_zero(input))
+				context = input;
+		if (!vmbox)
+			vmbox = input;
 
 		snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, vmbox, vmfolder);
 		if (!(vmdir = opendir(vmpath))) {
