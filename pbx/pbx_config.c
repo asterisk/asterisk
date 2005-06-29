@@ -1687,15 +1687,10 @@ static int pbx_load_module(void)
 								else
 									data = "";
 							}
-							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext)-1);	
-							cidmatch = strchr(ext, '/');
-							if (cidmatch) {
-								*cidmatch = '\0';
-								cidmatch++;
-							}
-							stringp=ext;
-							strsep(&stringp, "/");
-
+							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext)-1);
+							stringp = realext;
+							ext = strsep(&stringp, "/");
+							cidmatch = stringp;
 							if (!data)
 								data="";
 							while(*appl && (*appl < 33)) appl++;
