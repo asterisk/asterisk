@@ -31,7 +31,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_FACILITY_ENABLE
+#ifndef PRI_PROGRESS_CAUSE
 #error "You need newer libpri"
 #endif
 #endif
@@ -7631,6 +7631,21 @@ static int pri_hangup_all(struct zt_pvt *p, struct zt_pri *pri)
 	ast_mutex_lock(&pri->lock);
 	return 0;
 }
+char * redirectingreason2str(int redirectingreason)
+{
+	switch (redirectingreason) {
+	case 0:
+		return "UNKNOWN";
+	case 1:
+		return "BUSY";
+	case 2:
+		return "NO_REPLY";
+	case 0xF:
+		return "UNCONDITIONAL";
+	default:
+		return "NOREDIRECT";
+	}
+}
 
 static void *pri_dchannel(void *vpri)
 {
@@ -8174,27 +8189,8 @@ static void *pri_dchannel(void *vpri)
 							}
 							snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
-							if (e->ring.redirectingreason >= 0) {
-								char redirstr[20] = "";
-								switch (e->ring.redirectingreason) {
-								case 0:
-									snprintf(redirstr, sizeof(redirstr), "UNKNOWN");
-									break;
-								case 1:
-									snprintf(redirstr, sizeof(redirstr), "BUSY");
-									break;
-								case 2:
-									snprintf(redirstr, sizeof(redirstr), "NO_REPLY");
-									break;
-								case 0xF:
-									snprintf(redirstr, sizeof(redirstr), "UNCONDITIONAL"); /* Other reason */
-									break;
-								default:
-									snprintf(redirstr, sizeof(redirstr), "NOREDIRECT");
-									break;
-								}
-								pbx_builtin_setvar_helper(c, "PRIREDIRECTCAUSE", redirstr);
-							}
+							if (e->ring.redirectingreason >= 0)
+								pbx_builtin_setvar_helper(c, "PRIREDIRECTCAUSE", redirectingreason2str(e->ring.redirectingreason));
 							
 							ast_mutex_lock(&pri->lock);
 							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
@@ -8226,6 +8222,9 @@ static void *pri_dchannel(void *vpri)
 								if (!ast_strlen_zero(e->ring.useruserinfo)) {
 									pbx_builtin_setvar_helper(c, "USERUSERINFO", e->ring.useruserinfo);
 								}
+								if (e->ring.redirectingreason >= 0)
+									pbx_builtin_setvar_helper(c, "PRIREDIRECTCAUSE", redirectingreason2str(e->ring.redirectingreason));
+							
 								snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
 								pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 								if (option_verbose > 2)
@@ -8301,6 +8300,22 @@ static void *pri_dchannel(void *vpri)
 					if ((pri->overlapdial && !pri->pvts[chanpos]->proceeding) || (e->proceeding.progress == 8)) {
 #endif
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
+
+						if (e->proceeding.cause > -1) {
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "PROGRESS with cause code %d received\n", e->proceeding.cause);
+
+							/* Work around broken, out of spec USER_BUSY cause in a progress message */
+							if (e->proceeding.cause == AST_CAUSE_USER_BUSY) {
+								if (pri->pvts[chanpos]->owner) {
+									if (option_verbose > 2)
+										ast_verbose(VERBOSE_PREFIX_3 "PROGRESS with 'user busy' received, signaling AST_CONTROL_BUSY instead of AST_CONTROL_PROGRESS\n");
+
+									pri->pvts[chanpos]->owner->hangupcause = e->proceeding.cause;
+									f.subclass = AST_CONTROL_BUSY;
+								}
+							}
+						}
 						
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
 						ast_log(LOG_DEBUG, "Queuing frame from PRI_EVENT_PROGRESS on channel %d/%d span %d\n",
