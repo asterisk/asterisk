@@ -496,6 +496,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	char source[OSP_MAX] = ""; /* Same length as osp->source */
 	char uniqueid[32] = "";
 	char callednum[2048]="";
+	char callingnum[2048]="";
 	char destination[2048]="";
 	char token[2000];
 	char tmp[256]="", *l, *n;
@@ -559,7 +560,8 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 					tokenlen = sizeof(token);
 					result->numresults = counts - 1;
 					if (!OSPPTransactionGetFirstDestination(result->handle, 0, NULL, NULL, &timelimit, &callidlen, uniqueid, 
-						sizeof(callednum), callednum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
+										sizeof(callednum), callednum, sizeof(callingnum), callingnum,
+										sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
 						ast_log(LOG_DEBUG, "Got destination '%s' and '%s' for '%s' (provider '%s')\n",
 							destination, callednum, extension, provider);
 						do {
@@ -583,8 +585,10 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 								}
 								if (!res && result->numresults) {
 									result->numresults--;
-									if (OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, uniqueid, 
-											sizeof(callednum), callednum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
+									if (OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0,
+													      NULL, NULL, &timelimit, &callidlen, uniqueid, 
+													      sizeof(callednum), callednum, sizeof(callingnum), callingnum,
+													      sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
 											break;
 									}
 								}
@@ -624,6 +628,7 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 	unsigned int callidlen;
 	char uniqueid[32] = "";
 	char callednum[2048]="";
+	char callingnum[2048]="";
 	char destination[2048]="";
 	char token[2000];
 	OSPE_DEST_PROT prot;
@@ -639,8 +644,10 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 			tokenlen = sizeof(token);
 			while(!res && result->numresults) {
 				result->numresults--;
-				if (!OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, uniqueid, 
-									sizeof(callednum), callednum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
+				if (!OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL,
+								       &timelimit, &callidlen, uniqueid, 
+								       sizeof(callednum), callednum, sizeof(callingnum), callingnum,
+								       sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
 					ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
 					if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
 						res = 1;
@@ -700,10 +707,21 @@ int ast_osp_terminate(int handle, int cause, time_t start, time_t duration)
 	unsigned int dummy = 0;
 	int res = -1;
 	enum OSPEFAILREASON reason;
+
+	time_t endTime = 0;
+	time_t alertTime = 0;
+	time_t connectTime = 0;
+	unsigned isPddInfoPresent = 0;
+	unsigned pdd = 0;
+	unsigned releaseSource = 0;
+	unsigned char *confId = "";
+
 	reason = cause2reason(cause);
 	if (OSPPTransactionRecordFailure(handle, reason))
 		ast_log(LOG_WARNING, "Failed to record call termination for handle %d\n", handle);
-	else if (OSPPTransactionReportUsage(handle, duration, start, 0, 0, 0, 0, &dummy, NULL))
+	else if (OSPPTransactionReportUsage(handle, duration, start,
+			       endTime,alertTime,connectTime,isPddInfoPresent,pdd,releaseSource,confId,
+		       	       0, 0, 0, 0, &dummy, NULL))
 		ast_log(LOG_WARNING, "Failed to report duration for handle %d\n", handle);
 	else {
 		ast_log(LOG_DEBUG, "Completed recording handle %d\n", handle);
