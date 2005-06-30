@@ -286,20 +286,24 @@ static struct ast_generator moh_file_stream =
 static int spawn_mp3(struct mohclass *class)
 {
 	int fds[2];
-	int files=0;
+	int files = 0;
 	char fns[MAX_MP3S][80];
 	char *argv[MAX_MP3S + 50];
 	char xargs[256];
 	char *argptr;
 	int argc = 0;
-	DIR *dir;
+	DIR *dir = NULL;
 	struct dirent *de;
 
 	
-	dir = opendir(class->dir);
-	if (!dir && !strstr(class->dir,"http://") && !strstr(class->dir,"HTTP://")) {
-		ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
-		return -1;
+	if (!strcasecmp(class->dir, "nodir")) {
+		files = 1;
+	} else {
+		dir = opendir(class->dir);
+		if (!dir && !strstr(class->dir,"http://") && !strstr(class->dir,"HTTP://")) {
+			ast_log(LOG_WARNING, "%s is not a valid directory\n", class->dir);
+			return -1;
+		}
 	}
 
 	if (!ast_test_flag(class, MOH_CUSTOM)) {
@@ -347,12 +351,12 @@ static int spawn_mp3(struct mohclass *class)
 		}
 	}
 
-	files = 0;
+
 	if (strstr(class->dir,"http://") || strstr(class->dir,"HTTP://")) {
 		strncpy(fns[files], class->dir, sizeof(fns[files]) - 1);
 		argv[argc++] = fns[files];
 		files++;
-	} else {
+	} else if (dir) {
 		while ((de = readdir(dir)) && (files < MAX_MP3S)) {
 			if ((strlen(de->d_name) > 3) && 
 			    ((ast_test_flag(class, MOH_CUSTOM) && 
@@ -366,8 +370,9 @@ static int spawn_mp3(struct mohclass *class)
 		}
 	}
 	argv[argc] = NULL;
-	closedir(dir);
-	
+	if (dir) {
+		closedir(dir);
+	}
 	if (pipe(fds)) {	
 		ast_log(LOG_WARNING, "Pipe failed\n");
 		return -1;
