@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.25 06/14/05
+ *  version 0.26 07/02/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -159,7 +159,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.25  06/14/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.26  07/02/2005";
 
 static char *app = "Rpt";
 
@@ -3206,6 +3206,8 @@ char cmd[MAXDTMF+1] = "";
 	{
 		myrpt->txchannel = myrpt->rxchannel;
 	}
+	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_KEY);
+	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
 	/* allocate a pseudo-channel thru asterisk */
 	myrpt->pchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
 	if (!myrpt->pchannel)
