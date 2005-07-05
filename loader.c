@@ -450,35 +450,53 @@ static const char *loadorder[] =
 	NULL,
 };
 
-int load_modules()
+int load_modules(const int preload_only)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	char tmp[80];
-	if (option_verbose) 
-		ast_verbose( "Asterisk Dynamic Loader Starting:\n");
+
+	if (option_verbose) {
+		if (preload_only)
+			ast_verbose("Asterisk Dynamic Loader loading preload modules:\n");
+		else
+			ast_verbose("Asterisk Dynamic Loader Starting:\n");
+	}
+
 	cfg = ast_config_load(AST_MODULE_CONFIG);
 	if (cfg) {
+		int doload;
+
 		/* Load explicitly defined modules */
-		v = ast_variable_browse(cfg, "modules");
-		while(v) {
-			if (!strcasecmp(v->name, "load")) {
+		for (v = ast_variable_browse(cfg, "modules"); v; v = v->next) {
+			doload = 0;
+
+			if (preload_only)
+				doload = !strcasecmp(v->name, "preload");
+			else
+				doload = !strcasecmp(v->name, "load");
+
+		       if (doload) {
 				if (option_debug && !option_verbose)
 					ast_log(LOG_DEBUG, "Loading module %s\n", v->value);
 				if (option_verbose) {
-					ast_verbose( VERBOSE_PREFIX_1 "[%s]", term_color(tmp, v->value, COLOR_BRWHITE, 0, sizeof(tmp)));
+					ast_verbose(VERBOSE_PREFIX_1 "[%s]", term_color(tmp, v->value, COLOR_BRWHITE, 0, sizeof(tmp)));
 					fflush(stdout);
 				}
 				if (__load_resource(v->value, cfg)) {
 					ast_log(LOG_WARNING, "Loading module %s failed!\n", v->value);
-					if (cfg)
-						ast_config_destroy(cfg);
+					ast_config_destroy(cfg);
 					return -1;
 				}
 			}
-			v=v->next;
 		}
 	}
+
+	if (preload_only) {
+		ast_config_destroy(cfg);
+		return 0;
+	}
+
 	if (!cfg || ast_true(ast_variable_retrieve(cfg, "modules", "autoload"))) {
 		/* Load all modules */
 		DIR *mods;

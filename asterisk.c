@@ -2081,6 +2081,11 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	/* load 'preload' modules, required for access to Realtime-mapped configuration files */
+	if (load_modules(1)) {
+		printf(term_quit());
+		exit(1);
+	}
 	ast_channels_init();
 	if (init_manager()) {
 		printf(term_quit());
@@ -2103,7 +2108,7 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
-	if (load_modules()) {
+	if (load_modules(0)) {
 		printf(term_quit());
 		exit(1);
 	}

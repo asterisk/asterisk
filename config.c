@@ -787,8 +787,18 @@ void read_config_maps(void)
 		database = strsep(&stringp, ",");
 		table = strsep(&stringp, ",");
 			
-		if (!strcmp(v->name, extconfig_conf) || !strcmp(v->name, "asterisk.conf")) {
-			ast_log(LOG_WARNING, "Cannot bind asterisk.conf or extconfig.conf!\n");
+		if (!strcmp(v->name, extconfig_conf)) {
+			ast_log(LOG_WARNING, "Cannot bind '%s'!\n", extconfig_conf);
+			continue;
+		}
+
+		if (!strcmp(v->name, "asterisk.conf")) {
+			ast_log(LOG_WARNING, "Cannot bind 'asterisk.conf'!\n");
+			continue;
+		}
+
+		if (!strcmp(v->name, "logger.conf")) {
+			ast_log(LOG_WARNING, "Cannot bind 'logger.conf'!\n");
 			continue;
 		}
 

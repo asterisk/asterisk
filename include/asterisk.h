@@ -34,7 +34,7 @@ extern char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
 
 /* Provided by module.c */
-extern int load_modules(void);
+extern int load_modules(const int preload_only);
 /* Provided by pbx.c */
 extern int load_pbx(void);
 /* Provided by logger.c */

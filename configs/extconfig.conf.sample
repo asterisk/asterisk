@@ -18,7 +18,19 @@
 ;uncomment to load queues.conf via the odbc engine.
 ;
 ;queues.conf => odbc,asterisk,ast_config
-
+;
+; The following files CANNOT be loaded from Realtime storage:
+;	asterisk.conf
+;	extconfig.conf (this file)
+;	logger.conf
+;
+; Additionally, the following files cannot be loaded from
+; Realtime storage unless the storage driver is loaded
+; early using 'preload' statements in modules.conf:
+;	manager.conf
+;	cdr.conf
+;	rtp.conf
+;
 ;
 ; Realtime configuration engine
 ;
