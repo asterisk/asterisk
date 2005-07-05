@@ -580,6 +580,8 @@ bininstall: all
 	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 asterisk.8.gz $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
+	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
+	install -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
 	if [ -d contrib/firmware/iax ]; then \
 		install -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
 	else \
