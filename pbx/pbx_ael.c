@@ -1189,7 +1189,6 @@ static int pbx_load_module(void)
 	ast_merge_contexts_and_delete(&local_contexts, registrar);
 	for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
 		ast_context_verify_includes(con);
-	pbx_set_autofallthrough(1);
 
 #if 0
 		v = ast_variable_browse(cfg, "globals");
