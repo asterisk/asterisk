@@ -3,6 +3,13 @@
 #
 
 OSTYPE=$(shell uname -s)
+cygx="$(shell uname -s | sed -e c\cygwin | tr [:upper:] [:lower:])"
+define cyg_subst_sys
+	if [ $(cygx) = "cygwin" ]; then \
+	cat $@ | sed -e s/"sys\.h"/"config.h"/g > $@.copy; \
+	mv --force $@.copy $@; \
+	fi
+endef
 
 SHELL = /bin/sh
 
@@ -184,7 +191,7 @@ $(LIB_A) : $(BGCSRCS:.c=.o_a) $(CCSRCS:.c=.o_a)
 	$(RANLIB) $@
 
 $(LIB_S) : $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s)
-	$(CC) $(S_LDFLAGS) -o $@ $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s)
+	$(CC) $(S_LDFLAGS) -o $@ $(BGCSRCS:.c=.o_s) $(CCSRCS:.c=.o_s) $(LIBS)
 
 $(TEST) : $(TCSRCS:.c=.o) $(LIB_A)
 	$(CC) -o $@ $(TCSRCS:.c=.o) $(LIB_A) $(LIBS)
@@ -203,12 +210,14 @@ fcns.h : $(AGHDRS)
 
 fcns.c : $(AGHDRS) fcns.h
 	$(SHELL) makelist -fc $(AGHDRS) > $@
+	$(cyg_subst_sys)
 
 help.h : $(ACSRCS)
 	$(SHELL) makelist -bh $(ACSRCS) > $@
 
 help.c : $(ACSRCS) help.h
 	$(SHELL) makelist -bc $(ACSRCS) > $@
+	$(cyg_subst_sys)
 
 editline.c : $(ACSRCS) $(BCSRCS) $(AGCSRCS)
 	$(SHELL) makelist -e $(ACSRCS) $(BCSRCS) $(AGCSRCS) > $@

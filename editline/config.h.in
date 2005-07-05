@@ -1,4 +1,5 @@
 #undef SUNOS
+#undef CYGWIN
 
 #undef HAVE_SYS_CDEFS_H
 #undef HAVE_TERMCAP_H
@@ -15,3 +16,6 @@
 #undef HAVE_STRUNVIS
 
 #include "sys.h"
+#ifdef CYGWIN
+# include "cygdef.h"
+#endif
