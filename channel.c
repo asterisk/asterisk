@@ -91,6 +91,57 @@ static struct ast_channel *channels = NULL;
  */
 AST_MUTEX_DEFINE_STATIC(chlock);
 
+const struct ast_cause {
+	int cause;
+	const char *desc;
+} causes[] = {
+	{ AST_CAUSE_UNALLOCATED, "Unallocated (unassigned) number" },
+	{ AST_CAUSE_NO_ROUTE_TRANSIT_NET, "No route to specified transmit network" },
+	{ AST_CAUSE_NO_ROUTE_DESTINATION, "No route to destination" },
+	{ AST_CAUSE_CHANNEL_UNACCEPTABLE, "Channel unacceptable" },
+	{ AST_CAUSE_CALL_AWARDED_DELIVERED, "Call awarded and being delivered in an established channel" },
+	{ AST_CAUSE_NORMAL_CLEARING, "Normal Clearing" },
+	{ AST_CAUSE_USER_BUSY, "User busy" },
+	{ AST_CAUSE_NO_USER_RESPONSE, "No user responding" },
+	{ AST_CAUSE_NO_ANSWER, "User alerting, no answer" },
+	{ AST_CAUSE_CALL_REJECTED, "Call Rejected" },
+	{ AST_CAUSE_NUMBER_CHANGED, "Number changed" },
+	{ AST_CAUSE_DESTINATION_OUT_OF_ORDER, "Destination out of order" },
+	{ AST_CAUSE_INVALID_NUMBER_FORMAT, "Invalid number format" },
+	{ AST_CAUSE_FACILITY_REJECTED, "Facility rejected" },
+	{ AST_CAUSE_RESPONSE_TO_STATUS_ENQUIRY, "Response to STATus ENQuiry" },
+	{ AST_CAUSE_NORMAL_UNSPECIFIED, "Normal, unspecified" },
+	{ AST_CAUSE_NORMAL_CIRCUIT_CONGESTION, "Circuit/channel congestion" },
+	{ AST_CAUSE_NETWORK_OUT_OF_ORDER, "Network out of order" },
+	{ AST_CAUSE_NORMAL_TEMPORARY_FAILURE, "Temporary failure" },
+	{ AST_CAUSE_SWITCH_CONGESTION, "Switching equipment congestion" },
+	{ AST_CAUSE_ACCESS_INFO_DISCARDED, "Access information discarded" },
+	{ AST_CAUSE_REQUESTED_CHAN_UNAVAIL, "Requested channel not available" },
+	{ AST_CAUSE_PRE_EMPTED, "Pre-empted" },
+	{ AST_CAUSE_FACILITY_NOT_SUBSCRIBED, "Facility not subscribed" },
+	{ AST_CAUSE_OUTGOING_CALL_BARRED, "Outgoing call barred" },
+	{ AST_CAUSE_INCOMING_CALL_BARRED, "Incoming call barred" },
+	{ AST_CAUSE_BEARERCAPABILITY_NOTAUTH, "Bearer capability not authorized" },
+	{ AST_CAUSE_BEARERCAPABILITY_NOTAVAIL, "Bearer capability not available" },
+	{ AST_CAUSE_BEARERCAPABILITY_NOTIMPL, "Bearer capability not implemented" },
+	{ AST_CAUSE_CHAN_NOT_IMPLEMENTED, "Channel not implemented" },
+	{ AST_CAUSE_FACILITY_NOT_IMPLEMENTED, "Facility not implemented" },
+	{ AST_CAUSE_INVALID_CALL_REFERENCE, "Invalid call reference value" },
+	{ AST_CAUSE_INCOMPATIBLE_DESTINATION, "Incompatible destination" },
+	{ AST_CAUSE_INVALID_MSG_UNSPECIFIED, "Invalid message unspecified" },
+	{ AST_CAUSE_MANDATORY_IE_MISSING, "Mandatory information element is missing" },
+	{ AST_CAUSE_MESSAGE_TYPE_NONEXIST, "Message type nonexist." },
+	{ AST_CAUSE_WRONG_MESSAGE, "Wrong message" },
+	{ AST_CAUSE_IE_NONEXIST, "Info. element nonexist or not implemented" },
+	{ AST_CAUSE_INVALID_IE_CONTENTS, "Invalid information element contents" },
+	{ AST_CAUSE_WRONG_CALL_STATE, "Message not compatible with call state" },
+	{ AST_CAUSE_RECOVERY_ON_TIMER_EXPIRE, "Recover on timer expiry" },
+	{ AST_CAUSE_MANDATORY_IE_LENGTH_ERROR, "Mandatory IE length error" },
+	{ AST_CAUSE_PROTOCOL_ERROR, "Protocol error, unspecified" },
+	{ AST_CAUSE_INTERWORKING, "Interworking, unspecified" },
+};
+
+
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
 #define FORMAT  "%-10.10s  %-50.50s %-12.12s\n"
@@ -242,6 +293,18 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 
 	ast_mutex_unlock(&chlock);
 	return 0;
+}
+
+/*--- ast_cause2str: Gives the string form of a given hangup cause */
+const char *ast_cause2str(int cause)
+{
+	int x;
+
+	for (x=0; x < sizeof(causes) / sizeof(causes[0]); x++) 
+		if (causes[x].cause == cause)
+			return causes[x].desc;
+
+	return "Unknown";
 }
 
 /*--- ast_state2str: Gives the string form of a given channel state */

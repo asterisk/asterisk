@@ -172,7 +172,7 @@ static char defaultcic[64] = "";
 static char defaultozz[64] = "";
 
 static char language[MAX_LANGUAGE] = "";
-static char musicclass[MAX_LANGUAGE] = "";
+static char musicclass[MAX_MUSICCLASS] = "";
 static char progzone[10]= "";
 
 static int usedistinctiveringdetection = 0;
@@ -566,7 +566,7 @@ static struct zt_pvt {
 	char defcontext[AST_MAX_EXTENSION];
 	char exten[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
-	char musicclass[MAX_LANGUAGE];
+	char musicclass[MAX_MUSICCLASS];
 	char cid_num[AST_MAX_EXTENSION];
 	int cid_ton;					/* Type Of Number (TON) */
 	char cid_name[AST_MAX_EXTENSION];

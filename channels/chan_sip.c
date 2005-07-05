@@ -347,7 +347,7 @@ static int compactheaders = 0;				/* send compact sip headers */
 
 static int recordhistory = 0;				/* Record SIP history. Off by default */
 
-static char global_musicclass[MAX_LANGUAGE] = "";	/* Global music on hold class */
+static char global_musicclass[MAX_MUSICCLASS] = "";	/* Global music on hold class */
 #define DEFAULT_REALM	"asterisk"
 static char global_realm[MAXHOSTNAMELEN] = DEFAULT_REALM; 	/* Default realm */
 static char regcontext[AST_MAX_EXTENSION] = "";		/* Context for auto-extensions */
@@ -521,7 +521,7 @@ static struct sip_pvt {
 	char fromname[AST_MAX_EXTENSION];	/* Name to show in the user field */
 	char tohost[MAXHOSTNAMELEN];		/* Host we should put in the "to" field */
 	char language[MAX_LANGUAGE];		/* Default language for this call */
-	char musicclass[MAX_LANGUAGE];          /* Music on Hold class */
+	char musicclass[MAX_MUSICCLASS];          /* Music on Hold class */
 	char rdnis[256];			/* Referring DNIS */
 	char theirtag[256];			/* Their tag */
 	char username[256];			/* [user] name */
@@ -604,7 +604,7 @@ struct sip_user {
 	char cid_name[80];		/* Caller ID name */
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/* Account code */
 	char language[MAX_LANGUAGE];	/* Default language for this user */
-	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
+	char musicclass[MAX_MUSICCLASS];/* Music on Hold class */
 	char useragent[256];		/* User agent in SIP request */
 	struct ast_codec_pref prefs;	/* codec prefs */
 	ast_group_t callgroup;		/* Call group */
@@ -648,7 +648,7 @@ struct sip_peer {
 	int outgoinglimit;		/* disabled */
 	char mailbox[AST_MAX_EXTENSION]; /* Mailbox setting for MWI checks */
 	char language[MAX_LANGUAGE];	/* Default language for prompts */
-	char musicclass[MAX_LANGUAGE];  /* Music on Hold class */
+	char musicclass[MAX_MUSICCLASS];/* Music on Hold class */
 	char useragent[256];		/* User agent in SIP request (saved from registration) */
 	struct ast_codec_pref prefs;	/* codec prefs */
 	int lastmsgssent;

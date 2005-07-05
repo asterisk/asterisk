@@ -47,6 +47,7 @@ extern "C" {
 
 #define MAX_LANGUAGE 20
 
+#define MAX_MUSICCLASS 20
 
 #define AST_MAX_FDS 8
 
@@ -186,7 +187,7 @@ struct ast_channel {
 	int fds[AST_MAX_FDS];			
 
 	/*! Default music class */
-	char musicclass[MAX_LANGUAGE];
+	char musicclass[MAX_MUSICCLASS];
 	/*! Music State*/
 	void *music_state;
 	/*! Current generator data if there is any */
@@ -828,6 +829,14 @@ int ast_channel_bridge(struct ast_channel *c0,struct ast_channel *c1,struct ast_
    p->owner pointer) that is affected by the change.  The physical layer of the original
    channel is hung up.  */
 int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clone);
+
+/*! Gives the string form of a given cause code */
+/*! 
+ * \param cause cause to get the description of
+ * Give a name to a cause code
+ * Returns the text form of the binary cause code given
+ */
+const char *ast_cause2str(int state);
 
 /*! Gives the string form of a given channel state */
 /*! 

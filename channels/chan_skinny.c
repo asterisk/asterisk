@@ -674,7 +674,7 @@ static pthread_t tcp_thread;
 static pthread_t accept_t;
 static char context[AST_MAX_EXTENSION] = "default";
 static char language[MAX_LANGUAGE] = "";
-static char musicclass[MAX_LANGUAGE] = "";
+static char musicclass[MAX_MUSICCLASS] = "";
 static char cid_num[AST_MAX_EXTENSION] = "";
 static char cid_name[AST_MAX_EXTENSION] = "";
 static char linelabel[AST_MAX_EXTENSION] ="";
@@ -823,7 +823,7 @@ struct skinny_line {
 	char lastcallerid[AST_MAX_EXTENSION];		/* Last Caller*ID */
 	char call_forward[AST_MAX_EXTENSION];	
 	char mailbox[AST_MAX_EXTENSION];
-	char musicclass[MAX_LANGUAGE];
+	char musicclass[MAX_MUSICCLASS];
 	int curtone;					/* Current tone being played */
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;

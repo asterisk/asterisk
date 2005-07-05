@@ -974,7 +974,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		tmp->chan = ast_request(tech, chan->nativeformats, numsubst, &cause);
 		if (!tmp->chan) {
 			/* If we can't, just go on to the next call */
-			ast_log(LOG_NOTICE, "Unable to create channel of type '%s' (cause %d)\n", tech, cause);
+			ast_log(LOG_NOTICE, "Unable to create channel of type '%s' (cause %d - %s)\n", tech, cause, ast_cause2str(cause));
 			HANDLE_CAUSE(cause, chan);
 			cur = rest;
 			continue;

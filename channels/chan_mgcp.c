@@ -164,7 +164,7 @@ static char *mgcp_cxmodes[] = {
 static char context[AST_MAX_EXTENSION] = "default";
 
 static char language[MAX_LANGUAGE] = "";
-static char musicclass[MAX_LANGUAGE] = "";
+static char musicclass[MAX_MUSICCLASS] = "";
 static char cid_num[AST_MAX_EXTENSION] = "";
 static char cid_name[AST_MAX_EXTENSION] = "";
 
@@ -375,7 +375,7 @@ struct mgcp_endpoint {
 	char lastcallerid[AST_MAX_EXTENSION];	/* Last Caller*ID */
 	char call_forward[AST_MAX_EXTENSION];	/* Last Caller*ID */
 	char mailbox[AST_MAX_EXTENSION];
-	char musicclass[MAX_LANGUAGE];
+	char musicclass[MAX_MUSICCLASS];
 	char curtone[80];			/* Current tone */
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
