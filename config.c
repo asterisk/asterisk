@@ -852,32 +852,30 @@ int ast_config_engine_deregister(struct ast_config_engine *del)
 
 static struct ast_config_engine *find_engine(const char *filename, char *database, int dbsiz, char *table, int tabsiz) 
 {
-	struct ast_config_engine *eng, *ret=NULL;
+	struct ast_config_engine *eng, *ret = NULL;
 	struct ast_config_map *map;
 
 	ast_mutex_lock(&config_lock);
 
-	map = config_maps;
-	while (map) {
+	for (map = config_maps; map; map = map->next) {
 		if (!strcasecmp(filename, map->name)) {
-			strncpy(database, map->database, dbsiz-1);
-			if (map->table)
-				strncpy(table, map->table, tabsiz-1);
-			else
-				strncpy(table, filename, tabsiz-1);
+			ast_copy_string(database, map->database, dbsiz);
+			ast_copy_string(table, map->table ? map->table : filename, tabsiz);
 			break;
 		}
-		map = map->next;
 	}
 	if (map) {
-		for (eng = config_engine_list; eng; eng = eng->next) {
-			if (!strcmp(eng->name, map->driver)) {
+		for (eng = config_engine_list; !ret && eng; eng = eng->next) {
+			if (!strcasecmp(eng->name, map->driver))
 				ret = eng;
-				break;
-			}
 		}
 	}
+
 	ast_mutex_unlock(&config_lock);
+	
+	/* if we found a mapping, but the engine is not available, then issue a warning */
+	if (map && !ret)
+		ast_log(LOG_WARNING, "Mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
 
 	return ret;
 }
