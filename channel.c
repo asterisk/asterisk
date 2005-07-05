@@ -1716,7 +1716,7 @@ char *ast_recvtext(struct ast_channel *chan, int timeout)
 		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP)
 			done = 1;	/* force a break */
 		else if (f->frametype == AST_FRAME_TEXT) {	/* what we want */
-			buf = strdup((char *)f->data);	/* dup and break */
+			buf = strndup((char *)f->data, f->datalen);	/* dup and break */
 			done = 1;
 		}
 		ast_frfree(f);
