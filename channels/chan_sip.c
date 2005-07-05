@@ -707,7 +707,7 @@ struct sip_registry {
 	char contact[256];		/* Contact extension */
 	char random[80];
 	int expire;			/* Sched ID of expiration */
-	int regattempts;		/* Number of attempts */
+	int regattempts;		/* Number of attempts (since the last success) */
 	int timeout; 			/* sched id of sip_reg_timeout */
 	int refresh;			/* How often to refresh */
 	struct sip_pvt *call;		/* create a sip_pvt structure for each outbound "registration call" in progress */
@@ -4699,7 +4699,7 @@ static int sip_reg_timeout(void *data)
 
 	ast_log(LOG_NOTICE, "   -- Registration for '%s@%s' timed out, trying again (Attempt #%d)\n", r->username, r->hostname, r->regattempts); 
 	if (r->call) {
-		/* Unlink us, destroy old call.  Locking is not relevent here because all this happens
+		/* Unlink us, destroy old call.  Locking is not relevant here because all this happens
 		   in the single SIP manager thread. */
 		p = r->call;
 		if (p->registry)
@@ -4715,6 +4715,7 @@ static int sip_reg_timeout(void *data)
 		/* Ok, enough is enough. Don't try any more */
 		/* We could add an external notification here... 
 			steal it from app_voicemail :-) */
+		ast_log(LOG_NOTICE, "   -- Giving up forever trying to register '%s@%s'\n", r->username, r->hostname);
 		r->regstate=REG_STATE_FAILED;
 	} else {
 		r->regstate=REG_STATE_UNREGISTERED;
@@ -4775,12 +4776,11 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 				ast_log(LOG_WARNING, "Still have a registration timeout for %s@%s (create_addr() error), %d\n", r->username, r->hostname, r->timeout);
 			} else {
 				r->timeout = ast_sched_add(sched, global_reg_timeout*1000, sip_reg_timeout, r);
-				ast_log(LOG_WARNING, "Propably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout * 1000);
+				ast_log(LOG_WARNING, "Probably a DNS error for registration to %s@%s, trying REGISTER again (after %d seconds)\n", r->username, r->hostname, global_reg_timeout);
 			}
 			r->regattempts++;
 			return 0;
 		}
-
 		/* Copy back Call-ID in case create_addr changed it */
 		ast_copy_string(r->callid, p->callid, sizeof(r->callid));
 		if (r->portno)
@@ -8261,6 +8261,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 
 		r->regstate=REG_STATE_REGISTERED;
 		manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nDomain: %s\r\nStatus: %s\r\n", r->hostname, regstate2str(r->regstate));
+		r->regattempts = 0;
 		ast_log(LOG_DEBUG, "Registration successful\n");
 		if (r->timeout > -1) {
 			ast_log(LOG_DEBUG, "Cancelling timeout %d\n", r->timeout);
