@@ -64,7 +64,7 @@ static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
 AST_MUTEX_DEFINE_STATIC(msglist_lock);
 AST_MUTEX_DEFINE_STATIC(loglock);
-static int pending_logger_reload = 0;
+static int filesize_reload_needed = 0;
 static int global_logmask = -1;
 
 static struct {
@@ -439,6 +439,8 @@ int reload_logger(int rotate)
 
 	ast_mutex_unlock(&loglock);
 
+	filesize_reload_needed = 0;
+
 	queue_log_init();
 	init_logger_chain();
 
@@ -451,7 +453,6 @@ int reload_logger(int rotate)
 		} else 
 			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	}
-	pending_logger_reload = 0;
 	return -1;
 }
 
@@ -549,7 +550,7 @@ static struct ast_cli_entry rotate_logger_cli =
 static int handle_SIGXFSZ(int sig) 
 {
 	/* Indicate need to reload */
-	pending_logger_reload = 1;
+	filesize_reload_needed = 1;
 	return 0;
 }
 
@@ -780,7 +781,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 	ast_mutex_unlock(&loglock);
 	/* end critical section */
-	if (pending_logger_reload) {
+	if (filesize_reload_needed) {
 		reload_logger(1);
 		ast_log(LOG_EVENT,"Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 		if (option_verbose)
