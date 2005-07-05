@@ -20,3 +20,4 @@ config.h
 common.h
 config.cache
 Makefile
+cygdef.h
