@@ -43,7 +43,7 @@ static struct ast_translator *list = NULL;
 
 struct ast_translator_dir {
 	struct ast_translator *step;	/* Next step translator */
-	int cost;						/* Complete cost to destination */
+	int cost;			/* Complete cost to destination */
 };
 
 struct ast_frame_delivery {
@@ -396,8 +396,12 @@ int ast_register_translator(struct ast_translator *t)
 	char tmp[80];
 	t->srcfmt = powerof(t->srcfmt);
 	t->dstfmt = powerof(t->dstfmt);
-	if ((t->srcfmt >= MAX_FORMAT) || (t->dstfmt >= MAX_FORMAT)) {
-		ast_log(LOG_WARNING, "Format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
+	if (t->srcfmt >= MAX_FORMAT) {
+		ast_log(LOG_WARNING, "Source format %s is larger than MAX_FORMAT\n", ast_getformatname(t->srcfmt));
+		return -1;
+	}
+	if (t->dstfmt >= MAX_FORMAT) {
+		ast_log(LOG_WARNING, "Destination format %s is larger than MAX_FORMAT\n", ast_getformatname(t->dstfmt));
 		return -1;
 	}
 	calc_cost(t,1);
