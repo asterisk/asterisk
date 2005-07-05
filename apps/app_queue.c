@@ -2036,6 +2036,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				/* Agent must have hung up */
 				ast_log(LOG_WARNING, "Agent on %s hungup on the customer.  They're going to be pissed.\n", peer->name);
 				ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "AGENTDUMP", "%s", "");
+                                record_abandoned(qe);
 				if (qe->parent->eventwhencalled) {
 					manager_event(EVENT_FLAG_AGENT, "AgentDump",
 						      "Queue: %s\r\n"
@@ -2065,6 +2066,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (res < 0) {
 			ast_queue_log(queuename, qe->chan->uniqueid, peer->name, "SYSCOMPAT", "%s", "");
 			ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", qe->chan->name, peer->name);
+                        record_abandoned(qe);
 			ast_hangup(peer);
 			return -1;
 		}
@@ -2776,6 +2778,7 @@ check_turns:
 
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.expire && (time(NULL) > qe.expire)) {
+                                        record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
 					break;
@@ -2798,6 +2801,7 @@ check_turns:
 				if (res) {
 					if (res < 0) {
 						if (!qe.handled)
+                                                        record_abandoned(&qe);
 							ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 					} else if (res > 0)
 						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
@@ -2808,6 +2812,7 @@ check_turns:
 
 				/* leave the queue if no agents, if enabled */
 				if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
+                                        record_abandoned(&qe);
 					reason = QUEUE_LEAVEEMPTY;
 					res = 0;
 					break;
@@ -2815,6 +2820,7 @@ check_turns:
 
 				/* leave the queue if no reachable agents, if enabled */
 				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
+                                        record_abandoned(&qe);
 					reason = QUEUE_LEAVEUNAVAIL;
 					res = 0;
 					break;
@@ -2822,6 +2828,7 @@ check_turns:
 
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.expire && (time(NULL) > qe.expire)) {
+                                        record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
 					break;
@@ -2830,6 +2837,7 @@ check_turns:
 				/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
 				res = wait_a_bit(&qe);
 				if (res < 0) {
+                                        record_abandoned(&qe);
 					ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 					if (option_verbose > 2) {
 						ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", queuename);
@@ -2848,6 +2856,7 @@ check_turns:
 						res = -1;
 					}
 					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+                                        record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
 					break;
@@ -3012,7 +3021,7 @@ static char *status2str(int status, char *buf, int buflen)
 {
 	switch(status) {
 	case AST_DEVICE_UNKNOWN:
-		ast_copy_string(buf, "unknown", buflen);
+		ast_copy_string(buf, "available", buflen);
 		break;
 	case AST_DEVICE_NOT_INUSE:
 		ast_copy_string(buf, "notinuse", buflen);
@@ -3093,8 +3102,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 					strncat(max, " (dynamic)", sizeof(max) - strlen(max) - 1);
 				if (mem->paused)
 					strncat(max, " (paused)", sizeof(max) - strlen(max) - 1);
-				if (mem->status)
-					snprintf(max + strlen(max), sizeof(max) - strlen(max), " (%s)", status2str(mem->status, tmpbuf, sizeof(tmpbuf)));
+                                        snprintf(max + strlen(max), sizeof(max) - strlen(max), " (%s)", status2str(mem->status, tmpbuf, sizeof(tmpbuf)));
 				if (mem->calls) {
 					snprintf(calls, sizeof(calls), " has taken %d calls (last was %ld secs ago)",
 							mem->calls, (long)(time(NULL) - mem->lastcall));
