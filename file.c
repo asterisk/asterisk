@@ -807,59 +807,64 @@ int ast_streamfile(struct ast_channel *chan, const char *filename, const char *p
 
 struct ast_filestream *ast_readfile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
-	int fd,myflags = 0;
+	int fd;
 	struct ast_format *f;
-	struct ast_filestream *fs=NULL;
+	struct ast_filestream *fs = NULL;
 	char *fn;
+
 	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
 	}
-	f = formats;
-	while(f) {
-		if (exts_compare(f->exts, type)) {
-			fn = build_filename(filename, type);
-			fd = open(fn, flags | myflags);
-			if (fd >= 0) {
-				errno = 0;
-				if ((fs = f->open(fd))) {
-					fs->trans = NULL;
-					fs->fmt = f;
-					fs->flags = flags;
-					fs->mode = mode;
-					fs->filename = strdup(filename);
-					fs->vfs = NULL;
-				} else {
-					ast_log(LOG_WARNING, "Unable to open %s\n", fn);
-					close(fd);
-					unlink(fn);
-				}
-			} else if (errno != EEXIST)
-				ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
-			free(fn);
-			break;
-		}
-		f = f->next;
+
+	for (f = formats; f && !fs; f = f->next) {
+		if (!exts_compare(f->exts, type))
+			continue;
+
+		fn = build_filename(filename, type);
+		fd = open(fn, flags);
+		if (fd >= 0) {
+			errno = 0;
+
+			if (!(fs = f->open(fd))) {
+				ast_log(LOG_WARNING, "Unable to open %s\n", fn);
+				close(fd);
+				free(fn);
+				continue;
+			}
+
+			fs->trans = NULL;
+			fs->fmt = f;
+			fs->flags = flags;
+			fs->mode = mode;
+			fs->filename = strdup(filename);
+			fs->vfs = NULL;
+		} else if (errno != EEXIST)
+			ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
+		free(fn);
 	}
+
 	ast_mutex_unlock(&formatlock);
-	if (!f) 
+	if (!fs) 
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
+
 	return fs;
 }
 
 struct ast_filestream *ast_writefile(const char *filename, const char *type, const char *comment, int flags, int check, mode_t mode)
 {
-	int fd,myflags = 0;
+	int fd, myflags = 0;
 	struct ast_format *f;
-	struct ast_filestream *fs=NULL;
-	char *fn,*orig_fn=NULL;
-	char *buf=NULL;
+	struct ast_filestream *fs = NULL;
+	char *fn, *orig_fn = NULL;
+	char *buf = NULL;
 	size_t size = 0;
 
 	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
 	}
+
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
 	if (flags & O_APPEND) { 
 		/* We really can't use O_APPEND as it will break WAV header updates */
@@ -870,69 +875,72 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	
 	myflags |= O_WRONLY | O_CREAT;
 
-	f = formats;
-	while(f) {
-		if (exts_compare(f->exts, type)) {
-			fn = build_filename(filename, type);
+	for (f = formats; f && !fs; f = f->next) {
+		if (!exts_compare(f->exts, type))
+			continue;
+
+		fn = build_filename(filename, type);
+		fd = open(fn, flags | myflags, mode);
+		
+		if (option_cache_record_files && fd >= 0) {
+			char *c;
+
+			close(fd);
+			/*
+			  We touch orig_fn just as a place-holder so other things (like vmail) see the file is there.
+			  What we are really doing is writing to record_cache_dir until we are done then we will mv the file into place.
+			*/
+			orig_fn = ast_strdupa(fn);
+			for (c = fn; *c; c++)
+				if (*c == '/')
+					*c = '_';
+
+			size = strlen(fn) + strlen(record_cache_dir) + 2;
+			buf = alloca(size);
+			memset(buf, 0, size);
+			snprintf(buf, size, "%s/%s", record_cache_dir, fn);
+			free(fn);
+			fn = buf;
 			fd = open(fn, flags | myflags, mode);
-			
-			if (option_cache_record_files && fd >= 0) {
-				close(fd);
-				/*
-				   We touch orig_fn just as a place-holder so other things (like vmail) see the file is there.
-				   What we are really doing is writing to record_cache_dir until we are done then we will mv the file into place.
-				*/
-				orig_fn = ast_strdupa(fn); 
-				for (size=0;size<strlen(fn);size++) {
-					if (fn[size] == '/')
-						fn[size] = '_';
-				}
-
-				size += (strlen(record_cache_dir) + 10);
-				buf = alloca(size);
-				memset(buf, 0, size);
-				snprintf(buf, size, "%s/%s", record_cache_dir, fn);
-				free(fn);
-				fn=buf;
-				fd = open(fn, flags | myflags, mode);
-			}
-			if (fd >= 0) {
-				errno = 0;
-				if ((fs = f->rewrite(fd, comment))) {
-					fs->trans = NULL;
-					fs->fmt = f;
-					fs->flags = flags;
-					fs->mode = mode;
-					if (option_cache_record_files) {
-						fs->realfilename = build_filename(filename, type);
-						fs->filename = strdup(fn);
-					} else {
-						fs->realfilename = NULL;
-						fs->filename = strdup(filename);
-					}
-					fs->vfs = NULL;
-				} else {
-					ast_log(LOG_WARNING, "Unable to rewrite %s\n", fn);
-					close(fd);
-					unlink(fn);
-					if (orig_fn)
-						unlink(orig_fn);
-				}
-			} else if (errno != EEXIST) {
-				ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
-				if (orig_fn)
-					unlink(orig_fn);
-			}
-			if (!buf) /* if buf != NULL then fn is already free and pointing to it */
-				free(fn);
-
-			break;
 		}
-		f = f->next;
+		if (fd >= 0) {
+			errno = 0;
+
+			if ((fs = f->rewrite(fd, comment))) {
+				fs->trans = NULL;
+				fs->fmt = f;
+				fs->flags = flags;
+				fs->mode = mode;
+				if (orig_fn) {
+					fs->realfilename = strdup(orig_fn);
+					fs->filename = strdup(fn);
+				} else {
+					fs->realfilename = NULL;
+					fs->filename = strdup(filename);
+				}
+				fs->vfs = NULL;
+			} else {
+				ast_log(LOG_WARNING, "Unable to rewrite %s\n", fn);
+				close(fd);
+				if (orig_fn) {
+					unlink(fn);
+					unlink(orig_fn);
+				}
+			}
+		} else if (errno != EEXIST) {
+			ast_log(LOG_WARNING, "Unable to open file %s: %s\n", fn, strerror(errno));
+			if (orig_fn)
+				unlink(orig_fn);
+		}
+		/* if buf != NULL then fn is already free and pointing to it */
+		if (!buf)
+			free(fn);
 	}
+
 	ast_mutex_unlock(&formatlock);
-	if (!f) 
+	if (!fs)
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
+
 	return fs;
 }
 
