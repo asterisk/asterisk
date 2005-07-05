@@ -1885,8 +1885,6 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			} else
 				f = fr;
 			if (f) {
-				res = chan->tech->write(chan, f);
-
 				if (f->frametype == AST_FRAME_VOICE && chan->spiers) {
 					struct ast_channel_spy *spying;
 					for (spying = chan->spiers; spying; spying=spying->next) {
@@ -1917,6 +1915,8 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				if (ast_writestream(chan->monitor->write_stream, f) < 0)
 						ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
 				}
+
+				res = chan->tech->write(chan, f);
 			} else
 				res = 0;
 		}
