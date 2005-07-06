@@ -5909,9 +5909,11 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		referred_by = NULL;
 	}
 
-	refer_to += 4;
-	referred_by += 4;
-	
+	if (refer_to)
+		refer_to += 4;
+
+	if (referred_by)
+		referred_by += 4;
 	
 	if ((ptr = strchr(refer_to, '?'))) {
 		/* Search for arguments */
@@ -5982,7 +5984,8 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			ast_log(LOG_DEBUG,"Transferred by  (Referred-by: ) %s \n", referred_by);
 		ast_log(LOG_DEBUG,"Transfer Contact Info %s (REFER_CONTACT)\n", h_contact);
 		ast_copy_string(sip_pvt->refer_to, refer_to, sizeof(sip_pvt->refer_to));
-		ast_copy_string(sip_pvt->referred_by, referred_by, sizeof(sip_pvt->referred_by));
+		if (referred_by)
+			ast_copy_string(sip_pvt->referred_by, referred_by, sizeof(sip_pvt->referred_by));
 		if (h_contact) {
 			ast_copy_string(sip_pvt->refer_contact, h_contact, sizeof(sip_pvt->refer_contact));
 		}
