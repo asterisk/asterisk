@@ -2122,9 +2122,10 @@ static void reload_agents(void)
 			agent_chan = strsep(&parse, ";");
 			agent_callerid = strsep(&parse, ";");
 			ast_copy_string(cur_agent->loginchan, agent_chan, sizeof(cur_agent->loginchan));
-			if (agent_callerid)
+			if (agent_callerid) {
 				ast_copy_string(cur_agent->logincallerid, agent_callerid, sizeof(cur_agent->logincallerid));
-			else
+				set_agentbycallerid(cur_agent);
+			} else
 				cur_agent->logincallerid[0] = '\0';
 			if (cur_agent->loginstart == 0)
 				time(&cur_agent->loginstart);
