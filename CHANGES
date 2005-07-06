@@ -3,6 +3,9 @@
        not listed here.  A complete listing of changes is available through
        the Asterisk-CVS mailing list hosted at http://lists.digium.com.
 
+ -- general
+    -- Added man pages for astgenkey, autosupport, and safe_asterisk
+
 Asterisk 1.0.9
 
  -- fix bug in callerid matching in the dialplan that was introduced in 1.0.8
