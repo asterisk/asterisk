@@ -1,3 +1,4 @@
+#!/bin/sh
 #
 # Collect support information
 #
@@ -8,7 +9,6 @@
 # Distributed under the terms of the GNU General Public
 # License
 #
-#!/bin/bash
 
 OUTPUT=$HOME/digiuminfo
 
