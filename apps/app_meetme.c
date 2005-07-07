@@ -295,9 +295,9 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 		if (cnf) {
 			/* Make a new one */
 			memset(cnf, 0, sizeof(struct ast_conference));
-			strncpy(cnf->confno, confno, sizeof(cnf->confno) - 1);
-			strncpy(cnf->pin, pin, sizeof(cnf->pin) - 1);
-			strncpy(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin) - 1);
+			ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
+			ast_copy_string(cnf->pin, pin, sizeof(cnf->pin));
+			ast_copy_string(cnf->pinadmin, pinadmin, sizeof(cnf->pinadmin));
 			cnf->markedusers = 0;
 			cnf->chan = ast_request("zap", AST_FORMAT_ULAW, "pseudo", NULL);
 			if (cnf->chan) {
@@ -388,7 +388,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
 		while(cnf) {
 			if (cnf->markedusers == 0)
-				strncpy(cmdline, "N/A ", sizeof(cmdline) - 1);
+				strcpy(cmdline, "N/A ");
 			else 
 				snprintf(cmdline, sizeof(cmdline), "%4.4d", cnf->markedusers);
 			hr = (now - cnf->start) / 3600;
@@ -405,7 +405,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	}
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
-	strncpy(cmdline, argv[2], sizeof(cmdline) - 1);	/* Argv 2: conference number */
+	ast_copy_string(cmdline, argv[2], sizeof(cmdline));	/* Argv 2: conference number */
 	if (strstr(argv[1], "lock")) {	
 		if (strcmp(argv[1], "lock") == 0) {
 			/* Lock */
@@ -717,11 +717,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	origquiet = confflags & CONFFLAG_QUIET;
 	if (confflags & CONFFLAG_EXIT_CONTEXT) {
 		if ((agifile = pbx_builtin_getvar_helper(chan, "MEETME_EXIT_CONTEXT"))) 
-			strncpy(exitcontext, agifile, sizeof(exitcontext) - 1);
+			ast_copy_string(exitcontext, agifile, sizeof(exitcontext));
 		else if (!ast_strlen_zero(chan->macrocontext)) 
-			strncpy(exitcontext, chan->macrocontext, sizeof(exitcontext) - 1);
+			ast_copy_string(exitcontext, chan->macrocontext, sizeof(exitcontext));
 		else
-			strncpy(exitcontext, chan->context, sizeof(exitcontext) - 1);
+			ast_copy_string(exitcontext, chan->context, sizeof(exitcontext));
 	}
 
 	if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_INTROUSER)) {
@@ -1113,8 +1113,8 @@ zapretry:
 					tmp[0] = f->subclass;
 					tmp[1] = '\0';
 					if (ast_exists_extension(chan, exitcontext, tmp, 1, chan->cid.cid_num)) {
-						strncpy(chan->context, exitcontext, sizeof(chan->context) - 1);
-						strncpy(chan->exten, tmp, sizeof(chan->exten) - 1);
+						ast_copy_string(chan->context, exitcontext, sizeof(chan->context));
+						ast_copy_string(chan->exten, tmp, sizeof(chan->exten));
 						chan->priority = 0;
 						ret = 0;
 						break;
@@ -1506,7 +1506,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 	if (info) {
 		char *tmp = strsep(&info, "|");
-		strncpy(confno, tmp, sizeof(confno) - 1);
+		ast_copy_string(confno, tmp, sizeof(confno));
 		if (ast_strlen_zero(confno)) {
 			allowretry = 1;
 		}
@@ -1516,13 +1516,13 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	if (info)
 		inpin = strsep(&info, "|");
 	if (inpin)
-		strncpy(the_pin, inpin, sizeof(the_pin) - 1);
+		ast_copy_string(the_pin, inpin, sizeof(the_pin));
 
 	if (inflags) {
 		ast_parseoptions(meetme_opts, &confflags, NULL, inflags);
 		dynamic = ast_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
 		if (ast_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && !inpin)
-			strncpy(the_pin, "q", sizeof(the_pin) - 1);
+			strcpy(the_pin, "q");
 
 		empty = ast_test_flag(&confflags, CONFFLAG_EMPTY | CONFFLAG_EMPTYNOPIN);
 		empty_no_pin = ast_test_flag(&confflags, CONFFLAG_EMPTYNOPIN);
@@ -1590,7 +1590,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 										 * Case 2:  empty_no_pin and pin is blank (but not NULL)
 										 * Case 3:  not empty_no_pin
 										 */
-											strncpy(confno, confno_tmp, sizeof(confno) - 1);
+											ast_copy_string(confno, confno_tmp, sizeof(confno));
 											break;
 											/* XXX the map is not complete (but we do have a confno) */
 										}
@@ -1660,7 +1660,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					/* Allow the pin to be retried up to 3 times */
 					for (j=0; j<3; j++) {
 						if (*the_pin && (always_prompt==0)) {
-							strncpy(pin, the_pin, sizeof(pin) - 1);
+							ast_copy_string(pin, the_pin, sizeof(pin));
 							res = 0;
 						} else {
 							/* Prompt user for pin if pin is required */
