@@ -275,6 +275,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 								stringp2=strsep(&stringp, "|");
 								if (stringp2) ourcallerid=stringp2;
 							}
+							mailbox = strsep(&stringp, "|");
+							if (!mailbox)
+								mailbox = "";
+							ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
+
 							  /* password must be in valid format (numeric) */
 							if (sscanf(tmp,"%d",&j) < 1) continue;
 							  /* if we got it */
