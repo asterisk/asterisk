@@ -61,6 +61,12 @@ maxlogins=3
 ; The following definition is very close to the default, but the default shows just 
 ; the CIDNAME, if it is not null, else just the CIDNUM, or "an unknown caller" if they are both null.
 ;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
+; Set the date format on outgoing mails. Valid arguments can be found on the strftime(3) man page
+;
+; Default
+emaildateformat=%A, %B %d, %Y at %r
+; 24h date format
+;emaildateformat=%A, %d %B %Y at %H:%M:%S
 
 ;
 ; You can override the default program to send e-mail if you wish, too

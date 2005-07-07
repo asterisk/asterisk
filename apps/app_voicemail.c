@@ -338,6 +338,7 @@ static char charset[32] = "ISO-8859-1";
 static char adsifdn[4] = "\x00\x00\x00\x0F";
 static char adsisec[4] = "\x9B\xDB\xF7\xAC";
 static int adsiver = 1;
+static char emaildateformat[32] = "%A, %B %d, %Y at %r";
 
 STANDARD_LOCAL_USER;
 
@@ -1540,6 +1541,9 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
 		fprintf(p, "Date: %s\n", date);
 
+		/* Set date format for voicemail mail */
+		strftime(date, sizeof(date), emaildateformat, &tm);
+
 		if (*fromstring) {
 			struct ast_channel *ast = ast_channel_alloc(0);
 			if (ast) {
@@ -1589,7 +1593,6 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 			fprintf(p, "--%s\n", bound);
 		}
 		fprintf(p, "Content-Type: text/plain; charset=%s\nContent-Transfer-Encoding: 8bit\n\n", charset);
-		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
 		if (emailbody) {
 			struct ast_channel *ast = ast_channel_alloc(0);
 			if (ast) {
@@ -5300,6 +5303,7 @@ static int load_config(void)
 	char *callbackcxt = NULL;	
 	char *exitcxt = NULL;	
 	char *extpc;
+	char *emaildateformatstr;
 	int x;
 	int tmpadsi[4];
 
@@ -5347,6 +5351,11 @@ static int load_config(void)
 			maxsilence = atoi(silencestr);
 			if (maxsilence > 0)
 				maxsilence *= 1000;
+		}
+
+		/* Load date format config for voicemail mail */
+		if ((emaildateformatstr = ast_variable_retrieve(cfg, "general", "emaildateformat"))) {
+			strncpy(emaildateformat, emaildateformatstr, sizeof(emaildateformat) - 1);
 		}
 
 		/* External password changing command */
