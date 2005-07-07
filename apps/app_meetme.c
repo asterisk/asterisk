@@ -568,9 +568,50 @@ static void conf_flush(int fd)
 		ast_log(LOG_WARNING, "Error flushing channel\n");
 }
 
+/* Remove the conference from the list and free it.
+   We assume that this was called while holding conflock. */
+static int conf_free(struct ast_conference *conf)
+{
+	struct ast_conference *prev = NULL, *cur = confs;
+
+	while(cur) {
+		if (cur == conf) {
+			if (prev)
+				prev->next = conf->next;
+			else
+				confs = conf->next;
+			break;
+		}
+		prev = cur;
+		cur = cur->next;
+	}
+
+	if (!cur)
+		ast_log(LOG_WARNING, "Conference not found\n");
+
+	if (conf->recording == MEETME_RECORD_ACTIVE) {
+		conf->recording = MEETME_RECORD_TERMINATE;
+		ast_mutex_unlock(&conflock);
+		while (1) {
+			ast_mutex_lock(&conflock);
+			if (conf->recording == MEETME_RECORD_OFF)
+				break;
+			ast_mutex_unlock(&conflock);
+		}
+	}
+
+	if (conf->chan)
+		ast_hangup(conf->chan);
+	else
+		close(conf->fd);
+	
+	free(conf);
+
+	return 0;
+}
+
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
 {
-	struct ast_conference *prev=NULL, *cur;
 	struct ast_conf_user *user = malloc(sizeof(struct ast_conf_user));
 	struct ast_conf_user *usr = NULL;
 	int fd;
@@ -1278,41 +1319,12 @@ outrun:
 			"Meetme: %s\r\n"
 			"Usernum: %d\r\n",
 			chan->name, chan->uniqueid, conf->confno, user->user_no);
-		prev = NULL;
 		conf->users--;
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
-		cur = confs;
 		if (!conf->users) {
 			/* No more users -- close this one out */
-			while(cur) {
-				if (cur == conf) {
-					if (prev)
-						prev->next = conf->next;
-					else
-						confs = conf->next;
-					break;
-				}
-				prev = cur;
-				cur = cur->next;
-			}
-			if (!cur) 
-				ast_log(LOG_WARNING, "Conference not found\n");
-			if (conf->recording == MEETME_RECORD_ACTIVE) {
-				conf->recording = MEETME_RECORD_TERMINATE;
-				ast_mutex_unlock(&conflock);
-				while (1) {
-					ast_mutex_lock(&conflock);
-					if (conf->recording == MEETME_RECORD_OFF)
-						break;
-					ast_mutex_unlock(&conflock);
-				}
-			}
-			if (conf->chan)
-				ast_hangup(conf->chan);
-			else
-				close(conf->fd);
-			free(conf);
+			conf_free(conf);
 		} else {
 			/* Remove the user struct */ 
 			if (user == conf->firstuser) {
@@ -1678,8 +1690,15 @@ static int conf_exec(struct ast_channel *chan, void *data)
 									confno[0] = '\0';
 							}
 						} else {
+							/* failed when getting the pin */
 							res = -1;
 							allowretry = 0;
+							/* see if we need to get rid of the conference */
+							ast_mutex_lock(&conflock);
+							if (!cnf->users) {
+								conf_free(cnf);	
+							}
+							ast_mutex_unlock(&conflock);
 							break;
 						}
 
@@ -1698,8 +1717,9 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			}
 		}
 	} while (allowretry);
-	/* Do the conference */
+	
 	LOCAL_USER_REMOVE(u);
+	
 	return res;
 }
 
