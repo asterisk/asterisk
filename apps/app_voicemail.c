@@ -350,11 +350,11 @@ static void populate_defaults(struct ast_vm_user *vmu)
 	if (saydurationminfo>0)
 		vmu->saydurationm = saydurationminfo;
 	if (callcontext)
-		strncpy(vmu->callback, callcontext, sizeof(vmu->callback) -1);
+		ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
 	if (dialcontext)
-		strncpy(vmu->dialout, dialcontext, sizeof(vmu->dialout) -1);
+		ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
 	if (exitcontext)
-		strncpy(vmu->exit, exitcontext, sizeof(vmu->exit) -1);
+		ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
 }
 
 static void apply_option(struct ast_vm_user *vmu, const char *var, const char *value)
@@ -363,11 +363,11 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	if (!strcasecmp(var, "attach")) {
 		ast_set2_flag(vmu, ast_true(value), VM_ATTACH);	
 	} else if (!strcasecmp(var, "serveremail")) {
-		strncpy(vmu->serveremail, value, sizeof(vmu->serveremail) - 1);
+		ast_copy_string(vmu->serveremail, value, sizeof(vmu->serveremail));
 	} else if (!strcasecmp(var, "language")) {
-		strncpy(vmu->language, value, sizeof(vmu->language) - 1);
+		ast_copy_string(vmu->language, value, sizeof(vmu->language));
 	} else if (!strcasecmp(var, "tz")) {
-		strncpy(vmu->zonetag, value, sizeof(vmu->zonetag) - 1);
+		ast_copy_string(vmu->zonetag, value, sizeof(vmu->zonetag));
 	} else if (!strcasecmp(var, "delete")) {
 		ast_set2_flag(vmu, ast_true(value), VM_DELETE);	
 	} else if (!strcasecmp(var, "saycid")){
@@ -393,11 +393,11 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 	} else if (!strcasecmp(var, "forcegreetings")){
 		ast_set2_flag(vmu, ast_true(value), VM_FORCEGREET);	
 	} else if (!strcasecmp(var, "callback")) {
-		strncpy(vmu->callback, value, sizeof(vmu->callback) -1);
+		ast_copy_string(vmu->callback, value, sizeof(vmu->callback));
 	} else if (!strcasecmp(var, "dialout")) {
-		strncpy(vmu->dialout, value, sizeof(vmu->dialout) -1);
+		ast_copy_string(vmu->dialout, value, sizeof(vmu->dialout));
 	} else if (!strcasecmp(var, "exitcontext")) {
-		strncpy(vmu->exit, value, sizeof(vmu->exit) -1);
+		ast_copy_string(vmu->exit, value, sizeof(vmu->exit));
 	} else if (!strcasecmp(var, "options")) {
 		apply_options(vmu, value);
 	}
@@ -409,7 +409,7 @@ static int change_password_realtime(struct ast_vm_user *vmu, const char *passwor
 	if (!ast_strlen_zero(vmu->uniqueid)) {
 		res = ast_update_realtime("voicemail", "uniqueid", vmu->uniqueid, "password", password, NULL);
 		if (!res)
-			strncpy(vmu->password, password, sizeof(vmu->password) - 1);
+			ast_copy_string(vmu->password, password, sizeof(vmu->password));
 		return res;
 	}
 	return -1;
@@ -444,11 +444,11 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 		if (!ivm)
 			ast_set_flag(retval, VM_ALLOCED);	
 		if (mailbox) 
-			strncpy(retval->mailbox, mailbox, sizeof(retval->mailbox) - 1);
+			ast_copy_string(retval->mailbox, mailbox, sizeof(retval->mailbox));
 		if (context) 
-			strncpy(retval->context, context, sizeof(retval->context) - 1);
+			ast_copy_string(retval->context, context, sizeof(retval->context));
 		else
-			strncpy(retval->context, "default", sizeof(retval->context) - 1);
+			strcpy(retval->context, "default");
 		populate_defaults(retval);
 		var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", retval->context, NULL);
 		if (var) {
@@ -456,15 +456,15 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 			while(tmp) {
 				printf("%s => %s\n", tmp->name, tmp->value);
 				if (!strcasecmp(tmp->name, "password")) {
-					strncpy(retval->password, tmp->value, sizeof(retval->password) - 1);
+					ast_copy_string(retval->password, tmp->value, sizeof(retval->password));
 				} else if (!strcasecmp(tmp->name, "uniqueid")) {
-					strncpy(retval->uniqueid, tmp->value, sizeof(retval->uniqueid) - 1);
+					ast_copy_string(retval->uniqueid, tmp->value, sizeof(retval->uniqueid));
 				} else if (!strcasecmp(tmp->name, "pager")) {
-					strncpy(retval->pager, tmp->value, sizeof(retval->pager) - 1);
+					ast_copy_string(retval->pager, tmp->value, sizeof(retval->pager));
 				} else if (!strcasecmp(tmp->name, "email")) {
-					strncpy(retval->email, tmp->value, sizeof(retval->email) - 1);
+					ast_copy_string(retval->email, tmp->value, sizeof(retval->email));
 				} else if (!strcasecmp(tmp->name, "fullname")) {
-					strncpy(retval->fullname, tmp->value, sizeof(retval->fullname) - 1);
+					ast_copy_string(retval->fullname, tmp->value, sizeof(retval->fullname));
 				} else
 					apply_option(retval, tmp->name, tmp->value);
 				tmp = tmp->next;
@@ -521,7 +521,7 @@ static int reset_user_pw(const char *context, const char *mailbox, const char *n
 		cur=cur->next;
 	}
 	if (cur) {
-		strncpy(cur->password, newpass, sizeof(cur->password) - 1);
+		ast_copy_string(cur->password, newpass, sizeof(cur->password));
 		res = 0;
 	}
 	ast_mutex_unlock(&vmlock);
@@ -586,7 +586,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 			/* check for '[' (opening of context name ) */
 			tempcontext = strchr(user, '[');
 			if (tempcontext) {
-				strncpy(currcontext, tempcontext +1, sizeof(currcontext) - 1);
+				ast_copy_string(currcontext, tempcontext +1, sizeof(currcontext));
 				/* now check for ']' */
 				tempcontext = strchr(currcontext, ']');
 				if (tempcontext) 
@@ -644,7 +644,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	unlink((char *)tmpin);
 	rename((char *)tmpout,(char *)tmpin);
 	reset_user_pw(vmu->context, vmu->mailbox, newpassword);
-	strncpy(vmu->password, newpassword, sizeof(vmu->password) - 1);
+	ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 }
 
 static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
@@ -694,17 +694,17 @@ static int retrieve_file(char *dir, int msgnum)
 	odbc_obj *obj;
 	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
-		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
+		ast_copy_string(fmt, vmfmts, sizeof(fmt));
 		c = strchr(fmt, '|');
 		if (c)
 			*c = '\0';
 		if (!strcasecmp(fmt, "wav49"))
-			strncpy(fmt, "WAV", sizeof(fmt));
+			strcpy(fmt, "WAV");
 		snprintf(msgnums, sizeof(msgnums),"%d", msgnum);
 		if (msgnum > -1)
 			make_file(fn, sizeof(fn), dir, msgnum);
 		else
-			strncpy(fn, dir, sizeof(fn) - 1);
+			ast_copy_string(fn, dir, sizeof(fn));
 		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 		f = fopen(full_fn, "w+");
 		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
@@ -823,7 +823,7 @@ static int remove_file(char *dir, int msgnum)
 		snprintf(msgnums, sizeof(msgnums), "%d", msgnum);
 		make_file(fn, sizeof(fn), dir, msgnum);
 	} else
-		strncpy(fn, dir, sizeof(fn) - 1);
+		ast_copy_string(fn, dir, sizeof(fn));
 	ast_filedelete(fn, NULL);	
 	snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 	unlink(full_fn);
@@ -1073,17 +1073,17 @@ static int store_file(char *dir, int msgnum)
 	delete_file(dir, msgnum);
 	obj = fetch_odbc_obj(odbc_database, 0);
 	if (obj) {
-		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
+		ast_copy_string(fmt, vmfmts, sizeof(fmt));
 		c = strchr(fmt, '|');
 		if (c)
 			*c = '\0';
 		if (!strcasecmp(fmt, "wav49"))
-			strncpy(fmt, "WAV", sizeof(fmt));
+			strcpy(fmt, "WAV");
 		snprintf(msgnums, sizeof(msgnums),"%d", msgnum);
 		if (msgnum > -1)
 			make_file(fn, sizeof(fn), dir, msgnum);
 		else
-			strncpy(fn, dir, sizeof(fn) - 1);
+			ast_copy_string(fn, dir, sizeof(fn));
 		snprintf(full_fn, sizeof(full_fn), "%s.txt", fn);
 		cfg = ast_config_load(full_fn);
 		snprintf(full_fn, sizeof(full_fn), "%s.%s", fn, fmt);
@@ -1513,7 +1513,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	if (p) {
 		gethostname(host, sizeof(host)-1);
 		if (strchr(srcemail, '@'))
-			strncpy(who, srcemail, sizeof(who)-1);
+			ast_copy_string(who, srcemail, sizeof(who));
 		else {
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 		}
@@ -1661,7 +1661,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 	if (p) {
 		gethostname(host, sizeof(host)-1);
 		if (strchr(srcemail, '@'))
-			strncpy(who, srcemail, sizeof(who)-1);
+			ast_copy_string(who, srcemail, sizeof(who));
 		else {
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 		}
@@ -1825,7 +1825,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 	if (ast_strlen_zero(mailbox))
 		return 0;
 	if (strchr(mailbox, ',')) {
-		strncpy(tmp, mailbox, sizeof(tmp) - 1);
+		ast_copy_string(tmp, mailbox, sizeof(tmp));
 		mb = tmp;
 		ret = 0;
 		while((cur = strsep(&mb, ","))) {
@@ -1836,7 +1836,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 		}
 		return 0;
 	}
-	strncpy(tmp, mailbox, sizeof(tmp) - 1);
+	ast_copy_string(tmp, mailbox, sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
@@ -1875,7 +1875,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		return 0;
 	if (strchr(mailbox, ',')) {
 		int tmpnew, tmpold;
-		strncpy(tmp, mailbox, sizeof(tmp) - 1);
+		ast_copy_string(tmp, mailbox, sizeof(tmp));
 		mb = tmp;
 		ret = 0;
 		while((cur = strsep(&mb, ", "))) {
@@ -1892,7 +1892,7 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 		}
 		return 0;
 	}
-	strncpy(tmp, mailbox, sizeof(tmp) - 1);
+	ast_copy_string(tmp, mailbox, sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
@@ -2010,7 +2010,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 	struct ast_vm_user svm;
 	char *category = NULL;
 
-	strncpy(tmp, ext, sizeof(tmp) - 1);
+	ast_copy_string(tmp, ext, sizeof(tmp));
 	ext = tmp;
 	context = strchr(tmp, '@');
 	if (context) {
@@ -2033,7 +2033,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		if (strcmp(vmu->context, "default"))
 			snprintf(ext_context, sizeof(ext_context), "%s@%s", ext, vmu->context);
 		else
-			strncpy(ext_context, vmu->context, sizeof(ext_context) - 1);		
+			ast_copy_string(ext_context, vmu->context, sizeof(ext_context));
 		if (busy)
 			snprintf(prefile, sizeof(prefile), "%s%s/%s/busy", VM_SPOOL_DIR, vmu->context, ext);
 		else if (unavail)
@@ -2041,7 +2041,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		snprintf(tempfile, sizeof(tempfile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, ext);
 		RETRIEVE(tempfile, -1);
 		if (ast_fileexists(tempfile, NULL, NULL) > 0)
-			strncpy(prefile, tempfile, sizeof(prefile) - 1);
+			ast_copy_string(prefile, tempfile, sizeof(prefile));
 		DISPOSE(tempfile, -1);
 		make_dir(dir, sizeof(dir), vmu->context, "", "");
 		/* It's easier just to try to make it than to check for its existence */
@@ -2113,11 +2113,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		/* Check for a '*' here in case the caller wants to escape from voicemail to something
 		other than the operator -- an automated attendant or mailbox login for example */
 		if (res == '*') {
-			strncpy(chan->exten, "a", sizeof(chan->exten) - 1);
+			chan->exten[0] = 'a';
+			chan->exten[1] = '\0';
 			if (!ast_strlen_zero(vmu->exit)) {
-				strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
+				ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
 			} else if (ausemacro && !ast_strlen_zero(chan->macrocontext)) {
-				strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+				ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
 			}
 			chan->priority = 0;
 			free_user(vmu);
@@ -2127,11 +2128,12 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		if (res == '0') {
 			transfer:
 			if (ast_test_flag(vmu, VM_OPERATOR)) {
-				strncpy(chan->exten, "o", sizeof(chan->exten) - 1);
+				chan->exten[0] = 'o';
+				chan->exten[1] = '\0';
 				if (!ast_strlen_zero(vmu->exit)) {
-					strncpy(chan->context, vmu->exit, sizeof(chan->context) - 1);
+					ast_copy_string(chan->context, vmu->exit, sizeof(chan->context));
 				} else if (ousemacro && !ast_strlen_zero(chan->macrocontext)) {
-					strncpy(chan->context, chan->macrocontext, sizeof(chan->context) - 1);
+					ast_copy_string(chan->context, chan->macrocontext, sizeof(chan->context));
 				}
 				ast_play_and_wait(chan, "transfer");
 				chan->priority = 0;
@@ -2147,7 +2149,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 			return -1;
 		}
 		/* The meat of recording the message...  All the announcements and beeps have been played*/
-		strncpy(fmt, vmfmts, sizeof(fmt) - 1);
+		ast_copy_string(fmt, vmfmts, sizeof(fmt));
 		if (!ast_strlen_zero(fmt)) {
 			msgnum = 0;
 			if (res >= 0) {
@@ -2584,9 +2586,9 @@ static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 				val = strsep(&stringp, "=");
 				if (val && !ast_strlen_zero(val)) {
 					if (!strcmp(buf, "callerid"))
-						strncpy(cid, val, sizeof(cid) - 1);
+						ast_copy_string(cid, val, sizeof(cid));
 					if (!strcmp(buf, "origdate"))
-						strncpy(datetime, val, sizeof(datetime) - 1);
+						ast_copy_string(datetime, val, sizeof(datetime));
 				}
 			}
 		}
@@ -2712,7 +2714,7 @@ static void adsi_status(struct ast_channel *chan, struct vm_state *vms)
 		snprintf(buf1, sizeof(buf1), "You have %d old", vms->oldmessages);
 		snprintf(buf2, sizeof(buf2), "%s.", oldm);
 	} else {
-		strncpy(buf1, "You have no messages.", sizeof(buf1) - 1);
+		strcpy(buf1, "You have no messages.");
 		buf2[0] = ' ';
 		buf2[1] = '\0';
 	}
@@ -2763,7 +2765,7 @@ static void adsi_status2(struct ast_channel *chan, struct vm_state *vms)
 	if (vms->lastmsg + 1)
 		snprintf(buf2, sizeof(buf2), "%d %s.", vms->lastmsg + 1, mess);
 	else
-		strncpy(buf2, "no messages.", sizeof(buf2) - 1);
+		strcpy(buf2, "no messages.");
  	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 1, ADSI_JUST_LEFT, 0, buf1, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 2, ADSI_JUST_LEFT, 0, buf2, "");
 	bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_LEFT, 0, "", "");
@@ -3020,7 +3022,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				/* call the the Directory, changes the channel */
 				res = pbx_exec(chan, app, ((context)?context:chan->context), 1);
 				
-				strncpy(username, chan->exten, sizeof(username)-1);
+				ast_copy_string(username, chan->exten, sizeof(username));
 				
 				/* restore the old context, exten, and priority */
 				memcpy(chan->context, old_context, sizeof(chan->context));
@@ -3091,7 +3093,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				ast_safe_system(sys);
 		
 				todircount = count_messages(todir);
-				strncpy(tmp, fmt, sizeof(tmp) - 1);
+				ast_copy_string(tmp, fmt, sizeof(tmp));
 				stringp = tmp;
 				while ((s = strsep(&stringp, "|"))) {
 					/* XXX This is a hack -- we should use build_filename or similar XXX */
@@ -3415,7 +3417,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 
 static void open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 {
-	strncpy(vms->curbox, mbox(box), sizeof(vms->curbox) - 1);
+	ast_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
 	make_dir(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
 	vms->lastmsg = count_messages(vms->curdir) - 1;
 
@@ -4521,7 +4523,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		}
 		if (ast_strlen_zero(mailbox)) {
 			if (chan->cid.cid_num) {
-				strncpy(mailbox, chan->cid.cid_num, mailbox_size);
+				ast_copy_string(mailbox, chan->cid.cid_num, mailbox_size);
 			} else {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Username not entered\n");	
@@ -4533,9 +4535,9 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 
 		if (prefix && !ast_strlen_zero(prefix)) {
 			char fullusername[80] = "";
-			strncpy(fullusername, prefix, sizeof(fullusername) - 1);
+			ast_copy_string(fullusername, prefix, sizeof(fullusername));
 			strncat(fullusername, mailbox, sizeof(fullusername) - 1 - strlen(fullusername));
-			strncpy(mailbox, fullusername, mailbox_size - 1);
+			ast_copy_string(mailbox, fullusername, mailbox_size);
 		}
 
 		vmu = find_user(&vmus, context, mailbox);
@@ -4563,7 +4565,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			if (option_verbose > 2)
 				ast_verbose( VERBOSE_PREFIX_3 "Incorrect password '%s' for user '%s' (context = %s)\n", password, mailbox, context ? context : "<any>");
 			if (prefix && !ast_strlen_zero(prefix))
-				strncpy(mailbox, "", mailbox_size -1);
+				mailbox[0] = '\0';
 		}
 		logretries++;
 		if (!valid) {
@@ -4621,12 +4623,12 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	memset(&vms, 0, sizeof(vms));
 	memset(&vmus, 0, sizeof(vmus));
-	strncpy(fmtc, vmfmts, sizeof(fmtc) - 1);
+	ast_copy_string(fmtc, vmfmts, sizeof(fmtc));
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 
 	if (data && !ast_strlen_zero(data)) {
-		strncpy(tmp, data, sizeof(tmp) - 1);
+		ast_copy_string(tmp, data, sizeof(tmp));
 		ext = tmp;
 
 		/* option 's': don't request a password */
@@ -4664,9 +4666,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		}
 
 		if (prefix)
-			strncpy(prefixstr, ext, sizeof(prefixstr) - 1);
+			ast_copy_string(prefixstr, ext, sizeof(prefixstr));
 		else
-			strncpy(vms.username, ext, sizeof(vms.username) - 1);
+			ast_copy_string(vms.username, ext, sizeof(vms.username));
 		if (!ast_strlen_zero(vms.username) && (vmu = find_user(&vmus, context ,vms.username)))
 			skipuser++;
 		else
@@ -4692,7 +4694,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	if (valid) {
 		/* Set language from config to override channel language */
 		if (vmu->language && !ast_strlen_zero(vmu->language))
-			strncpy(chan->language, vmu->language, sizeof(chan->language)-1);
+			ast_copy_string(chan->language, vmu->language, sizeof(chan->language));
 		snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s", VM_SPOOL_DIR, vmu->context);
 		mkdir(vms.curdir, 0700);
 		snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s/%s", VM_SPOOL_DIR, vmu->context, vms.username);
@@ -5003,7 +5005,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 	if (data && !ast_strlen_zero(data))
-		strncpy(tmp, data, sizeof(tmp) - 1);
+		ast_copy_string(tmp, data, sizeof(tmp));
 	else {
 		res = ast_app_getdata(chan, "vm-whichbox", tmp, sizeof(tmp) - 1, 0);
 		if (res < 0)
@@ -5058,22 +5060,23 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	char *stringp;
 	char *s;
 	struct ast_vm_user *vmu;
-	strncpy(tmp, data, sizeof(tmp) - 1);
+
+	ast_copy_string(tmp, data, sizeof(tmp));
 	vmu = malloc(sizeof(struct ast_vm_user));
 	if (vmu) {
 		memset(vmu, 0, sizeof(struct ast_vm_user));
-		strncpy(vmu->context, context, sizeof(vmu->context) - 1);
-		strncpy(vmu->mailbox, mbox, sizeof(vmu->mailbox) - 1);
+		ast_copy_string(vmu->context, context, sizeof(vmu->context));
+		ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
 		populate_defaults(vmu);
 		stringp = tmp;
 		if ((s = strsep(&stringp, ","))) 
-			strncpy(vmu->password, s, sizeof(vmu->password) - 1);
+			ast_copy_string(vmu->password, s, sizeof(vmu->password));
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->fullname, s, sizeof(vmu->fullname) - 1);
+			ast_copy_string(vmu->fullname, s, sizeof(vmu->fullname));
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->email, s, sizeof(vmu->email) - 1);
+			ast_copy_string(vmu->email, s, sizeof(vmu->email));
 		if (stringp && (s = strsep(&stringp, ","))) 
-			strncpy(vmu->pager, s, sizeof(vmu->pager) - 1);
+			ast_copy_string(vmu->pager, s, sizeof(vmu->pager));
 		if (stringp && (s = strsep(&stringp, ","))) 
 			apply_options(vmu, s);
 		vmu->next = NULL;
@@ -5336,15 +5339,15 @@ static int load_config(void)
 		ast_set2_flag((&globalflags), ast_true(astattach), VM_ATTACH);	
 
 #ifdef USE_ODBC_STORAGE
-		strncpy(odbc_database, "asterisk", sizeof(odbc_database) - 1);
+		strcpy(odbc_database, "asterisk");
 		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbcstorage"))) {
-			strncpy(odbc_database, thresholdstr, sizeof(odbc_database) - 1);
+			ast_copy_string(odbc_database, thresholdstr, sizeof(odbc_database));
 		}
 #endif		
 		/* Mail command */
-		strncpy(mailcmd, SENDMAIL, sizeof(mailcmd) - 1); /* Default */
+		strcpy(mailcmd, SENDMAIL);
 		if ((astmailcmd = ast_variable_retrieve(cfg, "general", "mailcmd")))
-			strncpy(mailcmd, astmailcmd, sizeof(mailcmd) - 1); /* User setting */
+			ast_copy_string(mailcmd, astmailcmd, sizeof(mailcmd)); /* User setting */
 
 		maxsilence = 0;
 		if ((silencestr = ast_variable_retrieve(cfg, "general", "maxsilence"))) {
@@ -5355,18 +5358,18 @@ static int load_config(void)
 
 		/* Load date format config for voicemail mail */
 		if ((emaildateformatstr = ast_variable_retrieve(cfg, "general", "emaildateformat"))) {
-			strncpy(emaildateformat, emaildateformatstr, sizeof(emaildateformat) - 1);
+			ast_copy_string(emaildateformat, emaildateformatstr, sizeof(emaildateformat));
 		}
 
 		/* External password changing command */
 		if ((extpc = ast_variable_retrieve(cfg, "general", "externpass"))) {
-			strncpy(ext_pass_cmd,extpc,sizeof(ext_pass_cmd) - 1);
+			ast_copy_string(ext_pass_cmd,extpc,sizeof(ext_pass_cmd));
 		}
 
 		/* External voicemail notify application */
 		
 		if ((notifystr = ast_variable_retrieve(cfg, "general", "externnotify"))) {
-			strncpy(externnotify, notifystr, sizeof(externnotify) - 1);
+			ast_copy_string(externnotify, notifystr, sizeof(externnotify));
 			ast_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
 		} else {
 			externnotify[0] = '\0';
@@ -5379,7 +5382,7 @@ static int load_config(void)
 		
 		if (!(astemail = ast_variable_retrieve(cfg, "general", "serveremail"))) 
 			astemail = ASTERISK_USERNAME;
-		strncpy(serveremail, astemail, sizeof(serveremail) - 1);
+		ast_copy_string(serveremail, astemail, sizeof(serveremail));
 		
 		vmmaxmessage = 0;
 		if ((s = ast_variable_retrieve(cfg, "general", "maxmessage"))) {
@@ -5403,7 +5406,7 @@ static int load_config(void)
 		fmt = ast_variable_retrieve(cfg, "general", "format");
 		if (!fmt)
 			fmt = "wav";	
-		strncpy(vmfmts, fmt, sizeof(vmfmts) - 1);
+		ast_copy_string(vmfmts, fmt, sizeof(vmfmts));
 
 		skipms = 3000;
 		if ((s = ast_variable_retrieve(cfg, "general", "maxgreet"))) {
@@ -5449,7 +5452,7 @@ static int load_config(void)
 					q = strsep(&stringp,",");
 					while ((*q == ' ')||(*q == '\t')) /* Eat white space between contexts */
 						q++;
-					strncpy(cidinternalcontexts[x], q, sizeof(cidinternalcontexts[x]) - 1);
+					ast_copy_string(cidinternalcontexts[x], q, sizeof(cidinternalcontexts[x]));
 					ast_log(LOG_DEBUG,"VM_CID Internal context %d: %s\n", x, cidinternalcontexts[x]);
 				} else {
 					cidinternalcontexts[x][0] = '\0';
@@ -5508,21 +5511,21 @@ static int load_config(void)
 		ast_set2_flag((&globalflags), ast_true(astskipcmd), VM_SKIPAFTERCMD);
 
 		if ((dialoutcxt = ast_variable_retrieve(cfg, "general", "dialout"))) {
-			strncpy(dialcontext, dialoutcxt, sizeof(dialcontext) - 1);
+			ast_copy_string(dialcontext, dialoutcxt, sizeof(dialcontext));
 			ast_log(LOG_DEBUG, "found dialout context: %s\n", dialcontext);
 		} else {
 			dialcontext[0] = '\0';	
 		}
 		
 		if ((callbackcxt = ast_variable_retrieve(cfg, "general", "callback"))) {
-			strncpy(callcontext, callbackcxt, sizeof(callcontext) -1);
+			ast_copy_string(callcontext, callbackcxt, sizeof(callcontext));
 			ast_log(LOG_DEBUG, "found callback context: %s\n", callcontext);
 		} else {
 			callcontext[0] = '\0';
 		}
 
 		if ((exitcxt = ast_variable_retrieve(cfg, "general", "exitcontext"))) {
-			strncpy(exitcontext, exitcxt, sizeof(exitcontext) - 1);
+			ast_copy_string(exitcontext, exitcxt, sizeof(exitcontext));
 			ast_log(LOG_DEBUG, "found operator context: %s\n", exitcontext);
 		} else {
 			exitcontext[0] = '\0';
@@ -5553,9 +5556,9 @@ static int load_config(void)
 							if (msg_format != NULL) {
 								timezone = strsep(&msg_format, "|");
 								if (msg_format) {
-									strncpy(z->name, var->name, sizeof(z->name) - 1);
-									strncpy(z->timezone, timezone, sizeof(z->timezone) - 1);
-									strncpy(z->msg_format, msg_format, sizeof(z->msg_format) - 1);
+									ast_copy_string(z->name, var->name, sizeof(z->name));
+									ast_copy_string(z->timezone, timezone, sizeof(z->timezone));
+									ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
 									z->next = NULL;
 									if (zones) {
 										zonesl->next = z;
@@ -5586,7 +5589,7 @@ static int load_config(void)
 		memset(fromstring,0,sizeof(fromstring));
 		memset(pagerfromstring,0,sizeof(pagerfromstring));
 		memset(emailtitle,0,sizeof(emailtitle));
-		strncpy(charset, "ISO-8859-1", sizeof(charset) - 1);
+		strcpy(charset, "ISO-8859-1");
 		if (emailbody) {
 			free(emailbody);
 			emailbody = NULL;
@@ -5598,11 +5601,11 @@ static int load_config(void)
 		if ((s=ast_variable_retrieve(cfg, "general", "pbxskip")))
 			ast_set2_flag((&globalflags), ast_true(s), VM_PBXSKIP);
 		if ((s=ast_variable_retrieve(cfg, "general", "fromstring")))
-			strncpy(fromstring,s,sizeof(fromstring)-1);
+			ast_copy_string(fromstring,s,sizeof(fromstring));
 		if ((s=ast_variable_retrieve(cfg, "general", "pagerfromstring")))
-			strncpy(pagerfromstring,s,sizeof(pagerfromstring)-1);	
+			ast_copy_string(pagerfromstring,s,sizeof(pagerfromstring));
 		if ((s=ast_variable_retrieve(cfg, "general", "charset")))
-			strncpy(charset,s,sizeof(charset)-1);
+			ast_copy_string(charset,s,sizeof(charset));
 		if ((s=ast_variable_retrieve(cfg, "general", "adsifdn"))) {
 			sscanf(s, "%2x%2x%2x%2x", &tmpadsi[0], &tmpadsi[1], &tmpadsi[2], &tmpadsi[3]);
 			for (x=0; x<4; x++) {
@@ -5621,7 +5624,7 @@ static int load_config(void)
 			}
 		if ((s=ast_variable_retrieve(cfg, "general", "emailtitle"))) {
 			ast_log(LOG_NOTICE, "Keyword 'emailtitle' is DEPRECATED, please use 'emailsubject' instead.\n");
-			strncpy(emailtitle,s,sizeof(emailtitle)-1);
+			ast_copy_string(emailtitle,s,sizeof(emailtitle));
 		}
 		if ((s=ast_variable_retrieve(cfg, "general", "emailsubject")))
 			emailsubject = strdup(s);
@@ -5749,15 +5752,15 @@ static int dialout(struct ast_channel *chan, struct ast_vm_user *vmu, char *num,
 		
 	} else {
 		ast_verbose( VERBOSE_PREFIX_3 "Destination number is CID number '%s'\n", num);
-		strncpy(destination, num, sizeof(destination) -1);
+		ast_copy_string(destination, num, sizeof(destination));
 	}
 
 	if (!ast_strlen_zero(destination)) {
 		if (destination[strlen(destination) -1 ] == '*')
 			return 0; 
 		ast_verbose( VERBOSE_PREFIX_3 "Placing outgoing call to extension '%s' in context '%s' from context '%s'\n", destination, outgoing_context, chan->context);
-		strncpy(chan->exten, destination, sizeof(chan->exten) - 1);
-		strncpy(chan->context, outgoing_context, sizeof(chan->context) - 1);
+		ast_copy_string(chan->exten, destination, sizeof(chan->exten));
+		ast_copy_string(chan->context, outgoing_context, sizeof(chan->context));
 		chan->priority = 0;
 		return 9;
 	}
