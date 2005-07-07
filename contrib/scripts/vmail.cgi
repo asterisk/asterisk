@@ -11,10 +11,15 @@
 # (icky, I know....  if you know better perl please help!)
 #
 #
+# Synchronization added by GDS Partners (www.gdspartners.com)
+#			 Stojan Sljivic (stojan.sljivic@gdspartners.com)
+#
 use CGI qw/:standard/;
 use Carp::Heavy;
 use CGI::Carp qw(fatalsToBrowser);
 use DBI;
+use Fcntl qw ( O_WRONLY O_CREAT O_EXCL );
+use Time::HiRes qw ( usleep );
 
 $context=""; # Define here your by default context (so you dont need to put voicemail@context in the login
 
@@ -43,6 +48,57 @@ $astpath = "/_asterisk";
 $stdcontainerstart = "<table align=center width=600><tr><td>\n";
 $footer = "<hr><font size=-1><a href=\"http://www.asterisk.org\">The Asterisk Open Source PBX</a> Copyright 2004, <a href=\"http://www.digium.com\">Digium, Inc.</a></a>";
 $stdcontainerend = "</td></tr><tr><td align=right>$footer</td></tr></table>\n";
+
+sub lock_path() {
+
+	my($path) = @_;
+	my $rand;
+	my $rfile;
+	my $start;
+	my $res;
+	
+	$rand = rand 99999999;	
+	$rfile = "$path/.lock-$rand";
+	
+	sysopen(RFILE, $rfile, O_WRONLY | O_CREAT | O_EXCL, 0666) or return -1;
+	close(RFILE);
+	
+	$res = link($rfile, "$path/.lock");
+	$start = time;
+	if ($res == 0) {
+	while (($res == 0) && (time - $start <= 5)) {
+		$res = link($rfile, "$path/.lock");
+		usleep(1);
+	}
+	}
+	unlink($rfile);
+	
+	if ($res == 0) {
+		return -1;
+	} else {
+		return 0;
+	}
+}
+
+sub unlock_path() {
+
+	my($path) = @_;
+	
+	unlink("$path/.lock");
+}
+
+sub untaint() {
+
+	my($data) = @_;
+	
+	if ($data =~ /^([-\@\w.]+)$/) {
+		$data = $1;
+	} else {
+		die "Security violation.";
+	}
+	
+	return $data;
+}
 
 sub login_screen() {
 	print header;
@@ -873,19 +929,29 @@ sub message_forward()
 		die("Bah! Not a valid mailbox '$newmbox'\n");
 		return "";
 	}
-	$msgcount = &msgcount($context, $newmbox, "INBOX");
+	
 	my $txt;
-	if ($newmbox ne $mbox) {
-#		print header;
-		foreach $msg (@msgs) {
-#			print "Forwarding $msg from $mbox to $newmbox<BR>\n";
-			&message_copy($context, $mbox, $newmbox, $folder, $msg, sprintf "%04d", $msgcount);
-			$msgcount++;
+	$context = &untaint($context);
+	$newmbox = &untaint($newmbox);
+	my $path = "/var/spool/asterisk/voicemail/$context/$newmbox/INBOX";
+	if (&lock_path($path) == 0) {
+		$msgcount = &msgcount($context, $newmbox, "INBOX");
+		
+		if ($newmbox ne $mbox) {
+#			print header;
+			foreach $msg (@msgs) {
+#				print "Forwarding $msg from $mbox to $newmbox<BR>\n";
+				&message_copy($context, $mbox, $newmbox, $folder, $msg, sprintf "%04d", $msgcount);
+				$msgcount++;
+			}
+			$txt = "Forwarded messages " . join(', ', @msgs) . "to $newmbox";
+		} else {
+			$txt = "Can't forward messages to yourself!\n";
 		}
-		$txt = "Forwarded messages " . join(', ', @msgs) . "to $newmbox";
+		&unlock_path($path); 
 	} else {
-		$txt = "Can't forward messages to yourself!\n";
-	} 
+		$txt = "Cannot forward messages: Unable to lock path.\n";
+	}
 	if ($toindex) {
 		&message_index($folder, $txt);
 	} else {
@@ -910,33 +976,42 @@ sub message_delete_or_move()
 		$context = "default";
 	}
 	my $passwd = param('password');
-	my $msgcount = &msgcount($context, $mbox, $folder);
-	my $omsgcount = &msgcount($context, $mbox, $newfolder) if $newfolder;
-#	print header;
-	if ($newfolder ne $folder) {
-		$y = 0;
-		for ($x=0;$x<$msgcount;$x++) {
-			my $msg = sprintf "%04d", $x;
-			my $newmsg = sprintf "%04d", $y;
-			if (grep(/^$msg$/, @msgs)) {
-				if ($newfolder) {
-					&message_rename($context, $mbox, $folder, $msg, $newfolder, sprintf "%04d", $omsgcount);
-					$omsgcount++;
+	$context = &untaint($context);
+	$mbox = &untaint($mbox);
+	$folder = &untaint($folder);
+	my $path = "/var/spool/asterisk/voicemail/$context/$mbox/$folder";
+	if (&lock_path($path) == 0) {
+		my $msgcount = &msgcount($context, $mbox, $folder);
+		my $omsgcount = &msgcount($context, $mbox, $newfolder) if $newfolder;
+	#	print header;
+		if ($newfolder ne $folder) {
+			$y = 0;
+			for ($x=0;$x<$msgcount;$x++) {
+				my $msg = sprintf "%04d", $x;
+				my $newmsg = sprintf "%04d", $y;
+				if (grep(/^$msg$/, @msgs)) {
+					if ($newfolder) {
+						&message_rename($context, $mbox, $folder, $msg, $newfolder, sprintf "%04d", $omsgcount);
+						$omsgcount++;
+					} else {
+						&message_delete($context, $mbox, $folder, $msg);
+					}
 				} else {
-					&message_delete($context, $mbox, $folder, $msg);
+					&message_rename($context, $mbox, $folder, $msg, $folder, $newmsg);
+					$y++;
 				}
-			} else {
-				&message_rename($context, $mbox, $folder, $msg, $folder, $newmsg);
-				$y++;
 			}
-		}
-		if ($del) {
-			$txt = "Deleted messages "  . join (', ', @msgs);
+			if ($del) {
+				$txt = "Deleted messages "  . join (', ', @msgs);
+			} else {
+				$txt = "Moved messages "  . join (', ', @msgs) . " to $newfolder";
+			}
 		} else {
-			$txt = "Moved messages "  . join (', ', @msgs) . " to $newfolder";
+			$txt = "Can't move a message to the same folder they're in already";
 		}
+		&unlock_path($path);
 	} else {
-		$txt = "Can't move a message to the same folder they're in already";
+		$txt = "Cannot move/delete messages: Unable to lock path.\n";
 	}
 	# Not as many messages now
 	$msgcount--;
