@@ -1680,7 +1680,7 @@ static int handle_parkedcalls(int fd, int argc, char *argv[])
 		cur = cur->next;
 		numparked++;
 	}
-	ast_cli(fd, "%d parked call(s).\n",numparked);
+	ast_cli(fd, "%d parked call%s.\n", numparked, (numparked != 1) ? "s" : "");
 
 	ast_mutex_unlock(&parking_lock);
 

@@ -365,7 +365,7 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 		errors++;
 	}
 	if (errors) {
-		ast_log(LOG_WARNING, "%d error(s) loading module %s, aborted\n", errors, fn);
+		ast_log(LOG_WARNING, "%d error%s loading module %s, aborted\n", errors, (errors != 1) ? "s" : "", fn);
 		dlclose(m->lib);
 		free(m);
 		ast_mutex_unlock(&modlock);

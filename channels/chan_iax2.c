@@ -4348,7 +4348,7 @@ static int iax2_show_channels(int fd, int argc, char *argv[])
 		}
 		ast_mutex_unlock(&iaxsl[x]);
 	}
-	ast_cli(fd, "%d active IAX channel(s)\n", numchans);
+	ast_cli(fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
@@ -4443,7 +4443,7 @@ static int iax2_show_netstats(int fd, int argc, char *argv[])
 	ast_cli(fd, "                                -------- LOCAL ---------------------  -------- REMOTE --------------------\n");
 	ast_cli(fd, "Channel                    RTT  Jit  Del  Lost   %%  Drop  OOO  Kpkts  Jit  Del  Lost   %%  Drop  OOO  Kpkts\n");
 	numchans = ast_cli_netstats(fd, 1);
-	ast_cli(fd, "%d active IAX channel(s)\n", numchans);
+	ast_cli(fd, "%d active IAX channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
 }
 
@@ -5887,7 +5887,7 @@ static int timing_read(int *id, int fd, short events, void *cbdata)
 		} else {
 			res = send_trunk(tpeer, &now);
 			if (iaxtrunkdebug)
-				ast_verbose(" - Trunk peer (%s:%d) has %d call chunk(s) in transit, %d bytes backloged and has hit a high water mark of %d bytes\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res, tpeer->trunkdatalen, tpeer->trunkdataalloc);
+				ast_verbose(" - Trunk peer (%s:%d) has %d call chunk%s in transit, %d bytes backloged and has hit a high water mark of %d bytes\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), res, (res != 1) ? "s" : "", tpeer->trunkdatalen, tpeer->trunkdataalloc);
 		}		
 		totalcalls += res;	
 		res = 0;

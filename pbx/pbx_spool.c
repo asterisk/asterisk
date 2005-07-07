@@ -235,7 +235,7 @@ static void *attempt_thread(void *data)
 		ast_log(LOG_NOTICE, "Call failed to go through, reason %d\n", reason);
 		if (o->retries >= o->maxretries + 1) {
 			/* Max retries exceeded */
-			ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt(s)\n", o->tech, o->dest, o->retries - 1);
+			ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
 			unlink(o->fn);
 		} else {
 			/* Notate that the call is still active */
@@ -294,7 +294,7 @@ static int scan_service(char *fn, time_t now, time_t atime)
 					now += o->retrytime;
 					return now;
 				} else {
-					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt(s)\n", o->tech, o->dest, o->retries - 1);
+					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
 					free(o);
 					unlink(fn);
 					return 0;

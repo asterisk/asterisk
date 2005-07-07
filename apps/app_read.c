@@ -159,7 +159,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 					tries--;
 					if (option_verbose > 2) {
 						if (tries)
-							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance(s) left\n", tries);
+							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing, %d chance%s left\n", tries, (tries != 1) ? "s" : "");
 						else
 							ast_verbose(VERBOSE_PREFIX_3 "User entered nothing.\n");
 					}
