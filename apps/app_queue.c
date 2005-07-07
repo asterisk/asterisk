@@ -1204,7 +1204,6 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 		}
 		cur = cur->next;
 	}
-	q->callscompleted++;
 	ast_mutex_unlock(&q->lock);
 	return 0;
 }
