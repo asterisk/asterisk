@@ -358,6 +358,8 @@ int reload_logger(int rotate)
 
 	ast_mutex_unlock(&loglock);
 
+	pending_logger_reload = 0;
+
 	queue_log_init();
 
 	if (eventlog) {
@@ -369,7 +371,7 @@ int reload_logger(int rotate)
 	} else 
 		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	init_logger_chain();
-	pending_logger_reload = 0;
+	
 	return -1;
 }
 
