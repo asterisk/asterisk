@@ -3,6 +3,10 @@
        not listed here.  A complete listing of changes is available through
        the Asterisk-CVS mailing list hosted at http://lists.digium.com.
 
+ -- app_zapras
+    -- We now ensure buffer policy is restored after RAS is done with a channel.
+       This could cause audio problems on the channel after zapras is done
+       with it. 
  -- general
     -- Added man pages for astgenkey, autosupport, and safe_asterisk
 
