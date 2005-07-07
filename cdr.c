@@ -578,9 +578,9 @@ int ast_cdr_setcid(struct ast_cdr *cdr, struct ast_channel *c)
 			if (c->cid.cid_name && num)
 				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
 			else if (c->cid.cid_name)
-				strncpy(tmp, c->cid.cid_name, sizeof(tmp) - 1);
+				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
 			else if (num)
-				strncpy(tmp, num, sizeof(tmp) - 1);
+				ast_copy_string(tmp, num, sizeof(tmp));
 			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
 			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
 		}
@@ -609,9 +609,9 @@ int ast_cdr_init(struct ast_cdr *cdr, struct ast_channel *c)
 			if (c->cid.cid_name && num)
 				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
 			else if (c->cid.cid_name)
-				strncpy(tmp, c->cid.cid_name, sizeof(tmp) - 1);
+				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
 			else if (num)
-				strncpy(tmp, num, sizeof(tmp) - 1);
+				ast_copy_string(tmp, num, sizeof(tmp));
 			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
 			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
 
@@ -740,9 +740,9 @@ int ast_cdr_update(struct ast_channel *c)
 			if (c->cid.cid_name && num)
 				snprintf(tmp, sizeof(tmp), "\"%s\" <%s>", c->cid.cid_name, num);
 			else if (c->cid.cid_name)
-				strncpy(tmp, c->cid.cid_name, sizeof(tmp) - 1);
+				ast_copy_string(tmp, c->cid.cid_name, sizeof(tmp));
 			else if (num)
-				strncpy(tmp, num, sizeof(tmp) - 1);
+				ast_copy_string(tmp, num, sizeof(tmp));
 			ast_copy_string(cdr->clid, tmp, sizeof(cdr->clid));
 			ast_copy_string(cdr->src, num ? num : "", sizeof(cdr->src));
 
