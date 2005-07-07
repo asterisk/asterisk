@@ -313,11 +313,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				if (option_verbose > 2)
 					ast_verbose( VERBOSE_PREFIX_2 "Everyone is busy/congested at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
 				if (numbusy)
-					strncpy(status, "BUSY", statussize - 1);
+					strcpy(status, "BUSY");	
 				else if (numcongestion)
-					strncpy(status, "CONGESTION", statussize - 1);
+					strcpy(status, "CONGESTION");
 				else if (numnochan)
-					strncpy(status, "CHANUNAVAIL", statussize - 1);
+					strcpy(status, "CHANUNAVAIL");
 				/* See if there is a special busy message */
 				if (!nojump && ast_exists_extension(in, in->context, in->exten, in->priority + 101, in->cid.cid_num)) 
 					in->priority+=100;
@@ -343,7 +343,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					char tmpchan[256]="";
 					char *stuff;
 					char *tech;
-					strncpy(tmpchan, o->chan->call_forward, sizeof(tmpchan) - 1);
+					ast_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
 					if ((stuff = strchr(tmpchan, '/'))) {
 						*stuff = '\0';
 						stuff++;
@@ -387,7 +387,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							else
 								newcid = in->exten;
 							o->chan->cid.cid_num = strdup(newcid);
-							strncpy(o->chan->accountcode, winner->accountcode, sizeof(o->chan->accountcode) - 1);
+							ast_copy_string(o->chan->accountcode, winner->accountcode, sizeof(o->chan->accountcode));
 							o->chan->cdrflags = winner->cdrflags;
 							if (!o->chan->cid.cid_num)
 								ast_log(LOG_WARNING, "Out of memory\n");
@@ -402,7 +402,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								if (!o->chan->cid.cid_name)
 									ast_log(LOG_WARNING, "Out of memory\n");	
 							}
-							strncpy(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode) - 1);
+							ast_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
 							o->chan->cdrflags = in->cdrflags;
 						}
 
@@ -411,7 +411,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								free(o->chan->cid.cid_ani);
 							o->chan->cid.cid_ani = malloc(strlen(in->cid.cid_ani) + 1);
 							if (o->chan->cid.cid_ani)
-								strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
+								ast_copy_string(o->chan->cid.cid_ani, in->cid.cid_ani, sizeof(o->chan->cid.cid_ani));
 							else
 								ast_log(LOG_WARNING, "Out of memory\n");
 						}
@@ -547,7 +547,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP))) {
 				/* Got hung up */
 				*to=-1;
-				strncpy(status, "CANCEL", statussize - 1);
+				strcpy(status, "CANCEL");
 				if (f)
 					ast_frfree(f);
 				return NULL;
@@ -727,7 +727,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
   
 		/* XXX LIMIT SUPPORT */
 		if ((limitptr = strstr(transfer, "L("))) {
-			strncpy(limitdata, limitptr + 2, sizeof(limitdata) - 1);
+			ast_copy_string(limitdata, limitptr + 2, sizeof(limitdata));
 			/* Overwrite with X's what was the limit info */
 			while (*limitptr && (*limitptr != ')')) 
 				*(limitptr++) = 'X';
@@ -802,7 +802,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* XXX ANNOUNCE SUPPORT */
 		if ((ann = strstr(transfer, "A("))) {
 			announce = 1;
-			strncpy(announcemsg, ann + 2, sizeof(announcemsg) - 1);
+			ast_copy_string(announcemsg, ann + 2, sizeof(announcemsg));
 			/* Overwrite with X's what was the announce info */
 			while (*ann && (*ann != ')')) 
 				*(ann++) = 'X';
@@ -883,7 +883,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* Extract privacy info from transfer */
 		if ((s = strstr(transfer, "P("))) {
 			privacy = 1;
-			strncpy(privdb, s + 2, sizeof(privdb) - 1);
+			ast_copy_string(privdb, s + 2, sizeof(privdb));
 			/* Overwrite with X's what was the privacy info */
 			while (*s && (*s != ')')) 
 				*(s++) = 'X';
@@ -910,7 +910,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		ast_cdr_reset(chan->cdr, 0);
 	if (ast_strlen_zero(privdb) && privacy) {
 		/* If privdb is not specified and we are using privacy, copy from extension */
-		strncpy(privdb, chan->exten, sizeof(privdb) - 1);
+		ast_copy_string(privdb, chan->exten, sizeof(privdb));
 	}
 	if (privacy) {
 		l = chan->cid.cid_num;
@@ -962,10 +962,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			ast_set2_flag(peerflags, strchr(transfer, 'g'), DIAL_GO_ON);	
 			ast_set2_flag(peerflags, strchr(transfer, 'o'), DIAL_PRESERVE_CALLERID);	
 		}
-		strncpy(numsubst, number, sizeof(numsubst)-1);
+		ast_copy_string(numsubst, number, sizeof(numsubst));
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(numsubst, "BYEXTENSION"))) {
-			strncpy(restofit, newnum + strlen("BYEXTENSION"), sizeof(restofit)-1);
+			/* strlen("BYEXTENSION") == 11 */
+			ast_copy_string(restofit, newnum + 11, sizeof(restofit));
 			snprintf(newnum, sizeof(numsubst) - (newnum - numsubst), "%s%s", chan->exten,restofit);
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Dialing by extension %s\n", numsubst);
@@ -984,7 +985,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			char tmpchan[256]="";
 			char *stuff;
 			char *tech;
-			strncpy(tmpchan, tmp->chan->call_forward, sizeof(tmpchan) - 1);
+			ast_copy_string(tmpchan, tmp->chan->call_forward, sizeof(tmpchan));
 			if ((stuff = strchr(tmpchan, '/'))) {
 				*stuff = '\0';
 				stuff++;
@@ -1041,11 +1042,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			tmp->chan->cid.cid_ani = strdup(chan->cid.cid_ani);
 		
 		/* Copy language from incoming to outgoing */
-		strncpy(tmp->chan->language, chan->language, sizeof(tmp->chan->language) - 1);
-		strncpy(tmp->chan->accountcode, chan->accountcode, sizeof(tmp->chan->accountcode) - 1);
+		ast_copy_string(tmp->chan->language, chan->language, sizeof(tmp->chan->language));
+		ast_copy_string(tmp->chan->accountcode, chan->accountcode, sizeof(tmp->chan->accountcode));
 		tmp->chan->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tmp->chan->musicclass))
-			strncpy(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass) - 1);
+			ast_copy_string(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass));
 		if (chan->cid.cid_rdnis)
 			tmp->chan->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
 		/* Pass callingpres setting */
@@ -1111,7 +1112,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	if (outgoing) {
 		/* Our status will at least be NOANSWER */
-		strncpy(status, "NOANSWER", sizeof(status) - 1);
+		strcpy(status, "NOANSWER");
 		if (ast_test_flag(outgoing, DIAL_MUSICONHOLD)) {
 			moh=1;
 			ast_moh_start(chan, mohclass);
@@ -1120,7 +1121,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			sentringing++;
 		}
 	} else
-		strncpy(status, "CHANUNAVAIL", sizeof(status) - 1);
+		strcpy(status, "CHANUNAVAIL");
 
 	time(&start_time);
 	peer = wait_for_answer(chan, outgoing, &to, peerflags, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion, nojump, &result);
@@ -1143,8 +1144,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 #ifdef OSP_SUPPORT
 		/* Once call is answered, ditch the OSP Handle */
 		pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
-#endif		
-		strncpy(status, "ANSWER", sizeof(status) - 1);
+#endif
+		strcpy(status, "ANSWER");
 		/* Ah ha!  Someone answered within the desired timeframe.  Of course after this
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
@@ -1228,14 +1229,14 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (!res) {
 				if ((macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
 					if (!strcasecmp(macro_result, "BUSY")) {
-						strncpy(status, macro_result, sizeof(status) - 1);
+						ast_copy_string(status, macro_result, sizeof(status));
 						if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
 							ast_set_flag(peerflags, DIAL_GO_ON);
 						}
 						res = -1;
 					}
 					else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
-						strncpy(status, macro_result, sizeof(status) - 1);
+						ast_copy_string(status, macro_result, sizeof(status));
 						ast_set_flag(peerflags, DIAL_GO_ON);	
 						res = -1;
 					}
