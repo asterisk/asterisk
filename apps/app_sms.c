@@ -1176,7 +1176,7 @@ static int sms_generate (struct ast_channel *chan, void *data, int len, int samp
 	int i;
 
 	if (len > sizeof (buf)) {
-		ast_log (LOG_WARNING, "Only doing %d bytes (%d bytes requested)\n", sizeof (buf) / sizeof (signed short), len);
+		ast_log (LOG_WARNING, "Only doing %zd bytes (%d bytes requested)\n", sizeof (buf) / sizeof (signed short), len);
 		len = sizeof (buf);
 #ifdef OUTALAW
 		samples = len;

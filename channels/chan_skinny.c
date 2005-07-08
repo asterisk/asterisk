@@ -1944,7 +1944,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 	if (ast->cid.cid_num) { 
 		char ciddisplay[41];
 		char *work;
-		int size = sizeof(ciddisplay);
+		size_t size = sizeof(ciddisplay);
 
 		/* We'll assume that if it is 10 numbers, it is a standard NANPA number
 		   Why? Because I am bloody American, and I'm bigoted that way. */
