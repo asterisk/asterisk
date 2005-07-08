@@ -62,6 +62,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/astobj.h"
 #include "asterisk/dnsmgr.h"
+#include "asterisk/devicestate.h"
 #ifdef OSP_SUPPORT
 #include "asterisk/astosp.h"
 #endif

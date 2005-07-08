@@ -42,6 +42,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/localtime.h"
 #include "asterisk/aes.h"
 #include "asterisk/dnsmgr.h"
+#include "asterisk/devicestate.h"
+
 #include <sys/mman.h>
 #include <arpa/inet.h>
 #include <dirent.h>
@@ -73,7 +75,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
-#include "asterisk.h"
 
 /* Define NEWJB to use the new channel independent jitterbuffer,
  * otherwise, use the old jitterbuffer */

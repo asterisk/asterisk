@@ -71,6 +71,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/astdb.h"
+#include "asterisk/devicestate.h"
 
 #define QUEUE_STRATEGY_RINGALL		0
 #define QUEUE_STRATEGY_ROUNDROBIN	1

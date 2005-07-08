@@ -51,8 +51,6 @@ struct ast_sw;
 
 typedef int (*ast_state_cb_type)(char *context, char* id, int state, void *data);
 
-typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
-
 /*! Data structure associated with a custom function */
 struct ast_custom_function {
 	char *name;
@@ -253,16 +251,6 @@ int ast_unregister_application(const char *app);
  */
 int ast_extension_state(struct ast_channel *c, char *context, char *exten);
 
-/*! Tells Asterisk the State for Device is changed */
-/*!
- * \param fmt devicename like a dialstring with format parameters
- * Asterisk polls the new extensionstates and calls the registered
- * callbacks for the changed extensions
- * Returns 0 on success, -1 on failure
- */
-int ast_device_state_changed(const char *fmt, ...)
-	__attribute__ ((format (printf, 1, 2)));
-
 /*! Registers a state change callback */
 /*!
  * \param context which context to look in
@@ -274,15 +262,6 @@ int ast_device_state_changed(const char *fmt, ...)
  */ 
 int ast_extension_state_add(const char *context, const char *exten, 
 			    ast_state_cb_type callback, void *data);
-
-/*! Registers a device state change callback */
-/*!
- * \param data to pass to callback
- * The callback is called if the state for extension is changed
- * Return -1 on failure, ID on success
- */ 
-int ast_devstate_add(ast_devstate_cb_type callback, void *data);
-void ast_devstate_del(ast_devstate_cb_type callback, void *data);
 
 /*! Deletes a registered state change callback by ID */
 /*!
@@ -628,6 +607,8 @@ char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, s
  * It has no return value.
  */
 void ast_func_write(struct ast_channel *chan, const char *in, const char *value);
+
+void ast_hint_state_changed(const char *device);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

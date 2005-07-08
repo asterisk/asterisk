@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
+#include "asterisk/devicestate.h"
 
 /*
  * I M P O R T A N T :
@@ -160,15 +161,6 @@ struct ast_state_cb {
 	struct ast_state_cb *next;
 };
 	    
-/* ast_devstate_cb: An extension state notify */
-struct ast_devstate_cb {
-	void *data;
-	ast_devstate_cb_type callback;
-	struct ast_devstate_cb *next;
-};
-
-static struct ast_devstate_cb *devcbs;
-
 /* Hints are pointers from an extension in the dialplan to one or more devices (tech/name) */
 struct ast_hint {
 	struct ast_exten *exten;	/* Extension */
@@ -1805,130 +1797,48 @@ int ast_extension_state(struct ast_channel *c, char *context, char *exten)
 	return ast_extension_state2(e);    		/* Check all devices in the hint */
 }
 
-/*--- ast_device_state_changed: If device state in cblist is changed  - then notify callback function */
-int ast_device_state_changed(const char *fmt, ...) 
+void ast_hint_state_changed(const char *device)
 {
-	struct ast_hint *list;
+	struct ast_hint *hint;
 	struct ast_state_cb *cblist;
-	struct ast_devstate_cb *devcb;
-	char hint[AST_MAX_EXTENSION] = "";
-	char device[AST_MAX_EXTENSION];
-
-	char *cur, *rest;
+	char buf[AST_MAX_EXTENSION];
+	char *parse;
+	char *cur;
 	int state;
 
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsnprintf(device, sizeof(device), fmt, ap);
-	va_end(ap);
-
-	rest = strchr(device, '-');
-	if (rest) {
-		*rest = 0;
-	}
-
-
-	state = ast_device_state(device);
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Changing state for %s - state %d\n", device, state);
-
 	ast_mutex_lock(&hintlock);
 
-	/* First check device callbacks */
-	devcb = devcbs;
-	while(devcb) {
-		if (devcb->callback)
-			devcb->callback(device, state, devcb->data);
-		devcb = devcb->next;
-	}
+	for (hint = hints; hint; hint = hint->next) {
+		ast_copy_string(buf, ast_get_extension_app(hint->exten), sizeof(buf));
+		parse = buf;
+		for (cur = strsep(&parse, "&"); cur; cur = strsep(&parse, "&")) {
+			if (strcmp(cur, device))
+				continue;
 
-	/* Then check callbacks in hints */
-	list = hints;
-
-	while (list) {
-
-		ast_copy_string(hint, ast_get_extension_app(list->exten), sizeof(hint));
-		cur = hint;
-		do {
-			rest = strchr(cur, '&');
-			if (rest) {
-				*rest = 0;
-				rest++;
-			}
+			/* Get device state for this hint */
+			state = ast_extension_state2(hint->exten);
 			
-			if (!strcmp(cur, device)) {	/* Is this device referred to in this hint? */
+			if ((state == -1) || (state == hint->laststate))
+				continue;
 
-				/* Get device state for this hint */
-				state = ast_extension_state2(list->exten);
-
-				if ((state != -1) && (state != list->laststate)) {
-					/* Device state changed since last check - notify the watcher */
-
-					/* For general callbacks */
-					cblist = statecbs;
-					while (cblist) {
-						cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
-						cblist = cblist->next;
-					}
-
-					/* For extension callbacks */
-					cblist = list->callbacks;
-					while (cblist) {
-						cblist->callback(list->exten->parent->name, list->exten->exten, state, cblist->data);
-						cblist = cblist->next;
-					}
+			/* Device state changed since last check - notify the watchers */
 			
-					list->laststate = state;
-				}
-				break;
-			}
-			cur = rest;
-		} while (cur);
-		list = list->next;
-	}
-	ast_mutex_unlock(&hintlock);
-	return 1;
-}
+			/* For general callbacks */
+			for (cblist = statecbs; cblist; cblist = cblist->next)
+				cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
 			
-/*--- ast_devstate_add: Add device state watcher */
-int ast_devstate_add(ast_devstate_cb_type callback, void *data)
-{
-	struct ast_devstate_cb *devcb;
-	devcb = malloc(sizeof(struct ast_devstate_cb));
-	if (devcb) {
-		memset(devcb, 0, sizeof(struct ast_devstate_cb));
-		ast_mutex_lock(&hintlock);
-		devcb->data = data;
-		devcb->callback = callback;
-		devcb->next = devcbs;
-		devcbs = devcb;
-		ast_mutex_unlock(&hintlock);
+			/* For extension callbacks */
+			for (cblist = hint->callbacks; cblist; cblist = cblist->next)
+				cblist->callback(hint->exten->parent->name, hint->exten->exten, state, cblist->data);
+			
+			hint->laststate = state;
+			break;
+		}
 	}
-	return 0;
-}
 
-/*--- ast_devstate_del: Remove device state watcher */
-void ast_devstate_del(ast_devstate_cb_type callback, void *data)
-{
-	struct ast_devstate_cb *devcb, *prev = NULL, *next;
-	ast_mutex_lock(&hintlock);
-	devcb = devcbs;
-	while(devcb) {
-		next = devcb->next;
-		if ((devcb->data == data) && (devcb->callback == callback)) {
-			if (prev)
-				prev->next = next;
-			else
-				devcbs = next;
-			free(devcb);
-		} else
-			prev = devcb;
-		devcb = next;
-	}
 	ast_mutex_unlock(&hintlock);
 }
-
+			
 /*--- ast_extension_state_add: Add watcher for extension states */
 int ast_extension_state_add(const char *context, const char *exten, 
 			    ast_state_cb_type callback, void *data)

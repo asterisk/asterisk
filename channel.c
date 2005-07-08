@@ -57,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/transcap.h"
+#include "asterisk/devicestate.h"
 
 /* uncomment if you have problems with 'monitoring' synchronized files */
 #if 0
@@ -293,6 +294,58 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 
 	ast_mutex_unlock(&chlock);
 	return 0;
+}
+
+void ast_channel_unregister(const struct ast_channel_tech *tech)
+{
+	struct chanlist *chan, *last=NULL;
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Unregistering channel type '%s'\n", tech->type);
+
+	ast_mutex_lock(&chlock);
+
+	chan = backends;
+	while (chan) {
+		if (chan->tech == tech) {
+			if (last)
+				last->next = chan->next;
+			else
+				backends = backends->next;
+			free(chan);
+			ast_mutex_unlock(&chlock);
+
+			if (option_verbose > 1)
+				ast_verbose( VERBOSE_PREFIX_2 "Unregistered channel type '%s'\n", tech->type);
+
+			return;
+		}
+		last = chan;
+		chan = chan->next;
+	}
+
+	ast_mutex_unlock(&chlock);
+}
+
+const struct ast_channel_tech *ast_get_channel_tech(const char *name)
+{
+	struct chanlist *chanls;
+
+	if (ast_mutex_lock(&chlock)) {
+		ast_log(LOG_WARNING, "Unable to lock channel tech list\n");
+		return NULL;
+	}
+
+	for (chanls = backends; chanls; chanls = chanls->next) {
+		if (strcasecmp(name, chanls->tech->type))
+			continue;
+
+		ast_mutex_unlock(&chlock);
+		return chanls->tech;
+	}
+
+	ast_mutex_unlock(&chlock);
+	return NULL;
 }
 
 /*--- ast_cause2str: Gives the string form of a given hangup cause */
@@ -605,7 +658,7 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
  * We should definitely go for a better scheme that is deadlock-free.
  */
 static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
-					       const char *name)
+					       const char *name, const int namelen)
 {
 	const char *msg = prev ? "deadlock" : "initial deadlock";
 	int retries, done;
@@ -615,8 +668,14 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 		ast_mutex_lock(&chlock);
 		for (c = channels; c; c = c->next) {
 			if (prev == NULL) {
-				/* want either head of list or match by name */
-				if (name == NULL || !strcasecmp(name, c->name))
+				/* want head of list */
+				if (!name)
+					break;
+				/* want match by full name */
+				if (!namelen && !strcasecmp(c->name, name))
+					break;
+				/* want match by name prefix */
+				if (!strncasecmp(c->name, name, namelen))
 					break;
 			} else if (c == prev) { /* found, return c->next */
 				c = c->next;
@@ -646,13 +705,19 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 /*--- ast_channel_walk_locked: Browse channels in use */
 struct ast_channel *ast_channel_walk_locked(const struct ast_channel *prev)
 {
-	return channel_find_locked(prev, NULL);
+	return channel_find_locked(prev, NULL, 0);
 }
 
 /*--- ast_get_channel_by_name_locked: Get channel by name and lock it */
 struct ast_channel *ast_get_channel_by_name_locked(const char *name)
 {
-	return channel_find_locked(NULL, name);
+	return channel_find_locked(NULL, name, 0);
+}
+
+/*--- ast_get_channel_by_name_prefix_locked: Get channel by name prefix and lock it */
+struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, const int namelen)
+{
+	return channel_find_locked(NULL, name, namelen);
 }
 
 /*--- ast_safe_sleep_conditional: Wait, look for hangups and condition arg */
@@ -962,37 +1027,6 @@ int ast_hangup(struct ast_channel *chan)
 			chan->hangupcause);
 	ast_channel_free(chan);
 	return res;
-}
-
-void ast_channel_unregister(const struct ast_channel_tech *tech)
-{
-	struct chanlist *chan, *last=NULL;
-
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Unregistering channel type '%s'\n", tech->type);
-
-	ast_mutex_lock(&chlock);
-
-	chan = backends;
-	while (chan) {
-		if (chan->tech == tech) {
-			if (last)
-				last->next = chan->next;
-			else
-				backends = backends->next;
-			free(chan);
-			ast_mutex_unlock(&chlock);
-
-			if (option_verbose > 1)
-				ast_verbose( VERBOSE_PREFIX_2 "Unregistered channel type '%s'\n", tech->type);
-
-			return;
-		}
-		last = chan;
-		chan = chan->next;
-	}
-
-	ast_mutex_unlock(&chlock);
 }
 
 int ast_answer(struct ast_channel *chan)
@@ -2165,70 +2199,6 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 	}
 	ast_mutex_unlock(&chlock);
 	return c;
-}
-
-int ast_parse_device_state(char *device)
-{
-	char name[AST_CHANNEL_NAME] = "";
-	char *cut;
-	struct ast_channel *chan;
-
-	chan = ast_channel_walk_locked(NULL);
-	while (chan) {
-		ast_copy_string(name, chan->name, sizeof(name));
-		ast_mutex_unlock(&chan->lock);
-		cut = strchr(name,'-');
-		if (cut)
-		        *cut = 0;
-		if (!strcmp(name, device)) {
-			if (chan->_state == AST_STATE_RINGING) {
-				return AST_DEVICE_RINGING;
-			} else {
-				return AST_DEVICE_INUSE;
-			}
-		}
-		chan = ast_channel_walk_locked(chan);
-	}
-	return AST_DEVICE_UNKNOWN;
-}
-
-int ast_device_state(char *device)
-{
-	char tech[AST_MAX_EXTENSION] = "";
-	char *number;
-	struct chanlist *chanls;
-	int res = 0;
-	
-	ast_copy_string(tech, device, sizeof(tech));
-	number = strchr(tech, '/');
-	if (!number) {
-	    return AST_DEVICE_INVALID;
-	}
-	*number = 0;
-	number++;
-		
-	if (ast_mutex_lock(&chlock)) {
-		ast_log(LOG_WARNING, "Unable to lock channel list\n");
-		return -1;
-	}
-	chanls = backends;
-	while(chanls) {
-		if (!strcasecmp(tech, chanls->tech->type)) {
-			ast_mutex_unlock(&chlock);
-			if (!chanls->tech->devicestate) 
-				return ast_parse_device_state(device);
-			else {
-				res = chanls->tech->devicestate(number);
-				if (res == AST_DEVICE_UNKNOWN)
-					return ast_parse_device_state(device);
-				else
-					return res;
-			}
-		}
-		chanls = chanls->next;
-	}
-	ast_mutex_unlock(&chlock);
-	return AST_DEVICE_INVALID;
 }
 
 int ast_call(struct ast_channel *chan, char *addr, int timeout) 

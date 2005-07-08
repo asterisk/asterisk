@@ -65,6 +65,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/version.h"
 #include "asterisk/build.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/devicestate.h"
 
 #include "defaults.h"
 
@@ -2092,6 +2093,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	if (ast_cdr_engine_init()) {
+		printf(term_quit());
+		exit(1);
+	}
+	if (ast_device_state_engine_init()) {
 		printf(term_quit());
 		exit(1);
 	}

@@ -31,6 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
+#include "asterisk/devicestate.h"
 
 static char *tdesc = "Check if channel is available";
 

@@ -306,11 +306,13 @@ struct {								\
   used to link entries of this list together.
 
   Removes the head entry from the list, and returns a pointer to it. The
-  forward-link pointer in the returned entry is \b not cleared.
+  forward-link pointer in the returned entry is \b not cleared. This macro
+  is safe to call on an empty list.
  */
 #define AST_LIST_REMOVE_HEAD(head, field) ({				\
 		typeof((head)->first) cur = (head)->first;		\
-		(head)->first = (head)->first->field.next;		\
+		if (cur)						\
+			(head)->first = cur->field.next;		\
 		cur;							\
 	})
 
