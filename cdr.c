@@ -81,7 +81,7 @@ AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 
 /* these are used to wake up the CDR thread when there's work to do */
 AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
-pthread_cond_t cdr_pending_cond;
+static pthread_cond_t cdr_pending_cond;
 
 /*
  * We do a lot of checking here in the CDR code to try to be sure we don't ever let a CDR slip
