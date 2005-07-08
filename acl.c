@@ -271,7 +271,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	socklen_t slen;
 
 	s = socket(PF_INET, SOCK_DGRAM, 0);
-	if (s == -1) {
+	if (s < 0) {
 		ast_log(LOG_WARNING, "Cannot create socket\n");
 		return -1;
 	}
