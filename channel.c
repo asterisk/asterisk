@@ -31,6 +31,12 @@
 #error "You need newer zaptel!  Please cvs update zaptel"
 #endif
 #endif
+#ifdef __FreeBSD__
+#include <strfunc.h>
+#ifndef __STRFUNC_H__
+#error "Please install the strfunc library located in the ports collection at /usr/ports/devel/libstrfunc"
+#endif
+#endif
 
 #include "asterisk.h"
 

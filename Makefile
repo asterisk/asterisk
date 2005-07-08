@@ -235,7 +235,7 @@ LIBS+=-lresolv
 CFLAGS+=-D__Darwin__
 endif
 ifeq (${OSARCH},FreeBSD)
-LIBS+=-lcrypto
+LIBS+=-lcrypto -lstrfunc
 endif
 ifeq (${OSARCH},NetBSD)
 LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/local/lib -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib -lncurses
