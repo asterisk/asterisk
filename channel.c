@@ -33,7 +33,7 @@
 #endif
 #ifdef __FreeBSD__
 #include <strfunc.h>
-#if (!defined(__STRFUNC_H__) || (!defined(STRFUNC_H))
+#if (!defined(__STRFUNC_H__) || (!defined(STRFUNC_H)))
 #error "Please install the strfunc library located in the ports collection at /usr/ports/devel/libstrfunc"
 #endif
 #endif
