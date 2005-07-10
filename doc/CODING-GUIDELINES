@@ -218,6 +218,16 @@ API call somewhere.  If you are duplicating functionality found in
 another static function, consider the value of creating a new API call 
 which can be shared.
 
+As a common example of this point, make an effort to use the lockable
+linked-list macros found in include/asterisk/linkedlists.h. They are
+efficient, easy to use and provide every operation that should be
+necessary for managing a singly-linked list (if something is missing,
+let us know!). Just because you see other open-coded list implementations
+in the source tree is no reason to continue making new copies of
+that code... There are also a number of common string manipulation
+and timeval manipulation functions in asterisk/strings.h and asterisk/time.h;
+use them when possible.
+
 When you achieve your desired functionalty, make another few refactor
 passes over the code to optimize it.
 
