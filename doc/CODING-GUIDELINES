@@ -14,8 +14,8 @@ above the top-level Asterisk source directory. For example:
 
 All code, filenames, function names and comments must be in ENGLISH.
 
-Do not declare variables mid-function (e.g. like GNU lets you) since it is
-harder to read and not portable to GCC 2.95 and others.
+Do not declare variables mid-function (e.g. like recent  GNU compilers support)
+since it is harder to read and not portable to GCC 2.95 and others.
 
 Don't annotate your changes with comments like "/* JMG 4/20/04 */";
 Comments should explain what the code does, not when something was changed
@@ -27,11 +27,11 @@ Don't use C++ type (//) comments.
 
 Try to match the existing formatting of the file you are working on.
 
-Functions and variables that are not intended to be global must be
-declared static.
+Functions and variables that are not intended to be used outside the module
+must be declared static.
 
 When reading integer numeric input with scanf (or variants), do _NOT_ use '%i'
-unless specifically want to allow non-base-10 input; '%d' is always a better
+unless you specifically want to allow non-base-10 input; '%d' is always a better
 choice, since it will not silently turn numbers with leading zeros into base-8.
 
 Roughly, Asterisk code formatting guidelines are generally equivalent to the 
@@ -46,6 +46,20 @@ GOOD: foo(arg1,arg2);	/* Acceptable but not preferred */
 BAD: foo (arg1, arg2);
 BAD: foo( arg1, arg2 );
 BAD: foo(arg1, arg2,arg3);
+
+Don't treat keywords (if, while, do, return) as if they were functions;
+leave space between the keyword and the expression used (if any). For 'return',
+don't even put parentheses around the expression, since they are not
+required.
+
+There is no shortage of whitespace characters :-) Use them when they make
+the code easier to read. For example:
+
+for (str=foo;str;str=str->next)
+
+is harder to read than
+
+for (str = foo; str; str = str->next)
 
 Following are examples of how code should be formatted.
 
@@ -72,15 +86,15 @@ case OTHER:
 	break;
 }
 
-No nested statements without braces, e.g. no:
+No nested statements without braces, e.g.:
 
-for (x=0;x<5;x++)
+for (x = 0; x < 5; x++)
 	if (foo) 
 		if (bar)
 			baz();
 
 instead do:
-for (x=0;x<5;x++) {
+for (x = 0; x < 5; x++) {
 	if (foo) {
 		if (bar)
 			baz();
@@ -110,24 +124,86 @@ if !(foo) {
 When this technique is used properly, it makes functions much easier to read
 and follow, especially those with more than one or two 'setup' operations
 that must succeed for the rest of the function to be able to execute.
+
+Proper use of this technique may occasionally result in the need for a
+label/goto combination so that error/failure conditions can exit the
+function while still performing proper cleanup. This is not a bad thing!
+Use of goto in this situation is encouraged, since it removes the need
+for excess code indenting without requiring duplication of cleanup code.
        
 Make sure you never use an uninitialized variable.  The compiler will 
-usually warn you if you do so.
+usually warn you if you do so. However, do not go too far the other way,
+and needlessly initialize variables that do not require it. If the first
+time you use a variable in a function is to store a value there, then
+initializing it at declaration is pointless, and will generate extra
+object code and data in the resulting binary with no purpose. When in doubt,
+trust the compiler to tell you when you need to initialize a variable;
+if it does not warn you, initialization is not needed.
+
+Do not explicitly cast 'void *' into any other type, nor should you cast any
+other type into 'void *'. Implicit casts to/from 'void *' are explicitly
+allowed by the C specification. This means the results of malloc(), calloc(),
+alloca(), and similar functions do not _ever_ need to be cast to a specific
+type, and when you are passing a pointer to (for example) a callback function
+that accepts a 'void *' you do not need to cast into that type.
 
 Name global variables (or local variables when you have a lot of them or
 are in a long function) something that will make sense to aliens who
 find your code in 100 years.  All variable names should be in lower 
-case.
+case, except when following external APIs or specifications that normally
+use upper- or mixed-case variable names; in that situation, it is
+preferable to follow the external API/specification for ease of
+understanding.
 
 Make some indication in the name of global variables which represent
 options that they are in fact intended to be global.
  e.g.: static char global_something[80]
 
+Don't use 'typedef' just to shorten the amount of typing; there is no substantial
+benefit in this:
+
+struct foo {
+	int bar;
+};
+typedef foo_t struct foo;
+
+In fact, don't use 'variable type' suffixes at all; it's much preferable to
+just type 'struct foo' rather than 'foo_s'.
+
+Use enums rather than long lists of #define-d numeric constants when possible;
+this allows structure members, local variables and function arguments to
+be declared as using the enum's type. For example:
+
+enum option {
+  OPT_FOO = 1
+  OPT_BAR = 2
+  OPT_BAZ = 4
+};
+
+static enum option global_option;
+
+static handle_option(const enum option opt)
+{
+  ...
+}
+
+Note: The compiler will _not_ force you to pass an entry from the enum
+as an argument to this function; this recommendation serves only to make
+the code clearer and somewhat self-documenting.
+
 When making applications, always ast_strdupa(data) to a local pointer if
-you intend to parse it.
+you intend to parse the incoming data string.
 
 	if (data)
 		mydata = ast_strdupa(data);
+
+Use ast_separate_app_args() to separate the arguments to your application
+once you have made a local copy of the string.
+
+Use strsep() for parsing strings when possible; there is no worry about
+'re-entrancy' as with strtok(), and even though it modifies the original
+string (which the man page warns about), in many cases that is exactly
+what you want!
 
 Always derefrence or localize pointers to things that are not yours like
 channel members in a channel that is not associated with the current 
@@ -152,11 +228,14 @@ surprising changes you did not expect.
 If you are asked to make changes to your patch, there is a good chance
 the changes will introduce bugs, check it even more at this stage.
 
-Avoid needless malloc(),strdup() calls.  If you only need the value in
-the scope of your function try ast_strdupa() or declare struts static
-and pass them as a pointer with &.
+Avoid needless malloc(), strdup() calls. If you only need the value in
+the scope of your function try ast_strdupa() or declare structs on the
+stack and pass a pointer to them. However, be careful to _never_ call
+alloca(), ast_strdupa() or similar functions in the argument list
+of a function you are calling; this can cause very strange stack
+arrangements and produce unexpected behavior.
 
-If you are going to reuse a computable value, save it in a variable
+If you are going to reuse a computed value, save it in a variable
 instead of recomputing it over and over.  This can prevent you from 
 making a mistake in subsequent computations, make it easier to correct
 if the formula has an error and may or may not help optimization but 
@@ -164,34 +243,53 @@ will at least help readability.
 
 Just an example, so don't over analyze it, that'd be a shame:
 
-
 const char *prefix = "pre";	
 const char *postfix = "post";
-char *newname = NULL;
+char *newname;
 char *name = "data";
 
-if (name && (newname = (char *) alloca(strlen(name) + strlen(prefix) + strlen(postfix) + 3)))
+if (name && (newname = alloca(strlen(name) + strlen(prefix) + strlen(postfix) + 3)))
 	snprintf(newname, strlen(name) + strlen(prefix) + strlen(postfix) + 3, "%s/%s/%s", prefix, name, postfix);
 
 vs
 
 const char *prefix = "pre";
 const char *postfix = "post";
-char *newname = NULL;
+char *newname;
 char *name = "data";
 int len = 0;
 
-if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newname = (char *) alloca(len)))
+if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newname = alloca(len)))
 	snprintf(newname, len, "%s/%s/%s", prefix, name, postfix);
 
 
-Use const on pointers which your function will not be modifying, as this 
-allows the compiler to make certain optimizations.
+Use const on pointer arguments which your function will not be modifying, as this 
+allows the compiler to make certain optimizations. In general, use 'const'
+on any argument that you have no direct intention of modifying, as it can
+catch logic/typing errors in your code when you use the argument variable
+in a way that you did not intend.
 
 Don't use strncpy for copying whole strings; it does not guarantee that the
 output buffer will be null-terminated. Use ast_copy_string instead, which
 is also slightly more efficient (and allows passing the actual buffer
 size, which makes the code clearer).
+
+Don't use ast_copy_string (or any length-limited copy function) for copying
+fixed (known at compile time) strings into buffers, if the buffer is something
+that has been allocated in the function doing the copying. In that case, you
+know at the time you are writing the code whether the buffer is large enough
+for the fixed string or not, and if it's not, your code won't work anyway!
+Use strcpy() for this operation, or directly set the first two characters
+of the buffer if you are just trying store a one-character string in the
+buffer. If you are trying to 'empty' the buffer, just store a single
+NULL character ('\0') in the first byte of the buffer; nothing else is
+needed, and any other method is wasteful.
+
+In addition, if the previous operations in the function have already
+determined that the buffer in use is adequately sized to hold the string
+you wish to put into it (even if you did not allocate the buffer yourself),
+use a direct strcpy(), as it can be inlined and optimized to simple
+processor operations, unlike ast_copy_string().
 
 When allocating/zeroing memory for a structure, try to use code like this:
 
