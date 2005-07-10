@@ -642,7 +642,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	char *agifile;
 	char *agifiledefault = "conf-background.agi";
 	char meetmesecs[30] = "";
-	char exitcontext[AST_MAX_EXTENSION] = "";
+	char exitcontext[AST_MAX_CONTEXT] = "";
 	char recordingtmp[AST_MAX_EXTENSION] = "";
 	int dtmf;
 

@@ -672,7 +672,7 @@ struct ast_hostent ahp; struct hostent *hp;
 static int skinnysock  = -1;
 static pthread_t tcp_thread;
 static pthread_t accept_t;
-static char context[AST_MAX_EXTENSION] = "default";
+static char context[AST_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char musicclass[MAX_MUSICCLASS] = "";
 static char cid_num[AST_MAX_EXTENSION] = "";
@@ -816,7 +816,7 @@ struct skinny_line {
   	struct skinny_subchannel *sub;			/* pointer to our current connection, channel and stuff */
 	char accountcode[AST_MAX_ACCOUNT_CODE];
 	char exten[AST_MAX_EXTENSION];			/* Extention where to start */
-	char context[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
 	char language[MAX_LANGUAGE];
 	char cid_num[AST_MAX_EXTENSION];		/* Caller*ID */
 	char cid_name[AST_MAX_EXTENSION];		/* Caller*ID */

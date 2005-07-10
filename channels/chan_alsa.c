@@ -91,7 +91,7 @@ static const char desc[] = "ALSA Console Channel Driver";
 static const char tdesc[] = "ALSA Console Channel Driver";
 static const char config[] = "alsa.conf";
 
-static char context[AST_MAX_EXTENSION] = "default";
+static char context[AST_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char exten[AST_MAX_EXTENSION] = "s";
 
@@ -124,7 +124,7 @@ static struct chan_alsa_pvt {
 	   keeps this driver as simple as possible -- as it should be. */
 	struct ast_channel *owner;
 	char exten[AST_MAX_EXTENSION];
-	char context[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
 #if 0
 	snd_pcm_t *card;
 #endif

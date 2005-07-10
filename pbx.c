@@ -4632,7 +4632,7 @@ int ast_add_extension2(struct ast_context *con,
 struct async_stat {
 	pthread_t p;
 	struct ast_channel *chan;
-	char context[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
 	char exten[AST_MAX_EXTENSION];
 	int priority;
 	int timeout;

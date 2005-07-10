@@ -262,7 +262,7 @@ const struct cfsip_options {
 static char default_useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
 
 #define DEFAULT_CONTEXT "default"
-static char default_context[AST_MAX_EXTENSION] = DEFAULT_CONTEXT;
+static char default_context[AST_MAX_CONTEXT] = DEFAULT_CONTEXT;
 
 static char default_language[MAX_LANGUAGE] = "";
 
@@ -351,7 +351,7 @@ static int recordhistory = 0;				/* Record SIP history. Off by default */
 static char global_musicclass[MAX_MUSICCLASS] = "";	/* Global music on hold class */
 #define DEFAULT_REALM	"asterisk"
 static char global_realm[MAXHOSTNAMELEN] = DEFAULT_REALM; 	/* Default realm */
-static char regcontext[AST_MAX_EXTENSION] = "";		/* Context for auto-extensions */
+static char regcontext[AST_MAX_CONTEXT] = "";		/* Context for auto-extensions */
 
 /* Expire slowly */
 #define DEFAULT_EXPIRY 900
@@ -516,7 +516,7 @@ static struct sip_pvt {
 	int route_persistant;			/* Is this the "real" route? */
 	char from[256];				/* The From: header */
 	char useragent[256];			/* User agent in SIP request */
-	char context[AST_MAX_EXTENSION];	/* Context for this call */
+	char context[AST_MAX_CONTEXT];		/* Context for this call */
 	char fromdomain[MAXHOSTNAMELEN];	/* Domain to show in the from field */
 	char fromuser[AST_MAX_EXTENSION];	/* User to show in the user field */
 	char fromname[AST_MAX_EXTENSION];	/* Name to show in the user field */
@@ -600,7 +600,7 @@ struct sip_user {
 	ASTOBJ_COMPONENTS(struct sip_user);
 	char secret[80];		/* Password */
 	char md5secret[80];		/* Password in md5 */
-	char context[AST_MAX_EXTENSION];	/* Default context for incoming calls */
+	char context[AST_MAX_CONTEXT];	/* Default context for incoming calls */
 	char cid_num[80];		/* Caller ID num */
 	char cid_name[80];		/* Caller ID name */
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/* Account code */
@@ -631,7 +631,7 @@ struct sip_peer {
 	char secret[80];		/* Password */
 	char md5secret[80];		/* Password in MD5 */
 	struct sip_auth *auth;		/* Realm authentication list */
-	char context[AST_MAX_EXTENSION];	/* Default context for incoming calls */
+	char context[AST_MAX_CONTEXT];	/* Default context for incoming calls */
 	char username[80];		/* Temporary username until registration */ 
 	char accountcode[AST_MAX_ACCOUNT_CODE];	/* Account code */
 	int amaflags;			/* AMA Flags (for billing) */

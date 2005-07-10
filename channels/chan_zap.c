@@ -165,7 +165,7 @@ static const char config[] = "zapata.conf";
 
 static int cur_emdigitwait = 250; /* Wait time in ms for digits on EM channel */
 
-static char context[AST_MAX_EXTENSION] = "default";
+static char context[AST_MAX_CONTEXT] = "default";
 static char cid_num[256] = "";
 static char cid_name[256] = "";
 static char defaultcic[64] = "";
@@ -371,7 +371,7 @@ struct zt_pri {
 	pthread_t master;						/* Thread of master */
 	ast_mutex_t lock;						/* Mutex */
 	char idleext[AST_MAX_EXTENSION];				/* Where to idle extra calls */
-	char idlecontext[AST_MAX_EXTENSION];				/* What context to use for idle */
+	char idlecontext[AST_MAX_CONTEXT];				/* What context to use for idle */
 	char idledial[AST_MAX_EXTENSION];				/* What to dial before dumping */
 	int minunused;							/* Min # of channels to keep empty */
 	int minidle;							/* Min # of "idling" calls to keep active */
@@ -449,7 +449,7 @@ struct distRingData {
 	int ring[3];
 };
 struct ringContextData {
-	char contextData[AST_MAX_EXTENSION];
+	char contextData[AST_MAX_CONTEXT];
 };
 struct zt_distRings {
 	struct distRingData ringnum[3];
@@ -562,8 +562,8 @@ static struct zt_pvt {
 
 	struct zt_distRings drings;
 
-	char context[AST_MAX_EXTENSION];
-	char defcontext[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
+	char defcontext[AST_MAX_CONTEXT];
 	char exten[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_MUSICCLASS];

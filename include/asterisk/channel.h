@@ -36,20 +36,21 @@ extern "C" {
 #include "asterisk/lock.h"
 
 /*! Max length of an extension */
-#define AST_MAX_EXTENSION 80
+#define AST_MAX_EXTENSION	80
+
+#define AST_MAX_CONTEXT		80
 
 #include "asterisk/cdr.h"
 #include "asterisk/monitor.h"
 #include "asterisk/utils.h"
 
+#define AST_CHANNEL_NAME	80
 
-#define AST_CHANNEL_NAME 80
+#define MAX_LANGUAGE		20
 
-#define MAX_LANGUAGE 20
+#define MAX_MUSICCLASS		20
 
-#define MAX_MUSICCLASS 20
-
-#define AST_MAX_FDS 8
+#define AST_MAX_FDS		8
 
 typedef unsigned long long ast_group_t;
 
@@ -256,9 +257,9 @@ struct ast_channel {
 	struct ast_callerid cid;
 		
 	/*! Current extension context */
-	char context[AST_MAX_EXTENSION];	
+	char context[AST_MAX_CONTEXT];
 	/*! Current non-macro context */
-	char macrocontext[AST_MAX_EXTENSION];	
+	char macrocontext[AST_MAX_CONTEXT];	
 	/*! Current non-macro extension */
 	char macroexten[AST_MAX_EXTENSION];
 	/*! Current non-macro priority */

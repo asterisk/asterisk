@@ -233,7 +233,7 @@ struct queue_ent {
 	struct ast_call_queue *parent;	/* What queue is our parent */
 	char moh[80];			/* Name of musiconhold to be used */
 	char announce[80];		/* Announcement to play for member when call is answered */
-	char context[80];		/* Context when user exits queue */
+	char context[AST_MAX_CONTEXT];	/* Context when user exits queue */
 	int pos;			/* Where we are in the queue */
 	int prio;			/* Our priority */
 	int last_pos_said;              /* Last position we told the user */
@@ -269,7 +269,7 @@ struct ast_call_queue {
 	char name[80];			/* Name */
 	char moh[80];			/* Music On Hold class to be used */
 	char announce[80];		/* Announcement to play when call is answered */
-	char context[80];		/* Exit context */
+	char context[AST_MAX_CONTEXT];	/* Exit context */
 		unsigned int monjoin:1;
 		unsigned int dead:1;
 		unsigned int joinempty:2;
@@ -1853,7 +1853,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	int to;
 	char restofit[AST_MAX_EXTENSION];
 	char oldexten[AST_MAX_EXTENSION]="";
-	char oldcontext[AST_MAX_EXTENSION]="";
+	char oldcontext[AST_MAX_CONTEXT]="";
 	char queuename[256]="";
 	char *newnum;
 	char *monitorfilename;

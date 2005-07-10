@@ -98,7 +98,7 @@ static const char type[] = "H323";
 static const char desc[] = "The NuFone Network's Open H.323 Channel Driver";
 static const char tdesc[] = "The NuFone Network's Open H.323 Channel Driver";
 static const char config[] = "h323.conf";
-static char default_context[AST_MAX_EXTENSION] = "default";
+static char default_context[AST_MAX_CONTEXT] = "default";
 static struct sockaddr_in bindaddr;
 
 /** H.323 configuration values */
@@ -129,7 +129,7 @@ struct oh323_pvt {
 	int nonCodecCapability;					/* non-audio capability */
 	int outgoing;						/* Outgoing or incoming call? */
 	char exten[AST_MAX_EXTENSION];				/* Requested extension */
-	char context[AST_MAX_EXTENSION];			/* Context where to start */
+	char context[AST_MAX_CONTEXT];				/* Context where to start */
 	char accountcode[256];					/* Account code */
 	char cid_num[80];					/* Caller*id number, if available */
 	char cid_name[80];					/* Caller*id name, if available */

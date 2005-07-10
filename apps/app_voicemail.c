@@ -158,8 +158,8 @@ struct baseio {
 
 /* Structure for linked list of users */
 struct ast_vm_user {
-	char context[80];		/* Voicemail context */
-	char mailbox[80];		/* Mailbox id, unique within vm context */
+	char context[AST_MAX_CONTEXT];	/* Voicemail context */
+	char mailbox[AST_MAX_EXTENSION];/* Mailbox id, unique within vm context */
 	char password[80];		/* Secret pin code, numbers only */
 	char fullname[80];		/* Full name, for directory app */
 	char email[80];			/* E-mail address */
@@ -321,9 +321,9 @@ static struct ast_flags globalflags = {0};
 
 static int saydurationminfo;
 
-static char dialcontext[80];
-static char callcontext[80];
-static char exitcontext[80];
+static char dialcontext[AST_MAX_CONTEXT];
+static char callcontext[AST_MAX_CONTEXT];
+static char exitcontext[AST_MAX_CONTEXT];
 
 static char cidinternalcontexts[MAX_NUM_CID_CONTEXTS][64];
 

@@ -87,18 +87,18 @@ static const struct ast_channel_tech local_tech = {
 };
 
 static struct local_pvt {
-	ast_mutex_t lock;				/* Channel private lock */
-	char context[AST_MAX_EXTENSION];	/* Context to call */
+	ast_mutex_t lock;			/* Channel private lock */
+	char context[AST_MAX_CONTEXT];		/* Context to call */
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
-	int reqformat;						/* Requested format */
-	int glaredetect;					/* Detect glare on hangup */
-	int cancelqueue;					/* Cancel queue */
-	int alreadymasqed;					/* Already masqueraded */
-	int launchedpbx;					/* Did we launch the PBX */
+	int reqformat;				/* Requested format */
+	int glaredetect;			/* Detect glare on hangup */
+	int cancelqueue;			/* Cancel queue */
+	int alreadymasqed;			/* Already masqueraded */
+	int launchedpbx;			/* Did we launch the PBX */
 	int nooptimization;
-	struct ast_channel *owner;			/* Master Channel */
-	struct ast_channel *chan;			/* Outbound channel */
-	struct local_pvt *next;				/* Next entity */
+	struct ast_channel *owner;		/* Master Channel */
+	struct ast_channel *chan;		/* Outbound channel */
+	struct local_pvt *next;			/* Next entity */
 } *locals = NULL;
 
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)

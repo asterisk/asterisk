@@ -88,7 +88,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	char oldexten[256]="";
 	int oldpriority;
 	char pc[80];
-	char oldcontext[256] = "";
+	char oldcontext[AST_MAX_CONTEXT] = "";
 	char *offsets;
 	int offset;
 	int setmacrocontext=0;

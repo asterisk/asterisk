@@ -127,7 +127,7 @@ static const char channeltype[] = "IAX2";
 static char context[80] = "default";
 
 static char language[MAX_LANGUAGE] = "";
-static char regcontext[AST_MAX_EXTENSION] = "";
+static char regcontext[AST_MAX_CONTEXT] = "";
 
 static int max_retries = 4;
 static int ping_time = 20;
@@ -217,7 +217,7 @@ static pthread_t netthreadid = AST_PTHREADT_NULL;
 #define IAX_STATE_TBD			(1 << 2)
 
 struct iax2_context {
-	char context[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
 	struct iax2_context *next;
 };
 
@@ -277,7 +277,7 @@ struct iax2_peer {
 	char secret[80];
 	char dbsecret[80];
 	char outkey[80];				/* What key we use to talk to this peer */
-	char context[AST_MAX_EXTENSION];		/* For transfers only */
+	char context[AST_MAX_CONTEXT];			/* For transfers only */
 	char regexten[AST_MAX_EXTENSION];		/* Extension to register (if regcontext is used) */
 	char peercontext[AST_MAX_EXTENSION];		/* Context to pass to peer */
 	char mailbox[AST_MAX_EXTENSION];		/* Mailbox */
@@ -605,7 +605,7 @@ static struct ast_firmware_list {
 #define CACHE_FLAG_MATCHMORE	(1 << 7)
 
 static struct iax2_dpcache {
-	char peercontext[AST_MAX_EXTENSION];
+	char peercontext[AST_MAX_CONTEXT];
 	char exten[AST_MAX_EXTENSION];
 	struct timeval orig;
 	struct timeval expirey;
@@ -2654,8 +2654,8 @@ struct create_addr_info {
 	char outkey[80];
 	char timezone[80];
 	char prefs[32];
-	char context[AST_MAX_EXTENSION];
-	char peercontext[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
+	char peercontext[AST_MAX_CONTEXT];
 };
 
 static int create_addr(const char *peername, struct sockaddr_in *sin, struct create_addr_info *cai)

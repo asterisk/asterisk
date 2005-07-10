@@ -87,7 +87,7 @@ static const char desc[] = "OSS Console Channel Driver";
 static const char tdesc[] = "OSS Console Channel Driver";
 static const char config[] = "oss.conf";
 
-static char context[AST_MAX_EXTENSION] = "default";
+static char context[AST_MAX_CONTEXT] = "default";
 static char language[MAX_LANGUAGE] = "";
 static char exten[AST_MAX_EXTENSION] = "s";
 
@@ -120,7 +120,7 @@ static struct chan_oss_pvt {
 	   keeps this driver as simple as possible -- as it should be. */
 	struct ast_channel *owner;
 	char exten[AST_MAX_EXTENSION];
-	char context[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
 } oss;
 
 static struct ast_channel *oss_request(const char *type, int format, void *data, int *cause);
