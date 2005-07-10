@@ -486,6 +486,12 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							if (!ast_test_flag(outgoing, DIAL_RINGBACKONLY))
 								ast_indicate(in, AST_CONTROL_PROGRESS);
 							break;
+						case AST_CONTROL_PROCEEDING:
+							if (option_verbose > 2)
+								ast_verbose ( VERBOSE_PREFIX_3 "%s is proceeding passing it to %s\n", o->chan->name,in->name);
+							if (!ast_test_flag(outgoing, DIAL_RINGBACKONLY))
+								ast_indicate(in, AST_CONTROL_PROCEEDING);
+							break;
 						case AST_CONTROL_HOLD:
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Call on %s placed on hold\n", o->chan->name);

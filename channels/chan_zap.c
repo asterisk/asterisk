@@ -8295,9 +8295,9 @@ static void *pri_dchannel(void *vpri)
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
 #ifdef PRI_PROGRESS_MASK
-					if ((pri->overlapdial && !pri->pvts[chanpos]->proceeding) || (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)) {
+					if ((!pri->pvts[chanpos]->proceeding) || (e->proceeding.progressmask & PRI_PROG_INBAND_AVAILABLE)) {
 #else
-					if ((pri->overlapdial && !pri->pvts[chanpos]->proceeding) || (e->proceeding.progress == 8)) {
+					if ((!pri->pvts[chanpos]->proceeding) || (e->proceeding.progress == 8)) {
 #endif
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, };
 
@@ -8339,7 +8339,7 @@ static void *pri_dchannel(void *vpri)
 			case PRI_EVENT_PROCEEDING:
 				chanpos = pri_find_principle(pri, e->proceeding.channel);
 				if (chanpos > -1) {
-					if (pri->overlapdial && !pri->pvts[chanpos]->proceeding) {
+					if (!pri->pvts[chanpos]->proceeding) {
 						struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_PROCEEDING, };
 						
 						ast_mutex_lock(&pri->pvts[chanpos]->lock);
