@@ -184,12 +184,14 @@ int ast_device_state_changed(const char *fmt, ...)
 		AST_LIST_LOCK(&state_changes);
 		AST_LIST_INSERT_TAIL(&state_changes, change, list);
 		if (AST_LIST_FIRST(&state_changes) == change) {
+			AST_LIST_UNLOCK(&state_changes);
 			/* the list was empty, signal the thread */
 			ast_mutex_lock(&change_pending_lock);
 			pthread_cond_signal(&change_pending);
 			ast_mutex_unlock(&change_pending_lock);
+		} else {
+			AST_LIST_UNLOCK(&state_changes);
 		}
-		AST_LIST_UNLOCK(&state_changes);
 	}
 
 	return 1;
