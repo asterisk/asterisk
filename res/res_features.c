@@ -128,7 +128,7 @@ struct parkeduser {
 	struct timeval start;
 	int parkingnum;
 	/* Where to go if our parking time expires */
-	char context[AST_MAX_EXTENSION];
+	char context[AST_MAX_CONTEXT];
 	char exten[AST_MAX_EXTENSION];
 	int priority;
 	int parkingtime;
