@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.26 07/02/05
+ *  version 0.27 07/09/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -159,7 +159,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.26  07/02/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.27  07/09/2005";
 
 static char *app = "Rpt";
 
@@ -3694,6 +3694,7 @@ char cmd[MAXDTMF+1] = "";
 
 				c = (char) f->subclass; /* get DTMF char */
 				ast_frfree(f);
+				if (!myrpt->keyed) continue;
 				if (c == myrpt->endchar)
 				{
 					/* if in simple mode, kill autopatch */
@@ -4209,8 +4210,11 @@ pthread_attr_t attr;
 		rpt_vars[n].remote = ast_variable_retrieve(cfg,this,"remote");
 		rpt_vars[n].tonezone = ast_variable_retrieve(cfg,this,"tonezone");
 		val = ast_variable_retrieve(cfg,this,"iobase");
-		if (val) rpt_vars[n].iobase = atoi(val);
-		else rpt_vars[n].iobase = DEFAULT_IOBASE;
+		/* do not use atoi() here, we need to be able to have
+			the input specified in hex or decimal so we use
+			sscanf with a %i */
+		if ((!val) || (sscanf(val,"%i",&rpt_vars[n].iobase) != 1))
+			rpt_vars[n].iobase = DEFAULT_IOBASE;
 		rpt_vars[n].simple = 0;
 		rpt_vars[n].functions = ast_variable_retrieve(cfg,this,"functions");
 		if (!rpt_vars[n].functions) 
