@@ -739,7 +739,7 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 	case AST_FRAME_TEXT:
 		strcpy(ftype, "Text");
 		strcpy(subclass, "N/A");
-		strncpy(moreinfo, f->data, sizeof(moreinfo) - 1);
+		ast_copy_string(moreinfo, f->data, sizeof(moreinfo));
 		break;
 	case AST_FRAME_IMAGE:
 		strcpy(ftype, "Image");
@@ -750,7 +750,7 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 		switch(f->subclass) {
 		case AST_HTML_URL:
 			strcpy(subclass, "URL");
-			strncpy(moreinfo, f->data, sizeof(moreinfo) - 1);
+			ast_copy_string(moreinfo, f->data, sizeof(moreinfo));
 			break;
 		case AST_HTML_DATA:
 			strcpy(subclass, "Data");
@@ -769,7 +769,7 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 			break;
 		case AST_HTML_LINKURL:
 			strcpy(subclass, "Link URL");
-			strncpy(moreinfo, f->data, sizeof(moreinfo) - 1);
+			ast_copy_string(moreinfo, f->data, sizeof(moreinfo));
 			break;
 		case AST_HTML_UNLINK:
 			strcpy(subclass, "Unlink");

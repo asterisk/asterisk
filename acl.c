@@ -146,7 +146,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 		path = path->next;
 	}
 	if (ha) {
-		strncpy(tmp, stuff, sizeof(tmp) - 1);
+		ast_copy_string(tmp, stuff, sizeof(tmp));
 		nm = strchr(tmp, '/');
 		if (!nm)
 			nm = "255.255.255.255";
@@ -248,7 +248,7 @@ int ast_lookup_iface(char *iface, struct in_addr *address)
 	struct my_ifreq ifreq;
 
 	memset(&ifreq, 0, sizeof(ifreq));
-	strncpy(ifreq.ifrn_name,iface,sizeof(ifreq.ifrn_name) - 1);
+	ast_copy_string(ifreq.ifrn_name,iface,sizeof(ifreq.ifrn_name));
 
 	mysock = socket(PF_INET,SOCK_DGRAM,IPPROTO_IP);
 	res = ioctl(mysock,SIOCGIFADDR,&ifreq);

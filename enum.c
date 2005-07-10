@@ -148,23 +148,23 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 
 	if ((!strncasecmp(services, "e2u+sip", 7)) || 
 	    (!strncasecmp(services, "sip+e2u", 7))) {
-		strncpy(tech, "sip", techsize -1); 
+		ast_copy_string(tech, "sip", techsize); 
 	} else if ((!strncasecmp(services, "e2u+h323", 8)) || 
 	    (!strncasecmp(services, "h323+e2u", 8))) {
-		strncpy(tech, "h323", techsize -1); 
+		ast_copy_string(tech, "h323", techsize); 
 	} else if ((!strncasecmp(services, "e2u+x-iax2", 10)) || 
 	    (!strncasecmp(services, "e2u+iax2", 8)) ||
 	    (!strncasecmp(services, "iax2+e2u", 8))) {
-		strncpy(tech, "iax2", techsize -1); 
+		ast_copy_string(tech, "iax2", techsize); 
 	} else if ((!strncasecmp(services, "e2u+x-iax", 9)) ||
 	    (!strncasecmp(services, "e2u+iax", 7)) ||
 	    (!strncasecmp(services, "iax+e2u", 7))) {
-		strncpy(tech, "iax", techsize -1); 
+		ast_copy_string(tech, "iax", techsize); 
 	} else if ((!strncasecmp(services, "e2u+tel", 7)) || 
 	    (!strncasecmp(services, "tel+e2u", 7))) {
-		strncpy(tech, "tel", techsize -1); 
+		ast_copy_string(tech, "tel", techsize); 
 	} else if (!strncasecmp(services, "e2u+voice:", 10)) {
-		strncpy(tech, services+10, techsize -1); 
+		ast_copy_string(tech, services+10, techsize); 
 	} else {
 		ast_log(LOG_DEBUG, 
 		"Services must be e2u+${tech}, ${tech}+e2u, or e2u+voice: where $tech is from (sip, h323, tel, iax, iax2). \n");
@@ -172,7 +172,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 	}
 
 	/* DEDBUGGING STUB
-	strncpy(regexp, "!^\\+43(.*)$!\\1@bla.fasel!", sizeof(regexp) - 1);
+	ast_copy_string(regexp, "!^\\+43(.*)$!\\1@bla.fasel!", sizeof(regexp) - 1);
 	*/
 
 	regexp_len = strlen(regexp);
@@ -244,7 +244,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		}
 	}
 	*d = 0;
-	strncpy(dst, temp, dstsize - 1);
+	ast_copy_string(dst, temp, dstsize);
 	dst[dstsize - 1] = '\0';
 	return 0;
 }
@@ -286,7 +286,7 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 	len +=1;
 
 	/* finally, copy the answer into c->txt */
-	strncpy(c->txt, answer, len < c->txtlen ? len-1 : (c->txtlen)-1);
+	ast_copy_string(c->txt, answer, len < c->txtlen ? len : (c->txtlen));
 	
 	/* just to be safe, let's make sure c->txt is null terminated */
 	c->txt[(c->txtlen)-1] = '\0';
@@ -439,7 +439,7 @@ static struct enum_search *enum_newtoplev(char *s)
 	tmp = malloc(sizeof(struct enum_search));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct enum_search));
-		strncpy(tmp->toplev, s, sizeof(tmp->toplev) - 1);
+		ast_copy_string(tmp->toplev, s, sizeof(tmp->toplev));
 	}
 	return tmp;
 }

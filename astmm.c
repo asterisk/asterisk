@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Channel Variables
+ * Memory Management
  * 
  * Copyright (C) 2002-2005, Mark Spencer
  *
@@ -73,9 +73,9 @@ static inline void *__ast_alloc_region(size_t size, int which, const char *file,
 	reg = malloc(size + sizeof(struct ast_region));
 	ast_mutex_lock(&reglock);
 	if (reg) {
-		strncpy(reg->file, file, sizeof(reg->file) - 1);
+		ast_copy_string(reg->file, file, sizeof(reg->file));
 		reg->file[sizeof(reg->file) - 1] = '\0';
-		strncpy(reg->func, func, sizeof(reg->func) - 1);
+		ast_copy_string(reg->func, func, sizeof(reg->func));
 		reg->func[sizeof(reg->func) - 1] = '\0';
 		reg->lineno = lineno;
 		reg->len = size;
@@ -305,7 +305,7 @@ static int handle_show_memory_summary(int fd, int argc, char *argv[])
 				if (!cur) {
 					cur = alloca(sizeof(struct file_summary));
 					memset(cur, 0, sizeof(struct file_summary));
-					strncpy(cur->fn, fn ? reg->func : reg->file, sizeof(cur->fn) - 1);
+					ast_copy_string(cur->fn, fn ? reg->func : reg->file, sizeof(cur->fn));
 					cur->next = list;
 					list = cur;
 				}

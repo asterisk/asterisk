@@ -192,7 +192,7 @@ struct ast_category *ast_category_new(const char *name)
 	category = malloc(sizeof(struct ast_category));
 	if (category) {
 		memset(category, 0, sizeof(struct ast_category));
-		strncpy(category->name, name, sizeof(category->name) - 1);
+		ast_copy_string(category->name, name, sizeof(category->name));
 	}
 
 	return category;
@@ -295,7 +295,7 @@ struct ast_variable *ast_category_detach_variables(struct ast_category *cat)
 
 void ast_category_rename(struct ast_category *cat, const char *name)
 {
-	strncpy(cat->name, name, sizeof(cat->name) - 1);
+	ast_copy_string(cat->name, name, sizeof(cat->name));
 }
 
 static void inherit_category(struct ast_category *new, const struct ast_category *base)
@@ -531,7 +531,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	cat = ast_config_get_current_category(cfg);
 
 	if (filename[0] == '/') {
-		strncpy(fn, filename, sizeof(fn)-1);
+		ast_copy_string(fn, filename, sizeof(fn));
 	} else {
 		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, filename);
 	}
@@ -556,7 +556,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			/* loop over expanded files */
 			int i;
 			for (i=0; i<globbuf.gl_pathc; i++) {
-				strncpy(fn, globbuf.gl_pathv[i], sizeof(fn)-1);
+				ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
 #endif
 	if ((option_verbose > 1) && !option_debug) {
 		ast_verbose(  VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
@@ -668,7 +668,7 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 		snprintf(fn, sizeof(fn), "%s/%s", ast_config_AST_CONFIG_DIR, configfile);
 	}
 	time(&t);
-	strncpy(date, ctime(&t), sizeof(date) - 1);
+	ast_copy_string(date, ctime(&t), sizeof(date));
 	if ((f = fopen(fn, "w"))) {
 		if ((option_verbose > 1) && !option_debug)
 			ast_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);

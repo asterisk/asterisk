@@ -587,7 +587,7 @@ static int handle_debuglevel(int fd, int argc, char *argv[])
 	option_debug = newlevel;
 	if (argc == 4) {
 		filename = argv[3];
-		strncpy(debug_filename, filename, sizeof(debug_filename) - 1);
+		ast_copy_string(debug_filename, filename, sizeof(debug_filename));
 	} else {
 		debug_filename[0] = '\0';
 	}
@@ -686,7 +686,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		sec = elapsed_seconds % 60;
 		snprintf(cdrtime, sizeof(cdrtime), "%dh%dm%ds", hour, min, sec);
 	} else
-		strncpy(cdrtime, "N/A", sizeof(cdrtime) -1);
+		strcpy(cdrtime, "N/A");
 	ast_cli(fd, 
 		" -- General --\n"
 		"           Name: %s\n"
@@ -784,7 +784,7 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 	if (pos != 1)
 		return NULL;
 	if (word[0] == '/')
-		strncpy(filename, word, sizeof(filename)-1);
+		ast_copy_string(filename, word, sizeof(filename));
 	else
 		snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_MODULE_DIR, word);
 	c = (char*)filename_completion_function(filename, state);

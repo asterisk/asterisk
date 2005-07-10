@@ -364,7 +364,7 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 					}
 				} else {
 					/* SDMF */
-					strncpy(cid->number, cid->rawdata + 8, sizeof(cid->number)-1);
+					ast_copy_string(cid->number, cid->rawdata + 8, sizeof(cid->number));
 				}
 				/* Update flags */
 				cid->flags = 0;
@@ -646,7 +646,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 			return 0;
 		}
 	} else {
-		strncpy(tmp, instr, sizeof(tmp)-1);
+		ast_copy_string(tmp, instr, sizeof(tmp));
 		ast_shrink_phone_number(tmp);
 		if (ast_isphonenumber(tmp)) {
 			/* Assume it's just a location */
@@ -691,11 +691,11 @@ char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *nu
 	if (name && num)
 		snprintf(buf, bufsiz, "\"%s\" <%s>", name, num);
 	else if (name) 
-		strncpy(buf, name, bufsiz - 1);
+		ast_copy_string(buf, name, bufsiz);
 	else if (num)
-		strncpy(buf, num, bufsiz - 1);
+		ast_copy_string(buf, num, bufsiz);
 	else
-		strncpy(buf, unknown, bufsiz - 1);
+		ast_copy_string(buf, unknown, bufsiz);
 	return buf;
 }
 int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int numlen)
@@ -710,12 +710,12 @@ int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int 
 	}
 	ast_callerid_parse(tmp, &n, &l);
 	if (n)
-		strncpy(name, n, namelen - 1);
+		ast_copy_string(name, n, namelen);
 	else
 		name[0] = '\0';
 	if (l) {
 		ast_shrink_phone_number(l);
-		strncpy(num, l, numlen - 1);
+		ast_copy_string(num, l, numlen);
 	} else
 		num[0] = '\0';
 	return 0;

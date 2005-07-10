@@ -1,11 +1,11 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Channel Management
+ * Terminal Routines 
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999 - 2005, Mark Spencer
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -140,16 +140,16 @@ char *term_color(char *outbuf, const char *inbuf, int fgcolor, int bgcolor, int 
 	int attr=0;
 	char tmp[40];
 	if (!vt100compat) {
-		strncpy(outbuf, inbuf, maxout -1);
+		ast_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
 	if (!fgcolor && !bgcolor) {
-		strncpy(outbuf, inbuf, maxout - 1);
+		ast_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
 	if ((fgcolor & 128) && (bgcolor & 128)) {
 		/* Can't both be highlighted */
-		strncpy(outbuf, inbuf, maxout - 1);
+		ast_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
 	if (!bgcolor)
@@ -241,7 +241,7 @@ char *term_strip(char *outbuf, char *inbuf, int maxout)
 char *term_prompt(char *outbuf, const char *inbuf, int maxout)
 {
 	if (!vt100compat) {
-		strncpy(outbuf, inbuf, maxout -1);
+		ast_copy_string(outbuf, inbuf, maxout);
 		return outbuf;
 	}
 	snprintf(outbuf, maxout, "%c[%d;%d;%dm%c%c[%d;%d;%dm%s",

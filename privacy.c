@@ -1,11 +1,11 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Channel Management
+ * Privacy Routines
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999 - 2005, Mark Spencer
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -44,7 +44,7 @@ int ast_privacy_check(char *dest, char *cid)
 	int res;
 	char key[256], result[256];
 	if (cid)
-		strncpy(tmp, cid, sizeof(tmp) - 1);
+		ast_copy_string(tmp, cid, sizeof(tmp));
 	ast_callerid_parse(tmp, &n, &l);
 	if (l) {
 		ast_shrink_phone_number(l);
@@ -80,7 +80,7 @@ int ast_privacy_set(char *dest, char *cid, int status)
 	int res;
 	char key[256];
 	if (cid)
-		strncpy(tmp, cid, sizeof(tmp) - 1);
+		ast_copy_string(tmp, cid, sizeof(tmp));
 	ast_callerid_parse(tmp, &n, &l);
 	if (l) {
 		ast_shrink_phone_number(l);

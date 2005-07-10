@@ -245,7 +245,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 			if(!ast_strlen_zero(hostname)) { 
 				snprintf(chan->filename, sizeof(chan->filename) - 1,"%s.%s", channel, hostname);
 			} else {
-				strncpy(chan->filename, channel, sizeof(chan->filename) - 1);
+				ast_copy_string(chan->filename, channel, sizeof(chan->filename));
 			}
 		}		  
 		
@@ -297,7 +297,7 @@ static void init_logger_chain(void)
 	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
 		if(ast_true(s)) {
 			if(gethostname(hostname, sizeof(hostname)-1)) {
-				strncpy(hostname, "unknown", sizeof(hostname)-1);
+				ast_copy_string(hostname, "unknown", sizeof(hostname));
 				ast_log(LOG_WARNING, "What box has no hostname???\n");
 			}
 		} else
@@ -305,9 +305,9 @@ static void init_logger_chain(void)
 	} else
 		hostname[0] = '\0';
 	if ((s = ast_variable_retrieve(cfg, "general", "dateformat"))) {
-		strncpy(dateformat, s, sizeof(dateformat) - 1);
+		ast_copy_string(dateformat, s, sizeof(dateformat));
 	} else
-		strncpy(dateformat, "%b %e %T", sizeof(dateformat) - 1);
+		ast_copy_string(dateformat, "%b %e %T", sizeof(dateformat));
 	if ((s = ast_variable_retrieve(cfg, "general", "queue_log"))) {
 		logfiles.queue_log = ast_true(s);
 	}
@@ -417,7 +417,7 @@ int reload_logger(int rotate)
 			fclose(f->fileptr);	/* Close file */
 			f->fileptr = NULL;
 			if(rotate) {
-				strncpy(old, f->filename, sizeof(old) - 1);
+				ast_copy_string(old, f->filename, sizeof(old));
 	
 				for(x=0;;x++) {
 					snprintf(new, sizeof(new), "%s.%d", f->filename, x);

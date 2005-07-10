@@ -135,7 +135,7 @@ static char *authority_to_str(int authority, char *res, int reslen)
 		}
 	}
 	if (ast_strlen_zero(res)) {
-		strncpy(res, "<none>", reslen);
+		ast_copy_string(res, "<none>", reslen);
 	}
 	return res;
 }
@@ -480,7 +480,7 @@ static int authenticate(struct mansession *s, struct message *m)
 		cat = ast_category_browse(cfg, cat);
 	}
 	if (cat) {
-		strncpy(s->username, cat, sizeof(s->username) - 1);
+		ast_copy_string(s->username, cat, sizeof(s->username));
 		s->readperm = get_perm(ast_variable_retrieve(cfg, cat, "read"));
 		s->writeperm = get_perm(ast_variable_retrieve(cfg, cat, "write"));
 		ast_config_destroy(cfg);
@@ -953,7 +953,7 @@ static int action_originate(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Invalid timeout\n");
 		return 0;
 	}
-	strncpy(tmp, name, sizeof(tmp) - 1);
+	ast_copy_string(tmp, name, sizeof(tmp));
 	tech = tmp;
 	data = strchr(tmp, '/');
 	if (!data) {
@@ -962,7 +962,7 @@ static int action_originate(struct mansession *s, struct message *m)
 	}
 	*data = '\0';
 	data++;
-	strncpy(tmp2, callerid, sizeof(tmp2) - 1);
+	ast_copy_string(tmp2, callerid, sizeof(tmp2));
 	ast_callerid_parse(tmp2, &n, &l);
 	if (n) {
 		if (ast_strlen_zero(n))
@@ -981,18 +981,18 @@ static int action_originate(struct mansession *s, struct message *m)
 			memset(fast, 0, sizeof(struct fast_originate_helper));
 			if (id && !ast_strlen_zero(id))
 				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
-			strncpy(fast->tech, tech, sizeof(fast->tech) - 1);
-   			strncpy(fast->data, data, sizeof(fast->data) - 1);
-			strncpy(fast->app, app, sizeof(fast->app) - 1);
-			strncpy(fast->appdata, appdata, sizeof(fast->appdata) - 1);
+			ast_copy_string(fast->tech, tech, sizeof(fast->tech));
+   			ast_copy_string(fast->data, data, sizeof(fast->data));
+			ast_copy_string(fast->app, app, sizeof(fast->app));
+			ast_copy_string(fast->appdata, appdata, sizeof(fast->appdata));
 			if (l)
-				strncpy(fast->cid_num, l, sizeof(fast->cid_num) - 1);
+				ast_copy_string(fast->cid_num, l, sizeof(fast->cid_num));
 			if (n)
-				strncpy(fast->cid_name, n, sizeof(fast->cid_name) - 1);
-			strncpy(fast->variable, variable, sizeof(fast->variable) - 1);
-			strncpy(fast->account, account, sizeof(fast->account) - 1);
-			strncpy(fast->context, context, sizeof(fast->context) - 1);
-			strncpy(fast->exten, exten, sizeof(fast->exten) - 1);
+				ast_copy_string(fast->cid_name, n, sizeof(fast->cid_name));
+			ast_copy_string(fast->variable, variable, sizeof(fast->variable));
+			ast_copy_string(fast->account, account, sizeof(fast->account));
+			ast_copy_string(fast->context, context, sizeof(fast->context));
+			ast_copy_string(fast->exten, exten, sizeof(fast->exten));
 			fast->timeout = to;
 			fast->priority = pi;
 			pthread_attr_init(&attr);
@@ -1173,7 +1173,7 @@ static int process_message(struct mansession *s, struct message *m)
 	char idText[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
 
-	strncpy(action, astman_get_header(m, "Action"), sizeof(action) - 1);
+	ast_copy_string(action, astman_get_header(m, "Action"), sizeof(action));
 	ast_log( LOG_DEBUG, "Manager received command '%s'\n", action );
 
 	if (ast_strlen_zero(action)) {
