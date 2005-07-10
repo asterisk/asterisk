@@ -44,7 +44,6 @@ struct state_change {
 static AST_LIST_HEAD_STATIC(state_changes, state_change);
 
 static pthread_t change_thread = AST_PTHREADT_NULL;
-AST_MUTEX_DEFINE_STATIC(change_pending_lock);
 static pthread_cond_t change_pending;
 
 int ast_parse_device_state(const char *device)
@@ -138,6 +137,7 @@ void ast_devstate_del(ast_devstate_cb_type callback, void *data)
 	AST_LIST_UNLOCK(&devstate_cbs);
 }
 
+/*--- do_state_change: Notify callback watchers of change, and notify PBX core for hint updates */
 static void do_state_change(const char *device)
 {
 	int state;
@@ -155,7 +155,6 @@ static void do_state_change(const char *device)
 	ast_hint_state_changed(device);
 }
 
-/*--- ast_device_state_changed: Notify callback watchers of change, and notify PBX core for hint updates */
 int ast_device_state_changed(const char *fmt, ...) 
 {
 	char buf[AST_MAX_EXTENSION];
@@ -183,15 +182,10 @@ int ast_device_state_changed(const char *fmt, ...)
 		strcpy(change->device, device);
 		AST_LIST_LOCK(&state_changes);
 		AST_LIST_INSERT_TAIL(&state_changes, change, list);
-		if (AST_LIST_FIRST(&state_changes) == change) {
-			AST_LIST_UNLOCK(&state_changes);
+		if (AST_LIST_FIRST(&state_changes) == change)
 			/* the list was empty, signal the thread */
-			ast_mutex_lock(&change_pending_lock);
 			pthread_cond_signal(&change_pending);
-			ast_mutex_unlock(&change_pending_lock);
-		} else {
-			AST_LIST_UNLOCK(&state_changes);
-		}
+		AST_LIST_UNLOCK(&state_changes);
 	}
 
 	return 1;
@@ -201,20 +195,21 @@ static void *do_changes(void *data)
 {
 	struct state_change *cur;
 
+	AST_LIST_LOCK(&state_changes);
 	for(;;) {
-		ast_mutex_lock(&change_pending_lock);
-		pthread_cond_wait(&change_pending, &change_pending_lock);
-		for (;;) {
-			AST_LIST_LOCK(&state_changes);
-			cur = AST_LIST_REMOVE_HEAD(&state_changes, list);
+		/* the list lock will _always_ be held at this point in the loop */
+		cur = AST_LIST_REMOVE_HEAD(&state_changes, list);
+		if (cur) {
+			/* we got an entry, so unlock the list while we process it */
 			AST_LIST_UNLOCK(&state_changes);
-			if (!cur)
-				break;
-
 			do_state_change(cur->device);
 			free(cur);
+			AST_LIST_LOCK(&state_changes);
+		} else {
+			/* there was no entry, so atomically unlock the list and wait for
+			   the condition to be signalled (returns with the lock held) */
+			pthread_cond_wait(&change_pending, &state_changes.lock);
 		}
-		ast_mutex_unlock(&change_pending_lock);
 	}
 
 	return NULL;
