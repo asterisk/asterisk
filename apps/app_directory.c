@@ -183,9 +183,9 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 					/* Name selected */
 					loop = 0;
 					if (ast_exists_extension(chan,dialcontext,ext,1,chan->cid.cid_num)) {
-						strncpy(chan->exten, ext, sizeof(chan->exten)-1);
+						ast_copy_string(chan->exten, ext, sizeof(chan->exten));
 						chan->priority = 0;
-						strncpy(chan->context, dialcontext, sizeof(chan->context)-1);
+						ast_copy_string(chan->context, dialcontext, sizeof(chan->context));
 					} else {
 						ast_log(LOG_WARNING,
 							"Can't find extension '%s' in context '%s'.  "
@@ -296,7 +296,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 		if (ast_exists_extension(chan,chan->context,"o",1,chan->cid.cid_num) || 
 			(!ast_strlen_zero(chan->macrocontext) &&
 		     ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num))) {
-			strncpy(chan->exten, "o", sizeof(chan->exten)-1);
+			strcpy(chan->exten, "o");
 			chan->priority = 0;
 			return 0;
 		} else {
@@ -310,7 +310,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 		if (ast_exists_extension(chan,chan->context,"a",1,chan->cid.cid_num) || 
 			(!ast_strlen_zero(chan->macrocontext) &&
 		     ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num))) {
-			strncpy(chan->exten, "a", sizeof(chan->exten)-1);
+			strcpy(chan->exten, "a");
 			chan->priority = 0;
 			return 0;
 		} else {
@@ -337,7 +337,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 					strsep(&stringp, ",");
 					pos = strsep(&stringp, ",");
 					if (pos) {
-						strncpy(name, pos, sizeof(name) - 1);
+						ast_copy_string(name, pos, sizeof(name));
 						/* Grab the last name */
 						if (last && strrchr(pos,' '))
 							pos = strrchr(pos, ' ') + 1;
@@ -371,8 +371,8 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 					case '1':
 						/* user pressed '1' and extensions exists */
 						lastuserchoice = res;
-						strncpy(chan->context, dialcontext, sizeof(chan->context) - 1);
-						strncpy(chan->exten, v->name, sizeof(chan->exten) - 1);
+						ast_copy_string(chan->context, dialcontext, sizeof(chan->context));
+						ast_copy_string(chan->exten, v->name, sizeof(chan->exten));
 						chan->priority = 0;
 						break;
 					case '*':

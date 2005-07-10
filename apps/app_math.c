@@ -1,7 +1,7 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * simple maths application
+ * simple math application
  * 
  * Copyright (C) 2004 - 2005, Andy Powell 
  *
@@ -199,33 +199,33 @@ static int math_exec(struct ast_channel *chan, void *data)
 		}
 	case GTFUNCTION :
 		if (fnum1 > fnum2)
-			strncpy (user_result, "TRUE", sizeof (user_result) - 1);
+			strcpy(user_result, "TRUE");
 		else
-			strncpy (user_result, "FALSE", sizeof (user_result) - 1);
+			strcpy(user_result, "FALSE");
 		break;
 	case LTFUNCTION :
 		if (fnum1 < fnum2)
-			strncpy (user_result, "TRUE", sizeof (user_result) - 1);
+			strcpy(user_result, "TRUE");
 		else
-			strncpy (user_result, "FALSE", sizeof (user_result) - 1);
+			strcpy(user_result, "FALSE");
 		break;
 	case GTEFUNCTION :
 		if (fnum1 >= fnum2)
-			strncpy (user_result, "TRUE", sizeof (user_result) - 1);
+			strcpy(user_result, "TRUE");
 		else
-			strncpy (user_result, "FALSE", sizeof (user_result) - 1);
+			strcpy(user_result, "FALSE");
 		break;
 	case LTEFUNCTION :
 		if (fnum1 <= fnum2)
-			strncpy (user_result, "TRUE", sizeof (user_result) - 1);
+			strcpy(user_result, "TRUE");
 		else
-			strncpy (user_result, "FALSE", sizeof (user_result) - 1);
+			strcpy(user_result, "FALSE");
 		break;					
 	case EQFUNCTION :
 		if (fnum1 == fnum2)
-			strncpy (user_result, "TRUE", sizeof (user_result) - 1);
+			strcpy(user_result, "TRUE");
 		else
-			strncpy (user_result, "FALSE", sizeof (user_result) - 1);
+			strcpy(user_result, "FALSE");
 		break;
 	default :
 		ast_log(LOG_WARNING, "Something happened that neither of us should be proud of %d\n", iaction);

@@ -402,7 +402,7 @@ static struct adsi_flag *getflagbyname(struct adsi_script *state, char *name, ch
 		ast_log(LOG_WARNING, "No more flag space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	strncpy(state->flags[state->numflags].vname, name, sizeof(state->flags[state->numflags].vname) - 1);
+	ast_copy_string(state->flags[state->numflags].vname, name, sizeof(state->flags[state->numflags].vname));
 	state->flags[state->numflags].id = state->numflags + 1;
 	state->numflags++;
 	return &state->flags[state->numflags-1];
@@ -505,7 +505,7 @@ static struct adsi_soft_key *getkeybyname(struct adsi_script *state, char *name,
 		ast_log(LOG_WARNING, "No more key space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	strncpy(state->keys[state->numkeys].vname, name, sizeof(state->keys[state->numkeys].vname) - 1);
+	ast_copy_string(state->keys[state->numkeys].vname, name, sizeof(state->keys[state->numkeys].vname));
 	state->keys[state->numkeys].id = state->numkeys + 2;
 	state->numkeys++;
 	return &state->keys[state->numkeys-1];
@@ -521,7 +521,7 @@ static struct adsi_subscript *getsubbyname(struct adsi_script *state, char *name
 		ast_log(LOG_WARNING, "No more subscript space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	strncpy(state->subs[state->numsubs].vname, name, sizeof(state->subs[state->numsubs].vname) - 1);
+	ast_copy_string(state->subs[state->numsubs].vname, name, sizeof(state->subs[state->numsubs].vname));
 	state->subs[state->numsubs].id = state->numsubs;
 	state->numsubs++;
 	return &state->subs[state->numsubs-1];
@@ -540,7 +540,7 @@ static struct adsi_state *getstatebyname(struct adsi_script *state, char *name, 
 		ast_log(LOG_WARNING, "No more state space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	strncpy(state->states[state->numstates].vname, name, sizeof(state->states[state->numstates].vname) - 1);
+	ast_copy_string(state->states[state->numstates].vname, name, sizeof(state->states[state->numstates].vname));
 	state->states[state->numstates].id = state->numstates + 1;
 	state->numstates++;
 	return &state->states[state->numstates-1];
@@ -559,7 +559,7 @@ static struct adsi_display *getdisplaybyname(struct adsi_script *state, char *na
 		ast_log(LOG_WARNING, "No more display space at line %d of %s\n", lineno, script);
 		return NULL;
 	}
-	strncpy(state->displays[state->numdisplays].vname, name, sizeof(state->displays[state->numdisplays].vname) - 1);
+	ast_copy_string(state->displays[state->numdisplays].vname, name, sizeof(state->displays[state->numdisplays].vname));
 	state->displays[state->numdisplays].id = state->numdisplays + 1;
 	state->numdisplays++;
 	return &state->displays[state->numdisplays-1];
@@ -1045,7 +1045,7 @@ static int adsi_process(struct adsi_script *state, char *buf, char *script, int 
 					break;
 				}
 			} else {
-				strncpy(tmp2, tmp, sizeof(tmp2) - 1);
+				ast_copy_string(tmp2, tmp, sizeof(tmp2));
 			}
 			if (strlen(tmp2) > 18) {
 				ast_log(LOG_WARNING, "Truncating full name to 18 characters at line %d of %s\n", lineno, script);
@@ -1338,7 +1338,7 @@ static struct adsi_script *compile_script(char *script)
 	int x, err;
 	struct adsi_script *scr;
 	if (script[0] == '/')
-		strncpy(fn, script, sizeof(fn) - 1);
+		ast_copy_string(fn, script, sizeof(fn));
 	else
 		snprintf(fn, sizeof(fn), "%s/%s", (char *)ast_config_AST_CONFIG_DIR, script);
 	f = fopen(fn, "r");

@@ -95,9 +95,9 @@ static int load_config(void)
 	cfg = ast_config_load(ENUM_CONFIG);
 	if (cfg) {
 		if (!(s=ast_variable_retrieve(cfg, "general", "h323driver"))) {
-			strncpy(h323driver, H323DRIVERDEFAULT, sizeof(h323driver) - 1);
+			ast_copy_string(h323driver, H323DRIVERDEFAULT, sizeof(h323driver));
 		} else {
-			strncpy(h323driver, s, sizeof(h323driver) - 1);
+			ast_copy_string(h323driver, s, sizeof(h323driver));
 		}
 		ast_config_destroy(cfg);
 		return 0;

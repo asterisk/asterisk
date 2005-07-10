@@ -70,7 +70,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
 		return -1;
 	}
-	strncpy(tmp, (char *)data, sizeof(tmp)-1);
+	ast_copy_string(tmp, (char *)data, sizeof(tmp));
 	stringp=tmp;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");
@@ -158,7 +158,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 									pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
 									
 									if (ast_exists_extension(chan, chan->context, "talk", 1, chan->cid.cid_num)) {
-										strncpy(chan->exten, "talk", sizeof(chan->exten) -1 );
+										ast_copy_string(chan->exten, "talk", sizeof(chan->exten));
 										chan->priority = 0;
 									}
 									res = 0;

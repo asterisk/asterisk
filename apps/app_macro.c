@@ -124,11 +124,11 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	/* Save old info */
 	oldpriority = chan->priority;
-	strncpy(oldexten, chan->exten, sizeof(oldexten) - 1);
-	strncpy(oldcontext, chan->context, sizeof(oldcontext) - 1);
+	ast_copy_string(oldexten, chan->exten, sizeof(oldexten));
+	ast_copy_string(oldcontext, chan->context, sizeof(oldcontext));
 	if (ast_strlen_zero(chan->macrocontext)) {
-		strncpy(chan->macrocontext, chan->context, sizeof(chan->macrocontext) - 1);
-		strncpy(chan->macroexten, chan->exten, sizeof(chan->macroexten) - 1);
+		ast_copy_string(chan->macrocontext, chan->context, sizeof(chan->macrocontext));
+		ast_copy_string(chan->macroexten, chan->exten, sizeof(chan->macroexten));
 		chan->macropriority = chan->priority;
 		setmacrocontext=1;
 	}
@@ -158,7 +158,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	/* Setup environment for new run */
 	chan->exten[0] = 's';
 	chan->exten[1] = '\0';
-	strncpy(chan->context, fullmacro, sizeof(chan->context) - 1);
+	ast_copy_string(chan->context, fullmacro, sizeof(chan->context));
 	chan->priority = 1;
 
 	while((cur = strsep(&rest, "|")) && (argc < MAX_ARGS)) {
@@ -246,10 +246,10 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	if (!strcasecmp(chan->context, fullmacro)) {
   		/* If we're leaving the macro normally, restore original information */
 		chan->priority = oldpriority;
-		strncpy(chan->context, oldcontext, sizeof(chan->context) - 1);
+		ast_copy_string(chan->context, oldcontext, sizeof(chan->context));
 		if (!(chan->_softhangup & AST_SOFTHANGUP_ASYNCGOTO)) {
 			/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
-			strncpy(chan->exten, oldexten, sizeof(chan->exten) - 1);
+			ast_copy_string(chan->exten, oldexten, sizeof(chan->exten));
 			if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
 				/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue
 			   	normally if there is any problem */

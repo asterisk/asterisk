@@ -59,7 +59,7 @@ static int setrdnis_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (data)
-		strncpy(tmp, (char *)data, sizeof(tmp) - 1);
+		ast_copy_string(tmp, (char *)data, sizeof(tmp));
 	else
 		tmp[0] = '\0';
 	opt = strchr(tmp, '|');

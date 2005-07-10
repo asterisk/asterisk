@@ -310,7 +310,7 @@ static int write_metadata( FILE *logfile, char *signalling_type, struct ast_chan
 	
 	/* Extract the caller ID location */
 	if (chan->cid.cid_num)
-		strncpy(workstring, chan->cid.cid_num, sizeof(workstring) - 1);
+		ast_copy_string(workstring, chan->cid.cid_num, sizeof(workstring));
 	workstring[sizeof(workstring) - 1] = '\0';
 	
 	ast_callerid_parse(workstring, &cn, &cl);
@@ -389,7 +389,7 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 		
 		/* Make a template */
 		
-		strncpy(workstring, event_spool_dir, sizeof(workstring) - 1);
+		ast_copy_string(workstring, event_spool_dir, sizeof(workstring));
 		strncat(workstring, event_file, sizeof(workstring) - strlen(workstring) - 1);
 		
 		/* Make the temporary file */
@@ -581,7 +581,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 		memset(enew, 0, sizeof(event_node_t));
 		
 		enew->next = NULL;
-		strncpy(enew->data, event, sizeof(enew->data) - 1);
+		ast_copy_string(enew->data, event, sizeof(enew->data));
 
 		/*
 		* Insert event onto end of list
@@ -654,7 +654,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 	/* Set default values for this invokation of the application */
 	
-	strncpy(signalling_type, ADEMCO_CONTACT_ID, sizeof(signalling_type) - 1);
+	ast_copy_string(signalling_type, ADEMCO_CONTACT_ID, sizeof(signalling_type));
 
 
 	/* Answer the channel if it is not already */
@@ -751,7 +751,7 @@ static int load_config(void)
 		p = ast_variable_retrieve(cfg, "general", "eventcmd");
 		
 		if(p){
-			strncpy(event_app, p, sizeof(event_app) - 1);
+			ast_copy_string(event_app, p, sizeof(event_app));
 			event_app[sizeof(event_app) - 1] = '\0';
 		}
 		
@@ -791,21 +791,21 @@ static int load_config(void)
 		p = ast_variable_retrieve(cfg, "general", "eventspooldir");
 			
 		if(p){
-			strncpy(event_spool_dir, p, sizeof(event_spool_dir) - 1);
+			ast_copy_string(event_spool_dir, p, sizeof(event_spool_dir));
 			event_spool_dir[sizeof(event_spool_dir) - 1] = '\0';
 		}
 		
 		p = ast_variable_retrieve(cfg, "general", "timestampformat");
 			
 		if(p){
-			strncpy(time_stamp_format, p, sizeof(time_stamp_format) - 1);
+			ast_copy_string(time_stamp_format, p, sizeof(time_stamp_format));
 			time_stamp_format[sizeof(time_stamp_format) - 1] = '\0';
 		}
 
 		p = ast_variable_retrieve(cfg, "general", "db-family");
                                                                                                                                             
 		if(p){
-			strncpy(db_family, p, sizeof(db_family) - 1);
+			ast_copy_string(db_family, p, sizeof(db_family));
 			db_family[sizeof(db_family) - 1] = '\0';
 		}
 		ast_config_destroy(cfg);

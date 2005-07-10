@@ -193,7 +193,7 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 	if (!data) 
 		data = "";
 	LOCAL_USER_ADD(u);
-	strncpy(args, data, sizeof(args) - 1);
+	ast_copy_string(args, data, sizeof(args));
 	/* Answer the channel if it's not up */
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);

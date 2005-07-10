@@ -66,7 +66,7 @@ static int settransfercapability_exec(struct ast_channel *chan, void *data)
 	int transfercapability = -1;
 	
 	if (data)
-		strncpy(tmp, (char *)data, sizeof(tmp) - 1);
+		ast_copy_string(tmp, (char *)data, sizeof(tmp));
 	opts = strchr(tmp, '|');
 	if (opts)
 		*opts = '\0';

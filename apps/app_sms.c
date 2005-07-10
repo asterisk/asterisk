@@ -848,11 +848,11 @@ static void sms_writefile (sms_t * h)
 {
 	char fn[200] = "", fn2[200] = "";
 	FILE *o;
-	strncpy (fn, spool_dir, sizeof (fn) - 1);
+	ast_copy_string (fn, spool_dir, sizeof (fn));
 	mkdir (fn, 0777);			/* ensure it exists */
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? h->rx ? "morx" : "mttx" : h->rx ? "mtrx" : "motx");
 	mkdir (fn, 0777);			/* ensure it exists */
-	strncpy (fn2, fn, sizeof (fn2) - 1);
+	ast_copy_string (fn2, fn, sizeof (fn2));
 	snprintf (fn2 + strlen (fn2), sizeof (fn2) - strlen (fn2), "/%s.%s-%d", h->queue, isodate (h->scts), seq++);
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/.%s", fn2 + strlen (fn) + 1);
 	o = fopen (fn, "w");
@@ -951,7 +951,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 			h->srr = ((h->imsg[2] & 0x20) ? 1 : 0);
 			h->udhi = ((h->imsg[2] & 0x40) ? 1 : 0);
 			h->rp = ((h->imsg[2] & 0x80) ? 1 : 0);
-			strncpy (h->oa, h->cli, sizeof (h->oa) - 1);
+			ast_copy_string (h->oa, h->cli, sizeof (h->oa));
 			h->scts = time (0);
 			h->mr = h->imsg[p++];
 			p += unpackaddress (h->da, h->imsg + p);
@@ -1018,7 +1018,7 @@ static void sms_nextoutgoing (sms_t * h)
 	char fn[100 + NAME_MAX] = "";
 	DIR *d;
 	char more = 0;
-	strncpy (fn, spool_dir, sizeof (fn) - 1);
+	ast_copy_string (fn, spool_dir, sizeof (fn));
 	mkdir (fn, 0777);				/* ensure it exists */
 	h->rx = 0;						 /* outgoing message */
 	snprintf (fn + strlen (fn), sizeof (fn) - strlen (fn), "/%s", h->smsc ? "mttx" : "motx");
@@ -1360,7 +1360,7 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	}
 
 	if (chan->cid.cid_num)
-		strncpy (h.cli, chan->cid.cid_num, sizeof (h.cli) - 1);
+		ast_copy_string (h.cli, chan->cid.cid_num, sizeof (h.cli));
 
 	{
 		unsigned char *d = data,
@@ -1422,12 +1422,12 @@ static int sms_exec (struct ast_channel *chan, void *data)
 				return 0;
 			}
 			if (h.smsc) {
-				strncpy (h.oa, d, sizeof (h.oa) - 1);
+				ast_copy_string (h.oa, d, sizeof (h.oa));
 			} else {
-				strncpy (h.da, d, sizeof (h.da) - 1);
+				ast_copy_string (h.da, d, sizeof (h.da));
 			}
 			if (!h.smsc)
-				strncpy (h.oa, h.cli, sizeof (h.oa) - 1);
+				ast_copy_string (h.oa, h.cli, sizeof (h.oa));
 			d = p;
 			h.udl = 0;
 			while (*p && h.udl < SMSLEN)

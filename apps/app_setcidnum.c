@@ -63,7 +63,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (data)
-		strncpy(tmp, (char *)data, sizeof(tmp) - 1);
+		ast_copy_string(tmp, (char *)data, sizeof(tmp));
 	opt = strchr(tmp, '|');
 	if (opt) {
 		*opt = '\0';
