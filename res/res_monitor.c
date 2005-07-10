@@ -124,7 +124,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 						directory ? "" : ast_config_AST_MONITOR_DIR, fname_base);
 			snprintf(monitor->write_filename, FILENAME_MAX, "%s/%s-out",
 						directory ? "" : ast_config_AST_MONITOR_DIR, fname_base);
-			strncpy(monitor->filename_base, fname_base, sizeof(monitor->filename_base) - 1);
+			ast_copy_string(monitor->filename_base, fname_base, sizeof(monitor->filename_base));
 		} else {
 			ast_mutex_lock(&monitorlock);
 			snprintf(monitor->read_filename, FILENAME_MAX, "%s/audio-in-%ld",
@@ -264,7 +264,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 			snprintf(tmp, sizeof(tmp), "%s \"%s/%s-in.%s\" \"%s/%s-out.%s\" \"%s/%s.%s\" %s &", execute, dir, name, format, dir, name, format, dir, name, format,execute_args);
 			if (delfiles) {
 				snprintf(tmp2,sizeof(tmp2), "( %s& rm -f \"%s/%s-\"* ) &",tmp, dir ,name); /* remove legs when done mixing */
-				strncpy(tmp, tmp2, sizeof(tmp) - 1);
+				ast_copy_string(tmp, tmp2, sizeof(tmp));
 			}
 			ast_log(LOG_DEBUG,"monitor executing %s\n",tmp);
 			if (ast_safe_system(tmp) == -1)
@@ -440,7 +440,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 			return 0;
 		}
 		memset(fname, 0, FILENAME_MAX);
-		strncpy(fname, c->name, FILENAME_MAX-1);
+		ast_copy_string(fname, c->name, FILENAME_MAX);
 		/* Channels have the format technology/channel_name - have to replace that /  */
 		if ((d=strchr(fname, '/'))) *d='-';
 	}

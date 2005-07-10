@@ -67,7 +67,7 @@ static int odbc_write(struct odbc_list *registry, char *name, odbc_obj *obj)
 	int x = 0;
 	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
 		if (!registry[x].used) {
-			strncpy(registry[x].name, name, sizeof(registry[x].name) - 1);
+			ast_copy_string(registry[x].name, name, sizeof(registry[x].name));
 			registry[x].obj = obj;
 			registry[x].used = 1;
 			return 1;

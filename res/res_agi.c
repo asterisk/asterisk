@@ -757,7 +757,7 @@ static int handle_setcontext(struct ast_channel *chan, AGI *agi, int argc, char 
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	strncpy(chan->context, argv[2], sizeof(chan->context)-1);
+	ast_copy_string(chan->context, argv[2], sizeof(chan->context));
 	fdprintf(agi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -766,7 +766,7 @@ static int handle_setextension(struct ast_channel *chan, AGI *agi, int argc, cha
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	strncpy(chan->exten, argv[2], sizeof(chan->exten)-1);
+	ast_copy_string(chan->exten, argv[2], sizeof(chan->exten));
 	fdprintf(agi->fd, "200 result=0\n");
 	return RESULT_SUCCESS;
 }
@@ -1028,7 +1028,7 @@ static int handle_setcallerid(struct ast_channel *chan, AGI *agi, int argc, char
 	char *l = NULL, *n = NULL;
 
 	if (argv[2]) {
-		strncpy(tmp, argv[2], sizeof(tmp) - 1);
+		ast_copy_string(tmp, argv[2], sizeof(tmp));
 		ast_callerid_parse(tmp, &n, &l);
 		if (l)
 			ast_shrink_phone_number(l);
@@ -1925,7 +1925,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
 		return -1;
 	}
-	strncpy(buf, data, sizeof(buf) - 1);
+	ast_copy_string(buf, data, sizeof(buf));
 
 	memset(&agi, 0, sizeof(agi));
         while ((stringp = strsep(&tmp, "|"))) {

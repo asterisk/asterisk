@@ -90,7 +90,7 @@ static int handle_add_indication(int fd, int argc, char *argv[])
 			return -1;
 		}
 		memset(tz,0,sizeof(struct tone_zone));
-		strncpy(tz->country,argv[2],sizeof(tz->country)-1);
+		ast_copy_string(tz->country,argv[2],sizeof(tz->country));
 		if (ast_register_indication_country(tz)) {
 			ast_log(LOG_WARNING, "Unable to register new country\n");
 			free(tz);
@@ -176,7 +176,7 @@ static int handle_show_indications(int fd, int argc, char *argv[])
 					j += snprintf(buf+j,sizeof(buf)-j,"%d,",tz->ringcadance[i]);
 				}
 				if (tz->nrringcadance) j--;
-				strncpy(buf+j,"\n",sizeof(buf)-j-1);
+				ast_copy_string(buf+j,"\n",sizeof(buf)-j);
 				ast_cli(fd,buf);
 				for (ts=tz->tones; ts; ts=ts->next)
 					ast_cli(fd,"%-7.7s %-15.15s %s\n",tz->country,ts->name,ts->data);
@@ -254,12 +254,12 @@ static int ind_load_module(void)
 			return -1;
 		}
 		memset(tones,0,sizeof(struct tone_zone));
-		strncpy(tones->country,cxt,sizeof(tones->country) - 1);
+		ast_copy_string(tones->country,cxt,sizeof(tones->country));
 
 		v = ast_variable_browse(cfg, cxt);
 		while(v) {
 			if (!strcasecmp(v->name, "description")) {
-				strncpy(tones->description, v->value, sizeof(tones->description)-1);
+				ast_copy_string(tones->description, v->value, sizeof(tones->description));
 			} else if (!strcasecmp(v->name,"ringcadance")) {
 				char *ring,*rings = ast_strdupa(v->value);
 				c = rings;
@@ -295,8 +295,8 @@ static int ind_load_module(void)
 						return -1;
 					}
 					memset(azone,0,sizeof(struct tone_zone));
-					strncpy(azone->country, country, sizeof(azone->country) - 1);
-					strncpy(azone->alias, cxt, sizeof(azone->alias)-1);
+					ast_copy_string(azone->country, country, sizeof(azone->country));
+					ast_copy_string(azone->alias, cxt, sizeof(azone->alias));
 					if (ast_register_indication_country(azone)) {
 						ast_log(LOG_WARNING, "Unable to register indication alias at line %d.\n",v->lineno);
 						free(tones);

@@ -116,7 +116,7 @@ static int osp_build(struct ast_config *cfg, char *cat)
 		memset(osp, 0, sizeof(struct osp_provider));
 		osp->handle = -1;
 	}
-	strncpy(osp->name, cat, sizeof(osp->name) - 1);
+	ast_copy_string(osp->name, cat, sizeof(osp->name));
 	snprintf(osp->localpvtkey, sizeof(osp->localpvtkey) ,"%s/%s-privatekey.pem", ast_config_AST_KEY_DIR, cat);
 	snprintf(osp->localcert, sizeof(osp->localpvtkey), "%s/%s-localcert.pem", ast_config_AST_KEY_DIR, cat);
 	osp->maxconnections=OSP_DEFAULT_MAX_CONNECTIONS;
@@ -129,18 +129,18 @@ static int osp_build(struct ast_config *cfg, char *cat)
 	while(v) {
 		if (!strcasecmp(v->name, "privatekey")) {
 			if (v->value[0] == '/')
-				strncpy(osp->localpvtkey, v->value, sizeof(osp->localpvtkey) - 1);
+				ast_copy_string(osp->localpvtkey, v->value, sizeof(osp->localpvtkey));
 			else
 				snprintf(osp->localpvtkey, sizeof(osp->localpvtkey), "%s/%s", ast_config_AST_KEY_DIR , v->value);
 		} else if (!strcasecmp(v->name, "localcert")) {
 			if (v->value[0] == '/')
-				strncpy(osp->localcert, v->value, sizeof(osp->localcert) - 1);
+				ast_copy_string(osp->localcert, v->value, sizeof(osp->localcert));
 			else
 				snprintf(osp->localcert, sizeof(osp->localcert), "%s/%s", ast_config_AST_KEY_DIR, v->value);
 		} else if (!strcasecmp(v->name, "cacert")) {
 			if (osp->cacount < MAX_CERTS) {
 				if (v->value[0] == '/')
-					strncpy(osp->cacerts[osp->cacount], v->value, sizeof(osp->cacerts[0]) - 1);
+					ast_copy_string(osp->cacerts[osp->cacount], v->value, sizeof(osp->cacerts[0]));
 				else
 					snprintf(osp->cacerts[osp->cacount], sizeof(osp->cacerts[0]), "%s/%s", ast_config_AST_KEY_DIR, v->value);
 				osp->cacount++;
@@ -148,7 +148,7 @@ static int osp_build(struct ast_config *cfg, char *cat)
 				ast_log(LOG_WARNING, "Too many CA Certificates at line %d\n", v->lineno);
 		} else if (!strcasecmp(v->name, "servicepoint")) {
 			if (osp->spcount < MAX_SERVICEPOINTS) {
-				strncpy(osp->servicepoints[osp->spcount], v->value, sizeof(osp->servicepoints[0]) - 1);
+				ast_copy_string(osp->servicepoints[osp->spcount], v->value, sizeof(osp->servicepoints[0]));
 				osp->spcount++;
 			} else
 				ast_log(LOG_WARNING, "Too many Service points at line %d\n", v->lineno);
@@ -173,7 +173,7 @@ static int osp_build(struct ast_config *cfg, char *cat)
 			} else
 				ast_log(LOG_WARNING, "timeout should be an integer from 200 to 10000, not '%s' at line %d\n", v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "source")) {
-			strncpy(osp->source, v->value, sizeof(osp->source) - 1);
+			ast_copy_string(osp->source, v->value, sizeof(osp->source));
 		}
 		v = v->next;
 	}
@@ -445,7 +445,7 @@ int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *tim
 	*handle = -1;
 	if (!callerid)
 		callerid = "";
-	strncpy(tmp, callerid, sizeof(tmp) - 1);
+	ast_copy_string(tmp, callerid, sizeof(tmp));
 	ast_callerid_parse(tmp, &n, &l);
 	if (!l)
 		l = "";
@@ -463,7 +463,7 @@ int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *tim
 			if (OSPPTransactionNew(osp->handle, handle)) {
 				ast_log(LOG_WARNING, "Unable to create OSP Transaction handle!\n");
 			} else {
-				strncpy(source, osp->source, sizeof(source) - 1);
+				ast_copy_string(source, osp->source, sizeof(source));
 				res = 1;
 			}
 			break;
@@ -516,7 +516,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 
 	if (!callerid)
 		callerid = "";
-	strncpy(tmp, callerid, sizeof(tmp) - 1);
+	ast_copy_string(tmp, callerid, sizeof(tmp));
 	ast_callerid_parse(tmp, &n, &l);
 	if (!l)
 		l = "";
@@ -528,7 +528,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	callerid = l;
 
 	if (chan) {
-		strncpy(uniqueid, chan->uniqueid, sizeof(uniqueid) - 1);
+		ast_copy_string(uniqueid, chan->uniqueid, sizeof(uniqueid));
 		cres = ast_autoservice_start(chan);
 		if (cres < 0)
 			return cres;
@@ -540,7 +540,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 			if (OSPPTransactionNew(osp->handle, &result->handle)) {
 				ast_log(LOG_WARNING, "Unable to create OSP Transaction handle!\n");
 			} else {
-				strncpy(source, osp->source, sizeof(source) - 1);
+				ast_copy_string(source, osp->source, sizeof(source));
 				res = 1;
 			}
 			break;
@@ -573,15 +573,15 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 								destination[strlen(destination) - 1] = '\0';
 								switch(prot) {
 								case OSPE_DEST_PROT_H323_SETUP:
-									strncpy(result->tech, "H323", sizeof(result->tech) - 1);
+									ast_copy_string(result->tech, "H323", sizeof(result->tech));
 									snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 									break;
 								case OSPE_DEST_PROT_SIP:
-									strncpy(result->tech, "SIP", sizeof(result->tech) - 1);
+									ast_copy_string(result->tech, "SIP", sizeof(result->tech));
 									snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 									break;
 								case OSPE_DEST_PROT_IAX:
-									strncpy(result->tech, "IAX", sizeof(result->tech) - 1);
+									ast_copy_string(result->tech, "IAX", sizeof(result->tech));
 									snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 									break;
 								default:
@@ -656,15 +656,15 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 						destination[strlen(destination) - 1] = '\0';
 						switch(prot) {
 						case OSPE_DEST_PROT_H323_SETUP:
-							strncpy(result->tech, "H323", sizeof(result->tech) - 1);
+							ast_copy_string(result->tech, "H323", sizeof(result->tech));
 							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 							break;
 						case OSPE_DEST_PROT_SIP:
-							strncpy(result->tech, "SIP", sizeof(result->tech) - 1);
+							ast_copy_string(result->tech, "SIP", sizeof(result->tech));
 							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 							break;
 						case OSPE_DEST_PROT_IAX:
-							strncpy(result->tech, "IAX", sizeof(result->tech) - 1);
+							ast_copy_string(result->tech, "IAX", sizeof(result->tech));
 							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
 							break;
 						default:
