@@ -763,7 +763,7 @@ valgrind: dont-optimize
 depend: .depend defaults.h include/asterisk/build.h include/asterisk/version.h
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
-.depend:
+.depend: include/asterisk/version.h
 	build_tools/mkdep ${CFLAGS} $(filter-out ast_expr.c,$(wildcard *.c))
 	build_tools/mkdep -a -d ${CFLAGS} ast_expr.c
 
