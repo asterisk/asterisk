@@ -964,7 +964,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 
 				/* see if the timeout has been violated */
 				gettimeofday(&ended,NULL);
-				if(ast_tvdiff_ms(&started, &ended) > timeout) {
+				if(ast_tvdiff_ms(&ended, &started) > timeout) {
 					state = AST_CONTROL_UNHOLD;
 					ast_log(LOG_NOTICE, "We exceeded our AT-timeout\n");
 					break; /*doh! timeout*/

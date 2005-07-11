@@ -16,16 +16,16 @@
 
 /*!
  * \brief Computes the difference (in milliseconds) between two \c struct \c timeval instances.
- * \param start the beginning of the time period
- * \param end the end of the time period
+ * \param end the beginning of the time period
+ * \param start the end of the time period
  * \return the difference in milliseconds
  */
-int ast_tvdiff_ms(const struct timeval *start, const struct timeval *end);
+int ast_tvdiff_ms(const struct timeval *end, const struct timeval *start);
 #if !defined(LOW_MEMORY) && !defined(AST_API_MODULE)
 extern inline
 #endif
 #if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-int ast_tvdiff_ms(const struct timeval *start, const struct timeval *end)
+int ast_tvdiff_ms(const struct timeval *end, const struct timeval *start)
 {
 	return ((end->tv_sec - start->tv_sec) * 1000) + ((end->tv_usec - start->tv_usec) / 1000);
 }
