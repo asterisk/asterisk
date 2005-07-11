@@ -7525,23 +7525,29 @@ static void zt_pri_message(struct pri *pri, char *s)
 {
 	int x, y;
 	int dchan = -1, span = -1;
+	int dchancount = 0;
 
 	if (pri) {
 		for (x = 0; x < NUM_SPANS; x++) {
 			for (y = 0; y < NUM_DCHANS; y++) {
-				if (pris[x].dchans[y] == pri) {
+				if (pris[x].dchans[y])
+					dchancount++;
+
+				if (pris[x].dchans[y] == pri)
 					dchan = y;
-					break;
-				}
 			}
 			if (dchan >= 0) {
 				span = x;
 				break;
 			}
+			dchancount = 0;
 		}
-		if ((dchan >= 0) && (span >= 0))
-			ast_verbose("[Span %d D-Channel %d]%s", span, dchan, s);
-		else
+		if ((dchan >= 0) && (span >= 0)) {
+			if (dchancount > 1)
+				ast_verbose("[Span %d D-Channel %d]%s", span, dchan, s);
+			else
+				ast_verbose("%s", s);
+		} else
 			ast_verbose("PRI debug error: could not find pri associated it with debug message output\n");
 	} else
 		ast_verbose("%s", s);
@@ -7549,7 +7555,7 @@ static void zt_pri_message(struct pri *pri, char *s)
 	ast_mutex_lock(&pridebugfdlock);
 
 	if (pridebugfd >= 0)
-		write (pridebugfd, s, strlen(s));
+		write(pridebugfd, s, strlen(s));
 
 	ast_mutex_unlock(&pridebugfdlock);
 }
@@ -7558,23 +7564,29 @@ static void zt_pri_error(struct pri *pri, char *s)
 {
 	int x, y;
 	int dchan = -1, span = -1;
+	int dchancount = 0;
 
 	if (pri) {
 		for (x = 0; x < NUM_SPANS; x++) {
 			for (y = 0; y < NUM_DCHANS; y++) {
-				if (pris[x].dchans[y] == pri) {
+				if (pris[x].dchans[y])
+					dchancount++;
+
+				if (pris[x].dchans[y] == pri)
 					dchan = y;
-					break;
-				}
 			}
 			if (dchan >= 0) {
 				span = x;
 				break;
 			}
+			dchancount = 0;
 		}
-		if ((dchan >= 0) && (span >= 0))
-			ast_log(LOG_WARNING, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
-		else
+		if ((dchan >= 0) && (span >= 0)) {
+			if (dchancount > 1)
+				ast_log(LOG_WARNING, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
+			else
+				ast_verbose("%s", s);
+		} else
 			ast_verbose("PRI debug error: could not find pri associated it with debug message output\n");
 	} else
 		ast_log(LOG_WARNING, "%s", s);
