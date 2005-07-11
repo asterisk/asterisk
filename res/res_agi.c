@@ -413,11 +413,10 @@ static int handle_recvtext(struct ast_channel *chan, AGI *agi, int argc, char *a
 	if (buf) {
 		fdprintf(agi->fd, "200 result=1 (%s)\n", buf);
 		free(buf);
-		return RESULT_SUCCESS;
 	} else {	
 		fdprintf(agi->fd, "200 result=-1\n");
-		return RESULT_FAILURE;
 	}
+	return RESULT_SUCCESS;
 }
 
 static int handle_tddmode(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
