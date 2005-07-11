@@ -8,6 +8,9 @@
        only, not requiring authentication on incoming invites, or both. Before,
        to not require authentication on incoming invites also required matching
        peers based on IP only.
+ -- app_meetme
+    -- If the first caller into a conference hangs up while being prompted for
+       the conference pin number, the conference will no longer be held open.
  -- app_zapras
     -- We now ensure buffer policy is restored after RAS is done with a channel.
        This could cause audio problems on the channel after zapras is done
