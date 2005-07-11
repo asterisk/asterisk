@@ -40,7 +40,6 @@ static char *desc = "ODBC CDR Backend";
 static char *name = "ODBC";
 static char *config = "cdr_odbc.conf";
 static char *dsn = NULL, *username = NULL, *password = NULL, *table = NULL;
-static int dsn_alloc = 0, username_alloc = 0, password_alloc = 0, table_alloc = 0;
 static int loguniqueid = 0;
 static int usegmtime = 0;
 static int dispositionstring = 0;
@@ -191,39 +190,27 @@ static int odbc_unload_module(void)
 		SQLDisconnect(ODBC_con);
 		SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
 		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
-		connected = 0;
 	}
-	if (dsn && dsn_alloc) {
+	if (dsn) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free dsn\n");
 		free(dsn);
-		dsn = NULL;
-		dsn_alloc = 0;
 	}
-	if (username && username_alloc) {
+	if (username) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free username\n");
 		free(username);
-		username = NULL;
-		username_alloc = 0;
 	}
-	if (password && password_alloc) {
+	if (password) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free password\n");
 		free(password);
-		password = NULL;
-		password_alloc = 0;
 	}
-	if (table && table_alloc) {
+	if (table) {
 		if (option_verbose > 10)
 			ast_verbose( VERBOSE_PREFIX_4 "cdr_odbc: free table\n");
 		free(table);
-		table = NULL;
-		table_alloc = 0;
 	}
-	loguniqueid = 0;
-	usegmtime = 0;
-	dispositionstring = 0;
 
 	ast_cdr_unregister(name);
 	ast_mutex_unlock(&odbc_lock);
@@ -252,20 +239,15 @@ static int odbc_load_module(void)
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","dsn");
-	if (tmp) {
-		dsn = malloc(strlen(tmp) + 1);
-		if (dsn != NULL) {
-			memset(dsn, 0, strlen(tmp) + 1);
-			dsn_alloc = 1;
-			strncpy(dsn, tmp, strlen(tmp));
-		} else {
-			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
-			res = -1;
-			goto out;
-		}
-	} else {
+	if (tmp == NULL) {
 		ast_log(LOG_WARNING,"cdr_odbc: dsn not specified.  Assuming asteriskdb\n");
-		dsn = "asteriskdb";
+		tmp = "asteriskdb";
+	}
+	dsn = strdup(tmp);
+	if (dsn == NULL) {
+		ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
+		res = -1;
+		goto out;
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","dispositionstring");
@@ -277,12 +259,8 @@ static int odbc_load_module(void)
 		
 	tmp = ast_variable_retrieve(cfg,"global","username");
 	if (tmp) {
-		username = malloc(strlen(tmp) + 1);
-		if (username != NULL) {
-			memset(username, 0, strlen(tmp) + 1);
-			username_alloc = 1;
-			strncpy(username, tmp, strlen(tmp));
-		} else {
+		username = strdup(tmp);
+		if (username == NULL) {
 			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
 			res = -1;
 			goto out;
@@ -291,12 +269,8 @@ static int odbc_load_module(void)
 
 	tmp = ast_variable_retrieve(cfg,"global","password");
 	if (tmp) {
-		password = malloc(strlen(tmp) + 1);
-		if (password != NULL) {
-			memset(password, 0, strlen(tmp) + 1);
-			password_alloc = 1;
-			strncpy(password, tmp, strlen(tmp));
-		} else {
+		password = strdup(tmp);
+		if (password == NULL) {
 			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
 			res = -1;
 			goto out;
@@ -330,20 +304,15 @@ static int odbc_load_module(void)
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","table");
-	if (tmp) {
-		table = malloc(strlen(tmp) + 1);
-		if (table != NULL) {
-			memset(table, 0, strlen(tmp) + 1);
-			table_alloc = 1;
-			strncpy(table, tmp, strlen(tmp));
-		} else {
-			ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
-			res = -1;
-			goto out;
-		}
-	} else {
+	if (tmp == NULL) {
 		ast_log(LOG_WARNING,"cdr_odbc: table not specified.  Assuming cdr\n");
-		table = "cdr";
+		tmp = "cdr";
+	}
+	table = strdup(tmp);
+	if (table == NULL) {
+		ast_log(LOG_ERROR,"cdr_odbc: Out of memory error.\n");
+		res = -1;
+		goto out;
 	}
 
 	ast_config_destroy(cfg);
@@ -437,6 +406,7 @@ static int odbc_init(void)
 		SQLSetConnectAttr(ODBC_con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *)10, 0);	
 	}
 
+	/* XXX note username and password could be NULL here */
 	ODBC_res = SQLConnect(ODBC_con, (SQLCHAR*)dsn, SQL_NTS, (SQLCHAR*)username, SQL_NTS, (SQLCHAR*)password, SQL_NTS);
 
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {

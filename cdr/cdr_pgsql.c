@@ -42,7 +42,6 @@ static char *desc = "PostgreSQL CDR Backend";
 static char *name = "pgsql";
 static char *config = "cdr_pgsql.conf";
 static char *pghostname = NULL, *pgdbname = NULL, *pgdbuser = NULL, *pgpassword = NULL, *pgdbsock = NULL, *pgdbport = NULL, *table = NULL;
-static int hostname_alloc = 0, dbname_alloc = 0, dbuser_alloc = 0, password_alloc = 0, dbsock_alloc = 0, dbport_alloc = 0, table_alloc = 0;
 static int connected = 0;
 
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
@@ -166,43 +165,20 @@ static int my_unload_module(void)
 { 
 	if (conn)
 		PQfinish(conn);
-	conn = NULL;
-	connected = 0;
-	if (pghostname && hostname_alloc) {
+	if (pghostname)
 		free(pghostname);
-		pghostname = NULL;
-		hostname_alloc = 0;
-	}
-	if (pgdbname && dbname_alloc) {
+	if (pgdbname)
 		free(pgdbname);
-		pgdbname = NULL;
-		dbname_alloc = 0;
-	}
-	if (pgdbuser && dbuser_alloc) {
+	if (pgdbuser)
 		free(pgdbuser);
-		pgdbuser = NULL;
-		dbuser_alloc = 0;
-	}
-	if (pgdbsock && dbsock_alloc) {
+	if (pgdbsock)
 		free(pgdbsock);
-		pgdbsock = NULL;
-		dbsock_alloc = 0;
-	}
-	if (pgpassword && password_alloc) {
+	if (pgpassword)
 		free(pgpassword);
-		pgpassword = NULL;
-		password_alloc = 0;
-	}
-	if (pgdbport && dbport_alloc) {
+	if (pgdbport)
 		free(pgdbport);
-		pgdbport = NULL;
-		dbport_alloc = 0;
-	}
-	if (table && table_alloc) {
+	if (table)
 		free(table);
-		table = NULL;
-		table_alloc = 0;
-	}
 	ast_cdr_unregister(name);
 	return 0;
 }
@@ -221,99 +197,69 @@ static int process_my_load_module(struct ast_config *cfg)
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","hostname");
-	if (tmp) {
-		pghostname = malloc(strlen(tmp) + 1);
-		if (pghostname != NULL) {
-			memset(pghostname, 0, strlen(tmp) + 1);
-			hostname_alloc = 1;
-			strncpy(pghostname, tmp, strlen(tmp));
-		} else {
-			ast_log(LOG_ERROR,"Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (tmp == NULL) {
 		ast_log(LOG_WARNING,"PostgreSQL server hostname not specified.  Assuming localhost\n");
-		pghostname = "localhost";
+		tmp = "localhost";
+	}
+	pghostname = strdup(tmp);
+	if (pghostname == NULL) {
+		ast_log(LOG_ERROR,"Out of memory error.\n");
+		return -1;
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","dbname");
-	if (tmp) {
-		pgdbname = malloc(strlen(tmp) + 1);
-		if (pgdbname != NULL) {
-			memset(pgdbname, 0, strlen(tmp) + 1);
-			dbname_alloc = 1;
-			strncpy(pgdbname, tmp, strlen(tmp));
-		} else {
-			ast_log(LOG_ERROR,"Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (tmp == NULL) {
 		ast_log(LOG_WARNING,"PostgreSQL database not specified.  Assuming asterisk\n");
-		pgdbname = "asteriskcdrdb";
+		tmp = "asteriskcdrdb";
+	}
+	pgdbname = strdup(tmp);
+	if (pgdbname == NULL) {
+		ast_log(LOG_ERROR,"Out of memory error.\n");
+		return -1;
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","user");
-	if (tmp) {
-		pgdbuser = malloc(strlen(tmp) + 1);
-		if (pgdbuser != NULL) {
-			memset(pgdbuser, 0, strlen(tmp) + 1);
-			dbuser_alloc = 1;
-			strncpy(pgdbuser, tmp, strlen(tmp));
-		} else {
-			ast_log(LOG_ERROR,"Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (tmp == NULL) {
 		ast_log(LOG_WARNING,"PostgreSQL database user not specified.  Assuming root\n");
-		pgdbuser = "root";
+		tmp = "root";
+	}
+	pgdbuser = strdup(tmp);
+	if (pgdbuser == NULL) {
+		ast_log(LOG_ERROR,"Out of memory error.\n");
+		return -1;
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","password");
-	if (tmp) {
-		pgpassword = malloc(strlen(tmp) + 1);
-		if (pgpassword != NULL) {
-			memset(pgpassword, 0, strlen(tmp) + 1);
-			password_alloc = 1;
-			strncpy(pgpassword, tmp, strlen(tmp));
-		} else {
-			ast_log(LOG_ERROR,"Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (tmp == NULL) {
 		ast_log(LOG_WARNING,"PostgreSQL database password not specified.  Assuming blank\n");
-		pgpassword = "";
+		tmp = "";
+	}
+	pgpassword = strdup(tmp);
+	if (pgpassword == NULL) {
+		ast_log(LOG_ERROR,"Out of memory error.\n");
+		return -1;
 	}
 
 	tmp = ast_variable_retrieve(cfg,"global","port");
-	if (tmp) {
-		pgdbport = malloc(strlen(tmp) + 1);
-		if (pgdbport != NULL) {
-			memset(pgdbport, 0, strlen(tmp) + 1);
-			dbport_alloc = 1;
-			strncpy(pgdbport, tmp, strlen(tmp));
-		} else {
-			ast_log(LOG_ERROR,"Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (tmp == NULL) {
 		ast_log(LOG_WARNING,"PostgreSQL database port not specified.  Using default 5432.\n");
-		pgdbport = "5432";
+		tmp = "5432";
 	}
-        /* Loading stuff for table name */
+	pgdbport = strdup(tmp);
+	if (pgdbport == NULL) {
+		ast_log(LOG_ERROR,"Out of memory error.\n");
+		return -1;
+	}
+
 	tmp = ast_variable_retrieve(cfg,"global","table");
-	if (tmp) {
-		table = malloc(strlen(tmp) + 1);
-		if (table != NULL) {
-			memset(table, 0, strlen(tmp) + 1);
-			table_alloc = 1;
-			strncpy(table, tmp, strlen(tmp));
-		} else {
-			ast_log(LOG_ERROR,"Out of memory error.\n");
-			return -1;
-		}
-	} else {
+	if (tmp == NULL) {
 		ast_log(LOG_WARNING,"CDR table not specified.  Assuming cdr\n");
-		table = "cdr";
+		tmp = "cdr";
+	}
+	table = strdup(tmp);
+	if (table == NULL) {
+		ast_log(LOG_ERROR,"Out of memory error.\n");
+		return -1;
 	}
 
 	ast_log(LOG_DEBUG,"cdr_pgsql: got hostname of %s\n",pghostname);
