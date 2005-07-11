@@ -29,7 +29,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/options.h"
 #include "asterisk/lock.h"
-#include "asterisk.h"
+#include "asterisk/utils.h"
 
 static int vt100compat = 0;
 
