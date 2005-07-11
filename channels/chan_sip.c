@@ -6369,7 +6369,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 					ast_copy_string(p->context, peer->context, sizeof(p->context));
 				ast_copy_string(p->peersecret, peer->secret, sizeof(p->peersecret));
 				ast_copy_string(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret));
-				ast_copy_string(p->language, peer->language, sizeof(p->language)  -1);
+				ast_copy_string(p->language, peer->language, sizeof(p->language));
 				ast_copy_string(p->accountcode, peer->accountcode, sizeof(p->accountcode));
 				p->amaflags = peer->amaflags;
 				p->callgroup = peer->callgroup;

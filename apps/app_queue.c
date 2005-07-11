@@ -1932,7 +1932,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		tmp->member = cur;		/* Never directly dereference!  Could change on reload */
 		tmp->oldstatus = cur->status;
 		tmp->lastcall = cur->lastcall;
-		ast_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface)-1);
+		ast_copy_string(tmp->interface, cur->interface, sizeof(tmp->interface));
 		/* If we're dialing by extension, look at the extension to know what to dial */
 		if ((newnum = strstr(tmp->interface, "/BYEXTENSION"))) {
 			newnum++;
