@@ -3,6 +3,11 @@
        not listed here.  A complete listing of changes is available through
        the Asterisk-CVS mailing list hosted at http://lists.digium.com.
 
+ -- chan_sip
+    -- The 'insecure' options have been changed to support matching peersby IP
+       only, not requiring authentication on incoming invites, or both. Before,
+       to not require authentication on incoming invites also required matching
+       peers based on IP only.
  -- app_zapras
     -- We now ensure buffer policy is restored after RAS is done with a channel.
        This could cause audio problems on the channel after zapras is done

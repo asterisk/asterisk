@@ -98,6 +98,12 @@
 #define SIP_DTMF_INBAND		(1 << 1)
 #define SIP_DTMF_INFO		(1 << 2)
 
+/* --- SIP Insecure modes */
+#define SIP_SECURE		(0 << 0)
+#define SIP_INSECURE_PORT	(1 << 0)
+#define SIP_INSECURE_INVITE	(1 << 1)
+#define SIP_INSECURE_BOTH	(3 << 0)
+
 static int max_expiry = DEFAULT_MAX_EXPIRY;
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
@@ -1240,7 +1246,7 @@ static struct sip_peer *find_peer(char *peer, struct sockaddr_in *sin)
 		/* Find by sin */
 		while(p) {
 			if (!inaddrcmp(&p->addr, sin) || 
-					(p->insecure &&
+					((p->insecure & SIP_INSECURE_PORT) &&
 					(p->addr.sin_addr.s_addr == sin->sin_addr.s_addr))) {
 				break;
 			}
@@ -5539,7 +5545,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, char *cmd
 			p->peersecret[sizeof(p->peersecret)-1] = '\0';
 			strncpy(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret)-1);
 			p->peermd5secret[sizeof(p->peermd5secret)-1] = '\0';
-			if (peer->insecure > 1) {
+			if (peer->insecure & SIP_INSECURE_INVITE) {
 				/* Pretend there is no required authentication if insecure is "very" */
 				p->peersecret[0] = '\0';
 				p->peermd5secret[0] = '\0';
@@ -5688,7 +5694,23 @@ static char *nat2str(int nat)
 		return "Unknown";
 	}
 }
-                           
+ 
+static char *insecure2str(int insecure)
+{
+	switch (insecure) {
+	case SIP_SECURE:
+		return "No";
+	case SIP_INSECURE_PORT:
+		return "port";
+	case SIP_INSECURE_INVITE:
+		return "invite";
+	case SIP_INSECURE_BOTH:
+		return "port,invite";
+	default:
+		return "Unknown";	
+	}
+}
+                          
 /*--- sip_show_users: CLI Command 'SIP Show Users' ---*/
 static int sip_show_users(int fd, int argc, char *argv[])
 {
@@ -5832,7 +5854,7 @@ static int sip_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Dynamic      : %s\n", (peer->dynamic?"Yes":"No"));
 		ast_cli(fd, "  Expire       : %ld seconds\n", ast_sched_when(sched,peer->expire));
 		ast_cli(fd, "  Expiry       : %d\n", peer->expiry);
-		ast_cli(fd, "  Insecure     : %s\n", (peer->insecure?((peer->insecure == 2)?"Very":"Yes"):"No") );
+		ast_cli(fd, "  Insecure     : %s\n", insecure2str(peer->insecure));
 		ast_cli(fd, "  Nat          : %s\n", nat2str(peer->nat));
 		ast_cli(fd, "  ACL          : %s\n", (peer->ha?"Yes":"No"));
 		ast_cli(fd, "  CanReinvite  : %s\n", (peer->canreinvite?"Yes":"No"));
@@ -8262,6 +8284,33 @@ static struct ast_channel *sip_request(char *type, int format, void *data)
 	return tmpc;
 }
 
+static int parse_insecure(char *varval)
+{
+	int insecure = 0;
+	
+	if (!strcasecmp(varval, "very"))
+		insecure = SIP_INSECURE_BOTH;
+	else if (ast_true(varval))
+		insecure = SIP_INSECURE_PORT;
+	else if (!ast_false(varval)) {
+		char buf[64];
+		char *word, *next;
+
+		strncpy(buf, varval, sizeof(buf)-1);
+		next = buf;
+		while ((word = strsep(&next, ","))) {
+			if (!strcasecmp(word, "port"))
+				insecure |= SIP_INSECURE_PORT;
+			else if (!strcasecmp(word, "invite"))
+				insecure |= SIP_INSECURE_INVITE;
+			else
+				ast_log(LOG_WARNING, "Unknown insecure mode '%s'\n", varval);
+		}
+	}
+	
+	return insecure;
+}
+
 /*--- build_user: Initiate a SIP user structure from sip.conf ---*/
 static struct sip_user *build_user(char *name, struct ast_variable *v)
 {
@@ -8361,7 +8410,7 @@ static struct sip_user *build_user(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&user->prefs, &user->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "insecure")) {
-				user->insecure = ast_true(v->value);
+				user->insecure = parse_insecure(v->value);
 			} else if (!strcasecmp(v->name, "restrictcid")) {
 				user->restrictcid = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "trustrpid")) {
@@ -8601,12 +8650,7 @@ static struct sip_peer *build_peer(char *name, struct ast_variable *v)
 			} else if (!strcasecmp(v->name, "disallow")) {
 				ast_parse_allow_disallow(&peer->prefs, &peer->capability, v->value, 0);
 			} else if (!strcasecmp(v->name, "insecure")) {
-				if (!strcasecmp(v->value, "very")) {
-					peer->insecure = 2;
-				} else if (ast_true(v->value))
-					peer->insecure = 1;
-				else
-					peer->insecure = 0;
+				peer->insecure = parse_insecure(v->value);
 			} else if (!strcasecmp(v->name, "rtptimeout")) {
 				if ((sscanf(v->value, "%d", &peer->rtptimeout) != 1) || (peer->rtptimeout < 0)) {
 					ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
