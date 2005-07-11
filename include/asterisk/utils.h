@@ -148,5 +148,4 @@ extern int ast_wait_for_input(int fd, int ms);
 #define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)
 extern int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
-#undef AST_API_MODULE
 #endif /* _ASTERISK_UTILS_H */

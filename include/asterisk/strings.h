@@ -14,6 +14,7 @@
 
 #include <string.h>
 
+#include "asterisk/inline_api.h"
 #include "asterisk/compiler.h"
 
 static inline int ast_strlen_zero(const char *s)
@@ -26,30 +27,22 @@ static inline int ast_strlen_zero(const char *s)
   \param str the input string
   \return a pointer to the first non-whitespace character
  */
-char *ast_skip_blanks(char *str);
-#if !defined(LOW_MEMORY) && !defined(AST_API_MODULE)
-extern inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-char *ast_skip_blanks(char *str)
+AST_INLINE_API(
+char *ast_skip_blanks(char *str),
 {
 	while (*str && *str < 33)
 		str++;
 	return str;
 }
-#endif
+)
 
 /*!
   \brief Trims trailing whitespace characters from a string.
   \param str the input string
   \return a pointer to the NULL following the string
  */
-char *ast_trim_blanks(char *str);
-#if !defined(LOW_MEMORY) && !defined(AST_API_MODULE)
-extern inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-char *ast_trim_blanks(char *str)
+AST_INLINE_API(
+char *ast_trim_blanks(char *str),
 {
 	char *work = str;
 
@@ -66,25 +59,21 @@ char *ast_trim_blanks(char *str)
 	}
 	return str;
 }
-#endif
+)
 
 /*!
   \brief Gets a pointer to first whitespace character in a string.
   \param str the input string
   \return a pointer to the first whitespace character
  */
-char *ast_skip_nonblanks(char *str);
-#if !defined(LOW_MEMORY) && !defined(AST_API_MODULE)
-extern inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-char *ast_skip_nonblanks(char *str)
+AST_INLINE_API(
+char *ast_skip_nonblanks(char *str),
 {
 	while (*str && *str > 32)
 		str++;
 	return str;
 }
-#endif
+)
   
 /*!
   \brief Strip leading/trailing whitespace from a string.
@@ -95,19 +84,15 @@ char *ast_skip_nonblanks(char *str)
   characters from the input string, and returns a pointer to
   the resulting string. The string is modified in place.
 */
-char *ast_strip(char *s);
-#if !defined(LOW_MEMORY) && !defined(AST_API_MODULE)
-extern inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-char *ast_strip(char *s)
+AST_INLINE_API(
+char *ast_strip(char *s),
 {
 	s = ast_skip_blanks(s);
 	if (s)
 		ast_trim_blanks(s);
 	return s;
 } 
-#endif
+)
 
 /*!
   \brief Strip leading/trailing whitespace and quotes from a string.
@@ -222,5 +207,4 @@ struct ast_realloca {
 extern char *ast_strcasestr(const char *, const char *);
 #endif /* __linux__ */
 
-#undef AST_API_MODULE
 #endif /* _ASTERISK_STRINGS_H */
