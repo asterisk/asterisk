@@ -3708,56 +3708,38 @@ static int vm_intro_en(struct ast_channel *chan,struct vm_state *vms)
 }
 
 /* ITALIAN syntax */
-static int vm_intro_it(struct ast_channel *chan,struct vm_state *vms)
+static int vm_intro_it(struct ast_channel *chan, struct vm_state *vms)
 {
-        /* Introduce messages they have */
-        int res;
-        if (!vms->oldmessages && !vms->newmessages) {
-		res = ast_play_and_wait(chan, "vm-no");
-		if (!res)
-			res = ast_play_and_wait(chan, "vm-message");
-        } else {
-                res = ast_play_and_wait(chan, "vm-youhave");
-        }
-        if (!res) {
-                if (vms->newmessages) {
-                        if (!res) {
-                                if ((vms->newmessages == 1)) {
-                                        res = ast_play_and_wait(chan, "digits/un");
-                                        if (!res)
-                                                res = ast_play_and_wait(chan, "vm-message");
-                                        if (!res)
-                                                res = ast_play_and_wait(chan, "vm-nuovo");
-                                } else {
-                                        res = say_and_wait(chan, vms->newmessages, chan->language);
-                                        if (!res)
-                                                res = ast_play_and_wait(chan, "vm-messages");
-                                        if (!res)
-                                                res = ast_play_and_wait(chan, "vm-nuovi");
-                                }
-                        }
-                        if (vms->oldmessages && !res)
-                                res = ast_play_and_wait(chan, "vm-and");
-                }
-                if (vms->oldmessages) {
-                        if (!res) {
-                                if (vms->oldmessages == 1) {
-                                        res = ast_play_and_wait(chan, "digits/un");
-                                        if (!res)
-                                                res = ast_play_and_wait(chan, "vm-message");
-                                        if (!res)
-                                                res = ast_play_and_wait(chan, "vm-vecchio");
-                                } else {
-                                        res = say_and_wait(chan, vms->oldmessages, chan->language);
-                                        if (!res)
-                                                res = ast_play_and_wait(chan, "vm-messages");
-                                        if (!res)
-                                                res = ast_play_and_wait(chan, "vm-vecchi");
-                                }
-                        }
-                }
-        }
-	return res;
+	/* Introduce messages they have */
+	int res;
+	if (!vms->oldmessages && !vms->newmessages)
+		res =	ast_play_and_wait(chan, "vm-no") ||
+			ast_play_and_wait(chan, "vm-message");
+	else
+		res =	ast_play_and_wait(chan, "vm-youhave");
+	if (!res && vms->newmessages) {
+		res = (vms->newmessages == 1) ?
+			ast_play_and_wait(chan, "digits/un") ||
+			ast_play_and_wait(chan, "vm-nuovo") ||
+			ast_play_and_wait(chan, "vm-message") :
+			/* 2 or more new messages */
+			say_and_wait(chan, vms->newmessages, chan->language) ||
+			ast_play_and_wait(chan, "vm-nuovi") ||
+			ast_play_and_wait(chan, "vm-messages");
+		if (!res && vms->oldmessages)
+			res =	ast_play_and_wait(chan, "vm-and");
+	}
+	if (!res && vms->oldmessages) {
+		res = (vms->oldmessages == 1) ?
+			ast_play_and_wait(chan, "digits/un") ||
+			ast_play_and_wait(chan, "vm-vecchio") ||
+			ast_play_and_wait(chan, "vm-message") :
+			/* 2 or more old messages */
+			say_and_wait(chan, vms->oldmessages, chan->language) ||
+			ast_play_and_wait(chan, "vm-vecchi") ||
+			ast_play_and_wait(chan, "vm-messages");
+	}
+	return res ? -1 : 0;
 }
 
 /* SWEDISH syntax */
