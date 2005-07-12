@@ -124,6 +124,16 @@ int ast_filecopy(const char *oldname, const char *newname, const char *fmt);
  */
 int ast_waitstream(struct ast_channel *c, const char *breakon);
 
+/*! Waits for a stream to stop or digit matching a valid one digit exten to be pressed */
+/*!
+ * \param c channel to waitstram on
+ * \param context string of context to match digits to break upon
+ * Begins playback of a stream...
+ * Wait for a stream to stop or for any one of a valid extension digit to arrive,  Returns 0 
+ * if the stream finishes, the character if it was interrupted, and -1 on error 
+ */
+int ast_waitstream_exten(struct ast_channel *c, const char *context);
+
 /*! Same as waitstream but allows stream to be forwarded or rewound */
 /*!
  * \param c channel to waitstram on

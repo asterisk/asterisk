@@ -37,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
+#include "asterisk/pbx.h"
 
 struct ast_format {
 	/* Name of format */
@@ -1131,6 +1132,67 @@ int ast_waitstream_full(struct ast_channel *c, const char *breakon, int audiofd,
 				/* Write audio if appropriate */
 				if (audiofd > -1)
 					write(audiofd, fr->data, fr->datalen);
+			}
+			/* Ignore */
+			ast_frfree(fr);
+		}
+		ast_sched_runq(c->sched);
+	}
+	return (c->_softhangup ? -1 : 0);
+}
+
+int ast_waitstream_exten(struct ast_channel *c, const char *context)
+{
+	/* Waitstream, with return in the case of a valid 1 digit extension */
+	/* in the current or specified context being pressed */
+	/* XXX Maybe I should just front-end ast_waitstream_full ? XXX */
+	int res;
+	struct ast_frame *fr;
+	char exten[AST_MAX_EXTENSION] = "";
+
+	if (!context) context = c->context;
+	while(c->stream) {
+		res = ast_sched_wait(c->sched);
+		if ((res < 0) && !c->timingfunc) {
+			ast_stopstream(c);
+			break;
+		}
+		if (res < 0)
+			res = 1000;
+		res = ast_waitfor(c, res);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Select failed (%s)\n", strerror(errno));
+			return res;
+		} else if (res > 0) {
+			fr = ast_read(c);
+			if (!fr) {
+#if 0
+				ast_log(LOG_DEBUG, "Got hung up\n");
+#endif
+				return -1;
+			}
+			
+			switch(fr->frametype) {
+			case AST_FRAME_DTMF:
+				res = fr->subclass;
+				snprintf(exten, sizeof(exten), "%c", res);
+				if (ast_exists_extension(c, context, exten, 1, c->cid.cid_num)) {
+					ast_frfree(fr);
+					return res;
+				}
+				break;
+			case AST_FRAME_CONTROL:
+				switch(fr->subclass) {
+				case AST_CONTROL_HANGUP:
+					ast_frfree(fr);
+					return -1;
+				case AST_CONTROL_RINGING:
+				case AST_CONTROL_ANSWER:
+					/* Unimportant */
+					break;
+				default:
+					ast_log(LOG_WARNING, "Unexpected control subclass '%d'\n", fr->subclass);
+				}
 			}
 			/* Ignore */
 			ast_frfree(fr);

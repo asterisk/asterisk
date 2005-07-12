@@ -72,10 +72,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define BACKGROUND_SKIP		(1 << 0)
 #define BACKGROUND_NOANSWER	(1 << 1)
+#define BACKGROUND_MATCHEXTEN	(1 << 2)
+#define BACKGROUND_PLAYBACK	(1 << 3)
 
 AST_DECLARE_OPTIONS(background_opts,{
 	['s'] = { BACKGROUND_SKIP },
 	['n'] = { BACKGROUND_NOANSWER },
+	['m'] = { BACKGROUND_MATCHEXTEN },
+	['p'] = { BACKGROUND_PLAYBACK },
 });
 
 #define WAITEXTEN_MOH		(1 << 0)
@@ -243,19 +247,23 @@ static struct pbx_builtin {
 
 	{ "BackGround", pbx_builtin_background,
 	"Play a file while awaiting extension",
-	"  Background(filename1[&filename2...][|options[|langoverride]]): Plays\n"
-	"given files, while simultaneously waiting for the user to begin typing\n"
+	"  Background(filename1[&filename2...][|options[|langoverride][|context]]):\n"
+	"Plays given files, while simultaneously waiting for the user to begin typing\n"
 	"an extension. The timeouts do not count until the last BackGround\n"
 	"application has ended. Options may also be included following a pipe \n"
 	"symbol. The 'langoverride' may be a language to use for playing the prompt\n"
-	"which differs from the current language of the channel. Returns -1 if \n"
-	"the channel was hung up, or if the file does not exist. Returns 0 otherwise.\n\n"
+	"which differs from the current language of the channel.  The optional\n"
+	"'context' can be used to specify an optional context to exit into.\n"
+	"Returns -1 if thhe channel was hung up, or if the file does not exist./n"
+	"Returns 0 otherwise.\n\n"
 	"  Options:\n"
 	"    's' - causes the playback of the message to be skipped\n"
 	"          if the channel is not in the 'up' state (i.e. it\n"
 	"          hasn't been answered yet.) If this happens, the\n"
 	"          application will return immediately.\n"
 	"    'n' - don't answer the channel before playing the files\n"
+	"    'm' - only break if a digit hit matches a one digit\n"
+	"		 extension in the destination context\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
@@ -5440,11 +5448,12 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	int res = 0;
 	int argc;
 	char *args;
-	char *argv[3];
+	char *argv[4];
 	char *options = NULL; 
 	char *filename = NULL;
 	char *front = NULL, *back = NULL;
 	char *lang = NULL;
+	char *context = NULL;
 	struct ast_flags flags = {0};
 
 	args = ast_strdupa(data);
@@ -5456,6 +5465,8 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 				options = argv[1];
 			if (argc > 2)
 				lang = argv[2];
+			if (argc > 3)
+				context = argv[3];
 		} else {
 			ast_log(LOG_WARNING, "Background requires an argument (filename)\n");
 		}
@@ -5463,6 +5474,9 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 
 	if (!lang)
 		lang = chan->language;
+
+	if (!context)
+		context = chan->context;
 
 	if (options) {
 		if (!strcasecmp(options, "skip"))
@@ -5494,7 +5508,15 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			}
 			res = ast_streamfile(chan, front, lang);
 			if (!res) {
-				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				if (ast_test_flag(&flags, BACKGROUND_PLAYBACK)) {
+					res = ast_waitstream(chan, "");
+				} else {
+					if (ast_test_flag(&flags, BACKGROUND_MATCHEXTEN)) {
+						res = ast_waitstream_exten(chan, context);
+					} else {
+						res = ast_waitstream(chan, AST_DIGIT_ANY);
+					}
+				}
 				ast_stopstream(chan);
 			} else {
 				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
@@ -5504,7 +5526,14 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			front = back;
 		}
 	}
-	return res;
+	if (context != chan->context && res) {
+		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
+		ast_copy_string(chan->context, context, sizeof(chan->context));
+		chan->priority = 0;
+		return 0;
+	} else {
+		return res;
+	}
 }
 
 static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
