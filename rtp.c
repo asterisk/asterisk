@@ -79,6 +79,7 @@ struct ast_rtp {
 	unsigned int lastividtimestamp;
 	unsigned int lastovidtimestamp;
 	unsigned int lasteventseqn;
+	unsigned int lasteventendseqn;
 	int lasttxformat;
 	int lastrxformat;
 	int dtmfcount;
@@ -219,7 +220,7 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 /* process_rfc2833: Process RTP DTMF and events according to RFC 2833:
 	"RTP Payload for DTMF Digits, Telephony Tones and Telephony Signals"
 */
-static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len)
+static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, unsigned int seqno)
 {
 	unsigned int event;
 	unsigned int event_end;
@@ -250,7 +251,10 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 		f = send_dtmf(rtp);
 	} else if(event_end & 0x80) {
 		if (rtp->resp) {
-			f = send_dtmf(rtp);
+			if(rtp->lasteventendseqn != seqno) {
+				f = send_dtmf(rtp);
+				rtp->lasteventendseqn = seqno;
+			}
 			rtp->resp = 0;
 		}
 		resp = 0;
@@ -476,9 +480,24 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	if (!rtpPT.isAstFormat) {
 		/* This is special in-band data that's not one of our codecs */
 		if (rtpPT.code == AST_RTP_DTMF) {
-	    		/* It's special -- rfc2833 process it */
+			/* It's special -- rfc2833 process it */
+			if(rtp_debug_test_addr(&sin)) {
+				unsigned char *data;
+				unsigned int event;
+				unsigned int event_end;
+				unsigned int duration;
+				data = rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen;
+				event = ntohl(*((unsigned int *)(data)));
+				event >>= 24;
+				event_end = ntohl(*((unsigned int *)(data)));
+				event_end <<= 8;
+				event_end >>= 24;
+				duration = ntohl(*((unsigned int *)(data)));
+				duration &= 0xFFFF;
+				ast_verbose("Got rfc2833 RTP packet from %s:%d (type %d, seq %d, ts %d, len %d, mark %d, event %08x, end %d, duration %d) \n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
+			}
 	    		if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
-	      			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+	      			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
 	      			rtp->lasteventseqn = seqno;
 	    		} else 
 				f = NULL;
@@ -988,6 +1007,7 @@ void ast_rtp_reset(struct ast_rtp *rtp)
 	rtp->lastividtimestamp = 0;
 	rtp->lastovidtimestamp = 0;
 	rtp->lasteventseqn = 0;
+	rtp->lasteventendseqn = 0;
 	rtp->lasttxformat = 0;
 	rtp->lastrxformat = 0;
 	rtp->dtmfcount = 0;
@@ -1076,11 +1096,11 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
-	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
+	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno));
 	rtpheader[1] = htonl(rtp->lastdigitts);
 	rtpheader[2] = htonl(rtp->ssrc); 
 	rtpheader[3] = htonl((digit << 24) | (0xa << 16) | (0));
-	for (x=0;x<6;x++) {
+	for (x = 0; x < 6; x++) {
 		if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 			res = sendto(rtp->s, (void *) rtpheader, hdrlen + 4, 0, (struct sockaddr *) &rtp->them, sizeof(rtp->them));
 			if (res < 0) 
@@ -1092,16 +1112,19 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 					    ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
 					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
-		/* Clear marker bit and increment seqno */
-		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno++));
+		/* Sequence number of last two end packets does not get incremented */
+		if (x < 3)
+			rtp->seqno++;
+		/* Clear marker bit and set seqno */
+		rtpheader[0] = htonl((2 << 30) | (payload << 16) | (rtp->seqno));
 		/* For the last three packets, set the duration and the end bit */
 		if (x == 2) {
 #if 0
 			/* No, this is wrong...  Do not increment lastdigitts, that's not according
 			   to the RFC, as best we can determine */
 			rtp->lastdigitts++; /* or else the SPA3000 will click instead of beeping... */
-#endif			
 			rtpheader[1] = htonl(rtp->lastdigitts);
+#endif			
 			/* Make duration 800 (100ms) */
 			rtpheader[3] |= htonl((800));
 			/* Set the End bit */
