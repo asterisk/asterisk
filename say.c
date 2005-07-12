@@ -3618,13 +3618,10 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 				/* Shorthand for "" (today), "Yesterday", A 
                                  * (weekday), or "date" */
 				{
-					char todo='q';/* The letter to format*/
-					if (format[offset] == 'Q') {
-						todo='Q';
-					}
 					struct timeval now;
 					struct tm tmnow;
 					time_t beg_today;
+					char todo = format[offset]; /* The letter to format*/
 
 					gettimeofday(&now,NULL);
 					ast_localtime(&now.tv_sec,&tmnow,timezone);
@@ -3635,9 +3632,9 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 						/* Today */
 						if (todo == 'Q') {
 							res = wait_file(chan,
-								ints, 
-								"digits/today",
-								lang);
+									ints, 
+									"digits/today",
+									lang);
 						}
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
@@ -3646,13 +3643,13 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 						(beg_today - 86400 * 6 < time))
 					{
 						/* Within the last week */
-						res = ast_say_date_with_format_he(
-							chan, time, ints, lang, 
-							"A", timezone);
+						res = ast_say_date_with_format_he(chan,
+										  time, ints, lang, 
+										  "A", timezone);
 					} else {
-						res = ast_say_date_with_format_he(
-							chan, time, ints, lang, 
-							IL_DATE_STR, timezone);
+						res = ast_say_date_with_format_he(chan,
+										  time, ints, lang, 
+										  IL_DATE_STR, timezone);
 					}
 				}
 				break;
