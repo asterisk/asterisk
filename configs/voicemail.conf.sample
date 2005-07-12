@@ -10,6 +10,9 @@ serveremail=asterisk
 ;serveremail=asterisk@linux-support.net
 ; Should the email contain the voicemail as an attachment
 attach=yes
+; Maximum number of messages per folder. If not specified a default value (100) is used.
+; Maximum value for this option is 9999.
+;maxmsg=100
 ; Maximum length of a voicemail message in seconds
 ;maxmessage=180
 ; Minimum length of a voicemail message in seconds
@@ -151,8 +154,11 @@ central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
 military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
 
 [default]
+; Define maximum number of messages per folder for partcular context.
+;maxmsg=50
+
 1234 => 4242,Example Mailbox,root@localhost
-;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central
+;4200 => 9855,Mark Spencer,markster@linux-support.net,mypager@digium.com,attach=no|serveremail=myaddy@digium.com|tz=central|maxmsg=10
 ;4300 => 3456,Ben Rigas,ben@american-computer.net
 ;4310 => -5432,Sales,sales@marko.net
 ;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes|sayduration=yes|saydurationm=1

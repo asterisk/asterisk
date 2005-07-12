@@ -14,6 +14,9 @@
  *				 George Konstantoulakis <gkon@inaccessnetworks.com>
  * 05-10 - 2005 : Support for Swedish and Norwegian added by Daniel Nylander, http://www.danielnylander.se/
  *
+ * 05-11 - 2005 : An option for maximum number of messsages per mailbox added by GDS Partners (www.gdspartners.com)
+ *				 Stojan Sljivic <stojan.sljivic@gdspartners.com>
+ *
  * 07-11 - 2005 : An issue with voicemail synchronization has been fixed by GDS Partners (www.gdspartners.com)
  *				 Stojan Sljivic <stojan.sljivic@gdspartners.com>
  */
@@ -67,6 +70,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define INTRO "vm-intro"
 
 #define MAXMSG 100
+#define MAXMSGLIMIT 9999
 
 #define BASEMAXINLINE 256
 #define BASELINELEN 72
@@ -179,6 +183,7 @@ struct ast_vm_user {
 	char exit[80];
 	unsigned int flags;		/* VM_ flags */	
 	int saydurationm;
+	int maxmsg;			/* Maximum number of msgs per folder for this mailbox */
 	struct ast_vm_user *next;
 };
 
@@ -196,8 +201,8 @@ struct vm_state {
 	char vmbox[256];
 	char fn[256];
 	char fn2[256];
-	int deleted[MAXMSG];
-	int heard[MAXMSG];
+	int *deleted;
+	int *heard;
 	int curmsg;
 	int lastmsg;
 	int newmessages;
@@ -311,7 +316,9 @@ struct ast_vm_user *users;
 struct ast_vm_user *usersl;
 struct vm_zone *zones = NULL;
 struct vm_zone *zonesl = NULL;
+static struct ast_config *voicemailCfg;
 static int maxsilence;
+static int maxmsg;
 static int silencethreshold = 128;
 static char serveremail[80];
 static char mailcmd[160];	/* Configurable mail cmd */
@@ -405,6 +412,15 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->dialout, value, sizeof(vmu->dialout));
 	} else if (!strcasecmp(var, "exitcontext")) {
 		ast_copy_string(vmu->exit, value, sizeof(vmu->exit));
+	} else if (!strcasecmp(var, "maxmsg")) {
+		vmu->maxmsg = atoi(value);
+ 		if (vmu->maxmsg <= 0) {
+			ast_log(LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %i\n", value, MAXMSG);
+			vmu->maxmsg = MAXMSG;
+		} else if (vmu->maxmsg > MAXMSGLIMIT) {
+			ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, value);
+			vmu->maxmsg = MAXMSGLIMIT;
+		}
 	} else if (!strcasecmp(var, "options")) {
 		apply_options(vmu, value);
 	}
@@ -437,7 +453,7 @@ static void apply_options(struct ast_vm_user *vmu, const char *options)
 		if ((var = strsep(&value, "=")) && value) {
 			apply_option(vmu, var, value);
 		}
-	}
+	}	
 }
 
 static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const char *context, const char *mailbox)
@@ -842,7 +858,7 @@ static int remove_file(char *dir, int msgnum)
 	return 0;
 }
 
-static int last_message_index(char *dir)
+static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x = 0;
 	int res;
@@ -964,11 +980,11 @@ yuck:
 /*
  * A negative return value indicates an error.
  */
-static int count_messages(char *dir)
+static int count_messages(struct ast_vm_user *vmu, char *dir)
 {
 	int res = 0;
 	
-	res = last_message_index(dir);
+	res = last_message_index(vmu, dir) + 1;
 	return res >= 0 ? res + 1 : res;
 }
 
@@ -1235,7 +1251,7 @@ yuck:
 
 #else
 
-static int count_messages(char *dir)
+static int count_messages(struct ast_vm_user *vmu, char *dir)
 {
 	/* Find all .txt files - even if they are not in sequence from 0000 */
 
@@ -1334,12 +1350,12 @@ static void copy_file(char *frompath, char *topath)
 /*
  * A negative return value indicates an error.
  */
-static int last_message_index(char *dir)
+static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x;
 	char fn[256];
 	if (!ast_lock_path(dir)) {
-		for (x=0;x<MAXMSG;x++) {
+		for (x = 0; x < vmu->maxmsg; x++) {
 			make_file(fn, sizeof(fn), dir, x);
 			if (ast_fileexists(fn, NULL, NULL) < 1)
 				break;
@@ -1988,8 +2004,8 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 			if (!EXISTS(todir, recipmsgnum, topath, chan->language))
 				break;
 			recipmsgnum++;
-		} while (recipmsgnum < MAXMSG);
-		if (recipmsgnum < MAXMSG) {
+	} while (recipmsgnum < recip->maxmsg);
+	if (recipmsgnum < recip->maxmsg) {
 			COPY(fromdir, msgnum, todir, recipmsgnum, frompath, topath);
 		} else {
 			ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
@@ -2198,8 +2214,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 					if (!EXISTS(dir,msgnum,fn,chan->language))
 						break;
 					msgnum++;
-				} while (msgnum < MAXMSG);
-				if (msgnum < MAXMSG) {
+			} while (msgnum < vmu->maxmsg);
+			if (msgnum < vmu->maxmsg) {
 	
 					/* assign a variable with the name of the voicemail file */	  
 					pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
@@ -2302,7 +2318,7 @@ leave_vm_out:
 }
 
 
-static int resequence_mailbox(char * dir)
+static int resequence_mailbox(struct ast_vm_user *vmu, char *dir)
 {
 	/* we know max messages, so stop process when number is hit */
 
@@ -2311,7 +2327,7 @@ static int resequence_mailbox(char * dir)
 	char dfn[256];
 
 	if (!ast_lock_path(dir)) {
-		for (x=0,dest=0;x<MAXMSG;x++) {
+		for (x = 0, dest = 0; x < vmu->maxmsg; x++) {
 			make_file(sfn, sizeof(sfn), dir, x);
 			if (EXISTS(dir, x, sfn, NULL)) {
 	
@@ -2339,7 +2355,7 @@ static int say_and_wait(struct ast_channel *chan, int num, char *language)
 	return d;
 }
 
-static int save_to_folder(char *dir, int msg, char *context, char *username, int box)
+static int save_to_folder(struct ast_vm_user *vmu, char *dir, int msg, char *context, char *username, int box)
 {
 	char sfn[256];
 	char dfn[256];
@@ -2350,12 +2366,12 @@ static int save_to_folder(char *dir, int msg, char *context, char *username, int
 	make_dir(ddir, sizeof(ddir), context, username, dbox);
 	mkdir(ddir, 0700);
 	if (!ast_lock_path(ddir)) {
-		for (x=0;x<MAXMSG;x++) {
+		for (x = 0; x < vmu->maxmsg; x++) {
 			make_file(dfn, sizeof(dfn), ddir, x);
 			if (!EXISTS(ddir, x, dfn, NULL))
 				break;
 		}
-		if (x >= MAXMSG) {
+		if (x >= vmu->maxmsg) {
 			ast_unlock_path(ddir);
 			return -1;
 		}
@@ -3139,7 +3155,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				ast_log(LOG_DEBUG, "%s", sys);
 				ast_safe_system(sys);
 		
-				if ( (res = count_messages(todir)) )
+				if ( (res = count_messages(receiver, todir)) )
 					break;
 				else
 					todircount = res;
@@ -3472,7 +3488,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 
 	ast_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
 	make_dir(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
-	count_msg = count_messages(vms->curdir);
+	count_msg = count_messages(vmu, vms->curdir);
 	if (count_msg < 0)
 		return count_msg;
 	else
@@ -3485,13 +3501,13 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 	detected.
 	*/
 
-	last_msg = last_message_index(vms->curdir);
+	last_msg = last_message_index(vmu, vms->curdir);
 	if (last_msg < 0)
 		return last_msg;
 	else if(vms->lastmsg != last_msg)
 	{
 		ast_log(LOG_NOTICE, "Resequencing Mailbox: %s\n", vms->curdir);
-		res = resequence_mailbox(vms->curdir);
+		res = resequence_mailbox(vmu, vms->curdir);
 		if (res)
 			return res;
 	}
@@ -3508,7 +3524,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 		/* Get the deleted messages fixed */ 
 		if (!ast_lock_path(vms->curdir)) {
 			vms->curmsg = -1; 
-			for (x=0;x < MAXMSG;x++) { 
+		for (x=0;x < vmu->maxmsg;x++) { 
 				if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
 					/* Save this message.  It's not in INBOX or hasn't been heard */ 
 					make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
@@ -3521,7 +3537,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 					} 
 				} else if (!strcasecmp(vms->curbox, "INBOX") && vms->heard[x] && !vms->deleted[x]) { 
 					/* Move to old folder before deleting */ 
-					res = save_to_folder(vms->curdir, x, vmu->context, vms->username, 1);
+					res = save_to_folder(vmu, vms->curdir, x, vmu->context, vms->username, 1);
 					if (res == ERROR_LOCK_PATH) {
 						/* If save failed do not delete the message */
 						vms->deleted[x] = 0;
@@ -3530,7 +3546,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 					} 
 				} 
 			} 
-			for (x = vms->curmsg + 1; x <= MAXMSG; x++) { 
+			for (x = vms->curmsg + 1; x <= vmu->maxmsg; x++) { 
 				make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
 				if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
 					break;
@@ -3607,9 +3623,10 @@ static int vm_play_folder_name(struct ast_channel *chan, char *mbox)
 	
 static int vm_intro_gr(struct ast_channel *chan, struct vm_state *vms)
 {
-	int res;
+	int res = 0;
+
 	if (vms->newmessages) {
-		res =ast_play_and_wait(chan, "vm-youhave");
+		res = ast_play_and_wait(chan, "vm-youhave");
 		if (!res) 
 			res = ast_say_number(chan, vms->newmessages, AST_DIGIT_ANY, chan->language, NULL);
 		if (!res) {
@@ -4695,7 +4712,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	char *options;
 
 	LOCAL_USER_ADD(u);
-	memset(&vms, 0, sizeof(vms));
+	memset(&vms, 0, sizeof(vms));	
 	memset(&vmus, 0, sizeof(vmus));
 	ast_copy_string(fmtc, vmfmts, sizeof(fmtc));
 	if (chan->_state != AST_STATE_UP)
@@ -4766,6 +4783,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	adsi_begin(chan, &useadsi);
 
 	if (valid) {
+		vms.deleted = calloc(vmu->maxmsg, sizeof(int));
+		vms.heard = calloc(vmu->maxmsg, sizeof(int));
+	
 		/* Set language from config to override channel language */
 		if (vmu->language && !ast_strlen_zero(vmu->language))
 			ast_copy_string(chan->language, vmu->language, sizeof(chan->language));
@@ -5013,25 +5033,29 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					break;
 				} else if (cmd > 0) {
 					box = cmd = cmd - '0';
-					cmd = save_to_folder(vms.curdir, vms.curmsg, vmu->context, vms.username, cmd);
+					cmd = save_to_folder(vmu, vms.curdir, vms.curmsg, vmu->context, vms.username, cmd);
 					if (cmd == ERROR_LOCK_PATH) {
 						res = cmd;
 						goto out;
+					} else if (!cmd) {
+						vms.deleted[vms.curmsg] = 1;
+					} else {
+						vms.deleted[vms.curmsg] = 0;
+						vms.heard[vms.curmsg] = 0;
 					}
-					vms.deleted[vms.curmsg]=1;
 				}
 				make_file(vms.fn, sizeof(vms.fn), vms.curdir, vms.curmsg);
 				if (useadsi)
 					adsi_message(chan, &vms);
-				if (!cmd)
-					cmd = ast_play_and_wait(chan, "vm-message");
-				if (!cmd)
-					cmd = say_and_wait(chan, vms.curmsg + 1, chan->language);
-				if (!cmd)
-					cmd = ast_play_and_wait(chan, "vm-savedto");
 				snprintf(vms.fn, sizeof(vms.fn), "vm-%s", mbox(box));
-				if (!cmd)
+				if (!cmd) {
+					cmd = ast_play_and_wait(chan, "vm-message");
+					cmd = say_and_wait(chan, vms.curmsg + 1, chan->language);
+					cmd = ast_play_and_wait(chan, "vm-savedto");
 					cmd = vm_play_folder_name(chan, vms.fn);
+				} else {
+					cmd = ast_play_and_wait(chan, "vm-mailboxfull");
+				}
 				if (ast_test_flag((&globalflags), VM_SKIPAFTERCMD)) {
 					if (vms.curmsg < vms.lastmsg) {
 						vms.curmsg++;
@@ -5096,6 +5120,10 @@ out:
 	}
 	if (vmu)
 		free_user(vmu);
+	if (vms.deleted)
+		free(vms.deleted);
+	if (vms.heard)
+		free(vms.heard);
 	LOCAL_USER_REMOVE(u);
 
 	return res;
@@ -5177,6 +5205,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	char tmp[256] = "";
 	char *stringp;
 	char *s;
+	char *maxmsgstr;
 	struct ast_vm_user *vmu;
 
 	ast_copy_string(tmp, data, sizeof(tmp));
@@ -5197,6 +5226,25 @@ static int append_mailbox(char *context, char *mbox, char *data)
 			ast_copy_string(vmu->pager, s, sizeof(vmu->pager));
 		if (stringp && (s = strsep(&stringp, ","))) 
 			apply_options(vmu, s);
+		
+		/* Check whether maxmsg was defined on the mailbox level */
+		if (vmu->maxmsg <= 0) {
+			/* Read the maxmsg from the context definition */
+			if ((maxmsgstr = ast_variable_retrieve(voicemailCfg, context, "maxmsg"))) {
+				vmu->maxmsg = atoi(maxmsgstr);
+				if (vmu->maxmsg <= 0) {
+					ast_log(LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %i\n", maxmsgstr, MAXMSG);
+					vmu->maxmsg = MAXMSG;
+				} else if (vmu->maxmsg > MAXMSGLIMIT) {
+					ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, maxmsgstr);
+					vmu->maxmsg = MAXMSGLIMIT;
+				}
+			} else {
+				/* Use the maxmsg from the general section definition */
+				vmu->maxmsg = maxmsg;
+			}
+		}
+			
 		vmu->next = NULL;
 		if (usersl)
 			usersl->next = vmu;
@@ -5414,6 +5462,7 @@ static int load_config(void)
 	char *astsaydurationinfo;
 	char *astsaydurationminfo;
 	char *silencestr;
+	char *maxmsgstr;
 	char *astdirfwd;
 	char *thresholdstr;
 	char *fmt;
@@ -5429,6 +5478,7 @@ static int load_config(void)
 	int tmpadsi[4];
 
 	cfg = ast_config_load(VOICEMAIL_CONFIG);
+	voicemailCfg = cfg;
 	ast_mutex_lock(&vmlock);
 	cur = users;
 	while (cur) {
@@ -5472,6 +5522,19 @@ static int load_config(void)
 			maxsilence = atoi(silencestr);
 			if (maxsilence > 0)
 				maxsilence *= 1000;
+		}
+		
+		if (!(maxmsgstr = ast_variable_retrieve(cfg, "general", "maxmsg"))) {
+			maxmsg = MAXMSG;
+		} else {
+			maxmsg = atoi(maxmsgstr);
+			if (maxmsg <= 0) {
+				ast_log(LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %i\n", maxmsgstr, MAXMSG);
+				maxmsg = MAXMSG;
+			} else if (maxmsg > MAXMSGLIMIT) {
+				ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, maxmsgstr);
+				maxmsg = MAXMSGLIMIT;
+			}
 		}
 
 		/* Load date format config for voicemail mail */
@@ -5652,7 +5715,6 @@ static int load_config(void)
 		if (!(astdirfwd = ast_variable_retrieve(cfg, "general", "usedirectory"))) 
 			astdirfwd = "no";
 		ast_set2_flag((&globalflags), ast_true(astdirfwd), VM_DIRECFORWARD);	
-
 		cat = ast_category_browse(cfg, NULL);
 		while (cat) {
 			if (strcasecmp(cat, "general")) {
@@ -5769,7 +5831,6 @@ static int load_config(void)
 				tmpread = tmpwrite+len;
 			}
 		}
-		ast_config_destroy(cfg);
 		ast_mutex_unlock(&vmlock);
 		return 0;
 	} else {
@@ -5795,6 +5856,8 @@ int unload_module(void)
 	ast_cli_unregister(&show_voicemail_users_cli);
 	ast_cli_unregister(&show_voicemail_zones_cli);
 	ast_uninstall_vm_functions();
+	if (voicemailCfg)
+		ast_config_destroy(voicemailCfg);
 	return res;
 }
 
