@@ -250,6 +250,16 @@
 
 %priv-instruct.gsm%Press 1 to accept this call.  Press 2 to not accept this call.  Press 3 to always accept calls from this number.  Press 4 to never accept calls from this number.  Press 5 to reject calls from this number and request that they add you to their do not call list.
 
+%priv-callee-options.gsm%Dial 1 if you wish this caller to reach you directly now, and in the future.  Dial 2 if you wish to send this caller to voicemail now and forevermore.  Dial 3 to send this caller to the torture menus, now and forevermore.  Dial 4 to send this caller to a polite "don't call" menu, now and forevermore.  Dial 5 to allow this caller to come straight thru to you in the future, but just this once, send them to voicemail.
+
+%screen-callee-options.gsm%You have these options: Dial 1 if you wish to immediately connect to the incoming call.  Dial 2 if you wish to send this caller to voicemail.  Dial 3 to send this callerr to the torture menus.  Dial 4 to send this caller to a polite "don't call" menu.
+
+%priv-introsaved.gsm%Thank you. Please hold, while I attempt to connect you with your party!
+
+%priv-recordintro.gsm%At the tone, please say your name.
+
+%priv-callpending.gsm%I have a caller waiting, who introduces themselves as:
+
 %privacy-unident.gsm%The party you are trying to reach does not accept unidentified calls.
 
 %privacy-prompt.gsm%Please enter your phone number, starting with the area code.

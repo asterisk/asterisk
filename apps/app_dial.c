@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/causes.h"
 #include "asterisk/manager.h"
+#include "asterisk/privacy.h"
 
 static char *tdesc = "Dialing Application";
 
@@ -63,6 +64,10 @@ static char *descrip =
 "n is the priority of the dialer instance), then it will be the next\n"
 "executed extension (this allows you to setup different behavior on busy from\n"
 "no-answer).\n"
+"  For the Privacy and Screening Modes, the DIALSTATUS variable will be set to DONTCALL, \n"
+"if the called party chooses to send the calling party to the 'Go Away' script, and \n"
+"the DIALSTATUS variable will be set to TORTURE, if the called party wants to send the caller to \n"
+"the TORTURE scripts\n"
 "  This application returns -1 if the originating channel hangs up, or if the\n"
 "call is bridged and either of the parties in the bridge terminate the call.\n"
 "The option string may contain zero or more of the following characters:\n"
@@ -92,7 +97,10 @@ static char *descrip =
 "      'h' -- allow callee to hang up by hitting *.\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
 "      'C' -- reset call detail record for this call.\n"
-"      'P[(x)]' -- privacy mode, using 'x' as database if provided.\n"
+"      'P[(x)]' -- privacy mode, using 'x' as database if provided, or the extension is used if not provided.\n"
+"      'p' -- screening mode.  Basically Privacy mode without memory.\n"
+"       'n' -- modifier for screen/privacy mode. No intros are to be saved in the priv-callerintros dir.\n"
+"       'N' -- modifier for screen/privacy mode. if callerID is present, do not screen the call.\n"
 "      'g' -- goes on in context if the destination channel hangs up\n"
 "      'G(context^exten^pri)' -- If the call is answered transfer both parties to the specified exten.\n"
 "      'A(x)' -- play an announcement to the called party, using x as file\n"
@@ -112,7 +120,7 @@ static char *descrip =
 "             * LIMIT_WARNING_FILE        File to play as warning if 'y' is defined.\n"
 "                        'timeleft' is a special sound macro to auto-say the time \n"
 "                        left and is the default.\n"
-"       'n' -- Do not jump to n+101 if all of the channels were busy.\n\n"
+"       'j' -- Do not jump to n+101 if all of the channels were busy.\n\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports it.\n"
@@ -122,7 +130,7 @@ static char *descrip =
 "      DIALEDTIME    Time from dial to answer\n" 
 "      ANSWEREDTIME  Time for actual call\n"
 "      DIALSTATUS    The status of the call as a text string, one of\n"
-"             CHANUNAVAIL | CONGESTION | NOANSWER | BUSY | ANSWER | CANCEL\n"
+"             CHANUNAVAIL | CONGESTION | NOANSWER | BUSY | ANSWER | CANCEL | DONTCALL | TORTURE\n"
 "";
 
 /* RetryDial App by Anthony Minessale II <anthmct@yahoo.com> Jan/2005 */
@@ -610,12 +618,17 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	struct localuser *u;
 	char *info, *peers, *timeout, *tech, *number, *rest, *cur;
 	char  privdb[256] = "", *s;
+	char  privcid[256] = "";
+	char privintro[1024];
 	char  announcemsg[256] = "", *ann;
 	struct localuser *outgoing=NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
 	int hasmacro = 0;
 	int privacy=0;
+	int screen=0;
+	int no_save_intros = 0;
+	int no_screen_callerid = 0;
 	int announce=0;
 	int resetcdr=0;
 	int numbusy = 0;
@@ -629,6 +642,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char *newnum;
 	char *l;
 	char *url=NULL; /* JDG */
+	int privdb_val=0;
 	unsigned int calldurationlimit=0;
 	char *cdl;
 	time_t now;
@@ -814,7 +828,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				*(ann++) = 'X';
 			if (*ann)
 				*ann = 'X';
-			/* Now find the end of the privdb */
+			/* Now find the end of the announce */
 			ann = strchr(announcemsg, ')');
 			if (ann)
 				*ann = '\0';
@@ -906,10 +920,18 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		} else if (strchr(transfer, 'P')) {
 			/* No specified privdb */
 			privacy = 1;
+		} else if (strchr(transfer, 'p')) {
+			screen = 1;
 		} else if (strchr(transfer, 'C')) {
 			resetcdr = 1;
-		} else if (strchr(transfer, 'n')) {
+		} else if (strchr(transfer, 'j')) {
 			nojump = 1;
+		}
+		if (strchr(transfer, 'n')) {
+			no_save_intros = 1;
+		} 
+		if (strchr(transfer, 'N')) {
+			no_screen_callerid = 1;
 		}
 	}
 	if (resetcdr && chan->cdr)
@@ -918,11 +940,97 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		/* If privdb is not specified and we are using privacy, copy from extension */
 		ast_copy_string(privdb, chan->exten, sizeof(privdb));
 	}
-	if (privacy) {
+	if (privacy || screen) {
+		char callerid[60];
+
 		l = chan->cid.cid_num;
-		if (!l)
-			l = "";
-		ast_log(LOG_NOTICE, "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, privacy, l);
+		if (l && !ast_strlen_zero(l)) {
+			ast_shrink_phone_number(l);
+			if( privacy ) {
+				if (option_verbose > 2)
+					ast_verbose( VERBOSE_PREFIX_3  "Privacy DB is '%s', privacy is %d, clid is '%s'\n", privdb, privacy, l);
+				privdb_val = ast_privacy_check(privdb, l);
+			}
+			else {
+				if (option_verbose > 2)
+					ast_verbose( VERBOSE_PREFIX_3  "Privacy Screening, clid is '%s'\n", l);
+				privdb_val = AST_PRIVACY_UNKNOWN;
+			}
+		} else {
+			char *tnam, *tn2;
+
+			tnam = ast_strdupa(chan->name);
+			/* clean the channel name so slashes don't try to end up in disk file name */
+			for(tn2 = tnam; *tn2; tn2++) {
+				if( *tn2=='/')
+					*tn2 = '=';  /* any other chars to be afraid of? */
+			}
+			if (option_verbose > 2)
+				ast_verbose( VERBOSE_PREFIX_3  "Privacy-- callerid is empty\n");
+
+			snprintf(callerid, sizeof(callerid), "NOCALLERID_%s%s", chan->exten, tnam);
+			l = callerid;
+			privdb_val = AST_PRIVACY_UNKNOWN;
+		}
+		
+		ast_copy_string(privcid,l,sizeof(privcid));
+
+		if( strncmp(privcid,"NOCALLERID",10) != 0 && no_screen_callerid ) { /* if callerid is set, and no_screen_callerid is set also */  
+			if (option_verbose > 2)
+				ast_verbose( VERBOSE_PREFIX_3  "CallerID set (%s); N option set; Screening should be off\n", privcid);
+			privdb_val = AST_PRIVACY_ALLOW;
+		}
+		else if( no_screen_callerid && strncmp(privcid,"NOCALLERID",10) == 0 ) {
+			if (option_verbose > 2)
+				ast_verbose( VERBOSE_PREFIX_3  "CallerID blank; N option set; Screening should happen; dbval is %d\n", privdb_val);
+		}
+		
+		if( privdb_val == AST_PRIVACY_DENY ) {
+			ast_verbose( VERBOSE_PREFIX_3  "Privacy DB reports PRIVACY_DENY for this callerid. Dial reports unavailable\n");
+			res=0;
+			goto out;
+		}
+		else if( privdb_val == AST_PRIVACY_KILL ) {
+			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 201, chan->cid.cid_num)) 
+				chan->priority+=200;
+
+			res = 0;
+			goto out; /* Is this right? */
+		}
+		else if( privdb_val == AST_PRIVACY_TORTURE ) {
+			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 301, chan->cid.cid_num)) 
+				chan->priority+=300;
+			res = 0;
+			goto out; /* is this right??? */
+
+		}
+		else if( privdb_val == AST_PRIVACY_UNKNOWN ) {
+			/* Get the user's intro, store it in priv-callerintros/$CID, 
+			   unless it is already there-- this should be done before the 
+			   call is actually dialed  */
+
+			/* make sure the priv-callerintros dir exists? */
+
+			snprintf(privintro,sizeof(privintro),"priv-callerintros/%s", privcid);
+			if( ast_fileexists(privintro,NULL,NULL ) > 0 && strncmp(privcid,"NOCALLERID",10) != 0) {
+				/* the DELUX version of this code would allow this caller the
+				   option to hear and retape their previously recorded intro.
+				*/
+			}
+			else {
+				int duration; /* for feedback from play_and_wait */
+				/* the file doesn't exist yet. Let the caller submit his
+				   vocal intro for posterity */
+				/* priv-recordintro script:
+
+				   "At the tone, please say your name:"
+
+				*/
+				ast_play_and_record(chan, "priv-recordintro", privintro, 4, "gsm", &duration, 128, 2000, 0);  /* NOTE: I've reduced the total time to 4 sec */
+															/* don't think we'll need a lock removed, we took care of
+															   conflicts by naming the privintro file */
+			}
+		}
 	}
 
 	/* If a channel group has been specified, get it for use when we create peer channels */
@@ -1172,6 +1280,194 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
  		} /* /JDG */
+		if( privacy || screen ) {
+			int res2;
+			int loopcount = 0;
+			if( privdb_val == AST_PRIVACY_UNKNOWN ) {
+
+				/* Get the user's intro, store it in priv-callerintros/$CID, 
+				   unless it is already there-- this should be done before the 
+				   call is actually dialed  */
+
+				/* all ring indications and moh for the caller has been halted as soon as the 
+				   target extension was picked up. We are going to have to kill some
+				   time and make the caller believe the peer hasn't picked up yet */
+
+				if ( strchr(transfer, 'm') ) {
+					ast_indicate(chan, -1);
+					ast_moh_start(chan, mohclass);
+				} else if ( strchr(transfer, 'r') ) {
+					ast_indicate(chan, AST_CONTROL_RINGING);
+					sentringing++;
+				}
+
+				/* Start autoservice on the other chan ?? */
+				res2 = ast_autoservice_start(chan);
+				/* Now Stream the File */
+				if (!res2) {
+					do {
+						if (!res2)
+							res2 = ast_play_and_wait(peer,"priv-callpending");
+						if( res2 < '1' || (privacy && res2>'5') || (screen && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
+							res2 = 0;
+						
+						/* priv-callpending script: 
+						   "I have a caller waiting, who introduces themselves as:"
+						*/
+						if (!res2)
+							res2 = ast_play_and_wait(peer,privintro);
+						if( res2 < '1' || (privacy && res2>'5') || (screen && res2 > '4') ) /* uh, interrupting with a bad answer is ... ignorable! */
+							res2 = 0;
+						/* now get input from the called party, as to their choice */
+						if( !res2 ) {
+							if( privacy )
+								res2 = ast_play_and_wait(peer,"priv-callee-options");
+							if( screen )
+								res2 = ast_play_and_wait(peer,"screen-callee-options");
+						}
+						/* priv-callee-options script:
+							"Dial 1 if you wish this caller to reach you directly in the future,
+								and immediately connect to their incoming call
+							 Dial 2 if you wish to send this caller to voicemail now and 
+								forevermore.
+							 Dial 3 to send this callerr to the torture menus, now and forevermore.
+							 Dial 4 to send this caller to a simple "go away" menu, now and forevermore.
+							 Dial 5 to allow this caller to come straight thru to you in the future,
+						but right now, just this once, send them to voicemail."
+						*/
+				
+						/* screen-callee-options script:
+							"Dial 1 if you wish to immediately connect to the incoming call
+							 Dial 2 if you wish to send this caller to voicemail.
+							 Dial 3 to send this callerr to the torture menus.
+							 Dial 4 to send this caller to a simple "go away" menu.
+						*/
+						if( !res2 || res2 < '1' || (privacy && res2 > '5') || (screen && res2 > '4') ) {
+							/* invalid option */
+							res2 = ast_play_and_wait(peer,"vm-sorry");
+						}
+						loopcount++; /* give the callee a couple chances to make a choice */
+					} while( (!res2 || res2 < '1' || (privacy && res2 > '5') || (screen && res2 > '4')) && loopcount < 2 );
+				}
+
+				switch(res2) {
+				case '1':
+					if( privacy ) {
+						if (option_verbose > 2)
+							ast_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
+						ast_privacy_set(privdb,privcid,AST_PRIVACY_ALLOW);
+					}
+					break;
+				case '2':
+					if( privacy ) {
+						if (option_verbose > 2)
+							ast_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to DENY\n", privdb, privcid);
+						ast_privacy_set(privdb,privcid,AST_PRIVACY_DENY);
+					}
+					if ( strchr(transfer, 'm') ) {
+						ast_moh_stop(chan);
+					} else if ( strchr(transfer, 'r') ) {
+						ast_indicate(chan, -1);
+						sentringing=0;
+					}
+					res2 = ast_autoservice_stop(chan);
+					ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
+					res=0;
+					goto out;
+					break;
+				case '3':
+					if( privacy ) {
+						ast_privacy_set(privdb,privcid,AST_PRIVACY_TORTURE);
+						if (option_verbose > 2)
+							ast_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to TORTURE\n", privdb, privcid);
+					}
+					ast_copy_string(status, "TORTURE", sizeof(status));
+					
+					res = 0;
+					if ( strchr(transfer, 'm') ) {
+						ast_moh_stop(chan);
+					} else if ( strchr(transfer, 'r') ) {
+						ast_indicate(chan, -1);
+						sentringing=0;
+					}
+					res2 = ast_autoservice_stop(chan);
+					ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+					goto out; /* Is this right? */
+					break;
+				case '4':
+					if( privacy ) {
+						if (option_verbose > 2)
+							ast_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to KILL\n", privdb, privcid);
+						ast_privacy_set(privdb,privcid,AST_PRIVACY_KILL);
+					}
+
+					ast_copy_string(status, "DONTCALL", sizeof(status));
+					res = 0;
+					if ( strchr(transfer, 'm') ) {
+						ast_moh_stop(chan);
+					} else if ( strchr(transfer, 'r') ) {
+						ast_indicate(chan, -1);
+						sentringing=0;
+					}
+					res2 = ast_autoservice_stop(chan);
+					ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+					goto out; /* Is this right? */
+					break;
+				case '5':
+					if( privacy ) {
+						if (option_verbose > 2)
+							ast_verbose( VERBOSE_PREFIX_3 "--Set privacy database entry %s/%s to ALLOW\n", privdb, privcid);
+						ast_privacy_set(privdb,privcid,AST_PRIVACY_ALLOW);
+					
+						if ( strchr(transfer, 'm') ) {
+							ast_moh_stop(chan);
+						} else if ( strchr(transfer, 'r') ) {
+							ast_indicate(chan, -1);
+							sentringing=0;
+						}
+						res2 = ast_autoservice_stop(chan);
+						ast_hangup(peer); /* hang up on the caller -- he didn't want to talk anyway! */
+						res=0;
+						goto out;
+						break;
+					} /* if not privacy, then 5 is the same as "default" case */
+				default:
+					/* well, if the user messes up, ... he had his chance... What Is The Best Thing To Do?  */
+					/* well, there seems basically two choices. Just patch the caller thru immediately,
+				                  or,... put 'em thru to voicemail. */
+					/* since the callee may have hung up, let's do the voicemail thing, no database decision */
+					if (option_verbose > 2)
+						ast_log(LOG_NOTICE,"privacy: no valid response from the callee. Sending the caller to voicemail, the callee isn't responding\n");
+					if ( strchr(transfer, 'm') ) {
+						ast_moh_stop(chan);
+					} else if ( strchr(transfer, 'r') ) {
+						ast_indicate(chan, -1);
+						sentringing=0;
+					}
+					res2 = ast_autoservice_stop(chan);
+					ast_hangup(peer); /* hang up on the callee -- he didn't want to talk anyway! */
+					res=0;
+					goto out;
+					break;
+				}
+				if ( strchr(transfer, 'm') ) {
+					ast_moh_stop(chan);
+				} else if ( strchr(transfer, 'r') ) {
+					ast_indicate(chan, -1);
+					sentringing=0;
+				}
+				res2 = ast_autoservice_stop(chan);
+				/* if the intro is NOCALLERID, then there's no reason to leave it on disk, it'll 
+				   just clog things up, and it's not useful information, not being tied to a CID */
+				if( strncmp(privcid,"NOCALLERID",10) == 0 || no_save_intros ) {
+					ast_filedelete(privintro, NULL);
+					if( ast_fileexists(privintro,NULL,NULL ) > 0 )
+						ast_log(LOG_NOTICE,"privacy: ast_filedelete didn't do its job on %s\n", privintro);
+					else if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Successfully deleted %s intro file\n", privintro);
+				}
+			}
+		}
 		if (announce && announcemsg) {
 			/* Start autoservice on the other chan */
 			res = ast_autoservice_start(chan);

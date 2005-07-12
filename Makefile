@@ -462,6 +462,7 @@ clean:
 datafiles: all
 	sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
 	for x in sounds/digits/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \

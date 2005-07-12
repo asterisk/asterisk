@@ -304,6 +304,31 @@ exten => _s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into VoicemailMain
 
+[macro-stdPrivacyexten];
+;
+; Standard extension macro:
+;   ${ARG1} - Extension  (we could have used ${MACRO_EXTEN} here as well
+;   ${ARG2} - Device(s) to ring
+;   ${ARG3} - Optional DONTCALL context name to jump to (assumes the s,1 extension-priority)
+;   ${ARG4} - Optional TORTURE context name to jump to (assumes the s,1 extension-priority)`
+;
+exten => s,1,Dial(${ARG2},20|p)					; Ring the interface, 20 seconds maximum, call screening option (or use P for databased call screening)
+exten => s,2,Goto(s-${DIALSTATUS},1)				; Jump based on status (NOANSWER,BUSY,CHANUNAVAIL,CONGESTION,ANSWER)
+
+exten => s-NOANSWER,1,Voicemail(u${ARG1})		; If unavailable, send to voicemail w/ unavail announce
+exten => s-NOANSWER,2,Goto(default,s,1)			; If they press #, return to start
+
+exten => s-BUSY,1,Voicemail(b${ARG1})			; If busy, send to voicemail w/ busy announce
+exten => s-BUSY,2,Goto(default,s,1)				; If they press #, return to start
+
+exten => s-DONTCALL,1,Goto(${ARG3},s,1)               ; Callee chose to send this call to a polite "Don't call again" script.
+
+exten => s-TORTURE,1,Goto(${ARG4},s,1)                ; Callee chose to send this call to a telemarketer torture script.
+
+exten => _s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
+
+exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into VoicemailMain
+
 [demo]
 ;
 ; We start with what to do when a call first comes in.
