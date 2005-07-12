@@ -3391,7 +3391,7 @@ ast_group_t ast_get_group(char *s)
 			if ((x > 63) || (x < 0)) {
 				ast_log(LOG_WARNING, "Ignoring invalid group %d (maximum group is 63)\n", x);
 			} else
-				group |= (1 << x);
+				group |= ((ast_group_t) 1 << x);
 		}
 	}
 	return group;
@@ -3462,7 +3462,7 @@ char *ast_print_group(char *buf, int buflen, ast_group_t group)
 		return(buf);
 
 	for (i=0; i<=63; i++) {	/* Max group is 63 */
-		if (group & (1 << i)) {
+		if (group & ((ast_group_t) 1 << i)) {
 	   		if (!first) {
 				strncat(buf, ", ", buflen);
 			} else {
