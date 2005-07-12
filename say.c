@@ -2815,9 +2815,14 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'M':
+			case 'N':
 				/* Minute */
 				if (tm.tm_min == 0) {
-					res = wait_file(chan,ints, "digits/oclock",lang);
+					if (format[offset] == 'M') {
+						res = wait_file(chan, ints, "digits/oclock", lang);
+					} else {
+						res = wait_file(chan, ints, "digits/hundred", lang);
+					}
 				} else if (tm.tm_min < 10) {
 					res = wait_file(chan,ints, "digits/oh",lang);
 					if (!res) {

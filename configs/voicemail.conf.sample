@@ -95,7 +95,8 @@ emaildateformat=%A, %B %d, %Y at %r
 ; I or l        Hour, 12 hour clock 
 ; H             Hour, 24 hour clock (single digit hours preceded by "oh") 
 ; k             Hour, 24 hour clock (single digit hours NOT preceded by "oh") 
-; M             Minute 
+; M             Minute, with 00 pronounced as "o'clock" 
+; N             Minute, with 00 pronounced as "hundred" (US military time)
 ; P or p        AM or PM 
 ; Q             "today", "yesterday" or ABdY (*note: not standard strftime value) 
 ; q             "" (for today), "yesterday", weekday, or ABdY (*note: not standard strftime value) 
@@ -146,7 +147,8 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 [zonemessages]
 eastern=America/New_York|'vm-received' Q 'digits/at' IMp
 central=America/Chicago|'vm-received' Q 'digits/at' IMp
-central24=America/Chicago|'vm-received' q 'digits/at' H 'digits/hundred' M 'hours'
+central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
+military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
 
 [default]
 1234 => 4242,Example Mailbox,root@localhost
