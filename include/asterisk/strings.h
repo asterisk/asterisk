@@ -135,12 +135,8 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
   reduced buffer size to this function (unlike \a strncpy), and the buffer does not need
   to be initialized to zeroes prior to calling this function.
 */
-void ast_copy_string(char *dst, const char *src, size_t size);
-#if !defined(LOW_MEMORY) && !defined(AST_API_MODULE)
-extern inline
-#endif
-#if !defined(LOW_MEMORY) || defined(AST_API_MODULE)
-void ast_copy_string(char *dst, const char *src, size_t size)
+AST_INLINE_API(
+void ast_copy_string(char *dst, const char *src, size_t size),
 {
 	while (*src && size) {
 		*dst++ = *src++;
@@ -150,7 +146,7 @@ void ast_copy_string(char *dst, const char *src, size_t size)
 		dst--;
 	*dst = '\0';
 }
-#endif
+)
 
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
