@@ -372,6 +372,22 @@ int ast_netsock_release(struct ast_netsock_list *list)
 	return 0;
 }
 
+struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
+				     struct sockaddr_in *sa)
+{
+	struct ast_netsock *sock = NULL;
+
+	ASTOBJ_CONTAINER_TRAVERSE(list, !sock, {
+		ASTOBJ_RDLOCK(iterator);
+		if (!inaddrcmp(&iterator->bindaddr, sa))
+			sock = iterator;
+		ASTOBJ_UNLOCK(iterator);
+	});
+
+	return sock;
+}
+
+
 const struct sockaddr_in *ast_netsock_boundaddr(struct ast_netsock *ns)
 {
 	return &(ns->bindaddr);

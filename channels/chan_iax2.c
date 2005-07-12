@@ -7827,6 +7827,92 @@ static int get_auth_methods(char *value)
 }
 
 
+/*--- check_src_ip: Check if address can be used as packet source.
+ returns:
+ 0  address available
+ 1  address unavailable
+-1  error
+*/
+static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
+{
+	int sd;
+	int res;
+	
+	sd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (sd < 0) {
+		ast_log(LOG_ERROR, "Socket: %s\n", strerror(errno));
+		return -1;
+	}
+
+	res = bind(sd, sa, salen);
+	if (res < 0) {
+		ast_log(LOG_DEBUG, "Can't bind: %s\n", strerror(errno));
+		close(sd);
+		return 1;
+	}
+
+	close(sd);
+	return 0;
+}
+
+/*--- peer_set_srcaddr: Parse the "sourceaddress" value,
+  lookup in netsock list and set peer's sockfd. Defaults to defaultsockfd if
+  not found. */
+static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
+{
+	struct sockaddr_in sin;
+	int nonlocal = 1;
+	int port = IAX_DEFAULT_PORTNO;
+	int sockfd = defaultsockfd;
+	char *tmp;
+	char *addr;
+	char *portstr;
+
+	tmp = ast_strdupa(srcaddr);
+	if (!tmp) {
+		ast_log(LOG_WARNING, "Out of memory!\n");
+		return -1;
+	}
+
+	addr = strsep(&tmp, ":");
+	portstr = tmp;
+
+	if (portstr) {
+		port = atoi(portstr);
+		if (port < 1)
+			port = IAX_DEFAULT_PORTNO;
+	}
+	
+	if (!ast_get_ip(&sin, tmp)) {
+		struct ast_netsock *sock;
+		int res;
+
+		sin.sin_port = 0;
+		res = check_srcaddr((struct sockaddr *) &sin, sizeof(sin));
+		if (res == 0) {
+			/* ip address valid. */
+			sin.sin_port = htons(port);
+			sock = ast_netsock_find(&netsock, &sin);
+			if (sock) {
+				sockfd = ast_netsock_sockfd(sock);
+				nonlocal = 0;
+			}
+		}
+	}
+		
+	peer->sockfd = sockfd;
+
+	if (nonlocal) {
+		ast_log(LOG_WARNING, "Non-local or unbound address specified (%s) in sourceaddress for '%s', reverting to default\n",
+			srcaddr, peer->name);
+		return -1;
+	} else {
+		ast_log(LOG_DEBUG, "Using sourceaddress %s for '%s'\n", srcaddr, peer->name);
+		return 0;
+	}
+}
+
+		
 /*--- build_peer: Create peer structure based on configuration */
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
 {
@@ -7943,6 +8029,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					free(peer);
 					return NULL;
 				}
+			} else if (!strcasecmp(v->name, "sourceaddress")) {
+				peer_set_srcaddr(peer, v->value);
 			} else if (!strcasecmp(v->name, "permit") ||
 					   !strcasecmp(v->name, "deny")) {
 				peer->ha = ast_append_ha(v->name, v->value, peer->ha);
