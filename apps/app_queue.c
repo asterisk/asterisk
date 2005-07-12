@@ -234,6 +234,7 @@ struct queue_ent {
 	char moh[80];			/* Name of musiconhold to be used */
 	char announce[80];		/* Announcement to play for member when call is answered */
 	char context[AST_MAX_CONTEXT];	/* Context when user exits queue */
+	char digits[AST_MAX_EXTENSION];	/* Digits entered while in queue */
 	int pos;			/* Where we are in the queue */
 	int prio;			/* Our priority */
 	int last_pos_said;              /* Last position we told the user */
@@ -977,15 +978,31 @@ static int play_file(struct ast_channel *chan, char *filename)
 
 static int valid_exit(struct queue_ent *qe, char digit)
 {
-	char tmp[2];
+	int digitlen = strlen(qe->digits);
 
+	/* Prevent possible buffer overflow */
+	if (digitlen < sizeof(qe->digits) - 2) {
+		qe->digits[digitlen] = digit;
+		qe->digits[digitlen + 1] = '\0';
+	} else {
+		qe->digits[0] = '\0';
+		return 0;
+	}
+
+ 	/* If there's no context to goto, short-circuit */
 	if (ast_strlen_zero(qe->context))
 		return 0;
-	tmp[0] = digit;
-	tmp[1] = '\0';
-	if (ast_exists_extension(qe->chan, qe->context, tmp, 1, qe->chan->cid.cid_num)) {
+
+	/* If the extension is bad, then reset the digits to blank */
+	if (!ast_canmatch_extension(qe->chan, qe->context, qe->digits, 1, qe->chan->cid.cid_num)) {
+		qe->digits[0] = '\0';
+		return 0;
+	}
+
+	/* We have an exact match */
+	if (ast_exists_extension(qe->chan, qe->context, qe->digits, 1, qe->chan->cid.cid_num)) {
 		ast_copy_string(qe->chan->context, qe->context, sizeof(qe->chan->context));
-		ast_copy_string(qe->chan->exten, tmp, sizeof(qe->chan->exten));
+		ast_copy_string(qe->chan->exten, qe->digits, sizeof(qe->chan->exten));
 		qe->chan->priority = 0;
 		return 1;
 	}
@@ -1979,11 +1996,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			record_abandoned(qe);
 			res = -1;
 		} else {
-			if (digit && valid_exit(qe, digit))
-				res=digit;
-			else
-				/* Nobody answered, next please? */
-				res=0;
+			res = digit;
 		}
 		if (option_debug)
 			ast_log(LOG_DEBUG, "%s: Nobody answered.\n", qe->chan->name);
@@ -2762,7 +2775,7 @@ check_turns:
 			if (!res) 
 				break;
 			if (valid_exit(&qe, res)) {
-				ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+				ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 				break;
 			}
 		}
@@ -2789,7 +2802,7 @@ check_turns:
 					if (qe.parent->announcefrequency && !ringing)
 						res = say_position(&qe);
 					if (res && valid_exit(&qe, res)) {
-						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 						break;
 					}
 
@@ -2804,7 +2817,7 @@ check_turns:
                                                         record_abandoned(&qe);
 							ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 					} else if (res > 0)
-						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 					break;
 				}
 
@@ -2846,7 +2859,7 @@ check_turns:
 					break;
 				}
 				if (res && valid_exit(&qe, res)) {
-					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 					break;
 				}
 				/* exit after 'timeout' cycle if 'n' option enabled */
@@ -2894,6 +2907,54 @@ check_turns:
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
+
+static char *queue_function_qac(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	int count = 0;
+	struct ast_call_queue *q;
+	struct localuser *u;
+	struct member *m;
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "QUEUEAGENTCOUNT requires an argument: queuename\n");
+		return "0";
+	}
+	
+	LOCAL_USER_ACF_ADD(u);
+
+	ast_mutex_lock(&qlock);
+
+	/* Find the right queue */
+	for (q = queues; q; q = q->next) {
+		if (!strcasecmp(q->name, data)) {
+			ast_mutex_lock(&q->lock);
+			break;
+		}
+	}
+
+	ast_mutex_unlock(&qlock);
+
+	if (q) {
+		for (m = q->members; m; m = m->next) {
+			/* Count the agents who are logged in and presently answering calls */
+			if ((m->status != AST_DEVICE_UNAVAILABLE) && (m->status != AST_DEVICE_INVALID)) {
+				count++;
+			}
+		}
+		ast_mutex_unlock(&q->lock);
+	}
+
+	snprintf(buf, len, "%d", count);
+	LOCAL_USER_REMOVE(u);
+	return buf;
+}
+
+static struct ast_custom_function queueagentcount_function = {
+	.name = "QUEUEAGENTCOUNT",
+	.synopsis = "Count number of agents answering a queue",
+	.syntax = "QUEUEAGENTCOUNT(<queuename>)",
+	.read = queue_function_qac,
+};
 
 static void reload_queues(void)
 {
@@ -3557,6 +3618,7 @@ int unload_module(void)
 	ast_unregister_application(app_rqm);
 	ast_unregister_application(app_pqm);
 	ast_unregister_application(app_upqm);
+	ast_custom_function_unregister(&queueagentcount_function);
 	return ast_unregister_application(app);
 }
 
@@ -3579,6 +3641,7 @@ int load_module(void)
 		ast_register_application(app_rqm, rqm_exec, app_rqm_synopsis, app_rqm_descrip) ;
 		ast_register_application(app_pqm, pqm_exec, app_pqm_synopsis, app_pqm_descrip) ;
 		ast_register_application(app_upqm, upqm_exec, app_upqm_synopsis, app_upqm_descrip) ;
+		ast_custom_function_register(&queueagentcount_function);
 	}
 	reload_queues();
 	

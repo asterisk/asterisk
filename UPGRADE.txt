@@ -106,6 +106,12 @@ Queues:
   restore the original behavior, use "leavewhenempty=strict" or 
   "joinwhenempty=strict" instead of "=yes" for those options.
 
+* It is now possible to use multi-digit extensions in the exit context
+  for a queue (although you should not have overlapping extensions,
+  as there is no digit timeout). This means that the EXITWITHKEY event
+  in queue_log can now contain a key field with more than a single
+  character in it.
+
 Extensions:
 
 * By default, there is a new option called "autofallthrough" in

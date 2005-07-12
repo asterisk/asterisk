@@ -174,6 +174,21 @@ void ast_unregister_atexit(void (*func)(void));
 	ast_update_use_count(); \
 }
 
+#define LOCAL_USER_ACF_ADD(u) { \
+ \
+	if (!(u=(struct localuser *)malloc(sizeof(struct localuser)))) { \
+		ast_log(LOG_WARNING, "Out of memory\n"); \
+		return ""; \
+	} \
+	ast_mutex_lock(&localuser_lock); \
+	u->chan = chan; \
+	u->next = localusers; \
+	localusers = u; \
+	localusecnt++; \
+	ast_mutex_unlock(&localuser_lock); \
+	ast_update_use_count(); \
+}
+
 #define LOCAL_USER_REMOVE(u) { \
 	struct localuser *uc, *ul = NULL; \
 	ast_mutex_lock(&localuser_lock); \
