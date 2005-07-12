@@ -11,6 +11,10 @@
  -- app_meetme
     -- If the first caller into a conference hangs up while being prompted for
        the conference pin number, the conference will no longer be held open.
+ -- app_voicemail
+    -- When using the externpass option for voicemail, the password will be
+       immediately updated in memory as well, instead of having to wait for
+       the next time the configuration is reloaded. 
  -- app_zapras
     -- We now ensure buffer policy is restored after RAS is done with a channel.
        This could cause audio problems on the channel after zapras is done
