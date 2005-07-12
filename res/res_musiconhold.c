@@ -402,44 +402,19 @@ static int spawn_mp3(struct mohclass *class)
 		ast_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
 		return -1;
 	}
-	if (class->pid != 0) {	/* parent */
-		close(fds[1]);
-		return fds[0];
-	} else {
-		/* Child */
-		int i;
-		/*
-		 * On BSD systems with userland pthreads libraries, we need
-		 * to call fcntl() _before_ close() to avoid resetting
-		 * O_NONBLOCK on the internal descriptors.
-		 * It should not harm in other systems.
-		 *
-		 * After that, close the descriptors not needed in the child.
-		 * It is also important that we do not share descriptors
-		 * with the child process or it could change their blocking
-		 * state and give trouble in the thread scheduling.
-		 * Here, parent and child are connected only through the
-		 * endpoints of a pipe, so they share no descriptors.
-		 */  
-		for (i=0; i < getdtablesize(); i++) {
-			long fl = fcntl(i, F_GETFL);
-			if (fl != -1 && i != fds[1]) {
-				/* open and must be closed in the child */
-				fcntl(i, F_SETFL, O_NONBLOCK | fl);
-				close(i);
+	if (!class->pid) {
+		int x;
+		close(fds[0]);
+		/* Stdout goes to pipe */
+		dup2(fds[1], STDOUT_FILENO);
+		/* Close unused file descriptors */
+		for (x=3;x<8192;x++) {
+			if (-1 != fcntl(x, F_GETFL)) {
+				close(x);
 			}
 		}
-		/* Stdout in the child goes to pipe */
-		dup2(fds[1], STDOUT_FILENO);
+		/* Child */
 		chdir(class->dir);
-		/*
-		 * mpg123 may fork children to be more responsive, and we
-		 * want to kill them all when we exit. To do so we set
-		 * the process group id of mpg123 and children to a different
-		 * value than the asterisk process so we can kill all at once.
-		 * So remember, class->pid is really class->pgid!
-		 */
-		setpgid(0, getpid());
 		if (ast_test_flag(class, MOH_CUSTOM)) {
 			execv(argv[0], argv);
 		} else {
@@ -450,9 +425,14 @@ static int spawn_mp3(struct mohclass *class)
 			/* Check PATH as a last-ditch effort */
 			execvp("mpg123", argv);
 		}
+		ast_log(LOG_WARNING, "Exec failed: %s\n", strerror(errno));
+		close(fds[1]);
 		exit(1);
-		return 0; /* unreached */
+	} else {
+		/* Parent */
+		close(fds[1]);
 	}
+	return fds[0];
 }
 
 static void *monmp3thread(void *data)
@@ -531,7 +511,7 @@ static void *monmp3thread(void *data)
 				close(class->srcfd);
 				class->srcfd = -1;
 				if (class->pid) {
-					killpg(class->pid, SIGKILL); /* pgid! */
+					kill(class->pid, SIGKILL);
 					class->pid = 0;
 				}
 			} else
@@ -977,7 +957,7 @@ static void ast_moh_destroy(void)
 			stime = time(NULL) + 2;
 			pid = moh->pid;
 			moh->pid = 0;
-			killpg(pid, SIGKILL); /* pgid! */
+			kill(pid, SIGKILL);
 			while ((ast_wait_for_input(moh->srcfd, 100) > -1) && (bytes = read(moh->srcfd, buff, 8192)) && time(NULL) < stime) {
 				tbytes = tbytes + bytes;
 			}
