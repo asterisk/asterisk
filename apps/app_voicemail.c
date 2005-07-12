@@ -662,7 +662,8 @@ static void vm_change_password_shell(struct ast_vm_user *vmu, char *newpassword)
 {
 	char buf[255];
 	snprintf(buf,255,"%s %s %s %s",ext_pass_cmd,vmu->context,vmu->mailbox,newpassword);
-	ast_safe_system(buf);
+	if (!ast_safe_system(buf))
+		ast_copy_string(vmu->password, newpassword, sizeof(vmu->password));
 }
 
 static int make_dir(char *dest, int len, char *context, char *ext, char *mailbox)
@@ -5446,7 +5447,7 @@ static int load_config(void)
 	zonesl = NULL;
 	users = NULL;
 	usersl = NULL;
-	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd) - 1);
+	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
 	if (cfg) {
 		/* General settings */
 
