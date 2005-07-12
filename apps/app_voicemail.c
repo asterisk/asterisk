@@ -2022,10 +2022,16 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 static void run_externnotify(char *context, char *extension)
 {
 	char arguments[255];
+	char ext_context[256] = "";
 	int newvoicemails = 0, oldvoicemails = 0;
 
+	if (!ast_strlen_zero(context))
+		snprintf(ext_context, sizeof(ext_context), "%s@%s", extension, context);
+	else
+		ast_copy_string(ext_context, extension, sizeof(ext_context));
+
 	if (!ast_strlen_zero(externnotify)) {
-		if (messagecount(extension, &newvoicemails, &oldvoicemails)) {
+		if (messagecount(ext_context, &newvoicemails, &oldvoicemails)) {
 			ast_log(LOG_ERROR, "Problem in calculating number of voicemail messages available for extension %s\n", extension);
 		} else {
 			snprintf(arguments, sizeof(arguments), "%s %s %s %d&", externnotify, context, extension, newvoicemails);
@@ -3001,7 +3007,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 		ast_app_messagecount(ext_context, &newmsgs, &oldmsgs);
 	}
 	manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s@%s\r\nWaiting: %d\r\nNew: %d\r\nOld: %d\r\n", vmu->mailbox, vmu->context, ast_app_has_voicemail(ext_context, NULL), newmsgs, oldmsgs);
-	run_externnotify(chan->context, ext_context);
+	run_externnotify(vmu->context, vmu->mailbox);
 	return 0;
 }
 
@@ -3205,7 +3211,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				}
 				/* Leave voicemail for someone */
 				manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
-				run_externnotify(chan->context, ext_context);
+				run_externnotify(vmtmp->context, vmtmp->mailbox);
 	
 				saved_messages++;
 				vmfree = vmtmp;
@@ -5116,7 +5122,7 @@ out:
 	if (valid) {
 		snprintf(ext_context, sizeof(ext_context), "%s@%s", vms.username, vmu->context);
 		manager_event(EVENT_FLAG_CALL, "MessageWaiting", "Mailbox: %s\r\nWaiting: %d\r\n", ext_context, has_voicemail(ext_context, NULL));
-		run_externnotify(chan->context, ext_context);
+		run_externnotify(vmu->context, vmu->mailbox);
 	}
 	if (vmu)
 		free_user(vmu);
