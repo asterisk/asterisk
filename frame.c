@@ -1117,7 +1117,7 @@ static int speex_get_wb_sz_at(unsigned char *data, int len, int bit)
 static int speex_samples(unsigned char *data, int len)
 {
 	static int SpeexSubModeSz[] = {
-		0, 43, 119, 160, 
+               5, 43, 119, 160,
 		220, 300, 364, 492, 
 		79, 0, 0, 0,
 		0, 0, 0, 0 };

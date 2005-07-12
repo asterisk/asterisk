@@ -69,6 +69,7 @@ struct ast_translator_pvt {
 	/* Enough to store a full second */
 	short buf[8000];
 	int tail;
+       int silent_state;
 };
 
 #define speex_coder_pvt ast_translator_pvt
@@ -91,8 +92,6 @@ static struct ast_translator_pvt *lintospeex_new(void)
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &quality);
 				if (vad)
 					speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
-				if (dtx)
-					speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx); 
 			}
 			if (vbr) {
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_VBR, &vbr);
@@ -101,7 +100,10 @@ static struct ast_translator_pvt *lintospeex_new(void)
 			if (abr) {
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_ABR, &abr);
 			}
+                       if (dtx)
+                               speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx);
 			tmp->tail = 0;
+                       tmp->silent_state = 0;
 		}
 		localusecnt++;
 	}
@@ -241,6 +243,7 @@ static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 	float fbuf[1024];
 	int len;
 	int y=0,x;
+       int is_speech=1;
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < tmp->framesize)
 		return NULL;
@@ -256,7 +259,7 @@ static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 		for (x=0;x<tmp->framesize;x++)
 			fbuf[x] = tmp->buf[x];
 		/* Encode a frame of data */
-		speex_encode(tmp->speex, fbuf, &tmp->bits);
+               is_speech = speex_encode(tmp->speex, fbuf, &tmp->bits) || !dtx;
 		/* Assume 8000 Hz -- 20 ms */
 		tmp->tail -= tmp->framesize;
 		/* Move the data at the end of the buffer to the front */
@@ -264,6 +267,20 @@ static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 			memmove(tmp->buf, tmp->buf + tmp->framesize, tmp->tail * 2);
 		y++;
 	}
+
+       /* Use AST_FRAME_CNG to signify the start of any silence period */
+       if(!is_speech) {
+               if(tmp->silent_state) {
+                       return NULL;
+               } else {
+                       tmp->silent_state = 1;
+                       speex_bits_reset(&tmp->bits);
+                       tmp->f.frametype = AST_FRAME_CNG;
+               }
+       } else {
+               tmp->silent_state = 0;
+       }
+
 	/* Terminate bit stream */
 	speex_bits_pack(&tmp->bits, 15, 5);
 	len = speex_bits_write(&tmp->bits, (char *)tmp->outbuf, sizeof(tmp->outbuf));
