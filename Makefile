@@ -213,7 +213,12 @@ LIBEDIT=editline/libedit.a
 
 ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS ]; then if [ -f CVS/Tag ] ; then echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`"; else echo "CVS-HEAD"; fi; fi; fi)
 ASTERISKVERSIONNUM=$(shell if [ -d CVS ]; then echo 999999 ; else if [ -f .version ] ; then awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version ; else echo 000000 ; fi ; fi)
-HTTPDIR=$(shell if [ -d $(CROSS_COMPILE_TARGET)/var/www ]; then echo "/var/www"; else echo "/home/httpd"; fi)
+# Set the following two variables to match your httpd installation.
+
+# Determine by a grep 'DocumentRoot' of your httpd.conf file
+HTTP_DOCSDIR=/var/www/html
+# Determine by a grep 'ScriptAlias' of your httpd.conf file
+HTTP_CGIDIR=/var/www/cgi-bin
 RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
 
 CFLAGS+= $(DEBUG_THREADS)
@@ -704,20 +709,28 @@ samples: all datafiles adsi
 	done
 
 webvmail:
-	@[ -d $(DESTDIR)$(HTTPDIR) ] || ( echo "No HTTP directory" && exit 1 )
-	@[ -d $(DESTDIR)$(HTTPDIR)/html ] || ( echo "No http directory" && exit 1 )
-	@[ -d $(DESTDIR)$(HTTPDIR)/cgi-bin ] || ( echo "No cgi-bin directory" && exit 1 )
-	install -m 4755 -o root -g root contrib/scripts/vmail.cgi $(DESTDIR)$(HTTPDIR)/cgi-bin/vmail.cgi
-	mkdir -p $(DESTDIR)$(HTTPDIR)/html/_asterisk
+	@[ -d $(DESTDIR)$(HTTP_DOCSDIR)/ ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
+	@[ -d $(DESTDIR)$(HTTP_CGIDIR) ] || ( printf "cgi-bin directory not found.\nUpdate assignment of variable HTTP_CGIDIR in Makefile!\n" && exit 1 )
+	install -m 4755 -o root -g root contrib/scripts/vmail.cgi $(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi
+	mkdir -p $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk
 	for x in images/*.gif; do \
-		install -m 644 $$x $(DESTDIR)$(HTTPDIR)/html/_asterisk/; \
+		install -m 644 $$x $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk/; \
 	done
 	@echo " +--------- Asterisk Web Voicemail ----------+"  
 	@echo " +                                           +"
 	@echo " + Asterisk Web Voicemail is installed in    +"
-	@echo " + your cgi-bin directory.  IT USES A SETUID +"
-	@echo " + ROOT PERL SCRIPT, SO IF YOU DON'T LIKE    +"
-	@echo " + THAT, UNINSTALL IT!                       +"
+	@echo " + your cgi-bin directory:                   +"
+	@echo " + $(DESTDIR)$(HTTP_CGIDIR)"
+	@echo " + IT USES A SETUID ROOT PERL SCRIPT, SO     +"
+	@echo " + IF YOU DON'T LIKE THAT, UNINSTALL IT!     +"
+	@echo " +                                           +"
+	@echo " + Other static items have been stored in:   +"
+	@echo " + $(DESTDIR)$(HTTP_DOCSDIR)"
+	@echo " +                                           +"
+	@echo " + If these paths do not match your httpd    +"
+	@echo " + installation, correct the definitions     +"
+	@echo " + in your Makefile of HTTP_CGIDIR and       +"
+	@echo " + HTTP_DOCSDIR                              +"
 	@echo " +                                           +"
 	@echo " +-------------------------------------------+"  
 
