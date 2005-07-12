@@ -678,8 +678,12 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 				if (!name)
 					break;
 				/* want match by full name */
-				if (!namelen && !strcasecmp(c->name, name))
-					break;
+				if (!namelen) {
+					if (!strcasecmp(c->name, name))
+						break;
+					else
+						continue;
+				}
 				/* want match by name prefix */
 				if (!strncasecmp(c->name, name, namelen))
 					break;
