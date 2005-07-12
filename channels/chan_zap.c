@@ -31,7 +31,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_PROGRESS_CAUSE
+#ifndef PRI_CALLINGPLANANI
 #error "You need newer libpri"
 #endif
 #endif
@@ -567,6 +567,9 @@ static struct zt_pvt {
 	char exten[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
 	char musicclass[MAX_MUSICCLASS];
+#ifdef PRI_ANI
+	char cid_ani[AST_MAX_EXTENSION];
+#endif
 	char cid_num[AST_MAX_EXTENSION];
 	int cid_ton;					/* Type Of Number (TON) */
 	char cid_name[AST_MAX_EXTENSION];
@@ -4836,7 +4839,11 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (!ast_strlen_zero(i->dnid))
 			tmp->cid.cid_dnid = strdup(i->dnid);
 
+#ifdef PRI_ANI
+		ast_set_callerid(tmp, i->cid_num, i->cid_name, ast_strlen_zero(i->cid_ani) ? i->cid_num : i->cid_ani);
+#else
 		ast_set_callerid(tmp, i->cid_num, i->cid_name, i->cid_num);
+#endif
 		tmp->cid.cid_pres = i->callingpres;
 		tmp->cid.cid_ton = i->cid_ton;
 #ifdef ZAPATA_PRI
@@ -7687,6 +7694,7 @@ static void *pri_dchannel(void *vpri)
 	pthread_attr_t attr;
 	char ani2str[6];
 	char plancallingnum[256];
+	char plancallingani[256];
 	char calledtonstr[10];
 	
 	pthread_attr_init(&attr);
@@ -8112,10 +8120,37 @@ static void *pri_dchannel(void *vpri)
 					if (pri->pvts[chanpos]->use_callerid) {
 						ast_shrink_phone_number(plancallingnum);
 						ast_copy_string(pri->pvts[chanpos]->cid_num, plancallingnum, sizeof(pri->pvts[chanpos]->cid_num));
+#ifdef PRI_ANI
+						if (!ast_strlen_zero(e->ring.callingani)) {
+							switch (e->ring.callingplanani) {
+							case PRI_INTERNATIONAL_ISDN:	/* Q.931 dialplan == 0x11 international dialplan => prepend international prefix digits */
+								snprintf(plancallingani, sizeof(plancallingani), "%s%s", pri->internationalprefix, e->ring.callingani);
+								break;
+							case PRI_NATIONAL_ISDN:			/* Q.931 dialplan == 0x21 national dialplan => prepend national prefix digits */
+								snprintf(plancallingani, sizeof(plancallingani), "%s%s", pri->nationalprefix, e->ring.callingani);
+								break;
+							case PRI_LOCAL_ISDN:			/* Q.931 dialplan == 0x41 local dialplan => prepend local prefix digits */
+								snprintf(plancallingani, sizeof(plancallingani), "%s%s", pri->localprefix, e->ring.callingani);
+								break;
+							case PRI_PRIVATE:				/* Q.931 dialplan == 0x49 private dialplan => prepend private prefix digits */
+								snprintf(plancallingani, sizeof(plancallingani), "%s%s", pri->privateprefix, e->ring.callingani);
+								break;
+							case PRI_UNKNOWN:				/* Q.931 dialplan == 0x00 unknown dialplan => prepend unknown prefix digits */
+								snprintf(plancallingani, sizeof(plancallingani), "%s%s", pri->unknownprefix, e->ring.callingani);
+								break;
+							default:						/* other Q.931 dialplan => don't twiddle with callingani */
+								snprintf(plancallingani, sizeof(plancallingani), "%s", e->ring.callingani);
+								break;
+							}
+							ast_shrink_phone_number(plancallingani);
+							ast_copy_string(pri->pvts[chanpos]->cid_ani, plancallingani, sizeof(pri->pvts[chanpos]->cid_ani));
+						}
+#endif
 						ast_copy_string(pri->pvts[chanpos]->cid_name, e->ring.callingname, sizeof(pri->pvts[chanpos]->cid_name));
 						pri->pvts[chanpos]->cid_ton = e->ring.callingplan; /* this is the callingplan (TON/NPI), e->ring.callingplan>>4 would be the TON */
 					} else {
 						pri->pvts[chanpos]->cid_num[0] = '\0';
+						pri->pvts[chanpos]->cid_ani[0] = '\0';
 						pri->pvts[chanpos]->cid_name[0] = '\0';
 						pri->pvts[chanpos]->cid_ton = 0;
 					}
