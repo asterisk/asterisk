@@ -14,7 +14,7 @@ cat << END
 #define BUILD_KERNEL "${KERNEL}"
 #define BUILD_MACHINE "${MACHINE}"
 #define BUILD_OS "${OS}"
-#define BUILD_DATE "${DATE}"
+#define BUILD_DATE "${DATE} UTC"
 #define BUILD_USER "${USER}"
 
 END
