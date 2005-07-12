@@ -23,6 +23,7 @@ BUILTINS=func_md5.o \
          func_db.o \
          func_timeout.o \
          func_language.o \
+         func_moh.o
 
 STANDALONE_FUNCS=$(filter-out $(BUILTINS),$(patsubst %.c,%.o,$(wildcard func*.c)))
 
