@@ -3701,7 +3701,14 @@ static void build_enc_keys(const unsigned char *digest, aes_encrypt_ctx *ecx, ae
 
 static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len, aes_decrypt_ctx *dcx)
 {
-/*	memcpy(dst, src, len); */
+#if 0
+	/* Debug with "fake encryption" */
+	int x;
+	if (len % 16)
+		ast_log(LOG_WARNING, "len should be multiple of 16, not %d!\n", len);
+	for (x=0;x<len;x++)
+		dst[x] = src[x] ^ 0xff;
+#else	
 	unsigned char lastblock[16] = { 0 };
 	int x;
 	while(len > 0) {
@@ -3713,11 +3720,19 @@ static void memcpy_decrypt(unsigned char *dst, const unsigned char *src, int len
 		src += 16;
 		len -= 16;
 	}
+#endif
 }
 
 static void memcpy_encrypt(unsigned char *dst, const unsigned char *src, int len, aes_encrypt_ctx *ecx)
 {
-/*	memcpy(dst, src, len); */
+#if 0
+	/* Debug with "fake encryption" */
+	int x;
+	if (len % 16)
+		ast_log(LOG_WARNING, "len should be multiple of 16, not %d!\n", len);
+	for (x=0;x<len;x++)
+		dst[x] = src[x] ^ 0xff;
+#else
 	unsigned char curblock[16] = { 0 };
 	int x;
 	while(len > 0) {
@@ -3729,6 +3744,7 @@ static void memcpy_encrypt(unsigned char *dst, const unsigned char *src, int len
 		src += 16;
 		len -= 16;
 	}
+#endif
 }
 
 static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, struct ast_frame *f, int *datalen)
@@ -3740,15 +3756,17 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, stru
 		return -1;
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
-		if (option_debug)
-			ast_log(LOG_DEBUG, "Decoding full frame with length %d\n", *datalen);
 		if (*datalen < 16 + sizeof(struct ast_iax2_full_hdr))
 			return -1;
-		padding = 16 + (efh->encdata[15] & 0xf);
+		/* Decrypt */
+		memcpy_decrypt(workspace, efh->encdata, *datalen - sizeof(struct ast_iax2_full_enc_hdr), dcx);
+
+		padding = 16 + (workspace[15] & 0xf);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, workspace[15]);
 		if (*datalen < padding + sizeof(struct ast_iax2_full_hdr))
 			return -1;
-		/* Decrypt */
-		memcpy_decrypt(workspace, efh->encdata, *datalen, dcx);
+
 		*datalen -= padding;
 		memcpy(efh->encdata, workspace + padding, *datalen - sizeof(struct ast_iax2_full_enc_hdr));
 		f->frametype = fh->type;
@@ -3763,11 +3781,11 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, stru
 			ast_log(LOG_DEBUG, "Decoding mini with length %d\n", *datalen);
 		if (*datalen < 16 + sizeof(struct ast_iax2_mini_hdr))
 			return -1;
-		padding = 16 + (efh->encdata[15] & 0x0f);
+		/* Decrypt */
+		memcpy_decrypt(workspace, efh->encdata, *datalen - sizeof(struct ast_iax2_mini_enc_hdr), dcx);
+		padding = 16 + (workspace[15] & 0x0f);
 		if (*datalen < padding + sizeof(struct ast_iax2_mini_hdr))
 			return -1;
-		/* Decrypt */
-		memcpy_decrypt(workspace, efh->encdata, *datalen, dcx);
 		*datalen -= padding;
 		memcpy(efh->encdata, workspace + padding, *datalen - sizeof(struct ast_iax2_mini_enc_hdr));
 	}
@@ -3784,15 +3802,17 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct ast_iax2_full_hdr *fh, uns
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
 		if (option_debug)
-			ast_log(LOG_DEBUG, "Encoding full frame with length %d\n", *datalen);
+			ast_log(LOG_DEBUG, "Encoding full frame %d/%d with length %d\n", fh->type, fh->csub, *datalen);
 		padding = 16 - ((*datalen - sizeof(struct ast_iax2_full_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
 		memcpy(workspace, poo, padding);
 		memcpy(workspace + padding, efh->encdata, *datalen - sizeof(struct ast_iax2_full_enc_hdr));
-		*datalen += padding;
 		workspace[15] &= 0xf0;
 		workspace[15] |= (padding & 0xf);
-		memcpy_encrypt(efh->encdata, workspace, *datalen, ecx);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, workspace[15]);
+		*datalen += padding;
+		memcpy_encrypt(efh->encdata, workspace, *datalen - sizeof(struct ast_iax2_full_enc_hdr), ecx);
 		if (*datalen >= 32 + sizeof(struct ast_iax2_full_enc_hdr))
 			memcpy(poo, workspace + *datalen - 32, 32);
 	} else {
@@ -3801,12 +3821,12 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct ast_iax2_full_hdr *fh, uns
 			ast_log(LOG_DEBUG, "Encoding mini frame with length %d\n", *datalen);
 		padding = 16 - ((*datalen - sizeof(struct ast_iax2_mini_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
-		memset(workspace, 0, padding);
+		memcpy(workspace, poo, padding);
 		memcpy(workspace + padding, efh->encdata, *datalen - sizeof(struct ast_iax2_mini_enc_hdr));
 		workspace[15] &= 0xf0;
 		workspace[15] |= (padding & 0x0f);
 		*datalen += padding;
-		memcpy_encrypt(efh->encdata, workspace, *datalen, ecx);
+		memcpy_encrypt(efh->encdata, workspace, *datalen - sizeof(struct ast_iax2_mini_enc_hdr), ecx);
 		if (*datalen >= 32 + sizeof(struct ast_iax2_mini_enc_hdr))
 			memcpy(poo, workspace + *datalen - 32, 32);
 	}
@@ -3955,6 +3975,12 @@ static int iax2_send(struct chan_iax2_pvt *pvt, struct ast_frame *f, unsigned in
 			pvt->svideoformat = f->subclass & ~0x1;
 		if (ast_test_flag(pvt, IAX_ENCRYPTED)) {
 			if (ast_test_flag(pvt, IAX_KEYPOPULATED)) {
+				if (iaxdebug) {
+					if (fr->transfer)
+						iax_showframe(fr, NULL, 2, &pvt->transfer, fr->datalen - sizeof(struct ast_iax2_full_hdr));
+					else
+						iax_showframe(fr, NULL, 2, &pvt->addr, fr->datalen - sizeof(struct ast_iax2_full_hdr));
+				}
 				encrypt_frame(&pvt->ecx, fh, pvt->semirand, &fr->datalen);
 			} else
 				ast_log(LOG_WARNING, "Supposed to send packet encrypted, but no key?\n");
@@ -6359,7 +6385,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		}
 #ifdef DEBUG_SUPPORT
 		else if (iaxdebug)
-			iax_showframe(NULL, fh, 1, &sin, res - sizeof(struct ast_iax2_full_hdr));
+			iax_showframe(NULL, fh, 3, &sin, res - sizeof(struct ast_iax2_full_hdr));
 #endif
 	}
 

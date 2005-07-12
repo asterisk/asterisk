@@ -440,8 +440,23 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 	char subclass2[20];
 	char *class;
 	char *subclass;
+	char *dir;
 	char tmp[256];
 	char iabuf[INET_ADDRSTRLEN];
+	switch(rx) {
+	case 0:
+		dir = "Tx";
+		break;
+	case 2:
+		dir = "TE";
+		break;
+	case 3:
+		dir = "RD";
+		break;
+	default:
+		dir = "Rx";
+		break;
+	}
 	if (f) {
 		fh = f->data;
 		snprintf(retries, (int)sizeof(retries), "%03d", f->retries);
@@ -485,7 +500,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 	}
 snprintf(tmp, (int)sizeof(tmp), 
 "%s-Frame Retry[%s] -- OSeqno: %3.3d ISeqno: %3.3d Type: %s Subclass: %s\n",
-	(rx ? "Rx" : "Tx"),
+	dir,
 	retries, fh->oseqno, fh->iseqno, class, subclass);
 	outputf(tmp);
 snprintf(tmp, (int)sizeof(tmp), 
