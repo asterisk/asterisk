@@ -139,8 +139,19 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 /*   permitted silence time in milliseconds of 'maxsilence' under 'silencethreshold' or use '-1' for either or both parameters for defaults. */
 int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordfile, int maxtime_sec, char *fmt, int *duration, int beep, int silencethreshold, int maxsilence_ms);
 
-/* Lock a path */
-int ast_lock_path(const char *path);
+enum AST_LOCK_RESULT {
+	AST_LOCK_SUCCESS = 0,
+	AST_LOCK_TIMEOUT = -1,
+	AST_LOCK_PATH_NOT_FOUND = -2,
+	AST_LOCK_FAILURE = -3,
+};
+
+/*
+ * \brief Lock a filesystem path.
+ * \param path the path to be locked
+ * \return one of AST_LOCK_RESULT values
+ */
+enum AST_LOCK_RESULT ast_lock_path(const char *path);
 
 /* Unlock a path */
 int ast_unlock_path(const char *path);

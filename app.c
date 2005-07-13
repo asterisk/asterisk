@@ -1095,36 +1095,42 @@ int ast_separate_app_args(char *buf, char delim, char **array, int arraylen)
 	return x;
 }
 
-int ast_lock_path(const char *path)
+enum AST_LOCK_RESULT ast_lock_path(const char *path)
 {
 	char *s;
 	char *fs;
 	int res;
 	int fd;
 	time_t start;
+
 	s = alloca(strlen(path) + 10);
 	fs = alloca(strlen(path) + 20);
+
 	if (!fs || !s) {
 		ast_log(LOG_WARNING, "Out of memory!\n");
-		return -1;
+		return AST_LOCK_FAILURE;
 	}
-	snprintf(fs, strlen(path) + 19, "%s/%s-%08x", path, ".lock", rand());
+
+	snprintf(fs, strlen(path) + 19, "%s/.lock-%08x", path, rand());
 	fd = open(fs, O_WRONLY | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
-		fprintf(stderr, "Unable to create lock file: %s\n", strerror(errno));
-		return -1;
+		fprintf(stderr, "Unable to create lock file '%s': %s\n", path, strerror(errno));
+		return AST_LOCK_PATH_NOT_FOUND;
 	}
 	close(fd);
-	snprintf(s, strlen(path) + 9, "%s/%s", path, ".lock");
+
+	snprintf(s, strlen(path) + 9, "%s/.lock", path);
 	time(&start);
 	while (((res = link(fs, s)) < 0) && (errno == EEXIST) && (time(NULL) - start < 5))
 		usleep(1);
-	if (res < 0) {
+	if (res) {
 		ast_log(LOG_WARNING, "Failed to lock path '%s': %s\n", path, strerror(errno));
+		return AST_LOCK_TIMEOUT;
+	} else {
+		unlink(fs);
+		ast_log(LOG_DEBUG, "Locked path '%s'\n", path);
+		return AST_LOCK_SUCCESS;
 	}
-	unlink(fs);
-	ast_log(LOG_DEBUG, "Locked path '%s'\n", path);
-	return res;
 }
 
 int ast_unlock_path(const char *path)

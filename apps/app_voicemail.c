@@ -692,6 +692,19 @@ static int make_file(char *dest, int len, char *dir, int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
+/* only return failure if ast_lock_path returns 'timeout',
+   not if the path does not exist or any other reason
+*/
+static int vm_lock_path(const char *path)
+{
+	switch (ast_lock_path(path)) {
+	case AST_LOCK_TIMEOUT:
+		return -1;
+	default:
+		return 0;
+	}
+}
+
 
 #ifdef USE_ODBC_STORAGE
 static int retrieve_file(char *dir, int msgnum)
@@ -982,9 +995,9 @@ yuck:
  */
 static int count_messages(struct ast_vm_user *vmu, char *dir)
 {
-	int res = 0;
+	int res;
 	
-	res = last_message_index(vmu, dir) + 1;
+	res = last_message_index(vmu, dir);
 	return res >= 0 ? res + 1 : res;
 }
 
@@ -1259,23 +1272,19 @@ static int count_messages(struct ast_vm_user *vmu, char *dir)
 	DIR *vmdir = NULL;
 	struct dirent *vment = NULL;
 
-	if (!ast_lock_path(dir)) {
-		if ((vmdir = opendir(dir))) {
-			while ((vment = readdir(vmdir)))
-			{
-				if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7,".txt",4))
-				{
-					vmcount++;
-				}
-			}
-			closedir(vmdir);
-		}
-		ast_unlock_path(dir);
-
-		return vmcount;
-	} else {
+	if (vm_lock_path(dir))
 		return ERROR_LOCK_PATH;
+
+	if ((vmdir = opendir(dir))) {
+		while ((vment = readdir(vmdir))) {
+			if (strlen(vment->d_name) > 7 && !strncmp(vment->d_name + 7, ".txt", 4)) 
+				vmcount++;
+		}
+		closedir(vmdir);
 	}
+	ast_unlock_path(dir);
+	
+	return vmcount;
 }
 
 static void rename_file(char *sfn, char *dfn)
@@ -1354,17 +1363,18 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x;
 	char fn[256];
-	if (!ast_lock_path(dir)) {
-		for (x = 0; x < vmu->maxmsg; x++) {
-			make_file(fn, sizeof(fn), dir, x);
-			if (ast_fileexists(fn, NULL, NULL) < 1)
-				break;
-		}
-		ast_unlock_path(dir);
-		return x-1;
-	} else {
+
+	if (vm_lock_path(dir))
 		return ERROR_LOCK_PATH;
+
+	for (x = 0; x < vmu->maxmsg; x++) {
+		make_file(fn, sizeof(fn), dir, x);
+		if (ast_fileexists(fn, NULL, NULL) < 1)
+			break;
 	}
+	ast_unlock_path(dir);
+
+	return x - 1;
 }
 
 static int vm_delete(char *file)
@@ -1997,24 +2007,24 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 
 	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
-	if (!ast_lock_path(topath)) {
-		recipmsgnum = 0;
-		do {
-			make_file(topath, sizeof(topath), todir, recipmsgnum);
-			if (!EXISTS(todir, recipmsgnum, topath, chan->language))
-				break;
-			recipmsgnum++;
+
+	if (vm_lock_path(topath))
+		return ERROR_LOCK_PATH;
+
+	recipmsgnum = 0;
+	do {
+		make_file(topath, sizeof(topath), todir, recipmsgnum);
+		if (!EXISTS(todir, recipmsgnum, topath, chan->language))
+			break;
+		recipmsgnum++;
 	} while (recipmsgnum < recip->maxmsg);
 	if (recipmsgnum < recip->maxmsg) {
-			COPY(fromdir, msgnum, todir, recipmsgnum, frompath, topath);
-		} else {
-			ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
-		}
-		ast_unlock_path(topath);
-		notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
+		COPY(fromdir, msgnum, todir, recipmsgnum, frompath, topath);
 	} else {
-		return ERROR_LOCK_PATH;
+		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
+	ast_unlock_path(topath);
+	notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 	
 	return 0;
 }
@@ -2208,106 +2218,106 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 		ast_copy_string(fmt, vmfmts, sizeof(fmt));
 		if (!ast_strlen_zero(fmt)) {
 			msgnum = 0;
-			if (!ast_lock_path(dir)) {
-				if (res >= 0) {
-					/* Unless we're *really* silent, try to send the beep */
-					res = ast_streamfile(chan, "beep", chan->language);
-					if (!res)
-						res = ast_waitstream(chan, "");
-				}
-				do {
-					make_file(fn, sizeof(fn), dir, msgnum);
-					if (!EXISTS(dir,msgnum,fn,chan->language))
-						break;
-					msgnum++;
-			} while (msgnum < vmu->maxmsg);
-			if (msgnum < vmu->maxmsg) {
-	
-					/* assign a variable with the name of the voicemail file */	  
-					pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
-	
-					/* Store information */
-					snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
-					txt = fopen(txtfile, "w+");
-					if (txt) {
-						get_date(date, sizeof(date));
-						fprintf(txt, 
-";\n"
-"; Message Information file\n"
-";\n"
-"[message]\n"
-"origmailbox=%s\n"
-"context=%s\n"
-"macrocontext=%s\n"
-"exten=%s\n"
-"priority=%d\n"
-"callerchan=%s\n"
-"callerid=%s\n"
-"origdate=%s\n"
-"origtime=%ld\n"
-"category=%s\n",
-		ext,
-		chan->context,
-		chan->macrocontext, 
-		chan->exten,
-		chan->priority,
-		chan->name,
-		ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"),
-		date, (long)time(NULL),
-		category ? category : ""); 
-					} else
-						ast_log(LOG_WARNING, "Error opening text file for output\n");
-					res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration, dir);
-					if (res == '0') {
-						if (txt)
-							fclose(txt);
-						goto transfer;
-					}
-					if (res > 0)
-						res = 0;
-					if (txt) {
-						fprintf(txt, "duration=%d\n", duration);
-						fclose(txt);
-					}
-				
-					if (duration < vmminmessage) {
-						if (option_verbose > 2) 
-							ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
-						DELETE(dir,msgnum,fn);
-						/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
-						goto leave_vm_out;
-					}
-					/* Are there to be more recipients of this message? */
-					while (tmpptr) {
-						struct ast_vm_user recipu, *recip;
-						char *exten, *context;
-	
-						exten = strsep(&tmpptr, "&");
-						context = strchr(exten, '@');
-						if (context) {
-							*context = '\0';
-							context++;
-						}
-						if ((recip = find_user(&recipu, context, exten))) {
-							copy_message(chan, vmu, 0, msgnum, duration, recip, fmt);
-							free_user(recip);
-						}
-					}
-					if (ast_fileexists(fn, NULL, NULL)) {
-						notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
-						STORE(dir, msgnum);
-						DISPOSE(dir, msgnum);
-					}
-				} else {
-					ast_unlock_path(dir);
-					res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
-					if (!res)
-						res = ast_waitstream(chan, "");
-					ast_log(LOG_WARNING, "No more messages possible\n");
-				}
-			} else {
+
+			if (vm_lock_path(dir)) {
 				free_user(vmu);
 				return ERROR_LOCK_PATH;
+			}
+
+			if (res >= 0) {
+				/* Unless we're *really* silent, try to send the beep */
+				res = ast_streamfile(chan, "beep", chan->language);
+				if (!res)
+					res = ast_waitstream(chan, "");
+			}
+			do {
+				make_file(fn, sizeof(fn), dir, msgnum);
+				if (!EXISTS(dir,msgnum,fn,chan->language))
+					break;
+				msgnum++;
+			} while (msgnum < vmu->maxmsg);
+			if (msgnum < vmu->maxmsg) {
+				/* assign a variable with the name of the voicemail file */	  
+				pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
+				
+				/* Store information */
+				snprintf(txtfile, sizeof(txtfile), "%s.txt", fn);
+				txt = fopen(txtfile, "w+");
+				if (txt) {
+					get_date(date, sizeof(date));
+					fprintf(txt, 
+						";\n"
+						"; Message Information file\n"
+						";\n"
+						"[message]\n"
+						"origmailbox=%s\n"
+						"context=%s\n"
+						"macrocontext=%s\n"
+						"exten=%s\n"
+						"priority=%d\n"
+						"callerchan=%s\n"
+						"callerid=%s\n"
+						"origdate=%s\n"
+						"origtime=%ld\n"
+						"category=%s\n",
+						ext,
+						chan->context,
+						chan->macrocontext, 
+						chan->exten,
+						chan->priority,
+						chan->name,
+						ast_callerid_merge(callerid, sizeof(callerid), chan->cid.cid_name, chan->cid.cid_num, "Unknown"),
+						date, (long)time(NULL),
+						category ? category : ""); 
+				} else
+					ast_log(LOG_WARNING, "Error opening text file for output\n");
+				res = play_record_review(chan, NULL, fn, vmmaxmessage, fmt, 1, vmu, &duration, dir);
+				if (res == '0') {
+					if (txt)
+						fclose(txt);
+					goto transfer;
+				}
+				if (res > 0)
+					res = 0;
+				if (txt) {
+					fprintf(txt, "duration=%d\n", duration);
+					fclose(txt);
+				}
+				
+				if (duration < vmminmessage) {
+					if (option_verbose > 2) 
+						ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
+					DELETE(dir,msgnum,fn);
+					/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
+					goto leave_vm_out;
+				}
+				/* Are there to be more recipients of this message? */
+				while (tmpptr) {
+					struct ast_vm_user recipu, *recip;
+					char *exten, *context;
+					
+					exten = strsep(&tmpptr, "&");
+					context = strchr(exten, '@');
+					if (context) {
+						*context = '\0';
+						context++;
+					}
+					if ((recip = find_user(&recipu, context, exten))) {
+						copy_message(chan, vmu, 0, msgnum, duration, recip, fmt);
+						free_user(recip);
+					}
+				}
+				if (ast_fileexists(fn, NULL, NULL)) {
+					notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
+					STORE(dir, msgnum);
+					DISPOSE(dir, msgnum);
+				}
+			} else {
+				ast_unlock_path(dir);
+				res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
+				if (!res)
+					res = ast_waitstream(chan, "");
+				ast_log(LOG_WARNING, "No more messages possible\n");
 			}
 		} else
 			ast_log(LOG_WARNING, "No format for saving voicemail?\n");
@@ -2316,8 +2326,7 @@ leave_vm_out:
 	} else {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
 		/*Send the call to n+101 priority, where n is the current priority*/
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority+=100;
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	}
 
 	return res;
@@ -2332,24 +2341,23 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir)
 	char sfn[256];
 	char dfn[256];
 
-	if (!ast_lock_path(dir)) {
-		for (x = 0, dest = 0; x < vmu->maxmsg; x++) {
-			make_file(sfn, sizeof(sfn), dir, x);
-			if (EXISTS(dir, x, sfn, NULL)) {
-	
-				if(x != dest) {
-					make_file(dfn, sizeof(dfn), dir, dest);
-					RENAME(dir, x, dir, dest, sfn, dfn);
-				}
-	
-				dest++;
-			}
-		}
-		ast_unlock_path(dir);
-	} else {
+	if (vm_lock_path(dir))
 		return ERROR_LOCK_PATH;
+
+	for (x = 0, dest = 0; x < vmu->maxmsg; x++) {
+		make_file(sfn, sizeof(sfn), dir, x);
+		if (EXISTS(dir, x, sfn, NULL)) {
+			
+			if(x != dest) {
+				make_file(dfn, sizeof(dfn), dir, dest);
+				RENAME(dir, x, dir, dest, sfn, dfn);
+			}
+			
+			dest++;
+		}
 	}
-	
+	ast_unlock_path(dir);
+
 	return 0;
 }
 
@@ -2371,23 +2379,23 @@ static int save_to_folder(struct ast_vm_user *vmu, char *dir, int msg, char *con
 	make_file(sfn, sizeof(sfn), dir, msg);
 	make_dir(ddir, sizeof(ddir), context, username, dbox);
 	mkdir(ddir, 0700);
-	if (!ast_lock_path(ddir)) {
-		for (x = 0; x < vmu->maxmsg; x++) {
-			make_file(dfn, sizeof(dfn), ddir, x);
-			if (!EXISTS(ddir, x, dfn, NULL))
-				break;
-		}
-		if (x >= vmu->maxmsg) {
-			ast_unlock_path(ddir);
-			return -1;
-		}
-		if (strcmp(sfn, dfn)) {
-			COPY(dir, msg, ddir, x, sfn, dfn);
-		}
-		ast_unlock_path(ddir);
-	} else {
+
+	if (vm_lock_path(ddir))
 		return ERROR_LOCK_PATH;
+
+	for (x = 0; x < vmu->maxmsg; x++) {
+		make_file(dfn, sizeof(dfn), ddir, x);
+		if (!EXISTS(ddir, x, dfn, NULL))
+			break;
 	}
+	if (x >= vmu->maxmsg) {
+		ast_unlock_path(ddir);
+		return -1;
+	}
+	if (strcmp(sfn, dfn)) {
+		COPY(dir, msg, ddir, x, sfn, dfn);
+	}
+	ast_unlock_path(ddir);
 	
 	return 0;
 }
@@ -3526,45 +3534,49 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
 	int x;
 	int res = 0;
-	if (vms->lastmsg > -1) { 
-		/* Get the deleted messages fixed */ 
-		if (!ast_lock_path(vms->curdir)) {
-			vms->curmsg = -1; 
-		for (x=0;x < vmu->maxmsg;x++) { 
-				if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
-					/* Save this message.  It's not in INBOX or hasn't been heard */ 
-					make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
-					if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
-						break;
-					vms->curmsg++; 
-					make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
-					if (strcmp(vms->fn, vms->fn2)) { 
-						RENAME(vms->curdir, x, vms->curdir, vms->curmsg, vms->fn, vms->fn2);
-					} 
-				} else if (!strcasecmp(vms->curbox, "INBOX") && vms->heard[x] && !vms->deleted[x]) { 
-					/* Move to old folder before deleting */ 
-					res = save_to_folder(vmu, vms->curdir, x, vmu->context, vms->username, 1);
-					if (res == ERROR_LOCK_PATH) {
-						/* If save failed do not delete the message */
-						vms->deleted[x] = 0;
-						vms->heard[x] = 0;
-						--x;
-					} 
-				} 
+
+	if (vms->lastmsg <= -1)
+		goto done;
+
+	/* Get the deleted messages fixed */ 
+	if (vm_lock_path(vms->curdir))
+		return ERROR_LOCK_PATH;
+	
+	vms->curmsg = -1; 
+	for (x=0;x < vmu->maxmsg;x++) { 
+		if (!vms->deleted[x] && (strcasecmp(vms->curbox, "INBOX") || !vms->heard[x])) { 
+			/* Save this message.  It's not in INBOX or hasn't been heard */ 
+			make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
+			if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
+				break;
+			vms->curmsg++; 
+			make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
+			if (strcmp(vms->fn, vms->fn2)) { 
+				RENAME(vms->curdir, x, vms->curdir, vms->curmsg, vms->fn, vms->fn2);
 			} 
-			for (x = vms->curmsg + 1; x <= vmu->maxmsg; x++) { 
-				make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
-				if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
-					break;
-				DELETE(vms->curdir, x, vms->fn);
+		} else if (!strcasecmp(vms->curbox, "INBOX") && vms->heard[x] && !vms->deleted[x]) { 
+			/* Move to old folder before deleting */ 
+			res = save_to_folder(vmu, vms->curdir, x, vmu->context, vms->username, 1);
+			if (res == ERROR_LOCK_PATH) {
+				/* If save failed do not delete the message */
+				vms->deleted[x] = 0;
+				vms->heard[x] = 0;
+				--x;
 			} 
-			ast_unlock_path(vms->curdir);
-		} else {
-			return ERROR_LOCK_PATH;
-		}
+		} 
 	} 
+	for (x = vms->curmsg + 1; x <= vmu->maxmsg; x++) { 
+		make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
+		if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
+			break;
+		DELETE(vms->curdir, x, vms->fn);
+	} 
+	ast_unlock_path(vms->curdir);
+
+done:
 	memset(vms->deleted, 0, sizeof(vms->deleted)); 
 	memset(vms->heard, 0, sizeof(vms->heard)); 
+
 	return 0;
 }
 
