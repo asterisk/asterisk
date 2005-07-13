@@ -3249,6 +3249,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 	}
+	ast_mutex_lock(&s->lock);
 	for (q = queues; q; q = q->next) {
 		ast_mutex_lock(&q->lock);
 
@@ -3256,7 +3257,6 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 		if (ast_strlen_zero(queuefilter) || !strcmp(q->name, queuefilter)) {
 			if(q->callscompleted > 0)
 				sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-			ast_mutex_lock(&s->lock);
 			ast_cli(s->fd, "Event: QueueParams\r\n"
 						"Queue: %s\r\n"
 						"Max: %d\r\n"
@@ -3307,10 +3307,17 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 						(long)(now - qe->start), idText);
 			}
 		}
-		ast_mutex_unlock(&s->lock);
 		ast_mutex_unlock(&q->lock);
 	}
 	ast_mutex_unlock(&qlock);
+
+	ast_cli(s->fd,
+		"Event: QueueStatusComplete\r\n"
+		"%s"
+		"\r\n",idText);
+
+	ast_mutex_unlock(&s->lock);
+
 	return RESULT_SUCCESS;
 }
 
