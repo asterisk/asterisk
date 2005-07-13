@@ -497,24 +497,24 @@ typedef struct soft_key_template_definition {
 } soft_key_template_definition;
 
 soft_key_template_definition soft_key_template_default[] = {
-	{ "Redial",	 	htolel(1) },
-	{ "NewCall",	 	htolel(2) },
-	{ "Hold",	 	htolel(3) },
-	{ "Trnsfer",	 	htolel(4) },
-	{ "CFwdAll",	 	htolel(5) },
-	{ "CFwdBusy",	 	htolel(6) },
-	{ "CFwdNoAnswer",	htolel(7) },
-	{ "<<",		 	htolel(8) },
-	{ "EndCall",	 	htolel(9) },
-	{ "Resume",		htolel(10) },
-	{ "Answer",		htolel(11) },
-	{ "Info",		htolel(12) },
-	{ "Confrn",		htolel(13) },
-	{ "Park",		htolel(14) },
-	{ "Join",		htolel(15) },
-	{ "MeetMe",		htolel(16) },
-	{ "PickUp",		htolel(17) },
-	{ "GPickUp",		htolel(18) }
+	{ "Redial",	 	1 },
+	{ "NewCall",	 	2 },
+	{ "Hold",	 	3 },
+	{ "Trnsfer",	 	4 },
+	{ "CFwdAll",	 	5 },
+	{ "CFwdBusy",	 	6 },
+	{ "CFwdNoAnswer",	7 },
+	{ "<<",		 	8 },
+	{ "EndCall",	 	9 },
+	{ "Resume",		10 },
+	{ "Answer",		11 },
+	{ "Info",		12 },
+	{ "Confrn",		13 },
+	{ "Park",		14 },
+	{ "Join",		15 },
+	{ "MeetMe",		16 },
+	{ "PickUp",		17 },
+	{ "GPickUp",		18 },
 };
 
 typedef struct soft_key_template {
@@ -3300,6 +3300,9 @@ int reload(void)
 int load_module()
 {
 	int res = 0;
+
+	for (; res < (sizeof(soft_key_template_default) / sizeof(soft_key_template_default[0])); res++)
+		soft_key_template_default[res].softKeyEvent = htolel(soft_key_template_default[res].softKeyEvent);
 
 	/* load and parse config */
 	res = reload_config();
