@@ -225,6 +225,8 @@ endif
 CC=gcc
 INSTALL=install
 
+CFLAGS+=$(shell if uname -r|grep -q 8.2.0 ; then echo " -DOSX10_4 " ; fi)
+
 _all: all
 	@echo " +--------- Asterisk Build Complete ---------+"  
 	@echo " + Asterisk has successfully been built, but +"  
