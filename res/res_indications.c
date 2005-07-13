@@ -375,8 +375,8 @@ int unload_module(void)
 	ast_cli_unregister(&add_indication_cli);
 	ast_cli_unregister(&remove_indication_cli);
 	ast_cli_unregister(&show_indications_cli);
-	ast_unregister_application("Playtones");
-	ast_unregister_application("StopPlaytones");
+	ast_unregister_application("PlayTones");
+	ast_unregister_application("StopPlayTones");
 	return 0;
 }
 
