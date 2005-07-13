@@ -8237,7 +8237,7 @@ static void *pri_dchannel(void *vpri)
 							snprintf(calledtonstr, sizeof(calledtonstr)-1, "%d", e->ring.calledplan);
 							pbx_builtin_setvar_helper(c, "CALLEDTON", calledtonstr);
 							if (e->ring.redirectingreason >= 0)
-								pbx_builtin_setvar_helper(c, "PRIREDIRECTCAUSE", redirectingreason2str(e->ring.redirectingreason));
+								pbx_builtin_setvar_helper(c, "PRIREDIRECTREASON", redirectingreason2str(e->ring.redirectingreason));
 							
 							ast_mutex_lock(&pri->lock);
 							if (c && !ast_pthread_create(&threadid, &attr, ss_thread, c)) {
