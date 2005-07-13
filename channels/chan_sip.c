@@ -1630,7 +1630,75 @@ static struct sip_user *find_user(const char *name, int realtime)
 	return(u);
 }
 
-/*--- create_addr: create address structure from peer definition ---*/
+/*--- create_addr_from_peer: create address structure from peer reference ---*/
+static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
+{
+	char *callhost;
+
+	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
+	    (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms)))) {
+		if (peer->addr.sin_addr.s_addr) {
+			r->sa.sin_addr = peer->addr.sin_addr;
+			r->sa.sin_port = peer->addr.sin_port;
+		} else {
+			r->sa.sin_addr = peer->defaddr.sin_addr;
+			r->sa.sin_port = peer->defaddr.sin_port;
+		}
+		memcpy(&r->recv, &r->sa, sizeof(r->recv));
+	} else {
+		return -1;
+	}
+
+	ast_copy_flags(r, peer,
+		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE |
+		       SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
+	r->capability = peer->capability;
+	if (r->rtp) {
+		ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		ast_rtp_setnat(r->rtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+	}
+	if (r->vrtp) {
+		ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		ast_rtp_setnat(r->vrtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+	}
+	ast_copy_string(r->peername, peer->username, sizeof(r->peername));
+	ast_copy_string(r->authname, peer->username, sizeof(r->authname));
+	ast_copy_string(r->username, peer->username, sizeof(r->username));
+	ast_copy_string(r->peersecret, peer->secret, sizeof(r->peersecret));
+	ast_copy_string(r->peermd5secret, peer->md5secret, sizeof(r->peermd5secret));
+	ast_copy_string(r->tohost, peer->tohost, sizeof(r->tohost));
+	ast_copy_string(r->fullcontact, peer->fullcontact, sizeof(r->fullcontact));
+	if (!r->initreq.headers && !ast_strlen_zero(peer->fromdomain)) {
+		if ((callhost = strchr(r->callid, '@'))) {
+			strncpy(callhost + 1, peer->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 2);
+		}
+	}
+	if (ast_strlen_zero(r->tohost)) {
+		if (peer->addr.sin_addr.s_addr)
+			ast_inet_ntoa(r->tohost, sizeof(r->tohost), peer->addr.sin_addr);
+		else
+			ast_inet_ntoa(r->tohost, sizeof(r->tohost), peer->defaddr.sin_addr);
+	}
+	if (!ast_strlen_zero(peer->fromdomain))
+		ast_copy_string(r->fromdomain, peer->fromdomain, sizeof(r->fromdomain));
+	if (!ast_strlen_zero(peer->fromuser))
+		ast_copy_string(r->fromuser, peer->fromuser, sizeof(r->fromuser));
+	r->maxtime = peer->maxms;
+	r->callgroup = peer->callgroup;
+	r->pickupgroup = peer->pickupgroup;
+	if (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833)
+		r->noncodeccapability |= AST_RTP_DTMF;
+	else
+		r->noncodeccapability &= ~AST_RTP_DTMF;
+	ast_copy_string(r->context, peer->context,sizeof(r->context));
+	r->rtptimeout = peer->rtptimeout;
+	r->rtpholdtimeout = peer->rtpholdtimeout;
+	r->rtpkeepalive = peer->rtpkeepalive;
+
+	return 0;
+}
+
+/*--- create_addr: create address structure from peer name ---*/
 /*      Or, if peer not found, find it in the global DNS */
 /*      returns TRUE (-1) on failure, FALSE on success */
 static int create_addr(struct sip_pvt *r, char *opeer)
@@ -1640,7 +1708,6 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 	struct sip_peer *p;
 	int found=0;
 	char *port;
-	char *callhost;
 	int portno;
 	char host[MAXHOSTNAMELEN], *hostn;
 	char peer[256]="";
@@ -1656,66 +1723,13 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 
 	if (p) {
 		found++;
-		ast_copy_flags(r, p,
-			       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE |
-			       SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
-		r->capability = p->capability;
-		if (r->rtp) {
-			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-			ast_rtp_setnat(r->rtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-		}
-		if (r->vrtp) {
-			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-			ast_rtp_setnat(r->vrtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
-		}
-		ast_copy_string(r->peername, p->username, sizeof(r->peername));
-		ast_copy_string(r->authname, p->username, sizeof(r->authname));
-		ast_copy_string(r->username, p->username, sizeof(r->username));
-		ast_copy_string(r->peersecret, p->secret, sizeof(r->peersecret));
-		ast_copy_string(r->peermd5secret, p->md5secret, sizeof(r->peermd5secret));
-		ast_copy_string(r->tohost, p->tohost, sizeof(r->tohost));
-		ast_copy_string(r->fullcontact, p->fullcontact, sizeof(r->fullcontact));
-		if (!r->initreq.headers && !ast_strlen_zero(p->fromdomain)) {
-			if ((callhost = strchr(r->callid, '@'))) {
-				strncpy(callhost + 1, p->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 2);
-			}
-		}
-		if (ast_strlen_zero(r->tohost)) {
-			if (p->addr.sin_addr.s_addr)
-				ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->addr.sin_addr);
-			else
-				ast_inet_ntoa(r->tohost, sizeof(r->tohost), p->defaddr.sin_addr);
-		}
-		if (!ast_strlen_zero(p->fromdomain))
-			ast_copy_string(r->fromdomain, p->fromdomain, sizeof(r->fromdomain));
-		if (!ast_strlen_zero(p->fromuser))
-			ast_copy_string(r->fromuser, p->fromuser, sizeof(r->fromuser));
-		r->maxtime = p->maxms;
-		r->callgroup = p->callgroup;
-		r->pickupgroup = p->pickupgroup;
-		if (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833)
-			r->noncodeccapability |= AST_RTP_DTMF;
-		else
-			r->noncodeccapability &= ~AST_RTP_DTMF;
-		ast_copy_string(r->context, p->context,sizeof(r->context));
-		r->rtptimeout = p->rtptimeout;
-		r->rtpholdtimeout = p->rtpholdtimeout;
-		r->rtpkeepalive = p->rtpkeepalive;
-		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-		    (!p->maxms || ((p->lastms >= 0)  && (p->lastms <= p->maxms)))) {
-			if (p->addr.sin_addr.s_addr) {
-				r->sa.sin_addr = p->addr.sin_addr;
-				r->sa.sin_port = p->addr.sin_port;
-			} else {
-				r->sa.sin_addr = p->defaddr.sin_addr;
-				r->sa.sin_port = p->defaddr.sin_port;
-			}
-			memcpy(&r->recv, &r->sa, sizeof(r->recv));
-		} else {
-			ASTOBJ_UNREF(p,sip_destroy_peer);
-		}
+		if (create_addr_from_peer(r, p))
+			ASTOBJ_UNREF(p, sip_destroy_peer);
 	}
-	if (!p && !found) {
+	if (!p) {
+		if (found)
+			return -1;
+
 		hostn = peer;
 		if (port)
 			portno = atoi(port);
@@ -1743,10 +1757,8 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 			ast_log(LOG_WARNING, "No such host: %s\n", peer);
 			return -1;
 		}
-	} else if (!p)
-		return -1;
-	else {
-		ASTOBJ_UNREF(p,sip_destroy_peer);
+	} else {
+		ASTOBJ_UNREF(p, sip_destroy_peer);
 		return 0;
 	}
 }
@@ -9697,7 +9709,6 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 {
 	/* Called with peerl lock, but releases it */
 	struct sip_pvt *p;
-	char name[256] = "";
 	int newmsgs, oldmsgs;
 
 	/* Check for messages */
@@ -9715,9 +9726,8 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		ast_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
 		return -1;
 	}
-	ast_copy_string(name, peer->name, sizeof(name));
 	peer->lastmsgssent = ((newmsgs << 8) | (oldmsgs));
-	if (create_addr(p, name)) {
+	if (create_addr_from_peer(p, peer)) {
 		/* Maybe they're not registered, etc. */
 		sip_destroy(p);
 		return 0;
