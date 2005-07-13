@@ -5844,13 +5844,15 @@ static void *ss_thread(void *data)
 		}
 		else
 			cs = NULL;
-		if (chan->cid.cid_num) {
+		if (number || name) {
+		    if (chan->cid.cid_num) {
 			free(chan->cid.cid_num);
 			chan->cid.cid_num = NULL;
-		}
-		if (chan->cid.cid_name) {
+		    }
+		    if (chan->cid.cid_name) {
 			free(chan->cid.cid_name);
 			chan->cid.cid_name = NULL;
+		    }
 		}
 		if (number)
 			ast_shrink_phone_number(number);
