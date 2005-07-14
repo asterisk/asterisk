@@ -1137,6 +1137,10 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	   have some 'dead air' in between them
 	*/
 	rtp->lastdigitts += 960;
+	/* Increment the sequence number to reflect the last packet
+	   that was sent
+	*/
+	rtp->seqno++;
 	return 0;
 }
 
