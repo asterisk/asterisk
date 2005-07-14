@@ -25,72 +25,6 @@ HOST_CC=gcc
 # CROSS_PROC=arm
 # SUB_PROC=xscale # or maverick
 
-ifeq ($(CROSS_COMPILE),)
-OSARCH=$(shell uname -s)
-else
-OSARCH=$(CROSS_ARCH)
-endif
-
-ifeq (${OSARCH},Linux)
-ifeq ($(CROSS_COMPILE),)
-PROC?=$(shell uname -m)
-else
-PROC=$(CROSS_PROC)
-endif
-ifeq ($(PROC),x86_64)
-# You must have GCC 3.4 to use k8, otherwise use athlon
-PROC=k8
-#PROC=athlon
-OPTIONS+=-m64
-endif
-ifeq ($(PROC),sparc64)
-#The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
-#This works for even old (2.96) versions of gcc and provides a small boost either way.
-#A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
-#So we go lowest common available by gcc and go a step down, still a step up from
-#the default as we now have a better instruction set to work with. - Belgarath
-PROC=ultrasparc
-OPTIONS+=$(shell if $(CC) -mtune=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mtune=$(PROC)"; fi)
-OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mcpu=v8"; fi)
-OPTIONS+=-fomit-frame-pointer
-endif
-
-ifeq ($(PROC),arm)
-# The Cirrus logic is the only heavily shipping arm processor with a real floating point unit
-ifeq ($(SUB_PROC),maverick)
-OPTIONS+=-fsigned-char -mcpu=ep9312
-else
-ifeq ($(SUB_PROC),xscale)
-OPTIONS+=-fsigned-char -msoft-float -mcpu=xscale
-else
-OPTIONS+=-fsigned-char -msoft-float 
-endif
-endif
-endif
-MPG123TARG=linux
-endif
-
-ifeq ($(findstring BSD,${OSARCH}),BSD)
-PROC=$(shell uname -m)
-endif
-
-# Pentium Pro Optimize
-#PROC=i686
-
-# Pentium & VIA processors optimize
-#PROC=i586
-
-#PROC=k6
-#PROC=ppc
-
-PWD=$(shell pwd)
-
-GREP=grep
-ifeq (${OSARCH},SunOS)
-GREP=/usr/xpg4/bin/grep
-M4=/usr/local/bin/m4
-endif
-
 ######### More GSM codec optimization
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
@@ -167,8 +101,90 @@ ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
 MODULES_DIR=$(ASTLIBDIR)/modules
 AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 
+# Pentium Pro Optimize
+#PROC=i686
+
+# Pentium & VIA processors optimize
+#PROC=i586
+
+#PROC=k6
+#PROC=ppc
+
+#Uncomment this to use the older DSP routines
+#CFLAGS+=-DOLD_DSP_ROUTINES
+
+# Determine by a grep 'DocumentRoot' of your httpd.conf file
+HTTP_DOCSDIR=/var/www/html
+# Determine by a grep 'ScriptAlias' of your httpd.conf file
+HTTP_CGIDIR=/var/www/cgi-bin
+
+# If the file .asterisk.makeopts is present in your home directory, you can
+# include all of your favorite Makefile options so that every time you download
+# a new version of Asterisk, you don't have to edit the makefile to set them. 
+
+ifneq ($(wildcard ~/.asterisk.makeopts),)
+include ~/.asterisk.makeopts
+endif
+
+ifeq ($(CROSS_COMPILE),)
+OSARCH=$(shell uname -s)
+else
+OSARCH=$(CROSS_ARCH)
+endif
+
+ifeq (${OSARCH},Linux)
+ifeq ($(CROSS_COMPILE),)
+PROC?=$(shell uname -m)
+else
+PROC=$(CROSS_PROC)
+endif
+ifeq ($(PROC),x86_64)
+# You must have GCC 3.4 to use k8, otherwise use athlon
+PROC=k8
+#PROC=athlon
+OPTIONS+=-m64
+endif
+ifeq ($(PROC),sparc64)
+#The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
+#This works for even old (2.96) versions of gcc and provides a small boost either way.
+#A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
+#So we go lowest common available by gcc and go a step down, still a step up from
+#the default as we now have a better instruction set to work with. - Belgarath
+PROC=ultrasparc
+OPTIONS+=$(shell if $(CC) -mtune=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mtune=$(PROC)"; fi)
+OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mcpu=v8"; fi)
+OPTIONS+=-fomit-frame-pointer
+endif
+
+ifeq ($(PROC),arm)
+# The Cirrus logic is the only heavily shipping arm processor with a real floating point unit
+ifeq ($(SUB_PROC),maverick)
+OPTIONS+=-fsigned-char -mcpu=ep9312
+else
+ifeq ($(SUB_PROC),xscale)
+OPTIONS+=-fsigned-char -msoft-float -mcpu=xscale
+else
+OPTIONS+=-fsigned-char -msoft-float 
+endif
+endif
+endif
+MPG123TARG=linux
+endif
+
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+PROC=$(shell uname -m)
+endif
+
+PWD=$(shell pwd)
+
+GREP=grep
+ifeq (${OSARCH},SunOS)
+GREP=/usr/xpg4/bin/grep
+M4=/usr/local/bin/m4
+endif
+
 INCLUDE=-Iinclude -I../include
-CFLAGS=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
+CFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 CFLAGS+=$(OPTIMIZE)
 
 ifneq ($(PROC),ultrasparc)
@@ -203,9 +219,6 @@ CFLAGS+=-Wcast-align -DSOLARIS
 INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
 endif
 
-#Uncomment this to use the older DSP routines
-#CFLAGS+=-DOLD_DSP_ROUTINES
-
 CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
 CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
 
@@ -215,10 +228,6 @@ ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS 
 ASTERISKVERSIONNUM=$(shell if [ -d CVS ]; then echo 999999 ; else if [ -f .version ] ; then awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version ; else echo 000000 ; fi ; fi)
 # Set the following two variables to match your httpd installation.
 
-# Determine by a grep 'DocumentRoot' of your httpd.conf file
-HTTP_DOCSDIR=/var/www/html
-# Determine by a grep 'ScriptAlias' of your httpd.conf file
-HTTP_CGIDIR=/var/www/cgi-bin
 RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
 
 CFLAGS+= $(DEBUG_THREADS)
