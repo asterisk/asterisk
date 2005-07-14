@@ -406,7 +406,8 @@ static int odbc_init(void)
 		SQLSetConnectAttr(ODBC_con, SQL_LOGIN_TIMEOUT, (SQLPOINTER *)10, 0);	
 	}
 
-	/* XXX note username and password could be NULL here */
+	/* Note that the username and password could be NULL here, but that is allowed in ODBC.
+           In this case, the default username and password will be used from odbc.conf */
 	ODBC_res = SQLConnect(ODBC_con, (SQLCHAR*)dsn, SQL_NTS, (SQLCHAR*)username, SQL_NTS, (SQLCHAR*)password, SQL_NTS);
 
 	if ((ODBC_res != SQL_SUCCESS) && (ODBC_res != SQL_SUCCESS_WITH_INFO)) {
