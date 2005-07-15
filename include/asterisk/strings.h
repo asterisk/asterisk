@@ -197,14 +197,32 @@ struct ast_realloca {
 		(ra)->ptr; \
 	})
 
+#define HAVE_VASPRINTF
+
 #ifdef __linux__
-#define ast_strcasestr strcasestr
-#define ast_strndup	strndup
-#define ast_strnlen	strnlen
-#else /* !__linux__ */
-char *ast_strcasestr(const char *, const char *);
-char *ast_strndup(const char *, size_t);
-size_t ast_strnlen(const char *, size_t);
-#endif /* !__linux__ */
+#define HAVE_STRCASESTR
+#define HAVE_STRNDUP
+#define HAVE_STRNLEN
+#endif
+
+#ifdef SOLARIS
+#undef HAVE_VASPRINTF
+#endif
+
+#ifndef HAVE_STRCASESTR
+char *strcasestr(const char *, const char *);
+#endif
+
+#ifndef HAVE_STRNDUP
+char *strndup(const char *, size_t);
+#endif
+
+#ifndef HAVE_STRNLEN
+size_t strnlen(const char *, size_t);
+#endif
+
+#ifndef HAVE_VASPRINTF
+int vasprintf(char **strp, const char *fmt, va_list ap);
+#endif
 
 #endif /* _ASTERISK_STRINGS_H */

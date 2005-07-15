@@ -20,6 +20,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <stdarg.h>
 
 #include "asterisk.h"
 
@@ -492,22 +493,22 @@ int ast_false(const char *s)
 	return 0;
 }
 
-/* Case-insensitive substring matching */
-#ifndef __linux__ 
+#ifndef HAVE_STRCASESTR
 static char *upper(const char *orig, char *buf, int bufsize)
 {
-	int i;
-	memset(buf, 0, bufsize);
-	for (i=0; i<bufsize - 1; i++) {
+	int i = 0;
+
+	while (i < (bufsize - 1) && orig[i]) {
 		buf[i] = toupper(orig[i]);
-		if (orig[i] == '\0') {
-			break;
-		}
+		i++;
 	}
+
+	buf[i] = '\0';
+
 	return buf;
 }
 
-char *ast_strcasestr(const char *haystack, const char *needle)
+char *strcasestr(const char *haystack, const char *needle)
 {
 	char *u1, *u2;
 	int u1len = strlen(haystack) + 1, u2len = strlen(needle) + 1;
@@ -532,8 +533,10 @@ char *ast_strcasestr(const char *haystack, const char *needle)
 		return NULL;
 	}
 }
+#endif
 
-size_t ast_strnlen(const char *s, size_t n)
+#ifndef HAVE_STRNLEN
+size_t strnlen(const char *s, size_t n)
 {
 	size_t len;
 
@@ -543,10 +546,12 @@ size_t ast_strnlen(const char *s, size_t n)
 
 	return len;
 }
+#endif
 
-char *ast_strndup(const char *s, size_t n)
+#ifndef HAVE_STRNDUP
+char *strndup(const char *s, size_t n)
 {
-	size_t len = ast_strnlen(s, n);
+	size_t len = strnlen(s, n);
 	char *new = malloc(len + 1);
 
 	if (!new)
@@ -555,5 +560,25 @@ char *ast_strndup(const char *s, size_t n)
 	new[len] = '\0';
 	return memcpy(new, s, len);
 }
+#endif
 
-#endif /* !__linux__ */
+#ifndef HAVE_VASPRINTF
+int vasprintf(char **strp, const char *fmt, va_list ap)
+{
+	int size;
+	va_list ap2;
+
+	*strp = NULL;
+	va_copy(ap2, ap);
+	size = vsnprintf(*strp, 0, fmt, ap2);
+	va_end(ap2);
+	*strp = malloc(size + 1);
+	if (!*strp)
+		return -1;
+	va_start(fmt, ap);
+	vsnprintf(*strp, size + 1, fmt, ap);
+	va_end(ap);
+
+	return size;
+}
+#endif

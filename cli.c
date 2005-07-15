@@ -47,15 +47,10 @@ void ast_cli(int fd, char *fmt, ...)
 {
 	char *stuff;
 	int res = 0;
-
 	va_list ap;
+
 	va_start(ap, fmt);
-#ifdef SOLARIS
-        stuff = (char *)malloc(10240);
-        vsnprintf(stuff, 10240, fmt, ap);
-#else
 	res = vasprintf(&stuff, fmt, ap);
-#endif
 	va_end(ap);
 	if (res == -1) {
 		ast_log(LOG_ERROR, "Out of memory\n");

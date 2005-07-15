@@ -332,7 +332,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 			while(v) {
 				/* Find a candidate extension */
 				start = strdup(v->value);
-				if (start && !ast_strcasestr(start, "hidefromdir=yes")) {
+				if (start && !strcasestr(start, "hidefromdir=yes")) {
 					stringp=start;
 					strsep(&stringp, ",");
 					pos = strsep(&stringp, ",");

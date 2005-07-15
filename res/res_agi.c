@@ -51,9 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
 #include "asterisk/agi.h"
-#ifdef SOLARIS
-#include "asterisk/astmm.h"
-#endif
 
 #define MAX_ARGS 128
 #define MAX_COMMANDS 128

@@ -3104,7 +3104,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 		int printapp=0;
 		total_apps++;
 		if (like) {
-			if (ast_strcasestr(a->name, argv[3])) {
+			if (strcasestr(a->name, argv[3])) {
 				printapp = 1;
 				total_match++;
 			}
@@ -3114,7 +3114,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 				int i;
 				printapp = 1;
 				for (i=3;i<argc;i++) {
-					if (! ast_strcasestr(a->description, argv[i])) {
+					if (!strcasestr(a->description, argv[i])) {
 						printapp = 0;
 					} else {
 						total_match++;
