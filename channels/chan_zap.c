@@ -3289,8 +3289,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	pthread_t threadid;
 	pthread_attr_t attr;
 	struct ast_channel *chan;
+
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	index = zt_get_index(ast, p, 0);
 	p->subs[index].f.frametype = AST_FRAME_NULL;
 	p->subs[index].f.datalen = 0;
@@ -3306,7 +3308,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		p->fake_event = 0;
 	} else
 		res = zt_get_event(p->subs[index].zfd);
+
 	ast_log(LOG_DEBUG, "Got event %s(%d) on channel %d (index %d)\n", event2str(res), res, p->channel, index);
+
 	if (res & (ZT_EVENT_PULSEDIGIT | ZT_EVENT_DTMFUP)) {
 		if (res & ZT_EVENT_PULSEDIGIT)
 			p->pulsedial = 1;
@@ -3319,6 +3323,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		zt_confmute(p, 0);
 		return &p->subs[index].f;
 	}
+
 	if (res & ZT_EVENT_DTMFDOWN) {
 		ast_log(LOG_DEBUG, "DTMF Down '%c'\n", res & 0xff);
 		p->subs[index].f.frametype = AST_FRAME_NULL;
@@ -3327,6 +3332,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		/* Mute conference, return null frame */
 		return &p->subs[index].f;
 	}
+
 	switch(res) {
 		case ZT_EVENT_BITSCHANGED:
 			if (p->sig == SIG_R2) {
@@ -3486,13 +3492,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
 							ast_log(LOG_DEBUG, "Looks like a bounced flash, hanging up both calls on %d\n", p->channel);
 							ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
-						} else if ((ast->pbx) ||
-							(ast->_state == AST_STATE_UP)) {
+						} else if ((ast->pbx) || (ast->_state == AST_STATE_UP)) {
 							if (p->transfer) {
 								/* In any case this isn't a threeway call anymore */
 								p->subs[SUB_REAL].inthreeway = 0;
 								p->subs[SUB_THREEWAY].inthreeway = 0;
-								if (!p->transfertobusy && p->owner->_state == AST_STATE_BUSY) {
+								/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
+								if (!p->transfertobusy && ast->_state == AST_STATE_BUSY) {
 									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 									/* Swap subs and dis-own channel */
 									swap_subs(p, SUB_THREEWAY, SUB_REAL);
@@ -3500,20 +3506,22 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 									/* Ring the phone */
 									zt_ring_phone(p);
 								} else {
-									/* Only attempt transfer if the phone is ringing; why transfer to busy tone eh? */
-									if ((res = attempt_transfer(p)) < 0)
+									if ((res = attempt_transfer(p)) < 0) {
 										p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
-									else if (res) {
+										if (p->subs[SUB_THREEWAY].owner)
+											ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+									} else if (res) {
 										/* Don't actually hang up at this point */
 										if (p->subs[SUB_THREEWAY].owner)
 											ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 										break;
 									}
 								}
-							} else
+							} else {
 								p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
-							if (p->subs[SUB_THREEWAY].owner)
-								ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+								if (p->subs[SUB_THREEWAY].owner)
+									ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
+							}
 						} else {
 							ast_mutex_unlock(&p->subs[SUB_THREEWAY].owner->lock);
 							/* Swap subs and dis-own channel */
@@ -3725,137 +3733,144 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				ast_log(LOG_DEBUG, "Winkflash, index: %d, normal: %d, callwait: %d, thirdcall: %d\n",
 					index, p->subs[SUB_REAL].zfd, p->subs[SUB_CALLWAIT].zfd, p->subs[SUB_THREEWAY].zfd);
 				p->callwaitcas = 0;
-				if (index == SUB_REAL) {
-					if (p->subs[SUB_CALLWAIT].owner) {
-						/* Swap to call-wait */
-						swap_subs(p, SUB_REAL, SUB_CALLWAIT);
-						tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
-						p->owner = p->subs[SUB_REAL].owner;
-						ast_log(LOG_DEBUG, "Making %s the new owner\n", p->owner->name);
-						if (p->owner->_state == AST_STATE_RINGING) {
-							ast_setstate(p->owner, AST_STATE_UP);
-							p->subs[SUB_REAL].needanswer = 1;
-						}
-						p->callwaitingrepeat = 0;
-						p->cidcwexpire = 0;
-						/* Start music on hold if appropriate */
-						if (!p->subs[SUB_CALLWAIT].inthreeway && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner))
-								ast_moh_start(ast_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
-						if (ast_bridged_channel(p->subs[SUB_REAL].owner))
-								ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
-					} else if (!p->subs[SUB_THREEWAY].owner) {
-						char cid_num[256]="";
-						char cid_name[256]="";
-						if (p->threewaycalling && !check_for_conference(p)) {
-							if (p->zaptrcallerid && p->owner) {
-								if (p->owner->cid.cid_num)
-									ast_copy_string(cid_num, p->owner->cid.cid_num, sizeof(cid_num));
-								if (p->owner->cid.cid_name)
-									ast_copy_string(cid_name, p->owner->cid.cid_name, sizeof(cid_name));
-							}
-							/* XXX This section needs much more error checking!!! XXX */
-							/* Start a 3-way call if feasible */
-							if ((ast->pbx) ||
-									(ast->_state == AST_STATE_UP) ||
-									(ast->_state == AST_STATE_RING)) {
-								if (!alloc_sub(p, SUB_THREEWAY)) {
-									/* Make new channel */
-									chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
-									if (p->zaptrcallerid) {
-										if (!p->origcid_num)
-											p->origcid_num = strdup(p->cid_num);
-										if (!p->origcid_name)
-											p->origcid_name = strdup(p->cid_name);
-										ast_copy_string(p->cid_num, cid_num, sizeof(p->cid_num));
-										ast_copy_string(p->cid_name, cid_name, sizeof(p->cid_name));
-									}
-									/* Swap things around between the three-way and real call */
-									swap_subs(p, SUB_THREEWAY, SUB_REAL);
-									/* Disable echo canceller for better dialing */
-									zt_disable_ec(p);
-									res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_DIALRECALL);
-									if (res)
-										ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
-									p->owner = chan;
-									if (chan && ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
-										ast_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
-										res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
-										zt_enable_ec(p);
-										ast_hangup(chan);
-									} else if (!chan) {
-										ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
-									} else {
-										if (option_verbose > 2)	
-											ast_verbose(VERBOSE_PREFIX_3 "Started three way call on channel %d\n", p->channel);
-										/* Start music on hold if appropriate */
-										if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
-											ast_moh_start(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
-									}		
-								} else
-									ast_log(LOG_WARNING, "Unable to allocate three-way subchannel\n");
-							} else 
-								ast_log(LOG_DEBUG, "Flash when call not up or ringing\n");
-						} else if (!p->threewaycalling) {
-							/* Just send a flash if no 3-way calling or callwait */
-							p->subs[SUB_REAL].needflash = 1;
-						}
-					} else {
-						/* Already have a 3 way call */
-						if (p->subs[SUB_THREEWAY].inthreeway) {
-							/* Call is already up, drop the last person */
-							if (option_debug)
-								ast_log(LOG_DEBUG, "Got flash with three way call up, dropping last call on %d\n", p->channel);
-							/* If the primary call isn't answered yet, use it */
-							if ((p->subs[SUB_REAL].owner->_state != AST_STATE_UP) && (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_UP)) {
-								/* Swap back -- we're droppign the real 3-way that isn't finished yet*/
-								swap_subs(p, SUB_THREEWAY, SUB_REAL);
-								p->owner = p->subs[SUB_REAL].owner;
-							}
-							/* Drop the last call and stop the conference */
-							if (option_verbose > 2)
-								ast_verbose(VERBOSE_PREFIX_3 "Dropping three-way call on %s\n", p->subs[SUB_THREEWAY].owner->name);
-							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
-							p->subs[SUB_REAL].inthreeway = 0;
-							p->subs[SUB_THREEWAY].inthreeway = 0;
-						} else {
-							/* Lets see what we're up to */
-							if (((ast->pbx) || (ast->_state == AST_STATE_UP)) && 
-							    (p->transfertobusy || (p->owner->_state != AST_STATE_BUSY))) {
-								int otherindex = SUB_THREEWAY;
 
-								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "Building conference on call on %s and %s\n", p->subs[SUB_THREEWAY].owner->name, p->subs[SUB_REAL].owner->name);
-								/* Put them in the threeway, and flip */
-								p->subs[SUB_THREEWAY].inthreeway = 1;
-								p->subs[SUB_REAL].inthreeway = 1;
-								if (ast->_state == AST_STATE_UP) {
-									swap_subs(p, SUB_THREEWAY, SUB_REAL);
-									otherindex = SUB_REAL;
-								}
-								if (p->subs[otherindex].owner && ast_bridged_channel(p->subs[otherindex].owner))
-									ast_moh_stop(ast_bridged_channel(p->subs[otherindex].owner));
-								p->owner = p->subs[SUB_REAL].owner;
-								if (ast->_state == AST_STATE_RINGING) {
-									ast_log(LOG_DEBUG, "Enabling ringtone on real and threeway\n");
-									res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
-									res = tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, ZT_TONE_RINGTONE);
-								}
-							} else {
-								if (option_verbose > 2)
-									ast_verbose(VERBOSE_PREFIX_3 "Dumping incomplete call on on %s\n", p->subs[SUB_THREEWAY].owner->name);
-								swap_subs(p, SUB_THREEWAY, SUB_REAL);
-								p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
-								p->owner = p->subs[SUB_REAL].owner;
-								if (p->subs[SUB_REAL].owner && ast_bridged_channel(p->subs[SUB_REAL].owner))
-									ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
-								zt_enable_ec(p);
-							}
-							
+				if (index != SUB_REAL) {
+					ast_log(LOG_WARNING, "Got flash hook with index %d on channel %d?!?\n", index, p->channel);
+					goto winkflashdone;
+				}
+				
+				if (p->subs[SUB_CALLWAIT].owner) {
+					/* Swap to call-wait */
+					swap_subs(p, SUB_REAL, SUB_CALLWAIT);
+					tone_zone_play_tone(p->subs[SUB_REAL].zfd, -1);
+					p->owner = p->subs[SUB_REAL].owner;
+					ast_log(LOG_DEBUG, "Making %s the new owner\n", p->owner->name);
+					if (p->owner->_state == AST_STATE_RINGING) {
+						ast_setstate(p->owner, AST_STATE_UP);
+						p->subs[SUB_REAL].needanswer = 1;
+					}
+					p->callwaitingrepeat = 0;
+					p->cidcwexpire = 0;
+					/* Start music on hold if appropriate */
+					if (!p->subs[SUB_CALLWAIT].inthreeway && ast_bridged_channel(p->subs[SUB_CALLWAIT].owner))
+						ast_moh_start(ast_bridged_channel(p->subs[SUB_CALLWAIT].owner), NULL);
+					if (ast_bridged_channel(p->subs[SUB_REAL].owner))
+						ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
+				} else if (!p->subs[SUB_THREEWAY].owner) {
+					char cid_num[256];
+					char cid_name[256];
+
+					if (!p->threewaycalling) {
+						/* Just send a flash if no 3-way calling */
+						p->subs[SUB_REAL].needflash = 1;
+						goto winkflashdone;
+					} else if (!check_for_conference(p)) {
+						if (p->zaptrcallerid && p->owner) {
+							if (p->owner->cid.cid_num)
+								ast_copy_string(cid_num, p->owner->cid.cid_num, sizeof(cid_num));
+							if (p->owner->cid.cid_name)
+								ast_copy_string(cid_name, p->owner->cid.cid_name, sizeof(cid_name));
 						}
+						/* XXX This section needs much more error checking!!! XXX */
+						/* Start a 3-way call if feasible */
+						if (!((ast->pbx) ||
+						      (ast->_state == AST_STATE_UP) ||
+						      (ast->_state == AST_STATE_RING))) {
+							ast_log(LOG_DEBUG, "Flash when call not up or ringing\n");
+								goto winkflashdone;
+						}
+						if (alloc_sub(p, SUB_THREEWAY)) {
+							ast_log(LOG_WARNING, "Unable to allocate three-way subchannel\n");
+							goto winkflashdone;
+						}
+						/* Make new channel */
+						chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
+						if (p->zaptrcallerid) {
+							if (!p->origcid_num)
+								p->origcid_num = strdup(p->cid_num);
+							if (!p->origcid_name)
+								p->origcid_name = strdup(p->cid_name);
+							ast_copy_string(p->cid_num, cid_num, sizeof(p->cid_num));
+							ast_copy_string(p->cid_name, cid_name, sizeof(p->cid_name));
+						}
+						/* Swap things around between the three-way and real call */
+						swap_subs(p, SUB_THREEWAY, SUB_REAL);
+						/* Disable echo canceller for better dialing */
+						zt_disable_ec(p);
+						res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_DIALRECALL);
+						if (res)
+							ast_log(LOG_WARNING, "Unable to start dial recall tone on channel %d\n", p->channel);
+						p->owner = chan;
+						if (!chan) {
+							ast_log(LOG_WARNING, "Cannot allocate new structure on channel %d\n", p->channel);
+						} else if (ast_pthread_create(&threadid, &attr, ss_thread, chan)) {
+							ast_log(LOG_WARNING, "Unable to start simple switch on channel %d\n", p->channel);
+							res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_CONGESTION);
+							zt_enable_ec(p);
+							ast_hangup(chan);
+						} else {
+							if (option_verbose > 2)	
+								ast_verbose(VERBOSE_PREFIX_3 "Started three way call on channel %d\n", p->channel);
+							/* Start music on hold if appropriate */
+							if (ast_bridged_channel(p->subs[SUB_THREEWAY].owner))
+								ast_moh_start(ast_bridged_channel(p->subs[SUB_THREEWAY].owner), NULL);
+						}		
 					}
 				} else {
-					ast_log(LOG_WARNING, "Got flash hook with index %d on channel %d?!?\n", index, p->channel);
+					/* Already have a 3 way call */
+					if (p->subs[SUB_THREEWAY].inthreeway) {
+						/* Call is already up, drop the last person */
+						if (option_debug)
+							ast_log(LOG_DEBUG, "Got flash with three way call up, dropping last call on %d\n", p->channel);
+						/* If the primary call isn't answered yet, use it */
+						if ((p->subs[SUB_REAL].owner->_state != AST_STATE_UP) && (p->subs[SUB_THREEWAY].owner->_state == AST_STATE_UP)) {
+							/* Swap back -- we're dropping the real 3-way that isn't finished yet*/
+							swap_subs(p, SUB_THREEWAY, SUB_REAL);
+							p->owner = p->subs[SUB_REAL].owner;
+						}
+						/* Drop the last call and stop the conference */
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "Dropping three-way call on %s\n", p->subs[SUB_THREEWAY].owner->name);
+						p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+						p->subs[SUB_REAL].inthreeway = 0;
+						p->subs[SUB_THREEWAY].inthreeway = 0;
+					} else {
+						/* Lets see what we're up to */
+						if (((ast->pbx) || (ast->_state == AST_STATE_UP)) && 
+						    (p->transfertobusy || (ast->_state != AST_STATE_BUSY))) {
+							int otherindex = SUB_THREEWAY;
+
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Building conference on call on %s and %s\n", p->subs[SUB_THREEWAY].owner->name, p->subs[SUB_REAL].owner->name);
+							/* Put them in the threeway, and flip */
+							p->subs[SUB_THREEWAY].inthreeway = 1;
+							p->subs[SUB_REAL].inthreeway = 1;
+							if (ast->_state == AST_STATE_UP) {
+								swap_subs(p, SUB_THREEWAY, SUB_REAL);
+								otherindex = SUB_REAL;
+							}
+							if (p->subs[otherindex].owner && ast_bridged_channel(p->subs[otherindex].owner))
+								ast_moh_stop(ast_bridged_channel(p->subs[otherindex].owner));
+							p->owner = p->subs[SUB_REAL].owner;
+							if (ast->_state == AST_STATE_RINGING) {
+								ast_log(LOG_DEBUG, "Enabling ringtone on real and threeway\n");
+								res = tone_zone_play_tone(p->subs[SUB_REAL].zfd, ZT_TONE_RINGTONE);
+								res = tone_zone_play_tone(p->subs[SUB_THREEWAY].zfd, ZT_TONE_RINGTONE);
+							}
+						} else {
+							if (option_verbose > 2)
+								ast_verbose(VERBOSE_PREFIX_3 "Dumping incomplete call on on %s\n", p->subs[SUB_THREEWAY].owner->name);
+							swap_subs(p, SUB_THREEWAY, SUB_REAL);
+							p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+							p->owner = p->subs[SUB_REAL].owner;
+							if (p->subs[SUB_REAL].owner && ast_bridged_channel(p->subs[SUB_REAL].owner))
+								ast_moh_stop(ast_bridged_channel(p->subs[SUB_REAL].owner));
+							zt_enable_ec(p);
+						}
+							
+					}
 				}
+			winkflashdone:			       
 				update_conf(p);
 				break;
 			case SIG_EM:
