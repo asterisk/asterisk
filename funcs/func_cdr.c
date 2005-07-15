@@ -77,7 +77,12 @@ static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char
 			recursive = 1;
 	}
 
-	ast_cdr_setvar(chan->cdr, argv[0], value, recursive);
+	if (!strcasecmp(argv[0], "accountcode"))
+		ast_cdr_setaccount(chan, value);
+	else if (!strcasecmp(argv[0], "userfield"))
+		ast_cdr_setuserfield(chan, value);
+	else
+		ast_cdr_setvar(chan->cdr, argv[0], value, recursive);
 }
 
 #ifndef BUILTIN_FUNC

@@ -516,11 +516,11 @@ int ast_async_goto_by_name(const char *chan, const char *context, const char *ex
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular extension */
-int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account, struct ast_channel **locked_channel);
+int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, struct ast_channel **locked_channel);
 
 /* Synchronously or asynchronously make an outbound call and send it to a
    particular application with given extension */
-int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account, struct ast_channel **locked_channel);
+int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, struct ast_channel **locked_channel);
 
 /* Functions for returning values from structures */
 const char *ast_get_context_name(struct ast_context *con);

@@ -37,13 +37,11 @@ Priority: 1
 #Callerid: Wakeup Call Service <(555) 555-5555>
 
 #
-# You can set channel variables that will be passed to the channel
+# You can set channel variables that will be passed to the channel.
+# This includes writable dialplan functions.
 #
-#SetVar: file1=/tmp/to
-#SetVar: file2=/tmp/msg
-#SetVar: timestamp=20021023104500
-
-#
-# You may specify an account to be passed to CDRs
-#
-#Account: markster
+#Set: file1=/tmp/to
+#Set: file2=/tmp/msg
+#Set: timestamp=20021023104500
+#Set: CDR(accountcode|r)=blort
+#Set: CDR(userfield|r)=42

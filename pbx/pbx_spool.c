@@ -75,10 +75,8 @@ struct outgoing {
 	char cid_num[256];
 	char cid_name[256];
 
-	/* Channel variables */
-	char variable[10*256];
-	/* Account code */
-	char account[256];
+	/* Variables and Functions */
+	struct ast_variable *vars;
 	
 	/* Maximum length of call */
 	int maxlen;
@@ -98,6 +96,8 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 	char buf[256];
 	char *c, *c2;
 	int lineno = 0;
+	struct ast_variable *var;
+
 	while(fgets(buf, sizeof(buf), f)) {
 		lineno++;
 		/* Trim comments */
@@ -176,12 +176,20 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 					o->callingpid = 0;
 					o->retries++;
 				} else if (!strcasecmp(buf, "delayedretry")) {
-				} else if (!strcasecmp(buf, "setvar")) { /* JDG variable support */
-					strncat(o->variable, c, sizeof(o->variable) - strlen(o->variable) - 1);
-					strncat(o->variable, "|", sizeof(o->variable) - strlen(o->variable) - 1);
-
+				} else if (!strcasecmp(buf, "setvar") || !strcasecmp(buf, "set")) {
+					c2 = c;
+					strsep(&c2, "=");
+					var = ast_variable_new(c, c2);
+					if (var) {
+						var->next = o->vars;
+						o->vars = var;
+					}
 				} else if (!strcasecmp(buf, "account")) {
-					strncpy(o->account, c, sizeof(o->account) - 1);
+					var = ast_variable_new("CDR(accountcode|r)", c);
+					if (var) {	
+						var->next = o->vars;
+						o->vars = var;
+					}
 				} else {
 					ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
 				}
@@ -225,11 +233,11 @@ static void *attempt_thread(void *data)
 	if (!ast_strlen_zero(o->app)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for application %s(%s) (Retry %d)\n", o->tech, o->dest, o->app, o->data, o->retries);
-		res = ast_pbx_outgoing_app(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->variable, o->account, NULL);
+		res = ast_pbx_outgoing_app(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->app, o->data, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, NULL);
 	} else {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Attempting call on %s/%s for %s@%s:%d (Retry %d)\n", o->tech, o->dest, o->exten, o->context,o->priority, o->retries);
-		res = ast_pbx_outgoing_exten(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->variable, o->account, NULL);
+		res = ast_pbx_outgoing_exten(o->tech, AST_FORMAT_SLINEAR, o->dest, o->waittime * 1000, o->context, o->exten, o->priority, &reason, 2 /* wait to finish */, o->cid_num, o->cid_name, o->vars, NULL);
 	}
 	if (res) {
 		ast_log(LOG_NOTICE, "Call failed to go through, reason %d\n", reason);

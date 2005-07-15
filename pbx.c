@@ -4742,15 +4742,14 @@ int ast_pbx_outgoing_cdr_failed(void)
 	return 0;  /* success */
 }
 
-int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account, struct ast_channel **channel)
+int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, struct ast_channel **channel)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
 	int res = -1, cdr_res = -1;
-	char *var, *tmp;
 	struct outgoing_helper oh;
 	pthread_attr_t attr;
-		
+
 	if (sync) {
 		LOAD_OH(oh);
 		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
@@ -4760,25 +4759,21 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				ast_mutex_lock(&chan->lock);
 		}
 		if (chan) {
-			
-			if (account)
-				ast_cdr_setaccount(chan, account);
-			
 			if(chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
 				ast_log(LOG_WARNING, "%s already has a call record??\n", chan->name);
 			} else {
 				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
-				if(!chan->cdr) {
+				if (!chan->cdr) {
 					/* allocation of the cdr failed */
 					ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
 					free(chan->pbx);
-					return -1;  /* return failure */
+					res = -1;
+					goto outgoing_exten_cleanup;
 				}
 				/* allocation of the cdr was successful */
 				ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
 				ast_cdr_start(chan->cdr);
 			}
-
 			if (chan->_state == AST_STATE_UP) {
 					res = 0;
 				if (option_verbose > 3)
@@ -4805,7 +4800,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				if(chan->cdr) { /* update the cdr */
 					/* here we update the status of the call, which sould be busy.
 					 * if that fails then we set the status to failed */
-					if(ast_cdr_disposition(chan->cdr, chan->hangupcause))
+					if (ast_cdr_disposition(chan->cdr, chan->hangupcause))
 						ast_cdr_failed(chan->cdr);
 				}
 			
@@ -4814,29 +4809,26 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		}
 
 		if(res < 0) { /* the call failed for some reason */
-			if(*reason == 0) { /* if the call failed (not busy or no answer)
+			if (*reason == 0) { /* if the call failed (not busy or no answer)
 				            * update the cdr with the failed message */
 				cdr_res = ast_pbx_outgoing_cdr_failed();
-				if(cdr_res != 0)
-					return cdr_res;
+				if (cdr_res != 0) {
+					res = cdr_res;
+					goto outgoing_exten_cleanup;
+				}
 			}
 			
 			/* create a fake channel and execute the "failed" extension (if it exists) within the requested context */
 			/* check if "failed" exists */
 			if (ast_exists_extension(chan, context, "failed", 1, NULL)) {
 				chan = ast_channel_alloc(0);
-				if(chan) {
+				if (chan) {
 					ast_copy_string(chan->name, "OutgoingSpoolFailed", sizeof(chan->name));
 					if (context && !ast_strlen_zero(context))
 						ast_copy_string(chan->context, context, sizeof(chan->context));
 					ast_copy_string(chan->exten, "failed", sizeof(chan->exten));
 					chan->priority = 1;
-					if (variable) {
-						tmp = ast_strdupa(variable);
-						for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp)) {
-							pbx_builtin_setvar( chan, var );
-						}
-					}
+					ast_set_variables(chan, vars);
 					ast_pbx_run(chan);	
 				} else 
 					ast_log(LOG_WARNING, "Can't allocate the channel structure, skipping execution of extension 'failed'\n");
@@ -4844,8 +4836,10 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		}
 	} else {
 		as = malloc(sizeof(struct async_stat));
-		if (!as)
-			return -1;
+		if (!as) {
+			res = -1;
+			goto outgoing_exten_cleanup;
+		}	
 		memset(as, 0, sizeof(struct async_stat));
 		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
 		if (channel) {
@@ -4855,30 +4849,28 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		}
 		if (!chan) {
 			free(as);
-			return -1;
+			res = -1;
+			goto outgoing_exten_cleanup;
 		}
-		if (account)
-			ast_cdr_setaccount(chan, account);
 		as->chan = chan;
 		ast_copy_string(as->context, context, sizeof(as->context));
 		ast_copy_string(as->exten,  exten, sizeof(as->exten));
 		as->priority = priority;
 		as->timeout = timeout;
-		if (variable) {
-			tmp = ast_strdupa(variable);
-			for (var = strtok_r(tmp, "|", &tmp); var; var = strtok_r(NULL, "|", &tmp))
-				pbx_builtin_setvar( chan, var );
-		}
+		ast_set_variables(chan, vars);
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (ast_pthread_create(&as->p, &attr, async_wait, as)) {
 			ast_log(LOG_WARNING, "Failed to start async wait\n");
 			free(as);
 			ast_hangup(chan);
-			return -1;
+			res = -1;
+			goto outgoing_exten_cleanup;
 		}
 		res = 0;
 	}
+outgoing_exten_cleanup:
+	ast_variables_destroy(vars);
 	return res;
 }
 
@@ -4905,26 +4897,28 @@ static void *ast_pbx_run_app(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, const char *variable, const char *account, struct ast_channel **locked_channel)
+int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, struct ast_channel **locked_channel)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
 	struct app_tmp *tmp;
-	char *var, *vartmp;
 	int res = -1, cdr_res = -1;
+	struct outgoing_helper oh;
 	pthread_attr_t attr;
 	
+	memset(&oh, 0, sizeof(oh));
+	oh.vars = vars;	
+
 	if (locked_channel) 
 		*locked_channel = NULL;
-	if (!app || ast_strlen_zero(app))
-		return -1;
+	if (!app || ast_strlen_zero(app)) {
+		res = -1;
+		goto outgoing_app_cleanup;	
+	}
 	if (sync) {
-		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
+		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (chan) {
-			if (account)
-				ast_cdr_setaccount(chan, account);
-			
-			if(chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
+			if (chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
 				ast_log(LOG_WARNING, "%s already has a call record??\n", chan->name);
 			} else {
 				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
@@ -4932,19 +4926,14 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 					/* allocation of the cdr failed */
 					ast_log(LOG_WARNING, "Unable to create Call Detail Record\n");
 					free(chan->pbx);
-					return -1;  /* return failure */
+					res = -1;
+					goto outgoing_app_cleanup;
 				}
 				/* allocation of the cdr was successful */
 				ast_cdr_init(chan->cdr, chan);  /* initilize our channel's cdr */
 				ast_cdr_start(chan->cdr);
 			}
-			
-			if (variable) {
-				vartmp = ast_strdupa(variable);
-				for (var = strtok_r(vartmp, "|", &vartmp); var; var = strtok_r(NULL, "|", &vartmp)) {
-					pbx_builtin_setvar( chan, var );
-				}
-			}
+			ast_set_variables(chan, vars);
 			if (chan->_state == AST_STATE_UP) {
 				res = 0;
 				if (option_verbose > 3)
@@ -4984,47 +4973,46 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 			} else {
 				if (option_verbose > 3)
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was never answered.\n", chan->name);
-				if(chan->cdr) { /* update the cdr */
+				if (chan->cdr) { /* update the cdr */
 					/* here we update the status of the call, which sould be busy.
 					 * if that fails then we set the status to failed */
-					if(ast_cdr_disposition(chan->cdr, chan->hangupcause))
+					if (ast_cdr_disposition(chan->cdr, chan->hangupcause))
 						ast_cdr_failed(chan->cdr);
 				}
 				ast_hangup(chan);
 			}
 		}
 		
-		if(res < 0) { /* the call failed for some reason */
-			if(*reason == 0) { /* if the call failed (not busy or no answer)
+		if (res < 0) { /* the call failed for some reason */
+			if (*reason == 0) { /* if the call failed (not busy or no answer)
 				            * update the cdr with the failed message */
 				cdr_res = ast_pbx_outgoing_cdr_failed();
-				if(cdr_res != 0)
-					return cdr_res;
+				if (cdr_res != 0) {
+					res = cdr_res;
+					goto outgoing_app_cleanup;
+				}
 			}
 		}
 
 	} else {
 		as = malloc(sizeof(struct async_stat));
-		if (!as)
-			return -1;
+		if (!as) {
+			res = -1;
+			goto outgoing_app_cleanup;
+		}
 		memset(as, 0, sizeof(struct async_stat));
 		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
 		if (!chan) {
 			free(as);
-			return -1;
+			res = -1;
+			goto outgoing_app_cleanup;
 		}
-		if (account)
-			ast_cdr_setaccount(chan, account);
 		as->chan = chan;
 		ast_copy_string(as->app, app, sizeof(as->app));
 		if (appdata)
 			ast_copy_string(as->appdata,  appdata, sizeof(as->appdata));
 		as->timeout = timeout;
-		if (variable) {
-			vartmp = ast_strdupa(variable);
-			for (var = strtok_r(vartmp, "|", &vartmp); var; var = strtok_r(NULL, "|", &vartmp))
-				pbx_builtin_setvar( chan, var );
-		}
+		ast_set_variables(chan, vars);
 		/* Start a new thread, and get something handling this channel. */
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
@@ -5036,13 +5024,16 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 			if (locked_channel) 
 				ast_mutex_unlock(&chan->lock);
 			ast_hangup(chan);
-			return -1;
+			res = -1;
+			goto outgoing_app_cleanup;
 		} else {
 			if (locked_channel)
 				*locked_channel = chan;
 		}
 		res = 0;
 	}
+outgoing_app_cleanup:
+	ast_variables_destroy(vars);
 	return res;
 }
 

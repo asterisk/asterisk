@@ -141,6 +141,10 @@ extern int manager_event(int category, char *event, char *contents, ...)
 
 /*! Get header from mananger transaction */
 extern char *astman_get_header(struct message *m, char *var);
+
+/*! Get a linked list of the Variable: headers */
+struct ast_variable *astman_get_variables(struct message *m);
+
 /*! Send error in manager transaction */
 extern void astman_send_error(struct mansession *s, struct message *m, char *error);
 extern void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg);

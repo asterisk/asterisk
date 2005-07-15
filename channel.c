@@ -2031,20 +2031,8 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	chan = ast_request(type, format, data, &cause);
 	if (chan) {
 		if (oh) {
-			char *tmp, *var;
-			/* JDG chanvar */
-			if (oh->variable)
-				variable = ast_strdupa(oh->variable);
-			else
-				variable = NULL;
-			tmp = variable;
-			/* FIXME replace this call with strsep  NOT*/
-			while( (var = strtok_r(NULL, "|", &tmp)) ) {
-				pbx_builtin_setvar( chan, var );
-			} /* /JDG */
+			ast_set_variables(chan, oh->vars);
 			ast_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
-			if (oh->account && *oh->account)
-				ast_cdr_setaccount(chan, oh->account);
 		}
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
 
@@ -2107,7 +2095,8 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 				ast_copy_string(chan->context, oh->context, sizeof(chan->context));
 			if (oh->exten && *oh->exten)
 				ast_copy_string(chan->exten, oh->exten, sizeof(chan->exten));
-			chan->priority = oh->priority;
+			if (oh->priority)	
+				chan->priority = oh->priority;
 		}
 		if (chan->_state == AST_STATE_UP) 
 			state = AST_CONTROL_ANSWER;
@@ -3449,4 +3438,12 @@ char *ast_print_group(char *buf, int buflen, ast_group_t group)
 		}
 	}
 	return(buf);
+}
+
+void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars)
+{
+	struct ast_variable *cur;
+
+	for (cur = vars; cur; cur = cur->next)
+		pbx_builtin_setvar_helper(chan, cur->name, cur->value);	
 }

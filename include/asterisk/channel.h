@@ -20,6 +20,7 @@
 #include "asterisk/frame.h"
 #include "asterisk/sched.h"
 #include "asterisk/chanvars.h"
+#include "asterisk/config.h"
 
 #include <unistd.h>
 #include <setjmp.h>
@@ -387,8 +388,7 @@ struct chanmon;
 	oh.priority = priority; \
 	oh.cid_num = cid_num; \
 	oh.cid_name = cid_name; \
-	oh.variable = variable; \
-	oh.account = account; \
+	oh.vars = vars; \
 } 
 
 struct outgoing_helper {
@@ -397,8 +397,7 @@ struct outgoing_helper {
 	int priority;
 	const char *cid_num;
 	const char *cid_name;
-	const char *variable;
-	const char *account;
+	struct ast_variable *vars;
 };
 
 #define AST_CDR_TRANSFER	(1 << 0)
@@ -946,6 +945,16 @@ struct ast_channel *ast_bridged_channel(struct ast_channel *chan);
   channel with their names unchanged.
 */
 void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_channel *child);
+
+/*!
+  \brief adds a list of channel variables to a channel
+  \param chan the channel
+  \param vars a linked list of variables
+
+  Variable names can be for a regular channel variable or a dialplan function
+  that has the ability to be written to.
+*/
+void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars);
 
 /* Misc. functions below */
 
