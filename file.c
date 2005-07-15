@@ -1223,6 +1223,9 @@ static int show_file_formats(int fd, int argc, char *argv[])
 	};
 	ast_mutex_unlock(&formatlock);
 	return RESULT_SUCCESS;
+#undef FORMAT
+#undef FORMAT2
+	
 }
 
 struct ast_cli_entry show_file =

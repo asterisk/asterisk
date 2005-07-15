@@ -9494,9 +9494,9 @@ static int zap_show_status(int fd, int argc, char *argv[]) {
 	}
 	close(ctl);
 
-	#undef FORMAT
-	#undef FORMAT2
 	return RESULT_SUCCESS;
+#undef FORMAT
+#undef FORMAT2
 }
 
 static char show_channels_usage[] =

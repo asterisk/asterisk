@@ -204,6 +204,7 @@ static int group_show_channels(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
 	return RESULT_SUCCESS;
+#undef FORMAT_STRING
 }
 
 static char *tdesc = "Group Management Routines";
