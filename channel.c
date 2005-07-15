@@ -31,12 +31,6 @@
 #error "You need newer zaptel!  Please cvs update zaptel"
 #endif
 #endif
-#ifdef __FreeBSD__
-#include <strfunc.h>
-#if (!defined(__STRFUNC_H__) && (!defined(STRFUNC_H)))
-#error "Please install the strfunc library located in the ports collection at /usr/ports/devel/libstrfunc"
-#endif
-#endif
 
 #include "asterisk.h"
 
@@ -1759,8 +1753,8 @@ char *ast_recvtext(struct ast_channel *chan, int timeout)
 			break; /* no frame */
 		if (f->frametype == AST_FRAME_CONTROL && f->subclass == AST_CONTROL_HANGUP)
 			done = 1;	/* force a break */
-		else if (f->frametype == AST_FRAME_TEXT) {	/* what we want */
-			buf = strndup((char *)f->data, f->datalen);	/* dup and break */
+		else if (f->frametype == AST_FRAME_TEXT) {			/* what we want */
+			buf = ast_strndup((char *) f->data, f->datalen);	/* dup and break */
 			done = 1;
 		}
 		ast_frfree(f);

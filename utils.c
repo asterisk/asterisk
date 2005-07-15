@@ -535,4 +535,28 @@ char *ast_strcasestr(const char *haystack, const char *needle)
 		return NULL;
 	}
 }
-#endif /* LINUX */
+
+size_t ast_strnlen(const char *s, size_t n)
+{
+	size_t len;
+
+	for (len=0; len < n; len++)
+		if (s[len] == '\0')
+			break;
+
+	return len;
+}
+
+char *ast_strndup(const char *s, size_t n)
+{
+	size_t len = ast_strnlen(s, n);
+	char *new = malloc(len + 1);
+
+	if (!new)
+		return NULL;
+
+	new[len] = '\0';
+	return memcpy(new, s, len);
+}
+
+#endif /* !LINUX */

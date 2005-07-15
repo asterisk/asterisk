@@ -199,8 +199,12 @@ struct ast_realloca {
 
 #ifdef __linux__
 #define ast_strcasestr strcasestr
-#else
-extern char *ast_strcasestr(const char *, const char *);
-#endif /* __linux__ */
+#define ast_strndup	strndup
+#define ast_strnlen	strnlen
+#else /* !__linux__ */
+char *ast_strcasestr(const char *, const char *);
+char *ast_strndup(const char *, size_t);
+size_t ast_strnlen(const char *, size_t);
+#endif /* !__linux__ */
 
 #endif /* _ASTERISK_STRINGS_H */
