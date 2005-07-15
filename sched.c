@@ -260,6 +260,10 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 			res = tmp->id;
 		}
 	}
+#ifdef DUMP_SCHEDULER
+	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
+	ast_sched_dump(con);
+#endif
 	ast_mutex_unlock(&con->lock);
 	return res;
 }
@@ -289,6 +293,10 @@ int ast_sched_del(struct sched_context *con, int id)
 		last = s;
 		s = s->next;
 	}
+#ifdef DUMP_SCHEDULER
+	/* Dump contents of the context while we have the lock so nothing gets screwed up by accident. */
+	ast_sched_dump(con);
+#endif
 	ast_mutex_unlock(&con->lock);
 	if (!s) {
 		ast_log(LOG_NOTICE, "Attempted to delete nonexistent schedule entry %d!\n", id);
@@ -300,7 +308,7 @@ int ast_sched_del(struct sched_context *con, int id)
 		return 0;
 }
 
-void ast_sched_dump(struct sched_context *con)
+void ast_sched_dump(const struct sched_context *con)
 {
 	/*
 	 * Dump the contents of the scheduler to
@@ -311,16 +319,14 @@ void ast_sched_dump(struct sched_context *con)
 	time_t s, ms;
 	gettimeofday(&tv, NULL);
 #ifdef SCHED_MAX_CACHE
-	ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%d in Q, %d Total, %d Cache)\n", 
-							con-> schedcnt, con->eventcnt - 1, con->schedccnt);
+	ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%d in Q, %d Total, %d Cache)\n", con->schedcnt, con->eventcnt - 1, con->schedccnt);
 #else
-	ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%d in Q, %d Total)\n",
-							con-> schedcnt, con->eventcnt - 1);
+	ast_log(LOG_DEBUG, "Asterisk Schedule Dump (%d in Q, %d Total)\n", con->schedcnt, con->eventcnt - 1);
 #endif
 
-	ast_log(LOG_DEBUG, "=================================================\n");
-	ast_log(LOG_DEBUG, "|ID    Callback    Data        Time  (sec:ms)   |\n");
-	ast_log(LOG_DEBUG, "+-----+-----------+-----------+-----------------+\n");
+	ast_log(LOG_DEBUG, "=============================================================\n");
+	ast_log(LOG_DEBUG, "|ID    Callback          Data              Time  (sec:ms)   |\n");
+	ast_log(LOG_DEBUG, "+-----+-----------------+-----------------+-----------------+\n");
 	q = con->schedq;
 	while(q) {
 		s =  q->when.tv_sec - tv.tv_sec;
@@ -329,7 +335,7 @@ void ast_sched_dump(struct sched_context *con)
 			ms += 1000000;
 			s--;
 		}
-		ast_log(LOG_DEBUG, "|%.4d | %p | %p | %.6ld : %.6ld |\n", 
+		ast_log(LOG_DEBUG, "|%.4d | %-15p | %-15p | %.6ld : %.6ld |\n", 
 				q->id,
 				q->callback,
 				q->data,
@@ -337,7 +343,7 @@ void ast_sched_dump(struct sched_context *con)
 				(long)ms);
 		q=q->next;
 	}
-	ast_log(LOG_DEBUG, "=================================================\n");
+	ast_log(LOG_DEBUG, "=============================================================\n");
 	
 }
 

@@ -52,7 +52,7 @@ DEBUG=-g #-pg
 #endif
 
 # Optional debugging parameters
-DEBUG_THREADS = #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
+DEBUG_THREADS = #-DDUMP_SCHEDULER #-DDEBUG_SCHEDULER #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
 
 # Uncomment next one to enable ast_frame tracing (for debugging)
 TRACE_FRAMES = #-DTRACE_FRAMES
