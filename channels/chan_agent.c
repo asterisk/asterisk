@@ -1326,14 +1326,20 @@ static int powerof(unsigned int v)
 /*--- action_agents: Manager routine for listing channels */
 static int action_agents(struct mansession *s, struct message *m)
 {
+	char *id = astman_get_header(m,"ActionID");
+	char idText[256] = "";
 	struct agent_pvt *p;
 	char *username = NULL;
 	char *loginChan = NULL;
 	char *talkingtoChan = NULL;
 	char *status = NULL;
 
+	if (id && !ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
+	astman_send_ack(s, m, "Agents will follow");
 	ast_mutex_lock(&agentlock);
 	p = agents;
+	ast_mutex_lock(&s->lock);
 	while(p) {
         	ast_mutex_lock(&p->lock);
 
@@ -1381,12 +1387,18 @@ static int action_agents(struct mansession *s, struct message *m)
 				"LoggedInChan: %s\r\n"
 				"LoggedInTime: %ld\r\n"
 				"TalkingTo: %s\r\n"
+				"%s"
 				"\r\n",
-				p->agent,p->name,status,loginChan,p->loginstart,talkingtoChan);
+				p->agent,p->name,status,loginChan,p->loginstart,talkingtoChan,idText);
 		ast_mutex_unlock(&p->lock);
 		p = p->next;
 	}
 	ast_mutex_unlock(&agentlock);
+	ast_cli(s->fd, "Event: AgentsComplete\r\n"
+			"%s"
+			"\r\n",idText);
+	ast_mutex_unlock(&s->lock);
+
 	return 0;
 }
 
