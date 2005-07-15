@@ -486,7 +486,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 	struct stringlink *swargs, *cur;
 	int cpos;
 	int mlen;
-	int pattern;
+	int pattern = 0;
 	struct fillin *fillin;
 	while (*data && (*data < 33)) data++;
 	if (matches_label(data, &c)) {
