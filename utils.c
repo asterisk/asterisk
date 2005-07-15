@@ -9,9 +9,6 @@
  * the GNU General Public License
  */
 
-#ifdef Linux	/* For strcasestr */
-#define __USE_GNU
-#endif
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
@@ -559,4 +556,4 @@ char *ast_strndup(const char *s, size_t n)
 	return memcpy(new, s, len);
 }
 
-#endif /* !LINUX */
+#endif /* !__linux__ */
