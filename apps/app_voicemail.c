@@ -992,15 +992,9 @@ yuck:
 	return x;
 }
 
-/*
- * A negative return value indicates an error.
- */
 static int count_messages(struct ast_vm_user *vmu, char *dir)
 {
-	int res;
-	
-	res = last_message_index(vmu, dir);
-	return res >= 0 ? res + 1 : res;
+	return last_message_index(vmu, dir) + 1;
 }
 
 static void delete_file(char *sdir, int smsg)
