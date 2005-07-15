@@ -496,7 +496,7 @@ int ast_false(const char *s)
 }
 
 /* Case-insensitive substring matching */
-#ifndef LINUX
+#ifndef __linux__ 
 static char *upper(const char *orig, char *buf, int bufsize)
 {
 	int i;
