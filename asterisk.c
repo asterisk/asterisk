@@ -654,6 +654,7 @@ static void hup_handler(int num)
 		execvp(_argv[0], _argv);
 	/* XXX This could deadlock XXX */
 	ast_module_reload(NULL);
+	signal(num, hup_handler);
 }
 
 static void child_handler(int sig)
@@ -668,6 +669,7 @@ static void child_handler(int sig)
 		;
 	if (n == 0 && option_debug)	
 		printf("Huh?  Child handler, but nobody there?\n");
+	signal(sig, child_handler);
 }
 
 static void set_title(char *text)
