@@ -100,94 +100,94 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 	int lineno = 0;
 	while(fgets(buf, sizeof(buf), f)) {
 		lineno++;
-			/* Trim comments */
-			c = buf;
-			while ((c = strchr(c, '#'))) {
-				if ((c == buf) || (*(c-1) == ' ') || (*(c-1) == '\t'))
-					*c = '\0';
-				else
-					c++;
-			}
-			c = strchr(buf, ';');
-			if (c)
-				 *c = '\0';
+		/* Trim comments */
+		c = buf;
+		while ((c = strchr(c, '#'))) {
+			if ((c == buf) || (*(c-1) == ' ') || (*(c-1) == '\t'))
+				*c = '\0';
+			else
+				c++;
+		}
+		c = strchr(buf, ';');
+		if (c)
+			 *c = '\0';
 
-			/* Trim trailing white space */
-			while(!ast_strlen_zero(buf) && buf[strlen(buf) - 1] < 33)
-				buf[strlen(buf) - 1] = '\0';
-			if (!ast_strlen_zero(buf)) {
-				c = strchr(buf, ':');
-				if (c) {
-					*c = '\0';
+		/* Trim trailing white space */
+		while(!ast_strlen_zero(buf) && buf[strlen(buf) - 1] < 33)
+			buf[strlen(buf) - 1] = '\0';
+		if (!ast_strlen_zero(buf)) {
+			c = strchr(buf, ':');
+			if (c) {
+				*c = '\0';
+				c++;
+				while ((*c) && (*c < 33))
 					c++;
-					while ((*c) && (*c < 33))
-						c++;
 #if 0
-					printf("'%s' is '%s' at line %d\n", buf, c, lineno);
-#endif					
-					if (!strcasecmp(buf, "channel")) {
-						strncpy(o->tech, c, sizeof(o->tech) - 1);
-						if ((c2 = strchr(o->tech, '/'))) {
-							*c2 = '\0';
-							c2++;
-							strncpy(o->dest, c2, sizeof(o->dest) - 1);
-						} else {
-							ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, fn);
-							o->tech[0] = '\0';
-						}
-					} else if (!strcasecmp(buf, "callerid")) {
-						ast_callerid_split(c, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
-					} else if (!strcasecmp(buf, "application")) {
-						strncpy(o->app, c, sizeof(o->app) - 1);
-					} else if (!strcasecmp(buf, "data")) {
-						strncpy(o->data, c, sizeof(o->data) - 1);
-					} else if (!strcasecmp(buf, "maxretries")) {
-						if (sscanf(c, "%d", &o->maxretries) != 1) {
-							ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, fn);
-							o->maxretries = 0;
-						}
-					} else if (!strcasecmp(buf, "context")) {
-						strncpy(o->context, c, sizeof(o->context) - 1);
-					} else if (!strcasecmp(buf, "extension")) {
-						strncpy(o->exten, c, sizeof(o->exten) - 1);
-					} else if (!strcasecmp(buf, "priority")) {
-						if ((sscanf(c, "%d", &o->priority) != 1) || (o->priority < 1)) {
-							ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, fn);
-							o->priority = 1;
-						}
-					} else if (!strcasecmp(buf, "retrytime")) {
-						if ((sscanf(c, "%d", &o->retrytime) != 1) || (o->retrytime < 1)) {
-							ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, fn);
-							o->retrytime = 300;
-						}
-					} else if (!strcasecmp(buf, "waittime")) {
-						if ((sscanf(c, "%d", &o->waittime) != 1) || (o->waittime < 1)) {
-							ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, fn);
-							o->waittime = 45;
-						}
-					} else if (!strcasecmp(buf, "retry")) {
-						o->retries++;
-					} else if (!strcasecmp(buf, "startretry")) {
-						if (sscanf(c, "%d", &o->callingpid) != 1) {
-							ast_log(LOG_WARNING, "Unable to retrieve calling PID!\n");
-							o->callingpid = 0;
-						}
-					} else if (!strcasecmp(buf, "endretry") || !strcasecmp(buf, "abortretry")) {
-						o->callingpid = 0;
-						o->retries++;
-					} else if (!strcasecmp(buf, "delayedretry")) {
-					} else if (!strcasecmp(buf, "setvar")) { /* JDG variable support */
-						strncat(o->variable, c, sizeof(o->variable) - strlen(o->variable) - 1);
-						strncat(o->variable, "|", sizeof(o->variable) - strlen(o->variable) - 1);
- 
-					} else if (!strcasecmp(buf, "account")) {
-						strncpy(o->account, c, sizeof(o->account) - 1);
+				printf("'%s' is '%s' at line %d\n", buf, c, lineno);
+#endif
+				if (!strcasecmp(buf, "channel")) {
+					strncpy(o->tech, c, sizeof(o->tech) - 1);
+					if ((c2 = strchr(o->tech, '/'))) {
+						*c2 = '\0';
+						c2++;
+						strncpy(o->dest, c2, sizeof(o->dest) - 1);
 					} else {
-						ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
+						ast_log(LOG_NOTICE, "Channel should be in form Tech/Dest at line %d of %s\n", lineno, fn);
+						o->tech[0] = '\0';
 					}
-				} else
-					ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, fn);
-			}
+				} else if (!strcasecmp(buf, "callerid")) {
+					ast_callerid_split(c, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
+				} else if (!strcasecmp(buf, "application")) {
+					strncpy(o->app, c, sizeof(o->app) - 1);
+				} else if (!strcasecmp(buf, "data")) {
+					strncpy(o->data, c, sizeof(o->data) - 1);
+				} else if (!strcasecmp(buf, "maxretries")) {
+					if (sscanf(c, "%d", &o->maxretries) != 1) {
+						ast_log(LOG_WARNING, "Invalid max retries at line %d of %s\n", lineno, fn);
+						o->maxretries = 0;
+					}
+				} else if (!strcasecmp(buf, "context")) {
+					strncpy(o->context, c, sizeof(o->context) - 1);
+				} else if (!strcasecmp(buf, "extension")) {
+					strncpy(o->exten, c, sizeof(o->exten) - 1);
+				} else if (!strcasecmp(buf, "priority")) {
+					if ((sscanf(c, "%d", &o->priority) != 1) || (o->priority < 1)) {
+						ast_log(LOG_WARNING, "Invalid priority at line %d of %s\n", lineno, fn);
+						o->priority = 1;
+					}
+				} else if (!strcasecmp(buf, "retrytime")) {
+					if ((sscanf(c, "%d", &o->retrytime) != 1) || (o->retrytime < 1)) {
+						ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, fn);
+						o->retrytime = 300;
+					}
+				} else if (!strcasecmp(buf, "waittime")) {
+					if ((sscanf(c, "%d", &o->waittime) != 1) || (o->waittime < 1)) {
+						ast_log(LOG_WARNING, "Invalid retrytime at line %d of %s\n", lineno, fn);
+						o->waittime = 45;
+					}
+				} else if (!strcasecmp(buf, "retry")) {
+					o->retries++;
+				} else if (!strcasecmp(buf, "startretry")) {
+					if (sscanf(c, "%d", &o->callingpid) != 1) {
+						ast_log(LOG_WARNING, "Unable to retrieve calling PID!\n");
+						o->callingpid = 0;
+					}
+				} else if (!strcasecmp(buf, "endretry") || !strcasecmp(buf, "abortretry")) {
+					o->callingpid = 0;
+					o->retries++;
+				} else if (!strcasecmp(buf, "delayedretry")) {
+				} else if (!strcasecmp(buf, "setvar")) { /* JDG variable support */
+					strncat(o->variable, c, sizeof(o->variable) - strlen(o->variable) - 1);
+					strncat(o->variable, "|", sizeof(o->variable) - strlen(o->variable) - 1);
+
+				} else if (!strcasecmp(buf, "account")) {
+					strncpy(o->account, c, sizeof(o->account) - 1);
+				} else {
+					ast_log(LOG_WARNING, "Unknown keyword '%s' at line %d of %s\n", buf, lineno, fn);
+				}
+			} else
+				ast_log(LOG_NOTICE, "Syntax error at line %d of %s\n", lineno, fn);
+		}
 	}
 	strncpy(o->fn, fn, sizeof(o->fn) - 1);
 	if (ast_strlen_zero(o->tech) || ast_strlen_zero(o->dest) || (ast_strlen_zero(o->app) && ast_strlen_zero(o->exten))) {
