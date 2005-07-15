@@ -3295,7 +3295,7 @@ static int play_message_datetime(struct ast_channel *chan, struct ast_vm_user *v
 #if 0
 	/* Set the DIFF_* variables */
 	localtime_r(&t, &time_now);
-	gettimeofday(&tv_now,NULL);
+	tv_now = ast_tvnow();
 	tnow = tv_now.tv_sec;
 	localtime_r(&tnow,&time_then);
 

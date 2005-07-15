@@ -444,17 +444,10 @@ static void *monmp3thread(void *data)
 	char buf[8192];
 	short sbuf[8192];
 	int res, res2;
-	struct timeval tv;
-	struct timeval tv_tmp;
-	long error_sec, error_usec;
-	long delay;
+	struct timeval tv, tv_tmp;
 
-	tv_tmp.tv_sec = 0;
-	tv_tmp.tv_usec = 0;
 	tv.tv_sec = 0;
 	tv.tv_usec = 0;
-	error_sec = 0;
-	error_usec = 0;
 	for(;/* ever */;) {
 		/* Spawn mp3 player if it's not there */
 		if (class->srcfd < 0) {
@@ -468,40 +461,20 @@ static void *monmp3thread(void *data)
 			/* Pause some amount of time */
 			res = read(class->pseudofd, buf, sizeof(buf));
 		} else {
+			long delta;
 			/* Reliable sleep */
-			if (gettimeofday(&tv_tmp, NULL) < 0) {
-				ast_log(LOG_NOTICE, "gettimeofday() failed!\n");
-				return NULL;
-			}
-			if (((unsigned long)(tv.tv_sec) > 0)&&((unsigned long)(tv.tv_usec) > 0)) {
-				if ((unsigned long)(tv_tmp.tv_usec) < (unsigned long)(tv.tv_usec)) {
-					tv_tmp.tv_usec += 1000000;
-					tv_tmp.tv_sec -= 1;
-				}
-				error_sec = (unsigned long)(tv_tmp.tv_sec) - (unsigned long)(tv.tv_sec);
-				error_usec = (unsigned long)(tv_tmp.tv_usec) - (unsigned long)(tv.tv_usec);
-			} else {
-				error_sec = 0;
-				error_usec = 0;
-			}
-			if (error_sec * 1000 + error_usec / 1000 < MOH_MS_INTERVAL) {
-				tv.tv_sec = tv_tmp.tv_sec + (MOH_MS_INTERVAL/1000 - error_sec);
-				tv.tv_usec = tv_tmp.tv_usec + ((MOH_MS_INTERVAL % 1000) * 1000 - error_usec);
-				delay = (MOH_MS_INTERVAL/1000 - error_sec) * 1000 +
-					((MOH_MS_INTERVAL % 1000) * 1000 - error_usec) / 1000;
+			tv_tmp = ast_tvnow();
+			if (ast_tvzero(tv))
+				tv = tv_tmp;
+			delta = ast_tvdiff_ms(tv_tmp, tv);
+			if (delta < MOH_MS_INTERVAL) {	/* too early */
+				tv = ast_tvadd(tv, ast_samp2tv(MOH_MS_INTERVAL, 1000));	/* next deadline */
+				usleep(1000 * (MOH_MS_INTERVAL - delta));
 			} else {
 				ast_log(LOG_NOTICE, "Request to schedule in the past?!?!\n");
-				tv.tv_sec = tv_tmp.tv_sec;
-				tv.tv_usec = tv_tmp.tv_usec;
-				delay = 0;
+				tv = tv_tmp;
 			}
-			if (tv.tv_usec > 1000000) {
-				tv.tv_sec++;
-				tv.tv_usec-= 1000000;
-			}
-			if (delay > 0)
-				usleep(delay * 1000);
-			res = 800;		/* 800 samples */
+			res = 8 * MOH_MS_INTERVAL;	/* 8 samples per millisecond */
 		}
 		if (!class->members)
 			continue;

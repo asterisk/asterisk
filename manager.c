@@ -683,11 +683,10 @@ static int action_status(struct mansession *s, struct message *m)
 	char idText[256] = "";
 	struct ast_channel *c;
 	char bridge[256];
-	struct timeval now;
+	struct timeval now = ast_tvnow();
 	long elapsed_seconds=0;
 	int all = !name || ast_strlen_zero(name); /* set if we want all channels */
 
-	gettimeofday(&now, NULL);
 	astman_send_ack(s, m, "Channel status will follow");
         if (id && !ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);

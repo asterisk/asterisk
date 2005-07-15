@@ -8351,8 +8351,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 		int newstate = 0;
 		peer = p->peerpoke;
 		gettimeofday(&tv, NULL);
-		pingtime = (tv.tv_sec - peer->ps.tv_sec) * 1000 +
-					(tv.tv_usec - peer->ps.tv_usec) / 1000;
+		pingtime = ast_tvdiff_ms(tv, peer->ps);
 		if (pingtime < 1)
 			pingtime = 1;
 		if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {

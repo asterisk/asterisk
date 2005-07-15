@@ -51,7 +51,7 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 	char cgrp[256];
 	char pgrp[256];
 	
-	gettimeofday(&now, NULL);
+	now = ast_tvnow();
 	memset(buf,0,size);
 	if (!c)
 		return 0;

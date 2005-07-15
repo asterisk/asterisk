@@ -123,7 +123,7 @@ static int append_date(char *buf, struct timeval tv, size_t bufsize)
 	t = tv.tv_sec;
 	if (strlen(buf) > bufsize - 3)
 		return -1;
-	if (!tv.tv_sec && !tv.tv_usec) {
+	if (ast_tvzero(tv)) {
 		strncat(buf, ",", bufsize - strlen(buf) - 1);
 		return 0;
 	}

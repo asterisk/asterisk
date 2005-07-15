@@ -2084,12 +2084,8 @@ static int get_from_jb(void *p);
 
 static void update_jbsched(struct chan_iax2_pvt *pvt) {
     int when;
-    struct timeval tv;
 
-    gettimeofday(&tv,NULL);
-
-    when = (tv.tv_sec - pvt->rxcore.tv_sec) * 1000 +
-	  (tv.tv_usec - pvt->rxcore.tv_usec) / 1000;
+    when = ast_tvdiff_ms(ast_tvnow(), pvt->rxcore);
 
     /*    fprintf(stderr, "now = %d, next=%d\n", when, jb_next(pvt->jb)); */
 
@@ -2126,8 +2122,7 @@ static int get_from_jb(void *p) {
     /* to catch up with runq's now */
     tv.tv_usec += 1000;
 
-    now = (tv.tv_sec - pvt->rxcore.tv_sec) * 1000 +
-	  (tv.tv_usec - pvt->rxcore.tv_usec) / 1000;
+    now = ast_tvdiff_ms(tv, pvt->rxcore);
 
     if(now >= (next = jb_next(pvt->jb))) {
 	ret = jb_get(pvt->jb,&frame,now,ast_codec_interp_len(pvt->voiceformat));
@@ -2152,15 +2147,8 @@ static int get_from_jb(void *p) {
 		af.mallocd  = 0;
 		af.src  = "IAX2 JB interpolation";
 		af.data  = NULL;
-		af.delivery.tv_sec = pvt->rxcore.tv_sec;
-		af.delivery.tv_usec = pvt->rxcore.tv_usec;
-		af.delivery.tv_sec += next / 1000;
-		af.delivery.tv_usec += (next % 1000) * 1000;
+		af.delivery = ast_tvadd(pvt->rxcore, ast_samp2tv(next, 1000));
 		af.offset=AST_FRIENDLY_OFFSET;
-		if (af.delivery.tv_usec >= 1000000) {
-			af.delivery.tv_usec -= 1000000;
-			af.delivery.tv_sec += 1;
-		}
 
 		/* queue the frame:  For consistency, we would call __do_deliver here, but __do_deliver wants an iax_frame,
 		 * which we'd need to malloc, and then it would free it.  That seems like a drag */
@@ -2233,8 +2221,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 				ast_log(LOG_DEBUG, "schedule_delivery: call=%d: TS jumped.  resyncing rxcore (ts=%d, last=%d)\n",
 							fr->callno, fr->ts, iaxs[fr->callno]->last);
 			/* zap rxcore - calc_rxstamp will make a new one based on this frame */
-			iaxs[fr->callno]->rxcore.tv_sec = 0;
-			iaxs[fr->callno]->rxcore.tv_usec = 0;
+			iaxs[fr->callno]->rxcore = ast_tv(0, 0);
 			/* wipe "last" if stamps have jumped backwards */
 			if (x<0)
 				iaxs[fr->callno]->last = 0;
@@ -2261,22 +2248,13 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 
 
 	/* delivery time is sender's sent timestamp converted back into absolute time according to our clock */
-	if ( (!fromtrunk) && (iaxs[fr->callno]->rxcore.tv_sec || iaxs[fr->callno]->rxcore.tv_usec) ) {
-		fr->af.delivery.tv_sec = iaxs[fr->callno]->rxcore.tv_sec;
-		fr->af.delivery.tv_usec = iaxs[fr->callno]->rxcore.tv_usec;
-		fr->af.delivery.tv_sec += fr->ts / 1000;
-		fr->af.delivery.tv_usec += (fr->ts % 1000) * 1000;
-		if (fr->af.delivery.tv_usec >= 1000000) {
-			fr->af.delivery.tv_usec -= 1000000;
-			fr->af.delivery.tv_sec += 1;
-		}
-	}
+	if ( !fromtrunk && !ast_tvzero(iaxs[fr->callno]->rxcore))
+		fr->af.delivery = ast_tvadd(iaxs[fr->callno]->rxcore, ast_samp2tv(fr->ts, 1000));
 	else {
 #if 0
 		ast_log(LOG_DEBUG, "schedule_delivery: set delivery to 0 as we don't have an rxcore yet, or frame is from trunk.\n");
 #endif
-		fr->af.delivery.tv_sec = 0;
-		fr->af.delivery.tv_usec = 0;
+		fr->af.delivery = ast_tv(0,0);
 	}
 
 #ifndef NEWJB
@@ -3138,9 +3116,8 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		if ((iaxs[callno0]->transferring == TRANSFER_RELEASED) && (iaxs[callno1]->transferring == TRANSFER_RELEASED)) {
 			/* Call has been transferred.  We're no longer involved */
 			gettimeofday(&tv, NULL);
-			if (!waittimer.tv_sec && !waittimer.tv_usec) {
-				waittimer.tv_sec = tv.tv_sec;
-				waittimer.tv_usec = tv.tv_usec;
+			if (ast_tvzero(waittimer)) {
+				waittimer = tv;
 			} else if (tv.tv_sec - waittimer.tv_sec > IAX_LINGER_TIMEOUT) {
 				c0->_softhangup |= AST_SOFTHANGUP_DEV;
 				c1->_softhangup |= AST_SOFTHANGUP_DEV;
@@ -3359,21 +3336,17 @@ static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, 
 	long int ms, pred;
 
 	tpeer->trunkact = *tv;
-	mssincetx = (tv->tv_sec - tpeer->lasttxtime.tv_sec) * 1000 +
-			(1000000 + tv->tv_usec - tpeer->lasttxtime.tv_usec) / 1000 - 1000;
-	if (mssincetx > 5000 || (!tpeer->txtrunktime.tv_sec && !tpeer->txtrunktime.tv_usec)) {
+	mssincetx = ast_tvdiff_ms(*tv, tpeer->lasttxtime);
+	if (mssincetx > 5000 || ast_tvzero(tpeer->txtrunktime)) {
 		/* If it's been at least 5 seconds since the last time we transmitted on this trunk, reset our timers */
-		tpeer->txtrunktime.tv_sec = tv->tv_sec;
-		tpeer->txtrunktime.tv_usec = tv->tv_usec;
+		tpeer->txtrunktime = *tv;
 		tpeer->lastsent = 999999;
 	}
 	/* Update last transmit time now */
-	tpeer->lasttxtime.tv_sec = tv->tv_sec;
-	tpeer->lasttxtime.tv_usec = tv->tv_usec;
+	tpeer->lasttxtime = *tv;
 	
 	/* Calculate ms offset */
-	ms = (tv->tv_sec - tpeer->txtrunktime.tv_sec) * 1000 +
-		(1000000 + tv->tv_usec - tpeer->txtrunktime.tv_usec) / 1000 - 1000;
+	ms = ast_tvdiff_ms(*tv, tpeer->txtrunktime);
 	/* Predict from last value */
 	pred = tpeer->lastsent + sampms;
 	if (abs(ms - pred) < MAX_TIMESTAMP_SKEW)
@@ -3389,34 +3362,20 @@ static unsigned int calc_txpeerstamp(struct iax2_trunk_peer *tpeer, int sampms, 
 static unsigned int fix_peerts(struct timeval *tv, int callno, unsigned int ts)
 {
 	long ms;	/* NOT unsigned */
-	if (!iaxs[callno]->rxcore.tv_sec && !iaxs[callno]->rxcore.tv_usec) {
+	if (ast_tvzero(iaxs[callno]->rxcore)) {
 		/* Initialize rxcore time if appropriate */
 		gettimeofday(&iaxs[callno]->rxcore, NULL);
 		/* Round to nearest 20ms so traces look pretty */
 		iaxs[callno]->rxcore.tv_usec -= iaxs[callno]->rxcore.tv_usec % 20000;
 	}
 	/* Calculate difference between trunk and channel */
-	ms = (tv->tv_sec - iaxs[callno]->rxcore.tv_sec) * 1000 + 
-		(1000000 + tv->tv_usec - iaxs[callno]->rxcore.tv_usec) / 1000 - 1000;
+	ms = ast_tvdiff_ms(*tv, iaxs[callno]->rxcore);
 	/* Return as the sum of trunk time and the difference between trunk and real time */
 	return ms + ts;
 }
 
-static void add_ms(struct timeval *tv, int ms) {
-	tv->tv_usec += ms * 1000;
-	if(tv->tv_usec > 1000000) {
-		tv->tv_usec -= 1000000;
-		tv->tv_sec++;
-	}
-	if(tv->tv_usec < 0) {
-		tv->tv_usec += 1000000;
-		tv->tv_sec--;
-	}
-}
-
 static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, struct ast_frame *f)
 {
-	struct timeval tv;
 	int ms;
 	int voice = 0;
 	int genuine = 0;
@@ -3439,7 +3398,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			p->notsilenttx = 0;	
 		}
 	}
-	if (!p->offset.tv_sec && !p->offset.tv_usec) {
+	if (ast_tvzero(p->offset)) {
 		gettimeofday(&p->offset, NULL);
 		/* Round to nearest 20ms for nice looking traces */
 		p->offset.tv_usec -= p->offset.tv_usec % 20000;
@@ -3448,15 +3407,12 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	if (ts)
 		return ts;
 	/* If we have a time that the frame arrived, always use it to make our timestamp */
-	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
-		ms = (delivery->tv_sec - p->offset.tv_sec) * 1000 +
-			(1000000 + delivery->tv_usec - p->offset.tv_usec) / 1000 - 1000;
+	if (delivery && !ast_tvzero(*delivery)) {
+		ms = ast_tvdiff_ms(*delivery, p->offset);
 		if (option_debug > 2)
 			ast_log(LOG_DEBUG, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
 	} else {
-		gettimeofday(&tv, NULL);
-		ms = (tv.tv_sec - p->offset.tv_sec) * 1000 +
-			(1000000 + tv.tv_usec - p->offset.tv_usec) / 1000 - 1000;
+		ms = ast_tvdiff_ms(ast_tvnow(), p->offset);
 		if (ms < 0)
 			ms = 0;
 		if (voice) {
@@ -3464,7 +3420,8 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			if (p->notsilenttx && abs(ms - p->nextpred) <= MAX_TIMESTAMP_SKEW) {
 				/* Adjust our txcore, keeping voice and 
 					non-voice synchronized */
-				add_ms(&p->offset, (int)(ms - p->nextpred)/10);
+				p->offset = ast_tvadd(p->offset,
+						ast_samp2tv((ms - p->nextpred)/10, 1000)); /* XXX what scale is this ??? */
 
 				if (!p->nextpred) {
 					p->nextpred = ms; /*f->samples / 8;*/
@@ -3525,19 +3482,18 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pv
 	/* Receive from p1, send to p2 */
 	
 	/* Setup rxcore if necessary on outgoing channel */
-	if (!p1->rxcore.tv_sec && !p1->rxcore.tv_usec)
-		gettimeofday(&p1->rxcore, NULL);
+	if (ast_tvzero(p1->rxcore))
+		p1->rxcore = ast_tvnow();
 
 	/* Setup txcore if necessary on outgoing channel */
-	if (!p2->offset.tv_sec && !p2->offset.tv_usec)
-		gettimeofday(&p2->offset, NULL);
+	if (ast_tvzero(p2->offset))
+		p2->offset = ast_tvnow();
 	
 	/* Now, ts is the timestamp of the original packet in the orignal context.
 	   Adding rxcore to it gives us when we would want the packet to be delivered normally.
 	   Subtracting txcore of the outgoing channel gives us what we'd expect */
 	
-	ms = (p1->rxcore.tv_sec - p2->offset.tv_sec) * 1000 +
-		(1000000 + p1->rxcore.tv_usec - p2->offset.tv_usec) / 1000 - 1000;
+	ms = ast_tvdiff_ms(p1->rxcore, p2->offset);
 	fakets += ms;
 
 	/* FIXME? SLD would rather remove this and leave it to the end system to deal with */
@@ -3552,23 +3508,17 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 {
 	/* Returns where in "receive time" we are.  That is, how many ms
 	   since we received (or would have received) the frame with timestamp 0 */
-	struct timeval tv;
 	int ms;
 #ifdef IAXTESTS
 	int jit;
 #endif /* IAXTESTS */
 	/* Setup rxcore if necessary */
-	if (!p->rxcore.tv_sec && !p->rxcore.tv_usec) {
-		gettimeofday(&p->rxcore, NULL);
+	if (ast_tvzero(p->rxcore)) {
+		p->rxcore = ast_tvnow();
 		if (option_debug)
 			ast_log(LOG_DEBUG, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n",
 					p->callno, (int)(p->rxcore.tv_sec), (int)(p->rxcore.tv_usec), offset);
-		p->rxcore.tv_sec -= offset / 1000;
-		p->rxcore.tv_usec -= (offset % 1000) * 1000;
-		if (p->rxcore.tv_usec < 0) {
-			p->rxcore.tv_usec += 1000000;
-			p->rxcore.tv_sec -= 1;
-		}
+		p->rxcore = ast_tvsub(p->rxcore, ast_samp2tv(offset, 1000));
 #if 1
 		if (option_debug)
 			ast_log(LOG_DEBUG, "calc_rxstamp: call=%d: works out as %d.%6.6d\n",
@@ -3576,9 +3526,7 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 #endif
 	}
 
-	gettimeofday(&tv, NULL);
-	ms = (tv.tv_sec - p->rxcore.tv_sec) * 1000 +
-		(1000000 + tv.tv_usec - p->rxcore.tv_usec) / 1000 - 1000;
+	ms = ast_tvdiff_ms(ast_tvnow(), p->rxcore);
 #ifdef IAXTESTS
 	if (test_jit) {
 		if (!test_jitpct || ((100.0 * rand() / (RAND_MAX + 1.0)) < test_jitpct)) {
@@ -3618,7 +3566,7 @@ static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin, int fd)
 			ast_mutex_init(&tpeer->lock);
 			tpeer->lastsent = 9999;
 			memcpy(&tpeer->addr, sin, sizeof(tpeer->addr));
-			gettimeofday(&tpeer->trunkact, NULL);
+			tpeer->trunkact = ast_tvnow();
 			ast_mutex_lock(&tpeer->lock);
 			tpeer->next = tpeers;
 			tpeer->sockfd = fd;
@@ -6225,11 +6173,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				ast_log(LOG_WARNING, "Unable to accept trunked packet from '%s:%d': No matching peer\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
 				return 1;
 			}
-			if (!ts || (!tpeer->rxtrunktime.tv_sec && !tpeer->rxtrunktime.tv_usec)) {
-				gettimeofday(&tpeer->rxtrunktime, NULL);
-				tpeer->trunkact = tpeer->rxtrunktime;
-			} else
-				gettimeofday(&tpeer->trunkact, NULL);
+			tpeer->trunkact = ast_tvnow();
+			if (!ts || ast_tvzero(tpeer->rxtrunktime))
+				tpeer->rxtrunktime = tpeer->trunkact;
 			rxtrunktime = tpeer->rxtrunktime;
 			ast_mutex_unlock(&tpeer->lock);
 			while(res >= sizeof(struct ast_iax2_meta_trunk_entry)) {
@@ -8755,8 +8701,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 	while(dp) {
 		next = dp->next;
 		/* Expire old caches */
-		if ((tv.tv_sec > dp->expirey.tv_sec) ||
-				((tv.tv_sec == dp->expirey.tv_sec) && (tv.tv_usec > dp->expirey.tv_usec)))  {
+		if (ast_tvcmp(tv, dp->expirey) > 0) {
 				/* It's expired, let it disappear */
 				if (prev)
 					prev->next = dp->next;

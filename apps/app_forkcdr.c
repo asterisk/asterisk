@@ -46,7 +46,7 @@ static void ast_cdr_clone(struct ast_cdr *cdr)
 	struct ast_cdr *newcdr = ast_cdr_alloc();
 	memcpy(newcdr,cdr,sizeof(struct ast_cdr));
 	ast_cdr_append(cdr,newcdr);
-	gettimeofday(&newcdr->start, NULL);
+	newcdr->start = ast_tvnow();
 	memset(&newcdr->answer, 0, sizeof(newcdr->answer));
 	memset(&newcdr->varshead, 0, sizeof(newcdr->varshead));
 	ast_cdr_copy_vars(newcdr, cdr);

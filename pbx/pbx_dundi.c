@@ -680,13 +680,6 @@ static void *dundi_precache_thread(void *data)
 	return NULL;	
 }
 
-static inline int calc_ms(struct timeval *start)
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return ((tv.tv_sec - start->tv_sec) * 1000 + (tv.tv_usec - start->tv_usec) / 1000);
-}
-
 static int dundi_query_eid_internal(struct dundi_entity_info *dei, const char *dcontext, dundi_eid *eid, struct dundi_hint_metadata *hmd, int ttl, int blockempty, dundi_eid *avoid[]);
 
 static void *dundi_query_thread(void *data)
@@ -2302,7 +2295,7 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 		*context = '\0';
 		context++;
 	}
-	gettimeofday(&start, NULL);
+	start = ast_tvnow();
 	res = dundi_lookup(dr, MAX_RESULTS, NULL, context, tmp, bypass);
 	
 	if (res < 0) 
@@ -2315,7 +2308,7 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 		ast_cli(fd, "%3d. %5d %s/%s (%s)\n", x + 1, dr[x].weight, dr[x].tech, dr[x].dest, dundi_flags2str(fs, sizeof(fs), dr[x].flags));
 		ast_cli(fd, "     from %s, expires in %d s\n", dr[x].eid_str, dr[x].expiration);
 	}
-	ast_cli(fd, "DUNDi lookup completed in %d ms\n", calc_ms(&start));
+	ast_cli(fd, "DUNDi lookup completed in %d ms\n", ast_tvdiff_ms(ast_tvnow(), start));
 	return RESULT_SUCCESS;
 }
 
@@ -2333,14 +2326,14 @@ static int dundi_do_precache(int fd, int argc, char *argv[])
 		*context = '\0';
 		context++;
 	}
-	gettimeofday(&start, NULL);
+	start = ast_tvnow();
 	res = dundi_precache(context, tmp);
 	
 	if (res < 0) 
 		ast_cli(fd, "DUNDi precache returned error.\n");
 	else if (!res) 
 		ast_cli(fd, "DUNDi precache returned no error.\n");
-	ast_cli(fd, "DUNDi lookup completed in %d ms\n", calc_ms(&start));
+	ast_cli(fd, "DUNDi lookup completed in %d ms\n", ast_tvdiff_ms(ast_tvnow(), start));
 	return RESULT_SUCCESS;
 }
 
@@ -2779,7 +2772,7 @@ static struct dundi_transaction *create_transaction(struct dundi_peer *p)
 	if (trans) {
 		memset(trans, 0, sizeof(struct dundi_transaction));
 		if (global_storehistory) {
-			gettimeofday(&trans->start, NULL);
+			trans->start = ast_tvnow();
 			ast_set_flag(trans, FLAG_STOREHIST);
 		}
 		trans->retranstimer = DUNDI_DEFAULT_RETRANS_TIMER;
@@ -2845,7 +2838,6 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 {
 	struct dundi_transaction *cur, *prev;
 	struct dundi_peer *peer;
-	struct timeval tv;
 	int ms;
 	int x;
 	int cnt;
@@ -2863,9 +2855,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 						ast_log(LOG_NOTICE, "Peer '%s' has become UNREACHABLE!\n", dundi_eid_to_str(eid_str, sizeof(eid_str), &peer->eid));
 					peer->lastms = -1;
 				} else {
-					gettimeofday(&tv, NULL);
-					ms = (tv.tv_sec - peer->qualtx.tv_sec) * 1000 + 
-							(tv.tv_usec - peer->qualtx.tv_usec) / 1000;
+					ms = ast_tvdiff_ms(ast_tvnow(), peer->qualtx);
 					if (ms < 1)
 						ms = 1;
 					if (ms < peer->maxms) {
@@ -2893,7 +2883,7 @@ static void destroy_trans(struct dundi_transaction *trans, int fromtimeout)
 								cnt++;
 							}
 						}
-						peer->lookuptimes[0] = calc_ms(&trans->start);
+						peer->lookuptimes[0] = ast_tvdiff_ms(ast_tvnow(), trans->start);
 						peer->lookups[0] = malloc(strlen(trans->parent->number) + strlen(trans->parent->dcontext) + 2);
 						if (peer->lookups[0]) {
 							sprintf(peer->lookups[0], "%s@%s", trans->parent->number, trans->parent->dcontext);
@@ -3577,9 +3567,10 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 			/* Wait for the cache to populate */
 			ast_log(LOG_DEBUG, "Waiting for similar request for '%s@%s' for '%s'\n",
 				dr.number,dr.dcontext,dundi_eid_to_str(eid_str, sizeof(eid_str), &pending->root_eid));
-			gettimeofday(&start, NULL);
-			while(check_request(pending) && (calc_ms(&start) < ttlms) && (!chan || !chan->_softhangup)) {
+			start = ast_tvnow();
+			while(check_request(pending) && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !chan->_softhangup)) {
 				/* XXX Would be nice to have a way to poll/select here XXX */
+				/* XXX this is a busy wait loop!!! */
 				usleep(1);
 			}
 			/* Continue on as normal, our cache should kick in */
@@ -3609,8 +3600,8 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	/* Actually perform transactions */
 	discover_transactions(&dr);
 	/* Wait for transaction to come back */
-	gettimeofday(&start, NULL);
-	while(dr.trans && (calc_ms(&start) < ttlms) && (!chan || !chan->_softhangup)) {
+	start = ast_tvnow();
+	while(dr.trans && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms) && (!chan || !chan->_softhangup)) {
 		ms = 100;
 		ast_waitfor_n_fd(dr.pfds, 1, &ms, NULL);
 	}
@@ -3767,8 +3758,8 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 		else
 			ast_log(LOG_NOTICE, "Weird, expiration = %d, but need to precache for %s@%s?!\n", dr.expiration, dr.number, dr.dcontext);
 	}
-	gettimeofday(&start, NULL);
-	while(dr.trans && (calc_ms(&start) < ttlms)) {
+	start = ast_tvnow();
+	while(dr.trans && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms)) {
 		if (dr.pfds[0] > -1) {
 			ms = 100;
 			ast_waitfor_n_fd(dr.pfds, 1, &ms, NULL);
@@ -3829,8 +3820,8 @@ static int dundi_query_eid_internal(struct dundi_entity_info *dei, const char *d
 	/* Actually perform transactions */
 	query_transactions(&dr);
 	/* Wait for transaction to come back */
-	gettimeofday(&start, NULL);
-	while(dr.trans && (calc_ms(&start) < ttlms))
+	start = ast_tvnow();
+	while(dr.trans && (ast_tvdiff_ms(ast_tvnow(), start) < ttlms))
 		usleep(1);
 	res = dr.respcount;
 	return res;
@@ -4150,7 +4141,7 @@ static void qualify_peer(struct dundi_peer *peer, int schedonly)
 		if (!schedonly)
 			peer->qualtrans = create_transaction(peer);
 		if (peer->qualtrans) {
-			gettimeofday(&peer->qualtx, NULL);
+			peer->qualtx = ast_tvnow();
 			ast_set_flag(peer->qualtrans, FLAG_ISQUAL);
 			dundi_send(peer->qualtrans, DUNDI_COMMAND_NULL, 0, 1, NULL);
 		}

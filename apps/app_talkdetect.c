@@ -59,7 +59,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	char *stringp;
 	struct ast_frame *fr;
 	int notsilent=0;
-	struct timeval start = { 0, 0}, end = {0, 0};
+	struct timeval start = { 0, 0};
 	int sil = 1000;
 	int min = 100;
 	int max = -1;
@@ -143,9 +143,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 							/* We've been quiet a little while */
 							if (notsilent) {
 								/* We had heard some talking */
-								gettimeofday(&end, NULL);
-								ms = (end.tv_sec - start.tv_sec) * 1000;
-								ms += (end.tv_usec - start.tv_usec) / 1000;
+								ms = ast_tvdiff_ms(ast_tvnow(), start);
 								ms -= sil;
 								if (ms < 0)
 									ms = 0;
@@ -171,7 +169,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 						} else {
 							if (!notsilent) {
 								/* Heard some audio, mark the begining of the token */
-								gettimeofday(&start, NULL);
+								start = ast_tvnow();
 								ast_log(LOG_DEBUG, "Start of voice token!\n");
 								notsilent = 1;
 							}

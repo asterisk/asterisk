@@ -42,6 +42,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/cli.h"
 #include "asterisk/unaligned.h"
+#include "asterisk/utils.h"
 
 #define MAX_TIMESTAMP_SKEW	640
 
@@ -144,12 +145,10 @@ void ast_rtp_setnat(struct ast_rtp *rtp, int nat)
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 {
-	struct timeval tv;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	char iabuf[INET_ADDRSTRLEN];
-	gettimeofday(&tv, NULL);
-	if ((tv.tv_sec < rtp->dtmfmute.tv_sec) ||
-	    ((tv.tv_sec == rtp->dtmfmute.tv_sec) && (tv.tv_usec < rtp->dtmfmute.tv_usec))) {
+
+	if (ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 		rtp->resp = 0;
@@ -367,24 +366,13 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 
 static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int timestamp, int mark)
 {
-	if ((!rtp->rxcore.tv_sec && !rtp->rxcore.tv_usec) || mark) {
-		gettimeofday(&rtp->rxcore, NULL);
-		rtp->rxcore.tv_sec -= timestamp / 8000;
-		rtp->rxcore.tv_usec -= (timestamp % 8000) * 125;
+	struct timeval ts = ast_samp2tv( timestamp, 8000);
+	if (ast_tvzero(rtp->rxcore) || mark) {
+		rtp->rxcore = ast_tvsub(ast_tvnow(), ts);
 		/* Round to 20ms for nice, pretty timestamps */
 		rtp->rxcore.tv_usec -= rtp->rxcore.tv_usec % 20000;
-		if (rtp->rxcore.tv_usec < 0) {
-			/* Adjust appropriately if necessary */
-			rtp->rxcore.tv_usec += 1000000;
-			rtp->rxcore.tv_sec -= 1;
-		}
 	}
-	tv->tv_sec = rtp->rxcore.tv_sec + timestamp / 8000;
-	tv->tv_usec = rtp->rxcore.tv_usec + (timestamp % 8000) * 125;
-	if (tv->tv_usec >= 1000000) {
-		tv->tv_usec -= 1000000;
-		tv->tv_sec += 1;
-	}
+	*tv = ast_tvadd(rtp->rxcore, ts);
 }
 
 struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
@@ -1033,28 +1021,19 @@ void ast_rtp_destroy(struct ast_rtp *rtp)
 
 static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 {
-	struct timeval now;
-	unsigned int ms;
-	if (!rtp->txcore.tv_sec && !rtp->txcore.tv_usec) {
-		gettimeofday(&rtp->txcore, NULL);
+	struct timeval t;
+	long ms;
+	if (ast_tvzero(rtp->txcore)) {
+		rtp->txcore = ast_tvnow();
 		/* Round to 20ms for nice, pretty timestamps */
 		rtp->txcore.tv_usec -= rtp->txcore.tv_usec % 20000;
 	}
-	if (delivery && (delivery->tv_sec || delivery->tv_usec)) {
-		/* Use previous txcore */
-		ms = (delivery->tv_sec - rtp->txcore.tv_sec) * 1000;
-		ms += (1000000 + delivery->tv_usec - rtp->txcore.tv_usec) / 1000 - 1000;
-		rtp->txcore.tv_sec = delivery->tv_sec;
-		rtp->txcore.tv_usec = delivery->tv_usec;
-	} else {
-		gettimeofday(&now, NULL);
-		ms = (now.tv_sec - rtp->txcore.tv_sec) * 1000;
-		ms += (1000000 + now.tv_usec - rtp->txcore.tv_usec) / 1000 - 1000;
-		/* Use what we just got for next time */
-		rtp->txcore.tv_sec = now.tv_sec;
-		rtp->txcore.tv_usec = now.tv_usec;
-	}
-	return ms;
+	/* Use previous txcore if available */
+	t = (delivery && !ast_tvzero(*delivery)) ? *delivery : ast_tvnow();
+	ms = ast_tvdiff_ms(t, rtp->txcore);
+	/* Use what we just got for next time */
+	rtp->txcore = t;
+	return (unsigned int) ms;
 }
 
 int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
@@ -1087,12 +1066,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 	if (!rtp->them.sin_addr.s_addr)
 		return 0;
 
-	gettimeofday(&rtp->dtmfmute, NULL);
-	rtp->dtmfmute.tv_usec += (500 * 1000);
-	if (rtp->dtmfmute.tv_usec > 1000000) {
-		rtp->dtmfmute.tv_usec -= 1000000;
-		rtp->dtmfmute.tv_sec += 1;
-	}
+	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
 	
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
@@ -1159,13 +1133,8 @@ int ast_rtp_sendcng(struct ast_rtp *rtp, int level)
 	if (!rtp->them.sin_addr.s_addr)
 		return 0;
 
-	gettimeofday(&rtp->dtmfmute, NULL);
-	rtp->dtmfmute.tv_usec += (500 * 1000);
-	if (rtp->dtmfmute.tv_usec > 1000000) {
-		rtp->dtmfmute.tv_usec -= 1000000;
-		rtp->dtmfmute.tv_sec += 1;
-	}
-	
+	rtp->dtmfmute = ast_tvadd(ast_tvnow(), ast_tv(0, 500000));
+
 	/* Get a pointer to the header */
 	rtpheader = (unsigned int *)data;
 	rtpheader[0] = htonl((2 << 30) | (1 << 23) | (payload << 16) | (rtp->seqno++));
@@ -1201,7 +1170,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 8;
-		if (!f->delivery.tv_sec && !f->delivery.tv_usec) {
+		if (ast_tvzero(f->delivery)) {
 			/* If this isn't an absolute delivery time, Check if it is close to our prediction, 
 			   and if so, go with our prediction */
 			if (abs(rtp->lastts - pred) < MAX_TIMESTAMP_SKEW)
@@ -1218,7 +1187,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 90;
 		/* If it's close to our prediction, go for it */
-		if (!f->delivery.tv_sec && !f->delivery.tv_usec) {
+		if (ast_tvzero(f->delivery)) {
 			if (abs(rtp->lastts - pred) < 7200) {
 				rtp->lastts = pred;
 				rtp->lastovidtimestamp += f->samples;

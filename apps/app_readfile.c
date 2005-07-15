@@ -83,7 +83,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 		if(len < strlen(returnvar))
 			returnvar[len]='\0';
 		else
-			ast_log(LOG_WARNING,"%s is longer than %d, and %zd \n", file, len, strlen(returnvar));
+			ast_log(LOG_WARNING,"%s is longer than %d, and %d \n", file, len, (int)strlen(returnvar));
 	}
 	pbx_builtin_setvar_helper(chan, varname, returnvar);
 	free(returnvar);

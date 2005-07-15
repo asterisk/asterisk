@@ -372,7 +372,7 @@ static void get_date(char *dateField, struct timeval tv)
 	char buf[80];
 
 	/* To make sure we have date variable if not insert null to SQL */
-	if (tv.tv_sec && tv.tv_usec)
+	if (!ast_tvzero(tv))
 	{
 		t = tv.tv_sec;
 		localtime_r(&t, &tm);

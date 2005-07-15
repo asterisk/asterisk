@@ -316,8 +316,8 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	/* If someone reduces the wrapuptime and reloads, we want it
 	 * to change the wrapuptime immediately on all calls */
 	if (p->wrapuptime > wrapuptime) {
-		struct timeval now;
-		gettimeofday(&now, NULL);
+		struct timeval now = ast_tvnow();
+		/* XXX check what is this exactly */
 
 		/* We won't be pedantic and check the tv_usec val */
 		if (p->lastdisc.tv_sec > (now.tv_sec + wrapuptime/1000)) {
@@ -420,15 +420,8 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 				if (p->chan)
 					ast_log(LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
 				ast_hangup(p->chan);
-				if (p->wrapuptime && p->acknowledged) {
-					gettimeofday(&p->lastdisc, NULL);
-					p->lastdisc.tv_usec += (p->wrapuptime % 1000) * 1000;
-					if (p->lastdisc.tv_usec > 1000000) {
-						p->lastdisc.tv_usec -= 1000000;
-						p->lastdisc.tv_sec++;
-					}
-					p->lastdisc.tv_sec += (p->wrapuptime / 1000);
-				}
+				if (p->wrapuptime && p->acknowledged)
+					p->lastdisc = ast_tvadd(ast_tvnow(), ast_samp2tv(p->wrapuptime, 1000));
 			}
 			p->chan = NULL;
 			p->acknowledged = 0;
@@ -699,16 +692,10 @@ static int agent_hangup(struct ast_channel *ast)
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (!ast_strlen_zero(p->loginchan)) {
 			/* Store last disconnect time */
-			if (p->wrapuptime && p->acknowledged) {
-				gettimeofday(&p->lastdisc, NULL);
-				p->lastdisc.tv_usec += (p->wrapuptime % 1000) * 1000;
-				if (p->lastdisc.tv_usec >= 1000000) {
-					p->lastdisc.tv_usec -= 1000000;
-					p->lastdisc.tv_sec++;
-				}
-				p->lastdisc.tv_sec += (p->wrapuptime / 1000);
-			} else
-				memset(&p->lastdisc, 0, sizeof(p->lastdisc));
+			if (p->wrapuptime && p->acknowledged)
+				p->lastdisc = ast_tvadd(ast_tvnow(), ast_samp2tv(p->wrapuptime, 1000));
+			else
+				p->lastdisc = ast_tv(0,0);
 			if (p->chan) {
 				/* Recognize the hangup and pass it along immediately */
 				ast_hangup(p->chan);
@@ -779,7 +766,7 @@ static int agent_hangup(struct ast_channel *ast)
 			/* Not dead -- check availability now */
 			ast_mutex_lock(&p->lock);
 			/* Store last disconnect time */
-			gettimeofday(&p->lastdisc, NULL);
+			p->lastdisc = ast_tvnow();
 			ast_mutex_unlock(&p->lock);
 		}
 		/* Release ownership of the agent to other threads (presumably running the login app). */
@@ -791,7 +778,6 @@ static int agent_hangup(struct ast_channel *ast)
 static int agent_cont_sleep( void *data )
 {
 	struct agent_pvt *p;
-	struct timeval tv;
 	int res;
 
 	p = (struct agent_pvt *)data;
@@ -799,9 +785,7 @@ static int agent_cont_sleep( void *data )
 	ast_mutex_lock(&p->lock);
 	res = p->app_sleep_cond;
 	if (p->lastdisc.tv_sec) {
-		gettimeofday(&tv, NULL);
-		if ((tv.tv_sec - p->lastdisc.tv_sec) * 1000 + 
-			(tv.tv_usec - p->lastdisc.tv_usec) / 1000 > p->wrapuptime) 
+		if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > p->wrapuptime) 
 			res = 1;
 	}
 	ast_mutex_unlock(&p->lock);
@@ -1264,12 +1248,12 @@ static struct ast_channel *agent_request(const char *type, int format, void *dat
 			if (!p->pending && ((groupmatch && (p->group & groupmatch)) || !strcmp(data, p->agent))) {
 				if (p->chan || !ast_strlen_zero(p->loginchan))
 					hasagent++;
-				gettimeofday(&tv, NULL);
+				tv = ast_tvnow();
 #if 0
 				ast_log(LOG_NOTICE, "Time now: %ld, Time of lastdisc: %ld\n", tv.tv_sec, p->lastdisc.tv_sec);
 #endif
 				if (!p->lastdisc.tv_sec || (tv.tv_sec > p->lastdisc.tv_sec)) {
-					memset(&p->lastdisc, 0, sizeof(p->lastdisc));
+					p->lastdisc = ast_tv(0, 0);
 					/* Agent must be registered, but not have any active call, and not be in a waiting state */
 					if (!p->owner && p->chan) {
 						/* Could still get a fixed agent */
@@ -1558,7 +1542,6 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	int max_login_tries = maxlogintries;
 	struct agent_pvt *p;
 	struct localuser *u;
-	struct timeval tv;
 	int login_state = 0;
 	char user[AST_MAX_AGENT] = "";
 	char pass[AST_MAX_AGENT];
@@ -1883,12 +1866,10 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								ast_mutex_lock(&agentlock);
 								ast_mutex_lock(&p->lock);
 								if (p->lastdisc.tv_sec) {
-									gettimeofday(&tv, NULL);
-									if ((tv.tv_sec - p->lastdisc.tv_sec) * 1000 + 
-										(tv.tv_usec - p->lastdisc.tv_usec) / 1000 > p->wrapuptime) {
+									if (ast_tvdiff_ms(ast_tvnow(), p->lastdisc) > p->wrapuptime) {
 											if (option_debug)
 												ast_log(LOG_DEBUG, "Wrapup time for %s expired!\n", p->agent);
-										memset(&p->lastdisc, 0, sizeof(p->lastdisc));
+										p->lastdisc = ast_tv(0, 0);
 										if (p->ackcall > 1)
 											check_beep(p, 0);
 										else

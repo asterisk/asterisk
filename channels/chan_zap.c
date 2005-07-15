@@ -3458,7 +3458,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							p->dialing = 1;
 						zt_ring_phone(p);
 					} else if (p->subs[SUB_THREEWAY].owner) {
-						struct timeval tv;
 						unsigned int mssinceflash;
 						/* Here we have to retain the lock on both the main channel, the 3-way channel, and
 						   the private structure -- not especially easy or clean */
@@ -3481,8 +3480,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 							ast_log(LOG_NOTICE, "Whoa, threeway disappeared kinda randomly.\n");
 							return NULL;
 						}
-						gettimeofday(&tv, NULL);
-						mssinceflash = (tv.tv_sec - p->flashtime.tv_sec) * 1000 + (tv.tv_usec - p->flashtime.tv_usec) / 1000;
+						mssinceflash = ast_tvdiff_ms(ast_tvnow(), p->flashtime);
 						ast_log(LOG_DEBUG, "Last flash was %d ms ago\n", mssinceflash);
 						if (mssinceflash < MIN_MS_SINCE_FLASH) {
 							/* It hasn't been long enough since the last flashook.  This is probably a bounce on 
@@ -3978,10 +3976,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				(p->polarityonanswerdelay > 0) &&
 			        (p->polarity == POLARITY_REV) &&
 				(ast->_state == AST_STATE_UP)) {
-				struct timeval tv;
-				gettimeofday(&tv, NULL);
 
-				if((((tv.tv_sec - p->polaritydelaytv.tv_sec) * 1000) + ((tv.tv_usec - p->polaritydelaytv.tv_usec)/1000)) > p->polarityonanswerdelay) {
+				if(ast_tvdiff_ms(ast_tvnow(), p->polaritydelaytv) > p->polarityonanswerdelay) {
 					ast_log(LOG_DEBUG, "Hangup due to Reverse Polarity on channel %d\n", p->channel);
 					ast_softhangup(p->owner, AST_SOFTHANGUP_EXPLICIT);
 					p->polarity = POLARITY_IDLE;
@@ -4018,8 +4014,7 @@ static struct ast_frame *__zt_exception(struct ast_channel *ast)
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = 0;
 	p->subs[index].f.subclass = 0;
-	p->subs[index].f.delivery.tv_sec = 0;
-	p->subs[index].f.delivery.tv_usec = 0;
+	p->subs[index].f.delivery = ast_tv(0,0);
 	p->subs[index].f.src = "zt_exception";
 	p->subs[index].f.data = NULL;
 	
@@ -4144,8 +4139,7 @@ struct ast_frame  *zt_read(struct ast_channel *ast)
 	p->subs[index].f.mallocd = 0;
 	p->subs[index].f.offset = 0;
 	p->subs[index].f.subclass = 0;
-	p->subs[index].f.delivery.tv_sec = 0;
-	p->subs[index].f.delivery.tv_usec = 0;
+	p->subs[index].f.delivery = ast_tv(0,0);
 	p->subs[index].f.src = "zt_read";
 	p->subs[index].f.data = NULL;
 	
@@ -7776,15 +7770,11 @@ static void *pri_dchannel(void *vpri)
 #if 0
 			printf("nextidle: %d, haveidles: %d, minunsed: %d\n",
 				nextidle, haveidles, minunused);
-			gettimeofday(&tv, NULL);
 			printf("nextidle: %d, haveidles: %d, ms: %ld, minunsed: %d\n",
-				nextidle, haveidles, (tv.tv_sec - lastidle.tv_sec) * 1000 +
-				    (tv.tv_usec - lastidle.tv_usec) / 1000, minunused);
+				nextidle, haveidles, ast_tvdiff_ms(ast_tvnow(), lastidle), minunused);
 #endif
 			if (nextidle > -1) {
-				gettimeofday(&tv, NULL);
-				if (((tv.tv_sec - lastidle.tv_sec) * 1000 +
-				    (tv.tv_usec - lastidle.tv_usec) / 1000) > 1000) {
+				if (ast_tvdiff_ms(ast_tvnow(), lastidle) > 1000) {
 					/* Don't create a new idle call more than once per second */
 					snprintf(idlen, sizeof(idlen), "%d/%s", pri->pvts[nextidle]->channel, pri->idledial);
 					idle = zt_request("Zap", AST_FORMAT_ULAW, idlen, &cause);
@@ -7817,49 +7807,36 @@ static void *pri_dchannel(void *vpri)
 			}
 		}
 		/* Start with reasonable max */
-		lowest.tv_sec = 60;
-		lowest.tv_usec = 0;
+		lowest = ast_tv(60, 0);
 		for (i=0; i<NUM_DCHANS; i++) {
 			/* Find lowest available d-channel */
 			if (!pri->dchannels[i])
 				break;
 			if ((next = pri_schedule_next(pri->dchans[i]))) {
 				/* We need relative time here */
-				gettimeofday(&tv, NULL);
-				tv.tv_sec = next->tv_sec - tv.tv_sec;
-				tv.tv_usec = next->tv_usec - tv.tv_usec;
-				if (tv.tv_usec < 0) {
-					tv.tv_usec += 1000000;
-					tv.tv_sec -= 1;
-				}
+				tv = ast_tvsub(*next, ast_tvnow());
 				if (tv.tv_sec < 0) {
-					tv.tv_sec = 0;
-					tv.tv_usec = 0;
+					tv = ast_tv(0,0);
 				}
 				if (doidling || pri->resetting) {
 					if (tv.tv_sec > 1) {
-						tv.tv_sec = 1;
-						tv.tv_usec = 0;
+						tv = ast_tv(1, 0);
 					}
 				} else {
 					if (tv.tv_sec > 60) {
-						tv.tv_sec = 60;
-						tv.tv_usec = 0;
+						tv = ast_tv(60, 0);
 					}
 				}
 			} else if (doidling || pri->resetting) {
 				/* Make sure we stop at least once per second if we're
 				   monitoring idle channels */
-				tv.tv_sec = 1;
-				tv.tv_usec = 0;
+				tv = ast_tv(1,0);
 			} else {
 				/* Don't poll for more than 60 seconds */
-				tv.tv_sec = 60;
-				tv.tv_usec = 0;
+				tv = ast_tv(60, 0);
 			}
-			if (!i || (tv.tv_sec < lowest.tv_sec) || ((tv.tv_sec == lowest.tv_sec) && (tv.tv_usec < lowest.tv_usec))) {
-				lowest.tv_sec = tv.tv_sec;
-				lowest.tv_usec = tv.tv_usec;
+			if (!i || ast_tvcmp(tv, lowest) < 0) {
+				lowest = tv;
 			}
 		}
 		ast_mutex_unlock(&pri->lock);

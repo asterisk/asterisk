@@ -295,7 +295,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 				ast_indicate(pu->chan, AST_CONTROL_HOLD);
 				ast_moh_start(pu->chan, NULL);
 			}
-			gettimeofday(&pu->start, NULL);
+			pu->start = ast_tvnow();
 			pu->parkingnum = x;
 			if (timeout > 0)
 				pu->parkingtime = timeout;
@@ -938,7 +938,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
 		
 		if (!ast_call(chan, data, timeout)) {
-			struct timeval started, ended;
+			struct timeval started;
 			int x, len = 0;
 			char *disconnect_code = NULL, *dialed_code = NULL;
 
@@ -955,7 +955,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 				break;
 			}
 			x = 0;
-			gettimeofday(&started, NULL);
+			started = ast_tvnow();
 			to = timeout;
 			while (!ast_check_hangup(caller) && timeout && (chan->_state != AST_STATE_UP)) {
 				monitor_chans[0] = caller;
@@ -963,8 +963,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 				active_channel = ast_waitfor_n(monitor_chans, 2, &to);
 
 				/* see if the timeout has been violated */
-				gettimeofday(&ended,NULL);
-				if(ast_tvdiff_ms(&ended, &started) > timeout) {
+				if(ast_tvdiff_ms(ast_tvnow(), started) > timeout) {
 					state = AST_CONTROL_UNHOLD;
 					ast_log(LOG_NOTICE, "We exceeded our AT-timeout\n");
 					break; /*doh! timeout*/
@@ -1107,7 +1106,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	int hasfeatures=0;
 	int hadfeatures=0;
 	struct ast_option_header *aoh;
-	struct timeval start, end;
+	struct timeval start;
 	struct ast_bridge_config backup_config;
 	int allowdisconnect_in,allowdisconnect_out,allowredirect_in,allowredirect_out;
 	char *monitor_exec;
@@ -1157,13 +1156,11 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	}
 	for (;;) {
 		if (config->timelimit)
-			gettimeofday(&start, NULL);
+			start = ast_tvnow();
 		res = ast_channel_bridge(chan,peer,config,&f, &who);
 		if (config->timelimit) {
 			/* Update time limit for next pass */
-			gettimeofday(&end, NULL);
-			diff = (end.tv_sec - start.tv_sec) * 1000;
-			diff += (end.tv_usec - start.tv_usec) / 1000;
+			diff = ast_tvdiff_ms(ast_tvnow(), start);
 			config->timelimit -= diff;
 			if (hasfeatures) {
 				/* Running on backup config, meaning a feature might be being
@@ -1344,8 +1341,7 @@ static void *do_parking_thread(void *ignore)
 				pu = pu->next;
 				continue;
 			}
-			gettimeofday(&tv, NULL);
-			tms = (tv.tv_sec - pu->start.tv_sec) * 1000 + (tv.tv_usec - pu->start.tv_usec) / 1000;
+			tms = ast_tvdiff_ms(ast_tvnow(), pu->start);
 			if (tms > pu->parkingtime) {
 				/* Stop music on hold */
 				ast_moh_stop(pu->chan);
@@ -1486,8 +1482,7 @@ std:					for (x=0; x<AST_MAX_FDS; x++) {
 		ast_mutex_unlock(&parking_lock);
 		rfds = nrfds;
 		efds = nefds;
-		tv.tv_sec = ms / 1000;
-		tv.tv_usec = (ms % 1000) * 1000;
+		tv = ast_samp2tv(ms, 1000);
 		/* Wait for something to happen */
 		ast_select(max + 1, &rfds, NULL, &efds, (ms > -1) ? &tv : NULL);
 		pthread_testcancel();

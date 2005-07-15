@@ -100,7 +100,7 @@ extern int ast_sched_runq(struct sched_context *con);
  * \param con Context to dump
  * Debugging: Dump the contents of the scheduler to stderr
  */
-extern void ast_sched_dump(struct sched_context *con);
+extern void ast_sched_dump(const struct sched_context *con);
 
 /*!Returns the number of seconds before an event takes place */
 /*!

@@ -1120,7 +1120,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 {
 	/* Wait for x amount of time on a file descriptor to have input.  */
-	struct timeval start, now;
+	struct timeval start;
 	int res;
 	int x, y;
 	int winner = -1;
@@ -1133,7 +1133,7 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 		return -1;
 	}
 	if (*ms > 0)
-		gettimeofday(&start, NULL);
+		start = ast_tvnow();
 	y = 0;
 	for (x=0;x<n;x++) {
 		if (fds[x] > -1) {
@@ -1166,13 +1166,8 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 		}
 	}
 	if (*ms > 0) {
-		long passed;
-		gettimeofday(&now, NULL);
-		passed = (now.tv_sec - start.tv_sec) * 1000;
-		passed += (now.tv_usec - start.tv_usec) / 1000;
-		if (passed <= *ms)
-			*ms -= passed;
-		else
+		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
+		if (*ms < 0)
 			*ms = 0;
 	}
 	return winner;
@@ -1182,7 +1177,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 	int *exception, int *outfd, int *ms)
 {
 	/* Wait for x amount of time on a file descriptor to have input.  */
-	struct timeval start, end;
+	struct timeval start;
 	struct pollfd *pfds;
 	int res;
 	long rms;
@@ -1253,7 +1248,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		}
 	}
 	if (*ms > 0) 
-		gettimeofday(&start, NULL);
+		start = ast_tvnow();
 	res = poll(pfds, max, rms);
 	if (res < 0) {
 		for (x=0;x<n;x++) 
@@ -1315,13 +1310,8 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		}	
 	}
 	if (*ms > 0) {
-		long diff;
-		gettimeofday(&end, NULL);
-		diff = (end.tv_sec - start.tv_sec) * 1000;
-		diff += (end.tv_usec - start.tv_usec) / 1000;
-		if (diff < *ms)
-			*ms -= diff;
-		else
+		*ms -= ast_tvdiff_ms(ast_tvnow(), start);
+		if (*ms < 0)
 			*ms = 0;
 	}
 	return winner;
@@ -2809,15 +2799,6 @@ int ast_setstate(struct ast_channel *chan, int state)
 	return 0;
 }
 
-static long tvdiff(struct timeval *now, struct timeval *then) 
-{
-#if 0
-	return (((now->tv_sec * 1000) + now->tv_usec / 1000) - ((then->tv_sec * 1000) + then->tv_usec / 1000));
-#else
-	return (now->tv_sec - then->tv_sec) * 1000 + (now->tv_usec - then->tv_usec) / 1000;	
-#endif
-}
-
 /*--- Find bridged channel */
 struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
 {
@@ -2878,7 +2859,6 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct timeval *sta
 	int res=0;
 	int o0nativeformats;
 	int o1nativeformats;
-	struct timeval precise_now;
 	long elapsed_ms=0, time_left_ms=0;
 	
 	cs[0] = c0;
@@ -2899,8 +2879,7 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct timeval *sta
 		/* timestamp */
 		if (config->timelimit) {
 			/* If there is a time limit, return now */
-			gettimeofday(&precise_now,NULL);
-			elapsed_ms = tvdiff(&precise_now,start_time);
+			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), *start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
 			if (*playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 
@@ -3022,7 +3001,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	int firstpass;
 	int o0nativeformats;
 	int o1nativeformats;
-	struct timeval start_time,precise_now;
+	struct timeval start_time;
 	long elapsed_ms=0, time_left_ms=0;
 	int playit=0, playitagain=1, first_time=1;
 
@@ -3031,7 +3010,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	config->firstpass = 0;
 
 	/* timestamp */
-	gettimeofday(&start_time,NULL);
+	start_time = ast_tvnow();
 	time_left_ms = config->timelimit;
 
 	if ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) && config->start_sound && firstpass)
@@ -3073,8 +3052,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	for (/* ever */;;) {
 		/* timestamp */
 		if (config->timelimit) {
-			gettimeofday(&precise_now,NULL);
-			elapsed_ms = tvdiff(&precise_now,&start_time);
+			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
 			if (playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 

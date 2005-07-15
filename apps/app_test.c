@@ -55,7 +55,7 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 	int samples=0;
 	int x;
 	short *foo;
-	struct timeval start, tv;
+	struct timeval start;
 	struct ast_frame *f;
 	int rformat;
 	rformat = chan->readformat;
@@ -63,11 +63,9 @@ static int measurenoise(struct ast_channel *chan, int ms, char *who)
 		ast_log(LOG_NOTICE, "Unable to set to linear mode!\n");
 		return -1;
 	}
-	gettimeofday(&start, NULL);
+	start = ast_tvnow();
 	for(;;) {
-		gettimeofday(&tv, NULL);
-		mssofar = (tv.tv_sec - start.tv_sec) * 1000;
-		mssofar += (tv.tv_usec - start.tv_usec) / 1000;
+		mssofar = ast_tvdiff_ms(ast_tvnow(), start);
 		if (mssofar > ms)
 			break;
 		res = ast_waitfor(chan, ms - mssofar);

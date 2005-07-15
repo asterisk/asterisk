@@ -235,14 +235,12 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 	int i = 0;
 	int r;
 	struct ast_frame *f;
-	struct timeval now, lastdigittime;
+	struct timeval lastdigittime;
 	
-	gettimeofday(&lastdigittime,NULL);
+	lastdigittime = ast_tvnow();
 	for(;;){
-		gettimeofday(&now,NULL);
-		
 		  /* if outa time, leave */
-		if (ast_tvdiff_ms(&now, &lastdigittime) > 
+		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) >
 		    ((i > 0) ? sdto : fdto)){
 			if(option_verbose >= 4)
 				ast_verbose(VERBOSE_PREFIX_4 "AlarmReceiver: DTMF Digit Timeout on %s\n", chan->name);
@@ -287,7 +285,7 @@ static int receive_dtmf_digits(struct ast_channel *chan, char *digit_string, int
 		if(i >= length)
 			break;
 		
-		gettimeofday(&lastdigittime,NULL);
+		lastdigittime = ast_tvnow();
 	}
 	
 	digit_string[i] = '\0'; /* Nul terminate the end of the digit string */

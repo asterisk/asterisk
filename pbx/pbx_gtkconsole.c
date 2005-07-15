@@ -107,12 +107,12 @@ static void __verboser(const char *stuff, int opos, int replacelast, int complet
 	if (replacelast) 
 		gtk_clist_remove(GTK_CLIST(verb), GTK_CLIST(verb)->rows - 1);
 	gtk_clist_append(GTK_CLIST(verb), s2);
-	if (last.tv_sec || last.tv_usec) {
+	if (!ast_tvzero(last)) {
 		gdk_threads_leave();
 		gettimeofday(&tv, NULL);
 		if (cleanupid > -1)
 			gtk_timeout_remove(cleanupid);
-		ms = (tv.tv_sec - last.tv_sec) * 1000 + (tv.tv_usec - last.tv_usec) / 1000;
+		ms = ast_tvdiff_ms(tv, last);
 		if (ms < 100) {
 			/* We just got a message within 100ms, so just schedule an update
 			   in the near future */

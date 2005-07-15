@@ -419,9 +419,9 @@ void ast_cdr_free(struct ast_cdr *cdr)
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_POSTED) && !ast_test_flag(cdr, AST_CDR_FLAG_POST_DISABLED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' not posted\n", chan);
-		if (!cdr->end.tv_sec && !cdr->end.tv_usec)
+		if (ast_tvzero(cdr->end))
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
-		if (!cdr->start.tv_sec && !cdr->start.tv_usec)
+		if (ast_tvzero(cdr->start))
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
 
 		ast_cdr_free_vars(cdr, 0);
@@ -450,9 +450,9 @@ void ast_cdr_start(struct ast_cdr *cdr)
 			chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 			if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 				ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-			if (cdr->start.tv_sec || cdr->start.tv_usec)
+			if (!ast_tvzero(cdr->start))
 				ast_log(LOG_WARNING, "CDR on channel '%s' already started\n", chan);
-			gettimeofday(&cdr->start, NULL);
+			cdr->start = ast_tvnow();
 		}
 		cdr = cdr->next;
 	}
@@ -468,9 +468,8 @@ void ast_cdr_answer(struct ast_cdr *cdr)
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
 		if (cdr->disposition < AST_CDR_ANSWERED)
 			cdr->disposition = AST_CDR_ANSWERED;
-		if (!cdr->answer.tv_sec && !cdr->answer.tv_usec) {
-			gettimeofday(&cdr->answer, NULL);
-		}
+		if (ast_tvzero(cdr->answer))
+			cdr->answer = ast_tvnow();
 		cdr = cdr->next;
 	}
 }
@@ -637,10 +636,10 @@ void ast_cdr_end(struct ast_cdr *cdr)
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (!cdr->start.tv_sec && !cdr->start.tv_usec)
+		if (ast_tvzero(cdr->start))
 			ast_log(LOG_WARNING, "CDR on channel '%s' has not started\n", chan);
-		if (!cdr->end.tv_sec && !cdr->end.tv_usec) 
-			gettimeofday(&cdr->end, NULL);
+		if (ast_tvzero(cdr->end))
+			cdr->end = ast_tvnow();
 		cdr = cdr->next;
 	}
 }
@@ -780,12 +779,12 @@ static void post_cdr(struct ast_cdr *cdr)
 		chan = !ast_strlen_zero(cdr->channel) ? cdr->channel : "<unknown>";
 		if (ast_test_flag(cdr, AST_CDR_FLAG_POSTED))
 			ast_log(LOG_WARNING, "CDR on channel '%s' already posted\n", chan);
-		if (!cdr->end.tv_sec && !cdr->end.tv_usec)
+		if (ast_tvzero(cdr->end))
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks end\n", chan);
-		if (!cdr->start.tv_sec && !cdr->start.tv_usec)
+		if (ast_tvzero(cdr->start))
 			ast_log(LOG_WARNING, "CDR on channel '%s' lacks start\n", chan);
 		cdr->duration = cdr->end.tv_sec - cdr->start.tv_sec + (cdr->end.tv_usec - cdr->start.tv_usec) / 1000000;
-		if (cdr->answer.tv_sec || cdr->answer.tv_usec)
+		if (!ast_tvzero(cdr->answer))
 			cdr->billsec = cdr->end.tv_sec - cdr->answer.tv_sec + (cdr->end.tv_usec - cdr->answer.tv_usec) / 1000000;
 		else
 			cdr->billsec = 0;
@@ -1008,13 +1007,12 @@ void ast_cdr_detach(struct ast_cdr *cdr)
 
 static void *do_cdr(void *data)
 {
-	struct timeval now;
 	struct timespec timeout;
 	int schedms;
 	int numevents = 0;
 
 	for(;;) {
-		gettimeofday(&now, NULL);
+		struct timeval now = ast_tvnow();
 		schedms = ast_sched_wait(sched);
 		/* this shouldn't happen, but provide a 1 second default just in case */
 		if (schedms <= 0)

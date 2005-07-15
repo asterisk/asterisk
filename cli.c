@@ -668,7 +668,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	gettimeofday(&now, NULL);
+	now = ast_tvnow();
 	c = ast_get_channel_by_name_locked(argv[2]);
 	if (!c) {
 		ast_cli(fd, "%s is not a known channel\n", argv[2]);

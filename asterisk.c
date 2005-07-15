@@ -1199,7 +1199,7 @@ static char *cli_prompt(EditLine *el)
 						break;
 					case 'd': /* date */
 						memset(&tm, 0, sizeof(struct tm));
-						gettimeofday(&tv, NULL);
+						tv = ast_tvnow();
 						if (localtime_r(&(tv.tv_sec), &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
 						}
@@ -1256,7 +1256,7 @@ static char *cli_prompt(EditLine *el)
 #endif
 					case 't': /* time */
 						memset(&tm, 0, sizeof(struct tm));
-						gettimeofday(&tv, NULL);
+						tv = ast_tvnow();
 						if (localtime_r(&(tv.tv_sec), &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
 						}

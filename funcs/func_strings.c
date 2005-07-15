@@ -127,7 +127,6 @@ static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char 
 {
 	char *format, *epoch, *timezone;
 	long epochi;
-	struct timeval tv;
 	struct tm time;
 
 	if (data) {
@@ -137,11 +136,9 @@ static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char 
 			timezone = strsep(&format, "|");
 
 			if (epoch && !ast_strlen_zero(epoch) && sscanf(epoch, "%ld", &epochi) == 1) {
-			} else if (!gettimeofday(&tv, NULL)) {
-				epochi = tv.tv_sec;
 			} else {
-				ast_log(LOG_ERROR, "Cannot gettimeofday() ?!!\n");
-				return "";
+				struct timeval tv = ast_tvnow();
+				epochi = tv.tv_sec;
 			}
 
 			ast_localtime(&epochi, &time, timezone);

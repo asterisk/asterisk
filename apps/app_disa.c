@@ -90,15 +90,6 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int ms_diff(struct timeval *tv1, struct timeval *tv2)
-{
-int	ms;
-	
-	ms = (tv1->tv_sec - tv2->tv_sec) * 1000;
-	ms += (tv1->tv_usec - tv2->tv_usec) / 1000;
-	return(ms);
-}
-
 static void play_dialtone(struct ast_channel *chan, char *mailbox)
 {
 	const struct tone_zone_sound *ts = NULL;
@@ -121,7 +112,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	char tmp[256],arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
 	char *ourcontext,*ourcallerid,ourcidname[256],ourcidnum[256],*mailbox;
 	struct ast_frame *f;
-	struct timeval lastout, now, lastdigittime;
+	struct timeval lastdigittime;
 	int res;
 	time_t rstart;
 	FILE *fp;
@@ -142,7 +133,6 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
 		return -1;
 	}
-	lastout.tv_sec = lastout.tv_usec = 0;
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
@@ -187,15 +177,14 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		k |= 1; /* We have the password */
 		ast_log(LOG_DEBUG, "DISA no-password login success\n");
 	}
-	gettimeofday(&lastdigittime,NULL);
+	lastdigittime = ast_tvnow();
 
 	play_dialtone(chan, mailbox);
 
 	for(;;)
 	{
-		gettimeofday(&now,NULL);
 		  /* if outa time, give em reorder */
-		if (ms_diff(&now,&lastdigittime) > 
+		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > 
 		    ((k&2) ? digittimeout : firstdigittimeout))
 		{
 			ast_log(LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
@@ -238,7 +227,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			k|=2; /* We have the first digit */ 
 			ast_playtones_stop(chan);
 		}
-		gettimeofday(&lastdigittime,NULL);
+		lastdigittime = ast_tvnow();
 		  /* got a DTMF tone */
 		if (i < AST_MAX_EXTENSION) /* if still valid number of digits */
 		{

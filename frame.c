@@ -144,8 +144,7 @@ int __ast_smoother_feed(struct ast_smoother *s, struct ast_frame *f, int swap)
 	else
 		memcpy(s->data + s->len, f->data, f->datalen);
 	/* If either side is empty, reset the delivery time */
-	if (!s->len || (!f->delivery.tv_sec && !f->delivery.tv_usec) ||
-			(!s->delivery.tv_sec && !s->delivery.tv_usec))
+	if (!s->len || ast_tvzero(f->delivery) || ast_tvzero(s->delivery))	/* XXX really ? */
 		s->delivery = f->delivery;
 	s->len += f->datalen;
 	return 0;
@@ -181,7 +180,7 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 	s->f.offset = AST_FRIENDLY_OFFSET;
 	s->f.datalen = len;
 	/* Samples will be improper given VAD, but with VAD the concept really doesn't even exist */
-	s->f.samples = len * s->samplesperbyte;
+	s->f.samples = len * s->samplesperbyte;	/* XXX rounding */
 	s->f.delivery = s->delivery;
 	/* Fill Data */
 	memcpy(s->f.data, s->data, len);
@@ -191,14 +190,9 @@ struct ast_frame *ast_smoother_read(struct ast_smoother *s)
 		/* In principle this should all be fine because if we are sending
 		   G.729 VAD, the next timestamp will take over anyawy */
 		memmove(s->data, s->data + len, s->len);
-		if (s->delivery.tv_sec || s->delivery.tv_usec) {
+		if (!ast_tvzero(s->delivery)) {
 			/* If we have delivery time, increment it, otherwise, leave it at 0 */
-			s->delivery.tv_sec += (len * s->samplesperbyte) / 8000.0;
-			s->delivery.tv_usec += (((int)(len * s->samplesperbyte)) % 8000) * 125;
-			if (s->delivery.tv_usec > 1000000) {
-				s->delivery.tv_usec -= 1000000;
-				s->delivery.tv_sec += 1;
-			}
+			s->delivery = ast_tvadd(s->delivery, ast_samp2tv(s->f.samples, 8000));
 		}
 	}
 	/* Return frame */

@@ -787,7 +787,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 {
 	struct ast_filestream *fs;
 	struct ast_frame *f;
-	struct timeval tv, start;
+	struct timeval start;
 	long sample_offset = 0;
 	int res = 0;
 	int ms;
@@ -854,7 +854,9 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 
 	if (!res)
 		res = ast_waitstream(chan, argv[4]);
-	if (!res) {
+	if (res) {
+		fdprintf(agi->fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
+	} else {
 		fs = ast_writefile(argv[2], argv[3], NULL, O_CREAT | O_WRONLY | (sample_offset ? O_APPEND : 0), 0, 0644);
 		if (!fs) {
 			res = -1;
@@ -870,9 +872,8 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		ast_seekstream(fs, sample_offset, SEEK_SET);
 		ast_truncstream(fs);
 		
-		gettimeofday(&start, NULL);
-		gettimeofday(&tv, NULL);
-		while ((ms < 0) || (((tv.tv_sec - start.tv_sec) * 1000 + (tv.tv_usec - start.tv_usec)/1000) < ms)) {
+		start = ast_tvnow();
+		while ((ms < 0) || ast_tvdiff_ms(ast_tvnow(), start) < ms) {
 			res = ast_waitfor(chan, -1);
 			if (res < 0) {
 				ast_closestream(fs);
@@ -926,7 +927,6 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 				break;
 			}
 			ast_frfree(f);
-		    	gettimeofday(&tv, NULL);
 			if (gotsilence)
 				break;
         	}
@@ -938,8 +938,7 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		}		
 		fdprintf(agi->fd, "200 result=%d (timeout) endpos=%ld\n", res, sample_offset);
 		ast_closestream(fs);
-	} else
-		fdprintf(agi->fd, "200 result=%d (randomerror) endpos=%ld\n", res, sample_offset);
+	}
 
         if (silence > 0) {
                 res = ast_set_read_format(chan, rfmt);

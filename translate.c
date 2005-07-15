@@ -107,10 +107,7 @@ struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 				
 			if (tmp) {
 				tmp->next = NULL;
-				tmp->nextin.tv_sec = 0;
-				tmp->nextin.tv_usec = 0;
-				tmp->nextout.tv_sec = 0;
-				tmp->nextout.tv_usec = 0;
+				tmp->nextin = tmp->nextout = ast_tv( 0, 0 );
 				tmp->step = tr_matrix[source][dest].step;
 				tmp->state = tmp->step->newpvt();
 				if (!tmp->state) {
@@ -147,47 +144,26 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 	p = path;
 	/* Feed the first frame into the first translator */
 	p->step->framein(p->state, f);
-	if (f->delivery.tv_sec || f->delivery.tv_usec) {
-		if (path->nextin.tv_sec || path->nextin.tv_usec) {
+	if (!ast_tvzero(f->delivery)) {
+		if (!ast_tvzero(path->nextin)) {
 			/* Make sure this is in line with what we were expecting */
-			if ((path->nextin.tv_sec != f->delivery.tv_sec) ||
-			    (path->nextin.tv_usec != f->delivery.tv_usec)) {
+			if (!ast_tveq(path->nextin, f->delivery)) {
 				/* The time has changed between what we expected and this
 				   most recent time on the new packet.  Adjust our output
 				   time appropriately */
-				long sdiff;
-				long udiff;
-				sdiff = f->delivery.tv_sec - path->nextin.tv_sec;
-				udiff = f->delivery.tv_usec - path->nextin.tv_usec;
-				path->nextin.tv_sec = f->delivery.tv_sec;
-				path->nextin.tv_usec = f->delivery.tv_usec;
-				path->nextout.tv_sec += sdiff;
-				path->nextout.tv_usec += udiff;
-				if (path->nextout.tv_usec < 0) {
-					path->nextout.tv_usec += 1000000;
-					path->nextout.tv_sec--;
-				} else if (path->nextout.tv_usec >= 1000000) {
-					path->nextout.tv_usec -= 1000000;
-					path->nextout.tv_sec++;
-				}
+				path->nextout = ast_tvadd(path->nextout,
+					ast_tvsub(f->delivery, path->nextin));
+				path->nextin = f->delivery;
 			}
 		} else {
 			/* This is our first pass.  Make sure the timing looks good */
-			path->nextin.tv_sec = f->delivery.tv_sec;
-			path->nextin.tv_usec = f->delivery.tv_usec;
-			path->nextout.tv_sec = f->delivery.tv_sec;
-			path->nextout.tv_usec = f->delivery.tv_usec;
+			path->nextin = f->delivery;
+			path->nextout = f->delivery;
 		}
 		/* Predict next incoming sample */
-		path->nextin.tv_sec += (f->samples / 8000);
-		path->nextin.tv_usec += ((f->samples % 8000) * 125);
-		if (path->nextin.tv_usec >= 1000000) {
-			path->nextin.tv_usec -= 1000000;
-			path->nextin.tv_sec++;
-		}
+		path->nextin = ast_tvadd(path->nextin, ast_samp2tv(f->samples, 8000));
 	}
-	delivery.tv_sec = f->delivery.tv_sec;
-	delivery.tv_usec = f->delivery.tv_usec;
+	delivery = f->delivery;
 	if (consume)
 		ast_frfree(f);
 	while(p) {
@@ -200,22 +176,15 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 		if (p->next) 
 			p->next->step->framein(p->next->state, out);
 		else {
-			if (delivery.tv_sec || delivery.tv_usec) {
+			if (!ast_tvzero(delivery)) {
 				/* Use next predicted outgoing timestamp */
-				out->delivery.tv_sec = path->nextout.tv_sec;
-				out->delivery.tv_usec = path->nextout.tv_usec;
+				out->delivery = path->nextout;
 				
 				/* Predict next outgoing timestamp from samples in this
 				   frame. */
-				path->nextout.tv_sec += (out->samples / 8000);
-				path->nextout.tv_usec += ((out->samples % 8000) * 125);
-				if (path->nextout.tv_usec >= 1000000) {
-					path->nextout.tv_sec++;
-					path->nextout.tv_usec -= 1000000;
-				}
+				path->nextout = ast_tvadd(path->nextout, ast_samp2tv( out->samples, 8000));
 			} else {
-				out->delivery.tv_sec = 0;
-				out->delivery.tv_usec = 0;
+				out->delivery = ast_tv(0, 0);
 			}
 			return out;
 		}
@@ -231,7 +200,7 @@ static void calc_cost(struct ast_translator *t,int samples)
 	int sofar=0;
 	struct ast_translator_pvt *pvt;
 	struct ast_frame *f, *out;
-	struct timeval start, finish;
+	struct timeval start;
 	int cost;
 	if(!samples)
 	  samples = 1;
@@ -248,7 +217,7 @@ static void calc_cost(struct ast_translator *t,int samples)
 		t->cost = 99999;
 		return;
 	}
-	gettimeofday(&start, NULL);
+	start = ast_tvnow();
 	/* Call the encoder until we've processed one second of time */
 	while(sofar < samples * 8000) {
 		f = t->sample();
@@ -265,9 +234,8 @@ static void calc_cost(struct ast_translator *t,int samples)
 			ast_frfree(out);
 		}
 	}
-	gettimeofday(&finish, NULL);
+	cost = ast_tvdiff_ms(ast_tvnow(), start);
 	t->destroy(pvt);
-	cost = (finish.tv_sec - start.tv_sec) * 1000 + (finish.tv_usec - start.tv_usec) / 1000;
 	t->cost = cost / samples;
 	if (!t->cost)
 		t->cost = 1;

@@ -293,7 +293,7 @@ static struct vpb_pvt {
 
 	struct ast_dsp *vad;			/* AST  Voice Activation Detection dsp */
 
-	double lastgrunt;			/* time stamp (secs since epoc) of last grunt event */
+	struct timeval lastgrunt;			/* time stamp of last grunt event */
 
 	ast_mutex_t lock;			/* This one just protects bridge ptr below */
 	vpb_bridge_t *bridge;
@@ -584,13 +584,6 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	return (res==VPB_OK)?0:-1;
 }
 
-static double get_time_in_ms()
-{
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	return ((double)tv.tv_sec*1000)+((double)tv.tv_usec/1000);
-}
-
 /* Caller ID can be located in different positions between the rings depending on your Telco
  * Australian (Telstra) callerid starts 700ms after 1st ring and finishes 1.5s after first ring
  * Use ANALYSE_CID to record rings and determine location of callerid
@@ -602,7 +595,7 @@ static double get_time_in_ms()
 static void get_callerid(struct vpb_pvt *p)
 {
 	short buf[CID_MSECS*8]; /* 8kHz sampling rate */
-	double cid_record_time;
+	struct timeval cid_record_time;
 	int rc;
 	struct ast_channel *owner = p->owner;
 /*
@@ -616,7 +609,7 @@ static void get_callerid(struct vpb_pvt *p)
 
 	if( ast_mutex_trylock(&p->record_lock) == 0 ) {
 
-		cid_record_time = get_time_in_ms();
+		cid_record_time = ast_tvnow();
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "CID record - start\n");
 
@@ -624,9 +617,9 @@ static void get_callerid(struct vpb_pvt *p)
 		vpb_sleep(RING_SKIP);
 
 		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "CID record - skipped %fms trailing ring\n",
-				 get_time_in_ms() - cid_record_time);
-		cid_record_time = get_time_in_ms();
+			ast_verbose(VERBOSE_PREFIX_4 "CID record - skipped %ldms trailing ring\n",
+				 ast_tvdiff_ms(ast_tvnow(), cid_record_time));
+		cid_record_time = ast_tvnow();
 
 		/* Record bit between the rings which contains the callerid */
 		vpb_record_buf_start(p->handle, VPB_LINEAR);
@@ -639,8 +632,8 @@ static void get_callerid(struct vpb_pvt *p)
 #endif
 
 		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "CID record - recorded %fms between rings\n", 
-				get_time_in_ms() - cid_record_time);
+			ast_verbose(VERBOSE_PREFIX_4 "CID record - recorded %ldms between rings\n", 
+				 ast_tvdiff_ms(ast_tvnow(), cid_record_time));
 
 		ast_mutex_unlock(&p->record_lock);
 
@@ -911,7 +904,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 			} 
 			else if (e->data == VPB_GRUNT) {
-				if( ( get_time_in_ms() - p->lastgrunt ) > gruntdetect_timeout ) {
+				if( ( ast_tvdiff_ms(ast_tvnow(), p->lastgrunt) > gruntdetect_timeout ) {
 					/* Nothing heard on line for a very long time
 					 * Timeout connection */
 					if (option_verbose > 2) 
@@ -919,7 +912,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 					ast_log(LOG_NOTICE,"%s: Line hangup due of lack of conversation\n",p->dev); 
 					f.subclass = AST_CONTROL_HANGUP;
 				} else {
-					p->lastgrunt = get_time_in_ms();
+					p->lastgrunt = ast_tvnow();
 					f.frametype = -1;
 				}
 			} 
@@ -2193,7 +2186,7 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 {
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt; 
 	int res = 0, fmt = 0;
-	struct timeval play_buf_time_start,play_buf_time_finish;
+	struct timeval play_buf_time_start;
 /*	ast_mutex_lock(&p->lock); */
 	if(option_verbose>5) 
 		ast_verbose("%s: vpb_write: Writing to channel\n", p->dev);
@@ -2249,25 +2242,14 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 
 /*	ast_log(LOG_DEBUG, "%s: vpb_write: Applied gain..\n", p->dev); */
 
-/*	gettimeofday(&tv, NULL); */
-/*	return ((double)tv.tv_sec*1000)+((double)tv.tv_usec/1000); */
-
 	if ((p->read_state == 1)&&(p->play_buf_time<5)){
-		gettimeofday(&play_buf_time_start,NULL);
+		play_buf_time_start = ast_tvnow();
 		res = vpb_play_buf_sync(p->handle, (char*)frame->data, frame->datalen);
-		if( (res == VPB_OK) && (option_verbose > 5) ) {
+		if( res == VPB_OK && option_verbose > 5 ) {
 			short * data = (short*)frame->data;
 			ast_verbose("%s: vpb_write: Wrote chan (codec=%d) %d %d\n", p->dev, fmt, data[0],data[1]);
 		}
-		gettimeofday(&play_buf_time_finish,NULL);
-		if (play_buf_time_finish.tv_sec == play_buf_time_start.tv_sec){
-			p->play_buf_time=(int)((play_buf_time_finish.tv_usec-play_buf_time_start.tv_usec)/1000);
-	/*		ast_log(LOG_DEBUG, "%s: vpb_write: Timing start(%d) finish(%d)\n", p->dev,play_buf_time_start.tv_usec,play_buf_time_finish.tv_usec); */
-		}
-		else {
-			p->play_buf_time=(int)((play_buf_time_finish.tv_sec - play_buf_time_start.tv_sec)*100)+(int)((play_buf_time_finish.tv_usec-play_buf_time_start.tv_usec)/1000);
-		}
-	/*	ast_log(LOG_DEBUG, "%s: vpb_write: Wrote data [%d](%d=>%s) to play_buf in [%d]ms..\n", p->dev,frame->datalen,fmt,ast2vpbformatname(frame->subclass),p->play_buf_time); */
+		p->play_buf_time = ast_tvdiff_ms(ast_tvnow(), play_buf_time_start);
 	}
 	else {
 		p->chuck_count++;
@@ -2603,7 +2585,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		me->play_dtmf[0] = '\0';
 		me->faxhandled =0;
 		
-		me->lastgrunt  = get_time_in_ms(); /* Assume at least one grunt tone seen now. */
+		me->lastgrunt  = ast_tvnow(); /* Assume at least one grunt tone seen now. */
 
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;

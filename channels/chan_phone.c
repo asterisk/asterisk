@@ -446,8 +446,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 	p->fr.src = type;
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
-	p->fr.delivery.tv_sec = 0;
-	p->fr.delivery.tv_usec = 0;
+	p->fr.delivery = ast_tv(0,0);
 	
 	phonee.bytes = ioctl(p->fd, PHONE_EXCEPTION);
 	if (phonee.bits.dtmf_ready)  {
@@ -509,8 +508,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	p->fr.src = type;
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
-	p->fr.delivery.tv_sec = 0;
-	p->fr.delivery.tv_usec = 0;
+	p->fr.delivery = ast_tv(0,0);
 
 	/* Try to read some data... */
 	CHECK_BLOCKING(ast);
@@ -993,7 +991,7 @@ static void *do_monitor(void *data)
 				if (i->dialtone) {
 					/* Remember we're going to have to come back and play
 					   more dialtones */
-					if (!tv.tv_usec && !tv.tv_sec) {
+					if (ast_tvzero(tv)) {
 						/* If we're due for a dialtone, play one */
 						if (write(i->fd, DialTone + tonepos, 240) != 240)
 							ast_log(LOG_WARNING, "Dial tone write error\n");
@@ -1016,15 +1014,13 @@ static void *do_monitor(void *data)
 			tonepos += 240;
 			if (tonepos >= sizeof(DialTone))
 					tonepos = 0;
-			if (!tv.tv_usec && !tv.tv_sec) {
-				tv.tv_usec = 30000;
-				tv.tv_sec = 0;
+			if (ast_tvzero(tv)) {
+				tv = ast_tv(30000, 0);
 			}
 			res = ast_select(n + 1, &rfds, NULL, &efds, &tv);
 		} else {
 			res = ast_select(n + 1, &rfds, NULL, &efds, NULL);
-			tv.tv_usec = 0;
-			tv.tv_sec = 0;
+			tv = ast_tv(0,0);
 			tonepos = 0;
 		}
 		/* Okay, select has finished.  Let's see what happened.  */

@@ -408,7 +408,6 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 
 int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, int skipms) 
 {
-	struct timeval started, ended;
 	long elapsed = 0,last_elapsed =0;
 	char *breaks=NULL;
 	char *end=NULL;
@@ -443,7 +442,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file, const cha
 	}
 
 	for (;;) {
-		gettimeofday(&started,NULL);
+		struct timeval started = ast_tvnow();
 
 		if (chan)
 			ast_stopstream(chan);
@@ -468,8 +467,7 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file, const cha
 			break;
 
 		if (pause != NULL && strchr(pause, res)) {
-			gettimeofday(&ended, NULL);
-			elapsed = (((ended.tv_sec * 1000) + ended.tv_usec / 1000) - ((started.tv_sec * 1000) + started.tv_usec / 1000) + last_elapsed);
+			elapsed = ast_tvdiff_ms(ast_tvnow(), started) + last_elapsed;
 			for(;;) {
 				if (chan)
 					ast_stopstream(chan);

@@ -69,7 +69,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 
-	gettimeofday(&tv,NULL);
+	tv = ast_tvnow();
 	unixtime = (time_t)tv.tv_sec;
 
 	if( !strcasecmp(chan->language, "da" ) ) {
