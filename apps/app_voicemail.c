@@ -361,7 +361,7 @@ LOCAL_USER_DECL;
 static void populate_defaults(struct ast_vm_user *vmu)
 {
 	ast_copy_flags(vmu, (&globalflags), AST_FLAGS_ALL);	
-	if (saydurationminfo>0)
+	if (saydurationminfo)
 		vmu->saydurationm = saydurationminfo;
 	if (callcontext)
 		ast_copy_string(vmu->callback, callcontext, sizeof(vmu->callback));
@@ -369,6 +369,8 @@ static void populate_defaults(struct ast_vm_user *vmu)
 		ast_copy_string(vmu->dialout, dialcontext, sizeof(vmu->dialout));
 	if (exitcontext)
 		ast_copy_string(vmu->exit, exitcontext, sizeof(vmu->exit));
+	if (maxmsg)
+		vmu->maxmsg = maxmsg;
 }
 
 static void apply_option(struct ast_vm_user *vmu, const char *var, const char *value)
@@ -5206,6 +5208,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	char *stringp;
 	char *s;
 	char *maxmsgstr;
+	int i;
 	struct ast_vm_user *vmu;
 
 	ast_copy_string(tmp, data, sizeof(tmp));
@@ -5214,7 +5217,21 @@ static int append_mailbox(char *context, char *mbox, char *data)
 		memset(vmu, 0, sizeof(struct ast_vm_user));
 		ast_copy_string(vmu->context, context, sizeof(vmu->context));
 		ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
+
 		populate_defaults(vmu);
+
+		/* Read the maxmsg from the context definition */
+		if ((maxmsgstr = ast_variable_retrieve(voicemailCfg, context, "maxmsg"))) {
+			i = atoi(maxmsgstr);
+			if (i <= 0) {
+				ast_log(LOG_WARNING, "Invalid number of messages per folder '%s'\n", maxmsgstr);
+			} else if (i > MAXMSGLIMIT) {
+				ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, maxmsgstr);
+			} else {
+				vmu->maxmsg = i;
+			}
+		}
+			
 		stringp = tmp;
 		if ((s = strsep(&stringp, ","))) 
 			ast_copy_string(vmu->password, s, sizeof(vmu->password));
@@ -5227,24 +5244,6 @@ static int append_mailbox(char *context, char *mbox, char *data)
 		if (stringp && (s = strsep(&stringp, ","))) 
 			apply_options(vmu, s);
 		
-		/* Check whether maxmsg was defined on the mailbox level */
-		if (vmu->maxmsg <= 0) {
-			/* Read the maxmsg from the context definition */
-			if ((maxmsgstr = ast_variable_retrieve(voicemailCfg, context, "maxmsg"))) {
-				vmu->maxmsg = atoi(maxmsgstr);
-				if (vmu->maxmsg <= 0) {
-					ast_log(LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %i\n", maxmsgstr, MAXMSG);
-					vmu->maxmsg = MAXMSG;
-				} else if (vmu->maxmsg > MAXMSGLIMIT) {
-					ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, maxmsgstr);
-					vmu->maxmsg = MAXMSGLIMIT;
-				}
-			} else {
-				/* Use the maxmsg from the general section definition */
-				vmu->maxmsg = maxmsg;
-			}
-		}
-			
 		vmu->next = NULL;
 		if (usersl)
 			usersl->next = vmu;
@@ -5498,6 +5497,7 @@ static int load_config(void)
 	users = NULL;
 	usersl = NULL;
 	memset(ext_pass_cmd, 0, sizeof(ext_pass_cmd));
+
 	if (cfg) {
 		/* General settings */
 
@@ -5529,10 +5529,10 @@ static int load_config(void)
 		} else {
 			maxmsg = atoi(maxmsgstr);
 			if (maxmsg <= 0) {
-				ast_log(LOG_WARNING, "Invalid number of messages per folder maxmsg=%s. Using default value %i\n", maxmsgstr, MAXMSG);
+				ast_log(LOG_WARNING, "Invalid number of messages per folder '%s'. Using default value %i\n", maxmsgstr, MAXMSG);
 				maxmsg = MAXMSG;
 			} else if (maxmsg > MAXMSGLIMIT) {
-				ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value maxmsg=%s\n", MAXMSGLIMIT, maxmsgstr);
+				ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, maxmsgstr);
 				maxmsg = MAXMSGLIMIT;
 			}
 		}
