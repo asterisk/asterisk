@@ -2027,7 +2027,7 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	struct ast_channel *chan;
 	struct ast_frame *f;
 	int res = 0;
-	char *variable;
+	
 	chan = ast_request(type, format, data, &cause);
 	if (chan) {
 		if (oh) {
