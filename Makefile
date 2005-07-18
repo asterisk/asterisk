@@ -121,6 +121,12 @@ HTTP_CGIDIR=/var/www/cgi-bin
 # If the file .asterisk.makeopts is present in your home directory, you can
 # include all of your favorite Makefile options so that every time you download
 # a new version of Asterisk, you don't have to edit the makefile to set them. 
+# The file, /etc/asterisk.makeopts will also be included, but can be overridden
+# by the file in your home directory.
+
+ifneq ($(wildcard /etc/asterisk.makeopts),)
+include /etc/asterisk.makeopts
+endif
 
 ifneq ($(wildcard ~/.asterisk.makeopts),)
 include ~/.asterisk.makeopts
