@@ -247,6 +247,7 @@ endif
 ifeq (${OSARCH},Darwin)
 LIBS+=-lresolv
 CFLAGS+=-D__Darwin__
+AUDIO_LIBS=-framework CoreAudio
 endif
 ifeq (${OSARCH},FreeBSD)
 LIBS+=-lcrypto
@@ -447,7 +448,7 @@ asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS) ast_expr
 	$(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) ast_expr.a $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
 
 muted: muted.o
-	$(CC) -o muted muted.o
+	$(CC) $(AUDIO_LIBS) -o muted muted.o
 
 subdirs: 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit 1 ; done

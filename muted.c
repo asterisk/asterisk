@@ -6,12 +6,19 @@
  * Copyright (C)  2004 - 2005, Digium Inc.
  *
  * Mark Spencer <markster@digium.com>
+ * 
+ * Updated for Mac OSX CoreAudio 
+ * by Josh Roberson <josh@asteraisgi.com>
  *
  * Distributed under the terms of the GNU General Public License version 2.0 
  *
  */
 
+#ifndef __Darwin__
 #include <linux/soundcard.h>
+#else
+#include <CoreAudio/AudioHardware.h> 
+#endif
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -35,7 +42,9 @@ static int muted = 0;
 static int needfork = 1;
 static int debug = 0;
 static int stepsize = 3;
+#ifndef __Darwin__
 static int mixchan = SOUND_MIXER_VOLUME;
+#endif
 
 struct subchannel {
 	char *name;
@@ -148,7 +157,7 @@ static int load_config(void)
 }
 
 static FILE *astf;
-
+#ifndef __Darwin__
 static int mixfd;
 
 static int open_mixer(void)
@@ -160,6 +169,7 @@ static int open_mixer(void)
 	}
 	return 0;
 }
+#endif /* !__Darwin */
 
 static int connect_asterisk(void)
 {
@@ -290,27 +300,84 @@ static struct channel *find_channel(char *channel)
 	return chan;
 }
 
+#ifndef __Darwin__
 static int getvol(void)
 {
 	int vol;
+
 	if (ioctl(mixfd, MIXER_READ(mixchan), &vol)) {
+#else
+static float getvol(void)
+{
+	float volumeL, volumeR, vol;
+	OSStatus err;
+	AudioDeviceID device;
+	UInt32 size;
+	UInt32 channels[2];
+
+	size = sizeof(device);
+	err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice, &size, &device);
+	size = sizeof(channels);
+	if (!err) 
+		err = AudioDeviceGetProperty(device, 0, false, kAudioDevicePropertyPreferredChannelsForStereo, &size, &channels);
+	size = sizeof(vol);
+	if (!err)
+		err = AudioDeviceGetProperty(device, channels[0], false, kAudioDevicePropertyVolumeScalar, &size, &volumeL);
+	if (!err)
+		err = AudioDeviceGetProperty(device, channels[1], false, kAudioDevicePropertyVolumeScalar, &size, &volumeR);
+	printf("volumeL = %f - volumeR = %f\n", volumeL, volumeR);
+	if (!err)
+		vol = (volumeL < volumeR) ? volumeR : volumeL;
+	else {
+#endif
 		fprintf(stderr, "Unable to read mixer volume: %s\n", strerror(errno));
 		return -1;
 	}
 	return vol;
 }
 
+#ifndef __Darwin__
 static int setvol(int vol)
+#else
+static int setvol(float vol)
+#endif
 {
+#ifndef __Darwin__
 	if (ioctl(mixfd, MIXER_WRITE(mixchan), &vol)) {
+#else	
+	float volumeL = vol;
+	float volumeR = vol;
+	OSStatus err;
+	AudioDeviceID device;
+	UInt32 size;
+	UInt32 channels[2];
+
+	size = sizeof(device);
+	err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultOutputDevice, &size, &device);
+	size = sizeof(channels);
+	err = AudioDeviceGetProperty(device, 0, false, kAudioDevicePropertyPreferredChannelsForStereo, &size, &channels);
+	size = sizeof(vol);
+	if (!err)
+		err = AudioDeviceSetProperty(device, 0, channels[0], false, kAudioDevicePropertyVolumeScalar, size, &volumeL);
+	if (!err)
+		err = AudioDeviceSetProperty(device, 0, channels[1], false, kAudioDevicePropertyVolumeScalar, size, &volumeR); 
+	if (err) {
+#endif
+
 		fprintf(stderr, "Unable to write mixer volume: %s\n", strerror(errno));
 		return -1;
+
 	}
 	return 0;
 }
 
+#ifndef __Darwin__
 static int oldvol = 0;
 static int mutevol = 0;
+#else
+static float oldvol = 0;
+static float mutevol = 0;
+#endif
 
 static int mutedlevel(int orig, int mutelevel)
 {
@@ -323,7 +390,11 @@ static int mutedlevel(int orig, int mutelevel)
 
 static void mute(void)
 {
+#ifndef __Darwin__
 	int vol;
+#else
+	float vol;
+#endif
 	int start;
 	int x;
 	vol = getvol();
@@ -341,19 +412,31 @@ static void mute(void)
 	mutevol = mutedlevel(vol, mutelevel);
 	setvol(mutevol);
 	if (debug)
+#ifdef __Darwin__
+		printf("Mute from '%f' to '%f'!\n", oldvol, mutevol);
+#else
 		printf("Mute from '%04x' to '%04x'!\n", oldvol, mutevol);
+#endif
 	muted = 1;
 }
 
 static void unmute(void)
 {
+#ifdef __Darwin__
+	float vol;
+#else
 	int vol;
+#endif
 	int start;
 	int x;
 	vol = getvol();
 	if (debug)
+#ifdef __Darwin__
+		printf("Unmute from '%f' (should be '%f') to '%f'!\n", vol, mutevol, oldvol);
+#else
 		printf("Unmute from '%04x' (should be '%04x') to '%04x'!\n", vol, mutevol, oldvol);
-	if (vol == mutevol) {
+#endif
+	if ((int)vol == mutevol) {
 		if (smoothfade)
 			start = mutelevel;
 		else
@@ -522,14 +605,20 @@ int main(int argc, char *argv[])
 	}
 	if (load_config())
 		exit(1);
+#ifndef __Darwin__
 	if (open_mixer())
 		exit(1);
+#endif
 	if (connect_asterisk()) {
+#ifndef __Darwin__
 		close(mixfd);
+#endif
 		exit(1);
 	}
 	if (login_asterisk()) {
+#ifndef __Darwin__		
 		close(mixfd);
+#endif
 		fclose(astf);
 		exit(1);
 	}
