@@ -8,7 +8,7 @@
  * Mark Spencer <markster@digium.com>
  * 
  * Updated for Mac OSX CoreAudio 
- * by Josh Roberson <josh@asteraisgi.com>
+ * by Josh Roberson <josh@asteriasgi.com>
  *
  * Distributed under the terms of the GNU General Public License version 2.0 
  *
