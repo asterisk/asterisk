@@ -514,7 +514,7 @@ datafiles: all
 			exit 1; \
 		fi; \
 	done
-	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-*; do \
+	for x in sounds/demo-* sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-*; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
