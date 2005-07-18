@@ -325,7 +325,6 @@ static float getvol(void)
 		err = AudioDeviceGetProperty(device, channels[0], false, kAudioDevicePropertyVolumeScalar, &size, &volumeL);
 	if (!err)
 		err = AudioDeviceGetProperty(device, channels[1], false, kAudioDevicePropertyVolumeScalar, &size, &volumeR);
-	printf("volumeL = %f - volumeR = %f\n", volumeL, volumeR);
 	if (!err)
 		vol = (volumeL < volumeR) ? volumeR : volumeL;
 	else {
