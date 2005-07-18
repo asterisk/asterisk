@@ -378,30 +378,46 @@ static float oldvol = 0;
 static float mutevol = 0;
 #endif
 
+#ifndef __Darwin__
 static int mutedlevel(int orig, int mutelevel)
 {
 	int l = orig >> 8;
 	int r = orig & 0xff;
 	l = (float)(mutelevel) * (float)(l) / 100.0;
 	r = (float)(mutelevel) * (float)(r) / 100.0;
+
 	return (l << 8) | r;
+#else
+static float mutedlevel(float orig, float mutelevel)
+{
+	float master = orig;
+	master = mutelevel * master / 100.0;
+	return master;
+#endif
+	
 }
 
 static void mute(void)
 {
 #ifndef __Darwin__
 	int vol;
-#else
-	float vol;
-#endif
 	int start;
 	int x;
+#else
+	float vol;
+	float start = 1.0;
+	float x;
+#endif
 	vol = getvol();
 	oldvol = vol;
-	if (smoothfade) 
+	if (smoothfade)
+#ifdef __Darwin__ 
+		start = mutelevel;
+#else
 		start = 100;
 	else
 		start = mutelevel;
+#endif
 	for (x=start;x>=mutelevel;x-=stepsize) {
 		mutevol = mutedlevel(vol, x);
 		setvol(mutevol);
@@ -423,23 +439,31 @@ static void unmute(void)
 {
 #ifdef __Darwin__
 	float vol;
+	float start;
+	float x;
 #else
 	int vol;
-#endif
 	int start;
 	int x;
+#endif
 	vol = getvol();
 	if (debug)
 #ifdef __Darwin__
 		printf("Unmute from '%f' (should be '%f') to '%f'!\n", vol, mutevol, oldvol);
+	mutevol = vol;
+	if (vol == mutevol) {
 #else
 		printf("Unmute from '%04x' (should be '%04x') to '%04x'!\n", vol, mutevol, oldvol);
-#endif
 	if ((int)vol == mutevol) {
+#endif
 		if (smoothfade)
 			start = mutelevel;
 		else
+#ifdef __Darwin__
+			start = 1.0;
+#else
 			start = 100;
+#endif
 		for (x=start;x<100;x+=stepsize) {
 			mutevol = mutedlevel(oldvol, x);
 			setvol(mutevol);
