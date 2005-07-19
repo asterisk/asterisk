@@ -6221,12 +6221,13 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	} else
 		of += 4;
 	/* Get just the username part */
-	if ((c = strchr(of, '@')))
+	if ((c = strchr(of, '@'))) {
 		*c = '\0';
-	if ((c = strchr(of, ':')))
-		*c = '\0';
-	ast_copy_string(p->cid_num, of, sizeof(p->cid_num));
-	ast_shrink_phone_number(p->cid_num);
+		if ((c = strchr(of, ':')))
+			*c = '\0';
+		ast_copy_string(p->cid_num, of, sizeof(p->cid_num));
+		ast_shrink_phone_number(p->cid_num);
+	}
 	if (*calleridname)
 		ast_copy_string(p->cid_name, calleridname, sizeof(p->cid_name));
 	if (ast_strlen_zero(of))
