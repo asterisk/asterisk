@@ -507,8 +507,7 @@ static struct timeval tvfix(struct timeval a)
 		a.tv_sec += a.tv_usec % ONE_MILLION;
 		a.tv_usec %= ONE_MILLION;
 	} else if (a.tv_usec < 0) {
-		if (option_debug)
-			ast_log(LOG_DEBUG, "warning negative timestamp %ld.%ld\n",
+		ast_log(LOG_WARNING, "warning negative timestamp %ld.%ld\n",
 				a.tv_sec, a.tv_usec);
 		a.tv_usec = 0;
 	}
