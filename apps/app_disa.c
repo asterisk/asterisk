@@ -329,7 +329,9 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		}
 		strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
 		strncpy(chan->context, ourcontext, sizeof(chan->context) - 1);
-		strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
+		if (!ast_strlen_zero(acctcode)) {
+			strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
+		}
 		chan->priority = 0;
 		ast_cdr_reset(chan->cdr,AST_CDR_FLAG_POSTED);
 		LOCAL_USER_REMOVE(u);
