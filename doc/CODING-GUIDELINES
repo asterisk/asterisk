@@ -14,7 +14,7 @@ above the top-level Asterisk source directory. For example:
 
 All code, filenames, function names and comments must be in ENGLISH.
 
-Do not declare variables mid-function (e.g. like recent  GNU compilers support)
+Do not declare variables mid-function (e.g. like recent GNU compilers support)
 since it is harder to read and not portable to GCC 2.95 and others.
 
 Don't annotate your changes with comments like "/* JMG 4/20/04 */";
@@ -34,10 +34,29 @@ When reading integer numeric input with scanf (or variants), do _NOT_ use '%i'
 unless you specifically want to allow non-base-10 input; '%d' is always a better
 choice, since it will not silently turn numbers with leading zeros into base-8.
 
+Use spaces instead of tabs when aligning in-line comments or #defines (this makes 
+your comments aligned even if the code is viewed with another tabsize)
+
 Roughly, Asterisk code formatting guidelines are generally equivalent to the 
 following:
 
-# indent -i4 -ts4 -br -brs -cdw -cli0 -ce -nbfda -npcs -npsl foo.c
+# indent -i4 -ts4 -br -brs -cdw -cli0 -ce -nbfda -npcs -nprs -npsl -saf -sai -saw foo.c
+
+this means in verbose:
+ -i4:    indent level 4
+ -ts4:   tab size 4
+ -br:    braces on if line
+ -brs:   braces on struct decl line
+ -cdw:   cuddle do while
+ -cli0:  case indentation 0
+ -ce:    cuddle else
+ -nbfda: dont break function decl args
+ -npcs:  no space after function call names
+ -nprs:  no space after parentheses
+ -npsl:  dont break procedure type
+ -saf:   space after for
+ -sai:   space after if
+ -saw:   space after while
 
 Function calls and arguments should be spaced in a consistent way across
 the codebase.
