@@ -66,7 +66,6 @@ struct io_context {
 	int needshrink;
 };
 
-
 struct io_context *io_context_create(void)
 {
 	/* Create an I/O context */
@@ -82,14 +81,15 @@ struct io_context *io_context_create(void)
 			free(tmp);
 			tmp = NULL;
 		} else {
-			memset(tmp->fds, 0, (GROW_SHRINK_SIZE/2) * sizeof(struct pollfd));
-			tmp->ior =  malloc((GROW_SHRINK_SIZE/2) * sizeof(struct io_rec));
+			memset(tmp->fds, 0, (GROW_SHRINK_SIZE / 2) * sizeof(struct pollfd));
+			tmp->ior =  malloc((GROW_SHRINK_SIZE / 2) * sizeof(struct io_rec));
 			if (!tmp->ior) {
 				free(tmp->fds);
 				free(tmp);
 				tmp = NULL;
-			} else
-				memset(tmp->ior, 0, (GROW_SHRINK_SIZE/2) * sizeof(struct io_rec));
+			} else {
+				memset(tmp->ior, 0, (GROW_SHRINK_SIZE / 2) * sizeof(struct io_rec));
+			}
 		}
 	}
 	return tmp;
@@ -130,7 +130,6 @@ static int io_grow(struct io_context *ioc)
 			ioc->maxfdcnt -= GROW_SHRINK_SIZE;
 			return -1;
 		}
-		
 	} else {
 		/*
 		 * Out of memory.  We return to the old size, and return a failure
@@ -190,7 +189,8 @@ int *ast_io_change(struct io_context *ioc, int *id, int fd, ast_io_cb callback, 
 		if (data)
 			ioc->ior[*id].data = data;
 		return id;
-	} else return NULL;
+	}
+	return NULL;
 }
 
 static int io_shrink(struct io_context *ioc)
@@ -202,7 +202,7 @@ static int io_shrink(struct io_context *ioc)
 	 * the entry we are removing, then decrease the size of the 
 	 * arrays by one.
 	 */
-	for (getfrom=0;getfrom<ioc->fdcnt;getfrom++) {
+	for (getfrom = 0; getfrom < ioc->fdcnt; getfrom++) {
 		if (ioc->ior[getfrom].id) {
 			/* In use, save it */
 			if (getfrom != putto) {
@@ -227,7 +227,7 @@ int ast_io_remove(struct io_context *ioc, int *_id)
 		ast_log(LOG_WARNING, "Asked to remove NULL?\n");
 		return -1;
 	}
-	for (x=0;x<ioc->fdcnt;x++) {
+	for (x = 0; x < ioc->fdcnt; x++) {
 		if (ioc->ior[x].id == _id) {
 			/* Free the int immediately and set to NULL so we know it's unused now */
 			free(ioc->ior[x].id);
@@ -262,7 +262,7 @@ int ast_io_wait(struct io_context *ioc, int howlong)
 		 * At least one event
 		 */
 		origcnt = ioc->fdcnt;
-		for(x=0;x<origcnt;x++) {
+		for(x = 0; x < origcnt; x++) {
 			/* Yes, it is possible for an entry to be deleted and still have an
 			   event waiting if it occurs after the original calling id */
 			if (ioc->fds[x].revents && ioc->ior[x].id) {
@@ -294,7 +294,7 @@ void ast_io_dump(struct io_context *ioc)
 	ast_log(LOG_DEBUG, "================================================\n");
 	ast_log(LOG_DEBUG, "| ID    FD     Callback    Data        Events  |\n");
 	ast_log(LOG_DEBUG, "+------+------+-----------+-----------+--------+\n");
-	for (x=0;x<ioc->fdcnt;x++) {
+	for (x = 0; x < ioc->fdcnt; x++) {
 		ast_log(LOG_DEBUG, "| %.4d | %.4d | %p | %p | %.6x |\n", 
 				*ioc->ior[x].id,
 				ioc->fds[x].fd,
