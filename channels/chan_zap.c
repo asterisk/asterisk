@@ -106,6 +106,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define AST_LAW(p) (((p)->law == ZT_LAW_ALAW) ? AST_FORMAT_ALAW : AST_FORMAT_ULAW)
 
+/* Signaling types that need to use MF detection should be placed in this macro */
+#define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FEATB)) 
+
 static const char desc[] = "Zapata Telephony"
 #ifdef ZAPATA_PRI
                " w/PRI"
@@ -164,6 +167,7 @@ static const char config[] = "zapata.conf";
 #define DCHAN_AVAILABLE	(DCHAN_PROVISIONED | DCHAN_NOTINALARM | DCHAN_UP)
 
 static int cur_emdigitwait = 250; /* Wait time in ms for digits on EM channel */
+static int cur_toneduration = -1; /* Tone duration */
 
 static char context[AST_MAX_CONTEXT] = "default";
 static char cid_num[256] = "";
@@ -2652,6 +2656,8 @@ int	x;
 		}		
 		break;
 	    case AST_OPTION_RELAXDTMF:  /* Relax DTMF decoding (or not) */
+		if (!p->dsp)
+			break;
 		if (!*cp)
 		{		
 			ast_log(LOG_DEBUG, "Set option RELAX DTMF, value: OFF(0) on %s\n",chan->name);
@@ -4787,9 +4793,10 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 #ifdef ZT_TONEDETECT
 		x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
-		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x))
+		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x) || NEED_MFDETECT(i))
 #endif		
 			features |= DSP_FEATURE_DTMF_DETECT;
+
 		if (features) {
 			if (i->dsp) {
 				ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
@@ -4811,7 +4818,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 						ast_dsp_set_call_progress_zone(i->dsp, progzone);
 					if (i->busydetect && CANBUSYDETECT(i)) {
 						ast_dsp_set_busy_count(i->dsp, i->busycount);
-						}
+					}
 				}
 			}
 		}
@@ -5019,7 +5026,7 @@ static void *ss_thread(void *data)
 		if (ast_exists_extension(chan, chan->context, exten, 1, p->cid_num)) {
 			/* Start the real PBX */
 			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
-			ast_dsp_digitreset(p->dsp);
+			if (p->dsp) ast_dsp_digitreset(p->dsp);
 			ast_setstate(chan, AST_STATE_RING);
 			res = ast_pbx_run(chan);
 			if (res) {
@@ -5053,7 +5060,7 @@ static void *ss_thread(void *data)
 			ast_dsp_digitreset(p->dsp);
 		/* set digit mode appropriately */
 		if (p->dsp) {
-			if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATDMF_TA) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB)) 
+			if (NEED_MFDETECT(p))
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrelax); 
 			else 
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
@@ -5074,7 +5081,7 @@ static void *ss_thread(void *data)
 				res = my_getsigstr(chan,dtmfbuf + 1,'*',3000);
 				if (res > 0)
 					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'*',3000);
-				if (res < 1) ast_dsp_digitreset(p->dsp);
+				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATDMF:
 			    case SIG_E911:
@@ -5087,12 +5094,12 @@ static void *ss_thread(void *data)
 					}
 					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'#',3000);
 				}
-				if (res < 1) ast_dsp_digitreset(p->dsp);
+				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATB:
 			    case SIG_SF_FEATB:
 				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
-				if (res < 1) ast_dsp_digitreset(p->dsp);
+				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			    default:
 				/* If we got it, get the rest */
@@ -5186,10 +5193,10 @@ static void *ss_thread(void *data)
 		}
 		zt_enable_ec(p);
 		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB)) 
-			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax); 
+			if (p->dsp) ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax); 
 		if (ast_exists_extension(chan, chan->context, exten, 1, chan->cid.cid_num)) {
 			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
-			ast_dsp_digitreset(p->dsp);
+			if (p->dsp) ast_dsp_digitreset(p->dsp);
 			res = ast_pbx_run(chan);
 			if (res) {
 				ast_log(LOG_WARNING, "PBX exited non-zero\n");
@@ -6527,6 +6534,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	struct zt_bufferinfo bi;
 #endif
 	struct zt_spaninfo si;
+	struct zt_dialparams dps;
 	int res;
 	int span=0;
 	int here = 0;
@@ -6798,7 +6806,16 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			if (cur_debounce >= 0)
 				p.debouncetime = cur_debounce;
 		}
-
+		
+		if (cur_toneduration > -1) {
+			dps.dtmf_tonelen = dps.mfv1_tonelen = cur_toneduration;
+			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_DIALPARAMS, &dps);
+			if (res < 0) {
+				ast_log(LOG_ERROR, "Invalid tone duration: %d ms\n", cur_toneduration);
+				destroy_zt_pvt(&tmp);
+				return NULL;
+			}
+		}
 		/* dont set parms on a pseudo-channel (or CRV) */
 		if (tmp->subs[SUB_REAL].zfd >= 0)
 		{
@@ -10488,6 +10505,8 @@ static int setup_zap(int reload)
 				cur_debounce = atoi(v->value);
 			} else if (!strcasecmp(v->name, "emdigitwait")) {
 				cur_emdigitwait = atoi(v->value);
+			} else if (!strcasecmp(v->name, "toneduration")) {
+				cur_toneduration = atoi(v->value);
 			} else if (!strcasecmp(v->name, "polarityonanswerdelay")) {
 				polarityonanswerdelay = atoi(v->value);
 			} else if (!strcasecmp(v->name, "answeronpolarityswitch")) {

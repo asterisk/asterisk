@@ -195,6 +195,9 @@ signalling=fxo_ls
 ;
 rxwink=300		; Atlas seems to use long (250ms) winks
 ;
+; How long generated tones (DTMF and MF) will be played on the channel (in miliseconds)
+;toneduration=100
+;
 ; Whether or not to do distinctive ring detection on FXO lines
 ;
 ;usedistinctiveringdetection=yes
