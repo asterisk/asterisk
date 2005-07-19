@@ -16,6 +16,13 @@
 
 #include "asterisk/inline_api.h"
 
+/* We have to let the compiler learn what types to use for the elements of a
+   struct timeval since on linux, it's time_t and suseconds_t, but on *BSD,
+   they are just a long. */
+extern struct timeval tv;
+typedef typeof(tv.tv_sec) ast_time_t;
+typedef typeof(tv.tv_usec) ast_suseconds_t;
+
 /*!
  * \brief Computes the difference (in milliseconds) between two \c struct \c timeval instances.
  * \param end the beginning of the time period
@@ -104,7 +111,7 @@ struct timeval ast_tv(int sec, int usec),
 )
 #endif
 AST_INLINE_API(
-struct timeval ast_tv(time_t sec, suseconds_t usec),
+struct timeval ast_tv(ast_time_t sec, ast_suseconds_t usec),
 {
 	struct timeval t;
 	t.tv_sec = sec;
