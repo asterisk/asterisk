@@ -32,7 +32,13 @@ typedef typeof(tv.tv_usec) ast_suseconds_t;
 AST_INLINE_API(
 int ast_tvdiff_ms(struct timeval end, struct timeval start),
 {
-	return ((end.tv_sec - start.tv_sec) * 1000) + ((end.tv_usec - start.tv_usec) / 1000);
+	/* the offset by 1,000,000 below is intentional...
+	   it avoids differences in the way that division
+	   is handled for positive and negative numbers, by ensuring
+	   that the divisor is always positive
+	*/
+	return  ((end.tv_sec - start.tv_sec) * 1000) +
+		(((1000000 + end.tv_usec - start.tv_usec) / 1000) - 1000);
 }
 )
 
