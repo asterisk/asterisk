@@ -104,7 +104,7 @@ struct timeval ast_tv(int sec, int usec),
 )
 #endif
 AST_INLINE_API(
-struct timeval ast_tv(int sec, int usec),
+struct timeval ast_tv(time_t sec, suseconds_t usec),
 {
 	struct timeval t;
 	t.tv_sec = sec;
@@ -119,7 +119,7 @@ struct timeval ast_tv(int sec, int usec),
  * in the form ast_samp2tv(milliseconds, 1000)
  */
 AST_INLINE_API(
-struct timeval ast_samp2tv(long _nsamp, long _rate),
+struct timeval ast_samp2tv(unsigned int _nsamp, unsigned int _rate),
 {
 	return ast_tv(_nsamp / _rate, (_nsamp % _rate) * (1000000 / _rate));
 }
