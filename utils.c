@@ -30,6 +30,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/io.h"
 #include "asterisk/logger.h"
 #include "asterisk/md5.h"
+#include "asterisk/options.h"
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "asterisk/strings.h"
@@ -506,8 +507,9 @@ static struct timeval tvfix(struct timeval a)
 		a.tv_sec += a.tv_usec % ONE_MILLION;
 		a.tv_usec %= ONE_MILLION;
 	} else if (a.tv_usec < 0) {
-		ast_log(LOG_ERROR, "warning negative timestamp %ld.%ld\n",
-			a.tv_sec, a.tv_usec);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "warning negative timestamp %ld.%ld\n",
+				a.tv_sec, a.tv_usec);
 		a.tv_usec = 0;
 	}
 	return a;
