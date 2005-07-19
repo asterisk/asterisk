@@ -91,12 +91,10 @@ static void ast_copy_ha(struct ast_ha *from, struct ast_ha *to)
 static struct ast_ha *ast_duplicate_ha(struct ast_ha *original)
 {
 	struct ast_ha *new_ha = malloc(sizeof(struct ast_ha));
-
 	/* Copy from original to new object */
 	ast_copy_ha(original, new_ha); 
 
-	return(new_ha);
-
+	return new_ha;
 }
 
 /* Create duplicate HA link list */
@@ -107,7 +105,7 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 	struct ast_ha *ret = NULL;
 	struct ast_ha *link,*prev=NULL;
 
-	while(start) {
+	while (start) {
 		link = ast_duplicate_ha(start);  /* Create copy of this object */
 		if (prev)
 			prev->next = link;		/* Link previous to this object */
@@ -118,29 +116,29 @@ struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original)
 		start = start->next;		/* Go to next object */
 		prev = link;			/* Save pointer to this object */
 	}
-	return (ret);    			/* Return start of list */
+	return ret;    			/* Return start of list */
 }
 
 struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 {
 	struct ast_ha *ha = malloc(sizeof(struct ast_ha));
-	char *nm="255.255.255.255";
+	char *nm = "255.255.255.255";
 	char tmp[256] = "";
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
-	int x,z;
+	int x, z;
 	unsigned int y;
 	ret = path;
-	while(path) {
+	while (path) {
 		prev = path;
 		path = path->next;
 	}
 	if (ha) {
 		ast_copy_string(tmp, stuff, sizeof(tmp));
 		nm = strchr(tmp, '/');
-		if (!nm)
+		if (!nm) {
 			nm = "255.255.255.255";
-		else {
+		} else {
 			*nm = '\0';
 			nm++;
 		}
@@ -170,12 +168,13 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 			ha->sense = AST_SENSE_DENY;
 		}
 		ha->next = NULL;
-		if (prev)
+		if (prev) {
 			prev->next = ha;
-		else
+		} else {
 			ret = ha;
+		}
 	}
-	ast_log(LOG_DEBUG, "%s/%s appended to acl for peer\n",stuff, nm);
+	ast_log(LOG_DEBUG, "%s/%s appended to acl for peer\n", stuff, nm);
 	return ret;
 }
 
@@ -183,7 +182,7 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 {
 	/* Start optimistic */
 	int res = AST_SENSE_ALLOW;
-	while(ha) {
+	while (ha) {
 		char iabuf[INET_ADDRSTRLEN];
 		char iabuf2[INET_ADDRSTRLEN];
 		/* DEBUG */
@@ -193,7 +192,7 @@ int ast_apply_ha(struct ast_ha *ha, struct sockaddr_in *sin)
 			ast_inet_ntoa(iabuf2, sizeof(iabuf2), ha->netaddr));
 		/* For each rule, if this address and the netmask = the net address
 		   apply the current rule */
-		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == (ha->netaddr.s_addr))
+		if ((sin->sin_addr.s_addr & ha->netmask.s_addr) == ha->netaddr.s_addr)
 			res = ha->sense;
 		ha = ha->next;
 	}
@@ -238,18 +237,18 @@ int ast_lookup_iface(char *iface, struct in_addr *address)
 	struct my_ifreq ifreq;
 
 	memset(&ifreq, 0, sizeof(ifreq));
-	ast_copy_string(ifreq.ifrn_name,iface,sizeof(ifreq.ifrn_name));
+	ast_copy_string(ifreq.ifrn_name, iface, sizeof(ifreq.ifrn_name));
 
-	mysock = socket(PF_INET,SOCK_DGRAM,IPPROTO_IP);
-	res = ioctl(mysock,SIOCGIFADDR,&ifreq);
+	mysock = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+	res = ioctl(mysock, SIOCGIFADDR, &ifreq);
 
 	close(mysock);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to get IP of %s: %s\n", iface, strerror(errno));
-		memcpy((char *)address,(char *)&__ourip,sizeof(__ourip));
+		memcpy((char *)address, (char *)&__ourip, sizeof(__ourip));
 		return -1;
 	} else {
-		memcpy((char *)address,(char *)&ifreq.ifru_addr.sin_addr,sizeof(ifreq.ifru_addr.sin_addr));
+		memcpy((char *)address, (char *)&ifreq.ifru_addr.sin_addr, sizeof(ifreq.ifru_addr.sin_addr));
 		return 0;
 	}
 }
@@ -286,7 +285,7 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 
 int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 {
-	char ourhost[MAXHOSTNAMELEN]="";
+	char ourhost[MAXHOSTNAMELEN] = "";
 	struct ast_hostent ahp;
 	struct hostent *hp;
 	struct in_addr saddr;
@@ -297,7 +296,7 @@ int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
 		return 0;
 	}
 	/* try to use our hostname */
-	if (gethostname(ourhost, sizeof(ourhost)-1)) {
+	if (gethostname(ourhost, sizeof(ourhost) - 1)) {
 		ast_log(LOG_WARNING, "Unable to get hostname\n");
 	} else {
 		hp = ast_gethostbyname(ourhost, &ahp);
