@@ -136,13 +136,21 @@ extern int ast_base64decode(unsigned char *dst, char *src, int max);
 extern int test_for_thread_safety(void);
 
 extern const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
-extern int ast_utils_init(void);
-extern int ast_wait_for_input(int fd, int ms);
 
 #ifdef inet_ntoa
 #undef inet_ntoa
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
+
+extern int ast_utils_init(void);
+extern int ast_wait_for_input(int fd, int ms);
+
+/*! Compares the source address and port of two sockaddr_in */
+static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
+{
+	return ((sin1->sin_addr.s_addr != sin2->sin_addr.s_addr) 
+		|| (sin1->sin_port != sin2->sin_port));
+}
 
 #define AST_STACKSIZE 256 * 1024
 #define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)

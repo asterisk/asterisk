@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/aes.h"
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/netsock.h"
 
 #include <sys/mman.h>
 #include <arpa/inet.h>
@@ -156,7 +157,7 @@ static int expirey = IAX_DEFAULT_REG_EXPIRE;
 
 static int timingfd = -1;				/* Timing file descriptor */
 
-static struct ast_netsock_list netsock;
+static struct ast_netsock_list *netsock;
 static int defaultsockfd = -1;
 
 static int usecnt;
@@ -7864,7 +7865,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 		if (res == 0) {
 			/* ip address valid. */
 			sin.sin_port = htons(port);
-			sock = ast_netsock_find(&netsock, &sin);
+			sock = ast_netsock_find(netsock, &sin);
 			if (sock) {
 				sockfd = ast_netsock_sockfd(sock);
 				nonlocal = 0;
@@ -8423,7 +8424,7 @@ static int set_config(char *config_file, int reload)
 			if (reload) {
 				ast_log(LOG_NOTICE, "Ignoring bindaddr on reload\n");
 			} else {
-				if (!(ns = ast_netsock_bind(&netsock, io, v->value, portno, tos, socket_read, NULL))) {
+				if (!(ns = ast_netsock_bind(netsock, io, v->value, portno, tos, socket_read, NULL))) {
 					ast_log(LOG_WARNING, "Unable apply binding to '%s' at line %d\n", v->value, v->lineno);
 				} else {
 					if (option_verbose > 1) {
@@ -9247,7 +9248,7 @@ static int __unload_module(void)
 		pthread_cancel(netthreadid);
 		pthread_join(netthreadid, NULL);
 	}
-	ast_netsock_release(&netsock);
+	ast_netsock_release(netsock);
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		if (iaxs[x])
 			iax2_destroy(x);
@@ -9318,13 +9319,18 @@ int load_module(void)
 		return -1;
 	}
 
+	netsock = ast_netsock_list_alloc();
+	if (!netsock) {
+		ast_log(LOG_ERROR, "Could not allocate netsock list.\n");
+		return -1;
+	}
+	ast_netsock_init(netsock);
+
 	ast_mutex_init(&iaxq.lock);
 	ast_mutex_init(&userl.lock);
 	ast_mutex_init(&peerl.lock);
 	ast_mutex_init(&waresl.lock);
 	
-	ast_netsock_init(&netsock);
-
 	ast_cli_register_multiple(iax2_cli, sizeof(iax2_cli) / sizeof(iax2_cli[0]));
 
 	ast_register_application(papp, iax2_prov_app, psyn, pdescrip);
@@ -9344,7 +9350,7 @@ int load_module(void)
 		ast_log(LOG_ERROR, "Unable to register IAX switch\n");
 	
 	if (defaultsockfd < 0) {
-		if (!(ns = ast_netsock_bindaddr(&netsock, io, &sin, tos, socket_read, NULL))) {
+		if (!(ns = ast_netsock_bindaddr(netsock, io, &sin, tos, socket_read, NULL))) {
 			ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
 			return -1;
 		} else {
@@ -9360,7 +9366,7 @@ int load_module(void)
 			ast_verbose(VERBOSE_PREFIX_2 "IAX Ready and Listening\n");
 	} else {
 		ast_log(LOG_ERROR, "Unable to start network thread\n");
-		ast_netsock_release(&netsock);
+		ast_netsock_release(netsock);
 	}
 
 	for (reg = registrations; reg; reg = reg->next)

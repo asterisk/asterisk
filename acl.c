@@ -3,9 +3,9 @@
  *
  * Various sorts of access control
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2005, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -51,16 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #if defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__)
 AST_MUTEX_DEFINE_STATIC(routeseq_lock);
 #endif
-
-struct ast_netsock {
-	ASTOBJ_COMPONENTS(struct ast_netsock);
-	struct sockaddr_in bindaddr;
-	int sockfd;
-	int *ioref;
-	struct io_context *ioc;
-	void *data;
-};
-
 
 struct ast_ha {
 	/* Host access rule */
@@ -292,135 +282,6 @@ int ast_ouraddrfor(struct in_addr *them, struct in_addr *us)
 	close(s);
 	*us = sin.sin_addr;
 	return 0;
-}
-
-int ast_netsock_sockfd(struct ast_netsock *ns)
-{
-	if (ns)
-		return ns->sockfd;
-	return -1;
-}
-
-struct ast_netsock *ast_netsock_bindaddr(struct ast_netsock_list *list, struct io_context *ioc, struct sockaddr_in *bindaddr, int tos, ast_io_cb callback, void *data)
-{
-	int netsocket = -1;
-	int *ioref;
-	char iabuf[INET_ADDRSTRLEN];
-	
-	struct ast_netsock *ns;
-	
-	/* Make a UDP socket */
-	netsocket = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
-	
-	if (netsocket < 0) {
-		ast_log(LOG_ERROR, "Unable to create network socket: %s\n", strerror(errno));
-		return NULL;
-	}
-	if (bind(netsocket,(struct sockaddr *)bindaddr, sizeof(struct sockaddr_in))) {
-		ast_log(LOG_ERROR, "Unable to bind to %s port %d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr->sin_addr), ntohs(bindaddr->sin_port), strerror(errno));
-		close(netsocket);
-		return NULL;
-	}
-	if (option_verbose > 1)
-		ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
-
-	if (setsockopt(netsocket, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-		ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
-
-	ns = malloc(sizeof(struct ast_netsock));
-	if (ns) {
-		/* Establish I/O callback for socket read */
-		ioref = ast_io_add(ioc, netsocket, callback, AST_IO_IN, ns);
-		if (!ioref) {
-			ast_log(LOG_WARNING, "Out of memory!\n");
-			close(netsocket);
-			free(ns);
-			return NULL;
-		}	
-		ASTOBJ_INIT(ns);
-		ns->ioref = ioref;
-		ns->ioc = ioc;
-		ns->sockfd = netsocket;
-		ns->data = data;
-		memcpy(&ns->bindaddr, bindaddr, sizeof(ns->bindaddr));
-		ASTOBJ_CONTAINER_LINK(list, ns);
-	} else {
-		ast_log(LOG_WARNING, "Out of memory!\n");
-		close(netsocket);
-	}
-	return ns;
-}
-
-static void ast_netsock_destroy(struct ast_netsock *netsock)
-{
-	ast_io_remove(netsock->ioc, netsock->ioref);
-	close(netsock->sockfd);
-	free(netsock);
-}
-
-int ast_netsock_init(struct ast_netsock_list *list)
-{
-	memset(list, 0, sizeof(struct ast_netsock_list));
-	ASTOBJ_CONTAINER_INIT(list);
-	return 0;
-}
-
-int ast_netsock_release(struct ast_netsock_list *list)
-{
-	ASTOBJ_CONTAINER_DESTROYALL(list, ast_netsock_destroy);
-	ASTOBJ_CONTAINER_DESTROY(list);
-	return 0;
-}
-
-struct ast_netsock *ast_netsock_find(struct ast_netsock_list *list,
-				     struct sockaddr_in *sa)
-{
-	struct ast_netsock *sock = NULL;
-
-	ASTOBJ_CONTAINER_TRAVERSE(list, !sock, {
-		ASTOBJ_RDLOCK(iterator);
-		if (!inaddrcmp(&iterator->bindaddr, sa))
-			sock = iterator;
-		ASTOBJ_UNLOCK(iterator);
-	});
-
-	return sock;
-}
-
-
-const struct sockaddr_in *ast_netsock_boundaddr(struct ast_netsock *ns)
-{
-	return &(ns->bindaddr);
-}
-
-void *ast_netsock_data(struct ast_netsock *ns)
-{
-	return ns->data;
-}
-
-struct ast_netsock *ast_netsock_bind(struct ast_netsock_list *list, struct io_context *ioc, const char *bindinfo, int defaultport, int tos, ast_io_cb callback, void *data)
-{
-	struct sockaddr_in sin;
-	char *tmp;
-	char *port;
-	int portno;
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(defaultport);
-	tmp = ast_strdupa(bindinfo);
-	if (tmp) {
-		port = strchr(tmp, ':');
-		if (port) {
-			*port = '\0';
-			port++;
-			if ((portno = atoi(port)) > 0) 
-				sin.sin_port = htons(portno);
-		}
-		inet_aton(tmp, &sin.sin_addr);
-		return ast_netsock_bindaddr(list, ioc, &sin, tos, callback, data);
-	} else
-		ast_log(LOG_WARNING, "Out of memory!\n");
-	return NULL;
 }
 
 int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr)
