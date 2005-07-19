@@ -226,9 +226,7 @@ static struct pbx_builtin {
 } builtins[] = 
 {
 	/* These applications are built into the PBX core and do not
-	   need separate modules
-	   
-	    */
+	   need separate modules */
 
 	{ "AbsoluteTimeout", pbx_builtin_atimeout,
 	"Set absolute maximum time of call",
@@ -750,11 +748,11 @@ struct ast_context *ast_context_find(const char *name)
 	return tmp;
 }
 
-#define STATUS_NO_CONTEXT   1
-#define STATUS_NO_EXTENSION 2
-#define STATUS_NO_PRIORITY  3
+#define STATUS_NO_CONTEXT	1
+#define STATUS_NO_EXTENSION	2
+#define STATUS_NO_PRIORITY	3
 #define STATUS_NO_LABEL		4
-#define STATUS_SUCCESS	    5
+#define STATUS_SUCCESS		5
 
 static int matchcid(const char *cidpattern, const char *callerid)
 {
@@ -762,7 +760,6 @@ static int matchcid(const char *cidpattern, const char *callerid)
 	
 	/* If the Caller*ID pattern is empty, then we're matching NO Caller*ID, so
 	   failing to get a number should count as a match, otherwise not */
-
 
 	if (!ast_strlen_zero(cidpattern))
 		failresult = 0;
@@ -939,15 +936,15 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 
 		if (abs(offset) > strlen(*ret)) {	/* Offset beyond string */
 			if (offset >= 0) 
-				offset=strlen(*ret);
+				offset = strlen(*ret);
 			else 
-				offset=-strlen(*ret);	
+				offset =- strlen(*ret);	
 		}
 		if ((offset < 0 && offset2 > -offset) || (offset >= 0 && offset+offset2 > strlen(*ret))) {
 			if (offset >= 0) 
-				offset2=strlen(*ret)-offset;
+				offset2 = strlen(*ret)-offset;
 			else 
-				offset2=strlen(*ret)+offset;
+				offset2 = strlen(*ret)+offset;
 		}
 		if (offset >= 0)
 			*ret += offset;
@@ -1113,7 +1110,7 @@ icky:
 				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
 #endif
 				if (strcasecmp(ast_var_name(variables),var)==0) {
-					*ret=ast_var_value(variables);
+					*ret = ast_var_value(variables);
 					if (*ret) {
 						ast_copy_string(workspace, *ret, workspacelen);
 						*ret = workspace;
@@ -1281,7 +1278,7 @@ int ast_custom_function_register(struct ast_custom_function *acf)
 
 	/* try to lock functions list ... */
 	if (ast_mutex_lock(&acflock)) {
-		ast_log(LOG_ERROR, "Unable to lock function list\n");
+		ast_log(LOG_ERROR, "Unable to lock function list. Failed registering function %s\n", acf->name);
 		return -1;
 	}
 
@@ -1309,31 +1306,31 @@ char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, s
 	struct ast_custom_function *acfptr;
 
 	function = ast_strdupa(in);
-	if (function) {
-		if ((args = strchr(function, '('))) {
-			*args = '\0';
-			args++;
-			if ((p = strrchr(args, ')'))) {
-				*p = '\0';
-			} else {
-				ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
-			}
+	if (!function) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return ret;
+	}
+	if ((args = strchr(function, '('))) {
+		*args = '\0';
+		args++;
+		if ((p = strrchr(args, ')'))) {
+			*p = '\0';
 		} else {
-			ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
-		}
-
-		if ((acfptr = ast_custom_function_find(function))) {
-			/* run the custom function */
-			if (acfptr->read) {
-				return acfptr->read(chan, function, args, workspace, len);
-			} else {
-				ast_log(LOG_ERROR, "Function %s cannot be read\n", function);
-			}
-		} else {
-			ast_log(LOG_ERROR, "Function %s not registered\n", function);
+			ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
 		}
 	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
+	}
+
+	if ((acfptr = ast_custom_function_find(function))) {
+		/* run the custom function */
+		if (acfptr->read) {
+			return acfptr->read(chan, function, args, workspace, len);
+		} else {
+			ast_log(LOG_ERROR, "Function %s cannot be read\n", function);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Function %s not registered\n", function);
 	}
 	return ret;
 }
@@ -1344,31 +1341,31 @@ void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
 	struct ast_custom_function *acfptr;
 
 	function = ast_strdupa(in);
-	if (function) {
-		if ((args = strchr(function, '('))) {
-			*args = '\0';
-			args++;
-			if ((p = strrchr(args, ')'))) {
-				*p = '\0';
-			} else {
-				ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
-			}
+	if (!function) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return;
+	}
+	if ((args = strchr(function, '('))) {
+		*args = '\0';
+		args++;
+		if ((p = strrchr(args, ')'))) {
+			*p = '\0';
 		} else {
-			ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
-		}
-
-		if ((acfptr = ast_custom_function_find(function))) {
-			/* run the custom function */
-			if (acfptr->write) {
-				acfptr->write(chan, function, args, value);
-			} else {
-				ast_log(LOG_ERROR, "Function %s cannot be written to\n", function);
-			}
-		} else {
-			ast_log(LOG_ERROR, "Function %s not registered\n", function);
+			ast_log(LOG_WARNING, "Can't find trailing parenthesis?\n");
 		}
 	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		ast_log(LOG_WARNING, "Function doesn't contain parentheses.  Assuming null argument.\n");
+	}
+
+	if ((acfptr = ast_custom_function_find(function))) {
+		/* run the custom function */
+		if (acfptr->write) {
+			acfptr->write(chan, function, args, value);
+		} else {
+			ast_log(LOG_ERROR, "Function %s is read-only, it cannot be written to\n", function);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Function %s not registered\n", function);
 	}
 }
 
@@ -1443,7 +1440,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			len = vare - vars - 1;
 
 			/* Skip totally over variable name */
-			whereweare += ( len + 3);
+			whereweare += (len + 3);
 
 			/* Store variable name (and truncate) */
 			memset(var, 0, sizeof(var));
@@ -3113,7 +3110,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 				/* Match all words on command line */
 				int i;
 				printapp = 1;
-				for (i=3;i<argc;i++) {
+				for (i=3; i<argc; i++) {
 					if (!strcasestr(a->description, argv[i])) {
 						printapp = 0;
 					} else {
@@ -3668,10 +3665,10 @@ static void get_timerange(struct ast_timing *i, char *times)
 	/* Do the last one */
 	i->minmask[x/30] |= (1 << (x % 30));
 #else
-	for (cth=0;cth<24;cth++) {
+	for (cth=0; cth<24; cth++) {
 		/* Initialize masks to blank */
 		i->minmask[cth] = 0;
-		for (ctm=0;ctm<30;ctm++) {
+		for (ctm=0; ctm<30; ctm++) {
 			if (
 			/* First hour with more than one hour */
 			      (((cth == s1) && (ctm >= s2)) &&
@@ -3789,7 +3786,7 @@ static unsigned int get_day(char *day)
 	} else
 		e = s;
 	mask = 0;
-	for (x=s;x!=e;x = (x + 1) % 31) {
+	for (x=s; x!=e; x = (x + 1) % 31) {
 		mask |= (1 << x);
 	}
 	mask |= (1 << x);
