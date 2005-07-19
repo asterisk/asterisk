@@ -904,7 +904,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 			} 
 			else if (e->data == VPB_GRUNT) {
-				if( ( ast_tvdiff_ms(ast_tvnow(), p->lastgrunt) > gruntdetect_timeout ) {
+				if ( ast_tvdiff_ms(ast_tvnow(), p->lastgrunt) > gruntdetect_timeout ) {
 					/* Nothing heard on line for a very long time
 					 * Timeout connection */
 					if (option_verbose > 2) 
