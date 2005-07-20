@@ -521,7 +521,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	tmp->fds[AST_MAX_FDS-1] = tmp->alertpipe[0];
 	/* And timing pipe */
 	tmp->fds[AST_MAX_FDS-2] = tmp->timingfd;
-	ast_copy_string(tmp->name, "**Unknown**", sizeof(tmp->name));
+	strcpy(tmp->name, "**Unkown**");
 	/* Initial state */
 	tmp->_state = AST_STATE_DOWN;
 	tmp->streamid = -1;
@@ -533,9 +533,9 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	headp = &tmp->varshead;
 	ast_mutex_init(&tmp->lock);
 	AST_LIST_HEAD_INIT(headp);
-	ast_copy_string(tmp->context, "default", sizeof(tmp->context));
+	strcpy(tmp->context, "default");
 	ast_copy_string(tmp->language, defaultlanguage, sizeof(tmp->language));
-	ast_copy_string(tmp->exten, "s", sizeof(tmp->exten));
+	strcpy(tmp->exten, "s");
 	tmp->priority = 1;
 	tmp->amaflags = ast_default_amaflags;
 	ast_copy_string(tmp->accountcode, ast_default_accountcode, sizeof(tmp->accountcode));

@@ -703,10 +703,16 @@ int ast_sendtext(struct ast_channel *chan, char *text);
  * Read a char of text from a channel
  * Returns 0 on success, -1 on failure
  */
-
-int ast_senddigit(struct ast_channel *chan, char digit);
-
 int ast_recvchar(struct ast_channel *chan, int timeout);
+
+/*! Send a DTMF digit to a channel */
+/*! 
+ * \param chan channel to act upon
+ * \param digit the DTMF digit to send, encoded in ASCII
+ * Send a DTMF digit to a channel.
+ * Returns 0 on success, -1 on failure
+ */
+int ast_senddigit(struct ast_channel *chan, char digit);
 
 /*! Receives a text string from a channel */
 /*! 
