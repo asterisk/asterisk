@@ -276,7 +276,7 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o config_old.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
-	netsock.o
+	netsock.o slinfactory.o
 ifeq (${OSARCH},Darwin)
 OBJS+=poll.o dlfcn.o
 ASTLINK=-Wl,-dynamic

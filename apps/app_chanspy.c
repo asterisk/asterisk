@@ -25,6 +25,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/features.h"
 #include "asterisk/options.h"
+#include "asterisk/slinfactory.h"
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 #include "asterisk/say.h"
@@ -35,7 +36,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 AST_MUTEX_DEFINE_STATIC(modlock);
 
-#define ast_fit_in_short(in) (in < -32768 ? -32768 : in > 32767 ? 32767 : in)
 #define AST_NAME_STRLEN 256
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
@@ -80,28 +80,9 @@ LOCAL_USER_DECL;
 struct chanspy_translation_helper {
 	/* spy data */
 	struct ast_channel_spy spy;
-
-	/* read frame */
-	int fmt0;
-	short *buf0;
-	int len0;
-	struct ast_trans_pvt *trans0;
-
-	/* write frame */
-	int fmt1;
-	struct ast_trans_pvt *trans1;
-	short *buf1;
-	int len1;
-
-	/* muxed frame */
-	struct ast_frame frame;
-	short *buf;
-	int len;
-	
-	int samples;
-	int rsamples;
 	int volfactor;
 	int fd;
+	struct ast_slinfactory slinfactory[2];
 };
 
 /* Prototypes */
@@ -165,33 +146,17 @@ static void spy_release(struct ast_channel *chan, void *data)
 {
 	struct chanspy_translation_helper *csth = data;
 
+	ast_slinfactory_destroy(&csth->slinfactory[0]);
+	ast_slinfactory_destroy(&csth->slinfactory[1]);
 
-	if (csth->trans0) {
-		ast_translator_free_path(csth->trans0);
-		csth->trans0 = NULL;
-	}
-	if (csth->trans1) {
-		ast_translator_free_path(csth->trans1);
-		csth->trans1 = NULL;
-	}
-
-	if (csth->buf0) {
-		free(csth->buf0);
-		csth->buf0 = NULL;
-	}
-	if (csth->buf1) {
-		free(csth->buf1);
-		csth->buf1 = NULL;
-	}
-	if (csth->buf) {
-		free(csth->buf);
-		csth->buf = NULL;
-	}
 	return;
 }
 
 static void *spy_alloc(struct ast_channel *chan, void *params) 
 {
+	struct chanspy_translation_helper *csth = params;
+	ast_slinfactory_init(&csth->slinfactory[0]);
+	ast_slinfactory_init(&csth->slinfactory[1]);
 	return params;
 }
 
@@ -224,244 +189,147 @@ static void ast_flush_spy_queue(struct ast_channel_spy *spy)
 	ast_mutex_unlock(&spy->lock);
 }
 
+
+#if 0
+static int extract_audio(short *buf, size_t len, struct ast_trans_pvt *trans, struct ast_frame *fr, int *maxsamp)
+{
+	struct ast_frame *f;
+	int size, retlen = 0;
+	
+	if (trans) {
+		if ((f = ast_translate(trans, fr, 0))) {
+			size = (f->datalen > len) ? len : f->datalen;
+			memcpy(buf, f->data, size);
+			retlen = f->datalen;
+			ast_frfree(f);
+		} else {
+			/* your guess is as good as mine why this will happen but it seems to only happen on iax and appears harmless */
+			ast_log(LOG_DEBUG, "Failed to translate frame from %s\n", ast_getformatname(fr->subclass));
+		}
+	} else {
+		size = (fr->datalen > len) ? len : fr->datalen;
+		memcpy(buf, fr->data, size);
+		retlen = fr->datalen;
+	}
+
+	if (retlen > 0 && (size = retlen / 2)) {
+		if (size > *maxsamp) {
+			*maxsamp = size;
+		}
+	}
+	
+	return retlen;
+}
+
+
+static int spy_queue_ready(struct ast_channel_spy *spy)
+{
+	int res = 0;
+
+	ast_mutex_lock(&spy->lock);
+	if (spy->status == CHANSPY_RUNNING) {
+		res = (spy->queue[0] && spy->queue[1]) ? 1 : 0;
+	} else {
+		res = (spy->queue[0] || spy->queue[1]) ? 1 : -1;
+	}
+	ast_mutex_unlock(&spy->lock);
+	return res;
+}
+#endif
+
+
 static int spy_generate(struct ast_channel *chan, void *data, int len, int samples) 
 {
-	struct ast_frame *f, *f0, *f1;
-	int x, vf, dlen, maxsamp, loops;
-	struct chanspy_translation_helper *csth = data;
 
-	if (csth->rsamples < csth->samples) {
-		csth->rsamples += samples;
-		return 0;
-	} 
-	csth->rsamples += samples;
-	loops = 0;
-	do {
-		loops++;
-		f = f0 = f1 = NULL;
-		x = vf = dlen = maxsamp = 0;
-		if (csth->rsamples == csth->samples) {
-			csth->rsamples = csth->samples = 0;
-		}
+		struct chanspy_translation_helper *csth = data;
+		struct ast_frame frame, *f;
+		int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, x, vf, maxsamp;
+		short buf0[1280], buf1[1280], buf[1280];
+		
+		if (csth->spy.status == CHANSPY_DONE) {
+            return -1;
+        }
 
 		ast_mutex_lock(&csth->spy.lock);
-		f0 = spy_queue_shift(&csth->spy, 0);
-		f1 = spy_queue_shift(&csth->spy, 1);
-		ast_mutex_unlock(&csth->spy.lock);
-
-		if (csth->spy.status == CHANSPY_DONE) {
-			return -1;
+		while((f = csth->spy.queue[0])) {
+			csth->spy.queue[0] = f->next;
+			ast_slinfactory_feed(&csth->slinfactory[0], f);
+			ast_frfree(f);
 		}
-	
-		if (!f0 && !f1) {
+		ast_mutex_unlock(&csth->spy.lock);
+		ast_mutex_lock(&csth->spy.lock);
+		while((f = csth->spy.queue[1])) {
+			csth->spy.queue[1] = f->next;
+			ast_slinfactory_feed(&csth->slinfactory[1], f);
+			ast_frfree(f);
+		}
+		ast_mutex_unlock(&csth->spy.lock);
+		
+		if (csth->slinfactory[0].size < len || csth->slinfactory[1].size < len) {
 			return 0;
 		}
-
-		if (f0 && csth->fmt0 && csth->fmt0 != f0->subclass) {
-			ast_translator_free_path(csth->trans0);
-			csth->trans0 = NULL;
-			csth->fmt0 = f0->subclass;
+		
+		if ((len0 = ast_slinfactory_read(&csth->slinfactory[0], buf0, len))) {
+			samp0 = len0 / 2;
+		} 
+		if((len1 = ast_slinfactory_read(&csth->slinfactory[1], buf1, len))) {
+			samp1 = len1 / 2;
 		}
 
-		if (f1 && csth->fmt1 && csth->fmt1 != f1->subclass) {
-			ast_translator_free_path(csth->trans1);
-			csth->trans1 = NULL;
-			csth->fmt1 = f1->subclass;
-		}
-	
-		if (!csth->fmt0 && f0) {
-			csth->fmt0 = f0->subclass;
-		}
-
-		if (!csth->fmt1 && f1) {
-			csth->fmt1 = f1->subclass;
-		}
-
-		if (csth->fmt0 && csth->fmt0 != AST_FORMAT_SLINEAR && !csth->trans0) {
-			if ((csth->trans0 = ast_translator_build_path(AST_FORMAT_SLINEAR, csth->fmt0)) == NULL) {
-				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(csth->fmt0));
-				csth->spy.status = CHANSPY_DONE;
-				return -1;
-			}
-		}
-		if (csth->fmt1 && csth->fmt1 != AST_FORMAT_SLINEAR && !csth->trans1) {
-			if ((csth->trans1 = ast_translator_build_path(AST_FORMAT_SLINEAR, csth->fmt1)) == NULL) {
-				ast_log(LOG_WARNING, "Cannot build a path from %s to slin\n", ast_getformatname(csth->fmt1));
-				csth->spy.status = CHANSPY_DONE;
-				return -1;
-			}
-		}
-	
-		if (f0) {
-			if (csth->trans0) {
-				if ((f = ast_translate(csth->trans0, f0, 0))) {
-					if (csth->len0 < f->datalen) {
-						if (!csth->len0) {
-							if (!(csth->buf0 = malloc(f->datalen * 2))) {
-								csth->spy.status = CHANSPY_DONE;
-								return -1;
-							}
-						} else {
-							if (!realloc(csth->buf0, f->datalen * 2)) {
-								csth->spy.status = CHANSPY_DONE;
-								return -1;
-							}
-						}
-						csth->len0 = f->datalen;
-					}
-					memcpy(csth->buf0, f->data, f->datalen);
-					maxsamp = f->samples;
-					ast_frfree(f);
-				} else {
-					return 0;
-				}
-			} else {
-				if (csth->len0 < f0->datalen) {
-					if (!csth->len0) {
-						if (!(csth->buf0 = malloc(f0->datalen * 2))) {
-							csth->spy.status = CHANSPY_DONE;
-							return -1;
-						}
-					} else {
-						if (!realloc(csth->buf0, f0->datalen * 2)) {
-							csth->spy.status = CHANSPY_DONE;
-							return -1;
-						}
-					}
-					csth->len0 = f0->datalen;
-				}
-				memcpy(csth->buf0, f0->data, f0->datalen);
-				maxsamp = f0->samples;
-			}
-		}
-	
-		if (f1) {
-			if (csth->trans1) {
-				if ((f = ast_translate(csth->trans1, f1, 0))) {
-					if (csth->len1 < f->datalen) {
-						if (!csth->len1) {
-							if (!(csth->buf1 = malloc(f->datalen * 2))) {
-								csth->spy.status = CHANSPY_DONE;
-								return -1;
-							}
-						} else {
-							if (!realloc(csth->buf1, f->datalen * 2)) {
-								csth->spy.status = CHANSPY_DONE;
-								return -1;
-							}
-						}
-						csth->len1 = f->datalen;
-					}
-					memcpy(csth->buf1, f->data, f->datalen);
-					if (f->samples > maxsamp) {
-						maxsamp = f->samples;
-					}
-					ast_frfree(f);
-				
-				} else {
-					return 0;
-				}
-			} else {
-				if (csth->len1 < f1->datalen) {
-					if (!csth->len1) {
-						if (!(csth->buf1 = malloc(f1->datalen * 2))) {
-							csth->spy.status = CHANSPY_DONE;
-							return -1;
-						}
-					} else {
-						if (!realloc(csth->buf1, f1->datalen * 2)) {
-							csth->spy.status = CHANSPY_DONE;
-							return -1;
-						}
-					}
-					csth->len1 = f1->datalen;
-				}
-				memcpy(csth->buf1, f1->data, f1->datalen);
-				if (f1->samples > maxsamp) {
-					maxsamp = f1->samples;
-				}
-			}
-		}
-
+		maxsamp = (samp0 > samp1) ? samp0 : samp1;
 		vf = get_volfactor(csth->volfactor);
-		vf = minmax(vf, 16);
-
-		dlen = (csth->len0 > csth->len1) ? csth->len0 : csth->len1;
-
-		if (csth->len < dlen) {
-			if (!csth->len) {
-				if (!(csth->buf = malloc(dlen*2))) {
-					csth->spy.status = CHANSPY_DONE;
-					return -1;
-				}
-			} else {
-				if (!realloc(csth->buf, dlen * 2)) {
-					csth->spy.status = CHANSPY_DONE;
-					return -1;
-				}
-			}
-			csth->len = dlen;
-		}
-
+        vf = minmax(vf, 16);
+		
 		for(x=0; x < maxsamp; x++) {
 			if (vf < 0) {
-				if (f0) {
-					csth->buf0[x] /= abs(vf);
+				if (samp0) {
+					buf0[x] /= abs(vf);
 				}
-				if (f1) {
-					csth->buf1[x] /= abs(vf);
+				if (samp1) {
+					buf1[x] /= abs(vf);
 				}
 			} else if (vf > 0) {
-				if (f0) {
-					csth->buf0[x] *= vf;
+				if (samp0) {
+					buf0[x] *= vf;
 				}
-				if (f1) {
-					csth->buf1[x] *= vf;
+				if (samp1) {
+					buf1[x] *= vf;
 				}
 			}
-			if (f0 && f1) {
-				if (x < csth->len0 && x < csth->len1) {
-					csth->buf[x] = ast_fit_in_short(csth->buf0[x] + csth->buf1[x]);
-				} else if (x < csth->len0) {
-					csth->buf[x] = csth->buf0[x];
-				} else if (x < csth->len1) {
-					csth->buf[x] = csth->buf1[x];
+			if (samp0 && samp1) {
+				if (x < samp0 && x < samp1) {
+					buf[x] = buf0[x] + buf1[x];
+				} else if (x < samp0) {
+					buf[x] = buf0[x];
+				} else if (x < samp1) {
+					buf[x] = buf1[x];
 				}
-			} else if (f0 && x < csth->len0) {
-				csth->buf[x] = csth->buf0[x];
-			} else if (f1 && x < csth->len1) {
-				csth->buf[x] = csth->buf1[x];
+			} else if (x < samp0) {
+				buf[x] = buf0[x];
+			} else if (x < samp1) {
+				buf[x] = buf1[x];
 			}
 		}
-
-		csth->frame.data = csth->buf;
-		csth->frame.samples = maxsamp;
-		csth->frame.datalen = csth->frame.samples * 2;
-		csth->samples += csth->frame.samples;
 		
-		if (ast_write(chan, &csth->frame)) {
+		memset(&frame, 0, sizeof(frame));
+		frame.frametype = AST_FRAME_VOICE;
+		frame.subclass = AST_FORMAT_SLINEAR;
+		frame.data = buf;
+		frame.samples = x;
+		frame.datalen = x * 2;
+
+		if (ast_write(chan, &frame)) {
 			csth->spy.status = CHANSPY_DONE;
 			return -1;
 		}
+
 		if (csth->fd) {
-			write(csth->fd, csth->frame.data, csth->frame.datalen);
+			write(csth->fd, buf1, len1);
 		}
 
-		if (f0) {
-			ast_frfree(f0);
-		}
-		if (f1) {
-			ast_frfree(f1);
-		}
-
-		if (loops > 10) {
-			ast_log(LOG_WARNING, "Too Many Loops Bailing Out....");
-			break;
-		}
-	} while (csth->samples <  csth->rsamples);
-
-	return 0;
+		return 0;
 }
+
 
 static struct ast_generator spygen = {
     alloc: spy_alloc, 
@@ -548,10 +416,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		csth.spy.status = CHANSPY_RUNNING;
 		ast_mutex_init(&csth.spy.lock);
 		csth.volfactor = *volfactor;
-		csth.frame.frametype = AST_FRAME_VOICE;
-		csth.frame.subclass = AST_FORMAT_SLINEAR;
-		csth.frame.datalen = 320;
-		csth.frame.samples = 160;
+		
 		if (fd) {
 			csth.fd = fd;
 		}
