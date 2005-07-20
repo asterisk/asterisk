@@ -529,6 +529,8 @@ static int manager_dbput(struct mansession *s, struct message *m)
 
 static int manager_dbget(struct mansession *s, struct message *m)
 {
+	char *id = astman_get_header(m,"ActionID");
+	char idText[256] = "";
 	char *family = astman_get_header(m, "Family");
 	char *key = astman_get_header(m, "Key");
 	char tmp[256];
@@ -543,16 +545,23 @@ static int manager_dbget(struct mansession *s, struct message *m)
 		return 0;
 	}
 
+	if (id && !ast_strlen_zero(id))
+		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
+
 	res = ast_db_get(family, key, tmp, sizeof(tmp));
 	if (res) {
 		astman_send_error(s, m, "Database entry not found");
 	} else {
 		astman_send_ack(s, m, "Result will follow");
+		ast_mutex_lock(&s->lock);
 		ast_cli(s->fd, "Event: DBGetResponse\r\n"
 				"Family: %s\r\n"
 				"Key: %s\r\n"
-				"Val: %s\r\n\r\n",
-				family, key, tmp);
+				"Val: %s\r\n"
+				"%s"
+				"\r\n",
+				family, key, tmp, idText);
+		ast_mutex_unlock(&s->lock);
 	}
 	return 0;
 }
