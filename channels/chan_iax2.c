@@ -3380,6 +3380,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	int ms;
 	int voice = 0;
 	int genuine = 0;
+	int adjust;
 	struct timeval *delivery = NULL;
 
 
@@ -3421,8 +3422,15 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 			if (p->notsilenttx && abs(ms - p->nextpred) <= MAX_TIMESTAMP_SKEW) {
 				/* Adjust our txcore, keeping voice and 
 					non-voice synchronized */
-				p->offset = ast_tvadd(p->offset,
-						ast_samp2tv((ms - p->nextpred)/10, 1000)); /* XXX what scale is this ??? */
+				/* We need someone who understands this code to comment here on
+				   why the 'adjust' value is handled as if it was in units
+				   of 10,000 microseconds, instead of milliseconds
+				*/
+				adjust = (ms - p->nextpred);
+				if (adjust < 0)
+					p->offset = ast_tvsub(p->offset, ast_samp2tv(abs(adjust), 10000));
+				else if (adjust > 0)
+					p->offset = ast_tvadd(p->offset, ast_samp2tv(adjust, 10000));
 
 				if (!p->nextpred) {
 					p->nextpred = ms; /*f->samples / 8;*/
