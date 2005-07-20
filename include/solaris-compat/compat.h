@@ -41,8 +41,6 @@ typedef unsigned int	u_int32_t;
 #endif
 
 char* strsep(char** str, const char* delims);
-uint64_t
-strtoq(const char *nptr, char **endptr, int base);
 int setenv(const char *name, const char *value, int overwrite);
 int unsetenv(const char *name);
 #endif

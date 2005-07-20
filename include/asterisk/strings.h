@@ -198,6 +198,7 @@ struct ast_realloca {
 	})
 
 #define HAVE_VASPRINTF
+#define HAVE_STRTOQ
 
 #ifdef __linux__
 #define HAVE_STRCASESTR
@@ -207,6 +208,12 @@ struct ast_realloca {
 
 #ifdef SOLARIS
 #undef HAVE_VASPRINTF
+#undef HAVE_STRTOQ
+#endif
+
+#ifdef __CYGWIN__
+#undef HAVE_STRTOQ
+typedef unsigned long long uint64_t;
 #endif
 
 #ifndef HAVE_STRCASESTR
@@ -223,6 +230,10 @@ size_t strnlen(const char *, size_t);
 
 #ifndef HAVE_VASPRINTF
 int vasprintf(char **strp, const char *fmt, va_list ap);
+#endif
+
+#ifndef HAVE_STRTOQ
+uint64_t strtoq(const char *nptr, char **endptr, int base);
 #endif
 
 #endif /* _ASTERISK_STRINGS_H */
