@@ -8179,6 +8179,83 @@ static struct ast_custom_function sip_header_function = {
 	.read = func_header_read,
 };
 
+static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *ret = NULL;
+	struct sip_peer *peer;
+	char *peername, *colname;
+	char iabuf[INET_ADDRSTRLEN];
+
+	if (!(peername = ast_strdupa(data))) {
+		ast_log(LOG_ERROR, "Memory Error!\n");
+		return ret;
+	}
+
+	if ((colname = strchr(peername, ':'))) {
+		*colname = '\0';
+		colname++;
+	} else {
+		colname = "ip";
+	}
+	if (!(peer = find_peer(peername, NULL, 1)))
+		return ret;
+
+	if (!strcasecmp(colname, "ip")) {
+		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
+	} else  if (!strcasecmp(colname, "mailbox")) {
+		ast_copy_string(buf, peer->mailbox, len);
+	} else  if (!strcasecmp(colname, "context")) {
+		ast_copy_string(buf, peer->context, len);
+	} else  if (!strcasecmp(colname, "expire")) {
+		snprintf(buf, len, "%d", peer->expire);
+	} else  if (!strcasecmp(colname, "dynamic")) {
+		ast_copy_string(buf, (ast_test_flag(peer, SIP_DYNAMIC) ? "yes" : "no"), len);
+	} else  if (!strcasecmp(colname, "callerid_name")) {
+		ast_copy_string(buf, peer->cid_name, len);
+	} else  if (!strcasecmp(colname, "callerid_num")) {
+		ast_copy_string(buf, peer->cid_num, len);
+	} else  if (!strcasecmp(colname, "codecs")) {
+		ast_getformatname_multiple(buf, len -1, peer->capability);
+	} else  if (!strncasecmp(colname, "codec[", 6)) {
+		char *codecnum, *ptr;
+		int index = 0, codec = 0;
+		
+		codecnum = strchr(colname, '[');
+		*codecnum = '\0';
+		codecnum++;
+		if ((ptr = strchr(codecnum, ']'))) {
+			*ptr = '\0';
+		}
+		index = atoi(codecnum);
+		if((codec = ast_codec_pref_index(&peer->prefs, index))) {
+			ast_copy_string(buf, ast_getformatname(codec), len);
+		}
+	}
+	ret = buf;
+
+	ASTOBJ_UNREF(peer, sip_destroy_peer);
+
+	return ret;
+}
+
+struct ast_custom_function sippeer_function = {
+    .name = "SIPPEER",
+    .synopsis = "Gets SIP peer information",
+    .syntax = "SIPPEER(<peername>[:item])",
+    .read = function_sippeer,
+	.desc = "Valid items are:\n"
+	"- ip (default)          The IP address.\n"
+	"- mailbox               The configured mailbox.\n"
+	"- context               The configured context.\n"
+	"- expire                The epoch time of the next expire.\n"
+	"- dynamic               Is it dynamic? (yes/no).\n"
+	"- callerid_name         The configured Caller ID name.\n"
+	"- callerid_num          The configured Caller ID number.\n"
+	"- codecs                The configured codecs.\n"
+	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
+	"\n"
+};
+
 /*--- parse_moved_contact: Parse 302 Moved temporalily response */
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
@@ -11516,6 +11593,7 @@ int load_module()
 			      "Show SIP peer (text format)", mandescr_show_peer);
 
 	ast_custom_function_register(&sip_header_function);
+	ast_custom_function_register(&sippeer_function);
 
 	sip_poke_all_peers();
 	sip_send_all_registers();
@@ -11533,6 +11611,7 @@ int unload_module()
 	/* First, take us out of the channel type list */
 	ast_channel_unregister(&sip_tech);
 
+	ast_custom_function_unregister(&sippeer_function);
 	ast_custom_function_unregister(&sip_header_function);
 
 	ast_unregister_application(app_dtmfmode);
