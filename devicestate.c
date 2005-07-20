@@ -27,6 +27,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/options.h"
 
+static const char *devstatestring[] = {
+	/* 0 AST_DEVICE_UNKNOWN */	"Unknown",	/* Valid, but unknown state */
+	/* 1 AST_DEVICE_NOT_INUSE */	"Not in use",	/* Not used */
+	/* 2 AST_DEVICE IN USE */	"In use",	/* In use */
+	/* 3 AST_DEVICE_BUSY */		"Busy",		/* Busy */
+	/* 4 AST_DEVICE_INVALID */	"Invalid",	/* Invalid - not known to Asterisk */
+	/* 5 AST_DEVICE_UNAVAILABLE */	"Unavailable",	/* Unavailable (not registred) */
+	/* 6 AST_DEVICE_RINGING */	"Ringing"	/* Ring, ring, ring */
+};
+
 /* ast_devstate_cb: A device state watcher (callback) */
 struct devstate_cb {
 	void *data;
@@ -46,6 +56,13 @@ static AST_LIST_HEAD_STATIC(state_changes, state_change);
 static pthread_t change_thread = AST_PTHREADT_NULL;
 static pthread_cond_t change_pending;
 
+/*--- devstate2str: Find devicestate as text message for output */
+const char *devstate2str(int devstate) 
+{
+	return devstatestring[devstate];
+}
+
+/*--- ast_parse_device_state: Find out if device is active in a call or not */
 int ast_parse_device_state(const char *device)
 {
 	struct ast_channel *chan;
@@ -69,6 +86,7 @@ int ast_parse_device_state(const char *device)
 	return res;
 }
 
+/*--- ast_device_state: Check device state through channel specific function or generic function */
 int ast_device_state(const char *device)
 {
 	char *buf;
@@ -81,16 +99,16 @@ int ast_device_state(const char *device)
 	tech = strsep(&buf, "/");
 	number = buf;
 	if (!number)
-	    return AST_DEVICE_INVALID;
+		return AST_DEVICE_INVALID;
 		
 	chan_tech = ast_get_channel_tech(tech);
 	if (!chan_tech)
 		return AST_DEVICE_INVALID;
 
-	if (!chan_tech->devicestate) 
-		return ast_parse_device_state(device);
+	if (!chan_tech->devicestate) 	/* Does the channel driver support device state notification? */
+		return ast_parse_device_state(device);	/* No, try the generic function */
 	else {
-		res = chan_tech->devicestate(number);
+		res = chan_tech->devicestate(number);	/* Ask the channel driver for device state */
 		if (res == AST_DEVICE_UNKNOWN)
 			return ast_parse_device_state(device);
 		else
@@ -145,7 +163,7 @@ static void do_state_change(const char *device)
 
 	state = ast_device_state(device);
 	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Changing state for %s - state %d\n", device, state);
+		ast_log(LOG_DEBUG, "Changing state for %s - state %d (%s)\n", device, state, devstate2str(state));
 
 	AST_LIST_LOCK(&devstate_cbs);
 	AST_LIST_TRAVERSE(&devstate_cbs, devcb, list)
@@ -155,6 +173,7 @@ static void do_state_change(const char *device)
 	ast_hint_state_changed(device);
 }
 
+/*--- ast_device_state_changed: Accept change notification, add it to change queue */
 int ast_device_state_changed(const char *fmt, ...) 
 {
 	char buf[AST_MAX_EXTENSION];
@@ -191,7 +210,8 @@ int ast_device_state_changed(const char *fmt, ...)
 	return 1;
 }
 
-static void *do_changes(void *data)
+/*--- do_devstate_changes: Go through the dev state change queue and update changes in the dev state thread */
+static void *do_devstate_changes(void *data)
 {
 	struct state_change *cur;
 
@@ -215,6 +235,7 @@ static void *do_changes(void *data)
 	return NULL;
 }
 
+/*--- ast_device_state_engine_init: Initialize the device state engine in separate thread */
 int ast_device_state_engine_init(void)
 {
 	pthread_attr_t attr;
@@ -222,7 +243,7 @@ int ast_device_state_engine_init(void)
 	pthread_cond_init(&change_pending, NULL);
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (ast_pthread_create(&change_thread, &attr, do_changes, NULL) < 0) {
+	if (ast_pthread_create(&change_thread, &attr, do_devstate_changes, NULL) < 0) {
 		ast_log(LOG_ERROR, "Unable to start device state change thread.\n");
 		return -1;
 	}

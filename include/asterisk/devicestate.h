@@ -33,6 +33,10 @@ extern "C" {
 
 typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
 
+/*! Convert device state to text string for output */
+/*! \param devstate Current device state */
+const char *devstate2str(int devstate);
+
 /*! Search the Channels by Name */
 /*!
  * \param device like a dialstring

@@ -423,7 +423,7 @@ static void *changethread(void *data)
 		return NULL;
 	}
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d'\n", technology, loc, sc->state);
+		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
 	ast_mutex_lock(&qlock);
 	for (q = queues; q; q = q->next) {
 		ast_mutex_lock(&q->lock);
@@ -452,8 +452,6 @@ static void *changethread(void *data)
 		ast_mutex_unlock(&q->lock);
 	}
 	ast_mutex_unlock(&qlock);
-	if (option_debug)
-		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d'\n", technology, loc, sc->state);
 	free(sc);
 	return NULL;
 }
