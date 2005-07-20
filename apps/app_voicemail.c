@@ -1665,8 +1665,13 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 			dur, msgnum + 1, mailbox, (cidname ? cidname : (cidnum ? cidnum : "an unknown caller")), date);
 		}
 		if (attach_user_voicemail) {
+			/* Eww. We want formats to tell us their own MIME type */
+			char *ctype = "audio/x-";
+			if (!strcasecmp(format, "ogg"))
+				ctype = "application/";
+		
 			fprintf(p, "--%s\n", bound);
-			fprintf(p, "Content-Type: audio/x-%s; name=\"msg%04d.%s\"\n", format, msgnum, format);
+			fprintf(p, "Content-Type: %s%s; name=\"msg%04d.%s\"\n", ctype, format, msgnum, format);
 			fprintf(p, "Content-Transfer-Encoding: base64\n");
 			fprintf(p, "Content-Description: Voicemail sound attachment.\n");
 			fprintf(p, "Content-Disposition: attachment; filename=\"msg%04d.%s\"\n\n", msgnum, format);

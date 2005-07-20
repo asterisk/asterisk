@@ -21,6 +21,11 @@ FORMAT_LIBS+=format_jpeg.so
 #
 FORMAT_LIBS+=format_g723.so
 
+#
+# OGG/Vorbis format
+#
+FORMAT_LIBS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/vorbis/codec.h ]; then echo "format_ogg_vorbis.so" ; fi)
+
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
 CFLAGS+=-fPIC
@@ -39,6 +44,9 @@ endif
 
 format_mp3.so : format_mp3.o
 	$(CC) $(SOLINK) -o $@ $< -lm
+
+format_ogg_vorbis.so : format_ogg_vorbis.o
+	$(CC) $(SOLINK) -o $@ $< -logg -lvorbis -lvorbisenc -lm
 
 install: all
 	for x in $(FORMAT_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
