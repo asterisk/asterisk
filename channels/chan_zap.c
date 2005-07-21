@@ -531,6 +531,7 @@ static struct zt_pvt {
 	unsigned int faxhandled:1;			/* Has a fax tone already been handled? */
 	unsigned int firstradio:1;
 	unsigned int hanguponpolarityswitch:1;
+	unsigned int hardwaredtmf:1;
 	unsigned int hidecallerid;
 	unsigned int ignoredtmf:1;
 	unsigned int immediate:1;			/* Answer before getting digits? */
@@ -4793,10 +4794,16 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		}
 #ifdef ZT_TONEDETECT
 		x = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
-		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x) || NEED_MFDETECT(i))
+		if (ioctl(i->subs[index].zfd, ZT_TONEDETECT, &x)) {
 #endif		
+			i->hardwaredtmf = 0;
 			features |= DSP_FEATURE_DTMF_DETECT;
-
+#ifdef ZT_TONEDETECT
+		} else if (NEED_MFDETECT(i)) {
+			i->hardwaredtmf = 1;
+			features |= DSP_FEATURE_DTMF_DETECT;
+		}
+#endif
 		if (features) {
 			if (i->dsp) {
 				ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
@@ -5192,8 +5199,17 @@ static void *ss_thread(void *data)
 			zt_wink(p, index);
 		}
 		zt_enable_ec(p);
-		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB)) 
-			if (p->dsp) ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax); 
+		if (NEED_MFDETECT(p)) {
+			if (p->dsp) {
+				if (!p->hardwaredtmf)
+					ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax); 
+				else {
+					ast_dsp_free(p->dsp);
+					p->dsp = NULL;
+				}
+			}
+		}
+
 		if (ast_exists_extension(chan, chan->context, exten, 1, chan->cid.cid_num)) {
 			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 			if (p->dsp) ast_dsp_digitreset(p->dsp);
