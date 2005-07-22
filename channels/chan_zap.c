@@ -167,7 +167,6 @@ static const char config[] = "zapata.conf";
 #define DCHAN_AVAILABLE	(DCHAN_PROVISIONED | DCHAN_NOTINALARM | DCHAN_UP)
 
 static int cur_emdigitwait = 250; /* Wait time in ms for digits on EM channel */
-static int cur_toneduration = -1; /* Tone duration */
 
 static char context[AST_MAX_CONTEXT] = "default";
 static char cid_num[256] = "";
@@ -6550,7 +6549,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	struct zt_bufferinfo bi;
 #endif
 	struct zt_spaninfo si;
-	struct zt_dialparams dps;
 	int res;
 	int span=0;
 	int here = 0;
@@ -6823,15 +6821,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				p.debouncetime = cur_debounce;
 		}
 		
-		if (cur_toneduration > -1) {
-			dps.dtmf_tonelen = dps.mfv1_tonelen = cur_toneduration;
-			res = ioctl(tmp->subs[SUB_REAL].zfd, ZT_SET_DIALPARAMS, &dps);
-			if (res < 0) {
-				ast_log(LOG_ERROR, "Invalid tone duration: %d ms\n", cur_toneduration);
-				destroy_zt_pvt(&tmp);
-				return NULL;
-			}
-		}
 		/* dont set parms on a pseudo-channel (or CRV) */
 		if (tmp->subs[SUB_REAL].zfd >= 0)
 		{
@@ -10522,7 +10511,28 @@ static int setup_zap(int reload)
 			} else if (!strcasecmp(v->name, "emdigitwait")) {
 				cur_emdigitwait = atoi(v->value);
 			} else if (!strcasecmp(v->name, "toneduration")) {
-				cur_toneduration = atoi(v->value);
+				int toneduration;
+				int ctlfd;
+				int res;
+				struct zt_dialparams dps;
+
+				ctlfd = open("/dev/zap/ctl", O_RDWR);
+				if (ctlfd == -1) {
+					ast_log(LOG_ERROR, "Unable to open /dev/zap/ctl to set toneduration\n");
+					return -1;
+				}
+
+				toneduration = atoi(v->value);
+				if (toneduration > -1) {
+					dps.dtmf_tonelen = dps.mfv1_tonelen = toneduration;
+					res = ioctl(ctlfd, ZT_SET_DIALPARAMS, &dps);
+					if (res < 0) {
+						ast_log(LOG_ERROR, "Invalid tone duration: %d ms\n", toneduration);
+						destroy_zt_pvt(&tmp);
+						return NULL;
+					}
+				}
+				close(ctlfd);
 			} else if (!strcasecmp(v->name, "polarityonanswerdelay")) {
 				polarityonanswerdelay = atoi(v->value);
 			} else if (!strcasecmp(v->name, "answeronpolarityswitch")) {
