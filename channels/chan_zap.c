@@ -10528,8 +10528,7 @@ static int setup_zap(int reload)
 					res = ioctl(ctlfd, ZT_SET_DIALPARAMS, &dps);
 					if (res < 0) {
 						ast_log(LOG_ERROR, "Invalid tone duration: %d ms\n", toneduration);
-						destroy_zt_pvt(&tmp);
-						return NULL;
+						return -1;
 					}
 				}
 				close(ctlfd);
