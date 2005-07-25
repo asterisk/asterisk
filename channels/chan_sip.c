@@ -164,9 +164,9 @@ const struct  cfsip_methods {
 };
 
 /* Structure for conversion between compressed SIP and "normal" SIP */
-static struct cfalias {
-	char *fullname;
-	char *shortname;
+static const struct cfalias {
+	char * const fullname;
+	char * const shortname;
 } aliases[] = {
 	{ "Content-Type", "c" },
 	{ "Content-Encoding", "e" },
@@ -2185,12 +2185,13 @@ static int sip_hangup(struct ast_channel *ast)
 	int needcancel = 0;
 	struct ast_flags locflags = {0};
 
-	if (option_debug)
-		ast_log(LOG_DEBUG, "sip_hangup(%s)\n", ast->name);
 	if (!p) {
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
+
 	ast_mutex_lock(&p->lock);
 #ifdef OSP_SUPPORT
 	if ((p->osphandle > -1) && (ast->_state == AST_STATE_UP)) {
@@ -2206,12 +2207,14 @@ static int sip_hangup(struct ast_channel *ast)
 	}
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
-		ast_log(LOG_WARNING, "Huh?  We aren't the owner?\n");
+		ast_log(LOG_WARNING, "Huh?  We aren't the owner? Can't hangup call.\n");
 		ast_mutex_unlock(&p->lock);
 		return 0;
 	}
+	/* If the call is not UP, we need to send CANCEL instead of BYE */
 	if (ast->_state != AST_STATE_UP)
 		needcancel = 1;
+
 	/* Disconnect */
 	p = ast->tech_pvt;
 	if (p->vad) {
@@ -2226,9 +2229,10 @@ static int sip_hangup(struct ast_channel *ast)
 	ast_update_use_count();
 
 	ast_set_flag(&locflags, SIP_NEEDDESTROY);	
+
 	/* Start the process if it's not already started */
 	if (!ast_test_flag(p, SIP_ALREADYGONE) && !ast_strlen_zero(p->initreq.data)) {
-		if (needcancel) {
+		if (needcancel) {	/* Outgoing call, not up */
 			if (ast_test_flag(p, SIP_OUTGOING)) {
 				transmit_request_with_auth(p, SIP_CANCEL, p->ocseq, 1, 0);
 				/* Actually don't destroy us yet, wait for the 487 on our original 
@@ -2245,14 +2249,14 @@ static int sip_hangup(struct ast_channel *ast)
 						update_user_counter(p, INC_IN_USE);
 					}
 				}
-			} else {
+			} else {	/* Incoming call, not up */
 				char *res;
 				if (ast->hangupcause && ((res = hangup_cause2sip(ast->hangupcause)))) {
 					transmit_response_reliable(p, res, &p->initreq, 1);
 				} else 
 					transmit_response_reliable(p, "403 Forbidden", &p->initreq, 1);
 			}
-		} else {
+		} else {	/* Call is in UP state, send BYE */
 			if (!p->pendinginvite) {
 				/* Send a hangup */
 				transmit_request_with_auth(p, SIP_BYE, 0, 1, 1);
@@ -3392,36 +3396,37 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*--- add_header: Add header to SIP message */
-static int add_header(struct sip_request *req, char *var, char *value)
+static int add_header(struct sip_request *req, const char *var, const char *value)
 {
 	int x = 0;
-	char *shortname = "";
+
 	if (req->headers == SIP_MAX_HEADERS) {
 		ast_log(LOG_WARNING, "Out of SIP header space\n");
 		return -1;
 	}
+
 	if (req->lines) {
 		ast_log(LOG_WARNING, "Can't add more headers when lines have been added\n");
 		return -1;
 	}
+
 	if (req->len >= sizeof(req->data) - 4) {
 		ast_log(LOG_WARNING, "Out of space, can't add anymore (%s:%s)\n", var, value);
 		return -1;
 	}
 
 	req->header[req->headers] = req->data + req->len;
+
 	if (compactheaders) {
-		for (x=0;x<sizeof(aliases) / sizeof(aliases[0]); x++)
+		for (x = 0; x < (sizeof(aliases) / sizeof(aliases[0])); x++)
 			if (!strcasecmp(aliases[x].fullname, var))
-				shortname = aliases[x].shortname;
+				var = aliases[x].shortname;
 	}
-	if (!ast_strlen_zero(shortname)) {
-		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", shortname, value);
-	} else {
-		snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
-	}
+
+	snprintf(req->header[req->headers], sizeof(req->data) - req->len - 4, "%s: %s\r\n", var, value);
 	req->len += strlen(req->header[req->headers]);
 	req->headers++;
+
 	return 0;	
 }
 
@@ -3811,6 +3816,11 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 	}
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Content-Length", "0");
+	/* If we are cancelling an incoming invite for some reason, add information
+		about the reason why we are doing this in clear text */
+	if (p->owner && p->owner->hangupcause) {
+		add_header(&resp, "X-Asterisk-HangupCause:", ast_cause2str(p->owner->hangupcause));
+	}
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
 }
@@ -5012,13 +5022,19 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 	struct sip_request resp;
 
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
-	if (*p->realm)
-	{
+	if (*p->realm) {
 		char digest[1024];
 
 		memset(digest, 0, sizeof(digest));
 		build_reply_digest(p, sipmethod, digest, sizeof(digest));
 		add_header(&resp, "Proxy-Authorization", digest);
+	}
+	/* If we are hanging up and know a cause for that, send it in clear text to make
+		debugging easier. */
+	if (sipmethod == SIP_BYE) {
+		if (p->owner && p->owner->hangupcause)	{
+			add_header(&resp, "X-Asterisk-HangupCause:", ast_cause2str(p->owner->hangupcause));
+		}
 	}
 
 	add_header(&resp, "Content-Length", "0");
