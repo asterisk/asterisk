@@ -208,7 +208,7 @@ static char show_version_files_help[] =
 
 static int handle_show_version_files(int fd, int argc, char *argv[])
 {
-#define FORMAT "%-25.25s %-20.20s\n"
+#define FORMAT "%-25.25s %-40.40s\n"
 	struct file_version *iterator;
 	regex_t regexbuf;
 	int havepattern = 0;
