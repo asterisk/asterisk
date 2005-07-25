@@ -3,6 +3,8 @@
  *
  * feature Proxy Channel
  * 
+ * *** Experimental code ****
+ * 
  * Copyright (C) 1999, Mark Spencer
  *
  * Mark Spencer <markster@linux-support.net>
@@ -121,7 +123,7 @@ static inline int indexof(struct feature_pvt *p, struct ast_channel *owner, int 
 		ast_log(LOG_WARNING, "indexof called on NULL owner??\n");
 		return -1;
 	}
-	for (x=0;x<3;x++) {
+	for (x=0; x<3; x++) {
 		if (owner == p->subs[x].owner)
 			return x;
 	}
@@ -163,7 +165,7 @@ static void update_features(struct feature_pvt *p, int index)
 {
 	int x;
 	if (p->subs[index].owner) {
-		for (x=0;x<AST_MAX_FDS;x++) {
+		for (x=0; x<AST_MAX_FDS; x++) {
 			if (index) 
 				p->subs[index].owner->fds[x] = -1;
 			else
@@ -215,6 +217,7 @@ static int features_answer(struct ast_channel *ast)
 	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
+
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
 	if (!x && p->subchan)
@@ -246,6 +249,7 @@ static int features_write(struct ast_channel *ast, struct ast_frame *f)
 	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
+
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
 	if (!x && p->subchan)
@@ -258,10 +262,11 @@ static int features_fixup(struct ast_channel *oldchan, struct ast_channel *newch
 {
 	struct feature_pvt *p = newchan->tech_pvt;
 	int x;
+
 	ast_mutex_lock(&p->lock);
 	if (p->owner == oldchan)
 		p->owner = newchan;
-	for (x=0;x<3;x++) {
+	for (x = 0; x < 3; x++) {
 		if (p->subs[x].owner == oldchan)
 			p->subs[x].owner = newchan;
 	}
@@ -274,6 +279,7 @@ static int features_indicate(struct ast_channel *ast, int condition)
 	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
+
 	/* Queue up a frame representing the indication as a control frame */
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
@@ -288,6 +294,7 @@ static int features_digit(struct ast_channel *ast, char digit)
 	struct feature_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int x;
+
 	/* Queue up a frame representing the indication as a control frame */
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
@@ -329,6 +336,7 @@ static int features_call(struct ast_channel *ast, char *dest, int timeout)
 			else
 				p->subchan->cid.cid_ani = NULL;
 		
+			p->subchan->cid.cid_pres = p->owner->cid.cid_pres;
 			strncpy(p->subchan->language, p->owner->language, sizeof(p->subchan->language) - 1);
 			strncpy(p->subchan->accountcode, p->owner->accountcode, sizeof(p->subchan->accountcode) - 1);
 			p->subchan->cdrflags = p->owner->cdrflags;
@@ -493,6 +501,7 @@ static struct ast_channel *features_request(const char *type, int format, void *
 {
 	struct feature_pvt *p;
 	struct ast_channel *chan = NULL;
+
 	p = features_alloc(data, format);
 	if (p && !p->subs[SUB_REAL].owner)
 		chan = features_new(p, AST_STATE_DOWN, SUB_REAL);
