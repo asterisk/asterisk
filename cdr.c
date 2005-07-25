@@ -147,7 +147,7 @@ void ast_cdr_unregister(char *name)
 	AST_LIST_UNLOCK(&be_list);
 }
 
-static struct ast_cdr *cdr_dup(struct ast_cdr *cdr) 
+struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr) 
 {
 	struct ast_cdr *newcdr;
 
@@ -809,7 +809,7 @@ void ast_cdr_reset(struct ast_cdr *cdr, int flags)
 		if (ast_test_flag(&tmp, AST_CDR_FLAG_LOCKED) || !ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
 			if (ast_test_flag(&tmp, AST_CDR_FLAG_POSTED)) {
 				ast_cdr_end(cdr);
-				if ((dup = cdr_dup(cdr))) {
+				if ((dup = ast_cdr_dup(cdr))) {
 					ast_cdr_detach(dup);
 				}
 				ast_set_flag(cdr, AST_CDR_FLAG_POSTED);

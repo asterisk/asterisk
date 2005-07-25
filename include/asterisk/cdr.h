@@ -104,6 +104,12 @@ typedef int (*ast_cdrbe)(struct ast_cdr *cdr);
  */
 extern struct ast_cdr *ast_cdr_alloc(void);
 
+/*! Duplicate a record */
+/*! 
+ * Returns a malloc'd ast_cdr structure, returns NULL on error (malloc failure)
+ */
+extern struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr);
+
 /*! Free a record */
 /* \param cdr ast_cdr structure to free
  * Returns nothing important
