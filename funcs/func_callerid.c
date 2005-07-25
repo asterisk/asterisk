@@ -29,23 +29,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *callerid_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	if (strncasecmp("name", data, 4) == 0) {
+	if (!strncasecmp("all", data, 3)) {
+		snprintf(buf, len, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");	
+	} else if (!strncasecmp("name", data, 4)) {
 		if (chan->cid.cid_name) {
 			ast_copy_string(buf, chan->cid.cid_name, len);
 		}
-	} else if (strncasecmp("num", data, 3) == 0 || strncasecmp("number", data, 6) == 0) {
+	} else if (!strncasecmp("num", data, 3) || !strncasecmp("number", data, 6)) {
 		if (chan->cid.cid_num) {
 			ast_copy_string(buf, chan->cid.cid_num, len);
 		}
-	} else if (strncasecmp("ani", data, 3) == 0) {
+	} else if (!strncasecmp("ani", data, 3)) {
 		if (chan->cid.cid_ani) {
 			ast_copy_string(buf, chan->cid.cid_ani, len);
 		}
-	} else if (strncasecmp("dnid", data, 4) == 0) {
+	} else if (!strncasecmp("dnid", data, 4)) {
 		if (chan->cid.cid_dnid) {
 			ast_copy_string(buf, chan->cid.cid_dnid, len);
 		}
-	} else if (strncasecmp("rdnis", data, 5) == 0) {
+	} else if (!strncasecmp("rdnis", data, 5)) {
 		if (chan->cid.cid_rdnis) {
 			ast_copy_string(buf, chan->cid.cid_rdnis, len);
 		}
@@ -60,19 +62,24 @@ static void callerid_write(struct ast_channel *chan, char *cmd, char *data, cons
 {
 	if (!value)
                 return;
-
-        if (strncasecmp("name", data, 4) == 0) {
+	
+	if (!strncasecmp("all", data, 3)) {
+		char name[256];
+		char num[256];
+		if (!ast_callerid_split(value, name, sizeof(name), num, sizeof(num)))
+			ast_set_callerid(chan, num, name, num);	
+        } else if (!strncasecmp("name", data, 4)) {
                 ast_set_callerid(chan, NULL, value, NULL);
-        } else if (strncasecmp("num", data, 3) == 0 || strncasecmp("number", data, 6) == 0) {
+        } else if (!strncasecmp("num", data, 3) || !strncasecmp("number", data, 6)) {
                 ast_set_callerid(chan, value, NULL, NULL);
-        } else if (strncasecmp("ani", data, 3) == 0) {
+        } else if (!strncasecmp("ani", data, 3)) {
                 ast_set_callerid(chan, NULL, NULL, value);
-        } else if (strncasecmp("dnid", data, 4) == 0) {
+        } else if (!strncasecmp("dnid", data, 4)) {
                 /* do we need to lock chan here? */
                 if (chan->cid.cid_dnid)
                         free(chan->cid.cid_dnid);
                 chan->cid.cid_dnid = ast_strlen_zero(value) ? NULL : strdup(value);
-        } else if (strncasecmp("rdnis", data, 5) == 0) {
+        } else if (!strncasecmp("rdnis", data, 5)) {
                 /* do we need to lock chan here? */
                 if (chan->cid.cid_rdnis)
                         free(chan->cid.cid_rdnis);
@@ -90,7 +97,7 @@ struct ast_custom_function callerid_function = {
 	.synopsis = "Gets or sets Caller*ID data on the channel.",
 	.syntax = "CALLERID(datatype)",
 	.desc = "Gets or sets Caller*ID data on the channel.  The allowable datatypes\n"
-	"are \"name\", \"number\", \"ANI\", \"DNID\", \"RDNIS\".\n",
+	"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\".\n",
 	.read = callerid_read,
 	.write = callerid_write,
 };
