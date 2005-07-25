@@ -4249,7 +4249,7 @@ static void build_contact(struct sip_pvt *p)
 	char iabuf[INET_ADDRSTRLEN];
 
 	/* Construct Contact: header */
-	if (ourport != DEFAULT_SIP_PORT)
+	if (ourport != 5060)	/* Needs to be 5060, according to the RFC */
 		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s:%d>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ourport);
 	else
 		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
@@ -4319,7 +4319,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	else /* Save for any further attempts */
 		ast_copy_string(p->fromname, n, sizeof(p->fromname));
 
-	if ((ourport != DEFAULT_SIP_PORT) && ast_strlen_zero(p->fromdomain))
+	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
@@ -4330,12 +4330,12 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		ast_copy_string(invite, p->fullcontact, sizeof(invite));
 	/* Otherwise, use the username while waiting for registration */
 	} else if (!ast_strlen_zero(p->username)) {
-		if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
+		if (ntohs(p->sa.sin_port) != 5060) {		/* Needs to be 5060 */
 			snprintf(invite, sizeof(invite), "sip:%s@%s:%d%s",p->username, p->tohost, ntohs(p->sa.sin_port), urioptions);
 		} else {
 			snprintf(invite, sizeof(invite), "sip:%s@%s%s",p->username, p->tohost, urioptions);
 		}
-	} else if (ntohs(p->sa.sin_port) != DEFAULT_SIP_PORT) {
+	} else if (ntohs(p->sa.sin_port) != 5060) {		/* Needs to be 5060 */
 		snprintf(invite, sizeof(invite), "sip:%s:%d%s", p->tohost, ntohs(p->sa.sin_port), urioptions);
 	} else {
 		snprintf(invite, sizeof(invite), "sip:%s%s", p->tohost, urioptions);
