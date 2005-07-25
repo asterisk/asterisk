@@ -32,6 +32,10 @@ extern char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_CTL_PERMISSIONS[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_CTL_OWNER[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH];
+extern char ast_config_AST_CTL[AST_CONFIG_MAX_PATH];
 
 /* Provided by module.c */
 extern int load_modules(const int preload_only);

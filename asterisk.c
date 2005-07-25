@@ -147,6 +147,10 @@ char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
 char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
 char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_CTL_PERMISSIONS[AST_CONFIG_MAX_PATH];
+char ast_config_AST_CTL_OWNER[AST_CONFIG_MAX_PATH] = "\0";
+char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH] = "\0";
+char ast_config_AST_CTL[AST_CONFIG_MAX_PATH] = "asterisk.ctl";
 
 static char *_argv[256];
 static int shuttingdown = 0;
@@ -532,19 +536,12 @@ static int ast_makesocket(void)
 	struct sockaddr_un sunaddr;
 	int res;
 	int x;
+	uid_t uid = -1;
+	gid_t gid = -1;
 
-	struct ast_config *cfg;
-	char *config = AST_CONFIG_FILE;
-	char *owner;
-	char *group;
-	char *perms;
-	uid_t uid;
-	gid_t gid;
-
-
-	for (x=0;x<AST_MAX_CONNECTS;x++)	
+	for (x = 0; x < AST_MAX_CONNECTS; x++)	
 		consoles[x].fd = -1;
-	unlink((char *)ast_config_AST_SOCKET);
+	unlink(ast_config_AST_SOCKET);
 	ast_socket = socket(PF_LOCAL, SOCK_STREAM, 0);
 	if (ast_socket < 0) {
 		ast_log(LOG_WARNING, "Unable to create control socket: %s\n", strerror(errno));
@@ -552,17 +549,17 @@ static int ast_makesocket(void)
 	}		
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_LOCAL;
-	ast_copy_string(sunaddr.sun_path, (char *)ast_config_AST_SOCKET, sizeof(sunaddr.sun_path));
+	ast_copy_string(sunaddr.sun_path, ast_config_AST_SOCKET, sizeof(sunaddr.sun_path));
 	res = bind(ast_socket, (struct sockaddr *)&sunaddr, sizeof(sunaddr));
 	if (res) {
-		ast_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", (char *)ast_config_AST_SOCKET, strerror(errno));
+		ast_log(LOG_WARNING, "Unable to bind socket to %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
 		close(ast_socket);
 		ast_socket = -1;
 		return -1;
 	}
 	res = listen(ast_socket, 2);
 	if (res < 0) {
-		ast_log(LOG_WARNING, "Unable to listen on socket %s: %s\n", (char *)ast_config_AST_SOCKET, strerror(errno));
+		ast_log(LOG_WARNING, "Unable to listen on socket %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
 		close(ast_socket);
 		ast_socket = -1;
 		return -1;
@@ -570,45 +567,32 @@ static int ast_makesocket(void)
 	ast_register_verbose(network_verboser);
 	ast_pthread_create(&lthread, NULL, listener, NULL);
 
-	/* Load the options for owner, group and permissions from
-	   asterisk.conf. if the file doesn't exist (????) just skip
-	   this part.
-	*/
-	if (option_overrideconfig == 1) {
-		cfg = ast_config_load((char *)ast_config_AST_CONFIG_FILE);
-	} else {
-		cfg = ast_config_load(config);
-	}
-	if (!cfg) return 0;
-
-	gid=-1;
-	uid=-1;
-	group = ast_variable_retrieve(cfg, "files", "astctlgroup");
-	owner = ast_variable_retrieve(cfg, "files", "astctlowner");
-	perms = ast_variable_retrieve(cfg, "files", "astctlpermissions");
-
-	if (owner!=NULL) {
+	if (!ast_strlen_zero(ast_config_AST_CTL_OWNER)) {
 		struct passwd *pw;
-		if ((pw=getpwnam(owner))==NULL)
-			ast_log(LOG_WARNING, "Unable to find uid of user %s\n", owner);
-		else
-			uid=pw->pw_uid;
+		if ((pw = getpwnam(ast_config_AST_CTL_OWNER)) == NULL) {
+			ast_log(LOG_WARNING, "Unable to find uid of user %s\n", ast_config_AST_CTL_OWNER);
+		} else {
+			uid = pw->pw_uid;
+		}
 	}
-	if (group!=NULL) {
+		
+	if (!ast_strlen_zero(ast_config_AST_CTL_GROUP)) {
 		struct group *grp;
-		if ((grp=getgrnam(group))==NULL)
-			ast_log(LOG_WARNING, "Unable to find gid of group %s\n", group);
-		else
-			gid=grp->gr_gid;
+		if ((grp = getgrnam(ast_config_AST_CTL_GROUP)) == NULL) {
+			ast_log(LOG_WARNING, "Unable to find gid of group %s\n", ast_config_AST_CTL_GROUP);
+		} else {
+			gid = grp->gr_gid;
+		}
 	}
-	if (chown(ast_config_AST_SOCKET,uid,gid)<0)
-		ast_log(LOG_WARNING, "Unable to change ownership of %s: %s\n", ast_config_AST_SOCKET,strerror(errno));
 
-	if (perms!=NULL) {
+	if (chown(ast_config_AST_SOCKET, uid, gid) < 0)
+		ast_log(LOG_WARNING, "Unable to change ownership of %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
+
+	if (!ast_strlen_zero(ast_config_AST_CTL_PERMISSIONS)) {
 		mode_t p;
-		sscanf(perms, "%o", (int *) &p);
-		if ((chmod(ast_config_AST_SOCKET,p))<0)
-			ast_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", ast_config_AST_SOCKET,strerror(errno));
+		sscanf(ast_config_AST_CTL_PERMISSIONS, "%o", (int *) &p);
+		if ((chmod(ast_config_AST_SOCKET, p)) < 0)
+			ast_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
 	}
 
 	return 0;
@@ -1691,63 +1675,67 @@ static int show_cli_help(void) {
 static void ast_readconfig(void) {
 	struct ast_config *cfg;
 	struct ast_variable *v;
-	struct ast_variable *v_ctlfile;
 	char *config = AST_CONFIG_FILE;
 
 	if (option_overrideconfig == 1) {
-		cfg = ast_config_load((char *)ast_config_AST_CONFIG_FILE);
+		cfg = ast_config_load(ast_config_AST_CONFIG_FILE);
 		if (!cfg)
-			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using builtin defaults\n", ast_config_AST_CONFIG_FILE);
+			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
 	} else {
 		cfg = ast_config_load(config);
 	}
 
 	/* init with buildtime config */
-	ast_copy_string((char *)ast_config_AST_CONFIG_DIR,AST_CONFIG_DIR,sizeof(ast_config_AST_CONFIG_DIR));
-	ast_copy_string((char *)ast_config_AST_SPOOL_DIR,AST_SPOOL_DIR,sizeof(ast_config_AST_SPOOL_DIR));
-	ast_copy_string((char *)ast_config_AST_MODULE_DIR,AST_MODULE_DIR,sizeof(ast_config_AST_VAR_DIR));
- 	snprintf((char *)ast_config_AST_MONITOR_DIR,sizeof(ast_config_AST_MONITOR_DIR)-1,"%s/monitor",ast_config_AST_SPOOL_DIR);
-	ast_copy_string((char *)ast_config_AST_VAR_DIR,AST_VAR_DIR,sizeof(ast_config_AST_VAR_DIR));
-	ast_copy_string((char *)ast_config_AST_LOG_DIR,AST_LOG_DIR,sizeof(ast_config_AST_LOG_DIR));
-	ast_copy_string((char *)ast_config_AST_AGI_DIR,AST_AGI_DIR,sizeof(ast_config_AST_AGI_DIR));
-	ast_copy_string((char *)ast_config_AST_DB,AST_DB,sizeof(ast_config_AST_DB));
-	ast_copy_string((char *)ast_config_AST_KEY_DIR,AST_KEY_DIR,sizeof(ast_config_AST_KEY_DIR));
-	ast_copy_string((char *)ast_config_AST_PID,AST_PID,sizeof(ast_config_AST_PID));
-	ast_copy_string((char *)ast_config_AST_SOCKET,AST_SOCKET,sizeof(ast_config_AST_SOCKET));
-	ast_copy_string((char *)ast_config_AST_RUN_DIR,AST_RUN_DIR,sizeof(ast_config_AST_RUN_DIR));
-	
+	ast_copy_string(ast_config_AST_CONFIG_DIR, AST_CONFIG_DIR, sizeof(ast_config_AST_CONFIG_DIR));
+	ast_copy_string(ast_config_AST_SPOOL_DIR, AST_SPOOL_DIR, sizeof(ast_config_AST_SPOOL_DIR));
+	ast_copy_string(ast_config_AST_MODULE_DIR, AST_MODULE_DIR, sizeof(ast_config_AST_VAR_DIR));
+ 	snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", ast_config_AST_SPOOL_DIR);
+	ast_copy_string(ast_config_AST_VAR_DIR, AST_VAR_DIR, sizeof(ast_config_AST_VAR_DIR));
+	ast_copy_string(ast_config_AST_LOG_DIR, AST_LOG_DIR, sizeof(ast_config_AST_LOG_DIR));
+	ast_copy_string(ast_config_AST_AGI_DIR, AST_AGI_DIR, sizeof(ast_config_AST_AGI_DIR));
+	ast_copy_string(ast_config_AST_DB, AST_DB, sizeof(ast_config_AST_DB));
+	ast_copy_string(ast_config_AST_KEY_DIR, AST_KEY_DIR, sizeof(ast_config_AST_KEY_DIR));
+	ast_copy_string(ast_config_AST_PID, AST_PID, sizeof(ast_config_AST_PID));
+	ast_copy_string(ast_config_AST_SOCKET, AST_SOCKET, sizeof(ast_config_AST_SOCKET));
+	ast_copy_string(ast_config_AST_RUN_DIR, AST_RUN_DIR, sizeof(ast_config_AST_RUN_DIR));
+
 	/* no asterisk.conf? no problem, use buildtime config! */
 	if (!cfg) {
 		return;
 	}
-
-	v_ctlfile = ast_variable_browse(cfg, "files");
-	while (v_ctlfile!=NULL) {
-		if (strcmp(v_ctlfile->name,"astctl")==0)
-			break;
-		v_ctlfile=v_ctlfile->next;
+	v = ast_variable_browse(cfg, "files");
+	while (v) {
+		if (!strcasecmp(v->name, "astctlpermissions")) {
+			ast_copy_string(ast_config_AST_CTL_PERMISSIONS, v->value, sizeof(ast_config_AST_CTL_PERMISSIONS));
+		} else if (!strcasecmp(v->name, "astctlowner")) {
+			ast_copy_string(ast_config_AST_CTL_OWNER, v->value, sizeof(ast_config_AST_CTL_OWNER));
+		} else if (!strcasecmp(v->name, "astctlgroup")) {
+			ast_copy_string(ast_config_AST_CTL_GROUP, v->value, sizeof(ast_config_AST_CTL_GROUP));
+		} else if (!strcasecmp(v->name, "astctl")) {
+			ast_copy_string(ast_config_AST_CTL, v->value, sizeof(ast_config_AST_CTL));
+		}
+		v = v->next;
 	}
-
 	v = ast_variable_browse(cfg, "directories");
 	while(v) {
 		if (!strcasecmp(v->name, "astetcdir")) {
-			ast_copy_string((char *)ast_config_AST_CONFIG_DIR,v->value,sizeof(ast_config_AST_CONFIG_DIR));
+			ast_copy_string(ast_config_AST_CONFIG_DIR, v->value, sizeof(ast_config_AST_CONFIG_DIR));
 		} else if (!strcasecmp(v->name, "astspooldir")) {
-			ast_copy_string((char *)ast_config_AST_SPOOL_DIR,v->value,sizeof(ast_config_AST_SPOOL_DIR));
-			snprintf((char *)ast_config_AST_MONITOR_DIR,sizeof(ast_config_AST_MONITOR_DIR)-1,"%s/monitor",v->value);
+			ast_copy_string(ast_config_AST_SPOOL_DIR, v->value, sizeof(ast_config_AST_SPOOL_DIR));
+			snprintf(ast_config_AST_MONITOR_DIR, sizeof(ast_config_AST_MONITOR_DIR) - 1, "%s/monitor", v->value);
 		} else if (!strcasecmp(v->name, "astvarlibdir")) {
-			ast_copy_string((char *)ast_config_AST_VAR_DIR,v->value,sizeof(ast_config_AST_VAR_DIR));
-			snprintf((char *)ast_config_AST_DB,sizeof(ast_config_AST_DB),"%s/%s",v->value,"astdb");    
+			ast_copy_string(ast_config_AST_VAR_DIR, v->value, sizeof(ast_config_AST_VAR_DIR));
+			snprintf(ast_config_AST_DB, sizeof(ast_config_AST_DB), "%s/%s", v->value, "astdb");    
 		} else if (!strcasecmp(v->name, "astlogdir")) {
-			ast_copy_string((char *)ast_config_AST_LOG_DIR,v->value,sizeof(ast_config_AST_LOG_DIR));
+			ast_copy_string(ast_config_AST_LOG_DIR, v->value, sizeof(ast_config_AST_LOG_DIR));
 		} else if (!strcasecmp(v->name, "astagidir")) {
-			ast_copy_string((char *)ast_config_AST_AGI_DIR,v->value,sizeof(ast_config_AST_AGI_DIR));
+			ast_copy_string(ast_config_AST_AGI_DIR, v->value, sizeof(ast_config_AST_AGI_DIR));
 		} else if (!strcasecmp(v->name, "astrundir")) {
-			snprintf((char *)ast_config_AST_PID,sizeof(ast_config_AST_PID),"%s/%s",v->value,"asterisk.pid");
-			snprintf((char *)ast_config_AST_SOCKET,sizeof(ast_config_AST_SOCKET),"%s/%s",v->value,v_ctlfile==NULL?"asterisk.ctl":v_ctlfile->value);
-			ast_copy_string((char *)ast_config_AST_RUN_DIR,v->value,sizeof(ast_config_AST_RUN_DIR));
+			snprintf(ast_config_AST_PID, sizeof(ast_config_AST_PID), "%s/%s", v->value, "asterisk.pid");
+			snprintf(ast_config_AST_SOCKET, sizeof(ast_config_AST_SOCKET), "%s/%s", v->value, ast_config_AST_CTL);
+			ast_copy_string(ast_config_AST_RUN_DIR, v->value, sizeof(ast_config_AST_RUN_DIR));
 		} else if (!strcasecmp(v->name, "astmoddir")) {
-			ast_copy_string((char *)ast_config_AST_MODULE_DIR,v->value,sizeof(ast_config_AST_MODULE_DIR));
+			ast_copy_string(ast_config_AST_MODULE_DIR, v->value, sizeof(ast_config_AST_MODULE_DIR));
 		}
 		v = v->next;
 	}
@@ -1755,7 +1743,7 @@ static void ast_readconfig(void) {
 	while(v) {
 		/* verbose level (-v at startup) */
 		if (!strcasecmp(v->name, "verbose")) {
-			option_verbose= atoi(v->value);
+			option_verbose = atoi(v->value);
 		/* whether or not to force timestamping. (-T at startup) */
 		} else if (!strcasecmp(v->name, "timestamp")) {
 			option_timestamp = ast_true(v->value);
@@ -1797,13 +1785,12 @@ static void ast_readconfig(void) {
 			option_cache_record_files = ast_true(v->value);
 		/* Specify cache directory */
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
-			ast_copy_string(record_cache_dir,v->value,AST_CACHE_DIR_LEN);
+			ast_copy_string(record_cache_dir, v->value, AST_CACHE_DIR_LEN);
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
 			option_transcode_slin = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxcalls")) {
-			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) ||
-			    (option_maxcalls < 0)) {
+			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;
 			}
 		}
