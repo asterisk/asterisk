@@ -3,9 +3,9 @@
  *
  * Local Proxy Channel
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2005, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
@@ -69,6 +69,7 @@ static int local_indicate(struct ast_channel *ast, int condition);
 static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int local_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
 
+/* PBX interface structure for channel registration */
 static const struct ast_channel_tech local_tech = {
 	.type = type,
 	.description = tdesc,
@@ -95,7 +96,7 @@ static struct local_pvt {
 	int cancelqueue;			/* Cancel queue */
 	int alreadymasqed;			/* Already masqueraded */
 	int launchedpbx;			/* Did we launch the PBX */
-	int nooptimization;
+	int nooptimization;			/* Don't leave masq state */
 	struct ast_channel *owner;		/* Master Channel */
 	struct ast_channel *chan;		/* Outbound channel */
 	struct local_pvt *next;			/* Next entity */
@@ -154,6 +155,7 @@ static int local_answer(struct ast_channel *ast)
 	struct local_pvt *p = ast->tech_pvt;
 	int isoutbound;
 	int res = -1;
+
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
@@ -199,6 +201,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 static struct ast_frame  *local_read(struct ast_channel *ast)
 {
 	static struct ast_frame null = { AST_FRAME_NULL, };
+
 	return &null;
 }
 
@@ -207,7 +210,6 @@ static int local_write(struct ast_channel *ast, struct ast_frame *f)
 	struct local_pvt *p = ast->tech_pvt;
 	int res = -1;
 	int isoutbound;
-
 
 	/* Just queue for delivery to the other side */
 	ast_mutex_lock(&p->lock);
@@ -228,15 +230,16 @@ static int local_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
 {
 	struct local_pvt *p = newchan->tech_pvt;
 	ast_mutex_lock(&p->lock);
+
 	if ((p->owner != oldchan) && (p->chan != oldchan)) {
-		ast_log(LOG_WARNING, "old channel wasn't %p but was %p/%p\n", oldchan, p->owner, p->chan);
+		ast_log(LOG_WARNING, "Old channel wasn't %p but was %p/%p\n", oldchan, p->owner, p->chan);
 		ast_mutex_unlock(&p->lock);
 		return -1;
 	}
 	if (p->owner == oldchan)
 		p->owner = newchan;
 	else
-		p->chan = newchan;	
+		p->chan = newchan;
 	ast_mutex_unlock(&p->lock);
 	return 0;
 }
@@ -247,6 +250,7 @@ static int local_indicate(struct ast_channel *ast, int condition)
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_CONTROL, };
 	int isoutbound;
+
 	/* Queue up a frame representing the indication as a control frame */
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
@@ -262,6 +266,7 @@ static int local_digit(struct ast_channel *ast, char digit)
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_DTMF, };
 	int isoutbound;
+
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = digit;
@@ -276,6 +281,7 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	int res = -1;
 	struct ast_frame f = { AST_FRAME_HTML, };
 	int isoutbound;
+
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	f.subclass = subclass;
@@ -286,6 +292,8 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	return res;
 }
 
+/*--- local_call: Initiate new call, part of PBX interface */
+/* 	dest is the dial string */
 static int local_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct local_pvt *p = ast->tech_pvt;
@@ -317,13 +325,14 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	p->chan->cdrflags = p->owner->cdrflags;
 	ast_channel_inherit_variables(p->owner, p->chan);
 	p->launchedpbx = 1;
+
 	/* Start switch on sub channel */
 	res = ast_pbx_start(p->chan);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }
 
-/*
+#if 0
 static void local_destroy(struct local_pvt *p)
 {
 	struct local_pvt *cur, *prev = NULL;
@@ -346,8 +355,9 @@ static void local_destroy(struct local_pvt *p)
 	if (!cur)
 		ast_log(LOG_WARNING, "Unable ot find local '%s@%s' in local list\n", p->exten, p->context);
 }
-*/
+#endif
 
+/*--- local_hangup: Hangup a call through the local proxy channel */
 static int local_hangup(struct ast_channel *ast)
 {
 	struct local_pvt *p = ast->tech_pvt;
@@ -356,6 +366,7 @@ static int local_hangup(struct ast_channel *ast)
 	struct local_pvt *cur, *prev=NULL;
 	struct ast_channel *ochan = NULL;
 	int glaredetect;
+
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
@@ -413,11 +424,13 @@ static int local_hangup(struct ast_channel *ast)
 	return 0;
 }
 
+/*--- local_alloc: Create a call structure */
 static struct local_pvt *local_alloc(char *data, int format)
 {
 	struct local_pvt *tmp;
 	char *c;
 	char *opts;
+
 	tmp = malloc(sizeof(struct local_pvt));
 	if (tmp) {
 		memset(tmp, 0, sizeof(struct local_pvt));
@@ -455,10 +468,12 @@ static struct local_pvt *local_alloc(char *data, int format)
 	return tmp;
 }
 
+/*--- local_new: Start new local channel */
 static struct ast_channel *local_new(struct local_pvt *p, int state)
 {
 	struct ast_channel *tmp, *tmp2;
 	int randnum = rand() & 0xffff;
+
 	tmp = ast_channel_alloc(1);
 	tmp2 = ast_channel_alloc(1);
 	if (!tmp || !tmp2) {
@@ -466,56 +481,59 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 			ast_channel_free(tmp);
 		if (tmp2)
 			ast_channel_free(tmp2);
-		tmp = NULL;
-	}
-	if (tmp) {
-		tmp2->tech = tmp->tech = &local_tech;
-		tmp->nativeformats = p->reqformat;
-		tmp2->nativeformats = p->reqformat;
-		snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
-		snprintf(tmp2->name, sizeof(tmp2->name), "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
-		tmp->type = type;
-		tmp2->type = type;
-		ast_setstate(tmp, state);
-		ast_setstate(tmp2, AST_STATE_RING);
-		tmp->writeformat = p->reqformat;;
-		tmp2->writeformat = p->reqformat;
-		tmp->rawwriteformat = p->reqformat;
-		tmp2->rawwriteformat = p->reqformat;
-		tmp->readformat = p->reqformat;
-		tmp2->readformat = p->reqformat;
-		tmp->rawreadformat = p->reqformat;
-		tmp2->rawreadformat = p->reqformat;
-		tmp->tech_pvt = p;
-		tmp2->tech_pvt = p;
-		p->owner = tmp;
-		p->chan = tmp2;
-		ast_mutex_lock(&usecnt_lock);
-		usecnt++;
-		usecnt++;
-		ast_mutex_unlock(&usecnt_lock);
-		ast_update_use_count();
-		strncpy(tmp->context, p->context, sizeof(tmp->context)-1);
-		strncpy(tmp2->context, p->context, sizeof(tmp2->context)-1);
-		strncpy(tmp2->exten, p->exten, sizeof(tmp->exten)-1);
-		tmp->priority = 1;
-		tmp2->priority = 1;
-	} else
-		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
+		ast_log(LOG_WARNING, "Unable to allocate channel structure(s)\n");
+		return NULL;
+	} 
+
+	tmp2->tech = tmp->tech = &local_tech;
+	tmp->nativeformats = p->reqformat;
+	tmp2->nativeformats = p->reqformat;
+	snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
+	snprintf(tmp2->name, sizeof(tmp2->name), "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
+	tmp->type = type;
+	tmp2->type = type;
+	ast_setstate(tmp, state);
+	ast_setstate(tmp2, AST_STATE_RING);
+	tmp->writeformat = p->reqformat;
+	tmp2->writeformat = p->reqformat;
+	tmp->rawwriteformat = p->reqformat;
+	tmp2->rawwriteformat = p->reqformat;
+	tmp->readformat = p->reqformat;
+	tmp2->readformat = p->reqformat;
+	tmp->rawreadformat = p->reqformat;
+	tmp2->rawreadformat = p->reqformat;
+	tmp->tech_pvt = p;
+	tmp2->tech_pvt = p;
+	p->owner = tmp;
+	p->chan = tmp2;
+	ast_mutex_lock(&usecnt_lock);
+	usecnt++;
+	usecnt++;
+	ast_mutex_unlock(&usecnt_lock);
+	ast_update_use_count();
+	ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
+	ast_copy_string(tmp2->context, p->context, sizeof(tmp2->context));
+	ast_copy_string(tmp2->exten, p->exten, sizeof(tmp->exten));
+	tmp->priority = 1;
+	tmp2->priority = 1;
+
 	return tmp;
 }
 
 
+/*--- local_request: Part of PBX interface */
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause)
 {
 	struct local_pvt *p;
 	struct ast_channel *chan = NULL;
+
 	p = local_alloc(data, format);
 	if (p)
 		chan = local_new(p, AST_STATE_DOWN);
 	return chan;
 }
 
+/*--- locals_show: CLI command "local show channels" */
 static int locals_show(int fd, int argc, char **argv)
 {
 	struct local_pvt *p;
@@ -538,12 +556,13 @@ static int locals_show(int fd, int argc, char **argv)
 
 static char show_locals_usage[] = 
 "Usage: local show channels\n"
-"       Provides summary information on local channels.\n";
+"       Provides summary information on active local proxy channels.\n";
 
 static struct ast_cli_entry cli_show_locals = {
 	{ "local", "show", "channels", NULL }, locals_show, 
 	"Show status of local channels", show_locals_usage, NULL };
 
+/*--- load_module: Load module into PBX, register channel */
 int load_module()
 {
 	/* Make sure we can register our channel type */
@@ -555,14 +574,17 @@ int load_module()
 	return 0;
 }
 
+/*--- reload: Reload module */
 int reload()
 {
 	return 0;
 }
 
+/*--- unload_module: Unload the local proxy channel from Asterisk */
 int unload_module()
 {
 	struct local_pvt *p;
+
 	/* First, take us out of the channel loop */
 	ast_cli_unregister(&cli_show_locals);
 	ast_channel_unregister(&local_tech);
