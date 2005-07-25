@@ -838,24 +838,6 @@ int find_sip_method(char *msg)
 	return res;
 }
 
-/*
- * If there is a string in <brackets>, strip everything around and return
- * the content. Otherwise return the original argument.
- */
-static char *get_in_brackets(char *c)
-{
-	char *n = strchr(c, '<');
-
-	if (n) {
-		c = n + 1;
-		n = strchr(c, '>');
-		/* Lose the part after the > */
-		if (n) 
-			*n = '\0';
-	}
-	return c;
-}
-
 /*--- parse_sip_options: Parse supported header in incoming packet */
 unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 {
@@ -1339,13 +1321,13 @@ static void url_decode(char *s)
 	*o = '\0';
 }
 
-/*--- ditch_braces: Pick out text in braces from character string  ---*/
-static char *ditch_braces(char *tmp)
+/*--- get_in_brackets: Pick out text in braces from character string ---*/
+/* returns pointer to terminated stripped string. modifies input string. */
+static char *get_in_brackets(char *tmp)
 {
-	char *c = tmp;
-	char *n;
-	char *q;
-	if ((q = strchr(tmp, '"')) ) {
+	char *c = tmp, *n, *q;
+
+	if ((q = strchr(tmp, '"'))) {
 		c = q + 1;
 		if ((q = strchr(c, '"')) )
 			c = q + 1;
@@ -1356,12 +1338,11 @@ static char *ditch_braces(char *tmp)
 	}
 	if ((n = strchr(c, '<')) ) {
 		c = n + 1;
-		while(*c && *c != '>') c++;
+		while (*c && *c != '>') c++;
 		if (*c != '>') {
 			ast_log(LOG_WARNING, "No closing brace in '%s'\n", tmp);
-		} else {
+		} else
 			*c = '\0';
-		}
 		return n+1;
 	}
 	return c;
@@ -4477,7 +4458,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	memset(to, 0, sizeof(to));
 	ast_copy_string(from, get_header(&p->initreq, "From"), sizeof(from));
 
-	c = ditch_braces(from);
+	c = get_in_brackets(from);
 	if (strncmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 		return -1;
@@ -4492,7 +4473,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 	if (p->subscribed == 1) {
 		ast_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
 
-		c = ditch_braces(to);
+		c = get_in_brackets(to);
 		if (strncmp(c, "sip:", 4)) {
 			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
 			return -1;
@@ -4955,7 +4936,7 @@ static int transmit_refer(struct sip_pvt *p, const char *dest)
 	else
 		of = get_header(&p->initreq, "From");
 	ast_copy_string(from, of, sizeof(from));
-	of = ditch_braces(from);
+	of = get_in_brackets(from);
 	ast_copy_string(p->from,of,sizeof(p->from));
 	if (strncmp(of, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
@@ -5691,7 +5672,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	*t = '\0';
 	
 	ast_copy_string(tmp, get_header(req, "To"), sizeof(tmp));
-	c = ditch_braces(tmp);
+	c = get_in_brackets(tmp);
 	/* Ditch ;user=phone */
 	name = strchr(c, ';');
 	if (name)
@@ -5787,7 +5768,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	ast_copy_string(tmp, get_header(req, "Diversion"), sizeof(tmp));
 	if (ast_strlen_zero(tmp))
 		return 0;
-	c = ditch_braces(tmp);
+	c = get_in_brackets(tmp);
 	if (strncmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not an RDNIS SIP header (%s)?\n", c);
 		return -1;
@@ -5815,10 +5796,10 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		req = &p->initreq;
 	if (req->rlPart2)
 		ast_copy_string(tmp, req->rlPart2, sizeof(tmp));
-	c = ditch_braces(tmp);
+	c = get_in_brackets(tmp);
 	
 	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
-	fr = ditch_braces(tmpf);
+	fr = get_in_brackets(tmpf);
 	
 	if (strncmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
@@ -5919,13 +5900,13 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		return -1;
 	}
 
-	refer_to = ditch_braces(h_refer_to);
+	refer_to = get_in_brackets(h_refer_to);
 
 	if (!( (p_referred_by = get_header(req, "Referred-By")) && (h_referred_by = ast_strdupa(p_referred_by)) )) {
 		ast_log(LOG_WARNING, "No Referrred-By Header That's not illegal\n");
 		return -1;
 	} else {
-		referred_by = ditch_braces(h_referred_by);
+		referred_by = get_in_brackets(h_referred_by);
 	}
 	h_contact = get_header(req, "Contact");
 	
@@ -6043,7 +6024,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 		req = &p->initreq;
 	ast_copy_string(tmp, get_header(req, "Also"), sizeof(tmp));
 	
-	c = ditch_braces(tmp);
+	c = get_in_brackets(tmp);
 	
 		
 	if (strncmp(c, "sip:", 4)) {
@@ -6221,7 +6202,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	if (!ast_strlen_zero(rpid)) 
 		p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
 
-	of = ditch_braces(from);
+	of = get_in_brackets(from);
 	if (ast_strlen_zero(p->exten)) {
 		t = uri;
 		if (!strncmp(t, "sip:", 4))
@@ -8288,7 +8269,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 	char tmp[256] = "";
 	char *s, *e;
 	ast_copy_string(tmp, get_header(req, "Contact"), sizeof(tmp));
-	s = ditch_braces(tmp);
+	s = get_in_brackets(tmp);
 	e = strchr(s, ';');
 	if (e)
 		*e = '\0';
