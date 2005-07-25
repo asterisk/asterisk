@@ -89,49 +89,52 @@ void ast_translator_free_path(struct ast_trans_pvt *p)
 	}
 }
 
+/* Build a set of translators based upon the given source and destination formats */
 struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 {
 	struct ast_trans_pvt *tmpr = NULL, *tmp = NULL;
-	/* One of the hardest parts:  Build a set of translators based upon
-	   the given source and destination formats */
+	
 	source = powerof(source);
 	dest = powerof(dest);
+	
 	while(source != dest) {
-		if (tr_matrix[source][dest].step) {
-			if (tmp) {
-				tmp->next = malloc(sizeof(struct ast_trans_pvt));
-				tmp = tmp->next;
-			} else
-				tmp = malloc(sizeof(struct ast_trans_pvt));
-
-				
-			if (tmp) {
-				tmp->next = NULL;
-				tmp->nextin = tmp->nextout = ast_tv( 0, 0 );
-				tmp->step = tr_matrix[source][dest].step;
-				tmp->state = tmp->step->newpvt();
-				if (!tmp->state) {
-					ast_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
-					free(tmp);
-					tmp = NULL;
-					return NULL;
-				}
-				/* Set the root, if it doesn't exist yet... */
-				if (!tmpr)
-					tmpr = tmp;
-				/* Keep going if this isn't the final destination */
-				source = tmp->step->dstfmt;
-			} else {
-				/* XXX This could leak XXX */
-				ast_log(LOG_WARNING, "Out of memory\n");
-				return NULL;
-			}
-		} else {
+		if (!tr_matrix[source][dest].step) {
 			/* We shouldn't have allocated any memory */
 			ast_log(LOG_WARNING, "No translator path from %s to %s\n", 
 				ast_getformatname(source), ast_getformatname(dest));
 			return NULL;
 		}
+
+		if (tmp) {
+			tmp->next = malloc(sizeof(*tmp));
+			tmp = tmp->next;
+		} else
+			tmp = malloc(sizeof(*tmp));
+			
+		if (!tmp) {
+			ast_log(LOG_WARNING, "Out of memory\n");
+			if (tmpr)
+				ast_translator_free_path(tmpr);	
+			return NULL;
+		}
+
+		/* Set the root, if it doesn't exist yet... */
+		if (!tmpr)
+			tmpr = tmp;
+
+		tmp->next = NULL;
+		tmp->nextin = tmp->nextout = ast_tv(0, 0);
+		tmp->step = tr_matrix[source][dest].step;
+		tmp->state = tmp->step->newpvt();
+		
+		if (!tmp->state) {
+			ast_log(LOG_WARNING, "Failed to build translator step from %d to %d\n", source, dest);
+			ast_translator_free_path(tmpr);	
+			return NULL;
+		}
+		
+		/* Keep going if this isn't the final destination */
+		source = tmp->step->dstfmt;
 	}
 	return tmpr;
 }
