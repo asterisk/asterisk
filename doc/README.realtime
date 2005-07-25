@@ -79,7 +79,7 @@ objects and the realtime switch.
 ---------------------------------
 You configure the ARA in extconfig.conf (yes, it's a strange name, but
 is was defined in the early days of the realtime architecture and kind
-of stuck).
+of stuck). Please see README.extconfig for database schemas.
 
 The part of Asterisk that connects to the ARA use a well defined family
 name to find the proper database driver. The syntax is easy:
@@ -100,21 +100,5 @@ directory.
 
 For voicemail storage with the support of ODBC, there is a 
 README.odbcstorage documentation file.
-
-* Please test this architecture in order to make it stable
------------------------------------------------------------
-The Asterisk CVS head, v1.1 dev, is there for you to test. In order
-to move it forward to a stable release (v1.2) we need more tests, 
-more bug reports and more fixes.
-
-You will find download instructions for Asterisk CVS head on
-the www.asterisk.org web site. As usual, do not install a
-development version on a production server. 
-
-If you have any questions, the developer team is available almost
-around the clock on the #asterisk-dev channel on irc.freenode.net.
-
-
-
 
 

@@ -2,10 +2,17 @@ Asterisk external configuration
 ===============================
 
 The Asterisk external configuration engine is the result of work by
-Anthony Minessale II, Mark Spencer and Constantine Filin
+Anthony Minessale II, Mark Spencer and Constantine Filin.
+
 It is designed to provide a flexible, seamless integration between
 Asterisk's internal configuration structure and external SQL other other
 databases (maybe even LDAP one day).
+
+The external configuration engine is the basis for the ARA, the
+Asterisk Realtime Architecture (see README.realtime for more 
+information).
+
+* Configuration
 
 External configuration is configured in /etc/asterisk/extconfig.conf
 allowing you to map any configuration file (static mappings) to
