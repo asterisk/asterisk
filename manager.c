@@ -424,10 +424,11 @@ static int set_eventmask(struct mansession *s, char *eventmask)
 	int maskint = ast_strings_to_mask(eventmask);
 
 	ast_mutex_lock(&s->lock);
-	s->send_events = maskint;
+	if (maskint >= 0)	
+		s->send_events = maskint;
 	ast_mutex_unlock(&s->lock);
 	
-	return s->send_events;
+	return maskint;
 }
 
 static int authenticate(struct mansession *s, struct message *m)
