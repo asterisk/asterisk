@@ -123,21 +123,21 @@ static const char channeltype[] = "SIP";
 static const char config[] = "sip.conf";
 static const char notify_config[] = "sip_notify.conf";
 
-#define SIP_REGISTER	1
-#define SIP_OPTIONS	2
-#define SIP_NOTIFY	3
-#define SIP_INVITE	4
-#define SIP_ACK		5
-#define SIP_PRACK	6
-#define SIP_BYE		7
-#define SIP_REFER	8
-#define SIP_SUBSCRIBE	9
-#define SIP_MESSAGE	10
-#define SIP_UPDATE	11
-#define SIP_INFO	12
-#define SIP_CANCEL	13
-#define SIP_PUBLISH	14
-#define SIP_RESPONSE	100
+#define SIP_RESPONSE	1
+#define SIP_REGISTER	2
+#define SIP_OPTIONS	3
+#define SIP_NOTIFY	4
+#define SIP_INVITE	5
+#define SIP_ACK		6
+#define SIP_PRACK	7
+#define SIP_BYE		8
+#define SIP_REFER	9
+#define SIP_SUBSCRIBE	10
+#define SIP_MESSAGE	12
+#define SIP_UPDATE	13
+#define SIP_INFO	14
+#define SIP_CANCEL	15
+#define SIP_PUBLISH	16
 
 #define RTP 	1
 #define NO_RTP	0
@@ -147,6 +147,7 @@ const struct  cfsip_methods {
 	char *text;
 } sip_methods[] = {
 	{ 0,		 RTP, "-UNKNOWN-" },
+	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0" },
 	{ SIP_REGISTER,	 NO_RTP, "REGISTER" },
  	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS" },
 	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY" },
@@ -384,6 +385,7 @@ struct sip_request {
 	int lines;		/* SDP Content */
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
+	int debug;		/* Debug flag for this packet */
 };
 
 struct sip_pkt;
@@ -586,6 +588,7 @@ static struct sip_pvt {
 struct sip_pkt {
 	struct sip_pkt *next;			/* Next packet */
 	int retrans;				/* Retransmission number */
+	int method;				/* SIP method for this packet */
 	int seqno;				/* Sequence number */
 	unsigned int flags;			/* non-zero if this is a response packet (e.g. 200 OK) */
 	struct sip_pvt *owner;			/* Owner call */
@@ -787,7 +790,7 @@ static int sip_do_reload(void);
 static int expire_register(void *data);
 static int callevents = 0;
 
-static struct ast_channel *sip_request(const char *type, int format, void *data, int *cause);
+static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause);
 static int sip_devicestate(void *data);
 static int sip_sendtext(struct ast_channel *ast, const char *text);
 static int sip_call(struct ast_channel *ast, char *dest, int timeout);
@@ -803,6 +806,7 @@ static int clear_realm_authentication(struct sip_auth *authlist);               
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);   /* Add realm authentication in list */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm);         /* Find authentication for a specific realm */
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
+static int determine_firstline_parts(struct sip_request *req);
 
 /* Definition of this channel for channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -810,7 +814,7 @@ static const struct ast_channel_tech sip_tech = {
 	.description = "Session Initiation Protocol (SIP)",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.properties = AST_CHAN_TP_WANTSJITTER,
-	.requester = sip_request,
+	.requester = sip_request_call,
 	.devicestate = sip_devicestate,
 	.call = sip_call,
 	.hangup = sip_hangup,
@@ -830,8 +834,13 @@ static const struct ast_channel_tech sip_tech = {
 int find_sip_method(char *msg)
 {
 	int i, res = 0;
+	
+	if (!msg || ast_strlen_zero(msg))
+		return 0;
+
 	/* Strictly speaking, SIP methods are case SENSITIVE, but we don't check */
-	for (i=1;(i < (sizeof(sip_methods) / sizeof(sip_methods[0]))) && !res; i++) {
+	/* following Jon Postel's rule: Be gentle in what you accept, strict with what you send */
+	for (i=1; (i < (sizeof(sip_methods) / sizeof(sip_methods[0]))) && !res; i++) {
 		if (!strcasecmp(sip_methods[i].text, msg)) 
 			res = sip_methods[i].id;
 	}
@@ -1071,7 +1080,7 @@ static int retrans_pkt(void *data)
 }
 
 /*--- __sip_reliable_xmit: transmit packet with retransmits ---*/
-static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal)
+static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod)
 {
 	struct sip_pkt *pkt;
 	pkt = malloc(sizeof(struct sip_pkt) + len + 1);
@@ -1079,6 +1088,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 		return -1;
 	memset(pkt, 0, sizeof(struct sip_pkt));
 	memcpy(pkt->data, data, len);
+	pkt->method = sipmethod;
 	pkt->packetlen = len;
 	pkt->next = p->packets;
 	pkt->owner = p;
@@ -1091,8 +1101,9 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->retransid = ast_sched_add(sched, DEFAULT_RETRANS, retrans_pkt, pkt);
 	pkt->next = p->packets;
 	p->packets = pkt;
-	__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-	if (!strncasecmp(pkt->data, "INVITE", 6)) {
+
+	__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);	/* Send packet */
+	if (sipmethod == SIP_INVITE) {
 		/* Note this is a pending invite */
 		p->pendinginvite = seqno;
 	}
@@ -1226,7 +1237,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 	return res;
 }
 
-static void parse(struct sip_request *req);
+static void parse_request(struct sip_request *req);
 static char *get_header(struct sip_request *req, char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
 
@@ -1236,7 +1247,7 @@ static void parse_copy(struct sip_request *dst, struct sip_request *src)
 	memset(dst, 0, sizeof(*dst));
 	memcpy(dst->data, src->data, sizeof(dst->data));
 	dst->len = src->len;
-	parse(dst);
+	parse_request(dst);
 }
 
 /*--- send_response: Transmit response on SIP request---*/
@@ -1246,6 +1257,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 	char iabuf[INET_ADDRSTRLEN];
 	struct sip_request tmp;
 	char tmpmsg[80];
+
 	if (sip_debug_test_pvt(p)) {
 		if (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE)
 			ast_verbose("%sTransmitting (NAT) to %s:%d:\n%s\n---\n", reliable ? "Reliably " : "", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port), req->data);
@@ -1258,7 +1270,7 @@ static int send_response(struct sip_pvt *p, struct sip_request *req, int reliabl
 			snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
 			append_history(p, "TxRespRel", tmpmsg);
 		}
-		res = __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable > 1));
+		res = __sip_reliable_xmit(p, seqno, 1, req->data, req->len, (reliable > 1), req->method);
 	} else {
 		if (recordhistory) {
 			parse_copy(&tmp, req);
@@ -1292,7 +1304,7 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 			snprintf(tmpmsg, sizeof(tmpmsg), "%s / %s", tmp.data, get_header(&tmp, "CSeq"));
 			append_history(p, "TxReqRel", tmpmsg);
 		}
-		res = __sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1));
+		res = __sip_reliable_xmit(p, seqno, 0, req->data, req->len, (reliable > 1), req->method);
 	} else {
 		if (recordhistory) {
 			parse_copy(&tmp, req);
@@ -2879,27 +2891,18 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	struct sip_pvt *p;
 	char *callid;
 	char tmp[256] = "";
-	char iabuf[INET_ADDRSTRLEN];
-	char *cmd;
 	char *tag = "", *c;
 
 	callid = get_header(req, "Call-ID");
 
 	if (pedanticsipchecking) {
-		/* In principle Call-ID's uniquely identify a call, however some vendors
-		   (i.e. Pingtel) send multiple calls with the same Call-ID and different
-		   tags in order to simplify billing.  The RFC does state that we have to
-		   compare tags in addition to the call-id, but this generate substantially
-		   more overhead which is totally unnecessary for the vast majority of sane
-		   SIP implementations, and thus Asterisk does not enable this behavior
-		   by default. Short version: You'll need this option to support conferencing
-		   on the pingtel */
-		ast_copy_string(tmp, req->header[0], sizeof(tmp));
-		cmd = tmp;
-		c = strchr(tmp, ' ');
-		if (c)
-			*c = '\0';
-		if (!strcasecmp(cmd, "SIP/2.0"))
+		/* In principle Call-ID's uniquely identify a call, but with a forking SIP proxy
+		   we need more to identify a branch - so we have to check branch, from
+		   and to tags to identify a call leg.
+		     For Asterisk to behave correctly, you need to turn on pedanticsipchecking
+		   in sip.conf
+		   */
+		if (req->method == SIP_RESPONSE)
 			ast_copy_string(tmp, get_header(req, "To"), sizeof(tmp));
 		else
 			ast_copy_string(tmp, get_header(req, "From"), sizeof(tmp));
@@ -2913,15 +2916,16 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 			
 	}
 		
-	if (ast_strlen_zero(callid)) {
-		ast_log(LOG_WARNING, "Call missing call ID from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
-		return NULL;
-	}
 	ast_mutex_lock(&iflock);
 	p = iflist;
 	while(p) {
-		if (!strcmp(p->callid, callid) && 
-			(!pedanticsipchecking || !tag || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag))) {
+		int found = 0;
+		if (req->method == SIP_REGISTER)
+			found = (!strcmp(p->callid, callid));
+		else 
+			found = (!strcmp(p->callid, callid) && 
+			(!pedanticsipchecking || !tag || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag))) ;
+		if (found) {
 			/* Found the call */
 			ast_mutex_lock(&p->lock);
 			ast_mutex_unlock(&iflock);
@@ -3055,12 +3059,13 @@ static int lws2sws(char *msgbuf, int len)
 	return t; 
 }
 
-/*--- parse: Parse a SIP message ----*/
-static void parse(struct sip_request *req)
+/*--- parse_request: Parse a SIP message ----*/
+static void parse_request(struct sip_request *req)
 {
 	/* Divide fields by NULL's */
 	char *c;
 	int f = 0;
+
 	c = req->data;
 
 	/* First header starts immediately */
@@ -3070,16 +3075,15 @@ static void parse(struct sip_request *req)
 			/* We've got a new header */
 			*c = 0;
 
-#if 0
-			printf("Header: %s (%d)\n", req->header[f], strlen(req->header[f]));
-#endif			
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "Header: %s (%d)\n", req->header[f], (int) strlen(req->header[f]));
 			if (ast_strlen_zero(req->header[f])) {
 				/* Line by itself means we're now in content */
 				c++;
 				break;
 			}
 			if (f >= SIP_MAX_HEADERS - 1) {
-				ast_log(LOG_WARNING, "Too many SIP headers...\n");
+				ast_log(LOG_WARNING, "Too many SIP headers. Ignoring.\n");
 			} else
 				f++;
 			req->header[f] = c + 1;
@@ -3100,11 +3104,10 @@ static void parse(struct sip_request *req)
 		if (*c == '\n') {
 			/* We've got a new line */
 			*c = 0;
-#if 0
-			printf("Line: %s (%d)\n", req->line[f], strlen(req->line[f]));
-#endif			
+			if (option_debug > 3)
+				ast_log(LOG_DEBUG, "Line: %s (%d)\n", req->line[f], (int) strlen(req->line[f]));
 			if (f >= SIP_MAX_LINES - 1) {
-				ast_log(LOG_WARNING, "Too many SDP lines...\n");
+				ast_log(LOG_WARNING, "Too many SDP lines. Ignoring.\n");
 			} else
 				f++;
 			req->line[f] = c + 1;
@@ -3120,6 +3123,8 @@ static void parse(struct sip_request *req)
 	req->lines = f;
 	if (*c) 
 		ast_log(LOG_WARNING, "Odd content, extra stuff left over ('%s')\n", c);
+	/* Split up the first line parts */
+	determine_firstline_parts(req);
 }
 
 /*--- process_sdp: Process SIP SDP and activate RTP channels---*/
@@ -3649,6 +3654,7 @@ static int init_resp(struct sip_request *req, char *resp, struct sip_request *or
 		ast_log(LOG_WARNING, "Request already initialized?!?\n");
 		return -1;
 	}
+	req->method = SIP_RESPONSE;
 	req->header[req->headers] = req->data + req->len;
 	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "SIP/2.0 %s\r\n", resp);
 	req->len += strlen(req->header[req->headers]);
@@ -4218,10 +4224,9 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	add_sdp(&req, p);
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
-	parse(&p->initreq);
+	parse_request(&p->initreq);
 	if (sip_debug_test_pvt(p))
 		ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-	determine_firstline_parts(&p->initreq);
 	p->lastinvite = p->ocseq;
 	ast_set_flag(p, SIP_OUTGOING);
 	return send_request(p, &req, 1, p->ocseq);
@@ -4368,6 +4373,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip
 {
 	struct sip_request req;
 	
+	req.method = sipmethod;
 	if (init) {
 		/* Bump branch even on initial requests */
 		p->branch ^= rand();
@@ -4450,10 +4456,9 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip
 	if (!p->initreq.headers) {
 		/* Use this as the basis */
 		copy_request(&p->initreq, &req);
-		parse(&p->initreq);
+		parse_request(&p->initreq);
 		if (sip_debug_test_pvt(p))
 			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
-		determine_firstline_parts(&p->initreq);
 	}
 	p->lastinvite = p->ocseq;
 	return send_request(p, &req, init ? 2 : 1, p->ocseq);
@@ -4562,7 +4567,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
 
 	if (!p->initreq.headers) { /* Use this as the basis */
 		copy_request(&p->initreq, &req);
-		parse(&p->initreq);
+		parse_request(&p->initreq);
 		if (sip_debug_test_pvt(p))
 			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		determine_firstline_parts(&p->initreq);
@@ -4577,7 +4582,7 @@ static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
 	if (!p->initreq.headers) {
 		/* Use this as the basis */
 		copy_request(&p->initreq, req);
-		parse(&p->initreq);
+		parse_request(&p->initreq);
 		if (sip_debug_test_pvt(p))
 			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		determine_firstline_parts(&p->initreq);
@@ -4608,7 +4613,7 @@ static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 	if (!p->initreq.headers) {
 		/* Use this as the basis */
 		copy_request(&p->initreq, &req);
-		parse(&p->initreq);
+		parse_request(&p->initreq);
 		if (sip_debug_test_pvt(p))
 			ast_verbose("%d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 		determine_firstline_parts(&p->initreq);
@@ -4884,7 +4889,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	add_header_contentLength(&req, 0);
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
-	parse(&p->initreq);
+	parse_request(&p->initreq);
 	if (sip_debug_test_pvt(p)) {
 		ast_verbose("REGISTER %d headers, %d lines\n", p->initreq.headers, p->initreq.lines);
 	}
@@ -9026,7 +9031,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			}
 		}
 	} else if (debug)
-		ast_verbose("Ignoring this request\n");
+		ast_verbose("Ignoring this INVITE request\n");
 	if (!p->lastinvite && !ignore && !p->owner) {
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);
@@ -9552,7 +9557,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 	/* Save useragent of the client */
 	useragent = get_header(req, "User-Agent");
-	ast_copy_string(p->useragent, useragent, sizeof(p->useragent));
+	if (!ast_strlen_zero(useragent))
+		ast_copy_string(p->useragent, useragent, sizeof(p->useragent));
 
 	/* Find out SIP method for incoming request */
 	if (!strcasecmp(cmd, "SIP/2.0")) {	/* Response to our request */
@@ -9584,18 +9590,20 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	/* New SIP request coming in 
 	   (could be new request in existing SIP dialog as well...) 
 	 */			
-	p->method = find_sip_method(cmd);	/* Find out which SIP method they are using */
+	p->method = req->method;	/* Find out which SIP method they are using */
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
 
 	if (p->icseq && (p->icseq > seqno)) {
 		ast_log(LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
 		return -1;
-	} else if (p->icseq && (p->icseq == seqno) && (strcasecmp(cmd, "CANCEL") || ast_test_flag(p, SIP_ALREADYGONE))) {
+	} else if (p->icseq && (p->icseq == seqno) && (p->method != SIP_CANCEL|| ast_test_flag(p, SIP_ALREADYGONE))) {
 		/* ignore means "don't do anything with it" but still have to 
 		   respond appropriately.  We do this if we receive a repeat of
 		   the last sequence number  */
-		ignore=1;
+		ignore=2;
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Ignoring SIP message because of retransmit (%s Seqno %d, ours %d)\n", sip_methods[p->method].text, p->icseq, seqno);
 	}
 		
 	if (seqno >= p->icseq)
@@ -9697,7 +9705,6 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	socklen_t len;
 	int nounlock;
 	int recount = 0;
-	int debug;
 	char iabuf[INET_ADDRSTRLEN];
 
 	len = sizeof(sin);
@@ -9715,13 +9722,14 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 	req.data[res] = '\0';
 	req.len = res;
-	debug = sip_debug_test_addr(&sin);
+	req.debug = sip_debug_test_addr(&sin);
 	if (pedanticsipchecking)
-		req.len = lws2sws(req.data, req.len);
-	if (debug)
+		req.len = lws2sws(req.data, req.len);	/* Fix multiline headers */
+	if (req.debug)
 		ast_verbose("\n<-- SIP read from %s:%d: \n%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
-	parse(&req);
-	if (debug) {
+	parse_request(&req);
+	req.method = find_sip_method(req.rlPart1);
+	if (req.debug) {
 		ast_verbose("--- (%d headers %d lines)", req.headers, req.lines);
 		if (req.headers + req.lines == 0) 
 			ast_verbose(" Nat keepalive ");
@@ -9733,9 +9741,6 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 		return 1;
 	}
 
-	/* Determine the request URI for sip, sips or tel URIs */
-	if (determine_firstline_parts(&req) < 0)
-		return 1; 
 
 	/* Process request, with netlock held */
 retrylock:
@@ -10100,7 +10105,7 @@ static int sip_devicestate(void *data)
 
 /*--- sip_request: PBX interface function -build SIP pvt structure ---*/
 /* SIP calls initiated by the PBX arrive here */
-static struct ast_channel *sip_request(const char *type, int format, void *data, int *cause)
+static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause)
 {
 	int oldformat;
 	struct sip_pvt *p;
