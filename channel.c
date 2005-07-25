@@ -1120,7 +1120,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 {
 	/* Wait for x amount of time on a file descriptor to have input.  */
-	struct timeval start;
+	struct timeval start = { 0 , 0 };
 	int res;
 	int x, y;
 	int winner = -1;
