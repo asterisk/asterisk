@@ -43,6 +43,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define RTLD_NOW 0
 #endif
 
+AST_MUTEX_DEFINE_STATIC(modlock);
+AST_MUTEX_DEFINE_STATIC(reloadlock);
+
+static struct module *module_list=NULL;
+static int modlistver = 0;
+
 static char expected_key[] =
 { 0x8e, 0x93, 0x22, 0x83, 0xf5, 0xc3, 0xc0, 0x75,
   0xff, 0x8b, 0xa9, 0xbe, 0x7c, 0x43, 0x74, 0x63 };
@@ -59,13 +65,18 @@ struct module {
 	struct module *next;
 };
 
+static struct loadupdate {
+	int (*updater)(void);
+	struct loadupdate *next;
+} *updaters = NULL;
+
 static int printdigest(unsigned char *d)
 {
 	int x;
 	char buf[256];
 	char buf2[16];
 	snprintf(buf, sizeof(buf), "Unexpected signature:");
-	for (x=0;x<16;x++) {
+	for (x=0; x<16; x++) {
 		snprintf(buf2, sizeof(buf2), " %02x", *(d++));
 		strcat(buf, buf2);
 	}
@@ -78,7 +89,7 @@ static int key_matches(char *key1, char *key2)
 {
 	int match = 1;
 	int x;
-	for (x=0;x<16;x++) {
+	for (x=0; x<16; x++) {
 		match &= (key1[x] == key2[x]);
 	}
 	return match;
@@ -96,17 +107,6 @@ static int verify_key(char *key)
 	printdigest(digest);
 	return -1;
 }
-
-static struct loadupdate {
-	int (*updater)(void);
-	struct loadupdate *next;
-} *updaters = NULL;
-
-AST_MUTEX_DEFINE_STATIC(modlock);
-AST_MUTEX_DEFINE_STATIC(reloadlock);
-
-static struct module *module_list=NULL;
-static int modlistver = 0;
 
 int ast_unload_resource(const char *resource_name, int force)
 {
@@ -157,6 +157,7 @@ char *ast_module_helper(char *line, char *word, int pos, int state, int rpos, in
 	struct module *m;
 	int which=0;
 	char *ret;
+
 	if (pos != rpos)
 		return NULL;
 	ast_mutex_lock(&modlock);
@@ -502,8 +503,9 @@ int load_modules(const int preload_only)
 		DIR *mods;
 		struct dirent *d;
 		int x;
+
 		/* Loop through each order */
-		for (x=0;x<sizeof(loadorder) / sizeof(loadorder[0]);x++) {
+		for (x=0; x<sizeof(loadorder) / sizeof(loadorder[0]); x++) {
 			mods = opendir((char *)ast_config_AST_MODULE_DIR);
 			if (mods) {
 				while((d = readdir(mods))) {
@@ -531,7 +533,7 @@ int load_modules(const int preload_only)
 							}
 							
 						}
-					    if (option_debug && !option_verbose)
+						if (option_debug && !option_verbose)
 							ast_log(LOG_DEBUG, "Loading module %s\n", d->d_name);
 						if (option_verbose) {
 							ast_verbose( VERBOSE_PREFIX_1 "[%s]", term_color(tmp, d->d_name, COLOR_BRWHITE, 0, sizeof(tmp)));
