@@ -1321,31 +1321,46 @@ static void url_decode(char *s)
 	*o = '\0';
 }
 
-/*--- get_in_brackets: Pick out text in braces from character string ---*/
+/*--- get_in_brackets: Pick out text in brackets from character string ---*/
 /* returns pointer to terminated stripped string. modifies input string. */
 static char *get_in_brackets(char *tmp)
 {
-	char *c = tmp, *n, *q;
+	char *parse;
+	char *first_quote;
+	char *first_bracket;
+	char *second_bracket;
+	char last_char;
 
-	if ((q = strchr(tmp, '"'))) {
-		c = q + 1;
-		if ((q = strchr(c, '"')) )
-			c = q + 1;
-		else {
-			ast_log(LOG_WARNING, "No closing quote in '%s'\n", tmp);
-			c = tmp;
+	parse = tmp;
+	while (1) {
+		first_quote = strchr(parse, '"');
+		first_bracket = strchr(parse, '<');
+		if (first_quote && first_bracket && (first_quote < first_bracket)) {
+			last_char = '\0';
+			for (parse = first_quote + 1; *parse; parse++) {
+				if ((*parse == '"') && (last_char != '\\'))
+					break;
+				last_char = *parse;
+			}
+			if (!*parse) {
+				ast_log(LOG_WARNING, "No closing quote found in '%s'\n", tmp);
+				return tmp;
+			}
+			parse++;
+			continue;
 		}
+		if (first_bracket) {
+			second_bracket = strchr(first_bracket + 1, '>');
+			if (second_bracket) {
+				*second_bracket = '\0';
+				return first_bracket + 1;
+			} else {
+				ast_log(LOG_WARNING, "No closing bracket found in '%s'\n", tmp);
+				return tmp;
+			}
+		}
+		return tmp;
 	}
-	if ((n = strchr(c, '<')) ) {
-		c = n + 1;
-		while (*c && *c != '>') c++;
-		if (*c != '>') {
-			ast_log(LOG_WARNING, "No closing brace in '%s'\n", tmp);
-		} else
-			*c = '\0';
-		return n+1;
-	}
-	return c;
 }
 
 /*--- sip_sendtext: Send SIP MESSAGE text within a call ---*/
