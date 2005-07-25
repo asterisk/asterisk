@@ -402,7 +402,7 @@ static int ast_strings_to_mask(char *string)
 	else if (!strcasecmp(string, "off") || ast_false(string))
 		ret = 0;
 	else if (!strcasecmp(string, "on") || ast_true(string))
-		ret = -1;
+		ret = 1;
 	else {
 		ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) {
