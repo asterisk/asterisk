@@ -46,6 +46,10 @@ static char *descrip =
 "of the following letters:\n"
 "     a - Set account code to the password that is entered\n"
 "     d - Interpret path as database key, not literal file\n"
+"     m - Interpret path as a file which contains a list of\n"
+"         account codes and password hashes delimited with ':'\n"
+"         one per line. When password matched, corresponding\n"
+"         account code will be set\n"
 "     j - Support jumping to n+101\n"
 "     r - Remove database key upon successful entry (valid with 'd' only)\n"
 "\n"
@@ -115,17 +119,39 @@ static int auth_exec(struct ast_channel *chan, void *data)
 				f = fopen(password, "r");
 				if (f) {
 					char buf[256] = "";
-					while(!feof(f)) {
+					char md5passwd[33] = "";
+					char *md5secret;
+
+					while (!feof(f)) {
 						fgets(buf, sizeof(buf), f);
 						if (!feof(f) && !ast_strlen_zero(buf)) {
-							buf[strlen(buf) - 1] = '\0';
-							if (!ast_strlen_zero(buf) && !strcmp(passwd, buf))
-								break;
+							if (strchr(opts, 'm')) {
+								md5secret = strchr(buf, ':');
+								if (md5secret == NULL)
+									continue;
+								*md5secret = '\0';
+								md5secret++;
+								ast_md5_hash(md5passwd, passwd);
+								if (!strcmp(md5passwd, md5secret)) {
+									ast_cdr_setaccount(chan, buf);
+									break;
+								}
+							} else {
+								if(!strcmp(passwd, buf))
+									break;
+							}
 						}
 					}
 					fclose(f);
-					if (!ast_strlen_zero(buf) && !strcmp(passwd, buf))
-						break;
+					if (!ast_strlen_zero(buf)) {
+						if (strchr(opts, 'm')) {
+							if (!strcmp(md5passwd, md5secret))
+								break;
+						} else {
+							if (!strcmp(passwd, buf))
+								break;
+						}
+					}
 				} else 
 					ast_log(LOG_WARNING, "Unable to open file '%s' for authentication: %s\n", password, strerror(errno));
 			}
