@@ -1511,6 +1511,8 @@ static int agents_show(int fd, int argc, char **argv)
 	} else {
 		ast_cli(fd, "%d agents configured [%d online , %d offline]\n",count_agents, online_agents, offline_agents);
 	}
+	ast_cli(fd, "\n");
+	                
 	return RESULT_SUCCESS;
 }
 
