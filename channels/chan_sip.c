@@ -3426,6 +3426,15 @@ static int add_header(struct sip_request *req, const char *var, const char *valu
 	return 0;	
 }
 
+/*--- add_header_contentLen: Add 'Content-Length' header to SIP message */
+static int add_header_contentLength(struct sip_request *req, int len)
+{
+	char clen[10];
+
+	snprintf(clen, sizeof(clen), "%d", len);
+	return add_header(req, "Content-Length", clen);
+}
+
 /*--- add_blank_header: Add blank header to SIP message */
 static int add_blank_header(struct sip_request *req)
 {
@@ -3811,7 +3820,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 		return -1;
 	}
 	respprep(&resp, p, msg, req);
-	add_header(&resp, "Content-Length", "0");
+	add_header_contentLength(&resp, 0);
 	/* If we are cancelling an incoming invite for some reason, add information
 		about the reason why we are doing this in clear text */
 	if (p->owner && p->owner->hangupcause) {
@@ -3862,7 +3871,7 @@ static int transmit_response_with_date(struct sip_pvt *p, char *msg, struct sip_
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
 	append_date(&resp);
-	add_header(&resp, "Content-Length", "0");
+	add_header_contentLength(&resp, 0);
 	add_blank_header(&resp);
 	return send_response(p, &resp, 0, 0);
 }
@@ -3873,7 +3882,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 	struct sip_request resp;
 	respprep(&resp, p, msg, req);
 	add_header(&resp, "Accept", "application/sdp");
-	add_header(&resp, "Content-Length", "0");
+	add_header_contentLength(&resp, 0);
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, 0);
 }
@@ -3894,7 +3903,7 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 	snprintf(tmp, sizeof(tmp), "Digest realm=\"%s\", nonce=\"%s\" %s", global_realm, randdata, stale ? ", stale=true" : "");
 	respprep(&resp, p, msg, req);
 	add_header(&resp, header, tmp);
-	add_header(&resp, "Content-Length", "0");
+	add_header_contentLength(&resp, 0);
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
 }
@@ -3903,11 +3912,8 @@ static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_
 static int add_text(struct sip_request *req, const char *text)
 {
 	/* XXX Convert \n's to \r\n's XXX */
-	int len = strlen(text);
-	char clen[256];
-	snprintf(clen, sizeof(clen), "%d", len);
 	add_header(req, "Content-Type", "text/plain");
-	add_header(req, "Content-Length", clen);
+	add_header_contentLength(req, strlen(text));
 	add_line(req, text);
 	return 0;
 }
@@ -3917,13 +3923,10 @@ static int add_text(struct sip_request *req, const char *text)
 static int add_digit(struct sip_request *req, char digit)
 {
 	char tmp[256];
-	int len;
-	char clen[256];
+
 	snprintf(tmp, sizeof(tmp), "Signal=%c\r\nDuration=250\r\n", digit);
-	len = strlen(tmp);
-	snprintf(clen, sizeof(clen), "%d", len);
 	add_header(req, "Content-Type", "application/dtmf-relay");
-	add_header(req, "Content-Length", clen);
+	add_header_contentLength(req, strlen(tmp));
 	add_line(req, tmp);
 	return 0;
 }
@@ -4098,9 +4101,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
 	if ((p->vrtp) && (!ast_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
 		len += strlen(m2) + strlen(a2);
-	snprintf(costr, sizeof(costr), "%d", len);
 	add_header(resp, "Content-Type", "application/sdp");
-	add_header(resp, "Content-Length", costr);
+	add_header_contentLength(resp, len);
 	add_line(resp, v);
 	add_line(resp, o);
 	add_line(resp, s);
@@ -4441,7 +4443,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip
 		ast_rtp_offered_from_local(p->rtp, 1);
 		add_sdp(&req, p);
 	} else {
-		add_header(&req, "Content-Length", "0");
+		add_header_contentLength(&req, 0);
 		add_blank_header(&req);
 	}
 
@@ -4460,14 +4462,10 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip
 /*--- transmit_state_notify: Used in the SUBSCRIBE notification subsystem ----*/
 static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 {
-	char tmp[4000];
-	int maxbytes = 0;
-	int bytes = 0;
-	char from[256], to[256];
-	char *t, *c, *a;
-	char *mfrom, *mto;
+	char tmp[4000], from[256], to[256];
+	char *t = tmp, *c, *a, *mfrom, *mto;
+	size_t maxbytes = sizeof(tmp);
 	struct sip_request req;
-	char clen[20];
 
 	memset(from, 0, sizeof(from));
 	memset(to, 0, sizeof(to));
@@ -4509,58 +4507,28 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 		else
 			state = 0;
 
-		t = tmp;		
-		maxbytes = sizeof(tmp);
-		bytes = snprintf(t, maxbytes, "<?xml version=\"1.0\"?>\n");
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n");
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<presence>\n");
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<atom id=\"%s\">\n", p->exten);
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<status status=\"%s\" />\n", !state ? "open" : (state==1) ? "inuse" : "closed");
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<msnsubstatus substatus=\"%s\" />\n", !state ? "online" : (state==1) ? "onthephone" : "offline");
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "</address>\n</atom>\n</presence>\n");
+		ast_build_string(&t, &maxbytes, "<?xml version=\"1.0\"?>\n");
+		ast_build_string(&t, &maxbytes, "<!DOCTYPE presence PUBLIC \"-//IETF//DTD RFCxxxx XPIDF 1.0//EN\" \"xpidf.dtd\">\n");
+		ast_build_string(&t, &maxbytes, "<presence>\n");
+		ast_build_string(&t, &maxbytes, "<presentity uri=\"%s;method=SUBSCRIBE\" />\n", mfrom);
+		ast_build_string(&t, &maxbytes, "<atom id=\"%s\">\n", p->exten);
+		ast_build_string(&t, &maxbytes, "<address uri=\"%s;user=ip\" priority=\"0.800000\">\n", mto);
+		ast_build_string(&t, &maxbytes, "<status status=\"%s\" />\n", !state ? "open" : (state==1) ? "inuse" : "closed");
+		ast_build_string(&t, &maxbytes, "<msnsubstatus substatus=\"%s\" />\n", !state ? "online" : (state==1) ? "onthephone" : "offline");
+		ast_build_string(&t, &maxbytes, "</address>\n</atom>\n</presence>\n");
 	} else {
 		add_header(&req, "Event", "dialog");
 		add_header(&req, "Content-Type", "application/dialog-info+xml");
-
-		t = tmp;		
-		maxbytes = sizeof(tmp);
-		bytes = snprintf(t, maxbytes, "<?xml version=\"1.0\"?>\n");
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mfrom);
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<dialog id=\"%s\">\n", p->exten);
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "<state>%s</state>\n", state ? "confirmed" : "terminated");
-		t += bytes;
-		maxbytes -= bytes;
-		bytes = snprintf(t, maxbytes, "</dialog>\n</dialog-info>\n");	
+		ast_build_string(&t, &maxbytes, "<?xml version=\"1.0\"?>\n");
+		ast_build_string(&t, &maxbytes, "<dialog-info xmlns=\"urn:ietf:params:xml:ns:dialog-info\" version=\"%d\" state=\"%s\" entity=\"%s\">\n", p->dialogver++, full ? "full":"partial", mfrom);
+		ast_build_string(&t, &maxbytes, "<dialog id=\"%s\">\n", p->exten);
+		ast_build_string(&t, &maxbytes, "<state>%s</state>\n", state ? "confirmed" : "terminated");
+		ast_build_string(&t, &maxbytes, "</dialog>\n</dialog-info>\n");	
 	}
 	if (t > tmp + sizeof(tmp))
 		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
 
-	snprintf(clen, sizeof(clen), "%d", (int)strlen(tmp));
-	add_header(&req, "Content-Length", clen);
+	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
 
 	return send_request(p, &req, 1, p->ocseq);
@@ -4575,22 +4543,24 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
 {
 	struct sip_request req;
-	char tmp[256];
-	char tmp2[256];
-	char clen[20];
+	char tmp[500];
+	char *t = tmp;
+	size_t maxbytes = sizeof(tmp);
+
 	initreqprep(&req, p, SIP_NOTIFY, NULL);
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", default_notifymime);
 
-	snprintf(tmp, sizeof(tmp), "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	snprintf(tmp2, sizeof(tmp2), "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
-	snprintf(clen, sizeof(clen), "%d", (int)(strlen(tmp) + strlen(tmp2)));
-	add_header(&req, "Content-Length", clen);
-	add_line(&req, tmp);
-	add_line(&req, tmp2);
+	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
+	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
 
-	if (!p->initreq.headers) {
-		/* Use this as the basis */
+	if (t > tmp + sizeof(tmp))
+		ast_log(LOG_WARNING, "Buffer overflow detected!!  (Please file a bug report)\n");
+
+	add_header_contentLength(&req, strlen(tmp));
+	add_line(&req, tmp);
+
+	if (!p->initreq.headers) { /* Use this as the basis */
 		copy_request(&p->initreq, &req);
 		parse(&p->initreq);
 		if (sip_debug_test_pvt(p))
@@ -4624,17 +4594,15 @@ static int transmit_sip_request(struct sip_pvt *p,struct sip_request *req)
 static int transmit_notify_with_sipfrag(struct sip_pvt *p, int cseq)
 {
 	struct sip_request req;
-	char tmp[256];
-	char clen[20];
+	char tmp[20];
 	reqprep(&req, p, SIP_NOTIFY, 0, 1);
 	snprintf(tmp, sizeof(tmp), "refer;id=%d", cseq);
 	add_header(&req, "Event", tmp);
 	add_header(&req, "Subscription-state", "terminated;reason=noresource");
 	add_header(&req, "Content-Type", "message/sipfrag;version=2.0");
 
-	ast_copy_string(tmp, "SIP/2.0 200 OK", sizeof(tmp));
-	snprintf(clen, sizeof(clen), "%d", (int)(strlen(tmp)));
-	add_header(&req, "Content-Length", clen);
+	strcpy(tmp, "SIP/2.0 200 OK");
+	add_header_contentLength(&req, strlen(tmp));
 	add_line(&req, tmp);
 
 	if (!p->initreq.headers) {
@@ -4913,7 +4881,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	add_header(&req, "Expires", tmp);
 	add_header(&req, "Contact", p->our_contact);
 	add_header(&req, "Event", "registration");
-	add_header(&req, "Content-Length", "0");
+	add_header_contentLength(&req, 0);
 	add_blank_header(&req);
 	copy_request(&p->initreq, &req);
 	parse(&p->initreq);
@@ -5007,7 +4975,7 @@ static int transmit_request(struct sip_pvt *p, int sipmethod, int seqno, int rel
 {
 	struct sip_request resp;
 	reqprep(&resp, p, sipmethod, seqno, newbranch);
-	add_header(&resp, "Content-Length", "0");
+	add_header_contentLength(&resp, 0);
 	add_blank_header(&resp);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);
 }
@@ -5033,7 +5001,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 		}
 	}
 
-	add_header(&resp, "Content-Length", "0");
+	add_header_contentLength(&resp, 0);
 	add_blank_header(&resp);
 	return send_request(p, &resp, reliable, seqno ? seqno : p->ocseq);	
 }
