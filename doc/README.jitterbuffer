@@ -4,11 +4,12 @@ Steve Kann
 
 
 
-The new jitterbuffer, PLC, and the IAX2-integration of the new jitterbuffer have been integrated 
-into Asterisk. The jitterbuffer is generic and work is going on to implement it in SIP/RTP as well.
+The new jitterbuffer, PLC, and the IAX2-integration of the new jitterbuffer 
+have been integrated into Asterisk. The jitterbuffer is generic and work is 
+going on to implement it in SIP/RTP as well.
 
-Also, we've added a feature called "trunktimestamps", which adds individual timestamps to 
-trunked frames within a trunk frame.
+Also, we've added a feature called "trunktimestamps", which adds individual 
+timestamps to trunked frames within a trunk frame.
 
 Here's how to use this stuff:
 
@@ -96,7 +97,8 @@ and fix that.  But we should also figure out how to make the receiver more robus
 cases like this.
 
 chan_iax2 will actually help fix this a bit if it's more than 3 seconds or so, but at 
-some point we should try to think of a better way to detect this kind of thing and resynchronize.
+some point we should try to think of a better way to detect this kind of thing and 
+resynchronize.
 
 Different clock rates are handled very gracefully though; it will actually deal with a 
 sender sending 20% faster or slower than you expect just fine.
