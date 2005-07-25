@@ -152,10 +152,12 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			/* Make sure this is in line with what we were expecting */
 			if (!ast_tveq(path->nextin, f->delivery)) {
 				/* The time has changed between what we expected and this
-				   most recent time on the new packet.  Adjust our output
-				   time appropriately */
-				path->nextout = ast_tvadd(path->nextout,
-					ast_tvsub(f->delivery, path->nextin));
+				   most recent time on the new packet.  If we have a
+				   valid prediction adjust our output time appropriately */
+				if (!ast_tvzero(path->nextout)) {
+					path->nextout = ast_tvadd(path->nextout,
+								  ast_tvsub(f->delivery, path->nextin));
+				}
 				path->nextin = f->delivery;
 			}
 		} else {
@@ -180,6 +182,10 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			p->next->step->framein(p->next->state, out);
 		else {
 			if (!ast_tvzero(delivery)) {
+				/* Regenerate prediction after a discontinuity */
+				if (ast_tvzero(path->nextout))
+					path->nextout = ast_tvnow();
+
 				/* Use next predicted outgoing timestamp */
 				out->delivery = path->nextout;
 				
@@ -189,6 +195,9 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 			} else {
 				out->delivery = ast_tv(0, 0);
 			}
+			/* Invalidate prediction if we're entering a silence period */
+			if (out->frametype == AST_FRAME_CNG)
+				path->nextout = ast_tv(0, 0);
 			return out;
 		}
 		p = p->next;
