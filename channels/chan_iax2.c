@@ -3420,11 +3420,23 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 		if (voice) {
 			/* On a voice frame, use predicted values if appropriate */
 			if (p->notsilenttx && abs(ms - p->nextpred) <= MAX_TIMESTAMP_SKEW) {
-				/* Adjust our txcore, keeping voice and 
-					non-voice synchronized */
-				/* We need someone who understands this code to comment here on
-				   why the 'adjust' value is handled as if it was in units
-				   of 10,000 microseconds, instead of milliseconds
+				/* Adjust our txcore, keeping voice and non-voice synchronized */
+				/* AN EXPLANATION:
+				   When we send voice, we usually send "calculated" timestamps worked out
+			 	   on the basis of the number of samples sent. When we send other frames,
+				   we usually send timestamps worked out from the real clock.
+				   The problem is that they can tend to drift out of step because the 
+			    	   source channel's clock and our clock may not be exactly at the same rate.
+				   We fix this by continuously "tweaking" p->offset.  p->offset is "time zero"
+				   for this call.  Moving it adjusts timestamps for non-voice frames.
+				   We make the adjustment in the style of a moving average.  Each time we
+				   adjust p->offset by 10% of the difference between our clock-derived
+				   timestamp and the predicted timestamp.  That's why you see "10000"
+				   below even though IAX2 timestamps are in milliseconds.
+				   The use of a moving average avoids offset moving too radically.
+				   Generally, "adjust" roams back and forth around 0, with offset hardly
+				   changing at all.  But if a consistent different starts to develop it
+				   will be eliminated over the course of 10 frames (200-300msecs) 
 				*/
 				adjust = (ms - p->nextpred);
 				if (adjust < 0)
