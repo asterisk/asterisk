@@ -8158,6 +8158,13 @@ static char *func_header_read(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	p = chan->tech_pvt;
+
+	/* If there is no private structure, this channel is no longer alive */
+	if (!p) {
+		ast_mutex_unlock(&chan->lock);
+		return NULL;
+	}
+
 	content = get_header(&p->initreq, data);
 
 	if (ast_strlen_zero(content)) {
