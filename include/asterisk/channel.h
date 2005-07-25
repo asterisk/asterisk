@@ -931,6 +931,13 @@ int ast_settimeout(struct ast_channel *c, int samples, int (*func)(void *data), 
 */
 int ast_transfer(struct ast_channel *chan, char *dest);
 
+/*!	\brief  Start masquerading a channel
+	XXX This is a seriously wacked out operation.  We're essentially putting the guts of
+           the clone channel into the original channel.  Start by killing off the original
+           channel's backend.   I'm not sure we're going to keep this function, because
+           while the features are nice, the cost is very high in terms of pure nastiness. XXX
+	\param chan 	Channel to masquerade
+*/
 int ast_do_masquerade(struct ast_channel *chan);
 
 /*!	\brief Find bridged channel 
