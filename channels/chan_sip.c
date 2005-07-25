@@ -1639,9 +1639,11 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
 	    (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms)))) {
 		if (peer->addr.sin_addr.s_addr) {
+			r->sa.sin_family = peer->addr.sin_family;
 			r->sa.sin_addr = peer->addr.sin_addr;
 			r->sa.sin_port = peer->addr.sin_port;
 		} else {
+			r->sa.sin_family = peer->defaddr.sin_family;
 			r->sa.sin_addr = peer->defaddr.sin_addr;
 			r->sa.sin_port = peer->defaddr.sin_port;
 		}
