@@ -151,6 +151,10 @@ static struct progress {
 #define BELL_MF_RELATIVE_PEAK	12.6    /* 11dB */
 #endif
 
+#if !defined(BUSYDETECT_MARTIN) && !defined(BUSYDETECT) && !defined(BUSYDETECT_TONEONLY) && !defined(BUSYDETECT_COMPARE_TONE_AND_SILENCE)
+#define BUSYDETECT_MARTIN
+#endif
+
 typedef struct {
 	float v2;
 	float v3;
