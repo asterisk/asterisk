@@ -3,6 +3,9 @@
        not listed here.  A complete listing of changes is available through
        the Asterisk-CVS mailing list hosted at http://lists.digium.com.
 
+ -- chan_local
+    -- In releases 1.0.8 and 1.0.9, the Local channels that are created would
+       not be masqueraded into the new channel type.  This has now been fixed.
  -- chan_sip
     -- The 'insecure' options have been changed to support matching peersby IP
        only, not requiring authentication on incoming invites, or both. Before,
