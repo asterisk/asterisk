@@ -99,6 +99,11 @@ Applications:
 * The application Record now uses the period to separate the filename
   from the format, rather than the colon.
 
+* The application VoiceMail now supports a 'temporary' greeting for each
+  mailbox. This greeting can be recorded by using option 4 in the
+  'mailbox options' menu, and 'change your password' option has been
+  moved to option 5.
+
 Queues:
 
 * A queue is now considered empty not only if there are no members but if
