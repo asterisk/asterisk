@@ -302,7 +302,7 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 #define pthread_mutex_init use_ast_pthread_mutex_init_instead_of_pthread_mutex_init
 #define pthread_mutex_destroy use_ast_pthread_mutex_destroy_instead_of_pthread_mutex_destroy
 
-#else /* DEBUG_THREADS */
+#else /* !DEBUG_THREADS */
 
 
 #define AST_MUTEX_INIT_VALUE	PTHREAD_MUTEX_INIT_VALUE
