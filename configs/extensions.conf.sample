@@ -44,6 +44,14 @@ autofallthrough=yes
 ;
 clearglobalvars=no
 ;
+; If priorityjumping is set to 'yes', then applications that support
+; 'jumping' to a different priority based on the result of their operations
+; will do so (this is backwards compatible behavior with pre-1.2 releases
+; of Asterisk). Individual applications can also be requested to do this
+; by passing a 'j' option in their arguments.
+;
+priorityjumping=no
+;
 ; You can include other config files, use the #include command (without the ';')
 ; Note that this is different from the "include" command that includes contexts within 
 ; other contexts. The #include command works in all asterisk configuration files.

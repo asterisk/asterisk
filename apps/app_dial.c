@@ -120,7 +120,7 @@ static char *descrip =
 "             * LIMIT_WARNING_FILE        File to play as warning if 'y' is defined.\n"
 "                        'timeleft' is a special sound macro to auto-say the time \n"
 "                        left and is the default.\n"
-"       'j' -- Do not jump to n+101 if all of the channels were busy.\n\n"
+"       'j' -- Jump to n+101 if all of the channels were busy.\n\n"
 "  In addition to transferring the call, a call may be parked and then picked\n"
 "up by another user.\n"
 "  The optional URL will be sent to the called party if the channel supports it.\n"
@@ -271,7 +271,7 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 			   dst->uniqueid);
 }
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int nojump, int *result)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int priority_jump, int *result)
 {
 	struct localuser *o;
 	int found;
@@ -326,9 +326,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					strcpy(status, "CONGESTION");
 				else if (numnochan)
 					strcpy(status, "CHANUNAVAIL");
-				/* See if there is a special busy message */
-				if (!nojump && ast_exists_extension(in, in->context, in->exten, in->priority + 101, in->cid.cid_num)) 
-					in->priority+=100;
+				if (option_priority_jumping || priority_jump)
+					ast_goto_if_exists(in, in->context, in->exten, in->priority + 101);
 			} else {
 				if (option_verbose > 2)
 					ast_verbose( VERBOSE_PREFIX_2 "No one is available to answer at this time (%d:%d/%d/%d)\n", numlines, numbusy, numcongestion, numnochan);
@@ -670,7 +669,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	time_t start_time, answer_time, end_time;
 	struct ast_app *app = NULL;
 	char *dblgoto = NULL;
-	int nojump = 0;
+	int priority_jump = 0;
 
 	if (!data) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
@@ -925,7 +924,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		} else if (strchr(transfer, 'C')) {
 			resetcdr = 1;
 		} else if (strchr(transfer, 'j')) {
-			nojump = 1;
+			priority_jump = 1;
 		}
 		if (strchr(transfer, 'n')) {
 			no_save_intros = 1;
@@ -1238,7 +1237,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		strcpy(status, "CHANUNAVAIL");
 
 	time(&start_time);
-	peer = wait_for_answer(chan, outgoing, &to, peerflags, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion, nojump, &result);
+	peer = wait_for_answer(chan, outgoing, &to, peerflags, &sentringing, status, sizeof(status), numbusy, numnochan, numcongestion, priority_jump, &result);
 	
 	if (!peer) {
 		if (result) {

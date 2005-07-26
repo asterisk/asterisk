@@ -1633,15 +1633,15 @@ static int pbx_load_module(void)
 	if (cfg) {
 		/* Use existing config to populate the PBX table */
 		static_config = ast_true(ast_variable_retrieve(cfg, "general",
-			"static"));
+							       "static"));
 		write_protect_config = ast_true(ast_variable_retrieve(cfg, "general",
-			"writeprotect"));
-		
+								      "writeprotect"));
 		autofallthrough_config = ast_true(ast_variable_retrieve(cfg, "general",
-			"autofallthrough"));
-
+									"autofallthrough"));
 		clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", 
-			"clearglobalvars"));
+									"clearglobalvars"));
+		option_priority_jumping = ast_true(ast_variable_retrieve(cfg, "general",
+									 "priorityjumping"));
 
 		v = ast_variable_browse(cfg, "globals");
 		while(v) {

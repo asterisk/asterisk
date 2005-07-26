@@ -35,6 +35,7 @@ extern int option_timestamp;
 extern int option_transcode_slin;
 extern int option_maxcalls;
 extern int option_dontwarn;
+extern int option_priority_jumping;
 extern char defaultlanguage[];
 extern time_t ast_startuptime;
 extern time_t ast_lastreloadtime;

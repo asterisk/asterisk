@@ -100,6 +100,7 @@ int option_reconnect = 0;
 int option_transcode_slin = 1;
 int option_maxcalls = 0;
 int option_dontwarn = 0;
+int option_priority_jumping = 1;
 int fully_booted = 0;
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
