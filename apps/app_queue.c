@@ -2175,7 +2175,7 @@ static struct member * interface_exists(struct ast_call_queue *q, char *interfac
 
 	if (q)
 		for (mem = q->members; mem; mem = mem->next)
-			if (!strcmp(interface, mem->interface))
+			if (!strcasecmp(interface, mem->interface))
 				return mem;
 
 	return NULL;
@@ -2328,7 +2328,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 	ast_mutex_lock(&qlock);
 	for (q = queues ; q ; q = q->next) {
 		ast_mutex_lock(&q->lock);
-		if (ast_strlen_zero(queuename) || !strcmp(q->name, queuename)) {
+		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename)) {
 			if ((mem = interface_exists(q, interface))) {
 				found++;
 				if (mem->paused == paused)
