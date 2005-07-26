@@ -6534,6 +6534,31 @@ static char *nat2str(int nat)
 		return "Unknown";
 	}
 }
+
+/*--- peer_status: Report Peer status in character string */
+/* 	returns 1 if peer is online, -1 if unmonitored */
+static int peer_status(struct sip_peer *peer, char *status, int statuslen)
+{
+	int res = 0;
+	if (peer->maxms) {
+		if (peer->lastms < 0) {
+			ast_copy_string(status, "UNREACHABLE", statuslen);
+		} else if (peer->lastms > peer->maxms) {
+			snprintf(status, statuslen, "LAGGED (%d ms)", peer->lastms);
+			res = 1;
+		} else if (peer->lastms) {
+			snprintf(status, statuslen, "OK (%d ms)", peer->lastms);
+			res = 1;
+		} else {
+			ast_copy_string(status, "UNKNOWN", statuslen);
+		}
+	} else { 
+		ast_copy_string(status, "Unmonitored", statuslen);
+		/* Checking if port is 0 */
+		res = -1;
+	}
+	return res;
+}
                            
 /*--- sip_show_users: CLI Command 'SIP Show Users' ---*/
 static int sip_show_users(int fd, int argc, char *argv[])
@@ -6667,6 +6692,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 		char nm[20] = "";
 		char status[20] = "";
 		char srch[2000];
+		char pstatus;
 		
 		ASTOBJ_RDLOCK(iterator);
 
@@ -6680,32 +6706,20 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			snprintf(name, sizeof(name), "%s/%s", iterator->name, iterator->username);
 		else
 			ast_copy_string(name, iterator->name, sizeof(name));
-		if (iterator->maxms) {
-			if (iterator->lastms < 0) {
-				ast_copy_string(status, "UNREACHABLE", sizeof(status));
+
+		pstatus = peer_status(iterator, status, sizeof(status));
+		if (pstatus) 	
+			peers_online++;
+		else	{
+			if (pstatus == 0)
 				peers_offline++;
-			} else if (iterator->lastms > iterator->maxms) {
-				snprintf(status, sizeof(status), "LAGGED (%d ms)", iterator->lastms);
-				peers_online++;
-			} else if (iterator->lastms) {
-				snprintf(status, sizeof(status), "OK (%d ms)", iterator->lastms);
-				peers_online++;
-			} else {
+			else {	/* Unmonitored */
 				/* Checking if port is 0 */
-				if ( ntohs(iterator->addr.sin_port) == 0 ) { 
+				if ( ntohs(iterator->addr.sin_port) == 0 ) {
 					peers_offline++;
 				} else {
 					peers_online++;
 				}
-				ast_copy_string(status, "UNKNOWN", sizeof(status));
-			}
-		} else { 
-			ast_copy_string(status, "Unmonitored", sizeof(status));
-			/* Checking if port is 0 */
-			if ( ntohs(iterator->addr.sin_port) == 0 ) {
-				peers_offline++;
-			} else {
-				peers_online++;
 			}
 		}			
 		
@@ -7103,7 +7117,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 			if (!codec)
 				break;
 			ast_cli(fd, "%s", ast_getformatname(codec));
-			if (x < 31 && ast_codec_pref_index(pref,x+1))
+			if (x < 31 && ast_codec_pref_index(pref, x+1))
 				ast_cli(fd, "|");
 		}
 
@@ -7112,14 +7126,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, ")\n");
 
 		ast_cli(fd, "  Status       : ");
-		if (peer->lastms < 0)
-			ast_copy_string(status, "UNREACHABLE", sizeof(status));
-		else if (peer->lastms > peer->maxms)
-			snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
-		else if (peer->lastms)
-			snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
-		else
-			ast_copy_string(status, "UNKNOWN", sizeof(status));
+		peer_status(peer, status, sizeof(status));
 		ast_cli(fd, "%s\n",status);
  		ast_cli(fd, "  Useragent    : %s\n", peer->useragent);
  		ast_cli(fd, "  Reg. Contact : %s\n", peer->fullcontact);
@@ -7192,15 +7199,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 
 		ast_cli(fd, "\r\n");
 		ast_cli(fd, "Status: ");
-		if (peer->lastms < 0)
-			ast_copy_string(status, "UNREACHABLE", sizeof(status));
-		else if (peer->lastms > peer->maxms)
-			snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
-		else if (peer->lastms)
-			snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
-		else
-			ast_copy_string(status, "UNKNOWN", sizeof(status));
-		ast_cli(fd, "%s\r\n",status);
+		peer_status(peer, status, sizeof(status));
+		ast_cli(fd, "%s\r\n", status);
  		ast_cli(fd, "SIP-Useragent: %s\r\n", peer->useragent);
  		ast_cli(fd, "Reg-Contact : %s\r\n", peer->fullcontact);
 		if (peer->chanvars) {
@@ -8197,6 +8197,18 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 
 	if (!strcasecmp(colname, "ip")) {
 		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
+	} else  if (!strcasecmp(colname, "status")) {
+		peer_status(peer, buf, sizeof(buf));
+	} else  if (!strcasecmp(colname, "language")) {
+		ast_copy_string(buf, peer->language, len);
+	} else  if (!strcasecmp(colname, "regexten")) {
+		ast_copy_string(buf, peer->regexten, len);
+	} else  if (!strcasecmp(colname, "limit")) {
+		snprintf(buf, len, "%d", peer->incominglimit);
+	} else  if (!strcasecmp(colname, "curcalls")) {
+		snprintf(buf, len, "%d", peer->inUse);
+	} else  if (!strcasecmp(colname, "useragent")) {
+		ast_copy_string(buf, peer->useragent, len);
 	} else  if (!strcasecmp(colname, "mailbox")) {
 		ast_copy_string(buf, peer->mailbox, len);
 	} else  if (!strcasecmp(colname, "context")) {
@@ -8233,6 +8245,7 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 	return ret;
 }
 
+/* Structure to declare a dialplan function: SIPPEER */
 struct ast_custom_function sippeer_function = {
     .name = "SIPPEER",
     .synopsis = "Gets SIP peer information",
@@ -8247,6 +8260,13 @@ struct ast_custom_function sippeer_function = {
 	"- callerid_name         The configured Caller ID name.\n"
 	"- callerid_num          The configured Caller ID number.\n"
 	"- codecs                The configured codecs.\n"
+	"- status                Status (if qualify=yes).\n"
+	"- regexten              Registration extension\n"
+	"- limit                 Call limit (incominglimit)\n"
+	"- curcalls              Current amount of calls \n"
+	"                        Only available if incominglimit is set\n"
+	"- language              Default language for peer\n"
+	"- useragent             Current user agent id for peer\n"
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
 	"\n"
 };
@@ -11554,43 +11574,53 @@ static struct ast_cli_entry  my_clis[] = {
 /*--- load_module: PBX load module - initialization ---*/
 int load_module()
 {
-	ASTOBJ_CONTAINER_INIT(&userl);
-	ASTOBJ_CONTAINER_INIT(&peerl);
-	ASTOBJ_CONTAINER_INIT(&regl);
+	ASTOBJ_CONTAINER_INIT(&userl);	/* User object list */
+	ASTOBJ_CONTAINER_INIT(&peerl);	/* Peer object list */
+	ASTOBJ_CONTAINER_INIT(&regl);	/* Registry object list */
+
 	sched = sched_context_create();
 	if (!sched) {
 		ast_log(LOG_WARNING, "Unable to create schedule context\n");
 	}
+
 	io = io_context_create();
 	if (!io) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 	}
+
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type %s\n", channeltype);
 		return -1;
 	}
 
-	if (reload_config())
+	if (reload_config())	/* Load the configuration from sip.conf */
 		return -1;
 
+	/* Register all CLI functions for SIP */
 	ast_cli_register_multiple(my_clis, sizeof(my_clis)/ sizeof(my_clis[0]));
 
+	/* Tell the RTP subdriver that we're here */
 	ast_rtp_proto_register(&sip_rtp);
 
+	/* Register dialplan applications */
 	ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
+
+	/* These will be removed soon */
 	ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
 	ast_register_application(app_sipgetheader, sip_getheader, synopsis_sipgetheader, descrip_sipgetheader);
 
+	/* Register dialplan functions */
+	ast_custom_function_register(&sip_header_function);
+	ast_custom_function_register(&sippeer_function);
+
+	/* Register manager commands */
 	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
 			"List SIP peers (text format)", mandescr_show_peers);
 	ast_manager_register2("SIPshowpeer", EVENT_FLAG_SYSTEM, manager_sip_show_peer,
 			"Show SIP peer (text format)", mandescr_show_peer);
 
-	ast_custom_function_register(&sip_header_function);
-	ast_custom_function_register(&sippeer_function);
-
-	sip_poke_all_peers();
+	sip_poke_all_peers();	
 	sip_send_all_registers();
 	
 	/* And start the monitor for the first time */
