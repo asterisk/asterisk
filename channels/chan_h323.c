@@ -140,7 +140,9 @@ struct oh323_pvt {
 	int nativeformats;					/* Codec formats supported by a channel */
 	int needhangup;						/* Send hangup when Asterisk is ready */
 	int hangupcause;					/* Hangup cause from OpenH323 layer */
-	struct oh323_pvt *next;					/* Next channel in list */
+	int newstate;						/* Pending state change */
+	int newcontrol;						/* Pending control to send */
+	struct oh323_pvt *next;				/* Next channel in list */
 } *iflist = NULL;
 
 static struct ast_user_list {
@@ -233,6 +235,15 @@ static void __oh323_update_info(struct ast_channel *c, struct oh323_pvt *pvt)
 		c->hangupcause = pvt->hangupcause;
 		ast_queue_hangup(c);
 		pvt->needhangup = 0;
+		pvt->newstate = pvt->newcontrol = -1;
+	}
+	if (pvt->newstate >= 0) {
+		ast_setstate(c, pvt->newstate);
+		pvt->newstate = -1;
+	}
+	if (pvt->newcontrol >= 0) {
+		ast_queue_control(c, pvt->newcontrol);
+		pvt->newcontrol = -1;
 	}
 }
 
@@ -550,18 +561,22 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 			}	
 			/* Do in-band DTMF detection */
 			if ((pvt->options.dtmfmode & H323_DTMF_INBAND) && pvt->vad) {
-                   		f = ast_dsp_process(pvt->owner,pvt->vad,f);
+				if (!ast_mutex_trylock(&pvt->owner->lock)) {
+					f = ast_dsp_process(pvt->owner,pvt->vad,f);
+					ast_mutex_unlock(&pvt->owner->lock);
+				}
+				else
+					ast_log(LOG_NOTICE, "Unable to process inband DTMF while channel is locked\n");
 				if (f &&(f->frametype == AST_FRAME_DTMF)) {
 					ast_log(LOG_DEBUG, "Received in-band digit %c.\n", f->subclass);
-            			}
+				}
 			}
-			
 		}
 	}
 	return f;
 }
 
-static struct ast_frame  *oh323_read(struct ast_channel *c)
+static struct ast_frame *oh323_read(struct ast_channel *c)
 {
 	struct ast_frame *fr;
 	struct oh323_pvt *pvt = (struct oh323_pvt *)c->tech_pvt;
@@ -595,6 +610,7 @@ static int oh323_write(struct ast_channel *c, struct ast_frame *frame)
 		if (pvt->rtp) {
 			res =  ast_rtp_write(pvt->rtp, frame);
 		}
+		__oh323_update_info(c, pvt);
 		ast_mutex_unlock(&pvt->lock);
 	}
 	return res;
@@ -807,6 +823,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 		pvt->nonCodecCapability &= ~AST_RTP_DTMF;
 	}
 	strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
+	pvt->newstate = pvt->newsignal = -1;
 	/* Add to interface list */
 	ast_mutex_lock(&iflock);
 	pvt->next = iflist;
@@ -839,6 +856,26 @@ static struct oh323_pvt *find_call_locked(int call_reference, const char *token)
 	}
 	ast_mutex_unlock(&iflock);
 	return NULL;
+}
+
+static int update_state(struct oh323_pvt *pvt, int state, int signal)
+{
+	if (!pvt)
+		return 0;
+	if (pvt->owner && !ast_mutex_trylock(&pvt->owner->lock)) {
+		if (state >= 0)
+			ast_setstate(pvt->owner, state);
+		if (signal >= 0)
+			ast_queue_control(pvt->owner, signal);
+		return 1;
+	}
+	else {
+		if (state >= 0)
+			pvt->newstate = state;
+		if (signal >= 0)
+			pvt->newsignal = signal;
+		return 0;
+	}
 }
 
 struct oh323_user *find_user(const call_details_t *cd)
@@ -1116,8 +1153,6 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 	return info;
 }
 
-int progress(unsigned call_reference, const char *token, int inband);
-
 /**
  * Definition taken from rtp.c for rtpPayloadType because we need it here.
  */
@@ -1156,10 +1191,16 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
 		pvt->owner->nativeformats = pvt->nativeformats;
 		ast_set_read_format(pvt->owner, pvt->owner->readformat);
 		ast_set_write_format(pvt->owner, pvt->owner->writeformat);
+		if (pvt->options.progress_audio)
+			ast_queue_control(pvt->owner, AST_CONTROL_PROGRESS);
 		ast_mutex_unlock(&pvt->owner->lock);
 	}
-	else if (h323debug)
-		ast_log(LOG_DEBUG, "RTP connection preparation for %s is pending...\n", token);
+	else {
+		if (pvt->options.progress_audio)
+			pvt->newcontrol = AST_CONTROL_PROGRESS;
+		if (h323debug)
+			ast_log(LOG_DEBUG, "RTP connection preparation for %s is pending...\n", token);
+	}
 
 	them.sin_family = AF_INET;
 	/* only works for IPv4 */
@@ -1167,11 +1208,7 @@ void setup_rtp_connection(unsigned call_reference, const char *remoteIp, int rem
 	them.sin_port = htons(remotePort);
 	ast_rtp_set_peer(pvt->rtp, &them);
 
-	if (pvt->options.progress_audio) {
-		ast_mutex_unlock(&pvt->lock);
-		progress(call_reference, token, 1);
-	} else
-		ast_mutex_unlock(&pvt->lock);
+	ast_mutex_unlock(&pvt->lock);
 
 	if (h323debug)
 		ast_log(LOG_DEBUG, "RTP connection prepared for %s\n", token);
@@ -1202,16 +1239,8 @@ void connection_made(unsigned call_reference, const char *token)
 		ast_mutex_unlock(&pvt->lock);
 		return;
 	}
-	if (!pvt->owner) {
-		ast_mutex_unlock(&pvt->lock);
-		ast_log(LOG_ERROR, "Channel has no owner\n");
-		return;
-	}
-	ast_mutex_lock(&pvt->owner->lock);
-	c = pvt->owner;	
-	ast_setstate(c, AST_STATE_UP);
-	ast_queue_control(c, AST_CONTROL_ANSWER);
-	ast_mutex_unlock(&pvt->owner->lock);
+	if (update_state(pvt, AST_STATE_UP, AST_CONTROL_ANSWER))
+		ast_mutex_unlock(&pvt->owner->lock);
 	ast_mutex_unlock(&pvt->lock);
 	return;
 }
@@ -1232,9 +1261,8 @@ int progress(unsigned call_reference, const char *token, int inband)
 		ast_log(LOG_ERROR, "No Asterisk channel associated with private structure.\n");
 		return -1;
 	}
-	ast_mutex_lock(&pvt->owner->lock);
-	ast_queue_control(pvt->owner, (inband ? AST_CONTROL_PROGRESS : AST_CONTROL_RINGING));
-	ast_mutex_unlock(&pvt->owner->lock);
+	if (update_state(pvt, -1, (inband ? AST_CONTROL_PROGRESS : AST_CONTROL_RINGING)))
+		ast_mutex_unlock(&pvt->owner->lock);
 	ast_mutex_unlock(&pvt->lock);
 
 	return 0;
@@ -1402,20 +1430,18 @@ void chan_ringing(unsigned call_reference, const char *token)
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Ringing on %s\n", token);
 
-        pvt = find_call_locked(call_reference, token); 
-        if (!pvt) {
-                ast_log(LOG_ERROR, "Something is wrong: ringing\n");
+	pvt = find_call_locked(call_reference, token); 
+	if (!pvt) {
+		ast_log(LOG_ERROR, "Something is wrong: ringing\n");
+		return;
 	}
 	if (!pvt->owner) {
 		ast_mutex_unlock(&pvt->lock);
 		ast_log(LOG_ERROR, "Channel has no owner\n");
 		return;
 	}
-	ast_mutex_lock(&pvt->owner->lock);
-	c = pvt->owner;
-	ast_setstate(c, AST_STATE_RINGING);
-	ast_queue_control(c, AST_CONTROL_RINGING);
-	ast_mutex_unlock(&pvt->owner->lock);
+	if (update_state(pvt, AST_STATE_RINGING, AST_CONTROL_RINGING))
+		ast_mutex_unlock(&pvt->owner->lock);
 	ast_mutex_unlock(&pvt->lock);
 	return;
 }
