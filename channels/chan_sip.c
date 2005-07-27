@@ -133,11 +133,11 @@ static const char notify_config[] = "sip_notify.conf";
 #define SIP_BYE		8
 #define SIP_REFER	9
 #define SIP_SUBSCRIBE	10
-#define SIP_MESSAGE	12
-#define SIP_UPDATE	13
-#define SIP_INFO	14
-#define SIP_CANCEL	15
-#define SIP_PUBLISH	16
+#define SIP_MESSAGE	11
+#define SIP_UPDATE	12
+#define SIP_INFO	13
+#define SIP_CANCEL	14
+#define SIP_PUBLISH	15
 
 #define RTP 	1
 #define NO_RTP	0
