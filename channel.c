@@ -1187,7 +1187,7 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds, int nfds, 
 	int *exception, int *outfd, int *ms)
 {
-	struct timeval start;
+	struct timeval start = { 0 , 0 };
 	struct pollfd *pfds;
 	int res;
 	long rms;
