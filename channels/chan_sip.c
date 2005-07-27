@@ -123,31 +123,42 @@ static const char channeltype[] = "SIP";
 static const char config[] = "sip.conf";
 static const char notify_config[] = "sip_notify.conf";
 
-#define SIP_RESPONSE	1
-#define SIP_REGISTER	2
-#define SIP_OPTIONS	3
-#define SIP_NOTIFY	4
-#define SIP_INVITE	5
-#define SIP_ACK		6
-#define SIP_PRACK	7
-#define SIP_BYE		8
-#define SIP_REFER	9
-#define SIP_SUBSCRIBE	10
-#define SIP_MESSAGE	11
-#define SIP_UPDATE	12
-#define SIP_INFO	13
-#define SIP_CANCEL	14
-#define SIP_PUBLISH	15
-
 #define RTP 	1
 #define NO_RTP	0
 
+/* Do _NOT_ make any changes to this enum, or the array following it;
+   if you think you are doing the right thing, you are probably
+   not doing the right thing. If you think there are changes
+   needed, get someone else to review them first _before_
+   submitting a patch. If these two lists do not match properly
+   bad things will happen.
+*/
+
+enum sipmethod {
+	SIP_UNKNOWN,
+	SIP_RESPONSE,
+	SIP_REGISTER,
+	SIP_OPTIONS,
+	SIP_NOTIFY,
+	SIP_INVITE,
+	SIP_ACK,
+	SIP_PRACK,
+	SIP_BYE,
+	SIP_REFER,
+	SIP_SUBSCRIBE,
+	SIP_MESSAGE,
+	SIP_UPDATE,
+	SIP_INFO,
+	SIP_CANCEL,
+	SIP_PUBLISH,
+} sip_method_list;
+
 static const struct  cfsip_methods { 
-	int id;
+	enum sipmethod id;
 	int need_rtp;		/* when this is the 'primary' use for a pvt structure, does it need RTP? */
 	char * const text;
 } sip_methods[] = {
-	{ 0,		 RTP,    "-UNKNOWN-" },
+	{ SIP_UNKNOWN,	 RTP,    "-UNKNOWN-" },
 	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0" },
 	{ SIP_REGISTER,	 NO_RTP, "REGISTER" },
  	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS" },
