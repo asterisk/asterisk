@@ -343,8 +343,8 @@ exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into Voi
 ;
 exten => s,1,Wait,1			; Wait a second, just for fun
 exten => s,n,Answer			; Answer the line
-exten => s,n,SetVar(TIMEOUT(digit)=5)	; Set Digit Timeout to 5 seconds
-exten => s,n,SetVar(TIMEOUT(response)=10)	; Set Response Timeout to 10 seconds
+exten => s,n,Set(TIMEOUT(digit)=5)	; Set Digit Timeout to 5 seconds
+exten => s,n,Set(TIMEOUT(response)=10)	; Set Response Timeout to 10 seconds
 exten => s,n(restart),BackGround(demo-congrats)	; Play a congratulatory message
 exten => s,n(instruct),BackGround(demo-instruct)	; Play some instructions
 exten => s,n,WaitExten		; Wait for an extension to be dialed.
@@ -352,7 +352,7 @@ exten => s,n,WaitExten		; Wait for an extension to be dialed.
 exten => 2,1,BackGround(demo-moreinfo)	; Give some more information.
 exten => 2,n,Goto(s,instruct)
 
-exten => 3,1,SetVar(LANGUAGE()=fr)		; Set language to french
+exten => 3,1,Set(LANGUAGE()=fr)		; Set language to french
 exten => 3,n,Goto(s,restart)			; Start with the congratulations
 
 exten => 1000,1,Goto(default,s,1)
