@@ -1882,7 +1882,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char *announce = NULL;
 	char digit = 0;
 	time_t callstart;
-	time_t now;
+	time_t now = time(NULL);
 	struct ast_bridge_config bridge_config;
 	char nondataquality = 1;
 
