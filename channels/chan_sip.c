@@ -141,17 +141,18 @@ static const char notify_config[] = "sip_notify.conf";
 
 #define RTP 	1
 #define NO_RTP	0
-const struct  cfsip_methods { 
+
+static const struct  cfsip_methods { 
 	int id;
 	int need_rtp;		/* when this is the 'primary' use for a pvt structure, does it need RTP? */
-	char *text;
+	char * const text;
 } sip_methods[] = {
-	{ 0,		 RTP, "-UNKNOWN-" },
+	{ 0,		 RTP,    "-UNKNOWN-" },
 	{ SIP_RESPONSE,	 NO_RTP, "SIP/2.0" },
 	{ SIP_REGISTER,	 NO_RTP, "REGISTER" },
  	{ SIP_OPTIONS,	 NO_RTP, "OPTIONS" },
 	{ SIP_NOTIFY,	 NO_RTP, "NOTIFY" },
-	{ SIP_INVITE,	 RTP, "INVITE" },
+	{ SIP_INVITE,	 RTP,    "INVITE" },
 	{ SIP_ACK,	 NO_RTP, "ACK" },
 	{ SIP_PRACK,	 NO_RTP, "PRACK" },
 	{ SIP_BYE,	 NO_RTP, "BYE" },
@@ -215,10 +216,10 @@ static const struct cfalias {
 
 /* List of well-known SIP options. If we get this in a require,
    we should check the list and answer accordingly. */
-const struct cfsip_options {
+static const struct cfsip_options {
 	int id;			/* Bitmap ID */
 	int supported;		/* Supported by Asterisk ? */
-	char *text;		/* Text id, as in standard */
+	char * const text;	/* Text id, as in standard */
 } sip_options[] = {
 	/* Replaces: header for transfer */
 	{ SIP_OPT_REPLACES,	SUPPORTED,	"replaces" },	
