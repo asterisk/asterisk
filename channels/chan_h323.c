@@ -782,7 +782,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 		return NULL;
 	}
 	memset(pvt, 0, sizeof(struct oh323_pvt));
-	pvt->rtp = ast_rtp_new(sched, io, 1, 0);
+	pvt->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0,bindaddr.sin_addr);
 	if (!pvt->rtp) {
 		ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
 		free(pvt);
@@ -1108,8 +1108,8 @@ struct rtp_info *external_rtp_create(unsigned call_reference, const char * token
 	/* figure out our local RTP port and tell the H.323 stack about it */
 	ast_rtp_get_us(pvt->rtp, &us);
 	ast_mutex_unlock(&pvt->lock);
-	/* evil hack, until I (or someone?) figures out a better way */
-	ast_inet_ntoa(info->addr, sizeof(info->addr), bindaddr.sin_addr);
+
+	ast_inet_ntoa(info->addr, sizeof(info->addr), us.sin_addr);
 	info->port = ntohs(us.sin_port);
 	if (h323debug)
 		ast_log(LOG_DEBUG, "Sending RTP 'US' %s:%d\n", info->addr, info->port);
