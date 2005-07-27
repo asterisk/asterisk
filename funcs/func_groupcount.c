@@ -33,8 +33,10 @@ static char *group_count_function_read(struct ast_channel *chan, char *cmd, char
 	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
 
 	if (ast_strlen_zero(group)) {
-		grp = pbx_builtin_getvar_helper(chan, category);
-		ast_copy_string(group, grp, sizeof(group));
+		if ((grp = pbx_builtin_getvar_helper(chan, category)))
+			ast_copy_string(group, grp, sizeof(group));
+		else
+			return buf;
 	}
 
 	count = ast_app_group_get_count(group, category);
