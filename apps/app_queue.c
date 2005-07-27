@@ -1919,7 +1919,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		ast_log(LOG_DEBUG, "%s is trying to call a queue member.\n", 
 							qe->chan->name);
 	ast_copy_string(queuename, qe->parent->name, sizeof(queuename));
-	time(&now);
 	cur = qe->parent->members;
 	if (!ast_strlen_zero(qe->announce))
 		announce = qe->announce;
@@ -2029,7 +2028,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 				if (!res2 && qe->parent->reportholdtime) {
 					if (!play_file(peer, qe->parent->sound_reporthold)) {
 						int holdtime;
-						time_t now;
 
 						time(&now);
 						holdtime = abs((now - qe->start) / 60);
