@@ -140,6 +140,22 @@ AST_MUTEX_DEFINE_STATIC(moh_lock);
 #define MPG_123 "/usr/bin/mpg123"
 #define MAX_MP3S 256
 
+
+static void ast_moh_free_class(struct mohclass **class) 
+{
+	struct mohdata *members, *mtmp;
+	
+	members = (*class)->members;
+	while(members) {
+		mtmp = members;
+		members = members->next;
+		free(mtmp);
+	}
+	free(*class);
+	*class = NULL;
+}
+
+
 static void moh_files_release(struct ast_channel *chan, void *data)
 {
 	struct moh_files_state *state = chan->music_state;
@@ -776,7 +792,7 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 		if (param)
 			strncpy(moh->dir, param, sizeof(moh->dir) - 1);
 		if (!moh_scan_files(moh)) {
-			free(moh);
+			ast_moh_free_class(&moh);
 			return -1;
 		}
 	} else if (!strcasecmp(mode, "mp3") || !strcasecmp(mode, "mp3nb") || !strcasecmp(mode, "quietmp3") || !strcasecmp(mode, "quietmp3nb") || !strcasecmp(mode, "httpmp3") || !strcasecmp(mode, "custom")) {
@@ -809,12 +825,12 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 			ast_log(LOG_WARNING, "Unable to create moh...\n");
 			if (moh->pseudofd > -1)
 				close(moh->pseudofd);
-			free(moh);
+			ast_moh_free_class(&moh);
 			return -1;
 		}
 	} else {
 		ast_log(LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", mode);
-		free(moh);
+		ast_moh_free_class(&moh);
 		return -1;
 	}
 	ast_mutex_lock(&moh_lock);
@@ -915,7 +931,7 @@ static int load_moh_classes(void)
 
 static void ast_moh_destroy(void)
 {
-	struct mohclass *moh,*tmp;
+	struct mohclass *moh, *tmp;
 	char buff[8192];
 	int bytes, tbytes=0, stime = 0, pid = 0;
 
@@ -939,7 +955,7 @@ static void ast_moh_destroy(void)
 		}
 		tmp = moh;
 		moh = moh->next;
-		free(tmp);
+		ast_moh_free_class(&tmp);
 	}
 	mohclasses = NULL;
 	ast_mutex_unlock(&moh_lock);
