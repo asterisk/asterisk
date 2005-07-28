@@ -835,21 +835,22 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 
 	if (c) 
 		headp=&c->varshead;
+	
 	*ret=NULL;
-	/* Now we have the variable name on cp3 */
+	
 	if (!strncasecmp(var,"LEN(",4)) {	/* ${LEN(<string>)} */
-		int len=strlen(var);
-		int len_len=4;
-		if (strrchr(var,')')) {
-			char cp3[80];
-			strncpy(cp3, var, sizeof(cp3) - 1);
-			cp3[len-len_len-1]='\0';
-			sprintf(workspace,"%d",(int)strlen(cp3));
-			*ret = workspace;
-		} else {
-			/* length is zero */
-			*ret = "0";
+		char *endparen, *string = ast_strdupa(var + 4);
+		int len = 0;
+		if (!string) {
+			ast_log(LOG_WARNING, "Out of memory!\n");
+			return;
 		}
+		if ((endparen = strrchr(string,')'))) {
+			*endparen = '\0';
+			len = strlen(string);
+		} 
+		sprintf(workspace, "%d", len);
+		*ret = workspace;
 	} else if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
 		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
 		first = strchr(tmpvar, ':');
