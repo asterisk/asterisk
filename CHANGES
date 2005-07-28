@@ -24,6 +24,9 @@
     -- We now ensure buffer policy is restored after RAS is done with a channel.
        This could cause audio problems on the channel after zapras is done
        with it. 
+ -- extensions
+    -- A potential crash has been fixed when calling LEN() to get the length of
+       a string that was 80 characters or larger.
  -- logger
     -- The Asterisk logger will automatically detect when a log file needs to
        be rotated.  However, this feature could put Asterisk in a nasty loop
