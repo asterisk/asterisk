@@ -316,7 +316,6 @@ struct ast_vm_user *users;
 struct ast_vm_user *usersl;
 struct vm_zone *zones = NULL;
 struct vm_zone *zonesl = NULL;
-static struct ast_config *voicemailCfg;
 static int maxsilence;
 static int maxmsg;
 static int silencethreshold = 128;
@@ -3462,6 +3461,7 @@ static int play_message(struct ast_channel *chan, struct ast_vm_user *vmu, struc
 	if (!(origtime = ast_variable_retrieve(msg_cfg, "message", "origtime"))) {
 		ast_log(LOG_WARNING, "No origtime?!\n");
 		DISPOSE(vms->curdir, vms->curmsg);
+		ast_config_destroy(msg_cfg);
 		return 0;
 	}
 
@@ -5206,8 +5206,6 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	char tmp[256] = "";
 	char *stringp;
 	char *s;
-	char *maxmsgstr;
-	int i;
 	struct ast_vm_user *vmu;
 
 	ast_copy_string(tmp, data, sizeof(tmp));
@@ -5219,18 +5217,6 @@ static int append_mailbox(char *context, char *mbox, char *data)
 
 		populate_defaults(vmu);
 
-		/* Read the maxmsg from the context definition */
-		if ((maxmsgstr = ast_variable_retrieve(voicemailCfg, context, "maxmsg"))) {
-			i = atoi(maxmsgstr);
-			if (i <= 0) {
-				ast_log(LOG_WARNING, "Invalid number of messages per folder '%s'\n", maxmsgstr);
-			} else if (i > MAXMSGLIMIT) {
-				ast_log(LOG_WARNING, "Maximum number of messages per folder is %i. Cannot accept value '%s'\n", MAXMSGLIMIT, maxmsgstr);
-			} else {
-				vmu->maxmsg = i;
-			}
-		}
-			
 		stringp = tmp;
 		if ((s = strsep(&stringp, ","))) 
 			ast_copy_string(vmu->password, s, sizeof(vmu->password));
@@ -5476,7 +5462,6 @@ static int load_config(void)
 	int tmpadsi[4];
 
 	cfg = ast_config_load(VOICEMAIL_CONFIG);
-	voicemailCfg = cfg;
 	ast_mutex_lock(&vmlock);
 	cur = users;
 	while (cur) {
@@ -5855,8 +5840,6 @@ int unload_module(void)
 	ast_cli_unregister(&show_voicemail_users_cli);
 	ast_cli_unregister(&show_voicemail_zones_cli);
 	ast_uninstall_vm_functions();
-	if (voicemailCfg)
-		ast_config_destroy(voicemailCfg);
 	return res;
 }
 
