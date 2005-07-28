@@ -9488,19 +9488,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				p->expiry = max_expiry;
 		}
 		/* Go ahead and free RTP port */
-		if (p->rtp) {
-			if (p->owner) {
-				p->owner->fds[0] = -1;
-				p->owner->fds[1] = -1;
-			}
+		if (p->rtp && !p->owner) {
 			ast_rtp_destroy(p->rtp);
 			p->rtp = NULL;
 		}
-		if (p->vrtp) {
-			if (p->owner) {
-				p->owner->fds[2] = -1;
-				p->owner->fds[3] = -1;
-			}
+		if (p->vrtp && !p->owner) {
 			ast_rtp_destroy(p->vrtp);
 			p->vrtp = NULL;
 		}
@@ -9526,19 +9518,11 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
 		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 	if (res < 1) {
 		/* Go ahead and free RTP port */
-		if (p->rtp) {
-			if (p->owner) {
-				p->owner->fds[0] = -1;
-				p->owner->fds[1] = -1;
-			}
+		if (p->rtp && !p->owner) {
 			ast_rtp_destroy(p->rtp);
 			p->rtp = NULL;
 		}
-		if (p->vrtp) {
-			if (p->owner) {
-				p->owner->fds[2] = -1;
-				p->owner->fds[3] = -1;
-			}
+		if (p->vrtp && !p->owner) {
 			ast_rtp_destroy(p->vrtp);
 			p->vrtp = NULL;
 		}
