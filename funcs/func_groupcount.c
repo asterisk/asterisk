@@ -36,7 +36,7 @@ static char *group_count_function_read(struct ast_channel *chan, char *cmd, char
 		if ((grp = pbx_builtin_getvar_helper(chan, category)))
 			ast_copy_string(group, grp, sizeof(group));
 		else
-			return buf;
+			ast_log(LOG_NOTICE, "No group could be found for channel '%s'\n", chan->name);	
 	}
 
 	count = ast_app_group_get_count(group, category);
@@ -109,7 +109,7 @@ static void group_function_write(struct ast_channel *chan, char *cmd, char *data
 	char grpcat[256];
 
 	if (data && !ast_strlen_zero(data)) {
-		snprintf(grpcat, sizeof(grpcat), "%s@%s", data, value);
+		snprintf(grpcat, sizeof(grpcat), "%s@%s", value, data);
 	} else {
 		ast_copy_string(grpcat, value, sizeof(grpcat));
 	}
