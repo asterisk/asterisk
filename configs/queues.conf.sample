@@ -80,6 +80,11 @@ persistentmembers = yes
 ;
 ;announce-frequency = 90 
 ;
+;
+; How often to make any periodic announcement (see periodic-announce)
+;
+;periodic-announce-frequency=60
+;
 ; Should we include estimated hold time in position announcements?
 ; Either yes, no, or only once.
 ; Hold time will be announced as the estimated time, 
@@ -105,6 +110,7 @@ persistentmembers = yes
 ;queue-thankyou = queue-thankyou		;	("Thank you for your patience.")
 ;queue-lessthan = queue-less-than		;       ("less than")
 ;queue-reporthold = queue-reporthold		;       ("Hold time")
+;periodic-announce = queue-periodic-announce    ;       ("All reps busy / wait for next")
 ;
 ; Calls may be recorded using Asterisk's monitor resource
 ; This can be enabled from within the Queue application, starting recording

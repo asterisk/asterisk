@@ -238,6 +238,7 @@ struct queue_ent {
 	int pos;			/* Where we are in the queue */
 	int prio;			/* Our priority */
 	int last_pos_said;              /* Last position we told the user */
+	time_t last_periodic_announce_time;	/* The last time we played a periodic anouncement */
 	time_t last_pos;                /* Last time we told the user their position */
 	int opos;			/* Where we started in the queue */
 	int handled;			/* Whether our call was handled */
@@ -284,6 +285,7 @@ struct ast_call_queue {
 		unsigned int maskmemberstatus:1;
 		unsigned int realtime:1;
 	int announcefrequency;          /* How often to announce their position */
+	int periodicannouncefrequency;	/* How often to play periodic announcement */
 	int roundingseconds;            /* How many seconds do we round to? */
 	int holdtime;                   /* Current avg holdtime, based on recursive boxcar filter */
 	int callscompleted;             /* Number of queue calls completed */
@@ -300,6 +302,7 @@ struct ast_call_queue {
 	char sound_seconds[80];         /* Sound file: "seconds." (def. queue-seconds) */
 	char sound_thanks[80];          /* Sound file: "Thank you for your patience." (def. queue-thankyou) */
 	char sound_reporthold[80];	/* Sound file: "Hold time" (def. queue-reporthold) */
+	char sound_periodicannounce[80];/* Sound file: Custom announce, no default */
 
 	int count;			/* How many entries */
 	int maxlen;			/* Max number of entries */
@@ -526,6 +529,7 @@ static void init_queue(struct ast_call_queue *q)
 	q->announce[0] = '\0';
 	q->context[0] = '\0';
 	q->monfmt[0] = '\0';
+	q->periodicannouncefrequency = 0;
 	ast_copy_string(q->sound_next, "queue-youarenext", sizeof(q->sound_next));
 	ast_copy_string(q->sound_thereare, "queue-thereare", sizeof(q->sound_thereare));
 	ast_copy_string(q->sound_calls, "queue-callswaiting", sizeof(q->sound_calls));
@@ -535,6 +539,7 @@ static void init_queue(struct ast_call_queue *q)
 	ast_copy_string(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks));
 	ast_copy_string(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan));
 	ast_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
+	ast_copy_string(q->sound_periodicannounce, "queue-periodic-announce", sizeof(q->sound_periodicannounce));
 }
 
 static void clear_queue(struct ast_call_queue *q)
@@ -608,6 +613,10 @@ static void queue_set_param(struct ast_call_queue *q, const char *param, const c
 			q->announceholdtime = ANNOUNCEHOLDTIME_ALWAYS;
 		else
 			q->announceholdtime = 0;
+	 } else if (!strcasecmp(param, "periodic-announce")) {
+		ast_copy_string(q->sound_periodicannounce, val, sizeof(q->sound_periodicannounce));
+	} else if (!strcasecmp(param, "periodic-announce-frequency")) {
+		q->periodicannouncefrequency = atoi(val);
 	} else if (!strcasecmp(param, "retry")) {
 		q->retry = atoi(val);
 		if (q->retry < 0)
@@ -1108,13 +1117,6 @@ static int say_position(struct queue_ent *qe)
 	return res;
 }
 
-static void record_abandoned(struct queue_ent *qe)
-{
-	ast_mutex_lock(&qe->parent->lock);
-	qe->parent->callsabandoned++;
-	ast_mutex_unlock(&qe->parent->lock);
-}
-
 static void recalc_holdtime(struct queue_ent *qe)
 {
 	int oldvalue, newvalue;
@@ -1467,6 +1469,71 @@ static int store_next(struct queue_ent *qe, struct localuser *outgoing)
 	return 0;
 }
 
+static int background_file(struct queue_ent *qe, struct ast_channel *chan, char *filename)
+{
+	int res;
+
+	ast_stopstream(chan);
+	res = ast_streamfile(chan, filename, chan->language);
+
+	if (!res) {
+		/* Wait for a keypress */
+		res = ast_waitstream(chan, AST_DIGIT_ANY);
+		if (res <= 0 || !valid_exit(qe, res))
+			res = 0;
+
+		/* Stop playback */
+		ast_stopstream(chan);
+	} else {
+		res = 0;
+	}
+	
+	/*if (res) {
+		ast_log(LOG_WARNING, "ast_streamfile failed on %s \n", chan->name);
+		res = 0;
+	}*/
+
+	return res;
+}
+
+static int say_periodic_announcement(struct queue_ent *qe)
+{
+	int res = 0;
+	time_t now;
+
+	/* Get the current time */
+	time(&now);
+
+	/* Check to see if it is time to announce */
+	if ( (now - qe->last_periodic_announce_time) < qe->parent->periodicannouncefrequency )
+		return -1;
+
+	/* Stop the music on hold so we can play our own file */
+	ast_moh_stop(qe->chan);
+
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Playing periodic announcement\n");
+
+	/* play the announcement */
+	res = background_file(qe, qe->chan, qe->parent->sound_periodicannounce);
+
+	/* Resume Music on Hold */
+	ast_moh_start(qe->chan, qe->moh);
+
+	/* update last_periodic_announce_time */
+	qe->last_periodic_announce_time = now;
+
+	return(res);
+}
+
+static void record_abandoned(struct queue_ent *qe)
+{
+	ast_mutex_lock(&qe->parent->lock);
+	qe->parent->callsabandoned++;
+	ast_mutex_unlock(&qe->parent->lock);
+}
+
+
 #define AST_MAX_WATCHERS 256
 
 #define BUILD_WATCHERS do { \
@@ -1780,8 +1847,12 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 		if (res)
 			break;
 
+		/* Make a periodic announcement, if enabled */
+		if (qe->parent->periodicannouncefrequency && !ringing)
+			res = say_periodic_announcement(qe);
+
 		/* Wait a second before checking again */
-		res = ast_waitfordigit(qe->chan, RECHECK * 1000);
+		if (!res) res = ast_waitfordigit(qe->chan, RECHECK * 1000);
 		if (res)
 			break;
 	}
@@ -2744,6 +2815,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.prio = (int)prio;
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
+	qe.last_periodic_announce_time = time(NULL);
 	if (!join_queue(queuename, &qe, &reason)) {
 		ast_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "",
 			      chan->cid.cid_num ? chan->cid.cid_num : "");
@@ -2804,6 +2876,15 @@ check_turns:
 
 				}
 				makeannouncement = 1;
+
+				/* Make a periodic announcement, if enabled */
+				if (qe.parent->periodicannouncefrequency && !ringing)
+					res = say_periodic_announcement(&qe);
+
+				if (res && valid_exit(&qe, res)) {
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+					break;
+				}
 
 				/* Try calling all queue members for 'timeout' seconds */
 				res = try_calling(&qe, options, announceoverride, url, &go_on);

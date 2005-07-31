@@ -84,6 +84,8 @@
 
 %pbx-transfer.gsm%Transfer.
 
+%queue-periodic-announce.gsm%All of our represenatives are currently busy. Please stay on the line and your call will be answered by the next available representative.
+
 %queue-callswaiting.gsm%Waiting to speak with a representative
 
 %queue-holdtime.gsm%The estimated hold time is currently
