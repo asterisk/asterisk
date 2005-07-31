@@ -2652,6 +2652,9 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	/* Update the type. */
 	original->type = clone->type;
+	t_pvt = original->monitor;
+	original->monitor = clone->monitor;
+	clone->monitor = t_pvt;
 	
 	/* Keep the same language.  */
 	ast_copy_string(original->language, clone->language, sizeof(original->language));
