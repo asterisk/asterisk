@@ -9328,6 +9328,8 @@ int load_module(void)
 		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
 #endif		
 
+	memset(iaxs, 0, sizeof(iaxs));
+
 	for (x=0;x<IAX_MAX_CALLS;x++)
 		ast_mutex_init(&iaxsl[x]);
 	
