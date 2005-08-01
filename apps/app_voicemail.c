@@ -5051,9 +5051,12 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 				snprintf(vms.fn, sizeof(vms.fn), "vm-%s", mbox(box));
 				if (!cmd) {
 					cmd = ast_play_and_wait(chan, "vm-message");
-					cmd = say_and_wait(chan, vms.curmsg + 1, chan->language);
-					cmd = ast_play_and_wait(chan, "vm-savedto");
-					cmd = vm_play_folder_name(chan, vms.fn);
+					if (!cmd)
+						cmd = say_and_wait(chan, vms.curmsg + 1, chan->language);
+					if (!cmd)
+						cmd = ast_play_and_wait(chan, "vm-savedto");
+					if (!cmd)
+						cmd = vm_play_folder_name(chan, vms.fn);
 				} else {
 					cmd = ast_play_and_wait(chan, "vm-mailboxfull");
 				}
