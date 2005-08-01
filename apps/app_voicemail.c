@@ -4713,7 +4713,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	char *options;
 
 	LOCAL_USER_ADD(u);
-	memset(&vms, 0, sizeof(vms));	
+	memset(&vms, 0, sizeof(vms));
+	vms.lastmsg = -1;
 	memset(&vmus, 0, sizeof(vmus));
 	ast_copy_string(fmtc, vmfmts, sizeof(fmtc));
 	if (chan->_state != AST_STATE_UP)
