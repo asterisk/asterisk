@@ -120,7 +120,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 				if (f) {
 					char buf[256] = "";
 					char md5passwd[33] = "";
-					char *md5secret;
+					char *md5secret = NULL;
 
 					while (!feof(f)) {
 						fgets(buf, sizeof(buf), f);
