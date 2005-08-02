@@ -823,7 +823,7 @@ static struct oh323_pvt *oh323_alloc(int callid)
 		pvt->nonCodecCapability &= ~AST_RTP_DTMF;
 	}
 	strncpy(pvt->context, default_context, sizeof(pvt->context) - 1);
-	pvt->newstate = pvt->newsignal = -1;
+	pvt->newstate = pvt->newcontrol = -1;
 	/* Add to interface list */
 	ast_mutex_lock(&iflock);
 	pvt->next = iflist;
@@ -873,7 +873,7 @@ static int update_state(struct oh323_pvt *pvt, int state, int signal)
 		if (state >= 0)
 			pvt->newstate = state;
 		if (signal >= 0)
-			pvt->newsignal = signal;
+			pvt->newcontrol = signal;
 		return 0;
 	}
 }
