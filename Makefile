@@ -752,9 +752,6 @@ webvmail:
 	@echo " +                                           +"
 	@echo " +-------------------------------------------+"  
 
-mailbox:
-	./contrib/scripts/addmailbox 
-
 spec: 
 	sed "s/^Version:.*/Version: $(RPMVERSION)/g" redhat/asterisk.spec > asterisk.spec ; \
 
