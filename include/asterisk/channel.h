@@ -370,6 +370,8 @@ struct ast_channel {
 struct ast_bridge_config {
 	struct ast_flags features_caller;
 	struct ast_flags features_callee;
+	struct timeval start_time;
+	long feature_timer;
 	long timelimit;
 	long play_warning;
 	long warning_freq;

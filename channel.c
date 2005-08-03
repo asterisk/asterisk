@@ -2874,7 +2874,7 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 	check = ast_autoservice_stop(peer);
 }
 
-static int ast_generic_bridge(int *playitagain, int *playit, struct timeval *start_time, struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
+static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
 {
 	/* Copy voice back and forth between the two channels.	Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
@@ -2905,7 +2905,7 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct timeval *sta
 		/* timestamp */
 		if (config->timelimit) {
 			/* If there is a time limit, return now */
-			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), *start_time);
+			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), config->start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
 			if (*playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 
@@ -3027,7 +3027,6 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	int firstpass;
 	int o0nativeformats;
 	int o1nativeformats;
-	struct timeval start_time;
 	long elapsed_ms=0, time_left_ms=0;
 	int playit=0, playitagain=1, first_time=1;
 
@@ -3036,7 +3035,8 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	config->firstpass = 0;
 
 	/* timestamp */
-	start_time = ast_tvnow();
+	if (! (config->start_time.tv_sec && config->start_time.tv_usec))
+		config->start_time = ast_tvnow();
 	time_left_ms = config->timelimit;
 
 	if ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) && config->start_sound && firstpass)
@@ -3078,7 +3078,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 	for (/* ever */;;) {
 		/* timestamp */
 		if (config->timelimit) {
-			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), start_time);
+			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), config->start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
 			if (playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 
@@ -3195,7 +3195,7 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 			o0nativeformats = c0->nativeformats;
 			o1nativeformats = c1->nativeformats;
 		}
-		res = ast_generic_bridge(&playitagain, &playit, &start_time, c0, c1, config, fo, rc);
+		res = ast_generic_bridge(&playitagain, &playit, c0, c1, config, fo, rc);
 		if (res != -3)
 			break;
 	}

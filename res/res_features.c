@@ -1118,6 +1118,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 
 	memset(&backup_config, 0, sizeof(backup_config));
 
+	config->start_time = ast_tvnow();
+
 	if (chan && peer) {
 		pbx_builtin_setvar_helper(chan, "BRIDGEPEER", peer->name);
 		pbx_builtin_setvar_helper(peer, "BRIDGEPEER", chan->name);
@@ -1161,26 +1163,28 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		peer->cdr = NULL;
 	}
 	for (;;) {
-		if (config->timelimit)
+		if (config->feature_timer)
 			start = ast_tvnow();
+
 		res = ast_channel_bridge(chan, peer, config, &f, &who);
-		if (config->timelimit) {
+
+		if (config->feature_timer) {
 			/* Update time limit for next pass */
 			diff = ast_tvdiff_ms(ast_tvnow(), start);
-			config->timelimit -= diff;
+			config->feature_timer -= diff;
 			if (hasfeatures) {
 				/* Running on backup config, meaning a feature might be being
 				   activated, but that's no excuse to keep things going 
 				   indefinitely! */
-				if (backup_config.timelimit && ((backup_config.timelimit -= diff) <= 0)) {
+				if (backup_config.feature_timer && ((backup_config.feature_timer -= diff) <= 0)) {
 					ast_log(LOG_DEBUG, "Timed out, realtime this time!\n");
-					config->timelimit = 0;
+					config->feature_timer = 0;
 					who = chan;
 					if (f)
 						ast_frfree(f);
 					f = NULL;
 					res = 0;
-				} else if (config->timelimit <= 0) {
+				} else if (config->feature_timer <= 0) {
 					/* Not *really* out of time, just out of time for
 					   digits to come in for features. */
 					ast_log(LOG_DEBUG, "Timed out for feature!\n");
@@ -1205,9 +1209,9 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					continue;
 				}
 			} else {
-				if (config->timelimit <=0) {
+				if (config->feature_timer <=0) {
 					/* We ran out of time */
-					config->timelimit = 0;
+					config->feature_timer = 0;
 					who = chan;
 					if (f)
 						ast_frfree(f);
@@ -1272,7 +1276,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 				featurecode = peer_featurecode;
 			}
 			featurecode[strlen(featurecode)] = f->subclass;
-			config->timelimit = backup_config.timelimit;
+			config->feature_timer = backup_config.feature_timer;
 			res = ast_feature_interpret(chan, peer, config, featurecode, sense);
 			switch(res) {
 			case FEATURE_RETURN_PASSDIGITS:
@@ -1307,8 +1311,8 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 					config->start_sound = NULL;
 					config->firstpass = 0;
 				}
-				config->timelimit = featuredigittimeout;
-				ast_log(LOG_DEBUG, "Set time limit to %ld\n", config->timelimit);
+				config->feature_timer = featuredigittimeout;
+				ast_log(LOG_DEBUG, "Set time limit to %ld\n", config->feature_timer);
 			}
 		}
 		if (f)
