@@ -1370,6 +1370,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	return 0;
 }
 
+/*--- ast_rtp_proto_unregister: Unregister interface to channel driver */
 void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
 {
 	struct ast_rtp_protocol *cur, *prev;
@@ -1389,6 +1390,7 @@ void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
 	}
 }
 
+/*--- ast_rtp_proto_register: Register interface to channel driver */
 int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 {
 	struct ast_rtp_protocol *cur;
@@ -1405,9 +1407,11 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 	return 0;
 }
 
+/*--- get_proto: Get channel driver interface structure */
 static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 {
 	struct ast_rtp_protocol *cur;
+
 	cur = protos;
 	while(cur) {
 		if (cur->type == chan->type) {
@@ -1425,8 +1429,8 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 {
 	struct ast_frame *f;
 	struct ast_channel *who, *cs[3];
-	struct ast_rtp *p0, *p1;
-	struct ast_rtp *vp0, *vp1;
+	struct ast_rtp *p0, *p1;		/* Audio RTP Channels */
+	struct ast_rtp *vp0, *vp1;		/* Video RTP channels */
 	struct ast_rtp_protocol *pr0, *pr1;
 	struct sockaddr_in ac0, ac1;
 	struct sockaddr_in vac0, vac1;
@@ -1446,12 +1450,16 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	/* if need DTMF, cant native bridge */
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
 		return -2;
+
+	/* Lock channels */
 	ast_mutex_lock(&c0->lock);
 	while(ast_mutex_trylock(&c1->lock)) {
 		ast_mutex_unlock(&c0->lock);
 		usleep(1);
 		ast_mutex_lock(&c0->lock);
 	}
+
+	/* Find channel driver interfaces */
 	pr0 = get_proto(c0);
 	pr1 = get_proto(c1);
 	if (!pr0) {
@@ -1466,8 +1474,12 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		ast_mutex_unlock(&c1->lock);
 		return -1;
 	}
+
+	/* Get channel specific interface structures */
 	pvt0 = c0->tech_pvt;
 	pvt1 = c1->tech_pvt;
+
+	/* Get audio and video interface (if native bridge is possible) */
 	p0 = pr0->get_rtp_info(c0);
 	if (pr0->get_vrtp_info)
 		vp0 = pr0->get_vrtp_info(c0);
@@ -1478,12 +1490,15 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		vp1 = pr1->get_vrtp_info(c1);
 	else
 		vp1 = NULL;
+
+	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
 	if (!p0 || !p1) {
 		/* Somebody doesn't want to play... */
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
 		return -2;
 	}
+	/* Get codecs from both sides */
 	if (pr0->get_codec)
 		codec0 = pr0->get_codec(c0);
 	else
@@ -1502,6 +1517,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 			return -2;
 		}
 	}
+
 	/* Ok, we should be able to redirect the media. Start with one channel */
 	if (pr0->set_rtp_peer(c0, p1, vp1, codec1)) 
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
@@ -1522,28 +1538,32 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 	}
 	ast_mutex_unlock(&c0->lock);
 	ast_mutex_unlock(&c1->lock);
+	/* External RTP Bridge up, now loop and see if something happes that force us to take the
+		media back to Asterisk */
 	cs[0] = c0;
 	cs[1] = c1;
 	cs[2] = NULL;
 	oldcodec0 = codec0;
 	oldcodec1 = codec1;
 	for (;;) {
+		/* Check if something changed... */
 		if ((c0->tech_pvt != pvt0)  ||
 			(c1->tech_pvt != pvt1) ||
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
 				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 				if (c0->tech_pvt == pvt0) {
 					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
-						ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
+						ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 				}
 				if (c1->tech_pvt == pvt1) {
 					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
-						ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
+						ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 				}
 				/* Tell it to try again later */
 				return -3;
 		}
 		to = -1;
+		/* Now check if they have changed address */
 		ast_rtp_get_peer(p1, &t1);
 		ast_rtp_get_peer(p0, &t0);
 		if (pr0->get_codec)
@@ -1555,7 +1575,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		if (vp0)
 			ast_rtp_get_peer(vp0, &vt0);
 		if (inaddrcmp(&t1, &ac1) || (vp1 && inaddrcmp(&vt1, &vac1)) || (codec1 != oldcodec1)) {
-			if (option_debug) {
+			if (option_debug > 1) {
 				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
 					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t1.sin_addr), ntohs(t1.sin_port), codec1);
 				ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
@@ -1603,11 +1623,11 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 				ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
 			if ((c0->tech_pvt == pvt0) && (!c0->_softhangup)) {
 				if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
-					ast_log(LOG_WARNING, "Channel '%s' failed to revert\n", c0->name);
+					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 			}
 			if ((c1->tech_pvt == pvt1) && (!c1->_softhangup)) {
 				if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
-					ast_log(LOG_WARNING, "Channel '%s' failed to revert back\n", c1->name);
+					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 			}
 			/* That's all we needed */
 			return 0;
@@ -1666,7 +1686,7 @@ static int rtp_do_debug_ip(int fd, int argc, char *argv[])
 
 static int rtp_do_debug(int fd, int argc, char *argv[])
 {
-	if(argc != 2){
+	if(argc != 2) {
 		if(argc != 4)
 			return RESULT_SHOWUSAGE;
 		return rtp_do_debug_ip(fd, argc, argv);
@@ -1749,6 +1769,7 @@ void ast_rtp_reload(void)
 	
 }
 
+/*--- ast_rtp_init: Initialize the RTP system in Asterisk */
 void ast_rtp_init(void)
 {
 	ast_cli_register(&cli_debug);
