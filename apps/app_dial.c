@@ -599,8 +599,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			if (single && ((f->frametype == AST_FRAME_VOICE) || (f->frametype == AST_FRAME_DTMF)))  {
 				if (ast_write(outgoing->chan, f))
 					ast_log(LOG_WARNING, "Unable to forward voice\n");
-				ast_frfree(f);
 			}
+			ast_frfree(f);
 		}
 		if (!*to && (option_verbose > 2))
 			ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
