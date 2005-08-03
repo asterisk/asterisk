@@ -1149,7 +1149,7 @@ static int ast_ael_compile(struct ast_context **local_contexts, const char *file
 	buf[0] = 0;
 	bufsiz = 4096;
 	while(!feof(f)) {
-		if (strlen(buf) - bufsiz < 2048) {
+		if (bufsiz - strlen(buf) < 2048) {
 			bufsiz += 4096;
 			tbuf = realloc(buf, bufsiz);
 			if (tbuf) {
