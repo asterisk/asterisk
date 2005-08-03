@@ -64,9 +64,6 @@ static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char
 	if (!data || ast_strlen_zero(data) || !value)
 		return;
 	
-	if (!chan->cdr)
-		return;
-
 	mydata = ast_strdupa(data);
 	argc = ast_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
@@ -81,7 +78,7 @@ static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char
 		ast_cdr_setaccount(chan, value);
 	else if (!strcasecmp(argv[0], "userfield"))
 		ast_cdr_setuserfield(chan, value);
-	else
+	else if (chan->cdr)
 		ast_cdr_setvar(chan->cdr, argv[0], value, recursive);
 }
 
