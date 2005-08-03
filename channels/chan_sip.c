@@ -852,7 +852,7 @@ int find_sip_method(char *msg)
 
 	/* Strictly speaking, SIP methods are case SENSITIVE, but we don't check */
 	/* following Jon Postel's rule: Be gentle in what you accept, strict with what you send */
-	for (i=1; (i < (sizeof(sip_methods) / sizeof(sip_methods[0]))) && !res; i++) {
+	for (i = 1; (i < (sizeof(sip_methods) / sizeof(sip_methods[0]))) && !res; i++) {
 		if (!strcasecmp(sip_methods[i].text, msg)) 
 			res = sip_methods[i].id;
 	}
@@ -1207,19 +1207,24 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 /* Pretend to ack all packets */
 static int __sip_pretend_ack(struct sip_pvt *p)
 {
-	char method[128]="";
 	struct sip_pkt *cur=NULL;
-	char *c;
+
 	while(p->packets) {
 		if (cur == p->packets) {
 			ast_log(LOG_WARNING, "Have a packet that doesn't want to give up!\n");
 			return -1;
 		}
 		cur = p->packets;
-		ast_copy_string(method, p->packets->data, sizeof(method));
-		c = ast_skip_blanks(method); /* XXX what ? */
-		*c = '\0';
-		__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(method));
+		if (cur->method)
+			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), cur->method);
+		else {	/* Unknown packet type */
+			char *c;
+			char method[128]="";
+			ast_copy_string(method, p->packets->data, sizeof(method));
+			c = ast_skip_blanks(method); /* XXX what ? */
+			*c = '\0';
+			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), find_sip_method(method));
+		}
 	}
 	return 0;
 }
@@ -2524,7 +2529,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 
 
 /*--- sip_new: Initiate a call in the SIP channel */
-/*      called from sip_request (calls from the pbx ) */
+/*      called from sip_request_call (calls from the pbx ) */
 static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 {
 	struct ast_channel *tmp;
@@ -3686,6 +3691,7 @@ static int init_req(struct sip_request *req, int sipmethod, char *recip)
 	snprintf(req->header[req->headers], sizeof(req->data) - req->len, "%s %s SIP/2.0\r\n", sip_methods[sipmethod].text, recip);
 	req->len += strlen(req->header[req->headers]);
 	req->headers++;
+	req->method = sipmethod;
 	return 0;
 }
 
@@ -4147,9 +4153,9 @@ static void copy_request(struct sip_request *dst, struct sip_request *src)
 	/* First copy stuff */
 	memcpy(dst, src, sizeof(*dst));
 	/* Now fix pointer arithmetic */
-	for (x=0; x<src->headers; x++)
+	for (x=0; x < src->headers; x++)
 		dst->header[x] += offset;
-	for (x=0; x<src->lines; x++)
+	for (x=0; x < src->lines; x++)
 		dst->line[x] += offset;
 }
 
@@ -7627,9 +7633,9 @@ static int sip_show_history(int fd, int argc, char *argv[])
 }
 
 
-/*--- receive_info: Receive SIP INFO Message ---*/
+/*--- handle_request_info: Receive SIP INFO Message ---*/
 /*    Doesn't read the duration of the DTMF signal */
-static void receive_info(struct sip_pvt *p, struct sip_request *req)
+static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024] = "";
 	unsigned int event;
@@ -7741,6 +7747,7 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*--- sip_do_debug_peer: Turn on SIP debugging with peer mask */
 static int sip_do_debug_peer(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
@@ -8511,17 +8518,16 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	int res = 1;
 
 	c = get_header(req, "Cseq");
-	msg = strchr(c, ' ');	/* Find method */
-	if (!msg) 
-		msg = ""; 
-	else 
+	msg = strchr(c, ' ');
+	if (!msg)
+		msg = "";
+	else
 		msg++;
-	owner = p->owner;
+	sipmethod = find_sip_method(msg);
 
+	owner = p->owner;
 	if (owner) 
 		owner->hangupcause = hangup_sip2cause(resp);
-
-	sipmethod = find_sip_method(msg);
 
 	/* Acknowledge whatever it is destined for */
 	if ((resp >= 100) && (resp <= 199))
@@ -8582,7 +8588,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			}
 			break;
 		case 200:	/* 200 OK */
-			if (sipmethod == SIP_NOTIFY) {
+			if (sipmethod == SIP_MESSAGE) {
+				/* We successfully transmitted a message */
+				ast_set_flag(p, SIP_NEEDDESTROY);	
+			} else if (sipmethod == SIP_NOTIFY) {
 				/* They got the notify, this is the end */
 				if (p->owner) {
 					ast_log(LOG_WARNING, "Notify answer on an owned channel?\n");
@@ -8778,19 +8787,18 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				ast_log(LOG_NOTICE, "Dont know how to handle a %d %s response from %s\n", resp, rest, p->owner ? p->owner->name : ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
 		}
 	} else {	
-		/* Not outgoing - what is it? Unsolicited replies? */
-		/* When do we get here? ---------??????????------------*/
-		/* INCOMING Calls */
-		if (option_debug > 2) {
-			ast_verbose("!!!!!!!---------------************* Why are we here with this packet???? %s\n", msg);
-		}
+		/* Responses to OUTGOING SIP requests on INCOMING calls 
+		   get handled here. As well as out-of-call message responses */
 		if (sip_debug_test_pvt(p))
-			ast_verbose("Response message is %s\n", msg);
+			ast_verbose("Response message %s arrived\n", msg);
 		switch(resp) {
 		case 200:
 			/* Change branch since this is a 200 response */
 			if (sipmethod == SIP_INVITE)
 				transmit_request(p, SIP_ACK, seqno, 0, 1);
+			else if (sipmethod == SIP_MESSAGE)
+				/* We successfully transmitted a message */
+				ast_set_flag(p, SIP_NEEDDESTROY);	
 			break;
 		case 407:
 			if (sipmethod == SIP_BYE || sipmethod == SIP_REFER) {
@@ -9577,8 +9585,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		ast_copy_string(p->useragent, useragent, sizeof(p->useragent));
 
 	/* Find out SIP method for incoming request */
-	if (!strcasecmp(cmd, "SIP/2.0")) {	/* Response to our request */
-		p->method = SIP_RESPONSE;
+	if (req->method == SIP_RESPONSE) {	/* Response to our request */
 		/* Response to our request -- Do some sanity checks */	
 		if (!p->initreq.headers) {
 			ast_log(LOG_DEBUG, "That's odd...  Got a response on a call we dont know about. Cseq %d Cmd %s\n", seqno, cmd);
@@ -9602,7 +9609,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		}
 		return 0;
 	}
-	/* XXX what if not SIP/2.0 ? */
+
 	/* New SIP request coming in 
 	   (could be new request in existing SIP dialog as well...) 
 	 */			
@@ -9671,8 +9678,8 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	case SIP_INFO:
 		if (!ignore) {
 			if (debug)
-				ast_verbose("Receiving DTMF!\n");
-			receive_info(p, req);
+				ast_verbose("Receiving INFO!\n");
+			handle_request_info(p, req);
 		} else { /* if ignoring, transmit response */
 			transmit_response(p, "200 OK", req);
 		}
@@ -9761,7 +9768,7 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	/* Process request, with netlock held */
 retrylock:
 	ast_mutex_lock(&netlock);
-	p = find_call(&req, &sin, find_sip_method(req.rlPart1));
+	p = find_call(&req, &sin, req.method);
 	if (p) {
 		/* Go ahead and lock the owner if it has one -- we may need it */
 		if (p->owner && ast_mutex_trylock(&p->owner->lock)) {
