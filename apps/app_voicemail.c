@@ -3575,8 +3575,10 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	ast_unlock_path(vms->curdir);
 
 done:
-	memset(vms->deleted, 0, sizeof(vms->deleted)); 
-	memset(vms->heard, 0, sizeof(vms->heard)); 
+	if (vms->deleted)
+		memset(vms->deleted, 0, sizeof(vms->deleted)); 
+	if (vms->heard)
+		memset(vms->heard, 0, sizeof(vms->heard)); 
 
 	return 0;
 }
