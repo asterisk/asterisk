@@ -195,6 +195,10 @@ static const struct cfalias {
 	{ "Allow-Events", "u" },
 	{ "Event", "o" },
 	{ "Via", "v" },
+	{ "Accept-Contact",      "a" },
+	{ "Reject-Contact",      "j" },
+	{ "Request-Disposition", "d" },
+	{ "Session-Expires",     "x" },
 };
 
 /* Define SIP option tags, used in Require: and Supported: headers */
