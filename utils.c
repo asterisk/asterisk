@@ -617,17 +617,17 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 {
 	int size;
 	va_list ap2;
+	char s;
 
 	*strp = NULL;
 	va_copy(ap2, ap);
-	size = vsnprintf(*strp, 0, fmt, ap2);
+	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
 	*strp = malloc(size + 1);
 	if (!*strp)
 		return -1;
-	va_start(fmt, ap);
 	vsnprintf(*strp, size + 1, fmt, ap);
-	va_end(ap);
+	free(*strp);
 
 	return size;
 }
