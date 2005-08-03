@@ -80,8 +80,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 ; extension=s		; default extension to call
 ; context=default	; default context
 ; language=""		; default language
-; overridecontext=no	; the whole dial string is considered an extension.
-			; if yes, the last @ will start the context
+; overridecontext=yes	; the whole dial string is considered an extension.
+			; if no, the last @ will start the context
 
 ; device=/dev/dsp	; device to open
 ; mixer="-f /dev/mixer0 pcm 80 ; mixer command to run on start
@@ -343,7 +343,7 @@ static struct chan_oss_pvt *find_desc(char *dev)
 /*
  * split a string in extension-context, returns pointers to malloc'ed
  * strings.
- * If we have 'overridecontext' then the last @ is considered as
+ * If we do not have 'overridecontext' then the last @ is considered as
  * a context separator, and the context is overridden.
  * This is usually not very necessary as you can play with the dialplan,
  * and it is nice not to need it because you have '@' in SIP addresses.

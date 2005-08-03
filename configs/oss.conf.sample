@@ -12,6 +12,11 @@ autoanswer=yes
 ;
 context=local
 ;
+; Set overridecontext to yes if you want the context specified above
+; to override what someone places on the command line.
+;
+;overridecontext=yes
+;
 ; Default extension to call
 ;
 extension=s
