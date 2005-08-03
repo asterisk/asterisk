@@ -209,7 +209,7 @@ int ast_say_digit_str_full(struct ast_channel *chan, const char *str, const char
 	int num = 0;
 	int res = 0;
 
-	while (str[num]) {
+	while (str[num] && !res) {
 		fn = NULL;
 		switch (str[num]) {
 		case ('*'):
