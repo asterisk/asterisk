@@ -3298,10 +3298,8 @@ static char *complete_queue(char *line, char *word, int pos, int state)
 static int manager_queues_show( struct mansession *s, struct message *m )
 {
 	char *a[] = { "show", "queues" };
-	ast_mutex_lock(&s->lock);
 	queues_show(s->fd, 2, a);
 	ast_cli(s->fd, "\r\n\r\n");	/* Properly terminate Manager output */
-	ast_mutex_unlock(&s->lock);
 
 	return RESULT_SUCCESS;
 } 
@@ -3326,7 +3324,6 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 	}
-	ast_mutex_lock(&s->lock);
 	for (q = queues; q; q = q->next) {
 		ast_mutex_lock(&q->lock);
 
@@ -3393,7 +3390,6 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 		"%s"
 		"\r\n",idText);
 
-	ast_mutex_unlock(&s->lock);
 
 	return RESULT_SUCCESS;
 }
