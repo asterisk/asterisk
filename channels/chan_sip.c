@@ -9617,7 +9617,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
 
-	if (p->icseq && (p->icseq > seqno) && req->method != SIP_ACK) {
+	if (p->icseq && (p->icseq > seqno)) {
 		ast_log(LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
 		return -1;
 	} else if (p->icseq && (p->icseq == seqno) && req->method != SIP_ACK &&(p->method != SIP_CANCEL|| ast_test_flag(p, SIP_ALREADYGONE))) {
