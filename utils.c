@@ -627,7 +627,6 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 	if (!*strp)
 		return -1;
 	vsnprintf(*strp, size + 1, fmt, ap);
-	free(*strp);
 
 	return size;
 }
