@@ -2655,9 +2655,11 @@ static void close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			vm_delete(vms->fn);
 		} 
 		ast_unlock_path(vms->curdir);
-	} 
-	memset(vms->deleted, 0, sizeof(vms->deleted)); 
-	memset(vms->heard, 0, sizeof(vms->heard)); 
+	}
+	if (vms->deleted)
+		memset(vms->deleted, 0, sizeof(vms->deleted)); 
+	if (vms->heard)
+		memset(vms->heard, 0, sizeof(vms->heard)); 
 }
 
 static int vm_play_folder_name(struct ast_channel *chan, char *mbox)
