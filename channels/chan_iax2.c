@@ -1947,7 +1947,7 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 	}
 	ast_cli(fd, "    IAX Statistics\n");
 	ast_cli(fd, "---------------------\n");
-	ast_cli(fd, "Outstanding frames: %d (%d ingress, %d outgress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes());
+	ast_cli(fd, "Outstanding frames: %d (%d ingress, %d egress)\n", iax_get_frames(), iax_get_iframes(), iax_get_oframes());
 	ast_cli(fd, "Packets in transmit queue: %d dead, %d final, %d total\n", dead, final, cnt);
 	return RESULT_SUCCESS;
 }
