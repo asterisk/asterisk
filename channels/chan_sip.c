@@ -11313,11 +11313,6 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	ast_mutex_lock(&chan->lock);
-	if (chan->type != channeltype) {
-		ast_log(LOG_WARNING, "Call this application only on incoming SIP calls\n");
-		ast_mutex_unlock(&chan->lock);
-		return 0;
-	}
 
 	/* Check for headers */
 	while (!ok && no <= 50) {
