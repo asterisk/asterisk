@@ -6485,7 +6485,7 @@ static int build_reply_digest(struct sip_pvt *p, char* orig_header, char* digest
 	md5_hash(resp_hash,resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (!ast_strlen_zero(p->qop))
-		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=\"%s\", cnonce=\"%s\", nc=%s",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque, "auth", cnonce, "00000001");
+		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=auth, cnonce=\"%s\", nc=00000001",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque, cnonce);
 	else
 		snprintf(digest,digest_len,"Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"",p->authname,p->realm,uri,p->nonce,resp_hash, p->opaque);
 
