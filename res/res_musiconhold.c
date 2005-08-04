@@ -108,6 +108,21 @@ AST_MUTEX_DEFINE_STATIC(moh_lock);
 #define MPG_123 "/usr/bin/mpg123"
 #define MAX_MP3S 256
 
+
+static void ast_moh_free_class(struct mohclass **class) 
+{
+	struct mohdata *members, *mtmp;
+	
+	members = (*class)->members;
+	while(members) {
+		mtmp = members;
+		members = members->next;
+		free(mtmp);
+	}
+	free(*class);
+	*class = NULL;
+}
+
 static int spawn_mp3(struct mohclass *class)
 {
 	int fds[2];
@@ -574,12 +589,12 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 			ast_log(LOG_WARNING, "Unable to create moh...\n");
 			if (moh->pseudofd > -1)
 				close(moh->pseudofd);
-			free(moh);
+			ast_moh_free_class(&moh);
 			return -1;
 		}
 	} else {
 		ast_log(LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", mode);
-		free(moh);
+		ast_moh_free_class(&moh);
 		return -1;
 	}
 	ast_mutex_lock(&moh_lock);
