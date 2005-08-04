@@ -2106,6 +2106,10 @@ static struct cfalias {
 	{ "Allow-Events", "u" },
 	{ "Event", "o" },
 	{ "Via", "v" },
+	{ "Accept-Contact",      "a" },
+	{ "Reject-Contact",      "j" },
+	{ "Request-Disposition", "d" },
+	{ "Session-Expires",     "x" },
 };
 
 /*--- get_sdp_by_line: Reads one line of SIP message body */
