@@ -346,7 +346,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 							/* Ignore going off hook */
 							break;
 						case -1:
-							if (!outgoing->ringbackonly || !outgoing->musiconhold) {
+							if (!(outgoing->ringbackonly || outgoing->musiconhold)) {
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s stopped sounds\n", o->chan->name);
 								ast_indicate(in, -1);
