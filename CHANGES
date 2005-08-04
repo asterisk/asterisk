@@ -24,6 +24,10 @@
     -- We now ensure buffer policy is restored after RAS is done with a channel.
        This could cause audio problems on the channel after zapras is done
        with it. 
+ -- res_agi
+    -- We now unmask the SIGHUP signal before executing an AGI script.  This
+       fixes problems where some AGI scripts would continue running long after
+       the call is over.
  -- extensions
     -- A potential crash has been fixed when calling LEN() to get the length of
        a string that was 80 characters or larger.

@@ -203,6 +203,7 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 	int audio[2];
 	int x;
 	int res;
+	sigset_t signal_set;
 	
 	if (!strncasecmp(script, "agi://", 6))
 		return launch_netscript(script, argv, fds, efd, opid);
@@ -258,9 +259,17 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		} else {
 			close(STDERR_FILENO + 1);
 		}
+		
+		/* unblock important signal handlers */
+		if (sigfillset(&signal_set) || pthread_sigmask(SIG_UNBLOCK, &signal_set, NULL)) {
+			ast_log(LOG_WARNING, "unable to unblock signals for AGI script: %s\n", strerror(errno));
+			exit(1);
+		}
+
 		/* Close everything but stdin/out/error */
 		for (x=STDERR_FILENO + 2;x<1024;x++) 
 			close(x);
+
 		/* Execute script */
 		execv(script, argv);
 		/* Can't use ast_log since FD's are closed */
@@ -433,7 +442,7 @@ static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char 
 		return RESULT_SHOWUSAGE;
 	
 	fs = ast_openstream(chan, argv[2], chan->language);
-	if(!fs){
+	if (!fs){
 		fdprintf(agi->fd, "200 result=%d endpos=%ld\n", 0, sample_offset);
 		return RESULT_SUCCESS;
 	}
@@ -1542,8 +1551,10 @@ static int run_agi(struct ast_channel *chan, char *request, AGI *agi, int pid, i
 		}
 	}
 	/* Notify process */
-	if (pid > -1)
-		kill(pid, SIGHUP);
+	if (pid > -1) {
+		if (kill(pid, SIGHUP))
+			ast_log(LOG_WARNING, "unable to send SIGHUP to AGI process %d: %s\n", pid, strerror(errno));
+	}
 	fclose(readf);
 	return returnstatus;
 }
