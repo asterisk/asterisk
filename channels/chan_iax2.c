@@ -7876,7 +7876,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 			port = IAX_DEFAULT_PORTNO;
 	}
 	
-	if (!ast_get_ip(&sin, tmp)) {
+	if (!ast_get_ip(&sin, addr)) {
 		struct ast_netsock *sock;
 		int res;
 
