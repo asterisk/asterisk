@@ -49,7 +49,7 @@ AST_MUTEX_DEFINE_STATIC(reloadlock);
 static struct module *module_list=NULL;
 static int modlistver = 0;
 
-static char expected_key[] =
+static unsigned char expected_key[] =
 { 0x8e, 0x93, 0x22, 0x83, 0xf5, 0xc3, 0xc0, 0x75,
   0xff, 0x8b, 0xa9, 0xbe, 0x7c, 0x43, 0x74, 0x63 };
 
@@ -85,7 +85,7 @@ static int printdigest(unsigned char *d)
 	return 0;
 }
 
-static int key_matches(char *key1, char *key2)
+static int key_matches(unsigned char *key1, unsigned char *key2)
 {
 	int match = 1;
 	int x;
@@ -95,12 +95,12 @@ static int key_matches(char *key1, char *key2)
 	return match;
 }
 
-static int verify_key(char *key)
+static int verify_key(unsigned char *key)
 {
 	struct MD5Context c;
-	char digest[16];
+	unsigned char digest[16];
 	MD5Init(&c);
-	MD5Update(&c, key, strlen(key));
+	MD5Update(&c, key, strlen((char *)key));
 	MD5Final(digest, &c);
 	if (key_matches(expected_key, digest))
 		return 0;
@@ -266,7 +266,7 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 #ifdef RTLD_GLOBAL
 	char *val;
 #endif
-	char *key;
+	unsigned char *key;
 	char tmp[80];
 
 	if (strncasecmp(resource_name, "res_", 4)) {
@@ -356,7 +356,7 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 	if (m->reload == NULL)
 		m->reload = dlsym(m->lib, "_reload");
 
-	if (!m->key || !(key = m->key())) {
+	if (!m->key || !(key = (unsigned char *) m->key())) {
 		ast_log(LOG_WARNING, "Key routine returned NULL in module %s\n", fn);
 		key = NULL;
 		errors++;

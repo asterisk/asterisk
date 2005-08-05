@@ -483,8 +483,8 @@ static int authenticate(struct mansession *s, struct message *m)
 						struct MD5Context md5;
 						unsigned char digest[16];
 						MD5Init(&md5);
-						MD5Update(&md5, s->challenge, strlen(s->challenge));
-						MD5Update(&md5, password, strlen(password));
+						MD5Update(&md5, (unsigned char *) s->challenge, strlen(s->challenge));
+						MD5Update(&md5, (unsigned char *) password, strlen(password));
 						MD5Final(digest, &md5);
 						for (x=0;x<16;x++)
 							len += sprintf(md5key + len, "%2.2x", digest[x]);

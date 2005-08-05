@@ -543,7 +543,7 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags, i
 	float cr = 1.0;
 	float ci = 0.0;
 	float scont = 0.0;
-	unsigned char msg[256];
+	char msg[256];
 	len = callerid_genmsg(msg, sizeof(msg), number, name, flags);
 	if (!callwaiting) {
 		/* Wait a half a second */

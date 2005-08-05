@@ -316,7 +316,7 @@ static struct ast_frame *i4l_handle_escape(struct ast_modem_pvt *p, char esc)
 
 static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 {
-	unsigned char result[256];
+	char result[256];
 	short *b;
 	struct ast_frame *f=NULL;
 	int res;
@@ -426,7 +426,7 @@ static struct ast_frame *i4l_read(struct ast_modem_pvt *p)
 						if (!f)
 							return NULL;
 					} else {
-						*(b++) = AST_MULAW(result[x]);
+						*(b++) = AST_MULAW((int)result[x]);
 						p->obuflen += 2;
 					}
 				}

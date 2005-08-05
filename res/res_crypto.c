@@ -138,7 +138,7 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	int ktype = 0;
 	char *c = NULL;
 	char ffname[256];
-	char digest[16];
+	unsigned char digest[16];
 	FILE *f;
 	struct MD5Context md5;
 	struct ast_key *key;
@@ -180,7 +180,7 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 		memset(buf, 0, 256);
 		fgets(buf, sizeof(buf), f);
 		if (!feof(f)) {
-			MD5Update(&md5, buf, strlen(buf));
+			MD5Update(&md5, (unsigned char *) buf, strlen(buf));
 		}
 	}
 	MD5Final(digest, &md5);
@@ -306,7 +306,7 @@ static char *binary(int y, int len)
 int ast_sign_bin(struct ast_key *key, char *msg, int msglen, unsigned char *dsig)
 {
 	unsigned char digest[20];
-	int siglen = 128;
+	unsigned int siglen = 128;
 	int res;
 
 	if (key->ktype != AST_KEY_PRIVATE) {
