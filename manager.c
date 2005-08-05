@@ -292,7 +292,11 @@ struct ast_variable *astman_get_variables(struct message *m)
 	for (x = 0; x < m->hdrcount; x++) {
 		if (!strncasecmp("Variable: ", m->headers[x], varlen)) {
 			var = val = ast_strdupa(m->headers[x] + varlen);
+			if (!var)
+				return head;				
 			strsep(&val, "=");
+			if (!val || ast_strlen_zero(var))
+				continue;
 			cur = ast_variable_new(var, val);
 			if (head) {
 				cur->next = head;
