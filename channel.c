@@ -2211,6 +2211,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	struct ast_frame *cur, *prev;
 	struct ast_channel_pvt *p;
 	struct ast_channel *clone = original->masq;
+	struct ast_channel_monitor *monitor;
 	int rformat = original->readformat;
 	int wformat = original->writeformat;
 	char newn[100];
@@ -2318,6 +2319,11 @@ int ast_do_masquerade(struct ast_channel *original)
 
 	/* Update the type. */
 	original->type = clone->type;
+
+	/* copy the monitor */
+	monitor = original->monitor;
+	original->monitor = clone->monitor;
+	clone->monitor = monitor;	
 	
 	/* Keep the same language.  */
 	strncpy(original->language, clone->language, sizeof(original->language));
