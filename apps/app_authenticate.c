@@ -125,6 +125,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 					while (!feof(f)) {
 						fgets(buf, sizeof(buf), f);
 						if (!feof(f) && !ast_strlen_zero(buf)) {
+							buf[strlen(buf) - 1] = '\0';
 							if (strchr(opts, 'm')) {
 								md5secret = strchr(buf, ':');
 								if (md5secret == NULL)
@@ -133,12 +134,16 @@ static int auth_exec(struct ast_channel *chan, void *data)
 								md5secret++;
 								ast_md5_hash(md5passwd, passwd);
 								if (!strcmp(md5passwd, md5secret)) {
-									ast_cdr_setaccount(chan, buf);
+									if (strchr(opts, 'a'))
+										ast_cdr_setaccount(chan, buf);
 									break;
 								}
 							} else {
-								if(!strcmp(passwd, buf))
+								if(!strcmp(passwd, buf)) {
+									if (strchr(opts, 'a'))
+										ast_cdr_setaccount(chan, buf);
 									break;
+								}
 							}
 						}
 					}

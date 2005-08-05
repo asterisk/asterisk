@@ -901,6 +901,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 			strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
 			strncat(text2send, " ", sizeof(text2send) - strlen(text2send) - 1);
 		}
+		text2send[strlen(text2send) - 1] = '\n';
 		f.data = text2send;
 		f.datalen = strlen(text2send) + 1;
 		grab_owner();

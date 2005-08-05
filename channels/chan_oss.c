@@ -1019,6 +1019,7 @@ static int console_sendtext(int fd, int argc, char *argv[])
 			sizeof(text2send) - strlen(text2send) - 1);
 	}
 	if (!ast_strlen_zero(text2send)) {
+		text2send[strlen(text2send) - 1] = '\n';
 		f.frametype = AST_FRAME_TEXT;
 		f.subclass = 0;
 		f.data = text2send;
