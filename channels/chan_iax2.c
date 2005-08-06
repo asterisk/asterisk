@@ -8395,9 +8395,6 @@ static int set_config(char *config_file, int reload)
 	/* Reset Global Flags */
 	memset(&globalflags, 0, sizeof(globalflags));
 
-	/* Set default options */
-	ast_set_flag(&globalflags, 0);
-
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
 #endif
