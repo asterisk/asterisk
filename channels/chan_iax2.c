@@ -168,22 +168,22 @@ int (*iax2_regfunk)(char *username, int onoff) = NULL;
 /* Ethernet, etc */
 #define IAX_CAPABILITY_FULLBANDWIDTH 	0xFFFF
 /* T1, maybe ISDN */
-#define IAX_CAPABILITY_MEDBANDWIDTH 	(IAX_CAPABILITY_FULLBANDWIDTH & \
-									~AST_FORMAT_SLINEAR & \
-									~AST_FORMAT_ULAW & \
-									~AST_FORMAT_ALAW) 
+#define IAX_CAPABILITY_MEDBANDWIDTH 	(IAX_CAPABILITY_FULLBANDWIDTH & 	\
+							~AST_FORMAT_SLINEAR & 	\
+							~AST_FORMAT_ULAW & 	\
+							~AST_FORMAT_ALAW) 
 /* A modem */
-#define IAX_CAPABILITY_LOWBANDWIDTH		(IAX_CAPABILITY_MEDBANDWIDTH & \
-									~AST_FORMAT_G726 & \
-									~AST_FORMAT_ADPCM)
+#define IAX_CAPABILITY_LOWBANDWIDTH		(IAX_CAPABILITY_MEDBANDWIDTH & 	\
+							~AST_FORMAT_G726 & 	\
+							~AST_FORMAT_ADPCM)
 
-#define IAX_CAPABILITY_LOWFREE		(IAX_CAPABILITY_LOWBANDWIDTH & \
-									 ~AST_FORMAT_G723_1)
+#define IAX_CAPABILITY_LOWFREE		(IAX_CAPABILITY_LOWBANDWIDTH & 		\
+							 ~AST_FORMAT_G723_1)
 
 
 #define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
-#define DEFAULT_FREQ_OK		60 * 1000		/* How often to check for the host to be up */
-#define DEFAULT_FREQ_NOTOK	10 * 1000		/* How often to check, if the host is down... */
+#define DEFAULT_FREQ_OK		60 * 1000	/* How often to check for the host to be up */
+#define DEFAULT_FREQ_NOTOK	10 * 1000	/* How often to check, if the host is down... */
 
 static	struct io_context *io;
 static	struct sched_context *sched;
@@ -243,7 +243,7 @@ struct iax2_context {
 #define IAX_RTNOUPDATE 		(1 << 18) 	/* Don't send a realtime update */
 #define IAX_RTAUTOCLEAR 	(1 << 19) 	/* erase me on expire */ 
 #define IAX_FORCEJITTERBUF	(1 << 20)	/* Force jitterbuffer, even when bridged to a channel that can take jitter */ 
-#define IAX_RTIGNOREREGEXPIRE		(1 << 21)
+#define IAX_RTIGNOREREGEXPIRE	(1 << 21)
 
 static int global_rtautoclear = 120;
 
@@ -377,16 +377,16 @@ struct iax2_registry {
 static struct iax2_registry *registrations;
 
 /* Don't retry more frequently than every 10 ms, or less frequently than every 5 seconds */
-#define MIN_RETRY_TIME	100
-#define MAX_RETRY_TIME  10000
+#define MIN_RETRY_TIME		100
+#define MAX_RETRY_TIME  	10000
 
-#define MAX_JITTER_BUFFER 50
-#define MIN_JITTER_BUFFER 10
+#define MAX_JITTER_BUFFER 	50
+#define MIN_JITTER_BUFFER 	10
 
-#define DEFAULT_TRUNKDATA	640 * 10		/* 40ms, uncompressed linear * 10 channels */
-#define MAX_TRUNKDATA		640 * 200		/* 40ms, uncompressed linear * 200 channels */
+#define DEFAULT_TRUNKDATA	640 * 10	/* 40ms, uncompressed linear * 10 channels */
+#define MAX_TRUNKDATA		640 * 200	/* 40ms, uncompressed linear * 200 channels */
 
-#define MAX_TIMESTAMP_SKEW	160			/* maximum difference between actual and predicted ts for sending */
+#define MAX_TIMESTAMP_SKEW	160		/* maximum difference between actual and predicted ts for sending */
 
 /* If consecutive voice frame timestamps jump by more than this many milliseconds, then jitter buffer will resync */
 #define TS_GAP_FOR_JB_RESYNC	5000
@@ -546,7 +546,7 @@ struct chan_iax2_pvt {
 	int lagid;			/* Retransmit lag request */
 	int autoid;			/* Auto hangup for Dialplan requestor */
 	int authid;			/* Authentication rejection ID */
-	int authfail;		/* Reason to report failure */
+	int authfail;			/* Reason to report failure */
 	int initid;			/* Initial peer auto-congest ID (based on qualified peers) */
 	int calling_ton;
 	int calling_tns;
@@ -591,7 +591,7 @@ static struct ast_firmware_list {
 /* Extension exists */
 #define CACHE_FLAG_EXISTS		(1 << 0)
 /* Extension is nonexistent */
-#define CACHE_FLAG_NONEXISTENT	(1 << 1)
+#define CACHE_FLAG_NONEXISTENT		(1 << 1)
 /* Extension can exist */
 #define CACHE_FLAG_CANEXIST		(1 << 2)
 /* Waiting to hear back response */
@@ -599,11 +599,11 @@ static struct ast_firmware_list {
 /* Timed out */
 #define CACHE_FLAG_TIMEOUT		(1 << 4)
 /* Request transmitted */
-#define CACHE_FLAG_TRANSMITTED	(1 << 5)
+#define CACHE_FLAG_TRANSMITTED		(1 << 5)
 /* Timeout */
 #define CACHE_FLAG_UNKNOWN		(1 << 6)
 /* Matchmore */
-#define CACHE_FLAG_MATCHMORE	(1 << 7)
+#define CACHE_FLAG_MATCHMORE		(1 << 7)
 
 static struct iax2_dpcache {
 	char peercontext[AST_MAX_CONTEXT];
@@ -896,7 +896,7 @@ static struct iax_frame *iaxfrdup2(struct iax_frame *fr)
 	return new;
 }
 
-#define NEW_PREVENT 0
+#define NEW_PREVENT 	0
 #define NEW_ALLOW 	1
 #define NEW_FORCE 	2
 
