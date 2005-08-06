@@ -142,7 +142,6 @@ static int maxjitterinterps=10;
 #endif
 static int jittershrinkrate=2;
 static int trunkfreq = 20;
-static int send_trunktimestamps = 1;
 static int authdebug = 1;
 static int autokill = 0;
 static int iaxcompat = 0;
@@ -209,7 +208,7 @@ static int amaflags = 0;
 static int delayreject = 0;
 static int iax2_encryption = 0;
 
-static struct ast_flags globalflags = {0};
+static struct ast_flags globalflags = { 0 };
 
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 
@@ -244,6 +243,7 @@ struct iax2_context {
 #define IAX_RTAUTOCLEAR 	(1 << 19) 	/* erase me on expire */ 
 #define IAX_FORCEJITTERBUF	(1 << 20)	/* Force jitterbuffer, even when bridged to a channel that can take jitter */ 
 #define IAX_RTIGNOREREGEXPIRE	(1 << 21)
+#define IAX_TRUNKTIMESTAMPS	(1 << 22)	/* Send trunk timestamps */
 
 static int global_rtautoclear = 120;
 
@@ -3636,7 +3636,7 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 
 		/* Append to meta frame */
 		ptr = tpeer->trunkdata + IAX2_TRUNK_PREFACE + tpeer->trunkdatalen;
-		if(send_trunktimestamps) {	
+		if (ast_test_flag(&globalflags, IAX_TRUNKTIMESTAMPS)) {
 			mtm = (struct ast_iax2_meta_trunk_mini *)ptr;
 			mtm->len = htons(f->datalen);
 			mtm->mini.callno = htons(pvt->callno);
@@ -5798,7 +5798,7 @@ static int send_trunk(struct iax2_trunk_peer *tpeer, struct timeval *now)
 		/* We're actually sending a frame, so fill the meta trunk header and meta header */
 		meta->zeros = 0;
 		meta->metacmd = IAX_META_TRUNK;
-		if(send_trunktimestamps)
+		if (ast_test_flag(&globalflags, IAX_TRUNKTIMESTAMPS))
 			meta->cmddata = IAX_META_TRUNK_MINI;
 		else
 			meta->cmddata = IAX_META_TRUNK_SUPERMINI;
@@ -7949,7 +7949,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		}
 	}
 	if (peer) {
-		ast_copy_flags(peer, (&globalflags), IAX_MESSAGEDETAIL | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);	
+		ast_copy_flags(peer, &globalflags, IAX_MESSAGEDETAIL | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 		peer->encmethods = iax2_encryption;
 		peer->secret[0] = '\0';
 		if (!found) {
@@ -7972,8 +7972,6 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 				ast_copy_string(peer->dbsecret, v->value, sizeof(peer->dbsecret));
 			else if (!strcasecmp(v->name, "mailboxdetail"))
 				ast_set2_flag(peer, ast_true(v->value), IAX_MESSAGEDETAIL);	
-			else if (!strcasecmp(v->name, "trunktimestamps"))
-			  	send_trunktimestamps = ast_true(v->value);
 			else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
@@ -8093,7 +8091,6 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	struct ast_ha *oldha = NULL;
 	struct iax2_context *oldcon = NULL;
 	int format;
-	int found;
 	char *varname = NULL, *varval = NULL;
 	struct ast_variable *tmpvar = NULL;
 	
@@ -8110,8 +8107,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		}
 	} else
 		user = NULL;
+	
 	if (user) {
-		found++;
 		oldha = user->ha;
 		oldcon = user->contexts;
 		user->ha = NULL;
@@ -8137,11 +8134,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		user->encmethods = iax2_encryption;
 		ast_copy_string(user->name, name, sizeof(user->name));
 		ast_copy_string(user->language, language, sizeof(user->language));
-		ast_copy_flags(user, (&globalflags), IAX_USEJITTERBUF);	
-		ast_copy_flags(user, (&globalflags), IAX_FORCEJITTERBUF);	
-		ast_copy_flags(user, (&globalflags), IAX_CODEC_USER_FIRST);
-		ast_copy_flags(user, (&globalflags), IAX_CODEC_NOPREFS);	
-		ast_copy_flags(user, (&globalflags), IAX_CODEC_NOCAP);	
+		ast_copy_flags(user, &globalflags, IAX_USEJITTERBUF | IAX_FORCEJITTERBUF | IAX_CODEC_USER_FIRST | IAX_CODEC_NOPREFS | IAX_CODEC_NOCAP);	
 		while(v) {
 			if (!strcasecmp(v->name, "context")) {
 				con = build_context(v->value);
@@ -8395,13 +8388,21 @@ static int set_config(char *config_file, int reload)
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
 	}
+
+	/* Reset global codec prefs */	
 	memset(&prefs, 0 , sizeof(struct ast_codec_pref));
-	v = ast_variable_browse(cfg, "general");
+	
 	/* Reset Global Flags */
 	memset(&globalflags, 0, sizeof(globalflags));
+
+	/* Set default options */
+	ast_set_flag(&globalflags, 0);
+
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
 #endif
+
+	v = ast_variable_browse(cfg, "general");
 
 	while(v) {
 		if (!strcasecmp(v->name, "bindport")){ 
@@ -8485,7 +8486,9 @@ static int set_config(char *config_file, int reload)
 		else if (!strcasecmp(v->name, "rtignoreregexpire"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTIGNOREREGEXPIRE);	
 		else if (!strcasecmp(v->name, "rtnoupdate"))
-			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTNOUPDATE);	
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTNOUPDATE);
+		else if (!strcasecmp(v->name, "trunktimestamps"))
+			ast_set2_flag(&globalflags, ast_true(v->value), IAX_TRUNKTIMESTAMPS);
 		else if (!strcasecmp(v->name, "rtautoclear")) {
 			int i = atoi(v->value);
 			if(i > 0)
