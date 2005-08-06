@@ -1066,9 +1066,9 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 
 int ast_separate_app_args(char *buf, char delim, char **array, int arraylen)
 {
-	int x;
+	int argc;
 	char *scan;
-	char delims[2];
+	int paren = 0;
 
 	if (!buf || !array || !arraylen)
 		return 0;
@@ -1076,21 +1076,26 @@ int ast_separate_app_args(char *buf, char delim, char **array, int arraylen)
 	memset(array, 0, arraylen * sizeof(*array));
 
 	scan = buf;
-	delims[0] = delim;
-	delims[1] = '\0';
-	x = 0;
 
-	while (x < arraylen - 1) {
-		array[x] = strsep(&scan, delims);
-		x++;
-		if (!scan)
-			break;
+	for (argc = 0; *scan && (argc < arraylen - 1); argc++) {
+		array[argc] = scan;
+		for (; *scan; scan++) {
+			if (*scan == '(')
+				paren++;
+			else if (*scan == ')') {
+				if (paren)
+					paren--;
+			} else if ((*scan == delim) && !paren) {
+				*scan++ = '\0';
+				break;
+			}
+		}
 	}
 
-	if (scan)
-		array[x++] = scan;
+	if (*scan)
+		array[argc++] = scan;
 
-	return x;
+	return argc;
 }
 
 enum AST_LOCK_RESULT ast_lock_path(const char *path)
