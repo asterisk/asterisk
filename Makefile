@@ -25,6 +25,12 @@ HOST_CC=gcc
 # CROSS_PROC=arm
 # SUB_PROC=xscale # or maverick
 
+ifeq ($(CROSS_COMPILE),)
+OSARCH=$(shell uname -s)
+else
+OSARCH=$(CROSS_ARCH)
+endif
+
 ######### More GSM codec optimization
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
@@ -86,6 +92,7 @@ BUSYDETECT+= #-DBUSYDETECT_TONEONLY
 # Don't use together with -DBUSYDETECT_TONEONLY
 BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
 
+ifneq (${OSARCH},SunOS)
 ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
 ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
 ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
@@ -97,9 +104,23 @@ ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
 ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
 ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
 ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
-
 MODULES_DIR=$(ASTLIBDIR)/modules
 AGI_DIR=$(ASTVARLIBDIR)/agi-bin
+else
+ASTLIBDIR=$(INSTALL_PREFIX)/opt/asterisk/lib
+ASTVARLIBDIR=$(INSTALL_PREFIX)/var/opt/asterisk/lib
+ASTETCDIR=$(INSTALL_PREFIX)/etc/opt/asterisk
+ASTSPOOLDIR=$(INSTALL_PREFIX)/var/opt/asterisk/spool
+ASTLOGDIR=$(INSTALL_PREFIX)/var/opt/asterisk/log
+ASTHEADERDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/include/asterisk
+ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
+ASTBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/bin
+ASTSBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/sbin
+ASTVARRUNDIR=$(INSTALL_PREFIX)/var/opt/asterisk/run
+ASTMANDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/share/man
+MODULES_DIR=$(ASTLIBDIR)/modules
+AGI_DIR=$(ASTVARLIBDIR)/agi-bin
+endif
 
 # Pentium Pro Optimize
 #PROC=i686
@@ -130,12 +151,6 @@ endif
 
 ifneq ($(wildcard ~/.asterisk.makeopts),)
 include ~/.asterisk.makeopts
-endif
-
-ifeq ($(CROSS_COMPILE),)
-OSARCH=$(shell uname -s)
-else
-OSARCH=$(CROSS_ARCH)
 endif
 
 ifeq (${OSARCH},Linux)
