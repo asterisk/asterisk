@@ -1,8 +1,8 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Time of day - Report the time of day
- * 
+ * Enumlookup - lookup entry in ENUM
+ *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
@@ -42,11 +42,15 @@ static char *descrip =
 "  EnumLookup(exten):  Looks up an extension via ENUM and sets\n"
 "the variable 'ENUM'. For VoIP URIs this variable will \n"
 "look like 'TECHNOLOGY/URI' with the appropriate technology.\n"
-"Returns -1 on hangup, or 0 on completion regardless of whether the \n"
-"lookup was successful. \n"
+"Returns -1 on hangup, or 0 on completion\n"
 "Currently, the enumservices SIP, H323, IAX, IAX2 and TEL are recognized. \n"
-"A good SIP, H323, IAX or IAX2 entry will result in normal priority handling, \n"
-"whereas a good TEL entry will increase the priority by 51 (if existing).\n"
+"\nReturns status in the ENUMSTATUS channel variable:\n"
+"    ERROR	Failed to do a lookup\n"
+"    <tech>	Technology of the successful lookup: SIP, H323, IAX, IAX2 or TEL\n"
+"    BADURI	Got URI Asterisk does not understand.\n"
+"\nOld, depreciated, behaviour:\n"
+"\nA SIP, H323, IAX or IAX2 entry will result in normal priority handling, \n"
+"whereas a TEL entry will increase the priority by 51 (if existing).\n"
 "If the lookup was *not* successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
@@ -59,6 +63,7 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
+/*--- enumlookup_exec: Look up number in ENUM and return result */
 static int enumlookup_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
@@ -67,9 +72,10 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	char tmp[256];
 	char *c,*t;
 	struct localuser *u;
+
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
-		res = 1;
+		res = 0;
 	}
 	LOCAL_USER_ADD(u);
 	if (!res) {
@@ -77,6 +83,14 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 		printf("ENUM got '%d'\n", res);
 	}
 	LOCAL_USER_REMOVE(u);
+	if (!res) {	/* Failed to do a lookup */
+		/* Look for a "busy" place */
+		if (option_priority_jumping && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
+			chan->priority += 100;
+		pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "ERROR");
+		return 0;
+	}
+	pbx_builtin_setvar_helper(chan, "ENUMSTATUS", tech);
 	/* Parse it out */
 	if (res > 0) {
 		if (!strcasecmp(tech, "SIP")) {
@@ -126,25 +140,21 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				*t = 0;
 				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
 				ast_log(LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
-				if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 51, chan->cid.cid_num))
+				if (option_priority_jumping && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 51, chan->cid.cid_num))
 					chan->priority += 50;
 				else
 					res = 0;
 			}
 		} else if (!ast_strlen_zero(tech)) {
 			ast_log(LOG_NOTICE, "Don't know how to handle technology '%s'\n", tech);
+			pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "BADURI");
 			res = 0;
 		}
 	}
-	if (!res) {
-		/* Look for a "busy" place */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
-	} else if (res > 0)
-		res = 0;
-	return res;
+	return 0;
 }
 
+/*--- load_config: Load enum.conf and find out how to handle H.323 */
 static int load_config(void)
 {
 	struct ast_config *cfg;
@@ -165,12 +175,14 @@ static int load_config(void)
 }
 
 
+/*--- unload_module: Unload this application from PBX */
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
 	return ast_unregister_application(app);
 }
 
+/*--- load_module: Load this application into PBX */
 int load_module(void)
 {
 	int res;
@@ -183,12 +195,14 @@ int load_module(void)
 	return(0);
 }
 
+/*--- reload: Reload configuration file */
 int reload(void)
 {
 	return(load_config());
 }
 
 
+/*--- description: Describe module */
 char *description(void)
 {
 	return tdesc;
