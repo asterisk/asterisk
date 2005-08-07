@@ -85,8 +85,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_REMOVE(u);
 	if (!res) {	/* Failed to do a lookup */
 		/* Look for a "busy" place */
-		if (option_priority_jumping && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "ENUMSTATUS", "ERROR");
 		return 0;
 	}
@@ -140,9 +139,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				*t = 0;
 				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
 				ast_log(LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
-				if (option_priority_jumping && ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 51, chan->cid.cid_num))
-					chan->priority += 50;
-				else
+				if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 51))
 					res = 0;
 			}
 		} else if (!ast_strlen_zero(tech)) {
