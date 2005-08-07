@@ -260,7 +260,7 @@ void ast_md5_hash(char *output, char *input)
 	int x;
 
 	MD5Init(&md5);
-	MD5Update(&md5, input, strlen(input));
+	MD5Update(&md5, (unsigned char *)input, strlen(input));
 	MD5Final(digest, &md5);
 	ptr = output;
 	for (x=0; x<16; x++)
