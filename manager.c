@@ -1301,6 +1301,7 @@ static int get_input(struct mansession *s, char *output)
 	res = poll(fds, 1, -1);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+ 		return -1;
 	} else if (res > 0) {
 		ast_mutex_lock(&s->lock);
 		res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
