@@ -2890,9 +2890,10 @@ check_turns:
 				res = try_calling(&qe, options, announceoverride, url, &go_on);
 				if (res) {
 					if (res < 0) {
-						if (!qe.handled)
-                                                        record_abandoned(&qe);
+						if (!qe.handled) {
+							record_abandoned(&qe);
 							ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+						}
 					} else if (res > 0)
 						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 					break;
@@ -2902,7 +2903,7 @@ check_turns:
 
 				/* leave the queue if no agents, if enabled */
 				if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
-                                        record_abandoned(&qe);
+					record_abandoned(&qe);
 					reason = QUEUE_LEAVEEMPTY;
 					res = 0;
 					break;
@@ -2910,7 +2911,7 @@ check_turns:
 
 				/* leave the queue if no reachable agents, if enabled */
 				if ((qe.parent->leavewhenempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS)) {
-                                        record_abandoned(&qe);
+					record_abandoned(&qe);
 					reason = QUEUE_LEAVEUNAVAIL;
 					res = 0;
 					break;
@@ -2918,7 +2919,7 @@ check_turns:
 
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.expire && (time(NULL) > qe.expire)) {
-                                        record_abandoned(&qe);
+					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
 					break;
@@ -2927,7 +2928,7 @@ check_turns:
 				/* OK, we didn't get anybody; wait for 'retry' seconds; may get a digit to exit with */
 				res = wait_a_bit(&qe);
 				if (res < 0) {
-                                        record_abandoned(&qe);
+					record_abandoned(&qe);
 					ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 					if (option_verbose > 2) {
 						ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", queuename);
