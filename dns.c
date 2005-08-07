@@ -71,7 +71,7 @@ struct dn_answer {
 	unsigned short size;
 } __attribute__ ((__packed__));
 
-static int skip_name(u_char *s, int len)
+static int skip_name(char *s, int len)
 {
 	int x = 0;
 
@@ -96,10 +96,10 @@ static int skip_name(u_char *s, int len)
 
 /*--- dns_parse_answer: Parse DNS lookup result, call callback */
 static int dns_parse_answer(void *context,
-	int class, int type, u_char *answer, int len,
-	int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
+	int class, int type, char *answer, int len,
+	int (*callback)(void *context, char *answer, int len, char *fullanswer))
 {
-	u_char *fullanswer = answer;
+	char *fullanswer = answer;
 	struct dn_answer *ans;
 	dns_HEADER *h;
 	int res;
@@ -169,7 +169,7 @@ AST_MUTEX_DEFINE_STATIC(res_lock);
 /*--- ast_search_dns: Lookup record in DNS */
 int ast_search_dns(void *context,
 	   const char *dname, int class, int type,
-	   int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer))
+	   int (*callback)(void *context, char *answer, int len, char *fullanswer))
 {
 #ifdef HAS_RES_NINIT
 	struct __res_state dnsstate;
@@ -179,7 +179,7 @@ int ast_search_dns(void *context,
 
 #ifdef HAS_RES_NINIT
 	res_ninit(&dnsstate);
-	res = res_nsearch(&dnsstate, dname, class, type, answer, sizeof(answer));
+	res = res_nsearch(&dnsstate, dname, class, type, (unsigned char *)answer, sizeof(answer));
 #else
 	ast_mutex_lock(&res_lock);
 	res_init();

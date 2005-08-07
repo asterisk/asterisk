@@ -67,7 +67,7 @@ struct naptr {
 } __attribute__ ((__packed__));
 
 /*--- parse_ie: Parse NAPTR record information elements */
-static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int srclen)
+static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
 {
 	int len, olen;
 
@@ -85,17 +85,17 @@ static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int
 }
 
 /*--- parse_naptr: Parse DNS NAPTR record used in ENUM ---*/
-static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, char *naptrinput)
+static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *answer, int len, char *naptrinput)
 {
-	unsigned char *oanswer = answer;
-	unsigned char flags[80] = "";
-	unsigned char services[80] = "";
-	unsigned char regexp[80] = "";
-	unsigned char repl[80] = "";
-	unsigned char temp[80] = "";
-	unsigned char delim;
-	unsigned char *delim2;
-	unsigned char *pattern, *subst, *d;
+	char *oanswer = answer;
+	char flags[80] = "";
+	char services[80] = "";
+	char regexp[80] = "";
+	char repl[80] = "";
+	char temp[80] = "";
+	char delim;
+	char *delim2;
+	char *pattern, *subst, *d;
 	int res;
 	int regexp_len, size, backref;
 	int d_len = sizeof(temp) - 1;
@@ -132,7 +132,7 @@ static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize
 		answer += res; 
 		len -= res; 
 	}
-	if ((res = dn_expand(oanswer,answer + len,answer, repl, sizeof(repl) - 1)) < 0) {
+	if ((res = dn_expand((unsigned char *)oanswer, (unsigned char *)answer + len, (unsigned char *)answer, repl, sizeof(repl) - 1)) < 0) {
 		ast_log(LOG_WARNING, "Failed to expand hostname\n");
 		return -1;
 	} 
@@ -260,7 +260,7 @@ struct enum_context {
 };
 
 /*--- txt_callback: Callback for TXT record lookup */
-static int txt_callback(void *context, u_char *answer, int len, u_char *fullanswer)
+static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
 #if 0
@@ -295,7 +295,7 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 }
 
 /*--- enum_callback: Callback from ENUM lookup function */
-static int enum_callback(void *context, u_char *answer, int len, u_char *fullanswer)
+static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
 

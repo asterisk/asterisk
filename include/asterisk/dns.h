@@ -22,6 +22,6 @@ struct ast_channel;
 	\param	callback Callback function for handling DNS result
 */
 extern int ast_search_dns(void *context, const char *dname, int class, int type,
-	 int (*callback)(void *context, u_char *answer, int len, u_char *fullanswer));
+	 int (*callback)(void *context, char *answer, int len, char *fullanswer));
 
 #endif /* _ASTERISK_DNS_H */
