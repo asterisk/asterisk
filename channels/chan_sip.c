@@ -4737,7 +4737,7 @@ static int sip_reg_timeout(void *data)
 		r->timeout = -1;
 		res=transmit_register(r, SIP_REGISTER, NULL, NULL);
 	}
-	manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nUser: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
+	manager_event(EVENT_FLAG_SYSTEM, "Registry", "Channel: SIP\r\nUsername: %s\r\nDomain: %s\r\nStatus: %s\r\n", r->username, r->hostname, regstate2str(r->regstate));
 	ASTOBJ_UNREF(r,sip_registry_destroy);
 	return 0;
 }

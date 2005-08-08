@@ -40,6 +40,9 @@ SIP:
   the other channel drivers and to avoid confusion with the "port"
   option for users/peers.
 
+* The "Registry" event now uses "Username" rather than "User" for 
+  consistency with IAX.
+
 Applications:
 
 * With the addition of dialplan functions (which operate similarly
