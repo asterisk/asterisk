@@ -466,7 +466,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 		/* Show all the users */
 		user = cnf->firstuser;
 		while(user) {
-			ast_cli(fd, "User #: %d  Channel: %s %s %s %s %s\n", user->user_no, user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
+			ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s\n", user->user_no, user->chan->cid.cid_num ? user->chan->cid.cid_num : "<unknown>", user->chan->cid.cid_name ? user->chan->cid.cid_name : "<no name>", user->chan->name, (user->userflags & CONFFLAG_ADMIN) ? "(Admin)" : "", (user->userflags & CONFFLAG_MONITOR) ? "(Listen only)" : "", (user->adminflags & ADMINFLAG_MUTED) ? "(Admn Muted)" : "", istalking(user->talking));
 			user = user->nextuser;
 		}
 		ast_cli(fd,"%d users in that conference.\n",cnf->users);
