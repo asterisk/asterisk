@@ -2879,7 +2879,7 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel 
 	/* Copy voice back and forth between the two channels.	Give the peer
 	   the ability to transfer calls with '#<extension' syntax. */
 	struct ast_channel *cs[3];
-	int to = -1;
+	int to;
 	struct ast_frame *f;
 	struct ast_channel *who = NULL;
 	void *pvt0, *pvt1;
@@ -2922,8 +2922,10 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel 
 				res = -3;
 				break;
 			}
-			
-		}
+			to = time_left_ms;
+		} else	
+			to = -1;
+
 
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
