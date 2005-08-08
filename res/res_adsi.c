@@ -56,7 +56,7 @@ static char speeddial[ADSI_MAX_SPEED_DIAL][3][20];
 
 static int alignment = 0;
 
-static int adsi_generate(unsigned char *buf, int msgtype, char *msg, int msglen, int msgnum, int last, int codec)
+static int adsi_generate(unsigned char *buf, int msgtype, unsigned char *msg, int msglen, int msgnum, int last, int codec)
 {
 	int sum;
 	int x;	
@@ -306,7 +306,7 @@ static int __adsi_transmit_messages(struct ast_channel *chan, unsigned char **ms
 	
 }
 
-int adsi_begin_download(struct ast_channel *chan, char *service, char *fdn, char *sec, int version)
+int adsi_begin_download(struct ast_channel *chan, unsigned char *service, unsigned char *fdn, unsigned char *sec, int version)
 {
 	int bytes;
 	unsigned char buf[256];
@@ -592,7 +592,7 @@ int adsi_read_encoded_dtmf(struct ast_channel *chan, unsigned char *buf, int max
 
 int adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice)
 {
-	char buf[256];
+	unsigned char buf[256];
 	int bytes = 0;
 	int res;
 	bytes += adsi_data_mode(buf);
@@ -624,7 +624,7 @@ int adsi_get_cpeid(struct ast_channel *chan, unsigned char *cpeid, int voice)
 
 int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *buttons, int voice)
 {
-	char buf[256];
+	unsigned char buf[256];
 	int bytes = 0;
 	int res;
 	bytes += adsi_data_mode(buf);
@@ -636,46 +636,46 @@ int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, int *but
 
 	/* Get width */
 	memset(buf, 0, sizeof(buf));
-	res = ast_readstring(chan, buf, 2, 1000, 500, "");
+	res = ast_readstring(chan, (char *)buf, 2, 1000, 500, "");
 	if (res < 0)
 		return res;
-	if (strlen(buf) != 2) {
+	if (strlen((char *)buf) != 2) {
 		ast_log(LOG_WARNING, "Got %d bytes of width, expecting 2\n", res);
 		res = 0;
 	} else {
 		res = 1;
 	}
 	if (width)
-		*width = atoi(buf);
+		*width = atoi((char *)buf);
 	/* Get height */
 	memset(buf, 0, sizeof(buf));
 	if (res) {
-		res = ast_readstring(chan, buf, 2, 1000, 500, "");
+		res = ast_readstring(chan, (char *)buf, 2, 1000, 500, "");
 		if (res < 0)
 			return res;
-		if (strlen(buf) != 2) {
+		if (strlen((char *)buf) != 2) {
 			ast_log(LOG_WARNING, "Got %d bytes of height, expecting 2\n", res);
 			res = 0;
 		} else {
 			res = 1;
 		}	
 		if (height)
-			*height= atoi(buf);
+			*height= atoi((char *)buf);
 	}
 	/* Get buttons */
 	memset(buf, 0, sizeof(buf));
 	if (res) {
-		res = ast_readstring(chan, buf, 1, 1000, 500, "");
+		res = ast_readstring(chan, (char *)buf, 1, 1000, 500, "");
 		if (res < 0)
 			return res;
-		if (strlen(buf) != 1) {
+		if (strlen((char *)buf) != 1) {
 			ast_log(LOG_WARNING, "Got %d bytes of buttons, expecting 1\n", res);
 			res = 0;
 		} else {
 			res = 1;
 		}	
 		if (buttons)
-			*buttons = atoi(buf);
+			*buttons = atoi((char *)buf);
 	}
 	if (voice) {
 		bytes = 0;
@@ -846,7 +846,7 @@ int adsi_input_format(unsigned char *buf, int num, int dir, int wrap, unsigned c
 {
 	int bytes = 0;
 
-	if (!strlen(format1))
+	if (!strlen((char *)format1))
 		return -1;
 
 	buf[bytes++] = ADSI_INPUT_FORMAT;
@@ -854,7 +854,7 @@ int adsi_input_format(unsigned char *buf, int num, int dir, int wrap, unsigned c
 	buf[bytes++] = ((dir & 1) << 7) | ((wrap & 1) << 6) | (num & 0x7);
 	bytes += ccopy(buf + bytes, format1, 20);
 	buf[bytes++] = 0xff;
-	if (format2 && strlen(format2)) {
+	if (format2 && strlen((char *)format2)) {
 		bytes += ccopy(buf + bytes, format2, 20);
 	}
 	buf[1] = bytes - 2;
@@ -909,7 +909,7 @@ static int speeds = 0;
 
 int adsi_channel_restore(struct ast_channel *chan)
 {
-	char dsp[256];
+	unsigned char dsp[256];
 	int bytes;
 	int x;
 	unsigned char keyd[6];
@@ -934,14 +934,14 @@ int adsi_channel_restore(struct ast_channel *chan)
 
 }
 
-int adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
+int adsi_print(struct ast_channel *chan, unsigned char **lines, int *aligns, int voice)
 {
-	char buf[4096];
+	unsigned char buf[4096];
 	int bytes=0;
 	int res;
 	int x;
 	for(x=0;lines[x];x++) 
-		bytes += adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, aligns[x],0, lines[x], "");
+		bytes += adsi_display(buf + bytes, ADSI_INFO_PAGE, x+1, aligns[x], 0, lines[x], (unsigned char *)"");
 	bytes += adsi_set_line(buf + bytes, ADSI_INFO_PAGE, 1);
 	if (voice) {
 		bytes += adsi_voice_mode(buf + bytes, 0);
@@ -956,7 +956,7 @@ int adsi_print(struct ast_channel *chan, char **lines, int *aligns, int voice)
 
 int adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int data)
 {
-	char dsp[256];
+	unsigned char dsp[256];
 	int bytes;
 	int res;
 	char resp[2];
@@ -965,7 +965,7 @@ int adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int
 
 	/* Connect to session */
 	bytes = 0;
-	bytes += adsi_connect_session(dsp + bytes, app,ver);
+	bytes += adsi_connect_session(dsp + bytes, app, ver);
 
 	if (data)
 		bytes += adsi_data_mode(dsp + bytes);
@@ -997,7 +997,7 @@ int adsi_load_session(struct ast_channel *chan, unsigned char *app, int ver, int
 
 int adsi_unload_session(struct ast_channel *chan)
 {
-	char dsp[256];
+	unsigned char dsp[256];
 	int bytes;
 
 	memset(dsp, 0, sizeof(dsp));

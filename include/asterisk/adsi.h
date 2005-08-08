@@ -120,7 +120,7 @@
  */
 extern int adsi_channel_init(struct ast_channel *chan);
 
-extern int adsi_begin_download(struct ast_channel *chan, char *service, char *fdn, char *sec, int version);
+extern int adsi_begin_download(struct ast_channel *chan, unsigned char *service, unsigned char *fdn, unsigned char *sec, int version);
 
 extern int adsi_end_download(struct ast_channel *chan);
 
@@ -145,7 +145,7 @@ extern int adsi_channel_restore(struct ast_channel *chan);
  * Return 0 on success (or adsi unavailable) and -1 on hangup
  *
  */
-extern int adsi_print(struct ast_channel *chan, char **lines, int *align, int voice);
+extern int adsi_print(struct ast_channel *chan, unsigned char **lines, int *align, int voice);
 
 /*! Check if scripts for a given app are already loaded.  Version may be -1 */
 /*   if any version is okay, or 0-255 for a specific version. */
