@@ -234,6 +234,8 @@ static int echocanbridged = 0;
 static int busydetect = 0;
 
 static int busycount = 3;
+static int busy_tonelength = 0;
+static int busy_quietlength = 0;
 
 static int callprogress = 0;
 
@@ -611,6 +613,8 @@ static struct zt_pvt {
 	int echotraining;
 	char echorest[20];
 	int busycount;
+	int busy_tonelength;
+	int busy_quietlength;
 	int callprogress;
 	struct timeval flashtime;			/* Last flash-hook time */
 	struct ast_dsp *dsp;
@@ -4824,6 +4828,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 						ast_dsp_set_call_progress_zone(i->dsp, progzone);
 					if (i->busydetect && CANBUSYDETECT(i)) {
 						ast_dsp_set_busy_count(i->dsp, i->busycount);
+						ast_dsp_set_busy_pattern(i->dsp, i->busy_tonelength, i->busy_quietlength);
 					}
 				}
 			}
@@ -6871,6 +6876,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->echocanbridged = echocanbridged;
 		tmp->busydetect = busydetect;
 		tmp->busycount = busycount;
+		tmp->busy_tonelength = busy_tonelength;
+		tmp->busy_quietlength = busy_quietlength;
 		tmp->callprogress = callprogress;
 		tmp->cancallforward = cancallforward;
 		tmp->dtmfrelax = relaxdtmf;
@@ -10054,6 +10061,10 @@ static int setup_zap(int reload)
 			busydetect = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "busycount")) {
 			busycount = atoi(v->value);
+		} else if (!strcasecmp(v->name, "busypattern")) {
+			if (sscanf(v->value, "%d,%d", &busy_tonelength, &busy_quietlength) != 2) {
+				ast_log(LOG_ERROR, "busypattern= expects busypattern=tonelength,quietlength\n");
+			}
 		} else if (!strcasecmp(v->name, "callprogress")) {
 			if (ast_true(v->value))
 				callprogress |= 1;

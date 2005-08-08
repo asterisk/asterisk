@@ -93,7 +93,8 @@ static struct progress {
 
 #define DEFAULT_THRESHOLD	512
 
-#define BUSY_PERCENT		10	/* The percentage diffrence between the two last silence periods */
+#define BUSY_PERCENT		10	/* The percentage difference between the two last silence periods */
+#define BUSY_PAT_PERCENT	7	/* The percentage difference between measured and actual pattern */
 #define BUSY_THRESHOLD		100	/* Max number of ms difference between max and min times in busy */
 #define BUSY_MIN		75	/* Busy must be at least 80 ms in half-cadence */
 #define BUSY_MAX		1100	/* Busy can't be longer than 1100 ms in half-cadence */
@@ -304,6 +305,8 @@ struct ast_dsp {
 	int features;
 	int busymaybe;
 	int busycount;
+	int busy_tonelength;
+	int busy_quietlength;
 	int historicnoise[DSP_HISTORY];
 	int historicsilence[DSP_HISTORY];
 	goertzel_state_t freqs[7];
@@ -1154,6 +1157,7 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 		accum += abs(s[x]);
 	accum /= len;
 	if (accum < dsp->threshold) {
+		/* Silent */
 		dsp->totalsilence += len/8;
 		if (dsp->totalnoise) {
 			/* Move and save history */
@@ -1167,6 +1171,7 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 		dsp->totalnoise = 0;
 		res = 1;
 	} else {
+		/* Not silent */
 		dsp->totalnoise += len/8;
 		if (dsp->totalsilence) {
 			int silence1 = dsp->historicsilence[DSP_HISTORY - 1];
@@ -1176,12 +1181,12 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 			dsp->historicsilence[DSP_HISTORY - 1] = dsp->totalsilence;
 			/* check if the previous sample differs only by BUSY_PERCENT from the one before it */
 			if (silence1 < silence2) {
-				if (silence1 + silence1/BUSY_PERCENT >= silence2)
+				if (silence1 + silence1*BUSY_PERCENT/100 >= silence2)
 					dsp->busymaybe = 1;
 				else 
 					dsp->busymaybe = 0;
 			} else {
-				if (silence1 - silence1/BUSY_PERCENT <= silence2)
+				if (silence1 - silence1*BUSY_PERCENT/100 <= silence2)
 					dsp->busymaybe = 1;
 				else 
 					dsp->busymaybe = 0;
@@ -1193,6 +1198,7 @@ static int __ast_dsp_silence(struct ast_dsp *dsp, short *s, int len, int *totals
 		*totalsilence = dsp->totalsilence;
 	return res;
 }
+
 #ifdef BUSYDETECT_MARTIN
 int ast_dsp_busydetect(struct ast_dsp *dsp)
 {
@@ -1216,18 +1222,18 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 	for (x=DSP_HISTORY - dsp->busycount;x<DSP_HISTORY;x++) {
 #ifndef BUSYDETECT_TONEONLY
 		if (avgsilence > dsp->historicsilence[x]) {
-			if (avgsilence - (avgsilence / BUSY_PERCENT) <= dsp->historicsilence[x])
+			if (avgsilence - (avgsilence*BUSY_PERCENT/100) <= dsp->historicsilence[x])
 				hitsilence++;
 		} else {
-			if (avgsilence + (avgsilence / BUSY_PERCENT) >= dsp->historicsilence[x])
+			if (avgsilence + (avgsilence*BUSY_PERCENT/100) >= dsp->historicsilence[x])
 				hitsilence++;
 		}
 #endif
 		if (avgtone > dsp->historicnoise[x]) {
-			if (avgtone - (avgtone / BUSY_PERCENT) <= dsp->historicnoise[x])
+			if (avgtone - (avgtone*BUSY_PERCENT/100) <= dsp->historicnoise[x])
 				hittone++;
 		} else {
-			if (avgtone + (avgtone / BUSY_PERCENT) >= dsp->historicnoise[x])
+			if (avgtone + (avgtone*BUSY_PERCENT/100) >= dsp->historicnoise[x])
 				hittone++;
 		}
 	}
@@ -1243,19 +1249,39 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 #error You cant use BUSYDETECT_TONEONLY together with BUSYDETECT_COMPARE_TONE_AND_SILENCE
 #endif
 		if (avgtone > avgsilence) {
-			if (avgtone - avgtone/(BUSY_PERCENT*2) <= avgsilence)
+			if (avgtone - avgtone*BUSY_PERCENT/100 <= avgsilence)
 				res = 1;
 		} else {
-			if (avgtone + avgtone/(BUSY_PERCENT*2) >= avgsilence)
+			if (avgtone + avgtone*BUSY_PERCENT/100 >= avgsilence)
 				res = 1;
 		}
 #else
 		res = 1;
 #endif
 	}
+	/* If we know the expected busy tone length, check we are in the range */
+	if (res && (dsp->busy_tonelength > 0)) {
+		if (abs(avgtone - dsp->busy_tonelength) > (dsp->busy_tonelength*BUSY_PAT_PERCENT/100)) {
 #if 0
+			ast_log(LOG_NOTICE, "busy detector: avgtone of %d not close enough to desired %d\n",
+						avgtone, dsp->busy_tonelength);
+#endif
+			res = 0;
+		}
+	}
+	/* If we know the expected busy tone silent-period length, check we are in the range */
+	if (res && (dsp->busy_quietlength > 0)) {
+		if (abs(avgsilence - dsp->busy_quietlength) > (dsp->busy_quietlength*BUSY_PAT_PERCENT/100)) {
+#if 0
+			ast_log(LOG_NOTICE, "busy detector: avgsilence of %d not close enough to desired %d\n",
+						avgsilence, dsp->busy_quietlength);
+#endif
+			res = 0;
+		}
+	}
+#if 1
 	if (res)
-		ast_log(LOG_NOTICE, "detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
+		ast_log(LOG_DEBUG, "ast_dsp_busydetect detected busy, avgtone: %d, avgsilence %d\n", avgtone, avgsilence);
 #endif
 	return res;
 }
@@ -1574,6 +1600,13 @@ void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences)
 	if (cadences > DSP_HISTORY)
 		cadences = DSP_HISTORY;
 	dsp->busycount = cadences;
+}
+
+void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, int tonelength, int quietlength)
+{
+	dsp->busy_tonelength = tonelength;
+	dsp->busy_quietlength = quietlength;
+	ast_log(LOG_DEBUG, "dsp busy pattern set to %d,%d\n", tonelength, quietlength);
 }
 
 void ast_dsp_digitreset(struct ast_dsp *dsp)

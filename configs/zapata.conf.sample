@@ -366,17 +366,35 @@ immediate=no
 ;
 ; On trunk interfaces (FXS) and E&M interfaces (E&M, Wink, Feature Group D
 ; etc, it can be useful to perform busy detection either in an effort to 
-; detect hangup or for detecting busies
+; detect hangup or for detecting busies.  This enables listening for
+; the beep-beep busy pattern.
 ;
 ;busydetect=yes
 ;
 ; If busydetect is enabled, is also possible to specify how many
-; busy tones to wait before hanging up. The default is 4, but
+; busy tones to wait for before hanging up. The default is 4, but
 ; better results can be achieved if set to 6 or even 8. Mind that
 ; higher the number, more time is needed to hangup a channel, but
 ; lower is probability to get random hangups
 ;
 ;busycount=4
+;
+; If busydetect is enabled, is also possible to specify the
+; cadence of your busy signal.  In many countries it is 500mec
+; on, 500msec off.
+; Without busypattern specified, we'll accept any regular
+; sound-silence pattern than repeats busycount times as a busy
+; signal.
+; If you specify busypattern then we'll further check the length
+; of the sound (tone) and silence, which will further reduce the
+; chance of a false positive.
+;
+;busypattern=500,500
+;
+; NOTE: In the Asterisk Makefile you'll find further options to tweak
+; the busy detector.  If your country has a busy tone with the same
+; lengh tone and silence (as many countries do), consider defining
+; the -DBUSYDETECT_COMPARE_TONE_AND_SILENCE option.
 ;
 ; Use a polarity reversal to mark when a outgoing call is answered by the
 ; remote party.

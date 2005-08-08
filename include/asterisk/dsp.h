@@ -53,6 +53,9 @@ void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold);
 /* Set number of required cadences for busy */
 void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences);
 
+/* Set expected lengths of the busy tone */
+void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, int tonelength, int quietlength);
+
 /* Scans for progress indication in audio */
 int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf);
 
