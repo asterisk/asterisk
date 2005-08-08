@@ -70,7 +70,7 @@ static char load_help[] =
 
 static char unload_help[] = 
 "Usage: unload [-f|-h] <module name>\n"
-"       Unloads the specified module from Asterisk.  The -f\n"
+"       Unloads the specified module from Asterisk. The -f\n"
 "       option causes the module to be unloaded even if it is\n"
 "       in use (may cause a crash) and the -h module causes the\n"
 "       module to be unloaded even if the module says it cannot, \n"
@@ -79,14 +79,15 @@ static char unload_help[] =
 static char help_help[] =
 "Usage: help [topic]\n"
 "       When called with a topic as an argument, displays usage\n"
-"       information on the given command.  If called without a\n"
+"       information on the given command. If called without a\n"
 "       topic, it provides a list of commands.\n";
 
 static char chanlist_help[] = 
-"Usage: show channels [concise]\n"
-"       Lists currently defined channels and some information about\n"
-"       them.  If 'concise' is specified, format is abridged and in\n"
-"       a more easily machine parsable format\n";
+"Usage: show channels [concise|verbose]\n"
+"       Lists currently defined channels and some information about them. If\n"
+"       'concise' is specified, the format is abridged and in a more easily\n"
+"       machine parsable format. If 'verbose' is specified, the output includes\n"
+"       more and longer fields.\n";
 
 static char reload_help[] = 
 "Usage: reload [module ...]\n"
@@ -107,7 +108,7 @@ static char set_debug_help[] =
 
 static char softhangup_help[] =
 "Usage: soft hangup <channel>\n"
-"       Request that a channel be hung up.  The hangup takes effect\n"
+"       Request that a channel be hung up. The hangup takes effect\n"
 "       the next time the driver reads or writes from the channel\n";
 
 static int handle_load(int fd, int argc, char *argv[])
@@ -388,6 +389,8 @@ static int handle_modlist(int fd, int argc, char *argv[])
 	ast_mutex_unlock(&climodentrylock);
 	return RESULT_SUCCESS;
 }
+#undef MODLIST_FORMAT
+#undef MODLIST_FORMAT2
 
 static int handle_version(int fd, int argc, char *argv[])
 {
@@ -398,33 +401,73 @@ static int handle_version(int fd, int argc, char *argv[])
 }
 static int handle_chanlist(int fd, int argc, char *argv[])
 {
-#define FORMAT_STRING  "%15s  (%-10s %-12s %-4d) %7s %-12s  %-15s\n"
-#define FORMAT_STRING2 "%15s  (%-10s %-12s %-4s) %7s %-12s  %-15s\n"
-#define CONCISE_FORMAT_STRING  "%s:%s:%s:%d:%s:%s:%s:%s:%s:%d\n"
+#define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"
+#define FORMAT_STRING2 "%-20.20s %-20.20s %-7.7s %-30.30s\n"
+#define CONCISE_FORMAT_STRING  "%s:%s:%s:%d:%s:%s:%s:%s:%s:%d:%s:%s\n"
+#define VERBOSE_FORMAT_STRING  "%-20.20s %-20.20s %-16.16s %4d %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
+#define VERBOSE_FORMAT_STRING2 "%-20.20s %-20.20s %-16.16s %-4.4s %-7.7s %-12.12s %-25.25s %-15.15s %8.8s %-11.11s %-20.20s\n"
 
-	struct ast_channel *c=NULL;
-	int numchans = 0;
-	int concise = 0;
-	if (argc < 2 || argc > 3)
-		return RESULT_SHOWUSAGE;
-	
+	struct ast_channel *c = NULL, *bc = NULL;
+	char durbuf[10] = "-";
+	char locbuf[40];
+	char appdata[40];
+	int duration;
+	int durh, durm, durs;
+	int numchans = 0, concise = 0, verbose = 0;
+
 	concise = (argc == 3 && (!strcasecmp(argv[2],"concise")));
-	if(!concise)
-		ast_cli(fd, FORMAT_STRING2, "Channel", "Context", "Extension", "Pri", "State", "Appl.", "Data");
-	while ( (c = ast_channel_walk_locked(c)) != NULL) {
-		if(concise)
-			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-					c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "" ): "",
-					(c->cid.cid_num && !ast_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "",
-					(c->accountcode && !ast_strlen_zero(c->accountcode)) ? c->accountcode : "",c->amaflags);
-		else
-			ast_cli(fd, FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
-					c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)");
+	verbose = (argc == 3 && (!strcasecmp(argv[2],"verbose")));
 
+	if (argc < 2 || argc > 3 || (argc == 3 && !concise && !verbose))
+		return RESULT_SHOWUSAGE;
+
+	if (!concise && !verbose)
+		ast_cli(fd, FORMAT_STRING2, "Channel", "Location", "State", "Application(Data)");
+	else if (verbose)
+		ast_cli(fd, VERBOSE_FORMAT_STRING2, "Channel", "Context", "Extension", "Priority", "State", "Application", "Data", 
+		        "CallerID", "Duration", "Accountcode", "BridgedTo");
+	while ((c = ast_channel_walk_locked(c)) != NULL) {
+		bc = ast_bridged_channel(c);
+		if ((concise || verbose)  && c->cdr && !ast_tvzero(c->cdr->start)) {
+			duration = (int)(ast_tvdiff_ms(ast_tvnow(), c->cdr->start) / 1000);
+			if (verbose) {
+				durh = duration / 3600;
+				durm = (duration % 3600) / 60;
+				durs = duration % 60;
+				snprintf(durbuf, sizeof(durbuf), "%02d:%02d:%02d", durh, durm, durs);
+			} else {
+				snprintf(durbuf, sizeof(durbuf), "%d", duration);
+			}				
+		} else {
+			durbuf[0] = '\0';
+		}
+		if (concise) {
+			ast_cli(fd, CONCISE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
+			        c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "" ): "",
+			        (c->cid.cid_num && !ast_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "",
+			        (c->accountcode && !ast_strlen_zero(c->accountcode)) ? c->accountcode : "", c->amaflags, 
+			        durbuf, bc ? bc->name : "(None)");
+		} else if (verbose) {
+			ast_cli(fd, VERBOSE_FORMAT_STRING, c->name, c->context, c->exten, c->priority, ast_state2str(c->_state),
+			        c->appl ? c->appl : "(None)", c->data ? ( !ast_strlen_zero(c->data) ? c->data : "(Empty)" ): "(None)",
+			        (c->cid.cid_num && !ast_strlen_zero(c->cid.cid_num)) ? c->cid.cid_num : "", durbuf,
+			        (c->accountcode && !ast_strlen_zero(c->accountcode)) ? c->accountcode : "", bc ? bc->name : "(None)");
+		} else {
+			if (!ast_strlen_zero(c->context) && !ast_strlen_zero(c->exten)) 
+				snprintf(locbuf, sizeof(locbuf), "%s@%s:%d", c->exten, c->context, c->priority);
+			else
+				strcpy(locbuf, "(None)");
+			if (c->appl) {
+				snprintf(appdata, sizeof(appdata), "%s(%s)", c->appl, c->data ? c->data : "");
+			} else {
+				strcpy(appdata, "(None)");
+			}
+			ast_cli(fd, FORMAT_STRING, c->name, locbuf, ast_state2str(c->_state), appdata);
+		}
 		numchans++;
 		ast_mutex_unlock(&c->lock);
 	}
-	if(!concise) {
+	if (!concise) {
 		ast_cli(fd, "%d active channel%s\n", numchans, (numchans!=1) ? "s" : "");
 		if (option_maxcalls)
 			ast_cli(fd, "%d of %d max active call%s (%5.2f%% of capacity)\n", ast_active_calls(), option_maxcalls, (ast_active_calls()!=1) ? "s" : "", ((float)ast_active_calls() / (float)option_maxcalls) * 100.0);
@@ -432,6 +475,12 @@ static int handle_chanlist(int fd, int argc, char *argv[])
 			ast_cli(fd, "%d active call%s\n", ast_active_calls(), (ast_active_calls()!=1) ? "s" : "");
 	}
 	return RESULT_SUCCESS;
+	
+#undef FORMAT_STRING
+#undef FORMAT_STRING2
+#undef CONCISE_FORMAT_STRING
+#undef VERBOSE_FORMAT_STRING
+#undef VERBOSE_FORMAT_STRING2
 }
 
 static char showchan_help[] = 
@@ -731,6 +780,22 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+static char *complete_show_channels(char *line, char *word, int pos, int state)
+{
+	static char *choices[] = { "concise", "verbose" };
+	int match = 0;
+	int x;
+	if (pos != 2) 
+		return NULL;
+	for (x=0;x<sizeof(choices) / sizeof(choices[0]);x++) {
+		if (!strncasecmp(word, choices[x], strlen(word))) {
+			match++;
+			if (match > state) return strdup(choices[x]);
+		}
+	}
+	return NULL;
+}
+
 static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
 {
 	struct ast_channel *c = NULL;
@@ -804,7 +869,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "set", "debug", NULL }, handle_set_debug, "Set level of debug chattiness", set_debug_help },
 	{ { "set", "verbose", NULL }, handle_set_verbose, "Set level of verboseness", set_verbose_help },
 	{ { "show", "channel", NULL }, handle_showchan, "Display information on a specific channel", showchan_help, complete_ch_3 },
-	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help },
+	{ { "show", "channels", NULL }, handle_chanlist, "Display information on channels", chanlist_help, complete_show_channels },
 	{ { "show", "modules", NULL }, handle_modlist, "List modules and info", modlist_help },
 	{ { "show", "modules", "like", NULL }, handle_modlist, "List modules and info", modlist_help, complete_mod_4 },
  	{ { "show", "uptime", NULL }, handle_showuptime, "Show uptime information", uptime_help },
@@ -1231,7 +1296,8 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 					}
 				}
 			}
-			if (e->generator && !strncasecmp(matchstr, fullcmd, strlen(fullcmd))) {
+			if (e->generator && !strncasecmp(matchstr, fullcmd, strlen(fullcmd)) &&
+				(matchstr[strlen(fullcmd)] < 33)) {
 				/* We have a command in its entirity within us -- theoretically only one
 				   command can have this occur */
 				fullcmd = e->generator(matchstr, word, (!ast_strlen_zero(word) ? (x - 1) : (x)), state);
