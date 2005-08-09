@@ -38,6 +38,7 @@ extern int ast_ouraddrfor(struct in_addr *them, struct in_addr *us);
 extern int ast_lookup_iface(char *iface, struct in_addr *address);
 extern struct ast_ha *ast_duplicate_ha_list(struct ast_ha *original);
 extern int ast_find_ourip(struct in_addr *ourip, struct sockaddr_in bindaddr);
+extern int ast_str2tos(const char *value, int *tos);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

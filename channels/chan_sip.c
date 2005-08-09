@@ -11030,19 +11030,7 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "recordhistory")) {
 			recordhistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%i", &format) == 1)
-				tos = format & 0xff;
-			else if (!strcasecmp(v->value, "lowdelay"))
-				tos = IPTOS_LOWDELAY;
-			else if (!strcasecmp(v->value, "throughput"))
-				tos = IPTOS_THROUGHPUT;
-			else if (!strcasecmp(v->value, "reliability"))
-				tos = IPTOS_RELIABILITY;
-			else if (!strcasecmp(v->value, "mincost"))
-				tos = IPTOS_MINCOST;
-			else if (!strcasecmp(v->value, "none"))
-				tos = 0;
-			else
+			if (ast_str2tos(v->value, &tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {

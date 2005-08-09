@@ -8370,6 +8370,7 @@ static int set_config(char *config_file, int reload)
 	struct ast_variable *v;
 	char *cat;
 	char *utype;
+	char *tosval;
 	int format;
 	int portno = IAX_DEFAULT_PORTNO;
 	int  x;
@@ -8399,6 +8400,12 @@ static int set_config(char *config_file, int reload)
 
 	v = ast_variable_browse(cfg, "general");
 
+	/* Seed initial tos value */
+	tosval = ast_variable_retrieve(cfg, "general", "tos");
+	if (tosval) {
+		if (ast_str2tos(v->value, &tos))
+			ast_log(LOG_WARNING, "Invalid tos value, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n");
+	}
 	while(v) {
 		if (!strcasecmp(v->name, "bindport")){ 
 			if (reload)
@@ -8529,19 +8536,7 @@ static int set_config(char *config_file, int reload)
 			if (!ast_context_find(regcontext))
 				ast_context_create(NULL, regcontext, channeltype);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (sscanf(v->value, "%d", &format) == 1)
-				tos = format & 0xff;
-			else if (!strcasecmp(v->value, "lowdelay"))
-				tos = IPTOS_LOWDELAY;
-			else if (!strcasecmp(v->value, "throughput"))
-				tos = IPTOS_THROUGHPUT;
-			else if (!strcasecmp(v->value, "reliability"))
-				tos = IPTOS_RELIABILITY;
-			else if (!strcasecmp(v->value, "mincost"))
-				tos = IPTOS_MINCOST;
-			else if (!strcasecmp(v->value, "none"))
-				tos = 0;
-			else
+			if (ast_str2tos(v->value, &tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(accountcode, v->value, sizeof(accountcode));

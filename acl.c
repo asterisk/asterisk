@@ -23,6 +23,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <net/if.h>
+#include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/ioctl.h>
@@ -222,6 +223,26 @@ int ast_get_ip_or_srv(struct sockaddr_in *sin, const char *value, const char *se
 		ast_log(LOG_WARNING, "Unable to lookup '%s'\n", value);
 		return -1;
 	}
+	return 0;
+}
+
+int ast_str2tos(const char *value, int *tos)
+{
+	int fval;
+	if (sscanf(value, "%i", &fval) == 1)
+		*tos = fval & 0xff;
+	else if (!strcasecmp(value, "lowdelay"))
+		*tos = IPTOS_LOWDELAY;
+	else if (!strcasecmp(value, "throughput"))
+		*tos = IPTOS_THROUGHPUT;
+	else if (!strcasecmp(value, "reliability"))
+		*tos = IPTOS_RELIABILITY;
+	else if (!strcasecmp(value, "mincost"))
+		*tos = IPTOS_MINCOST;
+	else if (!strcasecmp(value, "none"))
+		*tos = 0;
+	else
+		return -1;
 	return 0;
 }
 
