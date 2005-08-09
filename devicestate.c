@@ -228,7 +228,7 @@ static void *do_devstate_changes(void *data)
 		} else {
 			/* there was no entry, so atomically unlock the list and wait for
 			   the condition to be signalled (returns with the lock held) */
-			pthread_cond_wait(&change_pending, &state_changes.lock);
+			ast_pthread_cond_wait(&change_pending, &state_changes.lock);
 		}
 	}
 

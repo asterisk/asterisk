@@ -1021,7 +1021,7 @@ static void *do_cdr(void *data)
 		timeout.tv_nsec = (now.tv_usec * 1000) + ((schedms % 1000) * 1000);
 		/* prevent stuff from clobbering cdr_pending_cond, then wait on signals sent to it until the timeout expires */
 		ast_mutex_lock(&cdr_pending_lock);
-		pthread_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
+		ast_pthread_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
 		numevents = ast_sched_runq(sched);
 		ast_mutex_unlock(&cdr_pending_lock);
 		if (option_debug > 1)

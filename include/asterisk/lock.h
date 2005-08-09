@@ -293,6 +293,17 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	return res;
 }
 
+static inline int ast_pthread_cond_wait(pthread_cond_t *cond, ast_mutex_t *ast_mutex)
+{
+	return pthread_cond_wait(cond, &ast_mutex->mutex);
+}
+
+static inline int ast_pthread_cond_timedwait(pthread_cond_t *cond, ast_mutex_t *ast_mutex,
+					     const struct timespec *abstime)
+{
+	return pthread_cond_timedwait(cond, &ast_mutex->mutex, abstime);
+}
+
 #define ast_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 
 #define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
@@ -301,6 +312,8 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 #define pthread_mutex_trylock use_ast_mutex_trylock_instead_of_pthread_mutex_trylock
 #define pthread_mutex_init use_ast_pthread_mutex_init_instead_of_pthread_mutex_init
 #define pthread_mutex_destroy use_ast_pthread_mutex_destroy_instead_of_pthread_mutex_destroy
+#define pthread_cond_wait use_ast_pthread_cond_wait_instead_of_pthread_cond_wait
+#define pthread_cond_timedwait use_ast_pthread_cond_wait_instead_of_pthread_cond_timedwait
 
 #else /* !DEBUG_THREADS */
 
@@ -366,7 +379,10 @@ static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 #define ast_mutex_trylock(pmutex) pthread_mutex_trylock(pmutex)
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-#endif /* DEBUG_THREADS */
+#define ast_pthread_cond_wait pthread_cond_wait
+#define ast_pthread_cond_timedwait pthread_cond_timedwait
+
+#endif /* !DEBUG_THREADS */
 
 #define AST_MUTEX_DEFINE_STATIC(mutex) __AST_MUTEX_DEFINE(static,mutex)
 #define AST_MUTEX_DEFINE_EXPORTED(mutex) __AST_MUTEX_DEFINE(/**/,mutex)
