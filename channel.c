@@ -2874,19 +2874,21 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 	check = ast_autoservice_stop(peer);
 }
 
-static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
+static enum ast_bridge_result ast_generic_bridge(int *playitagain, int *playit, struct ast_channel *c0, struct ast_channel *c1,
+			      struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
 {
-	/* Copy voice back and forth between the two channels.	Give the peer
-	   the ability to transfer calls with '#<extension' syntax. */
+	/* Copy voice back and forth between the two channels. */
 	struct ast_channel *cs[3];
 	int to;
 	struct ast_frame *f;
 	struct ast_channel *who = NULL;
 	void *pvt0, *pvt1;
-	int res=0;
+	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	int o0nativeformats;
 	int o1nativeformats;
 	long elapsed_ms=0, time_left_ms=0;
+	int watch_c0_dtmf;
+	int watch_c1_dtmf;
 	
 	cs[0] = c0;
 	cs[1] = c1;
@@ -2894,12 +2896,15 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel 
 	pvt1 = c1->pvt;
 	o0nativeformats = c0->nativeformats;
 	o1nativeformats = c1->nativeformats;
+	watch_c0_dtmf = config->flags & AST_BRIDGE_DTMF_CHANNEL_0;
+	watch_c1_dtmf = config->flags & AST_BRIDGE_DTMF_CHANNEL_1;
 
 	for (;;) {
-		if ((c0->pvt != pvt0) || (c1->pvt != pvt1) || (o0nativeformats != c0->nativeformats) ||
-			(o1nativeformats != c1->nativeformats)) {
+		if ((c0->pvt != pvt0) || (c1->pvt != pvt1) ||
+		    (o0nativeformats != c0->nativeformats) ||
+		    (o1nativeformats != c1->nativeformats)) {
 			/* Check for Masquerade, codec changes, etc */
-			res = -3;
+			res = AST_BRIDGE_RETRY;
 			break;
 		}
 		/* timestamp */
@@ -2908,24 +2913,26 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel 
 			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), config->start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
-			if (*playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 
+			if (*playitagain &&
+			    ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) ||
+			     (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) &&
+			    (config->play_warning && time_left_ms <= config->play_warning)) { 
 				if (config->warning_freq == 0 || time_left_ms == config->play_warning || (time_left_ms % config->warning_freq) <= 50) {
-					res = -3;
+					res = AST_BRIDGE_RETRY;
 					break;
 				}
 			}
 			if (time_left_ms <= 0) {
-				res = -3;
+				res = AST_BRIDGE_RETRY;
 				break;
 			}
 			if (time_left_ms >= 5000 && *playit) {
-				res = -3;
+				res = AST_BRIDGE_RETRY;
 				break;
 			}
 			to = time_left_ms;
 		} else	
 			to = -1;
-
 
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
@@ -2937,7 +2944,6 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel 
                 			c1->_softhangup = 0;
 				c0->_bridge = c1;
 				c1->_bridge = c0;
-				continue;
 			}
 			continue;
 		}
@@ -2945,7 +2951,7 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel 
 		if (!f) {
 			*fo = NULL;
 			*rc = who;
-			res = 0;
+			res = AST_BRIDGE_COMPLETE;
 			ast_log(LOG_DEBUG, "Didn't get a frame from channel: %s\n",who->name);
 			break;
 		}
@@ -2956,40 +2962,27 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel 
 			} else {
 				*fo = f;
 				*rc = who;
-				res =  0;
+				res =  AST_BRIDGE_COMPLETE;
 				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
 				break;
 			}
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||
-			(f->frametype == AST_FRAME_TEXT) ||
-			(f->frametype == AST_FRAME_VIDEO) || 
-			(f->frametype == AST_FRAME_IMAGE) ||
-			(f->frametype == AST_FRAME_HTML) ||
-			(f->frametype == AST_FRAME_DTMF)) {
-
-			if ((f->frametype == AST_FRAME_DTMF) && 
-				(config->flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
-				if ((who == c0)) {
-					if  ((config->flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
-						*rc = c0;
-						*fo = f;
-						/* Take out of conference mode */
-						res = 0;
-						ast_log(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_0 on c0 (%s)\n",c0->name);
-						break;
-					} else 
-						goto tackygoto;
-				} else
-				if ((who == c1)) {
-					if (config->flags & AST_BRIDGE_DTMF_CHANNEL_1) {
-						*rc = c1;
-						*fo = f;
-						res =  0;
-						ast_log(LOG_DEBUG, "Got AST_BRIDGE_DTMF_CHANNEL_1 on c1 (%s)\n",c1->name);
-						break;
-					} else
-						goto tackygoto;
+		    (f->frametype == AST_FRAME_DTMF) ||
+		    (f->frametype == AST_FRAME_VIDEO) || 
+		    (f->frametype == AST_FRAME_IMAGE) ||
+		    (f->frametype == AST_FRAME_HTML) ||
+		    (f->frametype == AST_FRAME_TEXT)) {
+			if (f->frametype == AST_FRAME_DTMF) {
+				if (((who == c0) && watch_c0_dtmf) ||
+				    ((who == c1) && watch_c1_dtmf)) {
+					*rc = who;
+					*fo = f;
+					res = AST_BRIDGE_COMPLETE;
+					ast_log(LOG_DEBUG, "Got DTMF on channel (%s)\n", who->name);
+					break;
+				} else {
+					goto tackygoto;
 				}
 			} else {
 #if 0
@@ -2999,12 +2992,7 @@ static int ast_generic_bridge(int *playitagain, int *playit, struct ast_channel 
 				last = who;
 #endif
 tackygoto:
-				/* Don't copy packets if there is a generator on either one, since they're
-				   not supposed to be listening anyway */
-				if (who == c0) 
-					ast_write(c1, f);
-				else 
-					ast_write(c0, f);
+				ast_write((who == c0) ? c1 : c0, f);
 			}
 		}
 		ast_frfree(f);
@@ -3018,37 +3006,20 @@ tackygoto:
 }
 
 /*--- ast_channel_bridge: Bridge two channels together */
-int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) 
+enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
+					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) 
 {
-	/* Copy voice back and forth between the two channels.	Give the peer
-	   the ability to transfer calls with '#<extension' syntax. */
-	struct ast_channel *cs[3];
 	struct ast_channel *who = NULL;
-	int res=0;
+	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	int nativefailed=0;
 	int firstpass;
 	int o0nativeformats;
 	int o1nativeformats;
 	long elapsed_ms=0, time_left_ms=0;
 	int playit=0, playitagain=1, first_time=1;
+	char caller_warning = 0;
+	char callee_warning = 0;
 
-	*fo = NULL;
-	firstpass = config->firstpass;
-	config->firstpass = 0;
-
-	/* timestamp */
-	if (! (config->start_time.tv_sec && config->start_time.tv_usec))
-		config->start_time = ast_tvnow();
-	time_left_ms = config->timelimit;
-
-	if ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) && config->start_sound && firstpass)
-		bridge_playfile(c0,c1,config->start_sound,time_left_ms / 1000);
-	if ((ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING)) && config->start_sound && firstpass)
-		bridge_playfile(c1,c0,config->start_sound,time_left_ms / 1000);
-
-	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) || ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) 
-		return -1;
 	if (c0->_bridge) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
 			c0->name, c0->_bridge->name);
@@ -3060,49 +3031,68 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 		return -1;
 	}
 	
+	/* Stop if we're a zombie or need a soft hangup */
+	if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
+	    ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) 
+		return -1;
+
+	*fo = NULL;
+	firstpass = config->firstpass;
+	config->firstpass = 0;
+
+	if (ast_tvzero(config->start_time))
+		config->start_time = ast_tvnow();
+	time_left_ms = config->timelimit;
+
+	caller_warning = ast_test_flag(&config->features_caller, AST_FEATURE_PLAY_WARNING);
+	callee_warning = ast_test_flag(&config->features_callee, AST_FEATURE_PLAY_WARNING);
+
+	if (config->start_sound && firstpass) {
+		if (caller_warning)
+			bridge_playfile(c0, c1, config->start_sound, time_left_ms / 1000);
+		if (callee_warning)
+			bridge_playfile(c1, c0, config->start_sound, time_left_ms / 1000);
+	}
+
 	/* Keep track of bridge */
 	c0->_bridge = c1;
 	c1->_bridge = c0;
-	cs[0] = c0;
-	cs[1] = c1;
 	
 	manager_event(EVENT_FLAG_CALL, "Link", 
-			"Channel1: %s\r\n"
-			"Channel2: %s\r\n"
-			"Uniqueid1: %s\r\n"
-			"Uniqueid2: %s\r\n"
-                        "CallerID1: %s\r\n"
-			"CallerID2: %s\r\n",
-			c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+		      "Channel1: %s\r\n"
+		      "Channel2: %s\r\n"
+		      "Uniqueid1: %s\r\n"
+		      "Uniqueid2: %s\r\n"
+		      "CallerID1: %s\r\n"
+		      "CallerID2: %s\r\n",
+		      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
                                                                         
-	o1nativeformats = c1->nativeformats;
 	o0nativeformats = c0->nativeformats;
+	o1nativeformats = c1->nativeformats;
+
 	for (/* ever */;;) {
-		/* timestamp */
 		if (config->timelimit) {
 			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), config->start_time);
 			time_left_ms = config->timelimit - elapsed_ms;
 
-			if (playitagain && ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) || (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) && (config->play_warning && time_left_ms <= config->play_warning)) { 
+			if (playitagain && (caller_warning || callee_warning) && (config->play_warning && time_left_ms <= config->play_warning)) { 
 				/* narrowing down to the end */
 				if (config->warning_freq == 0) {
 					playit = 1;
-					first_time=0;
-					playitagain=0;
+					first_time = 0;
+					playitagain = 0;
 				} else if (first_time) {
 					playit = 1;
-					first_time=0;
-				} else {
-					if ((time_left_ms % config->warning_freq) <= 50) {
-						playit = 1;
-					}
+					first_time = 0;
+				} else if ((time_left_ms % config->warning_freq) <= 50) {
+					playit = 1;
 				}
 			}
 			if (time_left_ms <= 0) {
-				if ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) && config->end_sound)
-					bridge_playfile(c0,c1,config->end_sound,0);
-				if ((ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING)) && config->end_sound)
-					bridge_playfile(c1,c0,config->end_sound,0);
+				if (caller_warning && config->end_sound)
+					bridge_playfile(c0, c1, config->end_sound, 0);
+				if (callee_warning && config->end_sound)
+					bridge_playfile(c1, c0, config->end_sound, 0);
 				*fo = NULL;
 				if (who) 
 					*rc = who;
@@ -3110,13 +3100,12 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 				break;
 			}
 			if (time_left_ms >= 5000 && playit) {
-				if ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) && config->warning_sound && config->play_warning)
-					bridge_playfile(c0,c1,config->warning_sound,time_left_ms / 1000);
-				if ((ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING)) && config->warning_sound && config->play_warning)
-					bridge_playfile(c1,c0,config->warning_sound,time_left_ms / 1000);
+				if (caller_warning && config->warning_sound && config->play_warning)
+					bridge_playfile(c0, c1, config->warning_sound, time_left_ms / 1000);
+				if (callee_warning && config->warning_sound && config->play_warning)
+					bridge_playfile(c1, c0, config->warning_sound, time_left_ms / 1000);
 				playit = 0;
 			}
-			
 		}
 
 		if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
@@ -3131,87 +3120,105 @@ int ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1, struct as
 		}
 		
 		/* Stop if we're a zombie or need a soft hangup */
-		if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) || ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
+		if (ast_test_flag(c0, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c0) ||
+		    ast_test_flag(c1, AST_FLAG_ZOMBIE) || ast_check_hangup_locked(c1)) {
 			*fo = NULL;
 			if (who)
 				*rc = who;
 			res = 0;
-			ast_log(LOG_DEBUG, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",c0->name,c1->name,ast_test_flag(c0, AST_FLAG_ZOMBIE)?"Yes":"No",ast_check_hangup(c0)?"Yes":"No",ast_test_flag(c1, AST_FLAG_ZOMBIE)?"Yes":"No",ast_check_hangup(c1)?"Yes":"No");
+			ast_log(LOG_DEBUG, "Bridge stops because we're zombie or need a soft hangup: c0=%s, c1=%s, flags: %s,%s,%s,%s\n",
+				c0->name, c1->name,
+				ast_test_flag(c0, AST_FLAG_ZOMBIE) ? "Yes" : "No",
+				ast_check_hangup(c0) ? "Yes" : "No",
+				ast_test_flag(c1, AST_FLAG_ZOMBIE) ? "Yes" : "No",
+				ast_check_hangup(c1) ? "Yes" : "No");
 			break;
 		}
-		if (c0->tech->bridge && config->timelimit==0 &&
-			(c0->tech->bridge == c1->tech->bridge) && !nativefailed && !c0->monitor && !c1->monitor && !c0->spiers && !c1->spiers) {
-				/* Looks like they share a bridge code */
+
+		if (c0->tech->bridge &&
+		    (config->timelimit == 0) &&
+		    (c0->tech->bridge == c1->tech->bridge) &&
+		    !nativefailed && !c0->monitor && !c1->monitor && !c0->spiers && !c1->spiers) {
+			/* Looks like they share a bridge method */
 			if (option_verbose > 2) 
 				ast_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
-			if (!(res = c0->tech->bridge(c0, c1, config->flags, fo, rc))) {
-				c0->_bridge = NULL;
-				c1->_bridge = NULL;
+			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc)) == AST_BRIDGE_COMPLETE) {
 				manager_event(EVENT_FLAG_CALL, "Unlink", 
-					"Channel1: %s\r\n"
-					"Channel2: %s\r\n"
-					"Uniqueid1: %s\r\n"
-					"Uniqueid2: %s\r\n"
-                                        "CallerID1: %s\r\n"
-                                        "CallerID2: %s\r\n",
-					c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
-				ast_log(LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n",c0->name ,c1->name);
+					      "Channel1: %s\r\n"
+					      "Channel2: %s\r\n"
+					      "Uniqueid1: %s\r\n"
+					      "Uniqueid2: %s\r\n"
+					      "CallerID1: %s\r\n"
+					      "CallerID2: %s\r\n",
+					      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+				ast_log(LOG_DEBUG, "Returning from native bridge, channels: %s, %s\n", c0->name, c1->name);
+
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
-				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
-					c0->_bridge = c1;
-					c1->_bridge = c0;
+
+				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
 					continue;
-				}
-				else 
-				return 0;
+
+				c0->_bridge = NULL;
+				c1->_bridge = NULL;
+
+				return res;
 			} else {
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
 			}
 			
-			/* If they return non-zero then continue on normally.  Let "-2" mean don't worry about
-			   my not wanting to bridge */
-			if ((res != -2) && (res != -3))
+			switch (res) {
+			case AST_BRIDGE_RETRY:
+				continue;
+			default:
 				ast_log(LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
-			if (res != -3)
+				/* fallthrough */
+			case AST_BRIDGE_FAILED_NOWARN:
 				nativefailed++;
+				break;
+			}
 		}
 	
-		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat) || (c0->nativeformats != o0nativeformats) || (c1->nativeformats != o1nativeformats)) &&
-			!(c0->generator || c1->generator))  {
+		if (((c0->writeformat != c1->readformat) || (c0->readformat != c1->writeformat) ||
+		    (c0->nativeformats != o0nativeformats) || (c1->nativeformats != o1nativeformats)) &&
+		    !(c0->generator || c1->generator)) {
 			if (ast_channel_make_compatible(c0, c1)) {
 				ast_log(LOG_WARNING, "Can't make %s and %s compatible\n", c0->name, c1->name);
                                 manager_event(EVENT_FLAG_CALL, "Unlink",
-                                        "Channel1: %s\r\n"
-                                        "Channel2: %s\r\n"
-                                        "Uniqueid1: %s\r\n"
-                                        "Uniqueid2: %s\r\n"
-                                        "CallerID1: %s\r\n"
-                                        "CallerID2: %s\r\n",
-                                        c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
-				return -1;
+					      "Channel1: %s\r\n"
+					      "Channel2: %s\r\n"
+					      "Uniqueid1: %s\r\n"
+					      "Uniqueid2: %s\r\n"
+					      "CallerID1: %s\r\n"
+					      "CallerID2: %s\r\n",
+					      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+				return AST_BRIDGE_FAILED;
 			}
 			o0nativeformats = c0->nativeformats;
 			o1nativeformats = c1->nativeformats;
 		}
+
 		res = ast_generic_bridge(&playitagain, &playit, c0, c1, config, fo, rc);
-		if (res != -3)
+		if (res != AST_BRIDGE_RETRY)
 			break;
 	}
+
 	c0->_bridge = NULL;
 	c1->_bridge = NULL;
+
 	manager_event(EVENT_FLAG_CALL, "Unlink",
-					"Channel1: %s\r\n"
-					"Channel2: %s\r\n"
-					"Uniqueid1: %s\r\n"
-					"Uniqueid2: %s\r\n"
-					"CallerID1: %s\r\n"
-					"CallerID2: %s\r\n",
-					c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
-	ast_log(LOG_DEBUG, "Bridge stops bridging channels %s and %s\n",c0->name,c1->name);
+		      "Channel1: %s\r\n"
+		      "Channel2: %s\r\n"
+		      "Uniqueid1: %s\r\n"
+		      "Uniqueid2: %s\r\n"
+		      "CallerID1: %s\r\n"
+		      "CallerID2: %s\r\n",
+		      c0->name, c1->name, c0->uniqueid, c1->uniqueid, c0->cid.cid_num, c1->cid.cid_num);
+	ast_log(LOG_DEBUG, "Bridge stops bridging channels %s and %s\n", c0->name, c1->name);
+
 	return res;
 }
 

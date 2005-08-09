@@ -1425,7 +1425,7 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 /* ast_rtp_bridge: Bridge calls. If possible and allowed, initiate
 	re-invite so the peers exchange media directly outside 
 	of Asterisk. */
-int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
 {
 	struct ast_frame *f;
 	struct ast_channel *who, *cs[3];
@@ -1449,7 +1449,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 
 	/* if need DTMF, cant native bridge */
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
-		return -2;
+		return AST_BRIDGE_FAILED_NOWARN;
 
 	/* Lock channels */
 	ast_mutex_lock(&c0->lock);
@@ -1466,13 +1466,13 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c0->name);
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
-		return -1;
+		return AST_BRIDGE_FAILED;
 	}
 	if (!pr1) {
 		ast_log(LOG_WARNING, "Can't find native functions for channel '%s'\n", c1->name);
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
-		return -1;
+		return AST_BRIDGE_FAILED;
 	}
 
 	/* Get channel specific interface structures */
@@ -1496,7 +1496,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		/* Somebody doesn't want to play... */
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
-		return -2;
+		return AST_BRIDGE_FAILED_NOWARN;
 	}
 	/* Get codecs from both sides */
 	if (pr0->get_codec)
@@ -1514,7 +1514,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 				ast_log(LOG_DEBUG, "Channel codec0 = %d is not codec1 = %d, cannot native bridge in RTP.\n", codec0, codec1);
 			ast_mutex_unlock(&c0->lock);
 			ast_mutex_unlock(&c1->lock);
-			return -2;
+			return AST_BRIDGE_FAILED_NOWARN;
 		}
 	}
 
@@ -1559,8 +1559,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 				}
-				/* Tell it to try again later */
-				return -3;
+				return AST_BRIDGE_RETRY;
 		}
 		to = -1;
 		/* Now check if they have changed address */
@@ -1629,8 +1628,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 				if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 			}
-			/* That's all we needed */
-			return 0;
+			return AST_BRIDGE_COMPLETE;
 		} else {
 			if ((f->frametype == AST_FRAME_DTMF) || 
 				(f->frametype == AST_FRAME_VOICE) || 
@@ -1650,7 +1648,7 @@ int ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, st
 		cs[1] = cs[2];
 		
 	}
-	return -1;
+	return AST_BRIDGE_FAILED;
 }
 
 static int rtp_do_debug_ip(int fd, int argc, char *argv[])

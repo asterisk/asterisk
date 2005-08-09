@@ -53,6 +53,13 @@ extern "C" {
 
 #define AST_MAX_FDS		8
 
+enum ast_bridge_result {
+	AST_BRIDGE_COMPLETE = 0,
+	AST_BRIDGE_FAILED = -1,
+	AST_BRIDGE_FAILED_NOWARN = -2,
+	AST_BRIDGE_RETRY = -3,
+};
+
 typedef unsigned long long ast_group_t;
 
 struct ast_generator {
@@ -130,8 +137,8 @@ struct ast_channel_tech {
 	struct ast_frame * (* const exception)(struct ast_channel *chan);
 
 	/*! Bridge two channels of the same type together */
-	int (* const bridge)(struct ast_channel *c0, struct ast_channel *c1, int flags,
-			     struct ast_frame **fo, struct ast_channel **rc);
+	enum ast_bridge_result (* const bridge)(struct ast_channel *c0, struct ast_channel *c1, int flags,
+						struct ast_frame **fo, struct ast_channel **rc);
 
 	/*! Indicate a particular condition (e.g. AST_CONTROL_BUSY or AST_CONTROL_RINGING or AST_CONTROL_CONGESTION */
 	int (* const indicate)(struct ast_channel *c, int condition);

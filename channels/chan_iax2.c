@@ -708,7 +708,7 @@ static struct ast_frame *iax2_read(struct ast_channel *c);
 static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 static int iax2_indicate(struct ast_channel *c, int condition);
 static int iax2_setoption(struct ast_channel *c, int option, void *data, int datalen);
-static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
 static int iax2_transfer(struct ast_channel *c, const char *dest);
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
 
@@ -3050,7 +3050,7 @@ static void unlock_both(unsigned short callno0, unsigned short callno1)
 	ast_mutex_unlock(&iaxsl[callno0]);
 }
 
-static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
 {
 	struct ast_channel *cs[3];
 	struct ast_channel *who;
@@ -3089,7 +3089,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 				iaxs[callno1]->bridgecallno = 0;
 				ast_mutex_unlock(&iaxsl[callno1]);
 			}
-			return -2;
+			return AST_BRIDGE_FAILED_NOWARN;
 		}
 		if (c0->nativeformats != c1->nativeformats) {
 			if (option_verbose > 2) {
@@ -3104,7 +3104,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 			iaxs[callno0]->bridgecallno = 0;
 			iaxs[callno1]->bridgecallno = 0;
 			unlock_both(callno0, callno1);
-			return -2;
+			return AST_BRIDGE_FAILED_NOWARN;
 		}
 		/* check if transfered and if we really want native bridging */
 		if (!transferstarted && !ast_test_flag(iaxs[callno0], IAX_NOTRANSFER) && !ast_test_flag(iaxs[callno1], IAX_NOTRANSFER) && 
@@ -3124,7 +3124,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 				c1->_softhangup |= AST_SOFTHANGUP_DEV;
 				*fo = NULL;
 				*rc = c0;
-				res = 0;
+				res = AST_BRIDGE_COMPLETE;
 				break;
 			}
 		}
@@ -3132,7 +3132,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
-				res = -1;
+				res = AST_BRIDGE_FAILED;
 				break;
 			}
 			continue;
@@ -3141,28 +3141,27 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 		if (!f) {
 			*fo = NULL;
 			*rc = who;
-			res = 0;
+			res = AST_BRIDGE_COMPLETE;
 			break;
 		}
 		if ((f->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
 			*fo = f;
 			*rc = who;
-			res =  0;
+			res =  AST_BRIDGE_COMPLETE;
 			break;
 		}
 		if ((f->frametype == AST_FRAME_VOICE) ||
-			(f->frametype == AST_FRAME_TEXT) ||
-			(f->frametype == AST_FRAME_VIDEO) || 
-			(f->frametype == AST_FRAME_IMAGE) ||
-			(f->frametype == AST_FRAME_DTMF)) {
+		    (f->frametype == AST_FRAME_TEXT) ||
+		    (f->frametype == AST_FRAME_VIDEO) || 
+		    (f->frametype == AST_FRAME_IMAGE) ||
+		    (f->frametype == AST_FRAME_DTMF)) {
 			if ((f->frametype == AST_FRAME_DTMF) && 
-				(flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
+			    (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))) {
 				if ((who == c0)) {
 					if  ((flags & AST_BRIDGE_DTMF_CHANNEL_0)) {
 						*rc = c0;
 						*fo = f;
-						/* Take out of conference mode */
-						res = 0;
+						res = AST_BRIDGE_COMPLETE;
 						/* Remove from native mode */
 						break;
 					} else 
@@ -3172,8 +3171,7 @@ static int iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags
 					if (flags & AST_BRIDGE_DTMF_CHANNEL_1) {
 						*rc = c1;
 						*fo = f;
-						res =  0;
-						/* Remove from native mode */
+						res =  AST_BRIDGE_COMPLETE;
 						break;
 					} else
 						goto tackygoto;

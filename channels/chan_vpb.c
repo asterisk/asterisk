@@ -326,7 +326,7 @@ static int vpb_hangup(struct ast_channel *ast);
 static int vpb_answer(struct ast_channel *ast);
 static struct ast_frame *vpb_read(struct ast_channel *ast);
 static int vpb_write(struct ast_channel *ast, struct ast_frame *frame);
-static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
 static int vpb_indicate(struct ast_channel *ast, int condition);
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
@@ -396,11 +396,12 @@ static struct ast_channel_tech vpb_tech_indicate = {
 /* #define HALF_DUPLEX_BRIDGE */
 
 /* This is the Native bridge code, which Asterisk will try before using its own bridging code */
-static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
 {
 	struct vpb_pvt *p0 = (struct vpb_pvt *)c0->tech_pvt;
 	struct vpb_pvt *p1 = (struct vpb_pvt *)c1->tech_pvt;
-	int i, res;
+	int i;
+	enum ast_bridge_result res;
 
 	struct ast_channel *cs[3];
 	struct ast_channel *who;
@@ -412,10 +413,10 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 
 	#ifdef BAD_V4PCI_BRIDGE
 	if(p0->vpb_model==vpb_model_v4pci)
-		return -2;
+		return AST_BRIDGE_FAILED_NOWARN;
 	#endif
 	if ( UseNativeBridge != 1){
-		return -2;
+		return AST_BRIDGE_FAILED_NOWARN;
 	}
 
 /*
@@ -444,7 +445,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 		ast_log(LOG_WARNING, "%s: vpb_bridge: Failed to bridge %s and %s!\n", p0->dev, c0->name, c1->name);
 		ast_mutex_unlock(&p0->lock);
 		ast_mutex_unlock(&p1->lock);
-		return -2;
+		return AST_BRIDGE_FAILED_NOWARN;
 	} else {
 		/* Set bridge pointers. You don't want to take these locks while holding bridge lock.*/
 		ast_mutex_lock(&p0->lock); {
@@ -581,7 +582,7 @@ static int vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags,
 	ast_mutex_unlock(&p0->lock);
 	ast_mutex_unlock(&p1->lock);
 */
-	return (res==VPB_OK)?0:-1;
+	return (res==VPB_OK) ? AST_BRIDGE_COMPLETE : AST_BRIDGE_FAILED;
 }
 
 /* Caller ID can be located in different positions between the rings depending on your Telco

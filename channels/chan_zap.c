@@ -323,7 +323,7 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
-static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
 
 static int zt_sendtext(struct ast_channel *c, const char *text);
 
@@ -664,7 +664,6 @@ static int zt_hangup(struct ast_channel *ast);
 static int zt_answer(struct ast_channel *ast);
 struct ast_frame *zt_read(struct ast_channel *ast);
 static int zt_write(struct ast_channel *ast, struct ast_frame *frame);
-static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
 struct ast_frame *zt_exception(struct ast_channel *ast);
 static int zt_indicate(struct ast_channel *chan, int condition);
 static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
@@ -2775,29 +2774,59 @@ static void zt_link(struct zt_pvt *slave, struct zt_pvt *master) {
 	ast_log(LOG_DEBUG, "Making %d slave to master %d at %d\n", slave->channel, master->channel, x);
 }
 
-static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+static void disable_dtmf_detect(struct zt_pvt *p)
 {
-	struct ast_channel *who = NULL, *cs[3];
+	int val;
+
+	p->ignoredtmf = 1;
+
+#ifdef ZT_TONEDETECT
+	val = 0;
+	ioctl(p->subs[SUB_REAL].zfd, ZT_TONEDETECT, &val);
+#endif		
+	
+}
+
+static void enable_dtmf_detect(struct zt_pvt *p)
+{
+	int val;
+
+	p->ignoredtmf = 0;
+
+#ifdef ZT_TONEDETECT
+	val = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
+	ioctl(p->subs[SUB_REAL].zfd, ZT_TONEDETECT, &val);
+#endif		
+}
+
+static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+{
+	struct ast_channel *who;
 	struct zt_pvt *p0, *p1, *op0, *op1;
-	struct zt_pvt *master=NULL, *slave=NULL;
+	struct zt_pvt *master = NULL, *slave = NULL;
 	struct ast_frame *f;
 	int to;
 	int inconf = 0;
-	int nothingok = 0;
-	int ofd1, ofd2;
-	int oi1, oi2, i1 = -1, i2 = -1, t1, t2;
-	int os1 = -1, os2 = -1;
-	struct ast_channel *oc1, *oc2;
+	int nothingok = 1;
+	int ofd0, ofd1;
+	int oi0, oi1, i0 = -1, i1 = -1, t0, t1;
+	int os0 = -1, os1 = -1;
+	struct ast_channel *oc0, *oc1;
+	enum ast_bridge_result res;
+
 #ifdef PRI_2BCT
 	int triedtopribridge = 0;
 	q931_call *q931c0 = NULL, *q931c1 = NULL;
 #endif
 
+	/* For now, don't attempt to native bridge if either channel needs DTMF detection.
+	   There is code below to handle it properly until DTMF is actually seen,
+	   but due to currently unresolved issues it's ignored...
+	*/
 
-	/* if need DTMF, cant native bridge */
 	if (flags & (AST_BRIDGE_DTMF_CHANNEL_0 | AST_BRIDGE_DTMF_CHANNEL_1))
-		return -2;
-		
+		return AST_BRIDGE_FAILED_NOWARN;
+
 	ast_mutex_lock(&c0->lock);
 	ast_mutex_lock(&c1->lock);
 
@@ -2807,24 +2836,23 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 	if (!p0 || (!p0->sig) || !p1 || (!p1->sig)) {
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
-		return -2;
+		return AST_BRIDGE_FAILED_NOWARN;
+	}
+
+	oi0 = zt_get_index(c0, p0, 0);
+	oi1 = zt_get_index(c1, p1, 0);
+	if ((oi0 < 0) || (oi1 < 0)) {
+		ast_mutex_unlock(&c0->lock);
+		ast_mutex_unlock(&c1->lock);
+		return AST_BRIDGE_FAILED;
 	}
 
 	op0 = p0 = c0->tech_pvt;
 	op1 = p1 = c1->tech_pvt;
-	ofd1 = c0->fds[0];
-	ofd2 = c1->fds[0];
-	oi1 = zt_get_index(c0, p0, 0);
-	oi2 = zt_get_index(c1, p1, 0);
-	oc1 = p0->owner;
-	oc2 = p1->owner;
-	if ((oi1 < 0) || (oi2 < 0)) {
-		ast_mutex_unlock(&c0->lock);
-		ast_mutex_unlock(&c1->lock);
-		return -1;
-	}
-
-
+	ofd0 = c0->fds[0];
+	ofd1 = c1->fds[0];
+	oc0 = p0->owner;
+	oc1 = p1->owner;
 
 	ast_mutex_lock(&p0->lock);
 	if (ast_mutex_trylock(&p1->lock)) {
@@ -2833,13 +2861,11 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
 		ast_log(LOG_NOTICE, "Avoiding deadlock...\n");
-		return -3;
+		return AST_BRIDGE_RETRY;
 	}
-	if ((oi1 == SUB_REAL) && (oi2 == SUB_REAL)) {
-		if (!p0->owner || !p1->owner) {
-			/* Currently unowned -- Do nothing.  */
-			nothingok = 1;
-		} else {
+
+	if ((oi0 == SUB_REAL) && (oi1 == SUB_REAL)) {
+		if (p0->owner && p1->owner) {
 			/* If we don't have a call-wait in a 3-way, and we aren't in a 3-way, we can be master */
 			if (!p0->subs[SUB_CALLWAIT].inthreeway && !p1->subs[SUB_REAL].inthreeway) {
 				master = p0;
@@ -2851,40 +2877,41 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 				inconf = 1;
 			} else {
 				ast_log(LOG_WARNING, "Huh?  Both calls are callwaits or 3-ways?  That's clever...?\n");
-				ast_log(LOG_WARNING, "p0: chan %d/%d/CW%d/3W%d, p1: chan %d/%d/CW%d/3W%d\n", p0->channel, oi1, (p0->subs[SUB_CALLWAIT].zfd > -1) ? 1 : 0, p0->subs[SUB_REAL].inthreeway,
-						p0->channel, oi1, (p1->subs[SUB_CALLWAIT].zfd > -1) ? 1 : 0, p1->subs[SUB_REAL].inthreeway);
+				ast_log(LOG_WARNING, "p0: chan %d/%d/CW%d/3W%d, p1: chan %d/%d/CW%d/3W%d\n",
+					p0->channel,
+					oi0, (p0->subs[SUB_CALLWAIT].zfd > -1) ? 1 : 0,
+					p0->subs[SUB_REAL].inthreeway, p0->channel,
+					oi0, (p1->subs[SUB_CALLWAIT].zfd > -1) ? 1 : 0,
+					p1->subs[SUB_REAL].inthreeway);
 			}
+			nothingok = 0;
 		}
-	} else if ((oi1 == SUB_REAL) && (oi2 == SUB_THREEWAY)) {
+	} else if ((oi0 == SUB_REAL) && (oi1 == SUB_THREEWAY)) {
 		if (p1->subs[SUB_THREEWAY].inthreeway) {
 			master = p1;
 			slave = p0;
-		} else {
-			nothingok = 1;
+			nothingok = 0;
 		}
-	} else if ((oi1 == SUB_THREEWAY) && (oi2 == SUB_REAL)) {
+	} else if ((oi0 == SUB_THREEWAY) && (oi1 == SUB_REAL)) {
 		if (p0->subs[SUB_THREEWAY].inthreeway) {
 			master = p0;
 			slave = p1;
-		} else {
-			nothingok  = 1;
+			nothingok = 0;
 		}
-	} else if ((oi1 == SUB_REAL) && (oi2 == SUB_CALLWAIT)) {
+	} else if ((oi0 == SUB_REAL) && (oi1 == SUB_CALLWAIT)) {
 		/* We have a real and a call wait.  If we're in a three way call, put us in it, otherwise, 
 		   don't put us in anything */
 		if (p1->subs[SUB_CALLWAIT].inthreeway) {
 			master = p1;
 			slave = p0;
-		} else {
-			nothingok = 1;
+			nothingok = 0;
 		}
-	} else if ((oi1 == SUB_CALLWAIT) && (oi2 == SUB_REAL)) {
+	} else if ((oi0 == SUB_CALLWAIT) && (oi1 == SUB_REAL)) {
 		/* Same as previous */
 		if (p0->subs[SUB_CALLWAIT].inthreeway) {
 			master = p0;
 			slave = p1;
-		} else {
-			nothingok = 1;
+			nothingok = 0;
 		}
 	}
 	ast_log(LOG_DEBUG, "master: %d, slave: %d, nothingok: %d\n",
@@ -2893,31 +2920,31 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		/* Stop any tones, or play ringtone as appropriate.  If they're bridged
 		   in an active threeway call with a channel that is ringing, we should
 		   indicate ringing. */
-		if ((oi2 == SUB_THREEWAY) && 
-			p1->subs[SUB_THREEWAY].inthreeway && 
-			p1->subs[SUB_REAL].owner && 
-			p1->subs[SUB_REAL].inthreeway && 
-			(p1->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)) {
-				ast_log(LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c0->name, c1->name);
-				tone_zone_play_tone(p0->subs[oi1].zfd, ZT_TONE_RINGTONE);
-				os2 = p1->subs[SUB_REAL].owner->_state;
-		} else {
-				ast_log(LOG_DEBUG, "Stoping tones on %d/%d talking to %d/%d\n", p0->channel, oi1, p1->channel, oi2);
-				tone_zone_play_tone(p0->subs[oi1].zfd, -1);
-		}
 		if ((oi1 == SUB_THREEWAY) && 
-			p0->subs[SUB_THREEWAY].inthreeway && 
-			p0->subs[SUB_REAL].owner && 
-			p0->subs[SUB_REAL].inthreeway && 
-			(p0->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)) {
-				ast_log(LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c1->name, c0->name);
-				tone_zone_play_tone(p1->subs[oi2].zfd, ZT_TONE_RINGTONE);
-				os1 = p0->subs[SUB_REAL].owner->_state;
+		    p1->subs[SUB_THREEWAY].inthreeway && 
+		    p1->subs[SUB_REAL].owner && 
+		    p1->subs[SUB_REAL].inthreeway && 
+		    (p1->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)) {
+			ast_log(LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c0->name, c1->name);
+			tone_zone_play_tone(p0->subs[oi0].zfd, ZT_TONE_RINGTONE);
+			os1 = p1->subs[SUB_REAL].owner->_state;
 		} else {
-				ast_log(LOG_DEBUG, "Stoping tones on %d/%d talking to %d/%d\n", p1->channel, oi2, p0->channel, oi1);
-				tone_zone_play_tone(p1->subs[oi1].zfd, -1);
+			ast_log(LOG_DEBUG, "Stopping tones on %d/%d talking to %d/%d\n", p0->channel, oi0, p1->channel, oi1);
+			tone_zone_play_tone(p0->subs[oi0].zfd, -1);
 		}
-		if ((oi1 == SUB_REAL) && (oi2 == SUB_REAL)) {
+		if ((oi0 == SUB_THREEWAY) && 
+		    p0->subs[SUB_THREEWAY].inthreeway && 
+		    p0->subs[SUB_REAL].owner && 
+		    p0->subs[SUB_REAL].inthreeway && 
+		    (p0->subs[SUB_REAL].owner->_state == AST_STATE_RINGING)) {
+			ast_log(LOG_DEBUG, "Playing ringback on %s since %s is in a ringing three-way\n", c1->name, c0->name);
+			tone_zone_play_tone(p1->subs[oi1].zfd, ZT_TONE_RINGTONE);
+			os0 = p0->subs[SUB_REAL].owner->_state;
+		} else {
+			ast_log(LOG_DEBUG, "Stopping tones on %d/%d talking to %d/%d\n", p1->channel, oi1, p0->channel, oi0);
+			tone_zone_play_tone(p1->subs[oi0].zfd, -1);
+		}
+		if ((oi0 == SUB_REAL) && (oi1 == SUB_REAL)) {
 			if (!p0->echocanbridged || !p1->echocanbridged) {
 				/* Disable echo cancellation if appropriate */
 				zt_disable_ec(p0);
@@ -2927,12 +2954,12 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		zt_link(slave, master);
 		master->inconference = inconf;
 	} else if (!nothingok)
-		ast_log(LOG_WARNING, "Can't link %d/%s with %d/%s\n", p0->channel, subnames[oi1], p1->channel, subnames[oi2]);
+		ast_log(LOG_WARNING, "Can't link %d/%s with %d/%s\n", p0->channel, subnames[oi0], p1->channel, subnames[oi1]);
 
 	update_conf(p0);
 	update_conf(p1);
-	t1 = p0->subs[SUB_REAL].inthreeway;
-	t2 = p1->subs[SUB_REAL].inthreeway;
+	t0 = p0->subs[SUB_REAL].inthreeway;
+	t1 = p1->subs[SUB_REAL].inthreeway;
 
 	ast_mutex_unlock(&p0->lock);
 	ast_mutex_unlock(&p1->lock);
@@ -2942,17 +2969,22 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 
 	/* Native bridge failed */
 	if ((!master || !slave) && !nothingok) {
-		if (op0 == p0)
-			zt_enable_ec(p0);
-		if (op1 == p1)
-			zt_enable_ec(p1);
-		return -1;
+		zt_enable_ec(p0);
+		zt_enable_ec(p1);
+		return AST_BRIDGE_FAILED;
 	}
 	
-	cs[0] = c0;
-	cs[1] = c1;
-	cs[2] = NULL;
+	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_0))
+		disable_dtmf_detect(op0);
+
+	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_1))
+		disable_dtmf_detect(op1);
+
 	for (;;) {
+		struct ast_channel *c0_priority[2] = {c0, c1};
+		struct ast_channel *c1_priority[2] = {c1, c0};
+		int priority = 0;
+
 		/* Here's our main loop...  Start by locking things, looking for private parts, 
 		   and then balking if anything is wrong */
 		ast_mutex_lock(&c0->lock);
@@ -2964,94 +2996,84 @@ static int zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, 
 		q931c0 = p0->call;
 		q931c1 = p1->call;
 		if (p0->transfer && p1->transfer 
-				&& q931c0 && q931c1 
-				&& !triedtopribridge) {
-
+		    && q931c0 && q931c1 
+		    && !triedtopribridge) {
 			pri_channel_bridge(q931c0, q931c1);
 			triedtopribridge = 1;
 		}
 #endif
+
 		if (op0 == p0)
-			i1 = zt_get_index(c0, p0, 1);
+			i0 = zt_get_index(c0, p0, 1);
 		if (op1 == p1)
-			i2 = zt_get_index(c1, p1, 1);
+			i1 = zt_get_index(c1, p1, 1);
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
-		if ((op0 != p0) || (op1 != p1) || 
-		    (ofd1 != c0->fds[0]) || 
-			(ofd2 != c1->fds[0]) ||
-		    (p0->subs[SUB_REAL].owner && (os1 > -1) && (os1 != p0->subs[SUB_REAL].owner->_state)) || 
-		    (p1->subs[SUB_REAL].owner && (os2 > -1) && (os2 != p1->subs[SUB_REAL].owner->_state)) || 
-		    (oc1 != p0->owner) || 
-			(oc2 != p1->owner) ||
-			(t1 != p0->subs[SUB_REAL].inthreeway) ||
-			(t2 != p1->subs[SUB_REAL].inthreeway) ||
-			(oi1 != i1) ||
-			(oi2 != i2)) {
-			if (slave && master)
-				zt_unlink(slave, master, 1);
+
+		if ((op0 != p0) ||
+		    (op1 != p1) || 
+		    (ofd0 != c0->fds[0]) || 
+		    (ofd1 != c1->fds[0]) ||
+		    (p0->subs[SUB_REAL].owner && (os0 > -1) && (os0 != p0->subs[SUB_REAL].owner->_state)) || 
+		    (p1->subs[SUB_REAL].owner && (os1 > -1) && (os1 != p1->subs[SUB_REAL].owner->_state)) || 
+		    (oc0 != p0->owner) || 
+		    (oc1 != p1->owner) ||
+		    (t0 != p0->subs[SUB_REAL].inthreeway) ||
+		    (t1 != p1->subs[SUB_REAL].inthreeway) ||
+		    (oi0 != i0) ||
+		    (oi1 != i0)) {
 			ast_log(LOG_DEBUG, "Something changed out on %d/%d to %d/%d, returning -3 to restart\n",
-									op0->channel, oi1, op1->channel, oi2);
-			if (op0 == p0)
-				zt_enable_ec(p0);
-			if (op1 == p1)
-				zt_enable_ec(p1);
-			return -3;
+				op0->channel, oi0, op1->channel, oi1);
+			res = AST_BRIDGE_RETRY;
+			goto return_from_bridge;
 		}
 		to = -1;
-		who = ast_waitfor_n(cs, 2, &to);
+		who = ast_waitfor_n(priority ? c0_priority : c1_priority, 2, &to);
 		if (!who) {
 			ast_log(LOG_DEBUG, "Ooh, empty read...\n");
 			continue;
 		}
-		if (who->tech_pvt == op0) 
-			op0->ignoredtmf = 1;
-		else if (who->tech_pvt == op1)
-			op1->ignoredtmf = 1;
 		f = ast_read(who);
-		if (who->tech_pvt == op0) 
-			op0->ignoredtmf = 0;
-		else if (who->tech_pvt == op1)
-			op1->ignoredtmf = 0;
-		if (!f) {
-			*fo = NULL;
-			*rc = who;
-			if (slave && master)
-				zt_unlink(slave, master, 1);
-			if (op0 == p0)
-				zt_enable_ec(p0);
-			if (op1 == p1)
-				zt_enable_ec(p1);
-			return 0;
-		}
-		if (f->frametype == AST_FRAME_CONTROL) {
+		if (!f || (f->frametype == AST_FRAME_CONTROL)) {
 			*fo = f;
 			*rc = who;
-			if (slave && master)
-				zt_unlink(slave, master, 1);
-			return 0;
+			res = AST_BRIDGE_COMPLETE;
+			goto return_from_bridge;
 		}
 		if (f->frametype == AST_FRAME_DTMF) {
-			if (((who == c0) && (flags & AST_BRIDGE_DTMF_CHANNEL_0)) || 
-			    ((who == c1) && (flags & AST_BRIDGE_DTMF_CHANNEL_1))) {
+			if ((who == c0) && p0->pulsedial) {
+				ast_write(c1, f);
+			} else if (p1->pulsedial) {
+				ast_write(c0, f);
+			} else {
 				*fo = f;
 				*rc = who;
-				if (slave && master)
-					zt_unlink(slave, master, 1);
-				return 0;
-			} else if ((who == c0) && p0->pulsedial) {
-				ast_write(c1, f);
-			} else if ((who == c1) && p1->pulsedial) {
-				ast_write(c0, f);
+				res = AST_BRIDGE_COMPLETE;
+				goto return_from_bridge;
 			}
 		}
 		ast_frfree(f);
-
+		
 		/* Swap who gets priority */
-		cs[2] = cs[0];
-		cs[0] = cs[1];
-		cs[1] = cs[2];
+		priority = !priority;
 	}
+
+return_from_bridge:
+	if (op0 == p0)
+		zt_enable_ec(p0);
+
+	if (op1 == p1)
+		zt_enable_ec(p1);
+
+	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_0))
+		enable_dtmf_detect(op0);
+
+	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_1))
+		enable_dtmf_detect(op1);
+
+	zt_unlink(slave, master, 1);
+
+	return res;
 }
 
 static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan)
