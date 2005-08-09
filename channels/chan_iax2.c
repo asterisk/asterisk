@@ -8403,7 +8403,7 @@ static int set_config(char *config_file, int reload)
 	/* Seed initial tos value */
 	tosval = ast_variable_retrieve(cfg, "general", "tos");
 	if (tosval) {
-		if (ast_str2tos(v->value, &tos))
+		if (ast_str2tos(tosval, &tos))
 			ast_log(LOG_WARNING, "Invalid tos value, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n");
 	}
 	while(v) {
