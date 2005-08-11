@@ -35,6 +35,9 @@
 
 #if defined (SOLARIS)
 #include <sys/sockio.h>
+/* netinet/ip.h does not define the following (See RFCs 791 and 1349) */
+#define       IPTOS_LOWCOST           0x02
+#define       IPTOS_MINCOST           IPTOS_LOWCOST
 #endif
 
 #include "asterisk.h"
