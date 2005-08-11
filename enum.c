@@ -53,7 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* Linked list from config file */
 static struct enum_search {
-	char toplev[80];
+	char toplev[512];
 	struct enum_search *next;
 } *toplevs;
 
@@ -88,11 +88,11 @@ static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
 static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *answer, int len, char *naptrinput)
 {
 	char *oanswer = answer;
-	char flags[80] = "";
-	char services[80] = "";
-	char regexp[80] = "";
-	char repl[80] = "";
-	char temp[80] = "";
+	char flags[512] = "";
+	char services[512] = "";
+	char regexp[512] = "";
+	char repl[512] = "";
+	char temp[512] = "";
 	char delim;
 	char *delim2;
 	char *pattern, *subst, *d;
@@ -314,8 +314,8 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen)
 {
 	struct enum_context context;
-	char tmp[259 + 80];
-	char naptrinput[80] = "+";
+	char tmp[259 + 512];
+	char naptrinput[512] = "+";
 	int pos = strlen(number) - 1;
 	int newpos = 0;
 	int ret = -1;
@@ -374,8 +374,8 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char *txt, int txtlen)
 {
 	struct enum_context context;
-	char tmp[259 + 80];
-	char naptrinput[80] = "+";
+	char tmp[259 + 512];
+	char naptrinput[512] = "+";
 	int pos = strlen(number) - 1;
 	int newpos = 0;
 	int ret = -1;
