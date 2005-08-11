@@ -3200,6 +3200,7 @@ static int attempt_transfer(struct zt_pvt *p)
 		ast_log(LOG_DEBUG, "Neither %s nor %s are in a bridge, nothing to transfer\n",
 					p->subs[SUB_REAL].owner->name, p->subs[SUB_THREEWAY].owner->name);
 		p->subs[SUB_THREEWAY].owner->_softhangup |= AST_SOFTHANGUP_DEV;
+		return -1;
 	}
 	return 0;
 }
