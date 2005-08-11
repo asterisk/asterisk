@@ -390,8 +390,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 					u->list_cleared = 1;
 					entry = make_entry(&input[2]);
 					if (entry)
-						AST_LIST_UNLOCK(&u->playlist);
-					AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
+						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
+					AST_LIST_UNLOCK(&u->playlist);
 				} else if (input[0] == 'A') {
 					if (ast_fileexists(&input[2], NULL, NULL) == -1) {
 						fprintf(child_events, "Z,%10ld\n", time(NULL));
