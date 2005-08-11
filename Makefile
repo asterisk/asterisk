@@ -803,7 +803,7 @@ dont-optimize:
 
 valgrind: dont-optimize
 
-depend: .depend defaults.h include/asterisk/build.h include/asterisk/version.h
+depend: include/asterisk/build.h include/asterisk/version.h .depend defaults.h 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend: include/asterisk/version.h
