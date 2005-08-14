@@ -178,6 +178,9 @@ int ast_search_dns(void *context,
 	int res, ret = -1;
 
 #ifdef HAS_RES_NINIT
+#ifdef MAKE_VALGRIND_HAPPY
+	memset(&dnsstate, 0, sizeof(dnsstate));
+#endif	
 	res_ninit(&dnsstate);
 	res = res_nsearch(&dnsstate, dname, class, type, (unsigned char *)answer, sizeof(answer));
 #else
