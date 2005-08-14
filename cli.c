@@ -1251,7 +1251,7 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 	char *dup, *res;
 	char fullcmd1[80] = "";
 	char fullcmd2[80] = "";
-	char matchstr[80];
+	char matchstr[80] = "";
 	char *fullcmd = NULL;
 
 	if ((dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0])))) {
