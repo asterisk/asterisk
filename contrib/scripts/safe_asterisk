@@ -5,6 +5,7 @@ CONSOLE=yes		# Whether or not you want a console
 #NOTIFY=ben@alkaloid.net	# Who to notify about crashes
 MACHINE=`hostname`      # To specify which machine has crashed when getting the mail
 DUMPDROP=/tmp
+ASTSBINDIR=__ASTERISK_SBIN_DIR__
 #
 # Don't fork when running "safely"
 #
@@ -44,10 +45,10 @@ run_asterisk()
 		if [ "$TTY" != "" ]; then
 			cd /tmp
 			stty sane < /dev/${TTY}
-			asterisk ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
+			${ASTSBINDIR}/asterisk ${CLIARGS} ${ASTARGS} >& /dev/${TTY} < /dev/${TTY}
 		else
 			cd /tmp
-			asterisk ${CLIARGS} ${ASTARGS}
+			${ASTSBINDIR}/asterisk ${CLIARGS} ${ASTARGS}
 		fi
 		EXITSTATUS=$?
 		echo "Asterisk ended with exit status $EXITSTATUS"

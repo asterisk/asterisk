@@ -598,7 +598,7 @@ bininstall: all
 	install -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
 	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ]; then \
-		install -m 755 contrib/scripts/safe_asterisk $(DESTDIR)$(ASTSBINDIR)/ ;\
+		cat contrib/scripts/safe_asterisk | sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;' > $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ;\
 	fi
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
 	install -d $(DESTDIR)$(ASTHEADERDIR)
