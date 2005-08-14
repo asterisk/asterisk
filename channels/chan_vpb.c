@@ -401,8 +401,7 @@ static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_chan
 	struct vpb_pvt *p0 = (struct vpb_pvt *)c0->tech_pvt;
 	struct vpb_pvt *p1 = (struct vpb_pvt *)c1->tech_pvt;
 	int i;
-	enum ast_bridge_result res;
-
+	int res;
 	struct ast_channel *cs[3];
 	struct ast_channel *who;
 	int to = -1;
