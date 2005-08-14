@@ -33,7 +33,7 @@
 #include <net/route.h>
 #endif
 
-#if defined (SOLARIS)
+#if defined (SOLARIS) || defined(__OpenBSD__)
 #include <sys/sockio.h>
 /* netinet/ip.h does not define the following (See RFCs 791 and 1349) */
 #define       IPTOS_LOWCOST           0x02
