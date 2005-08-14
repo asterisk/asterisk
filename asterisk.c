@@ -2072,6 +2072,10 @@ int main(int argc, char *argv[])
 		printf(term_quit());
 		exit(1);
 	}
+	if (dnsmgr_init()) {
+		printf(term_quit());
+		exit(1);
+	}
 	/* load 'preload' modules, required for access to Realtime-mapped configuration files */
 	if (load_modules(1)) {
 		printf(term_quit());
@@ -2116,10 +2120,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	if (ast_enum_init()) {
-		printf(term_quit());
-		exit(1);
-	}
-	if (dnsmgr_init()) {
 		printf(term_quit());
 		exit(1);
 	}
