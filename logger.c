@@ -452,7 +452,8 @@ int reload_logger(int rotate)
 			return 0;
 		} else 
 			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-	}
+	} else 
+		return 0;
 	return -1;
 }
 
@@ -584,7 +585,8 @@ int init_logger(void)
 			return 0;
 		} else 
 			ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
-	}
+	} else
+		return 0;
 
 	return -1;
 }
