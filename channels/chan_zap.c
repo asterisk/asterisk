@@ -2992,17 +2992,6 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 		p0 = c0->tech_pvt;
 		p1 = c1->tech_pvt;
 
-#ifdef PRI_2BCT
-		q931c0 = p0->call;
-		q931c1 = p1->call;
-		if (p0->transfer && p1->transfer 
-		    && q931c0 && q931c1 
-		    && !triedtopribridge) {
-			pri_channel_bridge(q931c0, q931c1);
-			triedtopribridge = 1;
-		}
-#endif
-
 		if (op0 == p0)
 			i0 = zt_get_index(c0, p0, 1);
 		if (op1 == p1)
@@ -3027,6 +3016,18 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 			res = AST_BRIDGE_RETRY;
 			goto return_from_bridge;
 		}
+
+#ifdef PRI_2BCT
+		q931c0 = p0->call;
+		q931c1 = p1->call;
+		if (p0->transfer && p1->transfer 
+		    && q931c0 && q931c1 
+		    && !triedtopribridge) {
+			pri_channel_bridge(q931c0, q931c1);
+			triedtopribridge = 1;
+		}
+#endif
+
 		to = -1;
 		who = ast_waitfor_n(priority ? c0_priority : c1_priority, 2, &to);
 		if (!who) {
