@@ -1380,7 +1380,7 @@ static char usage_recvchar[] =
 " -1 only on error/hangup.\n";
 
 static char usage_recvtext[] =
-" Usage: RECEIVE CHAR <timeout>\n"
+" Usage: RECEIVE TEXT <timeout>\n"
 "	Receives a string of text on a channel. Specify timeout to be the\n"
 " maximum time to wait for input in milliseconds, or 0 for infinite. Most channels\n"
 " do not support the reception of text. Returns -1 for failure or 1 for success, and the string in parentheses.\n";
