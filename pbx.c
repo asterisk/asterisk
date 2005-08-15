@@ -4675,7 +4675,7 @@ static void *async_wait(void *data)
 			app = pbx_findapp(as->app);
 			if (app) {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Lauching %s(%s) on %s\n", as->app, as->appdata, chan->name);
+					ast_verbose(VERBOSE_PREFIX_3 "Launching %s(%s) on %s\n", as->app, as->appdata, chan->name);
 				pbx_exec(chan, app, as->appdata, 1);
 			} else
 				ast_log(LOG_WARNING, "No such application '%s'\n", as->app);
@@ -4885,7 +4885,7 @@ static void *ast_pbx_run_app(void *data)
 	app = pbx_findapp(tmp->app);
 	if (app) {
 		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4 "Lauching %s(%s) on %s\n", tmp->app, tmp->data, tmp->chan->name);
+			ast_verbose(VERBOSE_PREFIX_4 "Launching %s(%s) on %s\n", tmp->app, tmp->data, tmp->chan->name);
 		pbx_exec(tmp->chan, app, tmp->data, 1);
 	} else
 		ast_log(LOG_WARNING, "No such application '%s'\n", tmp->app);
