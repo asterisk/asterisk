@@ -94,7 +94,7 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 	iffalse = data;
 
 	if (!expr || ast_strlen_zero(expr) || !(iftrue || iffalse)) {
-		ast_log(LOG_WARNING, "Syntax IF(<timespec>?[<true>][:<false>])\n");
+		ast_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])\n");
 		return NULL;
 	}
 
