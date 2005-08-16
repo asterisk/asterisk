@@ -3350,9 +3350,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			p->pulsedial = 1;
 		else
 			p->pulsedial = 0;
-		ast_log(LOG_DEBUG, "Pulse dial '%c'\n", res & 0xff);
-		p->subs[index].f.frametype = AST_FRAME_DTMF;
-		p->subs[index].f.subclass = res & 0xff;
+		ast_log(LOG_DEBUG, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
+		if ((p->proceeding < 2) && p->sig == SIG_PRI && p->pri && p->pri->overlapdial) {
+			p->subs[index].f.frametype = AST_FRAME_NULL;
+			p->subs[index].f.subclass = 0;
+		} else {
+			p->subs[index].f.frametype = AST_FRAME_DTMF;
+			p->subs[index].f.subclass = res & 0xff;
+		}
 		/* Unmute conference, return the captured digit */
 		zt_confmute(p, 0);
 		return &p->subs[index].f;
