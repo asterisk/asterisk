@@ -3172,7 +3172,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			
 			switch (res) {
 			case AST_BRIDGE_RETRY:
-				continue;
+/*				continue; */
+				break;
 			default:
 				ast_log(LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
 				/* fallthrough */
