@@ -659,7 +659,7 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 				}
 			} else {
 				/* Put it back like it was */
-				fprintf(configout, orig);
+				fprintf(configout, "%s", orig);
 			}
 		}
 	}
