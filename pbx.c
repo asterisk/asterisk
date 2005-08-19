@@ -5319,6 +5319,7 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 	int res = 0;
 	char *ptr1, *ptr2;
 	struct ast_timing timing;
+	struct ast_app *app;
 	const char *usage = "ExecIfTime requires an argument:\n  <time range>|<days of week>|<days of month>|<months>?<appname>[|<appargs>]";
 
 	if (!data || ast_strlen_zero(data)) {
@@ -5326,38 +5327,41 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if ((ptr1 = ast_strdupa((char *) data))) {
-		ptr2 = ptr1;
-		/* Separate the Application data ptr1 is the time spec ptr2 is the app|data*/
-		strsep(&ptr2,"?");
-		if(!(res = ast_build_timing(&timing, ptr1))) {
-			ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", ptr1, usage);
-			res = -1;
-		}
-		
-		if (!res && ast_check_timing(&timing)) {
-			if (ptr2) {
-				/* ptr2 is now the app name 
-				   we're done with ptr1 now so recycle it and use it to point to the app args*/
-				struct ast_app *app;
-				if((ptr1 = strchr(ptr2, '|'))) {
-					*ptr1 = '\0';
-					ptr1++;
-				}
-				if ((app = pbx_findapp(ptr2))) {
-					res = pbx_exec(chan, app, ptr1 ? ptr1 : "", 1);
-				} else {
-					ast_log(LOG_WARNING, "Cannot locate application %s\n", ptr2);
-					res = -1;
-				}
-			} else {
-				ast_log(LOG_WARNING, "%s\n", usage);
-			}
-		}
-	} else {
-		ast_log(LOG_ERROR, "Memory Error!\n");
+	ptr1 = ast_strdupa(data);
+
+	if (!ptr1) {
+		ast_log(LOG_ERROR, "Out of Memory!\n");
+		return -1;	
+	}
+
+	ptr2 = ptr1;
+	/* Separate the Application data ptr1 is the time spec ptr2 is the app|data */
+	strsep(&ptr2,"?");
+	if(!ast_build_timing(&timing, ptr1)) {
+		ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", ptr1, usage);
 		res = -1;
 	}
+		
+	if (!res && ast_check_timing(&timing)) {
+		if (!ptr2) {
+			ast_log(LOG_WARNING, "%s\n", usage);
+		}
+
+		/* ptr2 is now the app name 
+		   we're done with ptr1 now so recycle it and use it to point to the app args */
+		if((ptr1 = strchr(ptr2, '|'))) {
+			*ptr1 = '\0';
+			ptr1++;
+		}
+		
+		if ((app = pbx_findapp(ptr2))) {
+			res = pbx_exec(chan, app, ptr1 ? ptr1 : "", 1);
+		} else {
+			ast_log(LOG_WARNING, "Cannot locate application %s\n", ptr2);
+			res = -1;
+		}
+	}
+	
 	return res;
 }
 
