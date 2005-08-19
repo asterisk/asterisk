@@ -693,7 +693,7 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 static int iax2_do_register(struct iax2_registry *reg);
 static void prune_peers(void);
 static int iax2_poke_peer(struct iax2_peer *peer, int heldcall);
-static int iax2_provision(struct sockaddr_in *end, char *dest, const char *template, int force);
+static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force);
 
 static struct ast_channel *iax2_request(const char *type, int format, void *data, int *cause);
 static int iax2_devicestate(void *data);
@@ -6055,9 +6055,9 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 }
 
 
-static int iax2_provision(struct sockaddr_in *end, char *dest, const char *template, int force);
+static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force);
 
-static int check_provisioning(struct sockaddr_in *sin, char *si, unsigned int ver)
+static int check_provisioning(struct sockaddr_in *sin, int sockfd, char *si, unsigned int ver)
 {
 	unsigned int ourver;
 	unsigned char rsi[80];
@@ -6067,7 +6067,7 @@ static int check_provisioning(struct sockaddr_in *sin, char *si, unsigned int ve
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Service identifier '%s', we think '%08x', they think '%08x'\n", si, ourver, ver);
 	if (ourver != ver) 
-		iax2_provision(sin, NULL, rsi, 1);
+		iax2_provision(sin, sockfd, NULL, rsi, 1);
 	return 0;
 }
 
@@ -6612,7 +6612,7 @@ retryowner:
 				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD))
 					break;
 				if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
-					check_provisioning(&sin, ies.serviceident, ies.provver);
+					check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 				/* For security, always ack immediately */
 				if (delayreject)
 					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
@@ -7217,7 +7217,7 @@ retryowner2:
 					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype, fd))
 						ast_log(LOG_WARNING, "Registry error\n");
 					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
-						check_provisioning(&sin, ies.serviceident, ies.provver);
+						check_provisioning(&sin, fd, ies.serviceident, ies.provver);
 					break;
 				}
 				registry_authrequest(iaxs[fr.callno]->peer, fr.callno);
@@ -7490,7 +7490,7 @@ static char *iax2_prov_complete_template_3rd(char *line, char *word, int pos, in
 	return iax_prov_complete_template(line, word, pos, state);
 }
 
-static int iax2_provision(struct sockaddr_in *end, char *dest, const char *template, int force)
+static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const char *template, int force)
 {
 	/* Returns 1 if provisioned, -1 if not able to find destination, or 0 if no provisioning
 	   is found for template */
@@ -7511,9 +7511,10 @@ static int iax2_provision(struct sockaddr_in *end, char *dest, const char *templ
 		return 0;
 	}
 
-	if (end)
+	if (end) {
 		memcpy(&sin, end, sizeof(sin));
-	else if (create_addr(dest, &sin, &cai))
+		cai.sockfd = sockfd;
+	} else if (create_addr(dest, &sin, &cai))
 		return -1;
 
 	/* Build the rest of the message */
@@ -7569,7 +7570,7 @@ static int iax2_prov_app(struct ast_channel *chan, void *data)
 		ast_log(LOG_NOTICE, "Can't provision something with no IP?\n");
 		return -1;
 	}
-	res = iax2_provision(&iaxs[callno]->addr, NULL, sdata, force);
+	res = iax2_provision(&iaxs[callno]->addr, iaxs[callno]->sockfd, NULL, sdata, force);
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Provisioned IAXY at '%s' with '%s'= %d\n", 
 		ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[callno]->addr.sin_addr),
@@ -7590,7 +7591,7 @@ static int iax2_prov_cmd(int fd, int argc, char *argv[])
 		else
 			return RESULT_SHOWUSAGE;
 	}
-	res = iax2_provision(NULL, argv[2], argv[3], force);
+	res = iax2_provision(NULL, -1, argv[2], argv[3], force);
 	if (res < 0)
 		ast_cli(fd, "Unable to find peer/address '%s'\n", argv[2]);
 	else if (res < 1)
