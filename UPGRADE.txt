@@ -130,3 +130,10 @@ Extensions:
   CONGESTION, or HANGUP based on Asterisk's best guess.  If you are
   writing an extension for IVR, you must use the WaitExten application
   if "autofallthrough" is set to yes.
+
+AGI:
+
+* AGI scripts did not always get SIGHUP at the end, previously.  That 
+  behavior has been fixed.  If you do not want your script to terminate 
+  at the end of AGI being called (e.g. on a hangup) then set SIGHUP to 
+  be ignored within your application.
