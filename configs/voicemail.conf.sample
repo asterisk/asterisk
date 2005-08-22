@@ -52,10 +52,7 @@ maxlogins=3
 ; Permit finding entries for forward/compose from the directory
 ;usedirectory=yes
 ;
-;Change the From: string for pager messages
-;pagerfromstring=The Asterisk PBX
-;
-; Change the email body and/or subject, variables: 
+; Change the from, body and/or subject, variables:
 ;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_CIDNUM, VM_CIDNAME, VM_DATE
 ;
 ; Note: The emailbody config row can be up to 512 characters due to a limitation in 
@@ -64,13 +61,19 @@ maxlogins=3
 ; The following definition is very close to the default, but the default shows just 
 ; the CIDNAME, if it is not null, else just the CIDNUM, or "an unknown caller" if they are both null.
 ;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
+;
+; You can also change the Pager From: string, the pager body and/or subject.
+; The above defined variables also can be used here
+;pagerfromstring=The Asterisk PBX
+;pagersubject=New VM
+;pagerbody=New ${VM_DUR} long msg in box ${VM_MAILBOX}\nfrom ${VM_CALLERID}, on ${VM_DATE}
+;
 ; Set the date format on outgoing mails. Valid arguments can be found on the strftime(3) man page
 ;
 ; Default
 emaildateformat=%A, %B %d, %Y at %r
 ; 24h date format
 ;emaildateformat=%A, %d %B %Y at %H:%M:%S
-
 ;
 ; You can override the default program to send e-mail if you wish, too
 ;

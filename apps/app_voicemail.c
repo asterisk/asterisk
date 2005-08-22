@@ -343,6 +343,8 @@ static char cidinternalcontexts[MAX_NUM_CID_CONTEXTS][64];
 
 static char *emailbody = NULL;
 static char *emailsubject = NULL;
+static char *pagerbody = NULL;
+static char *pagersubject = NULL;
 static char fromstring[100];
 static char pagerfromstring[100];
 static char emailtitle[100];
@@ -1762,10 +1764,39 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		} else
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
-		fprintf(p, "Subject: New VM\n\n");
+               if (pagersubject) {
+                       struct ast_channel *ast = ast_channel_alloc(0);
+                       if (ast) {
+                               char *passdata;
+                               int vmlen = strlen(pagersubject)*3 + 200;
+                               if ((passdata = alloca(vmlen))) {
+                                       memset(passdata, 0, vmlen);
+                                       prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+                                       pbx_substitute_variables_helper(ast,pagersubject,passdata,vmlen);
+                                       fprintf(p, "Subject: %s\n\n",passdata);
+                               } else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+                               ast_channel_free(ast);
+                       } else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+               } else
+                       fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
-		fprintf(p, "New %s long msg in box %s\n"
-		           "from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
+               if (pagerbody) {
+                       struct ast_channel *ast = ast_channel_alloc(0);
+                       if (ast) {
+                               char *passdata;
+                               int vmlen = strlen(pagerbody)*3 + 200;
+                               if ((passdata = alloca(vmlen))) {
+                                       memset(passdata, 0, vmlen);
+                                       prep_email_sub_vars(ast,vmu,msgnum + 1,context,mailbox,cidnum, cidname,dur,date,passdata, vmlen);
+                                       pbx_substitute_variables_helper(ast,pagerbody,passdata,vmlen);
+                                       fprintf(p, "%s\n",passdata);
+                               } else ast_log(LOG_WARNING, "Cannot allocate workspace for variable substitution\n");
+                               ast_channel_free(ast);
+                       } else ast_log(LOG_WARNING, "Cannot allocate the channel for variables substitution\n");
+               } else {
+                       fprintf(p, "New %s long msg in box %s\n"
+                                       "from %s, on %s", dur, mailbox, (cidname ? cidname : (cidnum ? cidnum : "unknown")), date);
+               }
 		fclose(p);
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
@@ -5768,6 +5799,14 @@ static int load_config(void)
 			free(emailsubject);
 			emailsubject = NULL;
 		}
+               if (pagerbody) {
+                       free(pagerbody);
+                       pagerbody = NULL;
+               }
+               if (pagersubject) {
+                       free(pagersubject);
+                       pagersubject = NULL;
+               }
 		if ((s=ast_variable_retrieve(cfg, "general", "pbxskip")))
 			ast_set2_flag((&globalflags), ast_true(s), VM_PBXSKIP);
 		if ((s=ast_variable_retrieve(cfg, "general", "fromstring")))
@@ -5804,6 +5843,31 @@ static int load_config(void)
 
 			/* substitute strings \t and \n into the apropriate characters */
 			tmpread = tmpwrite = emailbody;
+                       while ((tmpwrite = strchr(tmpread,'\\'))) {
+                               int len = strlen("\n");
+                               switch (tmpwrite[1]) {
+                                       case 'n':
+                                               strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
+                                               strncpy(tmpwrite,"\n",len);
+                                               break;
+                                       case 't':
+                                               strncpy(tmpwrite+len,tmpwrite+2,strlen(tmpwrite+2)+1);
+                                               strncpy(tmpwrite,"\t",len);
+                                               break;
+                                       default:
+                                               ast_log(LOG_NOTICE, "Substitution routine does not support this character: %c\n",tmpwrite[1]);
+                               }
+                               tmpread = tmpwrite+len;
+                       }
+               }
+               if ((s=ast_variable_retrieve(cfg, "general", "pagersubject")))
+                       pagersubject = strdup(s);
+               if ((s=ast_variable_retrieve(cfg, "general", "pagerbody"))) {
+                       char *tmpread, *tmpwrite;
+                       pagerbody = strdup(s);
+
+                       /* substitute strings \t and \n into the apropriate characters */
+                       tmpread = tmpwrite = pagerbody;
 			while ((tmpwrite = strchr(tmpread,'\\'))) {
 				int len = strlen("\n");
 				switch (tmpwrite[1]) {
