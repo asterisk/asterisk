@@ -235,7 +235,7 @@ static int climodentryfd = -1;
 static int modlist_modentry(const char *module, const char *description, int usecnt, const char *like)
 {
 	/* Comparing the like with the module */
-	if (strstr(module, like) != NULL) {
+	if (strcasestr(module, like) ) {
 		ast_cli(climodentryfd, MODLIST_FORMAT, module, description, usecnt);
 		return 1;
 	} 
