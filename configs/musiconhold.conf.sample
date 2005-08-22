@@ -1,16 +1,30 @@
 ;
-; Music on hold class definitions
+; Music on Hold -- Sample Configuration
 ;
-[classes]
-default => quietmp3:/var/lib/asterisk/mohmp3
-;loud => mp3:/var/lib/asterisk/mohmp3
-;random => quietmp3:/var/lib/asterisk/mohmp3,-z
-;unbuffered => mp3nb:/var/lib/asterisk/mohmp3
-;quietunbuf => quietmp3nb:/var/lib/asterisk/mohmp3
-; Note that the custom mode cannot handle escaped parameters (specifically embedded spaces)
-;manual => custom:/var/lib/asterisk/mohmp3,/usr/bin/mpg123 -q -r 8000 -f 8192 -b 2048 --mono -s
-; For a custom app, reading from a directory may not be necessary
-;manual => custom:nodir,/bin/my-dirless-app myarg
+
+[default]
+mode=quietmp3
+directory=/var/lib/asterisk/mohmp3
+
+; valid mode options:
+; quietmp3 	-- default
+; mp3 		-- loud
+; mp3nb		-- unbuffered
+; quietmp3nb	-- quiet unbuffered
+; custom	-- run a custom application 
+; files		-- read files from a directory in any Asterisk supported format
+
+;[manual]
+;mode=custom
+; Note that with mode=custom, a directory is not required, such as when reading
+; from a stream.
+;directory=/var/lib/asterisk/mohmp3
+;application=/usr/bin/mpg123 -q -r 8000 -f 8192 -b 2048 --mono -s
+
+;[ulawstream]
+;mode=custom
+;application=/usr/bin/streamplayer 80.254.173.176 888
+;format=ulaw
 
 ;
 ; File-based (native) music on hold
@@ -31,6 +45,12 @@ default => quietmp3:/var/lib/asterisk/mohmp3
 ; this, res_musiconhold will skip the files it is not able to
 ; understand when it loads.
 ;
-[moh_files]
-;native => /var/lib/asterisk/moh-native
-;native-random => /var/lib/asterisk/moh-native,r
+
+;[native]
+;mode=files
+;directory=/var/lib/asterisk/moh-native
+;
+;[native-random]
+;mode=files
+;directory=/var/lib/asterisk/moh-native
+;random=yes 	; Play the files in a random order

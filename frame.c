@@ -1168,7 +1168,6 @@ static int speex_samples(unsigned char *data, int len)
 	return cnt;
 }
 
-
 int ast_codec_get_samples(struct ast_frame *f)
 {
 	int samples=0;
@@ -1210,3 +1209,35 @@ int ast_codec_get_samples(struct ast_frame *f)
 	return samples;
 }
 
+int ast_codec_get_len(int format, int samples)
+{
+	int len = 0;
+
+	/* XXX Still need speex, g723, and lpc10 XXX */	
+	switch(format) {
+	case AST_FORMAT_ILBC:
+		len = (samples / 240) * 50;
+		break;
+	case AST_FORMAT_GSM:
+		len = (samples / 160) * 33;
+		break;
+	case AST_FORMAT_G729A:
+		len = samples / 8;
+		break;
+	case AST_FORMAT_SLINEAR:
+		len = samples * 2;
+		break;
+	case AST_FORMAT_ULAW:
+	case AST_FORMAT_ALAW:
+		len = samples;
+		break;
+	case AST_FORMAT_ADPCM:
+	case AST_FORMAT_G726:
+		len = samples / 2;
+		break;
+	default:
+		ast_log(LOG_WARNING, "Unable to calculate sample length for format %s\n", ast_getformatname(format));
+	}
+
+	return len;
+}

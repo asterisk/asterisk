@@ -137,3 +137,9 @@ AGI:
   behavior has been fixed.  If you do not want your script to terminate 
   at the end of AGI being called (e.g. on a hangup) then set SIGHUP to 
   be ignored within your application.
+
+Music On Hold:
+
+* The preferred format for musiconhold.conf has changed; please see the
+  sample configuration file for the new format. The existing format
+  is still supported but will generate warnings when the module is loaded.

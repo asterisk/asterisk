@@ -398,6 +398,9 @@ extern void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_
 /* Returns the number of samples contained in the frame */
 extern int ast_codec_get_samples(struct ast_frame *f);
 
+/* Returns the number of bytes for the number of samples of the given format */
+extern int ast_codec_get_len(int format, int samples);
+
 /* Gets duration in ms of interpolation frame for a format */
 static inline int ast_codec_interp_len(int format) 
 { 

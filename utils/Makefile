@@ -21,7 +21,7 @@ ifeq ($(findstring BSD,${OSARCH}),BSD)
 CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
-TARGET=stereorize
+TARGET=stereorize streamplayer
 
 TARGET+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/popt.h ]; then echo "smsq"; else if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/popt.h ]; then echo "smsq"; fi ; fi)
 TARGET+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/newt.h ]; then echo "astman"; else if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/newt.h ]; then echo "astman"; fi ; fi)
@@ -52,6 +52,9 @@ check_expr : check_expr.c ../ast_expr.a
 
 smsq: smsq.o
 	$(CC) $(CFLAGS) -o smsq ${SOL} smsq.o -lpopt
+
+streamplayer: streamplayer.o
+	$(CC) $(CFLAGS) -o streamplayer ${SOL} streamplayer.o
 
 ifneq ($(wildcard .depend),)
 include .depend
