@@ -9339,12 +9339,15 @@ static int handle_request_cancel(struct sip_pvt *p, struct sip_request *req, int
 }
 
 /*--- handle_request_bye: Handle incoming BYE request ---*/
-static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int debug)
+static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int debug, int ignore)
 {
 	struct ast_channel *c=NULL;
 	int res;
 	struct ast_channel *bridged_to;
 	char iabuf[INET_ADDRSTRLEN];
+	
+	if (p->pendinginvite && !ast_test_flag(p, SIP_OUTGOING) && !ignore)
+		transmit_response_reliable(p, "487 Request Terminated", &p->initreq, 1);
 
 	copy_request(&p->initreq, req);
 	check_via(p, req);
@@ -9668,7 +9671,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 		res = handle_request_cancel(p, req, debug, ignore);
 		break;
 	case SIP_BYE:
-		res = handle_request_bye(p, req, debug);
+		res = handle_request_bye(p, req, debug, ignore);
 		break;
 	case SIP_MESSAGE:
 		res = handle_request_message(p, req, debug, ignore);
