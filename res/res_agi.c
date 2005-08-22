@@ -461,6 +461,51 @@ static int handle_sendimage(struct ast_channel *chan, AGI *agi, int argc, char *
 		return RESULT_FAILURE;
 }
 
+static int handle_controlstreamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
+{
+	int res = 0;
+	int skipms = 3000;
+	char *fwd = NULL;
+	char *rev = NULL;
+	char *pause = NULL;
+	char *stop = NULL;
+
+	if (argc < 5 || argc > 9)
+		return RESULT_SHOWUSAGE;
+
+	if (!ast_strlen_zero(argv[4]))
+		stop = argv[4];
+	else
+		stop = NULL;
+	
+	if ((argc > 5) && (sscanf(argv[5], "%d", &skipms) != 1))
+		return RESULT_SHOWUSAGE;
+
+	if (argc > 6 && !ast_strlen_zero(argv[8]))
+		fwd = argv[6];
+	else
+		fwd = "#";
+
+	if (argc > 7 && !ast_strlen_zero(argv[8]))
+		rev = argv[7];
+	else
+		rev = "*";
+	
+	if (argc > 8 && !ast_strlen_zero(argv[8]))
+		pause = argv[8];
+	else
+		pause = NULL;
+	
+	res = ast_control_streamfile(chan, argv[3], fwd, rev, stop, pause, NULL, skipms);
+	
+	fdprintf(agi->fd, "200 result=%d\n", res);
+
+	if (res >= 0)
+		return RESULT_SUCCESS;
+	else
+		return RESULT_FAILURE;
+}
+
 static int handle_streamfile(struct ast_channel *chan, AGI *agi, int argc, char *argv[])
 {
 	int res;
@@ -1407,6 +1452,16 @@ static char usage_streamfile[] =
 " or -1 on error or if the channel was disconnected. Remember, the file\n"
 " extension must not be included in the filename.\n";
 
+static char usage_controlstreamfile[] =
+" Usage: CONTROL STREAM FILE <filename> <escape digits> [skipms] [ffchar] [rewchr] [pausechr]\n"
+"	Send the given file, allowing playback to be controled by the given\n"
+" digits, if any. Use double quotes for the digits if you wish none to be\n"
+" permitted.  Returns 0 if playback completes without a digit\n"
+" being pressed, or the ASCII numerical value of the digit if one was pressed,\n"
+" or -1 on error or if the channel was disconnected. Remember, the file\n"
+" extension must not be included in the filename.\n\n"
+" Note: ffchar and rewchar default to * and # respectively.\n";
+
 static char usage_getoption[] = 
 " Usage: GET OPTION <filename> <escape_digits> [timeout]\n"
 "	Behaves similar to STREAM FILE but used with a timeout option.\n";
@@ -1540,6 +1595,7 @@ static agi_command commands[MAX_COMMANDS] = {
 	{ { "set", "priority", NULL }, handle_setpriority, "Set channel dialplan priority", usage_setpriority },
 	{ { "set", "variable", NULL }, handle_setvariable, "Sets a channel variable", usage_setvariable },
 	{ { "stream", "file", NULL }, handle_streamfile, "Sends audio file on channel", usage_streamfile },
+	{ { "control", "stream", "file", NULL }, handle_controlstreamfile, "Sends audio file on channel and allows the listner to control the stream", usage_controlstreamfile },
 	{ { "tdd", "mode", NULL }, handle_tddmode, "Toggles TDD mode (for the deaf)", usage_tddmode },
 	{ { "verbose", NULL }, handle_verbose, "Logs a message to the asterisk verbose log", usage_verbose },
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
