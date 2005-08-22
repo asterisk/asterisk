@@ -3,11 +3,11 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.27 07/09/05
+ *  version 0.28 08/21/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
- * Copyright (C) 2002-2004, Jim Dixon, WB6NIL
+ * Copyright (C) 2002-2005, Jim Dixon, WB6NIL
  *
  * Jim Dixon, WB6NIL <jim@lambdatel.com>
  * Serious contributions by Steve RoDgers, WA6ZFT <hwstar@rodgers.sdcoxmail.com>
@@ -47,11 +47,12 @@
  *
  * remote cmds:
  *
- *  0 - Recall Memory MM  (*000-*099) (Gets memory from rpt.conf)
- *  1 - Set VFO MMMMM*KKK*O   (Mhz digits, Khz digits, Offset)
- *  2 - Set Rx PL Tone HHH*D*
- *  3 - Set Tx PL Tone HHH*D* (Not currently implemented with DHE RBI-1)
- *  5 - Link Status
+ *  1 - Recall Memory MM  (*000-*099) (Gets memory from rpt.conf)
+ *  2 - Set VFO MMMMM*KKK*O   (Mhz digits, Khz digits, Offset)
+ *  3 - Set Rx PL Tone HHH*D*
+ *  4 - Set Tx PL Tone HHH*D* (Not currently implemented with DHE RBI-1)
+ *  5 - Link Status (long)
+ *  6 - Set operating mode M (FM, USB, LSB, AM, etc)
  *  100 - RX PL off (Default)
  *  101 - RX PL On
  *  102 - TX PL Off (Default)
@@ -59,6 +60,20 @@
  *  104 - Low Power
  *  105 - Med Power
  *  106 - Hi Power
+ *  107 - Bump Down 20 Hz
+ *  108 - Bump Down 100 Hz
+ *  109 - Bump Down 500 Hz
+ *  110 - Bump Up 20 Hz
+ *  111 - Bump Up 100 Hz
+ *  112 - Bump Up 500 Hz
+ *  113 - Scan Down Slow
+ *  114 - Scan Down Medium
+ *  115 - Scan Down Fast
+ *  116 - Scan Up Slow
+ *  117 - Scan Up Medium
+ *  118 - Scan Up Fast
+ *  119 - Transmit allowing auto-tune
+ *  140 - Link Status (brief)
  *
  *
 */
@@ -104,6 +119,8 @@
 
 #define TELEPARAMSIZE 32
 
+#define REM_SCANTIME 100
+
 
 enum {REM_OFF,REM_MONITOR,REM_TX};
 
@@ -119,6 +136,10 @@ enum {DC_INDETERMINATE, DC_REQ_FLUSH, DC_ERROR, DC_COMPLETE};
 enum {SOURCE_RPT, SOURCE_LNK, SOURCE_RMT};
 
 enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
+
+enum {REM_MODE_FM,REM_MODE_USB,REM_MODE_LSB,REM_MODE_AM};
+
+enum {HF_SCAN_OFF,HF_SCAN_DOWN_SLOW,HF_SCAN_DOWN_QUICK,HF_SCAN_DOWN_FAST,HF_SCAN_UP_SLOW,HF_SCAN_UP_QUICK,HF_SCAN_UP_FAST};
 
 #include "asterisk.h"
 
@@ -159,7 +180,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.27  07/09/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.28  08/21/2005";
 
 static char *app = "Rpt";
 
@@ -172,6 +193,8 @@ static int debug = 0;  /* Set this >0 for extra debug output */
 static int nrpts = 0;
 
 char *discstr = "!!DISCONNECT!!";
+static char *remote_rig_ft897="ft897";
+static char *remote_rig_rbi="rbi";
 
 struct	ast_config *cfg;
 
@@ -283,7 +306,7 @@ static struct rpt
 	struct rpt_tele tele;
 	pthread_t rpt_call_thread,rpt_thread;
 	time_t rem_dtmf_time,dtmf_time_rem;
-	int tailtimer,totimer,idtimer,txconf,conf,callmode,cidx;
+	int tailtimer,totimer,idtimer,txconf,conf,callmode,cidx,scantimer;
 	int mustid;
 	int politeid;
 	int dtmfidx,rem_dtmfidx;
@@ -296,6 +319,11 @@ static struct rpt
 	char powerlevel;
 	char txplon;
 	char rxplon;
+	char remmode;
+	char tunerequest;
+	char hfscanmode;
+	int hfscanstatus;
+	char lastlinknode[MAXNODESTR];
 	char funcchar;
 	char endchar;
 	char stopgen;
@@ -673,6 +701,19 @@ int	res;
 	return res;
 }
 
+static int saynum(struct ast_channel *mychannel, int num)
+{
+	int res;
+	res = ast_say_number(mychannel, num, NULL, mychannel->language, NULL);
+	if(!res)
+		res = ast_waitstream(mychannel, "");
+	else
+		ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", mychannel->name);
+	ast_stopstream(mychannel);
+	return res;
+}
+
+
 /* Retrieve an int from a config file */
                                                                                 
 static int retrieve_astcfgint(char *category, char *name, int min, int max, int defl)
@@ -867,7 +908,7 @@ static void wait_interval(struct rpt *myrpt, int type, struct ast_channel *chan)
 static void *rpt_tele_thread(void *this)
 {
 ZT_CONFINFO ci;  /* conference info */
-int	res = 0,hastx,imdone = 0, unkeys_queued, x;
+int	res = 0,hastx,hasremote,imdone = 0, unkeys_queued, x;
 struct	rpt_tele *mytele = (struct rpt_tele *)this;
 struct  rpt_tele *tlist;
 struct	rpt *myrpt;
@@ -1018,14 +1059,17 @@ struct tm localtm;
 		}
 			
 		hastx = 0;
-		
+		hasremote = 0;		
 		l = myrpt->links.next;
 		if (l != &myrpt->links)
 		{
 			ast_mutex_lock(&myrpt->lock);
 			while(l != &myrpt->links)
 			{
-				if (l->mode) hastx++;
+				if (l->mode) {
+					hastx++;
+					if (l->isremote) hasremote++;
+				}
 				l = l->next;
 			}
 			ast_mutex_unlock(&myrpt->lock);
@@ -1052,6 +1096,31 @@ struct tm localtm;
 			 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
 		}	
 			
+		if (hasremote && (!myrpt->cmdnode[0]))
+		{
+			/* set for all to hear */
+			ci.chan = 0;
+			ci.confno = myrpt->conf;
+			ci.confmode = ZT_CONF_CONFANN;
+			/* first put the channel on the conference in announce mode */
+			if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
+			{
+				ast_log(LOG_WARNING, "Unable to set conference mode to Announce\n");
+				ast_mutex_lock(&myrpt->lock);
+				remque((struct qelem *)mytele);
+				ast_mutex_unlock(&myrpt->lock);
+				free(mytele);		
+				ast_hangup(mychannel);
+				pthread_exit(NULL);
+			}
+			if((ct = ast_variable_retrieve(cfg, nodename, "remotect"))){ /* Unlinked Courtesy Tone */
+				ast_safe_sleep(mychannel,200);
+				ct_copy = ast_strdupa(ct);
+				res = telem_lookup(mychannel, myrpt->name, ct_copy);
+				if(res)
+				 	ast_log(LOG_WARNING, "telem_lookup:ctx failed on %s\n", mychannel->name);		
+			}	
+		}
 		imdone = 1;
 		break;
 	    case REMDISC:
@@ -1579,11 +1648,12 @@ struct	rpt_link *l;
 * Internet linking function 
 */
 
-static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int command_source)
+static int function_ilink(struct rpt *myrpt, char *param, char *digits, int command_source)
 {
 
 	char *val, *s, *s1, *tele;
 	char tmp[300], deststr[300] = "",modechange = 0;
+	char digitbuf[MAXNODESTR];
 	struct rpt_link *l;
 	ZT_CONFINFO ci;  /* conference info */
 
@@ -1594,11 +1664,15 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 	if (!myrpt->enable)
 		return DC_ERROR;
 
+	strncpy(digitbuf,digits,MAXNODESTR - 1);
+
 	if(debug)
 		printf("@@@@ ilink param = %s, digitbuf = %s\n", (param)? param : "(null)", digitbuf);
 		
 	switch(myatoi(param)){
 		case 1: /* Link off */
+			if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
+				strcpy(digitbuf,myrpt->lastlinknode);
 			val = ast_variable_retrieve(cfg, NODES, digitbuf);
 			if (!val){
 				if(strlen(digitbuf) >= myrpt->longestnode)
@@ -1620,6 +1694,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 			if (l != &myrpt->links){ /* if found */
 				struct	ast_frame wf;
 
+				strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 				l->retries = MAX_RETRIES + 1;
 				l->disced = 1;
 				ast_mutex_unlock(&myrpt->lock);
@@ -1642,6 +1717,8 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 			ast_mutex_unlock(&myrpt->lock);	
 			return DC_COMPLETE;
 		case 2: /* Link Monitor */
+			if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
+				strcpy(digitbuf,myrpt->lastlinknode);
 			val = ast_variable_retrieve(cfg, NODES, digitbuf);
 			if (!val){
 				if(strlen(digitbuf) >= myrpt->longestnode)
@@ -1677,6 +1754,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 				modechange = 1;
 			} else
 				ast_mutex_unlock(&myrpt->lock);
+			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 			/* establish call in monitor mode */
 			l = malloc(sizeof(struct rpt_link));
 			if (!l){
@@ -1749,6 +1827,8 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 			rpt_telemetry(myrpt,COMPLETE,NULL);
 			return DC_COMPLETE;
 		case 3: /* Link transceive */
+			if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
+				strcpy(digitbuf,myrpt->lastlinknode);
 			val = ast_variable_retrieve(cfg, NODES, digitbuf);
 			if (!val){
 				if(strlen(digitbuf) >= myrpt->longestnode)
@@ -1782,6 +1862,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 				modechange = 1;
 			} else
 				ast_mutex_unlock(&myrpt->lock);
+			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 			/* establish call in tranceive mode */
 			l = malloc(sizeof(struct rpt_link));
 			if (!l){
@@ -1867,6 +1948,8 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 				rpt_telemetry(myrpt, REMALREADY, NULL);
 				return DC_COMPLETE;
 			}
+			if ((digitbuf[0] == '0') && (myrpt->lastlinknode[0]))
+				strcpy(digitbuf,myrpt->lastlinknode);
 			/* node must at least exist in list */
 			val = ast_variable_retrieve(cfg, NODES, digitbuf);
 			if (!val){
@@ -1876,6 +1959,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digitbuf, int co
 			
 			}
 			ast_mutex_lock(&myrpt->lock);
+			strcpy(myrpt->lastlinknode,digitbuf);
 			strncpy(myrpt->cmdnode, digitbuf, sizeof(myrpt->cmdnode) - 1);
 			ast_mutex_unlock(&myrpt->lock);
 			rpt_telemetry(myrpt, REMGO, NULL);	
@@ -2031,371 +2115,6 @@ static int function_cop(struct rpt *myrpt, char *param, char *digitbuf, int comm
 	return DC_INDETERMINATE;
 }
 
-/*
-* Remote base function
-*/
-
-static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int command_source)
-{
-	char *s,*s1,*s2,*val;
-	int i,j,k,l,res,offset,offsave;
-	char oc;
-	char tmp[20], freq[20] = "", savestr[20] = "";
-	struct ast_channel *mychannel;
-
-	if((!param) || (command_source != SOURCE_RMT))
-		return DC_ERROR;
-		
-	mychannel = myrpt->remchannel;
-	
-	
-	switch(myatoi(param)){
-
-		case 1:  /* retrieve memory */
-			if(strlen(digitbuf) < 2) /* needs 2 digits */
-				break;
-			
-			for(i = 0 ; i < 2 ; i++){
-				if((digitbuf[i] < '0') || (digitbuf[i] > '9'))
-					return DC_ERROR;
-			}
-	    
-			val = ast_variable_retrieve(cfg, MEMORY, digitbuf);
-			if (!val){
-				if (ast_safe_sleep(mychannel,1000) == -1)
-					return DC_ERROR;
-				sayfile(mychannel,"rpt/memory_notfound");
-				return DC_COMPLETE;
-			}			
-			strncpy(tmp,val,sizeof(tmp) - 1);
-			s = strchr(tmp,',');
-			if (!s)
-				return DC_ERROR;
-			*s++ = 0;
-			s1 = strchr(s,',');
-			if (!s1)
-				return DC_ERROR;
-			*s1++ = 0;
-			strncpy(myrpt->freq, tmp, sizeof(myrpt->freq) - 1);
-			strncpy(myrpt->rxpl, s, sizeof(myrpt->rxpl) - 1);
-			myrpt->offset = REM_SIMPLEX;
-			myrpt->powerlevel = REM_MEDPWR;
-			myrpt->rxplon = 0;
-			myrpt->txplon = 0;
-			while(*s1)
-			{
-				switch(*s1++){
-				
-					case 'L':
-					case 'l':
-						myrpt->powerlevel = REM_LOWPWR;
-					break;
-					
-					case 'H':
-					case 'h':
-						myrpt->powerlevel = REM_HIPWR;
-					break;
-					
-					case 'M':
-					case 'm':
-						myrpt->powerlevel = REM_MEDPWR;
-						break;
-						
-					case '-':
-						myrpt->offset = REM_MINUS;
-						break;
-						
-					case '+':
-						myrpt->offset = REM_PLUS;
-						break;
-						
-					case 'S':
-					case 's':
-						myrpt->offset = REM_SIMPLEX;
-						break;
-						
-					case 'T':
-					case 't':
-						myrpt->txplon = 1;
-						break;
-						
-					case 'R':
-					case 'r':
-						myrpt->rxplon = 1;
-					break;
-				}
-			}
-		
-		
-			if (setrbi(myrpt) == -1)
-				return DC_ERROR;
-		
-		
-			return DC_COMPLETE;	
-			
-		case 2:  /* set freq + offset */
-	   
-			
-	    		for(i = 0, j = 0, k = 0, l = 0 ; digitbuf[i] ; i++){ /* look for N+*N+*N */
-				if(digitbuf[i] == '*'){
-					j++;
-					continue;
-				}
-				if((digitbuf[i] < '0') || (digitbuf[i] > '9'))
-					return DC_ERROR;
-				else{
-					if(j == 0)
-						l++;
-					if(j == 1)
-						k++;
-				}
-			}
-		
-			i = strlen(digitbuf) - 1;
-			if((j > 2) || (l > 5) || (k > 3))
-				return DC_ERROR; /* &$@^! */
-			
-			if((j < 2) || (digitbuf[i] == '*'))
-				break; /* Not yet */
-				
-			strncpy(tmp, digitbuf ,sizeof(tmp) - 1);
-			
-			s = tmp;
-			s1 = strsep(&s, "*"); /* Pick off MHz */
-			s2 = strsep(&s,"*"); /* Pick off KHz */
-			oc = *s; /* Pick off offset */
-	
-			
-			switch(strlen(s2)){ /* Allow partial entry of khz digits for laziness support */
-				case 1:
-					k = 100 * atoi(s2);
-					break;
-				
-				case 2:
-					k = 10 * atoi(s2);
-					break;
-					
-				case 3:
-					if((s2[2] != '0')&&(s2[2] != '5'))
-						return DC_ERROR;
-					k = atoi(s2);
-					break;
-					
-				default:
-					return DC_ERROR;
-					
-			}
-				
-					
-			
-			snprintf(freq, sizeof(freq), "%s.%03d", s1, k);
-			
-			offset = REM_SIMPLEX;
-			
-			if (oc){
-				switch(oc){
-
-					case '1':
-						offset = REM_MINUS;
-						break;
-						
-					case '2':
-						offset = REM_SIMPLEX;
-						break;
-						
-					case '3':
-						offset = REM_PLUS;
-						break;
-						
-					default:
-	
-						return DC_ERROR;
-				} 
-			} 
-			
-			offsave = myrpt->offset;
-			strncpy(savestr, myrpt->freq, sizeof(savestr) - 1);
-			strncpy(myrpt->freq, freq, sizeof(myrpt->freq) - 1);
-			
-			if(debug)
-				printf("@@@@ Frequency entered: %s\n", myrpt->freq);
-
-			strncpy(myrpt->freq, freq, sizeof(myrpt->freq) - 1);
-			myrpt->offset = offset;
-	
-			if (setrbi(myrpt) == -1){
-				myrpt->offset = offsave;
-				strncpy(myrpt->freq, savestr, sizeof(myrpt->freq) - 1);
-				return DC_ERROR;
-			}
-
-			return DC_COMPLETE;
-		
-		case 3: /* set rx PL tone */
-			
-	    		for(i = 0, j = 0, k = 0, l = 0 ; digitbuf[i] ; i++){ /* look for N+*N */
-				if(digitbuf[i] == '*'){
-					j++;
-					continue;
-				}
-				if((digitbuf[i] < '0') || (digitbuf[i] > '9'))
-					return DC_ERROR;
-				else{
-					if(j)
-						l++;
-					else
-						k++;
-				}
-			}
-			if((j > 1) || (k > 3) || (l > 1))
-				return DC_ERROR; /* &$@^! */
-			i = strlen(digitbuf) - 1;
-			if((j != 1) || (k < 2)|| (l != 1))
-				break; /* Not yet */
-			if(debug)
-				printf("PL digits entered %s\n", digitbuf);
-	    		
-			strncpy(tmp, digitbuf, sizeof(tmp) - 1);
-			/* see if we have at least 1 */
-			s = strchr(tmp,'*');
-			if(s)
-				*s = '.';
-			strncpy(savestr, myrpt->rxpl, sizeof(savestr) - 1);
-			strncpy(myrpt->rxpl, tmp, sizeof(myrpt->rxpl) - 1);
-			
-			if (setrbi(myrpt) == -1){
-				strncpy(myrpt->rxpl, savestr, sizeof(myrpt->rxpl) - 1);
-				return DC_ERROR;
-			}
-		
-		
-			return DC_COMPLETE;
-		
-		case 100: /* other stuff */
-		case 101: 
-		case 102: 
-		case 103: 
-		case 104: 
-		case 105: 
-		case 106: 
-			switch(myatoi(param)){
-				case 100: /* RX PL Off */
-					myrpt->rxplon = 0;
-					break;
-					
-				case 101: /* RX PL On */
-					myrpt->rxplon = 1;
-					break;
-					
-				case 102: /* TX PL Off */
-					myrpt->txplon = 0;
-					break;
-					
-				case 103: /* TX PL On */
-					myrpt->txplon = 1;
-					break;
-					
-				case 104: /* Low Power */
-					myrpt->powerlevel = REM_LOWPWR;
-					break;
-					
-				case 105: /* Medium Power */
-					myrpt->powerlevel = REM_MEDPWR;
-					break;
-					
-				case 106: /* Hi Power */
-					myrpt->powerlevel = REM_HIPWR;
-					break;
-				default:
-					return DC_ERROR;
-			}
-			if (setrbi(myrpt) == -1) 
-				return DC_ERROR;
-			return DC_COMPLETE;
-		case 5: /* Status */
-			myrpt->remotetx = 0;
-			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
-			if (!myrpt->remoterx){
-				ast_indicate(mychannel,AST_CONTROL_RADIO_KEY);
-			}
-			
-			if (ast_safe_sleep(mychannel,1000) == -1)
-					return DC_ERROR;
-			
-			if ((sayfile(mychannel,"rpt/node") == -1) ||
-			(saycharstr(mychannel,myrpt->name) == -1) ||
-		 	(sayfile(mychannel,"rpt/frequency") == -1) ||
-		 	(saycharstr(mychannel,myrpt->freq) == -1)){
-			
-				if (!myrpt->remoterx){
-		
-					ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
-				}
-				return DC_ERROR;
-			}
-			switch(myrpt->offset){
-	
-				case REM_MINUS:
-					res = sayfile(mychannel,"rpt/minus");
-					break;
-				
-				case REM_SIMPLEX:
-					res = sayfile(mychannel,"rpt/simplex");
-					break;
-					
-				case REM_PLUS:
-					res = sayfile(mychannel,"rpt/plus");
-					break;
-					
-				default:
-					return DC_ERROR;
-			}
-			if (res == -1){
-		
-				if (!myrpt->remoterx){
-		
-					ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
-				}
-				return -1;
-			}
-			switch(myrpt->powerlevel){
-
-				case REM_LOWPWR:
-					res = sayfile(mychannel,"rpt/lopwr") ;
-					break;
-					
-				case REM_MEDPWR:
-					res = sayfile(mychannel,"rpt/medpwr");
-					break;
-				case REM_HIPWR:
-					res = sayfile(mychannel,"rpt/hipwr"); 
-					break;
-			}
-			if (res || (sayfile(mychannel,"rpt/rxpl") == -1) ||
-				(sayfile(mychannel,"rpt/frequency") == -1) ||
-				(saycharstr(mychannel,myrpt->rxpl) == -1) ||
-				(sayfile(mychannel,"rpt/txpl") == -1) ||
-				(sayfile(mychannel,((myrpt->txplon) ? "rpt/on" : "rpt/off")) == -1) ||
-				(sayfile(mychannel,"rpt/rxpl") == -1) ||
-				(sayfile(mychannel,((myrpt->rxplon) ? "rpt/on" : "rpt/off")) == -1)){
-				if (!myrpt->remoterx){
-					ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
-				}
-				return -1;
-			}
-			if (!myrpt->remoterx){
-				ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
-			}
-			return DC_COMPLETE;
-			
-	    	default:
-			return DC_ERROR;
-	}
-
-	return DC_INDETERMINATE;
-}
-
-	
 /*
 * Collect digits one by one until something matches
 */
@@ -2820,15 +2539,45 @@ struct zt_radio_param r;
 	}
 }
 
+static int serial_remote_io(struct rpt *myrpt, char *txbuf, int txbytes, char *rxbuf,
+        int rxmaxbytes, int asciiflag)
+{
+	int i;
+	struct zt_radio_param prm;
+
+	if(debug){
+		printf("String output was: ");
+		for(i = 0; i < txbytes; i++)
+			printf("%02X ", (unsigned char ) txbuf[i]);
+		printf("\n");
+	}
+
+        prm.radpar = ZT_RADPAR_REMMODE;
+        if (asciiflag)  prm.data = ZT_RADPAR_REM_SERIAL_ASCII;
+        else prm.data = ZT_RADPAR_REM_SERIAL;
+	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+        prm.radpar = ZT_RADPAR_REMCOMMAND;
+        prm.data = rxmaxbytes;
+        memcpy(prm.buf,txbuf,txbytes);
+        prm.index = txbytes;
+	if (ioctl(myrpt->rxchannel->fds[0],ZT_RADIO_SETPARAM,&prm) == -1) return -1;
+        if (rxbuf)
+        {
+                *rxbuf = 0;
+                memcpy(rxbuf,prm.buf,prm.index);
+        }
+        return(prm.index);
+}
+
 static int setrbi(struct rpt *myrpt)
 {
 char tmp[MAXREMSTR] = "",rbicmd[5],*s;
-int	band,txoffset = 0,txpower = 0,rxpl;
+int	band,txoffset = 0,txpower = 0,txpl;
 
 	/* must be a remote system */
 	if (!myrpt->remote) return(0);
 	/* must have rbi hardware */
-	if (strncmp(myrpt->remote,"rbi",3)) return(0);
+	if (strncmp(myrpt->remote,remote_rig_rbi,3)) return(0);
 	strncpy(tmp, myrpt->freq, sizeof(tmp) - 1);
 	s = strchr(tmp,'.');
 	/* if no decimal, is invalid */
@@ -2865,11 +2614,11 @@ int	band,txoffset = 0,txpower = 0,rxpl;
 	 	return -1;
 	}
 	
-	rxpl = rbi_pltocode(myrpt->rxpl);
+	txpl = rbi_pltocode(myrpt->txpl);
 	
-	if (rxpl == -1){
+	if (txpl == -1){
 		if(debug)
-			printf("@@@@ Bad RX PL: %s\n", myrpt->rxpl);
+			printf("@@@@ Bad TX PL: %s\n", myrpt->txpl);
 	 	return -1;
 	}
 
@@ -2903,7 +2652,7 @@ int	band,txoffset = 0,txpower = 0,rxpl;
 	rbicmd[2] = (*(s - 2) - '0') | txoffset | 0x80;
 	if (s[2] == '5') rbicmd[2] |= 0x40;
 	rbicmd[3] = ((*s - '0') << 4) + (s[1] - '0');
-	rbicmd[4] = rxpl;
+	rbicmd[4] = txpl;
 	if (myrpt->txplon) rbicmd[4] |= 0x40;
 	if (myrpt->rxplon) rbicmd[4] |= 0x80;
 	rbi_out(myrpt,rbicmd);
@@ -2911,11 +2660,1224 @@ int	band,txoffset = 0,txpower = 0,rxpl;
 }
 
 
+/* Check for valid rbi frequency */
+/* Hard coded limits now, configurable later, maybe? */
+
+static int check_freq_rbi(int m, int d)
+{
+	if(m == 50){ /* 6 meters */
+		if(d < 10100)
+			return -1;
+	}
+	else if((m >= 51) && ( m < 54)){
+                ;
+	}
+	else if(m == 144){ /* 2 meters */
+		if(d < 10100)
+			return -1;
+	}
+	else if((m >= 145) && (m < 148)){
+		;
+	}
+ 	else if((m >= 222) && (m < 225)){ /* 1.25 meters */
+		;
+	}
+	else if((m >= 430) && (m < 450)){ /* 70 centimeters */
+		;
+	}
+	else if((m >= 1240) && (m < 1300)){ /* 23 centimeters */
+		;
+	}
+	else
+		return -1;
+	return 0;
+}
+
+/*
+* Split frequency into mhz and decimals
+*/
+ 
+static int split_freq(char *mhz, char *decimals, char *freq)
+{
+	char freq_copy[MAXREMSTR];
+	char *decp;
+
+	decp = strchr(strncpy(freq_copy, freq, MAXREMSTR),'.');
+	if(decp){
+		*decp++ = 0;
+		strncpy(mhz, freq_copy, MAXREMSTR);
+		strcpy(decimals, "00000");
+		strncpy(decimals, decp, strlen(decp));
+		decimals[5] = 0;
+		return 0;
+	}
+	else
+		return -1;
+
+}
+	
+/*
+* FT-897 I/O handlers
+*/
+
+/* Check to see that the frequency is valid */
+/* Hard coded limits now, configurable later, maybe? */
+
+
+static int check_freq_ft897(int m, int d)
+{
+
+	if(m == 1){ /* 160 meters */
+		if(d < 80001)
+			return -1;
+	}
+	else if(m == 3){ /* 80 meters */
+		if(d < 75001)
+			return -1;
+	}
+	else if(m == 7){ /* 40 meters */
+		if((d < 71501) || (d > 72999))
+			return -1;
+	}
+	else if(m == 14){ /* 20 meters */
+		if((d < 15001) || (d > 34999))
+			return -1;
+	}
+	else if(m == 18){ /* 17 meters */
+		if((d < 11001) || (d > 11679))
+			return -1;
+	}
+	else if(m == 21){ /* 15 meters */
+		if((d < 20001) || (d > 44999))
+			return -1;
+	}
+	else if(m == 24){ /* 12 meters */
+		if((d < 93001) || (d > 98999))
+			return -1;
+	}
+	else if(m == 28){ /* 10 meters */
+		if(d < 30001)
+			return -1;
+	}
+	else if(m == 29){ 
+		if(d > 69999)
+			return -1;
+	}
+	else if(m == 50){ /* 6 meters */
+		if(d < 10100)
+			return -1;
+	}
+	else if((m >= 51) && ( m < 54)){
+		;
+	}
+	else if(m == 144){ /* 2 meters */
+		if(d < 10100)
+			return -1;
+	}
+	else if((m >= 145) && (m < 148)){
+		;
+	}
+	else if((m >= 430) && (m < 450)){ /* 70 centimeters */
+		;
+	}
+	else
+		return -1;
+	return 0;
+}
+
+/*
+* Set a new frequency for the FT897
+*/
+
+static int set_freq_ft897(struct rpt *myrpt, char *newfreq)
+{
+	char mhz[MAXREMSTR];
+	char decimals[MAXREMSTR];
+	unsigned char cmdstr[5];
+	int fd,m,d;
+
+	fd = 0;
+	if(debug) 
+		printf("New frequency: %s\n",newfreq);
+
+	if(split_freq(mhz, decimals, newfreq))
+		return -1; 
+
+	m = atoi(mhz);
+	d = atoi(decimals);
+
+	/* The FT-897 likes packed BCD frequencies */
+
+	cmdstr[0] = ((m / 100) << 4) + ((m % 100)/10);			/* 100MHz 10Mhz */
+	cmdstr[1] = ((m % 10) << 4) + (d / 10000);			/* 1MHz 100KHz */
+	cmdstr[2] = (((d % 10000)/1000) << 4) + ((d % 1000)/ 100);	/* 10KHz 1KHz */
+	cmdstr[3] = (((d % 100)/10) << 4) + (d % 10);			/* 100Hz 10Hz */
+	cmdstr[4] = 0x01;						/* command */
+
+	return serial_remote_io(myrpt, cmdstr, 5, NULL, 0, 0);
+
+}
+
+/* ft-897 simple commands */
+
+static int simple_command_ft897(struct rpt *myrpt, char command)
+{
+	unsigned char cmdstr[5];
+	
+	memset(cmdstr, 0, 5);
+
+	cmdstr[4] = command;	
+
+	return serial_remote_io(myrpt, cmdstr, 5, NULL, 0, 0);
+
+}
+
+/* ft-897 offset */
+
+static int set_offset_ft897(struct rpt *myrpt, char offset)
+{
+	unsigned char cmdstr[5];
+	
+	memset(cmdstr, 0, 5);
+
+	switch(offset){
+		case	REM_SIMPLEX:
+			cmdstr[0] = 0x89;
+			break;
+
+		case	REM_MINUS:
+			cmdstr[0] = 0x09;
+			break;
+		
+		case	REM_PLUS:
+			cmdstr[0] = 0x49;
+			break;	
+
+		default:
+			return -1;
+	}
+
+	cmdstr[4] = 0x09;	
+
+	return serial_remote_io(myrpt, cmdstr, 5, NULL, 0, 0);
+}
+
+/* ft-897 mode */
+
+static int set_mode_ft897(struct rpt *myrpt, char newmode)
+{
+	unsigned char cmdstr[5];
+	
+	memset(cmdstr, 0, 5);
+	
+	switch(newmode){
+		case	REM_MODE_FM:
+			cmdstr[0] = 0x08;
+			break;
+
+		case	REM_MODE_USB:
+			cmdstr[0] = 0x01;
+			break;
+
+		case	REM_MODE_LSB:
+			cmdstr[0] = 0x00;
+			break;
+
+		case	REM_MODE_AM:
+			cmdstr[0] = 0x04;
+			break;
+		
+		default:
+			return -1;
+	}
+	cmdstr[4] = 0x07;	
+
+	return serial_remote_io(myrpt, cmdstr, 5, NULL, 0, 0);
+}
+
+/* Set tone encode and decode modes */
+
+static int set_ctcss_mode_ft897(struct rpt *myrpt, char txplon, char rxplon)
+{
+	unsigned char cmdstr[5];
+	
+	memset(cmdstr, 0, 5);
+	
+	if(rxplon && txplon)
+		cmdstr[0] = 0x2A; /* Encode and Decode */
+	else if (!rxplon && txplon)
+		cmdstr[0] = 0x4A; /* Encode only */
+	else if (rxplon && !txplon)
+		cmdstr[0] = 0x3A; /* Encode only */
+	else
+		cmdstr[0] = 0x8A; /* OFF */
+
+	cmdstr[4] = 0x0A;	
+
+	return serial_remote_io(myrpt, cmdstr, 5, NULL, 0, 0);
+}
+
+
+/* Set transmit and receive ctcss tone frequencies */
+
+static int set_ctcss_freq_ft897(struct rpt *myrpt, char *txtone, char *rxtone)
+{
+	unsigned char cmdstr[5];
+	char hertz[MAXREMSTR],decimals[MAXREMSTR];
+	int h,d;	
+
+
+	memset(cmdstr, 0, 5);
+
+	if(split_freq(hertz, decimals, txtone))
+		return -1; 
+
+	h = atoi(hertz);
+	d = atoi(decimals);
+	
+	cmdstr[0] = ((h / 100) << 4) + (h % 100)/ 10;
+	cmdstr[1] = ((h % 10) << 4) + (d % 10);
+	
+	if(rxtone){
+	
+		if(split_freq(hertz, decimals, rxtone))
+			return -1; 
+
+		h = atoi(hertz);
+		d = atoi(decimals);
+	
+		cmdstr[2] = ((h / 100) << 4) + (h % 100)/ 10;
+		cmdstr[3] = ((h % 10) << 4) + (d % 10);
+	}
+	cmdstr[4] = 0x0B;	
+
+	return serial_remote_io(myrpt, cmdstr, 5, NULL, 0, 0);
+}	
+
+
+
+static int set_ft897(struct rpt *myrpt)
+{
+	int res;
+	
+	if(debug)
+		printf("@@@@ lock on\n");
+
+	res = simple_command_ft897(myrpt, 0x00);				/* LOCK on */	
+
+	if(debug)
+		printf("@@@@ ptt off\n");
+
+	if(!res)
+		res = simple_command_ft897(myrpt, 0x88);		/* PTT off */
+
+	if(debug)
+		printf("Modulation mode\n");
+
+	if(!res)
+		res = set_mode_ft897(myrpt, myrpt->remmode);		/* Modulation mode */
+
+	if(debug)
+		printf("Split off\n");
+
+	if(!res)
+		simple_command_ft897(myrpt, 0x82);			/* Split off */
+
+	if(debug)
+		printf("Frequency\n");
+
+	if(!res)
+		res = set_freq_ft897(myrpt, myrpt->freq);		/* Frequency */
+	if((myrpt->remmode == REM_MODE_FM)){
+		if(debug)
+			printf("Offset\n");
+		if(!res)
+			res = set_offset_ft897(myrpt, myrpt->offset);	/* Offset if FM */
+		if((!res)&&(myrpt->rxplon || myrpt->txplon)){
+			if(debug)
+				printf("CTCSS tone freqs.\n");
+			res = set_ctcss_freq_ft897(myrpt, myrpt->txpl, myrpt->rxpl); /* CTCSS freqs if CTCSS is enabled */
+		}
+		if(!res){
+			if(debug)
+				printf("CTCSS mode\n");
+			res = set_ctcss_mode_ft897(myrpt, myrpt->txplon, myrpt->rxplon); /* CTCSS mode */
+		}
+	}
+	if((myrpt->remmode == REM_MODE_USB)||(myrpt->remmode == REM_MODE_LSB)){
+		if(debug)
+			printf("Clarifier off\n");
+		simple_command_ft897(myrpt, 0x85);			/* Clarifier off if LSB or USB */
+	}
+	return res;
+}
+
+static int closerem_ft897(struct rpt *myrpt)
+{
+	simple_command_ft897(myrpt, 0x88); /* PTT off */
+	return 0;
+}	
+
+/*
+* Bump frequency up or down by a small amount 
+* Return 0 if the new frequnecy is valid, or -1 if invalid
+* Interval is in Hz, resolution is 10Hz 
+*/
+
+static int multimode_bump_freq_ft897(struct rpt *myrpt, int interval)
+{
+	int m,d;
+	char mhz[MAXREMSTR], decimals[MAXREMSTR];
+
+	if(debug)
+		printf("Before bump: %s\n", myrpt->freq);
+
+	if(split_freq(mhz, decimals, myrpt->freq))
+		return -1;
+	
+	m = atoi(mhz);
+	d = atoi(decimals);
+
+	d += (interval / 10); /* 10Hz resolution */
+	if(d < 0){
+		m--;
+		d += 100000;
+	}
+	else if(d >= 100000){
+		m++;
+		d -= 100000;
+	}
+
+	if(check_freq_ft897(m, d)){
+		if(debug)
+			printf("Bump freq invalid\n");
+		return -1;
+	}
+
+	snprintf(myrpt->freq, MAXREMSTR, "%d.%05d", m, d);
+
+	if(debug)
+		printf("After bump: %s\n", myrpt->freq);
+
+	return set_freq_ft897(myrpt, myrpt->freq);	
+}
+
+
+
+/*
+* Dispatch to correct I/O handler 
+*/
+
+static int setrem(struct rpt *myrpt)
+{
+	if(!strcmp(myrpt->remote, remote_rig_ft897))
+		return set_ft897(myrpt);
+	else if(!strcmp(myrpt->remote, remote_rig_rbi))
+		return setrbi(myrpt);
+	else
+		return -1;
+}
+
+static int closerem(struct rpt *myrpt)
+{
+	if(!strcmp(myrpt->remote, remote_rig_ft897))
+		return closerem_ft897(myrpt);
+	else
+		return 0;
+}
+
+/*
+* Dispatch to correct frequency checker
+*/
+
+static int check_freq(struct rpt *myrpt, int m, int d)
+{
+	if(!strcmp(myrpt->remote, remote_rig_ft897))
+		return check_freq_ft897(m, d);
+	else if(!strcmp(myrpt->remote, remote_rig_rbi))
+		return check_freq_rbi(m, d);
+	else
+		return -1;
+}
+
+/*
+* Return 1 if rig is multimode capable
+*/
+
+static int multimode_capable(struct rpt *myrpt)
+{
+	if(!strcmp(myrpt->remote, remote_rig_ft897))
+		return 1;
+	return 0;
+}	
+
+/*
+* Dispatch to correct frequency bumping function
+*/
+
+static int multimode_bump_freq(struct rpt *myrpt, int interval)
+{
+	if(!strcmp(myrpt->remote, remote_rig_ft897))
+		return multimode_bump_freq_ft897(myrpt, interval);
+	else
+		return -1;
+}
+
+
+/*
+* Queue announcment that scan has been stopped 
+*/
+
+static void stop_scan(struct rpt *myrpt, int flag)
+{
+	myrpt->hfscanmode = 0;
+	myrpt->hfscanstatus = ((flag) ? -2 : -1);
+}
+
+/*
+* This is called periodically when in scan mode
+*/
+
+
+static int service_scan(struct rpt *myrpt)
+{
+	int res, interval;
+	char mhz[MAXREMSTR], decimals[MAXREMSTR], k10=0i, k100=0;
+
+	switch(myrpt->hfscanmode){
+
+		case HF_SCAN_DOWN_SLOW:
+			interval = -10; /* 100Hz /sec */
+			break;
+
+		case HF_SCAN_DOWN_QUICK:
+			interval = -50; /* 500Hz /sec */
+			break;
+
+		case HF_SCAN_DOWN_FAST:
+			interval = -200; /* 2KHz /sec */
+			break;
+
+		case HF_SCAN_UP_SLOW:
+			interval = 10; /* 100Hz /sec */
+			break;
+
+		case HF_SCAN_UP_QUICK:
+			interval = 50; /* 500 Hz/sec */
+			break;
+
+		case HF_SCAN_UP_FAST:
+			interval = 200; /* 2KHz /sec */
+			break;
+
+		default:
+			myrpt->hfscanmode = 0; /* Huh? */
+			return -1;
+	}
+
+	res = split_freq(mhz, decimals, myrpt->freq);
+		
+	if(!res){
+		k100 =decimals[0];
+		k10 = decimals[1];
+		res = multimode_bump_freq(myrpt, interval);
+	}
+
+	if(!res)
+		res = split_freq(mhz, decimals, myrpt->freq);
+
+
+	if(res){
+		stop_scan(myrpt,1);
+		return -1;
+	}
+
+	/* Announce 10KHz boundaries */
+	if(k10 != decimals[1]){
+		int myhund = (interval < 0) ? k100 : decimals[0];
+		int myten = (interval < 0) ? k10 : decimals[1];
+		myrpt->hfscanstatus = (myten == '0') ? (myhund - '0') * 100 : (myten - '0') * 10;
+	}
+	return res;
+
+}
+
+
+
+/*
+* Remote base function
+*/
+
+static int function_remote(struct rpt *myrpt, char *param, char *digitbuf, int command_source)
+{
+	char *s,*s1,*s2,*val;
+	int i,j,ht,k,l,ls2,m,d,res,offset,offsave;
+	char multimode = 0;
+	char oc;
+	char tmp[20], freq[20] = "", savestr[20] = "";
+	char mhz[MAXREMSTR], decimals[MAXREMSTR];
+	struct ast_channel *mychannel;
+
+	if((!param) || (command_source != SOURCE_RMT))
+		return DC_ERROR;
+		
+
+	multimode = multimode_capable(myrpt);
+
+	mychannel = myrpt->remchannel;
+	
+	
+	switch(myatoi(param)){
+
+		case 1:  /* retrieve memory */
+			if(strlen(digitbuf) < 2) /* needs 2 digits */
+				break;
+			
+			for(i = 0 ; i < 2 ; i++){
+				if((digitbuf[i] < '0') || (digitbuf[i] > '9'))
+					return DC_ERROR;
+			}
+	    
+			val = ast_variable_retrieve(cfg, MEMORY, digitbuf);
+			if (!val){
+				if (ast_safe_sleep(mychannel,1000) == -1)
+					return DC_ERROR;
+				sayfile(mychannel,"rpt/memory_notfound");
+				return DC_COMPLETE;
+			}			
+			strncpy(tmp,val,sizeof(tmp) - 1);
+			s = strchr(tmp,',');
+			if (!s)
+				return DC_ERROR;
+			*s++ = 0;
+			s1 = strchr(s,',');
+			if (!s1)
+				return DC_ERROR;
+			*s1++ = 0;
+			strncpy(myrpt->freq, tmp, sizeof(myrpt->freq) - 1);
+			strncpy(myrpt->rxpl, s, sizeof(myrpt->rxpl) - 1);
+			strncpy(myrpt->txpl, s, sizeof(myrpt->rxpl) - 1);
+			myrpt->remmode = REM_MODE_FM;
+			myrpt->offset = REM_SIMPLEX;
+			myrpt->powerlevel = REM_MEDPWR;
+			myrpt->txplon = myrpt->rxplon = 0;
+			while(*s1)
+			{
+				switch(*s1++){
+					case 'A':
+					case 'a':
+						strcpy(myrpt->rxpl, "100.0");
+						strcpy(myrpt->txpl, "100.0");
+						myrpt->remmode = REM_MODE_AM;	
+						break;
+					
+					case 'B':
+					case 'b':
+						strcpy(myrpt->rxpl, "100.0");
+						strcpy(myrpt->txpl, "100.0");
+						myrpt->remmode = REM_MODE_LSB;
+						break;
+			
+					case 'F':
+						myrpt->remmode = REM_MODE_FM;
+						break;
+
+					case 'L':
+					case 'l':
+						myrpt->powerlevel = REM_LOWPWR;
+						break;					
+					case 'H':
+					case 'h':
+						myrpt->powerlevel = REM_HIPWR;
+						break;
+					
+					case 'M':
+					case 'm':
+						myrpt->powerlevel = REM_MEDPWR;
+						break;
+						
+					case '-':
+						myrpt->offset = REM_MINUS;
+						break;
+						
+					case '+':
+						myrpt->offset = REM_PLUS;
+						break;
+						
+					case 'S':
+					case 's':
+						myrpt->offset = REM_SIMPLEX;
+						break;
+						
+					case 'T':
+					case 't':
+						myrpt->txplon = 1;
+						break;
+						
+					case 'R':
+					case 'r':
+						myrpt->rxplon = 1;
+						break;
+
+					case 'U':
+					case 'u':
+						strcpy(myrpt->rxpl, "100.0");
+						strcpy(myrpt->txpl, "100.0");
+						myrpt->remmode = REM_MODE_USB;
+						break;
+				}
+			}
+		
+		
+			if (setrem(myrpt) == -1)
+				return DC_ERROR;
+		
+		
+			return DC_COMPLETE;	
+			
+		case 2:  /* set freq and offset */
+	   
+			
+	    		for(i = 0, j = 0, k = 0, l = 0 ; digitbuf[i] ; i++){ /* look for N+*N+*N or N+*N+* depending on mode */
+				if(digitbuf[i] == '*'){
+					j++;
+					continue;
+				}
+				if((digitbuf[i] < '0') || (digitbuf[i] > '9'))
+					return DC_ERROR;
+				else{
+					if(j == 0)
+						l++; /* # of digits before first * */
+					if(j == 1)
+						k++; /* # of digits after first * */
+				}
+			}
+		
+			i = strlen(digitbuf) - 1;
+			if(multimode){
+				if((j > 2) || (l > 3) || (k > 6))
+					return DC_ERROR; /* &^@#! */
+ 			}
+			else{
+				if((j > 2) || (l > 4) || (k > 3))
+					return DC_ERROR; /* &^@#! */
+			}
+
+			/* For FM modulation mode, we require M+*K+*O, for other modulation modes M+*K+* will suffice */
+
+			if((j < 2) || ((myrpt->remmode == REM_MODE_FM) && (digitbuf[i] == '*')))
+				break; /* Not yet */
+
+			strncpy(tmp, digitbuf ,sizeof(tmp) - 1);
+			
+			s = tmp;
+			s1 = strsep(&s, "*"); /* Pick off MHz */
+			s2 = strsep(&s,"*"); /* Pick off KHz and Hz */
+			oc = *s; /* Pick off offset */
+			ls2 = strlen(s2);	
+
+			
+			switch(ls2){ /* Allow partial entry of khz and hz digits for laziness support */
+				case 1:
+					ht = 0;
+					k = 100 * atoi(s2);
+					break;
+				
+				case 2:
+					ht = 0;
+					k = 10 * atoi(s2);
+					break;
+					
+				case 3:
+					if(!multimode){
+						if((s2[2] != '0')&&(s2[2] != '5'))
+							return DC_ERROR;
+					}
+					ht = 0;
+					k = atoi(s2);
+						break;
+				case 4:
+					k = atoi(s2)/10;
+					ht = 10 * (atoi(s2+(ls2-1)));
+					break;
+
+				case 5:
+					k = atoi(s2)/100;
+					ht = (atoi(s2+(ls2-2)));
+					break;
+					
+				default:
+					return DC_ERROR;
+					
+			}
+				
+
+			
+			snprintf(freq, sizeof(freq), "%s.%03d%02d",s1, k, ht);
+			if(debug)
+				printf("New frequency: %s\n", freq);		
+	
+			split_freq(mhz, decimals, freq);
+			m = atoi(mhz);
+			d = atoi(decimals);
+
+                        if(check_freq(myrpt, m, d)) /* Check to see if frequency entered is legit */
+                                return DC_ERROR;
+
+			if((myrpt->remmode == REM_MODE_FM) && (m < 29)) /* FM not allowed below 29 MHZ */
+				return DC_ERROR;
+
+			offset = REM_SIMPLEX;
+			
+			if (oc){
+				switch(oc){
+					case '1':
+						offset = REM_MINUS;
+						break;
+						
+					case '2':
+					case 0:
+						offset = REM_SIMPLEX;
+						break;
+						
+					case '3':
+						offset = REM_PLUS;
+						break;
+						
+					default:
+	
+						return DC_ERROR;
+				} 
+			} 
+			
+			offsave = myrpt->offset;
+			strncpy(savestr, myrpt->freq, sizeof(savestr) - 1);
+			strncpy(myrpt->freq, freq, sizeof(myrpt->freq) - 1);
+			
+			myrpt->offset = offset;
+	
+			if (setrem(myrpt) == -1){
+				myrpt->offset = offsave;
+				strncpy(myrpt->freq, savestr, sizeof(myrpt->freq) - 1);
+				return DC_ERROR;
+			}
+
+			return DC_COMPLETE;
+		
+		case 3: /* set tx PL tone */
+			
+	    		for(i = 0, j = 0, k = 0, l = 0 ; digitbuf[i] ; i++){ /* look for N+*N */
+				if(digitbuf[i] == '*'){
+					j++;
+					continue;
+				}
+				if((digitbuf[i] < '0') || (digitbuf[i] > '9'))
+					return DC_ERROR;
+				else{
+					if(j)
+						l++;
+					else
+						k++;
+				}
+			}
+			if((j > 1) || (k > 3) || (l > 1))
+				return DC_ERROR; /* &$@^! */
+			i = strlen(digitbuf) - 1;
+			if((j != 1) || (k < 2)|| (l != 1))
+				break; /* Not yet */
+			if(debug)
+				printf("PL digits entered %s\n", digitbuf);
+	    		
+			strncpy(tmp, digitbuf, sizeof(tmp) - 1);
+			/* see if we have at least 1 */
+			s = strchr(tmp,'*');
+			if(s)
+				*s = '.';
+			strncpy(savestr, myrpt->txpl, sizeof(savestr) - 1);
+			strncpy(myrpt->txpl, tmp, sizeof(myrpt->txpl) - 1);
+			
+			if (setrem(myrpt) == -1){
+				strncpy(myrpt->txpl, savestr, sizeof(myrpt->txpl) - 1);
+				return DC_ERROR;
+			}
+		
+		
+			return DC_COMPLETE;
+		
+		case 4: /* set rx PL tone */
+			
+	    		for(i = 0, j = 0, k = 0, l = 0 ; digitbuf[i] ; i++){ /* look for N+*N */
+				if(digitbuf[i] == '*'){
+					j++;
+					continue;
+				}
+				if((digitbuf[i] < '0') || (digitbuf[i] > '9'))
+					return DC_ERROR;
+				else{
+					if(j)
+						l++;
+					else
+						k++;
+				}
+			}
+			if((j > 1) || (k > 3) || (l > 1))
+				return DC_ERROR; /* &$@^! */
+			i = strlen(digitbuf) - 1;
+			if((j != 1) || (k < 2)|| (l != 1))
+				break; /* Not yet */
+			if(debug)
+				printf("PL digits entered %s\n", digitbuf);
+	    		
+			strncpy(tmp, digitbuf, sizeof(tmp) - 1);
+			/* see if we have at least 1 */
+			s = strchr(tmp,'*');
+			if(s)
+				*s = '.';
+			strncpy(savestr, myrpt->rxpl, sizeof(savestr) - 1);
+			strncpy(myrpt->rxpl, tmp, sizeof(myrpt->rxpl) - 1);
+			
+			if (setrem(myrpt) == -1){
+				strncpy(myrpt->rxpl, savestr, sizeof(myrpt->rxpl) - 1);
+				return DC_ERROR;
+			}
+		
+		
+			return DC_COMPLETE;
+		
+
+		case 6: /* MODE (FM,USB,LSB,AM) */
+			if(strlen(digitbuf) < 1)
+				break;
+
+			if(!multimode)
+				return DC_ERROR; /* Multimode radios only */
+
+			switch(*digitbuf){
+				case '1':
+					split_freq(mhz, decimals, myrpt->freq); 
+					m=atoi(mhz);
+					if(m < 29) /* No FM allowed below 29MHz! */
+						return DC_ERROR;
+					myrpt->remmode = REM_MODE_FM;
+					break;
+
+				case '2':
+					myrpt->remmode = REM_MODE_USB;
+					break;
+
+				case '3':
+					myrpt->remmode = REM_MODE_LSB;
+					break;
+				
+				case '4':
+					myrpt->remmode = REM_MODE_AM;
+					break;
+		
+				default:
+					return DC_ERROR;
+			}
+
+			if(setrem(myrpt))
+				return DC_ERROR;
+			return DC_COMPLETE;
+
+		case 100: /* other stuff */
+		case 101: 
+		case 102: 
+		case 103: 
+		case 104: 
+		case 105: 
+		case 106:
+ 
+			switch(myatoi(param)){ /* Quick commands requiring a setrem call */
+				case 100: /* RX PL Off */
+					myrpt->rxplon = 0;
+					break;
+					
+				case 101: /* RX PL On */
+					myrpt->rxplon = 1;
+					break;
+					
+				case 102: /* TX PL Off */
+					myrpt->txplon = 0;
+					break;
+					
+				case 103: /* TX PL On */
+					myrpt->txplon = 1;
+					break;
+					
+				case 104: /* Low Power */
+					myrpt->powerlevel = REM_LOWPWR;
+					break;
+					
+				case 105: /* Medium Power */
+					myrpt->powerlevel = REM_MEDPWR;
+					break;
+					
+				case 106: /* Hi Power */
+					myrpt->powerlevel = REM_HIPWR;
+					break;
+			
+				default:
+					return DC_ERROR;
+			}
+
+			if (setrem(myrpt) == -1) 
+				return DC_ERROR;
+			return DC_COMPLETE;
+
+		case 107: /* Bump down 20Hz */
+			multimode_bump_freq(myrpt, -20);
+			return DC_COMPLETE;
+
+		case 108: /* Bump down 100Hz */
+			multimode_bump_freq(myrpt, -100);
+			return DC_COMPLETE;
+
+		case 109: /* Bump down 500Hz */
+			multimode_bump_freq(myrpt, -500);
+			return DC_COMPLETE;
+
+		case 110: /* Bump up 20Hz */
+			multimode_bump_freq(myrpt, 20);
+			return DC_COMPLETE;
+				
+		case 111: /* Bump up 100Hz */
+			multimode_bump_freq(myrpt, 100);
+			return DC_COMPLETE;
+
+		case 112: /* Bump up 500Hz */
+			multimode_bump_freq(myrpt, 500);
+			return DC_COMPLETE;
+
+
+		case 113:
+		case 114:
+		case 115:
+		case 116:
+		case 117:
+		case 118:
+			myrpt->remotetx = 0;
+			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+			if (!myrpt->remoterx)
+				ast_indicate(mychannel,AST_CONTROL_RADIO_KEY);
+			if (ast_safe_sleep(mychannel,1000) == -1)
+					return DC_ERROR;
+		
+			switch(myatoi(param)){
+
+				case 113: /* Scan down slow */
+					res = sayfile(mychannel,"rpt/down");
+					if(!res)
+						res = sayfile(mychannel, "rpt/slow");
+					if(!res){
+						myrpt->scantimer = REM_SCANTIME;
+						myrpt->hfscanmode = HF_SCAN_DOWN_SLOW;
+					}
+					break;
+
+				case 114: /* Scan down quick */
+					res = sayfile(mychannel,"rpt/down");
+					if(!res)
+						res = sayfile(mychannel, "rpt/quick");
+					if(!res){
+						myrpt->scantimer = REM_SCANTIME;
+						myrpt->hfscanmode = HF_SCAN_DOWN_QUICK;
+					}
+					break;
+
+				case 115: /* Scan down fast */
+					res = sayfile(mychannel,"rpt/down");
+					if(!res)
+						res = sayfile(mychannel, "rpt/fast");
+					if(!res){
+						myrpt->scantimer = REM_SCANTIME;
+						myrpt->hfscanmode = HF_SCAN_DOWN_FAST;
+					}
+					break;
+
+				case 116: /* Scan up slow */
+					res = sayfile(mychannel,"rpt/up");
+					if(!res)
+						res = sayfile(mychannel, "rpt/slow");
+					if(!res){
+						myrpt->scantimer = REM_SCANTIME;
+						myrpt->hfscanmode = HF_SCAN_UP_SLOW;
+					}
+					break;
+
+				case 117: /* Scan up quick */
+					res = sayfile(mychannel,"rpt/up");
+					if(!res)
+						res = sayfile(mychannel, "rpt/quick");
+					if(!res){
+						myrpt->scantimer = REM_SCANTIME;
+						myrpt->hfscanmode = HF_SCAN_UP_QUICK;
+					}
+					break;
+
+				case 118: /* Scan up fast */
+					res = sayfile(mychannel,"rpt/up");
+					if(!res)
+						res = sayfile(mychannel, "rpt/fast");
+					if(!res){
+						myrpt->scantimer = REM_SCANTIME;
+						myrpt->hfscanmode = HF_SCAN_UP_FAST;
+					}
+					break;
+			}
+			if (!myrpt->remoterx){
+				ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+			}
+			return DC_COMPLETE;
+
+
+		case 119: /* Tune Request */
+			myrpt->tunerequest = 1;
+			return DC_COMPLETE;
+
+		case 5: /* Long Status */
+		case 140: /* Short Status */
+			myrpt->remotetx = 0;
+			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+			if (!myrpt->remoterx){
+				ast_indicate(mychannel,AST_CONTROL_RADIO_KEY);
+			}
+			
+			if (ast_safe_sleep(mychannel,1000) == -1)
+					return DC_ERROR;
+
+
+			res = sayfile(mychannel,"rpt/node");
+			if(!res)
+				res = saycharstr(mychannel, myrpt->name);
+			if(!res)
+				res = sayfile(mychannel,"rpt/frequency");
+			if(!res)
+				res = split_freq(mhz, decimals, myrpt->freq);
+			if(!res){
+				m = atoi(mhz);
+				if(m < 100)
+					res = saynum(mychannel, m);
+				else
+					res = saycharstr(mychannel, mhz);
+			}
+			if(!res)
+				res = sayfile(mychannel, "letters/dot");
+			if(!res)
+				res = saycharstr(mychannel, decimals);
+		
+			if(res){	
+				if (!myrpt->remoterx){
+		
+					ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+				}
+				return DC_ERROR;
+			}
+			if(myrpt->remmode == REM_MODE_FM){ /* Mode FM? */
+				switch(myrpt->offset){
+	
+					case REM_MINUS:
+						res = sayfile(mychannel,"rpt/minus");
+						break;
+				
+					case REM_SIMPLEX:
+						res = sayfile(mychannel,"rpt/simplex");
+						break;
+					
+					case REM_PLUS:
+						res = sayfile(mychannel,"rpt/plus");
+						break;
+					
+					default:
+						return DC_ERROR;
+
+				}
+			}
+			else{ /* Must be USB, LSB, or AM */
+				switch(myrpt->remmode){
+
+					case REM_MODE_USB:
+						res = saycharstr(mychannel, "USB");
+						break;
+
+					case REM_MODE_LSB:
+						res = saycharstr(mychannel, "LSB");
+						break;
+
+					case REM_MODE_AM:
+						res = saycharstr(mychannel, "AM");
+						break;
+
+
+					default:
+						return DC_ERROR;
+				}
+			}
+
+			if (res == -1){
+		
+				if (!myrpt->remoterx){
+		
+					ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+				}
+				return DC_ERROR;
+			}
+
+			if(myatoi(param) == 140) /* Short status? */
+				return DC_COMPLETE;
+
+
+			switch(myrpt->powerlevel){
+
+				case REM_LOWPWR:
+					res = sayfile(mychannel,"rpt/lopwr") ;
+					break;
+					
+				case REM_MEDPWR:
+					res = sayfile(mychannel,"rpt/medpwr");
+					break;
+				case REM_HIPWR:
+					res = sayfile(mychannel,"rpt/hipwr"); 
+					break;
+			}
+			if (res || (sayfile(mychannel,"rpt/rxpl") == -1) ||
+				(sayfile(mychannel,"rpt/frequency") == -1) ||
+				(saycharstr(mychannel,myrpt->rxpl) == -1) ||
+				(sayfile(mychannel,"rpt/txpl") == -1) ||
+				(sayfile(mychannel,"rpt/frequency") == -1) ||
+				(saycharstr(mychannel,myrpt->txpl) == -1) ||
+				(sayfile(mychannel,"rpt/txpl") == -1) ||
+				(sayfile(mychannel,((myrpt->txplon) ? "rpt/on" : "rpt/off")) == -1) ||
+				(sayfile(mychannel,"rpt/rxpl") == -1) ||
+				(sayfile(mychannel,((myrpt->rxplon) ? "rpt/on" : "rpt/off")) == -1)){
+				if (!myrpt->remoterx){
+					ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+				}
+				return DC_ERROR;
+			}
+			if (!myrpt->remoterx){
+				ast_indicate(mychannel,AST_CONTROL_RADIO_UNKEY);
+			}
+			return DC_COMPLETE;
+			
+	    	default:
+			return DC_ERROR;
+	}
+
+	return DC_INDETERMINATE;
+}
 
 static int handle_remote_dtmf_digit(struct rpt *myrpt,char c)
 {
 time_t	now;
 int	ret,res = 0;
+
+	/* Stop scan mode if in scan mode */
+	if(myrpt->hfscanmode){
+		stop_scan(myrpt,0);
+		return 0;
+	}
 
 	time(&now);
 	/* if timed-out */
@@ -4273,6 +5235,9 @@ pthread_attr_t attr;
 		{
 			strncpy(rpt_vars[i].freq, "146.580", sizeof(rpt_vars[i].freq) - 1);
 			strncpy(rpt_vars[i].rxpl, "100.0", sizeof(rpt_vars[i].rxpl) - 1);
+
+			strncpy(rpt_vars[i].txpl, "100.0", sizeof(rpt_vars[i].txpl) - 1);
+			rpt_vars[i].remmode = REM_MODE_FM;
 			rpt_vars[i].offset = REM_SIMPLEX;
 			rpt_vars[i].powerlevel = REM_MEDPWR;
 			continue;
@@ -4548,8 +5513,10 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	myrpt->dtmfidx = -1;
 	myrpt->dtmfbuf[0] = 0;
 	myrpt->dtmf_time_rem = 0;
+	myrpt->hfscanmode = 0;
+	myrpt->hfscanstatus = 0;
 	ast_mutex_unlock(&myrpt->lock);
-	setrbi(myrpt);
+	setrem(myrpt); 
 	ast_set_write_format(chan, AST_FORMAT_SLINEAR);
 	ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 	/* if we are on 2w loop and are a remote, turn EC on */
@@ -4566,7 +5533,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	cs[n++] = myrpt->rxchannel;
 	if (myrpt->rxchannel != myrpt->txchannel)
 		cs[n++] = myrpt->txchannel;
-	for(;;)
+	for(;;) 
 	{
 		if (ast_check_hangup(chan)) break;
 		if (ast_check_hangup(myrpt->rxchannel)) break;
@@ -4596,6 +5563,35 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			myrpt->remotetx = 0;
 			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
 		}
+
+		if(myrpt->tunerequest && (!strcmp(myrpt->remote, remote_rig_ft897))){ /* ft-897 specific for now... */
+			myrpt->tunerequest = 0;
+			set_mode_ft897(myrpt, REM_MODE_AM);
+			simple_command_ft897(myrpt, 8);
+			myrpt->remotetx = 0;
+			ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+			if (!myrpt->remoterx)
+				ast_indicate(chan, AST_CONTROL_RADIO_KEY);
+			if(play_tone(chan, 800, 6000, 8192) == -1)
+				break;
+			if(myrpt->remoterx == 0)
+				ast_indicate(chan, AST_CONTROL_RADIO_UNKEY);
+			set_mode_ft897(myrpt, 0x88);
+			setrem(myrpt);
+		}
+				
+			
+			
+	
+		if (myrpt->hfscanmode){
+			myrpt->scantimer -= elap;
+			if(myrpt->scantimer <= 0){
+				myrpt->scantimer = REM_SCANTIME;
+				service_scan(myrpt);
+			}
+		}
+
+
 		if (who == chan) /* if it was a read from incomming */
 		{
 			f = ast_read(chan);
@@ -4611,7 +5607,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 					memset(f->data,0,f->datalen);
 				ast_write(myrpt->txchannel,f);
 			}
-			else if (f->frametype == AST_FRAME_TEXT)
+			if (f->frametype == AST_FRAME_TEXT)
 			{
 				myrpt->remchannel = chan; /* Save copy of channel */
 				if (handle_remote_data(myrpt,f->data) == -1)
@@ -4621,7 +5617,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 					break;
 				}
 			}
-			else if (f->frametype == AST_FRAME_CONTROL)
+			if (f->frametype == AST_FRAME_CONTROL)
 			{
 				if (f->subclass == AST_CONTROL_HANGUP)
 				{
@@ -4641,6 +5637,30 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 					if (debug) printf("@@@@ rx un-key\n");
 					keyed = 0;
 				}
+			}
+			if (myrpt->hfscanstatus){
+				myrpt->remchannel = chan; /* Save copy of channel */
+				myrpt->remotetx = 0;
+				ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
+				if (!myrpt->remoterx)
+				{
+					ast_indicate(myrpt->remchannel,AST_CONTROL_RADIO_KEY);
+				}
+				if(myrpt->hfscanstatus < 0) {
+					if (myrpt->hfscanstatus == -1) {
+						if (ast_safe_sleep(myrpt->remchannel,1000) == -1) break;
+					}
+					sayfile(myrpt->remchannel, "rpt/stop");
+				}
+				else
+				{
+					saynum(myrpt->remchannel, myrpt->hfscanstatus );
+				}	
+				if (!myrpt->remoterx)
+				{
+					ast_indicate(myrpt->remchannel,AST_CONTROL_RADIO_UNKEY);
+				}
+				myrpt->hfscanstatus = 0;
 			}
 			ast_frfree(f);
 			continue;
@@ -4717,8 +5737,11 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	ast_mutex_lock(&myrpt->lock);
 	if (myrpt->rxchannel != myrpt->txchannel) ast_hangup(myrpt->txchannel);
 	ast_hangup(myrpt->rxchannel);
+	myrpt->hfscanmode = 0;
+	myrpt->hfscanstatus = 0;
 	myrpt->remoteon = 0;
 	ast_mutex_unlock(&myrpt->lock);
+	closerem(myrpt);
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
