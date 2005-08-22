@@ -406,7 +406,10 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 	return res;
 }
 
-int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, int skipms) 
+int ast_control_streamfile(struct ast_channel *chan, const char *file,
+			   const char *fwd, const char *rev,
+			   const char *stop, const char *pause,
+			   const char *restart, int skipms) 
 {
 	long elapsed = 0,last_elapsed =0;
 	char *breaks=NULL;
@@ -418,12 +421,18 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file, const cha
 		blen += strlen(stop);
 	if (pause)
 		blen += strlen(pause);
+	if (restart)
+		blen += strlen(restart);
 
 	if (blen > 2) {
 		breaks = alloca(blen + 1);
 		breaks[0] = '\0';
-		strcat(breaks, stop);
-		strcat(breaks, pause);
+		if (stop)
+			strcat(breaks, stop);
+		if (pause)
+			strcat(breaks, pause);
+		if (restart)
+			strcat(breaks, restart);
 	}
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
@@ -465,6 +474,13 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file, const cha
 
 		if (res < 1)
 			break;
+
+		/* We go at next loop if we got the restart char */
+		if (restart && strchr(restart, res)) {
+			ast_log(LOG_DEBUG, "we'll restart the stream here at next loop\n");
+			elapsed=0; /* To make sure the next stream will start at beginning */
+			continue;
+		}
 
 		if (pause != NULL && strchr(pause, res)) {
 			elapsed = ast_tvdiff_ms(ast_tvnow(), started) + last_elapsed;

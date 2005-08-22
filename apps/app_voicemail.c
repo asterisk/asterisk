@@ -3255,7 +3255,7 @@ static int wait_file2(struct ast_channel *chan, struct vm_state *vms, char *file
 
 static int wait_file(struct ast_channel *chan, struct vm_state *vms, char *file) 
 {
-	return ast_control_streamfile(chan, file, "#", "*", "1456789", "0", skipms);
+	return ast_control_streamfile(chan, file, "#", "*", "1456789", "0", "2", skipms);
 }
 
 static int play_message_category(struct ast_channel *chan, char *category)

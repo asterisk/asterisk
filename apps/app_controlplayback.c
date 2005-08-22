@@ -28,20 +28,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/utils.h"
 
-static char *tdesc = "Control Playback Application";
+static const char *tdesc = "Control Playback Application";
 
-static char *app = "ControlPlayback";
+static const char *app = "ControlPlayback";
 
-static char *synopsis = "Play a file with fast forward and rewind";
+static const char *synopsis = "Play a file with fast forward and rewind";
 
-static char *descrip = 
-"ControlPlayback(filename[|skipms[|ffchar[|rewchar[|stopchar[|pausechr]]]]]):\n"
+static const char *descrip = 
+"ControlPlayback(filename[|skipms[|ffchar[|rewchar[|stopchar[|pausechar[|restartchar]]]]]]):\n"
 "  Plays  back  a  given  filename (do not put extension). Options may also\n"
 "  be included following a pipe symbol.  You can use * and # to rewind and\n"
 "  fast forward the playback specified. If 'stopchar' is added the file will\n"
-"  terminate playback when 'stopchar' is pressed. Returns -1 if the channel\n"
+"  terminate playback when 'stopchar' is pressed. If 'restartchar' is added, the file\n"
+"  will restart when 'restartchar' is pressed. Returns -1 if the channel\n"
 "  was hung up. if the file does not exist jumps to n+101 if it present.\n\n"
-"  Example:  exten => 1234,1,ControlPlayback(file|4000|*|#|1|0)\n\n";
+"  Example:  exten => 1234,1,ControlPlayback(file|4000|*|#|1|0|5)\n\n";
 
 STANDARD_LOCAL_USER;
 
@@ -49,7 +50,7 @@ LOCAL_USER_DECL;
 
 static int is_on_phonepad(char key)
 {
-	return (key == 35 || key == 42 || (key >= 48 && key <= 57)) ? 1 : 0;
+	return key == 35 || key == 42 || (key >= 48 && key <= 57);
 }
 
 static int controlplayback_exec(struct ast_channel *chan, void *data)
@@ -57,72 +58,71 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	int skipms = 0;
 	struct localuser *u;
-	char tmp[256];
-	char *skip = NULL, *fwd = NULL, *rev = NULL, *stop = NULL, *pause = NULL, *file = NULL;
-	
+	char *tmp;
+	int argc;
+	char *argv[7];
+	enum arg_ids {
+		arg_file = 0,
+		arg_skip = 1,
+		arg_fwd = 2,
+		arg_rev = 3,
+		arg_stop = 4,
+		arg_pause = 5,
+		arg_restart = 6,
+	};
 
 	if (!data || ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
 
-	strncpy(tmp, (char *)data, sizeof(tmp)-1);
-	file = tmp;
+	tmp = ast_strdupa(data);
+	memset(argv, 0, sizeof(argv));
 
-	if ((skip=strchr(tmp,'|'))) {
-		*skip++ = '\0';
-		fwd=strchr(skip,'|');
-		if (fwd) {
-			*fwd++ = '\0';
-			rev = strchr(fwd,'|');
-			if (rev) {
-				*rev++ = '\0';
-				stop = strchr(rev,'|');
-				if (stop) {
-					*stop++ = '\0';
-					pause = strchr(stop,'|');
-					if (pause) {
-						*pause++ = '\0';
-					}
-				}
-			}
-		}
+	argc = ast_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
+
+	if (argc < 1) {
+		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
+		return -1;
 	}
 
-	skipms = skip ? atoi(skip) : 3000;
+	skipms = argv[arg_skip] ? atoi(argv[arg_skip]) : 3000;
 	if (!skipms)
 		skipms = 3000;
 
-	if (!fwd || !is_on_phonepad(*fwd))
-		fwd = "#";
-	if (!rev || !is_on_phonepad(*rev))
-		rev = "*";
-	if (stop && !is_on_phonepad(*stop))
-		stop = NULL;
-	if (pause && !is_on_phonepad(*pause))
-		pause = NULL;
+	if (!argv[arg_fwd] || !is_on_phonepad(*argv[arg_fwd]))
+		argv[arg_fwd] = "#";
+	if (!argv[arg_rev] || !is_on_phonepad(*argv[arg_rev]))
+		argv[arg_rev] = "*";
+	if (argv[arg_stop] && !is_on_phonepad(*argv[arg_stop]))
+		argv[arg_stop] = NULL;
+	if (argv[arg_pause] && !is_on_phonepad(*argv[arg_pause]))
+		argv[arg_pause] = NULL;
+	if (argv[arg_restart] && !is_on_phonepad(*argv[arg_restart]))
+		argv[arg_restart] = NULL;
 
 	LOCAL_USER_ADD(u);
 
-	res = ast_control_streamfile(chan, file, fwd, rev, stop, pause, skipms);
+	res = ast_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms);
 
 	LOCAL_USER_REMOVE(u);
 	
 	/* If we stopped on one of our stop keys, return 0  */
-	if(stop && strchr(stop, res)) 
+	if (argv[arg_stop] && strchr(argv[arg_stop], res)) 
 		res = 0;
 
-	if(res < 0) {
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-            chan->priority+=100;
-		res = 0;
+	if (res < 0) {
+		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+			res = 0;
 	}
+
 	return res;
 }
 
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+
 	return ast_unregister_application(app);
 }
 
@@ -133,12 +133,13 @@ int load_module(void)
 
 char *description(void)
 {
-	return tdesc;
+	return (char *) tdesc;
 }
 
 int usecount(void)
 {
 	int res;
+
 	STANDARD_USECOUNT(res);
 	return res;
 }

@@ -124,8 +124,8 @@ int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, char *di
 /*! Stream a filename (or file descriptor) as a generator. */
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);
 
-/*! Stream a file with fast forward, pause, reverse. */
-int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, int skipms);
+/*! Stream a file with fast forward, pause, reverse, restart. */
+int ast_control_streamfile(struct ast_channel *chan, const char *file, const char *fwd, const char *rev, const char *stop, const char *pause, const char *restart, int skipms);
 
 /*! Play a stream and wait for a digit, returning the digit that was pressed */
 int ast_play_and_wait(struct ast_channel *chan, const char *fn);
