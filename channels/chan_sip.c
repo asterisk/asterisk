@@ -6224,6 +6224,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		if (ast_strlen_zero(p->our_contact))
 			build_contact(p);
 	}
+	/* save the URI part of the From header */
+	ast_copy_string(p->from, of, sizeof(p->from));
 	if (strncmp(of, "sip:", 4)) {
 		ast_log(LOG_NOTICE, "From address missing 'sip:', using it anyway\n");
 	} else
@@ -8293,6 +8295,73 @@ struct ast_custom_function sippeer_function = {
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
 	"\n"
 };
+
+/*--- function_sipchaninfo_read: ${SIPCHANINFO()} Dialplan function - reads sip channel data */
+static char *function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	struct sip_pvt *p;
+	char iabuf[INET_ADDRSTRLEN];
+
+	*buf = 0;
+	
+ 	if (!data) {
+		ast_log(LOG_WARNING, "This function requires a parameter name.\n");
+		return NULL;
+	}
+
+	ast_mutex_lock(&chan->lock);
+	if (chan->type != channeltype) {
+		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
+		ast_mutex_unlock(&chan->lock);
+		return NULL;
+	}
+
+/* 	ast_verbose("function_sipchaninfo_read: %s\n", data); */
+	p = chan->tech_pvt;
+
+	/* If there is no private structure, this channel is no longer alive */
+	if (!p) {
+		ast_mutex_unlock(&chan->lock);
+		return NULL;
+	}
+
+	if (!strcasecmp(data, "peerip")) {
+		ast_copy_string(buf, p->sa.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr) : "", len);
+	} else  if (!strcasecmp(data, "recvip")) {
+		ast_copy_string(buf, p->recv.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr) : "", len);
+	} else  if (!strcasecmp(data, "from")) {
+		ast_copy_string(buf, p->from, len);
+	} else  if (!strcasecmp(data, "uri")) {
+		ast_copy_string(buf, p->uri, len);
+	} else  if (!strcasecmp(data, "useragent")) {
+		ast_copy_string(buf, p->useragent, len);
+	} else  if (!strcasecmp(data, "peername")) {
+		ast_copy_string(buf, p->peername, len);
+	} else {
+		ast_mutex_unlock(&chan->lock);
+		return NULL;
+	}
+	ast_mutex_unlock(&chan->lock);
+
+	return buf;
+}
+
+/* Structure to declare a dialplan function: SIPCHANINFO */
+static struct ast_custom_function sipchaninfo_function = {
+	.name = "SIPCHANINFO",
+	.synopsis = "Gets the specified SIP parameter from the current channel",
+	.syntax = "SIPCHANINFO(item)",
+	.read = function_sipchaninfo_read,
+	.desc = "Valid items are:\n"
+	"- peerip                The IP address of the peer.\n"
+	"- recvip                The source IP address of the peer.\n"
+	"- from                  The URI from the From: header.\n"
+	"- uri                   The URI from the Contact: header.\n"
+	"- useragent             The useragent.\n"
+	"- peername              The name of the peer.\n"
+};
+
+
 
 /*--- parse_moved_contact: Parse 302 Moved temporalily response */
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
@@ -11606,6 +11675,7 @@ int load_module()
 	/* Register dialplan functions */
 	ast_custom_function_register(&sip_header_function);
 	ast_custom_function_register(&sippeer_function);
+	ast_custom_function_register(&sipchaninfo_function);
 
 	/* Register manager commands */
 	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -11629,6 +11699,7 @@ int unload_module()
 	/* First, take us out of the channel type list */
 	ast_channel_unregister(&sip_tech);
 
+	ast_custom_function_unregister(&sipchaninfo_function);
 	ast_custom_function_unregister(&sippeer_function);
 	ast_custom_function_unregister(&sip_header_function);
 
