@@ -218,6 +218,7 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 	regex_t regexbuf;
 	int havepattern = 0;
 	int havename = 0;
+	int count_files = 0;
 
 	switch (argc) {
 	case 5:
@@ -248,11 +249,14 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 			continue;
 
 		ast_cli(fd, FORMAT, iterator->file, iterator->version);
-
+		count_files++;
 		if (havename)
 			break;
 	}
 	AST_LIST_UNLOCK(&file_versions);
+	if (!havename) {
+		ast_cli(fd, "%d files listed.\n", count_files);
+	}
 
 	if (havepattern)
 		regfree(&regexbuf);
