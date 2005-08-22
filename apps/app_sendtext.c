@@ -26,20 +26,29 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/image.h"
+#include "asterisk/options.h"
 
-static char *tdesc = "Send Text Applications";
+static const char *tdesc = "Send Text Applications";
 
-static char *app = "SendText";
+static const char *app = "SendText";
 
-static char *synopsis = "Send a Text Message";
+static const char *synopsis = "Send a Text Message";
 
-static char *descrip = 
-"  SendText(text): Sends text to client.  If the client\n"
-"does not support text transport, and  there  exists  a  step  with\n"
-"priority  n + 101,  then  execution  will  continue  at that step.\n"
-"Otherwise, execution will continue at  the  next  priority  level.\n"
-"SendText only returns 0  if  the  text  was  sent  correctly  or  if\n"
-"the channel  does  not  support text transport,  and -1 otherwise.\n";
+static const char *descrip = 
+"  SendText(text): Sends text to current channel (callee).\n"
+"Otherwise, execution will continue at the next priority level.\n"
+"Result of transmission will be stored in the SENDTEXTSTATUS\n"
+"channel variable:\n"
+"      SUCCESS      Transmission succeeded\n"
+"      FAILURE      Transmission failed\n"
+"      UNSUPPORTED  Text transmission not supported by channel\n"
+"\n"
+"At this moment, text is supposed to be 7 bit ASCII in most channels.\n"
+"Old deprecated behavior: \n"
+" SendText only returns 0 if the text was sent correctly or if\n"
+" the channel does not support text transport.\n"
+" If the client does not support text transport, and there exists a\n"
+" step with priority n + 101, then execution will continue at that step.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -49,29 +58,37 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
+	char *status = "UNSUPPORTED";
+
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "SendText requires an argument (text)\n");
 		return -1;
 	}
+
 	LOCAL_USER_ADD(u);
 	ast_mutex_lock(&chan->lock);
 	if (!chan->tech->send_text) {
 		ast_mutex_unlock(&chan->lock);
 		/* Does not support transport */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
+		if (option_priority_jumping)
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
+	status = "FAILURE";
 	ast_mutex_unlock(&chan->lock);
 	res = ast_sendtext(chan, (char *)data);
+	if (!res)
+		status = "SUCCESS";
+	pbx_builtin_setvar_helper(chan, "SENDTEXTSTATUS", status);
 	LOCAL_USER_REMOVE(u);
-	return res;
+	return 0;
 }
 
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+
 	return ast_unregister_application(app);
 }
 
@@ -82,13 +99,15 @@ int load_module(void)
 
 char *description(void)
 {
-	return tdesc;
+	return (char *) tdesc;
 }
 
 int usecount(void)
 {
 	int res;
+
 	STANDARD_USECOUNT(res);
+
 	return res;
 }
 
