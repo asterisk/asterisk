@@ -42,6 +42,7 @@ struct sched {
 	int id; 			/* ID number of event */
 	struct timeval when;		/* Absolute time event should take place */
 	int resched;			/* When to reschedule */
+	int variable;		/* Use return value from callback to reschedule */
 	void *data; 			/* Data */
 	ast_sched_cb callback;		/* Callback */
 };
@@ -209,7 +210,8 @@ static int sched_settime(struct timeval *tv, int when)
 	return 0;
 }
 
-int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data)
+
+int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable)
 {
 	/*
 	 * Schedule callback(data) to happen when ms into the future
@@ -227,6 +229,7 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 		tmp->callback = callback;
 		tmp->data = data;
 		tmp->resched = when;
+		tmp->variable = variable;
 		tmp->when = ast_tv(0, 0);
 		if (sched_settime(&tmp->when, when)) {
 			sched_release(con, tmp);
@@ -241,6 +244,11 @@ int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, vo
 #endif
 	ast_mutex_unlock(&con->lock);
 	return res;
+}
+
+int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data)
+{
+	return ast_sched_add_variable(con, when, callback, data, 0);
 }
 
 int ast_sched_del(struct sched_context *con, int id)
@@ -359,7 +367,7 @@ int ast_sched_runq(struct sched_context *con)
 				 * If they return non-zero, we should schedule them to be
 				 * run again.
 				 */
-				if (sched_settime(&current->when, current->resched)) {
+				if (sched_settime(&current->when, current->variable? res : current->resched)) {
 					sched_release(con, current);
 				} else
 					schedule(con, current);

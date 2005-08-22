@@ -111,8 +111,9 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEFAULT_FREQ_OK		60 * 1000	/* How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK	10 * 1000	/* How often to check, if the host is down... */
 
-#define DEFAULT_RETRANS		2000		/* How frequently to retransmit */
-#define MAX_RETRANS		5		/* Try only 5 times for retransmissions */
+#define DEFAULT_RETRANS		1000		/* How frequently to retransmit */
+						/* 2 * 500 ms in RFC 3261 */
+#define MAX_RETRANS		7		/* Try only 7 times for retransmissions */
 
 
 #define DEBUG_READ	0			/* Recieved data	*/
@@ -364,6 +365,7 @@ static int videosupport = 0;
 static int compactheaders = 0;				/* send compact sip headers */
 
 static int recordhistory = 0;				/* Record SIP history. Off by default */
+static int dumphistory = 0;				/* Dump history to verbose before destroying SIP dialog */
 
 static char global_musicclass[MAX_MUSICCLASS] = "";	/* Global music on hold class */
 #define DEFAULT_REALM	"asterisk"
@@ -505,6 +507,7 @@ static struct sip_pvt {
 	ast_group_t pickupgroup;		/* Pickup group */
 	int lastinvite;				/* Last Cseq of invite */
 	unsigned int flags;			/* SIP_ flags */	
+	int timer_t1;				/* SIP timer T1, ms rtt */
 	unsigned int sipoptions;		/* Supported SIP sipoptions on the other end */
 	int capability;				/* Special capability (codec) */
 	int jointcapability;			/* Supported capability at both ends (codecs ) */
@@ -609,6 +612,8 @@ struct sip_pkt {
 	unsigned int flags;			/* non-zero if this is a response packet (e.g. 200 OK) */
 	struct sip_pvt *owner;			/* Owner call */
 	int retransid;				/* Retransmission ID */
+	int timer_a;				/* SIP timer A, retransmission timer */
+	int timer_t1;				/* SIP Timer T1, estimated RTT or 500 ms */
 	int packetlen;				/* Length of packet */
 	char data[0];
 };	
@@ -823,6 +828,7 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm);         /* Find authentication for a specific realm */
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
 static int determine_firstline_parts(struct sip_request *req);
+static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
 
 /* Definition of this channel for channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -1036,69 +1042,111 @@ static int append_history(struct sip_pvt *p, char *event, char *data)
 /*--- retrans_pkt: Retransmit SIP message if no answer ---*/
 static int retrans_pkt(void *data)
 {
-	struct sip_pkt *pkt=data, *prev, *cur;
-	int res = 0;
+	struct sip_pkt *pkt=data, *prev, *cur = NULL;
 	char iabuf[INET_ADDRSTRLEN];
+	int reschedule = DEFAULT_RETRANS;
+
+	/* Lock channel */
 	ast_mutex_lock(&pkt->owner->lock);
+
 	if (pkt->retrans < MAX_RETRANS) {
+		char buf[80];
+
 		pkt->retrans++;
-		if (sip_debug_test_pvt(pkt->owner)) {
+ 		if (!pkt->timer_t1) {	/* Re-schedule using timer_a and timer_t1 */
+			if (sipdebug && option_debug > 3)
+ 				ast_log(LOG_DEBUG, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
+		} else {
+ 			int siptimer_a;
+
+ 			if (sipdebug && option_debug > 3)
+ 				ast_log(LOG_DEBUG, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
+ 			if (!pkt->timer_a)
+ 				pkt->timer_a = 2 ;
+ 			else
+ 				pkt->timer_a = 2 * pkt->timer_a;
+ 
+ 			/* For non-invites, a maximum of 4 secs */
+ 			if (pkt->method != SIP_INVITE && pkt->timer_a > 4000)
+ 				pkt->timer_a = 4000;
+ 			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
+ 		
+ 			/* Reschedule re-transmit */
+			reschedule = siptimer_a;
+ 			if (option_debug > 3)
+ 				ast_log(LOG_DEBUG, "** SIP timers: Rescheduling retransmission %d to %d ms (t1 %d ms (Retrans id #%d)) \n", pkt->retrans +1, siptimer_a, pkt->timer_t1, pkt->retransid);
+ 		} 
+
+		if (pkt->owner && sip_debug_test_pvt(pkt->owner)) {
 			if (ast_test_flag(pkt->owner, SIP_NAT) & SIP_NAT_ROUTE)
 				ast_verbose("Retransmitting #%d (NAT) to %s:%d:\n%s\n---\n", pkt->retrans, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->recv.sin_addr), ntohs(pkt->owner->recv.sin_port), pkt->data);
 			else
 				ast_verbose("Retransmitting #%d (no NAT) to %s:%d:\n%s\n---\n", pkt->retrans, ast_inet_ntoa(iabuf, sizeof(iabuf), pkt->owner->sa.sin_addr), ntohs(pkt->owner->sa.sin_port), pkt->data);
 		}
-		append_history(pkt->owner, "ReTx", pkt->data);
+		snprintf(buf, sizeof(buf), "ReTx %d", reschedule);
+
+		append_history(pkt->owner, buf, pkt->data);
 		__sip_xmit(pkt->owner, pkt->data, pkt->packetlen);
-		res = 1;
-	} else {
+		ast_mutex_unlock(&pkt->owner->lock);
+		return  reschedule;
+	} 
+	/* Too many retries */
+	if (pkt->owner && pkt->method != SIP_OPTIONS) {
 		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (ast_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (ast_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
-		append_history(pkt->owner, "MaxRetries", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
-		pkt->retransid = -1;
-		if (ast_test_flag(pkt, FLAG_FATAL)) {
-			while(pkt->owner->owner && ast_mutex_trylock(&pkt->owner->owner->lock)) {
-				ast_mutex_unlock(&pkt->owner->lock);
-				usleep(1);
-				ast_mutex_lock(&pkt->owner->lock);
-			}
-			if (pkt->owner->owner) {
-				ast_set_flag(pkt->owner, SIP_ALREADYGONE);
-				ast_queue_hangup(pkt->owner->owner);
-				ast_mutex_unlock(&pkt->owner->owner->lock);
-			} else {
-				/* If no owner, destroy now */
-				ast_set_flag(pkt->owner, SIP_NEEDDESTROY);	
-			}
-		}
-		/* In any case, go ahead and remove the packet */
-		prev = NULL;
-		cur = pkt->owner->packets;
-		while(cur) {
-			if (cur == pkt)
-				break;
-			prev = cur;
-			cur = cur->next;
-		}
-		if (cur) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				pkt->owner->packets = cur->next;
-			ast_mutex_unlock(&pkt->owner->lock);
-			free(cur);
-			pkt = NULL;
-		} else
-			ast_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
+	} else {
+		if (pkt->method == SIP_OPTIONS && sipdebug)
+			ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
 	}
+	append_history(pkt->owner, "MaxRetries", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
+ 		
+	pkt->retransid = -1;
+
+	if (ast_test_flag(pkt, FLAG_FATAL)) {
+		while(pkt->owner->owner && ast_mutex_trylock(&pkt->owner->owner->lock)) {
+			ast_mutex_unlock(&pkt->owner->lock);
+			usleep(1);
+			ast_mutex_lock(&pkt->owner->lock);
+		}
+		if (pkt->owner->owner) {
+			ast_set_flag(pkt->owner, SIP_ALREADYGONE);
+			ast_log(LOG_WARNING, "Hanging up call %s - no reply to our critical packet.\n", pkt->owner->callid);
+			ast_queue_hangup(pkt->owner->owner);
+			ast_mutex_unlock(&pkt->owner->owner->lock);
+		} else {
+			/* If no channel owner, destroy now */
+			ast_set_flag(pkt->owner, SIP_NEEDDESTROY);	
+		}
+	}
+	/* In any case, go ahead and remove the packet */
+	prev = NULL;
+	cur = pkt->owner->packets;
+	while(cur) {
+		if (cur == pkt)
+			break;
+		prev = cur;
+		cur = cur->next;
+	}
+	if (cur) {
+		if (prev)
+			prev->next = cur->next;
+		else
+			pkt->owner->packets = cur->next;
+		ast_mutex_unlock(&pkt->owner->lock);
+		free(cur);
+		pkt = NULL;
+	} else
+		ast_log(LOG_WARNING, "Weird, couldn't find packet owner!\n");
 	if (pkt)
 		ast_mutex_unlock(&pkt->owner->lock);
-	return res;
+	return 0;
 }
 
 /*--- __sip_reliable_xmit: transmit packet with retransmits ---*/
 static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *data, int len, int fatal, int sipmethod)
 {
 	struct sip_pkt *pkt;
+	int siptimer_a = DEFAULT_RETRANS;
+
 	pkt = malloc(sizeof(struct sip_pkt) + len + 1);
 	if (!pkt)
 		return -1;
@@ -1111,10 +1159,16 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	pkt->seqno = seqno;
 	pkt->flags = resp;
 	pkt->data[len] = '\0';
+	pkt->timer_t1 = p->timer_t1;	/* Set SIP timer T1 */
 	if (fatal)
 		ast_set_flag(pkt, FLAG_FATAL);
+	if (pkt->timer_t1)
+		siptimer_a = pkt->timer_t1 * 2;
+
 	/* Schedule retransmission */
-	pkt->retransid = ast_sched_add(sched, DEFAULT_RETRANS, retrans_pkt, pkt);
+	pkt->retransid = ast_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
+	if (option_debug > 3 && sipdebug)
+		ast_log(LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
 	pkt->next = p->packets;
 	p->packets = pkt;
 
@@ -1185,6 +1239,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 		if ((cur->seqno == seqno) && ((ast_test_flag(cur, FLAG_RESPONSE)) == resp) &&
 			((ast_test_flag(cur, FLAG_RESPONSE)) || 
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
+			ast_mutex_lock(&p->lock);
 			if (!resp && (seqno == p->pendinginvite)) {
 				ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
 				p->pendinginvite = 0;
@@ -1195,16 +1250,20 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 				prev->next = cur->next;
 			else
 				p->packets = cur->next;
-			if (cur->retransid > -1)
+			if (cur->retransid > -1) {
+				if (sipdebug && option_debug > 3)
+					ast_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
 				ast_sched_del(sched, cur->retransid);
+			}
 			free(cur);
+			ast_mutex_unlock(&p->lock);
 			res = 0;
 			break;
 		}
 		prev = cur;
 		cur = cur->next;
 	}
-	ast_log(LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
+	ast_log(LOG_DEBUG, "Stopping retransmission on '%s' of %s %d: Match %s\n", p->callid, resp ? "Response" : "Request", seqno, res ? "Not Found" : "Found");
 	return res;
 }
 
@@ -1215,7 +1274,7 @@ static int __sip_pretend_ack(struct sip_pvt *p)
 
 	while(p->packets) {
 		if (cur == p->packets) {
-			ast_log(LOG_WARNING, "Have a packet that doesn't want to give up!\n");
+			ast_log(LOG_WARNING, "Have a packet that doesn't want to give up! %s\n", sip_methods[cur->method].text);
 			return -1;
 		}
 		cur = p->packets;
@@ -1246,8 +1305,11 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			((ast_test_flag(cur, FLAG_RESPONSE)) || 
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
 			/* this is our baby */
-			if (cur->retransid > -1)
+			if (cur->retransid > -1) {
+				if (option_debug > 3 && sipdebug)
+					ast_log(LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, msg);
 				ast_sched_del(sched, cur->retransid);
+			}
 			cur->retransid = -1;
 			res = 0;
 			break;
@@ -1718,6 +1780,9 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->maxtime = peer->maxms;
 	r->callgroup = peer->callgroup;
 	r->pickupgroup = peer->pickupgroup;
+	/* Set timer T1 to RTT for this peer (if known by qualify=) */
+	if (peer->maxms && peer->lastms)
+		r->timer_t1 = peer->lastms;
 	if (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833)
 		r->noncodeccapability |= AST_RTP_DTMF;
 	else
@@ -1733,7 +1798,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 /*--- create_addr: create address structure from peer name ---*/
 /*      Or, if peer not found, find it in the global DNS */
 /*      returns TRUE (-1) on failure, FALSE on success */
-static int create_addr(struct sip_pvt *r, char *opeer)
+static int create_addr(struct sip_pvt *dialog, char *opeer)
 {
 	struct hostent *hp;
 	struct ast_hostent ahp;
@@ -1750,12 +1815,13 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 		*port = '\0';
 		port++;
 	}
-	r->sa.sin_family = AF_INET;
+	dialog->sa.sin_family = AF_INET;
+	dialog->timer_t1 = 500; /* Default SIP retransmission timer T1 (RFC 3261) */
 	p = find_peer(peer, NULL, 1);
 
 	if (p) {
 		found++;
-		if (create_addr_from_peer(r, p))
+		if (create_addr_from_peer(dialog, p))
 			ASTOBJ_UNREF(p, sip_destroy_peer);
 	}
 	if (!p) {
@@ -1780,10 +1846,10 @@ static int create_addr(struct sip_pvt *r, char *opeer)
 		}
 		hp = ast_gethostbyname(hostn, &ahp);
 		if (hp) {
-			ast_copy_string(r->tohost, peer, sizeof(r->tohost));
-			memcpy(&r->sa.sin_addr, hp->h_addr, sizeof(r->sa.sin_addr));
-			r->sa.sin_port = htons(portno);
-			memcpy(&r->recv, &r->sa, sizeof(r->recv));
+			ast_copy_string(dialog->tohost, peer, sizeof(dialog->tohost));
+			memcpy(&dialog->sa.sin_addr, hp->h_addr, sizeof(dialog->sa.sin_addr));
+			dialog->sa.sin_port = htons(portno);
+			memcpy(&dialog->recv, &dialog->sa, sizeof(dialog->recv));
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "No such host: %s\n", peer);
@@ -1914,6 +1980,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Destroying call '%s'\n", p->callid);
+
+	if (dumphistory)
+		sip_dump_history(p);
+
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
 	if (p->initid > -1)
@@ -1951,6 +2021,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 		p->history = p->history->next;
 		free(hist);
 	}
+
 	cur = iflist;
 	while(cur) {
 		if (cur == p) {
@@ -1969,17 +2040,19 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	} 
 	if (p->initid > -1)
 		ast_sched_del(sched, p->initid);
+
 	while((cp = p->packets)) {
 		p->packets = p->packets->next;
-		if (cp->retransid > -1)
+		if (cp->retransid > -1) {
 			ast_sched_del(sched, cp->retransid);
+		}
 		free(cp);
 	}
-	ast_mutex_destroy(&p->lock);
 	if (p->chanvars) {
 		ast_variables_destroy(p->chanvars);
 		p->chanvars = NULL;
 	}
+	ast_mutex_destroy(&p->lock);
 	free(p);
 }
 
@@ -4680,6 +4753,11 @@ static int sip_reregister(void *data)
 	if (!r)
 		return 0;
 
+	if (recordhistory) {
+		char tmp[80];
+		snprintf(tmp, sizeof(tmp), "Account: %s@%s", r->username, r->hostname);
+		append_history(r->call, "RegistryRenew", tmp);
+	}
 	/* Since registry's are only added/removed by the the monitor thread, this
 	   may be overkill to reference/dereference at all here */
 	if (sipdebug)
@@ -4722,7 +4800,6 @@ static int sip_reg_timeout(void *data)
 		r->call = NULL;
 		ast_set_flag(p, SIP_NEEDDESTROY);	
 		/* Pretend to ACK anything just in case */
-		/* OEJ: Ack what??? */
 		__sip_pretend_ack(p);
 	}
 	/* If we have a limit, stop registration and give up */
@@ -4779,6 +4856,11 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		if (!p) {
 			ast_log(LOG_WARNING, "Unable to allocate registration call\n");
 			return 0;
+		}
+		if (recordhistory) {
+			char tmp[80];
+			snprintf(tmp, sizeof(tmp), "Account: %s@%s", r->username, r->hostname);
+			append_history(p, "RegistryInit", tmp);
 		}
 		/* Find address to hostname */
 		if (create_addr(p,r->hostname)) {
@@ -4837,11 +4919,11 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	/* set up a timeout */
 	if (auth == NULL)  {
 		if (r->timeout > -1) {
-			ast_log(LOG_WARNING, "Still have a registration timeout, %d\n", r->timeout);
+			ast_log(LOG_WARNING, "Still have a registration timeout, #%d - deleting it\n", r->timeout);
 			ast_sched_del(sched, r->timeout);
 		}
 		r->timeout = ast_sched_add(sched, global_reg_timeout * 1000, sip_reg_timeout, r);
-		ast_log(LOG_DEBUG, "Scheduled a registration timeout for %s : %d\n", r->hostname, r->timeout);
+		ast_log(LOG_DEBUG, "Scheduled a registration timeout for %s id  #%d \n", r->hostname, r->timeout);
 	}
 
 	if (strchr(r->username, '@')) {
@@ -7596,7 +7678,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*--- sip_show_channel: Show details of one call ---*/
+/*--- sip_show_history: Show history details of one call ---*/
 static int sip_show_history(int fd, int argc, char *argv[])
 {
 	struct sip_pvt *cur;
@@ -7613,7 +7695,7 @@ static int sip_show_history(int fd, int argc, char *argv[])
 	ast_mutex_lock(&iflock);
 	cur = iflist;
 	while(cur) {
-		if (!strncasecmp(cur->callid, argv[3],len)) {
+		if (!strncasecmp(cur->callid, argv[3], len)) {
 			ast_cli(fd,"\n");
 			if (cur->subscribed)
 				ast_cli(fd, "  * Subscription\n");
@@ -7636,6 +7718,34 @@ static int sip_show_history(int fd, int argc, char *argv[])
 	if (!found) 
 		ast_cli(fd, "No such SIP Call ID starting with '%s'\n", argv[3]);
 	return RESULT_SUCCESS;
+}
+
+/*--- dump_history: Dump SIP history to debug log file at end of 
+  lifespan for SIP dialog */
+void sip_dump_history(struct sip_pvt *dialog)
+{
+	int x;
+	struct sip_history *hist;
+
+	if (!dialog)
+		return;
+
+	ast_log(LOG_DEBUG, "\n---------- SIP HISTORY for '%s' \n", dialog->callid);
+	if (dialog->subscribed)
+		ast_log(LOG_DEBUG, "  * Subscription\n");
+	else
+		ast_log(LOG_DEBUG, "  * SIP Call\n");
+	x = 0;
+	hist = dialog->history;
+	while(hist) {
+		x++;
+		ast_log(LOG_DEBUG, "  %d. %s\n", x, hist->event);
+		hist = hist->next;
+	}
+	if (!x)
+		ast_log(LOG_DEBUG, "Call '%s' has no history\n", dialog->callid);
+	ast_log(LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
+	
 }
 
 
@@ -7903,6 +8013,11 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *he
  			ast_verbose("No authentication challenge, sending blank registration to domain/host name %s\n", p->registry->hostname);
  			/* No old challenge */
 		return -1;
+	}
+	if (recordhistory) {
+		char tmp[80];
+		snprintf(tmp, sizeof(tmp), "Try: %d", p->authtries);
+		append_history(p, "RegistryAuth", tmp);
 	}
  	if (sip_debug_test_pvt(p) && p->registry)
  		ast_verbose("Responding to challenge, registration to domain/host name %s\n", p->registry->hostname);
@@ -8514,7 +8629,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		else
 			expires_ms -= EXPIRY_GUARD_SECS * 1000;
 		if (sipdebug)
-			ast_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d ms)\n", r->hostname, expires, expires_ms); 
+			ast_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d s)\n", r->hostname, expires, expires_ms/1000); 
 
 		r->refresh= (int) expires_ms / 1000;
 
@@ -8531,6 +8646,7 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 	struct sip_peer *peer;
 	int pingtime;
 	struct timeval tv;
+
 	if (resp != 100) {
 		int statechanged = 0;
 		int newstate = 0;
@@ -10113,12 +10229,13 @@ static int sip_poke_peer(struct sip_peer *peer)
 		return 0;
 	}
 	if (peer->call > 0) {
-		ast_log(LOG_NOTICE, "Still have a call...\n");
+		if (sipdebug)
+			ast_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
 		sip_destroy(peer->call);
 	}
 	p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
 	if (!peer->call) {
-		ast_log(LOG_WARNING, "Unable to allocate call for poking peer '%s'\n", peer->name);
+		ast_log(LOG_WARNING, "Unable to allocate dialog for poking peer '%s'\n", peer->name);
 		return -1;
 	}
 	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
@@ -10938,6 +11055,8 @@ static int reload_config(void)
 	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
 	videosupport = 0;
 	compactheaders = 0;
+	dumphistory = 0;
+	recordhistory = 0;
 	relaxdtmf = 0;
 	callevents = 0;
 	ourport = DEFAULT_SIP_PORT;
@@ -11053,13 +11172,17 @@ static int reload_config(void)
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
-		} else if (!strcasecmp(v->name, "sipdebug")){
+		} else if (!strcasecmp(v->name, "sipdebug")) {
 			sipdebug = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "registertimeout")){
+		} else if (!strcasecmp(v->name, "dumphistory")) {
+			dumphistory = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "recordhistory")) {
+			recordhistory = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "registertimeout")) {
 			global_reg_timeout = atoi(v->value);
 			if (global_reg_timeout < 1)
 				global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
-		} else if (!strcasecmp(v->name, "registerattempts")){
+		} else if (!strcasecmp(v->name, "registerattempts")) {
 			global_regattempts_max = atoi(v->value);
 		} else if (!strcasecmp(v->name, "bindaddr")) {
 			if (!(hp = ast_gethostbyname(v->value, &ahp))) {
@@ -11099,8 +11222,6 @@ static int reload_config(void)
 			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 0);
 		} else if (!strcasecmp(v->name, "register")) {
 			sip_register(v->value, v->lineno);
-		} else if (!strcasecmp(v->name, "recordhistory")) {
-			recordhistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);

@@ -62,9 +62,26 @@ typedef int (*ast_sched_cb)(void *data);
  * Schedule an event to take place at some point in the future.  callback 
  * will be called with data as the argument, when milliseconds into the
  * future (approximately)
+ * If callback returns 0, no further events will be re-scheduled
  * Returns a schedule item ID on success, -1 on failure
  */
 extern int ast_sched_add(struct sched_context *con, int when, ast_sched_cb callback, void *data);
+
+/*!Adds a scheduled event */
+/*! 
+ * \param con Schduler context to add
+ * \param when how many milliseconds to wait for event to occur
+ * \param callback function to call when the amount of time expires
+ * \param data data to pass to the callback
+ * \param variable If true, the result value of callback function will be 
+ *       used for rescheduling
+ * Schedule an event to take place at some point in the future.  callback 
+ * will be called with data as the argument, when milliseconds into the
+ * future (approximately)
+ * If callback returns 0, no further events will be re-scheduled
+ * Returns a schedule item ID on success, -1 on failure
+ */
+extern int ast_sched_add_variable(struct sched_context *con, int when, ast_sched_cb callback, void *data, int variable);
 
 /*! Deletes a scheduled event */
 /*!
