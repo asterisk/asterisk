@@ -99,6 +99,12 @@ extern void ast_console_puts(const char *string);
 #define __LOG_VERBOSE  5
 #define LOG_VERBOSE    __LOG_VERBOSE, _A_
 
+#ifdef LOG_DTMF
+#undef LOG_DTMF
+#endif
+#define __LOG_DTMF  6
+#define LOG_DTMF    __LOG_DTMF, _A_
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif

@@ -1966,6 +1966,14 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 				res = 0;
 		}
 	}
+
+	/* It's possible this is a translated frame */
+	if (f && f->frametype == AST_FRAME_DTMF) {
+		ast_log(LOG_DTMF, "%s : %c\n", chan->name, f->subclass);
+	} else if (fr->frametype == AST_FRAME_DTMF) {
+		ast_log(LOG_DTMF, "%s : %c\n", chan->name, fr->subclass);
+	}
+
 	if (f && (f != fr))
 		ast_frfree(f);
 	ast_clear_flag(chan, AST_FLAG_BLOCKING);

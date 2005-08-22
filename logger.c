@@ -44,6 +44,7 @@ static int syslog_level_map[] = {
 	LOG_NOTICE,
 	LOG_WARNING,
 	LOG_ERR,
+	LOG_DEBUG,
 	LOG_DEBUG
 };
 
@@ -107,7 +108,8 @@ static char *levels[] = {
 	"NOTICE",
 	"WARNING",
 	"ERROR",
-	"VERBOSE"
+	"VERBOSE",
+	"DTMF"
 };
 
 static int colors[] = {
@@ -116,7 +118,8 @@ static int colors[] = {
 	COLOR_YELLOW,
 	COLOR_BRRED,
 	COLOR_RED,
-	COLOR_GREEN
+	COLOR_GREEN,
+	COLOR_BRGREEN
 };
 
 static int make_components(char *s, int lineno)
@@ -141,6 +144,8 @@ static int make_components(char *s, int lineno)
 			res |= (1 << __LOG_DEBUG);
 		else if (!strcasecmp(w, "verbose"))
 			res |= (1 << __LOG_VERBOSE);
+		else if (!strcasecmp(w, "dtmf"))
+			res |= (1 << __LOG_DTMF);
 		else {
 			fprintf(stderr, "Logfile Warning: Unknown keyword '%s' at line %d of logger.conf\n", w, lineno);
 		}
@@ -495,6 +500,8 @@ static int handle_logger_show_channels(int fd, int argc, char *argv[])
 		ast_cli(fd, " - ");
 		if (chan->logmask & (1 << __LOG_DEBUG)) 
 			ast_cli(fd, "Debug ");
+		if (chan->logmask & (1 << __LOG_DTMF)) 
+			ast_cli(fd, "DTMF ");
 		if (chan->logmask & (1 << __LOG_VERBOSE)) 
 			ast_cli(fd, "Verbose ");
 		if (chan->logmask & (1 << __LOG_WARNING)) 
@@ -652,6 +659,9 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 	}
 	if (level == __LOG_VERBOSE) {
 		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)GETTID());
+		level = __LOG_DEBUG;
+	} else if (level == __LOG_DTMF) {
+		snprintf(buf, sizeof(buf), "DTMF[%ld]: ", (long)GETTID());
 		level = __LOG_DEBUG;
 	} else {
 		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
