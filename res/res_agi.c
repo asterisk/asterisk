@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/utils.h"
 #include "asterisk/lock.h"
+#include "asterisk/strings.h"
 #include "asterisk/agi.h"
 
 #define MAX_ARGS 128
@@ -1131,7 +1132,14 @@ static int handle_getvariable(struct ast_channel *chan, AGI *agi, int argc, char
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	pbx_retrieve_variable(chan, argv[2], &ret, tempstr, sizeof(tempstr), NULL);
+
+	/* check if we want to execute an ast_custom_function */
+	if (!ast_strlen_zero(argv[2]) && (argv[2][strlen(argv[2]) - 1] == ')')) {
+		ret = ast_func_read(chan, argv[2], tempstr, sizeof(tempstr));
+	} else {
+		pbx_retrieve_variable(chan, argv[2], &ret, tempstr, sizeof(tempstr), NULL);
+	}
+
 	if (ret)
 		fdprintf(agi->fd, "200 result=1 (%s)\n", ret);
 	else
