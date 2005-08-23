@@ -2255,18 +2255,25 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				return ERROR_LOCK_PATH;
 			}
 
-			if (res >= 0) {
-				/* Unless we're *really* silent, try to send the beep */
-				res = ast_streamfile(chan, "beep", chan->language);
-				if (!res)
-					res = ast_waitstream(chan, "");
-			}
+			/* 
+			 * This operation can be very expensive if done say over NFS or if the mailbox has 100+ messages
+			 * in the mailbox.  So we should get this first so we don't cut off the first few seconds of the 
+			 * message.  
+			 */
 			do {
 				make_file(fn, sizeof(fn), dir, msgnum);
 				if (!EXISTS(dir,msgnum,fn,chan->language))
 					break;
 				msgnum++;
 			} while (msgnum < vmu->maxmsg);
+
+			/* Now play the beep once we have the message number for our next message. */
+			if (res >= 0) {
+				/* Unless we're *really* silent, try to send the beep */
+				res = ast_streamfile(chan, "beep", chan->language);
+				if (!res)
+					res = ast_waitstream(chan, "");
+			}
 			if (msgnum < vmu->maxmsg) {
 				/* assign a variable with the name of the voicemail file */	  
 				pbx_builtin_setvar_helper(chan, "VM_MESSAGEFILE", fn);
