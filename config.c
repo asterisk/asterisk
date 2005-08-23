@@ -860,7 +860,8 @@ int ast_config_engine_deregister(struct ast_config_engine *del)
 	return 0;
 }
 
-static struct ast_config_engine *find_engine(const char *filename, char *database, int dbsiz, char *table, int tabsiz) 
+/*--- find_engine: Find realtime engine for realtime family */
+static struct ast_config_engine *find_engine(const char *family, char *database, int dbsiz, char *table, int tabsiz) 
 {
 	struct ast_config_engine *eng, *ret = NULL;
 	struct ast_config_map *map;
@@ -868,12 +869,16 @@ static struct ast_config_engine *find_engine(const char *filename, char *databas
 	ast_mutex_lock(&config_lock);
 
 	for (map = config_maps; map; map = map->next) {
-		if (!strcasecmp(filename, map->name)) {
-			ast_copy_string(database, map->database, dbsiz);
-			ast_copy_string(table, map->table ? map->table : filename, tabsiz);
+		if (!strcasecmp(family, map->name)) {
+			if (database)
+				ast_copy_string(database, map->database, dbsiz);
+			if (table)
+				ast_copy_string(table, map->table ? map->table : family, tabsiz);
 			break;
 		}
 	}
+
+	/* Check if the required driver (engine) exist */
 	if (map) {
 		for (eng = config_engine_list; !ret && eng; eng = eng->next) {
 			if (!strcasecmp(eng->name, map->driver))
@@ -885,7 +890,7 @@ static struct ast_config_engine *find_engine(const char *filename, char *databas
 	
 	/* if we found a mapping, but the engine is not available, then issue a warning */
 	if (map && !ret)
-		ast_log(LOG_WARNING, "Mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
+		ast_log(LOG_WARNING, "Realtime mapping for '%s' found to engine '%s', but the engine is not available\n", map->name, map->driver);
 
 	return ret;
 }
@@ -963,6 +968,18 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 	va_end(ap);
 
 	return res;
+}
+
+/*--- ast_check_realtime: Check if realtime engine is configured for family */
+int ast_check_realtime(const char *family)
+{
+	struct ast_config_engine *eng;
+
+	eng = find_engine(family, NULL, 0, NULL, 0);
+	if (eng)
+		return 1;
+	return 0;
+
 }
 
 struct ast_config *ast_load_realtime_multientry(const char *family, ...)

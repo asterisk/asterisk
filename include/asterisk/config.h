@@ -156,6 +156,12 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...);
  */
 int ast_update_realtime(const char *family, const char *keyfield, const char *lookup, ...);
 
+/*! Check if realtime engine is configured for family 
+  returns 1 if family is configured in realtime and engine exists
+  \param family which family/config to be checked
+*/
+int ast_check_realtime(const char *family);
+
 /*! Free variable list */
 /*!
  * \param var the linked list of variables to free

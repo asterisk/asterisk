@@ -7091,6 +7091,24 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*--- print_codec_to_cli: Print codec list from preference to CLI/manager */
+static void print_codec_to_cli(int fd, struct ast_codec_pref *pref) 
+{
+	int x, codec;
+
+	for(x = 0; x < 32 ; x++) {
+		codec = ast_codec_pref_index(pref, x);
+		if (!codec)
+			break;
+		ast_cli(fd, "%s", ast_getformatname(codec));
+		if (x < 31 && ast_codec_pref_index(pref, x + 1))
+			ast_cli(fd, ",");
+	}
+	if (!x)
+		ast_cli(fd, "none");
+}
+
+
 static char mandescr_show_peer[] = 
 "Description: Show one SIP peer with details on current status.\n"
 "  The XML format is under development, feedback welcome! /oej\n"
@@ -7223,18 +7241,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_getformatname_multiple(codec_buf, sizeof(codec_buf) -1, peer->capability);
 		ast_cli(fd, "%s\n", codec_buf);
 		ast_cli(fd, "  Codec Order  : (");
-		pref = &peer->prefs;
-		for(x = 0; x < 32 ; x++) {
-			codec = ast_codec_pref_index(pref,x);
-			if (!codec)
-				break;
-			ast_cli(fd, "%s", ast_getformatname(codec));
-			if (x < 31 && ast_codec_pref_index(pref, x+1))
-				ast_cli(fd, "|");
-		}
+		print_codec_to_cli(fd, &peer->prefs);
 
-		if (!x)
-			ast_cli(fd, "none");
 		ast_cli(fd, ")\n");
 
 		ast_cli(fd, "  Status       : ");
@@ -7416,6 +7424,89 @@ static int sip_show_registry(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
+}
+
+/*--- sip_show_settings: List global settings for the SIP channel ---*/
+static int sip_show_settings(int fd, int argc, char *argv[])
+{
+	char tmp[BUFSIZ];
+	int realtimepeers = 0;
+	int realtimeusers = 0;
+
+	realtimepeers = ast_check_realtime("sippeers");
+	realtimeusers = ast_check_realtime("sipusers");
+
+	if (argc != 3)
+		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "\n\nGlobal Settings:\n");
+	ast_cli(fd, "----------------\n");
+	ast_cli(fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
+	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(tmp, sizeof(tmp), bindaddr.sin_addr));
+	ast_cli(fd, "  Videosupport:           %s\n", videosupport ? "Yes" : "No");
+	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
+	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
+	ast_cli(fd, "  Promsic. redir:         %s\n", ast_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
+	ast_cli(fd, "  URI user is phone no:   %s\n", ast_test_flag(&global_flags, SIP_USEREQPHONE) ? "Yes" : "No");
+	ast_cli(fd, "  Our auth realm          %s\n", global_realm);
+	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
+	ast_cli(fd, "  User Agent:             %s\n", default_useragent);
+	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
+	ast_cli(fd, "  Reg. context:           %s\n", ast_strlen_zero(regcontext) ? "(not set)" : regcontext);
+	ast_cli(fd, "  Caller ID:              %s\n", default_callerid);
+	ast_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
+	ast_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
+	ast_cli(fd, "  Call Events:            %s\n", callevents ? "On" : "Off");
+	ast_cli(fd, "  IP ToS:                 0x%x\n", tos);
+#ifdef OSP_SUPPORT
+	ast_cli(fd, "  OSP Support:            Yes\n");
+#else
+	ast_cli(fd, "  OSP Support:            No\n");
+#endif
+	if (!realtimepeers && !realtimeusers)
+		ast_cli(fd, "  SIP realtime:           Disabled\n" );
+	else
+		ast_cli(fd, "  SIP realtime:           Enabled\n" );
+
+	ast_cli(fd, "\nGlobal Signalling Settings:\n");
+	ast_cli(fd, "---------------------------\n");
+	ast_cli(fd, "  Codecs:                 ");
+	print_codec_to_cli(fd, &prefs);
+	ast_cli(fd, "\n");
+	ast_cli(fd, "  Relax DTMF:             %s\n", relaxdtmf ? "Yes" : "No");
+	ast_cli(fd, "  Compact SIP headers:    %s\n", compactheaders ? "Yes" : "No");
+	ast_cli(fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
+	ast_cli(fd, "  RTP Hold Timeout:       %d %s\n", global_rtpholdtimeout, global_rtpholdtimeout ? "" : "(Disabled)");
+	ast_cli(fd, "  MWI NOTIFY mime type:   %s\n", default_notifymime);
+	ast_cli(fd, "  DNS SRV lookup:         %s\n", srvlookup ? "Yes" : "No");
+	ast_cli(fd, "  Pedantic SIP support:   %s\n", pedanticsipchecking ? "Yes" : "No");
+	ast_cli(fd, "  Reg. max duration:      %d secs\n", max_expiry);
+	ast_cli(fd, "  Reg. default duration:  %d secs\n", default_expiry);
+	ast_cli(fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
+	ast_cli(fd, "  Outbound reg. attempts: %d\n", global_regattempts_max);
+	ast_cli(fd, "\nDefault Settings:\n");
+	ast_cli(fd, "-----------------\n");
+	ast_cli(fd, "  Context:                %s\n", default_context);
+	ast_cli(fd, "  Nat:                    %s\n", nat2str(ast_test_flag(&global_flags, SIP_NAT)));
+	ast_cli(fd, "  DTMF:                   %s\n", dtmfmode2str(ast_test_flag(&global_flags, SIP_DTMF)));
+	ast_cli(fd, "  Qualify:                %d\n", default_qualify);
+	ast_cli(fd, "  Use ClientCode:         %s\n", ast_test_flag(&global_flags, SIP_USECLIENTCODE) ? "Yes" : "No");
+	ast_cli(fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (ast_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NO) ? "No" : "Yes" );
+	ast_cli(fd, "  Language:               %s\n", ast_strlen_zero(default_language) ? "(Defaults to English)" : default_language);
+	ast_cli(fd, "  Musicclass:             %s\n", global_musicclass);
+
+	
+	if (realtimepeers || realtimeusers) {
+		ast_cli(fd, "\nRealtime SIP Settings:\n");
+		ast_cli(fd, "----------------------\n");
+		ast_cli(fd, "  Realtime Peers:         %s\n", realtimepeers ? "Yes" : "No");
+		ast_cli(fd, "  Realtime Users:         %s\n", realtimeusers ? "Yes" : "No");
+		ast_cli(fd, "  Cache Friends:          %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_RTCACHEFRIENDS) ? "Yes" : "No");
+		ast_cli(fd, "  No update:              %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_RTNOUPDATE) ? "Yes" : "No");
+		ast_cli(fd, "  Ignore Reg. Expire:     %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_RTIGNOREREGEXPIRE) ? "Yes" : "No");
+		ast_cli(fd, "  Auto Clear:             %d\n", global_rtautoclear);
+	}
+	ast_cli(fd, "\n----\n");
+	return RESULT_SUCCESS;
 }
 
 /* Forward declaration */
@@ -8270,6 +8361,11 @@ static char show_subscriptions_usage[] =
 static char show_objects_usage[] =
 "Usage: sip show objects\n" 
 "       Shows status of known SIP objects\n";
+
+static char show_settings_usage[] = 
+"Usage: sip show settings\n"
+"       Provides detailed list of the configuration of the SIP channel.\n";
+
 
 
 /*--- func_header_read: Read SIP header (dialplan function) */
@@ -11747,6 +11843,7 @@ static struct ast_cli_entry  my_clis[] = {
 	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage},
 	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  },
 	{ { "sip", "show", "history", NULL }, sip_show_history, "Show SIP dialog history", show_history_usage, complete_sipch  },
+	{ { "sip", "show", "settings", NULL }, sip_show_settings, "Show SIP global settings", show_settings_usage  },
 	{ { "sip", "debug", NULL }, sip_do_debug, "Enable SIP debugging", debug_usage },
 	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage },
 	{ { "sip", "debug", "peer", NULL }, sip_do_debug, "Enable SIP debugging on Peername", debug_usage, complete_sip_debug_peer },
