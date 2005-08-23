@@ -373,7 +373,7 @@ static void dump_ies(unsigned char *iedata, int len)
 
 void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen)
 {
-	char *frames[] = {
+	const char *frames[] = {
 		"(0?)",
 		"DTMF   ",
 		"VOICE  ",
@@ -385,7 +385,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"IMAGE  ",
 		"HTML   ",
 		"CNG    " };
-	char *iaxs[] = {
+	const char *iaxs[] = {
 		"(0?)",
 		"NEW    ",
 		"PING   ",
@@ -425,7 +425,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		"FWDOWNLD",
 		"FWDATA"
 	};
-	char *cmds[] = {
+	const char *cmds[] = {
 		"(0?)",
 		"HANGUP ",
 		"RING   ",
@@ -438,11 +438,12 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 	char retries[20];
 	char class2[20];
 	char subclass2[20];
-	char *class;
-	char *subclass;
+	const char *class;
+	const char *subclass;
 	char *dir;
-	char tmp[256];
+	char tmp[512];
 	char iabuf[INET_ADDRSTRLEN];
+
 	switch(rx) {
 	case 0:
 		dir = "Tx";
@@ -459,7 +460,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 	}
 	if (f) {
 		fh = f->data;
-		snprintf(retries, (int)sizeof(retries), "%03d", f->retries);
+		snprintf(retries, sizeof(retries), "%03d", f->retries);
 	} else {
 		fh = fhi;
 		if (ntohs(fh->dcallno) & IAX_FLAG_RETRANS)
@@ -472,7 +473,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		return;
 	}
 	if (fh->type >= (int)sizeof(frames)/(int)sizeof(frames[0])) {
-		snprintf(class2, (int)sizeof(class2), "(%d?)", fh->type);
+		snprintf(class2, sizeof(class2), "(%d?)", fh->type);
 		class = class2;
 	} else {
 		class = frames[(int)fh->type];
@@ -482,32 +483,32 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		subclass = subclass2;
 	} else if (fh->type == AST_FRAME_IAX) {
 		if (fh->csub >= (int)sizeof(iaxs)/(int)sizeof(iaxs[0])) {
-			snprintf(subclass2, (int)sizeof(subclass2), "(%d?)", fh->csub);
+			snprintf(subclass2, sizeof(subclass2), "(%d?)", fh->csub);
 			subclass = subclass2;
 		} else {
 			subclass = iaxs[(int)fh->csub];
 		}
 	} else if (fh->type == AST_FRAME_CONTROL) {
 		if (fh->csub >= (int)sizeof(cmds)/(int)sizeof(cmds[0])) {
-			snprintf(subclass2, (int)sizeof(subclass2), "(%d?)", fh->csub);
+			snprintf(subclass2, sizeof(subclass2), "(%d?)", fh->csub);
 			subclass = subclass2;
 		} else {
 			subclass = cmds[(int)fh->csub];
 		}
 	} else {
-		snprintf(subclass2, (int)sizeof(subclass2), "%d", fh->csub);
+		snprintf(subclass2, sizeof(subclass2), "%d", fh->csub);
 		subclass = subclass2;
 	}
-snprintf(tmp, (int)sizeof(tmp), 
-"%s-Frame Retry[%s] -- OSeqno: %3.3d ISeqno: %3.3d Type: %s Subclass: %s\n",
-	dir,
-	retries, fh->oseqno, fh->iseqno, class, subclass);
+	snprintf(tmp, sizeof(tmp), 
+		 "%s-Frame Retry[%s] -- OSeqno: %3.3d ISeqno: %3.3d Type: %s Subclass: %s\n",
+		 dir,
+		 retries, fh->oseqno, fh->iseqno, class, subclass);
 	outputf(tmp);
-snprintf(tmp, (int)sizeof(tmp), 
-"   Timestamp: %05lums  SCall: %5.5d  DCall: %5.5d [%s:%d]\n",
-	(unsigned long)ntohl(fh->ts),
-	ntohs(fh->scallno) & ~IAX_FLAG_FULL, ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS,
-		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
+	snprintf(tmp, sizeof(tmp), 
+		 "   Timestamp: %05lums  SCall: %5.5d  DCall: %5.5d [%s:%d]\n",
+		 (unsigned long)ntohl(fh->ts),
+		 ntohs(fh->scallno) & ~IAX_FLAG_FULL, ntohs(fh->dcallno) & ~IAX_FLAG_RETRANS,
+		 ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 	outputf(tmp);
 	if (fh->type == AST_FRAME_IAX)
 		dump_ies(fh->iedata, datalen);
