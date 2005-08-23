@@ -78,8 +78,9 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int dspsilence = 0;
 	int silence = 0;		/* amount of silence to allow */
 	int gotsilence = 0;		/* did we timeout for silence? */
-	int maxduration = 0;		/* max duration of recording in milliseconds */
+	int maxduration = 0;		/* max duration of recording */
 	int gottimeout = 0;		/* did we timeout for maxduration exceeded? */
+	time_t timeout = 0;
 	int option_skip = 0;
 	int option_noanswer = 0;
 	int option_append = 0;
@@ -130,8 +131,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	
 	if (maxstr) {
 		if ((sscanf(maxstr, "%d", &i) == 1) && (i > -1))
-			/* Convert duration to milliseconds */
-			maxduration = i * 1000;
+			maxduration = i;
 		else if (!ast_strlen_zero(maxstr))
 			ast_log(LOG_WARNING, "'%s' is not a valid maximum duration\n", maxstr);
 	}
@@ -218,18 +218,13 @@ static int record_exec(struct ast_channel *chan, void *data)
 		
 		
 		if (s) {
-			int waitres;
-
-			if (maxduration <= 0)
-				maxduration = -1;
+			if (maxduration > 0)
+				timeout = time(NULL) + (time_t)maxduration;
 			
-			while ((waitres = ast_waitfor(chan, maxduration)) > -1) {
-				if (maxduration > 0) {
-					if (waitres == 0) {
-						gottimeout = 1;
-						break;
-					}
-					maxduration = waitres;
+			while (ast_waitfor(chan, -1) > -1) {
+				if (maxduration > 0 && time(NULL) > timeout) {
+					gottimeout = 1;
+					break;
 				}
 				
 				f = ast_read(chan);
