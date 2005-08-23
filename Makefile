@@ -675,7 +675,7 @@ install: all datafiles bininstall
 
 upgrade: all bininstall
 
-adsi: all
+adsi:
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	for x in configs/*.adsi; do \
 		if [ ! -f $(DESTDIR)$(ASTETCDIRX)/$$x ]; then \
@@ -683,7 +683,7 @@ adsi: all
 		fi ; \
 	done
 
-samples: all datafiles adsi
+samples: adsi
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	for x in configs/*.sample; do \
 		if [ -f $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ]; then \
@@ -719,6 +719,7 @@ samples: all datafiles adsi
 	else \
 		echo "Skipping asterisk.conf creation"; \
 	fi
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 	for x in sounds/demo-*; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
@@ -727,6 +728,7 @@ samples: all datafiles adsi
 			exit 1; \
 		fi; \
 	done
+	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	for x in sounds/*.mp3; do \
 		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	done
