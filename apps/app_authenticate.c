@@ -139,7 +139,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 									break;
 								}
 							} else {
-								if(!strcmp(passwd, buf)) {
+								if (!strcmp(passwd, buf)) {
 									if (strchr(opts, 'a'))
 										ast_cdr_setaccount(chan, buf);
 									break;
@@ -150,7 +150,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 					fclose(f);
 					if (!ast_strlen_zero(buf)) {
 						if (strchr(opts, 'm')) {
-							if (!strcmp(md5passwd, md5secret))
+							if (md5secret && !strcmp(md5passwd, md5secret))
 								break;
 						} else {
 							if (!strcmp(passwd, buf))
@@ -168,7 +168,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 		prompt="auth-incorrect";
 	}
 	if ((retries < 3) && !res) {
-		if (strchr(opts, 'a')) 
+		if (strchr(opts, 'a') && !strchr(opts, 'm')) 
 			ast_cdr_setaccount(chan, passwd);
 		res = ast_streamfile(chan, "auth-thankyou", chan->language);
 		if (!res)
