@@ -294,7 +294,7 @@ void iLBC_encode(
 
             /* update memory */
 
-            memcpy(mem, mem+SUBL, (CB_MEML-SUBL)*sizeof(float));
+            memmove(mem, mem+SUBL, (CB_MEML-SUBL)*sizeof(float));
             memcpy(mem+CB_MEML-SUBL, 
                 &decresidual[(start+1+subframe)*SUBL], 
                 SUBL*sizeof(float));
@@ -364,7 +364,7 @@ void iLBC_encode(
 
             /* update memory */
 
-            memcpy(mem, mem+SUBL, (CB_MEML-SUBL)*sizeof(float));
+            memmove(mem, mem+SUBL, (CB_MEML-SUBL)*sizeof(float));
             memcpy(mem+CB_MEML-SUBL, 
                 &reverseDecresidual[subframe*SUBL],
                 SUBL*sizeof(float));
