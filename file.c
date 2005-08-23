@@ -1207,6 +1207,8 @@ static int show_file_formats(int fd, int argc, char *argv[])
 #define FORMAT "%-10s %-10s %-20s\n"
 #define FORMAT2 "%-10s %-10s %-20s\n"
 	struct ast_format *f;
+	int count_fmt = 0;
+
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Format", "Name", "Extensions");
@@ -1220,8 +1222,10 @@ static int show_file_formats(int fd, int argc, char *argv[])
 	while(f) {
 		ast_cli(fd, FORMAT2, ast_getformatname(f->format), f->name, f->exts);
 		f = f->next;
+		count_fmt++;
 	};
 	ast_mutex_unlock(&formatlock);
+	ast_cli(fd, "%d file formats registered.\n", count_fmt);
 	return RESULT_SUCCESS;
 #undef FORMAT
 #undef FORMAT2
