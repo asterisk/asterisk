@@ -882,6 +882,15 @@ void ast_unregister_feature(struct ast_call_feature *feature)
 	free(feature);
 }
 
+static void ast_unregister_features(void)
+{
+	struct ast_call_feature *feature;
+
+	AST_LIST_LOCK(&feature_list);
+	while ((feature = AST_LIST_REMOVE_HEAD(&feature_list,feature_entry)))
+		free(feature);
+	AST_LIST_UNLOCK(&feature_list);
+}
 
 /* find a feature by name */
 static struct ast_call_feature *find_feature(char *name)
@@ -1766,11 +1775,16 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 	ast_cli(fd, "\n");
 	ast_cli(fd, format, "Dynamic Feature", "Default", "Current");
 	ast_cli(fd, format, "---------------", "-------", "-------");
-	AST_LIST_LOCK(&feature_list);
-	AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
-		ast_cli(fd, format, feature->sname, "no def", feature->exten);	
+	if (AST_LIST_EMPTY(&feature_list)) {
+		ast_cli(fd, "(none)\n");
 	}
-	AST_LIST_UNLOCK(&feature_list);
+	else {
+		AST_LIST_LOCK(&feature_list);
+		AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
+			ast_cli(fd, format, feature->sname, "no def", feature->exten);	
+		}
+		AST_LIST_UNLOCK(&feature_list);
+	}
 	
 	return RESULT_SUCCESS;
 }
@@ -1968,6 +1982,7 @@ static int load_config(void)
 		}
 
 		/* Map a key combination to an application*/
+		ast_unregister_features();
 		var = ast_variable_browse(cfg, "applicationmap");
 		while(var) {
 			char *tmp_val=strdup(var->value);
@@ -1986,7 +2001,7 @@ static int load_config(void)
 			if (app) app_args=strsep(&tmp_val,",");
 
 			if (!(app && strlen(app)) || !(exten && strlen(exten)) || !(party && strlen(party)) || !(var->name && strlen(var->name))) {
-				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name  or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
+				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name, or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
 				free(tmp_val);
 				var = var->next;
 				continue;
