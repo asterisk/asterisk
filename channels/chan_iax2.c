@@ -310,6 +310,11 @@ struct iax2_peer {
 	int pokeexpire;					/* When to expire poke */
 	int lastms;					/* How long last response took (in ms), or -1 for no response */
 	int maxms;					/* Max ms we will accept for the host to be up, 0 to not monitor */
+
+	int pokefreqok;					/* How often to check if the host is up */
+	int pokefreqnotok;				/* How often to check when the host has been determined to be down */
+	int historicms;					/* How long recent average responses took */
+	int smoothing;					/* Sample over how many units to determine historic ms */
 	
 	struct ast_ha *ha;
 	struct iax2_peer *next;
@@ -1893,12 +1898,13 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Status       : ");
 		if (peer->lastms < 0)
 			ast_copy_string(status, "UNREACHABLE", sizeof(status));
-		else if (peer->lastms > peer->maxms)
-			snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
-		else if (peer->lastms)
-			snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
+		else if (peer->historicms > peer->maxms)
+			snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->historicms);
+		else if (peer->historicms)
+			snprintf(status, sizeof(status), "OK (%d ms)", peer->historicms);
 		else
 			ast_copy_string(status, "UNKNOWN", sizeof(status));
+		ast_cli(fd, " Qualify        : every %d when OK, every %d when UNREACHABLE (sample smoothing %s)\n", peer->pokefreqok, peer->pokefreqnotok, (peer->smoothing == 1) ? "On" : "Off");
 		ast_cli(fd, "%s\n",status);
 		ast_cli(fd,"\n");
 		if (ast_test_flag(peer, IAX_TEMPONLY))
@@ -4130,12 +4136,12 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 				ast_copy_string(status, "UNREACHABLE", sizeof(status));
 				offline_peers++;
 			}
-			else if (peer->lastms > peer->maxms)  {
-				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->lastms);
+			else if (peer->historicms > peer->maxms)  {
+				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->historicms);
 				offline_peers++;
 			}
-			else if (peer->lastms)  {
-				snprintf(status, sizeof(status), "OK (%d ms)", peer->lastms);
+			else if (peer->historicms)  {
+				snprintf(status, sizeof(status), "OK (%d ms)", peer->historicms);
 				online_peers++;
 			}
 			else  {
@@ -6945,13 +6951,13 @@ retryowner2:
 
 				if (iaxs[fr.callno]->peerpoke) {
 					peer = iaxs[fr.callno]->peerpoke;
-					if ((peer->lastms < 0)  || (peer->lastms > peer->maxms)) {
+					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime <= peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now REACHABLE! Time: %d\n", peer->name, iaxs[fr.callno]->pingtime);
 							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Reachable\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
 							ast_device_state_changed("IAX2/%s", peer->name); /* Activate notification */
 						}
-					} else if ((peer->lastms > 0) && (peer->lastms <= peer->maxms)) {
+					} else if ((peer->historicms > 0) && (peer->historicms <= peer->maxms)) {
 						if (iaxs[fr.callno]->pingtime > peer->maxms) {
 							ast_log(LOG_NOTICE, "Peer '%s' is now TOO LAGGED (%d ms)!\n", peer->name, iaxs[fr.callno]->pingtime);
 							manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Lagged\r\nTime: %d\r\n", peer->name, iaxs[fr.callno]->pingtime); 
@@ -6959,16 +6965,24 @@ retryowner2:
 						}
 					}
 					peer->lastms = iaxs[fr.callno]->pingtime;
+					if (peer->smoothing && (peer->lastms > -1))
+						peer->historicms = (iaxs[fr.callno]->pingtime + peer->historicms) / 2;
+					else if (peer->smoothing && peer->lastms < 0)
+						peer->historicms = (0 + peer->historicms) / 2;
+					else					
+						peer->historicms = iaxs[fr.callno]->pingtime;
+
 					if (peer->pokeexpire > -1)
 						ast_sched_del(sched, peer->pokeexpire);
 					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 					iax2_destroy_nolock(fr.callno);
 					peer->callno = 0;
 					/* Try again eventually */
-					if ((peer->lastms < 0)  || (peer->lastms > peer->maxms))
-						peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, iax2_poke_peer_s, peer);
+						ast_log(LOG_DEBUG, "Peer lastms %d, historicms %d, maxms %d\n", peer->lastms, peer->historicms, peer->maxms);
+					if ((peer->lastms < 0)  || (peer->historicms > peer->maxms)) 
+						peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
 					else
-						peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_OK, iax2_poke_peer_s, peer);
+						peer->pokeexpire = ast_sched_add(sched, peer->pokefreqok, iax2_poke_peer_s, peer);
 				}
 				break;
 			case IAX_COMMAND_LAGRQ:
@@ -7615,7 +7629,7 @@ static int iax2_poke_noanswer(void *data)
 	peer->callno = 0;
 	peer->lastms = -1;
 	/* Try again quickly */
-	peer->pokeexpire = ast_sched_add(sched, DEFAULT_FREQ_NOTOK, iax2_poke_peer_s, peer);
+	peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_peer_s, peer);
 	return 0;
 }
 
@@ -7625,6 +7639,7 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 		/* IF we have no IP, or this isn't to be monitored, return
 		  imeediately after clearing things out */
 		peer->lastms = 0;
+		peer->historicms = 0;
 		peer->pokeexpire = -1;
 		peer->callno = 0;
 		return 0;
@@ -7648,7 +7663,13 @@ static int iax2_poke_peer(struct iax2_peer *peer, int heldcall)
 	iaxs[peer->callno]->pingtime = peer->maxms / 4 + 1;
 	iaxs[peer->callno]->peerpoke = peer;
 	send_command(iaxs[peer->callno], AST_FRAME_IAX, IAX_COMMAND_POKE, 0, NULL, 0, -1);
-	peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
+	
+	/* If the host is already unreachable then use the unreachable interval instead */
+	if (peer->lastms < 0) {
+		peer->pokeexpire = ast_sched_add(sched, peer->pokefreqnotok, iax2_poke_noanswer, peer);
+	} else
+		peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, iax2_poke_noanswer, peer);
+
 	return 0;
 }
 
@@ -7958,6 +7979,9 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		}
 		peer->prefs = prefs;
 		peer->capability = iax2_capability;
+		peer->smoothing = 0;
+		peer->pokefreqok = DEFAULT_FREQ_OK;
+		peer->pokefreqnotok = DEFAULT_FREQ_NOTOK;
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) {
 				if (!ast_strlen_zero(peer->secret)) {
@@ -7967,11 +7991,11 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					ast_copy_string(peer->secret, v->value, sizeof(peer->secret));
 			} else if (!strcasecmp(v->name, "mailbox")) {
 				ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
-			} else if (!strcasecmp(v->name, "dbsecret")) 
+			} else if (!strcasecmp(v->name, "dbsecret")) {
 				ast_copy_string(peer->dbsecret, v->value, sizeof(peer->dbsecret));
-			else if (!strcasecmp(v->name, "mailboxdetail"))
+			} else if (!strcasecmp(v->name, "mailboxdetail")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_MESSAGEDETAIL);	
-			else if (!strcasecmp(v->name, "trunk")) {
+			} else if (!strcasecmp(v->name, "trunk")) {
 				ast_set2_flag(peer, ast_true(v->value), IAX_TRUNK);	
 				if (ast_test_flag(peer, IAX_TRUNK) && (timingfd < 0)) {
 					ast_log(LOG_WARNING, "Unable to support trunking on peer '%s' without zaptel timing\n", peer->name);
@@ -8065,6 +8089,16 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 					ast_log(LOG_WARNING, "Qualification of peer '%s' should be 'yes', 'no', or a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
 					peer->maxms = 0;
 				}
+			} else if (!strcasecmp(v->name, "qualifysmoothing")) {
+				peer->smoothing = ast_true(v->value);
+			} else if (!strcasecmp(v->name, "qualifyfreqok")) {
+				if (sscanf(v->value, "%d", &peer->pokefreqok) != 1) {
+					ast_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when OK should a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
+				}
+			} else if (!strcasecmp(v->name, "qualifyfreqnotok")) {
+				if (sscanf(v->value, "%d", &peer->pokefreqnotok) != 1) {
+					ast_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when NOT OK should be a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
+				} else ast_log(LOG_WARNING, "Set peer->pokefreqnotok to %d", peer->pokefreqnotok);
 			} else if (!strcasecmp(v->name, "timezone")) {
 				ast_copy_string(peer->zonetag, v->value, sizeof(peer->zonetag));
 			}/* else if (strcasecmp(v->name,"type")) */
@@ -9077,12 +9111,11 @@ static int iax2_devicestate(void *data)
 		if (option_debug > 2) 
 			ast_log(LOG_DEBUG, "Found peer. Now checking device state for peer %s\n", host);
 
-
 		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-			(!p->maxms || ((p->lastms > -1)  && (p->lastms <= p->maxms)))) {
-			/* Peer is registred, or have default IP address
+		    (!p->maxms || ((p->lastms > -1) && (p->historicms <= p->maxms)))) {
+			/* Peer is registered, or have default IP address
 			   and a valid registration */
-			if (p->lastms == 0 || p->lastms <= p->lastms)
+			if (p->historicms == 0 || p->historicms <= p->maxms)
 				res = AST_DEVICE_NOT_INUSE;
 			else
 				res = AST_DEVICE_UNKNOWN;	/* Not reachable */
