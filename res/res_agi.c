@@ -279,6 +279,9 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		for (x=STDERR_FILENO + 2;x<1024;x++) 
 			close(x);
 
+		/* Don't run AGI scripts with realtime priority -- it causes audio stutter */
+		ast_set_priority(0);
+
 		/* Execute script */
 		execv(script, argv);
 		/* Can't use ast_log since FD's are closed */

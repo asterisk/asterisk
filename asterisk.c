@@ -674,7 +674,7 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
-static int set_priority(int pri)
+int ast_set_priority(int pri)
 {
 	struct sched_param sched;
 	memset(&sched, 0, sizeof(sched));
@@ -1940,7 +1940,7 @@ int main(int argc, char *argv[])
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();
 
-	if (set_priority(option_highpriority)) {
+	if (ast_set_priority(option_highpriority)) {
 		exit(1);
 	}
 

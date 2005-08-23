@@ -37,6 +37,8 @@ extern char ast_config_AST_CTL_OWNER[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_CTL[AST_CONFIG_MAX_PATH];
 
+/* Provided by asterisk.c */
+extern int ast_set_priority(int);
 /* Provided by module.c */
 extern int load_modules(const int preload_only);
 /* Provided by pbx.c */
