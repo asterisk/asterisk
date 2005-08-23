@@ -7478,6 +7478,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (ast_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NO) ? "No" : "Yes" );
 	ast_cli(fd, "  Language:               %s\n", ast_strlen_zero(default_language) ? "(Defaults to English)" : default_language);
 	ast_cli(fd, "  Musicclass:             %s\n", global_musicclass);
+	ast_cli(fd, "  Voice Mail Extension:   %s\n", global_vmexten);
 
 	
 	if (realtimepeers || realtimeusers) {
