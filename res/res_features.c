@@ -429,7 +429,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 #define FEATURE_SENSE_CHAN	(1 << 0)
 #define FEATURE_SENSE_PEER	(1 << 1)
-#define FEATURE_MAX_LEN		11
+
 
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
@@ -841,25 +841,93 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	return FEATURE_RETURN_SUCCESS;
 }
 
-struct ast_call_feature {
-	int feature_mask;
-	char *fname;
-	char *sname;
-	char exten[FEATURE_MAX_LEN];
-	char default_exten[FEATURE_MAX_LEN];
-	int (*operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense);
-	unsigned int flags;
-};
 
 /* add atxfer and automon as undefined so you can only use em if you configure them */
 #define FEATURES_COUNT (sizeof(builtin_features) / sizeof(builtin_features[0]))
 struct ast_call_feature builtin_features[] = 
-{
+ {
 	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF },
 	{ AST_FEATURE_REDIRECT, "Attended Transfer", "atxfer", "", "", builtin_atxfer, AST_FEATURE_FLAG_NEEDSDTMF },
 	{ AST_FEATURE_AUTOMON, "One Touch Monitor", "automon", "", "", builtin_automonitor, AST_FEATURE_FLAG_NEEDSDTMF },
 	{ AST_FEATURE_DISCONNECT, "Disconnect Call", "disconnect", "*", "*", builtin_disconnect, AST_FEATURE_FLAG_NEEDSDTMF },
 };
+
+
+static AST_LIST_HEAD(feature_list,ast_call_feature) feature_list;
+
+/* register new feature into feature_list*/
+void ast_register_feature(struct ast_call_feature *feature)
+{
+	if (!feature) {
+		ast_log(LOG_NOTICE,"You didn't pass a feature!\n");
+    		return;
+	}
+  
+	AST_LIST_LOCK(&feature_list);
+	AST_LIST_INSERT_HEAD(&feature_list,feature,feature_entry);
+	AST_LIST_UNLOCK(&feature_list);
+
+	if (option_verbose >= 2) 
+		ast_verbose(VERBOSE_PREFIX_2 "Registered Feature '%s'\n",feature->sname);
+}
+
+/* unregister feature from feature_list */
+void ast_unregister_feature(struct ast_call_feature *feature)
+{
+	if (!feature) return;
+
+	AST_LIST_LOCK(&feature_list);
+	AST_LIST_REMOVE(&feature_list,feature,feature_entry);
+	AST_LIST_UNLOCK(&feature_list);
+	free(feature);
+}
+
+
+/* find a feature by name */
+static struct ast_call_feature *find_feature(char *name)
+{
+	struct ast_call_feature *tmp;
+
+	AST_LIST_LOCK(&feature_list);
+	AST_LIST_TRAVERSE(&feature_list,tmp,feature_entry) {
+		if (!strcasecmp(tmp->sname,name)) break;
+	}
+	AST_LIST_UNLOCK(&feature_list);
+
+	return tmp;
+}
+
+/* exec an app by feature */
+static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
+{
+	struct ast_app *app;
+	struct ast_call_feature *feature;
+	int res;
+
+	AST_LIST_LOCK(&feature_list);
+	AST_LIST_TRAVERSE(&feature_list,feature,feature_entry) {
+		if (!strcasecmp(feature->exten,code)) break;
+	}
+	AST_LIST_UNLOCK(&feature_list);
+
+	if (!feature) { /* shouldn't ever happen! */
+		ast_log(LOG_NOTICE, "Found feature before, but at execing we've lost it??\n");
+		return -1; 
+	}
+	
+	app = pbx_findapp(feature->app);
+	if (app) {
+		struct ast_channel *work=chan;
+		if (ast_test_flag(feature,AST_FEATURE_FLAG_CALLEE)) work=peer;
+		res = pbx_exec(work, app, feature->app_args, 1);
+		if (res<0) return res; 
+	} else {
+		ast_log(LOG_WARNING, "Could not find application (%s)\n", feature->app);
+		res = -2;
+	}
+	
+	return FEATURE_RETURN_SUCCESS;
+}
 
 static void unmap_features(void)
 {
@@ -889,6 +957,8 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	int x;
 	struct ast_flags features;
 	int res = FEATURE_RETURN_PASSDIGITS;
+	struct ast_call_feature *feature;
+	char *dynamic_features=pbx_builtin_getvar_helper(chan,"DYNAMIC_FEATURES");
 
 	if (sense == FEATURE_SENSE_CHAN)
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);	
@@ -904,10 +974,46 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 				break;
 			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
 				if (res == FEATURE_RETURN_PASSDIGITS)
-					res = FEATURE_RETURN_STOREDIGITS;
+				  res = FEATURE_RETURN_STOREDIGITS;
 			}
 		}
 	}
+
+
+	if (dynamic_features) {
+		char *tmp=strdup(dynamic_features);
+		char *tok;
+		char *begin=tmp;
+		
+		if (!tmp) {
+			ast_log(LOG_ERROR,"strdup failed");
+			return res;
+		}
+		
+		while ( (tok=strsep(&tmp,"#")) != NULL) {
+			AST_LIST_LOCK(&feature_list);
+			AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
+				if ( ! strcasecmp(tok,feature->sname))
+					break;
+			}
+			AST_LIST_UNLOCK(&feature_list);			
+			
+			if ( feature ) {
+				/* Feature is up for consideration */
+				if (!strcmp(feature->exten, code)) {
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 " Feature Found: %s exten: %s\n",feature->sname, tok);
+					res = feature->operation(chan, peer, config, code, sense);
+					break;
+				} else if (!strncmp(feature->exten, code, strlen(code))) {
+					res = FEATURE_RETURN_STOREDIGITS;
+				}
+			}
+		}
+		
+		free(begin);
+	}
+	
 	return res;
 }
 
@@ -1643,10 +1749,11 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 {
 	int i;
 	int fcount;
+	struct ast_call_feature *feature;
 	char format[] = "%-25s %-7s %-7s\n";
 
-	ast_cli(fd, format, "Feature", "Default", "Current");
-	ast_cli(fd, format, "-------", "-------", "-------");
+	ast_cli(fd, format, "Builtin Feature", "Default", "Current");
+	ast_cli(fd, format, "---------------", "-------", "-------");
 
 	ast_cli(fd, format, "Pickup", "*8", ast_pickup_ext());		/* default hardcoded above, so we'll hardcode it here */
 
@@ -1656,7 +1763,15 @@ static int handle_showfeatures(int fd, int argc, char *argv[])
 	{
 		ast_cli(fd, format, builtin_features[i].fname, builtin_features[i].default_exten, builtin_features[i].exten);
 	}
-
+	ast_cli(fd, "\n");
+	ast_cli(fd, format, "Dynamic Feature", "Default", "Current");
+	ast_cli(fd, format, "---------------", "-------", "-------");
+	AST_LIST_LOCK(&feature_list);
+	AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
+		ast_cli(fd, format, feature->sname, "no def", feature->exten);	
+	}
+	AST_LIST_UNLOCK(&feature_list);
+	
 	return RESULT_SUCCESS;
 }
 
@@ -1843,6 +1958,7 @@ static int load_config(void)
 			}
 			var = var->next;
 		}
+
 		unmap_features();
 		var = ast_variable_browse(cfg, "featuremap");
 		while(var) {
@@ -1850,8 +1966,74 @@ static int load_config(void)
 				ast_log(LOG_NOTICE, "Unknown feature '%s'\n", var->name);
 			var = var->next;
 		}
-		ast_config_destroy(cfg);
+
+		/* Map a key combination to an application*/
+		var = ast_variable_browse(cfg, "applicationmap");
+		while(var) {
+			char *tmp_val=strdup(var->value);
+
+			if (!tmp_val) { 
+				ast_log(LOG_ERROR, "res_features: strdup failed");
+				continue;
+			}
+			
+			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
+
+			exten=strsep(&tmp_val,",");
+			if (exten) party=strsep(&tmp_val,",");
+			if (party) app=strsep(&tmp_val,",");
+
+			if (app) app_args=strsep(&tmp_val,",");
+
+			if (!(app && strlen(app)) || !(exten && strlen(exten)) || !(party && strlen(party)) || !(var->name && strlen(var->name))) {
+				ast_log(LOG_NOTICE, "Please check the feature Mapping Syntax, either extension, name  or app aren't provided %s %s %s %s\n",app,exten,party,var->name);
+				free(tmp_val);
+				var = var->next;
+				continue;
+			}
+
+			{
+				struct ast_call_feature *feature=find_feature(var->name);
+				int mallocd=0;
+				
+				if (!feature) {
+					feature=malloc(sizeof(struct ast_call_feature));
+					mallocd=1;
+				}
+				if (!feature) {
+					ast_log(LOG_NOTICE, "Malloc failed at feature mapping\n");
+					free(tmp_val);
+					var = var->next;
+					continue;
+				}
+
+				memset(feature,0,sizeof(struct ast_call_feature));
+				ast_copy_string(feature->sname,var->name,FEATURE_SNAME_LEN);
+				ast_copy_string(feature->app,app,FEATURE_APP_LEN);
+				ast_copy_string(feature->exten, exten,FEATURE_EXTEN_LEN);
+				free(tmp_val);
+				
+				if (app_args) 
+					ast_copy_string(feature->app_args,app_args,FEATURE_APP_ARGS_LEN);
+				
+				ast_copy_string(feature->exten, exten,sizeof(feature->exten));
+				feature->operation=feature_exec_app;
+				ast_set_flag(feature,AST_FEATURE_FLAG_NEEDSDTMF);
+				
+				if (!strcasecmp(party,"caller"))
+					ast_set_flag(feature,AST_FEATURE_FLAG_CALLER);
+				else
+					ast_set_flag(feature,AST_FEATURE_FLAG_CALLEE);
+
+				ast_register_feature(feature);
+				
+				if (option_verbose >=1) ast_verbose(VERBOSE_PREFIX_2 "Mapping Feature '%s' to app '%s' with code '%s'\n", var->name, app, exten);  
+			}
+			var = var->next;
+		}	 
 	}
+	ast_config_destroy(cfg);
+
 	
 	if (con)
 		ast_context_remove_extension2(con, ast_parking_ext(), 1, registrar);
@@ -1872,6 +2054,9 @@ int reload(void) {
 int load_module(void)
 {
 	int res;
+	
+	AST_LIST_HEAD_INIT(&feature_list);
+
 	if ((res = load_config()))
 		return res;
 	ast_cli_register(&showparked);

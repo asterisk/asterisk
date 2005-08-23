@@ -373,6 +373,8 @@ struct ast_channel {
 #define AST_FEATURE_AUTOMON		(1 << 4)
 
 #define AST_FEATURE_FLAG_NEEDSDTMF	(1 << 0)
+#define AST_FEATURE_FLAG_CALLEE		(1 << 1)
+#define AST_FEATURE_FLAG_CALLER		(1 << 2)
 
 struct ast_bridge_config {
 	struct ast_flags features_caller;

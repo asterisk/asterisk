@@ -17,6 +17,28 @@
 #ifndef _AST_FEATURES_H
 #define _AST_FEATURES_H
 
+#define FEATURE_MAX_LEN		11
+#define FEATURE_APP_LEN		64
+#define FEATURE_APP_ARGS_LEN	256
+#define FEATURE_SNAME_LEN	32
+#define FEATURE_EXTEN_LEN	32
+
+/* main call feature structure */
+struct ast_call_feature {
+	int feature_mask;
+	char *fname;
+	char sname[FEATURE_SNAME_LEN];
+	char exten[FEATURE_MAX_LEN];
+	char default_exten[FEATURE_MAX_LEN];
+	int (*operation)(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense);
+	unsigned int flags;
+	char app[FEATURE_APP_LEN];		
+	char app_args[FEATURE_APP_ARGS_LEN];
+	AST_LIST_ENTRY(ast_call_feature) feature_entry;
+};
+
+
+
 /*! Park a call and read back parked location */
 /*! \param chan the channel to actually be parked
     \param host the channel which will have the parked location read to
@@ -50,5 +72,15 @@ extern int ast_bridge_call(struct ast_channel *chan, struct ast_channel *peer,st
 
 extern int ast_pickup_call(struct ast_channel *chan);
 
+/*! register new feature into feature_set 
+   \param feature an ast_call_feature object which contains a keysequence
+   and a callback function which is called when this keysequence is pressed
+   during a call. */
+extern void ast_register_feature(struct ast_call_feature *feature);
 
+/*! unregister feature from feature_set
+    \param feature the ast_call_feature object which was registered before*/
+extern void ast_unregister_feature(struct ast_call_feature *feature);
+
+     
 #endif /* _AST_FEATURES_H */
