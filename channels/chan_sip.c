@@ -2576,24 +2576,15 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		}
 		res = -1;
 		break;
-	case AST_CONTROL_HOLD:	/* We are put on hold */
-		/* The PBX is providing us with onhold music, but 
-			should we clear the RTP stream with the other 
-			end? Guess we could do that if there's no
-			musiconhold class defined for this channel
-		*/
+	case AST_CONTROL_HOLD:	/* The other part of the bridge are put on hold */
 		if (sipdebug)
-			ast_log(LOG_DEBUG, "SIP dialog on hold: %s\n", p->callid);
+			ast_log(LOG_DEBUG, "Bridged channel now on hold%s\n", p->callid);
 		res = -1;
-		ast_set_flag(p, SIP_CALL_ONHOLD);
 		break;
-	case AST_CONTROL_UNHOLD:	/* We are back from hold */
-		/* Open RTP stream if we decide to close it 
-		*/
+	case AST_CONTROL_UNHOLD:	/* The other part of the bridge are back from hold */
 		if (sipdebug)
-			ast_log(LOG_DEBUG, "SIP dialog off hold: %s\n", p->callid);
+			ast_log(LOG_DEBUG, "Bridged channel is back from hold, let's talk! : %s\n", p->callid);
 		res = -1;
-		ast_clear_flag(p, SIP_CALL_ONHOLD);
 		break;
 	case -1:
 		res = -1;
@@ -3447,6 +3438,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	if ((bridgepeer=ast_bridged_channel(p->owner))) {
 		/* We have a bridge */
 		/* Turn on/off music on hold if we are holding/unholding */
+		struct ast_frame af = { AST_FRAME_NULL, };
 		if (sin.sin_addr.s_addr && !sendonly) {
 			ast_moh_stop(bridgepeer);
 			/* Indicate UNHOLD status to the other channel */
@@ -3460,19 +3452,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					p->owner->uniqueid);
 			}
 			ast_clear_flag(p, SIP_CALL_ONHOLD);
-			/* Somehow, we need to check if we need to re-invite here */
-			/* If this call had a external native bridge, it's broken
-				now and we need to start all over again.
-				The bridged peer, if SIP, now listens
-				to RTP from Asterisk instead of from
-				the peer 
-	
-				  So IF we had a native bridge before
-				  the HOLD, we need to somehow re-invite
-				  into a NATIVE bridge afterwards...
-				
-				*/
-	
+			/* Activate a re-invite */
+			ast_queue_frame(p->owner, &af);
 		} else {
 			/* No address for RTP, we're on hold */
 			append_history(p, "Hold", req->data);
@@ -3489,6 +3470,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_moh_start(bridgepeer, NULL);
 			if (sendonly)
 				ast_rtp_stop(p->rtp);
+			/* Activate a re-invite */
+			ast_queue_frame(p->owner, &af);
 		}
 	}
 	return 0;
@@ -4319,6 +4302,8 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 		reqprep(&req, p, SIP_INVITE, 0, 1);
 	
 	add_header(&req, "Allow", ALLOWED_METHODS);
+	if (sipdebug)
+		add_header(&req, "X-asterisk-info", "SIP re-invite (RTP bridge)");
 	ast_rtp_offered_from_local(p->rtp, 1);
 	add_sdp(&req, p);
 	/* Use this as the basis */
@@ -7527,8 +7512,8 @@ static int sip_show_subscriptions(int fd, int argc, char *argv[])
 static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions)
 {
 #define FORMAT3 "%-15.15s  %-10.10s  %-21.21s  %-15.15s\n"
-#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s   %s	%s\n"
-#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d   %-6.6s%s	%s\n"
+#define FORMAT2 "%-15.15s  %-10.10s  %-11.11s  %-11.11s  %-4.4s   %-7.7s	%s \n"
+#define FORMAT  "%-15.15s  %-10.10s  %-11.11s  %5.5d/%5.5d %-4.4s  %-7.7s%s %s\n"
 	struct sip_pvt *cur;
 	char iabuf[INET_ADDRSTRLEN];
 	int numchans = 0;
@@ -7537,7 +7522,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 	ast_mutex_lock(&iflock);
 	cur = iflist;
 	if (!subscriptions)
-		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Last Msg");
+		ast_cli(fd, FORMAT2, "Peer", "User/ANR", "Call ID", "Seq (Tx/Rx)", "Format", "Hold", "Last Msg");
 	else
         	ast_cli(fd, FORMAT3, "Peer", "User", "Call ID", "URI");
 	while (cur) {
@@ -7547,6 +7532,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 				cur->callid, 
 				cur->ocseq, cur->icseq, 
 				ast_getformatname(cur->owner ? cur->owner->nativeformats : 0), 
+				ast_test_flag(cur, SIP_CALL_ONHOLD) ? "Yes" : "No",
 				ast_test_flag(cur, SIP_NEEDDESTROY) ? "(d)" : "",
 				cur->lastmsg );
 			numchans++;
@@ -7739,6 +7725,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Theoretical Address:    %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->sa.sin_addr), ntohs(cur->sa.sin_port));
 			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "  NAT Support:            %s\n", nat2str(ast_test_flag(cur, SIP_NAT)));
+			ast_cli(fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
 			ast_cli(fd, "  Our Tag:                %08d\n", cur->tag);
 			ast_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
@@ -11478,15 +11465,14 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 	return rtp;
 }
 
-/*--- sip_set_rtp_peer: Set the data needed to RE-INVITE this call
-	so that the peers media go  between them, outside of Asterisk.  ---*/
+/*--- sip_set_rtp_peer: Set the RTP peer for this call ---*/
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
 {
 	struct sip_pvt *p;
-	p = chan->tech_pvt;
-	if (!p)
-		return -1;
 
+	p = chan->tech_pvt;
+	if (!p) 
+		return -1;
 	ast_mutex_lock(&p->lock);
 	if (rtp)
 		ast_rtp_get_peer(rtp, &p->redirip);
@@ -11498,10 +11484,17 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
 	p->redircodecs = codecs;
 	if (!ast_test_flag(p, SIP_GOTREFER)) {
-		if (!p->pendinginvite)
+		if (!p->pendinginvite) {
+			if (option_debug > 2) {
+				char iabuf[INET_ADDRSTRLEN];
+				ast_log(LOG_DEBUG, "Sending reinvite on SIP '%s' - It's audio soon redirected to IP %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+			}
 			transmit_reinvite_with_sdp(p);
-		else if (!ast_test_flag(p, SIP_PENDINGBYE)) {
-			ast_log(LOG_DEBUG, "Deferring reinvite on '%s'\n", p->callid);
+		} else if (!ast_test_flag(p, SIP_PENDINGBYE)) {
+			if (option_debug > 2) {
+				char iabuf[INET_ADDRSTRLEN];
+				ast_log(LOG_DEBUG, "Deferring reinvite on SIP '%s' - It's audio will be redirected to IP %s\n", p->callid, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp ? p->redirip.sin_addr : p->ourip));
+			}
 			ast_set_flag(p, SIP_NEEDREINVITE);	
 		}
 	}
