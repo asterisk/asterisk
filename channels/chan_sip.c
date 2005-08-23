@@ -11137,7 +11137,6 @@ static int reload_config(void)
 	externhost[0] = '\0';
 	externexpire = 0;
 	externrefresh = 10;
-	sipdebug = 0;
 	ast_copy_string(default_useragent, DEFAULT_USERAGENT, sizeof(default_useragent));
 	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
 	ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
