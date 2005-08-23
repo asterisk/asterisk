@@ -98,6 +98,7 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 		return NULL;
 	}
 
+	expr = ast_strip(expr);
 	if (iftrue)
 		iftrue = ast_strip_quoted(iftrue, "\"", "\"");
 	if (iffalse)
