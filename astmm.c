@@ -26,6 +26,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/options.h"
 #include "asterisk/lock.h"
+#include "asterisk/strings.h"
 
 #define SOME_PRIME 563
 
@@ -253,7 +254,7 @@ static int handle_show_memory(int fd, int argc, char *argv[])
 		reg = regions[x];
 		while (reg) {
 			if (!fn || !strcasecmp(fn, reg->file)) {
-				ast_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", reg->len, reg->func, reg->lineno, reg->file);
+				ast_cli(fd, "%10d bytes allocated in %20s at line %5d of %s\n", (int) reg->len, reg->func, reg->lineno, reg->file);
 				len += reg->len;
 				count++;
 			}
@@ -357,7 +358,7 @@ void __ast_mm_init(void)
 	ast_cli_register(&show_memory_allocations_cli);
 	ast_cli_register(&show_memory_summary_cli);
 	
-	snprintf(filename, sizeof(filename), "%s/mmlog", (char *)ast_config_AST_LOG_DIR)
+	snprintf(filename, sizeof(filename), "%s/mmlog", (char *)ast_config_AST_LOG_DIR);
 	mmlog = fopen(filename, "a+");
 	if (option_verbose)
 		ast_verbose("Asterisk Malloc Debugger Started (see %s))\n", filename);

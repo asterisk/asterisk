@@ -204,6 +204,11 @@ GREP=/usr/xpg4/bin/grep
 M4=/usr/local/bin/m4
 endif
 
+# if doing a recursive make, don't double-up CFLAGS
+ifeq ($(MAKECMDGOALS),ast_expr.a)
+CFLAGS=
+endif
+
 INCLUDE=-Iinclude -I../include
 CFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 CFLAGS+=$(OPTIMIZE)
