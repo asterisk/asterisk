@@ -974,7 +974,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	else
 		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);	
 	ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
-	for (x=0;x<FEATURES_COUNT;x++) {
+	for (x=0; x < FEATURES_COUNT; x++) {
 		if ((ast_test_flag(&features, builtin_features[x].feature_mask)) &&
 		    !ast_strlen_zero(builtin_features[x].exten)) {
 			/* Feature is up for consideration */
@@ -1029,8 +1029,9 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 static void set_config_flags(struct ast_bridge_config *config)
 {
 	int x;
+
 	ast_clear_flag(config, AST_FLAGS_ALL);	
-	for (x=0;x<FEATURES_COUNT;x++) {
+	for (x = 0; x < FEATURES_COUNT; x++) {
 		if (ast_test_flag(&(config->features_caller), builtin_features[x].feature_mask)) {
 			if (ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF))
 				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
@@ -1986,13 +1987,13 @@ static int load_config(void)
 		var = ast_variable_browse(cfg, "applicationmap");
 		while(var) {
 			char *tmp_val=strdup(var->value);
+			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			if (!tmp_val) { 
 				ast_log(LOG_ERROR, "res_features: strdup failed");
 				continue;
 			}
 			
-			char *exten, *party=NULL, *app=NULL, *app_args=NULL; 
 
 			exten=strsep(&tmp_val,",");
 			if (exten) party=strsep(&tmp_val,",");
