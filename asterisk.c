@@ -1815,6 +1815,7 @@ int main(int argc, char *argv[])
 	FILE *f;
 	sigset_t sigs;
 	int num;
+	int is_child_of_nonroot=0;
 	char *buf;
 	char *runuser=NULL, *rungroup=NULL;
 
@@ -1840,6 +1841,11 @@ int main(int argc, char *argv[])
 	callerid_init();
 	ast_utils_init();
 	tdd_init();
+	/* When Asterisk restarts after it has dropped the root privileges,
+	 * it can't issue setuid(), setgid(), setgroups() or set_priority() 
+	 * */
+	if (getenv("ASTERISK_ALREADY_NONROOT"))
+		is_child_of_nonroot=1;
 	if (getenv("HOME")) 
 		snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 	/* Check if we're root */
@@ -1940,11 +1946,11 @@ int main(int argc, char *argv[])
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();
 
-	if (ast_set_priority(option_highpriority)) {
+	if (!is_child_of_nonroot && ast_set_priority(option_highpriority)) {
 		exit(1);
 	}
 
-	if (rungroup) {
+	if (!is_child_of_nonroot && rungroup) {
 		struct group *gr;
 		gr = getgrnam(rungroup);
 		if (!gr) {
@@ -1959,7 +1965,7 @@ int main(int argc, char *argv[])
 			ast_verbose("Running as group '%s'\n", rungroup);
 	}
 
-	if (runuser) {
+	if (!is_child_of_nonroot && runuser) {
 		struct passwd *pw;
 		pw = getpwnam(runuser);
 		if (!pw) {
@@ -1970,6 +1976,7 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
 			exit(1);
 		}
+		setenv("ASTERISK_ALREADY_NONROOT","yes",1);
 		if (option_verbose)
 			ast_verbose("Running as user '%s'\n", runuser);
 	}
