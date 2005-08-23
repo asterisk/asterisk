@@ -49,6 +49,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;defaultexpirey=120		; Default length of incoming/outoing registration
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;checkmwi=10			; Default time between mailbox checks for peers
+;vmexten=voicemail      ; dialplan extension to reach mailbox sets the 
+						; Message-Account in the MWI notify message 
+						; defaults to "asterisk"
 ;videosupport=yes		; Turn on support for SIP video
 ;recordhistory=yes		; Record SIP history by default 
 				; (see sip history / sip no history)
@@ -318,6 +321,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;defaultip=192.168.0.59		; IP used until peer registers
 ;username=snom			; Username to use in INVITE until peer registers
 ;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
+;vmexten=voicemail      ; dialplan extension to reach mailbox 
+                        ; sets the Message-Account in the MWI notify message
+                        ; defaults to global vmexten which defaults to "asterisk"
 ;restrictcid=yes		; To have the callerid restriced -> sent as ANI
 ;disallow=all
 ;allow=ulaw			; dtmfmode=inband only works with ulaw or alaw!

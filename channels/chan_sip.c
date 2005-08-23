@@ -282,6 +282,9 @@ static char default_useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
 #define DEFAULT_CONTEXT "default"
 static char default_context[AST_MAX_CONTEXT] = DEFAULT_CONTEXT;
 
+#define DEFAULT_VMEXTEN "asterisk"
+static char global_vmexten[AST_MAX_EXTENSION] = DEFAULT_VMEXTEN;
+
 static char default_language[MAX_LANGUAGE] = "";
 
 #define DEFAULT_CALLERID "asterisk"
@@ -671,6 +674,7 @@ struct sip_peer {
 	int incominglimit;		/* Limit of incoming calls */
 	int outUse;			/* disabled */
 	int outgoinglimit;		/* disabled */
+	char vmexten[AST_MAX_EXTENSION];        /* Dialplan extension for MWI notify message*/
 	char mailbox[AST_MAX_EXTENSION]; /* Mailbox setting for MWI checks */
 	char language[MAX_LANGUAGE];	/* Default language for prompts */
 	char musicclass[MAX_MUSICCLASS];/* Music on Hold class */
@@ -4640,7 +4644,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full)
  *      We use the SIP Event package message-summary
  *      MIME type defaults to  "application/simple-message-summary";
  */
-static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
+static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs, char *vmexten)
 {
 	struct sip_request req;
 	char tmp[500];
@@ -4651,6 +4655,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs)
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", default_notifymime);
 
+	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", (vmexten && !ast_strlen_zero(vmexten)) ? vmexten : global_vmexten, p->fromdomain);
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
 	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
 
@@ -7182,6 +7187,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Pickupgroup  : ");
 		print_group(fd, peer->pickupgroup);
 		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
+		ast_cli(fd, "  VM Extension : %s\n", peer->vmexten);
 		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
 		ast_cli(fd, "  Inc. limit   : %d\n", peer->incominglimit);
 		ast_cli(fd, "  Outg. limit  : %d\n", peer->outgoinglimit);
@@ -10026,7 +10032,7 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	/* Send MWI */
 	ast_set_flag(p, SIP_OUTGOING);
-	transmit_notify_with_mwi(p, newmsgs, oldmsgs);
+	transmit_notify_with_mwi(p, newmsgs, oldmsgs, peer->vmexten);
 	sip_scheddestroy(p, 15000);
 	return 0;
 }
@@ -10796,6 +10802,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		peer->chanvars = NULL;
 	}
 	strcpy(peer->context, default_context);
+	strcpy(peer->vmexten, global_vmexten);
 	strcpy(peer->language, default_language);
 	strcpy(peer->musicclass, global_musicclass);
 	ast_copy_flags(peer, &global_flags, SIP_USEREQPHONE);
@@ -10934,6 +10941,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			ast_copy_string(peer->musicclass, v->value, sizeof(peer->musicclass));
 		} else if (!strcasecmp(v->name, "mailbox")) {
 			ast_copy_string(peer->mailbox, v->value, sizeof(peer->mailbox));
+		} else if (!strcasecmp(v->name, "vmexten")) {
+			ast_copy_string(peer->vmexten, v->value, sizeof(peer->vmexten));
 		} else if (!strcasecmp(v->name, "callgroup")) {
 			peer->callgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "pickupgroup")) {
@@ -11071,6 +11080,7 @@ static int reload_config(void)
 	ast_set_flag(&global_flags, SIP_NAT_RFC3581);
 	ast_set_flag(&global_flags, SIP_CAN_REINVITE);
 	global_mwitime = DEFAULT_MWITIME;
+	strcpy(global_vmexten, DEFAULT_VMEXTEN);
 	srvlookup = 0;
 	autocreatepeer = 0;
 	regcontext[0] = '\0';
@@ -11117,6 +11127,8 @@ static int reload_config(void)
 				ast_log(LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
 				global_mwitime = DEFAULT_MWITIME;
 			}
+		} else if (!strcasecmp(v->name, "vmexten")) {
+			ast_copy_string(global_vmexten, v->value, sizeof(global_vmexten));
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
 			if ((sscanf(v->value, "%d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
