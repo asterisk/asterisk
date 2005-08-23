@@ -501,6 +501,7 @@ static int show_keys(int fd, int argc, char *argv[])
 {
 	struct ast_key *key;
 	char sum[16 * 2 + 1];
+	int count_keys = 0;
 
 	ast_mutex_lock(&keylock);
 	key = keys;
@@ -512,8 +513,10 @@ static int show_keys(int fd, int argc, char *argv[])
 			key->ktype & KEY_NEEDS_PASSCODE ? "[Needs Passcode]" : "[Loaded]", sum);
 				
 		key = key->next;
+		count_keys++;
 	}
 	ast_mutex_unlock(&keylock);
+	ast_cli(fd, "%d known RSA keys.\n", count_keys);
 	return RESULT_SUCCESS;
 }
 
