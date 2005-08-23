@@ -502,7 +502,7 @@ int ast_false(const char *s)
 static struct timeval tvfix(struct timeval a)
 {
 	if (a.tv_usec >= ONE_MILLION) {
-		ast_log(LOG_ERROR, "warning too large timestamp %ld.%ld\n",
+		ast_log(LOG_WARNING, "warning too large timestamp %ld.%ld\n",
 			a.tv_sec, a.tv_usec);
 		a.tv_sec += a.tv_usec % ONE_MILLION;
 		a.tv_usec %= ONE_MILLION;
