@@ -9,6 +9,8 @@
 *
 * This program is free software, distributed under the terms of
 * the GNU General Public License
+*
+* $Revision$ 
 */
 
 #include <stdlib.h>
@@ -18,6 +20,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#if defined(__FreeBSD__)
+#include <netinet/in.h>
+#endif
 #include <sys/time.h>
 
 
