@@ -32,13 +32,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/linkedlists.h"
 
-static char *tdesc = "External IVR Interface Application";
+static const char *tdesc = "External IVR Interface Application";
 
-static char *app = "ExternalIVR";
+static const char *app = "ExternalIVR";
 
-static char *synopsis = "Interfaces with an external IVR application";
+static const char *synopsis = "Interfaces with an external IVR application";
 
-static char *descrip = 
+static const char *descrip = 
 "  ExternalIVR(command[|arg[|arg...]]): Forks an process to run the supplied command,\n"
 "and starts a generator on the channel. The generator's play list is\n"
 "controlled by the external application, which can add and clear entries\n"
@@ -47,6 +47,12 @@ static char *descrip =
 "if the channel is hung up. The application will not be forcibly terminated\n"
 "when the channel is hung up.\n"
 "See doc/README.externalivr for a protocol specification.\n";
+
+#define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, channel, ## __VA_ARGS__)
+
+#define send_child_event(fd, event) fprintf(fd, "%c,%10ld\n", event, time(NULL))
+
+#define send_child_event_data(fd, event, data) fprintf(fd, "%c,%10ld,%s\n", event, time(NULL), data)
 
 struct playlist_entry {
 	AST_LIST_ENTRY(playlist_entry) list;
@@ -57,7 +63,10 @@ struct localuser {
 	struct ast_channel *chan;
 	struct localuser *next;
 	AST_LIST_HEAD(playlist, playlist_entry) playlist;
+	AST_LIST_HEAD(finishlist, playlist_entry) finishlist;
 	int list_cleared;
+	int playing_silence;
+	int option_autoclear;
 };
 
 LOCAL_USER_DECL;
@@ -65,8 +74,8 @@ LOCAL_USER_DECL;
 struct gen_state {
 	struct localuser *u;
 	struct ast_filestream *stream;
+	struct playlist_entry *current;
 	int sample_queue;
-	int playing_silence;
 };
 
 static void *gen_alloc(struct ast_channel *chan, void *params)
@@ -109,30 +118,36 @@ static int gen_nextfile(struct gen_state *state)
 	struct localuser *u = state->u;
 	char *file_to_stream;
 	
-	state->u->list_cleared = 0;
-	state->playing_silence = 0;
+	u->list_cleared = 0;
+	u->playing_silence = 0;
 	gen_closestream(state);
+	if (state->current) {
+		if (!u->playing_silence) {
+			AST_LIST_LOCK(&u->finishlist);
+			AST_LIST_INSERT_TAIL(&u->finishlist, state->current, list);
+			AST_LIST_UNLOCK(&u->finishlist);
+		}
+		state->current = NULL;
+	}
 
 	while (!state->stream) {
-		if (AST_LIST_FIRST(&u->playlist))
-			entry = AST_LIST_REMOVE_HEAD(&u->playlist, list);
-		else
-			entry = NULL;
-
+		entry = AST_LIST_REMOVE_HEAD(&u->playlist, list);
 		if (entry) {
-			file_to_stream = ast_strdupa(entry->filename);
-			free(entry);
+			file_to_stream = entry->filename;
 		} else {
 			file_to_stream = "silence-10";
-			state->playing_silence = 1;
+			u->playing_silence = 1;
 		}
 
+		state->current = entry;
+
 		if (!(state->stream = ast_openstream_full(u->chan, file_to_stream, u->chan->language, 1))) {
-			ast_log(LOG_WARNING, "File '%s' could not be opened for channel '%s': %s\n", file_to_stream, u->chan->name, strerror(errno));
-			if (!state->playing_silence)
+			ast_chan_log(LOG_WARNING, u->chan->name, "File '%s' could not be opened: %s\n", file_to_stream, strerror(errno));
+			if (!u->playing_silence) {
 				continue;
-			else
+			} else { 
 				break;
+			}
 		}
 	}
 
@@ -142,13 +157,14 @@ static int gen_nextfile(struct gen_state *state)
 static struct ast_frame *gen_readframe(struct gen_state *state)
 {
 	struct ast_frame *f = NULL;
+	struct localuser *u = state->u;
 	
-	if (state->u->list_cleared ||
-	    (state->playing_silence && AST_LIST_FIRST(&state->u->playlist))) {
+	if (u->list_cleared ||
+	    (u->playing_silence && AST_LIST_FIRST(&u->playlist))) {
 		gen_closestream(state);
-		AST_LIST_LOCK(&state->u->playlist);
+		AST_LIST_LOCK(&u->playlist);
 		gen_nextfile(state);
-		AST_LIST_UNLOCK(&state->u->playlist);
+		AST_LIST_UNLOCK(&u->playlist);
 	}
 
 	if (!(state->stream && (f = ast_readframe(state->stream)))) {
@@ -174,7 +190,7 @@ static int gen_generate(struct ast_channel *chan, void *data, int len, int sampl
 		res = ast_write(chan, f);
 		ast_frfree(f);
 		if (res < 0) {
-			ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
+			ast_chan_log(LOG_WARNING, chan->name, "Failed to write frame: %s\n", strerror(errno));
 			return -1;
 		}
 		state->sample_queue -= f->samples;
@@ -237,29 +253,30 @@ static int app_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	if (pipe(child_stdin)) {
-		ast_log(LOG_WARNING, "Could not create pipe for child input on channel '%s': %s\n", chan->name, strerror(errno));
+		ast_chan_log(LOG_WARNING, chan->name, "Could not create pipe for child input: %s\n", strerror(errno));
 		goto exit;
 	}
 
 	if (pipe(child_stdout)) {
-		ast_log(LOG_WARNING, "Could not create pipe for child output on channel '%s': %s\n", chan->name, strerror(errno));
+		ast_chan_log(LOG_WARNING, chan->name, "Could not create pipe for child output: %s\n", strerror(errno));
 		goto exit;
 	}
 
 	if (pipe(child_stderr)) {
-		ast_log(LOG_WARNING, "Could not create pipe for child errors on channel '%s': %s\n", chan->name, strerror(errno));
+		ast_chan_log(LOG_WARNING, chan->name, "Could not create pipe for child errors: %s\n", strerror(errno));
 		goto exit;
 	}
 
 	u->list_cleared = 0;
 	AST_LIST_HEAD_INIT(&u->playlist);
+	AST_LIST_HEAD_INIT(&u->finishlist);
 
 	if (chan->_state != AST_STATE_UP) {
 		ast_answer(chan);
 	}
 
 	if (ast_activate_generator(chan, &gen, u) < 0) {
-		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n", chan->name);
+		ast_chan_log(LOG_WARNING, chan->name, "Failed to activate generator\n");
 		goto exit;
 	} else
 		gen_active = 1;
@@ -302,19 +319,19 @@ static int app_exec(struct ast_channel *chan, void *data)
 		close(child_stderr[1]);
 
 		if (!(child_events = fdopen(child_events_fd, "w"))) {
-			ast_log(LOG_WARNING, "Could not open stream for child events for channel '%s'\n", chan->name);
+			ast_chan_log(LOG_WARNING, chan->name, "Could not open stream for child events\n");
 			goto exit;
 		}
 
 		setvbuf(child_events, NULL, _IONBF, 0);
 
 		if (!(child_commands = fdopen(child_commands_fd, "r"))) {
-			ast_log(LOG_WARNING, "Could not open stream for child commands for channel '%s'\n", chan->name);
+			ast_chan_log(LOG_WARNING, chan->name, "Could not open stream for child commands\n");
 			goto exit;
 		}
 
 		if (!(child_errors = fdopen(child_errors_fd, "r"))) {
-			ast_log(LOG_WARNING, "Could not open stream for child errors for channel '%s'\n", chan->name);
+			ast_chan_log(LOG_WARNING, chan->name, "Could not open stream for child errors\n");
 			goto exit;
 		}
 
@@ -322,40 +339,61 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 		while (1) {
 			if (ast_test_flag(chan, AST_FLAG_ZOMBIE)) {
-				ast_log(LOG_NOTICE, "Channel '%s' is a zombie\n", chan->name);
+				ast_chan_log(LOG_NOTICE, chan->name, "Is a zombie\n");
 				res = -1;
 				break;
 			}
 
 			if (ast_check_hangup(chan)) {
-				ast_log(LOG_NOTICE, "Channel '%s' got check_hangup\n", chan->name);
-				fprintf(child_events, "H,%10ld\n", time(NULL));
+				ast_chan_log(LOG_NOTICE, chan->name, "Got check_hangup\n");
+				send_child_event(child_events, 'H');
 				res = -1;
 				break;
 			}
 
 			ready_fd = 0;
-			ms = 1000;
+			ms = 100;
 			errno = 0;
 			exception = 0;
 
 			rchan = ast_waitfor_nandfds(&chan, 1, waitfds, 2, &exception, &ready_fd, &ms);
 
+			if (!AST_LIST_EMPTY(&u->finishlist)) {
+				AST_LIST_LOCK(&u->finishlist);
+				while ((entry = AST_LIST_REMOVE_HEAD(&u->finishlist, list))) {
+					send_child_event_data(child_events, 'F', entry->filename);
+					free(entry);
+				}
+				AST_LIST_UNLOCK(&u->finishlist);
+			}
+
 			if (rchan) {
 				/* the channel has something */
 				f = ast_read(chan);
 				if (!f) {
-					fprintf(child_events, "H,%10ld\n", time(NULL));
-					ast_log(LOG_NOTICE, "Channel '%s' returned no frame\n", chan->name);
+					ast_chan_log(LOG_NOTICE, chan->name, "Returned no frame\n");
+					send_child_event(child_events, 'H');
 					res = -1;
 					break;
 				}
 
 				if (f->frametype == AST_FRAME_DTMF) {
-					fprintf(child_events, "%c,%10ld\n", f->subclass, time(NULL));
+					send_child_event(child_events, f->subclass);
+					if (u->option_autoclear) {
+						if (!u->playing_silence)
+							send_child_event(child_events, 'T');
+						AST_LIST_LOCK(&u->playlist);
+						while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+							if (!u->playing_silence)
+								send_child_event_data(child_events, 'D', entry->filename);
+							free(entry);
+						}
+						u->list_cleared = 1;
+						AST_LIST_UNLOCK(&u->playlist);
+					}
 				} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
-					ast_log(LOG_NOTICE, "Channel '%s' got AST_CONTROL_HANGUP\n", chan->name);
-					fprintf(child_events, "H,%10ld\n", time(NULL));
+					ast_chan_log(LOG_NOTICE, chan->name, "Got AST_CONTROL_HANGUP\n");
+					send_child_event(child_events, 'H');
 					ast_frfree(f);
 					res = -1;
 					break;
@@ -365,7 +403,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 				char input[1024];
 
 				if (exception || feof(child_commands)) {
-					ast_log(LOG_WARNING, "Child process went away for channel '%s'\n", chan->name);
+					ast_chan_log(LOG_WARNING, chan->name, "Child process went away\n");
 					res = -1;
 					break;
 				}
@@ -380,13 +418,18 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 				if (input[0] == 'S') {
 					if (ast_fileexists(&input[2], NULL, NULL) == -1) {
-						fprintf(child_events, "Z,%10ld\n", time(NULL));
-						ast_log(LOG_WARNING, "Unknown file requested '%s' for channel '%s'\n", &input[2], chan->name);
+						ast_chan_log(LOG_WARNING, chan->name, "Unknown file requested '%s'\n", &input[2]);
+						send_child_event(child_events, 'Z');
 						strcpy(&input[2], "exception");
 					}
+					if (!u->playing_silence)
+						send_child_event(child_events, 'T');
 					AST_LIST_LOCK(&u->playlist);
-					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
+					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
+						if (!u->playing_silence)
+							send_child_event_data(child_events, 'D', entry->filename);
 						free(entry);
+					}
 					u->list_cleared = 1;
 					entry = make_entry(&input[2]);
 					if (entry)
@@ -394,8 +437,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 					AST_LIST_UNLOCK(&u->playlist);
 				} else if (input[0] == 'A') {
 					if (ast_fileexists(&input[2], NULL, NULL) == -1) {
-						fprintf(child_events, "Z,%10ld\n", time(NULL));
-						ast_log(LOG_WARNING, "Unknown file requested '%s' for channel '%s'\n", &input[2], chan->name);
+						ast_chan_log(LOG_WARNING, chan->name, "Unknown file requested '%s'\n", &input[2]);
+						send_child_event(child_events, 'Z');
 						strcpy(&input[2], "exception");
 					}
 					entry = make_entry(&input[2]);
@@ -405,28 +448,35 @@ static int app_exec(struct ast_channel *chan, void *data)
 						AST_LIST_UNLOCK(&u->playlist);
 					}
 				} else if (input[0] == 'H') {
-					ast_log(LOG_NOTICE, "Hanging up: %s\n", &input[2]);
-					fprintf(child_events, "H,%10ld\n", time(NULL));
+					ast_chan_log(LOG_NOTICE, chan->name, "Hanging up: %s\n", &input[2]);
+					send_child_event(child_events, 'H');
 					break;
+				} else if (input[0] == 'O') {
+					if (!strcasecmp(&input[2], "autoclear"))
+						u->option_autoclear = 1;
+					else if (!strcasecmp(&input[2], "noautoclear"))
+						u->option_autoclear = 0;
+					else
+						ast_chan_log(LOG_WARNING, chan->name, "Unknown option requested '%s'\n", &input[2]);
 				}
 			} else if (ready_fd == child_errors_fd) {
 				char input[1024];
 
 				if (exception || feof(child_errors)) {
-					ast_log(LOG_WARNING, "Child process went away for channel '%s'\n", chan->name);
+					ast_chan_log(LOG_WARNING, chan->name, "Child process went away\n");
 					res = -1;
 					break;
 				}
 
 				if (fgets(input, sizeof(input), child_errors)) {
 					command = ast_strip(input);
-					ast_log(LOG_NOTICE, "%s\n", command);
+					ast_chan_log(LOG_NOTICE, chan->name, "stderr: %s\n", command);
 				}
 			} else if ((ready_fd < 0) && ms) { 
 				if (errno == 0 || errno == EINTR)
 					continue;
 
-				ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
+				ast_chan_log(LOG_WARNING, chan->name, "Wait failed (%s)\n", strerror(errno));
 				break;
 			}
 		}
@@ -484,7 +534,7 @@ int load_module(void)
 
 char *description(void)
 {
-	return tdesc;
+	return (char *) tdesc;
 }
 
 int usecount(void)
