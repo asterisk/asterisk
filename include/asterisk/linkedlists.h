@@ -305,14 +305,15 @@ struct {								\
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
 
-  Removes the head entry from the list, and returns a pointer to it. The
-  forward-link pointer in the returned entry is \b not cleared. This macro
-  is safe to call on an empty list.
+  Removes the head entry from the list, and returns a pointer to it.
+  This macro is safe to call on an empty list.
  */
 #define AST_LIST_REMOVE_HEAD(head, field) ({				\
 		typeof((head)->first) cur = (head)->first;		\
-		if (cur)						\
+		if (cur) {						\
 			(head)->first = cur->field.next;		\
+			cur->field.next = NULL;				\
+		}							\
 		cur;							\
 	})
 
