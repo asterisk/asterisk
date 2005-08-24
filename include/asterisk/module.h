@@ -297,7 +297,7 @@ void ast_unregister_atexit(void (*func)(void));
  */
 #define LOCAL_USER_ADD(u) { \
  \
-	if (!(u=(struct localuser *)malloc(sizeof(struct localuser)))) { \
+	if (!(u=calloc(1,sizeof(*u)))) { \
 		ast_log(LOG_WARNING, "Out of memory\n"); \
 		return -1; \
 	} \
@@ -312,7 +312,7 @@ void ast_unregister_atexit(void (*func)(void));
 
 #define LOCAL_USER_ACF_ADD(u) { \
  \
-	if (!(u=(struct localuser *)malloc(sizeof(struct localuser)))) { \
+	if (!(u=calloc(1,sizeof(*u)))) { \
 		ast_log(LOG_WARNING, "Out of memory\n"); \
 		return ""; \
 	} \
