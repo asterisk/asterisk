@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
 #include <netinet/in.h>
 #endif
 #include <sys/time.h>
