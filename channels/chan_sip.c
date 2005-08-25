@@ -2904,6 +2904,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	p->autokillid = -1;
 	p->stateid = -1;
 	p->prefs = prefs;
+	if (intended_method != SIP_OPTIONS)	/* Peerpoke has it's own system */
+		p->timer_t1 = 500;	/* Default SIP retransmission timer T1 (RFC 3261) */
 #ifdef OSP_SUPPORT
 	p->osphandle = -1;
 #endif	
@@ -6437,6 +6439,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			ast_copy_string(p->peermd5secret, peer->md5secret, sizeof(p->peermd5secret));
 			p->peermd5secret[sizeof(p->peermd5secret)-1] = '\0';
 			p->callingpres = peer->callingpres;
+			if (peer->maxms && peer->lastms)
+				p->timer_t1 = peer->lastms;
 			if (ast_test_flag(peer, SIP_INSECURE_INVITE)) {
 				/* Pretend there is no required authentication */
 				p->peersecret[0] = '\0';
