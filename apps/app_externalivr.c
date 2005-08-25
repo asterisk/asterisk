@@ -387,7 +387,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 				if (f->frametype == AST_FRAME_DTMF) {
 					send_child_event(child_events, f->subclass, NULL, chan);
 					if (u->option_autoclear) {
-						if (!u->playing_silence)
+						if (!u->list_cleared && !u->playing_silence)
 							send_child_event(child_events, 'T', NULL, chan);
 						AST_LIST_LOCK(&u->playlist);
 						while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
@@ -431,7 +431,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 						send_child_event(child_events, 'Z', NULL, chan);
 						strcpy(&input[2], "exception");
 					}
-					if (!u->playing_silence)
+					if (!u->list_cleared && !u->playing_silence)
 						send_child_event(child_events, 'T', NULL, chan);
 					AST_LIST_LOCK(&u->playlist);
 					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
