@@ -114,6 +114,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define DEFAULT_RETRANS		1000		/* How frequently to retransmit */
 						/* 2 * 500 ms in RFC 3261 */
 #define MAX_RETRANS		7		/* Try only 7 times for retransmissions */
+#define MAX_AUTHTRIES		3		/* Try authentication three times, then fail */
 
 
 #define DEBUG_READ	0			/* Recieved data	*/
@@ -4974,8 +4975,10 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		ast_copy_string(p->qop, r->qop, sizeof(p->qop));
 
 		memset(digest,0,sizeof(digest));
-		build_reply_digest(p, sipmethod, digest, sizeof(digest));
-		add_header(&req, "Authorization", digest);
+		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
+			add_header(&req, "Authorization", digest);
+		else
+			ast_log(LOG_NOTICE, "No authorization available for authentication of registration to %s@%s\n", r->username, r->hostname);
 	
 	}
 
@@ -5092,8 +5095,10 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 		char digest[1024];
 
 		memset(digest, 0, sizeof(digest));
-		build_reply_digest(p, sipmethod, digest, sizeof(digest));
-		add_header(&resp, "Proxy-Authorization", digest);
+		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
+			add_header(&resp, "Proxy-Authorization", digest);
+		else
+			ast_log(LOG_WARNING, "No authentication available for call %s\n", p->callid);
 	}
 	/* If we are hanging up and know a cause for that, send it in clear text to make
 		debugging easier. */
@@ -8121,6 +8126,8 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 
 	memset(&options, 0, sizeof(struct sip_invite_param));
 	p->authtries++;
+	if (option_debug > 1)
+		ast_log(LOG_DEBUG, "Auth attempt %d on %s\n", p->authtries, sip_methods[sipmethod].text);
 	memset(digest,0,sizeof(digest));
 	if (reply_digest(p, req, header, sipmethod, digest, sizeof(digest) )) {
 		/* No way to authenticate */
@@ -8135,6 +8142,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 /*--- reply_digest: reply to authentication for outbound registrations ---*/
 /*      This is used for register= servers in sip.conf, SIP proxies we register
         with  for receiving calls from.  */
+/*	Returns -1 if we have no auth */
 static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 	char *header, int sipmethod,  char *digest, int digest_len)
 {
@@ -8197,13 +8205,13 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 		ast_copy_string(r->opaque, p->opaque, sizeof(r->opaque));
 		ast_copy_string(r->qop, p->qop, sizeof(r->qop));
 	}
-	build_reply_digest(p, sipmethod, digest, digest_len); 
-	return 0;
+	return build_reply_digest(p, sipmethod, digest, digest_len); 
 }
 
 /*--- build_reply_digest:  Build reply digest ---*/
 /*      Build digest challenge for authentication of peers (for registration) 
 	and users (for calls). Also used for authentication of CANCEL and BYE */
+/*	Returns -1 if we have no auth */
 static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int digest_len)
 {
 	char a1[256];
@@ -8242,10 +8250,12 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
  		secret =  p->peersecret;
  		md5secret = p->peermd5secret;
  	}
+	if (ast_strlen_zero(username))	/* We have no authentication */
+		return -1;
  
 
  	/* Calculate SIP digest response */
- 	snprintf(a1,sizeof(a1),"%s:%s:%s",username,p->realm,secret);
+ 	snprintf(a1,sizeof(a1),"%s:%s:%s", username, p->realm, secret);
 	snprintf(a2,sizeof(a2),"%s:%s", sip_methods[method].text, uri);
 	if (!ast_strlen_zero(md5secret))
 		ast_copy_string(a1_hash, md5secret, sizeof(a1_hash));
@@ -8255,10 +8265,10 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	/* XXX We hard code the nonce-number to 1... What are the odds? Are we seriously going to keep
 	       track of every nonce we've seen? Also we hard code to "auth"...  XXX */
 	if (!ast_strlen_zero(p->qop))
-		snprintf(resp,sizeof(resp),"%s:%s:%s:%s:%s:%s",a1_hash,p->nonce, "00000001", cnonce, "auth", a2_hash);
+		snprintf(resp,sizeof(resp),"%s:%s:%s:%s:%s:%s", a1_hash, p->nonce, "00000001", cnonce, "auth", a2_hash);
 	else
-		snprintf(resp,sizeof(resp),"%s:%s:%s",a1_hash,p->nonce,a2_hash);
-	ast_md5_hash(resp_hash,resp);
+		snprintf(resp,sizeof(resp),"%s:%s:%s", a1_hash, p->nonce, a2_hash);
+	ast_md5_hash(resp_hash, resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (!ast_strlen_zero(p->qop))
 		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=auth, cnonce=\"%s\", nc=00000001", username, p->realm, uri, p->nonce, resp_hash, p->opaque, cnonce);
@@ -8632,7 +8642,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 
 	switch (resp) {
 	case 401:	/* Unauthorized */
-		if ((p->authtries > 1) || do_register_auth(p, req, "WWW-Authenticate", "Authorization")) {
+		if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "WWW-Authenticate", "Authorization")) {
 			ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s@%s' (Tries %d)\n", p->registry->username, p->registry->hostname, p->authtries);
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 			}
@@ -8651,7 +8661,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 		ast_sched_del(sched, r->timeout);
 		break;
 	case 407:	/* Proxy auth */
-		if ((p->authtries > 1) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization")) {
+		if ((p->authtries == MAX_AUTHTRIES) || do_register_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization")) {
 			ast_log(LOG_NOTICE, "Failed to authenticate on REGISTER to '%s' (tries '%d')\n", get_header(&p->initreq, "From"), p->authtries);
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 		}
@@ -8872,6 +8882,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			}
 			break;
 		case 200:	/* 200 OK */
+			p->authtries = 0;	/* Reset authentication counter */
 			if (sipmethod == SIP_MESSAGE) {
 				/* We successfully transmitted a message */
 				ast_set_flag(p, SIP_NEEDDESTROY);	
@@ -8910,13 +8921,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				} else /* It's possible we're getting an ACK after we've tried to disconnect
 						  by sending CANCEL */
 					ast_set_flag(p, SIP_PENDINGBYE);	
-				p->authtries = 0;
 				/* If I understand this right, the branch is different for a non-200 ACK only */
 				transmit_request(p, SIP_ACK, seqno, 0, 1);
 				check_pendings(p);
 			} else if (sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
-			}
+			} 
 			break;
 		case 401: /* Not www-authorized on SIP method */
 			if (sipmethod == SIP_INVITE) {
@@ -8924,9 +8934,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				transmit_request(p, SIP_ACK, seqno, 0, 0);
 				/* Then we AUTH */
 				p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", SIP_INVITE, 1)) {
+				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", SIP_INVITE, 1)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 					ast_set_flag(p, SIP_NEEDDESTROY);	
+					ast_set_flag(p, SIP_ALREADYGONE);	
+					if (p->owner)
+						ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 				}
 			} else if (p->registry && sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
@@ -8963,9 +8976,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				/* But only if the packet wasn't marked as ignore in handle_request */
 				if (!ignore){
 					p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
-					if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", SIP_INVITE, 1)) {
+					if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", SIP_INVITE, 1)) {
 						ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 						ast_set_flag(p, SIP_NEEDDESTROY);	
+						if (p->owner)
+							ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+						ast_set_flag(p, SIP_ALREADYGONE);	
 					}
 				}
 			} else if (sipmethod == SIP_BYE || sipmethod == SIP_REFER) {
@@ -8973,7 +8989,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
 					ast_set_flag(p, SIP_NEEDDESTROY);	
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
+				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(p, SIP_NEEDDESTROY);	
 				}
@@ -9078,9 +9094,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		switch(resp) {
 		case 200:
 			/* Change branch since this is a 200 response */
-			if (sipmethod == SIP_INVITE)
+			if (sipmethod == SIP_INVITE) {
 				transmit_request(p, SIP_ACK, seqno, 0, 1);
-			else if (sipmethod == SIP_MESSAGE)
+				p->authtries = 0;
+			} else if (sipmethod == SIP_MESSAGE)
 				/* We successfully transmitted a message */
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			break;
@@ -9089,7 +9106,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
 							msg, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
-				if ((p->authtries > 1) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
+				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(p, SIP_NEEDDESTROY);	
 				}
