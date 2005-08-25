@@ -1098,7 +1098,8 @@ static int retrans_pkt(void *data)
 	} 
 	/* Too many retries */
 	if (pkt->owner && pkt->method != SIP_OPTIONS) {
-		ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (ast_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (ast_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
+		if (ast_test_flag(pkt, FLAG_FATAL) || sipdebug)	/* Tell us if it's critical or if we're debugging */
+			ast_log(LOG_WARNING, "Maximum retries exceeded on call %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (ast_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (ast_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request");
 	} else {
 		if (pkt->method == SIP_OPTIONS && sipdebug)
 			ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
@@ -5749,6 +5750,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	char iabuf[INET_ADDRSTRLEN];
 	char *name, *c;
 	char *t;
+
 	/* Terminate URI */
 	t = uri;
 	while(*t && (*t > 32) && (*t != ';'))
@@ -5781,7 +5783,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	}
 	if (peer) {
 		if (!ast_test_flag(peer, SIP_DYNAMIC)) {
-			ast_log(LOG_NOTICE, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
+			ast_log(LOG_ERROR, "Peer '%s' is trying to register, but not configured as host=dynamic\n", peer->name);
 		} else {
 			ast_copy_flags(p, peer, SIP_NAT);
 			transmit_response(p, "100 Trying", req);
@@ -8232,7 +8234,8 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
  		username = auth->username;
  		secret = auth->secret;
  		md5secret = auth->md5secret;
- 		ast_log(LOG_NOTICE,"Using realm %s authentication for this call\n", p->realm);
+		if (sipdebug)
+ 			ast_log(LOG_DEBUG,"Using realm %s authentication for call %s\n", p->realm, p->callid);
  	} else {
  		/* No authentication, use peer or register= config */
  		username = p->authname;
@@ -9807,23 +9810,15 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
 	copy_request(&p->initreq, req);
 	check_via(p, req);
 	if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
-		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s'\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
+		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : "Username/auth name mismatch");
 	if (res < 1) {
-		/* Go ahead and free RTP port */
-		if (p->rtp && !p->owner) {
-			ast_rtp_destroy(p->rtp);
-			p->rtp = NULL;
-		}
-		if (p->vrtp && !p->owner) {
-			ast_rtp_destroy(p->vrtp);
-			p->vrtp = NULL;
-		}
 		/* Destroy the session, but keep us around for just a bit in case they don't
 		   get our 200 OK */
 		sip_scheddestroy(p, 15*1000);
 	}
 	return res;
 }
+
 /*--- handle_request: Handle SIP requests (methods) ---*/
 /*      this is where all incoming requests go first   */
 static int handle_request(struct sip_pvt *p, struct sip_request *req, struct sockaddr_in *sin, int *recount, int *nounlock)
