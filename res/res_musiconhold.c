@@ -471,7 +471,7 @@ static void *monmp3thread(void *data)
 		/* Spawn mp3 player if it's not there */
 		if (class->srcfd < 0) {
 			if ((class->srcfd = spawn_mp3(class)) < 0) {
-				ast_log(LOG_WARNING, "unable to spawn mp3player\n");
+				ast_log(LOG_WARNING, "Unable to spawn mp3player\n");
 				/* Try again later */
 				sleep(500);
 			}
@@ -1135,24 +1135,25 @@ static struct ast_cli_entry  cli_moh_classes_show = { { "moh", "classes", "show"
 
 static struct ast_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
 
-static void init_classes(void) 
+static int init_classes(void) 
 {
 	struct mohclass *moh;
     
-	load_moh_classes();
+	if (!load_moh_classes()) 		/* Load classes from config */
+		return 0;			/* Return if nothing is found */
 	moh = mohclasses;
 	while (moh) {
 		if (moh->total_files)
 			moh_scan_files(moh);
 		moh = moh->next;
 	}
+	return 1;
 }
 
 int load_module(void)
 {
 	int res;
 
-	ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
 	res = ast_register_application(app0, moh0_exec, synopsis0, descrip0);
 	ast_register_atexit(ast_moh_destroy);
 	ast_cli_register(&cli_moh);
@@ -1167,14 +1168,19 @@ int load_module(void)
 	if (!res)
 		res = ast_register_application(app4, moh4_exec, synopsis4, descrip4);
 
-	init_classes();
+	if (!init_classes()) { 	/* No music classes configured, so skip it */
+		ast_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.");
+	} else {
+		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
+	}
 
 	return 0;
 }
 
 int reload(void)
 {
-	init_classes();
+	if (init_classes())
+		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
 
 	return 0;
 }
