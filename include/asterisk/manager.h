@@ -1,17 +1,17 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
+ * AMI - Asterisk Management Interface
  * External call management support 
  * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2005, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License.
  *
- * Includes code and algorithms from the Zapata library.
- *
+ * $Revision$
  */
 
 #ifndef _ASTERISK_MANAGER_H
@@ -35,11 +35,13 @@
  
  The first header type is the "Event" header.  Other headers vary from
  event to event.  Headers end with standard \r\n termination.
+ The last line of the manager response or event is an empty line.
+ (\r\n)
  
- Some standard headers:
-
- Action: <action>		-- request or notification of a particular action
- Response: <response>		-- response code, like "200 OK"
+ ** Please try to re-use existing headers to simplify manager message parsing in clients.
+    Don't re-use an existing header with a new meaning, please.
+    You can find a reference of standard headers in
+    doc/manager.txt
  
  */
  
