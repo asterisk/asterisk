@@ -23,7 +23,7 @@ directory=/var/lib/asterisk/mohmp3
 
 ;[ulawstream]
 ;mode=custom
-;application=/usr/bin/streamplayer 80.254.173.176 888
+;application=/usr/bin/streamplayer 192.168.100.52 888
 ;format=ulaw
 
 ; mpg123 on Solaris does not always exit properly; madplay may be a better choice
