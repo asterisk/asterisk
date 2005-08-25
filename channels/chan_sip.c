@@ -358,6 +358,8 @@ static struct in_addr __ourip;
 static struct sockaddr_in outboundproxyip;
 static int ourport;
 
+#define SIP_DEBUG_CONFIG 1 << 0
+#define SIP_DEBUG_CONSOLE 1 << 1
 static int sipdebug = 0;
 static struct sockaddr_in debugaddr;
 
@@ -7944,7 +7946,7 @@ static int sip_do_debug_ip(int fd, int argc, char *argv[])
 		ast_cli(fd, "SIP Debugging Enabled for IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr));
 	else
 		ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), port);
-	sipdebug = 1;
+	sipdebug |= SIP_DEBUG_CONSOLE;
 	return RESULT_SUCCESS;
 }
 
@@ -7962,7 +7964,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 			memcpy(&debugaddr.sin_addr, &peer->addr.sin_addr, sizeof(debugaddr.sin_addr));
 			debugaddr.sin_port = peer->addr.sin_port;
 			ast_cli(fd, "SIP Debugging Enabled for IP: %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), debugaddr.sin_addr), ntohs(debugaddr.sin_port));
-			sipdebug = 1;
+			sipdebug |= SIP_DEBUG_CONSOLE;
 		} else
 			ast_cli(fd, "Unable to get IP address of peer '%s'\n", argv[3]);
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
@@ -7974,7 +7976,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 /*--- sip_do_debug: Turn on SIP debugging (CLI command) */
 static int sip_do_debug(int fd, int argc, char *argv[])
 {
-	int oldsipdebug = sipdebug;
+	int oldsipdebug = sipdebug & SIP_DEBUG_CONSOLE;
 	if (argc != 2) {
 		if (argc != 4) 
 			return RESULT_SHOWUSAGE;
@@ -7984,7 +7986,7 @@ static int sip_do_debug(int fd, int argc, char *argv[])
 			return sip_do_debug_peer(fd, argc, argv);
 		else return RESULT_SHOWUSAGE;
 	}
-	sipdebug = 1;
+	sipdebug |= SIP_DEBUG_CONSOLE;
 	memset(&debugaddr, 0, sizeof(debugaddr));
 	if (oldsipdebug)
 		ast_cli(fd, "SIP Debugging re-enabled\n");
@@ -8078,7 +8080,7 @@ static int sip_no_debug(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	sipdebug = 0;
+	sipdebug &= ~SIP_DEBUG_CONSOLE;
 	ast_cli(fd, "SIP Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
@@ -11128,6 +11130,7 @@ static int reload_config(void)
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 	memset(&prefs, 0 , sizeof(prefs));
+	sipdebug &= ~SIP_DEBUG_CONFIG;
 
 	/* Initialize some reasonable defaults at SIP reload */
 	ast_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
@@ -11268,7 +11271,8 @@ static int reload_config(void)
 			if (default_expiry < 1)
 				default_expiry = DEFAULT_DEFAULT_EXPIRY;
 		} else if (!strcasecmp(v->name, "sipdebug")) {
-			sipdebug = ast_true(v->value);
+			if (ast_true(v->value))
+				sipdebug |= SIP_DEBUG_CONFIG;
 		} else if (!strcasecmp(v->name, "dumphistory")) {
 			dumphistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "recordhistory")) {
