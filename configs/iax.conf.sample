@@ -362,8 +362,15 @@ host=216.207.245.47
 ;host=asterisk.linux-support.net
 ;port=5036
 ;mask=255.255.255.255
-;qualify=yes	; Make sure this peer is alive
-;jitterbuffer=no	; Turn off jitter buffer for this peer
+;qualify=yes			; Make sure this peer is alive
+;qualifysmoothing = yes		; use an average of the last two PONG
+				; results to reduce falsly detected LAGGED hosts
+				; Default: Off
+;qualifyfreqok = 60000		; how frequently to ping the peer when
+				; everything seems to be ok, in milliseconds
+;qualifyfreqnotok = 10000	; how frequently to ping the peer when it's
+				; either LAGGED or UNAVAILABLE, in milliseconds
+;jitterbuffer=no		; Turn off jitter buffer for this peer
 
 ;
 ; Peers can remotely register as well, so that they can be
