@@ -1017,7 +1017,7 @@ static int append_history(struct sip_pvt *p, char *event, char *data)
 	struct sip_history *hist, *prev;
 	char *c;
 
-	if (!recordhistory)
+	if (!recordhistory || !p)
 		return 0;
 	if(!(hist = malloc(sizeof(struct sip_history)))) {
 		ast_log(LOG_WARNING, "Can't allocate memory for history");
@@ -4747,7 +4747,7 @@ static int sip_reregister(void *data)
 	if (!r)
 		return 0;
 
-	if (recordhistory) {
+	if (r->call && recordhistory) {
 		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "Account: %s@%s", r->username, r->hostname);
 		append_history(r->call, "RegistryRenew", tmp);
@@ -4759,7 +4759,7 @@ static int sip_reregister(void *data)
 
 	r->expire = -1;
 	__sip_do_register(r);
-	ASTOBJ_UNREF(r,sip_registry_destroy);
+	ASTOBJ_UNREF(r, sip_registry_destroy);
 	return 0;
 }
 
@@ -4767,7 +4767,8 @@ static int sip_reregister(void *data)
 static int __sip_do_register(struct sip_registry *r)
 {
 	int res;
-	res=transmit_register(r, SIP_REGISTER, NULL, NULL);
+
+	res = transmit_register(r, SIP_REGISTER, NULL, NULL);
 	return res;
 }
 
