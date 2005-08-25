@@ -26,6 +26,13 @@ directory=/var/lib/asterisk/mohmp3
 ;application=/usr/bin/streamplayer 80.254.173.176 888
 ;format=ulaw
 
+; mpg123 on Solaris does not always exit properly; madplay may be a better choice
+;[solaris]
+;mode=custom
+;directory=/var/lib/asterisk/mohmp3
+;application=/site/sw/bin/madplay -Q -o raw:- --mono -R 8000 -a -12
+;
+
 ;
 ; File-based (native) music on hold
 ;
