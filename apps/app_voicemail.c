@@ -220,20 +220,21 @@ static void apply_options(struct ast_vm_user *vmu, const char *options);
 
 #ifdef USE_ODBC_STORAGE
 static char odbc_database[80];
+static char odbc_table[80];
 #define RETRIEVE(a,b) retrieve_file(a,b)
 #define DISPOSE(a,b) remove_file(a,b)
-#define STORE(a,b) store_file(a,b)
+#define STORE(a,b,c,d) store_file(a,b,c,d)
 #define EXISTS(a,b,c,d) (message_exists(a,b))
-#define RENAME(a,b,c,d,e,f) (rename_file(a,b,c,d))
-#define COPY(a,b,c,d,e,f) (copy_file(a,b,c,d))
+#define RENAME(a,b,c,d,e,f,g,h) (rename_file(a,b,c,d,e,f))
+#define COPY(a,b,c,d,e,f,g,h) (copy_file(a,b,c,d,e,f))
 #define DELETE(a,b,c) (delete_file(a,b))
 #else
 #define RETRIEVE(a,b)
 #define DISPOSE(a,b)
-#define STORE(a,b)
+#define STORE(a,b,c,d)
 #define EXISTS(a,b,c,d) (ast_fileexists(c,NULL,d) > 0)
-#define RENAME(a,b,c,d,e,f) (rename_file(e,f));
-#define COPY(a,b,c,d,e,f) (copy_file(e,f));
+#define RENAME(a,b,c,d,e,f,g,h) (rename_file(g,h));
+#define COPY(a,b,c,d,e,f,g,h) (copy_file(g,h));
 #define DELETE(a,b,c) (vm_delete(c))
 #endif
 
@@ -757,7 +758,7 @@ static int retrieve_file(char *dir, int msgnum)
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "SELECT * FROM voicemessages WHERE dir=? AND msgnum=?");
+		snprintf(sql, sizeof(sql), "SELECT * FROM %s WHERE dir=? AND msgnum=?",odbc_table);
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -843,7 +844,8 @@ static int retrieve_file(char *dir, int msgnum)
 						fprintf(f, "%s=%s\n", coltitle, rowdata);
 				}
 			}
-		}
+		} else if (msgnum > -1) /* msgnum will be -1 if the message hasn't yet been saved */
+			ast_log(LOG_WARNING, "Failed to retrieve rows for msgnum=%s and dir=%s\n", msgnums, dir);
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
@@ -891,7 +893,7 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM voicemessages WHERE dir=?");
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=?",odbc_table);
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -951,7 +953,7 @@ static int message_exists(char *dir, int msgnum)
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM voicemessages WHERE dir=? AND msgnum=?");
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir=? AND msgnum=?",odbc_table);
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1015,7 +1017,7 @@ static void delete_file(char *sdir, int smsg)
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "DELETE FROM voicemessages WHERE dir=? AND msgnum=?");
+		snprintf(sql, sizeof(sql), "DELETE FROM %s WHERE dir=? AND msgnum=?",odbc_table);
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1043,7 +1045,7 @@ yuck:
 	return;	
 }
 
-static void copy_file(char *sdir, int smsg, char *ddir, int dmsg)
+static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailboxuser, char *dmailboxcontext)
 {
 	int res;
 	SQLLEN rowcount=0;
@@ -1063,7 +1065,11 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg)
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "INSERT INTO voicemessages (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording FROM voicemessages WHERE dir=? AND msgnum=?");
+#ifdef EXTENDED_ODBC_STORAGE
+		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording, mailboxuser, mailboxcontext) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording,?,? FROM %s WHERE dir=? AND msgnum=?",odbc_table,odbc_table); 
+#else
+ 		snprintf(sql, sizeof(sql), "INSERT INTO %s (dir, msgnum, context, macrocontext, callerid, origtime, duration, recording) SELECT ?,?,context,macrocontext,callerid,origtime,duration,recording FROM %s WHERE dir=? AND msgnum=?",odbc_table,odbc_table); 
+#endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1072,8 +1078,15 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg)
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ddir), 0, (void *)ddir, 0, NULL);
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnumd), 0, (void *)msgnumd, 0, NULL);
-		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
-		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+#ifdef EXTENDED_ODBC_STORAGE
+		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dmailboxuser), 0, (void *)dmailboxuser, 0, NULL);
+		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(dmailboxcontext), 0, (void *)dmailboxcontext, 0, NULL);
+		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
+		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+#else
+ 		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
+ 		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+#endif		 
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
@@ -1093,7 +1106,7 @@ yuck:
 	return;	
 }
 
-static int store_file(char *dir, int msgnum)
+static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int msgnum)
 {
 	int x = 0;
 	int res;
@@ -1163,10 +1176,18 @@ static int store_file(char *dir, int msgnum)
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
-		if (!ast_strlen_zero(category)) 
-			snprintf(sql, sizeof(sql), "INSERT INTO voicemessages (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,category) VALUES (?,?,?,?,?,?,?,?,?)");
-		else
-			snprintf(sql, sizeof(sql), "INSERT INTO voicemessages (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)");
+ 		if (!ast_strlen_zero(category)) 
+#ifdef EXTENDED_ODBC_STORAGE
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext,category) VALUES (?,?,?,?,?,?,?,?,?,?,?)",odbc_table); 
+#else
+ 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,category) VALUES (?,?,?,?,?,?,?,?,?)",odbc_table);
+#endif
+ 		else
+#ifdef EXTENDED_ODBC_STORAGE
+			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext) VALUES (?,?,?,?,?,?,?,?,?,?)",odbc_table);
+#else
+ 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)",odbc_table);
+#endif		 
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1182,8 +1203,15 @@ static int store_file(char *dir, int msgnum)
 		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(callerid), 0, (void *)callerid, 0, NULL);
 		SQLBindParameter(stmt, 7, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(origtime), 0, (void *)origtime, 0, NULL);
 		SQLBindParameter(stmt, 8, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(duration), 0, (void *)duration, 0, NULL);
+#ifdef EXTENDED_ODBC_STORAGE
+		SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxuser), 0, (void *)mailboxuser, 0, NULL);
+		SQLBindParameter(stmt, 10, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxcontext), 0, (void *)mailboxcontext, 0, NULL);
 		if (!ast_strlen_zero(category))
-			SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(category), 0, (void *)category, 0, NULL);
+			SQLBindParameter(stmt, 11, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(category), 0, (void *)category, 0, NULL);
+#else
+ 		if (!ast_strlen_zero(category))
+ 			SQLBindParameter(stmt, 9, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(category), 0, (void *)category, 0, NULL);
+#endif
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -1209,7 +1237,7 @@ yuck:
 	return x;
 }
 
-static void rename_file(char *sdir, int smsg, char *ddir, int dmsg)
+static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxcontext, char *ddir, int dmsg)
 {
 	int res;
 	SQLLEN rowcount=0;
@@ -1229,7 +1257,11 @@ static void rename_file(char *sdir, int smsg, char *ddir, int dmsg)
 			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
 			goto yuck;
 		}
-		snprintf(sql, sizeof(sql), "UPDATE voicemessages SET dir=?, msgnum=? WHERE dir=? AND msgnum=?");
+#ifdef EXTENDED_ODBC_STORAGE
+		snprintf(sql, sizeof(sql), "UPDATE %s SET dir=?, msgnum=?, mailboxuser=?, mailboxcontext=? WHERE dir=? AND msgnum=?",odbc_table);
+#else
+ 		snprintf(sql, sizeof(sql), "UPDATE %s SET dir=?, msgnum=? WHERE dir=? AND msgnum=?",odbc_table);
+#endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -1238,8 +1270,15 @@ static void rename_file(char *sdir, int smsg, char *ddir, int dmsg)
 		}
 		SQLBindParameter(stmt, 1, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(ddir), 0, (void *)ddir, 0, NULL);
 		SQLBindParameter(stmt, 2, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnumd), 0, (void *)msgnumd, 0, NULL);
-		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
-		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+#ifdef EXTENDED_ODBC_STORAGE
+		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxuser), 0, (void *)mailboxuser, 0, NULL);
+		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(mailboxcontext), 0, (void *)mailboxcontext, 0, NULL);
+		SQLBindParameter(stmt, 5, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
+		SQLBindParameter(stmt, 6, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+#else
+ 		SQLBindParameter(stmt, 3, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(sdir), 0, (void *)sdir, 0, NULL);
+ 		SQLBindParameter(stmt, 4, SQL_PARAM_INPUT, SQL_C_CHAR, SQL_CHAR, strlen(msgnums), 0, (void *)msgnums, 0, NULL);
+#endif		 
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
@@ -1896,6 +1935,201 @@ static char *mbox(int id)
 	}
 }
 
+#ifdef USE_ODBC_STORAGE
+static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
+{
+	int x = 0;
+	int res;
+	SQLLEN rowcount=0;
+	SQLHSTMT stmt;
+	char sql[256];
+	char rowdata[20];
+	char tmp[256]="";
+        char *context;
+
+        if (newmsgs)
+                *newmsgs = 0;
+        if (oldmsgs)
+                *oldmsgs = 0;
+        /* If no mailbox, return immediately */
+        if (ast_strlen_zero(mailbox))
+                return 0;
+
+        ast_copy_string(tmp, mailbox, sizeof(tmp));
+        
+	context = strchr(tmp, '@');
+        if (context) {   
+                *context = '\0';
+                context++;
+        } else  
+                context = "default";
+	
+	odbc_obj *obj;
+	obj = fetch_odbc_obj(odbc_database, 0);
+	if (obj) {
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir like \"%%%s/%s/%s\"%c", odbc_table, context, tmp, "INBOX", '\0');
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = odbc_smart_execute(obj, stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		*newmsgs = atoi(rowdata);
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+
+		res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+			goto yuck;
+		}
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir like \"%%%s/%s/%s\"%c", odbc_table, context, tmp, "Old", '\0');
+		res = SQLPrepare(stmt, sql, SQL_NTS);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = odbc_smart_execute(obj, stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLRowCount(stmt, &rowcount);
+		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
+			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLFetch(stmt);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+		*oldmsgs = atoi(rowdata);
+		x = 1;
+	} else
+		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+		
+yuck:	
+	return x;
+}
+
+static int has_voicemail(const char *mailbox, const char *folder)
+{
+	int nummsgs = 0;
+        int res;
+        SQLLEN rowcount=0;
+        SQLHSTMT stmt;
+        char sql[256];
+        char rowdata[20];
+        char tmp[256]="";
+        char *context;
+	if (!folder)
+                folder = "INBOX";
+	/* If no mailbox, return immediately */
+        if (ast_strlen_zero(mailbox))
+                return 0;
+
+	ast_copy_string(tmp, mailbox, sizeof(tmp));
+                        
+        context = strchr(tmp, '@');
+        if (context) {
+                *context = '\0';
+                context++;
+        } else
+                context = "default";
+
+        odbc_obj *obj;
+        obj = fetch_odbc_obj(odbc_database, 0);
+        if (obj) {
+                res = SQLAllocHandle(SQL_HANDLE_STMT, obj->con, &stmt);
+                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+                        ast_log(LOG_WARNING, "SQL Alloc Handle failed!\n");
+                        goto yuck;
+                }
+		snprintf(sql, sizeof(sql), "SELECT COUNT(*) FROM %s WHERE dir like \"%%%s/%s/%s\"%c", odbc_table, context, tmp, "INBOX", '\0');
+                res = SQLPrepare(stmt, sql, SQL_NTS);
+                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {  
+                        ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
+                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+                        goto yuck;
+                }
+                res = odbc_smart_execute(obj, stmt);
+                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+                        ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
+                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+                        goto yuck;
+                }
+                res = SQLRowCount(stmt, &rowcount);
+                if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
+                        ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+                        goto yuck;
+                }
+                res = SQLFetch(stmt);
+                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+                        ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+                        goto yuck;
+                }
+                res = SQLGetData(stmt, 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+                if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+                        ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+                        goto yuck;
+                }
+                nummsgs = atoi(rowdata);
+                SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+       } else
+                ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
+
+yuck:
+	if (nummsgs>=1)
+		return 1;
+	else
+		return 0;
+}
+
+#else
+
 static int has_voicemail(const char *mailbox, const char *folder)
 {
 	DIR *dir;
@@ -1942,6 +2176,7 @@ static int has_voicemail(const char *mailbox, const char *folder)
 		return 1;
 	return 0;
 }
+
 
 static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
@@ -2014,6 +2249,8 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 	return 0;
 }
 
+#endif
+
 static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu, int msgnum, long duration, char *fmt, char *cidnum, char *cidname);
 
 static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int imbox, int msgnum, long duration, struct ast_vm_user *recip, char *fmt)
@@ -2050,7 +2287,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 		recipmsgnum++;
 	} while (recipmsgnum < recip->maxmsg);
 	if (recipmsgnum < recip->maxmsg) {
-		COPY(fromdir, msgnum, todir, recipmsgnum, frompath, topath);
+		COPY(fromdir, msgnum, todir, recipmsgnum, recip->mailbox, recip->context, frompath, topath);
 	} else {
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
@@ -2347,7 +2584,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, int silent, int 
 				}
 				if (ast_fileexists(fn, NULL, NULL)) {
 					notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
-					STORE(dir, msgnum);
+					STORE(dir, vmu->mailbox, vmu->context, msgnum);
 					DISPOSE(dir, msgnum);
 				}
 			} else {
@@ -2388,7 +2625,7 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir)
 			
 			if(x != dest) {
 				make_file(dfn, sizeof(dfn), dir, dest);
-				RENAME(dir, x, dir, dest, sfn, dfn);
+				RENAME(dir, x, vmu->mailbox, vmu->context, dir, dest, sfn, dfn);
 			}
 			
 			dest++;
@@ -2431,7 +2668,7 @@ static int save_to_folder(struct ast_vm_user *vmu, char *dir, int msg, char *con
 		return -1;
 	}
 	if (strcmp(sfn, dfn)) {
-		COPY(dir, msg, ddir, x, sfn, dfn);
+		COPY(dir, msg, ddir, x, username, context, sfn, dfn);
 	}
 	ast_unlock_path(ddir);
 	
@@ -3591,7 +3828,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			vms->curmsg++; 
 			make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg); 
 			if (strcmp(vms->fn, vms->fn2)) { 
-				RENAME(vms->curdir, x, vms->curdir, vms->curmsg, vms->fn, vms->fn2);
+				RENAME(vms->curdir, x, vmu->mailbox,vmu->context, vms->curdir, vms->curmsg, vms->fn, vms->fn2);
 			} 
 		} else if (!strcasecmp(vms->curbox, "INBOX") && vms->heard[x] && !vms->deleted[x]) { 
 			/* Move to old folder before deleting */ 
@@ -5539,6 +5776,10 @@ static int load_config(void)
 		if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbcstorage"))) {
 			ast_copy_string(odbc_database, thresholdstr, sizeof(odbc_database));
 		}
+		strcpy(odbc_table, "voicemessages");
+                if ((thresholdstr = ast_variable_retrieve(cfg, "general", "odbctable"))) {
+                        ast_copy_string(odbc_table, thresholdstr, sizeof(odbc_table));
+                }
 #endif		
 		/* Mail command */
 		strcpy(mailcmd, SENDMAIL);
@@ -5942,6 +6183,13 @@ int load_module(void)
 
 	ast_install_vm_functions(has_voicemail, messagecount);
 
+#if defined(USE_ODBC_STORAGE) && !defined(EXTENDED_ODBC_STORAGE)
+	ast_log(LOG_WARNING, "The current ODBC storage table format will be changed soon."
+				"Please update your tables as per the README and edit the apps/Makefile "
+				"and uncomment the line containing EXTENDED_ODBC_STORAGE to enable the "
+				"new table format.\n");
+#endif
+
 	return res;
 }
 
@@ -6200,7 +6448,7 @@ static int play_record_review(struct ast_channel *chan, char *playfile, char *re
  				ast_verbose(VERBOSE_PREFIX_3 "Saving message as is\n");
  				ast_streamfile(chan, "vm-msgsaved", chan->language);
  				ast_waitstream(chan, "");
-				STORE(recordfile, -1);
+				STORE(recordfile, vmu->mailbox, vmu->context, -1);
 				DISPOSE(recordfile, -1);
  				cmd = 't';
  				return res;

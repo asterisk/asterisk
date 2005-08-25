@@ -71,7 +71,11 @@ CFLAGS+=-fPIC
 # If you have MySQL 4.1 or later you can use ODBC
 # storage
 #
+# Uncomment to use odbc storage
 #CFLAGS+=-DUSE_ODBC_STORAGE
+# Uncomment for extended odbc voicemail storage
+#CFLAGS+=-DEXTENDED_ODBC_STORAGE
+# See doc/README.odbcstorage for more information
 
 all: $(APPS)
 
