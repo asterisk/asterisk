@@ -5,7 +5,7 @@
  * 
  * Copyright (c) 2003 - 2005 Tilghman Lesher.  All rights reserved.
  *
- * Tilghman Lesher <asterisk__app_random__20040111@the-tilghman.com>
+ * Tilghman Lesher <asterisk__app_random__200508@the-tilghman.com>
  *
  * This code is released by the author with no restrictions on usage or distribution.
  *
@@ -41,15 +41,16 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
+static char random_state[256];
+
 static int random_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
 
 	char *s;
-	char *exten, *pri, *context;
 	char *prob;
-	int probint, priorityint;
+	int probint;
 
 	if (!data) {
 		ast_log(LOG_WARNING, "Random requires an argument ([probability]:[[context|]extension|]priority)\n");
@@ -63,42 +64,12 @@ static int random_exec(struct ast_channel *chan, void *data)
 		probint = 0;
 
 	if ((random() % 100) + probint > 100) {
-		context = strsep(&s, "|");
-		exten = strsep(&s, "|");
-		if (!exten) {
-			/* Only a priority */
-			pri = context;
-			exten = NULL;
-			context = NULL;
-		} else {
-			pri = strsep(&s, "|");
-			if (!pri) {
-				pri = exten;
-				exten = context;
-				context = NULL;
-			}
-		}
-		if (!pri) {
-			ast_log(LOG_WARNING, "No label specified\n");
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		} else if (sscanf(pri, "%d", &priorityint) != 1) {
-			ast_log(LOG_WARNING, "Priority '%s' must be a number > 0\n", pri);
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
-		/* At this point we have a priority and */
-		/* maybe an extension and a context     */
-		chan->priority = priorityint - 1;
-		if (exten && strcasecmp(exten, "BYEXTENSION"))
-			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-		if (context)
-			strncpy(chan->context, context, sizeof(chan->context)-1);
+		res = ast_parseable_goto(chan, s);
 		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
 				chan->context,chan->exten, chan->priority+1);
-		LOCAL_USER_REMOVE(u);
 	}
+	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
@@ -110,6 +81,7 @@ int unload_module(void)
 
 int load_module(void)
 {
+	initstate((getppid() * 65535 + getpid()) % RAND_MAX, random_state, 256);
 	return ast_register_application(app_random, random_exec, random_synopsis, random_descrip);
 }
 
