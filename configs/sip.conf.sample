@@ -169,20 +169,25 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; route = Assume NAT, don't send rport 
 				; (work around more UNIDEN bugs)
 
-;rtcachefriends=yes ; Cache realtime friends by adding them to the internal list
-			        ; just like friends added from the config file only on a
-                                ; as-needed basis.
-;rtnoupdate=yes ; do not send the update request over realtime.
-;rtautoclear=yes ; Auto-Expire friends created on the fly on the same schedule
-                                ; as if it had just registered when the registration expires
-                                ; the friend will vanish from the configuration until requested
-                                ; again.  If set to an integer, friends expire
-				; within this number of seconds instead of the
-				; same as the registration interval
-;rtignoreexpire=yes		; when reading a peer from Realtime, if the peer's registration
-				; has expired based on its registration interval, used the stored
-				; address information regardless
+;rtcachefriends=yes		; Cache realtime friends by adding them to the internal list
+				; just like friends added from the config file only on a
+				; as-needed basis? (yes|no)
 
+;rtupdate=yes			; Send registry updates to database using realtime? (yes|no)
+				; If set to yes, when a SIP UA registers successfully, the ip address,
+				; the origination port, the registration period, and the username of
+				; the UA will be set to database via realtime. If not present, defaults to 'yes'.
+
+;rtautoclear=yes		; Auto-Expire friends created on the fly on the same schedule
+				; as if it had just registered? (yes|no|<seconds>)
+				; If set to yes, when the registration expires, the friend will vanish from
+				; the configuration until requested again. If set to an integer,
+				; friends expire within this number of seconds instead of the
+				; registration interval.
+
+;rtignoreexpire=yes		; When reading a peer from Realtime, if the peer's registration
+				; has expired based on its registration interval, used the stored
+				; address information regardless. (yes|no)
 
 [authentication]
 ; Global credentials for outbound calls, i.e. when a proxy challenges your

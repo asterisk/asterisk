@@ -494,7 +494,7 @@ struct sip_auth {
 
 /* a new page of flags for peer */
 #define SIP_PAGE2_RTCACHEFRIENDS 	(1 << 0)
-#define SIP_PAGE2_RTNOUPDATE 		(1 << 1)
+#define SIP_PAGE2_RTUPDATE 		(1 << 1)
 #define SIP_PAGE2_RTAUTOCLEAR 		(1 << 2)
 #define SIP_PAGE2_RTIGNOREREGEXPIRE       (1 << 3)
 
@@ -1552,7 +1552,7 @@ static void sip_destroy_peer(struct sip_peer *peer)
 /*--- update_peer: Update peer data in database (if used) ---*/
 static void update_peer(struct sip_peer *p, int expiry)
 {
-	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_RTNOUPDATE) && 
+	if (ast_test_flag((&global_flags_page2), SIP_PAGE2_RTUPDATE) &&
 		(ast_test_flag(p, SIP_REALTIME) || 
 		 ast_test_flag(&(p->flags_page2), SIP_PAGE2_RTCACHEFRIENDS))) {
 		realtime_update_peer(p->name, &p->addr, p->username, expiry);
@@ -7496,7 +7496,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 		ast_cli(fd, "  Realtime Peers:         %s\n", realtimepeers ? "Yes" : "No");
 		ast_cli(fd, "  Realtime Users:         %s\n", realtimeusers ? "Yes" : "No");
 		ast_cli(fd, "  Cache Friends:          %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_RTCACHEFRIENDS) ? "Yes" : "No");
-		ast_cli(fd, "  No update:              %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_RTNOUPDATE) ? "Yes" : "No");
+		ast_cli(fd, "  Update:                 %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE) ? "Yes" : "No");
 		ast_cli(fd, "  Ignore Reg. Expire:     %s\n", ast_test_flag(&global_flags_page2, SIP_PAGE2_RTIGNOREREGEXPIRE) ? "Yes" : "No");
 		ast_cli(fd, "  Auto Clear:             %d\n", global_rtautoclear);
 	}
@@ -11177,6 +11177,7 @@ static int reload_config(void)
 	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);
 	ast_set_flag(&global_flags, SIP_NAT_RFC3581);
 	ast_set_flag(&global_flags, SIP_CAN_REINVITE);
+	ast_set_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE);
 	global_mwitime = DEFAULT_MWITIME;
 	strcpy(global_vmexten, DEFAULT_VMEXTEN);
 	srvlookup = 0;
@@ -11205,8 +11206,8 @@ static int reload_config(void)
 				default_useragent);
 		} else if (!strcasecmp(v->name, "rtcachefriends")) {
 			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
-		} else if (!strcasecmp(v->name, "rtnoupdate")) {
-			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTNOUPDATE);	
+		} else if (!strcasecmp(v->name, "rtupdate")) {
+			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTUPDATE);	
 		} else if (!strcasecmp(v->name, "rtignoreregexpire")) {
 			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTIGNOREREGEXPIRE);	
 		} else if (!strcasecmp(v->name, "rtautoclear")) {
