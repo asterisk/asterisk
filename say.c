@@ -282,6 +282,7 @@ int ast_say_digits(struct ast_channel *chan, int num, const char *ints, const ch
       pt    - Portuguese
       se    - Swedish
       tw    - Taiwanese
+      ru    - Russian
 
  Gender:
  For Some languages the numbers differ for gender and plural
@@ -332,6 +333,7 @@ static int ast_say_number_full_pt(struct ast_channel *chan, int num, const char 
 static int ast_say_number_full_se(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
 static int ast_say_number_full_gr(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
+static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd);
 
 /* Forward declarations of language specific variants of ast_say_enumeration_full */
 static int ast_say_enumeration_full_en(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd);
@@ -424,7 +426,9 @@ int ast_say_number_full(struct ast_channel *chan, int num, const char *ints, con
 	} else if (!strcasecmp(language, "tw")) {	/* Taiwanese syntax */
 	   return(ast_say_number_full_tw(chan, num, ints, language, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "gr") ) {	/* Greek syntax */
-		return(ast_say_number_full_gr(chan, num, ints, language, audiofd, ctrlfd));
+	   return(ast_say_number_full_gr(chan, num, ints, language, audiofd, ctrlfd));
+	} else if (!strcasecmp(language, "ru") ) {	/* Russian syntax */
+	   return(ast_say_number_full_ru(chan, num, ints, language, options, audiofd, ctrlfd));
 	}
 
 	/* Default to english */
@@ -2139,6 +2143,113 @@ static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char 
 	}
 	return res;
 }
+
+
+/*--- determine last digits for thousands/millions (ru) */
+static int get_lastdigits_ru(int num) {
+	if (num < 20) {
+		return num;
+	} else if (num < 100) {
+		return get_lastdigits_ru(num % 10);
+	} else if (num < 1000) {
+		return get_lastdigits_ru(num % 100);
+	}
+	return 0;	/* number too big */
+}
+
+
+/*--- ast_say_number_full_ru: Russian syntax */
+/*--- additional files:
+	n00.gsm			(one hundred, two hundred, ...)
+	thousand.gsm
+	million.gsm
+	thousands-i.gsm		(tisyachi)
+	million-a.gsm		(milliona)
+	thousands.gsm
+	millions.gsm
+	1f.gsm			(odna)
+	2f.gsm			(dve)
+    
+	where 'n' from 1 to 9
+*/
+static int ast_say_number_full_ru(struct ast_channel *chan, int num, const char *ints, const char *language, const char *options, int audiofd, int ctrlfd)
+{
+	int res = 0;
+	int lastdigits = 0;
+	char fn[256] = "";
+	if (!num) 
+		return ast_say_digits_full(chan, 0,ints, language, audiofd, ctrlfd);
+
+	while(!res && (num)) {
+		if (num < 0) {
+			snprintf(fn, sizeof(fn), "digits/minus");
+			if ( num > INT_MIN ) {
+				num = -num;
+			} else {
+				num = 0;
+			}	
+		} else	if (num < 20) {
+			if(options && strlen(options) == 1 && num < 3) {
+			    snprintf(fn, sizeof(fn), "digits/%d%s", num, options);
+			} else {
+    			    snprintf(fn, sizeof(fn), "digits/%d", num);
+			}
+			num = 0;
+		} else	if (num < 100) {
+			snprintf(fn, sizeof(fn), "digits/%d", num - (num % 10));
+			num %= 10;
+		} else 	if (num < 1000){
+			snprintf(fn, sizeof(fn), "digits/%d", num - (num % 100));
+			num %= 100;
+		} else 	if (num < 1000000) { /* 1,000,000 */
+			lastdigits = get_lastdigits_ru(num / 1000);
+			/* say thousands */
+			if (lastdigits < 3) {
+				res = ast_say_number_full_ru(chan, num / 1000, ints, language, "f", audiofd, ctrlfd);
+			} else {
+				res = ast_say_number_full_ru(chan, num / 1000, ints, language, NULL, audiofd, ctrlfd);
+			}
+			if (res)
+				return res;
+			if (lastdigits == 1) {
+				snprintf(fn, sizeof(fn), "digits/thousand");
+			} else if (lastdigits > 1 && lastdigits < 5) {
+				snprintf(fn, sizeof(fn), "digits/thousands-i");
+			} else {
+				snprintf(fn, sizeof(fn), "digits/thousands");
+			}
+			num %= 1000;
+		} else 	if (num < 1000000000) {	/* 1,000,000,000 */
+			lastdigits = get_lastdigits_ru(num / 1000000);
+			/* say millions */
+			res = ast_say_number_full_ru(chan, num / 1000000, ints, language, NULL, audiofd, ctrlfd);
+			if (res)
+				return res;
+			if (lastdigits == 1) {
+				snprintf(fn, sizeof(fn), "digits/million");
+			} else if (lastdigits > 1 && lastdigits < 5) {
+				snprintf(fn, sizeof(fn), "digits/million-a");
+			} else {
+				snprintf(fn, sizeof(fn), "digits/millions");
+			}
+			num %= 1000000;
+		} else {
+			ast_log(LOG_DEBUG, "Number '%d' is too big for me\n", num);
+				res = -1;
+		}
+		if (!res) {
+			if (!ast_streamfile(chan, fn, language)) {
+				if ((audiofd  > -1) && (ctrlfd > -1))
+					res = ast_waitstream_full(chan, ints, audiofd, ctrlfd);
+				else
+					res = ast_waitstream(chan, ints);
+			}
+			ast_stopstream(chan);
+		}
+	}
+	return res;
+}
+
 
 /*--- ast_say_enumeration_full: call language-specific functions */
 /* Called from AGI */
