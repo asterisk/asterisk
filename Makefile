@@ -204,11 +204,6 @@ GREP=/usr/xpg4/bin/grep
 M4=/usr/local/bin/m4
 endif
 
-# if doing a recursive make, don't double-up CFLAGS
-ifeq ($(MAKECMDGOALS),ast_expr.a)
-CFLAGS=
-endif
-
 INCLUDE=-Iinclude -I../include
 CFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 CFLAGS+=$(OPTIMIZE)
@@ -296,7 +291,7 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o config_old.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
-	netsock.o slinfactory.o
+	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o
 ifeq (${OSARCH},Darwin)
 OBJS+=poll.o dlfcn.o
 ASTLINK=-Wl,-dynamic
@@ -357,59 +352,13 @@ ifneq ($(wildcard .tags-depend),)
 include .tags-depend
 endif
 
-.PHONY: ast_expr
+ast_expr2.c: FORCE
+	bison -d --name-prefix=ast_yy ast_expr2.y -o ast_expr2.c
 
-build_tools/vercomp: build_tools/vercomp.c
-	$(HOST_CC) -o $@ $<
-
-ast_expr: build_tools/vercomp
-	$(MAKE) ast_expr.a
-
-ifeq ($(MAKECMDGOALS),ast_expr.a)
-FLEXVER_GT_2_5_31=$(shell build_tools/vercomp flex \>= 2.5.31)
-BISONVER_GE_1_85=$(shell build_tools/vercomp bison \>= 1.85 )
-endif
-
-ifeq ($(FLEXVER_GT_2_5_31),true)
-FLEXOBJS=ast_expr2.o ast_expr2f.o
-else
-FLEXOBJS=ast_expr.o
-endif
-
-ast_expr.o:: ast_expr.c
-	@echo "================================================================================="
-	@echo "NOTE: Using older version of expression parser. To use the newer version,"
-	@echo "NOTE: upgrade to flex 2.5.31 or higher, which can be found at"
-	@echo "NOTE: http://sourceforge.net/project/showfiles.php?group_id=72099"
-	@echo "================================================================================="
-
-ast_expr.o:: ast_expr.c
-
-ifeq ($(BISONVER_GE_1_85),false)
-.y.c:
-	@echo "================================================================================="
-	@echo "NOTE: You may have trouble if you do not have bison-1.85 or higher installed!"
-	@echo "NOTE: You can pick up a copy at: http://ftp.gnu.org or its mirrors"
-	@echo "NOTE: You have:"
-	@bison --version
-	@echo "================================================================================"
-	bison -v -d --name-prefix=ast_yy $< -o $@
-else
-.y.c:
-	bison -v -d --name-prefix=ast_yy $< -o $@
-endif
-
-ast_expr2f.c: ast_expr2.fl
+ast_expr2f.c: FORCE
 	flex ast_expr2.fl
 
-ast_expr.a: $(FLEXOBJS)
-	@rm -f $@
-	ar r $@ $(FLEXOBJS)
-	ranlib $@
-
-testexpr2 :
-	flex ast_expr2.fl
-	bison -v -d --name-prefix=ast_yy -o ast_expr2.c ast_expr2.y
+testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	gcc -g -c -DSTANDALONE ast_expr2f.c
 	gcc -g -c -DSTANDALONE ast_expr2.c
 	gcc -g -o testexpr2 ast_expr2f.o ast_expr2.o
@@ -443,7 +392,6 @@ defaults.h: FORCE
 	fi
 	rm -f $@.tmp
 
-
 include/asterisk/build.h:
 	build_tools/make_build_h > $@.tmp
 	if cmp -s $@.tmp $@ ; then echo ; else \
@@ -471,8 +419,8 @@ stdtime/libtime.a: FORCE
 		exit 1; \
 	fi
 
-asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS) ast_expr
-	$(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) ast_expr.a $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
+asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
+	$(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
 
 muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
@@ -486,9 +434,6 @@ clean:
 	rm -f defaults.h
 	rm -f include/asterisk/build.h
 	rm -f include/asterisk/version.h
-	rm -f ast_expr.c ast_expr.h ast_expr.output
-	rm -f ast_expr2.c ast_expr2f.c ast_expr2.h ast_expr2.output
-	rm -f ast_expr.a build_tools/vercomp
 	rm -f .version
 	rm -f .tags-depend .tags-sources tags TAGS
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
@@ -814,8 +759,7 @@ depend: include/asterisk/build.h include/asterisk/version.h .depend defaults.h
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend: include/asterisk/version.h
-	build_tools/mkdep ${CFLAGS} $(filter-out ast_expr.c,$(wildcard *.c))
-	build_tools/mkdep -a -d ${CFLAGS} ast_expr.c
+	build_tools/mkdep ${CFLAGS} $(wildcard *.c)
 
 .tags-depend:
 	@echo -n ".tags-depend: " > $@

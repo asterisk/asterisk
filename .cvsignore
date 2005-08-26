@@ -1,12 +1,6 @@
 asterisk
 defaults.h
-ast_expr.c
-ast_expr.h
-ast_expr.output
-ast_expr2.c
-ast_expr2.h
 ast_expr2.output
-ast_expr2f.c
 .version
 .depend
 .applied
