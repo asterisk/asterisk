@@ -367,7 +367,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		/* Send to whoever sent to us */
 		if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
-			memcpy(&rtp->them, &sin, sizeof(rtp->them));
+			memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
 			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
