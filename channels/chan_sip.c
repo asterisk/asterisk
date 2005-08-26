@@ -5290,7 +5290,7 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	struct sockaddr_in oldsin;
 
 	if (ast_strlen_zero(expires)) {	/* No expires header */
-		expires = strstr(get_header(req, "Contact"), "expires=");
+		expires = strcasestr(get_header(req, "Contact"), "expires=");
 		if (expires) {
 			if (sscanf(expires + 8, "%d;", &expiry) != 1)
 				expiry = default_expiry;
@@ -8722,7 +8722,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 				} else
 					break;
 			}
-			tmptmp = strstr(contact, "expires=");
+			tmptmp = strcasestr(contact, "expires=");
 			if (tmptmp) {
 				if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
 					expires = 0;
