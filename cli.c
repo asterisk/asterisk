@@ -920,7 +920,7 @@ static int handle_help(int fd, int argc, char *argv[]) {
 		e = find_cli(argv + 1, 1);
 		if (e) {
 			if (e->usage)
-				ast_cli(fd, e->usage);
+				ast_cli(fd, "%s", e->usage);
 			else {
 				join(fullcmd, sizeof(fullcmd), argv+1);
 				ast_cli(fd, "No help text available for '%s'.\n", fullcmd);
@@ -1149,7 +1149,7 @@ int ast_cli_command(int fd, char *s)
 			if (e) {
 				switch(e->handler(fd, x, argv)) {
 				case RESULT_SHOWUSAGE:
-					ast_cli(fd, e->usage);
+					ast_cli(fd, "%s", e->usage);
 					break;
 				}
 			} else 
