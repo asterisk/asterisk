@@ -47,7 +47,7 @@
 #define TOPLEV "e164.arpa."
 
 static struct enum_search {
-	char toplev[80];
+	char toplev[512];
 	struct enum_search *next;
 } *toplevs;
 
@@ -79,11 +79,11 @@ static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int
 static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, char *naptrinput)
 {
 	unsigned char *oanswer = answer;
-	unsigned char flags[80] = "";
-	unsigned char services[80] = "";
-	unsigned char regexp[80] = "";
-	unsigned char repl[80] = "";
-	unsigned char temp[80] = "";
+	unsigned char flags[512] = "";
+	unsigned char services[512] = "";
+	unsigned char regexp[512] = "";
+	unsigned char repl[512] = "";
+	unsigned char temp[512] = "";
 	unsigned char delim;
 	unsigned char *delim2;
 	unsigned char *pattern, *subst, *d;
@@ -289,8 +289,8 @@ static int enum_callback(void *context, u_char *answer, int len, u_char *fullans
 int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen)
 {
 	struct enum_context context;
-	char tmp[259 + 80];
-	char naptrinput[80] = "+";
+	char tmp[259 + 512];
+	char naptrinput[512] = "+";
 	int pos = strlen(number) - 1;
 	int newpos = 0;
 	int ret = -1;
@@ -346,8 +346,8 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char *txt, int txtlen)
 {
 	struct enum_context context;
-	char tmp[259 + 80];
-	char naptrinput[80] = "+";
+	char tmp[259 + 512];
+	char naptrinput[512] = "+";
 	int pos = strlen(number) - 1;
 	int newpos = 0;
 	int ret = -1;
