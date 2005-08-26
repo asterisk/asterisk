@@ -395,19 +395,21 @@ static int ast_is_number(char *string)
 
 static int ast_strings_to_mask(char *string) 
 {
-	int x = 0, ret = -1;
+	int x, ret = -1;
 	
 	x = ast_is_number(string);
 
-	if (x) 
+	if (x) {
 		ret = x;
-	else if (!string || ast_strlen_zero(string))
+	} else if (!string || ast_strlen_zero(string)) {
 		ret = -1;
-	else if (!strcasecmp(string, "off") || ast_false(string))
+	} else if (ast_false(string)) {
 		ret = 0;
-	else if (!strcasecmp(string, "on") || ast_true(string))
-		ret = 1;
-	else {
+	} else if (ast_true(string)) {
+		ret = 0;
+		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++)
+			ret |= perms[x].num;		
+	} else {
 		ret = 0;
 		for (x=0; x<sizeof(perms) / sizeof(perms[0]); x++) {
 			if (ast_instring(string, perms[x].label, ',')) 
