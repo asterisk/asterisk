@@ -22,14 +22,29 @@
 #include <stdio.h>
 #include <speex.h>
 
-static int quality = 8;
+/* We require a post 1.1.8 version of Speex to enable preprocessing
+   and better type handling */   
+#ifdef _SPEEX_TYPES_H
+#include <speex/speex_preprocess.h>
+#endif
+
+static int quality = 3;
 static int complexity = 2;
 static int enhancement = 0;
 static int vad = 0;
 static int vbr = 0;
-static float vbr_quality = 0;
+static float vbr_quality = 4;
 static int abr = 0;
 static int dtx = 0;
+
+static int preproc = 0;
+static int pp_vad = 0;
+static int pp_agc = 0;
+static float pp_agc_level = 8000;
+static int pp_denoise = 0;
+static int pp_dereverb = 0;
+static float pp_dereverb_decay = 0.4;
+static float pp_dereverb_level = 0.3;
 
 #define TYPE_SILENCE	 0x2
 #define TYPE_HIGH	 0x0
@@ -64,12 +79,19 @@ struct ast_translator_pvt {
 	int framesize;
 	/* Space to build offset */
 	char offset[AST_FRIENDLY_OFFSET];
+#ifdef _SPEEX_TYPES_H
+	SpeexPreprocessState *pp;
 	/* Buffer for our outgoing frame */
-	short outbuf[8000];
+	spx_int16_t outbuf[8000];
 	/* Enough to store a full second */
+	spx_int16_t buf[8000];
+#else
+	short outbuf[8000];
 	short buf[8000];
+#endif
+
 	int tail;
-       int silent_state;
+	int silent_state;
 };
 
 #define speex_coder_pvt ast_translator_pvt
@@ -87,8 +109,19 @@ static struct ast_translator_pvt *lintospeex_new(void)
 			speex_bits_reset(&tmp->bits);
 			speex_encoder_ctl(tmp->speex, SPEEX_GET_FRAME_SIZE, &tmp->framesize);
 			speex_encoder_ctl(tmp->speex, SPEEX_SET_COMPLEXITY, &complexity);
-
-			if(!abr && !vbr) {
+#ifdef _SPEEX_TYPES_H
+			if (preproc) {
+				tmp->pp = speex_preprocess_state_init(tmp->framesize, 8000);
+				speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_VAD, &pp_vad);
+				speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_AGC, &pp_agc);
+				speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_AGC_LEVEL, &pp_agc_level);
+				speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DENOISE, &pp_denoise);
+				speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB, &pp_dereverb);
+				speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB_DECAY, &pp_dereverb_decay);
+				speex_preprocess_ctl(tmp->pp, SPEEX_PREPROCESS_SET_DEREVERB_LEVEL, &pp_dereverb_level);
+			}
+#endif
+			if (!abr && !vbr) {
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_QUALITY, &quality);
 				if (vad)
 					speex_encoder_ctl(tmp->speex, SPEEX_SET_VAD, &vad);
@@ -100,10 +133,10 @@ static struct ast_translator_pvt *lintospeex_new(void)
 			if (abr) {
 				speex_encoder_ctl(tmp->speex, SPEEX_SET_ABR, &abr);
 			}
-                       if (dtx)
-                               speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx);
+			if (dtx)
+				speex_encoder_ctl(tmp->speex, SPEEX_SET_DTX, &dtx); 
 			tmp->tail = 0;
-                       tmp->silent_state = 0;
+			tmp->silent_state = 0;
 		}
 		localusecnt++;
 	}
@@ -186,31 +219,46 @@ static int speextolin_framein(struct ast_translator_pvt *tmp, struct ast_frame *
 	   the tail location.  Read in as many frames as there are */
 	int x;
 	int res;
+#ifdef _SPEEX_TYPES_H
+	spx_int16_t out[1024];
+#else
 	float fout[1024];
+#endif
 
-	if(f->datalen == 0) {  /* Native PLC interpolation */
-		if(tmp->tail + tmp->framesize > sizeof(tmp->buf) / 2) {
+	if (f->datalen == 0) {  /* Native PLC interpolation */
+		if (tmp->tail + tmp->framesize > sizeof(tmp->buf) / 2) {
 			ast_log(LOG_WARNING, "Out of buffer space\n");
 			return -1;
 		}
+#ifdef _SPEEX_TYPES_H
+		speex_decode_int(tmp->speex, NULL, tmp->buf + tmp->tail);
+#else
 		speex_decode(tmp->speex, NULL, fout);
 		for (x=0;x<tmp->framesize;x++) {
 			tmp->buf[tmp->tail + x] = fout[x];
 		}
+#endif
 		tmp->tail += tmp->framesize;
 		return 0;
 	}
 
-
 	/* Read in bits */
 	speex_bits_read_from(&tmp->bits, f->data, f->datalen);
 	for(;;) {
+#ifdef _SPEEX_TYPES_H
+		res = speex_decode_int(tmp->speex, &tmp->bits, out);
+#else
 		res = speex_decode(tmp->speex, &tmp->bits, fout);
+#endif
 		if (res < 0)
 			break;
 		if (tmp->tail + tmp->framesize < sizeof(tmp->buf) / 2) {
 			for (x=0;x<tmp->framesize;x++) {
+#ifdef _SPEEX_TYPES_H
+				tmp->buf[tmp->tail + x] = out[x];
+#else
 				tmp->buf[tmp->tail + x] = fout[x];
+#endif
 			}
 			tmp->tail += tmp->framesize;
 		} else {
@@ -240,10 +288,13 @@ static int lintospeex_framein(struct ast_translator_pvt *tmp, struct ast_frame *
 
 static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 {
+#ifndef _SPEEX_TYPES_H
 	float fbuf[1024];
+	int x;
+#endif
 	int len;
-	int y=0,x;
-       int is_speech=1;
+	int y=0;
+	int is_speech=1;
 	/* We can't work on anything less than a frame in size */
 	if (tmp->tail < tmp->framesize)
 		return NULL;
@@ -255,11 +306,25 @@ static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 	tmp->f.data = tmp->outbuf;
 	speex_bits_reset(&tmp->bits);
 	while(tmp->tail >= tmp->framesize) {
+#ifdef _SPEEX_TYPES_H
+		/* Preprocess audio */
+		if(preproc)
+			is_speech = speex_preprocess(tmp->pp, tmp->buf, NULL);
+		/* Encode a frame of data */
+		if (is_speech) {
+			/* If DTX enabled speex_encode returns 0 during silence */
+			is_speech = speex_encode_int(tmp->speex, tmp->buf, &tmp->bits) || !dtx;
+		} else {
+			/* 5 zeros interpreted by Speex as silence (submode 0) */
+			speex_bits_pack(&tmp->bits, 0, 5);
+		}
+#else
 		/* Convert to floating point */
 		for (x=0;x<tmp->framesize;x++)
 			fbuf[x] = tmp->buf[x];
 		/* Encode a frame of data */
-               is_speech = speex_encode(tmp->speex, fbuf, &tmp->bits) || !dtx;
+		is_speech = speex_encode(tmp->speex, fbuf, &tmp->bits) || !dtx;
+#endif
 		/* Assume 8000 Hz -- 20 ms */
 		tmp->tail -= tmp->framesize;
 		/* Move the data at the end of the buffer to the front */
@@ -268,18 +333,18 @@ static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 		y++;
 	}
 
-       /* Use AST_FRAME_CNG to signify the start of any silence period */
-       if(!is_speech) {
-               if(tmp->silent_state) {
-                       return NULL;
-               } else {
-                       tmp->silent_state = 1;
-                       speex_bits_reset(&tmp->bits);
-                       tmp->f.frametype = AST_FRAME_CNG;
-               }
-       } else {
-               tmp->silent_state = 0;
-       }
+	/* Use AST_FRAME_CNG to signify the start of any silence period */
+	if (!is_speech) {
+		if (tmp->silent_state) {
+			return NULL;
+		} else {
+			tmp->silent_state = 1;
+			speex_bits_reset(&tmp->bits);
+			tmp->f.frametype = AST_FRAME_CNG;
+		}
+	} else {
+		tmp->silent_state = 0;
+	}
 
 	/* Terminate bit stream */
 	speex_bits_pack(&tmp->bits, 15, 5);
@@ -289,7 +354,7 @@ static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 #if 0
 	{
 		static int fd = -1;
-		if (fd  < 0) {
+		if (fd < 0) {
 			fd = open("speex.raw", O_WRONLY|O_TRUNC|O_CREAT);
 			if (fd > -1) {
 				write(fd, tmp->f.data, tmp->f.datalen);
@@ -297,7 +362,7 @@ static struct ast_frame *lintospeex_frameout(struct ast_translator_pvt *tmp)
 			}
 		}
 	}
-#endif	
+#endif
 	return &tmp->f;	
 }
 
@@ -311,6 +376,10 @@ static void speextolin_destroy(struct ast_translator_pvt *pvt)
 
 static void lintospeex_destroy(struct ast_translator_pvt *pvt)
 {
+#ifdef _SPEEX_TYPES_H
+	if (preproc)
+		speex_preprocess_state_destroy(pvt->pp);
+#endif
 	speex_encoder_destroy(pvt->speex);
 	speex_bits_destroy(&pvt->bits);
 	free(pvt);
@@ -360,23 +429,22 @@ static void parse_config(void)
 						ast_log(LOG_ERROR,"Error Quality must be 0-10\n");
 				} else if (!strcasecmp(var->name, "complexity")) {
 					res = abs(atoi(var->value));
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Complexity to %d\n",res);
 					if (res > -1 && res < 11) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting Complexity to %d\n",res);
 						ast_mutex_lock(&localuser_lock);
 						complexity = res;
 						ast_mutex_unlock(&localuser_lock);
 					} else 
 						ast_log(LOG_ERROR,"Error! Complexity must be 0-10\n");
 				} else if (!strcasecmp(var->name, "vbr_quality")) {
-					res_f = abs(atof(var->value));
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
-					if (res_f >= 0 && res_f <= 10) {
+					if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0 && res_f <= 10) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting VBR Quality to %f\n",res_f);
 						ast_mutex_lock(&localuser_lock);
 						vbr_quality = res_f;
 						ast_mutex_unlock(&localuser_lock);
-					} else 
+					} else
 						ast_log(LOG_ERROR,"Error! VBR Quality must be 0-10\n");
 				} else if (!strcasecmp(var->name, "abr_quality")) {
 					ast_log(LOG_ERROR,"Error! ABR Quality setting obsolete, set ABR to desired bitrate\n");
@@ -394,13 +462,13 @@ static void parse_config(void)
 					ast_mutex_unlock(&localuser_lock);
 				} else if (!strcasecmp(var->name, "abr")) {
 					res = abs(atoi(var->value));
-					if (option_verbose > 2) {
-					      if(res > 0)
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR target bitrate to %d\n",res);
-					      else
-						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n");
-					}
 					if (res >= 0) {
+						if (option_verbose > 2) {
+							if (res > 0)
+								ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting ABR target bitrate to %d\n",res);
+							else
+								ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Disabling ABR\n");
+						}
 						ast_mutex_lock(&localuser_lock);
 						abr = res;
 						ast_mutex_unlock(&localuser_lock);
@@ -418,6 +486,63 @@ static void parse_config(void)
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: DTX Mode. [%s]\n",dtx ? "on" : "off");
 					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "preprocess")) {
+					ast_mutex_lock(&localuser_lock);
+					preproc = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessing. [%s]\n",preproc ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "pp_vad")) {
+					ast_mutex_lock(&localuser_lock);
+					pp_vad = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor VAD. [%s]\n",pp_vad ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "pp_agc")) {
+					ast_mutex_lock(&localuser_lock);
+					pp_agc = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor AGC. [%s]\n",pp_agc ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "pp_agc_level")) {
+					if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor AGC Level to %f\n",res_f);
+						ast_mutex_lock(&localuser_lock);
+						pp_agc_level = res_f;
+						ast_mutex_unlock(&localuser_lock);
+					} else
+						ast_log(LOG_ERROR,"Error! Preprocessor AGC Level must be >= 0\n");
+				} else if (!strcasecmp(var->name, "pp_denoise")) {
+					ast_mutex_lock(&localuser_lock);
+					pp_denoise = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Denoise. [%s]\n",pp_denoise ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "pp_dereverb")) {
+					ast_mutex_lock(&localuser_lock);
+					pp_dereverb = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Preprocessor Dereverb. [%s]\n",pp_dereverb ? "on" : "off");
+					ast_mutex_unlock(&localuser_lock);
+				} else if (!strcasecmp(var->name, "pp_dereverb_decay")) {
+					if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Decay to %f\n",res_f);
+						ast_mutex_lock(&localuser_lock);
+						pp_dereverb_decay = res_f;
+						ast_mutex_unlock(&localuser_lock);
+					} else
+						ast_log(LOG_ERROR,"Error! Preprocessor Dereverb Decay must be >= 0\n");
+				} else if (!strcasecmp(var->name, "pp_dereverb_level")) {
+					if (sscanf(var->value, "%f", &res_f) == 1 && res_f >= 0) {
+						if (option_verbose > 2)
+							ast_verbose(VERBOSE_PREFIX_3 "CODEC SPEEX: Setting preprocessor Dereverb Level to %f\n",res_f);
+						ast_mutex_lock(&localuser_lock);
+						pp_dereverb_level = res_f;
+						ast_mutex_unlock(&localuser_lock);
+					} else
+						ast_log(LOG_ERROR,"Error! Preprocessor Dereverb Level must be >= 0\n");
 				}
 				var = var->next;
 			}
