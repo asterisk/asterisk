@@ -642,8 +642,8 @@ static int __build_step(const char *what, const char *name, const char *filename
 			if (ast_add_extension2(con, 0, exten, ifend, *label, NULL, app, strdup(margs), FREE, registrar))
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			*label = NULL;
-			app = "Goto";
-			snprintf(margs, mlen, "${IF($[ %s ]?%d:%d)}", args, ifstart, elsestart);
+			app = "GotoIf";
+			snprintf(margs, mlen, "$[ %s ]?%d:%d", args, ifstart, elsestart);
 			if (ast_add_extension2(con, 0, exten, ifblock, iflabel, NULL, app, strdup(margs), FREE, registrar))
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			if (ifskip) {
@@ -694,8 +694,8 @@ static int __build_step(const char *what, const char *name, const char *filename
 			if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			*label = NULL;
-			app = "Goto";
-			snprintf(margs, mlen, "${IF($[ %s ]?%d:%d)}", args, whileblock, whileend);
+			app = "GotoIf";
+			snprintf(margs, mlen, "$[ %s ]?%d:%d", args, whileblock, whileend);
 			if (ast_add_extension2(con, 0, exten, whilestart, whilelabel, NULL, app, strdup(margs), FREE, registrar))
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			fillin_process(con, fillin, filename, lineno, exten, whileend, exten, whilestart);
@@ -797,8 +797,8 @@ static int __build_step(const char *what, const char *name, const char *filename
 				if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(margs), FREE, registrar))
 					ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 				*label = NULL;
-				app = "Goto";
-				snprintf(margs, mlen, "${IF($[ %s ]?%d:%d)}", fields->next->data, forblock, forend);
+				app = "GotoIf";
+				snprintf(margs, mlen, "$[ %s ]?%d:%d", fields->next->data, forblock, forend);
 				if (ast_add_extension2(con, 0, exten, forstart, forlabel, NULL, app, strdup(margs), FREE, registrar))
 					ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", forstart, what, name);
 				fillin_process(con, fillin, filename, lineno, exten, forend, exten, forstart);
