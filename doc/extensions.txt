@@ -1,20 +1,56 @@
-Extensions are routed according to priority, and may be based on any set
-of digits, #, and *.  For each extension, several actions may be listed
-and each given a priority.  When each action completes, it generally moves
-to the next priority (except for some modules which use explicitly GOTO's. 
-Extensions frequently have data they pass to the executing application
-(most frequently a string).  There are some reserved application names: 
+The Asterisk dialplan
+=====================
 
-	GoTo:	Go to a specific extension
-	Answer:	Answer the line, if it hasn't already been answered
+The Asterisk dialplan is divided into contexts. A context is simply a group
+of extensions. For each "line" that should be able to be called, an extension
+must be added to a context. Then, you configure the calling "line" to have
+access to this context.
+
+If you change the dialplan, you can use the Asterisk CLI command
+"extensions reload" to load the new dialplan without disrupting
+service in your PBX.
+
+Extensions are routed according to priority and may be based on any set
+of characters (a-z), digits, #, and *. Please note that when matching a
+pattern, "N", "X", and "Z" are interpreted as classes of digits.
+
+For each extension, several actions may be listed and must be given a unique
+priority. When each action completes, the call continunes at the next priority
+(except for some modules which use explicitly GOTO's). 
+
+When each action completes, it generally moves to the next priority (except for
+some modules which use explicitly GOTO's. 
+
+Extensions frequently have data they pass to the executing application
+(most frequently a string).  You can see the available dialplan applications
+by entering the "show applications" command in the CLI.
+
+In this version of Asterisk, dialplan functions are added. These can
+be used as arguments to any application. For a list of the installed
+functions in your Asterisk, use the "show functions" command.
+
+* Example dial plan
+
+The example dial plan, in the configs/extensions.conf.sample file
+is installed as extensions.conf if you run "make samples" after
+installation of Asterisk. This file includes many more instructions
+and examples than this file, so it's worthwile to read it.
 	
-Also, there are some extensions with important meanings:
+* Special extensions
+
+There are some extensions with important meanings:
 
 	s:	What to do when an extension context is entered (unless
 		overridden by the low level channel interface)
+		This is used in macros, and some special cases. 
+		"s" is not a generic catch-all wildcard extension.
 	i:	What to do if an invalid extension is entered
+	h:	The hangup extension, executed at hangup
 	t: 	What to do if nothing is entered in the requisite amount
 		of time.
+	T:	This is the extension that is executed when the 'absolute'
+		timeout is reached.  See "show function TIMEOUT" for more
+		information on setting timeouts.	
 
 And finally, the extension context "default" is used when either a) an 
 extension context is deleted while an extension is in use, or b) a specific
