@@ -1340,7 +1340,7 @@ int ast_cli_command(int fd, char *s)
 			if (e) {
 				switch(e->handler(fd, x, argv)) {
 				case RESULT_SHOWUSAGE:
-					ast_cli(fd, e->usage);
+					ast_cli(fd, "%s", e->usage);
 					break;
 				}
 			} else 
