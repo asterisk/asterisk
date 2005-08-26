@@ -435,8 +435,19 @@ static int match_assignment(char *variable, char **value)
 {
 	char *c;
 	char *ws;
+	int inpar = 0;
 	c = variable;
-	while(*c && (*c > 32) && (*c != '=')) c++;
+	
+	while(*c && (*c > 32)) {
+	  if(*c == ')' && (inpar > 0)) {
+	    inpar--;
+	  } else if(*c == '(' && (inpar >= 0)) {
+	    inpar++;
+	  } else if(*c == '=' && (inpar == 0)) {
+	    break;
+	  }
+	  c++;
+	} 
 	ws = c;
 	while(*c && (*c < 33)) c++;
 	if (*c == '=') {
