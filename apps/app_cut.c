@@ -28,11 +28,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/version.h"
 
 /* Maximum length of any variable */
 #define MAXRESULT	1024
 
-static char *tdesc = "Cuts up variables";
+static char *tdesc = "String manipulation";
 
 static char *app_cut = "Cut";
 
@@ -48,39 +49,121 @@ static char *cut_descrip =
 "            or group of ranges and fields (with &)\n" 
 "  Returns 0 or -1 on hangup or error.\n";
 
+static char *app_sort = "Sort";
+static char *app_sort_synopsis = "Sorts a list of keywords and values";
+static char *app_sort_descrip =
+"   Sort(<newvar>=<key1>:<val1>[,<key2>:<val2>[[...],<keyN>:<valN>]])\n"
+"Sorts the list provided by using the value as a float to order the list of\n"
+"keywords in ascending order.  Sets the variable provided to the list of\n"
+"sorted keywords.  Always returns 0.\n";
+
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int cut_exec(struct ast_channel *chan, void *data)
+struct sortable_keys {
+	char *key;
+	float value;
+};
+
+static int sort_subroutine(const void *arg1, const void *arg2)
 {
-	int res=0;
-	struct localuser *u;
-	char *s, *newvar=NULL, *varname=NULL, *delimiter=NULL, *field=NULL;
+	const struct sortable_keys *one=arg1, *two=arg2;
+	if (one->value < two->value) {
+		return -1;
+	} else if (one->value == two->value) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+#define ERROR_NOARG	(-1)
+#define ERROR_NOMEM	(-2)
+#define ERROR_USAGE	(-3)
+
+static int sort_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
+{
+	char *strings, *ptrkey, *ptrvalue;
+	int count=1, count2;
+	struct sortable_keys *sortable_keys;
+
+	memset(buffer, 0, buflen);
+
+	if (!data) {
+		return ERROR_NOARG;
+	}
+
+	strings = ast_strdupa((char *)data);
+	if (!strings) {
+		return ERROR_NOMEM;
+	}
+
+	for (ptrkey = strings; *ptrkey; ptrkey++) {
+		if (*ptrkey == '|') {
+			count++;
+		}
+	}
+
+	sortable_keys = alloca(count * sizeof(struct sortable_keys));
+	if (!sortable_keys) {
+		return ERROR_NOMEM;
+	}
+
+	memset(sortable_keys, 0, count * sizeof(struct sortable_keys));
+
+	/* Parse each into a struct */
+	count2 = 0;
+	while ((ptrkey = strsep(&strings, "|"))) {
+		ptrvalue = index(ptrkey, ':');
+		if (!ptrvalue) {
+			count--;
+			continue;
+		}
+		*ptrvalue = '\0';
+		ptrvalue++;
+		sortable_keys[count2].key = ptrkey;
+		sscanf(ptrvalue, "%f", &sortable_keys[count2].value);
+		count2++;
+	}
+
+	/* Sort the structs */
+	qsort(sortable_keys, count, sizeof(struct sortable_keys), sort_subroutine);
+
+	for (count2 = 0; count2 < count; count2++) {
+		strncat(buffer + strlen(buffer), sortable_keys[count2].key, buflen - strlen(buffer));
+		strncat(buffer + strlen(buffer), ",", buflen - strlen(buffer));
+	}
+
+	/* Remove trailing comma */
+	buffer[strlen(buffer) - 1] = '\0';
+
+	return 0;
+}
+
+static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
+{
+	char *s, *varname=NULL, *delimiter=NULL, *field=NULL;
 	int args_okay = 0;
 
-	LOCAL_USER_ADD(u);
+	memset(buffer, 0, buflen);
 
 	/* Check and parse arguments */
 	if (data) {
 		s = ast_strdupa((char *)data);
 		if (s) {
-			newvar = strsep(&s, "=");
-			if (newvar && (newvar[0] != '\0')) {
-				varname = strsep(&s, "|");
-				if (varname && (varname[0] != '\0')) {
-					delimiter = strsep(&s, "|");
-					if (delimiter) {
-						field = strsep(&s, "|");
-						if (field) {
-							args_okay = 1;
-						}
+			varname = strsep(&s, "|");
+			if (varname && (varname[0] != '\0')) {
+				delimiter = strsep(&s, "|");
+				if (delimiter) {
+					field = strsep(&s, "|");
+					if (field) {
+						args_okay = 1;
 					}
 				}
 			}
 		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			res = -1;
+			return ERROR_NOMEM;
 		}
 	}
 
@@ -88,16 +171,12 @@ static int cut_exec(struct ast_channel *chan, void *data)
 		char d, ds[2];
 		char *tmp = alloca(strlen(varname) + 4);
 		char varvalue[MAXRESULT], *tmp2=varvalue;
-		char retstring[MAXRESULT];
-
-		memset(retstring, 0, MAXRESULT);
 
 		if (tmp) {
 			snprintf(tmp, strlen(varname) + 4, "${%s}", varname);
 			memset(varvalue, 0, sizeof(varvalue));
 		} else {
-			ast_log(LOG_ERROR, "Out of memory");
-			return -1;
+			return ERROR_NOMEM;
 		}
 
 		if (delimiter[0])
@@ -129,9 +208,7 @@ static int cut_exec(struct ast_channel *chan, void *data)
 					/* single number */
 					num2 = num1;
 				} else {
-					ast_log(LOG_ERROR, "Cut(): Illegal range '%s'\n", nextgroup);
-					ast_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
-					return -1;
+					return ERROR_USAGE;
 				}
 
 				/* Get to start, if any */
@@ -144,7 +221,7 @@ static int cut_exec(struct ast_channel *chan, void *data)
 
 				/* Most frequent problem is the expectation of reordering fields */
 				if ((num1 > 0) && (curfieldnum > num1)) {
-					ast_log(LOG_WARNING, "Cut(): we're already past the field you wanted?\n");
+					ast_log(LOG_WARNING, "We're already past the field you wanted?\n");
 				}
 
 				/* Re-null tmp2 if we added 1 to NULL */
@@ -154,34 +231,206 @@ static int cut_exec(struct ast_channel *chan, void *data)
 				/* Output fields until we either run out of fields or num2 is reached */
 				while ((tmp2 != NULL) && (curfieldnum <= num2)) {
 					char *tmp3 = strsep(&tmp2, ds);
-					int curlen = strlen(retstring);
+					int curlen = strlen(buffer);
 
-					if (strlen(retstring)) {
-						snprintf(retstring + curlen, MAXRESULT - curlen, "%c%s", d, tmp3);
+					if (curlen) {
+						snprintf(buffer + curlen, buflen - curlen, "%c%s", d, tmp3);
 					} else {
-						snprintf(retstring, MAXRESULT, "%s", tmp3);
+						snprintf(buffer, buflen, "%s", tmp3);
 					}
 
 					curfieldnum++;
 				}
 			}
 		}
+	}
+	return 0;
+}
 
-		pbx_builtin_setvar_helper(chan, newvar, retstring);
+static int sort_exec(struct ast_channel *chan, void *data)
+{
+	int res=0;
+	struct localuser *u;
+	char *varname, *strings, result[512] = "";
+	static int dep_warning=0;
+
+	LOCAL_USER_ADD(u);
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "The application Sort is deprecated.  Please use the SORT() function instead.\n");
+		dep_warning=1;
 	}
 
+	if (!data) {
+		ast_log(LOG_ERROR, "Sort() requires an argument\n");
+		LOCAL_USER_REMOVE(u);
+		return 0;
+	}
+
+	strings = ast_strdupa((char *)data);
+	if (!strings) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return 0;
+	}
+
+	varname = strsep(&strings, "=");
+	switch (sort_internal(chan, strings, result, sizeof(result))) {
+	case ERROR_NOARG:
+		ast_log(LOG_ERROR, "Sort() requires an argument\n");
+		res = 0;
+		break;
+	case ERROR_NOMEM:
+		ast_log(LOG_ERROR, "Out of memory\n");
+		res = -1;
+		break;
+	case 0:
+		pbx_builtin_setvar_helper(chan, varname, result);
+		res = 0;
+		break;
+	default:
+		ast_log(LOG_ERROR, "Unknown internal error\n");
+		res = -1;
+	}
 	LOCAL_USER_REMOVE(u);
 	return res;
 }
 
+static int cut_exec(struct ast_channel *chan, void *data)
+{
+	int res=0;
+	struct localuser *u;
+	char *s, *newvar=NULL, result[512];
+	static int dep_warning = 0;
+
+	LOCAL_USER_ADD(u);
+
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "The application Cut is deprecated.  Please use the CUT() function instead.\n");
+		dep_warning=1;
+	}
+
+	/* Check and parse arguments */
+	if (data) {
+		s = ast_strdupa((char *)data);
+		if (s) {
+			newvar = strsep(&s, "=");
+		} else {
+			ast_log(LOG_ERROR, "Out of memory\n");
+			LOCAL_USER_REMOVE(u);
+			return -1;
+		}
+	}
+
+	switch (cut_internal(chan, s, result, sizeof(result))) {
+	case ERROR_NOARG:
+		ast_log(LOG_ERROR, "Cut() requires an argument\n");
+		res = 0;
+		break;
+	case ERROR_NOMEM:
+		ast_log(LOG_ERROR, "Out of memory\n");
+		res = -1;
+		break;
+	case ERROR_USAGE:
+		ast_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
+		res = 0;
+		break;
+	case 0:
+		pbx_builtin_setvar_helper(chan, newvar, result);
+		res = 0;
+		break;
+	default:
+		ast_log(LOG_ERROR, "Unknown internal error\n");
+		res = -1;
+	}
+	LOCAL_USER_REMOVE(u);
+	return res;
+}
+
+static char *acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	struct localuser *u;
+
+	LOCAL_USER_ACF_ADD(u);
+
+	switch (sort_internal(chan, data, buf, len)) {
+	case ERROR_NOARG:
+		ast_log(LOG_ERROR, "SORT() requires an argument\n");
+		break;
+	case ERROR_NOMEM:
+		ast_log(LOG_ERROR, "Out of memory\n");
+		break;
+	case 0:
+		break;
+	default:
+		ast_log(LOG_ERROR, "Unknown internal error\n");
+	}
+	LOCAL_USER_REMOVE(u);
+	return buf;
+}
+
+static char *acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	struct localuser *u;
+
+	LOCAL_USER_ACF_ADD(u);
+
+	switch (cut_internal(chan, data, buf, len)) {
+	case ERROR_NOARG:
+		ast_log(LOG_ERROR, "Cut() requires an argument\n");
+		break;
+	case ERROR_NOMEM:
+		ast_log(LOG_ERROR, "Out of memory\n");
+		break;
+	case ERROR_USAGE:
+		ast_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
+		break;
+	case 0:
+		break;
+	default:
+		ast_log(LOG_ERROR, "Unknown internal error\n");
+	}
+	LOCAL_USER_REMOVE(u);
+	return buf;
+}
+
+struct ast_custom_function acf_sort = {
+	.name = "SORT",
+	.synopsis = "Sorts a list of key/vals into a list of keys, based upon the vals",
+	.syntax = "SORT(key1:val1[...][,keyN:valN])",
+	.desc =
+"Takes a comma-separated list of keys and values, each separated by a colon, and returns a\n"
+"comma-separated list of the keys, sorted by their values.  Values will be evaluated as\n"
+"floating-point numbers.\n",
+	.read = acf_sort_exec,
+};
+
+struct ast_custom_function acf_cut = {
+	.name = "CUT",
+	.synopsis = "Slices and dices strings, based upon a named delimiter.",
+	.syntax = "CUT(<varname>,<char-delim>,<range-spec>)",
+	.desc =
+"  varname    - variable you want cut\n"
+"  char-delim - defaults to '-'\n"
+"  range-spec - number of the field you want (1-based offset)\n"
+"             may also be specified as a range (with -)\n"
+"             or group of ranges and fields (with &)\n",
+	.read = acf_cut_exec,
+};
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_custom_function_unregister(&acf_cut);
+	ast_custom_function_unregister(&acf_sort);
+	ast_unregister_application(app_sort);
 	return ast_unregister_application(app_cut);
 }
 
 int load_module(void)
 {
+	ast_custom_function_register(&acf_cut);
+	ast_custom_function_register(&acf_sort);
+	ast_register_application(app_sort, sort_exec, app_sort_synopsis, app_sort_descrip);
 	return ast_register_application(app_cut, cut_exec, cut_synopsis, cut_descrip);
 }
 
