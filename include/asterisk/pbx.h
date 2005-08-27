@@ -34,14 +34,20 @@ extern "C" {
 #define PRIORITY_HINT	-1
 
 /*! Extension states */
-/*! No device INUSE or BUSY  */
-#define AST_EXTENSION_NOT_INUSE		0
-/*! One or more devices INUSE */
-#define AST_EXTENSION_INUSE		1
-/*! All devices BUSY */
-#define AST_EXTENSION_BUSY		2
-/*! All devices UNAVAILABLE/UNREGISTERED */
-#define AST_EXTENSION_UNAVAILABLE 	3
+enum ast_extension_states {
+	/*! Extension removed */
+	AST_EXTENSION_REMOVED = -2,
+	/*! Extension hint removed */
+	AST_EXTENSION_DEACTIVATED = -1,
+	/*! No device INUSE or BUSY  */
+	AST_EXTENSION_NOT_INUSE = 0,
+	/*! One or more devices INUSE */
+	AST_EXTENSION_INUSE = 1,
+	/*! All devices BUSY */
+	AST_EXTENSION_BUSY = 2,
+	/*! All devices UNAVAILABLE/UNREGISTERED */
+	AST_EXTENSION_UNAVAILABLE = 3,
+};
 
 struct ast_context;
 struct ast_exten;     
@@ -49,7 +55,7 @@ struct ast_include;
 struct ast_ignorepat;
 struct ast_sw;
 
-typedef int (*ast_state_cb_type)(char *context, char* id, int state, void *data);
+typedef int (*ast_state_cb_type)(char *context, char* id, enum ast_extension_states state, void *data);
 
 /*! Data structure associated with a custom function */
 struct ast_custom_function {

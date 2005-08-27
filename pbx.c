@@ -2077,7 +2077,7 @@ static int ast_remove_hint(struct ast_exten *e)
 				/* Notify with -1 and remove all callbacks */
 				cbprev = cblist;	    
 				cblist = cblist->next;
-				cbprev->callback(list->exten->parent->name, list->exten->exten, -1, cbprev->data);
+				cbprev->callback(list->exten->parent->name, list->exten->exten, AST_EXTENSION_DEACTIVATED, cbprev->data);
 				free(cbprev);
 	    		}
 	    		list->callbacks = NULL;
@@ -3014,6 +3014,8 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 {
 	struct ast_hint *hint;
 	int num = 0;
+	int watchers;
+	struct ast_state_cb *watcher;
 
 	if (!hints) {
 		ast_cli(fd, "There are no registered dialplan hints\n");
@@ -3027,7 +3029,12 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	}
 	hint = hints;
 	while (hint) {
-		ast_cli(fd, "   %-20.20s: %-20.20s  State %2d\n", ast_get_extension_name(hint->exten), ast_get_extension_app(hint->exten), hint->laststate );
+		watchers = 0;
+		for (watcher = hint->callbacks; watcher; watcher = watcher->next)
+			watchers++;
+		ast_cli(fd, "   %-20.20s: %-20.20s  State %2d Watchers %2d\n",
+			ast_get_extension_name(hint->exten), ast_get_extension_app(hint->exten),
+			hint->laststate, watchers);
 		num++;
 		hint = hint->next;
 	}
@@ -3542,8 +3549,50 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 
 void __ast_context_destroy(struct ast_context *con, const char *registrar);
 
-void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar) {
+struct store_hint {
+	char *context;
+	char *exten;
+	struct ast_state_cb *callbacks;
+	int laststate;
+	AST_LIST_ENTRY(store_hint) list;
+	char data[1];
+};
+
+AST_LIST_HEAD(store_hints, store_hint);
+
+void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar)
+{
 	struct ast_context *tmp, *lasttmp = NULL;
+	struct store_hints store;
+	struct store_hint *this;
+	struct ast_hint *hint;
+	struct ast_exten *exten;
+	int length;
+	struct ast_state_cb *thiscb, *prevcb;
+
+	/* preserve all watchers for hints associated with this registrar */
+	AST_LIST_HEAD_INIT(&store);
+	ast_mutex_lock(&hintlock);
+	for (hint = hints; hint; hint = hint->next) {
+		if (hint->callbacks && !strcmp(registrar, hint->exten->parent->registrar)) {
+			length = strlen(hint->exten->exten) + strlen(hint->exten->parent->name) + 2 + sizeof(*this);
+			this = calloc(1, length);
+			if (!this) {
+				ast_log(LOG_WARNING, "Could not allocate memory to preserve hint\n");
+				continue;
+			}
+			this->callbacks = hint->callbacks;
+			hint->callbacks = NULL;
+			this->laststate = hint->laststate;
+			this->context = this->data;
+			strcpy(this->data, hint->exten->parent->name);
+			this->exten = this->data + strlen(this->context) + 1;
+			strcpy(this->exten, hint->exten->exten);
+			AST_LIST_INSERT_HEAD(&store, this, list);
+		}
+	}
+	ast_mutex_unlock(&hintlock);
+
 	tmp = *extcontexts;
 	ast_mutex_lock(&conlock);
 	if (registrar) {
@@ -3566,6 +3615,40 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
 	} else 
 		ast_log(LOG_WARNING, "Requested contexts didn't get merged\n");
 	ast_mutex_unlock(&conlock);
+
+	/* restore the watchers for hints that can be found; notify those that
+	   cannot be restored
+	*/
+	while ((this = AST_LIST_REMOVE_HEAD(&store, list))) {
+		exten = ast_hint_extension(NULL, this->context, this->exten);
+		/* Find the hint in the list of hints */
+		ast_mutex_lock(&hintlock);
+		for (hint = hints; hint; hint = hint->next) {
+			if (hint->exten == exten)
+				break;
+		}
+		if (!exten || !hint) {
+			/* this hint has been removed, notify the watchers */
+			prevcb = NULL;
+			thiscb = this->callbacks;
+			while (thiscb) {
+				prevcb = thiscb;	    
+				thiscb = thiscb->next;
+				prevcb->callback(this->context, this->exten, AST_EXTENSION_REMOVED, prevcb->data);
+				free(prevcb);
+	    		}
+		} else {
+			thiscb = this->callbacks;
+			while (thiscb->next)
+				thiscb = thiscb->next;
+			thiscb->next = hint->callbacks;
+			hint->callbacks = this->callbacks;
+			hint->laststate = this->laststate;
+		}
+		ast_mutex_unlock(&hintlock);
+		free(this);
+	}
+
 	return;	
 }
 

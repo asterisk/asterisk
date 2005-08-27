@@ -5733,20 +5733,24 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 }
 
 /*--- cb_extensionstate: Part of thte SUBSCRIBE support subsystem ---*/
-static int cb_extensionstate(char *context, char* exten, int state, void *data)
+static int cb_extensionstate(char *context, char* exten, enum ast_extension_states state, void *data)
 {
 	struct sip_pvt *p = data;
-	if (state == -1) {
+
+	switch (state) {
+	case AST_EXTENSION_DEACTIVATED:
+	case AST_EXTENSION_REMOVED:
+		transmit_state_notify(p, state, 1);
 		sip_scheddestroy(p, 15000);
 		p->stateid = -1;
 		return 0;
+	default:
+		transmit_state_notify(p, state, 1);
+		
+		if (option_debug > 1)
+			ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %d for Notify User %s\n", exten, state, p->username);
+		return 0;
 	}
- 
-	transmit_state_notify(p, state, 1);
-
-	if (option_debug > 1)
-		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %d for Notify User %s\n", exten, state, p->username);
-	return 0;
 }
 
 /*--- register_verify: Verify registration of user */
