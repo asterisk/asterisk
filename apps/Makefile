@@ -11,9 +11,6 @@
 # the GNU General Public License
 #
 
-USE_MYSQL_VM_INTERFACE=0
-USE_POSTGRES_VM_INTERFACE=0
-
 #APPS=app_dial.so app_playback.so app_directory.so app_intercom.so app_mp3.so 
 APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_system.so app_echo.so app_record.so app_image.so app_url.so app_disa.so \
@@ -43,16 +40,15 @@ endif
 #
 # Obsolete things...
 #
-
 #APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so
+
 #
 # Experimental things
 #
 #APPS+=app_ivrdemo.so
 #APPS+=app_skel.so
 #APPS+=app_rpt.so
-
 
 APPS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
 APPS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ]; then echo "app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so" ; fi)
@@ -96,17 +92,6 @@ install: all
 
 app_curl.so: app_curl.o
 	$(CC) $(SOLINK) -o $@ $< $(CURLLIBS)
-
-app_voicemail.so : app_voicemail.o
-ifeq ($(USE_MYSQL_VM_INTERFACE),1)
-	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< -L/usr/lib/mysql -lmysqlclient -lz
-else
-ifeq ($(USE_POSTGRES_VM_INTERFACE),1)
-	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< -lpq
-else
-	$(CC) $(SOLINK) -o $@ $(MLFLAGS) $< 
-endif
-endif
 
 app_sql_postgres.o: app_sql_postgres.c
 	$(CC) -pipe -I/usr/local/pgsql/include $(CFLAGS) -c -o app_sql_postgres.o app_sql_postgres.c
