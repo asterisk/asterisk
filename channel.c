@@ -1011,6 +1011,7 @@ int ast_hangup(struct ast_channel *chan)
 	if (chan->cdr) {		/* End the CDR if it hasn't already */ 
 		ast_cdr_end(chan->cdr);
 		ast_cdr_detach(chan->cdr);	/* Post and Free the CDR */ 
+		chan->cdr = NULL;
 	}
 	if (ast_test_flag(chan, AST_FLAG_BLOCKING)) {
 		ast_log(LOG_WARNING, "Hard hangup called by thread %ld on %s, while fd "
