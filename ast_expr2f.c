@@ -453,7 +453,7 @@ static yyconst flex_int16_t yy_chk[56] =
 #ifndef SOLARIS
 #include <err.h>
 #else
-#define quad_t uint64_t
+#define quad_t int64_t
 #endif
 #include <errno.h>
 #include <regex.h>
@@ -2104,8 +2104,8 @@ char *ast_expr (char *arg)
 		return(pirouni);
 	} else {
 		if (io->val->type == AST_EXPR_integer) {
-			pirouni=malloc(256);
-			sprintf (pirouni,"%lld", (long long)io->val->u.i);
+			pirouni = malloc(24);
+			sprintf(pirouni, "%ld", io->val->u.i);
 		}
 		else {
 			pirouni=strdup(io->val->u.s);

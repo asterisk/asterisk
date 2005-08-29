@@ -349,7 +349,7 @@ to_string (struct val *vp)
 		return;
 	}
 
-	sprintf (tmp, "%lld", (long long)vp->u.i);
+	sprintf (tmp, "%ld", vp->u.i);
 	vp->type = AST_EXPR_string;
 	vp->u.s  = tmp;
 }

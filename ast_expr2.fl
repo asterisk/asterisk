@@ -116,8 +116,8 @@ char *ast_expr (char *arg)
 		return(pirouni);
 	} else {
 		if (io->val->type == AST_EXPR_integer) {
-			pirouni=malloc(256);
-			sprintf (pirouni,"%lld", (long long)io->val->u.i);
+			pirouni = malloc(24);
+			sprintf(pirouni, "%ld", io->val->u.i);
 		}
 		else {
 			pirouni=strdup(io->val->u.s);
