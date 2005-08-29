@@ -1187,7 +1187,7 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration,mailboxuser,mailboxcontext) VALUES (?,?,?,?,?,?,?,?,?,?)",odbc_table);
 #else
  			snprintf(sql, sizeof(sql), "INSERT INTO %s (dir,msgnum,recording,context,macrocontext,callerid,origtime,duration) VALUES (?,?,?,?,?,?,?,?)",odbc_table);
-#endif		 
+#endif
 		res = SQLPrepare(stmt, sql, SQL_NTS);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Prepare failed![%s]\n", sql);
@@ -6134,6 +6134,7 @@ static int load_config(void)
 			}
 		}
 		ast_mutex_unlock(&vmlock);
+		ast_config_destroy(cfg);
 		return 0;
 	} else {
 		ast_mutex_unlock(&vmlock);
