@@ -8,7 +8,7 @@
 #ifndef SOLARIS
 #include <err.h>
 #else
-#define quad_t uint64_t
+#define quad_t int64_t
 #endif
 #include <errno.h>
 #include <regex.h>
