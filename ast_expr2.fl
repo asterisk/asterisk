@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <asterisk/ast_expr.h>
 #include <asterisk/logger.h>
+#include <asterisk/strings.h>
 
 enum valtype {
 	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
@@ -41,6 +42,8 @@ struct parse_io
 	yyscan_t scanner;
 };
  
+void ast_yyset_column(int column_no, yyscan_t yyscanner);
+int ast_yyget_column(yyscan_t yyscanner);
 
 %}
 
@@ -90,42 +93,47 @@ struct parse_io
    ast_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
 	UGH! that would be inappropriate. */
 
-int ast_yyparse( void *); /* need to/should define this prototype for the call to yyparse */
-char *ast_expr(char *arg); /* and this prototype for the following func */
-int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *); /* likewise */
+int ast_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
+int ast_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-char *ast_expr (char *arg)
+int ast_expr(char *expr, char *buf, int length)
 {
 	struct parse_io *io;
-	char *pirouni;
 	
-	io = (struct parse_io *)calloc(sizeof(struct parse_io),1);
-	io->string = arg;  /* to pass to the error routine */
+	io = calloc(sizeof(struct parse_io),1);
+	io->string = expr;  /* to pass to the error routine */
 	
 	ast_yylex_init(&io->scanner);
 	
-	ast_yy_scan_string(arg,io->scanner);
+	ast_yy_scan_string(expr, io->scanner);
 	
-	ast_yyparse ((void *)io);
+	ast_yyparse ((void *) io);
 
 	ast_yylex_destroy(io->scanner);
-	
 
-	if (io->val==NULL) {
-		pirouni=strdup("0");
-		return(pirouni);
+	if (io->val == NULL) {
+		if (length > 1) {
+			strcpy(buf, "0");
+			return 1;
+		}
 	} else {
 		if (io->val->type == AST_EXPR_integer) {
-			pirouni = malloc(24);
-			sprintf(pirouni, "%ld", io->val->u.i);
-		}
-		else {
-			pirouni=strdup(io->val->u.s);
+			int res_length;
+
+			res_length = snprintf(buf, length, "%ld", (long int) io->val->u.i);
+			return res_length <= length ? res_length : length;
+		} else {
+#ifdef STANDALONE
+			strncpy(buf, io->val->u.s, length - 1);
+#else /* !STANDALONE */
+			ast_copy_string(buf, io->val->u.s, length);
+#endif /* STANDALONE */
+			return strlen(buf);
 		}
 		free(io->val);
 	}
 	free(io);
-	return(pirouni);
+	return 0;
 }
 
 int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )

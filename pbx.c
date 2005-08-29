@@ -1522,19 +1522,12 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 				vars = var;
 			}
 
-			/* Evaluate expression */			
-			cp4 = ast_expr(vars);
-			
-			ast_log(LOG_DEBUG, "Expression is '%s'\n", cp4);
-			
-			if (cp4) {
-				length = strlen(cp4);
-				if (length > count)
-					length = count;
-				memcpy(cp2, cp4, length);
+			length = ast_expr(vars, cp2, count);
+
+			if (length) {
+				ast_log(LOG_DEBUG, "Expression result is '%s'\n", cp2);
 				count -= length;
 				cp2 += length;
-				free(cp4);
 			}
 		} else
 			break;

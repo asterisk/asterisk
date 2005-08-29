@@ -3,6 +3,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
+#include <../include/asterisk/ast_expr.h>
 
 int global_lineno = 1;
 int global_expr_count = 0;
@@ -120,11 +121,12 @@ int check_expr(char *buffer, char *error_report)
 
 int check_eval(char *buffer, char *error_report)
 {
-	char *cp, *ep, *xp, *s;
+	char *cp, *ep, *xp;
+	char s[4096];
 	char evalbuf[80000];
-	extern char *ast_expr(char *);
 	int oplen = 0;
 	int warn_found = 0;
+	int result;
 
 	error_report[0] = 0;
 	ep = evalbuf;
@@ -179,12 +181,11 @@ int check_eval(char *buffer, char *error_report)
 	*ep++ = 0;
 
 	/* now, run the test */
-	s = ast_expr(evalbuf);
-	if (s) {
+	result = ast_expr(evalbuf, s, sizeof(s));
+	if (result) {
 		sprintf(error_report,"line %d, evaluation of $[ %s ] result: %s\n", global_lineno, evalbuf, s);
 		return 1;
-	}
-	else {
+	} else {
 		sprintf(error_report,"line %d, evaluation of $[ %s ] result: ****SYNTAX ERROR****\n", global_lineno, evalbuf);
 		return 1;
 	}

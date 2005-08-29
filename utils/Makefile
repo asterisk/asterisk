@@ -40,6 +40,7 @@ install:
 
 clean:
 	rm -f *.o astman smsq stereorize check_expr .depend
+	rm -f ast_expr2.o ast_expr2f.o
 
 astman: astman.o ../md5.o
 	$(CC) $(CFLAGS) -o astman astman.o ../md5.o -lnewt
@@ -47,8 +48,14 @@ astman: astman.o ../md5.o
 stereorize: stereorize.o frame.o
 	$(CC) $(CFLAGS) -o stereorize stereorize.o frame.o -lm
 
-check_expr : check_expr.c ../ast_expr.a
-	$(CC) $(CFLAGS) -o check_expr check_expr.c ../ast_expr.a
+ast_expr2.o: ../ast_expr2.c
+	gcc -g -c -o $@ $<
+
+ast_expr2f.o: ../ast_expr2f.c
+	gcc -g -c -DSTANDALONE -o $@ $<
+
+check_expr: check_expr.c ast_expr2.o ast_expr2f.o
+	$(CC) $(CFLAGS) -o $@ $^
 
 smsq: smsq.o
 	$(CC) $(CFLAGS) -o smsq ${SOL} smsq.o -lpopt

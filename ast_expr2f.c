@@ -460,6 +460,7 @@ static yyconst flex_int16_t yy_chk[56] =
 #include <limits.h>
 #include <asterisk/ast_expr.h>
 #include <asterisk/logger.h>
+#include <asterisk/strings.h>
 
 enum valtype {
 	AST_EXPR_integer, AST_EXPR_numeric_string, AST_EXPR_string
@@ -486,8 +487,10 @@ struct parse_io
 	yyscan_t scanner;
 };
  
+void ast_yyset_column(int column_no, yyscan_t yyscanner);
+int ast_yyget_column(yyscan_t yyscanner);
 
-#line 491 "ast_expr2f.c"
+#line 494 "ast_expr2f.c"
 
 #define INITIAL 0
 
@@ -720,10 +723,10 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-#line 55 "ast_expr2.fl"
+#line 58 "ast_expr2.fl"
 
 
-#line 727 "ast_expr2f.c"
+#line 730 "ast_expr2f.c"
 
     yylval = yylval_param;
 
@@ -808,129 +811,129 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 57 "ast_expr2.fl"
+#line 60 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_OR;}
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 58 "ast_expr2.fl"
+#line 61 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_AND;}
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 59 "ast_expr2.fl"
+#line 62 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_EQ;}
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 60 "ast_expr2.fl"
+#line 63 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_GT;}
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 61 "ast_expr2.fl"
+#line 64 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LT;}
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 62 "ast_expr2.fl"
+#line 65 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_GE;}
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 63 "ast_expr2.fl"
+#line 66 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LE;}
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 64 "ast_expr2.fl"
+#line 67 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_NE;}
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 65 "ast_expr2.fl"
+#line 68 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_PLUS;}
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 66 "ast_expr2.fl"
+#line 69 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MINUS;}
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 67 "ast_expr2.fl"
+#line 70 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MULT;}
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 68 "ast_expr2.fl"
+#line 71 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_DIV;}
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 69 "ast_expr2.fl"
+#line 72 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_MOD;}
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 70 "ast_expr2.fl"
+#line 73 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COND;}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 71 "ast_expr2.fl"
+#line 74 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COLON;}
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 72 "ast_expr2.fl"
+#line 75 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_COLONCOLON;}
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 73 "ast_expr2.fl"
+#line 76 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_LP;}
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 74 "ast_expr2.fl"
+#line 77 "ast_expr2.fl"
 { SET_COLUMNS; SET_STRING; return TOK_RP;}
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 76 "ast_expr2.fl"
+#line 79 "ast_expr2.fl"
 {}
 	YY_BREAK
 case 20:
 /* rule 20 can match eol */
 YY_RULE_SETUP
-#line 77 "ast_expr2.fl"
+#line 80 "ast_expr2.fl"
 {SET_COLUMNS; SET_STRING; return TOKEN;}
 	YY_BREAK
 case 21:
 /* rule 21 can match eol */
 YY_RULE_SETUP
-#line 79 "ast_expr2.fl"
+#line 82 "ast_expr2.fl"
 {/* what to do with eol */}
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 80 "ast_expr2.fl"
+#line 83 "ast_expr2.fl"
 {   SET_COLUMNS;  /* the original behavior of the expression parser was to bring in numbers as a numeric string */
 				SET_NUMERIC_STRING;
 				return TOKEN;}
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 83 "ast_expr2.fl"
+#line 86 "ast_expr2.fl"
 {SET_COLUMNS; SET_STRING; return TOKEN;}
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 85 "ast_expr2.fl"
+#line 88 "ast_expr2.fl"
 ECHO;
 	YY_BREAK
-#line 934 "ast_expr2f.c"
+#line 937 "ast_expr2f.c"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2068,7 +2071,7 @@ void ast_yyfree (void * ptr , yyscan_t yyscanner)
 #undef YY_DECL_IS_OURS
 #undef YY_DECL
 #endif
-#line 85 "ast_expr2.fl"
+#line 88 "ast_expr2.fl"
 
 
 
@@ -2078,42 +2081,47 @@ void ast_yyfree (void * ptr , yyscan_t yyscanner)
    ast_yy_scan_string in the .y file, because then, I'd have to define YY_BUFFER_STATE there...
 	UGH! that would be inappropriate. */
 
-int ast_yyparse( void *); /* need to/should define this prototype for the call to yyparse */
-char *ast_expr(char *arg); /* and this prototype for the following func */
-int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *); /* likewise */
+int ast_yyparse(void *); /* need to/should define this prototype for the call to yyparse */
+int ast_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
-char *ast_expr (char *arg)
+int ast_expr(char *expr, char *buf, int length)
 {
 	struct parse_io *io;
-	char *pirouni;
 	
-	io = (struct parse_io *)calloc(sizeof(struct parse_io),1);
-	io->string = arg;  /* to pass to the error routine */
+	io = calloc(sizeof(struct parse_io),1);
+	io->string = expr;  /* to pass to the error routine */
 	
 	ast_yylex_init(&io->scanner);
 	
-	ast_yy_scan_string(arg,io->scanner);
+	ast_yy_scan_string(expr, io->scanner);
 	
-	ast_yyparse ((void *)io);
+	ast_yyparse ((void *) io);
 
 	ast_yylex_destroy(io->scanner);
-	
 
-	if (io->val==NULL) {
-		pirouni=strdup("0");
-		return(pirouni);
+	if (io->val == NULL) {
+		if (length > 1) {
+			strcpy(buf, "0");
+			return 1;
+		}
 	} else {
 		if (io->val->type == AST_EXPR_integer) {
-			pirouni = malloc(24);
-			sprintf(pirouni, "%ld", io->val->u.i);
-		}
-		else {
-			pirouni=strdup(io->val->u.s);
+			int res_length;
+
+			res_length = snprintf(buf, length, "%ld", (long int) io->val->u.i);
+			return res_length <= length ? res_length : length;
+		} else {
+#ifdef STANDALONE
+			strncpy(buf, io->val->u.s, length - 1);
+#else /* !STANDALONE */
+			ast_copy_string(buf, io->val->u.s, length);
+#endif /* STANDALONE */
+			return strlen(buf);
 		}
 		free(io->val);
 	}
 	free(io);
-	return(pirouni);
+	return 0;
 }
 
 int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )

@@ -1734,7 +1734,7 @@ to_string (struct val *vp)
 		return;
 	}
 
-	sprintf (tmp, "%ld", vp->u.i);
+	sprintf(tmp, "%ld", (long int) vp->u.i);
 	vp->type = AST_EXPR_string;
 	vp->u.s  = tmp;
 }
@@ -1775,11 +1775,12 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 
 int main(int argc,char **argv) {
-	char *s;
-
-	s=ast_expr(argv[1]);
-
-	printf("=====%s======\n",s);
+	char s[4096];
+	
+	if (ast_expr(argv[1], s, sizeof(s)))
+		printf("=====%s======\n",s);
+	else
+		printf("No result\n");
 }
 
 #endif
