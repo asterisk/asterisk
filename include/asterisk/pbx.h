@@ -42,11 +42,26 @@ enum ast_extension_states {
 	/*! No device INUSE or BUSY  */
 	AST_EXTENSION_NOT_INUSE = 0,
 	/*! One or more devices INUSE */
-	AST_EXTENSION_INUSE = 1,
+	AST_EXTENSION_INUSE = 1 << 0,
 	/*! All devices BUSY */
-	AST_EXTENSION_BUSY = 2,
+	AST_EXTENSION_BUSY = 1 << 1,
 	/*! All devices UNAVAILABLE/UNREGISTERED */
-	AST_EXTENSION_UNAVAILABLE = 3,
+	AST_EXTENSION_UNAVAILABLE = 1 << 2,
+	/*! All devices RINGING */
+	AST_EXTENSION_RINGING = 1 << 3,
+};
+
+
+static const struct cfextension_states {
+	int extension_state;
+	const char * const text;
+} extension_states[] = {
+	{ AST_EXTENSION_NOT_INUSE,                     "Idle" },
+	{ AST_EXTENSION_INUSE,                         "InUse" },
+	{ AST_EXTENSION_BUSY,                          "Busy" },
+	{ AST_EXTENSION_UNAVAILABLE,                   "Unavailable" },
+	{ AST_EXTENSION_RINGING,                       "Ringing" },
+	{ AST_EXTENSION_INUSE | AST_EXTENSION_RINGING, "InUse&Ringing" }
 };
 
 struct ast_context;
@@ -256,6 +271,13 @@ int ast_unregister_application(const char *app);
  * Returns extension state !! = AST_EXTENSION_???
  */
 int ast_extension_state(struct ast_channel *c, char *context, char *exten);
+
+/*! Return string of the state of an extension */
+/*!
+ * \param extension_state is the numerical state delivered by ast_extension_state
+ * Returns the state of an extension as string
+ */
+const char *ast_extension_state2str(int extension_state);
 
 /*! Registers a state change callback */
 /*!

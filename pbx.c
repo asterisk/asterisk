@@ -1731,7 +1731,7 @@ static int ast_extension_state2(struct ast_exten *e)
 	char *cur, *rest;
 	int res = -1;
 	int allunavailable = 1, allbusy = 1, allfree = 1;
-	int busy = 0;
+	int busy = 0, inuse = 0, ring = 0;
 
 	if (!e)
 		return -1;
@@ -1742,7 +1742,7 @@ static int ast_extension_state2(struct ast_exten *e)
 	do {
 		rest = strchr(cur, '&');
 		if (rest) {
-	    		*rest = 0;
+			*rest = 0;
 			rest++;
 		}
 	
@@ -1753,7 +1753,15 @@ static int ast_extension_state2(struct ast_exten *e)
 			allbusy = 0;
 			break;
 		case AST_DEVICE_INUSE:
-			return AST_EXTENSION_INUSE;
+			inuse = 1;
+			allunavailable = 0;
+			allfree = 0;
+			break;
+		case AST_DEVICE_RINGING:
+			ring = 1;
+			allunavailable = 0;
+			allfree = 0;
+			break;
 		case AST_DEVICE_BUSY:
 			allunavailable = 0;
 			allfree = 0;
@@ -1772,7 +1780,13 @@ static int ast_extension_state2(struct ast_exten *e)
 		cur = rest;
 	} while (cur);
 
-	if (allfree)			
+	if (!inuse && ring)
+		return AST_EXTENSION_RINGING;
+	if (inuse && ring)
+		return (AST_EXTENSION_INUSE | AST_EXTENSION_RINGING);
+	if (inuse)
+		return AST_EXTENSION_INUSE;
+	if (allfree)
 		return AST_EXTENSION_NOT_INUSE;
 	if (allbusy)		
 		return AST_EXTENSION_BUSY;
@@ -1784,6 +1798,18 @@ static int ast_extension_state2(struct ast_exten *e)
 	return AST_EXTENSION_NOT_INUSE;
 }
 
+/*--- ast_extension_state2str: Return extension_state as string */
+const char *ast_extension_state2str(int extension_state)
+{
+	int i;
+
+	for (i = 0; (i < (sizeof(extension_states) / sizeof(extension_states[0]))); i++) {
+		if (extension_states[i].extension_state == extension_state) {
+			return extension_states[i].text;
+		}
+	}
+	return "Unknown";	
+}
 
 /*--- ast_extension_state: Check extension state for an extension by using hint */
 int ast_extension_state(struct ast_channel *c, char *context, char *exten)
