@@ -128,10 +128,36 @@ struct ast_hostent {
 };
 
 extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
-/* ast_md5_hash: Produces MD5 hash based on input string */
+
+/* ast_md5_hash 
+	\brief Produces MD5 hash based on input string */
 extern void ast_md5_hash(char *output, char *input);
+
 extern int ast_base64encode(char *dst, unsigned char *src, int srclen, int max);
 extern int ast_base64decode(unsigned char *dst, char *src, int max);
+
+/*! ast_uri_encode
+	\brief Turn text string to URI-encoded %XX version 
+ 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
+	as in the SIP protocol spec 
+	If doreserved == 1 we will convert reserved characters also.
+	RFC 2396, section 2.4
+	outbuf needs to have more memory allocated than the instring
+	to have room for the expansion. Every char that is converted
+	is replaced by three ASCII characters.
+	\param string	String to be converted
+	\param outbuf	Resulting encoded string
+	\param buflen	Size of output buffer
+	\param doreserved	Convert reserved characters
+*/
+
+char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
+
+/*!	\brief Decode URI, URN, URL (overwrite string)
+	\param s	String to be decoded 
+ */
+void ast_uri_decode(char *s);
+	
 
 extern int test_for_thread_safety(void);
 

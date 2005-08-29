@@ -382,7 +382,66 @@ static void base64_init(void)
 #endif
 }
 
-/* Recursive thread safe replacement of inet_ntoa */
+/*--- ast_uri_encode: Turn text string to URI-encoded %XX version ---*/
+/* 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
+	as in the SIP protocol spec 
+	If doreserved == 1 we will convert reserved characters also.
+	RFC 2396, section 2.4
+	outbuf needs to have more memory allocated than the instring
+	to have room for the expansion. Every char that is converted
+	is replaced by three ASCII characters.
+
+	Note: The doreserved option is needed for replaces header in
+	SIP transfers.
+*/
+char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved) 
+{
+	char *reserved = ";/?:@&=+$, ";	/* Reserved chars */
+
+ 	char *ptr  = string;	/* Start with the string */
+	char *out = NULL;
+	char *buf = NULL;
+
+	strncpy(outbuf, string, buflen);
+
+	/* If there's no characters to convert, just go through and don't do anything */
+	while (*ptr) {
+		if (((unsigned char) *ptr) > 127 || (doreserved && strchr(reserved, *ptr)) ) {
+			/* Oops, we need to start working here */
+			if (!buf) {
+				buf = outbuf;
+				out = buf + (ptr - string) ;	/* Set output ptr */
+			}
+			out += sprintf(out, "%%%02x", (unsigned char) *ptr);
+		} else if (buf) {
+			*out = *ptr;	/* Continue copying the string */
+			out++;
+		} 
+		ptr++;
+	}
+	if (buf)
+		*out = '\0';
+	return outbuf;
+}
+
+/*--- ast_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
+void ast_uri_decode(char *s) 
+{
+	char *o;
+	unsigned int tmp;
+
+	for (o = s; *s; s++, o++) {
+		if (*s == '%' && strlen(s) > 2 && sscanf(s + 1, "%2x", &tmp) == 1) {
+			/* have '%', two chars and correct parsing */
+			*o = tmp;
+			s += 2;	/* Will be incremented once more when we break out */
+		} else /* all other cases, just copy */
+			*o = *s;
+	}
+	*o = '\0';
+}
+
+/*--- ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
 const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 {
 	return inet_ntop(AF_INET, &ia, buf, bufsiz);
@@ -397,6 +456,7 @@ int ast_utils_init(void)
 #ifndef __linux__
 #undef pthread_create /* For ast_pthread_create function only */
 #endif /* ! LINUX */
+
 int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize)
 {
 	pthread_attr_t lattr;
@@ -634,9 +694,9 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
 
 #ifndef HAVE_STRTOQ
 #define LONG_MIN        (-9223372036854775807L-1L)
-                                        /* min value of a "long int" */
+	                                 /* min value of a "long int" */
 #define LONG_MAX        9223372036854775807L
-                                        /* max value of a "long int" */
+	                                 /* max value of a "long int" */
 
 /*
  * Convert a string to a quad integer.
@@ -646,85 +706,85 @@ int vasprintf(char **strp, const char *fmt, va_list ap)
  */
 uint64_t strtoq(const char *nptr, char **endptr, int base)
 {
-        const char *s;
-        uint64_t acc;
-        unsigned char c;
-        uint64_t qbase, cutoff;
-        int neg, any, cutlim;
+	 const char *s;
+	 uint64_t acc;
+	 unsigned char c;
+	 uint64_t qbase, cutoff;
+	 int neg, any, cutlim;
 
-        /*
-         * Skip white space and pick up leading +/- sign if any.
-         * If base is 0, allow 0x for hex and 0 for octal, else
-         * assume decimal; if base is already 16, allow 0x.
-         */
-        s = nptr;
-        do {
-                c = *s++;
-        } while (isspace(c));
-        if (c == '-') {
-                neg = 1;
-                c = *s++;
-        } else {
-                neg = 0;
-                if (c == '+')
-                        c = *s++;
-        }
-        if ((base == 0 || base == 16) &&
-            c == '\0' && (*s == 'x' || *s == 'X')) {
-                c = s[1];
-                s += 2;
-                base = 16;
-        }
-        if (base == 0)
-                base = c == '\0' ? 8 : 10;
+	 /*
+	  * Skip white space and pick up leading +/- sign if any.
+	  * If base is 0, allow 0x for hex and 0 for octal, else
+	  * assume decimal; if base is already 16, allow 0x.
+	  */
+	 s = nptr;
+	 do {
+	         c = *s++;
+	 } while (isspace(c));
+	 if (c == '-') {
+	         neg = 1;
+	         c = *s++;
+	 } else {
+	         neg = 0;
+	         if (c == '+')
+	                 c = *s++;
+	 }
+	 if ((base == 0 || base == 16) &&
+	     c == '\0' && (*s == 'x' || *s == 'X')) {
+	         c = s[1];
+	         s += 2;
+	         base = 16;
+	 }
+	 if (base == 0)
+	         base = c == '\0' ? 8 : 10;
 
-        /*
-         * Compute the cutoff value between legal numbers and illegal
-         * numbers.  That is the largest legal value, divided by the
-         * base.  An input number that is greater than this value, if
-         * followed by a legal input character, is too big.  One that
-         * is equal to this value may be valid or not; the limit
-         * between valid and invalid numbers is then based on the last
-         * digit.  For instance, if the range for quads is
-         * [-9223372036854775808..9223372036854775807] and the input base
-         * is 10, cutoff will be set to 922337203685477580 and cutlim to
-         * either 7 (neg==0) or 8 (neg==1), meaning that if we have
-         * accumulated a value > 922337203685477580, or equal but the
-         * next digit is > 7 (or 8), the number is too big, and we will
-         * return a range error.
-         *
-         * Set any if any `digits' consumed; make it negative to indicate
-         * overflow.
-         */
-        qbase = (unsigned)base;
-        cutoff = neg ? (uint64_t)-(LONG_MIN + LONG_MAX) + LONG_MAX : LONG_MAX;
-        cutlim = cutoff % qbase;
-        cutoff /= qbase;
-        for (acc = 0, any = 0;; c = *s++) {
-                if (!isascii(c))
-                        break;
-                if (isdigit(c))
-                        c -= '\0';
-                else if (isalpha(c))
-                        c -= isupper(c) ? 'A' - 10 : 'a' - 10;
-                else
-                        break;
-                if (c >= base)
-                        break;
-                if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
-                        any = -1;
-                else {
-                        any = 1;
-                        acc *= qbase;
-                        acc += c;
-                }
-        }
-        if (any < 0) {
-                acc = neg ? LONG_MIN : LONG_MAX;
-        } else if (neg)
-                acc = -acc;
-        if (endptr != 0)
-                *((const char **)endptr) = any ? s - 1 : nptr;
-        return (acc);
+	 /*
+	  * Compute the cutoff value between legal numbers and illegal
+	  * numbers.  That is the largest legal value, divided by the
+	  * base.  An input number that is greater than this value, if
+	  * followed by a legal input character, is too big.  One that
+	  * is equal to this value may be valid or not; the limit
+	  * between valid and invalid numbers is then based on the last
+	  * digit.  For instance, if the range for quads is
+	  * [-9223372036854775808..9223372036854775807] and the input base
+	  * is 10, cutoff will be set to 922337203685477580 and cutlim to
+	  * either 7 (neg==0) or 8 (neg==1), meaning that if we have
+	  * accumulated a value > 922337203685477580, or equal but the
+	  * next digit is > 7 (or 8), the number is too big, and we will
+	  * return a range error.
+	  *
+	  * Set any if any `digits' consumed; make it negative to indicate
+	  * overflow.
+	  */
+	 qbase = (unsigned)base;
+	 cutoff = neg ? (uint64_t)-(LONG_MIN + LONG_MAX) + LONG_MAX : LONG_MAX;
+	 cutlim = cutoff % qbase;
+	 cutoff /= qbase;
+	 for (acc = 0, any = 0;; c = *s++) {
+	         if (!isascii(c))
+	                 break;
+	         if (isdigit(c))
+	                 c -= '\0';
+	         else if (isalpha(c))
+	                 c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+	         else
+	                 break;
+	         if (c >= base)
+	                 break;
+	         if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
+	                 any = -1;
+	         else {
+	                 any = 1;
+	                 acc *= qbase;
+	                 acc += c;
+	         }
+	 }
+	 if (any < 0) {
+	         acc = neg ? LONG_MIN : LONG_MAX;
+	 } else if (neg)
+	         acc = -acc;
+	 if (endptr != 0)
+	         *((const char **)endptr) = any ? s - 1 : nptr;
+	 return acc;
 }
 #endif

@@ -1407,23 +1407,6 @@ static int send_request(struct sip_pvt *p, struct sip_request *req, int reliable
 	return res;
 }
 
-/*--- url_decode: Decode SIP URL (overwrite the string)  ---*/
-static void url_decode(char *s) 
-{
-	char *o;
-	unsigned int tmp;
-
-	for (o = s; *s; s++, o++) {
-		if (*s == '%' && strlen(s) > 2 && sscanf(s + 1, "%2x", &tmp) == 1) {
-			/* have '%', two chars and correct parsing */
-			*o = tmp;
-			s += 2;	/* Will be incremented once more when we break out */
-		} else /* all other cases, just copy */
-			*o = *s;
-	}
-	*o = '\0';
-}
-
 /*--- get_in_brackets: Pick out text in brackets from character string ---*/
 /* returns pointer to terminated stripped string. modifies input string. */
 static char *get_in_brackets(char *tmp)
@@ -4348,15 +4331,16 @@ static void build_contact(struct sip_pvt *p)
 		snprintf(p->our_contact, sizeof(p->our_contact), "<sip:%s%s%s>", p->exten, ast_strlen_zero(p->exten) ? "" : "@", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip));
 }
 
-/*--- initreqprep: Initiate SIP request to peer/user ---*/
+/*--- initreqprep: Initiate new SIP request to peer/user ---*/
 static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, char *vxml_url)
 {
-	char invite[256]="";
+	char invite[256] = "";
 	char from[256];
 	char to[256];
-	char tmp[80];
+	char tmp[BUFSIZ/2];
+	char tmp2[BUFSIZ/2];
 	char iabuf[INET_ADDRSTRLEN];
-	char *l = default_callerid, *n=NULL;
+	char *l = default_callerid, *n = NULL;
 	int x;
 	char urioptions[256]="";
 
@@ -4372,7 +4356,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
         	if (p->username && p->username[0] == '+')
 			x=1;
 
-		for (; x<strlen(p->username); x++) {
+		for (; x < strlen(p->username); x++) {
 			if (!strchr(AST_DIGIT_ANYNUM, p->username[x])) {
                 		onlydigits = 0;
 				break;
@@ -4412,8 +4396,15 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	else /* Save for any further attempts */
 		ast_copy_string(p->fromname, n, sizeof(p->fromname));
 
+	if (pedanticsipchecking) {
+		ast_uri_encode(n, tmp, sizeof(tmp), 0);
+		n = tmp;
+		ast_uri_encode(l, tmp2, sizeof(tmp2), 0);
+		l = tmp2;
+	}
+
 	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", tmp, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
 
@@ -4423,10 +4414,15 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		ast_copy_string(invite, p->fullcontact, sizeof(invite));
 	/* Otherwise, use the username while waiting for registration */
 	} else if (!ast_strlen_zero(p->username)) {
+		n = p->username;
+		if (pedanticsipchecking) {
+			ast_uri_encode(n, tmp, sizeof(tmp), 0);
+			n = tmp;
+		}
 		if (ntohs(p->sa.sin_port) != 5060) {		/* Needs to be 5060 */
-			snprintf(invite, sizeof(invite), "sip:%s@%s:%d%s",p->username, p->tohost, ntohs(p->sa.sin_port), urioptions);
+			snprintf(invite, sizeof(invite), "sip:%s@%s:%d%s", n, p->tohost, ntohs(p->sa.sin_port), urioptions);
 		} else {
-			snprintf(invite, sizeof(invite), "sip:%s@%s%s",p->username, p->tohost, urioptions);
+			snprintf(invite, sizeof(invite), "sip:%s@%s%s", n, p->tohost, urioptions);
 		}
 	} else if (ntohs(p->sa.sin_port) != 5060) {		/* Needs to be 5060 */
 		snprintf(invite, sizeof(invite), "sip:%s:%d%s", p->tohost, ntohs(p->sa.sin_port), urioptions);
@@ -4434,9 +4430,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		snprintf(invite, sizeof(invite), "sip:%s%s", p->tohost, urioptions);
 	}
 	ast_copy_string(p->uri, invite, sizeof(p->uri));
+
 	/* If there is a VXML URL append it to the SIP URL */
-	if (vxml_url)
-	{
+	if (vxml_url) {
 		snprintf(to, sizeof(to), "<%s>;%s", invite, vxml_url);
 	} else {
 		snprintf(to, sizeof(to), "<%s>", invite);
@@ -5756,7 +5752,7 @@ static int cb_extensionstate(char *context, char* exten, enum ast_extension_stat
 /*--- register_verify: Verify registration of user */
 static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct sip_request *req, char *uri, int ignore)
 {
-	int res = -1;
+	int res = -3;
 	struct sip_peer *peer;
 	char tmp[256] = "";
 	char iabuf[INET_ADDRSTRLEN];
@@ -5770,6 +5766,9 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	*t = '\0';
 	
 	ast_copy_string(tmp, get_header(req, "To"), sizeof(tmp));
+	if (pedanticsipchecking)
+		ast_uri_decode(tmp);
+
 	c = get_in_brackets(tmp);
 	/* Ditch ;user=phone */
 	name = strchr(c, ';');
@@ -5838,7 +5837,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		switch (res) {
 		case -1:
 			/* Wrong password in authentication. Go away, don't try again until you fixed it */
-			transmit_response(p, "403 Forbidden", &p->initreq);
+			transmit_response(p, "403 Forbidden (Bad auth)", &p->initreq);
 			break;
 		case -2:
 			/* Username and digest username does not match. 
@@ -5847,6 +5846,15 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 			   proper authentication by digest auth name */
 			transmit_response(p, "403 Authentication user name does not match account name", &p->initreq);
 			break;
+		case -3:
+			/* URI not found */
+			transmit_response(p, "404 Not found", &p->initreq);
+			break;
+		}
+		if (option_debug > 1) {
+			ast_log(LOG_DEBUG, "SIP REGISTER attempt failed for %s : %s\n",
+				peer->name,
+				(res == -1) ? "Bad password" : ((res == -2 ) ? "Bad digest user" : "Peer not found"));
 		}
 	}
 	if (peer)
@@ -5894,10 +5902,16 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		req = &p->initreq;
 	if (req->rlPart2)
 		ast_copy_string(tmp, req->rlPart2, sizeof(tmp));
-	c = get_in_brackets(tmp);
 	
 	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
+
+	if (pedanticsipchecking) {
+		ast_uri_decode(tmp);
+		ast_uri_decode(tmpf);
+	}
+
 	fr = get_in_brackets(tmpf);
+	c = get_in_brackets(tmp);
 	
 	if (strncmp(c, "sip:", 4)) {
 		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
@@ -5930,7 +5944,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 			ast_copy_string(p->fromdomain, fr, sizeof(p->fromdomain));
 	}
 	if (pedanticsipchecking)
-		url_decode(c);
+		ast_uri_decode(c);
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Looking for %s in %s\n", c, p->context);
 	if (ast_exists_extension(NULL, p->context, c, 1, fr) ||
@@ -6004,6 +6018,9 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 		ast_log(LOG_WARNING, "No Referrred-By Header That's not illegal\n");
 		return -1;
 	} else {
+		if (pedanticsipchecking) {
+			ast_uri_decode(h_referred_by);
+		}
 		referred_by = get_in_brackets(h_referred_by);
 	}
 	h_contact = get_header(req, "Contact");
@@ -6035,7 +6052,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 			   replaces_header = ast_strdupa(replace_callid); 
 			   -anthm
 			*/
-			url_decode(replace_callid);
+			ast_uri_decode(replace_callid);
 			if ((ptr = strchr(replace_callid, '%'))) 
 				*ptr = '\0';
 			if ((ptr = strchr(replace_callid, ';'))) 
@@ -6291,7 +6308,11 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		t++;
 	*t = '\0';
 	of = get_header(req, "From");
+	if (pedanticsipchecking)
+		ast_uri_decode(of);
+
 	ast_copy_string(from, of, sizeof(from));
+	
 	memset(calleridname,0,sizeof(calleridname));
 	get_calleridname(from, calleridname, sizeof(calleridname));
 
@@ -9832,7 +9853,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
 
 	/* Use this as the basis */
 	if (debug)
-		ast_verbose("Using latest request as basis request\n");
+		ast_verbose("Using latest REGISTER request as basis request\n");
 	copy_request(&p->initreq, req);
 	check_via(p, req);
 	if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
