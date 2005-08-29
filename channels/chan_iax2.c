@@ -4500,8 +4500,8 @@ static int iax2_no_jb_debug(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 #ifdef NEWJB
 	jb_setoutput(jb_error_output, jb_warning_output, NULL);
-#endif
 	jb_debug_output("\n");
+#endif
 	ast_cli(fd, "IAX2 Jitterbuffer Debugging Disabled\n");
 	return RESULT_SUCCESS;
 }
