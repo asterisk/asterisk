@@ -299,7 +299,9 @@ AST_MUTEX_DEFINE_STATIC(iflock);
 
 static int ifcount = 0;
 
+#ifdef ZAPATA_PRI
 AST_MUTEX_DEFINE_STATIC(pridebugfdlock);
+#endif
 
 /* Whether we answer on a Polarity Switch event */
 static int answeronpolarityswitch = 0;
