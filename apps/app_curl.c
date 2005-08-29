@@ -45,8 +45,6 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-extern int errno;
-
 struct MemoryStruct {
 	char *memory;
 	size_t size;
