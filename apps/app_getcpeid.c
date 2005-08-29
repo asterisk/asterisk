@@ -46,7 +46,7 @@ LOCAL_USER_DECL;
 static int cpeid_setstatus(struct ast_channel *chan, char *stuff[], int voice)
 {
 	int justify[5] = { ADSI_JUST_CENT, ADSI_JUST_LEFT, ADSI_JUST_LEFT, ADSI_JUST_LEFT };
-	char *tmp[5];
+	unsigned char *tmp[5];
 	int x;
 	for (x=0;x<4;x++)
 		tmp[x] = stuff[x];
