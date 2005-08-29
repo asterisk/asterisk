@@ -3809,6 +3809,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	char newto[256];
 	char *c, *n;
 	char *ot, *of;
+	int is_strict = 0;	/* Strict routing flag */
 
 	memset(req, 0, sizeof(struct sip_request));
 	
@@ -3823,17 +3824,23 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		p->branch ^= rand();
 		build_via(p, p->via, sizeof(p->via));
 	}
+
+
+	/* Check for strict or loose router */
+	if (p->route && !ast_strlen_zero(p->route->hop) && strstr(p->route->hop,";lr") == NULL)
+		is_strict = 1;
+
 	if (sipmethod == SIP_CANCEL) {
 		c = p->initreq.rlPart2;	/* Use original URI */
 	} else if (sipmethod == SIP_ACK) {
 		/* Use URI from Contact: in 200 OK (if INVITE) 
 		(we only have the contacturi on INVITEs) */
 		if (!ast_strlen_zero(p->okcontacturi))
-			c = p->okcontacturi;
-		else
-			c = p->initreq.rlPart2;
+			c = is_strict ? p->route->hop : p->okcontacturi;
+ 		else
+ 			c = p->initreq.rlPart2;
 	} else if (!ast_strlen_zero(p->okcontacturi)) {
-		c = p->okcontacturi; /* Use for BYE, REFER or REINVITE */
+			c = is_strict ? p->route->hop : p->okcontacturi; /* Use for BYE or REINVITE */
 	} else if (!ast_strlen_zero(p->uri)) {
 		c = p->uri;
 	} else {
@@ -3852,7 +3859,10 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	add_header(req, "Via", p->via);
 	if (p->route) {
 		set_destination(p, p->route->hop);
-		add_route(req, p->route->next);
+		if (is_strict)
+			add_route(req, p->route->next);
+		else
+			add_route(req, p->route);
 	}
 
 	ot = get_header(orig, "To");
@@ -5486,33 +5496,38 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 			rr += len;
 		}
 	}
-	/* 2nd append the Contact: if there is one */
-	/* Can be multiple Contact headers, comma separated values - we just take the first */
-	contact = get_header(req, "Contact");
-	if (!ast_strlen_zero(contact)) {
-		ast_log(LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
-		/* Look for <: delimited address */
-		c = strchr(contact, '<');
-		if (c) {
-			/* Take to > */
-			++c;
-			len = strcspn(c, ">") + 1;
-		} else {
-			/* No <> - just take the lot */
-			c = contact;
-			len = strlen(contact) + 1;
-		}
-		thishop = malloc(sizeof(*thishop) + len);
-		if (thishop) {
-			ast_copy_string(thishop->hop, c, len);
-			thishop->next = NULL;
-			/* Goes at the end */
-			if (tail)
-				tail->next = thishop;
-			else
-				head = thishop;
+
+	/* Only append the contact if we are dealing with a strict router */
+	if (!head || (!ast_strlen_zero(head->hop) && strstr(head->hop,";lr") == NULL) ) {
+		/* 2nd append the Contact: if there is one */
+		/* Can be multiple Contact headers, comma separated values - we just take the first */
+		contact = get_header(req, "Contact");
+		if (!ast_strlen_zero(contact)) {
+			ast_log(LOG_DEBUG, "build_route: Contact hop: %s\n", contact);
+			/* Look for <: delimited address */
+			c = strchr(contact, '<');
+			if (c) {
+				/* Take to > */
+				++c;
+				len = strcspn(c, ">") + 1;
+			} else {
+				/* No <> - just take the lot */
+				c = contact;
+				len = strlen(contact) + 1;
+			}
+			thishop = malloc(sizeof(*thishop) + len);
+			if (thishop) {
+				strcpy(thishop->hop, c);
+				thishop->next = NULL;
+				/* Goes at the end */
+				if (tail)
+					tail->next = thishop;
+				else
+					head = thishop;
+			}
 		}
 	}
+
 	/* Store as new route */
 	p->route = head;
 
