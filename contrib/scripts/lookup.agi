@@ -1,0 +1,90 @@
+#!/usr/bin/perl
+#
+# Use Reverse Lookups to populate valuable information
+#
+# Copyright (C) 2005 Digium, Inc.
+#
+# Mark Spencer <markster@digium.com>
+#
+# Based on work of Joe Fratantoni - BrakeDanceJ - Joe@UnrealDestination.com.
+#
+# This program is Free Software distributed under the terms of the GNU
+# General Public License version 2.  See LICENSE for details.
+#
+#
+use LWP::UserAgent;
+my %AGI;
+my $debug = 0;
+$|=1;
+sub url_decode {
+	my @args = @_;
+	s/%([0-9A-F]{2})/chr hex $1/egios for @args;
+	s/\"//egios for @args;
+	return wantarray ? @args : $args[0];
+}
+
+while(<STDIN>) {
+        chomp;
+        last unless length($_);
+        if (/^agi_(\w+)\:\s+(.*)$/) {
+                $AGI{$1} = $2;
+        }
+}
+
+alarm(4);
+my $number = $AGI{'callerid'};
+$number =~ /(\d+)/;
+$number = $1;
+die("You must specify a number") unless $number;
+my $ua = LWP::UserAgent->new;
+$ua->agent("Asterisk");
+my $req = HTTP::Request->new(POST => 'http://www.411.com/10668/search/Reverse_Phone');
+$req->content_type('application/x-www-form-urlencoded');
+$req->content("phone=$number");
+my $res = $ua->request($req);
+if ($res->is_success) {
+	my $first, $last, $address, $street, $house, $city, $state, $zip, $phone;
+	if ($res->content =~ /PAGE: PHONE_NOT_FOUND/) {
+		# Limited Information
+		$res->content =~ /is a \s+([A-Za-z -]*), ([A-Z]{2}) \s+based phone number and the registered carrier is (.*)\.\s+/;
+		($city, $state, $last) =
+			map  { url_decode($_) } ($1, $2, $3);
+		$cidname = "$city, $state";
+	} else {
+		# Full Information
+		$res->content =~ /RM_HTML_FIRST_ESC_=(.*)&_RM_HTML_LAST_ESC_=(.*)&_RM_HTML_ADDRESS_ESC_=(.*)&_RM_HTML_STREET_ESC_=(.*)&_RM_HTML_HOUSE_ESC_=(.*)&_RM_HTML_CITY_ESC_=(.*)&_RM_HTML_STATE_ESC_=(.*)&_RM_HTML_ZIP_ESC_=(.*)&_RM_HTML_PHONE_ESC_=(.*)&CITY=(.*)&STATE=(.*)/;
+		($first, $last, $address, $street, $house, $city, $state, $zip, $phone) =
+			map  { url_decode($_) } ($1, $2, $3, $4, $5, $6, $7, $8, $9);
+		my $cidname = $last;
+		if ($first) {
+			$cidname = $first . " " . $last;
+		} else {
+			$cidname = $last;
+		}
+	}
+	print STDOUT "SET VARIABLE CALLERID(name) \"$cidname\"\n";
+	<STDIN>;
+	print STDOUT "SET VARIABLE CALLER_ZIP \"$zip\"\n";
+	<STDIN>;
+	print STDOUT "SET VARIABLE CALLER_STATE \"$state\"\n";
+	<STDIN>;
+	print STDOUT "SET VARIABLE CALLER_CITY \"$city\"\n";
+	<STDIN>;
+	print STDOUT "SET VARIABLE CALLER_ADDRESS \"$address\"\n";
+	<STDIN>;
+	print STDOUT "SET VARIABLE CALLER_LAST \"$last\"\n";
+	<STDIN>;
+	print STDOUT "SET VARIABLE CALLER_FIRST \"$first\"\n";
+	<STDIN>;
+	print STDERR "First: $first\n" .
+		  "Last: $last\n" .
+		  "Address: $address\n" .
+		  "Street: $street\n" .
+		  "House: $house\n" .
+		  "City: $city\n" .
+		  "State: $state\n" .
+		  "Zip: $zip\n" .
+		  "Phone: $phone\n" if $debug;
+} else {
+	print STDERR $res->status_line . "\n";
+}
