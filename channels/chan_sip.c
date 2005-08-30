@@ -5642,7 +5642,7 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 			}
 			thishop = malloc(sizeof(*thishop) + len);
 			if (thishop) {
-				strcpy(thishop->hop, c);
+				ast_copy_string(thishop->hop, c, len);
 				thishop->next = NULL;
 				/* Goes at the end */
 				if (tail)
