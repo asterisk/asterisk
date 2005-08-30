@@ -257,6 +257,7 @@ static int cur_start = -1;
 static int cur_rxwink = -1;
 static int cur_rxflash = -1;
 static int cur_debounce = -1;
+static int cur_priexclusive = 0;
 
 static int priindication_oob = 0;
 
@@ -545,6 +546,7 @@ static struct zt_pvt {
 	unsigned int permcallwaiting:1;
 	unsigned int permhidecallerid:1;		/* Whether to hide our outgoing caller ID or not */
 	unsigned int priindication_oob:1;
+	unsigned int priexclusive:1;
 	unsigned int pulse:1;
 	unsigned int pulsedial:1;			/* whether a pulse dial phone is detected */
 	unsigned int restrictcid:1;			/* Whether restrict the callerid -> only send ANI */
@@ -1877,6 +1879,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		int dp_strip;
 		int prilocaldialplan;
 		int ldp_strip;
+		int exclusive;
+
 		c = strchr(dest, '/');
 		if (c)
 			c++;
@@ -1933,8 +1937,18 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			pri_set_crv(p->pri->pri, p->call, p->channel, 0);
 		}
 		p->digital = IS_DIGITAL(ast->transfercapability);
-		pri_sr_set_channel(sr, p->bearer ? PVT_TO_CHANNEL(p->bearer) : PVT_TO_CHANNEL(p), 
-								p->pri->nodetype == PRI_NETWORK ? 0 : 1, 1);
+		/* Add support for exclusive override */
+		if (p->priexclusive)
+			exclusive = 1;
+		else {
+		/* otherwise, traditional behavior */
+			if (p->pri->nodetype == PRI_NETWORK)
+				exclusive = 0;
+			else
+				exclusive = 1;
+		}
+		
+		pri_sr_set_channel(sr, p->bearer ? PVT_TO_CHANNEL(p->bearer) : PVT_TO_CHANNEL(p), exclusive, 1);
 		pri_sr_set_bearer(sr, p->digital ? PRI_TRANS_CAP_DIGITAL : ast->transfercapability, 
 					(p->digital ? -1 : 
 						((p->law == ZT_LAW_ALAW) ? PRI_LAYER_1_ALAW : PRI_LAYER_1_ULAW)));
@@ -4670,7 +4684,7 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 			ast_log(LOG_DEBUG,"Received AST_CONTROL_PROGRESS on %s\n",chan->name);
 #ifdef ZAPATA_PRI
 			p->digital = 0;	/* Digital-only calls isn't allows any inband progress messages */
-			if (!p->proceeding && p->sig==SIG_PRI && p->pri && !p->outgoing) {
+			if ((p->proceeding < 2) && p->sig==SIG_PRI && p->pri && !p->outgoing) {
 				if (p->pri->pri) {		
 					if (!pri_grab(p, p->pri)) {
 						pri_progress(p->pri->pri,p->call, PVT_TO_CHANNEL(p), 1);
@@ -6927,6 +6941,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->restrictcid = restrictcid;
 		tmp->use_callingpres = use_callingpres;
 		tmp->priindication_oob = priindication_oob;
+		tmp->priexclusive = cur_priexclusive;
 		tmp->emdigitwait = cur_emdigitwait;
 		if (tmp->usedistinctiveringdetection) {
 			if (!tmp->use_callerid) {
@@ -10408,6 +10423,8 @@ static int setup_zap(int reload)
 				else
 					ast_log(LOG_WARNING, "'%s' is not a valid pri indication value, should be 'inband' or 'outofband' at line %d\n",
 						v->value, v->lineno);
+			} else if (!strcasecmp(v->name, "priexclusive")) {
+				cur_priexclusive = ast_true(v->value);
 			} else if (!strcasecmp(v->name, "internationalprefix")) {
 				ast_copy_string(internationalprefix, v->value, sizeof(internationalprefix));
 			} else if (!strcasecmp(v->name, "nationalprefix")) {
