@@ -13,20 +13,37 @@
 
 MODS=res_adsi.so res_features.so res_crypto.so res_musiconhold.so res_indications.so res_monitor.so \
      res_agi.so
-MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
-MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h" ]; then echo "res_odbc.so res_config_odbc.so"; fi)
-MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h" ]; then echo "res_osp.so"; fi)
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
+  ifneq (${OSARCH},FreeBSD)
+    MODS+=res_config_odbc.so
+  else
+    MODS+=$(shell if test ${BSDVERSION} -ge 500000 ; then echo "res_config_odbc.so"; fi)
+  endif
+  MODS+=res_odbc.so
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
+  MODS+=res_osp.so
+  OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosp.a
+endif
+
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+endif
 
 CRYPTO_LIBS=-lssl -lcrypto
 
 CFLAGS+=
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ] && echo " -DZAPATA_MOH")
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ] && echo " -DZAPATA_MOH")
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
+  CFLAGS+=-DZAPATA_MOH
+endif
+
 #
 # Work around buggy RedHat 9.0
 #
 CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
-OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosp.a
 
 all: depend $(MODS)
 
@@ -46,13 +63,13 @@ res_odbc.so: res_odbc.o
 	$(CC) $(SOLINK) -o $@ $< -lodbc
 
 res_osp.so: res_osp.o $(OSPLIB)
-	$(CC) $(SOLINK) -o $@ $< $(OSPLIB)
+	$(CC) $(SOLINK) -o $@ $^
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
-include .depend
+  include .depend
 endif
 
 depend: .depend

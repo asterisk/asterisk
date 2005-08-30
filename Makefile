@@ -26,9 +26,11 @@ HOST_CC=gcc
 # SUB_PROC=xscale # or maverick
 
 ifeq ($(CROSS_COMPILE),)
-OSARCH=$(shell uname -s)
+  OSARCH=$(shell uname -s)
+  OSREV=$(shell uname -r)
 else
-OSARCH=$(CROSS_ARCH)
+  OSARCH=$(CROSS_ARCH)
+  OSREV=${CROSS_REV)
 endif
 
 ######### More GSM codec optimization
@@ -40,7 +42,7 @@ endif
 #Overwite config files on "make samples"
 OVERWRITE=y
 
-#Tell gcc to optimize the asterisk's code
+#Tell gcc to optimize the code
 OPTIMIZE+=-O6
 
 #Include debug symbols in the executables (-g) and profiling info (-pg)
@@ -93,33 +95,33 @@ BUSYDETECT+= #-DBUSYDETECT_TONEONLY
 BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
 
 ifneq (${OSARCH},SunOS)
-ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
-ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
-ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
-ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
-ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
-ASTHEADERDIR=$(INSTALL_PREFIX)/usr/include/asterisk
-ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
-ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
-ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
-ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
-ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
-MODULES_DIR=$(ASTLIBDIR)/modules
-AGI_DIR=$(ASTVARLIBDIR)/agi-bin
+  ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
+  ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
+  ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
+  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
+  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
+  ASTHEADERDIR=$(INSTALL_PREFIX)/usr/include/asterisk
+  ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
+  ASTBINDIR=$(INSTALL_PREFIX)/usr/bin
+  ASTSBINDIR=$(INSTALL_PREFIX)/usr/sbin
+  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
+  ASTMANDIR=$(INSTALL_PREFIX)/usr/share/man
+  MODULES_DIR=$(ASTLIBDIR)/modules
+  AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 else
-ASTLIBDIR=$(INSTALL_PREFIX)/opt/asterisk/lib
-ASTVARLIBDIR=$(INSTALL_PREFIX)/var/opt/asterisk/lib
-ASTETCDIR=$(INSTALL_PREFIX)/etc/opt/asterisk
-ASTSPOOLDIR=$(INSTALL_PREFIX)/var/opt/asterisk/spool
-ASTLOGDIR=$(INSTALL_PREFIX)/var/opt/asterisk/log
-ASTHEADERDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/include/asterisk
-ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
-ASTBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/bin
-ASTSBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/sbin
-ASTVARRUNDIR=$(INSTALL_PREFIX)/var/opt/asterisk/run
-ASTMANDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/share/man
-MODULES_DIR=$(ASTLIBDIR)/modules
-AGI_DIR=$(ASTVARLIBDIR)/agi-bin
+  ASTLIBDIR=$(INSTALL_PREFIX)/opt/asterisk/lib
+  ASTVARLIBDIR=$(INSTALL_PREFIX)/var/opt/asterisk/lib
+  ASTETCDIR=$(INSTALL_PREFIX)/etc/opt/asterisk
+  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/opt/asterisk/spool
+  ASTLOGDIR=$(INSTALL_PREFIX)/var/opt/asterisk/log
+  ASTHEADERDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/include/asterisk
+  ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
+  ASTBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/bin
+  ASTSBINDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/sbin
+  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/opt/asterisk/run
+  ASTMANDIR=$(INSTALL_PREFIX)/opt/asterisk/usr/share/man
+  MODULES_DIR=$(ASTLIBDIR)/modules
+  AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 endif
 
 # Pentium Pro Optimize
@@ -146,62 +148,65 @@ HTTP_CGIDIR=/var/www/cgi-bin
 # by the file in your home directory.
 
 ifneq ($(wildcard /etc/asterisk.makeopts),)
-include /etc/asterisk.makeopts
+  include /etc/asterisk.makeopts
 endif
 
 ifneq ($(wildcard ~/.asterisk.makeopts),)
-include ~/.asterisk.makeopts
+  include ~/.asterisk.makeopts
 endif
 
 ifeq (${OSARCH},Linux)
-ifeq ($(CROSS_COMPILE),)
-PROC?=$(shell uname -m)
-else
-PROC=$(CROSS_PROC)
-endif
-ifeq ($(PROC),x86_64)
-# You must have GCC 3.4 to use k8, otherwise use athlon
-PROC=k8
-#PROC=athlon
-OPTIONS+=-m64
-endif
-ifeq ($(PROC),sparc64)
-#The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
-#This works for even old (2.96) versions of gcc and provides a small boost either way.
-#A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
-#So we go lowest common available by gcc and go a step down, still a step up from
-#the default as we now have a better instruction set to work with. - Belgarath
-PROC=ultrasparc
-OPTIONS+=$(shell if $(CC) -mtune=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mtune=$(PROC)"; fi)
-OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mcpu=v8"; fi)
-OPTIONS+=-fomit-frame-pointer
-endif
+  ifeq ($(CROSS_COMPILE),)
+    PROC?=$(shell uname -m)
+  else
+    PROC=$(CROSS_PROC)
+  endif
 
-ifeq ($(PROC),arm)
-# The Cirrus logic is the only heavily shipping arm processor with a real floating point unit
-ifeq ($(SUB_PROC),maverick)
-OPTIONS+=-fsigned-char -mcpu=ep9312
-else
-ifeq ($(SUB_PROC),xscale)
-OPTIONS+=-fsigned-char -msoft-float -mcpu=xscale
-else
-OPTIONS+=-fsigned-char -msoft-float 
-endif
-endif
-endif
-MPG123TARG=linux
+  ifeq ($(PROC),x86_64)
+    # You must have GCC 3.4 to use k8, otherwise use athlon
+    PROC=k8
+    #PROC=athlon
+    OPTIONS+=-m64
+  endif
+
+  ifeq ($(PROC),sparc64)
+    #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
+    #This works for even old (2.96) versions of gcc and provides a small boost either way.
+    #A ultrasparc cpu is really v9 but the stock debian stable 3.0 gcc doesn't support it.
+    #So we go lowest common available by gcc and go a step down, still a step up from
+    #the default as we now have a better instruction set to work with. - Belgarath
+    PROC=ultrasparc
+    OPTIONS+=$(shell if $(CC) -mtune=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mtune=$(PROC)"; fi)
+    OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-mcpu=v8"; fi)
+    OPTIONS+=-fomit-frame-pointer
+  endif
+
+  ifeq ($(PROC),arm)
+    # The Cirrus logic is the only heavily shipping arm processor with a real floating point unit
+    ifeq ($(SUB_PROC),maverick)
+      OPTIONS+=-fsigned-char -mcpu=ep9312
+    else
+      ifeq ($(SUB_PROC),xscale)
+        OPTIONS+=-fsigned-char -msoft-float -mcpu=xscale
+      else
+        OPTIONS+=-fsigned-char -msoft-float 
+      endif
+    endif
+  endif
+  MPG123TARG=linux
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
-PROC=$(shell uname -m)
+  PROC=$(shell uname -m)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
 PWD=$(shell pwd)
-
 GREP=grep
+
 ifeq (${OSARCH},SunOS)
-GREP=/usr/xpg4/bin/grep
-M4=/usr/local/bin/m4
+  GREP=/usr/xpg4/bin/grep
+  M4=/usr/local/bin/m4
 endif
 
 INCLUDE=-Iinclude -I../include
@@ -209,47 +214,66 @@ CFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarat
 CFLAGS+=$(OPTIMIZE)
 
 ifneq ($(PROC),ultrasparc)
-CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
-endif
-ifeq ($(PROC),ppc)
-CFLAGS+=-fsigned-char
+  CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 endif
 
-CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h ]; then echo "-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/include/osp" ; fi)
+ifeq ($(PROC),ppc)
+  CFLAGS+=-fsigned-char
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
+  CFLAGS+=-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/include/osp
+endif
 
 ifeq (${OSARCH},FreeBSD)
-OSVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
-CFLAGS+=$(shell if test ${OSVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
-LIBS+=$(shell if test  ${OSVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi) -L$(CROSS_COMPILE_TARGET)/usr/local/lib
-INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
-CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp"; fi)
-MPG123TARG=freebsd
+  BSDVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
+  CFLAGS+=$(shell if test ${BSDVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
+  LIBS+=$(shell if test  ${BSDVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
+  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp),)
+    CFLAGS+=" -I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp"
+  endif
+  MPG123TARG=freebsd
 endif # FreeBSD
 
 ifeq (${OSARCH},NetBSD)
-CFLAGS+=-pthread
-INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -I$(CROSS_COMPILE_TARGET)/usr/pkg/include
-MPG123TARG=netbsd
+  CFLAGS+=-pthread
+  INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/pkg/include
+  MPG123TARG=netbsd
 endif
 
 ifeq (${OSARCH},OpenBSD)
-CFLAGS+=-pthread
-endif
-ifeq (${OSARCH},SunOS)
-CFLAGS+=-Wcast-align -DSOLARIS
-INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
+  CFLAGS+=-pthread
 endif
 
-CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
-CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ]; then echo "-DZAPTEL_OPTIMIZATIONS"; fi)
+ifeq (${OSARCH},SunOS)
+  CFLAGS+=-Wcast-align -DSOLARIS
+  INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
+  CFLAGS+=-DZAPTEL_OPTIMIZATIONS
+endif
 
 LIBEDIT=editline/libedit.a
 
-ASTERISKVERSION=$(shell if [ -f .version ]; then cat .version; else if [ -d CVS ]; then if [ -f CVS/Tag ] ; then echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`"; else echo "CVS-HEAD"; fi; fi; fi)
-ASTERISKVERSIONNUM=$(shell if [ -d CVS ]; then echo 999999 ; else if [ -f .version ] ; then awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version ; else echo 000000 ; fi ; fi)
-# Set the following two variables to match your httpd installation.
+ifneq ($(wildcard .version),)
+  ASTERISKVERSION=$(shell cat .version)
+  ASTERISKVERSIONNUM=$(shell awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version)
+  RPMVERSION=$(shell sed 's/[-\/:]/_/g' .version)
+else
+  RPMVERSION=unknown
+endif
 
-RPMVERSION=$(shell if [ -f .version ]; then sed 's/[-\/:]/_/g' .version; else echo "unknown" ; fi)
+ifneq ($(wildcard CVS),)
+  ASTERISKVERSIONNUM=999999
+  ifneq ($(wildcard CVS/Tag),)
+    ASTERISKVERSION=$(shell echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`")
+  else
+    ASTERISKVERSION=CVS HEAD
+  endif
+else
+  ASTERISKVERSIONNUM=000000
+endif
 
 CFLAGS+= $(DEBUG_THREADS)
 CFLAGS+= $(TRACE_FRAMES)
@@ -258,30 +282,39 @@ CFLAGS+= $(BUSYDETECT)
 CFLAGS+= $(OPTIONS)
 CFLAGS+= -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime
+
 ifeq (${OSARCH},Linux)
-LIBS=-ldl -lpthread
+  LIBS=-ldl -lpthread
 endif
+
 LIBS+=-lncurses -lm
+
 ifeq (${OSARCH},Linux)
-LIBS+=-lresolv  #-lnjamd
+  LIBS+=-lresolv  #-lnjamd
 endif
+
 ifeq (${OSARCH},Darwin)
-LIBS+=-lresolv
-CFLAGS+=-D__Darwin__
-AUDIO_LIBS=-framework CoreAudio
+  LIBS+=-lresolv
+  CFLAGS+=-D__Darwin__
+  AUDIO_LIBS=-framework CoreAudio
 endif
+
 ifeq (${OSARCH},FreeBSD)
-LIBS+=-lcrypto
+  LIBS+=-lcrypto
 endif
+
 ifeq (${OSARCH},NetBSD)
-LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/local/lib -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib -lncurses
+  LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib -lncurses
 endif
+
 ifeq (${OSARCH},OpenBSD)
-LIBS=-lcrypto -lpthread -lm -lncurses
+  LIBS=-lcrypto -lpthread -lm -lncurses
 endif
+
 ifeq (${OSARCH},SunOS)
-LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+  LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
 endif
+
 LIBS+=-lssl
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
@@ -292,18 +325,20 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o config_old.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
 	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o
+
 ifeq (${OSARCH},Darwin)
-OBJS+=poll.o dlfcn.o
-ASTLINK=-Wl,-dynamic
-SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
+  OBJS+=poll.o dlfcn.o
+  ASTLINK=-Wl,-dynamic
+  SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
-ASTLINK=-Wl,-E 
-SOLINK=-shared -Xlinker -x
+  ASTLINK=-Wl,-E 
+  SOLINK=-shared -Xlinker -x
 endif
+
 ifeq (${OSARCH},SunOS)
-OBJS+=strcompat.o
-ASTLINK=
-SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+  OBJS+=strcompat.o
+  ASTLINK=
+  SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
 endif
 
 INSTALL=install
@@ -345,11 +380,11 @@ db1-ast/libdb1.a: FORCE
 	fi
 
 ifneq ($(wildcard .depend),)
-include .depend
+  include .depend
 endif
 
 ifneq ($(wildcard .tags-depend),)
-include .tags-depend
+  include .tags-depend
 endif
 
 ast_expr2.c:

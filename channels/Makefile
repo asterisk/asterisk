@@ -14,78 +14,97 @@
 # the GNU General Public License
 #
 
-ifeq ($(CROSS_COMPILE),)
-OSARCH=$(shell uname -s)
-PROC=$(shell uname -m)
-else
-OSARCH=$(CROSS_ARCH)
-PROC=$(CROSS_PROC) 
-HOSTCC=gcc
-endif
-
 CHANNEL_LIBS=chan_modem.so chan_sip.so \
 	     chan_modem_aopen.so \
              chan_modem_bestdata.so \
              chan_agent.so chan_mgcp.so chan_iax2.so \
 	     chan_local.so chan_skinny.so chan_features.so
 
-ifeq (${OSARCH},OpenBSD)
-CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
-PTLIB=-lpt_OpenBSD_x86_r
-H323LIB=-lh323_OpenBSD_x86_r
-CHANH323LIB=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+ CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
+
+ifeq (${OSARCH},OpenBSD)
+  PTLIB=-lpt_OpenBSD_x86_r
+  H323LIB=-lh323_OpenBSD_x86_r
+endif
+
 ifeq (${OSARCH},Linux)
-PTLIB=-lpt_linux_x86_r
-H323LIB=-lh323_linux_x86_r
-CHANH323LIB=-ldl
+  PTLIB=-lpt_linux_x86_r
+  H323LIB=-lh323_linux_x86_r
+  CHANH323LIB=-ldl
+endif
 
 ifeq ($(PROC),sparc64)
-PROC=ultrasparc
-CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
+  PROC=ultrasparc
+  CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
-endif
 ifeq (${OSARCH},FreeBSD)
-PTLIB=-lpt_FreeBSD_x86_r
-H323LIB=-lh323_FreeBSD_x86_r
-CHANH323LIB=-pthread
-SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  PTLIB=-lpt_FreeBSD_x86_r
+  H323LIB=-lh323_FreeBSD_x86_r
+  CHANH323LIB=-pthread
 endif
+
 ifeq (${OSARCH},NetBSD)
-PTLIB=-lpt_NetBSD_x86_r
-H323LIB=-lh323_NetBSD_x86_r
-SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  PTLIB=-lpt_NetBSD_x86_r
+  H323LIB=-lh323_NetBSD_x86_r
 endif
+
 ifneq (${OSARCH},Darwin)
-ifneq (${OSARCH},SunOS)
-CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
-endif
+  ifneq (${OSARCH},SunOS)
+    CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
+  endif
 endif
 
 ifeq (${OSARCH},SunOS)
-SOLINK+=-lrt
+  SOLINK+=-lrt
 endif
 
-CHANNEL_LIBS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/ixjuser.h ] && echo chan_phone.so)
-CHANNEL_LIBS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/ixjuser.h ] && echo chan_phone.so)
-CHANNEL_LIBS+=$(shell [ -f h323/libchanh323.a ] && echo chan_h323.so)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/ixjuser.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/ixjuser.h),)
+  CHANNEL_LIBS+=chan_phone.so
+endif
+
+ifneq ($(wildcard h323/libchanh323.a),)
+  CHANNEL_LIBS+=chan_h323.so
+endif
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
-CFLAGS+=$(shell [ ! -f $(CROSS_COMPILE_TARGET)/usr/include/linux/if_wanpipe.h ] && echo " -DOLD_SANGOMA_API")
-CHANNEL_LIBS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h ] && echo "chan_alsa.so")
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1 ] && echo " -DZAPATA_PRI")
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1 ] && echo " -DZAPATA_R2")
-CFLAGS+=$(shell [ -f alsa-monitor.h ] && echo " -DALSA_MONITOR")
-ZAPPRI=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1 ] && echo "-lpri")
-ZAPR2=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1 ] && echo "-lmfcr2")
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ] && echo "-DIAX_TRUNKING")
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ] && echo "-DIAX_TRUNKING")
-CHANNEL_LIBS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h ] && echo "chan_vpb.so" )
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h ] && echo " -DLINUX")
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/if_wanpipe.h),)
+  CFLAGS+=-DOLD_SANGOMA_API
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
+  CHANNEL_LIBS+=chan_alsa.so
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libpri.so.1),)
+  CFLAGS+=-DZAPATA_PRI
+  ZAPPRI=-lpri
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libmfcr2.so.1),)
+  CFLAGS+=-DZAPATA_R2
+  ZAPR2=-lmfcr2
+endif
 
 ALSA_SRC=chan_alsa.c
-ALSA_SRC+=$(shell [ -f alsa-monitor.h ] && echo "alsa-monitor.h")
+
+ifneq ($(wildcard alsa-monitor.h),)
+  CFLAGS+=-DALSA_MONITOR
+  ALSA_SRC+=alsa-monitor.h
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
+  CFLAGS+=-DIAX_TRUNKING
+  CHANNEL_LIBS+=chan_zap.so
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h),)
+  CHANNEL_LIBS+=chan_vpb.so
+  CFLAGS+=-DLINUX
+endif
 
 CFLAGS+=-DCRYPTO
 CFLAGS+=-fPIC
@@ -94,17 +113,16 @@ CFLAGS+=#-DVOFRDUMPER
 
 ZAPDIR=/usr/lib
 
-CHANNEL_LIBS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h ] && echo "chan_zap.so")
-CHANNEL_LIBS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h ] && echo "chan_zap.so")
-
-CHANNEL_LIBS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/nbs.h ] && echo "chan_nbs.so" )
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/nbs.h),)
+  CHANNEL_LIBS+=chan_nbs.so
+endif
 
 ifndef OPENH323DIR
-OPENH323DIR=$(HOME)/openh323
+  OPENH323DIR=$(HOME)/openh323
 endif
 
 ifndef PWLIBDIR
-PWLIBDIR=$(HOME)/pwlib
+  PWLIBDIR=$(HOME)/pwlib
 endif
 
 #CFLAGS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "-I$(ZAPDIR)")
@@ -119,26 +137,18 @@ clean:
 	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
-include .depend
+  include .depend
 endif
 
 ifneq ($(wildcard h323/Makefile.ast),)
-include h323/Makefile.ast
+  include h323/Makefile.ast
 endif
 
-ifeq ($(CROSS_COMPILE),)
 gentone: gentone.c
-	$(CC) -o gentone gentone.c -lm
+	$(HOST_CC) -o gentone gentone.c -lm
 
 gentone-ulaw: gentone-ulaw.c
-	$(CC) -o gentone-ulaw gentone-ulaw.c -lm
-else
-gentone: gentone.c
-	$(HOSTCC) -o gentone gentone.c -lm
-
-gentone-ulaw: gentone-ulaw.c
-	$(HOSTCC) -o gentone-ulaw gentone-ulaw.c -lm
-endif
+	$(HOST_CC) -o gentone-ulaw gentone-ulaw.c -lm
 
 busy.h: gentone
 	./gentone busy 480 620

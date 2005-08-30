@@ -11,29 +11,56 @@
 # the GNU General Public License
 #
 
-#
-# Uncomment if you have g723.1 code (with the same API as the Annex-A code
-# and have placed it in the g723.1 directory and/or the Annex-B code in 
-# g723.1b)
-#
-#MODG723=codec_g723_1.so codec_g723_1b.so
-MODG723=$(shell [ -f g723.1/coder.c ] && echo "codec_g723_1.so")
-MODG723+=$(shell [ -f g723.1b/coder2.c ] && echo "codec_g723_1b.so")
-MODSPEEX=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/speex.h ] || [ -f $(CROSS_COMPILE_TARGET)/usr/include/speex/speex.h ] || [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/speex.h ] || [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/speex/speex.h ] && echo "codec_speex.so")
-MODILBC=$(shell [ -f ilbc/iLBC_decode.h ] && echo "codec_ilbc.so")
-CFLAGS+=-fPIC
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/speex.h ] && echo "-I$(CROSS_COMPILE_TARGET)/usr/local/include")
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/local/include/speex/speex.h ] && echo "-I$(CROSS_COMPILE_TARGET)/usr/local/include/speex")
-CFLAGS+=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/include/speex/speex.h ] && echo "-I$(CROSS_COMPILE_TARGET)/usr/include/speex")
+ifneq ($(wildcard g723.1/coder.c),)
+  MODG723=codec_g723_1.so
+  LIBG723=g723.1/libg723.a
+endif
 
-LIBG723=g723.1/libg723.a
-LIBG723B=g723.1b/libg723b.a
+ifneq ($(wildcard g723.1b/coder2.c),)
+  MODG723+=codec_g723_1b.so
+  LIBG723B=g723.1b/libg723b.a
+endif
+
+UI_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/speex.h)
+UIS_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/speex/speex.h)
+ULI_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/speex.h)
+ULIS_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/speex/speex.h)
+ifneq (${UI_SPEEX},)
+  MODSPEEX=codec_speex.so
+  LIBSPEEX+=-lspeex -lm
+endif
+ifneq (${UIS_SPEEX},)
+  MODSPEEX=codec_speex.so
+  CFLAGS+=-I/usr/include/speex
+  LIBSPEEX+=-lspeex -lm
+endif
+ifneq (${ULI_SPEEX},)
+  MODSPEEX=codec_speex.so
+  CFLAGS+=-I/usr/local/include
+  LIBSPEEX=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  LIBSPEEX+=-lspeex -lm
+endif
+ifneq (${ULIS_SPEEX},)
+  MODSPEEX=codec_speex.so
+  CFLAGS+=-I/usr/local/include/speex
+  LIBSPEEX=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  LIBSPEEX+=-lspeex -lm
+endif
+
+ifneq ($(wildcard ilbc/iLBC_decode.h),)
+  MODILC=codec_ilbc.so
+  LIBILBC=ilbc/libilbc.a
+endif
+
+CFLAGS+=-fPIC
+
 LIBGSM=gsm/lib/libgsm.a
 LIBGSMT=gsm/lib/libgsm.a
 LIBLPC10=lpc10/liblpc10.a
-LIBSPEEX=$(shell [ -f $(CROSS_COMPILE_TARGET)/usr/local/lib/libspeex.a ] && echo "-L$(CROSS_COMPILE_TARGET)/usr/local/lib")
-LIBSPEEX+=-lspeex -lm
-LIBILBC=ilbc/libilbc.a
+
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+endif
 
 CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_lpc10.so  \
         codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so \
@@ -52,7 +79,7 @@ clean:
 $(LIBG723):
 	$(MAKE) -C g723.1 all
 
-gsm/lib/libgsm.a:
+$(LIBGSM):
 	$(MAKE) -C gsm lib/libgsm.a
 
 $(LIBG723B):
@@ -64,7 +91,7 @@ $(LIBLPC10):
 $(LIBILBC):
 	$(MAKE) -C ilbc all
 
-codec_ilbc.so: codec_ilbc.o $(LIBILBC)
+$(MODILBC): codec_ilbc.o $(LIBILBC)
 	$(CC) $(SOLINK) -o $@ $< $(LIBILBC)
 
 codec_g723_1.so : codec_g723_1.o $(LIBG723)
@@ -79,7 +106,7 @@ codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
 codec_gsm.so: codec_gsm.o $(LIBGSMT) 
 	$(CC) $(SOLINK) -o $@ $< $(LIBGSM)
 
-codec_speex.so: codec_speex.o
+$(MODSPEEX): codec_speex.o
 	$(CC) $(SOLINK) -o $@ $< $(LIBSPEEX)
 
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
@@ -89,7 +116,7 @@ codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
 	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
-include .depend
+  include .depend
 endif
 
 install: all

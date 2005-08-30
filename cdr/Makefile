@@ -11,17 +11,12 @@
 # the GNU General Public License
 #
 
-#ADD cdr_pgsql.so to MODS= to include PostgreSQL support: REQUIRES PostgreSQL libs
 MODS=cdr_csv.so cdr_manager.so cdr_custom.so
-
 
 CFLAGS+=-fPIC
 
-PROC=$(shell uname -m)
-OSARCH=$(shell uname -s)
-
-ifeq (${OSARCH},FreeBSD)
-SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
@@ -30,43 +25,67 @@ endif
 #So we go lowest common available by gcc and go a step down, still a step up from
 #the default as we now have a better instruction set to work with. - Belgarath
 ifeq ($(PROC),sparc64)
-PROC=ultrasparc
-CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
+ PROC=ultrasparc
+  CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
 #
 # unixODBC stuff...
 #
-MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi)
-MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h" ]; then echo "cdr_odbc.so"; fi) 
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
+  MODS+=cdr_odbc.so
+endif
 
 #
 # FreeTDS stuff...
 #
-MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/tds.h" ]; then echo "cdr_tds.so"; fi)
-MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/local/include/tds.h" ]; then echo "cdr_tds.so"; fi)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/tds.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/tds.h),)
+  MODS+=cdr_tds.so
+endif
 
 #
 # PGSQL stuff...  Autoconf anyone??
 #
-MODS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include ] || [ -d $(CROSS_COMPILE_TARGET)/usr/include/pgsql ] || [ -d $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql ] || [ -d $(CROSS_COMPILE_TARGET)/opt/pgsql/include ] || [ -f $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h ] ; then echo "cdr_pgsql.so"; fi)
-CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/local/pgsql/include"; fi)
-CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/include/pgsql ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/include/pgsql"; fi)
-CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/include/postgresql ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql"; fi)
-CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/local/include/pgsql"; fi)
-CFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/opt/pgsql/include ]; then echo "-I$(CROSS_COMPILE_TARGET)/opt/pgsql/include"; fi)
-#CFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h ]; then echo "-I$(CROSS_COMPILE_TARGET)/usr/include"; fi)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
+  MODS+=cdr_pgsql.so
+endif
+
 MLFLAGS=
-MLFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/lib/pgsql ]; then echo "-L$(CROSS_COMPILE_TARGET)/usr/lib/pgsql"; fi)
-MLFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/pgsql/lib ]; then echo "-L$(CROSS_COMPILE_TARGET)/usr/local/pgsql/lib"; fi)
-MLFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/usr/local/lib/pgsql ]; then echo "-L$(CROSS_COMPILE_TARGET)/usr/local/lib/pgsql"; fi)
-MLFLAGS+=$(shell if [ -d $(CROSS_COMPILE_TARGET)/opt/pgsql/lib ]; then echo "-L$(CROSS_COMPILE_TARGET)/opt/pgsql/lib"; fi)
-MLFLAGS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/lib/libpq.so ]; then echo "-L$(CROSS_COMPILE_TARGET)/usr/lib"; fi)
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include),)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/pgsql/include
+  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/pgsql/lib
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql),)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/pgsql
+  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/pgsql
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql),)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/pgsql
+  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib/pgsql
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include),)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/opt/pgsql/include
+  MLFLAGS+=-L$(CROSS_COMPILE_TARGET) /opt/pgsql/lib
+endif
+
+ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
+endif
+
+ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/lib/libpq.so),)
+  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib
+endif
 
 #
-# SQLIte stuff...
+# SQLite stuff...
 #
-MODS+=$(shell if [ -f "$(CROSS_COMPILE_TARGET)/usr/include/sqlite.h" ]; then echo "cdr_sqlite.so"; fi)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sqlite.h),)
+  MODS+=cdr_sqlite.so
+endif
 
 all: depend $(MODS)
 
@@ -80,7 +99,7 @@ clean:
 	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
-include .depend
+  include .depend
 endif
 
 cdr_odbc.so: cdr_odbc.o

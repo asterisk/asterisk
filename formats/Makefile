@@ -16,15 +16,22 @@ FORMAT_LIBS=format_gsm.so format_wav.so \
 	format_pcm_alaw.so format_h263.so format_g726.so format_ilbc.so \
 	format_sln.so format_au.so
 FORMAT_LIBS+=format_jpeg.so
+
 #
-# G723 simple frame is depricated
+# G723 simple frame is deprecated
 #
 FORMAT_LIBS+=format_g723.so
 
 #
 # OGG/Vorbis format
 #
-FORMAT_LIBS+=$(shell if [ -f $(CROSS_COMPILE_TARGET)/usr/include/vorbis/codec.h ]; then echo "format_ogg_vorbis.so" ; fi)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vorbis/codec.h),)
+  FORMAT_LIBS+=format_ogg_vorbis.so
+endif
+
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+endif
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
@@ -39,7 +46,7 @@ clean:
 	$(CC) $(SOLINK) -o $@ $<
 
 ifneq ($(wildcard .depend),)
-include .depend
+  include .depend
 endif
 
 format_mp3.so : format_mp3.o

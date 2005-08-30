@@ -35,6 +35,10 @@ CFLAGS+=-fPIC
 
 FUNC_SOURCES=$(BUILTINS:.o=.c)
 
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+endif
+
 all: $(FUNCS)
 
 clean:
@@ -59,7 +63,7 @@ install: all
 	for x in $(FUNCS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 ifneq ($(wildcard .depend),)
-include .depend
+  include .depend
 endif
 
 depend: .depend
