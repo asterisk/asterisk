@@ -1,14 +1,23 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Object Model for Asterisk
- * 
- * Copyright (C) 2004 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * Object Model for Asterisk
  */
 
 #ifndef _ASTERISK_ASTOBJ_H
@@ -740,4 +749,4 @@ extern "C" {
 }
 #endif
 
-#endif
+#endif /* _ASTERISK_ASTOBJ_H */

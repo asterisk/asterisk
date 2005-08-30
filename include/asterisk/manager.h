@@ -1,17 +1,24 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * AMI - Asterisk Management Interface
- * External call management support 
- * 
- * Copyright (C) 1999-2005, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License.
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
  *
- * $Revision$
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * AMI - Asterisk Management Interface
+ * External call management support 
  */
 
 #ifndef _ASTERISK_MANAGER_H
@@ -156,4 +163,5 @@ extern void astman_send_ack(struct mansession *s, struct message *m, char *msg);
 extern int init_manager(void);
 /*! Called by Asterisk initialization */
 extern int reload_manager(void);
-#endif
+
+#endif /* _ASTERISK_MANAGER_H */

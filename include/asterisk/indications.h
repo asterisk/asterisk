@@ -1,4 +1,14 @@
 /*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ */
+
+/*
  * BSD Telephony Of Mexico "Tormenta" Tone Zone Support 2/22/01
  * 
  * This program is free software; you can redistribute it and/or modify
@@ -74,4 +84,4 @@ void ast_playtones_stop(struct ast_channel *chan);
 extern struct tone_zone *tone_zones;
 extern ast_mutex_t tzlock;
 
-#endif
+#endif /* _ASTERISK_INDICATIONS_H */

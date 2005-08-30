@@ -1,4 +1,14 @@
 /*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ */
+
+/*
 Copyright (c) 2002 Jorge Acereda  <jacereda@users.sourceforge.net> &
                    Peter O'Gorman <ogorman@users.sourceforge.net>
                    
@@ -28,6 +38,7 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
+
 #ifndef _DLFCN_H_
 #define _DLFCN_H_
 

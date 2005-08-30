@@ -1,13 +1,25 @@
 /*
- * Distributed Universal Number Discovery (DUNDi)
+ * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2004 - 2005, Digium Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * Written by Mark Spencer <markster@digium.com>
+ * Mark Spencer <markster@digium.com>
  *
- * This program is Free Software distributed under the terms of
- * of the GNU General Public License.
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
  */
+
+/*
+ * Distributed Universal Number Discovery (DUNDi)
+ */
+
 #ifndef _ASTERISK_DUNDI_H 
 #define _ASTERISK_DUNDI_H
 
@@ -209,4 +221,5 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 
 /* Pre-cache to push upstream peers */
 int dundi_precache(const char *dcontext, const char *number);
+
 #endif /* _ASTERISK_DUNDI_H */

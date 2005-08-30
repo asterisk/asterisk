@@ -1,14 +1,23 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * ENUM support
- * 
- * Copyright (C) 1999-2005, Digium, inc
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * ENUM support
  */
 
 /*!	\file enum.h
@@ -17,7 +26,9 @@
 
 #ifndef _ASTERISK_ENUM_H
 #define _ASTERISK_ENUM_H
+
 #include "asterisk/channel.h"
+
 /*! \brief Lookup entry in ENUM Returns 1 if found, 0 if not found, -1 on hangup 
 	\param chan	Channel
 	\param number	Number in E164 format without the + (for e164.arpa) or format 
@@ -43,4 +54,5 @@ extern int ast_get_txt(struct ast_channel *chan, const char *number, char *locat
 
 extern int ast_enum_init(void);
 extern int ast_enum_reload(void);
-#endif
+
+#endif /* _ASTERISK_ENUM_H */

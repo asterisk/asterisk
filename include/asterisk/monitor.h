@@ -1,5 +1,27 @@
-#ifndef _MONITOR_H
-#define _MONITOR_H
+/*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright (C) 1999 - 2005, Digium, Inc.
+ *
+ * Mark Spencer <markster@digium.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * Channel monitoring
+ */
+
+#ifndef _ASTERISK_MONITOR_H
+#define _ASTERISK_MONITOR_H
 
 #include <stdio.h>
 
@@ -34,4 +56,4 @@ int ast_monitor_change_fname(	struct ast_channel *chan,
 
 void ast_monitor_setjoinfiles(struct ast_channel *chan, int turnon);
 
-#endif /* _MONITOR_H */
+#endif /* _ASTERISK_MONITOR_H */

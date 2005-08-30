@@ -1,16 +1,23 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * DNS SRV record support
- * 
- * Copyright (C) 1999-2005, Digium, Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
- * 
- * $Revision$
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * DNS SRV record support
  */
 
 #ifndef _ASTERISK_SRV_H
@@ -37,4 +44,4 @@ struct ast_channel;
 */
 extern int ast_get_srv(struct ast_channel *chan, char *host, int hostlen, int *port, const char *service);
 
-#endif
+#endif /* _ASTERISK_SRV_H */

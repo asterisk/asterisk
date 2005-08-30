@@ -1,21 +1,28 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * TTY/TDD Generation support 
- * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
  *
  * This program is free software, distributed under the terms of
- * the GNU General Public License.
- *
- * Includes code and algorithms from the Zapata library.
- *
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
  */
 
-#ifndef _TDD_H
-#define _TDD_H
+/*
+ * TTY/TDD Generation support 
+ * Includes code and algorithms from the Zapata library.
+ */
+
+#ifndef _ASTERISK_TDD_H
+#define _ASTERISK_TDD_H
 
 #define	TDD_BYTES_PER_CHAR	2700
 
@@ -71,4 +78,4 @@ extern void tdd_free(struct tdd_state *tdd);
  */
 extern int ast_tdd_gen_ecdisa(unsigned char *outbuf, int len);
 
-#endif
+#endif /* _ASTERISK_TDD_H */

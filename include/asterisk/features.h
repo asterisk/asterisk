@@ -1,17 +1,24 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Call Parking and Pickup API 
- * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
  *
  * This program is free software, distributed under the terms of
- * the GNU General Public License.
- *
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * Call Parking and Pickup API 
  * Includes code and algorithms from the Zapata library.
- *
  */
 
 #ifndef _AST_FEATURES_H
@@ -82,5 +89,4 @@ extern void ast_register_feature(struct ast_call_feature *feature);
     \param feature the ast_call_feature object which was registered before*/
 extern void ast_unregister_feature(struct ast_call_feature *feature);
 
-     
 #endif /* _AST_FEATURES_H */

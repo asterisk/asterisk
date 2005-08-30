@@ -1,14 +1,23 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Configuration File Parser
- * 
- * Copyright (C) 1999-2005, Mark Spencer
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * Configuration File Parser
  */
 
 #ifndef _ASTERISK_CONFIG_H
@@ -35,8 +44,6 @@ struct ast_variable {
 	struct ast_variable *next;
 	char stuff[0];
 };
-
-#include "asterisk/config_old.h"
 
 typedef struct ast_config *config_load_func(const char *database, const char *table, const char *configfile, struct ast_config *config);
 typedef struct ast_variable *realtime_var_get(const char *database, const char *table, va_list ap);
@@ -197,4 +204,4 @@ struct ast_config *ast_config_internal_load(const char *configfile, struct ast_c
 }
 #endif
 
-#endif
+#endif /* _ASTERISK_CONFIG_H */

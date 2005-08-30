@@ -1,14 +1,23 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Convenient Signal Processing routines
- * 
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * Mark Spencer <markster@linux-support.net>
+ * Mark Spencer <markster@digium.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
  *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * Convenient Signal Processing routines
  */
 
 #ifndef _ASTERISK_DSP_H
@@ -97,4 +106,5 @@ int ast_dsp_get_tstate(struct ast_dsp *dsp);
 
 /* Get tcount (Threshold counter) */
 int ast_dsp_get_tcount(struct ast_dsp *dsp);
-#endif
+
+#endif /* _ASTERISK_DSP_H */
