@@ -46,11 +46,16 @@ endif
 #
 # PGSQL stuff...  Autoconf anyone??
 #
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
   MODS+=cdr_pgsql.so
 endif
 
 MLFLAGS=
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql),)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/postgresql
+  MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib/postgresql
+endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include),)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/pgsql/include
