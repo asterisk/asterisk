@@ -30,7 +30,7 @@ ifeq ($(CROSS_COMPILE),)
   OSREV=$(shell uname -r)
 else
   OSARCH=$(CROSS_ARCH)
-  OSREV=${CROSS_REV)
+  OSREV=$(CROSS_REV)
 endif
 
 ######### More GSM codec optimization
