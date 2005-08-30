@@ -832,6 +832,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc,
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, struct sip_invite_param *options, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
+static int transmit_info_with_vidupdate(struct sip_pvt *p);
 static int transmit_message_with_text(struct sip_pvt *p, const char *text);
 static int transmit_refer(struct sip_pvt *p, const char *dest);
 static int sip_sipredirect(struct sip_pvt *p, const char *dest);
@@ -2609,6 +2610,13 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 			ast_log(LOG_DEBUG, "Bridged channel is back from hold, let's talk! : %s\n", p->callid);
 		res = -1;
 		break;
+	case AST_CONTROL_VIDUPDATE:	/* Request a video frame update */
+		if (p->vrtp && !ast_test_flag(p, SIP_NOVIDEO)) {
+			transmit_info_with_vidupdate(p);
+			res = 0;
+		} else
+			res = -1;
+		break;
 	case -1:
 		res = -1;
 		break;
@@ -3949,7 +3957,7 @@ static int __transmit_response(struct sip_pvt *p, char *msg, struct sip_request 
 	/* If we are cancelling an incoming invite for some reason, add information
 		about the reason why we are doing this in clear text */
 	if (p->owner && p->owner->hangupcause) {
-		add_header(&resp, "X-Asterisk-HangupCause:", ast_cause2str(p->owner->hangupcause));
+		add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
 	}
 	add_blank_header(&resp);
 	return send_response(p, &resp, reliable, seqno);
@@ -4053,6 +4061,26 @@ static int add_digit(struct sip_request *req, char digit)
 	add_header(req, "Content-Type", "application/dtmf-relay");
 	add_header_contentLength(req, strlen(tmp));
 	add_line(req, tmp);
+	return 0;
+}
+
+/*--- add_vidupdate: add XML encoded media control with update ---*/
+/* XML: The only way to turn 0 bits of information into a few hundred. */
+static int add_vidupdate(struct sip_request *req)
+{
+	const char *xml_is_a_huge_waste_of_space =
+		"<?xml version=\"1.0\" encoding=\"utf-8\" ?>\r\n"
+		" <media_control>\r\n"
+		"  <vc_primitive>\r\n"
+		"   <to_encoder>\r\n"
+		"    <picture_fast_update\r\n"
+		"    </picture_fast_update>\r\n"
+		"   </to_encoder>\r\n"
+		"  </vc_primitive>\r\n"
+		" </media_control>\r\n";
+	add_header(req, "Content-Type", "application/media_control+xml");
+	add_header_contentLength(req, strlen(xml_is_a_huge_waste_of_space));
+	add_line(req, xml_is_a_huge_waste_of_space);
 	return 0;
 }
 
@@ -5206,6 +5234,15 @@ static int transmit_info_with_digit(struct sip_pvt *p, char digit)
 	struct sip_request req;
 	reqprep(&req, p, SIP_INFO, 0, 1);
 	add_digit(&req, digit);
+	return send_request(p, &req, 1, p->ocseq);
+}
+
+/*--- transmit_info_with_vidupdate: Send SIP INFO with video update request ---*/
+static int transmit_info_with_vidupdate(struct sip_pvt *p)
+{
+	struct sip_request req;
+	reqprep(&req, p, SIP_INFO, 0, 1);
+	add_vidupdate(&req);
 	return send_request(p, &req, 1, p->ocseq);
 }
 
@@ -8124,6 +8161,12 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			transmit_response(p, "481 Call leg/transaction does not exist", req);
 			ast_set_flag(p, SIP_NEEDDESTROY);
 		}
+		return;
+	} else if (!strcasecmp(get_header(req, "Content-Type"), "application/media_control+xml")) {
+		/* Eh, we'll just assume it's a fast picture update for now */
+		if (p->owner)
+			ast_queue_control(p->owner, AST_CONTROL_VIDUPDATE);
+		transmit_response(p, "200 OK", req);
 		return;
 	} else if ((c = get_header(req, "X-ClientCode"))) {
 		/* Client code (from SNOM phone) */

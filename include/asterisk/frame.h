@@ -194,6 +194,8 @@ struct ast_frame_chain {
 #define AST_CONTROL_HOLD			16
 /*! Indicate call is left from hold */
 #define AST_CONTROL_UNHOLD			17
+/*! Indicate video frame update */
+#define AST_CONTROL_VIDUPDATE		18
 
 #define AST_SMOOTHER_FLAG_G729		(1 << 0)
 

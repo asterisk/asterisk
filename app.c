@@ -615,6 +615,8 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 			return -1;
 		}
 	}
+	/* Request a video update */
+	ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 
 	if (x == fmtcnt) {
 	/* Loop forever, writing the packets we read to the writer(s), until

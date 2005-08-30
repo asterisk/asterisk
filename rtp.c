@@ -672,7 +672,7 @@ void ast_rtp_pt_default(struct ast_rtp* rtp)
 	rtp->rtp_lookup_code_cache_result = 0;
 }
 
-/* Make a note of a RTP payload type that was seen in a SDP "m=" line. */
+/* Make a note of a RTP paymoad type that was seen in a SDP "m=" line. */
 /* By default, use the well-known value for this type (although it may */
 /* still be set to a different value by a subsequent "a=rtpmap:" line): */
 void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) {
@@ -1628,6 +1628,17 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 			}
 			return AST_BRIDGE_COMPLETE;
+		} else if ((f->frametype == AST_FRAME_CONTROL) && !(flags & AST_BRIDGE_IGNORE_SIGS)) {
+			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD) ||
+			    (f->subclass == AST_CONTROL_VIDUPDATE)) {
+				ast_indicate(who == c0 ? c1 : c0, f->subclass);
+				ast_frfree(f);
+			} else {
+				*fo = f;
+				*rc = who;
+				ast_log(LOG_DEBUG, "Got a FRAME_CONTROL (%d) frame on channel %s\n", f->subclass, who->name);
+				return AST_BRIDGE_COMPLETE;
+			}
 		} else {
 			if ((f->frametype == AST_FRAME_DTMF) || 
 				(f->frametype == AST_FRAME_VOICE) || 

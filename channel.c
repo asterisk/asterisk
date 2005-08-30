@@ -1721,6 +1721,8 @@ int ast_indicate(struct ast_channel *chan, int condition)
 				/* Do nothing.... */
 			} else if (condition == AST_CONTROL_UNHOLD) {
 				/* Do nothing.... */
+			} else if (condition == AST_CONTROL_VIDUPDATE) {
+				/* Do nothing.... */
 			} else {
 				/* not handled */
 				ast_log(LOG_WARNING, "Unable to handle indication %d for '%s'\n", condition, chan->name);
@@ -2966,7 +2968,8 @@ static enum ast_bridge_result ast_generic_bridge(int *playitagain, int *playit, 
 		}
 
 		if ((f->frametype == AST_FRAME_CONTROL) && !(config->flags & AST_BRIDGE_IGNORE_SIGS)) {
-			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD)) {
+			if ((f->subclass == AST_CONTROL_HOLD) || (f->subclass == AST_CONTROL_UNHOLD) ||
+			    (f->subclass == AST_CONTROL_VIDUPDATE)) {
 				ast_indicate(who == c0 ? c1 : c0, f->subclass);
 			} else {
 				*fo = f;

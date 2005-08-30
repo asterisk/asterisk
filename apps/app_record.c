@@ -218,6 +218,9 @@ static int record_exec(struct ast_channel *chan, void *data)
 		
 		
 		if (s) {
+			/* Request a video update */
+			ast_indicate(chan, AST_CONTROL_VIDUPDATE);
+
 			if (maxduration > 0)
 				timeout = time(NULL) + (time_t)maxduration;
 			
