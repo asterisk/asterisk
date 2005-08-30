@@ -391,7 +391,7 @@ ast_expr2.c:
 	bison -d --name-prefix=ast_yy ast_expr2.y -o ast_expr2.c
 
 ast_expr2f.c:
-	flex ast_expr2.fl
+	flex --full ast_expr2.fl
 
 testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	gcc -g -c -DSTANDALONE ast_expr2f.c
