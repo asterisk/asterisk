@@ -628,6 +628,7 @@ static struct sip_pvt {
 	struct sip_history *history;		/* History of this SIP dialog */
 	struct ast_variable *chanvars;		/* Channel variables to set for call */
 	struct sip_pvt *next;			/* Next call in chain */
+	struct sip_invite_param *options;	/* Options for INVITE */
 } *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
@@ -825,7 +826,7 @@ static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, stru
 static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, char *rand, int reliable, char *header, int stale);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, struct sip_invite_param *options, int init);
+static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
 static int transmit_reinvite_with_sdp(struct sip_pvt *p);
 static int transmit_info_with_digit(struct sip_pvt *p, char digit);
 static int transmit_info_with_vidupdate(struct sip_pvt *p);
@@ -1922,34 +1923,35 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 #endif	
 	struct varshead *headp;
 	struct ast_var_t *current;
-	struct sip_invite_param options;
+	
 
-	memset(&options, 0, sizeof(struct sip_invite_param));
 	
 	p = ast->tech_pvt;
 	if ((ast->_state != AST_STATE_DOWN) && (ast->_state != AST_STATE_RESERVED)) {
 		ast_log(LOG_WARNING, "sip_call called on %s, neither down nor reserved\n", ast->name);
 		return -1;
 	}
+
+
 	/* Check whether there is vxml_url, distinctive ring variables */
 
 	headp=&ast->varshead;
 	AST_LIST_TRAVERSE(headp,current,entries) {
 		/* Check whether there is a VXML_URL variable */
-		if (!options.vxml_url && !strcasecmp(ast_var_name(current),"VXML_URL")) {
-			options.vxml_url = ast_var_value(current);
-		} else if (!options.distinctive_ring && !strcasecmp(ast_var_name(current),"ALERT_INFO")) {
+		if (!p->options->vxml_url && !strcasecmp(ast_var_name(current), "VXML_URL")) {
+			p->options->vxml_url = ast_var_value(current);
+		} else if (!p->options->distinctive_ring && !strcasecmp(ast_var_name(current), "ALERT_INFO")) {
 			/* Check whether there is a ALERT_INFO variable */
-			options.distinctive_ring = ast_var_value(current);
-		} else if (!options.addsipheaders && !strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
+			p->options->distinctive_ring = ast_var_value(current);
+		} else if (!p->options->addsipheaders && !strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 			/* Check whether there is a variable with a name starting with SIPADDHEADER */
-			options.addsipheaders = 1;
+			p->options->addsipheaders = 1;
 		}
 
 		
 #ifdef OSP_SUPPORT
-		else if (!options.osptoken && !strcasecmp(ast_var_name(current), "OSPTOKEN")) {
-			options.osptoken = ast_var_value(current);
+		else if (!p->options->osptoken && !strcasecmp(ast_var_name(current), "OSPTOKEN")) {
+			p->options->osptoken = ast_var_value(current);
 		} else if (!osphandle && !strcasecmp(ast_var_name(current), "OSPHANDLE")) {
 			osphandle = ast_var_value(current);
 		}
@@ -1959,10 +1961,10 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	res = 0;
 	ast_set_flag(p, SIP_OUTGOING);
 #ifdef OSP_SUPPORT
-	if (!options.osptoken || !osphandle || (sscanf(osphandle, "%d", &p->osphandle) != 1)) {
+	if (!p->options->osptoken || !osphandle || (sscanf(osphandle, "%d", &p->osphandle) != 1)) {
 		/* Force Disable OSP support */
-		ast_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", options.osptoken, osphandle);
-		options.osptoken = NULL;
+		ast_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", p->options->osptoken, osphandle);
+		p->options->osptoken = NULL;
 		osphandle = NULL;
 		p->osphandle = -1;
 	}
@@ -1972,7 +1974,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
 		p->jointcapability = p->capability;
-		transmit_invite(p, SIP_INVITE, 1, &options, 1);
+		transmit_invite(p, SIP_INVITE, 1, 1);
 		if (p->maxtime) {
 			/* Initialize auto-congest time */
 			p->initid = ast_sched_add(sched, p->maxtime * 4, auto_congest, p);
@@ -2013,6 +2015,9 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 
 	if (dumphistory)
 		sip_dump_history(p);
+
+	if (p->options)
+		free(p->options);
 
 	if (p->stateid > -1)
 		ast_extension_state_del(p->stateid, NULL);
@@ -4503,7 +4508,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 }
 
 /*--- transmit_invite: Build REFER/INVITE/OPTIONS message and transmit it ---*/
-static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip_invite_param *options, int init)
+static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 {
 	struct sip_request req;
 	
@@ -4512,12 +4517,12 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip
 		/* Bump branch even on initial requests */
 		p->branch ^= rand();
 		build_via(p, p->via, sizeof(p->via));
-		initreqprep(&req, p, sipmethod, options ? options->vxml_url : (char *) NULL);
+		initreqprep(&req, p, sipmethod, p->options ? p->options->vxml_url : (char *) NULL);
 	} else
 		reqprep(&req, p, sipmethod, 0, 1);
 		
-	if (options && options->auth)
-		add_header(&req, options->authheader, options->auth);
+	if (p->options && p->options->auth)
+		add_header(&req, p->options->authheader, p->options->auth);
 	append_date(&req);
 	if (sipmethod == SIP_REFER) {	/* Call transfer */
 		if (!ast_strlen_zero(p->refer_to))
@@ -4526,19 +4531,19 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip
 			add_header(&req, "Referred-By", p->referred_by);
 	}
 #ifdef OSP_SUPPORT
-	if (options && options->osptoken && !ast_strlen_zero(options->osptoken)) {
-		ast_log(LOG_DEBUG,"Adding OSP Token: %s\n", options->osptoken);
-		add_header(&req, "P-OSP-Auth-Token", options->osptoken);
+	if (p->options && p->options->osptoken && !ast_strlen_zero(p->options->osptoken)) {
+		ast_log(LOG_DEBUG,"Adding OSP Token: %s\n", p->options->osptoken);
+		add_header(&req, "P-OSP-Auth-Token", p->options->osptoken);
 	} else {
 		ast_log(LOG_DEBUG,"NOT Adding OSP Token\n");
 	}
 #endif
-	if (options && options->distinctive_ring && !ast_strlen_zero(options->distinctive_ring))
+	if (p->options && p->options->distinctive_ring && !ast_strlen_zero(p->options->distinctive_ring))
 	{
-		add_header(&req, "Alert-Info", options->distinctive_ring);
+		add_header(&req, "Alert-Info", p->options->distinctive_ring);
 	}
 	add_header(&req, "Allow", ALLOWED_METHODS);
-	if (options && options->addsipheaders && init) {
+	if (p->options && p->options->addsipheaders ) {
 		struct ast_channel *ast;
 		char *header = (char *) NULL;
 		char *content = (char *) NULL;
@@ -4548,18 +4553,20 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip
 
 		ast = p->owner;	/* The owner channel */
 		if (ast) {
-	 		headp=&ast->varshead;
+			char *headdup;
+	 		headp = &ast->varshead;
 			if (!headp)
 				ast_log(LOG_WARNING,"No Headp for the channel...ooops!\n");
 			else {
-				AST_LIST_TRAVERSE(headp,current,entries) {  
+				AST_LIST_TRAVERSE(headp, current, entries) {  
 					/* SIPADDHEADER: Add SIP header to outgoing call        */
-					if (!strncasecmp(ast_var_name(current),"SIPADDHEADER",strlen("SIPADDHEADER"))) {
+					if (!strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 						header = ast_var_value(current);
+						headdup = ast_strdupa(header);
 						/* Strip of the starting " (if it's there) */
-						if (*header == '"')
-					 		header++;
-						if ((content = strchr(header, ':'))) {
+						if (*headdup == '"')
+					 		headdup++;
+						if ((content = strchr(headdup, ':'))) {
 							*content = '\0';
 							content++;	/* Move pointer ahead */
 							/* Skip white space */
@@ -4570,9 +4577,9 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, struct sip
 							if (*end == '"')
 								*end = '\0';
 						
-							add_header(&req, header, content);
+							add_header(&req, headdup, content);
 							if (sipdebug)
-								ast_log(LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", header, content);
+								ast_log(LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
 						}
 					}
 				}
@@ -8343,21 +8350,27 @@ static int do_register_auth(struct sip_pvt *p, struct sip_request *req, char *he
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init) 
 {
 	char digest[1024];
-	struct sip_invite_param options;
 
-	memset(&options, 0, sizeof(struct sip_invite_param));
+	if (!p->options) {
+		p->options = calloc(1, sizeof(*p->options));
+		if (!p->options) {
+			ast_log(LOG_ERROR, "Out of memory\n");
+			return -2;
+		}
+	}
+
 	p->authtries++;
 	if (option_debug > 1)
 		ast_log(LOG_DEBUG, "Auth attempt %d on %s\n", p->authtries, sip_methods[sipmethod].text);
-	memset(digest,0,sizeof(digest));
+	memset(digest, 0, sizeof(digest));
 	if (reply_digest(p, req, header, sipmethod, digest, sizeof(digest) )) {
 		/* No way to authenticate */
 		return -1;
 	}
 	/* Now we have a reply digest */
-	options.auth = digest;
-	options.authheader = respheader;
-	return transmit_invite(p, sipmethod, sipmethod == SIP_INVITE, &options, init); 
+	p->options->auth = digest;
+	p->options->authheader = respheader;
+	return transmit_invite(p, sipmethod, sipmethod == SIP_INVITE, init); 
 }
 
 /*--- reply_digest: reply to authentication for outbound registrations ---*/
@@ -10629,9 +10642,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 	ast_set_flag(p, SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
 	ast_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-	transmit_invite(p, SIP_INVITE, 0, NULL, 1);
+	transmit_invite(p, SIP_INVITE, 0, 1);
 #else
-	transmit_invite(p, SIP_OPTIONS, 0, NULL, 1);
+	transmit_invite(p, SIP_OPTIONS, 0, 1);
 #endif
 	gettimeofday(&peer->ps, NULL);
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
@@ -10719,6 +10732,12 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	p = sip_alloc(NULL, NULL, 0, SIP_INVITE);
 	if (!p) {
 		ast_log(LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
+		return NULL;
+	}
+
+	p->options = calloc(1, sizeof(*p->options));
+	if (!p->options) {
+		ast_log(LOG_ERROR, "Out of memory\n");
 		return NULL;
 	}
 
