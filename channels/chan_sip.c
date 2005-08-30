@@ -415,10 +415,8 @@ static struct io_context *io;
 #define SIP_MAX_HEADERS		64
 #define SIP_MAX_LINES 		64
 
-#define DEC_IN_USE	0
-#define INC_IN_USE	1
-#define DEC_OUT_USE	2
-#define INC_OUT_USE	3
+#define DEC_CALL_LIMIT	0
+#define INC_CALL_LIMIT	1
 
 static struct ast_codec_pref prefs;
 
@@ -674,9 +672,8 @@ struct sip_user {
 	int callingpres;		/* Calling id presentation */
 	int capability;			/* Codec capability */
 	int inUse;			/* Number of calls in use */
-	int incominglimit;		/* Limit of incoming calls */
+	int call_limit;			/* Limit of concurrent calls */
 	int outUse;			/* disabled */
-	int outgoinglimit;		/* disabled */
 	struct ast_ha *ha;		/* ACL setting */
 	struct ast_variable *chanvars;	/* Variables to set for channel created by user */
 };
@@ -702,9 +699,8 @@ struct sip_peer {
 	char cid_name[80];		/* Caller ID name */
 	int callingpres;		/* Calling id presentation */
 	int inUse;			/* Number of calls in use */
-	int incominglimit;		/* Limit of incoming calls */
+	int call_limit;			/* Limit of concurrent calls */
 	int outUse;			/* disabled */
-	int outgoinglimit;		/* disabled */
 	char vmexten[AST_MAX_EXTENSION];        /* Dialplan extension for MWI notify message*/
 	char mailbox[AST_MAX_EXTENSION]; /* Mailbox setting for MWI checks */
 	char language[MAX_LANGUAGE];	/* Default language for prompts */
@@ -840,7 +836,7 @@ static struct sip_peer *temp_peer(const char *name);
 static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *header, char *respheader, int sipmethod, int init);
 static void free_old_route(struct sip_route *route);
 static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int digest_len);
-static int update_user_counter(struct sip_pvt *fup, int event);
+static int update_call_counter(struct sip_pvt *fup, int event);
 static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime);
 static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
 static int sip_do_reload(void);
@@ -1819,6 +1815,8 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->rtptimeout = peer->rtptimeout;
 	r->rtpholdtimeout = peer->rtpholdtimeout;
 	r->rtpkeepalive = peer->rtpkeepalive;
+	if (peer->call_limit)
+		ast_set_flag(r, SIP_CALL_LIMIT);
 
 	return 0;
 }
@@ -1939,7 +1937,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		} else if (!options.distinctive_ring && !strcasecmp(ast_var_name(current),"ALERT_INFO")) {
 			/* Check whether there is a ALERT_INFO variable */
 			options.distinctive_ring = ast_var_value(current);
-		} else if (!options.addsipheaders && !strncasecmp(ast_var_name(current),"SIPADDHEADER",strlen("SIPADDHEADER"))) {
+		} else if (!options.addsipheaders && !strncasecmp(ast_var_name(current), "SIPADDHEADER", strlen("SIPADDHEADER"))) {
 			/* Check whether there is a variable with a name starting with SIPADDHEADER */
 			options.addsipheaders = 1;
 		}
@@ -1966,7 +1964,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	}
 #endif
 	ast_log(LOG_DEBUG, "Outgoing Call for %s\n", p->username);
-	res = update_user_counter(p,INC_OUT_USE);
+	res = update_call_counter(p, INC_CALL_LIMIT);
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
 		p->jointcapability = p->capability;
@@ -2084,16 +2082,19 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	free(p);
 }
 
-/*--- update_user_counter: Handle incominglimit and outgoinglimit for SIP users ---*/
+/*--- update_call_counter: Handle call_limit for SIP users ---*/
 /* Note: This is going to be replaced by app_groupcount */
 /* Thought: For realtime, we should propably update storage with inuse counter... */
-static int update_user_counter(struct sip_pvt *fup, int event)
+static int update_call_counter(struct sip_pvt *fup, int event)
 {
 	char name[256] = "";
-	struct sip_user *u;
-	struct sip_peer *p;
-	int *inuse, *incominglimit;
+	int *inuse, *call_limit;
+	int outgoing = ast_test_flag(fup, SIP_OUTGOING);
+	struct sip_user *u = NULL;
+	struct sip_peer *p = NULL;
 
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Updating call counter for %s call\n", outgoing ? "outgoing" : "incoming");
 	/* Test if we need to check call limits, in order to avoid 
 	   realtime lookups if we do not need it */
 	if (!ast_test_flag(fup, SIP_CALL_LIMIT))
@@ -2105,14 +2106,15 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 	u = find_user(name, 1);
 	if (u) {
 		inuse = &u->inUse;
-		incominglimit = &u->incominglimit;
+		call_limit = &u->call_limit;
 		p = NULL;
 	} else {
 		/* Try to find peer */
-		p = find_peer(fup->peername, NULL, 1);
+		if (!p)
+			p = find_peer(fup->peername, NULL, 1);
 		if (p) {
 			inuse = &p->inUse;
-			incominglimit = &p->incominglimit;
+			call_limit = &p->call_limit;
 			ast_copy_string(name, fup->peername, sizeof(name));
 		} else {
 			if (option_debug > 1)
@@ -2122,21 +2124,20 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 	}
 	switch(event) {
 		/* incoming and outgoing affects the inUse counter */
-		case DEC_OUT_USE:
-		case DEC_IN_USE:
+		case DEC_CALL_LIMIT:
 			if ( *inuse > 0 ) {
 				(*inuse)--;
 			} else {
 				*inuse = 0;
 			}
+			ast_log(LOG_ERROR, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
 			break;
-		case INC_IN_USE:
-		case INC_OUT_USE:
-			if (*incominglimit > 0 ) {
-				if (*inuse >= *incominglimit) {
-					ast_log(LOG_ERROR, "Call from %s '%s' rejected due to usage limit of %d\n", u?"user":"peer", name, *incominglimit);
+		case INC_CALL_LIMIT:
+			if (*call_limit > 0 ) {
+				if (*inuse >= *call_limit) {
+					ast_log(LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
 					/* inc inUse as well */
-					if ( event == INC_OUT_USE ) {
+					if ( event == INC_CALL_LIMIT ) {
 						(*inuse)++;
 					}
 					if (u)
@@ -2147,33 +2148,10 @@ static int update_user_counter(struct sip_pvt *fup, int event)
 				}
 			}
 			(*inuse)++;
-			ast_log(LOG_DEBUG, "Call from %s '%s' is %d out of %d\n", u?"user":"peer", name, *inuse, *incominglimit);
+			ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
 			break;
-#ifdef DISABLED_CODE
-		/* we don't use these anymore */
-		case DEC_OUT_USE:
-			if ( u->outUse > 0 ) {
-				u->outUse--;
-			} else {
-				u->outUse = 0;
-			}
-			break;
-		case INC_OUT_USE:
-			if ( u->outgoinglimit > 0 ) {
-				if ( u->outUse >= u->outgoinglimit ) {
-					ast_log(LOG_ERROR, "Outgoing call from user '%s' rejected due to usage limit of %d\n", u->name, u->outgoinglimit);
-					ast_mutex_unlock(&userl.lock);
-					if (u->temponly) {
-						destroy_user(u);
-					}
-					return -1;
-				}
-			}
-			u->outUse++;
-			break;
-#endif
 		default:
-			ast_log(LOG_ERROR, "update_user_counter(%s,%d) called with no event!\n",name,event);
+			ast_log(LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
 	}
 	if (u)
 		ASTOBJ_UNREF(u,sip_destroy_user);
@@ -2328,13 +2306,8 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_osp_terminate(p->osphandle, AST_CAUSE_NORMAL, p->ospstart, time(NULL) - p->ospstart);
 	}
 #endif	
-	if (ast_test_flag(p, SIP_OUTGOING)) {
-		ast_log(LOG_DEBUG, "update_user_counter(%s) - decrement outUse counter\n", p->username);
-		update_user_counter(p, DEC_OUT_USE);
-	} else {
-		ast_log(LOG_DEBUG, "update_user_counter(%s) - decrement inUse counter\n", p->username);
-		update_user_counter(p, DEC_IN_USE);
-	}
+	ast_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter\n", p->username);
+	update_call_counter(p, DEC_CALL_LIMIT);
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
 		ast_log(LOG_WARNING, "Huh?  We aren't the owner? Can't hangup call.\n");
@@ -2372,12 +2345,7 @@ static int sip_hangup(struct ast_channel *ast)
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
 					   only if the channel is not auto-congested */
-					if (ast_test_flag(p, SIP_OUTGOING)) {
-						update_user_counter(p, INC_OUT_USE);
-					}
-					else {
-						update_user_counter(p, INC_IN_USE);
-					}
+					update_call_counter(p, INC_CALL_LIMIT);
 				}
 			} else {	/* Incoming call, not up */
 				char *res;
@@ -2729,7 +2697,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	}
 	ast_setstate(tmp, state);
 	if (state != AST_STATE_DOWN) {
-			if (ast_pbx_start(tmp)) {
+		if (ast_pbx_start(tmp)) {
 			ast_log(LOG_WARNING, "Unable to start PBX on %s\n", tmp->name);
 			ast_hangup(tmp);
 			tmp = NULL;
@@ -6569,7 +6537,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				user->sipoptions = p->sipoptions;
 
 			/* If we have a call limit, set flag */
-			if (user->incominglimit)
+			if (user->call_limit)
 				ast_set_flag(p, SIP_CALL_LIMIT);
 			if (!ast_strlen_zero(user->context))
 				ast_copy_string(p->context, user->context, sizeof(p->context));
@@ -6658,7 +6626,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, sipmethod, uri, reliable, ignore))) {
 				ast_copy_flags(p, peer, SIP_PROMISCREDIR | SIP_DTMF | SIP_REINVITE);
 				/* If we have a call limit, set flag */
-				if (peer->incominglimit)
+				if (peer->call_limit)
 					ast_set_flag(p, SIP_CALL_LIMIT);
 				ast_copy_string(p->peername, peer->name, sizeof(p->peername));
 				ast_copy_string(p->authname, peer->name, sizeof(p->authname));
@@ -6795,7 +6763,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 }
 
 /*--- sip_show_inuse: CLI Command to show calls within limits set by 
-      incominglimit ---*/
+      call_limit ---*/
 static int sip_show_inuse(int fd, int argc, char *argv[]) {
 #define FORMAT  "%-25.25s %-15.15s %-15.15s \n"
 #define FORMAT2 "%-25.25s %-15.15s %-15.15s \n"
@@ -6812,19 +6780,12 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 	ast_cli(fd, FORMAT, "* User name", "In use", "Limit");
 	ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
-		if (iterator->incominglimit)
-			snprintf(ilimits, sizeof(ilimits), "%d", iterator->incominglimit);
+		if (iterator->call_limit)
+			snprintf(ilimits, sizeof(ilimits), "%d", iterator->call_limit);
 		else 
 			ast_copy_string(ilimits, "N/A", sizeof(ilimits));
-		/* Code disabled ----------------------------
-		if (iterator->outgoinglimit)
-			snprintf(olimits, sizeof(olimits), "%d", iterator->outgoinglimit);
-		else
-			ast_copy_string(olimits, "N/A", sizeof(olimits));
-		snprintf(oused, sizeof(oused), "%d", iterator->outUse);
-		---------------------------------------------*/
 		snprintf(iused, sizeof(iused), "%d", iterator->inUse);
-		if (showall || iterator->incominglimit)
+		if (showall || iterator->call_limit)
 			ast_cli(fd, FORMAT2, iterator->name, iused, ilimits);
 		ASTOBJ_UNLOCK(iterator);
 	} while (0) );
@@ -6833,19 +6794,12 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
 		ASTOBJ_RDLOCK(iterator);
-		if (iterator->incominglimit)
-			snprintf(ilimits, sizeof(ilimits), "%d", iterator->incominglimit);
+		if (iterator->call_limit)
+			snprintf(ilimits, sizeof(ilimits), "%d", iterator->call_limit);
 		else 
 			ast_copy_string(ilimits, "N/A", sizeof(ilimits));
-		/* Code disabled ----------------------------
-		if (iterator->outgoinglimit)
-			snprintf(olimits, sizeof(olimits), "%d", iterator->outgoinglimit);
-		else
-			ast_copy_string(olimits, "N/A", sizeof(olimits));
-		snprintf(oused, sizeof(oused), "%d", iterator->outUse);
-		---------------------------------------------*/
 		snprintf(iused, sizeof(iused), "%d", iterator->inUse);
-		if (showall || iterator->incominglimit)
+		if (showall || iterator->call_limit)
 			ast_cli(fd, FORMAT2, iterator->name, iused, ilimits);
 		ASTOBJ_UNLOCK(iterator);
 	} while (0) );
@@ -7434,8 +7388,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(fd, "  VM Extension : %s\n", peer->vmexten);
 		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
-		ast_cli(fd, "  Inc. limit   : %d\n", peer->incominglimit);
-		ast_cli(fd, "  Outg. limit  : %d\n", peer->outgoinglimit);
+		ast_cli(fd, "  Call limit   : %d\n", peer->call_limit);
 		ast_cli(fd, "  Dynamic      : %s\n", (ast_test_flag(peer, SIP_DYNAMIC)?"Yes":"No"));
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, "<unspecified>"));
 		ast_cli(fd, "  Expire       : %d\n", peer->expire);
@@ -7510,8 +7463,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		print_group(fd, peer->pickupgroup);
 		ast_cli(fd, "VoiceMailbox: %s\r\n", peer->mailbox);
 		ast_cli(fd, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
-		ast_cli(fd, "Incominglimit: %d\r\n", peer->incominglimit);
-		ast_cli(fd, "Outgoinglimit: %d\r\n", peer->outgoinglimit);
+		ast_cli(fd, "Call limit: %d\r\n", peer->call_limit);
 		ast_cli(fd, "Dynamic: %s\r\n", (ast_test_flag(peer, SIP_DYNAMIC)?"Y":"N"));
 		ast_cli(fd, "Callerid: %s\r\n", ast_callerid_merge(cbuf, sizeof(cbuf), peer->cid_name, peer->cid_num, ""));
 		ast_cli(fd, "RegExpire: %ld seconds\r\n", ast_sched_when(sched,peer->expire));
@@ -7594,8 +7546,7 @@ static int sip_show_user(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Accountcode  : %s\n", user->accountcode);
 		ast_cli(fd, "  AMA flags    : %s\n", ast_cdr_flags2str(user->amaflags));
 		ast_cli(fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(user->callingpres));
-		ast_cli(fd, "  Inc. limit   : %d\n", user->incominglimit);
-		ast_cli(fd, "  Outg. limit  : %d\n", user->outgoinglimit);
+		ast_cli(fd, "  Call limit   : %d\n", user->call_limit);
 		ast_cli(fd, "  Callgroup    : ");
 		print_group(fd, user->callgroup);
 		ast_cli(fd, "  Pickupgroup  : ");
@@ -8714,7 +8665,7 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 	} else  if (!strcasecmp(colname, "regexten")) {
 		ast_copy_string(buf, peer->regexten, len);
 	} else  if (!strcasecmp(colname, "limit")) {
-		snprintf(buf, len, "%d", peer->incominglimit);
+		snprintf(buf, len, "%d", peer->call_limit);
 	} else  if (!strcasecmp(colname, "curcalls")) {
 		snprintf(buf, len, "%d", peer->inUse);
 	} else  if (!strcasecmp(colname, "useragent")) {
@@ -8772,9 +8723,9 @@ struct ast_custom_function sippeer_function = {
 	"- codecs                The configured codecs.\n"
 	"- status                Status (if qualify=yes).\n"
 	"- regexten              Registration extension\n"
-	"- limit                 Call limit (incominglimit)\n"
+	"- limit                 Call limit (call-limit)\n"
 	"- curcalls              Current amount of calls \n"
-	"                        Only available if incominglimit is set\n"
+	"                        Only available if call-limit is set\n"
 	"- language              Default language for peer\n"
 	"- useragent             Current user agent id for peer\n"
 	"- codec[x]              Preferred codec index number 'x' (beginning with zero).\n"
@@ -9298,12 +9249,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					break;
 				case 487:
 					/* channel now destroyed - dec the inUse counter */
-					if (ast_test_flag(p, SIP_OUTGOING)) {
-						update_user_counter(p, DEC_OUT_USE);
-					}
-					else {
-						update_user_counter(p, DEC_IN_USE);
-					}
+					update_call_counter(p, DEC_CALL_LIMIT);
 					break;
 				case 482: /* SIP is incapable of performing a hairpin call, which
 				             is yet another failure of not having a layer 2 (again, YAY
@@ -9673,7 +9619,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			strcpy(p->context, default_context);
 		/* Check number of concurrent calls -vs- incoming limit HERE */
 		ast_log(LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
-		res = update_user_counter(p, INC_IN_USE);
+		res = update_call_counter(p, INC_CALL_LIMIT);
 		if (res) {
 			if (res < 0) {
 				ast_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
@@ -9697,13 +9643,13 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 					transmit_response(p, "404 Not Found", req);
 				else
 					transmit_response_reliable(p, "404 Not Found", req, 1);
-				update_user_counter(p,DEC_IN_USE);
+				update_call_counter(p, DEC_CALL_LIMIT);
 			} else {
 				if (ignore)
 					transmit_response(p, "484 Address Incomplete", req);
 				else
 					transmit_response_reliable(p, "484 Address Incomplete", req, 1);
-				update_user_counter(p,DEC_IN_USE);
+				update_call_counter(p, DEC_CALL_LIMIT);
 			}
 			ast_set_flag(p, SIP_NEEDDESTROY);		
 		} else {
@@ -10724,7 +10670,7 @@ static int sip_devicestate(void *data)
 			 * call control with incominglimit=X in sip.conf where X > 0 
 			 * Check if the device has incominglimit, and if qualify=on, if the device
 			 * is reachable */
-			if (p->incominglimit && (p->lastms == 0 || p->lastms <= p->maxms)) { /* Free for a call */
+			if (p->call_limit && (p->lastms == 0 || p->lastms <= p->maxms)) { /* Free for a call */
 				res = AST_DEVICE_NOT_INUSE;
 				if (p->inUse) /* On a call */
 					res = AST_DEVICE_BUSY;
@@ -11096,14 +11042,10 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			ast_copy_string(user->musicclass, v->value, sizeof(user->musicclass));
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
-		} else if (!strcasecmp(v->name, "incominglimit")) {
-			user->incominglimit = atoi(v->value);
-			if (user->incominglimit < 0)
-				user->incominglimit = 0;
-		} else if (!strcasecmp(v->name, "outgoinglimit")) {
-			user->outgoinglimit = atoi(v->value);
-			if (user->outgoinglimit < 0)
-				user->outgoinglimit = 0;
+		} else if (!strcasecmp(v->name, "call-limit") || !strcasecmp(v->name, "incominglimit")) {
+			user->call_limit = atoi(v->value);
+			if (user->call_limit < 0)
+				user->call_limit = 0;
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			format = ast_cdr_amaflags2int(v->value);
 			if (format < 0) {
@@ -11347,14 +11289,10 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			ast_copy_string(peer->language, v->value, sizeof(peer->language));
 		} else if (!strcasecmp(v->name, "regexten")) {
 			ast_copy_string(peer->regexten, v->value, sizeof(peer->regexten));
-		} else if (!strcasecmp(v->name, "incominglimit")) {
-			peer->incominglimit = atoi(v->value);
-			if (peer->incominglimit < 0)
-				peer->incominglimit = 0;
-		} else if (!strcasecmp(v->name, "outgoinglimit")) {
-			peer->outgoinglimit = atoi(v->value);
-			if (peer->outgoinglimit < 0)
-				peer->outgoinglimit = 0;
+		} else if (!strcasecmp(v->name, "call-limit") || !strcasecmp(v->name, "incominglimit")) {
+			peer->call_limit = atoi(v->value);
+			if (peer->call_limit < 0)
+				peer->call_limit = 0;
 		} else if (!strcasecmp(v->name, "amaflags")) {
 			format = ast_cdr_amaflags2int(v->value);
 			if (format < 0) {

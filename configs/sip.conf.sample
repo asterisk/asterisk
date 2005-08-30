@@ -234,7 +234,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; setvar                      setvar
 ; callerid		      callerid
 ; amaflags		      amaflags
-; incominglimit		      incominglimit
+; call-limit		      call-limit
 ; restrictcid		      restrictcid
 ;                             mailbox
 ;                             username
@@ -266,6 +266,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;fromdomain=provider.sip.domain	
 ;host=box.provider.com
 ;usereqphone=yes		; This provider requires ";user=phone" on URI
+;call-limit=5			; permit only 5 simultaneous outgoing calls to this peer
 
 ;------------------------------------------------------------------------------
 ; Definitions of locally connected SIP phones
@@ -290,8 +291,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;nat=no				; there is not NAT between phone and Asterisk
 ;canreinvite=yes		; allow RTP voice traffic to bypass Asterisk
 ;dtmfmode=info			; either RFC2833 or INFO for the BudgeTone
-;incominglimit=1		; permit only 1 outgoing call at a time
+;call-limit=1			; permit only 1 outgoing call and 1 incoming call at a time
 				; from the phone to asterisk
+				; (1 for the explicit peer, 1 for the explicit user,
+				; remember that a friend equals 1 peer and 1 user in
+				; memory)
 ;mailbox=1234@default		; mailbox 1234 in voicemail context "default"
 ;disallow=all			; need to disallow=all before we can use allow=
 ;allow=ulaw			; Note: In user sections the order of codecs
