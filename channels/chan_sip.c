@@ -1221,6 +1221,15 @@ static int __sip_autodestruct(void *data)
 	struct sip_pvt *p = data;
 
 	p->autokillid = -1;
+
+	/* If this is a subscription, tell the phone that we got a timeout */
+	if (p->subscribed) {
+		p->subscribed = TIMEOUT;
+		transmit_state_notify(p, AST_EXTENSION_DEACTIVATED, 1, 1);	/* Send first notification */
+		p->subscribed = NONE;
+		append_history(p, "Subscribestatus", "timeout");
+		return 10000;	/* Reschedule this destruction so that we know that it's gone */
+	}
 	ast_log(LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
 	append_history(p, "AutoDestroy", "");
 	if (p->owner) {
@@ -1243,11 +1252,6 @@ static int sip_scheddestroy(struct sip_pvt *p, int ms)
 		append_history(p, "SchedDestroy", tmp);
 	}
 
-	/* If this is a subscription, tell the phone that we got a timeout */
-	if (p->subscribed) {
-		p->subscribed = TIMEOUT;
-		transmit_state_notify(p, AST_EXTENSION_DEACTIVATED, 1, 1);	/* Send first notification */
-	}
 	if (p->autokillid > -1)
 		ast_sched_del(sched, p->autokillid);
 	p->autokillid = ast_sched_add(sched, ms, __sip_autodestruct, p);
@@ -5887,6 +5891,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 		ast_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
 		p->stateid = -1;
 		p->subscribed = NONE;
+		append_history(p, "Subscribestatus", state == AST_EXTENSION_REMOVED ? "HintRemoved" : "Deactivated");
 		break;
 	default:	/* Tell user */
 		p->laststate = state;
@@ -7932,7 +7937,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 		if (!strncasecmp(cur->callid, argv[3],len)) {
 			ast_cli(fd,"\n");
 			if (cur->subscribed != NONE)
-				ast_cli(fd, "  * Subscription\n");
+				ast_cli(fd, "  * Subscription (type: %s)\n", subscription_type2str(cur->subscribed));
 			else
 				ast_cli(fd, "  * SIP Call\n");
 			ast_cli(fd, "  Direction:              %s\n", ast_test_flag(cur, SIP_OUTGOING)?"Outgoing":"Incoming");
@@ -9918,9 +9923,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	int gotdest;
 	int res = 0;
 	int firststate = 0;
-	struct ast_channel *c=NULL;
 
-	if (p->initreq.headers) {
+	if (p->initreq.headers) {	
 		/* We already have a dialog */
 		if (p->initreq.method != SIP_SUBSCRIBE) {
 			/* This is a SUBSCRIBE within another SIP dialog, which we do not support */
@@ -9934,7 +9938,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				ast_log(LOG_DEBUG, "Got a re-subscribe on existing subscription %s\n", p->callid);
 		}
 	}
-	if (!ignore) {
+	if (!ignore && !p->initreq.headers) {
 		/* Use this as the basis */
 		if (debug)
 			ast_verbose("Using latest SUBSCRIBE request as basis request\n");
@@ -9942,7 +9946,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		ast_clear_flag(p, SIP_OUTGOING);
 		copy_request(&p->initreq, req);
 		check_via(p, req);
-	} else if (debug)
+	} else if (debug && ignore)
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
 	if (!p->lastinvite) {
@@ -9976,8 +9980,9 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			char *event = get_header(req, "Event");	/* Get Event package name */
 			char *accept = get_header(req, "Accept");
 
-			/* Initialize tag */	
-			p->tag = rand();
+			/* Initialize tag for new subscriptions */	
+			if (!p->tag)
+				p->tag = rand();
 
 			if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 
@@ -10044,8 +10049,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				return 0;
 			}
 		}
-	} else 
-		c = p->owner;
+	}
 
 	if (!ignore && p)
 		p->lastinvite = seqno;
@@ -10064,8 +10068,11 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (sipdebug || option_debug > 1)
 			ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
 		transmit_response(p, "200 OK", req);
+		if (p->autokillid > -1)
+			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
 		sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
 		transmit_state_notify(p, firststate, 1, 1);	/* Send first notification */
+		append_history(p, "Subscribestatus", "active");
 	}
 	return 1;
 }
