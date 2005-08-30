@@ -935,7 +935,7 @@ static void update_max_trunk(void)
 			max = x + 1;
 	}
 	maxtrunkcall = max;
-	if (option_debug)
+	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "New max trunk callno is %d\n", max);
 }
 
@@ -949,7 +949,7 @@ static void update_max_nontrunk(void)
 			max = x + 1;
 	}
 	maxnontrunkcall = max;
-	if (option_debug)
+	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "New max nontrunk callno is %d\n", max);
 }
 
@@ -1048,7 +1048,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 		iaxs[x] = new_iax(sin, lockpeer, host);
 		update_max_nontrunk();
 		if (iaxs[x]) {
-			if (option_debug)
+			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "Creating new call structure %d\n", x);
 			iaxs[x]->sockfd = sockfd;
 			iaxs[x]->addr.sin_port = sin->sin_port;
@@ -1449,7 +1449,7 @@ static int send_packet(struct iax_frame *f)
 	int res;
 	char iabuf[INET_ADDRSTRLEN];
 	/* Called with iaxsl held */
-	if (option_debug > 2)
+	if (option_debug > 2 && iaxdebug)
 		ast_log(LOG_DEBUG, "Sending %d on %d/%d to %s:%d\n", f->ts, f->callno, iaxs[f->callno]->peercallno, ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[f->callno]->addr.sin_addr), ntohs(iaxs[f->callno]->addr.sin_port));
 	/* Don't send if there was an error, but return error instead */
 	if (!f->callno) {
@@ -1472,7 +1472,7 @@ static int send_packet(struct iax_frame *f)
 					sizeof(iaxs[f->callno]->addr));
 	}
 	if (res < 0) {
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "Received error: %s\n", strerror(errno));
 		handle_error();
 	} else
@@ -2071,7 +2071,7 @@ static void unwrap_timestamp(struct iax_frame *fr)
 			   gotten the update from the main packet.  We'll just pretend that we did, and
 			   update the timestamp appropriately. */
 			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) + 0x10000) | (fr->ts & 0xFFFF);
-			if (option_debug)
+			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "schedule_delivery: pushed forward timestamp\n");
 		}
 		if (x > 50000) {
@@ -2080,7 +2080,7 @@ static void unwrap_timestamp(struct iax_frame *fr)
 			   top-16-bit timestamp that has turned up out of order.
 			   Adjust the timestamp appropriately. */
 			fr->ts = ( (iaxs[fr->callno]->last & 0xFFFF0000) - 0x10000) | (fr->ts & 0xFFFF);
-			if (option_debug)
+			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "schedule_delivery: pushed back timestamp\n");
 		}
 	}
@@ -2204,7 +2204,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 #endif
 
 #if 0
-	if (option_debug)
+	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "schedule_delivery: ts=%d, last=%d, update=%d\n",
 				fr->ts, iaxs[fr->callno]->last, updatehistory);
 #endif
@@ -2224,7 +2224,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 		*/
 		x = fr->ts - iaxs[fr->callno]->last;
 		if (x > TS_GAP_FOR_JB_RESYNC || x < -TS_GAP_FOR_JB_RESYNC) {
-			if (option_debug)
+			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "schedule_delivery: call=%d: TS jumped.  resyncing rxcore (ts=%d, last=%d)\n",
 							fr->callno, fr->ts, iaxs[fr->callno]->last);
 			/* zap rxcore - calc_rxstamp will make a new one based on this frame */
@@ -2396,7 +2396,7 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	if ( (!ast_test_flag(iaxs[fr->callno], IAX_USEJITTERBUF)) || fromtrunk )
 		delay = 0;
 
-	if (option_debug) {
+	if (option_debug && iaxdebug) {
 		/* Log jitter stats for possible offline analysis */
 		ast_log(LOG_DEBUG, "Jitter: call=%d ts=%d orig=%d last=%d %s: min=%d max=%d jb=%d %+d lateness=%d jbdelay=%d jitter=%d historic=%d\n",
 					fr->callno, fr->ts, orig_ts, iaxs[fr->callno]->last,
@@ -2410,18 +2410,18 @@ static int schedule_delivery(struct iax_frame *fr, int updatehistory, int fromtr
 	if (delay < 1) {
 		/* Don't deliver it more than 4 ms late */
 		if ((delay > -4) || (fr->af.frametype != AST_FRAME_VOICE)) {
-			if (option_debug)
+			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "schedule_delivery: Delivering immediately (Calculated delay is %d)\n", delay);
 			__do_deliver(fr);
 		} else {
-			if (option_debug)
+			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "schedule_delivery: Dropping voice packet since %dms delay is too old\n", delay);
 			iaxs[fr->callno]->frames_dropped++;
 			/* Free our iax frame */
 			iax2_frame_free(fr);
 		}
 	} else {
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "schedule_delivery: Scheduling delivery in %d ms\n", delay);
 		fr->retrans = ast_sched_add(sched, delay, do_deliver, fr);
 	}
@@ -3184,7 +3184,8 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 				}
 			} else {
 #if 0
-				ast_log(LOG_DEBUG, "Read from %s\n", who->name);
+				if (iaxdebug && option_debug)
+					ast_log(LOG_DEBUG, "Read from %s\n", who->name);
 				if (who == last) 
 					ast_log(LOG_DEBUG, "Servicing channel %s twice in a row?\n", last->name);
 				last = who;
@@ -3216,14 +3217,14 @@ static int iax2_answer(struct ast_channel *c)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Answering\n");
+		ast_log(LOG_DEBUG, "Answering IAX2 call\n");
 	return send_command_locked(callno, AST_FRAME_CONTROL, AST_CONTROL_ANSWER, 0, NULL, 0, -1);
 }
 
 static int iax2_indicate(struct ast_channel *c, int condition)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
-	if (option_debug)
+	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Indicating condition %d\n", condition);
 	return send_command_locked(callno, AST_FRAME_CONTROL, condition, 0, NULL, 0, -1);
 }
@@ -3415,7 +3416,7 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 	/* If we have a time that the frame arrived, always use it to make our timestamp */
 	if (delivery && !ast_tvzero(*delivery)) {
 		ms = ast_tvdiff_ms(*delivery, p->offset);
-		if (option_debug > 2)
+		if (option_debug > 2 && iaxdebug)
 			ast_log(LOG_DEBUG, "calc_timestamp: call %d/%d: Timestamp slaved to delivery time\n", p->callno, iaxs[p->callno]->peercallno);
 	} else {
 		ms = ast_tvdiff_ms(ast_tvnow(), p->offset);
@@ -3464,8 +3465,8 @@ static unsigned int calc_timestamp(struct chan_iax2_pvt *p, unsigned int ts, str
 				* silent periods are multiples of
 				* frame size too) */
 
-				if (abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW)
-					ast_log(LOG_DEBUG,"predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
+				if (iaxdebug && abs(ms - p->nextpred) > MAX_TIMESTAMP_SKEW )
+					ast_log(LOG_DEBUG, "predicted timestamp skew (%u) > max (%u), using real ts instead.\n",
 						abs(ms - p->nextpred), MAX_TIMESTAMP_SKEW);
 
 				if (f->samples >= 8) /* check to make sure we dont core dump */
@@ -3540,12 +3541,12 @@ static unsigned int calc_rxstamp(struct chan_iax2_pvt *p, unsigned int offset)
 	/* Setup rxcore if necessary */
 	if (ast_tvzero(p->rxcore)) {
 		p->rxcore = ast_tvnow();
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "calc_rxstamp: call=%d: rxcore set to %d.%6.6d - %dms\n",
 					p->callno, (int)(p->rxcore.tv_sec), (int)(p->rxcore.tv_usec), offset);
 		p->rxcore = ast_tvsub(p->rxcore, ast_samp2tv(offset, 1000));
 #if 1
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "calc_rxstamp: call=%d: works out as %d.%6.6d\n",
 					p->callno, (int)(p->rxcore.tv_sec),(int)( p->rxcore.tv_usec));
 #endif
@@ -3735,7 +3736,7 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, stru
 		memcpy_decrypt(workspace, efh->encdata, *datalen - sizeof(struct ast_iax2_full_enc_hdr), dcx);
 
 		padding = 16 + (workspace[15] & 0xf);
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "Decoding full frame with length %d (padding = %d) (15=%02x)\n", *datalen, padding, workspace[15]);
 		if (*datalen < padding + sizeof(struct ast_iax2_full_hdr))
 			return -1;
@@ -3750,7 +3751,7 @@ static int decode_frame(aes_decrypt_ctx *dcx, struct ast_iax2_full_hdr *fh, stru
 		}
 	} else {
 		struct ast_iax2_mini_enc_hdr *efh = (struct ast_iax2_mini_enc_hdr *)fh;
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "Decoding mini with length %d\n", *datalen);
 		if (*datalen < 16 + sizeof(struct ast_iax2_mini_hdr))
 			return -1;
@@ -3774,7 +3775,7 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct ast_iax2_full_hdr *fh, uns
 		return -1;
 	if (ntohs(fh->scallno) & IAX_FLAG_FULL) {
 		struct ast_iax2_full_enc_hdr *efh = (struct ast_iax2_full_enc_hdr *)fh;
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "Encoding full frame %d/%d with length %d\n", fh->type, fh->csub, *datalen);
 		padding = 16 - ((*datalen - sizeof(struct ast_iax2_full_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
@@ -3782,7 +3783,7 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct ast_iax2_full_hdr *fh, uns
 		memcpy(workspace + padding, efh->encdata, *datalen - sizeof(struct ast_iax2_full_enc_hdr));
 		workspace[15] &= 0xf0;
 		workspace[15] |= (padding & 0xf);
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "Encoding full frame %d/%d with length %d + %d padding (15=%02x)\n", fh->type, fh->csub, *datalen, padding, workspace[15]);
 		*datalen += padding;
 		memcpy_encrypt(efh->encdata, workspace, *datalen - sizeof(struct ast_iax2_full_enc_hdr), ecx);
@@ -3790,7 +3791,7 @@ static int encrypt_frame(aes_encrypt_ctx *ecx, struct ast_iax2_full_hdr *fh, uns
 			memcpy(poo, workspace + *datalen - 32, 32);
 	} else {
 		struct ast_iax2_mini_enc_hdr *efh = (struct ast_iax2_mini_enc_hdr *)fh;
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "Encoding mini frame with length %d\n", *datalen);
 		padding = 16 - ((*datalen - sizeof(struct ast_iax2_mini_enc_hdr)) % 16);
 		padding = 16 + (padding & 0xf);
@@ -6003,7 +6004,7 @@ static void *iax_park_thread(void *stuff)
 		ast_frfree(f);
 	res = ast_park_call(chan1, chan2, 0, &ext);
 	ast_hangup(chan2);
-	ast_log(LOG_DEBUG, "Parked on extension '%d'\n", ext);
+	ast_log(LOG_NOTICE, "Parked on extension '%d'\n", ext);
 	return NULL;
 }
 
@@ -6368,7 +6369,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		f.subclass != IAX_COMMAND_TXACC)		/* for attended transfer */
 		iaxs[fr.callno]->peercallno = (unsigned short)(ntohs(mh->callno) & ~IAX_FLAG_FULL);
 	if (ntohs(mh->callno) & IAX_FLAG_FULL) {
-		if (option_debug)
+		if (option_debug  && iaxdebug)
 			ast_log(LOG_DEBUG, "Received packet %d, (%d, %d)\n", fh->oseqno, f.frametype, f.subclass);
 		/* Check if it's out of order (and not an ACK or INVAL) */
 		fr.oseqno = fh->oseqno;
@@ -6465,7 +6466,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 				   that it says to */
 				for (x=iaxs[fr.callno]->rseqno; x != fr.iseqno; x++) {
 					/* Ack the packet with the given timestamp */
-					if (option_debug)
+					if (option_debug && iaxdebug)
 						ast_log(LOG_DEBUG, "Cancelling transmission of packet %d\n", x);
 					ast_mutex_lock(&iaxq.lock);
 					for (cur = iaxq.head; cur ; cur = cur->next) {
@@ -6474,7 +6475,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 							cur->retries = -1;
 							/* Destroy call if this is the end */
 							if (cur->final) { 
-								if (option_debug)
+								if (iaxdebug && option_debug)
 									ast_log(LOG_DEBUG, "Really destroying %d, having been acked on final message\n", fr.callno);
 								iax2_destroy_nolock(fr.callno);
 							}
@@ -6562,7 +6563,7 @@ retryowner:
 				iaxs[fr.callno]->initid = -1;
 			}
 			/* Handle the IAX pseudo frame itself */
-			if (option_debug)
+			if (option_debug && iaxdebug)
 				ast_log(LOG_DEBUG, "IAX subclass %d received\n", f.subclass);
 
                         /* Update last ts unless the frame's timestamp originated with us. */
@@ -6571,7 +6572,7 @@ retryowner:
                             f.subclass != IAX_COMMAND_PONG &&
                             f.subclass != IAX_COMMAND_LAGRP) {
 				iaxs[fr.callno]->last = fr.ts;
-				if (option_debug)
+				if (option_debug && iaxdebug)
 					ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
 			}
 
@@ -7007,7 +7008,7 @@ retryowner2:
 					    /* This is a reply we've been given, actually measure the difference */
 					    ts = calc_timestamp(iaxs[fr.callno], 0, &fr.af);
 					    iaxs[fr.callno]->lag = ts - fr.ts;
-					    if (option_debug)
+					    if (option_debug && iaxdebug)
 						ast_log(LOG_DEBUG, "Peer %s lag measured as %dms\n",
 								ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), iaxs[fr.callno]->lag);
 					}
@@ -7432,7 +7433,7 @@ retryowner2:
 		/*iaxs[fr.callno]->last = fr.ts; (do it afterwards cos schedule/forward_delivery needs the last ts too)*/
 		fr.outoforder = 0;
 	} else {
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "Received out of order packet... (type=%d, subclass %d, ts = %d, last = %d)\n", f.frametype, f.subclass, fr.ts, iaxs[fr.callno]->last);
 		fr.outoforder = -1;
 	}
@@ -7457,7 +7458,7 @@ retryowner2:
 	if (iaxs[fr.callno]->last < fr.ts) {
 		iaxs[fr.callno]->last = fr.ts;
 #if 1
-		if (option_debug)
+		if (option_debug && iaxdebug)
 			ast_log(LOG_DEBUG, "For call=%d, set last=%d\n", fr.callno, fr.ts);
 #endif
 	}
@@ -7470,7 +7471,7 @@ retryowner2:
 static int iax2_do_register(struct iax2_registry *reg)
 {
 	struct iax_ie_data ied;
-	if (option_debug)
+	if (option_debug && iaxdebug)
 		ast_log(LOG_DEBUG, "Sending registration request for '%s'\n", reg->username);
 	if (!reg->callno) {
 		if (option_debug)

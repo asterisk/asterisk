@@ -3198,7 +3198,7 @@ static void parse_request(struct sip_request *req)
 			/* We've got a new header */
 			*c = 0;
 
-			if (option_debug > 3)
+			if (sipdebug && option_debug > 3)
 				ast_log(LOG_DEBUG, "Header: %s (%d)\n", req->header[f], (int) strlen(req->header[f]));
 			if (ast_strlen_zero(req->header[f])) {
 				/* Line by itself means we're now in content */
@@ -3227,7 +3227,7 @@ static void parse_request(struct sip_request *req)
 		if (*c == '\n') {
 			/* We've got a new line */
 			*c = 0;
-			if (option_debug > 3)
+			if (sipdebug && option_debug > 3)
 				ast_log(LOG_DEBUG, "Line: %s (%d)\n", req->line[f], (int) strlen(req->line[f]));
 			if (f >= SIP_MAX_LINES - 1) {
 				ast_log(LOG_WARNING, "Too many SDP lines. Ignoring.\n");
