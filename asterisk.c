@@ -436,8 +436,10 @@ static void *netconsole(void *vconsole)
 	for(;;) {
 		fds[0].fd = con->fd;
 		fds[0].events = POLLIN;
+		fds[0].revents = 0;
 		fds[1].fd = con->p[0];
 		fds[1].events = POLLIN;
+		fds[1].revents = 0;
 
 		res = poll(fds, 2, -1);
 		if (res < 0) {

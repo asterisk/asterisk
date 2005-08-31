@@ -165,6 +165,7 @@ int *ast_io_add(struct io_context *ioc, int fd, ast_io_cb callback, short events
 	 */
 	ioc->fds[ioc->fdcnt].fd = fd;
 	ioc->fds[ioc->fdcnt].events = events;
+	ioc->fds[ioc->fdcnt].revents = 0;
 	ioc->ior[ioc->fdcnt].callback = callback;
 	ioc->ior[ioc->fdcnt].data = data;
 	ioc->ior[ioc->fdcnt].id = (int *)malloc(sizeof(int));

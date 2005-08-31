@@ -2645,6 +2645,7 @@ int	x;
 					size = READ_SIZE;
 				fds[0].fd = fd;
 				fds[0].events = POLLPRI | POLLOUT;
+				fds[0].revents = 0;
 				res = poll(fds, 1, -1);
 				if (!res) {
 					ast_log(LOG_DEBUG, "poll (for write) ret. 0 on channel %d\n", p->channel);
@@ -6271,6 +6272,7 @@ static void *do_monitor(void *data)
 					/* This needs to be watched, as it lacks an owner */
 					pfds[count].fd = i->subs[SUB_REAL].zfd;
 					pfds[count].events = POLLPRI;
+					pfds[count].revents = 0;
 					/* Message waiting or r2 channels also get watched for reading */
 #ifdef ZAPATA_R2
 					if (i->cidspill || i->r2)
@@ -7831,6 +7833,7 @@ static void *pri_dchannel(void *vpri)
 				break;
 			fds[i].fd = pri->fds[i];
 			fds[i].events = POLLIN | POLLPRI;
+			fds[i].revents = 0;
 		}
 		numdchans = i;
 		time(&t);
@@ -10785,6 +10788,7 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 			size = READ_SIZE;
 		fds[0].fd = fd;
 		fds[0].events = POLLOUT | POLLPRI;
+		fds[0].revents = 0;
 		res = poll(fds, 1, -1);
 		if (!res) {
 			ast_log(LOG_DEBUG, "poll (for write) ret. 0 on channel %d\n", p->channel);

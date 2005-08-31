@@ -1246,6 +1246,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 			if (c[x]->fds[y] > -1) {
 				pfds[max].fd = c[x]->fds[y];
 				pfds[max].events = POLLIN | POLLPRI;
+				pfds[max].revents = 0;
 				max++;
 			}
 		}
@@ -1255,6 +1256,7 @@ struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds,
 		if (fds[x] > -1) {
 			pfds[max].fd = fds[x];
 			pfds[max].events = POLLIN | POLLPRI;
+			pfds[max].revents = 0;
 			max++;
 		}
 	}
