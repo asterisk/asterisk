@@ -422,6 +422,12 @@ immediate=no
 ;callprogress=yes
 ;progzone=us
 ;
+; FXO (FXS signalled) devices must have a timeout to determine whe there was a
+; hangup before the line was answered.  This value can be tweaked to shorten
+; how long it takes before Zap considers a non-ringing line to have hungup.
+;
+;ringtimeout=8000
+;
 ; For FXO (FXS signalled) devices, whether to use pulse dial instead of DTMF
 ;
 ;pulsedial=yes

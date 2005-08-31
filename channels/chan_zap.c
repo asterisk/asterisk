@@ -358,7 +358,7 @@ static inline int zt_wait_event(int fd)
 #define CALLWAITING_REPEAT_SAMPLES	( (10000 * 8) / READ_SIZE) /* 300 ms */
 #define CIDCW_EXPIRE_SAMPLES		( (500 * 8) / READ_SIZE) /* 500 ms */
 #define MIN_MS_SINCE_FLASH			( (2000) )	/* 2000 ms */
-#define RINGT 						( (8000 * 8) / READ_SIZE)
+#define DEFAULT_RINGT 				( (8000 * 8) / READ_SIZE)
 
 struct zt_pvt;
 
@@ -367,6 +367,7 @@ struct zt_pvt;
 static int r2prot = -1;
 #endif
 
+static int ringt_base = DEFAULT_RINGT;
 
 #ifdef ZAPATA_PRI
 
@@ -610,6 +611,7 @@ static struct zt_pvt {
 	int cidpos;
 	int cidlen;
 	int ringt;
+	int ringt_base;
 	int stripmsd;
 	int callwaitcas;
 	int callwaitrings;
@@ -1040,7 +1042,8 @@ static char *events[] = {
 		"Pulse Start",
 		"Timer Expired",
 		"Timer Ping",
-		"Polarity Reversal"
+		"Polarity Reversal",
+		"Ring Begin",
 };
 
 static struct {
@@ -1069,7 +1072,7 @@ static char *alarm2str(int alarm)
 static char *event2str(int event)
 {
         static char buf[256];
-        if ((event < 18) && (event > -1))
+        if ((event < (sizeof(events) / sizeof(events[0]))) && (event > -1))
                 return events[event];
         sprintf(buf, "Event %d", event); /* safe */
         return buf;
@@ -3703,7 +3706,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_FXSGS:
 			case SIG_FXSKS:
 				if (ast->_state == AST_STATE_RING) {
-					p->ringt = RINGT;
+					p->ringt = p->ringt_base;
 				}
 
 				/* If we get a ring then we cannot be in 
@@ -3752,6 +3755,19 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				ast_log(LOG_WARNING, "Don't know how to handle ring/off hoook for signalling %d\n", p->sig);
 			}
 			break;
+#ifdef ZT_EVENT_RINGBEGIN
+		case ZT_EVENT_RINGBEGIN:
+			switch(p->sig) {
+			case SIG_FXSLS:
+			case SIG_FXSGS:
+			case SIG_FXSKS:
+				if (ast->_state == AST_STATE_RING) {
+					p->ringt = p->ringt_base;
+				}
+				break;
+			}
+			break;
+#endif			
 		case ZT_EVENT_RINGEROFF:
 			if (p->inalarm) break;
 			if (p->radio) break;
@@ -5750,7 +5766,7 @@ static void *ss_thread(void *data)
 		
 								curRingData[receivedRingT] = p->ringt;
 		
-								if (p->ringt < RINGT/2)
+								if (p->ringt < p->ringt_base/2)
 									break;
 								++receivedRingT; /* Increment the ringT counter so we can match it against
 										values in zapata.conf for distinctive ring */
@@ -5854,7 +5870,7 @@ static void *ss_thread(void *data)
 
 						curRingData[receivedRingT] = p->ringt;
 
-						if (p->ringt < RINGT/2)
+						if (p->ringt < p->ringt_base/2)
 							break;
 						++receivedRingT; /* Increment the ringT counter so we can match it against
 								values in zapata.conf for distinctive ring */
@@ -5948,7 +5964,7 @@ static void *ss_thread(void *data)
 			callerid_free(cs);
 		ast_setstate(chan, AST_STATE_RING);
 		chan->rings = 1;
-		p->ringt = RINGT;
+		p->ringt = p->ringt_base;
 		res = ast_pbx_run(chan);
 		if (res) {
 			ast_hangup(chan);
@@ -6088,7 +6104,7 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXSLS:
 		case SIG_FXSGS:
 		case SIG_FXSKS:
-				i->ringt = RINGT;
+				i->ringt = i->ringt_base;
 				/* Fall through */
 		case SIG_EMWINK:
 		case SIG_FEATD:
@@ -6905,6 +6921,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->transfertobusy = transfertobusy;
 		tmp->sig = signalling;
 		tmp->radio = radio;
+		tmp->ringt_base = ringt_base;
 		tmp->firstradio = 0;
 		if ((signalling == SIG_FXOKS) || (signalling == SIG_FXOLS) || (signalling == SIG_FXOGS))
 			tmp->permcallwaiting = callwaiting;
@@ -10555,6 +10572,8 @@ static int setup_zap(int reload)
 						}
 					}
 				}
+			} else if (!strcasecmp(v->name, "ringtimeout")) {
+				ringt_base = (atoi(v->value) * 8) / READ_SIZE;
 			} else if (!strcasecmp(v->name, "prewink")) {
 				cur_prewink = atoi(v->value);
 			} else if (!strcasecmp(v->name, "preflash")) {
