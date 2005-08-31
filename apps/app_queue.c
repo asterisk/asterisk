@@ -3157,33 +3157,6 @@ static void reload_queues(void)
 	ast_mutex_unlock(&qlock);
 }
 
-static char *status2str(int status, char *buf, int buflen)
-{
-	switch(status) {
-	case AST_DEVICE_UNKNOWN:
-		ast_copy_string(buf, "available", buflen);
-		break;
-	case AST_DEVICE_NOT_INUSE:
-		ast_copy_string(buf, "notinuse", buflen);
-		break;
-	case AST_DEVICE_INUSE:
-		ast_copy_string(buf, "inuse", buflen);
-		break;
-	case AST_DEVICE_BUSY:
-		ast_copy_string(buf, "busy", buflen);
-		break;
-	case AST_DEVICE_INVALID:
-		ast_copy_string(buf, "invalid", buflen);
-		break;
-	case AST_DEVICE_UNAVAILABLE:
-		ast_copy_string(buf, "unavailable", buflen);
-		break;
-	default:
-		snprintf(buf, buflen, "unknown status %d", status);
-	}
-	return buf;
-}
-
 static int __queues_show(int fd, int argc, char **argv, int queue_show)
 {
 	struct ast_call_queue *q;
@@ -3191,9 +3164,9 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 	struct member *mem;
 	int pos;
 	time_t now;
-	char max[80] = "";
-	char calls[80] = "";
-	char tmpbuf[80] = "";
+	char max_buf[80];
+	char *max;
+	size_t max_left;
 	float sl = 0;
 
 	time(&now);
@@ -3209,7 +3182,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 			ast_cli(fd, "No queues.\n");
 		return RESULT_SUCCESS;
 	}
-	while(q) {
+	while (q) {
 		ast_mutex_lock(&q->lock);
 		if (queue_show) {
 			if (strcasecmp(q->name, argv[2]) != 0) {
@@ -3222,10 +3195,13 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 				continue;
 			}
 		}
+		max_buf[0] = '\0';
+		max = max_buf;
+		max_left = sizeof(max_buf);
 		if (q->maxlen)
-			snprintf(max, sizeof(max), "%d", q->maxlen);
+			ast_build_string(&max, &max_left, "%d", q->maxlen);
 		else
-			ast_copy_string(max, "unlimited", sizeof(max));
+			ast_build_string(&max, &max_left, "unlimited");
 		sl = 0;
 		if(q->callscompleted > 0)
 			sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
@@ -3234,21 +3210,22 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 		if (q->members) {
 			ast_cli(fd, "   Members: \n");
 			for (mem = q->members; mem; mem = mem->next) {
+				max_buf[0] = '\0';
+				max = max_buf;
+				max_left = sizeof(max_buf);
 				if (mem->penalty)
-					snprintf(max, sizeof(max) - 20, " with penalty %d", mem->penalty);
-				else
-					max[0] = '\0';
+					ast_build_string(&max, &max_left, " with penalty %d", mem->penalty);
 				if (mem->dynamic)
-					strncat(max, " (dynamic)", sizeof(max) - strlen(max) - 1);
+					ast_build_string(&max, &max_left, " (dynamic)");
 				if (mem->paused)
-					strncat(max, " (paused)", sizeof(max) - strlen(max) - 1);
-                                        snprintf(max + strlen(max), sizeof(max) - strlen(max), " (%s)", status2str(mem->status, tmpbuf, sizeof(tmpbuf)));
+					ast_build_string(&max, &max_left, " (paused)");
+				ast_build_string(&max, &max_left, " (%s)", devstate2str(mem->status));
 				if (mem->calls) {
-					snprintf(calls, sizeof(calls), " has taken %d calls (last was %ld secs ago)",
-							mem->calls, (long)(time(NULL) - mem->lastcall));
+					ast_build_string(&max, &max_left, " has taken %d calls (last was %ld secs ago)",
+							 mem->calls, (long)(time(NULL) - mem->lastcall));
 				} else
-					ast_copy_string(calls, " has taken no calls yet", sizeof(calls));
-				ast_cli(fd, "      %s%s%s\n", mem->interface, max, calls);
+					ast_build_string(&max, &max_left, " has taken no calls yet");
+				ast_cli(fd, "      %s%s\n", mem->interface, max);
 			}
 		} else
 			ast_cli(fd, "   No Members\n");
@@ -3257,7 +3234,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 			ast_cli(fd, "   Callers: \n");
 			for (qe = q->head; qe; qe = qe->next) 
 				ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)\n", pos++, qe->chan->name,
-								(long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio);
+					(long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio);
 		} else
 			ast_cli(fd, "   No Callers\n");
 		ast_cli(fd, "\n");
