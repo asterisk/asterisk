@@ -2351,6 +2351,8 @@ static int sip_hangup(struct ast_channel *ast)
 				   INVITE, but do set an autodestruct just in case we never get it. */
 				ast_clear_flag(&locflags, SIP_NEEDDESTROY);
 				sip_scheddestroy(p, 15000);
+				/* stop retransmitting an INVITE that has not received a response */
+				__sip_pretend_ack(p);
 				if ( p->initid != -1 ) {
 					/* channel still up - reverse dec of inUse counter
 					   only if the channel is not auto-congested */
