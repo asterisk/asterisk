@@ -56,7 +56,7 @@ CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/us
 endif
 
 CURLLIBS=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
-ifneq ($(shell if [ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]; then echo "OK" ; fi),)
+ifneq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
   ifneq (${CURLLIBS},)
     APPS+=app_curl.so
   endif 

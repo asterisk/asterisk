@@ -48,7 +48,7 @@ ifneq (${ULIS_SPEEX},)
 endif
 
 ifneq ($(wildcard ilbc/iLBC_decode.h),)
-  MODILC=codec_ilbc.so
+  MODILBC=codec_ilbc.so
   LIBILBC=ilbc/libilbc.a
 endif
 
