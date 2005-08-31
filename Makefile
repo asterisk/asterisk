@@ -460,7 +460,6 @@ clean:
 	rm -f defaults.h
 	rm -f include/asterisk/build.h
 	rm -f include/asterisk/version.h
-	rm -f .version
 	rm -f .tags-depend .tags-sources tags TAGS
 	@if [ -f editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
 	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi
