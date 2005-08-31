@@ -143,3 +143,10 @@ Music On Hold:
 * The preferred format for musiconhold.conf has changed; please see the
   sample configuration file for the new format. The existing format
   is still supported but will generate warnings when the module is loaded.
+
+chan_modem:
+
+* All the chan_modem channel drivers (aopen, bestdata and i4l) are deprecated
+  in this release, and will be removed in the next major Asterisk release.
+  Please migrate to chan_mISDN for ISDN interfaces; there is no upgrade
+  path for aopen and bestdata modem users.

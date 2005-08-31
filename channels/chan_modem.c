@@ -100,6 +100,8 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
+int dep_warning = 0;
+
 static struct ast_channel *modem_request(const char *type, int format, void *data, int *cause);
 static int modem_digit(struct ast_channel *ast, char digit);
 static int modem_call(struct ast_channel *ast, char *idest, int timeout);
@@ -815,6 +817,11 @@ static struct ast_channel *modem_request(const char *type, int format, void *dat
 	stringp=dev;
 	strsep(&stringp, ":");
 	oldformat = format;
+
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "This channel driver is deprecated.  Please see the UPGRADE.txt file.\n");
+		dep_warning = 1;
+	}
 
 	if (dev[0]=='g' && isdigit(dev[1])) {
 		/* Retrieve the group number */
