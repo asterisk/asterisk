@@ -283,20 +283,32 @@ CFLAGS+= $(OPTIONS)
 CFLAGS+= -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime
 
-ifeq (${OSARCH},Linux)
-  LIBS=-ldl -lpthread
-endif
+OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
+	translate.o file.o say.o pbx.o cli.o md5.o term.o \
+	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
+	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o \
+	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
+	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
+	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
+	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o
 
-LIBS+=-lncurses -lm
-
 ifeq (${OSARCH},Linux)
-  LIBS+=-lresolv  #-lnjamd
+  LIBS=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
+else
+  LIBS+=-lncurses -lm
 endif
 
 ifeq (${OSARCH},Darwin)
   LIBS+=-lresolv
   CFLAGS+=-D__Darwin__
   AUDIO_LIBS=-framework CoreAudio
+  OBJS+=poll.o dlfcn.o
+  ASTLINK=-Wl,-dynamic
+  SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
+else
+#These are used for all but Darwin
+  ASTLINK=-Wl,-E 
+  SOLINK=-shared -Xlinker -x
 endif
 
 ifeq (${OSARCH},FreeBSD)
@@ -313,33 +325,12 @@ endif
 
 ifeq (${OSARCH},SunOS)
   LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
-endif
-
-LIBS+=-lssl
-
-OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
-	translate.o file.o say.o pbx.o cli.o md5.o term.o \
-	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
-	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o \
-	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
-	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
-	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
-	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o
-
-ifeq (${OSARCH},Darwin)
-  OBJS+=poll.o dlfcn.o
-  ASTLINK=-Wl,-dynamic
-  SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
-else
-  ASTLINK=-Wl,-E 
-  SOLINK=-shared -Xlinker -x
-endif
-
-ifeq (${OSARCH},SunOS)
   OBJS+=strcompat.o
   ASTLINK=
   SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
 endif
+
+LIBS+=-lssl
 
 INSTALL=install
 
@@ -883,3 +874,4 @@ unapply:
 	else \
 		echo "No such patch $(PATCH) in patches directory"; \
 	fi
+
