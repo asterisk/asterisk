@@ -2417,7 +2417,7 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 		usleep(1);
 		ast_mutex_lock(&original->lock);
 	}
-	ast_log(LOG_DEBUG, "Planning to masquerade %s into the structure of %s\n",
+	ast_log(LOG_DEBUG, "Planning to masquerade channel %s into the structure of %s\n",
 		clone->name, original->name);
 	if (original->masq) {
 		ast_log(LOG_WARNING, "%s is already going to masquerade as %s\n", 
@@ -2430,7 +2430,7 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 		clone->masqr = original;
 		ast_queue_frame(original, &null);
 		ast_queue_frame(clone, &null);
-		ast_log(LOG_DEBUG, "Done planning to masquerade %s into the structure of %s\n", original->name, clone->name);
+		ast_log(LOG_DEBUG, "Done planning to masquerade channel %s into the structure of %s\n", clone->name, original->name);
 		res = 0;
 	}
 	ast_mutex_unlock(&clone->lock);
