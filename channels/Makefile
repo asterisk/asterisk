@@ -71,10 +71,6 @@ endif
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/if_wanpipe.h),)
-  CFLAGS+=-DOLD_SANGOMA_API
-endif
-
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
   CHANNEL_LIBS+=chan_alsa.so
 endif
