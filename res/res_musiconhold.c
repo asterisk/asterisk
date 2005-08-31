@@ -799,9 +799,11 @@ static int moh_register(struct mohclass *moh)
 
 		if (!strcasecmp(moh->mode, "custom"))
 			ast_set_flag(moh, MOH_CUSTOM);
-		else if (!strcasecmp(moh->mode, "mp3nb") || !strcasecmp(moh->mode, "quietmp3nb"))
+		else if (!strcasecmp(moh->mode, "mp3nb"))
 			ast_set_flag(moh, MOH_SINGLE);
-		else if (!strcasecmp(moh->mode, "quietmp3") || !strcasecmp(moh->mode, "quietmp3nb"))
+		else if (!strcasecmp(moh->mode, "quietmp3nb"))
+			ast_set_flag(moh, MOH_SINGLE | MOH_QUIET);
+		else if (!strcasecmp(moh->mode, "quietmp3"))
 			ast_set_flag(moh, MOH_QUIET);
 		
 		moh->srcfd = -1;
@@ -1119,6 +1121,7 @@ static int moh_classes_show(int fd, int argc, char *argv[])
 	ast_mutex_lock(&moh_lock);
 	for (class = mohclasses; class; class = class->next) {
 		ast_cli(fd, "Class: %s\n", class->name);
+		ast_cli(fd, "\tMode: %s\n", ast_strlen_zero(class->mode) ? "<none>" : class->mode);
 		ast_cli(fd, "\tDirectory: %s\n", ast_strlen_zero(class->dir) ? "<none>" : class->dir);
 		if (ast_test_flag(class, MOH_CUSTOM))
 			ast_cli(fd, "\tApplication: %s\n", ast_strlen_zero(class->args) ? "<none>" : class->args);
