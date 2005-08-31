@@ -28,6 +28,8 @@
 #include <time.h>
 #include <sys/param.h>
 
+#include "asterisk/logger.h"
+
 #define AST_PTHREADT_NULL (pthread_t) -1
 #define AST_PTHREADT_STOP (pthread_t) -2
 
@@ -63,6 +65,8 @@
 
 #ifdef DEBUG_THREADS
 
+#define __ast_mutex_logger(...) { if (canlog) ast_log(LOG_ERROR, __VA_ARGS__); else fprintf(stderr, __VA_ARGS__); }
+
 #ifdef THREAD_CRASH
 #define DO_THREAD_CRASH do { *((int *)(0)) = 1; } while(0)
 #endif
@@ -72,7 +76,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define AST_MUTEX_INIT_VALUE      { PTHREAD_MUTEX_INIT_VALUE, NULL, 0, 0, NULL, 0 }
+#define AST_MUTEX_INIT_VALUE { PTHREAD_MUTEX_INIT_VALUE, NULL, 0, 0, NULL, 0 }
 
 struct ast_mutex_info {
 	pthread_mutex_t mutex;
@@ -90,67 +94,73 @@ static inline int __ast_pthread_mutex_init_attr(const char *filename, int lineno
 						pthread_mutexattr_t *attr) 
 {
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-	if ((t->mutex) != ((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER)) {
-		fprintf(stderr, "%s line %d (%s): Error: mutex '%s' is already initialized.\n",
-			filename, lineno, func, mutex_name);
-		fprintf(stderr, "%s line %d (%s): Error: previously initialization of mutex '%s'.\n",
-			t->file, t->lineno, t->func, mutex_name);
+	int canlog = strcmp(filename, "logger.c");
+
+	if ((t->mutex) != ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
+		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is already initialized.\n",
+				   filename, lineno, func, mutex_name);
+		__ast_mutex_logger("%s line %d (%s): Error: previously initialization of mutex '%s'.\n",
+				   t->file, t->lineno, t->func, mutex_name);
 #ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
 #endif
 		return 0;
 	}
 #endif
+
 	t->file = filename;
 	t->lineno = lineno;
 	t->func = func;
 	t->thread  = 0;
 	t->reentrancy = 0;
+
 	return pthread_mutex_init(&t->mutex, attr);
 }
 
 static inline int __ast_pthread_mutex_init(const char *filename, int lineno, const char *func,
-						const char *mutex_name, ast_mutex_t *t)
+					   const char *mutex_name, ast_mutex_t *t)
 {
 	static pthread_mutexattr_t  attr;
+
 	pthread_mutexattr_init(&attr);
 	pthread_mutexattr_settype(&attr, AST_MUTEX_KIND);
+
 	return __ast_pthread_mutex_init_attr(filename, lineno, func, mutex_name, t, &attr);
 }
-
-#define ast_mutex_init(pmutex) __ast_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
-#define ast_pthread_mutex_init(pmutex,attr) __ast_pthread_mutex_init_attr(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex, attr)
 
 static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, const char *func,
 						const char *mutex_name, ast_mutex_t *t)
 {
 	int res;
+	int canlog = strcmp(filename, "logger.c");
+
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-	if ((t->mutex) == ((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER)) {
-		fprintf(stderr, "%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
-			filename, lineno, func, mutex_name);
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
+		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
+				   filename, lineno, func, mutex_name);
 	}
 #endif
+
 	res = pthread_mutex_trylock(&t->mutex);
 	switch (res) {
 	case 0:
 		pthread_mutex_unlock(&t->mutex);
 		break;
 	case EINVAL:
-		fprintf(stderr, "%s line %d (%s): Error: attempt to destroy invalid mutex '%s'.\n",
-			filename, lineno, func, mutex_name);
+		__ast_mutex_logger("%s line %d (%s): Error: attempt to destroy invalid mutex '%s'.\n",
+				  filename, lineno, func, mutex_name);
 		break;
 	case EBUSY:
-		fprintf(stderr, "%s line %d (%s): Error: attemp to destroy locked mutex '%s'.\n",
-			filename, lineno, func, mutex_name);
-		fprintf(stderr, "%s line %d (%s): Error: '%s' was locked here.\n",
-			t->file, t->lineno, t->func, mutex_name);
+		__ast_mutex_logger("%s line %d (%s): Error: attempt to destroy locked mutex '%s'.\n",
+				   filename, lineno, func, mutex_name);
+		__ast_mutex_logger("%s line %d (%s): Error: '%s' was locked here.\n",
+				   t->file, t->lineno, t->func, mutex_name);
 		break;
 	}
-	res = pthread_mutex_destroy(&t->mutex);
-	if (res) 
-		fprintf(stderr, "%s line %d (%s): Error destroying mutex: %s\n",
-				filename, lineno, func, strerror(res));
+
+	if ((res = pthread_mutex_destroy(&t->mutex)))
+		__ast_mutex_logger("%s line %d (%s): Error destroying mutex: %s\n",
+				   filename, lineno, func, strerror(res));
 #ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
 	else
 		t->mutex = PTHREAD_MUTEX_INIT_VALUE;
@@ -158,10 +168,9 @@ static inline int __ast_pthread_mutex_destroy(const char *filename, int lineno, 
 	t->file = filename;
 	t->lineno = lineno;
 	t->func = func;
+
 	return res;
 }
-
-#define ast_mutex_destroy(a) __ast_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 /* if AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
@@ -190,21 +199,22 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-
-
 static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, const char *func,
                                            const char* mutex_name, ast_mutex_t *t)
 {
 	int res;
+	int canlog = strcmp(filename, "logger.c");
+
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE)
-	if ((t->mutex) == ((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER)) {
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-		fprintf(stderr, "%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
-			filename, lineno, func, mutex_name);
+		ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
+				 filename, lineno, func, mutex_name);
 #endif
 		ast_mutex_init(t);
 	}
-#endif /* definded(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE) */
+#endif /* defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE) */
+
 #ifdef DETECT_DEADLOCKS
 	{
 		time_t seconds = time(NULL);
@@ -214,10 +224,10 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 			if (res == EBUSY) {
 				current = time(NULL);
 				if ((current - seconds) && (!((current - seconds) % 5))) {
-					fprintf(stderr, "%s line %d (%s): Deadlock? waited %d sec for mutex '%s'?\n",
-						filename, lineno, func, (int)(current - seconds), mutex_name);
-					fprintf(stderr, "%s line %d (%s): '%s' was locked here.\n",
-						t->file, t->lineno, t->func, mutex_name);
+					__ast_mutex_logger("%s line %d (%s): Deadlock? waited %d sec for mutex '%s'?\n",
+							   filename, lineno, func, (int)(current - seconds), mutex_name);
+					__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
+							   t->file, t->lineno, t->func, mutex_name);
 				}
 				usleep(200);
 			}
@@ -225,7 +235,8 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 	}
 #else
 	res = pthread_mutex_lock(&t->mutex);
-#endif /*  DETECT_DEADLOCKS */
+#endif /* DETECT_DEADLOCKS */
+
 	if (!res) {
 		t->reentrancy++;
 		t->file = filename;
@@ -233,87 +244,206 @@ static inline int __ast_pthread_mutex_lock(const char *filename, int lineno, con
 		t->func = func;
 		t->thread = pthread_self();
 	} else {
-		fprintf(stderr, "%s line %d (%s): Error obtaining mutex: %s\n",
-			filename, lineno, func, strerror(errno));
+		__ast_mutex_logger("%s line %d (%s): Error obtaining mutex: %s\n",
+				   filename, lineno, func, strerror(errno));
 #ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
 #endif
 	}
+
 	return res;
 }
-
-#define ast_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 
 static inline int __ast_pthread_mutex_trylock(const char *filename, int lineno, const char *func,
                                               const char* mutex_name, ast_mutex_t *t)
 {
 	int res;
+
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE)
-	if ((t->mutex) == ((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER)) {
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-		fprintf(stderr, "%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
-			filename, lineno, func, mutex_name);
+		int canlog = strcmp(filename, "logger.c");
+
+		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
+				   filename, lineno, func, mutex_name);
 #endif
 		ast_mutex_init(t);
 	}
-#endif /* definded(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE) */
-	res = pthread_mutex_trylock(&t->mutex);
-	if (!res) {
+#endif /* defined(AST_MUTEX_INIT_W_CONSTRUCTORS) || defined(AST_MUTEX_INIT_ON_FIRST_USE) */
+
+	if (!(res = pthread_mutex_trylock(&t->mutex))) {
 		t->reentrancy++;
 		t->file = filename;
 		t->lineno = lineno;
 		t->func = func;
 		t->thread = pthread_self();
 	}
+
 	return res;
 }
 
-#define ast_mutex_trylock(a) __ast_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-
 static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, const char *func,
-			const char *mutex_name, ast_mutex_t *t) {
+					     const char *mutex_name, ast_mutex_t *t)
+{
 	int res;
+	int canlog = strcmp(filename, "logger.c");
+
 #ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
-	if ((t->mutex) == ((pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER)) {
-		fprintf(stderr, "%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
-			filename, lineno, func, mutex_name);
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
+		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
+				   filename, lineno, func, mutex_name);
 	}
 #endif
-	--t->reentrancy;
-	if (t->reentrancy < 0) {
-		fprintf(stderr, "%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
-			filename, lineno, func, mutex_name);
+
+	if (t->thread != pthread_self()) {
+		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
+				   filename, lineno, func, mutex_name);
+		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
+				   t->file, t->lineno, t->func, mutex_name);
+#ifdef THREAD_CRASH
+		DO_THREAD_CRASH;
+#endif
+	}
+
+	if (--t->reentrancy < 0) {
+		__ast_mutex_logger("%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
+				   filename, lineno, func, mutex_name);
 		t->reentrancy = 0;
 	}
+
 	if (!t->reentrancy) {
 		t->file = NULL;
 		t->lineno = 0;
 		t->func = NULL;
 		t->thread = 0;
 	}
-	res = pthread_mutex_unlock(&t->mutex);
-	if (res) {
-		fprintf(stderr, "%s line %d (%s): Error releasing mutex: %s\n", 
-				filename, lineno, func, strerror(res));
+
+	if ((res = pthread_mutex_unlock(&t->mutex))) {
+		__ast_mutex_logger("%s line %d (%s): Error releasing mutex: %s\n", 
+				   filename, lineno, func, strerror(res));
 #ifdef THREAD_CRASH
 		DO_THREAD_CRASH;
 #endif
 	}
+
 	return res;
 }
 
-static inline int ast_pthread_cond_wait(pthread_cond_t *cond, ast_mutex_t *ast_mutex)
+static inline int __ast_pthread_cond_wait(const char *filename, int lineno, const char *func,
+					  pthread_cond_t *cond, const char *mutex_name, ast_mutex_t *t)
 {
-	return pthread_cond_wait(cond, &ast_mutex->mutex);
+	int res;
+	int canlog = strcmp(filename, "logger.c");
+
+#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
+		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
+				   filename, lineno, func, mutex_name);
+	}
+#endif
+
+	if (t->thread != pthread_self()) {
+		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
+				   filename, lineno, func, mutex_name);
+		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
+				   t->file, t->lineno, t->func, mutex_name);
+#ifdef THREAD_CRASH
+		DO_THREAD_CRASH;
+#endif
+	}
+
+	if (--t->reentrancy < 0) {
+		__ast_mutex_logger("%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
+				   filename, lineno, func, mutex_name);
+		t->reentrancy = 0;
+	}
+
+	if (!t->reentrancy) {
+		t->file = NULL;
+		t->lineno = 0;
+		t->func = NULL;
+		t->thread = 0;
+	}
+
+	if ((res = pthread_cond_wait(cond, &t->mutex))) {
+		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
+				   filename, lineno, func, strerror(res));
+#ifdef THREAD_CRASH
+		DO_THREAD_CRASH;
+#endif
+	} else {
+		t->reentrancy++;
+		t->file = filename;
+		t->lineno = lineno;
+		t->func = func;
+		t->thread = pthread_self();
+	}
+
+	return res;
 }
 
-static inline int ast_pthread_cond_timedwait(pthread_cond_t *cond, ast_mutex_t *ast_mutex,
-					     const struct timespec *abstime)
+static inline int __ast_pthread_cond_timedwait(const char *filename, int lineno, const char *func,
+					       pthread_cond_t *cond, const struct timespec *abstime,
+					       const char *mutex_name, ast_mutex_t *t)
 {
-	return pthread_cond_timedwait(cond, &ast_mutex->mutex, abstime);
+	int res;
+	int canlog = strcmp(filename, "logger.c");
+
+#ifdef AST_MUTEX_INIT_W_CONSTRUCTORS
+	if ((t->mutex) == ((pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER)) {
+		__ast_mutex_logger("%s line %d (%s): Error: mutex '%s' is uninitialized.\n",
+				   filename, lineno, func, mutex_name);
+	}
+#endif
+
+	if (t->thread != pthread_self()) {
+		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
+				   filename, lineno, func, mutex_name);
+		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
+				   t->file, t->lineno, t->func, mutex_name);
+#ifdef THREAD_CRASH
+		DO_THREAD_CRASH;
+#endif
+	}
+
+	if (--t->reentrancy < 0) {
+		__ast_mutex_logger("%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
+				   filename, lineno, func, mutex_name);
+		t->reentrancy = 0;
+	}
+
+	if (!t->reentrancy) {
+		t->file = NULL;
+		t->lineno = 0;
+		t->func = NULL;
+		t->thread = 0;
+	}
+
+	if ((res = pthread_cond_timedwait(cond, &t->mutex, abstime))) {
+		__ast_mutex_logger("%s line %d (%s): Error waiting on condition mutex '%s'\n", 
+				   filename, lineno, func, strerror(res));
+#ifdef THREAD_CRASH
+		DO_THREAD_CRASH;
+#endif
+	} else {
+		t->reentrancy++;
+		t->file = filename;
+		t->lineno = lineno;
+		t->func = func;
+		t->thread = pthread_self();
+	}
+
+	return res;
 }
 
+#define ast_mutex_init(pmutex) __ast_pthread_mutex_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex)
+#define ast_pthread_mutex_init(pmutex,attr) __ast_pthread_mutex_init_attr(__FILE__, __LINE__, __PRETTY_FUNCTION__, #pmutex, pmutex, attr)
+#define ast_mutex_destroy(a) __ast_pthread_mutex_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define ast_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define ast_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define ast_mutex_trylock(a) __ast_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
+#define ast_pthread_cond_wait(cond, a) __ast_pthread_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, cond, #a, a)
+#define ast_pthread_cond_timedwait(cond, a, t) __ast_pthread_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, cond, t, #a, a)
 
 #define pthread_mutex_t use_ast_mutex_t_instead_of_pthread_mutex_t
 #define pthread_mutex_lock use_ast_mutex_lock_instead_of_pthread_mutex_lock
