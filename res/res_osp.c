@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/causes.h"
 #include "asterisk/callerid.h"
+#include "asterisk/pbx.h"
 
 #define MAX_CERTS 10
 #define MAX_SERVICEPOINTS 10
@@ -493,10 +494,11 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	int tokenlen;
 	unsigned int dummy=0;
 	unsigned int timelimit;
+	char* sipcallid;
 	unsigned int callidlen;
+	char callidstr[OSPC_CALLID_MAXSIZE] = "";
 	struct osp_provider *osp;
 	char source[OSP_MAX] = ""; /* Same length as osp->source */
-	char uniqueid[32] = "";
 	char callednum[2048]="";
 	char callingnum[2048]="";
 	char destination[2048]="";
@@ -528,7 +530,8 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	callerid = l;
 
 	if (chan) {
-		ast_copy_string(uniqueid, chan->uniqueid, sizeof(uniqueid));
+		sipcallid = pbx_builtin_getvar_helper (chan, "SIPCALLID");
+		ast_copy_string(callidstr, sipcallid, sizeof(callidstr));
 		cres = ast_autoservice_start(chan);
 		if (cres < 0)
 			return cres;
@@ -550,18 +553,18 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	ast_mutex_unlock(&osplock);
 	if (res) {
 		res = 0;
-		callid = OSPPCallIdNew(strlen(uniqueid), uniqueid);
+		callid = OSPPCallIdNew(strlen(callidstr), callidstr);
 		if (callid) {
 			/* No more than 10 back */
 			counts = 10;
 			dummy = 0;
-			callidlen = sizeof(uniqueid);
+			callidlen = sizeof(callidstr);
 			if (!OSPPTransactionRequestAuthorisation(result->handle, source, "", 
 				  callerid,OSPC_E164, extension, OSPC_E164, NULL, 1, &callid, NULL, &counts, &dummy, NULL)) {
 				if (counts) {
 					tokenlen = sizeof(token);
 					result->numresults = counts - 1;
-					if (!OSPPTransactionGetFirstDestination(result->handle, 0, NULL, NULL, &timelimit, &callidlen, uniqueid, 
+					if (!OSPPTransactionGetFirstDestination(result->handle, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
 						sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
 						ast_log(LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
 							destination, callednum, callingnum, extension, provider);
@@ -590,7 +593,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 								}
 								if (!res && result->numresults) {
 									result->numresults--;
-									if (OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, uniqueid, 
+									if (OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
 											sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
 											break;
 									}
@@ -629,7 +632,7 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 	unsigned int dummy=0;
 	unsigned int timelimit;
 	unsigned int callidlen;
-	char uniqueid[32] = "";
+	char callidstr[OSPC_CALLID_MAXSIZE] = "";
 	char callednum[2048]="";
 	char callingnum[2048]="";
 	char destination[2048]="";
@@ -642,12 +645,12 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 
 	if (result->handle > -1) {
 		dummy = 0;
-		callidlen = sizeof(uniqueid);
+		callidlen = sizeof(callidstr);
 		if (result->numresults) {
 			tokenlen = sizeof(token);
 			while(!res && result->numresults) {
 				result->numresults--;
-				if (!OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, uniqueid, 
+				if (!OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
 									sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
 					ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
 					if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
