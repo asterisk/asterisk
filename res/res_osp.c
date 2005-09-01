@@ -506,6 +506,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	char tmp[256]="", *l, *n;
 	OSPTCALLID *callid;
 	OSPE_DEST_PROT prot;
+	OSPE_DEST_OSP_ENABLED ospenabled;
 
 	result->handle = -1;
 	result->numresults = 0;
@@ -569,7 +570,12 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 						ast_log(LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
 							destination, callednum, callingnum, extension, provider);
 						do {
-							ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
+							if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {
+								result->token[0] = 0;
+							}
+							else {
+								ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
+							}
 							if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
 								res = 1;
 								/* Strip leading and trailing brackets */
@@ -638,6 +644,7 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 	char destination[2048]="";
 	char token[2000];
 	OSPE_DEST_PROT prot;
+	OSPE_DEST_OSP_ENABLED ospenabled;
 
 	result->tech[0] = '\0';
 	result->dest[0] = '\0';
@@ -652,7 +659,12 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 				result->numresults--;
 				if (!OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
 									sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
-					ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
+					if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {
+						result->token[0] = 0;
+					}
+					else {
+						ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
+					}
 					if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
 						res = 1;
 						/* Strip leading and trailing brackets */
