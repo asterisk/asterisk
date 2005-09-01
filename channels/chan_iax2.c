@@ -9114,9 +9114,8 @@ static int iax2_devicestate(void *data)
 			/* Peer is registered, or have default IP address
 			   and a valid registration */
 			if (p->historicms == 0 || p->historicms <= p->maxms)
-				res = AST_DEVICE_NOT_INUSE;
-			else
-				res = AST_DEVICE_UNKNOWN;	/* Not reachable */
+				/* let the core figure out whether it is in use or not */
+				res = AST_DEVICE_UNKNOWN;	
 		}
 	} else {
 		if (option_debug > 2) 

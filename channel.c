@@ -2808,34 +2808,25 @@ void ast_set_callerid(struct ast_channel *chan, const char *callerid, const char
 
 int ast_setstate(struct ast_channel *chan, int state)
 {
-	if (chan->_state != state) {
-		int oldstate = chan->_state;
-		chan->_state = state;
-		if (oldstate == AST_STATE_DOWN) {
-			ast_device_state_changed(chan->name);
-			manager_event(EVENT_FLAG_CALL, "Newchannel",
-				"Channel: %s\r\n"
-				"State: %s\r\n"
-				"CallerID: %s\r\n"
-				"CallerIDName: %s\r\n"
-				"Uniqueid: %s\r\n",
-				chan->name, ast_state2str(chan->_state), 
-				chan->cid.cid_num ? chan->cid.cid_num : "<unknown>", 
-				chan->cid.cid_name ? chan->cid.cid_name : "<unknown>", 
-				chan->uniqueid);
-		} else {
-			manager_event(EVENT_FLAG_CALL, "Newstate", 
-				"Channel: %s\r\n"
-				"State: %s\r\n"
-				"CallerID: %s\r\n"
-				"CallerIDName: %s\r\n"
-				"Uniqueid: %s\r\n",
-				chan->name, ast_state2str(chan->_state), 
-				chan->cid.cid_num ? chan->cid.cid_num : "<unknown>", 
-				chan->cid.cid_name ? chan->cid.cid_name : "<unknown>", 
-				chan->uniqueid);
-		}
-	}
+	int oldstate = chan->_state;
+
+	if (oldstate == state)
+		return 0;
+
+	chan->_state = state;
+	ast_device_state_changed(chan->name);
+	manager_event(EVENT_FLAG_CALL,
+		      (oldstate == AST_STATE_DOWN) ? "Newchannel" : "Newstate",
+		      "Channel: %s\r\n"
+		      "State: %s\r\n"
+		      "CallerID: %s\r\n"
+		      "CallerIDName: %s\r\n"
+		      "Uniqueid: %s\r\n",
+		      chan->name, ast_state2str(chan->_state), 
+		      chan->cid.cid_num ? chan->cid.cid_num : "<unknown>", 
+		      chan->cid.cid_name ? chan->cid.cid_name : "<unknown>", 
+		      chan->uniqueid);
+
 	return 0;
 }
 

@@ -109,9 +109,16 @@ int ast_device_state(const char *device)
 		return ast_parse_device_state(device);	/* No, try the generic function */
 	else {
 		res = chan_tech->devicestate(number);	/* Ask the channel driver for device state */
-		if (res == AST_DEVICE_UNKNOWN)
-			return ast_parse_device_state(device);
-		else
+		if (res == AST_DEVICE_UNKNOWN) {
+			res = ast_parse_device_state(device);
+			/* at this point we know the device exists, but the channel driver
+			   could not give us a state; if there is no channel state available,
+			   it must be 'not in use'
+			*/
+			if (res == AST_DEVICE_UNKNOWN)
+				res = AST_DEVICE_NOT_INUSE;
+			return res;
+		} else
 			return res;
 	}
 }
