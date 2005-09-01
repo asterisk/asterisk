@@ -4780,8 +4780,6 @@ static int zt_indicate(struct ast_channel *chan, int condition)
 		case -1:
 			res = tone_zone_play_tone(p->subs[index].zfd, -1);
 			break;
-		default:
-			ast_log(LOG_WARNING, "Don't know how to set condition %d on channel %s\n", condition, chan->name);
 		}
 	} else
 		res = 0;
