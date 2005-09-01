@@ -40,6 +40,7 @@ struct ast_var_t *ast_var_assign(const char *name, const char *value)
 		return NULL;
 	}
 	
+	memset(var, 0, len);
 	i = strlen(name);
 	strncpy(var->name, name, i); 
 	var->name[i] = '\0';
