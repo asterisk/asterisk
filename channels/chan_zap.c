@@ -5104,6 +5104,7 @@ static void *ss_thread(void *data)
 			/* Start the real PBX */
 			ast_copy_string(chan->exten, exten, sizeof(chan->exten));
 			if (p->dsp) ast_dsp_digitreset(p->dsp);
+			zt_enable_ec(p);
 			ast_setstate(chan, AST_STATE_RING);
 			res = ast_pbx_run(chan);
 			if (res) {
