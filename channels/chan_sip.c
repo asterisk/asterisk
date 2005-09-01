@@ -5256,7 +5256,7 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 		debugging easier. */
 	if (sipmethod == SIP_BYE) {
 		if (p->owner && p->owner->hangupcause)	{
-			add_header(&resp, "X-Asterisk-HangupCause:", ast_cause2str(p->owner->hangupcause));
+			add_header(&resp, "X-Asterisk-HangupCause", ast_cause2str(p->owner->hangupcause));
 		}
 	}
 
