@@ -97,7 +97,7 @@ static struct progress {
 #define BUSY_PAT_PERCENT	7	/* The percentage difference between measured and actual pattern */
 #define BUSY_THRESHOLD		100	/* Max number of ms difference between max and min times in busy */
 #define BUSY_MIN		75	/* Busy must be at least 80 ms in half-cadence */
-#define BUSY_MAX		1100	/* Busy can't be longer than 1100 ms in half-cadence */
+#define BUSY_MAX		3100	/* Busy can't be longer than 3100 ms in half-cadence */
 
 /* Remember last 15 units */
 #define DSP_HISTORY 		15
