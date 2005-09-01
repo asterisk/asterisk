@@ -442,6 +442,7 @@ struct sip_invite_param {
 	char *distinctive_ring;
 	char *osptoken;
 	int addsipheaders;
+       char *uri_options;
 	char *vxml_url;
 	char *auth;
 	char *authheader;
@@ -1941,6 +1942,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 		/* Check whether there is a VXML_URL variable */
 		if (!p->options->vxml_url && !strcasecmp(ast_var_name(current), "VXML_URL")) {
 			p->options->vxml_url = ast_var_value(current);
+               } else if (!p->options->uri_options && !strcasecmp(ast_var_name(current), "SIP_URI_OPTIONS")) {
+                       p->options->uri_options = ast_var_value(current);
 		} else if (!p->options->distinctive_ring && !strcasecmp(ast_var_name(current), "ALERT_INFO")) {
 			/* Check whether there is a ALERT_INFO variable */
 			p->options->distinctive_ring = ast_var_value(current);
@@ -4388,9 +4391,11 @@ static void build_contact(struct sip_pvt *p)
 }
 
 /*--- initreqprep: Initiate new SIP request to peer/user ---*/
-static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, char *vxml_url)
+static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod)
 {
-	char invite[256] = "";
+	char invite_buf[256] = "";
+	char *invite = invite_buf;
+	size_t invite_max = sizeof(invite_buf);
 	char from[256];
 	char to[256];
 	char tmp[BUFSIZ/2];
@@ -4460,41 +4465,45 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", tmp, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
 	else
 		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
 
-	/* If we're calling a registred SIP peer, use the fullcontact to dial to the peer */
+	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
 		/* If we have full contact, trust it */
-		ast_copy_string(invite, p->fullcontact, sizeof(invite));
-	/* Otherwise, use the username while waiting for registration */
-	} else if (!ast_strlen_zero(p->username)) {
-		n = p->username;
-		if (pedanticsipchecking) {
-			ast_uri_encode(n, tmp, sizeof(tmp), 0);
-			n = tmp;
-		}
-		if (ntohs(p->sa.sin_port) != 5060) {		/* Needs to be 5060 */
-			snprintf(invite, sizeof(invite), "sip:%s@%s:%d%s", n, p->tohost, ntohs(p->sa.sin_port), urioptions);
-		} else {
-			snprintf(invite, sizeof(invite), "sip:%s@%s%s", n, p->tohost, urioptions);
-		}
-	} else if (ntohs(p->sa.sin_port) != 5060) {		/* Needs to be 5060 */
-		snprintf(invite, sizeof(invite), "sip:%s:%d%s", p->tohost, ntohs(p->sa.sin_port), urioptions);
+		ast_build_string(&invite, &invite_max, "%s", p->fullcontact);
 	} else {
-		snprintf(invite, sizeof(invite), "sip:%s%s", p->tohost, urioptions);
+		/* Otherwise, use the username while waiting for registration */
+		ast_build_string(&invite, &invite_max, "sip:");
+		if (!ast_strlen_zero(p->username)) {
+			n = p->username;
+			if (pedanticsipchecking) {
+				ast_uri_encode(n, tmp, sizeof(tmp), 0);
+				n = tmp;
+			}
+			ast_build_string(&invite, &invite_max, "%s@", n);
+		}
+		ast_build_string(&invite, &invite_max, "%s", p->tohost);
+		if (ntohs(p->sa.sin_port) != 5060)		/* Needs to be 5060 */
+			ast_build_string(&invite, &invite_max, ":%d", ntohs(p->sa.sin_port));
+		ast_build_string(&invite, &invite_max, "%s", urioptions);
 	}
-	ast_copy_string(p->uri, invite, sizeof(p->uri));
 
-	/* If there is a VXML URL append it to the SIP URL */
-	if (vxml_url) {
-		snprintf(to, sizeof(to), "<%s>;%s", invite, vxml_url);
-	} else {
-		snprintf(to, sizeof(to), "<%s>", invite);
+       /* If custom URI options have been provided, append them */
+       if (p->options && p->options->uri_options)
+	       ast_build_string(&invite, &invite_max, ";%s", p->options->uri_options);
+
+       ast_copy_string(p->uri, invite_buf, sizeof(p->uri));
+
+       /* If there is a VXML URL append it to the SIP URL */
+       if (p->options && p->options->vxml_url) {
+               snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
+       } else {
+	       snprintf(to, sizeof(to), "<%s>", p->uri);
 	}
 	memset(req, 0, sizeof(struct sip_request));
-	init_req(req, sipmethod, invite);
+	init_req(req, sipmethod, p->uri);
 	snprintf(tmp, sizeof(tmp), "%d %s", ++p->ocseq, sip_methods[sipmethod].text);
 
 	add_header(req, "Via", p->via);
@@ -4520,7 +4529,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		/* Bump branch even on initial requests */
 		p->branch ^= rand();
 		build_via(p, p->via, sizeof(p->via));
-		initreqprep(&req, p, sipmethod, p->options ? p->options->vxml_url : (char *) NULL);
+               initreqprep(&req, p, sipmethod);
 	} else
 		reqprep(&req, p, sipmethod, 0, 1);
 		
@@ -4783,7 +4792,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	char *t = tmp;
 	size_t maxbytes = sizeof(tmp);
 
-	initreqprep(&req, p, SIP_NOTIFY, NULL);
+       initreqprep(&req, p, SIP_NOTIFY);
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", default_notifymime);
 
@@ -8272,7 +8281,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 			continue;
 		}
 
-		initreqprep(&req, p, SIP_NOTIFY, NULL);
+               initreqprep(&req, p, SIP_NOTIFY);
 
 		for (var = varlist; var; var = var->next)
 			add_header(&req, var->name, var->value);

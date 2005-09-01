@@ -628,13 +628,14 @@ ${CALLINGSUBADDR}	* Called PRI Subaddress
 ${FAXEXTEN}	 	* The extension called before being redirected to "fax"	
 ${PRIREDIRECTREASON}	* Reason for redirect, if a call was directed
 
-The SIP channel sets the following variables:
+The SIP channel uses the following variables:
 ---------------------------------------------------------
 ${SIPCALLID} 		* SIP Call-ID: header verbatim (for logging or CDR matching)
 ${SIPDOMAIN}    	* SIP destination domain of an inbound call (if appropriate)
 ${SIPUSERAGENT} 	* SIP user agent 
 ${SIPURI}		* SIP uri
 ${SIP_CODEC} 		Set the SIP codec for a call	
+${SIP_URI_OPTIONS}	* additional options to add to the URI for an outgoing call
 
 The Agent channel uses the following variables:
 ---------------------------------------------------------
