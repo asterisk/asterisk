@@ -241,18 +241,19 @@ static int moh_files_generator(struct ast_channel *chan, void *data, int len, in
 	struct moh_files_state *state = chan->music_state;
 	struct ast_frame *f = NULL;
 	int res = 0;
+
 	state->sample_queue += samples;
 
 	while (state->sample_queue > 0) {
 		if ((f = moh_files_readframe(chan))) {
 			state->samples += f->samples;
 			res = ast_write(chan, f);
+			state->sample_queue -= f->samples;
 			ast_frfree(f);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Failed to write frame to '%s': %s\n", chan->name, strerror(errno));
 				return -1;
 			}
-			state->sample_queue -= f->samples;
 		} else
 			return -1;	
 	}
