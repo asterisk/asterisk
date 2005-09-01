@@ -4881,7 +4881,8 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					ast_verbose(VERBOSE_PREFIX_4 "Channel %s was answered.\n", chan->name);
 
 				if (sync > 1) {
-					ast_mutex_unlock(&chan->lock);
+					if (channel)
+						ast_mutex_unlock(&chan->lock);
 					if (ast_pbx_run(chan)) {
 						ast_log(LOG_ERROR, "Unable to run PBX on %s\n", chan->name);
 						ast_hangup(chan);
