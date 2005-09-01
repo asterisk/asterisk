@@ -302,9 +302,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 		dup2(child_stdin[0], STDIN_FILENO);
 		dup2(child_stdout[1], STDOUT_FILENO);
 		dup2(child_stderr[1], STDERR_FILENO);
-		close(child_stdin[1]);
-		close(child_stdout[0]);
-		close(child_stderr[0]);
 		for (i = STDERR_FILENO + 1; i < 1024; i++)
 			close(i);
 		execv(command, argv);
@@ -323,8 +320,11 @@ static int app_exec(struct ast_channel *chan, void *data)
 		struct ast_channel *rchan;
 
 		close(child_stdin[0]);
+		child_stdin[0] = 0;
 		close(child_stdout[1]);
+		child_stdout[1] = 0;
 		close(child_stderr[1]);
+		child_stderr[1] = 0;
 
 		if (!(child_events = fdopen(child_events_fd, "w"))) {
 			ast_chan_log(LOG_WARNING, chan, "Could not open stream for child events\n");
@@ -505,20 +505,23 @@ static int app_exec(struct ast_channel *chan, void *data)
 	if (child_errors)
 		fclose(child_errors);
 
-	if (child_stdin[0]) {
+	if (child_stdin[0])
 		close(child_stdin[0]);
+
+	if (child_stdin[1])
 		close(child_stdin[1]);
-	}
 
-	if (child_stdout[0]) {
+	if (child_stdout[0])
 		close(child_stdout[0]);
-		close(child_stdout[1]);
-	}
 
-	if (child_stderr[0]) {
+	if (child_stdout[1])
+		close(child_stdout[1]);
+
+	if (child_stderr[0])
 		close(child_stderr[0]);
+
+	if (child_stderr[1])
 		close(child_stderr[1]);
-	}
 
 	if (u) {
 		while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
