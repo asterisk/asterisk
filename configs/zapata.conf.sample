@@ -194,8 +194,6 @@ signalling=fxo_ls
 ;    rxwink:      Receiver wink time (default 300ms)
 ;    rxflash:     Receiver flashtime (default 1250ms)
 ;    debounce:    Debounce timing (default 600ms)
-;    emdigitwait: Time to wait for DID digits on E&M links (default 250ms) (Increase to 500
-;		  or so if you are not getting all DID digits on your E&M link)
 ;
 rxwink=300		; Atlas seems to use long (250ms) winks
 ;

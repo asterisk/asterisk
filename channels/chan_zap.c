@@ -166,8 +166,6 @@ static const char config[] = "zapata.conf";
 
 #define DCHAN_AVAILABLE	(DCHAN_PROVISIONED | DCHAN_NOTINALARM | DCHAN_UP)
 
-static int cur_emdigitwait = 250; /* Wait time in ms for digits on EM channel */
-
 static char context[AST_MAX_CONTEXT] = "default";
 static char cid_num[256] = "";
 static char cid_name[256] = "";
@@ -640,7 +638,6 @@ static struct zt_pvt {
 	int cidrings;					/* Which ring to deliver CID on */
 	int dtmfrelax;					/* whether to run in relaxed DTMF mode */
 	int fake_event;
-	int emdigitwait;
 	int polarityonanswerdelay;
 	struct timeval polaritydelaytv;
 	int sendcalleridafter;
@@ -5180,8 +5177,25 @@ static void *ss_thread(void *data)
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			    default:
-				/* If we got it, get the rest */
-				res = my_getsigstr(chan,dtmfbuf + 1,' ', p->emdigitwait);
+				/* If we got the first digit, get the rest */
+				len = 1;
+				while((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
+					if (ast_exists_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
+						timeout = matchdigittimeout;
+					} else {
+						timeout = gendigittimeout;
+					}
+					res = ast_waitfordigit(chan, timeout);
+					if (res < 0) {
+						ast_log(LOG_DEBUG, "waitfordigit returned < 0...\n");
+						ast_hangup(chan);
+						return NULL;
+					} else if (res) {
+						dtmfbuf[len++] = res;
+					} else {
+						break;
+					}
+				}
 				break;
 			}
 		}
@@ -6962,7 +6976,6 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		tmp->use_callingpres = use_callingpres;
 		tmp->priindication_oob = priindication_oob;
 		tmp->priexclusive = cur_priexclusive;
-		tmp->emdigitwait = cur_emdigitwait;
 		if (tmp->usedistinctiveringdetection) {
 			if (!tmp->use_callerid) {
 				ast_log(LOG_NOTICE, "Distinctive Ring detect requires 'usecallerid' be on\n");
@@ -10594,8 +10607,6 @@ static int setup_zap(int reload)
 				cur_rxflash = atoi(v->value);
 			} else if (!strcasecmp(v->name, "debounce")) {
 				cur_debounce = atoi(v->value);
-			} else if (!strcasecmp(v->name, "emdigitwait")) {
-				cur_emdigitwait = atoi(v->value);
 			} else if (!strcasecmp(v->name, "toneduration")) {
 				int toneduration;
 				int ctlfd;
