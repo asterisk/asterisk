@@ -12,6 +12,16 @@ Compiling:
   support; systems using that compiler will need to be upgraded to
   a more recent compiler release.
 
+Dialplan Expressions:
+
+* The dialplan expression parser (which handles $[ ... ] constructs)
+  has gone through a major upgrade, but has one incompatible change:
+  spaces are no longer required around expression operators, including
+  string comparisons. However, you can now use quoting to keep strings
+  together for comparison. For more details, please read the
+  doc/README.variables file, and check over your dialplan for possible
+  problems.
+
 Agents:
 
 * The default for ackcall has been changed to "no" instead of "yes" 
