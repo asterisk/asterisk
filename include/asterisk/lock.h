@@ -295,7 +295,7 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	}
 #endif
 
-	if (t->thread != pthread_self()) {
+	if (t->reentrancy && (t->thread != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
@@ -342,7 +342,7 @@ static inline int __ast_pthread_cond_wait(const char *filename, int lineno, cons
 	}
 #endif
 
-	if (t->thread != pthread_self()) {
+	if (t->reentrancy && (t->thread != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
@@ -396,7 +396,7 @@ static inline int __ast_pthread_cond_timedwait(const char *filename, int lineno,
 	}
 #endif
 
-	if (t->thread != pthread_self()) {
+	if (t->reentrancy && (t->thread != pthread_self())) {
 		__ast_mutex_logger("%s line %d (%s): attempted unlock mutex '%s' without owning it!\n",
 				   filename, lineno, func, mutex_name);
 		__ast_mutex_logger("%s line %d (%s): '%s' was locked here.\n",
