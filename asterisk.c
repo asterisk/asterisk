@@ -631,8 +631,12 @@ static void urg_handler(int num)
 	/* Called by soft_hangup to interrupt the poll, read, or other
 	   system call.  We don't actually need to do anything though.  */
 	/* Cannot EVER ast_log from within a signal handler */
+	/* SLD: seems to be some pthread activity relating to the printf anyway:
+	 * which is leading to a deadlock? */
+#if 0
 	if (option_debug > 2) 
 		printf("-- Asterisk Urgent handler\n");
+#endif
 	signal(num, urg_handler);
 	return;
 }
