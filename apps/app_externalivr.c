@@ -85,7 +85,8 @@ static void send_child_event(FILE *handle, const char event, const char *data,
 		snprintf(tmp, sizeof(tmp), "%c,%10ld,%s", event, time(NULL), data);
 	}
 
-	fprintf(handle, "%s\n", tmp);
+	fputs(tmp, handle);
+	fputc('\n', handle);
 	ast_chan_log(LOG_DEBUG, chan, "sent '%s'\n", tmp);
 }
 
