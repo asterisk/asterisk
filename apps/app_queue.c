@@ -3206,7 +3206,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 		if(q->callscompleted > 0)
 			sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
 		ast_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds\n",
-			q->name, q->count, max, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel);
+			q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel);
 		if (q->members) {
 			ast_cli(fd, "   Members: \n");
 			for (mem = q->members; mem; mem = mem->next) {
@@ -3225,7 +3225,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 							 mem->calls, (long)(time(NULL) - mem->lastcall));
 				} else
 					ast_build_string(&max, &max_left, " has taken no calls yet");
-				ast_cli(fd, "      %s%s\n", mem->interface, max);
+				ast_cli(fd, "      %s%s\n", mem->interface, max_buf);
 			}
 		} else
 			ast_cli(fd, "   No Members\n");
