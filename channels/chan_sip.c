@@ -943,10 +943,11 @@ unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 				ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
 		next = sep;
 	}
-	if (pvt)
+	if (pvt) {
 		pvt->sipoptions = profile;
-	
-	ast_log(LOG_DEBUG, "* SIP extension value: %d for call %s\n", profile, pvt->callid);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "* SIP extension value: %d for call %s\n", profile, pvt->callid);
+	}
 	return profile;
 }
 
