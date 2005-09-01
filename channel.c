@@ -2895,25 +2895,25 @@ static enum ast_bridge_result ast_generic_bridge(int *playitagain, int *playit, 
 	int to;
 	struct ast_frame *f;
 	struct ast_channel *who = NULL;
-	void *pvt0, *pvt1;
 	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	int o0nativeformats;
 	int o1nativeformats;
 	long elapsed_ms=0, time_left_ms=0;
 	int watch_c0_dtmf;
 	int watch_c1_dtmf;
+	void *pvt0, *pvt1;
 	
 	cs[0] = c0;
 	cs[1] = c1;
-	pvt0 = c0->pvt;
-	pvt1 = c1->pvt;
+	pvt0 = c0->tech_pvt;
+	pvt1 = c1->tech_pvt;
 	o0nativeformats = c0->nativeformats;
 	o1nativeformats = c1->nativeformats;
 	watch_c0_dtmf = config->flags & AST_BRIDGE_DTMF_CHANNEL_0;
 	watch_c1_dtmf = config->flags & AST_BRIDGE_DTMF_CHANNEL_1;
 
 	for (;;) {
-		if ((c0->pvt != pvt0) || (c1->pvt != pvt1) ||
+		if ((c0->tech_pvt != pvt0) || (c1->tech_pvt != pvt1) ||
 		    (o0nativeformats != c0->nativeformats) ||
 		    (o1nativeformats != c1->nativeformats)) {
 			/* Check for Masquerade, codec changes, etc */

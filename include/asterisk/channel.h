@@ -289,8 +289,6 @@ struct ast_channel {
 	char dtmfq[AST_MAX_EXTENSION];		
 	/*! DTMF frame */
 	struct ast_frame dtmff;			
-	/*! Private channel implementation details */
-	struct ast_channel_pvt *pvt;
 
 	/*! PBX private structure */
 	struct ast_pbx *pbx;
