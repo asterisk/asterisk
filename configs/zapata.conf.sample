@@ -124,6 +124,10 @@ switchtype=national
 ;
 ; priindication = outofband
 ;
+; If you need to override the existing channels selection routine and force all
+; PRI channels to be marked as exclusively selected, set this to yes.
+; priexclusive = yes
+;
 ; ISDN Timers
 ; All of the ISDN timers and counters that are used are configurable.  Specify 
 ; the timer name, and its value (in ms for timers)
