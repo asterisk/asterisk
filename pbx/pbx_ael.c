@@ -31,7 +31,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 struct stringlink {
 	struct stringlink *next;
-	unsigned char data[0];
+	char data[0];
 };
 
 #define FILLIN_BREAK		1
