@@ -909,7 +909,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 			/* Make sure it's not already there */
 			for (z=0;z<trans->parent->respcount;z++) {
 				if ((trans->parent->dr[z].techint == ies->answers[x]->protocol) &&
-				    !strcmp(trans->parent->dr[z].dest, ies->answers[x]->data)) 
+				    !strcmp(trans->parent->dr[z].dest, (char *)ies->answers[x]->data)) 
 						break;
 			}
 			if (z == trans->parent->respcount) {
@@ -925,7 +925,7 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 				dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 					sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 					&ies->answers[x]->eid);
-				strncpy(trans->parent->dr[trans->parent->respcount].dest, ies->answers[x]->data,
+				strncpy(trans->parent->dr[trans->parent->respcount].dest, (char *)ies->answers[x]->data,
 					sizeof(trans->parent->dr[trans->parent->respcount].dest));
 					strncpy(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies->answers[x]->protocol),
 					sizeof(trans->parent->dr[trans->parent->respcount].tech));
@@ -1304,7 +1304,7 @@ static int update_key(struct dundi_peer *peer)
 			ast_log(LOG_NOTICE, "Whoa, got a weird encrypt size (%d != %d)!\n", res, 128);
 			return -1;
 		}
-		if ((res = ast_sign_bin(skey, peer->txenckey, 128, peer->txenckey + 128))) {
+		if ((res = ast_sign_bin(skey, (char *)peer->txenckey, 128, peer->txenckey + 128))) {
 			ast_log(LOG_NOTICE, "Failed to sign key (%d)!\n", res);
 			return -1;
 		}
@@ -1475,7 +1475,7 @@ static int check_key(struct dundi_peer *peer, unsigned char *newkey, unsigned ch
 	}
 
 	/* First check signature */
-	res = ast_check_signature_bin(skey, newkey, 128, newsig);
+	res = ast_check_signature_bin(skey, (char *)newkey, 128, newsig);
 	if (res) 
 		return 0;
 
@@ -1644,7 +1644,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 							/* Make sure it's not already there */
 							for (z=0;z<trans->parent->respcount;z++) {
 								if ((trans->parent->dr[z].techint == ies.answers[x]->protocol) &&
-								    !strcmp(trans->parent->dr[z].dest, ies.answers[x]->data)) 
+								    !strcmp(trans->parent->dr[z].dest, (char *)ies.answers[x]->data)) 
 										break;
 							}
 							if (z == trans->parent->respcount) {
@@ -1660,7 +1660,7 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 								dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 									sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 									&ies.answers[x]->eid);
-								strncpy(trans->parent->dr[trans->parent->respcount].dest, ies.answers[x]->data,
+								strncpy(trans->parent->dr[trans->parent->respcount].dest, (char *)ies.answers[x]->data,
 									sizeof(trans->parent->dr[trans->parent->respcount].dest));
 								strncpy(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies.answers[x]->protocol),
 									sizeof(trans->parent->dr[trans->parent->respcount].tech));
@@ -1683,8 +1683,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 						if (ast_test_flag_nonstd(ies.hint, htons(DUNDI_HINT_TTL_EXPIRED)))
 							ast_set_flag_nonstd(trans->parent->hmd, DUNDI_HINT_TTL_EXPIRED);
 						if (ast_test_flag_nonstd(ies.hint, htons(DUNDI_HINT_DONT_ASK))) { 
-							if (strlen(ies.hint->data) > strlen(trans->parent->hmd->exten)) {
-								strncpy(trans->parent->hmd->exten, ies.hint->data, 
+							if (strlen((char *)ies.hint->data) > strlen(trans->parent->hmd->exten)) {
+								strncpy(trans->parent->hmd->exten, (char *)ies.hint->data, 
 									sizeof(trans->parent->hmd->exten) - 1);
 							}
 						} else {
@@ -1969,8 +1969,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	struct sockaddr_in sin;
 	int res;
 	struct dundi_hdr *h;
-	unsigned char buf[MAX_PACKET_SIZE];
-	int len;
+	char buf[MAX_PACKET_SIZE];
+	socklen_t len;
 	len = sizeof(sin);
 	res = recvfrom(netsocket, buf, sizeof(buf) - 1, 0,(struct sockaddr *) &sin, &len);
 	if (res < 0) {
@@ -1994,11 +1994,11 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 
 static void build_secret(char *secret, int seclen)
 {
-	char tmp[16];
+	unsigned char tmp[16];
 	char *s;
 	build_iv(tmp);
 	secret[0] = '\0';
-	ast_base64encode(secret ,tmp, sizeof(tmp), seclen);
+	ast_base64encode(secret, tmp, sizeof(tmp), seclen);
 	/* Eliminate potential bad characters */
 	while((s = strchr(secret, ';'))) *s = '+';
 	while((s = strchr(secret, '/'))) *s = '+';
