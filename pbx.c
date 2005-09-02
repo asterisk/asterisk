@@ -16,7 +16,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <setjmp.h>
 #include <ctype.h>
 #include <errno.h>
 #include <time.h>
@@ -2411,10 +2410,8 @@ out:
 static void *pbx_thread(void *data)
 {
 	/* Oh joyeous kernel, we're a new thread, with nothing to do but
-	   answer this channel and get it going.  The setjmp stuff is fairly
-	   confusing, but necessary to get smooth transitions between
-	   the execution of different applications (without the use of
-	   additional threads) */
+	   answer this channel and get it going.
+	*/
 	struct ast_channel *c = data;
 	ast_pbx_run(c);
 	pthread_exit(NULL);
