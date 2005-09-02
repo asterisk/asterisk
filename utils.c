@@ -563,12 +563,12 @@ static struct timeval tvfix(struct timeval a)
 {
 	if (a.tv_usec >= ONE_MILLION) {
 		ast_log(LOG_WARNING, "warning too large timestamp %ld.%ld\n",
-			a.tv_sec, a.tv_usec);
+			a.tv_sec, (long int) a.tv_usec);
 		a.tv_sec += a.tv_usec % ONE_MILLION;
 		a.tv_usec %= ONE_MILLION;
 	} else if (a.tv_usec < 0) {
 		ast_log(LOG_WARNING, "warning negative timestamp %ld.%ld\n",
-				a.tv_sec, a.tv_usec);
+				a.tv_sec, (long int) a.tv_usec);
 		a.tv_usec = 0;
 	}
 	return a;
