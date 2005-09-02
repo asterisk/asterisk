@@ -239,7 +239,7 @@ struct iax2_context {
 #define IAX_CODEC_NOPREFS 	(1 << 15) 	/* Force old behaviour by turning off prefs */
 #define IAX_CODEC_NOCAP 	(1 << 16) 	/* only consider requested format and ignore capabilities*/
 #define IAX_RTCACHEFRIENDS 	(1 << 17) 	/* let realtime stay till your reload */
-#define IAX_RTNOUPDATE 		(1 << 18) 	/* Don't send a realtime update */
+#define IAX_RTUPDATE 		(1 << 18) 	/* Send a realtime update */
 #define IAX_RTAUTOCLEAR 	(1 << 19) 	/* erase me on expire */ 
 #define IAX_FORCEJITTERBUF	(1 << 20)	/* Force jitterbuffer, even when bridged to a channel that can take jitter */ 
 #define IAX_RTIGNOREREGEXPIRE	(1 << 21)
@@ -5517,7 +5517,7 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	memset(&ied, 0, sizeof(ied));
 	p = find_peer(name, 1);
 	if (p) {
-		if (!ast_test_flag((&globalflags), IAX_RTNOUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
+		if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
 			realtime_update_peer(name, sin);
 		if (inaddrcmp(&p->addr, sin)) {
 			if (iax2_regfunk)
@@ -8426,6 +8426,7 @@ static int set_config(char *config_file, int reload)
 	
 	/* Reset Global Flags */
 	memset(&globalflags, 0, sizeof(globalflags));
+	ast_set_flag(&globalflags, IAX_RTUPDATE);
 
 #ifdef SO_NO_CHECK
 	nochecksums = 0;
@@ -8520,8 +8521,8 @@ static int set_config(char *config_file, int reload)
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTCACHEFRIENDS);	
 		else if (!strcasecmp(v->name, "rtignoreregexpire"))
 			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTIGNOREREGEXPIRE);	
-		else if (!strcasecmp(v->name, "rtnoupdate"))
-			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTNOUPDATE);
+		else if (!strcasecmp(v->name, "rtupdate"))
+			ast_set2_flag((&globalflags), ast_true(v->value), IAX_RTUPDATE);
 		else if (!strcasecmp(v->name, "trunktimestamps"))
 			ast_set2_flag(&globalflags, ast_true(v->value), IAX_TRUNKTIMESTAMPS);
 		else if (!strcasecmp(v->name, "rtautoclear")) {
