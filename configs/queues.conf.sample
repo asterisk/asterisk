@@ -43,7 +43,7 @@ persistentmembers = yes
 ;strategy = ringall
 ;
 ; Second settings for service level (default 0)
-; Used for service level statistics (calls completed within service level time frame)
+; Used for service level statistics (calls answered within service level time frame)
 ;servicelevel = 60
 ;
 ; A context may be specified, in which if the user types a SINGLE
