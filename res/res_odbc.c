@@ -426,7 +426,7 @@ odbc_status odbc_obj_disconnect(odbc_obj *obj)
 odbc_status odbc_obj_connect(odbc_obj *obj)
 {
 	int res;
-	int err;
+	SQLINTEGER err;
 	short int mlen;
 	char msg[200], stat[10];
 
@@ -481,7 +481,7 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 		SQLGetDiagRec(SQL_HANDLE_DBC, obj->con, 1, stat, &err, msg, 100, &mlen);
 		SQLFreeHandle(SQL_HANDLE_ENV, obj->env);
 		ast_mutex_unlock(&obj->lock);
-		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, err, msg);
+		ast_log(LOG_WARNING, "res_odbc: Error SQLConnect=%d errno=%d %s\n", res, (int)err, msg);
 		return ODBC_FAIL;
 	} else {
 
