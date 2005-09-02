@@ -1042,7 +1042,7 @@ static int ast_sip_ouraddrfor(struct in_addr *them, struct in_addr *us)
 
 /*--- append_history: Append to SIP dialog history */
 /*	Always returns 0 */
-static int append_history(struct sip_pvt *p, char *event, char *data)
+static int append_history(struct sip_pvt *p, const char *event, const char *data)
 {
 	struct sip_history *hist, *prev;
 	char *c;
@@ -9947,7 +9947,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 {
 	int gotdest;
 	int res = 0;
-	int firststate = 0;
+	int firststate = AST_EXTENSION_REMOVED;
 
 	if (p->initreq.headers) {	
 		/* We already have a dialog */
@@ -10066,13 +10066,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			}
 			if (p->subscribed != NONE)
 				p->stateid = ast_extension_state_add(p->context, p->exten, cb_extensionstate, p);
-			firststate = ast_extension_state(NULL, p->context, p->exten);
-			if (firststate < 0) {
-				ast_log(LOG_ERROR, "Got SUBSCRIBE for extensions without hint. Please add hint to %s in context %s\n", p->exten, p->context);
-				transmit_response(p, "404 Not found", req);
-				ast_set_flag(p, SIP_NEEDDESTROY);	
-				return 0;
-			}
 		}
 	}
 
@@ -10084,8 +10077,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 			return 0;
 		}
-		/* TODO: Do we need this any longer? And what exactly to remove? */
-		/* The next line can be removed if the SNOM200 Expires bug is fixed */
+		/* The next 4 lines can be removed if the SNOM Expires bug is fixed */
 		if (p->subscribed == DIALOG_INFO_XML) {  
 			if (p->expiry > max_expiry)
 				p->expiry = max_expiry;
@@ -10096,8 +10088,16 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
 		sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
-		transmit_state_notify(p, firststate, 1, 1);	/* Send first notification */
-		append_history(p, "Subscribestatus", "active");
+
+		if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
+			ast_log(LOG_ERROR, "Got SUBSCRIBE for extensions without hint. Please add hint to %s in context %s\n", p->exten, p->context);
+			transmit_response(p, "404 Not found", req);
+			ast_set_flag(p, SIP_NEEDDESTROY);	
+			return 0;
+		} else {
+			transmit_state_notify(p, firststate, 1, 1);	/* Send first notification */
+			append_history(p, "Subscribestatus", ast_extension_state2str(firststate));
+		}
 	}
 	return 1;
 }
