@@ -516,7 +516,7 @@ struct chan_iax2_pvt {
 	/* Decryption AES-128 Key */
 	aes_decrypt_ctx dcx;
 	/* 32 bytes of semi-random data */
-	char semirand[32];
+	unsigned char semirand[32];
 	/* Preferred language */
 	char language[MAX_LANGUAGE];
 	/* Hostname/peername for naming purposes */
@@ -686,11 +686,11 @@ static ast_mutex_t iaxsl[IAX_MAX_CALLS];
 static struct timeval lastused[IAX_MAX_CALLS];
 
 
-static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, const char *, int, int);
-static int send_command_locked(unsigned short callno, char, int, unsigned int, const char *, int, int);
-static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const char *, int, int);
-static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, const char *, int, int);
-static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, const char *, int);
+static int send_command(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
+static int send_command_locked(unsigned short callno, char, int, unsigned int, const unsigned char *, int, int);
+static int send_command_immediate(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
+static int send_command_final(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int, int);
+static int send_command_transfer(struct chan_iax2_pvt *, char, int, unsigned int, const unsigned char *, int);
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly);
 static void destroy_user(struct iax2_user *user);
 static int expire_registry(void *data);
@@ -1200,7 +1200,7 @@ static int try_firmware(char *s)
 		close(fd);
 		return -1;
 	}
-	if (fwh2.devname[sizeof(fwh2.devname) - 1] || ast_strlen_zero(fwh2.devname)) {
+	if (fwh2.devname[sizeof(fwh2.devname) - 1] || ast_strlen_zero((char *)fwh2.devname)) {
 		ast_log(LOG_WARNING, "No or invalid device type specified for '%s'\n", s);
 		close(fd);
 		return -1;
@@ -1222,7 +1222,7 @@ static int try_firmware(char *s)
 	}
 	cur = waresl.wares;
 	while(cur) {
-		if (!strcmp(cur->fwh->devname, fwh->devname)) {
+		if (!strcmp((char *)cur->fwh->devname, (char *)fwh->devname)) {
 			/* Found a candidate */
 			if (cur->dead || (ntohs(cur->fwh->version) < ntohs(fwh->version)))
 				/* The version we have on loaded is older, load this one instead */
@@ -1267,7 +1267,7 @@ static int iax_check_version(char *dev)
 		ast_mutex_lock(&waresl.lock);
 		cur = waresl.wares;
 		while(cur) {
-			if (!strcmp(dev, cur->fwh->devname)) {
+			if (!strcmp(dev, (char *)cur->fwh->devname)) {
 				res = ntohs(cur->fwh->version);
 				break;
 			}
@@ -1285,12 +1285,12 @@ static int iax_firmware_append(struct iax_ie_data *ied, const unsigned char *dev
 	unsigned int start = (desc >> 8) & 0xffffff;
 	unsigned int bytes;
 	struct iax_firmware *cur;
-	if (dev && !ast_strlen_zero(dev) && bs) {
+	if (dev && !ast_strlen_zero((char *)dev) && bs) {
 		start *= bs;
 		ast_mutex_lock(&waresl.lock);
 		cur = waresl.wares;
 		while(cur) {
-			if (!strcmp(dev, cur->fwh->devname)) {
+			if (!strcmp((char *)dev, (char *)cur->fwh->devname)) {
 				iax_ie_append_int(ied, IAX_IE_FWBLOCKDESC, desc);
 				if (start < ntohl(cur->fwh->datalen)) {
 					bytes = ntohl(cur->fwh->datalen) - start;
@@ -2466,7 +2466,7 @@ static int iax2_sendtext(struct ast_channel *c, const char *text)
 {
 	
 	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_TEXT,
-		0, 0, text, strlen(text) + 1, -1);
+		0, 0, (unsigned char *)text, strlen(text) + 1, -1);
 }
 
 static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img)
@@ -2476,7 +2476,7 @@ static int iax2_sendimage(struct ast_channel *c, struct ast_frame *img)
 
 static int iax2_sendhtml(struct ast_channel *c, int subclass, const char *data, int datalen)
 {
-	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_HTML, subclass, 0, data, datalen, -1);
+	return send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_HTML, subclass, 0, (unsigned char *)data, datalen, -1);
 }
 
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan)
@@ -2998,7 +2998,7 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		h->option = htons(option);
 		memcpy(h->data, data, datalen);
 		res = send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_CONTROL,
-			AST_CONTROL_OPTION, 0, (char *)h, datalen + sizeof(struct ast_option_header), -1);
+			AST_CONTROL_OPTION, 0, (unsigned char *)h, datalen + sizeof(struct ast_option_header), -1);
 		free(h);
 		return res;
 	} else 
@@ -3817,8 +3817,8 @@ static int decrypt_frame(int callno, struct ast_iax2_full_hdr *fh, struct ast_fr
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
 			MD5Init(&md5);
-			MD5Update(&md5, iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
-			MD5Update(&md5, tmppw, strlen(tmppw));
+			MD5Update(&md5, (unsigned char *)iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
+			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
 			MD5Final(digest, &md5);
 			build_enc_keys(digest, &iaxs[callno]->ecx, &iaxs[callno]->dcx);
 			res = decode_frame(&iaxs[callno]->dcx, fh, f, datalen);
@@ -4201,7 +4201,7 @@ static int iax2_show_firmware(int fd, int argc, char *argv[])
 	
 	ast_cli(fd, FORMAT2, "Device", "Version", "Size");
 	for (cur = waresl.wares;cur;cur = cur->next) {
-		if ((argc == 3) || (!strcasecmp(argv[3], cur->fwh->devname))) 
+		if ((argc == 3) || (!strcasecmp(argv[3], (char *)cur->fwh->devname))) 
 			ast_cli(fd, FORMAT, cur->fwh->devname, ntohs(cur->fwh->version),
 				ntohl(cur->fwh->datalen));
 	}
@@ -4533,7 +4533,7 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 	return res;
 }
 
-static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno, 
+static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno, 
 		int now, int transfer, int final)
 {
 	struct ast_frame f;
@@ -4548,12 +4548,12 @@ static int __send_command(struct chan_iax2_pvt *i, char type, int command, unsig
 	return iax2_send(i, &f, ts, seqno, now, transfer, final);
 }
 
-static int send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
+static int send_command(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 0);
 }
 
-static int send_command_locked(unsigned short callno, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
+static int send_command_locked(unsigned short callno, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
 	int res;
 	ast_mutex_lock(&iaxsl[callno]);
@@ -4569,19 +4569,19 @@ static int forward_command(struct chan_iax2_pvt *i, char type, int command, unsi
 }
 #endif
 
-static int send_command_final(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
+static int send_command_final(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
 	/* It is assumed that the callno has already been locked */
 	iax2_predestroy_nolock(i->callno);
 	return __send_command(i, type, command, ts, data, datalen, seqno, 0, 0, 1);
 }
 
-static int send_command_immediate(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen, int seqno)
+static int send_command_immediate(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen, int seqno)
 {
 	return __send_command(i, type, command, ts, data, datalen, seqno, 1, 0, 0);
 }
 
-static int send_command_transfer(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const char *data, int datalen)
+static int send_command_transfer(struct chan_iax2_pvt *i, char type, int command, unsigned int ts, const unsigned char *data, int datalen)
 {
 	return __send_command(i, type, command, ts, data, datalen, 0, 0, 1, 0);
 }
@@ -4881,8 +4881,8 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
 			MD5Init(&md5);
-			MD5Update(&md5, p->challenge, strlen(p->challenge));
-			MD5Update(&md5, tmppw, strlen(tmppw));
+			MD5Update(&md5, (unsigned char *)p->challenge, strlen(p->challenge));
+			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
 			MD5Final(digest, &md5);
 			/* If they support md5, authenticate with it.  */
 			for (x=0;x<16;x++)
@@ -5009,8 +5009,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		stringp = tmppw;
 		while((tmppw = strsep(&stringp, ";"))) {
 			MD5Init(&md5);
-			MD5Update(&md5, iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
-			MD5Update(&md5, tmppw, strlen(tmppw));
+			MD5Update(&md5, (unsigned char *)iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
+			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
 			MD5Final(digest, &md5);
 			for (x=0;x<16;x++)
 				sprintf(requeststr + (x << 1), "%2.2x", digest[x]); /* safe */
@@ -5081,8 +5081,8 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 			unsigned char digest[16];
 			char digres[128] = "";
 			MD5Init(&md5);
-			MD5Update(&md5, challenge, strlen(challenge));
-			MD5Update(&md5, secret, strlen(secret));
+			MD5Update(&md5, (unsigned char *)challenge, strlen(challenge));
+			MD5Update(&md5, (unsigned char *)secret, strlen(secret));
 			MD5Final(digest, &md5);
 			/* If they support md5, authenticate with it.  */
 			for (x=0;x<16;x++)
@@ -5423,7 +5423,7 @@ static int iax2_register(char *value, int lineno)
 
 static void register_peer_exten(struct iax2_peer *peer, int onoff)
 {
-	unsigned char multi[256]="";
+	char multi[256]="";
 	char *stringp, *ext;
 	if (!ast_strlen_zero(regcontext)) {
 		ast_copy_string(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi));
@@ -6064,7 +6064,7 @@ static int iax2_provision(struct sockaddr_in *end, int sockfd, char *dest, const
 static int check_provisioning(struct sockaddr_in *sin, int sockfd, char *si, unsigned int ver)
 {
 	unsigned int ourver;
-	unsigned char rsi[80];
+	char rsi[80];
 	snprintf(rsi, sizeof(rsi), "si-%s", si);
 	if (iax_provision_version(&ourver, rsi, 1))
 		return 0;
@@ -6121,7 +6121,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int res;
 	int updatehistory=1;
 	int new = NEW_PREVENT;
-	char buf[4096], *ptr;
+	char buf[4096]; 
+	void *ptr;
 	socklen_t len = sizeof(sin);
 	int dcallno = 0;
 	struct ast_iax2_full_hdr *fh = (struct ast_iax2_full_hdr *)buf;
@@ -7328,7 +7329,7 @@ retryowner2:
 			case IAX_COMMAND_FWDOWNL:
 				/* Firmware download */
 				memset(&ied0, 0, sizeof(ied0));
-				res = iax_firmware_append(&ied0, ies.devicetype, ies.fwdesc);
+				res = iax_firmware_append(&ied0, (unsigned char *)ies.devicetype, ies.fwdesc);
 				if (res < 0)
 					send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 				else if (res > 0)

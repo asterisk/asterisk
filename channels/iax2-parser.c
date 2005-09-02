@@ -548,7 +548,7 @@ int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsigned shor
 	return iax_ie_append_raw(ied, ie, &newval, (int)sizeof(newval));
 }
 
-int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, unsigned char *str)
+int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, char *str)
 {
 	return iax_ie_append_raw(ied, ie, str, strlen(str));
 }
@@ -573,7 +573,7 @@ void iax_set_error(void (*func)(const char *))
 	errorf = func;
 }
 
-int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
+int iax_parse_ies(struct iax_ies *ies, char *data, int datalen)
 {
 	/* Parse data into information elements */
 	int len;
@@ -776,11 +776,11 @@ int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen)
 				ies->fwdesc = ntohl(get_unaligned_uint32(data + 2));
 			break;
 		case IAX_IE_FWBLOCKDATA:
-			ies->fwdata = data + 2;
+			ies->fwdata = (unsigned char *)data + 2;
 			ies->fwdatalen = len;
 			break;
 		case IAX_IE_ENCKEY:
-			ies->enckey = data + 2;
+			ies->enckey = (unsigned char *)data + 2;
 			ies->enckeylen = len;
 			break;
 		case IAX_IE_PROVVER:
