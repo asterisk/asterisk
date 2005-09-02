@@ -256,9 +256,9 @@ autokill=yes
 				; as-needed basis? (yes|no)
 
 ;rtupdate=yes			; Send registry updates to database using realtime? (yes|no)
-				; If set to yes, when a SIP UA registers successfully, the ip address,
+				; If set to yes, when a IAX2 peer registers successfully, the ip address,
 				; the origination port, the registration period, and the username of
-				; the UA will be set to database via realtime. If not present, defaults to 'yes'.
+				; the peer will be set to database via realtime. If not present, defaults to 'yes'.
 
 ;rtautoclear=yes		; Auto-Expire friends created on the fly on the same schedule
 				; as if it had just registered? (yes|no|<seconds>)
