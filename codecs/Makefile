@@ -31,18 +31,18 @@ ifneq (${UI_SPEEX},)
 endif
 ifneq (${UIS_SPEEX},)
   MODSPEEX=codec_speex.so
-  CFLAGS+=-I/usr/include/speex
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/speex
   LIBSPEEX+=-lspeex -lm
 endif
 ifneq (${ULI_SPEEX},)
   MODSPEEX=codec_speex.so
-  CFLAGS+=-I/usr/local/include
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
   LIBSPEEX=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
   LIBSPEEX+=-lspeex -lm
 endif
 ifneq (${ULIS_SPEEX},)
   MODSPEEX=codec_speex.so
-  CFLAGS+=-I/usr/local/include/speex
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/speex
   LIBSPEEX=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
   LIBSPEEX+=-lspeex -lm
 endif
