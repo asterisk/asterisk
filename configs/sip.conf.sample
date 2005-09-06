@@ -83,6 +83,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Other options: 
 				; info : SIP INFO messages
 				; inband : Inband audio (requires 64 kbit codec -alaw, ulaw)
+				; auto : Use rfc2833 if offered, inband otherwise
 
 ;compactheaders = yes		; send compact sip headers.
 ;sipdebug = yes			; Turn on SIP debugging by default, from

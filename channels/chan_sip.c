@@ -489,6 +489,7 @@ struct sip_auth {
 #define SIP_DTMF_RFC2833	(0 << 16)	/* RTP DTMF */
 #define SIP_DTMF_INBAND		(1 << 16)	/* Inband audio, only for ULAW/ALAW */
 #define SIP_DTMF_INFO		(2 << 16)	/* SIP Info messages */
+#define SIP_DTMF_AUTO		(3 << 16)	/* AUTO switch between rfc2833 and in-band DTMF */
 /* NAT settings */
 #define SIP_NAT			(3 << 18)	/* four settings, uses two bits */
 #define SIP_NAT_NEVER		(0 << 18)	/* No nat support */
@@ -1814,7 +1815,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
 	if (peer->maxms && peer->lastms)
 		r->timer_t1 = peer->lastms;
-	if (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833)
+	if ((ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_AUTO))
 		r->noncodeccapability |= AST_RTP_DTMF;
 	else
 		r->noncodeccapability &= ~AST_RTP_DTMF;
@@ -2976,7 +2977,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	/* Assign default music on hold class */
 	strcpy(p->musicclass, global_musicclass);
 	p->capability = global_capability;
-	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
+	if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO))
 		p->noncodeccapability |= AST_RTP_DTMF;
 	strcpy(p->context, default_context);
 
@@ -3417,6 +3418,16 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	p->jointcapability = p->capability & (peercapability | vpeercapability);
 	p->peercapability = (peercapability | vpeercapability);
 	p->noncodeccapability = noncodeccapability & peernoncodeccapability;
+	
+	if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO) {
+		ast_clear_flag(p, SIP_DTMF);
+		if (p->noncodeccapability & AST_RTP_DTMF) {
+			/* XXX Would it be reasonable to drop the DSP at this point? XXX */
+			ast_set_flag(p, SIP_DTMF_RFC2833);
+		} else {
+			ast_set_flag(p, SIP_DTMF_INBAND);
+		}
+	}
 	
 	if (debug) {
 		/* shame on whoever coded this.... */
@@ -6589,7 +6600,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			p->jointcapability = user->capability;
 			if (p->peercapability)
 				p->jointcapability &= p->peercapability;
-			if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
+			if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO))
 				p->noncodeccapability |= AST_RTP_DTMF;
 			else
 				p->noncodeccapability &= ~AST_RTP_DTMF;
@@ -6691,7 +6702,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				p->jointcapability = peer->capability;
 				if (p->peercapability)
 					p->jointcapability &= p->peercapability;
-				if (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833)
+				if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO))
 					p->noncodeccapability |= AST_RTP_DTMF;
 				else
 					p->noncodeccapability &= ~AST_RTP_DTMF;
@@ -7134,6 +7145,8 @@ static const char *dtmfmode2str(int mode)
 		return "info";
 	case SIP_DTMF_INBAND:
 		return "inband";
+	case SIP_DTMF_AUTO:
+		return "auto";
 	}
 	return "<error>";
 }
@@ -10834,6 +10847,8 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 			ast_set_flag(flags, SIP_DTMF_RFC2833);
 		else if (!strcasecmp(v->value, "info"))
 			ast_set_flag(flags, SIP_DTMF_INFO);
+		else if (!strcasecmp(v->value, "auto"))
+			ast_set_flag(flags, SIP_DTMF_AUTO);
 		else {
 			ast_log(LOG_WARNING, "Unknown dtmf mode '%s' on line %d, using rfc2833\n", v->value, v->lineno);
 			ast_set_flag(flags, SIP_DTMF_RFC2833);
