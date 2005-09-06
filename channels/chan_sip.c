@@ -1978,7 +1978,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	if ( res != -1 ) {
 		p->callingpres = ast->cid.cid_pres;
 		p->jointcapability = p->capability;
-		transmit_invite(p, SIP_INVITE, 1, 1);
+		transmit_invite(p, SIP_INVITE, 1, 2);
 		if (p->maxtime) {
 			/* Initialize auto-congest time */
 			p->initid = ast_sched_add(sched, p->maxtime * 4, auto_congest, p);
@@ -4422,7 +4422,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
                 		onlydigits = 0;
 				break;
 			}
-        	}
+		}
 
 		/* If we have only digits, add ;user=phone to the uri */
 		if (onlydigits)
@@ -4491,16 +4491,16 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
        /* If custom URI options have been provided, append them */
-       if (p->options && p->options->uri_options)
-	       ast_build_string(&invite, &invite_max, ";%s", p->options->uri_options);
+	if (p->options && p->options->uri_options)
+		ast_build_string(&invite, &invite_max, ";%s", p->options->uri_options);
 
-       ast_copy_string(p->uri, invite_buf, sizeof(p->uri));
+	ast_copy_string(p->uri, invite_buf, sizeof(p->uri));
 
-       /* If there is a VXML URL append it to the SIP URL */
-       if (p->options && p->options->vxml_url) {
-               snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
-       } else {
-	       snprintf(to, sizeof(to), "<%s>", p->uri);
+	/* If there is a VXML URL append it to the SIP URL */
+	if (p->options && p->options->vxml_url) {
+		snprintf(to, sizeof(to), "<%s>;%s", p->uri, p->options->vxml_url);
+	} else {
+		snprintf(to, sizeof(to), "<%s>", p->uri);
 	}
 	memset(req, 0, sizeof(struct sip_request));
 	init_req(req, sipmethod, p->uri);
@@ -4529,7 +4529,10 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		/* Bump branch even on initial requests */
 		p->branch ^= rand();
 		build_via(p, p->via, sizeof(p->via));
-               initreqprep(&req, p, sipmethod);
+		if (init > 1)
+			initreqprep(&req, p, sipmethod);
+		else
+			reqprep(&req, p, sipmethod, 0, 1);
 	} else
 		reqprep(&req, p, sipmethod, 0, 1);
 		
@@ -4792,7 +4795,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	char *t = tmp;
 	size_t maxbytes = sizeof(tmp);
 
-       initreqprep(&req, p, SIP_NOTIFY);
+	initreqprep(&req, p, SIP_NOTIFY);
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", default_notifymime);
 
@@ -8281,7 +8284,7 @@ static int sip_notify(int fd, int argc, char *argv[])
 			continue;
 		}
 
-               initreqprep(&req, p, SIP_NOTIFY);
+		initreqprep(&req, p, SIP_NOTIFY);
 
 		for (var = varlist; var; var = var->next)
 			add_header(&req, var->name, var->value);
@@ -10654,9 +10657,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 	ast_set_flag(p, SIP_OUTGOING);
 #ifdef VOCAL_DATA_HACK
 	ast_copy_string(p->username, "__VOCAL_DATA_SHOULD_READ_THE_SIP_SPEC__", sizeof(p->username));
-	transmit_invite(p, SIP_INVITE, 0, 1);
+	transmit_invite(p, SIP_INVITE, 0, 2);
 #else
-	transmit_invite(p, SIP_OPTIONS, 0, 1);
+	transmit_invite(p, SIP_OPTIONS, 0, 2);
 #endif
 	gettimeofday(&peer->ps, NULL);
 	peer->pokeexpire = ast_sched_add(sched, DEFAULT_MAXMS * 2, sip_poke_noanswer, peer);
