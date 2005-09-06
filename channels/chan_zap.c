@@ -2347,6 +2347,7 @@ static int zt_hangup(struct ast_channel *ast)
 								icause = atoi(cause);
 						}
 						pri_hangup(p->pri->pri, p->call, icause);
+						p->call = NULL;
 					}
 					if (res < 0) 
 						ast_log(LOG_WARNING, "pri_disconnect failed\n");
@@ -3463,6 +3464,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					if (!pri_grab(p, p->pri)) {
 						pri_hangup(p->pri->pri, p->call, -1);
 						pri_destroycall(p->pri->pri, p->call);
+						p->call = NULL;
 						pri_rel(p->pri);
 					} else
 						ast_log(LOG_WARNING, "Failed to grab PRI!\n");
@@ -3471,7 +3473,6 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			if (p->owner)
 				p->owner->_softhangup |= AST_SOFTHANGUP_DEV;
-			p->call = NULL;
 			if (p->bearer)
 				p->bearer->inalarm = 1;
 			else
