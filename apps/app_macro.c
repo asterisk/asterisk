@@ -87,10 +87,10 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	char oldexten[256]="";
 	int oldpriority;
-	char pc[80];
+	char pc[80], depthc[12];
 	char oldcontext[AST_MAX_CONTEXT] = "";
 	char *offsets;
-	int offset;
+	int offset, depth;
 	int setmacrocontext=0;
 	int autoloopflag;
   
@@ -104,6 +104,21 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
 		return 0;
 	}
+
+	/* Count how many levels deep the rabbit hole goes */
+	tmp = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
+	if (tmp) {
+		sscanf(tmp, "%d", &depth);
+	} else {
+		depth = 0;
+	}
+
+	if (depth >= 7) {
+		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
+		return 0;
+	}
+	snprintf(depthc, sizeof(depthc), "%d", depth + 1);
+	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
 	tmp = ast_strdupa((char *) data);
 	rest = tmp;
@@ -174,6 +189,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	autoloopflag = ast_test_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	ast_set_flag(chan, AST_FLAG_IN_AUTOLOOP);
 	while(ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
+		/* Reset the macro depth, if it was changed in the last iteration */
+		pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 		if ((res = ast_spawn_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num))) {
 			/* Something bad happened, or a hangup has been requested. */
 			if (((res >= '0') && (res <= '9')) || ((res >= 'A') && (res <= 'F')) ||
@@ -215,6 +232,10 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		chan->priority++;
   	}
 	out:
+	/* Reset the depth back to what it was when the routine was entered (like if we called Macro recursively) */
+	snprintf(depthc, sizeof(depthc), "%d", depth);
+	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
+
 	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
   	for (x=1; x<argc; x++) {
   		/* Restore old arguments and delete ours */
