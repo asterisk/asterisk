@@ -365,6 +365,14 @@ static void tweak_listen_volume(struct ast_conf_user *user, enum volume_action a
 		user->listen.actual = user->listen.desired;
 }
 
+static void reset_volumes(struct ast_conf_user *user)
+{
+	signed char zero_volume = 0;
+
+	ast_channel_setoption(user->chan, AST_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
+	ast_channel_setoption(user->chan, AST_OPTION_RXGAIN, &zero_volume, sizeof(zero_volume), 0);
+}
+
 static void adjust_volume(struct ast_frame *f, int vol)
 {
 	int count;
@@ -1473,7 +1481,6 @@ zapretry:
 		close(fd);
 	else {
 		/* Take out of conference */
-		/* Add us to the conference */
 		ztc.chan = 0;	
 		ztc.confno = 0;
 		ztc.confmode = 0;
@@ -1481,6 +1488,8 @@ zapretry:
 			ast_log(LOG_WARNING, "Error setting conference\n");
 		}
 	}
+
+	reset_volumes(user);
 
 	ast_mutex_lock(&conflock);
 	if (!(confflags & CONFFLAG_QUIET) && !(confflags & CONFFLAG_MONITOR) && !(confflags & CONFFLAG_ADMIN))
@@ -1502,16 +1511,16 @@ zapretry:
 
 outrun:
 	ast_mutex_lock(&conflock);
-	if (confflags &  CONFFLAG_MONITORTALKER && dsp)
+	if (confflags & CONFFLAG_MONITORTALKER && dsp)
 		ast_dsp_free(dsp);
 	
 	if (user->user_no) { /* Only cleanup users who really joined! */
 		manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
-			"Channel: %s\r\n"
-			"Uniqueid: %s\r\n"
-			"Meetme: %s\r\n"
-			"Usernum: %d\r\n",
-			chan->name, chan->uniqueid, conf->confno, user->user_no);
+			      "Channel: %s\r\n"
+			      "Uniqueid: %s\r\n"
+			      "Meetme: %s\r\n"
+			      "Usernum: %d\r\n",
+			      chan->name, chan->uniqueid, conf->confno, user->user_no);
 		conf->users--;
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;

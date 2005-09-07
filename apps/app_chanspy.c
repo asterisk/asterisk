@@ -535,7 +535,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		oldwf = 0,
 		fd = 0;
 	struct ast_flags flags;
-
+	signed char zero_volume = 0;
 
 	if (!(args = ast_strdupa((char *)data))) {
 		ast_log(LOG_ERROR, "Out of memory!\n");
@@ -703,6 +703,9 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	}
 
 	ast_clear_flag(chan, AST_FLAG_SPYING);
+
+	ast_channel_setoption(chan, AST_OPTION_TXGAIN, &zero_volume, sizeof(zero_volume), 0);
+
 	ALL_DONE(u, res);
 }
 
