@@ -248,10 +248,10 @@ static int adsi_announce_park(struct ast_channel *chan, int parkingnum)
 	int res;
 	int justify[5] = {ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT};
 	char tmp[256] = "";
-	unsigned char *message[5] = {NULL, NULL, NULL, NULL, NULL};
+	char *message[5] = {NULL, NULL, NULL, NULL, NULL};
 
 	snprintf(tmp, sizeof(tmp), "Parked on %d", parkingnum);
-	message[0] = (unsigned char *)tmp;
+	message[0] = tmp;
 	res = adsi_load_session(chan, NULL, 0, 1);
 	if (res == -1) {
 		return res;

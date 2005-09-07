@@ -351,8 +351,8 @@ static char pagerfromstring[100];
 static char emailtitle[100];
 static char charset[32] = "ISO-8859-1";
 
-static char adsifdn[4] = "\x00\x00\x00\x0F";
-static char adsisec[4] = "\x9B\xDB\xF7\xAC";
+static unsigned char adsifdn[4] = "\x00\x00\x00\x0F";
+static unsigned char adsisec[4] = "\x9B\xDB\xF7\xAC";
 static int adsiver = 1;
 static char emaildateformat[32] = "%A, %B %d, %Y at %r";
 
@@ -2685,7 +2685,7 @@ static int adsi_logo(unsigned char *buf)
 
 static int adsi_load_vmail(struct ast_channel *chan, int *useadsi)
 {
-	char buf[256];
+	unsigned char buf[256];
 	int bytes=0;
 	int x;
 	char num[5];
@@ -2831,7 +2831,7 @@ static void adsi_begin(struct ast_channel *chan, int *useadsi)
 
 static void adsi_login(struct ast_channel *chan)
 {
-	char buf[256];
+	unsigned char buf[256];
 	int bytes=0;
 	unsigned char keys[8];
 	int x;
@@ -2857,7 +2857,7 @@ static void adsi_login(struct ast_channel *chan)
 
 static void adsi_password(struct ast_channel *chan)
 {
-	char buf[256];
+	unsigned char buf[256];
 	int bytes=0;
 	unsigned char keys[8];
 	int x;
@@ -2879,7 +2879,7 @@ static void adsi_password(struct ast_channel *chan)
 
 static void adsi_folders(struct ast_channel *chan, int start, char *label)
 {
-	char buf[256];
+	unsigned char buf[256];
 	int bytes=0;
 	unsigned char keys[8];
 	int x,y;
@@ -2909,7 +2909,8 @@ static void adsi_folders(struct ast_channel *chan, int start, char *label)
 static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 {
 	int bytes=0;
-	char buf[256], buf1[256], buf2[256];
+	unsigned char buf[256]; 
+	char buf1[256], buf2[256];
 	char fn2[256];
 
 	char cid[256]="";
@@ -2930,16 +2931,16 @@ static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 	f = fopen(fn2, "r");
 	if (f) {
 		while (!feof(f)) {	
-			fgets(buf, sizeof(buf), f);
+			fgets((char *)buf, sizeof(buf), f);
 			if (!feof(f)) {
 				char *stringp=NULL;
-				stringp=buf;
+				stringp = (char *)buf;
 				strsep(&stringp, "=");
 				val = strsep(&stringp, "=");
 				if (val && !ast_strlen_zero(val)) {
-					if (!strcmp(buf, "callerid"))
+					if (!strcmp((char *)buf, "callerid"))
 						ast_copy_string(cid, val, sizeof(cid));
-					if (!strcmp(buf, "origdate"))
+					if (!strcmp((char *)buf, "origdate"))
 						ast_copy_string(datetime, val, sizeof(datetime));
 				}
 			}
@@ -3001,7 +3002,7 @@ static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 static void adsi_delete(struct ast_channel *chan, struct vm_state *vms)
 {
 	int bytes=0;
-	char buf[256];
+	unsigned char buf[256];
 	unsigned char keys[8];
 
 	int x;
@@ -3045,7 +3046,8 @@ static void adsi_delete(struct ast_channel *chan, struct vm_state *vms)
 
 static void adsi_status(struct ast_channel *chan, struct vm_state *vms)
 {
-	char buf[256] = "", buf1[256] = "", buf2[256] = "";
+	unsigned char buf[256] = "";
+	char buf1[256] = "", buf2[256] = "";
 	int bytes=0;
 	unsigned char keys[8];
 	int x;
@@ -3091,7 +3093,8 @@ static void adsi_status(struct ast_channel *chan, struct vm_state *vms)
 
 static void adsi_status2(struct ast_channel *chan, struct vm_state *vms)
 {
-	char buf[256] = "", buf1[256] = "", buf2[256] = "";
+	unsigned char buf[256] = "";
+	char buf1[256] = "", buf2[256] = "";
 	int bytes=0;
 	unsigned char keys[8];
 	int x;
@@ -3146,7 +3149,7 @@ static void adsi_clear(struct ast_channel *chan)
 
 static void adsi_goodbye(struct ast_channel *chan)
 {
-	char buf[256];
+	unsigned char buf[256];
 	int bytes=0;
 
 	if (!adsi_available(chan))
@@ -4522,7 +4525,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	char newpassword[80] = "";
 	char newpassword2[80] = "";
 	char prefile[256]="";
-	char buf[256];
+	unsigned char buf[256];
 	int bytes=0;
 
 	if (adsi_available(chan)) {
@@ -4596,7 +4599,7 @@ static int vm_options(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 	char newpassword[80] = "";
 	char newpassword2[80] = "";
 	char prefile[256]="";
-	char buf[256];
+	unsigned char buf[256];
 	int bytes=0;
 
 	if (adsi_available(chan))
@@ -4691,7 +4694,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	int retries = 0;
 	int duration = 0;
 	char prefile[256]="";
-	char buf[256];
+	unsigned char buf[256];
 	int bytes=0;
 
 	if (adsi_available(chan))

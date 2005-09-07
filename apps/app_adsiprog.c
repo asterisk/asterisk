@@ -161,9 +161,9 @@ struct adsi_script {
 	struct adsi_flag flags[7];
 
 	/* Stuff from adsi script */
-	char sec[5];
+	unsigned char sec[5];
 	char desc[19];
-	char fdn[5];
+	unsigned char fdn[5];
 	int ver;
 };
 
@@ -1427,7 +1427,7 @@ static int adsi_prog(struct ast_channel *chan, char *script)
 {
 	struct adsi_script *scr;
 	int x;
-	char buf[1024];
+	unsigned char buf[1024];
 	int bytes;
 	scr = compile_script(script);
 	if (!scr) 

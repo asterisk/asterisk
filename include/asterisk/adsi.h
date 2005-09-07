@@ -127,7 +127,7 @@
  */
 extern int adsi_channel_init(struct ast_channel *chan);
 
-extern int adsi_begin_download(struct ast_channel *chan, unsigned char *service, unsigned char *fdn, unsigned char *sec, int version);
+extern int adsi_begin_download(struct ast_channel *chan, char *service, unsigned char *fdn, unsigned char *sec, int version);
 
 extern int adsi_end_download(struct ast_channel *chan);
 
@@ -152,7 +152,7 @@ extern int adsi_channel_restore(struct ast_channel *chan);
  * Return 0 on success (or adsi unavailable) and -1 on hangup
  *
  */
-extern int adsi_print(struct ast_channel *chan, unsigned char **lines, int *align, int voice);
+extern int adsi_print(struct ast_channel *chan, char **lines, int *align, int voice);
 
 /*! Check if scripts for a given app are already loaded.  Version may be -1 */
 /*   if any version is okay, or 0-255 for a specific version. */
@@ -221,7 +221,7 @@ extern int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, i
  *
  */
 
-extern int adsi_download_connect(unsigned char *buf, unsigned char *service, unsigned char *fdn, unsigned char *sec, int ver);
+extern int adsi_download_connect(unsigned char *buf, char *service, unsigned char *fdn, unsigned char *sec, int ver);
 
 /*! Disconnects a running session */
 /*!
@@ -283,7 +283,7 @@ extern int adsi_available(struct ast_channel *chan);
  *
  */
 
-extern int adsi_display(unsigned char *buf, int page, int line, int just, int wrap, unsigned char *col1, unsigned char *col2);
+extern int adsi_display(unsigned char *buf, int page, int line, int just, int wrap, char *col1, char *col2);
 
 /*! Sets the current line and page */ 
 /*!
@@ -309,7 +309,7 @@ extern int adsi_set_line(unsigned char *buf, int page, int line);
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int adsi_load_soft_key(unsigned char *buf, int key, unsigned char *llabel, unsigned char *slabel, unsigned char *ret, int data);
+extern int adsi_load_soft_key(unsigned char *buf, int key, char *llabel, char *slabel, char *ret, int data);
 
 /*! Set which soft keys should be displayed */
 /*!
@@ -348,6 +348,6 @@ extern int adsi_input_control(unsigned char *buf, int page, int line, int displa
  * Returns number of bytes added to buffer or -1 on error.
  *
  */
-extern int adsi_input_format(unsigned char *buf, int num, int dir, int wrap, unsigned char *format1, unsigned char *format2);
+extern int adsi_input_format(unsigned char *buf, int num, int dir, int wrap, char *format1, char *format2);
 
 #endif /* _ASTERISK_ADSI_H */
