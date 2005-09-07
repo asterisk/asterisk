@@ -6326,8 +6326,9 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		} else {
 			f.subclass = uncompress_subclass(fh->csub);
 		}
-		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == IAX_COMMAND_NEW) || (f.subclass == IAX_COMMAND_REGREQ)
-				|| (f.subclass == IAX_COMMAND_POKE) || (f.subclass == IAX_COMMAND_FWDOWNL)))
+		if ((f.frametype == AST_FRAME_IAX) && ((f.subclass == IAX_COMMAND_NEW) || (f.subclass == IAX_COMMAND_REGREQ) ||
+						       (f.subclass == IAX_COMMAND_POKE) || (f.subclass == IAX_COMMAND_FWDOWNL) ||
+						       (f.subclass == IAX_COMMAND_REGREL)))
 			new = NEW_ALLOW;
 	} else {
 		/* Don't know anything about it yet */
