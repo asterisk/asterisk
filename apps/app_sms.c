@@ -134,7 +134,7 @@ typedef struct sms_s
 	unsigned int vp;             /* validity period in minutes, 0 for not set */
 	unsigned short ud[SMSLEN];   /* user data (message), UCS-2 coded */
 	unsigned char udh[SMSLEN];   /* user data header */
-	unsigned char cli[20];       /* caller ID */
+	char cli[20];                /* caller ID */
 	unsigned char ophase;        /* phase (0-79) for 0 and 1 frequencies (1300Hz and 2100Hz) */
 	unsigned char ophasep;       /* phase (0-79) for 1200 bps */
 	unsigned char obyte;         /* byte being sent */
@@ -682,7 +682,7 @@ static void sms_readfile (sms_t * h, char *fn)
 		}
 		while (fgets (line, sizeof (line), s))
 		{								 /* process line in file */
-			unsigned char *p;
+			char *p;
 			for (p = line; *p && *p != '\n' && *p != '\r'; p++);
 			*p = 0;					 /* strip eoln */
 			p = line;
@@ -702,7 +702,7 @@ static void sms_readfile (sms_t * h, char *fn)
 				{						 /* parse message (UTF-8) */
 					unsigned char o = 0;
 					while (*p && o < SMSLEN)
-						h->ud[o++] = utf8decode (&p);
+						h->ud[o++] = utf8decode((unsigned char **)&p);
 					h->udl = o;
 					if (*p)
 						ast_log (LOG_WARNING, "UD too long in %s\n", fn);
@@ -1363,7 +1363,7 @@ static int sms_exec (struct ast_channel *chan, void *data)
 		ast_copy_string (h.cli, chan->cid.cid_num, sizeof (h.cli));
 
 	{
-		unsigned char *d = data,
+		char *d = data,
 			*p,
 			answer = 0;
 		if (!*d || *d == '|') {
@@ -1431,7 +1431,7 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			d = p;
 			h.udl = 0;
 			while (*p && h.udl < SMSLEN)
-				h.ud[h.udl++] = utf8decode (&p);
+				h.ud[h.udl++] = utf8decode((unsigned char **)&p);
 			if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
 				ast_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
 			if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
