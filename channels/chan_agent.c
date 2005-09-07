@@ -10,6 +10,9 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
+/** @file chan_agent.c
+ * Agents module.
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -120,15 +123,15 @@ static const char mandescr_agent_callback_login[] =
 
 static char moh[80] = "default";
 
-#define AST_MAX_AGENT	80		/* Agent ID or Password max length */
+#define AST_MAX_AGENT	80		/**< Agent ID or Password max length */
 #define AST_MAX_BUF	256
 #define AST_MAX_FILENAME_LEN	256
 
-/* Persistent Agents astdb family */
+/** Persistent Agents astdb family */
 static const char pa_family[] = "/Agents";
-/* The maximum lengh of each persistent member agent database entry */
+/** The maximum lengh of each persistent member agent database entry */
 #define PA_MAX_LEN 2048
-/* queues.conf [general] option */
+/** queues.conf [general] option */
 static int persistent_agents = 0;
 static void dump_agents(void);
 
@@ -157,32 +160,37 @@ static char beep[AST_MAX_BUF] = "beep";
 
 #define GETAGENTBYCALLERID	"AGENTBYCALLERID"
 
-static struct agent_pvt {
-	ast_mutex_t lock;			/* Channel private lock */
-	int dead;				/* Poised for destruction? */
-	int pending;				/* Not a real agent -- just pending a match */
-	int abouttograb;			/* About to grab */
-	int autologoff;				/* Auto timeout time */
-	int ackcall;				/* ackcall */
-	time_t loginstart;			/* When agent first logged in (0 when logged off) */
-	time_t start;				/* When call started */
-	struct timeval lastdisc;		/* When last disconnected */
-	int wrapuptime;				/* Wrapup time in ms */
-	ast_group_t group;		/* Group memberships */
-	int acknowledged;			/* Acknowledged */
-	char moh[80];				/* Which music on hold */
-	char agent[AST_MAX_AGENT];		/* Agent ID */
-	char password[AST_MAX_AGENT];		/* Password for Agent login */
+/**
+ * Structure representing an agent.
+ */
+struct agent_pvt {
+	ast_mutex_t lock;              /**< Channel private lock */
+	int dead;                      /**< Poised for destruction? */
+	int pending;                   /**< Not a real agent -- just pending a match */
+	int abouttograb;               /**< About to grab */
+	int autologoff;                /**< Auto timeout time */
+	int ackcall;                   /**< ackcall */
+	time_t loginstart;             /**< When agent first logged in (0 when logged off) */
+	time_t start;                  /**< When call started */
+	struct timeval lastdisc;       /**< When last disconnected */
+	int wrapuptime;                /**< Wrapup time in ms */
+	ast_group_t group;             /**< Group memberships */
+	int acknowledged;              /**< Acknowledged */
+	char moh[80];                  /**< Which music on hold */
+	char agent[AST_MAX_AGENT];     /**< Agent ID */
+	char password[AST_MAX_AGENT];  /**< Password for Agent login */
 	char name[AST_MAX_AGENT];
-	ast_mutex_t app_lock;			/* Synchronization between owning applications */
-	volatile pthread_t owning_app;		/* Owning application thread id */
-	volatile int app_sleep_cond;		/* Sleep condition for the login app */
-	struct ast_channel *owner;		/* Agent */
-	char loginchan[80];			/* channel they logged in from */
-	char logincallerid[80];			/* Caller ID they had when they logged in */
-	struct ast_channel *chan;		/* Channel we use */
-	struct agent_pvt *next;			/* Agent */
-} *agents = NULL;
+	ast_mutex_t app_lock;          /**< Synchronization between owning applications */
+	volatile pthread_t owning_app; /**< Owning application thread id */
+	volatile int app_sleep_cond;   /**< Sleep condition for the login app */
+	struct ast_channel *owner;     /**< Agent */
+	char loginchan[80];            /**< channel they logged in from */
+	char logincallerid[80];        /**< Caller ID they had when they logged in */
+	struct ast_channel *chan;      /**< Channel we use */
+	struct agent_pvt *next;        /**< Next Agent in the linked list. */
+};
+
+struct agent_pvt *agents = NULL;  /**< Holds the list of agents (loaded form agents.conf). */
 
 #define CHECK_FORMATS(ast, p) do { \
 	if (p->chan) {\
@@ -248,17 +256,27 @@ static const struct ast_channel_tech agent_tech = {
 	.bridged_channel = agent_bridgedchannel,
 };
 
+/**
+ * Unlink (that is, take outside of the linked list) an agent.
+ *
+ * @param agent Agent to be unlinked.
+ */
 static void agent_unlink(struct agent_pvt *agent)
 {
 	struct agent_pvt *p, *prev;
 	prev = NULL;
 	p = agents;
+	// Iterate over all agents looking for the one.
 	while(p) {
 		if (p == agent) {
+			// Once it wal found, check if it is the first one.
 			if (prev)
+				// If it is not, tell the previous agent that the next one is the next one of the current (jumping the current).
 				prev->next = agent->next;
 			else
+				// If it is the first one, just change the general pointer to point to the second one.
 				agents = agent->next;
+			// We are done.
 			break;
 		}
 		prev = p;
@@ -266,6 +284,14 @@ static void agent_unlink(struct agent_pvt *agent)
 	}
 }
 
+/**
+ * Adds an agent to the global list of agents.
+ *
+ * @param agent A string with the username, password and real name of an agent. As defined in agents.conf. Example: "13,169,John Smith"
+ * @param pending If it is pending or not.
+ * @return The just created agent.
+ * @sa agent_pvt, agents.
+ */
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
 	int argc;
@@ -278,6 +304,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 
 	args = ast_strdupa(agent);
 
+	// Extract username (agt), password and name from agent (args).
 	if ((argc = ast_separate_app_args(args, ',', argv, sizeof(argv) / sizeof(argv[0])))) {
 		agt = argv[0];
 		if (argc > 1) {
@@ -292,6 +319,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 		ast_log(LOG_WARNING, "A blank agent line!\n");
 	}
 	
+	// Are we searching for the agent here ? to see if it exists already ?
 	prev=NULL;
 	p = agents;
 	while(p) {
@@ -301,6 +329,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 		p = p->next;
 	}
 	if (!p) {
+		// Build the agent.
 		p = malloc(sizeof(struct agent_pvt));
 		if (p) {
 			memset(p, 0, sizeof(struct agent_pvt));
@@ -963,7 +992,11 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 }
 
 
-/*--- read_agent_config: Read configuration data (agents.conf) ---*/
+/**
+ * Read configuration data. The file named agents.conf.
+ *
+ * @returns Always 0, or so it seems.
+ */
 static int read_agent_config(void)
 {
 	struct ast_config *cfg;
@@ -1505,7 +1538,9 @@ static char *complete_agent_logoff_cmd(char *line, char *word, int pos, int stat
 	return NULL;
 }
 
-/*--- agents_show: Show agents in cli ---*/
+/**
+ * Show agents in cli.
+ */
 static int agents_show(int fd, int argc, char **argv)
 {
 	struct agent_pvt *p;
@@ -2211,7 +2246,9 @@ static void dump_agents(void)
 	}
 }
 
-/* Reload the persistent agents from astdb */
+/**
+ * Reload the persistent agents from astdb.
+ */
 static void reload_agents(void)
 {
 	char *agent_num;
@@ -2316,7 +2353,12 @@ static int agent_devicestate(void *data)
 	return res;
 }
 
-/*--- load_module: Initialize channel module ---*/
+/**
+ * Initialize the Agents module.
+ * This funcion is being called by Asterisk when loading the module. Among other thing it registers applications, cli commands and reads the cofiguration file.
+ *
+ * @returns int Always 0.
+ */
 int load_module()
 {
 	/* Make sure we can register our agent channel type */
