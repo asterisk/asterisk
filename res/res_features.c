@@ -898,8 +898,9 @@ static struct ast_call_feature *find_feature(char *name)
 	struct ast_call_feature *tmp;
 
 	AST_LIST_LOCK(&feature_list);
-	AST_LIST_TRAVERSE(&feature_list,tmp,feature_entry) {
-		if (!strcasecmp(tmp->sname,name)) break;
+	AST_LIST_TRAVERSE(&feature_list, tmp, feature_entry) {
+		if (!strcasecmp(tmp->sname, name))
+			break;
 	}
 	AST_LIST_UNLOCK(&feature_list);
 
@@ -974,6 +975,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	else
 		ast_copy_flags(&features, &(config->features_callee), AST_FLAGS_ALL);	
 	ast_log(LOG_DEBUG, "Feature interpret: chan=%s, peer=%s, sense=%d, features=%d\n", chan->name, peer->name, sense, features.flags);
+
 	for (x=0; x < FEATURES_COUNT; x++) {
 		if ((ast_test_flag(&features, builtin_features[x].feature_mask)) &&
 		    !ast_strlen_zero(builtin_features[x].exten)) {
@@ -983,31 +985,23 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 				break;
 			} else if (!strncmp(builtin_features[x].exten, code, strlen(code))) {
 				if (res == FEATURE_RETURN_PASSDIGITS)
-				  res = FEATURE_RETURN_STOREDIGITS;
+					res = FEATURE_RETURN_STOREDIGITS;
 			}
 		}
 	}
 
 
-	if (dynamic_features) {
-		char *tmp=strdup(dynamic_features);
+	if (dynamic_features && !ast_strlen_zero(dynamic_features)) {
+		char *tmp = ast_strdupa(dynamic_features);
 		char *tok;
-		char *begin=tmp;
-		
-		if (!tmp) {
-			ast_log(LOG_ERROR,"strdup failed");
+
+		if (!tmp)
 			return res;
-		}
 		
-		while ( (tok=strsep(&tmp,"#")) != NULL) {
-			AST_LIST_LOCK(&feature_list);
-			AST_LIST_TRAVERSE(&feature_list, feature, feature_entry) {
-				if ( ! strcasecmp(tok,feature->sname))
-					break;
-			}
-			AST_LIST_UNLOCK(&feature_list);			
+		while ((tok = strsep(&tmp, "#")) != NULL) {
+			feature = find_feature(tok);
 			
-			if ( feature ) {
+			if (feature) {
 				/* Feature is up for consideration */
 				if (!strcmp(feature->exten, code)) {
 					if (option_verbose > 2)
@@ -1019,26 +1013,51 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 				}
 			}
 		}
-		
-		free(begin);
 	}
 	
 	return res;
 }
 
-static void set_config_flags(struct ast_bridge_config *config)
+static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config)
 {
 	int x;
-
+	
 	ast_clear_flag(config, AST_FLAGS_ALL);	
 	for (x = 0; x < FEATURES_COUNT; x++) {
-		if (ast_test_flag(&(config->features_caller), builtin_features[x].feature_mask)) {
-			if (ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF))
+		if (ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF)) {
+			if (ast_test_flag(&(config->features_caller), builtin_features[x].feature_mask))
 				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
-		}
-		if (ast_test_flag(&(config->features_callee), builtin_features[x].feature_mask)) {
-			if (ast_test_flag(builtin_features + x, AST_FEATURE_FLAG_NEEDSDTMF))
+
+			if (ast_test_flag(&(config->features_callee), builtin_features[x].feature_mask))
 				ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
+		}
+	}
+	
+	if (chan && peer && !(ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_0) && ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_1))) {
+		char *dynamic_features;
+
+		dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
+
+		if (dynamic_features) {
+			char *tmp = ast_strdupa(dynamic_features);
+			char *tok;
+			struct ast_call_feature *feature;
+
+			if (!tmp) {
+				return;
+			}
+
+			/* while we have a feature */
+			while (NULL != (tok = strsep(&tmp, "#"))) {
+				if ((feature = find_feature(tok))) {
+					if (ast_test_flag(feature, AST_FEATURE_FLAG_NEEDSDTMF)) {
+						if (ast_test_flag(feature, AST_FEATURE_FLAG_CALLER))
+							ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_0);
+						if (ast_test_flag(feature, AST_FEATURE_FLAG_CALLEE))
+							ast_set_flag(config, AST_BRIDGE_DTMF_CHANNEL_1);
+					}
+				}
+			}
 		}
 	}
 }
@@ -1257,7 +1276,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	allowdisconnect_out = ast_test_flag(&(config->features_caller), AST_FEATURE_DISCONNECT);
 	allowredirect_in = ast_test_flag(&(config->features_callee), AST_FEATURE_REDIRECT);
 	allowredirect_out = ast_test_flag(&(config->features_caller), AST_FEATURE_REDIRECT);
-	set_config_flags(config);
+	set_config_flags(chan, peer, config);
 	config->firstpass = 1;
 
 	/* Answer if need be */
@@ -2038,8 +2057,13 @@ static int load_config(void)
 				
 				if (!strcasecmp(party,"caller"))
 					ast_set_flag(feature,AST_FEATURE_FLAG_CALLER);
-				else
+				else if (!strcasecmp(party, "callee"))
 					ast_set_flag(feature,AST_FEATURE_FLAG_CALLEE);
+				else {
+					ast_log(LOG_NOTICE, "Invalid party specification for feature '%s', must be caller, or callee\n", var->name);
+					var = var->next;
+					continue;
+				}
 
 				ast_register_feature(feature);
 				
