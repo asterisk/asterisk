@@ -1409,50 +1409,105 @@ static void zt_disable_ec(struct zt_pvt *p)
 	p->echocanon = 0;
 }
 
+static void fill_txgain(struct zt_gains *g, float gain, int law)
+{
+	int j;
+	short k;
+	float linear_gain = pow(10.0, gain / 20.0);
+
+	switch (law) {
+	case ZT_LAW_ALAW:
+		for (j = 0; j < (sizeof(g->txgain) / sizeof(g->txgain[0])); j++) {
+			if (gain) {
+				k = (short) (((float) AST_ALAW(j)) * linear_gain);
+				g->txgain[j] = AST_LIN2A(k);
+			} else {
+				g->txgain[j] = j;
+			}
+		}
+		break;
+	case ZT_LAW_MULAW:
+		for (j = 0; j < (sizeof(g->txgain) / sizeof(g->txgain[0])); j++) {
+			if (gain) {
+				k = (short) (((float) AST_MULAW(j)) * linear_gain);
+				g->txgain[j] = AST_LIN2MU(k);
+			} else {
+				g->txgain[j] = j;
+			}
+		}
+		break;
+	}
+}
+
+static void fill_rxgain(struct zt_gains *g, float gain, int law)
+{
+	int j;
+	short k;
+	float linear_gain = pow(10.0, gain / 20.0);
+
+	switch (law) {
+	case ZT_LAW_ALAW:
+		for (j = 0; j < (sizeof(g->rxgain) / sizeof(g->rxgain[0])); j++) {
+			if (gain) {
+				k = (short) (((float) AST_ALAW(j)) * linear_gain);
+				g->rxgain[j] = AST_LIN2A(k);
+			} else {
+				g->rxgain[j] = j;
+			}
+		}
+		break;
+	case ZT_LAW_MULAW:
+		for (j = 0; j < (sizeof(g->rxgain) / sizeof(g->rxgain[0])); j++) {
+			if (gain) {
+				k = (short) (((float) AST_MULAW(j)) * linear_gain);
+				g->rxgain[j] = AST_LIN2MU(k);
+			} else {
+				g->rxgain[j] = j;
+			}
+		}
+		break;
+	}
+}
+
+int set_actual_txgain(int fd, int chan, float gain, int law)
+{
+	struct zt_gains g;
+	int res;
+
+	memset(&g, 0, sizeof(g));
+	g.chan = chan;
+	res = ioctl(fd, ZT_GETGAINS, &g);
+	if (res) {
+		ast_log(LOG_DEBUG, "Failed to read gains: %s\n", strerror(errno));
+		return res;
+	}
+
+	fill_txgain(&g, gain, law);
+
+	return ioctl(fd, ZT_SETGAINS, &g);
+}
+
+int set_actual_rxgain(int fd, int chan, float gain, int law)
+{
+	struct zt_gains g;
+	int res;
+
+	memset(&g, 0, sizeof(g));
+	g.chan = chan;
+	res = ioctl(fd, ZT_GETGAINS, &g);
+	if (res) {
+		ast_log(LOG_DEBUG, "Failed to read gains: %s\n", strerror(errno));
+		return res;
+	}
+
+	fill_rxgain(&g, gain, law);
+
+	return ioctl(fd, ZT_SETGAINS, &g);
+}
+
 int set_actual_gain(int fd, int chan, float rxgain, float txgain, int law)
 {
-	struct	zt_gains g;
-	float ltxgain;
-	float lrxgain;
-	int j,k;
-	g.chan = chan;
-	if ((rxgain != 0.0)  || (txgain != 0.0)) {
-		/* caluculate linear value of tx gain */
-		ltxgain = pow(10.0,txgain / 20.0);
-		/* caluculate linear value of rx gain */
-		lrxgain = pow(10.0,rxgain / 20.0);
-		if (law == ZT_LAW_ALAW) {
-			for (j=0;j<256;j++) {
-				k = (int)(((float)AST_ALAW(j)) * lrxgain);
-				if (k > 32767) k = 32767;
-				if (k < -32767) k = -32767;
-				g.rxgain[j] = AST_LIN2A(k);
-				k = (int)(((float)AST_ALAW(j)) * ltxgain);
-				if (k > 32767) k = 32767;
-				if (k < -32767) k = -32767;
-				g.txgain[j] = AST_LIN2A(k);
-			}
-		} else {
-			for (j=0;j<256;j++) {
-				k = (int)(((float)AST_MULAW(j)) * lrxgain);
-				if (k > 32767) k = 32767;
-				if (k < -32767) k = -32767;
-				g.rxgain[j] = AST_LIN2MU(k);
-				k = (int)(((float)AST_MULAW(j)) * ltxgain);
-				if (k > 32767) k = 32767;
-				if (k < -32767) k = -32767;
-				g.txgain[j] = AST_LIN2MU(k);
-			}
-		}
-	} else {
-		for (j=0;j<256;j++) {
-			g.rxgain[j] = j;
-			g.txgain[j] = j;
-		}
-	}
-		
-	  /* set 'em */
-	return(ioctl(fd,ZT_SETGAINS,&g));
+	return set_actual_txgain(fd, chan, txgain, law) | set_actual_rxgain(fd, chan, rxgain, law);
 }
 
 static inline int zt_set_hook(int fd, int hs)
@@ -2570,65 +2625,78 @@ static int zt_answer(struct ast_channel *ast)
 
 static int zt_setoption(struct ast_channel *chan, int option, void *data, int datalen)
 {
-char	*cp;
-int	x;
-
+	char *cp;
+	signed char *scp;
+	int x;
+	int index;
 	struct zt_pvt *p = chan->tech_pvt;
 
-	
-	if ((option != AST_OPTION_TONE_VERIFY) && (option != AST_OPTION_AUDIO_MODE) &&
-		(option != AST_OPTION_TDD) && (option != AST_OPTION_RELAXDTMF))
-	   {
-		errno = ENOSYS;
-		return -1;
-	   }
-	cp = (char *)data;
-	if ((!cp) || (datalen < 1))
-	   {
+	/* all supported options require data */
+	if (!data || (datalen < 1)) {
 		errno = EINVAL;
 		return -1;
-	   }
+	}
+
 	switch(option) {
-	    case AST_OPTION_TONE_VERIFY:
+	case AST_OPTION_TXGAIN:
+		scp = (signed char *) data;
+		index = zt_get_index(chan, p, 0);
+		if (index < 0) {
+			ast_log(LOG_WARNING, "No index in TXGAIN?\n");
+			return -1;
+		}
+		ast_log(LOG_DEBUG, "Setting actual tx gain on %s to %f\n", chan->name, p->txgain + (float) *scp);
+		return set_actual_txgain(p->subs[index].zfd, 0, p->txgain + (float) *scp, p->law);
+	case AST_OPTION_RXGAIN:
+		scp = (signed char *) data;
+		index = zt_get_index(chan, p, 0);
+		if (index < 0) {
+			ast_log(LOG_WARNING, "No index in RXGAIN?\n");
+			return -1;
+		}
+		ast_log(LOG_DEBUG, "Setting actual rx gain on %s to %f\n", chan->name, p->rxgain + (float) *scp);
+		return set_actual_rxgain(p->subs[index].zfd, 0, p->rxgain + (float) *scp, p->law);
+	case AST_OPTION_TONE_VERIFY:
 		if (!p->dsp)
 			break;
-		switch(*cp) {
-		    case 1:
-				ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n",chan->name);
-				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
+		cp = (char *) data;
+		switch (*cp) {
+		case 1:
+			ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF(1) on %s\n",chan->name);
+			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | p->dtmfrelax);  /* set mute mode if desired */
 			break;
-		    case 2:
-				ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n",chan->name);
-				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
+		case 2:
+			ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: MUTECONF/MAX(2) on %s\n",chan->name);
+			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MUTECONF | DSP_DIGITMODE_MUTEMAX | p->dtmfrelax);  /* set mute mode if desired */
 			break;
-		    default:
-				ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n",chan->name);
-				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
+		default:
+			ast_log(LOG_DEBUG, "Set option TONE VERIFY, mode: OFF(0) on %s\n",chan->name);
+			ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);  /* set mute mode if desired */
 			break;
 		}
 		break;
-	    case AST_OPTION_TDD:  /* turn on or off TDD */
+	case AST_OPTION_TDD:
+		/* turn on or off TDD */
+		cp = (char *) data;
+		p->mate = 0;
 		if (!*cp) { /* turn it off */
 			ast_log(LOG_DEBUG, "Set option TDD MODE, value: OFF(0) on %s\n",chan->name);
 			if (p->tdd) tdd_free(p->tdd);
 			p->tdd = 0;
-			p->mate = 0;
 			break;
 		}
-		if (*cp == 2)
-			ast_log(LOG_DEBUG, "Set option TDD MODE, value: MATE(2) on %s\n",chan->name);
-		else ast_log(LOG_DEBUG, "Set option TDD MODE, value: ON(1) on %s\n",chan->name);
-		p->mate = 0;
+		ast_log(LOG_DEBUG, "Set option TDD MODE, value: %s(%d) on %s\n",
+			(*cp == 2) ? "MATE" : "ON", (int) *cp, chan->name);
 		zt_disable_ec(p);
 		/* otherwise, turn it on */
 		if (!p->didtdd) { /* if havent done it yet */
 			unsigned char mybuf[41000],*buf;
 			int size,res,fd,len;
-			int index;
 			struct pollfd fds[1];
+
 			buf = mybuf;
-			memset(buf,0x7f,sizeof(mybuf)); /* set to silence */
-			ast_tdd_gen_ecdisa(buf + 16000,16000);  /* put in tone */
+			memset(buf, 0x7f, sizeof(mybuf)); /* set to silence */
+			ast_tdd_gen_ecdisa(buf + 16000, 16000);  /* put in tone */
 			len = 40000;
 			index = zt_get_index(chan, p, 0);
 			if (index < 0) {
@@ -2649,7 +2717,7 @@ int	x;
 					ast_log(LOG_DEBUG, "poll (for write) ret. 0 on channel %d\n", p->channel);
 					continue;
 				}
-				  /* if got exception */
+				/* if got exception */
 				if (fds[0].revents & POLLPRI) return -1;
 				if (!(fds[0].revents & POLLOUT)) {
 					ast_log(LOG_DEBUG, "write fd not ready on channel %d\n", p->channel);
@@ -2671,36 +2739,27 @@ int	x;
 			p->tdd = 0;
 			p->mate = 1;
 			break;
-			}		
+		}		
 		if (!p->tdd) { /* if we dont have one yet */
 			p->tdd = tdd_new(); /* allocate one */
 		}		
 		break;
-	    case AST_OPTION_RELAXDTMF:  /* Relax DTMF decoding (or not) */
+	case AST_OPTION_RELAXDTMF:  /* Relax DTMF decoding (or not) */
 		if (!p->dsp)
 			break;
-		if (!*cp)
-		{		
-			ast_log(LOG_DEBUG, "Set option RELAX DTMF, value: OFF(0) on %s\n",chan->name);
-			x = 0;
-		}
-		else
-		{		
-			ast_log(LOG_DEBUG, "Set option RELAX DTMF, value: ON(1) on %s\n",chan->name);
-			x = 1;
-		}
-		ast_dsp_digitmode(p->dsp,x ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF | p->dtmfrelax);
+		cp = (char *) data;
+		ast_log(LOG_DEBUG, "Set option RELAX DTMF, value: %s(%d) on %s\n",
+			*cp ? "ON" : "OFF", (int) *cp, chan->name);
+		ast_dsp_digitmode(p->dsp, ((*cp) ? DSP_DIGITMODE_RELAXDTMF : DSP_DIGITMODE_DTMF) | p->dtmfrelax);
 		break;
-	    case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
-		if (!*cp)
-		{		
-			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: OFF(0) on %s\n",chan->name);
+	case AST_OPTION_AUDIO_MODE:  /* Set AUDIO mode (or not) */
+		cp = (char *) data;
+		if (!*cp) {		
+			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: OFF(0) on %s\n", chan->name);
 			x = 0;
 			zt_disable_ec(p);
-		}
-		else
-		{		
-			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: ON(1) on %s\n",chan->name);
+		} else {		
+			ast_log(LOG_DEBUG, "Set option AUDIO MODE, value: ON(1) on %s\n", chan->name);
 			x = 1;
 		}
 		if (ioctl(p->subs[SUB_REAL].zfd, ZT_AUDIOMODE, &x) == -1)
@@ -2708,6 +2767,7 @@ int	x;
 		break;
 	}
 	errno = 0;
+
 	return 0;
 }
 

@@ -227,6 +227,22 @@ struct ast_frame_chain {
 /* Set (or clear) Audio (Not-Clear) Mode */
 #define	AST_OPTION_AUDIO_MODE		4
 
+/* Set channel transmit gain */
+/* Option data is a single signed char
+   representing number of decibels (dB)
+   to set gain to (on top of any gain
+   specified in channel driver)
+*/
+#define AST_OPTION_TXGAIN		5
+
+/* Set channel receive gain */
+/* Option data is a single signed char
+   representing number of decibels (dB)
+   to set gain to (on top of any gain
+   specified in channel driver)
+*/
+#define AST_OPTION_RXGAIN		6
+
 struct ast_option_header {
 	/* Always keep in network byte order */
 #if __BYTE_ORDER == __BIG_ENDIAN

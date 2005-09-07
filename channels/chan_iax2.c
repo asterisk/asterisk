@@ -2992,18 +2992,29 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 {
 	struct ast_option_header *h;
 	int res;
-	h = malloc(datalen + sizeof(struct ast_option_header));
-	if (h) {
-		h->flag = AST_OPTION_FLAG_REQUEST;
-		h->option = htons(option);
-		memcpy(h->data, data, datalen);
-		res = send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_CONTROL,
-			AST_CONTROL_OPTION, 0, (unsigned char *)h, datalen + sizeof(struct ast_option_header), -1);
-		free(h);
-		return res;
-	} else 
-		ast_log(LOG_WARNING, "Out of memory\n");
-	return -1;
+
+	switch (option) {
+	case AST_OPTION_TXGAIN:
+	case AST_OPTION_RXGAIN:
+		/* these two cannot be sent, because they require a result */
+		errno = ENOSYS;
+		return -1;
+	default:
+		h = malloc(datalen + sizeof(*h));
+		if (h) {
+			h->flag = AST_OPTION_FLAG_REQUEST;
+			h->option = htons(option);
+			memcpy(h->data, data, datalen);
+			res = send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_CONTROL,
+						  AST_CONTROL_OPTION, 0, (unsigned char *) h,
+						  datalen + sizeof(*h), -1);
+			free(h);
+			return res;
+		} else {
+			ast_log(LOG_WARNING, "Out of memory\n");
+			return -1;
+		}
+	}
 }
 
 static struct ast_frame *iax2_read(struct ast_channel *c) 

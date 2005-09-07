@@ -136,22 +136,30 @@ static struct ast_conference {
 } *confs;
 
 struct ast_conf_user {
-	int user_no;		     /* User Number */
-	struct ast_conf_user *prevuser;  /* Pointer to the previous user */
-	struct ast_conf_user *nextuser;  /* Pointer to the next user */
-	int userflags;			 /* Flags as set in the conference */
-	int adminflags;			 /* Flags set by the Admin */
-	struct ast_channel *chan; 	 /* Connected channel */
-	int talking;			 /* Is user talking */
-	char usrvalue[50];		 /* Custom User Value */
-	char namerecloc[AST_MAX_EXTENSION]; /* Name Recorded file Location */
-	time_t jointime;		 /* Time the user joined the conference */
+	int user_no;				/* User Number */
+	struct ast_conf_user *prevuser;		/* Pointer to the previous user */
+	struct ast_conf_user *nextuser;		/* Pointer to the next user */
+	int userflags;				/* Flags as set in the conference */
+	int adminflags;				/* Flags set by the Admin */
+	struct ast_channel *chan;		/* Connected channel */
+	int talking;				/* Is user talking */
+	int zapchannel;				/* Is a Zaptel channel */
+	char usrvalue[50];			/* Custom User Value */
+	char namerecloc[AST_MAX_EXTENSION];	/* Name Recorded file Location */
+	time_t jointime;			/* Time the user joined the conference */
+	int desired_volume;			/* Desired volume adjustment */
+	int actual_volume;			/* Actual volume adjustment (for channels that can't adjust) */
 };
 
 #define ADMINFLAG_MUTED (1 << 1)	/* User is muted */
 #define ADMINFLAG_KICKME (1 << 2)	/* User is kicked */
 #define MEETME_DELAYDETECTTALK 		300
 #define MEETME_DELAYDETECTENDTALK 	1000
+
+enum volume_action {
+	VOL_UP,
+	VOL_DOWN,
+};
 
 AST_MUTEX_DEFINE_STATIC(conflock);
 
@@ -250,6 +258,94 @@ static int careful_write(int fd, unsigned char *data, int len)
 	}
 	return 0;
 }
+
+/* Map 'volume' levels from -5 through +5 into
+   decibel (dB) settings for channel drivers
+   Note: these are not a straight linear-to-dB
+   conversion... the numbers have been modified
+   to give the user a better level of adjustability
+*/
+static signed char gain_map[] = {
+	-15,
+	-13,
+	-10,
+	-6,
+	0,
+	0,
+	0,
+	6,
+	10,
+	13,
+	15,
+};
+
+static int set_volume(struct ast_conf_user *user, int volume)
+{
+	signed char gain_adjust;
+
+	/* attempt to make the adjustment in the channel driver;
+	   if successful, don't adjust in the frame reading routine
+	*/
+	gain_adjust = gain_map[volume + 5];
+	return ast_channel_setoption(user->chan, AST_OPTION_TXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+}
+
+static void tweak_volume(struct ast_conf_user *user, enum volume_action action)
+{
+	switch (action) {
+	case VOL_UP:
+		switch (user->desired_volume) {
+		case 5:
+			break;
+		case 0:
+			user->desired_volume = 2;
+			break;
+		case -2:
+			user->desired_volume = 0;
+			break;
+		default:
+			user->desired_volume++;
+			break;
+		}
+		break;
+	case VOL_DOWN:
+		switch (user->desired_volume) {
+		case -5:
+			break;
+		case 2:
+			user->desired_volume = 0;
+			break;
+		case 0:
+			user->desired_volume = -2;
+			break;
+		default:
+			user->desired_volume--;
+			break;
+		}
+	}
+	/* attempt to make the adjustment in the channel driver;
+	   if successful, don't adjust in the frame reading routine
+	*/
+	if (!set_volume(user, user->desired_volume))
+		user->actual_volume = 0;
+	else
+		user->actual_volume = user->desired_volume;
+}
+
+static void adjust_volume(struct ast_frame *f, int vol)
+{
+	int count;
+	short *fdata = f->data;
+
+	for (count = 0; count < f->datalen; count++) {
+		if (vol > 0) {
+			fdata[count] *= abs(vol);
+		} else if (vol < 0) {
+			fdata[count] /= abs(vol);
+		}
+	}
+}
+
 
 static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int sound)
 {
@@ -789,6 +885,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	}
 	ast_indicate(chan, -1);
 	retryzap = strcasecmp(chan->type, "Zap");
+	user->zapchannel = retryzap;
 zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
@@ -903,7 +1000,7 @@ zapretry:
 		if (!agifile)
 			agifile = agifiledefault;
 
-		if (!strcasecmp(chan->type,"Zap")) {
+		if (user->zapchannel) {
 			/*  Set CONFMUTE mode on Zap channel to mute DTMF tones */
 			x = 1;
 			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
@@ -916,13 +1013,13 @@ zapretry:
 			ast_log(LOG_WARNING, "Could not find application (agi)\n");
 			ret = -2;
 		}
-		if (!strcasecmp(chan->type,"Zap")) {
+		if (user->zapchannel) {
 			/*  Remove CONFMUTE mode on Zap channel */
 			x = 0;
 			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
 		}
 	} else {
-		if (!strcasecmp(chan->type,"Zap") && (confflags & CONFFLAG_STARMENU)) {
+		if (user->zapchannel && (confflags & CONFFLAG_STARMENU)) {
 			/*  Set CONFMUTE mode on Zap channel to mute DTMF tones when the menu is enabled */
 			x = 1;
 			ast_channel_setoption(chan,AST_OPTION_TONE_VERIFY,&x,sizeof(char),0);
@@ -932,8 +1029,19 @@ zapretry:
 			res = -1;
 		}
 		for(;;) {
+			int menu_was_active = 0;
+
 			outfd = -1;
 			ms = -1;
+			
+			/* if we have just exited from the menu, and the user had a channel-driver
+			   volume adjustment, restore it
+			*/
+			if (!menu_active && menu_was_active && user->desired_volume && !user->actual_volume)
+				set_volume(user, user->desired_volume);
+
+			menu_was_active = menu_active;
+
 			currentmarked = conf->markedusers;
 			if (!(confflags & CONFFLAG_QUIET) && (confflags & CONFFLAG_MARKEDUSER) && (confflags & CONFFLAG_WAITMARKED) && lastmarked == 0) {
 				if (currentmarked == 1 && conf->users > 1) {
@@ -1079,6 +1187,9 @@ zapretry:
 				if (!f)
 					break;
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
+					if (user->actual_volume) {
+						adjust_volume(f, user->actual_volume);
+					}
 					if (confflags &  CONFFLAG_MONITORTALKER) {
 						int totalsilence;
 						if (user->talking == -1)
@@ -1129,6 +1240,13 @@ zapretry:
 						ast_mutex_unlock(&conflock);
 						goto outrun;
 					}
+
+					/* if we are entering the menu, and the user has a channel-driver
+					   volume adjustment, clear it
+					*/
+					if (!menu_active && user->desired_volume && !user->actual_volume)
+						set_volume(user, 0);
+
 					if (musiconhold) {
 			   			ast_moh_stop(chan);
 					}
@@ -1189,6 +1307,19 @@ zapretry:
 										usr->adminflags |= ADMINFLAG_KICKME;
 									ast_stopstream(chan);
 									break;	
+
+								case '9':
+									tweak_volume(user, VOL_UP);
+									break;
+
+								case '8':
+									menu_active = 0;
+									break;
+
+								case '7':
+									tweak_volume(user, VOL_DOWN);
+									break;
+
 								default:
 									menu_active = 0;
 									/* Play an error message! */
@@ -1232,6 +1363,18 @@ zapretry:
 											ast_waitstream(chan, "");
 									}
 									break;
+							case '9':
+								tweak_volume(user, VOL_UP);
+								break;
+
+							case '8':
+								menu_active = 0;
+								break;
+
+							case '7':
+								tweak_volume(user, VOL_DOWN);
+								break;
+
 								default:
 									menu_active = 0;
 									/* Play an error message! */

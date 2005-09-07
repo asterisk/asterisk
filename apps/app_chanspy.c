@@ -39,12 +39,10 @@ AST_MUTEX_DEFINE_STATIC(modlock);
 #define AST_NAME_STRLEN 256
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
-#define minmax(x,y) x ? (x > y) ? y : ((x < (y * -1)) ? (y * -1) : x) : 0
 
-
-static char *synopsis = "Tap into any type of asterisk channel and listen to audio";
-static char *app = "ChanSpy";
-static char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
+static const char *synopsis = "Tap into any type of asterisk channel and listen to audio";
+static const char *app = "ChanSpy";
+static const char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
 "Valid Options:\n"
 " - q: quiet, don't announce channels beep, etc.\n"
 " - b: bridged, only spy on channels involved in a bridged call.\n"
@@ -237,104 +235,102 @@ static int spy_queue_ready(struct ast_channel_spy *spy)
 }
 #endif
 
-
 static int spy_generate(struct ast_channel *chan, void *data, int len, int samples) 
 {
 
-		struct chanspy_translation_helper *csth = data;
-		struct ast_frame frame, *f;
-		int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, x, vf, maxsamp;
-		short buf0[1280], buf1[1280], buf[1280];
+	struct chanspy_translation_helper *csth = data;
+	struct ast_frame frame, *f;
+	int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, x, vf, maxsamp;
+	short buf0[1280], buf1[1280], buf[1280];
 		
-		if (csth->spy.status == CHANSPY_DONE) {
-            return -1;
+	if (csth->spy.status == CHANSPY_DONE) {
+		return -1;
         }
 
-		ast_mutex_lock(&csth->spy.lock);
-		while((f = csth->spy.queue[0])) {
-			csth->spy.queue[0] = f->next;
-			ast_slinfactory_feed(&csth->slinfactory[0], f);
-			ast_frfree(f);
-		}
-		ast_mutex_unlock(&csth->spy.lock);
-		ast_mutex_lock(&csth->spy.lock);
-		while((f = csth->spy.queue[1])) {
-			csth->spy.queue[1] = f->next;
-			ast_slinfactory_feed(&csth->slinfactory[1], f);
-			ast_frfree(f);
-		}
-		ast_mutex_unlock(&csth->spy.lock);
+	ast_mutex_lock(&csth->spy.lock);
+	while((f = csth->spy.queue[0])) {
+		csth->spy.queue[0] = f->next;
+		ast_slinfactory_feed(&csth->slinfactory[0], f);
+		ast_frfree(f);
+	}
+	ast_mutex_unlock(&csth->spy.lock);
+	ast_mutex_lock(&csth->spy.lock);
+	while((f = csth->spy.queue[1])) {
+		csth->spy.queue[1] = f->next;
+		ast_slinfactory_feed(&csth->slinfactory[1], f);
+		ast_frfree(f);
+	}
+	ast_mutex_unlock(&csth->spy.lock);
 		
-		if (csth->slinfactory[0].size < len || csth->slinfactory[1].size < len) {
-			return 0;
-		}
+	if (csth->slinfactory[0].size < len || csth->slinfactory[1].size < len) {
+		return 0;
+	}
 		
-		if ((len0 = ast_slinfactory_read(&csth->slinfactory[0], buf0, len))) {
-			samp0 = len0 / 2;
-		} 
-		if((len1 = ast_slinfactory_read(&csth->slinfactory[1], buf1, len))) {
-			samp1 = len1 / 2;
-		}
+	if ((len0 = ast_slinfactory_read(&csth->slinfactory[0], buf0, len))) {
+		samp0 = len0 / 2;
+	} 
+	if ((len1 = ast_slinfactory_read(&csth->slinfactory[1], buf1, len))) {
+		samp1 = len1 / 2;
+	}
 
-		maxsamp = (samp0 > samp1) ? samp0 : samp1;
-		vf = get_volfactor(csth->volfactor);
-        vf = minmax(vf, 16);
+	maxsamp = (samp0 > samp1) ? samp0 : samp1;
+	vf = get_volfactor(csth->volfactor);
 		
-		for(x=0; x < maxsamp; x++) {
-			if (vf < 0) {
-				if (samp0) {
-					buf0[x] /= abs(vf);
-				}
-				if (samp1) {
-					buf1[x] /= abs(vf);
-				}
-			} else if (vf > 0) {
-				if (samp0) {
-					buf0[x] *= vf;
-				}
-				if (samp1) {
-					buf1[x] *= vf;
-				}
+	for(x=0; x < maxsamp; x++) {
+		if (vf < 0) {
+			if (samp0) {
+				buf0[x] /= abs(vf);
 			}
-			if (samp0 && samp1) {
-				if (x < samp0 && x < samp1) {
-					buf[x] = buf0[x] + buf1[x];
-				} else if (x < samp0) {
-					buf[x] = buf0[x];
-				} else if (x < samp1) {
-					buf[x] = buf1[x];
-				}
+			if (samp1) {
+				buf1[x] /= abs(vf);
+			}
+		} else if (vf > 0) {
+			if (samp0) {
+				buf0[x] *= vf;
+			}
+			if (samp1) {
+				buf1[x] *= vf;
+			}
+		}
+		if (samp0 && samp1) {
+			if (x < samp0 && x < samp1) {
+				buf[x] = buf0[x] + buf1[x];
 			} else if (x < samp0) {
 				buf[x] = buf0[x];
 			} else if (x < samp1) {
 				buf[x] = buf1[x];
 			}
+		} else if (x < samp0) {
+			buf[x] = buf0[x];
+		} else if (x < samp1) {
+			buf[x] = buf1[x];
 		}
+	}
 		
-		memset(&frame, 0, sizeof(frame));
-		frame.frametype = AST_FRAME_VOICE;
-		frame.subclass = AST_FORMAT_SLINEAR;
-		frame.data = buf;
-		frame.samples = x;
-		frame.datalen = x * 2;
+	memset(&frame, 0, sizeof(frame));
+	frame.frametype = AST_FRAME_VOICE;
+	frame.subclass = AST_FORMAT_SLINEAR;
+	frame.data = buf;
+	frame.samples = x;
+	frame.datalen = x * 2;
 
-		if (ast_write(chan, &frame)) {
-			csth->spy.status = CHANSPY_DONE;
-			return -1;
-		}
+	if (ast_write(chan, &frame)) {
+		csth->spy.status = CHANSPY_DONE;
+		return -1;
+	}
 
-		if (csth->fd) {
-			write(csth->fd, buf1, len1);
-		}
+	if (csth->fd) {
+		write(csth->fd, buf1, len1);
+	}
 
-		return 0;
+	return 0;
 }
 
 
 static struct ast_generator spygen = {
-    alloc: spy_alloc, 
-    release: spy_release, 
-    generate: spy_generate, 
+	alloc: spy_alloc, 
+	release: spy_release, 
+	generate: spy_generate, 
 };
 
 static void start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_channel_spy *spy) 
@@ -398,6 +394,34 @@ static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy)
 
 }
 
+/* Map 'volume' levels from -4 through +4 into
+   decibel (dB) settings for channel drivers
+*/
+static signed char volfactor_map[] = {
+	-24,
+	-18,
+	-12,
+	-6,
+	0,
+	6,
+	12,
+	18,
+	24,
+};
+
+/* attempt to set the desired gain adjustment via the channel driver;
+   if successful, clear it out of the csth structure so the
+   generator will not attempt to do the adjustment itself
+*/
+static void set_volume(struct ast_channel *chan, struct chanspy_translation_helper *csth)
+{
+	signed char volume_adjust = volfactor_map[csth->volfactor + 4];
+
+	if (!ast_channel_setoption(chan, AST_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust), 0)) {
+		csth->volfactor = 0;
+	}
+}
+
 static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd) 
 {
 	struct chanspy_translation_helper csth;
@@ -416,6 +440,7 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		csth.spy.status = CHANSPY_RUNNING;
 		ast_mutex_init(&csth.spy.lock);
 		csth.volfactor = *volfactor;
+		set_volume(chan, &csth);
 		
 		if (fd) {
 			csth.fd = fd;
@@ -423,12 +448,12 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		start_spying(spyee, chan, &csth.spy);
 		ast_activate_generator(chan, &spygen, &csth);
 
-		while(csth.spy.status == CHANSPY_RUNNING && 
-			  chan && !ast_check_hangup(chan) && 
-			  spyee && 
-			  !ast_check_hangup(spyee) 
-			  && running == 1 && 
-			  (res = ast_waitfor(chan, -1) > -1)) {
+		while (csth.spy.status == CHANSPY_RUNNING &&
+		       chan && !ast_check_hangup(chan) &&
+		       spyee &&
+		       !ast_check_hangup(spyee) &&
+		       running == 1 &&
+		       (res = ast_waitfor(chan, -1) > -1)) {
 			if ((f = ast_read(chan))) {
 				res = 0;
 				if (f->frametype == AST_FRAME_DTMF) {
@@ -456,14 +481,15 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 					running = x ? atoi(inp) : -1;
 					break;
 				} else {
-					csth.volfactor++;
-					if (csth.volfactor > 4) {
-						csth.volfactor = -4;
+					(*volfactor)++;
+					if (*volfactor > 4) {
+						*volfactor = -4;
 					}
 					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3"Setting spy volume on %s to %d\n", chan->name, csth.volfactor);
+						ast_verbose(VERBOSE_PREFIX_3 "Setting spy volume on %s to %d\n", chan->name, *volfactor);
 					}
-					*volfactor = csth.volfactor;
+					csth.volfactor = *volfactor;
+					set_volume(chan, &csth);
 				}
 			} else if (res >= 48 && res <= 57) {
 				inp[x++] = res;
@@ -482,8 +508,6 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 	ast_mutex_destroy(&csth.spy.lock);
 	return running;
 }
-
-
 
 static int chanspy_exec(struct ast_channel *chan, void *data)
 {
@@ -560,12 +584,13 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		silent = ast_test_flag(&flags, OPTION_QUIET);
 		bronly = ast_test_flag(&flags, OPTION_BRIDGED);
 		if (ast_test_flag(&flags, OPTION_VOLUME) && opts[1]) {
-			if (sscanf(opts[0], "%d", &volfactor) != 1)
-				ast_log(LOG_NOTICE, "volfactor must be a number between -4 and 4\n");
-			else {
-				volfactor = minmax(volfactor, 4);
+			int vol;
+
+			if ((sscanf(opts[0], "%d", &vol) != 1) || (vol > 4) || (vol < -4))
+				ast_log(LOG_NOTICE, "Volume factor must be a number between -4 and 4\n");
+			else
+				volfactor = vol;
 			}
-		}
 	}
 
 	if (recbase) {
@@ -614,9 +639,9 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 				}
 				
 				if (igrp && (!spec || ((strlen(spec) < strlen(peer->name) &&
-									   !strncasecmp(peer->name, spec, strlen(spec)))))) {
+							!strncasecmp(peer->name, spec, strlen(spec)))))) {
 					if (peer && (!bronly || ast_bridged_channel(peer)) &&
-						!ast_check_hangup(peer) && !ast_test_flag(peer, AST_FLAG_SPYING)) {
+					    !ast_check_hangup(peer) && !ast_test_flag(peer, AST_FLAG_SPYING)) {
 						int x = 0;
 
 						strncpy(peer_name, peer->name, AST_NAME_STRLEN);
@@ -694,7 +719,7 @@ int load_module(void)
 
 char *description(void)
 {
-	return synopsis;
+	return (char *) synopsis;
 }
 
 int usecount(void)
