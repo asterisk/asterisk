@@ -11861,7 +11861,7 @@ static char *descrip_sipaddheader = ""
 "  SIPAddHeader(Header: Content)\n"
 "Adds a header to a SIP call placed with DIAL.\n"
 "Remember to user the X-header if you are adding non-standard SIP\n"
-"headers, like \"X-Asterisk-Accuntcode:\". Use this with care.\n"
+"headers, like \"X-Asterisk-Accountcode:\". Use this with care.\n"
 "Adding the wrong headers may jeopardize the SIP dialog.\n"
 "Always returns 0\n";
 
