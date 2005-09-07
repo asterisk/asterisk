@@ -135,6 +135,11 @@ static struct ast_conference {
 	struct ast_conference *next;
 } *confs;
 
+struct volume {
+	int desired;				/* Desired volume adjustment */
+	int actual;				/* Actual volume adjustment (for channels that can't adjust) */
+};
+
 struct ast_conf_user {
 	int user_no;				/* User Number */
 	struct ast_conf_user *prevuser;		/* Pointer to the previous user */
@@ -147,8 +152,8 @@ struct ast_conf_user {
 	char usrvalue[50];			/* Custom User Value */
 	char namerecloc[AST_MAX_EXTENSION];	/* Name Recorded file Location */
 	time_t jointime;			/* Time the user joined the conference */
-	int desired_talk_volume;		/* Desired talk volume adjustment */
-	int actual_talk_volume;			/* Actual talk volume adjustment (for channels that can't adjust) */
+	struct volume talk;
+	struct volume listen;
 };
 
 #define ADMINFLAG_MUTED (1 << 1)	/* User is muted */
@@ -290,46 +295,74 @@ static int set_talk_volume(struct ast_conf_user *user, int volume)
 	return ast_channel_setoption(user->chan, AST_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
 }
 
-static void tweak_talk_volume(struct ast_conf_user *user, enum volume_action action)
+static int set_listen_volume(struct ast_conf_user *user, int volume)
+{
+	signed char gain_adjust;
+
+	/* attempt to make the adjustment in the channel driver;
+	   if successful, don't adjust in the frame reading routine
+	*/
+	gain_adjust = gain_map[volume + 5];
+	return ast_channel_setoption(user->chan, AST_OPTION_TXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+}
+
+static void tweak_volume(struct volume *vol, enum volume_action action)
 {
 	switch (action) {
 	case VOL_UP:
-		switch (user->desired_talk_volume) {
+		switch (vol->desired) {
 		case 5:
 			break;
 		case 0:
-			user->desired_talk_volume = 2;
+			vol->desired = 2;
 			break;
 		case -2:
-			user->desired_talk_volume = 0;
+			vol->desired = 0;
 			break;
 		default:
-			user->desired_talk_volume++;
+			vol->desired++;
 			break;
 		}
 		break;
 	case VOL_DOWN:
-		switch (user->desired_talk_volume) {
+		switch (vol->desired) {
 		case -5:
 			break;
 		case 2:
-			user->desired_talk_volume = 0;
+			vol->desired = 0;
 			break;
 		case 0:
-			user->desired_talk_volume = -2;
+			vol->desired = -2;
 			break;
 		default:
-			user->desired_talk_volume--;
+			vol->desired--;
 			break;
 		}
 	}
+}
+
+static void tweak_talk_volume(struct ast_conf_user *user, enum volume_action action)
+{
+	tweak_volume(&user->talk, action);
 	/* attempt to make the adjustment in the channel driver;
 	   if successful, don't adjust in the frame reading routine
 	*/
-	if (!set_talk_volume(user, user->desired_talk_volume))
-		user->actual_talk_volume = 0;
+	if (!set_talk_volume(user, user->talk.desired))
+		user->talk.actual = 0;
 	else
-		user->actual_talk_volume = user->desired_talk_volume;
+		user->talk.actual = user->talk.desired;
+}
+
+static void tweak_listen_volume(struct ast_conf_user *user, enum volume_action action)
+{
+	tweak_volume(&user->listen, action);
+	/* attempt to make the adjustment in the channel driver;
+	   if successful, don't adjust in the frame reading routine
+	*/
+	if (!set_listen_volume(user, user->listen.desired))
+		user->listen.actual = 0;
+	else
+		user->listen.actual = user->listen.desired;
 }
 
 static void adjust_volume(struct ast_frame *f, int vol)
@@ -345,7 +378,6 @@ static void adjust_volume(struct ast_frame *f, int vol)
 		}
 	}
 }
-
 
 static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int sound)
 {
@@ -1037,8 +1069,8 @@ zapretry:
 			/* if we have just exited from the menu, and the user had a channel-driver
 			   volume adjustment, restore it
 			*/
-			if (!menu_active && menu_was_active && user->desired_talk_volume && !user->actual_talk_volume)
-				set_talk_volume(user, user->desired_talk_volume);
+			if (!menu_active && menu_was_active && user->listen.desired && !user->listen.actual)
+				set_talk_volume(user, user->listen.desired);
 
 			menu_was_active = menu_active;
 
@@ -1187,8 +1219,8 @@ zapretry:
 				if (!f)
 					break;
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
-					if (user->actual_talk_volume) {
-						adjust_volume(f, user->actual_talk_volume);
+					if (user->talk.actual) {
+						adjust_volume(f, user->talk.actual);
 					}
 					if (confflags &  CONFFLAG_MONITORTALKER) {
 						int totalsilence;
@@ -1244,7 +1276,7 @@ zapretry:
 					/* if we are entering the menu, and the user has a channel-driver
 					   volume adjustment, clear it
 					*/
-					if (!menu_active && user->desired_talk_volume && !user->actual_talk_volume)
+					if (!menu_active && user->talk.desired && !user->talk.actual)
 						set_talk_volume(user, 0);
 
 					if (musiconhold) {
@@ -1263,69 +1295,77 @@ zapretry:
 							dtmf = f->subclass;
 						if (dtmf) {
 							switch(dtmf) {
-								case '1': /* Un/Mute */
-									menu_active = 0;
-		 							if (ztc.confmode & ZT_CONF_TALKER) {
+							case '1': /* Un/Mute */
+								menu_active = 0;
+								if (ztc.confmode & ZT_CONF_TALKER) {
 	 						       		ztc.confmode = ZT_CONF_CONF | ZT_CONF_LISTENER;
 	 						       		confflags |= CONFFLAG_MONITOR ^ CONFFLAG_TALKER;
-									} else {
-										ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
-										confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
-									}
-									if (ioctl(fd, ZT_SETCONF, &ztc)) {
-										ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
-										ret = -1;
-										break;
-									}
-									if (ztc.confmode & ZT_CONF_TALKER) {
-										if (!ast_streamfile(chan, "conf-unmuted", chan->language))
-											ast_waitstream(chan, "");
-									} else {
-										if (!ast_streamfile(chan, "conf-muted", chan->language))
-											ast_waitstream(chan, "");
-									}
+								} else {
+									ztc.confmode = ZT_CONF_CONF | ZT_CONF_TALKER | ZT_CONF_LISTENER;
+									confflags ^= CONFFLAG_MONITOR | CONFFLAG_TALKER;
+								}
+								if (ioctl(fd, ZT_SETCONF, &ztc)) {
+									ast_log(LOG_WARNING, "Error setting conference - Un/Mute \n");
+									ret = -1;
 									break;
-								case '2': /* Un/Lock the Conference */
-									menu_active = 0;
-									if (conf->locked) {
-										conf->locked = 0;
-										if (!ast_streamfile(chan, "conf-unlockednow", chan->language))
-											ast_waitstream(chan, "");
-									} else {
-										conf->locked = 1;
-										if (!ast_streamfile(chan, "conf-lockednow", chan->language))
-											ast_waitstream(chan, "");
-									}
-									break;
-								case '3': /* Eject last user */
-									menu_active = 0;
-									usr = conf->lastuser;
-									if ((usr->chan->name == chan->name)||(usr->userflags & CONFFLAG_ADMIN)) {
-										if(!ast_streamfile(chan, "conf-errormenu", chan->language))
-											ast_waitstream(chan, "");
-									} else 
-										usr->adminflags |= ADMINFLAG_KICKME;
-									ast_stopstream(chan);
-									break;	
-
-								case '9':
-									tweak_talk_volume(user, VOL_UP);
-									break;
-
-								case '8':
-									menu_active = 0;
-									break;
-
-								case '7':
-									tweak_talk_volume(user, VOL_DOWN);
-									break;
-
-								default:
-									menu_active = 0;
-									/* Play an error message! */
-									if (!ast_streamfile(chan, "conf-errormenu", chan->language))
+								}
+								if (ztc.confmode & ZT_CONF_TALKER) {
+									if (!ast_streamfile(chan, "conf-unmuted", chan->language))
 										ast_waitstream(chan, "");
-									break;
+								} else {
+									if (!ast_streamfile(chan, "conf-muted", chan->language))
+										ast_waitstream(chan, "");
+								}
+								break;
+							case '2': /* Un/Lock the Conference */
+								menu_active = 0;
+								if (conf->locked) {
+									conf->locked = 0;
+									if (!ast_streamfile(chan, "conf-unlockednow", chan->language))
+										ast_waitstream(chan, "");
+								} else {
+									conf->locked = 1;
+									if (!ast_streamfile(chan, "conf-lockednow", chan->language))
+										ast_waitstream(chan, "");
+								}
+								break;
+							case '3': /* Eject last user */
+								menu_active = 0;
+								usr = conf->lastuser;
+								if ((usr->chan->name == chan->name)||(usr->userflags & CONFFLAG_ADMIN)) {
+									if(!ast_streamfile(chan, "conf-errormenu", chan->language))
+										ast_waitstream(chan, "");
+								} else 
+									usr->adminflags |= ADMINFLAG_KICKME;
+								ast_stopstream(chan);
+								break;	
+
+							case '4':
+								tweak_listen_volume(user, VOL_DOWN);
+								break;
+
+							case '6':
+								tweak_listen_volume(user, VOL_UP);
+								break;
+
+							case '7':
+								tweak_talk_volume(user, VOL_DOWN);
+								break;
+								
+							case '8':
+								menu_active = 0;
+								break;
+								
+							case '9':
+								tweak_talk_volume(user, VOL_UP);
+								break;
+								
+							default:
+								menu_active = 0;
+								/* Play an error message! */
+								if (!ast_streamfile(chan, "conf-errormenu", chan->language))
+									ast_waitstream(chan, "");
+								break;
 							}
 						}
 					} else {
@@ -1363,24 +1403,32 @@ zapretry:
 											ast_waitstream(chan, "");
 									}
 									break;
-							case '9':
-								tweak_talk_volume(user, VOL_UP);
+							case '4':
+								tweak_listen_volume(user, VOL_DOWN);
 								break;
 
-							case '8':
-								menu_active = 0;
+							case '6':
+								tweak_listen_volume(user, VOL_UP);
 								break;
 
 							case '7':
 								tweak_talk_volume(user, VOL_DOWN);
 								break;
 
-								default:
-									menu_active = 0;
-									/* Play an error message! */
-									if (!ast_streamfile(chan, "conf-errormenu", chan->language))
-										ast_waitstream(chan, "");
-									break;
+							case '8':
+								menu_active = 0;
+								break;
+
+							case '9':
+								tweak_talk_volume(user, VOL_UP);
+								break;
+
+							default:
+								menu_active = 0;
+								/* Play an error message! */
+								if (!ast_streamfile(chan, "conf-errormenu", chan->language))
+									ast_waitstream(chan, "");
+								break;
 							}
 						}
 					}
@@ -1409,6 +1457,8 @@ zapretry:
 					fr.samples = res/2;
 					fr.data = buf;
 					fr.offset = AST_FRIENDLY_OFFSET;
+					if (user->listen.actual)
+						adjust_volume(&fr, user->listen.actual);
 					if (ast_write(chan, &fr) < 0) {
 						ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
 						/* break; */
