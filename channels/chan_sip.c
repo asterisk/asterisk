@@ -2142,7 +2142,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			} else {
 				*inuse = 0;
 			}
-			ast_log(LOG_ERROR, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
+			if (option_debug > 1 || sipdebug) {
+				ast_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
+			}
 			break;
 		case INC_CALL_LIMIT:
 			if (*call_limit > 0 ) {
@@ -2160,7 +2162,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 				}
 			}
 			(*inuse)++;
-			ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
+			if (option_debug > 1 || sipdebug) {
+				ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
+			}
 			break;
 		default:
 			ast_log(LOG_ERROR, "update_call_counter(%s, %d) called with no event!\n", name, event);
