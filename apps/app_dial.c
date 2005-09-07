@@ -347,7 +347,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				if (!ast_strlen_zero(o->chan->call_forward)) {
-					char tmpchan[256]="";
+					char tmpchan[256];
 					char *stuff;
 					char *tech;
 					ast_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
@@ -626,8 +626,8 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	int res=-1;
 	struct localuser *u;
 	char *info, *peers, *timeout, *tech, *number, *rest, *cur;
-	char  privdb[256] = "", *s;
-	char  privcid[256] = "";
+	char privdb[256], *s;
+	char privcid[256];
 	char privintro[1024];
 	char  announcemsg[256] = "", *ann;
 	struct localuser *outgoing=NULL, *tmp;
@@ -668,7 +668,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char *dtmfcalled=NULL, *dtmfcalling=NULL;
 	char *stack,*var;
 	char *mac = NULL, *macroname = NULL;
-	char status[256]="";
+	char status[256];
 	char toast[80];
 	int play_to_caller=0,play_to_callee=0;
 	int playargs=0, sentringing=0, moh=0;
@@ -1102,7 +1102,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		pbx_builtin_setvar_helper(tmp->chan, "DIALEDPEERNUMBER", numsubst);
 		if (!ast_strlen_zero(tmp->chan->call_forward)) {
-			char tmpchan[256]="";
+			char tmpchan[256];
 			char *stuff;
 			char *tech;
 			ast_copy_string(tmpchan, tmp->chan->call_forward, sizeof(tmpchan));

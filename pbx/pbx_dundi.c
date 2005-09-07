@@ -540,7 +540,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			dr[anscnt].techint = map->tech;
 			dr[anscnt].weight = map->weight;
 			dr[anscnt].expiration = dundi_cache_time;
-			strncpy(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
+			ast_copy_string(dr[anscnt].tech, tech2str(map->tech), sizeof(dr[anscnt].tech));
 			dr[anscnt].eid = *us_eid;
 			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
 			if (ast_test_flag(&flags, DUNDI_FLAG_EXISTS)) {
@@ -564,7 +564,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 		} else {
 			/* No answers...  Find the fewest number of digits from the
 			   number for which we have no answer. */
-			char tmp[AST_MAX_EXTENSION]="";
+			char tmp[AST_MAX_EXTENSION];
 			for (x=0;x<AST_MAX_EXTENSION;x++) {
 				tmp[x] = called_number[x];
 				if (!tmp[x])
@@ -573,7 +573,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 					/* Oops found something we can't match.  If this is longer
 					   than the running hint, we have to consider it */
 					if (strlen(tmp) > strlen(hmd->exten)) {
-						strncpy(hmd->exten, tmp, sizeof(hmd->exten) - 1);
+						ast_copy_string(hmd->exten, tmp, sizeof(hmd->exten));
 					}
 					break;
 				}
@@ -698,13 +698,13 @@ static void *dundi_query_thread(void *data)
 	if (!dundi_eid_cmp(&st->trans->us_eid, &st->reqeid)) {
 		/* Ooh, it's us! */
 		ast_log(LOG_DEBUG, "Neat, someone look for us!\n");
-		strncpy(dei.orgunit, dept, sizeof(dei.orgunit));
-		strncpy(dei.org, org, sizeof(dei.org));
-		strncpy(dei.locality, locality, sizeof(dei.locality));
-		strncpy(dei.stateprov, stateprov, sizeof(dei.stateprov));
-		strncpy(dei.country, country, sizeof(dei.country));
-		strncpy(dei.email, email, sizeof(dei.email));
-		strncpy(dei.phone, phone, sizeof(dei.phone));
+		ast_copy_string(dei.orgunit, dept, sizeof(dei.orgunit));
+		ast_copy_string(dei.org, org, sizeof(dei.org));
+		ast_copy_string(dei.locality, locality, sizeof(dei.locality));
+		ast_copy_string(dei.stateprov, stateprov, sizeof(dei.stateprov));
+		ast_copy_string(dei.country, country, sizeof(dei.country));
+		ast_copy_string(dei.email, email, sizeof(dei.email));
+		ast_copy_string(dei.phone, phone, sizeof(dei.phone));
 		res = 1;
 	} else {
 		/* If we do not have a canonical result, keep looking */
@@ -760,7 +760,7 @@ static int dundi_answer_entity(struct dundi_transaction *trans, struct dundi_ies
 	st = malloc(totallen);
 	if (st) {
 		memset(st, 0, totallen);
-		strncpy(st->called_context, ies->called_context, sizeof(st->called_context) - 1);
+		ast_copy_string(st->called_context, ies->called_context, sizeof(st->called_context));
 		memcpy(&st->reqeid, ies->reqeid, sizeof(st->reqeid));
 		st->trans = trans;
 		st->ttl = ies->ttl - 1;
@@ -802,7 +802,7 @@ static int cache_save_hint(dundi_eid *eidpeer, struct dundi_request *req, struct
 	char key2[256];
 	char eidpeer_str[20];
 	char eidroot_str[20];
-	char data[80]="";
+	char data[80];
 	time_t timeout;
 
 	if (expiration < 0)
@@ -835,7 +835,7 @@ static int cache_save(dundi_eid *eidpeer, struct dundi_request *req, int start, 
 	int x;
 	char key1[256];
 	char key2[256];
-	char data[1024]="";
+	char data[1024];
 	char eidpeer_str[20];
 	char eidroot_str[20];
 	time_t timeout;
@@ -901,8 +901,8 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	dr.hmd = &hmd;
 	dr.pfds[0] = dr.pfds[1] = -1;
 	trans->parent = &dr;
-	strncpy(dr.dcontext, ies->called_context ? ies->called_context : "e164", sizeof(dr.dcontext));
-	strncpy(dr.number, ies->called_number, sizeof(dr.number) - 1);
+	ast_copy_string(dr.dcontext, ies->called_context ? ies->called_context : "e164", sizeof(dr.dcontext));
+	ast_copy_string(dr.number, ies->called_number, sizeof(dr.number));
 	
 	for (x=0;x<ies->anscount;x++) {
 		if (trans->parent->respcount < trans->parent->maxcount) {
@@ -925,9 +925,9 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 				dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 					sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 					&ies->answers[x]->eid);
-				strncpy(trans->parent->dr[trans->parent->respcount].dest, (char *)ies->answers[x]->data,
+				ast_copy_string(trans->parent->dr[trans->parent->respcount].dest, (char *)ies->answers[x]->data,
 					sizeof(trans->parent->dr[trans->parent->respcount].dest));
-					strncpy(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies->answers[x]->protocol),
+					ast_copy_string(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies->answers[x]->protocol),
 					sizeof(trans->parent->dr[trans->parent->respcount].tech));
 				trans->parent->respcount++;
 				ast_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);	
@@ -974,8 +974,8 @@ static int dundi_prop_precache(struct dundi_transaction *trans, struct dundi_ies
 	st = malloc(totallen);
 	if (st) {
 		memset(st, 0, totallen);
-		strncpy(st->called_context, ies->called_context, sizeof(st->called_context) - 1);
-		strncpy(st->called_number, ies->called_number, sizeof(st->called_number) - 1);
+		ast_copy_string(st->called_context, ies->called_context, sizeof(st->called_context));
+		ast_copy_string(st->called_number, ies->called_number, sizeof(st->called_number));
 		st->trans = trans;
 		st->ttl = ies->ttl - 1;
 		st->nocache = ies->cbypass;
@@ -1066,8 +1066,8 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 	st = malloc(totallen);
 	if (st) {
 		memset(st, 0, totallen);
-		strncpy(st->called_context, ies->called_context, sizeof(st->called_context) - 1);
-		strncpy(st->called_number, ies->called_number, sizeof(st->called_number) - 1);
+		ast_copy_string(st->called_context, ies->called_context, sizeof(st->called_context));
+		ast_copy_string(st->called_number, ies->called_number, sizeof(st->called_number));
 		st->trans = trans;
 		st->ttl = ies->ttl - 1;
 		st->nocache = ies->cbypass;
@@ -1120,7 +1120,7 @@ static int dundi_answer_query(struct dundi_transaction *trans, struct dundi_ies 
 
 static int cache_lookup_internal(time_t now, struct dundi_request *req, char *key, char *eid_str_full, int *lowexpiration)
 {
-	char data[1024]="";
+	char data[1024];
 	char *ptr, *term, *src;
 	int tech;
 	struct ast_flags flags;
@@ -1166,9 +1166,9 @@ static int cache_lookup_internal(time_t now, struct dundi_request *req, char *ke
 							dundi_str_short_to_eid(&req->dr[req->respcount].eid, src);
 							dundi_eid_to_str(req->dr[req->respcount].eid_str, 
 								sizeof(req->dr[req->respcount].eid_str), &req->dr[req->respcount].eid);
-							strncpy(req->dr[req->respcount].dest, ptr,
+							ast_copy_string(req->dr[req->respcount].dest, ptr,
 								sizeof(req->dr[req->respcount].dest));
-							strncpy(req->dr[req->respcount].tech, tech2str(tech),
+							ast_copy_string(req->dr[req->respcount].tech, tech2str(tech),
 								sizeof(req->dr[req->respcount].tech));
 							req->respcount++;
 							ast_clear_flag_nonstd(req->hmd, DUNDI_HINT_DONT_ASK);	
@@ -1230,7 +1230,7 @@ static int cache_lookup(struct dundi_request *req, dundi_eid *peer_eid, unsigned
 			if (res2) {
 				if (strlen(tmp) > strlen(req->hmd->exten)) {
 					/* Update meta data if appropriate */
-					strncpy(req->hmd->exten, tmp, sizeof(req->hmd->exten) - 1);
+					ast_copy_string(req->hmd->exten, tmp, sizeof(req->hmd->exten));
 				}
 			}
 		}
@@ -1660,9 +1660,9 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 								dundi_eid_to_str(trans->parent->dr[trans->parent->respcount].eid_str, 
 									sizeof(trans->parent->dr[trans->parent->respcount].eid_str),
 									&ies.answers[x]->eid);
-								strncpy(trans->parent->dr[trans->parent->respcount].dest, (char *)ies.answers[x]->data,
+								ast_copy_string(trans->parent->dr[trans->parent->respcount].dest, (char *)ies.answers[x]->data,
 									sizeof(trans->parent->dr[trans->parent->respcount].dest));
-								strncpy(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies.answers[x]->protocol),
+								ast_copy_string(trans->parent->dr[trans->parent->respcount].tech, tech2str(ies.answers[x]->protocol),
 									sizeof(trans->parent->dr[trans->parent->respcount].tech));
 								trans->parent->respcount++;
 								ast_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);
@@ -1684,8 +1684,8 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 							ast_set_flag_nonstd(trans->parent->hmd, DUNDI_HINT_TTL_EXPIRED);
 						if (ast_test_flag_nonstd(ies.hint, htons(DUNDI_HINT_DONT_ASK))) { 
 							if (strlen((char *)ies.hint->data) > strlen(trans->parent->hmd->exten)) {
-								strncpy(trans->parent->hmd->exten, (char *)ies.hint->data, 
-									sizeof(trans->parent->hmd->exten) - 1);
+								ast_copy_string(trans->parent->hmd->exten, (char *)ies.hint->data, 
+									sizeof(trans->parent->hmd->exten));
 							}
 						} else {
 							ast_clear_flag_nonstd(trans->parent->hmd, DUNDI_HINT_DONT_ASK);
@@ -1725,21 +1725,21 @@ static int handle_command_response(struct dundi_transaction *trans, struct dundi
 					if (!trans->parent->respcount) {
 						trans->parent->respcount++;
 						if (ies.q_dept)
-							strncpy(trans->parent->dei->orgunit, ies.q_dept, sizeof(trans->parent->dei->orgunit) - 1);
+							ast_copy_string(trans->parent->dei->orgunit, ies.q_dept, sizeof(trans->parent->dei->orgunit));
 						if (ies.q_org)
-							strncpy(trans->parent->dei->org, ies.q_org, sizeof(trans->parent->dei->org) - 1);
+							ast_copy_string(trans->parent->dei->org, ies.q_org, sizeof(trans->parent->dei->org));
 						if (ies.q_locality)
-							strncpy(trans->parent->dei->locality, ies.q_locality, sizeof(trans->parent->dei->locality) - 1);
+							ast_copy_string(trans->parent->dei->locality, ies.q_locality, sizeof(trans->parent->dei->locality));
 						if (ies.q_stateprov)
-							strncpy(trans->parent->dei->stateprov, ies.q_stateprov, sizeof(trans->parent->dei->stateprov) - 1);
+							ast_copy_string(trans->parent->dei->stateprov, ies.q_stateprov, sizeof(trans->parent->dei->stateprov));
 						if (ies.q_country)
-							strncpy(trans->parent->dei->country, ies.q_country, sizeof(trans->parent->dei->country) - 1);
+							ast_copy_string(trans->parent->dei->country, ies.q_country, sizeof(trans->parent->dei->country));
 						if (ies.q_email)
-							strncpy(trans->parent->dei->email, ies.q_email, sizeof(trans->parent->dei->email) - 1);
+							ast_copy_string(trans->parent->dei->email, ies.q_email, sizeof(trans->parent->dei->email));
 						if (ies.q_phone)
-							strncpy(trans->parent->dei->phone, ies.q_phone, sizeof(trans->parent->dei->phone) - 1);
+							ast_copy_string(trans->parent->dei->phone, ies.q_phone, sizeof(trans->parent->dei->phone));
 						if (ies.q_ipaddr)
-							strncpy(trans->parent->dei->ipaddr, ies.q_ipaddr, sizeof(trans->parent->dei->ipaddr) - 1);
+							ast_copy_string(trans->parent->dei->ipaddr, ies.q_ipaddr, sizeof(trans->parent->dei->ipaddr));
 						if (!dundi_eid_cmp(&trans->them_eid, &trans->parent->query_eid)) {
 							/* If it's them, update our address */
 							ast_inet_ntoa(trans->parent->dei->ipaddr, sizeof(trans->parent->dei->ipaddr),
@@ -2050,7 +2050,7 @@ static void load_password(void)
 	}
 	if (current) {
 		/* Current key is still valid, just setup rotatation properly */
-		strncpy(cursecret, current, sizeof(cursecret) - 1);
+		ast_copy_string(cursecret, current, sizeof(cursecret));
 		rotatetime = expired;
 	} else {
 		/* Current key is out of date, rotate or eliminate all together */
@@ -2070,7 +2070,7 @@ static void check_password(void)
 #endif
 	if ((now - rotatetime) >= 0) {
 		/* Time to rotate keys */
-		strncpy(oldsecret, cursecret, sizeof(oldsecret) - 1);
+		ast_copy_string(oldsecret, cursecret, sizeof(oldsecret));
 		build_secret(cursecret, sizeof(cursecret));
 		save_secret(cursecret, oldsecret);
 	}
@@ -2102,8 +2102,8 @@ static void *process_precache(void *ign)
 {
 	struct dundi_precache_queue *qe;
 	time_t now;
-	char context[256]="";
-	char number[256]="";
+	char context[256];
+	char number[256];
 	int run;
 	for (;;) {
 		time(&now);
@@ -2118,8 +2118,8 @@ static void *process_precache(void *ign)
 			} else if (pcq->expiration < now) {
 				/* Process this entry */
 				pcq->expiration = 0;
-				strncpy(context, pcq->context, sizeof(context) - 1);
-				strncpy(number, pcq->number, sizeof(number) - 1);
+				ast_copy_string(context, pcq->context, sizeof(context));
+				ast_copy_string(number, pcq->number, sizeof(number));
 				run = 1;
 			}
 		}
@@ -2274,7 +2274,7 @@ static void sort_results(struct dundi_result *results, int count)
 static int dundi_do_lookup(int fd, int argc, char *argv[])
 {
 	int res;
-	char tmp[256] = "";
+	char tmp[256];
 	char fs[80] = "";
 	char *context;
 	int x;
@@ -2289,7 +2289,7 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 		else
 			return RESULT_SHOWUSAGE;
 	}
-	strncpy(tmp, argv[2], sizeof(tmp) - 1);
+	ast_copy_string(tmp, argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
@@ -2315,12 +2315,12 @@ static int dundi_do_lookup(int fd, int argc, char *argv[])
 static int dundi_do_precache(int fd, int argc, char *argv[])
 {
 	int res;
-	char tmp[256] = "";
+	char tmp[256];
 	char *context;
 	struct timeval start;
 	if ((argc < 3) || (argc > 3))
 		return RESULT_SHOWUSAGE;
-	strncpy(tmp, argv[2], sizeof(tmp) - 1);
+	ast_copy_string(tmp, argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
@@ -2340,7 +2340,7 @@ static int dundi_do_precache(int fd, int argc, char *argv[])
 static int dundi_do_query(int fd, int argc, char *argv[])
 {
 	int res;
-	char tmp[256] = "";
+	char tmp[256];
 	char *context;
 	dundi_eid eid;
 	struct dundi_entity_info dei;
@@ -2350,7 +2350,7 @@ static int dundi_do_query(int fd, int argc, char *argv[])
 		ast_cli(fd, "'%s' is not a valid EID!\n", argv[2]);
 		return RESULT_SHOWUSAGE;
 	}
-	strncpy(tmp, argv[2], sizeof(tmp) - 1);
+	ast_copy_string(tmp, argv[2], sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
 		*context = '\0';
@@ -2476,15 +2476,15 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 	ast_mutex_lock(&peerlock);
 	ast_cli(fd, FORMAT2, "EID", "Host", "Model", "AvgTime", "Status");
 	for (peer = peers;peer;peer = peer->next) {
-		char status[20] = "";
-        int print_line = -1;
-		char srch[2000] = "";
+		char status[20];
+		int print_line = -1;
+		char srch[2000];
 		total_peers++;
 		if (registeredonly && !peer->addr.sin_addr.s_addr)
 			continue;
 		if (peer->maxms) {
 			if (peer->lastms < 0) {
-				strncpy(status, "UNREACHABLE", sizeof(status) - 1);
+				strcpy(status, "UNREACHABLE");
 				offline_peers++;
 			}
 			else if (peer->lastms > peer->maxms) {
@@ -2496,11 +2496,11 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 				online_peers++;
 			}
 			else {
-				strncpy(status, "UNKNOWN", sizeof(status) - 1);
+				strcpy(status, "UNKOWN");
 				offline_peers++;
 			}
 		} else {
-			strncpy(status, "Unmonitored", sizeof(status) - 1);
+			strcpy(status, "Unmonitored");
 			unmonitored_peers++;
 		}
 		if (peer->avgms) 
@@ -3548,8 +3548,8 @@ static int dundi_lookup_internal(struct dundi_result *result, int maxret, struct
 	dr.expiration = *expiration;
 	dr.cbypass = cbypass;
 	dr.crc32 = avoid_crc32(avoid);
-	strncpy(dr.dcontext, dcontext ? dcontext : "e164", sizeof(dr.dcontext) - 1);
-	strncpy(dr.number, number, sizeof(dr.number) - 1);
+	ast_copy_string(dr.dcontext, dcontext ? dcontext : "e164", sizeof(dr.dcontext));
+	ast_copy_string(dr.number, number, sizeof(dr.number));
 	if (rooteid)
 		dr.root_eid = *rooteid;
 	res = register_request(&dr, &pending);
@@ -3741,8 +3741,8 @@ static int dundi_precache_internal(const char *context, const char *number, int 
 	memset(&dr, 0, sizeof(dr));
 	memset(&hmd, 0, sizeof(hmd));
 	dr.dr = dr2;
-	strncpy(dr.number, number, sizeof(dr.number) - 1);
-	strncpy(dr.dcontext, context ? context : "e164", sizeof(dr.dcontext) - 1);
+	ast_copy_string(dr.number, number, sizeof(dr.number));
+	ast_copy_string(dr.dcontext, context ? context : "e164", sizeof(dr.dcontext));
 	dr.maxcount = MAX_RESULTS;
 	dr.expiration = dundi_cache_time;
 	dr.hmd = &hmd;
@@ -3800,7 +3800,7 @@ static int dundi_query_eid_internal(struct dundi_entity_info *dei, const char *d
 	dr.hmd = hmd;
 	dr.dei = dei;
 	dr.pfds[0] = dr.pfds[1] = -1;
-	strncpy(dr.dcontext, dcontext ? dcontext : "e164", sizeof(dr.dcontext) - 1);
+	ast_copy_string(dr.dcontext, dcontext ? dcontext : "e164", sizeof(dr.dcontext));
 	memcpy(&dr.query_eid, eid, sizeof(dr.query_eid));
 	if (rooteid)
 		dr.root_eid = *rooteid;
@@ -4051,13 +4051,13 @@ static void build_mapping(char *name, char *value)
 			} /* Russell was here, arrrr! */
 			if ((x == 1) && ast_strlen_zero(fields[0])) {
 				/* Placeholder mapping */
-				strncpy(map->dcontext, name, sizeof(map->dcontext) - 1);
+				ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
 				map->dead = 0;
 			} else if (x >= 4) {
-				strncpy(map->dcontext, name, sizeof(map->dcontext) - 1);
-				strncpy(map->lcontext, fields[0], sizeof(map->lcontext) - 1);
+				ast_copy_string(map->dcontext, name, sizeof(map->dcontext));
+				ast_copy_string(map->lcontext, fields[0], sizeof(map->lcontext));
 				if ((sscanf(fields[1], "%d", &map->weight) == 1) && (map->weight >= 0) && (map->weight < 60000)) {
-					strncpy(map->dest, fields[3], sizeof(map->dest) - 1);
+					ast_copy_string(map->dest, fields[3], sizeof(map->dest));
 					if ((map->tech = str2tech(fields[2]))) {
 						map->dead = 0;
 					}
@@ -4216,9 +4216,9 @@ static void build_peer(dundi_eid *eid, struct ast_variable *v, int *globalpcmode
 		peer->registerid = -1;
 		while(v) {
 			if (!strcasecmp(v->name, "inkey")) {
-				strncpy(peer->inkey, v->value, sizeof(peer->inkey) - 1);
+				ast_copy_string(peer->inkey, v->value, sizeof(peer->inkey));
 			} else if (!strcasecmp(v->name, "outkey")) {
-				strncpy(peer->outkey, v->value, sizeof(peer->outkey) - 1);
+				ast_copy_string(peer->outkey, v->value, sizeof(peer->outkey));
 			} else if (!strcasecmp(v->name, "host")) {
 				if (!strcasecmp(v->value, "dynamic")) {
 					peer->dynamic = 1;
@@ -4450,7 +4450,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	char *cat;
 	int format;
 	int x;
-	char hn[MAXHOSTNAMELEN]="";
+	char hn[MAXHOSTNAMELEN] = "";
 	struct ast_hostent he;
 	struct hostent *hp;
 	struct sockaddr_in sin2;
@@ -4480,7 +4480,7 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 	ast_mutex_lock(&peerlock);
 	reset_global_eid();
 	global_storehistory = 0;
-	strncpy(secretpath, "dundi", sizeof(secretpath) - 1);
+	ast_copy_string(secretpath, "dundi", sizeof(secretpath));
 	v = ast_variable_browse(cfg, "general");
 	while(v) {
 		if (!strcasecmp(v->name, "port")){ 
@@ -4544,19 +4544,19 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', or 'none'\n", v->lineno);
 #endif
 		} else if (!strcasecmp(v->name, "department")) {
-			strncpy(dept, v->value, sizeof(dept) - 1);
+			ast_copy_string(dept, v->value, sizeof(dept));
 		} else if (!strcasecmp(v->name, "organization")) {
-			strncpy(org, v->value, sizeof(org) - 1);
+			ast_copy_string(org, v->value, sizeof(org));
 		} else if (!strcasecmp(v->name, "locality")) {
-			strncpy(locality, v->value, sizeof(locality) - 1);
+			ast_copy_string(locality, v->value, sizeof(locality));
 		} else if (!strcasecmp(v->name, "stateprov")) {
-			strncpy(stateprov, v->value, sizeof(stateprov) - 1);
+			ast_copy_string(stateprov, v->value, sizeof(stateprov));
 		} else if (!strcasecmp(v->name, "country")) {
-			strncpy(country, v->value, sizeof(country) - 1);
+			ast_copy_string(country, v->value, sizeof(country));
 		} else if (!strcasecmp(v->name, "email")) {
-			strncpy(email, v->value, sizeof(email) - 1);
+			ast_copy_string(email, v->value, sizeof(email));
 		} else if (!strcasecmp(v->name, "phone")) {
-			strncpy(phone, v->value, sizeof(phone) - 1);
+			ast_copy_string(phone, v->value, sizeof(phone));
 		} else if (!strcasecmp(v->name, "storehistory")) {
 			global_storehistory = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "cachetime")) {

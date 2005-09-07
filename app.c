@@ -261,8 +261,8 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 
 int ast_dtmf_stream(struct ast_channel *chan,struct ast_channel *peer,char *digits,int between) 
 {
-	char *ptr=NULL;
-	int res=0;
+	char *ptr;
+	int res = 0;
 	struct ast_frame f;
 	if (!between)
 		between = 100;
@@ -378,7 +378,7 @@ static struct ast_generator linearstream =
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride)
 {
 	struct linear_state *lin;
-	char tmpf[256] = "";
+	char tmpf[256];
 	int res = -1;
 	int autoclose = 0;
 	if (fd < 0) {
@@ -411,11 +411,11 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 			   const char *stop, const char *pause,
 			   const char *restart, int skipms) 
 {
-	long elapsed = 0,last_elapsed =0;
-	char *breaks=NULL;
-	char *end=NULL;
-	int blen=2;
-	int res=0;
+	long elapsed = 0, last_elapsed = 0;
+	char *breaks = NULL;
+	char *end = NULL;
+	int blen = 2;
+	int res;
 
 	if (stop)
 		blen += strlen(stop);
@@ -439,7 +439,6 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 
 	if (chan)
 		ast_stopstream(chan);
-
 
 	if (file) {
 		if ((end = strchr(file,':'))) {
@@ -985,7 +984,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 int ast_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max)
 {
 	int res=0;
-	char tmp[256] = "";
+	char tmp[256];
 	char *grp=NULL, *cat=NULL;
 
 	if (data && !ast_strlen_zero(data)) {
@@ -1030,7 +1029,7 @@ int ast_app_group_get_count(char *group, char *category)
 	struct ast_channel *chan;
 	int count = 0;
 	char *test;
-	char cat[80] = "";
+	char cat[80];
 	char *s;
 
 	if (group == NULL || ast_strlen_zero(group))
@@ -1056,7 +1055,7 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 	struct ast_channel *chan;
 	int count = 0;
 	char *test;
-	char cat[80] = "";
+	char cat[80];
 	char *s;
 
 	if (!groupmatch || ast_strlen_zero(groupmatch))

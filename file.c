@@ -464,7 +464,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 	int fd = -1;
 	int fmts = -1;
 	char filename2[256]="";
-	char filename3[256]="";
+	char filename3[256];
 	char *endpart;
 	int res;
 
@@ -1149,7 +1149,7 @@ int ast_waitstream_exten(struct ast_channel *c, const char *context)
 	/* XXX Maybe I should just front-end ast_waitstream_full ? XXX */
 	int res;
 	struct ast_frame *fr;
-	char exten[AST_MAX_EXTENSION] = "";
+	char exten[AST_MAX_EXTENSION];
 
 	if (!context) context = c->context;
 	while(c->stream) {

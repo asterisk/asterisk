@@ -1329,7 +1329,7 @@ static int __sip_pretend_ack(struct sip_pvt *p)
 			__sip_ack(p, p->packets->seqno, (ast_test_flag(p->packets, FLAG_RESPONSE)), cur->method);
 		else {	/* Unknown packet type */
 			char *c;
-			char method[128]="";
+			char method[128];
 			ast_copy_string(method, p->packets->data, sizeof(method));
 			c = ast_skip_blanks(method); /* XXX what ? */
 			*c = '\0';
@@ -1510,8 +1510,8 @@ static int sip_sendtext(struct ast_channel *ast, const char *text)
 /*--- realtime_update_peer: Update peer object in realtime storage ---*/
 static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, const char *username, int expirey)
 {
-	char port[10] = "";
-	char ipaddr[20] = "";
+	char port[10];
+	char ipaddr[20];
 	char regseconds[20] = "0";
 	
 	if (expirey) {	/* Registration */
@@ -1528,7 +1528,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 /*--- register_peer_exten: Automatically add peer extension to dial plan ---*/
 static void register_peer_exten(struct sip_peer *peer, int onoff)
 {
-	char multi[256]="";
+	char multi[256];
 	char *stringp, *ext;
 	if (!ast_strlen_zero(regcontext)) {
 		ast_copy_string(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi));
@@ -1590,7 +1590,7 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	struct ast_variable *var;
 	struct ast_variable *tmp;
 	char *newpeername = (char *) peername;
-	char iabuf[80] = "";
+	char iabuf[80];
 
 	/* First check on peer name */
 	if (newpeername) 
@@ -1839,7 +1839,7 @@ static int create_addr(struct sip_pvt *dialog, char *opeer)
 	char *port;
 	int portno;
 	char host[MAXHOSTNAMELEN], *hostn;
-	char peer[256]="";
+	char peer[256];
 
 	ast_copy_string(peer, opeer, sizeof(peer));
 	port = strchr(peer, ':');
@@ -2099,7 +2099,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 /* Thought: For realtime, we should propably update storage with inuse counter... */
 static int update_call_counter(struct sip_pvt *fup, int event)
 {
-	char name[256] = "";
+	char name[256];
 	int *inuse, *call_limit;
 	int outgoing = ast_test_flag(fup, SIP_OUTGOING);
 	struct sip_user *u = NULL;
@@ -2999,7 +2999,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 {
 	struct sip_pvt *p;
 	char *callid;
-	char tmp[256] = "";
+	char tmp[256];
 	char *tag = "", *c;
 
 	callid = get_header(req, "Call-ID");
@@ -3053,7 +3053,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 static int sip_register(char *value, int lineno)
 {
 	struct sip_registry *reg;
-	char copy[256] = "";
+	char copy[256];
 	char *username=NULL, *hostname=NULL, *secret=NULL, *authuser=NULL;
 	char *porta=NULL;
 	char *contact=NULL;
@@ -3630,7 +3630,7 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 /*--- copy_via_headers: Copy SIP VIA Headers from one request to another ---*/
 static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field)
 {
-	char tmp[256]="", *oh, *end;
+	char tmp[256], *oh, *end;
 	int start = 0;
 	int copied = 0;
 	char new[256];
@@ -3698,7 +3698,7 @@ static void add_route(struct sip_request *req, struct sip_route *route)
 /*--- set_destination: Set destination from SIP URI ---*/
 static void set_destination(struct sip_pvt *p, char *uri)
 {
-	char *h, *maddr, hostname[256] = "";
+	char *h, *maddr, hostname[256];
 	char iabuf[INET_ADDRSTRLEN];
 	int port, hn;
 	struct hostent *hp;
@@ -3723,7 +3723,8 @@ static void set_destination(struct sip_pvt *p, char *uri)
 			h += 5;
 	}
 	hn = strcspn(h, ":;>") + 1;
-	if (hn > sizeof(hostname)) hn = sizeof(hostname);
+	if (hn > sizeof(hostname)) 
+		hn = sizeof(hostname);
 	ast_copy_string(hostname, h, hn);
 	h += hn - 1;
 
@@ -3793,7 +3794,7 @@ static int init_req(struct sip_request *req, int sipmethod, char *recip)
 /*--- respprep: Prepare SIP response packet ---*/
 static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, struct sip_request *req)
 {
-	char newto[256] = "", *ot;
+	char newto[256], *ot;
 
 	memset(resp, 0, sizeof(*resp));
 	init_resp(resp, msg, req);
@@ -3845,7 +3846,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, int seqno, int newbranch)
 {
 	struct sip_request *orig = &p->initreq;
-	char stripped[80] ="";
+	char stripped[80];
 	char tmp[80];
 	char newto[256];
 	char *c, *n;
@@ -3865,7 +3866,6 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		p->branch ^= rand();
 		build_via(p, p->via, sizeof(p->via));
 	}
-
 
 	/* Check for strict or loose router */
 	if (p->route && !ast_strlen_zero(p->route->hop) && strstr(p->route->hop,";lr") == NULL)
@@ -4090,15 +4090,15 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char costr[80];
 	struct sockaddr_in sin;
 	struct sockaddr_in vsin;
-	char v[256] = "";
-	char s[256] = "";
-	char o[256] = "";
-	char c[256] = "";
-	char t[256] = "";
-	char m[256] = "";
-	char m2[256] = "";
-	char a[1024] = "";
-	char a2[1024] = "";
+	char v[256];
+	char s[256];
+	char o[256];
+	char c[256];
+	char t[256];
+	char m[256];
+	char m2[256];
+	char a[1024];
+	char a2[1024];
 	char iabuf[INET_ADDRSTRLEN];
 	int x = 0;
 	int capability = 0 ;
@@ -4380,7 +4380,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 /*--- extract_uri: Check Contact: URI of SIP message ---*/
 static void extract_uri(struct sip_pvt *p, struct sip_request *req)
 {
-	char stripped[256]="";
+	char stripped[256];
 	char *c, *n;
 	ast_copy_string(stripped, get_header(req, "Contact"), sizeof(stripped));
 	c = get_in_brackets(stripped);
@@ -5382,7 +5382,7 @@ static void reg_source_db(struct sip_peer *peer)
 /*--- parse_ok_contact: Parse contact header for 200 OK on INVITE ---*/
 static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 {
-	char contact[250]= ""; 
+	char contact[250]; 
 	char *c, *n, *pt;
 	int port;
 	struct hostent *hp;
@@ -5452,7 +5452,7 @@ static int parse_ok_contact(struct sip_pvt *pvt, struct sip_request *req)
 /*--- parse_contact: Parse contact header and save registration ---*/
 static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_request *req)
 {
-	char contact[80]= ""; 
+	char contact[80]; 
 	char data[256];
 	char iabuf[INET_ADDRSTRLEN];
 	char *expires = get_header(req, "Expires");
@@ -5786,7 +5786,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		char a2_hash[256];
 		char resp[256];
 		char resp_hash[256]="";
-		char tmp[256] = "";
+		char tmp[256];
 		char *c;
 		char *z;
 		char *ua_hash ="";
@@ -5944,7 +5944,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 {
 	int res = -3;
 	struct sip_peer *peer;
-	char tmp[256] = "";
+	char tmp[256];
 	char iabuf[INET_ADDRSTRLEN];
 	char *name, *c;
 	char *t;
@@ -6055,7 +6055,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 /*--- get_rdnis: get referring dnis ---*/
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256] = "", *c, *a;
+	char tmp[256], *c, *a;
 	struct sip_request *req;
 	
 	req = oreq;
@@ -6084,7 +6084,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *c, *a;
-	char tmpf[256]= "", *fr;
+	char tmpf[256], *fr;
 	struct sip_request *req;
 	
 	req = oreq;
@@ -6321,7 +6321,7 @@ static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_
 /*--- get_also_info: Call transfer support (old way, depreciated)--*/
 static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256] = "", *c, *a;
+	char tmp[256], *c, *a;
 	struct sip_request *req;
 	
 	req = oreq;
@@ -6363,13 +6363,12 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 /*--- check_via: check Via: headers ---*/
 static int check_via(struct sip_pvt *p, struct sip_request *req)
 {
-	char via[256] = "";
+	char via[256];
 	char iabuf[INET_ADDRSTRLEN];
 	char *c, *pt;
 	struct hostent *hp;
 	struct ast_hostent ahp;
 
-	memset(via, 0, sizeof(via));
 	ast_copy_string(via, get_header(req, "Via"), sizeof(via));
 	c = strchr(via, ';');
 	if (c) 
@@ -6483,7 +6482,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 {
 	struct sip_user *user;
 	struct sip_peer *peer;
-	char *of, from[256] = "", *c;
+	char *of, from[256], *c;
 	char *rpid,rpid_num[50];
 	char iabuf[INET_ADDRSTRLEN];
 	int res = 0;
@@ -6807,7 +6806,7 @@ static void receive_message(struct sip_pvt *p, struct sip_request *req)
 static int sip_show_inuse(int fd, int argc, char *argv[]) {
 #define FORMAT  "%-25.25s %-15.15s %-15.15s \n"
 #define FORMAT2 "%-25.25s %-15.15s %-15.15s \n"
-	char ilimits[40] = "";
+	char ilimits[40];
 	char iused[40];
 	int showall = 0;
 
@@ -6987,7 +6986,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 #define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-15.15s  %-8s %-10s\n"
 #define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-15.15s  %-8d %-10s\n"
 
-	char name[256] = "";
+	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
 	int total_peers = 0;
 	int peers_online = 0;
@@ -8099,7 +8098,7 @@ void sip_dump_history(struct sip_pvt *dialog)
 /*    Doesn't read the duration of the DTMF signal */
 static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 {
-	char buf[1024] = "";
+	char buf[1024];
 	unsigned int event;
 	char resp = 0;
 	struct ast_frame f;
@@ -8410,7 +8409,7 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 	char *header, int sipmethod,  char *digest, int digest_len)
 {
-	char tmp[512] = "";
+	char tmp[512];
 	char *c;
 
 	/* table of recognised keywords, and places where they should be copied */
@@ -8484,7 +8483,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	char a2_hash[256];
 	char resp[256];
 	char resp_hash[256];
-	char uri[256] = "";
+	char uri[256];
 	char cnonce[80];
 	char iabuf[INET_ADDRSTRLEN];
 	char *username;
@@ -8850,7 +8849,7 @@ static struct ast_custom_function sipchaninfo_function = {
 /*--- parse_moved_contact: Parse 302 Moved temporalily response */
 static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 {
-	char tmp[256] = "";
+	char tmp[256];
 	char *s, *e;
 	ast_copy_string(tmp, get_header(req, "Contact"), sizeof(tmp));
 	s = get_in_brackets(tmp);
@@ -10493,7 +10492,7 @@ retrylock:
 		}
 		memcpy(&p->recv, &sin, sizeof(p->recv));
 		if (recordhistory) {
-			char tmp[80] = "";
+			char tmp[80];
 			/* This is a response, note what it was for */
 			snprintf(tmp, sizeof(tmp), "%s / %s", req.data, get_header(&req, "CSeq"));
 			append_history(p, "Rx", tmp);
@@ -10797,7 +10796,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 static int sip_devicestate(void *data)
 {
 	char *ext, *host;
-	char tmp[256] = "";
+	char tmp[256];
 	char *dest = data;
 
 	struct hostent *hp;
@@ -10861,7 +10860,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	struct sip_pvt *p;
 	struct ast_channel *tmpc = NULL;
 	char *ext, *host;
-	char tmp[256] = "";
+	char tmp[256];
 	char *dest = data;
 
 	oldformat = format;
@@ -11044,7 +11043,7 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 /*--- add_realm_authentication: Add realm authentication in list ---*/
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno)
 {
-	char authcopy[256] = "";
+	char authcopy[256];
 	char *username=NULL, *realm=NULL, *secret=NULL, *md5secret=NULL;
 	char *stringp;
 	struct sip_auth *auth;

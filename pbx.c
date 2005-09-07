@@ -902,7 +902,7 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
 	char *first,*second;
-	char tmpvar[80] = "";
+	char tmpvar[80];
 	time_t thistime;
 	struct tm brokentime;
 	int offset,offset2;
@@ -5362,7 +5362,7 @@ static int pbx_builtin_stripmsd(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 {
-	char newexten[AST_MAX_EXTENSION] = "";
+	char newexten[AST_MAX_EXTENSION];
 
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_DEBUG, "Ignoring, since there is no prefix to add\n");
@@ -5377,7 +5377,7 @@ static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_suffix(struct ast_channel *chan, void *data)
 {
-	char newexten[AST_MAX_EXTENSION] = "";
+	char newexten[AST_MAX_EXTENSION];
 
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_DEBUG, "Ignoring, since there is no suffix to add\n");

@@ -127,7 +127,7 @@ struct ast_ha *ast_append_ha(char *sense, char *stuff, struct ast_ha *path)
 {
 	struct ast_ha *ha = malloc(sizeof(struct ast_ha));
 	char *nm = "255.255.255.255";
-	char tmp[256] = "";
+	char tmp[256];
 	struct ast_ha *prev = NULL;
 	struct ast_ha *ret;
 	int x, z;

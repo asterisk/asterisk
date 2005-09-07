@@ -247,7 +247,7 @@ static int adsi_announce_park(struct ast_channel *chan, int parkingnum)
 {
 	int res;
 	int justify[5] = {ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT, ADSI_JUST_CENT};
-	char tmp[256] = "";
+	char tmp[256];
 	char *message[5] = {NULL, NULL, NULL, NULL, NULL};
 
 	snprintf(tmp, sizeof(tmp), "Parked on %d", parkingnum);

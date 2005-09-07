@@ -1851,7 +1851,7 @@ static int iax2_test_jitter(int fd, int argc, char *argv[])
 /*--- iax2_show_peer: Show one peer in detail ---*/
 static int iax2_show_peer(int fd, int argc, char *argv[])
 {
-	char status[30] = "";
+	char status[30];
 	char cbuf[256];
 	char iabuf[INET_ADDRSTRLEN];
 	struct iax2_peer *peer;
@@ -1961,7 +1961,7 @@ static int iax2_show_stats(int fd, int argc, char *argv[])
 static int iax2_show_cache(int fd, int argc, char *argv[])
 {
 	struct iax2_dpcache *dp;
-	char tmp[1024] = "", *pc;
+	char tmp[1024], *pc;
 	int s;
 	int x,y;
 	struct timeval tv;
@@ -3244,7 +3244,7 @@ static int iax2_transfer(struct ast_channel *c, const char *dest)
 {
 	unsigned short callno = PTR_TO_CALLNO(c->tech_pvt);
 	struct iax_ie_data ied;
-	char tmp[256] = "", *context;
+	char tmp[256], *context;
 	ast_copy_string(tmp, dest, sizeof(tmp));
 	context = strchr(tmp, '@');
 	if (context) {
@@ -4022,7 +4022,7 @@ static int iax2_show_users(int fd, int argc, char *argv[])
 #define FORMAT2 "%-15.15s  %-20.20s  %-15.15d  %-15.15s  %-5.5s  %-5.10s\n"
 
 	struct iax2_user *user;
-	char auth[90] = "";
+	char auth[90];
 	char *pstr = "";
 
 	switch (argc) {
@@ -4087,7 +4087,7 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 #define FORMAT "%-15.15s  %-15.15s %s  %-15.15s  %-5d%s  %s %-10s\n"
 
 	struct iax2_peer *peer;
-	char name[256] = "";
+	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
 	int registeredonly=0;
 
@@ -4128,8 +4128,8 @@ static int iax2_show_peers(int fd, int argc, char *argv[])
 	ast_cli(fd, FORMAT2, "Name/Username", "Host", "   ", "Mask", "Port", "   ", "Status");
 	for (peer = peerl.peers;peer;peer = peer->next) {
 		char nm[20];
-		char status[20] = "";
-		char srch[2000] = "";
+		char status[20];
+		char srch[2000];
 
 		if (registeredonly && !peer->addr.sin_addr.s_addr)
 			continue;
@@ -4262,7 +4262,7 @@ static int iax2_show_registry(int fd, int argc, char *argv[])
 #define FORMAT "%-20.20s  %-10.10s  %-20.20s %8d  %s\n"
 	struct iax2_registry *reg;
 	char host[80];
-	char perceived[80] = "";
+	char perceived[80];
 	char iabuf[INET_ADDRSTRLEN];
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
@@ -4851,7 +4851,7 @@ static int authenticate_request(struct chan_iax2_pvt *p)
 
 static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 {
-	char requeststr[256] = "";
+	char requeststr[256];
 	char md5secret[256] = "";
 	char secret[256] = "";
 	char rsasecret[256] = "";
@@ -4869,7 +4869,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 	if ((p->authmethods & IAX_AUTH_RSA) && !ast_strlen_zero(rsasecret) && !ast_strlen_zero(p->inkeys)) {
 		struct ast_key *key;
 		char *keyn;
-		char tmpkey[256] = "";
+		char tmpkey[256];
 		char *stringp=NULL;
 		ast_copy_string(tmpkey, p->inkeys, sizeof(tmpkey));
 		stringp=tmpkey;
@@ -4973,7 +4973,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	/* Check secret against what we have on file */
 	if (!ast_strlen_zero(rsasecret) && (p->authmethods & IAX_AUTH_RSA) && !ast_strlen_zero(iaxs[callno]->challenge)) {
 		if (!ast_strlen_zero(p->inkeys)) {
-			char tmpkeys[256] = "";
+			char tmpkeys[256];
 			char *stringp=NULL;
 			ast_copy_string(tmpkeys, p->inkeys, sizeof(tmpkeys));
 			stringp=tmpkeys;
@@ -5090,7 +5090,7 @@ static int authenticate(char *challenge, char *secret, char *keyn, int authmetho
 		if ((authmethods & IAX_AUTH_MD5) && !ast_strlen_zero(challenge)) {
 			struct MD5Context md5;
 			unsigned char digest[16];
-			char digres[128] = "";
+			char digres[128];
 			MD5Init(&md5);
 			MD5Update(&md5, (unsigned char *)challenge, strlen(challenge));
 			MD5Update(&md5, (unsigned char *)secret, strlen(secret));
@@ -5175,7 +5175,7 @@ static int iax2_do_register_s(void *data)
 static int try_transfer(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 {
 	int newcall = 0;
-	char newip[256] = "";
+	char newip[256];
 	struct iax_ie_data ied;
 	struct sockaddr_in new;
 	
@@ -5321,7 +5321,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	struct iax2_registry *reg;
 	/* Start pessimistic */
 	char peer[256] = "";
-	char msgstatus[40] = "";
+	char msgstatus[40];
 	int refresh = 0;
 	char ourip[256] = "<Unspecified>";
 	struct sockaddr_in oldus;
@@ -5434,7 +5434,7 @@ static int iax2_register(char *value, int lineno)
 
 static void register_peer_exten(struct iax2_peer *peer, int onoff)
 {
-	char multi[256]="";
+	char multi[256];
 	char *stringp, *ext;
 	if (!ast_strlen_zero(regcontext)) {
 		ast_copy_string(multi, ast_strlen_zero(peer->regexten) ? peer->name : peer->regexten, sizeof(multi));
@@ -9104,7 +9104,7 @@ static int iax2_devicestate(void *data)
 	struct iax2_peer *p;
 	int found = 0;
 	char *ext, *host;
-	char tmp[256] = "";
+	char tmp[256];
 	int res = AST_DEVICE_INVALID;
 
 	ast_copy_string(tmp, dest, sizeof(tmp));
