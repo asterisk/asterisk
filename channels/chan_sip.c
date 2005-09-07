@@ -4097,8 +4097,8 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char t[256];
 	char m[256];
 	char m2[256];
-	char a[1024];
-	char a2[1024];
+	char a[1024] = "";
+	char a2[1024] = "";
 	char iabuf[INET_ADDRSTRLEN];
 	int x = 0;
 	int capability = 0 ;
