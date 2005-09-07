@@ -132,8 +132,7 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
@@ -176,8 +175,7 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
@@ -223,8 +221,7 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);

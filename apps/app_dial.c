@@ -449,7 +449,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 				if (f) {
 					if (f->frametype == AST_FRAME_CONTROL) {
 						switch(f->subclass) {
-					    case AST_CONTROL_ANSWER:
+						case AST_CONTROL_ANSWER:
 							/* This is our guy if someone answered. */
 							if (!peer) {
 								if (option_verbose > 2)
@@ -558,7 +558,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 			f = ast_read(in);
 #if 0
 			if (f && (f->frametype != AST_FRAME_VOICE))
-					printf("Frame type: %d, %d\n", f->frametype, f->subclass);
+				printf("Frame type: %d, %d\n", f->frametype, f->subclass);
 			else if (!f || (f->frametype != AST_FRAME_VOICE))
 				printf("Hangup received on %s\n", in->name);
 #endif
@@ -806,25 +806,25 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 		  
 			if (!timelimit) {
-				timelimit=play_to_caller=play_to_callee=play_warning=warning_freq=0;
-				warning_sound=NULL;
+				timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
+				warning_sound = NULL;
 			}
 			/* undo effect of S(x) in case they are both used */
-			calldurationlimit=0; 
+			calldurationlimit = 0; 
 			/* more efficient do it like S(x) does since no advanced opts*/
 			if (!play_warning && !start_sound && !end_sound && timelimit) { 
-				calldurationlimit=timelimit/1000;
-				timelimit=play_to_caller=play_to_callee=play_warning=warning_freq=0;
+				calldurationlimit = timelimit/1000;
+				timelimit = play_to_caller = play_to_callee = play_warning = warning_freq = 0;
 			} else if (option_verbose > 2) {
-				ast_verbose(VERBOSE_PREFIX_3"Limit Data:\n");
-				ast_verbose(VERBOSE_PREFIX_3"timelimit=%ld\n",timelimit);
-				ast_verbose(VERBOSE_PREFIX_3"play_warning=%ld\n",play_warning);
-				ast_verbose(VERBOSE_PREFIX_3"play_to_caller=%s\n",play_to_caller ? "yes" : "no");
-				ast_verbose(VERBOSE_PREFIX_3"play_to_callee=%s\n",play_to_callee ? "yes" : "no");
-				ast_verbose(VERBOSE_PREFIX_3"warning_freq=%ld\n",warning_freq);
-				ast_verbose(VERBOSE_PREFIX_3"start_sound=%s\n",start_sound ? start_sound : "UNDEF");
-				ast_verbose(VERBOSE_PREFIX_3"warning_sound=%s\n",warning_sound ? warning_sound : "UNDEF");
-				ast_verbose(VERBOSE_PREFIX_3"end_sound=%s\n",end_sound ? end_sound : "UNDEF");
+				ast_verbose(VERBOSE_PREFIX_3 "Limit Data for this call:\n");
+				ast_verbose(VERBOSE_PREFIX_3 "- timelimit     = %ld\n", timelimit);
+				ast_verbose(VERBOSE_PREFIX_3 "- play_warning  = %ld\n", play_warning);
+				ast_verbose(VERBOSE_PREFIX_3 "- play_to_caller= %s\n", play_to_caller ? "yes" : "no");
+				ast_verbose(VERBOSE_PREFIX_3 "- play_to_callee= %s\n", play_to_callee ? "yes" : "no");
+				ast_verbose(VERBOSE_PREFIX_3 "- warning_freq  = %ld\n", warning_freq);
+				ast_verbose(VERBOSE_PREFIX_3 "- start_sound   = %s\n", start_sound ? start_sound : "UNDEF");
+				ast_verbose(VERBOSE_PREFIX_3 "- warning_sound = %s\n", warning_sound ? warning_sound : "UNDEF");
+				ast_verbose(VERBOSE_PREFIX_3 "- end_sound     = %s\n", end_sound ? end_sound : "UNDEF");
 			}
 		}
 		
@@ -1000,15 +1000,12 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			goto out;
 		}
 		else if( privdb_val == AST_PRIVACY_KILL ) {
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 201, chan->cid.cid_num)) 
-				chan->priority+=200;
-
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 201);
 			res = 0;
 			goto out; /* Is this right? */
 		}
 		else if( privdb_val == AST_PRIVACY_TORTURE ) {
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 301, chan->cid.cid_num)) 
-				chan->priority+=300;
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 301);
 			res = 0;
 			goto out; /* is this right??? */
 
@@ -1252,13 +1249,12 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	if (!peer) {
 		if (result) {
 			res = result;
-		}
-		else if (to) 
+		} else if (to) 
 			/* Musta gotten hung up */
 			res = -1;
 		else 
 		 	/* Nobody answered, next please? */
-			res=0;
+			res = 0;
 		
 		goto out;
 	}
@@ -1482,7 +1478,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			res = ast_autoservice_start(chan);
 			/* Now Stream the File */
 			if (!res)
-				res = ast_streamfile(peer,announcemsg,peer->language);
+				res = ast_streamfile(peer, announcemsg, peer->language);
 			if (!res) {
 				digit = ast_waitstream(peer, AST_DIGIT_ANY); 
 			}
@@ -1497,7 +1493,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			res = 0;
 
 		if (chan && peer && dblgoto) {
-			for (mac=dblgoto; *mac; mac++) {
+			for (mac = dblgoto; *mac; mac++) {
 				if(*mac == '^') {
 					*mac = '|';
 				}
@@ -1521,7 +1517,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			app = pbx_findapp("Macro");
 
 			if (app && !res) {
-				for (res=0;res<strlen(macroname);res++)
+				for (res = 0; res<strlen(macroname); res++)
 					if (macroname[res] == '^')
 						macroname[res] = '|';
 				res = pbx_exec(peer, app, macroname, 1);

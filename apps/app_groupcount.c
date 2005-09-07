@@ -146,9 +146,7 @@ static int group_check_exec(struct ast_channel *chan, void *data)
  	if ((sscanf(limit, "%d", &max) == 1) && (max > -1)) {
 		count = ast_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
 		if (count > max) {
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-				chan->priority += 100;
-			else
+			if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 				res = -1;
 		}
 	} else

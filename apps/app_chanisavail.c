@@ -125,9 +125,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	if (res < 1) {
 		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority+=100;
-		else
+		if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			return -1;
 	}
 

@@ -155,10 +155,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 									sprintf(ms_str, "%d", ms );	
 									pbx_builtin_setvar_helper(chan, "TALK_DETECTED", ms_str);
 									
-									if (ast_exists_extension(chan, chan->context, "talk", 1, chan->cid.cid_num)) {
-										ast_copy_string(chan->exten, "talk", sizeof(chan->exten));
-										chan->priority = 0;
-									}
+									ast_goto_if_exists(chan, chan->context, "talk", 1);
 									res = 0;
 									ast_frfree(fr);
 									break;

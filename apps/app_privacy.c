@@ -144,9 +144,8 @@ privacy_exec (struct ast_channel *chan, void *data)
 			if (option_verbose > 2)
 				ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s\n",phone);
 		} else {
-			/*Send the call to n+101 priority, where n is the current priority*/
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-				chan->priority+=100;
+			/* Send the call to n+101 priority, where n is the current priority  */
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		}
 		if (cfg) 
 			ast_config_destroy(cfg);

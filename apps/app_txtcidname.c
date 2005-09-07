@@ -73,15 +73,13 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 	if (res > 0) {
 		if (!ast_strlen_zero(txt)) {
 			pbx_builtin_setvar_helper(chan, "TXTCIDNAME", txt);
-#if 0
-			ast_log(LOG_DEBUG, "TXTCIDNAME got '%s'\n", txt);
-#endif
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "TXTCIDNAME got '%s'\n", txt);
 		}
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	return res;

@@ -318,7 +318,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	if (k==3 && ast_exists_extension(chan,ourcontext,exten,1, chan->cid.cid_num))
+	if (k==3 && ast_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num))
 	{
 		ast_playtones_stop(chan);
 		/* We're authenticated and have a valid extension */
@@ -327,13 +327,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			ast_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
 			ast_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
 		}
-		strncpy(chan->exten, exten, sizeof(chan->exten) - 1);
-		strncpy(chan->context, ourcontext, sizeof(chan->context) - 1);
+
 		if (!ast_strlen_zero(acctcode)) {
 			strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
 		}
-		chan->priority = 0;
-		ast_cdr_reset(chan->cdr,AST_CDR_FLAG_POSTED);
+		ast_cdr_reset(chan->cdr, AST_CDR_FLAG_POSTED);
+		ast_goto_if_exists(chan, ourcontext, exten, 1);
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}

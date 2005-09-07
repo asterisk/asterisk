@@ -1007,10 +1007,7 @@ static int valid_exit(struct queue_ent *qe, char digit)
 	}
 
 	/* We have an exact match */
-	if (ast_exists_extension(qe->chan, qe->context, qe->digits, 1, qe->chan->cid.cid_num)) {
-		ast_copy_string(qe->chan->context, qe->context, sizeof(qe->chan->context));
-		ast_copy_string(qe->chan->exten, qe->digits, sizeof(qe->chan->exten));
-		qe->chan->priority = 0;
+	if (ast_goto_if_exists(qe->chan, qe->context, qe->digits, 1)) {
 		return 1;
 	}
 	return 0;
@@ -2546,8 +2543,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	if (set_member_paused(queuename, interface, 1)) {
 		ast_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", interface);
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
-			chan->priority += 100;
+		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
@@ -2588,8 +2584,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	if (set_member_paused(queuename, interface, 0)) {
 		ast_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", interface);
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
-			chan->priority += 100;
+		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
@@ -2645,9 +2640,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		break;
 	case RES_EXISTS:
 		ast_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", interface, queuename);
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
-			chan->priority += 100;
-		}
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		res = 0;
 		break;
 	case RES_NOSUCHQUEUE:
@@ -2722,9 +2715,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		break;
 	case RES_EXISTS:
 		ast_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", interface, queuename);
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
-			chan->priority += 100;
-		}
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		res = 0;
 		break;
 	case RES_NOSUCHQUEUE:

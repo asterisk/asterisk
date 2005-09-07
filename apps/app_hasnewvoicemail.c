@@ -130,9 +130,7 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 
 		if (vmcount > 0) {
 			/* Branch to the next extension */
-			if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num)) {
-				chan->priority += 100;
-			} else
+			if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
 				ast_log(LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
 		}
 	} else {

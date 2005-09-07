@@ -1263,13 +1263,11 @@ zapretry:
 					char tmp[2];
 					tmp[0] = f->subclass;
 					tmp[1] = '\0';
-					if (ast_exists_extension(chan, exitcontext, tmp, 1, chan->cid.cid_num)) {
-						ast_copy_string(chan->context, exitcontext, sizeof(chan->context));
-						ast_copy_string(chan->exten, tmp, sizeof(chan->exten));
-						chan->priority = 0;
+					if (ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
 						ret = 0;
 						break;
-					}
+					} else if (option_debug > 1)
+						ast_log(LOG_DEBUG, "Exit by single digit did not work in meetme. Extension %s does not exist in context %s\n", tmp, exitcontext);
 				} else if ((f->frametype == AST_FRAME_DTMF) && (f->subclass == '#') && (confflags & CONFFLAG_POUNDEXIT)) {
 					ret = 0;
 					break;
