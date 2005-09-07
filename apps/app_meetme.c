@@ -885,7 +885,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	}
 	ast_indicate(chan, -1);
 	retryzap = strcasecmp(chan->type, "Zap");
-	user->zapchannel = retryzap;
+	user->zapchannel = !strcasecmp(chan->type, "Zap");
 zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
