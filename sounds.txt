@@ -675,9 +675,9 @@
 
 %conf-kicked.gsm%You have been kicked from this conference
 
-%conf-adminmenu.gsm%Please press 1 to mute or unmute yourself, or press 2 to lock or unlock the conference, or press 6 to kick the last user
+%conf-adminmenu.gsm%Please press 1 to mute or unmute yourself, 2 to lock or unlock the conference, 3 to eject the last user, 4 or 6 to decrease or increase the conference volume, 7 or 9 to decrease or increase your volume, or 8 to exit
 
-%conf-usermenu.gsm%Please press 1 to mute or unmute yourself
+%conf-usermenu.gsm%Please press 1 to mute or unmute yourself, 4 or 6 to decrease or increase the conference volume, 7 or 9 to decrease or increase your volume, or 8 to exit
 
 %conf-errormenu.gsm%Invalid Choice
 
