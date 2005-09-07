@@ -147,8 +147,8 @@ struct ast_conf_user {
 	char usrvalue[50];			/* Custom User Value */
 	char namerecloc[AST_MAX_EXTENSION];	/* Name Recorded file Location */
 	time_t jointime;			/* Time the user joined the conference */
-	int desired_volume;			/* Desired volume adjustment */
-	int actual_volume;			/* Actual volume adjustment (for channels that can't adjust) */
+	int desired_talk_volume;		/* Desired talk volume adjustment */
+	int actual_talk_volume;			/* Actual talk volume adjustment (for channels that can't adjust) */
 };
 
 #define ADMINFLAG_MUTED (1 << 1)	/* User is muted */
@@ -279,7 +279,7 @@ static signed char gain_map[] = {
 	15,
 };
 
-static int set_volume(struct ast_conf_user *user, int volume)
+static int set_talk_volume(struct ast_conf_user *user, int volume)
 {
 	signed char gain_adjust;
 
@@ -287,49 +287,49 @@ static int set_volume(struct ast_conf_user *user, int volume)
 	   if successful, don't adjust in the frame reading routine
 	*/
 	gain_adjust = gain_map[volume + 5];
-	return ast_channel_setoption(user->chan, AST_OPTION_TXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
+	return ast_channel_setoption(user->chan, AST_OPTION_RXGAIN, &gain_adjust, sizeof(gain_adjust), 0);
 }
 
-static void tweak_volume(struct ast_conf_user *user, enum volume_action action)
+static void tweak_talk_volume(struct ast_conf_user *user, enum volume_action action)
 {
 	switch (action) {
 	case VOL_UP:
-		switch (user->desired_volume) {
+		switch (user->desired_talk_volume) {
 		case 5:
 			break;
 		case 0:
-			user->desired_volume = 2;
+			user->desired_talk_volume = 2;
 			break;
 		case -2:
-			user->desired_volume = 0;
+			user->desired_talk_volume = 0;
 			break;
 		default:
-			user->desired_volume++;
+			user->desired_talk_volume++;
 			break;
 		}
 		break;
 	case VOL_DOWN:
-		switch (user->desired_volume) {
+		switch (user->desired_talk_volume) {
 		case -5:
 			break;
 		case 2:
-			user->desired_volume = 0;
+			user->desired_talk_volume = 0;
 			break;
 		case 0:
-			user->desired_volume = -2;
+			user->desired_talk_volume = -2;
 			break;
 		default:
-			user->desired_volume--;
+			user->desired_talk_volume--;
 			break;
 		}
 	}
 	/* attempt to make the adjustment in the channel driver;
 	   if successful, don't adjust in the frame reading routine
 	*/
-	if (!set_volume(user, user->desired_volume))
-		user->actual_volume = 0;
+	if (!set_talk_volume(user, user->desired_talk_volume))
+		user->actual_talk_volume = 0;
 	else
-		user->actual_volume = user->desired_volume;
+		user->actual_talk_volume = user->desired_talk_volume;
 }
 
 static void adjust_volume(struct ast_frame *f, int vol)
@@ -1037,8 +1037,8 @@ zapretry:
 			/* if we have just exited from the menu, and the user had a channel-driver
 			   volume adjustment, restore it
 			*/
-			if (!menu_active && menu_was_active && user->desired_volume && !user->actual_volume)
-				set_volume(user, user->desired_volume);
+			if (!menu_active && menu_was_active && user->desired_talk_volume && !user->actual_talk_volume)
+				set_talk_volume(user, user->desired_talk_volume);
 
 			menu_was_active = menu_active;
 
@@ -1187,8 +1187,8 @@ zapretry:
 				if (!f)
 					break;
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
-					if (user->actual_volume) {
-						adjust_volume(f, user->actual_volume);
+					if (user->actual_talk_volume) {
+						adjust_volume(f, user->actual_talk_volume);
 					}
 					if (confflags &  CONFFLAG_MONITORTALKER) {
 						int totalsilence;
@@ -1244,8 +1244,8 @@ zapretry:
 					/* if we are entering the menu, and the user has a channel-driver
 					   volume adjustment, clear it
 					*/
-					if (!menu_active && user->desired_volume && !user->actual_volume)
-						set_volume(user, 0);
+					if (!menu_active && user->desired_talk_volume && !user->actual_talk_volume)
+						set_talk_volume(user, 0);
 
 					if (musiconhold) {
 			   			ast_moh_stop(chan);
@@ -1309,7 +1309,7 @@ zapretry:
 									break;	
 
 								case '9':
-									tweak_volume(user, VOL_UP);
+									tweak_talk_volume(user, VOL_UP);
 									break;
 
 								case '8':
@@ -1317,7 +1317,7 @@ zapretry:
 									break;
 
 								case '7':
-									tweak_volume(user, VOL_DOWN);
+									tweak_talk_volume(user, VOL_DOWN);
 									break;
 
 								default:
@@ -1364,7 +1364,7 @@ zapretry:
 									}
 									break;
 							case '9':
-								tweak_volume(user, VOL_UP);
+								tweak_talk_volume(user, VOL_UP);
 								break;
 
 							case '8':
@@ -1372,7 +1372,7 @@ zapretry:
 								break;
 
 							case '7':
-								tweak_volume(user, VOL_DOWN);
+								tweak_talk_volume(user, VOL_DOWN);
 								break;
 
 								default:
