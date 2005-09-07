@@ -2402,7 +2402,6 @@ static int zt_hangup(struct ast_channel *ast)
 								icause = atoi(cause);
 						}
 						pri_hangup(p->pri->pri, p->call, icause);
-						p->call = NULL;
 					}
 					if (res < 0) 
 						ast_log(LOG_WARNING, "pri_disconnect failed\n");
