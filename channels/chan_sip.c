@@ -676,7 +676,6 @@ struct sip_user {
 	int capability;			/* Codec capability */
 	int inUse;			/* Number of calls in use */
 	int call_limit;			/* Limit of concurrent calls */
-	int outUse;			/* disabled */
 	struct ast_ha *ha;		/* ACL setting */
 	struct ast_variable *chanvars;	/* Variables to set for channel created by user */
 };
@@ -703,7 +702,6 @@ struct sip_peer {
 	int callingpres;		/* Calling id presentation */
 	int inUse;			/* Number of calls in use */
 	int call_limit;			/* Limit of concurrent calls */
-	int outUse;			/* disabled */
 	char vmexten[AST_MAX_EXTENSION];        /* Dialplan extension for MWI notify message*/
 	char mailbox[AST_MAX_EXTENSION]; /* Mailbox setting for MWI checks */
 	char language[MAX_LANGUAGE];	/* Default language for prompts */
@@ -11047,9 +11045,6 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	ast_copy_string(user->name, name, sizeof(user->name));
 	oldha = user->ha;
 	user->ha = NULL;
-	/* set the usage flag to a sane staring value*/
-	user->inUse = 0;
-	user->outUse = 0;
 	ast_copy_flags(user, &global_flags,
 		SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_NAT |
 		SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
