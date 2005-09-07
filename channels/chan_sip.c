@@ -8893,6 +8893,148 @@ static void check_pendings(struct sip_pvt *p)
 	}
 }
 
+/*--- handle_response_invite: Handle SIP response in dialogue ---*/
+static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
+{
+	int outgoing = ast_test_flag(p, SIP_OUTGOING);
+	
+	if (option_debug > 3) {
+		int reinvite = (p->owner && p->owner->_state == AST_STATE_UP);
+		if (reinvite)
+			ast_log(LOG_DEBUG, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
+		else
+			ast_log(LOG_DEBUG, "SIP response %d to standard invite", resp);
+	}
+
+	switch (resp) {
+	case 100:	/* Trying */
+		sip_cancel_destroy(p);
+	case 180:	/* 180 Ringing */
+		sip_cancel_destroy(p);
+		if (!ignore && p->owner) {
+			ast_queue_control(p->owner, AST_CONTROL_RINGING);
+			if (p->owner->_state != AST_STATE_UP)
+				ast_setstate(p->owner, AST_STATE_RINGING);
+		}
+		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
+			process_sdp(p, req);
+			if (!ignore && p->owner) {
+				/* Queue a progress frame only if we have SDP in 180 */
+				ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+			}
+		}
+		break;
+	case 183:	/* Session progress */
+		sip_cancel_destroy(p);
+		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
+			process_sdp(p, req);
+		}
+		if (!ignore && p->owner) {
+			/* Queue a progress frame */
+			ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
+		}
+		break;
+	case 200:	/* 200 OK on invite - someone's answering our call */
+		sip_cancel_destroy(p);
+		p->authtries = 0;
+		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
+			process_sdp(p, req);
+		}
+
+		/* Parse contact header for continued conversation */
+		/* When we get 200 OK, we know which device (and IP) to contact for this call */
+		/* This is important when we have a SIP proxy between us and the phone */
+		if (outgoing) {
+			parse_ok_contact(p, req);
+
+			/* Save Record-Route for any later requests we make on this dialogue */
+			build_route(p, req, 1);
+		}
+		
+		if (!ignore && p->owner) {
+			if (p->owner->_state != AST_STATE_UP) {
+#ifdef OSP_SUPPORT	
+				time(&p->ospstart);
+#endif
+				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
+			} else {	/* RE-invite */
+				struct ast_frame af = { AST_FRAME_NULL, };
+				ast_queue_frame(p->owner, &af);
+			}
+		} else {
+			 /* It's possible we're getting an ACK after we've tried to disconnect
+				  by sending CANCEL */
+			/* THIS NEEDS TO BE CHECKED: OEJ */
+			if (!ignore)
+				ast_set_flag(p, SIP_PENDINGBYE);	
+		}
+		/* If I understand this right, the branch is different for a non-200 ACK only */
+		transmit_request(p, SIP_ACK, seqno, 0, 1);
+		check_pendings(p);
+		break;
+	case 401: /* Www auth */
+		/* First we ACK */
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		/* Then we AUTH */
+		p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
+		if (!ignore) {
+			if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", SIP_INVITE, 1)) {
+				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
+				ast_set_flag(p, SIP_NEEDDESTROY);	
+				ast_set_flag(p, SIP_ALREADYGONE);	
+				if (p->owner)
+					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+			}
+		}
+		break;
+	case 403: /* Forbidden */
+		/* First we ACK */
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
+		if (!ignore && p->owner)
+			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		ast_set_flag(p, SIP_NEEDDESTROY);	
+		ast_set_flag(p, SIP_ALREADYGONE);	
+		break;
+	case 404: /* Not found */
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		if (p->owner && !ignore)
+			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		ast_set_flag(p, SIP_ALREADYGONE);	
+		break;
+	case 407: /* Proxy authentication */
+		/* First we ACK */
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		/* Then we AUTH */
+		/* But only if the packet wasn't marked as ignore in handle_request */
+		if (!ignore) {
+			p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
+			if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", SIP_INVITE, 1)) {
+				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
+				ast_set_flag(p, SIP_NEEDDESTROY);	
+				if (p->owner)
+					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+				ast_set_flag(p, SIP_ALREADYGONE);	
+			}
+		}
+		break;
+	case 481: /* Call leg does not exist */
+		/* Could be REFER or INVITE */
+		ast_log(LOG_WARNING, "Re-invite to non-existing call leg on other UA. SIP dialog '%s'. Giving up.\n", p->callid);
+		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		break;
+	case 491: /* Pending */
+		/* we have to wait a while, then retransmit */
+		/* Transmission is rescheduled, so everything should be taken care of.
+			We should support the retry-after at some point */
+		break;
+	case 501: /* Not implemented */
+		if (p->owner)
+			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+		break;
+	}
+}
+
 /*--- handle_response_register: Handle responses on REGISTER to services ---*/
 static int handle_response_register(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
@@ -9116,30 +9258,16 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		}
 		switch(resp) {
 		case 100:	/* 100 Trying */
-			if (sipmethod == SIP_INVITE) {
-				sip_cancel_destroy(p);
-			}
+			if (sipmethod == SIP_INVITE) 
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			break;
 		case 183:	/* 183 Session Progress */
-			if (sipmethod == SIP_INVITE) {
-				sip_cancel_destroy(p);
-				if (!ast_strlen_zero(get_header(req, "Content-Type")))
-					process_sdp(p, req);
-				if (p->owner) {
-					/* Queue a progress frame */
-					ast_queue_control(p->owner, AST_CONTROL_PROGRESS);
-				}
-			}
+			if (sipmethod == SIP_INVITE) 
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			break;
 		case 180:	/* 180 Ringing */
-			if (sipmethod == SIP_INVITE) {
-				sip_cancel_destroy(p);
-				if (p->owner) {
-					ast_queue_control(p->owner, AST_CONTROL_RINGING);
-					if (p->owner->_state != AST_STATE_UP)
-						ast_setstate(p->owner, AST_STATE_RINGING);
-				}
-			}
+			if (sipmethod == SIP_INVITE) 
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			break;
 		case 200:	/* 200 OK */
 			p->authtries = 0;	/* Reset authentication counter */
@@ -9157,52 +9285,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					}
 				}
 			} else if (sipmethod == SIP_INVITE) {
-				/* 200 OK on invite - someone's answering our call */
-				sip_cancel_destroy(p);
-				if (!ast_strlen_zero(get_header(req, "Content-Type")))
-					process_sdp(p, req);
-
-				/* Parse contact header for continued conversation */
-				/* When we get 200 OK, we now which device (and IP) to contact for this call */
-				/* This is important when we have a SIP proxy between us and the phone */
-				parse_ok_contact(p, req);
-				/* Save Record-Route for any later requests we make on this dialogue */
-				build_route(p, req, 1);
-				if (p->owner) {
-					if (p->owner->_state != AST_STATE_UP) {
-#ifdef OSP_SUPPORT	
-						time(&p->ospstart);
-#endif
-						ast_queue_control(p->owner, AST_CONTROL_ANSWER);
-						ast_setstate(p->owner, AST_STATE_UP);
-					} else {
-						struct ast_frame af = { AST_FRAME_NULL, };
-						ast_queue_frame(p->owner, &af);
-					}
-				} else { /* It's possible we're getting an ACK after we've tried to disconnect by sending CANCEL */
-					ast_set_flag(p, SIP_PENDINGBYE);
-				}
-				ast_device_state_changed("SIP/%s", p->peername);
-				/* If I understand this right, the branch is different for a non-200 ACK only */
-				transmit_request(p, SIP_ACK, seqno, 0, 1);
-				check_pendings(p);
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else if (sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			} 
 			break;
 		case 401: /* Not www-authorized on SIP method */
 			if (sipmethod == SIP_INVITE) {
-				/* First we ACK */
-				transmit_request(p, SIP_ACK, seqno, 0, 0);
-				/* Then we AUTH */
-				p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
-				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", SIP_INVITE, 1)) {
-					ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
-					ast_set_flag(p, SIP_NEEDDESTROY);	
-					ast_set_flag(p, SIP_ALREADYGONE);	
-					if (p->owner)
-						ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-				}
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else if (p->registry && sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			} else {
@@ -9212,12 +9302,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 			break;
 		case 403: /* Forbidden - we failed authentication */
 			if (sipmethod == SIP_INVITE) {
-				/* First we ACK */
-				transmit_request(p, SIP_ACK, seqno, 0, 0);
-				ast_log(LOG_WARNING, "Forbidden - wrong password on authentication for INVITE to '%s'\n", get_header(&p->initreq, "From"));
-				if (owner)
-					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-				ast_set_flag(p, SIP_NEEDDESTROY);	
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else if (p->registry && sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
 			} else {
@@ -9227,25 +9312,14 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 404: /* Not found */
 			if (p->registry && sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
+			} else if (sipmethod == SIP_INVITE) {
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else if (owner)
 				ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 			break;
 		case 407: /* Proxy auth required */
 			if (sipmethod == SIP_INVITE) {
-				/* First we ACK */
-				transmit_request(p, SIP_ACK, seqno, 0, 0);
-				/* Then we AUTH */
-				/* But only if the packet wasn't marked as ignore in handle_request */
-				if (!ignore){
-					p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
-					if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", SIP_INVITE, 1)) {
-						ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
-						ast_set_flag(p, SIP_NEEDDESTROY);	
-						if (p->owner)
-							ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-						ast_set_flag(p, SIP_ALREADYGONE);	
-					}
-				}
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else if (sipmethod == SIP_BYE || sipmethod == SIP_REFER) {
 				if (ast_strlen_zero(p->authname))
 					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
@@ -9261,10 +9335,13 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 
 			break;
+		case 491: /* Pending */
+			if (sipmethod == SIP_INVITE) {
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			}
 		case 501: /* Not Implemented */
 			if (sipmethod == SIP_INVITE) {
-				if (p->owner)
-					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
 			} else
 				ast_log(LOG_WARNING, "Host '%s' does not implement '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), msg);
 			break;
@@ -9304,11 +9381,9 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 						snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "Local/%s@%s", p->username, p->context);
 					/* Fall through */
 				case 486: /* Busy here */
+				case 488: /* Not acceptable here - codec error */
 				case 600: /* Busy everywhere */
 				case 603: /* Decline */
-					if (p->owner)
-						ast_queue_control(p->owner, AST_CONTROL_BUSY);
-					break;
 				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
 				case 410: /* Gone */
@@ -9346,26 +9421,62 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 	} else {	
 		/* Responses to OUTGOING SIP requests on INCOMING calls 
 		   get handled here. As well as out-of-call message responses */
-		if (sip_debug_test_pvt(p))
-			ast_verbose("Response message %s arrived\n", msg);
+		if (req->debug)
+			ast_verbose("SIP Response message for INCOMING dialog %s arrived\n", msg);
 		switch(resp) {
 		case 200:
-			/* Change branch since this is a 200 response */
 			if (sipmethod == SIP_INVITE) {
-				transmit_request(p, SIP_ACK, seqno, 0, 1);
-				p->authtries = 0;
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			} else if (sipmethod == SIP_CANCEL) {
+				ast_log(LOG_DEBUG, "Got 200 OK on CANCEL\n");
 			} else if (sipmethod == SIP_MESSAGE)
 				/* We successfully transmitted a message */
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			break;
+		case 401:	/* www-auth */
 		case 407:
 			if (sipmethod == SIP_BYE || sipmethod == SIP_REFER) {
-				if (ast_strlen_zero(p->authname))
-					ast_log(LOG_WARNING, "Asked to authenticate %s, to %s:%d but we have no matching peer!\n",
-							msg, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
-				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", sipmethod, 0)) {
+				char *auth, *auth2;
+				if (resp == 407) {
+					auth = "Proxy-Authenticate";
+					auth2 = "Proxy-Authorization";
+				} else {
+					auth = "WWW-Authenticate";
+					auth2 = "Authorization";
+				}
+				if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, auth, auth2, sipmethod, 0)) {
 					ast_log(LOG_NOTICE, "Failed to authenticate on %s to '%s'\n", msg, get_header(&p->initreq, "From"));
 					ast_set_flag(p, SIP_NEEDDESTROY);	
+				}
+			} else if (sipmethod == SIP_INVITE) {
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			}
+			break;
+		case 481:	/* Call leg does not exist */
+			if (sipmethod == SIP_INVITE) {
+				/* Re-invite failed */
+				handle_response_invite(p, resp, rest, req, ignore, seqno);
+			}
+			break;
+		default:	/* Errors without handlers */
+			if ((resp >= 100) && (resp < 200)) {
+				if (sipmethod == SIP_INVITE) {	/* re-invite */
+					sip_cancel_destroy(p);
+				}
+			}
+			if ((resp >= 300) && (resp < 700)) {
+				if ((option_verbose > 2) && (resp != 487))
+					ast_verbose(VERBOSE_PREFIX_3 "Incoming call: Got SIP response %d \"%s\" back from %s\n", resp, rest, ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr));
+				switch(resp) {
+				case 488: /* Not acceptable here - codec error */
+				case 603: /* Decline */
+				case 500: /* Server error */
+				case 503: /* Service Unavailable */
+
+					if (sipmethod == SIP_INVITE) {	/* re-invite failed */
+						sip_cancel_destroy(p);
+					}
+					break;
 				}
 			}
 			break;
