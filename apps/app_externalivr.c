@@ -60,7 +60,7 @@ struct localuser {
 	struct localuser *next;
 	AST_LIST_HEAD(playlist, playlist_entry) playlist;
 	AST_LIST_HEAD(finishlist, playlist_entry) finishlist;
-	int list_cleared;
+	int abort_current_sound;
 	int playing_silence;
 	int option_autoclear;
 };
@@ -85,8 +85,7 @@ static void send_child_event(FILE *handle, const char event, const char *data,
 		snprintf(tmp, sizeof(tmp), "%c,%10ld,%s", event, time(NULL), data);
 	}
 
-	fputs(tmp, handle);
-	fputc('\n', handle);
+	fprintf(handle, "%s\n", tmp);
 	ast_chan_log(LOG_DEBUG, chan, "sent '%s'\n", tmp);
 }
 
@@ -129,7 +128,7 @@ static int gen_nextfile(struct gen_state *state)
 	struct localuser *u = state->u;
 	char *file_to_stream;
 	
-	u->list_cleared = 0;
+	u->abort_current_sound = 0;
 	u->playing_silence = 0;
 	gen_closestream(state);
 
@@ -160,7 +159,7 @@ static struct ast_frame *gen_readframe(struct gen_state *state)
 	struct ast_frame *f = NULL;
 	struct localuser *u = state->u;
 	
-	if (u->list_cleared ||
+	if (u->abort_current_sound ||
 	    (u->playing_silence && AST_LIST_FIRST(&u->playlist))) {
 		gen_closestream(state);
 		AST_LIST_LOCK(&u->playlist);
@@ -275,7 +274,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		goto exit;
 	}
 
-	u->list_cleared = 0;
+	u->abort_current_sound = 0;
 	AST_LIST_HEAD_INIT(&u->playlist);
 	AST_LIST_HEAD_INIT(&u->finishlist);
 
@@ -388,15 +387,15 @@ static int app_exec(struct ast_channel *chan, void *data)
 				if (f->frametype == AST_FRAME_DTMF) {
 					send_child_event(child_events, f->subclass, NULL, chan);
 					if (u->option_autoclear) {
-						if (!u->list_cleared && !u->playing_silence)
+						if (!u->abort_current_sound && !u->playing_silence)
 							send_child_event(child_events, 'T', NULL, chan);
 						AST_LIST_LOCK(&u->playlist);
 						while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
-							if (!u->playing_silence)
-								send_child_event(child_events, 'D', entry->filename, chan);
+							send_child_event(child_events, 'D', entry->filename, chan);
 							free(entry);
 						}
-						u->list_cleared = 1;
+						if (!u->playing_silence)
+							u->abort_current_sound = 1;
 						AST_LIST_UNLOCK(&u->playlist);
 					}
 				} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
@@ -432,15 +431,15 @@ static int app_exec(struct ast_channel *chan, void *data)
 						send_child_event(child_events, 'Z', NULL, chan);
 						strcpy(&input[2], "exception");
 					}
-					if (!u->list_cleared && !u->playing_silence)
+					if (!u->abort_current_sound && !u->playing_silence)
 						send_child_event(child_events, 'T', NULL, chan);
 					AST_LIST_LOCK(&u->playlist);
 					while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list))) {
-						if (!u->playing_silence)
-							send_child_event(child_events, 'D', entry->filename, chan);
+						send_child_event(child_events, 'D', entry->filename, chan);
 						free(entry);
 					}
-					u->list_cleared = 1;
+					if (!u->playing_silence)
+						u->abort_current_sound = 1;
 					entry = make_entry(&input[2]);
 					if (entry)
 						AST_LIST_INSERT_TAIL(&u->playlist, entry, list);
