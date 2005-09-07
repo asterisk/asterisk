@@ -7713,6 +7713,12 @@ static struct ast_channel *iax2_request(const char *type, int format, void *data
 
 	ast_copy_flags(&cai, &globalflags, IAX_NOTRANSFER | IAX_USEJITTERBUF | IAX_FORCEJITTERBUF);
 
+	if (!pds.peer) {
+		ast_log(LOG_WARNING, "No peer given\n");
+		return NULL;
+	}
+	       
+	
 	/* Populate our address from the given */
 	if (create_addr(pds.peer, &sin, &cai)) {
 		*cause = AST_CAUSE_UNREGISTERED;
