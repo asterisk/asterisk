@@ -66,7 +66,10 @@ struct rtpPayloadType {
 
 #define MAX_RTP_PT 256
 
-#define FLAG_3389_WARNING (1 << 0)
+#define FLAG_3389_WARNING		(1 << 0)
+#define FLAG_NAT_ACTIVE			(3 << 1)
+#define FLAG_NAT_INACTIVE		(0 << 1)
+#define FLAG_NAT_INACTIVE_NOWARN	(1 << 1)
 
 struct ast_rtp {
 	int s;
@@ -86,7 +89,7 @@ struct ast_rtp {
 	int dtmfcount;
 	unsigned int dtmfduration;
 	int nat;
-	int flags;
+	unsigned int flags;
 	struct sockaddr_in us;
 	struct sockaddr_in them;
 	struct timeval rxcore;
@@ -279,11 +282,15 @@ static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *dat
 	   guaranteed to have it every 20ms or anything */
 	if (rtpdebug)
 		ast_log(LOG_DEBUG, "- RTP 3389 Comfort noise event: Level %d (len = %d)\n", rtp->lastrxformat, len);
-	if (!(rtp->flags & FLAG_3389_WARNING)) {
+
+	if (!(ast_test_flag(rtp, FLAG_3389_WARNING))) {
 		char iabuf[INET_ADDRSTRLEN];
-		ast_log(LOG_NOTICE, "Comfort noise support incomplete in Asterisk (RFC 3389).  Please turn off on client if possible. Client IP: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
-		rtp->flags |= FLAG_3389_WARNING;
+
+		ast_log(LOG_NOTICE, "Comfort noise support incomplete in Asterisk (RFC 3389). Please turn off on client if possible. Client IP: %s\n",
+			ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
+		ast_set_flag(rtp, FLAG_3389_WARNING);
 	}
+
 	/* Must have at least one byte */
 	if (!len)
 		return NULL;
@@ -354,8 +361,8 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 		if ((rtp->rtcp->them.sin_addr.s_addr != sin.sin_addr.s_addr) ||
 		    (rtp->rtcp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->rtcp->them, &sin, sizeof(rtp->rtcp->them));
-			if (option_debug)
-				ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
+			if (option_debug || rtpdebug)
+				ast_log(LOG_DEBUG, "RTCP NAT: Got RTCP from other end. Now sending to address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->rtcp->them.sin_addr), ntohs(rtp->rtcp->them.sin_port));
 		}
 	}
 	if (option_debug)
@@ -424,7 +431,9 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		    (rtp->them.sin_port != sin.sin_port)) {
 			memcpy(&rtp->them, &sin, sizeof(rtp->them));
 			rtp->rxseqno = 0;
-			ast_log(LOG_DEBUG, "RTP NAT: Using address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+			ast_set_flag(rtp, FLAG_NAT_ACTIVE);
+			if (option_debug || rtpdebug)
+				ast_log(LOG_DEBUG, "RTP NAT: Got audio from other end. Now sending to address %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
 		}
 	}
 
@@ -646,6 +655,8 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 
 {
 	int i;
+	if (!rtp)
+		return;
 
 	for (i = 0; i < MAX_RTP_PT; ++i) {
 		rtp->current_RTP_PT[i].isAstFormat = 0;
@@ -1212,8 +1223,17 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 
 	if (rtp->them.sin_port && rtp->them.sin_addr.s_addr) {
 		res = sendto(rtp->s, (void *)rtpheader, f->datalen + hdrlen, 0, (struct sockaddr *)&rtp->them, sizeof(rtp->them));
-		if (res <0) 
-			ast_log(LOG_NOTICE, "RTP Transmission error to %s:%d: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+		if (res <0) {
+			if (!rtp->nat || (rtp->nat && (ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_ACTIVE))) {
+				ast_log(LOG_DEBUG, "RTP Transmission error of packet %d to %s:%d: %s\n", rtp->seqno, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), strerror(errno));
+			} else if ((ast_test_flag(rtp, FLAG_NAT_ACTIVE) == FLAG_NAT_INACTIVE) || rtpdebug) {
+				/* Only give this error message once if we are not RTP debugging */
+				if (option_debug || rtpdebug)
+					ast_log(LOG_DEBUG, "RTP NAT: Can't write RTP to private address %s:%d, waiting for other end to send audio...\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port));
+				ast_set_flag(rtp, FLAG_NAT_INACTIVE_NOWARN);
+			}
+		}
+				
 		if(rtp_debug_test_addr(&rtp->them))
 			ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
 					, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
