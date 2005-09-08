@@ -8912,6 +8912,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 	switch (resp) {
 	case 100:	/* Trying */
 		sip_cancel_destroy(p);
+		break;
 	case 180:	/* 180 Ringing */
 		sip_cancel_destroy(p);
 		if (!ignore && p->owner) {
