@@ -33,6 +33,9 @@ else
   OSREV=$(CROSS_REV)
 endif
 
+# Remember the MAKELEVEL at the top
+MAKETOPLEVEL?=$(MAKELEVEL)
+
 ######### More GSM codec optimization
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
@@ -124,6 +127,8 @@ else
   AGI_DIR=$(ASTVARLIBDIR)/agi-bin
 endif
 
+ASTCFLAGS=
+
 # Pentium Pro Optimize
 #PROC=i686
 
@@ -134,7 +139,7 @@ endif
 #PROC=ppc
 
 #Uncomment this to use the older DSP routines
-#CFLAGS+=-DOLD_DSP_ROUTINES
+#ASTCFLAGS+=-DOLD_DSP_ROUTINES
 
 # Determine by a grep 'DocumentRoot' of your httpd.conf file
 HTTP_DOCSDIR=/var/www/html
@@ -198,7 +203,7 @@ endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
   PROC=$(shell uname -m)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
 PWD=$(shell pwd)
@@ -210,48 +215,48 @@ ifeq (${OSARCH},SunOS)
 endif
 
 INCLUDE=-Iinclude -I../include
-CFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
-CFLAGS+=$(OPTIMIZE)
+ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
+ASTCFLAGS+=$(OPTIMIZE)
 
 ifneq ($(PROC),ultrasparc)
-  CFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
+  ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
 endif
 
 ifeq ($(PROC),ppc)
-  CFLAGS+=-fsigned-char
+  ASTCFLAGS+=-fsigned-char
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
-  CFLAGS+=-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/include/osp
+  ASTCFLAGS+=-DOSP_SUPPORT -I$(CROSS_COMPILE_TARGET)/usr/include/osp
 endif
 
 ifeq (${OSARCH},FreeBSD)
   BSDVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
-  CFLAGS+=$(shell if test ${BSDVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
+  ASTCFLAGS+=$(shell if test ${BSDVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
   LIBS+=$(shell if test  ${BSDVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
   ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp),)
-    CFLAGS+=" -I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp"
+    ASTCFLAGS+=" -I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp"
   endif
   MPG123TARG=freebsd
 endif # FreeBSD
 
 ifeq (${OSARCH},NetBSD)
-  CFLAGS+=-pthread
+  ASTCFLAGS+=-pthread
   INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/pkg/include
   MPG123TARG=netbsd
 endif
 
 ifeq (${OSARCH},OpenBSD)
-  CFLAGS+=-pthread
+  ASTCFLAGS+=-pthread
 endif
 
 ifeq (${OSARCH},SunOS)
-  CFLAGS+=-Wcast-align -DSOLARIS
+  ASTCFLAGS+=-Wcast-align -DSOLARIS
   INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
-  CFLAGS+=-DZAPTEL_OPTIMIZATIONS
+  ASTCFLAGS+=-DZAPTEL_OPTIMIZATIONS
 endif
 
 LIBEDIT=editline/libedit.a
@@ -275,12 +280,12 @@ else
   ASTERISKVERSIONNUM=000000
 endif
 
-CFLAGS+= $(DEBUG_THREADS)
-CFLAGS+= $(TRACE_FRAMES)
-CFLAGS+= $(MALLOC_DEBUG)
-CFLAGS+= $(BUSYDETECT)
-CFLAGS+= $(OPTIONS)
-CFLAGS+= -fomit-frame-pointer 
+ASTCFLAGS+= $(DEBUG_THREADS)
+ASTCFLAGS+= $(TRACE_FRAMES)
+ASTCFLAGS+= $(MALLOC_DEBUG)
+ASTCFLAGS+= $(BUSYDETECT)
+ASTCFLAGS+= $(OPTIONS)
+ASTCFLAGS+= -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
@@ -300,7 +305,7 @@ endif
 
 ifeq (${OSARCH},Darwin)
   LIBS+=-lresolv
-  CFLAGS+=-D__Darwin__
+  ASTCFLAGS+=-D__Darwin__
   AUDIO_LIBS=-framework CoreAudio
   OBJS+=poll.o dlfcn.o
   ASTLINK=-Wl,-dynamic
@@ -328,6 +333,10 @@ ifeq (${OSARCH},SunOS)
   OBJS+=strcompat.o
   ASTLINK=
   SOLINK=-shared -fpic -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
+endif
+
+ifeq ($(MAKETOPLEVEL),$(MAKELEVEL))
+  CFLAGS+=$(ASTCFLAGS)
 endif
 
 LIBS+=-lssl
