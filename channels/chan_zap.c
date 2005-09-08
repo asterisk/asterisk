@@ -6937,7 +6937,8 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 			(signalling == SIG_SF_FEATD) || (signalling == SIG_SF_FEATDMF) ||
 			  (signalling == SIG_SF_FEATB)) {
 			p.starttime = 250;
-		} else if (radio) {
+		}
+		if (radio) {
 			/* XXX Waiting to hear back from Jim if these should be adjustable XXX */
 			p.channo = channel;
 			p.rxwinktime = 1;

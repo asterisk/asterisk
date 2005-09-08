@@ -3,7 +3,7 @@
  * Asterisk -- A telephony toolkit for Linux.
  *
  * Radio Repeater / Remote Base program 
- *  version 0.28 08/21/05
+ *  version 0.29 09/04/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -180,7 +180,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.28  08/21/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.29  09/04/2005";
 
 static char *app = "Rpt";
 
@@ -4797,13 +4797,13 @@ char cmd[MAXDTMF+1] = "";
 				/* if RX key */
 				if (f->subclass == AST_CONTROL_RADIO_KEY)
 				{
-					if (debug) printf("@@@@ rx key\n");
+					if (debug) printf("@@@@ rx key1 %s\n",myrpt->name);
 					myrpt->keyed = 1;
 				}
 				/* if RX un-key */
 				if (f->subclass == AST_CONTROL_RADIO_UNKEY)
 				{
-					if (debug) printf("@@@@ rx un-key\n");
+					if (debug) printf("@@@@ rx un-key1 %s\n",myrpt->name);
 					if(myrpt->keyed) {
 						rpt_telemetry(myrpt,UNKEY,NULL);
 					}
@@ -4963,13 +4963,13 @@ char cmd[MAXDTMF+1] = "";
 					/* if RX key */
 					if (f->subclass == AST_CONTROL_RADIO_KEY)
 					{
-						if (debug) printf("@@@@ rx key\n");
+						if (debug) printf("@@@@ rx key2, %s\n",l->name);
 						l->lastrx = 1;
 					}
 					/* if RX un-key */
 					if (f->subclass == AST_CONTROL_RADIO_UNKEY)
 					{
-						if (debug) printf("@@@@ rx un-key\n");
+						if (debug) printf("@@@@ rx un-key2, %s\n",l->name);
 						l->lastrx = 0;
 					}
 					if (f->subclass == AST_CONTROL_HANGUP)
@@ -5115,7 +5115,7 @@ pthread_attr_t attr;
 	/* start with blank config */
 	memset(&rpt_vars,0,sizeof(rpt_vars));
 
-	cfg = ast_load("rpt.conf");
+	cfg = ast_config_load("rpt.conf");
 	if (!cfg) {
 		ast_log(LOG_NOTICE, "Unable to open radio repeater configuration rpt.conf.  Radio Repeater disabled.\n");
 		pthread_exit(NULL);
