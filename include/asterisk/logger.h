@@ -25,9 +25,7 @@
 #ifndef _ASTERISK_LOGGER_H
 #define _ASTERISK_LOGGER_H
 
-#ifdef SOLARIS
-#include <solaris-compat/compat.h>
-#endif
+#include "asterisk/compat.h"
 
 #include <stdarg.h>
 

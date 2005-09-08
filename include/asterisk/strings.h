@@ -28,6 +28,7 @@
 
 #include "asterisk/inline_api.h"
 #include "asterisk/compiler.h"
+#include "asterisk/compat.h"
 
 static inline int ast_strlen_zero(const char *s)
 {
@@ -208,25 +209,6 @@ struct ast_realloca {
 		} \
 		(ra)->ptr; \
 	})
-
-#define HAVE_VASPRINTF
-#define HAVE_STRTOQ
-
-#ifdef __linux__
-#define HAVE_STRCASESTR
-#define HAVE_STRNDUP
-#define HAVE_STRNLEN
-#endif
-
-#ifdef SOLARIS
-#undef HAVE_VASPRINTF
-#undef HAVE_STRTOQ
-#endif
-
-#ifdef __CYGWIN__
-#undef HAVE_STRTOQ
-typedef unsigned long long uint64_t;
-#endif
 
 #ifndef HAVE_STRCASESTR
 char *strcasestr(const char *, const char *);

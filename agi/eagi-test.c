@@ -11,9 +11,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/select.h>
-#ifdef SOLARIS
-#include <solaris-compat/compat.h>
-#endif
+#include <asterisk/compat.h>
 
 #define AUDIO_FILENO (STDERR_FILENO + 1)
 

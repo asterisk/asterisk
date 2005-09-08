@@ -3,9 +3,7 @@
 #include <sys/types.h>
 #include <stdio.h>
 
-#ifdef SOLARIS
-#include "solaris-compat/compat.h"
-#endif
+#include "asterisk/compat.h"
 
 char* strsep(char** str, const char* delims)
 {

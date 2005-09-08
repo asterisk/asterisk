@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <time.h>
+#include <asterisk/compat.h>
 #ifdef SOLARIS
-#include <solaris-compat/compat.h>
 #define     POPT_ARGFLAG_SHOW_DEFAULT 0x00800000
 #endif
 #if !defined(POPT_ARGFLAG_SHOW_DEFAULT)

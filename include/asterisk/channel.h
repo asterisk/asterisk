@@ -23,9 +23,7 @@
 #ifndef _ASTERISK_CHANNEL_H
 #define _ASTERISK_CHANNEL_H
 
-#ifdef SOLARIS
-#include <solaris-compat/compat.h>
-#endif
+#include "asterisk/compat.h"
 #include "asterisk/frame.h"
 #include "asterisk/sched.h"
 #include "asterisk/chanvars.h"

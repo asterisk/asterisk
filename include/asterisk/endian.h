@@ -27,9 +27,7 @@
  * Autodetect system endianess
  */
 
-#ifdef SOLARIS
-#include "solaris-compat/compat.h"
-#endif
+#include "asterisk/compat.h"
 
 #ifndef __BYTE_ORDER
 #ifdef __linux__

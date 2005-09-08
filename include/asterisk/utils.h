@@ -23,9 +23,7 @@
 #ifndef _ASTERISK_UTILS_H
 #define _ASTERISK_UTILS_H
 
-#ifdef SOLARIS
-#include <solaris-compat/compat.h>
-#endif
+#include "asterisk/compat.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
