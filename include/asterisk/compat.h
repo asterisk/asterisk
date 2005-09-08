@@ -84,24 +84,4 @@ int unsetenv(const char *name);
 typedef unsigned long long uint64_t;
 #endif
 
-#ifndef HAVE_STRCASESTR
-char *strcasestr(const char *, const char *);
-#endif
-
-#ifndef HAVE_STRNDUP
-char *strndup(const char *, size_t);
-#endif
-
-#ifndef HAVE_STRNLEN
-size_t strnlen(const char *, size_t);
-#endif
-
-#ifndef HAVE_VASPRINTF
-int vasprintf(char **strp, const char *fmt, va_list ap);
-#endif
-
-#ifndef HAVE_STRTOQ
-uint64_t strtoq(const char *nptr, char **endptr, int base);
-#endif
-
 #endif
