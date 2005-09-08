@@ -19,9 +19,16 @@
 #include <unistd.h>
 #include <time.h>
 
+#ifndef __CYGWIN__
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
+#else
+#include <windows.h>
+#include <w32api/sql.h>
+#include <w32api/sqlext.h>
+#include <w32api/sqltypes.h>
+#endif
 
 #include "asterisk.h"
 
