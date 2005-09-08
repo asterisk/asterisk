@@ -35,7 +35,6 @@ struct ast_codec_pref {
 	char order[32];
 };
 
-
 /*! Data structure associated with a single frame of data */
 /* A frame of data read used to communicate between 
    between channels and applications */
@@ -62,15 +61,6 @@ struct ast_frame {
 	struct ast_frame *prev;			
 	/*! Next/Prev for linking stand alone frames */
 	struct ast_frame *next;			
-								/* Unused except if debugging is turned on, but left
-								   in the struct so that it can be turned on without
-								   requiring a recompile of the whole thing */
-};
-
-struct ast_frame_chain {
-	/* XXX Should ast_frame chain's be just prt of frames, i.e. should they just link? XXX */
-	struct ast_frame *fr;
-	struct ast_frame_chain *next;
 };
 
 #define AST_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to
@@ -107,6 +97,8 @@ struct ast_frame_chain {
 /*! Comfort Noise frame (subclass is level of CNG in -dBov), 
     body may include zero or more 8-bit quantization coefficients */
 #define AST_FRAME_CNG		10
+/*! T.38 Fax-over-IP data stream */
+#define AST_FRAME_T38		11
 
 /* HTML subclasses */
 /*! Sending a URL */
@@ -163,7 +155,7 @@ struct ast_frame_chain {
 #define AST_FORMAT_H263		(1 << 19)
 /*! H.263+ Video */
 #define AST_FORMAT_H263_PLUS	(1 << 20)
-/*! Max one */
+/*! Maximum video format */
 #define AST_FORMAT_MAX_VIDEO	(1 << 24)
 
 /* Control frame types */
@@ -295,11 +287,6 @@ struct ast_frame *ast_frisolate(struct ast_frame *fr);
  * Returns a frame on success, NULL on error
  */
 struct ast_frame *ast_frdup(struct ast_frame *fr);
-
-/*! Chains a frame -- unimplemented */
-#if 0 /* unimplemented */
-void ast_frchain(struct ast_frame_chain *fc);
-#endif
 
 /*! Reads a frame from an fd */
 /*! 
