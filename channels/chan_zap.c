@@ -1962,7 +1962,6 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				else
 					p->dop.dialstr[0] = '\0';
 				*s = '\0';
-				s++;
 			} else {
 				p->dop.dialstr[0] = '\0';
 			}
@@ -2025,7 +2024,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				pridialplan = PRI_LOCAL_ISDN;
  			}
  		}
- 		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan,  (s && *s) ? 1 : 0);
+ 		pri_sr_set_called(sr, c + p->stripmsd + dp_strip, pridialplan,  s ? 1 : 0);
 
 		ldp_strip = 0;
 		prilocaldialplan = p->pri->localdialplan - 1;
