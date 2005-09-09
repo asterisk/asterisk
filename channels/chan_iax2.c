@@ -6132,7 +6132,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 	int res;
 	int updatehistory=1;
 	int new = NEW_PREVENT;
-	char buf[4096]; 
+	unsigned char buf[4096]; 
 	void *ptr;
 	socklen_t len = sizeof(sin);
 	int dcallno = 0;

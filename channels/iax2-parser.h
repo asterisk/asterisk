@@ -139,7 +139,7 @@ extern int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsign
 extern int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, char *str);
 extern int iax_ie_append_byte(struct iax_ie_data *ied, unsigned char ie, unsigned char dat);
 extern int iax_ie_append(struct iax_ie_data *ied, unsigned char ie);
-extern int iax_parse_ies(struct iax_ies *ies, char *data, int datalen);
+extern int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen);
 
 extern int iax_get_frames(void);
 extern int iax_get_iframes(void);
