@@ -8928,7 +8928,7 @@ static int start_pri(struct zt_pri *pri)
 			pri->dchanavail[i] &= ~DCHAN_NOTINALARM;
 		bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
-		bi.numbufs = 16;
+		bi.numbufs = 32;
 		bi.bufsize = 1024;
 		if (ioctl(pri->fds[i], ZT_SET_BUFINFO, &bi)) {
 			ast_log(LOG_ERROR, "Unable to set appropriate buffering on channel %d\n", x);
