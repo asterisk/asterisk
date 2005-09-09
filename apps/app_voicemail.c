@@ -3780,6 +3780,12 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 	int count_msg, last_msg;
 
 	ast_copy_string(vms->curbox, mbox(box), sizeof(vms->curbox));
+	
+	/* Rename the member vmbox HERE so that we don't try to return before
+	 * we know what's going on.
+	 */
+	snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", vms->curbox);
+	
 	make_dir(vms->curdir, sizeof(vms->curdir), vmu->context, vms->username, vms->curbox);
 	count_msg = count_messages(vmu, vms->curdir);
 	if (count_msg < 0)
@@ -3805,7 +3811,6 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 			return res;
 	}
 
-	snprintf(vms->vmbox, sizeof(vms->vmbox), "vm-%s", vms->curbox);
 	return 0;
 }
 
