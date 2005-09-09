@@ -11920,7 +11920,7 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 }
 
 /*--- sip_set_rtp_peer: Set the RTP peer for this call ---*/
-static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
+static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
 {
 	struct sip_pvt *p;
 

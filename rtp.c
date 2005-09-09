@@ -1538,7 +1538,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	}
 
 	/* Ok, we should be able to redirect the media. Start with one channel */
-	if (pr0->set_rtp_peer(c0, p1, vp1, codec1)) 
+	if (pr0->set_rtp_peer(c0, p1, vp1, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE))) 
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk to '%s'\n", c0->name, c1->name);
 	else {
 		/* Store RTP peer */
@@ -1547,7 +1547,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			ast_rtp_get_peer(vp1, &vac1);
 	}
 	/* Then test the other channel */
-	if (pr1->set_rtp_peer(c1, p0, vp0, codec0))
+	if (pr1->set_rtp_peer(c1, p0, vp0, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))
 		ast_log(LOG_WARNING, "Channel '%s' failed to talk back to '%s'\n", c1->name, c0->name);
 	else {
 		/* Store RTP peer */
@@ -1571,11 +1571,11 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			(c0->masq || c0->masqr || c1->masq || c1->masqr)) {
 				ast_log(LOG_DEBUG, "Oooh, something is weird, backing out\n");
 				if (c0->tech_pvt == pvt0) {
-					if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
+					if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 				}
 				if (c1->tech_pvt == pvt1) {
-					if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
+					if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0)) 
 						ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 				}
 				return AST_BRIDGE_RETRY;
@@ -1600,10 +1600,10 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vt1.sin_addr), ntohs(vt1.sin_port), codec1);
 				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
 					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac1.sin_addr), ntohs(ac1.sin_port), oldcodec1);
-				ast_log(LOG_DEBUG, "Oooh, '%s' wasv %s:%d/(format %d)\n", 
+				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
 					c1->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vac1.sin_addr), ntohs(vac1.sin_port), oldcodec1);
 			}
-			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1)) 
+			if (pr0->set_rtp_peer(c0, t1.sin_addr.s_addr ? p1 : NULL, vt1.sin_addr.s_addr ? vp1 : NULL, codec1, ast_test_flag(p1, FLAG_NAT_ACTIVE))) 
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c0->name, c1->name);
 			memcpy(&ac1, &t1, sizeof(ac1));
 			memcpy(&vac1, &vt1, sizeof(vac1));
@@ -1616,7 +1616,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
 					c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
 			}
-			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0))
+			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);
 			memcpy(&ac0, &t0, sizeof(ac0));
 			memcpy(&vac0, &vt0, sizeof(vac0));
@@ -1640,11 +1640,11 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
 			if ((c0->tech_pvt == pvt0) && (!c0->_softhangup)) {
-				if (pr0->set_rtp_peer(c0, NULL, NULL, 0)) 
+				if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 			}
 			if ((c1->tech_pvt == pvt1) && (!c1->_softhangup)) {
-				if (pr1->set_rtp_peer(c1, NULL, NULL, 0)) 
+				if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 			}
 			return AST_BRIDGE_COMPLETE;

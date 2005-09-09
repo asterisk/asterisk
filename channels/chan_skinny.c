@@ -1327,7 +1327,7 @@ static struct ast_rtp *skinny_get_rtp_peer(struct ast_channel *chan)
 	return NULL;
 }
 
-static int skinny_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs)
+static int skinny_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active)
 {
 	struct skinny_subchannel *sub;
 	sub = chan->tech_pvt;

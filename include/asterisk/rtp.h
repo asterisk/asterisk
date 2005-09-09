@@ -50,7 +50,7 @@ struct ast_rtp_protocol {
 	/* Get RTP struct, or NULL if unwilling to transfer */
 	struct ast_rtp *(* const get_vrtp_info)(struct ast_channel *chan);
 	/* Set RTP peer */
-	int (* const set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer, struct ast_rtp *vpeer, int codecs);
+	int (* const set_rtp_peer)(struct ast_channel *chan, struct ast_rtp *peer, struct ast_rtp *vpeer, int codecs, int nat_active);
 	int (* const get_codec)(struct ast_channel *chan);
 	const char * const type;
 	struct ast_rtp_protocol *next;
