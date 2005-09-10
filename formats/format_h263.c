@@ -158,8 +158,11 @@ static struct ast_frame *h263_read(struct ast_filestream *s, int *whennext)
 	s->fr.samples = s->lastts;
 	s->fr.datalen = len;
 	s->fr.subclass |= mark;
+	s->fr.delivery.tv_sec = 0;
+	s->fr.delivery.tv_usec = 0;
 	if ((res = read(s->fd, &ts, sizeof(ts))) == sizeof(ts)) {
-		s->lastts = *whennext = ntohl(ts) * 4/45;
+		s->lastts = ntohl(ts);
+		*whennext = s->lastts * 4/45;
 	} else
 		*whennext = 0;
 	return &s->fr;
