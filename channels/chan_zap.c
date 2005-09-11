@@ -7239,7 +7239,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 	}
 	
 	if ((p->owner->_state != AST_STATE_UP) &&
-		(p->owner->_state != AST_STATE_RINGING)) {
+		((p->owner->_state != AST_STATE_RINGING) || p->outgoing)) {
 		/* If the current call is not up, then don't allow the call */
 		return 0;
 	}
