@@ -514,7 +514,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_channel *peer=NULL, *prev=NULL;
 	char name[AST_NAME_STRLEN],
-		peer_name[AST_NAME_STRLEN],
+		peer_name[AST_NAME_STRLEN + 5],
 		*args,
 		*ptr = NULL,
 		*options = NULL,
@@ -643,8 +643,8 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 					if (peer && (!bronly || ast_bridged_channel(peer)) &&
 					    !ast_check_hangup(peer) && !ast_test_flag(peer, AST_FLAG_SPYING)) {
 						int x = 0;
-
-						strncpy(peer_name, peer->name, AST_NAME_STRLEN);
+						strncpy(peer_name, "spy-", 5);
+						strncpy(peer_name + strlen(peer_name), peer->name, AST_NAME_STRLEN);
 						ptr = strchr(peer_name, '/');
 						*ptr = '\0';
 						ptr++;

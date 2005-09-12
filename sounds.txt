@@ -710,18 +710,18 @@
 %conf-onlyone.gsm%There is currently only one other participant in the conference.
 
 
-%agent.gsm%Agent
+%spy-agent.gsm%Agent
 
-%h323.gsm%H.323
+%spy-h323.gsm%H.323
 
-%iax.gsm%IAX
+%spy-iax.gsm%IAX
 
-%iax2.gsm%IAX (note: does not say "2")
+%spy-iax2.gsm%IAX (note: does not say "2")
 
-%mgcp.gsm%MGCP
+%spy-mgcp.gsm%MGCP
 
-%sip.gsm%SIP
+%spy-sip.gsm%SIP
 
-%skinny.gsm%Skinny
+%spy-skinny.gsm%Skinny
 
-%zap.gsm%Zap
+%spy-zap.gsm%Zap
