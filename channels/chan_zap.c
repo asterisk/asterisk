@@ -2205,6 +2205,8 @@ int pri_find_dchan(struct zt_pri *pri)
 		ast_log(LOG_NOTICE, "Switching from from d-channel %d to channel %d!\n",
 			pri->dchannels[oldslot], pri->dchannels[newslot]);
 	pri->pri = pri->dchans[newslot];
+	if (!pri_is_up(pri) && !(pri->dchanavail[newslot] & DCHAN_NOTINALARM))
+		pri_restart(pri->dchans[newslot]);
 	return 0;
 }
 #endif
@@ -7706,7 +7708,7 @@ static void *do_idle_thread(void *vchan)
 	return NULL;
 }
 
-#ifndef PRI_NEW_SET_API
+#ifndef PRI_RESTART
 #error "Upgrade your libpri"
 #endif
 static void zt_pri_message(struct pri *pri, char *s)
