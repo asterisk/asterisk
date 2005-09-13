@@ -10213,7 +10213,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		}
 		if (sipdebug || option_debug > 1)
 			ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
-		transmit_response(p, "200 OK", req);
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
 		sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
@@ -10224,6 +10223,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 			return 0;
 		} else {
+			transmit_response(p, "200 OK", req);
 			transmit_state_notify(p, firststate, 1, 1);	/* Send first notification */
 			append_history(p, "Subscribestatus", ast_extension_state2str(firststate));
 		}
