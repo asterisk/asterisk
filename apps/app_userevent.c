@@ -69,12 +69,12 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 
 	if(eventbody) {
             ast_log(LOG_DEBUG, "Sending user event: %s, %s\n", eventname, eventbody);
-            manager_event(EVENT_FLAG_CALL, eventname, 
+            manager_event(EVENT_FLAG_USER, eventname, 
 			"Channel: %s\r\nUniqueid: %s\r\n%s\r\n",
 			chan->name, chan->uniqueid, eventbody);
 	} else {
             ast_log(LOG_DEBUG, "Sending user event: %s\n", eventname);
-            manager_event(EVENT_FLAG_CALL, eventname, 
+            manager_event(EVENT_FLAG_USER, eventname, 
 			"Channel: %s\r\nUniqueid: %s\r\n", chan->name, chan->uniqueid);
 	}
 
