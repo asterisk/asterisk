@@ -11,6 +11,9 @@
        only, not requiring authentication on incoming invites, or both. Before,
        to not require authentication on incoming invites also required matching
        peers based on IP only.
+ -- chan_zap
+    -- Before, call waiting could occur during the initial ringing on the line.
+       This has now been fixed.
  -- app_disa
     -- We will now not set the accountcode if one is not supplied. 
  -- app_meetme
