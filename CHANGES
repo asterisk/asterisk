@@ -19,6 +19,10 @@
  -- app_meetme
     -- If the first caller into a conference hangs up while being prompted for
        the conference pin number, the conference will no longer be held open.
+ -- app_userevent
+    -- Events created with this application were indicated as a "call" event
+       instead of a "user" event.  This made the "user" event permissions
+       not work correctly.
  -- app_voicemail
     -- When using the externpass option for voicemail, the password will be
        immediately updated in memory as well, instead of having to wait for
