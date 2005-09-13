@@ -206,21 +206,27 @@ void ast_context_destroy(struct ast_context *con, const char *registrar);
  */
 struct ast_context *ast_context_find(const char *name);
 
+enum ast_pbx_result {
+	AST_PBX_SUCCESS = 0,
+	AST_PBX_FAILED = -1,
+	AST_PBX_CALL_LIMIT = -2,
+};
+
 /*! Create a new thread and start the PBX (or whatever) */
 /*!
  * \param c channel to start the pbx on
- * Starts a pbx thread on a given channel
- * It returns -1 on failure, and 0 on success
+ * \return Zero on success, non-zero on failure
  */
-int ast_pbx_start(struct ast_channel *c);
+enum ast_pbx_result ast_pbx_start(struct ast_channel *c);
 
 /*! Execute the PBX in the current thread */
 /*!
  * \param c channel to run the pbx on
- * This executes the PBX on a given channel.  It allocates a new
+ * \return Zero on success, non-zero on failure
+ * This executes the PBX on a given channel. It allocates a new
  * PBX structure for the channel, and provides all PBX functionality.
  */
-int ast_pbx_run(struct ast_channel *c);
+enum ast_pbx_result ast_pbx_run(struct ast_channel *c);
 
 /*! 
  * \param context context to add the extension to

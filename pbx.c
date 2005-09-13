@@ -2407,56 +2407,87 @@ out:
 	return 0;
 }
 
+/* Returns 0 on success, non-zero if call limit was reached */
+static int increase_call_count(const struct ast_channel *c)
+{
+	int failed = 0;
+
+	ast_mutex_lock(&maxcalllock);
+	if (option_maxcalls) {
+		if (countcalls >= option_maxcalls) {
+			ast_log(LOG_NOTICE, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
+			failed = -1;
+		}
+	}
+	if (!failed)
+		countcalls++;	
+	ast_mutex_unlock(&maxcalllock);
+
+	return failed;
+}
+
+static void decrease_call_count(void)
+{
+	ast_mutex_lock(&maxcalllock);
+	if (countcalls > 0)
+		countcalls--;
+	ast_mutex_unlock(&maxcalllock);
+}
+
 static void *pbx_thread(void *data)
 {
 	/* Oh joyeous kernel, we're a new thread, with nothing to do but
 	   answer this channel and get it going.
 	*/
+	/* NOTE:
+	   The launcher of this function _MUST_ increment 'countcalls'
+	   before invoking the function; it will be decremented when the
+	   PBX has finished running on the channel
+	 */
 	struct ast_channel *c = data;
-	ast_pbx_run(c);
+
+	__ast_pbx_run(c);
+	decrease_call_count();
+
 	pthread_exit(NULL);
+
 	return NULL;
 }
 
-int ast_pbx_start(struct ast_channel *c)
+enum ast_pbx_result ast_pbx_start(struct ast_channel *c)
 {
 	pthread_t t;
 	pthread_attr_t attr;
+
 	if (!c) {
 		ast_log(LOG_WARNING, "Asked to start thread on NULL channel?\n");
-		return -1;
+		return AST_PBX_FAILED;
 	}
 	   
+	if (increase_call_count(c))
+		return AST_PBX_CALL_LIMIT;
+
 	/* Start a new thread, and get something handling this channel. */
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (ast_pthread_create(&t, &attr, pbx_thread, c)) {
 		ast_log(LOG_WARNING, "Failed to create new channel thread\n");
-		return -1;
+		return AST_PBX_FAILED;
 	}
-	return 0;
+
+	return AST_PBX_SUCCESS;
 }
 
-int ast_pbx_run(struct ast_channel *c)
+enum ast_pbx_result ast_pbx_run(struct ast_channel *c)
 {
-	int res = 0;
-	ast_mutex_lock(&maxcalllock);
-	if (option_maxcalls) {
-		if (countcalls >= option_maxcalls) {
-			ast_log(LOG_NOTICE, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
-			res = -1;
-		}
-	}
-	if (!res)
-		countcalls++;	
-	ast_mutex_unlock(&maxcalllock);
-	if (!res) {
-		res = __ast_pbx_run(c);
-		ast_mutex_lock(&maxcalllock);
-		if (countcalls > 0)
-			countcalls--;
-		ast_mutex_unlock(&maxcalllock);
-	}
+	enum ast_pbx_result res = AST_PBX_SUCCESS;
+
+	if (increase_call_count(c))
+		return AST_PBX_CALL_LIMIT;
+
+	res = __ast_pbx_run(c);
+	decrease_call_count();
+
 	return res;
 }
 
