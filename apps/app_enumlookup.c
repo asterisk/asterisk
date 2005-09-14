@@ -71,8 +71,14 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	char dest[80];
 	char tmp[256];
 	char *c,*t;
+	static int dep_warning=0;
 
-       tech[0] = '\0';
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "The application EnumLookup is deprecated.  Please use the ENUMLOOKUP() function instead.\n");
+		dep_warning=1;
+	}
+
+	tech[0] = '\0';
 
 	struct localuser *u;
 
