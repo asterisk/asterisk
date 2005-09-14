@@ -9236,7 +9236,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		__sip_ack(p, seqno, 0, sipmethod);
 
 	/* Get their tag if we haven't already */
-	if (ast_strlen_zero(p->theirtag)) {
+	if (ast_strlen_zero(p->theirtag) || (resp >= 200)) {
 		to = get_header(req, "To");
 		to = strcasestr(to, "tag=");
 		if (to) {
