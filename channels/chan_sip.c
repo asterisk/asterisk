@@ -4875,8 +4875,8 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header(&req, "Event", "message-summary");
 	add_header(&req, "Content-Type", default_notifymime);
 
-	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", (vmexten && !ast_strlen_zero(vmexten)) ? vmexten : global_vmexten, p->fromdomain);
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
+	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", (vmexten && !ast_strlen_zero(vmexten)) ? vmexten : global_vmexten, p->fromdomain);
 	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
 
 	if (t > tmp + sizeof(tmp))
