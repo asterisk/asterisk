@@ -290,8 +290,8 @@ static const struct cfsip_options {
 	{ SIP_OPT_PRECONDITION,	NOT_SUPPORTED,	"precondition" },
 	/* RFC3323: Privacy with proxies*/
 	{ SIP_OPT_PRIVACY,	NOT_SUPPORTED,	"privacy" },
-	/* Not yet RFC, but registred with IANA */
-	{ SIP_OPT_SDP_ANAT,	NOT_SUPPORTED,	"sdp_anat" },
+	/* RFC4092: Usage of the SDP ANAT Semantics in the SIP */
+	{ SIP_OPT_SDP_ANAT,	NOT_SUPPORTED,	"sdp-anat" },
 	/* RFC3329: Security agreement mechanism */
 	{ SIP_OPT_SEC_AGREE,	NOT_SUPPORTED,	"sec_agree" },
 	/* SIMPLE events:  draft-ietf-simple-event-list-07.txt */
