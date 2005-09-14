@@ -1,12 +1,9 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Multi-timezone Localtime code
- * 
- * Copyright (C) 2003, Mark Spencer
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * Mark Spencer <markster@digium.com>
  *
  * Most of this code is in the public domain, so clarified as of
  * June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
@@ -14,6 +11,22 @@
  * All modifications to this code to abstract timezones away from
  * the environment are by Tilghman Lesher, <tlesher@vcch.com>, with
  * the copyright assigned to Digium.
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * Multi-timezone Localtime code
+ * 
  */
 
 /*

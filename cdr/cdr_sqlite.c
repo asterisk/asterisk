@@ -1,16 +1,27 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Store CDR records in a SQLite database.
- * 
  * Copyright (C) 2004 - 2005, Holger Schurig
  *
  * Holger Schurig <hs4233@mail.mn-solutions.de>
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License.
- *
  * Ideas taken from other cdr_*.c files
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * Store CDR records in a SQLite database.
+ * 
  */
 
 #include <sys/types.h>

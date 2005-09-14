@@ -1,24 +1,36 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Voicemail System
- * 
- * Copyright (C) 2003 - 2005, Digium Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License
- *
- * 12-16 - 2005 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
+ * 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
  *				 George Konstantoulakis <gkon@inaccessnetworks.com>
- * 05-10 - 2005 : Support for Swedish and Norwegian added by Daniel Nylander, http://www.danielnylander.se/
  *
- * 05-11 - 2005 : An option for maximum number of messsages per mailbox added by GDS Partners (www.gdspartners.com)
+ * 05-10-2005 : Support for Swedish and Norwegian added by Daniel Nylander, http://www.danielnylander.se/
+ *
+ * 05-11-2005 : An option for maximum number of messsages per mailbox added by GDS Partners (www.gdspartners.com)
  *				 Stojan Sljivic <stojan.sljivic@gdspartners.com>
  *
- * 07-11 - 2005 : An issue with voicemail synchronization has been fixed by GDS Partners (www.gdspartners.com)
+ * 07-11-2005 : An issue with voicemail synchronization has been fixed by GDS Partners (www.gdspartners.com)
  *				 Stojan Sljivic <stojan.sljivic@gdspartners.com>
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * Voicemail System
+ * 
  */
 
 #include <stdlib.h>

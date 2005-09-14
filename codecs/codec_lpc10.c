@@ -1,19 +1,29 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Translate between signed linear and LPC10 (Linear Predictor Code)
- *
- * The lpc10 code is from a library used by nautilus, modified to be a bit
- * nicer to the compiler.
- *
- * See http://www.arl.wustl.edu/~jaf/ 
- * 
- * Copyright (C) 1999 - 2005  Digium,inc 
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
+ * The lpc10 code is from a library used by nautilus, modified to be a bit
+ * nicer to the compiler.
+ * See http://www.arl.wustl.edu/~jaf/ 
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * Translate between signed linear and LPC10 (Linear Predictor Code)
+ *
  */
 
 #include <fcntl.h>

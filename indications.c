@@ -1,19 +1,30 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Tone Management
- * 
  * Copyright (C) 2002, Pauline Middelink
  *
  * Pauline Middelink <middelink@polyware.nl>
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
  *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * Tone Management
+ * 
  * This set of function allow us to play a list of tones on a channel.
  * Each element has two frequencies, which are mixed together and a
  * duration. For silence both frequencies can be set to 0.
  * The playtones can be given as a comma separated string.
+ *
  */
 
 #include <stdio.h>

@@ -1,17 +1,28 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * ParkAndAnnounce application for Asterisk
- * Author: Ben Miller <bgmiller@dccinc.com>
- *    With TONS of help from Mark!
- * 
- * Asterisk is Copyrighted as follows
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
+ * Author: Ben Miller <bgmiller@dccinc.com>
+ *    With TONS of help from Mark!
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * ParkAndAnnounce application for Asterisk
+ * 
  */
 
 #include <sys/types.h>

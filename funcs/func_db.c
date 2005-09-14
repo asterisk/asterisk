@@ -1,16 +1,27 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Functions for interaction with the Asterisk database
- * 
  * Copyright (C) 2005, Russell Bryant <russelb@clemson.edu> 
  *
  * func_db.c adapted from the old app_db.c, copyright by the following people 
  * Copyright (C) 2005, Mark Spencer <markster@digium.com>
  * Copyright (C) 2003, Jefferson Noxon <jeff@debian.org>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * Functions for interaction with the Asterisk database
+ * 
  */
 
 #include <stdlib.h>
