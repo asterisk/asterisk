@@ -3627,36 +3627,58 @@ static int copy_all_header(struct sip_request *req, struct sip_request *orig, ch
 	return copied ? 0 : -1;
 }
 
-/*--- copy_via_headers: Copy SIP VIA Headers from one request to another ---*/
+/*--- copy_via_headers: Copy SIP VIA Headers from the request to the response ---*/
+/*	If the client indicates that it wishes to know the port we received from,
+	it adds ;rport without an argument to the topmost via header. We need to
+	add the port number (from our point of view) to that parameter.
+	We always add ;received=<ip address> to the topmost via header.
+	Received: RFC 3261, rport RFC 3581 */
 static int copy_via_headers(struct sip_pvt *p, struct sip_request *req, struct sip_request *orig, char *field)
 {
 	char tmp[256], *oh, *end;
 	int start = 0;
 	int copied = 0;
-	char new[256];
 	char iabuf[INET_ADDRSTRLEN];
+
 	for (;;) {
 		oh = __get_header(orig, field, &start);
 		if (!ast_strlen_zero(oh)) {
-			/* Strip ;rport */
-			ast_copy_string(tmp, oh, sizeof(tmp));
-			oh = strstr(tmp, ";rport");
-			if (oh) {
-				end = strchr(oh + 1, ';');
-				if (end)
-					memmove(oh, end, strlen(end) + 1);
-				else
-					*oh = '\0';
-			}
-			if (!copied && (ast_test_flag(p, SIP_NAT) == SIP_NAT_ALWAYS)) {
-				/* Whoo hoo!  Now we can indicate port address translation too!  Just
-				   another RFC (RFC3581). I'll leave the original comments in for
-				   posterity.  */
-				snprintf(new, sizeof(new), "%s;received=%s;rport=%d", tmp, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+			if (!copied) {	/* Only check for empty rport in topmost via header */
+				char *rport;
+				char new[256];
+
+				/* Find ;rport;  (empty request) */
+				rport = strstr(oh, ";rport");
+				if (rport && *(rport+6) == '=') 
+					rport = NULL;		/* We already have a parameter to rport */
+
+				if (rport && (ast_test_flag(p, SIP_NAT) == SIP_NAT_ALWAYS)) {
+					/* We need to add received port - rport */
+					ast_copy_string(tmp, oh, sizeof(tmp));
+
+					rport = strstr(tmp, ";rport");
+
+					if (rport) {
+						end = strchr(rport + 1, ';');
+						if (end)
+							memmove(rport, end, strlen(end) + 1);
+						else
+							*rport = '\0';
+					}
+
+					/* Add rport to first VIA header if requested */
+					/* Whoo hoo!  Now we can indicate port address translation too!  Just
+				   	   another RFC (RFC3581). I'll leave the original comments in for
+				   	   posterity.  */
+					snprintf(new, sizeof(new), "%s;received=%s;rport=%d", tmp, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr), ntohs(p->recv.sin_port));
+				} else {
+					/* We should *always* add a received to the topmost via */
+					snprintf(new, sizeof(new), "%s;received=%s", oh, ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
+				}
 				add_header(req, field, new);
 			} else {
-				/* Add what we're responding to */
-				add_header(req, field, tmp);
+				/* Add the following via headers untouched */
+				add_header(req, field, oh);
 			}
 			copied++;
 		} else
