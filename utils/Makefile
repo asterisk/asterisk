@@ -44,7 +44,7 @@ install:
 	done 
 
 clean:
-	rm -f *.o astman smsq stereorize check_expr .depend
+	rm -f *.o astman smsq stereorize streamplayer check_expr .depend
 	rm -f ast_expr2.o ast_expr2f.o
 
 astman: astman.o ../md5.o
