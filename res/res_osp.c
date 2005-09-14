@@ -534,7 +534,6 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	OSPTCALLID *callid;
 	OSPE_DEST_PROT prot;
 	OSPE_DEST_OSP_ENABLED ospenabled;
-	time_t now;
 
 	result->handle = -1;
 	result->numresults = 0;
@@ -597,8 +596,7 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 						sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
 						ast_log(LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
 							destination, callednum, callingnum, extension, provider);
-						time (&now);
-						chan->whentohangup = now + timelimit;	// Only support OSP server with only one duration limit
+						ast_channel_setwhentohangup (chan, timelimit);	/* Only support OSP server with only one duration limit */
 						do {
 							if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {
 								result->token[0] = 0;
