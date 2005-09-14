@@ -5173,6 +5173,7 @@ static void *ss_thread(void *data)
 			ast_log(LOG_DEBUG, "No such possible extension '%s' in context '%s'\n", exten, chan->context);
 			chan->hangupcause = AST_CAUSE_UNALLOCATED;
 			ast_hangup(chan);
+			p->exten[0] = '\0';
 		}
 		return NULL;
 		break;
@@ -8451,6 +8452,7 @@ static void *pri_dchannel(void *vpri)
 									pri->pvts[chanpos]->prioffset, pri->span);
 						pri_hangup(pri->pri, e->ring.call, PRI_CAUSE_UNALLOCATED);
 						pri->pvts[chanpos]->call = NULL;
+						pri->pvts[chanpos]->exten[0] = '\0';
 					}
 					if (crv)
 						ast_mutex_unlock(&crv->lock);
