@@ -214,7 +214,7 @@ struct ast_realloca {
 char *strcasestr(const char *, const char *);
 #endif
 
-#ifndef HAVE_STRNDUP
+#if !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC)
 char *strndup(const char *, size_t);
 #endif
 
@@ -222,7 +222,7 @@ char *strndup(const char *, size_t);
 size_t strnlen(const char *, size_t);
 #endif
 
-#ifndef HAVE_VASPRINTF
+#if !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC)
 int vasprintf(char **strp, const char *fmt, va_list ap);
 #endif
 

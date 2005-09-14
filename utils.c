@@ -658,7 +658,7 @@ size_t strnlen(const char *s, size_t n)
 }
 #endif
 
-#ifndef HAVE_STRNDUP
+#if !defined(HAVE_STRNDUP) && !defined(__AST_DEBUG_MALLOC)
 char *strndup(const char *s, size_t n)
 {
 	size_t len = strnlen(s, n);
@@ -672,7 +672,7 @@ char *strndup(const char *s, size_t n)
 }
 #endif
 
-#ifndef HAVE_VASPRINTF
+#if !defined(HAVE_VASPRINTF) && !defined(__AST_DEBUG_MALLOC)
 int vasprintf(char **strp, const char *fmt, va_list ap)
 {
 	int size;

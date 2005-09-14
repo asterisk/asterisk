@@ -13,7 +13,6 @@
 
 #ifdef __AST_DEBUG_MALLOC
 
-#include <malloc.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
