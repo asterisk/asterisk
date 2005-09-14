@@ -5574,7 +5574,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	int argc;
-	char *args;
+	char *parse;
 	char *argv[4];
 	char *options = NULL; 
 	char *filename = NULL;
@@ -5583,19 +5583,22 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	char *context = NULL;
 	struct ast_flags flags = {0};
 
-	args = ast_strdupa(data);
+	parse = ast_strdupa(data);
 
-	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		if (argc > 0) {
+	if ((argc = ast_separate_app_args(parse, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
+		switch (argc) {
+		case 4:
+			context = argv[3];
+		case 3:
+			lang = argv[2];
+		case 2:
+			options = argv[1];
+		case 1:
 			filename = argv[0];
-			if (argc > 1)
-				options = argv[1];
-			if (argc > 2)
-				lang = argv[2];
-			if (argc > 3)
-				context = argv[3];
-		} else {
+			break;
+		default:
 			ast_log(LOG_WARNING, "Background requires an argument (filename)\n");
+			break;
 		}
 	}
 
