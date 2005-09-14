@@ -812,46 +812,60 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 	}
 }
 
-extern void ast_verbose(const char *fmt, ...)
+void ast_verbose(const char *fmt, ...)
 {
 	static char stuff[4096];
-	static int pos = 0, opos;
-	static int replacelast = 0, complete;
+	static int len = 0;
+	static int replacelast = 0;
+
+	int complete;
+	int olen;
 	struct msglist *m;
 	struct verb *v;
-	time_t t;
-	struct tm tm;
-	char date[40];
-	char *datefmt;
 	
 	va_list ap;
 	va_start(ap, fmt);
-	ast_mutex_lock(&msglist_lock);
-	time(&t);
-	localtime_r(&t, &tm);
-	strftime(date, sizeof(date), dateformat, &tm);
 
 	if (option_timestamp) {
+		time_t t;
+		struct tm tm;
+		char date[40];
+		char *datefmt;
+
+		time(&t);
+		localtime_r(&t, &tm);
+		strftime(date, sizeof(date), dateformat, &tm);
 		datefmt = alloca(strlen(date) + 3 + strlen(fmt) + 1);
 		if (datefmt) {
 			sprintf(datefmt, "[%s] %s", date, fmt);
 			fmt = datefmt;
 		}
 	}
-	vsnprintf(stuff + pos, sizeof(stuff) - pos, fmt, ap);
-	opos = pos;
-	pos = strlen(stuff);
 
+	/* this lock is also protecting against multiple threads
+	   being in this function at the same time, so it must be
+	   held before any of the static variables are accessed
+	*/
+	ast_mutex_lock(&msglist_lock);
 
-	if (stuff[strlen(stuff)-1] == '\n') 
-		complete = 1;
-	else
-		complete=0;
+	/* there is a potential security problem here: if formatting
+	   the current date using 'dateformat' results in a string
+	   containing '%', then the vsnprintf() call below will
+	   probably try to access random memory
+	*/
+	vsnprintf(stuff + len, sizeof(stuff) - len, fmt, ap);
+	va_end(ap);
+
+	olen = len;
+	len = strlen(stuff);
+
+	complete = (stuff[len - 1] == '\n') ? 1 : 0;
+
 	if (complete) {
 		if (msgcnt < MAX_MSG_QUEUE) {
 			/* Allocate new structure */
-			m = malloc(sizeof(struct msglist));
-			msgcnt++;
+			if ((m = malloc(sizeof(*m))))
+				msgcnt++;
 		} else {
 			/* Recycle the oldest entry */
 			m = list;
@@ -874,22 +888,18 @@ extern void ast_verbose(const char *fmt, ...)
 			}
 		}
 	}
-	if (verboser) {
-		v = verboser;
-		while(v) {
-			v->verboser(stuff, opos, replacelast, complete);
-			v = v->next;
-		}
-	} /* else
-		fprintf(stdout, stuff + opos); */
+
+	for (v = verboser; v; v = v->next)
+		v->verboser(stuff, olen, replacelast, complete);
+
 	ast_log(LOG_VERBOSE, "%s", stuff);
-	if (strlen(stuff)) {
-		if (stuff[strlen(stuff)-1] != '\n') 
+
+	if (len) {
+		if (complete)
 			replacelast = 1;
 		else 
-			replacelast = pos = 0;
+			replacelast = len = 0;
 	}
-	va_end(ap);
 
 	ast_mutex_unlock(&msglist_lock);
 }
