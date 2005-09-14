@@ -12414,14 +12414,13 @@ int load_module()
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 	}
 
+	reload_config();	/* Load the configuration from sip.conf */
+
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
 		ast_log(LOG_ERROR, "Unable to register channel type %s\n", channeltype);
 		return -1;
 	}
-
-	if (reload_config())	/* Load the configuration from sip.conf */
-		return -1;
 
 	/* Register all CLI functions for SIP */
 	ast_cli_register_multiple(my_clis, sizeof(my_clis)/ sizeof(my_clis[0]));
