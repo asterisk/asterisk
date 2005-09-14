@@ -2660,8 +2660,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 		if (relaxdtmf)
 			ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
 	}
-	tmp->fds[0] = ast_rtp_fd(i->rtp);
-	tmp->fds[1] = ast_rtcp_fd(i->rtp);
+	if (i->rtp) {
+		tmp->fds[0] = ast_rtp_fd(i->rtp);
+		tmp->fds[1] = ast_rtcp_fd(i->rtp);
+	}
 	if (i->vrtp) {
 		tmp->fds[2] = ast_rtp_fd(i->vrtp);
 		tmp->fds[3] = ast_rtcp_fd(i->vrtp);
@@ -2830,6 +2832,12 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	/* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
 	struct ast_frame *f;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
+	
+	if (!p->rtp) {
+		/* We have no RTP allocated for this channel */
+		return &null_frame;
+	}
+
 	switch(ast->fdno) {
 	case 0:
 		f = ast_rtp_read(p->rtp);	/* RTP Audio */
@@ -2940,8 +2948,8 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
 		if (videosupport)
 			p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-		if (!p->rtp) {
-			ast_log(LOG_WARNING, "Unable to create RTP session: %s\n", strerror(errno));
+		if (!p->rtp || (videosupport && !p->vrtp)) {
+			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
 			ast_mutex_destroy(&p->lock);
 			if (p->chanvars) {
 				ast_variables_destroy(p->chanvars);
@@ -3260,6 +3268,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	int x,y;
 	int debug=sip_debug_test_pvt(p);
 	struct ast_channel *bridgepeer = NULL;
+
+	if (!p->rtp) {
+		ast_log(LOG_ERROR, "Got SDP but have no RTP session allocated.\n");
+		return -1;
+	}
 
 	/* Update our last rtprx when we receive an SDP, too */
 	time(&p->lastrtprx);
@@ -4316,8 +4329,11 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 		return -1;
 	}
 	respprep(&resp, p, msg, req);
-	ast_rtp_offered_from_local(p->rtp, 0);
-	add_sdp(&resp, p);
+	if (p->rtp) {
+		ast_rtp_offered_from_local(p->rtp, 0);
+		add_sdp(&resp, p);
+		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
+	}
 	return send_response(p, &resp, retrans, seqno);
 }
 
@@ -4636,7 +4652,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			}
 		}
 	}
-	if (sdp) {
+	if (sdp && p->rtp) {
 		ast_rtp_offered_from_local(p->rtp, 1);
 		add_sdp(&req, p);
 	} else {
