@@ -82,40 +82,40 @@ and it is included as a more complex regexp example, though other
 simpler NAPTRs will work just as well.
 
 
-0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 10 100 "u" "E2U+tel" "!^\\+13015611020$!tel:+12125551212!" .
-0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 21 100 "u" "E2U+tel" "!^\\+13015611020$!tel:+14155551212!" .
-0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 25 100 "u" "E2U+sip" "!^\\+13015611020$!sip:2203@sip.fox-den.com!" .
-0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 26 100 "u" "E2U+sip" "!^\\+13015611020$!sip:1234@sip-2.fox-den.com!" .
-0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 30 100 "u" "E2U+sip" "!^\\+*([^\\*]*)!sip:\\1@sip-3.fox-den.com!" .
-0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 55 100 "u" "E2U+mailto" "!^\\+13015611020$!mailto:jtodd@fox-den.com!" .
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 10 100 "u" "E2U+tel" "!^\\+13015611020$!tel:+12125551212!" .
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 21 100 "u" "E2U+tel" "!^\\+13015611020$!tel:+14155551212!" .
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 25 100 "u" "E2U+sip" "!^\\+13015611020$!sip:2203@sip.fox-den.com!" .
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 26 100 "u" "E2U+sip" "!^\\+13015611020$!sip:1234@sip-2.fox-den.com!" .
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 30 100 "u" "E2U+sip" "!^\\+*([^\\*]*)!sip:\\1@sip-3.fox-den.com!" .
+0.2.0.1.1.6.5.1.0.3.1.loligo.com. 3600 IN NAPTR 55 100 "u" "E2U+mailto" "!^\\+13015611020$!mailto:jtodd@fox-den.com!" .
 
 Example 1: Simplest case, using first SIP return (use all defaults
 except for domain name)
-exten => 100,1,Set(foo=ENUMLOOKUP(13015611020,,,fox-den.com))
+exten => 100,1,Set(foo=${ENUMLOOKUP(+13015611020,,,loligo.com)})
   returns: ${foo}="2203@sip.fox-den.com"
 
 Example 2: What is the first "tel" pointer type for this number?
 (after sorting by order/preference; default of "1" is assumed in
 options field)
-exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,tel,,loligo.com)})
+exten => 100,1,Set(foo=${ENUMLOOKUP(+13015611020,tel,,loligo.com)})
   returns: ${foo}="+12125551212"
 
 Example 3: How many "sip" pointer type entries are there for this number?
-exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,sip,c,loligo.com)})
+exten => 100,1,Set(foo=${ENUMLOOKUP(+13015611020,sip,c,loligo.com)})
   returns: ${foo}=3
 
 Example 4: For all the "tel" pointer type entries, what is the second
 one in the list? (after sorting by preference)
-exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,tel,2,loligo.com)})
-  returns: ${foo}="+5553"
+exten => 100,1,Set(foo=${ENUMLOOKUP(+13015611020,tel,2,loligo.com)})
+  returns: ${foo}="+14155551212"
 
 Example 5: How many NAPTRs (tel, sip, mailto, etc.) are in the list for this number?
-exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,ALL,c,loligo.com)})
+exten => 100,1,Set(foo=${ENUMLOOKUP(+13015611020,ALL,c,loligo.com)})
   returns: ${foo}=6
 
 Example 6: Give back the second full URI in the sorted list of all NAPTR URIs:
-exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,ALL,2,loligo.com)})
-  returns: ${foo}="tel:14155551212"  [note the "tel:" prefix in the string]
+exten => 100,1,Set(foo=${ENUMLOOKUP(+13015611020,ALL,2,loligo.com)})
+  returns: ${foo}="tel:+14155551212"  [note the "tel:" prefix in the string]
 
 Example 7: Look up first SIP entry for the number in the e164.arpa zone (all defaults)
 exten => 100,1,Set(foo=${ENUMLOOKUP(+437203001721)})
