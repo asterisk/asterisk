@@ -509,10 +509,11 @@ struct sip_auth {
 #define SIP_PROG_INBAND_NO	(1 << 24)
 #define SIP_PROG_INBAND_YES	(2 << 24)
 /* Open Settlement Protocol authentication */
-#define SIP_OSPAUTH		(3 << 26)	/* three settings, uses two bits */
+#define SIP_OSPAUTH		(3 << 26)	/* four settings, uses two bits */
 #define SIP_OSPAUTH_NO		(0 << 26)
-#define SIP_OSPAUTH_YES		(1 << 26)
-#define SIP_OSPAUTH_EXCLUSIVE	(2 << 26)
+#define SIP_OSPAUTH_GATEWAY	(1 << 26)
+#define SIP_OSPAUTH_PROXY	(2 << 26)
+#define SIP_OSPAUTH_EXCLUSIVE	(3 << 26)
 /* Call states */
 #define SIP_CALL_ONHOLD		(1 << 28)	 
 #define SIP_CALL_LIMIT		(1 << 29)
@@ -5783,25 +5784,63 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		respheader = "WWW-Authenticate";
 	}
 #ifdef OSP_SUPPORT
-	else if (ast_test_flag(p, SIP_OSPAUTH)) {
-		ast_log(LOG_DEBUG, "Checking OSP Authentication!\n");
-		osptoken = get_header(req, "P-OSP-Auth-Token");
-		/* Check for token existence */
-		if (ast_strlen_zero(osptoken))
-			return -1;
-		/* Validate token */
-		if (ast_osp_validate(NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1)
-			return -1;
-		
-		snprintf(tmp, sizeof(tmp), "%d", p->osphandle);
-		pbx_builtin_setvar_helper(p->owner, "_OSPHANDLE", tmp);
-
-
-		/* If ospauth is 'exclusive' don't require further authentication */
-		if ((ast_test_flag(p, SIP_OSPAUTH) == SIP_OSPAUTH_EXCLUSIVE) ||
-		    (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)))
-			return 0;
-	}
+	else {
+		ast_log (LOG_DEBUG, "Checking OSP Authentication!\n");
+		osptoken = get_header (req, "P-OSP-Auth-Token");
+		switch (ast_test_flag (p, SIP_OSPAUTH)) {
+			case SIP_OSPAUTH_NO:
+				break;
+			case SIP_OSPAUTH_GATEWAY:
+				if (ast_strlen_zero (osptoken)) {
+					if (ast_strlen_zero (secret) && ast_strlen_zero (md5secret)) {
+						return (0);
+					}
+				}
+				else {
+					if (ast_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
+						return (-1);
+					} 
+					else {
+						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
+						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
+						return (0);
+					}
+				}
+				break;
+			case SIP_OSPAUTH_PROXY:
+				if (ast_strlen_zero (osptoken)) {
+					return (0);
+				} 
+				else {
+					if (ast_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
+						return (-1);
+					} 
+					else {
+						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
+						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
+						return (0);
+					}
+				}
+				break;
+			case SIP_OSPAUTH_EXCLUSIVE:
+				if (ast_strlen_zero (osptoken)) {
+					return (-1);
+				}
+				else {
+					if (ast_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
+						return (-1);
+					} 
+					else {
+						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
+						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
+						return (0);
+					}
+				}
+				break;
+			default:
+				return (-1);
+		}
+ 	}
 #endif	
 	authtoken =  get_header(req, reqheader);	
 	if (ignore && !ast_strlen_zero(randdata) && ast_strlen_zero(authtoken)) {
@@ -11073,10 +11112,12 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "ospauth")) {
 		ast_set_flag(mask, SIP_OSPAUTH);
 		ast_clear_flag(flags, SIP_OSPAUTH);
-		if (!strcasecmp(v->value, "exclusive"))
-			ast_set_flag(flags, SIP_OSPAUTH_EXCLUSIVE);
-		else
-			ast_set2_flag(flags, ast_true(v->value), SIP_OSPAUTH_YES);
+		if (!strcasecmp(v->value, "proxy"))
+			ast_set_flag(flags, SIP_OSPAUTH_PROXY);
+		else if (!strcasecmp(v->value, "gateway"))
+			ast_set_flag(flags, SIP_OSPAUTH_GATEWAY);
+		else if(!strcasecmp (v->value, "exclusive"))
+ 			ast_set_flag(flags, SIP_OSPAUTH_EXCLUSIVE);
 #endif
 	} else if (!strcasecmp(v->name, "promiscredir")) {
 		ast_set_flag(mask, SIP_PROMISCREDIR);
