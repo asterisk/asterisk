@@ -14,6 +14,14 @@
 ; on a reload.
 ;
 ;accelerate=yes
+;
+; Defines the token format that Asterisk can validate. 
+; 0 - signed tokens only 
+; 1 - unsigned tokens only 
+; 2 - both signed and unsigned
+; The defaults to 0, i.e. the Asterisk can validate signed tokens only.
+;
+;tokenformat=0
 
 ;[default]
 ;

@@ -63,6 +63,7 @@ AST_MUTEX_DEFINE_STATIC(osplock);
 
 static int initialized = 0;
 static int hardware = 0;
+static unsigned tokenformat = TOKEN_ALGO_SIGNED;
 
 struct osp_provider {
 	char name[OSP_MAX];
@@ -278,13 +279,28 @@ static int show_osp(int fd, int argc, char *argv[])
 	char *search = NULL;
 	int x;
 	int found = 0;
+	char *tokenalgo;
+
 	if ((argc < 2) || (argc > 3))
 		return RESULT_SHOWUSAGE;
 	if (argc > 2)
 		search = argv[2];
-	if (!search) 
-		ast_cli(fd, "OSP: %s %s\n", initialized ? "Initialized" : "Uninitialized", hardware ? "Accelerated" : "Normal");
-	
+	if (!search) {
+		switch (tokenformat) {
+			case TOKEN_ALGO_BOTH:
+				tokenalgo = "Both";
+				break;
+			case TOKEN_ALGO_UNSIGNED:
+				tokenalgo = "Unsigned";
+				break;
+			case TOKEN_ALGO_SIGNED:
+			default:
+				tokenalgo = "Signed";
+				break;
+		}
+		ast_cli(fd, "OSP: %s %s %s\n", initialized ? "Initialized" : "Uninitialized", hardware ? "Accelerated" : "Normal", tokenalgo);
+	}
+
 	ast_mutex_lock(&osplock);
 	osp = providers;
 	while(osp) {
@@ -476,7 +492,7 @@ int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *tim
 		res = 0;
 		dummy = 0;
 		if (!OSPPTransactionValidateAuthorisation(*handle, iabuf, source, NULL, NULL, 
-			callerid, OSPC_E164, extension, OSPC_E164, 0, "", tokenlen, token2, &authorised, timelimit, &dummy, NULL, TOKEN_ALGO_BOTH)) {
+			callerid, OSPC_E164, extension, OSPC_E164, 0, "", tokenlen, token2, &authorised, timelimit, &dummy, NULL, tokenformat)) {
 			if (authorised) {
 				ast_log(LOG_DEBUG, "Validated token for '%s' from '%s@%s'\n", extension, callerid, iabuf);
 				res = 1;
@@ -779,6 +795,13 @@ static int config_load(void)
 			else
 				OSPPInit(0);
 			initialized = 1;
+		}
+		cat = ast_variable_retrieve(cfg, "general", "tokenformat");
+		if (cat) {
+			if ((sscanf(cat, "%d", &tokenformat) != 1) || (tokenformat < TOKEN_ALGO_SIGNED) || (tokenformat > TOKEN_ALGO_BOTH)) {
+				tokenformat = TOKEN_ALGO_SIGNED;
+				ast_log(LOG_WARNING, "tokenformat should be an integer from 0 to 2, not '%s'\n", cat);
+			}
 		}
 		cat = ast_category_browse(cfg, NULL);
 		while(cat) {
