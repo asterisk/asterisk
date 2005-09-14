@@ -1749,6 +1749,11 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			if (!strcmp(p->agent, user) &&
 			    !strcmp(p->password, pass) && !p->pending) {
 				login_state = 1; /* Successful Login */
+
+				/* Ensure we can't be gotten until we're done */
+				gettimeofday(&p->lastdisc, NULL);
+				p->lastdisc.tv_sec++;
+
 				/* Set Channel Specific Agent Overides */
 				if (pbx_builtin_getvar_helper(chan, "AGENTACKCALL") && strlen(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"))) {
 					if (!strcasecmp(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"), "always"))
