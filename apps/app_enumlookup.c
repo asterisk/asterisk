@@ -38,7 +38,7 @@ static char *app = "EnumLookup";
 
 static char *synopsis = "Lookup number in ENUM";
 
-static char *descrip = 
+static char *descrip =
 "  EnumLookup(exten):  Looks up an extension via ENUM and sets\n"
 "the variable 'ENUM'. For VoIP URIs this variable will \n"
 "look like 'TECHNOLOGY/URI' with the appropriate technology.\n"
@@ -71,6 +71,9 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	char dest[80];
 	char tmp[256];
 	char *c,*t;
+
+       tech[0] = '\0';
+
 	struct localuser *u;
 
 	if (!data || ast_strlen_zero(data)) {
@@ -79,7 +82,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	}
 	LOCAL_USER_ADD(u);
 	if (!res) {
-		res = ast_get_enum(chan, data, dest, sizeof(dest), tech, sizeof(tech));
+               res = ast_get_enum(chan, data, dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
 		printf("ENUM got '%d'\n", res);
 	}
 	LOCAL_USER_REMOVE(u);
@@ -105,7 +108,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 			snprintf(tmp, sizeof(tmp), "%s/%s", h323driver, c);
 /* do a s!;.*!! on the H323 URI */
 			t = strchr(c,';');
-			if (t) 
+                       if (t)
 				*t = 0;
 			pbx_builtin_setvar_helper(chan, "ENUM", tmp);
 		} else if (!strcasecmp(tech, "iax")) {
@@ -130,7 +133,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				res = 0;
 			} else {
 /* now copy over the number, skipping all non-digits and stop at ; or NULL */
-				t = tmp;	
+                               t = tmp;
 				while( *c && (*c != ';') && (t - tmp < (sizeof(tmp) - 1))) {
 					if (isdigit(*c))
 						*t++ = *c;

@@ -1,0 +1,306 @@
+README.enum
+
+2005-09-06 
+jtodd@loligo.com
+
+The ENUMLOOKUP function is more complex than it first may appear, and
+this guide is to give a general overview and set of examples that may
+be well-suited for the advanced user to evaluate in their
+consideration of ENUM or ENUM-like lookup strategies.  This document
+assumes a familiarity with ENUM (RFC3761) or ENUM-like methods, as
+well as familiarity with NAPTR DNS records (RFC2915, RFC3401-3404).
+For an overview of NAPTR records, and the use of NAPTRs in the ENUM
+global phone-number-to-DNS mapping scheme, please see
+http://www.voip-info.org/tiki-index.php?page=ENUM for more detail.
+
+Using ENUM within Asterisk can be simple or complex, depending on how
+many failover methods and redundancy procedures you wish to utilize.
+Implementation of ENUM paths is supposedly defined by the person
+creating the NAPTR records, but the local administrator may choose to
+ignore certain NAPTR response methods (URI types) or prefer some over
+others, which is in contradiction to the RFC.  The ENUMLOOKUP method
+simply provides administrators a method for determining NAPTR results
+in either the globally unique ENUM (e164.arpa) DNS tree, or in other
+ENUM-like DNS trees which are not globally unique.  The methods to
+actually create channels ("dial") results given by the ENUMLOOKUP
+function is then up to the administrator to implement in a way that
+best suits their environment.
+
+Function: EnumLookup(<number>[,pointer_type[,options[,zone_suffix]]])
+
+  Performs an ENUM tree lookup on the specified number, method type,
+  and (optionally) ordinal offset, and returns one of four different values:
+
+   1) post-parsed NAPTR of one method (URI) type
+   2) count of elements of one method (URI) type
+   3) count of all method types
+   4) full URI of method at a particular point in the list of all possible methods 
+
+Arguments:
+
+number = telephone number or search string.  Only numeric values
+within this string are parsed; all other digits are ignored for
+search, but are re-written during NAPTR regexp expansion.
+
+service_type = tel, sip, h323, iax2, mailto, ...[any other string],
+     ALL. Default type is "sip".
+     Special name of "ALL" will create a list of method types across
+     all NAPTR records for the search number, and then put the results
+     in an ordinal list starting with 1. The position <number>
+     specified will then be returned, starting with 1 as the first
+     record (lowest value) in the list.  The service types are not
+     hardcoded in Asterisk except for the default (sip) if no other
+     service type specified; any method type string (IANA-approved or
+     not) may be used except for the string "ALL".  
+
+options = optional specifiers.
+    c = count. Returns the number of records of this type are returned
+    (regardless of order or priority.)  If "ALL" is the specified
+    service_type, then a count of all methods will be returned for the
+    DNS record.
+    <integer> = The record in priority/order sequence based on the
+    total count of records passed back by the query. If a service_type
+    is specified, all entries of that type will be sorted into an
+    ordinal list starting with 1 (by order first, then priority).
+    The default of <options> is "1"
+ 
+zone_suffix = allows customization of the ENUM zone. Default is e164.arpa.
+
+
+EXAMPLE USES:
+
+Let's use this ENUM list as an example (note that these examples exist
+in the DNS, and will hopefully remain in place as example
+destinations, but they may change or become invalid over time.  The
+end result URIs are not guaranteed to actually work, since some of
+these hostnames or SIP proxies are imaginary.  Of course, the tel:
+replies go to directory assistance for New York City and San
+Francisco...)  Also note that the complex SIP NAPTR at weight 30 will
+strip off the leading "+" from the dialed string if it exists.  This
+is probably a better NAPTR than hard-coding the number into the NAPTR,
+and it is included as a more complex regexp example, though other
+simpler NAPTRs will work just as well.
+
+
+0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 10 100 "u" "E2U+tel" "!^\\+13015611020$!tel:+12125551212!" .
+0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 21 100 "u" "E2U+tel" "!^\\+13015611020$!tel:+14155551212!" .
+0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 25 100 "u" "E2U+sip" "!^\\+13015611020$!sip:2203@sip.fox-den.com!" .
+0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 26 100 "u" "E2U+sip" "!^\\+13015611020$!sip:1234@sip-2.fox-den.com!" .
+0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 30 100 "u" "E2U+sip" "!^\\+*([^\\*]*)!sip:\\1@sip-3.fox-den.com!" .
+0.2.0.1.1.6.5.1.0.3.1.fox-den.com. 3600 IN NAPTR 55 100 "u" "E2U+mailto" "!^\\+13015611020$!mailto:jtodd@fox-den.com!" .
+
+Example 1: Simplest case, using first SIP return (use all defaults
+except for domain name)
+exten => 100,1,Set(foo=ENUMLOOKUP(13015611020,,,fox-den.com))
+  returns: ${foo}="2203@sip.fox-den.com"
+
+Example 2: What is the first "tel" pointer type for this number?
+(after sorting by order/preference; default of "1" is assumed in
+options field)
+exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,tel,,loligo.com)})
+  returns: ${foo}="+12125551212"
+
+Example 3: How many "sip" pointer type entries are there for this number?
+exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,sip,c,loligo.com)})
+  returns: ${foo}=3
+
+Example 4: For all the "tel" pointer type entries, what is the second
+one in the list? (after sorting by preference)
+exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,tel,2,loligo.com)})
+  returns: ${foo}="+5553"
+
+Example 5: How many NAPTRs (tel, sip, mailto, etc.) are in the list for this number?
+exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,ALL,c,loligo.com)})
+  returns: ${foo}=6
+
+Example 6: Give back the second full URI in the sorted list of all NAPTR URIs:
+exten => 100,1,Set(foo=${ENUMLOOKUP(13015611020,ALL,2,loligo.com)})
+  returns: ${foo}="tel:14155551212"  [note the "tel:" prefix in the string]
+
+Example 7: Look up first SIP entry for the number in the e164.arpa zone (all defaults)
+exten => 100,1,Set(foo=${ENUMLOOKUP(+437203001721)})
+  returns: ${foo}="enum-test@sip.nemox.net"  [note: this result is
+  subject to change as it is "live" DNS and not under my control]
+
+
+Example 8: Look up the ISN mapping in freenum.org alpha test zone
+exten => 100,1,Set(foo=${ENUMLOOKUP(1234*256,,,freenum.org)})
+  returns: ${foo}="1234@204.91.156.10"  [note: this result is subject
+  to change as it is "live" DNS]
+
+Example 9: Give back the first SIP pointer for a number in the
+enum.yoydynelabs.com zone (invalid lookup)
+exten => 100,1,Set(foo=${ENUMLOOKUP(1234567890,sip,1,enum.yoyodynelabs.com)})
+  returns: ${foo}=""
+
+
+Usage notes and subtle features:
+
+  a) The use of "+" in lookups is confusing, and warrants further
+  explanation.  All E.164 numbers ("global phone numbers") by
+  definition need a leading "+" during ENUM lookup.  If you neglect to
+  add a leading "+", you may discover that numbers that seem to exist
+  in the DNS aren't getting matched by the system or are returned with
+  a null string result.  This is due to the NAPTR reply requiring a
+  "+" in the regular expression matching sequence.  Older versions of
+  Asterisk add a "+" from within the code, which may confuse
+  administrators converting to the new function.  Please ensure that
+  all ENUM (e164.arpa) lookups contain a leading "+" before lookup, so
+  ensure your lookup includes the leading plus sign.  Other DNS trees
+  may or may not require a leading "+" - check before using those
+  trees, as it is possible the parsed NAPTRs will not provide correct
+  results unless you have the correct dialed string.  If you get
+  console messages like "WARNING[24907]: enum.c:222 parse_naptr: NAPTR
+  Regex match failed." then it is very possible that the returned
+  NAPTR expects a leading "+" in the search string (or the returned
+  NAPTR is mis-formed.)
+
+  b) If a query is performed of type "c" ("count") and let's say you
+  get back 5 records and then some seconds later a query is made
+  against record 5 in the list, it may not be the case that the DNS
+  resolver has the same answers as it did a second or two ago - maybe
+  there are only 4 records in the list in the newest query.  The
+  resolver should be the canonical storage location for DNS records,
+  since that is the intent of ENUM.  However, some obscure future
+  cases may have wildly changing NAPTR records within several seconds.
+  This is a corner case, and probably only worth noting as a very rare
+  circumstance. (note: I do not object to Asterisk's dnsmgr method of
+  locally caching DNS replies, but this method needs to honor the TTL
+  given by the remote zone master.  Currently, the ENUMLOOKUP function
+  does not use the dnsmgr method of caching local DNS replies.)
+
+  c) If you want strict NAPTR value ordering, then it will be
+  necessary to use the "ALL" method to incrementally step through the
+  different returned NAPTR pointers.  You will need to use string
+  manipulation to strip off the returned method types, since the
+  results will look like "sip:12125551212" in the returned value.
+  This is a non-trivial task, though it is required in order to have
+  strict RFC compliance and to comply with the desires of the remote
+  party who is presenting NAPTRs in a particular order for a reason.
+
+  d) Default behavior for the function (even in event of an error) is
+  to move to the next priority, and the result is a null value.  Most
+  ENUM lookups are going to be failures, and it is the responsibility
+  of the dialplan administrator to manage error conditions within
+  their dialplan.  This is a change from the old app_enumlookup method
+  and it's arbitrary priority jumping based on result type or failure.
+
+  e) Anything other than digits will be ignored in lookup strings.
+  Example: a search string of "+4372030blah01721" will turn into
+  1.2.7.1.0.0.3.0.2.7.3.4.e164.arpa. for the lookup.  The NAPTR
+  parsing may cause unexpected results if there are strings inside
+  your NAPTR lookups.
+
+  f) If there exist multiple records with the same weight and order as
+  a result of your query, the function will RANDOMLY select a single
+  NAPTR from those equal results.
+
+  g) Currently, the function ignores the settings in enum.conf as the
+  search zone name is now specified within the function, and the H323
+  driver can be chosen by the user via the dialplan.  There were no
+  other values in this file, and so it becomes deprecated.
+
+  h) The function will digest and return NAPTRs which use older
+  (depricated) style, reversed method strings such as "sip+E2U"
+  instead of the more modern "E2U+sip"
+
+  i) There is no provision for multi-part methods at this time.  If
+  there are multiple NAPTRs with (as an example) a method of
+  "E2U+voice:sip" and then another NAPTR in the same DNS record with a
+  method of ""E2U+sip", the system will treat these both as method
+  "sip" and they will be separate records from the perspective of the
+  function.  Of course, if both records point to the same URI and have
+  equal priority/weight (as is often the case) then this will cause no
+  serious difficulty, but it bears mentioning.
+
+  j) ISN (ITAD Subscriber Number) usage:  If the search number is of
+  the form ABC*DEF (where ABC and DEF are at least one numeric digit)
+  then perform an ISN-style lookup where the lookup is manipulated to
+  C.B.A.DEF.domain.tld (all other settings and options apply.)  See
+  http://www.freenum.org/ for more details on ISN lookups.  In the
+  unlikely event you wish to avoid ISN re-writes, put an "n" as the
+  first digit of the search string - the "n" will be ignored for the search.
+
+
+==EXAMPLES==
+
+All examples below except where noted use "e164.arpa" as the
+referenced domain, which is the default domain name for ENUMLOOKUP.
+All numbers are assumed to not have a leading "+" as dialed by the
+inbound channel, so that character is added where necessary during
+ENUMLOOKUP function calls.
+
+; example 1
+;
+; Assumes North American international dialing (011) prefix.
+; Look up the first SIP result and send the call there, otherwise
+;  send the call out a PRI.  This is the most simple possible
+;  ENUM example, but only uses the first SIP reply in the list of
+;  NAPTR(s). 
+;
+exten => _011.,1,Set(enumresult=${ENUMLOOKUP(+${EXTEN:3})})
+exten => _011.,n,Dial(SIP/${enumlookup})
+exten => _011.,n,Dial(Zap/g1/${EXTEN})
+; 
+; end example 1
+
+; example 2
+;
+; Assumes North American international dialing (011) prefix.
+; Check to see if there are multiple SIP NAPTRs returned by 
+;  the lookup, and dial each in order.  If none work (or none
+;  exist) then send the call out a PRI, group 1.
+;
+exten => _011.,1,Set(sipcount=${ENUMLOOKUP(${EXTEN:3},sip,c)}|counter=0)
+exten => _011.,n,While($["${counter}"<"${sipcount}"])
+exten => _011.,n,Set(counter=$[${counter}+1])
+exten => _011.,n,Dial(SIP/${ENUMLOOKUP(+${EXTEN:3},sip,${counter})})
+exten => _011.,n,EndWhile
+exten => _011.,n,Dial(Zap/g1/${EXTEN})
+;
+; end example 2
+
+; example 3
+;
+; This example expects an ${EXTEN} that is an e.164 number (like
+;  14102241145 or 437203001721)
+; Search through e164.arpa and then also search through e164.org
+;  to see if there are any valid SIP or IAX termination capabilities.
+;  If none, send call out via Zap channel 1.
+;
+; Start first with e164.arpa zone...
+;
+exten => _X.,1,Set(sipcount=${ENUMLOOKUP(${EXTEN},sip,c)}|counter=0)
+exten => _X.,2,GotoIf($["${counter}"<"${sipcount}"]?3:6)
+exten => _X.,3,Set(counter=$[${counter}+1])
+exten => _X.,4,Dial(SIP/${ENUMLOOKUP(+${EXTEN},sip,${counter})})
+exten => _X.,5,GotoIf($["${counter}"<"${sipcount}"]?3:6)
+;
+exten => _X.,6,Set(iaxcount=${ENUMLOOKUP(${EXTEN},iax2,c)}|counter=0)
+exten => _X.,7,GotoIf($["${counter}"<"${iaxcount}"]?8:11)
+exten => _X.,8,Set(counter=$[${counter}+1])
+exten => _X.,9,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax,${counter})})
+exten => _X.,10,GotoIf($["${counter}"<"${iaxcount}"]?8:11)
+;
+exten => _X.,11,NoOp("No valid entries in e164.arpa for ${EXTEN} - checking in e164.org")
+;
+; ...then also try e164.org, and look for SIP and IAX NAPTRs...
+;
+exten => _X.,12,Set(sipcount=${ENUMLOOKUP(${EXTEN},sip,c,e164.org)}|counter=0)
+exten => _X.,13,GotoIf($["${counter}"<"${sipcount}"]?14:17)
+exten => _X.,14,Set(counter=$[${counter}+1])
+exten => _X.,15,Dial(SIP/${ENUMLOOKUP(+${EXTEN},sip,${counter},e164.org)})
+exten => _X.,16,GotoIf($["${counter}"<"${sipcount}"]?14:17)
+;
+exten => _X.,17,Set(iaxcount=${ENUMLOOKUP(${EXTEN},iax2,c,e164.org)}|counter=0)
+exten => _X.,18,GotoIf($["${counter}"<"${iaxcount}"]?19:22)
+exten => _X.,19,Set(counter=$[${counter}+1])
+exten => _X.,20,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax,${counter},e164.org)})
+exten => _X.,21,GotoIf($["${counter}"<"${iaxcount}"]?19:22)
+;
+; ...then send out PRI.
+;
+exten => _X.,22,NoOp("No valid entries in e164.org for ${EXTEN} - sending out via Zap")
+exten => _X.,23,Dial(Zap/g1/${EXTEN})
+;
+; end example 3
