@@ -5377,7 +5377,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 			snprintf(msgstatus, sizeof(msgstatus), " with %d messages waiting\n", reg->messages);
 		else if (reg->messages > 0)
 			snprintf(msgstatus, sizeof(msgstatus), " with 1 message waiting\n");
-		else if (reg->messages > -1)
+		else
 			snprintf(msgstatus, sizeof(msgstatus), " with no messages waiting\n");
 		snprintf(ourip, sizeof(ourip), "%s:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), reg->us.sin_addr), ntohs(reg->us.sin_port));
 		ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 to '%s', who sees us as %s%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ourip, msgstatus);
