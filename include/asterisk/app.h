@@ -75,7 +75,7 @@ struct ast_ivr_menu {
 
 struct ast_option {
 	unsigned int flag;
-	int argoption;
+	int arg_index;
 };
 
 extern int ast_parseoptions(const struct ast_option *options, struct ast_flags *flags, char **args, char *optstr);

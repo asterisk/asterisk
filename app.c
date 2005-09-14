@@ -1506,27 +1506,30 @@ int ast_parseoptions(const struct ast_option *options, struct ast_flags *flags, 
 	int argloc;
 	char *arg;
 	int res = 0;
+
 	flags->flags = 0;
+
 	if (!optstr)
 		return 0;
+
 	s = optstr;
-	while(*s) {
+	while (*s) {
 		curarg = *s & 0x7f;
 		flags->flags |= options[curarg].flag;
-		argloc = options[curarg].argoption;
+		argloc = options[curarg].arg_index;
 		s++;
 		if (*s == '(') {
 			/* Has argument */
 			s++;
 			arg = s;
-			while(*s && (*s != ')')) s++;
+			while (*s && (*s != ')')) s++;
 			if (*s) {
 				if (argloc)
 					args[argloc - 1] = arg;
 				*s = '\0';
 				s++;
 			} else {
-				ast_log(LOG_WARNING, "Missing closing parenthesis for argument '%c'\n", curarg);
+				ast_log(LOG_WARNING, "Missing closing parenthesis for argument '%c' in string '%s'\n", curarg, arg);
 				res = -1;
 			}
 		} else if (argloc)
@@ -1534,4 +1537,3 @@ int ast_parseoptions(const struct ast_option *options, struct ast_flags *flags, 
 	}
 	return res;
 }
-
