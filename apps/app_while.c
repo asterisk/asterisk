@@ -27,6 +27,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
+#include "asterisk/options.h"
 
 #define ALL_DONE(u,ret) {LOCAL_USER_REMOVE(u); return ret;}
 
@@ -108,6 +109,81 @@ static char *get_index(struct ast_channel *chan, const char *prefix, int index) 
 	return pbx_builtin_getvar_helper(chan, varname);
 }
 
+static struct ast_exten *find_matching_priority(struct ast_context *c, const char *exten, int priority, const char *callerid)
+{
+	struct ast_exten *e;
+	struct ast_include *i;
+	struct ast_context *c2;
+
+	for (e=ast_walk_context_extensions(c, NULL); e; e=ast_walk_context_extensions(c, e)) {
+		if (ast_extension_match(ast_get_extension_name(e), exten)) {
+			int needmatch = ast_get_extension_matchcid(e);
+			if ((needmatch && ast_extension_match(ast_get_extension_cidmatch(e), callerid)) ||
+				(!needmatch)) {
+				/* This is the matching extension we want */
+				struct ast_exten *p;
+				for (p=ast_walk_extension_priorities(e, NULL); p; p=ast_walk_extension_priorities(e, p)) {
+					if (priority != ast_get_extension_priority(p))
+						continue;
+					return p;
+				}
+			}
+		}
+	}
+
+	/* No match; run through includes */
+	for (i=ast_walk_context_includes(c, NULL); i; i=ast_walk_context_includes(c, i)) {
+		for (c2=ast_walk_contexts(NULL); c2; c2=ast_walk_contexts(c2)) {
+			if (!strcmp(ast_get_context_name(c2), ast_get_include_name(i))) {
+				e = find_matching_priority(c2, exten, priority, callerid);
+				if (e)
+					return e;
+			}
+		}
+	}
+	return NULL;
+}
+
+static int find_matching_endwhile(struct ast_channel *chan)
+{
+	struct ast_context *c;
+	int res=-1;
+
+	if (ast_lock_contexts()) {
+		ast_log(LOG_ERROR, "Failed to lock contexts list\n");
+		return -1;
+	}
+
+	for (c=ast_walk_contexts(NULL); c; c=ast_walk_contexts(c)) {
+		struct ast_exten *e;
+
+		if (!ast_lock_context(c)) {
+			if (!strcmp(ast_get_context_name(c), chan->context)) {
+				/* This is the matching context we want */
+				int cur_priority = chan->priority + 1, level=1;
+
+				for (e = find_matching_priority(c, chan->exten, cur_priority, chan->cid.cid_num); e; e = find_matching_priority(c, chan->exten, ++cur_priority, chan->cid.cid_num)) {
+					if (!strcasecmp(ast_get_extension_app(e), "WHILE")) {
+						level++;
+					} else if (!strcasecmp(ast_get_extension_app(e), "ENDWHILE")) {
+						level--;
+					}
+
+					if (level == 0) {
+						res = cur_priority;
+						break;
+					}
+				}
+			}
+			ast_unlock_context(c);
+			if (res > 0) {
+				break;
+			}
+		}
+	}
+	ast_unlock_contexts();
+	return res;
+}
 
 static int _while_exec(struct ast_channel *chan, void *data, int end)
 {
@@ -181,6 +257,15 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		if ((goto_str=pbx_builtin_getvar_helper(chan, end_varname))) {
 			pbx_builtin_setvar_helper(chan, end_varname, NULL);
 			ast_parseable_goto(chan, goto_str);
+		} else {
+			int pri = find_matching_endwhile(chan);
+			if (pri > 0) {
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3 "Jumping to priority %d\n", pri);
+				chan->priority = pri;
+			} else {
+				ast_log(LOG_WARNING, "Couldn't find matching EndWhile? (While at %s@%s priority %d)\n", chan->context, chan->exten, chan->priority);
+			}
 		}
 		ALL_DONE(u,res);
 	}
