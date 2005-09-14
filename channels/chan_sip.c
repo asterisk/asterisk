@@ -3484,32 +3484,12 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		struct ast_frame af = { AST_FRAME_NULL, };
 		if (sin.sin_addr.s_addr && !sendonly) {
 			ast_moh_stop(bridgepeer);
-			/* Indicate UNHOLD status to the other channel */
-			ast_indicate(bridgepeer, AST_CONTROL_UNHOLD);
-			append_history(p, "Unhold", req->data);
-			if (callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
-				manager_event(EVENT_FLAG_CALL, "Unhold",
-					"Channel: %s\r\n"
-					"Uniqueid: %s\r\n",
-					p->owner->name, 
-					p->owner->uniqueid);
-			}
-			ast_clear_flag(p, SIP_CALL_ONHOLD);
+		
 			/* Activate a re-invite */
 			ast_queue_frame(p->owner, &af);
 		} else {
 			/* No address for RTP, we're on hold */
-			append_history(p, "Hold", req->data);
-			if (callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
-				manager_event(EVENT_FLAG_CALL, "Hold",
-					"Channel: %s\r\n"
-					"Uniqueid: %s\r\n",
-					p->owner->name, 
-					p->owner->uniqueid);
-			}
-			ast_set_flag(p, SIP_CALL_ONHOLD);
-			/* Indicate HOLD status to the other channel */
-			ast_indicate(bridgepeer, AST_CONTROL_HOLD);
+			
 			ast_moh_start(bridgepeer, NULL);
 			if (sendonly)
 				ast_rtp_stop(p->rtp);
@@ -3517,6 +3497,34 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			ast_queue_frame(p->owner, &af);
 		}
 	}
+
+	/* Manager Hold and Unhold events must be generated, if necessary */
+	if (sin.sin_addr.s_addr && !sendonly) {	        
+	        append_history(p, "Unhold", req->data);
+
+		if (callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
+			manager_event(EVENT_FLAG_CALL, "Unhold",
+				"Channel: %s\r\n"
+				"Uniqueid: %s\r\n",
+				p->owner->name, 
+				p->owner->uniqueid);
+
+       		}
+		ast_clear_flag(p, SIP_CALL_ONHOLD);
+	} else {	        
+		/* No address for RTP, we're on hold */
+	        append_history(p, "Hold", req->data);
+
+	        if (callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
+			manager_event(EVENT_FLAG_CALL, "Hold",
+				"Channel: %s\r\n"
+		   	    	"Uniqueid: %s\r\n",
+				p->owner->name, 
+				p->owner->uniqueid);
+		}
+		ast_set_flag(p, SIP_CALL_ONHOLD);
+	}
+
 	return 0;
 }
 

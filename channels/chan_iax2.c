@@ -6592,6 +6592,15 @@ retryowner:
 				break;
 			case IAX_COMMAND_QUELCH:
 				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
+				        /* Generate Manager Hold event, if necessary*/
+					if (iaxs[fr.callno]->owner) {
+						manager_event(EVENT_FLAG_CALL, "Hold",
+							"Channel: %s\r\n"
+							"Uniqueid: %s\r\n",
+							iaxs[fr.callno]->owner->name, 
+							iaxs[fr.callno]->owner->uniqueid);
+					}
+
 					ast_set_flag(iaxs[fr.callno], IAX_QUELCH);
 					if (ies.musiconhold) {
 						if (iaxs[fr.callno]->owner &&
@@ -6600,8 +6609,17 @@ retryowner:
 					}
 				}
 				break;
-			case IAX_COMMAND_UNQUELCH:
+			case IAX_COMMAND_UNQUELCH:			 
 				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
+				        /* Generate Manager Unhold event, if necessary*/
+					if (iaxs[fr.callno]->owner && ast_test_flag(iaxs[fr.callno], IAX_QUELCH)) {
+						manager_event(EVENT_FLAG_CALL, "Unhold",
+							"Channel: %s\r\n"
+							"Uniqueid: %s\r\n",
+							iaxs[fr.callno]->owner->name, 
+							iaxs[fr.callno]->owner->uniqueid);
+					}
+
 					ast_clear_flag(iaxs[fr.callno], IAX_QUELCH);
 					if (iaxs[fr.callno]->owner &&
 						ast_bridged_channel(iaxs[fr.callno]->owner))
