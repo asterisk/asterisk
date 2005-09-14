@@ -45,8 +45,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; SIP compatibility (defaults to "no")
 ;tos=184			; Set IP QoS to either a keyword or numeric val
 ;tos=lowdelay			; lowdelay,throughput,reliability,mincost,none
-;maxexpirey=3600		; Max length of incoming registration we allow
-;defaultexpirey=120		; Default length of incoming/outoing registration
+;maxexpiry=3600			; Max length of incoming registration we allow
+;defaultexpiry=120		; Default length of incoming/outoing registration
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;checkmwi=10			; Default time between mailbox checks for peers
 ;vmexten=voicemail      ; dialplan extension to reach mailbox sets the 
