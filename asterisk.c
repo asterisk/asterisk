@@ -349,42 +349,62 @@ static void null_sig_handler(int signal)
 
 }
 
+AST_MUTEX_DEFINE_STATIC(safe_system_lock);
+static unsigned int safe_system_level = 0;
+static void *safe_system_prev_handler;
+
 int ast_safe_system(const char *s)
 {
-	/* XXX This function needs some optimization work XXX */
 	pid_t pid;
 	int x;
 	int res;
 	struct rusage rusage;
 	int status;
-	void (*prev_handler) = signal(SIGCHLD, null_sig_handler);
+	unsigned int level;
+
+	/* keep track of how many ast_safe_system() functions
+	   are running at this moment
+	*/
+	ast_mutex_lock(&safe_system_lock);
+	level = safe_system_level++;
+
+	/* only replace the handler if it has not already been done */
+	if (level == 0)
+		safe_system_prev_handler = signal(SIGCHLD, null_sig_handler);
+
+	ast_mutex_unlock(&safe_system_lock);
+
 	pid = fork();
+
 	if (pid == 0) {
 		/* Close file descriptors and launch system command */
-		for (x=STDERR_FILENO + 1; x<4096;x++) {
+		for (x = STDERR_FILENO + 1; x < 4096; x++)
 			close(x);
-		}
-		res = execl("/bin/sh", "/bin/sh", "-c", s, NULL);
+		execl("/bin/sh", "/bin/sh", "-c", s, NULL);
 		exit(1);
 	} else if (pid > 0) {
 		for(;;) {
 			res = wait4(pid, &status, 0, &rusage);
 			if (res > -1) {
-				if (WIFEXITED(status))
-					res = WEXITSTATUS(status);
-				else
-					res = -1;
+				res = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 				break;
-			} else {
-				if (errno != EINTR) 
-					break;
-			}
+			} else if (errno != EINTR) 
+				break;
 		}
 	} else {
 		ast_log(LOG_WARNING, "Fork failed: %s\n", strerror(errno));
 		res = -1;
 	}
-	signal(SIGCHLD, prev_handler);
+
+	ast_mutex_lock(&safe_system_lock);
+	level = --safe_system_level;
+
+	/* only restore the handler if we are the last one */
+	if (level == 0)
+		signal(SIGCHLD, safe_system_prev_handler);
+
+	ast_mutex_unlock(&safe_system_lock);
+
 	return res;
 }
 
