@@ -13,7 +13,12 @@
 
 #include <stdio.h>
 #include <string.h>
+#ifdef __NetBSD__
+#include <pthread.h>
+#include <signal.h>
+#else
 #include <sys/signal.h>
+#endif
 #include <errno.h>
 #include <stdlib.h>
 #if !defined(SOLARIS) && !defined(__FreeBSD__)

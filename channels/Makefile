@@ -92,7 +92,13 @@ ifneq ($(wildcard alsa-monitor.h),)
   ALSA_SRC+=alsa-monitor.h
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
+  ifeq (${OSARCH},NetBSD)
+    SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/pkg/lib
+  endif
+  ifeq (${OSARCH},FreeBSD)
+    SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  endif
   CFLAGS+=-DIAX_TRUNKING
   CHANNEL_LIBS+=chan_zap.so
 endif

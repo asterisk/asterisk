@@ -235,7 +235,7 @@ ifeq (${OSARCH},FreeBSD)
   ASTCFLAGS+=$(shell if test ${BSDVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
   LIBS+=$(shell if test  ${BSDVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
   ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp),)
-    ASTCFLAGS+=" -I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp"
+    ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp
   endif
   MPG123TARG=freebsd
 endif # FreeBSD
@@ -255,7 +255,7 @@ ifeq (${OSARCH},SunOS)
   INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
   ASTCFLAGS+=-DZAPTEL_OPTIMIZATIONS
 endif
 
