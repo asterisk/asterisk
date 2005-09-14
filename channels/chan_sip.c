@@ -3876,16 +3876,18 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_header(resp, req, "CSeq");
 	add_header(resp, "User-Agent", default_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
-	if (p->expiry) {
+	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
 		/* For registration responses, we also need expiry and
 		   contact info */
-		char contact[256];
 		char tmp[256];
 
-		snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
 		snprintf(tmp, sizeof(tmp), "%d", p->expiry);
 		add_header(resp, "Expires", tmp);
-		add_header(resp, "Contact", contact);
+		if (p->expiry) {	/* Only add contact if we have an expiry time */
+			char contact[256];
+			snprintf(contact, sizeof(contact), "%s;expires=%d", p->our_contact, p->expiry);
+			add_header(resp, "Contact", contact);	/* Not when we unregister */
+		}
 	} else if (p->our_contact[0]) {
 		add_header(resp, "Contact", p->our_contact);
 	}
@@ -4798,7 +4800,10 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		break;
 		break;
 	default:
-		add_header(&req, "Subscription-State", "active");
+		if (p->expiry)
+			add_header(&req, "Subscription-State", "active");
+		else	/* Expired */
+			add_header(&req, "Subscription-State", "terminated;reason=timeout");
 	}
 	switch (p->subscribed) {
 	case XPIDF_XML:
@@ -5523,9 +5528,12 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	struct sockaddr_in oldsin;
 
 	if (ast_strlen_zero(expires)) {	/* No expires header */
-		expires = strcasestr(get_header(req, "Contact"), "expires=");
+		expires = strcasestr(get_header(req, "Contact"), ";expires=");
 		if (expires) {
-			if (sscanf(expires + 8, "%d;", &expiry) != 1)
+			char *ptr;
+			if ((ptr = strchr(expires, ';')))
+				*ptr = '\0';
+			if (sscanf(expires + 9, "%d", &expiry) != 1)
 				expiry = default_expiry;
 		} else {
 			/* Nothing has been specified */
@@ -5534,6 +5542,11 @@ static int parse_contact(struct sip_pvt *pvt, struct sip_peer *p, struct sip_req
 	}
 	/* Look for brackets */
 	ast_copy_string(contact, get_header(req, "Contact"), sizeof(contact));
+	if (strchr(contact, '<') == NULL) {	/* No <, check for ; and strip it */
+		char *ptr = strchr(contact, ';');	/* This is Header options, not URI options */
+		if (ptr)
+			*ptr = '\0';
+	}
 	c = get_in_brackets(contact);
 
 	if (!strcasecmp(c, "*") || !expiry) {	/* Unregister this peer */
@@ -10242,7 +10255,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
  				} else if (strstr(accept, "application/dialog-info+xml")) {
  					p->subscribed = DIALOG_INFO_XML;
  					/* IETF draft: draft-ietf-sipping-dialog-package-05.txt */
- 					/* Should not be used for SUBSCRIBE, but anyway */
  				} else if (strstr(accept, "application/cpim-pidf+xml")) {
  					p->subscribed = CPIM_PIDF_XML;    /* RFC 3863 format */
  				} else if (strstr(accept, "application/xpidf+xml")) {
@@ -10297,11 +10309,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (!ignore && p)
 		p->lastinvite = seqno;
 	if (p && !ast_test_flag(p, SIP_NEEDDESTROY)) {
-		if (!(p->expiry = atoi(get_header(req, "Expires")))) {
-			transmit_response(p, "200 OK", req);
-			ast_set_flag(p, SIP_NEEDDESTROY);	
-			return 0;
-		}
+		p->expiry = atoi(get_header(req, "Expires"));
+
 		/* The next 4 lines can be removed if the SNOM Expires bug is fixed */
 		if (p->subscribed == DIALOG_INFO_XML) {  
 			if (p->expiry > max_expiry)
@@ -10323,6 +10332,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			transmit_state_notify(p, firststate, 1, 1);	/* Send first notification */
 			append_history(p, "Subscribestatus", ast_extension_state2str(firststate));
 		}
+		if (!p->expiry)
+			ast_set_flag(p, SIP_NEEDDESTROY);	
 	}
 	return 1;
 }
