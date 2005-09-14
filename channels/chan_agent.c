@@ -10,8 +10,10 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
-/** @file chan_agent.c
- * Agents module.
+/**
+ * @file chan_agent.c
+ * @brief This file is the implementation of Agents modules.
+ * It is a dynamic module that is loaded by Asterisk. At load time, load_module is run.
  */
 
 #include <stdio.h>
@@ -190,7 +192,7 @@ struct agent_pvt {
 	struct agent_pvt *next;        /**< Next Agent in the linked list. */
 };
 
-struct agent_pvt *agents = NULL;  /**< Holds the list of agents (loaded form agents.conf). */
+static struct agent_pvt *agents = NULL;  /**< Holds the list of agents (loaded form agents.conf). */
 
 #define CHECK_FORMATS(ast, p) do { \
 	if (p->chan) {\
@@ -378,6 +380,12 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	return p;
 }
 
+/**
+ * Deletes an agent after doing some clean up.
+ * Further documentation: How safe is this function ? What state should the agent be to be cleaned.
+ * @param p Agent to be deleted.
+ * @returns Always 0.
+ */
 static int agent_cleanup(struct agent_pvt *p)
 {
 	struct ast_channel *chan = p->owner;
@@ -1340,7 +1348,14 @@ static int powerof(unsigned int v)
 	return 0;
 }
 
-/*--- action_agents: Manager routine for listing channels */
+/**
+ * Lists agents and their status to the Manager API.
+ * It is registered on load_module() and it gets called by the manager backend.
+ * @param s
+ * @param m
+ * @returns 
+ * @sa action_agent_logoff(), action_agent_callback_login(), load_module().
+ */
 static int action_agents(struct mansession *s, struct message *m)
 {
 	char *id = astman_get_header(m,"ActionID");
@@ -1476,6 +1491,14 @@ static int agent_logoff_cmd(int fd, int argc, char **argv)
 	return RESULT_SUCCESS;
 }
 
+/**
+ * Sets an agent as no longer logged in in the Manager API.
+ * It is registered on load_module() and it gets called by the manager backend.
+ * @param s
+ * @param m
+ * @returns 
+ * @sa action_agents(), action_agent_callback_login(), load_module().
+ */
 static int action_agent_logoff(struct mansession *s, struct message *m)
 {
 	char *agent = astman_get_header(m, "Agent");
@@ -1611,7 +1634,14 @@ static struct ast_cli_entry cli_agent_logoff = {
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
-/*--- __login_exec: Log in agent application ---*/
+/**
+ * Log in agent application.
+ *
+ * @param chan
+ * @param data
+ * @param callbackmode
+ * @returns 
+ */
 static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 {
 	int res=0;
@@ -2070,16 +2100,40 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
  	return -1;
 }
 
+/**
+ * Called by the AgentLogin application (from the dial plan).
+ * 
+ * @param chan
+ * @param data
+ * @returns
+ * @sa callback_login_exec(), agentmonitoroutgoing_exec(), load_module().
+ */
 static int login_exec(struct ast_channel *chan, void *data)
 {
 	return __login_exec(chan, data, 0);
 }
 
+/**
+ *  Called by the AgentCallbackLogin application (from the dial plan).
+ * 
+ * @param chan
+ * @param data
+ * @returns
+ * @sa login_exec(), agentmonitoroutgoing_exec(), load_module().
+ */
 static int callback_exec(struct ast_channel *chan, void *data)
 {
 	return __login_exec(chan, data, 1);
 }
 
+/**
+ * Sets an agent as logged in by callback in the Manager API.
+ * It is registered on load_module() and it gets called by the manager backend.
+ * @param s
+ * @param m
+ * @returns 
+ * @sa action_agents(), action_agent_logoff(), load_module().
+ */
 static int action_agent_callback_login(struct mansession *s, struct message *m)
 {
 	char *agent = astman_get_header(m, "Agent");
@@ -2155,6 +2209,15 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 
 	return 0;
 }
+
+/**
+ *  Called by the AgentMonitorOutgoing application (from the dial plan).
+ *
+ * @param chan
+ * @param data
+ * @returns
+ * @sa login_exec(), callback_login_exec(), load_module().
+ */
 static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 {
 	int exitifnoagentid = 0;
@@ -2211,9 +2274,9 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-/* Dump AgentCallbackLogin agents to the database for persistence
+/**
+ * Dump AgentCallbackLogin agents to the database for persistence
  */
-
 static void dump_agents(void)
 {
 	struct agent_pvt *cur_agent = NULL;
