@@ -11116,10 +11116,10 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	} else if (!strcasecmp(v->name, "progressinband")) {
 		ast_set_flag(mask, SIP_PROG_INBAND);
 		ast_clear_flag(flags, SIP_PROG_INBAND);
-		if (strcasecmp(v->value, "never"))
-			ast_set_flag(flags, SIP_PROG_INBAND_NO);
-		else if (ast_true(v->value))
+		if (ast_true(v->value))
 			ast_set_flag(flags, SIP_PROG_INBAND_YES);
+		else if (strcasecmp(v->value, "never"))
+			ast_set_flag(flags, SIP_PROG_INBAND_NO);
   	} else if (!strcasecmp(v->name, "allowguest")) {
 #ifdef OSP_SUPPORT
   		if (!strcasecmp(v->value, "osp"))
