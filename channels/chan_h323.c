@@ -350,7 +350,7 @@ static int oh323_digit(struct ast_channel *c, char digit)
 	char *token;
 
 	if (!pvt) {
-		ast_log(LOG_ERROR, "No private structure?! This is bad\n";
+		ast_log(LOG_ERROR, "No private structure?! This is bad\n)";
 		return -1;
 	}
 	ast_mutex_lock(&pvt->lock);
