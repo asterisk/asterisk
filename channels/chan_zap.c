@@ -1428,14 +1428,16 @@ static void zt_disable_ec(struct zt_pvt *p)
 static void fill_txgain(struct zt_gains *g, float gain, int law)
 {
 	int j;
-	short k;
+	int k;
 	float linear_gain = pow(10.0, gain / 20.0);
 
 	switch (law) {
 	case ZT_LAW_ALAW:
 		for (j = 0; j < (sizeof(g->txgain) / sizeof(g->txgain[0])); j++) {
 			if (gain) {
-				k = (short) (((float) AST_ALAW(j)) * linear_gain);
+				k = (int) (((float) AST_ALAW(j)) * linear_gain);
+				if (k > 32767) k = 32767;
+				if (k < -32767) k = -32767;
 				g->txgain[j] = AST_LIN2A(k);
 			} else {
 				g->txgain[j] = j;
@@ -1445,7 +1447,9 @@ static void fill_txgain(struct zt_gains *g, float gain, int law)
 	case ZT_LAW_MULAW:
 		for (j = 0; j < (sizeof(g->txgain) / sizeof(g->txgain[0])); j++) {
 			if (gain) {
-				k = (short) (((float) AST_MULAW(j)) * linear_gain);
+				k = (int) (((float) AST_MULAW(j)) * linear_gain);
+				if (k > 32767) k = 32767;
+				if (k < -32767) k = -32767;
 				g->txgain[j] = AST_LIN2MU(k);
 			} else {
 				g->txgain[j] = j;
@@ -1458,14 +1462,16 @@ static void fill_txgain(struct zt_gains *g, float gain, int law)
 static void fill_rxgain(struct zt_gains *g, float gain, int law)
 {
 	int j;
-	short k;
+	int k;
 	float linear_gain = pow(10.0, gain / 20.0);
 
 	switch (law) {
 	case ZT_LAW_ALAW:
 		for (j = 0; j < (sizeof(g->rxgain) / sizeof(g->rxgain[0])); j++) {
 			if (gain) {
-				k = (short) (((float) AST_ALAW(j)) * linear_gain);
+				k = (int) (((float) AST_ALAW(j)) * linear_gain);
+				if (k > 32767) k = 32767;
+				if (k < -32767) k = -32767;
 				g->rxgain[j] = AST_LIN2A(k);
 			} else {
 				g->rxgain[j] = j;
@@ -1475,7 +1481,9 @@ static void fill_rxgain(struct zt_gains *g, float gain, int law)
 	case ZT_LAW_MULAW:
 		for (j = 0; j < (sizeof(g->rxgain) / sizeof(g->rxgain[0])); j++) {
 			if (gain) {
-				k = (short) (((float) AST_MULAW(j)) * linear_gain);
+				k = (int) (((float) AST_MULAW(j)) * linear_gain);
+				if (k > 32767) k = 32767;
+				if (k < -32767) k = -32767;
 				g->rxgain[j] = AST_LIN2MU(k);
 			} else {
 				g->rxgain[j] = j;
@@ -1524,6 +1532,33 @@ int set_actual_rxgain(int fd, int chan, float gain, int law)
 int set_actual_gain(int fd, int chan, float rxgain, float txgain, int law)
 {
 	return set_actual_txgain(fd, chan, txgain, law) | set_actual_rxgain(fd, chan, rxgain, law);
+}
+
+static int bump_gains(struct zt_pvt *p)
+{
+	int res;
+
+	/* Bump receive gain by 5.0db */
+	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain + 5.0, p->txgain, p->law);
+	if (res) {
+		ast_log(LOG_WARNING, "Unable to bump gain: %s\n", strerror(errno));
+		return -1;
+	}
+
+	return 0;
+}
+
+static int restore_gains(struct zt_pvt *p)
+{
+	int res;
+
+	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain, p->txgain, p->law);
+	if (res) {
+		ast_log(LOG_WARNING, "Unable to restore gains: %s\n", strerror(errno));
+		return -1;
+	}
+
+	return 0;
 }
 
 static inline int zt_set_hook(int fd, int hs)
@@ -5040,30 +5075,6 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 	return tmp;
 }
 
-
-static int bump_gains(struct zt_pvt *p)
-{
-	int res;
-	/* Bump receive gain by 9.0db */
-	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain + 5.0, p->txgain, p->law);
-	if (res) {
-		ast_log(LOG_WARNING, "Unable to bump gain\n");
-		return -1;
-	}
-	return 0;
-}
-
-static int restore_gains(struct zt_pvt *p)
-{
-	int res;
-	/* Bump receive gain by 9.0db */
-	res = set_actual_gain(p->subs[SUB_REAL].zfd, 0, p->rxgain, p->txgain, p->law);
-	if (res) {
-		ast_log(LOG_WARNING, "Unable to restore gains: %s\n", strerror(errno));
-		return -1;
-	}
-	return 0;
-}
 
 static int my_getsigstr(struct ast_channel *chan, char *str, char term, int ms)
 {
