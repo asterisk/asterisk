@@ -1,3 +1,22 @@
+/*
+ * Asterisk -- An open source telephony toolkit.
+ *
+ * Copyright (C) 2004 - 2005
+ *
+ * SMS queuing application for use with asterisk app_sms
+ * by Adrian Kennard
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
 #include <stdio.h>
 #include <popt.h>
 #include <sys/types.h>
@@ -17,8 +36,6 @@
 #define     POPT_ARGFLAG_SHOW_DEFAULT 0x00800000
 #endif
 
-/* SMS queuing application for use with asterisk app_sms */
-/* by Adrian Kennard, 2004 - 2005 */
 
 /* reads next USC character from null terminated UTF-8 string and advanced pointer */
 /* for non valid UTF-8 sequences, returns character as is */

@@ -1,15 +1,23 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
- *
- * Eval application
+ * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (c) 2004 - 2005, Tilghman Lesher.  All rights reserved.
  *
  * Tilghman Lesher <app_eval__v001@the-tilghman.com>
  *
- * $Id$
- *
  * This code is released by the author with no restrictions on usage.
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ */
+
+/*
+ *
+ * Eval application
  *
  */
 

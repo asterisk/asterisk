@@ -1,14 +1,24 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * SayUnixTime application
- * 
  * Copyright (c) 2003 Tilghman Lesher.  All rights reserved.
  *
  * Tilghman Lesher <app_sayunixtime__200309@the-tilghman.com>
  *
  * This code is released by the author with no restrictions on usage.
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ */
+
+/*
+ *
+ * SayUnixTime application
+ * 
  */
 
 #include <stdio.h>

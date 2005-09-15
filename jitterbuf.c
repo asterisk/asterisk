@@ -1,16 +1,28 @@
 /*
- * jitterbuf: an application-independent jitterbuffer
+ * Asterisk -- An open source telephony toolkit.
  *
- * Copyrights:
  * Copyright (C) 2004-2005, Horizon Wimba, Inc.
  *
  * Contributors:
  * Steve Kann <stevek@stevek.com>
  *
- * This program is free software, distributed under the terms of
- * the GNU Lesser (Library) General Public License
- *
  * Copyright on this file is disclaimed to Digium for inclusion in Asterisk
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * jitterbuf: an application-independent jitterbuffer
+ *
  */
 
 #include <stdio.h>

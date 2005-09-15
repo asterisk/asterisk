@@ -1,16 +1,28 @@
 /*
- * Mute Daemon
+ * Asterisk -- An open source telephony toolkit.
  *
- * Specially written for Malcolm Davenport, but I think I'll use it too
- *
- * Copyright (C)  2004 - 2005, Digium Inc.
+ * Copyright (C) 1999 - 2005, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
- * 
+ *
  * Updated for Mac OSX CoreAudio 
  * by Josh Roberson <josh@asteriasgi.com>
  *
- * Distributed under the terms of the GNU General Public License version 2.0 
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ * Mute Daemon
+ *
+ * Specially written for Malcolm Davenport, but I think I'll use it too
  *
  */
 

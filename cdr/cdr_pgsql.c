@@ -1,6 +1,8 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
+ * Copyright (C) 2003 - 2005
+ *
  * Matthew D. Hardeman <mhardemn@papersoft.com> 
  * Adapted from the MySQL CDR logger originally by James Sharp 
  *

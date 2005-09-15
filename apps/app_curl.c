@@ -1,8 +1,6 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Curl - App to load a URL
- * 
  * Copyright (C)  2004 - 2005, Tilghman Lesher
  *
  * Tilghman Lesher <curl-20041222@the-tilghman.com>
@@ -10,6 +8,19 @@
  *
  * app_curl.c is distributed with no restrictions on usage or
  * redistribution.
+ *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ */
+
+/*
+ *
+ * Curl - App to load a URL
+ * 
  */
  
 #include <stdlib.h>

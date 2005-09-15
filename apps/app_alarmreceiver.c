@@ -1,15 +1,25 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * Central Station Alarm receiver for Ademco Contact ID  
- * 
  * Copyright (C)  2004 - 2005 Steve Rodgers
  *
  * Steve Rodgers <hwstar@rodgers.sdcoxmail.com>
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
  *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*
+ *
+ * Central Station Alarm receiver for Ademco Contact ID  
+ * 
  * *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** 
  *
  * Use at your own risk. Please consult the GNU GPL license document included with Asterisk details. *

@@ -1,8 +1,8 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
+ * Copyright (C) 1999 - 2005, Anthony Minessale
  * Anthony Minessale (anthmct@yahoo.com)
- * Derived from format_pcm.c in the asterisk distro
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
