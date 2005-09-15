@@ -399,13 +399,12 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	gcc -g -o testexpr2 ast_expr2f.o ast_expr2.o
 	rm ast_expr2.c ast_expr2.o ast_expr2f.o ast_expr2f.c
 
-manpage: asterisk.8.gz
+manpage: asterisk.8
 
-asterisk.8.gz: asterisk.sgml
+asterisk.8: asterisk.sgml
 	rm -f asterisk.8
 	docbook2man asterisk.sgml
 	mv ./*.8 asterisk.8
-	gzip asterisk.8
 
 asterisk.pdf: asterisk.sgml
 	docbook2pdf asterisk.sgml
@@ -601,7 +600,7 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
-	install -m 644 asterisk.8.gz $(DESTDIR)$(ASTMANDIR)/man8
+	install -m 644 asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
 	install -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
