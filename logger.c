@@ -895,7 +895,7 @@ void ast_verbose(const char *fmt, ...)
 	ast_log(LOG_VERBOSE, "%s", stuff);
 
 	if (len) {
-		if (complete)
+		if (!complete)
 			replacelast = 1;
 		else 
 			replacelast = len = 0;
