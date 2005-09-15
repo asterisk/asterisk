@@ -4354,6 +4354,7 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 	if (p->rtp) {
 		ast_rtp_offered_from_local(p->rtp, 0);
 		add_sdp(&resp, p);
+	} else {
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
 	}
 	return send_response(p, &resp, retrans, seqno);
