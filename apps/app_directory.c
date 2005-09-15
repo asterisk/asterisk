@@ -300,8 +300,11 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 		return -1;
 	}
 	if (digit == '0') {
-		if (ast_goto_if_exists(chan, chan->context, "o", 1) || 
-			 (!ast_strlen_zero(chan->macrocontext) && ast_goto_if_exists(chan, chan->macrocontext, "o", 1))) {
+		if (ast_exists_extension(chan,chan->context,"o",1,chan->cid.cid_num) || 
+		    (!ast_strlen_zero(chan->macrocontext) &&
+		     ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num))) {
+			strcpy(chan->exten, "o");
+			chan->priority = 0;
 			return 0;
 		} else {
 
@@ -311,8 +314,11 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 		}
 	}	
 	if (digit == '*') {
-		if (ast_goto_if_exists(chan, chan->context, "a", 1) || 
-			 (!ast_strlen_zero(chan->macrocontext) && ast_goto_if_exists(chan, chan->macrocontext, "a", 1))) {
+		if (ast_exists_extension(chan,chan->context,"a",1,chan->cid.cid_num) || 
+		    (!ast_strlen_zero(chan->macrocontext) &&
+		     ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num))) {
+			strcpy(chan->exten, "a");
+			chan->priority = 0;
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "Can't find extension 'a' in current context.  "
