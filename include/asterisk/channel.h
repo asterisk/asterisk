@@ -754,6 +754,9 @@ struct ast_channel *ast_get_channel_by_name_locked(const char *chan);
 /*! Get channel by name prefix (locks channel) */
 struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, const int namelen);
 
+/*--- ast_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
+struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const char *context);
+
 /*! Waits for a digit */
 /*! 
  * \param c channel to wait for a digit on

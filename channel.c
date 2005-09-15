@@ -660,8 +660,15 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
 }
 
 /*
- * Helper function to return the channel after prev, or the one matching name,
- * with the channel's lock held. If getting the individual lock fails,
+ * Helper function to find channels. It supports these modes:
+ *
+ * prev != NULL : get channel next in list after prev
+ * name != NULL : get channel with matching name
+ * name != NULL && namelen != 0 : get channel whose name starts with prefix
+ * exten != NULL : get channel whose exten or macroexten matches
+ * context != NULL && exten != NULL : get channel whose context or macrocontext
+ *                                    
+ * It returns with the channel's lock held. If getting the individual lock fails,
  * unlock and retry quickly up to 10 times, then give up.
  * 
  * XXX Note that this code has cost O(N) because of the need to verify
@@ -675,7 +682,8 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
  * We should definitely go for a better scheme that is deadlock-free.
  */
 static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
-					       const char *name, const int namelen)
+					       const char *name, const int namelen,
+					       const char *context, const char *exten)
 {
 	const char *msg = prev ? "deadlock" : "initial deadlock";
 	int retries, done;
@@ -684,20 +692,33 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 	for (retries = 0; retries < 10; retries++) {
 		ast_mutex_lock(&chlock);
 		for (c = channels; c; c = c->next) {
-			if (prev == NULL) {
+			if (!prev) {
 				/* want head of list */
-				if (!name)
+				if (!name && !exten)
 					break;
-				/* want match by full name */
-				if (!namelen) {
-					if (!strcasecmp(c->name, name))
+				if (name) {
+					/* want match by full name */
+					if (!namelen) {
+						if (!strcasecmp(c->name, name))
+							break;
+						else
+							continue;
+					}
+					/* want match by name prefix */
+					if (!strncasecmp(c->name, name, namelen))
 						break;
-					else
+				} else if (exten) {
+					/* want match by context and exten */
+					if (context && (strcasecmp(c->context, context) &&
+							strcasecmp(c->macrocontext, context)))
 						continue;
+					/* match by exten */
+					if (strcasecmp(c->exten, exten) &&
+					    strcasecmp(c->macroexten, exten))
+						continue;
+					else
+						break;
 				}
-				/* want match by name prefix */
-				if (!strncasecmp(c->name, name, namelen))
-					break;
 			} else if (c == prev) { /* found, return c->next */
 				c = c->next;
 				break;
@@ -726,19 +747,25 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 /*--- ast_channel_walk_locked: Browse channels in use */
 struct ast_channel *ast_channel_walk_locked(const struct ast_channel *prev)
 {
-	return channel_find_locked(prev, NULL, 0);
+	return channel_find_locked(prev, NULL, 0, NULL, NULL);
 }
 
 /*--- ast_get_channel_by_name_locked: Get channel by name and lock it */
 struct ast_channel *ast_get_channel_by_name_locked(const char *name)
 {
-	return channel_find_locked(NULL, name, 0);
+	return channel_find_locked(NULL, name, 0, NULL, NULL);
 }
 
 /*--- ast_get_channel_by_name_prefix_locked: Get channel by name prefix and lock it */
 struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, const int namelen)
 {
-	return channel_find_locked(NULL, name, namelen);
+	return channel_find_locked(NULL, name, namelen, NULL, NULL);
+}
+
+/*--- ast_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
+struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const char *context)
+{
+	return channel_find_locked(NULL, NULL, 0, context, exten);
 }
 
 /*--- ast_safe_sleep_conditional: Wait, look for hangups and condition arg */
