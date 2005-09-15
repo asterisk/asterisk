@@ -347,22 +347,30 @@ static int oh323_digit(struct ast_channel *c, char digit)
 {
 	struct oh323_pvt *pvt = (struct oh323_pvt *) c->tech_pvt;
 	char *token;
-	if (h323debug)
-		ast_log(LOG_DEBUG, "Sending digit %c on %s\n", digit, c->name);
-	if (!pvt)
+
+	if (!pvt) {
+		ast_log(LOG_ERROR, "No private structure?! This is bad\n";
 		return -1;
+	}
 	ast_mutex_lock(&pvt->lock);
 	if (pvt->rtp && (pvt->options.dtmfmode & H323_DTMF_RFC2833)) {
+		/* out-of-band DTMF */
+		if (h323debug) {
+			ast_log(LOG_DEBUG, "Sending out-of-band digit %c on %s\n", digit, c->name);
+		}
 		ast_rtp_senddigit(pvt->rtp, digit);
+	} else {
+		/* in-band DTMF */
+		if (h323debug) {
+			ast_log(LOG_DEBUG, "Sending inband digit %c on %s\n", digit, c->name);
+		}
+		token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+		h323_send_tone(token, digit);
+		if (token) {
+			free(token);
+		}
 	}
-	/* If in-band DTMF is desired, send that */
-	if (h323debug)
-		ast_log(LOG_DEBUG, "Sending digit  %c on %s\n", digit, c->name);
-	token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
 	ast_mutex_unlock(&pvt->lock);
-	h323_send_tone(token, digit);
-	if (token)
-		free(token);
 	oh323_update_info(c);
 	return 0;
 }
