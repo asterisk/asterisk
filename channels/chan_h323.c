@@ -357,7 +357,7 @@ static int oh323_digit(struct ast_channel *c, char digit)
 	}
 	/* If in-band DTMF is desired, send that */
 	if (h323debug)
-		ast_log(LOG_DEBUG, "Sending INB digit  %c on %s\n", digit, c->name);
+		ast_log(LOG_DEBUG, "Sending digit  %c on %s\n", digit, c->name);
 	token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
 	ast_mutex_unlock(&pvt->lock);
 	h323_send_tone(token, digit);
