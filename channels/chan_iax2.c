@@ -163,7 +163,8 @@ static int iaxdefaulttimeout = 5;		/* Default to wait no more than 5 seconds for
 
 static int tos = 0;
 
-static int expirey = IAX_DEFAULT_REG_EXPIRE;
+static int min_reg_expire;
+static int max_reg_expire;
 
 static int timingfd = -1;				/* Timing file descriptor */
 
@@ -311,8 +312,8 @@ struct iax2_peer {
 	char cid_num[AST_MAX_EXTENSION];		/* Default context (for transfer really) */
 	char cid_name[AST_MAX_EXTENSION];		/* Default context (for transfer really) */
 	
-	int expire;					/* Schedule entry for expirey */
-	int expirey;					/* How soon to expire */
+	int expire;					/* Schedule entry for expiry */
+	int expiry;					/* How soon to expire */
 	int capability;					/* Capability */
 	char zonetag[80];				/* Time Zone */
 
@@ -485,8 +486,8 @@ struct chan_iax2_pvt {
 	struct ast_channel *owner;
 	/* What's our state? */
 	int state;
-	/* Expirey (optional) */
-	int expirey;
+	/* Expiry (optional) */
+	int expiry;
 	/* Next outgoing sequence number */
 	unsigned char oseqno;
 	/* Next sequence number they have not yet acknowledged */
@@ -625,7 +626,7 @@ static struct iax2_dpcache {
 	char peercontext[AST_MAX_CONTEXT];
 	char exten[AST_MAX_EXTENSION];
 	struct timeval orig;
-	struct timeval expirey;
+	struct timeval expiry;
 	int flags;
 	unsigned short callno;
 	int waiters[256];
@@ -1068,7 +1069,7 @@ static int find_callno(unsigned short callno, unsigned short dcallno, struct soc
 			iaxs[x]->peercallno = callno;
 			iaxs[x]->callno = x;
 			iaxs[x]->pingtime = DEFAULT_RETRY_TIME;
-			iaxs[x]->expirey = expirey;
+			iaxs[x]->expiry = min_reg_expire;
 			iaxs[x]->pingid = ast_sched_add(sched, ping_time * 1000, send_ping, (void *)(long)x);
 			iaxs[x]->lagid = ast_sched_add(sched, lagrq_time * 1000, send_lagrq, (void *)(long)x);
 			iaxs[x]->amaflags = amaflags;
@@ -1981,7 +1982,7 @@ static int iax2_show_cache(int fd, int argc, char *argv[])
 	dp = dpcache;
 	ast_cli(fd, "%-20.20s %-12.12s %-9.9s %-8.8s %s\n", "Peer/Context", "Exten", "Exp.", "Wait.", "Flags");
 	while(dp) {
-		s = dp->expirey.tv_sec - tv.tv_sec;
+		s = dp->expiry.tv_sec - tv.tv_sec;
 		tmp[0] = '\0';
 		if (dp->flags & CACHE_FLAG_EXISTS)
 			strncat(tmp, "EXISTS|", sizeof(tmp) - strlen(tmp) - 1);
@@ -5056,9 +5057,9 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		return -1;
 	}
 	ast_copy_string(iaxs[callno]->peer, peer, sizeof(iaxs[callno]->peer));
-	/* Choose lowest expirey number */
-	if (expire && (expire < iaxs[callno]->expirey)) 
-		iaxs[callno]->expirey = expire;
+	/* Choose lowest expiry number */
+	if (expire && (expire < iaxs[callno]->expiry)) 
+		iaxs[callno]->expiry = expire;
 
 	ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 
@@ -5216,7 +5217,7 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 {
 	char exten[256] = "";
 	int status = CACHE_FLAG_UNKNOWN;
-	int expirey = iaxdefaultdpcache;
+	int expiry = iaxdefaultdpcache;
 	int x;
 	int matchmore = 0;
 	struct iax2_dpcache *dp, *prev;
@@ -5235,7 +5236,7 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 		/* Don't really do anything with this */
 	}
 	if (ies->refresh)
-		expirey = ies->refresh;
+		expiry = ies->refresh;
 	if (ies->dpstatus & IAX_DPSTATUS_MATCHMORE)
 		matchmore = CACHE_FLAG_MATCHMORE;
 	ast_mutex_lock(&dpcache_lock);
@@ -5250,7 +5251,7 @@ static int complete_dpreply(struct chan_iax2_pvt *pvt, struct iax_ies *ies)
 				pvt->dpentries = dp->peer;
 			dp->peer = NULL;
 			dp->callno = 0;
-			dp->expirey.tv_sec = dp->orig.tv_sec + expirey;
+			dp->expiry.tv_sec = dp->orig.tv_sec + expiry;
 			if (dp->flags & CACHE_FLAG_PENDING) {
 				dp->flags &= ~CACHE_FLAG_PENDING;
 				dp->flags |= status;
@@ -5352,7 +5353,7 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	}
 	reg = iaxs[callno]->reg;
 	if (!reg) {
-		ast_log(LOG_WARNING, "Registry acknowledge on unknown registery '%s'\n", peer);
+		ast_log(LOG_WARNING, "Registry acknowledge on unknown registry '%s'\n", peer);
 		return -1;
 	}
 	memcpy(&oldus, &reg->us, sizeof(oldus));
@@ -5363,13 +5364,13 @@ static int iax2_ack_registry(struct iax_ies *ies, struct sockaddr_in *sin, int c
 	}
 	memcpy(&reg->us, &us, sizeof(reg->us));
 	reg->messages = ies->msgcount;
-	if (refresh && (reg->refresh > refresh)) {
-		/* Refresh faster if necessary */
-		reg->refresh = refresh;
-		if (reg->expire > -1)
-			ast_sched_del(sched, reg->expire);
-		reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
-	}
+	/* always refresh the registration at the interval requested by the server
+	   we are registering to
+	*/
+	reg->refresh = refresh;
+	if (reg->expire > -1)
+		ast_sched_del(sched, reg->expire);
+	reg->expire = ast_sched_add(sched, (5 * reg->refresh / 6) * 1000, iax2_do_register_s, reg);
 	if ((inaddrcmp(&oldus, &reg->us) || (reg->messages != oldmsgs)) && (option_verbose > 2)) {
 		if (reg->messages > 65534)
 			snprintf(msgstatus, sizeof(msgstatus), " with message(s) waiting\n");
@@ -5468,8 +5469,8 @@ static int expire_registry(void *data)
 	memset(&p->addr, 0, sizeof(p->addr));
 	/* Reset expire notice */
 	p->expire = -1;
-	/* Reset expirey value */
-	p->expirey = expirey;
+	/* Reset expiry value */
+	p->expiry = min_reg_expire;
 	if (!ast_test_flag(p, IAX_TEMPONLY))
 		ast_db_del("IAX/Registry", p->name);
 	register_peer_exten(p, 0);
@@ -5508,7 +5509,7 @@ static void reg_source_db(struct iax2_peer *p)
 						ast_verbose(VERBOSE_PREFIX_3 "Seeding '%s' at %s:%d for %d\n", p->name, 
 						ast_inet_ntoa(iabuf, sizeof(iabuf), in), atoi(c), atoi(d));
 					iax2_poke_peer(p, 0);
-					p->expirey = atoi(d);
+					p->expiry = atoi(d);
 					memset(&p->addr, 0, sizeof(p->addr));
 					p->addr.sin_family = AF_INET;
 					p->addr.sin_addr = in;
@@ -5516,7 +5517,7 @@ static void reg_source_db(struct iax2_peer *p)
 					if (p->expire > -1)
 						ast_sched_del(sched, p->expire);
 					ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-					p->expire = ast_sched_add(sched, (p->expirey + 10) * 1000, expire_registry, (void *)p);
+					p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
 					if (iax2_regfunk)
 						iax2_regfunk(p->name, 1);
 					register_peer_exten(p, 1);
@@ -5527,7 +5528,7 @@ static void reg_source_db(struct iax2_peer *p)
 	}
 }
 
-static int update_registry(char *name, struct sockaddr_in *sin, int callno, char *devtype, int fd)
+static int update_registry(char *name, struct sockaddr_in *sin, int callno, char *devtype, int fd, unsigned short refresh)
 {
 	/* Called from IAX thread only, with proper iaxsl lock */
 	struct iax_ie_data ied;
@@ -5536,79 +5537,92 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	char data[80];
 	char iabuf[INET_ADDRSTRLEN];
 	int version;
+
 	memset(&ied, 0, sizeof(ied));
-	p = find_peer(name, 1);
-	if (p) {
-		if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
-			realtime_update_peer(name, sin);
-		if (inaddrcmp(&p->addr, sin)) {
-			if (iax2_regfunk)
-				iax2_regfunk(p->name, 1);
-			snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), p->expirey);
-			if (!ast_test_flag(p, IAX_TEMPONLY) && sin->sin_addr.s_addr) {
-				ast_db_put("IAX/Registry", p->name, data);
-				if  (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
-					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
-				ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-				register_peer_exten(p, 1);
-			} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
-				if  (option_verbose > 2)
-				ast_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
-					iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
-				manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
-				ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
-				register_peer_exten(p, 0);
-				ast_db_del("IAX/Registry", p->name);
-			}
-			/* Update the host */
-			memcpy(&p->addr, sin, sizeof(p->addr));
-			/* Verify that the host is really there */
-			iax2_poke_peer(p, callno);
-		}		
-		/* Store socket fd */
-		p->sockfd = fd;
-		/* Setup the expirey */
-		if (p->expire > -1)
-			ast_sched_del(sched, p->expire);
-		if (p->expirey && sin->sin_addr.s_addr)
-			p->expire = ast_sched_add(sched, (p->expirey + 10) * 1000, expire_registry, (void *)p);
-		iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
-		iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
-		if (sin->sin_addr.s_addr) {
-			iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expirey);
-			iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
-			if (!ast_strlen_zero(p->mailbox)) {
-				if (ast_test_flag(p, IAX_MESSAGEDETAIL)) {
-					int new, old;
-					ast_app_messagecount(p->mailbox, &new, &old);
-					if (new > 255)
-						new = 255;
-					if (old > 255)
-						old = 255;
-					msgcount = (old << 8) | new;
-				} else {
-					msgcount = ast_app_has_voicemail(p->mailbox, NULL);
-					if (msgcount)
-						msgcount = 65535;
-				}
-				iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
-			}
-			if (ast_test_flag(p, IAX_HASCALLERID)) {
-				iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, p->cid_num);
-				iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->cid_name);
-			}
-		}
-		version = iax_check_version(devtype);
-		if (version) 
-			iax_ie_append_short(&ied, IAX_IE_FIRMWAREVER, version);
-		if (ast_test_flag(p, IAX_TEMPONLY))
-			destroy_peer(p);
-		return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
+
+	if (!(p = find_peer(name, 1))) {
+		ast_log(LOG_WARNING, "No such peer '%s'\n", name);
+		return -1;
 	}
-	ast_log(LOG_WARNING, "No such peer '%s'\n", name);
-	return -1;
+
+	if (ast_test_flag((&globalflags), IAX_RTUPDATE) && (ast_test_flag(p, IAX_TEMPONLY|IAX_RTCACHEFRIENDS)))
+		realtime_update_peer(name, sin);
+	if (inaddrcmp(&p->addr, sin)) {
+		if (iax2_regfunk)
+			iax2_regfunk(p->name, 1);
+		snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), p->expiry);
+		if (!ast_test_flag(p, IAX_TEMPONLY) && sin->sin_addr.s_addr) {
+			ast_db_put("IAX/Registry", p->name, data);
+			if  (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
+					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
+			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
+			register_peer_exten(p, 1);
+		} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
+			if  (option_verbose > 2)
+				ast_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
+					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
+			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
+			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
+			register_peer_exten(p, 0);
+			ast_db_del("IAX/Registry", p->name);
+		}
+		/* Update the host */
+		memcpy(&p->addr, sin, sizeof(p->addr));
+		/* Verify that the host is really there */
+		iax2_poke_peer(p, callno);
+	}		
+	/* Store socket fd */
+	p->sockfd = fd;
+	/* Setup the expiry */
+	if (p->expire > -1)
+		ast_sched_del(sched, p->expire);
+	if (refresh > max_reg_expire) {
+		ast_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
+			p->name, max_reg_expire, refresh);
+		p->expiry = max_reg_expire;
+	} else if (refresh < min_reg_expire) {
+		ast_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
+			p->name, min_reg_expire, refresh);
+		p->expiry = min_reg_expire;
+	} else {
+		p->expiry = refresh;
+	}
+	if (p->expiry && sin->sin_addr.s_addr)
+		p->expire = ast_sched_add(sched, (p->expiry + 10) * 1000, expire_registry, (void *)p);
+	iax_ie_append_str(&ied, IAX_IE_USERNAME, p->name);
+	iax_ie_append_int(&ied, IAX_IE_DATETIME, iax2_datetime(p->zonetag));
+	if (sin->sin_addr.s_addr) {
+		iax_ie_append_short(&ied, IAX_IE_REFRESH, p->expiry);
+		iax_ie_append_addr(&ied, IAX_IE_APPARENT_ADDR, &p->addr);
+		if (!ast_strlen_zero(p->mailbox)) {
+			if (ast_test_flag(p, IAX_MESSAGEDETAIL)) {
+				int new, old;
+				ast_app_messagecount(p->mailbox, &new, &old);
+				if (new > 255)
+					new = 255;
+				if (old > 255)
+					old = 255;
+				msgcount = (old << 8) | new;
+			} else {
+				msgcount = ast_app_has_voicemail(p->mailbox, NULL);
+				if (msgcount)
+					msgcount = 65535;
+			}
+			iax_ie_append_short(&ied, IAX_IE_MSGCOUNT, msgcount);
+		}
+		if (ast_test_flag(p, IAX_HASCALLERID)) {
+			iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, p->cid_num);
+			iax_ie_append_str(&ied, IAX_IE_CALLING_NAME, p->cid_name);
+		}
+	}
+	version = iax_check_version(devtype);
+	if (version) 
+		iax_ie_append_short(&ied, IAX_IE_FIRMWAREVER, version);
+	if (ast_test_flag(p, IAX_TEMPONLY))
+		destroy_peer(p);
+	return send_command_final(iaxs[callno], AST_FRAME_IAX, IAX_COMMAND_REGACK, 0, ied.buf, ied.pos, -1);
 }
 
 static int registry_authrequest(char *name, int callno)
@@ -7268,7 +7282,7 @@ retryowner2:
 				if ((ast_strlen_zero(iaxs[fr.callno]->secret) && ast_strlen_zero(iaxs[fr.callno]->inkeys)) || (iaxs[fr.callno]->state & IAX_STATE_AUTHENTICATED)) {
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
-					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype, fd))
+					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype, fd, ies.refresh))
 						ast_log(LOG_WARNING, "Registry error\n");
 					if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
 						check_provisioning(&sin, fd, ies.serviceident, ies.provver);
@@ -8021,7 +8035,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		if (!found) {
 			ast_copy_string(peer->name, name, sizeof(peer->name));
 			peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
-			peer->expirey = expirey;
+			peer->expiry = min_reg_expire;
 		}
 		peer->prefs = prefs;
 		peer->capability = iax2_capability;
@@ -8480,6 +8494,9 @@ static int set_config(char *config_file, int reload)
 	nochecksums = 0;
 #endif
 
+	min_reg_expire = IAX_DEFAULT_REG_EXPIRE;
+	max_reg_expire = IAX_DEFAULT_REG_EXPIRE;
+
 	v = ast_variable_browse(cfg, "general");
 
 	/* Seed initial tos value */
@@ -8525,6 +8542,10 @@ static int set_config(char *config_file, int reload)
 			lagrq_time = atoi(v->value);
 		else if (!strcasecmp(v->name, "dropcount")) 
 			iax2_dropcount = atoi(v->value);
+		else if (!strcasecmp(v->name, "maxregexpire")) 
+			max_reg_expire = atoi(v->value);
+		else if (!strcasecmp(v->name, "minregexpire")) 
+			min_reg_expire = atoi(v->value);
 		else if (!strcasecmp(v->name, "bindaddr")) {
 			if (reload) {
 				ast_log(LOG_NOTICE, "Ignoring bindaddr on reload\n");
@@ -8634,6 +8655,11 @@ static int set_config(char *config_file, int reload)
 		} /*else if (strcasecmp(v->name,"type")) */
 		/*	ast_log(LOG_WARNING, "Ignoring %s\n", v->name); */
 		v = v->next;
+	}
+	if (min_reg_expire > max_reg_expire) {
+		ast_log(LOG_WARNING, "Minimum registration interval of %d is more than maximum of %d, resetting minimum to %d\n",
+			min_reg_expire, max_reg_expire, max_reg_expire);
+		min_reg_expire = max_reg_expire;
 	}
 	iax2_capability = capability;
 	cat = ast_category_browse(cfg, NULL);
@@ -8797,7 +8823,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 	while(dp) {
 		next = dp->next;
 		/* Expire old caches */
-		if (ast_tvcmp(tv, dp->expirey) > 0) {
+		if (ast_tvcmp(tv, dp->expiry) > 0) {
 				/* It's expired, let it disappear */
 				if (prev)
 					prev->next = dp->next;
@@ -8834,10 +8860,10 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		memset(dp, 0, sizeof(struct iax2_dpcache));
 		ast_copy_string(dp->peercontext, data, sizeof(dp->peercontext));
 		ast_copy_string(dp->exten, exten, sizeof(dp->exten));
-		gettimeofday(&dp->expirey, NULL);
-		dp->orig = dp->expirey;
+		gettimeofday(&dp->expiry, NULL);
+		dp->orig = dp->expiry;
 		/* Expires in 30 mins by default */
-		dp->expirey.tv_sec += iaxdefaultdpcache;
+		dp->expiry.tv_sec += iaxdefaultdpcache;
 		dp->next = dpcache;
 		dp->flags = CACHE_FLAG_PENDING;
 		for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
@@ -8915,7 +8941,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 				dp->flags |= CACHE_FLAG_TIMEOUT;
 				/* Expire after only 60 seconds now.  This is designed to help reduce backlog in heavily loaded
 				   systems without leaving it unavailable once the server comes back online */
-				dp->expirey.tv_sec = dp->orig.tv_sec + 60;
+				dp->expiry.tv_sec = dp->orig.tv_sec + 60;
 				for (x=0;x<sizeof(dp->waiters) / sizeof(dp->waiters[0]); x++)
 					if (dp->waiters[x] > -1)
 						write(dp->waiters[x], "asdf", 4);

@@ -154,8 +154,11 @@ forcejitterbuffer=no
 ; they do not also need to have it enabled.
 ;
 ; trunktimestamps=yes
-
 ;
+; Minimum and maximum amounts of time that IAX peers can request as
+; a registration expiration interval (in seconds).
+; minregexpire = 60
+; maxregexpire = 60
 ;
 ; We can register with another IAX server to let him know where we are
 ; in case we have a dynamic IP address for example
