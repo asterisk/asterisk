@@ -356,16 +356,14 @@ static int oh323_digit(struct ast_channel *c, char digit)
 		ast_rtp_senddigit(pvt->rtp, digit);
 	}
 	/* If in-band DTMF is desired, send that */
-	if ((pvt->options.dtmfmode & H323_DTMF_INBAND)) {
-		token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
-		ast_mutex_unlock(&pvt->lock);
-		h323_send_tone(token, digit);
-		if (token)
-			free(token);
-		oh323_update_info(c);
-	}
-	else
-		ast_mutex_unlock(&pvt->lock);
+	if (h323debug)
+		ast_log(LOG_DEBUG, "Sending INB digit  %c on %s\n", digit, c->name);
+	token = pvt->cd.call_token ? strdup(pvt->cd.call_token) : NULL;
+	ast_mutex_unlock(&pvt->lock);
+	h323_send_tone(token, digit);
+	if (token)
+		free(token);
+	oh323_update_info(c);
 	return 0;
 }
 
