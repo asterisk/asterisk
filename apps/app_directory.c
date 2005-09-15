@@ -193,7 +193,7 @@ static int play_mailbox_owner(struct ast_channel *chan, char *context, char *dia
 				case '1':
 					/* Name selected */
 					loop = 0;
-					if (!ast_goto_if_exists(chan, dialcontext, ext, 1)) {
+					if (ast_goto_if_exists(chan, dialcontext, ext, 1)) {
 						ast_log(LOG_WARNING,
 							"Can't find extension '%s' in context '%s'.  "
 							"Did you pass the wrong context to Directory?\n",
@@ -300,25 +300,20 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 		return -1;
 	}
 	if (digit == '0') {
-		if (ast_exists_extension(chan,chan->context,"o",1,chan->cid.cid_num) || 
+		if (!ast_goto_if_exists(chan, chan->context, "o", 1) ||
 		    (!ast_strlen_zero(chan->macrocontext) &&
-		     ast_exists_extension(chan, chan->macrocontext, "o", 1, chan->cid.cid_num))) {
-			strcpy(chan->exten, "o");
-			chan->priority = 0;
+		     !ast_goto_if_exists(chan, chan->macrocontext, "o", 1))) {
 			return 0;
 		} else {
-
 			ast_log(LOG_WARNING, "Can't find extension 'o' in current context.  "
 				"Not Exiting the Directory!\n");
 			res = 0;
 		}
 	}	
 	if (digit == '*') {
-		if (ast_exists_extension(chan,chan->context,"a",1,chan->cid.cid_num) || 
+		if (!ast_goto_if_exists(chan, chan->context, "a", 1) ||
 		    (!ast_strlen_zero(chan->macrocontext) &&
-		     ast_exists_extension(chan, chan->macrocontext, "a", 1, chan->cid.cid_num))) {
-			strcpy(chan->exten, "a");
-			chan->priority = 0;
+		     !ast_goto_if_exists(chan, chan->macrocontext, "a", 1))) {
 			return 0;
 		} else {
 			ast_log(LOG_WARNING, "Can't find extension 'a' in current context.  "
@@ -375,11 +370,11 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 						lastuserchoice = 0;
 						break;
 					case '1':
-						/* user pressed '1' and extensions exists */
+						/* user pressed '1' and extensions exists;
+						   play_mailbox_owner will already have done
+						   a goto() on the channel
+						 */
 						lastuserchoice = res;
-						ast_copy_string(chan->context, dialcontext, sizeof(chan->context));
-						ast_copy_string(chan->exten, v->name, sizeof(chan->exten));
-						chan->priority = 0;
 						break;
 					case '*':
 						/* user pressed '*' to skip something found */
