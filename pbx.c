@@ -3506,8 +3506,10 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 		return RESULT_FAILURE;
 	}
 
-	ast_cli(fd,"-= %d extensions (%d priorities) in %d contexts. =-\n",
-				counters.total_exten, counters.total_prio, counters.total_context);
+	ast_cli(fd,"-= %d %s (%d %s) in %d %s. =-\n",
+				counters.total_exten, counters.total_exten == 1 ? "extension" : "extensions",
+				counters.total_prio, counters.total_prio == 1 ? "priority" : "priorities",
+				counters.total_context, counters.total_context == 1 ? "context" : "contexts");
 
 	/* everything ok */
 	return RESULT_SUCCESS;
