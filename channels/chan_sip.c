@@ -9016,7 +9016,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (reinvite)
 			ast_log(LOG_DEBUG, "SIP response %d to RE-invite on %s call %s\n", resp, outgoing ? "outgoing" : "incoming", p->callid);
 		else
-			ast_log(LOG_DEBUG, "SIP response %d to standard invite", resp);
+			ast_log(LOG_DEBUG, "SIP response %d to standard invite\n", resp);
 	}
 
 	switch (resp) {
