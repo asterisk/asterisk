@@ -270,32 +270,32 @@ exten => _011.,n,Dial(Zap/g1/${EXTEN})
 ;
 ; Start first with e164.arpa zone...
 ;
-exten => _X.,1,Set(sipcount=${ENUMLOOKUP(${EXTEN},sip,c)}|counter=0)
+exten => _X.,1,Set(sipcount=${ENUMLOOKUP(+${EXTEN},sip,c)}|counter=0)
 exten => _X.,2,GotoIf($["${counter}"<"${sipcount}"]?3:6)
 exten => _X.,3,Set(counter=$[${counter}+1])
 exten => _X.,4,Dial(SIP/${ENUMLOOKUP(+${EXTEN},sip,${counter})})
 exten => _X.,5,GotoIf($["${counter}"<"${sipcount}"]?3:6)
 ;
-exten => _X.,6,Set(iaxcount=${ENUMLOOKUP(${EXTEN},iax2,c)}|counter=0)
+exten => _X.,6,Set(iaxcount=${ENUMLOOKUP(+${EXTEN},iax2,c)}|counter=0)
 exten => _X.,7,GotoIf($["${counter}"<"${iaxcount}"]?8:11)
 exten => _X.,8,Set(counter=$[${counter}+1])
-exten => _X.,9,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax,${counter})})
+exten => _X.,9,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax2,${counter})})
 exten => _X.,10,GotoIf($["${counter}"<"${iaxcount}"]?8:11)
 ;
 exten => _X.,11,NoOp("No valid entries in e164.arpa for ${EXTEN} - checking in e164.org")
 ;
 ; ...then also try e164.org, and look for SIP and IAX NAPTRs...
 ;
-exten => _X.,12,Set(sipcount=${ENUMLOOKUP(${EXTEN},sip,c,e164.org)}|counter=0)
+exten => _X.,12,Set(sipcount=${ENUMLOOKUP(+${EXTEN},sip,c,e164.org)}|counter=0)
 exten => _X.,13,GotoIf($["${counter}"<"${sipcount}"]?14:17)
 exten => _X.,14,Set(counter=$[${counter}+1])
 exten => _X.,15,Dial(SIP/${ENUMLOOKUP(+${EXTEN},sip,${counter},e164.org)})
 exten => _X.,16,GotoIf($["${counter}"<"${sipcount}"]?14:17)
 ;
-exten => _X.,17,Set(iaxcount=${ENUMLOOKUP(${EXTEN},iax2,c,e164.org)}|counter=0)
+exten => _X.,17,Set(iaxcount=${ENUMLOOKUP(+${EXTEN},iax2,c,e164.org)}|counter=0)
 exten => _X.,18,GotoIf($["${counter}"<"${iaxcount}"]?19:22)
 exten => _X.,19,Set(counter=$[${counter}+1])
-exten => _X.,20,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax,${counter},e164.org)})
+exten => _X.,20,Dial(IAX2/${ENUMLOOKUP(+${EXTEN},iax2,${counter},e164.org)})
 exten => _X.,21,GotoIf($["${counter}"<"${iaxcount}"]?19:22)
 ;
 ; ...then send out PRI.
