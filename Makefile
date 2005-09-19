@@ -397,7 +397,7 @@ testexpr2: ast_expr2f.c ast_expr2.c ast_expr2.h
 	gcc -g -c -DSTANDALONE ast_expr2f.c
 	gcc -g -c -DSTANDALONE ast_expr2.c
 	gcc -g -o testexpr2 ast_expr2f.o ast_expr2.o
-	rm ast_expr2.c ast_expr2.o ast_expr2f.o ast_expr2f.c
+	rm ast_expr2.o ast_expr2f.o 
 
 manpage: asterisk.8
 
