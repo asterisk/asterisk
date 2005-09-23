@@ -117,34 +117,6 @@ static char reload_extensions_help[] =
 "Example: extensions reload\n";
 
 /*
- * Static code
- */
-static char *process_quotes_and_slashes(char *start, char find, char replace_with)
-{
- 	char *dataPut = start;
-	int inEscape = 0;
-	int inQuotes = 0;
-
-	for (; *start; start++) {
-		if (inEscape) {
-			*dataPut++ = *start;       /* Always goes verbatim */
-			inEscape = 0;
-    		} else {
-			if (*start == '\\') {
-				inEscape = 1;      /* Do not copy \ into the data */
-			} else if (*start == '\'') {
-				inQuotes = 1-inQuotes;   /* Do not copy ' into the data */
-			} else {
-				/* Replace , with |, unless in quotes */
-				*dataPut++ = inQuotes ? *start : ((*start==find) ? replace_with : *start);
-			}
-		}
-	}
-	*dataPut = 0;
-	return dataPut;
-}
-
-/*
  * Implementation of functions provided by this module
  */
 
@@ -1218,7 +1190,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 	if (app && (start = strchr(app, '(')) && (end = strrchr(app, ')'))) {
 		*start = *end = '\0';
 		app_data = start + 1;
-		process_quotes_and_slashes(app_data, ',', '|');
+		ast_process_quotes_and_slashes(app_data, ',', '|');
 	} else {
 		if (app) {
 			app_data = strchr(app, ',');
@@ -1751,7 +1723,7 @@ static int pbx_load_module(void)
 								} else {
 									ast_log(LOG_WARNING, "No closing parenthesis found? '%s(%s'\n", appl, data);
 								}
-								process_quotes_and_slashes(data, ',', '|');
+								ast_process_quotes_and_slashes(data, ',', '|');
 							}
 
 							if (!data)

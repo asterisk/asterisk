@@ -191,4 +191,12 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 #define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)
 extern int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
+/*!
+	\brief Process a string to find and replace characters
+	\param start The string to analyze
+	\param find The character to find
+	\param replace_with The character that will replace the one we are looking for
+*/
+char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
+
 #endif /* _ASTERISK_UTILS_H */

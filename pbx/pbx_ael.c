@@ -75,44 +75,6 @@ static char *dtext = "Asterisk Extension Language Compiler";
 static char *config = "extensions.ael";
 static char *registrar = "pbx_ael";
 
-/*
- * Static code
- */
-static char *process_quotes_and_slashes(char *start, char find, char replace_with)
-{
- 	char *dataPut = start;
-	int inEscape = 0;
-	int inQuotes = 0;
-
-	for (; *start; start++) {
-		if (inEscape) {
-			*dataPut++ = *start;       /* Always goes verbatim */
-			inEscape = 0;
-    		} else {
-			if (*start == '\\') {
-				inEscape = 1;      /* Do not copy \ into the data */
-			} else if (*start == '\'') {
-				inQuotes = 1-inQuotes;   /* Do not copy ' into the data */
-			} else {
-				/* Replace , with |, unless in quotes */
-				*dataPut++ = inQuotes ? *start : ((*start==find) ? replace_with : *start);
-			}
-		}
-	}
-	if (start != dataPut)
-		*dataPut = 0;
-	return dataPut;
-}
-
-/*
- * Standard module functions ...
- */
-int unload_module(void)
-{
-	ast_context_destroy(NULL, registrar);
-	return 0;
-}
-
 static char *__grab_token(char *src, const char *filename, int lineno, int link)
 {
 	char *c;
@@ -449,18 +411,18 @@ static int match_assignment(char *variable, char **value)
 	int inpar = 0;
 	c = variable;
 	
-	while(*c && (*c > 32)) {
-	  if(*c == ')' && (inpar > 0)) {
-	    inpar--;
-	  } else if(*c == '(' && (inpar >= 0)) {
-	    inpar++;
-	  } else if(*c == '=' && (inpar == 0)) {
-	    break;
-	  }
-	  c++;
+	while (*c && (*c > 32)) {
+		if(*c == ')' && (inpar > 0)) {
+			inpar--;
+		} else if(*c == '(' && (inpar >= 0)) {
+			inpar++;
+		} else if(*c == '=' && (inpar == 0)) {
+			break;
+		}
+		c++;
 	} 
 	ws = c;
-	while(*c && (*c < 33)) c++;
+	while (*c && (*c < 33)) c++;
 	if (*c == '=') {
 		*ws = '\0';
 		*c = '\0';
@@ -533,7 +495,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			margs = alloca(mlen);
 			app = "Goto";
 			sprintf(margs, "sw-%s-%d-%s|1", name, *pos, args);
-			process_quotes_and_slashes(margs, ',', '|');
+			ast_process_quotes_and_slashes(margs, ',', '|');
 			oargs = args;
 			args = margs;
 			if (ast_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(args), FREE, registrar))
@@ -863,7 +825,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			if ((c >= args) && (*c == ')')) *c = '\0';
 		} else
 			args = "";
-		process_quotes_and_slashes(args, ',', '|');
+		ast_process_quotes_and_slashes(args, ',', '|');
 		if (app[0] == '&') {
 			app++;
 			margs = alloca(strlen(args) + strlen(app) + 10);
@@ -1204,6 +1166,15 @@ static int ast_ael_compile(struct ast_context **local_contexts, const char *file
 	return 0;
 }
 
+/*
+ * Standard module functions ...
+ */
+int unload_module(void)
+{
+	ast_context_destroy(NULL, registrar);
+	return 0;
+}
+
 static int pbx_load_module(void)
 {
 	struct ast_context *local_contexts=NULL, *con;
@@ -1211,160 +1182,6 @@ static int pbx_load_module(void)
 	ast_merge_contexts_and_delete(&local_contexts, registrar);
 	for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
 		ast_context_verify_includes(con);
-
-#if 0
-		v = ast_variable_browse(cfg, "globals");
-		while(v) {
-			memset(realvalue, 0, sizeof(realvalue));
-			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
-			v = v->next;
-		}
-		cxt = ast_category_browse(cfg, NULL);
-		while(cxt) {
-			/* All categories but "general" or "globals" are considered contexts */
-			if (!strcasecmp(cxt, "general") || !strcasecmp(cxt, "globals")) {
-				cxt = ast_category_browse(cfg, cxt);
-				continue;
-			}
-			if ((con=ast_context_create(&local_contexts,cxt, registrar))) {
-				v = ast_variable_browse(cfg, cxt);
-				while(v) {
-					if (!strcasecmp(v->name, "exten")) {
-						char *stringp=NULL;
-						int ipri = -2;
-						char realext[256]="";
-						char *plus;
-						tc = strdup(v->value);
-						if(tc!=NULL){
-							stringp=tc;
-							ext = strsep(&stringp, ",");
-							if (!ext)
-								ext="";
-							cidmatch = strchr(ext, '/');
-							if (cidmatch) {
-								*cidmatch = '\0';
-								cidmatch++;
-								ast_shrink_phone_number(cidmatch);
-							}
-							pri = strsep(&stringp, ",");
-							if (!pri)
-								pri="";
-							label = strchr(pri, '(');
-							if (label) {
-								*label = '\0';
-								label++;
-								end = strchr(label, ')');
-								if (end)
-									*end = '\0';
-								else
-									ast_log(LOG_WARNING, "Label missing trailing ')' at line %d\n", v->lineno);
-							}
-							plus = strchr(pri, '+');
-							if (plus) {
-								*plus = '\0';
-								plus++;
-							}
-							if (!strcmp(pri,"hint"))
-								ipri=PRIORITY_HINT;
-							else if (!strcmp(pri, "next") || !strcmp(pri, "n")) {
-								if (lastpri > -2)
-									ipri = lastpri + 1;
-								else
-									ast_log(LOG_WARNING, "Can't use 'next' priority on the first entry!\n");
-							} else if (!strcmp(pri, "same") || !strcmp(pri, "s")) {
-								if (lastpri > -2)
-									ipri = lastpri;
-								else
-									ast_log(LOG_WARNING, "Can't use 'same' priority on the first entry!\n");
-							} else  {
-								if (sscanf(pri, "%i", &ipri) != 1) {
-									if ((ipri = ast_findlabel_extension2(NULL, con, ext, pri, cidmatch)) < 1) {
-										ast_log(LOG_WARNING, "Invalid priority/label '%s' at line %d\n", pri, v->lineno);
-										ipri = 0;
-									}
-								}
-							}
-							appl = stringp;
-							if (!appl)
-								appl="";
-							if (!(start = strchr(appl, '('))) {
-								if (stringp)
-									appl = strsep(&stringp, ",");
-								else
-									appl = "";
-							}
-							if (start && (end = strrchr(appl, ')'))) {
-								*start = *end = '\0';
-								data = start + 1;
-								process_quotes_and_slashes(data, ',', '|');
-							} else if (stringp!=NULL && *stringp=='"') {
-								stringp++;
-								data = strsep(&stringp, "\"");
-								stringp++;
-							} else {
-								if (stringp)
-									data = strsep(&stringp, ",");
-								else
-									data = "";
-							}
-
-							if (!data)
-								data="";
-							while(*appl && (*appl < 33)) appl++;
-							pbx_substitute_variables_helper(NULL, ext, realext, sizeof(realext) - 1);
-							if (ipri) {
-								if (plus)
-									ipri += atoi(plus);
-								lastpri = ipri;
-								if (!strcmp(realext, "_."))
-									ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
-								if (ast_add_extension2(con, 0, realext, ipri, label, cidmatch, appl, strdup(data), FREE, registrar)) {
-									ast_log(LOG_WARNING, "Unable to register extension at line %d\n", v->lineno);
-								}
-							}
-							free(tc);
-						} else fprintf(stderr,"Error strdup returned NULL in %s\n",__PRETTY_FUNCTION__);
-					} else if(!strcasecmp(v->name, "include")) {
-						memset(realvalue, 0, sizeof(realvalue));
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-						if (ast_context_add_include2(con, realvalue, registrar))
-							ast_log(LOG_WARNING, "Unable to include context '%s' in context '%s'\n", v->value, cxt);
-					} else if(!strcasecmp(v->name, "ignorepat")) {
-						memset(realvalue, 0, sizeof(realvalue));
-						pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-						if (ast_context_add_ignorepat2(con, realvalue, registrar))
-							ast_log(LOG_WARNING, "Unable to include ignorepat '%s' in context '%s'\n", v->value, cxt);
-					} else if (!strcasecmp(v->name, "switch") || !strcasecmp(v->name, "lswitch") || !strcasecmp(v->name, "eswitch")) {
-						char *stringp=NULL;
-						memset(realvalue, 0, sizeof(realvalue));
-						if (!strcasecmp(v->name, "switch"))
-							pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
-						else
-							strncpy(realvalue, v->value, sizeof(realvalue) - 1);
-						tc = realvalue;
-						stringp=tc;
-						appl = strsep(&stringp, "/");
-						data = strsep(&stringp, "");
-						if (!data)
-							data = "";
-						if (ast_context_add_switch2(con, appl, data, !strcasecmp(v->name, "eswitch"), registrar))
-							ast_log(LOG_WARNING, "Unable to include switch '%s' in context '%s'\n", v->value, cxt);
-					}
-					v = v->next;
-				}
-			}
-			cxt = ast_category_browse(cfg, cxt);
-		}
-		ast_config_destroy(cfg);
-	}
-	ast_merge_contexts_and_delete(&local_contexts,registrar);
-
-	for (con = ast_walk_contexts(NULL); con; con = ast_walk_contexts(con))
-		ast_context_verify_includes(con);
-
-	pbx_set_autofallthrough(autofallthrough_config);
-#endif
 
 	return 0;
 }

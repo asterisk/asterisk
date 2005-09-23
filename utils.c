@@ -799,3 +799,29 @@ uint64_t strtoq(const char *nptr, char **endptr, int base)
 	 return acc;
 }
 #endif
+
+char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
+{
+ 	char *dataPut = start;
+	int inEscape = 0;
+	int inQuotes = 0;
+
+	for (; *start; start++) {
+		if (inEscape) {
+			*dataPut++ = *start;       /* Always goes verbatim */
+			inEscape = 0;
+    		} else {
+			if (*start == '\\') {
+				inEscape = 1;      /* Do not copy \ into the data */
+			} else if (*start == '\'') {
+				inQuotes = 1-inQuotes;   /* Do not copy ' into the data */
+			} else {
+				/* Replace , with |, unless in quotes */
+				*dataPut++ = inQuotes ? *start : ((*start==find) ? replace_with : *start);
+			}
+		}
+	}
+	if (start != dataPut)
+		*dataPut = 0;
+	return dataPut;
+}
