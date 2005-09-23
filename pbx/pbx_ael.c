@@ -660,7 +660,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			if (ifskip) {
 				/* Skip as appropriate around else clause */
 				snprintf(margs, mlen, "%d", ifend);
-				if (ast_add_extension2(con, 0, exten, ifskip, NULL, NULL, app, strdup(margs), FREE, registrar))
+				if (ast_add_extension2(con, 0, exten, ifskip, NULL, NULL, "Goto", strdup(margs), FREE, registrar))
 					ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			}
 		} else
