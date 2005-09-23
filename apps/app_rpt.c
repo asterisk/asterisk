@@ -20,7 +20,7 @@
 /*
  *
  * Radio Repeater / Remote Base program 
- *  version 0.30 09/11/05
+ *  version 0.31 09/15/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -190,7 +190,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.30  09/11/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.31  09/15/2005";
 
 static char *app = "Rpt";
 
@@ -918,7 +918,7 @@ static void wait_interval(struct rpt *myrpt, int type, struct ast_channel *chan)
 static void *rpt_tele_thread(void *this)
 {
 ZT_CONFINFO ci;  /* conference info */
-int	res = 0,hastx,hasremote,imdone = 0, unkeys_queued, x;
+int	res = 0,haslink,hastx,hasremote,imdone = 0, unkeys_queued, x;
 struct	rpt_tele *mytele = (struct rpt_tele *)this;
 struct  rpt_tele *tlist;
 struct	rpt *myrpt;
@@ -1068,6 +1068,7 @@ struct tm localtm;
 			break;
 		}
 			
+		haslink = 0;
 		hastx = 0;
 		hasremote = 0;		
 		l = myrpt->links.next;
@@ -1076,6 +1077,12 @@ struct tm localtm;
 			ast_mutex_lock(&myrpt->lock);
 			while(l != &myrpt->links)
 			{
+				if (l->name[0] == '0') 
+				{
+					l = l->next;
+					continue;
+				}
+				haslink = 1;
 				if (l->mode) {
 					hastx++;
 					if (l->isremote) hasremote++;
@@ -1083,13 +1090,16 @@ struct tm localtm;
 				l = l->next;
 			}
 			ast_mutex_unlock(&myrpt->lock);
+		}
+		if (haslink)
+		{
 
 			res = telem_lookup(mychannel, myrpt->name, (!hastx) ? "remotemon" : "remotetx");
 			if(res)
 				ast_log(LOG_WARNING, "telem_lookup:remotexx failed on %s\n", mychannel->name);
 			
 		
-		/* if in remote cmd mode, indicate it */
+			/* if in remote cmd mode, indicate it */
 			if (myrpt->cmdnode[0])
 			{
 				ast_safe_sleep(mychannel,200);
@@ -1194,6 +1204,11 @@ struct tm localtm;
 		l = myrpt->links.next;
 		while(l != &myrpt->links)
 		{
+			if (l->name[0] == '0') 
+			{
+				l = l->next;
+				continue;
+			}
 			m = malloc(sizeof(struct rpt_link));
 			if (!m)
 			{
@@ -1634,6 +1649,11 @@ struct	rpt_link *l;
 	/* first, see if our dude is there */
 	while(l != &myrpt->links)
 	{
+		if (l->name[0] == '0') 
+		{
+			l = l->next;
+			continue;
+		}
 		/* if we found it, write it and were done */
 		if (!strcmp(l->name,myrpt->cmdnode))
 		{
@@ -1696,6 +1716,11 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			l = myrpt->links.next;
 			/* try to find this one in queue */
 			while(l != &myrpt->links){
+				if (l->name[0] == '0') 
+				{
+					l = l->next;
+					continue;
+				}
 				/* if found matching string */
 				if (!strcmp(l->name, digitbuf))
 					break;
@@ -1742,6 +1767,11 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			l = myrpt->links.next;
 			/* try to find this one in queue */
 			while(l != &myrpt->links){
+				if (l->name[0] == '0') 
+				{
+					l = l->next;
+					continue;
+				}
 				/* if found matching string */
 				if (!strcmp(l->name, digitbuf))
 					break;
@@ -1852,6 +1882,11 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			l = myrpt->links.next;
 			/* try to find this one in queue */
 			while(l != &myrpt->links){
+				if (l->name[0] == '0') 
+				{
+					l = l->next;
+					continue;
+				}
 				/* if found matching string */
 				if (!strcmp(l->name, digitbuf))
 					break;
@@ -2221,6 +2256,12 @@ struct	ast_frame wf;
 		ast_log(LOG_WARNING, "Unable to parse link string %s\n",str);
 		return;
 	}
+
+	if (dest[0] == '0')
+	{
+		strcpy(dest,myrpt->name);
+	}		
+
 	/* if not for me, redistribute to all links */
 	if (strcmp(dest,myrpt->name))
 	{
@@ -2228,6 +2269,11 @@ struct	ast_frame wf;
 		/* see if this is one in list */
 		while(l != &myrpt->links)
 		{
+			if (l->name[0] == '0') 
+			{
+				l = l->next;
+				continue;
+			}
 			/* dont send back from where it came */
 			if ((l == mylink) || (!strcmp(l->name,mylink->name)))
 			{
@@ -2250,6 +2296,11 @@ struct	ast_frame wf;
 		/* otherwise, send it to all of em */
 		while(l != &myrpt->links)
 		{
+			if (l->name[0] == '0') 
+			{
+				l = l->next;
+				continue;
+			}
 			/* dont send back from where it came */
 			if ((l == mylink) || (!strcmp(l->name,mylink->name)))
 			{
@@ -2266,6 +2317,7 @@ struct	ast_frame wf;
 		return;
 	}
 	ast_mutex_lock(&myrpt->lock);
+	if (c == myrpt->endchar) myrpt->stopgen = 1;
 	if (myrpt->callmode == 1)
 	{
 		myrpt->exten[myrpt->cidx++] = c;
@@ -4752,9 +4804,16 @@ char cmd[MAXDTMF+1] = "";
 			{
 				if (l->chan) ast_hangup(l->chan);
 				ast_mutex_unlock(&myrpt->lock);
-				if (attempt_reconnect(myrpt,l) == -1)
+				if (l->name[0] != '0') 
 				{
-					l->retrytimer = RETRY_TIMER_MS;
+					l->retrytimer = MAX_RETRIES + 1;
+				}
+				else 
+				{
+					if (attempt_reconnect(myrpt,l) == -1)
+					{
+						l->retrytimer = RETRY_TIMER_MS;
+					}
 				}
 				ast_mutex_lock(&myrpt->lock);
 				break;
@@ -4767,9 +4826,12 @@ char cmd[MAXDTMF+1] = "";
 				if (!strcmp(myrpt->cmdnode,l->name))
 					myrpt->cmdnode[0] = 0;
 				ast_mutex_unlock(&myrpt->lock);
-				if (!l->hasconnected)
-					rpt_telemetry(myrpt,CONNFAIL,l);
-				else rpt_telemetry(myrpt,REMDISC,l);
+				if (l->name[0] != '0') 
+				{
+					if (!l->hasconnected)
+						rpt_telemetry(myrpt,CONNFAIL,l);
+					else rpt_telemetry(myrpt,REMDISC,l);
+				}
 				/* hang-up on call to device */
 				ast_hangup(l->pchan);
 				free(l);
@@ -4783,7 +4845,10 @@ char cmd[MAXDTMF+1] = "";
                                 if (!strcmp(myrpt->cmdnode,l->name))
                                         myrpt->cmdnode[0] = 0;
                                 ast_mutex_unlock(&myrpt->lock);
-                                rpt_telemetry(myrpt,REMDISC,l);
+				if (l->name[0] != '0') 
+				{
+	                                rpt_telemetry(myrpt,REMDISC,l);
+				}
                                 /* hang-up on call to device */
                                 ast_hangup(l->pchan);
                                 free(l);
@@ -5063,7 +5128,10 @@ char cmd[MAXDTMF+1] = "";
 #ifdef	RECONNECT_KLUDGE
 					if ((!l->disced) && (!l->outbound))
 					{
-						l->disctime = DISC_TIME;
+						if (l->name[0] == '0')
+							l->disctime = 1;
+						else
+							l->disctime = DISC_TIME;
 						ast_mutex_lock(&myrpt->lock);
 						ast_hangup(l->chan);
 						l->chan = 0;
@@ -5142,7 +5210,10 @@ char cmd[MAXDTMF+1] = "";
 #ifdef	RECONNECT_KLUDGE
 						if ((!l->outbound) && (!l->disced))
 						{
-							l->disctime = DISC_TIME;
+							if (l->name[0] == '0')
+								l->disctime = 1;
+							else
+								l->disctime = DISC_TIME;
 							ast_mutex_lock(&myrpt->lock);
 							ast_hangup(l->chan);
 							l->chan = 0;
@@ -5522,6 +5593,11 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		/* try to find this one in queue */
 		while(l != &myrpt->links)
 		{
+			if (l->name[0] == '0') 
+			{
+				l = l->next;
+				continue;
+			}
 			/* if found matching string */
 			if (!strcmp(l->name,b1)) break;
 			l = l->next;
