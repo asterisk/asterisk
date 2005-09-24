@@ -3896,7 +3896,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 #ifdef ZAPATA_PRI
 			/* Extremely unlikely but just in case */
 			if (p->bearer)
-				p->bearer->inalarm = 1;
+				p->bearer->inalarm = 0;
 #endif				
 			ast_log(LOG_NOTICE, "Alarm cleared on channel %d\n", p->channel);
 			manager_event(EVENT_FLAG_SYSTEM, "AlarmClear",
