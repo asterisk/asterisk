@@ -51,7 +51,7 @@ LOCAL_USER_DECL;
 
 static int pickup_exec(struct ast_channel *chan, void *data)
 {
-	int res = -1;
+	int res = 0;
 	struct localuser *u = NULL;
 	struct ast_channel *origin = NULL, *target = NULL;
 	char *tmp = NULL, *exten = NULL, *context = NULL;
@@ -100,6 +100,7 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 		if (res) {
 			ast_log(LOG_WARNING, "Unable to answer '%s'\n", chan->name);
 			res = -1;
+			ast_mutex_unlock(&target->lock);
 			goto out;
 		}
 		res = ast_queue_control(chan, AST_CONTROL_ANSWER);
@@ -107,12 +108,14 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "Unable to queue answer on '%s'\n",
 				chan->name);
 			res = -1;
+			ast_mutex_unlock(&target->lock);
 			goto out;
 		}
 		res = ast_channel_masquerade(target, chan);
 		if (res) {
 			ast_log(LOG_WARNING, "Unable to masquerade '%s' into '%s'\n", chan->name, target->name);
 			res = -1;
+			ast_mutex_unlock(&target->lock);
 			goto out;
 		}
 		/* Done */
