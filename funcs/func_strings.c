@@ -186,11 +186,13 @@ struct ast_custom_function strftime_function = {
 
 static char *function_eval(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
+	memset(buf, 0, len);
+
 	if (!data || ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "EVAL requires an argument: EVAL(<variable>)\n");
+		ast_log(LOG_WARNING, "EVAL requires an argument: EVAL(<string>)\n");
 		return buf;
 	}
-	
+
 	pbx_substitute_variables_helper(chan, data, buf, len - 1);
 
 	return buf;
