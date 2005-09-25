@@ -164,10 +164,20 @@ chan_modem:
 MeetMe:
 
 * The conference application now allows users to increase/decrease their
-speaking volume and listening volume (independently of each other and other
-users); the 'admin' and 'user' menus have changed, and new sound files are
-included with this release. However, if a user calling in over a Zaptel channel
-that does NOT have hardware DTMF detection increases their speaking volume,
-it is likely they will no longer be able to enter/exit the menu or make
-any further adjustments, as the software DTMF detector will not be able to
-recognize the DTMF coming from their device.
+  speaking volume and listening volume (independently of each other and 
+  other users); the 'admin' and 'user' menus have changed, and new sound 
+  files are included with this release. However, if a user calling in 
+  over a Zaptel channel that does NOT have hardware DTMF detection 
+  increases their speaking volume, it is likely they will no longer be 
+  able to enter/exit the menu or make any further adjustments, as the  
+  software DTMF detector will not be able to recognize the DTMF coming 
+  from their device.
+
+GetVar Manager Action:
+
+* Previously, the behavior of the GetVar manager action reported the value
+  of a variable in the following manner:
+   > name: value
+  This has been changed to a manner similar to the SetVar action and is now
+   > Variable: name
+   > Value: value

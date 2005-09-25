@@ -704,7 +704,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 	ast_mutex_unlock(&c->lock);
 	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
-		"%s: %s\r\n" ,varname,varval2);
+		"Variable: %s\r\nValue: %s\r\n" ,varname,varval2);
 	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "\r\n");
