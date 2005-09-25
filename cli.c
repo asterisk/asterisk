@@ -936,7 +936,7 @@ static struct ast_cli_entry *find_cli(char *cmds[], int exact)
 	return NULL;
 }
 
-static void join(char *dest, size_t destsize, char *w[])
+static void join(char *dest, size_t destsize, char *w[], int tws)
 {
 	int x;
 	/* Join words into a string */
@@ -949,6 +949,8 @@ static void join(char *dest, size_t destsize, char *w[])
 			strncat(dest, " ", destsize - strlen(dest) - 1);
 		strncat(dest, w[x], destsize - strlen(dest) - 1);
 	}
+	if (tws)
+		strncat(dest, " ", destsize - strlen(dest) - 1);
 }
 
 static void join2(char *dest, size_t destsize, char *w[])
@@ -977,7 +979,7 @@ static char *find_best(char *argv[])
 		if (!find_cli(myargv, -1))
 			break;
 	}
-	join(cmdline, sizeof(cmdline), myargv);
+	join(cmdline, sizeof(cmdline), myargv, 0);
 	return cmdline;
 }
 
@@ -1078,12 +1080,12 @@ static int help_workhorse(int fd, char *match[])
 	e1 = builtins;
 	e2 = helpers;
 	if (match)
-		join(matchstr, sizeof(matchstr), match);
+		join(matchstr, sizeof(matchstr), match, 0);
 	while(e1->cmda[0] || e2) {
 		if (e2)
-			join(fullcmd2, sizeof(fullcmd2), e2->cmda);
+			join(fullcmd2, sizeof(fullcmd2), e2->cmda, 0);
 		if (e1->cmda[0])
-			join(fullcmd1, sizeof(fullcmd1), e1->cmda);
+			join(fullcmd1, sizeof(fullcmd1), e1->cmda, 0);
 		if (!e1->cmda[0] || 
 				(e2 && (strcmp(fullcmd2, fullcmd1) < 0))) {
 			/* Use e2 */
@@ -1121,14 +1123,14 @@ static int handle_help(int fd, int argc, char *argv[]) {
 			if (e->usage)
 				ast_cli(fd, "%s", e->usage);
 			else {
-				join(fullcmd, sizeof(fullcmd), argv+1);
+				join(fullcmd, sizeof(fullcmd), argv+1, 0);
 				ast_cli(fd, "No help text available for '%s'.\n", fullcmd);
 			}
 		} else {
 			if (find_cli(argv + 1, -1)) {
 				return help_workhorse(fd, argv + 1);
 			} else {
-				join(fullcmd, sizeof(fullcmd), argv+1);
+				join(fullcmd, sizeof(fullcmd), argv+1, 0);
 				ast_cli(fd, "No such command '%s'.\n", fullcmd);
 			}
 		}
@@ -1138,7 +1140,7 @@ static int handle_help(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static char *parse_args(char *s, int *argc, char *argv[], int max)
+static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailingwhitespace)
 {
 	char *dup, *cur;
 	int x = 0;
@@ -1146,6 +1148,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max)
 	int escaped = 0;
 	int whitespace = 1;
 
+	*trailingwhitespace = 0;
 	if (!(dup = strdup(s)))
 		return NULL;
 
@@ -1193,7 +1196,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max)
 	*(cur++) = '\0';
 	argv[x] = NULL;
 	*argc = x;
-
+	*trailingwhitespace = whitespace;
 	return dup;
 }
 
@@ -1265,18 +1268,19 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 	char fullcmd2[80] = "";
 	char matchstr[80] = "";
 	char *fullcmd = NULL;
+	int tws;
 
-	if ((dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0])))) {
-		join(matchstr, sizeof(matchstr), argv);
+	if ((dup = parse_args(text, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws))) {
+		join(matchstr, sizeof(matchstr), argv, tws);
 		if (lock)
 			ast_mutex_lock(&clilock);
 		e1 = builtins;
 		e2 = helpers;
 		while(e1->cmda[0] || e2) {
 			if (e2)
-				join(fullcmd2, sizeof(fullcmd2), e2->cmda);
+				join(fullcmd2, sizeof(fullcmd2), e2->cmda, tws);
 			if (e1->cmda[0])
-				join(fullcmd1, sizeof(fullcmd1), e1->cmda);
+				join(fullcmd1, sizeof(fullcmd1), e1->cmda, tws);
 			if (!e1->cmda[0] || 
 					(e2 && (strcmp(fullcmd2, fullcmd1) < 0))) {
 				/* Use e2 */
@@ -1340,8 +1344,9 @@ int ast_cli_command(int fd, char *s)
 	struct ast_cli_entry *e;
 	int x;
 	char *dup;
+	int tws;
 
-	if ((dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0])))) {
+	if ((dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws))) {
 		/* We need at least one entry, or ignore */
 		if (x > 0) {
 			ast_mutex_lock(&clilock);
