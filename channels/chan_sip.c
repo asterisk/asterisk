@@ -10904,60 +10904,49 @@ static int sip_poke_peer(struct sip_peer *peer)
 /*--- sip_devicestate: Part of PBX channel interface ---*/
 static int sip_devicestate(void *data)
 {
-	char *ext, *host;
-	char tmp[256];
-	char *dest = data;
+	char *host;
+	char *tmp;
 
 	struct hostent *hp;
 	struct ast_hostent ahp;
 	struct sip_peer *p;
-	int found = 0;
 
 	int res = AST_DEVICE_INVALID;
 
-	ast_copy_string(tmp, dest, sizeof(tmp));
-	host = strchr(tmp, '@');
-	if (host) {
-		*host = '\0';
-		host++;
-		ext = tmp;
-	} else {
-		host = tmp;
-		ext = NULL;
-	}
+	host = ast_strdupa(data);
+	if ((tmp = strchr(host, '@')))
+		host = tmp + 1;
 
-	p = find_peer(host, NULL, 1);
-	if (p) {
-		found++;
-		res = AST_DEVICE_UNAVAILABLE;
-		if (option_debug > 2) 
-			ast_log(LOG_DEBUG, "Checking device state for peer %s\n", dest);
-		if ((p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) &&
-			(!p->maxms || ((p->lastms > -1)  && (p->lastms <= p->maxms)))) {
-			/* Peer is registred, or has default IP address and a valid registration */
-			/* Now check if we know anything about the state. The only way is by implementing
-			 * call control with incominglimit=X in sip.conf where X > 0 
-			 * Check if the device has incominglimit, and if qualify=on, if the device
-			 * is reachable */
-			if (p->call_limit && (p->lastms == 0 || p->lastms <= p->maxms)) { /* Free for a call */
-				res = AST_DEVICE_NOT_INUSE;
-				if (p->inUse) /* On a call */
+	if (option_debug > 2) 
+		ast_log(LOG_DEBUG, "Checking device state for DNS host %s\n", host);
+
+	if ((p = find_peer(host, NULL, 1))) {
+		if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
+			/* we have an address for the peer */
+			/* if qualify is turned on, check the status */
+			if (p->maxms && (p->lastms > p->maxms)) {
+				res = AST_DEVICE_UNAVAILABLE;
+			} else {
+				/* qualify is not on, or the peer is responding properly */
+				/* check call limit */
+				if (p->call_limit && (p->inUse >= p->call_limit))
 					res = AST_DEVICE_BUSY;
-			} else { /* peer found and valid, state unknown */
-				res = AST_DEVICE_UNKNOWN;
+				else if (p->call_limit)
+					res = AST_DEVICE_NOT_INUSE;
+				else
+					res = AST_DEVICE_UNKNOWN;
 			}
+		} else {
+			/* there is no address, it's unavailable */
+			res = AST_DEVICE_UNAVAILABLE;
 		}
-	}
-	if (!p && !found) {
-		if (option_debug > 2) 
-			ast_log(LOG_DEBUG, "Checking device state for DNS host %s\n", dest);
+		ASTOBJ_UNREF(p,sip_destroy_peer);
+	} else {
 		hp = ast_gethostbyname(host, &ahp);
 		if (hp)
 			res = AST_DEVICE_UNKNOWN;
 	}
 
-	if (p)
-		ASTOBJ_UNREF(p,sip_destroy_peer);
 	return res;
 }
 
