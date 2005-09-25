@@ -856,7 +856,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 
 		/* If there is a consolethread running send it a SIGHUP 
 		   so it can execvp, otherwise we can do it ourselves */
-		if (consolethread != AST_PTHREADT_NULL) {
+		if ((consolethread != AST_PTHREADT_NULL) && (consolethread != pthread_self())) {
 			pthread_kill(consolethread, SIGHUP);
 			/* Give the signal handler some time to complete */
 			sleep(2);
