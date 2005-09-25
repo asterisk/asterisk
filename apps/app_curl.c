@@ -3,7 +3,7 @@
  *
  * Copyright (C)  2004 - 2005, Tilghman Lesher
  *
- * Tilghman Lesher <curl-20041222@the-tilghman.com>
+ * Tilghman Lesher <curl-20050919@the-tilghman.com>
  * and Brian Wilkins <bwilkins@cfl.rr.com> (Added POST option)
  *
  * app_curl.c is distributed with no restrictions on usage or
@@ -85,16 +85,48 @@ static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *da
 	return realsize;
 }
 
+static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
+{
+	CURL *curl;
+
+	curl_global_init(CURL_GLOBAL_ALL);
+	curl = curl_easy_init();
+
+	if (!curl) {
+		return -1;
+	}
+
+	curl_easy_setopt(curl, CURLOPT_URL, url);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)chunk);
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, "asterisk-libcurl-agent/1.0");
+
+	if (post) {
+		curl_easy_setopt(curl, CURLOPT_POST, 1);
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post);
+	}
+
+	curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
+	return 0;
+}
+
 static int curl_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
-	CURL *curl;
 	char *info, *post_data=NULL, *url;
+	struct MemoryStruct chunk = { NULL, 0 };
+	static int dep_warning = 0;
 
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "Curl requires an argument (URL)\n");
 		return -1;
+	}
+
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "The application Curl is deprecated.  Please use the CURL() function instead.\n");
+		dep_warning = 1;
 	}
 
 	if ((info = ast_strdupa((char *)data))) {
@@ -107,28 +139,7 @@ static int curl_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	curl_global_init(CURL_GLOBAL_ALL);
-	curl = curl_easy_init();
-
-	if (curl) {
-		struct MemoryStruct chunk;
-
-		chunk.memory=NULL; /* we expect realloc(NULL, size) to work */
-		chunk.size = 0;    /* no data at this point */
-
-		curl_easy_setopt(curl, CURLOPT_URL, url);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
-		curl_easy_setopt(curl, CURLOPT_USERAGENT, "asterisk-libcurl-agent/1.0");
-
-		if (post_data) {
-			curl_easy_setopt(curl, CURLOPT_POST, 1);
-			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_data);
-		}
-
-		curl_easy_perform(curl);
-		curl_easy_cleanup(curl);
-
+	if (! curl_internal(&chunk, url, post_data)) {
 		if (chunk.memory) {
 			chunk.memory[chunk.size] = '\0';
 			if (chunk.memory[chunk.size - 1] == 10)
@@ -147,14 +158,67 @@ static int curl_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
+static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	struct localuser *u;
+	char *info, *post_data=NULL, *url;
+	struct MemoryStruct chunk = { NULL, 0 };
+
+	if (!data || !strlen((char *)data)) {
+		ast_log(LOG_WARNING, "CURL requires an argument (URL)\n");
+		*buf = '\0';
+		return buf;
+	}
+
+	if ((info = ast_strdupa((char *)data))) {
+		url = strsep(&info, "|");
+		post_data = info;
+	} else {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		*buf = '\0';
+		return buf;
+	}
+
+	LOCAL_USER_ACF_ADD(u);
+
+	if (! curl_internal(&chunk, url, post_data)) {
+		if (chunk.memory) {
+			chunk.memory[chunk.size] = '\0';
+			if (chunk.memory[chunk.size - 1] == 10)
+				chunk.memory[chunk.size - 1] = '\0';
+
+			ast_copy_string(buf, chunk.memory, len);
+			free(chunk.memory);
+		}
+	} else {
+		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
+		*buf = '\0';
+	}
+
+	LOCAL_USER_REMOVE(u);
+	return buf;
+}
+
+struct ast_custom_function acf_curl = {
+	.name = "CURL",
+	.synopsis = "Retrieves the contents of a URL",
+	.syntax = "CURL(url[|post-data])",
+	.desc =
+"  url       - URL to retrieve\n"
+"  post-data - Optional data to send as a POST (GET is default action)\n",
+	.read = acf_curl_exec,
+};
+
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+	ast_custom_function_unregister(&acf_curl);
 	return ast_unregister_application(app);
 }
 
 int load_module(void)
 {
+	ast_custom_function_register(&acf_curl);
 	return ast_register_application(app, curl_exec, synopsis, descrip);
 }
 
