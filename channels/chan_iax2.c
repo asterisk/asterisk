@@ -5166,6 +5166,15 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 			peer = peer->next;
 		}
 		ast_mutex_unlock(&peerl.lock);
+		if (!peer) {
+			/* We checked our list and didn't find one.  It's unlikely, but possible, 
+			   that we're trying to authenticate *to* a realtime peer */
+			if ((peer = realtime_peer(p->peer))) {
+				res = authenticate(p->challenge, peer->secret,peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
+				if (ast_test_flag(peer, IAX_TEMPONLY))
+					destroy_peer(peer);
+			}
+		}
 	}
 	if (ies->encmethods)
 		ast_set_flag(p, IAX_ENCRYPTED | IAX_KEYPOPULATED);
