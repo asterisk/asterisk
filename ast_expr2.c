@@ -473,9 +473,9 @@ static const yysigned_char yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const unsigned char yyrline[] =
 {
-       0,   160,   160,   165,   166,   169,   172,   175,   178,   181,
-     184,   187,   190,   193,   196,   199,   202,   205,   208,   211,
-     214,   217,   220
+       0,   160,   160,   168,   169,   172,   175,   178,   181,   184,
+     187,   190,   193,   196,   199,   202,   205,   208,   211,   214,
+     217,   220,   223
 };
 #endif
 
@@ -1232,142 +1232,145 @@ yyreduce:
 #line 160 "ast_expr2.y"
     { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = yyval.val->type;
-              ((struct parse_io *)parseio)->val->u.s = yyval.val->u.s; ;}
+              if( yyval.val->type == AST_EXPR_integer )
+		((struct parse_io *)parseio)->val->u.i = yyval.val->u.i;
+              else
+                ((struct parse_io *)parseio)->val->u.s = yyval.val->u.s; ;}
     break;
 
   case 3:
-#line 165 "ast_expr2.y"
+#line 168 "ast_expr2.y"
     { yyval.val= yyvsp[0].val;;}
     break;
 
   case 4:
-#line 166 "ast_expr2.y"
+#line 169 "ast_expr2.y"
     { yyval.val = yyvsp[-1].val; 
 	                       yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						   yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 5:
-#line 169 "ast_expr2.y"
+#line 172 "ast_expr2.y"
     { yyval.val = op_or (yyvsp[-2].val, yyvsp[0].val);
                          yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						 yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 6:
-#line 172 "ast_expr2.y"
+#line 175 "ast_expr2.y"
     { yyval.val = op_and (yyvsp[-2].val, yyvsp[0].val); 
 	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
                           yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 7:
-#line 175 "ast_expr2.y"
+#line 178 "ast_expr2.y"
     { yyval.val = op_eq (yyvsp[-2].val, yyvsp[0].val);
 	                     yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column;
 						 yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 8:
-#line 178 "ast_expr2.y"
+#line 181 "ast_expr2.y"
     { yyval.val = op_gt (yyvsp[-2].val, yyvsp[0].val);
                          yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column;
 						 yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 9:
-#line 181 "ast_expr2.y"
+#line 184 "ast_expr2.y"
     { yyval.val = op_lt (yyvsp[-2].val, yyvsp[0].val); 
 	                     yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						 yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 10:
-#line 184 "ast_expr2.y"
+#line 187 "ast_expr2.y"
     { yyval.val = op_ge (yyvsp[-2].val, yyvsp[0].val); 
 	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						  yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 11:
-#line 187 "ast_expr2.y"
+#line 190 "ast_expr2.y"
     { yyval.val = op_le (yyvsp[-2].val, yyvsp[0].val); 
 	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						  yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 12:
-#line 190 "ast_expr2.y"
+#line 193 "ast_expr2.y"
     { yyval.val = op_ne (yyvsp[-2].val, yyvsp[0].val); 
 	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						  yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 13:
-#line 193 "ast_expr2.y"
+#line 196 "ast_expr2.y"
     { yyval.val = op_plus (yyvsp[-2].val, yyvsp[0].val); 
 	                       yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						   yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 14:
-#line 196 "ast_expr2.y"
+#line 199 "ast_expr2.y"
     { yyval.val = op_minus (yyvsp[-2].val, yyvsp[0].val); 
 	                        yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 							yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 15:
-#line 199 "ast_expr2.y"
+#line 202 "ast_expr2.y"
     { yyval.val = op_negate (yyvsp[0].val); 
 	                        yyloc.first_column = yylsp[-1].first_column; yyloc.last_column = yylsp[0].last_column; 
 							yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 16:
-#line 202 "ast_expr2.y"
+#line 205 "ast_expr2.y"
     { yyval.val = op_compl (yyvsp[0].val); 
 	                        yyloc.first_column = yylsp[-1].first_column; yyloc.last_column = yylsp[0].last_column; 
 							yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 17:
-#line 205 "ast_expr2.y"
+#line 208 "ast_expr2.y"
     { yyval.val = op_times (yyvsp[-2].val, yyvsp[0].val); 
 	                       yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						   yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 18:
-#line 208 "ast_expr2.y"
+#line 211 "ast_expr2.y"
     { yyval.val = op_div (yyvsp[-2].val, yyvsp[0].val); 
 	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						  yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 19:
-#line 211 "ast_expr2.y"
+#line 214 "ast_expr2.y"
     { yyval.val = op_rem (yyvsp[-2].val, yyvsp[0].val); 
 	                      yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 						  yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 20:
-#line 214 "ast_expr2.y"
+#line 217 "ast_expr2.y"
     { yyval.val = op_colon (yyvsp[-2].val, yyvsp[0].val); 
 	                        yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 							yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 21:
-#line 217 "ast_expr2.y"
+#line 220 "ast_expr2.y"
     { yyval.val = op_eqtilde (yyvsp[-2].val, yyvsp[0].val); 
 	                        yyloc.first_column = yylsp[-2].first_column; yyloc.last_column = yylsp[0].last_column; 
 							yyloc.first_line=0; yyloc.last_line=0;;}
     break;
 
   case 22:
-#line 220 "ast_expr2.y"
+#line 223 "ast_expr2.y"
     { yyval.val = op_cond (yyvsp[-4].val, yyvsp[-2].val, yyvsp[0].val); 
 	                        yyloc.first_column = yylsp[-4].first_column; yyloc.last_column = yylsp[-2].last_column; 
 							yyloc.first_line=0; yyloc.last_line=0;;}
@@ -1377,7 +1380,7 @@ yyreduce:
     }
 
 /* Line 1010 of yacc.c.  */
-#line 1381 "ast_expr2.c"
+#line 1384 "ast_expr2.c"
 
   yyvsp -= yylen;
   yyssp -= yylen;
@@ -1606,7 +1609,7 @@ yyreturn:
 }
 
 
-#line 225 "ast_expr2.y"
+#line 228 "ast_expr2.y"
 
 
 static struct val *

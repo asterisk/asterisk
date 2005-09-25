@@ -159,7 +159,10 @@ extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 
 start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
               ((struct parse_io *)parseio)->val->type = $$->type;
-              ((struct parse_io *)parseio)->val->u.s = $$->u.s; }
+              if( $$->type == AST_EXPR_integer )
+		((struct parse_io *)parseio)->val->u.i = $$->u.i;
+              else
+                ((struct parse_io *)parseio)->val->u.s = $$->u.s; }
 	;
 
 expr:	TOKEN   { $$= $1;}
