@@ -1311,17 +1311,22 @@ static int get_input(struct mansession *s, char *output)
 	}
 	fds[0].fd = s->fd;
 	fds[0].events = POLLIN;
-	res = poll(fds, 1, -1);
-	if (res < 0) {
-		ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
- 		return -1;
-	} else if (res > 0) {
-		ast_mutex_lock(&s->lock);
-		res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
-		ast_mutex_unlock(&s->lock);
-		if (res < 1)
-			return -1;
-	}
+	do {
+		res = poll(fds, 1, -1);
+		if (res < 0) {
+			if (errno == EINTR)
+				continue;
+			ast_log(LOG_WARNING, "Select returned error: %s\n", strerror(errno));
+	 		return -1;
+		} else if (res > 0) {
+			ast_mutex_lock(&s->lock);
+			res = read(s->fd, s->inbuf + s->inlen, sizeof(s->inbuf) - 1 - s->inlen);
+			ast_mutex_unlock(&s->lock);
+			if (res < 1)
+				return -1;
+			break;
+		}
+	} while(1);
 	s->inlen += res;
 	s->inbuf[s->inlen] = '\0';
 	return 0;
