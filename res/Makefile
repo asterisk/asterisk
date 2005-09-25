@@ -23,9 +23,14 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CR
   MODS+=res_odbc.so
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h),)
   MODS+=res_osp.so
-  OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosp.a
+  OSPLIB=$(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a
+else
+  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
+    MODS+=res_osp.so
+    OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosp.a
+  endif
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
