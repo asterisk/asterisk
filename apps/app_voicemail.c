@@ -5536,7 +5536,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	if (res == ERROR_LOCK_PATH) {
 		ast_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
 		/*Send the call to n+101 priority, where n is the current priority*/
-		if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			ast_log(LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
 		res = 0;
 	}
@@ -5602,7 +5602,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	}
 
 	if (find_user(&svm, context, box)) {
-		if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
+		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
 			ast_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
 	}
 	LOCAL_USER_REMOVE(u);
