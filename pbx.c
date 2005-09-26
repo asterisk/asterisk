@@ -1557,7 +1557,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 
 void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count)
 {
-	pbx_substitute_variables_helper_full(c, &c->varshead, cp1, cp2, count);
+	pbx_substitute_variables_helper_full(c, (c) ? &c->varshead : NULL, cp1, cp2, count);
 }
 
 void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count)
