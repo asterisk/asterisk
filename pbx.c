@@ -1387,8 +1387,8 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 	char *cp4;
 	const char *tmp, *whereweare;
 	int length;
-	char *workspace;
-	char *ltmp, *var;
+	char *workspace = NULL;
+	char *ltmp = NULL, *var = NULL;
 	char *nextvar, *nextexp, *nextthing;
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
