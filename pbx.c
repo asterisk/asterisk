@@ -75,6 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define SWITCH_DATA_LENGTH 256
 
+#define VAR_BUF_SIZE 4096
 
 #define	VAR_NORMAL		1
 #define	VAR_SOFTTRAN	2
@@ -1381,13 +1382,13 @@ void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
 	}
 }
 
-static void pbx_substitute_variables_helper_full(struct ast_channel *c, const char *cp1, char *cp2, int count, struct varshead *headp)
+static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct varshead *headp, const char *cp1, char *cp2, int count)
 {
 	char *cp4;
 	const char *tmp, *whereweare;
 	int length;
-	char workspace[4096];
-	char ltmp[4096], var[4096];
+	char *workspace;
+	char *ltmp, *var;
 	char *nextvar, *nextexp, *nextthing;
 	char *vars, *vare;
 	int pos, brackets, needsub, len;
@@ -1405,28 +1406,27 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 			switch(nextthing[1]) {
 			case '{':
 				nextvar = nextthing;
+				pos = nextvar - whereweare;
 				break;
 			case '[':
 				nextexp = nextthing;
+				pos = nextexp - whereweare;
 				break;
 			}
 		}
-		/* If there is one, we only go that far */
-		if (nextvar)
-			pos = nextvar - whereweare;
-		else if (nextexp)
-			pos = nextexp - whereweare;
 
-		/* Can't copy more than 'count' bytes */
-		if (pos > count)
-			pos = count;
-
-		/* Copy that many bytes */
-		memcpy(cp2, whereweare, pos);
-
-		count -= pos;
-		cp2 += pos;
-		whereweare += pos;
+		if (pos) {
+			/* Can't copy more than 'count' bytes */
+			if (pos > count)
+				pos = count;
+			
+			/* Copy that many bytes */
+			memcpy(cp2, whereweare, pos);
+			
+			count -= pos;
+			cp2 += pos;
+			whereweare += pos;
+		}
 		
 		if (nextvar) {
 			/* We have a variable.  Find the start and end, and determine
@@ -1451,33 +1451,40 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 				ast_log(LOG_NOTICE, "Error in extension logic (missing '}')\n");
 			len = vare - vars - 1;
 
-			/* Skip totally over variable name */
+			/* Skip totally over variable string */
 			whereweare += (len + 3);
 
+			if (!var)
+				var = alloca(VAR_BUF_SIZE);
+
 			/* Store variable name (and truncate) */
-			memset(var, 0, sizeof(var));
-			ast_copy_string(var, vars, sizeof(var));
-			var[len] = '\0';
+			ast_copy_string(var, vars, len + 1);
 
 			/* Substitute if necessary */
 			if (needsub) {
-				memset(ltmp, 0, sizeof(ltmp));
-				pbx_substitute_variables_helper(c, var, ltmp, sizeof(ltmp) - 1);
+				if (!ltmp)
+					ltmp = alloca(VAR_BUF_SIZE);
+
+				memset(ltmp, 0, VAR_BUF_SIZE);
+				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1);
 				vars = ltmp;
 			} else {
 				vars = var;
 			}
 
+			if (!workspace)
+				workspace = alloca(VAR_BUF_SIZE);
+
 			workspace[0] = '\0';
 
 			if (var[len - 1] == ')') {
 				/* Evaluate function */
-				cp4 = ast_func_read(c, vars, workspace, sizeof(workspace));
+				cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE);
 
 				ast_log(LOG_DEBUG, "Function result is '%s'\n", cp4 ? cp4 : "(null)");
 			} else {
 				/* Retrieve variable value */
-				pbx_retrieve_variable(c, vars, &cp4, workspace, sizeof(workspace), headp);
+				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
 			}
 			if (cp4) {
 				length = strlen(cp4);
@@ -1515,18 +1522,22 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 				ast_log(LOG_NOTICE, "Error in extension logic (missing ']')\n");
 			len = vare - vars - 1;
 			
-			/* Skip totally over variable name */
-			whereweare += ( len + 3);
+			/* Skip totally over expression */
+			whereweare += (len + 3);
 			
+			if (!var)
+				var = alloca(VAR_BUF_SIZE);
+
 			/* Store variable name (and truncate) */
-			memset(var, 0, sizeof(var));
-			ast_copy_string(var, vars, sizeof(var));
-			var[len] = '\0';
+			ast_copy_string(var, vars, len + 1);
 			
 			/* Substitute if necessary */
 			if (needsub) {
-				memset(ltmp, 0, sizeof(ltmp));
-				pbx_substitute_variables_helper(c, var, ltmp, sizeof(ltmp) - 1);
+				if (!ltmp)
+					ltmp = alloca(VAR_BUF_SIZE);
+
+				memset(ltmp, 0, VAR_BUF_SIZE);
+				pbx_substitute_variables_helper_full(c, headp, var, ltmp, VAR_BUF_SIZE - 1);
 				vars = ltmp;
 			} else {
 				vars = var;
@@ -1546,12 +1557,12 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, const ch
 
 void pbx_substitute_variables_helper(struct ast_channel *c, const char *cp1, char *cp2, int count)
 {
-	pbx_substitute_variables_helper_full(c, cp1, cp2, count, NULL);
+	pbx_substitute_variables_helper_full(c, &c->varshead, cp1, cp2, count);
 }
 
 void pbx_substitute_variables_varshead(struct varshead *headp, const char *cp1, char *cp2, int count)
 {
-	pbx_substitute_variables_helper_full(NULL, cp1, cp2, count, headp);
+	pbx_substitute_variables_helper_full(NULL, headp, cp1, cp2, count);
 }
 
 static void pbx_substitute_variables(char *passdata, int datalen, struct ast_channel *c, struct ast_exten *e)
@@ -5900,7 +5911,7 @@ int pbx_builtin_importvar(struct ast_channel *chan, void *data)
 	char *stringp=NULL;
 	char *channel;
 	struct ast_channel *chan2;
-	char tmp[4096]="";
+	char tmp[VAR_BUF_SIZE]="";
 	char *s;
 
 	if (!data || ast_strlen_zero(data)) {
