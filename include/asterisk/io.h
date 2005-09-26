@@ -23,7 +23,7 @@
 #ifndef _ASTERISK_IO_H
 #define _ASTERISK_IO_H
 
-#ifdef __APPLE__
+#ifdef POLLCOMPAT
 #include "asterisk/poll-compat.h"
 #else
 #include <sys/poll.h>		/* For POLL* constants */

@@ -301,6 +301,16 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
 	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o
 
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sys/poll.h),)
+  OBJS+= poll.o
+  ASTCFLAGS+=-DPOLLCOMPAT
+endif
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
+  OBJS+= dhfcn.o
+  ASTCFLAGS+=-DDLFCNCOMPAT
+endif
+
 ifeq (${OSARCH},Linux)
   LIBS=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
 else
@@ -311,7 +321,6 @@ ifeq (${OSARCH},Darwin)
   LIBS+=-lresolv
   ASTCFLAGS+=-D__Darwin__
   AUDIO_LIBS=-framework CoreAudio
-  OBJS+=poll.o dlfcn.o
   ASTLINK=-Wl,-dynamic
   SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
