@@ -201,11 +201,6 @@ ifeq (${OSARCH},Linux)
   MPG123TARG=linux
 endif
 
-ifeq ($(findstring BSD,${OSARCH}),BSD)
-  PROC=$(shell uname -m)
-  ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
-endif
-
 PWD=$(shell pwd)
 GREP=grep
 
@@ -217,6 +212,11 @@ endif
 INCLUDE=-Iinclude -I../include
 ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 ASTCFLAGS+=$(OPTIMIZE)
+
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+  PROC=$(shell uname -m)
+  ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+endif
 
 ifneq ($(PROC),ultrasparc)
   ASTCFLAGS+=$(shell if $(CC) -march=$(PROC) -S -o /dev/null -xc /dev/null >/dev/null 2>&1; then echo "-march=$(PROC)"; fi)
