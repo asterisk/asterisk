@@ -861,6 +861,12 @@ void ast_verbose(const char *fmt, ...)
 
 	complete = (stuff[len - 1] == '\n') ? 1 : 0;
 
+	/* If we filled up the stuff completely, then log it even without the '\n' */
+	if (len >= sizeof(stuff) - 1) {
+		complete = 1;
+		len = 0;
+	}
+
 	if (complete) {
 		if (msgcnt < MAX_MSG_QUEUE) {
 			/* Allocate new structure */
