@@ -1516,8 +1516,8 @@ static int say_periodic_announcement(struct queue_ent *qe)
 	time(&now);
 
 	/* Check to see if it is time to announce */
-	if ( (now - qe->last_periodic_announce_time) < qe->parent->periodicannouncefrequency )
-		return -1;
+	if ((now - qe->last_periodic_announce_time) < qe->parent->periodicannouncefrequency)
+		return 0;
 
 	/* Stop the music on hold so we can play our own file */
 	ast_moh_stop(qe->chan);
@@ -1534,7 +1534,7 @@ static int say_periodic_announcement(struct queue_ent *qe)
 	/* update last_periodic_announce_time */
 	qe->last_periodic_announce_time = now;
 
-	return(res);
+	return res;
 }
 
 static void record_abandoned(struct queue_ent *qe)
