@@ -480,7 +480,7 @@ struct domain {
 
 static AST_LIST_HEAD_STATIC(domain_list, domain);
 
-int allow_external_invites;
+int allow_external_domains;
 
 /* sip_history: Structure for saving transactions within a SIP dialog */
 struct sip_history {
@@ -6312,7 +6312,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 
 		domain_context[0] = '\0';
 		if (!check_sip_domain(p->domain, domain_context, sizeof(domain_context))) {
-			if (allow_external_invites && (req->method == SIP_INVITE || req->method == SIP_REFER)) {
+			if (!allow_external_domains && (req->method == SIP_INVITE || req->method == SIP_REFER)) {
 				ast_log(LOG_DEBUG, "Got SIP %s to non-local domain '%s'; refusing request.\n", sip_methods[req->method].text, p->domain);
 				return -2;
 			}
@@ -7896,7 +7896,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
 	ast_cli(fd, "  Promsic. redir:         %s\n", ast_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
 	ast_cli(fd, "  SIP domain support:     %s\n", AST_LIST_EMPTY(&domain_list) ? "No" : "Yes");
-	ast_cli(fd, "  Call to non-local dom.: %s\n", allow_external_invites ? "Yes" : "No");
+	ast_cli(fd, "  Call to non-local dom.: %s\n", allow_external_domains ? "Yes" : "No");
 	ast_cli(fd, "  URI user is phone no:   %s\n", ast_test_flag(&global_flags, SIP_USEREQPHONE) ? "Yes" : "No");
 	ast_cli(fd, "  Our auth realm          %s\n", global_realm);
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
@@ -11902,7 +11902,7 @@ static int reload_config(void)
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
 	default_qualify = 0;
-	allow_external_invites = 1;	/* Allow external invites */
+	allow_external_domains = 1;	/* Allow external invites */
 	externhost[0] = '\0';
 	externexpire = 0;
 	externrefresh = 10;
@@ -12089,8 +12089,8 @@ static int reload_config(void)
 			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 0);
-		} else if (!strcasecmp(v->name, "allowexternalinvites")) {
-			allow_external_invites = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "allowexternaldomains")) {
+			allow_external_domains = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "autodomain")) {
 			auto_sip_domains = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "domain")) {
@@ -12135,9 +12135,9 @@ static int reload_config(void)
 		 v = v->next;
 	}
 
-	if (!allow_external_invites && AST_LIST_EMPTY(&domain_list)) {
-		ast_log(LOG_WARNING, "To disallow external INVITEs, you need to configure local SIP domains.\n");
-		allow_external_invites = 1;
+	if (!allow_external_domains && AST_LIST_EMPTY(&domain_list)) {
+		ast_log(LOG_WARNING, "To disallow external domains, you need to configure local SIP domains.\n");
+		allow_external_domains = 1;
 	}
 	
 	/* Build list of authentication to various SIP realms, i.e. service providers */

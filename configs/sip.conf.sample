@@ -190,6 +190,23 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; has expired based on its registration interval, used the stored
 				; address information regardless. (yes|no)
 
+; Incoming INVITE and REFER messages can be matched against a list of 'allowed'
+; domains, each of which can direct the call to a specific context if desired.
+; By default, all domains are accepted and sent to the default context or the
+; context associated with the user/peer placing the call.
+; Domains can be specified using:
+; domain=<domain>[,<context>]
+; Examples:
+; domain=myasterisk.dom
+; domain=customer.com,customer-context
+;
+; In addition, all the 'default' domains associated with a server should be
+; added if incoming request filtering is desired.
+; autodomain=yes
+;
+; To disallow requests for domains not serviced by this server:
+; allowexternaldomains=no
+
 [authentication]
 ; Global credentials for outbound calls, i.e. when a proxy challenges your
 ; Asterisk server for authentication. These credentials override
