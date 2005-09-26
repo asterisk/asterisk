@@ -74,6 +74,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astobj.h"
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/linkedlists.h"
+
 #ifdef OSP_SUPPORT
 #include "asterisk/astosp.h"
 #endif
@@ -463,6 +465,22 @@ struct sip_route {
 	struct sip_route *next;
 	char hop[0];
 };
+
+enum domain_mode {
+	SIP_DOMAIN_AUTO,
+	SIP_DOMAIN_CONFIG,
+};
+
+struct domain {
+	char domain[MAXHOSTNAMELEN];
+	char context[AST_MAX_EXTENSION];
+	enum domain_mode mode;
+	AST_LIST_ENTRY(domain) list;
+};
+
+static AST_LIST_HEAD_STATIC(domain_list, domain);
+
+int allow_external_invites;
 
 /* sip_history: Structure for saving transactions within a SIP dialog */
 struct sip_history {
@@ -870,6 +888,7 @@ static int sip_senddigit(struct ast_channel *ast, char digit);
 static int clear_realm_authentication(struct sip_auth *authlist);                            /* Clear realm authentication list (at reload) */
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);   /* Add realm authentication in list */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm);         /* Find authentication for a specific realm */
+static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
 static int determine_firstline_parts(struct sip_request *req);
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
@@ -6075,6 +6094,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	char iabuf[INET_ADDRSTRLEN];
 	char *name, *c;
 	char *t;
+	char *domain;
 
 	/* Terminate URI */
 	t = uri;
@@ -6098,10 +6118,21 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		name = c;
 		ast_log(LOG_NOTICE, "Invalid to address: '%s' from %s (missing sip:) trying to use anyway...\n", c, ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr));
 	}
+
 	/* Strip off the domain name */
-	c = strchr(name, '@');
-	if (c) 
-		*c = '\0';
+	if ((c = strchr(name, '@'))) {
+		*c++ = '\0';
+		domain = c;
+		if ((c = strchr(domain, ':')))	/* Remove :port */
+			*c = '\0';
+		if (!AST_LIST_EMPTY(&domain_list)) {
+			if (!check_sip_domain(domain, NULL, 0)) {
+				transmit_response(p, "404 Not found (unknown domain)", &p->initreq);
+				return -3;
+			}
+		}
+	}
+
 	ast_copy_string(p->exten, name, sizeof(p->exten));
 	build_contact(p);
 	peer = find_peer(name, NULL, 1);
@@ -6192,6 +6223,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	}
 	if (peer)
 		ASTOBJ_UNREF(peer,sip_destroy_peer);
+
 	return res;
 }
 
@@ -6226,8 +6258,8 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 /*--- get_destination: Find out who the call is for --*/
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
-	char tmp[256] = "", *c, *a;
-	char tmpf[256], *fr;
+	char tmp[256] = "", *uri, *a;
+	char tmpf[256], *from;
 	struct sip_request *req;
 	
 	req = oreq;
@@ -6235,60 +6267,84 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 		req = &p->initreq;
 	if (req->rlPart2)
 		ast_copy_string(tmp, req->rlPart2, sizeof(tmp));
+	uri = get_in_brackets(tmp);
 	
 	ast_copy_string(tmpf, get_header(req, "From"), sizeof(tmpf));
 
-	if (pedanticsipchecking) {
-		ast_uri_decode(tmp);
-		ast_uri_decode(tmpf);
-	}
-
-	fr = get_in_brackets(tmpf);
-	c = get_in_brackets(tmp);
+	from = get_in_brackets(tmpf);
 	
-	if (strncmp(c, "sip:", 4)) {
-		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", c);
+	if (strncmp(uri, "sip:", 4)) {
+		ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", uri);
 		return -1;
 	}
-	c += 4;
-	if (!ast_strlen_zero(fr)) {
-		if (strncmp(fr, "sip:", 4)) {
-			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", fr);
+	uri += 4;
+	if (!ast_strlen_zero(from)) {
+		if (strncmp(from, "sip:", 4)) {
+			ast_log(LOG_WARNING, "Huh?  Not a SIP header (%s)?\n", from);
 			return -1;
 		}
-		fr += 4;
+		from += 4;
 	} else
-		fr = NULL;
-	if ((a = strchr(c, '@'))) {
+		from = NULL;
+
+	if (pedanticsipchecking) {
+		ast_uri_decode(uri);
+		ast_uri_decode(from);
+	}
+
+	/* Get the target domain */
+	if ((a = strchr(uri, '@'))) {
+		char *colon;
 		*a = '\0';
 		a++;
+		colon = strchr(a, ':'); /* Remove :port */
+		if (colon)
+			*colon = '\0';
 		ast_copy_string(p->domain, a, sizeof(p->domain));
 	}
-	if ((a = strchr(c, ';'))) {
+	/* Skip any options */
+	if ((a = strchr(uri, ';'))) {
 		*a = '\0';
 	}
-	if (fr) {
-		if ((a = strchr(fr, ';')))
+
+	if (!AST_LIST_EMPTY(&domain_list)) {
+		char domain_context[AST_MAX_EXTENSION];
+
+		domain_context[0] = '\0';
+		if (!check_sip_domain(p->domain, domain_context, sizeof(domain_context))) {
+			if (allow_external_invites && (req->method == SIP_INVITE || req->method == SIP_REFER)) {
+				ast_log(LOG_DEBUG, "Got SIP %s to non-local domain '%s'; refusing request.\n", sip_methods[req->method].text, p->domain);
+				return -2;
+			}
+		}
+		/* If we have a context defined, overwrite the original context */
+		if (!ast_strlen_zero(domain_context))
+			ast_copy_string(p->context, domain_context, sizeof(p->context));
+	}
+
+	if (from) {
+		if ((a = strchr(from, ';')))
 			*a = '\0';
-		if ((a = strchr(fr, '@'))) {
+		if ((a = strchr(from, '@'))) {
 			*a = '\0';
 			ast_copy_string(p->fromdomain, a + 1, sizeof(p->fromdomain));
 		} else
-			ast_copy_string(p->fromdomain, fr, sizeof(p->fromdomain));
+			ast_copy_string(p->fromdomain, from, sizeof(p->fromdomain));
 	}
-	if (pedanticsipchecking)
-		ast_uri_decode(c);
 	if (sip_debug_test_pvt(p))
-		ast_verbose("Looking for %s in %s\n", c, p->context);
-	if (ast_exists_extension(NULL, p->context, c, 1, fr) ||
-		!strcmp(c, ast_pickup_ext())) {
+		ast_verbose("Looking for %s in %s (domain %s)\n", uri, p->context, p->domain);
+
+	/* Return 0 if we have a matching extension */
+	if (ast_exists_extension(NULL, p->context, uri, 1, from) ||
+		!strcmp(uri, ast_pickup_ext())) {
 		if (!oreq)
-			ast_copy_string(p->exten, c, sizeof(p->exten));
+			ast_copy_string(p->exten, uri, sizeof(p->exten));
 		return 0;
 	}
 
-	if (ast_canmatch_extension(NULL, p->context, c, 1, fr) ||
-	    !strncmp(c, ast_pickup_ext(),strlen(c))) {
+	/* Return 1 for overlap dialling support */
+	if (ast_canmatch_extension(NULL, p->context, uri, 1, from) ||
+	    !strncmp(uri, ast_pickup_ext(),strlen(uri))) {
 		return 1;
 	}
 	
@@ -7472,6 +7528,39 @@ static void print_codec_to_cli(int fd, struct ast_codec_pref *pref)
 		ast_cli(fd, "none");
 }
 
+static const char *domain_mode_to_text(const enum domain_mode mode)
+{
+	switch (mode) {
+	case SIP_DOMAIN_AUTO:
+		return "[Automatic]";
+	case SIP_DOMAIN_CONFIG:
+		return "[Configured]";
+	}
+
+	return "";
+}
+
+/*--- sip_show_domains: CLI command to list local domains */
+#define FORMAT "%-40.40s %-20.20s %-16.16s\n"
+static int sip_show_domains(int fd, int argc, char *argv[])
+{
+	struct domain *d;
+
+	if (AST_LIST_EMPTY(&domain_list)) {
+		ast_cli(fd, "SIP Domain support not enabled.\n\n");
+		return RESULT_SUCCESS;
+	} else {
+		ast_cli(fd, FORMAT, "Our local SIP domains:", "Context", "Set by");
+		AST_LIST_LOCK(&domain_list);
+		AST_LIST_TRAVERSE(&domain_list, d, list)
+			ast_cli(fd, FORMAT, d->domain, ast_strlen_zero(d->context) ? "(default)": d->context,
+				domain_mode_to_text(d->mode));
+		AST_LIST_UNLOCK(&domain_list);
+		ast_cli(fd, "\n");
+		return RESULT_SUCCESS;
+	}
+}
+#undef FORMAT
 
 static char mandescr_show_peer[] = 
 "Description: Show one SIP peer with details on current status.\n"
@@ -7806,6 +7895,8 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
 	ast_cli(fd, "  Promsic. redir:         %s\n", ast_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
+	ast_cli(fd, "  SIP domain support:     %s\n", AST_LIST_EMPTY(&domain_list) ? "No" : "Yes");
+	ast_cli(fd, "  Call to non-local dom.: %s\n", allow_external_invites ? "Yes" : "No");
 	ast_cli(fd, "  URI user is phone no:   %s\n", ast_test_flag(&global_flags, SIP_USEREQPHONE) ? "Yes" : "No");
 	ast_cli(fd, "  Our auth realm          %s\n", global_realm);
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
@@ -8682,7 +8773,10 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	return 0;
 }
 	
-
+static char show_domains_usage[] = 
+"Usage: sip show domains\n"
+"       Lists all configured SIP local domains.\n"
+"       Asterisk only responds to SIP messages to local domains.\n";
 
 static char notify_usage[] =
 "Usage: sip notify <type> <peer> [<peer>...]\n"
@@ -8822,6 +8916,32 @@ static struct ast_custom_function sip_header_function = {
 	.read = func_header_read,
 };
 
+/*--- function_check_sipdomain: Dial plan function to check if domain is local */
+static char *func_check_sipdomain(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "CHECKSIPDOMAIN requires an argument - A domain name\n");
+		return buf;
+	}
+	if (check_sip_domain(data, NULL, 0))
+		ast_copy_string(buf, data, len);
+	else
+		buf[0] = '\0';
+	return buf;
+}
+
+static struct ast_custom_function checksipdomain_function = {
+	.name = "CHECKSIPDOMAIN",
+	.synopsis = "Checks if domain is a local domain",
+	.syntax = "CHECKSIPDOMAIN(<domain|IP>)",
+	.read = func_check_sipdomain,
+	.desc = "This function checks if the domain in the argument is configured\n"
+		"as a local SIP domain that this Asterisk server is configured to handle.\n"
+		"Returns the domain name if it is locally handled, otherwise an empty string.\n"
+		"Check the domain= configuration in sip.conf\n",
+};
+
+
 /*--- function_sippeer: ${SIPPEER()} Dialplan function - reads peer data */
 static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
@@ -8896,10 +9016,10 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 
 /* Structure to declare a dialplan function: SIPPEER */
 struct ast_custom_function sippeer_function = {
-    .name = "SIPPEER",
-    .synopsis = "Gets SIP peer information",
-    .syntax = "SIPPEER(<peername>[:item])",
-    .read = function_sippeer,
+	.name = "SIPPEER",
+	.synopsis = "Gets SIP peer information",
+	.syntax = "SIPPEER(<peername>[:item])",
+	.read = function_sippeer,
 	.desc = "Valid items are:\n"
 	"- ip (default)          The IP address.\n"
 	"- mailbox               The configured mailbox.\n"
@@ -9269,6 +9389,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 				if (sscanf(tmptmp + 8, "%d;", &expires) != 1)
 					expires = 0;
 			}
+
 		}
 		if (!expires) 
 			expires=atoi(get_header(req, "expires"));
@@ -9933,6 +10054,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 		/* Get destination right away */
 		gotdest = get_destination(p, NULL);
+
 		get_rdnis(p, NULL);
 		extract_uri(p, req);
 		build_contact(p);
@@ -10382,7 +10504,7 @@ static int handle_request_register(struct sip_pvt *p, struct sip_request *req, i
 	copy_request(&p->initreq, req);
 	check_via(p, req);
 	if ((res = register_verify(p, sin, req, e, ignore)) < 0) 
-		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : "Username/auth name mismatch");
+		ast_log(LOG_NOTICE, "Registration from '%s' failed for '%s' - %s\n", get_header(req, "To"), ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), (res == -1) ? "Wrong password" : (res == -2 ? "Username/auth name mismatch" : "Not a local SIP domain"));
 	if (res < 1) {
 		/* Destroy the session, but keep us around for just a bit in case they don't
 		   get our 200 OK */
@@ -11171,6 +11293,73 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 	return res;
 }
 
+/*--- add_sip_domain: Add SIP domain to list of domains we are responsible for */
+static int add_sip_domain(const char *domain, const enum domain_mode mode, const char *context)
+{
+	struct domain *d;
+
+	if (!domain || ast_strlen_zero(domain)) {
+		ast_log(LOG_WARNING, "Zero length domain.\n");
+		return 1;
+	}
+
+	d = calloc(1, sizeof(*d));
+	if (!d) {
+		ast_log(LOG_ERROR, "Allocation of domain structure failed, Out of memory\n");
+		return 0;
+	}
+
+	ast_copy_string(d->domain, domain, sizeof(d->domain));
+
+	if (context && !ast_strlen_zero(context))
+		ast_copy_string(d->context, context, sizeof(d->context));
+
+	d->mode = mode;
+
+	AST_LIST_LOCK(&domain_list);
+	AST_LIST_INSERT_TAIL(&domain_list, d, list);
+	AST_LIST_UNLOCK(&domain_list);
+
+ 	if (sipdebug)	
+		ast_log(LOG_DEBUG, "Added local SIP domain '%s'\n", domain);
+
+	return 1;
+}
+
+/*--- check_sip_domain: Check if domain part of uri is local to our server */
+static int check_sip_domain(const char *domain, char *context, size_t len)
+{
+	struct domain *d;
+	int result = 0;
+
+	AST_LIST_LOCK(&domain_list);
+	AST_LIST_TRAVERSE(&domain_list, d, list) {
+		if (strcasecmp(d->domain, domain))
+			continue;
+
+		if (len && !ast_strlen_zero(d->context))
+			ast_copy_string(context, d->context, len);
+		
+		result = 1;
+		break;
+	}
+	AST_LIST_UNLOCK(&domain_list);
+
+	return result;
+}
+
+/*--- clear_sip_domains: Clear our domain list (at reload) */
+static void clear_sip_domains(void)
+{
+	struct domain *d;
+
+	AST_LIST_LOCK(&domain_list);
+	while ((d = AST_LIST_REMOVE_HEAD(&domain_list, list)))
+		free(d);
+	AST_LIST_UNLOCK(&domain_list);
+}
+
+
 /*--- add_realm_authentication: Add realm authentication in list ---*/
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno)
 {
@@ -11689,6 +11878,8 @@ static int reload_config(void)
 	int oldport = ntohs(bindaddr.sin_port);
 	char iabuf[INET_ADDRSTRLEN];
 	struct ast_flags dummy;
+	int auto_sip_domains = 0;
+
 	
 	cfg = ast_config_load(config);
 
@@ -11711,6 +11902,7 @@ static int reload_config(void)
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
 	default_qualify = 0;
+	allow_external_invites = 1;	/* Allow external invites */
 	externhost[0] = '\0';
 	externexpire = 0;
 	externrefresh = 10;
@@ -11897,6 +12089,23 @@ static int reload_config(void)
 			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
 			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 0);
+		} else if (!strcasecmp(v->name, "allowexternalinvites")) {
+			allow_external_invites = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "autodomain")) {
+			auto_sip_domains = ast_true(v->value);
+		} else if (!strcasecmp(v->name, "domain")) {
+			char *domain = ast_strdupa(v->value);
+			char *context = strchr(domain, ',');
+
+			if (context)
+				*context++ = '\0';
+
+			if (ast_strlen_zero(domain))
+				ast_log(LOG_WARNING, "Empty domain specified at line %d\n", v->lineno);
+			else if (context && ast_strlen_zero(context))
+				ast_log(LOG_WARNING, "Empty context specified at line %d for domain '%s'\n", v->lineno, domain);
+			else
+				add_sip_domain(ast_strip(domain), SIP_DOMAIN_CONFIG, context ? ast_strip(context) : "");
 		} else if (!strcasecmp(v->name, "register")) {
 			sip_register(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
@@ -11924,6 +12133,11 @@ static int reload_config(void)
 		 *	ast_log(LOG_WARNING, "Ignoring %s\n", v->name);
 		 */
 		 v = v->next;
+	}
+
+	if (!allow_external_invites && AST_LIST_EMPTY(&domain_list)) {
+		ast_log(LOG_WARNING, "To disallow external INVITEs, you need to configure local SIP domains.\n");
+		allow_external_invites = 1;
 	}
 	
 	/* Build list of authentication to various SIP realms, i.e. service providers */
@@ -11994,7 +12208,7 @@ static int reload_config(void)
 				sipsock = -1;
 			} else {
 				if (option_verbose > 1) { 
-						ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
+					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
 					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
 					ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
 				}
@@ -12004,6 +12218,36 @@ static int reload_config(void)
 		}
 	}
 	ast_mutex_unlock(&netlock);
+
+	/* Add default domains - host name, IP address and IP:port */
+	/* Only do this if user added any sip domain with "localdomains" */
+	/* In order to *not* break backwards compatibility */
+	/* 	Some phones address us at IP only, some with additional port number */
+	if (auto_sip_domains) {
+		char temp[MAXHOSTNAMELEN];
+
+		/* First our default IP address */
+		if (bindaddr.sin_addr.s_addr) {
+			ast_inet_ntoa(temp, sizeof(temp), bindaddr.sin_addr);
+			add_sip_domain(temp, SIP_DOMAIN_AUTO, NULL);
+		} else {
+			ast_log(LOG_NOTICE, "Can't add wildcard IP address to domain list, please add IP address to domain manually.\n");
+		}
+
+		/* Our extern IP address, if configured */
+		if (externip.sin_addr.s_addr) {
+			ast_inet_ntoa(temp, sizeof(temp), externip.sin_addr);
+			add_sip_domain(temp, SIP_DOMAIN_AUTO, NULL);
+		}
+
+		/* Extern host name (NAT traversal support) */
+		if (!ast_strlen_zero(externhost))
+			add_sip_domain(externhost, SIP_DOMAIN_AUTO, NULL);
+		
+		/* Our host name */
+		if (!gethostname(temp, sizeof(temp)))
+			add_sip_domain(temp, SIP_DOMAIN_AUTO, NULL);
+	}
 
 	/* Release configuration from memory */
 	ast_config_destroy(cfg);
@@ -12372,6 +12616,7 @@ static void sip_send_all_registers(void)
 static int sip_do_reload(void)
 {
 	clear_realm_authentication(authl);
+	clear_sip_domains();
 	authl = NULL;
 
 	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
@@ -12408,7 +12653,6 @@ int reload(void)
 	return sip_reload(0, 0, NULL);
 }
 
-// static struct ast_cli_entry  cli_sip_reload =
 static struct ast_cli_entry  my_clis[] = {
 	{ { "sip", "notify", NULL }, sip_notify, "Send a notify packet to a SIP peer", notify_usage, complete_sipnotify },
 	{ { "sip", "show", "objects", NULL }, sip_show_objects, "Show all SIP object allocations", show_objects_usage },
@@ -12418,6 +12662,7 @@ static struct ast_cli_entry  my_clis[] = {
 	{ { "sip", "show", "channels", NULL }, sip_show_channels, "Show active SIP channels", show_channels_usage},
 	{ { "sip", "show", "channel", NULL }, sip_show_channel, "Show detailed SIP channel info", show_channel_usage, complete_sipch  },
 	{ { "sip", "show", "history", NULL }, sip_show_history, "Show SIP dialog history", show_history_usage, complete_sipch  },
+	{ { "sip", "show", "domains", NULL }, sip_show_domains, "List our local SIP domains.", show_domains_usage },
 	{ { "sip", "show", "settings", NULL }, sip_show_settings, "Show SIP global settings", show_settings_usage  },
 	{ { "sip", "debug", NULL }, sip_do_debug, "Enable SIP debugging", debug_usage },
 	{ { "sip", "debug", "ip", NULL }, sip_do_debug, "Enable SIP debugging on IP", debug_usage },
@@ -12480,6 +12725,7 @@ int load_module()
 	ast_custom_function_register(&sip_header_function);
 	ast_custom_function_register(&sippeer_function);
 	ast_custom_function_register(&sipchaninfo_function);
+	ast_custom_function_register(&checksipdomain_function);
 
 	/* Register manager commands */
 	ast_manager_register2("SIPpeers", EVENT_FLAG_SYSTEM, manager_sip_show_peers,
@@ -12506,12 +12752,13 @@ int unload_module()
 	ast_custom_function_unregister(&sipchaninfo_function);
 	ast_custom_function_unregister(&sippeer_function);
 	ast_custom_function_unregister(&sip_header_function);
+	ast_custom_function_unregister(&checksipdomain_function);
 
 	ast_unregister_application(app_dtmfmode);
 	ast_unregister_application(app_sipaddheader);
 	ast_unregister_application(app_sipgetheader);
 
-	ast_cli_unregister_multiple(my_clis, sizeof(my_clis)/ sizeof(my_clis[0]));
+	ast_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
 	ast_rtp_proto_unregister(&sip_rtp);
 
@@ -12578,6 +12825,7 @@ int unload_module()
 	ASTOBJ_CONTAINER_DESTROY(&regl);
 
 	clear_realm_authentication(authl);
+	clear_sip_domains();
 	close(sipsock);
 		
 	return 0;
