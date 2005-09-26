@@ -1369,6 +1369,7 @@ static int action_agents(struct mansession *s, struct message *m)
 {
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
+	char chanbuf[256];
 	struct agent_pvt *p;
 	char *username = NULL;
 	char *loginChan = NULL;
@@ -1412,8 +1413,9 @@ static int action_agents(struct mansession *s, struct message *m)
 			loginChan = p->loginchan;
 			talkingtoChan = "n/a";
 			status = "AGENT_IDLE";
-			if(p->acknowledged) {
-        			sprintf(loginChan, " %s (Confirmed)", loginChan);
+			if (p->acknowledged) {
+				snprintf(chanbuf, sizeof(chanbuf), " %s (Confirmed)", p->loginchan);
+				loginChan = chanbuf;
 			}
 		} else {
 			loginChan = "n/a";
@@ -1430,7 +1432,7 @@ static int action_agents(struct mansession *s, struct message *m)
 			"TalkingTo: %s\r\n"
 			"%s"
 			"\r\n",
-			p->agent,p->name,status,loginChan,p->loginstart,talkingtoChan,idText);
+			p->agent, username, status, loginChan, p->loginstart, talkingtoChan, idText);
 		ast_mutex_unlock(&p->lock);
 		p = p->next;
 	}
