@@ -581,7 +581,7 @@ static struct sip_pvt {
 	int authtries;				/* Times we've tried to authenticate */
 	int expiry;				/* How long we take to expire */
 	int branch;				/* One random number */
-	int tag;				/* Another random number */
+	char tag[11];				/* Another random number */
 	int sessionid;				/* SDP Session ID */
 	int sessionversion;			/* SDP Session Version */
 	struct sockaddr_in sa;			/* Our peer */
@@ -2949,6 +2949,11 @@ static void build_callid(char *callid, int len, struct in_addr ourip, char *from
 		snprintf(callid, len, "@%s", ast_inet_ntoa(iabuf, sizeof(iabuf), ourip));
 }
 
+static void make_our_tag(char *tagbuf, size_t len)
+{
+	snprintf(tagbuf, len, "as%08x", rand());
+}
+
 /*--- sip_alloc: Allocate SIP_PVT structure and set defaults ---*/
 static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useglobal_nat, const int intended_method)
 {
@@ -2981,7 +2986,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 	}
 
 	p->branch = rand();	
-	p->tag = rand();
+	make_our_tag(p->tag, sizeof(p->tag));
 	/* Start with 101 instead of 1 */
 	p->ocseq = 101;
 
@@ -3893,7 +3898,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 		if (!ast_strlen_zero(p->theirtag) && ast_test_flag(p, SIP_OUTGOING))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (p->tag && !ast_test_flag(p, SIP_OUTGOING))
-			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
+			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->tag);
 		else {
 			ast_copy_string(newto, ot, sizeof(newto));
 			newto[sizeof(newto) - 1] = '\0';
@@ -4003,7 +4008,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 		if (ast_test_flag(p, SIP_OUTGOING) && !ast_strlen_zero(p->theirtag))
 			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->theirtag);
 		else if (!ast_test_flag(p, SIP_OUTGOING))
-			snprintf(newto, sizeof(newto), "%s;tag=as%08x", ot, p->tag);
+			snprintf(newto, sizeof(newto), "%s;tag=%s", ot, p->tag);
 		else
 			snprintf(newto, sizeof(newto), "%s", ot);
 		ot = newto;
@@ -4571,7 +4576,7 @@ static void build_rpid(struct sip_pvt *p)
 		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), ";privacy=%s;screen=%s", privacy, screen);
 	p->rpid = strdup(buf);
 
-	snprintf(buf, sizeof(buf), "\"%s\" <sip:%s@%s>;tag=as%08x", clin,
+	snprintf(buf, sizeof(buf), "\"%s\" <sip:%s@%s>;tag=%s", clin,
 		 ast_strlen_zero(p->fromuser) ? clid : p->fromuser,
 		 fromdomain, p->tag);
 	p->rpid_from = strdup(buf);
@@ -4652,9 +4657,9 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 
 	if ((ourport != 5060) && ast_strlen_zero(p->fromdomain))	/* Needs to be 5060 */
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s:%d>;tag=%s", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, ourport, p->tag);
 	else
-		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=as%08x", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
+		snprintf(from, sizeof(from), "\"%s\" <sip:%s@%s>;tag=%s", n, l, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain, p->tag);
 
 	/* If we're calling a registered SIP peer, use the fullcontact to dial to the peer */
 	if (!ast_strlen_zero(p->fullcontact)) {
@@ -5189,7 +5194,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			return 0;
 		} else {
 			p = r->call;
-			p->tag = rand();	/* create a new local tag for every register attempt */
+			make_our_tag(p->tag, sizeof(p->tag));	/* create a new local tag for every register attempt */
 			p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
 		}
 	} else {
@@ -5274,13 +5279,13 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	}
 
 	if (strchr(r->username, '@')) {
-		snprintf(from, sizeof(from), "<sip:%s>;tag=as%08x", r->username, p->tag);
+		snprintf(from, sizeof(from), "<sip:%s>;tag=%s", r->username, p->tag);
 		if (!ast_strlen_zero(p->theirtag))
 			snprintf(to, sizeof(to), "<sip:%s>;tag=%s", r->username, p->theirtag);
 		else
 			snprintf(to, sizeof(to), "<sip:%s>", r->username);
 	} else {
-		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=as%08x", r->username, p->tohost, p->tag);
+		snprintf(from, sizeof(from), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->tag);
 		if (!ast_strlen_zero(p->theirtag))
 			snprintf(to, sizeof(to), "<sip:%s@%s>;tag=%s", r->username, p->tohost, p->theirtag);
 		else
@@ -8321,7 +8326,7 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "  Received Address:       %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->recv.sin_addr), ntohs(cur->recv.sin_port));
 			ast_cli(fd, "  NAT Support:            %s\n", nat2str(ast_test_flag(cur, SIP_NAT)));
 			ast_cli(fd, "  Audio IP:               %s %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), cur->redirip.sin_addr.s_addr ? cur->redirip.sin_addr : cur->ourip), cur->redirip.sin_addr.s_addr ? "(Outside bridge)" : "(local)" );
-			ast_cli(fd, "  Our Tag:                as%08x\n", cur->tag);
+			ast_cli(fd, "  Our Tag:                %s\n", cur->tag);
 			ast_cli(fd, "  Their Tag:              %s\n", cur->theirtag);
 			ast_cli(fd, "  SIP User agent:         %s\n", cur->useragent);
 			if (!ast_strlen_zero(cur->username))
@@ -10181,7 +10186,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (ast_strlen_zero(p->exten))
 				ast_copy_string(p->exten, "s", sizeof(p->exten));
 			/* Initialize tag */	
-			p->tag = rand();
+			make_our_tag(p->tag, sizeof(p->tag));
 			/* First invitation */
 			c = sip_new(p, AST_STATE_DOWN, ast_strlen_zero(p->username) ? NULL : p->username );
 			*recount = 1;
@@ -10500,8 +10505,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			char *accept = get_header(req, "Accept");
 
 			/* Initialize tag for new subscriptions */	
-			if (!p->tag)
-				p->tag = rand();
+			if (ast_strlen_zero(p->tag))
+				make_our_tag(p->tag, sizeof(p->tag));
 
 			if (!strcmp(event, "presence") || !strcmp(event, "dialog")) { /* Presence, RFC 3842 */
 
