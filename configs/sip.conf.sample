@@ -69,6 +69,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;rtpholdtimeout=300		; Terminate call if 300 seconds of no RTP activity
 				; when we're on hold (must be > rtptimeout)
 ;trustrpid = no			; If Remote-Party-ID should be trusted
+;sendrpid = yes			; If Remote-Party-ID should be sent
 ;progressinband=never		; If we should generate in-band ringing always
 				; use 'never' to never use in-band signalling, even in cases
 				; where some buggy devices might not render it
@@ -267,6 +268,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             defaultip
 ;                             rtptimeout
 ;                             rtpholdtimeout
+;                             sendrpid
 
 ;[sip_proxy]
 ; For incoming calls only. Example: FWD (Free World Dialup)
