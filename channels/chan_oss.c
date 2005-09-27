@@ -1202,6 +1202,12 @@ static char transfer_usage[] =
 "       Transfers the currently connected call to the given extension (and\n"
 "context if specified)\n";
 
+static char console_usage[] =
+"Usage: console [device]\n"
+"       If used without a parameter, displays which device is the current\n"
+"console.  If a device is specified, the console sound device is changed to\n"
+"the device specified.\n";
+
 static int console_active(int fd, int argc, char *argv[])
 {
 	if (argc == 1)
@@ -1234,8 +1240,7 @@ static struct ast_cli_entry myclis[] = {
 	{ { "transfer", NULL }, console_transfer, "Transfer a call to a different extension", transfer_usage },
 	{ { "send", "text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete },
-	{ { "console", NULL }, console_active, "Sets/displays active console",
-		"console foo sets foo as the console"}
+	{ { "console", NULL }, console_active, "Sets/displays active console", console_usage },
 };
 
 /*
