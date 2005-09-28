@@ -1901,22 +1901,28 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 #endif
 		ast_log(LOG_DEBUG, "Dialing '%s'\n", c);
 		p->dop.op = ZT_DIAL_OP_REPLACE;
-		if (p->sig == SIG_FEATD) {
+
+		c += p->stripmsd;
+
+		switch (p->sig) {
+		case SIG_FEATD:
 			l = ast->cid.cid_num;
 			if (l) 
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c + p->stripmsd);
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T*%s*%s*", l, c);
 			else
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T**%s*", c + p->stripmsd);
-		} else 
-		if (p->sig == SIG_FEATDMF) {
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T**%s*", c);
+			break;
+		case SIG_FEATDMF:
 			l = ast->cid.cid_num;
 			if (l) 
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c + p->stripmsd);
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*00%s#*%s#", l, c);
 			else
-				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*02#*%s#", c + p->stripmsd);
-		} else 
-		if (p->sig == SIG_FEATDMF_TA) {
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*02#*%s#", c);
+			break;
+		case SIG_FEATDMF_TA:
+		{
 			char *cic = NULL, *ozz = NULL;
+
 			/* If you have to go through a Tandem Access point you need to use this */
 			ozz = pbx_builtin_getvar_helper(p->owner, "FEATDMF_OZZ");
 			if (!ozz)
@@ -1930,19 +1936,23 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				return -1;
 			}
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s%s#", ozz, cic);
-			snprintf(p->finaldial, sizeof(p->finaldial), "M*%s#", c + p->stripmsd);
+			snprintf(p->finaldial, sizeof(p->finaldial), "M*%s#", c);
 			p->whichwink = 0;
-		} else
-		if (p->sig == SIG_E911) {
+		}
+			break;
+		case SIG_E911:
 			ast_copy_string(p->dop.dialstr, "M*911#", sizeof(p->dop.dialstr));
-		} else
-		if (p->sig == SIG_FEATB) {
-			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c + p->stripmsd);
-		} else 
- 		if(p->pulse)
- 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "P%sw", c + p->stripmsd);
- 		else
-			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c + p->stripmsd);
+			break;
+		case SIG_FEATB:
+			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c);
+			break;
+		default:
+			if (p->pulse)
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "P%sw", c);
+			else
+				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c);
+		}
+
 		if (p->echotraining && (strlen(p->dop.dialstr) > 4)) {
 			memset(p->echorest, 'w', sizeof(p->echorest) - 1);
 			strcpy(p->echorest + (p->echotraining / 400) + 1, p->dop.dialstr + strlen(p->dop.dialstr) - 2);
@@ -1962,7 +1972,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		} else
 			ast_log(LOG_DEBUG, "Deferring dialing...\n");
 		p->dialing = 1;
-		if (strlen(c + p->stripmsd) < 1) p->dialednone = 1;
+		if (ast_strlen_zero(c))
+			p->dialednone = 1;
 		ast_setstate(ast, AST_STATE_DIALING);
 		break;
 	case 0:
