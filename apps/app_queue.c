@@ -1021,7 +1021,8 @@ static int valid_exit(struct queue_ent *qe, char digit)
 	}
 
 	/* We have an exact match */
-	if (ast_goto_if_exists(qe->chan, qe->context, qe->digits, 1)) {
+	if (!ast_goto_if_exists(qe->chan, qe->context, qe->digits, 1)) {
+		/* Return 1 on a successful goto */
 		return 1;
 	}
 	return 0;
