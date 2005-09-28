@@ -5258,27 +5258,26 @@ static void *ss_thread(void *data)
 			switch(p->sig) {
 			case SIG_FEATD:
 			case SIG_SF_FEATD:
-				res = my_getsigstr(chan,dtmfbuf + 1, "*", 3000);
+				res = my_getsigstr(chan, dtmfbuf + 1, "*", 3000);
 				if (res > 0)
-					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf), "*", 3000);
+					res = my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "*", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			case SIG_FEATDMF:
 			case SIG_E911:
 			case SIG_SF_FEATDMF:
-				res = my_getsigstr(chan,dtmfbuf + 1, "#", 3000);
+				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
 				if (res > 0) {
 					/* if E911, take off hook */
-					if (p->sig == SIG_E911) {
+					if (p->sig == SIG_E911)
 						zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
-					}
-					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf), "#", 3000);
+					res = my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "#", 3000);
 				}
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			case SIG_FEATB:
 			case SIG_SF_FEATB:
-				res = my_getsigstr(chan,dtmfbuf + 1, "#", 3000);
+				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			default:
