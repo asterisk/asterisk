@@ -9738,6 +9738,10 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				case 302: /* Moved temporarily */
 				case 305: /* Use Proxy */
 					parse_moved_contact(p, req);
+					/* Fall through */
+				case 486: /* Busy here */
+				case 600: /* Busy everywhere */
+				case 603: /* Decline */
 					if (p->owner)
 						ast_queue_control(p->owner, AST_CONTROL_BUSY);
 					break;
@@ -9753,10 +9757,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 					if (p->owner)
 						snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "Local/%s@%s", p->username, p->context);
 					/* Fall through */
-				case 486: /* Busy here */
 				case 488: /* Not acceptable here - codec error */
-				case 600: /* Busy everywhere */
-				case 603: /* Decline */
 				case 480: /* Temporarily Unavailable */
 				case 404: /* Not Found */
 				case 410: /* Gone */
