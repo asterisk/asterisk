@@ -2938,6 +2938,7 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 	int ofd0, ofd1;
 	int oi0, oi1, i0 = -1, i1 = -1, t0, t1;
 	int os0 = -1, os1 = -1;
+	int priority = 0;
 	struct ast_channel *oc0, *oc1;
 	enum ast_bridge_result res;
 
@@ -3110,7 +3111,6 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 	for (;;) {
 		struct ast_channel *c0_priority[2] = {c0, c1};
 		struct ast_channel *c1_priority[2] = {c1, c0};
-		int priority = 0;
 
 		/* Here's our main loop...  Start by locking things, looking for private parts, 
 		   and then balking if anything is wrong */
