@@ -1951,6 +1951,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "P%sw", c);
 			else
 				snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "T%sw", c);
+			break;
 		}
 
 		if (p->echotraining && (strlen(p->dop.dialstr) > 4)) {
