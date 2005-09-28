@@ -3860,7 +3860,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					ast_log(LOG_WARNING, "Ring/Off-hook in strange state %d on channel %d\n", ast->_state, p->channel);
 				break;
 			default:
-				ast_log(LOG_WARNING, "Don't know how to handle ring/off hoook for signalling %d\n", p->sig);
+				ast_log(LOG_WARNING, "Don't know how to handle ring/off hook for signalling %d\n", p->sig);
 			}
 			break;
 #ifdef ZT_EVENT_RINGBEGIN
@@ -5084,20 +5084,22 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 }
 
 
-static int my_getsigstr(struct ast_channel *chan, char *str, char term, int ms)
+static int my_getsigstr(struct ast_channel *chan, char *str, const char *term, int ms)
 {
-char c;
+	char c;
 
 	*str = 0; /* start with empty output buffer */
-	for(;;)
+	for (;;)
 	{
 		/* Wait for the first digit (up to specified ms). */
-		c = ast_waitfordigit(chan,ms);
+		c = ast_waitfordigit(chan, ms);
 		/* if timeout, hangup or error, return as such */
-		if (c < 1) return(c);
+		if (c < 1)
+			return c;
 		*str++ = c;
 		*str = 0;
-		if (c == term) return(1);
+		if (strchr(term, c))
+			return 1;
 	}
 }
 
@@ -5239,7 +5241,7 @@ static void *ss_thread(void *data)
 		/* Wait for the first digit only if immediate=no */
 		if (!p->immediate)
 			/* Wait for the first digit (up to 5 seconds). */
-			res = ast_waitfordigit(chan,5000);
+			res = ast_waitfordigit(chan, 5000);
 		else res = 0;
 		if (res > 0) {
 			/* save first char */
@@ -5248,27 +5250,27 @@ static void *ss_thread(void *data)
 			{
 			    case SIG_FEATD:
 			    case SIG_SF_FEATD:
-				res = my_getsigstr(chan,dtmfbuf + 1,'*',3000);
+				res = my_getsigstr(chan,dtmfbuf + 1, "*", 3000);
 				if (res > 0)
-					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'*',3000);
+					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf), "*", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATDMF:
 			    case SIG_E911:
 			    case SIG_SF_FEATDMF:
-				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
+				res = my_getsigstr(chan,dtmfbuf + 1, "#", 3000);
 				if (res > 0) {
 					/* if E911, take off hook */
 					if (p->sig == SIG_E911) {
 						zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
 					}
-					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf),'#',3000);
+					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf), "#", 3000);
 				}
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			    case SIG_FEATB:
 			    case SIG_SF_FEATB:
-				res = my_getsigstr(chan,dtmfbuf + 1,'#',3000);
+				res = my_getsigstr(chan,dtmfbuf + 1, "#", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
 			    default:
@@ -7194,11 +7196,11 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 	if ((channelmatch > 0) && (p->channel != channelmatch))
 		return 0;
 	/* We're at least busy at this point */
-	if ((p->sig == SIG_FXOKS) || (p->sig == SIG_FXOLS) || (p->sig == SIG_FXOGS)) {
-		if (busy)
+	if (busy) {
+		if ((p->sig == SIG_FXOKS) || (p->sig == SIG_FXOLS) || (p->sig == SIG_FXOGS))
 			*busy = 1;
 	}
-	/* If do not distrub, definitely not */
+	/* If do not disturb, definitely not */
 	if (p->dnd)
 		return 0;
 	/* If guard time, definitely not */
@@ -7207,8 +7209,8 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 		
 	/* If no owner definitely available */
 	if (!p->owner) {
-		/* Trust PRI */
 #ifdef ZAPATA_PRI
+		/* Trust PRI */
 		if (p->pri) {
 			if (p->resetting || p->call)
 				return 0;
@@ -7472,7 +7474,7 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 	while(p && !tmp) {
 		if (roundrobin)
 			round_robin[x] = p;
-#if 0 
+#if 0
 		ast_verbose("name = %s, %d, %d, %d\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
 #endif
 		if (p && available(p, channelmatch, groupmatch, &busy)) {
