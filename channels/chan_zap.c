@@ -147,10 +147,10 @@ static const char type[] = "Zap";
 static const char config[] = "zapata.conf";
 
 #define SIG_EM		ZT_SIG_EM
-#define SIG_EMWINK 	(0x100000 | ZT_SIG_EM)
-#define SIG_FEATD	(0x200000 | ZT_SIG_EM)
-#define	SIG_FEATDMF	(0x400000 | ZT_SIG_EM)
-#define	SIG_FEATB	(0x800000 | ZT_SIG_EM)
+#define SIG_EMWINK 	(0x0100000 | ZT_SIG_EM)
+#define SIG_FEATD	(0x0200000 | ZT_SIG_EM)
+#define	SIG_FEATDMF	(0x0400000 | ZT_SIG_EM)
+#define	SIG_FEATB	(0x0800000 | ZT_SIG_EM)
 #define	SIG_E911	(0x1000000 | ZT_SIG_EM)
 #define	SIG_FEATDMF_TA	(0x2000000 | ZT_SIG_EM)
 #define SIG_FXSLS	ZT_SIG_FXSLS
@@ -162,13 +162,13 @@ static const char config[] = "zapata.conf";
 #define SIG_PRI		ZT_SIG_CLEAR
 #define SIG_R2		ZT_SIG_CAS
 #define	SIG_SF		ZT_SIG_SF
-#define SIG_SFWINK 	(0x100000 | ZT_SIG_SF)
-#define SIG_SF_FEATD	(0x200000 | ZT_SIG_SF)
-#define	SIG_SF_FEATDMF	(0x400000 | ZT_SIG_SF)
-#define	SIG_SF_FEATB	(0x800000 | ZT_SIG_SF)
+#define SIG_SFWINK 	(0x0100000 | ZT_SIG_SF)
+#define SIG_SF_FEATD	(0x0200000 | ZT_SIG_SF)
+#define	SIG_SF_FEATDMF	(0x0400000 | ZT_SIG_SF)
+#define	SIG_SF_FEATB	(0x0800000 | ZT_SIG_SF)
 #define SIG_EM_E1	ZT_SIG_EM_E1
-#define SIG_GR303FXOKS   (0x100000 | ZT_SIG_FXOKS)
-#define SIG_GR303FXSKS   (0x200000 | ZT_SIG_FXSKS)
+#define SIG_GR303FXOKS	(0x0100000 | ZT_SIG_FXOKS)
+#define SIG_GR303FXSKS	(0x0100000 | ZT_SIG_FXSKS)
 
 #define NUM_SPANS 		32
 #define NUM_DCHANS		4		/* No more than 4 d-channels */
