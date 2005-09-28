@@ -9862,7 +9862,6 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 	while (tmp) {
 		if (tmp->channel > 0) {
 			int alarm = get_alarms(tmp);
-			ast_mutex_lock(&s->lock);		
 			ast_cli(s->fd,
 				"Event: ZapShowChannels\r\n"
 				"Channel: %d\r\n"
@@ -9875,7 +9874,6 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 				tmp->channel, sig2str(tmp->sig), tmp->context, 
 				tmp->dnd ? "Enabled" : "Disabled",
 				alarm2str(alarm), idText);
-			ast_mutex_unlock(&s->lock);		
 		} 
 
 		tmp = tmp->next;
@@ -9883,13 +9881,11 @@ static int action_zapshowchannels(struct mansession *s, struct message *m)
 
 	ast_mutex_unlock(&iflock);
 	
-	ast_mutex_lock(&s->lock);		
 	ast_cli(s->fd, 
 		"Event: ZapShowChannelsComplete\r\n"
 		"%s"
 		"\r\n", 
 		idText);
-	ast_mutex_unlock(&s->lock);		
 	return 0;
 }
 

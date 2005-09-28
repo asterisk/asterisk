@@ -66,16 +66,22 @@
 #define MAX_HEADERS 80
 #define MAX_LEN 256
 
+struct eventqent {
+	struct eventqent *next;
+	char eventdata[0];
+};
+
 struct mansession {
 	/*! Execution thread */
 	pthread_t t;
-	/*! Thread lock */
-	ast_mutex_t lock;
+	/*! Thread lock -- don't use in action callbacks, it's already taken care of  */
+	ast_mutex_t __lock;
 	/*! socket address */
 	struct sockaddr_in sin;
 	/*! TCP socket */
 	int fd;
-	int blocking;
+	/*! Whether or not we're busy doing an action */
+	int busy;
 	/*! Logged in username */
 	char username[80];
 	/*! Authentication challenge */
@@ -90,6 +96,8 @@ struct mansession {
 	char inbuf[MAX_LEN];
 	int inlen;
 	int send_events;
+	/* Queued events that we've not had the ability to send yet */
+	struct eventqent *eventq;
 	struct mansession *next;
 };
 

@@ -1381,7 +1381,6 @@ static int action_agents(struct mansession *s, struct message *m)
 	astman_send_ack(s, m, "Agents will follow");
 	ast_mutex_lock(&agentlock);
 	p = agents;
-	ast_mutex_lock(&s->lock);
 	while(p) {
         	ast_mutex_lock(&p->lock);
 
@@ -1440,8 +1439,6 @@ static int action_agents(struct mansession *s, struct message *m)
 	ast_cli(s->fd, "Event: AgentsComplete\r\n"
 		"%s"
 		"\r\n",idText);
-	ast_mutex_unlock(&s->lock);
-
 	return 0;
 }
 

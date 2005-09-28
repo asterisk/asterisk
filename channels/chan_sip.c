@@ -4502,8 +4502,8 @@ static void build_contact(struct sip_pvt *p)
 static void build_rpid(struct sip_pvt *p)
 {
 	int send_pres_tags = 1;
-	const char *privacy;
-	const char *screen;
+	const char *privacy=NULL;
+	const char *screen=NULL;
 	char buf[256];
 	const char *clid = default_callerid;
 	const char *clin = NULL;
@@ -7267,13 +7267,11 @@ static int manager_sip_show_peers( struct mansession *s, struct message *m )
 	/* List the peers in separate manager events */
 	_sip_show_peers(s->fd, &total, s, m, 3, a);
 	/* Send final confirmation */
-	ast_mutex_lock(&s->lock);
 	ast_cli(s->fd,
 	"Event: PeerlistComplete\r\n"
 	"ListItems: %d\r\n"
 	"%s"
 	"\r\n", total, idtext);
-	ast_mutex_unlock(&s->lock);
 	return 0;
 }
 
@@ -7376,7 +7374,6 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			ntohs(iterator->addr.sin_port), status);
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
-			ast_mutex_lock(&s->lock);
 			ast_cli(fd, 
 			"Event: PeerEntry\r\n%s"
 			"Channeltype: SIP\r\n"
@@ -7396,8 +7393,6 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
 			iterator->ha ? "yes" : "no",       /* permit/deny */
 			status);
-		
-			ast_mutex_unlock(&s->lock);
 		}
 
 		ASTOBJ_UNLOCK(iterator);
@@ -7691,7 +7686,6 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 		astman_send_error(s, m, "Peer: <name> missing.\n");
 		return 0;
 	}
-	ast_mutex_lock(&s->lock);
 	a[0] = "sip";
 	a[1] = "show";
 	a[2] = "peer";
@@ -7701,7 +7695,6 @@ static int manager_sip_show_peer( struct mansession *s, struct message *m )
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ret = _sip_show_peer(1, s->fd, s, m, 4, a );
 	ast_cli( s->fd, "\r\n\r\n" );
-	ast_mutex_unlock(&s->lock);
 	return ret;
 }
 
