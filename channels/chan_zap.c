@@ -5255,18 +5255,17 @@ static void *ss_thread(void *data)
 		if (res > 0) {
 			/* save first char */
 			dtmfbuf[0] = res;
-			switch(p->sig)
-			{
-			    case SIG_FEATD:
-			    case SIG_SF_FEATD:
+			switch(p->sig) {
+			case SIG_FEATD:
+			case SIG_SF_FEATD:
 				res = my_getsigstr(chan,dtmfbuf + 1, "*", 3000);
 				if (res > 0)
 					res = my_getsigstr(chan,dtmfbuf + strlen(dtmfbuf), "*", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
-			    case SIG_FEATDMF:
-			    case SIG_E911:
-			    case SIG_SF_FEATDMF:
+			case SIG_FEATDMF:
+			case SIG_E911:
+			case SIG_SF_FEATDMF:
 				res = my_getsigstr(chan,dtmfbuf + 1, "#", 3000);
 				if (res > 0) {
 					/* if E911, take off hook */
@@ -5277,12 +5276,12 @@ static void *ss_thread(void *data)
 				}
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
-			    case SIG_FEATB:
-			    case SIG_SF_FEATB:
+			case SIG_FEATB:
+			case SIG_SF_FEATB:
 				res = my_getsigstr(chan,dtmfbuf + 1, "#", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
-			    default:
+			default:
 				/* If we got the first digit, get the rest */
 				len = 1;
 				while((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
