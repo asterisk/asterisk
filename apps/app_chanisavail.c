@@ -101,6 +101,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 			number = strchr(tech, '/');
 			if (!number) {
 				ast_log(LOG_WARNING, "ChanIsAvail argument takes format ([technology]/[device])\n");
+				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
 			*number = '\0';
@@ -135,8 +136,10 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	if (res < 1) {
 		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
+			LOCAL_USER_REMOVE(u);
 			return -1;
+		}
 	}
 
 	LOCAL_USER_REMOVE(u);
