@@ -4195,10 +4195,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			ast_log(LOG_DEBUG, "Dunno what to do with event %d on channel %d\n", res, p->channel);
 	}
 	return &p->subs[index].f;
- }
-
-
-
+}
 
 static struct ast_frame *__zt_exception(struct ast_channel *ast)
 {
