@@ -5074,7 +5074,7 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		i->isidlecall = 0;
 		i->alreadyhungup = 0;
 #endif
-		/* clear the fake event in case we posted one before we had ast_chanenl */
+		/* clear the fake event in case we posted one before we had ast_channel */
 		i->fake_event = 0;
 		/* Assure there is no confmute on this channel */
 		zt_confmute(i, 0);
