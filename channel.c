@@ -2203,7 +2203,7 @@ struct ast_channel *ast_request_and_dial(const char *type, int format, void *dat
 struct ast_channel *ast_request(const char *type, int format, void *data, int *cause)
 {
 	struct chanlist *chan;
-	struct ast_channel *c = NULL;
+	struct ast_channel *c;
 	int capabilities;
 	int fmt;
 	int res;
@@ -2212,45 +2212,51 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 	if (!cause)
 		cause = &foo;
 	*cause = AST_CAUSE_NOTDEFINED;
+
 	if (ast_mutex_lock(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
 	}
-	chan = backends;
-	while(chan) {
-		if (!strcasecmp(type, chan->tech->type)) {
-			capabilities = chan->tech->capabilities;
-			fmt = format;
-			res = ast_translator_best_choice(&fmt, &capabilities);
-			if (res < 0) {
-				ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
-				ast_mutex_unlock(&chlock);
-				return NULL;
-			}
+
+	for (chan = backends; chan; chan = chan->next) {
+		if (strcasecmp(type, chan->tech->type))
+			continue;
+
+		capabilities = chan->tech->capabilities;
+		fmt = format;
+		res = ast_translator_best_choice(&fmt, &capabilities);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
 			ast_mutex_unlock(&chlock);
-			if (chan->tech->requester)
-				c = chan->tech->requester(type, capabilities, data, cause);
-			if (c) {
-				if (c->_state == AST_STATE_DOWN) {
-					manager_event(EVENT_FLAG_CALL, "Newchannel",
-					"Channel: %s\r\n"
-					"State: %s\r\n"
-					"CallerID: %s\r\n"
-					"CallerIDName: %s\r\n"
-					"Uniqueid: %s\r\n",
-					c->name, ast_state2str(c->_state), c->cid.cid_num ? c->cid.cid_num : "<unknown>", c->cid.cid_name ? c->cid.cid_name : "<unknown>",c->uniqueid);
-				}
-			}
-			return c;
+			return NULL;
 		}
-		chan = chan->next;
+		ast_mutex_unlock(&chlock);
+		if (!chan->tech->requester)
+			return NULL;
+		
+		if (!(c = chan->tech->requester(type, capabilities, data, cause)))
+			return NULL;
+
+		if (c->_state == AST_STATE_DOWN) {
+			manager_event(EVENT_FLAG_CALL, "Newchannel",
+				      "Channel: %s\r\n"
+				      "State: %s\r\n"
+				      "CallerID: %s\r\n"
+				      "CallerIDName: %s\r\n"
+				      "Uniqueid: %s\r\n",
+				      c->name, ast_state2str(c->_state),
+				      c->cid.cid_num ? c->cid.cid_num : "<unknown>",
+				      c->cid.cid_name ? c->cid.cid_name : "<unknown>",
+				      c->uniqueid);
+		}
+		return c;
 	}
-	if (!chan) {
-		ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
-		*cause = AST_CAUSE_NOSUCHDRIVER;
-	}
+
+	ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
+	*cause = AST_CAUSE_NOSUCHDRIVER;
 	ast_mutex_unlock(&chlock);
-	return c;
+
+	return NULL;
 }
 
 int ast_call(struct ast_channel *chan, char *addr, int timeout) 

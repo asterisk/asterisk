@@ -399,7 +399,7 @@ extern int ast_codec_pref_append(struct ast_codec_pref *pref, int format);
 extern int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best);
 
 /* Parse an "allow" or "deny" line and update the mask and pref if provided */
-extern void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, char *list, int allowing);
+extern void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing);
 
 /* Dump codec preference list into a string */
 extern int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);

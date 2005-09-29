@@ -1001,36 +1001,36 @@ int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
    	return find_best ? ast_best_codec(formats) : 0;
 }
 
-void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, char *list, int allowing) 
+void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing) 
 {
-	int format_i = 0;
-	char *next_format = NULL, *last_format = NULL;
+	char *parse;
+	char *this;
+	int format;
 
-	last_format = ast_strdupa(list);
-	while(last_format) {
-		if((next_format = strchr(last_format, ','))) {
-			*next_format = '\0';
-			next_format++;
+	parse = ast_strdupa(list);
+	while ((this = strsep(&parse, ","))) {
+		if (!(format = ast_getformatbyname(this))) {
+			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", this);
+			continue;
 		}
-		if ((format_i = ast_getformatbyname(last_format)) > 0) {
-			if (mask) {
-				if (allowing)
-					(*mask) |= format_i;
-				else
-					(*mask) &= ~format_i;
-			}
-			/* can't consider 'all' a prefered codec*/
-			if(pref && strcasecmp(last_format, "all")) {
-				if(allowing)
-					ast_codec_pref_append(pref, format_i);
-				else
-					ast_codec_pref_remove(pref, format_i);
-			} else if(!allowing) /* disallow all must clear your prefs or it makes no sense */
-				memset(pref, 0, sizeof(struct ast_codec_pref));
-		} else
-			ast_log(LOG_WARNING, "Cannot %s unknown format '%s'\n", allowing ? "allow" : "disallow", last_format);
 
-		last_format = next_format;
+		if (mask) {
+			if (allowing)
+				*mask |= format;
+			else
+				*mask &= ~format;
+		}
+
+		if (pref) {
+			if (strcasecmp(this, "all")) {
+				if (allowing)
+					ast_codec_pref_append(pref, format);
+				else
+					ast_codec_pref_remove(pref, format);
+			} else if (!allowing) {
+				memset(pref, 0, sizeof(*pref));
+			}
+		}
 	}
 }
 
