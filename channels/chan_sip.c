@@ -1811,6 +1811,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE |
 		       SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
 	r->capability = peer->capability;
+	r->prefs = peer->prefs;
 	if (r->rtp) {
 		ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 		ast_rtp_setnat(r->rtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
@@ -2959,11 +2960,9 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 {
 	struct sip_pvt *p;
 
-	p = malloc(sizeof(struct sip_pvt));
-	if (!p)
+	if (!(p = calloc(1, sizeof(*p))))
 		return NULL;
-	/* Keep track of stuff */
-	memset(p, 0, sizeof(struct sip_pvt));
+
 	ast_mutex_init(&p->lock);
 
 	p->method = intended_method;
@@ -4171,14 +4170,49 @@ static int add_vidupdate(struct sip_request *req)
 	return 0;
 }
 
+static void add_codec_to_sdp(const struct sip_pvt *p, int codec, int sample_rate,
+			     char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+			     int debug)
+{
+	int rtp_code;
+
+	if (debug)
+		ast_verbose("Adding codec 0x%x (%s) to SDP\n", codec, ast_getformatname(codec));
+	if ((rtp_code = ast_rtp_lookup_code(p->rtp, 1, codec)) == -1)
+		return;
+
+	ast_build_string(m_buf, m_size, " %d", rtp_code);
+	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+			 ast_rtp_lookup_mime_subtype(1, codec),
+			 sample_rate);
+}
+
+static void add_noncodec_to_sdp(const struct sip_pvt *p, int format, int sample_rate,
+				char **m_buf, size_t *m_size, char **a_buf, size_t *a_size,
+				int debug)
+{
+	int rtp_code;
+
+	if (debug)
+		ast_verbose("Adding non-codec 0x%x (%s) to SDP\n", format, ast_rtp_lookup_mime_subtype(0, format));
+	if ((rtp_code = ast_rtp_lookup_code(p->rtp, 0, format)) == -1)
+		return;
+
+	ast_build_string(m_buf, m_size, " %d", rtp_code);
+	ast_build_string(a_buf, a_size, "a=rtpmap:%d %s/%d\r\n", rtp_code,
+			 ast_rtp_lookup_mime_subtype(0, format),
+			 sample_rate);
+	if (format == AST_RTP_DTMF)
+		/* Indicate we support DTMF and FLASH... */
+		ast_build_string(a_buf, a_size, "a=fmtp:%d 0-16\r\n", rtp_code);
+}
+
 /*--- add_sdp: Add Session Description Protocol message ---*/
 static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 {
 	int len = 0;
-	int codec = 0;
-	int pref_codec = 0;
+	int pref_codec;
 	int alreadysent = 0;
-	char costr[80];
 	struct sockaddr_in sin;
 	struct sockaddr_in vsin;
 	char v[256];
@@ -4186,21 +4220,27 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	char o[256];
 	char c[256];
 	char t[256];
-	char m[256];
-	char m2[256];
-	char a[1024] = "";
-	char a2[1024] = "";
+	char m_audio[256];
+	char m_video[256];
+	char a_audio[1024];
+	char a_video[1024];
+	char *m_audio_next = m_audio;
+	char *m_video_next = m_video;
+	size_t m_audio_left = sizeof(m_audio);
+	size_t m_video_left = sizeof(m_video);
+	char *a_audio_next = a_audio;
+	char *a_video_next = a_video;
+	size_t a_audio_left = sizeof(a_audio);
+	size_t a_video_left = sizeof(a_video);
 	char iabuf[INET_ADDRSTRLEN];
-	int x = 0;
-	int capability = 0 ;
+	int x;
+	int capability;
 	struct sockaddr_in dest;
 	struct sockaddr_in vdest = { 0, };
-	int debug=0;
+	int debug;
 	
 	debug = sip_debug_test_pvt(p);
 
-	/* XXX We break with the "recommendation" and send our IP, in order that our
-	       peer doesn't have to ast_gethostbyname() us XXX */
 	len = 0;
 	if (!p->rtp) {
 		ast_log(LOG_WARNING, "No way to add SDP without an RTP structure\n");
@@ -4242,105 +4282,100 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		if (p->vrtp)
 			ast_verbose("Video is at %s port %d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip), ntohs(vsin.sin_port));	
 	}
+
+	/* We break with the "recommendation" and send our IP, in order that our
+	   peer doesn't have to ast_gethostbyname() us */
+
 	snprintf(v, sizeof(v), "v=0\r\n");
 	snprintf(o, sizeof(o), "o=root %d %d IN IP4 %s\r\n", p->sessionid, p->sessionversion, ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
 	snprintf(s, sizeof(s), "s=session\r\n");
 	snprintf(c, sizeof(c), "c=IN IP4 %s\r\n", ast_inet_ntoa(iabuf, sizeof(iabuf), dest.sin_addr));
 	snprintf(t, sizeof(t), "t=0 0\r\n");
-	snprintf(m, sizeof(m), "m=audio %d RTP/AVP", ntohs(dest.sin_port));
-	snprintf(m2, sizeof(m2), "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+
+	ast_build_string(&m_audio_next, &m_audio_left, "m=audio %d RTP/AVP", ntohs(dest.sin_port));
+	ast_build_string(&m_video_next, &m_video_left, "m=video %d RTP/AVP", ntohs(vdest.sin_port));
+
 	/* Prefer the codec we were requested to use, first, no matter what */
 	if (capability & p->prefcodec) {
-		if (debug)
-			ast_verbose("Answering/Requesting with root capability 0x%x (%s)\n", p->prefcodec, ast_getformatname(p->prefcodec));
-		codec = ast_rtp_lookup_code(p->rtp, 1, p->prefcodec);
-		if (codec > -1) {
-			snprintf(costr, sizeof(costr), " %d", codec);
-			if (p->prefcodec <= AST_FORMAT_MAX_AUDIO) {
-				strncat(m, costr, sizeof(m) - strlen(m) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, p->prefcodec));
-				ast_copy_string(a, costr, sizeof(a));
-			} else {
-				strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, p->prefcodec));
-				ast_copy_string(a2, costr, sizeof(a2));
-			}
-		}
+		if (p->prefcodec <= AST_FORMAT_MAX_AUDIO)
+			add_codec_to_sdp(p, p->prefcodec, 8000,
+					 &m_audio_next, &m_audio_left,
+					 &a_audio_next, &a_audio_left,
+					 debug);
+		else
+			add_codec_to_sdp(p, p->prefcodec, 90000,
+					 &m_video_next, &m_video_left,
+					 &a_video_next, &a_video_left,
+					 debug);
 		alreadysent |= p->prefcodec;
 	}
+
 	/* Start by sending our preferred codecs */
-	for (x = 0 ; x < 32 ; x++) {
-		if (!(pref_codec = ast_codec_pref_index(&p->prefs,x)))
+	for (x = 0; x < 32; x++) {
+		if (!(pref_codec = ast_codec_pref_index(&p->prefs, x)))
 			break; 
-		if ((capability & pref_codec) && !(alreadysent & pref_codec)) {
-			if (debug)
-				ast_verbose("Answering with preferred capability 0x%x (%s)\n", pref_codec, ast_getformatname(pref_codec));
-			codec = ast_rtp_lookup_code(p->rtp, 1, pref_codec);
-			if (codec > -1) {
-				snprintf(costr, sizeof(costr), " %d", codec);
-				if (pref_codec <= AST_FORMAT_MAX_AUDIO) {
-					strncat(m, costr, sizeof(m) - strlen(m) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, pref_codec));
-					strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				} else {
-					strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, pref_codec));
-					strncat(a2, costr, sizeof(a2) - strlen(a) - 1);
-				}
-			}
-		}
+
+		if (!(capability & pref_codec))
+			continue;
+
+		if (alreadysent & pref_codec)
+			continue;
+
+		if (pref_codec <= AST_FORMAT_MAX_AUDIO)
+			add_codec_to_sdp(p, pref_codec, 8000,
+					 &m_audio_next, &m_audio_left,
+					 &a_audio_next, &a_audio_left,
+					 debug);
+		else
+			add_codec_to_sdp(p, pref_codec, 90000,
+					 &m_video_next, &m_video_left,
+					 &a_video_next, &a_video_left,
+					 debug);
 		alreadysent |= pref_codec;
 	}
 
 	/* Now send any other common codecs, and non-codec formats: */
 	for (x = 1; x <= ((videosupport && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
-		if ((capability & x) && !(alreadysent & x)) {
-			if (debug)
-				ast_verbose("Answering with capability 0x%x (%s)\n", x, ast_getformatname(x));
-			codec = ast_rtp_lookup_code(p->rtp, 1, x);
-			if (codec > -1) {
-				snprintf(costr, sizeof(costr), " %d", codec);
-				if (x <= AST_FORMAT_MAX_AUDIO) {
-					strncat(m, costr, sizeof(m) - strlen(m) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
-					strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				} else {
-					strncat(m2, costr, sizeof(m2) - strlen(m2) - 1);
-					snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/90000\r\n", codec, ast_rtp_lookup_mime_subtype(1, x));
-					strncat(a2, costr, sizeof(a2) - strlen(a2) - 1);
-				}
-			}
-		}
+		if (!(capability & x))
+			continue;
+
+		if (alreadysent & x)
+			continue;
+
+		if (x <= AST_FORMAT_MAX_AUDIO)
+			add_codec_to_sdp(p, x, 8000,
+					 &m_audio_next, &m_audio_left,
+					 &a_audio_next, &a_audio_left,
+					 debug);
+		else
+			add_codec_to_sdp(p, x, 90000,
+					 &m_video_next, &m_video_left,
+					 &a_video_next, &a_video_left,
+					 debug);
 	}
+
 	for (x = 1; x <= AST_RTP_MAX; x <<= 1) {
-		if (p->noncodeccapability & x) {
-			if (debug)
-				ast_verbose("Answering with non-codec capability 0x%x (%s)\n", x, ast_rtp_lookup_mime_subtype(0, x));
-			codec = ast_rtp_lookup_code(p->rtp, 0, x);
-			if (codec > -1) {
-				snprintf(costr, sizeof(costr), " %d", codec);
-				strncat(m, costr, sizeof(m) - strlen(m) - 1);
-				snprintf(costr, sizeof(costr), "a=rtpmap:%d %s/8000\r\n", codec, ast_rtp_lookup_mime_subtype(0, x));
-				strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				if (x == AST_RTP_DTMF) {
-				  /* Indicate we support DTMF and FLASH... */
-				  snprintf(costr, sizeof costr, "a=fmtp:%d 0-16\r\n",
-					   codec);
-				  strncat(a, costr, sizeof(a) - strlen(a) - 1);
-				}
-			}
-		}
+		if (!(p->noncodeccapability & x))
+			continue;
+
+		add_noncodec_to_sdp(p, x, 8000,
+				    &m_audio_next, &m_audio_left,
+				    &a_audio_next, &a_audio_left,
+				    debug);
 	}
-	strncat(a, "a=silenceSupp:off - - - -\r\n", sizeof(a) - strlen(a) - 1);
-	if (strlen(m) < sizeof(m) - 2)
-		strncat(m, "\r\n", sizeof(m) - strlen(m) - 1);
-	if (strlen(m2) < sizeof(m2) - 2)
-		strncat(m2, "\r\n", sizeof(m2) - strlen(m2) - 1);
-	if ((sizeof(m) <= strlen(m) - 2) || (sizeof(m2) <= strlen(m2) - 2) || (sizeof(a) == strlen(a)) || (sizeof(a2) == strlen(a2)))
+
+	ast_build_string(&a_audio_next, &a_audio_left, "a=silenceSupp:off - - - -\r\n");
+
+	if ((m_audio_left < 2) || (m_video_left < 2) || (a_audio_left == 0) || (a_video_left == 0))
 		ast_log(LOG_WARNING, "SIP SDP may be truncated due to undersized buffer!!\n");
-	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m) + strlen(a);
+
+	ast_build_string(&m_audio_next, &m_audio_left, "\r\n");
+	ast_build_string(&m_video_next, &m_video_left, "\r\n");
+
+	len = strlen(v) + strlen(s) + strlen(o) + strlen(c) + strlen(t) + strlen(m_audio) + strlen(a_audio);
 	if ((p->vrtp) && (!ast_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) /* only if video response is appropriate */
-		len += strlen(m2) + strlen(a2);
+		len += strlen(m_video) + strlen(a_video);
+
 	add_header(resp, "Content-Type", "application/sdp");
 	add_header_contentLength(resp, len);
 	add_line(resp, v);
@@ -4348,15 +4383,17 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	add_line(resp, s);
 	add_line(resp, c);
 	add_line(resp, t);
-	add_line(resp, m);
-	add_line(resp, a);
+	add_line(resp, m_audio);
+	add_line(resp, a_audio);
 	if ((p->vrtp) && (!ast_test_flag(p, SIP_NOVIDEO)) && (capability & VIDEO_CODEC_MASK)) { /* only if video response is appropriate */
-		add_line(resp, m2);
-		add_line(resp, a2);
+		add_line(resp, m_video);
+		add_line(resp, a_video);
 	}
+
 	/* Update lastrtprx when we send our SDP */
 	time(&p->lastrtprx);
 	time(&p->lastrtptx);
+
 	return 0;
 }
 
@@ -7006,6 +7043,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				p->callgroup = peer->callgroup;
 				p->pickupgroup = peer->pickupgroup;
 				p->capability = peer->capability;
+				p->prefs = peer->prefs;
 				p->jointcapability = peer->capability;
 				if (p->peercapability)
 					p->jointcapability &= p->peercapability;
@@ -11250,9 +11288,6 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 			ext = NULL;
 		}
 	}
-
-	/* Assign a default capability */
-	p->capability = global_capability;
 
 	if (create_addr(p, host)) {
 		*cause = AST_CAUSE_UNREGISTERED;
