@@ -5280,6 +5280,18 @@ static void *ss_thread(void *data)
 				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
+			case SIG_EMWINK:
+				/* if we received a '*', we are actually receiving Feature Group D
+				   dial syntax, so use that mode; otherwise, fall through to normal
+				   mode
+				*/
+				if (res == '*') {
+					res = my_getsigstr(chan, dtmfbuf + 1, "*", 3000);
+					if (res > 0)
+						res = my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "*", 3000);
+					if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
+					break;
+				}
 			default:
 				/* If we got the first digit, get the rest */
 				len = 1;
