@@ -475,6 +475,19 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 		pthread_attr_init(&lattr);
 		attr = &lattr;
 	}
+#ifdef __linux__
+	/* On Linux, pthread_attr_init() defaults to PTHREAD_EXPLICIT_SCHED,
+	   which is kind of useless. Change this here to
+	   PTHREAD_INHERIT_SCHED; that way the -p option to set realtime
+	   priority will propagate down to new threads by default.
+	   This does mean that callers cannot set a different priority using
+	   PTHREAD_EXPLICIT_SCHED in the attr argument; instead they must set
+	   the priority afterwards with pthread_setschedparam(). */
+	errno = pthread_attr_setinheritsched(attr, PTHREAD_INHERIT_SCHED);
+	if (errno)
+		ast_log(LOG_WARNING, "pthread_attr_setinheritsched returned non-zero: %s\n", strerror(errno));
+#endif
+
 	if (!stacksize)
 		stacksize = AST_STACKSIZE;
 	errno = pthread_attr_setstacksize(attr, stacksize);
