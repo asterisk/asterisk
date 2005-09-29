@@ -908,60 +908,102 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 	return NULL;
 }
 
+/* Note that it's negative -- that's important later. */
+#define DONT_HAVE_LENGTH	0x80000000
+
+static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
+{
+	char *varchar, *offsetchar = NULL;
+	int parens=0;
+
+	*offset = 0;
+	*length = DONT_HAVE_LENGTH;
+	*isfunc = 0;
+	for (varchar=var; *varchar; varchar++) {
+		switch (*varchar) {
+		case '(':
+			(*isfunc)++;
+			parens++;
+			break;
+		case ')':
+			parens--;
+			break;
+		case ':':
+			if (parens == 0) {
+				offsetchar = varchar + 1;
+				*varchar = '\0';
+				goto pvn_endfor;
+			}
+		}
+	}
+pvn_endfor:
+	if (offsetchar) {
+		sscanf(offsetchar, "%d:%d", offset, length);
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+static char *substring(char *value, int offset, int length, char *workspace, size_t workspace_len)
+{
+	char *ret = workspace;
+
+	/* No need to do anything */
+	if (offset == 0 && length==-1) {
+		return value;
+	}
+
+	ast_copy_string(workspace, value, workspace_len);
+
+	if (abs(offset) > strlen(ret)) {	/* Offset beyond string */
+		if (offset >= 0) 
+			offset = strlen(ret);
+		else 
+			offset =- strlen(ret);	
+	}
+
+	/* Detect too-long length */
+	if ((offset < 0 && length > -offset) || (offset >= 0 && offset+length > strlen(ret))) {
+		if (offset >= 0) 
+			length = strlen(ret)-offset;
+		else 
+			length = strlen(ret)+offset;
+	}
+
+	/* Bounce up to the right offset */
+	if (offset >= 0)
+		ret += offset;
+	else
+		ret += strlen(ret)+offset;
+
+	/* Chop off at the requisite length */
+	if (length >= 0)
+		ret[length] = '\0';
+
+	return ret;
+}
+
 /*--- pbx_retrieve_variable: Support for Asterisk built-in variables and
       functions in the dialplan
   ---*/
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
-	char *first,*second;
 	char tmpvar[80];
 	time_t thistime;
 	struct tm brokentime;
-	int offset,offset2;
+	int offset, offset2, isfunc;
 	struct ast_var_t *variables;
 
 	if (c) 
 		headp=&c->varshead;
 	*ret=NULL;
-	if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
-		ast_copy_string(tmpvar, var, sizeof(tmpvar));
-		first = strchr(tmpvar, ':');
-		if (!first)
-			first = tmpvar + strlen(tmpvar);
-		*first='\0';
-		pbx_retrieve_variable(c,tmpvar,ret,workspace,workspacelen - 1, headp);
+	ast_copy_string(tmpvar, var, sizeof(tmpvar));
+	if (parse_variable_name(tmpvar, &offset, &offset2, &isfunc)) {
+		pbx_retrieve_variable(c, tmpvar, ret, workspace, workspacelen, headp);
 		if (!(*ret)) 
 			return;
-		offset=atoi(first+1);	/* The number of characters, 
-					   positive: remove # of chars from start
-					   negative: keep # of chars from end */
-						
-	 	if ((second=strchr(first+1,':'))) {	
-			*second='\0';
-			offset2 = atoi(second+1);		/* Number of chars to copy */
-		} else if (offset >= 0) {
-			offset2 = strlen(*ret)-offset;	/* Rest of string */
-		} else {
-			offset2 = abs(offset);
-		}
-
-		if (abs(offset) > strlen(*ret)) {	/* Offset beyond string */
-			if (offset >= 0) 
-				offset = strlen(*ret);
-			else 
-				offset =- strlen(*ret);	
-		}
-		if ((offset < 0 && offset2 > -offset) || (offset >= 0 && offset+offset2 > strlen(*ret))) {
-			if (offset >= 0) 
-				offset2 = strlen(*ret)-offset;
-			else 
-				offset2 = strlen(*ret)+offset;
-		}
-		if (offset >= 0)
-			*ret += offset;
-		else
-			*ret += strlen(*ret)+offset;
-		(*ret)[offset2] = '\0';		/* Cut at offset2 position */
+		*ret = substring(*ret, offset, offset2, workspace, workspacelen);
 	} else if (c && !strncmp(var, "CALL", 4)) {
 		if (!strncmp(var + 4, "ER", 2)) {
 			if (!strncmp(var + 6, "ID", 2)) {
@@ -1386,7 +1428,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 {
 	char *cp4;
 	const char *tmp, *whereweare;
-	int length;
+	int length, offset, offset2, isfunction;
 	char *workspace = NULL;
 	char *ltmp = NULL, *var = NULL;
 	char *nextvar, *nextexp, *nextthing;
@@ -1477,7 +1519,8 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 
 			workspace[0] = '\0';
 
-			if (var[len - 1] == ')') {
+			parse_variable_name(var, &offset, &offset2, &isfunction);
+			if (isfunction) {
 				/* Evaluate function */
 				cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE);
 
@@ -1487,6 +1530,8 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 				pbx_retrieve_variable(c, vars, &cp4, workspace, VAR_BUF_SIZE, headp);
 			}
 			if (cp4) {
+				cp4 = substring(cp4, offset, offset2, workspace, VAR_BUF_SIZE);
+
 				length = strlen(cp4);
 				if (length > count)
 					length = count;
