@@ -1969,6 +1969,16 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* For remote connections, change the name of the remote connection.
+	 * We do this for the benefit of init scripts (which need to know if/when
+	 * the main asterisk process has died yet). */
+	if (option_remote) {
+		strcpy(argv[0], "rasterisk");
+		for (x = 1; x < argc; x++) {
+			argv[x] = argv[0] + 10;
+		}
+	}
+
 	if (option_dumpcore) {
 		struct rlimit l;
 		memset(&l, 0, sizeof(l));
