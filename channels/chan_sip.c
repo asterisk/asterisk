@@ -4630,8 +4630,8 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	}
 	if (!l || (!ast_isphonenumber(l) && default_callerid[0]))
 			l = default_callerid;
-	/* if user want's his callerid restricted */
-	if ((p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED) {
+	/* if we are not sending RPID and user wants his callerid restricted */
+	if (!ast_test_flag(p, SIP_SENDRPID) && ((p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED)) {
 		l = CALLERID_UNKNOWN;
 		n = l;
 	}
