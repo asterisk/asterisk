@@ -77,7 +77,7 @@ MALLOC_DEBUG = #-include $(PWD)/include/asterisk/astmm.h
 
 # Where to install asterisk after compiling
 # Default -> leave empty
-INSTALL_PREFIX=
+INSTALL_PREFIX?=
 
 # Staging directory
 # Files are copied here temporarily during the install process
@@ -209,7 +209,7 @@ ifeq (${OSARCH},SunOS)
   M4=/usr/local/bin/m4
 endif
 
-INCLUDE=-Iinclude -I../include
+INCLUDE+=-Iinclude -I../include
 ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 ASTCFLAGS+=$(OPTIMIZE)
 
@@ -312,7 +312,7 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
 endif
 
 ifeq (${OSARCH},Linux)
-  LIBS=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
+  LIBS+=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
 else
   LIBS+=-lncurses -lm
 endif
@@ -338,7 +338,7 @@ ifeq (${OSARCH},NetBSD)
 endif
 
 ifeq (${OSARCH},OpenBSD)
-  LIBS=-lcrypto -lpthread -lm -lncurses
+  LIBS+=-lcrypto -lpthread -lm -lncurses
 endif
 
 ifeq (${OSARCH},SunOS)
@@ -488,7 +488,7 @@ clean:
 	$(MAKE) -C stdtime clean
 
 datafiles: all
-	sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig
+	if test $$(id -u) = 0; then sh mkpkgconfig $(DESTDIR)/usr/lib/pkgconfig; fi
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
 	for x in sounds/digits/*.gsm; do \
