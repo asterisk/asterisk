@@ -82,6 +82,8 @@ struct mansession {
 	int fd;
 	/*! Whether or not we're busy doing an action */
 	int busy;
+	/*! Whether or not we're "dead" */
+	int dead;
 	/*! Logged in username */
 	char username[80];
 	/*! Authentication challenge */
