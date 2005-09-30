@@ -68,7 +68,7 @@
 
 struct eventqent {
 	struct eventqent *next;
-	char eventdata[0];
+	char eventdata[1];
 };
 
 struct mansession {
