@@ -1223,11 +1223,8 @@ static int process_message(struct mansession *s, struct message *m)
 			char *authtype;
 			authtype = astman_get_header(m, "AuthType");
 			if (!strcasecmp(authtype, "MD5")) {
-				if (!s->challenge || ast_strlen_zero(s->challenge)) {
-					ast_mutex_lock(&s->__lock);
+				if (!s->challenge || ast_strlen_zero(s->challenge))
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
-					ast_mutex_unlock(&s->__lock);
-				}
 				ast_mutex_lock(&s->__lock);
 				ast_cli(s->fd, "Response: Success\r\n"
 						"%s"
@@ -1277,6 +1274,10 @@ static int process_message(struct mansession *s, struct message *m)
 			}
 			tmp = tmp->next;
 		}
+		if (!ret)
+			astman_send_error(s, m, "Invalid/unknown command");
+		else
+			ret = 0;
 		ast_mutex_lock(&s->__lock);
 		s->busy = 0;
 		while(s->eventq) {
@@ -1289,10 +1290,6 @@ static int process_message(struct mansession *s, struct message *m)
 			free(eqe);
 		}
 		ast_mutex_unlock(&s->__lock);
-		if (!ret)
-			astman_send_error(s, m, "Invalid/unknown command");
-		else
-			ret = 0;
 		return ret;
 	}
 	return 0;
