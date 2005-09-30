@@ -1357,7 +1357,7 @@ static void *session_do(void *data)
 	ast_mutex_lock(&s->__lock);
 	ast_cli(s->fd, "Asterisk Call Manager/1.0\r\n");
 	ast_mutex_unlock(&s->__lock);
-	memset(&m, 0, sizeof(&m));
+	memset(&m, 0, sizeof(m));
 	for (;;) {
 		res = get_input(s, m.headers[m.hdrcount]);
 		if (res > 0) {
@@ -1368,7 +1368,7 @@ static void *session_do(void *data)
 			if (ast_strlen_zero(m.headers[m.hdrcount])) {
 				if (process_message(s, &m))
 					break;
-				memset(&m, 0, sizeof(&m));
+				memset(&m, 0, sizeof(m));
 			} else if (m.hdrcount < MAX_HEADERS - 1)
 				m.hdrcount++;
 		} else if (res < 0)
