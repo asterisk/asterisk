@@ -670,6 +670,9 @@ oldmodcheck:
 	fi
 
 install: all datafiles bininstall
+	@if [ -x /usr/sbin/asterisk-post-install ]; then \
+		/usr/sbin/asterisk-post-install $(DESTDIR) . ; \
+	fi
 
 upgrade: all bininstall
 
