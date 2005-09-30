@@ -331,21 +331,29 @@ struct ast_variable *astman_get_variables(struct message *m)
 	return head;
 }
 
+/* NOTE:
+   Callers of astman_send_error(), astman_send_response() or astman_send_ack() must EITHER
+   hold the session lock _or_ be running in an action callback (in which case s->busy will
+   be non-zero). In either of these cases, there is no need to lock-protect the session's
+   fd, since no other output will be sent (events will be queued), and no input will
+   be read until either the current action finishes or get_input() obtains the session
+   lock.
+ */
+
 void astman_send_error(struct mansession *s, struct message *m, char *error)
 {
 	char *id = astman_get_header(m,"ActionID");
-	ast_mutex_lock(&s->__lock);
+
 	ast_cli(s->fd, "Response: Error\r\n");
 	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "Message: %s\r\n\r\n", error);
-	ast_mutex_unlock(&s->__lock);
 }
 
 void astman_send_response(struct mansession *s, struct message *m, char *resp, char *msg)
 {
 	char *id = astman_get_header(m,"ActionID");
-	ast_mutex_lock(&s->__lock);
+
 	ast_cli(s->fd, "Response: %s\r\n", resp);
 	if (id && !ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
@@ -353,7 +361,6 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 		ast_cli(s->fd, "Message: %s\r\n\r\n", msg);
 	else
 		ast_cli(s->fd, "\r\n");
-	ast_mutex_unlock(&s->__lock);
 }
 
 void astman_send_ack(struct mansession *s, struct message *m, char *msg)
@@ -1467,31 +1474,37 @@ int manager_event(int category, char *event, char *fmt, ...)
 {
 	struct mansession *s;
 	char tmp[4096];
+	char auth[256];
 	va_list ap;
 
+	authority_to_str(category, auth, sizeof(auth));
+	va_start(ap, fmt);
+	vsnprintf(tmp, sizeof(tmp) - 3, fmt, ap);
+	va_end(ap);
+	strcat(tmp, "\r\n");
+
 	ast_mutex_lock(&sessionlock);
-	s = sessions;
-	while(s) {
-		if (((s->readperm & category) == category) && ((s->send_events & category) == category)) {
-			ast_mutex_lock(&s->__lock);
-			ast_cli(s->fd, "Event: %s\r\n", event);
-			ast_cli(s->fd, "Privilege: %s\r\n", authority_to_str(category, tmp, sizeof(tmp)));
-			va_start(ap, fmt);
-			vsnprintf(tmp, sizeof(tmp) - 3, fmt, ap);
-			va_end(ap);
-			strcat(tmp, "\r\n");
-			if (s->busy) {
-				append_event(s, tmp);
-			} else if (ast_carefulwrite(s->fd,tmp,strlen(tmp),100) < 0) {
-				ast_log(LOG_WARNING, "Disconnecting slow manager session!\n");
-				s->dead = 1;
-				pthread_kill(s->t, SIGURG);
-			}
-			ast_mutex_unlock(&s->__lock);
+	for (s = sessions; s; s = s->next) {
+		if ((s->readperm & category) != category)
+			continue;
+
+		if ((s->send_events & category) != category)
+			continue;
+
+		ast_mutex_lock(&s->__lock);
+		ast_cli(s->fd, "Event: %s\r\n", event);
+		ast_cli(s->fd, "Privilege: %s\r\n", auth);
+		if (s->busy) {
+			append_event(s, tmp);
+		} else if (ast_carefulwrite(s->fd, tmp, strlen(tmp), 100) < 0) {
+			ast_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+			s->dead = 1;
+			pthread_kill(s->t, SIGURG);
 		}
-		s = s->next;
+		ast_mutex_unlock(&s->__lock);
 	}
 	ast_mutex_unlock(&sessionlock);
+
 	return 0;
 }
 
