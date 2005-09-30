@@ -761,7 +761,9 @@ static struct ast_call_queue *reload_queue_rt(const char *queuename, struct ast_
 				return q;
 			}
 		}
-	}
+	} else if (!member_config)
+		/* Not found in the list, and it's not realtime ... */
+		return NULL;
 
 	/* Check if queue is defined in realtime. */
 	if (!queue_vars) {
@@ -872,12 +874,12 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	   Thus we might see an empty member list when a queue is
 	   deleted. In practise, this is unlikely to cause a problem. */
 	queue_vars = ast_load_realtime("queues", "name", queuename, NULL);
-	if(queue_vars)
+	if (queue_vars) {
 		member_config = ast_load_realtime_multientry("queue_members", "interface LIKE", "%", "queue_name", queuename, NULL);
-	
-	if (!member_config) {
-		ast_log(LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
-		return res;
+		if (!member_config) {
+			ast_log(LOG_ERROR, "no queue_members defined in your config (extconfig.conf).\n");
+			return res;
+		}
 	}
 
 	ast_mutex_lock(&qlock);
