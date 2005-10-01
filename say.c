@@ -377,7 +377,7 @@ int ast_say_phonetic_str_full(struct ast_channel *chan, char *fn2, char *ints, c
 			default:	/* '9' falls here... */
 				ltr = fn2[num];
 				if ('A' <= ltr && ltr <= 'Z') ltr += 'a' - 'A';		/* file names are all lower-case */
-				snprintf(fn, sizeof(fn), "phonetic/%c", ltr);
+				snprintf(fn, sizeof(fn), "phonetic/%c_p", ltr);
 			}
 		/* snprintf(fn, sizeof(fn), "digits/%c", fn2[num]); */
 		res = ast_streamfile(chan, fn, lang);
