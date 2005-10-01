@@ -174,6 +174,20 @@ void ast_copy_string(char *dst, const char *src, size_t size),
 */
 int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 
+/*!
+  \brief Build a string in a buffer, designed to be called repeatedly
+  
+  This is a wrapper for snprintf, that properly handles the buffer pointer
+  and buffer space available.
+
+  \return 0 on success, non-zero on failure.
+  \param buffer current position in buffer to place string into (will be updated on return)
+  \param space remaining space in buffer (will be updated on return)
+  \param fmt printf-style format string
+  \param ap varargs list of arguments for format
+*/
+int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap);
+
 /*! Make sure something is true */
 /*!
  * Determine if a string containing a boolean value is "true".

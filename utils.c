@@ -522,17 +522,14 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes)
 	return s;
 }
 
-int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
+int ast_build_string_va(char **buffer, size_t *space, const char *fmt, va_list ap)
 {
-	va_list ap;
 	int result;
 
 	if (!buffer || !*buffer || !space || !*space)
 		return -1;
 
-	va_start(ap, fmt);
 	result = vsnprintf(*buffer, *space, fmt, ap);
-	va_end(ap);
 
 	if (result < 0)
 		return -1;
@@ -542,6 +539,18 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
 	*buffer += result;
 	*space -= result;
 	return 0;
+}
+
+int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
+{
+	va_list ap;
+	int result;
+
+	va_start(ap, fmt);
+	result = ast_build_string_va(buffer, space, fmt, ap);
+	va_end(ap);
+
+	return result;
 }
 
 int ast_true(const char *s)
