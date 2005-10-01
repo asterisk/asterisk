@@ -214,7 +214,6 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o 
 ifeq (${OSARCH},Darwin)
-OBJS+=poll.o dlfcn.o
 ASTLINK=-Wl,-dynamic
 SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
 else
@@ -222,10 +221,18 @@ ASTLINK=-Wl,-E
 SOLINK=-shared -Xlinker -x
 endif
 
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sys/poll.h),)
+  OBJS+= poll.o
+  CFLAGS+=-DPOLLCOMPAT
+endif
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
+  OBJS+= dhfcn.o
+  CFLAGS+=-DDLFCNCOMPAT
+endif
+
 CC=gcc
 INSTALL=install
-
-CFLAGS+=$(shell if uname -r|grep -q 8.2.0 ; then echo " -DOSX10_4 " ; fi)
 
 _all: all
 	@echo " +--------- Asterisk Build Complete ---------+"  

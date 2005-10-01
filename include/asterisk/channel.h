@@ -19,7 +19,7 @@
 #include <asterisk/chanvars.h>
 #include <unistd.h>
 #include <setjmp.h>
-#if !defined(OSX10_4) && defined(__APPLE__)
+#ifdef POLLCOMPAT
 #include <asterisk/poll-compat.h>
 #else
 #include <sys/poll.h>

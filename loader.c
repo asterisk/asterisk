@@ -27,7 +27,7 @@
 #include <asterisk/enum.h>
 #include <asterisk/rtp.h>
 #include <asterisk/lock.h>
-#ifdef __APPLE__
+#ifdef DLFCNCOMPAT
 #include <asterisk/dlfcn-compat.h>
 #else
 #include <dlfcn.h>

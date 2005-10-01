@@ -14,7 +14,7 @@
 #ifndef _IO_H
 #define _IO_H
 
-#if !defined(OSX10_4) && defined(__APPLE__)
+#ifdef POLLCOMPAT
 #include <asterisk/poll-compat.h>
 #else
 #include <sys/poll.h>		/* For POLL* constants */
