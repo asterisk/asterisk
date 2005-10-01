@@ -15,7 +15,8 @@ attach=yes
 ;maxmsg=100
 ; Maximum length of a voicemail message in seconds
 ;maxmessage=180
-; Minimum length of a voicemail message in seconds
+; Minimum length of a voicemail message in seconds for the message to be kept
+; The default is no minimum.
 ;minmessage=3
 ; Maximum length of greetings in seconds
 ;maxgreet=60
