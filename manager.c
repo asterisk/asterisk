@@ -1281,7 +1281,7 @@ static int process_message(struct mansession *s, struct message *m)
 			}
 			tmp = tmp->next;
 		}
-		if (!ret)
+		if (!tmp)
 			astman_send_error(s, m, "Invalid/unknown command");
 		else
 			ret = 0;
