@@ -1474,17 +1474,10 @@ int manager_event(int category, char *event, char *fmt, ...)
 {
 	struct mansession *s;
 	char auth[80];
-	char tmp[4096];
+	char tmp[4096] = "";
 	char *tmp_next = tmp;
 	size_t tmp_left = sizeof(tmp) - 2;
 	va_list ap;
-
-	ast_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
-			 event, authority_to_str(category, auth, sizeof(auth)));
-	va_start(ap, fmt);
-	ast_build_string_va(&tmp_next, &tmp_left, fmt, ap);
-	va_end(ap);
-	strcat(tmp, "\r\n");
 
 	ast_mutex_lock(&sessionlock);
 	for (s = sessions; s; s = s->next) {
@@ -1494,10 +1487,21 @@ int manager_event(int category, char *event, char *fmt, ...)
 		if ((s->send_events & category) != category)
 			continue;
 
+		if (ast_strlen_zero(tmp)) {
+			ast_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
+					 event, authority_to_str(category, auth, sizeof(auth)));
+			va_start(ap, fmt);
+			ast_build_string_va(&tmp_next, &tmp_left, fmt, ap);
+			va_end(ap);
+			*tmp_next++ = '\r';
+			*tmp_next++ = '\n';
+			*tmp_next = '\0';
+		}
+
 		ast_mutex_lock(&s->__lock);
 		if (s->busy) {
 			append_event(s, tmp);
-		} else if (ast_carefulwrite(s->fd, tmp, sizeof(tmp) - tmp_left + 1, 100) < 0) {
+		} else if (ast_carefulwrite(s->fd, tmp, tmp_next - tmp, 100) < 0) {
 			ast_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
 			s->dead = 1;
 			pthread_kill(s->t, SIGURG);
