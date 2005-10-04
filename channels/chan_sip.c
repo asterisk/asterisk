@@ -10103,7 +10103,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		if (required_profile) { 	/* They require something */
 			/* At this point we support no extensions, so fail */
 			transmit_response_with_unsupported(p, "420 Bad extension", req, required);
-			ast_set_flag(p, SIP_NEEDDESTROY);	
+			if (!p->lastinvite)
+				ast_set_flag(p, SIP_NEEDDESTROY);	
 			return -1;
 			
 		}
@@ -10136,7 +10137,8 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 				if (process_sdp(p, req)) {
 					transmit_response(p, "488 Not acceptable here", req);
-					ast_set_flag(p, SIP_NEEDDESTROY);	
+					if (!p->lastinvite)
+						ast_set_flag(p, SIP_NEEDDESTROY);	
 					return -1;
 				}
 			} else {
