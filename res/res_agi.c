@@ -962,7 +962,11 @@ static int handle_recordfile(struct ast_channel *chan, AGI *agi, int argc, char 
 			switch(f->frametype) {
 			case AST_FRAME_DTMF:
 				if (strchr(argv[4], f->subclass)) {
-					/* This is an interrupting chracter */
+					/* This is an interrupting chracter, so rewind to chop off any small
+					   amount of DTMF that may have been recorded
+					*/
+					ast_stream_rewind(fs, 200);
+					ast_truncstream(fs);
 					sample_offset = ast_tellstream(fs);
 					fdprintf(agi->fd, "200 result=%d (dtmf) endpos=%ld\n", f->subclass, sample_offset);
 					ast_closestream(fs);
