@@ -637,6 +637,7 @@ static struct sip_pvt {
 #ifdef OSP_SUPPORT
 	int osphandle;				/* OSP Handle for call */
 	time_t ospstart;			/* OSP Start time */
+	unsigned int osptimelimit;		/* OSP call duration limit */
 #endif
 	struct sip_request initreq;		/* Initial request */
 	
@@ -2666,6 +2667,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	struct ast_channel *tmp;
 	struct ast_variable *v = NULL;
 	int fmt;
+#ifdef OSP_SUPPORT
+	char iabuf[INET_ADDRSTRLEN];
+	char peer[MAXHOSTNAMELEN];
+#endif	
 	
 	ast_mutex_unlock(&i->lock);
 	/* Don't hold a sip pvt lock while we allocate a channel */
@@ -2757,6 +2762,10 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	if (!ast_strlen_zero(i->callid)) {
 		pbx_builtin_setvar_helper(tmp, "SIPCALLID", i->callid);
 	}
+#ifdef OSP_SUPPORT
+	snprintf(peer, sizeof(peer), "[%s]:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), i->sa.sin_addr), ntohs(i->sa.sin_port));
+	pbx_builtin_setvar_helper(tmp, "OSPPEER", peer);
+#endif
 	ast_setstate(tmp, state);
 	if (state != AST_STATE_DOWN) {
 		if (ast_pbx_start(tmp)) {
@@ -2975,6 +2984,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		p->timer_t1 = 500;	/* Default SIP retransmission timer T1 (RFC 3261) */
 #ifdef OSP_SUPPORT
 	p->osphandle = -1;
+	p->osptimelimit = 0;
 #endif	
 	if (sin) {
 		memcpy(&p->sa, sin, sizeof(p->sa));
@@ -5957,6 +5967,22 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 		list_route(p->route);
 }
 
+#ifdef OSP_SUPPORT
+/*--- check_osptoken: Validate OSP token for user authrroization ---*/
+static int check_osptoken (struct sip_pvt *p, char *token)
+{
+	char tmp[80];
+
+	if (ast_osp_validate (NULL, token, &p->osphandle, &p->osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
+		return (-1);
+	} else {
+		snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
+		pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
+		return (0);
+	}
+}
+#endif
+
 /*--- check_auth: Check user authorization from peer definition ---*/
 /*      Some actions, like REGISTER and INVITEs from peers require
         authentication (if peer have secret set) */
@@ -5968,9 +5994,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 	char *respheader = "Proxy-Authenticate";
 	char *authtoken;
 #ifdef OSP_SUPPORT
-	char tmp[80];
 	char *osptoken;
-	unsigned int osptimelimit;
 #endif
 	/* Always OK if no secret */
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)
@@ -6002,14 +6026,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 					}
 				}
 				else {
-					if (ast_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
-						return (-1);
-					} 
-					else {
-						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
-						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
-						return (0);
-					}
+					return (check_osptoken (p, osptoken));
 				}
 				break;
 			case SIP_OSPAUTH_PROXY:
@@ -6017,14 +6034,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 					return (0);
 				} 
 				else {
-					if (ast_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
-						return (-1);
-					} 
-					else {
-						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
-						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
-						return (0);
-					}
+					return (check_osptoken (p, osptoken));
 				}
 				break;
 			case SIP_OSPAUTH_EXCLUSIVE:
@@ -6032,14 +6042,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 					return (-1);
 				}
 				else {
-					if (ast_osp_validate (NULL, osptoken, &p->osphandle, &osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
-						return (-1);
-					} 
-					else {
-						snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
-						pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
-						return (0);
-					}
+					return (check_osptoken (p, osptoken));
 				}
 				break;
 			default:
@@ -10243,6 +10246,9 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	if (!ignore && p)
 		p->lastinvite = seqno;
 	if (c) {
+#ifdef OSP_SUPPORT
+		ast_channel_setwhentohangup (c, p->osptimelimit);
+#endif
 		switch(c->_state) {
 		case AST_STATE_DOWN:
 			transmit_response(p, "100 Trying", req);

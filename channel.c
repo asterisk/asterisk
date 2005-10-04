@@ -273,6 +273,31 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 	return;
 }
 
+/*--- ast_channel_cmpwhentohangup: Compare a offset with when to hangup channel */
+int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset)
+{
+	time_t whentohangup;
+
+	if (chan->whentohangup == 0) {
+		if (offset == 0)
+			return (0);
+		else
+			return (-1);
+	} else { 
+		if (offset == 0)
+			return (1);
+		else {
+			whentohangup = offset + time (NULL);
+			if (chan->whentohangup < whentohangup)
+				return (1);
+			else if (chan->whentohangup == whentohangup)
+				return (0);
+			else
+				return (-1);
+		}
+	}
+}
+
 /*--- ast_channel_register: Register a new telephony channel in Asterisk */
 int ast_channel_register(const struct ast_channel_tech *tech)
 {

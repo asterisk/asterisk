@@ -521,7 +521,6 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	int tokenlen;
 	unsigned int dummy=0;
 	unsigned int timelimit;
-	char* sipcallid;
 	unsigned int callidlen;
 	char callidstr[OSPC_CALLID_MAXSIZE] = "";
 	struct osp_provider *osp;
@@ -531,9 +530,9 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	char destination[2048]="";
 	char token[2000];
 	char tmp[256]="", *l, *n;
-	OSPTCALLID *callid;
 	OSPE_DEST_PROT prot;
 	OSPE_DEST_OSP_ENABLED ospenabled;
+	char *devinfo = NULL;
 
 	result->handle = -1;
 	result->numresults = 0;
@@ -558,8 +557,6 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	callerid = l;
 
 	if (chan) {
-		sipcallid = pbx_builtin_getvar_helper (chan, "SIPCALLID");
-		ast_copy_string(callidstr, sipcallid, sizeof(callidstr));
 		cres = ast_autoservice_start(chan);
 		if (cres < 0)
 			return cres;
@@ -581,67 +578,71 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	ast_mutex_unlock(&osplock);
 	if (res) {
 		res = 0;
-		callid = OSPPCallIdNew(strlen(callidstr), callidstr);
-		if (callid) {
-			/* No more than 10 back */
-			counts = 10;
-			dummy = 0;
-			callidlen = sizeof(callidstr);
-			if (!OSPPTransactionRequestAuthorisation(result->handle, source, "", 
-				  callerid,OSPC_E164, extension, OSPC_E164, NULL, 1, &callid, NULL, &counts, &dummy, NULL)) {
-				if (counts) {
-					tokenlen = sizeof(token);
-					result->numresults = counts - 1;
-					if (!OSPPTransactionGetFirstDestination(result->handle, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
-						sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
-						ast_log(LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
-							destination, callednum, callingnum, extension, provider);
-						ast_channel_setwhentohangup (chan, timelimit);	/* Only support OSP server with only one duration limit */
-						do {
-							if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {
-								result->token[0] = 0;
-							}
-							else {
-								ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
-							}
-							if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
-								res = 1;
-								/* Strip leading and trailing brackets */
-								destination[strlen(destination) - 1] = '\0';
-								switch(prot) {
-								case OSPE_DEST_PROT_H323_SETUP:
-									ast_copy_string(result->tech, "H323", sizeof(result->tech));
-									snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-									break;
-								case OSPE_DEST_PROT_SIP:
-									ast_copy_string(result->tech, "SIP", sizeof(result->tech));
-									snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-									break;
-								case OSPE_DEST_PROT_IAX:
-									ast_copy_string(result->tech, "IAX", sizeof(result->tech));
-									snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-									break;
-								default:
-									ast_log(LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
-									res = 0;
-								}
-								if (!res && result->numresults) {
-									result->numresults--;
-									if (OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
-											sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
-											break;
-									}
-								}
-							} else {
-								ast_log(LOG_DEBUG, "Missing destination protocol\n");
-								break;
-							}
-						} while(!res && result->numresults);
+		/* No more than 10 back */
+		counts = 10;
+		dummy = 0;
+		devinfo = pbx_builtin_getvar_helper (chan, "OSPPEER");
+		if (!devinfo) {
+			devinfo = "";
+		}
+		if (!OSPPTransactionRequestAuthorisation(result->handle, source, devinfo, 
+			  callerid,OSPC_E164, extension, OSPC_E164, NULL, 0, NULL, NULL, &counts, &dummy, NULL)) {
+			if (counts) {
+				tokenlen = sizeof(token);
+				result->numresults = counts - 1;
+				callidlen = sizeof(callidstr);
+				if (!OSPPTransactionGetFirstDestination(result->handle, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
+					sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
+					ast_log(LOG_DEBUG, "Got destination '%s' and called: '%s' calling: '%s' for '%s' (provider '%s')\n",
+						destination, callednum, callingnum, extension, provider);
+					/* Only support OSP server with only one duration limit */
+					if (ast_channel_cmpwhentohangup (chan, timelimit) < 0) {
+						ast_channel_setwhentohangup (chan, timelimit);	
 					}
+					do {
+						if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {
+							result->token[0] = 0;
+						}
+						else {
+							ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
+						}
+						if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
+							res = 1;
+							/* Strip leading and trailing brackets */
+							destination[strlen(destination) - 1] = '\0';
+							switch(prot) {
+							case OSPE_DEST_PROT_H323_SETUP:
+								ast_copy_string(result->tech, "H323", sizeof(result->tech));
+								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
+								break;
+							case OSPE_DEST_PROT_SIP:
+								ast_copy_string(result->tech, "SIP", sizeof(result->tech));
+								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
+								break;
+							case OSPE_DEST_PROT_IAX:
+								ast_copy_string(result->tech, "IAX", sizeof(result->tech));
+								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
+								break;
+							default:
+								ast_log(LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
+								res = 0;
+							}
+							if (!res && result->numresults) {
+								result->numresults--;
+								callidlen = sizeof(callidstr);
+								if (OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
+										sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
+										break;
+								}
+							}
+						} else {
+							ast_log(LOG_DEBUG, "Missing destination protocol\n");
+							break;
+						}
+					} while(!res && result->numresults);
 				}
-				
 			}
-			OSPPCallIdDelete(&callid);
+			
 		}
 		if (!res) {
 			OSPPTransactionDelete(result->handle);
@@ -680,11 +681,11 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 
 	if (result->handle > -1) {
 		dummy = 0;
-		callidlen = sizeof(callidstr);
 		if (result->numresults) {
 			tokenlen = sizeof(token);
 			while(!res && result->numresults) {
 				result->numresults--;
+				callidlen = sizeof(callidstr);
 				if (!OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
 									sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
 					if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {

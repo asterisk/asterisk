@@ -562,6 +562,18 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause);
  */
 int ast_check_hangup(struct ast_channel *chan);
 
+/*! Compare a offset with the settings of when to hang a channel up */
+/*! 
+ * \param chan channel on which to check for hang up
+ * \param offset offset in seconds from current time
+ * \return 1, 0, or -1
+ * This function compares a offset from current time with the absolute time 
+ * out on a channel (when to hang up). If the absolute time out on a channel
+ * is earlier than current time plus the offset, it returns 1, if the two
+ * time values are equal, it return 0, otherwise, it retturn -1.
+ */
+int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset);
+
 /*! Set when to hang a channel up */
 /*! 
  * \param chan channel on which to check for hang up
