@@ -6177,14 +6177,17 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 		ast_md5_hash(resp_hash, resp);
 
 		if (wrongnonce) {
-			ast_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
 
 			snprintf(randdata, randlen, "%08x", rand());
 			if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash))) {
+				if (sipdebug)
+					ast_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
 				/* We got working auth token, based on stale nonce . */
 				transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 1);
 			} else {
-				/* Everything was wrong, so give the device one more try */
+				/* Everything was wrong, so give the device one more try with a new challenge */
+				if (sipdebug)
+					ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
 				transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
 			}
 
