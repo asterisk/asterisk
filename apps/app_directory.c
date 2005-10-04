@@ -411,11 +411,10 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	char *context, *dialcontext, *dirintro, *options;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "directory requires an argument (context[,dialcontext])\n");
+		ast_log(LOG_WARNING, "Directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
 
-top:
 	context = ast_strdupa(data);
 	dialcontext = strchr(context, '|');
 	if (dialcontext) {
@@ -446,24 +445,29 @@ top:
 		else
 			dirintro = "dir-intro-fn";
 	}
+
 	if (chan->_state != AST_STATE_UP) 
 		res = ast_answer(chan);
-	if (!res)
-		res = ast_streamfile(chan, dirintro, chan->language);
-	if (!res)
-		res = ast_waitstream(chan, AST_DIGIT_ANY);
-	ast_stopstream(chan);
-	if (!res)
-		res = ast_waitfordigit(chan, 5000);
-	if (res > 0) {
-		res = do_directory(chan, cfg, context, dialcontext, res, last);
-		if (res > 0) {
+
+	for (;;) {
+		if (!res)
+			res = ast_streamfile(chan, dirintro, chan->language);
+		if (!res)
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
-			ast_stopstream(chan);
-			if (res >= 0) {
-				goto top;
+		ast_stopstream(chan);
+		if (!res)
+			res = ast_waitfordigit(chan, 5000);
+		if (res > 0) {
+			res = do_directory(chan, cfg, context, dialcontext, res, last);
+			if (res > 0) {
+				res = ast_waitstream(chan, AST_DIGIT_ANY);
+				ast_stopstream(chan);
+				if (res >= 0) {
+					continue;
+				}
 			}
 		}
+		break;
 	}
 	ast_config_destroy(cfg);
 	LOCAL_USER_REMOVE(u);
