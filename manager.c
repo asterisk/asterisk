@@ -1283,8 +1283,6 @@ static int process_message(struct mansession *s, struct message *m)
 		}
 		if (!tmp)
 			astman_send_error(s, m, "Invalid/unknown command");
-		else
-			ret = 0;
 		ast_mutex_lock(&s->__lock);
 		s->busy = 0;
 		while(s->eventq) {
