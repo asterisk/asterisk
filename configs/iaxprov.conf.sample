@@ -1,25 +1,22 @@
 ;
 ; IAX2 Provisioning Information
 ;
-; Contains provisioning information for templates
-; and for specific service entries.
+; Contains provisioning information for templates and for specific service
+; entries.
 ;
-; Templates provide a group of settings from which provisioning takes
-; place.  A template may be based upon any template that has been
-; specified before it.  If the template that an entry is based on is not
-; specified then it is presumed to be 'default' (unless it is the first
-; of course).  
+; Templates provide a group of settings from which provisioning takes place.
+; A template may be based upon any template that has been specified before
+; it.  If the template that an entry is based on is not specified then it is
+; presumed to be 'default' (unless it is the first of course).  
 ;
-; Templates which begin with 'si-' are used for provisioning 
-; units with specific service identifiers.  For example the
-; entry "si-000364000126" would be used when the device with the
-; corresponding service identifier of "000364000126" attempts
-; to register or make a call.
+; Templates which begin with 'si-' are used for provisioning units with
+; specific service identifiers.  For example the entry "si-000364000126"
+; would be used when the device with the corresponding service identifier of
+; "000364000126" attempts to register or make a call.
 ;
 [default]
 ;
-; The port number the device should use to bind to.  The default
-; is 4569
+; The port number the device should use to bind to.  The default is 4569.
 ;
 ;port=4569
 ;
@@ -27,14 +24,13 @@
 ;
 ;server=192.168.69.3
 ;
-; altserver is the BACKUP server for registration and placing calls
-; in the event the primary server is unavailable.
+; altserver is the BACKUP server for registration and placing calls in the
+; event the primary server is unavailable.
 ;
 ;altserver=192.168.69.4
 ;
-; port is the port number to use for IAX2 outbound.  The 
-; connections to the server and altserver -- default is of course
-; 4569.
+; port is the port number to use for IAX2 outbound.  The connections to the
+; server and altserver -- default is of course 4569.
 ;serverport=4569
 ;
 ; language is the preferred language for the device
@@ -78,9 +74,10 @@ tos=lowdelay
 ;
 ;[*]
 ;
-;  If specified, the '*' provisioning is used for all devices which do
-;  not have another provisioning entry within the file.  If unspecified, no
+;  If specified, the '*' provisioning is used for all devices which do not
+;  have another provisioning entry within the file.  If unspecified, no
 ;  provisioning will take place for devices which have no entry.  DO NOT
 ;  USE A '*' PROVISIONING ENTRY UNLESS YOU KNOW WHAT YOU'RE DOING.
 ;
 ;template=default
+

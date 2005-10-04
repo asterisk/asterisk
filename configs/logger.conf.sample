@@ -16,10 +16,12 @@
 ; This appends the hostname to the name of the log files.
 ;appendhostname = yes
 ;
-; This determines whether or not we log queue events to a file (defaults to yes).
+; This determines whether or not we log queue events to a file
+; (defaults to yes).
 ;queue_log = no
 ;
-; This determines whether or not we log generic events to a file (defaults to yes).
+; This determines whether or not we log generic events to a file
+; (defaults to yes).
 ;event_log = no
 ;
 ;
@@ -44,17 +46,16 @@
 ;
 ; Special filename "console" represents the system console
 ;
-; We highly recommend that you DO NOT turn on debug mode if you
-; are simply running a production system.  Debug mode turns on a
-; LOT of extra messages, most of which you are unlikely to understand
-; without an understanding of the underlying code.  Do NOT report
-; debug messages as code issues, unless you have a specific issue that
-; you are attempting to debug.  They are messages for just that --
-; debugging -- and do not rise to the level of something that merit
-; your attention as an Asterisk administrator.  Debug messages are also
-; very verbose and can and do fill up logfiles quickly; this is another
-; reason not to have debug mode on a production system unless you are
-; in the process of debugging a specific issue.
+; We highly recommend that you DO NOT turn on debug mode if you are simply
+; running a production system.  Debug mode turns on a LOT of extra messages,
+; most of which you are unlikely to understand without an understanding of
+; the underlying code.  Do NOT report debug messages as code issues, unless
+; you have a specific issue that you are attempting to debug.  They are
+; messages for just that -- debugging -- and do not rise to the level of
+; something that merit your attention as an Asterisk administrator.  Debug
+; messages are also very verbose and can and do fill up logfiles quickly;
+; this is another reason not to have debug mode on a production system unless
+; you are in the process of debugging a specific issue.
 ;
 ;debug => debug
 console => notice,warning,error

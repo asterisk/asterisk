@@ -103,9 +103,9 @@ switchtype=national
 ;privateprefix = +497115678
 ;unknownprefix = 
 ;
-; PRI resetinterval: sets the time in seconds between restart of unused channels, defaults to 3600
-; minimum 60 seconds
-; some PBXs don't like channel restarts. so set the interval to a very long interval e.g. 100000000
+; PRI resetinterval: sets the time in seconds between restart of unused
+; channels, defaults to 3600; minimum 60 seconds.  Some PBXs don't like
+; channel restarts. so set the interval to a very long interval e.g. 100000000
 ; or 'never' to disable *entirely*.
 ;
 ;resetinterval = 3600 
@@ -129,58 +129,66 @@ switchtype=national
 ; priexclusive = yes
 ;
 ; ISDN Timers
-; All of the ISDN timers and counters that are used are configurable.  Specify 
-; the timer name, and its value (in ms for timers)
+; All of the ISDN timers and counters that are used are configurable.  Specify
+; the timer name, and its value (in ms for timers).
 ;
 ; pritimer => t200,1000
 ; pritimer => t313,4000
 ;
 ; To enable transmission of facility-based ISDN supplementary services (such
-; as caller name from CPE over facility) enable this option.
+; as caller name from CPE over facility), enable this option.
 ; facilityenable = yes
 ;
 ;
 ; Signalling method (default is fxs).  Valid values:
-; em:      E & M
-; em_w:    E & M Wink
-; featd:   Feature Group D (The fake, Adtran style, DTMF)
-; featdmf: Feature Group D (The real thing, MF (domestic, US))
-; featdmf_ta : Feature Group D (The real thing, MF (domestic, US)) through a Tandem Access point
-; featb:   Feature Group B (MF (domestic, US))
-; fxs_ls:  FXS (Loop Start)
-; fxs_gs:  FXS (Ground Start)
-; fxs_ks:  FXS (Kewl Start)
-; fxo_ls:  FXO (Loop Start)
-; fxo_gs:  FXO (Ground Start)
-; fxo_ks:  FXO (Kewl Start)
-; pri_cpe: PRI signalling, CPE side
-; pri_net: PRI signalling, Network side
+; em:             E & M
+; em_w:           E & M Wink
+; featd:          Feature Group D (The fake, Adtran style, DTMF)
+; featdmf:        Feature Group D (The real thing, MF (domestic, US))
+; featdmf_ta:     Feature Group D (The real thing, MF (domestic, US)) through
+;                 a Tandem Access point
+; featb:          Feature Group B (MF (domestic, US))
+; fxs_ls:         FXS (Loop Start)
+; fxs_gs:         FXS (Ground Start)
+; fxs_ks:         FXS (Kewl Start)
+; fxo_ls:         FXO (Loop Start)
+; fxo_gs:         FXO (Ground Start)
+; fxo_ks:         FXO (Kewl Start)
+; pri_cpe:        PRI signalling, CPE side
+; pri_net:        PRI signalling, Network side
 ; gr303fxoks_net: GR-303 Signalling, FXO Loopstart, Network side
 ; gr303fxsks_cpe: GR-303 Signalling, FXS Loopstart, CPE side
-; sf:	      SF (Inband Tone) Signalling
-; sf_w:	      SF Wink
-; sf_featd:   SF Feature Group D (The fake, Adtran style, DTMF)
-; sf_featdmf: SF Feature Group D (The real thing, MF (domestic, US))
-; sf_featb:   SF Feature Group B (MF (domestic, US))
-; e911:    E911 (MF) style signalling
+; sf:	          SF (Inband Tone) Signalling
+; sf_w:	          SF Wink
+; sf_featd:       SF Feature Group D (The fake, Adtran style, DTMF)
+; sf_featdmf:     SF Feature Group D (The real thing, MF (domestic, US))
+; sf_featb:       SF Feature Group B (MF (domestic, US))
+; e911:           E911 (MF) style signalling
+;
 ; The following are used for Radio interfaces:
-; fxs_rx:  Receive audio/COR on an FXS kewlstart interface (FXO at the channel bank)
-; fxs_tx:  Transmit audio/PTT on an FXS loopstart interface (FXO at the channel bank)
-; fxo_rx:  Receive audio/COR on an FXO loopstart interface (FXS at the channel bank)
-; fxo_tx:  Transmit audio/PTT on an FXO groundstart interface (FXS at the channel bank)
-; em_rx:   Receive audio/COR on an E&M interface (1-way)
-; em_tx:   Transmit audio/PTT on an E&M interface (1-way)
-; em_txrx: Receive audio/COR AND Transmit audio/PTT on an E&M interface (2-way)
-; em_rxtx: same as em_txrx (for our dyslexic friends)
-; sf_rx:   Receive audio/COR on an SF interface (1-way)
-; sf_tx:   Transmit audio/PTT on an SF interface (1-way)
-; sf_txrx: Receive audio/COR AND Transmit audio/PTT on an SF interface (2-way)
-; sf_rxtx: same as sf_txrx (for our dyslexic friends)
+; fxs_rx:         Receive audio/COR on an FXS kewlstart interface (FXO at the
+;                 channel bank)
+; fxs_tx:         Transmit audio/PTT on an FXS loopstart interface (FXO at the
+;                 channel bank)
+; fxo_rx:         Receive audio/COR on an FXO loopstart interface (FXS at the
+;                 channel bank)
+; fxo_tx:         Transmit audio/PTT on an FXO groundstart interface (FXS at
+;                 the channel bank)
+; em_rx:          Receive audio/COR on an E&M interface (1-way)
+; em_tx:          Transmit audio/PTT on an E&M interface (1-way)
+; em_txrx:        Receive audio/COR AND Transmit audio/PTT on an E&M interface
+;                 (2-way)
+; em_rxtx:        Same as em_txrx (for our dyslexic friends)
+; sf_rx:          Receive audio/COR on an SF interface (1-way)
+; sf_tx:          Transmit audio/PTT on an SF interface (1-way)
+; sf_txrx:        Receive audio/COR AND Transmit audio/PTT on an SF interface
+;                 (2-way)
+; sf_rxtx:        Same as sf_txrx (for our dyslexic friends)
 ;
 signalling=fxo_ls
 ;
-; For Feature Group D Tandem access, to set the default CIC and OZZ use
-; these parameters:
+; For Feature Group D Tandem access, to set the default CIC and OZZ use these
+; parameters:
 ;defaultozz=0000
 ;defaultcic=303
 ;
@@ -197,7 +205,8 @@ signalling=fxo_ls
 ;
 rxwink=300		; Atlas seems to use long (250ms) winks
 ;
-; How long generated tones (DTMF and MF) will be played on the channel (in miliseconds)
+; How long generated tones (DTMF and MF) will be played on the channel
+; (in miliseconds)
 ;toneduration=100
 ;
 ; Whether or not to do distinctive ring detection on FXO lines
@@ -210,12 +219,15 @@ rxwink=300		; Atlas seems to use long (250ms) winks
 usecallerid=yes
 ;
 ; Type of caller ID signalling in use
-; bell = bell202 as used in US, v23 = v23 as used in the UK, dtmf = DTMF as used in Denmark, Sweden and Netherlands
+;     bell     = bell202 as used in US
+;     v23      = v23 as used in the UK
+;     dtmf     = DTMF as used in Denmark, Sweden and Netherlands
 ;
 ;cidsignalling=bell
 ;
 ; What signals the start of caller ID
-; ring = a ring signals the start, polarity = polarity reversal signals the start
+;     ring     = a ring signals the start
+;     polarity = polarity reversal signals the start
 ;
 ;cidstart=ring
 ;
@@ -227,12 +239,14 @@ hidecallerid=no
 ;
 callwaiting=yes
 ;
-; Whether or not restrict outgoing caller ID (will be sent as ANI only, not available for the user)
+; Whether or not restrict outgoing caller ID (will be sent as ANI only, not
+; available for the user)
 ; Mostly use with FXS ports
 ;
 ;restrictcid=no
 ;
-; Whether or not use the caller ID presentation for the outgoing call that the calling switch is sending
+; Whether or not use the caller ID presentation for the outgoing call that the
+; calling switch is sending.
 ;
 usecallingpres=yes
 ;
@@ -271,31 +285,29 @@ callreturn=yes
 ;
 ; Stutter dialtone support: If a mailbox is specified without a voicemail 
 ; context, then when voicemail is received in a mailbox in the default 
-; voicemail context in voicemail.conf, taking the phone off hook will 
-; cause a stutter dialtone instead of a normal one. 
+; voicemail context in voicemail.conf, taking the phone off hook will cause a
+; stutter dialtone instead of a normal one. 
 ;
-; If a mailbox is specified *with* a voicemail context, the same will 
-; result if voicemail recieved in mailbox in the specified voicemail 
-; context
+; If a mailbox is specified *with* a voicemail context, the same will result
+; if voicemail recieved in mailbox in the specified voicemail context.
 ;
 ; for default voicemail context, the example below is fine:
 ;
 ;mailbox=1234
 ;
-; for any other voicemail context, the following will produce the 
-; stutter tone:
+; for any other voicemail context, the following will produce the stutter tone:
 ;
 ;mailbox=1234@context 
 ;
 ; Enable echo cancellation 
-; Use either "yes", "no", or a power of two from 32 to 256 if you wish
-; to actually set the number of taps of cancellation.
+; Use either "yes", "no", or a power of two from 32 to 256 if you wish to
+; actually set the number of taps of cancellation.
 ;
 echocancel=yes
 ;
-; Generally, it is not necessary (and in fact undesirable) to echo cancel
-; when the circuit path is entirely TDM.  You may, however, reverse this
-; behavior by enabling the echo cancel during pure TDM bridging below.
+; Generally, it is not necessary (and in fact undesirable) to echo cancel when
+; the circuit path is entirely TDM.  You may, however, reverse this behavior
+; by enabling the echo cancel during pure TDM bridging below.
 ;
 echocancelwhenbridged=yes
 ;
@@ -309,10 +321,9 @@ echocancelwhenbridged=yes
 ;echotraining=yes
 ;echotraining=800
 ;
-; If you are having trouble with DTMF detection, you can relax the
-; DTMF detection parameters.  Relaxing them may make the DTMF detector
-; more likely to have "talkoff" where DTMF is detected when it
-; shouldn't be.
+; If you are having trouble with DTMF detection, you can relax the DTMF
+; detection parameters.  Relaxing them may make the DTMF detector more likely
+; to have "talkoff" where DTMF is detected when it shouldn't be.
 ;
 ;relaxdtmf=yes
 ;
@@ -321,8 +332,8 @@ echocancelwhenbridged=yes
 rxgain=0.0
 txgain=0.0
 ;
-; Logical groups can be assigned to allow outgoing rollover.  Groups
-; range from 0 to 63, and multiple groups can be specified.
+; Logical groups can be assigned to allow outgoing rollover.  Groups range
+; from 0 to 63, and multiple groups can be specified.
 ;
 group=1
 ;
@@ -335,19 +346,18 @@ callgroup=1
 pickupgroup=1
 
 ;
-; Specify whether the channel should be answered immediately or
-; if the simple switch should provide dialtone, read digits, etc.
+; Specify whether the channel should be answered immediately or if the simple
+; switch should provide dialtone, read digits, etc.
 ;
 immediate=no
 ;
-; Specify whether flash-hook transfers to 'busy' channels should complete
-; or return to the caller performing the transfer (default is yes).
+; Specify whether flash-hook transfers to 'busy' channels should complete or
+; return to the caller performing the transfer (default is yes).
 ;
 ;transfertobusy=no
 ;
-; CallerID can be set to "asreceived" or a specific number
-; if you want to override it.  Note that "asreceived" only
-; applies to trunk interfaces.
+; CallerID can be set to "asreceived" or a specific number if you want to
+; override it.  Note that "asreceived" only applies to trunk interfaces.
 ;
 ;callerid=2564286000
 ;
@@ -373,39 +383,36 @@ immediate=no
 ;
 ;busydetect=yes
 ;
-; If busydetect is enabled, is also possible to specify how many
-; busy tones to wait for before hanging up. The default is 4, but
-; better results can be achieved if set to 6 or even 8. Mind that
-; higher the number, more time is needed to hangup a channel, but
-; lower is probability to get random hangups
+; If busydetect is enabled, it is also possible to specify how many busy tones
+; to wait for before hanging up.  The default is 4, but better results can be
+; achieved if set to 6 or even 8.  Mind that the higher the number, the more
+; time that will be needed to hangup a channel, but lowers the probability
+; that you will get random hangups.
 ;
 ;busycount=4
 ;
-; If busydetect is enabled, is also possible to specify the
-; cadence of your busy signal.  In many countries it is 500mec
-; on, 500msec off.
-; Without busypattern specified, we'll accept any regular
-; sound-silence pattern than repeats busycount times as a busy
-; signal.
-; If you specify busypattern then we'll further check the length
-; of the sound (tone) and silence, which will further reduce the
-; chance of a false positive.
+; If busydetect is enabled, it is also possible to specify the cadence of your
+; busy signal.  In many countries, it is 500msec on, 500msec off.  Without
+; busypattern specified, we'll accept any regular sound-silence pattern that
+; repeats <busycount> times as a busy signal.  If you specify busypattern,
+; then we'll further check the length of the sound (tone) and silence, which
+; will further reduce the chance of a false positive.
 ;
 ;busypattern=500,500
 ;
-; NOTE: In the Asterisk Makefile you'll find further options to tweak
-; the busy detector.  If your country has a busy tone with the same
-; lengh tone and silence (as many countries do), consider defining
-; the -DBUSYDETECT_COMPARE_TONE_AND_SILENCE option.
+; NOTE: In the Asterisk Makefile you'll find further options to tweak the busy
+; detector.  If your country has a busy tone with the same length tone and
+; silence (as many countries do), consider defining the
+; -DBUSYDETECT_COMPARE_TONE_AND_SILENCE option.
 ;
 ; Use a polarity reversal to mark when a outgoing call is answered by the
 ; remote party.
 ;
 ;answeronpolarityswitch=yes
 ;
-; In some countries, a polarity reversal is used to signal the disconnect
-; of a phone line.  If the hanguponpolarityswitch option is selected, the
-; call will be considered "hung up" on a polarity reversal
+; In some countries, a polarity reversal is used to signal the disconnect of a
+; phone line.  If the hanguponpolarityswitch option is selected, the call will
+; be considered "hung up" on a polarity reversal.
 ;
 ;hanguponpolarityswitch=yes
 ;
@@ -413,13 +420,13 @@ immediate=no
 ; of a call through RINGING, BUSY, and ANSWERING.   If turned on, call
 ; progress attempts to determine answer, busy, and ringing on phone lines.
 ; This feature is HIGHLY EXPERIMENTAL and can easily detect false answers,
-; so don't count on it being very accurate.  
+; so don't count on it being very accurate.
 ;
-; Few zones are supported at the time of this writing, but may
-; be selected with "progzone"
+; Few zones are supported at the time of this writing, but may be selected
+; with "progzone"
 ;
-; This feature can also easily detect false hangups. The symptoms of this 
-; is being disconnected in the middle of a call for no reason.
+; This feature can also easily detect false hangups. The symptoms of this is
+; being disconnected in the middle of a call for no reason.
 ;
 ;callprogress=yes
 ;progzone=us
@@ -446,15 +453,15 @@ immediate=no
 ;
 ;musiconhold=default
 ;
-; PRI channels can have an idle extension and a minunused number.  So long
-; as at least "minunused" channels are idle, chan_zap will try to call
-; "idledial" on them, and then dump them into the PBX in the "idleext"
-; extension (which is of the form exten@context).  When channels are needed
-; the "idle" calls are disconnected (so long as there are at least "minidle"
-; calls still running, of course) to make more channels available.  The
-; primary use of this is to create a dynamic service, where idle channels
-; are bundled through multilink PPP, thus more efficiently utilizing
-; combined voice/data services than conventional fixed mappings/muxings.
+; PRI channels can have an idle extension and a minunused number.  So long as
+; at least "minunused" channels are idle, chan_zap will try to call "idledial"
+; on them, and then dump them into the PBX in the "idleext" extension (which
+; is of the form exten@context).  When channels are needed the "idle" calls
+; are disconnected (so long as there are at least "minidle" calls still
+; running, of course) to make more channels available.  The primary use of
+; this is to create a dynamic service, where idle channels are bundled through
+; multilink PPP, thus more efficiently utilizing combined voice/data services
+; than conventional fixed mappings/muxings.
 ;
 ;idledial=6999
 ;idleext=6999@dialout
@@ -465,10 +472,10 @@ immediate=no
 ;
 ;jitterbuffers=4
 ;
-; You can define your own custom ring cadences here.  You can define up to
-; 8 pairs.  If the silence is negative, it indicates where the callerid
-; spill is to be placed.  Also, if you define any custom cadences, the
-; default cadences will be turned off.
+; You can define your own custom ring cadences here.  You can define up to 8
+; pairs.  If the silence is negative, it indicates where the callerid spill is
+; to be placed.  Also, if you define any custom cadences, the default cadences
+; will be turned off.
 ;
 ; Syntax is:  cadence=ring,silence[,ring,silence[...]]
 ;
@@ -479,11 +486,11 @@ immediate=no
 ;cadence=125,125,125,125,125,-4000
 ;cadence=1000,500,2500,-5000
 ;
-; Each channel consists of the channel number or range.  It
-; inherits the parameters that were specified above its declaration
+; Each channel consists of the channel number or range.  It inherits the
+; parameters that were specified above its declaration.
 ;
-; For GR-303, CRV's are created like channels except they must start
-; with the trunk group followed by a colon, e.g.: 
+; For GR-303, CRV's are created like channels except they must start with the
+; trunk group followed by a colon, e.g.: 
 ;
 ; crv => 1:1
 ; crv => 2:1-2,5-8
@@ -506,9 +513,8 @@ immediate=no
 ;callerid="Main TA 750" <(256) 428-6127>
 ;channel => 44
 ;
-; For example, maybe we have some other channels
-; which start out in a different context and use
-; E & M signalling instead.
+; For example, maybe we have some other channels which start out in a
+; different context and use E & M signalling instead.
 ;
 ;context=remote
 ;sigalling=em
@@ -538,9 +544,9 @@ immediate=no
 ;callerid="Larry Moe" <(256) 428-6234>
 ;channel => 28
 ;
-; Sample PRI (CPE) config:  Specify the switchtype, the signalling as
-; either pri_cpe or pri_net for CPE or Network termination, and generally
-; you will want to create a single "group" for all channels of the PRI.
+; Sample PRI (CPE) config:  Specify the switchtype, the signalling as either
+; pri_cpe or pri_net for CPE or Network termination, and generally you will
+; want to create a single "group" for all channels of the PRI.
 ;
 ; switchtype = national
 ; signalling = pri_cpe

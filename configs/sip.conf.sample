@@ -108,12 +108,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;notifyringing = yes		; Notify subscriptions on RINGING state
 
 ;
-; If regcontext is specified, Asterisk will dynamically 
-; create and destroy a NoOp priority 1 extension for a given
-; peer who registers or unregisters with us.  The actual extension
-; is the 'regexten' parameter of the registering peer or its
-; name if 'regexten' is not provided.  More than one regexten may be supplied
-; if they are separated by '&'.  Patterns may be used in regexten.
+; If regcontext is specified, Asterisk will dynamically create and destroy a
+; NoOp priority 1 extension for a given peer who registers or unregisters with
+; us.  The actual extension is the 'regexten' parameter of the registering
+; peer or its name if 'regexten' is not provided.  More than one regexten may
+; be supplied if they are separated by '&'.  Patterns may be used in regexten.
 ;
 ;regcontext=sipregistrations
 ;
@@ -121,12 +120,12 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; Format for the register statement is:
 ;       register => user[:secret[:authuser]]@host[:port][/extension]
 ;
-; If no extension is given, the 's' extension is used. The extension
-; needs to be defined in extensions.conf to be able to accept calls
-; from this SIP proxy (provider)
+; If no extension is given, the 's' extension is used. The extension needs to
+; be defined in extensions.conf to be able to accept calls from this SIP proxy
+; (provider).
 ;
-; host is either a host name defined in DNS or the name of a 
-; section defined below.
+; host is either a host name defined in DNS or the name of a section defined
+; below.
 ;
 ; Examples:
 ;
@@ -137,12 +136,13 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ;register => 2345:password@sip_proxy/1234
 ;
-;    Register 2345 at sip provider 'sip_proxy'.  Calls from this provider connect to local 
-;    extension 1234 in extensions.conf default context, unless you define 
-;    unless you configure a [sip_proxy] section below, and configure a context.
-;	 Tip 1: Avoid assigning hostname to a sip.conf section like [provider.com]
-;        Tip 2: Use separate type=peer and type=user sections for SIP providers
-;               (instead of type=friend) if you have calls in both directions
+;    Register 2345 at sip provider 'sip_proxy'.  Calls from this provider
+;    connect to local extension 1234 in extensions.conf, default context,
+;    unless you configure a [sip_proxy] section below, and configure a
+;    context.
+;    Tip 1: Avoid assigning hostname to a sip.conf section like [provider.com]
+;    Tip 2: Use separate type=peer and type=user sections for SIP providers
+;           (instead of type=friend) if you have calls in both directions
   
 ;registertimeout=20		; retry registration calls every 20 seconds (default)
 ;registerattempts=10		; Number of registration attempts before we give up
@@ -151,9 +151,9 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Default is 10 tries
 ;callevents=no			; generate manager events when sip ua performs events (e.g. hold)
 
-;---------------------------------------------- NAT SUPPORT ------------------------
-; The externip, externhost and localnet settings are used if you use Asterisk behind
-; a NAT device to communicate with services on the outside.
+;----------------------------------------- NAT SUPPORT ------------------------
+; The externip, externhost and localnet settings are used if you use Asterisk
+; behind a NAT device to communicate with services on the outside.
 
 ;externip = 200.201.202.203	; Address that we're going to put in outbound SIP messages
 				; if we're behind a NAT
@@ -176,10 +176,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;localnet=169.254.0.0/255.255.0.0 ;Zero conf local network
 
 ; The nat= setting is used when Asterisk is on a public IP, communicating with
-; devices hidden behind a NAT device (broadband router).
-; If you have one-way audio problems, you usually have problems with your NAT 
-; configuration or your firewalls support of SIP+RTP ports.
-; You configure Asterisk choice of RTP ports for incoming audio in rtp.conf
+; devices hidden behind a NAT device (broadband router).  If you have one-way
+; audio problems, you usually have problems with your NAT configuration or your
+; firewall's support of SIP+RTP ports.  You configure Asterisk choice of RTP
+; ports for incoming audio in rtp.conf
 ;
 ;nat=no				; Global NAT settings  (Affects all peers and users)
                                 ; yes = Always ignore info and assume NAT
@@ -242,7 +242,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; You may also add auth= statements to [peer] definitions 
 ; Peer auth= override all other authentication settings if we match on realm
 
-;-----------------------------------------------------------------------------------
+;------------------------------------------------------------------------------
 ; Users and peers have different settings available. Friends have all settings,
 ; since a friend is both a peer and a user
 ;
@@ -341,6 +341,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;allow=alaw
 ;allow=g723.1			; Asterisk only supports g723.1 pass-thru!
 ;allow=g729			; Pass-thru only unless g729 license obtained
+;astdb=chan2ext/SIP/grandstream1=1234	; ensures an astDB entry exists
 
 
 ;[xlite1]

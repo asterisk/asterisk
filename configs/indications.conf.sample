@@ -16,7 +16,7 @@ country=us		; default location
 
 ; [example]
 ; description = string
-;      The full name of your country, in English
+;      The full name of your country, in English.
 ; alias = iso[,iso]*
 ;      List of other countries 2-letter iso codes, which have the same
 ;      tone indications.
@@ -31,14 +31,16 @@ country=us		; default location
 ; callwaiting = tonelist
 ;      Set of tones played when there is a call waiting in the background.
 ; dialrecall = tonelist
-;      Not well defined, many phone systems play a recall dial tone after hook flash
+;      Not well defined; many phone systems play a recall dial tone after hook
+;      flash.
 ; record = tonelist
-;      Set of tones played when call recording is in progress
+;      Set of tones played when call recording is in progress.
 ; info = tonelist
-;      Set of tones played with special information messages (e.g., "number is out of service")
+;      Set of tones played with special information messages (e.g., "number is
+;      out of service")
 ; 'name' = tonelist
-;	Every other variable will be available as a shortcut for the "PlayList" command
-;	but will not automaticly be used by Asterisk.
+;      Every other variable will be available as a shortcut for the "PlayList" command
+;      but will not be used automatically by Asterisk.
 ;
 ;
 ; The tonelist itself is defined by a comma-separated sequence of elements.
@@ -587,8 +589,8 @@ stutter = !350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,!350+440/1
 description = South Africa
 ; http://www.cisco.com/univercd/cc/td/doc/product/tel_pswt/vco_prod/safr_sup/saf02.htm
 ; (definitions for other countries can also be found there)
-; Note, though, that South Africa uses two switch types in their network - Alcatel
-; switches - mainly in the Western Cape, and Siemens elsewhere.
+; Note, though, that South Africa uses two switch types in their network --
+; Alcatel switches -- mainly in the Western Cape, and Siemens elsewhere.
 ; The former use 383+417 in dial, ringback etc.  The latter use 400*33
 ; I've provided both, uncomment the ones you prefer
 ringcadance = 400,200,400,2000

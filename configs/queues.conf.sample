@@ -9,8 +9,8 @@
 ;
 persistentmembers = yes
 ;
-; Note that a timeout to fail out of a queue may be passed as part of application call
-; from extensions.conf:
+; Note that a timeout to fail out of a queue may be passed as part of
+; an application call from extensions.conf:
 ; Queue(queuename|[options]|[optionalurl]|[announceoverride]|[timeout])
 ; example: Queue(dave|t|||45)
 
@@ -43,7 +43,8 @@ persistentmembers = yes
 ;strategy = ringall
 ;
 ; Second settings for service level (default 0)
-; Used for service level statistics (calls answered within service level time frame)
+; Used for service level statistics (calls answered within service level time
+; frame)
 ;servicelevel = 60
 ;
 ; A context may be specified, in which if the user types a SINGLE
@@ -94,7 +95,8 @@ persistentmembers = yes
 
 ;
 ; What's the rounding time for the seconds?
-; If this is non zero then we announce the seconds as well as the minutes rounded to this value
+; If this is non-zero, then we announce the seconds as well as the minutes
+; rounded to this value.
 ;
 ; announce-round-seconds = 10
 ;
@@ -119,26 +121,29 @@ persistentmembers = yes
 ; To enable monitoring, simply specify "monitor-format";  it will be disabled
 ; otherwise.
 ;
-; You can specify the monitor filename with by calling Set(MONITOR_FILENAME=foo)
-; Otherwise it will use ${UNIQUEID}
+; You can specify the monitor filename with by calling
+;    Set(MONITOR_FILENAME=foo)
+; Otherwise it will use MONITOR_FILENAME=${UNIQUEID}
 ;
 ; monitor-format = gsm|wav|wav49
 ;
-; If you wish to have the two files joined together when the call ends set this to yes
+; If you wish to have the two files joined together when the call ends, set this
+; to yes.
 ;
 ; monitor-join = yes
 ;
-; This setting controls whether callers can join a queue with no members. There are three
-; choices:
+; This setting controls whether callers can join a queue with no members. There
+; are three choices:
 ;
-; yes - callers can join a queue with no members or only unavailable members
-; no - callers cannot join a queue with no members
-; strict - callers cannot join a queue with no members or only unavailable members
+; yes    - callers can join a queue with no members or only unavailable members
+; no     - callers cannot join a queue with no members
+; strict - callers cannot join a queue with no members or only unavailable
+;          members
 ;
 ; joinempty = yes
 ;
-; If you wish to remove callers from the queue when new callers cannot join, set this setting
-; to one of the same choices for 'joinempty'
+; If you wish to remove callers from the queue when new callers cannot join,
+; set this setting to one of the same choices for 'joinempty'
 ;
 ; leavewhenempty = yes
 ;
@@ -155,14 +160,15 @@ persistentmembers = yes
 ;
 ; eventmemberstatusoff = no
 ;
-; If you wish to report the caller's hold time to the member before they are connected
-; to the caller, set this to yes.
+; If you wish to report the caller's hold time to the member before they are
+; connected to the caller, set this to yes.
 ;
 ; reportholdtime = no
 ;
 ;
-; If you wish to have a delay before the member is connected to the caller (or before the member
-; hears any announcement messages), set this to the number of seconds to delay.
+; If you wish to have a delay before the member is connected to the caller (or
+; before the member hears any announcement messages), set this to the number of
+; seconds to delay.
 ;
 ; memberdelay = 0
 ;

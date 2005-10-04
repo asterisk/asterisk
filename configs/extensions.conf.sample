@@ -52,13 +52,15 @@ clearglobalvars=no
 ;
 priorityjumping=no
 ;
-; You can include other config files, use the #include command (without the ';')
-; Note that this is different from the "include" command that includes contexts within 
-; other contexts. The #include command works in all asterisk configuration files.
+; You can include other config files, use the #include command
+; (without the ';'). Note that this is different from the "include" command
+; that includes contexts within other contexts. The #include command works
+; in all asterisk configuration files.
 ;#include "filename.conf"
 
 ; The "Globals" category contains global variables that can be referenced
-; in the dialplan with ${VARIABLE} or ${ENV(VARIABLE)} for Environmental variable
+; in the dialplan with ${VARIABLE} or ${ENV(VARIABLE)} for Environmental
+; variables,
 ; ${${VARIABLE}} or ${text${VARIABLE}} or any hybrid
 ;
 [globals]
@@ -73,10 +75,14 @@ TRUNK=Zap/g2					; Trunk interface
 ; in zapata.conf) to dial, i.e. group 2, and how to choose a channel to use in
 ; the specified group. The four possible options are:
 ;
-; g: select the lowest-numbered non-busy Zap channel (aka. ascending sequential hunt group).
-; G: select the highest-numbered non-busy Zap channel (aka. descending sequential hunt group).
-; r: use a round-robin search, starting at the next highest channel than last time (aka. ascending rotary hunt group).
-; R: use a round-robin search, starting at the next lowest channel than last time (aka. descending rotary hunt group).
+; g: select the lowest-numbered non-busy Zap channel
+;    (aka. ascending sequential hunt group).
+; G: select the highest-numbered non-busy Zap channel
+;    (aka. descending sequential hunt group).
+; r: use a round-robin search, starting at the next highest channel than last
+;    time (aka. ascending rotary hunt group).
+; R: use a round-robin search, starting at the next lowest channel than last
+;    time (aka. descending rotary hunt group).
 ;
 TRUNKMSD=1					; MSD digits to strip (usually 1 or 0)
 ;TRUNK=IAX2/user:pass@provider
@@ -443,11 +449,11 @@ include => demo
 ;exten => _41X.,1,Dial(SIP/${EXTEN:2}@sipprovider,,r)
 ;exten => _42X.,1,Dial(SIP/user:passwd@${EXTEN:2}@otherprovider.net,30,rT)
 
-; Real extensions would go here. Generally you want real extensions to be 4 or 5
-; digits long (although there is no such requirement) and start with a single
-; digit that is fairly large (like 6 or 7) so that you have plenty of room to
-; overlap extensions and menu options without conflict.  You can alias them with
-; names, too and use global variables
+; Real extensions would go here. Generally you want real extensions to be
+; 4 or 5 digits long (although there is no such requirement) and start with a
+; single digit that is fairly large (like 6 or 7) so that you have plenty of
+; room to overlap extensions and menu options without conflict.  You can alias
+; them with names, too, and use global variables
 
 ;exten => 6245,hint,SIP/Grandstream1&SIP/Xlite1,Joe Schmoe ; Channel hints for presence
 ;exten => 6245,1,Dial(SIP/Grandstream1,20,rt)	; permit transfer

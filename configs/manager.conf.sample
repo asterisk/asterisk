@@ -1,23 +1,19 @@
 ;
 ; AMI - The Asterisk Manager Interface
 ; 
-; Third party application call management support
-; and PBX event supervision
+; Third party application call management support and PBX event supervision
 ;
-; This configuration file is read every time someone
-; logs in
+; This configuration file is read every time someone logs in
 ;
-; Use the "show manager commands" at the CLI to list
-; availabale manager commands and their authorization
-; levels.
+; Use the "show manager commands" at the CLI to list available manager commands
+; and their authorization levels.
 ;
 ; "show manager command <command>" will show a help text.
 ;
-; ------------------- SECURITY NOTE -----------------
-; Note that you should not enable the AMI on a public
-; IP address. If needed, block this TCP port with
-; iptables (or another FW software) and reach it
-; with IPsec, SSH or SSL vpn tunnel
+; ---------------------------- SECURITY NOTE -------------------------------
+; Note that you should not enable the AMI on a public IP address. If needed,
+; block this TCP port with iptables (or another FW software) and reach it
+; with IPsec, SSH, or SSL vpn tunnel
 ;
 [general]
 enabled = no

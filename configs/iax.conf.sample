@@ -74,11 +74,11 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; The jitter buffer's function is to compensate for varying
 ; network delay.
 ;
-; There are presently two jitterbuffer implementations available for * and chan_iax2;
-; the classic and the new, channel/application independent implementation.  These
-; are controlled at compile-time.  The new jitterbuffer additionally has support for PLC
-; which greatly improves quality as the jitterbuffer adapts size, and in compensating for lost
-; packets.
+; There are presently two jitterbuffer implementations available for Asterisk
+; and chan_iax2; the classic and the new, channel/application independent
+; implementation.  These are controlled at compile-time.  The new jitterbuffer
+; additionally has support for PLC which greatly improves quality as the
+; jitterbuffer adapts size, and in compensating for lost packets.
 ;
 ; All the jitter buffer settings except dropcount are in milliseconds.
 ; The jitter buffer works for INCOMING audio - the outbound audio
@@ -90,7 +90,8 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ; forcejitterbuffer=yes|no: in the ideal world, when we bridge VoIP channels
 ; we don't want to do jitterbuffering on the switch, since the endpoints
 ; can each handle this.  However, some endpoints may have poor jitterbuffers 
-; themselves, so this option will force * to always jitterbuffer, even in this case.
+; themselves, so this option will force * to always jitterbuffer, even in this
+; case.
 ; [This option presently applies only to the new jitterbuffer implementation]
 ;
 ; dropcount: the jitter buffer is sized such that no more than "dropcount"
@@ -105,15 +106,17 @@ disallow=lpc10			; Icky sound quality...  Mr. Roboto.
 ;
 ; resyncthreshold: when the jitterbuffer notices a significant change in delay
 ; that continues over a few frames, it will resync, assuming that the change in
-; delay was caused by a timestamping mix-up. The threshold for noticing a change
-; in delay is measured as twice the measured jitter plus this resync threshold.
-; Resycning can be disabled by setting this parameter to -1.
+; delay was caused by a timestamping mix-up. The threshold for noticing a
+; change in delay is measured as twice the measured jitter plus this resync
+; threshold.
+; Resyncing can be disabled by setting this parameter to -1.
 ; [This option presently applies only to the new jitterbuffer implementation]
 ;
-; maxjitterinterps: the maximum number of interpolation frames the jitterbuffer should
-; return in a row. Since some clients do not send CNG/DTX frames to indicate
-; silence, the jitterbuffer will assume silence has begun after returning this
-; many interpolations. This prevents interpolating throughout a long silence.
+; maxjitterinterps: the maximum number of interpolation frames the jitterbuffer
+; should return in a row. Since some clients do not send CNG/DTX frames to
+; indicate silence, the jitterbuffer will assume silence has begun after
+; returning this many interpolations. This prevents interpolating throughout
+; a long silence.
 ; [This option presently applies only to the new jitterbuffer implementation]
 ;
 ; maxexcessbuffer: If conditions improve after a period of high jitter,
@@ -147,11 +150,11 @@ forcejitterbuffer=no
 ;trunkfreq=20			; How frequently to send trunk msgs (in ms)
 
 ; Should we send timestamps for the individual sub-frames within trunk frames?
-; There is a small bandwidth use for these (less than 1kbps/call), but they ensure
-; that frame timestamps get sent end-to-end properly.  If both ends of all your trunks
-; go directly to TDM, _and_ your trunkfreq equals the frame length for your codecs, you 
-; can probably suppress these.  The receiver must also support this feature, although
-; they do not also need to have it enabled.
+; There is a small bandwidth use for these (less than 1kbps/call), but they
+; ensure that frame timestamps get sent end-to-end properly.  If both ends of
+; all your trunks go directly to TDM, _and_ your trunkfreq equals the frame
+; length for your codecs, you can probably suppress these.  The receiver must
+; also support this feature, although they do not also need to have it enabled.
 ;
 ; trunktimestamps=yes
 ;
@@ -217,22 +220,21 @@ tos=lowdelay
 ;
 ;mailboxdetail=yes
 ;
-; If regcontext is specified, Asterisk will dynamically 
-; create and destroy a NoOp priority 1 extension for a given
-; peer who registers or unregisters with us.  The actual extension
-; is the 'regexten' parameter of the registering peer or its
-; name if 'regexten' is not provided.  More than one regexten may be supplied
-; if they are separated by '&'.  Patterns may be used in regexten.
+; If regcontext is specified, Asterisk will dynamically create and destroy
+; a NoOp priority 1 extension for a given peer who registers or unregisters
+; with us.  The actual extension is the 'regexten' parameter of the registering
+; peer or its name if 'regexten' is not provided.  More than one regexten
+; may be supplied if they are separated by '&'.  Patterns may be used in
+; regexten.
 ;
 ;regcontext=iaxregistrations
 ;
-; If we don't get ACK to our NEW within 2000ms, and autokill is set
-; to yes, then we cancel the whole thing (that's enough time for one 
-; retransmission only).  This is used to keep things from stalling for a long
-; time for a host that is not available, but would be ill advised for bad 
-; connections.  In addition to 'yes' or 'no' you can also specify a number
-; of milliseconds.  See 'qualify' for individual peers to turn on for just
-; a specific peer.
+; If we don't get ACK to our NEW within 2000ms, and autokill is set to yes,
+; then we cancel the whole thing (that's enough time for one retransmission
+; only).  This is used to keep things from stalling for a long time for a host
+; that is not available, but would be ill advised for bad connections.  In
+; addition to 'yes' or 'no' you can also specify a number of milliseconds.
+; See 'qualify' for individual peers to turn on for just a specific peer.
 ;
 autokill=yes
 ;
@@ -274,8 +276,8 @@ autokill=yes
 				; has expired based on its registration interval, used the stored
 				; address information regardless. (yes|no)
 
-; Guest sections for unauthenticated connection attempts.  Just
-; specify an empty secret, or provide no secret section.
+; Guest sections for unauthenticated connection attempts.  Just specify an
+; empty secret, or provide no secret section.
 ;
 [guest]
 type=user
@@ -310,14 +312,13 @@ inkeys=freeworlddialup
 ;context=dundi-e164-local
 
 ;
-; Further user sections may be added, specifying a context and a
-; secret used for connections with that given authentication name.
-; Limited IP based access control is allowed by use of "allow" and
-; "deny" keywords.  Multiple rules are permitted.  Multiple permitted
-; contexts may be specified, in which case the first will be the default.
-; You can also override caller*ID so that when you receive a call you
-; set the Caller*ID to be what you want instead of trusting what
-; the remote user provides
+; Further user sections may be added, specifying a context and a secret used
+; for connections with that given authentication name.  Limited IP based
+; access control is allowed by use of "allow" and "deny" keywords.  Multiple
+; rules are permitted.  Multiple permitted contexts may be specified, in
+; which case the first will be the default.  You can also override caller*ID
+; so that when you receive a call you set the Caller*ID to be what you want
+; instead of trusting what the remote user provides
 ;
 ; There are three authentication methods that are supported:  md5, plaintext,
 ; and rsa.  The least secure is "plaintext", which sends passwords cleartext
@@ -372,11 +373,10 @@ host=216.207.245.47
 ;jitterbuffer=no		; Turn off jitter buffer for this peer
 
 ;
-; Peers can remotely register as well, so that they can be
-; mobile.  Default IP's can also optionally be given but
-; are not required.  Caller*ID can be suggested to the other
-; side as well if it is for example a phone instead of another
-; PBX.
+; Peers can remotely register as well, so that they can be mobile.  Default
+; IP's can also optionally be given but are not required.  Caller*ID can be
+; suggested to the other side as well if it is for example a phone instead of
+; another PBX.
 ;
 
 ;[dynamichost]
@@ -410,3 +410,4 @@ host=216.207.245.47
 ;secret=moofoo
 ;context=default
 ;permit=0.0.0.0/0.0.0.0
+

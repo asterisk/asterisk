@@ -10,8 +10,8 @@ serveremail=asterisk
 ;serveremail=asterisk@linux-support.net
 ; Should the email contain the voicemail as an attachment
 attach=yes
-; Maximum number of messages per folder. If not specified a default value (100) is used.
-; Maximum value for this option is 9999.
+; Maximum number of messages per folder.  If not specified, a default value
+; (100) is used.  Maximum value for this option is 9999.
 ;maxmsg=100
 ; Maximum length of a voicemail message in seconds
 ;maxmessage=180
@@ -28,13 +28,12 @@ maxsilence=10
 silencethreshold=128
 ; Max number of failed login attempts
 maxlogins=3
-; If you need to have an external program, i.e. /usr/bin/myapp
-; called when a voicemail is left, delivered, or your voicemailbox 
-; is checked, uncomment this:
+; If you need to have an external program, i.e. /usr/bin/myapp called when a
+; voicemail is left, delivered, or your voicemailbox is checked, uncomment
+; this:
 ;externnotify=/usr/bin/myapp
-; If you need to have an external program, i.e. /usr/bin/myapp
-; called when a voicemail password is changed,
-; uncomment this:
+; If you need to have an external program, i.e. /usr/bin/myapp called when a
+; voicemail password is changed, uncomment this:
 ;externpass=/usr/bin/myapp
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
@@ -54,13 +53,15 @@ maxlogins=3
 ;usedirectory=yes
 ;
 ; Change the from, body and/or subject, variables:
-;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_CIDNUM, VM_CIDNAME, VM_DATE
+;     VM_NAME, VM_DUR, VM_MSGNUM, VM_MAILBOX, VM_CALLERID, VM_CIDNUM,
+;     VM_CIDNAME, VM_DATE
 ;
-; Note: The emailbody config row can be up to 512 characters due to a limitation in 
-;       asterisk config files.
+; Note: The emailbody config row can only be up to 512 characters due to a
+;       limitation in the Asterisk configuration subsystem.
 ;emailsubject=[PBX]: New message ${VM_MSGNUM} in mailbox ${VM_MAILBOX}
-; The following definition is very close to the default, but the default shows just 
-; the CIDNAME, if it is not null, else just the CIDNUM, or "an unknown caller" if they are both null.
+; The following definition is very close to the default, but the default shows
+; just the CIDNAME, if it is not null, otherise just the CIDNUM, or "an unknown
+; caller", if they are both null.
 ;emailbody=Dear ${VM_NAME}:\n\n\tjust wanted to let you know you were just left a ${VM_DUR} long message (number ${VM_MSGNUM})\nin mailbox ${VM_MAILBOX} from ${VM_CALLERID}, on ${VM_DATE}, so you might\nwant to check it when you get a chance.  Thanks!\n\n\t\t\t\t--Asterisk\n
 ;
 ; You can also change the Pager From: string, the pager body and/or subject.
@@ -69,7 +70,8 @@ maxlogins=3
 ;pagersubject=New VM
 ;pagerbody=New ${VM_DUR} long msg in box ${VM_MAILBOX}\nfrom ${VM_CALLERID}, on ${VM_DATE}
 ;
-; Set the date format on outgoing mails. Valid arguments can be found on the strftime(3) man page
+; Set the date format on outgoing mails. Valid arguments can be found on the
+; strftime(3) man page
 ;
 ; Default
 emaildateformat=%A, %B %d, %Y at %r
@@ -93,7 +95,8 @@ emaildateformat=%A, %B %d, %Y at %r
 ; variable substitution is done on the values below. 
 ; 
 ; Supported values: 
-; 'filename'    filename of a soundfile (single ticks around the filename required)
+; 'filename'    filename of a soundfile (single ticks around the filename
+;               required)
 ; ${VAR}        variable substitution 
 ; A or a        Day of week (Saturday, Sunday, ...) 
 ; B or b or h   Month name (January, February, ...) 
@@ -105,8 +108,10 @@ emaildateformat=%A, %B %d, %Y at %r
 ; M             Minute, with 00 pronounced as "o'clock" 
 ; N             Minute, with 00 pronounced as "hundred" (US military time)
 ; P or p        AM or PM 
-; Q             "today", "yesterday" or ABdY (*note: not standard strftime value) 
-; q             "" (for today), "yesterday", weekday, or ABdY (*note: not standard strftime value) 
+; Q             "today", "yesterday" or ABdY
+;               (*note: not standard strftime value) 
+; q             "" (for today), "yesterday", weekday, or ABdY
+;               (*note: not standard strftime value) 
 ; R             24 hour time, including minute 
 ; 
 ; 
@@ -114,11 +119,13 @@ emaildateformat=%A, %B %d, %Y at %r
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
 ; if the e-mail is specified, a message will be sent when a message is
-; received, to the given mailbox. If pager is specified, a message will be sent there as well. If the password is prefixed by '-' then it is considered to be unchangable
+; received, to the given mailbox. If pager is specified, a message will be
+; sent there as well. If the password is prefixed by '-', then it is
+; considered to be unchangable.
 ;
 ; Advanced options example is extension 4069
-; NOTE: All options can be expressed globally in the general section, and overriden in the per-mailbox 
-; settings, unless listed otherwise.
+; NOTE: All options can be expressed globally in the general section, and
+; overriden in the per-mailbox settings, unless listed otherwise.
 ; 
 ; tz=central 		; Timezone from zonemessages above.  Irrelevant if envelope=no.
 ; attach=yes 		; Attach the voicemail to the notification email *NOT* the pager email

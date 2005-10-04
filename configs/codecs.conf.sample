@@ -12,7 +12,8 @@ complexity => 2
 enhancement => true
 
 ; voice activity detection [true / false]
-; reduces bitrate when no voice detected, used only for CBR (implicit in VBR/ABR)
+; reduces bitrate when no voice detected, used only for CBR
+; (implicit in VBR/ABR)
 vad => true
 
 ; variable bit rate [true / false]

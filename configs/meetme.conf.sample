@@ -1,6 +1,5 @@
 ;
-; Configuration file for MeetMe simple conference rooms
-; for Asterisk of course.
+; Configuration file for MeetMe simple conference rooms for Asterisk of course.
 ;
 ; This configuration file is read every time you call app meetme()
 ;
@@ -10,3 +9,4 @@
 ;
 ;conf => 1234 
 ;conf => 2345,9938
+
