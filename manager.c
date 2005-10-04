@@ -495,7 +495,14 @@ static int authenticate(struct mansession *s, struct message *m)
 					} else if (!strcasecmp(v->name, "permit") ||
 						   !strcasecmp(v->name, "deny")) {
 						ha = ast_append_ha(v->name, v->value, ha);
-					}	
+					} else if (!strcasecmp(v->name, "writetimeout")) {
+						int val = atoi(v->value);
+
+						if (val < 100)
+							ast_log(LOG_WARNING, "Invalid writetimeout value '%s' at line %d\n", v->value, v->lineno);
+						else
+							s->writetimeout = val;
+					}
 				    		
 					v = v->next;
 				}
@@ -1286,7 +1293,7 @@ static int process_message(struct mansession *s, struct message *m)
 		ast_mutex_lock(&s->__lock);
 		s->busy = 0;
 		while(s->eventq) {
-			if (ast_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), 100)) {
+			if (ast_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout)) {
 				ret = -1;
 				break;
 			}
@@ -1427,6 +1434,7 @@ static void *accept_thread(void *ignore)
 		} 
 		memset(s, 0, sizeof(struct mansession));
 		memcpy(&s->sin, &sin, sizeof(sin));
+		s->writetimeout = 100;
 
 		if(! block_sockets) {
 			/* For safety, make sure socket is non-blocking */
@@ -1499,7 +1507,7 @@ int manager_event(int category, char *event, char *fmt, ...)
 		ast_mutex_lock(&s->__lock);
 		if (s->busy) {
 			append_event(s, tmp);
-		} else if (ast_carefulwrite(s->fd, tmp, tmp_next - tmp, 100) < 0) {
+		} else if (ast_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0) {
 			ast_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
 			s->dead = 1;
 			pthread_kill(s->t, SIGURG);

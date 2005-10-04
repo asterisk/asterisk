@@ -100,6 +100,8 @@ struct mansession {
 	int send_events;
 	/* Queued events that we've not had the ability to send yet */
 	struct eventqent *eventq;
+	/* Timeout for ast_carefulwrite() */
+	int writetimeout;
 	struct mansession *next;
 };
 
