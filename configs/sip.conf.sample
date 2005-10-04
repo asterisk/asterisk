@@ -40,6 +40,19 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; ability to place SIP calls based on domain 
 				; names to some other SIP users on the Internet
 				
+;domain=mydomain.tld		; Set default domain for this host
+				; If configured, Asterisk will only allow
+				; INVITE and REFER to non-local domains
+				; Use "sip show domains" to list local domains
+;domain=mydomain.tld,mydomain-incoming
+				; Add domain and configure incoming context
+				; for external calls to this domain
+;domain=1.2.3.4			; Add IP address as local domain
+				; You can have several "domain" settings
+;allowexternalinvites=no	; Disable INVITE and REFER to non-local domains
+				; Default is yes
+;autodomain=yes			; Turn this on to have Asterisk add local host
+				; name and local IP to domain list.
 ;pedantic=yes			; Enable slow, pedantic checking for Pingtel
 				; and multiline formatted headers for strict
 				; SIP compatibility (defaults to "no")
@@ -89,6 +102,10 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;compactheaders = yes		; send compact sip headers.
 ;sipdebug = yes			; Turn on SIP debugging by default, from
 				; the moment the channel loads this configuration
+;subscribecontext = default	; Set a specific context for SUBSCRIBE requests
+				; Useful to limit subscriptions to local extensions
+				; Settable per peer/user also
+;notifyringing = yes		; Notify subscriptions on RINGING state
 
 ;
 ; If regcontext is specified, Asterisk will dynamically 
@@ -255,6 +272,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; amaflags		      amaflags
 ; call-limit		      call-limit
 ; restrictcid		      restrictcid
+; subscribecontext	      subscribecontext
 ;                             mailbox
 ;                             username
 ;                             template
@@ -338,17 +356,18 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;allow=gsm			; GSM consumes far less bandwidth than ulaw
 ;allow=ulaw
 ;allow=alaw
+;mailbox=1234@default,1233@default	; Subscribe to status of multiple mailboxes
 
 
 ;[snom]
 ;type=friend			; Friends place calls and receive calls
 ;context=from-sip		; Context for incoming calls from this user
 ;secret=blah
+;subscribecontext=localextensions	; Only allow SUBSCRIBE for local extensions
 ;language=de			; Use German prompts for this user 
 ;host=dynamic			; This peer register with us
 ;dtmfmode=inband		; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59		; IP used until peer registers
-;username=snom			; Username to use in INVITE until peer registers
 ;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
 ;vmexten=voicemail      ; dialplan extension to reach mailbox 
                         ; sets the Message-Account in the MWI notify message
@@ -365,6 +384,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;host=dynamic			; This peer register with us
 ;dtmfmode=rfc2833		; Choices are inband, rfc2833, or info
 ;username=polly			; Username to use in INVITE until peer registers
+				; Normally you do NOT need to set this parameter
 ;disallow=all
 ;allow=ulaw                     ; dtmfmode=inband only works with ulaw or alaw!
 ;progressinband=no		; Polycom phones don't work properly with "never"
@@ -372,7 +392,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 
 ;[pingtel]
 ;type=friend
-;username=pingtel
 ;secret=blah
 ;host=dynamic
 ;insecure=port			; Allow matching of peer by IP address without matching port number
@@ -387,7 +406,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 
 ;[cisco1]
 ;type=friend
-;username=cisco1
 ;secret=blah
 ;qualify=200			; Qualify peer is no more than 200ms away
 ;nat=yes			; This phone may be natted
@@ -401,4 +419,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; behind a NAT).
 ;defaultip=192.168.0.4		; IP address to use until registration
 ;username=goran			; Username to use when calling this device before registration
+				; Normally you do NOT need to set this parameter
+;setvar=CUSTID=5678		; Channel variable to be set for all calls from this device
 
