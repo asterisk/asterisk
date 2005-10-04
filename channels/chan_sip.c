@@ -6830,10 +6830,12 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 }
 
 
-/*--- check_user: Check if matching user or peer is defined ---*/
+/*--- check_user_full: Check if matching user or peer is defined ---*/
+/* 	Match user on From: user name and peer on IP/port */
+/*	This is used on first invite (not re-invites) and subscribe requests */
 static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
 {
-	struct sip_user *user;
+	struct sip_user *user = NULL;
 	struct sip_peer *peer;
 	char *of, from[256], *c;
 	char *rpid,rpid_num[50];
@@ -6857,6 +6859,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	
 	memset(calleridname,0,sizeof(calleridname));
 	get_calleridname(from, calleridname, sizeof(calleridname));
+	if (calleridname[0])
+		ast_copy_string(p->cid_name, calleridname, sizeof(p->cid_name));
 
 	rpid = get_header(req, "Remote-Party-ID");
 	memset(rpid_num,0,sizeof(rpid_num));
@@ -6889,13 +6893,14 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		ast_copy_string(p->cid_num, of, sizeof(p->cid_num));
 		ast_shrink_phone_number(p->cid_num);
 	}
-	if (*calleridname)
-		ast_copy_string(p->cid_name, calleridname, sizeof(p->cid_name));
 	if (ast_strlen_zero(of))
 		return 0;
-	user = find_user(of, 1);
+
+	if (!mailbox)	/* If it's a mailbox SUBSCRIBE, don't check users */
+		user = find_user(of, 1);
+
 	/* Find user based on user name in the from header */
-	if (!mailbox && user && ast_apply_ha(user->ha, sin)) {
+	if (user && ast_apply_ha(user->ha, sin)) {
 		ast_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
 		/* copy channel vars */
 		for (v = user->chanvars ; v ; v = v->next) {
@@ -6972,11 +6977,16 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 
 	if (!user) {
 		/* If we didn't find a user match, check for peers */
-		/* Look for peer based on the IP address we received data from */
-		/* If peer is registered from this IP address or have this as a default
-		   IP address, this call is from the peer 
- 		*/
-		peer = find_peer(NULL, &p->recv, 1);
+		if (sipmethod == SIP_SUBSCRIBE)
+			/* For subscribes, match on peer name only */
+			peer = find_peer(of, NULL, 1);
+		else
+			/* Look for peer based on the IP address we received data from */
+			/* If peer is registered from this IP address or have this as a default
+			   IP address, this call is from the peer 
+			*/
+			peer = find_peer(NULL, &p->recv, 1);
+
 		if (peer) {
 			if (debug)
 				ast_verbose("Found peer '%s'\n", peer->name);
@@ -10521,11 +10531,20 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		ast_verbose("Ignoring this SUBSCRIBE request\n");
 
 	if (!p->lastinvite) {
-		char mailbox[256]="";
+		char mailboxbuf[256]="";
 		int found = 0;
+		char *mailbox = NULL;
+		int mailboxsize = 0;
 
+		char *event = get_header(req, "Event");	/* Get Event package name */
+		char *accept = get_header(req, "Accept");
+
+ 		if (!strcmp(event, "message-summary") && !strcmp(accept, "application/simple-message-summary")) {
+			mailbox = mailboxbuf;
+			mailboxsize = sizeof(mailboxbuf);
+		}
 		/* Handle authentication if this is our first subscribe */
-		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, mailbox, sizeof(mailbox));
+		res = check_user_full(p, req, SIP_SUBSCRIBE, e, 0, sin, ignore, mailbox, mailboxsize);
 		if (res) {
 			if (res < 0) {
 				ast_log(LOG_NOTICE, "Failed to authenticate user %s for SUBSCRIBE\n", get_header(req, "From"));
@@ -10548,8 +10567,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				transmit_response(p, "484 Address Incomplete", req);	/* Overlap dialing on SUBSCRIBE?? */
 			ast_set_flag(p, SIP_NEEDDESTROY);	
 		} else {
-			char *event = get_header(req, "Event");	/* Get Event package name */
-			char *accept = get_header(req, "Accept");
 
 			/* Initialize tag for new subscriptions */	
 			if (ast_strlen_zero(p->tag))
