@@ -715,7 +715,7 @@ struct sip_user {
 	struct ast_variable *chanvars;	/* Variables to set for channel created by user */
 };
 
-/* Structure for SIP peer data, we place calls to peers if registred  or fixed IP address (host) */
+/* Structure for SIP peer data, we place calls to peers if registered  or fixed IP address (host) */
 struct sip_peer {
 	ASTOBJ_COMPONENTS(struct sip_peer);	/* name, refcount, objflags,  object pointers */
 					/* peer->name is the unique name of this object */
@@ -731,7 +731,7 @@ struct sip_peer {
 	char regexten[AST_MAX_EXTENSION]; /* Extension to register (if regcontext is used) */
 	char fromuser[80];		/* From: user when calling this peer */
 	char fromdomain[MAXHOSTNAMELEN];	/* From: domain when calling this peer */
-	char fullcontact[256];		/* Contact registred with us (not in sip.conf) */
+	char fullcontact[256];		/* Contact registered with us (not in sip.conf) */
 	char cid_num[80];		/* Caller ID num */
 	char cid_name[80];		/* Caller ID name */
 	int callingpres;		/* Calling id presentation */
@@ -4880,6 +4880,10 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 	char *pidfstate = "--";
 	char *pidfnote= "Ready";
 
+	memset(from, 0, sizeof(from));
+	memset(to, 0, sizeof(to));
+	memset(tmp, 0, sizeof(tmp));
+
 	switch (state) {
 	case (AST_EXTENSION_RINGING | AST_EXTENSION_INUSE):
 		if (global_notifyringing)
@@ -4932,7 +4936,6 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		}
 	}
 
-	memset(from, 0, sizeof(from));
 	ast_copy_string(from, get_header(&p->initreq, "From"), sizeof(from));
 	c = get_in_brackets(from);
 	if (strncmp(c, "sip:", 4)) {
@@ -4943,7 +4946,6 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		*a = '\0';
 	mfrom = c;
 
-	memset(to, 0, sizeof(to));
 	ast_copy_string(to, get_header(&p->initreq, "To"), sizeof(to));
 	c = get_in_brackets(to);
 	if (strncmp(c, "sip:", 4)) {
@@ -4993,10 +4995,10 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 		break;
 	case PIDF_XML: /* Eyebeam supports this format */
 		ast_build_string(&t, &maxbytes, "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
-		ast_build_string(&t, &maxbytes, "<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nentity=\"%s\">\n", mfrom);
+		ast_build_string(&t, &maxbytes, "<presence xmlns=\"urn:ietf:params:xml:ns:pidf\" \nxmlns:pp=\"urn:ietf:params:xml:ns:pidf:person\"\nxmlns:es=\"urn:ietf:params:xml:ns:pidf:rpid:status:rpid-status\"\nxmlns:ep=\"urn:ietf:params:xml:ns:pidf:rpid:rpid-person\"\nentity=\"%s\">\n", mfrom);
 		ast_build_string(&t, &maxbytes, "<pp:person><status>\n");
 		if (pidfstate[0] != '-')
-			ast_build_string(&t, &maxbytes, "<es:activities><es:activity>%s</es:activity></es:activities>\n", pidfstate);
+			ast_build_string(&t, &maxbytes, "<ep:activities><ep:%s/></ep:activities>\n", pidfstate);
 		ast_build_string(&t, &maxbytes, "</status></pp:person>\n");
 		ast_build_string(&t, &maxbytes, "<note>%s</note>\n", pidfnote); /* Note */
 		ast_build_string(&t, &maxbytes, "<tuple id=\"%s\">\n", p->exten); /* Tuple start */
@@ -5032,7 +5034,7 @@ static int transmit_state_notify(struct sip_pvt *p, int state, int full, int sub
 }
 
 /*--- transmit_notify_with_mwi: Notify user of messages waiting in voicemail ---*/
-/*      Notification only works for registred peers with mailbox= definitions
+/*      Notification only works for registered peers with mailbox= definitions
  *      in sip.conf
  *      We use the SIP Event package message-summary
  *      MIME type defaults to  "application/simple-message-summary";
@@ -5245,7 +5247,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 			p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
 		}
 	} else {
-		/* Build callid for registration if we haven't registred before */
+		/* Build callid for registration if we haven't registered before */
 		if (!r->callid_valid) {
 			build_callid(r->callid, sizeof(r->callid), __ourip, default_fromdomain);
 			r->callid_valid = 1;
@@ -6218,6 +6220,8 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	switch(state) {
 	case AST_EXTENSION_DEACTIVATED:	/* Retry after a while */
 	case AST_EXTENSION_REMOVED:	/* Extension is gone */
+		if (p->autokillid > -1)
+			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
 		sip_scheddestroy(p, 15000);	/* Delete subscription in 15 secs */
 		ast_verbose(VERBOSE_PREFIX_2 "Extension state: Watcher for hint %s %s. Notify User %s\n", exten, state == AST_EXTENSION_DEACTIVATED ? "deactivated" : "removed", p->username);
 		p->stateid = -1;
@@ -6969,7 +6973,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	if (!user) {
 		/* If we didn't find a user match, check for peers */
 		/* Look for peer based on the IP address we received data from */
-		/* If peer is registred from this IP address or have this as a default
+		/* If peer is registered from this IP address or have this as a default
 		   IP address, this call is from the peer 
  		*/
 		peer = find_peer(NULL, &p->recv, 1);
@@ -11205,6 +11209,20 @@ static int sip_poke_peer(struct sip_peer *peer)
 }
 
 /*--- sip_devicestate: Part of PBX channel interface ---*/
+
+/* Return values:---
+	If we have qualify on and the device is not reachable, regardless of registration
+	state we return AST_DEVICE_UNAVAILABLE
+
+	For peers with call limit:
+		not registered			AST_DEVICE_UNAVAILABLE
+		registered, no call		AST_DEVICE_NOT_INUSE
+		registered, calls possible	AST_DEVICE_INUSE
+		registered, call limit reached	AST_DEVICE_BUSY
+	For peers without call limit:
+		not registered			AST_DEVICE_UNAVAILABLE
+		registered			AST_DEVICE_UNKNOWN
+*/
 static int sip_devicestate(void *data)
 {
 	char *host;
@@ -11221,7 +11239,7 @@ static int sip_devicestate(void *data)
 		host = tmp + 1;
 
 	if (option_debug > 2) 
-		ast_log(LOG_DEBUG, "Checking device state for DNS host %s\n", host);
+		ast_log(LOG_DEBUG, "Checking device state for peer %s\n", host);
 
 	if ((p = find_peer(host, NULL, 1))) {
 		if (p->addr.sin_addr.s_addr || p->defaddr.sin_addr.s_addr) {
@@ -11232,8 +11250,10 @@ static int sip_devicestate(void *data)
 			} else {
 				/* qualify is not on, or the peer is responding properly */
 				/* check call limit */
-				if (p->call_limit && (p->inUse >= p->call_limit))
+				if (p->call_limit && (p->inUse == p->call_limit))
 					res = AST_DEVICE_BUSY;
+				else if (p->call_limit && p->inUse)
+					res = AST_DEVICE_INUSE;
 				else if (p->call_limit)
 					res = AST_DEVICE_NOT_INUSE;
 				else
@@ -11314,7 +11334,7 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 	build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	
 	/* We have an extension to call, don't use the full contact here */
-	/* This to enable dialling registred peers with extension dialling,
+	/* This to enable dialling registered peers with extension dialling,
 	   like SIP/peername/extension 	
 	   SIP/peername will still use the full contact */
 	if (ext) {
