@@ -2083,7 +2083,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (p->rpid)
 		free(p->rpid);
 
-	if (p->rpid_from)
+	if (p->rpid_from && (p->rpid_from != p->from))
 		free(p->rpid_from);
 
 	/* Unlink us from the owner if we have one */
@@ -4034,6 +4034,10 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	add_header(req, "CSeq", tmp);
 
 	add_header(req, "User-Agent", default_useragent);
+
+	if (ast_test_flag(p, SIP_OUTGOING) && (sipmethod == SIP_INVITE) && ast_test_flag(p, SIP_SENDRPID))
+		add_header(req, "Remote-Party-ID", p->rpid);
+
 	return 0;
 }
 
@@ -4748,14 +4752,15 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
 	 * OTOH, then we won't have anything in p->route anyway */
 	/* Build Remote Party-ID and From */
-	if (ast_test_flag(p, SIP_SENDRPID)) {
+	if (ast_test_flag(p, SIP_SENDRPID))
 		build_rpid(p);
-		add_header(req, "From", p->rpid_from);
-	} else
-		add_header(req, "From", from);
+	else
+		p->rpid_from = p->from;
+
+	add_header(req, "From", (sipmethod == SIP_INVITE) ? p->rpid_from : p->from);
+	add_header(req, "To", to);
 	ast_copy_string(p->exten, l, sizeof(p->exten));
 	build_contact(p);
-	add_header(req, "To", to);
 	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
