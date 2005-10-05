@@ -280,7 +280,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;                             regexten
 ;                             fromuser
 ;                             host
-;                             mask
 ;                             port
 ;                             qualify
 ;                             defaultip

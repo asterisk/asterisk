@@ -757,7 +757,6 @@ struct sip_peer {
 	ast_group_t pickupgroup;	/* Pickup group */
 	struct ast_dnsmgr_entry *dnsmgr;/* DNS refresh manager for peer */
 	struct sockaddr_in addr;	/* IP address of peer */
-	struct in_addr mask;
 
 	/* Qualification */
 	struct sip_pvt *call;		/* Call pointer */
@@ -7345,8 +7344,8 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	regex_t regexbuf;
 	int havepattern = 0;
 
-#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-15.15s  %-8s %-10s\n"
-#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-15.15s  %-8d %-10s\n"
+#define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s\n"
+#define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s\n"
 
 	char name[256];
 	char iabuf[INET_ADDRSTRLEN];
@@ -7377,11 +7376,10 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 	}
 
 	if (!s) { /* Normal list */
-		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Mask", "Port", "Status");
+		ast_cli(fd, FORMAT2, "Name/username", "Host", "Dyn", "Nat", "ACL", "Port", "Status");
 	} 
 	
 	ASTOBJ_CONTAINER_TRAVERSE(&peerl, 1, do {
-		char nm[20] = "";
 		char status[20] = "";
 		char srch[2000];
 		char pstatus;
@@ -7393,7 +7391,6 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			continue;
 		}
 
-		ast_inet_ntoa(nm, sizeof(nm), iterator->mask);
 		if (!ast_strlen_zero(iterator->username) && !s)
 			snprintf(name, sizeof(name), "%s/%s", iterator->name, iterator->username);
 		else
@@ -7420,7 +7417,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			ast_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ", 	/* Dynamic or not? */
 			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ", 	/* permit/deny */
-			nm, ntohs(iterator->addr.sin_port), status);
+			ntohs(iterator->addr.sin_port), status);
 
 		if (!s)  {/* Normal CLI list */
 			ast_cli(fd, FORMAT, name, 
@@ -7428,7 +7425,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			ast_test_flag(iterator, SIP_DYNAMIC) ? " D " : "   ",  /* Dynamic or not? */
 			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? " N " : "   ",	/* NAT=yes? */
 			iterator->ha ? " A " : "   ",       /* permit/deny */
-			nm,
+			
 			ntohs(iterator->addr.sin_port), status);
 		} else {	/* Manager format */
 			/* The names here need to be the same as other channels */
@@ -11788,7 +11785,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 {
 	struct sip_peer *peer = NULL;
 	struct ast_ha *oldha = NULL;
-	int maskfound=0;
 	int obproxyfound=0;
 	int found=0;
 	int format=0;		/* Ama flags */
@@ -11933,8 +11929,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				else
 					ast_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
 			}
-			if (!maskfound)
-				inet_aton("255.255.255.255", &peer->mask);
 		} else if (!strcasecmp(v->name, "defaultip")) {
 			if (ast_get_ip(&peer->defaddr, v->value)) {
 				ASTOBJ_UNREF(peer, sip_destroy_peer);
@@ -11942,9 +11936,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			}
 		} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
 			peer->ha = ast_append_ha(v->name, v->value, peer->ha);
-		} else if (!strcasecmp(v->name, "mask")) {
-			maskfound++;
-			inet_aton(v->value, &peer->mask);
 		} else if (!strcasecmp(v->name, "port")) {
 			if (!realtime && ast_test_flag(peer, SIP_DYNAMIC))
 				peer->defaddr.sin_port = htons(atoi(v->value));
