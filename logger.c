@@ -65,12 +65,16 @@ static int syslog_level_map[] = {
 
 #define MAX_MSG_QUEUE 200
 
-#if defined(__linux__) && defined(__NR_gettid)
+#if defined(__linux__) && !defined(__NR_gettid)
 #include <asm/unistd.h>
+#endif
+
+#if defined(__linux__) && defined(__NR_gettid)
 #define GETTID() syscall(__NR_gettid)
 #else
 #define GETTID() getpid()
 #endif
+
 
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 
