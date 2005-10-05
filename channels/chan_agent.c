@@ -753,7 +753,7 @@ static int agent_hangup(struct ast_channel *ast)
 		/* If they're dead, go ahead and hang up on the agent now */
 		if (!ast_strlen_zero(p->loginchan)) {
 			/* Store last disconnect time */
-			if (p->wrapuptime && p->acknowledged)
+			if (p->wrapuptime)
 				p->lastdisc = ast_tvadd(ast_tvnow(), ast_samp2tv(p->wrapuptime, 1000));
 			else
 				p->lastdisc = ast_tv(0,0);
