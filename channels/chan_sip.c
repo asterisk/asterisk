@@ -126,7 +126,7 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #define DEFAULT_RETRANS		1000		/* How frequently to retransmit */
 						/* 2 * 500 ms in RFC 3261 */
-#define MAX_RETRANS		7		/* Try only 7 times for retransmissions */
+#define MAX_RETRANS		6		/* Try only 6 times for retransmissions, a total of 7 transmissions */
 #define MAX_AUTHTRIES		3		/* Try authentication three times, then fail */
 
 
@@ -1142,9 +1142,9 @@ static int retrans_pkt(void *data)
  				pkt->timer_a = 2 * pkt->timer_a;
  
  			/* For non-invites, a maximum of 4 secs */
- 			if (pkt->method != SIP_INVITE && pkt->timer_a > 4000)
- 				pkt->timer_a = 4000;
  			siptimer_a = pkt->timer_t1 * pkt->timer_a;	/* Double each time */
+ 			if (pkt->method != SIP_INVITE && siptimer_a > 4000)
+ 				siptimer_a = 4000;
  		
  			/* Reschedule re-transmit */
 			reschedule = siptimer_a;
