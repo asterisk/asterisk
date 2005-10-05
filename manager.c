@@ -962,7 +962,7 @@ static char mandescr_originate[] =
 "	Data: Data to use (requires 'Application')\n"
 "	Timeout: How long to wait for call to be answered (in ms)\n"
 "	CallerID: Caller ID to be set on the outgoing channel\n"
-"	Variable: Channel variable to set (VAR1=value1|VAR2=value2)\n"
+"	Variable: Channel variable to set, multiple Variable: headers are allowed\n"
 "	Account: Account code\n"
 "	Async: Set to 'true' for fast origination\n";
 
