@@ -48,7 +48,7 @@ static char *tdesc = "Indicator for whether a voice mailbox has messages in a gi
 static char *app_hasvoicemail = "HasVoicemail";
 static char *hasvoicemail_synopsis = "Conditionally branches to priority + 101";
 static char *hasvoicemail_descrip =
-"HasVoicemail(vmbox[@context][:folder][|varname])\n"
+"HasVoicemail(vmbox[/folder][@context][|varname])\n"
 "  Branches to priority + 101, if there is voicemail in folder indicated."
 "  Optionally sets <varname> to the number of messages in that folder."
 "  Assumes folder of INBOX if not specified.\n";
@@ -65,82 +65,141 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-static int hasvoicemail_exec(struct ast_channel *chan, void *data)
+static int hasvoicemail_internal(char *context, char *box, char *folder)
 {
-	int res=0;
-	struct localuser *u;
-	char vmpath[256], *temps, *input, *varname = NULL, *vmbox, *context = "default";
-	char *vmfolder;
+	char vmpath[256];
 	DIR *vmdir;
 	struct dirent *vment;
+	int count=0;
+
+	snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, box, folder);
+	if ((vmdir = opendir(vmpath))) {
+		/* No matter what the format of VM, there will always be a .txt file for each message. */
+		while ((vment = readdir(vmdir))) {
+			if (!strncmp(vment->d_name + 7, ".txt", 4)) {
+				count++;
+				break;
+			}
+		}
+		closedir(vmdir);
+	}
+	return count;
+}
+
+static int hasvoicemail_exec(struct ast_channel *chan, void *data)
+{
+	struct localuser *u;
+	char *temps, *input, *varname = NULL, *vmbox, *context = "default";
+	char *vmfolder;
 	int vmcount = 0;
+	static int dep_warning = 0;
 
 	if (!data) {
-		ast_log(LOG_WARNING, "HasVoicemail requires an argument (vm-box[@context][:folder]|varname)\n");
+		ast_log(LOG_WARNING, "HasVoicemail requires an argument (vm-box[/folder][@context]|varname)\n");
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
+
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "The applications HasVoicemail and HasNewVoicemail have been deprecated.  Please use the VMCOUNT() function instead.\n");
+		dep_warning = 1;
+	}
 
 	input = ast_strdupa((char *)data);
-	if (input) {
-		temps = input;
-		if ((temps = strsep(&input, "|"))) {
-			if (input && !ast_strlen_zero(input))
-				varname = input;
-			input = temps;
-		}
-		if ((temps = strsep(&input, ":"))) {
-			if (input && !ast_strlen_zero(input))
-				vmfolder = input;
-			input = temps;
-		}
-		if ((vmbox = strsep(&input, "@")))
-			if (input && !ast_strlen_zero(input))
-				context = input;
-		if (!vmbox)
-			vmbox = input;
-		vmfolder = strchr(vmbox, '/');
-		if (vmfolder) {
-			*vmfolder = '\0';
-			vmfolder++;
-		} else
-			vmfolder = "INBOX";
-		snprintf(vmpath,sizeof(vmpath), "%s/voicemail/%s/%s/%s", (char *)ast_config_AST_SPOOL_DIR, context, vmbox, vmfolder);
-		if (!(vmdir = opendir(vmpath))) {
-			ast_log(LOG_NOTICE, "Voice mailbox %s at %s does not exist\n", vmbox, vmpath);
-		} else {
-
-			/* No matter what the format of VM, there will always be a .txt file for each message. */
-			while ((vment = readdir(vmdir)))
-				if (!strncmp(vment->d_name + 7,".txt",4))
-					vmcount++;
-			closedir(vmdir);
-		}
-		/* Set the count in the channel variable */
-		if (varname) {
-			char tmp[12];
-			snprintf(tmp, sizeof(tmp), "%d", vmcount);
-			pbx_builtin_setvar_helper(chan, varname, tmp);
-		}
-
-		if (vmcount > 0) {
-			/* Branch to the next extension */
-			if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-				ast_log(LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
-		}
-	} else {
+	if (! input) {
 		ast_log(LOG_ERROR, "Out of memory error\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+
+	temps = input;
+	if ((temps = strsep(&input, "|"))) {
+		if (input && !ast_strlen_zero(input))
+			varname = input;
+		input = temps;
+	}
+
+	if ((vmbox = strsep(&input, "@")))
+		if (input && !ast_strlen_zero(input))
+			context = input;
+	if (!vmbox)
+		vmbox = input;
+
+	vmfolder = strchr(vmbox, '/');
+	if (vmfolder) {
+		*vmfolder = '\0';
+		vmfolder++;
+	} else {
+		vmfolder = "INBOX";
+	}
+
+	vmcount = hasvoicemail_internal(context, vmbox, vmfolder);
+	/* Set the count in the channel variable */
+	if (varname) {
+		char tmp[12];
+		snprintf(tmp, sizeof(tmp), "%d", vmcount);
+		pbx_builtin_setvar_helper(chan, varname, tmp);
+	}
+
+	if (vmcount > 0) {
+		/* Branch to the next extension */
+		if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
+			ast_log(LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
 	}
 
 	LOCAL_USER_REMOVE(u);
-	return res;
+	return 0;
 }
+
+static char *acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	struct localuser *u;
+	char *args, *context, *box, *folder;
+
+	LOCAL_USER_ACF_ADD(u);
+
+	args = ast_strdupa(data);
+	if (!args) {
+		ast_log(LOG_ERROR, "Out of memory");
+		LOCAL_USER_REMOVE(u);
+		return "";
+	}
+
+	box = strsep(&args, "|");
+	if (strchr(box, '@')) {
+		context = box;
+		box = strsep(&context, "@");
+	} else {
+		context = "default";
+	}
+
+	if (args) {
+		folder = args;
+	} else {
+		folder = "INBOX";
+	}
+
+	snprintf(buf, len, "%d", hasvoicemail_internal(context, box, folder));
+	LOCAL_USER_REMOVE(u);
+	return buf;
+}
+
+struct ast_custom_function acf_vmcount = {
+	.name = "VMCOUNT",
+	.synopsis = "Counts the voicemail in a specified mailbox",
+	.syntax = "VMCOUNT(vmbox[@context][|folder])",
+	.desc =
+"  context - defaults to \"default\"\n"
+"  folder  - defaults to \"INBOX\"\n",
+	.read = acf_vmcount_exec,
+};
 
 int unload_module(void)
 {
 	int res;
 	STANDARD_HANGUP_LOCALUSERS;
-	res = ast_unregister_application(app_hasvoicemail);
+	res = ast_custom_function_unregister(&acf_vmcount);
+	res |= ast_unregister_application(app_hasvoicemail);
 	res |= ast_unregister_application(app_hasnewvoicemail);
 	return res;
 }
@@ -148,7 +207,8 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
-	res = ast_register_application(app_hasvoicemail, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_descrip);
+	res = ast_custom_function_register(&acf_vmcount);
+	res |= ast_register_application(app_hasvoicemail, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_descrip);
 	res |= ast_register_application(app_hasnewvoicemail, hasvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_descrip);
 	return res;
 }
