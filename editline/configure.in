@@ -32,8 +32,7 @@ case "${host}" in
 	ABI="elf"
 	;;
   *-*-linux* | *cygwin*)
-	cyg="$(echo ${host} | sed -e c\cygwin)"
-	if [ ${cyg} = cygwin ]; then \
+	if echo ${host} | grep -q cygwin ; then \
 		echo "cygwin detected"; \
 		S_CFLAGS=""; \
 		echo "/* cygdef.h. Generated automatically by configure. */ 

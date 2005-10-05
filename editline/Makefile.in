@@ -3,9 +3,8 @@
 #
 
 OSTYPE=$(shell uname -s)
-cygx="$(shell uname -s | sed -e c\cygwin | tr [:upper:] [:lower:])"
 define cyg_subst_sys
-	if [ $(cygx) = "cygwin" ]; then \
+	if uname -s | grep -qi cygwin; then \
 	cat $@ | sed -e s/"sys\.h"/"config.h"/g > $@.copy; \
 	mv --force $@.copy $@; \
 	fi
@@ -230,3 +229,5 @@ editline.c : $(ACSRCS) $(BCSRCS) $(AGCSRCS)
 
 .c.o_s : $(AGHDRS) $(BGHDRS)
 	$(CC) -c $(S_CFLAGS) $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+$(CCSRCS) : $(BGHDRS)

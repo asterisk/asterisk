@@ -158,7 +158,9 @@ busy.h: gentone
 ringtone.h: gentone
 	./gentone ringtone 440 480
 
-chan_oss.o: chan_oss.c  busy.h ringtone.h
+chan_oss.o: chan_oss.c busy.h ringtone.h
+
+chan_alsa.o: chan_alsa.c busy.h ringtone.h
 
 ifeq (${OSARCH},OpenBSD)
 chan_oss.so: chan_oss.o

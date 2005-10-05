@@ -29,11 +29,11 @@ STANDALONE_FUNCS=$(filter-out $(BUILTINS),$(patsubst %.c,%.o,$(wildcard func*.c)
 
 FUNCS+=$(STANDALONE_FUNCS:.o=.so)
 
-FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(BUILTINS:.o=.c) | awk '{print $$3};')
+FUNC_SOURCES=$(BUILTINS:.o=.c)
+
+FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(FUNC_SOURCES) | awk '{print $$3};')
 
 CFLAGS+=-fPIC
-
-FUNC_SOURCES=$(BUILTINS:.o=.c)
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
@@ -49,12 +49,14 @@ clean:
 
 #$(BUILTINS) : CFLAGS += -DBUILTIN_FUNC
 
-pbx_functions.h: $(BUILTINS:.o=.c)
+pbx_functions.h: $(FUNC_SOURCES)
 	@echo "/* Automatically generated - do not edit */" > $@
 	@for f in $(FUNC_SOURCES); do echo "#include \"$$f\"" >> $@; done
 	@echo "static struct ast_custom_function *builtins[] = {" >> $@
 	@for f in $(FUNC_STRUCTS); do echo "&$$f," >> $@; done
 	@echo "};" >> $@
+
+pbx_functions.o: pbx_functions.h
 
 pbx_functions.so: pbx_functions.o #$(BUILTINS)
 	$(CC) $(SOLINK) -o $@ $<
