@@ -549,11 +549,16 @@ struct sip_auth {
 /* Remote Party-ID Support */
 #define SIP_SENDRPID		(1 << 30)
 
+#define SIP_FLAGS_TO_COPY \
+	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
+	 SIP_PROG_INBAND | SIP_OSPAUTH | SIP_USECLIENTCODE | SIP_NAT | \
+	 SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
+
 /* a new page of flags for peer */
-#define SIP_PAGE2_RTCACHEFRIENDS 	(1 << 0)
-#define SIP_PAGE2_RTUPDATE 		(1 << 1)
-#define SIP_PAGE2_RTAUTOCLEAR 		(1 << 2)
-#define SIP_PAGE2_RTIGNOREREGEXPIRE       (1 << 3)
+#define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)
+#define SIP_PAGE2_RTUPDATE		(1 << 1)
+#define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)
+#define SIP_PAGE2_RTIGNOREREGEXPIRE	(1 << 3)
 
 static int global_rtautoclear = 120;
 
@@ -1807,9 +1812,7 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		return -1;
 	}
 
-	ast_copy_flags(r, peer,
-		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_DTMF | SIP_NAT | SIP_REINVITE |
-		       SIP_INSECURE_PORT | SIP_INSECURE_INVITE);
+	ast_copy_flags(r, peer, SIP_FLAGS_TO_COPY);
 	r->capability = peer->capability;
 	r->prefs = peer->prefs;
 	if (r->rtp) {
@@ -2083,7 +2086,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (p->rpid)
 		free(p->rpid);
 
-	if (p->rpid_from && (p->rpid_from != p->from))
+	if (p->rpid_from)
 		free(p->rpid_from);
 
 	/* Unlink us from the owner if we have one */
@@ -3037,7 +3040,7 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 		build_callid(p->callid, sizeof(p->callid), p->ourip, p->fromdomain);
 	else
 		ast_copy_string(p->callid, callid, sizeof(p->callid));
-	ast_copy_flags(p, (&global_flags), SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
+	ast_copy_flags(p, &global_flags, SIP_FLAGS_TO_COPY);
 	/* Assign default music on hold class */
 	strcpy(p->musicclass, global_musicclass);
 	p->capability = global_capability;
@@ -4035,7 +4038,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	add_header(req, "User-Agent", default_useragent);
 
-	if (ast_test_flag(p, SIP_OUTGOING) && (sipmethod == SIP_INVITE) && ast_test_flag(p, SIP_SENDRPID))
+	if (p->rpid)
 		add_header(req, "Remote-Party-ID", p->rpid);
 
 	return 0;
@@ -4752,12 +4755,12 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	/* SLD: FIXME?: do Route: here too?  I think not cos this is the first request.
 	 * OTOH, then we won't have anything in p->route anyway */
 	/* Build Remote Party-ID and From */
-	if (ast_test_flag(p, SIP_SENDRPID))
+	if (ast_test_flag(p, SIP_SENDRPID) && (sipmethod == SIP_INVITE)) {
 		build_rpid(p);
-	else
-		p->rpid_from = p->from;
-
-	add_header(req, "From", (sipmethod == SIP_INVITE) ? p->rpid_from : p->from);
+		add_header(req, "From", p->rpid_from);
+	} else {
+		add_header(req, "From", from);
+	}
 	add_header(req, "To", to);
 	ast_copy_string(p->exten, l, sizeof(p->exten));
 	build_contact(p);
@@ -4765,7 +4768,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
 	add_header(req, "User-Agent", default_useragent);
-	if (ast_test_flag(p, SIP_SENDRPID))
+	if (p->rpid)
 		add_header(req, "Remote-Party-ID", p->rpid);
 }
 
@@ -6905,7 +6908,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 
 	/* Find user based on user name in the from header */
 	if (user && ast_apply_ha(user->ha, sin)) {
-		ast_copy_flags(p, user, SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
+		ast_copy_flags(p, user, SIP_FLAGS_TO_COPY);
 		/* copy channel vars */
 		for (v = user->chanvars ; v ; v = v->next) {
 			if ((tmpvar = ast_variable_new(v->name, v->value))) {
@@ -6932,7 +6935,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		}
 		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore))) {
 			sip_cancel_destroy(p);
-			ast_copy_flags(p, user, SIP_PROMISCREDIR | SIP_DTMF | SIP_REINVITE);
+			ast_copy_flags(p, user, SIP_FLAGS_TO_COPY);
 			/* Copy SIP extensions profile from INVITE */
 			if (p->sipoptions)
 				user->sipoptions = p->sipoptions;
@@ -6995,7 +6998,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			if (debug)
 				ast_verbose("Found peer '%s'\n", peer->name);
 			/* Take the peer */
-			ast_copy_flags(p, peer, SIP_TRUSTRPID | SIP_SENDRPID | SIP_USECLIENTCODE | SIP_NAT | SIP_PROG_INBAND | SIP_OSPAUTH);
+			ast_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
 
 			/* Copy SIP extensions profile to peer */
 			if (p->sipoptions)
@@ -7030,7 +7033,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				p->peermd5secret[0] = '\0';
 			}
 			if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), peer->name, p->peersecret, p->peermd5secret, sipmethod, uri, reliable, ignore))) {
-				ast_copy_flags(p, peer, SIP_PROMISCREDIR | SIP_DTMF | SIP_REINVITE);
+				ast_copy_flags(p, peer, SIP_FLAGS_TO_COPY);
 				/* If we have a call limit, set flag */
 				if (peer->call_limit)
 					ast_set_flag(p, SIP_CALL_LIMIT);
@@ -7831,6 +7834,8 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  CanReinvite  : %s\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Yes":"No"));
 		ast_cli(fd, "  PromiscRedir : %s\n", (ast_test_flag(peer, SIP_PROMISCREDIR)?"Yes":"No"));
 		ast_cli(fd, "  User=Phone   : %s\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Yes":"No"));
+		ast_cli(fd, "  Trust RPID   : %s\n", (ast_test_flag(peer, SIP_TRUSTRPID) ? "Yes" : "No"));
+		ast_cli(fd, "  Send RPID    : %s\n", (ast_test_flag(peer, SIP_SENDRPID) ? "Yes" : "No"));
 
 		/* - is enumerated */
 		ast_cli(fd, "  DTMFmode     : %s\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
@@ -11669,9 +11674,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	ast_copy_string(user->name, name, sizeof(user->name));
 	oldha = user->ha;
 	user->ha = NULL;
-	ast_copy_flags(user, &global_flags,
-		SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE | SIP_DTMF | SIP_NAT |
-		SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE | SIP_PROG_INBAND | SIP_OSPAUTH);
+	ast_copy_flags(user, &global_flags, SIP_FLAGS_TO_COPY);
 	user->capability = global_capability;
 	user->prefs = prefs;
 	/* set default context */
@@ -11763,10 +11766,7 @@ static struct sip_peer *temp_peer(const char *name)
 	peer->expire = -1;
 	peer->pokeexpire = -1;
 	ast_copy_string(peer->name, name, sizeof(peer->name));
-	ast_copy_flags(peer, &global_flags,
-		       SIP_PROMISCREDIR | SIP_USEREQPHONE | SIP_TRUSTRPID | SIP_USECLIENTCODE |
-		       SIP_DTMF | SIP_NAT | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
-		       SIP_PROG_INBAND | SIP_OSPAUTH | SIP_SENDRPID);
+	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
 	strcpy(peer->language, default_language);
@@ -11861,10 +11861,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	oldha = peer->ha;
 	peer->ha = NULL;
 	peer->addr.sin_family = AF_INET;
-	ast_copy_flags(peer, &global_flags,
-		       SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_USECLIENTCODE |
-		       SIP_DTMF | SIP_REINVITE | SIP_INSECURE_PORT | SIP_INSECURE_INVITE |
-		       SIP_PROG_INBAND | SIP_OSPAUTH | SIP_SENDRPID);
+	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
 	peer->capability = global_capability;
 	peer->rtptimeout = global_rtptimeout;
 	peer->rtpholdtimeout = global_rtpholdtimeout;
