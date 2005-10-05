@@ -389,7 +389,7 @@ static void adjust_volume(struct ast_frame *f, int vol)
 	int count;
 	short *fdata = f->data;
 
-	for (count = 0; count < f->datalen; count++) {
+	for (count = 0; count < (f->datalen / sizeof(*fdata)); count++) {
 		if (vol > 0) {
 			fdata[count] *= abs(vol);
 		} else if (vol < 0) {
