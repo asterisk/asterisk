@@ -307,7 +307,7 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sys/poll.h),)
 endif
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
-  OBJS+= dhfcn.o
+  OBJS+= dlfcn.o
   ASTCFLAGS+=-DDLFCNCOMPAT
 endif
 
