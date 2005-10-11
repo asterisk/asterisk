@@ -91,7 +91,6 @@ struct outgoing {
 	
 	/* Maximum length of call */
 	int maxlen;
-	
 };
 
 static void init_outgoing(struct outgoing *o)
@@ -100,6 +99,17 @@ static void init_outgoing(struct outgoing *o)
 	o->priority = 1;
 	o->retrytime = 300;
 	o->waittime = 45;
+}
+
+static void free_outgoing(struct outgoing *o)
+{
+	struct ast_variable *last;
+	while(o->vars) {
+		last = o->vars;
+		o->vars = o->vars->next;
+		free(last);
+	}
+	free(o);
 }
 
 static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
@@ -265,7 +275,7 @@ static void *attempt_thread(void *data)
 		ast_log(LOG_EVENT, "Queued call to %s/%s completed\n", o->tech, o->dest);
 		unlink(o->fn);
 	}
-	free(o);
+	free_outgoing(o);
 	return NULL;
 }
 
@@ -277,7 +287,7 @@ static void launch_service(struct outgoing *o)
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (ast_pthread_create(&t,&attr,attempt_thread, o) == -1) {
 		ast_log(LOG_WARNING, "Unable to create thread :(\n");
-		free(o);
+		free_outgoing(o);
 	}
 }
 
@@ -314,18 +324,18 @@ static int scan_service(char *fn, time_t now, time_t atime)
 					return now;
 				} else {
 					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
-					free(o);
+					free_outgoing(o);
 					unlink(fn);
 					return 0;
 				}
 			} else {
-				free(o);
+				free_outgoing(o);
 				ast_log(LOG_WARNING, "Invalid file contents in %s, deleting\n", fn);
 				fclose(f);
 				unlink(fn);
 			}
 		} else {
-			free(o);
+			free_outgoing(o);
 			ast_log(LOG_WARNING, "Unable to open %s: %s, deleting\n", fn, strerror(errno));
 			unlink(fn);
 		}
