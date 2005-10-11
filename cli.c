@@ -949,7 +949,7 @@ static void join(char *dest, size_t destsize, char *w[], int tws)
 			strncat(dest, " ", destsize - strlen(dest) - 1);
 		strncat(dest, w[x], destsize - strlen(dest) - 1);
 	}
-	if (tws)
+	if (tws && !ast_strlen_zero(dest))
 		strncat(dest, " ", destsize - strlen(dest) - 1);
 }
 
