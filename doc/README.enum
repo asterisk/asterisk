@@ -26,7 +26,7 @@ actually create channels ("dial") results given by the ENUMLOOKUP
 function is then up to the administrator to implement in a way that
 best suits their environment.
 
-Function: EnumLookup(<number>[,pointer_type[,options[,zone_suffix]]])
+Function: ENUMLOOKUP(<number>[,pointer_type[,options[,zone_suffix]]])
 
   Performs an ENUM tree lookup on the specified number, method type,
   and (optionally) ordinal offset, and returns one of four different values:
