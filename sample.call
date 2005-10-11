@@ -1,8 +1,16 @@
 #
 # This is a sample file that can be dumped in /var/spool/asterisk/outgoing
-# to generate a call.  Obviously, you MUST specify at least a channel in
-# the same format as you would for the "Dial" application.  Only one
-# channel name is permitted.
+# to generate a call.  
+#
+# Comments are indicated by a '#' character that begins a line, or follows
+# a space or tab character.  To be consistent with the configuration files
+# in Asterisk, comments can also be indicated by a semicolon.  However, the
+# multiline comments (;-- --;) used in Asterisk configuration files are not 
+# supported.  Semicolons can be escaped by a backslash.
+#
+
+# Obviously, you MUST specify at least a channel in the same format as you
+# would for the "Dial" application.  Only one channel name is permitted.
 #
 Channel: Zap/1
 #

@@ -129,9 +129,17 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 			else
 				c++;
 		}
-		c = strchr(buf, ';');
-		if (c)
-			 *c = '\0';
+
+		c = buf;
+		while ((c = strchr(c, ';'))) {
+			if ((c > buf) && (c[-1] == '\\')) {
+				memmove(c - 1, c, strlen(c) + 1);
+				c++;
+			} else {
+				*c = '\0';
+				break;
+			}
+		}
 
 		/* Trim trailing white space */
 		while(!ast_strlen_zero(buf) && buf[strlen(buf) - 1] < 33)
