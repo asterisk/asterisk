@@ -4614,7 +4614,7 @@ static void build_rpid(struct sip_pvt *p)
 		break;
 	case AST_PRES_PROHIB_NETWORK_NUMBER:
 		privacy = "full";
-		screen = "fail";
+		screen = "pass";
 		break;
 	case AST_PRES_NUMBER_NOT_AVAILABLE:
 		send_pres_tags = 0;
