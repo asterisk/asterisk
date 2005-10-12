@@ -273,6 +273,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; call-limit		      call-limit
 ; restrictcid		      restrictcid
 ; subscribecontext	      subscribecontext
+; videosupport		      videosupport
 ;                             mailbox
 ;                             username
 ;                             template
