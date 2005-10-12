@@ -16,12 +16,11 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Real-time Protocol Support
- * 	Supports RTP and RTCP with Symmetric RTP support for NAT
- * 	traversal
+/*! 
+ * \file rtp.c
+ * \brief Supports RTP and RTCP with Symmetric RTP support for NAT traversal.
  * 
+ * RTP is deffined in RFC 3550.
  */
 
 #include <stdio.h>
@@ -59,7 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define RTP_MTU		1200
 
-static int dtmftimeout = 3000;	/* 3000 samples */
+static int dtmftimeout = 3000; /* 3000 samples */
 
 static int rtpstart = 0;
 static int rtpend = 0;
@@ -87,6 +86,7 @@ struct ast_rtp {
 	char resp;
 	struct ast_frame f;
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
+	/*! Synchronization source, RFC 3550, page 10. */
 	unsigned int ssrc;
 	unsigned int lastts;
 	unsigned int lastdigitts;
@@ -101,13 +101,16 @@ struct ast_rtp {
 	unsigned int dtmfduration;
 	int nat;
 	unsigned int flags;
+	/*! Socket representation of the local endpoint. */
 	struct sockaddr_in us;
+	/*! Socket representation of the remote endpoint. */
 	struct sockaddr_in them;
 	struct timeval rxcore;
 	struct timeval txcore;
 	struct timeval dtmfmute;
 	struct ast_smoother *smoother;
 	int *ioid;
+	/*! Sequence number, RFC 3550, page 13. */
 	unsigned short seqno;
 	unsigned short rxseqno;
 	struct sched_context *sched;
@@ -115,16 +118,30 @@ struct ast_rtp {
 	void *data;
 	ast_rtp_callback callback;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-	int rtp_lookup_code_cache_isAstFormat;	/* a cache for the result of rtp_lookup_code(): */
+	/*! a cache for the result of rtp_lookup_code(): */
+	int rtp_lookup_code_cache_isAstFormat;
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	int rtp_offered_from_local;
 	struct ast_rtcp *rtcp;
 };
 
+/*!
+ * \brief Structure defining an RTCP session.
+ * 
+ * The concept "RTCP session" is not defined in RFC 3550, but since 
+ * this structure is analogous to ast_rtp, which tracks a RTP session, 
+ * it is logical to think of this as a RTCP session.
+ *
+ * RTCP packet is defined on page 9 of RFC 3550.
+ * 
+ */
 struct ast_rtcp {
-	int s;		/* Socket */
+	/*! Socket */
+	int s;
+	/*! Socket representation of the local endpoint. */
 	struct sockaddr_in us;
+	/*! Socket representation of the remote endpoint. */
 	struct sockaddr_in them;
 };
 
@@ -230,9 +247,17 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	return f;
 }
 
-/* process_rfc2833: Process RTP DTMF and events according to RFC 2833:
-	"RTP Payload for DTMF Digits, Telephony Tones and Telephony Signals"
-*/
+/*! 
+ * \brief Process RTP DTMF and events according to RFC 2833.
+ * 
+ * RFC 2833 is "RTP Payload for DTMF Digits, Telephony Tones and Telephony Signals".
+ * 
+ * \param rtp
+ * \param data
+ * \param len
+ * \param seqno
+ * \returns
+ */
 static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *data, int len, unsigned int seqno)
 {
 	unsigned int event;
@@ -282,8 +307,11 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	return f;
 }
 
-/*--- process_rfc3389: Process Comfort Noise RTP. 
-	This is incomplete at the moment.
+/*!
+ * \brief Process Comfort Noise RTP.
+ * 
+ * This is incomplete at the moment.
+ * 
 */
 static struct ast_frame *process_rfc3389(struct ast_rtp *rtp, unsigned char *data, int len)
 {
@@ -483,7 +511,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 		ast_verbose("Got RTP packet from %s:%d (type %d, seq %d, ts %d, len %d)\n"
 			, ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp,res - hdrlen);
 
-        rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
+   rtpPT = ast_rtp_lookup_pt(rtp, payloadtype);
 	if (!rtpPT.isAstFormat) {
 		/* This is special in-band data that's not one of our codecs */
 		if (rtpPT.code == AST_RTP_DTMF) {
@@ -503,37 +531,37 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				duration &= 0xFFFF;
 				ast_verbose("Got rfc2833 RTP packet from %s:%d (type %d, seq %d, ts %d, len %d, mark %d, event %08x, end %d, duration %d) \n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), payloadtype, seqno, timestamp, res - hdrlen, (mark?1:0), event, ((event_end & 0x80)?1:0), duration);
 			}
-	    		if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
-	      			f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
-	      			rtp->lasteventseqn = seqno;
-	    		} else 
+			if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
+				f = process_rfc2833(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen, seqno);
+				rtp->lasteventseqn = seqno;
+			} else
 				f = NULL;
-	    		if (f) 
-				return f; 
-			else 
+			if (f)
+				return f;
+			else
 				return &null_frame;
-	  	} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
-	    		/* It's really special -- process it the Cisco way */
-	    		if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
-	      			f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-	      			rtp->lasteventseqn = seqno;
-	    		} else 
+		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
+			/* It's really special -- process it the Cisco way */
+			if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
+				f = process_cisco_dtmf(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+				rtp->lasteventseqn = seqno;
+			} else 
 				f = NULL;
-	    		if (f) 
+				if (f) 
 				return f; 
 			else 
 				return &null_frame;
-	  	} else if (rtpPT.code == AST_RTP_CN) {
-	    		/* Comfort Noise */
-	    		f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
-	    		if (f) 
+		} else if (rtpPT.code == AST_RTP_CN) {
+			/* Comfort Noise */
+			f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
+			if (f) 
 				return f; 
 			else 
 				return &null_frame;
-	  	} else {
-	    		ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
-	    		return &null_frame;
-	  	}
+		} else {
+			ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
+			return &null_frame;
+		}
 	}
 	rtp->f.subclass = rtpPT.code;
 	if (rtp->f.subclass < AST_FORMAT_MAX_AUDIO)
@@ -862,6 +890,11 @@ static int rtp_socket(void)
 	return s;
 }
 
+/*!
+ * \brief Initialize a new RTCP session.
+ * 
+ * \returns The newly initialized RTCP session.
+ */
 static struct ast_rtcp *ast_rtcp_new(void)
 {
 	struct ast_rtcp *rtcp;
@@ -903,16 +936,21 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 		rtp->sched = sched;
 		rtp->rtcp = ast_rtcp_new();
 	}
-	/* Find us a place */
+	
+	/* Select a random port number in the range of possible RTP */
 	x = (rand() % (rtpend-rtpstart)) + rtpstart;
 	x = x & ~1;
+	/* Save it for future references. */
 	startplace = x;
+	/* Iterate tring to bind that port and incrementing it otherwise untill a port was found or no ports are available. */
 	for (;;) {
 		/* Must be an even port number by RTP spec */
 		rtp->us.sin_port = htons(x);
 		rtp->us.sin_addr = addr;
+		/* If there's rtcp, initialize it as well. */
 		if (rtp->rtcp)
 			rtp->rtcp->us.sin_port = htons(x + 1);
+		/* Try to bind it/them. */
 		if (!(first = bind(rtp->s, (struct sockaddr *)&rtp->us, sizeof(rtp->us))) &&
 			(!rtp->rtcp || !bind(rtp->rtcp->s, (struct sockaddr *)&rtp->rtcp->us, sizeof(rtp->rtcp->us))))
 			break;
@@ -922,6 +960,7 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 			rtp->s = rtp_socket();
 		}
 		if (errno != EADDRINUSE) {
+			/* We got an error that wasn't expected, abort! */
 			ast_log(LOG_ERROR, "Unexpected bind error: %s\n", strerror(errno));
 			close(rtp->s);
 			if (rtp->rtcp) {
@@ -931,10 +970,15 @@ struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io
 			free(rtp);
 			return NULL;
 		}
+		/* The port was used, increment it (by two). */
 		x += 2;
+		/* Did we go over the limit ? */
 		if (x > rtpend)
+			/* then, start from the begingig. */
 			x = (rtpstart + 1) & ~1;
+		/* Check if we reached the place were we started. */
 		if (x == startplace) {
+			/* If so, there's no ports available. */
 			ast_log(LOG_ERROR, "No RTP ports remaining. Can't setup media stream for this call.\n");
 			close(rtp->s);
 			if (rtp->rtcp) {

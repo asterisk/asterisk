@@ -16,8 +16,11 @@
  * at the top of the source tree.
  */
 
-/*
- * Real-time Transport Protocol support
+/*! 
+ * \file rtp.h
+ * \brief Supports RTP and RTCP with Symmetric RTP support for NAT traversal.
+ * 
+ * RTP is deffined in RFC 3550.
  */
 
 #ifndef _ASTERISK_RTP_H
@@ -56,12 +59,39 @@ struct ast_rtp_protocol {
 	struct ast_rtp_protocol *next;
 };
 
+/*!
+ * \brief Structure representing a RTP session.
+ * 
+ * RTP session is defined on page 9 of RFC 3550: "An association among a set of participants communicating with RTP.  A participant may be involved in multiple RTP sessions at the same time [...]"
+ * 
+ */
 struct ast_rtp;
 
 typedef int (*ast_rtp_callback)(struct ast_rtp *rtp, struct ast_frame *f, void *data);
 
+/*!
+ * \brief Initializate a RTP session.
+ * 
+ * \param sched
+ * \param io
+ * \param rtcpenable
+ * \param callbackmode
+ * \returns A representation (structure) of an RTP session.
+ */
 struct ast_rtp *ast_rtp_new(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode);
 
+/*!
+ * \brief Initializate a RTP session using an in_addr structure.
+ * 
+ * This fuction gets called by ast_rtp_new().
+ * 
+ * \param sched
+ * \param io
+ * \param rtcpenable
+ * \param callbackmode
+ * \param in
+ * \returns A representation (structure) of an RTP session.
+ */
 struct ast_rtp *ast_rtp_new_with_bindaddr(struct sched_context *sched, struct io_context *io, int rtcpenable, int callbackmode, struct in_addr in);
 
 void ast_rtp_set_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
