@@ -103,12 +103,6 @@ static void init_outgoing(struct outgoing *o)
 
 static void free_outgoing(struct outgoing *o)
 {
-	struct ast_variable *last;
-	while(o->vars) {
-		last = o->vars;
-		o->vars = o->vars->next;
-		free(last);
-	}
 	free(o);
 }
 
