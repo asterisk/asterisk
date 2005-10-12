@@ -2909,7 +2909,10 @@ static int iax2_call(struct ast_channel *c, char *dest, int timeout)
 		iax_ie_append_str(&ied, IAX_IE_CALLING_NUMBER, l);
 		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->cid.cid_pres);
 	} else {
-		iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, AST_PRES_NUMBER_NOT_AVAILABLE);
+		if (n)
+			iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, c->cid.cid_pres);
+		else
+			iax_ie_append_byte(&ied, IAX_IE_CALLINGPRES, AST_PRES_NUMBER_NOT_AVAILABLE);
 	}
 
 	iax_ie_append_byte(&ied, IAX_IE_CALLINGTON, c->cid.cid_ton);
