@@ -191,6 +191,11 @@ enum sipmethod {
 	SIP_PUBLISH,
 } sip_method_list;
 
+enum sip_auth_type {
+	PROXY_AUTH,
+	WWW_AUTH,
+};
+
 static const struct  cfsip_methods { 
 	enum sipmethod id;
 	int need_rtp;		/* when this is the 'primary' use for a pvt structure, does it need RTP? */
@@ -455,10 +460,11 @@ struct sip_invite_param {
 	char *distinctive_ring;
 	char *osptoken;
 	int addsipheaders;
-       char *uri_options;
+	char *uri_options;
 	char *vxml_url;
 	char *auth;
 	char *authheader;
+	enum sip_auth_type auth_type;
 };
 
 struct sip_route {
@@ -633,6 +639,7 @@ static struct sip_pvt {
 	char *rpid_from;			/* Our RPID From header */
 	char realm[MAXHOSTNAMELEN];		/* Authorization realm */
 	char nonce[256];			/* Authorization nonce */
+	int noncecount;				/* Nonce-count */
 	char opaque[256];			/* Opaque nonsense */
 	char qop[80];				/* Quality of Protection, since SIP wasn't complicated enough yet. */
 	char domain[MAXHOSTNAMELEN];		/* Authorization domain */
@@ -818,6 +825,7 @@ struct sip_registry {
  	char domain[MAXHOSTNAMELEN];	/* Authorization domain */
  	char opaque[256];		/* Opaque nonsense */
  	char qop[80];			/* Quality of Protection. */
+	int noncecount;				/* Nonce-count */
  
  	char lastmsg[256];		/* Last Message sent/received */
 };
@@ -5387,6 +5395,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		ast_copy_string(p->domain, r->domain, sizeof(p->domain));
 		ast_copy_string(p->opaque, r->opaque, sizeof(p->opaque));
 		ast_copy_string(p->qop, r->qop, sizeof(p->qop));
+		p->noncecount = r->noncecount++;
 
 		memset(digest,0,sizeof(digest));
 		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
@@ -5518,9 +5527,14 @@ static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int seqn
 		char digest[1024];
 
 		memset(digest, 0, sizeof(digest));
-		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest)))
-			add_header(&resp, "Proxy-Authorization", digest);
-		else
+		if(!build_reply_digest(p, sipmethod, digest, sizeof(digest))) {
+			if (p->options && p->options->auth_type == PROXY_AUTH)
+				add_header(&resp, "Proxy-Authorization", digest);
+			else if (p->options && p->options->auth_type == WWW_AUTH)
+				add_header(&resp, "Authorization", digest);
+			else	/* Default, to be backwards compatible (maybe being too careful, but leaving it for now) */
+				add_header(&resp, "Proxy-Authorization", digest);
+		} else
 			ast_log(LOG_WARNING, "No authentication available for call %s\n", p->callid);
 	}
 	/* If we are hanging up and know a cause for that, send it in clear text to make
@@ -8808,6 +8822,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 {
 	char tmp[512];
 	char *c;
+	char oldnonce[256];
 
 	/* table of recognised keywords, and places where they should be copied */
 	const struct x {
@@ -8833,6 +8848,7 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 	c = tmp + strlen("Digest ");
 	for (i = keys; i->key != NULL; i++)
 		i->dst[0] = '\0';	/* init all to empty strings */
+	ast_copy_string(oldnonce, p->nonce, sizeof(oldnonce));
 	while (c && *(c = ast_skip_blanks(c))) {	/* lookup for keys */
 		for (i = keys; i->key != NULL; i++) {
 			char *src, *separator;
@@ -8854,16 +8870,22 @@ static int reply_digest(struct sip_pvt *p, struct sip_request *req,
 		if (i->key == NULL) /* not found, try ',' */
 			strsep(&c, ",");
 	}
+	/* Reset nonce count */
+	if (strcmp(p->nonce, oldnonce)) 
+		p->noncecount = 0;
 
 	/* Save auth data for following registrations */
 	if (p->registry) {
 		struct sip_registry *r = p->registry;
 
-		ast_copy_string(r->realm, p->realm, sizeof(r->realm));
-		ast_copy_string(r->nonce, p->nonce, sizeof(r->nonce));
-		ast_copy_string(r->domain, p->domain, sizeof(r->domain));
-		ast_copy_string(r->opaque, p->opaque, sizeof(r->opaque));
-		ast_copy_string(r->qop, p->qop, sizeof(r->qop));
+		if (strcmp(r->nonce, p->nonce)) {
+			ast_copy_string(r->realm, p->realm, sizeof(r->realm));
+			ast_copy_string(r->nonce, p->nonce, sizeof(r->nonce));
+			ast_copy_string(r->domain, p->domain, sizeof(r->domain));
+			ast_copy_string(r->opaque, p->opaque, sizeof(r->opaque));
+			ast_copy_string(r->qop, p->qop, sizeof(r->qop));
+			r->noncecount = 0;
+		}
 	}
 	return build_reply_digest(p, sipmethod, digest, digest_len); 
 }
@@ -8922,16 +8944,16 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
 	else
 		ast_md5_hash(a1_hash,a1);
 	ast_md5_hash(a2_hash,a2);
-	/* XXX We hard code the nonce-number to 1... What are the odds? Are we seriously going to keep
-	       track of every nonce we've seen? Also we hard code to "auth"...  XXX */
+
+	p->noncecount++;
 	if (!ast_strlen_zero(p->qop))
-		snprintf(resp,sizeof(resp),"%s:%s:%s:%s:%s:%s", a1_hash, p->nonce, "00000001", cnonce, "auth", a2_hash);
+		snprintf(resp,sizeof(resp),"%s:%s:%08x:%s:%s:%s", a1_hash, p->nonce, p->noncecount, cnonce, "auth", a2_hash);
 	else
 		snprintf(resp,sizeof(resp),"%s:%s:%s", a1_hash, p->nonce, a2_hash);
 	ast_md5_hash(resp_hash, resp);
 	/* XXX We hard code our qop to "auth" for now.  XXX */
 	if (!ast_strlen_zero(p->qop))
-		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=auth, cnonce=\"%s\", nc=00000001", username, p->realm, uri, p->nonce, resp_hash, p->opaque, cnonce);
+		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\", qop=auth, cnonce=\"%s\", nc=%08x", username, p->realm, uri, p->nonce, resp_hash, p->opaque, cnonce, p->noncecount);
 	else
 		snprintf(digest, digest_len, "Digest username=\"%s\", realm=\"%s\", algorithm=MD5, uri=\"%s\", nonce=\"%s\", response=\"%s\", opaque=\"%s\"", username, p->realm, uri, p->nonce, resp_hash, p->opaque);
 
@@ -9402,13 +9424,19 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		transmit_request(p, SIP_ACK, seqno, 0, 1);
 		check_pendings(p);
 		break;
+	case 407: /* Proxy authentication */
 	case 401: /* Www auth */
 		/* First we ACK */
 		transmit_request(p, SIP_ACK, seqno, 0, 0);
+		if (p->options)
+			p->options->auth_type = (resp == 401 ? WWW_AUTH : PROXY_AUTH);
+
 		/* Then we AUTH */
 		p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
 		if (!ignore) {
-			if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "WWW-Authenticate", "Authorization", SIP_INVITE, 1)) {
+			char *authenticate = (resp == 401 ? "WWW-Authenticate" : "Proxy-Authenticate");
+			char *authorization = (resp == 401 ? "Authorization" : "Proxy-Authorization");
+			if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, authenticate, authorization, SIP_INVITE, 1)) {
 				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 				ast_set_flag(p, SIP_ALREADYGONE);	
@@ -9431,22 +9459,6 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		if (p->owner && !ignore)
 			ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
 		ast_set_flag(p, SIP_ALREADYGONE);	
-		break;
-	case 407: /* Proxy authentication */
-		/* First we ACK */
-		transmit_request(p, SIP_ACK, seqno, 0, 0);
-		/* Then we AUTH */
-		/* But only if the packet wasn't marked as ignore in handle_request */
-		if (!ignore) {
-			p->theirtag[0]='\0';	/* forget their old tag, so we don't match tags when getting response */
-			if ((p->authtries == MAX_AUTHTRIES) || do_proxy_auth(p, req, "Proxy-Authenticate", "Proxy-Authorization", SIP_INVITE, 1)) {
-				ast_log(LOG_NOTICE, "Failed to authenticate on INVITE to '%s'\n", get_header(&p->initreq, "From"));
-				ast_set_flag(p, SIP_NEEDDESTROY);	
-				if (p->owner)
-					ast_queue_control(p->owner, AST_CONTROL_CONGESTION);
-				ast_set_flag(p, SIP_ALREADYGONE);	
-			}
-		}
 		break;
 	case 481: /* Call leg does not exist */
 		/* Could be REFER or INVITE */
@@ -9762,7 +9774,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 				}
 			} else if (p->registry && sipmethod == SIP_REGISTER) {
 				res = handle_response_register(p, resp, rest, req, ignore, seqno);
-			} else
+			} else	/* We can't handle this, giving up in a bad way */
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 
 			break;
@@ -9869,6 +9881,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		case 407:
 			if (sipmethod == SIP_BYE || sipmethod == SIP_REFER) {
 				char *auth, *auth2;
+
 				if (resp == 407) {
 					auth = "Proxy-Authenticate";
 					auth2 = "Proxy-Authorization";
