@@ -1399,22 +1399,22 @@ static int action_agents(struct mansession *s, struct message *m)
 		/* Set a default status. It 'should' get changed. */
 		status = "AGENT_UNKNOWN";
 
-		if(p->chan) {
-			loginChan = p->loginchan;
-			if(p->owner && p->owner->_bridge) {
-        			talkingtoChan = p->chan->cid.cid_num;
-        			status = "AGENT_ONCALL";
-			} else {
-        			talkingtoChan = "n/a";
-        			status = "AGENT_IDLE";
-			}
-		} else if(!ast_strlen_zero(p->loginchan)) {
+		if (!ast_strlen_zero(p->loginchan)) {
 			loginChan = p->loginchan;
 			talkingtoChan = "n/a";
 			status = "AGENT_IDLE";
 			if (p->acknowledged) {
 				snprintf(chanbuf, sizeof(chanbuf), " %s (Confirmed)", p->loginchan);
 				loginChan = chanbuf;
+			}
+		} else if (p->chan) {
+			loginChan = ast_strdupa(p->chan->name);
+			if (p->owner && p->owner->_bridge) {
+        			talkingtoChan = p->chan->cid.cid_num;
+        			status = "AGENT_ONCALL";
+			} else {
+        			talkingtoChan = "n/a";
+        			status = "AGENT_IDLE";
 			}
 		} else {
 			loginChan = "n/a";
@@ -2175,10 +2175,9 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 		}
 		ast_mutex_lock(&p->lock);
 		login_state = 1; /* Successful Login */
-		ast_copy_string(p->loginchan, exten, sizeof(p->loginchan));
 		
 		if (ast_strlen_zero(context))
-			snprintf(p->loginchan, sizeof(p->loginchan), "%s", exten);
+			ast_copy_string(p->loginchan, exten, sizeof(p->loginchan));
 		else
 			snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", exten, context);
 
