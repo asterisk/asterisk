@@ -450,6 +450,7 @@ struct sip_request {
 	char *line[SIP_MAX_LINES];
 	char data[SIP_MAX_PACKET];
 	int debug;		/* Debug flag for this packet */
+	unsigned int flags;	/* SIP_PKT Flags for this packet */
 };
 
 struct sip_pkt;
@@ -564,6 +565,10 @@ struct sip_auth {
 #define SIP_PAGE2_RTUPDATE		(1 << 1)
 #define SIP_PAGE2_RTAUTOCLEAR		(1 << 2)
 #define SIP_PAGE2_RTIGNOREREGEXPIRE	(1 << 3)
+
+/* SIP packet flags */
+#define SIP_PKT_DEBUG		(1 << 0)	/* Debug this packet */
+#define SIP_PKT_WITH_TOTAG	(1 << 1)	/* This packet has a to-tag */
 
 static int global_rtautoclear = 120;
 
@@ -910,6 +915,7 @@ static int determine_firstline_parts(struct sip_request *req);
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate);
+static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
 
 /* Definition of this channel for channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -3072,13 +3078,14 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 }
 
 /*--- find_call: Connect incoming SIP message to current dialog or create new dialog structure */
-/*               Called by handle_request ,sipsock_read */
+/*               Called by handle_request, sipsock_read */
 static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *sin, const int intended_method)
 {
 	struct sip_pvt *p;
 	char *callid;
-	char tmp[256];
-	char *tag = "", *c;
+	char *tag = "";
+	char totag[128];
+	char fromtag[128];
 
 	callid = get_header(req, "Call-ID");
 
@@ -3086,32 +3093,51 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		/* In principle Call-ID's uniquely identify a call, but with a forking SIP proxy
 		   we need more to identify a branch - so we have to check branch, from
 		   and to tags to identify a call leg.
-		     For Asterisk to behave correctly, you need to turn on pedanticsipchecking
+		   For Asterisk to behave correctly, you need to turn on pedanticsipchecking
 		   in sip.conf
 		   */
+		if (gettag(req, "To", totag, sizeof(totag)))
+			ast_set_flag(req, SIP_PKT_WITH_TOTAG);	/* Used in handle_request/response */
+		gettag(req, "From", fromtag, sizeof(fromtag));
+
 		if (req->method == SIP_RESPONSE)
-			ast_copy_string(tmp, get_header(req, "To"), sizeof(tmp));
+			tag = totag;
 		else
-			ast_copy_string(tmp, get_header(req, "From"), sizeof(tmp));
-		tag = strcasestr(tmp, "tag=");
-		if (tag) {
-			tag += 4;
-			c = strchr(tag, ';');
-			if (c)
-				*c = '\0';
-		}
+			tag = fromtag;
 			
+
+		if (option_debug > 4 )
+			ast_log(LOG_DEBUG, "= Looking for  Call ID: %s (Checking %s) --From tag %s --To-tag %s  \n", callid, req->method==SIP_RESPONSE ? "To" : "From", fromtag, totag);
 	}
-		
+
 	ast_mutex_lock(&iflock);
 	p = iflist;
-	while(p) {
+	while(p) {	/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
 		int found = 0;
 		if (req->method == SIP_REGISTER)
 			found = (!strcmp(p->callid, callid));
 		else 
 			found = (!strcmp(p->callid, callid) && 
 			(!pedanticsipchecking || !tag || ast_strlen_zero(p->theirtag) || !strcmp(p->theirtag, tag))) ;
+
+		if (option_debug > 4)
+			ast_log(LOG_DEBUG, "= %s Their Call ID: %s Their Tag %s Our tag: %s\n", found ? "Found" : "No match", p->callid, p->theirtag, p->tag);
+
+		/* If we get a new request within an existing to-tag - check the to tag as well */
+		if (pedanticsipchecking && found  && req->method != SIP_RESPONSE) {	/* SIP Request */
+			if (p->tag[0] == '\0' && totag[0]) {
+				/* We have no to tag, but they have. Wrong dialog */
+				found = 0;
+			} else if (totag[0]) {			/* Both have tags, compare them */
+				if (strcmp(totag, p->tag)) {
+					found = 0;		/* This is not our packet */
+				}
+			}
+			if (!found && option_debug > 4)
+				ast_log(LOG_DEBUG, "= Being pedantic: This is not our match on request: Call ID: %s Ourtag <null> Totag %s Method %s\n", p->callid, totag, sip_methods[req->method].text);
+		}
+
+
 		if (found) {
 			/* Found the call */
 			ast_mutex_lock(&p->lock);
@@ -9659,7 +9685,6 @@ static int handle_response_peerpoke(struct sip_pvt *p, int resp, char *rest, str
 /*--- handle_response: Handle SIP response in dialogue ---*/
 static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_request *req, int ignore, int seqno)
 {
-	char *to;
 	char *msg, *c;
 	struct ast_channel *owner;
 	char iabuf[INET_ADDRSTRLEN];
@@ -9686,15 +9711,7 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 
 	/* Get their tag if we haven't already */
 	if (ast_strlen_zero(p->theirtag) || (resp >= 200)) {
-		to = get_header(req, "To");
-		to = strcasestr(to, "tag=");
-		if (to) {
-			to += 4;
-			ast_copy_string(p->theirtag, to, sizeof(p->theirtag));
-			to = strchr(p->theirtag, ';');
-			if (to)
-				*to = '\0';
-		}
+		gettag(req, "To", p->theirtag, sizeof(p->theirtag));
 	}
 	if (p->peerpoke) {
 		/* We don't really care what the response is, just that it replied back. 
@@ -9877,6 +9894,12 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 		   get handled here. As well as out-of-call message responses */
 		if (req->debug)
 			ast_verbose("SIP Response message for INCOMING dialog %s arrived\n", msg);
+		if (resp == 200) {
+			/* Tags in early session is replaced by the tag in 200 OK, which is 
+		  	the final reply to our INVITE */
+			gettag(req, "To", p->theirtag, sizeof(p->theirtag));
+		}
+
 		switch(resp) {
 		case 200:
 			if (sipmethod == SIP_INVITE) {
@@ -10106,6 +10129,28 @@ static int attempt_transfer(struct sip_pvt *p1, struct sip_pvt *p2)
 	return 0;
 }
 
+/*--- gettag: Get tag from packet */
+static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize) 
+{
+
+	char *thetag, *sep;
+	
+
+	if (!tagbuf)
+		return NULL;
+	tagbuf[0] = '\0'; 	/* reset the buffer */
+	thetag = get_header(req, header);
+	thetag = strcasestr(thetag, ";tag=");
+	if (thetag) {
+		thetag += 5;
+		ast_copy_string(tagbuf, thetag, tagbufsize);
+		sep = strchr(tagbuf, ';');
+		if (sep)
+			*sep = '\0';
+	}
+	return thetag;
+}
+
 /*--- handle_request_options: Handle incoming OPTIONS request */
 static int handle_request_options(struct sip_pvt *p, struct sip_request *req, int debug)
 {
@@ -10209,6 +10254,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				else
 					transmit_response_reliable(p, "403 Forbidden", req, 1);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
+				p->theirtag[0] = '\0'; /* Forget their to-tag, we'll get a new one */
 			}
 			return 0;
 		}
@@ -10723,7 +10769,6 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	struct sip_request resp;
 	char *cmd;
 	char *cseq;
-	char *from;
 	char *useragent;
 	int seqno;
 	int len;
@@ -10789,12 +10834,14 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	/* New SIP request coming in 
 	   (could be new request in existing SIP dialog as well...) 
 	 */			
+	
 	p->method = req->method;	/* Find out which SIP method they are using */
 	if (option_debug > 2)
 		ast_log(LOG_DEBUG, "**** Received %s (%d) - Command in SIP %s\n", sip_methods[p->method].text, sip_methods[p->method].id, cmd); 
 
 	if (p->icseq && (p->icseq > seqno)) {
 		ast_log(LOG_DEBUG, "Ignoring too old SIP packet packet %d (expecting >= %d)\n", seqno, p->icseq);
+		transmit_response(p, "503 Server error", req);	/* We must respond according to RFC 3261 sec 12.2 */
 		return -1;
 	} else if (p->icseq && (p->icseq == seqno) && req->method != SIP_ACK &&(p->method != SIP_CANCEL|| ast_test_flag(p, SIP_ALREADYGONE))) {
 		/* ignore means "don't do anything with it" but still have to 
@@ -10813,17 +10860,27 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 
 	/* Find their tag if we haven't got it */
 	if (ast_strlen_zero(p->theirtag)) {
-		from = get_header(req, "From");
-		from = strcasestr(from, "tag=");
-		if (from) {
-			from += 4;
-			ast_copy_string(p->theirtag, from, sizeof(p->theirtag));
-			from = strchr(p->theirtag, ';');
-			if (from)
-				*from = '\0';
-		}
+		gettag(req, "From", p->theirtag, sizeof(p->theirtag));
 	}
 	snprintf(p->lastmsg, sizeof(p->lastmsg), "Rx: %s", cmd);
+
+	if (pedanticsipchecking) {
+		/* If this is a request packet without a from tag, it's not
+			correct according to RFC 3261  */
+		/* Check if this a new request in a new dialog with a totag already attached to it,
+			RFC 3261 - section 12.2 - and we don't want to mess with recovery  */
+		if (!p->initreq.headers && ast_test_flag(req, SIP_PKT_WITH_TOTAG)) {
+			/* If this is a first request and it got a to-tag, it is not for us */
+			if (!ignore && req->method == SIP_INVITE) {
+				transmit_response_reliable(p, "481 Call/Transaction Does Not Exist", req, 1);
+				/* Will cease to exist after ACK */
+			} else {
+				transmit_response(p, "481 Call/Transaction Does Not Exist", req);
+				ast_set_flag(p, SIP_NEEDDESTROY);
+			}
+			return res;
+		}
+	}
 
 	/* Handle various incoming SIP methods in requests */
 	switch (p->method) {
@@ -10921,14 +10978,16 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 	}
 	req.data[res] = '\0';
 	req.len = res;
-	req.debug = sip_debug_test_addr(&sin);
+	if(sip_debug_test_addr(&sin))
+		ast_set_flag(&req, SIP_PKT_DEBUG);
 	if (pedanticsipchecking)
 		req.len = lws2sws(req.data, req.len);	/* Fix multiline headers */
-	if (req.debug)
+	if (ast_test_flag(&req, SIP_PKT_DEBUG)) {
 		ast_verbose("\n<-- SIP read from %s:%d: \n%s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port), req.data);
+	}
 	parse_request(&req);
 	req.method = find_sip_method(req.rlPart1);
-	if (req.debug) {
+	if (ast_test_flag(&req, SIP_PKT_DEBUG)) {
 		ast_verbose("--- (%d headers %d lines)", req.headers, req.lines);
 		if (req.headers + req.lines == 0) 
 			ast_verbose(" Nat keepalive ");
