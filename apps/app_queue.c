@@ -130,6 +130,8 @@ static char *descrip =
 "The option string may contain zero or more of the following characters:\n"
 "      't' -- allow the called user transfer the calling user\n"
 "      'T' -- to allow the calling user to transfer the call.\n"
+"      'w' -- allow the called user to write the conversation to disk via Monitor\n"
+"      'W' -- allow the calling user to write the conversation to disk via Monitor\n"
 "      'd' -- data-quality (modem) call (minimum delay).\n"
 "      'h' -- allow callee to hang up by hitting *.\n"
 "      'H' -- allow caller to hang up by hitting *.\n"
@@ -1987,6 +1989,12 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			break;
 		case 'T':
 			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_REDIRECT);
+			break;
+		case 'w':
+			ast_set_flag(&(bridge_config.features_callee), AST_FEATURE_AUTOMON);
+			break;
+		case 'W':
+			ast_set_flag(&(bridge_config.features_caller), AST_FEATURE_AUTOMON);
 			break;
 		case 'd':
 			nondataquality = 0;
