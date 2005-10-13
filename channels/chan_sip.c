@@ -851,7 +851,7 @@ static int __sip_do_register(struct sip_registry *r);
 static int sipsock  = -1;
 
 
-static struct sockaddr_in bindaddr;
+static struct sockaddr_in bindaddr = { 0, };
 static struct sockaddr_in externip;
 static char externhost[MAXHOSTNAMELEN] = "";
 static time_t externexpire = 0;
@@ -12079,12 +12079,11 @@ static int reload_config(void)
 	char *utype;
 	struct hostent *hp;
 	int format;
-	int oldport = ntohs(bindaddr.sin_port);
 	char iabuf[INET_ADDRSTRLEN];
 	struct ast_flags dummy;
 	int auto_sip_domains = 0;
+	struct sockaddr_in old_bindaddr = bindaddr;
 
-	
 	cfg = ast_config_load(config);
 
 	/* We *must* have a config file otherwise stop immediately */
@@ -12389,7 +12388,7 @@ static int reload_config(void)
 		bindaddr.sin_port = ntohs(DEFAULT_SIP_PORT);
 	bindaddr.sin_family = AF_INET;
 	ast_mutex_lock(&netlock);
-	if ((sipsock > -1) && (ntohs(bindaddr.sin_port) != oldport)) {
+	if ((sipsock > -1) && (memcmp(&old_bindaddr, &bindaddr, sizeof(struct sockaddr_in)))) {
 		close(sipsock);
 		sipsock = -1;
 	}
@@ -12406,8 +12405,8 @@ static int reload_config(void)
 
 			if (bind(sipsock, (struct sockaddr *)&bindaddr, sizeof(bindaddr)) < 0) {
 				ast_log(LOG_WARNING, "Failed to bind to %s:%d: %s\n",
-						ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
-							strerror(errno));
+				ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
+				strerror(errno));
 				close(sipsock);
 				sipsock = -1;
 			} else {
