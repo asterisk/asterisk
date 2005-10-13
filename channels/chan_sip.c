@@ -6393,6 +6393,8 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 		case -3:
 			/* URI not found */
 			transmit_response(p, "404 Not found", &p->initreq);
+			/* Set res back to -2 because we don't want to return an invalid domain message. That check already happened up above. */
+			res = -2;
 			break;
 		}
 		if (option_debug > 1) {
