@@ -1623,8 +1623,8 @@ static int pbx_load_module(void)
 									"autofallthrough"));
 		clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", 
 									"clearglobalvars"));
-		option_priority_jumping = ast_true(ast_variable_retrieve(cfg, "general",
-									 "priorityjumping"));
+		option_priority_jumping = !ast_false(ast_variable_retrieve(cfg, "general",
+									   "priorityjumping"));
 
 		v = ast_variable_browse(cfg, "globals");
 		while(v) {
