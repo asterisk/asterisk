@@ -3400,8 +3400,8 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	ast_set_flag(p, SIP_NOVIDEO);	
 	while ((m = get_sdp_iterate(&iterator, req, "m"))[0] != '\0') {
 		int found = 0;
-		if ((sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1) ||
-		    (sscanf(m, "audio %d/%d RTP/AVP %n", &x, &y, &len) == 2)) {
+		if ((sscanf(m, "audio %d/%d RTP/AVP %n", &x, &y, &len) == 2) ||
+		    (sscanf(m, "audio %d RTP/AVP %n", &x, &len) == 1)) {
 			found = 1;
 			portno = x;
 			/* Scan through the RTP payload types specified in a "m=" line: */
