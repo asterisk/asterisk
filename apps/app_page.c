@@ -39,13 +39,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 
 
-static char *tdesc = "Page Multiple Phones";
+static const char *tdesc = "Page Multiple Phones";
 
-static char *app_page= "Page";
+static const char *app_page= "Page";
 
-static char *page_synopsis = "Pages phones";
+static const char *page_synopsis = "Pages phones";
 
-static char *page_descrip =
+static const char *page_descrip =
 "Page(Technology/Resource&Technology2/Resource2[|options])\n"
 "  Places outbound calls to the given technology / resource and dumps\n"
 "them into a conference bridge as muted participants.  The original\n"
@@ -66,42 +66,53 @@ AST_DECLARE_OPTIONS(page_opts,{
 
 static int page_exec(struct ast_channel *chan, void *data)
 {
+	struct localuser *u;
 	char *options;
 	char *tech, *resource;
 	char meetmeopts[80];
 	struct ast_flags flags = { 0 };
 	unsigned int confid = rand();
 	struct ast_app *app;
+	char *tmp;
 
-	if (data) {
-		options = ast_strdupa((char *)data);
-		if (options) {
-			char *tmp = strsep(&options, "|,");
-			if (options) {
-				ast_parseoptions(page_opts, &flags, NULL, options);
-			}
-			snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
-			while(tmp && !ast_strlen_zero(tmp)) {
-				tech = strsep(&tmp, "&");
-				if (tech) {
-					resource = strchr(tech, '/');
-					if (resource) {
-						*resource = '\0';
-						resource++;
-						ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, resource, 30000, "MeetMe", meetmeopts, NULL, 0, chan->cid.cid_num, chan->cid.cid_name, NULL, NULL);
-					}
-				}
-			}
-			snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t");
-			app = pbx_findapp("Meetme");
-			if (app) {
-				pbx_exec(chan, app, meetmeopts, 1);
-			} else
-				ast_log(LOG_WARNING, "Whoa, meetme doesn't exist!\n");
+	if (!data)
+		return -1;
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "This application requires at least one argument (destination(s) to page)\n");
+		return -1;
+	}
+
+	if (!(app = pbx_findapp("MeetMe"))) {
+		ast_log(LOG_WARNING, "There is no MeetMe application available!\n");
+		return -1;
+	};
+
+	if (!(options = ast_strdupa((char *) data))) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return -1;
+	}
+		
+	LOCAL_USER_ADD(u);
+
+	tmp = strsep(&options, "|");
+	if (options)
+		ast_parseoptions(page_opts, &flags, NULL, options);
+
+	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
+	while ((tech = strsep(&tmp, "&"))) {
+		if ((resource = strchr(tech, '/'))) {
+			*resource++ = '\0';
+			ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, resource, 30000,
+					     "MeetMe", meetmeopts, NULL, 0, chan->cid.cid_num, chan->cid.cid_name, NULL, NULL);
 		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
+			ast_log(LOG_WARNING, "Incomplete destination '%s' supplied.\n", tech);
 		}
 	}
+	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t");
+	pbx_exec(chan, app, meetmeopts, 1);
+
+	LOCAL_USER_REMOVE(u);
 
 	return -1;
 }
@@ -109,6 +120,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
+
 	return ast_unregister_application(app_page);
 }
 
@@ -119,13 +131,15 @@ int load_module(void)
 
 char *description(void)
 {
-	return tdesc;
+	return (char *) tdesc;
 }
 
 int usecount(void)
 {
 	int res;
+
 	STANDARD_USECOUNT(res);
+
 	return res;
 }
 
