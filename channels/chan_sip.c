@@ -2629,8 +2629,14 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		}
 		res = -1;
 		break;
-	case AST_CONTROL_PROGRESS:
 	case AST_CONTROL_PROCEEDING:
+		if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
+			transmit_response(p, "100 Trying", &p->initreq);
+			break;
+		}
+		res = -1;
+		break;
+	case AST_CONTROL_PROGRESS:
 		if ((ast->_state != AST_STATE_UP) && !ast_test_flag(p, SIP_PROGRESS_SENT) && !ast_test_flag(p, SIP_OUTGOING)) {
 			transmit_response_with_sdp(p, "183 Session Progress", &p->initreq, 0);
 			ast_set_flag(p, SIP_PROGRESS_SENT);	
