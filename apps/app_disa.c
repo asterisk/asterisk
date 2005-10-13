@@ -329,24 +329,34 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	if (k==3 && ast_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num))
-	{
-		ast_playtones_stop(chan);
-		/* We're authenticated and have a valid extension */
-		if (ourcallerid && *ourcallerid)
-		{
-			ast_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
-			ast_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
-		}
+	if (k == 3) {
+		int recheck = 0;
 
-		if (!ast_strlen_zero(acctcode)) {
-			strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
+		if (!ast_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num)) {
+			exten[0] = 'i';
+			exten[1] = '\0';
+			recheck = 1;
 		}
-		ast_cdr_reset(chan->cdr, AST_CDR_FLAG_POSTED);
-		ast_goto_if_exists(chan, ourcontext, exten, 1);
-		LOCAL_USER_REMOVE(u);
-		return 0;
+		if (!recheck || ast_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num)) {
+			ast_playtones_stop(chan);
+			/* We're authenticated and have a target extension */
+			if (ourcallerid && *ourcallerid)
+			{
+				ast_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
+				ast_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
+			}
+
+			if (!ast_strlen_zero(acctcode))
+				strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
+
+			ast_cdr_reset(chan->cdr, AST_CDR_FLAG_POSTED);
+			ast_explicit_goto(chan, ourcontext, exten, 1);
+			LOCAL_USER_REMOVE(u);
+			return 0;
+		}
 	}
+
+	/* Received invalid, but no "i" extension exists in the given context */
 
 reorder:
 
