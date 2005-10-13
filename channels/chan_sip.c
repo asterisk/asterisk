@@ -4685,7 +4685,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	char tmp[BUFSIZ/2];
 	char tmp2[BUFSIZ/2];
 	char iabuf[INET_ADDRSTRLEN];
-	char *l = default_callerid, *n = NULL;
+	char *l = NULL, *n = NULL;
 	int x;
 	char urioptions[256]="";
 
@@ -4720,13 +4720,13 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 		l = p->owner->cid.cid_num;
 		n = p->owner->cid.cid_name;
 	}
-	if (!l || (!ast_isphonenumber(l) && default_callerid[0]))
-			l = default_callerid;
 	/* if we are not sending RPID and user wants his callerid restricted */
 	if (!ast_test_flag(p, SIP_SENDRPID) && ((p->callingpres & AST_PRES_RESTRICTION) != AST_PRES_ALLOWED)) {
 		l = CALLERID_UNKNOWN;
 		n = l;
 	}
+	if (!l)
+		l = default_callerid;
 	if (!n || ast_strlen_zero(n))
 		n = l;
 	/* Allow user to be overridden */
