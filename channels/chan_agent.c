@@ -490,7 +490,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  	} else {
  		/* if acknowledgement is not required, and the channel is up, we may have missed
  		   an AST_CONTROL_ANSWER (if there was one), so mark the call acknowledged anyway */
- 		if (!p->ackcall && !p->acknowledged && p->chan->_state == AST_STATE_UP)
+ 		if (!p->ackcall && !p->acknowledged && p->chan && (p->chan->_state == AST_STATE_UP))
   			p->acknowledged = 1;
  		switch (f->frametype) {
  		case AST_FRAME_CONTROL:
