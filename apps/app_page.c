@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/app.h"
 
 
 static char *tdesc = "Page Multiple Phones";
@@ -45,21 +46,30 @@ static char *app_page= "Page";
 static char *page_synopsis = "Pages phones";
 
 static char *page_descrip =
-"Page(Technology/Resource&Technology2/Resource2)\n"
+"Page(Technology/Resource&Technology2/Resource2[|options])\n"
 "  Places outbound calls to the given technology / resource and dumps\n"
 "them into a conference bridge as muted participants.  The original\n"
 "caller is dumped into the conference as a speaker and the room is\n"
-"destroyed when the original caller leaves.  Always returns -1.\n";
+"destroyed when the original caller leaves.  Valid options are:\n"
+"        d - full duplex audio\n"
+"Always returns -1.\n";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
+
+#define PAGE_DUPLEX (1 << 0)
+
+AST_DECLARE_OPTIONS(page_opts,{
+        ['d'] = { PAGE_DUPLEX },
+});
 
 static int page_exec(struct ast_channel *chan, void *data)
 {
 	char *options;
 	char *tech, *resource;
 	char meetmeopts[80];
+	struct ast_flags flags = { 0 };
 	unsigned int confid = rand();
 	struct ast_app *app;
 
@@ -68,9 +78,9 @@ static int page_exec(struct ast_channel *chan, void *data)
 		if (options) {
 			char *tmp = strsep(&options, "|,");
 			if (options) {
-				/* XXX Parse options if we had any XXX */
+				ast_parseoptions(page_opts, &flags, NULL, options);
 			}
-			snprintf(meetmeopts, sizeof(meetmeopts), "%ud|mqxdw", confid);
+			snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
 			while(tmp && !ast_strlen_zero(tmp)) {
 				tech = strsep(&tmp, "&");
 				if (tech) {
@@ -82,7 +92,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 					}
 				}
 			}
-			snprintf(meetmeopts, sizeof(meetmeopts), "%ud|Atqxd", confid);
+			snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t");
 			app = pbx_findapp("Meetme");
 			if (app) {
 				pbx_exec(chan, app, meetmeopts, 1);
