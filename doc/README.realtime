@@ -57,10 +57,13 @@ a registration, but that work is not integrated into Asterisk yet.
 ----------------------------------------------------
 The realtime switch is more than a port of functionality in v1.0 to the
 new architecture, this is a new feature of Asterisk based on the 
-ARA. The realtime switch let's your Asterisk server do database lookups
+ARA. The realtime switch lets your Asterisk server do database lookups
 of extensions in realtime from your dial plan. You can have many Asterisk
 servers sharing a dynamically updated dial plan in real time with this
 solution.
+
+Note that this switch does _NOT_ support Caller ID matching, only
+extension name/pattern matching.
 
 * So what can you do?
 ---------------------
