@@ -61,9 +61,11 @@ static char *descrip =
 "   SUCCESS	Specified command successfully executed\n"
 "\n"
 "Old behaviour:\n"
-"If  the command itself executes but is in error, and if there exists\n"
+"If the command itself executes but is in error, and if there exists\n"
 "a priority n + 101, where 'n' is the priority of the current instance,\n"
-"then  the  channel  will  be  setup  to continue at that priority level.\n"
+"then  the  channel  will  be  setup to continue at that priority level.\n"
+"Note that this jump functionality has been deprecated and will only occur\n"
+"if the global priority jumping option is enabled in extensions.conf.\n"
 " Otherwise, System returns 0.\n";
 
 static char *descrip2 =
