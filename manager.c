@@ -1506,10 +1506,12 @@ int manager_event(int category, char *event, char *fmt, ...)
 		ast_mutex_lock(&s->__lock);
 		if (s->busy) {
 			append_event(s, tmp);
-		} else if (ast_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0) {
-			ast_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
-			s->dead = 1;
-			pthread_kill(s->t, SIGURG);
+		} else if (!s->dead) {
+			if (ast_carefulwrite(s->fd, tmp, tmp_next - tmp, s->writetimeout) < 0) {
+				ast_log(LOG_WARNING, "Disconnecting slow (or gone) manager session!\n");
+				s->dead = 1;
+				pthread_kill(s->t, SIGURG);
+			}
 		}
 		ast_mutex_unlock(&s->__lock);
 	}
