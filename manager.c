@@ -689,9 +689,9 @@ static int action_setvar(struct mansession *s, struct message *m)
 }
 
 static char mandescr_getvar[] = 
-"Description: Get the value of a local channel variable.\n"
+"Description: Get the value of a global or local channel variable.\n"
 "Variables: (Names marked with * are required)\n"
-"	*Channel: Channel to read variable from\n"
+"	Channel: Channel to read variable from\n"
 "	*Variable: Variable name\n"
 "	ActionID: Optional Action id for message matching.\n";
 
@@ -704,19 +704,17 @@ static int action_getvar(struct mansession *s, struct message *m)
 	char *varval;
 	char *varval2=NULL;
 
-	if (!strlen(name)) {
-		astman_send_error(s, m, "No channel specified");
-		return 0;
-	}
 	if (!strlen(varname)) {
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
 
-	c = ast_get_channel_by_name_locked(name);
-	if (!c) {
-		astman_send_error(s, m, "No such channel");
-		return 0;
+	if (strlen(name)) {
+		c = ast_get_channel_by_name_locked(name);
+		if (!c) {
+			astman_send_error(s, m, "No such channel");
+			return 0;
+		}
 	}
 	
 	varval=pbx_builtin_getvar_helper(c,varname);
@@ -724,7 +722,8 @@ static int action_getvar(struct mansession *s, struct message *m)
 		varval2 = ast_strdupa(varval);
 	if (!varval2)
 		varval2 = "";
-	ast_mutex_unlock(&c->lock);
+	if (c)
+		ast_mutex_unlock(&c->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
 		"Variable: %s\r\nValue: %s\r\n" ,varname,varval2);
 	if (id && !ast_strlen_zero(id))
