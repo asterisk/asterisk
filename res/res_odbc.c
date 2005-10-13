@@ -62,7 +62,7 @@ static void odbc_destroy(void)
 
 	for (x = 0; x < MAX_ODBC_HANDLES; x++) {
 		if (ODBC_REGISTRY[x].obj) {
-			destroy_obdc_obj(&ODBC_REGISTRY[x].obj);
+			destroy_odbc_obj(&ODBC_REGISTRY[x].obj);
 			ODBC_REGISTRY[x].obj = NULL;
 		}
 	}
@@ -401,7 +401,7 @@ odbc_obj *new_odbc_obj(char *name, char *dsn, char *username, char *password)
 	return new;
 }
 
-void destroy_obdc_obj(odbc_obj **obj)
+void destroy_odbc_obj(odbc_obj **obj)
 {
 	odbc_obj_disconnect(*obj);
 

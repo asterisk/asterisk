@@ -50,7 +50,7 @@ struct odbc_obj {
 odbc_obj *new_odbc_obj(char *name,char *dsn,char *username, char *password);
 odbc_status odbc_obj_connect(odbc_obj *obj);
 odbc_status odbc_obj_disconnect(odbc_obj *obj);
-void destroy_obdc_obj(odbc_obj **obj);
+void destroy_odbc_obj(odbc_obj **obj);
 int register_odbc_obj(char *name,odbc_obj *obj);
 odbc_obj *fetch_odbc_obj(const char *name, int check);
 int odbc_dump_fd(int fd,odbc_obj *obj);
