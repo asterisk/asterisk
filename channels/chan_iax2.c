@@ -637,7 +637,7 @@ static struct iax2_dpcache {
 AST_MUTEX_DEFINE_STATIC(dpcache_lock);
 
 static void reg_source_db(struct iax2_peer *p);
-static struct iax2_peer *realtime_peer(const char *peername);
+static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin);
 
 static void destroy_peer(struct iax2_peer *peer);
 static int ast_cli_netstats(int fd, int limit_fmt);
@@ -838,7 +838,7 @@ static struct iax2_peer *find_peer(const char *name, int realtime)
 	}
 	ast_mutex_unlock(&peerl.lock);
 	if(!peer && realtime)
-		peer = realtime_peer(name);
+		peer = realtime_peer(name, NULL);
 	return peer;
 }
 
@@ -860,6 +860,14 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 	}
 	if (lockpeer)
 		ast_mutex_unlock(&peerl.lock);
+	if (!peer) {
+		peer = realtime_peer(NULL, &sin);
+		if (peer) {
+			ast_copy_string(host, peer->name, len);
+			if (ast_test_flag(peer, IAX_TEMPONLY))
+				destroy_peer(peer);
+		}
+	}
 	return res;
 }
 
@@ -2509,7 +2517,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 static void destroy_user(struct iax2_user *user);
 static int expire_registry(void *data);
 
-static struct iax2_peer *realtime_peer(const char *peername)
+static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
 {
 	struct ast_variable *var;
 	struct ast_variable *tmp;
@@ -2517,7 +2525,15 @@ static struct iax2_peer *realtime_peer(const char *peername)
 	time_t regseconds, nowtime;
 	int dynamic=0;
 
-	var = ast_load_realtime("iaxpeers", "name", peername, NULL);
+	if (peername)
+		var = ast_load_realtime("iaxpeers", "name", peername, NULL);
+	else {
+		char iabuf[INET_ADDRSTRLEN];
+		char porta[25];
+		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
+		sprintf(porta, "%d", ntohs(sin->sin_port));
+		var = ast_load_realtime("iaxpeers", "ipaddr", iabuf, "port", porta, NULL);
+	}
 	if (!var)
 		return NULL;
 
@@ -5175,7 +5191,7 @@ static int authenticate_reply(struct chan_iax2_pvt *p, struct sockaddr_in *sin, 
 		if (!peer) {
 			/* We checked our list and didn't find one.  It's unlikely, but possible, 
 			   that we're trying to authenticate *to* a realtime peer */
-			if ((peer = realtime_peer(p->peer))) {
+			if ((peer = realtime_peer(p->peer, NULL))) {
 				res = authenticate(p->challenge, peer->secret,peer->outkey, authmethods, &ied, sin, &p->ecx, &p->dcx);
 				if (ast_test_flag(peer, IAX_TEMPONLY))
 					destroy_peer(peer);
