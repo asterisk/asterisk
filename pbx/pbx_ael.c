@@ -188,8 +188,8 @@ static char *grab_else(char *args, const char *filename, int lineno)
 							if (aeldebug & DEBUG_TOKENS)
 								ast_verbose("Returning else clause '%s'\n", c);
 						}
+						break;
 					}
-					break;
 				}
 				c++;
 			}
@@ -457,6 +457,27 @@ static int matches_label(char *data, char **rest)
 	return 0;
 }
 
+static char *argument_end(char *str)
+{
+	int level=0;
+	while(*++str) {
+		switch(*str) {
+		case '(':
+			level++;
+			break;
+		case ')':
+			if(level)
+				level--;
+			else
+				return str;
+			break;
+		default:
+			break;
+		}
+	}
+	return NULL;
+}
+
 static int build_step(const char *what, const char *name, const char *filename, int lineno, struct ast_context *con, char *exten, int *pos, char *data, struct fillin **fillout, char **label);
 static int __build_step(const char *what, const char *name, const char *filename, int lineno, struct ast_context *con, char *exten, int *pos, char *data, struct fillin **fillout, char **label)
 {
@@ -485,7 +506,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		/* Switch */
 		args = data + strlen("switch");
 		while ((*args < 33) && (*args != '(')) args++;
-		if ((*args == '(') && (c = strchr(args, ')'))) {
+		if ((*args == '(') && (c = argument_end(args))) {
 			args++;
 			*c = '\0';
 			c++;
@@ -570,7 +591,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		/* If... */
 		args = data + strlen("if");
 		while ((*args < 33) && (*args != '(')) args++;
-		if ((*args == '(') && (c = strchr(args, ')'))) {
+		if ((*args == '(') && (c = argument_end(args))) {
 			int ifblock;
 			int ifstart;
 			int elsestart;
@@ -632,7 +653,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		fillin = NULL;
 		args = data + strlen("while");
 		while ((*args < 33) && (*args != '(')) args++;
-		if ((*args == '(') && (c = strchr(args, ')'))) {
+		if ((*args == '(') && (c = argument_end(args))) {
 			int whileblock;
 			int whilestart;
 			int whileend;
@@ -720,7 +741,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		fillin = NULL;
 		args = data + strlen("for");
 		while ((*args < 33) && (*args != '(')) args++;
-		if ((*args == '(') && (c = strchr(args, ')'))) {
+		if ((*args == '(') && (c = argument_end(args))) {
 			int forblock;
 			int forprep;
 			int forstart;
@@ -1166,15 +1187,6 @@ static int ast_ael_compile(struct ast_context **local_contexts, const char *file
 	return 0;
 }
 
-/*
- * Standard module functions ...
- */
-int unload_module(void)
-{
-	ast_context_destroy(NULL, registrar);
-	return 0;
-}
-
 static int pbx_load_module(void)
 {
 	struct ast_context *local_contexts=NULL, *con;
@@ -1186,19 +1198,73 @@ static int pbx_load_module(void)
 	return 0;
 }
 
+/* CLI interface */
+static int ael_debug_read(int fd, int argc, char *argv[])
+{
+	aeldebug |= DEBUG_READ;
+	return 0;
+}
+
+static int ael_debug_tokens(int fd, int argc, char *argv[])
+{
+	aeldebug |= DEBUG_TOKENS;
+	return 0;
+}
+
+static int ael_debug_macros(int fd, int argc, char *argv[])
+{
+	aeldebug |= DEBUG_MACROS;
+	return 0;
+}
+
+static int ael_debug_contexts(int fd, int argc, char *argv[])
+{
+	aeldebug |= DEBUG_CONTEXTS;
+	return 0;
+}
+
+static int ael_no_debug(int fd, int argc, char *argv[])
+{
+	aeldebug = 0;
+	return 0;
+}
+
+static int ael_reload(int fd, int argc, char *argv[])
+{
+	ast_context_destroy(NULL, registrar);
+	return (pbx_load_module());
+}
+
+static struct ast_cli_entry  ael_cli[] = {
+	{ { "ael", "reload", NULL }, ael_reload, "Reload AEL configuration"},
+	{ { "ael", "debug", "read", NULL }, ael_debug_read, "Enable AEL read debug"},
+	{ { "ael", "debug", "tokens", NULL }, ael_debug_tokens, "Enable AEL tokens debug"},
+	{ { "ael", "debug", "macros", NULL }, ael_debug_macros, "Enable AEL macros debug"},
+	{ { "ael", "debug", "contexts", NULL }, ael_debug_contexts, "Enable AEL contexts debug"},
+	{ { "ael", "no", "debug", NULL }, ael_no_debug, "Disable AEL debug messages"},
+};
+
+/*
+ * Standard module functions ...
+ */
+int unload_module(void)
+{
+	ast_context_destroy(NULL, registrar);
+	ast_cli_unregister_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
+	return 0;
+}
+
+
 int load_module(void)
 {
-	if (pbx_load_module()) return -1;
- 
-	return 0;
+	ast_cli_register_multiple(ael_cli, sizeof(ael_cli)/ sizeof(ael_cli[0]));
+	return (pbx_load_module());
 }
 
 int reload(void)
 {
-	ast_context_destroy(NULL, registrar);
-	/* For martin's global variables, don't clear them on reload */
-	pbx_load_module();
-	return 0;
+	unload_module();
+	return (load_module());
 }
 
 int usecount(void)
