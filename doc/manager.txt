@@ -185,7 +185,6 @@ Some standard AMI headers:
  Cause: <value>			-- Event change cause - "Expired"
  Cause: <value>			-- Hangupcause (channel.c)
  CID-CallingPres:		-- Caller ID calling presentation
- ChanVariable:			-- Channel variable to set - name,value (comma between name and value)
  Channel: <channel>		-- Channel specifier
  Channel: <dialstring>		-- Dialstring in Originate
  Channel: <tech/[peer/username]> -- Channel in Registry events (SIP, IAX2)
