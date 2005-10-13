@@ -337,7 +337,7 @@ static int vpb_hangup(struct ast_channel *ast);
 static int vpb_answer(struct ast_channel *ast);
 static struct ast_frame *vpb_read(struct ast_channel *ast);
 static int vpb_write(struct ast_channel *ast, struct ast_frame *frame);
-static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int vpb_indicate(struct ast_channel *ast, int condition);
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
@@ -407,7 +407,7 @@ static struct ast_channel_tech vpb_tech_indicate = {
 /* #define HALF_DUPLEX_BRIDGE */
 
 /* This is the Native bridge code, which Asterisk will try before using its own bridging code */
-static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {
 	struct vpb_pvt *p0 = (struct vpb_pvt *)c0->tech_pvt;
 	struct vpb_pvt *p1 = (struct vpb_pvt *)c1->tech_pvt;
@@ -415,7 +415,6 @@ static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_chan
 	int res;
 	struct ast_channel *cs[3];
 	struct ast_channel *who;
-	int to = -1;
 	struct ast_frame *f;
 
 	cs[0] = c0;
@@ -517,7 +516,7 @@ static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_chan
 		/* pthread_cond_wait(&bridges[i].cond, &bridges[i].lock);*/ /* Wait for condition signal. */
 		while( !bridges[i].endbridge ) {
 			/* Are we really ment to be doing nothing ?!?! */
-			who = ast_waitfor_n(cs, 2, &to);
+			who = ast_waitfor_n(cs, 2, &timeoutms);
 			if (!who) {
 				ast_log(LOG_DEBUG, "%s: vpb_bridge: Empty frame read...\n",p0->dev);
 				/* check for hangup / whentohangup */

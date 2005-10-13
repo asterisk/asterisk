@@ -145,7 +145,7 @@ struct ast_channel_tech {
 
 	/*! Bridge two channels of the same type together */
 	enum ast_bridge_result (* const bridge)(struct ast_channel *c0, struct ast_channel *c1, int flags,
-						struct ast_frame **fo, struct ast_channel **rc);
+						struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 
 	/*! Indicate a particular condition (e.g. AST_CONTROL_BUSY or AST_CONTROL_RINGING or AST_CONTROL_CONGESTION */
 	int (* const indicate)(struct ast_channel *c, int condition);

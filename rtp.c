@@ -1499,7 +1499,7 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 /* ast_rtp_bridge: Bridge calls. If possible and allowed, initiate
 	re-invite so the peers exchange media directly outside 
 	of Asterisk. */
-enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {
 	struct ast_frame *f;
 	struct ast_channel *who, *cs[3];
@@ -1513,7 +1513,6 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	char iabuf[INET_ADDRSTRLEN];
 	
 	void *pvt0, *pvt1;
-	int to;
 	int codec0,codec1, oldcodec0, oldcodec1;
 	
 	memset(&vt0, 0, sizeof(vt0));
@@ -1635,7 +1634,6 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 				}
 				return AST_BRIDGE_RETRY;
 		}
-		to = -1;
 		/* Now check if they have changed address */
 		ast_rtp_get_peer(p1, &t1);
 		ast_rtp_get_peer(p0, &t0);
@@ -1677,7 +1675,7 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			memcpy(&vac0, &vt0, sizeof(vac0));
 			oldcodec0 = codec0;
 		}
-		who = ast_waitfor_n(cs, 2, &to);
+		who = ast_waitfor_n(cs, 2, &timeoutms);
 		if (!who) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Ooh, empty read...\n");

@@ -725,7 +725,7 @@ static struct ast_frame *iax2_read(struct ast_channel *c);
 static int iax2_write(struct ast_channel *c, struct ast_frame *f);
 static int iax2_indicate(struct ast_channel *c, int condition);
 static int iax2_setoption(struct ast_channel *c, int option, void *data, int datalen);
-static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc);
+static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int iax2_transfer(struct ast_channel *c, const char *dest);
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
 
@@ -3082,7 +3082,7 @@ static void unlock_both(unsigned short callno0, unsigned short callno1)
 	ast_mutex_unlock(&iaxsl[callno0]);
 }
 
-static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc)
+static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {
 	struct ast_channel *cs[3];
 	struct ast_channel *who;
@@ -3162,6 +3162,11 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 		}
 		to = 1000;
 		who = ast_waitfor_n(cs, 2, &to);
+		if (timeoutms > -1) {
+			timeoutms -= (1000 - to);
+			if (timeoutms < 0)
+				timeoutms = 0;
+		}
 		if (!who) {
 			if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
 				res = AST_BRIDGE_FAILED;

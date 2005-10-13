@@ -264,12 +264,14 @@ int ast_shutting_down(void)
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 {
 	time_t	myt;
+	struct ast_frame fr = { AST_FRAME_NULL, };
 
 	time(&myt);
 	if (offset)
 		chan->whentohangup = myt + offset;
 	else
 		chan->whentohangup = 0;
+	ast_queue_frame(chan, &fr);
 	return;
 }
 
@@ -2947,18 +2949,16 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 	check = ast_autoservice_stop(peer);
 }
 
-static enum ast_bridge_result ast_generic_bridge(int *playitagain, int *playit, struct ast_channel *c0, struct ast_channel *c1,
-			      struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc)
+static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct ast_channel *c1,
+			      struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc, int toms)
 {
 	/* Copy voice back and forth between the two channels. */
 	struct ast_channel *cs[3];
-	int to;
 	struct ast_frame *f;
 	struct ast_channel *who = NULL;
 	enum ast_bridge_result res = AST_BRIDGE_COMPLETE;
 	int o0nativeformats;
 	int o1nativeformats;
-	long elapsed_ms=0, time_left_ms=0;
 	int watch_c0_dtmf;
 	int watch_c1_dtmf;
 	void *pvt0, *pvt1;
@@ -2980,34 +2980,7 @@ static enum ast_bridge_result ast_generic_bridge(int *playitagain, int *playit, 
 			res = AST_BRIDGE_RETRY;
 			break;
 		}
-		/* timestamp */
-		if (config->timelimit) {
-			/* If there is a time limit, return now */
-			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), config->start_time);
-			time_left_ms = config->timelimit - elapsed_ms;
-
-			if (*playitagain &&
-			    ((ast_test_flag(&(config->features_caller), AST_FEATURE_PLAY_WARNING)) ||
-			     (ast_test_flag(&(config->features_callee), AST_FEATURE_PLAY_WARNING))) &&
-			    (config->play_warning && time_left_ms <= config->play_warning)) { 
-				if (config->warning_freq == 0 || time_left_ms == config->play_warning || (time_left_ms % config->warning_freq) <= 50) {
-					res = AST_BRIDGE_RETRY;
-					break;
-				}
-			}
-			if (time_left_ms <= 0) {
-				res = AST_BRIDGE_RETRY;
-				break;
-			}
-			if (time_left_ms >= 5000 && *playit) {
-				res = AST_BRIDGE_RETRY;
-				break;
-			}
-			to = time_left_ms;
-		} else	
-			to = -1;
-
-		who = ast_waitfor_n(cs, 2, &to);
+		who = ast_waitfor_n(cs, 2, &toms);
 		if (!who) {
 			ast_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
 			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
@@ -3089,10 +3062,11 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	int firstpass;
 	int o0nativeformats;
 	int o1nativeformats;
-	long elapsed_ms=0, time_left_ms=0;
-	int playit=0, playitagain=1, first_time=1;
+	long time_left_ms=0;
+	struct timeval nexteventts = { 0, };
 	char caller_warning = 0;
 	char callee_warning = 0;
+	int to;
 
 	if (c0->_bridge) {
 		ast_log(LOG_WARNING, "%s is already in a bridge with %s\n", 
@@ -3144,24 +3118,24 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	o0nativeformats = c0->nativeformats;
 	o1nativeformats = c1->nativeformats;
 
-	for (/* ever */;;) {
-		if (config->timelimit) {
-			elapsed_ms = ast_tvdiff_ms(ast_tvnow(), config->start_time);
-			time_left_ms = config->timelimit - elapsed_ms;
+	if (config->timelimit) {
+		nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
+		if (caller_warning || callee_warning)
+			nexteventts = ast_tvsub(nexteventts, ast_samp2tv(config->play_warning, 1000));
+	}
 
-			if (playitagain && (caller_warning || callee_warning) && (config->play_warning && time_left_ms <= config->play_warning)) { 
-				/* narrowing down to the end */
-				if (config->warning_freq == 0) {
-					playit = 1;
-					first_time = 0;
-					playitagain = 0;
-				} else if (first_time) {
-					playit = 1;
-					first_time = 0;
-				} else if ((time_left_ms % config->warning_freq) <= 50) {
-					playit = 1;
-				}
-			}
+	for (/* ever */;;) {
+		to = -1;
+		if (config->timelimit) {
+			struct timeval now;
+			now = ast_tvnow();
+			to = ast_tvdiff_ms(nexteventts, now);
+			if (to < 0)
+				to = 0;
+			time_left_ms = config->timelimit - ast_tvdiff_ms(now, config->start_time);
+			if (time_left_ms < to)
+				to = time_left_ms;
+
 			if (time_left_ms <= 0) {
 				if (caller_warning && config->end_sound)
 					bridge_playfile(c0, c1, config->end_sound, 0);
@@ -3173,12 +3147,18 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				res = 0;
 				break;
 			}
-			if (time_left_ms >= 5000 && playit) {
-				if (caller_warning && config->warning_sound && config->play_warning)
-					bridge_playfile(c0, c1, config->warning_sound, time_left_ms / 1000);
-				if (callee_warning && config->warning_sound && config->play_warning)
-					bridge_playfile(c1, c0, config->warning_sound, time_left_ms / 1000);
-				playit = 0;
+			
+			if (!to) {
+				if (time_left_ms >= 5000) {
+					if (caller_warning && config->warning_sound && config->play_warning)
+						bridge_playfile(c0, c1, config->warning_sound, time_left_ms / 1000);
+					if (callee_warning && config->warning_sound && config->play_warning)
+						bridge_playfile(c1, c0, config->warning_sound, time_left_ms / 1000);
+				}
+				if (config->warning_freq) {
+					nexteventts = ast_tvadd(nexteventts, ast_samp2tv(config->warning_freq, 1000));
+				} else
+					nexteventts = ast_tvadd(config->start_time, ast_samp2tv(config->timelimit, 1000));
 			}
 		}
 
@@ -3218,7 +3198,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				ast_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
-			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc)) == AST_BRIDGE_COMPLETE) {
+			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == AST_BRIDGE_COMPLETE) {
 				manager_event(EVENT_FLAG_CALL, "Unlink", 
 					      "Channel1: %s\r\n"
 					      "Channel2: %s\r\n"
@@ -3275,8 +3255,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			o0nativeformats = c0->nativeformats;
 			o1nativeformats = c1->nativeformats;
 		}
-
-		res = ast_generic_bridge(&playitagain, &playit, c0, c1, config, fo, rc);
+		res = ast_generic_bridge(c0, c1, config, fo, rc, to);
 		if (res != AST_BRIDGE_RETRY)
 			break;
 	}
