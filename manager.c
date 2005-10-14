@@ -118,12 +118,15 @@ int ast_carefulwrite(int fd, char *s, int len, int timeoutms)
 		if (res < 0) res = 0;
 		len -= res;
 		s += res;
-		fds[0].fd = fd;
-		fds[0].events = POLLOUT;
-		/* Wait until writable again */
-		res = poll(fds, 1, timeoutms);
-		if (res < 1)
-			return -1;
+		res = 0;
+		if (len) {
+			fds[0].fd = fd;
+			fds[0].events = POLLOUT;
+			/* Wait until writable again */
+			res = poll(fds, 1, timeoutms);
+			if (res < 1)
+				return -1;
+		}
 	}
 	return res;
 }
@@ -1292,7 +1295,7 @@ static int process_message(struct mansession *s, struct message *m)
 		ast_mutex_lock(&s->__lock);
 		s->busy = 0;
 		while(s->eventq) {
-			if (ast_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout)) {
+			if (ast_carefulwrite(s->fd, s->eventq->eventdata, strlen(s->eventq->eventdata), s->writetimeout) < 0) {
 				ret = -1;
 				break;
 			}
