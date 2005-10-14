@@ -6332,7 +6332,9 @@ static int advanced_options(struct ast_channel *chan, struct ast_vm_user *vmu, s
 
 	make_file(vms->fn2, sizeof(vms->fn2), vms->curdir, vms->curmsg);
 	snprintf(filename,sizeof(filename), "%s.txt", vms->fn2);
+	RETRIEVE(vms->curdir, vms->curmsg);
 	msg_cfg = ast_config_load(filename);
+	DISPOSE(vms->curdir, vms->curmsg);
 	if (!msg_cfg) {
 		ast_log(LOG_WARNING, "No message attribute file?!! (%s)\n", filename);
 		return 0;
