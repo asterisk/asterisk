@@ -76,6 +76,8 @@
 
 %dir-nomore.gsm%There are no more compatible entries in the directory.
 
+%hello-world.gsm%Hello world.
+
 %invalid.gsm%I am sorry, that's not a valid extension.  Please try again.
 
 %pbx-invalid.gsm%I am sorry, that's not a valid extension.  Please try again.
