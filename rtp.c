@@ -1231,7 +1231,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
 	if (f->subclass < AST_FORMAT_MAX_AUDIO) {
-                pred = rtp->lastts + ast_codec_get_samples(f);
+                pred = rtp->lastts + f->samples;
 
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 8;
