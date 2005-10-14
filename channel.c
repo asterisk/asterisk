@@ -1831,7 +1831,7 @@ char *ast_recvtext(struct ast_channel *chan, int timeout)
 	return buf;
 }
 
-int ast_sendtext(struct ast_channel *chan, char *text)
+int ast_sendtext(struct ast_channel *chan, const char *text)
 {
 	int res = 0;
 	/* Stop if we're a zombie or need a soft hangup */

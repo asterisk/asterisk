@@ -722,7 +722,7 @@ int ast_set_write_format(struct ast_channel *chan, int format);
  * Write text to a display on a channel
  * Returns 0 on success, -1 on failure
  */
-int ast_sendtext(struct ast_channel *chan, char *text);
+int ast_sendtext(struct ast_channel *chan, const char *text);
 
 /*! Receives a text character from a channel */
 /*! 

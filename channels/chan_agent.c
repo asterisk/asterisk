@@ -244,6 +244,7 @@ static int agent_answer(struct ast_channel *ast);
 static struct ast_frame *agent_read(struct ast_channel *ast);
 static int agent_write(struct ast_channel *ast, struct ast_frame *f);
 static int agent_sendhtml(struct ast_channel *ast, int subclass, const char *data, int datalen);
+static int agent_sendtext(struct ast_channel *ast, const char *text);
 static int agent_indicate(struct ast_channel *ast, int condition);
 static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
@@ -261,6 +262,7 @@ static const struct ast_channel_tech agent_tech = {
 	.read = agent_read,
 	.write = agent_write,
 	.send_html = agent_sendhtml,
+	.send_text = agent_sendtext,
 	.exception = agent_read,
 	.indicate = agent_indicate,
 	.fixup = agent_fixup,
@@ -554,6 +556,17 @@ static int agent_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	ast_mutex_lock(&p->lock);
 	if (p->chan) 
 		res = ast_channel_sendhtml(p->chan, subclass, data, datalen);
+	ast_mutex_unlock(&p->lock);
+	return res;
+}
+
+static int agent_sendtext(struct ast_channel *ast, const char *text)
+{
+	struct agent_pvt *p = ast->tech_pvt;
+	int res = -1;
+	ast_mutex_lock(&p->lock);
+	if (p->chan) 
+		res = ast_sendtext(p->chan, text);
 	ast_mutex_unlock(&p->lock);
 	return res;
 }
