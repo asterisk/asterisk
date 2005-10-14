@@ -3139,7 +3139,8 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 		ast_mutex_unlock(&c0->lock);
 		ast_mutex_unlock(&c1->lock);
 
-		if ((op0 != p0) ||
+		if (!timeoutms || 
+		    (op0 != p0) ||
 		    (op1 != p1) || 
 		    (ofd0 != c0->fds[0]) || 
 		    (ofd1 != c1->fds[0]) ||

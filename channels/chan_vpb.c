@@ -518,6 +518,10 @@ static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_chan
 			/* Are we really ment to be doing nothing ?!?! */
 			who = ast_waitfor_n(cs, 2, &timeoutms);
 			if (!who) {
+				if (!timeoutms) {
+					res = AST_BRIDGE_RETRY;
+					break;
+				}
 				ast_log(LOG_DEBUG, "%s: vpb_bridge: Empty frame read...\n",p0->dev);
 				/* check for hangup / whentohangup */
 				if (ast_check_hangup(c0) || ast_check_hangup(c1))

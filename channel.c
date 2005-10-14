@@ -2974,12 +2974,16 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 		}
 		who = ast_waitfor_n(cs, 2, &toms);
 		if (!who) {
+			if (!toms) {
+				res = AST_BRIDGE_RETRY;
+				break;
+			}
 			ast_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
 			if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE || c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE) {
 				if (c0->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-                			c0->_softhangup = 0;
-            			if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
-                			c1->_softhangup = 0;
+					c0->_softhangup = 0;
+				if (c1->_softhangup == AST_SOFTHANGUP_UNBRIDGE)
+					c1->_softhangup = 0;
 				c0->_bridge = c1;
 				c1->_bridge = c0;
 			}
@@ -3215,7 +3219,8 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
 			}
-			
+			if (res == AST_BRIDGE_RETRY)
+				continue;
 			switch (res) {
 			case AST_BRIDGE_RETRY:
 /*				continue; */

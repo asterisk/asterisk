@@ -3184,6 +3184,10 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 				timeoutms = 0;
 		}
 		if (!who) {
+			if (!timeoutms) {
+				res = AST_BRIDGE_RETRY;
+				break;
+			}
 			if (ast_check_hangup(c0) || ast_check_hangup(c1)) {
 				res = AST_BRIDGE_FAILED;
 				break;

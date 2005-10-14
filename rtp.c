@@ -1677,6 +1677,8 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 		}
 		who = ast_waitfor_n(cs, 2, &timeoutms);
 		if (!who) {
+			if (!timeoutms) 
+				return AST_BRIDGE_RETRY;
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Ooh, empty read...\n");
 			/* check for hangup / whentohangup */
