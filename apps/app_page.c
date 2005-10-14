@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 
 #include "asterisk.h"
 
@@ -36,6 +37,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/file.h"
 #include "asterisk/app.h"
 
 
@@ -52,6 +54,7 @@ static const char *page_descrip =
 "caller is dumped into the conference as a speaker and the room is\n"
 "destroyed when the original caller leaves.  Valid options are:\n"
 "        d - full duplex audio\n"
+"			q - quiet, do not play beep to caller\n"
 "Always returns -1.\n";
 
 STANDARD_LOCAL_USER;
@@ -59,10 +62,51 @@ STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
 #define PAGE_DUPLEX (1 << 0)
+#define PAGE_QUIET  (1 << 1)
 
 AST_DECLARE_OPTIONS(page_opts,{
         ['d'] = { PAGE_DUPLEX },
+		  ['q'] = { PAGE_QUIET },
 });
+
+struct calloutdata {
+	char cidnum[64];
+	char cidname[64];
+	char tech[64];
+	char resource[256];
+	char meetmeopts[64];
+};
+
+static void *page_thread(void *data)
+{
+	struct calloutdata *cd = data;
+	ast_pbx_outgoing_app(cd->tech, AST_FORMAT_SLINEAR, cd->resource, 30000,
+		"MeetMe", cd->meetmeopts, NULL, 0, cd->cidnum, cd->cidname, NULL, NULL);
+	free(cd);
+	return NULL;
+}
+
+static void launch_page(struct ast_channel *chan, const char *meetmeopts, const char *tech, const char *resource)
+{
+	struct calloutdata *cd;
+	pthread_t t;
+	pthread_attr_t attr;
+	cd = malloc(sizeof(struct calloutdata));
+	if (cd) {
+		memset(cd, 0, sizeof(struct calloutdata));
+		ast_copy_string(cd->cidnum, chan->cid.cid_num ? chan->cid.cid_num : "", sizeof(cd->cidnum));
+		ast_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
+		ast_copy_string(cd->tech, tech, sizeof(cd->tech));
+		ast_copy_string(cd->resource, resource, sizeof(cd->resource));
+		ast_copy_string(cd->meetmeopts, meetmeopts, sizeof(cd->meetmeopts));
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		if (ast_pthread_create(&t, &attr, page_thread, cd)) {
+			ast_log(LOG_WARNING, "Unable to create paging thread: %s\n", strerror(errno));
+			free(cd);
+		}
+	}
+}
 
 static int page_exec(struct ast_channel *chan, void *data)
 {
@@ -74,6 +118,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	unsigned int confid = rand();
 	struct ast_app *app;
 	char *tmp;
+	int res=0;
 
 	if (!data)
 		return -1;
@@ -103,14 +148,20 @@ static int page_exec(struct ast_channel *chan, void *data)
 	while ((tech = strsep(&tmp, "&"))) {
 		if ((resource = strchr(tech, '/'))) {
 			*resource++ = '\0';
-			ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, resource, 30000,
-					     "MeetMe", meetmeopts, NULL, 0, chan->cid.cid_num, chan->cid.cid_name, NULL, NULL);
+			launch_page(chan, meetmeopts, tech, resource);
 		} else {
 			ast_log(LOG_WARNING, "Incomplete destination '%s' supplied.\n", tech);
 		}
 	}
-	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t");
-	pbx_exec(chan, app, meetmeopts, 1);
+	if (!ast_test_flag(&flags, PAGE_QUIET)) {
+		res = ast_streamfile(chan, "beep", chan->language);
+		if (!res)
+			res = ast_waitstream(chan, "");
+	}
+	if (!res) {
+		snprintf(meetmeopts, sizeof(meetmeopts), "%ud|A%sqxd", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "t");
+		pbx_exec(chan, app, meetmeopts, 1);
+	}
 
 	LOCAL_USER_REMOVE(u);
 
