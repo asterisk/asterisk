@@ -8189,7 +8189,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 			} else if (!strcasecmp(v->name, "qualifyfreqnotok")) {
 				if (sscanf(v->value, "%d", &peer->pokefreqnotok) != 1) {
 					ast_log(LOG_WARNING, "Qualification testing frequency of peer '%s' when NOT OK should be a number of milliseconds at line %d of iax.conf\n", peer->name, v->lineno);
-				} else ast_log(LOG_WARNING, "Set peer->pokefreqnotok to %n\n", peer->pokefreqnotok);
+				} else ast_log(LOG_WARNING, "Set peer->pokefreqnotok to %d\n", peer->pokefreqnotok);
 			} else if (!strcasecmp(v->name, "timezone")) {
 				ast_copy_string(peer->zonetag, v->value, sizeof(peer->zonetag));
 			}/* else if (strcasecmp(v->name,"type")) */
