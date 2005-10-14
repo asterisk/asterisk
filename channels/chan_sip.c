@@ -10344,17 +10344,37 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			transmit_response(p, "100 Trying", req);
 			ast_setstate(c, AST_STATE_RING);
 			if (strcmp(p->exten, ast_pickup_ext())) {
-				if (ast_pbx_start(c)) {
+				enum ast_pbx_result res;
+
+				res = ast_pbx_start(c);
+
+				switch (res) {
+				case AST_PBX_FAILED:
+					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
+					if (ignore)
+						transmit_response(p, "503 Unavailable", req);
+					else
+						transmit_response_reliable(p, "503 Unavailable", req, 1);
+					break;
+				case AST_PBX_CALL_LIMIT:
+					ast_log(LOG_WARNING, "Failed to start PBX (call limit reached) \n");
+					if (ignore)
+						transmit_response(p, "480 Temporarily Unavailable", req);
+					else
+						transmit_response_reliable(p, "480 Temporarily Unavailable", req, 1);
+					break;
+				case AST_PBX_SUCCESS:
+					/* nothing to do */
+					break;
+				}
+
+				if (res) {
 					ast_log(LOG_WARNING, "Failed to start PBX :(\n");
 					/* Unlock locks so ast_hangup can do its magic */
 					ast_mutex_unlock(&c->lock);
 					ast_mutex_unlock(&p->lock);
 					ast_hangup(c);
 					ast_mutex_lock(&p->lock);
-					if (ignore)
-						transmit_response(p, "503 Unavailable", req);
-					else
-						transmit_response_reliable(p, "503 Unavailable", req, 1);
 					c = NULL;
 				}
 			} else {
