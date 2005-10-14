@@ -69,7 +69,7 @@ struct ast_custom_function fieldqty_function = {
 
 static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	char *arg, *earg, *tmp, errstr[256] = "";
+	char *arg, *earg = NULL, *tmp, errstr[256] = "";
 	int errcode;
 	regex_t regexbuf;
 
