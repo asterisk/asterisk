@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-MODS=res_adsi.so res_features.so res_crypto.so res_musiconhold.so res_indications.so res_monitor.so \
+MODS=res_adsi.so res_features.so res_musiconhold.so res_indications.so res_monitor.so \
      res_agi.so
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
@@ -21,6 +21,10 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CR
     MODS+=$(shell if test ${BSDVERSION} -ge 500000 ; then echo "res_config_odbc.so"; fi)
   endif
   MODS+=res_odbc.so
+endif
+
+ifneq ($(NOCRYPTO),yes)
+  MODS+=res_crypto.so
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h),)

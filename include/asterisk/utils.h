@@ -142,8 +142,8 @@ extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *h
 	\brief Produces MD5 hash based on input string */
 extern void ast_md5_hash(char *output, char *input);
 
-extern int ast_base64encode(char *dst, unsigned char *src, int srclen, int max);
-extern int ast_base64decode(unsigned char *dst, char *src, int max);
+extern int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
+extern int ast_base64decode(unsigned char *dst, const char *src, int max);
 
 /*! ast_uri_encode
 	\brief Turn text string to URI-encoded %XX version 
