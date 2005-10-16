@@ -789,6 +789,12 @@ struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, cons
 	return channel_find_locked(NULL, name, namelen, NULL, NULL);
 }
 
+/*--- ast_walk_channel_by_name_prefix_locked: Get next channel by name prefix and lock it */
+struct ast_channel *ast_walk_channel_by_name_prefix_locked(struct ast_channel *chan, const char *name, const int namelen)
+{
+	return channel_find_locked(chan, name, namelen, NULL, NULL);
+}
+
 /*--- ast_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
 struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const char *context)
 {
