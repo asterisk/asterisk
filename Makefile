@@ -51,6 +51,10 @@ OPTIMIZE+=-O6
 #Include debug symbols in the executables (-g) and profiling info (-pg)
 DEBUG=-g #-pg
 
+#Set NOCRYPTO to yes if you do not want to have crypto support or 
+#dependencies
+#NOCRYPTO=yes
+
 # If you are running a radio application, define RADIO_RELAX so that the DTMF
 # will be received more reliably
 #OPTIONS += -DRADIO_RELAX
@@ -299,7 +303,8 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
-	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o
+	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o \
+	cryptostub.o
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sys/poll.h),)
   OBJS+= poll.o
