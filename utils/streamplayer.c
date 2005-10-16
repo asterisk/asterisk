@@ -48,6 +48,9 @@ int main(int argc, char *argv[])
 	struct timeval tv;
 
 	if (argc != 3) {
+		fprintf(stderr, "streamplayer -- A utility for reading from a stream.\n");
+		fprintf(stderr, "Written for use with Asterisk (http://www.asterisk.org)\n");
+		fprintf(stderr, "Copyright (C) 2005 -- Russell Bryant -- Digium, Inc.\n\n");
 		fprintf(stderr, "Usage: ./streamplayer <ip> <port>\n");
 		exit(1);
 	}
