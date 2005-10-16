@@ -28,8 +28,6 @@
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 #define minmax(x,y) x ? (x > y) ? y : ((x < (y * -1)) ? (y * -1) : x) : 0 
 
-AST_MUTEX_DEFINE_STATIC(modlock);
-
 static char *tdesc = "Native Channel Monitoring Module";
 static char *app = "MuxMon";
 static char *synopsis = "Record A Call Natively";
@@ -460,7 +458,6 @@ static int muxmon_cli(int fd, int argc, char **argv)
 {
 	char *op, *chan_name = NULL, *args = NULL;
 	struct ast_channel *chan;
-	int count = 0;
 
 	if (argc > 2) {
 		op = argv[1];
