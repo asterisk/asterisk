@@ -48,7 +48,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
@@ -69,7 +69,7 @@ static char *name = "vox";
 static char *desc = "Dialogic VOX (ADPCM) File Format";
 static char *exts = "vox";
 
-static struct ast_filestream *vox_open(int fd)
+static struct ast_filestream *vox_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -82,7 +82,7 @@ static struct ast_filestream *vox_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->fr.data = tmp->buf;
 		tmp->fr.frametype = AST_FRAME_VOICE;
 		tmp->fr.subclass = AST_FORMAT_ADPCM;
@@ -97,7 +97,7 @@ static struct ast_filestream *vox_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *vox_rewrite(int fd, const char *comment)
+static struct ast_filestream *vox_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -110,7 +110,7 @@ static struct ast_filestream *vox_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		glistcnt++;
 		ast_mutex_unlock(&vox_lock);
 		ast_update_use_count();
@@ -128,7 +128,7 @@ static void vox_close(struct ast_filestream *s)
 	glistcnt--;
 	ast_mutex_unlock(&vox_lock);
 	ast_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -142,7 +142,7 @@ static struct ast_frame *vox_read(struct ast_filestream *s, int *whennext)
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = read(s->fd, s->buf, BUF_SIZE)) < 1) {
+	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -164,7 +164,7 @@ static int vox_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-ADPCM frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
@@ -181,8 +181,10 @@ static int vox_seek(struct ast_filestream *fs, long sample_offset, int whence)
      off_t offset=0,min,cur,max,distance;
 	
      min = 0;
-     cur = lseek(fs->fd, 0, SEEK_CUR);
-     max = lseek(fs->fd, 0, SEEK_END);
+     cur = ftell(fs->f);
+     fseek(fs->f, 0, SEEK_END);
+	 max = ftell(fs->f);
+	 
      /* have to fudge to frame here, so not fully to sample */
      distance = sample_offset/2;
      if(whence == SEEK_SET)
@@ -195,18 +197,19 @@ static int vox_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	  offset = (offset > max)?max:offset;
 	  offset = (offset < min)?min:offset;
      }
-     return lseek(fs->fd, offset, SEEK_SET);
+     fseek(fs->f, offset, SEEK_SET);
+	 return ftell(fs->f);
 }
 
 static int vox_trunc(struct ast_filestream *fs)
 {
-     return ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR));
+     return ftruncate(fileno(fs->f), ftell(fs->f));
 }
 
 static long vox_tell(struct ast_filestream *fs)
 {
      off_t offset;
-     offset = lseek(fs->fd, 0, SEEK_CUR);
+     offset = ftell(fs->f) << 1;
      return offset; 
 }
 

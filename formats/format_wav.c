@@ -50,7 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	int bytes;
 	int needsgain;
 	struct ast_frame fr;				/* Frame information */
@@ -98,7 +98,7 @@ static char *exts = "wav";
 #endif
 
 
-static int check_header(int fd)
+static int check_header(FILE *f)
 {
 	int type, size, formtype;
 	int fmt, hsize;
@@ -106,16 +106,16 @@ static int check_header(int fd)
 	int bysec;
 	int freq;
 	int data;
-	if (read(fd, &type, 4) != 4) {
+	if (fread(&type, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (type)\n");
 		return -1;
 	}
-	if (read(fd, &size, 4) != 4) {
+	if (fread(&size, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (size)\n");
 		return -1;
 	}
 	size = ltohl(size);
-	if (read(fd, &formtype, 4) != 4) {
+	if (fread(&formtype, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (formtype)\n");
 		return -1;
 	}
@@ -127,7 +127,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Does not contain WAVE\n");
 		return -1;
 	}
-	if (read(fd, &fmt, 4) != 4) {
+	if (fread(&fmt, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (fmt)\n");
 		return -1;
 	}
@@ -135,7 +135,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Does not say fmt\n");
 		return -1;
 	}
-	if (read(fd, &hsize, 4) != 4) {
+	if (fread(&hsize, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (formtype)\n");
 		return -1;
 	}
@@ -143,7 +143,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
 		return -1;
 	}
-	if (read(fd, &format, 2) != 2) {
+	if (fread(&format, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Read failed (format)\n");
 		return -1;
 	}
@@ -151,7 +151,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Not a wav file %d\n", ltohs(format));
 		return -1;
 	}
-	if (read(fd, &chans, 2) != 2) {
+	if (fread(&chans, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Read failed (format)\n");
 		return -1;
 	}
@@ -159,7 +159,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Not in mono %d\n", ltohs(chans));
 		return -1;
 	}
-	if (read(fd, &freq, 4) != 4) {
+	if (fread(&freq, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (freq)\n");
 		return -1;
 	}
@@ -168,12 +168,12 @@ static int check_header(int fd)
 		return -1;
 	}
 	/* Ignore the byte frequency */
-	if (read(fd, &bysec, 4) != 4) {
+	if (fread(&bysec, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (BYTES_PER_SECOND)\n");
 		return -1;
 	}
 	/* Check bytes per sample */
-	if (read(fd, &bysam, 2) != 2) {
+	if (fread(&bysam, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Read failed (BYTES_PER_SAMPLE)\n");
 		return -1;
 	}
@@ -181,39 +181,40 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Can only handle 16bits per sample: %d\n", ltohs(bysam));
 		return -1;
 	}
-	if (read(fd, &bisam, 2) != 2) {
+	if (fread(&bisam, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Read failed (Bits Per Sample): %d\n", ltohs(bisam));
 		return -1;
 	}
 	/* Skip any additional header */
-	if ( lseek(fd,ltohl(hsize)-16,SEEK_CUR) == -1 ) {
+	if (fseek(f,ltohl(hsize)-16,SEEK_CUR) == -1 ) {
 		ast_log(LOG_WARNING, "Failed to skip remaining header bytes: %d\n", ltohl(hsize)-16 );
 		return -1;
 	}
 	/* Skip any facts and get the first data block */
 	for(;;)
 	{ 
-            char buf[4];
+		char buf[4];
 	    
 	    /* Begin data chunk */
-	    if (read(fd, &buf, 4) != 4) {
-		ast_log(LOG_WARNING, "Read failed (data)\n");
-		return -1;
+	    if (fread(&buf, 1, 4, f) != 4) {
+			ast_log(LOG_WARNING, "Read failed (data)\n");
+			return -1;
 	    }
 	    /* Data has the actual length of data in it */
-	    if (read(fd, &data, 4) != 4) {
-		ast_log(LOG_WARNING, "Read failed (data)\n");
-		return -1;
+	    if (fread(&data, 1, 4, f) != 4) {
+			ast_log(LOG_WARNING, "Read failed (data)\n");
+			return -1;
 	    }
 	    data = ltohl(data);
-	    if( memcmp(buf, "data", 4) == 0 ) break;
-	    if( memcmp(buf, "fact", 4) != 0 ) {
-		ast_log(LOG_WARNING, "Unknown block - not fact or data\n");
-		return -1;
+	    if(memcmp(buf, "data", 4) == 0 ) 
+			break;
+	    if(memcmp(buf, "fact", 4) != 0 ) {
+			ast_log(LOG_WARNING, "Unknown block - not fact or data\n");
+			return -1;
 	    }
-	    if ( lseek(fd,data,SEEK_CUR) == -1 ) {
-		ast_log(LOG_WARNING, "Failed to skip fact block: %d\n", data );
-		return -1;
+	    if (fseek(f,data,SEEK_CUR) == -1 ) {
+			ast_log(LOG_WARNING, "Failed to skip fact block: %d\n", data );
+			return -1;
 	    }
 	}
 #if 0
@@ -225,14 +226,15 @@ static int check_header(int fd)
 	return data;
 }
 
-static int update_header(int fd)
+static int update_header(FILE *f)
 {
 	off_t cur,end;
 	int datalen,filelen,bytes;
 	
 	
-	cur = lseek(fd, 0, SEEK_CUR);
-	end = lseek(fd, 0, SEEK_END);
+	cur = ftell(f);
+	fseek(f, 0, SEEK_END);
+	end = ftell(f);
 	/* data starts 44 bytes in */
 	bytes = end - 44;
 	datalen = htoll(bytes);
@@ -243,30 +245,30 @@ static int update_header(int fd)
 		ast_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
 	}
-	if (lseek(fd, 4, SEEK_SET) != 4) {
+	if (fseek(f, 4, SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to set our position\n");
 		return -1;
 	}
-	if (write(fd, &filelen, 4) != 4) {
+	if (fwrite(&filelen, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to set write file size\n");
 		return -1;
 	}
-	if (lseek(fd, 40, SEEK_SET) != 40) {
+	if (fseek(f, 40, SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to set our position\n");
 		return -1;
 	}
-	if (write(fd, &datalen, 4) != 4) {
+	if (fwrite(&datalen, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to set write datalen\n");
 		return -1;
 	}
-	if (lseek(fd, cur, SEEK_SET) != cur) {
+	if (fseek(f, cur, SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to return to position\n");
 		return -1;
 	}
 	return 0;
 }
 
-static int write_header(int fd)
+static int write_header(FILE *f)
 {
 	unsigned int hz=htoll(8000);
 	unsigned int bhz = htoll(16000);
@@ -277,59 +279,59 @@ static int write_header(int fd)
 	unsigned short bisam = htols(16);
 	unsigned int size = htoll(0);
 	/* Write a wav header, ignoring sizes which will be filled in later */
-	lseek(fd,0,SEEK_SET);
-	if (write(fd, "RIFF", 4) != 4) {
+	fseek(f,0,SEEK_SET);
+	if (fwrite("RIFF", 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &size, 4) != 4) {
+	if (fwrite(&size, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, "WAVEfmt ", 8) != 8) {
+	if (fwrite("WAVEfmt ", 1, 8, f) != 8) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &hs, 4) != 4) {
+	if (fwrite(&hs, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &fmt, 2) != 2) {
+	if (fwrite(&fmt, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &chans, 2) != 2) {
+	if (fwrite(&chans, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &hz, 4) != 4) {
+	if (fwrite(&hz, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &bhz, 4) != 4) {
+	if (fwrite(&bhz, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &bysam, 2) != 2) {
+	if (fwrite(&bysam, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &bisam, 2) != 2) {
+	if (fwrite(&bisam, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, "data", 4) != 4) {
+	if (fwrite("data", 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &size, 4) != 4) {
+	if (fwrite(&size, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
 	return 0;
 }
 
-static struct ast_filestream *wav_open(int fd)
+static struct ast_filestream *wav_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -337,7 +339,7 @@ static struct ast_filestream *wav_open(int fd)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if ((tmp->maxlen = check_header(fd)) < 0) {
+		if ((tmp->maxlen = check_header(f)) < 0) {
 			free(tmp);
 			return NULL;
 		}
@@ -346,7 +348,7 @@ static struct ast_filestream *wav_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->needsgain = 1;
 		tmp->fr.data = tmp->buf;
 		tmp->fr.frametype = AST_FRAME_VOICE;
@@ -362,7 +364,7 @@ static struct ast_filestream *wav_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *wav_rewrite(int fd, const char *comment)
+static struct ast_filestream *wav_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -370,7 +372,7 @@ static struct ast_filestream *wav_rewrite(int fd, const char *comment)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (write_header(fd)) {
+		if (write_header(f)) {
 			free(tmp);
 			return NULL;
 		}
@@ -379,7 +381,7 @@ static struct ast_filestream *wav_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		glistcnt++;
 		ast_mutex_unlock(&wav_lock);
 		ast_update_use_count();
@@ -400,8 +402,8 @@ static void wav_close(struct ast_filestream *s)
 	ast_update_use_count();
 	/* Pad to even length */
 	if (s->bytes & 0x1)
-		write(s->fd, &zero, 1);
-	close(s->fd);
+		fwrite(&zero, 1, 1, s->f);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -415,14 +417,14 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 	int bytes = sizeof(tmp);
 	off_t here;
 	/* Send a frame from the file to the appropriate channel */
-	here = lseek(s->fd, 0, SEEK_CUR);
+	here = ftell(s->f);
 	if ((s->maxlen - here) < bytes)
 		bytes = s->maxlen - here;
 	if (bytes < 0)
 		bytes = 0;
 /* 	ast_log(LOG_DEBUG, "here: %d, maxlen: %d, bytes: %d\n", here, s->maxlen, bytes); */
 	
-	if ( (res = read(s->fd, tmp, bytes)) <= 0 ) {
+	if ( (res = fread(tmp, 1, bytes, s->f)) <= 0 ) {
 		if (res) {
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		}
@@ -503,7 +505,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 #endif
 
 		}
-		if ((write (fs->fd, tmp, f->datalen) != f->datalen) ) {
+		if ((fwrite(tmp, 1, f->datalen, fs->f) != f->datalen) ) {
 			ast_log(LOG_WARNING, "Bad write (%d): %s\n", res, strerror(errno));
 			return -1;
 		}
@@ -513,7 +515,7 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	}
 	
 	fs->bytes += f->datalen;
-	update_header(fs->fd);
+	update_header(fs->f);
 		
 	return 0;
 
@@ -526,8 +528,9 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	
 	samples = sample_offset * 2; /* SLINEAR is 16 bits mono, so sample_offset * 2 = bytes */
 	min = 44; /* wav header is 44 bytes */
-	cur = lseek(fs->fd, 0, SEEK_CUR);
-	max = lseek(fs->fd, 0, SEEK_END);
+	cur = ftell(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 	if (whence == SEEK_SET)
 		offset = samples + min;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -539,20 +542,20 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	}
 	/* always protect the header space. */
 	offset = (offset < min)?min:offset;
-	return lseek(fs->fd,offset,SEEK_SET);
+	return fseek(fs->f,offset,SEEK_SET);
 }
 
 static int wav_trunc(struct ast_filestream *fs)
 {
-	if(ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR)))
+	if (ftruncate(fileno(fs->f), ftell(fs->f)))
 		return -1;
-	return update_header(fs->fd);
+	return update_header(fs->f);
 }
 
 static long wav_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = lseek(fs->fd, 0, SEEK_CUR);
+	offset = ftell(fs->f);
 	/* subtract header size to get samples, then divide by 2 for 16 bit samples */
 	return (offset - 44)/2;
 }

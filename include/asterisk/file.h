@@ -49,8 +49,8 @@ struct ast_filestream;
  * returns 0 on success, -1 on failure
  */
 int ast_format_register(const char *name, const char *exts, int format,
-						struct ast_filestream * (*open)(int fd),
-						struct ast_filestream * (*rewrite)(int fd, const char *comment),
+						struct ast_filestream * (*open)(FILE *f),
+						struct ast_filestream * (*rewrite)(FILE *f, const char *comment),
 						int (*write)(struct ast_filestream *, struct ast_frame *),
 						int (*seek)(struct ast_filestream *, long offset, int whence),
 						int (*trunc)(struct ast_filestream *),

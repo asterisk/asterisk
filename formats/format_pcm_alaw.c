@@ -54,7 +54,7 @@ struct ast_filestream {
 	/* Believe it or not, we must decode/recode to account for the
 	   weird MS format */
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
@@ -90,7 +90,7 @@ static unsigned long get_time(void)
 }
 #endif
 
-static struct ast_filestream *pcm_open(int fd)
+static struct ast_filestream *pcm_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -103,7 +103,7 @@ static struct ast_filestream *pcm_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->fr.data = tmp->buf;
 		tmp->fr.frametype = AST_FRAME_VOICE;
 		tmp->fr.subclass = AST_FORMAT_ALAW;
@@ -120,7 +120,7 @@ static struct ast_filestream *pcm_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *pcm_rewrite(int fd, const char *comment)
+static struct ast_filestream *pcm_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -133,7 +133,7 @@ static struct ast_filestream *pcm_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 #ifdef REALTIME_WRITE
 		tmp->start_time = get_time();
 #endif
@@ -154,7 +154,7 @@ static void pcm_close(struct ast_filestream *s)
 	glistcnt--;
 	ast_mutex_unlock(&pcm_lock);
 	ast_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -169,7 +169,7 @@ static struct ast_frame *pcm_read(struct ast_filestream *s, int *whennext)
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = read(s->fd, s->buf, BUF_SIZE)) < 1) {
+	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -204,46 +204,41 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 	/* Check if we have written to this position yet. If we have, then increment pos by one frame
 	*  for some degree of protection against receiving packets in the same clock tick.
 	*/
-	fstat( fs->fd, &stat_buf );
-	if( stat_buf.st_size > fpos )
-	{
+	
+	fstat(fileno(fs->f), &stat_buf );
+	if (stat_buf.st_size > fpos ) {
 		fpos += f->datalen;	/* Incrementing with the size of this current frame */
 	}
 
-	if( stat_buf.st_size < fpos )
-	{
+	if (stat_buf.st_size < fpos) {
 		/* fill the gap with 0x55 rather than 0. */
 		char buf[ 512 ];
 		unsigned long cur, to_write;
 
 		cur = stat_buf.st_size;
-		if( lseek( fs->fd, cur, SEEK_SET ) < 0 )
-		{
+		if (fseek(fs->f, cur, SEEK_SET) < 0) {
 			ast_log( LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno) );
 			return -1;
 		}
-		memset( buf, 0x55, 512 );
-		while( cur < fpos )
-		{
+		memset(buf, 0x55, 512);
+		while (cur < fpos) {
 			to_write = fpos - cur;
-			if( to_write > 512 )
-			{
+			if (to_write > 512) {
 				to_write = 512;
 			}
-			write( fs->fd, buf, to_write );
+			fwrite(buf, 1, to_write, fs->f);
 			cur += to_write;
 		}
 	}
 
 
-	if( lseek( fs->fd, fpos, SEEK_SET ) < 0 )
-	{
+	if (fseek(s->f, fpos, SEEK_SET) < 0) {
 		ast_log( LOG_WARNING, "Cannot seek in file: %s\n", strerror(errno) );
 		return -1;
 	}
 #endif	/* REALTIME_WRITE */
 	
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
@@ -255,8 +250,9 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	off_t offset=0,min,cur,max;
 
 	min = 0;
-	cur = lseek(fs->fd, 0, SEEK_CUR);
-	max = lseek(fs->fd, 0, SEEK_END);
+	cur = ftell(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 	if (whence == SEEK_SET)
 		offset = sample_offset;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -268,18 +264,18 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	}
 	/* Always protect against seeking past begining */
 	offset = (offset < min)?min:offset;
-	return lseek(fs->fd, offset, SEEK_SET);
+	return fseek(fs->f, offset, SEEK_SET);
 }
 
 static int pcm_trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR));
+	return ftruncate(fileno(fs->f), ftell(fs->f));
 }
 
 static long pcm_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = lseek(fs->fd, 0, SEEK_CUR);
+	offset = ftell(fs->f);
 	return offset;
 }
 

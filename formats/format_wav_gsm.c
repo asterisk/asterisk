@@ -63,7 +63,7 @@ struct ast_filestream {
 	/* Believe it or not, we must decode/recode to account for the
 	   weird MS format */
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
@@ -104,23 +104,23 @@ static char *exts = "WAV|wav49";
 #endif
 
 
-static int check_header(int fd)
+static int check_header(FILE *f)
 {
 	int type, size, formtype;
 	int fmt, hsize, fact;
 	short format, chans;
 	int freq;
 	int data;
-	if (read(fd, &type, 4) != 4) {
+	if (fread(&type, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (type)\n");
 		return -1;
 	}
-	if (read(fd, &size, 4) != 4) {
+	if (fread(&size, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (size)\n");
 		return -1;
 	}
 	size = ltohl(size);
-	if (read(fd, &formtype, 4) != 4) {
+	if (fread(&formtype, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (formtype)\n");
 		return -1;
 	}
@@ -132,7 +132,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Does not contain WAVE\n");
 		return -1;
 	}
-	if (read(fd, &fmt, 4) != 4) {
+	if (fread(&fmt, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (fmt)\n");
 		return -1;
 	}
@@ -140,7 +140,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Does not say fmt\n");
 		return -1;
 	}
-	if (read(fd, &hsize, 4) != 4) {
+	if (fread(&hsize, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (formtype)\n");
 		return -1;
 	}
@@ -148,7 +148,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Unexpected header size %d\n", ltohl(hsize));
 		return -1;
 	}
-	if (read(fd, &format, 2) != 2) {
+	if (fread(&format, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Read failed (format)\n");
 		return -1;
 	}
@@ -156,7 +156,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Not a GSM file %d\n", ltohs(format));
 		return -1;
 	}
-	if (read(fd, &chans, 2) != 2) {
+	if (fread(&chans, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Read failed (format)\n");
 		return -1;
 	}
@@ -164,7 +164,7 @@ static int check_header(int fd)
 		ast_log(LOG_WARNING, "Not in mono %d\n", ltohs(chans));
 		return -1;
 	}
-	if (read(fd, &freq, 4) != 4) {
+	if (fread(&freq, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (freq)\n");
 		return -1;
 	}
@@ -173,22 +173,22 @@ static int check_header(int fd)
 		return -1;
 	}
 	/* Ignore the byte frequency */
-	if (read(fd, &freq, 4) != 4) {
+	if (fread(&freq, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (X_1)\n");
 		return -1;
 	}
 	/* Ignore the two weird fields */
-	if (read(fd, &freq, 4) != 4) {
+	if (fread(&freq, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (X_2/X_3)\n");
 		return -1;
 	}
 	/* Ignore the byte frequency */
-	if (read(fd, &freq, 4) != 4) {
+	if (fread(&freq, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (Y_1)\n");
 		return -1;
 	}
 	/* Check for the word fact */
-	if (read(fd, &fact, 4) != 4) {
+	if (fread(&fact, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (fact)\n");
 		return -1;
 	}
@@ -197,16 +197,16 @@ static int check_header(int fd)
 		return -1;
 	}
 	/* Ignore the "fact value" */
-	if (read(fd, &fact, 4) != 4) {
+	if (fread(&fact, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (fact header)\n");
 		return -1;
 	}
-	if (read(fd, &fact, 4) != 4) {
+	if (fread(&fact, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (fact value)\n");
 		return -1;
 	}
 	/* Check for the word data */
-	if (read(fd, &data, 4) != 4) {
+	if (fread(&data, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (data)\n");
 		return -1;
 	}
@@ -215,20 +215,21 @@ static int check_header(int fd)
 		return -1;
 	}
 	/* Ignore the data length */
-	if (read(fd, &data, 4) != 4) {
+	if (fread(&data, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Read failed (data)\n");
 		return -1;
 	}
 	return 0;
 }
 
-static int update_header(int fd)
+static int update_header(FILE *f)
 {
 	off_t cur,end,bytes;
 	int datalen,filelen;
 	
-	cur = lseek(fd, 0, SEEK_CUR);
-	end = lseek(fd, 0, SEEK_END);
+	cur = ftell(f);
+	fseek(f, 0, SEEK_END);
+	end = ftell(f);
 	/* in a gsm WAV, data starts 60 bytes in */
 	bytes = end - 60;
 	datalen = htoll((bytes + 1) & ~0x1);
@@ -237,30 +238,30 @@ static int update_header(int fd)
 		ast_log(LOG_WARNING, "Unable to find our position\n");
 		return -1;
 	}
-	if (lseek(fd, 4, SEEK_SET) != 4) {
+	if (fseek(f, 4, SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to set our position\n");
 		return -1;
 	}
-	if (write(fd, &filelen, 4) != 4) {
+	if (fwrite(&filelen, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to set write file size\n");
 		return -1;
 	}
-	if (lseek(fd, 56, SEEK_SET) != 56) {
+	if (fseek(f, 56, SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to set our position\n");
 		return -1;
 	}
-	if (write(fd, &datalen, 4) != 4) {
+	if (fwrite(&datalen, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to set write datalen\n");
 		return -1;
 	}
-	if (lseek(fd, cur, SEEK_SET) != cur) {
+	if (fseek(f, cur, SEEK_SET)) {
 		ast_log(LOG_WARNING, "Unable to return to position\n");
 		return -1;
 	}
 	return 0;
 }
 
-static int write_header(int fd)
+static int write_header(FILE *f)
 {
 	unsigned int hz=htoll(8000);
 	unsigned int bhz = htoll(1625);
@@ -274,74 +275,74 @@ static int write_header(int fd)
 	unsigned int y_1 = htoll(20160);
 	unsigned int size = htoll(0);
 	/* Write a GSM header, ignoring sizes which will be filled in later */
-	if (write(fd, "RIFF", 4) != 4) {
+	if (fwrite("RIFF", 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &size, 4) != 4) {
+	if (fwrite(&size, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, "WAVEfmt ", 8) != 8) {
+	if (fwrite("WAVEfmt ", 1, 8, f) != 8) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &hs, 4) != 4) {
+	if (fwrite(&hs, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &fmt, 2) != 2) {
+	if (fwrite(&fmt, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &chans, 2) != 2) {
+	if (fwrite(&chans, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &hz, 4) != 4) {
+	if (fwrite(&hz, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &bhz, 4) != 4) {
+	if (fwrite(&bhz, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &x_1, 4) != 4) {
+	if (fwrite(&x_1, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &x_2, 2) != 2) {
+	if (fwrite(&x_2, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &x_3, 2) != 2) {
+	if (fwrite(&x_3, 1, 2, f) != 2) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, "fact", 4) != 4) {
+	if (fwrite("fact", 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &fhs, 4) != 4) {
+	if (fwrite(&fhs, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &y_1, 4) != 4) {
+	if (fwrite(&y_1, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, "data", 4) != 4) {
+	if (fwrite("data", 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
-	if (write(fd, &size, 4) != 4) {
+	if (fwrite(&size, 1, 4, f) != 4) {
 		ast_log(LOG_WARNING, "Unable to write header\n");
 		return -1;
 	}
 	return 0;
 }
 
-static struct ast_filestream *wav_open(int fd)
+static struct ast_filestream *wav_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -349,7 +350,7 @@ static struct ast_filestream *wav_open(int fd)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (check_header(fd)) {
+		if (check_header(f)) {
 			free(tmp);
 			return NULL;
 		}
@@ -358,7 +359,7 @@ static struct ast_filestream *wav_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->fr.data = tmp->gsm;
 		tmp->fr.frametype = AST_FRAME_VOICE;
 		tmp->fr.subclass = AST_FORMAT_GSM;
@@ -373,7 +374,7 @@ static struct ast_filestream *wav_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *wav_rewrite(int fd, const char *comment)
+static struct ast_filestream *wav_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -381,7 +382,7 @@ static struct ast_filestream *wav_rewrite(int fd, const char *comment)
 	struct ast_filestream *tmp;
 	if ((tmp = malloc(sizeof(struct ast_filestream)))) {
 		memset(tmp, 0, sizeof(struct ast_filestream));
-		if (write_header(fd)) {
+		if (write_header(f)) {
 			free(tmp);
 			return NULL;
 		}
@@ -390,7 +391,7 @@ static struct ast_filestream *wav_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		glistcnt++;
 		ast_mutex_unlock(&wav_lock);
 		ast_update_use_count();
@@ -410,9 +411,10 @@ static void wav_close(struct ast_filestream *s)
 	ast_mutex_unlock(&wav_lock);
 	ast_update_use_count();
 	/* Pad to even length */
-	if (lseek(s->fd, 0, SEEK_END) & 0x1)
-		write(s->fd, &zero, 1);
-	close(s->fd);
+	fseek(s->f, 0, SEEK_END);
+	if (ftell(s->f) & 0x1)
+		fwrite(&zero, 1, 1, s->f);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -433,7 +435,7 @@ static struct ast_frame *wav_read(struct ast_filestream *s, int *whennext)
 		/* Just return a frame based on the second GSM frame */
 		s->fr.data = s->gsm + 33;
 	} else {
-		if ((res = read(s->fd, msdata, 65)) != 65) {
+		if ((res = fread(msdata, 1, 65, s->f)) != 65) {
 			if (res && (res != 1))
 				ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 			return NULL;
@@ -466,21 +468,21 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 	while(len < f->datalen) {
 		if (alreadyms) {
 			fs->secondhalf = 0;
-			if ((res = write(fs->fd, f->data + len, 65)) != 65) {
+			if ((res = fwrite(f->data + len, 1, 65, fs->f)) != 65) {
 				ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 				return -1;
 			}
-			update_header(fs->fd);
+			update_header(fs->f);
 			len += 65;
 		} else {
 			if (fs->secondhalf) {
 				memcpy(fs->gsm + 33, f->data + len, 33);
 				conv66(fs->gsm, msdata);
-				if ((res = write(fs->fd, msdata, 65)) != 65) {
+				if ((res = fwrite(msdata, 1, 65, fs->f)) != 65) {
 					ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 					return -1;
 				}
-				update_header(fs->fd);
+				update_header(fs->f);
 			} else {
 				/* Copy the data and do nothing */
 				memcpy(fs->gsm, f->data + len, 33);
@@ -496,8 +498,9 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
 	off_t offset=0,distance,cur,min,max;
 	min = 60;
-	cur = lseek(fs->fd, 0, SEEK_CUR);
-	max = lseek(fs->fd, 0, SEEK_END);
+	cur = ftell(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 	/* I'm getting sloppy here, I'm only going to go to even splits of the 2
 	 * frames, if you want tighter cuts use format_gsm, format_pcm, or format_wav */
 	distance = (sample_offset/320) * 65;
@@ -513,26 +516,26 @@ static int wav_seek(struct ast_filestream *fs, long sample_offset, int whence)
 		offset = (offset > max)?max:offset;
 	} else if (offset > max) {
 		int i;
-		lseek(fs->fd, 0, SEEK_END);
+		fseek(fs->f, 0, SEEK_END);
 		for (i=0; i< (offset - max) / 65; i++) {
-			write(fs->fd, msgsm_silence, 65);
+			fwrite(msgsm_silence, 1, 65, fs->f);
 		}
 	}
 	fs->secondhalf = 0;
-	return lseek(fs->fd, offset, SEEK_SET);
+	return fseek(fs->f, offset, SEEK_SET);
 }
 
 static int wav_trunc(struct ast_filestream *fs)
 {
-	if(ftruncate(fs->fd, lseek(fs->fd, 0, SEEK_CUR)))
+	if (ftruncate(fileno(fs->f), ftell(fs->f)))
 		return -1;
-	return update_header(fs->fd);
+	return update_header(fs->f);
 }
 
 static long wav_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = lseek(fs->fd, 0, SEEK_CUR);
+	offset = ftell(fs->f);
 	/* since this will most likely be used later in play or record, lets stick
 	 * to that level of resolution, just even frames boundaries */
 	return (offset - 52)/65*320;

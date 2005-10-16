@@ -47,7 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 struct ast_filestream {
 	void *reserved[AST_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
-	int fd; /* Descriptor */
+	FILE *f; /* Descriptor */
 	struct ast_channel *owner;
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
@@ -64,7 +64,7 @@ static char *name = "sln";
 static char *desc = "Raw Signed Linear Audio support (SLN)";
 static char *exts = "sln|raw";
 
-static struct ast_filestream *slinear_open(int fd)
+static struct ast_filestream *slinear_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -77,7 +77,7 @@ static struct ast_filestream *slinear_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->fr.data = tmp->buf;
 		tmp->fr.frametype = AST_FRAME_VOICE;
 		tmp->fr.subclass = AST_FORMAT_SLINEAR;
@@ -91,7 +91,7 @@ static struct ast_filestream *slinear_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *slinear_rewrite(int fd, const char *comment)
+static struct ast_filestream *slinear_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -104,7 +104,7 @@ static struct ast_filestream *slinear_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		glistcnt++;
 		ast_mutex_unlock(&slinear_lock);
 		ast_update_use_count();
@@ -122,7 +122,7 @@ static void slinear_close(struct ast_filestream *s)
 	glistcnt--;
 	ast_mutex_unlock(&slinear_lock);
 	ast_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -138,7 +138,7 @@ static struct ast_frame *slinear_read(struct ast_filestream *s, int *whennext)
 	s->fr.offset = AST_FRIENDLY_OFFSET;
 	s->fr.mallocd = 0;
 	s->fr.data = s->buf;
-	if ((res = read(s->fd, s->buf, BUF_SIZE)) < 1) {
+	if ((res = fread(s->buf, 1, BUF_SIZE, s->f)) < 1) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -161,7 +161,7 @@ static int slinear_write(struct ast_filestream *fs, struct ast_frame *f)
 		ast_log(LOG_WARNING, "Asked to write non-slinear frame (%d)!\n", f->subclass);
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", res, f->datalen, strerror(errno));
 			return -1;
 	}
@@ -174,8 +174,9 @@ static int slinear_seek(struct ast_filestream *fs, long sample_offset, int whenc
 
 	min = 0;
 	sample_offset <<= 1;
-	cur = lseek(fs->fd, 0, SEEK_CUR);
-	max = lseek(fs->fd, 0, SEEK_END);
+	cur = ftell(fs->f);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 	if (whence == SEEK_SET)
 		offset = sample_offset;
 	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
@@ -187,18 +188,18 @@ static int slinear_seek(struct ast_filestream *fs, long sample_offset, int whenc
 	}
 	/* always protect against seeking past begining. */
 	offset = (offset < min)?min:offset;
-	return lseek(fs->fd, offset, SEEK_SET) / 2;
+	return fseek(fs->f, offset, SEEK_SET) / 2;
 }
 
 static int slinear_trunc(struct ast_filestream *fs)
 {
-	return ftruncate(fs->fd, lseek(fs->fd,0,SEEK_CUR));
+	return ftruncate(fileno(fs->f), ftell(fs->f));
 }
 
 static long slinear_tell(struct ast_filestream *fs)
 {
 	off_t offset;
-	offset = lseek(fs->fd, 0, SEEK_CUR);
+	offset = ftell(fs->f);
 	return offset / 2;
 }
 

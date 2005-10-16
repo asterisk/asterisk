@@ -64,7 +64,7 @@ struct ast_filestream {
 	/* Do not place anything before "reserved" */
 	void *reserved[AST_RESERVED_POINTERS];
 	/* This is what a filestream means to us */
-	int fd; 							/* Open file descriptor */
+	FILE *f; 							/* Open file descriptor */
 	int rate;							/* RATE_* defines */
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
@@ -88,7 +88,7 @@ static char *exts16 = "g726-16";
 /*
  * Rate dependant format functions (open, rewrite)
  */
-static struct ast_filestream *g726_40_open(int fd)
+static struct ast_filestream *g726_40_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -101,7 +101,7 @@ static struct ast_filestream *g726_40_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->rate = RATE_40;
 		tmp->fr.data = tmp->g726;
 		tmp->fr.frametype = AST_FRAME_VOICE;
@@ -119,7 +119,7 @@ static struct ast_filestream *g726_40_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *g726_32_open(int fd)
+static struct ast_filestream *g726_32_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -132,7 +132,7 @@ static struct ast_filestream *g726_32_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->rate = RATE_32;
 		tmp->fr.data = tmp->g726;
 		tmp->fr.frametype = AST_FRAME_VOICE;
@@ -150,7 +150,7 @@ static struct ast_filestream *g726_32_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *g726_24_open(int fd)
+static struct ast_filestream *g726_24_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -163,7 +163,7 @@ static struct ast_filestream *g726_24_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->rate = RATE_24;
 		tmp->fr.data = tmp->g726;
 		tmp->fr.frametype = AST_FRAME_VOICE;
@@ -181,7 +181,7 @@ static struct ast_filestream *g726_24_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *g726_16_open(int fd)
+static struct ast_filestream *g726_16_open(FILE *f)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -194,7 +194,7 @@ static struct ast_filestream *g726_16_open(int fd)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->rate = RATE_16;
 		tmp->fr.data = tmp->g726;
 		tmp->fr.frametype = AST_FRAME_VOICE;
@@ -212,7 +212,7 @@ static struct ast_filestream *g726_16_open(int fd)
 	return tmp;
 }
 
-static struct ast_filestream *g726_40_rewrite(int fd, const char *comment)
+static struct ast_filestream *g726_40_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -225,7 +225,7 @@ static struct ast_filestream *g726_40_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->rate = RATE_40;
 		glistcnt++;
 		if (option_debug)
@@ -238,7 +238,7 @@ static struct ast_filestream *g726_40_rewrite(int fd, const char *comment)
 	return tmp;
 }
 
-static struct ast_filestream *g726_32_rewrite(int fd, const char *comment)
+static struct ast_filestream *g726_32_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -251,7 +251,7 @@ static struct ast_filestream *g726_32_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->rate = RATE_32;
 		glistcnt++;
 		if (option_debug)
@@ -264,7 +264,7 @@ static struct ast_filestream *g726_32_rewrite(int fd, const char *comment)
 	return tmp;
 }
 
-static struct ast_filestream *g726_24_rewrite(int fd, const char *comment)
+static struct ast_filestream *g726_24_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -277,7 +277,7 @@ static struct ast_filestream *g726_24_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->rate = RATE_24;
 		glistcnt++;
 		if (option_debug)
@@ -290,7 +290,7 @@ static struct ast_filestream *g726_24_rewrite(int fd, const char *comment)
 	return tmp;
 }
 
-static struct ast_filestream *g726_16_rewrite(int fd, const char *comment)
+static struct ast_filestream *g726_16_rewrite(FILE *f, const char *comment)
 {
 	/* We don't have any header to read or anything really, but
 	   if we did, it would go here.  We also might want to check
@@ -303,7 +303,7 @@ static struct ast_filestream *g726_16_rewrite(int fd, const char *comment)
 			free(tmp);
 			return NULL;
 		}
-		tmp->fd = fd;
+		tmp->f = f;
 		tmp->rate = RATE_16;
 		glistcnt++;
 		if (option_debug)
@@ -330,7 +330,7 @@ static void g726_close(struct ast_filestream *s)
 		ast_log(LOG_DEBUG, "Closed filestream G.726-%dk.\n", 40 - s->rate * 8);
 	ast_mutex_unlock(&g726_lock);
 	ast_update_use_count();
-	close(s->fd);
+	fclose(s->f);
 	free(s);
 	s = NULL;
 }
@@ -346,7 +346,7 @@ static struct ast_frame *g726_read(struct ast_filestream *s, int *whennext)
 	s->fr.datalen = frame_size[s->rate];
 	s->fr.mallocd = 0;
 	s->fr.data = s->g726;
-	if ((res = read(s->fd, s->g726, s->fr.datalen)) != s->fr.datalen) {
+	if ((res = fread(s->g726, 1, s->fr.datalen, s->f)) != s->fr.datalen) {
 		if (res)
 			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
 		return NULL;
@@ -372,7 +372,7 @@ static int g726_write(struct ast_filestream *fs, struct ast_frame *f)
 						f->datalen, frame_size[fs->rate]);
 		return -1;
 	}
-	if ((res = write(fs->fd, f->data, f->datalen)) != f->datalen) {
+	if ((res = fwrite(f->data, 1, f->datalen, fs->f)) != f->datalen) {
 			ast_log(LOG_WARNING, "Bad write (%d/%d): %s\n", 
 							res, frame_size[fs->rate], strerror(errno));
 			return -1;
