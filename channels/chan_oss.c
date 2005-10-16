@@ -847,6 +847,9 @@ static int oss_indicate(struct ast_channel *c, int cond)
 		o->cursound = -1;
 		return 0;
 
+	case AST_CONTROL_VIDUPDATE:
+		res = -1;
+		break;
 	default:
 		ast_log(LOG_WARNING,
 		    "Don't know how to display condition %d on %s\n",

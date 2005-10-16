@@ -747,6 +747,9 @@ static int alsa_indicate(struct ast_channel *chan, int cond)
 	case -1:
 		res = -1;
 		break;
+	case AST_CONTROL_VIDUPDATE:
+		res = -1;
+		break;
 	default:
 		ast_log(LOG_WARNING, "Don't know how to display condition %d on %s\n", cond, chan->name);
 		res = -1;
