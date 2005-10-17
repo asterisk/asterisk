@@ -7541,10 +7541,10 @@ static int sip_show_objects(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 /*--- print_group: Print call group and pickup group ---*/
-static void  print_group(int fd, unsigned int group) 
+static void  print_group(int fd, unsigned int group, int crlf) 
 {
 	char buf[256];
-	ast_cli(fd, "%s\n", ast_print_group(buf, sizeof(buf), group) );
+	ast_cli(fd, crlf ? "%s\r\n" : "%s\n", ast_print_group(buf, sizeof(buf), group) );
 }
 
 /*--- dtmfmode2str: Convert DTMF mode to printable string ---*/
@@ -7865,9 +7865,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		if (!ast_strlen_zero(peer->fromdomain))
 			ast_cli(fd, "  FromDomain   : %s\n", peer->fromdomain);
 		ast_cli(fd, "  Callgroup    : ");
-		print_group(fd, peer->callgroup);
+		print_group(fd, peer->callgroup, 0);
 		ast_cli(fd, "  Pickupgroup  : ");
-		print_group(fd, peer->pickupgroup);
+		print_group(fd, peer->pickupgroup, 0);
 		ast_cli(fd, "  Mailbox      : %s\n", peer->mailbox);
 		ast_cli(fd, "  VM Extension : %s\n", peer->vmexten);
 		ast_cli(fd, "  LastMsgsSent : %d\n", peer->lastmsgssent);
@@ -7942,9 +7942,9 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		if (!ast_strlen_zero(peer->fromdomain))
 			ast_cli(fd, "SIP-FromDomain: %s\r\n", peer->fromdomain);
 		ast_cli(fd, "Callgroup: ");
-		print_group(fd, peer->callgroup);
+		print_group(fd, peer->callgroup, 1);
 		ast_cli(fd, "Pickupgroup: ");
-		print_group(fd, peer->pickupgroup);
+		print_group(fd, peer->pickupgroup, 1);
 		ast_cli(fd, "VoiceMailbox: %s\r\n", peer->mailbox);
 		ast_cli(fd, "LastMsgsSent: %d\r\n", peer->lastmsgssent);
 		ast_cli(fd, "Call limit: %d\r\n", peer->call_limit);
@@ -8031,9 +8031,9 @@ static int sip_show_user(int fd, int argc, char *argv[])
 		ast_cli(fd, "  CallingPres  : %s\n", ast_describe_caller_presentation(user->callingpres));
 		ast_cli(fd, "  Call limit   : %d\n", user->call_limit);
 		ast_cli(fd, "  Callgroup    : ");
-		print_group(fd, user->callgroup);
+		print_group(fd, user->callgroup, 0);
 		ast_cli(fd, "  Pickupgroup  : ");
-		print_group(fd, user->pickupgroup);
+		print_group(fd, user->pickupgroup, 0);
 		ast_cli(fd, "  Callerid     : %s\n", ast_callerid_merge(cbuf, sizeof(cbuf), user->cid_name, user->cid_num, "<unspecified>"));
 		ast_cli(fd, "  ACL          : %s\n", (user->ha?"Yes":"No"));
 		ast_cli(fd, "  Codec Order  : (");

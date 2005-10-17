@@ -3181,7 +3181,7 @@ static void reload_queues(void)
 	ast_mutex_unlock(&qlock);
 }
 
-static int __queues_show(int fd, int argc, char **argv, int queue_show)
+static int __queues_show(int manager, int fd, int argc, char **argv, int queue_show)
 {
 	struct ast_call_queue *q;
 	struct queue_ent *qe;
@@ -3192,6 +3192,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 	char *max;
 	size_t max_left;
 	float sl = 0;
+	char *term = manager ? "\r\n" : "\n";
 
 	time(&now);
 	if ((!queue_show && argc != 2) || (queue_show && argc != 3))
@@ -3201,9 +3202,9 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 	if (!q) {	
 		ast_mutex_unlock(&qlock);
 		if (queue_show)
-			ast_cli(fd, "No such queue: %s.\n",argv[2]);
+			ast_cli(fd, "No such queue: %s.%s",argv[2], term);
 		else
-			ast_cli(fd, "No queues.\n");
+			ast_cli(fd, "No queues.%s", term);
 		return RESULT_SUCCESS;
 	}
 	while (q) {
@@ -3213,7 +3214,7 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 				ast_mutex_unlock(&q->lock);
 				q = q->next;
 				if (!q) {
-					ast_cli(fd, "No such queue: %s.\n",argv[2]);
+					ast_cli(fd, "No such queue: %s.%s",argv[2], term);
 					break;
 				}
 				continue;
@@ -3229,10 +3230,10 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 		sl = 0;
 		if(q->callscompleted > 0)
 			sl = 100*((float)q->callscompletedinsl/(float)q->callscompleted);
-		ast_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds\n",
-			q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel);
+		ast_cli(fd, "%-12.12s has %d calls (max %s) in '%s' strategy (%ds holdtime), W:%d, C:%d, A:%d, SL:%2.1f%% within %ds%s",
+			q->name, q->count, max_buf, int2strat(q->strategy), q->holdtime, q->weight, q->callscompleted, q->callsabandoned,sl,q->servicelevel, term);
 		if (q->members) {
-			ast_cli(fd, "   Members: \n");
+			ast_cli(fd, "   Members: %s", term);
 			for (mem = q->members; mem; mem = mem->next) {
 				max_buf[0] = '\0';
 				max = max_buf;
@@ -3249,19 +3250,19 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 							 mem->calls, (long)(time(NULL) - mem->lastcall));
 				} else
 					ast_build_string(&max, &max_left, " has taken no calls yet");
-				ast_cli(fd, "      %s%s\n", mem->interface, max_buf);
+				ast_cli(fd, "      %s%s%s", mem->interface, max_buf, term);
 			}
 		} else
-			ast_cli(fd, "   No Members\n");
+			ast_cli(fd, "   No Members%s", term);
 		if (q->head) {
 			pos = 1;
-			ast_cli(fd, "   Callers: \n");
+			ast_cli(fd, "   Callers: %s", term);
 			for (qe = q->head; qe; qe = qe->next) 
-				ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)\n", pos++, qe->chan->name,
-					(long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio);
+				ast_cli(fd, "      %d. %s (wait: %ld:%2.2ld, prio: %d)%s", pos++, qe->chan->name,
+					(long)(now - qe->start) / 60, (long)(now - qe->start) % 60, qe->prio, term);
 		} else
-			ast_cli(fd, "   No Callers\n");
-		ast_cli(fd, "\n");
+			ast_cli(fd, "   No Callers%s", term);
+		ast_cli(fd, "%s", term);
 		ast_mutex_unlock(&q->lock);
 		q = q->next;
 		if (queue_show)
@@ -3273,12 +3274,12 @@ static int __queues_show(int fd, int argc, char **argv, int queue_show)
 
 static int queues_show(int fd, int argc, char **argv)
 {
-	return __queues_show(fd, argc, argv, 0);
+	return __queues_show(0, fd, argc, argv, 0);
 }
 
 static int queue_show(int fd, int argc, char **argv)
 {
-	return __queues_show(fd, argc, argv, 1);
+	return __queues_show(0, fd, argc, argv, 1);
 }
 
 static char *complete_queue(char *line, char *word, int pos, int state)
@@ -3301,7 +3302,7 @@ static char *complete_queue(char *line, char *word, int pos, int state)
 static int manager_queues_show( struct mansession *s, struct message *m )
 {
 	char *a[] = { "show", "queues" };
-	queues_show(s->fd, 2, a);
+	__queues_show(1, s->fd, 2, a, 0);
 	ast_cli(s->fd, "\r\n\r\n");	/* Properly terminate Manager output */
 
 	return RESULT_SUCCESS;
