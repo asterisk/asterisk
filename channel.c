@@ -939,7 +939,7 @@ void ast_channel_free(struct ast_channel *chan)
 	free(chan);
 	ast_mutex_unlock(&chlock);
 
-	ast_device_state_changed(name);
+	ast_device_state_changed_literal(name);
 }
 
 static void ast_spy_detach(struct ast_channel *chan) 
@@ -2883,7 +2883,7 @@ int ast_setstate(struct ast_channel *chan, int state)
 		return 0;
 
 	chan->_state = state;
-	ast_device_state_changed(chan->name);
+	ast_device_state_changed_literal(chan->name);
 	manager_event(EVENT_FLAG_CALL,
 		      (oldstate == AST_STATE_DOWN) ? "Newchannel" : "Newstate",
 		      "Channel: %s\r\n"

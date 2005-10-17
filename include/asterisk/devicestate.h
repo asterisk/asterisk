@@ -79,6 +79,16 @@ int ast_device_state(const char *device);
 int ast_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
+
+/*! Tells Asterisk the State for Device is changed */
+/*!
+ * \param device devicename like a dialstrin
+ * Asterisk polls the new extensionstates and calls the registered
+ * callbacks for the changed extensions
+ * Returns 0 on success, -1 on failure
+ */
+int ast_device_state_changed_literal(const char *device);
+
 /*! Registers a device state change callback */
 /*!
  * \param data to pass to callback

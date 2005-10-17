@@ -193,22 +193,14 @@ static void do_state_change(const char *device)
 	ast_hint_state_changed(device);
 }
 
-/*--- ast_device_state_changed: Accept change notification, add it to change queue */
-int ast_device_state_changed(const char *fmt, ...) 
+static int __ast_device_state_changed_literal(char *buf)
 {
-	char buf[AST_MAX_EXTENSION];
 	char *device;
 	char *parse;
 	struct state_change *change = NULL;
-	va_list ap;
-
-	va_start(ap, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, ap);
-	va_end(ap);
 
 	parse = buf;
 	device = strsep(&parse, "-");
-
 	if (change_thread != AST_PTHREADT_NULL)
 		change = calloc(1, sizeof(*change) + strlen(device));
 
@@ -228,6 +220,25 @@ int ast_device_state_changed(const char *fmt, ...)
 	}
 
 	return 1;
+}
+
+int ast_device_state_changed_literal(const char *dev)
+{
+	char *buf;
+	buf = ast_strdupa(dev);
+	return __ast_device_state_changed_literal(buf);
+}
+
+/*--- ast_device_state_changed: Accept change notification, add it to change queue */
+int ast_device_state_changed(const char *fmt, ...) 
+{
+	char buf[AST_MAX_EXTENSION];
+	va_list ap;
+
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	return __ast_device_state_changed_literal(buf);
 }
 
 /*--- do_devstate_changes: Go through the dev state change queue and update changes in the dev state thread */
