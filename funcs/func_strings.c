@@ -140,42 +140,43 @@ struct ast_custom_function len_function = {
 
 static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	char *format, *epoch, *timezone;
+	char *format, *epoch, *timezone = NULL;
 	long epochi;
 	struct tm time;
 
-	if (data) {
-		format = ast_strdupa(data);
-		if (format) {
-			epoch = strsep(&format, "|");
-			timezone = strsep(&format, "|");
+	buf[0] = '\0';
 
-			if (epoch && !ast_strlen_zero(epoch) && sscanf(epoch, "%ld", &epochi) == 1) {
-			} else {
-				struct timeval tv = ast_tvnow();
-				epochi = tv.tv_sec;
-			}
-
-			ast_localtime(&epochi, &time, timezone);
-
-			if (!format) {
-				format = "%c";
-			}
-
-			buf[0] = '\0';
-			if (! strftime(buf, len, format, &time)) {
-				ast_log(LOG_WARNING, "C function strftime() output nothing?!!\n");
-			}
-			buf[len - 1] = '\0';
-
-			return buf;
-		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
-		}
-	} else {
+	if (!data) {
 		ast_log(LOG_ERROR, "Asterisk function STRFTIME() requires an argument.\n");
+		return buf;
 	}
-	return "";
+	
+	format = ast_strdupa(data);
+	if (!format) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return buf;
+	}
+	
+	epoch = strsep(&format, "|");
+	timezone = strsep(&format, "|");
+
+	if (!epoch || ast_strlen_zero(epoch) || !sscanf(epoch, "%ld", &epochi)) {
+		struct timeval tv = ast_tvnow();
+		epochi = tv.tv_sec;
+	}
+
+	ast_localtime(&epochi, &time, timezone);
+
+	if (!format) {
+		format = "%c";
+	}
+
+	if (!strftime(buf, len, format, &time)) {
+		ast_log(LOG_WARNING, "C function strftime() output nothing?!!\n");
+	}
+	buf[len - 1] = '\0';
+
+	return buf;
 }
 
 #ifndef BUILTIN_FUNC
