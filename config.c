@@ -150,15 +150,10 @@ char *ast_variable_retrieve(const struct ast_config *config, const char *categor
 	struct ast_variable *v;
 
 	if (category) {
-		char *val = NULL;
 		for (v = ast_variable_browse(config, category); v; v = v->next) {
-			if (variable == v->name)
-				return v->value;
 			if (!strcasecmp(variable, v->name))
-				val = v->value;
+				return v->value;
 		}
-		if (val)
-			return val;
 	} else {
 		struct ast_category *cat;
 
