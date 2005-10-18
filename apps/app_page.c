@@ -18,7 +18,7 @@
 
 /*
  *
- * Page application
+ * Paging application
  *
  */
 
@@ -53,8 +53,8 @@ static const char *page_descrip =
 "them into a conference bridge as muted participants.  The original\n"
 "caller is dumped into the conference as a speaker and the room is\n"
 "destroyed when the original caller leaves.  Valid options are:\n"
-"        d - full duplex audio\n"
-"			q - quiet, do not play beep to caller\n"
+"	d - full duplex audio\n"
+"	q - quiet, do not play beep to caller\n"
 "Always returns -1.\n";
 
 STANDARD_LOCAL_USER;
@@ -65,8 +65,8 @@ LOCAL_USER_DECL;
 #define PAGE_QUIET  (1 << 1)
 
 AST_DECLARE_OPTIONS(page_opts,{
-        ['d'] = { PAGE_DUPLEX },
-		  ['q'] = { PAGE_QUIET },
+	['d'] = { PAGE_DUPLEX },
+	['q'] = { PAGE_QUIET },
 });
 
 struct calloutdata {

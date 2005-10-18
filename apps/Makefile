@@ -28,7 +28,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_test.so app_forkcdr.so app_math.so app_realtime.so \
      app_dumpchan.so app_waitforsilence.so app_while.so app_setrdnis.so \
      app_md5.so app_readfile.so app_chanspy.so app_settransfercapability.so \
-     app_dictate.so app_externalivr.so app_directed_pickup.so app_page.so \
+     app_dictate.so app_externalivr.so app_directed_pickup.so \
      app_muxmon.so
 
 #
@@ -45,7 +45,7 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
 #APPS+=app_rpt.so
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
-  APPS+=app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so
+  APPS+=app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so app_page.so
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
