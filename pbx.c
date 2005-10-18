@@ -5885,22 +5885,14 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 {
 	struct ast_var_t *newvariable;
 	struct varshead *headp;
-	const char *nametail = name;
 
 	if (name[strlen(name)-1] == ')')
 		return ast_func_write(chan, name, value);
 
 	headp = (chan) ? &chan->varshead : &globals;
 
-	/* For comparison purposes, we have to strip leading underscores */
-	if (*nametail == '_') {
-		nametail++;
-		if (*nametail == '_') 
-			nametail++;
-	}
-
 	AST_LIST_TRAVERSE (headp, newvariable, entries) {
-		if (strcasecmp(ast_var_name(newvariable), nametail) == 0) {
+		if (strcasecmp(ast_var_name(newvariable), name) == 0) {
 			/* there is already such a variable, delete it */
 			AST_LIST_REMOVE(headp, newvariable, entries);
 			ast_var_delete(newvariable);
