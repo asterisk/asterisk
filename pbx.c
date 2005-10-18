@@ -6029,7 +6029,21 @@ void pbx_builtin_clear_globals(void)
 
 static int pbx_checkcondition(char *condition) 
 {
-	return condition ? atoi(condition) : 0;
+	if (condition) {
+		if (*condition == '\0') {
+			/* Empty strings are false */
+			return 0;
+		} else if (*condition >= '0' && *condition <= '9') {
+			/* Numbers are evaluated for truth */
+			return atoi(condition);
+		} else {
+			/* Strings are true */
+			return 1;
+		}
+	} else {
+		/* NULL is also false */
+		return 0;
+	}
 }
 
 static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
