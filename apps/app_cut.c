@@ -93,7 +93,7 @@ static int sort_subroutine(const void *arg1, const void *arg2)
 static int sort_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
 {
 	char *strings, *ptrkey, *ptrvalue;
-	int count=1, count2;
+	int count=1, count2, element_count=0;
 	struct sortable_keys *sortable_keys;
 
 	memset(buffer, 0, buflen);
@@ -139,12 +139,12 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 	qsort(sortable_keys, count, sizeof(struct sortable_keys), sort_subroutine);
 
 	for (count2 = 0; count2 < count; count2++) {
-		strncat(buffer + strlen(buffer), sortable_keys[count2].key, buflen - strlen(buffer));
-		strncat(buffer + strlen(buffer), ",", buflen - strlen(buffer));
+		int blen = strlen(buffer);
+		if (element_count++) {
+			strncat(buffer + blen, ",", buflen - blen - 1);
+		}
+		strncat(buffer + blen + 1, sortable_keys[count2].key, buflen - blen - 2);
 	}
-
-	/* Remove trailing comma */
-	buffer[strlen(buffer) - 1] = '\0';
 
 	return 0;
 }
