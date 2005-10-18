@@ -141,19 +141,24 @@ static int appendcdruserfield_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	int res;
-	STANDARD_HANGUP_LOCALUSERS;
+	
 	res = ast_unregister_application(setcdruserfield_app);
 	res |= ast_unregister_application(appendcdruserfield_app);
-	ast_manager_unregister("SetCDRUserField");
+	res |= ast_manager_unregister("SetCDRUserField");
+
+	STANDARD_HANGUP_LOCALUSERS;
+
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
+
 	res = ast_register_application(setcdruserfield_app, setcdruserfield_exec, setcdruserfield_synopsis, setcdruserfield_descrip);
 	res |= ast_register_application(appendcdruserfield_app, appendcdruserfield_exec, appendcdruserfield_synopsis, appendcdruserfield_descrip);
-	ast_manager_register("SetCDRUserField", EVENT_FLAG_CALL, action_setcdruserfield, "Set the CDR UserField");
+	res |= ast_manager_register("SetCDRUserField", EVENT_FLAG_CALL, action_setcdruserfield, "Set the CDR UserField");
+	
 	return res;
 }
 

@@ -6212,14 +6212,17 @@ int reload(void)
 int unload_module(void)
 {
 	int res;
-	STANDARD_HANGUP_LOCALUSERS;
+	
 	res = ast_unregister_application(app);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app3);
 	res |= ast_unregister_application(app4);
-	ast_cli_unregister(&show_voicemail_users_cli);
-	ast_cli_unregister(&show_voicemail_zones_cli);
+	res |= ast_cli_unregister(&show_voicemail_users_cli);
+	res |= ast_cli_unregister(&show_voicemail_zones_cli);
 	ast_uninstall_vm_functions();
+	
+	STANDARD_HANGUP_LOCALUSERS;
+
 	return res;
 }
 

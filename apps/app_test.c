@@ -488,15 +488,24 @@ static int testserver_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_unregister_application(testc_app);
+	res |= ast_unregister_application(tests_app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(testc_app);
-	return ast_unregister_application(tests_app);
+
+	return res;	
 }
 
 int load_module(void)
 {
-	ast_register_application(testc_app, testclient_exec, testc_synopsis, testc_descrip);
-	return ast_register_application(tests_app, testserver_exec, tests_synopsis, tests_descrip);
+	int res;
+
+	res = ast_register_application(testc_app, testclient_exec, testc_synopsis, testc_descrip);
+	res |= ast_register_application(tests_app, testserver_exec, tests_synopsis, tests_descrip);
+
+	return res;
 }
 
 char *description(void)

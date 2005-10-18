@@ -333,17 +333,26 @@ static int macro_exit_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_unregister_application(if_app);
+	res |= ast_unregister_application(exit_app);
+	res |= ast_unregister_application(app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(if_app);
-	ast_unregister_application(exit_app);
-	return ast_unregister_application(app);
+
+	return res;
 }
 
 int load_module(void)
 {
-	ast_register_application(exit_app, macro_exit_exec, exit_synopsis, exit_descrip);
-	ast_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
-	return ast_register_application(app, macro_exec, synopsis, descrip);
+	int res;
+
+	res = ast_register_application(exit_app, macro_exit_exec, exit_synopsis, exit_descrip);
+	res |= ast_register_application(if_app, macroif_exec, if_synopsis, if_descrip);
+	res |= ast_register_application(app, macro_exec, synopsis, descrip);
+
+	return res;
 }
 
 char *description(void)

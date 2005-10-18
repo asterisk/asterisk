@@ -81,8 +81,13 @@ lookupcidname_exec (struct ast_channel *chan, void *data)
 int
 unload_module (void)
 {
-  STANDARD_HANGUP_LOCALUSERS;
-  return ast_unregister_application (app);
+	int res;
+
+	res = ast_unregister_application (app);
+
+	STANDARD_HANGUP_LOCALUSERS;
+
+	return res;
 }
 
 int

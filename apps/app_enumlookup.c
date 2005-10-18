@@ -194,27 +194,32 @@ static int load_config(void)
 /*--- unload_module: Unload this application from PBX */
 int unload_module(void)
 {
+	int res;
+
+	res = ast_unregister_application(app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+
+	return res;
 }
 
 /*--- load_module: Load this application into PBX */
 int load_module(void)
 {
 	int res;
+	
 	res = ast_register_application(app, enumlookup_exec, synopsis, descrip);
-	if (res)
-		return(res);
-	if ((res=load_config())) {
-		return(res);
-	}
-	return(0);
+	
+	if (!res)
+		res = load_config();
+	
+	return res;
 }
 
 /*--- reload: Reload configuration file */
 int reload(void)
 {
-	return(load_config());
+	return load_config();
 }
 
 

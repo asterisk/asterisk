@@ -170,9 +170,13 @@ static int page_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+
+	res =  ast_unregister_application(app_page);
+
 	STANDARD_HANGUP_LOCALUSERS;
 
-	return ast_unregister_application(app_page);
+	return res;
 }
 
 int load_module(void)

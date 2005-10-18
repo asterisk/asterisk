@@ -204,22 +204,31 @@ struct ast_custom_function acf_curl = {
 	.synopsis = "Retrieves the contents of a URL",
 	.syntax = "CURL(url[|post-data])",
 	.desc =
-"  url       - URL to retrieve\n"
-"  post-data - Optional data to send as a POST (GET is default action)\n",
+	"  url       - URL to retrieve\n"
+	"  post-data - Optional data to send as a POST (GET is default action)\n",
 	.read = acf_curl_exec,
 };
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_custom_function_unregister(&acf_curl);
+	res |= ast_unregister_application(app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_custom_function_unregister(&acf_curl);
-	return ast_unregister_application(app);
+	
+	return res;
 }
 
 int load_module(void)
 {
-	ast_custom_function_register(&acf_curl);
-	return ast_register_application(app, curl_exec, synopsis, descrip);
+	int res;
+
+	res = ast_custom_function_register(&acf_curl);
+	res |= ast_register_application(app, curl_exec, synopsis, descrip);
+
+	return res;
 }
 
 char *description(void)

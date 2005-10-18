@@ -427,19 +427,28 @@ struct ast_custom_function acf_cut = {
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_custom_function_unregister(&acf_cut);
+	res |= ast_custom_function_unregister(&acf_sort);
+	res |= ast_unregister_application(app_sort);
+	res |= ast_unregister_application(app_cut);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_custom_function_unregister(&acf_cut);
-	ast_custom_function_unregister(&acf_sort);
-	ast_unregister_application(app_sort);
-	return ast_unregister_application(app_cut);
+
+	return res;
 }
 
 int load_module(void)
 {
-	ast_custom_function_register(&acf_cut);
-	ast_custom_function_register(&acf_sort);
-	ast_register_application(app_sort, sort_exec, app_sort_synopsis, app_sort_descrip);
-	return ast_register_application(app_cut, cut_exec, cut_synopsis, cut_descrip);
+	int res;
+
+	res = ast_custom_function_register(&acf_cut);
+	res |= ast_custom_function_register(&acf_sort);
+	res |= ast_register_application(app_sort, sort_exec, app_sort_synopsis, app_sort_descrip);
+	res |= ast_register_application(app_cut, cut_exec, cut_synopsis, cut_descrip);
+
+	return res;
 }
 
 char *description(void)

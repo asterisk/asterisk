@@ -495,15 +495,24 @@ static struct ast_cli_entry cli_muxmon = {
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_cli_unregister(&cli_muxmon);
+	res |= ast_unregister_application(app);
+	
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_cli_unregister(&cli_muxmon);
-	return ast_unregister_application(app);
+
+	return res;
 }
 
 int load_module(void)
 {
-	ast_cli_register(&cli_muxmon);
-	return ast_register_application(app, muxmon_exec, synopsis, desc);
+	int res;
+
+	res = ast_cli_register(&cli_muxmon);
+	res |= ast_register_application(app, muxmon_exec, synopsis, desc);
+
+	return res;
 }
 
 char *description(void)

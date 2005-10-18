@@ -189,27 +189,32 @@ struct ast_custom_function acf_vmcount = {
 	.synopsis = "Counts the voicemail in a specified mailbox",
 	.syntax = "VMCOUNT(vmbox[@context][|folder])",
 	.desc =
-"  context - defaults to \"default\"\n"
-"  folder  - defaults to \"INBOX\"\n",
+	"  context - defaults to \"default\"\n"
+	"  folder  - defaults to \"INBOX\"\n",
 	.read = acf_vmcount_exec,
 };
 
 int unload_module(void)
 {
 	int res;
-	STANDARD_HANGUP_LOCALUSERS;
+	
 	res = ast_custom_function_unregister(&acf_vmcount);
 	res |= ast_unregister_application(app_hasvoicemail);
 	res |= ast_unregister_application(app_hasnewvoicemail);
+	
+	STANDARD_HANGUP_LOCALUSERS;
+
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
+
 	res = ast_custom_function_register(&acf_vmcount);
 	res |= ast_register_application(app_hasvoicemail, hasvoicemail_exec, hasvoicemail_synopsis, hasvoicemail_descrip);
 	res |= ast_register_application(app_hasnewvoicemail, hasvoicemail_exec, hasnewvoicemail_synopsis, hasnewvoicemail_descrip);
+
 	return res;
 }
 

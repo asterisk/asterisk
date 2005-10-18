@@ -2106,23 +2106,31 @@ static void *recordthread(void *args)
 
 int unload_module(void)
 {
+	int res;
+	
+	res = ast_cli_unregister(&cli_show_confs);
+	res |= ast_cli_unregister(&cli_conf);
+	res |= ast_unregister_application(app3);
+	res |= ast_unregister_application(app2);
+	res |= ast_unregister_application(app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_cli_unregister(&cli_show_confs);
-	ast_cli_unregister(&cli_conf);
-	ast_unregister_application(app3);
-	ast_unregister_application(app2);
-	return ast_unregister_application(app);
+
+	return res;
 }
 
 int load_module(void)
 {
-	ast_cli_register(&cli_show_confs);
-	ast_cli_register(&cli_conf);
-	ast_register_application(app3, admin_exec, synopsis3, descrip3);
-	ast_register_application(app2, count_exec, synopsis2, descrip2);
-	return ast_register_application(app, conf_exec, synopsis, descrip);
-}
+	int res;
 
+	res = ast_cli_register(&cli_show_confs);
+	res |= ast_cli_register(&cli_conf);
+	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
+	res |= ast_register_application(app2, count_exec, synopsis2, descrip2);
+	res |= ast_register_application(app, conf_exec, synopsis, descrip);
+
+	return res;
+}
 
 char *description(void)
 {

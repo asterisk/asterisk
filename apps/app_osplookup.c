@@ -243,26 +243,25 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	int res;
-	STANDARD_HANGUP_LOCALUSERS;
+	
 	res = ast_unregister_application(app3);
 	res |= ast_unregister_application(app2);
 	res |= ast_unregister_application(app);
+
+	STANDARD_HANGUP_LOCALUSERS;
+
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
+	
 	res = ast_register_application(app, osplookup_exec, synopsis, descrip);
-	if (res)
-		return(res);
-	res = ast_register_application(app2, ospnext_exec, synopsis2, descrip2);
-	if (res)
-		return(res);
-	res = ast_register_application(app3, ospfinished_exec, synopsis3, descrip3);
-	if (res)
-		return(res);
-	return(0);
+	res |= ast_register_application(app2, ospnext_exec, synopsis2, descrip2);
+	res |= ast_register_application(app3, ospfinished_exec, synopsis3, descrip3);
+	
+	return res;
 }
 
 int reload(void)

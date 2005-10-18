@@ -1791,16 +1791,23 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_unregister_application(app);
+	res |= ast_unregister_application(rapp);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(app);
-	return ast_unregister_application(rapp);
+	
+	return res;
 }
 
 int load_module(void)
 {
 	int res;
-	if (!(res = ast_register_application(app, dial_exec, synopsis, descrip)))
-		res = ast_register_application(rapp, retrydial_exec, rsynopsis, rdescrip);
+
+	res = ast_register_application(app, dial_exec, synopsis, descrip);
+	res |= ast_register_application(rapp, retrydial_exec, rsynopsis, rdescrip);
+	
 	return res;
 }
 

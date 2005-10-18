@@ -135,15 +135,24 @@ static int trysystem_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_unregister_application(app);
+	res |= ast_unregister_application(app2);
+	
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(app2);
-	return ast_unregister_application(app);
+
+	return res;
 }
 
 int load_module(void)
 {
-	ast_register_application(app2, trysystem_exec, synopsis2, descrip2);
-	return ast_register_application(app, system_exec, synopsis, descrip);
+	int res;
+
+	res = ast_register_application(app2, trysystem_exec, synopsis2, descrip2);
+	res |= ast_register_application(app, system_exec, synopsis, descrip);
+
+	return res;
 }
 
 char *description(void)

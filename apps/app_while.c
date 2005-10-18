@@ -319,17 +319,26 @@ static int while_end_exec(struct ast_channel *chan, void *data) {
 
 int unload_module(void)
 {
+	int res;
+	
+	res = ast_unregister_application(start_app);
+	res |= ast_unregister_application(exec_app);
+	res |= ast_unregister_application(stop_app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(start_app);
-	ast_unregister_application(exec_app);
-	return ast_unregister_application(stop_app);
+
+	return res;
 }
 
 int load_module(void)
 {
-	ast_register_application(start_app, while_start_exec, start_synopsis, start_desc);
-	ast_register_application(exec_app, execif_exec, exec_synopsis, exec_desc);
-	return ast_register_application(stop_app, while_end_exec, stop_synopsis, stop_desc);
+	int res;
+
+	res = ast_register_application(start_app, while_start_exec, start_synopsis, start_desc);
+	res |= ast_register_application(exec_app, execif_exec, exec_synopsis, exec_desc);
+	res |= ast_register_application(stop_app, while_end_exec, stop_synopsis, stop_desc);
+
+	return res;
 }
 
 char *description(void)

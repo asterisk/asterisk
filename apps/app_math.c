@@ -258,17 +258,17 @@ static int math_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	int res;
+	
+	res = ast_unregister_application(app_math);
+
 	STANDARD_HANGUP_LOCALUSERS;
 
-	res  = ast_unregister_application(app_math);
 	return res;
 }
 
 int load_module(void)
 {
-	int res;
-	res = ast_register_application(app_math, math_exec, math_synopsis, math_descrip);
-	return res;
+	return ast_register_application(app_math, math_exec, math_synopsis, math_descrip);
 }
 
 char *description(void)

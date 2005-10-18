@@ -141,9 +141,11 @@ int unload_module(void)
 {
 	int res;
 
-	STANDARD_HANGUP_LOCALUSERS;
-	res =ast_unregister_application(app_md5);
+	res = ast_unregister_application(app_md5);
 	res |= ast_unregister_application(app_md5check);
+
+	STANDARD_HANGUP_LOCALUSERS;
+
 	return res;
 }
 
@@ -153,6 +155,7 @@ int load_module(void)
 
 	res = ast_register_application(app_md5check, md5check_exec, desc_md5check, synopsis_md5check);
 	res |= ast_register_application(app_md5, md5_exec, desc_md5, synopsis_md5);
+	
 	return res;
 }
 

@@ -241,11 +241,12 @@ int unload_module(void)
 {
 	int retval;
 
-	STANDARD_HANGUP_LOCALUSERS;
 	retval = ast_unregister_application(dt_app);
 	retval |= ast_unregister_application(d_app);
 	retval |= ast_unregister_application(p_app);
 	retval |= ast_unregister_application(g_app);
+
+	STANDARD_HANGUP_LOCALUSERS;
 
 	return retval;
 }

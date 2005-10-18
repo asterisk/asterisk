@@ -127,22 +127,23 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 int unload_module(void)
 {
 	int res;
-	STANDARD_HANGUP_LOCALUSERS;
+	
 	res = ast_unregister_application(app_sayunixtime);
-	if (! res)
-		return ast_unregister_application(app_datetime);
-	else
-		return res;
+	res |= ast_unregister_application(app_datetime);
+
+	STANDARD_HANGUP_LOCALUSERS;
+	
+	return res;
 }
 
 int load_module(void)
 {
 	int res;
+	
 	res = ast_register_application(app_sayunixtime, sayunixtime_exec, sayunixtime_synopsis, sayunixtime_descrip);
-	if (! res)
-		return ast_register_application(app_datetime, sayunixtime_exec, sayunixtime_synopsis, datetime_descrip);
-	else
-		return res;
+	res |= ast_register_application(app_datetime, sayunixtime_exec, sayunixtime_synopsis, datetime_descrip);
+	
+	return res;
 }
 
 char *description(void)

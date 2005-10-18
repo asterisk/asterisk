@@ -121,15 +121,24 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_unregister_application(app2);
+	res |= ast_unregister_application(app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_unregister_application(app2);
-	return ast_unregister_application(app);
+
+	return res;
 }
 
 int load_module(void)
 {
-	ast_register_application(app2, setcallerid_pres_exec, synopsis2, descrip2);
-	return ast_register_application(app, setcallerid_exec, synopsis, descrip);
+	int res;
+	
+	res = ast_register_application(app2, setcallerid_pres_exec, synopsis2, descrip2);
+	res |= ast_register_application(app, setcallerid_exec, synopsis, descrip);
+
+	return res;
 }
 
 char *description(void)

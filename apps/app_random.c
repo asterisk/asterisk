@@ -85,8 +85,13 @@ static int random_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+	
+	res = ast_unregister_application(app_random);
+	
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_random);
+
+	return res;	
 }
 
 int load_module(void)

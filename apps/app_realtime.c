@@ -212,19 +212,28 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_cli_unregister(&cli_load_realtime_cmd);
+	res |= ast_cli_unregister(&cli_update_realtime_cmd);
+	res |= ast_unregister_application(uapp);
+	res |= ast_unregister_application(app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	ast_cli_unregister(&cli_load_realtime_cmd);
-	ast_cli_unregister(&cli_update_realtime_cmd);
-	ast_unregister_application(uapp);
-	return ast_unregister_application(app);
+
+	return res;
 }
 
 int load_module(void)
 {
-	ast_cli_register(&cli_load_realtime_cmd);
-	ast_cli_register(&cli_update_realtime_cmd);
-	ast_register_application(uapp, realtime_update_exec, usynopsis, udesc);
-	return ast_register_application(app, realtime_exec, synopsis, desc);
+	int res;
+
+	res = ast_cli_register(&cli_load_realtime_cmd);
+	res |= ast_cli_register(&cli_update_realtime_cmd);
+	res |= ast_register_application(uapp, realtime_update_exec, usynopsis, udesc);
+	res |= ast_register_application(app, realtime_exec, synopsis, desc);
+
+	return res;
 }
 
 char *description(void)

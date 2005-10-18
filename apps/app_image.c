@@ -60,26 +60,38 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
+	
+	LOCAL_USER_ADD(u);
+
 	if (!data || !strlen((char *)data)) {
 		ast_log(LOG_WARNING, "SendImage requires an argument (filename)\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
+
 	if (!ast_supports_images(chan)) {
 		/* Does not support transport */
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 101, chan->cid.cid_num))
-			chan->priority += 100;
+		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
+
 	res = ast_send_image(chan, data);
+	
 	LOCAL_USER_REMOVE(u);
+	
 	return res;
 }
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_unregister_application(app);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app);
+
+	return res; 
 }
 
 int load_module(void)

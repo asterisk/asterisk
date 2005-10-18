@@ -93,8 +93,13 @@ static int eval_exec(struct ast_channel *chan, void *data)
 
 int unload_module(void)
 {
+	int res;
+
+	res = ast_unregister_application(app_eval);
+
 	STANDARD_HANGUP_LOCALUSERS;
-	return ast_unregister_application(app_eval);
+
+	return res;
 }
 
 int load_module(void)

@@ -267,23 +267,28 @@ static struct ast_cli_entry  cli_show_channels =
 int unload_module(void)
 {
 	int res;
-	STANDARD_HANGUP_LOCALUSERS;
-	ast_cli_unregister(&cli_show_channels);
-	res = ast_unregister_application(app_group_count);
+
+	res = ast_cli_unregister(&cli_show_channels);
+	res |= ast_unregister_application(app_group_count);
 	res |= ast_unregister_application(app_group_set);
 	res |= ast_unregister_application(app_group_check);
 	res |= ast_unregister_application(app_group_match_count);
+
+	STANDARD_HANGUP_LOCALUSERS;
+
 	return res;
 }
 
 int load_module(void)
 {
 	int res;
+
 	res = ast_register_application(app_group_count, group_count_exec, group_count_synopsis, group_count_descrip);
 	res |= ast_register_application(app_group_set, group_set_exec, group_set_synopsis, group_set_descrip);
 	res |= ast_register_application(app_group_check, group_check_exec, group_check_synopsis, group_check_descrip);
 	res |= ast_register_application(app_group_match_count, group_match_count_exec, group_match_count_synopsis, group_match_count_descrip);
-	ast_cli_register(&cli_show_channels);
+	res |= ast_cli_register(&cli_show_channels);
+	
 	return res;
 }
 
