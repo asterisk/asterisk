@@ -66,6 +66,34 @@ value "blabla".
 In fact, everything contained ${here} is just replaced with the value of 
 the variable "here". 
 
+____________________
+VARIABLE INHERITANCE
+--------------------
+
+Variable names which are prefixed by "_" will be inherited to channels 
+that are created in the process of servicing the original channel in 
+which the variable was set.  When the inheritance takes place, the 
+prefix will be removed in the channel inheriting the variable.  If the 
+name is prefixed by "__" in the channel, then the variable is 
+inherited and the "__" will remain intact in the new channel.
+
+In the dialplan, all references to these variables refer to the same 
+variable, regardless of having a prefix or not.  Note that setting any 
+version of the variable removes any other version of the variable, 
+regardless of prefix.
+
+Example:
+
+Set(__FOO=bar) ; Sets an inherited version of "FOO" variable 
+Set(FOO=bar)   ; Removes the inherited version and sets a local 
+               ; variable.
+
+However,
+
+NoOp(${__FOO}) is identical to NoOp(${FOO})
+
+
+
 _______________________________
 REMOVING CHARACTERS FROM STRING
 -------------------------------
