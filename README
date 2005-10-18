@@ -102,7 +102,7 @@ the sample PBX, with demonstration extensions, etc.  If so, run:
   Doing so will overwrite any existing config files you have.
 
   Finally, you can launch Asterisk in the foreground mode (not a daemon)
-ith:
+with:
 
 # asterisk -vvvc
 
