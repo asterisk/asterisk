@@ -1,9 +1,11 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2005
+ * Copyright (C) 1999 - 2005
  *
+ * Mark Spencer <markster@digium.com>
  * Oleksiy Krivoshey <oleksiyk@gmail.com>
+ * Russell Bryant <russelb@clemson.edu>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -137,7 +139,6 @@ static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char
        return buf;
 }
 
-
 #ifndef BUILTIN_FUNC
 static
 #endif
@@ -153,18 +154,68 @@ struct ast_custom_function enum_function = {
        .read = function_enum,
 };
 
+static char *function_txtcidname(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	int res;
+	char tech[80];
+	char txt[256] = "";
+	char dest[80];
+	struct localuser *u;
+
+	LOCAL_USER_ACF_ADD(u);
+
+	buf[0] = '\0';
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "TXTCIDNAME requires an argument (number)\n");
+		LOCAL_USER_REMOVE(u);
+		return buf;	
+	}
+
+	res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
+	
+	if (!ast_strlen_zero(txt))
+		ast_copy_string(buf, txt, len);
+	
+	LOCAL_USER_REMOVE(u);
+
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function txtcidname_function = {
+       .name = "TXTCIDNAME",
+       .synopsis = "TXTCIDNAME looks up a caller name via DNS",
+       .syntax = "TXTCIDNAME(<number>)",
+       .desc = "This function looks up the given phone number in DNS to retrieve\n"
+	"the caller id name.  The result will either be blank or be the value\n"
+	"found in the TXT record in DNS.\n",
+       .read = function_txtcidname,
+};
+
 #ifndef BUILTIN_FUNC
 
 static char *tdesc = "ENUMLOOKUP allows for general or specific querying of NAPTR records or counts of NAPTR types for ENUM or ENUM-like DNS pointers";
 
 int unload_module(void)
 {
-       return ast_custom_function_unregister(&enum_function);
+	ast_custom_function_unregister(&enum_function);
+	ast_custom_function_unregister(&txtcidname_function);
+	
+	return 0;
 }
 
 int load_module(void)
 {
-       return ast_custom_function_register(&enum_function);
+	int res;
+	
+	res = ast_custom_function_register(&enum_function);
+	if (!res)
+		ast_custom_function_register(&txtcidname_function);
+
+	return res;
 }
 
 char *description(void)
@@ -174,7 +225,11 @@ char *description(void)
 
 int usecount(void)
 {
-       return 0;
+	int res;
+	
+	STANDARD_USECOUNT(res);
+
+	return res;
 }
 
 char *key()

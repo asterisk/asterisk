@@ -61,9 +61,15 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 	char tech[80];
 	char txt[256] = "";
 	char dest[80];
-
 	struct localuser *u;
-	if (!data || !strlen(data)) {
+	static int dep_warning = 0;
+
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "The TXTCIDName application has been deprecated in favor of the TXTCIDNAME dialplan function.\n");
+		dep_warning = 1;
+	}
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "TXTCIDName requires an argument (extension)\n");
 		res = 1;
 	}
