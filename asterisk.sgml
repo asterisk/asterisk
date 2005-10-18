@@ -1,14 +1,14 @@
 <!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook V4.1//EN">
 <refentry>
 <refentryinfo>
-	<date>2004-07-18</date>
+	<date>2005-10-18</date>
 </refentryinfo>
 <refmeta>
 	<refentrytitle>
 		<application>asterisk</application>
 	</refentrytitle>
 	<manvolnum>8</manvolnum>
-	<refmiscinfo>asterisk 1.0</refmiscinfo>
+	<refmiscinfo>asterisk 1.2</refmiscinfo>
 </refmeta>
 <refnamediv>
 	<refname>
@@ -45,17 +45,18 @@
 	provides Private Branch eXchange (PBX), Interactive Voice Response (IVR),
 	Automated Call Distribution (ACD), Voice over IP (VoIP) gatewaying, 
 	Conferencing, and a plethora of other telephony applications to a broad
-	range of telephony devices including packet voice (SIP, IAX, MGCP, Skinny,
+	range of telephony devices including packet voice (SIP, IAX2, MGCP, Skinny,
 	H.323) devices (both endpoints and proxies), as well as traditional TDM
 	hardware including T1, E1, ISDN PRI, GR-303, RBS, Loopstart, Groundstart,
 	ISDN BRI, and many more.
 	</para>
 	<para>
-	Asterisk reads most of its configuration files from configuration files
-	located in /etc/asterisk.  Virtually all aspects of the operation of
-	asterisk's configuration files can be found in the sample configuration
-	files.  The format for those files is generally beyond the scope of this
-	man page.
+	At start, Asterisk reads the /etc/asterisk/asterisk.conf main configuration
+	file and locates the rest of the configuration files from the configuration
+	in that file. The -C option specifies an alternate main configuration file.
+	Virtually all aspects of the operation of asterisk's configuration files
+	can be found in the sample configuration files.  The format for those files
+	is generally beyond the scope of this man page.
 	</para>
 	<para>
 	When running with <command>-c</command>, <command>-r</command> or <command>-R</command>
@@ -63,6 +64,9 @@
 	completion, which may be used to monitors its status, perform a variety
 	of administrative actions and even explore the applications that are
 	currently loaded into the system.
+	</para>
+	<para>
+	Asterisk is a trademark of Digium, Inc.
 	</para>
 </refsect1>
 <refsect1>
@@ -92,6 +96,11 @@
 		<listitem>
 			<para>
 			Enable extra debugging statements.
+			</para>
+			<para>
+			Note: This always sets the debug level in the asterisk process,
+			even if it is running in the background. This will affect the size
+			of your log files.
 			</para>
 		</listitem>
 	</varlistentry>
@@ -138,7 +147,8 @@
 		<term>-i</term>
 		<listitem>
 			<para>
-			Prompt user to intialize any encrypted private keys during startup.
+			Prompt user to intialize any encrypted private keys for IAX2
+			secure authentication during startup.
 			</para>
 		</listitem>
 	</varlistentry>
@@ -240,7 +250,12 @@
 			Specifying this option implies <command>-f</command> and will cause
 			asterisk to no longer fork or detach from the controlling terminal.
 			This option may also be used in conjunction with <command>-r</command>
-			and <command>-R</command>
+			and <command>-R</command>.
+			</para>
+			<para>
+			Note: This always sets the verbose level in the asterisk process,
+			even if it is running in the background. This will affect the size
+			of your log files.
 			</para>
 		</listitem>
 	</varlistentry>
@@ -290,7 +305,10 @@
 	*CLI&gt; <command>help</command> - Help on Asterisk CLI
 	</para>
 	<para>
-	*CLI&gt; <command>show applications</command> - Show loaded applications
+	*CLI&gt; <command>show applications</command> - Show loaded dialplan applications
+	</para>
+	<para>
+	*CLI&gt; <command>show functions</command> - Show loaded dialplan functions
 	</para>
 	<para>
 	http://www.asterisk.org - The Asterisk Home Page

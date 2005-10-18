@@ -1,6 +1,6 @@
 
 === DEVELOPMENT SUPPORT ===
-I'd like to thank the following companies for helping fund development of
+We'd like to thank the following companies for helping fund development of
 Asterisk:
 
 Pilosoft, Inc. - for supporting ADSI development in Asterisk
@@ -26,33 +26,36 @@ Wasim - Hangup detect
 PhoneJack and Linejack card to the project.  (http://www.quicknet.net)
 
 === MISCELLANEOUS PATCHES ===
+Jim Dixon - Zapata Telephony and app_rpt
+	http://www.zapatatelephony.org/app_rpt.html
 Russell Bryant - Asterisk 1.0 maintainer and misc. enhancements
-       russelb@clemson.edu
-Anthony Minessale - Countless big and small fixes, and relentless forward push
-       anthmct@yahoo.com              http://www.asterlink.com
+	russelb@clemson.edu
+Anthony Minessale II - Countless big and small fixes, and relentless forward push
+	anthmct@yahoo.com              http://www.asterlink.com
 James Golovich - Innumerable contributions
-       You can find him and asterisk-perl at http://asterisk.gnuinter.net
+	You can find him and asterisk-perl at http://asterisk.gnuinter.net
 Andre Bierwirth - Extension hints and status
 Oliver Daudey - ISDN4Linux fixes
 Pauline Middelink - ISDN4Linux patches and some general patches.
-       She can be found at http://www.polyware.nl/~middelink/En/
+	She can be found at http://www.polyware.nl/~middelink/En/
 Jean-Denis Girard - Various contributions from the South Pacific Islands
-       jd-girard@esoft.pf             http://www.esoft.pf
-William Jordan / Vonage - MySQL enhancmenets to Voicemail
+	jd-girard@esoft.pf             http://www.esoft.pf
+William Jordan / Vonage - MySQL enhancements to Voicemail
 	wjordan@vonage.com
 Jac Kersing - Various fixes
 Steven Critchfield - Seek and Trunc functions for playback and recording
-       critch@basesys.com
+	critch@basesys.com
 Jefferson Noxon - app_lookupcidname, app_db, and various other contributions
 Klaus-Peter Junghanns - in-band DTMF on SIP and MGCP
 Ross Finlayson - Dynamic RTP payload support
 Mahmut Fettahlioglu - Audio recording, music-on-hold changes, alaw file
-       format, and various fixes. Can be contacted at mahmut@oa.com.au
+	format, and various fixes. Can be contacted at mahmut@oa.com.au
 James Dennis - Cisco SIP compatibility patches to work with SIP service
-       providers. Can be contacted at asterisk@jdennis.net
-Tilghman Lesher - - Route lookup code; ast_localtime(), ast_say_date_with_format(); 
-                    GotoIfTime, Random, SayUnixTime, HasNewVoicemail, and Cut applications, 
-		    along with various other patches. http://asterisk.drunkcoder.com/
+	providers. Can be contacted at asterisk@jdennis.net
+Tilghman Lesher - ast_localtime(); ast_say_date_with_format(); 
+	GotoIfTime, Random, SayUnixTime, HasNewVoicemail applications;
+	CUT, SORT, EVAL, CURL, FIELDQTY, STRFTIME, QUEUEAGENT* functions;
+	and other innumerable bug fixes. http://asterisk.drunkcoder.com/
 Jayson Vantuyl - Manager protocol changes, various other bugs.
 	jvantuyl@computingedge.net
 Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
@@ -60,24 +63,31 @@ Thorsten Lockert - OpenBSD, FreeBSD ports, making MacOS X port run on 10.3,
 	bugs. tholo@sigmasoft.com
 Brian West - ODBC support and Bug Marshaling  
 Josh Roberson - chan_zap reload support, Advanced Voicemail Features, other misc. patches,
-		and Bug Marshalling. - josh@asteriasgi.com, http://www.asteriasgi.com
+	and Bug Marshalling. - josh@asteriasgi.com, http://www.asteriasgi.com
 William Waites - syslog support, SIP NAT traversal for SIP-UA. ww@styx.org
 Rich Murphey - Porting to FreeBSD, NetBSD, OpenBSD, and Darwin.
 	rich@whiteoaklabs.com  http://whiteoaklabs.com
 Simon Lockhart - Porting to Solaris (based on work of Logan ???)	
 	simon@slimey.org
-Olle Johansson - SIP RFC compliance and testing, testing, testing
-	oej@edvina.net
+Olle E. Johansson - SIP RFC compliance, documentation and testing, testing, testing
+	oej@edvina.net, http://edvina.net
+Steve Kann - new jitter buffer for IAX2
+	stevek@stevek.com
+Constantine Filin - major contributions to the Asterisk Realtime Architecture
+Steve Murphy - privacy support
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
+Michael Jerris - bug marshaling
+Leif Madsen, Jared Smith and Jim van Meggelen - the Asterisk book
+	available under a Creative Commons License at http://www.asteriskdocs.org
 
 === HOLD MUSIC ===
 Music provided by www.freeplaymusic.com
 
 === OTHER SOURCE CODE IN ASTERISK ===
 
-I did not implement the codecs in asterisk.  Here is the copyright on the
+Digium did not implement the codecs in Asterisk.  Here is the copyright on the
 GSM source:
 
 Copyright 1992, 1993, 1994 by Jutta Degener and Carsten Bormann,
@@ -102,7 +112,7 @@ And the copyright on the ADPCM source:
 Copyright 1992 by Stichting Mathematisch Centrum, Amsterdam, The
 Netherlands.
 
-                        All Rights Reserved
+	                 All Rights Reserved
 
 Permission to use, copy, modify, and distribute this software and its
 documentation for any purpose and without fee is hereby granted,

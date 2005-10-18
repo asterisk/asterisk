@@ -1,28 +1,39 @@
-SMS() is an application to handles calls to/from text message capable phones and message centres using ETSI ES 201 912 protocol 1 FSK messaging over analogue calls.
+* The SMS application
+---------------------
+SMS() is an application to handles calls to/from text message capable phones and 
+message centres using ETSI ES 201 912 protocol 1 FSK messaging over analog calls.
 
-Basically it allows sending and receiving of text messages over the PSTN. It is compatible with BT Text service in the UK and works on ISDN and PSTN lines. It is designed to connect to an ISDN or zap interface directly and uses FSK so would probably not work over any sort of compressed link.
+Basically it allows sending and receiving of text messages over the PSTN. It is 
+compatible with BT Text service in the UK and works on ISDN and PSTN lines. It is 
+designed to connect to an ISDN or zap interface directly and uses FSK so would 
+probably not work over any sort of compressed link (like a VoIP call using GSM codec).
 
 Typical applications include:-
 
-1. Connection to a message centre to send text messages - probably initiated via the manager interface or "outgoing" directory
-2. Connection to an POTS line with an SMS capable phone to send messages - probably initiated via the manager interface or "Outgoing" directory
-3. Acceptance of calls from the message centre (based on CLI) and storage of received messages
-4. Acceptance of calls from a POTS line with an SMS capable phone and storage of received messages
+1. Connection to a message centre to send text messages - probably initiated via the 
+   manager interface or "outgoing" directory
+2. Connection to an POTS line with an SMS capable phone to send messages - probably
+   initiated via the manager interface or "outgoing" directory
+3. Acceptance of calls from the message centre (based on CLI) and storage of 
+   received messages
+4. Acceptance of calls from a POTS line with an SMS capable phone and storage of
+   received messages
 
-First argument is queue name
+* Arguments to sms():
 
-Second is options
-
+- First argument is queue name
+- Second is options:
  a: SMS() is to act as the answering side, and so send the initial FSK frame
  s: SMS() is to act as a service centre side rather than as terminal equipment
 
-If a third argument is specified, then SMS does not handle the call at all,
-but takes the third argument as a destination number to send an SMS to, and
-the forth argument onward as a message to be queued. All this does is create
-the file in the me-sc directory. If 's' is set then the number is the source
-address and the message placed in the sc-me directory.
+- If a third argument is specified, then SMS does not handle the call at all,
+  but takes the third argument as a destination number to send an SMS to
+- The forth argument onward is a message to be queued to the number in the
+  third argument. All this does is create the file in the me-sc directory.
+  If 's' is set then the number is the source
+  address and the message placed in the sc-me directory.
 
-All text messages are in /var/spool/asterisk/sms
+All text messages are stored in /var/spool/asterisk/sms
 A log is recorded in /var/log/asterisk/sms
 
 There are two subdirectories called sc-me.<queuename> holding all
@@ -43,7 +54,7 @@ this mode are placed in the sc-me-<queuename> directory.
 Message files created by SMS() use a time stamp/reference based filename.
 
 The format of the sms file is lines that have the form of key=value
-Keys are :-
+Keys are :
 
 oa	Originating Address
 	Telephone number, national number if just digits
@@ -84,20 +95,21 @@ service.
 
 This is a context to use with a manager script.
 
-[smsdial]       ; create and send a text message, expects number+message and
-connect to 17094009
-exten = _X.,1,SMS(${CALLERIDNUM},,${EXTEN},${CALLERIDNAME})
-exten = _X.,2,SMS(${CALLERIDNUM})
-exten = _X.,3,Hangup
+[smsdial]
+; create and send a text message, expects number+message and
+; connect to 17094009
+exten => _X.,1,SMS(${CALLERIDNUM},,${EXTEN},${CALLERIDNAME})
+exten => _X.,n,SMS(${CALLERIDNUM})
+exten => _X.,n,Hangup
 
 The script sends
 
-action: originate
-callerid: message <from>
-exten: to
-channel: Local/17094009
-context: smsdial
-priority: 1
+	action: originate
+	callerid: message <from>
+	exten: to
+	channel: Local/17094009
+	context: smsdial
+	priority: 1
 
 You put the message as the name of the caller ID (messy, I know), the
 originating number and hence queue name as the number of the caller ID and the
@@ -113,12 +125,11 @@ by BT).
 For incoming calls you can use a context like this :-
 
 [incoming]
-exten = _XXXXXX/_8005875290,1,SMS(${EXTEN:3},a)
-exten = _XXXXXX/_8005875290,2,System(/usr/lib/asterisk/smsin ${EXTEN:3})
-exten = _XXXXXX/_80058752[0-8]0,1,SMS(${EXTEN:3}${CALLERIDNUM:8:1},a)
-exten = _XXXXXX/_80058752[0-8]0,2,System(/usr/lib/asterisk/smsin
-${EXTEN:3}${CALLERIDNUM:8:1})
-exten = _XXXXXX/_80058752X0,3,Hangup
+exten => _XXXXXX/_8005875290,1,SMS(${EXTEN:3},a)
+exten => _XXXXXX/_8005875290,n,System(/usr/lib/asterisk/smsin ${EXTEN:3})
+exten => _XXXXXX/_80058752[0-8]0,1,SMS(${EXTEN:3}${CALLERIDNUM:8:1},a)
+exten => _XXXXXX/_80058752[0-8]0,n,System(/usr/lib/asterisk/smsin ${EXTEN>:3}${CALLERIDNUM:8:1})
+exten => _XXXXXX/_80058752[0-8]0,n,Hangup
 
 
 In this case the called number we get from BT is 6 digits (XXXXXX) and we are
