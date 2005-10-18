@@ -115,7 +115,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 				snprintf(trychan, sizeof(trychan), "%s/%s",cur,number);
 				status = inuse = ast_device_state(trychan);
 			}
-			if ((inuse < 1) && (tempchan = ast_request(tech, chan->nativeformats, number, &status))) {
+			if ((inuse <= 1) && (tempchan = ast_request(tech, chan->nativeformats, number, &status))) {
 					pbx_builtin_setvar_helper(chan, "AVAILCHAN", tempchan->name);
 					/* Store the originally used channel too */
 					snprintf(tmp, sizeof(tmp), "%s/%s", tech, number);
