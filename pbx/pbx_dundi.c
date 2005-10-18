@@ -2509,7 +2509,7 @@ static int dundi_show_peers(int fd, int argc, char *argv[])
 				online_peers++;
 			}
 			else {
-				strcpy(status, "UNKOWN");
+				strcpy(status, "UNKNOWN");
 				offline_peers++;
 			}
 		} else {
