@@ -32,13 +32,10 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#include "asterisk/lock.h"
-#include "asterisk/file.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/options.h"
-#include "asterisk/config.h"
 #include "asterisk/module.h"
 #include "asterisk/enum.h"
 #include "asterisk/utils.h"
@@ -53,11 +50,6 @@ static char *descrip =
 "  TXTCIDName(<CallerIDNumber>):  Looks up a Caller Name via DNS and sets\n"
 "the variable 'TXTCIDNAME'. TXTCIDName will either be blank\n"
 "or return the value found in the TXT record in DNS.\n" ;
-
-#define ENUM_CONFIG "enum.conf"
-
-static char h323driver[80] = "";
-#define H323DRIVERDEFAULT "H323"
 
 STANDARD_LOCAL_USER;
 
@@ -96,26 +88,6 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 	return res;
 }
 
-static int load_config(void)
-{
-	struct ast_config *cfg;
-	char *s;
-
-	cfg = ast_config_load(ENUM_CONFIG);
-	if (cfg) {
-		if (!(s=ast_variable_retrieve(cfg, "general", "h323driver"))) {
-			ast_copy_string(h323driver, H323DRIVERDEFAULT, sizeof(h323driver));
-		} else {
-			ast_copy_string(h323driver, s, sizeof(h323driver));
-		}
-		ast_config_destroy(cfg);
-		return 0;
-	}
-	ast_log(LOG_NOTICE, "No ENUM Config file, using defaults\n");
-	return 0;
-}
-
-
 int unload_module(void)
 {
 	STANDARD_HANGUP_LOCALUSERS;
@@ -125,20 +97,11 @@ int unload_module(void)
 int load_module(void)
 {
 	int res;
+	
 	res = ast_register_application(app, txtcidname_exec, synopsis, descrip);
-	if (res)
-		return(res);
-	if ((res=load_config())) {
-		return(res);
-	}
-	return(0);
+	
+	return res;
 }
-
-int reload(void)
-{
-	return(load_config());
-}
-
 
 char *description(void)
 {
@@ -156,4 +119,3 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-
