@@ -127,21 +127,27 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		char offset[AST_FRIENDLY_OFFSET];
 		short frdata[160];
 	} myf;
-	if (!data) {
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MP3 Playback requires an argument (filename)\n");
 		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
+
 	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
+	
 	ast_stopstream(chan);
 
 	owriteformat = chan->writeformat;
 	res = ast_set_write_format(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	
@@ -208,11 +214,14 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 	}
 	close(fds[0]);
 	close(fds[1]);
-	LOCAL_USER_REMOVE(u);
+	
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && owriteformat)
 		ast_set_write_format(chan, owriteformat);
+
+	LOCAL_USER_REMOVE(u);
+	
 	return res;
 }
 

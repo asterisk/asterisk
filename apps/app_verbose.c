@@ -56,6 +56,9 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 {
 	char *vtext;
 	int vsize;
+	struct localuser *u;
+
+	LOCAL_USER_ADD(u);
 
 	if (data) {
 		vtext = ast_strdupa((char *)data);
@@ -92,6 +95,8 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_ERROR, "Out of memory\n");
 		}
 	}
+
+	LOCAL_USER_REMOVE(u);
 
 	return 0;
 }

@@ -120,25 +120,25 @@ static int page_exec(struct ast_channel *chan, void *data)
 	char *tmp;
 	int res=0;
 
-	if (!data)
-		return -1;
-
-	if (ast_strlen_zero(data)) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "This application requires at least one argument (destination(s) to page)\n");
 		return -1;
 	}
 
+	LOCAL_USER_ADD(u);
+
 	if (!(app = pbx_findapp("MeetMe"))) {
 		ast_log(LOG_WARNING, "There is no MeetMe application available!\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	};
 
-	if (!(options = ast_strdupa((char *) data))) {
+	options = ast_strdupa(data);
+	if (!options) {
 		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-		
-	LOCAL_USER_ADD(u);
 
 	tmp = strsep(&options, "|");
 	if (options)

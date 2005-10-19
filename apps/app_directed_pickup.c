@@ -57,6 +57,13 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	char *tmp = NULL, *exten = NULL, *context = NULL;
 	char workspace[256] = "";
 
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "Pickup requires an argument (extension) !\n");
+		return -1;	
+	}
+
+	LOCAL_USER_ADD(u);
+	
 	/* Get the extension and context if present */
 	exten = data;
 	context = strchr(data, '@');
@@ -64,14 +71,6 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 		*context = '\0';
 		context++;
 	}
-
-	/* Make sure we atleast have an extension to work with */
-	if (!exten) {
-		ast_log(LOG_WARNING, "%s requires atleast one argument (extension)\n", app);
-		return -1;
-	}
-
-	LOCAL_USER_ADD(u);
 
 	/* Find a channel to pickup */
 	origin = ast_get_channel_by_exten_locked(exten, context);
@@ -121,7 +120,9 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	}
 	/* Done */
  out:
-	if (target) ast_mutex_unlock(&target->lock);
+	if (target) 
+		ast_mutex_unlock(&target->lock);
+	
 	LOCAL_USER_REMOVE(u);
 
 	return res;

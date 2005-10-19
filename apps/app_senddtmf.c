@@ -62,21 +62,33 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 	char *digits = NULL, *to = NULL;
 	int timeout = 250;
 
-	if (data && !ast_strlen_zero(data) && (digits = ast_strdupa((char *)data))) {
-		if((to = strchr(digits,'|'))) {
-			*to = '\0';
-			to++;
-			timeout = atoi(to);
-		}
-		LOCAL_USER_ADD(u);
-		if(timeout <= 0)
-			timeout = 250;
-
-		res = ast_dtmf_stream(chan,NULL,digits,timeout);
-		LOCAL_USER_REMOVE(u);
-	} else {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendDTMF requires an argument (digits or *#aAbBcCdD)\n");
+		return 0;
 	}
+
+	LOCAL_USER_ADD(u);
+
+	digits = ast_strdupa(data);
+	if (!digits) {
+		ast_log(LOG_ERROR, "Out of Memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	if ((to = strchr(digits,'|'))) {
+		*to = '\0';
+		to++;
+		timeout = atoi(to);
+	}
+		
+	if(timeout <= 0)
+		timeout = 250;
+
+	res = ast_dtmf_stream(chan,NULL,digits,timeout);
+		
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

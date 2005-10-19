@@ -85,11 +85,14 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	char passwd[256];
 	char *opts;
 	char *prompt;
+	
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
 		return -1;
 	}
+	
 	LOCAL_USER_ADD(u);
+
 	if (chan->_state != AST_STATE_UP) {
 		res = ast_answer(chan);
 		if (res) {
@@ -97,6 +100,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 			return -1;
 		}
 	}
+	
 	strncpy(password, data, sizeof(password) - 1);
 	opts=strchr(password, '|');
 	if (opts) {

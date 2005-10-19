@@ -43,6 +43,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 
+STANDARD_LOCAL_USER;
+
+LOCAL_USER_DECL;
+
 static char *tdesc = "Interface Test Application";
 
 static char *tests_descrip = 
@@ -123,10 +127,6 @@ static int sendnoise(struct ast_channel *chan, int ms)
 	return res;	
 }
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
 static int testclient_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
@@ -135,7 +135,6 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 	char fn[80];
 	char serverver[80];
 	FILE *f;
-	LOCAL_USER_ADD(u);
 	
 	/* Check for test id */
 	if (!testid || ast_strlen_zero(testid)) {
@@ -143,6 +142,8 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
+	LOCAL_USER_ADD(u);
+
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	

@@ -75,6 +75,9 @@ static int substring_exec(struct ast_channel *chan, void *data)
   char newexten[AST_MAX_EXTENSION] = "";
   char *count1, *count2;
   char *first, *second, *stringp;
+  struct localuser *u;
+
+  LOCAL_USER_ADD(u);
 
   stringp=alloca(strlen(data)+1);
   ast_log(LOG_WARNING, "The use of Substring application is deprecated. Please use ${variable:a:b} instead\n");
@@ -87,6 +90,7 @@ static int substring_exec(struct ast_channel *chan, void *data)
     count2=strsep(&stringp,"\0");
     if (!first || !second || !count1 || !count2) {
       ast_log(LOG_DEBUG, "Ignoring, since there is no argument: variable or string or count1 or count2\n");
+      LOCAL_USER_REMOVE(u);
       return 0;
     }
     icount1=atoi(count1);
@@ -118,6 +122,9 @@ static int substring_exec(struct ast_channel *chan, void *data)
   } else {
     ast_log(LOG_DEBUG, "Ignoring, no parameters\n");
   }
+
+  LOCAL_USER_REMOVE(u);
+
   return 0;
 }
 

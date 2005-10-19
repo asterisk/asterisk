@@ -72,16 +72,17 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	int res=-1, inuse=-1, option_state=0;
 	int status;
 	struct localuser *u;
-	char info[512], tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur, *options, *stringp;
+	char *info, tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur, *options, *stringp;
 	struct ast_channel *tempchan;
 
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ChanIsAvail requires an argument (Zap/1&Zap/2)\n");
 		return -1;
 	}
+
 	LOCAL_USER_ADD(u);
 
-	strncpy(info, (char *)data, sizeof(info)-1);
+	info = ast_strdupa(data); 
 	stringp = info;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");

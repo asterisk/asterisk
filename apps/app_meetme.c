@@ -1667,8 +1667,16 @@ static int count_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
 		return -1;
 	}
-	localdata = ast_strdupa(data);
+
 	LOCAL_USER_ADD(u);
+	
+	localdata = ast_strdupa(data);
+	if (!localdata) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+	
 	confnum = strsep(&localdata,"|");       
 	conf = find_conf(chan, confnum, 0, 0, NULL);
 	if (conf)
@@ -1704,17 +1712,19 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int always_prompt = 0;
 	char *notdata, *info, *inflags = NULL, *inpin = NULL, the_pin[AST_MAX_EXTENSION] = "";
 
+	LOCAL_USER_ADD(u);
+
 	if (!data || ast_strlen_zero(data)) {
 		allowretry = 1;
 		notdata = "";
 	} else {
 		notdata = data;
 	}
-	LOCAL_USER_ADD(u);
+	
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 
-	info = ast_strdupa((char *)notdata);
+	info = ast_strdupa(notdata);
 
 	if (info) {
 		char *tmp = strsep(&info, "|");
@@ -1956,6 +1966,9 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	char *params, *command = NULL, *caller = NULL, *conf = NULL;
 	struct ast_conference *cnf;
 	struct ast_conf_user *user = NULL;
+	struct localuser *u;
+	
+	LOCAL_USER_ADD(u);
 
 	ast_mutex_lock(&conflock);
 	/* The param has the conference number the user and the command to execute */
@@ -1968,6 +1981,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		if (!command) {
 			ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
 			ast_mutex_unlock(&conflock);
+			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 		cnf = confs;
@@ -2059,6 +2073,9 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 		}
 	}
 	ast_mutex_unlock(&conflock);
+
+	LOCAL_USER_REMOVE(u);
+	
 	return 0;
 }
 

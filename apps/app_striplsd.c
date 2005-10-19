@@ -64,6 +64,9 @@ static int striplsd_exec(struct ast_channel *chan, void *data)
 	int maxbytes = 0;
 	int stripcount = 0;
 	int extlen = strlen(chan->exten);
+	struct localuser *u;
+
+	LOCAL_USER_ADD(u);
 
 	maxbytes = sizeof(newexten) - 1;
 	if (data) {
@@ -71,6 +74,7 @@ static int striplsd_exec(struct ast_channel *chan, void *data)
 	}
 	if (!stripcount) {
 		ast_log(LOG_DEBUG, "Ignoring, since number of digits to strip is 0\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	if (extlen > stripcount) {
@@ -80,6 +84,9 @@ static int striplsd_exec(struct ast_channel *chan, void *data)
 		strncpy(newexten, chan->exten, maxbytes);
 	}
 	strncpy(chan->exten, newexten, sizeof(chan->exten)-1);
+
+	LOCAL_USER_REMOVE(u);
+
 	return 0;
 }
 

@@ -89,11 +89,23 @@ static int read_exec(struct ast_channel *chan, void *data)
 	char *argcopy = NULL;
 	char *args[8];
 
-	if (data)
-		argcopy = ast_strdupa((char *)data);
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+	
+	argcopy = ast_strdupa(data);
+	if (!argcopy) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	if (ast_separate_app_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
-		ast_log(LOG_WARNING, "Cannot Parse Arguements.\n");
+		ast_log(LOG_WARNING, "Cannot Parse Arguments.\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -142,9 +154,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 	}
 	if (!(varname) || ast_strlen_zero(varname)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
+	
 	if (chan->_state != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */

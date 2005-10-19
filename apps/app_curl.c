@@ -118,26 +118,27 @@ static int curl_exec(struct ast_channel *chan, void *data)
 	char *info, *post_data=NULL, *url;
 	struct MemoryStruct chunk = { NULL, 0 };
 	static int dep_warning = 0;
-
-	if (!data || !strlen((char *)data)) {
-		ast_log(LOG_WARNING, "Curl requires an argument (URL)\n");
-		return -1;
-	}
-
+	
 	if (!dep_warning) {
 		ast_log(LOG_WARNING, "The application Curl is deprecated.  Please use the CURL() function instead.\n");
 		dep_warning = 1;
 	}
 
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "Curl requires an argument (URL)\n");
+		return -1;
+	}
+	
+	LOCAL_USER_ADD(u);
+	
 	if ((info = ast_strdupa((char *)data))) {
 		url = strsep(&info, "|");
 		post_data = info;
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	if (! curl_internal(&chunk, url, post_data)) {
 		if (chunk.memory) {
@@ -164,23 +165,25 @@ static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char
 	char *info, *post_data=NULL, *url;
 	struct MemoryStruct chunk = { NULL, 0 };
 
-	if (!data || !strlen((char *)data)) {
+	*buf = '\0';
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "CURL requires an argument (URL)\n");
-		*buf = '\0';
-		return buf;
-	}
-
-	if ((info = ast_strdupa((char *)data))) {
-		url = strsep(&info, "|");
-		post_data = info;
-	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		*buf = '\0';
 		return buf;
 	}
 
 	LOCAL_USER_ACF_ADD(u);
 
+	info = ast_strdupa(data);
+	if (!info) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return buf;
+	}
+	
+	url = strsep(&info, "|");
+	post_data = info;
+	
 	if (! curl_internal(&chunk, url, post_data)) {
 		if (chunk.memory) {
 			chunk.memory[chunk.size] = '\0';
@@ -192,7 +195,6 @@ static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char
 		}
 	} else {
 		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
-		*buf = '\0';
 	}
 
 	LOCAL_USER_REMOVE(u);

@@ -152,6 +152,8 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 	int maxsilence = 1000;
 	int iterations = 1, i;
 
+	LOCAL_USER_ADD(u);
+	
 	res = ast_answer(chan); /* Answer the channel */
 
 	if (!data || ((sscanf(data, "%d|%d", &maxsilence, &iterations) != 2) &&
@@ -161,7 +163,7 @@ static int waitforsilence_exec(struct ast_channel *chan, void *data)
 
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Waiting %d time(s) for %d ms silence\n", iterations, maxsilence);
-	LOCAL_USER_ADD(u);
+	
 	res = 1;
 	for (i=0; (i<iterations) && (res == 1); i++) {
 		res = do_waiting(chan, maxsilence);

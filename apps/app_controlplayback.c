@@ -81,12 +81,14 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		arg_pause = 5,
 		arg_restart = 6,
 	};
-
-	if (!data || ast_strlen_zero((char *)data)) {
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}
 
+	LOCAL_USER_ADD(u);
+	
 	tmp = ast_strdupa(data);
 	memset(argv, 0, sizeof(argv));
 
@@ -94,6 +96,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 
 	if (argc < 1) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -112,12 +115,8 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	if (argv[arg_restart] && !is_on_phonepad(*argv[arg_restart]))
 		argv[arg_restart] = NULL;
 
-	LOCAL_USER_ADD(u);
-
 	res = ast_control_streamfile(chan, argv[arg_file], argv[arg_fwd], argv[arg_rev], argv[arg_stop], argv[arg_pause], argv[arg_restart], skipms);
 
-	LOCAL_USER_REMOVE(u);
-	
 	/* If we stopped on one of our stop keys, return 0  */
 	if (argv[arg_stop] && strchr(argv[arg_stop], res)) 
 		res = 0;
@@ -126,6 +125,8 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			res = 0;
 	}
+
+	LOCAL_USER_REMOVE(u);
 
 	return res;
 }

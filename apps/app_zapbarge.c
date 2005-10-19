@@ -267,14 +267,17 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int confno = 0;
 	char confstr[80] = "";
 
+	LOCAL_USER_ADD(u);
+	
 	if (data && !ast_strlen_zero(data)) {
 		if ((sscanf(data, "Zap/%d", &confno) != 1) &&
 		    (sscanf(data, "%d", &confno) != 1)) {
 			ast_log(LOG_WARNING, "ZapBarge Argument (if specified) must be a channel number, not '%s'\n", (char *)data);
+			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 	}
-	LOCAL_USER_ADD(u);
+	
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 

@@ -60,17 +60,18 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 	char *options, *cut, *cdata, *match;
 	char name[AST_CHANNEL_NAME] = "";
 	int all = 0;
-
-	if (!data) {
+	
+	if (!data || ast_strlen_zero(data)) {
                 ast_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
 		return 0;
 	}
 	
+	LOCAL_USER_ADD(u);
+
 	cdata = ast_strdupa(data);
 	match = strsep(&cdata, "|");
 	options = strsep(&cdata, "|");
 	all = options && strchr(options,'a');
-	LOCAL_USER_ADD(u);
 	c = ast_channel_walk_locked(NULL);
 	while (c) {
 		strncpy(name, c->name, sizeof(name)-1);
@@ -95,6 +96,7 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		}
 		c = ast_channel_walk_locked(c);
 	}
+	
 	LOCAL_USER_REMOVE(u);
 
 	return 0;

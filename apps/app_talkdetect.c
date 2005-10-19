@@ -65,7 +65,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
-	char tmp[256];
+	char *tmp;
 	char *options;
 	char *stringp;
 	struct ast_frame *fr;
@@ -77,11 +77,21 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	int x;
 	int origrformat=0;
 	struct ast_dsp *dsp;
-	if (!data || ast_strlen_zero((char *)data)) {
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
 		return -1;
 	}
-	ast_copy_string(tmp, (char *)data, sizeof(tmp));
+
+	LOCAL_USER_ADD(u);
+
+	tmp = ast_strdupa(data);
+	if (!tmp) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}	
+
 	stringp=tmp;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");
@@ -101,7 +111,6 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	}
 	ast_log(LOG_DEBUG, "Preparing detect of '%s', sil=%d,min=%d,max=%d\n", 
 						tmp, sil, min, max);
-	LOCAL_USER_ADD(u);
 	if (chan->_state != AST_STATE_UP) {
 		/* Otherwise answer unless we're supposed to send this while on-hook */
 		res = ast_answer(chan);

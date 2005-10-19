@@ -382,33 +382,35 @@ static int muxmon_exec(struct ast_channel *chan, void *data)
 		*filename = NULL,
 		*post_process = NULL;
 	
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "muxmon requires an argument\n");
 		return -1;
 	}
 
-	if (!(args = ast_strdupa(data))) {
+	LOCAL_USER_ADD(u);
+
+	args = ast_strdupa(data);	
+	if (!args) {
 		ast_log(LOG_WARNING, "Memory Error!\n");
-        return -1;
+		LOCAL_USER_REMOVE(u);
+		return -1;
 	}
-	
 
 	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		filename = argv[0];
-		if ( argc > 1) {
+		if (argc > 1) {
 			options = argv[1];
 		}
-		if ( argc > 2) {
+		if (argc > 2) {
 			post_process = argv[2];
 		}
 	}
 	
 	if (!filename || ast_strlen_zero(filename)) {
 		ast_log(LOG_WARNING, "Muxmon requires an argument (filename)\n");
-        return -1;
+		LOCAL_USER_REMOVE(u);
+		return -1;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	if (options) {
 		char *opts[3] = {};
@@ -440,13 +442,13 @@ static int muxmon_exec(struct ast_channel *chan, void *data)
 			else {
 				readvol = writevol = minmax(x, 4);
 				x = get_volfactor(readvol);
-                readvol = minmax(x, 16);
+				readvol = minmax(x, 16);
 				x = get_volfactor(writevol);
-                writevol = minmax(x, 16);
+				writevol = minmax(x, 16);
 			}
 		}
 	}
-		pbx_builtin_setvar_helper(chan, "MUXMON_FILENAME", filename);
+	pbx_builtin_setvar_helper(chan, "MUXMON_FILENAME", filename);
 	launch_monitor_thread(chan, filename, flags.flags, readvol, writevol, post_process);
 
 	LOCAL_USER_REMOVE(u);

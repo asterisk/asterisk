@@ -94,23 +94,24 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 	int vmcount = 0;
 	static int dep_warning = 0;
 
+	if (!dep_warning) {
+		ast_log(LOG_WARNING, "The applications HasVoicemail and HasNewVoicemail have been deprecated.  Please use the VMCOUNT() function instead.\n");
+		dep_warning = 1;
+	}
+	
 	if (!data) {
 		ast_log(LOG_WARNING, "HasVoicemail requires an argument (vm-box[/folder][@context]|varname)\n");
 		return -1;
 	}
 
-	if (!dep_warning) {
-		ast_log(LOG_WARNING, "The applications HasVoicemail and HasNewVoicemail have been deprecated.  Please use the VMCOUNT() function instead.\n");
-		dep_warning = 1;
-	}
+	LOCAL_USER_ADD(u);
 
 	input = ast_strdupa((char *)data);
 	if (! input) {
 		ast_log(LOG_ERROR, "Out of memory error\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	temps = input;
 	if ((temps = strsep(&input, "|"))) {
@@ -158,11 +159,13 @@ static char *acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *data, c
 
 	LOCAL_USER_ACF_ADD(u);
 
+	buf[0] = '\0';
+
 	args = ast_strdupa(data);
 	if (!args) {
 		ast_log(LOG_ERROR, "Out of memory");
 		LOCAL_USER_REMOVE(u);
-		return "";
+		return buf;
 	}
 
 	box = strsep(&args, "|");
@@ -180,7 +183,9 @@ static char *acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	snprintf(buf, len, "%d", hasvoicemail_internal(context, box, folder));
+
 	LOCAL_USER_REMOVE(u);
+	
 	return buf;
 }
 

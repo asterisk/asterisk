@@ -692,20 +692,22 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char *dblgoto = NULL;
 	int priority_jump = 0;
 
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
 		return -1;
 	}
 
-	if (!(info = ast_strdupa(data))) {
+	LOCAL_USER_ADD(u);
+
+	info = ast_strdupa(data);	
+	if (!info) {
 		ast_log(LOG_WARNING, "Unable to dupe data :(\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	LOCAL_USER_ADD(u);
 	
 	peers = info;
 	if (peers) {
-		
 		timeout = strchr(info, '|');
 		if (timeout) {
 			*timeout = '\0';
@@ -1644,6 +1646,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Had to drop call because I couldn't make %s compatible with %s\n", chan->name, peer->name);
 				ast_hangup(peer);
+				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
 			res = ast_bridge_call(chan,peer,&config);
@@ -1674,11 +1677,11 @@ out:
 	pbx_builtin_setvar_helper(chan, "DIALSTATUS", status);
 	ast_log(LOG_DEBUG, "Exiting with DIALSTATUS=%s.\n", status);
 	
-	LOCAL_USER_REMOVE(u);
-	
 	if ((ast_test_flag(peerflags, DIAL_GO_ON)) && (!chan->_softhangup) && (res != AST_PBX_KEEPALIVE))
-	    res=0;
-	    
+		res=0;
+	
+	LOCAL_USER_REMOVE(u);    
+	
 	return res;
 }
 
@@ -1693,19 +1696,25 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 {
 	char *announce = NULL, *context = NULL, *dialdata = NULL;
 	int sleep = 0, loops = 0, res = 0;
-	struct localuser *u = NULL;
+	struct localuser *u;
 	struct ast_flags peerflags;
 	
-	memset(&peerflags, 0, sizeof(peerflags));
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "RetryDial requires an argument!\n");
+		return -1;
+	}	
 
 	LOCAL_USER_ADD(u);
-	
-	if (!data || !(announce = ast_strdupa(data))) {
+
+	announce = ast_strdupa(data);	
+	if (!announce) {	
 		ast_log(LOG_ERROR, "Out of memory!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	
+	memset(&peerflags, 0, sizeof(peerflags));
+
 	if ((dialdata = strchr(announce, '|'))) {
 		*dialdata = '\0';
 		dialdata++;

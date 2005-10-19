@@ -61,13 +61,12 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	
-	LOCAL_USER_ADD(u);
-
-	if (!data || !strlen((char *)data)) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendImage requires an argument (filename)\n");
-		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
 
 	if (!ast_supports_images(chan)) {
 		/* Does not support transport */

@@ -652,11 +652,13 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW)){
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set write format to Mu-law on %s\n",chan->name);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	
 	if (ast_set_read_format(chan,AST_FORMAT_ULAW)){
 		ast_log(LOG_WARNING, "AlarmReceiver: Unable to set read format to Mu-law on %s\n",chan->name);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 

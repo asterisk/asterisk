@@ -99,18 +99,23 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int rfmt = 0;
 	int flags;
 	
-
-
-
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (!data || ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
 		ast_log(LOG_WARNING, "Record requires an argument (filename)\n");
 		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
+
 	/* Yay for strsep being easy */
 	vdata = ast_strdupa(data);
+	if (!vdata) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
 	p = vdata;
-	
 	filename = strsep(&p, "|");
 	silstr = strsep(&p, "|");
 	maxstr = strsep(&p, "|");	
@@ -129,6 +134,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	}
 	if (!ext) {
 		ast_log(LOG_WARNING, "No extension specified to filename!\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	if (silstr) {
@@ -180,7 +186,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		strncpy(tmp, filename, sizeof(tmp)-1);
 	/* end of routine mentioned */
 	
-	LOCAL_USER_ADD(u);
+	
 	
 	if (chan->_state != AST_STATE_UP) {
 		if (option_skip) {
@@ -213,11 +219,13 @@ static int record_exec(struct ast_channel *chan, void *data)
 			res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 			if (res < 0) {
 				ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
 			sildet = ast_dsp_new();
 			if (!sildet) {
 				ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
 			ast_dsp_set_threshold(sildet, 256);
@@ -308,7 +316,6 @@ static int record_exec(struct ast_channel *chan, void *data)
 	} else
 		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
 	
-	LOCAL_USER_REMOVE(u);
 	if ((silence > 0) && rfmt) {
 		res = ast_set_read_format(chan, rfmt);
 		if (res)
@@ -316,6 +323,9 @@ static int record_exec(struct ast_channel *chan, void *data)
 		if (sildet)
 			ast_dsp_free(sildet);
 	}
+
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

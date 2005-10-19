@@ -117,12 +117,12 @@ static int group_set_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	static int deprecation_warning = 0;
 
+	LOCAL_USER_ADD(u);
+	
 	if (!deprecation_warning) {
 	        ast_log(LOG_WARNING, "The SetGroup application has been deprecated, please use the GROUP() function.\n");
 		deprecation_warning = 1;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	if (ast_app_group_set_channel(chan, data))
 		ast_log(LOG_WARNING, "SetGroup requires an argument (group name)\n");
@@ -140,8 +140,6 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 	char category[80]="";
 	static int deprecation_warning = 0;
 
-	LOCAL_USER_ADD(u);
-
 	if (!deprecation_warning) {
 	        ast_log(LOG_WARNING, "The CheckGroup application has been deprecated, please use a combination of the GotoIf application and the GROUP_COUNT() function.\n");
 		deprecation_warning = 1;
@@ -151,6 +149,8 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "CheckGroup requires an argument(max[@category])\n");
 		return res;
 	}
+
+	LOCAL_USER_ADD(u);
 
   	ast_app_group_split_group(data, limit, sizeof(limit), category, sizeof(category));
 

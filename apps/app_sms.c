@@ -1363,10 +1363,14 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_frame *f;
 	sms_t h = { 0 };
+	
+	LOCAL_USER_ADD(u);
+
 	h.ipc0 = h.ipc1 = 20;		  /* phase for cosine */
 	h.dcs = 0xF1;					 /* default */
 	if (!data) {
 		ast_log (LOG_ERROR, "Requires queue name at least\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -1379,11 +1383,13 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			answer = 0;
 		if (!*d || *d == '|') {
 			ast_log (LOG_ERROR, "Requires queue name\n");
+			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 		for (p = d; *p && *p != '|'; p++);
 		if (p - d >= sizeof (h.queue)) {
 			ast_log (LOG_ERROR, "Queue name too long\n");
+			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 		strncpy (h.queue, d, p - d);
@@ -1452,6 +1458,7 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			h.rx = 0;				  /* sent message */
 			h.mr = -1;
 			sms_writefile (&h);
+			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 
@@ -1463,7 +1470,6 @@ static int sms_exec (struct ast_channel *chan, void *data)
 		}
 	}
 
-	LOCAL_USER_ADD (u);
 	if (chan->_state != AST_STATE_UP)
 		ast_answer (chan);
 
@@ -1475,14 +1481,14 @@ static int sms_exec (struct ast_channel *chan, void *data)
 	if (res >= 0)
 		res = ast_set_read_format (chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
-		LOCAL_USER_REMOVE (u);
 		ast_log (LOG_ERROR, "Unable to set to linear mode, giving up\n");
+		LOCAL_USER_REMOVE (u);
 		return -1;
 	}
 
 	if (ast_activate_generator (chan, &smsgen, &h) < 0) {
-		LOCAL_USER_REMOVE (u);
 		ast_log (LOG_ERROR, "Failed to activate generator on '%s'\n", chan->name);
+		LOCAL_USER_REMOVE (u);
 		return -1;
 	}
 

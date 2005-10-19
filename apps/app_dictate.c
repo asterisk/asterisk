@@ -98,7 +98,8 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 		maxlen = 0,
 		mode = 0;
 		
-
+	LOCAL_USER_ADD(u);
+	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", ast_config_AST_SPOOL_DIR);
 	if (data && !ast_strlen_zero(data) && (mydata = ast_strdupa(data))) {
 		argc = ast_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
@@ -113,10 +114,10 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	oldr = chan->readformat;
 	if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set to linear mode.\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
 	ast_answer(chan);
 	ast_safe_sleep(chan, 200);
 	for(res = 0; !res;) {

@@ -68,15 +68,17 @@ static int setcallerid_pres_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	int pres = -1;
 
+	LOCAL_USER_ADD(u);
+	
 	pres = ast_parse_caller_presentation(data);
 
 	if (pres < 0) {
 		ast_log(LOG_WARNING, "'%s' is not a valid presentation (see 'show application SetCallerPres')\n",
 			(char *) data);
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-
-	LOCAL_USER_ADD(u);
+	
 	chan->cid.cid_pres = pres;
 	LOCAL_USER_REMOVE(u);
 	return 0;
@@ -97,14 +99,27 @@ static char *descrip =
 static int setcallerid_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	char tmp[256] = "";
+	char *tmp = NULL;
 	char name[256];
 	char num[256];
 	struct localuser *u;
 	char *opt;
 	int anitoo = 0;
-	if (data)
-		ast_copy_string(tmp, (char *)data, sizeof(tmp));
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "SetCallerID requires an argument!\n");
+		return 0;
+	}
+	
+	LOCAL_USER_ADD(u);
+	
+	tmp = ast_strdupa(data);
+	if (!tmp) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+	
 	opt = strchr(tmp, '|');
 	if (opt) {
 		*opt = '\0';
@@ -112,10 +127,12 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 		if (*opt == 'a')
 			anitoo = 1;
 	}
-	LOCAL_USER_ADD(u);
+	
 	ast_callerid_split(tmp, name, sizeof(name), num, sizeof(num));
 	ast_set_callerid(chan, num, name, anitoo ? num : NULL);
+
 	LOCAL_USER_REMOVE(u);
+	
 	return res;
 }
 

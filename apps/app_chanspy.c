@@ -540,23 +540,25 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
+	LOCAL_USER_ADD(u);
+
 	oldrf = chan->readformat;
 	oldwf = chan->writeformat;
 	if (ast_set_read_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Read Format.\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
 		ast_log(LOG_ERROR, "Could Not Set Write Format.\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
 	ast_answer(chan);
 
 	ast_set_flag(chan, AST_FLAG_SPYING); /* so nobody can spy on us while we are spying */
-
 
 	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		spec = argv[0];

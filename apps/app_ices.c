@@ -100,20 +100,24 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	struct ast_frame *f;
 	char filename[256]="";
 	char *c;
-	last.tv_usec = 0;
-	last.tv_sec = 0;
-	if (!data || !strlen(data)) {
+
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ICES requires an argument (configfile.xml)\n");
 		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
+	
+	last = ast_tv(0, 0);
+	
 	if (pipe(fds)) {
 		ast_log(LOG_WARNING, "Unable to create pipe\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	flags = fcntl(fds[1], F_GETFL);
 	fcntl(fds[1], F_SETFL, flags | O_NONBLOCK);
 	
-	LOCAL_USER_ADD(u);
 	ast_stopstream(chan);
 
 	if (chan->_state != AST_STATE_UP)
@@ -123,6 +127,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		close(fds[0]);
 		close(fds[1]);
 		ast_log(LOG_WARNING, "Answer failed!\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -132,6 +137,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		close(fds[0]);
 		close(fds[1]);
 		ast_log(LOG_WARNING, "Unable to set write format to signed linear\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	if (((char *)data)[0] == '/')
@@ -174,11 +180,14 @@ static int ices_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	close(fds[1]);
-	LOCAL_USER_REMOVE(u);
+	
 	if (pid > -1)
 		kill(pid, SIGKILL);
 	if (!res && oreadformat)
 		ast_set_read_format(chan, oreadformat);
+
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

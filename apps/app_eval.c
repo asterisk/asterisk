@@ -64,12 +64,12 @@ static int eval_exec(struct ast_channel *chan, void *data)
 	char *s, *newvar=NULL, tmp[MAXRESULT];
 	static int dep_warning = 0;
 
+	LOCAL_USER_ADD(u);
+	
 	if (!dep_warning) {
 		ast_log(LOG_WARNING, "This application has been deprecated in favor of the dialplan function, EVAL\n");
 		dep_warning = 1;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	/* Check and parse arguments */
 	if (data) {

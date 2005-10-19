@@ -60,8 +60,7 @@ LOCAL_USER_DECL;
 
 static int setcallerid_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0;
-	char tmp[256] = "";
+	char *tmp = NULL;	
 	struct localuser *u;
 	char *opt;
 	static int deprecation_warning = 0;
@@ -71,16 +70,30 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 		deprecation_warning = 1;
 	}
 
-	if (data)
-		ast_copy_string(tmp, (char *)data, sizeof(tmp));
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "SetCIDName requires an argument!\n");
+		return 0;	
+	}
+
+	LOCAL_USER_ADD(u);
+
+	tmp = ast_strdupa(data);
+	if (!tmp) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+	
 	opt = strchr(tmp, '|');
 	if (opt) {
 		*opt = '\0';
 	}
-	LOCAL_USER_ADD(u);
+	
 	ast_set_callerid(chan, NULL, tmp, NULL);
+
 	LOCAL_USER_REMOVE(u);
-	return res;
+	
+	return 0;
 }
 
 int unload_module(void)

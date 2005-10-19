@@ -89,11 +89,13 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 {
 	int res=0;
 	struct localuser *u;
-	if (!data) {
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "System requires an argument(command)\n");
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		return failmode;
 	}
+
 	LOCAL_USER_ADD(u);
 
 	/* Do our thing here */
@@ -120,6 +122,7 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 	} 
 
 	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

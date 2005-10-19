@@ -72,17 +72,24 @@ static int app_exec(struct ast_channel *chan, void *data)
 	char *opts[2];
 	char *argv[2];
 
-	if (!(args = ast_strdupa((char *)data))) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		return -1;
-	}
-
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n",app);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
+	
+	/* Do our thing here */
+
+	/* We need to make a copy of the input string if we are going to modify it! */
+	args = ast_strdupa(data);	
+	if (!args) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+	
 	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		dummy = argv[0];
 		options = argv[1];
@@ -101,8 +108,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 	if (ast_test_flag(&flags, OPTION_C))
 		ast_log(LOG_NOTICE,"Option C is set with : %s\n", opts[1] ? opts[1] : "<unspecified>");
 
-	/* Do our thing here */
 	LOCAL_USER_REMOVE(u);
+	
 	return res;
 }
 

@@ -61,13 +61,20 @@ static int random_exec(struct ast_channel *chan, void *data)
 	char *s;
 	char *prob;
 	int probint;
-
-	if (!data) {
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Random requires an argument ([probability]:[[context|]extension|]priority)\n");
 		return -1;
 	}
+	
 	LOCAL_USER_ADD(u);
-	s = ast_strdupa((void *) data);
+
+	s = ast_strdupa(data);
+	if (!s) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	prob = strsep(&s,":");
 	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))

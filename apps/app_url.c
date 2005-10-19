@@ -74,20 +74,29 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
-	char tmp[256];
+	char *tmp;
 	char *options;
 	int local_option_wait=0;
 	int local_option_jump = 0;
 	struct ast_frame *f;
 	char *stringp=NULL;
 	char *status = "FAILURE";
-
-	if (!data || !strlen((char *)data)) {
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendURL requires an argument (URL)\n");
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", status);
 		return -1;
 	}
-	strncpy(tmp, (char *)data, sizeof(tmp)-1);
+
+	LOCAL_USER_ADD(u);
+
+	tmp = ast_strdupa(data);
+	if (!tmp) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
 	stringp=tmp;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");
@@ -95,7 +104,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 		local_option_wait = 1;
 	if (options && !strcasecmp(options, "j"))
 		local_option_jump = 1;
-	LOCAL_USER_ADD(u);
+	
 	if (!ast_channel_supports_html(chan)) {
 		/* Does not support transport */
 		if (local_option_jump || option_priority_jumping)

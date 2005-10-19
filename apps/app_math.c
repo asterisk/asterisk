@@ -108,14 +108,19 @@ static int math_exec(struct ast_channel *chan, void *data)
 		deprecation_warning = 1;
 	}
 
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "No parameters passed. !\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
-		
-	s = ast_strdupa((void *) data);
+
+	s = ast_strdupa(data);
+	if (!s) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	mvar = strsep(&s, "|");
 	mvalue1 = strsep(&s, "|");

@@ -110,11 +110,13 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	char *save_macro_priority;
 	char *save_macro_offset;
 	struct localuser *u;
-  
+ 
 	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
-		return 0;
+		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
 
 	/* Count how many levels deep the rabbit hole goes */
 	tmp = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
@@ -126,16 +128,18 @@ static int macro_exec(struct ast_channel *chan, void *data)
 
 	if (depth >= 7) {
 		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	snprintf(depthc, sizeof(depthc), "%d", depth + 1);
 	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
-	tmp = ast_strdupa((char *) data);
+	tmp = ast_strdupa(data);
 	rest = tmp;
 	macro = strsep(&rest, "|");
 	if (!macro || ast_strlen_zero(macro)) {
 		ast_log(LOG_WARNING, "Invalid macro name specified\n");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 	snprintf(fullmacro, sizeof(fullmacro), "macro-%s", macro);
@@ -144,10 +148,10 @@ static int macro_exec(struct ast_channel *chan, void *data)
 			ast_log(LOG_WARNING, "No such context '%s' for macro '%s'\n", fullmacro, macro);
 		else
 	  		ast_log(LOG_WARNING, "Context '%s' for macro '%s' lacks 's' extension, priority 1\n", fullmacro, macro);
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-
-	LOCAL_USER_ADD(u);
+	
 	/* Save old info */
 	oldpriority = chan->priority;
 	ast_copy_string(oldexten, chan->exten, sizeof(oldexten));
@@ -305,24 +309,33 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 {
 	char *expr = NULL, *label_a = NULL, *label_b = NULL;
 	int res = 0;
+	struct localuser *u;
 
-	if((expr = ast_strdupa((char *) data))) {
-		if ((label_a = strchr(expr, '?'))) {
-			*label_a = '\0';
-			label_a++;
-			if ((label_b = strchr(label_a, ':'))) {
-				*label_b = '\0';
-				label_b++;
-			}
-			if (ast_true(expr))
-				macro_exec(chan, label_a);
-			else if (label_b) 
-				macro_exec(chan, label_b);
-			
-		} else
-			ast_log(LOG_WARNING, "Invalid Syntax.\n");
-	} else 
+	LOCAL_USER_ADD(u);
+
+	expr = ast_strdupa(data);
+	if (!expr) {
 		ast_log(LOG_ERROR, "Out of Memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	if ((label_a = strchr(expr, '?'))) {
+		*label_a = '\0';
+		label_a++;
+		if ((label_b = strchr(label_a, ':'))) {
+			*label_b = '\0';
+			label_b++;
+		}
+		if (ast_true(expr))
+			macro_exec(chan, label_a);
+		else if (label_b) 
+			macro_exec(chan, label_b);
+	} else
+		ast_log(LOG_WARNING, "Invalid Syntax.\n");
+
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 			

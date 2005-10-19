@@ -61,22 +61,25 @@ static int setrdnis_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
 	char *opt, *n, *l;
-	char tmp[256];
+	char *tmp = NULL;
 	static int deprecation_warning = 0;
 
+	LOCAL_USER_ADD(u);
+	
 	if (!deprecation_warning) {
 		ast_log(LOG_WARNING, "SetRDNIS is deprecated, please use Set(CALLERID(rdnis)=value) instead.\n");
 		deprecation_warning = 1;
 	}
 
 	if (data)
-		ast_copy_string(tmp, (char *)data, sizeof(tmp));
+		tmp = ast_strdupa(data);
 	else
-		tmp[0] = '\0';
+		tmp = "";	
+
 	opt = strchr(tmp, '|');
 	if (opt)
 		*opt = '\0';
-	LOCAL_USER_ADD(u);
+	
 	n = l = NULL;
 	ast_callerid_parse(tmp, &n, &l);
 	if (l) {
@@ -87,7 +90,9 @@ static int setrdnis_exec(struct ast_channel *chan, void *data)
 		chan->cid.cid_rdnis = (l[0]) ? strdup(l) : NULL;
 		ast_mutex_unlock(&chan->lock);
 	}
+
 	LOCAL_USER_REMOVE(u);
+	
 	return 0;
 }
 

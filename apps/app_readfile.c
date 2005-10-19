@@ -63,10 +63,17 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 	char *s, *varname=NULL, *file=NULL, *length=NULL, *returnvar=NULL;
 	int len=0;
 
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "ReadFile require an argument!\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
 
 	s = ast_strdupa(data);
 	if (!s) {
 		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
@@ -76,18 +83,17 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 
 	if (!varname || !file) {
 		ast_log(LOG_ERROR, "No file or variable specified!\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
 	if (length) {
 		if ((sscanf(length, "%d", &len) != 1) || (len < 0)) {
 			ast_log(LOG_WARNING, "%s is not a positive number, defaulting length to max\n", length);
 			len = 0;
 		}
 	}
-	
-	
+
 	returnvar = ast_read_textfile(file);
 	if(len > 0){
 		if(len < strlen(returnvar))

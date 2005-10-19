@@ -80,15 +80,19 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	int outstate;
 
 	struct localuser *u;
-	if(!data || (data && !strlen(data))) {
+
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ParkAndAnnounce requires arguments: (announce:template|timeout|dial|[return_context])\n");
 		return -1;
 	}
   
+	LOCAL_USER_ADD(u);
+
 	l=strlen(data)+2;
 	orig_s=malloc(l);
 	if(!orig_s) {
 		ast_log(LOG_WARNING, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	s=orig_s;
@@ -98,6 +102,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	if(! template) {
 		ast_log(LOG_WARNING, "PARK: An announce template must be defined\n");
 		free(orig_s);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
   
@@ -109,6 +114,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	if(!dial) {
 		ast_log(LOG_WARNING, "PARK: A dial resource must be specified i.e: Console/dsp or Zap/g1/5551212\n");
 		free(orig_s);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	} else {
 		dialtech=strsep(&dial, "/");
@@ -141,6 +147,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	if(atoi(priority) < 0) {
 		ast_log(LOG_WARNING, "Priority '%s' must be a number > 0\n", priority);
 		free(orig_s);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	/* At this point we have a priority and maybe an extension and a context */
@@ -153,7 +160,6 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 		chan->priority++;
 	}
 
-
 	if(option_verbose > 2) {
 		ast_verbose( VERBOSE_PREFIX_3 "Return Context: (%s,%s,%d) ID: %s\n", chan->context,chan->exten, chan->priority, chan->cid.cid_num);
 		if(!ast_exists_extension(chan, chan->context, chan->exten, chan->priority, chan->cid.cid_num)) {
@@ -161,8 +167,6 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 		}
 	}
   
-	LOCAL_USER_ADD(u);
-
 	/* we are using masq_park here to protect * from touching the channel once we park it.  If the channel comes out of timeout
 	before we are done announcing and the channel is messed with, Kablooeee.  So we use Masq to prevent this.  */
 
@@ -228,9 +232,10 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	ast_stopstream(dchan);  
 	ast_hangup(dchan);
-
-	LOCAL_USER_REMOVE(u);
 	free(orig_s);
+	
+	LOCAL_USER_REMOVE(u);
+	
 	return res;
 }
 

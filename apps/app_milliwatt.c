@@ -127,6 +127,7 @@ static int milliwatt_exec(struct ast_channel *chan, void *data)
 	if (ast_activate_generator(chan,&milliwattgen,"milliwatt") < 0)
 	{
 		ast_log(LOG_WARNING,"Failed to activate generator on '%s'\n",chan->name);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	while(!ast_safe_sleep(chan, 10000));

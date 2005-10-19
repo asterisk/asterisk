@@ -157,6 +157,7 @@ static int intercom_exec(struct ast_channel *chan, void *data)
 	res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
 	if (res < 0) {
 		ast_log(LOG_WARNING, "Unable to set format to signed linear on channel %s\n", chan->name);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	/* Read packets from the channel */
@@ -184,9 +185,12 @@ static int intercom_exec(struct ast_channel *chan, void *data)
 				res = -1;
 		}
 	}
-	LOCAL_USER_REMOVE(u);
+	
 	if (!res)
 		ast_set_read_format(chan, oreadformat);
+
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

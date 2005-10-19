@@ -72,11 +72,13 @@ static int md5_exec(struct ast_channel *chan, void *data)
 		dep_warning = 1;
 	}	
 
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: md5(<varname>=<string>) - missing argument!\n");
 		return -1;
 	}
+	
 	LOCAL_USER_ADD(u);
+
 	memset(retvar,0, sizeof(retvar));
 	string = ast_strdupa(data);
 	varname = strsep(&string,"=");
@@ -107,11 +109,13 @@ static int md5check_exec(struct ast_channel *chan, void *data)
 		dep_warning = 1;
 	}
 	
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: MD5Check(<md5hash>,<string>) - missing argument!\n");
 		return -1;
 	}
+	
 	LOCAL_USER_ADD(u);
+	
 	memset(newhash,0, sizeof(newhash));
 
 	string = ast_strdupa(data);

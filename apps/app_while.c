@@ -84,7 +84,14 @@ static int execif_exec(struct ast_channel *chan, void *data) {
 	struct ast_app *app = NULL;
 
 	LOCAL_USER_ADD(u);
-	expr = ast_strdupa((char *) data);
+
+	expr = ast_strdupa(data);
+	if (!expr) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
 	if ((myapp = strchr(expr,'|'))) {
 		*myapp = '\0';
 		myapp++;

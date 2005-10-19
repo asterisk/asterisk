@@ -197,14 +197,22 @@ static void run_ras(struct ast_channel *chan, char *args)
 static int zapras_exec(struct ast_channel *chan, void *data)
 {
 	int res=-1;
-	char args[256];
+	char *args;
 	struct localuser *u;
 	ZT_PARAMS ztp;
 
 	if (!data) 
 		data = "";
+
 	LOCAL_USER_ADD(u);
-	ast_copy_string(args, data, sizeof(args));
+
+	args = ast_strdupa(data);
+	if (!args) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+	
 	/* Answer the channel if it's not up */
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);

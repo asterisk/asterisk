@@ -120,7 +120,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
 	struct localuser *u;
-	char tmp[256],arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
+	char *tmp, arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
 	char *ourcontext,*ourcallerid,ourcidname[256],ourcidnum[256],*mailbox;
 	struct ast_frame *f;
 	struct timeval lastdigittime;
@@ -129,28 +129,39 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	FILE *fp;
 	char *stringp=NULL;
 
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+	
 	if (chan->pbx) {
 		firstdigittimeout = chan->pbx->rtimeout*1000;
 		digittimeout = chan->pbx->dtimeout*1000;
 	}
 	
-	if (ast_set_write_format(chan,AST_FORMAT_ULAW))
-	{
+	if (ast_set_write_format(chan,AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	if (ast_set_read_format(chan,AST_FORMAT_ULAW))
-	{
+	if (ast_set_read_format(chan,AST_FORMAT_ULAW)) {
 		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	if (!data || !strlen((char *)data)) {
-		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
-		return -1;
-	}
+	
 	ast_log(LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
 	ast_log(LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
-	strncpy(tmp, (char *)data, sizeof(tmp)-1);
+
+	tmp = ast_strdupa(data);
+	if (!tmp) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}	
+
 	stringp=tmp;
 	strsep(&stringp, "|");
 	ourcontext = strsep(&stringp, "|");
@@ -169,9 +180,8 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	if (!mailbox)
 		mailbox = "";
 	ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
-	LOCAL_USER_ADD(u);
-	if (chan->_state != AST_STATE_UP)
-	{
+	
+	if (chan->_state != AST_STATE_UP) {
 		/* answer */
 		ast_answer(chan);
 	}
@@ -183,8 +193,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	ast_log(LOG_DEBUG, "Context: %s\n",ourcontext);
 
-	if (!strcasecmp(tmp, "no-password"))
-	{;
+	if (!strcasecmp(tmp, "no-password")) {
 		k |= 1; /* We have the password */
 		ast_log(LOG_DEBUG, "DISA no-password login success\n");
 	}
@@ -192,8 +201,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	play_dialtone(chan, mailbox);
 
-	for(;;)
-	{
+	for (;;) {
 		  /* if outa time, give em reorder */
 		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > 
 		    ((k&2) ? digittimeout : firstdigittimeout))

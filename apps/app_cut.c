@@ -262,7 +262,6 @@ static int sort_exec(struct ast_channel *chan, void *data)
 	char *varname, *strings, result[512] = "";
 	static int dep_warning=0;
 
-	LOCAL_USER_ADD(u);
 	if (!dep_warning) {
 		ast_log(LOG_WARNING, "The application Sort is deprecated.  Please use the SORT() function instead.\n");
 		dep_warning=1;
@@ -270,9 +269,10 @@ static int sort_exec(struct ast_channel *chan, void *data)
 
 	if (!data) {
 		ast_log(LOG_ERROR, "Sort() requires an argument\n");
-		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
+
+	LOCAL_USER_ADD(u);
 
 	strings = ast_strdupa((char *)data);
 	if (!strings) {

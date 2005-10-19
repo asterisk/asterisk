@@ -70,18 +70,24 @@ static char *descrip =
 
 static int settransfercapability_exec(struct ast_channel *chan, void *data)
 {
-	char tmp[256] = "";
+	char *tmp = NULL;
 	struct localuser *u;
 	int x;
 	char *opts;
 	int transfercapability = -1;
 	
+	LOCAL_USER_ADD(u);
+	
 	if (data)
-		ast_copy_string(tmp, (char *)data, sizeof(tmp));
+		tmp = ast_strdupa(data);
+	else
+		tmp = "";
+
 	opts = strchr(tmp, '|');
 	if (opts)
 		*opts = '\0';
-	for (x=0;x<sizeof(transcaps) / sizeof(transcaps[0]);x++) {
+	
+	for (x = 0; x < (sizeof(transcaps) / sizeof(transcaps[0])); x++) {
 		if (!strcasecmp(transcaps[x].name, tmp)) {
 			transfercapability = transcaps[x].val;
 			break;
@@ -89,15 +95,18 @@ static int settransfercapability_exec(struct ast_channel *chan, void *data)
 	}
 	if (transfercapability < 0) {
 		ast_log(LOG_WARNING, "'%s' is not a valid transfer capability (see 'show application SetTransferCapability')\n", tmp);
-		return 0;
-	} else {
-		LOCAL_USER_ADD(u);
-		chan->transfercapability = (unsigned short)transfercapability;
 		LOCAL_USER_REMOVE(u);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "Setting transfer capability to: 0x%.2x - %s.\n", transfercapability, tmp);			
 		return 0;
 	}
+		
+	chan->transfercapability = (unsigned short)transfercapability;
+	
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "Setting transfer capability to: 0x%.2x - %s.\n", transfercapability, tmp);			
+	
+	LOCAL_USER_REMOVE(u);
+
+	return 0;
 }
 
 

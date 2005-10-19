@@ -44,9 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "libpq-fe.h"
 
-#define EXTRA_LOG 0
-
-
 static char *tdesc = "Simple PostgreSQL Interface";
 
 static char *app = "PGSQL";
@@ -501,23 +498,19 @@ static int aPGSQL_debug(struct ast_channel *chan, void *data) {
 	ast_log(LOG_WARNING,"Debug : %s\n",(char *)data);
 	return(0);
 }
-		
-	
 
 static int PGSQL_exec(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
 	int result;
 
-#if EXTRA_LOG
-	printf("PRSQL_exec: data=%s\n",(char*)data);
-#endif
-
-	if (!data) {
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");
 		return -1;
 	}
+	
 	LOCAL_USER_ADD(u);
+
 	result=0;
 	
 	if (strncasecmp("connect",data,strlen("connect"))==0) {
@@ -540,8 +533,8 @@ static int PGSQL_exec(struct ast_channel *chan, void *data)
 	}
 		
 	LOCAL_USER_REMOVE(u);                                                                                
+	
 	return result;
-
 }
 
 int unload_module(void)

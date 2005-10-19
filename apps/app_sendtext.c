@@ -70,13 +70,14 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	char *status = "UNSUPPORTED";
-
-	if (!data || !strlen((char *)data)) {
+		
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendText requires an argument (text)\n");
 		return -1;
 	}
-
+	
 	LOCAL_USER_ADD(u);
+
 	ast_mutex_lock(&chan->lock);
 	if (!chan->tech->send_text) {
 		ast_mutex_unlock(&chan->lock);

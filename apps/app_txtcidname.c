@@ -40,6 +40,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/enum.h"
 #include "asterisk/utils.h"
 
+STANDARD_LOCAL_USER;
+
+LOCAL_USER_DECL;
+
 static char *tdesc = "TXTCIDName";
 
 static char *app = "TXTCIDName";
@@ -51,10 +55,6 @@ static char *descrip =
 "the variable 'TXTCIDNAME'. TXTCIDName will either be blank\n"
 "or return the value found in the TXT record in DNS.\n" ;
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
 static int txtcidname_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
@@ -64,6 +64,8 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	static int dep_warning = 0;
 
+	LOCAL_USER_ADD(u);
+	
 	if (!dep_warning) {
 		ast_log(LOG_WARNING, "The TXTCIDName application has been deprecated in favor of the TXTCIDNAME dialplan function.\n");
 		dep_warning = 1;
@@ -73,11 +75,11 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "TXTCIDName requires an argument (extension)\n");
 		res = 1;
 	}
-	LOCAL_USER_ADD(u);
+	
 	if (!res) {
 		res = ast_get_txt(chan, data, dest, sizeof(dest), tech, sizeof(tech), txt, sizeof(txt));
 	}
-	LOCAL_USER_REMOVE(u);
+	
 	/* Parse it out */
 	if (res > 0) {
 		if (!ast_strlen_zero(txt)) {
@@ -91,6 +93,9 @@ static int txtcidname_exec(struct ast_channel *chan, void *data)
 		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
+
+	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

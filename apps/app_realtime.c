@@ -129,11 +129,14 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 	char *family=NULL, *colmatch=NULL, *value=NULL, *newcol=NULL, *newval=NULL;
 	struct localuser *u;
 	int res = 0;
-	if (!data) {
-        ast_log(LOG_ERROR,"Invalid input %s\n",UUSAGE);
-        return -1;
-    }
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR,"Invalid input: usage %s\n",UUSAGE);
+		return -1;
+	}
+	
 	LOCAL_USER_ADD(u);
+
 	if ((family = ast_strdupa(data))) {
 		if ((colmatch = strchr(family,'|'))) {
 			crop_data(colmatch);
@@ -155,8 +158,8 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 	}
 
 	LOCAL_USER_REMOVE(u);
+	
 	return res;
-
 }
 
 
@@ -167,12 +170,14 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 	struct ast_variable *var, *itt;
 	char *family=NULL, *colmatch=NULL, *value=NULL, *prefix=NULL, *vname=NULL;
 	size_t len;
-
-	if (!data) {
+		
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR,"Invalid input: usage %s\n",USAGE);
 		return -1;
 	}
+	
 	LOCAL_USER_ADD(u);
+
 	if ((family = ast_strdupa(data))) {
 		if ((colmatch = strchr(family,'|'))) {
 			crop_data(colmatch);

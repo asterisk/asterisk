@@ -1553,9 +1553,12 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
+
+	LOCAL_USER_ADD(u);
+	
 	if (!data || ast_strlen_zero(data))
 		data = "asterisk.adsi";
-	LOCAL_USER_ADD(u);
+	
 	if (!adsi_available(chan)) {
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "ADSI Unavailable on CPE.  Not bothering to try.\n");
@@ -1564,7 +1567,9 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 			ast_verbose(VERBOSE_PREFIX_3 "ADSI Available on CPE.  Attempting Upload.\n");
 		res = adsi_prog(chan, data);
 	}
+
 	LOCAL_USER_REMOVE(u);
+	
 	return res;
 }
 

@@ -69,10 +69,21 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	int option_noanswer = 0;
 	char *stringp = NULL;
 	char *front = NULL, *back = NULL;
-	if (!data || ast_strlen_zero((char *)data) || !(tmp = ast_strdupa(data))) {
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
 	}
+
+	LOCAL_USER_ADD(u);
+
+	tmp = ast_strdupa(data);
+	if (!tmp) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;	
+	}
+
 	stringp = tmp;
 	strsep(&stringp, "|");
 	options = strsep(&stringp, "|");
@@ -80,7 +91,7 @@ static int playback_exec(struct ast_channel *chan, void *data)
 		option_skip = 1;
 	if (options && !strcasecmp(options, "noanswer"))
 		option_noanswer = 1;
-	LOCAL_USER_ADD(u);
+	
 	if (chan->_state != AST_STATE_UP) {
 		if (option_skip) {
 			/* At the user's option, skip if the line is not up */

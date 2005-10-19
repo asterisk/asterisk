@@ -88,17 +88,23 @@ static int skel_exec(struct ast_channel *chan, void *data)
 {
 	int res=0;
 	struct localuser *u;
-	if (!data) {
+	
+	if (!data || ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "skel requires an argument (filename)\n");
 		return -1;
 	}
+	
 	LOCAL_USER_ADD(u);
+
 	/* Do our thing here */
+
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res)
 		res = ast_ivr_menu_run(chan, &ivr_demo, data);
+	
 	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 

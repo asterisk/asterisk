@@ -38,6 +38,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/options.h"
 
+STANDARD_LOCAL_USER;
+
+LOCAL_USER_DECL;
+
 static const char *tdesc = "Transfer";
 
 static const char *app = "Transfer";
@@ -61,10 +65,6 @@ static const char *descrip =
 "successful and there exists a priority n + 101,\n"
 "then that priority will be taken next.\n" ;
 
-STANDARD_LOCAL_USER;
-
-LOCAL_USER_DECL;
-
 static int transfer_exec(struct ast_channel *chan, void *data)
 {
 	int res;
@@ -81,12 +81,15 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
+	LOCAL_USER_ADD(u);
+
 	if ((slash = strchr(dest, '/')) && (len = (slash - dest))) {
 		tech = dest;
 		dest = slash + 1;
 		/* Allow execution only if the Tech/destination agrees with the type of the channel */
 		if (strncasecmp(chan->type, tech, len)) {
 			pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
+			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
 	}
@@ -94,10 +97,9 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	/* Check if the channel supports transfer before we try it */
 	if (!chan->tech->transfer) {
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "UNSUPPORTED");
+		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
-
-	LOCAL_USER_ADD(u);
 
 	res = ast_transfer(chan, dest);
 

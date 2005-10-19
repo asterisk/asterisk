@@ -256,6 +256,12 @@ static int app_exec(struct ast_channel *chan, void *data)
 	FILE *child_errors = NULL;
 	FILE *child_events = NULL;
 
+	LOCAL_USER_ADD(u);
+	
+	AST_LIST_HEAD_INIT(&u->playlist);
+	AST_LIST_HEAD_INIT(&u->finishlist);
+	u->abort_current_sound = 0;
+	
 	if (!args || ast_strlen_zero(args)) {
 		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
 		goto exit;
@@ -267,8 +273,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 	argv[0] = command;
 	while ((argc < 31) && (argv[argc++] = strsep(&buf, "|")));
 	argv[argc] = NULL;
-
-	LOCAL_USER_ADD(u);
 
 	if (pipe(child_stdin)) {
 		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child input: %s\n", strerror(errno));
@@ -284,10 +288,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child errors: %s\n", strerror(errno));
 		goto exit;
 	}
-
-	u->abort_current_sound = 0;
-	AST_LIST_HEAD_INIT(&u->playlist);
-	AST_LIST_HEAD_INIT(&u->finishlist);
 
 	if (chan->_state != AST_STATE_UP) {
 		ast_answer(chan);
@@ -533,12 +533,10 @@ static int app_exec(struct ast_channel *chan, void *data)
 	if (child_stderr[1])
 		close(child_stderr[1]);
 
-	if (u) {
-		while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
-			free(entry);
+	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
+		free(entry);
 
-		LOCAL_USER_REMOVE(u);
-	}
+	LOCAL_USER_REMOVE(u);
 
 	return res;
 }

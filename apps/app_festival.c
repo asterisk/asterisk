@@ -292,13 +292,21 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	int fdesc = -1;
 	char buffer[16384];
 	int seekpos = 0;	
-	char data[256] = "";
+	char *data;	
 	char *intstr;
-	
 	struct ast_config *cfg;
+
+	if (!vdata || ast_strlen_zero(vdata)) {
+		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
+		return -1;
+	}
+
+	LOCAL_USER_ADD(u);
+
 	cfg = ast_config_load(FESTIVAL_CONFIG);
 	if (!cfg) {
 		ast_log(LOG_WARNING, "No such configuration file %s\n", FESTIVAL_CONFIG);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	if (!(host = ast_variable_retrieve(cfg, "general", "host"))) {
@@ -320,19 +328,23 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (!(festivalcommand = ast_variable_retrieve(cfg, "general", "festivalcommand"))) {
 		festivalcommand = "(tts_textasterisk \"%s\" 'file)(quit)\n";
 	}
-	if (!vdata || ast_strlen_zero(vdata)) {
-		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
+	
+	data = ast_strdupa(vdata);
+	if (!data) {
+		ast_log(LOG_ERROR, "Out of memery\n");
 		ast_config_destroy(cfg);
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	strncpy(data, vdata, sizeof(data) - 1);
-	if ((intstr = strchr(data, '|'))) {
+
+	intstr = strchr(data, '|');
+	if (intstr) {	
 		*intstr = '\0';
 		intstr++;
 		if (!strcasecmp(intstr, "any"))
 			intstr = AST_DIGIT_ANY;
 	}
-	LOCAL_USER_ADD(u);
+	
 	ast_log(LOG_DEBUG, "Text passed to festival server : %s\n",(char *)data);
 	/* Connect to local festival server */
 	
@@ -341,6 +353,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
     	if (fd < 0) {
 		ast_log(LOG_WARNING,"festival_client: can't get socket\n");
 		ast_config_destroy(cfg);
+		LOCAL_USER_REMOVE(u);
         	return -1;
 	}
         memset(&serv_addr, 0, sizeof(serv_addr));
@@ -350,6 +363,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	        if (serverhost == (struct hostent *)0) {
         	    	ast_log(LOG_WARNING,"festival_client: gethostbyname failed\n");
 			ast_config_destroy(cfg);
+			LOCAL_USER_REMOVE(u);
 	            	return -1;
         	}
 	        memmove(&serv_addr.sin_addr,serverhost->h_addr, serverhost->h_length);
@@ -360,6 +374,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	if (connect(fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
 		ast_log(LOG_WARNING,"festival_client: connect to server failed\n");
 		ast_config_destroy(cfg);
+		LOCAL_USER_REMOVE(u);
         	return -1;
     	}
     	
@@ -463,7 +478,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	} while (strcmp(ack,"OK\n") != 0);
 	close(fd);
 	ast_config_destroy(cfg);
-	LOCAL_USER_REMOVE(u);                                                                                
+	LOCAL_USER_REMOVE(u);
 	return res;
 
 }
