@@ -183,26 +183,36 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 {
 	if (p->alreadymasqed || p->nooptimization)
 		return;
-	if (isoutbound && p->chan && p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && p->owner && !p->owner->readq) {
+	if (!p->chan || !p->owner)
+		return;
+	if (isoutbound&& p->chan->_bridge /* Not ast_bridged_channel!  Only go one step! */ && !p->owner->readq) {
 		/* Masquerade bridged channel into owner */
 		/* Lock everything we need, one by one, and give up if
 		   we can't get everything.  Remember, we'll get another
 		   chance in just a little bit */
 		if (!ast_mutex_trylock(&(p->chan->_bridge)->lock)) {
-			if (!ast_mutex_trylock(&p->owner->lock)) {
-				ast_channel_masquerade(p->owner, p->chan->_bridge);
-				p->alreadymasqed = 1;
-				ast_mutex_unlock(&p->owner->lock);
+			if (!p->chan->_bridge->_softhangup) {
+				if (!ast_mutex_trylock(&p->owner->lock)) {
+					if (!p->owner->_softhangup) {
+						ast_channel_masquerade(p->owner, p->chan->_bridge);
+						p->alreadymasqed = 1;
+					}
+					ast_mutex_unlock(&p->owner->lock);
+				}
+				ast_mutex_unlock(&(p->chan->_bridge)->lock);
 			}
-			ast_mutex_unlock(&(p->chan->_bridge)->lock);
 		}
 	} else if (!isoutbound && p->owner && p->owner->_bridge && p->chan && !p->chan->readq) {
 		/* Masquerade bridged channel into chan */
 		if (!ast_mutex_trylock(&(p->owner->_bridge)->lock)) {
-			if (!ast_mutex_trylock(&p->chan->lock)) {
-				ast_channel_masquerade(p->chan, p->owner->_bridge);
-				p->alreadymasqed = 1;
-				ast_mutex_unlock(&p->chan->lock);
+			if (!p->owner->_bridge->_softhangup) {
+				if (!ast_mutex_trylock(&p->chan->lock)) {
+					if (!p->chan->_softhangup) {
+						ast_channel_masquerade(p->chan, p->owner->_bridge);
+						p->alreadymasqed = 1;
+					}
+					ast_mutex_unlock(&p->chan->lock);
+				}
 			}
 			ast_mutex_unlock(&(p->owner->_bridge)->lock);
 		}
