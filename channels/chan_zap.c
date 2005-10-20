@@ -2917,7 +2917,9 @@ static void zt_link(struct zt_pvt *slave, struct zt_pvt *master) {
 
 static void disable_dtmf_detect(struct zt_pvt *p)
 {
+#ifdef ZT_TONEDETECT
 	int val;
+#endif
 
 	p->ignoredtmf = 1;
 
@@ -2930,7 +2932,9 @@ static void disable_dtmf_detect(struct zt_pvt *p)
 
 static void enable_dtmf_detect(struct zt_pvt *p)
 {
+#ifdef ZT_TONEDETECT
 	int val;
+#endif
 
 	p->ignoredtmf = 0;
 
