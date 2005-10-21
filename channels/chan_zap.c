@@ -47,7 +47,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_CALLINGPLANRDNIS
+#ifndef PRI_USER_USER_TX
 #error "You need newer libpri"
 #endif
 #endif
@@ -1994,6 +1994,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 #ifdef ZAPATA_PRI
 	if (p->pri) {
 		struct pri_sr *sr;
+		char *useruser;
 		int pridialplan;
 		int dp_strip;
 		int prilocaldialplan;
@@ -2107,6 +2108,12 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 					l ? (p->use_callingpres ? ast->cid.cid_pres : PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN) : 
 						 PRES_NUMBER_NOT_AVAILABLE);
 		pri_sr_set_redirecting(sr, ast->cid.cid_rdnis, p->pri->localdialplan - 1, PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, PRI_REDIR_UNCONDITIONAL);
+		/* User-user info */
+		useruser = pbx_builtin_getvar_helper(p->owner, "USERUSERINFO");
+
+		if (useruser)
+			pri_sr_set_useruser(sr, useruser);
+
 		if (pri_setup(p->pri->pri, p->call,  sr)) {
  			ast_log(LOG_WARNING, "Unable to setup call to %s (using %s)\n", 
  						c + p->stripmsd + dp_strip, dialplan2str(p->pri->dialplan));
@@ -2445,11 +2452,13 @@ static int zt_hangup(struct ast_channel *ast)
 		/* Perform low level hangup if no owner left */
 #ifdef ZAPATA_PRI
 		if (p->pri) {
+			char *useruser = pbx_builtin_getvar_helper(ast,"USERUSERINFO");
 			/* Make sure we have a call (or REALLY have a call in the case of a PRI) */
 			if (p->call && (!p->bearer || (p->bearer->call == p->call))) {
 				if (!pri_grab(p, p->pri)) {
 					if (p->alreadyhungup) {
 						ast_log(LOG_DEBUG, "Already hungup...  Calling hangup once, and clearing call\n");
+						pri_call_set_useruser(p->call, useruser);
 						pri_hangup(p->pri->pri, p->call, -1);
 						p->call = NULL;
 						if (p->bearer) 
@@ -2458,6 +2467,7 @@ static int zt_hangup(struct ast_channel *ast)
 						char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
 						int icause = ast->hangupcause ? ast->hangupcause : -1;
 						ast_log(LOG_DEBUG, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
+						pri_call_set_useruser(p->call, useruser);
 						p->alreadyhungup = 1;
 						if (p->bearer)
 							p->bearer->alreadyhungup = 1;
@@ -8551,6 +8561,9 @@ static void *pri_dchannel(void *vpri)
 								pri->pvts[chanpos]->dsp_features = 0;
 							}
 						}
+						if (!ast_strlen_zero(e->ringing.useruserinfo)) {
+							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->ringing.useruserinfo);
+						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -8705,6 +8718,9 @@ static void *pri_dchannel(void *vpri)
 							/* Enable echo cancellation if it's not on already */
 							zt_enable_ec(pri->pvts[chanpos]);
 						}
+						if (!ast_strlen_zero(e->answer.useruserinfo)) {
+							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->answer.useruserinfo);
+						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
 				}
@@ -8762,6 +8778,9 @@ static void *pri_dchannel(void *vpri)
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d received AOC-E charging %d unit%s\n",
 									pri->pvts[chanpos]->logicalspan, pri->pvts[chanpos]->prioffset, pri->span, (int)e->hangup.aoc_units, (e->hangup.aoc_units == 1) ? "" : "s");
+						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
+							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->hangup.useruserinfo);
+						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					} else {
 						ast_log(LOG_WARNING, "Hangup on bad channel %d/%d on span %d\n", 
@@ -8819,6 +8838,9 @@ static void *pri_dchannel(void *vpri)
 							pri_reset(pri->pri, PVT_TO_CHANNEL(pri->pvts[chanpos]));
 							pri->pvts[chanpos]->resetting = 1;
 						}
+						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
+							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->hangup.useruserinfo);
+						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					} else {
 						ast_log(LOG_WARNING, "Hangup REQ on bad channel %d/%d on span %d\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
@@ -8841,6 +8863,9 @@ static void *pri_dchannel(void *vpri)
 						if (pri->pvts[chanpos]->owner) {
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Channel %d/%d, span %d got hangup ACK\n", PRI_SPAN(e->hangup.channel), PRI_CHANNEL(e->hangup.channel), pri->span);
+						}
+						if (!ast_strlen_zero(e->hangup.useruserinfo)) {
+							pbx_builtin_setvar_helper(pri->pvts[chanpos]->owner, "USERUSERINFO", e->hangup.useruserinfo);
 						}
 						ast_mutex_unlock(&pri->pvts[chanpos]->lock);
 					}
