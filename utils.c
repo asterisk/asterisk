@@ -171,6 +171,7 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 {
 	int res;
 	int herrno;
+	int dots=0;
 	const char *s;
 	struct hostent *result = NULL;
 	/* Although it is perfectly legitimate to lookup a pure integer, for
@@ -180,12 +181,22 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 	s = host;
 	res = 0;
 	while(s && *s) {
-		if (!isdigit(*s))
+		if (*s == '.')
+			dots++;
+		else if (!isdigit(*s))
 			break;
 		s++;
 	}
-	if (!s || !*s)
+	if (!s || !*s) {
+		/* Forge a reply for IP's to avoid octal IP's being interpreted as octal */
+		if (dots != 3)
+			return NULL;
+		hp->hp.h_addr = hp->buf;
+		if (inet_pton(AF_INET, host, hp->hp.h_addr) > 0)
+			return &hp->hp;
 		return NULL;
+		
+	}
 #ifdef SOLARIS
 	result = gethostbyname_r(host, &hp->hp, hp->buf, sizeof(hp->buf), &herrno);
 
