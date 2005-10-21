@@ -20,7 +20,7 @@
 
 /*
  *
- * DISA -- Direct Inward System Access Application  6/20/2001
+ * DISA -- Direct Inward System Access Application
  * 
  */
  
@@ -53,30 +53,27 @@ static char *app = "DISA";
 static char *synopsis = "DISA (Direct Inward System Access)";
 
 static char *descrip = 
-	"DISA (Direct Inward System Access) -- Allows someone from outside\n"
-	"the telephone switch (PBX) to obtain an \"internal\" system dialtone\n"
-	"and to place calls from it as if they were placing a call from within\n"
-	"the switch. A user calls a number that connects to the DISA application\n"
-	"and is given dialtone. The user enters their passcode, followed by the\n"
-	"pound sign (#). If the passcode is correct, the user is then given\n"
+	"DISA(<numeric passcode>[|<context>]) or disa(<filename>)\n"
+	"The DISA, Direct Inward System Access, application allows someone from \n"
+	"outside the telephone switch (PBX) to obtain an \"internal\" system \n"
+	"dialtone and to place calls from it as if they were placing a call from \n"
+	"within the switch.\n"
+	"DISA plays a dialtone. The user enters their numeric passcode, followed by\n"
+	"the pound sign (#). If the passcode is correct, the user is then given\n"
 	"system dialtone on which a call may be placed. Obviously, this type\n"
 	"of access has SERIOUS security implications, and GREAT care must be\n"
 	"taken NOT to compromise your security.\n\n"
 	"There is a possibility of accessing DISA without password. Simply\n"
-	"exchange your password with no-password.\n\n"
-	"  Example: exten => s,1,DISA,no-password|local\n\n"
-	"but be aware of using this for your security compromising.\n\n"
+	"exchange your password with \"no-password\".\n\n"
+	"    Example: exten => s,1,DISA(no-password|local)\n\n"
+	"Be aware that using this compromises the security of your PBX.\n\n"
 	"The arguments to this application (in extensions.conf) allow either\n"
-	"specification of a single global password (that everyone uses), or\n"
-	"individual passwords contained in a file. It also allow specification\n"
+	"specification of a single global passcode (that everyone uses), or\n"
+	"individual passcodes contained in a file. It also allow specification\n"
 	"of the context on which the user will be dialing. If no context is\n"
-	"specified, the DISA application defaults the context to \"disa\"\n"
-	"presumably that a normal system will have a special context set up\n"
-	"for DISA use with some or a lot of restrictions. The arguments are\n"
-	"one of the following:\n\n"
-	"    numeric-passcode\n"
-	"    numeric-passcode|context\n"
-	"    full-pathname-of-file-that-contains-passcodes\n\n"
+	"specified, the DISA application defaults the context to \"disa\".\n"
+	"Presumably a normal system will have a special context set up\n"
+	"for DISA use with some or a lot of restrictions. \n\n"
 	"The file that contains the passcodes (if used) allows specification\n"
 	"of either just a passcode (defaulting to the \"disa\" context, or\n"
 	"passcode|context on each line of the file. The file may contain blank\n"
@@ -91,10 +88,10 @@ static char *descrip =
 	"numeric-passcode|context||1234 (w/a changing callerid).  Note that\n"
 	"in the case of specifying the numeric-passcode, the context must be\n"
 	"specified if the callerid is specified also.\n\n"
-	"If login is successful, the application parses the dialed number in\n"
-	"the specified (or default) context, and returns 0 with the new extension\n"
-	"context filled-in and the priority set to 1, so that the PBX may\n"
-	"re-apply the routing tables to it and complete the call normally.";
+	"If login is successful, the application looks up the dialed number in\n"
+	"the specified (or default) context, and executes it if found.\n"
+	"If the user enters an invalid extension and extension \"i\" (invalid) \n"
+	"exists in the context, it will be used.\n";
 
 
 STANDARD_LOCAL_USER;
