@@ -6593,7 +6593,6 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 	struct ast_ha *oldha = NULL;
 	struct iax2_context *oldcon = NULL;
 	int format;
-	int found;
 	
 	prev = NULL;
 	ast_mutex_lock(&userl.lock);
@@ -6606,7 +6605,6 @@ static struct iax2_user *build_user(char *name, struct ast_variable *v)
 		user = user->next;
 	}
 	if (user) {
-		found++;
 		oldha = user->ha;
 		oldcon = user->contexts;
 		user->ha = NULL;
