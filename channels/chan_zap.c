@@ -9667,7 +9667,7 @@ static int handle_zap_show_cadences(int fd, int argc, char *argv[])
 
 /* Based on irqmiss.c */
 static int zap_show_status(int fd, int argc, char *argv[]) {
-	#define FORMAT "%-40.40s %-10.10s %10d %10d %10d\n"
+	#define FORMAT "%-40.40s %-10.10s %-10d %-10d %-10d\n"
 	#define FORMAT2 "%-40.40s %-10.10s %-10.10s %-10.10s %-10.10s\n"
 
 	int span;
