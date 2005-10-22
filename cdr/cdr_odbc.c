@@ -208,6 +208,7 @@ static int odbc_unload_module(void)
 		SQLDisconnect(ODBC_con);
 		SQLFreeHandle(SQL_HANDLE_DBC, ODBC_con);
 		SQLFreeHandle(SQL_HANDLE_ENV, ODBC_env);
+		connected = 0;
 	}
 	if (dsn) {
 		if (option_verbose > 10)
