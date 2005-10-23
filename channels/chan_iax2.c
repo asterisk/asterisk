@@ -2129,7 +2129,8 @@ static void update_jbsched(struct chan_iax2_pvt *pvt) {
     pvt->jbid = ast_sched_add(sched, when, get_from_jb, (void *)pvt);
 }
 
-static int get_from_jb(void *p) {
+static int get_from_jb(void *p) 
+{
 	/* make sure pvt is valid! */	
     struct chan_iax2_pvt *pvt = p;
     struct iax_frame *fr;
@@ -2152,49 +2153,49 @@ static int get_from_jb(void *p) {
     now = ast_tvdiff_ms(tv, pvt->rxcore);
 
     if(now >= (next = jb_next(pvt->jb))) {
-	ret = jb_get(pvt->jb,&frame,now,ast_codec_interp_len(pvt->voiceformat));
-	switch(ret) {
-	    case JB_OK:
-		/*if(frame.type == JB_TYPE_VOICE && next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */
-		fr = frame.data;
-		__do_deliver(fr);
-	    break;
-	    case JB_INTERP:
-	    {
-		struct ast_frame af;
-
-		/*if(next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */
-
-		/* create an interpolation frame */
-		/*fprintf(stderr, "Making Interpolation frame\n"); */
-		af.frametype = AST_FRAME_VOICE;
-		af.subclass = pvt->voiceformat;
-		af.datalen  = 0;
-		af.samples  = frame.ms * 8;
-		af.mallocd  = 0;
-		af.src  = "IAX2 JB interpolation";
-		af.data  = NULL;
-		af.delivery = ast_tvadd(pvt->rxcore, ast_samp2tv(next, 1000));
-		af.offset=AST_FRIENDLY_OFFSET;
-
-		/* queue the frame:  For consistency, we would call __do_deliver here, but __do_deliver wants an iax_frame,
-		 * which we'd need to malloc, and then it would free it.  That seems like a drag */
-		if (iaxs[pvt->callno] && !ast_test_flag(iaxs[pvt->callno], IAX_ALREADYGONE))
-			iax2_queue_frame(pvt->callno, &af);
-	    }
-	    break;
-	    case JB_DROP:
-		/*if(next != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not next %ld!\n", jb_next(pvt->jb), next); */
-		iax2_frame_free(frame.data);
-	    break;
-	    case JB_NOFRAME:
-	    case JB_EMPTY:
-		/* do nothing */
-	    break;
-	    default:
-		/* shouldn't happen */
-	    break;
-	}
+		ret = jb_get(pvt->jb,&frame,now,ast_codec_interp_len(pvt->voiceformat));
+		switch(ret) {
+		case JB_OK:
+			/*if(frame.type == JB_TYPE_VOICE && next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */
+			fr = frame.data;
+			__do_deliver(fr);
+		    break;
+		case JB_INTERP:
+		    {
+			struct ast_frame af;
+	
+			/*if(next + 20 != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not %ld+20!\n", jb_next(pvt->jb), next); */
+	
+			/* create an interpolation frame */
+			/*fprintf(stderr, "Making Interpolation frame\n"); */
+			af.frametype = AST_FRAME_VOICE;
+			af.subclass = pvt->voiceformat;
+			af.datalen  = 0;
+			af.samples  = frame.ms * 8;
+			af.mallocd  = 0;
+			af.src  = "IAX2 JB interpolation";
+			af.data  = NULL;
+			af.delivery = ast_tvadd(pvt->rxcore, ast_samp2tv(next, 1000));
+			af.offset=AST_FRIENDLY_OFFSET;
+	
+			/* queue the frame:  For consistency, we would call __do_deliver here, but __do_deliver wants an iax_frame,
+			 * which we'd need to malloc, and then it would free it.  That seems like a drag */
+			if (iaxs[pvt->callno] && !ast_test_flag(iaxs[pvt->callno], IAX_ALREADYGONE))
+				iax2_queue_frame(pvt->callno, &af);
+		    }
+		    break;
+		case JB_DROP:
+			/*if(next != jb_next(pvt->jb)) fprintf(stderr, "NEXT %ld is not next %ld!\n", jb_next(pvt->jb), next); */
+			iax2_frame_free(frame.data);
+		    break;
+		case JB_NOFRAME:
+		case JB_EMPTY:
+			/* do nothing */
+		    break;
+		default:
+			/* shouldn't happen */
+		    break;
+		}
     }
     update_jbsched(pvt);
     ast_mutex_unlock(&iaxsl[pvt->callno]);
@@ -2533,6 +2534,15 @@ static struct iax2_peer *realtime_peer(const char *peername, struct sockaddr_in 
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
 		sprintf(porta, "%d", ntohs(sin->sin_port));
 		var = ast_load_realtime("iaxpeers", "ipaddr", iabuf, "port", porta, NULL);
+		if (var) {
+			/* We'll need the peer name in order to build the structure! */
+			tmp = var;
+			while(tmp) {
+				if (!strcasecmp(tmp->name, "name"))
+					peername = tmp->value;
+				tmp = tmp->next;
+			}
+		}
 	}
 	if (!var)
 		return NULL;
