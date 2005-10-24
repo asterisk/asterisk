@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * simple math application
+ * \brief A simple math application
  * 
  */
 

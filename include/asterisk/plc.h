@@ -1,9 +1,9 @@
-/*
- * SpanDSP - a series of DSP components for telephony
+/*! \file
+ * \brief SpanDSP - a series of DSP components for telephony
  *
  * plc.h
  *
- * Written by Steve Underwood <steveu@coppice.org>
+ * \author Steve Underwood <steveu@coppice.org>
  *
  * Copyright (C) 2004 Steve Underwood
  *
@@ -27,7 +27,6 @@
  * This version is disclaimed to DIGIUM for inclusion in the Asterisk project.
  */
 
-/*! \file */
 
 #if !defined(_PLC_H_)
 #define _PLC_H_

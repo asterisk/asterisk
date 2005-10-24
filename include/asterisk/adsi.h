@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * ADSI Support (built upon Caller*ID) 
+/*! \file
+ * \brief ADSI Support (built upon Caller*ID) 
  */
 
 #ifndef _ASTERISK_ADSI_H

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Group Manipulation Applications
+ * \brief Group Manipulation Applications
  *
  */
 

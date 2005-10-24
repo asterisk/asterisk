@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to set callerid name from database, based on directory number
+ * \brief App to set callerid name from database, based on directory number
  * 
  */
 

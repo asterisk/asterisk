@@ -17,8 +17,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Custom localtime functions for multiple timezones
+/*! \file
+ * \brief Custom localtime functions for multiple timezones
  */
 
 #ifndef _ASTERISK_LOCALTIME_H

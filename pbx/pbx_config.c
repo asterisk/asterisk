@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Populate and remember extensions from static config file
+ * \brief Populate and remember extensions from static config file
  * 
  */
 

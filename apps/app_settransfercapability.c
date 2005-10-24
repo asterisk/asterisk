@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to set the ISDN Transfer Capability
+ * \brief App to set the ISDN Transfer Capability
  * 
  */
  

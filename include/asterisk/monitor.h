@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Channel monitoring
+/*! \file
+ * \brief Channel monitoring
  */
 
 #ifndef _ASTERISK_MONITOR_H

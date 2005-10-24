@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Directed Call Pickup Support
+ * \brief Directed Call Pickup Support
  *
  */
 

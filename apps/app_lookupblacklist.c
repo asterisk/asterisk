@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to lookup the callerid number, and see if it is blacklisted
+ * \brief App to lookup the callerid number, and see if it is blacklisted
  * 
  */
 

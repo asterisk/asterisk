@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Asterisk Logger
+/*! \file
+ * \brief Asterisk Logger
  * 
  * Logging routines
  *

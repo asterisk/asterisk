@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Translate via the use of pseudo channels
+ * \brief Translate via the use of pseudo channels
  * 
  */
 

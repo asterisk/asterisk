@@ -16,9 +16,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Routines implementing music on hold
+ * \brief Routines implementing music on hold
+ *
+ * \arg See also \ref Config_moh
  * 
  */
 

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Loopback PBX Module
+ * \brief Loopback PBX Module
  *
  */
 

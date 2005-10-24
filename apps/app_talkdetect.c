@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Playback a file with audio detect
+ * \brief Playback a file with audio detect
  * 
  */
  

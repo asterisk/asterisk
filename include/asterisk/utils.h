@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Utility functions
+/*! \file
+ * \brief Utility functions
  */
 
 #ifndef _ASTERISK_UTILS_H
@@ -34,7 +34,9 @@
 #include "asterisk/time.h"
 #include "asterisk/strings.h"
 
-/* Note:
+/*! \note
+ \verbatim
+   Note:
    It is very important to use only unsigned variables to hold
    bit flags, as otherwise you can fall prey to the compiler's
    sign-extension antics if you try to use the top two bits in
@@ -46,13 +48,13 @@
    type of variable, a warning message similar to this:
 
    warning: comparison of distinct pointer types lacks cast
-
    will be generated.
 
    The "dummy" variable below is used to make these comparisons.
 
    Also note that at -O2 or above, this type-safety checking
    does _not_ produce any additional object code at all.
+ \endverbatim
 */
 
 extern unsigned int __unsigned_int_flags_dummy;

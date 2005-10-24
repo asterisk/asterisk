@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Call Detail Record related dialplan functions
+ * \brief  Call Detail Record related dialplan functions
  * 
  */
 

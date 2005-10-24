@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Implementation of the Skinny protocol
+ * \brief Implementation of the Skinny protocol
  * 
  */
 

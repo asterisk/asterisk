@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Builtin dialplan functions
+ * \brief Builtin dialplan functions
  * 
  */
 

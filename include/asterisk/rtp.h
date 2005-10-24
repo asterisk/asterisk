@@ -20,7 +20,7 @@
  * \file rtp.h
  * \brief Supports RTP and RTCP with Symmetric RTP support for NAT traversal.
  * 
- * RTP is deffined in RFC 3550.
+ * RTP is defined in RFC 3550.
  */
 
 #ifndef _ASTERISK_RTP_H

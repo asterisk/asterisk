@@ -14,9 +14,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * UserEvent application -- send manager event
+ * \brief UserEvent application -- send manager event
  * 
  */
 

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Playback the special information tone to get rid of telemarketers
+ * \brief Playback the special information tone to get rid of telemarketers
  * 
  */
  

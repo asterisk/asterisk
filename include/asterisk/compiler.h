@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Compiler-specific macros and other items
+/*! \file
+ * \brief Compiler-specific macros and other items
  */
 
 #ifndef _ASTERISK_COMPILER_H

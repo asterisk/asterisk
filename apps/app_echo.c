@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Echo application -- play back what you hear to evaluate latency
+ * \brief Echo application -- play back what you hear to evaluate latency
  * 
  */
 

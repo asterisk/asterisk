@@ -17,9 +17,8 @@
  *
  */
 
-/*
- *
- * Curl - App to load a URL
+/*! \file
+ * \brief Curl - App to load a URL
  * 
  */
  

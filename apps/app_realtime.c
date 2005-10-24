@@ -17,9 +17,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * RealTime App
+ * \brief RealTime App
  * 
  */
 

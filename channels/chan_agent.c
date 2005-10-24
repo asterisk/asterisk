@@ -17,11 +17,10 @@
  */
 
 
-/**
- * Implementation of Agents
+/*! \file
+ * \brief Implementation of Agents
  *
- * @file chan_agent.c
- * @brief This file is the implementation of Agents modules.
+ * This file is the implementation of Agents modules.
  * It is a dynamic module that is loaded by Asterisk. At load time, load_module is run.
  */
 

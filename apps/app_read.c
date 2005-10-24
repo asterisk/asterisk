@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Trivial application to read a variable
+ * \brief Trivial application to read a variable
  * 
  */
  

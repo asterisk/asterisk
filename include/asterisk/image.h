@@ -16,14 +16,14 @@
  * at the top of the source tree.
  */
 
-/*
- * General Asterisk channel definitions.
+/*! \file
+ * \brief General Asterisk channel definitions for image handling
  */
 
 #ifndef _ASTERISK_IMAGE_H
 #define _ASTERISK_IMAGE_H
 
-/*! structure associated with registering an image format */
+/*! \brief structure associated with registering an image format */
 struct ast_imager {
 	/*! Name */
 	char *name;						

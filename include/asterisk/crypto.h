@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Provide cryptographic signature routines
+/*! \file
+ * \brief Provide cryptographic signature routines
  */
 
 #ifndef _ASTERISK_CRYPTO_H
@@ -35,8 +35,7 @@ extern "C" {
 
 struct ast_key;
 
-/*! Retrieve a key */
-/*! 
+/*! \brief Retrieve a key 
  * \param name of the key we are retrieving
  * \param int type of key (AST_KEY_PUBLIC or AST_KEY_PRIVATE)
  *
@@ -44,8 +43,7 @@ struct ast_key;
  */
 extern struct ast_key *(*ast_key_get)(const char *key, int type);
 
-/*! Check the authenticity of a message signature using a given public key */
-/*!
+/*! \brief Check the authenticity of a message signature using a given public key 
  * \param key a public key to use to verify
  * \param msg the message that has been signed
  * \param sig the proposed valid signature in mime64-like encoding
@@ -55,8 +53,7 @@ extern struct ast_key *(*ast_key_get)(const char *key, int type);
  */
 extern int (*ast_check_signature)(struct ast_key *key, const char *msg, const char *sig);
 
-/*! Check the authenticity of a message signature using a given public key */
-/*!
+/*! \brief Check the authenticity of a message signature using a given public key 
  * \param key a public key to use to verify
  * \param msg the message that has been signed
  * \param sig the proposed valid signature in raw binary representation
@@ -76,6 +73,7 @@ extern int (*ast_check_signature_bin)(struct ast_key *key, const char *msg, int 
  *
  */
 extern int (*ast_sign)(struct ast_key *key, char *msg, char *sig);
+
 /*!
  * \param key a private key to use to create the signature
  * \param msg the message to sign

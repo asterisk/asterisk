@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
- * FSK Modem Support 
- * Includes code and algorithms from the Zapata library.
+/*! \file
+ * \brief FSK Modem Support 
+ * \note Includes code and algorithms from the Zapata library.
  */
 
 #ifndef _ASTERISK_FSKMODEM_H
@@ -57,7 +57,8 @@ typedef struct {
 	float cola_demod[NCOLA];	/* Cola de muestras demoduladas */
 } fsk_data;
 
-/* Retrieve a serial byte into outbyte.  Buffer is a pointer into a series of 
+/* \brief Retrieve a serial byte into outbyte.
+   Buffer is a pointer into a series of 
    shorts and len records the number of bytes in the buffer.  len will be 
    overwritten with the number of bytes left that were not consumed, and the
    return value is as follows:

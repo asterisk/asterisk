@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Module Loader
+ * \brief Module Loader
  * 
  */
 

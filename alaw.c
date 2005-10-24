@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * u-Law to Signed linear conversion
+ * \brief u-Law to Signed linear conversion
  * 
  */
 

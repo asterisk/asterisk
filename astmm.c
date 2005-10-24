@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Memory Management
+ * \brief Memory Management
  * 
  */
 

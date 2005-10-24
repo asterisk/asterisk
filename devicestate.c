@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Device state management
+ * \brief Device state management
  * 
  */
 

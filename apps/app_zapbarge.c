@@ -19,9 +19,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Zap Barge support
+ * \brief Zap Barge support
  * 
  */
 

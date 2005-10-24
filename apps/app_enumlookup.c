@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Enumlookup - lookup entry in ENUM
+ * \brief Enumlookup - lookup entry in ENUM
  *
  */
 

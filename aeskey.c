@@ -30,7 +30,9 @@
  ---------------------------------------------------------------------------
  Issue Date: 26/08/2003
 
- This file contains the code for implementing the key schedule for AES
+*/
+/*! \file
+\brief  This file contains the code for implementing the key schedule for AES
  (Rijndael) for block and key sizes of 16, 24, and 32 bytes. See aesopt.h
  for further details including optimisation.
 */

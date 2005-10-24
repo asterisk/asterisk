@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ISDN4Linux TTY Driver
+ * \brief ISDN4Linux TTY Driver
  * 
  */
 

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * While Loop and ExecIf Implementations
+ * \brief While Loop and ExecIf Implementations
  * 
  */
 

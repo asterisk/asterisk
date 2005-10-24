@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Persistant data storage (akin to *doze registry)
+/*! \file
+ * \brief Persistant data storage (akin to *doze registry)
  */
 
 #ifndef _ASTERISK_PRIVACY_H

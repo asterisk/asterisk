@@ -16,14 +16,12 @@
  * at the top of the source tree.
  */
 
-/*
- * Inlinable API function macro
- */
-
 #ifndef __ASTERISK_INLINEAPI_H
 #define __ASTERISK_INLINEAPI_H
 
-/*
+/*! \file
+ * \brief Inlinable API function macro
+
   Small API functions that are candidates for inlining need to be specially
   declared and defined, to ensure that the 'right thing' always happens.
   For example:

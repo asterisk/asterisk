@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * MD5 digest related dialplan functions
+ * \brief MD5 digest related dialplan functions
  * 
  */
 

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Voice Modem Definitions
+/*! \file
+ * \brief Voice Modem Definitions
  */
 
 #ifndef _ASTERISK_VMODEM_H
@@ -35,13 +35,13 @@
 #define MODEM_DEV_SPKRPHONE	6
 #define MODEM_DEV_HANDSET	9
 
-#define MODEM_DTMF_NONE	(1 << 0)
-#define MODEM_DTMF_AST	(1 << 1)
-#define MODEM_DTMF_I4L	(1 << 2)
+#define MODEM_DTMF_NONE		(1 << 0)
+#define MODEM_DTMF_AST		(1 << 1)
+#define MODEM_DTMF_I4L		(1 << 2)
 
 /* Thirty millisecond sections */
-#define MODEM_MAX_LEN 30
-#define MODEM_MAX_BUF MODEM_MAX_LEN * 16
+#define MODEM_MAX_LEN		30
+#define MODEM_MAX_BUF		MODEM_MAX_LEN * 16
 
 #define AST_MAX_INIT_STR	256
 

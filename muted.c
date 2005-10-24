@@ -19,8 +19,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Mute Daemon
+/*! \file
+ * \brief Mute Daemon
  *
  * Specially written for Malcolm Davenport, but I think I'll use it too
  *

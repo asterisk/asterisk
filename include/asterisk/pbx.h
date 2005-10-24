@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Core PBX routines and definitions.
+/*! \file
+ * \brief Core PBX routines and definitions.
  */
 
 #ifndef _ASTERISK_PBX_H

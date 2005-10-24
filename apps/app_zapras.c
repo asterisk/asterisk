@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Execute an ISDN RAS
+ * \brief Execute an ISDN RAS
  * 
  */
 

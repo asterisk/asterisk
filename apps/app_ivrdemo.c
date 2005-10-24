@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * IVR Demo application
+ * \brief IVR Demo application
  * 
  */
 

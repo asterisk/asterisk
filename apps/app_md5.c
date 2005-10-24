@@ -15,10 +15,11 @@
  */
 
 
-/*
+/*! \file
  *
- * MD5 checksum application
+ * \brief MD5 checksum application
  * 
+ * \todo Remove this deprecated application in 1.3dev
  */
 
 #include <stdlib.h>

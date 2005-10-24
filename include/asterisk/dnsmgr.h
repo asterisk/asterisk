@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Background DNS update manager
+/*! \file
+ * \brief Background DNS update manager
  */
 
 #ifndef _ASTERISK_DNSMGR_H

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Convenient Signal Processing routines
+/*! \file
+ * \brief Convenient Signal Processing routines
  */
 
 #ifndef _ASTERISK_DSP_H
@@ -56,55 +56,56 @@ struct ast_dsp;
 
 struct ast_dsp *ast_dsp_new(void);
 void ast_dsp_free(struct ast_dsp *dsp);
-/* Set threshold value for silence */
+
+/*! \brief Set threshold value for silence */
 void ast_dsp_set_threshold(struct ast_dsp *dsp, int threshold);
 
-/* Set number of required cadences for busy */
+/*! \brief Set number of required cadences for busy */
 void ast_dsp_set_busy_count(struct ast_dsp *dsp, int cadences);
 
-/* Set expected lengths of the busy tone */
+/*! \brief Set expected lengths of the busy tone */
 void ast_dsp_set_busy_pattern(struct ast_dsp *dsp, int tonelength, int quietlength);
 
-/* Scans for progress indication in audio */
+/*! \brief Scans for progress indication in audio */
 int ast_dsp_call_progress(struct ast_dsp *dsp, struct ast_frame *inf);
 
-/* Set zone for doing progress detection */
+/*! \brief Set zone for doing progress detection */
 int ast_dsp_set_call_progress_zone(struct ast_dsp *dsp, char *zone);
 
-/* Return AST_FRAME_NULL frames when there is silence, AST_FRAME_BUSY on 
+/*! \brief Return AST_FRAME_NULL frames when there is silence, AST_FRAME_BUSY on 
    busies, and call progress, all dependent upon which features are enabled */
 struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp, struct ast_frame *inf);
 
-/* Return non-zero if this is silence.  Updates "totalsilence" with the total
+/*! \brief Return non-zero if this is silence.  Updates "totalsilence" with the total
    number of seconds of silence  */
 int ast_dsp_silence(struct ast_dsp *dsp, struct ast_frame *f, int *totalsilence);
 
-/* Return non-zero if historically this should be a busy, request that
+/*! \brief Return non-zero if historically this should be a busy, request that
   ast_dsp_silence has already been called */
 int ast_dsp_busydetect(struct ast_dsp *dsp);
 
-/* Return non-zero if DTMF hit was found */
+/*! \brief Return non-zero if DTMF hit was found */
 int ast_dsp_digitdetect(struct ast_dsp *dsp, struct ast_frame *f);
 
-/* Reset total silence count */
+/*! \brief Reset total silence count */
 void ast_dsp_reset(struct ast_dsp *dsp);
 
-/* Reset DTMF detector */
+/*! \brief Reset DTMF detector */
 void ast_dsp_digitreset(struct ast_dsp *dsp);
 
-/* Select feature set */
+/*! \brief Select feature set */
 void ast_dsp_set_features(struct ast_dsp *dsp, int features);
 
-/* Get pending DTMF/MF digits */
+/*! \brief Get pending DTMF/MF digits */
 int ast_dsp_getdigits(struct ast_dsp *dsp, char *buf, int max);
 
-/* Set digit mode */
+/*! \brief Set digit mode */
 int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode);
 
-/* Get tstate (Tone State) */
+/*! \brief Get tstate (Tone State) */
 int ast_dsp_get_tstate(struct ast_dsp *dsp);
 
-/* Get tcount (Threshold counter) */
+/*! \brief Get tcount (Threshold counter) */
 int ast_dsp_get_tcount(struct ast_dsp *dsp);
 
 #endif /* _ASTERISK_DSP_H */

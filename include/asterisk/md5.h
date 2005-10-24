@@ -16,6 +16,10 @@
  * at the top of the source tree.
  */
 
+/*!\file
+ * \brief MD5 digest functions
+ */
+
 #ifndef _ASTERISK_MD5_H
 #define _ASTERISK_MD5_H
 

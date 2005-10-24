@@ -15,9 +15,8 @@
  *
  */
 
-/*
- *
- * Cut application
+/*! \file
+ * \brief Cut application
  *
  */
 

@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * App to transmit a URL
+/*! \file
+ * \brief App to transmit a URL
  * 
  */
  

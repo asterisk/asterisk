@@ -28,7 +28,7 @@ struct ast_channel;
 /*!
   \file srv.h
   \brief Support for DNS SRV records, used in to locate SIP services.
-	Note: The Asterisk DNS SRV record support is broken, it only
+  \note Note: The Asterisk DNS SRV record support is broken, it only
 	supports the first DNS SRV record and will give no load 
 	balancing or failover support.
 */

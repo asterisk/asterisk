@@ -18,9 +18,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ENUM Support for Asterisk
+ * \brief DNS SRV Record Lookup Support for Asterisk
+ * 
+ * \arg See also \ref AstENUM
  *
  */
 

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Asterisk internal frame definitions.
+/*! \file
+ * \brief Asterisk internal frame definitions.
  */
 
 #ifndef _ASTERISK_FRAME_H

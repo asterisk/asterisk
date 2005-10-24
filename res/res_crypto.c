@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Provide Cryptographic Signature capability
+ * \brief Provide Cryptographic Signature capability
  * 
  */
 

@@ -17,9 +17,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Applications to test connection and produce report in text file
+ * \brief Applications to test connection and produce report in text file
  * 
  */
 

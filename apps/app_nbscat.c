@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Silly application to play an NBScat file -- uses nbscat8k
+ * \brief Silly application to play an NBScat file -- uses nbscat8k
  * 
  */
  

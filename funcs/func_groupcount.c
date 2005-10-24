@@ -14,9 +14,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Channel group related dialplan functions
+ * \brief Channel group related dialplan functions
  * 
  */
 

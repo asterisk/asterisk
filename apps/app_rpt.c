@@ -17,9 +17,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Radio Repeater / Remote Base program 
+ * \brief Radio Repeater / Remote Base program 
  *  version 0.31 09/15/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html

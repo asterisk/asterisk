@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Trivial application to dial a channel and send an URL on answer
+ * \brief dial() & retrydial() - Trivial application to dial a channel and send an URL on answer
  * 
  */
 

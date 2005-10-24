@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * A machine to gather up arbitrary frames and convert them
+/*! \file
+ * \brief A machine to gather up arbitrary frames and convert them
  * to raw slinear on demand.
  */
 

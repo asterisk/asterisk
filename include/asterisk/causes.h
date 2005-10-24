@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Internal Asterisk hangup causes
+/*! \file
+ * \brief Internal Asterisk hangup causes
  */
 
 #ifndef _ASTERISK_CAUSES_H

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Time-related functions and macros
+/*! \file
+ * \brief Time-related functions and macros
  */
 
 #ifndef _ASTERISK_TIME_H

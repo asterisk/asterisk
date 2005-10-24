@@ -17,9 +17,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Network socket handling
+ * \brief Network socket handling
  * 
  */
 

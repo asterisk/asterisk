@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Execute arbitrary system commands
+ * \brief Execute arbitrary system commands
  * 
  */
 

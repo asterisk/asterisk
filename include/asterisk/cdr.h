@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Call Detail Record API 
+/*! \file
+ * \brief Call Detail Record API 
  */
 
 #ifndef _ASTERISK_CDR_H
@@ -104,26 +104,23 @@ extern int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr);
 
 typedef int (*ast_cdrbe)(struct ast_cdr *cdr);
 
-/*! Allocate a record */
-/*! 
+/*! \brief Allocate a CDR record 
  * Returns a malloc'd ast_cdr structure, returns NULL on error (malloc failure)
  */
 extern struct ast_cdr *ast_cdr_alloc(void);
 
-/*! Duplicate a record */
-/*! 
+/*! \brief Duplicate a record 
  * Returns a malloc'd ast_cdr structure, returns NULL on error (malloc failure)
  */
 extern struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr);
 
-/*! Free a record */
-/* \param cdr ast_cdr structure to free
+/*! \brief Free a CDR record 
+ * \param cdr ast_cdr structure to free
  * Returns nothing important
  */
 extern void ast_cdr_free(struct ast_cdr *cdr);
 
-/*! Initialize based on a channel */
-/*! 
+/*! \brief Initialize based on a channel
  * \param cdr Call Detail Record to use for channel
  * \param chan Channel to bind CDR with
  * Initializes a CDR and associates it with a particular channel

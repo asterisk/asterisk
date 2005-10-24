@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Say numbers and dates (maybe words one day too)
+/*! \file
+ * \brief Say numbers and dates (maybe words one day too)
  */
 
 #ifndef _ASTERISK_SAY_H

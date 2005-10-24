@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Channel Management
+ * \brief Channel Management
  * 
  */
 

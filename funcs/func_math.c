@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Maths relatad dialplan functions
+ * \brief Maths relatad dialplan functions
  * 
  */
 

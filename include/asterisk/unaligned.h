@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Handle unaligned data access
+/*! \file
+ * \brief Handle unaligned data access
  */
 
 #ifndef _ASTERISK_UNALIGNED_H

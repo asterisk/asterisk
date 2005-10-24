@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * String manipulation dialplan functions
+ * \brief String manipulation dialplan functions
  * 
  */
 

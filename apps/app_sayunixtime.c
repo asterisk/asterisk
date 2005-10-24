@@ -15,9 +15,9 @@
  *
  */
 
-/*
+/*! \file
  *
- * SayUnixTime application
+ * \brief SayUnixTime application
  * 
  */
 

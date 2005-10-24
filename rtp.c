@@ -17,7 +17,7 @@
  */
 
 /*! 
- * \file rtp.c
+ * \file 
  * \brief Supports RTP and RTCP with Symmetric RTP support for NAT traversal.
  * 
  * RTP is deffined in RFC 3550.

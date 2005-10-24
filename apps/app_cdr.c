@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Applictions connected with CDR engine
+/*! \file
+ * \brief Applications connected with CDR engine
  *
  */
 

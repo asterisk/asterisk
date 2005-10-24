@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Central Station Alarm receiver for Ademco Contact ID  
+/*! \file
+ * \brief Central Station Alarm receiver for Ademco Contact ID  
  * 
  * *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** 
  *

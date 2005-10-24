@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * TTY/TDD Generation support 
+ * \brief TTY/TDD Generation support 
  * 
  */
 

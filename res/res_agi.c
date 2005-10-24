@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Asterisk Gateway Interface
+ * \brief AGI - the Asterisk Gateway Interface
  * 
  */
 

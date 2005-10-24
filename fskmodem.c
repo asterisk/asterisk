@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * FSK Modulator/Demodulator 
+ * \brief FSK Modulator/Demodulator 
  *
  */
 

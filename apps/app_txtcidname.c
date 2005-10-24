@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Caller*id name lookup - Look up the caller's name via DNS
+ * \brief Caller*id name lookup - Look up the caller's name via DNS
  * 
  */
 

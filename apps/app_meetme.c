@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Meet me conference bridge
+ * \brief Meet me conference bridge
  * 
  */
 

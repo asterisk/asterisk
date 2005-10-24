@@ -21,9 +21,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * This file is part of the chan_h323 driver for Asterisk
+ * \brief This file is part of the chan_h323 driver for Asterisk
  *
  */
 

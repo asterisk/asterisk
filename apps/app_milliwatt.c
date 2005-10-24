@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Digital Milliwatt Test
+ * \brief Digital Milliwatt Test
  * 
  */
 

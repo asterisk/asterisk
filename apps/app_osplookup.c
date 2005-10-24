@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Open Settlement Protocol Lookup
+ * \brief Open Settlement Protocol Lookup
  * 
  */
 

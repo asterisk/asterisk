@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Skeleton application (?)
+ * \brief striplsd: Strip trailing digits app
  * 
  */
 

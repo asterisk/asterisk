@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Core PBX routines.
+ * \brief Core PBX routines.
  * 
  */
 

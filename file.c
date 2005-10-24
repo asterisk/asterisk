@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Generic File Format Support.
+ * \brief Generic File Format Support.
  * 
  */
 

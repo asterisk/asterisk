@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Compile symbolic Asterisk Extension Logic into Asterisk extensions
+ * \brief Compile symbolic Asterisk Extension Logic into Asterisk extensions
  * 
  */
 

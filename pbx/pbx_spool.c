@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Full-featured outgoing call spool support
+ * \brief Full-featured outgoing call spool support
  * 
  */
 

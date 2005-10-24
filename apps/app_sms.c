@@ -14,9 +14,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * SMS application - ETSI ES 201 912 protocol 1 implimentation
+ * \brief SMS application - ETSI ES 201 912 protocol 1 implimentation
  * 
  */
 

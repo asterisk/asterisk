@@ -15,10 +15,11 @@
  *
  */
 
-/*
+/*! \file
  *
- * Random application
+ * \brief Random application
  *
+ * \author Tilghman Lesher <asterisk__app_random__200508@the-tilghman.com>
  */
 
 #include <stdio.h>

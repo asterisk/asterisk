@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Terminal Routines 
+ * \brief Terminal Routines 
  * 
  */
 

@@ -17,8 +17,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Network socket handling
+/*! \file
+ * \brief Network socket handling
  */
 
 #ifndef _ASTERISK_NETSOCK_H

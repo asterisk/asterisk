@@ -19,9 +19,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ParkAndAnnounce application for Asterisk
+ * \brief ParkAndAnnounce application for Asterisk
  * 
  */
 

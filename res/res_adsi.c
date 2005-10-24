@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ADSI support 
+ * \brief ADSI support 
  * 
  */
 

@@ -16,10 +16,16 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Implementation of Session Initiation Protocol
+/*!
+ * \file
+ * \brief Implementation of Session Initiation Protocol
  * 
+ * Implementation of RFC 3261 - without S/MIME, TCP and TLS support
+ * Configuration file \link page20sip sip.conf \endlink
+ *
+ * \todo SIP over TCP
+ * \todo SIP over TLS
+ * \todo Better support of forking
  */
 
 

@@ -16,10 +16,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Skeleton application (?)
- * 
+ * \brief substr
+ *
+ * \todo Deprecate this application in 1.3dev
  */
 
 #include <sys/types.h>

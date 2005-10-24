@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to flash a zap trunk
+ * \brief App to flash a zap trunk
  * 
  */
  

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Wait for Ring Application
+ * \brief Wait for Ring Application
  * 
  */
 

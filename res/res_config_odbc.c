@@ -5,7 +5,6 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * res_config_odbc.c <odbc+odbc plugin for portable configuration engine >
  * Copyright (C) 2004 - 2005 Anthony Minessale II <anthmct@yahoo.com>
  *
  * See http://www.asterisk.org for more information about
@@ -19,10 +18,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
+ * \brief odbc+odbc plugin for portable configuration engine
  *
- *
+ *	http://www.unixodbc.org
  */
 
 #include <stdlib.h>

@@ -16,10 +16,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Provide Open Settlement Protocol capability
+ * \brief Provide Open Settlement Protocol capability
  * 
+ * \arg See also: \ref chan_sip.c
  */
 
 #include <sys/types.h>

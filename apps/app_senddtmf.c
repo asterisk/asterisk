@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to send DTMF digits
+ * \brief App to send DTMF digits
  * 
  */
  

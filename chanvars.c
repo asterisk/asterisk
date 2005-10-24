@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Channel Variables
+ * \brief Channel Variables
  * 
  */
 

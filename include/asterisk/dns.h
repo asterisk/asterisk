@@ -16,8 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
- * DNS support
+/*! \file
+ * \brief DNS support for Asterisk
+ * \author Thorsten Lockert <tholo@trollphone.org>
  */
 
 #ifndef _ASTERISK_DNS_H

@@ -22,9 +22,9 @@
  * This version is disclaimed to DIGIUM for inclusion in the Asterisk project.
  */
 
-/*
+/*! \file
  *
- * SpanDSP - a series of DSP components for telephony
+ * \brief SpanDSP - a series of DSP components for telephony
  *
  */
 

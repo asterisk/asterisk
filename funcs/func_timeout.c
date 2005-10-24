@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Channel timeout related dialplan functions
+ * \brief Channel timeout related dialplan functions
  * 
  */
 

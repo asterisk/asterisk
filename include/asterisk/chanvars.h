@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Channel Variables
+/*! \file
+ * \brief Channel Variables
  */
 
 #ifndef _ASTERISK_CHANVARS_H

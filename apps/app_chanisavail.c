@@ -17,9 +17,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Check if Channel is Available
+/*! \file
+ * \brief Check if Channel is Available
  * 
  */
 

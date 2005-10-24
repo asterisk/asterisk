@@ -15,10 +15,10 @@
  *
  */
 
-/*
+/*! \file
+ * \brief Eval application
  *
- * Eval application
- *
+ * \author Tilghman Lesher <app_eval__v001@the-tilghman.com>
  */
 
 #include <stdio.h>

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Trivial application to playback a sound file
+ * \brief Trivial application to playback a sound file
  * 
  */
  

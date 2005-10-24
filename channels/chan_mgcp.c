@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Implementation of Media Gateway Control Protocol
+ * \brief Implementation of Media Gateway Control Protocol
  * 
  */
 

@@ -18,10 +18,10 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Enum Functions
- *
+ * \brief ENUM Functions
+ * \arg See also AstENUM
  */
 
 #include <stdlib.h>

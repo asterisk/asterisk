@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to transmit a text message
+ * \brief App to transmit a text message
  * 
  */
  

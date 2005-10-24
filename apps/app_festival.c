@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Connect to festival
+ * \brief Connect to festival
  * 
  */
 

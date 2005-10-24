@@ -15,9 +15,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  * 
- * Conditional logic dialplan functions
+ * \brief Conditional logic dialplan functions
  * 
  */
 

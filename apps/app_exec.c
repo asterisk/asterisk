@@ -15,10 +15,11 @@
  *
  */
 
-/*
+/*! \file
  *
- * Exec application
+ * \brief Exec application
  *
+ * \author Tilghman Lesher <app_exec__v001@the-tilghman.com>
  */
 
 #include <stdio.h>

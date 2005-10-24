@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Provide a directory of extensions
+ * \brief Provide a directory of extensions
  * 
  */
  

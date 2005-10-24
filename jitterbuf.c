@@ -19,9 +19,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * jitterbuf: an application-independent jitterbuffer
+ * \brief jitterbuf: an application-independent jitterbuffer
  *
  */
 

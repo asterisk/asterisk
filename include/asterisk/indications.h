@@ -8,8 +8,8 @@
  * channels for your use.
  */
 
-/*
- * BSD Telephony Of Mexico "Tormenta" Tone Zone Support 2/22/01
+/*! \file
+ * \brief BSD Telephony Of Mexico "Tormenta" Tone Zone Support 2/22/01
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by

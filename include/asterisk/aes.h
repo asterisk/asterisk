@@ -39,8 +39,10 @@
  and/or fitness for purpose.
  ---------------------------------------------------------------------------
  Issue Date: 26/08/2003
+*/
+/*!\file
 
- This file contains the definitions required to use AES in C. See aesopt.h
+ \brief This file contains the definitions required to use AES in C. See aesopt.h
  for optimisation details.
 */
 

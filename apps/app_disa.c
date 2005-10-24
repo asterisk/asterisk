@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * DISA -- Direct Inward System Access Application
+ * \brief DISA -- Direct Inward System Access Application
  * 
  */
  

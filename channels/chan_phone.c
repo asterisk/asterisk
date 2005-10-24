@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Generic Linux Telephony Interface driver
+ * \brief Generic Linux Telephony Interface driver
  * 
  */
 

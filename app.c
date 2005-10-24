@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Convenient Application Routines
+ * \brief Convenient Application Routines
  * 
  */
 

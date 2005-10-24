@@ -16,9 +16,9 @@
  *
  */
 
-/*
+/*! \file
  *
- * Paging application
+ * \brief page() - Paging application
  *
  */
 

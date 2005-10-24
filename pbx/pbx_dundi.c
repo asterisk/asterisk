@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Distributed Universal Number Discovery (DUNDi)
+ * \brief Distributed Universal Number Discovery (DUNDi)
  *
  */
 

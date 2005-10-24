@@ -16,11 +16,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * feature Proxy Channel
+ * \brief feature Proxy Channel
  * 
- * *** Experimental code ****
+ * \note *** Experimental code ****
  * 
  */
 

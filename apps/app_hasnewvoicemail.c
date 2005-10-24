@@ -20,9 +20,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * HasVoicemail application
+ * \brief HasVoicemail application
  *
  */
 

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * I/O Managment (Derived from Cheops-NG)
+ * \brief I/O Managment (Derived from Cheops-NG)
  *
  */
 

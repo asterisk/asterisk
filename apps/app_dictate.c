@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Virtual Dictation Machine Application For Asterisk
+ * \brief Virtual Dictation Machine Application For Asterisk
  *
  */
 

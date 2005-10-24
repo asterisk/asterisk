@@ -18,8 +18,8 @@
  * at the top of the source tree.
  */
 
-/*
- * ODBC resource manager
+/*! \file
+ * \brief ODBC resource manager
  */
 
 #ifndef _ASTERISK_RES_ODBC_H

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Functions for reading or setting the MusicOnHold class
+ * \brief Functions for reading or setting the MusicOnHold class
  * 
  */
 

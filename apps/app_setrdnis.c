@@ -17,9 +17,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to set rdnis
+ * \brief App to set rdnis
  *
  */
  

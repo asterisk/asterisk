@@ -16,6 +16,10 @@
  * at the top of the source tree.
  */
 
+/*! \file 
+ * \brief ALSA sound card channel driver 
+ */
+
 
 #include <unistd.h>
 #include <fcntl.h>

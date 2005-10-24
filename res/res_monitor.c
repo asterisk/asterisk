@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/* 
+/*! \file
  *
- * res_monitor.c 
+ * \brief PBX channel monitoring
  *
  */
  

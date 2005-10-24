@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * AGI Extension interfaces
+/*! \file
+ * \brief AGI Extension interfaces - Asterisk Gateway Interface
  */
 
 #ifndef _ASTERISK_AGI_H

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Zaptel Pseudo TDM interface 
+ * \brief Zaptel Pseudo TDM interface 
  * 
  */
 

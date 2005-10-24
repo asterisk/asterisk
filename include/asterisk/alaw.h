@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * A-Law to Signed linear conversion
+/*! \file
+ * \brief A-Law to Signed linear conversion
  */
 
 #ifndef _ASTERISK_ALAW_H

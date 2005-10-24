@@ -16,10 +16,41 @@
  * at the top of the source tree.
  */
 
-/*
+
+/* Doxygenified Copyright Header */
+/*!
+ * \mainpage Asterisk -- An Open Source Telephony Toolkit
  *
- * Top level source file for asterisk
- * 
+ * \arg \ref DevDoc 
+ * \arg \ref ConfigFiles
+ *
+ * \section copyright Copyright and author
+ *
+ * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Asterisk is a trade mark registered by Digium, Inc.
+ *
+ * \author Mark Spencer <markster@digium.com>
+ * Also see \ref AstCREDITS
+ *
+ * \section license License
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ * \verbinclude LICENSE
+ *
+ */
+
+/*! \file
+  \brief Top level source file for Asterisk  - the Open Source PBX. Implementation
+  of PBX core functions and CLI interface.
+  
  */
 
 #include <unistd.h>
@@ -78,6 +109,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
 
+#include "asterisk/doxyref.h"		/* Doxygen documentation */
+
 #include "defaults.h"
 
 #ifndef AF_LOCAL
@@ -116,19 +149,20 @@ int fully_booted = 0;
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
 
-static int ast_socket = -1;		/* UNIX Socket for allowing remote control */
-static int ast_consock = -1;		/* UNIX Socket for controlling another asterisk */
+static int ast_socket = -1;		/*!< UNIX Socket for allowing remote control */
+static int ast_consock = -1;		/*!< UNIX Socket for controlling another asterisk */
 int ast_mainpid;
 struct console {
-	int fd;					/* File descriptor */
-	int p[2];				/* Pipe */
-	pthread_t t;			/* Thread of handler */
+	int fd;				/*!< File descriptor */
+	int p[2];			/*!< Pipe */
+	pthread_t t;			/*!< Thread of handler */
 };
 
 static struct ast_atexit {
 	void (*func)(void);
 	struct ast_atexit *next;
 } *atexits = NULL;
+
 AST_MUTEX_DEFINE_STATIC(atexitslock);
 
 time_t ast_startuptime;
@@ -222,6 +256,7 @@ static char show_version_files_help[] =
 "       Shows the revision numbers of the files used to build this copy of Asterisk.\n"
 "       Optional regular expression pattern is used to filter the file list.\n";
 
+/*! CLI command to list module versions */
 static int handle_show_version_files(int fd, int argc, char *argv[])
 {
 #define FORMAT "%-25.25s %-40.40s\n"
@@ -343,7 +378,7 @@ static int fdprint(int fd, const char *s)
 	return write(fd, s, strlen(s) + 1);
 }
 
-/* NULL handler so we can collect the child exit status */
+/*! NULL handler so we can collect the child exit status */
 static void null_sig_handler(int signal)
 {
 
@@ -408,7 +443,7 @@ int ast_safe_system(const char *s)
 	return res;
 }
 
-/*
+/*!
  * write the string to all attached console clients
  */
 static void ast_network_puts(const char *string)
@@ -420,7 +455,7 @@ static void ast_network_puts(const char *string)
 	}
 }
 
-/*
+/*!
  * write the string to the console, and all attached
  * console clients
  */
@@ -657,13 +692,15 @@ static int ast_tryconnect(void)
 		return 1;
 }
 
+/*! Urgent handler
+ Called by soft_hangup to interrupt the poll, read, or other
+ system call.  We don't actually need to do anything though.  
+ Remember: Cannot EVER ast_log from within a signal handler 
+ SLD: seems to be some pthread activity relating to the printf anyway:
+ which is leading to a deadlock? 
+ */
 static void urg_handler(int num)
 {
-	/* Called by soft_hangup to interrupt the poll, read, or other
-	   system call.  We don't actually need to do anything though.  */
-	/* Cannot EVER ast_log from within a signal handler */
-	/* SLD: seems to be some pthread activity relating to the printf anyway:
-	 * which is leading to a deadlock? */
 #if 0
 	if (option_debug > 2) 
 		printf("-- Asterisk Urgent handler\n");
@@ -698,9 +735,9 @@ static void child_handler(int sig)
 	signal(sig, child_handler);
 }
 
+/*! Set an X-term or screen title */
 static void set_title(char *text)
 {
-	/* Set an X-term or screen title */
 	if (getenv("TERM") && strstr(getenv("TERM"), "xterm"))
 		fprintf(stdout, "\033]2;%s\007", text);
 }
@@ -711,12 +748,12 @@ static void set_icon(char *text)
 		fprintf(stdout, "\033]1;%s\007", text);
 }
 
+/*! We set ourselves to a high priority, that we might pre-empt everything
+   else.  If your PBX has heavy activity on it, this is a good thing.  */
 int ast_set_priority(int pri)
 {
 	struct sched_param sched;
 	memset(&sched, 0, sizeof(sched));
-	/* We set ourselves to a high priority, that we might pre-empt everything
-	   else.  If your PBX has heavy activity on it, this is a good thing.  */
 #ifdef __linux__
 	if (pri) {  
 		sched.sched_priority = 10;

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Silly application to play an MP3 file -- uses mpg123
+ * \brief Silly application to play an MP3 file -- uses mpg123
  * 
  */
  

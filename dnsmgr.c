@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Background DNS update manager
+ * \brief Background DNS update manager
  * 
  */
 

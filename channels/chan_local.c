@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Local Proxy Channel
+ * \brief Local Proxy Channel
  * 
  */
 

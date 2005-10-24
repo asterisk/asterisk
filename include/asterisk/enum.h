@@ -16,10 +16,6 @@
  * at the top of the source tree.
  */
 
-/*
- * ENUM support
- */
-
 /*!	\file enum.h
 	\brief DNS and ENUM functions
 */
@@ -45,6 +41,7 @@
 
 */
 extern int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char* suffix, char* options);
+
 /*!	\brief Lookup DNS TXT record (used by app TXTCIDnum
 	\param chan	Channel
        \param number   E164 number with or without the leading +

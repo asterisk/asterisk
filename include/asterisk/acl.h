@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Access Control of various sorts
+/*! \file
+ * \brief Access Control of various sorts
  */
 
 #ifndef _ASTERISK_ACL_H

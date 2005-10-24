@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Translate via the use of pseudo channels
+/*! \file
+ * \brief Translate via the use of pseudo channels
  */
 
 #ifndef _ASTERISK_TRANSLATE_H

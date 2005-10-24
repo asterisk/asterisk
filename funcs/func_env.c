@@ -14,9 +14,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Environment related dialplan functions
+ * \brief Environment related dialplan functions
  * 
  */
 

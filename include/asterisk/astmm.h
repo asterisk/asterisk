@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Asterisk memory usage debugging
+/*! \file
+ * \brief Asterisk memory usage debugging
  */
 
 #ifndef NO_AST_MM

@@ -19,9 +19,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Convenience Signal Processing routines
+ * \brief Convenience Signal Processing routines
  * 
  */
 

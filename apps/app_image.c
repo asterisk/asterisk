@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to transmit an image
+ * \brief App to transmit an image
  * 
  */
  

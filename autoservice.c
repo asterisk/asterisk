@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Automatic channel service routines
+ * \brief Automatic channel service routines
  * 
  */
 

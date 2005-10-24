@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ENUM Support for Asterisk
+ * \brief ENUM Support for Asterisk
  *
  */
 

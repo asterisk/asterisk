@@ -16,10 +16,12 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Configuration File Parser
- * 
+ * \brief Configuration File Parser
+ *
+ * Includes the Asterisk Realtime API - ARA
+ * See README.realtime
  */
 
 #include <stdio.h>

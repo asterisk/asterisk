@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Application to dump channel variables
+ * \brief Application to dump channel variables
  * 
  */
 

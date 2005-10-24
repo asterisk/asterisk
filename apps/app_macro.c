@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Macro Implementation
+ * \brief Dial plan macro Implementation
  * 
  */
 

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Block all calls without Caller*ID, require phone # to be entered
+ * \brief Block all calls without Caller*ID, require phone # to be entered
  * 
  */
 

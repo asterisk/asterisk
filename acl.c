@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Various sorts of access control
+ * \brief Various sorts of access control
  * 
  */
 

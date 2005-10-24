@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Channel Management
+ * \brief ASTdb Management
  * 
  *
  * DB3 is licensed under Sleepycat Public License and is thus incompatible

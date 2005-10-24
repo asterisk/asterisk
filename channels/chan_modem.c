@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * A/Open ITU-56/2 Voice Modem Driver (Rockwell, IS-101, and others)
+ * \brief A/Open ITU-56/2 Voice Modem Driver (Rockwell, IS-101, and others)
  * 
  */
 

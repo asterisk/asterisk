@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Trivial application to record a sound file
+ * \brief Trivial application to record a sound file
  *
  */
  

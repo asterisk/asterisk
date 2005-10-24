@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * String manipulation functions
+/*! \file
+ * \brief String manipulation functions
  */
 
 #ifndef _ASTERISK_STRINGS_H

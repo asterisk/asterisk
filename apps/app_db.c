@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Database access functions
+ * \brief Database access functions
  *
  */
 

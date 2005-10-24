@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ReadFile application -- Reads in a File for you.
+ * \brief ReadFile application -- Reads in a File for you.
  *
  */
 

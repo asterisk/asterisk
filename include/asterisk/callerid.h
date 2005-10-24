@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * CallerID (and other GR30) Generation support 
+/*! \file
+ * \brief CallerID (and other GR30) Generation support 
  * Includes code and algorithms from the Zapata library.
  */
 

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Stream to an icecast server via ICES (see contrib/asterisk-ices.xml)
+ * \brief Stream to an icecast server via ICES (see contrib/asterisk-ices.xml)
  * 
  */
  

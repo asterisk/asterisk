@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Device state management
+/*! \file
+ * \brief Device state management
  */
 
 #ifndef _ASTERISK_DEVICESTATE_H
@@ -44,12 +44,12 @@ extern "C" {
 
 typedef int (*ast_devstate_cb_type)(const char *dev, int state, void *data);
 
-/*! Convert device state to text string for output */
-/*! \param devstate Current device state */
+/*! \brief Convert device state to text string for output 
+ * \param devstate Current device state 
+ */
 const char *devstate2str(int devstate);
 
-/*! Search the Channels by Name */
-/*!
+/*! \brief Search the Channels by Name
  * \param device like a dialstring
  * Search the Device in active channels by compare the channelname against 
  * the devicename. Compared are only the first chars to the first '-' char.
@@ -58,8 +58,7 @@ const char *devstate2str(int devstate);
  */
 int ast_parse_device_state(const char *device);
 
-/*! Asks a channel for device state */
-/*!
+/*! \brief Asks a channel for device state
  * \param device like a dialstring
  * Asks a channel for device state, data is  normaly a number from dialstring
  * used by the low level module
@@ -69,8 +68,7 @@ int ast_parse_device_state(const char *device);
  */
 int ast_device_state(const char *device);
 
-/*! Tells Asterisk the State for Device is changed */
-/*!
+/*! \brief Tells Asterisk the State for Device is changed
  * \param fmt devicename like a dialstring with format parameters
  * Asterisk polls the new extensionstates and calls the registered
  * callbacks for the changed extensions
@@ -80,8 +78,7 @@ int ast_device_state_changed(const char *fmt, ...)
 	__attribute__ ((format (printf, 1, 2)));
 
 
-/*! Tells Asterisk the State for Device is changed */
-/*!
+/*! \brief Tells Asterisk the State for Device is changed 
  * \param device devicename like a dialstrin
  * Asterisk polls the new extensionstates and calls the registered
  * callbacks for the changed extensions
@@ -89,8 +86,7 @@ int ast_device_state_changed(const char *fmt, ...)
  */
 int ast_device_state_changed_literal(const char *device);
 
-/*! Registers a device state change callback */
-/*!
+/*! \brief Registers a device state change callback 
  * \param data to pass to callback
  * The callback is called if the state for extension is changed
  * Return -1 on failure, ID on success

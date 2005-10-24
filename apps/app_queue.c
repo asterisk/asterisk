@@ -16,12 +16,12 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * True call queues with optional send URL on answer
+ * \brief True call queues with optional send URL on answer
  * 
  *
- * 2004-11-25: Persistent Dynamic Members added by:
+ * \note 2004-11-25: Persistent Dynamic Members added by:
  *             NetNation Communications (www.netnation.com)
  *             Kevin Lindsay <kevinl@netnation.com>
  * 
@@ -31,9 +31,9 @@
  *             configured with the 'persistent_members=<1|0>' setting in the
  *             '[general]' category in queues.conf. The default is on.
  * 
- * 2004-06-04: Priorities in queues added by inAccess Networks (work funded by Hellas On Line (HOL) www.hol.gr).
+ * \note 2004-06-04: Priorities in queues added by inAccess Networks (work funded by Hellas On Line (HOL) www.hol.gr).
  *
- * These features added by David C. Troy <dave@toad.net>:
+ * \note These features added by David C. Troy <dave@toad.net>:
  *    - Per-queue holdtime calculation
  *    - Estimated holdtime announcement
  *    - Position announcement
@@ -49,8 +49,6 @@
  * Fixed to work with CVS as of 2004-02-25 and released as 1.07a
  * by Matthew Enger <m.enger@xi.com.au>
  *
- * This program is free software, distributed under the terms of
- * the GNU General Public License
  */
 
 #include <stdlib.h>

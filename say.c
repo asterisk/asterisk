@@ -17,9 +17,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Say numbers and dates (maybe words one day too)
+ * \brief Say numbers and dates (maybe words one day too)
  * 
  * 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
  *  						George Konstantoulakis <gkon@inaccessnetworks.com>

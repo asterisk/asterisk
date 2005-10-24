@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * OSP support
+/*! \file
+ * \brief OSP support (Open Settlement Protocol)
  */
 
 #ifndef _ASTERISK_OSP_H

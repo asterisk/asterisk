@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Call Detail Record API 
+ * \brief Call Detail Record API 
  * 
  * Includes code and algorithms from the Zapata library.
  *

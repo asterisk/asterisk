@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Program Asterisk ADSI Scripts into phone
+/*! \file
+ * \brief Program Asterisk ADSI Scripts into phone
  * 
  */
 

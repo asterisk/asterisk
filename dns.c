@@ -18,10 +18,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * DNS Support for Asterisk
+ * \brief DNS Support for Asterisk
  *
+ * \author Thorsten Lockert <tholo@trollphone.org>
  */
 
 #include <sys/types.h>

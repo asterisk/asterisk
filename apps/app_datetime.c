@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Time of day - Report the time of day
+/*! \file
+ * \brief Time of day - Report the time of day
  * 
  */
 

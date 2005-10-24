@@ -15,9 +15,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Fork CDR application
+ * \brief Fork CDR application
  * 
  */
 

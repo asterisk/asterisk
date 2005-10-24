@@ -19,9 +19,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * 
+ * \brief Channel driver for OSS sound cards
  *
  */
 

@@ -16,10 +16,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Realtime PBX Module
+ * \brief Realtime PBX Module
  *
+ * \arg See also: \ref AstARA
  */
 
 #include <stdlib.h>

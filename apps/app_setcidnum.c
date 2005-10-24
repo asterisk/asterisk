@@ -17,9 +17,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * App to set callerid
+ * \brief App to set callerid number
  * 
  */
  

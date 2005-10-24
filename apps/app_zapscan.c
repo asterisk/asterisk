@@ -21,9 +21,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Zap Scanner
+ * \brief Zap Scanner
  *
  */
 

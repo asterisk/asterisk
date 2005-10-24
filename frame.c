@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Frame manipulation routines
+ * \brief Frame manipulation routines
  * 
  */
 

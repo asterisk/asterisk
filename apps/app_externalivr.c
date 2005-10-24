@@ -19,9 +19,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * External IVR application interface
+ * \brief External IVR application interface
  * 
  */
 

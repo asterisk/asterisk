@@ -1,7 +1,5 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
- *
- * General Definitions for Asterisk top level program
  * 
  * Copyright (C) 1999-2005, Mark Spencer
  *
@@ -9,6 +7,10 @@
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
+ */
+
+/*! \file
+ * \brief General Definitions for Asterisk top level program
  */
 
 #ifndef _COMPAT_H

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Asterisk architecture endianess compatibility definitions
+/*! \file
+ * \brief Asterisk architecture endianess compatibility definitions
  */
 
 #ifndef _ASTERISK_ENDIAN_H

@@ -3,7 +3,6 @@
  *
  * Copyright (C) 2002, Pauline Middelink
  *
- * Pauline Middelink <middelink@polyware.nl>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -16,10 +15,12 @@
  * at the top of the source tree.
  */
 
-/** @file res_indications.c 
+/*! \file res_indications.c 
  *
- * Load the indications
+ * \brief Load the indications
  * 
+ * \author Pauline Middelink <middelink@polyware.nl>
+ *
  * Load the country specific dialtones into the asterisk PBX.
  */
  

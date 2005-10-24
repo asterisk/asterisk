@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
- * TTY/TDD Generation support 
- * Includes code and algorithms from the Zapata library.
+/*! \file
+ * \brief TTY/TDD Generation support 
+ * \note Includes code and algorithms from the Zapata library.
  */
 
 #ifndef _ASTERISK_TDD_H

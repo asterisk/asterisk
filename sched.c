@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Scheduler Routines (from cheops-NG)
+ * \brief Scheduler Routines (from cheops-NG)
  *
  */
 

@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * AMI - Asterisk Management Interface
+/*! \file
+ * \brief AMI - Asterisk Management Interface
  * External call management support 
  */
 

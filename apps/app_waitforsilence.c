@@ -19,9 +19,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Wait for Silence
+ * \brief Wait for Silence
  *   - Waits for up to 'x' milliseconds of silence, 'y' times
  *   - WaitForSilence(500,2) will wait for 1/2 second of silence, twice
  *   - WaitForSilence(1000,1) will wait for 1 second of silence, once

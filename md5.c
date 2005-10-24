@@ -1,4 +1,6 @@
-/* MD5 checksum routines used for authentication.  Not covered by GPL, but
+
+/*!\file
+\brief     MD5 checksum routines used for authentication.  Not covered by GPL, but
    in the public domain as per the copyright below */
 
 /*

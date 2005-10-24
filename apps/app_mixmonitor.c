@@ -1,7 +1,6 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * muxmon Application For Asterisk
  *
  * Copyright (C) 2005, Anthony Minessale II
  *
@@ -9,6 +8,10 @@
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License
+ */
+
+/*! \file
+ * \brief muxmon() - record a call natively
  */
 
 #include <asterisk/file.h>

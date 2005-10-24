@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Use /dev/dsp as an intercom.
+ * \brief Use /dev/dsp as an intercom.
  * 
  */
  

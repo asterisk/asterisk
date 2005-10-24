@@ -14,10 +14,13 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Utility functions
+ * \brief Utility functions
  *
+ * \note These are important for portability and security,
+ * so please use them in favour of other routines.
+ * Please consult the CODING GUIDELINES for more information.
  */
 
 #include <ctype.h>

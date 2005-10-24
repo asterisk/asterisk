@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * Execute arbitrary authenticate commands
+/*! \file
+ * \brief Execute arbitrary authenticate commands
  * 
  */
 

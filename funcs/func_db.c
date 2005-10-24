@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Functions for interaction with the Asterisk database
+ * \brief Functions for interaction with the Asterisk database
  * 
  */
 

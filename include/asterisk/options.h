@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * Options provided by main asterisk program
+/*! \file
+ * \brief Options provided by main asterisk program
  */
 
 #ifndef _ASTERISK_OPTIONS_H

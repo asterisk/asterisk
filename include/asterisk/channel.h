@@ -16,8 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- * General Asterisk channel definitions.
+/*! \file
+ * \brief General Asterisk PBX channel definitions.
  */
 
 #ifndef _ASTERISK_CHANNEL_H

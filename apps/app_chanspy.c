@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * ChanSpy Listen in on any channel.
+/*! \file
+ * \brief ChanSpy: Listen in on any channel.
  * 
  */
 

@@ -15,9 +15,9 @@
  * at the top of the source tree.
  */
 
-/*
- * Application convenience functions, designed to give consistent
- * look and feel to Asterisk apps.
+/*! \file
+ * \brief Application convenience functions, designed to give consistent
+ look and feel to Asterisk apps.
  */
 
 #ifndef _ASTERISK_APP_H

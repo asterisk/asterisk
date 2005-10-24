@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * GTK Console monitor -- very kludgy right now
+ * \brief GTK Console monitor -- very kludgy right now
  * 
  */
 

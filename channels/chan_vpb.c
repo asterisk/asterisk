@@ -22,9 +22,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * VoiceTronix Interface driver
+ * \brief VoiceTronix Interface driver
  * 
  */
 

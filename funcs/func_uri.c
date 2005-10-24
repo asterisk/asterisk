@@ -16,12 +16,12 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * URI encoding / decoding
+ * \brief URI encoding / decoding
  * 
- * For now this code only supports 8 bit characters, not unicode,
- * which we ultimately will need to support.
+ * \note For now this code only supports 8 bit characters, not unicode,
+         which we ultimately will need to support.
  * 
  */
 
@@ -40,7 +40,7 @@
 #include "asterisk/app.h"
 #include "asterisk/module.h"
 
-/*--- builtin_function_uriencode: Encode URL according to RFC 2396 */
+/*! \brief builtin_function_uriencode: Encode URL according to RFC 2396 */
 static char *builtin_function_uriencode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char uri[BUFSIZ];
@@ -56,7 +56,7 @@ static char *builtin_function_uriencode(struct ast_channel *chan, char *cmd, cha
 	return buf;
 }
 
-/*--- builtin_function_uridecode: Decode URI according to RFC 2396 */
+/*!\brief builtin_function_uridecode: Decode URI according to RFC 2396 */
 static char *builtin_function_uridecode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	if (!data || ast_strlen_zero(data)) {
