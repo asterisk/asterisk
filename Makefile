@@ -498,7 +498,7 @@ datafiles: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/priv-callerintros
 	for x in sounds/digits/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/digits ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -507,7 +507,7 @@ datafiles: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate
 	for x in sounds/dictate/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/dictate ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -516,7 +516,7 @@ datafiles: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters
 	for x in sounds/letters/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/letters ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -525,7 +525,7 @@ datafiles: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic
 	for x in sounds/phonetic/*.gsm; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds/phonetic ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -533,7 +533,7 @@ datafiles: all
 	done
 	for x in sounds/demo-* sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-* sounds/spy-* sounds/priv-* sounds/screen-* sounds/hello-*; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -542,7 +542,7 @@ datafiles: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/images
 	for x in images/*.jpg; do \
-		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/images ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/images ; \
 	done
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 
@@ -595,17 +595,17 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/system
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/tmp
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/meetme
-	install -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/
+	$(INSTALL) -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/
 	ln -sf asterisk $(DESTDIR)$(ASTSBINDIR)/rasterisk
-	install -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
-	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	
+	$(INSTALL) -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
+	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ]; then \
 		cat contrib/scripts/safe_asterisk | sed 's|__ASTERISK_SBIN_DIR__|$(ASTSBINDIR)|;' > $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ;\
 		chmod 755 $(DESTDIR)$(ASTSBINDIR)/safe_asterisk;\
 	fi
 	for x in $(SUBDIRS); do $(MAKE) -C $$x install || exit 1 ; done
-	install -d $(DESTDIR)$(ASTHEADERDIR)
-	install -m 644 include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
+	$(INSTALL) -d $(DESTDIR)$(ASTHEADERDIR)
+	$(INSTALL) -m 644 include/asterisk/*.h $(DESTDIR)$(ASTHEADERDIR)
 	if [ -n "$(OLDHEADERS)" ]; then \
 		rm -f $(addprefix $(DESTDIR)$(ASTHEADERDIR)/,$(OLDHEADERS)) ;\
 	fi
@@ -617,14 +617,14 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax
 	mkdir -p $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
-	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
-	install -m 644 asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
-	install -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
+	$(INSTALL) -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
+	$(INSTALL) -m 644 asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
+	$(INSTALL) -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
 	if [ -d contrib/firmware/iax ]; then \
-		install -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
+		$(INSTALL) -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
 	else \
 		echo "You need to do cvs update -d not just cvs update" ; \
 	fi 
@@ -685,7 +685,7 @@ adsi:
 	mkdir -p $(DESTDIR)$(ASTETCDIR)
 	for x in configs/*.adsi; do \
 		if [ ! -f $(DESTDIR)$(ASTETCDIRX)/$$x ]; then \
-			install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x` ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x` ; \
 		fi ; \
 	done
 
@@ -704,7 +704,7 @@ samples: adsi
 				continue; \
 			fi ;\
 		fi ; \
-		install -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
 	done
 	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTETCDIR)/asterisk.conf ]; then \
 		echo "[directories]" > $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
@@ -728,7 +728,7 @@ samples: adsi
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 	for x in sounds/demo-*; do \
 		if $(GREP) -q "^%`basename $$x`%" sounds.txt; then \
-			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
+			$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
 			echo "No description for $$x"; \
 			exit 1; \
@@ -736,7 +736,7 @@ samples: adsi
 	done
 	mkdir -p $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	for x in sounds/*.mp3; do \
-		install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/mohmp3 ; \
 	done
 	rm -f $(DESTDIR)$(ASTVARLIBDIR)/mohmp3/sample-hold.mp3
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/voicemail/default/1234/INBOX
@@ -752,10 +752,10 @@ samples: adsi
 webvmail:
 	@[ -d $(DESTDIR)$(HTTP_DOCSDIR)/ ] || ( printf "http docs directory not found.\nUpdate assignment of variable HTTP_DOCSDIR in Makefile!\n" && exit 1 )
 	@[ -d $(DESTDIR)$(HTTP_CGIDIR) ] || ( printf "cgi-bin directory not found.\nUpdate assignment of variable HTTP_CGIDIR in Makefile!\n" && exit 1 )
-	install -m 4755 -o root -g root contrib/scripts/vmail.cgi $(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi
+	$(INSTALL) -m 4755 -o root -g root contrib/scripts/vmail.cgi $(DESTDIR)$(HTTP_CGIDIR)/vmail.cgi
 	mkdir -p $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk
 	for x in images/*.gif; do \
-		install -m 644 $$x $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk/; \
+		$(INSTALL) -m 644 $$x $(DESTDIR)$(HTTP_DOCSDIR)/_asterisk/; \
 	done
 	@echo " +--------- Asterisk Web Voicemail ----------+"  
 	@echo " +                                           +"
@@ -800,10 +800,10 @@ mpg123:
 
 config:
 	if [ -d /etc/rc.d/init.d ]; then \
-		install -m 755 contrib/init.d/rc.redhat.asterisk /etc/rc.d/init.d/asterisk; \
+		$(INSTALL) -m 755 contrib/init.d/rc.redhat.asterisk /etc/rc.d/init.d/asterisk; \
 		/sbin/chkconfig --add asterisk; \
 	elif [ -d /etc/init.d ]; then \
-		install -m 755 init.asterisk /etc/init.d/asterisk; \
+		$(INSTALL) -m 755 init.asterisk /etc/init.d/asterisk; \
 	fi 
 
 dont-optimize:
