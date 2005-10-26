@@ -233,29 +233,29 @@ struct iax2_context {
 	struct iax2_context *next;
 };
 
-#define IAX_HASCALLERID		(1 << 0)	/* CallerID has been specified */
-#define IAX_DELME		(1 << 1)	/* Needs to be deleted */
-#define IAX_TEMPONLY		(1 << 2)	/* Temporary (realtime) */
-#define IAX_TRUNK		(1 << 3)	/* Treat as a trunk */
-#define IAX_NOTRANSFER		(1 << 4)	/* Don't native bridge */
-#define IAX_USEJITTERBUF	(1 << 5)	/* Use jitter buffer */
-#define IAX_DYNAMIC		(1 << 6)	/* dynamic peer */
-#define IAX_SENDANI		(1 << 7)	/* Send ANI along with CallerID */
-#define IAX_MESSAGEDETAIL	(1 << 8)	/* Show exact numbers */
-#define IAX_ALREADYGONE		(1 << 9)	/* Already disconnected */
-#define IAX_PROVISION		(1 << 10)	/* This is a provisioning request */
-#define IAX_QUELCH		(1 << 11)	/* Whether or not we quelch audio */
-#define IAX_ENCRYPTED		(1 << 12)	/* Whether we should assume encrypted tx/rx */
-#define IAX_KEYPOPULATED 	(1 << 13)	/* Whether we have a key populated */
-#define IAX_CODEC_USER_FIRST 	(1 << 14) 	/* are we willing to let the other guy choose the codec? */
-#define IAX_CODEC_NOPREFS 	(1 << 15) 	/* Force old behaviour by turning off prefs */
-#define IAX_CODEC_NOCAP 	(1 << 16) 	/* only consider requested format and ignore capabilities*/
-#define IAX_RTCACHEFRIENDS 	(1 << 17) 	/* let realtime stay till your reload */
-#define IAX_RTUPDATE 		(1 << 18) 	/* Send a realtime update */
-#define IAX_RTAUTOCLEAR 	(1 << 19) 	/* erase me on expire */ 
-#define IAX_FORCEJITTERBUF	(1 << 20)	/* Force jitterbuffer, even when bridged to a channel that can take jitter */ 
-#define IAX_RTIGNOREREGEXPIRE	(1 << 21)
-#define IAX_TRUNKTIMESTAMPS	(1 << 22)	/* Send trunk timestamps */
+#define IAX_HASCALLERID		(1 << 0)	/*!< CallerID has been specified */
+#define IAX_DELME		(1 << 1)	/*!< Needs to be deleted */
+#define IAX_TEMPONLY		(1 << 2)	/*!< Temporary (realtime) */
+#define IAX_TRUNK		(1 << 3)	/*!< Treat as a trunk */
+#define IAX_NOTRANSFER		(1 << 4)	/*!< Don't native bridge */
+#define IAX_USEJITTERBUF	(1 << 5)	/*!< Use jitter buffer */
+#define IAX_DYNAMIC		(1 << 6)	/*!< dynamic peer */
+#define IAX_SENDANI		(1 << 7)	/*!< Send ANI along with CallerID */
+#define IAX_MESSAGEDETAIL	(1 << 8)	/*!< Show exact numbers */
+#define IAX_ALREADYGONE		(1 << 9)	/*!< Already disconnected */
+#define IAX_PROVISION		(1 << 10)	/*!< This is a provisioning request */
+#define IAX_QUELCH		(1 << 11)	/*!< Whether or not we quelch audio */
+#define IAX_ENCRYPTED		(1 << 12)	/*!< Whether we should assume encrypted tx/rx */
+#define IAX_KEYPOPULATED 	(1 << 13)	/*!< Whether we have a key populated */
+#define IAX_CODEC_USER_FIRST 	(1 << 14) 	/*!< are we willing to let the other guy choose the codec? */
+#define IAX_CODEC_NOPREFS 	(1 << 15) 	/*!< Force old behaviour by turning off prefs */
+#define IAX_CODEC_NOCAP 	(1 << 16) 	/*!< only consider requested format and ignore capabilities*/
+#define IAX_RTCACHEFRIENDS 	(1 << 17) 	/*!< let realtime stay till your reload */
+#define IAX_RTUPDATE 		(1 << 18) 	/*!< Send a realtime update */
+#define IAX_RTAUTOCLEAR 	(1 << 19) 	/*!< erase me on expire */ 
+#define IAX_FORCEJITTERBUF	(1 << 20)	/*!< Force jitterbuffer, even when bridged to a channel that can take jitter */ 
+#define IAX_RTIGNOREREGEXPIRE	(1 << 21)	/*!< When using realtime, ignore registration expiration */
+#define IAX_TRUNKTIMESTAMPS	(1 << 22)	/*!< Send trunk timestamps */
 
 static int global_rtautoclear = 120;
 
@@ -270,7 +270,7 @@ struct iax2_user {
 	int authmethods;
 	int encmethods;
 	char accountcode[AST_MAX_ACCOUNT_CODE];
-	char inkeys[80];				/* Key(s) this user can use to authenticate to us */
+	char inkeys[80];				/*!< Key(s) this user can use to authenticate to us */
 	char language[MAX_LANGUAGE];
 	int amaflags;
 	unsigned int flags;
@@ -289,44 +289,44 @@ struct iax2_peer {
 	char username[80];		
 	char secret[80];
 	char dbsecret[80];
-	char outkey[80];				/* What key we use to talk to this peer */
-	char context[AST_MAX_CONTEXT];			/* For transfers only */
-	char regexten[AST_MAX_EXTENSION];		/* Extension to register (if regcontext is used) */
-	char peercontext[AST_MAX_EXTENSION];		/* Context to pass to peer */
-	char mailbox[AST_MAX_EXTENSION];		/* Mailbox */
+	char outkey[80];				/*!< What key we use to talk to this peer */
+	char context[AST_MAX_CONTEXT];			/*!< For transfers only */
+	char regexten[AST_MAX_EXTENSION];		/*!< Extension to register (if regcontext is used) */
+	char peercontext[AST_MAX_EXTENSION];		/*!< Context to pass to peer */
+	char mailbox[AST_MAX_EXTENSION];		/*!< Mailbox */
 	struct ast_codec_pref prefs;
-	struct ast_dnsmgr_entry *dnsmgr;		/* DNS refresh manager */
+	struct ast_dnsmgr_entry *dnsmgr;		/*!< DNS refresh manager */
 	struct sockaddr_in addr;
 	int formats;
-	int sockfd;					/* Socket to use for transmission */
+	int sockfd;					/*!< Socket to use for transmission */
 	struct in_addr mask;
 	unsigned int flags;
 
 	/* Dynamic Registration fields */
-	struct sockaddr_in defaddr;			/* Default address if there is one */
-	int authmethods;				/* Authentication methods (IAX_AUTH_*) */
-	int encmethods;					/* Encryption methods (IAX_ENCRYPT_*) */
-	char inkeys[80];				/* Key(s) this peer can use to authenticate to us */
+	struct sockaddr_in defaddr;			/*!< Default address if there is one */
+	int authmethods;				/*!< Authentication methods (IAX_AUTH_*) */
+	int encmethods;					/*!< Encryption methods (IAX_ENCRYPT_*) */
+	char inkeys[80];				/*!< Key(s) this peer can use to authenticate to us */
 
 	/* Suggested caller id if registering */
-	char cid_num[AST_MAX_EXTENSION];		/* Default context (for transfer really) */
-	char cid_name[AST_MAX_EXTENSION];		/* Default context (for transfer really) */
+	char cid_num[AST_MAX_EXTENSION];		/*!< Default context (for transfer really) */
+	char cid_name[AST_MAX_EXTENSION];		/*!< Default context (for transfer really) */
 	
-	int expire;					/* Schedule entry for expiry */
-	int expiry;					/* How soon to expire */
-	int capability;					/* Capability */
-	char zonetag[80];				/* Time Zone */
+	int expire;					/*!< Schedule entry for expiry */
+	int expiry;					/*!< How soon to expire */
+	int capability;					/*!< Capability */
+	char zonetag[80];				/*!< Time Zone */
 
 	/* Qualification */
-	int callno;					/* Call number of POKE request */
-	int pokeexpire;					/* When to expire poke */
-	int lastms;					/* How long last response took (in ms), or -1 for no response */
-	int maxms;					/* Max ms we will accept for the host to be up, 0 to not monitor */
+	int callno;					/*!< Call number of POKE request */
+	int pokeexpire;					/*!< When to expire poke */
+	int lastms;					/*!< How long last response took (in ms), or -1 for no response */
+	int maxms;					/*!< Max ms we will accept for the host to be up, 0 to not monitor */
 
-	int pokefreqok;					/* How often to check if the host is up */
-	int pokefreqnotok;				/* How often to check when the host has been determined to be down */
-	int historicms;					/* How long recent average responses took */
-	int smoothing;					/* Sample over how many units to determine historic ms */
+	int pokefreqok;					/*!< How often to check if the host is up */
+	int pokefreqnotok;				/*!< How often to check when the host has been determined to be down */
+	int historicms;					/*!< How long recent average responses took */
+	int smoothing;					/*!< Sample over how many units to determine historic ms */
 	
 	struct ast_ha *ha;
 	struct iax2_peer *next;
@@ -338,11 +338,11 @@ static struct iax2_trunk_peer {
 	ast_mutex_t lock;
 	int sockfd;
 	struct sockaddr_in addr;
-	struct timeval txtrunktime;		/* Transmit trunktime */
-	struct timeval rxtrunktime;		/* Receive trunktime */
-	struct timeval lasttxtime;		/* Last transmitted trunktime */
-	struct timeval trunkact;		/* Last trunk activity */
-	unsigned int lastsent;			/* Last sent time */
+	struct timeval txtrunktime;		/*!< Transmit trunktime */
+	struct timeval rxtrunktime;		/*!< Receive trunktime */
+	struct timeval lasttxtime;		/*!< Last transmitted trunktime */
+	struct timeval trunkact;		/*!< Last trunk activity */
+	unsigned int lastsent;			/*!< Last sent time */
 	/* Trunk data and length */
 	unsigned char *trunkdata;
 	unsigned int trunkdatalen;
@@ -382,16 +382,16 @@ enum iax_transfer_state {
 };
 
 struct iax2_registry {
-	struct sockaddr_in addr;		/* Who we connect to for registration purposes */
+	struct sockaddr_in addr;		/*!< Who we connect to for registration purposes */
 	char username[80];
-	char secret[80];			/* Password or key name in []'s */
+	char secret[80];			/*!< Password or key name in []'s */
 	char random[80];
-	int expire;				/* Sched ID of expiration */
-	int refresh;				/* How often to refresh */
+	int expire;				/*!< Sched ID of expiration */
+	int refresh;				/*!< How often to refresh */
 	enum iax_reg_state regstate;
-	int messages;				/* Message count */
-	int callno;				/* Associated call number if applicable */
-	struct sockaddr_in us;			/* Who the server thinks we are */
+	int messages;				/*!< Message count */
+	int callno;				/*!< Associated call number if applicable */
+	struct sockaddr_in us;			/*!< Who the server thinks we are */
 	struct iax2_registry *next;
 };
 
@@ -404,10 +404,10 @@ static struct iax2_registry *registrations;
 #define MAX_JITTER_BUFFER 	50
 #define MIN_JITTER_BUFFER 	10
 
-#define DEFAULT_TRUNKDATA	640 * 10	/* 40ms, uncompressed linear * 10 channels */
-#define MAX_TRUNKDATA		640 * 200	/* 40ms, uncompressed linear * 200 channels */
+#define DEFAULT_TRUNKDATA	640 * 10	/*!< 40ms, uncompressed linear * 10 channels */
+#define MAX_TRUNKDATA		640 * 200	/*!< 40ms, uncompressed linear * 200 channels */
 
-#define MAX_TIMESTAMP_SKEW	160		/* maximum difference between actual and predicted ts for sending */
+#define MAX_TIMESTAMP_SKEW	160		/*!< maximum difference between actual and predicted ts for sending */
 
 /* If consecutive voice frame timestamps jump by more than this many milliseconds, then jitter buffer will resync */
 #define TS_GAP_FOR_JB_RESYNC	5000
@@ -428,147 +428,147 @@ struct iax_rr {
 };
 
 struct chan_iax2_pvt {
-	/* Socket to send/receive on for this call */
+	/*! Socket to send/receive on for this call */
 	int sockfd;
-	/* Last received voice format */
+	/*! Last received voice format */
 	int voiceformat;
-	/* Last received voice format */
+	/*! Last received voice format */
 	int videoformat;
-	/* Last sent voice format */
+	/*! Last sent voice format */
 	int svoiceformat;
-	/* Last sent video format */
+	/*! Last sent video format */
 	int svideoformat;
-	/* What we are capable of sending */
+	/*! What we are capable of sending */
 	int capability;
-	/* Last received timestamp */
+	/*! Last received timestamp */
 	unsigned int last;
-	/* Last sent timestamp - never send the same timestamp twice in a single call */
+	/*! Last sent timestamp - never send the same timestamp twice in a single call */
 	unsigned int lastsent;
-	/* Next outgoing timestamp if everything is good */
+	/*! Next outgoing timestamp if everything is good */
 	unsigned int nextpred;
-	/* True if the last voice we transmitted was not silence/CNG */
+	/*! True if the last voice we transmitted was not silence/CNG */
 	int notsilenttx;
-	/* Ping time */
+	/*! Ping time */
 	unsigned int pingtime;
-	/* Max time for initial response */
+	/*! Max time for initial response */
 	int maxtime;
-	/* Peer Address */
+	/*! Peer Address */
 	struct sockaddr_in addr;
 	struct ast_codec_pref prefs;
-	/* Our call number */
+	/*! Our call number */
 	unsigned short callno;
-	/* Peer callno */
+	/*! Peer callno */
 	unsigned short peercallno;
-	/* Peer selected format */
+	/*! Peer selected format */
 	int peerformat;
-	/* Peer capability */
+	/*! Peer capability */
 	int peercapability;
-	/* timeval that we base our transmission on */
+	/*! timeval that we base our transmission on */
 	struct timeval offset;
-	/* timeval that we base our delivery on */
+	/*! timeval that we base our delivery on */
 	struct timeval rxcore;
 #ifdef NEWJB
-	/* The jitterbuffer */
+	/*! The jitterbuffer */
         jitterbuf *jb;
-	/* active jb read scheduler id */
+	/*! active jb read scheduler id */
         int jbid;                       
 #else
-	/* Historical delivery time */
+	/*! Historical delivery time */
 	int history[MEMORY_SIZE];
-	/* Current base jitterbuffer */
+	/*! Current base jitterbuffer */
 	int jitterbuffer;
-	/* Current jitter measure */
+	/*! Current jitter measure */
 	int jitter;
-	/* Historic jitter value */
+	/*! Historic jitter value */
 	int historicjitter;
 #endif
-	/* LAG */
+	/*! LAG */
 	int lag;
-	/* Error, as discovered by the manager */
+	/*! Error, as discovered by the manager */
 	int error;
-	/* Owner if we have one */
+	/*! Owner if we have one */
 	struct ast_channel *owner;
-	/* What's our state? */
+	/*! What's our state? */
 	int state;
-	/* Expiry (optional) */
+	/*! Expiry (optional) */
 	int expiry;
-	/* Next outgoing sequence number */
+	/*! Next outgoing sequence number */
 	unsigned char oseqno;
-	/* Next sequence number they have not yet acknowledged */
+	/*! Next sequence number they have not yet acknowledged */
 	unsigned char rseqno;
-	/* Next incoming sequence number */
+	/*! Next incoming sequence number */
 	unsigned char iseqno;
-	/* Last incoming sequence number we have acknowledged */
+	/*! Last incoming sequence number we have acknowledged */
 	unsigned char aseqno;
-	/* Peer name */
+	/*! Peer name */
 	char peer[80];
-	/* Default Context */
+	/*! Default Context */
 	char context[80];
-	/* Caller ID if available */
+	/*! Caller ID if available */
 	char cid_num[80];
 	char cid_name[80];
-	/* Hidden Caller ID (i.e. ANI) if appropriate */
+	/*! Hidden Caller ID (i.e. ANI) if appropriate */
 	char ani[80];
-	/* DNID */
+	/*! DNID */
 	char dnid[80];
-	/* Requested Extension */
+	/*! Requested Extension */
 	char exten[AST_MAX_EXTENSION];
-	/* Expected Username */
+	/*! Expected Username */
 	char username[80];
-	/* Expected Secret */
+	/*! Expected Secret */
 	char secret[80];
-	/* permitted authentication methods */
+	/*! permitted authentication methods */
 	int authmethods;
-	/* permitted encryption methods */
+	/*! permitted encryption methods */
 	int encmethods;
-	/* MD5 challenge */
+	/*! MD5 challenge */
 	char challenge[10];
-	/* Public keys permitted keys for incoming authentication */
+	/*! Public keys permitted keys for incoming authentication */
 	char inkeys[80];
-	/* Private key for outgoing authentication */
+	/*! Private key for outgoing authentication */
 	char outkey[80];
-	/* Encryption AES-128 Key */
+	/*! Encryption AES-128 Key */
 	aes_encrypt_ctx ecx;
-	/* Decryption AES-128 Key */
+	/*! Decryption AES-128 Key */
 	aes_decrypt_ctx dcx;
-	/* 32 bytes of semi-random data */
+	/*! 32 bytes of semi-random data */
 	unsigned char semirand[32];
-	/* Preferred language */
+	/*! Preferred language */
 	char language[MAX_LANGUAGE];
-	/* Hostname/peername for naming purposes */
+	/*! Hostname/peername for naming purposes */
 	char host[80];
-	/* Associated registry */
+	/*! Associated registry */
 	struct iax2_registry *reg;
-	/* Associated peer for poking */
+	/*! Associated peer for poking */
 	struct iax2_peer *peerpoke;
-	/* IAX_ flags */
+	/*! IAX_ flags */
 	unsigned int flags;
 
-	/* Transferring status */
+	/*! Transferring status */
 	enum iax_transfer_state transferring;
-	/* Transfer identifier */
+	/*! Transfer identifier */
 	int transferid;
-	/* Who we are IAX transfering to */
+	/*! Who we are IAX transfering to */
 	struct sockaddr_in transfer;
-	/* What's the new call number for the transfer */
+	/*! What's the new call number for the transfer */
 	unsigned short transfercallno;
-	/* Transfer decrypt AES-128 Key */
+	/*! Transfer decrypt AES-128 Key */
 	aes_encrypt_ctx tdcx;
 
-	/* Status of knowledge of peer ADSI capability */
+	/*! Status of knowledge of peer ADSI capability */
 	int peeradsicpe;
 	
-	/* Who we are bridged to */
+	/*! Who we are bridged to */
 	unsigned short bridgecallno;
 	unsigned int bridgesfmt;
 	struct ast_trans_pvt *bridgetrans;
 	
-	int pingid;			/* Transmit PING request */
-	int lagid;			/* Retransmit lag request */
-	int autoid;			/* Auto hangup for Dialplan requestor */
-	int authid;			/* Authentication rejection ID */
-	int authfail;			/* Reason to report failure */
-	int initid;			/* Initial peer auto-congest ID (based on qualified peers) */
+	int pingid;			/*!< Transmit PING request */
+	int lagid;			/*!< Retransmit lag request */
+	int autoid;			/*!< Auto hangup for Dialplan requestor */
+	int authid;			/*!< Authentication rejection ID */
+	int authfail;			/*!< Reason to report failure */
+	int initid;			/*!< Initial peer auto-congest ID (based on qualified peers) */
 	int calling_ton;
 	int calling_tns;
 	int calling_pres;
@@ -577,13 +577,13 @@ struct chan_iax2_pvt {
 	int amaflags;
 	struct iax2_dpcache *dpentries;
 	struct ast_variable *vars;
-	/* last received remote rr */
+	/*! last received remote rr */
 	struct iax_rr remote_rr;
-	/* Current base time: (just for stats) */
+	/*! Current base time: (just for stats) */
 	int min;
-	/* Dropped frame count: (just for stats) */
+	/*! Dropped frame count: (just for stats) */
 	int frames_dropped;
-	/* received frame count: (just for stats) */
+	/*! received frame count: (just for stats) */
 	int frames_received;
 };
 
@@ -609,21 +609,21 @@ static struct ast_firmware_list {
 	ast_mutex_t lock;
 } waresl;
 
-/* Extension exists */
+/*! Extension exists */
 #define CACHE_FLAG_EXISTS		(1 << 0)
-/* Extension is nonexistent */
+/*! Extension is nonexistent */
 #define CACHE_FLAG_NONEXISTENT		(1 << 1)
-/* Extension can exist */
+/*! Extension can exist */
 #define CACHE_FLAG_CANEXIST		(1 << 2)
-/* Waiting to hear back response */
+/*! Waiting to hear back response */
 #define CACHE_FLAG_PENDING		(1 << 3)
-/* Timed out */
+/*! Timed out */
 #define CACHE_FLAG_TIMEOUT		(1 << 4)
-/* Request transmitted */
+/*! Request transmitted */
 #define CACHE_FLAG_TRANSMITTED		(1 << 5)
-/* Timeout */
+/*! Timeout */
 #define CACHE_FLAG_UNKNOWN		(1 << 6)
-/* Matchmore */
+/*! Matchmore */
 #define CACHE_FLAG_MATCHMORE		(1 << 7)
 
 static struct iax2_dpcache {
@@ -635,7 +635,7 @@ static struct iax2_dpcache {
 	unsigned short callno;
 	int waiters[256];
 	struct iax2_dpcache *next;
-	struct iax2_dpcache *peer;	/* For linking in peers */
+	struct iax2_dpcache *peer;	/*!< For linking in peers */
 } *dpcache;
 
 AST_MUTEX_DEFINE_STATIC(dpcache_lock);
