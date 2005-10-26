@@ -20,9 +20,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Translate between signed linear and G.723.1
+ * \brief Translate between signed linear and G.723.1
  *
  */
 

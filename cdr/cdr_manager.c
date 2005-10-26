@@ -14,10 +14,14 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Asterisk Call Manager CDR records.
+ * \brief Asterisk Call Manager CDR records.
  * 
+ * See also
+ * \arg \ref AstCDR
+ * \arg \ref AstAMI
+ * \arg \ref Config_ami
  */
 
 #include <sys/types.h>

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Implementation of Inter-Asterisk eXchange
+ * \brief Implementation of Inter-Asterisk eXchange Protocol, v 2
  * 
  */
 

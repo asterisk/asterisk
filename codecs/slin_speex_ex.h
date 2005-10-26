@@ -1,9 +1,9 @@
-/*
- * Signed 16-bit audio data, 500ms of speech at 8kHz to ensure no DTX triggered
+/*! \file
+ * \brief Signed 16-bit audio data, 500ms of speech at 8kHz to ensure no DTX triggered
  *
  * Source: speex.example
  *
- * Copyright (C) 1999, Mark Spencer
+ * Copyright (C) 1999-2005, Digium Inc.
  *
  * Distributed under the terms of the GNU General Public License
  *

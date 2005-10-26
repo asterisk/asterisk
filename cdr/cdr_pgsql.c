@@ -20,10 +20,15 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * PostgreSQL CDR logger 
+ * \brief PostgreSQL CDR logger 
+ * 
+ * \author Matthew D. Hardeman <mhardemn@papersoft.com> 
  *
+ * See also
+ * \arg \ref Config_cdr
+ * \arg http://www.postgresql.org/
  */
 
 #include <sys/types.h>

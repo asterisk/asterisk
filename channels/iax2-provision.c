@@ -16,9 +16,8 @@
  * at the top of the source tree.
  */
 
-/*
- *
- * IAX Provisioning Protocol 
+/*! \file
+ * \brief IAX Provisioning Protocol 
  *
  */
 

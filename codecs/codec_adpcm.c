@@ -20,9 +20,9 @@
  * at the top of the source tree.
  */
 
-/* 
+/*! \file
  *
- * codec_adpcm.c - translate between signed linear and Dialogic ADPCM
+ * \brief codec_adpcm.c - translate between signed linear and Dialogic ADPCM
  * 
  */
 

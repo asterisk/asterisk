@@ -1,9 +1,9 @@
-/*
-  * 8-bit raw data
+/*! \file
+  * \brief 8-bit raw data
   *
   * Source: example.lpc10
   *
-  * Copyright (C) 1999, Mark Spencer and Linux Support Services
+  * Copyright (C) 1999-2005, Digium Inc.
   *
   * Distributed under the terms of the GNU General Public License
   *

@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*!\file
  *
- * Headerless G.726 (16/24/32/40kbps) data format for Asterisk.
+ * \brief Headerless G.726 (16/24/32/40kbps) data format for Asterisk.
  * 
  */
  

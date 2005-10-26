@@ -1,9 +1,9 @@
-/*
-  * Raw 8-bit data
+/*! \file
+  * \brief Raw 8-bit data
   *
   * Source: ilbc.out
   *
-  * Copyright (C) 1999, Mark Spencer and Linux Support Services
+  * Copyright (C) 1999-2005, Digium Inc.
   *
   * Distributed under the terms of the GNU General Public License
   *

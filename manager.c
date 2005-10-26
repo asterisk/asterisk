@@ -195,7 +195,7 @@ static int handle_showmancmd(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*--- handle_showmancmds: CLI command */
+/*! \brief  handle_showmancmds: CLI command */
 /* Should change to "manager show commands" */
 static int handle_showmancmds(int fd, int argc, char *argv[])
 {
@@ -215,7 +215,7 @@ static int handle_showmancmds(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*--- handle_showmanconn: CLI command show manager connected */
+/*! \brief  handle_showmanconn: CLI command show manager connected */
 /* Should change to "manager show connected" */
 static int handle_showmanconn(int fd, int argc, char *argv[])
 {
@@ -737,7 +737,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 }
 
 
-/*--- action_status: Manager "status" command to show channels */
+/*! \brief  action_status: Manager "status" command to show channels */
 /* Needs documentation... */
 static int action_status(struct mansession *s, struct message *m)
 {
@@ -835,7 +835,7 @@ static char mandescr_redirect[] =
 "	*Priority: Priority to transfer to\n"
 "	ActionID: Optional Action id for message matching.\n";
 
-/*--- action_redirect: The redirect manager command */
+/*! \brief  action_redirect: The redirect manager command */
 static int action_redirect(struct mansession *s, struct message *m)
 {
 	char *name = astman_get_header(m, "Channel");
@@ -892,7 +892,7 @@ static char mandescr_command[] =
 "	*Command: Asterisk CLI command to run\n"
 "	ActionID: Optional Action id for message matching.\n";
 
-/*--- action_command: Manager command "command" - execute CLI command */
+/*! \brief  action_command: Manager command "command" - execute CLI command */
 static int action_command(struct mansession *s, struct message *m)
 {
 	char *cmd = astman_get_header(m, "Command");
@@ -1477,7 +1477,7 @@ static int append_event(struct mansession *s, const char *str)
 	return -1;
 }
 
-/*--- manager_event: Send AMI event to client */
+/*! \brief  manager_event: Send AMI event to client */
 int manager_event(int category, char *event, char *fmt, ...)
 {
 	struct mansession *s;

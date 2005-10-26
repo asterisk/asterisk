@@ -14,9 +14,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * OGG/Vorbis streams.
+ * \brief OGG/Vorbis streams.
  * 
  */
  

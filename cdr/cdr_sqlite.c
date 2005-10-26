@@ -3,7 +3,6 @@
  *
  * Copyright (C) 2004 - 2005, Holger Schurig
  *
- * Holger Schurig <hs4233@mail.mn-solutions.de>
  *
  * Ideas taken from other cdr_*.c files
  *
@@ -18,10 +17,17 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Store CDR records in a SQLite database.
+ * \brief Store CDR records in a SQLite database.
  * 
+ * \author Holger Schurig <hs4233@mail.mn-solutions.de>
+ *
+ * See also
+ * \arg \ref Config_cdr
+ * \arg http://www.sqlite.org/
+ * 
+ * Creates the database and table on-the-fly
  */
 
 #include <sys/types.h>
@@ -52,6 +58,7 @@ static sqlite* db = NULL;
 
 AST_MUTEX_DEFINE_STATIC(sqlite_lock);
 
+/*! \brief SQL table format */
 static char sql_create_table[] = "CREATE TABLE cdr ("
 "	AcctId		INTEGER PRIMARY KEY,"
 "	clid		VARCHAR(80),"

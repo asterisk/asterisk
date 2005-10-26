@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * JPEG File format support.
+ * \brief JPEG File format support.
  * 
  */
  

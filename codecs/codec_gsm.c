@@ -19,9 +19,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Translate between signed linear and Global System for Mobile Communications (GSM)
+ * \brief Translate between signed linear and Global System for Mobile Communications (GSM)
  *
  */
 

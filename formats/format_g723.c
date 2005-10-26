@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Old-style G.723 frame/timestamp format.
+ * \brief Old-style G.723 frame/timestamp format.
  * 
  */
  

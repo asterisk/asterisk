@@ -1,9 +1,9 @@
-/*
-  * Random Data data
+/*! \file
+  * \brief Random Data data
   *
   * Source: speex.raw
   *
-  * Copyright (C) 1999, Mark Spencer and Linux Support Services
+  * Copyright (C) 1999-2005, Digium Inc.
   *
   * Distributed under the terms of the GNU General Public License
   *

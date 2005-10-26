@@ -10,6 +10,10 @@
  * This program is free software, distributed under the terms of
  * the GNU General Public License
  */
+
+/*!\file
+ * \brief Implementation of the IAX2 protocol
+ */
  
 #ifndef _IAX2_PARSER_H
 #define _IAX2_PARSER_H

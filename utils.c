@@ -167,7 +167,7 @@ static int gethostbyname_r (const char *name, struct hostent *ret, char *buf,
 
 #endif
 
-/* Re-entrant (thread safe) version of gethostbyname that replaces the 
+/*! \brief Re-entrant (thread safe) version of gethostbyname that replaces the 
    standard gethostbyname (which is not thread safe)
 */
 struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
@@ -217,9 +217,6 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 }
 
 
-/* This is a regression test for recursive mutexes.
-   test_for_thread_safety() will return 0 if recursive mutex locks are
-   working properly, and non-zero if they are not working properly. */
 
 AST_MUTEX_DEFINE_STATIC(test_lock);
 AST_MUTEX_DEFINE_STATIC(test_lock2);
@@ -227,6 +224,9 @@ static pthread_t test_thread;
 static int lock_count = 0;
 static int test_errors = 0;
 
+/*! \brief This is a regression test for recursive mutexes.
+   test_for_thread_safety() will return 0 if recursive mutex locks are
+   working properly, and non-zero if they are not working properly. */
 static void *test_thread_body(void *data) 
 { 
 	ast_mutex_lock(&test_lock);
@@ -278,7 +278,7 @@ int test_for_thread_safety(void)
 	return(test_errors);          /* return 0 on success. */
 }
 
-/*--- ast_md5_hash: Produce 16 char MD5 hash of value. ---*/
+/*! \brief ast_md5_hash: Produce 16 char MD5 hash of value. ---*/
 void ast_md5_hash(char *output, char *input)
 {
 	struct MD5Context md5;
@@ -409,7 +409,7 @@ static void base64_init(void)
 #endif
 }
 
-/*--- ast_uri_encode: Turn text string to URI-encoded %XX version ---*/
+/*! \brief  ast_uri_encode: Turn text string to URI-encoded %XX version ---*/
 /* 	At this point, we're converting from ISO-8859-x (8-bit), not UTF8
 	as in the SIP protocol spec 
 	If doreserved == 1 we will convert reserved characters also.
@@ -451,7 +451,7 @@ char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved)
 	return outbuf;
 }
 
-/*--- ast_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
+/*! \brief  ast_uri_decode: Decode SIP URI, URN, URL (overwrite the string)  ---*/
 void ast_uri_decode(char *s) 
 {
 	char *o;
@@ -468,7 +468,7 @@ void ast_uri_decode(char *s)
 	*o = '\0';
 }
 
-/*--- ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
+/*! \brief  ast_inet_ntoa: Recursive thread safe replacement of inet_ntoa */
 const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia)
 {
 	return inet_ntop(AF_INET, &ia, buf, bufsiz);

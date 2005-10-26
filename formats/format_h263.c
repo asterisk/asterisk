@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Save to raw, headerless h263 data.
+ * \brief Save to raw, headerless h263 data.
  * 
  */
  

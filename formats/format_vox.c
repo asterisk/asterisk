@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Flat, binary, ADPCM vox file format.
+ * \brief Flat, binary, ADPCM vox file format.
  * 
  */
  

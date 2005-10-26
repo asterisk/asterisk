@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Save GSM in the proprietary Microsoft format.
+ * \brief Save GSM in the proprietary Microsoft format.
  * 
  */
  

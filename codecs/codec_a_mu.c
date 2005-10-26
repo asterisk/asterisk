@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/* 
+/*! \file
  *
- * codec_a_mu.c - translate between alaw and ulaw directly
+ * \brief codec_a_mu.c - translate between alaw and ulaw directly
  *
  */
 

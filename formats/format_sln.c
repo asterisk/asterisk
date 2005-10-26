@@ -15,9 +15,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * RAW SLINEAR Format
+ * \brief RAW SLINEAR Format
  *
  */
  

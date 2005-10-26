@@ -1,10 +1,10 @@
-/* log2comp.h - various base 2 log computation versions
+/*! \file \brief log2comp.h - various base 2 log computation versions
  * 
  * Asterisk -- A telephony toolkit for Linux.
  *
- * Implementation by Alex Volkov <codepro@usa.net>
+ * \author Alex Volkov <codepro@usa.net>
  *
- * Copyright (c) 2004 - 2005, Digium
+ * Copyright (c) 2004 - 2005, Digium Inc.
  *
  * This program is free software, distributed under the terms of
  * the GNU General Public License

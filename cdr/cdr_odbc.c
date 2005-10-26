@@ -16,10 +16,15 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * ODBC CDR Backend
+ * \brief ODBC CDR Backend
  * 
+ * \author Brian K. West <brian@bkw.org>
+ *
+ * See also:
+ * \arg http://www.unixodbc.org
+ * \arg \ref Config_cdr
  */
 
 #include <sys/types.h>

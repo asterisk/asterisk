@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Save to raw, headerless GSM data.
+ * \brief Save to raw, headerless GSM data.
  * 
  */
  

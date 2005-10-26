@@ -18,9 +18,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Translate between signed linear and Internet Low Bitrate Codec
+ * \brief Translate between signed linear and Internet Low Bitrate Codec
  * 
  */
 

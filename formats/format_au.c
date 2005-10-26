@@ -15,9 +15,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Work with Sun Microsystems AU format.
+ * \brief Work with Sun Microsystems AU format.
  * 
  */
  

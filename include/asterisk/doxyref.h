@@ -37,6 +37,14 @@
  *  \arg \ref AstVar
  *  \arg \ref AstENUM
  *  \arg \ref ConfigFiles
+ *  \arg \ref SoundFiles
+ * \section wwwsites Web sites
+ * \arg Main:  Asterisk Developer's website http://www.asterisk.org/developers/
+ * \arg Bugs: The Issue tracker http://bugs.digium.com
+ * \arg Lists: List server http://lists.digium.com
+ * \arg Wiki: The Asterisk Wiki 	http://www.voip-info.org
+ * \arg Docs: The Asterisk Documentation Project http://www.asteriskdocs.org
+ * \arg Digium: The Asterisk company http://www.digium.com
  */
 
 /*! \page CodeGuide Coding Guidelines
@@ -45,6 +53,7 @@
  *  Make sure to stay up to date with the latest guidelines.
  *  \verbinclude CODING-GUIDELINES
  */
+
 /*! \page AstAPI Asterisk API
  *  \section Asteriskapi Asterisk API
  *  This programmer's documentation covers the generic API.
@@ -53,15 +62,19 @@
  *  \subsection channel Channels
  *  \verbinclude channel.txt
  */
+
 /*! \page AstDebug Debugging
  *  \section debug Debugging
  *  \verbinclude README.backtrace
  */
+
 /*! \page AstAMI AMI - The Manager Interface
  *  \section ami AMI - The manager Interface
  *  \arg \link Config_ami Configuration file \endlink
+ * \arg \ref manager.c
  *  \verbinclude manager.txt
  */
+
 /*!  \page AstARA ARA - The Asterisk Realtime Interface
  *  \section realtime ARA - a generic API to storage and retrieval
  *  Implemented in \ref config.c 
@@ -69,6 +82,7 @@
  *  \verbinclude README.realtime 
  *  \verbinclude README.extconfig
  */
+
 /*!  \page AstDUNDi DUNDi
 DUNDi is a peer-to-peer system for locating Internet gateways to telephony services. Unlike traditional centralized services (such as the remarkably simple and concise ENUM standard), DUNDi is fully-distributed with no centralized authority whatsoever.
 
@@ -82,6 +96,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 /*! \page AstCDR CDR - Call Data Records and billing
  * \section cdr Call Data Records
  *  \verbinclude README.cdr
+ * \arg \ref cdr.c
  * \arg \ref Config_cdr CDR configuration files
  */
 /*! \page AstREADME README - the general administrator introduction
@@ -100,6 +115,9 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 /*! \page AstENUM ENUM
  * \section enumreadme ENUM
  * \arg Configuration: \ref Config_enum
+ * \arg \ref enum.c
+ * \arg \ref app_enumlookup.c
+ *
  * \verbinclude README.enum
  */
 
@@ -210,19 +228,24 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 
 /*! \page Config_rtp RTP configuration
  * \ref rtp.c
+ * Used in \ref chan_sip.c and \ref chan_mgcp.c (and various H.323 channels)
  * \section rtpconf rtp.conf
  * \verbinclude rtp.conf.sample
  */
+
 /*! \page Config_dun Dundi Configuration
  * \arg See also \ref AstDundi
  * \section dundiconf dundi.conf
  * \verbinclude dundi.conf.sample
  */
+
 /*! \page Config_enum ENUM Configuration
- * \arg See also \ref enumreadme
  * \section enumconf enum.conf
+ * \arg See also \ref enumreadme
+ * \arg \ref app_enumlookup.c
  * \verbinclude enum.conf.sample
  */
+
 /*! \page Config_cdr CDR configuration
  * \arg \link cdrconf Main CDR Configuration \endlink
  * \arg \link cdrcustom Custom CDR driver configuration \endlink
@@ -233,18 +256,27 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \section cdrconf Main CDR configuration
  * \verbinclude cdr.conf.sample
  * \section cdrcustom Custom CDR driver configuration
+ * \arg \ref cdr_custom.c
  * \verbinclude cdr_custom.conf.sample
  * \section cdrami Manager CDR driver configuration
+ * See also:
+ * \arg \ref AstAMI
+ * \arg \ref cdr_manager.c
  * \verbinclude cdr_manager.conf.sample
  * \section cdrodbc ODBC CDR driver configuration
- * Based on http://www.unixodbc.org
+ * See also:
+ * \arg http://www.unixodbc.org
+ * \arg \ref cdr_odbc.c
  * \verbinclude cdr_odbc.conf.sample
  * \section cdrpgsql Postgres CDR driver configuration
+ * \arg \ref cdr_pgsql.c
+ * \arg http://www.postgresql.org
  * \verbinclude cdr_pgsql.conf.sample
- * \verbinclude cdr_tds.conf.sample
  * \section cdrtds FreeTDS CDR driver configuration
+ * \arg http://www.freetds.org
  * \verbinclude cdr_tds.conf.sample
  */
+
 
 /*! \page Config_moh Music on Hold Configuration
  * \arg Implemented in \ref res_musiconhold.c
@@ -284,3 +316,14 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \verbinclude meetme.conf.sample
  */
 
+/*! \page SoundFiles Sound files
+ *  \section SecSound Asterisk Sound files
+ *  Asterisk includes a large amount of sound files. Many of these
+ *  are used by applications and demo scripts within asterisk.
+ *
+ *  Additional sound files are available in the asterisk-addons
+ *  repository on cvs.digium.com
+ * 
+ *  \section SoundList List of included sound files
+ *  \verbinclude sounds.txt
+ */

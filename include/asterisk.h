@@ -11,6 +11,10 @@
  * the GNU General Public License
  */
 
+/*! \file
+ * \brief Asterisk main include file. File version handling, generic pbx functions.
+ */
+
 #ifndef _ASTERISK_H
 #define _ASTERISK_H
 

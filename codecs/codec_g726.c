@@ -20,9 +20,9 @@
  */
 
 
-/*
+/*! \file
  *
- * codec_g726.c - translate between signed linear and ITU G.726-32kbps
+ * \brief codec_g726.c - translate between signed linear and ITU G.726-32kbps
  *
  */
 

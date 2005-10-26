@@ -1,11 +1,11 @@
-/*
- * slin_adpcm_ex.h --
+/*! \file
+ * \brief slin_adpcm_ex.h --
  *
  *	Signed 16-bit audio data, 10 milliseconds worth at 8 kHz.
  *
  * Source: g726.example
  *
- * Copyright (C) 2001, Linux Support Services, Inc.
+ * Copyright (C) 2001-2005, Digium Inc.
  *
  * Distributed under the terms of the GNU General Public License
  *

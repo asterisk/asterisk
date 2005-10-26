@@ -20,9 +20,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Translate between signed linear and LPC10 (Linear Predictor Code)
+ * \brief Translate between signed linear and LPC10 (Linear Predictor Code)
  *
  */
 

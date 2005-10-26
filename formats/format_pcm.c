@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Flat, binary, ulaw PCM file format.
+ * \brief Flat, binary, ulaw PCM file format.
  * 
  */
  

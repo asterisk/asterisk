@@ -18,10 +18,11 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Comma Separated Value CDR records.
+ * \brief Comma Separated Value CDR records.
  * 
+ * \arg See also \ref AstCDR
  */
 
 #include <sys/types.h>

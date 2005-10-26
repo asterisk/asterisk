@@ -14,10 +14,16 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * FreeTDS CDR logger
+ * \brief FreeTDS CDR logger
  *
+ * See also
+ * \arg \ref Config_cdr
+ * \arg http://www.freetds.org/
+ */
+
+/*! \verbatim
  *
  * Table Structure for `cdr`
  *
@@ -43,6 +49,8 @@ CREATE TABLE [dbo].[cdr] (
 	[amaflags] [varchar] (16) NULL ,
 	[uniqueid] [varchar] (32) NULL
 ) ON [PRIMARY]
+
+\endverbatim
 
 */
 

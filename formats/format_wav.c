@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Work with WAV in the proprietary Microsoft format.
+ * \brief Work with WAV in the proprietary Microsoft format.
  * 
  */
  

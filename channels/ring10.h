@@ -1,9 +1,9 @@
-/*
-  * Signed 16-bit audio data
+/*! \file
+  * \brief Signed 16-bit audio data
   *
   * Source: /home/markster/ring10.raw
   *
-  * Copyright (C) 1999, Mark Spencer and Linux Support Services
+  * Copyright (C) 1999-2005, Digium, Inc.
   *
   * Distributed under the terms of the GNU General Public License
   *

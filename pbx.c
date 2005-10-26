@@ -57,8 +57,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/devicestate.h"
 
-/*
- * I M P O R T A N T :
+/*!
+ * \note I M P O R T A N T :
  *
  *		The speed of extension handling will likely be among the most important
  * aspects of this PBX.  The switching scheme as it exists right now isn't
@@ -984,7 +984,7 @@ static char *substring(char *value, int offset, int length, char *workspace, siz
 	return ret;
 }
 
-/*--- pbx_retrieve_variable: Support for Asterisk built-in variables and
+/*! \brief  pbx_retrieve_variable: Support for Asterisk built-in variables and
       functions in the dialplan
   ---*/
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
@@ -1769,7 +1769,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 
 }
 
-/*--- ast_hint_extension: Find hint for given extension in context */
+/*! \brief  ast_hint_extension: Find hint for given extension in context */
 static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
@@ -1789,7 +1789,7 @@ static struct ast_exten *ast_hint_extension(struct ast_channel *c, const char *c
 	return e;
 }
 
-/*--- ast_extensions_state2: Check state of extension by using hints */
+/*! \brief  ast_extensions_state2: Check state of extension by using hints */
 static int ast_extension_state2(struct ast_exten *e)
 {
 	char hint[AST_MAX_EXTENSION] = "";    
@@ -1863,7 +1863,7 @@ static int ast_extension_state2(struct ast_exten *e)
 	return AST_EXTENSION_NOT_INUSE;
 }
 
-/*--- ast_extension_state2str: Return extension_state as string */
+/*! \brief  ast_extension_state2str: Return extension_state as string */
 const char *ast_extension_state2str(int extension_state)
 {
 	int i;
@@ -1876,7 +1876,7 @@ const char *ast_extension_state2str(int extension_state)
 	return "Unknown";	
 }
 
-/*--- ast_extension_state: Check extension state for an extension by using hint */
+/*! \brief  ast_extension_state: Check extension state for an extension by using hint */
 int ast_extension_state(struct ast_channel *c, char *context, char *exten)
 {
 	struct ast_exten *e;
@@ -1930,7 +1930,7 @@ void ast_hint_state_changed(const char *device)
 	ast_mutex_unlock(&hintlock);
 }
 			
-/*--- ast_extension_state_add: Add watcher for extension states */
+/*! \brief  ast_extension_state_add: Add watcher for extension states */
 int ast_extension_state_add(const char *context, const char *exten, 
 			    ast_state_cb_type callback, void *data)
 {
@@ -2013,7 +2013,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 	return cblist->id;
 }
 
-/*--- ast_extension_state_del: Remove a watcher from the callback list */
+/*! \brief  ast_extension_state_del: Remove a watcher from the callback list */
 int ast_extension_state_del(int id, ast_state_cb_type callback)
 {
 	struct ast_hint *list;
@@ -2076,7 +2076,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	return -1;
 }
 
-/*--- ast_add_hint: Add hint to hint list, check initial extension state */
+/*! \brief  ast_add_hint: Add hint to hint list, check initial extension state */
 static int ast_add_hint(struct ast_exten *e)
 {
 	struct ast_hint *list;
@@ -2119,7 +2119,7 @@ static int ast_add_hint(struct ast_exten *e)
 	return 0;
 }
 
-/*--- ast_change_hint: Change hint for an extension */
+/*! \brief  ast_change_hint: Change hint for an extension */
 static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 { 
 	struct ast_hint *list;
@@ -2140,7 +2140,7 @@ static int ast_change_hint(struct ast_exten *oe, struct ast_exten *ne)
 	return -1;
 }
 
-/*--- ast_remove_hint: Remove hint from extension */
+/*! \brief  ast_remove_hint: Remove hint from extension */
 static int ast_remove_hint(struct ast_exten *e)
 {
 	/* Cleanup the Notifys if hint is removed */
@@ -2185,7 +2185,7 @@ static int ast_remove_hint(struct ast_exten *e)
 }
 
 
-/*--- ast_get_hint: Get hint for channel */
+/*! \brief  ast_get_hint: Get hint for channel */
 int ast_get_hint(char *hint, int hintsize, char *name, int namesize, struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
@@ -3129,7 +3129,7 @@ static int handle_show_application(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*--- handle_show_hints: CLI support for listing registred dial plan hints */
+/*! \brief  handle_show_hints: CLI support for listing registred dial plan hints */
 static int handle_show_hints(int fd, int argc, char *argv[])
 {
 	struct ast_hint *hint;
@@ -3164,7 +3164,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-/*--- handle_show_switches: CLI support for listing registred dial plan switches */
+/*! \brief  handle_show_switches: CLI support for listing registred dial plan switches */
 static int handle_show_switches(int fd, int argc, char *argv[])
 {
 	struct ast_switch *sw;
@@ -3927,7 +3927,7 @@ static char *days[] =
 	"sat",
 };
 
-/*--- get_dow: Get day of week */
+/*! \brief  get_dow: Get day of week */
 static unsigned int get_dow(char *dow)
 {
 	char *c;

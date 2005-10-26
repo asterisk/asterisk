@@ -16,9 +16,9 @@
  * at the top of the source tree.
  */
 
-/* 
+/*! \file
  *
- * codec_ulaw.c - translate between signed linear and ulaw
+ * \brief codec_ulaw.c - translate between signed linear and ulaw
  * 
  */
 

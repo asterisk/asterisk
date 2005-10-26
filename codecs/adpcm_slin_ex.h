@@ -1,11 +1,11 @@
-/*
+/*! \file
  * adpcm_slin_ex.h --
  *
- *	4-bit ADPCM data, 20 milliseconds worth at 8 kHz.
+ * \brief	4-bit ADPCM data, 20 milliseconds worth at 8 kHz.
  *
  * Source: g723.example
  *
- * Copyright (C) 2001, Linux Support Services, Inc.
+ * Copyright (C) 2001-2005, Digium, Inc.
  *
  * Distributed under the terms of the GNU General Public License
  *
