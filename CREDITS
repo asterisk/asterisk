@@ -75,6 +75,8 @@ Steve Kann - new jitter buffer for IAX2
 	stevek@stevek.com
 Constantine Filin - major contributions to the Asterisk Realtime Architecture
 Steve Murphy - privacy support
+Claude Patry - bug fixes, feature enhancements, and bug marshalling
+	cpatry@gmail.com
 
 === OTHER CONTRIBUTIONS ===
 John Todd - Monkey sounds and associated teletorture prompt
