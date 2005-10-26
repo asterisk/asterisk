@@ -363,19 +363,23 @@ struct iax_firmware {
 	unsigned char *buf;
 };
 
-#define REG_STATE_UNREGISTERED	0
-#define REG_STATE_REGSENT	1
-#define REG_STATE_AUTHSENT 	2
-#define REG_STATE_REGISTERED 	3
-#define REG_STATE_REJECTED	4
-#define REG_STATE_TIMEOUT	5
-#define REG_STATE_NOAUTH	6
+enum iax_reg_state {
+	REG_STATE_UNREGISTERED = 0,
+	REG_STATE_REGSENT,
+	REG_STATE_AUTHSENT,
+	REG_STATE_REGISTERED,
+	REG_STATE_REJECTED,
+	REG_STATE_TIMEOUT,
+	REG_STATE_NOAUTH
+};
 
-#define TRANSFER_NONE		0
-#define TRANSFER_BEGIN		1
-#define TRANSFER_READY		2
-#define TRANSFER_RELEASED	3
-#define TRANSFER_PASSTHROUGH	4
+enum iax_transfer_state {
+	TRANSFER_NONE = 0,
+	TRANSFER_BEGIN,
+	TRANSFER_READY,
+	TRANSFER_RELEASED,
+	TRANSFER_PASSTHROUGH
+};
 
 struct iax2_registry {
 	struct sockaddr_in addr;		/* Who we connect to for registration purposes */
@@ -384,7 +388,7 @@ struct iax2_registry {
 	char random[80];
 	int expire;				/* Sched ID of expiration */
 	int refresh;				/* How often to refresh */
-	int regstate;
+	enum iax_reg_state regstate;
 	int messages;				/* Message count */
 	int callno;				/* Associated call number if applicable */
 	struct sockaddr_in us;			/* Who the server thinks we are */
@@ -541,7 +545,7 @@ struct chan_iax2_pvt {
 	unsigned int flags;
 
 	/* Transferring status */
-	int transferring;
+	enum iax_transfer_state transferring;
 	/* Transfer identifier */
 	int transferid;
 	/* Who we are IAX transfering to */
