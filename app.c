@@ -694,7 +694,6 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 					ast_frfree(f);
 					break;
 				}
-			}
 				if (f->subclass == '0') {
 				/* Check for a '0' during message recording also, in case caller wants operator */
 					if (option_verbose > 2)
@@ -704,6 +703,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 					ast_frfree(f);
 					break;
 				}
+			}
 			if (maxtime) {
 				time(&end);
 				if (maxtime < (end - start)) {
