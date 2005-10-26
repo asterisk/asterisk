@@ -2477,11 +2477,18 @@ out:
 static int increase_call_count(const struct ast_channel *c)
 {
 	int failed = 0;
-
+	double curloadavg;
 	ast_mutex_lock(&maxcalllock);
 	if (option_maxcalls) {
 		if (countcalls >= option_maxcalls) {
 			ast_log(LOG_NOTICE, "Maximum call limit of %d calls exceeded by '%s'!\n", option_maxcalls, c->name);
+			failed = -1;
+		}
+	}
+	if (option_maxload) {
+		getloadavg(&curloadavg, 1);
+		if (curloadavg >= option_maxload) {
+			ast_log(LOG_NOTICE, "Maximum loadavg limit of %lf load exceeded by '%s' (currently %f)!\n", option_maxload, c->name, curloadavg);
 			failed = -1;
 		}
 	}

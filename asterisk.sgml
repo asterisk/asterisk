@@ -153,6 +153,16 @@
 		</listitem>
 	</varlistentry>
 	<varlistentry>
+		<term>-L <replaceable class="parameter">loadaverage</replaceable></term>
+		<listitem>
+			<para>
+			Limits the maximum load average before rejecting new calls.  This can
+			be useful to prevent a system from being brought down by terminating
+			too many simultaneous calls.
+			</para>
+		</listitem>
+	</varlistentry>
+	<varlistentry>
 		<term>-M <replaceable class="parameter">value</replaceable></term>
 		<listitem>
 			<para>

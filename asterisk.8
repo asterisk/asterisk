@@ -3,7 +3,7 @@
 .\" <http://shell.ipoline.com/~elmert/comp/docbook2X/> 
 .\" Please send any bug reports, improvements, comments, patches, 
 .\" etc. to Steve Cheng <steve@ggi-project.org>.
-.TH "ASTERISK" "8" "18 October 2005" "asterisk 1.2" ""
+.TH "ASTERISK" "8" "25 October 2005" "asterisk 1.2" ""
 
 .SH NAME
 asterisk \- All-purpose telephony server.
@@ -79,6 +79,11 @@ Provide brief summary of command line arguments and terminate.
 \fB-i\fR
 Prompt user to intialize any encrypted private keys for IAX2
 secure authentication during startup.
+.TP
+\fB-L \fIloadaverage\fB\fR
+Limits the maximum load average before rejecting new calls.  This can
+be useful to prevent a system from being brought down by terminating
+too many simultaneous calls.
 .TP
 \fB-M \fIvalue\fB\fR
 Limits the maximum number of calls to the specified value.  This can
