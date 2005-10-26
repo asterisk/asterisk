@@ -16,11 +16,6 @@
  * at the top of the source tree.
  */
 
-/*! \file
- * \brief AMI - Asterisk Management Interface
- * External call management support 
- */
-
 #ifndef _ASTERISK_MANAGER_H
 #define _ASTERISK_MANAGER_H
 
@@ -33,9 +28,9 @@
 #include "asterisk/lock.h"
 
 /*!
-  \file manager.h
-  \brief The AMI - Asterisk Manager Interface - is a TCP protocol created to 
-	 manage Asterisk with third-party software.
+ \file
+ \brief The AMI - Asterisk Manager Interface - is a TCP protocol created to 
+ manage Asterisk with third-party software.
 
  Manager protocol packages are text fields of the form a: b.  There is
  always exactly one space after the colon.
@@ -47,9 +42,7 @@
  
  ** Please try to re-use existing headers to simplify manager message parsing in clients.
     Don't re-use an existing header with a new meaning, please.
-    You can find a reference of standard headers in
-    doc/manager.txt
- 
+    You can find a reference of standard headers in doc/manager.txt
  */
  
 #define DEFAULT_MANAGER_PORT 5038	/* Default port for Asterisk management via TCP */

@@ -24,7 +24,7 @@
  *
  * \brief ODBC resource manager
  * 
- * \arg See also: \ref cdrodbc
+ * \arg See also: \ref cdr_odbc
  *
  */
 

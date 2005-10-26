@@ -212,7 +212,7 @@ extern int adsi_get_cpeinfo(struct ast_channel *chan, int *width, int *height, i
 /*! Begin an ADSI script download */ 
 /*!
  * \param buf Character buffer to create parameter in (must have at least 256 free)
- * \param service, a 1-18 byte name of the feature
+ * \param service a 1-18 byte name of the feature
  * \param fdn 4 byte Feature Download Number (for loading soft keys)
  * \param sec 4 byte vendor security code
  * \param ver version number (0-255, or -1 to omit)

@@ -489,6 +489,7 @@ void  ast_channel_free(struct ast_channel *);
  * \param type type of channel to request
  * \param format requested channel format
  * \param data data to pass to the channel requester
+ * \param status status
  * Request a channel of a given type, with data as optional information used 
  * by the low level module
  * Returns an ast_channel on success, NULL on failure.
@@ -500,7 +501,9 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *s
  * \param format requested channel format
  * \param data data to pass to the channel requester
  * \param timeout maximum amount of time to wait for an answer
- * \param why unsuccessful (if unsuceessful)
+ * \param reason why unsuccessful (if unsuceessful)
+ * \param cidnum Caller-ID Number
+ * \param cidname Caller-ID Name
  * Request a channel of a given type, with data as optional information used 
  * by the low level module and attempt to place a call on it
  * Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
@@ -550,7 +553,9 @@ int ast_hangup(struct ast_channel *chan);
  * Returns 0 regardless
  */
 int ast_softhangup(struct ast_channel *chan, int cause);
+
 /*! Softly hangup up a channel (no channel lock) 
+ * \param chan channel to be soft-hung-up
  * \param cause	Ast hangupcause for hangup */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause);
 
@@ -823,7 +828,7 @@ int ast_channel_make_compatible(struct ast_channel *c0, struct ast_channel *c1);
 /*! 
  * \param c0 first channel to bridge
  * \param c1 second channel to bridge
- * \param flags for the channels
+ * \param config config for the channels
  * \param fo destination frame(?)
  * \param rc destination channel(?)
  * Bridge two channels (c0 and c1) together.  If an important frame occurs, we return that frame in
@@ -845,7 +850,7 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 
 /*! Gives the string form of a given cause code */
 /*! 
- * \param cause cause to get the description of
+ * \param state cause to get the description of
  * Give a name to a cause code
  * Returns the text form of the binary cause code given
  */
@@ -861,7 +866,7 @@ char *ast_state2str(int state);
 
 /*! Gives the string form of a given transfer capability */
 /*!
- * \param transercapability transfercapabilty to get the name of
+ * \param transfercapability transfercapabilty to get the name of
  * Give a name to a transfercapbility
  * See above
  * Returns the text form of the binary transfer capbility

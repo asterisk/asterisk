@@ -3591,7 +3591,7 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 
 /** ast_say_date_with_format_he Say formmated date in Hebrew
  *
- * @seealso ast_say_date_with_format_en for the details of the options 
+ * \ref ast_say_date_with_format_en for the details of the options 
  *
  * Changes from the English version: 
  *

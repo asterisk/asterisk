@@ -22,7 +22,7 @@
  *
  * Channel Management and more
  * 
- * \ref manconf
+ * \ref amiconf
  */
 
 #include <stdio.h>

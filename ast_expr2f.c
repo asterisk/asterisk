@@ -2156,7 +2156,7 @@ YY_BUFFER_STATE ast_yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 
 /** Setup the input buffer state to scan a string. The next call to ast_yylex() will
  * scan from a @e copy of @a str.
- * @param str a NUL-terminated string to scan
+ * @param yy_str a NUL-terminated string to scan
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  * @note If you want to scan bytes that may contain NUL values, then use
@@ -2332,7 +2332,7 @@ void ast_yyset_lineno (int  line_number , yyscan_t yyscanner)
 }
 
 /** Set the current column.
- * @param line_number
+ * @param column_no
  * @param yyscanner The scanner object.
  */
 void ast_yyset_column (int  column_no , yyscan_t yyscanner)

@@ -37,6 +37,7 @@ static inline int ast_strlen_zero(const char *s)
 
 /*!
   \brief Gets a pointer to the first non-whitespace character in a string.
+  \param ast_skip_blanks function being used
   \param str the input string
   \return a pointer to the first non-whitespace character
  */
@@ -51,6 +52,7 @@ char *ast_skip_blanks(char *str),
 
 /*!
   \brief Trims trailing whitespace characters from a string.
+  \param ast_trim_blanks function being used
   \param str the input string
   \return a pointer to the NULL following the string
  */
@@ -76,6 +78,7 @@ char *ast_trim_blanks(char *str),
 
 /*!
   \brief Gets a pointer to first whitespace character in a string.
+  \param ast_skip_noblanks function being used
   \param str the input string
   \return a pointer to the first whitespace character
  */
@@ -135,6 +138,7 @@ char *ast_strip_quoted(char *s, const char *beg_quotes, const char *end_quotes);
 
 /*!
   \brief Size-limited null-terminating string copy.
+  \param ast_copy_string function being used
   \param dst The destination buffer.
   \param src The source string
   \param size The size of the destination buffer
@@ -167,10 +171,10 @@ void ast_copy_string(char *dst, const char *src, size_t size),
   This is a wrapper for snprintf, that properly handles the buffer pointer
   and buffer space available.
 
-  \return 0 on success, non-zero on failure.
   \param buffer current position in buffer to place string into (will be updated on return)
   \param space remaining space in buffer (will be updated on return)
   \param fmt printf-style format string
+  \return 0 on success, non-zero on failure.
 */
 int ast_build_string(char **buffer, size_t *space, const char *fmt, ...) __attribute__ ((format (printf, 3, 4)));
 

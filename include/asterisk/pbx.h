@@ -184,7 +184,7 @@ struct ast_context *ast_context_create(struct ast_context **extcontexts, const c
 /*! Merge the temporary contexts into a global contexts list and delete from the global list the ones that are being added */
 /*!
  * \param extcontexts pointer to the ast_context structure pointer
- * \param registar of the context; if it's set the routine will delete all contexts that belong to that registrar; if NULL only the contexts that are specified in extcontexts
+ * \param registrar of the context; if it's set the routine will delete all contexts that belong to that registrar; if NULL only the contexts that are specified in extcontexts
  */
 void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char *registrar);
 
@@ -233,6 +233,7 @@ enum ast_pbx_result ast_pbx_run(struct ast_channel *c);
  * \param replace
  * \param extension extension to add
  * \param priority priority level of extension addition
+ * \param label extension label
  * \param callerid callerid of extension
  * \param application application to run on the extension with that priority level
  * \param data data to pass to the application
@@ -310,6 +311,7 @@ int ast_extension_state_add(const char *context, const char *exten,
 /*! Deletes a registered state change callback by ID */
 /*!
  * \param id of the callback to delete
+ * \param callback callback
  * Removes the callback from list of callbacks
  * Return 0 on success, -1 on failure
  */
@@ -319,8 +321,8 @@ int ast_extension_state_del(int id, ast_state_cb_type callback);
 /*!
  * \param hint buffer for hint
  * \param maxlen size of hint buffer
- * \param hint buffer for name portion of hint
- * \param maxlen size of name buffer
+ * \param name buffer for name portion of hint
+ * \param maxnamelen size of name buffer
  * \param c this is not important
  * \param context which context to look in
  * \param exten which extension to search for
@@ -349,7 +351,7 @@ int ast_exists_extension(struct ast_channel *c, const char *context, const char 
  * \param c this is not important
  * \param context which context to look in
  * \param exten which extension to search for
- * \param labellabel of the action within the extension to match to priority
+ * \param label label of the action within the extension to match to priority
  * \param callerid callerid to search for
  * If an priority which matches given label in extension or -1 if not found.
 \ */
@@ -411,6 +413,7 @@ int ast_spawn_extension(struct ast_channel *c, const char *context, const char *
   \param context which context extension is in
   \param exten extension to execute
   \param priority priority to execute within the given extension
+  \param callerid Caller-ID
    If it's not available, do whatever you should do for
    default extensions and halt the thread if necessary.  This function does not
    return, except on error.
@@ -497,7 +500,7 @@ int ast_context_remove_extension2(struct ast_context *con, const char *extension
 /*! Add an ignorepat */
 /*!
  * \param context which context to add the ignorpattern to
- * \param ignorpat ignorepattern to set up for the extension
+ * \param ignorepat ignorepattern to set up for the extension
  * \param registrar registrar of the ignore pattern
  * Adds an ignore pattern to a particular context.
  * Returns 0 on success, -1 on failure
@@ -519,7 +522,7 @@ int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat
 /*! Checks to see if a number should be ignored */
 /*!
  * \param context context to search within
- * \param extension to check whether it should be ignored or not
+ * \param pattern to check whether it should be ignored or not
  * Check if a number should be ignored with respect to dialtone cancellation.  
  * Returns 0 if the pattern should not be ignored, or non-zero if the pattern should be ignored 
  */

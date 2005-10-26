@@ -179,6 +179,7 @@ void ast_update_use_count(void);
 /*! 
  * \brief Ask for a list of modules, descriptions, and use counts.
  * \param modentry A callback to an updater function.
+ * \param like
  *
  * For each of the modules loaded, modentry will be executed with the resource,
  * description, and usecount values of each particular module.
@@ -201,7 +202,7 @@ int ast_loader_register(int (*updater)(void));
 
 /*! 
  * \brief Remove a procedure to be run when modules are updated.
- * \param The updater function to unregister.
+ * \param updater The updater function to unregister.
  *
  * This removes the given function from the updater list.
  * 

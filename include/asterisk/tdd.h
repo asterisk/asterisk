@@ -37,6 +37,7 @@ extern void tdd_init(void);
 
 /*! Generates a CallerID FSK stream in ulaw format suitable for transmission. */
 /*!
+ * \param tdd tdd structure
  * \param buf Buffer to use. This needs to be large enough to accomodate all the generated samples.
  * \param string This is the string to send.
  * This function creates a stream of TDD data in ulaw format. It returns the size
@@ -54,7 +55,7 @@ extern struct tdd_state *tdd_new(void);
 /*! Read samples into the state machine, and return character (if any). */
 /*!
  * \param tdd Which state machine to act upon
- * \param buffer containing your samples
+ * \param ubuf containing your samples
  * \param samples number of samples contained within the buffer.
  *
  * Send received audio to the TDD demodulator.

@@ -60,7 +60,7 @@ struct ast_config_engine {
 };
 
 /*! \brief Load a config file 
- * \param configfile path of file to open.  If no preceding '/' character, path is considered relative to AST_CONFIG_DIR
+ * \param filename path of file to open.  If no preceding '/' character, path is considered relative to AST_CONFIG_DIR
  * Create a config structure from a given configuration file.
  *
  * Returns NULL on error, or an ast_config data structure on success
@@ -94,7 +94,7 @@ struct ast_variable *ast_variable_browse(const struct ast_config *config, const 
 /*! \brief Gets a variable 
  * \param config which (opened) config to use
  * \param category category under which the variable lies
- * \param value which variable you wish to get the data for
+ * \param variable which variable you wish to get the data for
  * Goes through a given config file in the given category and searches for the given variable
  *
  * Returns the variable value on success, or NULL if unable to find it.
@@ -121,8 +121,6 @@ int ast_category_exist(const struct ast_config *config, const char *category_nam
 
 /*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
- * \param keyfield which field to use as the key
- * \param lookup which value to look for in the key field to match the entry.
  * This will use builtin configuration backends to look up a particular 
  * entity in realtime and return a variable list of its parameters.  Note
  * that unlike the variables in ast_config, the resulting list of variables
@@ -132,8 +130,6 @@ struct ast_variable *ast_load_realtime(const char *family, ...);
 
 /*! \brief Retrieve realtime configuration 
  * \param family which family/config to lookup
- * \param keyfield which field to use as the key
- * \param lookup which value to look for in the key field to match the entry.
  * This will use builtin configuration backends to look up a particular 
  * entity in realtime and return a variable list of its parameters. Unlike
  * the ast_load_realtime, this function can return more than one entry and
@@ -146,8 +142,6 @@ struct ast_config *ast_load_realtime_multientry(const char *family, ...);
  * \param family which family/config to be updated
  * \param keyfield which field to use as the key
  * \param lookup which value to look for in the key field to match the entry.
- * \param variable which variable should be updated in the config, NULL to end list
- * \param value the value to be assigned to that variable in the given entity.
  * This function is used to update a parameter in realtime configuration space.
  *
  */

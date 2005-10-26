@@ -88,7 +88,7 @@ DUNDi is a peer-to-peer system for locating Internet gateways to telephony servi
 
 DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it publishes routes which are in turn accessed via industry standard protocols such as IAX, SIP and H.323. 
 
- 	\arg Dundi is documented at http://www.dundi.com
+ 	\arg DUNDi is documented at http://www.dundi.com
   	\arg Implemented in \ref pbx_dundi.c and \ref dundi-parser.c
  	\arg Configuration in \link Config_dun dundi.conf \endlink
  */
@@ -99,6 +99,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \ref cdr.c
  * \arg \ref Config_cdr CDR configuration files
  */
+
 /*! \page AstREADME README - the general administrator introduction
  *  \verbinclude README
  */
@@ -127,7 +128,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \link Config_ext extensions.conf - The Dial Plan \endlink
  * \arg \link Config_mod modules.conf - which modules to load and not to load \endlink
  * \arg \link Config_fea features.conf - call features (transfer, parking, etc) \endlink
- * \section chanconf Channel configurations
+ * \section chanconf Channel configuration files
  * \arg \link Config_iax IAX2 configuration  \endlink
  * \arg \link Config_sip SIP configuration  \endlink
  * \arg \link Config_mgcp MGCP configuration  \endlink
@@ -140,12 +141,20 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \link Config_mm Meetme (conference bridge) configuration  \endlink
  * \arg \link Config_qu Queue system configuration  \endlink
  * \arg \link Config_vm Voicemail configuration  \endlink
+ * \section cdrconf CDR configuration files
+ * \arg \link Config_cdr CDR configuration  \endlink
+ * \arg \link cdr_custom Custom CDR driver configuration \endlink
+ * \arg \link cdr_ami Manager CDR driver configuration \endlink
+ * \arg \link cdr_odbc ODBC CDR driver configuration \endlink
+ * \arg \link cdr_pgsql PostgreSQL CDR driver configuration \endlink
+ * \arg \link cdr_sqlite SQLite CDR driver configuration \endlink
+ * \arg \link cdr_tds FreeTDS CDR driver configuration (Microsoft SQL Server) \endlink
  * \section miscconf Miscellenaous configuration files
- * \arg \link Config_adsi Adsi configuration  \endlink
+ * \arg \link Config_adsi ADSI configuration  \endlink
  * \arg \link Config_ami AMI - Manager configuration  \endlink
  * \arg \link Config_ara Realtime configuration  \endlink
  * \arg \link Config_codec Codec configuration  \endlink
- * \arg \link Config_dun Dundi configuration  \endlink
+ * \arg \link Config_dun DUNDi configuration  \endlink
  * \arg \link Config_enum ENUM configuration  \endlink
  * \arg \link Config_moh Music on Hold configuration  \endlink
  * \arg \link Config_vm Voicemail configuration  \endlink
@@ -169,15 +178,20 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_iax IAX2 configuration
- * IAX2 is implemented in \ref chan_iax2.c . 
- * \arg \link iaxreadme README file \endlink
- * \arg \link iaxconfig iax.conf Configuration file example \endlink
+ * IAX2 is implemented in \ref chan_iax2.c
+ * \arg \link Config_iax iax.conf Configuration file example \endlink
  * \section iaxreadme IAX readme file
  * \verbinclude README.iax
- * \section iaxconfig IAX Configuration example
+ * \section Config_iax IAX Configuration example
  * \verbinclude iax.conf.sample
  * \section iaxjitter IAX Jitterbuffer information
  * \verbinclude README.jitterbuffer
+ */
+
+/*! \page Config_iax IAX configuration
+ * \ref chan_iax2.c
+ * \section iaxconf iax.conf
+ * \verbinclude iax.conf.sample
  */
 
 /*! \page Config_sip SIP configuration
@@ -193,7 +207,6 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \section mgcpconf mgcp.conf
  * \verbinclude mgcp.conf.sample
  */
-
 
 /*! \page Config_vm VoiceMail configuration
  * \section vmconf voicemail.conf
@@ -233,8 +246,8 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \verbinclude rtp.conf.sample
  */
 
-/*! \page Config_dun Dundi Configuration
- * \arg See also \ref AstDundi
+/*! \page Config_dun DUNDi Configuration
+ * \arg See also \ref AstDUNDi
  * \section dundiconf dundi.conf
  * \verbinclude dundi.conf.sample
  */
@@ -246,37 +259,60 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \verbinclude enum.conf.sample
  */
 
-/*! \page Config_cdr CDR configuration
- * \arg \link cdrconf Main CDR Configuration \endlink
- * \arg \link cdrcustom Custom CDR driver configuration \endlink
- * \arg \link cdrami Manager CDR driver configuration \endlink
- * \arg \link cdrodbc ODBC CDR driver configuration \endlink
- * \arg \link cdrpgsql Postgres CDR driver configuration \endlink
- * \arg \link cdrtds FreeTDS CDR driver configuration (Microsoft SQL Server) \endlink
- * \section cdrconf Main CDR configuration
- * \verbinclude cdr.conf.sample
- * \section cdrcustom Custom CDR driver configuration
+/*! \page cdr_custom Custom CDR Configuration
+ * \arg See also \ref cdrconf
  * \arg \ref cdr_custom.c
  * \verbinclude cdr_custom.conf.sample
- * \section cdrami Manager CDR driver configuration
+ */
+
+/*! \page cdr_ami Manager CDR driver configuration
+ * \arg See also \ref cdrconf
  * See also:
  * \arg \ref AstAMI
  * \arg \ref cdr_manager.c
  * \verbinclude cdr_manager.conf.sample
- * \section cdrodbc ODBC CDR driver configuration
- * See also:
- * \arg http://www.unixodbc.org
+ */
+
+/*! \page cdr_odbc ODBC CDR driver configuration
+ * \arg See also \ref cdrconf
  * \arg \ref cdr_odbc.c
  * \verbinclude cdr_odbc.conf.sample
- * \section cdrpgsql Postgres CDR driver configuration
+ * See also:
+ * \arg http://www.unixodbc.org
+ */
+
+/*! \page cdr_pgsql PostgreSQL CDR driver configuration
+ * \arg See also \ref cdrconf
  * \arg \ref cdr_pgsql.c
+ * See also:
  * \arg http://www.postgresql.org
  * \verbinclude cdr_pgsql.conf.sample
- * \section cdrtds FreeTDS CDR driver configuration
+ */
+
+/*! \page cdr_sqlite SQLite CDR driver configuration
+ * \arg See also \ref cdrconf
+ * \arg \ref cdr_sqlite.c
+ * See also:
+ * \arg http://www.sqlite.org
+ */
+
+/*! \page cdr_tds FreeTDS CDR driver configuration
+ * \arg See also \ref cdrconf
+ * See also:
  * \arg http://www.freetds.org
  * \verbinclude cdr_tds.conf.sample
  */
 
+/*! \page Config_cdr CDR configuration
+ * \verbinclude cdr.conf.sample
+ * \arg \link Config_cdr CDR configuration  \endlink  
+ * \arg \link cdr_custom Custom CDR driver configuration \endlink
+ * \arg \link cdr_ami Manager CDR driver configuration \endlink
+ * \arg \link cdr_odbc ODBC CDR driver configuration \endlink
+ * \arg \link cdr_pgsql PostgreSQL CDR driver configuration \endlink
+ * \arg \link cdr_sqlite SQLite CDR driver configuration \endlink
+ * \arg \link cdr_tds FreeTDS CDR driver configuration (Microsoft SQL Server) \endlink
+ */
 
 /*! \page Config_moh Music on Hold Configuration
  * \arg Implemented in \ref res_musiconhold.c
@@ -295,13 +331,13 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_ara REALTIME Configuration
- * \arg See also: \AstARA
+ * \arg See also: \arg \link AstARA \endlink
  * \section extconf extconfig.conf
  * \verbinclude extconfig.conf.sample
  */
 
 /*! \page Config_ami AMI configuration
- * \arg See also: \AstAMI
+ * \arg See also: \arg \link AstAMI \endlink
  * \section amiconf manager.conf
  * \verbinclude manager.conf.sample
  */

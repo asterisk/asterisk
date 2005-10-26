@@ -336,7 +336,7 @@ extern char* ast_getformatname(int format);
 /*! Get the names of a set of formats */
 /*!
  * \param buf a buffer for the output string
- * \param n size of buf (bytes)
+ * \param size size of buf (bytes)
  * \param format the format (combined IDs of codecs)
  * Prints a list of readable codec names corresponding to "format".
  * ex: for format=AST_FORMAT_GSM|AST_FORMAT_SPEEX|AST_FORMAT_ILBC it will return "0x602 (GSM|SPEEX|ILBC)"

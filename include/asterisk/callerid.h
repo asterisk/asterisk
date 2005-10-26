@@ -57,6 +57,7 @@ extern void callerid_init(void);
  * \param buf Buffer to use. If "buf" is supplied, it will use that buffer instead of allocating its own.  "buf" must be at least 32000 bytes in size of you want to be sure you don't have an overrun.
  * \param number Use NULL for no number or "P" for "private"
  * \param name name to be used
+ * \param flags passed flags
  * \param callwaiting callwaiting flag
  * \param codec -- either AST_FORMAT_ULAW or AST_FORMAT_ALAW
  * This function creates a stream of callerid (a callerid spill) data in ulaw format. It returns the size
@@ -76,7 +77,7 @@ extern struct callerid_state *callerid_new(int cid_signalling);
 /*! Read samples into the state machine. */
 /*!
  * \param cid Which state machine to act upon
- * \param buffer containing your samples
+ * \param ubuf containing your samples
  * \param samples number of samples contained within the buffer.
  * \param codec which codec (AST_FORMAT_ALAW or AST_FORMAT_ULAW)
  *
@@ -120,7 +121,8 @@ extern void callerid_free(struct callerid_state *cid);
 /*! Generate Caller-ID spill from the "callerid" field of asterisk (in e-mail address like format) */
 /*!
  * \param buf buffer for output samples. See callerid_generate() for details regarding buffer.
- * \param astcid Asterisk format callerid string, taken from the callerid field of asterisk.
+ * \param name Caller-ID Name
+ * \param number Caller-ID Number
  * \param codec Asterisk codec (either AST_FORMAT_ALAW or AST_FORMAT_ULAW)
  *
  * Acts like callerid_generate except uses an asterisk format callerid string.
@@ -138,7 +140,7 @@ extern int ast_callerid_callwaiting_generate(unsigned char *buf, char *name, cha
 
 /*! Destructively parse inbuf into name and location (or number) */
 /*!
- * \param inbuf buffer of callerid stream (in audio form) to be parsed. Warning, data in buffer is changed.
+ * \param instr buffer of callerid stream (in audio form) to be parsed. Warning, data in buffer is changed.
  * \param name address of a pointer-to-char for the name value of the stream.
  * \param location address of a pointer-to-char for the phone number value of the stream.
  * Parses callerid stream from inbuf and changes into useable form, outputed in name and location.

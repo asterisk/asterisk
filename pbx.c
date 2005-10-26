@@ -4932,7 +4932,6 @@ static void *async_wait(void *data)
  *  This function updates the cdr for a failed spool call
  *  and takes the channel of the failed call as an argument.
  *
- * \param chan the channel for the failed call.
  */
 int ast_pbx_outgoing_cdr_failed(void)
 {

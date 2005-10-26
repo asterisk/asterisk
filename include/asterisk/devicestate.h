@@ -87,6 +87,7 @@ int ast_device_state_changed(const char *fmt, ...)
 int ast_device_state_changed_literal(const char *device);
 
 /*! \brief Registers a device state change callback 
+ * \param callback Callback
  * \param data to pass to callback
  * The callback is called if the state for extension is changed
  * Return -1 on failure, ID on success

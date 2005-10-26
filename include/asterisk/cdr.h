@@ -219,6 +219,7 @@ extern void ast_cdr_submit_batch(int shutdown);
 /*! Set the destination channel, if there was one */
 /*!
  * \param cdr Which cdr it's applied to
+ * \param chan Channel to which dest will be
  * Sets the destination channel the CDR is applied to
  * Returns nothing
  */
@@ -244,7 +245,7 @@ extern int ast_cdr_amaflags2int(const char *flag);
 
 /*! Disposition to a string */
 /*!
- * \param flag input binary form
+ * \param disposition input binary form
  * Converts the binary form of a disposition to string form.
  * Returns a pointer to the string form
  */

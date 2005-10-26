@@ -150,8 +150,6 @@ int plc_fillin(plc_state_t *s, int16_t amp[], int len);
 /*! Process a block of received V.29 modem audio samples.
     \brief Process a block of received V.29 modem audio samples.
     \param s The packet loss concealer context.
-    \param amp The audio sample buffer.
-    \param len The number of samples in the buffer.
     \return A pointer to the he packet loss concealer context. */
 plc_state_t *plc_init(plc_state_t *s);
 

@@ -27,27 +27,24 @@
 
 /*! \brief Lookup entry in ENUM Returns 1 if found, 0 if not found, -1 on hangup
 	\param chan	Channel
-       \param number   E164 number with or without the leading +
+   \param number   E164 number with or without the leading +
 	\param location Number returned	(or SIP uri)
 	\param maxloc	Max length
-	\param tech	Technology (from url scheme in response)
-	\param maxtech	Max length
-       \param tech     Technology (from url scheme in response)
+   \param technology     Technology (from url scheme in response)
                        You can set it to get particular answer RR, if there are many techs in DNS response, example: "sip"
                        If you need any record, then set it to empty string
-       \param maxtech  Max length
-       \param suffix   Zone suffix (if is NULL then use enum.conf 'search' variable)
-       \param options  Options ('c' to count number of NAPTR RR, or number - the position of required RR in the answer list
-
+   \param maxtech  Max length
+   \param suffix   Zone suffix (if is NULL then use enum.conf 'search' variable)
+   \param options  Options ('c' to count number of NAPTR RR, or number - the position of required RR in the answer list
 */
 extern int ast_get_enum(struct ast_channel *chan, const char *number, char *location, int maxloc, char *technology, int maxtech, char* suffix, char* options);
 
 /*!	\brief Lookup DNS TXT record (used by app TXTCIDnum
 	\param chan	Channel
-       \param number   E164 number with or without the leading +
-	\param locatio	Number returned	(or SIP uri)
+   \param number   E164 number with or without the leading +
+	\param location	Number returned	(or SIP uri)
 	\param maxloc	Max length of number
-	\param tech 	Technology (not used in TXT records)
+	\param technology 	Technology (not used in TXT records)
 	\param maxtech	Max length
 	\param txt	Text string (return value)
 	\param maxtxt	Max length of "txt"
