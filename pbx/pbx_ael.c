@@ -110,9 +110,7 @@ static char *__grab_token(char *src, const char *filename, int lineno, int link)
 					*b = '\0'; 
 					b--; 
 				}
-				a = src;
-				while(*a && (*a < 33))
-					a++;
+				a = ast_skip_blanks(src);
 				if (link) {
 					ret = malloc(strlen(a) + sizeof(struct stringlink) + 1);
 					if (ret)
@@ -183,7 +181,7 @@ static char *grab_else(char *args, const char *filename, int lineno)
 								/* Ladies and gentlemen, we have an else clause */
 							*c = '\0';
 							c += 4;
-							while(*c && (*c < 33)) c++;
+							c = ast_skip_blanks(c);
 							ret = c;
 							if (aeldebug & DEBUG_TOKENS)
 								ast_verbose("Returning else clause '%s'\n", c);
@@ -210,7 +208,7 @@ static struct stringlink *param_parse(char *parms, const char *macro, const char
 	}
 	s = parms + 1;
 	while(*s) {
-		while(*s && (*s < 33)) s++;
+		s = ast_skip_blanks(s);
 		e = s;
 		while(*e &&  (*e != ')') && (*e != ',')) {
 			if (*e < 33)
@@ -222,7 +220,7 @@ static struct stringlink *param_parse(char *parms, const char *macro, const char
 			*e = '\0';
 			e++;
 			/* Skip over whitespace */
-			while(*e && (*e < 33)) e++;
+			e = ast_skip_blanks(e);
 			/* Link */
 			cur = malloc(strlen(s) + sizeof(struct stringlink) + 1);
 			if (cur) {
@@ -266,15 +264,14 @@ static struct stringlink *split_token(char *token, const char *filename, int lin
 	while (*args && (*args > 32) && (*args != '{') && (*args != '(')) args++;
 	if (*args) {
 		p = args;
-		while (*args && (*args < 33))
-			args++;
+		args = ast_skip_blanks(args);
 		if (*args != '(') {
 			*p = '\0';
 		} else {
 			while (*args && (*args != ')')) args++;
 			if (*args == ')') {
 				args++;
-				while (*args && (*args < 33)) args++;
+				args = ast_skip_blanks(args);
 			}
 		}
 		if (!*args)
@@ -307,8 +304,7 @@ static struct stringlink *split_params(char *token, const char *filename, int li
 		if (*params != '(') {
 			*params = '\0';
 			params++;
-			while(*params && (*params < 33))
-				params++;
+			params = ast_skip_blanks(params);
 		}
 		if (!*params)
 			params = NULL;
@@ -325,18 +321,18 @@ static const char *get_case(char *s, char **restout, int *pattern)
 	char *rest=NULL;
 	if (!strncasecmp(s, "case", 4) && s[4] && ((s[4] < 33) || (s[4] == ':'))) {
 		newcase = s + 4;
-		while (*newcase && (*newcase < 33)) newcase++;
+		newcase = ast_skip_blanks(newcase);
 		rest = newcase;
 		*pattern = 0;
 	} else if (!strncasecmp(s, "pattern", 7) && s[7] && ((s[7] < 33) || (s[7] == ':'))) {
 		newcase = s + 8;
-		while (*newcase && (*newcase < 33)) newcase++;
+		newcase = ast_skip_blanks(newcase);
 		rest = newcase;
 		*pattern = 1;
 	} else if (!strncasecmp(s, "default", 7) && ((s[7] < 33) || (s[7] == ':'))) {
 		newcase = ".";
 		rest = s + 7;
-		while (*rest && (*rest < 33)) rest++;
+		rest = ast_skip_blanks(rest);
 		*pattern = 1;
 	}
 
@@ -422,12 +418,12 @@ static int match_assignment(char *variable, char **value)
 		c++;
 	} 
 	ws = c;
-	while (*c && (*c < 33)) c++;
+	c = ast_skip_blanks(c);
 	if (*c == '=') {
 		*ws = '\0';
 		*c = '\0';
 		c++;
-		while ((*c) && (*c < 33)) c++;
+		c = ast_skip_blanks(c);
 		*value = c;
 		return 1;
 	}
@@ -443,7 +439,7 @@ static int matches_label(char *data, char **rest)
 		data++;
 	}
 	if (last != ':') {
-		while (*data && (*data < 33)) data++;
+		data = ast_skip_blanks(data);
 		last = *data;
 		data++;
 	}
@@ -493,11 +489,12 @@ static int __build_step(const char *what, const char *name, const char *filename
 	int mlen;
 	int pattern = 0;
 	struct fillin *fillin;
-	while (*data && (*data < 33)) data++;
+	
+	data = ast_skip_blanks(data);
 	if (matches_label(data, &c)) {
 		*label = data;
 		data = c;
-		while (*data && (*data < 33)) data++;
+		data = ast_skip_blanks(data);
 	}
 	if (!data || ast_strlen_zero(data))
 		return 0;
@@ -533,7 +530,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 				*label = NULL;
 				(*pos)++;
 			}
-			while(*c && (*c < 33)) c++;
+			c = ast_skip_blanks(c);
 			if (aeldebug & DEBUG_TOKENS)
 				ast_verbose("ARG Parsing '%s'\n", c);
 			swargs = arg_parse(c, filename, lineno);
@@ -602,7 +599,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			args++;
 			*c = '\0';
 			c++;
-			while(*c && (*c < 33)) c++;
+			c = ast_skip_blanks(c);
 			if (aeldebug & DEBUG_TOKENS)
 				ast_verbose("--IF on : '%s' : '%s'\n", args, c);
 			mlen = strlen(exten) + 128 + strlen(args) + strlen(name);
@@ -661,7 +658,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			args++;
 			*c = '\0';
 			c++;
-			while(*c && (*c < 33)) c++;
+			c = ast_skip_blanks(c);
 			if (aeldebug & DEBUG_TOKENS)
 				ast_verbose("--WHILE on : '%s' : '%s'\n", args, c);
 			mlen = strlen(exten) + 128 + strlen(args) + strlen(name);
@@ -701,7 +698,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		/* Jump... */
 		fillin = NULL;
 		args = data + strlen("jump");
-		while(*args && (*args < 33)) args++;
+		args = ast_skip_blanks(args);
 		if (aeldebug & DEBUG_TOKENS)
 			ast_verbose("--JUMP to : '%s'\n", args);
 		p = strchr(args, ',');
@@ -729,7 +726,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		/* Jump... */
 		fillin = NULL;
 		args = data + strlen("goto");
-		while(*args && (*args < 33)) args++;
+		args = ast_skip_blanks(args);
 		if (aeldebug & DEBUG_TOKENS)
 			ast_verbose("--GOTO to : '%s'\n", args);
 		app = "Goto";
@@ -752,7 +749,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			args++;
 			*c = '\0';
 			c++;
-			while(*c && (*c < 33)) c++;
+			c = ast_skip_blanks(c);
 			/* Parse arguments first */
 			tmp = alloca(strlen(args) + 10);
 			if (tmp) {
@@ -898,7 +895,7 @@ static int parse_catch(char *data, char **catch, char **rest)
 {
 	/* Skip the word 'catch' */
 	data += 5;
-	while (*data && (*data < 33)) data++;
+	data = ast_skip_blanks(data);
 	/* Here's the extension */
 	*catch = data;
 	if (!*data)
@@ -909,7 +906,7 @@ static int parse_catch(char *data, char **catch, char **rest)
 	/* Trim any trailing spaces */
 	*data = '\0';
 	data++;
-	while(*data && (*data < 33)) data++;
+	data = ast_skip_blanks(data);
 	if (!*data)
 		return 0;
 	*rest = data;
@@ -983,14 +980,14 @@ static int matches_extension(char *exten, char **extout)
 	if (*c) {
 		*c = '\0';
 		c++;
-		while(*c && (*c < 33)) c++;
+		c = ast_skip_blanks(c);
 		if (*c) {
 			if (*c == '=') {
 				*c = '\0';
 				c++;
 				if (*c == '>')
 					c++;
-				while (*c && (*c < 33)) c++;
+				c = ast_skip_blanks(c);
 				*extout = c;
 				return 1;
 			}
@@ -1007,7 +1004,7 @@ static void parse_keyword(char *s, char **o)
 	if (*c) {
 		*c = '\0';
 		c++;
-		while(*c && (*c < 33)) c++;
+		c = ast_skip_blanks(c);
 		*o = c;
 	} else
 		*o = NULL;
