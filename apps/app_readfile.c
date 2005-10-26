@@ -63,7 +63,7 @@ static int readfile_exec(struct ast_channel *chan, void *data)
 	char *s, *varname=NULL, *file=NULL, *length=NULL, *returnvar=NULL;
 	int len=0;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ReadFile require an argument!\n");
 		return -1;
 	}

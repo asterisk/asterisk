@@ -74,7 +74,7 @@ static int forkcdr_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	LOCAL_USER_ADD(u);
-	if (data && !ast_strlen_zero(data))
+	if (!ast_strlen_zero(data))
 		ast_set2_flag(chan->cdr, strchr((char *)data, 'v'), AST_CDR_FLAG_KEEP_VARS);
 	
 	ast_cdr_fork(chan);

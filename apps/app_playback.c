@@ -70,7 +70,7 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	char *stringp = NULL;
 	char *front = NULL, *back = NULL;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Playback requires an argument (filename)\n");
 		return -1;
 	}

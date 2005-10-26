@@ -68,7 +68,7 @@ static int zapateller_exec(struct ast_channel *chan, void *data)
 
 	stringp=data;
         c = strsep(&stringp, "|");
-        while(c && !ast_strlen_zero(c)) {
+        while(!ast_strlen_zero(c)) {
 		if (!strcasecmp(c, "answer"))
 			answer = 1;
 		else if (!strcasecmp(c, "nocallerid"))

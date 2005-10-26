@@ -66,7 +66,7 @@ static int userevent_exec(struct ast_channel *chan, void *data)
 	char eventname[512];
 	char *eventbody;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "UserEvent requires an argument (eventname|optional event body)\n");
 		return -1;
 	}

@@ -111,7 +111,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	char *save_macro_offset;
 	struct localuser *u;
  
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Macro() requires arguments. See \"show application macro\" for help.\n");
 		return -1;
 	}
@@ -137,7 +137,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	tmp = ast_strdupa(data);
 	rest = tmp;
 	macro = strsep(&rest, "|");
-	if (!macro || ast_strlen_zero(macro)) {
+	if (ast_strlen_zero(macro)) {
 		ast_log(LOG_WARNING, "Invalid macro name specified\n");
 		LOCAL_USER_REMOVE(u);
 		return 0;

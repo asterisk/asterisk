@@ -97,7 +97,7 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 				LOCAL_USER_REMOVE(u);
 				return 0;
 			}
-		if (!strlen(keytree))
+		if (ast_strlen_zero(keytree))
 			keytree = 0;
 	} else {
 		family = argv;

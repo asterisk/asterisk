@@ -5839,7 +5839,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 	ZT_PARAMS par;
 	int ms,elap;
 
-	if (!data || ast_strlen_zero((char *)data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Rpt requires an argument (system node)\n");
 		return -1;
 	}

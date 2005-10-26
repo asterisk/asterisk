@@ -85,7 +85,7 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	char *opts;
 	char *prompt;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Authenticate requires an argument(password)\n");
 		return -1;
 	}

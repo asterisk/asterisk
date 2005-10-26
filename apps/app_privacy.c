@@ -85,7 +85,7 @@ privacy_exec (struct ast_channel *chan, void *data)
 	struct ast_config *cfg;
 
 	LOCAL_USER_ADD (u);
-	if (chan->cid.cid_num && !ast_strlen_zero(chan->cid.cid_num)) {
+	if (!ast_strlen_zero(chan->cid.cid_num)) {
 		if (option_verbose > 2)
 			ast_verbose (VERBOSE_PREFIX_3 "CallerID Present: Skipping\n");
 	} else {

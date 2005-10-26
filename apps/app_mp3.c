@@ -128,7 +128,7 @@ static int mp3_exec(struct ast_channel *chan, void *data)
 		short frdata[160];
 	} myf;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MP3 Playback requires an argument (filename)\n");
 		return -1;
 	}

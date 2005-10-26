@@ -81,7 +81,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	struct localuser *u;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ParkAndAnnounce requires arguments: (announce:template|timeout|dial|[return_context])\n");
 		return -1;
 	}

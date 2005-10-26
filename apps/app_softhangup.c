@@ -61,7 +61,7 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 	char name[AST_CHANNEL_NAME] = "";
 	int all = 0;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
                 ast_log(LOG_WARNING, "SoftHangup requires an argument (Technology/resource)\n");
 		return 0;
 	}

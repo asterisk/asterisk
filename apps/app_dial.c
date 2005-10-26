@@ -399,7 +399,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						if (ast_test_flag(o, DIAL_FORCECALLERID)) {
 							char *newcid = NULL;
 
-							if (strlen(in->macroexten))
+							if (!ast_strlen_zero(in->macroexten))
 								newcid = in->macroexten;
 							else
 								newcid = in->exten;
@@ -691,7 +691,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char *dblgoto = NULL;
 	int priority_jump = 0;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Dial requires an argument (technology1/number1&technology2/number2...|optional timeout|options)\n");
 		return -1;
 	}
@@ -731,7 +731,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 	} else
 		timeout = NULL;
-	if (!peers || ast_strlen_zero(peers)) {
+	if (ast_strlen_zero(peers)) {
 		ast_log(LOG_WARNING, "Dial argument takes format (technology1/number1&technology2/number2...|optional timeout)\n");
 		goto out;
 	}
@@ -965,7 +965,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		char callerid[60];
 
 		l = chan->cid.cid_num;
-		if (l && !ast_strlen_zero(l)) {
+		if (!ast_strlen_zero(l)) {
 			ast_shrink_phone_number(l);
 			if( privacy ) {
 				if (option_verbose > 2)
@@ -1235,7 +1235,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		cur = rest;
 	} while (cur);
 	
-	if (timeout && !ast_strlen_zero(timeout)) {
+	if (!ast_strlen_zero(timeout)) {
 		to = atoi(timeout);
 		if (to > 0)
 			to *= 1000;
@@ -1294,12 +1294,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (!number)
 			number = numsubst;
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
- 		/* JDG: sendurl */
- 		if ( url && !ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
+ 		if (!ast_strlen_zero(url) && ast_channel_supports_html(peer) ) {
  			ast_log(LOG_DEBUG, "app_dial: sendurl=%s.\n", url);
  			ast_channel_sendurl( peer, url );
- 		} /* /JDG */
-		if( privacy || screen ) {
+ 		}
+		if (privacy || screen) {
 			int res2;
 			int loopcount = 0;
 			if( privdb_val == AST_PRIVACY_UNKNOWN ) {
@@ -1594,12 +1593,12 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				time(&now);
 				chan->whentohangup = now + calldurationlimit;
 			}
-			if (dtmfcalled && !ast_strlen_zero(dtmfcalled)) { 
+			if (!ast_strlen_zero(dtmfcalled)) { 
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the called party.\n",dtmfcalled);
 				res = ast_dtmf_stream(peer,chan,dtmfcalled,250);
 			}
-			if (dtmfcalling && !ast_strlen_zero(dtmfcalling)) {
+			if (!ast_strlen_zero(dtmfcalling)) {
 				if (option_verbose > 2)
 					ast_verbose(VERBOSE_PREFIX_3 "Sending DTMF '%s' to the calling party.\n",dtmfcalling);
 				res = ast_dtmf_stream(chan,peer,dtmfcalling,250);
@@ -1698,7 +1697,7 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_flags peerflags;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "RetryDial requires an argument!\n");
 		return -1;
 	}	

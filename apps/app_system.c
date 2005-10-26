@@ -90,7 +90,7 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 	int res=0;
 	struct localuser *u;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "System requires an argument(command)\n");
 		pbx_builtin_setvar_helper(chan, chanvar, "FAILURE");
 		return failmode;

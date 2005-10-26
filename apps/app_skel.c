@@ -72,7 +72,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	char *opts[2];
 	char *argv[2];
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n",app);
 		LOCAL_USER_REMOVE(u);
 		return -1;
@@ -96,7 +96,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		ast_parseoptions(app_opts, &flags, opts, options);
 	}
 
-	if (dummy && !ast_strlen_zero(dummy)) 
+	if (!ast_strlen_zero(dummy)) 
 		ast_log(LOG_NOTICE, "Dummy value is : %s\n", dummy);
 
 	if (ast_test_flag(&flags, OPTION_A))

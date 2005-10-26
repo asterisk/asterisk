@@ -126,7 +126,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	FILE *fp;
 	char *stringp=NULL;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
 		return -1;
 	}

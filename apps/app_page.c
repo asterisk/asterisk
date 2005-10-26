@@ -120,7 +120,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 	char *tmp;
 	int res=0;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "This application requires at least one argument (destination(s) to page)\n");
 		return -1;
 	}

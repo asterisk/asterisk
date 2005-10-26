@@ -106,7 +106,7 @@ static int setcallerid_exec(struct ast_channel *chan, void *data)
 	char *opt;
 	int anitoo = 0;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SetCallerID requires an argument!\n");
 		return 0;
 	}

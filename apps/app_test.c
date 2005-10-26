@@ -137,7 +137,7 @@ static int testclient_exec(struct ast_channel *chan, void *data)
 	FILE *f;
 	
 	/* Check for test id */
-	if (!testid || ast_strlen_zero(testid)) {
+	if (ast_strlen_zero(testid)) {
 		ast_log(LOG_WARNING, "TestClient requires an argument - the test id\n");
 		return -1;
 	}

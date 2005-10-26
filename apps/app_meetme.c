@@ -1663,7 +1663,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 	char *confnum, *localdata;
 	char val[80] = "0"; 
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
 		return -1;
 	}
@@ -1684,7 +1684,7 @@ static int count_exec(struct ast_channel *chan, void *data)
 	else
 		count = 0;
 
-	if (localdata && !ast_strlen_zero(localdata)){
+	if (!ast_strlen_zero(localdata)){
 		/* have var so load it and exit */
 		snprintf(val,sizeof(val), "%d",count);
 		pbx_builtin_setvar_helper(chan, localdata,val);
@@ -1714,7 +1714,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		allowretry = 1;
 		notdata = "";
 	} else {
@@ -1972,7 +1972,7 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 
 	ast_mutex_lock(&conflock);
 	/* The param has the conference number the user and the command to execute */
-	if (data && !ast_strlen_zero(data)) {		
+	if (!ast_strlen_zero(data)) {		
 		params = ast_strdupa((char *) data);
 		conf = strsep(&params, "|");
 		command = strsep(&params, "|");

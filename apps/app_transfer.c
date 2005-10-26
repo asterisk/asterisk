@@ -75,7 +75,7 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	char *dest = data;
 	char *status;
 
-	if (!dest || ast_strlen_zero(dest)) {
+	if (ast_strlen_zero(dest)) {
 		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
 		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 		return 0;

@@ -123,14 +123,14 @@ static int curl_exec(struct ast_channel *chan, void *data)
 		dep_warning = 1;
 	}
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Curl requires an argument (URL)\n");
 		return -1;
 	}
 	
 	LOCAL_USER_ADD(u);
 	
-	if ((info = ast_strdupa((char *)data))) {
+	if ((info = ast_strdupa(data))) {
 		url = strsep(&info, "|");
 		post_data = info;
 	} else {
@@ -166,7 +166,7 @@ static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char
 
 	*buf = '\0';
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "CURL requires an argument (URL)\n");
 		return buf;
 	}

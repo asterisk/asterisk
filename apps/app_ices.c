@@ -101,7 +101,7 @@ static int ices_exec(struct ast_channel *chan, void *data)
 	char filename[256]="";
 	char *c;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ICES requires an argument (configfile.xml)\n");
 		return -1;
 	}

@@ -1555,7 +1555,7 @@ static int adsi_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 	
-	if (!data || ast_strlen_zero(data))
+	if (ast_strlen_zero(data))
 		data = "asterisk.adsi";
 	
 	if (!adsi_available(chan)) {

@@ -385,7 +385,7 @@ static int muxmon_exec(struct ast_channel *chan, void *data)
 		*filename = NULL,
 		*post_process = NULL;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "muxmon requires an argument\n");
 		return -1;
 	}
@@ -409,7 +409,7 @@ static int muxmon_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	
-	if (!filename || ast_strlen_zero(filename)) {
+	if (ast_strlen_zero(filename)) {
 		ast_log(LOG_WARNING, "Muxmon requires an argument (filename)\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;

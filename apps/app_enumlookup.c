@@ -85,7 +85,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	static int dep_warning=0;
 	struct localuser *u;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "EnumLookup requires an argument (extension)\n");
 		return -1;
 	}

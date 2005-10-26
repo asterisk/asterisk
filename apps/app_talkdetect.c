@@ -78,7 +78,7 @@ static int background_detect_exec(struct ast_channel *chan, void *data)
 	int origrformat=0;
 	struct ast_dsp *dsp;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "BackgroundDetect requires an argument (filename)\n");
 		return -1;
 	}

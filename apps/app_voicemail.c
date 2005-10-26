@@ -2973,7 +2973,7 @@ static void adsi_message(struct ast_channel *chan, struct vm_state *vms)
 				stringp = (char *)buf;
 				strsep(&stringp, "=");
 				val = strsep(&stringp, "=");
-				if (val && !ast_strlen_zero(val)) {
+				if (!ast_strlen_zero(val)) {
 					if (!strcmp((char *)buf, "callerid"))
 						ast_copy_string(cid, val, sizeof(cid));
 					if (!strcmp((char *)buf, "origdate"))
@@ -3586,7 +3586,7 @@ static int play_message_category(struct ast_channel *chan, char *category)
 {
 	int res = 0;
 
-	if (category && !ast_strlen_zero(category))
+	if (!ast_strlen_zero(category))
 		res = ast_play_and_wait(chan, category);
 
 	return res;
@@ -4956,7 +4956,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		if (useadsi)
 			adsi_password(chan);
 
-		if (prefix && !ast_strlen_zero(prefix)) {
+		if (!ast_strlen_zero(prefix)) {
 			char fullusername[80] = "";
 			ast_copy_string(fullusername, prefix, sizeof(fullusername));
 			strncat(fullusername, mailbox, sizeof(fullusername) - 1 - strlen(fullusername));
@@ -4987,7 +4987,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 		else {
 			if (option_verbose > 2)
 				ast_verbose( VERBOSE_PREFIX_3 "Incorrect password '%s' for user '%s' (context = %s)\n", password, mailbox, context ? context : "<any>");
-			if (prefix && !ast_strlen_zero(prefix))
+			if (!ast_strlen_zero(prefix))
 				mailbox[0] = '\0';
 		}
 		logretries++;
@@ -5051,7 +5051,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 
-	if (data && !ast_strlen_zero(data)) {
+	if (!ast_strlen_zero(data)) {
 		char *tmp;
 		int argc;
 		char *argv[2];
@@ -5127,7 +5127,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	vms.heard = calloc(vmu->maxmsg, sizeof(int));
 	
 	/* Set language from config to override channel language */
-	if (vmu->language && !ast_strlen_zero(vmu->language))
+	if (!ast_strlen_zero(vmu->language))
 		ast_copy_string(chan->language, vmu->language, sizeof(chan->language));
 	snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s", VM_SPOOL_DIR, vmu->context);
 	mkdir(vms.curdir, 0700);
@@ -5483,7 +5483,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
 
-	if (data && !ast_strlen_zero(data)) {
+	if (!ast_strlen_zero(data)) {
 		ast_copy_string(tmp, data, sizeof(tmp));
 		argc = ast_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 		if (argc == 2) {
@@ -5591,7 +5591,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	struct ast_vm_user svm;
 	char *context, *box;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
 		return -1;
 	}
@@ -5968,7 +5968,7 @@ static int load_config(void)
 			ast_log(LOG_DEBUG,"VM_CID Internal context string: %s\n",s);
 			stringp = ast_strdupa(s);
 			for (x = 0 ; x < MAX_NUM_CID_CONTEXTS ; x++){
-				if ((stringp)&&(!ast_strlen_zero(stringp))){
+				if (!ast_strlen_zero(stringp)) {
 					q = strsep(&stringp,",");
 					while ((*q == ' ')||(*q == '\t')) /* Eat white space between contexts */
 						q++;

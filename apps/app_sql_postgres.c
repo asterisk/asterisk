@@ -504,7 +504,7 @@ static int PGSQL_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	int result;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "APP_PGSQL requires an argument (see manual)\n");
 		return -1;
 	}

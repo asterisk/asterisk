@@ -57,7 +57,7 @@ static int pickup_exec(struct ast_channel *chan, void *data)
 	char *tmp = NULL, *exten = NULL, *context = NULL;
 	char workspace[256] = "";
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Pickup requires an argument (extension) !\n");
 		return -1;	
 	}

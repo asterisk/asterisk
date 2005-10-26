@@ -117,7 +117,7 @@ static void database_increment( char *key )
 	char value[16];
 	
 	
-	if(!strlen(db_family))
+	if (ast_strlen_zero(db_family))
 		return; /* If not defined, don't do anything */
 	
 	res = ast_db_get(db_family, key, value, sizeof(value) - 1);
@@ -392,7 +392,7 @@ static int log_events(struct ast_channel *chan,  char *signalling_type, event_no
 	FILE *logfile;
 	event_node_t *elp = event;
 	
-	if(strlen(event_spool_dir)){
+	if (!ast_strlen_zero(event_spool_dir)) {
 		
 		/* Make a template */
 		
@@ -516,7 +516,7 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 				ast_verbose(VERBOSE_PREFIX_2 "AlarmReceiver: Incomplete string: %s, trying again...\n", event);
 
 			if(!got_some_digits){
-				got_some_digits = (strlen(event)) ? 1 : 0;
+				got_some_digits = (!ast_strlen_zero(event)) ? 1 : 0;
 				ack_retries++;
 			}
 			continue;	
@@ -715,7 +715,7 @@ static int alarmreceiver_exec(struct ast_channel *chan, void *data)
 	* Do we exec a command line at the end?
 	*/
 	
-	if((!res) && (strlen(event_app)) && (event_head)){
+	if((!res) && (!ast_strlen_zero(event_app)) && (event_head)){
 		ast_log(LOG_DEBUG,"Alarmreceiver: executing: %s\n", event_app);
 		ast_safe_system(event_app);
 	}

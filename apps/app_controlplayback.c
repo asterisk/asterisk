@@ -81,7 +81,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		arg_restart = 6,
 	};
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");
 		return -1;
 	}

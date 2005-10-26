@@ -61,7 +61,7 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendImage requires an argument (filename)\n");
 		return -1;
 	}

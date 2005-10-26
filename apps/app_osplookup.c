@@ -110,7 +110,7 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 	char *provider, *opts=NULL;
 	struct ast_osp_result result;
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "OSPLookup requires an argument (extension)\n");
 		return -1;
 	}
@@ -169,7 +169,7 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	int cause;
 	struct ast_osp_result result;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "OSPNext should have an argument (cause)\n");
 		return -1;
 	}
@@ -179,7 +179,7 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	cause = str2cause((char *)data);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
-	if (temp && strlen(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
+	if (!ast_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
 		if ((res = ast_osp_next(&result, cause)) > 0) {
 			char tmp[80];
 			snprintf(tmp, sizeof(tmp), "%d", result.handle);
@@ -217,7 +217,7 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	time_t start=0, duration=0;
 	struct ast_osp_result result;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "OSPFinish should have an argument (cause)\n");
 		return -1;
 	}
@@ -236,7 +236,7 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	cause = str2cause((char *)data);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
-	if (temp && strlen(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
+	if (!ast_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
 		if (!ast_osp_terminate(result.handle, cause, start, duration)) {
 			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
 			res = 1;

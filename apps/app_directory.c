@@ -293,7 +293,7 @@ static int do_directory(struct ast_channel *chan, struct ast_config *cfg, char *
 	int lastuserchoice = 0;
 	char *start, *pos, *conv,*stringp=NULL;
 
-	if (!context || ast_strlen_zero(context)) {
+	if (ast_strlen_zero(context)) {
 		ast_log(LOG_WARNING,
 			"Directory must be called with an argument "
 			"(context in which to interpret extensions)\n");
@@ -410,7 +410,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	int last = 1;
 	char *context, *dialcontext, *dirintro, *options;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Directory requires an argument (context[,dialcontext])\n");
 		return -1;
 	}
@@ -439,9 +439,9 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	}
 
 	dirintro = ast_variable_retrieve(cfg, context, "directoryintro");
-	if (!dirintro || ast_strlen_zero(dirintro))
+	if (ast_strlen_zero(dirintro))
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
-	if (!dirintro || ast_strlen_zero(dirintro)) {
+	if (ast_strlen_zero(dirintro)) {
 		if (last)
 			dirintro = "dir-intro";	
 		else

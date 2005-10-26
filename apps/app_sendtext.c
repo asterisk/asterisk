@@ -71,7 +71,7 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *status = "UNSUPPORTED";
 		
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendText requires an argument (text)\n");
 		return -1;
 	}

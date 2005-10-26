@@ -100,7 +100,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int flags;
 	
 	/* The next few lines of code parse out the filename and header from the input string */
-	if (!data || ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
+	if (ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
 		ast_log(LOG_WARNING, "Record requires an argument (filename)\n");
 		return -1;
 	}

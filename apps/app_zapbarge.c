@@ -269,7 +269,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 	
-	if (data && !ast_strlen_zero(data)) {
+	if (!ast_strlen_zero(data)) {
 		if ((sscanf(data, "Zap/%d", &confno) != 1) &&
 		    (sscanf(data, "%d", &confno) != 1)) {
 			ast_log(LOG_WARNING, "ZapBarge Argument (if specified) must be a channel number, not '%s'\n", (char *)data);

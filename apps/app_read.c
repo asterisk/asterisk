@@ -89,7 +89,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 	char *argcopy = NULL;
 	char *args[8];
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
 		return -1;
 	}
@@ -143,7 +143,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 			to *= 1000;
 	}
 
-	if (!(filename) || ast_strlen_zero(filename)) 
+	if (ast_strlen_zero(filename)) 
 		filename = NULL;
 	if (maxdigitstr) {
 		maxdigits = atoi(maxdigitstr);
@@ -152,7 +152,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 		} else if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %d digits.\n", maxdigits);
 	}
-	if (!(varname) || ast_strlen_zero(varname)) {
+	if (ast_strlen_zero(varname)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;

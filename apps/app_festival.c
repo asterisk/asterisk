@@ -296,7 +296,7 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	char *intstr;
 	struct ast_config *cfg;
 
-	if (!vdata || ast_strlen_zero(vdata)) {
+	if (ast_strlen_zero(vdata)) {
 		ast_log(LOG_WARNING, "festival requires an argument (text)\n");
 		return -1;
 	}

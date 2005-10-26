@@ -81,7 +81,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 	char *stringp=NULL;
 	char *status = "FAILURE";
 	
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SendURL requires an argument (URL)\n");
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", status);
 		return -1;
