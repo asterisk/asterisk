@@ -82,7 +82,7 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result
 {
 	struct ast_dnsmgr_entry *entry;
 
-	if (!name || !result || ast_strlen_zero(name))
+	if (!result || ast_strlen_zero(name))
 		return NULL;
 
 	entry = calloc(1, sizeof(*entry) + strlen(name));
@@ -112,7 +112,7 @@ void ast_dnsmgr_release(struct ast_dnsmgr_entry *entry)
 
 int ast_dnsmgr_lookup(const char *name, struct in_addr *result, struct ast_dnsmgr_entry **dnsmgr)
 {
-	if (!name || ast_strlen_zero(name) || !result || !dnsmgr)
+	if (ast_strlen_zero(name) || !result || !dnsmgr)
 		return -1;
 
 	if (*dnsmgr && !strcasecmp((*dnsmgr)->name, name))

@@ -489,7 +489,7 @@ struct ast_filestream *ast_openstream_full(struct ast_channel *chan, const char 
 		if (chan->generator)
 			ast_deactivate_generator(chan);
 	}
-	if (preflang && !ast_strlen_zero(preflang)) {
+	if (!ast_strlen_zero(preflang)) {
 		ast_copy_string(filename3, filename, sizeof(filename3));
 		endpart = strrchr(filename3, '/');
 		if (endpart) {
@@ -538,7 +538,7 @@ struct ast_filestream *ast_openvstream(struct ast_channel *chan, const char *fil
 	char lang2[MAX_LANGUAGE];
 	/* XXX H.263 only XXX */
 	char *fmt = "h263";
-	if (preflang && !ast_strlen_zero(preflang)) {
+	if (!ast_strlen_zero(preflang)) {
 		snprintf(filename2, sizeof(filename2), "%s/%s", preflang, filename);
 		fmts = ast_fileexists(filename2, fmt, NULL);
 		if (fmts < 1) {
@@ -739,7 +739,7 @@ int ast_fileexists(const char *filename, const char *fmt, const char *preflang)
 	char *c;
 	char lang2[MAX_LANGUAGE];
 	int res = -1;
-	if (preflang && !ast_strlen_zero(preflang)) {
+	if (!ast_strlen_zero(preflang)) {
 		/* Insert the language between the last two parts of the path */
 		ast_copy_string(tmp, filename, sizeof(tmp));
 		c = strrchr(tmp, '/');

@@ -570,7 +570,7 @@ int ast_build_string(char **buffer, size_t *space, const char *fmt, ...)
 
 int ast_true(const char *s)
 {
-	if (!s || ast_strlen_zero(s))
+	if (ast_strlen_zero(s))
 		return 0;
 
 	/* Determine if this is a true value */
@@ -587,7 +587,7 @@ int ast_true(const char *s)
 
 int ast_false(const char *s)
 {
-	if (!s || ast_strlen_zero(s))
+	if (ast_strlen_zero(s))
 		return 0;
 
 	/* Determine if this is a false value */

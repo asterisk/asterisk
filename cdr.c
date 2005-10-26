@@ -179,7 +179,7 @@ static const char *ast_cdr_getvar_internal(struct ast_cdr *cdr, const char *name
 	struct ast_var_t *variables;
 	struct varshead *headp;
 
-	if (!name || ast_strlen_zero(name))
+	if (ast_strlen_zero(name))
 		return NULL;
 
 	while (cdr) {

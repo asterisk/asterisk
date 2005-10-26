@@ -32,7 +32,7 @@
 
 static inline int ast_strlen_zero(const char *s)
 {
-	return (*s == '\0');
+	return (!s || (*s == '\0'));
 }
 
 /*!

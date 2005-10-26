@@ -1704,7 +1704,7 @@ static void ast_remotecontrol(char * data)
 	for(;;) {
 		ebuf = (char *)el_gets(el, &num);
 
-		if (ebuf && !ast_strlen_zero(ebuf)) {
+		if (!ast_strlen_zero(ebuf)) {
 			if (ebuf[strlen(ebuf)-1] == '\n')
 				ebuf[strlen(ebuf)-1] = '\0';
 			if (!remoteconsolehandler(ebuf)) {

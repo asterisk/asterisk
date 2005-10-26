@@ -348,7 +348,7 @@ void astman_send_error(struct mansession *s, struct message *m, char *error)
 	char *id = astman_get_header(m,"ActionID");
 
 	ast_cli(s->fd, "Response: Error\r\n");
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "Message: %s\r\n\r\n", error);
 }
@@ -358,7 +358,7 @@ void astman_send_response(struct mansession *s, struct message *m, char *resp, c
 	char *id = astman_get_header(m,"ActionID");
 
 	ast_cli(s->fd, "Response: %s\r\n", resp);
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	if (msg)
 		ast_cli(s->fd, "Message: %s\r\n\r\n", msg);
@@ -433,7 +433,7 @@ static int ast_strings_to_mask(char *string)
 
 	if (x) {
 		ret = x;
-	} else if (!string || ast_strlen_zero(string)) {
+	} else if (ast_strlen_zero(string)) {
 		ret = -1;
 	} else if (ast_false(string)) {
 		ret = 0;
@@ -517,7 +517,7 @@ static int authenticate(struct mansession *s, struct message *m)
 				} else if (ha)
 					ast_free_ha(ha);
 				if (!strcasecmp(authtype, "MD5")) {
-					if (key && !ast_strlen_zero(key) && s->challenge) {
+					if (!ast_strlen_zero(key) && s->challenge) {
 						int x;
 						int len=0;
 						char md5key[256] = "";
@@ -584,7 +584,7 @@ static int action_listcommands(struct mansession *s, struct message *m)
 	char temp[BUFSIZ];
 	char *id = astman_get_header(m,"ActionID");
 
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 	ast_cli(s->fd, "Response: Success\r\n%s", idText);
 	ast_mutex_lock(&actionlock);
@@ -729,7 +729,7 @@ static int action_getvar(struct mansession *s, struct message *m)
 		ast_mutex_unlock(&c->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
 		"Variable: %s\r\nValue: %s\r\n" ,varname,varval2);
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "\r\n");
 
@@ -748,10 +748,10 @@ static int action_status(struct mansession *s, struct message *m)
 	char bridge[256];
 	struct timeval now = ast_tvnow();
 	long elapsed_seconds=0;
-	int all = !name || ast_strlen_zero(name); /* set if we want all channels */
+	int all = ast_strlen_zero(name); /* set if we want all channels */
 
 	astman_send_ack(s, m, "Channel status will follow");
-        if (id && !ast_strlen_zero(id))
+        if (!ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	if (all)
 		c = ast_channel_walk_locked(NULL);
@@ -847,7 +847,7 @@ static int action_redirect(struct mansession *s, struct message *m)
 	int pi = 0;
 	int res;
 
-	if (!name || ast_strlen_zero(name)) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "Channel not specified");
 		return 0;
 	}
@@ -898,7 +898,7 @@ static int action_command(struct mansession *s, struct message *m)
 	char *cmd = astman_get_header(m, "Command");
 	char *id = astman_get_header(m, "ActionID");
 	ast_cli(s->fd, "Response: Follows\r\nPrivilege: Command\r\n");
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n", id);
 	/* FIXME: Wedge a ActionID response in here, waiting for later changes */
 	ast_cli_command(s->fd, cmd);
@@ -1037,7 +1037,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			res = -1;
 		} else {
 			memset(fast, 0, sizeof(struct fast_originate_helper));
-			if (id && !ast_strlen_zero(id))
+			if (!ast_strlen_zero(id))
 				snprintf(fast->idtext, sizeof(fast->idtext), "ActionID: %s\r\n", id);
 			ast_copy_string(fast->tech, tech, sizeof(fast->tech));
    			ast_copy_string(fast->data, data, sizeof(fast->data));
@@ -1093,11 +1093,11 @@ static int action_mailboxstatus(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int ret;
-	if (!mailbox || ast_strlen_zero(mailbox)) {
+	if (ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
-        if (id && !ast_strlen_zero(id))
+        if (!ast_strlen_zero(id))
                 snprintf(idText,256,"ActionID: %s\r\n",id);
 	ret = ast_app_has_voicemail(mailbox, NULL);
 	ast_cli(s->fd, "Response: Success\r\n"
@@ -1125,12 +1125,12 @@ static int action_mailboxcount(struct mansession *s, struct message *m)
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 	int newmsgs = 0, oldmsgs = 0;
-	if (!mailbox || ast_strlen_zero(mailbox)) {
+	if (ast_strlen_zero(mailbox)) {
 		astman_send_error(s, m, "Mailbox not specified");
 		return 0;
 	}
 	ast_app_messagecount(mailbox, &newmsgs, &oldmsgs);
-	if (id && !ast_strlen_zero(id)) {
+	if (!ast_strlen_zero(id)) {
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 	}
 	ast_cli(s->fd, "Response: Success\r\n"
@@ -1163,15 +1163,15 @@ static int action_extensionstate(struct mansession *s, struct message *m)
 	char idText[256] = "";
 	char hint[256] = "";
 	int status;
-	if (!exten || ast_strlen_zero(exten)) {
+	if (ast_strlen_zero(exten)) {
 		astman_send_error(s, m, "Extension not specified");
 		return 0;
 	}
-	if (!context || ast_strlen_zero(context))
+	if (ast_strlen_zero(context))
 		context = "default";
 	status = ast_extension_state(NULL, context, exten);
 	ast_get_hint(hint, sizeof(hint) - 1, NULL, 0, NULL, context, exten);
-        if (id && !ast_strlen_zero(id)) {
+        if (!ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	ast_cli(s->fd, "Response: Success\r\n"
@@ -1231,7 +1231,7 @@ static int process_message(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "Missing action in request");
 		return 0;
 	}
-        if (id && !ast_strlen_zero(id)) {
+        if (!ast_strlen_zero(id)) {
                 snprintf(idText,256,"ActionID: %s\r\n",id);
         }
 	if (!s->authenticated) {
@@ -1239,7 +1239,7 @@ static int process_message(struct mansession *s, struct message *m)
 			char *authtype;
 			authtype = astman_get_header(m, "AuthType");
 			if (!strcasecmp(authtype, "MD5")) {
-				if (!s->challenge || ast_strlen_zero(s->challenge))
+				if (ast_strlen_zero(s->challenge))
 					snprintf(s->challenge, sizeof(s->challenge), "%d", rand());
 				ast_mutex_lock(&s->__lock);
 				ast_cli(s->fd, "Response: Success\r\n"

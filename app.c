@@ -393,7 +393,7 @@ int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, in
 	int res = -1;
 	int autoclose = 0;
 	if (fd < 0) {
-		if (!filename || ast_strlen_zero(filename))
+		if (ast_strlen_zero(filename))
 			return -1;
 		autoclose = 1;
 		if (filename[0] == '/') 
@@ -998,7 +998,7 @@ int ast_app_group_split_group(char *data, char *group, int group_max, char *cate
 	char tmp[256];
 	char *grp=NULL, *cat=NULL;
 
-	if (data && !ast_strlen_zero(data)) {
+	if (!ast_strlen_zero(data)) {
 		ast_copy_string(tmp, data, sizeof(tmp));
 		grp = tmp;
 		cat = strchr(tmp, '@');
@@ -1008,7 +1008,7 @@ int ast_app_group_split_group(char *data, char *group, int group_max, char *cate
 		}
 	}
 
-	if (grp && !ast_strlen_zero(grp))
+	if (!ast_strlen_zero(grp))
 		ast_copy_string(group, grp, group_max);
 	else
 		res = -1;
@@ -1043,10 +1043,10 @@ int ast_app_group_get_count(char *group, char *category)
 	char cat[80];
 	char *s;
 
-	if (group == NULL || ast_strlen_zero(group))
+	if (ast_strlen_zero(group))
 		return 0;
 
- 	s = (category && !ast_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+ 	s = (!ast_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
 	ast_copy_string(cat, s, sizeof(cat));
 
 	chan = NULL;
@@ -1069,14 +1069,14 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 	char cat[80];
 	char *s;
 
-	if (!groupmatch || ast_strlen_zero(groupmatch))
+	if (ast_strlen_zero(groupmatch))
 		return 0;
 
 	/* if regex compilation fails, return zero matches */
 	if (regcomp(&regexbuf, groupmatch, REG_EXTENDED | REG_NOSUB))
 		return 0;
 
-	s = (category && !ast_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
+	s = (!ast_strlen_zero(category)) ? category : GROUP_CATEGORY_PREFIX;
 	ast_copy_string(cat, s, sizeof(cat));
 
 	chan = NULL;

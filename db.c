@@ -400,8 +400,8 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 	struct ast_db_entry *last = NULL;
 	struct ast_db_entry *cur, *ret=NULL;
 
-	if (family && !ast_strlen_zero(family)) {
-		if (keytree && !ast_strlen_zero(keytree)) {
+	if (!ast_strlen_zero(family)) {
+		if (!ast_strlen_zero(keytree)) {
 			/* Family and key tree */
 			snprintf(prefix, sizeof(prefix), "/%s/%s", family, prefix);
 		} else {
@@ -557,7 +557,7 @@ static int manager_dbget(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
 
 	res = ast_db_get(family, key, tmp, sizeof(tmp));

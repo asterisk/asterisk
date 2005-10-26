@@ -429,7 +429,7 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 				tm.tm_mday, tm.tm_hour, tm.tm_min);
 	size -= res;
 	ptr += res;
-	if (!number || ast_strlen_zero(number) || (flags & CID_UNKNOWN_NUMBER)) {
+	if (ast_strlen_zero(number) || (flags & CID_UNKNOWN_NUMBER)) {
 		/* Indicate number not known */
 		res = snprintf(ptr, size, "\004\001O");
 		size -= res;
@@ -453,7 +453,7 @@ static int callerid_genmsg(char *msg, int size, char *number, char *name, int fl
 		size -= i;
 	}
 
-	if (!name || ast_strlen_zero(name) || (flags & CID_UNKNOWN_NAME)) {
+	if (ast_strlen_zero(name) || (flags & CID_UNKNOWN_NAME)) {
 		/* Indicate name not known */
 		res = snprintf(ptr, size, "\010\001O");
 		size -= res;
@@ -617,7 +617,7 @@ void ast_shrink_phone_number(char *n)
 int ast_isphonenumber(char *n)
 {
 	int x;
-	if (!n || ast_strlen_zero(n))
+	if (ast_strlen_zero(n))
 		return 0;
 	for (x=0;n[x];x++)
 		if (!strchr("0123456789*#+", n[x]))
@@ -649,8 +649,7 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 			while(!ast_strlen_zero(instr) && (instr[strlen(instr) - 1] < 33))
 				instr[strlen(instr) - 1] = '\0';
 			/* And leading spaces */
-			while(**name && (**name < 33))
-				(*name)++;
+			*name = ast_skip_blanks(*name);
 			return 0;
 		}
 	} else {
@@ -675,9 +674,9 @@ int ast_callerid_parse(char *instr, char **name, char **location)
 
 static int __ast_callerid_generate(unsigned char *buf, char *name, char *number, int callwaiting, int codec)
 {
-	if (name && ast_strlen_zero(name))
+	if (ast_strlen_zero(name))
 		name = NULL;
-	if (number && ast_strlen_zero(number))
+	if (ast_strlen_zero(number))
 		number = NULL;
 	return callerid_generate(buf, number, name, 0, callwaiting, codec);
 }
