@@ -1,4 +1,5 @@
 ; Radio Repeater / Remote Base configuration file (for use with app_rpt)
+; As of app_rpt version 0.36, 10/26/2005
 ;
 
 ;[000]					; Node ID of first repeater
@@ -10,13 +11,18 @@
 ;functions = functions-repeater		; DTMF function list
 ;; specify this for a different function list then local when on link
 ;;link_functions = functions-different	; DTMF function list for link
+;;phone_functions = functions-phone	; (optional) different functions for 'P' mode
+;;dphone_functions = functions-dphone	; (optional) different functions for 'D' mode
+;;nodes = nodes-different		; (optional) different node list
 ;tonezone = us				; use US tones (default)
 ;context = default			; dialing context for phone
-;callerid = "WB6NIL Repeater" <(559) 692-1234>  ; Callerid for phone calls
+;callerid = "WB6NIL Repeater" <(213) 555-0123>  ; Callerid for phone calls
 ;idrecording = wb6nil			; id recording
 ;accountcode=RADIO			; account code (optional)
 ;funcchar = *				; function lead-in character (defaults to '*')
 ;endchar = #				; command mode end character (defaults to '#')
+;;nobusyout=yes				; (optional) Do not busy-out reverse-patch when
+					; normal patch in use
 ;hangtime=1000				; squelch tail hang time (in ms) (optional)
 ;totime=100000				; transmit time-out time (in ms) (optional)
 ;idtime=30000				; id interval time (in ms) (optional)
@@ -30,19 +36,27 @@
 ; 5 seconds (5000 ms),  3 minutes (180000 ms), and 5 minutes (300000 ms)
 ; respectively
 
-;[001]					; Node ID of second repeater
+;[001]					; Node ID of first repeater
 
 ;rxchannel = Zap/3			; Rx audio/signalling channel
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/4			; Tx audio/signalling channel
+;functions = functions-repeater		; DTMF function list
+;; specify this for a different function list then local when on link
+;;link_functions = functions-different	; DTMF function list for link
+;;phone_functions = functions-phone	; (optional) different functions for 'P' mode
+;;dphone_functions = functions-dphone	; (optional) different functions for 'D' mode
+;;nodes = nodes-different		; (optional) different node list
 ;tonezone = us				; use US tones (default)
 ;context = default			; dialing context for phone
-;callerid = "WB6NIL Repeater" <(559) 692-1234>  ; Callerid for phone calls
+;callerid = "WB6NIL Repeater" <(213) 555-0123>  ; Callerid for phone calls
 ;idrecording = wb6nil			; id recording
 ;accountcode=RADIO			; account code (optional)
 ;funcchar = *				; function lead-in character (defaults to '*')
 ;endchar = #				; command mode end character (defaults to '#')
+;;nobusyout=yes				; (optional) Do not busy-out reverse-patch when
+					; normal patch in use
 ;hangtime=1000				; squelch tail hang time (in ms) (optional)
 ;totime=100000				; transmit time-out time (in ms) (optional)
 ;idtime=30000				; id interval time (in ms) (optional)
@@ -59,7 +73,8 @@
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/6			; Tx audio/signalling channel
 ;functions = functions-remote
-;remote = rbi				; Set remote=y for dumb remote or 
+;remote = ft897				; Set remote=y for dumb remote or 
+					; remote=ft897 for Yaesu FT-897 or
 					; remote=rbi for Doug Hall RBI1
 ;iobase = 0x378				; Specify IO port for parallel port (optional)
 
@@ -145,8 +160,9 @@
 
 ;[nodes]
 
-;000 = context_A@1.2.3.4/1234
-;001 = context_B@5.6.7.8/4321
+;000 = context_A@foo.bar.com/1234,foo.bar.com
+;001 = context_B@baz.waldo.com/4321,baz.waldo.com
+;002 = context_C@pepper.salt.com/5678,pepper.salt.com,y  ; this is a remote
 
 ;of course, you can also specify these with domain names, but why rely
 ;on DNS working unnecessarily?
