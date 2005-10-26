@@ -29,6 +29,11 @@ Agents:
   "no".  You may need to adjust the value if your agents behave 
   differently than you expect with respect to acknowledgement.
 
+* The AgentCallBackLogin application now requires a second '|' before
+  specifying an extension@context.  This is to distinguish the options
+  string from the extension, so that they do not conflict.  See
+  'show application AgentCallbackLogin' for more details.
+
 Dialing:
 
 * The Caller*ID of the outbound leg is now the extension that was 

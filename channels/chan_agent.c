@@ -87,7 +87,7 @@ static const char descrip[] =
 "      's' -- silent login - do not announce the login ok segment after agent logged in/off\n";
 
 static const char descrip2[] =
-"  AgentCallbackLogin([AgentNo][|[options][exten]@context]):\n"
+"  AgentCallbackLogin([AgentNo][|[options][|[exten]@context]]):\n"
 "Asks the agent to login to the system with callback.\n"
 "The agent's callback extension is called (optionally with the specified\n"
 "context).\n"
@@ -1675,11 +1675,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	char agent[AST_MAX_AGENT] = "";
 	char xpass[AST_MAX_AGENT] = "";
 	char *errmsg;
-	char info[512];
+	char *info;
 	char *opt_user = NULL;
 	char *options = NULL;
-	char option;
-	char badoption[2];
 	char *tmpoptions = NULL;
 	char *context = NULL;
 	char *exten = NULL;
@@ -1687,13 +1685,18 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	char agent_goodbye[AST_MAX_FILENAME_LEN];
 	int update_cdr = updatecdr;
 	char *filename = "agent-loginok";
-	
-	strcpy(agent_goodbye, agentgoodbye);
+
 	LOCAL_USER_ADD(u);
 
-	/* Parse the arguments XXX Check for failure XXX */
-	ast_copy_string(info, (char *)data, strlen((char *)data) + AST_MAX_EXTENSION);
-	opt_user = info;
+	info = ast_strdupa(data);
+	if (!info) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	ast_copy_string(agent_goodbye, agentgoodbye, sizeof(agent_goodbye));
+
 	/* Set Channel Specific Login Overrides */
 	if (pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES") && strlen(pbx_builtin_getvar_helper(chan, "AGENTLMAXLOGINTRIES"))) {
 		max_login_tries = atoi(pbx_builtin_getvar_helper(chan, "AGENTMAXLOGINTRIES"));
@@ -1719,43 +1722,25 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTGOODBYE=%s, setting agent_goodbye to: %s on Channel '%s'.\n",tmpoptions,agent_goodbye,chan->name);
 	}
 	/* End Channel Specific Login Overrides */
+	
 	/* Read command line options */
-	if( opt_user ) {
-		options = strchr(opt_user, '|');
-		if (options) {
-			*options = '\0';
-			options++;
-			if (callbackmode) {
-				context = strchr(options, '@');
-				if (context) {
-					*context = '\0';
-					context++;
-				}
-				exten = options;
-				while(*exten && ((*exten < '0') || (*exten > '9'))) exten++;
-				if (!*exten)
-					exten = NULL;
-			}
-		}
-		if (options) {
-			while (*options) {
-				option = (char)options[0];
-				if ((option >= 0) && (option <= '9'))
-				{
-					options++;
-					continue;
-				}
-				if (option=='s')
-					play_announcement = 0;
-				else {
-					badoption[0] = option;
-					badoption[1] = '\0';
-					tmpoptions=badoption;
-					if (option_verbose > 2)
-						ast_verbose(VERBOSE_PREFIX_3 "Warning: option %s is unknown.\n",tmpoptions);
-				}
-				options++;
-			}
+	opt_user = info;
+	if (callbackmode) {
+		options = opt_user;
+		strsep(&options, "|");
+		exten = options;
+		strsep(&exten, "|");
+		context = exten;
+		strsep(&context, "@");
+	} else {
+		options = opt_user;
+		strsep(&options, "|");
+	}
+
+	while (options && !ast_strlen_zero(options)) {
+		if (*options == 's') {
+			play_announcement = 0;
+			break;
 		}
 	}
 	/* End command line options */
@@ -1763,7 +1748,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res) {
-		if( opt_user && !ast_strlen_zero(opt_user))
+		if (opt_user && !ast_strlen_zero(opt_user))
 			ast_copy_string(user, opt_user, AST_MAX_AGENT);
 		else
 			res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
@@ -2079,12 +2064,12 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			res = ast_app_getdata(chan, errmsg, user, sizeof(user) - 1, 0);
 	}
 		
-	LOCAL_USER_REMOVE(u);
 	if (!res)
 		res = ast_safe_sleep(chan, 500);
 
 	/* AgentLogin() exit */
 	if (!callbackmode) {
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	/* AgentCallbackLogin() exit*/
@@ -2103,10 +2088,12 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		else {
 			pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "fail");
 		}
-		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num))
+		if (ast_exists_extension(chan, chan->context, chan->exten, chan->priority + 1, chan->cid.cid_num)) {
+			LOCAL_USER_REMOVE(u);
 			return 0;
+		}
 		/* Do we need to play agent-goodbye now that we will be hanging up? */
-		if (play_announcement==1) {
+		if (play_announcement) {
 			if (!res)
 				res = ast_safe_sleep(chan, 1000);
 			res = ast_streamfile(chan, agent_goodbye, chan->language);
@@ -2116,6 +2103,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 				res = ast_safe_sleep(chan, 1000);
 		}
 	}
+
+	LOCAL_USER_REMOVE(u);
+	
 	/* We should never get here if next priority exists when in callbackmode */
  	return -1;
 }
