@@ -881,11 +881,11 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 	c->writeformat = AST_FORMAT_SLINEAR;
 	c->tech_pvt = o;
 
-	if (ctx && !ast_strlen_zero(ctx))
+	if (!ast_strlen_zero(ctx))
 		ast_copy_string(c->context, ctx, sizeof(c->context));
-	if (ext && !ast_strlen_zero(ext))
+	if (!ast_strlen_zero(ext))
 		ast_copy_string(c->exten, ext, sizeof(c->exten));
-	if (o->language && !ast_strlen_zero(o->language))
+	if (!ast_strlen_zero(o->language))
 		ast_copy_string(c->language, o->language, sizeof(c->language));
 
 	o->owner = c;

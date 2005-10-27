@@ -778,10 +778,10 @@ static void get_callerid_ast(struct vpb_pvt *p)
 	}
 	if (number)
 		ast_shrink_phone_number(number);
-	if (number && !ast_strlen_zero(number)) {
+	if (!ast_strlen_zero(number)) {
 		owner->cid.cid_num = strdup(number);
 		owner->cid.cid_ani = strdup(number);
-		if (name && !ast_strlen_zero(name)){
+		if (!ast_strlen_zero(name)){
 			owner->cid.cid_name = strdup(name);
 			snprintf(p->callerid,(sizeof(p->callerid)-1),"%s %s",number,name);
 		}

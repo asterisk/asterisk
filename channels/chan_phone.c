@@ -261,7 +261,7 @@ static int phone_call(struct ast_channel *ast, char *dest, int timeout)
 		snprintf(cid.min, sizeof(cid.min),     "%02d", tm.tm_min);
 	}
 	/* the standard format of ast->callerid is:  "name" <number>, but not always complete */
-	if (!ast->cid.cid_name || ast_strlen_zero(ast->cid.cid_name))
+	if (ast_strlen_zero(ast->cid.cid_name))
 		strncpy(cid.name, DEFAULT_CALLER_ID, sizeof(cid.name) - 1);
 	else
 		strncpy(cid.name, ast->cid.cid_name, sizeof(cid.name) - 1);
@@ -818,11 +818,11 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 			tmp->rings = 1;
 		tmp->tech_pvt = i;
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
-		if (strlen(i->ext))
+		if (!ast_strlen_zero(i->ext))
 			strncpy(tmp->exten, i->ext, sizeof(tmp->exten)-1);
 		else
 			strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
-		if (strlen(i->language))
+		if (!ast_strlen_zero(i->language))
 			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
 		if (!ast_strlen_zero(i->cid_num))
 			tmp->cid.cid_num = strdup(i->cid_num);

@@ -770,11 +770,11 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *p, int state)
 		tmp->readformat = AST_FORMAT_SLINEAR;
 		tmp->writeformat = AST_FORMAT_SLINEAR;
 		tmp->tech_pvt = p;
-		if (strlen(p->context))
+		if (!ast_strlen_zero(p->context))
 			strncpy(tmp->context, p->context, sizeof(tmp->context)-1);
-		if (strlen(p->exten))
+		if (!ast_strlen_zero(p->exten))
 			strncpy(tmp->exten, p->exten, sizeof(tmp->exten)-1);
-		if (strlen(language))
+		if (!ast_strlen_zero(language))
 			strncpy(tmp->language, language, sizeof(tmp->language)-1);
 		p->owner = tmp;
 		ast_setstate(tmp, state);
@@ -839,10 +839,10 @@ static char *autoanswer_complete(char *line, char *word, int pos, int state)
 #endif
 	switch(state) {
 	case 0:
-		if (strlen(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
+		if (!ast_strlen_zero(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
 			return strdup("on");
 	case 1:
-		if (strlen(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
+		if (!ast_strlen_zero(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
 			return strdup("off");
 	default:
 		return NULL;
@@ -887,14 +887,14 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		ast_cli(fd, "No one is calling us\n");
 		return RESULT_FAILURE;
 	}
-	if (strlen(text2send))
+	if (!ast_strlen_zero(text2send))
 		ast_cli(fd, "Warning: message already waiting to be sent, overwriting\n");
 	text2send[0] = '\0';
 	while(tmparg < argc) {
 		strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
 		strncat(text2send, " ", sizeof(text2send) - strlen(text2send) - 1);
 	}
-	if (strlen(text2send)) {
+	if (!ast_strlen_zero(text2send)) {
 		f.frametype = AST_FRAME_TEXT;
 		f.subclass = 0;
 		f.data = text2send;
@@ -978,9 +978,9 @@ static int console_dial(int fd, int argc, char *argv[])
 		stringp=tmp;
 		strsep(&stringp, "@");
 		tmp2 = strsep(&stringp, "@");
-		if (strlen(tmp))
+		if (!ast_strlen_zero(tmp))
 			mye = tmp;
-		if (tmp2 && strlen(tmp2))
+		if (!ast_strlen_zero(tmp2))
 			myc = tmp2;
 	}
 	if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {

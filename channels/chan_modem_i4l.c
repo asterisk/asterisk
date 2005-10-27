@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/callerid.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/pbx.h"
+#include "asterisk/utils.h"
 
 #define STATE_COMMAND 	0
 #define STATE_VOICE 	1
@@ -178,7 +179,7 @@ static int i4l_init(struct ast_modem_pvt *p)
 		ast_log(LOG_WARNING, "Unable to set to voice mode\n");
 		return -1;
 	}
-	if (strlen(p->msn)) {
+	if (!ast_strlen_zero(p->msn)) {
 		snprintf(cmd, sizeof(cmd), "AT&E%s", p->msn);
 		if (ast_modem_send(p, cmd, 0) ||
 		    ast_modem_expect(p, "OK", 5)) {
@@ -186,7 +187,7 @@ static int i4l_init(struct ast_modem_pvt *p)
 			return -1;
 		}
 	}
-	if (strlen(p->incomingmsn)) {
+	if (!ast_strlen_zero(p->incomingmsn)) {
 		char *q;
 		snprintf(cmd, sizeof(cmd), "AT&L%s", p->incomingmsn);
 		/* translate , into ; since that is the seperator I4L uses, but can't be directly */
@@ -632,7 +633,7 @@ static int i4l_dial(struct ast_modem_pvt *p, char *stuff)
 	/* Find callerid number first, to set the correct A number */
 	if (c && c->cid.cid_num && !(c->cid.cid_pres & 0x20)) {
 	    snprintf(tmpmsn, sizeof(tmpmsn), ",%s,", c->cid.cid_num);
-	    if(strlen(p->outgoingmsn) && strstr(p->outgoingmsn,tmpmsn) != NULL) {
+	    if(!ast_strlen_zero(p->outgoingmsn) && strstr(p->outgoingmsn,tmpmsn) != NULL) {
 	      /* Tell ISDN4Linux to use this as A number */
 	      snprintf(cmd, sizeof(cmd), "AT&E%s\n", c->cid.cid_num);
 	      if (ast_modem_send(p, cmd, strlen(cmd))) {

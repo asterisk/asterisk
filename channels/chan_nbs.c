@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/pbx.h"
 #include "asterisk/options.h"
+#include "asterisk/utils.h"
 
 static const char desc[] = "Network Broadcast Sound Support";
 static const char type[] = "NBS";
@@ -135,7 +136,7 @@ static struct nbs_pvt *nbs_alloc(void *data)
 	p = malloc(sizeof(struct nbs_pvt));
 	if (p) {
 		memset(p, 0, sizeof(struct nbs_pvt));
-		if (strlen(opts)) {
+		if (!ast_strlen_zero(opts)) {
 			if (strchr(opts, 'm'))
 				flags |= NBS_FLAG_MUTE;
 			if (strchr(opts, 'o'))

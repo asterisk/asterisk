@@ -767,12 +767,12 @@ static struct ast_channel *__oh323_new(struct oh323_pvt *pvt, int state, const c
 		}
 		if (!ast_strlen_zero(pvt->cid_num)) {
 			ch->cid.cid_num = strdup(pvt->cid_num);
-		} else if (pvt->cd.call_source_e164 && !ast_strlen_zero(pvt->cd.call_source_e164)) {
+		} else if (!ast_strlen_zero(pvt->cd.call_source_e164)) {
 			ch->cid.cid_num = strdup(pvt->cd.call_source_e164);
 		}
 		if (!ast_strlen_zero(pvt->cid_name)) {
 			ch->cid.cid_name = strdup(pvt->cid_name);
-		} else if (pvt->cd.call_source_e164 && !ast_strlen_zero(pvt->cd.call_source_name)) {
+		} else if (!ast_strlen_zero(pvt->cd.call_source_name)) {
 			ch->cid.cid_name = strdup(pvt->cd.call_source_name);
 		}
 		if (!ast_strlen_zero(pvt->rdnis)) {
@@ -1037,7 +1037,7 @@ static struct ast_channel *oh323_request(const char *type, int format, void *dat
 		ext = NULL;
 	}
 	strtok_r(host, "/", &(h323id));		
-	if (h323id && !ast_strlen_zero(h323id)) {
+	if (!ast_strlen_zero(h323id)) {
 		h323_set_id(h323id);
 	}
 	if (ext) {

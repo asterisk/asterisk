@@ -724,7 +724,7 @@ static void set_agentbycallerid(const char *callerid, const char *agent)
 	char buf[AST_MAX_BUF];
 
 	/* if there is no Caller ID, nothing to do */
-	if (!callerid || ast_strlen_zero(callerid))
+	if (ast_strlen_zero(callerid))
 		return;
 
 	snprintf(buf, sizeof(buf), "%s_%s",GETAGENTBYCALLERID, callerid);
@@ -1388,7 +1388,7 @@ static int action_agents(struct mansession *s, struct message *m)
 	char *talkingtoChan = NULL;
 	char *status = NULL;
 
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		snprintf(idText, sizeof(idText) ,"ActionID: %s\r\n", id);
 	astman_send_ack(s, m, "Agents will follow");
 	ast_mutex_lock(&agentlock);
@@ -1526,7 +1526,7 @@ static int action_agent_logoff(struct mansession *s, struct message *m)
 	int soft;
 	int ret; /* return value of agent_logoff */
 
-	if (!agent || ast_strlen_zero(agent)) {
+	if (ast_strlen_zero(agent)) {
 		astman_send_error(s, m, "No agent specified");
 		return 0;
 	}
@@ -1737,7 +1737,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		strsep(&options, "|");
 	}
 
-	while (options && !ast_strlen_zero(options)) {
+	while (!ast_strlen_zero(options)) {
 		if (*options == 's') {
 			play_announcement = 0;
 			break;
@@ -1748,7 +1748,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res) {
-		if (opt_user && !ast_strlen_zero(opt_user))
+		if (!ast_strlen_zero(opt_user))
 			ast_copy_string(user, opt_user, AST_MAX_AGENT);
 		else
 			res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
@@ -1833,7 +1833,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								res = 0;
 							} else
 								res = ast_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
-							if (ast_strlen_zero(tmpchan) || ast_exists_extension(chan, context && !ast_strlen_zero(context) ? context : "default", tmpchan,
+							if (ast_strlen_zero(tmpchan) || ast_exists_extension(chan, !ast_strlen_zero(context) ? context : "default", tmpchan,
 													     1, NULL))
 								break;
 							if (exten) {
@@ -1841,7 +1841,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								exten = NULL;
 								pos = 0;
 							} else {
-								ast_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, context && !ast_strlen_zero(context) ? context : "default", p->agent);
+								ast_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, !ast_strlen_zero(context) ? context : "default", p->agent);
 								res = ast_streamfile(chan, "invalid", chan->language);
 								if (!res)
 									res = ast_waitstream(chan, AST_DIGIT_ANY);
@@ -1858,7 +1858,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						exten = tmpchan;
 						if (!res) {
 							set_agentbycallerid(p->logincallerid, NULL);
-							if (context && !ast_strlen_zero(context) && !ast_strlen_zero(tmpchan))
+							if (!ast_strlen_zero(context) && !ast_strlen_zero(tmpchan))
 								snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", tmpchan, context);
 							else {
 								ast_copy_string(last_loginchan, p->loginchan, sizeof(last_loginchan));
@@ -2183,7 +2183,7 @@ static int action_agent_callback_login(struct mansession *s, struct message *m)
 		else
 			snprintf(p->loginchan, sizeof(p->loginchan), "%s@%s", exten, context);
 
-		if (wrapuptime_s && !ast_strlen_zero(wrapuptime_s)) {
+		if (!ast_strlen_zero(wrapuptime_s)) {
 			p->wrapuptime = atoi(wrapuptime_s);
 			if (p->wrapuptime < 0)
 				p->wrapuptime = 0;

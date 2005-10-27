@@ -580,9 +580,9 @@ struct ast_channel *ast_modem_new(struct ast_modem_pvt *i, int state)
 		if (!ast_strlen_zero(i->cid_name))
 			tmp->cid.cid_name = strdup(i->cid_name);
 
-		if (strlen(i->language))
+		if (!ast_strlen_zero(i->language))
 			strncpy(tmp->language,i->language, sizeof(tmp->language)-1);
-		if (strlen(i->dnid))
+		if (!ast_strlen_zero(i->dnid))
 			strncpy(tmp->exten, i->dnid, sizeof(tmp->exten) - 1);
 		i->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);

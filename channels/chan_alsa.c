@@ -778,12 +778,12 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		tmp->readformat = AST_FORMAT_SLINEAR;
 		tmp->writeformat = AST_FORMAT_SLINEAR;
 		tmp->tech_pvt = p;
-		if (strlen(p->context))
-			strncpy(tmp->context, p->context, sizeof(tmp->context)-1);
-		if (strlen(p->exten))
-			strncpy(tmp->exten, p->exten, sizeof(tmp->exten)-1);
-		if (strlen(language))
-			strncpy(tmp->language, language, sizeof(tmp->language)-1);
+		if (!ast_strlen_zero(p->context))
+			ast_copy_string(tmp->context, p->context, sizeof(tmp->context));
+		if (!ast_strlen_zero(p->exten))
+			ast_copy_string(tmp->exten, p->exten, sizeof(tmp->exten));
+		if (!ast_strlen_zero(language))
+			ast_copy_string(tmp->language, language, sizeof(tmp->language));
 		p->owner = tmp;
 		ast_setstate(tmp, state);
 		ast_mutex_lock(&usecnt_lock);
@@ -851,10 +851,10 @@ static char *autoanswer_complete(char *line, char *word, int pos, int state)
 #endif
 	switch(state) {
 	case 0:
-		if (strlen(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
+		if (!ast_strlen_zero(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
 			return strdup("on");
 	case 1:
-		if (strlen(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
+		if (!ast_strlen_zero(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
 			return strdup("off");
 	default:
 		return NULL;
@@ -1000,9 +1000,9 @@ static int console_dial(int fd, int argc, char *argv[])
 			stringp=tmp;
 			strsep(&stringp, "@");
 			tmp2 = strsep(&stringp, "@");
-			if (strlen(tmp))
+			if (!ast_strlen_zero(tmp))
 				mye = tmp;
-			if (tmp2 && strlen(tmp2))
+			if (!ast_strlen_zero(tmp2))
 				myc = tmp2;
 		}
 		if (ast_exists_extension(NULL, myc, mye, 1, NULL)) {
