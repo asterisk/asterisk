@@ -170,6 +170,7 @@ struct ast_cdr *ast_cdr_dup(struct ast_cdr *cdr)
 	/* The varshead is unusable, volatile even, after the memcpy so we take care of that here */
 	memset(&newcdr->varshead, 0, sizeof(newcdr->varshead));
 	ast_cdr_copy_vars(newcdr, cdr);
+	newcdr->next = NULL;
 
 	return newcdr;
 }
