@@ -164,7 +164,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	ourcontext = strsep(&stringp, "|");
 	/* if context specified, save 2nd arg and parse third */
 	if (ourcontext) {
-		strncpy(arg2,ourcontext, sizeof(arg2) - 1);
+		ast_copy_string(arg2, ourcontext, sizeof(arg2));
 		ourcallerid = strsep(&stringp,"|");
 	}
 	  /* if context not specified, use "disa" */
@@ -306,7 +306,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					k|=1; /* In number mode */
 					i = 0;  /* re-set buffer pointer */
 					exten[sizeof(acctcode)] = 0;
-					strncpy(acctcode,exten, sizeof(acctcode) - 1);
+					ast_copy_string(acctcode, exten, sizeof(acctcode));
 					exten[0] = 0;
 					ast_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n",chan->name);
 					continue;
@@ -353,7 +353,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			}
 
 			if (!ast_strlen_zero(acctcode))
-				strncpy(chan->accountcode, acctcode, sizeof(chan->accountcode) - 1);
+				ast_copy_string(chan->accountcode, acctcode, sizeof(chan->accountcode));
 
 			ast_cdr_reset(chan->cdr, AST_CDR_FLAG_POSTED);
 			ast_explicit_goto(chan, ourcontext, exten, 1);
