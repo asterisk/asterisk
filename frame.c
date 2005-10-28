@@ -1263,9 +1263,9 @@ int ast_frame_adjust_volume(struct ast_frame *f, int adjustment)
 
 	for (count = 0; count < f->samples; count++) {
 		if (adjustment > 0) {
-			fdata[count] *= abs(adjustment);
+			ast_slinear_saturated_multiply(&fdata[count], abs(adjustment));
 		} else if (adjustment < 0) {
-			fdata[count] /= abs(adjustment);
+			ast_slinear_saturated_divide(&fdata[count], abs(adjustment));
 		}
 	}
 
