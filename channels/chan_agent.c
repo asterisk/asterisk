@@ -1822,7 +1822,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						int pos = 0;
 						/* Retrieve login chan */
 						for (;;) {
-							if (args.extension) {
+							if (!ast_strlen_zero(args.extension)) {
 								ast_copy_string(tmpchan, args.extension, sizeof(tmpchan));
 								res = 0;
 							} else
