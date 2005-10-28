@@ -67,7 +67,7 @@ struct state_change {
 static AST_LIST_HEAD_STATIC(state_changes, state_change);
 
 static pthread_t change_thread = AST_PTHREADT_NULL;
-static pthread_cond_t change_pending;
+static ast_cond_t change_pending;
 
 /*--- devstate2str: Find devicestate as text message for output */
 const char *devstate2str(int devstate) 
@@ -216,7 +216,7 @@ static int __ast_device_state_changed_literal(char *buf)
 		AST_LIST_INSERT_TAIL(&state_changes, change, list);
 		if (AST_LIST_FIRST(&state_changes) == change)
 			/* the list was empty, signal the thread */
-			pthread_cond_signal(&change_pending);
+			ast_cond_signal(&change_pending);
 		AST_LIST_UNLOCK(&state_changes);
 	}
 
@@ -260,7 +260,7 @@ static void *do_devstate_changes(void *data)
 		} else {
 			/* there was no entry, so atomically unlock the list and wait for
 			   the condition to be signalled (returns with the lock held) */
-			ast_pthread_cond_wait(&change_pending, &state_changes.lock);
+			ast_cond_wait(&change_pending, &state_changes.lock);
 		}
 	}
 
@@ -272,7 +272,7 @@ int ast_device_state_engine_init(void)
 {
 	pthread_attr_t attr;
 
-	pthread_cond_init(&change_pending, NULL);
+	ast_cond_init(&change_pending, NULL);
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 	if (ast_pthread_create(&change_thread, &attr, do_devstate_changes, NULL) < 0) {

@@ -91,7 +91,7 @@ AST_MUTEX_DEFINE_STATIC(cdr_batch_lock);
 
 /* these are used to wake up the CDR thread when there's work to do */
 AST_MUTEX_DEFINE_STATIC(cdr_pending_lock);
-static pthread_cond_t cdr_pending_cond;
+static ast_cond_t cdr_pending_cond;
 
 /*
  * We do a lot of checking here in the CDR code to try to be sure we don't ever let a CDR slip
@@ -956,7 +956,7 @@ static void submit_unscheduled_batch(void)
 	cdr_sched = ast_sched_add(sched, 1, submit_scheduled_batch, NULL);
 	/* signal the do_cdr thread to wakeup early and do some work (that lazy thread ;) */
 	ast_mutex_lock(&cdr_pending_lock);
-	pthread_cond_signal(&cdr_pending_cond);
+	ast_cond_signal(&cdr_pending_cond);
 	ast_mutex_unlock(&cdr_pending_lock);
 }
 
@@ -1032,7 +1032,7 @@ static void *do_cdr(void *data)
 		timeout.tv_nsec = (now.tv_usec * 1000) + ((schedms % 1000) * 1000);
 		/* prevent stuff from clobbering cdr_pending_cond, then wait on signals sent to it until the timeout expires */
 		ast_mutex_lock(&cdr_pending_lock);
-		ast_pthread_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
+		ast_cond_timedwait(&cdr_pending_cond, &cdr_pending_lock, &timeout);
 		numevents = ast_sched_runq(sched);
 		ast_mutex_unlock(&cdr_pending_lock);
 		if (option_debug > 1)
@@ -1179,7 +1179,7 @@ static int do_reload(void)
 	/* if this reload enabled the CDR batch mode, create the background thread
 	   if it does not exist */
 	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == AST_PTHREADT_NULL)) {
-		pthread_cond_init(&cdr_pending_cond, NULL);
+		ast_cond_init(&cdr_pending_cond, NULL);
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (ast_pthread_create(&cdr_thread, &attr, do_cdr, NULL) < 0) {
@@ -1198,7 +1198,7 @@ static int do_reload(void)
 		pthread_kill(cdr_thread, SIGURG);
 		pthread_join(cdr_thread, NULL);
 		cdr_thread = AST_PTHREADT_NULL;
-		pthread_cond_destroy(&cdr_pending_cond);
+		ast_cond_destroy(&cdr_pending_cond);
 		ast_cli_unregister(&cli_submit);
 		ast_unregister_atexit(ast_cdr_engine_term);
 		res = 0;
