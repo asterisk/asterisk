@@ -343,33 +343,33 @@ static inline int __ast_pthread_mutex_unlock(const char *filename, int lineno, c
 	return res;
 }
 
-static inline int __ast_pthread_cond_init(const char *filename, int lineno, const char *func,
-					  const char *cond_name, ast_cond_t *cond, pthread_condattr_t *cond_attr)
+static inline int __ast_cond_init(const char *filename, int lineno, const char *func,
+				  const char *cond_name, ast_cond_t *cond, pthread_condattr_t *cond_attr)
 {
 	return pthread_cond_init(cond, cond_attr);
 }
 
-static inline int __ast_pthread_cond_signal(const char *filename, int lineno, const char *func,
-					    const char *cond_name, ast_cond_t *cond)
+static inline int __ast_cond_signal(const char *filename, int lineno, const char *func,
+				    const char *cond_name, ast_cond_t *cond)
 {
 	return pthread_cond_signal(cond);
 }
 
-static inline int __ast_pthread_cond_broadcast(const char *filename, int lineno, const char *func,
-					       const char *cond_name, ast_cond_t *cond)
+static inline int __ast_cond_broadcast(const char *filename, int lineno, const char *func,
+				       const char *cond_name, ast_cond_t *cond)
 {
 	return pthread_cond_broadcast(cond);
 }
 
-static inline int __ast_pthread_cond_destroy(const char *filename, int lineno, const char *func,
-					     const char *cond_name, ast_cond_t *cond)
+static inline int __ast_cond_destroy(const char *filename, int lineno, const char *func,
+				     const char *cond_name, ast_cond_t *cond)
 {
 	return pthread_cond_destroy(cond);
 }
 
-static inline int __ast_pthread_cond_wait(const char *filename, int lineno, const char *func,
-					  const char *cond_name, const char *mutex_name,
-					  ast_cond_t *cond, ast_mutex_t *t)
+static inline int __ast_cond_wait(const char *filename, int lineno, const char *func,
+				  const char *cond_name, const char *mutex_name,
+				  ast_cond_t *cond, ast_mutex_t *t)
 {
 	int res;
 	int canlog = strcmp(filename, "logger.c");
@@ -426,9 +426,9 @@ static inline int __ast_pthread_cond_wait(const char *filename, int lineno, cons
 	return res;
 }
 
-static inline int __ast_pthread_cond_timedwait(const char *filename, int lineno, const char *func,
-					       const char *cond_name, const char *mutex_name, ast_cond_t *cond,
-					       ast_mutex_t *t, const struct timespec *abstime)
+static inline int __ast_cond_timedwait(const char *filename, int lineno, const char *func,
+				       const char *cond_name, const char *mutex_name, ast_cond_t *cond,
+				       ast_mutex_t *t, const struct timespec *abstime)
 {
 	int res;
 	int canlog = strcmp(filename, "logger.c");
@@ -490,12 +490,12 @@ static inline int __ast_pthread_cond_timedwait(const char *filename, int lineno,
 #define ast_mutex_lock(a) __ast_pthread_mutex_lock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define ast_mutex_unlock(a) __ast_pthread_mutex_unlock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
 #define ast_mutex_trylock(a) __ast_pthread_mutex_trylock(__FILE__, __LINE__, __PRETTY_FUNCTION__, #a, a)
-#define ast_cond_init(cond, attr) __ast_pthread_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
-#define ast_cond_destroy(cond) __ast_pthread_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_signal(cond) __ast_pthread_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_broadcast(cond) __ast_pthread_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
-#define ast_cond_wait(cond, mutex) __ast_pthread_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
-#define ast_cond_timedwait(cond, mutex, time) __ast_pthread_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
+#define ast_cond_init(cond, attr) __ast_cond_init(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond, attr)
+#define ast_cond_destroy(cond) __ast_cond_destroy(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define ast_cond_signal(cond) __ast_cond_signal(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define ast_cond_broadcast(cond) __ast_cond_broadcast(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, cond)
+#define ast_cond_wait(cond, mutex) __ast_cond_wait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex)
+#define ast_cond_timedwait(cond, mutex, time) __ast_cond_timedwait(__FILE__, __LINE__, __PRETTY_FUNCTION__, #cond, #mutex, cond, mutex, time)
 
 #else /* !DEBUG_THREADS */
 
@@ -512,9 +512,18 @@ static inline int ast_mutex_init(ast_mutex_t *pmutex)
 	pthread_mutexattr_settype(&attr, AST_MUTEX_KIND);
 	return pthread_mutex_init(pmutex, &attr);
 }
+
 #define ast_pthread_mutex_init(pmutex,a) pthread_mutex_init(pmutex,a)
-#define ast_mutex_unlock(pmutex) pthread_mutex_unlock(pmutex)
-#define ast_mutex_destroy(pmutex) pthread_mutex_destroy(pmutex)
+
+static inline int ast_mutex_unlock(ast_mutex_t *pmutex)
+{
+	return pthread_mutex_unlock(pmutex);
+}
+
+static inline int ast_mutex_destroy(ast_mutex_t *pmutex)
+{
+	return pthread_mutex_destroy(pmutex);
+}
 
 #if defined(AST_MUTEX_INIT_W_CONSTRUCTORS)
 /* if AST_MUTEX_INIT_W_CONSTRUCTORS is defined, use file scope
@@ -530,8 +539,15 @@ static void  __attribute__ ((destructor)) fini_##mutex(void) \
 	ast_mutex_destroy(&mutex); \
 }
 
-#define ast_mutex_lock(pmutex) pthread_mutex_lock(pmutex)
-#define ast_mutex_trylock(pmutex) pthread_mutex_trylock(pmutex)
+static inline int ast_mutex_lock(ast_mutex_t *pmutex)
+{
+	return pthread_mutex_lock(pmutex);
+}
+
+static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
+{
+	return pthread_mutex_trylock(pmutex);
+}
 
 #elif defined(AST_MUTEX_INIT_ON_FIRST_USE)
 /* if AST_MUTEX_INIT_ON_FIRST_USE is defined, mutexes are created on
@@ -557,18 +573,50 @@ static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
 /* By default, use static initialization of mutexes.*/ 
 #define __AST_MUTEX_DEFINE(scope,mutex) \
 	scope ast_mutex_t mutex = AST_MUTEX_INIT_VALUE
-#define ast_mutex_lock(pmutex) pthread_mutex_lock(pmutex)
-#define ast_mutex_trylock(pmutex) pthread_mutex_trylock(pmutex)
+
+static inline int ast_mutex_lock(ast_mutex_t *pmutex)
+{
+	return pthread_mutex_lock(pmutex);
+}
+
+static inline int ast_mutex_trylock(ast_mutex_t *pmutex)
+{
+	return pthread_mutex_trylock(pmutex);
+}
+
 #endif /* AST_MUTEX_INIT_W_CONSTRUCTORS */
 
-typedef pthread_cond_t ast_cond_t
+typedef pthread_cond_t ast_cond_t;
 
-#define ast_cond_init pthread_cond_init
-#define ast_cond_destroy pthread_cond_destroy
-#define ast_cond_signal pthread_cond_signal
-#define ast_cond_broadcast pthread_cond_broadcast
-#define ast_cond_wait pthread_cond_wait
-#define ast_cond_timedwait pthread_cond_timedwait
+static inline int ast_cond_init(ast_cond_t *cond, pthread_condattr_t *cond_attr)
+{
+	return pthread_cond_init(cond, cond_attr);
+}
+
+static inline int ast_cond_signal(ast_cond_t *cond)
+{
+	return pthread_cond_signal(cond);
+}
+
+static inline int ast_cond_broadcast(ast_cond_t *cond)
+{
+	return pthread_cond_broadcast(cond);
+}
+
+static inline int ast_cond_destroy(ast_cond_t *cond)
+{
+	return pthread_cond_destroy(cond);
+}
+
+static inline int ast_cond_wait(ast_cond_t *cond, ast_mutex_t *t)
+{
+	return pthread_cond_wait(cond, t);
+}
+
+static inline int ast_cond_timedwait(ast_cond_t *cond, ast_mutex_t *t, const struct timespec *abstime)
+{
+	return pthread_cond_timedwait(cond, t, abstime);
+}
 
 #endif /* !DEBUG_THREADS */
 
