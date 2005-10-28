@@ -1675,12 +1675,14 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	char agent[AST_MAX_AGENT] = "";
 	char xpass[AST_MAX_AGENT] = "";
 	char *errmsg;
-	char *info;
-	char *opt_user = NULL;
-	char *options = NULL;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+			     AST_APP_ARG(agent_id);
+			     AST_APP_ARG(options);
+			     AST_APP_ARG(extension);
+		);
 	char *tmpoptions = NULL;
 	char *context = NULL;
-	char *exten = NULL;
 	int play_announcement = 1;
 	char agent_goodbye[AST_MAX_FILENAME_LEN];
 	int update_cdr = updatecdr;
@@ -1688,12 +1690,13 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 
 	LOCAL_USER_ADD(u);
 
-	info = ast_strdupa(data);
-	if (!info) {
+	if (!(parse = ast_strdupa(data))) {
 		ast_log(LOG_ERROR, "Out of memory!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
+
+	AST_STANDARD_APP_ARGS(args, parse);
 
 	ast_copy_string(agent_goodbye, agentgoodbye, sizeof(agent_goodbye));
 
@@ -1723,33 +1726,24 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	}
 	/* End Channel Specific Login Overrides */
 	
-	/* Read command line options */
-	opt_user = info;
-	if (callbackmode) {
-		options = opt_user;
-		strsep(&options, "|");
-		exten = options;
-		strsep(&exten, "|");
-		context = exten;
-		strsep(&context, "@");
-	} else {
-		options = opt_user;
-		strsep(&options, "|");
+	if (callbackmode && args.extension) {
+		parse = args.extension;
+		args.extension = strsep(&parse, "@");
+		context = parse;
 	}
 
-	while (!ast_strlen_zero(options)) {
-		if (*options == 's') {
+	while (!ast_strlen_zero(args.options)) {
+		if (*args.options == 's') {
 			play_announcement = 0;
 			break;
 		}
 	}
-	/* End command line options */
 
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 	if (!res) {
-		if (!ast_strlen_zero(opt_user))
-			ast_copy_string(user, opt_user, AST_MAX_AGENT);
+		if (!ast_strlen_zero(args.agent_id))
+			ast_copy_string(user, args.agent_id, AST_MAX_AGENT);
 		else
 			res = ast_app_getdata(chan, "agent-user", user, sizeof(user) - 1, 0);
 	}
@@ -1828,17 +1822,17 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 						int pos = 0;
 						/* Retrieve login chan */
 						for (;;) {
-							if (exten) {
-								ast_copy_string(tmpchan, exten, sizeof(tmpchan));
+							if (args.extension) {
+								ast_copy_string(tmpchan, args.extension, sizeof(tmpchan));
 								res = 0;
 							} else
 								res = ast_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
 							if (ast_strlen_zero(tmpchan) || ast_exists_extension(chan, !ast_strlen_zero(context) ? context : "default", tmpchan,
 													     1, NULL))
 								break;
-							if (exten) {
-								ast_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", exten, p->agent);
-								exten = NULL;
+							if (args.extension) {
+								ast_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", args.extension, p->agent);
+								args.extension = NULL;
 								pos = 0;
 							} else {
 								ast_log(LOG_WARNING, "Extension '%s@%s' is not valid for automatic login of agent '%s'\n", tmpchan, !ast_strlen_zero(context) ? context : "default", p->agent);
@@ -1855,7 +1849,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								}
 							}
 						}
-						exten = tmpchan;
+						args.extension = tmpchan;
 						if (!res) {
 							set_agentbycallerid(p->logincallerid, NULL);
 							if (!ast_strlen_zero(context) && !ast_strlen_zero(tmpchan))
@@ -2079,7 +2073,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			pbx_builtin_setvar_helper(chan, "AGENTNUMBER", user);
 			if (login_state==1) {
 				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "on");
-				pbx_builtin_setvar_helper(chan, "AGENTEXTEN", exten);
+				pbx_builtin_setvar_helper(chan, "AGENTEXTEN", args.extension);
 			}
 			else {
 				pbx_builtin_setvar_helper(chan, "AGENTSTATUS", "off");
