@@ -1252,3 +1252,22 @@ int ast_codec_get_len(int format, int samples)
 
 	return len;
 }
+
+int ast_frame_adjust_volume(struct ast_frame *f, int adjustment)
+{
+	int count;
+	short *fdata = f->data;
+
+	if ((f->frametype != AST_FRAME_VOICE) || (f->subclass != AST_FORMAT_SLINEAR))
+		return -1;
+
+	for (count = 0; count < f->samples; count++) {
+		if (adjustment > 0) {
+			fdata[count] *= abs(adjustment);
+		} else if (adjustment < 0) {
+			fdata[count] /= abs(adjustment);
+		}
+	}
+
+	return 0;
+}
