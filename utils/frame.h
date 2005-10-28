@@ -37,7 +37,7 @@
  #define TRUE (0==0)
 #endif
 
-extern unsigned int samplefrequency;
+extern int samplefrequency;
 extern unsigned short samplewidth;
 extern unsigned short channels;
 extern int wavout;         /* TRUE iff out file is .WAV file */

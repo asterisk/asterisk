@@ -25,7 +25,7 @@
 #include "frame.h"
 
 time_t stopwatch;       /* will hold time at start of calculation */
-unsigned int samplefrequency;
+int samplefrequency;
 unsigned short samplewidth;
 unsigned short channels;
 int wavout;            /* TRUE iff out file should be a .WAV file */
