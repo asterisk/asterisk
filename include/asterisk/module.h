@@ -290,6 +290,18 @@ void ast_unregister_atexit(void (*func)(void));
 						static struct localuser *localusers = NULL; \
 						static int localusecnt = 0;
 
+#define STANDARD_INCREMENT_USECOUNT \
+	ast_mutex_lock(&localuser_lock); \
+	localusecnt++; \
+	ast_mutex_unlock(&localuser_lock); \
+	ast_update_use_count();
+
+#define STANDARD_DECREMENT_USECOUNT \
+	ast_mutex_lock(&localuser_lock); \
+	localusecnt--; \
+	ast_mutex_unlock(&localuser_lock); \
+	ast_update_use_count();
+
 /*! 
  * \brief Add a localuser.
  * \param u a pointer to a localuser struct
@@ -375,16 +387,16 @@ void ast_unregister_atexit(void (*func)(void));
 		u = u->next; \
 		free(ul); \
 	} \
-	ast_mutex_unlock(&localuser_lock); \
 	localusecnt=0; \
+	ast_mutex_unlock(&localuser_lock); \
+	ast_update_use_count(); \
 }
 
 /*!
  * \brief Set the specfied integer to the current usecount.
  * \param res the integer variable to set.
  *
- * This macro sets the specfied integer variable to the local usecount.  It
- * handles all the necessary thread synchronization.
+ * This macro sets the specfied integer variable to the local usecount.
  *
  * <b>Sample Usage:</b>
  * \code
