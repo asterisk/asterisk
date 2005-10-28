@@ -23,12 +23,6 @@
 #ifndef _ASTERISK_CHANNEL_H
 #define _ASTERISK_CHANNEL_H
 
-#include "asterisk/compat.h"
-#include "asterisk/frame.h"
-#include "asterisk/sched.h"
-#include "asterisk/chanvars.h"
-#include "asterisk/config.h"
-
 #include <unistd.h>
 #include <setjmp.h>
 #ifdef POLLCOMPAT 
@@ -41,18 +35,23 @@
 extern "C" {
 #endif
 
-#include "asterisk/lock.h"
-
 /*! Max length of an extension */
 #define AST_MAX_EXTENSION	80
 
 #define AST_MAX_CONTEXT		80
 
+#define AST_CHANNEL_NAME	80
+
+#include "asterisk/compat.h"
+#include "asterisk/frame.h"
+#include "asterisk/sched.h"
+#include "asterisk/chanvars.h"
+#include "asterisk/config.h"
+#include "asterisk/lock.h"
 #include "asterisk/cdr.h"
 #include "asterisk/monitor.h"
 #include "asterisk/utils.h"
-
-#define AST_CHANNEL_NAME	80
+#include "asterisk/linkedlists.h"
 
 #define MAX_LANGUAGE		20
 
@@ -170,17 +169,48 @@ struct ast_channel_tech {
 };
 
 
-#define CHANSPY_NEW 0
-#define CHANSPY_RUNNING 1
-#define CHANSPY_DONE 2
-
-struct ast_channel_spy {
-	struct ast_frame *queue[2];
-	ast_mutex_t lock;
-	char status;
-	struct ast_channel_spy *next;
+enum chanspy_states {
+	CHANSPY_NEW = 0,
+	CHANSPY_RUNNING = 1,
+	CHANSPY_DONE = 2,
 };
 
+enum chanspy_flags {
+	CHANSPY_MIXAUDIO = (1 << 0),
+	CHANSPY_READ_VOLADJUST = (1 << 1),
+	CHANSPY_WRITE_VOLADJUST = (1 << 2),
+	CHANSPY_FORMAT_AUDIO = (1 << 3),
+	CHANSPY_TRIGGER_MODE = (3 << 4),
+	CHANSPY_TRIGGER_READ = (1 << 4),
+	CHANSPY_TRIGGER_WRITE = (2 << 4),
+	CHANSPY_TRIGGER_NONE = (3 << 4),
+	CHANSPY_TRIGGER_FLUSH = (1 << 6),
+};
+
+struct ast_channel_spy_queue {
+	struct ast_frame *head;
+	unsigned int samples;
+	unsigned int format;
+};
+
+struct ast_channel_spy {
+	ast_mutex_t lock;
+	ast_cond_t trigger;
+	struct ast_channel_spy_queue read_queue;
+	struct ast_channel_spy_queue write_queue;
+	unsigned int flags;
+	enum chanspy_states status;
+	const char *type;
+	/* The volume adjustment values are very straightforward:
+	   positive values cause the samples to be multiplied by that amount
+	   negative values cause the samples to be divided by the absolute value of that amount
+	*/
+	int read_vol_adjustment;
+	int write_vol_adjustment;
+	AST_LIST_ENTRY(ast_channel_spy) list;
+};
+
+struct ast_channel_spy_list;
 
 /*! Main Channel structure associated with a channel. */
 /*! 
@@ -345,11 +375,10 @@ struct ast_channel {
 	int rawwriteformat;
 
 	/*! Chan Spy stuff */
-	struct ast_channel_spy *spiers;
+	struct ast_channel_spy_list *spies;
 
 	/*! For easy linking */
 	struct ast_channel *next;
-
 };
 
 /* Channel tech properties: */
@@ -1007,6 +1036,50 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
   that has the ability to be written to.
 */
 void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars);
+
+/*!
+  \brief Adds a spy to a channel, to begin receiving copies of the channel's audio frames.
+  \param chan The channel to add the spy to.
+  \param spy A pointer to ast_channel_spy structure describing how the spy is to be used.
+  \return 0 for success, non-zero for failure
+ */
+int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy);
+
+/*!
+  \brief Remove a spy from a channel.
+  \param chan The channel to remove the spy from
+  \param spy The spy to be removed
+  \return nothing
+ */
+void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *spy);
+
+/*!
+  \brief Find all spies of a particular type on a channel and stop them.
+  \param chan The channel to operate on
+  \param type A character string identifying the type of spies to be stopped
+  \return nothing
+ */
+void ast_channel_spy_stop_by_type(struct ast_channel *chan, const char *type);
+
+/*!
+  \brief Read one (or more) frames of audio from a channel being spied upon.
+  \param spy The spy to operate on
+  \param samples The number of audio samples to read
+  \return NULL for failure, one ast_frame pointer, or a chain of ast_frame pointers
+
+  This function can return multiple frames if the spy structure needs to be 'flushed'
+  due to mismatched queue lengths, or if the spy structure is configured to return
+  unmixed audio (in which case each call to this function will return a frame of audio
+  from each side of channel).
+ */
+struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsigned int samples);
+
+/*!
+  \brief Efficiently wait until audio is available for a spy, or an exception occurs.
+  \param spy The spy to wait on
+  \return nothing
+ */
+void ast_channel_spy_trigger_wait(struct ast_channel_spy *spy);
 
 /* Misc. functions below */
 

@@ -1,46 +1,64 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
- *
+ * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2005, Anthony Minessale II
+ * Copyright (C) 2005, Digium, Inc.
  *
+ * Mark Spencer <markster@digium.com>
+ * Kevin P. Fleming <kpfleming@digium.com>
+ *
+ * Based on app_muxmon.c provided by
  * Anthony Minessale II <anthmct@yahoo.com>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
  */
 
 /*! \file
  * \brief muxmon() - record a call natively
  */
 
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/lock.h>
-#include <asterisk/cli.h>
-#include <asterisk/options.h>
-#include <asterisk/app.h>
-#include <asterisk/translate.h>
-#include <asterisk/slinfactory.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
-#define minmax(x,y) x ? (x > y) ? y : ((x < (y * -1)) ? (y * -1) : x) : 0 
 
-static char *tdesc = "Native Channel Monitoring Module";
-static char *app = "MuxMon";
-static char *synopsis = "Record A Call Natively";
-static char *desc = ""
-"  MuxMon(<file>.<ext>[|<options>[|<command>]])\n\n"
-"Records The audio on the current channel to the specified file.\n\n"
-"Valid Options:\n"
-" b    - Only save audio to the file while the channel is bridged. Note: does\n"
-"        not include conferences\n"
-" a    - Append to the file instead of overwriting it.\n"
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/lock.h"
+#include "asterisk/cli.h"
+#include "asterisk/options.h"
+#include "asterisk/app.h"
+#include "asterisk/linkedlists.h"
+
+#define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
+
+static const char *tdesc = "Mixed Audio Monitoring Application";
+static const char *app = "MixMonitor";
+static const char *synopsis = "Record a call and mix the audio during the recording";
+static const char *desc = ""
+"  MixMonitor(<file>.<ext>[|<options>[|<command>]])\n\n"
+"Records the audio on the current channel to the specified file.\n"
+"If the filename is an absolute path, uses that path, otherwise\n"
+"creates the file in the configured monitoring directory from\n"
+"asterisk.conf.\n\n"
+"Valid options:\n"
+" a      - Append to the file instead of overwriting it.\n"
+" b      - Only save audio to the file while the channel is bridged.\n"
+"          Note: does not include conferences.\n"
 " v(<x>) - Adjust the heard volume by a factor of <x> (range -4 to 4)\n"	
 " V(<x>) - Adjust the spoken volume by a factor of <x> (range -4 to 4)\n"	
 " W(<x>) - Adjust the both heard and spoken volumes by a factor of <x>\n"
@@ -48,14 +66,16 @@ static char *desc = ""
 "<command> will be executed when the recording is over\n"
 "Any strings matching ^{X} will be unescaped to ${X} and \n"
 "all variables will be evaluated at that time.\n"
-"The variable MUXMON_FILENAME will contain the filename used to record.\n"
+"The variable MIXMONITOR_FILENAME will contain the filename used to record.\n"
 "";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-struct muxmon {
+static const char *mixmonitor_spy_type = "MixMonitor";
+
+struct mixmonitor {
 	struct ast_channel *chan;
 	char *filename;
 	char *post_process;
@@ -64,445 +84,341 @@ struct muxmon {
 	int writevol;
 };
 
-typedef enum {
-    MUXFLAG_RUNNING = (1 << 0),
+enum {
     MUXFLAG_APPEND = (1 << 1),
     MUXFLAG_BRIDGED = (1 << 2),
     MUXFLAG_VOLUME = (1 << 3),
     MUXFLAG_READVOLUME = (1 << 4),
-    MUXFLAG_WRITEVOLUME = (1 << 5)
-} muxflags;
+    MUXFLAG_WRITEVOLUME = (1 << 5),
+} mixmonitor_flags;
 
-
-AST_DECLARE_OPTIONS(muxmon_opts,{
-    ['a'] = { MUXFLAG_APPEND },
+AST_DECLARE_OPTIONS(mixmonitor_opts,{
+	['a'] = { MUXFLAG_APPEND },
 	['b'] = { MUXFLAG_BRIDGED },
 	['v'] = { MUXFLAG_READVOLUME, 1 },
 	['V'] = { MUXFLAG_WRITEVOLUME, 2 },
 	['W'] = { MUXFLAG_VOLUME, 3 },
 });
 
-
 static void stopmon(struct ast_channel *chan, struct ast_channel_spy *spy) 
 {
-	struct ast_channel_spy *cptr=NULL, *prev=NULL;
-	int count = 0;
+	/* If our status has changed, then the channel we're spying on is gone....
+	   DON'T TOUCH IT!!!  RUN AWAY!!! */
+	if (spy->status != CHANSPY_RUNNING)
+		return;
 
-	if (chan) {
-		while(ast_mutex_trylock(&chan->lock)) {
-			if (chan->spiers == spy) {
-				chan->spiers = NULL;
-				return;
-			}
-			count++;
-			if (count > 10) {
-				return;
-			}
-			sched_yield();
-		}
-		
-		for(cptr=chan->spiers; cptr; cptr=cptr->next) {
-			if (cptr == spy) {
-				if (prev) {
-					prev->next = cptr->next;
-					cptr->next = NULL;
-				} else
-					chan->spiers = NULL;
-			}
-			prev = cptr;
-		}
+	if (!chan)
+		return;
 
-		ast_mutex_unlock(&chan->lock);
-	}
+	ast_mutex_lock(&chan->lock);
+	ast_channel_spy_remove(chan, spy);
+	ast_mutex_unlock(&chan->lock);
 }
 
-static void startmon(struct ast_channel *chan, struct ast_channel_spy *spy) 
+static int startmon(struct ast_channel *chan, struct ast_channel_spy *spy) 
 {
-
-	struct ast_channel_spy *cptr=NULL;
 	struct ast_channel *peer;
+	int res;
 
-	if (chan) {
-		ast_mutex_lock(&chan->lock);
-		if (chan->spiers) {
-			for(cptr=chan->spiers;cptr->next;cptr=cptr->next);
-			cptr->next = spy;
-		} else {
-			chan->spiers = spy;
-		}
-		ast_mutex_unlock(&chan->lock);
+	if (!chan)
+		return -1;
+
+	ast_mutex_lock(&chan->lock);
+	res = ast_channel_spy_add(chan, spy);
+	ast_mutex_unlock(&chan->lock);
 		
-		if (ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan))) {
-			ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
-		}
-	}
-}
+	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan)))
+		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
 
-static int spy_queue_translate(struct ast_channel_spy *spy,
-							   struct ast_slinfactory *slinfactory0,
-							   struct ast_slinfactory *slinfactory1)
-{
-	int res = 0;
-	struct ast_frame *f;
-	
-	ast_mutex_lock(&spy->lock);
-	while((f = spy->queue[0])) {
-		spy->queue[0] = f->next;
-		ast_slinfactory_feed(slinfactory0, f);
-		ast_frfree(f);
-	}
-	ast_mutex_unlock(&spy->lock);
-	ast_mutex_lock(&spy->lock);
-	while((f = spy->queue[1])) {
-		spy->queue[1] = f->next;
-		ast_slinfactory_feed(slinfactory1, f);
-		ast_frfree(f);
-	}
-	ast_mutex_unlock(&spy->lock);
 	return res;
 }
 
-static void *muxmon_thread(void *obj) 
-{
+#define SAMPLES_PER_FRAME 160
 
-	int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, framelen, maxsamp = 0, x = 0;
-	short buf0[1280], buf1[1280], buf[1280];
-	struct ast_frame frame;
-	struct muxmon *muxmon = obj;
+static void *mixmonitor_thread(void *obj) 
+{
+	struct mixmonitor *mixmonitor = obj;
 	struct ast_channel_spy spy;
 	struct ast_filestream *fs = NULL;
 	char *ext, *name;
 	unsigned int oflags;
-	struct ast_slinfactory slinfactory[2];
+	struct ast_frame *f;
 	char post_process[1024] = "";
 	
-	name = ast_strdupa(muxmon->chan->name);
+	STANDARD_INCREMENT_USECOUNT;
 
-	framelen = 320;
-	frame.frametype = AST_FRAME_VOICE;
-	frame.subclass = AST_FORMAT_SLINEAR;
-	frame.data = buf;
-	ast_set_flag(muxmon, MUXFLAG_RUNNING);
+	name = ast_strdupa(mixmonitor->chan->name);
+
 	oflags = O_CREAT|O_WRONLY;
-	ast_slinfactory_init(&slinfactory[0]);
-	ast_slinfactory_init(&slinfactory[1]);
-	
-
-
-	/* for efficiency, use a flag to bypass volume logic when it's not needed */
-	if (muxmon->readvol || muxmon->writevol) {
-		ast_set_flag(muxmon, MUXFLAG_VOLUME);
-	}
-
-	if ((ext = strchr(muxmon->filename, '.'))) {
+	oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
+		
+	if ((ext = strchr(mixmonitor->filename, '.'))) {
 		*(ext++) = '\0';
 	} else {
 		ext = "raw";
 	}
 
-	memset(&spy, 0, sizeof(spy));
-	spy.status = CHANSPY_RUNNING;
-	ast_mutex_init(&spy.lock);
-	startmon(muxmon->chan, &spy);
-	if (ast_test_flag(muxmon, MUXFLAG_RUNNING)) {
-		if (option_verbose > 1) {
-			ast_verbose(VERBOSE_PREFIX_2 "Begin Muxmon Recording %s\n", name);
-		}
-
-		oflags |= ast_test_flag(muxmon, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
-		
-		if (!(fs = ast_writefile(muxmon->filename, ext, NULL, oflags, 0, 0644))) {
-			ast_log(LOG_ERROR, "Cannot open %s\n", muxmon->filename);
-			spy.status = CHANSPY_DONE;
-		}  else {
-
-			if (ast_test_flag(muxmon, MUXFLAG_APPEND)) {
-				ast_seekstream(fs, 0, SEEK_END);
-			}
-
-			while (ast_test_flag(muxmon, MUXFLAG_RUNNING)) {
-				samp0 = samp1 = len0 = len1 = 0;
-
-				if (ast_check_hangup(muxmon->chan) || spy.status != CHANSPY_RUNNING) {
-					ast_clear_flag(muxmon, MUXFLAG_RUNNING);
-					break;
-				}
-
-				if (ast_test_flag(muxmon, MUXFLAG_BRIDGED) && !ast_bridged_channel(muxmon->chan)) {
-					usleep(1000);
-					sched_yield();
-					continue;
-				}
-				
-				spy_queue_translate(&spy, &slinfactory[0], &slinfactory[1]);
-				
-				if (slinfactory[0].size < framelen || slinfactory[1].size < framelen) {
-					usleep(1000);
-					sched_yield();
-					continue;
-				}
-
-				if ((len0 = ast_slinfactory_read(&slinfactory[0], buf0, framelen))) {
-					samp0 = len0 / 2;
-				}
-				if((len1 = ast_slinfactory_read(&slinfactory[1], buf1, framelen))) {
-					samp1 = len1 / 2;
-				}
-				
-				if (ast_test_flag(muxmon, MUXFLAG_VOLUME)) {
-					if (samp0 && muxmon->readvol > 0) {
-						for(x=0; x < samp0 / 2; x++) {
-							buf0[x] *= muxmon->readvol;
-						}
-					} else if (samp0 && muxmon->readvol < 0) {
-						for(x=0; x < samp0 / 2; x++) {
-							buf0[x] /= muxmon->readvol;
-						}
-					}
-					if (samp1 && muxmon->writevol > 0) {
-						for(x=0; x < samp1 / 2; x++) {
-							buf1[x] *= muxmon->writevol;
-						}
-					} else if (muxmon->writevol < 0) {
-						for(x=0; x < samp1 / 2; x++) {
-							buf1[x] /= muxmon->writevol;
-						}
-					}
-				}
-				
-				maxsamp = (samp0 > samp1) ? samp0 : samp1;
-
-				if (samp0 && samp1) {
-					for(x=0; x < maxsamp; x++) {
-						if (x < samp0 && x < samp1) {
-							buf[x] = buf0[x] + buf1[x];
-						} else if (x < samp0) {
-							buf[x] = buf0[x];
-						} else if (x < samp1) {
-							buf[x] = buf1[x];
-						}
-					}
-				} else if(samp0) {
-					memcpy(buf, buf0, len0);
-					x = samp0;
-				} else if(samp1) {
-					memcpy(buf, buf1, len1);
-					x = samp1;
-				}
-
-				frame.samples = x;
-				frame.datalen = x * 2;
-				ast_writestream(fs, &frame);
-		
-				usleep(1000);
-				sched_yield();
-			}
-		}
+	fs = ast_writefile(mixmonitor->filename, ext, NULL, oflags, 0, 0644);
+	if (!fs) {
+		ast_log(LOG_ERROR, "Cannot open %s.%s\n", mixmonitor->filename, ext);
+		goto out;
 	}
 
-	if (muxmon->post_process) {
+	if (ast_test_flag(mixmonitor, MUXFLAG_APPEND))
+		ast_seekstream(fs, 0, SEEK_END);
+	
+	memset(&spy, 0, sizeof(spy));
+	ast_set_flag(&spy, CHANSPY_FORMAT_AUDIO);
+	ast_set_flag(&spy, CHANSPY_MIXAUDIO);
+	spy.type = mixmonitor_spy_type;
+	spy.status = CHANSPY_RUNNING;
+	spy.read_queue.format = AST_FORMAT_SLINEAR;
+	spy.write_queue.format = AST_FORMAT_SLINEAR;
+	if (mixmonitor->readvol) {
+		ast_set_flag(&spy, CHANSPY_READ_VOLADJUST);
+		spy.read_vol_adjustment = mixmonitor->readvol;
+	}
+	if (mixmonitor->writevol) {
+		ast_set_flag(&spy, CHANSPY_WRITE_VOLADJUST);
+		spy.write_vol_adjustment = mixmonitor->writevol;
+	}
+	ast_mutex_init(&spy.lock);
+
+	if (startmon(mixmonitor->chan, &spy)) {
+		ast_log(LOG_WARNING, "Unable to add '%s' spy to channel '%s'\n",
+			spy.type, mixmonitor->chan->name);
+		goto out2;
+	}
+
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "Begin MixMonitor Recording %s\n", name);
+	
+	while (1) {
+		struct ast_frame *next;
+		int write;
+
+		ast_mutex_lock(&spy.lock);
+
+		ast_channel_spy_trigger_wait(&spy);
+		
+		if (ast_check_hangup(mixmonitor->chan) || spy.status != CHANSPY_RUNNING) {
+			ast_mutex_unlock(&spy.lock);
+			break;
+		}
+		
+		while (1) {
+			if (!(f = ast_channel_spy_read_frame(&spy, SAMPLES_PER_FRAME)))
+				break;
+
+			write = (!ast_test_flag(mixmonitor, MUXFLAG_BRIDGED) ||
+				 ast_bridged_channel(mixmonitor->chan));
+
+			/* it is possible for ast_channel_spy_read_frame() to return a chain
+			   of frames if a queue flush was necessary, so process them
+			*/
+			for (; f; f = next) {
+				next = f->next;
+				if (write)
+					ast_writestream(fs, f);
+				ast_frfree(f);
+			}
+		}
+
+		ast_mutex_unlock(&spy.lock);
+	}
+	
+	if (mixmonitor->post_process) {
 		char *p;
-		for(p = muxmon->post_process; *p ; p++) {
+
+		for (p = mixmonitor->post_process; *p ; p++) {
 			if (*p == '^' && *(p+1) == '{') {
 				*p = '$';
 			}
 		}
-		pbx_substitute_variables_helper(muxmon->chan, muxmon->post_process, post_process, sizeof(post_process) - 1);
-		free(muxmon->post_process);
-		muxmon->post_process = NULL;
+		pbx_substitute_variables_helper(mixmonitor->chan, mixmonitor->post_process, post_process, sizeof(post_process) - 1);
 	}
 
-	stopmon(muxmon->chan, &spy);
-	if (option_verbose > 1) {
-		ast_verbose(VERBOSE_PREFIX_2 "Finished Recording %s\n", name);
-	}
-	ast_mutex_destroy(&spy.lock);
-	
-	if(fs) {
-		ast_closestream(fs);
-	}
-	
-	ast_slinfactory_destroy(&slinfactory[0]);
-	ast_slinfactory_destroy(&slinfactory[1]);
+	stopmon(mixmonitor->chan, &spy);
 
-	if (muxmon) {
-		if (muxmon->filename) {
-			free(muxmon->filename);
-		}
-		free(muxmon);
-	}
+	if (option_verbose > 1)
+		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", name);
 
 	if (!ast_strlen_zero(post_process)) {
-		if (option_verbose > 2) {
+		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_2 "Executing [%s]\n", post_process);
-		}
 		ast_safe_system(post_process);
 	}
+
+out2:
+	ast_mutex_destroy(&spy.lock);
+
+	if (fs)
+		ast_closestream(fs);
+
+out:
+	free(mixmonitor);
+
+	STANDARD_DECREMENT_USECOUNT;
 
 	return NULL;
 }
 
-static void launch_monitor_thread(struct ast_channel *chan, char *filename, unsigned int flags, int readvol , int writevol, char *post_process) 
+static void launch_monitor_thread(struct ast_channel *chan, const char *filename, unsigned int flags,
+				  int readvol, int writevol, const char *post_process) 
 {
 	pthread_attr_t attr;
-	int result = 0;
 	pthread_t thread;
-	struct muxmon *muxmon;
+	struct mixmonitor *mixmonitor;
+	int len;
 
+	len = sizeof(*mixmonitor) + strlen(filename) + 1;
+	if (post_process && !ast_strlen_zero(post_process))
+		len += strlen(post_process) + 1;
 
-	if (!(muxmon = malloc(sizeof(struct muxmon)))) {
+	if (!(mixmonitor = calloc(1, len))) {
 		ast_log(LOG_ERROR, "Memory Error!\n");
 		return;
 	}
 
-	memset(muxmon, 0, sizeof(struct muxmon));
-	muxmon->chan = chan;
-	muxmon->filename = strdup(filename);
-	if(post_process) {
-		muxmon->post_process = strdup(post_process);
+	mixmonitor->chan = chan;
+	mixmonitor->filename = (char *) mixmonitor + sizeof(*mixmonitor);
+	strcpy(mixmonitor->filename, filename);
+	if (post_process && !ast_strlen_zero(post_process)) {
+		mixmonitor->post_process = mixmonitor->filename + strlen(filename) + 1;
+		strcpy(mixmonitor->post_process, post_process);
 	}
-	muxmon->readvol = readvol;
-	muxmon->writevol = writevol;
-	muxmon->flags = flags;
+	mixmonitor->readvol = readvol;
+	mixmonitor->writevol = writevol;
+	mixmonitor->flags = flags;
 
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
+	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = ast_pthread_create(&thread, &attr, muxmon_thread, muxmon);
-	result = pthread_attr_destroy(&attr);
+	ast_pthread_create(&thread, &attr, mixmonitor_thread, mixmonitor);
+	pthread_attr_destroy(&attr);
 }
 
-
-static int muxmon_exec(struct ast_channel *chan, void *data)
+static int mixmonitor_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0, x = 0, readvol = 0, writevol = 0;
+	int x, readvol = 0, writevol = 0;
 	struct localuser *u;
 	struct ast_flags flags = {0};
-	int argc;
-	char *options = NULL,
-		*args,
-		*argv[3],
-		*filename = NULL,
-		*post_process = NULL;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(filename);
+		AST_APP_ARG(options);
+		AST_APP_ARG(post_process);
+	);
 	
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "muxmon requires an argument\n");
+		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename)\n");
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
 
-	args = ast_strdupa(data);	
-	if (!args) {
+	if (!(parse = ast_strdupa(data))) {
 		ast_log(LOG_WARNING, "Memory Error!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		filename = argv[0];
-		if (argc > 1) {
-			options = argv[1];
-		}
-		if (argc > 2) {
-			post_process = argv[2];
-		}
-	}
+	AST_STANDARD_APP_ARGS(args, parse);
 	
-	if (ast_strlen_zero(filename)) {
+	if (ast_strlen_zero(args.filename)) {
 		ast_log(LOG_WARNING, "Muxmon requires an argument (filename)\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	if (options) {
-		char *opts[3] = {};
-		ast_parseoptions(muxmon_opts, &flags, opts, options);
+	if (args.options) {
+		char *opts[3] = { NULL, };
 
-		if (ast_test_flag(&flags, MUXFLAG_READVOLUME) && opts[0]) {
-			if (sscanf(opts[0], "%d", &x) != 1)
-				ast_log(LOG_NOTICE, "volume must be a number between -4 and 4\n");
-			else {
-				readvol = minmax(x, 4);
-				x = get_volfactor(readvol);
-				readvol = minmax(x, 16);
+		ast_parseoptions(mixmonitor_opts, &flags, opts, args.options);
+
+		if (ast_test_flag(&flags, MUXFLAG_READVOLUME)) {
+			if (!opts[0] || ast_strlen_zero(opts[0])) {
+				ast_log(LOG_WARNING, "No volume level was provided for the heard volume ('v') option.\n");
+			} else if ((sscanf(opts[0], "%d", &x) != 1) || (x < -4) || (x > 4)) {
+				ast_log(LOG_NOTICE, "Heard volume must be a number between -4 and 4, not '%s'\n", opts[0]);
+			} else {
+				readvol = get_volfactor(x);
 			}
 		}
 		
-		if (ast_test_flag(&flags, MUXFLAG_WRITEVOLUME) && opts[1]) {
-			if (sscanf(opts[1], "%d", &x) != 1)
-				ast_log(LOG_NOTICE, "volume must be a number between -4 and 4\n");
-			else {
-				writevol = minmax(x, 4);
-				x = get_volfactor(writevol);
-				writevol = minmax(x, 16);
+		if (ast_test_flag(&flags, MUXFLAG_WRITEVOLUME)) {
+			if (!opts[1] || ast_strlen_zero(opts[1])) {
+				ast_log(LOG_WARNING, "No volume level was provided for the spoken volume ('V') option.\n");
+			} else if ((sscanf(opts[1], "%d", &x) != 1) || (x < -4) || (x > 4)) {
+				ast_log(LOG_NOTICE, "Spoken volume must be a number between -4 and 4, not '%s'\n", opts[1]);
+			} else {
+				writevol = get_volfactor(x);
 			}
 		}
-
-		if (ast_test_flag(&flags, MUXFLAG_VOLUME) && opts[2]) {
-			if (sscanf(opts[2], "%d", &x) != 1)
-				ast_log(LOG_NOTICE, "volume must be a number between -4 and 4\n");
-			else {
-				readvol = writevol = minmax(x, 4);
-				x = get_volfactor(readvol);
-				readvol = minmax(x, 16);
-				x = get_volfactor(writevol);
-				writevol = minmax(x, 16);
+		
+		if (ast_test_flag(&flags, MUXFLAG_VOLUME)) {
+			if (!opts[2] || ast_strlen_zero(opts[2])) {
+				ast_log(LOG_WARNING, "No volume level was provided for the combined volume ('W') option.\n");
+			} else if ((sscanf(opts[2], "%d", &x) != 1) || (x < -4) || (x > 4)) {
+				ast_log(LOG_NOTICE, "Combined volume must be a number between -4 and 4, not '%s'\n", opts[2]);
+			} else {
+				readvol = writevol = get_volfactor(x);
 			}
 		}
 	}
-	pbx_builtin_setvar_helper(chan, "MUXMON_FILENAME", filename);
-	launch_monitor_thread(chan, filename, flags.flags, readvol, writevol, post_process);
+
+	/* if not provided an absolute path, use the system-configured monitoring directory */
+	if (args.filename[0] != '/') {
+		char *build;
+
+		build = alloca(strlen(ast_config_AST_MONITOR_DIR) + strlen(args.filename) + 3);
+		sprintf(build, "%s/%s", ast_config_AST_MONITOR_DIR, args.filename);
+		args.filename = build;
+	}
+
+	pbx_builtin_setvar_helper(chan, "MIXMONITOR_FILENAME", args.filename);
+	launch_monitor_thread(chan, args.filename, flags.flags, readvol, writevol, args.post_process);
 
 	LOCAL_USER_REMOVE(u);
-	return res;
+
+	return 0;
 }
 
-
-static int muxmon_cli(int fd, int argc, char **argv) 
+static int mixmonitor_cli(int fd, int argc, char **argv) 
 {
-	char *op, *chan_name = NULL, *args = NULL;
 	struct ast_channel *chan;
 
-	if (argc > 2) {
-		op = argv[1];
-		chan_name = argv[2];
+	if (argc < 3)
+		return RESULT_SHOWUSAGE;
 
-		if (argv[3]) {
-			args = argv[3];
-		}
-
-		if (!(chan = ast_get_channel_by_name_prefix_locked(chan_name, strlen(chan_name)))) {
-			ast_cli(fd, "Invalid Channel!\n");
-			return -1;
-		}
-		if (!strcasecmp(op, "start")) {
-			muxmon_exec(chan, args);
-		} else if (!strcasecmp(op, "stop")) {
-			struct ast_channel_spy *cptr=NULL;
-			for(cptr=chan->spiers; cptr; cptr=cptr->next) {
-				cptr->status = CHANSPY_DONE;
-			}
-		}
-		ast_mutex_unlock(&chan->lock);
-		return 0;
+	if (!(chan = ast_get_channel_by_name_prefix_locked(argv[2], strlen(argv[2])))) {
+		ast_cli(fd, "No channel matching '%s' found.\n", argv[2]);
+		return RESULT_SUCCESS;
 	}
 
-	ast_cli(fd, "Usage: muxmon <start|stop> <chan_name> <args>\n");
-	return -1;
+	if (!strcasecmp(argv[1], "start"))
+		mixmonitor_exec(chan, argv[3]);
+	else if (!strcasecmp(argv[1], "stop"))
+		ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
+
+	ast_mutex_unlock(&chan->lock);
+
+	return RESULT_SUCCESS;
 }
 
 
-static struct ast_cli_entry cli_muxmon = {
-	{ "muxmon", NULL, NULL }, muxmon_cli, 
-	"Execute a monitor command", "muxmon <start|stop> <chan_name> <args>"};
+static struct ast_cli_entry cli_mixmonitor = {
+	{ "mixmonitor", NULL, NULL },
+	mixmonitor_cli, 
+	"Execute a MixMonitor command",
+	"mixmonitor <start|stop> <chan_name> [<args>]"
+};
 
 
 int unload_module(void)
 {
 	int res;
 
-	res = ast_cli_unregister(&cli_muxmon);
+	res = ast_cli_unregister(&cli_mixmonitor);
 	res |= ast_unregister_application(app);
 	
 	STANDARD_HANGUP_LOCALUSERS;
@@ -514,21 +430,23 @@ int load_module(void)
 {
 	int res;
 
-	res = ast_cli_register(&cli_muxmon);
-	res |= ast_register_application(app, muxmon_exec, synopsis, desc);
+	res = ast_cli_register(&cli_mixmonitor);
+	res |= ast_register_application(app, mixmonitor_exec, synopsis, desc);
 
 	return res;
 }
 
 char *description(void)
 {
-	return tdesc;
+	return (char *) tdesc;
 }
 
 int usecount(void)
 {
 	int res;
+
 	STANDARD_USECOUNT(res);
+
 	return res;
 }
 
@@ -536,4 +454,3 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-

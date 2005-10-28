@@ -35,7 +35,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/features.h"
 #include "asterisk/options.h"
-#include "asterisk/slinfactory.h"
 #include "asterisk/app.h"
 #include "asterisk/utils.h"
 #include "asterisk/say.h"
@@ -68,6 +67,8 @@ static const char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
 "(e.g. run Chanspy(Agent) and dial 1234# while spying to jump to channel Agent/1234)\n\n"
 "";
 
+static const char *chanspy_spy_type = "ChanSpy";
+
 #define OPTION_QUIET	 (1 << 0)	/* Quiet, no announcement */
 #define OPTION_BRIDGED   (1 << 1)	/* Only look at bridged calls */
 #define OPTION_VOLUME    (1 << 2)	/* Specify initial volume */
@@ -88,38 +89,9 @@ LOCAL_USER_DECL;
 struct chanspy_translation_helper {
 	/* spy data */
 	struct ast_channel_spy spy;
-	int volfactor;
 	int fd;
-	struct ast_slinfactory slinfactory[2];
+	int volfactor;
 };
-
-/* Prototypes */
-static struct ast_channel *local_get_channel_begin_name(char *name);
-static struct ast_channel *local_channel_walk(struct ast_channel *chan);
-static void spy_release(struct ast_channel *chan, void *data);
-static void *spy_alloc(struct ast_channel *chan, void *params);
-static struct ast_frame *spy_queue_shift(struct ast_channel_spy *spy, int qnum);
-static void ast_flush_spy_queue(struct ast_channel_spy *spy);
-static int spy_generate(struct ast_channel *chan, void *data, int len, int samples);
-static void start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_channel_spy *spy);
-static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy);
-static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd);
-static int chanspy_exec(struct ast_channel *chan, void *data);
-
-
-#if 0
-static struct ast_channel *local_get_channel_by_name(char *name) 
-{
-	struct ast_channel *ret;
-	ast_mutex_lock(&modlock);
-	if ((ret = ast_get_channel_by_name_locked(name))) {
-		ast_mutex_unlock(&ret->lock);
-	}
-	ast_mutex_unlock(&modlock);
-
-	return ret;
-}
-#endif
 
 static struct ast_channel *local_channel_walk(struct ast_channel *chan) 
 {
@@ -149,247 +121,85 @@ static struct ast_channel *local_get_channel_begin_name(char *name)
 	return ret;
 }
 
-
-static void spy_release(struct ast_channel *chan, void *data) 
+static void *spy_alloc(struct ast_channel *chan, void *data)
 {
-	struct chanspy_translation_helper *csth = data;
-
-	ast_slinfactory_destroy(&csth->slinfactory[0]);
-	ast_slinfactory_destroy(&csth->slinfactory[1]);
-
-	return;
+	/* just store the data pointer in the channel structure */
+	return data;
 }
 
-static void *spy_alloc(struct ast_channel *chan, void *params) 
+static void spy_release(struct ast_channel *chan, void *data)
 {
-	struct chanspy_translation_helper *csth = params;
-	ast_slinfactory_init(&csth->slinfactory[0]);
-	ast_slinfactory_init(&csth->slinfactory[1]);
-	return params;
+	/* nothing to do */
 }
-
-static struct ast_frame *spy_queue_shift(struct ast_channel_spy *spy, int qnum) 
-{
-	struct ast_frame *f;
-	
-	if (qnum < 0 || qnum > 1)
-		return NULL;
-
-	f = spy->queue[qnum];
-	if (f) {
-		spy->queue[qnum] = f->next;
-		return f;
-	}
-	return NULL;
-}
-
-
-static void ast_flush_spy_queue(struct ast_channel_spy *spy) 
-{
-	struct ast_frame *f=NULL;
-	int x = 0;
-	ast_mutex_lock(&spy->lock);
-	for(x=0;x<2;x++) {
-		f = NULL;
-		while((f = spy_queue_shift(spy, x))) 
-			ast_frfree(f);
-	}
-	ast_mutex_unlock(&spy->lock);
-}
-
-
-#if 0
-static int extract_audio(short *buf, size_t len, struct ast_trans_pvt *trans, struct ast_frame *fr, int *maxsamp)
-{
-	struct ast_frame *f;
-	int size, retlen = 0;
-	
-	if (trans) {
-		if ((f = ast_translate(trans, fr, 0))) {
-			size = (f->datalen > len) ? len : f->datalen;
-			memcpy(buf, f->data, size);
-			retlen = f->datalen;
-			ast_frfree(f);
-		} else {
-			/* your guess is as good as mine why this will happen but it seems to only happen on iax and appears harmless */
-			ast_log(LOG_DEBUG, "Failed to translate frame from %s\n", ast_getformatname(fr->subclass));
-		}
-	} else {
-		size = (fr->datalen > len) ? len : fr->datalen;
-		memcpy(buf, fr->data, size);
-		retlen = fr->datalen;
-	}
-
-	if (retlen > 0 && (size = retlen / 2)) {
-		if (size > *maxsamp) {
-			*maxsamp = size;
-		}
-	}
-	
-	return retlen;
-}
-
-
-static int spy_queue_ready(struct ast_channel_spy *spy)
-{
-	int res = 0;
-
-	ast_mutex_lock(&spy->lock);
-	if (spy->status == CHANSPY_RUNNING) {
-		res = (spy->queue[0] && spy->queue[1]) ? 1 : 0;
-	} else {
-		res = (spy->queue[0] || spy->queue[1]) ? 1 : -1;
-	}
-	ast_mutex_unlock(&spy->lock);
-	return res;
-}
-#endif
 
 static int spy_generate(struct ast_channel *chan, void *data, int len, int samples) 
 {
-
 	struct chanspy_translation_helper *csth = data;
-	struct ast_frame frame, *f;
-	int len0 = 0, len1 = 0, samp0 = 0, samp1 = 0, x, vf, maxsamp;
-	short buf0[1280], buf1[1280], buf[1280];
+	struct ast_frame *f;
 		
-	if (csth->spy.status == CHANSPY_DONE) {
+	if (csth->spy.status != CHANSPY_RUNNING)
 		/* Channel is already gone more than likely */
 		return -1;
-	}
 
 	ast_mutex_lock(&csth->spy.lock);
-	while((f = csth->spy.queue[0])) {
-		csth->spy.queue[0] = f->next;
-		ast_slinfactory_feed(&csth->slinfactory[0], f);
-		ast_frfree(f);
-	}
-	ast_mutex_unlock(&csth->spy.lock);
-	ast_mutex_lock(&csth->spy.lock);
-	while((f = csth->spy.queue[1])) {
-		csth->spy.queue[1] = f->next;
-		ast_slinfactory_feed(&csth->slinfactory[1], f);
-		ast_frfree(f);
-	}
+	f = ast_channel_spy_read_frame(&csth->spy, samples);
 	ast_mutex_unlock(&csth->spy.lock);
 		
-	if (csth->slinfactory[0].size < len || csth->slinfactory[1].size < len) {
+	if (!f)
 		return 0;
-	}
 		
-	if ((len0 = ast_slinfactory_read(&csth->slinfactory[0], buf0, len))) {
-		samp0 = len0 / 2;
-	} 
-	if ((len1 = ast_slinfactory_read(&csth->slinfactory[1], buf1, len))) {
-		samp1 = len1 / 2;
-	}
-
-	maxsamp = (samp0 > samp1) ? samp0 : samp1;
-	vf = get_volfactor(csth->volfactor);
-		
-	for(x=0; x < maxsamp; x++) {
-		if (vf < 0) {
-			if (samp0) {
-				buf0[x] /= abs(vf);
-			}
-			if (samp1) {
-				buf1[x] /= abs(vf);
-			}
-		} else if (vf > 0) {
-			if (samp0) {
-				buf0[x] *= vf;
-			}
-			if (samp1) {
-				buf1[x] *= vf;
-			}
-		}
-		if (samp0 && samp1) {
-			if (x < samp0 && x < samp1) {
-				buf[x] = buf0[x] + buf1[x];
-			} else if (x < samp0) {
-				buf[x] = buf0[x];
-			} else if (x < samp1) {
-				buf[x] = buf1[x];
-			}
-		} else if (x < samp0) {
-			buf[x] = buf0[x];
-		} else if (x < samp1) {
-			buf[x] = buf1[x];
-		}
-	}
-		
-	memset(&frame, 0, sizeof(frame));
-	frame.frametype = AST_FRAME_VOICE;
-	frame.subclass = AST_FORMAT_SLINEAR;
-	frame.data = buf;
-	frame.samples = x;
-	frame.datalen = x * 2;
-
-	if (ast_write(chan, &frame)) {
+	if (ast_write(chan, f)) {
+		ast_frfree(f);
 		return -1;
 	}
 
-	if (csth->fd) {
-		write(csth->fd, buf1, len1);
-	}
+	if (csth->fd)
+		write(csth->fd, f->data, f->datalen);
+
+	ast_frfree(f);
 
 	return 0;
 }
 
 
 static struct ast_generator spygen = {
-	alloc: spy_alloc, 
-	release: spy_release, 
-	generate: spy_generate, 
+	.alloc = spy_alloc,
+	.release = spy_release,
+	.generate = spy_generate, 
 };
 
-static void start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_channel_spy *spy) 
+static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, struct ast_channel_spy *spy) 
 {
-
-	struct ast_channel_spy *cptr=NULL;
+	int res;
 	struct ast_channel *peer;
 
-
-	ast_log(LOG_WARNING, "Attaching %s to %s\n", spychan->name, chan->name);
-
+	ast_log(LOG_NOTICE, "Attaching %s to %s\n", spychan->name, chan->name);
 
 	ast_mutex_lock(&chan->lock);
-	if (chan->spiers) {
-		for(cptr=chan->spiers;cptr && cptr->next;cptr=cptr->next);
-		cptr->next = spy;
-	} else {
-		chan->spiers = spy;
-	}
+	res = ast_channel_spy_add(chan, spy);
 	ast_mutex_unlock(&chan->lock);
-	if ( ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan))) {
+
+	if (!res && ast_test_flag(chan, AST_FLAG_NBRIDGE) && (peer = ast_bridged_channel(chan))) {
 		ast_softhangup(peer, AST_SOFTHANGUP_UNBRIDGE);	
 	}
 
+	return res;
 }
 
 static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy) 
 {
-	struct ast_channel_spy *cptr=NULL, *prev=NULL;
-
 	/* If our status has changed, then the channel we're spying on is gone....
 	   DON'T TOUCH IT!!!  RUN AWAY!!! */
 	if (spy->status != CHANSPY_RUNNING)
 		return;
 
-	ast_mutex_lock(&chan->lock);
-	for(cptr=chan->spiers; cptr; cptr=cptr->next) {
-		if (cptr == spy) {
-			if (prev) {
-				prev->next = cptr->next;
-				cptr->next = NULL;
-			} else
-				chan->spiers = NULL;
-		}
-		prev = cptr;
-	}
-	ast_mutex_unlock(&chan->lock);
+	if (!chan)
+		return;
 
-}
+	ast_mutex_lock(&chan->lock);
+	ast_channel_spy_remove(chan, spy);
+	ast_mutex_unlock(&chan->lock);
+};
 
 /* Map 'volume' levels from -4 through +4 into
    decibel (dB) settings for channel drivers
@@ -414,35 +224,47 @@ static void set_volume(struct ast_channel *chan, struct chanspy_translation_help
 {
 	signed char volume_adjust = volfactor_map[csth->volfactor + 4];
 
-	if (!ast_channel_setoption(chan, AST_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust), 0)) {
+	if (!ast_channel_setoption(chan, AST_OPTION_TXGAIN, &volume_adjust, sizeof(volume_adjust), 0))
 		csth->volfactor = 0;
-	}
 }
 
 static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int *volfactor, int fd) 
 {
 	struct chanspy_translation_helper csth;
-	int running = 1, res = 0, x = 0;
+	int running, res = 0, x = 0;
 	char inp[24];
 	char *name=NULL;
 	struct ast_frame *f;
 
-	if (chan && !ast_check_hangup(chan) && spyee && !ast_check_hangup(spyee)) {
+	running = (chan && !ast_check_hangup(chan) && spyee && !ast_check_hangup(spyee));
+
+	if (running) {
 		memset(inp, 0, sizeof(inp));
 		name = ast_strdupa(spyee->name);
 		if (option_verbose >= 2)
 			ast_verbose(VERBOSE_PREFIX_2 "Spying on channel %s\n", name);
 
 		memset(&csth, 0, sizeof(csth));
+		ast_set_flag(&csth.spy, CHANSPY_FORMAT_AUDIO);
+		ast_set_flag(&csth.spy, CHANSPY_TRIGGER_NONE);
+		ast_set_flag(&csth.spy, CHANSPY_MIXAUDIO);
+		csth.spy.type = chanspy_spy_type;
 		csth.spy.status = CHANSPY_RUNNING;
+		csth.spy.read_queue.format = AST_FORMAT_SLINEAR;
+		csth.spy.write_queue.format = AST_FORMAT_SLINEAR;
 		ast_mutex_init(&csth.spy.lock);
 		csth.volfactor = *volfactor;
 		set_volume(chan, &csth);
-		
-		if (fd) {
-			csth.fd = fd;
-		}
-		start_spying(spyee, chan, &csth.spy);
+		csth.spy.read_vol_adjustment = csth.volfactor;
+		csth.spy.write_vol_adjustment = csth.volfactor;
+		csth.fd = fd;
+
+		if (start_spying(spyee, chan, &csth.spy))
+			running = 0;
+	}
+
+	if (running) {
+		running = 1;
 		ast_activate_generator(chan, &spygen, &csth);
 
 		while (csth.spy.status == CHANSPY_RUNNING &&
@@ -487,6 +309,8 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 					}
 					csth.volfactor = *volfactor;
 					set_volume(chan, &csth);
+					csth.spy.read_vol_adjustment = csth.volfactor;
+					csth.spy.write_vol_adjustment = csth.volfactor;
 				}
 			} else if (res >= 48 && res <= 57) {
 				inp[x++] = res;
@@ -498,11 +322,12 @@ static int channel_spy(struct ast_channel *chan, struct ast_channel *spyee, int 
 		if (option_verbose >= 2) {
 			ast_verbose(VERBOSE_PREFIX_2 "Done Spying on channel %s\n", name);
 		}
-		ast_flush_spy_queue(&csth.spy);
 	} else {
 		running = 0;
 	}
+
 	ast_mutex_destroy(&csth.spy.lock);
+
 	return running;
 }
 
