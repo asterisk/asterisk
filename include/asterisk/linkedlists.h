@@ -71,7 +71,33 @@
 #define AST_LIST_HEAD(name, type)					\
 struct name {								\
 	struct type *first;						\
+	struct type *last;						\
 	ast_mutex_t lock;						\
+}
+
+/*!
+  \brief Defines a structure to be used to hold a list of specified type (with no lock).
+  \param name This will be the name of the defined structure.
+  \param type This is the type of each list entry.
+
+  This macro creates a structure definition that can be used
+  to hold a list of the entries of type \a type. It does not actually
+  declare (allocate) a structure; to do that, either follow this
+  macro with the desired name of the instance you wish to declare,
+  or use the specified \a name to declare instances elsewhere.
+
+  Example usage:
+  \code
+  static AST_LIST_HEAD_NOLOCK(entry_list, entry) entries;
+  \endcode
+
+  This would define \c struct \c entry_list, and declare an instance of it named
+  \a entries, all intended to hold a list of type \c struct \c entry.
+*/
+#define AST_LIST_HEAD_NOLOCK(name, type)				\
+struct name {								\
+	struct type *first;						\
+	struct type *last;						\
 }
 
 /*!
@@ -94,9 +120,11 @@ struct name {								\
 #define AST_LIST_HEAD_STATIC(name, type)				\
 struct name {								\
 	struct type *first;						\
+	struct type *last;						\
 	ast_mutex_t lock;						\
 } name = {								\
 	.first = NULL,							\
+	.last = NULL,							\
 	.lock = AST_MUTEX_INIT_VALUE,					\
 };
 
@@ -109,8 +137,22 @@ struct name {								\
   entry to the supplied value and recreating the embedded lock.
 */
 #define AST_LIST_HEAD_SET(head, entry) do {				\
-	(head)->first=(entry);						\
-	ast_pthread_mutex_init(&(head)->lock,NULL);				\
+	(head)->first = (entry);					\
+	(head)->last = NULL;						\
+	ast_mutex_init(&(head)->lock);					\
+} while (0)
+
+/*!
+  \brief Initializes a list head structure with a specified first entry.
+  \param head This is a pointer to the list head structure
+  \param entry pointer to the list entry that will become the head of the list
+
+  This macro initializes a list head structure by setting the head
+  entry to the supplied value.
+*/
+#define AST_LIST_HEAD_SET_NOLOCK(head, entry) do {			\
+	(head)->first = (entry);					\
+	(head)->last = NULL;						\
 } while (0)
 
 /*!
@@ -253,7 +295,9 @@ struct {								\
 	if (__list_prev)								\
 		__list_prev->field.next = __list_next;					\
 	else										\
-		(head)->first = __list_next;
+		(head)->first = __list_next;						\
+	if (!__list_next)								\
+		(head)->last = __list_prev;
 
 /*!
   \brief Closes a safe loop traversal block.
@@ -269,20 +313,50 @@ struct {								\
 */
 #define AST_LIST_HEAD_INIT(head) {					\
 	(head)->first = NULL;						\
-	ast_pthread_mutex_init(&(head)->lock,NULL);			\
+	(head)->last = NULL;						\
+	ast_mutex_init(&(head)->lock);					\
+}
+
+/*!
+  \brief Destroys a list head structure.
+  \param head This is a pointer to the list head structure
+
+  This macro destroys a list head structure by setting the head
+  entry to \a NULL (empty list) and destroying the embedded lock.
+  It does not free the structure from memory.
+*/
+#define AST_LIST_HEAD_DESTROY(head) {					\
+	(head)->first = NULL;						\
+	(head)->last = NULL;						\
+	ast_mutex_destroy(&(head)->lock);				\
+}
+
+/*!
+  \brief Initializes a list head structure.
+  \param head This is a pointer to the list head structure
+
+  This macro initializes a list head structure by setting the head
+  entry to \a NULL (empty list) and recreating the embedded lock.
+*/
+#define AST_LIST_HEAD_INIT_NOLOCK(head) {				\
+	(head)->first = NULL;						\
+	(head)->last = NULL;						\
 }
 
 /*!
   \brief Inserts a list entry after a given entry.
+  \param head This is a pointer to the list head structure
   \param listelm This is a pointer to the entry after which the new entry should
   be inserted.
   \param elm This is a pointer to the entry to be inserted.
   \param field This is the name of the field (declared using AST_LIST_ENTRY())
   used to link entries of this list together.
  */
-#define AST_LIST_INSERT_AFTER(listelm, elm, field) do {			\
+#define AST_LIST_INSERT_AFTER(head, listelm, elm, field) do {		\
 	(elm)->field.next = (listelm)->field.next;			\
 	(listelm)->field.next = (elm);					\
+	if ((head)->last == (listelm))					\
+		(head)->last = (elm);					\
 } while (0)
 
 /*!
@@ -309,12 +383,11 @@ struct {								\
  */
 #define AST_LIST_INSERT_TAIL(head, elm, field) do {			\
       if (!(head)->first) {						\
-              (head)->first = (elm);					\
+		(head)->first = (elm);					\
+		(head)->last = (elm);					\
       } else {								\
-              typeof(elm) curelm = (head)->first;			\
-              while (curelm->field.next != NULL)			\
-                      curelm = curelm->field.next;			\
-              curelm->field.next = (elm);				\
+		(head)->last->field.next = (elm);			\
+		(head)->last = (elm);					\
       }									\
 } while (0)
 
@@ -332,6 +405,8 @@ struct {								\
 		if (cur) {						\
 			(head)->first = cur->field.next;		\
 			cur->field.next = NULL;				\
+			if ((head)->last == cur)			\
+				(head)->last = NULL;			\
 		}							\
 		cur;							\
 	})
@@ -354,6 +429,8 @@ struct {								\
 			curelm = curelm->field.next;			\
 		curelm->field.next = (elm)->field.next;			\
 	}								\
+	if ((head)->last == elm)					\
+		(head)->last = NULL;					\
 } while (0)
 
 #endif /* _ASTERISK_LINKEDLISTS_H */
