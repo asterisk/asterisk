@@ -384,20 +384,6 @@ static void reset_volumes(struct ast_conf_user *user)
 	ast_channel_setoption(user->chan, AST_OPTION_RXGAIN, &zero_volume, sizeof(zero_volume), 0);
 }
 
-static void adjust_volume(struct ast_frame *f, int vol)
-{
-	int count;
-	short *fdata = f->data;
-
-	for (count = 0; count < (f->datalen / sizeof(*fdata)); count++) {
-		if (vol > 0) {
-			fdata[count] *= abs(vol);
-		} else if (vol < 0) {
-			fdata[count] /= abs(vol);
-		}
-	}
-}
-
 static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int sound)
 {
 	unsigned char *data;
@@ -1239,9 +1225,9 @@ zapretry:
 				if (!f)
 					break;
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
-					if (user->talk.actual) {
-						adjust_volume(f, user->talk.actual);
-					}
+					if (user->talk.actual)
+						ast_frame_adjust_volume(f, user->talk.actual);
+
 					if (confflags &  CONFFLAG_MONITORTALKER) {
 						int totalsilence;
 						if (user->talking == -1)
@@ -1476,7 +1462,7 @@ zapretry:
 					fr.data = buf;
 					fr.offset = AST_FRIENDLY_OFFSET;
 					if (user->listen.actual)
-						adjust_volume(&fr, user->listen.actual);
+						ast_frame_adjust_volume(&fr, user->listen.actual);
 					if (ast_write(chan, &fr) < 0) {
 						ast_log(LOG_WARNING, "Unable to write frame to channel: %s\n", strerror(errno));
 						/* break; */
