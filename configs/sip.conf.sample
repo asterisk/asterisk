@@ -204,7 +204,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; friends expire within this number of seconds instead of the
 				; registration interval.
 
-;rtignoreexpire=yes		; When reading a peer from Realtime, if the peer's registration
+;ignoreexpire=yes		; When reading a peer from Realtime, if the peer's registration
 				; has expired based on its registration interval, used the stored
 				; address information regardless. (yes|no)
 
