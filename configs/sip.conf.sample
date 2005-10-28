@@ -204,9 +204,18 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; friends expire within this number of seconds instead of the
 				; registration interval.
 
-;ignoreexpire=yes		; When reading a peer from Realtime, if the peer's registration
-				; has expired based on its registration interval, used the stored
-				; address information regardless. (yes|no)
+;ignoreregexpire=yes		; Enabling this setting has two functions:
+				;
+				; For non-realtime peers, when their registration expires, the information
+				; will _not_ be removed from memory or the Asterisk database; if you attempt
+				; to place a call to the peer, the existing information will be used in spite
+				; of it having expired
+				;
+				; For realtime peers, when the peer is retrieved from realtime storage,
+				; the registration information will be used regardless of whether
+				; it has expired or not; if it expires while the realtime peer is still in
+				; memory (due to caching or other reasons), the information will not be
+				; removed from realtime storage
 
 ; Incoming INVITE and REFER messages can be matched against a list of 'allowed'
 ; domains, each of which can direct the call to a specific context if desired.
