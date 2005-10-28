@@ -27,13 +27,23 @@ ifneq ($(NOCRYPTO),yes)
   MODS+=res_crypto.so
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a),)
   MODS+=res_osp.so
-  OSPLIB=$(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a
+  OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a
 else
-  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
+  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a),)
     MODS+=res_osp.so
-    OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosp.a
+    OSPLIB=$(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a
+  endif
+endif
+
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosp.a),)
+  MODS+=res_osp.so
+  OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosp.a
+else
+  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libosp.a),)
+    MODS+=res_osp.so
+    OSPLIB=$(CROSS_COMPILE_TARGET)/usr/local/lib/libosp.a
   endif
 endif
 
