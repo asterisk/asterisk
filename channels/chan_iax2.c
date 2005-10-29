@@ -3584,9 +3584,6 @@ static unsigned int calc_fakestamp(struct chan_iax2_pvt *p1, struct chan_iax2_pv
 	ms = ast_tvdiff_ms(p1->rxcore, p2->offset);
 	fakets += ms;
 
-	/* FIXME? SLD would rather remove this and leave it to the end system to deal with */
-	if (fakets <= p2->lastsent)
-		fakets = p2->lastsent + 1;
 	p2->lastsent = fakets;
 	return fakets;
 }
