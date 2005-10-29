@@ -318,8 +318,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;------------------------------------------------------------------------------
 ; Definitions of locally connected SIP phones
 ;
-; type = user	a device that calls us
-; type = peer	a device we place calls to
+; type = user	a device that authenticates to us by "from" field to place calls
+; type = peer	a device we place calls to or that calls us and we match by host
 ; type = friend two configurations (peer+user) in one
 ;
 ; For local phones, type=friend works most of the time
