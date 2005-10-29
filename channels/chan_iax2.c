@@ -5608,6 +5608,8 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	if (inaddrcmp(&p->addr, sin)) {
 		if (iax2_regfunk)
 			iax2_regfunk(p->name, 1);
+		/* Stash the IP address from which they registered */
+		memcpy(&p->addr, sin, sizeof(p->addr));
 		snprintf(data, sizeof(data), "%s:%d:%d", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port), p->expiry);
 		if (!ast_test_flag(p, IAX_TEMPONLY) && sin->sin_addr.s_addr) {
 			ast_db_put("IAX/Registry", p->name, data);
@@ -5615,19 +5617,18 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 				ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
 					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
-			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 			register_peer_exten(p, 1);
+			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
 			if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
 					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
-			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 			register_peer_exten(p, 0);
 			ast_db_del("IAX/Registry", p->name);
+			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		}
 		/* Update the host */
-		memcpy(&p->addr, sin, sizeof(p->addr));
 		/* Verify that the host is really there */
 		iax2_poke_peer(p, callno);
 	}		
