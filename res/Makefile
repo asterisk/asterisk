@@ -37,16 +37,6 @@ else
   endif
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosp.a),)
-  MODS+=res_osp.so
-  OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosp.a
-else
-  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libosp.a),)
-    MODS+=res_osp.so
-    OSPLIB=$(CROSS_COMPILE_TARGET)/usr/local/lib/libosp.a
-  endif
-endif
-
 ifeq ($(findstring BSD,${OSARCH}),BSD)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
