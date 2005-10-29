@@ -77,8 +77,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 
-#if !defined(TDS_INT_EXIT) 
-#define TDS_PRE_0_62
+#ifdef FREETDS_PRE_0_62
 #warning "You have older TDS, you should upgrade!"
 #endif
 
@@ -111,7 +110,7 @@ static int tds_log(struct ast_cdr *cdr)
 	char *accountcode, *src, *dst, *dcontext, *clid, *channel, *dstchannel, *lastapp, *lastdata, *uniqueid;
 	int res = 0;
 	int retried = 0;
-#ifdef TDS_PRE_0_62
+#ifdef FREETDS_PRE_0_62
 	TDS_INT result_type;
 #endif
 
@@ -205,7 +204,7 @@ static int tds_log(struct ast_cdr *cdr)
 			retried = 1;	/* note that we have now tried */
 		}
 
-#ifdef TDS_PRE_0_62
+#ifdef FREETDS_PRE_0_62
 		if (!connected || (tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
 #else
 		if (!connected || (tds_submit_query(tds, sqlcmd) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
@@ -434,7 +433,11 @@ static int mssql_disconnect(void)
 
 static int mssql_connect(void)
 {
+#ifdef FREETDS_0_63
+	TDSCONNECTION *connection = NULL;
+#else
 	TDSCONNECTINFO *connection = NULL;
+#endif
 	char query[128];
 
 	/* Connect to M$SQL Server */
@@ -449,7 +452,7 @@ static int mssql_connect(void)
 	tds_set_passwd(login, password);
 	tds_set_app(login, "TSQL");
 	tds_set_library(login, "TDS-Library");
-#ifndef TDS_PRE_0_62
+#ifndef FREETDS_PRE_0_62
 	tds_set_client_charset(login, charset);
 #endif
 	tds_set_language(login, language);
@@ -479,15 +482,23 @@ static int mssql_connect(void)
 	{
 		ast_log(LOG_ERROR, "Failed to connect to MSSQL server.\n");
 		tds = NULL;	/* freed by tds_connect() on error */
+#ifdef FREETDS_0_63
+		tds_free_connection(connection);
+#else
 		tds_free_connect(connection);
+#endif
 		connection = NULL;
 		goto connect_fail;
 	}
+#ifdef FREETDS_0_63
+	tds_free_connection(connection);
+#else
 	tds_free_connect(connection);
+#endif
 	connection = NULL;
 
 	sprintf(query, "USE %s", dbname);
-#ifdef TDS_PRE_0_62
+#ifdef FREETDS_PRE_0_62
 	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds, &result_type) != TDS_SUCCEED || result_type != TDS_CMD_SUCCEED))
 #else
 	if ((tds_submit_query(tds, query) != TDS_SUCCEED) || (tds_process_simple_query(tds) != TDS_SUCCEED))
@@ -527,7 +538,7 @@ static int tds_load_module(void)
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	char *ptr = NULL;
-#ifdef TDS_PRE_0_62
+#ifdef FREETDS_PRE_0_62
 	TDS_INT result_type;
 #endif
 
