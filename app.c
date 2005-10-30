@@ -210,6 +210,13 @@ int ast_app_getvoice(struct ast_channel *c, char *dest, char *dstfmt, char *prom
 					ast_frfree(f);
 					break;
 				}
+				res = ast_writestream(writer, f);
+				if (res < 0) {
+					ast_log(LOG_WARNING, "Failed to write to stream at %s!\n", dest);
+					ast_frfree(f);
+					break;
+				}
+					
 			}
 			ast_frfree(f);
 		}
