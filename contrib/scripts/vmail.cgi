@@ -545,14 +545,16 @@ _EOH
 sub message_audio()
 {
 	my ($forcedownload) = @_;
-	my $folder = param('folder');
-	my $msgid = param('msgid');
-	my $mailbox = param('mailbox');
-	my $context = param('context');
+	my $folder = &untaint(param('folder'));
+	my $msgid = &untaint(param('msgid'));
+	my $mailbox = &untaint(param('mailbox'));
+	my $context = &untaint(param('context'));
 	my $format = param('format');
 	if (!$format) {
 		$format = &getcookie('format');
 	}
+	&untaint($format);
+
 	my $path = "/var/spool/asterisk/voicemail/$context/$mailbox/$folder/msg${msgid}.$format";
 
 	$msgid =~ /^\d\d\d\d$/ || die("Msgid Liar ($msgid)!");
