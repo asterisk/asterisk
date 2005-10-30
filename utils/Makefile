@@ -32,6 +32,7 @@ endif
 
 ifeq (${OSARCH},SunOS)
   SOL=../strcompat.o
+  SOLLIBS=-lsocket -lnsl
 endif
 
 all: depend $(TARGET)
@@ -66,7 +67,7 @@ smsq: smsq.o
 	$(CC) $(CFLAGS) -o smsq ${SOL} smsq.o -lpopt
 
 streamplayer: streamplayer.o
-	$(CC) $(CFLAGS) -o streamplayer ${SOL} streamplayer.o
+	$(CC) $(CFLAGS) -o streamplayer ${SOL} streamplayer.o ${SOLLIBS}
 
 ifneq ($(wildcard .depend),)
   include .depend
