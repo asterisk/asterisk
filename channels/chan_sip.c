@@ -12891,12 +12891,18 @@ static void sip_poke_all_peers(void)
 static void sip_send_all_registers(void)
 {
 	int ms;
-
+	int regspacing;
+	if (!regobjs)
+		return;
+	regspacing = default_expiry * 1000/regobjs;
+	if (regspacing > 100)
+		regspacing = 100;
+	ms = regspacing;
 	ASTOBJ_CONTAINER_TRAVERSE(&regl, 1, do {
 		ASTOBJ_WRLOCK(iterator);
 		if (iterator->expire > -1)
 			ast_sched_del(sched, iterator->expire);
-		ms = (rand() >> 12) & 0x1fff;
+		ms += regspacing;
 		iterator->expire = ast_sched_add(sched, ms, sip_reregister, iterator);
 		ASTOBJ_UNLOCK(iterator);
 	} while (0)
