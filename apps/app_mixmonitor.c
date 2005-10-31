@@ -22,7 +22,7 @@
  */
 
 /*! \file
- * \brief muxmon() - record a call natively
+ * \brief MixMonitor() - Record a call and mix the audio during the recording
  */
 
 #include <stdlib.h>
