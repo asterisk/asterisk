@@ -607,13 +607,11 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	char currcontext[256] ="";
 	char tmpin[AST_CONFIG_MAX_PATH];
 	char tmpout[AST_CONFIG_MAX_PATH];
-	char *user, *pass, *rest, *trim, *tempcontext;
 	struct stat statbuf;
 
 	if (!change_password_realtime(vmu, newpassword))
 		return;
 
-	tempcontext = NULL;
 	snprintf(tmpin, sizeof(tmpin), "%s/voicemail.conf", ast_config_AST_CONFIG_DIR);
 	snprintf(tmpout, sizeof(tmpout), "%s/voicemail.conf.new", ast_config_AST_CONFIG_DIR);
 	configin = fopen(tmpin,"r");
@@ -638,61 +636,101 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 		fgets(inbuf, sizeof(inbuf), configin);
 		linenum++;
 		if (!feof(configin)) {
+			char *user = NULL, *pass = NULL, *rest = NULL, *trim = NULL,
+				*comment = NULL, *tmpctx = NULL, *tmpctxend = NULL;
+			
 			/* Make a backup of it */
-			memcpy(orig, inbuf, sizeof(orig));
-			/* Strip trailing \n and comment */
-			inbuf[strlen(inbuf) - 1] = '\0';
-			user = strchr(inbuf, ';');
-			if (user)
-				*user = '\0';
-			user=inbuf;
-			while (*user < 33)
-				user++;
-			/* check for '[' (opening of context name ) */
-			tempcontext = strchr(user, '[');
-			if (tempcontext) {
-				ast_copy_string(currcontext, tempcontext +1, sizeof(currcontext));
-				/* now check for ']' */
-				tempcontext = strchr(currcontext, ']');
-				if (tempcontext) 
-					*tempcontext = '\0';
-				else
-					currcontext[0] = '\0';
+			ast_copy_string(orig, inbuf, sizeof(orig));
+			
+			/*
+				Read the file line by line, split each line into a comment and command section
+				only parse the command portion of the line
+			*/
+			if (inbuf[strlen(inbuf) - 1] == '\n')
+				inbuf[strlen(inbuf) - 1] = '\0';
+			comment = strchr(inbuf, ';');
+			if (comment) {
+				*comment = '\0'; /* Now inbuf is terminated just before the comment */
+				comment++;
 			}
-			pass = strchr(user, '=');
-			if (pass > user) {
-				trim = pass - 1;
-				while (*trim && *trim < 33) {
-					*trim = '\0';
-					trim--;
+			
+			if (inbuf[0] != '\0') { /* skip over parsing for lines starting with a comment character and empty lines */
+				/* Check for a context, first '[' to first ']' */
+				tmpctx = strchr(inbuf, '[');
+				if (tmpctx) {
+					tmpctxend = strchr(inbuf, ']');
+					if (tmpctxend && (tmpctxend > tmpctx)) {
+						/* Valid context */
+						ast_copy_string(currcontext, tmpctx + 1, tmpctxend - tmpctx - 1);
+						currcontext[tmpctxend - tmpctx - 1] = '\0';
+					} else {
+						tmpctx = NULL;
+					}
 				}
-			}
-			if (pass) {
-				*pass = '\0';
-				pass++;
-				if (*pass == '>')
-					pass++;
-				while (*pass && *pass < 33)
-					pass++;
-			}
-			if (pass) {
-				rest = strchr(pass,',');
-				if (rest) {
-					*rest = '\0';
-					rest++;
+				
+				if (!tmpctx) {
+					/* This isn't a context line, check for MBX => PSWD... */
+					user = inbuf;
+					pass = strchr(user, '=');
+					if(pass > user) {
+						/* We have a line in the form of aaaaa=aaaaaa */
+						*pass = '\0';
+						pass++;
+						
+						/* Trim whitespace from user */
+						trim = pass - 2;
+						while (*trim && *trim < 33) {
+							*trim = '\0';
+							trim--;
+						}
+						
+						/* Trim whitespace and '>' from pass */
+						if (*pass == '>') {
+							*pass = '\0';
+							pass++;
+						}
+						while (*pass && *pass < 33) {
+							*pass = '\0';
+							pass++;
+						}
+						
+						/* 
+						   Since no whitespace allowed in fields, or more correctly white space
+						   inside the fields is there for a purpose, we can just terminate pass
+						   at the comma or EOL whichever comes first.
+						*/
+						trim = strchr(pass, ',');
+						if (trim) {
+							*trim = '\0';
+							rest = trim + 1;
+						} else {
+							rest = NULL;
+						}
+					} else {
+						user = NULL;
+						pass = NULL;
+						rest = NULL;
+					}
 				}
-			} else
-				rest = NULL;
-
+			}			
+			
 			/* Compare user, pass AND context */
 			if (user && *user && !strcmp(user, vmu->mailbox) &&
 				 pass && !strcmp(pass, vmu->password) &&
 				 currcontext && *currcontext && !strcmp(currcontext, vmu->context)) {
+				
+				/* Write */
 				/* This is the line */
 				if (rest) {
-					fprintf(configout, "%s => %s,%s\n", vmu->mailbox,newpassword,rest);
+					fprintf(configout, "%s => %s,%s", vmu->mailbox,newpassword,rest);
 				} else {
-					fprintf(configout, "%s => %s\n", vmu->mailbox,newpassword);
+					fprintf(configout, "%s => %s", vmu->mailbox,newpassword);
+				}
+				/* If there was a comment on the line print it out */
+				if (comment) {
+					fprintf(configout, ";%s\n", comment);
+				} else {
+					fprintf(configout, "\n");
 				}
 			} else {
 				/* Put it back like it was */
