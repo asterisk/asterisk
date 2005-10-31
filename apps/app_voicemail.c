@@ -752,7 +752,6 @@ static int retrieve_file(char *dir, int msgnum)
 	int fd=-1;
 	size_t fdlen = 0;
 	void *fdm=NULL;
-	SQLLEN rowcount=0;
 	SQLSMALLINT colcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
@@ -807,79 +806,74 @@ static int retrieve_file(char *dir, int msgnum)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO))) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
+		res = SQLFetch(stmt);
+		if (res == SQL_NO_DATA) {
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		if (rowcount) {
-			fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC);
-			if (fd < 0) {
-				ast_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				goto yuck;
-			}
-			res = SQLNumResultCols(stmt, &colcount);
-			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {	
-				ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
-				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-				goto yuck;
-			}
-			res = SQLFetch(stmt);
+		else if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		fd = open(full_fn, O_RDWR | O_CREAT | O_TRUNC);
+		if (fd < 0) {
+			ast_log(LOG_WARNING, "Failed to write '%s': %s\n", full_fn, strerror(errno));
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		res = SQLNumResultCols(stmt, &colcount);
+		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {	
+			ast_log(LOG_WARNING, "SQL Column Count error!\n[%s]\n\n", sql);
+			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+			goto yuck;
+		}
+		if (f) 
+			fprintf(f, "[message]\n");
+		for (x=0;x<colcount;x++) {
+			rowdata[0] = '\0';
+			collen = sizeof(coltitle);
+			res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
+						&datatype, &colsize, &decimaldigits, &nullable);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-				ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
+				ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
 				SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 				goto yuck;
 			}
-			if (f) 
-				fprintf(f, "[message]\n");
-			for (x=0;x<colcount;x++) {
-				rowdata[0] = '\0';
-				collen = sizeof(coltitle);
-				res = SQLDescribeCol(stmt, x + 1, coltitle, sizeof(coltitle), &collen, 
-							&datatype, &colsize, &decimaldigits, &nullable);
-				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-					ast_log(LOG_WARNING, "SQL Describe Column error!\n[%s]\n\n", sql);
-					SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-					goto yuck;
+			if (!strcasecmp(coltitle, "recording")) {
+				res = SQLGetData(stmt, x + 1, SQL_BINARY, NULL, 0, &colsize);
+				fdlen = colsize;
+				fd = open(full_fn, O_RDWR | O_TRUNC | O_CREAT, 0770);
+				if (fd > -1) {
+					char tmp[1]="";
+					lseek(fd, fdlen - 1, SEEK_SET);
+					if (write(fd, tmp, 1) != 1) {
+						close(fd);
+						fd = -1;
+					}
+					if (fd > -1)
+						fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 				}
-				if (!strcmp(coltitle, "recording")) {
-					res = SQLGetData(stmt, x + 1, SQL_BINARY, NULL, 0, &colsize);
-					fdlen = colsize;
-					fd = open(full_fn, O_RDWR | O_TRUNC | O_CREAT, 0770);
-					if (fd > -1) {
-						char tmp[1]="";
-						lseek(fd, fdlen - 1, SEEK_SET);
-						if (write(fd, tmp, 1) != 1) {
-							close(fd);
-							fd = -1;
-						}
-						if (fd > -1)
-							fdm = mmap(NULL, fdlen, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-					}
-					if (fdm) {
-						memset(fdm, 0, fdlen);
-						res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, fdlen, &colsize);
-						if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
-							ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
-							SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-							goto yuck;
-						}
-					}
-				} else {
-					res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+				if (fdm) {
+					memset(fdm, 0, fdlen);
+					res = SQLGetData(stmt, x + 1, SQL_BINARY, fdm, fdlen, &colsize);
 					if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 						ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
 						SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 						goto yuck;
 					}
-					if (strcmp(coltitle, "msgnum") && strcmp(coltitle, "dir") && f)
-						fprintf(f, "%s=%s\n", coltitle, rowdata);
 				}
+			} else {
+				res = SQLGetData(stmt, x + 1, SQL_CHAR, rowdata, sizeof(rowdata), NULL);
+				if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
+					ast_log(LOG_WARNING, "SQL Get Data error!\n[%s]\n\n", sql);
+					SQLFreeHandle (SQL_HANDLE_STMT, stmt);
+					goto yuck;
+				}
+				if (strcasecmp(coltitle, "msgnum") && strcasecmp(coltitle, "dir") && f)
+					fprintf(f, "%s=%s\n", coltitle, rowdata);
 			}
-		} else if (msgnum > -1) /* msgnum will be -1 if the message hasn't yet been saved */
-			ast_log(LOG_WARNING, "Failed to retrieve rows for msgnum=%s and dir=%s\n", msgnums, dir);
+		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
@@ -914,7 +908,6 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 {
 	int x = 0;
 	int res;
-	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
 	char rowdata[20];
@@ -938,12 +931,6 @@ static int last_message_index(struct ast_vm_user *vmu, char *dir)
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			goto yuck;
-		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -972,7 +959,6 @@ static int message_exists(char *dir, int msgnum)
 {
 	int x = 0;
 	int res;
-	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
 	char rowdata[20];
@@ -999,12 +985,6 @@ static int message_exists(char *dir, int msgnum)
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			goto yuck;
-		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -1037,7 +1017,6 @@ static int count_messages(struct ast_vm_user *vmu, char *dir)
 static void delete_file(char *sdir, int smsg)
 {
 	int res;
-	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
 	char msgnums[20];
@@ -1066,12 +1045,6 @@ static void delete_file(char *sdir, int smsg)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO))) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			goto yuck;
-		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
@@ -1082,7 +1055,6 @@ yuck:
 static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailboxuser, char *dmailboxcontext)
 {
 	int res;
-	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
 	char msgnums[20];
@@ -1127,12 +1099,6 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s] (You probably don't have MySQL 4.1 or later installed)\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			goto yuck;
-		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
@@ -1147,7 +1113,6 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 	int fd = -1;
 	void *fdm=NULL;
 	size_t fdlen = -1;
-	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	SQLINTEGER len;
 	char sql[256];
@@ -1252,12 +1217,6 @@ static int store_file(char *dir, char *mailboxuser, char *mailboxcontext, int ms
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			goto yuck;
-		}
 		SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 	} else
 		ast_log(LOG_WARNING, "Failed to obtain database object for '%s'!\n", odbc_database);
@@ -1274,7 +1233,6 @@ yuck:
 static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxcontext, char *ddir, int dmsg)
 {
 	int res;
-	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
 	char msgnums[20];
@@ -1316,12 +1274,6 @@ static void rename_file(char *sdir, int smsg, char *mailboxuser, char *mailboxco
 		res = odbc_smart_execute(obj, stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			goto yuck;
-		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
@@ -1974,7 +1926,6 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 {
 	int x = 0;
 	int res;
-	SQLLEN rowcount=0;
 	SQLHSTMT stmt;
 	char sql[256];
 	char rowdata[20];
@@ -2019,12 +1970,6 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			goto yuck;
-		}
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
@@ -2058,12 +2003,6 @@ static int messagecount(const char *mailbox, int *newmsgs, int *oldmsgs)
 			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
 			goto yuck;
 		}
-		res = SQLRowCount(stmt, &rowcount);
-		if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
-			ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
-			SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-			goto yuck;
-		}
 		res = SQLFetch(stmt);
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			ast_log(LOG_WARNING, "SQL Fetch error!\n[%s]\n\n", sql);
@@ -2090,7 +2029,6 @@ static int has_voicemail(const char *mailbox, const char *folder)
 {
 	int nummsgs = 0;
         int res;
-        SQLLEN rowcount=0;
         SQLHSTMT stmt;
         char sql[256];
         char rowdata[20];
@@ -2129,12 +2067,6 @@ static int has_voicemail(const char *mailbox, const char *folder)
                 res = odbc_smart_execute(obj, stmt);
                 if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
                         ast_log(LOG_WARNING, "SQL Execute error!\n[%s]\n\n", sql);
-                        SQLFreeHandle (SQL_HANDLE_STMT, stmt);
-                        goto yuck;
-                }
-                res = SQLRowCount(stmt, &rowcount);
-                if (((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) || (rowcount < 1)) {
-                        ast_log(LOG_WARNING, "SQL Row Count error!\n[%s]\n\n", sql);
                         SQLFreeHandle (SQL_HANDLE_STMT, stmt);
                         goto yuck;
                 }
