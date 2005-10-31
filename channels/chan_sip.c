@@ -11835,7 +11835,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			user->pickupgroup = ast_get_group(v->value);
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(user->language, v->value, sizeof(user->language));
-		} else if (!strcasecmp(v->name, "musiconhold")) {
+		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
 			ast_copy_string(user->musicclass, v->value, sizeof(user->musicclass));
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
