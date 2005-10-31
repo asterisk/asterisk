@@ -69,6 +69,10 @@ ifneq ($(wildcard h323/libchanh323.a),)
   CHANNEL_LIBS+=chan_h323.so
 endif
 
+ifneq ($(wildcard misdn/chan_misdn_lib.a),)
+  CHANNEL_LIBS+=chan_misdn.so
+endif
+
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
@@ -146,6 +150,10 @@ ifneq ($(wildcard h323/Makefile.ast),)
   include h323/Makefile.ast
 endif
 
+ifneq ($(wildcard misdn/Makefile.ast),)
+  include misdn/Makefile.ast
+endif
+
 gentone: gentone.c
 	$(HOST_CC) -o gentone gentone.c -lm
 
@@ -204,6 +212,12 @@ else
 chan_h323.so: chan_h323.o h323/libchanh323.a
 	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
 endif
+
+chan_misdn.so: chan_misdn.o chan_misdn_config.o misdn/chan_misdn_lib.a
+	$(CC) -shared -Xlinker -x -o $@ $^ $(MISDNUSER)/i4lnet/libisdnnet.a $(MISDNUSER)/lib/libmISDN.a 
+
+chan_misdn_config.o: chan_misdn_config.c
+	$(CC) $(CFLAGS) -c chan_misdn_config.c
 
 
 #chan_modem.so : chan_modem.o

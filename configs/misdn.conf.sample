@@ -1,0 +1,267 @@
+;
+; chan_misdn sample config
+;
+
+; general section:
+;
+; for debugging and general setup, things that are not bound to port groups
+;
+
+[general] 
+
+; set debugging flag: 
+;   0 - No Debug
+;   1 - mISDN Messages and * - Messages, and * - State changes
+;   2 - Messages + Message specific Informations (e.g. bearer capability)
+;   3 - very Verbose, the above + lots of Driver specific infos
+;   4 - even more Verbose than 3
+;
+; default value: 0
+;
+debug=0
+
+; the big trace
+;
+; default value: [not set]
+;
+;tracefile=/var/log/misdn.trace
+
+; single call trace files
+; set to true if you want to have them
+; they depend on debug level
+;
+; default values: trace_calls : false
+;                 trace_dir   : /var/log/
+;
+trace_calls=false
+trace_dir=/var/log/
+
+; set to yes if you want mISDN_dsp to bridge the calls in HW
+;
+; default value: yes
+;
+bridging=yes
+
+; stops dialtone after getting first digit on nt Port
+;
+; default value: yes
+;
+stop_tone_after_first_digit=yes
+
+; wether to append overlapdialed Digits to Extension or not 
+;
+; default value: yes
+;
+append_digits2exten=yes
+
+; set this to yes if you have jollys mISDN which sends correct L1 Infos
+;
+; default value: yes
+;
+l1_info_ok=yes
+
+; set this to yes if you want to clear the l3 in case the l2 deactivates
+; some environments have a flickering l2 which causes this option to 
+; damage active calls .. highly experimental
+; 
+; default value: no
+;
+clear_l3=no
+
+; set the method to use for channel selection:
+;   standard    - always choose the first free channel with the lowest number
+;   round_robin - use the round robin algorithm to select a channel. use this
+;                 if you want to balance your load.
+;
+; default value: standard
+;
+method=standard
+
+;;; CRYPTION STUFF
+
+; Wether to look for dynamic crypting attempt
+;
+; default value: no
+;
+dynamic_crypt=no
+
+; crypt_prefix, what is used for crypting Protocol
+;
+; default value: [not set]
+;
+crypt_prefix=**
+
+; Keys for cryption, you reference them in the dialplan
+; later also in dynamic encr.
+;
+; default value: [not set]
+;
+crypt_keys=test,muh
+
+; users sections:
+; 
+; name your sections as you which but not "general" ! 
+; the secions are Groups, you can dial out in extensions.conf
+; with Dial(mISDN/g:extern/101) where extern is a section name, 
+; chan_misdn tries every port in this section to find a 
+; new free channel
+; 
+
+; The default section is not a group section, it just contains config elements
+; which are inherited by group sections.
+;
+
+[default]
+
+; define your default context here
+;
+; default value: default
+;
+context=misdn
+
+; language
+;
+; default value: en
+;
+language=en
+
+; Prefixes for national and international, those are put before the 
+; oad if an according dialplan is set by the other end. 
+;
+; default values: nationalprefix      : 0
+;                 internationalprefix : 00
+;
+nationalprefix=0
+internationalprefix=00
+
+; set rx/tx gains between -8 and 8 to change the RX/TX Gain
+;
+; default values: rxgain: 0
+;                 txgain: 0
+;
+rxgain=0
+txgain=0
+
+; some telcos espacially in NL seem to need this set to yes, also in 
+; switzerland this seems to be important
+;
+; default value: no
+;
+te_choose_channel=no
+
+; dialplan options: 
+;
+; 0 - unknown
+; 1 - National
+; 2 - International
+; 4 - Subscriber
+;
+; This setting is used for outgoing calls
+;
+; default value: 0
+;
+dialplan=0
+
+; This is only for asterisk head and will result in only considering 
+; misdn.confs and misdn_set_opts callingpresentation informations if set to no.
+; Otherwise asterisks callingpresentation overwrites misdn.confs settings.
+;
+; default value: yes
+;
+use_callingpres=yes
+
+; uncomment the following to get into s extension at extension conf
+; there you can use DigitTimeout if you can't or don't want to use
+; isdn overlap dial. 
+; note: This will jump into the s exten for every exten!
+;
+; default value: no
+;
+;always_immediate=no
+
+; uncomment the following if you want callers which called exactly the 
+; base number (so no extension is set) jump to the s extension.
+; if the user dials something more it jumps to the correct extension 
+; instead
+;
+; default value: no
+;
+;immediate=no
+
+; uncomment the following to have hold and retrieve support
+;
+; default value: no
+;
+;hold_allowed=yes
+
+; Pickup and Callgroup
+;
+; deafult values: not set = 0
+;
+;callgroup=1
+;pickupgroup=1
+
+; Allows/Screens Callerid
+;
+; possible values: allowed,not_screened
+;
+; be aware, if you set to allowed you need to set a correct 
+; callerid in the dialplan or set it here in the misdn.conf
+; Some Telcos don't care about wrong callerids, others do !
+;
+; default value: allowed
+;
+;presentation=not_screened
+
+; this enables echocancellation, with the given number of taps
+; be aware, move this setting only to outgoing portgroups!
+; A value of zero turns echocancellation off.
+;
+; possible values are: 0,32,64,128.256,yes(=128),no(=0)
+;
+; default value: no
+;
+;echocancel=no
+
+; this disables echocancellation when the call is bridged between 
+; mISDN channels
+;
+; default value: no
+;
+echocancelwhenbridged=no
+
+; Set this to no to disable echotraining
+;
+; default value: yes
+;
+echotraining=yes
+
+[intern]
+; define your ports, e.g. 1,2 (depends on mISDN-driver loading order) 
+ports=1,2
+; context where to go to when incoming Call on one of the above ports
+context=Intern
+
+[internPP]
+; if you want to have pp Protocol on one nt Port, you need 
+; to add a ptp directly after the portnumber, you can still add 
+; more ports and multiple ptp adds in your config.
+ports=3ptp
+	
+[first_extern]
+; again port defs
+ports=4
+; again a context for incomming calls
+context=Extern1
+; msns for te ports, listen on those numbers on the above ports, and 
+; indicate the incoming calls to asterisk
+; here you can give a comma seperated list or simply an '*' for 
+; any msn. 
+msns=*
+
+; here an example with given msns
+[second_extern]
+ports=5
+context=Extern2
+callerid=15
+msns=102,144,101,104
