@@ -1874,7 +1874,12 @@ static void ast_readconfig(void) {
 				option_maxcalls = 0;
 			}
 		} else if (!strcasecmp(v->name, "maxload")) {
-			if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
+			double test[1];
+
+			if (getloadavg(test, 1) == -1) {
+				ast_log(LOG_ERROR, "Cannot obtain load average on this system. 'maxload' option disabled.\n");
+				option_maxload = 0.0;
+			} else if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
 				option_maxload = 0.0;
 			}
 		}
