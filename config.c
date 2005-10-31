@@ -30,6 +30,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/stat.h>
 #define AST_INCLUDE_GLOB 1
 #ifdef AST_INCLUDE_GLOB
 #ifdef __Darwin__
@@ -538,6 +539,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 	int comment = 0, nest[MAX_NESTED_COMMENTS];
 	struct ast_category *cat = NULL;
 	int count = 0;
+	struct stat statbuf;
 	
 	cat = ast_config_get_current_category(cfg);
 
@@ -569,11 +571,26 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			for (i=0; i<globbuf.gl_pathc; i++) {
 				ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
 #endif
-	if ((option_verbose > 1) && !option_debug) {
-		ast_verbose(  VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
-		fflush(stdout);
-	}
-	if ((f = fopen(fn, "r"))) {
+	do {
+		if (stat(fn, &statbuf)) {
+			ast_log(LOG_WARNING, "Cannot stat() '%s', ignoring\n", fn);
+			continue;
+		}
+		if (!S_ISREG(statbuf.st_mode)) {
+			ast_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
+			continue;
+		}
+		if ((option_verbose > 1) && !option_debug) {
+			ast_verbose(VERBOSE_PREFIX_2 "Parsing '%s': ", fn);
+			fflush(stdout);
+		}
+		if (!(f = fopen(fn, "r"))) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
+			else if (option_verbose > 1)
+				ast_verbose( "Not found (%s)\n", strerror(errno));
+			continue;
+		}
 		count++;
 		if (option_debug)
 			ast_log(LOG_DEBUG, "Parsing %s\n", fn);
@@ -641,12 +658,7 @@ static struct ast_config *config_text_file_load(const char *database, const char
 			}
 		}
 		fclose(f);		
-	} else { /* can't open file */
-		if (option_debug)
-			ast_log(LOG_DEBUG, "No file to parse: %s\n", fn);
-		else if (option_verbose > 1)
-			ast_verbose( "Not found (%s)\n", strerror(errno));
-	}
+	} while(0);
 	if (comment) {
 		ast_log(LOG_WARNING,"Unterminated comment detected beginning on line %d\n", nest[comment]);
 	}
