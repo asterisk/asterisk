@@ -369,6 +369,8 @@ struct {								\
 #define AST_LIST_INSERT_HEAD(head, elm, field) do {			\
 		(elm)->field.next = (head)->first;			\
 		(head)->first = (elm);					\
+		if (!(head)->last)					\
+			(head)->last = (elm);				\
 } while (0)
 
 /*!

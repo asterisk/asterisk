@@ -31,6 +31,8 @@ struct ast_var_t {
 	char name[0];
 };
 
+AST_LIST_HEAD_NOLOCK(varshead, ast_var_t);
+
 struct ast_var_t *ast_var_assign(const char *name, const char *value);
 void ast_var_delete(struct ast_var_t *var);
 char *ast_var_name(struct ast_var_t *var);

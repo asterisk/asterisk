@@ -47,7 +47,6 @@
 #include "asterisk/channel.h"
 
 struct ast_channel;
-AST_LIST_HEAD(varshead,ast_var_t);
 
 /*! Responsible for call detail data */
 struct ast_cdr {

@@ -88,7 +88,7 @@ static char *loopback_helper(char *buf, int buflen, const char *exten, const cha
 
 	snprintf(tmp, sizeof(tmp), "%d", priority);
 	memset(buf, 0, buflen);
-	AST_LIST_HEAD_INIT(&headp);
+	AST_LIST_HEAD_INIT_NOLOCK(&headp);
 	newvariable = ast_var_assign("EXTEN", exten);
 	AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
 	newvariable = ast_var_assign("CONTEXT", context);

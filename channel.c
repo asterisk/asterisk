@@ -585,7 +585,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
 	headp = &tmp->varshead;
 	ast_mutex_init(&tmp->lock);
-	AST_LIST_HEAD_INIT(headp);
+	AST_LIST_HEAD_INIT_NOLOCK(headp);
 	strcpy(tmp->context, "default");
 	ast_copy_string(tmp->language, defaultlanguage, sizeof(tmp->language));
 	strcpy(tmp->exten, "s");
@@ -2976,7 +2976,7 @@ int ast_do_masquerade(struct ast_channel *original)
 		original->fds[x] = clone->fds[x];
 	}
 	clone_variables(original, clone);
-	clone->varshead.first = NULL;
+	AST_LIST_HEAD_INIT_NOLOCK(&clone->varshead);
 	/* Presense of ADSI capable CPE follows clone */
 	original->adsicpe = clone->adsicpe;
 	/* Bridge remains the same */

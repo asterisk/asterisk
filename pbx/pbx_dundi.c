@@ -559,7 +559,7 @@ static int dundi_lookup_local(struct dundi_result *dr, struct dundi_mapping *map
 			dr[anscnt].eid = *us_eid;
 			dundi_eid_to_str(dr[anscnt].eid_str, sizeof(dr[anscnt].eid_str), &dr[anscnt].eid);
 			if (ast_test_flag(&flags, DUNDI_FLAG_EXISTS)) {
-				AST_LIST_HEAD_INIT(&headp);
+				AST_LIST_HEAD_INIT_NOLOCK(&headp);
 				newvariable = ast_var_assign("NUMBER", called_number);
 				AST_LIST_INSERT_HEAD(&headp, newvariable, entries);
 				newvariable = ast_var_assign("EID", dr[anscnt].eid_str);
