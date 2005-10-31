@@ -9404,6 +9404,11 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 			ast_log(LOG_DEBUG, "SIP response %d to standard invite\n", resp);
 	}
 
+	if (ast_test_flag(p, SIP_ALREADYGONE)) { /* This call is already gone */
+		ast_log(LOG_DEBUG, "Got response on call that is already terminated: %s (ignoring)\n", p->callid);
+		return;
+	}
+
 	switch (resp) {
 	case 100:	/* Trying */
 		sip_cancel_destroy(p);
