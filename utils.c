@@ -194,7 +194,7 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp)
 		if (dots != 3)
 			return NULL;
 		memset(hp, 0, sizeof(struct ast_hostent));
-		hp->hp.h_addr_list = hp->buf;
+		hp->hp.h_addr_list = (void *) hp->buf;
 		hp->hp.h_addr = hp->buf + sizeof(void *);
 		if (inet_pton(AF_INET, host, hp->hp.h_addr) > 0)
 			return &hp->hp;
