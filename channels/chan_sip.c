@@ -2217,10 +2217,6 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			if (*call_limit > 0 ) {
 				if (*inuse >= *call_limit) {
 					ast_log(LOG_ERROR, "Call %s %s '%s' rejected due to usage limit of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
-					/* inc inUse as well */
-					if ( event == INC_CALL_LIMIT ) {
-						(*inuse)++;
-					}
 					if (u)
 						ASTOBJ_UNREF(u,sip_destroy_user);
 					else
