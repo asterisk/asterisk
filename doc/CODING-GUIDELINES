@@ -1,5 +1,15 @@
 == Asterisk Patch/Coding Guidelines ==
+--------------------------------------
 
+We are looking forward to your contributions to Asterisk - the 
+Open Source PBX! As Asterisk is a large and in some parts very
+time-sensitive application, the code base needs to conform to
+a common set of coding rules so that many developers can enhance
+and maintain the code. Code also needs to be reviewed and tested
+so that it works and follows the general architecture and guide-
+lines, and is well documented.
+
+Asterisk is published under a dual-licensing scheme by Digium.
 To be accepted into the codebase, all non-trivial changes must be
 disclaimed to Digium or placed in the public domain. For more information
 see http://bugs.digium.com
@@ -12,30 +22,57 @@ above the top-level Asterisk source directory. For example:
 
 ~/work$ diff -urN asterisk-base asterisk-new
 
-All code, filenames, function names and comments must be in ENGLISH.
+If you are changing within a fresh CVS/SVN repository, you can create
+a patch with
+$ cvs diff -urN <mycodefile>.c
 
-Do not declare variables mid-function (e.g. like recent GNU compilers support)
-since it is harder to read and not portable to GCC 2.95 and others.
+* General rules
+---------------
 
-Don't annotate your changes with comments like "/* JMG 4/20/04 */";
-Comments should explain what the code does, not when something was changed
-or who changed it.
+- All code, filenames, function names and comments must be in ENGLISH.
 
-Don't make unnecessary whitespace changes throughout the code.
+- Don't annotate your changes with comments like "/* JMG 4/20/04 */";
+  Comments should explain what the code does, not when something was changed
+  or who changed it. If you have done a larger contribution, make sure
+  that you are added to the CREDITS file.
 
-Don't use C++ type (//) comments.
+- Don't make unnecessary whitespace changes throughout the code.
+  If you make changes, submit them to the tracker as separate patches
+  that only include whitespace and formatting changes.
 
-Try to match the existing formatting of the file you are working on.
+- Don't use C++ type (//) comments.
 
-Functions and variables that are not intended to be used outside the module
-must be declared static.
+- Try to match the existing formatting of the file you are working on.
 
-When reading integer numeric input with scanf (or variants), do _NOT_ use '%i'
-unless you specifically want to allow non-base-10 input; '%d' is always a better
-choice, since it will not silently turn numbers with leading zeros into base-8.
+- Use spaces instead of tabs when aligning in-line comments or #defines (this makes 
+  your comments aligned even if the code is viewed with another tabsize)
 
-Use spaces instead of tabs when aligning in-line comments or #defines (this makes 
-your comments aligned even if the code is viewed with another tabsize)
+* Declaration of functions and variables
+----------------------------------------
+
+- Do not declare variables mid-block (e.g. like recent GNU compilers support)
+  since it is harder to read and not portable to GCC 2.95 and others.
+
+- Functions and variables that are not intended to be used outside the module
+  must be declared static.
+
+- When reading integer numeric input with scanf (or variants), do _NOT_ use '%i'
+  unless you specifically want to allow non-base-10 input; '%d' is always a better
+  choice, since it will not silently turn numbers with leading zeros into base-8.
+
+- Strings that are coming from input should not be used as a first argument to
+  a formatted *printf function.
+
+* Use the internal API
+----------------------
+
+- Make sure you are aware of the string and data handling functions that exist
+  within Asterisk to enhance portability and in some cases to produce more
+  secure and thread-safe code. Check utils.c/utils.h for these.
+
+
+* Code formatting
+-----------------
 
 Roughly, Asterisk code formatting guidelines are generally equivalent to the 
 following:
@@ -60,11 +97,11 @@ this means in verbose:
 
 Function calls and arguments should be spaced in a consistent way across
 the codebase.
-GOOD: foo(arg1, arg2);
-GOOD: foo(arg1,arg2);	/* Acceptable but not preferred */
-BAD: foo (arg1, arg2);
-BAD: foo( arg1, arg2 );
-BAD: foo(arg1, arg2,arg3);
+	GOOD: foo(arg1, arg2);
+	GOOD: foo(arg1,arg2);	/* Acceptable but not preferred */
+	BAD: foo (arg1, arg2);
+	BAD: foo( arg1, arg2 );
+	BAD: foo(arg1, arg2,arg3);
 
 Don't treat keywords (if, while, do, return) as if they were functions;
 leave space between the keyword and the expression used (if any). For 'return',
@@ -74,28 +111,28 @@ required.
 There is no shortage of whitespace characters :-) Use them when they make
 the code easier to read. For example:
 
-for (str=foo;str;str=str->next)
+	for (str=foo;str;str=str->next)
 
 is harder to read than
 
-for (str = foo; str; str = str->next)
+	for (str = foo; str; str = str->next)
 
 Following are examples of how code should be formatted.
 
-Functions:
+- Functions:
 int foo(int a, char *s)
 {
 	return 0;
 }
 
-If statements:
+- If statements:
 if (foo) {
 	bar();
 } else {
 	blah();
 }
 
-Case statements:
+- Case statements:
 switch (foo) {
 case BAR:
 	blah();
@@ -105,7 +142,7 @@ case OTHER:
 	break;
 }
 
-No nested statements without braces, e.g.:
+- No nested statements without braces, e.g.:
 
 for (x = 0; x < 5; x++)
 	if (foo) 
@@ -120,7 +157,7 @@ for (x = 0; x < 5; x++) {
 	}
 }
 
-Don't build code like this:
+- Don't build code like this:
 
 if (foo) {
 	/* .... 50 lines of code ... */
@@ -144,12 +181,14 @@ When this technique is used properly, it makes functions much easier to read
 and follow, especially those with more than one or two 'setup' operations
 that must succeed for the rest of the function to be able to execute.
 
+- Labels/goto are acceptable
 Proper use of this technique may occasionally result in the need for a
 label/goto combination so that error/failure conditions can exit the
 function while still performing proper cleanup. This is not a bad thing!
 Use of goto in this situation is encouraged, since it removes the need
 for excess code indenting without requiring duplication of cleanup code.
        
+- Never use an uninitialized variable
 Make sure you never use an uninitialized variable.  The compiler will 
 usually warn you if you do so. However, do not go too far the other way,
 and needlessly initialize variables that do not require it. If the first
@@ -159,6 +198,7 @@ object code and data in the resulting binary with no purpose. When in doubt,
 trust the compiler to tell you when you need to initialize a variable;
 if it does not warn you, initialization is not needed.
 
+- Do not cast 'void *'
 Do not explicitly cast 'void *' into any other type, nor should you cast any
 other type into 'void *'. Implicit casts to/from 'void *' are explicitly
 allowed by the C specification. This means the results of malloc(), calloc(),
@@ -166,6 +206,10 @@ alloca(), and similar functions do not _ever_ need to be cast to a specific
 type, and when you are passing a pointer to (for example) a callback function
 that accepts a 'void *' you do not need to cast into that type.
 
+* Variable naming
+-----------------
+
+- Global variables
 Name global variables (or local variables when you have a lot of them or
 are in a long function) something that will make sense to aliens who
 find your code in 100 years.  All variable names should be in lower 
@@ -178,6 +222,7 @@ Make some indication in the name of global variables which represent
 options that they are in fact intended to be global.
  e.g.: static char global_something[80]
 
+- Don't use un-necessary typedef's
 Don't use 'typedef' just to shorten the amount of typing; there is no substantial
 benefit in this:
 
@@ -189,6 +234,7 @@ typedef foo_t struct foo;
 In fact, don't use 'variable type' suffixes at all; it's much preferable to
 just type 'struct foo' rather than 'foo_s'.
 
+- Use enums instead of #define where possible
 Use enums rather than long lists of #define-d numeric constants when possible;
 this allows structure members, local variables and function arguments to
 be declared as using the enum's type. For example:
@@ -208,95 +254,13 @@ static handle_option(const enum option opt)
 
 Note: The compiler will _not_ force you to pass an entry from the enum
 as an argument to this function; this recommendation serves only to make
-the code clearer and somewhat self-documenting.
+the code clearer and somewhat self-documenting. In addition, when using
+switch/case blocks that switch on enum values, the compiler will warn
+you if you forget to handle one or more of the enum values, which can be
+handy.
 
-When making applications, always ast_strdupa(data) to a local pointer if
-you intend to parse the incoming data string.
-
-	if (data)
-		mydata = ast_strdupa(data);
-
-Use ast_separate_app_args() to separate the arguments to your application
-once you have made a local copy of the string.
-
-Use strsep() for parsing strings when possible; there is no worry about
-'re-entrancy' as with strtok(), and even though it modifies the original
-string (which the man page warns about), in many cases that is exactly
-what you want!
-
-Always derefrence or localize pointers to things that are not yours like
-channel members in a channel that is not associated with the current 
-thread and for which you do not have a lock.
-	channame = ast_strdupa(otherchan->name);
-
-If you do the same or a similar operation more than 1 time, make it a
-function or macro.
-
-Make sure you are not duplicating any functionality already found in an
-API call somewhere.  If you are duplicating functionality found in 
-another static function, consider the value of creating a new API call 
-which can be shared.
-
-As a common example of this point, make an effort to use the lockable
-linked-list macros found in include/asterisk/linkedlists.h. They are
-efficient, easy to use and provide every operation that should be
-necessary for managing a singly-linked list (if something is missing,
-let us know!). Just because you see other open-coded list implementations
-in the source tree is no reason to continue making new copies of
-that code... There are also a number of common string manipulation
-and timeval manipulation functions in asterisk/strings.h and asterisk/time.h;
-use them when possible.
-
-When you achieve your desired functionalty, make another few refactor
-passes over the code to optimize it.
-
-Before submitting a patch, *read* the actual patch file to be sure that 
-all the changes you expect to be there are, and that there are no 
-surprising changes you did not expect.
-
-If you are asked to make changes to your patch, there is a good chance
-the changes will introduce bugs, check it even more at this stage.
-
-Avoid needless malloc(), strdup() calls. If you only need the value in
-the scope of your function try ast_strdupa() or declare structs on the
-stack and pass a pointer to them. However, be careful to _never_ call
-alloca(), ast_strdupa() or similar functions in the argument list
-of a function you are calling; this can cause very strange stack
-arrangements and produce unexpected behavior.
-
-If you are going to reuse a computed value, save it in a variable
-instead of recomputing it over and over.  This can prevent you from 
-making a mistake in subsequent computations, make it easier to correct
-if the formula has an error and may or may not help optimization but 
-will at least help readability.
-
-Just an example, so don't over analyze it, that'd be a shame:
-
-const char *prefix = "pre";	
-const char *postfix = "post";
-char *newname;
-char *name = "data";
-
-if (name && (newname = alloca(strlen(name) + strlen(prefix) + strlen(postfix) + 3)))
-	snprintf(newname, strlen(name) + strlen(prefix) + strlen(postfix) + 3, "%s/%s/%s", prefix, name, postfix);
-
-vs
-
-const char *prefix = "pre";
-const char *postfix = "post";
-char *newname;
-char *name = "data";
-int len = 0;
-
-if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newname = alloca(len)))
-	snprintf(newname, len, "%s/%s/%s", prefix, name, postfix);
-
-
-Use const on pointer arguments which your function will not be modifying, as this 
-allows the compiler to make certain optimizations. In general, use 'const'
-on any argument that you have no direct intention of modifying, as it can
-catch logic/typing errors in your code when you use the argument variable
-in a way that you did not intend.
+* String handling
+-----------------
 
 Don't use strncpy for copying whole strings; it does not guarantee that the
 output buffer will be null-terminated. Use ast_copy_string instead, which
@@ -309,7 +273,7 @@ that has been allocated in the function doing the copying. In that case, you
 know at the time you are writing the code whether the buffer is large enough
 for the fixed string or not, and if it's not, your code won't work anyway!
 Use strcpy() for this operation, or directly set the first two characters
-of the buffer if you are just trying store a one-character string in the
+of the buffer if you are just trying to store a one-character string in the
 buffer. If you are trying to 'empty' the buffer, just store a single
 NULL character ('\0') in the first byte of the buffer; nothing else is
 needed, and any other method is wasteful.
@@ -320,6 +284,71 @@ you wish to put into it (even if you did not allocate the buffer yourself),
 use a direct strcpy(), as it can be inlined and optimized to simple
 processor operations, unlike ast_copy_string().
 
+* Use of functions
+------------------
+
+When making applications, always ast_strdupa(data) to a local pointer if
+you intend to parse the incoming data string.
+
+	if (data)
+		mydata = ast_strdupa(data);
+
+
+- Separating arguments to dialplan applications and functions
+Use ast_separate_app_args() to separate the arguments to your application
+once you have made a local copy of the string.
+
+- Parsing strings with strsep
+Use strsep() for parsing strings when possible; there is no worry about
+'re-entrancy' as with strtok(), and even though it modifies the original
+string (which the man page warns about), in many cases that is exactly
+what you want!
+
+- Create generic code!
+If you do the same or a similar operation more than one time, make it a
+function or macro.
+
+Make sure you are not duplicating any functionality already found in an
+API call somewhere.  If you are duplicating functionality found in 
+another static function, consider the value of creating a new API call 
+which can be shared.
+
+* Handling of pointers and allocations
+--------------------------------------
+
+- Dereference or localize pointers
+Always dereference or localize pointers to things that are not yours like
+channel members in a channel that is not associated with the current 
+thread and for which you do not have a lock.
+	channame = ast_strdupa(otherchan->name);
+
+- Use const on pointer arguments if possible
+Use const on pointer arguments which your function will not be modifying, as this 
+allows the compiler to make certain optimizations. In general, use 'const'
+on any argument that you have no direct intention of modifying, as it can
+catch logic/typing errors in your code when you use the argument variable
+in a way that you did not intend.
+
+- Do not create your own linked list code - reuse!
+As a common example of this point, make an effort to use the lockable
+linked-list macros found in include/asterisk/linkedlists.h. They are
+efficient, easy to use and provide every operation that should be
+necessary for managing a singly-linked list (if something is missing,
+let us know!). Just because you see other open-coded list implementations
+in the source tree is no reason to continue making new copies of
+that code... There are also a number of common string manipulation
+and timeval manipulation functions in asterisk/strings.h and asterisk/time.h;
+use them when possible.
+
+- Avoid needless allocations!
+Avoid needless malloc(), strdup() calls. If you only need the value in
+the scope of your function try ast_strdupa() or declare structs on the
+stack and pass a pointer to them. However, be careful to _never_ call
+alloca(), ast_strdupa() or similar functions in the argument list
+of a function you are calling; this can cause very strange stack
+arrangements and produce unexpected behavior.
+
+-Allocations for structures
 When allocating/zeroing memory for a structure, try to use code like this:
 
 struct foo *tmp;
@@ -342,7 +371,8 @@ tmp = calloc(1, sizeof(*tmp));
 
 This will allocate and zero the memory in a single operation.
 
-== CLI Commands ==
+* CLI Commands
+--------------
 
 New CLI commands should be named using the module's name, followed by a verb
 and then any parameters that the command needs. For example:
@@ -353,7 +383,8 @@ not
 
 *CLI> show iax2 peer <peername>
 
-== New dialplan applications/functions ==
+* New dialplan applications/functions
+-------------------------------------
 
 There are two methods of adding functionality to the Asterisk
 dialplan: applications and functions. Applications (found generally in
@@ -371,10 +402,11 @@ example.
 Functions are registered using 'struct ast_custom_function'
 structures and the ast_custom_function_register function.
 
-== Doxygen API Documentation Guidelines ==
+* Doxygen API Documentation Guidelines
+--------------------------------------
 
 When writing Asterisk API documentation the following format should be
-followed.
+followed. Do not use the javadoc style.
 
 /*!
  * \brief Do interesting stuff.
@@ -419,3 +451,60 @@ struct interesting_struct
 Note that /*! */ blocks document the construct immediately following them
 unless they are written, /*!< */, in which case they document the construct
 preceding them.
+
+* Finishing up before you submit your code
+------------------------------------------
+
+- Look at the code once more
+When you achieve your desired functionalty, make another few refactor
+passes over the code to optimize it.
+
+- Read the patch
+Before submitting a patch, *read* the actual patch file to be sure that 
+all the changes you expect to be there are, and that there are no 
+surprising changes you did not expect. During your development, that
+part of Asterisk may have changed, so make sure you compare with the
+latest CVS.
+
+- Listen to advice
+If you are asked to make changes to your patch, there is a good chance
+the changes will introduce bugs, check it even more at this stage.
+Also remember that the bug marshal or co-developer that adds comments 
+is only human, they may be in error :-)
+
+- Optimize, optimize, optimize
+If you are going to reuse a computed value, save it in a variable
+instead of recomputing it over and over.  This can prevent you from 
+making a mistake in subsequent computations, making it easier to correct
+if the formula has an error and may or may not help optimization but 
+will at least help readability.
+
+Just an example (so don't over analyze it, that'd be a shame):
+
+const char *prefix = "pre";	
+const char *postfix = "post";
+char *newname;
+char *name = "data";
+
+if (name && (newname = alloca(strlen(name) + strlen(prefix) + strlen(postfix) + 3)))
+	snprintf(newname, strlen(name) + strlen(prefix) + strlen(postfix) + 3, "%s/%s/%s", prefix, name, postfix);
+
+...vs this alternative:
+
+const char *prefix = "pre";
+const char *postfix = "post";
+char *newname;
+char *name = "data";
+int len = 0;
+
+if (name && (len = strlen(name) + strlen(prefix) + strlen(postfix) + 3) && (newname = alloca(len)))
+	snprintf(newname, len, "%s/%s/%s", prefix, name, postfix);
+
+
+-----------------------------------------------
+Welcome to the Asterisk development community!
+Meet you on the asterisk-dev mailing list. 
+Subscribe at http://lists.digium.com!
+
+Mark Spencer, Kevin P. Fleming and 
+the Asterisk.org Development Team
