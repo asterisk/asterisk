@@ -169,11 +169,11 @@ char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
  */
 void ast_uri_decode(char *s);
 
-static inline void ast_slinear_saturated_add(short *input, short value)
+static inline void ast_slinear_saturated_add(short *input, short *value)
 {
 	int res;
 
-	res = (int) *input + value;
+	res = (int) *input + *value;
 	if (res > 32767)
 		*input = 32767;
 	else if (res < -32767)
@@ -182,11 +182,11 @@ static inline void ast_slinear_saturated_add(short *input, short value)
 		*input = (short) res;
 }
 	
-static inline void ast_slinear_saturated_multiply(short *input, short value)
+static inline void ast_slinear_saturated_multiply(short *input, short *value)
 {
 	int res;
 
-	res = (int) *input * value;
+	res = (int) *input * *value;
 	if (res > 32767)
 		*input = 32767;
 	else if (res < -32767)
@@ -195,9 +195,9 @@ static inline void ast_slinear_saturated_multiply(short *input, short value)
 		*input = (short) res;
 }
 
-static inline void ast_slinear_saturated_divide(short *input, short value)
+static inline void ast_slinear_saturated_divide(short *input, short *value)
 {
-	*input /= value;
+	*input /= *value;
 }
 
 extern int test_for_thread_safety(void);
