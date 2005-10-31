@@ -77,7 +77,7 @@ static void dump_string(char *output, int maxlen, void *value, int len)
 	maxlen--;
 	if (maxlen > len)
 		maxlen = len;
-	ast_copy_string(output, value, maxlen);
+	strncpy(output, value, maxlen);
 	output[maxlen] = '\0';
 }
 
@@ -92,7 +92,7 @@ static void dump_prefs(char *output, int maxlen, void *value, int len)
 	if (maxlen > len)
 		maxlen = len;
 
-	ast_copy_string(output, value, maxlen);
+	strncpy(output, value, maxlen);
 	output[maxlen] = '\0';
 	
 	ast_codec_pref_convert(&pref, output, total_len, 0);
