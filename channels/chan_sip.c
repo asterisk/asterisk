@@ -3295,7 +3295,7 @@ static void parse_request(struct sip_request *req)
 			*c = 0;
 
 			if (sipdebug && option_debug > 3)
-				ast_log(LOG_DEBUG, "Header: %s (%d)\n", req->header[f], (int) strlen(req->header[f]));
+				ast_log(LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
 			if (ast_strlen_zero(req->header[f])) {
 				/* Line by itself means we're now in content */
 				c++;
@@ -3313,8 +3313,11 @@ static void parse_request(struct sip_request *req)
 		c++;
 	}
 	/* Check for last header */
-	if (!ast_strlen_zero(req->header[f])) 
+	if (!ast_strlen_zero(req->header[f])) {
+		if (sipdebug && option_debug > 3)
+			ast_log(LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
 		f++;
+	}
 	req->headers = f;
 	/* Now we process any mime content */
 	f = 0;
@@ -10809,6 +10812,7 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	char iabuf[INET_ADDRSTRLEN];
 	int debug = sip_debug_test_pvt(p);
 	char *e;
+	int error = 0;
 
 	/* Clear out potential response */
 	memset(&resp, 0, sizeof(resp));
@@ -10818,10 +10822,17 @@ static int handle_request(struct sip_pvt *p, struct sip_request *req, struct soc
 	cmd = req->header[0];
 
 	/* Must have Cseq */
-	if (ast_strlen_zero(cmd) || ast_strlen_zero(cseq))
-		return -1;
-	if (sscanf(cseq, "%d%n", &seqno, &len) != 1) {
-		ast_log(LOG_DEBUG, "No seqno in '%s'\n", cmd);
+	if (ast_strlen_zero(cmd) || ast_strlen_zero(cseq)) {
+		ast_log(LOG_ERROR, "Missing Cseq. Dropping this SIP message, it's incomplete.\n");
+		error = 1;
+	}
+	if (!error && sscanf(cseq, "%d%n", &seqno, &len) != 1) {
+		ast_log(LOG_ERROR, "No seqno in '%s'. Dropping incomplete message.\n", cmd);
+		error = 1;
+	}
+	if (error) {
+		if (!p->initreq.header)	/* New call */
+			ast_set_flag(p, SIP_NEEDDESTROY);	/* Make sure we destroy this dialog */
 		return -1;
 	}
 	/* Get the command XXX */
@@ -11007,6 +11018,9 @@ static int sipsock_read(int *id, int fd, short events, void *ignore)
 			ast_log(LOG_WARNING, "Recv error: %s\n", strerror(errno));
 		return 1;
 	}
+	if (res == sizeof(req.data)) {
+		ast_log(LOG_DEBUG, "Received packet exceeds buffer. Data is possibly lost\n");
+	}
 	req.data[res] = '\0';
 	req.len = res;
 	if(sip_debug_test_addr(&sin))
@@ -11053,7 +11067,11 @@ retrylock:
 			append_history(p, "Rx", tmp);
 		}
 		nounlock = 0;
-		handle_request(p, &req, &sin, &recount, &nounlock);
+		if (handle_request(p, &req, &sin, &recount, &nounlock) == -1) {
+			/* Request failed */
+			ast_log(LOG_DEBUG, "SIP message could not be handled, bad request: %-70.70s\n", p->callid[0] ? p->callid : "<no callid>");
+		}
+		
 		if (p->owner && !nounlock)
 			ast_mutex_unlock(&p->owner->lock);
 		ast_mutex_unlock(&p->lock);
