@@ -12167,7 +12167,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		 */
 		v=v->next;
 	}
-	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(peer, SIP_DYNAMIC)) {
+	if (!ast_test_flag((&global_flags_page2), SIP_PAGE2_IGNOREREGEXPIRE) && ast_test_flag(peer, SIP_DYNAMIC) && realtime) {
 		time_t nowtime;
 
 		time(&nowtime);
