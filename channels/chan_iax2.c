@@ -8640,6 +8640,7 @@ static int set_config(char *config_file, int reload)
 					}
 					if (defaultsockfd < 0) 
 						defaultsockfd = ast_netsock_sockfd(ns);
+					ast_netsock_unref(ns);
 				}
 			}
 		} else if (!strcasecmp(v->name, "authdebug"))
@@ -9568,6 +9569,7 @@ int load_module(void)
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Binding IAX2 to default address 0.0.0.0:%d\n", IAX_DEFAULT_PORTNO);
 			defaultsockfd = ast_netsock_sockfd(ns);
+			ast_netsock_unref(ns);
 		}
 	}
 	

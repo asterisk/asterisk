@@ -214,3 +214,8 @@ void *ast_netsock_data(const struct ast_netsock *ns)
 {
 	return ns->data;
 }
+
+void ast_netsock_unref(struct ast_netsock *ns)
+{
+	ASTOBJ_UNREF(ns, ast_netsock_destroy);
+}

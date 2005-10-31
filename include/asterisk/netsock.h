@@ -59,6 +59,8 @@ const struct sockaddr_in *ast_netsock_boundaddr(const struct ast_netsock *ns);
 
 void *ast_netsock_data(const struct ast_netsock *ns);
 
+void ast_netsock_unref(struct ast_netsock *ns);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
