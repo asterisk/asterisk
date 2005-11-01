@@ -4543,6 +4543,7 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 {
 	int cmd = 0;
 	int duration = 0;
+	int tries = 0;
 	char newpassword[80] = "";
 	char newpassword2[80] = "";
 	char prefile[256]="";
@@ -4560,33 +4561,37 @@ static int vm_newuser(struct ast_channel *chan, struct ast_vm_user *vmu, struct 
 
 	/* First, have the user change their password 
 	   so they won't get here again */
-	newpassword[1] = '\0';
-	newpassword[0] = cmd = ast_play_and_wait(chan,"vm-newpassword");
-	if (cmd == '#')
-		newpassword[0] = '\0';
-	if (cmd < 0 || cmd == 't' || cmd == '#')
-		return cmd;
-	cmd = ast_readstring(chan,newpassword + strlen(newpassword),sizeof(newpassword)-1,2000,10000,"#");
-	if (cmd < 0 || cmd == 't' || cmd == '#')
-		return cmd;
-	newpassword2[1] = '\0';
-	newpassword2[0] = cmd = ast_play_and_wait(chan,"vm-reenterpassword");
-	if (cmd == '#')
-		newpassword2[0] = '\0';
-	if (cmd < 0 || cmd == 't' || cmd == '#')
-		return cmd;
-	cmd = ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#");
-	if (cmd < 0 || cmd == 't' || cmd == '#')
-		return cmd;
-	if (strcmp(newpassword, newpassword2)) {
+	for (;;) {
+		newpassword[1] = '\0';
+		newpassword[0] = cmd = ast_play_and_wait(chan,"vm-newpassword");
+		if (cmd == '#')
+			newpassword[0] = '\0';
+		if (cmd < 0 || cmd == 't' || cmd == '#')
+			return cmd;
+		cmd = ast_readstring(chan,newpassword + strlen(newpassword),sizeof(newpassword)-1,2000,10000,"#");
+		if (cmd < 0 || cmd == 't' || cmd == '#')
+			return cmd;
+		newpassword2[1] = '\0';
+		newpassword2[0] = cmd = ast_play_and_wait(chan,"vm-reenterpassword");
+		if (cmd == '#')
+			newpassword2[0] = '\0';
+		if (cmd < 0 || cmd == 't' || cmd == '#')
+			return cmd;
+		cmd = ast_readstring(chan,newpassword2 + strlen(newpassword2),sizeof(newpassword2)-1,2000,10000,"#");
+		if (cmd < 0 || cmd == 't' || cmd == '#')
+			return cmd;
+		if (!strcmp(newpassword, newpassword2))
+			break;
 		ast_log(LOG_NOTICE,"Password mismatch for user %s (%s != %s)\n", vms->username, newpassword, newpassword2);
 		cmd = ast_play_and_wait(chan, "vm-mismatch");
+		if (++tries == 3)
+			return -1;
 	}
 	if (ast_strlen_zero(ext_pass_cmd)) 
 		vm_change_password(vmu,newpassword);
 	else 
 		vm_change_password_shell(vmu,newpassword);
-	ast_log(LOG_DEBUG,"User %s set password to %s of length %d\n",vms->username,newpassword,(int)strlen(newpassword));
+	
 	cmd = ast_play_and_wait(chan,"vm-passchanged");
 
 	/* If forcename is set, have the user record their name */	
