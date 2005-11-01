@@ -837,7 +837,7 @@ uint64_t strtoq(const char *nptr, char **endptr, int base)
 }
 #endif /* !HAVE_STRTOQ */
 
-#if (!defined(getloadavg))
+#if (!defined(_BSD_SOURCE))
 #ifdef linux
 /* Alternative method of getting load avg on Linux only */
 int getloadavg(double *list, int nelem)
@@ -871,7 +871,7 @@ int getloadavg(double *list, int nelem)
 	return -1;
 }
 #endif /* linux */
-#endif /* !defined(getloadavg) */
+#endif /* !defined(_BSD_SOURCE) */
 
 char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 {
