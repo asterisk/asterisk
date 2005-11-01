@@ -36,6 +36,7 @@ WAV49	= -DWAV49
 ######### which support MMX instructions.  This should be newer pentiums,
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
 ######### probably require gcc. 
+PROC=$(shell uname -m)
 
 ifneq (${OSARCH},Darwin)
 ifneq (${OSARCH},SunOS)
@@ -90,7 +91,11 @@ PG =
 # CCFLAGS 	= -c -O
 
 CC		?= gcc
-CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -funroll-loops -fPIC $(OPTIMIZE)
+CCFLAGS 	+= -c -DNeedFunctionPrototypes=1 -funroll-loops $(OPTIMIZE)
+ifneq ($(findstring CYGWIN,${OSARCH}),CYGWIN)
+CCFLAGS   += -fPIC
+endif
+
 
 LD 		= $(CC)
 

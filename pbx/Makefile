@@ -28,7 +28,13 @@ GTK_LIBS=`${CROSS_COMPILE_BIN}gtk-config --libs gthread`
 MOC=$(QTDIR)/bin/moc
 KDE_FLAGS=-I$(KDEDIR)/include -I$(KDEDIR)/include/kde -I$(QTDIR)/include
 KDE_LIBS=-L$(KDEDIR)/lib -L$(QTDIR)/lib -lqt -lkdecore -lkdeui
+
+ifeq (${OSARCH},CYGWIN)
+CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+CYGSOLIB=-L.. -L. -L../res -lasterisk.dll 
+else
 CFLAGS+=-fPIC
+endif
 
 KDE_CONSOLE_OBJS=pbx_kdeconsole_main.o pbx_kdeconsole.o 
 
@@ -53,13 +59,13 @@ pbx_kdeconsole.so: $(KDE_CONSOLE_OBJS)
 	$(CC) $(SOLINK) -o $@ $(KDE_CONSOLE_OBJS) $(KDE_LIBS)
 
 pbx_dundi.so: dundi-parser.o pbx_dundi.o
-	$(CC) $(SOLINK) -o $@ pbx_dundi.o dundi-parser.o -lz
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} pbx_dundi.o dundi-parser.o -lz ${CYGSOLIB}
 
 %.moc : %.h
 	$(MOC) $< -o $@
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ $<
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
 
 ifneq ($(wildcard .depend),)
   include .depend

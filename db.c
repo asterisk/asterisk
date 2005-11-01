@@ -53,6 +53,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "db1-ast/include/db.h"
 
+#ifdef __CYGWIN__
+#define dbopen __dbopen
+#endif
+
 static DB *astdb;
 AST_MUTEX_DEFINE_STATIC(dblock);
 

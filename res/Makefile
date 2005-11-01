@@ -11,8 +11,7 @@
 # the GNU General Public License
 #
 
-MODS=res_adsi.so res_features.so res_musiconhold.so res_indications.so res_monitor.so \
-     res_agi.so
+MODS=res_indications.so res_monitor.so res_adsi.so res_agi.so res_features.so
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
   ifneq (${OSARCH},FreeBSD)
@@ -41,6 +40,15 @@ ifeq ($(findstring BSD,${OSARCH}),BSD)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
+ifeq (${OSARCH},CYGWIN)
+CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+CYGSOLIB=-L.. -L. -lasterisk.dll
+CYG_RES_CONFIG_ODBC_LIB=-lres_odbc.so
+CYG_RES_FEATURES_LIB=-lres_adsi.so -lres_monitor.so
+else
+MODS+=res_musiconhold.so 
+endif
+
 CRYPTO_LIBS=-lssl -lcrypto
 
 CFLAGS+=
@@ -52,7 +60,11 @@ endif
 #
 # Work around buggy RedHat 9.0
 #
+ifeq (${OSARCH},CYGWIN)
+CFLAGS+=-DOPENSSL_NO_KRB5
+else
 CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
+endif
 
 all: depend $(MODS)
 
@@ -63,19 +75,25 @@ install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 res_crypto.so: res_crypto.o
-	$(CC) $(SOLINK) -o $@ $< $(CRYPTO_LIBS)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CRYPTO_LIBS)
 
 clean:
 	rm -f *.so *.o .depend
 
 res_odbc.so: res_odbc.o
-	$(CC) $(SOLINK) -o $@ $< -lodbc
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc
 
 res_osp.so: res_osp.o $(OSPLIB)
-	$(CC) $(SOLINK) -o $@ $^
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(OSPLIB)
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ $<
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
+
+res_features.so: res_features.o
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} ${CYG_RES_FEATURES_LIB}
+
+res_config_odbc.so: res_config_odbc.o
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} ${CYG_RES_CONFIG_ODBC_LIB}
 
 ifneq ($(wildcard .depend),)
   include .depend

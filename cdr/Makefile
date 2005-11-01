@@ -13,7 +13,12 @@
 
 MODS=cdr_csv.so cdr_manager.so cdr_custom.so
 
+ifeq (${OSARCH},CYGWIN)
+CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+CYGSOLIB=-L.. -L. -lasterisk.dll
+else
 CFLAGS+=-fPIC
+endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
@@ -110,23 +115,23 @@ clean:
 	rm -f *.so *.o .depend
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ $<
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
 
 ifneq ($(wildcard .depend),)
   include .depend
 endif
 
 cdr_odbc.so: cdr_odbc.o
-	$(CC) $(SOLINK) -o $@ $< -lodbc $(MLFLAGS)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc $(MLFLAGS)
 
 cdr_tds.so: cdr_tds.o
-	$(CC) $(SOLINK) -o $@ $< -ltds $(MLFLAGS)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -ltds $(MLFLAGS)
 
 cdr_pgsql.so: cdr_pgsql.o
-	$(CC) $(SOLINK) -o $@ $< -lpq -lz $(MLFLAGS)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lpq -lz $(MLFLAGS)
 
 cdr_sqlite.so: cdr_sqlite.o
-	$(CC) $(SOLINK) -o $@ $< -lsqlite $(MLFLAGS)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lsqlite $(MLFLAGS)
 
 depend: .depend
 

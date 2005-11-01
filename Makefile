@@ -216,6 +216,7 @@ endif
 INCLUDE+=-Iinclude -I../include
 ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE #-DMAKE_VALGRIND_HAPPY
 ASTCFLAGS+=$(OPTIMIZE)
+ASTOBJ=-o asterisk
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
   PROC=$(shell uname -m)
@@ -261,6 +262,15 @@ endif
 ifeq (${OSARCH},SunOS)
   ASTCFLAGS+=-Wcast-align -DSOLARIS
   INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
+endif
+
+ifeq ($(findstring CYGWIN,${OSARCH}),CYGWIN)
+CYGLOADER=cygwin_a
+OSARCH=CYGWIN
+ASTOBJ=-shared -o asterisk.dll -Wl,--out-implib=libasterisk.dll.a -Wl,--export-all-symbols
+ASTLINK=
+LIBS+=-lpthread -lncurses -lm -lresolv
+ASTSBINDIR=${MODULES_DIR}
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
@@ -471,8 +481,11 @@ stdtime/libtime.a: FORCE
 		exit 1; \
 	fi
 
-asterisk: editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
-	$(CC) $(DEBUG) -o asterisk $(ASTLINK) $(OBJS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
+cygwin_a:
+	$(MAKE) -C cygwin all
+
+asterisk: ${CYGLOADER} editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
+	$(CC) $(DEBUG) ${ASTOBJ} $(ASTLINK) $(OBJS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
 
 muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
@@ -595,7 +608,9 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/system
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/tmp
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/meetme
-	$(INSTALL) -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/
+	if [ -f asterisk ]; then $(INSTALL) -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/; fi
+	if [ -f cygwin/asterisk.exe ]; then $(INSTALL) -m 755 cygwin/asterisk.exe $(DESTDIR)$(ASTSBINDIR)/; fi
+	if [ -f asterisk.dll ]; then $(INSTALL) -m 755 asterisk.dll $(DESTDIR)$(ASTSBINDIR)/; fi
 	ln -sf asterisk $(DESTDIR)$(ASTSBINDIR)/rasterisk
 	$(INSTALL) -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
 	$(INSTALL) -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/	

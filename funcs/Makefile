@@ -33,7 +33,12 @@ FUNC_SOURCES=$(BUILTINS:.o=.c)
 
 FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(FUNC_SOURCES) | awk '{print $$3};')
 
+ifeq (${OSARCH},CYGWIN)
+CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+CYGSOLIB=-L.. -L. -lasterisk.dll
+else
 CFLAGS+=-fPIC
+endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
   CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
@@ -45,7 +50,7 @@ clean:
 	rm -f *.so *.o .depend pbx_functions.h
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ $<
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
 
 #$(BUILTINS) : CFLAGS += -DBUILTIN_FUNC
 
@@ -59,7 +64,7 @@ pbx_functions.h: $(FUNC_SOURCES)
 pbx_functions.o: pbx_functions.h
 
 pbx_functions.so: pbx_functions.o #$(BUILTINS)
-	$(CC) $(SOLINK) -o $@ $<
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
 
 install: all
 	for x in $(FUNCS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done

@@ -9,9 +9,11 @@
 */
 
 /* Stuff moved from Makefile.inc to reduce clutter */
+#ifndef __CYGWIN__
 #ifndef TM_GMTOFF
 #define TM_GMTOFF	tm_gmtoff
 #define TM_ZONE		tm_zone
+#endif
 #define STD_INSPIRED	1
 #define PCTS		1
 #define HAVE_LONG_DOUBLE 1

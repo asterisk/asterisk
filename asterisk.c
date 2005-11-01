@@ -2048,6 +2048,8 @@ int main(int argc, char *argv[])
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();
 
+#ifndef __CYGWIN__
+
 	if (!is_child_of_nonroot && ast_set_priority(option_highpriority)) {
 		exit(1);
 	}
@@ -2082,6 +2084,8 @@ int main(int argc, char *argv[])
 		if (option_verbose)
 			ast_verbose("Running as user '%s'\n", runuser);
 	}
+
+#endif /* __CYGWIN__ */
 
 	term_init();
 	printf(term_end());

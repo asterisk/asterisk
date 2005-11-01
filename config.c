@@ -33,7 +33,7 @@
 #include <sys/stat.h>
 #define AST_INCLUDE_GLOB 1
 #ifdef AST_INCLUDE_GLOB
-#ifdef __Darwin__
+#if defined(__Darwin__) || defined(__CYGWIN__)
 #define GLOB_ABORTED GLOB_ABEND
 #endif
 # include <glob.h>
@@ -693,7 +693,11 @@ int config_text_file_save(const char *configfile, const struct ast_config *cfg, 
 	}
 	time(&t);
 	ast_copy_string(date, ctime(&t), sizeof(date));
+#ifdef __CYGWIN__	
+	if ((f = fopen(fn, "w+"))) {
+#else
 	if ((f = fopen(fn, "w"))) {
+#endif	    
 		if ((option_verbose > 1) && !option_debug)
 			ast_verbose(  VERBOSE_PREFIX_2 "Saving '%s': ", fn);
 		fprintf(f, ";!\n");

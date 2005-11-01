@@ -1,5 +1,7 @@
 2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* many files: more Cygwin build system support (issue #4678)
+
 	* apps/app_parkandannounce.c (parkandannounce_exec): supply parent channel to ast_request_and_dial so channel variables can be inherited (issue #5564)
 	* include/asterisk/channel.h: add parent_channel field
 	* channel.c (__ast_request_and_dial): use parent_channel field to inherit variables into new channel

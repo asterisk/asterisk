@@ -11,6 +11,11 @@
 # the GNU General Public License
 #
 
+ifeq (${OSARCH},CYGWIN)
+CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+CYGSOLIB=-L.. -L. -lasterisk.dll
+endif
+
 ifneq ($(wildcard g723.1/coder.c),)
   MODG723=codec_g723_1.so
   LIBG723=g723.1/libg723.a
@@ -92,28 +97,28 @@ $(LIBILBC):
 	$(MAKE) -C ilbc all
 
 $(MODILBC): codec_ilbc.o $(LIBILBC)
-	$(CC) $(SOLINK) -o $@ $< $(LIBILBC)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBILBC)
 
 codec_g723_1.so : codec_g723_1.o $(LIBG723)
-	$(CC) $(SOLINK) -o $@ $< $(LIBG723)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBG723)
 
 codec_g723_1b.o : codec_g723_1.c
 	$(CC) -c -o $@ $(CFLAGS) -DANNEX_B -Dsingle $<
 
 codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
-	$(CC) $(SOLINK) -o $@ $< $(LIBG723B) -lm
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBG723B) -lm
 
 codec_gsm.so: codec_gsm.o $(LIBGSMT) 
-	$(CC) $(SOLINK) -o $@ $< $(LIBGSM)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBGSM)
 
 $(MODSPEEX): codec_speex.o
-	$(CC) $(SOLINK) -o $@ $< $(LIBSPEEX)
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBSPEEX)
 
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
-	$(CC) $(SOLINK) -o $@ $< $(LIBLPC10) -lm
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBLPC10) -lm
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ $<
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
 
 ifneq ($(wildcard .depend),)
   include .depend

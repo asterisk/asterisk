@@ -14,11 +14,11 @@
 # the GNU General Public License
 #
 
-CHANNEL_LIBS=chan_modem.so chan_sip.so \
-	     chan_modem_aopen.so \
-             chan_modem_bestdata.so \
-             chan_agent.so chan_mgcp.so chan_iax2.so \
-	     chan_local.so chan_skinny.so chan_features.so
+CHANNEL_LIBS=chan_sip.so chan_agent.so chan_mgcp.so chan_iax2.so chan_local.so chan_skinny.so chan_features.so
+
+ifneq (${OSARCH},CYGWIN)
+CHANNEL_LIBS+=chan_modem.so chan_modem_aopen.so chan_modem_bestdata.so
+endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
@@ -33,6 +33,12 @@ ifeq (${OSARCH},Linux)
   PTLIB=-lpt_linux_x86_r
   H323LIB=-lh323_linux_x86_r
   CHANH323LIB=-ldl
+endif
+
+ifeq (${OSARCH},CYGWIN)
+CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+CYGSOLIB=-L.. -L. -L../res -lasterisk.dll -lres_features.so
+CYG_CHAN_AGENT=-lres_monitor.so
 endif
 
 ifeq ($(PROC),sparc64)
@@ -53,7 +59,9 @@ endif
 
 ifneq (${OSARCH},Darwin)
   ifneq (${OSARCH},SunOS)
-    CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
+    ifneq (${OSARCH},CYGWIN)
+      CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
+    endif
   endif
 endif
 
@@ -113,7 +121,10 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h),)
 endif
 
 CFLAGS+=-DCRYPTO
+
+ifneq ($(OSARCH),CYGWIN)
 CFLAGS+=-fPIC
+endif
 
 CFLAGS+=#-DVOFRDUMPER
 
@@ -140,7 +151,7 @@ clean:
 	rm -f busy.h ringtone.h gentone gentone-ulaw
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ $<
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} ${LIBS}
 
 ifneq ($(wildcard .depend),)
   include .depend
@@ -180,7 +191,7 @@ chan_oss.so: chan_oss.o
 endif
 
 chan_iax2.so: chan_iax2.o iax2-parser.o iax2-provision.o
-	$(CC) $(SOLINK) -o $@ chan_iax2.o iax2-parser.o iax2-provision.o
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_iax2.o iax2-parser.o iax2-provision.o ${CYGSOLIB}
 
 chan_zap.o: chan_zap.c
 	$(CC) -c $(CFLAGS) -o chan_zap.o chan_zap.c
@@ -189,7 +200,10 @@ chan_zap.so: chan_zap.o
 	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone
 
 chan_sip.so: chan_sip.o
-	$(CC) $(SOLINK) -o $@ chan_sip.o
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_sip.o ${CYGSOLIB}
+
+chan_agent.so: chan_agent.o
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_agent.o ${CYGSOLIB} ${CYG_CHAN_AGENT}
 
 chan_alsa.o: $(ALSA_SRC)
 

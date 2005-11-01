@@ -41,6 +41,10 @@
 														 0x20 } }
 #endif
 
+#ifdef __CYGWIN__
+#define PTHREAD_MUTEX_RECURSIVE_NP					PTHREAD_MUTEX_RECURSIVE
+#endif
+
 #ifdef BSD
 #ifdef __GNUC__
 #define AST_MUTEX_INIT_W_CONSTRUCTORS
