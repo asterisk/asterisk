@@ -39,15 +39,6 @@
 #endif
 #define TZ_STRLEN_MAX	255
 /* #define DEBUG */
-#include "asterisk/lock.h"
-#include "asterisk/localtime.h"
-
-
-#ifndef lint
-#ifndef NOID
-static const char	elsieid[] = "@(#)localtime.c	7.57";
-#endif /* !defined NOID */
-#endif /* !defined lint */
 
 /*
 ** Leap second handling from Bradley White (bww@k.gp.cs.cmu.edu).
@@ -59,12 +50,23 @@ static const char	elsieid[] = "@(#)localtime.c	7.57";
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include "private.h"
-#include "tzfile.h"
 #include <fcntl.h>
 #ifdef DEBUG
 #include <stdio.h>
 #endif
+#include "private.h"
+#include "tzfile.h"
+#include "asterisk/lock.h"
+#include "asterisk/localtime.h"
+
+
+#ifndef lint
+#ifndef NOID
+static const char	elsieid[] = "@(#)localtime.c	7.57";
+#endif /* !defined NOID */
+#endif /* !defined lint */
+
+
 
 /*
 ** SunOS 4.1.1 headers lack O_BINARY.
