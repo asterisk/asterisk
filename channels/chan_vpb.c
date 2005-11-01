@@ -152,6 +152,9 @@ static VPB_TONE Ringbacktone = {440, 480,   0, -20,   -20, -100,  2000, 4000};
 static VPB_DETECT toned_grunt = { 3, VPB_GRUNT, 1, 2000, 3000, 0, 0, -40, 0, 0, 0, 40, { { VPB_DELAY, 1000, 0, 0 }, { VPB_RISING, 0, 40, 0 }, { 0, 100, 0, 0 } } };
 static VPB_DETECT toned_ungrunt = { 2, VPB_GRUNT, 1, 2000, 1, 0, 0, -40, 0, 0, 30, 40, { { 0, 0, 0, 0 } } };
 
+/* Use loop polarity detection for CID */
+static int UsePolarityCID=0;
+
 /* Use loop drop detection */
 static int UseLoopDrop=1;
 
@@ -234,7 +237,7 @@ typedef struct  {
 	struct ast_frame **fo;
 	int flags;
 	ast_mutex_t lock;
-	pthread_cond_t cond;
+	ast_cond_t cond;
 	int endbridge;
 } vpb_bridge_t;
 
@@ -283,6 +286,8 @@ static struct vpb_pvt {
 	char language[MAX_LANGUAGE];		/* language being used */
 	char callerid[AST_MAX_EXTENSION];	/* CallerId used for directly connected phone */
 	int  callerid_type;			/* Caller ID type: 0=>none 1=>vpb 2=>AstV23 3=>AstBell */
+	char cid_num[AST_MAX_EXTENSION];
+	char cid_name[AST_MAX_EXTENSION];
 
 	int dtmf_caller_pos;			/* DTMF CallerID detection (Brazil)*/
 
@@ -613,10 +618,10 @@ static void get_callerid(struct vpb_pvt *p)
 	int rc;
 	struct ast_channel *owner = p->owner;
 /*
-	void * ws;
 	char callerid[AST_MAX_EXTENSION] = ""; 
 */
 #ifdef ANALYSE_CID
+	void * ws;
 	char * file="cidsams.wav";
 #endif
 
@@ -628,7 +633,9 @@ static void get_callerid(struct vpb_pvt *p)
 			ast_verbose(VERBOSE_PREFIX_4 "CID record - start\n");
 
 		/* Skip any trailing ringtone */
-		vpb_sleep(RING_SKIP);
+		if (UsePolarityCID != 1){
+			vpb_sleep(RING_SKIP);
+		}
 
 		if (option_verbose>3) 
 			ast_verbose(VERBOSE_PREFIX_4 "CID record - skipped %ldms trailing ring\n",
@@ -675,7 +682,13 @@ static void get_callerid(struct vpb_pvt *p)
 				owner->cid.cid_num = strdup(cli_struct->cldn);
 				owner->cid.cid_name = strdup(cli_struct->cn);
 				*/
-				ast_set_callerid(owner, cli_struct->cldn, cli_struct->cn, cli_struct->cldn);
+				if (owner){
+					ast_set_callerid(owner, cli_struct->cldn, cli_struct->cn, cli_struct->cldn);
+				} else {
+					strcpy(p->cid_num, cli_struct->cldn);
+					strcpy(p->cid_name, cli_struct->cn);
+
+				}
 				if (option_verbose>3) 
 					ast_verbose(VERBOSE_PREFIX_4 "CID record - got [%s] [%s]\n",owner->cid.cid_num,owner->cid.cid_name );
 				snprintf(p->callerid,sizeof(p->callerid)-1,"%s %s",cli_struct->cldn,cli_struct->cn);
@@ -963,6 +976,12 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 					f.frametype = -1;
 			}
 			break;
+		case VPB_LOOP_ONHOOK:
+			if (p->owner->_state == AST_STATE_UP)
+				f.subclass = AST_CONTROL_HANGUP;
+			else
+				f.frametype = -1;
+			break;
 		case VPB_STATION_ONHOOK:
 			f.subclass = AST_CONTROL_HANGUP;
 			break;
@@ -1038,7 +1057,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 
 				ast_mutex_lock(&p->bridge->lock); {
 					p->bridge->endbridge = 1;
-					pthread_cond_signal(&p->bridge->cond);
+					ast_cond_signal(&p->bridge->cond);
 				} ast_mutex_unlock(&p->bridge->lock); 	       		   
 			}	  
 		}
@@ -1097,15 +1116,37 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 	}
 
 	switch(e->type) {
+		case VPB_LOOP_ONHOOK:
+		case VPB_LOOP_POLARITY:
+			if (UsePolarityCID == 1){
+				if (option_verbose>3)
+					ast_verbose(VERBOSE_PREFIX_4 "Polarity reversal\n");
+				if(p->callerid_type == 1) {
+					if (option_verbose>3)
+						ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
+					get_callerid(p);        /* UK CID before 1st ring*/
+				}
+/*				get_callerid_ast(p);    /* Caller ID using the ast functions */
+			}
+			break;
 		case VPB_RING:
 			if (p->mode == MODE_FXO) /* FXO port ring, start * */ {
 				vpb_new(p, AST_STATE_RING, p->context);
-				if(p->callerid_type == 1) {
-					if (option_verbose>3) 
-						ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
-					get_callerid(p);	/* Australian Caller ID only between 1st and 2nd ring  */
+				if (UsePolarityCID != 1){
+					if(p->callerid_type == 1) {
+						if (option_verbose>3)
+							ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
+						get_callerid(p);        /* Australian CID only between 1st and 2nd ring  */
+					}
+					get_callerid_ast(p);    /* Caller ID using the ast functions */
 				}
-				get_callerid_ast(p);	/* Caller ID using the ast functions */
+				else {
+					ast_log(LOG_ERROR, "Setting caller ID: %s %s\n",p->cid_num, p->cid_name);
+					ast_set_callerid(p->owner, p->cid_num, p->cid_name, p->cid_num);
+					p->cid_num[0]=0;
+					p->cid_name[0]=0;
+				}
+
 				vpb_timer_stop(p->ring_timer);
 				vpb_timer_start(p->ring_timer);
 			}
@@ -1460,7 +1501,7 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 			memset(bridges,0,max_bridges * sizeof(vpb_bridge_t));
 			for(int i = 0; i < max_bridges; i++ ) {
 				ast_mutex_init(&bridges[i].lock);
-				pthread_cond_init(&bridges[i].cond, NULL);
+				ast_cond_init(&bridges[i].cond, NULL);
 			}
 		}
 	}
@@ -1477,7 +1518,7 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 			vpb_echo_canc_enable();
 			ast_log(LOG_NOTICE, "Voicetronix echo cancellation ON\n");
 			if (ec_supp_threshold > -1){
-				vpb_echo_canc_set_sup_thresh((short *)&ec_supp_threshold);
+				vpb_echo_canc_set_sup_thresh(0,(short *)&ec_supp_threshold);
 				ast_log(LOG_NOTICE, "Voicetronix EC Sup Thres set\n");
 			}
 		}
@@ -2781,6 +2822,8 @@ int load_module()
 				callgroup = ast_get_group(v->value);
 			} else  if (strcasecmp(v->name, "pickupgroup") == 0){
 				pickupgroup = ast_get_group(v->value);
+			} else  if (strcasecmp(v->name, "usepolaritycid") == 0){
+				UsePolarityCID = atoi(v->value);
 			} else  if (strcasecmp(v->name, "useloopdrop") == 0){
 				UseLoopDrop = atoi(v->value);
 			} else  if (strcasecmp(v->name, "usenativebridge") == 0){
@@ -2949,7 +2992,7 @@ int unload_module()
 	ast_mutex_destroy(&bridge_lock);
 	for(int i = 0; i < max_bridges; i++ ) {
 		ast_mutex_destroy(&bridges[i].lock);
-		pthread_cond_destroy(&bridges[i].cond);
+		ast_cond_destroy(&bridges[i].cond);
 	}
 	free(bridges);
 
