@@ -272,7 +272,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	int len;
 
 	len = sizeof(*mixmonitor) + strlen(filename) + 1;
-	if (post_process && !ast_strlen_zero(post_process))
+	if (!ast_strlen_zero(post_process))
 		len += strlen(post_process) + 1;
 
 	if (!(mixmonitor = calloc(1, len))) {
@@ -283,7 +283,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	mixmonitor->chan = chan;
 	mixmonitor->filename = (char *) mixmonitor + sizeof(*mixmonitor);
 	strcpy(mixmonitor->filename, filename);
-	if (post_process && !ast_strlen_zero(post_process)) {
+	if (!ast_strlen_zero(post_process)) {
 		mixmonitor->post_process = mixmonitor->filename + strlen(filename) + 1;
 		strcpy(mixmonitor->post_process, post_process);
 	}
@@ -336,7 +336,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 		ast_parseoptions(mixmonitor_opts, &flags, opts, args.options);
 
 		if (ast_test_flag(&flags, MUXFLAG_READVOLUME)) {
-			if (!opts[0] || ast_strlen_zero(opts[0])) {
+			if (ast_strlen_zero(opts[0])) {
 				ast_log(LOG_WARNING, "No volume level was provided for the heard volume ('v') option.\n");
 			} else if ((sscanf(opts[0], "%d", &x) != 1) || (x < -4) || (x > 4)) {
 				ast_log(LOG_NOTICE, "Heard volume must be a number between -4 and 4, not '%s'\n", opts[0]);
@@ -346,7 +346,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 		}
 		
 		if (ast_test_flag(&flags, MUXFLAG_WRITEVOLUME)) {
-			if (!opts[1] || ast_strlen_zero(opts[1])) {
+			if (ast_strlen_zero(opts[1])) {
 				ast_log(LOG_WARNING, "No volume level was provided for the spoken volume ('V') option.\n");
 			} else if ((sscanf(opts[1], "%d", &x) != 1) || (x < -4) || (x > 4)) {
 				ast_log(LOG_NOTICE, "Spoken volume must be a number between -4 and 4, not '%s'\n", opts[1]);
@@ -356,7 +356,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 		}
 		
 		if (ast_test_flag(&flags, MUXFLAG_VOLUME)) {
-			if (!opts[2] || ast_strlen_zero(opts[2])) {
+			if (ast_strlen_zero(opts[2])) {
 				ast_log(LOG_WARNING, "No volume level was provided for the combined volume ('W') option.\n");
 			} else if ((sscanf(opts[2], "%d", &x) != 1) || (x < -4) || (x > 4)) {
 				ast_log(LOG_NOTICE, "Combined volume must be a number between -4 and 4, not '%s'\n", opts[2]);
