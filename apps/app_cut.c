@@ -36,6 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/version.h"
+#include "asterisk/app.h"
 
 /* Maximum length of any variable */
 #define MAXRESULT	1024
@@ -150,7 +151,7 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 
 static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
 {
-	char *s, *varname=NULL, *delimiter=NULL, *field=NULL;
+	char *s, *args[3], *varname=NULL, *delimiter=NULL, *field=NULL;
 	int args_okay = 0;
 
 	memset(buffer, 0, buflen);
@@ -159,15 +160,13 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	if (data) {
 		s = ast_strdupa((char *)data);
 		if (s) {
-			varname = strsep(&s, "|");
-			if (varname && (varname[0] != '\0')) {
-				delimiter = strsep(&s, "|");
-				if (delimiter) {
-					field = strsep(&s, "|");
-					if (field) {
-						args_okay = 1;
-					}
-				}
+			ast_separate_app_args(s, '|', args, 3);
+			varname = args[0];
+			delimiter = args[1];
+			field = args[2];
+
+			if (field) {
+				args_okay = 1;
 			}
 		} else {
 			return ERROR_NOMEM;
