@@ -27,4 +27,10 @@
 #define __builtin_expect(exp, c) (exp)
 #endif
 
+#ifdef __GNUC__
+#define force_inline inline __attribute__((always_inline))
+#else
+#define force_inline inline
+#endif
+
 #endif /* _ASTERISK_COMPILER_H */

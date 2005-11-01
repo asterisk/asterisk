@@ -1,4 +1,13 @@
 2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* include/asterisk/utils.h (ast_slinear_saturated_add): force to be inlined whenever possible
+	(ast_slinear_saturated_multiply): same
+	(ast_slinear_saturated_divide): same
+	(inaddrcmp): same
+	* include/asterisk/strings.h (ast_strlen_zero): force to be inlined whenever possible
+	* include/asterisk/compiler.h (force_inline): add macro to force inlining of functions
+	
+2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
+
 	* Asterisk 1.2.0-beta2 released.
 

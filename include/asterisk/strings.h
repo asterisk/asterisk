@@ -30,7 +30,7 @@
 #include "asterisk/compiler.h"
 #include "asterisk/compat.h"
 
-static inline int ast_strlen_zero(const char *s)
+static force_inline int ast_strlen_zero(const char *s)
 {
 	return (!s || (*s == '\0'));
 }

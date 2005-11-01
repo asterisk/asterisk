@@ -118,15 +118,6 @@ struct timeval ast_tvsub(struct timeval a, struct timeval b);
 /*!
  * \brief Returns a timeval from sec, usec
  */
-#if 0
-AST_INLINE_API(
-struct timeval ast_tv(int sec, int usec),
-{
-	struct timeval t = { sec, usec};
-	return t;
-}
-)
-#endif
 AST_INLINE_API(
 struct timeval ast_tv(ast_time_t sec, ast_suseconds_t usec),
 {

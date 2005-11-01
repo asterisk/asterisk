@@ -138,14 +138,14 @@ struct ast_hostent {
 	char buf[1024];
 };
 
-extern struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
+struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 
 /* ast_md5_hash 
 	\brief Produces MD5 hash based on input string */
-extern void ast_md5_hash(char *output, char *input);
+void ast_md5_hash(char *output, char *input);
 
-extern int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
-extern int ast_base64decode(unsigned char *dst, const char *src, int max);
+int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
+int ast_base64decode(unsigned char *dst, const char *src, int max);
 
 /*! ast_uri_encode
 	\brief Turn text string to URI-encoded %XX version 
@@ -169,7 +169,7 @@ char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
  */
 void ast_uri_decode(char *s);
 
-static inline void ast_slinear_saturated_add(short *input, short *value)
+static force_inline void ast_slinear_saturated_add(short *input, short *value)
 {
 	int res;
 
@@ -182,7 +182,7 @@ static inline void ast_slinear_saturated_add(short *input, short *value)
 		*input = (short) res;
 }
 	
-static inline void ast_slinear_saturated_multiply(short *input, short *value)
+static force_inline void ast_slinear_saturated_multiply(short *input, short *value)
 {
 	int res;
 
@@ -195,25 +195,25 @@ static inline void ast_slinear_saturated_multiply(short *input, short *value)
 		*input = (short) res;
 }
 
-static inline void ast_slinear_saturated_divide(short *input, short *value)
+static force_inline void ast_slinear_saturated_divide(short *input, short *value)
 {
 	*input /= *value;
 }
 
-extern int test_for_thread_safety(void);
+int test_for_thread_safety(void);
 
-extern const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
+const char *ast_inet_ntoa(char *buf, int bufsiz, struct in_addr ia);
 
 #ifdef inet_ntoa
 #undef inet_ntoa
 #endif
 #define inet_ntoa __dont__use__inet_ntoa__use__ast_inet_ntoa__instead__
 
-extern int ast_utils_init(void);
-extern int ast_wait_for_input(int fd, int ms);
+int ast_utils_init(void);
+int ast_wait_for_input(int fd, int ms);
 
 /*! Compares the source address and port of two sockaddr_in */
-static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
+static force_inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockaddr_in *sin2)
 {
 	return ((sin1->sin_addr.s_addr != sin2->sin_addr.s_addr) 
 		|| (sin1->sin_port != sin2->sin_port));
@@ -221,7 +221,7 @@ static inline int inaddrcmp(const struct sockaddr_in *sin1, const struct sockadd
 
 #define AST_STACKSIZE 256 * 1024
 #define ast_pthread_create(a,b,c,d) ast_pthread_create_stack(a,b,c,d,0)
-extern int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
+int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*start_routine)(void *), void *data, size_t stacksize);
 
 /*!
 	\brief Process a string to find and replace characters
