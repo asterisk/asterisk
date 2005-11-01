@@ -3933,19 +3933,19 @@ static void silence_generator_release(struct ast_channel *chan, void *data)
 	/* nothing to do */
 }
 
-static short normal_silence_buf[160] = { 0, };
-static struct ast_frame normal_silence_frame = {
-	.frametype = AST_FRAME_VOICE,
-	.subclass = AST_FORMAT_SLINEAR,
-	.data = normal_silence_buf,
-	.samples = 160,
-	.datalen = sizeof(normal_silence_buf),
-};
-
 static int silence_generator_generate(struct ast_channel *chan, void *data, int len, int samples) 
 {
 	if (samples == 160) {
-		if (ast_write(chan, &normal_silence_frame))
+		short buf[160] = { 0, };
+		struct ast_frame frame = {
+			.frametype = AST_FRAME_VOICE,
+			.subclass = AST_FORMAT_SLINEAR,
+			.data = buf,
+			.samples = 160,
+			.datalen = sizeof(buf),
+		};
+
+		if (ast_write(chan, &frame))
 			return -1;
 	} else {
 		short buf[samples];
@@ -3953,7 +3953,7 @@ static int silence_generator_generate(struct ast_channel *chan, void *data, int 
 		struct ast_frame frame = {
 			.frametype = AST_FRAME_VOICE,
 			.subclass = AST_FORMAT_SLINEAR,
-			.data = normal_silence_buf,
+			.data = buf,
 			.samples = samples,
 			.datalen = sizeof(buf),
 		};
