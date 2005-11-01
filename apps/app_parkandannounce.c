@@ -77,6 +77,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	char *s,*orig_s;
 
 	struct ast_channel *dchan;
+	struct outgoing_helper oh;
 	int outstate;
 
 	struct localuser *u;
@@ -178,7 +179,9 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	/* Now place the call to the extention */
 
-	dchan = ast_request_and_dial(dialtech, AST_FORMAT_SLINEAR, dialstr,30000, &outstate, chan->cid.cid_num, chan->cid.cid_name);
+	memset(&oh, 0, sizeof(oh));
+	oh.parent_channel = chan;
+	dchan = __ast_request_and_dial(dialtech, AST_FORMAT_SLINEAR, dialstr,30000, &outstate, chan->cid.cid_num, chan->cid.cid_name, &oh);
 
 	if(dchan) {
 		if(dchan->_state == AST_STATE_UP) {

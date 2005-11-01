@@ -434,6 +434,7 @@ struct chanmon;
 	oh.cid_num = cid_num; \
 	oh.cid_name = cid_name; \
 	oh.vars = vars; \
+	oh.parent_channel = NULL; \
 } 
 
 struct outgoing_helper {
@@ -443,6 +444,7 @@ struct outgoing_helper {
 	const char *cid_num;
 	const char *cid_name;
 	struct ast_variable *vars;
+	struct ast_channel *parent_channel;
 };
 
 #define AST_CDR_TRANSFER	(1 << 0)

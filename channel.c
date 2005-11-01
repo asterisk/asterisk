@@ -2355,8 +2355,12 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 	chan = ast_request(type, format, data, &cause);
 	if (chan) {
 		if (oh) {
-			ast_set_variables(chan, oh->vars);
-			ast_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
+			if (oh->vars)	
+				ast_set_variables(chan, oh->vars);
+			if (oh->cid_num && *oh->cid_num && oh->cid_name && *oh->cid_name)
+				ast_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
+			if (oh->parent_channel)
+				ast_channel_inherit_variables(oh->parent_channel, chan);
 		}
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
 
