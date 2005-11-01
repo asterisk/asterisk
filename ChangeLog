@@ -1,5 +1,7 @@
 2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* res/res_features.c (ast_feature_request_and_dial): ensure that channel variables are inherited from the channel placing the call (issue #5499)
+
 	* utils.c (getloadavg): change to using _BSD_SOURCE as the indicator for whether this function is present or not (issue #5549)
 	
 	* include/asterisk/utils.h (ast_slinear_saturated_add): force to be inlined whenever possible

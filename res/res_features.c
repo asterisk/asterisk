@@ -1087,7 +1087,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 	
 	if ((chan = ast_request(type, format, data, &cause))) {
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
-		
+		ast_channel_inherit_variables(caller, chan);	
 		if (!ast_call(chan, data, timeout)) {
 			struct timeval started;
 			int x, len = 0;
