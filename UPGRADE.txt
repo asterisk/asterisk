@@ -1,5 +1,5 @@
-Information for Upgrading From Asterisk 1.0
-===========================================
+Information for Upgrading From Previous Asterisk Releases
+=========================================================
 
 Compiling:
 
