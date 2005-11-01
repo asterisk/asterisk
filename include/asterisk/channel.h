@@ -1042,6 +1042,9 @@ void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars);
   \param chan The channel to add the spy to.
   \param spy A pointer to ast_channel_spy structure describing how the spy is to be used.
   \return 0 for success, non-zero for failure
+
+  Note: This function performs no locking; you must hold the channel's lock before
+  calling this function.
  */
 int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy);
 
@@ -1050,6 +1053,9 @@ int ast_channel_spy_add(struct ast_channel *chan, struct ast_channel_spy *spy);
   \param chan The channel to remove the spy from
   \param spy The spy to be removed
   \return nothing
+
+  Note: This function performs no locking; you must hold the channel's lock before
+  calling this function.
  */
 void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *spy);
 
@@ -1058,6 +1064,9 @@ void ast_channel_spy_remove(struct ast_channel *chan, struct ast_channel_spy *sp
   \param chan The channel to operate on
   \param type A character string identifying the type of spies to be stopped
   \return nothing
+
+  Note: This function performs no locking; you must hold the channel's lock before
+  calling this function.
  */
 void ast_channel_spy_stop_by_type(struct ast_channel *chan, const char *type);
 
@@ -1071,6 +1080,9 @@ void ast_channel_spy_stop_by_type(struct ast_channel *chan, const char *type);
   due to mismatched queue lengths, or if the spy structure is configured to return
   unmixed audio (in which case each call to this function will return a frame of audio
   from each side of channel).
+
+  Note: This function performs no locking; you must hold the spy's lock before calling
+  this function. You must <b>not</b> hold the channel's lock at the same time.
  */
 struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsigned int samples);
 
@@ -1078,6 +1090,12 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
   \brief Efficiently wait until audio is available for a spy, or an exception occurs.
   \param spy The spy to wait on
   \return nothing
+
+  Note: The locking rules for this function are non-obvious... first, you must <b>not</b>
+  hold the channel's lock when calling this function. Second, you must hold the spy's lock
+  before making the function call; while the function runs the lock will be released, and
+  when the trigger event occurs, the lock will be re-obtained. This means that when control
+  returns to your code, you will again hold the spy's lock.
  */
 void ast_channel_spy_trigger_wait(struct ast_channel_spy *spy);
 
