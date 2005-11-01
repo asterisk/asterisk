@@ -1,5 +1,8 @@
 Changes since Asterisk 1.2.0-beta2:
 
+   * Cygwin build system portability
+   * Optional generation of outbound silence during channel recording
+
 Changes since Asterisk 1.2.0-beta1:
 
    * Many, many bug fixes
