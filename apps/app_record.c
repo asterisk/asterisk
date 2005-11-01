@@ -38,6 +38,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/dsp.h"
 #include "asterisk/utils.h"
+#include "asterisk/options.h"
 
 static char *tdesc = "Trivial Record Application";
 
@@ -98,6 +99,8 @@ static int record_exec(struct ast_channel *chan, void *data)
 	int option_quiet = 0;
 	int rfmt = 0;
 	int flags;
+	int waitres;
+	struct ast_silence_generator *silgen = NULL;
 	
 	/* The next few lines of code parse out the filename and header from the input string */
 	if (ast_strlen_zero(data)) { /* no data implies no filename or anything is present */
@@ -199,123 +202,131 @@ static int record_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	
-	if (!res) {
+	if (res) {
+		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
+		goto out;
+	}
 	
-		if (!option_quiet) {
-			/* Some code to play a nice little beep to signify the start of the record operation */
-			res = ast_streamfile(chan, "beep", chan->language);
-			if (!res) {
-				res = ast_waitstream(chan, "");
-			} else {
-				ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", chan->name);
+	if (!option_quiet) {
+		/* Some code to play a nice little beep to signify the start of the record operation */
+		res = ast_streamfile(chan, "beep", chan->language);
+		if (!res) {
+			res = ast_waitstream(chan, "");
+		} else {
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s\n", chan->name);
+		}
+		ast_stopstream(chan);
+	}
+		
+	/* The end of beep code.  Now the recording starts */
+		
+	if (silence > 0) {
+		rfmt = chan->readformat;
+		res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
+		if (res < 0) {
+			ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
+			LOCAL_USER_REMOVE(u);
+			return -1;
+		}
+		sildet = ast_dsp_new();
+		if (!sildet) {
+			ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
+			LOCAL_USER_REMOVE(u);
+			return -1;
+		}
+		ast_dsp_set_threshold(sildet, 256);
+	} 
+		
+		
+	flags = option_append ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
+	s = ast_writefile( tmp, ext, NULL, flags , 0, 0644);
+		
+	if (!s) {
+		ast_log(LOG_WARNING, "Could not create file %s\n", filename);
+		goto out;
+	}
+
+	if (option_transmit_silence_during_record)
+		silgen = ast_channel_start_silence_generator(chan);
+	
+	/* Request a video update */
+	ast_indicate(chan, AST_CONTROL_VIDUPDATE);
+	
+	if (maxduration <= 0)
+		maxduration = -1;
+	
+	while ((waitres = ast_waitfor(chan, maxduration)) > -1) {
+		if (maxduration > 0) {
+			if (waitres == 0) {
+				gottimeout = 1;
+				break;
 			}
-			ast_stopstream(chan);
+			maxduration = waitres;
 		}
 		
-		/* The end of beep code.  Now the recording starts */
-		
-		if (silence > 0) {
-			rfmt = chan->readformat;
-			res = ast_set_read_format(chan, AST_FORMAT_SLINEAR);
-			if (res < 0) {
-				ast_log(LOG_WARNING, "Unable to set to linear mode, giving up\n");
-				LOCAL_USER_REMOVE(u);
-				return -1;
-			}
-			sildet = ast_dsp_new();
-			if (!sildet) {
-				ast_log(LOG_WARNING, "Unable to create silence detector :(\n");
-				LOCAL_USER_REMOVE(u);
-				return -1;
-			}
-			ast_dsp_set_threshold(sildet, 256);
-		} 
-		
-		
-		flags = option_append ? O_CREAT|O_APPEND|O_WRONLY : O_CREAT|O_TRUNC|O_WRONLY;
-		s = ast_writefile( tmp, ext, NULL, flags , 0, 0644);
-		
-		if (s) {
-			int waitres;
-
-			/* Request a video update */
-			ast_indicate(chan, AST_CONTROL_VIDUPDATE);
-
-			if (maxduration <= 0)
-				maxduration = -1;
+		f = ast_read(chan);
+		if (!f) {
+			res = -1;
+			break;
+		}
+		if (f->frametype == AST_FRAME_VOICE) {
+			res = ast_writestream(s, f);
 			
-			while ((waitres = ast_waitfor(chan, maxduration)) > -1) {
-				if (maxduration > 0) {
-					if (waitres == 0) {
-						gottimeout = 1;
-						break;
-					}
-					maxduration = waitres;
-  				}
-				
-				f = ast_read(chan);
-				if (!f) {
-					res = -1;
-					break;
+			if (res) {
+				ast_log(LOG_WARNING, "Problem writing frame\n");
+				break;
+			}
+			
+			if (silence > 0) {
+				dspsilence = 0;
+				ast_dsp_silence(sildet, f, &dspsilence);
+				if (dspsilence) {
+					totalsilence = dspsilence;
+				} else {
+					totalsilence = 0;
 				}
-				if (f->frametype == AST_FRAME_VOICE) {
-					res = ast_writestream(s, f);
-					
-					if (res) {
-						ast_log(LOG_WARNING, "Problem writing frame\n");
-						break;
-					}
-					
-					if (silence > 0) {
-						dspsilence = 0;
-						ast_dsp_silence(sildet, f, &dspsilence);
-						if (dspsilence) {
-							totalsilence = dspsilence;
-						} else {
-							totalsilence = 0;
-						}
-						if (totalsilence > silence) {
-							/* Ended happily with silence */
-							ast_frfree(f);
-							gotsilence = 1;
-							break;
-						}
-					}
-				}
-				if (f->frametype == AST_FRAME_VIDEO) {
-					res = ast_writestream(s, f);
-					
-					if (res) {
-						ast_log(LOG_WARNING, "Problem writing frame\n");
-						break;
-					}
-				}
-				if ((f->frametype == AST_FRAME_DTMF) &&
-					(f->subclass == terminator)) {
+				if (totalsilence > silence) {
+					/* Ended happily with silence */
 					ast_frfree(f);
+					gotsilence = 1;
 					break;
 				}
-				ast_frfree(f);
 			}
-			if (!f) {
-				ast_log(LOG_DEBUG, "Got hangup\n");
-				res = -1;
-			}
+		}
+		if (f->frametype == AST_FRAME_VIDEO) {
+			res = ast_writestream(s, f);
 			
-			if (gotsilence) {
-				ast_stream_rewind(s, silence-1000);
-				ast_truncstream(s);
-			} else if (!gottimeout) {
-				/* Strip off the last 1/4 second of it */
-				ast_stream_rewind(s, 250);
-				ast_truncstream(s);
+			if (res) {
+				ast_log(LOG_WARNING, "Problem writing frame\n");
+				break;
 			}
-			ast_closestream(s);
-		} else			
-			ast_log(LOG_WARNING, "Could not create file %s\n", filename);
-	} else
-		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
+		}
+		if ((f->frametype == AST_FRAME_DTMF) &&
+		    (f->subclass == terminator)) {
+			ast_frfree(f);
+			break;
+		}
+		ast_frfree(f);
+	}
+	if (!f) {
+		ast_log(LOG_DEBUG, "Got hangup\n");
+		res = -1;
+	}
+			
+	if (gotsilence) {
+		ast_stream_rewind(s, silence-1000);
+		ast_truncstream(s);
+	} else if (!gottimeout) {
+		/* Strip off the last 1/4 second of it */
+		ast_stream_rewind(s, 250);
+		ast_truncstream(s);
+	}
+	ast_closestream(s);
+
+	if (silgen)
+		ast_channel_stop_silence_generator(chan, silgen);
 	
+ out:
 	if ((silence > 0) && rfmt) {
 		res = ast_set_read_format(chan, rfmt);
 		if (res)

@@ -560,6 +560,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	int dspsilence = 0;
 	int gotsilence = 0;		/* did we timeout for silence? */
 	int rfmt=0;
+	struct ast_silence_generator *silgen = NULL;
 
 	if (silencethreshold < 0)
 		silencethreshold = global_silence_threshold;
@@ -615,8 +616,6 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	if (path)
 		ast_unlock_path(path);
 
-
-	
 	if (maxsilence > 0) {
 		sildet = ast_dsp_new(); /* Create the silence detector */
 		if (!sildet) {
@@ -632,8 +631,12 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 			return -1;
 		}
 	}
+
 	/* Request a video update */
 	ast_indicate(chan, AST_CONTROL_VIDUPDATE);
+
+	if (option_transmit_silence_during_record)
+		silgen = ast_channel_start_silence_generator(chan);
 
 	if (x == fmtcnt) {
 	/* Loop forever, writing the packets we read to the writer(s), until
@@ -734,6 +737,9 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	} else {
 		ast_log(LOG_WARNING, "Error creating writestream '%s', format '%s'\n", recordfile, sfmt[x]);
 	}
+
+	if (silgen)
+		ast_channel_stop_silence_generator(chan, silgen);
 
 	*duration = end - start;
 

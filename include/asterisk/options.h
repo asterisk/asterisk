@@ -42,6 +42,7 @@ extern int option_exec_includes;
 extern int option_cache_record_files;
 extern int option_timestamp;
 extern int option_transcode_slin;
+extern int option_transmit_silence_during_record;
 extern int option_maxcalls;
 extern double option_maxload;
 extern int option_dontwarn;

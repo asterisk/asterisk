@@ -142,6 +142,7 @@ int option_timestamp = 0;
 int option_overrideconfig = 0;
 int option_reconnect = 0;
 int option_transcode_slin = 1;
+int option_transmit_silence_during_record = 0;
 int option_maxcalls = 0;
 double option_maxload = 0.0;
 int option_dontwarn = 0;
@@ -1869,6 +1870,9 @@ static void ast_readconfig(void) {
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
 			option_transcode_slin = ast_true(v->value);
+		/* Transmit SLINEAR silence while a channel is being recorded */
+		} else if (!strcasecmp(v->name, "transmit_silence_during_record")) {
+			option_transmit_silence_during_record = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "maxcalls")) {
 			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;

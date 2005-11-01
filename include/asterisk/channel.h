@@ -1099,6 +1099,10 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
  */
 void ast_channel_spy_trigger_wait(struct ast_channel_spy *spy);
 
+struct ast_silence_generator;
+struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_channel *chan);
+void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_silence_generator *state);
+
 /* Misc. functions below */
 
 /* Helper function for migrating select to poll */

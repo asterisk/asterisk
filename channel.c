@@ -3921,3 +3921,100 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
 
 	return result;
 }
+
+static void *silence_generator_alloc(struct ast_channel *chan, void *data)
+{
+	/* just store the data pointer in the channel structure */
+	return data;
+}
+
+static void silence_generator_release(struct ast_channel *chan, void *data)
+{
+	/* nothing to do */
+}
+
+static short normal_silence_buf[160] = { 0, };
+static struct ast_frame normal_silence_frame = {
+	.frametype = AST_FRAME_VOICE,
+	.subclass = AST_FORMAT_SLINEAR,
+	.data = normal_silence_buf,
+	.samples = 160,
+	.datalen = sizeof(normal_silence_buf),
+};
+
+static int silence_generator_generate(struct ast_channel *chan, void *data, int len, int samples) 
+{
+	if (samples == 160) {
+		if (ast_write(chan, &normal_silence_frame))
+			return -1;
+	} else {
+		short buf[samples];
+		int x;
+		struct ast_frame frame = {
+			.frametype = AST_FRAME_VOICE,
+			.subclass = AST_FORMAT_SLINEAR,
+			.data = normal_silence_buf,
+			.samples = samples,
+			.datalen = sizeof(buf),
+		};
+
+		for (x = 0; x < samples; x++)
+			buf[x] = 0;
+
+		if (ast_write(chan, &frame))
+			return -1;
+	}
+
+	return 0;
+}
+
+static struct ast_generator silence_generator = {
+	.alloc = silence_generator_alloc,
+	.release = silence_generator_release,
+	.generate = silence_generator_generate, 
+};
+
+struct ast_silence_generator {
+	int old_write_format;
+};
+
+struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_channel *chan)
+{
+	struct ast_silence_generator *state;
+
+	if (!(state = calloc(1, sizeof(*state)))) {
+		ast_log(LOG_WARNING, "Could not allocate state structure\n");
+		return NULL;
+	}
+
+	state->old_write_format = chan->writeformat;
+
+	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR) < 0) {
+		ast_log(LOG_ERROR, "Could not set write format to SLINEAR\n");
+		free(state);
+		return NULL;
+	}
+
+	ast_activate_generator(chan, &silence_generator, state);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Started silence generator on '%s'\n", chan->name);
+
+	return state;
+}
+
+void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_silence_generator *state)
+{
+	if (!state)
+		return;
+
+	ast_deactivate_generator(chan);
+
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Stopped silence generator on '%s'\n", chan->name);
+
+	if (ast_set_write_format(chan, state->old_write_format) < 0)
+		ast_log(LOG_ERROR, "Could not return write format to its original state\n");
+
+	free(state);
+}
