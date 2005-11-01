@@ -342,7 +342,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	unsigned int rtcpdata[1024];
 	char iabuf[INET_ADDRSTRLEN];
 	
-	if (!rtp->rtcp)
+	if (!rtp || !rtp->rtcp)
 		return &null_frame;
 
 	len = sizeof(sin);
