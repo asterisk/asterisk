@@ -13,3 +13,8 @@ rtpend=20000
 ; Whether to enable or disable UDP checksums on RTP traffic
 ;
 ;rtpchecksums=no
+;
+; The amount of time a DTMF digit with no 'end' marker should be
+; allowed to continue (in 'samples', 1/8000 of a second)
+;
+;dtmftimeout=3000

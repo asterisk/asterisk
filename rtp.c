@@ -58,7 +58,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define RTP_MTU		1200
 
-static int dtmftimeout = 3000; /* 3000 samples */
+#define DEFAULT_DTMF_TIMEOUT 3000 /* samples */
+
+static int dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 
 static int rtpstart = 0;
 static int rtpend = 0;
@@ -1813,6 +1815,7 @@ void ast_rtp_reload(void)
 
 	rtpstart = 5000;
 	rtpend = 31000;
+	dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 	cfg = ast_config_load("rtp.conf");
 	if (cfg) {
 		if ((s = ast_variable_retrieve(cfg, "general", "rtpstart"))) {
@@ -1839,6 +1842,14 @@ void ast_rtp_reload(void)
 			if (ast_false(s))
 				ast_log(LOG_WARNING, "Disabling RTP checksums is not supported on this operating system!\n");
 #endif
+		}
+		if ((s = ast_variable_retrieve(cfg, "general", "dtmftimeout"))) {
+			dtmftimeout = atoi(s);
+			if ((dtmftimeout < 0) || (dtmftimeout > 20000)) {
+				ast_log(LOG_WARNING, "DTMF timeout of '%d' outside range, using default of '%d' instead\n",
+					dtmftimeout, DEFAULT_DTMF_TIMEOUT);
+				dtmftimeout = DEFAULT_DTMF_TIMEOUT;
+			};
 		}
 		ast_config_destroy(cfg);
 	}
