@@ -217,7 +217,7 @@ use_callingpres=yes
 ; be aware, move this setting only to outgoing portgroups!
 ; A value of zero turns echocancellation off.
 ;
-; possible values are: 0,32,64,128.256,yes(=128),no(=0)
+; possible values are: 0,32,64,128,256,yes(=128),no(=0)
 ;
 ; default value: no
 ;

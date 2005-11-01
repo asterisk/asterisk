@@ -11,6 +11,75 @@
  * the GNU General Public License
  */
 
+#include "isdn_lib_intern.h"
+
+
+int misdn_ibuf_freecount(void *buf)
+{
+	return ibuf_usedcount( (ibuffer_t*)buf);
+}
+
+int misdn_ibuf_usedcount(void *buf)
+{
+	return ibuf_usedcount( (ibuffer_t*)buf);
+}
+
+void misdn_ibuf_memcpy_r(char *to, void *buf, int len)
+{
+	ibuf_memcpy_r( to, (ibuffer_t*)buf, len);
+}
+
+void misdn_ibuf_memcpy_w(void *buf, char *from,  int len)
+{
+	ibuf_memcpy_w((ibuffer_t*)buf, from, len);
+}
+
+struct misdn_stack* get_misdn_stack( void );
+
+
+int misdn_lib_is_ptp(int port)
+{
+	struct misdn_stack *stack=get_misdn_stack();
+	for ( ; stack; stack=stack->next) {
+		if (stack->port == port) return stack->ptp;
+	}
+	return -1;
+}
+
+
+struct misdn_stack* get_stack_by_bc(struct misdn_bchannel *bc)
+{
+	struct misdn_stack *stack=get_misdn_stack();
+	
+	
+	for ( ; stack; stack=stack->next) {
+		int i;
+		for (i=0; i <stack->b_num; i++) {
+			if ( bc->port == stack->port) return stack;
+		}
+	}
+
+	return NULL;
+}
+
+
+void get_show_stack_details(int port, char *buf)
+{
+	struct misdn_stack *stack=get_misdn_stack();
+	
+	for ( ; stack; stack=stack->next) {
+		if (stack->port == port) break;
+	}
+	
+	if (stack) {
+		sprintf(buf, "* Stack Addr: Port %d Type %s Prot. %s L2Link %s L1Link:%s", stack->upper_id & IF_CONTRMASK, stack->mode==NT_MODE?"NT":"TE", stack->ptp?"PTP":"PMP", stack->l2link?"UP":"DOWN", stack->l1link?"UP":"DOWN");
+	} else {
+		buf[0]=0;
+	}
+	
+}
+
+
 static int nt_err_cnt =0 ;
 
 enum global_states {
@@ -244,8 +313,9 @@ int send_msg (int midev, struct misdn_bchannel *bc, msg_t *dmsg)
 {
 	iframe_t *frm;
 	frm = (iframe_t *)dmsg->data;
-
-	frm->addr = (bc->stack->upper_id &  IF_ADDRMASK) | IF_DOWN ;
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
+	frm->addr = (stack->upper_id &  IF_ADDRMASK) | IF_DOWN ;
 	frm->dinfo = bc->l3_id;
   
 	frm->len = (dmsg->len) - mISDN_HEADER_LEN;
@@ -396,6 +466,8 @@ void empty_bc(struct misdn_bchannel *bc)
 	
 	bc->facility=FACILITY_NONE;
 	bc->facility_calldeflect_nr[0]=0;
+
+	bc->te_choose_channel = 0;
 }
 
 
@@ -403,21 +475,25 @@ int clean_up_bc(struct misdn_bchannel *bc)
 {
 	int ret=0;
 	unsigned char buff[32];
-	if (!bc || !bc->stack) return -1;
-  
+	struct misdn_stack * stack;
+	
+	if (!bc  ) return -1;
+	stack=get_stack_by_bc(bc);
+	if (!stack) return -1;
+	
 	if (!bc->upset) {
-		cb_log(5, bc->stack->port, "$$$ Already cleaned up bc with stid :%x\n", bc->b_stid);
+		cb_log(5, stack->port, "$$$ Already cleaned up bc with stid :%x\n", bc->b_stid);
 		return -1;
 	}
   
-	cb_log(5, bc->stack->port, "$$$ Cleaning up bc with stid :%x\n", bc->b_stid);
-  
+	cb_log(5, stack->port, "$$$ Cleaning up bc with stid :%x\n", bc->b_stid);
+	
 	
 	if ( misdn_cap_is_speech(bc->capability) && bc->ec_enable) {
 		manager_ec_disable(bc);
 	}
 	
-	mISDN_write_frame(bc->stack->midev, buff, bc->layer_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
+	mISDN_write_frame(stack->midev, buff, bc->layer_id, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 	
 	
 	bc->b_stid = 0;
@@ -469,11 +545,67 @@ static int newteid=0;
 #define MAXPROCS 0x10
 #endif
 
+
+int misdn_lib_get_l1_up(struct misdn_stack *stack)
+{
+	/* Pull Up L1 if we have JOLLY */ 
+	iframe_t act;
+	act.prim = PH_ACTIVATE | REQUEST; 
+	act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN ;
+	act.dinfo = 0;
+	act.len = 0;
+
+	return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
+
+}
+
+int misdn_lib_get_l2_up(struct misdn_stack *stack)
+{
+	
+	if (stack->ptp && (stack->mode == NT_MODE) ) {
+		msg_t *dmsg;
+		/* L2 */
+		dmsg = create_l2msg(DL_ESTABLISH | REQUEST, 0, 0);
+		
+		if (stack->nst.manager_l3(&stack->nst, dmsg))
+			free_msg(dmsg);
+		
+	} else {
+		iframe_t act;
+		
+		act.prim = DL_ESTABLISH | REQUEST;
+
+		act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN;
+		act.dinfo = 0;
+		act.len = 0;
+		return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
+	}
+	
+	return 0;
+}
+
+
+int misdn_lib_get_l2_status(struct misdn_stack *stack)
+{
+	iframe_t act;
+	
+#ifdef DL_STATUS
+	act.prim = DL_STATUS | REQUEST; 
+#else
+	act.prim = DL_ESTABLISH | REQUEST;
+#endif
+	act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN;
+	act.dinfo = 0;
+	act.len = 0;
+	return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
+}
+
+
 static int create_process (int midev, struct misdn_bchannel *bc) {
 	iframe_t ncr;
 	int l3_id;
 	int i;
-	struct misdn_stack *stack=bc->stack;
+	struct misdn_stack *stack=get_stack_by_bc(bc);
 	int free_chan;
   
 	if (stack->mode == NT_MODE) {
@@ -508,7 +640,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 		cb_log(3, stack->port, " --> new_l3id %x\n",l3_id);
     
 	} else { 
-		if (stack->ptp || stack->te_choose_channel) {
+		if (stack->ptp || bc->te_choose_channel) {
 			/* we know exactly which channels are in use */
 			free_chan = find_free_chan_in_stack(stack, bc->channel_preselected?bc->channel:0);
 			if (!free_chan) return -1;
@@ -551,12 +683,15 @@ int setup_bc(struct misdn_bchannel *bc)
   
 	mISDN_pid_t pid;
 	int ret;
-	int midev=bc->stack->midev;
+
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
+	int midev=stack->midev;
 	int channel=bc->channel-1-(bc->channel>16);
-	int b_stid=bc->stack->b_stids[channel>=0?channel:0];
+	int b_stid=stack->b_stids[channel>=0?channel:0];
 	
 	if (bc->upset) {
-		cb_log(5, bc->stack->port, "$$$ bc already upsetted stid :%x\n", b_stid);
+		cb_log(5, stack->port, "$$$ bc already upsetted stid :%x\n", b_stid);
 		return -1;
 	}
 	
@@ -565,10 +700,10 @@ int setup_bc(struct misdn_bchannel *bc)
 		clean_up_bc(bc);
 	}
 	
-	cb_log(5, bc->stack->port, "$$$ Setting up bc with stid :%x\n", b_stid);
+	cb_log(5, stack->port, "$$$ Setting up bc with stid :%x\n", b_stid);
 	
 	if (b_stid <= 0) {
-		cb_log(0, bc->stack->port," -- Stid <=0 at the moment on port:%d channel:%d\n",bc->stack->port,channel);
+		cb_log(0, stack->port," -- Stid <=0 at the moment on port:%d channel:%d\n",stack->port,channel);
 		return 1;
 	}
 
@@ -586,7 +721,7 @@ int setup_bc(struct misdn_bchannel *bc)
 
 
 		if ( misdn_cap_is_speech(bc->capability) && !bc->nodsp && bc->async != 1) {
-			cb_log(4, bc->stack->port,"setup_bc: with dsp\n");
+			cb_log(4, stack->port,"setup_bc: with dsp\n");
 			{ 
 				int l = sizeof(li.name);
 				strncpy(li.name, "B L4", l);
@@ -596,7 +731,7 @@ int setup_bc(struct misdn_bchannel *bc)
 			li.pid.protocol[4] = ISDN_PID_L4_B_USER;
 			
 		} else {
-			cb_log(4, bc->stack->port,"setup_bc: without dsp\n");
+			cb_log(4, stack->port,"setup_bc: without dsp\n");
 			{ 
 				int l = sizeof(li.name);
 				strncpy(li.name, "B L3", l);
@@ -608,7 +743,7 @@ int setup_bc(struct misdn_bchannel *bc)
 		
 		ret = mISDN_new_layer(midev, &li);
 		if (ret <= 0) {
-			cb_log(0, bc->stack->port,"New Layer Err: %d %s port:%d\n",ret,strerror(errno), bc->stack->port);
+			cb_log(0, stack->port,"New Layer Err: %d %s port:%d\n",ret,strerror(errno), stack->port);
 			return(-EINVAL);
 		}
       
@@ -618,18 +753,18 @@ int setup_bc(struct misdn_bchannel *bc)
 	memset(&pid, 0, sizeof(pid));
 	
 	bc->addr = ( bc->layer_id & IF_ADDRMASK) | IF_DOWN;
-	cb_log(4, bc->stack->port," --> Got Adr %x\n", bc->addr);
-	cb_log(4, bc->stack->port," --> Channel is %d\n", bc->channel);
+	cb_log(4, stack->port," --> Got Adr %x\n", bc->addr);
+	cb_log(4, stack->port," --> Channel is %d\n", bc->channel);
 	
 	
 	if (bc->async == 1 || bc->nodsp) {
-		cb_log(4, bc->stack->port," --> TRANSPARENT Mode (no DSP)\n");
+		cb_log(4, stack->port," --> TRANSPARENT Mode (no DSP)\n");
 		pid.protocol[1] = ISDN_PID_L1_B_64TRANS;
 		pid.protocol[2] = ISDN_PID_L2_B_TRANS;
 		pid.protocol[3] = ISDN_PID_L3_B_USER;
 		pid.layermask = ISDN_LAYER((1)) | ISDN_LAYER((2)) | ISDN_LAYER((3));
 	} else if ( misdn_cap_is_speech(bc->capability)) {
-		cb_log(4, bc->stack->port," --> TRANSPARENT Mode\n");
+		cb_log(4, stack->port," --> TRANSPARENT Mode\n");
 		pid.protocol[1] = ISDN_PID_L1_B_64TRANS;
 		pid.protocol[2] = ISDN_PID_L2_B_TRANS;
 		pid.protocol[3] = ISDN_PID_L3_B_DSP;
@@ -637,7 +772,7 @@ int setup_bc(struct misdn_bchannel *bc)
 		pid.layermask = ISDN_LAYER((1)) | ISDN_LAYER((2)) | ISDN_LAYER((3)) | ISDN_LAYER((4));
 		
 	} else {
-		cb_log(4, bc->stack->port," --> HDLC Mode\n");
+		cb_log(4, stack->port," --> HDLC Mode\n");
 		pid.protocol[1] = ISDN_PID_L1_B_64HDLC ;
 		pid.protocol[2] = ISDN_PID_L2_B_TRANS  ;
 		pid.protocol[3] = ISDN_PID_L3_B_USER;
@@ -648,7 +783,7 @@ int setup_bc(struct misdn_bchannel *bc)
 	
 	
 	if (ret){
-		cb_log(5, bc->stack->port,"$$$ Set Stack Err: %d %s\n",ret,strerror(errno));
+		cb_log(5, stack->port,"$$$ Set Stack Err: %d %s\n",ret,strerror(errno));
     
 		mISDN_write_frame(midev, buff, bc->addr, MGR_DELLAYER | REQUEST, 0, 0, NULL, TIMEOUT_1SEC);
 		return(-EINVAL);
@@ -679,32 +814,42 @@ int init_bc(struct misdn_stack *stack,  struct misdn_bchannel *bc, int midev, in
 		strncpy(bc->msn,msn, l);
 		bc->msn[l-1] = 0;
 	}
-
-
+	
+	
 	empty_bc(bc);
 	bc->upset=0;
-  
-	bc->astbuf= init_ibuffer(MISDN_IBUF_SIZE);
-	clear_ibuffer(  bc->astbuf);
-	bc->astbuf->rsem=malloc(sizeof(sem_t));
-  
-  
-	if (sem_init(bc->astbuf->rsem,1,0)<0)
-		sem_init(bc->astbuf->rsem,0,0);
-  
-  
-	bc->misdnbuf= init_ibuffer(MISDN_IBUF_SIZE);
-	clear_ibuffer(  bc->misdnbuf);
-	bc->misdnbuf->rsem=malloc(sizeof(sem_t));
-  
-	if (sem_init(bc->misdnbuf->rsem,1,0)< 0)
-		sem_init(bc->misdnbuf->rsem,0,0);
-  
-	bc->stack=stack;
-  
+	bc->port=stack->port;
+	bc->nt=stack->mode==NT_MODE?1:0;
+	
+	{
+		ibuffer_t* ibuf= init_ibuffer(MISDN_IBUF_SIZE);
+		ibuffer_t* mbuf= init_ibuffer(MISDN_IBUF_SIZE);
+
+		if (!ibuf) return -1;
+		if (!mbuf) return -1;
+		
+		clear_ibuffer( ibuf);
+		clear_ibuffer( mbuf);
+		
+		ibuf->rsem=malloc(sizeof(sem_t));
+		mbuf->rsem=malloc(sizeof(sem_t));
+		
+		bc->astbuf=ibuf;
+		bc->misdnbuf=mbuf;
+
+		if (sem_init(ibuf->rsem,1,0)<0)
+			sem_init(ibuf->rsem,0,0);
+		if (sem_init(mbuf->rsem,1,0)< 0)
+			sem_init(mbuf->rsem,0,0);
+		
+	}
+	
+	
+	
+	
 	{
 		stack_info_t *stinf;
-		ret = mISDN_get_stack_info(midev, bc->stack->port, buff, sizeof(buff));
+		ret = mISDN_get_stack_info(midev, stack->port, buff, sizeof(buff));
 		if (ret < 0) {
 			cb_log(0, port, "%s: Cannot get stack info for port:%d (ret=%d)\n", __FUNCTION__, port, ret);
 			return -1;
@@ -798,28 +943,15 @@ struct misdn_stack * stack_nt_init(struct misdn_stack *stack, int midev, int por
 		Isdnl2Init(&stack->nst);
 		Isdnl3Init(&stack->nst);
 	}
-	/* if ntmode, establish L1 to send the tei removal during start */
-	{
-		iframe_t act;
-		act.prim = PH_ACTIVATE | REQUEST; 
-		act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN ;
-		act.dinfo = 0;
-		act.len = 0;
-		mISDN_write(midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
-	}
 
-	stack->l2link=0;
+	misdn_lib_get_l1_up(stack);
+
 	if (stack->ptp) {
-		msg_t *dmsg;
-		/* L2 */
-		dmsg = create_l2msg(DL_ESTABLISH | REQUEST, 0, 0);
-
-		if (stack->nst.manager_l3(&stack->nst, dmsg))
-			free_msg(dmsg);
-
-		stack->l2link=1;
+		misdn_lib_get_l2_up(stack);
+		stack->l2link=0;
 	}
-  
+	
+	
 	return stack;
 }
 
@@ -947,47 +1079,9 @@ struct misdn_stack* stack_te_init( int midev, int port, int ptp )
 		return NULL;
 	}
   
-
-	/* if ptp, establish link */
-	if (stack->ptp) {
-		iframe_t act;
-    
-#ifdef DL_STATUS
-		act.prim = DL_STATUS | REQUEST; 
-#else
-		act.prim = DL_ESTABLISH | REQUEST;
-#endif
-		act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN;
-		act.dinfo = 0;
-		act.len = 0;
-		mISDN_write(midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
-	}
-
-#ifdef DL_STATUS
-	{ /* Pull Up L1 if we have JOLLY */ 
-		iframe_t act;
-		act.prim = PH_ACTIVATE | REQUEST; 
-		act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN ;
-		act.dinfo = 0;
-		act.len = 0;
-		mISDN_write(midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
-	}
+	misdn_lib_get_l1_up(stack);
+	misdn_lib_get_l2_status(stack);
 	
-	
-	if (!stack->ptp) {
-		iframe_t act;
-
-
-		act.prim = DL_STATUS | REQUEST; 
-    
-		act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN;
-		act.dinfo = 0;
-		act.len = 0;
-		mISDN_write(midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
-	}
-#endif
-	
-  
 	/*  initially, we assume that the link is NOT up */
 	stack->l2link = 0;
 	stack->l1link = 0;
@@ -1106,18 +1200,18 @@ struct misdn_bchannel *find_bc_by_addr(unsigned long addr)
 
 int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 {
-
-	if (bc->stack->mode == TE_MODE) {
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	if (stack->mode == TE_MODE) {
 		switch (event) {
 		case EVENT_CONNECT:
 			if ( *bc->crypt_key ) {
-				cb_log(4, bc->stack->port, "ENABLING BLOWFISH port:%d channel:%d oad%d:%s dad%d:%s\n", bc->stack->port, bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
+				cb_log(4, stack->port, "ENABLING BLOWFISH port:%d channel:%d oad%d:%s dad%d:%s\n", stack->port, bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
 				
 				manager_ph_control_block(bc,  BF_ENABLE_KEY, bc->crypt_key, strlen(bc->crypt_key) );
 			}
 		case EVENT_SETUP:
 			if (bc->channel>0 && bc->channel<255)
-				set_chan_in_stack(bc->stack, bc->channel);
+				set_chan_in_stack(stack, bc->channel);
 			break;
 		case EVENT_ALERTING:
 		case EVENT_PROGRESS:
@@ -1129,9 +1223,9 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 			if (!stack) return -1;
 			
 			if (bc->channel == 0xff) {
-				bc->channel=find_free_chan_in_stack(bc->stack, 0);
+				bc->channel=find_free_chan_in_stack(stack, 0);
 				if (!bc->channel) {
-					cb_log(0, bc->stack->port, "Any Channel Requested, but we have no more!!\n");
+					cb_log(0, stack->port, "Any Channel Requested, but we have no more!!\n");
 					break;
 				}
 			} 
@@ -1160,7 +1254,7 @@ int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
 		return -1;
 	}
   
-	cb_log(4, bc->stack->port, " --> new_process: New L3Id: %x\n",frm->dinfo);
+	cb_log(4, stack->port, " --> new_process: New L3Id: %x\n",frm->dinfo);
 	bc->l3_id=frm->dinfo;
 	
 	if (mypid>5000) mypid=0;
@@ -1196,23 +1290,23 @@ int handle_cr ( iframe_t *frm)
 			if (!bc) {
 				cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on port:%d\n", frm->dinfo, stack->port);
 				memset (&dummybc,0,sizeof(dummybc));
-				dummybc.stack=stack;
+				dummybc.port=stack->port;
 				dummybc.l3_id=frm->dinfo;
 				bc=&dummybc; 
 			}
       
 			if (bc) {
 				cb_log(4, stack->port, " --> lib: CLEANING UP l3id: %x\n",frm->dinfo);
-				empty_chan_in_stack(bc->stack,bc->channel);
+				empty_chan_in_stack(stack,bc->channel);
 				empty_bc(bc);
 				clean_up_bc(bc);
-				dump_chan_list(bc->stack);
+				dump_chan_list(stack);
 				bc->pid = 0;
 				cb_event(EVENT_CLEANUP, bc, glob_mgr->user_data);
 				
 				if (bc->stack_holder) {
 					cb_log(4,stack->port, "REMOVEING Holder\n");
-					stack_holder_remove( bc->stack, bc);
+					stack_holder_remove( stack, bc);
 					free(bc);
 				}
 			}
@@ -1233,12 +1327,17 @@ int handle_cr ( iframe_t *frm)
 /*Emptys bc if it's reserved (no SETUP out yet)*/
 void misdn_lib_release(struct misdn_bchannel *bc)
 {
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 	if (bc->channel>=0) {
-		empty_chan_in_stack(bc->stack,bc->channel);
+		empty_chan_in_stack(stack,bc->channel);
 		empty_bc(bc);
 	}
 	clean_up_bc(bc);
 }
+
+
+
 
 int misdn_lib_get_port_up (int port) 
 { /* Pull Up L1 if we have JOLLY */ 
@@ -1249,12 +1348,12 @@ int misdn_lib_get_port_up (int port)
 	     stack=stack->next) {
 		
 		if (stack->port == port) {
-			iframe_t act;
-			act.prim = DL_ESTABLISH | REQUEST; 
-			act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN ;
-			act.dinfo = 0;
-			act.len = 0;
-			mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
+
+			if (!stack->l1link)
+				misdn_lib_get_l1_up(stack);
+			if (!stack->l2link)
+				misdn_lib_get_l2_up(stack);
+			
 			return 0;
 		}
 	}
@@ -1287,7 +1386,7 @@ int misdn_lib_port_up(int port)
 				else
 					return 0;
 			} else {
-				if (stack->l2link)
+				if (stack->l1link)
 					return 1;
 				else
 					return 0;
@@ -1364,7 +1463,7 @@ handle_event_nt(void *dat, void *arg)
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
 			int l3id = *((int *)(((u_char *)msg->data)+ mISDNUSER_HEAD_SIZE));
 			
-			cb_log(4, bc?bc->stack->port:0, " --> lib: Event_ind:SETUP CONFIRM [NT] : new L3ID  is %x\n",l3id );
+			cb_log(4, bc?stack->port:0, " --> lib: Event_ind:SETUP CONFIRM [NT] : new L3ID  is %x\n",l3id );
 	
 			if (!bc) { cb_log(4, 0, "Bc Not found (after SETUP CONFIRM)\n"); return 0; }
 	
@@ -1398,7 +1497,18 @@ handle_event_nt(void *dat, void *arg)
 		case CC_CONNECT|INDICATION:
 		{
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
-	
+
+			if (!bc) {
+				msg_t *dmsg;
+				cb_log(0, stack->port,"!!!! We didn't found our bc, dinfo:%x port:%d\n",hh->dinfo, stack->port);
+				
+				cb_log(0, stack->port, "Releaseing call %x (No free Chan for you..)\n", hh->dinfo);
+				dmsg = create_l3msg(CC_RELEASE_COMPLETE | REQUEST,MT_RELEASE_COMPLETE, hh->dinfo,sizeof(RELEASE_COMPLETE_t), 1);
+				stack->nst.manager_l3(&stack->nst, dmsg);
+				free_msg(msg);
+				return 0;
+				
+			}
 			setup_bc(bc);
 		}
 		break;
@@ -1410,7 +1520,7 @@ handle_event_nt(void *dat, void *arg)
 				if (bc) { //repair reject bug
 					int myprocid=bc->l3_id&0x0000ffff;
 					hh->dinfo=(hh->dinfo&0xffff0000)|myprocid;
-					cb_log(4,bc->stack->port,"Repaired reject Bug, new dinfo: %x\n",hh->dinfo);
+					cb_log(4,stack->port,"Repaired reject Bug, new dinfo: %x\n",hh->dinfo);
 				}
 			}
 		}
@@ -1457,7 +1567,7 @@ handle_event_nt(void *dat, void *arg)
 			if (!bc) {
 				cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on port:%d\n", hh->dinfo, stack->port);
 				memset (&dummybc,0,sizeof(dummybc));
-				dummybc.stack=stack;
+				dummybc.port=stack->port;
 				dummybc.l3_id=hh->dinfo;
 				bc=&dummybc; 
 			}
@@ -1559,7 +1669,7 @@ handle_event_nt(void *dat, void *arg)
       
 			cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on port:%d\n", hh->dinfo, stack->port);
 			memset (&dummybc,0,sizeof(dummybc));
-			dummybc.stack=stack;
+			dummybc.port=stack->port;
 			dummybc.l3_id=hh->dinfo;
 			bc=&dummybc; 
 		}
@@ -1567,7 +1677,7 @@ handle_event_nt(void *dat, void *arg)
 			isdn_msg_parse_event(msgs_g,msg,bc, 1);
 			
 			if(!isdn_get_info(msgs_g,event,1)) {
-				cb_log(4, bc->stack->port, "Unknown Event Ind: prim %x dinfo %x\n",hh->prim, hh->dinfo);
+				cb_log(4, stack->port, "Unknown Event Ind: prim %x dinfo %x\n",hh->prim, hh->dinfo);
 			} else {
 				cb_event(event, bc, glob_mgr->user_data);
 			}
@@ -1645,7 +1755,8 @@ static int do_tone(struct misdn_bchannel *bc, int len)
 	char buf[4096 + mISDN_HEADER_LEN];
 	iframe_t *frm= (iframe_t*)buf;
 	int  r;
-  
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 	if (bc->tone == TONE_NONE) return 0;
 
 	frm->prim = DL_DATA|REQUEST;
@@ -1662,7 +1773,7 @@ static int do_tone(struct misdn_bchannel *bc, int len)
 		frm->len = TONE_425_SIZE;
 		memcpy(&buf[mISDN_HEADER_LEN], tone_425_flip,TONE_425_SIZE);
       
-		r=mISDN_write(bc->stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
+		r=mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
 		if (r<frm->len) {
 			perror("Error written less than told bytes :(\n");
 		}
@@ -1675,14 +1786,14 @@ static int do_tone(struct misdn_bchannel *bc, int len)
 		if (bc->tone_cnt2 <= TONE_ALERT_CNT) {
 			frm->len = TONE_425_SIZE;
 			memcpy(&buf[mISDN_HEADER_LEN], tone_425_flip,TONE_425_SIZE);
-			r=mISDN_write(bc->stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
+			r=mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
 			if (r<frm->len) {
 				perror("Error written less than told bytes :(\n");
 			}
 		} else if (bc->tone_cnt2 <= (TONE_ALERT_SILENCE_CNT)) {
 			frm->len = TONE_SILENCE_SIZE;
 			memcpy(&buf[mISDN_HEADER_LEN], tone_silence_flip ,TONE_SILENCE_SIZE);
-			r=mISDN_write(bc->stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
+			r=mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
 		} else {
 			bc->tone_cnt2=-1;
 		}
@@ -1693,14 +1804,14 @@ static int do_tone(struct misdn_bchannel *bc, int len)
 		if (bc->tone_cnt2 <= TONE_BUSY_CNT) {
 			frm->len = TONE_425_SIZE;
 			memcpy(&buf[mISDN_HEADER_LEN], tone_425_flip,TONE_425_SIZE);
-			r=mISDN_write(bc->stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
+			r=mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
 			if (r<frm->len) {
 				perror("Error written less than told bytes :(\n");
 			}
 		} else if (bc->tone_cnt2 <= (TONE_BUSY_SILENCE_CNT)) {
 			frm->len = TONE_SILENCE_SIZE;
 			memcpy(&buf[mISDN_HEADER_LEN], tone_silence_flip ,TONE_SILENCE_SIZE);
-			r=mISDN_write(bc->stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
+			r=mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_1SEC);
 		} else {
 			bc->tone_cnt2=-1;
 		}
@@ -1721,33 +1832,37 @@ int handle_bchan(msg_t *msg)
 {
 	iframe_t *frm= (iframe_t*)msg->data;
 	struct misdn_bchannel *bc;
-  
+	
 	bc=find_bc_by_addr(frm->addr);
-  
+	
 	if (!bc) return 0 ;
-  
+
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+
+	if (!stack) return 0;
+	
 	switch (frm->prim) {
 	case PH_ACTIVATE | INDICATION:
 	case DL_ESTABLISH | INDICATION:
-		cb_log(4, bc->stack->port, "BCHAN: ACT Ind\n");
+		cb_log(4, stack->port, "BCHAN: ACT Ind\n");
 		free_msg(msg);
 		return 1;    
 
 	case PH_ACTIVATE | CONFIRM:
 	case DL_ESTABLISH | CONFIRM:
-		cb_log(4, bc->stack->port, "BCHAN: bchan ACT Confirm\n");
+		cb_log(4, stack->port, "BCHAN: bchan ACT Confirm\n");
 		free_msg(msg);
 		return 1;    
 
 	case PH_DEACTIVATE | INDICATION:
 	case DL_RELEASE | INDICATION:
-		cb_log (4, bc->stack->port, "BCHAN: DeACT Ind\n");
+		cb_log (4, stack->port, "BCHAN: DeACT Ind\n");
 		free_msg(msg);
 		return 1;
     
 	case PH_DEACTIVATE | CONFIRM:
 	case DL_RELEASE | CONFIRM:
-		cb_log(4, bc->stack->port, "BCHAN: DeACT Conf\n");
+		cb_log(4, stack->port, "BCHAN: DeACT Conf\n");
 		free_msg(msg);
 		return 1;
     
@@ -1755,11 +1870,11 @@ int handle_bchan(msg_t *msg)
 	{
 		unsigned long cont = *((unsigned long *)&frm->data.p);
 		
-		cb_log(4, bc->stack->port, "PH_CONTROL: port:%d channel:%d oad%d:%s dad%d:%s \n", bc->stack->port, bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
+		cb_log(4, stack->port, "PH_CONTROL: port:%d channel:%d oad%d:%s dad%d:%s \n", stack->port, bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
 
 		if ((cont&~DTMF_TONE_MASK) == DTMF_TONE_VAL) {
 			int dtmf = cont & DTMF_TONE_MASK;
-			cb_log(4, bc->stack->port, " --> DTMF TONE: %c\n",dtmf);
+			cb_log(4, stack->port, " --> DTMF TONE: %c\n",dtmf);
 			bc->dtmf=dtmf;
 			cb_event(EVENT_DTMF_TONE, bc, glob_mgr->user_data);
 	
@@ -1767,12 +1882,12 @@ int handle_bchan(msg_t *msg)
 			return 1;
 		}
 		if (cont == BF_REJECT) {
-			cb_log(4, bc->stack->port, " --> BF REJECT\n");
+			cb_log(4, stack->port, " --> BF REJECT\n");
 			free_msg(msg);
 			return 1;
 		}
 		if (cont == BF_ACCEPT) {
-			cb_log(4, bc->stack->port, " --> BF ACCEPT\n");
+			cb_log(4, stack->port, " --> BF ACCEPT\n");
 			free_msg(msg);
 			return 1;
 		}
@@ -1790,7 +1905,7 @@ int handle_bchan(msg_t *msg)
 		
 		
 #if MISDN_DEBUG
-		cb_log(0, bc->stack->port, "DL_DATA INDICATION Len %d\n", frm->len);
+		cb_log(0, stack->port, "DL_DATA INDICATION Len %d\n", frm->len);
 #endif
 		
 		if (bc->active && frm->len > 0) {
@@ -1815,9 +1930,9 @@ int handle_bchan(msg_t *msg)
 							txfrm->addr = bc->addr; /*  | IF_DOWN; */
 							txfrm->len = frm->len;
 							ibuf_memcpy_r(&buf[mISDN_HEADER_LEN], bc->misdnbuf,frm->len);
-							cb_log(9, bc->stack->port, "Transmitting %d samples 2 misdn\n", txfrm->len);
+							cb_log(9, stack->port, "Transmitting %d samples 2 misdn\n", txfrm->len);
 							
-							r=mISDN_write(bc->stack->midev, buf, txfrm->len + mISDN_HEADER_LEN, 8000 );
+							r=mISDN_write(stack->midev, buf, txfrm->len + mISDN_HEADER_LEN, 8000 );
 							
 						}
 						
@@ -1835,14 +1950,14 @@ int handle_bchan(msg_t *msg)
 	case PH_DATA | CONFIRM:
 	case DL_DATA|CONFIRM:
 #if MISDN_DEBUG
-		cb_log(0, bc->stack->port, "Data confirmed\n");
+		cb_log(0, stack->port, "Data confirmed\n");
 #endif
 		free_msg(msg);
 		return 1;
 		break;
 	case DL_DATA|RESPONSE:
 #if MISDN_DEBUG
-		cb_log(0, bc->stack->port, "Data response\n");
+		cb_log(0, stack->port, "Data response\n");
 #endif
 		break;
     
@@ -1930,7 +2045,7 @@ int handle_frm(msg_t *msg)
 					break;
 				case RESPONSE_IGNORE_SETUP:
 					/* I think we should send CC_RELEASE_CR, but am not sure*/
-					empty_chan_in_stack(bc->stack, bc->channel);
+					empty_chan_in_stack(stack, bc->channel);
 					empty_bc(bc);
 	  
 					cb_log(0, stack->port, "GOT IGNORE SETUP: port:%d\n", frm->addr&IF_CONTRMASK);
@@ -1972,7 +2087,14 @@ int handle_l1(msg_t *msg)
 	case PH_ACTIVATE | INDICATION:
 		cb_log (1, stack->port, "L1: PH L1Link Up! port:%d\n",stack->port);
 		stack->l1link=1;
-		free_msg(msg);
+		
+		if (stack->mode==NT_MODE) {
+			
+			if (stack->nst.l1_l2(&stack->nst, msg))
+				free_msg(msg);
+		} else {
+			free_msg(msg);
+		}
 		
 		for (i=0;i<stack->b_num; i++) {
 			if (stack->bc[i].evq != EVENT_NOTHING) {
@@ -1987,14 +2109,25 @@ int handle_l1(msg_t *msg)
 	case PH_DEACTIVATE | CONFIRM:
 	case PH_DEACTIVATE | INDICATION:
 		cb_log (1, stack->port, "L1: PH L1Link Down! port:%d\n",stack->port);
-		stack->l1link=0;
+		
 		for (i=0; i<stack->b_num; i++) {
 			if (global_state == MISDN_INITIALIZED)  {
 				cb_event(EVENT_CLEANUP, &stack->bc[i], glob_mgr->user_data);
 			}
 			
-		} 
-		free_msg(msg);
+		}
+		
+		if (stack->mode==NT_MODE) {
+			if (stack->nst.l1_l2(&stack->nst, msg))
+				free_msg(msg);
+			
+		} else {
+			free_msg(msg);
+		}
+		
+		stack->l1link=0;
+		stack->l2link=0;
+		
 		return 1;
 	}
   
@@ -2013,7 +2146,7 @@ int handle_l2(msg_t *msg)
 #ifdef DL_STATUS
 	case DL_STATUS | INDICATION:
 	case DL_STATUS | CONFIRM:
-		cb_log (3, stack->port, "L1: DL_STATUS! port:%d\n", stack->port);
+		cb_log (3, stack->port, "L2: DL_STATUS! port:%d\n", stack->port);
 		
 		switch (frm->dinfo) {
 		case SDL_ESTAB:
@@ -2023,7 +2156,7 @@ int handle_l2(msg_t *msg)
 		case SDL_REL:
 			cb_log (4, stack->port, " --> SDL_REL port:%d\n", stack->port);
 			stack->l1link=0;
-			misdn_lib_get_port_up(stack->port);
+			misdn_lib_get_l2_up(stack);
 			goto dl_rel;
 		}
 		break;
@@ -2051,9 +2184,6 @@ int handle_l2(msg_t *msg)
 	{
 		cb_log (3, stack->port, "L2: L2Link Down! port:%d\n", stack->port);
 		stack->l2link=0;
-
-		if (cb_clearl3_true())
-			clear_l3(stack);
 		
 		free_msg(msg);
 		return 1;
@@ -2228,7 +2358,8 @@ struct misdn_bchannel *manager_find_bc_by_pid(int pid)
 
 struct misdn_bchannel *manager_find_bc_holded(struct misdn_bchannel* bc)
 {
-	return find_bc_holded(bc->stack);
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	return find_bc_holded(stack);
 }
 
 
@@ -2271,10 +2402,14 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel)
 void misdn_lib_log_ies(struct misdn_bchannel *bc)
 {
 	if (!bc) return;
+
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+
+	if (!stack) return;
 	
-	cb_log(2, bc->stack->port, " --> mode:%s cause:%d ocause:%d rad:%s\n", bc->stack->mode==NT_MODE?"NT":"TE", bc->cause, bc->out_cause, bc->rad);
+	cb_log(2, stack->port, " --> mode:%s cause:%d ocause:%d rad:%s\n", stack->mode==NT_MODE?"NT":"TE", bc->cause, bc->out_cause, bc->rad);
 	
-	cb_log(2, bc->stack->port,
+	cb_log(2, stack->port,
 	       " --> info_dad:%s onumplan:%c dnumplan:%c rnumplan:%c\n",
 	       bc->info_dad,
 	       bc->onumplan>=0?'0'+bc->onumplan:' ',
@@ -2282,11 +2417,11 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc)
 	       bc->rnumplan>=0?'0'+bc->rnumplan:' '
 		);
 	
-	cb_log(2, bc->stack->port, " --> channel:%d caps:%s pi:%x keypad:%s\n", bc->channel, bearer2str(bc->capability),bc->progress_indicator, bc->keypad);
+	cb_log(2, stack->port, " --> channel:%d caps:%s pi:%x keypad:%s\n", bc->channel, bearer2str(bc->capability),bc->progress_indicator, bc->keypad);
 
-	cb_log(3, bc->stack->port, " --> pid:%d addr:%x l3id:%x\n", bc->pid, bc->addr, bc->l3_id);
+	cb_log(3, stack->port, " --> pid:%d addr:%x l3id:%x\n", bc->pid, bc->addr, bc->l3_id);
 
-	cb_log(4, bc->stack->port, " --> bc:%x h:%d sh:%d\n", bc, bc->holded, bc->stack_holder);
+	cb_log(4, stack->port, " --> bc:%x h:%d sh:%d\n", bc, bc->holded, bc->stack_holder);
 }
 
 int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
@@ -2295,15 +2430,17 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	int err = -1 ;
   
 	if (!bc) goto ERR; 
-
-	if ( bc->stack->mode == NT_MODE && !bc->stack->l1link) {
+	
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
+	if ( stack->mode == NT_MODE && !stack->l1link) {
 		/** Queue Event **/
 		bc->evq=event;
-		cb_log(1, bc->stack->port, "Queueing Event %s because L1 is down (btw. Activating L1)\n", isdn_get_info(msgs_g, event, 0));
+		cb_log(1, stack->port, "Queueing Event %s because L1 is down (btw. Activating L1)\n", isdn_get_info(msgs_g, event, 0));
 		{ /* Pull Up L1 */ 
 			iframe_t act;
 			act.prim = PH_ACTIVATE | REQUEST; 
-			act.addr = (bc->stack->upper_id & IF_ADDRMASK) | IF_DOWN ;
+			act.addr = (stack->upper_id & IF_ADDRMASK) | IF_DOWN ;
 			act.dinfo = 0;
 			act.len = 0;
 			mISDN_write(glob_mgr->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
@@ -2312,13 +2449,13 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		return 0;
 	}
 	
-	cb_log(1, bc->stack->port, "I SEND:%s oad:%s dad:%s port:%d\n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad, bc->stack->port);
+	cb_log(1, stack->port, "I SEND:%s oad:%s dad:%s port:%d\n", isdn_get_info(msgs_g, event, 0), bc->oad, bc->dad, stack->port);
 	misdn_lib_log_ies(bc);
 	
 	switch (event) {
 	case EVENT_SETUP:
 		if (create_process(glob_mgr->midev, bc)<0) {
-			cb_log(0,  bc->stack->port, " No free channel at the moment @ send_event\n");
+			cb_log(0,  stack->port, " No free channel at the moment @ send_event\n");
 			err=-ENOCHAN;
 			goto ERR;
 		}
@@ -2331,11 +2468,11 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	case EVENT_SETUP_ACKNOWLEDGE:
 	case EVENT_RETRIEVE_ACKNOWLEDGE:
 		
-		if (bc->stack->mode == NT_MODE) {
+		if (stack->mode == NT_MODE) {
 			if (bc->channel <=0 ) { /*  else we have the channel already */
-				bc->channel = find_free_chan_in_stack(bc->stack, 0);
+				bc->channel = find_free_chan_in_stack(stack, 0);
 				if (!bc->channel) {
-					cb_log(0, bc->stack->port, " No free channel at the moment\n");
+					cb_log(0, stack->port, " No free channel at the moment\n");
 					err=-ENOCHAN;
 					goto ERR;
 				}
@@ -2348,7 +2485,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		
 		if ( event == EVENT_CONNECT ) {
 			if ( *bc->crypt_key ) {
-				cb_log(4, bc->stack->port,  " --> ENABLING BLOWFISH port:%d channel:%d oad%d:%s dad%d:%s \n", bc->stack->port, bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
+				cb_log(4, stack->port,  " --> ENABLING BLOWFISH port:%d channel:%d oad%d:%s dad%d:%s \n", stack->port, bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
 				
 				manager_ph_control_block(bc,  BF_ENABLE_KEY, bc->crypt_key, strlen(bc->crypt_key) );
 			}
@@ -2359,12 +2496,12 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 				if (bc->ec_enable) manager_ec_enable(bc);
 				
 				if (bc->txgain != 0) {
-					cb_log(4, bc->stack->port,  "--> Changing txgain to %d\n", bc->txgain);
+					cb_log(4, stack->port,  "--> Changing txgain to %d\n", bc->txgain);
 					manager_ph_control(bc, VOL_CHANGE_TX, bc->txgain);
 				}
 				
 				if ( bc->rxgain != 0 ) {
-					cb_log(4, bc->stack->port,  "--> Changing rxgain to %d\n", bc->rxgain);
+					cb_log(4, stack->port,  "--> Changing rxgain to %d\n", bc->rxgain);
 					manager_ph_control(bc, VOL_CHANGE_RX, bc->rxgain);
 				}
 			}
@@ -2383,10 +2520,10 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		memcpy(holded_bc,bc,sizeof(struct misdn_bchannel));
 		
 		holded_bc->holded=1;
-		stack_holder_add(bc->stack,holded_bc);
+		stack_holder_add(stack,holded_bc);
 		
-		if (bc->stack->mode == NT_MODE) {
-			empty_chan_in_stack(bc->stack,bc->channel);
+		if (stack->mode == NT_MODE) {
+			empty_chan_in_stack(stack,bc->channel);
 			empty_bc(bc);
 			clean_up_bc(bc);
 		}
@@ -2403,7 +2540,7 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 		break;
 		
 	case EVENT_RELEASE_COMPLETE:
-		empty_chan_in_stack(bc->stack,bc->channel);
+		empty_chan_in_stack(stack,bc->channel);
 		empty_bc(bc);
 		clean_up_bc(bc);
 		break;
@@ -2414,11 +2551,11 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			if (  !bc->nodsp) manager_ph_control(bc,  DTMF_TONE_START, 0);
 			if (bc->ec_enable) manager_ec_enable(bc);
 			if ( bc->txgain != 0 ) {
-				cb_log(4, bc->stack->port, "--> Changing txgain to %d\n", bc->txgain);
+				cb_log(4, stack->port, "--> Changing txgain to %d\n", bc->txgain);
 				manager_ph_control(bc, VOL_CHANGE_TX, bc->txgain);
 			}
 			if ( bc->rxgain != 0 ) {
-				cb_log(4, bc->stack->port, "--> Changing rxgain to %d\n", bc->rxgain);
+				cb_log(4, stack->port, "--> Changing rxgain to %d\n", bc->rxgain);
 				manager_ph_control(bc, VOL_CHANGE_RX, bc->rxgain);
 			}
 		}
@@ -2429,8 +2566,8 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	}
   
 	/* Later we should think about sending bchannel data directly to misdn. */
-	msg = isdn_msg_build_event(msgs_g, bc, event, bc->stack->mode==NT_MODE?1:0);
-	msg_queue_tail(&bc->stack->downqueue, msg);
+	msg = isdn_msg_build_event(msgs_g, bc, event, stack->mode==NT_MODE?1:0);
+	msg_queue_tail(&stack->downqueue, msg);
 	sem_post(&glob_mgr->new_msg);
   
 	return 0;
@@ -2832,8 +2969,10 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 	msg_t *msg=alloc_msg(MAX_MSG_SIZE);
 	iframe_t *frm;
 
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 	if (!msg) {
-		cb_log(0, bc->stack->port, "bchannel_activate: alloc_msg failed !");
+		cb_log(0, stack->port, "bchannel_activate: alloc_msg failed !");
 		return ;
 	}
 	
@@ -2845,7 +2984,7 @@ void manager_bchannel_activate(struct misdn_bchannel *bc)
 	
 	if (bc->active) return;
   
-	cb_log(5, bc->stack->port, "$$$ Bchan Activated addr %x\n", bc->addr);
+	cb_log(5, stack->port, "$$$ Bchan Activated addr %x\n", bc->addr);
 
 	/* activate bchannel */
 	frm->prim = DL_ESTABLISH | REQUEST;
@@ -2867,10 +3006,10 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 {
 	iframe_t dact;
 
-  
+	struct misdn_stack *stack=get_stack_by_bc(bc);
 	if (!bc->active) return;
   
-	cb_log(5, bc->stack->port, "$$$ Bchan deActivated addr %x\n", bc->addr);
+	cb_log(5, stack->port, "$$$ Bchan deActivated addr %x\n", bc->addr);
   
 	bc->tone=TONE_NONE;
 
@@ -2879,7 +3018,7 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 	dact.dinfo = 0;
 	dact.len = 0;
   
-	mISDN_write(bc->stack->midev, &dact, mISDN_HEADER_LEN+dact.len, TIMEOUT_1SEC);
+	mISDN_write(stack->midev, &dact, mISDN_HEADER_LEN+dact.len, TIMEOUT_1SEC);
 	clear_ibuffer(bc->misdnbuf);
 	clear_ibuffer(bc->astbuf);
 	bc->active=0;
@@ -2890,7 +3029,8 @@ void manager_bchannel_deactivate(struct misdn_bchannel * bc)
 
 int manager_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 {
-	
+
+	struct misdn_stack *stack=get_stack_by_bc(bc);
 	if (!bc->active) return -1;   
 	
 	flip_buf_bits(data,len);
@@ -2914,10 +3054,10 @@ int manager_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len)
 		
 		
 		if ( misdn_cap_is_speech(bc->capability))
-			cb_log(4, bc->stack->port, "Writing %d bytes\n",len);
+			cb_log(4, stack->port, "Writing %d bytes\n",len);
 		
-		cb_log(9, bc->stack->port, "Wrinting %d bytes 2 mISDN\n",len);
-		r=mISDN_write(bc->stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_INFINIT);
+		cb_log(9, stack->port, "Wrinting %d bytes 2 mISDN\n",len);
+		r=mISDN_write(stack->midev, buf, frm->len + mISDN_HEADER_LEN, TIMEOUT_INFINIT);
 	}
 
 	return 0;
@@ -2944,14 +3084,15 @@ void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2)
 	unsigned char buffer[mISDN_HEADER_LEN+sizeof(int)+sizeof(int)];
 	iframe_t *ctrl = (iframe_t *)buffer; /* preload data */
 	unsigned long *d = (unsigned long *)&ctrl->data.p;
-  
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 	ctrl->prim = PH_CONTROL | REQUEST;
 	ctrl->addr = bc->addr;
 	ctrl->dinfo = 0;
 	ctrl->len = sizeof(unsigned long)*2;
 	*d++ = c1;
 	*d++ = c2;
-	mISDN_write(bc->stack->midev, ctrl, mISDN_HEADER_LEN+ctrl->len, TIMEOUT_1SEC);
+	mISDN_write(stack->midev, ctrl, mISDN_HEADER_LEN+ctrl->len, TIMEOUT_1SEC);
 }
 
 /*
@@ -2962,6 +3103,7 @@ void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c
 	unsigned char buffer[mISDN_HEADER_LEN+sizeof(int)+c2_len];
 	iframe_t *ctrl = (iframe_t *)buffer;
 	unsigned long *d = (unsigned long *)&ctrl->data.p;
+	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
 	ctrl->prim = PH_CONTROL | REQUEST;
 	ctrl->addr = bc->addr;
@@ -2969,7 +3111,7 @@ void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c
 	ctrl->len = sizeof(unsigned long) + c2_len;
 	*d++ = c1;
 	memcpy(d, c2, c2_len);
-	mISDN_write(bc->stack->midev, ctrl, mISDN_HEADER_LEN+ctrl->len, TIMEOUT_1SEC);
+	mISDN_write(stack->midev, ctrl, mISDN_HEADER_LEN+ctrl->len, TIMEOUT_1SEC);
 }
 
 
@@ -2977,10 +3119,12 @@ void manager_ph_control_block(struct misdn_bchannel *bc, int c1, void *c2, int c
 
 void manager_clean_bc(struct misdn_bchannel *bc )
 {
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 	if (bc->state == STATE_CONNECTED)
 		misdn_lib_send_event(bc,EVENT_DISCONNECT);
 
-	empty_chan_in_stack(bc->stack, bc->channel);
+	empty_chan_in_stack(stack, bc->channel);
 	empty_bc(bc);
   
 	misdn_lib_send_event(bc,EVENT_RELEASE_COMPLETE);
@@ -2990,11 +3134,10 @@ void manager_clean_bc(struct misdn_bchannel *bc )
 void stack_holder_add(struct misdn_stack *stack, struct misdn_bchannel *holder)
 {
 	struct misdn_bchannel *help;
-
-	cb_log(4,holder->stack->port, "*HOLDER: add %x\n",holder->l3_id);
+	cb_log(4,stack->port, "*HOLDER: add %x\n",holder->l3_id);
 	
 	holder->stack_holder=1;
-	
+
 	if (!stack ) return ;
 	
 	holder->next=NULL;
@@ -3020,7 +3163,7 @@ void stack_holder_remove(struct misdn_stack *stack, struct misdn_bchannel *holde
 
 	if (!holder->stack_holder) return;
 	
-	cb_log(4,holder->stack->port, "*HOLDER: remove %x\n",holder->l3_id);
+	cb_log(4,stack->port, "*HOLDER: remove %x\n",holder->l3_id);
 	if (!stack || ! stack->holding) return;
   
 	if (holder == stack->holding) {
@@ -3065,8 +3208,10 @@ struct misdn_bchannel *stack_holder_find(struct misdn_stack *stack, unsigned lon
 void manager_ec_enable(struct misdn_bchannel *bc)
 {
 	int ec_arr[2];
+
+	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
-	cb_log(1, bc?bc->stack->port:0,"Sending Control ECHOCAN_ON enblock\n");
+	cb_log(1, stack?stack->port:0,"Sending Control ECHOCAN_ON enblock\n");
 	
 	switch (bc->ec_deftaps) {
 	case 4:
@@ -3078,10 +3223,10 @@ void manager_ec_enable(struct misdn_bchannel *bc)
 	case 256:
 	case 512:
 	case 1024:
-		cb_log(4, bc->stack->port, "Taps is %d\n",bc->ec_deftaps);
+		cb_log(4, stack->port, "Taps is %d\n",bc->ec_deftaps);
 		break;
 	default:
-		cb_log(0, bc->stack->port, "Taps should be power of 2\n");
+		cb_log(0, stack->port, "Taps should be power of 2\n");
 		bc->ec_deftaps=128;
 	}
 
@@ -3094,10 +3239,33 @@ void manager_ec_enable(struct misdn_bchannel *bc)
 
 void manager_ec_disable(struct misdn_bchannel *bc)
 {
-	cb_log(1, bc?bc->stack->port:0, "Sending Control ECHOCAN_OFF\n");
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
+	cb_log(1, stack?stack->port:0, "Sending Control ECHOCAN_OFF\n");
 	manager_ph_control(bc,  ECHOCAN_OFF, 0);
 }
 
 struct misdn_stack* get_misdn_stack() {
 	return glob_mgr->stack_list;
+}
+
+
+
+void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2) {
+	manager_ph_control(bc1, CMX_RECEIVE_OFF, 0);
+	manager_ph_control(bc2, CMX_RECEIVE_OFF, 0);
+	
+	manager_ph_control(bc1, CMX_CONF_JOIN, (bc1->pid<<1) +1);
+	manager_ph_control(bc2, CMX_CONF_JOIN, (bc1->pid<<1) +1);
+}
+
+void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2)
+{
+	
+	manager_ph_control(bc1, CMX_RECEIVE_ON, 0) ;
+	manager_ph_control(bc2, CMX_RECEIVE_ON, 0);
+	
+	manager_ph_control(bc1, CMX_CONF_SPLIT, (bc1->pid<<1) +1);
+	manager_ph_control(bc2, CMX_CONF_SPLIT, (bc1->pid<<1) +1);
+	
 }

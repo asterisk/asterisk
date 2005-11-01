@@ -14,36 +14,12 @@
 #ifndef TE_LIB
 #define TE_LIB
 
-#include <mISDNlib.h>
-#include <isdn_net.h>
-#include <l3dss1.h>
-#include <net_l3.h>
-
-#include <pthread.h>
-
-#ifndef mISDNUSER_HEAD_SIZE
-
-#ifdef MISDNUSER_JOLLY
-#define mISDNUSER_HEAD_SIZE (sizeof(mISDNuser_head_t))
-#else
-#define mISDNUSER_HEAD_SIZE (sizeof(mISDN_head_t))
-#endif
-#endif
-
-#define MISDN_ASTERISK_TECH_PVT(ast) ast->tech_pvt
-#define MISDN_ASTERISK_PVT(ast) 1
-#define MISDN_ASTERISK_TYPE(ast) ast->tech->type
-
-
-/* #include "ies.h" */
-
-#define MAX_BCHANS 30
-
-
 /** For initialization usage **/
 /* typedef int ie_nothing_t ;*/
 /** end of init usage **/
 
+
+#define MAX_BCHANS 30
 
 enum bc_state_e {
 	STATE_NOTHING=0,
@@ -173,12 +149,20 @@ enum facility_type {
 	FACILITY_CALLDEFLECT
 };
 
+
+
+
 struct misdn_bchannel {
+
+	int nt;
+	int port;
 	/** init stuff **/
 	int b_stid;
 	/* int b_addr; */
 	int layer_id;
-  
+
+
+	
 	/** var stuff**/
 	int l3_id;
 	int pid;
@@ -194,11 +178,13 @@ struct misdn_bchannel {
 	int bframe_len;
 	int time_usec;
 	
-	sem_t astsem;
-	sem_t misdnsem;
-	ibuffer_t *astbuf;
-	ibuffer_t *misdnbuf;
-  
+	
+	void *astbuf;
+	void *misdnbuf;
+	
+
+	int te_choose_channel;
+	
 	/* dtmf digit */
 	int dtmf;
 	int send_dtmf;
@@ -297,58 +283,8 @@ struct misdn_bchannel {
 	int rxgain;
   
 	struct misdn_bchannel *next;
-	struct misdn_stack *stack;
 };
 
-struct misdn_stack {
-	/** is first element because &nst equals &mISDNlist **/
-	net_stack_t nst;
-	manager_t mgr;
-  
-	int d_stid;
-  
-	int b_num;
-  
-	int b_stids[MAX_BCHANS + 1];
-  
-	int ptp;
-	int lower_id;
-	int upper_id;
-  
-	int l2link;
-  
-	time_t l2establish;
-  
-	int l1link;
-	int midev;
-  
-	enum mode_e {NT_MODE, TE_MODE} mode;
-	int pri;
-  
-
-	int procids[0x100+1];
-
-	msg_queue_t downqueue;
-	int busy;
-  
-	int port;
-	struct misdn_bchannel bc[MAX_BCHANS + 1];
-  
-	struct misdn_bchannel* bc_list; 
-  
-	int channels[MAX_BCHANS + 1];
-
-  
-  
-	int te_choose_channel;
-  
-
-	struct misdn_bchannel *holding; /* Queue which holds holded channels :) */
-  
-	struct misdn_stack *next;
-}; 
-
-struct misdn_stack* get_misdn_stack( void );
 
 enum event_response_e (*cb_event) (enum event_e event, struct misdn_bchannel *bc, void *user_data);
 void (*cb_log) (int level, int port, char *tmpl, ...);
@@ -400,35 +336,26 @@ int misdn_inband_avail(struct misdn_bchannel *bc);
 int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, void *data);
 
 
-struct isdn_msg {
-	unsigned long misdn_msg;
-  
-	enum layer_e layer;
-	enum event_e event;
-  
-	void (*msg_parser)(struct isdn_msg *msgs, msg_t *msg, struct misdn_bchannel *bc, int nt);
-	msg_t *(*msg_builder)(struct isdn_msg *msgs, struct misdn_bchannel *bc, int nt);
-	void (*msg_printer)(struct isdn_msg *msgs);
-  
-	char *info;
-  
-} ; 
-
-
-
-
-
-
-
-
 void manager_ec_enable(struct misdn_bchannel *bc);
 void manager_ec_disable(struct misdn_bchannel *bc);
 
-
-/* for isdn_msg_parser.c */
-msg_t *create_l3msg(int prim, int mt, int dinfo , int size, int nt);
+void get_show_stack_details(int port, char *buf);
 
 
+/** Ibuf interface **/
+int misdn_ibuf_usedcount(void *buf);
+int misdn_ibuf_freecount(void *buf);
+void misdn_ibuf_memcpy_r(char *to, void *from, int len);
+void misdn_ibuf_memcpy_w(void *buf, char *from, int len);
+
+/** Ibuf interface End **/
+
+
+void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
+void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
+
+
+int misdn_lib_is_ptp(int port);
 
 #define PRI_TRANS_CAP_SPEECH                                    0x0
 #define PRI_TRANS_CAP_DIGITAL                                   0x08

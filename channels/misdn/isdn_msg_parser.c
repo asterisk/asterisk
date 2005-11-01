@@ -20,6 +20,8 @@ void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CALL_PROCEEDING_t *proceeding=(CALL_PROCEEDING_t*)((unsigned long)msg->data+ HEADER_LEN);
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 	{
 		int  exclusive, channel;
 		dec_ie_channel_id(proceeding->CHANNEL_ID, (Q931_info_t *)proceeding, &exclusive, &channel, nt,bc);
@@ -28,7 +30,7 @@ void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel
 			channel=-1;
     
 		/*  ALERT: is that everytime true ?  */
-		if (channel > 0 && bc->stack->mode == NT_MODE) 
+		if (channel > 0 && stack->mode == NT_MODE) 
 			bc->channel = channel;
 	}
 	
@@ -37,8 +39,6 @@ void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel
 #if DEBUG 
 	printf("Parsing PROCEEDING Msg\n"); 
 #endif
-
- 
 }
 msg_t *build_proceeding (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 {
@@ -819,7 +819,9 @@ void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	RESTART_t *restart=(RESTART_t*)((unsigned long)(msg->data+HEADER_LEN));
-  
+
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 #if DEBUG 
 	printf("Parsing RESTART Msg\n");
 #endif
@@ -829,7 +831,7 @@ void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &channel, nt,bc);
 		if (channel==0xff) /* any channel */
 			channel=-1;
-		cb_log(0, bc->stack->port, "CC_RESTART Request on channel:%d on port:%d\n",bc->stack->port);
+		cb_log(0, stack->port, "CC_RESTART Request on channel:%d on port:%d\n",stack->port);
 	}
   
  
@@ -892,6 +894,9 @@ void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct misdn_bc
 	RELEASE_COMPLETE_t *release_complete=(RELEASE_COMPLETE_t*)((unsigned long)(msg->data+HEADER_LEN));
 	int location;
 	iframe_t *frm = (iframe_t*) msg->data;
+
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 #ifdef MISDNUSER_JOLLY
 	mISDNuser_head_t *hh;
 	hh=(mISDNuser_head_t*)msg->data;
@@ -902,12 +907,12 @@ void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct misdn_bc
   
 	if (nt) {
 		if (hh->prim == (CC_RELEASE_COMPLETE|CONFIRM)) {
-			cb_log(0, bc->stack->port, "CC_RELEASE_COMPLETE|CONFIRM [NT] port:%d\n",bc->stack->port);
+			cb_log(0, stack->port, "CC_RELEASE_COMPLETE|CONFIRM [NT] port:%d\n",stack->port);
 			return;
 		}
 	} else {
 		if (frm->prim == (CC_RELEASE_COMPLETE|CONFIRM)) {
-			cb_log(0, bc->stack->port, "CC_RELEASE_COMPLETE|CONFIRM [TE] port:%d\n",bc->stack->port);
+			cb_log(0, stack->port, "CC_RELEASE_COMPLETE|CONFIRM [TE] port:%d\n",stack->port);
 			return;
 		}
 	}

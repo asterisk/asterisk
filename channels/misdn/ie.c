@@ -20,7 +20,17 @@
   if qi is not NULL (TE-mode), offset is set
 */
 
-#include "isdn_lib.h"
+
+#include <string.h>
+
+
+#include "isdn_lib_intern.h"
+
+#include <mISDNlib.h>
+#include <isdn_net.h>
+#include <l3dss1.h>
+#include <net_l3.h>
+
 
 #define CENTREX_FAC     0x88
 #define CENTREX_ID      0xa1
@@ -667,8 +677,9 @@ void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive, int ch
 	unsigned char *p;
 	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
 	int l;
-	int pri = bc->stack->pri;
-
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	int pri = stack->pri;
+	
 	if (exclusive<0 || exclusive>1)
 	{
 		printf("%s: ERROR: exclusive(%d) is out of range.\n", __FUNCTION__, exclusive);
@@ -738,7 +749,8 @@ void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive, int ch
 
 void dec_ie_channel_id(unsigned char *p, Q931_info_t *qi, int *exclusive, int *channel, int nt, struct misdn_bchannel *bc)
 {
-	int pri = bc->stack->pri;
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	int pri =stack->pri;
 
 	*exclusive = -1;
 	*channel = -1;
@@ -1332,7 +1344,8 @@ void enc_ie_facility(unsigned char **ntmode, msg_t *msg, unsigned char *facility
 void dec_ie_facility(unsigned char *p, Q931_info_t *qi, unsigned char *facility, int *facility_len, int nt, struct misdn_bchannel *bc)
 {
 	int i;
-
+	struct misdn_stack *stack=get_stack_by_bc(bc);
+	
 	*facility_len = 0;
 
 	if (!nt)
@@ -1350,10 +1363,10 @@ void dec_ie_facility(unsigned char *p, Q931_info_t *qi, unsigned char *facility,
 	i = 0;
 	while(i < *facility_len)
 	{
-		cb_log(3, bc->stack->port, " %02x", facility[i]);
+		cb_log(3, stack->port, " %02x", facility[i]);
 		i++;
 	}
-	cb_log(3, bc->stack->port, "    facility\n");
+	cb_log(3, stack->port, "    facility\n");
 }
 
 

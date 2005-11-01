@@ -1,5 +1,7 @@
 2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* many files: make chan_misdn actually build (issue #5566)
+
 	* many files: more Cygwin build system support (issue #4678)
 
 	* apps/app_parkandannounce.c (parkandannounce_exec): supply parent channel to ast_request_and_dial so channel variables can be inherited (issue #5564)
