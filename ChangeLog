@@ -11,6 +11,15 @@
 	* include/asterisk/strings.h (ast_strlen_zero): force to be inlined whenever possible
 	* include/asterisk/compiler.h (force_inline): add macro to force inlining of functions
 	
+	* app.c (ast_play_and_record): use ast_silence_generator during recording if requested
+	* asterisk.c: add global option to enable silence-during-record (issue #5135)
+	* channel.c (silence_generator_alloc): new
+	(silence_generator_release): new
+	(silence_generator_generate): new
+	(ast_channel_start_silence_generator): new API call to start generating silence on a channel
+	(ast_channel_stop_silence_generator): parallel call to stop silence generation
+	* apps/app_record.c (record_exec): use ast_silence_generator during recording if requested
+
 2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* Asterisk 1.2.0-beta2 released.
