@@ -1518,7 +1518,11 @@ static void mkbrd(vpb_model_t model, int echo_cancel)
 			vpb_echo_canc_enable();
 			ast_log(LOG_NOTICE, "Voicetronix echo cancellation ON\n");
 			if (ec_supp_threshold > -1){
+				#ifdef VPB_PRI
 				vpb_echo_canc_set_sup_thresh(0,(short *)&ec_supp_threshold);
+				#else
+				vpb_echo_canc_set_sup_thresh((short *)&ec_supp_threshold);
+				#endif
 				ast_log(LOG_NOTICE, "Voicetronix EC Sup Thres set\n");
 			}
 		}
