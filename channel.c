@@ -3460,14 +3460,10 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			} else {
 				ast_clear_flag(c0, AST_FLAG_NBRIDGE);
 				ast_clear_flag(c1, AST_FLAG_NBRIDGE);
-				ast_verbose(VERBOSE_PREFIX_3 "Native bridge of %s and %s was unsuccessful\n", c0->name, c1->name);
 			}
-			if (res == AST_BRIDGE_RETRY)
-				continue;
 			switch (res) {
 			case AST_BRIDGE_RETRY:
-/*				continue; */
-				break;
+				continue;
 			default:
 				ast_log(LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
 				/* fallthrough */

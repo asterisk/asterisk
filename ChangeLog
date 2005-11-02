@@ -1,3 +1,7 @@
+2005-11-02  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* channel.c (ast_channel_bridge): simplify native-bridge return logic, remove 'unsuccessful' message since it causes too many questions :-)
+
 2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* stdtime/localtime.c: fix build failure on uClibc systems (issue #5558)
