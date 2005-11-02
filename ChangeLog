@@ -1,5 +1,7 @@
 2005-11-02  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* apps/app_dial.c (dial_exec_full): convert to use API calls for argument/option parsing
+
 	* include/asterisk/channel.h: add doxygen docs for silence generator APIs
 
 	* channel.c (ast_channel_bridge): simplify native-bridge return logic, remove 'unsuccessful' message since it causes too many questions :-)
