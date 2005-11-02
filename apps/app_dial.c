@@ -701,7 +701,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 {
 	int res=-1;
 	struct localuser *u;
-	char *peers, *tech, *number, *rest, *cur;
+	char *tech, *number, *rest, *cur;
 	char privcid[256];
 	char privintro[1024];
 	struct localuser *outgoing=NULL, *tmp;
@@ -940,7 +940,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	/* If a channel group has been specified, get it for use when we create peer channels */
 	outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
 
-	cur = peers;
+	cur = args.peers;
 	do {
 		/* Remember where to start next time */
 		rest = strchr(cur, '&');
