@@ -2281,11 +2281,16 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 		if(option_verbose>1) {
 			ast_verbose("%s: vpb_write: Starting play mode (codec=%d)[%s]\n",p->dev,fmt,ast2vpbformatname(frame->subclass));
 		}
+		p->lastoutput = fmt;
+		ast_mutex_unlock(&p->play_lock);
+		return 0;
 	} else if (p->lastoutput != fmt) {
 		vpb_play_buf_finish(p->handle);
 		vpb_play_buf_start(p->handle, fmt);
 		if(option_verbose>1) 
 			ast_verbose("%s: vpb_write: Changed play format (%d=>%d)\n",p->dev,p->lastoutput,fmt);
+		ast_mutex_unlock(&p->play_lock);
+		return 0;
 	}
 	p->lastoutput = fmt;
 
@@ -2303,6 +2308,12 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 		if( res == VPB_OK && option_verbose > 5 ) {
 			short * data = (short*)frame->data;
 			ast_verbose("%s: vpb_write: Wrote chan (codec=%d) %d %d\n", p->dev, fmt, data[0],data[1]);
+		}
+		else {
+			ast_log(LOG_DEBUG, "%s: vpb_write: cant write to card, restarting buffer\n", p->dev);
+			vpb_play_buf_start(p->handle, p->lastoutput);
+			ast_mutex_unlock(&p->play_lock);
+			return 0;
 		}
 		p->play_buf_time = ast_tvdiff_ms(ast_tvnow(), play_buf_time_start);
 	}
@@ -2453,15 +2464,18 @@ static void *do_chanreads(void *pvt)
 		if (p->lastinput == -1) {
 			vpb_record_buf_start(p->handle, fmt);
 			vpb_reset_record_fifo_alarm(p->handle);
+			p->lastinput = fmt;
 			if(option_verbose>1) 
 				ast_verbose( VERBOSE_PREFIX_2 "%s: Starting record mode (codec=%d)[%s]\n",p->dev,fmt,ast2vpbformatname(afmt));
+			continue;
 		} else if (p->lastinput != fmt) {
 			vpb_record_buf_finish(p->handle);
 			vpb_record_buf_start(p->handle, fmt);
+			p->lastinput = fmt;
 			if(option_verbose>1) 
 				ast_verbose( VERBOSE_PREFIX_2 "%s: Changed record format (%d=>%d)\n",p->dev,p->lastinput,fmt);
+			continue;
 		}
-		p->lastinput = fmt;
 
 		/* Read only if up and not bridged, or a bridge for which we can read. */
 		if (option_verbose > 5) {
