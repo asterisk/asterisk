@@ -1101,8 +1101,36 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
  */
 void ast_channel_spy_trigger_wait(struct ast_channel_spy *spy);
 
+/*!
+  \brief An opaque 'object' structure use by silence generators on channels.
+ */
 struct ast_silence_generator;
+
+/*!
+  \brief Starts a silence generator on the given channel.
+  \param chan The channel to generate silence on
+  \return An ast_silence_generator pointer, or NULL if an error occurs
+
+  This function will cause SLINEAR silence to be generated on the supplied
+  channel until it is disabled; if the channel cannot be put into SLINEAR
+  mode then the function will fail.
+
+  The pointer returned by this function must be preserved and passed to
+  ast_channel_stop_silence_generator when you wish to stop the silence
+  generation.
+ */
 struct ast_silence_generator *ast_channel_start_silence_generator(struct ast_channel *chan);
+
+/*!
+  \brief Stops a previously-started silence generator on the given channel.
+  \param chan The channel to operate on
+  \param state The ast_silence_generator pointer return by a previous call to
+  ast_channel_start_silence_generator.
+  \return nothing
+
+  This function will stop the operating silence generator and return the channel
+  to its previous write format.
+ */
 void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_silence_generator *state);
 
 /* Misc. functions below */
