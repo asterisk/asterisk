@@ -1,3 +1,7 @@
+2005-11-03  Russell Bryant  <russell@digium.com>
+
+	* res/res_agi.c: initialize buffer for result so that the contents are always valid in the response to GET FULL VARIABLE
+
 2005-11-03  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* include/asterisk/app.h: re-work application arg/option parsing APIs for consistent naming, add doxygen docs for option API
