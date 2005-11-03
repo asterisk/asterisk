@@ -53,6 +53,10 @@ allow=gsm		; Always allow GSM, it's cool :)
 ;
 ;AllowGKRouted = yes
 ;
+; Optionally you can determine a user by Source IP versus its H.323 alias.
+; Default behavour is to determine user by H.323 alias.
+;UserByAlias=no
+;
 ; Default context gets used in siutations where you are using 
 ; the GK routed model or no type=user was found. This gives you 
 ; the ability to either play an invalid message or to simply not 
