@@ -155,6 +155,11 @@ void MyProcess::Main()
 {
 	cout << "  == Creating H.323 Endpoint" << endl;
 	endPoint = new MyH323EndPoint();
+	/* Due to a bug in the H.323 recomendation/stack we should request a sane
+	   amount of bandwidth from the GK - this function is ignored if not using a GK 
+	   We are requesting 128 (64k in each direction), which is the worst case codec. */
+        endPoint->SetInitialBandwidth(1280);
+
 	PTrace::Initialise(0, NULL, PTrace::Timestamp | PTrace::Thread | PTrace::FileAndLine);
 	PTrace::SetStream(logstream);
 }
@@ -360,7 +365,7 @@ void MyH323EndPoint::SetEndpointTypeInfo( H225_EndpointType & info ) const
   	PINDEX as=SupportedPrefixes.GetSize();
   	((H225_VoiceCaps &)protocol).m_supportedPrefixes.SetSize(as);
   	for (PINDEX p=0; p<as; p++) {
-    		H323SetAliasAddress(SupportedPrefixes[p], ((H225_VoiceCaps &)protocol).m_supportedPrefixes[p].m_prefix);
+		H323SetAliasAddress(SupportedPrefixes[p], ((H225_VoiceCaps &)protocol).m_supportedPrefixes[p].m_prefix, H225_AliasAddress::e_dialedDigits);
   	}
 }
 
@@ -1085,22 +1090,18 @@ BOOL MyH323_ExternalRTPChannel::Start(void)
 		cout << "\t\tRTP channel id " << sessionID << " parameters:" << endl;
 	}
 
-	/* Update RTP parameters by outgoing voice path only */
-	if (GetDirection() == IsTransmitter) {
-		/* Collect the remote information */
-		H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddr, remotePort);
+	/* Collect the remote information */
+	H323_ExternalRTPChannel::GetRemoteAddress(remoteIpAddr, remotePort);
 
-		if (h323debug) {
-			cout << "\t\t-- remoteIpAddress: " << remoteIpAddr << endl;
-			cout << "\t\t-- remotePort: " << remotePort << endl;
-			cout << "\t\t-- ExternalIpAddress: " <<  localIpAddr << endl;
-			cout << "\t\t-- ExternalPort: " << localPort << endl;
-		}
-
-		/* Notify Asterisk of remote RTP information */
-		on_start_rtp_channel(connection.GetCallReference(), (const char *)remoteIpAddr.AsString(), remotePort, 
-			(const char *)connection.GetCallToken(), (int)payloadCode);
+	if (h323debug) {
+		cout << "\t\t-- remoteIpAddress: " << remoteIpAddr << endl;
+		cout << "\t\t-- remotePort: " << remotePort << endl;
+		cout << "\t\t-- ExternalIpAddress: " <<  localIpAddr << endl;
+		cout << "\t\t-- ExternalPort: " << localPort << endl;
 	}
+	/* Notify Asterisk of remote RTP information */
+	on_start_rtp_channel(connection.GetCallReference(), (const char *)remoteIpAddr.AsString(), remotePort, 
+		(const char *)connection.GetCallToken(), (int)payloadCode);
 	return TRUE;
 }
 
