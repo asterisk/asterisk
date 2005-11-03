@@ -2046,9 +2046,9 @@ static int vpb_hangup(struct ast_channel *ast)
 			stoptone(p->handle);
 		}
 		#ifdef VPB_PRI
-		vpb_setloop_async(p->handle, VPB_ONHOOK);
-		vpb_sleep(500);
 		vpb_setloop_async(p->handle, VPB_OFFHOOK);
+		vpb_sleep(100);
+		vpb_setloop_async(p->handle, VPB_ONHOOK);
 		#endif
 	} else {
 		stoptone(p->handle); /* Terminates any dialing */
