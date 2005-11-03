@@ -1259,7 +1259,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_option_header *aoh;
 	struct timeval start = { 0 , 0 };
 	struct ast_bridge_config backup_config;
-	int allowdisconnect_in, allowdisconnect_out, allowredirect_in, allowredirect_out;
 	char *monitor_exec;
 
 	memset(&backup_config, 0, sizeof(backup_config));
@@ -1283,10 +1282,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			pbx_exec(peer, monitor_app, monitor_exec, 1);
 	}
 	
-	allowdisconnect_in = ast_test_flag(&(config->features_callee), AST_FEATURE_DISCONNECT);
-	allowdisconnect_out = ast_test_flag(&(config->features_caller), AST_FEATURE_DISCONNECT);
-	allowredirect_in = ast_test_flag(&(config->features_callee), AST_FEATURE_REDIRECT);
-	allowredirect_out = ast_test_flag(&(config->features_caller), AST_FEATURE_REDIRECT);
 	set_config_flags(chan, peer, config);
 	config->firstpass = 1;
 
