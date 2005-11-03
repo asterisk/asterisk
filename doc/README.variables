@@ -686,6 +686,9 @@ ${ANSWEREDTIME} 		* Time from dial to answer (seconds)
 ${DIALSTATUS}   		* Status of the call, one of:
                 		(CHANUNAVAIL | CONGESTION | BUSY | NOANSWER 
 					| ANSWER | CANCEL | DONTCALL | TORTURE)
+${DYNAMIC_FEATURES}		* The list of features (from the [applicationmap] section of
+				  features.conf) to activate during the call, with feature
+				  names separated by '#' characters
 ${LIMIT_PLAYAUDIO_CALLER}	Soundfile for call limits
 ${LIMIT_PLAYAUDIO_CALLEE}	Soundfile for call limits
 ${LIMIT_WARNING_FILE}		Soundfile for call limits

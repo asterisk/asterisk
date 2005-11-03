@@ -4,6 +4,8 @@
 
 2005-11-03  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* doc/README.variables: document DYNAMIC_FEATURES
+
 	* res/res_features.c (ast_bridge_call): remove unused variables
 
 	* apps/app_dial.c (dial_exec_full): simplify options and flag usage

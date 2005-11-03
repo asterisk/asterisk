@@ -27,6 +27,6 @@ context => parkedcalls		; Which context parked calls are in
 ;atxfer => *2			; Attended transfer
 
 [applicationmap]
-;testfeature => #9,callee,Playback,tt-monkeys	;Play tt-monkes to 
+;testfeature => #9,callee,Playback,tt-monkeys	;Play tt-monkeys to 
 						;callee if #9 was pressed
 
