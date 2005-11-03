@@ -20,7 +20,7 @@
 /*
  *
  * Radio Repeater / Remote Base program 
- *  version 0.36 10/26/05
+ *  version 0.37 11/3/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -197,7 +197,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.36  10/26/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.37  11/03/2005";
 
 static char *app = "Rpt";
 
@@ -4614,7 +4614,7 @@ char cmd[MAXDTMF+1] = "";
 			ast_set_write_format(myrpt->txchannel,AST_FORMAT_SLINEAR);
 			myrpt->txchannel->whentohangup = 0;
 			myrpt->txchannel->appl = "Apprpt";
-			myrpt->txchannel->data = "(Repeater Rx)";
+			myrpt->txchannel->data = "(Repeater Tx)";
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "rpt (Tx) initiating call to %s/%s on %s\n",
 					tmpstr,tele,myrpt->txchannel->name);
@@ -6022,7 +6022,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 			return -1;
 		}
 
-		if (*b1 <= '1')
+		if (*b1 < '1')
 		{
 			ast_log(LOG_WARNING, "Node %s Invalid for connection here!!\n",b1);
 			return -1;
