@@ -91,7 +91,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 	tmp = ast_strdupa(data);
 	memset(argv, 0, sizeof(argv));
 
-	argc = ast_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
 	if (argc < 1) {
 		ast_log(LOG_WARNING, "ControlPlayback requires an argument (filename)\n");

@@ -85,19 +85,26 @@ struct mixmonitor {
 };
 
 enum {
-    MUXFLAG_APPEND = (1 << 1),
-    MUXFLAG_BRIDGED = (1 << 2),
-    MUXFLAG_VOLUME = (1 << 3),
-    MUXFLAG_READVOLUME = (1 << 4),
-    MUXFLAG_WRITEVOLUME = (1 << 5),
+	MUXFLAG_APPEND = (1 << 1),
+	MUXFLAG_BRIDGED = (1 << 2),
+	MUXFLAG_VOLUME = (1 << 3),
+	MUXFLAG_READVOLUME = (1 << 4),
+	MUXFLAG_WRITEVOLUME = (1 << 5),
 } mixmonitor_flags;
 
-AST_DECLARE_OPTIONS(mixmonitor_opts,{
-	['a'] = { MUXFLAG_APPEND },
-	['b'] = { MUXFLAG_BRIDGED },
-	['v'] = { MUXFLAG_READVOLUME, 1 },
-	['V'] = { MUXFLAG_WRITEVOLUME, 2 },
-	['W'] = { MUXFLAG_VOLUME, 3 },
+enum {
+	OPT_ARG_READVOLUME = 0,
+	OPT_ARG_WRITEVOLUME,
+	OPT_ARG_VOLUME,
+	OPT_ARG_ARRAY_SIZE,
+} mixmonitor_args;
+
+AST_APP_OPTIONS(mixmonitor_opts, {
+	AST_APP_OPTION('a', MUXFLAG_APPEND),
+	AST_APP_OPTION('b', MUXFLAG_BRIDGED),
+	AST_APP_OPTION_ARG('v', MUXFLAG_READVOLUME, OPT_ARG_READVOLUME),
+	AST_APP_OPTION_ARG('V', MUXFLAG_WRITEVOLUME, OPT_ARG_WRITEVOLUME),
+	AST_APP_OPTION_ARG('W', MUXFLAG_VOLUME, OPT_ARG_VOLUME),
 });
 
 static void stopmon(struct ast_channel *chan, struct ast_channel_spy *spy) 
@@ -331,35 +338,35 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (args.options) {
-		char *opts[3] = { NULL, };
+		char *opts[OPT_ARG_ARRAY_SIZE] = { NULL, };
 
-		ast_parseoptions(mixmonitor_opts, &flags, opts, args.options);
+		ast_app_parse_options(mixmonitor_opts, &flags, opts, args.options);
 
 		if (ast_test_flag(&flags, MUXFLAG_READVOLUME)) {
-			if (ast_strlen_zero(opts[0])) {
+			if (ast_strlen_zero(opts[OPT_ARG_READVOLUME])) {
 				ast_log(LOG_WARNING, "No volume level was provided for the heard volume ('v') option.\n");
-			} else if ((sscanf(opts[0], "%d", &x) != 1) || (x < -4) || (x > 4)) {
-				ast_log(LOG_NOTICE, "Heard volume must be a number between -4 and 4, not '%s'\n", opts[0]);
+			} else if ((sscanf(opts[OPT_ARG_READVOLUME], "%d", &x) != 1) || (x < -4) || (x > 4)) {
+				ast_log(LOG_NOTICE, "Heard volume must be a number between -4 and 4, not '%s'\n", opts[OPT_ARG_READVOLUME]);
 			} else {
 				readvol = get_volfactor(x);
 			}
 		}
 		
 		if (ast_test_flag(&flags, MUXFLAG_WRITEVOLUME)) {
-			if (ast_strlen_zero(opts[1])) {
+			if (ast_strlen_zero(opts[OPT_ARG_WRITEVOLUME])) {
 				ast_log(LOG_WARNING, "No volume level was provided for the spoken volume ('V') option.\n");
-			} else if ((sscanf(opts[1], "%d", &x) != 1) || (x < -4) || (x > 4)) {
-				ast_log(LOG_NOTICE, "Spoken volume must be a number between -4 and 4, not '%s'\n", opts[1]);
+			} else if ((sscanf(opts[OPT_ARG_WRITEVOLUME], "%d", &x) != 1) || (x < -4) || (x > 4)) {
+				ast_log(LOG_NOTICE, "Spoken volume must be a number between -4 and 4, not '%s'\n", opts[OPT_ARG_WRITEVOLUME]);
 			} else {
 				writevol = get_volfactor(x);
 			}
 		}
 		
 		if (ast_test_flag(&flags, MUXFLAG_VOLUME)) {
-			if (ast_strlen_zero(opts[2])) {
+			if (ast_strlen_zero(opts[OPT_ARG_VOLUME])) {
 				ast_log(LOG_WARNING, "No volume level was provided for the combined volume ('W') option.\n");
-			} else if ((sscanf(opts[2], "%d", &x) != 1) || (x < -4) || (x > 4)) {
-				ast_log(LOG_NOTICE, "Combined volume must be a number between -4 and 4, not '%s'\n", opts[2]);
+			} else if ((sscanf(opts[OPT_ARG_VOLUME], "%d", &x) != 1) || (x < -4) || (x > 4)) {
+				ast_log(LOG_NOTICE, "Combined volume must be a number between -4 and 4, not '%s'\n", opts[OPT_ARG_VOLUME]);
 			} else {
 				readvol = writevol = get_volfactor(x);
 			}

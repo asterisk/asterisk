@@ -107,21 +107,25 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define ERROR_LOCK_PATH		-100
 
-#define OPT_SILENT 		(1 << 0)
-#define OPT_BUSY_GREETING	(1 << 1)
-#define OPT_UNAVAIL_GREETING	(1 << 2)
-#define OPT_RECORDGAIN		(1 << 3)
-#define OPT_PREPEND_MAILBOX	(1 << 4)
+enum {
+	OPT_SILENT =(1 << 0),
+	OPT_BUSY_GREETING = (1 << 1),
+	OPT_UNAVAIL_GREETING = (1 << 2),
+	OPT_RECORDGAIN = (1 << 3),
+	OPT_PREPEND_MAILBOX = (1 << 4),
+} vm_option_flags;
 
-#define OPT_ARG_RECORDGAIN	0
-#define OPT_ARG_ARRAY_SIZE	1
+enum {
+	OPT_ARG_RECORDGAIN = 0,
+	OPT_ARG_ARRAY_SIZE = 1,
+} vm_option_args;
 
-AST_DECLARE_OPTIONS(vm_app_options, {
-	['s'] = { .flag = OPT_SILENT },
-	['b'] = { .flag = OPT_BUSY_GREETING },
-	['u'] = { .flag = OPT_UNAVAIL_GREETING },
-	['g'] = { .flag = OPT_RECORDGAIN, .arg_index = OPT_ARG_RECORDGAIN + 1},
-	['p'] = { .flag = OPT_PREPEND_MAILBOX },
+AST_APP_OPTIONS(vm_app_options, {
+	AST_APP_OPTION('s', OPT_SILENT),
+	AST_APP_OPTION('b', OPT_BUSY_GREETING),
+	AST_APP_OPTION('u', OPT_UNAVAIL_GREETING),
+	AST_APP_OPTION_ARG('g', OPT_RECORDGAIN, OPT_ARG_RECORDGAIN),
+	AST_APP_OPTION('p', OPT_PREPEND_MAILBOX),
 });
 
 static int load_config(void);
@@ -5033,9 +5037,9 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		char *opts[OPT_ARG_ARRAY_SIZE];
 
 		tmp = ast_strdupa(data);
-		argc = ast_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
+		argc = ast_app_separate_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 		if (argc == 2) {
-			if (ast_parseoptions(vm_app_options, &flags, opts, argv[1])) {
+			if (ast_app_parse_options(vm_app_options, &flags, opts, argv[1])) {
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
@@ -5460,9 +5464,9 @@ static int vm_exec(struct ast_channel *chan, void *data)
 
 	if (!ast_strlen_zero(data)) {
 		ast_copy_string(tmp, data, sizeof(tmp));
-		argc = ast_separate_app_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
+		argc = ast_app_separate_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
 		if (argc == 2) {
-			if (ast_parseoptions(vm_app_options, &flags, opts, argv[1])) {
+			if (ast_app_parse_options(vm_app_options, &flags, opts, argv[1])) {
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}

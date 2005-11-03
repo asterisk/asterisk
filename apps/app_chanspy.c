@@ -69,18 +69,27 @@ static const char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
 
 static const char *chanspy_spy_type = "ChanSpy";
 
-#define OPTION_QUIET	 (1 << 0)	/* Quiet, no announcement */
-#define OPTION_BRIDGED   (1 << 1)	/* Only look at bridged calls */
-#define OPTION_VOLUME    (1 << 2)	/* Specify initial volume */
-#define OPTION_GROUP     (1 << 3)   /* Only look at channels in group */
-#define OPTION_RECORD    (1 << 4)   /* Record */
+enum {
+	OPTION_QUIET	 = (1 << 0),	/* Quiet, no announcement */
+	OPTION_BRIDGED   = (1 << 1),	/* Only look at bridged calls */
+	OPTION_VOLUME    = (1 << 2),	/* Specify initial volume */
+	OPTION_GROUP     = (1 << 3),	/* Only look at channels in group */
+	OPTION_RECORD    = (1 << 4),	/* Record */
+} chanspy_opt_flags;
 
-AST_DECLARE_OPTIONS(chanspy_opts,{
-	['q'] = { OPTION_QUIET },
-	['b'] = { OPTION_BRIDGED },
-	['v'] = { OPTION_VOLUME, 1 },
-	['g'] = { OPTION_GROUP, 2 },
-	['r'] = { OPTION_RECORD, 3 },
+enum {
+	OPT_ARG_VOLUME = 0,
+	OPT_ARG_GROUP,
+	OPT_ARG_RECORD,
+	OPT_ARG_ARRAY_SIZE,
+} chanspy_opt_args;
+
+AST_APP_OPTIONS(chanspy_opts, {
+	AST_APP_OPTION('q', OPTION_QUIET),
+	AST_APP_OPTION('b', OPTION_BRIDGED),
+	AST_APP_OPTION_ARG('v', OPTION_VOLUME, OPT_ARG_VOLUME),
+	AST_APP_OPTION_ARG('g', OPTION_GROUP, OPT_ARG_GROUP),
+	AST_APP_OPTION_ARG('r', OPTION_RECORD, OPT_ARG_RECORD),
 });
 
 STANDARD_LOCAL_USER;
@@ -384,7 +393,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 
 	ast_set_flag(chan, AST_FLAG_SPYING); /* so nobody can spy on us while we are spying */
 
-	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
+	if ((argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		spec = argv[0];
 		if ( argc > 1) {
 			options = argv[1];
@@ -395,8 +404,8 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	}
 	
 	if (options) {
-		char *opts[3];
-		ast_parseoptions(chanspy_opts, &flags, opts, options);
+		char *opts[OPT_ARG_ARRAY_SIZE];
+		ast_app_parse_options(chanspy_opts, &flags, opts, options);
 		if (ast_test_flag(&flags, OPTION_GROUP)) {
 			mygroup = opts[1];
 		}

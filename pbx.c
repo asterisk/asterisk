@@ -86,17 +86,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define BACKGROUND_MATCHEXTEN	(1 << 2)
 #define BACKGROUND_PLAYBACK	(1 << 3)
 
-AST_DECLARE_OPTIONS(background_opts,{
-	['s'] = { BACKGROUND_SKIP },
-	['n'] = { BACKGROUND_NOANSWER },
-	['m'] = { BACKGROUND_MATCHEXTEN },
-	['p'] = { BACKGROUND_PLAYBACK },
+AST_APP_OPTIONS(background_opts, {
+	AST_APP_OPTION('s', BACKGROUND_SKIP),
+	AST_APP_OPTION('n', BACKGROUND_NOANSWER),
+	AST_APP_OPTION('m', BACKGROUND_MATCHEXTEN),
+	AST_APP_OPTION('p', BACKGROUND_PLAYBACK),
 });
 
 #define WAITEXTEN_MOH		(1 << 0)
 
-AST_DECLARE_OPTIONS(waitexten_opts,{
-	['m'] = { WAITEXTEN_MOH, 1 },
+AST_APP_OPTIONS(waitexten_opts, {
+	AST_APP_OPTION_ARG('m', WAITEXTEN_MOH, 1),
 });
 
 struct ast_context;
@@ -5616,13 +5616,13 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 	char *args;
 	char *argv[2];
 	char *options = NULL; 
-	char *mohclass = NULL;
 	char *timeout = NULL;
 	struct ast_flags flags = {0};
+	char *opts[1] = { NULL };
 
 	args = ast_strdupa(data);
 
-	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
+	if ((argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		if (argc > 0) {
 			timeout = argv[0];
 			if (argc > 1)
@@ -5630,16 +5630,11 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 		}
 	}
 
-	if (options) {
-		char *opts[1];
-		ast_parseoptions(waitexten_opts, &flags, opts, options);
-		if (ast_test_flag(&flags, WAITEXTEN_MOH)) {
-			mohclass = opts[0];
-		}
-	}
+	if (options)
+		ast_app_parse_options(waitexten_opts, &flags, opts, options);
 	
 	if (ast_test_flag(&flags, WAITEXTEN_MOH))
-		ast_moh_start(chan, mohclass);
+		ast_moh_start(chan, opts[0]);
 
 	/* Wait for "n" seconds */
 	if (timeout && atof((char *)timeout)) 
@@ -5685,7 +5680,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 
 	parse = ast_strdupa(data);
 
-	if ((argc = ast_separate_app_args(parse, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
+	if ((argc = ast_app_separate_args(parse, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		switch (argc) {
 		case 4:
 			context = argv[3];
@@ -5714,7 +5709,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 		else if (!strcasecmp(options, "noanswer"))
 			flags.flags = BACKGROUND_NOANSWER;
 		else
-			ast_parseoptions(background_opts, &flags, NULL, options);
+			ast_app_parse_options(background_opts, &flags, NULL, options);
 	}
 
 	/* Answer if need be */
@@ -5948,7 +5943,7 @@ int pbx_builtin_setvar(struct ast_channel *chan, void *data)
 	}
 
 	mydata = ast_strdupa(data);
-	argc = ast_separate_app_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
 	/* check for a trailing flags argument */
 	if ((argc > 1) && !strchr(argv[argc-1], '=')) {

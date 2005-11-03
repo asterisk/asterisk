@@ -1105,7 +1105,7 @@ int ast_app_group_match_get_count(char *groupmatch, char *category)
 	return count;
 }
 
-int ast_separate_app_args(char *buf, char delim, char **array, int arraylen)
+unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen)
 {
 	int argc;
 	char *scan;
@@ -1523,41 +1523,40 @@ char *ast_read_textfile(const char *filename)
 	return output;
 }
 
-int ast_parseoptions(const struct ast_option *options, struct ast_flags *flags, char **args, char *optstr)
+int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags *flags, char **args, char *optstr)
 {
 	char *s;
 	int curarg;
-	int argloc;
+	unsigned int argloc;
 	char *arg;
 	int res = 0;
 
-	flags->flags = 0;
+	ast_clear_flag(flags, AST_FLAGS_ALL);
 
 	if (!optstr)
 		return 0;
 
 	s = optstr;
 	while (*s) {
-		curarg = *s & 0x7f;
-		flags->flags |= options[curarg].flag;
+		curarg = *s++ & 0x7f;
+		ast_set_flag(flags, options[curarg].flag);
 		argloc = options[curarg].arg_index;
-		s++;
 		if (*s == '(') {
 			/* Has argument */
-			s++;
 			arg = s;
-			while (*s && (*s != ')')) s++;
+			while (*++s && (*s != ')'));
 			if (*s) {
 				if (argloc)
 					args[argloc - 1] = arg;
-				*s = '\0';
-				s++;
+				*s++ = '\0';
 			} else {
 				ast_log(LOG_WARNING, "Missing closing parenthesis for argument '%c' in string '%s'\n", curarg, arg);
 				res = -1;
 			}
-		} else if (argloc)
+		} else if (argloc) {
 			args[argloc - 1] = NULL;
+		}
 	}
+
 	return res;
 }

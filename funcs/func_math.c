@@ -84,7 +84,7 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 	}
 
 	args = ast_strdupa(data);	
-	argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
 	if (argc < 1) {
 		ast_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");

@@ -61,12 +61,14 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-#define PAGE_DUPLEX (1 << 0)
-#define PAGE_QUIET  (1 << 1)
+enum {
+	PAGE_DUPLEX = (1 << 0),
+	PAGE_QUIET = (1 << 1),
+} page_opt_flags;
 
-AST_DECLARE_OPTIONS(page_opts,{
-	['d'] = { PAGE_DUPLEX },
-	['q'] = { PAGE_QUIET },
+AST_APP_OPTIONS(page_opts, {
+	AST_APP_OPTION('d', PAGE_DUPLEX),
+	AST_APP_OPTION('q', PAGE_QUIET),
 });
 
 struct calloutdata {
@@ -142,7 +144,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 
 	tmp = strsep(&options, "|");
 	if (options)
-		ast_parseoptions(page_opts, &flags, NULL, options);
+		ast_app_parse_options(page_opts, &flags, NULL, options);
 
 	snprintf(meetmeopts, sizeof(meetmeopts), "%ud|%sqxdw", confid, ast_test_flag(&flags, PAGE_DUPLEX) ? "" : "m");
 	while ((tech = strsep(&tmp, "&"))) {

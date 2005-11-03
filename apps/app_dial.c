@@ -670,31 +670,31 @@ enum {
 	OPT_ARG_ARRAY_SIZE,
 } dial_exec_option_args;
 
-AST_DECLARE_OPTIONS(dial_exec_options, {
-	['A'] = { .flag = OPT_ANNOUNCE, .arg_index = OPT_ARG_ANNOUNCE + 1, },
-	['C'] = { .flag = OPT_RESETCDR, },
-	['d'] = { .flag = OPT_DTMF_EXIT, },
-	['D'] = { .flag = OPT_SENDDTMF, .arg_index = OPT_ARG_SENDDTMF + 1, },
-	['f'] = { .flag = OPT_FORCECLID, },
-	['g'] = { .flag = OPT_GO_ON, },
-	['G'] = { .flag = OPT_GOTO, .arg_index = OPT_ARG_GOTO + 1, },
-	['h'] = { .flag = OPT_CALLEE_HANGUP, },
-	['H'] = { .flag = OPT_CALLER_HANGUP, },
-	['j'] = { .flag = OPT_PRIORITY_JUMP, },
-	['L'] = { .flag = OPT_DURATION_LIMIT, .arg_index = OPT_ARG_DURATION_LIMIT + 1, },
-	['m'] = { .flag = OPT_MUSICBACK, .arg_index = OPT_ARG_MUSICBACK + 1, },
-	['M'] = { .flag = OPT_CALLEE_MACRO, .arg_index = OPT_ARG_CALLEE_MACRO + 1, },
-	['n'] = { .flag = OPT_SCREEN_NOINTRO, },
-	['N'] = { .flag = OPT_SCREEN_NOCLID, },
-	['o'] = { .flag = OPT_ORIGINAL_CLID, },
-	['p'] = { .flag = OPT_SCREENING, },
-	['P'] = { .flag = OPT_PRIVACY, .arg_index = OPT_ARG_PRIVACY + 1, },
-	['r'] = { .flag = OPT_RINGBACK, },
-	['S'] = { .flag = OPT_DURATION_STOP, .arg_index = OPT_ARG_DURATION_STOP + 1, },
-	['t'] = { .flag = OPT_CALLEE_TRANSFER, },
-	['T'] = { .flag = OPT_CALLER_TRANSFER, },
-	['w'] = { .flag = OPT_CALLEE_MONITOR, },
-	['W'] = { .flag = OPT_CALLER_MONITOR, },
+AST_APP_OPTIONS(dial_exec_options, {
+	AST_APP_OPTION_ARG('A', OPT_ANNOUNCE, OPT_ARG_ANNOUNCE),
+	AST_APP_OPTION('C', OPT_RESETCDR),
+	AST_APP_OPTION('d', OPT_DTMF_EXIT),
+	AST_APP_OPTION_ARG('D', OPT_SENDDTMF, OPT_ARG_SENDDTMF),
+	AST_APP_OPTION('f', OPT_FORCECLID),
+	AST_APP_OPTION('g', OPT_GO_ON),
+	AST_APP_OPTION_ARG('G', OPT_GOTO, OPT_ARG_GOTO),
+	AST_APP_OPTION('h', OPT_CALLEE_HANGUP),
+	AST_APP_OPTION('H', OPT_CALLER_HANGUP),
+	AST_APP_OPTION('j', OPT_PRIORITY_JUMP),
+	AST_APP_OPTION_ARG('L', OPT_DURATION_LIMIT, OPT_ARG_DURATION_LIMIT),
+	AST_APP_OPTION_ARG('m', OPT_MUSICBACK, OPT_ARG_MUSICBACK),
+	AST_APP_OPTION_ARG('M', OPT_CALLEE_MACRO, OPT_ARG_CALLEE_MACRO),
+	AST_APP_OPTION('n', OPT_SCREEN_NOINTRO),
+	AST_APP_OPTION('N', OPT_SCREEN_NOCLID),
+	AST_APP_OPTION('o', OPT_ORIGINAL_CLID),
+	AST_APP_OPTION('p', OPT_SCREENING),
+	AST_APP_OPTION_ARG('P', OPT_PRIVACY, OPT_ARG_PRIVACY),
+	AST_APP_OPTION('r', OPT_RINGBACK),
+	AST_APP_OPTION_ARG('S', OPT_DURATION_STOP, OPT_ARG_DURATION_STOP),
+	AST_APP_OPTION('t', OPT_CALLEE_TRANSFER),
+	AST_APP_OPTION('T', OPT_CALLER_TRANSFER),
+	AST_APP_OPTION('w', OPT_CALLEE_MONITOR),
+	AST_APP_OPTION('W', OPT_CALLER_MONITOR),
 });
 
 static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags *peerflags)
@@ -762,7 +762,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!ast_strlen_zero(args.options)) {
-		if (ast_parseoptions(dial_exec_options, &opts, opt_args, args.options)) {
+		if (ast_app_parse_options(dial_exec_options, &opts, opt_args, args.options)) {
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}

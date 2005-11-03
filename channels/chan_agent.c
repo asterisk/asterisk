@@ -317,7 +317,7 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	args = ast_strdupa(agent);
 
 	// Extract username (agt), password and name from agent (args).
-	if ((argc = ast_separate_app_args(args, ',', argv, sizeof(argv) / sizeof(argv[0])))) {
+	if ((argc = ast_app_separate_args(args, ',', argv, sizeof(argv) / sizeof(argv[0])))) {
 		agt = argv[0];
 		if (argc > 1) {
 			password = argv[1];

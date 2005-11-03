@@ -219,28 +219,28 @@ static void *recordthread(void *args);
 #define CONFFLAG_ANNOUNCEUSERCOUNT (1 << 22) /* If set, when user joins the conference, they will be told the number of users that are already in */
 
 
-AST_DECLARE_OPTIONS(meetme_opts,{
-	['a'] = { CONFFLAG_ADMIN },
-	['c'] = { CONFFLAG_ANNOUNCEUSERCOUNT },
-	['T'] = { CONFFLAG_MONITORTALKER },
-	['i'] = { CONFFLAG_INTROUSER },
-	['m'] = { CONFFLAG_MONITOR },
-	['p'] = { CONFFLAG_POUNDEXIT },
-	['s'] = { CONFFLAG_STARMENU },
-	['t'] = { CONFFLAG_TALKER },
-	['q'] = { CONFFLAG_QUIET },
-	['M'] = { CONFFLAG_MOH },
-	['x'] = { CONFFLAG_MARKEDEXIT },
-	['X'] = { CONFFLAG_EXIT_CONTEXT },
-	['A'] = { CONFFLAG_MARKEDUSER },
-	['b'] = { CONFFLAG_AGI },
-	['w'] = { CONFFLAG_WAITMARKED },
-	['r'] = { CONFFLAG_RECORDCONF },
-	['d'] = { CONFFLAG_DYNAMIC },
-	['D'] = { CONFFLAG_DYNAMICPIN },
-	['e'] = { CONFFLAG_EMPTY },
-	['E'] = { CONFFLAG_EMPTYNOPIN },
-	['P'] = { CONFFLAG_ALWAYSPROMPT },
+AST_APP_OPTIONS(meetme_opts, {
+	AST_APP_OPTION('a', CONFFLAG_ADMIN ),
+	AST_APP_OPTION('c', CONFFLAG_ANNOUNCEUSERCOUNT ),
+	AST_APP_OPTION('T', CONFFLAG_MONITORTALKER ),
+	AST_APP_OPTION('i', CONFFLAG_INTROUSER ),
+	AST_APP_OPTION('m', CONFFLAG_MONITOR ),
+	AST_APP_OPTION('p', CONFFLAG_POUNDEXIT ),
+	AST_APP_OPTION('s', CONFFLAG_STARMENU ),
+	AST_APP_OPTION('t', CONFFLAG_TALKER ),
+	AST_APP_OPTION('q', CONFFLAG_QUIET ),
+	AST_APP_OPTION('M', CONFFLAG_MOH ),
+	AST_APP_OPTION('x', CONFFLAG_MARKEDEXIT ),
+	AST_APP_OPTION('X', CONFFLAG_EXIT_CONTEXT ),
+	AST_APP_OPTION('A', CONFFLAG_MARKEDUSER ),
+	AST_APP_OPTION('b', CONFFLAG_AGI ),
+	AST_APP_OPTION('w', CONFFLAG_WAITMARKED ),
+	AST_APP_OPTION('r', CONFFLAG_RECORDCONF ),
+	AST_APP_OPTION('d', CONFFLAG_DYNAMIC ),
+	AST_APP_OPTION('D', CONFFLAG_DYNAMICPIN ),
+	AST_APP_OPTION('e', CONFFLAG_EMPTY ),
+	AST_APP_OPTION('E', CONFFLAG_EMPTYNOPIN ),
+	AST_APP_OPTION('P', CONFFLAG_ALWAYSPROMPT ),
 });
 
 static char *istalking(int x)
@@ -1727,7 +1727,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		ast_copy_string(the_pin, inpin, sizeof(the_pin));
 
 	if (inflags) {
-		ast_parseoptions(meetme_opts, &confflags, NULL, inflags);
+		ast_app_parse_options(meetme_opts, &confflags, NULL, inflags);
 		dynamic = ast_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
 		if (ast_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && !inpin)
 			strcpy(the_pin, "q");

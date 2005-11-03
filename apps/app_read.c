@@ -103,7 +103,7 @@ static int read_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if (ast_separate_app_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
+	if (ast_app_separate_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
 		ast_log(LOG_WARNING, "Cannot Parse Arguments.\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;

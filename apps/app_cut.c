@@ -160,7 +160,7 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	if (data) {
 		s = ast_strdupa((char *)data);
 		if (s) {
-			ast_separate_app_args(s, '|', args, 3);
+			ast_app_separate_args(s, '|', args, 3);
 			varname = args[0];
 			delimiter = args[1];
 			field = args[2];

@@ -73,17 +73,7 @@ struct ast_ivr_menu {
 
 #define AST_IVR_FLAG_AUTORESTART (1 << 0)
 
-struct ast_option {
-	unsigned int flag;
-	int arg_index;
-};
-
-extern int ast_parseoptions(const struct ast_option *options, struct ast_flags *flags, char **args, char *optstr);
-
-#define AST_DECLARE_OPTIONS(holder,args...) \
-	static struct ast_option holder[128] = args
-
-#define AST_IVR_DECLARE_MENU(holder,title,flags,foo...) \
+#define AST_IVR_DECLARE_MENU(holder, title, flags, foo...) \
 	static struct ast_ivr_option __options_##holder[] = foo;\
 	static struct ast_ivr_menu holder = { title, flags, __options_##holder }
 	
@@ -204,7 +194,7 @@ int ast_app_group_match_get_count(char *groupmatch, char *category);
  */
 #define AST_DECLARE_APP_ARGS(name, arglist) \
 	struct { \
-		int argc; \
+		unsigned int argc; \
 		char *argv[0]; \
 		arglist \
 	} name;
@@ -219,7 +209,7 @@ int ast_app_group_match_get_count(char *groupmatch, char *category);
   the argc argument counter field.
  */
 #define AST_STANDARD_APP_ARGS(args, parse) \
-	args.argc = ast_separate_app_args(parse, '|', args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
+	args.argc = ast_app_separate_args(parse, '|', args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
 	
 /*!
   \brief Separate a string into arguments in an array
@@ -235,7 +225,109 @@ int ast_app_group_match_get_count(char *groupmatch, char *category);
 
   \return The number of arguments found, or zero if the function arguments are not valid.
 */
-int ast_separate_app_args(char *buf, char delim, char **array, int arraylen);
+unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arraylen);
+
+/*!
+  \brief A structure to hold the description of an application 'option'.
+
+  Application 'options' are single-character flags that can be supplied
+  to the application to affect its behavior; they can also optionally
+  accept arguments enclosed in parenthesis.
+
+  These structures are used by the ast_app_parse_options function, uses
+  this data to fill in a flags structure (to indicate which options were
+  supplied) and array of argument pointers (for those options that had
+  arguments supplied).
+ */
+struct ast_app_option {
+	/*! \brief The flag bit that represents this option. */
+	unsigned int flag;
+	/*! \brief The index of the entry in the arguments array
+	  that should be used for this option's argument. */
+	unsigned int arg_index;
+};
+
+/*!
+  \brief Declares an array of options for an application.
+  \param holder The name of the array to be created
+  \param options The actual options to be placed into the array
+  \sa ast_app_parse_options
+
+  This macro declares a 'static const' array of \c struct \c ast_option
+  elements to hold the list of available options for an application.
+  Each option must be declared using either the AST_APP_OPTION()
+  or AST_APP_OPTION_ARG() macros.
+
+  Example usage:
+  \code
+  enum {
+        OPT_JUMP = (1 << 0),
+        OPT_BLAH = (1 << 1),
+        OPT_BLORT = (1 << 2),
+  } my_app_option_flags;
+
+  enum {
+        OPT_ARG_BLAH = 0,
+        OPT_ARG_BLORT,
+        !! this entry tells how many possible arguments there are,
+           and must be the last entry in the list
+        OPT_ARG_ARRAY_SIZE,
+  } my_app_option_args;
+
+  AST_APP_OPTIONS(my_app_options, {
+        AST_APP_OPTION('j', OPT_JUMP),
+        AST_APP_OPTION_ARG('b', OPT_BLAH, OPT_ARG_BLAH),
+        AST_APP_OPTION_BLORT('B', OPT_BLORT, OPT_ARG_BLORT),
+  });
+
+  static int my_app_exec(struct ast_channel *chan, void *data)
+  {
+  	char *options;
+	struct ast_flags opts = { 0, };
+	char *opt_args[OPT_ARG_ARRAY_SIZE];
+
+  	... do any argument parsing here ...
+
+	if (ast_parseoptions(my_app_options, &opts, opt_args, options)) {
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+  }
+  \endcode
+ */
+#define AST_APP_OPTIONS(holder, options...) \
+	static const struct ast_app_option holder[128] = options
+
+/*!
+  \brief Declares an application option that does not accept an argument.
+  \param option The single character representing the option
+  \param flagno The flag index to be set if this option is present
+  \sa AST_APP_OPTIONS, ast_app_parse_options
+ */
+#define AST_APP_OPTION(option, flagno) \
+	[option] = { .flag = flagno }
+
+/*!
+  \brief Declares an application option that accepts an argument.
+  \param option The single character representing the option
+  \param flagno The flag index to be set if this option is present
+  \param argno The index into the argument array where the argument should
+  be placed
+  \sa AST_APP_OPTIONS, ast_app_parse_options
+ */
+#define AST_APP_OPTION_ARG(option, flagno, argno) \
+	[option] = { .flag = flagno, .arg_index = argno }
+
+/*!
+  \brief Parses a string containing application options and sets flags/arguments.
+  \param options The array of possible options declared with AST_APP_OPTIONS
+  \param flags The flag structure to have option flags set
+  \param args The array of argument pointers to hold arguments found
+  \param optstr The string containing the options to be parsed
+  \return zero for success, non-zero if an error occurs
+  \sa AST_APP_OPTIONS
+ */
+int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags *flags, char **args, char *optstr);
 
 /*! Present a dialtone and collect a certain length extension.  Returns 1 on valid extension entered, -1 on hangup, or 0 on invalid extension. Note that if 'collect' holds digits already, new digits will be appended, so be sure it's initialized properly */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout);

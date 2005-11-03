@@ -64,7 +64,7 @@ static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char
 	}
 
 	args = ast_strdupa(data);	
-	argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
 	if (argc < 2) {
 		ast_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");

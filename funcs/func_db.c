@@ -55,7 +55,7 @@ static char *function_db_read(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	args = ast_strdupa(data);
-	argc = ast_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
 	
 	if (argc > 1) {
 		family = argv[0];
@@ -88,7 +88,7 @@ static void function_db_write(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	args = ast_strdupa(data);
-	argc = ast_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
 	
 	if (argc > 1) {
 		family = argv[0];
@@ -134,7 +134,7 @@ static char *function_db_exists(struct ast_channel *chan, char *cmd, char *data,
 	}
 
 	args = ast_strdupa(data);
-	argc = ast_separate_app_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	argc = ast_app_separate_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
 	
 	if (argc > 1) {
 		family = argv[0];
