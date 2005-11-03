@@ -322,6 +322,7 @@ static struct vpb_pvt {
 	ast_mutex_t record_lock;		/* This one prevents reentering a record_buf block */
 	ast_mutex_t play_lock;			/* This one prevents reentering a play_buf block */
 	int  play_buf_time;			/* How long the last play_buf took */
+	struct timeval lastplay;		/* Last play time */
 
 	ast_mutex_t play_dtmf_lock;
 	char play_dtmf[16];
@@ -2044,6 +2045,11 @@ static int vpb_hangup(struct ast_channel *ast)
 		else {
 			stoptone(p->handle);
 		}
+		#ifdef VPB_PRI
+		vpb_setloop_async(p->handle, VPB_ONHOOK);
+		vpb_sleep(500);
+		vpb_setloop_async(p->handle, VPB_OFFHOOK);
+		#endif
 	} else {
 		stoptone(p->handle); /* Terminates any dialing */
 		vpb_sethook_sync(p->handle, VPB_ONHOOK);
@@ -2246,6 +2252,9 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt; 
 	int res = 0, fmt = 0;
 	struct timeval play_buf_time_start;
+	struct ast_frame *nextf;
+	int tdiff;
+
 /*	ast_mutex_lock(&p->lock); */
 	if(option_verbose>5) 
 		ast_verbose("%s: vpb_write: Writing to channel\n", p->dev);
@@ -2264,11 +2273,20 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	}
 /*	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame type..\n", p->dev); */
 
+
 	fmt = ast2vpbformat(frame->subclass);
 	if (fmt < 0) {
 		ast_log(LOG_WARNING, "%s: vpb_write: Cannot handle frames of %d format!\n",ast->name, frame->subclass);
 		return -1;
 	}
+
+	tdiff = ast_tvdiff_ms(ast_tvnow(), p->lastplay);
+	ast_log(LOG_DEBUG, "%s: vpb_write: time since last play(%d) \n", p->dev, tdiff); 
+	if (tdiff < (VPB_SAMPLES/8 - 1)){
+		ast_log(LOG_DEBUG, "%s: vpb_write: Asked to play too often (%d) (%d)\n", p->dev, tdiff,frame->datalen); 
+//		return 0;
+	}
+	p->lastplay = ast_tvnow();
 /*
 	ast_log(LOG_DEBUG, "%s: vpb_write: Checked frame format..\n", p->dev); 
 */
@@ -2305,19 +2323,15 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 		a_gain_vector(p->txswgain - MAX_VPB_GAIN , (short*)frame->data, frame->datalen/sizeof(short));
 
 /*	ast_log(LOG_DEBUG, "%s: vpb_write: Applied gain..\n", p->dev); */
+/*	ast_log(LOG_DEBUG, "%s: vpb_write: play_buf_time %d\n", p->dev, p->play_buf_time); */
 
 	if ((p->read_state == 1)&&(p->play_buf_time<5)){
 		play_buf_time_start = ast_tvnow();
+/*		res = vpb_play_buf_sync(p->handle, (char*)frame->data, tdiff*8*2); */
 		res = vpb_play_buf_sync(p->handle, (char*)frame->data, frame->datalen);
 		if( res == VPB_OK && option_verbose > 5 ) {
 			short * data = (short*)frame->data;
 			ast_verbose("%s: vpb_write: Wrote chan (codec=%d) %d %d\n", p->dev, fmt, data[0],data[1]);
-		}
-		else {
-			ast_log(LOG_DEBUG, "%s: vpb_write: cant write to card, restarting buffer\n", p->dev);
-			vpb_play_buf_start(p->handle, p->lastoutput);
-			ast_mutex_unlock(&p->play_lock);
-			return 0;
 		}
 		p->play_buf_time = ast_tvdiff_ms(ast_tvnow(), play_buf_time_start);
 	}
@@ -2574,10 +2588,6 @@ static void *do_chanreads(void *pvt)
 					ast_verbose("%s: p->stopreads[%d] p->owner[%p]\n", p->dev, p->stopreads,(void *)p->owner);
 				}  
 			}
-		} else {
-			ast_log(LOG_WARNING,"%s: Record failure (%s)\n", p->dev, vpb_strerror(res));
-			vpb_record_buf_finish(p->handle);
-			vpb_record_buf_start(p->handle, fmt);
 		}
 		if (option_verbose > 4)
 			ast_verbose("%s: chanreads: Finished cycle...\n", p->dev);
@@ -2659,6 +2669,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		me->faxhandled =0;
 		
 		me->lastgrunt  = ast_tvnow(); /* Assume at least one grunt tone seen now. */
+		me->lastplay  = ast_tvnow(); /* Assume at least one grunt tone seen now. */
 
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
