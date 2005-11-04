@@ -1683,6 +1683,7 @@ check_turns:
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.queuetimeout && ( (time(NULL) - qe.start) >= qe.queuetimeout) ) {
 					res = 0;
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 					break;
 				}
 
@@ -1710,6 +1711,7 @@ check_turns:
 				/* Leave if we have exceeded our queuetimeout */
 				if (qe.queuetimeout && ( (time(NULL) - qe.start) >= qe.queuetimeout) ) {
 					res = 0;
+					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 					break;
 				}
 
