@@ -1,3 +1,7 @@
+2005-11-04  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* include/asterisk/compiler.h: don't try to use always_inline on old compilers
+
 2005-11-03  Russell Bryant  <russell@digium.com>
 
 	* res/res_agi.c: initialize buffer for result so that the contents are always valid in the response to GET FULL VARIABLE
