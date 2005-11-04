@@ -332,7 +332,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 	
 	if (ast_strlen_zero(args.filename)) {
-		ast_log(LOG_WARNING, "Muxmon requires an argument (filename)\n");
+		ast_log(LOG_WARNING, "MixMonitor requires an argument (filename)\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
