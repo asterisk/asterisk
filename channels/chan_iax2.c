@@ -1872,6 +1872,30 @@ static int iax2_test_jitter(int fd, int argc, char *argv[])
 }
 #endif /* IAXTESTS */
 
+/*! \brief  peer_status: Report Peer status in character string */
+/* 	returns 1 if peer is online, -1 if unmonitored */
+static int peer_status(struct iax2_peer *peer, char *status, int statuslen)
+{
+	int res = 0;
+	if (peer->maxms) {
+		if (peer->lastms < 0) {
+			ast_copy_string(status, "UNREACHABLE", statuslen);
+		} else if (peer->lastms > peer->maxms) {
+			snprintf(status, statuslen, "LAGGED (%d ms)", peer->lastms);
+			res = 1;
+		} else if (peer->lastms) {
+			snprintf(status, statuslen, "OK (%d ms)", peer->lastms);
+			res = 1;
+		} else {
+			ast_copy_string(status, "UNKNOWN", statuslen);
+		}
+	} else { 
+		ast_copy_string(status, "Unmonitored", statuslen);
+		res = -1;
+	}
+	return res;
+}
+
 /*--- iax2_show_peer: Show one peer in detail ---*/
 static int iax2_show_peer(int fd, int argc, char *argv[])
 {
@@ -1920,14 +1944,7 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 		ast_cli(fd, ")\n");
 
 		ast_cli(fd, "  Status       : ");
-		if (peer->lastms < 0)
-			ast_copy_string(status, "UNREACHABLE", sizeof(status));
-		else if (peer->historicms > peer->maxms)
-			snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->historicms);
-		else if (peer->historicms)
-			snprintf(status, sizeof(status), "OK (%d ms)", peer->historicms);
-		else
-			ast_copy_string(status, "UNKNOWN", sizeof(status));
+		peer_status(peer, status, sizeof(status));	
 		ast_cli(fd, " Qualify        : every %d when OK, every %d when UNREACHABLE (sample smoothing %s)\n", peer->pokefreqok, peer->pokefreqnotok, (peer->smoothing == 1) ? "On" : "Off");
 		ast_cli(fd, "%s\n",status);
 		ast_cli(fd,"\n");
@@ -4188,6 +4205,7 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 		char nm[20];
 		char status[20];
 		char srch[2000];
+		int retstatus;
 
 		if (registeredonly && !peer->addr.sin_addr.s_addr)
 			continue;
@@ -4198,27 +4216,15 @@ static int __iax2_show_peers(int manager, int fd, int argc, char *argv[])
 			snprintf(name, sizeof(name), "%s/%s", peer->name, peer->username);
 		else
 			ast_copy_string(name, peer->name, sizeof(name));
-		if (peer->maxms) {
-			if (peer->lastms < 0) {
-				ast_copy_string(status, "UNREACHABLE", sizeof(status));
-				offline_peers++;
-			}
-			else if (peer->historicms > peer->maxms)  {
-				snprintf(status, sizeof(status), "LAGGED (%d ms)", peer->historicms);
-				offline_peers++;
-			}
-			else if (peer->historicms)  {
-				snprintf(status, sizeof(status), "OK (%d ms)", peer->historicms);
-				online_peers++;
-			}
-			else  {
-				ast_copy_string(status, "UNKNOWN", sizeof(status));
-				offline_peers++;
-			}
-		} else {
-			ast_copy_string(status, "Unmonitored", sizeof(status));
+		
+		retstatus = peer_status(peer, status, sizeof(status));
+		if (retstatus > 0)
+			online_peers++;
+		else if (!retstatus)
+			offline_peers++;
+		else
 			unmonitored_peers++;
-		}
+		
 		ast_copy_string(nm, ast_inet_ntoa(iabuf, sizeof(iabuf), peer->mask), sizeof(nm));
 
 		snprintf(srch, sizeof(srch), FORMAT, name, 
@@ -9187,6 +9193,8 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 
 	if (!strcasecmp(colname, "ip")) {
 		ast_copy_string(buf, peer->addr.sin_addr.s_addr ? ast_inet_ntoa(iabuf, sizeof(iabuf), peer->addr.sin_addr) : "", len);
+	} else  if (!strcasecmp(colname, "status")) {
+		peer_status(peer, buf, len); 
 	} else  if (!strcasecmp(colname, "mailbox")) {
 		ast_copy_string(buf, peer->mailbox, len);
 	} else  if (!strcasecmp(colname, "context")) {
@@ -9228,6 +9236,7 @@ struct ast_custom_function iaxpeer_function = {
     .read = function_iaxpeer,
 	.desc = "If peername specified, valid items are:\n"
 	"- ip (default)          The IP address.\n"
+	"- status                The peer's status (if qualify=yes)\n"
 	"- mailbox               The configured mailbox.\n"
 	"- context               The configured context.\n"
 	"- expire                The epoch time of the next expire.\n"
