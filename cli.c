@@ -47,11 +47,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "editline/readline/readline.h"
 /* For module directory */
 #include "asterisk/version.h"
-#include "asterisk/build.h"
 
-#define VERSION_INFO "Asterisk " ASTERISK_VERSION " built by " BUILD_USER "@" BUILD_HOSTNAME \
-	" on a " BUILD_MACHINE " running " BUILD_OS " on " BUILD_DATE
-	
+extern const char *ast_build_hostname;
+extern const char *ast_build_kernel;
+extern const char *ast_build_machine;
+extern const char *ast_build_os;
+extern const char *ast_build_date;
+extern const char *ast_build_user;
+
 extern unsigned long global_fin, global_fout;
 	
 void ast_cli(int fd, char *fmt, ...)
@@ -407,9 +410,12 @@ static int handle_version(int fd, int argc, char *argv[])
 {
 	if (argc != 2)
 		return RESULT_SHOWUSAGE;
-	ast_cli(fd, "%s\n", VERSION_INFO);
+	ast_cli(fd, "Asterisk %s built by %s @ %s on a %s running %s on %s\n",
+		ASTERISK_VERSION, ast_build_user, ast_build_hostname,
+		ast_build_machine, ast_build_os, ast_build_date);
 	return RESULT_SUCCESS;
 }
+
 static int handle_chanlist(int fd, int argc, char *argv[])
 {
 #define FORMAT_STRING  "%-20.20s %-20.20s %-7.7s %-30.30s\n"

@@ -101,7 +101,7 @@ BUSYDETECT+= #-DBUSYDETECT_TONEONLY
 # Don't use together with -DBUSYDETECT_TONEONLY
 BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
 
-ifneq (${OSARCH},SunOS)
+ifneq ($(OSARCH),SunOS)
   ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
   ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
   ASTETCDIR=$(INSTALL_PREFIX)/etc/asterisk
@@ -164,7 +164,7 @@ ifneq ($(wildcard ~/.asterisk.makeopts),)
   include ~/.asterisk.makeopts
 endif
 
-ifeq (${OSARCH},Linux)
+ifeq ($(OSARCH),Linux)
   ifeq ($(CROSS_COMPILE),)
     PROC?=$(shell uname -m)
   else
@@ -208,7 +208,7 @@ endif
 PWD=$(shell pwd)
 GREP=grep
 
-ifeq (${OSARCH},SunOS)
+ifeq ($(OSARCH),SunOS)
   GREP=/usr/xpg4/bin/grep
   M4=/usr/local/bin/m4
 endif
@@ -218,7 +218,7 @@ ASTCFLAGS+=-pipe  -Wall -Wstrict-prototypes -Wmissing-prototypes -Wmissing-decla
 ASTCFLAGS+=$(OPTIMIZE)
 ASTOBJ=-o asterisk
 
-ifeq ($(findstring BSD,${OSARCH}),BSD)
+ifeq ($(findstring BSD,$(OSARCH)),BSD)
   PROC=$(shell uname -m)
   ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
@@ -239,38 +239,38 @@ else
   endif
 endif
 
-ifeq (${OSARCH},FreeBSD)
+ifeq ($(OSARCH),FreeBSD)
   BSDVERSION=$(shell make -V OSVERSION -f $(CROSS_COMPILE_TARGET)/usr/share/mk/bsd.port.subdir.mk)
-  ASTCFLAGS+=$(shell if test ${BSDVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
-  LIBS+=$(shell if test  ${BSDVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
+  ASTCFLAGS+=$(shell if test $(BSDVERSION) -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
+  LIBS+=$(shell if test  $(BSDVERSION) -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
   ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/spandsp),)
     ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp
   endif
   MPG123TARG=freebsd
 endif # FreeBSD
 
-ifeq (${OSARCH},NetBSD)
+ifeq ($(OSARCH),NetBSD)
   ASTCFLAGS+=-pthread
   INCLUDE+=-I$(CROSS_COMPILE_TARGET)/usr/pkg/include
   MPG123TARG=netbsd
 endif
 
-ifeq (${OSARCH},OpenBSD)
+ifeq ($(OSARCH),OpenBSD)
   ASTCFLAGS+=-pthread
 endif
 
-ifeq (${OSARCH},SunOS)
+ifeq ($(OSARCH),SunOS)
   ASTCFLAGS+=-Wcast-align -DSOLARIS
   INCLUDE+=-Iinclude/solaris-compat -I$(CROSS_COMPILE_TARGET)/usr/local/ssl/include
 endif
 
-ifeq ($(findstring CYGWIN,${OSARCH}),CYGWIN)
+ifeq ($(findstring CYGWIN,$(OSARCH)),CYGWIN)
 CYGLOADER=cygwin_a
 OSARCH=CYGWIN
 ASTOBJ=-shared -o asterisk.dll -Wl,--out-implib=libasterisk.dll.a -Wl,--export-all-symbols
 ASTLINK=
 LIBS+=-lpthread -lncurses -lm -lresolv
-ASTSBINDIR=${MODULES_DIR}
+ASTSBINDIR=$(MODULES_DIR)
 endif
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
@@ -326,13 +326,13 @@ ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
   ASTCFLAGS+=-DDLFCNCOMPAT
 endif
 
-ifeq (${OSARCH},Linux)
+ifeq ($(OSARCH),Linux)
   LIBS+=-ldl -lpthread -lncurses -lm -lresolv  #-lnjamd
 else
   LIBS+=-lncurses -lm
 endif
 
-ifeq (${OSARCH},Darwin)
+ifeq ($(OSARCH),Darwin)
   LIBS+=-lresolv
   ASTCFLAGS+=-D__Darwin__
   AUDIO_LIBS=-framework CoreAudio
@@ -344,19 +344,19 @@ else
   SOLINK=-shared -Xlinker -x
 endif
 
-ifeq (${OSARCH},FreeBSD)
+ifeq ($(OSARCH),FreeBSD)
   LIBS+=-lcrypto
 endif
 
-ifeq (${OSARCH},NetBSD)
+ifeq ($(OSARCH),NetBSD)
   LIBS+=-lpthread -lcrypto -lm -L$(CROSS_COMPILE_TARGET)/usr/pkg/lib -lncurses
 endif
 
-ifeq (${OSARCH},OpenBSD)
+ifeq ($(OSARCH),OpenBSD)
   LIBS+=-lcrypto -lpthread -lm -lncurses
 endif
 
-ifeq (${OSARCH},SunOS)
+ifeq ($(OSARCH),SunOS)
   LIBS+=-lpthread -ldl -lnsl -lsocket -lresolv -L$(CROSS_COMPILE_TARGET)/usr/local/ssl/lib
   OBJS+=strcompat.o
   ASTLINK=
@@ -454,18 +454,6 @@ defaults.h: FORCE
 	fi
 	rm -f $@.tmp
 
-include/asterisk/build.h:
-	build_tools/make_build_h > $@.tmp
-	if cmp -s $@.tmp $@ ; then echo ; else \
-		mv $@.tmp $@ ; \
-	fi
-	rm -f $@.tmp
-
-# only force 'build.h' to be made for a non-'install' run
-ifeq ($(findstring install,$(MAKECMDGOALS)),)
-include/asterisk/build.h: FORCE
-endif
-
 include/asterisk/version.h: FORCE
 	build_tools/make_version_h > $@.tmp
 	if cmp -s $@.tmp $@ ; then echo; else \
@@ -484,8 +472,14 @@ stdtime/libtime.a: FORCE
 cygwin_a:
 	$(MAKE) -C cygwin all
 
-asterisk: ${CYGLOADER} editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
-	$(CC) $(DEBUG) ${ASTOBJ} $(ASTLINK) $(OBJS) $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
+asterisk: $(CYGLOADER) editline/libedit.a db1-ast/libdb1.a stdtime/libtime.a $(OBJS)
+	build_tools/make_build_h > include/asterisk/build.h.tmp
+	if cmp -s include/asterisk/build.h.tmp include/asterisk/build.h ; then echo ; else \
+		mv include/asterisk/build.h.tmp include/asterisk/build.h ; \
+	fi
+	rm -f include/asterisk/build.h.tmp
+	$(CC) -c -o buildinfo.o $(CFLAGS) buildinfo.c
+	$(CC) $(DEBUG) $(ASTOBJ) $(ASTLINK) $(OBJS) buildinfo.o $(LIBEDIT) db1-ast/libdb1.a stdtime/libtime.a $(LIBS)
 
 muted: muted.o
 	$(CC) $(AUDIO_LIBS) -o muted muted.o
@@ -826,18 +820,18 @@ dont-optimize:
 
 valgrind: dont-optimize
 
-depend: include/asterisk/build.h include/asterisk/version.h .depend defaults.h 
+depend: include/asterisk/version.h .depend defaults.h 
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend: include/asterisk/version.h
-	build_tools/mkdep ${CFLAGS} $(wildcard *.c)
+	build_tools/mkdep $(CFLAGS) $(wildcard *.c)
 
 .tags-depend:
 	@echo -n ".tags-depend: " > $@
 	@find . -maxdepth 1 -name \*.c -printf "\t%p \\\\\n" >> $@
 	@find . -maxdepth 1 -name \*.h -printf "\t%p \\\\\n" >> $@
-	@find ${SUBDIRS} -name \*.c -printf "\t%p \\\\\n" >> $@
-	@find ${SUBDIRS} -name \*.h -printf "\t%p \\\\\n" >> $@
+	@find $(SUBDIRS) -name \*.c -printf "\t%p \\\\\n" >> $@
+	@find $(SUBDIRS) -name \*.h -printf "\t%p \\\\\n" >> $@
 	@find include -name \*.h -printf "\t%p \\\\\n" >> $@
 	@echo >> $@
 
@@ -845,8 +839,8 @@ depend: include/asterisk/build.h include/asterisk/version.h .depend defaults.h
 	@rm -f $@
 	@find . -maxdepth 1 -name \*.c -print >> $@
 	@find . -maxdepth 1 -name \*.h -print >> $@
-	@find ${SUBDIRS} -name \*.c -print >> $@
-	@find ${SUBDIRS} -name \*.h -print >> $@
+	@find $(SUBDIRS) -name \*.c -print >> $@
+	@find $(SUBDIRS) -name \*.h -print >> $@
 	@find include -name \*.h -print >> $@
 
 tags: .tags-depend .tags-sources

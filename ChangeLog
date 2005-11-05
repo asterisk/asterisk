@@ -1,3 +1,10 @@
+2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* Makefile: don't rebuild asterisk/build.h unless the asterisk binary is going to be relinked for some other reason (stops spurious recompile/link every time 'make' is issued); clean up variable substitutions to use consistent syntax
+	* asterisk.c: don't include asterisk/build.h (it's unnecessary)
+	* cli.c: don't include asterisk/build.h, use extern references to buildinfo.c
+	* buildinfo.c: new file to hold version info strings
+
 2005-11-04  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* apps/app_mixmonitor.c (mixmonitor_exec): correct app name in an error message

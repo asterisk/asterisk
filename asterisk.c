@@ -105,7 +105,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "editline/histedit.h"
 #include "asterisk/config.h"
 #include "asterisk/version.h"
-#include "asterisk/build.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
 
