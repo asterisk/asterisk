@@ -2937,7 +2937,10 @@ static void disable_dtmf_detect(struct zt_pvt *p)
 	val = 0;
 	ioctl(p->subs[SUB_REAL].zfd, ZT_TONEDETECT, &val);
 #endif		
-	
+	if (!p->hardwaredtmf && p->dsp) {
+		p->dsp_features &= ~DSP_FEATURE_DTMF_DETECT;
+		ast_dsp_set_features(p->dsp, p->dsp_features);
+	}
 }
 
 static void enable_dtmf_detect(struct zt_pvt *p)
@@ -2952,6 +2955,10 @@ static void enable_dtmf_detect(struct zt_pvt *p)
 	val = ZT_TONEDETECT_ON | ZT_TONEDETECT_MUTE;
 	ioctl(p->subs[SUB_REAL].zfd, ZT_TONEDETECT, &val);
 #endif		
+	if (!p->hardwaredtmf && p->dsp) {
+		p->dsp_features |= DSP_FEATURE_DTMF_DETECT;
+		ast_dsp_set_features(p->dsp, p->dsp_features);
+	}
 }
 
 static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
@@ -3198,7 +3205,7 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 		if (f->frametype == AST_FRAME_DTMF) {
 			if ((who == c0) && p0->pulsedial) {
 				ast_write(c1, f);
-			} else if (p1->pulsedial) {
+			} else if ((who == c1) && p1->pulsedial) {
 				ast_write(c0, f);
 			} else {
 				*fo = f;
