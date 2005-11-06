@@ -7,6 +7,7 @@
 	* many files: Add doxygen updates to categorize modules into groups. Convert a lot of comments over to doxygen style. Add some text giving a basic overview of channels.
 	* apps/app_chanisavail.c: Make priority jumping optional
 	* apps/app_db.c: Add an exit status variable and make priority jumping optional
+	* apps/app_enumlookup.c: Make priority jumping optional
 
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 
