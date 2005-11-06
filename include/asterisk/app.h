@@ -197,7 +197,7 @@ int ast_app_group_match_get_count(char *groupmatch, char *category);
 		unsigned int argc; \
 		char *argv[0]; \
 		arglist \
-	} name;
+	} name
 
 /*!
   \brief Performs the 'standard' argument separation process for an application.
