@@ -417,7 +417,7 @@ static struct ast_cli_entry cli_mixmonitor = {
 	{ "mixmonitor", NULL, NULL },
 	mixmonitor_cli, 
 	"Execute a MixMonitor command",
-	"mixmonitor <start|stop> <chan_name> [<args>]"
+	"mixmonitor <start|stop> <chan_name> [<args>]\n"
 };
 
 
