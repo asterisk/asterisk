@@ -53,11 +53,11 @@ static const char *synopsis = "Tap into any type of asterisk channel and listen 
 static const char *app = "ChanSpy";
 static const char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
 "Valid Options:\n"
-" - q: quiet, don't announce channels beep, etc.\n"
 " - b: bridged, only spy on channels involved in a bridged call.\n"
-" - v([-4..4]): adjust the initial volume. (negative is quieter)\n"
 " - g(grp): enforce group.  Match only calls where their ${SPYGROUP} is 'grp'.\n"
+" - q: quiet, don't announce channels beep, etc.\n"
 " - r[(basename)]: Record session to monitor spool dir (with optional basename, default is 'chanspy')\n\n"
+" - v([-4..4]): adjust the initial volume. (negative is quieter)\n"
 "If <scanspec> is specified, only channel names *beginning* with that string will be scanned.\n"
 "('all' or an empty string are also both valid <scanspec>)\n\n"
 "While Spying:\n\n"

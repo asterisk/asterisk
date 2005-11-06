@@ -1,3 +1,7 @@
+2005-11-06  Russell Bryant <russell@digium.com>
+
+	* many files: alphabetize options in applicaiton descriptions
+
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* Makefile: don't rebuild asterisk/build.h unless the asterisk binary is going to be relinked for some other reason (stops spurious recompile/link every time 'make' is issued); clean up variable substitutions to use consistent syntax
