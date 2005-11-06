@@ -1098,7 +1098,7 @@ static void copy_file(char *sdir, int smsg, char *ddir, int dmsg, char *dmailbox
 {
 	int res;
 	SQLHSTMT stmt;
-	char sql[256];
+	char sql[512];
 	char msgnums[20];
 	char msgnumd[20];
 	odbc_obj *obj;
@@ -3455,6 +3455,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		cmd = leave_voicemail(chan, username, &leave_options);
 	} else {
 		/* Forward VoiceMail */
+		RETRIEVE(dir, curmsg);
 		cmd = vm_forwardoptions(chan, sender, dir, curmsg, vmfmts, context, record_gain);
 		if (!cmd) {
 			while (!res && vmtmp) {
@@ -3485,6 +3486,8 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				ast_log(LOG_DEBUG, "%s", sys);
 				ast_safe_system(sys);
 				snprintf(fn, sizeof(fn), "%s/msg%04d", todir,todircount);
+
+				STORE(todir, vmtmp->mailbox, vmtmp->context, todircount);
 	
 				/* load the information on the source message so we can send an e-mail like a new message */
 				snprintf(miffile, sizeof(miffile), "%s/msg%04d.txt", dir, curmsg);
