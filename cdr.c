@@ -809,16 +809,18 @@ static void post_cdr(struct ast_cdr *cdr)
 	}
 }
 
-void ast_cdr_reset(struct ast_cdr *cdr, int flags)
+void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *_flags)
 {
-	struct ast_flags tmp = {flags};
 	struct ast_cdr *dup;
+	struct ast_flags flags = { 0 };
 
+	if (_flags)
+		ast_copy_flags(&flags, _flags, AST_FLAGS_ALL);
 
 	while (cdr) {
 		/* Detach if post is requested */
-		if (ast_test_flag(&tmp, AST_CDR_FLAG_LOCKED) || !ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
-			if (ast_test_flag(&tmp, AST_CDR_FLAG_POSTED)) {
+		if (ast_test_flag(&flags, AST_CDR_FLAG_LOCKED) || !ast_test_flag(cdr, AST_CDR_FLAG_LOCKED)) {
+			if (ast_test_flag(&flags, AST_CDR_FLAG_POSTED)) {
 				ast_cdr_end(cdr);
 				if ((dup = ast_cdr_dup(cdr))) {
 					ast_cdr_detach(dup);
@@ -827,7 +829,7 @@ void ast_cdr_reset(struct ast_cdr *cdr, int flags)
 			}
 
 			/* clear variables */
-			if (!ast_test_flag(&tmp, AST_CDR_FLAG_KEEP_VARS)) {
+			if (!ast_test_flag(&flags, AST_CDR_FLAG_KEEP_VARS)) {
 				ast_cdr_free_vars(cdr, 0);
 			}
 

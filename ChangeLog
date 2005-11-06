@@ -6,6 +6,7 @@
 	* apps/app_externalivr.c: Add a space that fixes building on older versions of gcc
 	* many files: Add doxygen updates to categorize modules into groups. Convert a lot of comments over to doxygen style. Add some text giving a basic overview of channels.
 	* many files: Update applications to add an exit status variable, make priority jumping optional, and use new args parsing macros
+	* pbx.c cdr.c res/res_features.c apps/app_dial.c include/asterisk/cdr.h: Convert some built-in applications to use new args parsing macros.  Change ast_cdr_reset to take a pointer to an ast_flags structure instead of an integer for flags.
 
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 

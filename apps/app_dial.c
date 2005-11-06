@@ -828,7 +828,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	}
 
 	if (ast_test_flag(&opts, OPT_RESETCDR) && chan->cdr)
-		ast_cdr_reset(chan->cdr, 0);
+		ast_cdr_reset(chan->cdr, NULL);
 	if (ast_test_flag(&opts, OPT_PRIVACY) && ast_strlen_zero(opt_args[OPT_ARG_PRIVACY]))
 		opt_args[OPT_ARG_PRIVACY] = ast_strdupa(chan->exten);
 	if (ast_test_flag(&opts, OPT_PRIVACY) || ast_test_flag(&opts, OPT_SCREENING)) {

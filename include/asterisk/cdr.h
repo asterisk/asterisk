@@ -45,6 +45,7 @@
 
 /* Include channel.h after relevant declarations it will need */
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 struct ast_channel;
 
@@ -256,7 +257,7 @@ extern char *ast_cdr_disp2str(int disposition);
  * \param flags |AST_CDR_FLAG_POSTED whether or not to post the cdr first before resetting it
  *              |AST_CDR_FLAG_LOCKED whether or not to reset locked CDR's
  */
-extern void ast_cdr_reset(struct ast_cdr *cdr, int flags);
+extern void ast_cdr_reset(struct ast_cdr *cdr, struct ast_flags *flags);
 
 /*! Flags to a string */
 /*!

@@ -216,19 +216,19 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 static void *ast_bridge_call_thread(void *data) 
 {
 	struct ast_bridge_thread_obj *tobj = data;
+
 	tobj->chan->appl = "Transferred Call";
 	tobj->chan->data = tobj->peer->name;
 	tobj->peer->appl = "Transferred Call";
 	tobj->peer->data = tobj->chan->name;
 	if (tobj->chan->cdr) {
-		ast_cdr_reset(tobj->chan->cdr,0);
+		ast_cdr_reset(tobj->chan->cdr, NULL);
 		ast_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
 	}
 	if (tobj->peer->cdr) {
-		ast_cdr_reset(tobj->peer->cdr,0);
+		ast_cdr_reset(tobj->peer->cdr, NULL);
 		ast_cdr_setdestchan(tobj->peer->cdr, tobj->chan->name);
 	}
-
 
 	ast_bridge_call(tobj->peer, tobj->chan, &tobj->bconfig);
 	ast_hangup(tobj->chan);

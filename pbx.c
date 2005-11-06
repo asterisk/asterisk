@@ -5405,15 +5405,21 @@ static int pbx_builtin_congestion(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 {
-	int delay = atoi(data);
+	int delay = 0;
 	int res;
+
 	if (chan->_state == AST_STATE_UP)
 		delay = 0;
+	else if (!ast_strlen_zero(data))
+		delay = atoi(data);
+
 	res = ast_answer(chan);
 	if (res)
 		return res;
+
 	if (delay)
 		res = ast_safe_sleep(chan, delay);
+
 	return res;
 }
 
@@ -5427,26 +5433,34 @@ static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 	}
 
 	/* Copy the language as specified */
-	if (data)
-		ast_copy_string(chan->language, (char *) data, sizeof(chan->language));
+	if (!ast_strlen_zero(data))
+		ast_copy_string(chan->language, data, sizeof(chan->language));
 
 	return 0;
 }
 
+AST_APP_OPTIONS(resetcdr_opts, {
+	AST_APP_OPTION('w', AST_CDR_FLAG_POSTED),
+	AST_APP_OPTION('a', AST_CDR_FLAG_LOCKED),
+	AST_APP_OPTION('v', AST_CDR_FLAG_KEEP_VARS),
+});
+
 static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 {
-	int flags = 0;
-	/* Reset the CDR as specified */
-	if(data) {
-		if(strchr((char *)data, 'w'))
-			flags |= AST_CDR_FLAG_POSTED;
-		if(strchr((char *)data, 'a'))
-			flags |= AST_CDR_FLAG_LOCKED;
-		if(strchr((char *)data, 'v'))
-			flags |= AST_CDR_FLAG_KEEP_VARS;
+	char *args;
+	struct ast_flags flags = { 0 };
+	
+	if (!ast_strlen_zero(data)) {
+		args = ast_strdupa(data);
+		if (!args) {
+			ast_log(LOG_ERROR, "Out of memory!\n");
+			return -1;
+		}
+		ast_app_parse_options(resetcdr_opts, &flags, NULL, args);
 	}
 
-	ast_cdr_reset(chan->cdr, flags);
+	ast_cdr_reset(chan->cdr, &flags);
+
 	return 0;
 }
 
