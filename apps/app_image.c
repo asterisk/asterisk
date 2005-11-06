@@ -38,6 +38,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/image.h"
+#include "asterisk/app.h"
+#include "asterisk/options.h"
 
 static char *tdesc = "Image Transmission Application";
 
@@ -46,12 +48,14 @@ static char *app = "SendImage";
 static char *synopsis = "Send an image file";
 
 static char *descrip = 
-"  SendImage(filename): Sends an image on a channel. If the channel\n"
-"does not support  image transport, and there exists  a  step  with\n"
-"priority n + 101, then  execution  will  continue  at  that  step.\n"
-"Otherwise,  execution  will continue at  the  next priority level.\n"
+"  SendImage(filename): Sends an image on a channel. \n"
 "SendImage only  returns  0 if  the  image was sent correctly or if\n"
-"the channel does not support image transport, and -1 otherwise.\n";
+"the channel does not support image transport, and -1 otherwise.\n"
+"The option string may contain zero or the following character:\n"
+"	'j' -- jump to priority n+101 if the channel doesn't support image transport\n"
+"This application sets the following channel variable upon completion:\n"
+"	SENDIMAGESTATUS		The status is the attempt to send an image as a text string, one of\n"
+"		OK | NOSUPPORT \n";			
 
 STANDARD_LOCAL_USER;
 
@@ -61,22 +65,46 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
+	char *parse;
+	int priority_jump = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(filename);
+		AST_APP_ARG(options);
+	);
 	
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "SendImage requires an argument (filename)\n");
+	LOCAL_USER_ADD(u);
+
+	if (!(parse = ast_strdupa(data))) {
+		ast_log(LOG_WARNING, "Memory Error!\n");
+		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (ast_strlen_zero(args.filename)) {
+		ast_log(LOG_WARNING, "SendImage requires an argument (filename[|options])\n");
+		return -1;
+	}
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
 
 	if (!ast_supports_images(chan)) {
 		/* Does not support transport */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		if (priority_jump || option_priority_jumping)
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "NOSUPPORT");
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
 
-	res = ast_send_image(chan, data);
+	res = ast_send_image(chan, args.filename);
+	
+	if (!res)
+		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "OK");
 	
 	LOCAL_USER_REMOVE(u);
 	
