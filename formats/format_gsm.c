@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Save to raw, headerless GSM data.
- * 
+ * \arg File name extension: gsm
+ * \ingroup formats
  */
  
 #include <unistd.h>

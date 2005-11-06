@@ -23,6 +23,10 @@
  *
  * \brief Channel driver for OSS sound cards
  *
+ * \par See also
+ * \arg \ref Config_oss
+ *
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

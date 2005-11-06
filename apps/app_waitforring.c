@@ -20,6 +20,7 @@
  *
  * \brief Wait for Ring Application
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

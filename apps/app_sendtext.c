@@ -20,6 +20,9 @@
  *
  * \brief App to transmit a text message
  * 
+ * Requires support of sending text messages from channel driver
+ *
+ * \ingroup applications
  */
  
 #include <string.h>

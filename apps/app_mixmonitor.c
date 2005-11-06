@@ -23,6 +23,7 @@
 
 /*! \file
  * \brief MixMonitor() - Record a call and mix the audio during the recording
+ * \ingroup applications
  */
 
 #include <stdlib.h>

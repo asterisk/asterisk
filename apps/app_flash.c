@@ -20,6 +20,7 @@
  *
  * \brief App to flash a zap trunk
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

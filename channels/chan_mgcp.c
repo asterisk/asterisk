@@ -20,6 +20,10 @@
  *
  * \brief Implementation of Media Gateway Control Protocol
  * 
+ * \par See also
+ * \arg \ref Config_mgcp
+ *
+ * \ingroup channel_drivers
  */
 
 /* FO: Changes

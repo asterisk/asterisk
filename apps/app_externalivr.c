@@ -23,6 +23,7 @@
  *
  * \brief External IVR application interface
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

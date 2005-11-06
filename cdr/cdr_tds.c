@@ -21,6 +21,7 @@
  * See also
  * \arg \ref Config_cdr
  * \arg http://www.freetds.org/
+ * \ingroup cdr_drivers
  */
 
 /*! \verbatim

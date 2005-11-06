@@ -23,6 +23,7 @@
  *
  * \brief ParkAndAnnounce application for Asterisk
  * 
+ * \ingroup applications
  */
 
 #include <sys/types.h>

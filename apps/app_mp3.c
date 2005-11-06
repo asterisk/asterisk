@@ -20,6 +20,7 @@
  *
  * \brief Silly application to play an MP3 file -- uses mpg123
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

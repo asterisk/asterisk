@@ -20,6 +20,7 @@
  *
  * \brief ReadFile application -- Reads in a File for you.
  *
+ * \ingroup applications
  */
 
 #include <stdio.h>

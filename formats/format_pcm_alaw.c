@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Flat, binary, alaw PCM file format.
- * 
+ * \arg File name extensions: alaw, al
+ * \ingroup formats
  */
  
 #include <unistd.h>

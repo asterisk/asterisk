@@ -18,6 +18,11 @@
 
 /*! \file 
  * \brief ALSA sound card channel driver 
+ *
+ * \par See also
+ * \arg Config_alsa
+ *
+ * \ingroup channel_drivers
  */
 
 

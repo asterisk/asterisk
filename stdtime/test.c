@@ -1,4 +1,5 @@
-/* Testing localtime functionality */
+/*! \file 
+  \brief Testing localtime functionality */
 
 #include "localtime.c"
 #include <sys/time.h>

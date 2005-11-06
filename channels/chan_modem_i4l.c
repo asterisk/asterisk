@@ -20,6 +20,7 @@
  *
  * \brief ISDN4Linux TTY Driver
  * 
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

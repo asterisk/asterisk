@@ -20,6 +20,12 @@
  *
  * \brief Headerless G.726 (16/24/32/40kbps) data format for Asterisk.
  * 
+ * File name extensions:
+ * \arg 40 kbps: g726-40
+ * \arg 32 kbps: g726-32
+ * \arg 24 kbps: g726-24
+ * \arg 16 kbps: g726-16
+ * \ingroup formats
  */
  
 #include <unistd.h>

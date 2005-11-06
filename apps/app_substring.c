@@ -20,6 +20,7 @@
  *
  * \brief substr
  *
+ * \ingroup applications
  * \todo Deprecate this application in 1.3dev
  */
 

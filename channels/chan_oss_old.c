@@ -23,6 +23,7 @@
  * VERY BADLY WRITTEN DRIVER so please don't use it as a model for
  * writing a driver.
  *
+ * \ingroup channel_drivers
  */
 
 #include <unistd.h>

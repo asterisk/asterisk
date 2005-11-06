@@ -20,6 +20,7 @@
  *
  * \brief Enumlookup - lookup entry in ENUM
  *
+ * \ingroup applications
  */
 
 #include <stdlib.h>

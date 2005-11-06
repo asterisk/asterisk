@@ -18,8 +18,9 @@
 
 /*! \file
  *
- * \brief Execute arbitrary system commands
+ * \brief Get ADSI CPE ID
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

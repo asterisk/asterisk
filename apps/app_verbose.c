@@ -19,6 +19,7 @@
  *
  * \brief Verbose logging application
  *
+ * \ingroup applications
  */
 
 #include <stdio.h>

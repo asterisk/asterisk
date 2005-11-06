@@ -24,6 +24,7 @@
  *
  * \brief Translate between signed linear and G.723.1
  *
+ * \ingroup codecs
  */
 
 #define TYPE_HIGH	 0x0

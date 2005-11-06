@@ -23,10 +23,13 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
  * Multi-timezone Localtime code
  * 
+ * \author Leap second handling Bradley White (bww@k.gp.cs.cmu.edu).
+ * \author POSIX-style TZ environment variable handling from Guy Harris (guy@auspex.com).
+ *
  */
 
 /*
@@ -40,11 +43,6 @@
 #define TZ_STRLEN_MAX	255
 /* #define DEBUG */
 
-/*
-** Leap second handling from Bradley White (bww@k.gp.cs.cmu.edu).
-** POSIX-style TZ environment variable handling from Guy Harris
-** (guy@auspex.com).
-*/
 
 /*LINTLIBRARY*/
 
@@ -62,7 +60,7 @@
 
 #ifndef lint
 #ifndef NOID
-static const char	elsieid[] = "@(#)localtime.c	7.57";
+static const char elsieid[] = "@(#)localtime.c	7.57";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -80,45 +78,47 @@ static const char	elsieid[] = "@(#)localtime.c	7.57";
 #endif /* !defined O_BINARY */
 
 #ifndef WILDABBR
-/*
-** Someone might make incorrect use of a time zone abbreviation:
-**	1.	They might reference tzname[0] before calling ast_tzset (explicitly
-**		or implicitly).
-**	2.	They might reference tzname[1] before calling ast_tzset (explicitly
-**		or implicitly).
-**	3.	They might reference tzname[1] after setting to a time zone
-**		in which Daylight Saving Time is never observed.
-**	4.	They might reference tzname[0] after setting to a time zone
-**		in which Standard Time is never observed.
-**	5.	They might reference tm.TM_ZONE after calling offtime.
-** What's best to do in the above cases is open to debate;
-** for now, we just set things up so that in any of the five cases
-** WILDABBR is used.  Another possibility:  initialize tzname[0] to the
-** string "tzname[0] used before set", and similarly for the other cases.
-** And another:  initialize tzname[0] to "ERA", with an explanation in the
-** manual page of what this "time zone abbreviation" means (doing this so
-** that tzname[0] has the "normal" length of three characters).
-*/
+/*! \note
+ * Someone might make incorrect use of a time zone abbreviation:
+ *	1.	They might reference tzname[0] before calling ast_tzset (explicitly
+ *		or implicitly).
+ *	2.	They might reference tzname[1] before calling ast_tzset (explicitly
+ *		or implicitly).
+ *	3.	They might reference tzname[1] after setting to a time zone
+ *		in which Daylight Saving Time is never observed.
+ *	4.	They might reference tzname[0] after setting to a time zone
+ *		in which Standard Time is never observed.
+ *	5.	They might reference tm.TM_ZONE after calling offtime.
+ * What's best to do in the above cases is open to debate;
+ * for now, we just set things up so that in any of the five cases
+ * WILDABBR is used.  Another possibility:  initialize tzname[0] to the
+ * string "tzname[0] used before set", and similarly for the other cases.
+ * And another:  initialize tzname[0] to "ERA", with an explanation in the
+ * manual page of what this "time zone abbreviation" means (doing this so
+ * that tzname[0] has the "normal" length of three characters).
+ */
 #define WILDABBR	"   "
 #endif /* !defined WILDABBR */
 
 static char		wildabbr[] = "WILDABBR";
 
-/* FreeBSD defines 'zone' in 'struct tm' as non-const, so don't declare this
+/*! \brief FreeBSD defines 'zone' in 'struct tm' as non-const, so don't declare this
    string as const. */
 static char		gmt[] = "GMT";
 
-struct ttinfo {				/* time type information */
-	long		tt_gmtoff;	/* GMT offset in seconds */
-	int		tt_isdst;	/* used to set tm_isdst */
-	int		tt_abbrind;	/* abbreviation list index */
-	int		tt_ttisstd;	/* TRUE if transition is std time */
-	int		tt_ttisgmt;	/* TRUE if transition is GMT */
+/*!< \brief time type information */
+struct ttinfo {
+	long		tt_gmtoff;	/*!< GMT offset in seconds */
+	int		tt_isdst;	/*!< used to set tm_isdst */
+	int		tt_abbrind;	/*!< abbreviation list index */
+	int		tt_ttisstd;	/*!< TRUE if transition is std time */
+	int		tt_ttisgmt;	/*!< TRUE if transition is GMT */
 };
 
-struct lsinfo {				/* leap second information */
-	time_t		ls_trans;	/* transition time */
-	long		ls_corr;	/* correction to apply */
+/*! \brief leap second information */
+struct lsinfo {
+	time_t		ls_trans;	/*!< transition time */
+	long		ls_corr;	/*!< correction to apply */
 };
 
 #define BIGGEST(a, b)	(((a) > (b)) ? (a) : (b))
@@ -152,16 +152,16 @@ struct state {
 };
 
 struct rule {
-	int		r_type;		/* type of rule--see below */
-	int		r_day;		/* day number of rule */
-	int		r_week;		/* week number of rule */
-	int		r_mon;		/* month number of rule */
-	long		r_time;		/* transition time of rule */
+	int		r_type;		/*!< type of rule--see below */
+	int		r_day;		/*!< day number of rule */
+	int		r_week;		/*!< week number of rule */
+	int		r_mon;		/*!< month number of rule */
+	long		r_time;		/*!< transition time of rule */
 };
 
-#define JULIAN_DAY		0	/* Jn - Julian day */
-#define DAY_OF_YEAR		1	/* n - day of year */
-#define MONTH_NTH_DAY_OF_WEEK	2	/* Mm.n.d - month, week, day of week */
+#define JULIAN_DAY		0	/*!< Jn - Julian day */
+#define DAY_OF_YEAR		1	/*!< n - day of year */
+#define MONTH_NTH_DAY_OF_WEEK	2	/*!< Mm.n.d - month, week, day of week */
 
 /*
 ** Prototypes for static functions.
@@ -223,9 +223,7 @@ AST_MUTEX_DEFINE_STATIC(gmt_mutex);
 ** Thanks to Paul Eggert (eggert@twinsun.com) for noting this.
 */
 
-static long
-detzcode(codep)
-const char * const	codep;
+static long detzcode(const char * const	codep)
 {
 	register long	result;
 	register int	i;
@@ -236,10 +234,7 @@ const char * const	codep;
 	return result;
 }
 
-static int
-tzload(name, sp)
-register const char *		name;
-register struct state * const	sp;
+static int tzload(register const char *name, register struct state *const	sp)
 {
 	register const char *	p;
 	register int		i;
@@ -401,19 +396,14 @@ static const int	year_lengths[2] = {
 	DAYSPERNYEAR, DAYSPERLYEAR
 };
 
-/*
-** Given a pointer into a time zone string, extract a number from that string.
-** Check that the number is within a specified range; if it is not, return
-** NULL.
-** Otherwise, return a pointer to the first character not part of the number.
+/*! \brief
+ * Given a pointer into a time zone string, extract a number from that string.
+ * \return Check that the number is within a specified range; if it is not, return
+ * NULL.
+ * Otherwise, return a pointer to the first character not part of the number.
 */
 
-static const char *
-getnum(strp, nump, min, max)
-register const char *	strp;
-int * const		nump;
-const int		min;
-const int		max;
+static const char *getnum(register const char *strp, int * const nump, const int min, const int max)
 {
 	register char	c;
 	register int	num;
@@ -433,18 +423,15 @@ const int		max;
 	return strp;
 }
 
-/*
-** Given a pointer into a time zone string, extract a number of seconds,
-** in hh[:mm[:ss]] form, from the string.
-** If any error occurs, return NULL.
-** Otherwise, return a pointer to the first character not part of the number
-** of seconds.
+/*! \brief
+ * Given a pointer into a time zone string, extract a number of seconds,
+ * in hh[:mm[:ss]] form, from the string.
+ * \return If any error occurs, return NULL.
+ * Otherwise, return a pointer to the first character not part of the number
+ * of seconds.
 */
 
-static const char *
-getsecs(strp, secsp)
-register const char *	strp;
-long * const		secsp;
+static const char *getsecs(register const char *strp, long * const secsp)
 {
 	int	num;
 
@@ -476,17 +463,14 @@ long * const		secsp;
 	return strp;
 }
 
-/*
-** Given a pointer into a time zone string, extract an offset, in
-** [+-]hh[:mm[:ss]] form, from the string.
-** If any error occurs, return NULL.
-** Otherwise, return a pointer to the first character not part of the time.
+/*! \brief
+ * Given a pointer into a time zone string, extract an offset, in
+ * [+-]hh[:mm[:ss]] form, from the string.
+ * \return If any error occurs, return NULL.
+ * Otherwise, return a pointer to the first character not part of the time.
 */
 
-static const char *
-getoffset(strp, offsetp)
-register const char *	strp;
-long * const		offsetp;
+static const char * getoffset(register const char *strp, long * const offsetp)
 {
 	register int	neg = 0;
 
@@ -503,17 +487,14 @@ long * const		offsetp;
 	return strp;
 }
 
-/*
-** Given a pointer into a time zone string, extract a rule in the form
-** date[/time].  See POSIX section 8 for the format of "date" and "time".
-** If a valid rule is not found, return NULL.
-** Otherwise, return a pointer to the first character not part of the rule.
+/*! \brief
+ * Given a pointer into a time zone string, extract a rule in the form
+ * date[/time].  See POSIX section 8 for the format of "date" and "time".
+ * \return If a valid rule is not found, return NULL.
+ * Otherwise, return a pointer to the first character not part of the rule.
 */
 
-static const char *
-getrule(strp, rulep)
-const char *			strp;
-register struct rule * const	rulep;
+static const char *getrule(const char *strp, register struct rule * const rulep)
 {
 	if (*strp == 'J') {
 		/*
@@ -558,14 +539,13 @@ register struct rule * const	rulep;
 	return strp;
 }
 
-/*
-** Given the Epoch-relative time of January 1, 00:00:00 GMT, in a year, the
-** year, a rule, and the offset from GMT at the time that rule takes effect,
-** calculate the Epoch-relative time that rule takes effect.
+/*! \brief
+ * Given the Epoch-relative time of January 1, 00:00:00 GMT, in a year, the
+ * year, a rule, and the offset from GMT at the time that rule takes effect,
+ * calculate the Epoch-relative time that rule takes effect.
 */
 
-static time_t
-transtime(janfirst, year, rulep, offset)
+static time_t transtime(janfirst, year, rulep, offset)
 const time_t				janfirst;
 const int				year;
 register const struct rule * const	rulep;

@@ -20,6 +20,7 @@
  *
  * \brief Execute an ISDN RAS
  * 
+ * \ingroup applications
  */
 
 #include <sys/ioctl.h>

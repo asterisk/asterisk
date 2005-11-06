@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief Flat, binary, ulaw PCM file format.
+ * \arg File name extension: pcm, ulaw, ul, mu
  * 
+ * \ingroup formats
  */
  
 #include <unistd.h>

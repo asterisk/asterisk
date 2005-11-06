@@ -19,6 +19,8 @@
  * \brief Eval application
  *
  * \author Tilghman Lesher <app_eval__v001@the-tilghman.com>
+ *
+ * \ingroup applications
  */
 
 #include <stdio.h>

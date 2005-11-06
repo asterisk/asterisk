@@ -15,10 +15,14 @@
  * at the top of the source tree.
  */
 
-/*! \file
+/*! 
+ * \file
  *
  * \brief Work with Sun Microsystems AU format.
- * 
+ *
+ * signed linear
+ * \arg File extension: au
+ * \ingroup formats
  */
  
 #include <stdlib.h>

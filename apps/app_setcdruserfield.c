@@ -20,6 +20,7 @@
  *
  * \brief Applictions connected with CDR engine
  * 
+ * \ingroup applications
  */
 
 #include <sys/types.h>

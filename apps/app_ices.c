@@ -20,6 +20,7 @@
  *
  * \brief Stream to an icecast server via ICES (see contrib/asterisk-ices.xml)
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

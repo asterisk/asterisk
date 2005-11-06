@@ -19,6 +19,7 @@
 /*! \file
  * \brief App to transmit a URL
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

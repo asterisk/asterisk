@@ -20,6 +20,7 @@
  *
  * \brief Block all calls without Caller*ID, require phone # to be entered
  * 
+ * \ingroup applications
  */
 
 #include <string.h>
@@ -71,8 +72,7 @@ LOCAL_USER_DECL;
 
 
 
-static int
-privacy_exec (struct ast_channel *chan, void *data)
+static int privacy_exec (struct ast_channel *chan, void *data)
 {
 	int res=0;
 	int retries;

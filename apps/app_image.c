@@ -20,6 +20,7 @@
  *
  * \brief App to transmit an image
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

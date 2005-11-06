@@ -22,6 +22,7 @@
  *
  * \brief Database access functions
  *
+ * \ingroup applications
  */
 
 #include <stdlib.h>

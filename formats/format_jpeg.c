@@ -20,6 +20,8 @@
  *
  * \brief JPEG File format support.
  * 
+ * \arg File name extension: jpeg, jpg
+ * \ingroup formats
  */
  
 #include <sys/types.h>

@@ -3,7 +3,6 @@
  *
  * Copyright (C) 1999 - 2005, Digium, Inc.
  *
- * Jim Dixon <jim@lambdatel.com>
  *
  * Made only slightly more sane by Mark Spencer <markster@digium.com>
  *
@@ -21,7 +20,10 @@
 /*! \file
  *
  * \brief DISA -- Direct Inward System Access Application
+ *
+ * \author Jim Dixon <jim@lambdatel.com>
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

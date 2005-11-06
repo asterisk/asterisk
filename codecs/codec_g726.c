@@ -24,6 +24,7 @@
  *
  * \brief codec_g726.c - translate between signed linear and ITU G.726-32kbps
  *
+ * \ingroup codecs
  */
 
 #include <fcntl.h>

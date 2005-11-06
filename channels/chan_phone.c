@@ -20,6 +20,7 @@
  *
  * \brief Generic Linux Telephony Interface driver
  * 
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

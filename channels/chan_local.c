@@ -20,6 +20,7 @@
  *
  * \brief Local Proxy Channel
  * 
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

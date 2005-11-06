@@ -20,6 +20,7 @@
  *
  * \brief Open Settlement Protocol Lookup
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

@@ -20,6 +20,7 @@
  *
  * \brief IVR Demo application
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

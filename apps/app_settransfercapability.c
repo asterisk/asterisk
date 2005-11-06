@@ -20,6 +20,7 @@
  *
  * \brief App to set the ISDN Transfer Capability
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

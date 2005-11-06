@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief App to lookup the callerid number, and see if it is blacklisted
+ *
+ * \ingroup applications
  * 
  */
 

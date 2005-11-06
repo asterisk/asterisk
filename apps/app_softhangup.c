@@ -20,6 +20,7 @@
  *
  * \brief SoftHangup application
  * 
+ * \ingroup applications
  */
 
 #include <sys/types.h>

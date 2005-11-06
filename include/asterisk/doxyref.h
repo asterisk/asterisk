@@ -25,26 +25,30 @@
  * system.
  */
 /*! \page DevDoc Asterisk Developer's Documentation - appendices
- *  \arg \ref CodeGuide 
+ *  \arg \ref CodeGuide : The must-read document for all developer's
  *  \arg \ref AstAPI
- *  \arg \ref AstDebug
- *  \arg \ref AstAMI
- *  \arg \ref AstARA
- *  \arg \ref AstDUNDi
+ *  \arg \ref Def_Channel : What's a channel, anyway?
+ *  \arg \ref channel_drivers : Existing channel drivers
+ *  \arg \ref AstDebug : Hints on debugging
+ *  \arg \ref AstAMI : The Call management socket API
+ *  \arg \ref AstARA : A generic data storage and retrieval API for Asterisk
+ *  \arg \ref AstDUNDi : A way to find phone services dynamically by using the DUNDi protocol
  *  \arg \ref AstCDR
  *  \arg \ref AstREADME
- *  \arg \ref AstCREDITS
  *  \arg \ref AstVar
- *  \arg \ref AstENUM
+ *  \arg \ref AstENUM : The IETF way to redirect from phone numbers to VoIP calls
  *  \arg \ref ConfigFiles
- *  \arg \ref SoundFiles
- * \section wwwsites Web sites
- * \arg Main:  Asterisk Developer's website http://www.asterisk.org/developers/
- * \arg Bugs: The Issue tracker http://bugs.digium.com
- * \arg Lists: List server http://lists.digium.com
- * \arg Wiki: The Asterisk Wiki 	http://www.voip-info.org
- * \arg Docs: The Asterisk Documentation Project http://www.asteriskdocs.org
- * \arg Digium: The Asterisk company http://www.digium.com
+ *  \arg \ref SoundFiles included in the Asterisk distribution
+ *  \arg \ref AstCREDITS : A Thank You to contributors
+ \n\n
+ * \section weblinks Web sites
+ * \arg \b Main:  Asterisk Developer's website http://www.asterisk.org/developers/
+ * \arg \b Bugs: The Issue tracker http://bugs.digium.com
+ * \arg \b Lists: List server http://lists.digium.com
+ * \arg \b Wiki: The Asterisk Wiki 	http://www.voip-info.org
+ * \arg \b Docs: The Asterisk Documentation Project http://www.asteriskdocs.org
+ * \arg \b Digium: The Asterisk company http://www.digium.com
+ *
  */
 
 /*! \page CodeGuide Coding Guidelines
@@ -56,10 +60,11 @@
 
 /*! \page AstAPI Asterisk API
  *  \section Asteriskapi Asterisk API
- *  This programmer's documentation covers the generic API.
- *  \subsection generic Generic Model
+ *  Some generic documents on the Asterisk architecture
+ *  \subsection model_txt Generic Model
  *  \verbinclude model.txt
- *  \subsection channel Channels
+ *  \subsection channel_txt Channels
+ *  \arg See \link Def_Channel
  *  \verbinclude channel.txt
  */
 
@@ -88,6 +93,7 @@ DUNDi is a peer-to-peer system for locating Internet gateways to telephony servi
 
 DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it publishes routes which are in turn accessed via industry standard protocols such as IAX, SIP and H.323. 
 
+	\par References
  	\arg DUNDi is documented at http://www.dundi.com
   	\arg Implemented in \ref pbx_dundi.c and \ref dundi-parser.c
  	\arg Configuration in \link Config_dun dundi.conf \endlink
@@ -95,9 +101,12 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 
 /*! \page AstCDR CDR - Call Data Records and billing
  * \section cdr Call Data Records
- *  \verbinclude README.cdr
+ * \par See also
  * \arg \ref cdr.c
+ * \arg \ref cdr_drivers
  * \arg \ref Config_cdr CDR configuration files
+ *
+ *  \verbinclude README.cdr
  */
 
 /*! \page AstREADME README - the general administrator introduction
@@ -137,6 +146,8 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \link Config_oss OSS (sound card) configuration  \endlink
  * \arg \link Config_alsa ALSA (sound card) configuration  \endlink
  * \arg \link Config_agent Agent (proxy channel) configuration  \endlink
+ * \arg \link Config_misdn MISDN Experimental ISDN BRI channel configuration  \endlink
+ * \arg \link Config_h323 H.323 configuration  \endlink
  * \section appconf Application configuration files
  * \arg \link Config_mm Meetme (conference bridge) configuration  \endlink
  * \arg \link Config_qu Queue system configuration  \endlink
@@ -164,10 +175,17 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \verbinclude README.asterisk.conf
  */
 /*! \page Config_mod Modules configuration
+ * All res_ resource modules are loaded with globals on, which means
+ * that non-static functions are callable from other modules.
+ *
+ * If you want your non res_* module to export functions to other modules
+ * you have to include it in the [global] section.
  * \verbinclude modules.conf.sample
  */
 
 /*! \page Config_fea Call features configuration
+ * \par See also
+ * \arg \ref res_features.c : Call feature implementation
  * \section featconf features.conf
  * \verbinclude features.conf.sample
  */
@@ -189,58 +207,75 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_iax IAX configuration
- * \ref chan_iax2.c
+ * \arg Implemented in \ref chan_iax2.c
  * \section iaxconf iax.conf
  * \verbinclude iax.conf.sample
  */
 
 /*! \page Config_sip SIP configuration
  * Also see \ref Config_rtp RTP configuration
- * \ref chan_sip.c
+ * \arg Implemented in \ref chan_sip.c
  * \section sipconf sip.conf
  * \verbinclude sip.conf.sample
+ *
+ * \arg \b Back \ref chanconf
  */
 
 /*! \page Config_mgcp MGCP configuration
  * Also see \ref Config_rtp RTP configuration
- * \ref chan_mgcp.c
+ * \arg Implemented in \ref chan_mgcp.c
  * \section mgcpconf mgcp.conf
  * \verbinclude mgcp.conf.sample
  */
 
+/*! \page Config_misdn MISDN configuration
+ * \arg Implemented in \ref chan_misdn.c
+ * \section misdnconf misdn.conf
+ * \verbinclude misdn.conf.sample
+ */
+
 /*! \page Config_vm VoiceMail configuration
  * \section vmconf voicemail.conf
- * \ref app_voicemail.c
+ * \arg Implemented in \ref app_voicemail.c
  * \verbinclude voicemail.conf.sample
  */
 
 /*! \page Config_zap Zaptel configuration
  * \section zapconf zapata.conf
- * \ref chan_zap.c
+ * \arg Implemented in \ref chan_zap.c
  * \verbinclude zapata.conf.sample
+ */
+
+/*! \page Config_h323 H.323 channel driver information
+ * This is the configuration of the H.323 channel driver within the Asterisk
+ * distribution. There's another one, called OH323, in asterisk-addons
+ * \arg Implemented in \ref chan_h323.c
+ * \section h323conf h323.conf
+ * \ref chan_h323.c
+ * \verbinclude README.h323
  */
 
 /*! \page Config_oss OSS configuration
  * \section ossconf oss.conf
- * \ref chan_oss.c
+ * \arg Implemented in \ref chan_oss.c
  * \verbinclude oss.conf.sample
  */
 
 /*! \page Config_alsa ALSA configuration
  * \section alsaconf alsa.conf
- * \ref chan_alsa.c
+ * \arg Implemented in \ref chan_alsa.c
  * \verbinclude alsa.conf.sample
  */
 
 /*! \page Config_agent Agent configuration
  * \section agentconf agents.conf
  * The agent channel is a proxy channel for queues
- * \ref chan_agent.c
+ * \arg Implemented in \ref chan_agent.c
  * \verbinclude agents.conf.sample
  */
 
 /*! \page Config_rtp RTP configuration
- * \ref rtp.c
+ * \arg Implemented in \ref rtp.c
  * Used in \ref chan_sip.c and \ref chan_mgcp.c (and various H.323 channels)
  * \section rtpconf rtp.conf
  * \verbinclude rtp.conf.sample
@@ -255,19 +290,20 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 /*! \page Config_enum ENUM Configuration
  * \section enumconf enum.conf
  * \arg See also \ref enumreadme
- * \arg \ref app_enumlookup.c
+ * \arg Implemented in \ref app_enumlookup.c and \ref enum.c
  * \verbinclude enum.conf.sample
  */
 
 /*! \page cdr_custom Custom CDR Configuration
- * \arg See also \ref cdrconf
+ * \par See also 
+ * \arg \ref cdrconf
  * \arg \ref cdr_custom.c
  * \verbinclude cdr_custom.conf.sample
  */
 
 /*! \page cdr_ami Manager CDR driver configuration
- * \arg See also \ref cdrconf
- * See also:
+ * \par See also 
+ * \arg \ref cdrconf
  * \arg \ref AstAMI
  * \arg \ref cdr_manager.c
  * \verbinclude cdr_manager.conf.sample
@@ -304,7 +340,8 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_cdr CDR configuration
- * \verbinclude cdr.conf.sample
+ * \par See also
+ * \arg \ref cdr_drivers
  * \arg \link Config_cdr CDR configuration  \endlink  
  * \arg \link cdr_custom Custom CDR driver configuration \endlink
  * \arg \link cdr_ami Manager CDR driver configuration \endlink
@@ -312,6 +349,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \arg \link cdr_pgsql PostgreSQL CDR driver configuration \endlink
  * \arg \link cdr_sqlite SQLite CDR driver configuration \endlink
  * \arg \link cdr_tds FreeTDS CDR driver configuration (Microsoft SQL Server) \endlink
+ * \verbinclude cdr.conf.sample
  */
 
 /*! \page Config_moh Music on Hold Configuration
@@ -343,11 +381,13 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  */
 
 /*! \page Config_qu ACD - Queue system configuration
+ * \arg Implemented in \ref app_queue.c
  * \section quconf queues.conf
  * \verbinclude queues.conf.sample
  */
 
 /*! \page Config_mm Meetme - The conference bridge configuration
+ * \arg Implemented in \ref app_meetme.c
  * \section mmconf meetme.conf
  * \verbinclude meetme.conf.sample
  */
@@ -362,4 +402,48 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * 
  *  \section SoundList List of included sound files
  *  \verbinclude sounds.txt
+ */
+
+/*! \addtogroup cdr_drivers Module: CDR Drivers
+ *  \section CDR_generic Asterisk CDR Drivers
+ *  \brief CDR drivers are loaded dynamically (see \ref Config_mod "Modules Configuration"). Each loaded CDR driver produce a billing record for each call.
+ *  \arg \ref Config_cdr "CDR Configuration"
+ */
+
+
+/*! \addtogroup channel_drivers Module: Asterisk Channel Drivers
+ *  \section channel_generic Asterisk Channel Drivers
+ *  \brief Channel drivers are loaded dynamically (see \ref Config_mod "Modules Configuration"). 
+ */
+
+/*! \addtogroup applications Module: Dial plan applications
+ *  \section app_generic Asterisk Dial Plan Applications
+ *  \brief Applications support the dialplan. They register dynamically with \ref ast_register_application() and unregister with ast_unregister_application()
+ * \par See also
+ * \arg \ref functions
+ *  
+ */
+
+/*! \addtogroup functions Module: Dial plan functions
+ *  \section func_generic Asterisk Dial Plan Functions
+ *  \brief Functions support the dialplan.  They do not change any property of a channel
+ *  or touch a channel in any way.
+ * \par See also
+ * \arg \ref applications
+ *  
+ */
+
+/*! \addtogroup codecs Module: Codecs
+ *  \section codec_generic Asterisk Codec Modules
+ *  Codecs are referenced in configuration files by name 
+ *  \par See also 
+ *  \arg \ref formats 
+ *
+ */
+
+/*! \addtogroup formats Module: Media File Formats 
+ *  \section codec_generic Asterisk Format drivers
+ *  Formats are modules that read or write media files to disk.
+ *  \par See also
+ *  \arg \ref codecs 
  */

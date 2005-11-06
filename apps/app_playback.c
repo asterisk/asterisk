@@ -20,6 +20,7 @@
  *
  * \brief Trivial application to playback a sound file
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

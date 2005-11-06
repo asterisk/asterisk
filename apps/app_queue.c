@@ -19,8 +19,10 @@
 /*! \file
  *
  * \brief True call queues with optional send URL on answer
- * 
  *
+ * \arg Config in \ref Config_qu queues.conf
+ * 
+ * \par Development notes
  * \note 2004-11-25: Persistent Dynamic Members added by:
  *             NetNation Communications (www.netnation.com)
  *             Kevin Lindsay <kevinl@netnation.com>
@@ -49,6 +51,7 @@
  * Fixed to work with CVS as of 2004-02-25 and released as 1.07a
  * by Matthew Enger <m.enger@xi.com.au>
  *
+ * \ingroup applications
  */
 
 #include <stdlib.h>
@@ -192,15 +195,15 @@ static char *app_upqm_descrip =
 "same way, except it unpauses instead of pausing the given interface.\n"
 "Example: UnpauseQueueMember(|SIP/3000)\n";
 
-/* Persistent Members astdb family */
+/*! \brief Persistent Members astdb family */
 static const char *pm_family = "/Queue/PersistentMembers";
 /* The maximum lengh of each persistent member queue database entry */
 #define PM_MAX_LEN 2048
 
-/* queues.conf [general] option */
+/*! \brief queues.conf [general] option */
 static int queue_persistent_members = 0;
 
-/* queues.conf per-queue weight option */
+/*! \brief queues.conf per-queue weight option */
 static int use_weight = 0;
 
 enum queue_result {
@@ -226,7 +229,7 @@ const struct {
 	{ QUEUE_FULL, "FULL" },
 };
 
-/* We define a custom "local user" structure because we
+/*! \brief We define a custom "local user" structure because we
    use it not only for keeping track of what is in use but
    also for keeping track of who we're dialing. */
 
@@ -244,34 +247,34 @@ struct localuser {
 LOCAL_USER_DECL;
 
 struct queue_ent {
-	struct ast_call_queue *parent;	/* What queue is our parent */
-	char moh[80];			/* Name of musiconhold to be used */
-	char announce[80];		/* Announcement to play for member when call is answered */
-	char context[AST_MAX_CONTEXT];	/* Context when user exits queue */
-	char digits[AST_MAX_EXTENSION];	/* Digits entered while in queue */
-	int pos;			/* Where we are in the queue */
-	int prio;			/* Our priority */
-	int last_pos_said;              /* Last position we told the user */
-	time_t last_periodic_announce_time;	/* The last time we played a periodic anouncement */
-	time_t last_pos;                /* Last time we told the user their position */
-	int opos;			/* Where we started in the queue */
-	int handled;			/* Whether our call was handled */
-	time_t start;			/* When we started holding */
-	time_t expire;			/* When this entry should expire (time out of queue) */
-	struct ast_channel *chan;	/* Our channel */
-	struct queue_ent *next;		/* The next queue entry */
+	struct ast_call_queue *parent;	/*!< What queue is our parent */
+	char moh[80];			/*!< Name of musiconhold to be used */
+	char announce[80];		/*!< Announcement to play for member when call is answered */
+	char context[AST_MAX_CONTEXT];	/*!< Context when user exits queue */
+	char digits[AST_MAX_EXTENSION];	/*!< Digits entered while in queue */
+	int pos;			/*!< Where we are in the queue */
+	int prio;			/*!< Our priority */
+	int last_pos_said;              /*!< Last position we told the user */
+	time_t last_periodic_announce_time;	/*!< The last time we played a periodic anouncement */
+	time_t last_pos;                /*!< Last time we told the user their position */
+	int opos;			/*!< Where we started in the queue */
+	int handled;			/*!< Whether our call was handled */
+	time_t start;			/*!< When we started holding */
+	time_t expire;			/*!< When this entry should expire (time out of queue) */
+	struct ast_channel *chan;	/*!< Our channel */
+	struct queue_ent *next;		/*!< The next queue entry */
 };
 
 struct member {
-	char interface[80];		/* Technology/Location */
-	int penalty;			/* Are we a last resort? */
-	int calls;			/* Number of calls serviced by this member */
-	int dynamic;			/* Are we dynamically added? */
-	int status;			/* Status of queue member */
-	int paused;			/* Are we paused (not accepting calls)? */
-	time_t lastcall;		/* When last successful call was hungup */
-	int dead;			/* Used to detect members deleted in realtime */
-	struct member *next;		/* Next member */
+	char interface[80];		/*!< Technology/Location */
+	int penalty;			/*!< Are we a last resort? */
+	int calls;			/*!< Number of calls serviced by this member */
+	int dynamic;			/*!< Are we dynamically added? */
+	int status;			/*!< Status of queue member */
+	int paused;			/*!< Are we paused (not accepting calls)? */
+	time_t lastcall;		/*!< When last successful call was hungup */
+	int dead;			/*!< Used to detect members deleted in realtime */
+	struct member *next;		/*!< Next member */
 };
 
 /* values used in multi-bit flags in ast_call_queue */
@@ -282,10 +285,10 @@ struct member {
 
 struct ast_call_queue {
 	ast_mutex_t lock;	
-	char name[80];			/* Name */
-	char moh[80];			/* Music On Hold class to be used */
-	char announce[80];		/* Announcement to play when call is answered */
-	char context[AST_MAX_CONTEXT];	/* Exit context */
+	char name[80];			/*!< Name */
+	char moh[80];			/*!< Music On Hold class to be used */
+	char announce[80];		/*!< Announcement to play when call is answered */
+	char context[AST_MAX_CONTEXT];	/*!< Exit context */
 		unsigned int monjoin:1;
 		unsigned int dead:1;
 		unsigned int joinempty:2;
@@ -298,41 +301,41 @@ struct ast_call_queue {
 		unsigned int strategy:3;
 		unsigned int maskmemberstatus:1;
 		unsigned int realtime:1;
-	int announcefrequency;          /* How often to announce their position */
-	int periodicannouncefrequency;	/* How often to play periodic announcement */
-	int roundingseconds;            /* How many seconds do we round to? */
-	int holdtime;                   /* Current avg holdtime, based on recursive boxcar filter */
-	int callscompleted;             /* Number of queue calls completed */
-	int callsabandoned;             /* Number of queue calls abandoned */
-	int servicelevel;               /* seconds setting for servicelevel*/
-	int callscompletedinsl;         /* Number of calls answered with servicelevel*/
-	char monfmt[8];                 /* Format to use when recording calls */
-	char sound_next[80];            /* Sound file: "Your call is now first in line" (def. queue-youarenext) */
-	char sound_thereare[80];        /* Sound file: "There are currently" (def. queue-thereare) */
-	char sound_calls[80];           /* Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting)*/
-	char sound_holdtime[80];        /* Sound file: "The current estimated total holdtime is" (def. queue-holdtime) */
-	char sound_minutes[80];         /* Sound file: "minutes." (def. queue-minutes) */
-	char sound_lessthan[80];        /* Sound file: "less-than" (def. queue-lessthan) */
-	char sound_seconds[80];         /* Sound file: "seconds." (def. queue-seconds) */
-	char sound_thanks[80];          /* Sound file: "Thank you for your patience." (def. queue-thankyou) */
-	char sound_reporthold[80];	/* Sound file: "Hold time" (def. queue-reporthold) */
-	char sound_periodicannounce[80];/* Sound file: Custom announce, no default */
+	int announcefrequency;          /*!< How often to announce their position */
+	int periodicannouncefrequency;	/*!< How often to play periodic announcement */
+	int roundingseconds;            /*!< How many seconds do we round to? */
+	int holdtime;                   /*!< Current avg holdtime, based on recursive boxcar filter */
+	int callscompleted;             /*!< Number of queue calls completed */
+	int callsabandoned;             /*!< Number of queue calls abandoned */
+	int servicelevel;               /*!< seconds setting for servicelevel*/
+	int callscompletedinsl;         /*!< Number of calls answered with servicelevel*/
+	char monfmt[8];                 /*!< Format to use when recording calls */
+	char sound_next[80];            /*!< Sound file: "Your call is now first in line" (def. queue-youarenext) */
+	char sound_thereare[80];        /*!< Sound file: "There are currently" (def. queue-thereare) */
+	char sound_calls[80];           /*!< Sound file: "calls waiting to speak to a representative." (def. queue-callswaiting)*/
+	char sound_holdtime[80];        /*!< Sound file: "The current estimated total holdtime is" (def. queue-holdtime) */
+	char sound_minutes[80];         /*!< Sound file: "minutes." (def. queue-minutes) */
+	char sound_lessthan[80];        /*!< Sound file: "less-than" (def. queue-lessthan) */
+	char sound_seconds[80];         /*!< Sound file: "seconds." (def. queue-seconds) */
+	char sound_thanks[80];          /*!< Sound file: "Thank you for your patience." (def. queue-thankyou) */
+	char sound_reporthold[80];	/*!< Sound file: "Hold time" (def. queue-reporthold) */
+	char sound_periodicannounce[80];/*!< Sound file: Custom announce, no default */
 
-	int count;			/* How many entries */
-	int maxlen;			/* Max number of entries */
-	int wrapuptime;			/* Wrapup Time */
+	int count;			/*!< How many entries */
+	int maxlen;			/*!< Max number of entries */
+	int wrapuptime;			/*!< Wrapup Time */
 
-	int retry;			/* Retry calling everyone after this amount of time */
-	int timeout;			/* How long to wait for an answer */
-	int weight;                     /* Respective weight */
+	int retry;			/*!< Retry calling everyone after this amount of time */
+	int timeout;			/*!< How long to wait for an answer */
+	int weight;                     /*!< Respective weight */
 	
 	/* Queue strategy things */
-	int rrpos;			/* Round Robin - position */
-	int memberdelay;		/* Seconds to delay connecting member to caller */
+	int rrpos;			/*!< Round Robin - position */
+	int memberdelay;		/*!< Seconds to delay connecting member to caller */
 
-	struct member *members;		/* Head of the list of members */
-	struct queue_ent *head;		/* Head of the list of callers */
-	struct ast_call_queue *next;	/* Next call queue */
+	struct member *members;		/*!< Head of the list of members */
+	struct queue_ent *head;		/*!< Head of the list of callers */
+	struct ast_call_queue *next;	/*!< Next call queue */
 };
 
 static struct ast_call_queue *queues = NULL;
@@ -370,7 +373,7 @@ static int strat2int(const char *strategy)
 	return -1;
 }
 
-/* Insert the 'new' entry after the 'prev' entry of queue 'q' */
+/*! \brief Insert the 'new' entry after the 'prev' entry of queue 'q' */
 static inline void insert_entry(struct ast_call_queue *q, struct queue_ent *prev, struct queue_ent *new, int *pos)
 {
 	struct queue_ent *cur;
@@ -565,7 +568,8 @@ static void clear_queue(struct ast_call_queue *q)
 	q->wrapuptime = 0;
 }
 
-/* Configure a queue parameter.
+/*! \brief Configure a queue parameter.
+\par
    For error reporting, line number is passed for .conf static configuration.
    For Realtime queues, linenum is -1.
    The failunknown flag is set for config files (and static realtime) to show
@@ -727,8 +731,9 @@ static void rt_handle_member_record(struct ast_call_queue *q, char *interface, c
 }
 
 
-/* Reload a single queue via realtime. Return the queue, or NULL if it doesn't exist.
-   Should be called with the global qlock locked.
+/*!\brief Reload a single queue via realtime.
+   \return Return the queue, or NULL if it doesn't exist.
+   \note Should be called with the global qlock locked.
    When found, the queue is returned with q->lock locked. */
 static struct ast_call_queue *reload_queue_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
 {
@@ -769,7 +774,7 @@ static struct ast_call_queue *reload_queue_rt(const char *queuename, struct ast_
 	if (!queue_vars) {
 		/* Delete queue from in-core list if it has been deleted in realtime. */
 		if (q) {
-			/* Hmm, can't seem to distinguish a DB failure from a not
+			/*! \note Hmm, can't seem to distinguish a DB failure from a not
 			   found condition... So we might delete an in-core queue
 			   in case of DB failure. */
 			ast_log(LOG_DEBUG, "Queue %s not found in realtime.\n", queuename);
@@ -865,7 +870,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	int inserted = 0;
 	enum queue_member_status stat;
 
-	/* Load from realtime before taking the global qlock, to avoid blocking all
+	/*! \note Load from realtime before taking the global qlock, to avoid blocking all
 	   queue operations while waiting for the DB.
 
 	   This will be two separate database transactions, so we might
@@ -3314,7 +3319,9 @@ static char *complete_queue(char *line, char *word, int pos, int state)
 	return q ? strdup(q->name) : NULL;
 }
 
-/* JDG: callback to display queues status in manager */
+/*!\brief callback to display queues status in manager 
+   \addtogroup Group_AMI 
+ */
 static int manager_queues_show( struct mansession *s, struct message *m )
 {
 	char *a[] = { "show", "queues" };

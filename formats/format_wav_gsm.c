@@ -20,6 +20,11 @@
  *
  * \brief Save GSM in the proprietary Microsoft format.
  * 
+ * Microsoft WAV format (Proprietary GSM)
+ * \arg File name extension: WAV,wav49  (Upper case WAV, lower case is another format)
+ * This format can be played on Windows systems, used for
+ * e-mail attachments mainly.
+ * \ingroup formats
  */
  
 #include <unistd.h>

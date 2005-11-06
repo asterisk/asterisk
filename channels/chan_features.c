@@ -22,6 +22,7 @@
  * 
  * \note *** Experimental code ****
  * 
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

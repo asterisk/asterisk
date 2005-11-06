@@ -20,6 +20,7 @@
  *
  * \brief App to set callerid
  *
+ * \ingroup applications
  */
  
 #include <string.h>

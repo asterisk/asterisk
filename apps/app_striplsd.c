@@ -20,6 +20,7 @@
  *
  * \brief striplsd: Strip trailing digits app
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

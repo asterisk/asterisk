@@ -29,6 +29,9 @@
  *
  * \brief Comedian Mail - Voicemail System
  * 
+ * \par See also
+ * \arg \ref Config_vm
+ * \ingroup applications
  */
 
 #include <stdlib.h>
@@ -130,59 +133,62 @@ AST_APP_OPTIONS(vm_app_options, {
 
 static int load_config(void);
 
-/* Syntaxes supported, not really language codes.
-	en - English
-	de - German
-	es - Spanish
-	fr - French
-	it = Italian
-	nl - Dutch
-	pt - Portuguese
-	gr - Greek
-	no - Norwegian
-	se - Swedish
+/*! \page vmlang Voicemail Language Syntaxes Supported
+
+	\par Syntaxes supported, not really language codes.
+	\arg \b en - English
+	\arg \b de - German
+	\arg \b es - Spanish
+	\arg \b fr - French
+	\arg \b it = Italian
+	\arg \b nl - Dutch
+	\arg \b pt - Portuguese
+	\arg \b gr - Greek
+	\arg \b no - Norwegian
+	\arg \b se - Swedish
 
 German requires the following additional soundfile:
-1F	einE (feminine)
+\arg \b 1F	einE (feminine)
 
 Spanish requires the following additional soundfile:
-1M      un (masculine)
+\arg \b 1M      un (masculine)
 
 Dutch, Portuguese & Spanish require the following additional soundfiles:
-vm-INBOXs	singular of 'new'
-vm-Olds		singular of 'old/heard/read'
+\arg \b vm-INBOXs	singular of 'new'
+\arg \b vm-Olds		singular of 'old/heard/read'
 
 NB these are plural:
-vm-INBOX	nieuwe (nl)
-vm-Old		oude (nl)
+\arg \b vm-INBOX	nieuwe (nl)
+\arg \b vm-Old		oude (nl)
 
 Swedish uses:
-vm-nytt		singular of 'new'
-vm-nya		plural of 'new'
-vm-gammalt	singular of 'old'
-vm-gamla	plural of 'old'
-digits/ett	'one', not always same as 'digits/1'
+\arg \b vm-nytt		singular of 'new'
+\arg \b vm-nya		plural of 'new'
+\arg \b vm-gammalt	singular of 'old'
+\arg \b vm-gamla	plural of 'old'
+\arg \b digits/ett	'one', not always same as 'digits/1'
 
 Norwegian uses:
-vm-ny		singular of 'new'
-vm-nye		plural of 'new'
-vm-gammel	singular of 'old'
-vm-gamle	plural of 'old'
+\arg \b vm-ny		singular of 'new'
+\arg \b vm-nye		plural of 'new'
+\arg \b vm-gammel	singular of 'old'
+\arg \b vm-gamle	plural of 'old'
 
 Dutch also uses:
-nl-om		'at'?
+\arg \b nl-om		'at'?
 
 Spanish also uses:
-vm-youhaveno
+\arg \b vm-youhaveno
 
 Italian requires the following additional soundfile:
 
 For vm_intro_it:
-vm-nuovo	new
-vm-nuovi	new plural
-vm-vecchio	old
-vm-vecchi	old plural
-Don't use vm-INBOX or vm-Old, because they are the name of the INBOX and Old folders,
+\arg \b vm-nuovo	new
+\arg \b vm-nuovi	new plural
+\arg \b vm-vecchio	old
+\arg \b vm-vecchi	old plural
+
+\note Don't use vm-INBOX or vm-Old, because they are the name of the INBOX and Old folders,
 spelled among others when you have to change folder. For the above reasons, vm-INBOX
 and vm-Old are spelled plural, to make them sound more as folder name than an adjective.
 
@@ -196,25 +202,25 @@ struct baseio {
 	unsigned char iobuf[BASEMAXINLINE];
 };
 
-/* Structure for linked list of users */
+/*! Structure for linked list of users */
 struct ast_vm_user {
-	char context[AST_MAX_CONTEXT];	/* Voicemail context */
-	char mailbox[AST_MAX_EXTENSION];/* Mailbox id, unique within vm context */
-	char password[80];		/* Secret pin code, numbers only */
-	char fullname[80];		/* Full name, for directory app */
-	char email[80];			/* E-mail address */
-	char pager[80];			/* E-mail address to pager (no attachment) */
-	char serveremail[80];		/* From: Mail address */
-	char mailcmd[160];		/* Configurable mail command */
-	char language[MAX_LANGUAGE];    /* Config: Language setting */
-	char zonetag[80];		/* Time zone */
+	char context[AST_MAX_CONTEXT];	/*!< Voicemail context */
+	char mailbox[AST_MAX_EXTENSION];/*!< Mailbox id, unique within vm context */
+	char password[80];		/*!< Secret pin code, numbers only */
+	char fullname[80];		/*!< Full name, for directory app */
+	char email[80];			/*!< E-mail address */
+	char pager[80];			/*!< E-mail address to pager (no attachment) */
+	char serveremail[80];		/*!< From: Mail address */
+	char mailcmd[160];		/*!< Configurable mail command */
+	char language[MAX_LANGUAGE];    /*!< Config: Language setting */
+	char zonetag[80];		/*!< Time zone */
 	char callback[80];
 	char dialout[80];
-	char uniqueid[20];		/* Unique integer identifier */
+	char uniqueid[20];		/*!< Unique integer identifier */
 	char exit[80];
-	unsigned int flags;		/* VM_ flags */	
+	unsigned int flags;		/*!< VM_ flags */	
 	int saydurationm;
-	int maxmsg;			/* Maximum number of msgs per folder for this mailbox */
+	int maxmsg;			/*!< Maximum number of msgs per folder for this mailbox */
 	struct ast_vm_user *next;
 };
 

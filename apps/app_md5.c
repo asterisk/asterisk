@@ -20,6 +20,7 @@
  * \brief MD5 checksum application
  * 
  * \todo Remove this deprecated application in 1.3dev
+ * \ingroup applications
  */
 
 #include <stdlib.h>

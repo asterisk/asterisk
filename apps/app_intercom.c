@@ -20,6 +20,7 @@
  *
  * \brief Use /dev/dsp as an intercom.
  * 
+ * \ingroup applications
  */
  
 #include <unistd.h>

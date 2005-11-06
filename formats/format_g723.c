@@ -16,10 +16,13 @@
  * at the top of the source tree.
  */
 
-/*! \file
+/*! 
+ * \file
  *
- * \brief Old-style G.723 frame/timestamp format.
+ * \brief Old-style G.723.1 frame/timestamp format.
  * 
+ * \arg Extensions: g723, g723sf
+ * \ingroup formats
  */
  
 #include <unistd.h>

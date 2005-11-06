@@ -20,6 +20,7 @@
  *
  * \brief App to send DTMF digits
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

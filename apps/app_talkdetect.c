@@ -20,6 +20,7 @@
  *
  * \brief Playback a file with audio detect
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

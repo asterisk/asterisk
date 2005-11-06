@@ -20,6 +20,7 @@
  *
  * \brief Group Manipulation Applications
  *
+ * \ingroup applications
  */
 
 #include <stdio.h>

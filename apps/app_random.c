@@ -20,6 +20,7 @@
  * \brief Random application
  *
  * \author Tilghman Lesher <asterisk__app_random__200508@the-tilghman.com>
+ * \ingroup applications
  */
 
 #include <stdio.h>

@@ -20,6 +20,7 @@
  *
  * \brief Provide a directory of extensions
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

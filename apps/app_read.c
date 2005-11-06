@@ -20,6 +20,7 @@
  *
  * \brief Trivial application to read a variable
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

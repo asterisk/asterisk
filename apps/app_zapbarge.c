@@ -23,6 +23,7 @@
  *
  * \brief Zap Barge support
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

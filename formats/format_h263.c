@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Save to raw, headerless h263 data.
- * 
+ * \arg File name extension: h263
+ * \ingroup formats
  */
  
 #include <unistd.h>

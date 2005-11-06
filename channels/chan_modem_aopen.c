@@ -20,6 +20,7 @@
  *
  * A/Open ITU-56/2 Voice Modem Driver (Rockwell, IS-101, and others)
  * 
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

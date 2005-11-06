@@ -28,6 +28,7 @@
  * \arg http://www.sqlite.org/
  * 
  * Creates the database and table on-the-fly
+ * \ingroup cdr_drivers
  */
 
 #include <sys/types.h>

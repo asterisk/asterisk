@@ -20,6 +20,7 @@
  *
  * \brief Connect to PostgreSQL
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

@@ -20,6 +20,7 @@
  *
  * \brief A simple math application
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

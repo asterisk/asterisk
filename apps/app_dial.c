@@ -20,6 +20,7 @@
  *
  * \brief dial() & retrydial() - Trivial application to dial a channel and send an URL on answer
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

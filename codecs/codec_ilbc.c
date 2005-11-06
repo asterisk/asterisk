@@ -22,6 +22,7 @@
  *
  * \brief Translate between signed linear and Internet Low Bitrate Codec
  * 
+ * \ingroup codecs
  */
 
 #include <fcntl.h>

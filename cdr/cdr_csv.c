@@ -23,6 +23,7 @@
  * \brief Comma Separated Value CDR records.
  * 
  * \arg See also \ref AstCDR
+ * \ingroup cdr_drivers
  */
 
 #include <sys/types.h>

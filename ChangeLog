@@ -4,6 +4,7 @@
 	* channels/chan_iax2.c: Use an enum to define iax peer/user flags as well as the pvt structure state.  Use the ast_flags macros for checking or setting the state.
 	* sounds.txt: Add missing words from the description of the vm-opts prompt
 	* apps/app_externalivr.c: Add a space that fixes building on older versions of gcc
+	* many files: Add doxygen updates to categorize modules into groups. Convert a lot of comments over to doxygen style. Add some text giving a basic overview of channels.
 
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 

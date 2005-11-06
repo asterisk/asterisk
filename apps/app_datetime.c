@@ -19,6 +19,7 @@
 /*! \file
  * \brief Time of day - Report the time of day
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

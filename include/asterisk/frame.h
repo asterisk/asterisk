@@ -18,6 +18,8 @@
 
 /*! \file
  * \brief Asterisk internal frame definitions.
+ * \arg For an explanation of frames, see \ref Def_Frame
+ * \arg Frames are send of Asterisk channels, see \ref Def_Channel
  */
 
 #ifndef _ASTERISK_FRAME_H
@@ -35,9 +37,55 @@ struct ast_codec_pref {
 	char order[32];
 };
 
-/*! Data structure associated with a single frame of data */
-/* A frame of data read used to communicate between 
-   between channels and applications */
+/*! \page Def_Frame AST Multimedia and signalling frames
+	\section Def_AstFrame What is an ast_frame ?
+ 	A frame of data read used to communicate between 
+ 	between channels and applications.
+	Frames are divided into frame types and subclasses.
+
+	\par Frame types 
+	\arg \b VOICE:	Voice data, subclass is codec (AST_FORMAT_*)
+	\arg \b VIDEO:	Video data, subclass is codec (AST_FORMAT_*)
+	\arg \b DTMF:	A DTMF digit, subclass is the digit
+	\arg \b IMAGE:	Image transport, mostly used in IAX
+	\arg \b TEXT:	Text messages
+	\arg \b HTML:	URL's and web pages
+	\arg \b T38:	T38 Fax transport frames
+	\arg \b IAX:	Private frame type for the IAX protocol
+	\arg \b CNG:	Comfort noice frames
+	\arg \b CONTROL:	A control frame, subclass defined as AST_CONTROL_
+	\arg \b NULL:	Empty, useless frame
+
+	\par Files
+	\arg frame.h	Definitions
+	\arg frame.c	Function library
+	\arg \ref Def_Channel Asterisk channels
+	\section Def_ControlFrame Control Frames
+	Control frames send signalling information between channels
+	and devices. They are prefixed with AST_CONTROL_, like AST_CONTROL_FRAME_HANGUP
+	\arg \b HANGUP	The other end has hungup
+	\arg \b RING	Local ring
+	\arg \b RINGING	The other end is ringing
+	\arg \b ANSWER	The other end has answered
+	\arg \b BUSY	Remote end is busy
+	\arg \b TAKEOFFHOOK	Make it go off hook (what's "it" ? )
+	\arg \b OFFHOOK	Line is off hook
+	\arg \b CONGESTION	Congestion (circuit is busy, not available)
+	\arg \b FLASH	Other end sends flash hook
+	\arg \b WINK	Other end sends wink
+	\arg \b OPTION	Send low-level option
+	\arg \b RADIO_KEY	Key radio (see app_rpt.c)
+	\arg \b RADIO_UNKEY	Un-key radio (see app_rpt.c)
+	\arg \b PROGRESS	Other end indicates call progress
+	\arg \b PROCEEDING	Indicates proceeding
+	\arg \b HOLD	Call is placed on hold
+	\arg \b UNHOLD	Call is back from hold
+	\arg \b VIDUPDATE	Video update requested
+
+*/
+
+/*! \brief Data structure associated with a single frame of data
+ */
 struct ast_frame {
 	/*! Kind of frame */
 	int frametype;				
@@ -63,10 +111,10 @@ struct ast_frame {
 	struct ast_frame *next;			
 };
 
-#define AST_FRIENDLY_OFFSET 	64		/*! It's polite for a a new frame to
-						  have this number of bytes for additional
-						  headers.  */
-#define AST_MIN_OFFSET 		32		/*! Make sure we keep at least this much handy */
+#define AST_FRIENDLY_OFFSET 	64	/*! It's polite for a a new frame to
+					  have this number of bytes for additional
+					  headers.  */
+#define AST_MIN_OFFSET 		32	/*! Make sure we keep at least this much handy */
 
 /*! Need the header be free'd? */
 #define AST_MALLOCD_HDR		(1 << 0)
@@ -206,29 +254,29 @@ struct ast_frame {
 #define AST_OPTION_FLAG_ANSWER		5
 #define AST_OPTION_FLAG_WTF		6
 
-/* Verify touchtones by muting audio transmission 
+/*! Verify touchtones by muting audio transmission 
 	(and reception) and verify the tone is still present */
 #define AST_OPTION_TONE_VERIFY		1		
 
-/* Put a compatible channel into TDD (TTY for the hearing-impared) mode */
+/*! Put a compatible channel into TDD (TTY for the hearing-impared) mode */
 #define	AST_OPTION_TDD			2
 
-/* Relax the parameters for DTMF reception (mainly for radio use) */
+/*! Relax the parameters for DTMF reception (mainly for radio use) */
 #define	AST_OPTION_RELAXDTMF		3
 
-/* Set (or clear) Audio (Not-Clear) Mode */
+/*! Set (or clear) Audio (Not-Clear) Mode */
 #define	AST_OPTION_AUDIO_MODE		4
 
-/* Set channel transmit gain */
-/* Option data is a single signed char
+/*! Set channel transmit gain 
+ * Option data is a single signed char
    representing number of decibels (dB)
    to set gain to (on top of any gain
    specified in channel driver)
 */
 #define AST_OPTION_TXGAIN		5
 
-/* Set channel receive gain */
-/* Option data is a single signed char
+/*! Set channel receive gain
+ * Option data is a single signed char
    representing number of decibels (dB)
    to set gain to (on top of any gain
    specified in channel driver)
@@ -251,8 +299,8 @@ struct ast_option_header {
 		u_int8_t data[0];
 };
 
-/*  Requests a frame to be allocated */
-/* 
+/*! \brief  Requests a frame to be allocated 
+ * 
  * \param source 
  * Request a frame be allocated.  source is an optional source of the frame, 
  * len is the requested length, or "0" if the caller will supply the buffer 
@@ -261,55 +309,49 @@ struct ast_option_header {
 struct ast_frame *ast_fralloc(char *source, int len);
 #endif
 
-/*! Frees a frame */
-/*! 
+/*!  \brief Frees a frame 
  * \param fr Frame to free
  * Free a frame, and the memory it used if applicable
- * no return.
+ * \return no return.
  */
 void ast_frfree(struct ast_frame *fr);
 
-/*! Copies a frame */
-/*! 
+/*! \brief Copies a frame 
  * \param fr frame to act upon
  * Take a frame, and if it's not been malloc'd, make a malloc'd copy
  * and if the data hasn't been malloced then make the
  * data malloc'd.  If you need to store frames, say for queueing, then
  * you should call this function.
- * Returns a frame on success, NULL on error
+ * \return Returns a frame on success, NULL on error
  */
 struct ast_frame *ast_frisolate(struct ast_frame *fr);
 
-/*! Copies a frame */
-/*! 
+/*! \brief Copies a frame 
  * \param fr frame to copy
  * Dupliates a frame -- should only rarely be used, typically frisolate is good enough
- * Returns a frame on success, NULL on error
+ * \return Returns a frame on success, NULL on error
  */
 struct ast_frame *ast_frdup(struct ast_frame *fr);
 
-/*! Reads a frame from an fd */
-/*! 
- * \param fd an opened fd to read from
+/*! \brief Reads a frame from an fd
  * Read a frame from a stream or packet fd, as written by fd_write
- * returns a frame on success, NULL on error
+ * \param fd an opened fd to read from
+ * \return returns a frame on success, NULL on error
  */
 struct ast_frame *ast_fr_fdread(int fd);
 
-/*! Writes a frame to an fd */
-/*! 
+/*! Writes a frame to an fd
+ * Write a frame to an fd
  * \param fd Which fd to write to
  * \param frame frame to write to the fd
- * Write a frame to an fd
- * Returns 0 on success, -1 on failure
+ * \return Returns 0 on success, -1 on failure
  */
 int ast_fr_fdwrite(int fd, struct ast_frame *frame);
 
-/*! Sends a hangup to an fd */
-/*! 
- * \param fd fd to write to
+/*! \brief Sends a hangup to an fd 
  * Send a hangup (NULL equivalent) on an fd
- * Returns 0 on success, -1 on failure
+ * \param fd fd to write to
+ * \return Returns 0 on success, -1 on failure
  */
 int ast_fr_fdhangup(int fd);
 
@@ -326,15 +368,13 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples);
 #endif
 
 
-/*! Get the name of a format */
-/*!
+/*! \brief Get the name of a format
  * \param format id of format
  * \return A static string containing the name of the format or "UNKN" if unknown.
  */
 extern char* ast_getformatname(int format);
 
-/*! Get the names of a set of formats */
-/*!
+/*! \brief Get the names of a set of formats
  * \param buf a buffer for the output string
  * \param size size of buf (bytes)
  * \param format the format (combined IDs of codecs)
@@ -345,17 +385,16 @@ extern char* ast_getformatname(int format);
 extern char* ast_getformatname_multiple(char *buf, size_t size, int format);
 
 /*!
+ * \brief Gets a format from a name.
  * \param name string of format
- * Gets a format from a name.
- * This returns the form of the format in binary on success, 0 on error.
+ * \return This returns the form of the format in binary on success, 0 on error.
  */
 extern int ast_getformatbyname(char *name);
 
-/*! Get a name from a format */
-/*!
- * \param codec codec number (1,2,4,8,16,etc.)
+/*! \brief Get a name from a format 
  * Gets a name from a format
- * This returns a static string identifying the format on success, 0 on error.
+ * \param codec codec number (1,2,4,8,16,etc.)
+ * \return This returns a static string identifying the format on success, 0 on error.
  */
 extern char *ast_codec2str(int codec);
 
@@ -381,39 +420,39 @@ extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 
 extern void ast_frame_dump(char *name, struct ast_frame *f, char *prefix);
 
-/* Initialize a codec preference to "no preference" */
+/*! \brief Initialize a codec preference to "no preference" */
 extern void ast_codec_pref_init(struct ast_codec_pref *pref);
 
-/* Codec located at  a particular place in the preference index */
+/*! \brief Codec located at  a particular place in the preference index */
 extern int ast_codec_pref_index(struct ast_codec_pref *pref, int index);
 
-/* Remove a codec from a preference list */
+/*! \brief Remove a codec from a preference list */
 extern void ast_codec_pref_remove(struct ast_codec_pref *pref, int format);
 
-/* Append a codec to a preference list, removing it first if it was already there */
+/*! \brief Append a codec to a preference list, removing it first if it was already there */
 extern int ast_codec_pref_append(struct ast_codec_pref *pref, int format);
 
-/* Select the best format according to preference list from supplied options. 
+/*! \brief Select the best format according to preference list from supplied options. 
    If "find_best" is non-zero then if nothing is found, the "Best" format of 
    the format list is selected, otherwise 0 is returned. */
 extern int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best);
 
-/* Parse an "allow" or "deny" line and update the mask and pref if provided */
+/*! \brief Parse an "allow" or "deny" line and update the mask and pref if provided */
 extern void ast_parse_allow_disallow(struct ast_codec_pref *pref, int *mask, const char *list, int allowing);
 
-/* Dump codec preference list into a string */
+/*! \brief Dump codec preference list into a string */
 extern int ast_codec_pref_string(struct ast_codec_pref *pref, char *buf, size_t size);
 
-/* Shift a codec preference list up or down 65 bytes so that it becomes an ASCII string */
+/*! \brief Shift a codec preference list up or down 65 bytes so that it becomes an ASCII string */
 extern void ast_codec_pref_convert(struct ast_codec_pref *pref, char *buf, size_t size, int right);
 
-/* Returns the number of samples contained in the frame */
+/*! \brief Returns the number of samples contained in the frame */
 extern int ast_codec_get_samples(struct ast_frame *f);
 
-/* Returns the number of bytes for the number of samples of the given format */
+/*! \brief Returns the number of bytes for the number of samples of the given format */
 extern int ast_codec_get_len(int format, int samples);
 
-/* Gets duration in ms of interpolation frame for a format */
+/*! \brief Gets duration in ms of interpolation frame for a format */
 static inline int ast_codec_interp_len(int format) 
 { 
 	return (format == AST_FORMAT_ILBC) ? 30 : 20;

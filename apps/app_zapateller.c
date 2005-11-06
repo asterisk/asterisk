@@ -20,6 +20,7 @@
  *
  * \brief Playback the special information tone to get rid of telemarketers
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

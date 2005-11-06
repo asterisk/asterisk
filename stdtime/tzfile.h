@@ -2,18 +2,17 @@
 
 #define TZFILE_H
 
-/*
-** This file is in the public domain, so clarified as of
-** 1996-06-05 by Arthur David Olson (arthur_david_olson@nih.gov).
-*/
-
-/*
-** This header is for use ONLY with the time conversion code.
-** There is no guarantee that it will remain unchanged,
-** or that it will remain at all.
-** Do NOT copy it to any system include directory.
-** Thank you!
-*/
+/*! \brief
+ * This file is in the public domain, so clarified as of
+ * 1996-06-05 by 
+ * \author Arthur David Olson (arthur_david_olson@nih.gov).
+ *
+ * \note This header is for use ONLY with the time conversion code.
+ * There is no guarantee that it will remain unchanged,
+ * or that it will remain at all.
+ * Do NOT copy it to any system include directory.
+ * Thank you!
+ */
 
 /*
 ** ID
@@ -32,7 +31,7 @@ static char	tzfilehid[] = "@(#)tzfile.h	7.14";
 */
 
 #ifndef TZDIR
-#define TZDIR	"/usr/share/zoneinfo" /* Time zone object file directory */
+#define TZDIR	"/usr/share/zoneinfo" /*!< Time zone object file directory */
 #endif /* !defined TZDIR */
 
 #ifndef TZDEFAULT

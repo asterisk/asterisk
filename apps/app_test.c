@@ -21,6 +21,7 @@
  *
  * \brief Applications to test connection and produce report in text file
  * 
+ * \ingroup applications
  */
 
 #include <sys/types.h>

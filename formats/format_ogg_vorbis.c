@@ -17,7 +17,8 @@
 /*! \file
  *
  * \brief OGG/Vorbis streams.
- * 
+ * \arg File name extension: ogg
+ * \ingroup formats
  */
  
 #include <netinet/in.h>

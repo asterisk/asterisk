@@ -22,6 +22,7 @@
  * \arg \ref AstCDR
  * \arg \ref AstAMI
  * \arg \ref Config_ami
+ * \ingroup cdr_drivers
  */
 
 #include <sys/types.h>

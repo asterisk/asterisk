@@ -20,6 +20,7 @@
  *
  * \brief Dial plan macro Implementation
  * 
+ * \ingroup applications
  */
 
 #include <sys/types.h>

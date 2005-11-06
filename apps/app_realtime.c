@@ -21,6 +21,7 @@
  *
  * \brief RealTime App
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

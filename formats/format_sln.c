@@ -18,7 +18,8 @@
 /*! \file
  *
  * \brief RAW SLINEAR Format
- *
+ * \arg File name extensions: sln, raw
+ * \ingroup formats
  */
  
 #include <unistd.h>

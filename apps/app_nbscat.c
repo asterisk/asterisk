@@ -20,6 +20,7 @@
  *
  * \brief Silly application to play an NBScat file -- uses nbscat8k
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

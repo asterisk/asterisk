@@ -20,6 +20,10 @@
  *
  * \brief Implementation of Inter-Asterisk eXchange Version 2
  *
+ * \par See also
+ * \arg \ref Config_iax
+ *
+ * \ingroup channel_drivers
  */
 
 #include "asterisk.h"
@@ -7694,6 +7698,9 @@ static char *pdescrip =
 "the calling entity is in fact an IAXy) with the given template or\n"
 "default if one is not specified.  Returns -1 on error or 0 on success.\n";
 
+/*! iax2provision
+\ingroup applications
+*/
 static int iax2_prov_app(struct ast_channel *chan, void *data)
 {
 	int res;

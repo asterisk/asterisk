@@ -23,6 +23,7 @@
  *
  * \brief Translate between signed linear and Global System for Mobile Communications (GSM)
  *
+ * \ingroup codecs
  */
 
 #include <fcntl.h>

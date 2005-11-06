@@ -3850,6 +3850,9 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 	return dundi_query_eid_internal(dei, dcontext, &eid, &hmd, dundi_ttl, 0, avoid);
 }
 
+/*! 
+ * \ingroup applications
+ */
 static int dundi_lookup_exec(struct ast_channel *chan, void *data)
 {
 	char *num;
@@ -3975,6 +3978,10 @@ static char *dundifunc_read(struct ast_channel *chan, char *cmd, char *data, cha
 
 	return buf;
 }
+
+/*! DUNDILOOKUP
+ * \ingroup functions
+*/
 
 static struct ast_custom_function dundi_function = {
 	.name = "DUNDILOOKUP",

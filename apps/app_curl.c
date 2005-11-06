@@ -20,6 +20,7 @@
 /*! \file
  * \brief Curl - App to load a URL
  * 
+ * \ingroup applications
  */
  
 #include <stdlib.h>

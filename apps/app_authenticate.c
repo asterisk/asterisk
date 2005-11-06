@@ -19,6 +19,7 @@
 /*! \file
  * \brief Execute arbitrary authenticate commands
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

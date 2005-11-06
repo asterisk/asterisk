@@ -20,6 +20,9 @@
  *
  * \brief Transfer a caller
  * 
+ * Requires transfer support from channel driver
+ *
+ * \ingroup applications
  */
 
 #include <stdlib.h>

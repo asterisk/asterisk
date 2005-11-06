@@ -19,6 +19,7 @@
 /*! \file
  * \brief Trivial application to control playback of a sound file
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

@@ -18,7 +18,70 @@
 
 /*! \file
  * \brief General Asterisk PBX channel definitions.
+ * \par See also:
+ *  \arg \ref Def_Channel
+ *  \arg \ref channel_drivers
  */
+
+/*! \page Def_Channel Asterisk Channels
+	\par What is a Channel?
+	A phone call through Asterisk consists of an incoming
+	connection and an outbound connection. Each call comes
+	in through a channel driver that supports one technology,
+	like SIP, ZAP, IAX2 etc. 
+	\par
+	Each channel driver, technology, has it's own private
+	channel or dialog structure, that is technology-dependent.
+	Each private structure is "owned" by a generic Asterisk
+	channel structure, defined in channel.h and handled by
+	channel.c .
+	\par Call scenario
+	This happens when an incoming call arrives to Asterisk
+	-# Call arrives on a channel driver interface
+	-# Channel driver creates a PBX channel and starts a 
+	   pbx thread on the channel
+	-# The dial plan is executed
+	-# At this point at least two things can happen:
+		-# The call is answered by Asterisk and 
+		   Asterisk plays a media stream or reads media
+		-# The dial plan forces Asterisk to create an outbound 
+		   call somewhere with the dial (see \ref app_dial.c)
+		   application
+
+	.
+	\par Bridging channels
+	If Asterisk dials out this happens:
+	-# Dial creates an outbound PBX channel and asks one of the
+	   channel drivers to create a call
+	-# When the call is answered, Asterisk bridges the media streams
+	   so the caller on the first channel can speak with the callee
+	   on the second, outbound channel
+	-# In some cases where we have the same technology on both
+	   channels and compatible codecs, a native bridge is used.
+	   In a native bridge, the channel driver handles forwarding
+	   of incoming audio to the outbound stream internally, without
+	   sending audio frames through the PBX.
+	-# In SIP, theres an "external native bridge" where Asterisk
+	   redirects the endpoint, so audio flows directly between the
+	   caller's phone and the callee's phone. Signalling stays in
+	   Asterisk in order to be able to provide a proper CDR record
+	   for the call.
+
+	
+	\par Masquerading channels
+	In some cases, a channel can masquerade itself into another
+	channel. This happens frequently in call transfers, where 
+	a new channel takes over a channel that is already involved
+	in a call. The new channel sneaks in and takes over the bridge
+	and the old channel, now a zombie, is hung up.
+	
+	\par Reference
+	\arg channel.c - generic functions
+ 	\arg channel.h - declarations of functions, flags and structures
+	\arg \ref channel_drivers - Implemented channel drivers
+	\arg \ref Def_Frame Asterisk Multimedia Frames
+
+*/
 
 #ifndef _ASTERISK_CHANNEL_H
 #define _ASTERISK_CHANNEL_H
@@ -74,6 +137,7 @@ struct ast_generator {
 	int (*generate)(struct ast_channel *chan, void *data, int len, int samples);
 };
 
+/*! Structure for all kinds of caller ID identifications */
 struct ast_callerid {
 	/*! Malloc'd Dialed Number Identifier */
 	char *cid_dnid;				
@@ -95,7 +159,18 @@ struct ast_callerid {
 	int cid_tns;
 };
 
-/*! Structure to describe a channel "technology" */
+/*! Structure to describe a channel "technology", ie a channel driver 
+	See
+	\arg chan_iax2.c - The Inter-Asterisk exchange protocol
+	\arg chan_sip.c - The SIP channel driver
+	\arg chan_zap.c - PSTN connectivity (TDM, PRI, T1/E1, FXO, FXS)
+
+	If you develop your own channel driver, this is where you
+	tell the PBX at registration of your driver what properties
+	this driver supports and where different callbacks are 
+	implemented.
+*/
+	
 
 struct ast_channel_tech {
 	const char * const type;
@@ -107,8 +182,10 @@ struct ast_channel_tech {
 	/*! Technology Properties */
 	int properties;
 
+	/*! Requester - to set up call data structures (pvt's) */
 	struct ast_channel *(* const requester)(const char *type, int format, void *data, int *cause);
 
+	/*! Devicestate call back */
 	int (* const devicestate)(void *data);
 
 	/*! Send a literal DTMF digit */
@@ -121,13 +198,13 @@ struct ast_channel_tech {
 	/*! Hangup (and possibly destroy) the channel */
 	int (* const hangup)(struct ast_channel *chan);
 
-	/*! Answer the line */
+	/*! Answer the channel */
 	int (* const answer)(struct ast_channel *chan);
 
-	/*! Read a frame, in standard format */
+	/*! Read a frame, in standard format (see frame.h) */
 	struct ast_frame * (* const read)(struct ast_channel *chan);
 
-	/*! Write a frame, in standard format */
+	/*! Write a frame, in standard format (see frame.h) */
 	int (* const write)(struct ast_channel *chan, struct ast_frame *frame);
 
 	/*! Display or transmit text */
@@ -158,7 +235,7 @@ struct ast_channel_tech {
 	/*! Query a given option */
 	int (* const queryoption)(struct ast_channel *chan, int option, void *data, int *datalen);
 
-	/*! Blind transfer other side */
+	/*! Blind transfer other side (see app_transfer.c and ast_transfer() */
 	int (* const transfer)(struct ast_channel *chan, const char *newdest);
 
 	/*! Write a frame, in standard format */
@@ -212,20 +289,20 @@ struct ast_channel_spy {
 
 struct ast_channel_spy_list;
 
-/*! Main Channel structure associated with a channel. */
-/*! 
+/*! Main Channel structure associated with a channel. 
  * This is the side of it mostly used by the pbx and call management.
  */
 struct ast_channel {
-	/*! ASCII Description of channel name */
+	/*! ASCII unique channel name */
 	char name[AST_CHANNEL_NAME];
 	
-	/*! Technology */
+	/*! Technology (point to channel driver) */
 	const struct ast_channel_tech *tech;
+
 	/*! Private data used by the technology driver */
 	void *tech_pvt;
 
-	/*! Language requested */
+	/*! Language requested for voice prompts */
 	char language[MAX_LANGUAGE];		
 	/*! Type of channel */
 	const char *type;				
@@ -252,7 +329,7 @@ struct ast_channel {
 	int cdrflags;										   
 	/*! Whether or not we have been hung up...  Do not set this value
 	    directly, use ast_softhangup */
-	int _softhangup;				
+	int _softhangup;
 	/*! Non-zero, set to actual time when channel is to be hung up */
 	time_t	whentohangup;
 	/*! If anyone is blocking, this is them */
@@ -275,9 +352,9 @@ struct ast_channel {
 	int streamid;				
 	/*! Stream itself. */
 	struct ast_filestream *stream;		
-	/*! For streaming playback, the schedule ID */
+	/*! For streaming video playback, the schedule ID */
 	int vstreamid;				
-	/*! Stream itself. */
+	/*! Video Stream itself. */
 	struct ast_filestream *vstream;		
 	/*! Original writer format */
 	int oldwriteformat;			
@@ -321,17 +398,17 @@ struct ast_channel {
 	/*! PBX private structure */
 	struct ast_pbx *pbx;
 	/*! Set BEFORE PBX is started to determine AMA flags */
-	int 	amaflags;			
+	int amaflags;			
 	/*! Account code for billing */
-	char 	accountcode[AST_MAX_ACCOUNT_CODE];		
+	char accountcode[AST_MAX_ACCOUNT_CODE];		
 	/*! Call Detail Record */
 	struct ast_cdr *cdr;			
 	/*! Whether or not ADSI is detected on CPE */
-	int	adsicpe;
+	int adsicpe;
 	/*! Where to forward to if asked to dial on this interface */
 	char call_forward[AST_MAX_EXTENSION];
 
-	/*! Tone zone */
+	/*! Tone zone as set in indications.conf */
 	struct tone_zone *zone;
 
 	/* Channel monitoring */
@@ -360,7 +437,7 @@ struct ast_channel {
 	/*! channel flags of AST_FLAG_ type */
 	unsigned int flags;
 	
-	/* ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
+	/*! ISDN Transfer Capbility - AST_FLAG_DIGITAL is not enough */
 	unsigned short transfercapability;
 
 	struct ast_frame *readq;
@@ -381,24 +458,26 @@ struct ast_channel {
 	struct ast_channel *next;
 };
 
-/* Channel tech properties: */
-/* Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
+/* \defgroup chanprop Channel tech properties:
+	\brief Channels have this property if they can accept input with jitter; i.e. most VoIP channels */
+/* @{ */
 #define AST_CHAN_TP_WANTSJITTER	(1 << 0)	
 
 /* This flag has been deprecated by the transfercapbilty data member in struct ast_channel */
 /* #define AST_FLAG_DIGITAL	(1 << 0) */	/* if the call is a digital ISDN call */
-#define AST_FLAG_DEFER_DTMF	(1 << 1)	/* if dtmf should be deferred */
-#define AST_FLAG_WRITE_INT	(1 << 2)	/* if write should be interrupt generator */
-#define AST_FLAG_BLOCKING	(1 << 3)	/* if we are blocking */
-#define AST_FLAG_ZOMBIE		(1 << 4)	/* if we are a zombie */
-#define AST_FLAG_EXCEPTION	(1 << 5)	/* if there is a pending exception */
-#define AST_FLAG_MOH		(1 << 6)	/* XXX anthm promises me this will disappear XXX listening to moh */
-#define AST_FLAG_SPYING		(1 << 7)	/* XXX might also go away XXX is spying on someone */
-#define AST_FLAG_NBRIDGE	(1 << 8)	/* is it in a native bridge */
-#define AST_FLAG_IN_AUTOLOOP	(1 << 9)	/* the channel is in an auto-incrementing dialplan processor,
+#define AST_FLAG_DEFER_DTMF	(1 << 1)	/*!< if dtmf should be deferred */
+#define AST_FLAG_WRITE_INT	(1 << 2)	/*!< if write should be interrupt generator */
+#define AST_FLAG_BLOCKING	(1 << 3)	/*!< if we are blocking */
+#define AST_FLAG_ZOMBIE		(1 << 4)	/*!< if we are a zombie */
+#define AST_FLAG_EXCEPTION	(1 << 5)	/*!< if there is a pending exception */
+#define AST_FLAG_MOH		(1 << 6)	/*!< XXX anthm promises me this will disappear XXX listening to moh */
+#define AST_FLAG_SPYING		(1 << 7)	/*!< XXX might also go away XXX is spying on someone */
+#define AST_FLAG_NBRIDGE	(1 << 8)	/*!< is it in a native bridge */
+#define AST_FLAG_IN_AUTOLOOP	(1 << 9)	/*!< the channel is in an auto-incrementing dialplan processor,
 						   so when ->priority is set, it will get incremented before
 						   finding the next priority to run
 						*/
+/* @} */
 
 #define AST_FEATURE_PLAY_WARNING	(1 << 0)
 #define AST_FEATURE_REDIRECT		(1 << 1)
@@ -457,15 +536,18 @@ struct outgoing_helper {
 #define AST_ADSI_UNAVAILABLE	(2)
 #define AST_ADSI_OFFHOOKONLY	(3)
 
-#define AST_SOFTHANGUP_DEV			(1 << 0)	/* Soft hangup by device */
-#define AST_SOFTHANGUP_ASYNCGOTO	(1 << 1)	/* Soft hangup for async goto */
+#define AST_SOFTHANGUP_DEV		(1 << 0)	/*!< Soft hangup by device */
+#define AST_SOFTHANGUP_ASYNCGOTO	(1 << 1)	/*!< Soft hangup for async goto */
 #define AST_SOFTHANGUP_SHUTDOWN		(1 << 2)
 #define AST_SOFTHANGUP_TIMEOUT		(1 << 3)
 #define AST_SOFTHANGUP_APPUNLOAD	(1 << 4)
 #define AST_SOFTHANGUP_EXPLICIT		(1 << 5)
 #define AST_SOFTHANGUP_UNBRIDGE     (1 << 6)
 
-/* Bits 0-15 of state are reserved for the state (up/down) of the line */
+
+/*! \defgroup ChanState Channel states
+\brief Bits 0-15 of state are reserved for the state (up/down) of the line */
+/*! @{ */
 /*! Channel is down and available */
 #define AST_STATE_DOWN		0		
 /*! Channel is down, but reserved */
@@ -487,47 +569,52 @@ struct outgoing_helper {
 /*! Channel has detected an incoming call and is waiting for ring */
 #define AST_STATE_PRERING       9
 
-/* Bits 16-32 of state are reserved for flags */
+/* Bits 16-32 of state are reserved for flags (See \ref ChanState ) */
 /*! Do not transmit voice data */
 #define AST_STATE_MUTE		(1 << 16)	
+/*! @} */
 
-/*! Create a channel structure */
-/*! Returns NULL on failure to allocate. New channels are 
+/*! \brief Change the state of a channel */
+int ast_setstate(struct ast_channel *chan, int state);
+
+/*! \brief Create a channel structure 
+    \return Returns NULL on failure to allocate.
+	\note New channels are 
 	by default set to the "default" context and
 	extension "s"
  */
 struct ast_channel *ast_channel_alloc(int needalertpipe);
 
-/*! Queue an outgoing frame */
+/*! \brief Queue an outgoing frame */
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *f);
 
-/*! Queue a hangup frame */
+/*! \brief Queue a hangup frame */
 int ast_queue_hangup(struct ast_channel *chan);
 
-/*! Queue a control frame */
+/*! \brief Queue a control frame */
 int ast_queue_control(struct ast_channel *chan, int control);
 
-/*! Change the state of a channel */
-int ast_setstate(struct ast_channel *chan, int state);
 
+/*! \brief Change channel name */
 void ast_change_name(struct ast_channel *chan, char *newname);
 
-/*! Free a channel structure */
+/*! \brief Free a channel structure */
 void  ast_channel_free(struct ast_channel *);
 
-/*! Requests a channel */
-/*! 
+/*! \brief Requests a channel 
  * \param type type of channel to request
  * \param format requested channel format
  * \param data data to pass to the channel requester
  * \param status status
  * Request a channel of a given type, with data as optional information used 
  * by the low level module
- * Returns an ast_channel on success, NULL on failure.
+ * \return Returns an ast_channel on success, NULL on failure.
  */
 struct ast_channel *ast_request(const char *type, int format, void *data, int *status);
 
 /*!
+ * \brief Request a channel of a given type, with data as optional information used 
+ * by the low level module and attempt to place a call on it
  * \param type type of channel to request
  * \param format requested channel format
  * \param data data to pass to the channel requester
@@ -535,71 +622,63 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *s
  * \param reason why unsuccessful (if unsuceessful)
  * \param cidnum Caller-ID Number
  * \param cidname Caller-ID Name
- * Request a channel of a given type, with data as optional information used 
- * by the low level module and attempt to place a call on it
- * Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
+ * \return Returns an ast_channel on success or no answer, NULL on failure.  Check the value of chan->_state
  * to know if the call was answered or not.
  */
 struct ast_channel *ast_request_and_dial(const char *type, int format, void *data, int timeout, int *reason, const char *cidnum, const char *cidname);
 
 struct ast_channel *__ast_request_and_dial(const char *type, int format, void *data, int timeout, int *reason, const char *cidnum, const char *cidname, struct outgoing_helper *oh);
 
-/*! Register a channel technology */
-/*! 
- * \param tech Structure defining channel technology or "type"
+/*!\brief Register a channel technology (a new channel driver)
  * Called by a channel module to register the kind of channels it supports.
- * Returns 0 on success, -1 on failure.
+ * \param tech Structure defining channel technology or "type"
+ * \return Returns 0 on success, -1 on failure.
  */
 int ast_channel_register(const struct ast_channel_tech *tech);
 
-/*! Unregister a channel technology */
-/*
+/*! \brief Unregister a channel technology 
  * \param tech Structure defining channel technology or "type" that was previously registered
- * No return value.
+ * \return No return value.
  */
 void ast_channel_unregister(const struct ast_channel_tech *tech);
 
-/*! Get a channel technology structure by name
+/*! \brief Get a channel technology structure by name
  * \param name name of technology to find
  * \return a pointer to the structure, or NULL if no matching technology found
  */
 const struct ast_channel_tech *ast_get_channel_tech(const char *name);
 
-/*! Hang up a channel  */
-/*! 
- * \param chan channel to hang up
- * This function performs a hard hangup on a channel.  Unlike the soft-hangup, this function
+/*! \brief Hang up a channel  
+ * \note This function performs a hard hangup on a channel.  Unlike the soft-hangup, this function
  * performs all stream stopping, etc, on the channel that needs to end.
  * chan is no longer valid after this call.
- * Returns 0 on success, -1 on failure.
+ * \param chan channel to hang up
+ * \return Returns 0 on success, -1 on failure.
  */
 int ast_hangup(struct ast_channel *chan);
 
-/*! Softly hangup up a channel */
-/*! 
+/*! \brief Softly hangup up a channel 
  * \param chan channel to be soft-hung-up
  * Call the protocol layer, but don't destroy the channel structure (use this if you are trying to
  * safely hangup a channel managed by another thread.
  * \param cause	Ast hangupcause for hangup
- * Returns 0 regardless
+ * \return Returns 0 regardless
  */
 int ast_softhangup(struct ast_channel *chan, int cause);
 
-/*! Softly hangup up a channel (no channel lock) 
+/*! \brief Softly hangup up a channel (no channel lock) 
  * \param chan channel to be soft-hung-up
- * \param cause	Ast hangupcause for hangup */
+ * \param cause	Ast hangupcause for hangup (see cause.h) */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause);
 
-/*! Check to see if a channel is needing hang up */
-/*! 
+/*! \brief Check to see if a channel is needing hang up 
  * \param chan channel on which to check for hang up
  * This function determines if the channel is being requested to be hung up.
- * Returns 0 if not, or 1 if hang up is requested (including time-out).
+ * \return Returns 0 if not, or 1 if hang up is requested (including time-out).
  */
 int ast_check_hangup(struct ast_channel *chan);
 
-/*! Compare a offset with the settings of when to hang a channel up */
-/*! 
+/*! \brief Compare a offset with the settings of when to hang a channel up 
  * \param chan channel on which to check for hang up
  * \param offset offset in seconds from current time
  * \return 1, 0, or -1
@@ -610,77 +689,69 @@ int ast_check_hangup(struct ast_channel *chan);
  */
 int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset);
 
-/*! Set when to hang a channel up */
-/*! 
+/*! \brief Set when to hang a channel up 
  * \param chan channel on which to check for hang up
  * \param offset offset in seconds from current time of when to hang up
  * This function sets the absolute time out on a channel (when to hang up).
  */
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset);
 
-/*! Answer a ringing call */
-/*!
+/*! \brief Answer a ringing call 
  * \param chan channel to answer
  * This function answers a channel and handles all necessary call
  * setup functions.
- * Returns 0 on success, -1 on failure
+ * \return Returns 0 on success, -1 on failure
  */
 int ast_answer(struct ast_channel *chan);
 
-/*! Make a call */
-/*! 
+/*! \brief Make a call 
  * \param chan which channel to make the call on
  * \param addr destination of the call
  * \param timeout time to wait on for connect
- * Place a call, take no longer than timeout ms.  Returns -1 on failure, 
-   0 on not enough time (does not auto matically stop ringing), and  
+ * Place a call, take no longer than timeout ms. 
+   \return Returns -1 on failure, 0 on not enough time 
+   (does not automatically stop ringing), and  
    the number of seconds the connect took otherwise.
-   Returns 0 on success, -1 on failure
    */
 int ast_call(struct ast_channel *chan, char *addr, int timeout);
 
-/*! Indicates condition of channel */
-/*! 
+/*! \brief Indicates condition of channel 
+ * \note Indicate a condition such as AST_CONTROL_BUSY, AST_CONTROL_RINGING, or AST_CONTROL_CONGESTION on a channel
  * \param chan channel to change the indication
  * \param condition which condition to indicate on the channel
- * Indicate a condition such as AST_CONTROL_BUSY, AST_CONTROL_RINGING, or AST_CONTROL_CONGESTION on a channel
- * Returns 0 on success, -1 on failure
+ * \return Returns 0 on success, -1 on failure
  */
 int ast_indicate(struct ast_channel *chan, int condition);
 
-/* Misc stuff */
+/* Misc stuff ------------------------------------------------ */
 
-/*! Wait for input on a channel */
-/*! 
+/*! \brief Wait for input on a channel 
  * \param chan channel to wait on
  * \param ms length of time to wait on the channel
  * Wait for input on a channel for a given # of milliseconds (<0 for indefinite). 
-  Returns < 0 on  failure, 0 if nothing ever arrived, and the # of ms remaining otherwise */
+  \return Returns < 0 on  failure, 0 if nothing ever arrived, and the # of ms remaining otherwise */
 int ast_waitfor(struct ast_channel *chan, int ms);
 
-/*! Wait for a specied amount of time, looking for hangups */
-/*!
+/*! \brief Wait for a specied amount of time, looking for hangups 
  * \param chan channel to wait for
  * \param ms length of time in milliseconds to sleep
  * Waits for a specified amount of time, servicing the channel as required.
- * returns -1 on hangup, otherwise 0.
+ * \return returns -1 on hangup, otherwise 0.
  */
 int ast_safe_sleep(struct ast_channel *chan, int ms);
 
-/*! Wait for a specied amount of time, looking for hangups and a condition argument */
-/*!
+/*! \brief Wait for a specied amount of time, looking for hangups and a condition argument 
  * \param chan channel to wait for
  * \param ms length of time in milliseconds to sleep
  * \param cond a function pointer for testing continue condition
  * \param data argument to be passed to the condition test function
+ * \return returns -1 on hangup, otherwise 0.
  * Waits for a specified amount of time, servicing the channel as required. If cond
  * returns 0, this function returns.
- * returns -1 on hangup, otherwise 0.
  */
 int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(void*), void *data );
 
-/*! Waits for activity on a group of channels */
-/*! 
+/*! \brief Waits for activity on a group of channels 
  * \param chan an array of pointers to channels
  * \param n number of channels that are to be waited upon
  * \param fds an array of fds to wait upon
@@ -689,7 +760,8 @@ int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(voi
  * \param outfd fd that had activity on it
  * \param ms how long the wait was
  * Big momma function here.  Wait for activity on any of the n channels, or any of the nfds
-   file descriptors.  Returns the channel with activity, or NULL on error or if an FD
+   file descriptors.
+   \return Returns the channel with activity, or NULL on error or if an FD
    came first.  If the FD came first, it will be returned in outfd, otherwise, outfd
    will be -1 */
 struct ast_channel *ast_waitfor_nandfds(struct ast_channel **chan, int n, int *fds, int nfds, int *exception, int *outfd, int *ms);
@@ -1163,8 +1235,7 @@ static inline void timersub(struct timeval *tvend, struct timeval *tvstart, stru
 }
 #endif
 
-/*! Waits for activity on a group of channels */
-/*! 
+/*! \brief Waits for activity on a group of channels 
  * \param nfds the maximum number of file descriptors in the sets
  * \param rfds file descriptors to check for read availability
  * \param wfds file descriptors to check for write availability

@@ -29,6 +29,7 @@
  * See also
  * \arg \ref Config_cdr
  * \arg http://www.postgresql.org/
+ * \ingroup cdr_drivers
  */
 
 #include <sys/types.h>

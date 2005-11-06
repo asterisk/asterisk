@@ -20,6 +20,7 @@
  *
  * \brief Echo application -- play back what you hear to evaluate latency
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

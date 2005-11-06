@@ -24,6 +24,7 @@
  *
  * \brief HasVoicemail application
  *
+ * \ingroup applications
  */
 
 #include <sys/types.h>

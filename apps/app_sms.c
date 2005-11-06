@@ -17,6 +17,7 @@
 /*! \file
  *
  * \brief SMS application - ETSI ES 201 912 protocol 1 implimentation
+ * \ingroup applications
  * 
  */
 

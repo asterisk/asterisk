@@ -18,6 +18,7 @@
 
 /*! \file
  * \brief Central Station Alarm receiver for Ademco Contact ID  
+ * \author Steve Rodgers <hwstar@rodgers.sdcoxmail.com>
  * 
  * *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** 
  *
@@ -25,6 +26,7 @@
  *
  * *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING *** WARNING ***
  *
+ * \ingroup applications
  */ 
  
 #include <string.h>

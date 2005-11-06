@@ -21,6 +21,7 @@
  *
  * BestData 56SX-92 Voice Modem Driver (Conexant)
  * 
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief Flat, binary, ADPCM vox file format.
+ * \arg File name extensions: vox
  * 
+ * \ingroup formats
  */
  
 #include <unistd.h>

@@ -21,6 +21,7 @@
  *
  * \brief App to set callerid number
  * 
+ * \ingroup applications
  */
  
 #include <string.h>

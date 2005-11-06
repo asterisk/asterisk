@@ -24,6 +24,7 @@
  *
  * \brief Translate between signed linear and LPC10 (Linear Predictor Code)
  *
+ * \ingroup codecs
  */
 
 #include <fcntl.h>

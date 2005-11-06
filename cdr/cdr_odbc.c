@@ -25,6 +25,7 @@
  * See also:
  * \arg http://www.unixodbc.org
  * \arg \ref Config_cdr
+ * \ingroup cdr_drivers
  */
 
 #include <sys/types.h>

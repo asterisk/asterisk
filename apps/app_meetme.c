@@ -20,6 +20,7 @@
  *
  * \brief Meet me conference bridge
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

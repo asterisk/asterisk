@@ -22,6 +22,7 @@
  *
  * \brief Virtual Dictation Machine Application For Asterisk
  *
+ * \ingroup applications
  */
 
 #include <stdlib.h>

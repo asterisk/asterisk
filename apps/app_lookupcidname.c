@@ -20,6 +20,7 @@
  *
  * \brief App to set callerid name from database, based on directory number
  * 
+ * \ingroup applications
  */
 
 #include <string.h>

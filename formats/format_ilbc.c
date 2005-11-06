@@ -21,7 +21,8 @@
 /*! \file
  *
  * \brief Save to raw, headerless iLBC data.
- *
+ * \arg File name extension: ilbc
+ * \ingroup formats
  */
  
 #include <unistd.h>

@@ -19,6 +19,7 @@
  *
  * \brief SayUnixTime application
  * 
+ * \ingroup applications
  */
 
 #include <stdio.h>

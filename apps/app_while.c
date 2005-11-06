@@ -20,6 +20,7 @@
  *
  * \brief While Loop and ExecIf Implementations
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

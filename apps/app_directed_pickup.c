@@ -20,6 +20,7 @@
  *
  * \brief Directed Call Pickup Support
  *
+ * \ingroup applications
  */
 
 #include <stdlib.h>

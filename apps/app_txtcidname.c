@@ -20,6 +20,7 @@
  *
  * \brief Caller*id name lookup - Look up the caller's name via DNS
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

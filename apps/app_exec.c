@@ -20,6 +20,8 @@
  * \brief Exec application
  *
  * \author Tilghman Lesher <app_exec__v001@the-tilghman.com>
+ *
+ * \ingroup applications
  */
 
 #include <stdio.h>

@@ -20,6 +20,7 @@
  *
  * \brief Connect to festival
  * 
+ * \ingroup applications
  */
 
 #include <sys/types.h>

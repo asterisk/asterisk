@@ -18,8 +18,11 @@
 
 /*! \file
  *
- * \brief Generic Linux Telephony Interface driver
+ * \brief Network broadcast sound support channel driver
  * 
+ * \author Mark Spencer <markster@digium.com>
+ *
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

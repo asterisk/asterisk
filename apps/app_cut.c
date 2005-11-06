@@ -18,6 +18,7 @@
 /*! \file
  * \brief Cut application
  *
+ * \ingroup applications
  */
 
 #include <stdio.h>

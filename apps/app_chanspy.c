@@ -19,6 +19,7 @@
 /*! \file
  * \brief ChanSpy: Listen in on any channel.
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

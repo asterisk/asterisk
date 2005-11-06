@@ -24,6 +24,7 @@
  *
  * \brief codec_adpcm.c - translate between signed linear and Dialogic ADPCM
  * 
+ * \ingroup codecs
  */
 
 #include <fcntl.h>

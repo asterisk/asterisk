@@ -20,6 +20,7 @@
  *
  * \brief codec_alaw.c - translate between signed linear and alaw
  * 
+ * \ingroup codecs
  */
 
 #include <fcntl.h>

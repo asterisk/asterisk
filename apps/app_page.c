@@ -20,6 +20,7 @@
  *
  * \brief page() - Paging application
  *
+ * \ingroup applications
  */
 
 #include <stdio.h>

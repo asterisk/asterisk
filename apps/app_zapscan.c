@@ -25,6 +25,7 @@
  *
  * \brief Zap Scanner
  *
+ * \ingroup applications
  */
 
 #include <stdlib.h>

@@ -21,6 +21,7 @@
  *
  * \brief App to set rdnis
  *
+ * \ingroup applications
  */
  
 #include <string.h>

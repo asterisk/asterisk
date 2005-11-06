@@ -22,6 +22,7 @@
  *
  * \brief Application to dump channel variables
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

@@ -18,10 +18,14 @@
 
 
 /*! \file
- * \brief Implementation of Agents
+ * \brief Implementation of Agents (proxy channel)
  *
  * This file is the implementation of Agents modules.
- * It is a dynamic module that is loaded by Asterisk. At load time, load_module is run.
+ * It is a dynamic module that is loaded by Asterisk. 
+ * \par See also
+ * \arg \ref Config_agent
+ *
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>

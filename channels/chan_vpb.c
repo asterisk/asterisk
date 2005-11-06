@@ -26,6 +26,7 @@
  *
  * \brief VoiceTronix Interface driver
  * 
+ * \ingroup channel_drivers
  */
 
 

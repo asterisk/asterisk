@@ -20,6 +20,8 @@
  *
  * \brief Implementation of the Skinny protocol
  * 
+ * \author Jeremy McNamara & Florian Overkamp
+ * \ingroup channel_drivers
  */
 
 

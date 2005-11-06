@@ -1,14 +1,29 @@
 /*
- * Chan_Misdn -- Channel Driver for Asterisk
- *
- * Interface to Asterisk
- *
+ * Asterisk -- An open source telephony toolkit.
+ * 
  * Copyright (C) 2004, Christian Richter
  *
  * Christian Richter <crich@beronet.com>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ *
+ */
+
+/*!
+ * \file
+ *
+ * \brief the chan_misdn channel driver for Asterisk
+ * \author Christian Richter <crich@beronet.com>
+ *
+ * \ingroup channel_drivers
  */
 
 #include <stdio.h>
@@ -56,23 +71,23 @@ ast_mutex_t release_lock_mutex;
 /* BEGIN: chan_misdn.h */
 
 enum misdn_chan_state {
-	MISDN_NOTHING, /* at beginning */
-	MISDN_WAITING4DIGS, /*  when waiting for infos */
-	MISDN_EXTCANTMATCH, /*  when asterisk couldnt match our ext */
-	MISDN_DIALING, /*  when pbx_start */
-	MISDN_PROGRESS, /*  we got a progress */
-	MISDN_CALLING, /*  when misdn_call is called */
-	MISDN_CALLING_ACKNOWLEDGE, /*  when we get SETUP_ACK */
-	MISDN_ALERTING, /*  when Alerting */
-	MISDN_BUSY, /*  when BUSY */
-	MISDN_CONNECTED, /*  when connected */
-	MISDN_BRIDGED, /*  when bridged */
-	MISDN_CLEANING, /* when hangup from * but we were connected before */
-	MISDN_HUNGUP_FROM_MISDN, /* when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
-	MISDN_HUNGUP_FROM_AST, /* when DISCONNECT/RELEASE/REL_COMP came out of */
+	MISDN_NOTHING,		/*!< at beginning */
+	MISDN_WAITING4DIGS, /*!<  when waiting for infos */
+	MISDN_EXTCANTMATCH, /*!<  when asterisk couldnt match our ext */
+	MISDN_DIALING, /*!<  when pbx_start */
+	MISDN_PROGRESS, /*!<  we got a progress */
+	MISDN_CALLING, /*!<  when misdn_call is called */
+	MISDN_CALLING_ACKNOWLEDGE, /*!<  when we get SETUP_ACK */
+	MISDN_ALERTING, /*!<  when Alerting */
+	MISDN_BUSY, /*!<  when BUSY */
+	MISDN_CONNECTED, /*!<  when connected */
+	MISDN_BRIDGED, /*!<  when bridged */
+	MISDN_CLEANING, /*!< when hangup from * but we were connected before */
+	MISDN_HUNGUP_FROM_MISDN, /*!< when DISCONNECT/RELEASE/REL_COMP  cam from misdn */
+	MISDN_HUNGUP_FROM_AST, /*!< when DISCONNECT/RELEASE/REL_COMP came out of */
 	/* misdn_hangup */
-	MISDN_HOLDED, /* if this chan is holded */
-	MISDN_HOLD_DISCONNECT /* if this chan is holded */
+	MISDN_HOLDED, /*!< if this chan is holded */
+	MISDN_HOLD_DISCONNECT /*!< if this chan is holded */
   
 };
 

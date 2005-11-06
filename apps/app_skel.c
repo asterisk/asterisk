@@ -20,6 +20,8 @@
  *
  * \brief Skeleton application
  * 
+ * This is a skeleton for development of an Asterisk application */
+ * \ingroup applications
  */
 
 #include <stdlib.h>

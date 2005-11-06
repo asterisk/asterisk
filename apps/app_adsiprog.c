@@ -19,6 +19,7 @@
 /*! \file
  * \brief Program Asterisk ADSI Scripts into phone
  * 
+ * \ingroup applications
  */
 
 #include <sys/types.h>

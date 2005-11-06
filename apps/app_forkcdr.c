@@ -19,6 +19,7 @@
  *
  * \brief Fork CDR application
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

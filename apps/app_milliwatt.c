@@ -20,6 +20,7 @@
  *
  * \brief Digital Milliwatt Test
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

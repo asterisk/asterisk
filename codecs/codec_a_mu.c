@@ -20,6 +20,7 @@
  *
  * \brief codec_a_mu.c - translate between alaw and ulaw directly
  *
+ * \ingroup codecs
  */
 
 #include <fcntl.h>

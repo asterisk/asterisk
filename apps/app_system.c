@@ -20,6 +20,7 @@
  *
  * \brief Execute arbitrary system commands
  * 
+ * \ingroup applications
  */
 
 #include <stdlib.h>

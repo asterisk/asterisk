@@ -25,6 +25,10 @@
  *
  * \brief This file is part of the chan_h323 driver for Asterisk
  *
+ * \par See also
+ * \arg Config_h323
+ *
+ * \ingroup channel_drivers
  */
 
 #include <sys/socket.h>
