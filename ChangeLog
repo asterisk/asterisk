@@ -10,6 +10,7 @@
 	* apps/app_enumlookup.c: Make priority jumping optional
 	* apps/app_groupcount.c: Add an exit status variable, make priority jumping optional, and use new args parsing macros
 	* apps/app_image.c: Add an exit status variable, make priority jumping optional, and use new args parsing macros
+	* apps/app_hasnewvoicemail.c: Add an exit status variable, make priority jumping optional, and use new args parsing macros
 
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 
