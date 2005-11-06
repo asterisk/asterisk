@@ -1,6 +1,7 @@
 2005-11-06  Russell Bryant <russell@digium.com>
 
 	* many files: alphabetize options in applicaiton descriptions
+	* channels/chan_iax2.c: Use an enum to define iax peer/user flags as well as the pvt structure state.  Use the ast_flags macros for checking or setting the state.
 
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 

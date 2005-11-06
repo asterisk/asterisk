@@ -224,38 +224,42 @@ static struct ast_flags globalflags = { 0 };
 
 static pthread_t netthreadid = AST_PTHREADT_NULL;
 
-#define IAX_STATE_STARTED		(1 << 0)
-#define IAX_STATE_AUTHENTICATED 	(1 << 1)
-#define IAX_STATE_TBD			(1 << 2)
+enum {
+	IAX_STATE_STARTED = 		(1 << 0),
+	IAX_STATE_AUTHENTICATED = 	(1 << 1),
+	IAX_STATE_TBD = 		(1 << 2)
+} iax2_state;
 
 struct iax2_context {
 	char context[AST_MAX_CONTEXT];
 	struct iax2_context *next;
 };
 
-#define IAX_HASCALLERID		(1 << 0)	/*!< CallerID has been specified */
-#define IAX_DELME		(1 << 1)	/*!< Needs to be deleted */
-#define IAX_TEMPONLY		(1 << 2)	/*!< Temporary (realtime) */
-#define IAX_TRUNK		(1 << 3)	/*!< Treat as a trunk */
-#define IAX_NOTRANSFER		(1 << 4)	/*!< Don't native bridge */
-#define IAX_USEJITTERBUF	(1 << 5)	/*!< Use jitter buffer */
-#define IAX_DYNAMIC		(1 << 6)	/*!< dynamic peer */
-#define IAX_SENDANI		(1 << 7)	/*!< Send ANI along with CallerID */
-#define IAX_MESSAGEDETAIL	(1 << 8)	/*!< Show exact numbers */
-#define IAX_ALREADYGONE		(1 << 9)	/*!< Already disconnected */
-#define IAX_PROVISION		(1 << 10)	/*!< This is a provisioning request */
-#define IAX_QUELCH		(1 << 11)	/*!< Whether or not we quelch audio */
-#define IAX_ENCRYPTED		(1 << 12)	/*!< Whether we should assume encrypted tx/rx */
-#define IAX_KEYPOPULATED 	(1 << 13)	/*!< Whether we have a key populated */
-#define IAX_CODEC_USER_FIRST 	(1 << 14) 	/*!< are we willing to let the other guy choose the codec? */
-#define IAX_CODEC_NOPREFS 	(1 << 15) 	/*!< Force old behaviour by turning off prefs */
-#define IAX_CODEC_NOCAP 	(1 << 16) 	/*!< only consider requested format and ignore capabilities*/
-#define IAX_RTCACHEFRIENDS 	(1 << 17) 	/*!< let realtime stay till your reload */
-#define IAX_RTUPDATE 		(1 << 18) 	/*!< Send a realtime update */
-#define IAX_RTAUTOCLEAR 	(1 << 19) 	/*!< erase me on expire */ 
-#define IAX_FORCEJITTERBUF	(1 << 20)	/*!< Force jitterbuffer, even when bridged to a channel that can take jitter */ 
-#define IAX_RTIGNOREREGEXPIRE	(1 << 21)	/*!< When using realtime, ignore registration expiration */
-#define IAX_TRUNKTIMESTAMPS	(1 << 22)	/*!< Send trunk timestamps */
+enum {
+	IAX_HASCALLERID = 	(1 << 0),	/*!< CallerID has been specified */
+	IAX_DELME =		(1 << 1),	/*!< Needs to be deleted */
+	IAX_TEMPONLY =		(1 << 2),	/*!< Temporary (realtime) */
+	IAX_TRUNK =		(1 << 3),	/*!< Treat as a trunk */
+	IAX_NOTRANSFER =	(1 << 4),	/*!< Don't native bridge */
+	IAX_USEJITTERBUF =	(1 << 5),	/*!< Use jitter buffer */
+	IAX_DYNAMIC =		(1 << 6),	/*!< dynamic peer */
+	IAX_SENDANI = 		(1 << 7),	/*!< Send ANI along with CallerID */
+	IAX_MESSAGEDETAIL =	(1 << 8),	/*!< Show exact numbers */
+	IAX_ALREADYGONE =	(1 << 9),	/*!< Already disconnected */
+	IAX_PROVISION =		(1 << 10),	/*!< This is a provisioning request */
+	IAX_QUELCH = 		(1 << 11),	/*!< Whether or not we quelch audio */
+	IAX_ENCRYPTED =		(1 << 12),	/*!< Whether we should assume encrypted tx/rx */
+	IAX_KEYPOPULATED = 	(1 << 13),	/*!< Whether we have a key populated */
+	IAX_CODEC_USER_FIRST = 	(1 << 14),	/*!< are we willing to let the other guy choose the codec? */
+	IAX_CODEC_NOPREFS =  	(1 << 15), 	/*!< Force old behaviour by turning off prefs */
+	IAX_CODEC_NOCAP = 	(1 << 16),	/*!< only consider requested format and ignore capabilities*/
+	IAX_RTCACHEFRIENDS = 	(1 << 17), 	/*!< let realtime stay till your reload */
+	IAX_RTUPDATE = 		(1 << 18), 	/*!< Send a realtime update */
+	IAX_RTAUTOCLEAR = 	(1 << 19), 	/*!< erase me on expire */ 
+	IAX_FORCEJITTERBUF =	(1 << 20),	/*!< Force jitterbuffer, even when bridged to a channel that can take jitter */ 
+	IAX_RTIGNOREREGEXPIRE =	(1 << 21),	/*!< When using realtime, ignore registration expiration */
+	IAX_TRUNKTIMESTAMPS =	(1 << 22)	/*!< Send trunk timestamps */
+} iax2_flags;
 
 static int global_rtautoclear = 120;
 
@@ -489,7 +493,7 @@ struct chan_iax2_pvt {
 	/*! Owner if we have one */
 	struct ast_channel *owner;
 	/*! What's our state? */
-	int state;
+	struct ast_flags state;
 	/*! Expiry (optional) */
 	int expiry;
 	/*! Next outgoing sequence number */
@@ -4600,7 +4604,7 @@ static int iax2_write(struct ast_channel *c, struct ast_frame *f)
 				res = 0;
 			else if ((f->frametype == AST_FRAME_VOICE) && ast_test_flag(iaxs[callno], IAX_QUELCH))
 				res = 0;
-			else if (!(iaxs[callno]->state & IAX_STATE_STARTED))
+			else if (!ast_test_flag(&iaxs[callno]->state, IAX_STATE_STARTED))
 				res = 0;
 			else
 			/* Simple, just queue for transmission */
@@ -4928,7 +4932,7 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 	int res = -1; 
 	int x;
 	
-	if (!(p->state & IAX_STATE_AUTHENTICATED))
+	if (!ast_test_flag(&p->state, IAX_STATE_AUTHENTICATED))
 		return res;
 	if (ies->password)
 		ast_copy_string(secret, ies->password, sizeof(secret));
@@ -4995,7 +4999,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	int x;
 	int expire = 0;
 
-	iaxs[callno]->state &= ~IAX_STATE_AUTHENTICATED;
+	ast_clear_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 	iaxs[callno]->peer[0] = '\0';
 	if (ies->username)
 		ast_copy_string(peer, ies->username, sizeof(peer));
@@ -5053,7 +5057,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			while(keyn) {
 				key = ast_key_get(keyn, AST_KEY_PUBLIC);
 				if (key && !ast_check_signature(key, iaxs[callno]->challenge, rsasecret)) {
-					iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
+					ast_set_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 					break;
 				} else if (!key) 
 					ast_log(LOG_WARNING, "requested inkey '%s' does not exist\n", keyn);
@@ -5082,7 +5086,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				destroy_peer(p);
 			return -1;
 		} else
-			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
+			ast_set_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 	} else if (!ast_strlen_zero(md5secret) && (p->authmethods & IAX_AUTH_MD5) && !ast_strlen_zero(iaxs[callno]->challenge)) {
 		struct MD5Context md5;
 		unsigned char digest[16];
@@ -5101,7 +5105,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 				break;
 		}
 		if (tmppw) {
-			iaxs[callno]->state |= IAX_STATE_AUTHENTICATED;
+			ast_set_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
 		} else {
 			if (authdebug)
 				ast_log(LOG_NOTICE, "Host %s failed MD5 authentication for '%s' (%s != %s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), p->name, requeststr, md5secret);
@@ -5630,14 +5634,14 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 			ast_db_put("IAX/Registry", p->name, data);
 			if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Registered IAX2 '%s' (%s) at %s:%d\n", p->name, 
-					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
+					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED", ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr), ntohs(sin->sin_port));
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Registered\r\n", p->name);
 			register_peer_exten(p, 1);
 			ast_device_state_changed("IAX2/%s", p->name); /* Activate notification */
 		} else if (!ast_test_flag(p, IAX_TEMPONLY)) {
 			if  (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Unregistered IAX2 '%s' (%s)\n", p->name, 
-					    iaxs[callno]->state & IAX_STATE_AUTHENTICATED ? "AUTHENTICATED" : "UNAUTHENTICATED");
+					    ast_test_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED) ? "AUTHENTICATED" : "UNAUTHENTICATED");
 			manager_event(EVENT_FLAG_SYSTEM, "PeerStatus", "Peer: IAX2/%s\r\nPeerStatus: Unregistered\r\n", p->name);
 			register_peer_exten(p, 0);
 			ast_db_del("IAX/Registry", p->name);
@@ -6359,7 +6363,7 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 								} else
 									fr.ts = fix_peerts(&rxtrunktime, fr.callno, ts);
 								/* Don't pass any packets until we're started */
-								if ((iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
+								if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED)) {
 									/* Common things */
 									f.src = "IAX2";
 									f.mallocd = 0;
@@ -6691,7 +6695,7 @@ retryowner:
 				/* Do nothing */
 				break;
 			case IAX_COMMAND_QUELCH:
-				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
+				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED)) {
 				        /* Generate Manager Hold event, if necessary*/
 					if (iaxs[fr.callno]->owner) {
 						manager_event(EVENT_FLAG_CALL, "Hold",
@@ -6709,8 +6713,8 @@ retryowner:
 					}
 				}
 				break;
-			case IAX_COMMAND_UNQUELCH:			 
-				if (iaxs[fr.callno]->state & IAX_STATE_STARTED) {
+			case IAX_COMMAND_UNQUELCH:
+				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED)) {
 				        /* Generate Manager Unhold event, if necessary*/
 					if (iaxs[fr.callno]->owner && ast_test_flag(iaxs[fr.callno], IAX_QUELCH)) {
 						manager_event(EVENT_FLAG_CALL, "Unhold",
@@ -6744,7 +6748,7 @@ retryowner:
 				break;
 			case IAX_COMMAND_NEW:
 				/* Ignore if it's already up */
-				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD))
+				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD))
 					break;
 				if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
 					check_provisioning(&sin, fd, ies.serviceident, ies.provver);
@@ -6870,7 +6874,7 @@ retryowner:
 							iax_ie_append_int(&ied1, IAX_IE_FORMAT, format);
 							send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
 							if (strcmp(iaxs[fr.callno]->exten, "TBD")) {
-								iaxs[fr.callno]->state |= IAX_STATE_STARTED;
+								ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
 								if (option_verbose > 2) 
 									ast_verbose(VERBOSE_PREFIX_3 "Accepting UNAUTHENTICATED call from %s:\n"
 												"%srequested format = %s,\n"
@@ -6893,7 +6897,7 @@ retryowner:
 								if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, format)))
 									iax2_destroy_nolock(fr.callno);
 							} else {
-								iaxs[fr.callno]->state |= IAX_STATE_TBD;
+								ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD);
 								/* If this is a TBD call, we're ready but now what...  */
 								if (option_verbose > 2)
 									ast_verbose(VERBOSE_PREFIX_3 "Accepted unauthenticated TBD call from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
@@ -6907,12 +6911,12 @@ retryowner:
 				else
 					iaxs[fr.callno]->encmethods = 0;
 				authenticate_request(iaxs[fr.callno]);
-				iaxs[fr.callno]->state |= IAX_STATE_AUTHENTICATED;
+				ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_AUTHENTICATED);
 				break;
 			case IAX_COMMAND_DPREQ:
 				/* Request status in the dialplan */
-				if ((iaxs[fr.callno]->state & IAX_STATE_TBD) && 
-					!(iaxs[fr.callno]->state & IAX_STATE_STARTED) && ies.called_number) {
+				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD) &&
+					!ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED) && ies.called_number) {
 					if (iaxcompat) {
 						/* Spawn a thread for the lookup */
 						spawn_dp_lookup(fr.callno, iaxs[fr.callno]->context, ies.called_number, iaxs[fr.callno]->cid_num);
@@ -6978,7 +6982,7 @@ retryowner:
 				break;
 			case IAX_COMMAND_ACCEPT:
 				/* Ignore if call is already up or needs authentication or is a TBD */
-				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD | IAX_STATE_AUTHENTICATED))
+				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD | IAX_STATE_AUTHENTICATED))
 					break;
 				if (ast_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
 					/* Send ack immediately, before we destroy */
@@ -7004,7 +7008,7 @@ retryowner:
 					if (authdebug)
 						ast_log(LOG_NOTICE, "Rejected call to %s, format 0x%x incompatible with our capability 0x%x.\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat, iaxs[fr.callno]->capability);
 				} else {
-					iaxs[fr.callno]->state |= IAX_STATE_STARTED;
+					ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
 					if (iaxs[fr.callno]->owner) {
 						/* Switch us to use a compatible format */
 						iaxs[fr.callno]->owner->nativeformats = iaxs[fr.callno]->peerformat;
@@ -7145,7 +7149,7 @@ retryowner2:
 #endif				
 				break;
 			case IAX_COMMAND_AUTHREQ:
-				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD)) {
+				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
 					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
 					break;
 				}
@@ -7160,7 +7164,7 @@ retryowner2:
 				if (delayreject)
 					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
 				/* Ignore once we've started */
-				if (iaxs[fr.callno]->state & (IAX_STATE_STARTED | IAX_STATE_TBD)) {
+				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED | IAX_STATE_TBD)) {
 					ast_log(LOG_WARNING, "Call on %s is already up, can't start on it\n", iaxs[fr.callno]->owner ? iaxs[fr.callno]->owner->name : "<Unknown>");
 					break;
 				}
@@ -7278,7 +7282,7 @@ retryowner2:
 						iax_ie_append_int(&ied1, IAX_IE_FORMAT, format);
 						send_command(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACCEPT, 0, ied1.buf, ied1.pos, -1);
 						if (strcmp(iaxs[fr.callno]->exten, "TBD")) {
-							iaxs[fr.callno]->state |= IAX_STATE_STARTED;
+							ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
 							if (option_verbose > 2) 
 								ast_verbose(VERBOSE_PREFIX_3 "Accepting AUTHENTICATED call from %s:\n"
 											"%srequested format = %s,\n"
@@ -7298,11 +7302,11 @@ retryowner2:
 											VERBOSE_PREFIX_4,
 											using_prefs);
 
-							iaxs[fr.callno]->state |= IAX_STATE_STARTED;
+							ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
 							if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, format)))
 								iax2_destroy_nolock(fr.callno);
 						} else {
-							iaxs[fr.callno]->state |= IAX_STATE_TBD;
+							ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD);
 							/* If this is a TBD call, we're ready but now what...  */
 							if (option_verbose > 2)
 								ast_verbose(VERBOSE_PREFIX_3 "Accepted AUTHENTICATED TBD call from %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr));
@@ -7311,8 +7315,8 @@ retryowner2:
 				}
 				break;
 			case IAX_COMMAND_DIAL:
-				if (iaxs[fr.callno]->state & IAX_STATE_TBD) {
-					iaxs[fr.callno]->state &= ~IAX_STATE_TBD;
+				if (ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD)) {
+					ast_clear_flag(&iaxs[fr.callno]->state, IAX_STATE_TBD);
 					ast_copy_string(iaxs[fr.callno]->exten, ies.called_number ? ies.called_number : "s", sizeof(iaxs[fr.callno]->exten));	
 					if (!ast_exists_extension(NULL, iaxs[fr.callno]->context, iaxs[fr.callno]->exten, 1, iaxs[fr.callno]->cid_num)) {
 						if (authdebug)
@@ -7322,10 +7326,10 @@ retryowner2:
 						iax_ie_append_byte(&ied0, IAX_IE_CAUSECODE, AST_CAUSE_NO_ROUTE_DESTINATION);
 						send_command_final(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_REJECT, 0, ied0.buf, ied0.pos, -1);
 					} else {
-						iaxs[fr.callno]->state |= IAX_STATE_STARTED;
+						ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
 						if (option_verbose > 2) 
 							ast_verbose(VERBOSE_PREFIX_3 "Accepting DIAL from %s, formats = 0x%x\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->peerformat);
-						iaxs[fr.callno]->state |= IAX_STATE_STARTED;
+						ast_set_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED);
 						send_command(iaxs[fr.callno], AST_FRAME_CONTROL, AST_CONTROL_PROGRESS, 0, NULL, 0, -1);
 						if(!(c = ast_iax2_new(fr.callno, AST_STATE_RING, iaxs[fr.callno]->peerformat)))
 							iax2_destroy_nolock(fr.callno);
@@ -7354,7 +7358,7 @@ retryowner2:
 					auth_fail(fr.callno, IAX_COMMAND_REGREJ);
 					break;
 				}
-				if ((ast_strlen_zero(iaxs[fr.callno]->secret) && ast_strlen_zero(iaxs[fr.callno]->inkeys)) || (iaxs[fr.callno]->state & IAX_STATE_AUTHENTICATED)) {
+				if ((ast_strlen_zero(iaxs[fr.callno]->secret) && ast_strlen_zero(iaxs[fr.callno]->inkeys)) || ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_AUTHENTICATED)) {
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
 					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype, fd, ies.refresh))
@@ -7539,7 +7543,7 @@ retryowner2:
 		/* FIXME? Surely right here would be the right place to undo timestamp wraparound? */
 	}
 	/* Don't pass any packets until we're started */
-	if (!(iaxs[fr.callno]->state & IAX_STATE_STARTED)) {
+	if (!ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_STARTED)) {
 		ast_mutex_unlock(&iaxsl[fr.callno]);
 		return 1;
 	}
@@ -8958,7 +8962,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 		dp->peer = iaxs[callno]->dpentries;
 		iaxs[callno]->dpentries = dp;
 		/* Send the request if we're already up */
-		if (iaxs[callno]->state & IAX_STATE_STARTED)
+		if (ast_test_flag(&iaxs[callno]->state, IAX_STATE_STARTED))
 			iax2_dprequest(dp, callno);
 		ast_mutex_unlock(&iaxsl[callno]);
 	}
