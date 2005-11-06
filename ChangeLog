@@ -8,6 +8,7 @@
 	* apps/app_chanisavail.c: Make priority jumping optional
 	* apps/app_db.c: Add an exit status variable and make priority jumping optional
 	* apps/app_enumlookup.c: Make priority jumping optional
+	* apps/app_groupcount.c: Add an exit status variable, make priority jumping optional, and use new args parsing macros
 
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 

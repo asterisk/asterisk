@@ -140,27 +140,50 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 	char limit[80]="";
 	char category[80]="";
 	static int deprecation_warning = 0;
+	char *parse;
+	int priority_jump = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(max);
+		AST_APP_ARG(options);
+	);
+
+	LOCAL_USER_ADD(u);
 
 	if (!deprecation_warning) {
 	        ast_log(LOG_WARNING, "The CheckGroup application has been deprecated, please use a combination of the GotoIf application and the GROUP_COUNT() function.\n");
 		deprecation_warning = 1;
 	}
 
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "CheckGroup requires an argument(max[@category])\n");
+	if (!(parse = ast_strdupa(data))) {
+		ast_log(LOG_WARNING, "Memory Error!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
+
+	if (ast_strlen_zero(args.max)) {
+		ast_log(LOG_WARNING, "CheckGroup requires an argument(max[@category][|options])\n");
 		return res;
 	}
 
-	LOCAL_USER_ADD(u);
-
-  	ast_app_group_split_group(data, limit, sizeof(limit), category, sizeof(category));
+  	ast_app_group_split_group(args.max, limit, sizeof(limit), category, sizeof(category));
 
  	if ((sscanf(limit, "%d", &max) == 1) && (max > -1)) {
 		count = ast_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
 		if (count > max) {
-			if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
-				res = -1;
-		}
+			pbx_builtin_setvar_helper(chan, "CHECKGROUPSTATUS", "OVERMAX");
+			if (priority_jump || option_priority_jumping) {
+				if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+					res = -1;
+			}
+		} else
+			pbx_builtin_setvar_helper(chan, "CHECKGROUPSTATUS", "OK");
 	} else
 		ast_log(LOG_WARNING, "CheckGroup requires a positive integer argument (max)\n");
 
@@ -243,12 +266,18 @@ static char *group_set_descrip =
 "Set(GROUP=group).  Always returns 0.\n";
 
 static char *group_check_descrip =
-"Usage: CheckGroup(max[@category])\n"
+"Usage: CheckGroup(max[@category][|options])\n"
 "  Checks that the current number of total channels in the\n"
 "current channel's group does not exceed 'max'.  If the number\n"
-"does not exceed 'max', we continue to the next step. If the\n"
-"number does in fact exceed max, if priority n+101 exists, then\n"
-"execution continues at that step, otherwise -1 is returned.\n";
+"does not exceed 'max', we continue to the next step. \n"
+" The option string may contain zero of the following character:\n"
+"	'j' -- jump to n+101 priority if the number does in fact exceed max,\n"
+"              and priority n+101 exists. Execuation then continues at that\n"
+"	       step, otherwise -1 is returned.\n"
+" This application sets the following channel variable upon successful completion:\n"
+"	CHECKGROUPSTATUS  The status of the check that the current channel's\n"
+"			  group does not exceed 'max'. It's value is one of\n"
+"		OK | OVERMAX \n";	
 
 static char *group_match_count_descrip =
 "Usage: GetGroupMatchCount(groupmatch[@category])\n"
