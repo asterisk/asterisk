@@ -845,6 +845,7 @@ static int oss_indicate(struct ast_channel *c, int cond)
 
 	case -1:
 		o->cursound = -1;
+		o->nosound = 0; /* when cursound is -1 nosound must be 0 */
 		return 0;
 
 	case AST_CONTROL_VIDUPDATE:
@@ -1081,6 +1082,7 @@ static int console_flash(int fd, int argc, char *argv[])
 	if (argc != 1)
 		return RESULT_SHOWUSAGE;
 	o->cursound = -1;
+	o->nosound = 0; /* when cursound is -1 nosound must be 0 */
 	if (!o->owner) { /* XXX maybe !o->hookstate too ? */
 		ast_cli(fd, "No call to flash\n");
 		return RESULT_FAILURE;
@@ -1293,6 +1295,7 @@ static struct chan_oss_pvt * store_config(struct ast_config *cfg, char *ctg)
 		o->name = strdup(ctg);
 	}
 
+	o->lastopen = ast_tvnow(); /* don't leave it 0 or tvdiff may wrap */
 	/* fill other fields from configuration */
 	for (v = ast_variable_browse(cfg, ctg);v; v=v->next) {
 		M_START(v->name, v->value);
