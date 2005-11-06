@@ -2,6 +2,7 @@
 
 	* many files: alphabetize options in applicaiton descriptions
 	* channels/chan_iax2.c: Use an enum to define iax peer/user flags as well as the pvt structure state.  Use the ast_flags macros for checking or setting the state.
+	* sounds.txt: Add missing words from the description of the vm-opts prompt
 
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 
