@@ -16,7 +16,7 @@
 
 int misdn_ibuf_freecount(void *buf)
 {
-	return ibuf_usedcount( (ibuffer_t*)buf);
+	return ibuf_freecount( (ibuffer_t*)buf);
 }
 
 int misdn_ibuf_usedcount(void *buf)

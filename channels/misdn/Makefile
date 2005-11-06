@@ -33,7 +33,7 @@ chan_misdn_lib.a:	$(OBJS)
 	ar crv $@ $(OBJS)
 
 Makefile.ast:	FORCE
-	@echo CFLAGS+=$(MISDNCFLAGS) -Imisdn/ -DCHAN_MISDN_VERSION=\\\"0.1.1\\\" >$@.tmp
+	@echo CFLAGS+=$(MISDNCFLAGS) -Imisdn/ -DCHAN_MISDN_VERSION=\\\"0.2.0\\\" >$@.tmp
 	@echo MISDNUSER = $(MISDNUSER) >>$@.tmp
 	@if [ -r $@ ] && cmp -s $@ $@.tmp; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
 
