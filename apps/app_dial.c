@@ -70,11 +70,7 @@ static char *descrip =
 "If a timeout is not specified, the Dial application will wait indefinitely\n"
 "until either one of the called channels answers, the user hangs up, or all\n"
 "channels return busy or error. In general, the dialer will return 0 if it\n"
-"was unable to place the call, or the timeout expired. However, if all\n"
-"channels were busy, and there exists an extension with priority n+101 (where\n"
-"n is the priority of the dialer instance), then it will be the next\n"
-"executed extension (this allows you to setup different behavior on busy from\n"
-"no-answer).\n"
+"was unable to place the call, or the timeout expired. \n"
 "  For the Privacy and Screening Modes, the DIALSTATUS variable will be set to DONTCALL, \n"
 "if the called party chooses to send the calling party to the 'Go Away' script, and \n"
 "the DIALSTATUS variable will be set to TORTURE, if the called party wants to send the caller to \n"
@@ -116,7 +112,7 @@ static char *descrip =
 "                      Also, the macro can set the MACRO_RESULT variable to do the following:\n"
 "                     -- ABORT - Hangup both legs of the call.\n"
 "                     -- CONGESTION - Behave as if line congestion was encountered.\n"
-"                     -- BUSY - Behave as if a busy signal was encountered. (n+101)\n"
+"                     -- BUSY - Behave as if a busy signal was encountered. (n+101 only if those options are set)\n"
 "                     -- CONTINUE - Hangup the called party and continue on in the dialplan.\n"
 "                     -- GOTO:<context>^<exten>^<priority> - Transfer the call.\n"
 "	'n' -- modifier for screen/privacy mode. No intros are to be saved in the priv-callerintros dir.\n"
@@ -1421,9 +1417,12 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				if ((macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
 					if (!strcasecmp(macro_result, "BUSY")) {
 						ast_copy_string(status, macro_result, sizeof(status));
-						if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
+						if (option_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
+							if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
+								ast_set_flag(peerflags, OPT_GO_ON);
+							}
+						} else
 							ast_set_flag(peerflags, OPT_GO_ON);
-						}
 						res = -1;
 					}
 					else if (!strcasecmp(macro_result, "CONGESTION") || !strcasecmp(macro_result, "CHANUNAVAIL")) {
