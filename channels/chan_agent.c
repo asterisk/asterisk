@@ -1658,13 +1658,12 @@ static struct ast_cli_entry cli_agent_logoff = {
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
 
-/**
- * Log in agent application.
+/*!
+ * \brief Log in agent application.
  *
- * @param chan
- * @param data
- * @param callbackmode
- * @returns 
+ * \param chan
+ * \param data
+ * \param callbackmode non-zero for AgentCallbackLogin
  */
 static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 {
@@ -1736,10 +1735,9 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 		context = parse;
 	}
 
-	while (!ast_strlen_zero(args.options)) {
-		if (*args.options == 's') {
+	if (!ast_strlen_zero(args.options)) {
+		if (strchr(args.options, 's')) {
 			play_announcement = 0;
-			break;
 		}
 	}
 
