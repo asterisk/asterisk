@@ -512,13 +512,13 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	}
 	if (argc == 1) {
 		/* 'MeetMe': List all the conferences */	
-	now = time(NULL);
+		now = time(NULL);
 		cnf = confs;
 		if (!cnf) {
-		ast_cli(fd, "No active MeetMe conferences.\n");
-		return RESULT_SUCCESS;
-	}
-	ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
+			ast_cli(fd, "No active MeetMe conferences.\n");
+			return RESULT_SUCCESS;
+		}
+		ast_cli(fd, header_format, "Conf Num", "Parties", "Marked", "Activity", "Creation");
 		while(cnf) {
 			if (cnf->markedusers == 0)
 				strcpy(cmdline, "N/A ");
