@@ -666,13 +666,13 @@ static struct zt_pvt {
 	q931_call *call;
 	int prioffset;
 	int logicalspan;
-	int dsp_features;
 #endif	
 #ifdef ZAPATA_R2
 	int r2prot;
 	mfcr2_t *r2;
 #endif	
 	int polarity;
+	int dsp_features;
 
 } *iflist = NULL, *ifend = NULL;
 
@@ -5023,12 +5023,12 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			} else {
 				i->dsp = ast_dsp_new();
 				if (i->dsp) {
+					i->dsp_features = features & ~DSP_PROGRESS_TALK;
 #ifdef ZAPATA_PRI
 					/* We cannot do progress detection until receives PROGRESS message */
 					if (i->outgoing && (i->sig == SIG_PRI)) {
 						/* Remember requested DSP features, don't treat
 						   talking as ANSWER */
-						i->dsp_features = features & ~DSP_PROGRESS_TALK;
 						features = 0;
 					}
 #endif
