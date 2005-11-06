@@ -42,13 +42,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/astdb.h"
 #include "asterisk/lock.h"
+#include "asterisk/options.h"
 
 static char *tdesc = "Database access functions for Asterisk extension logic";
 
 static char *g_descrip =
-	"  DBget(varname=family/key): Retrieves a value from the Asterisk\n"
-	"database and stores it in the given variable.  Always returns 0.  If the\n"
-	"requested key is not found, jumps to priority n+101 if available.\n";
+	"  DBget(varname=family/key[|options]): Retrieves a value from the Asterisk\n"
+	"database and stores it in the given variable.  Always returns 0.  \n"
+	"  The option string may contain zero or the following character:\n"
+	"       'j' -- jump to +101 priority if the file requested family/key isn't found.\n"
+	"  This application sets the following channel variable upon completion:\n"
+	"     DBGETSTATUS       The status of the attempt to add a queue member as a text string, one of\n"
+	"             FOUND | NOTFOUND \n";
 
 static char *p_descrip =
 	"  DBput(family/key=value): Stores the given value in the Asterisk\n"
@@ -206,9 +211,10 @@ static int put_exec(struct ast_channel *chan, void *data)
 
 static int get_exec(struct ast_channel *chan, void *data)
 {
-	char *argv, *varname, *family, *key;
+	char *argv, *varname, *family, *key, *options = NULL;
 	char dbresult[256];
 	static int dep_warning = 0;
+	int priority_jump = 0;
 	struct localuser *u;
 
 	LOCAL_USER_ADD(u);
@@ -228,23 +234,38 @@ static int get_exec(struct ast_channel *chan, void *data)
 	if (strchr(argv, '=') && strchr(argv, '/')) {
 		varname = strsep(&argv, "=");
 		family = strsep(&argv, "/");
-		key = strsep(&argv, "\0");
+		if (strchr((void *)&argv, '|')) {
+			key = strsep(&argv, "|");
+			options = strsep(&argv, "\0");
+		} else
+			key = strsep(&argv, "\0");
+			
 		if (!varname || !family || !key) {
 			ast_log(LOG_DEBUG, "Ignoring; Syntax error in argument\n");
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
+
+		if (options) {
+			if (strchr(options, 'j'))
+				priority_jump = 1;
+		}
+			
 		if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "DBget: varname=%s, family=%s, key=%s\n", varname, family, key);
 		if (!ast_db_get(family, key, dbresult, sizeof (dbresult) - 1)) {
 			pbx_builtin_setvar_helper(chan, varname, dbresult);
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "DBget: set variable %s to %s\n", varname, dbresult);
+			pbx_builtin_setvar_helper(chan, "DBGETSTATUS", "FOUND");
 		} else {
 			if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
-			/* Send the call to n+101 priority, where n is the current priority */
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			if (priority_jump || option_priority_jumping) {
+				/* Send the call to n+101 priority, where n is the current priority */
+				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			}
+			pbx_builtin_setvar_helper(chan, "DBGETSTATUS", "NOTFOUND");
 		}
 	} else {
 		ast_log(LOG_DEBUG, "Ignoring, no parameters\n");
