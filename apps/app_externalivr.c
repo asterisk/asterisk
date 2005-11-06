@@ -59,7 +59,8 @@ static const char *descrip =
 "when the channel is hung up.\n"
 "See doc/README.externalivr for a protocol specification.\n";
 
-#define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, channel->name, ## __VA_ARGS__)
+/* XXX the parser in gcc 2.95 gets confused if you don't put a space between 'name' and the comma */
+#define ast_chan_log(level, channel, format, ...) ast_log(level, "%s: " format, channel->name , ## __VA_ARGS__)
 
 struct playlist_entry {
 	AST_LIST_ENTRY(playlist_entry) list;
