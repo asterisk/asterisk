@@ -159,7 +159,7 @@ static void *mixmonitor_thread(void *obj)
 	oflags = O_CREAT|O_WRONLY;
 	oflags |= ast_test_flag(mixmonitor, MUXFLAG_APPEND) ? O_APPEND : O_TRUNC;
 		
-	if ((ext = strchr(mixmonitor->filename, '.'))) {
+	if ((ext = strrchr(mixmonitor->filename, '.'))) {
 		*(ext++) = '\0';
 	} else {
 		ext = "raw";
