@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"
+#include "asterisk/app.h"
 
 STANDARD_LOCAL_USER;
 
@@ -52,21 +53,19 @@ static const char *app = "Transfer";
 static const char *synopsis = "Transfer caller to remote extension";
 
 static const char *descrip = 
-"  Transfer([Tech/]dest):  Requests the remote caller be transfered\n"
-"to a given extension. If TECH (SIP, IAX2, LOCAL etc) is used, only\n"
+"  Transfer([Tech/]dest[|options]):  Requests the remote caller be transferred\n"
+"to a given destination. If TECH (SIP, IAX2, LOCAL etc) is used, only\n"
 "an incoming call with the same channel technology will be transfered.\n"
 "Note that for SIP, if you transfer before call is setup, a 302 redirect\n"
 "SIP message will be returned to the caller.\n"
 "\nThe result of the application will be reported in the TRANSFERSTATUS\n"
 "channel variable:\n"
-"       SUCCESS       Transfer succeeded\n"
+"       SUCCESS      Transfer succeeded\n"
 "       FAILURE      Transfer failed\n"
 "       UNSUPPORTED  Transfer unsupported by channel driver\n"
-"Returns -1 on hangup, or 0 on completion regardless of whether the\n"
-"transfer was successful.\n\n"
-"Old depraciated behaviour: If the transfer was *not* supported or\n"
-"successful and there exists a priority n + 101,\n"
-"then that priority will be taken next.\n" ;
+"The option string many contain the following character:\n"
+"'j' -- jump to n+101 priority if the channel transfer attempt\n"
+"       fails\n";
 
 static int transfer_exec(struct ast_channel *chan, void *data)
 {
@@ -75,16 +74,39 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char *slash;
 	char *tech = NULL;
-	char *dest = data;
+	char *dest = NULL;
 	char *status;
-
-	if (ast_strlen_zero(dest)) {
-		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination)\n");
-		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
-		return 0;
-	}
+	char *parse;
+	int priority_jump = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(dest);
+		AST_APP_ARG(options);
+	);
 
 	LOCAL_USER_ADD(u);
+
+	if (ast_strlen_zero((char *)data)) {
+		ast_log(LOG_WARNING, "Transfer requires an argument ([Tech/]destination[|options])\n");
+		LOCAL_USER_REMOVE(u);
+		pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
+		return 0;
+	} else {
+		parse = ast_strdupa(data);
+		if (!parse) {
+			ast_log(LOG_ERROR, "Out of memory!\n");
+			LOCAL_USER_REMOVE(u);
+			return -1;
+		}
+	}
+
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
+
+	dest = args.dest;
 
 	if ((slash = strchr(dest, '/')) && (len = (slash - dest))) {
 		tech = dest;
@@ -108,7 +130,7 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 
 	if (res < 0) {
 		status = "FAILURE";
-		if (option_priority_jumping)
+		if (priority_jump || option_priority_jumping)
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		res = 0;
 	} else {
