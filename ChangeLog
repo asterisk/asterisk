@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* apps/app_txtcidname.c: upgrade to new arg/option API and implement priority jumping control
+
 	* Makefile: restore function of 'dont-optimize'
 
 	* config.c (config_text_file_load): don't generate log message when stat() fails
