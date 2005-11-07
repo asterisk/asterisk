@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* apps/app_privacy.c: upgrade to new arg/option API and implement priority jumping control
+
 	* apps/app_sendtext.c: upgrade to new arg/option API and implement priority jumping control
 
 	* apps/app_transfer.c: upgrade to new arg/option API and implement priority jumping control

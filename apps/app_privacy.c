@@ -53,17 +53,24 @@ static char *app = "PrivacyManager";
 static char *synopsis = "Require phone number to be entered, if no CallerID sent";
 
 static char *descrip =
-  "  PrivacyManager: If no Caller*ID is sent, PrivacyManager answers the\n"
-  "channel and asks the caller to enter their phone number.\n"
-  "The caller is given 3 attempts.  If after 3 attempts, they do not enter\n"
-  "at least a 10 digit phone number, and if there exists a priority n + 101,\n"
-  "where 'n' is the priority of the current instance, then  the\n"
-  "channel  will  be  setup  to continue at that priority level.\n"
-  "Otherwise, the call is hungup.  Does nothing if Caller*ID was received on the\n"
-  "channel.\n"
+  "  PrivacyManager([maxretries[|minlength[|options]]]): If no Caller*ID \n"
+  "is sent, PrivacyManager answers the channel and asks the caller to\n"
+  "enter their phone number. The caller is given 3 attempts to do so.\n"
+  "The application does nothing if Caller*ID was received on the channel.\n"
   "  Configuration file privacy.conf contains two variables:\n"
-  "   maxretries  default 3  -maximum number of attempts the caller is allowed to input a callerid.\n"
+  "   maxretries  default 3  -maximum number of attempts the caller is allowed \n"
+  "               to input a callerid.\n"
   "   minlength   default 10 -minimum allowable digits in the input callerid number.\n"
+  "If you don't want to use the config file and have an i/o operation with\n"
+  "every call, you can also specify maxretries and minlength as application\n"
+  "parameters. Doing so supercedes any values set in privacy.conf.\n"
+  "The option string may contain the following character: \n"
+  "  'j' -- jump to n+101 priority after <maxretries> failed attempts to collect\n"
+  "         the minlength number of digits.\n"
+  "The application sets the following channel variable upon completion: \n"
+  "PRIVACYMGRSTATUS  The status of the privacy manager's attempt to collect \n"
+  "                  a phone number from the user. A text string that is either:\n" 
+  "          SUCCESS | FAILED \n"
 ;
 
 STANDARD_LOCAL_USER;
@@ -78,11 +85,18 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 	int retries;
 	int maxretries = 3;
 	int minlength = 10;
-	int x;
+	int x = 0;
 	char *s;
 	char phone[30];
 	struct localuser *u;
-	struct ast_config *cfg;
+	struct ast_config *cfg = NULL;
+	char *parse = NULL;
+	int priority_jump = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(maxretries);
+		AST_APP_ARG(minlength);
+		AST_APP_ARG(options);
+	);
 
 	LOCAL_USER_ADD (u);
 	if (!ast_strlen_zero(chan->cid.cid_num)) {
@@ -97,9 +111,55 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 				return -1;
 			}
 		}
-		/*Read in the config file*/
-		cfg = ast_config_load(PRIV_CONFIG);
+
+		if (!ast_strlen_zero((char *)data))
+		{
+			parse = ast_strdupa(data);
+			if (!parse) {
+				ast_log(LOG_ERROR, "Out of memory!\n");
+				LOCAL_USER_REMOVE(u);
+				return -1;
+			}
+			
+			AST_STANDARD_APP_ARGS(args, parse);
+
+			if (args.maxretries) {
+				if (sscanf(args.maxretries, "%d", &x) == 1)
+					maxretries = x;
+				else
+					ast_log(LOG_WARNING, "Invalid max retries argument\n");
+			}
+			if (args.minlength) {
+				if (sscanf(args.minlength, "%d", &x) == 1)
+					minlength = x;
+				else
+					ast_log(LOG_WARNING, "Invalid min length argument\n");
+			}
+			if (args.options)
+				if (strchr(args.options, 'j'))
+					priority_jump = 1;
+
+		}		
+
+		if (!x)
+		{
+			/*Read in the config file*/
+			cfg = ast_config_load(PRIV_CONFIG);
 		
+			if (cfg && (s = ast_variable_retrieve(cfg, "general", "maxretries"))) {
+				if (sscanf(s, "%d", &x) == 1) 
+					maxretries = x;
+				else
+					ast_log(LOG_WARNING, "Invalid max retries argument\n");
+        		}
+
+			if (cfg && (s = ast_variable_retrieve(cfg, "general", "minlength"))) {
+				if (sscanf(s, "%d", &x) == 1) 
+					minlength = x;
+				else
+					ast_log(LOG_WARNING, "Invalid min length argument\n");
+			}
+		}	
 		
 		/*Play unidentified call*/
 		res = ast_safe_sleep(chan, 1000);
@@ -108,21 +168,6 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitstream(chan, "");
 
-        if (cfg && (s = ast_variable_retrieve(cfg, "general", "maxretries"))) {
-                if (sscanf(s, "%d", &x) == 1) {
-                        maxretries = x;
-                } else {
-                        ast_log(LOG_WARNING, "Invalid max retries argument\n");
-                }
-        }
-        if (cfg && (s = ast_variable_retrieve(cfg, "general", "minlength"))) {
-                if (sscanf(s, "%d", &x) == 1) {
-                        minlength = x;
-                } else {
-                        ast_log(LOG_WARNING, "Invalid min length argument\n");
-                }
-        }
-			
 		/*Ask for 10 digit number, give 3 attempts*/
 		for (retries = 0; retries < maxretries; retries++) {
 			if (!res)
@@ -154,9 +199,11 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 			ast_set_callerid (chan, phone, "Privacy Manager", NULL);
 			if (option_verbose > 2)
 				ast_verbose (VERBOSE_PREFIX_3 "Changed Caller*ID to %s\n",phone);
+			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "SUCCESS");
 		} else {
-			/* Send the call to n+101 priority, where n is the current priority  */
-			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			if (priority_jump || option_priority_jumping)	
+				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+			pbx_builtin_setvar_helper(chan, "PRIVACYMGRSTATUS", "FAILED");
 		}
 		if (cfg) 
 			ast_config_destroy(cfg);
