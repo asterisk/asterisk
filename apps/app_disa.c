@@ -338,6 +338,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	if (k == 3) {
 		int recheck = 0;
+		struct ast_flags flags = { AST_CDR_FLAG_POSTED };
 
 		if (!ast_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num)) {
 			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN", exten);
@@ -357,7 +358,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (!ast_strlen_zero(acctcode))
 				ast_copy_string(chan->accountcode, acctcode, sizeof(chan->accountcode));
 
-			ast_cdr_reset(chan->cdr, AST_CDR_FLAG_POSTED);
+			ast_cdr_reset(chan->cdr, &flags);
 			ast_explicit_goto(chan, ourcontext, exten, 1);
 			LOCAL_USER_REMOVE(u);
 			return 0;
