@@ -8,7 +8,7 @@
 	* many files: Update applications to add an exit status variable, make priority jumping optional, and use new args parsing macros
 	* pbx.c cdr.c res/res_features.c apps/app_dial.c include/asterisk/cdr.h: Convert some built-in applications to use new args parsing macros.  Change ast_cdr_reset to take a pointer to an ast_flags structure instead of an integer for flags.
 	* channels/chan_agent.c: Don't loop forever on an invalid options string
-	* apps/app_disa.c: Fix to use correct arguments to ast_cdr_reset
+	* apps/app_disa.c apps/app_forkcdr.c: Fix to use correct arguments to ast_cdr_reset
 
 2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
 

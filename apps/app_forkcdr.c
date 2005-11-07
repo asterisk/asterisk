@@ -57,16 +57,23 @@ static void ast_cdr_fork(struct ast_channel *chan)
 {
 	struct ast_cdr *cdr;
 	struct ast_cdr *newcdr;
+	struct ast_flags flags = { AST_CDR_FLAG_KEEP_VARS };
+
 	if (!chan || !(cdr = chan->cdr))
 		return;
+
 	while (cdr->next)
 		cdr = cdr->next;
+	
 	if (!(newcdr = ast_cdr_dup(cdr)))
 		return;
+	
 	ast_cdr_append(cdr, newcdr);
-	ast_cdr_reset(newcdr, AST_CDR_FLAG_KEEP_VARS);
+	ast_cdr_reset(newcdr, &flags);
+	
 	if (!ast_test_flag(cdr, AST_CDR_FLAG_KEEP_VARS))
 		ast_cdr_free_vars(cdr, 0);
+	
 	ast_set_flag(cdr, AST_CDR_FLAG_CHILD | AST_CDR_FLAG_LOCKED);
 }
 
