@@ -54,9 +54,8 @@ static const char *page_descrip =
 "them into a conference bridge as muted participants.  The original\n"
 "caller is dumped into the conference as a speaker and the room is\n"
 "destroyed when the original caller leaves.  Valid options are:\n"
-"	d - full duplex audio\n"
-"	q - quiet, do not play beep to caller\n"
-"Always returns -1.\n";
+"        d - full duplex audio\n"
+"	 q - quiet, do not play beep to caller\n";
 
 STANDARD_LOCAL_USER;
 

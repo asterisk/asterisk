@@ -62,7 +62,7 @@ static char *descrip =
 "  attempts   -- if greater than 1, that many attempts will be made in the \n"
 "                event no data is entered.\n"
 "  timeout    -- if greater than 0, that value will override the default timeout.\n\n"
-"Returns -1 on hangup or error and 0 otherwise.\n";
+"Read should disconnect if the function fails or errors out.\n";
 
 STANDARD_LOCAL_USER;
 

@@ -57,8 +57,7 @@ static char *synopsis = "Encode and stream using 'ices'";
 static char *descrip = 
 "  ICES(config.xml) Streams to an icecast server using ices\n"
 "(available separately).  A configuration file must be supplied\n"
-"for ices (see examples/asterisk-ices.conf).  Returns  -1  on\n"
-"hangup or 0 otherwise.\n";
+"for ices (see examples/asterisk-ices.conf). \n";
 
 STANDARD_LOCAL_USER;
 

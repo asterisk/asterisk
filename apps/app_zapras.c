@@ -69,7 +69,7 @@ static char *descrip =
 "The channel must be a clear channel (i.e. PRI source) and a Zaptel\n"
 "channel to be able to use this function (No modem emulation is included).\n"
 "Your pppd must be patched to be zaptel aware. Arguments should be\n"
-"separated by | characters.  Always returns -1.\n";
+"separated by | characters.\n";
 
 STANDARD_LOCAL_USER;
 

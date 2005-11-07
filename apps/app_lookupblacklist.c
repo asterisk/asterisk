@@ -53,14 +53,12 @@ static char *synopsis = "Look up Caller*ID name/number from blacklist database";
 static char *descrip =
   "  LookupBlacklist(options): Looks up the Caller*ID number on the active\n"
   "channel in the Asterisk database (family 'blacklist').  \n"
-  "Returns 0.  Does nothing if no Caller*ID was received on the\n"
-  "channel.\n"
-  "The option string may contain zero or the following character:\n"
+  "The option string may contain the following character:\n"
   "	'j' -- jump to n+101 priority if the number/name is found in the blacklist\n"
   "This application sets the following channel variable upon completion:\n"
   "	LOOKUPBLSTATUS		The status of the Blacklist lookup as a text string, one of\n"
   "		FOUND | NOTFOUND\n"
-  "Example: database put blacklist <name/number> 1\n";
+  "Example: exten => 1234,1,LookupBlacklist()\n";
 
 STANDARD_LOCAL_USER;
 

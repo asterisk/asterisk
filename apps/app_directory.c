@@ -49,14 +49,13 @@ static char *synopsis = "Provide directory of voicemail extensions";
 static char *descrip =
 "  Directory(vm-context[|dial-context[|options]]): Presents the user with a directory\n"
 "of extensions from which they  may  select  by name. The  list  of  names \n"
-"and  extensions  is discovered from  voicemail.conf. The  vm-context  argument\n"
+"and  extensions are retrieved from  voicemail.conf. The  vm-context  argument\n"
 "is required, and specifies  the  context  of voicemail.conf to use.  The\n"
 "dial-context is the context to use for dialing the users, and defaults to\n"
 "the vm-context if unspecified. The 'f' option causes the directory to match\n"
 "based on the first name in voicemail.conf instead of the last name.\n"
-"Returns 0 unless the user hangs up. It  also sets up the channel on exit\n"
-"to enter the extension the user selected.  If the user enters '0' and there\n"
-"exists an extension 'o' in the current context, the directory will exit with 0\n"
+"The query should yield a contact unless the caller disconnects.\n"
+"It  also sets up the channel on exit to enter the extension the user selected.\n"  "If the user enters '0' and there exists an extension 'o' in the current \n"" context, the directory will contact the extension associated with 'o'\n"
 "and call control will resume at that extension.  Entering '*' will exit similarly,\n"
 "but to the 'a' extension, much like app_voicemail's behavior.\n";
 

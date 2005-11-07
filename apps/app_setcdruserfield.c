@@ -52,8 +52,7 @@ static char *setcdruserfield_descrip =
                "       can use for data not stored anywhere else in the record.\n"
                "       CDR records can be used for billing or storing other arbitrary data\n"
                "       (I.E. telephone survey responses)\n"
-               "       Also see AppendCDRUserField().\n"
-               "       Always returns 0\n";
+               "       Also see AppendCDRUserField().\n";
 
 		
 static char *setcdruserfield_app = "SetCDRUserField";
@@ -68,8 +67,7 @@ static char *appendcdruserfield_descrip =
                "       can use for data not stored anywhere else in the record.\n"
                "       CDR records can be used for billing or storing other arbitrary data\n"
                "       (I.E. telephone survey responses)\n"
-               "       Also see SetCDRUserField().\n"
-               "       Always returns 0\n";
+               "       Also see SetCDRUserField().\n";
 		
 static char *appendcdruserfield_app = "AppendCDRUserField";
 static char *appendcdruserfield_synopsis = "Append to the CDR user field";

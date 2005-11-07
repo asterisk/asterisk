@@ -50,7 +50,7 @@ static char *synopsis = "Set RDNIS Number";
 
 static char *descrip = 
 "  SetRDNIS(cnum): Set RDNIS Number on a call to a new\n"
-"value.  Always returns 0\n"
+"value.\n"
 "SetRDNIS has been deprecated in favor of the function\n"
 "CALLERID(rdnis)\n";
 

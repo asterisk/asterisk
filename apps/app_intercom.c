@@ -68,8 +68,7 @@ static char *app = "Intercom";
 static char *synopsis = "(Obsolete) Send to Intercom";
 static char *descrip = 
 "  Intercom(): Sends the user to the intercom (i.e. /dev/dsp).  This program\n"
-"is generally considered  obselete by the chan_oss module.  Returns 0 if the\n"
-"user exits with a DTMF tone, or -1 if they hangup.\n";
+"is generally considered  obselete by the chan_oss module.  User can terminate\n"with a DTMF tone, or by hangup.\n";
 
 STANDARD_LOCAL_USER;
 

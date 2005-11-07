@@ -49,12 +49,13 @@ static char *synopsis = "Send an image file";
 
 static char *descrip = 
 "  SendImage(filename): Sends an image on a channel. \n"
-"SendImage only  returns  0 if  the  image was sent correctly or if\n"
-"the channel does not support image transport, and -1 otherwise.\n"
-"The option string may contain zero or the following character:\n"
+"If the channel supports image transport but the image send\n"
+"fails, the channel will be hung up. Otherwise, the dialplan\n"
+"continues execution.\n"
+"The option string may contain the following character:\n"
 "	'j' -- jump to priority n+101 if the channel doesn't support image transport\n"
 "This application sets the following channel variable upon completion:\n"
-"	SENDIMAGESTATUS		The status is the attempt to send an image as a text string, one of\n"
+"	SENDIMAGESTATUS		The status is the result of the attempt as a text string, one of\n"
 "		OK | NOSUPPORT \n";			
 
 STANDARD_LOCAL_USER;

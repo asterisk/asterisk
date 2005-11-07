@@ -54,7 +54,7 @@ static char *descrip =
   "Caller*ID name.  Does nothing if no Caller*ID was received on the\n"
   "channel.  This is useful if you do not subscribe to Caller*ID\n"
   "name delivery, or if you want to change the names on some incoming\n"
-  "calls.  Always returns 0.\n";
+  "calls.\n";
 
 STANDARD_LOCAL_USER;
 

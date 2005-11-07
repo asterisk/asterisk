@@ -56,8 +56,9 @@ static char *synopsis = "Load Asterisk ADSI Scripts into phone";
 
 static char *descrip =
 "  ADSIProg(script): Programs an ADSI Phone with the given script.\n"
-"If none is specified, the default is used.  Returns 0 unless CPE\n" 
-"is hungup.\n";
+"If none is specified, the default script is used.  The reprogramming\n"  
+"will complete successfully, except in cases where the device is  \n"
+"disconnected or hungup.\n";
 
 STANDARD_LOCAL_USER;
 

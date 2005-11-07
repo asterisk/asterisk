@@ -69,7 +69,7 @@ static char *math_descrip =
 "Perform floating point calculation on number 1 to number 2 and \n"
 "store the result in returnvar.  Valid ops are: \n"
 "    +,-,/,*,%,<,>,>=,<=,==\n"
-"and behave as their C equivalents.  Always returns 0.\n";
+"and behave as their C equivalents.\n";
 
 #define ADDFUNCTION 0
 #define DIVIDEFUNCTION 1

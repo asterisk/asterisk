@@ -48,9 +48,10 @@ static char *app = "SendDTMF";
 static char *synopsis = "Sends arbitrary DTMF digits";
 
 static char *descrip = 
-"  SendDTMF(digits[|timeout_ms]): Sends DTMF digits on a channel. \n"
-"  Accepted digits: 0-9, *#abcd\n"
-" Returns 0 on success or -1 on a hangup.\n";
+" SendDTMF(digits[|timeout_ms]): Sends DTMF digits on a channel. \n"
+" Accepted digits: 0-9, *#abcd\n"
+" The application will either pass the assigned digits or terminate if it\n"
+" encounters an error.\n";
 
 STANDARD_LOCAL_USER;
 

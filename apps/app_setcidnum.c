@@ -52,7 +52,7 @@ static char *descrip =
 "  SetCIDNum(cnum[|a]): Set Caller*ID Number on a call to a new\n"
 "value, while preserving the original Caller*ID name.  This is\n"
 "useful for providing additional information to the called\n"
-"party. Sets ANI as well if a flag is used.  Always returns 0\n"
+"party. Sets ANI as well if a flag is used.\n"
 "SetCIDNum has been deprecated in favor of the function\n"
 "CALLERID(number)\n";
 

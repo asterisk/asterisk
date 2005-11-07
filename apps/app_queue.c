@@ -125,9 +125,8 @@ static char *synopsis = "Queue a call for a call queue";
 static char *descrip =
 "  Queue(queuename[|options[|URL][|announceoverride][|timeout]]):\n"
 "Queues an incoming call in a particular call queue as defined in queues.conf.\n"
-"  This application returns -1 if the originating channel hangs up, or if the\n"
-"call is bridged and  either of the parties in the bridge terminate the call.\n"
-"Returns 0 if the queue is full, nonexistent, or has no members.\n"
+"This application will return to the dialplan if the queue does not exist, or\n"
+"any of the join options cause the caller to not enter the queue.\n"
 "The option string may contain zero or more of the following characters:\n"
 "      'd' -- data-quality (modem) call (minimum delay).\n"
 "      'h' -- allow callee to hang up by hitting *.\n"
@@ -156,7 +155,6 @@ static char *app_aqm_descrip =
 "Dynamically adds interface to an existing queue.\n"
 "If the interface is already in the queue and there exists an n+101 priority\n"
 "then it will then jump to this priority.  Otherwise it will return an error\n"
-"Returns -1 if there is an error.\n"
 "Example: AddQueueMember(techsupport|SIP/3000)\n"
 "";
 
@@ -167,7 +165,6 @@ static char *app_rqm_descrip =
 "Dynamically removes interface to an existing queue\n"
 "If the interface is NOT in the queue and there exists an n+101 priority\n"
 "then it will then jump to this priority.  Otherwise it will return an error\n"
-"Returns -1 if there is an error.\n"
 "Example: RemoveQueueMember(techsupport|SIP/3000)\n"
 "";
 
@@ -182,8 +179,8 @@ static char *app_pqm_descrip =
 "queuename is given, the interface is paused in every queue it is a\n"
 "member of.  If the interface is not in the named queue, or if no queue\n"
 "is given and the interface is not in any queue, it will jump to\n"
-" priority n+101, if it exists.  Returns -1 if the interface is not\n"
-"found and no extension to jump to exists, 0 otherwise.\n"
+" priority n+101, if it exists.  The application will fail if the interface is not\n"
+"found and no extension to jump to exists.\n"
 "Example: PauseQueueMember(|SIP/3000)\n";
 
 static char *app_upqm = "UnpauseQueueMember" ;

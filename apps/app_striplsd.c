@@ -44,8 +44,7 @@ static char *tdesc = "Strip trailing digits";
 static char *descrip =
 "  StripLSD(count): Strips the trailing  'count'  digits  from  the  channel's\n"
 "associated extension. For example, the  number  5551212 when stripped with a\n"
-"count of 4 would be changed to 555.  This app always returns 0, and the PBX\n"
-"will continue processing at the next priority for the *new* extension.\n"
+"count of 4 would be changed to 555.  The PBX will continue processing at the\n""next priority for the *new* extension.\n"
 "  So, for  example, if  priority 3 of 5551212  is  StripLSD 4, the next step\n"
 "executed will be priority 4 of 555.  If you switch into an  extension which\n"
 "has no first step, the PBX will treat it as though the user dialed an\n"

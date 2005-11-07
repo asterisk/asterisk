@@ -55,7 +55,6 @@ static char *descrip =
 "  EnumLookup(exten[|option]):  Looks up an extension via ENUM and sets\n"
 "the variable 'ENUM'. For VoIP URIs this variable will \n"
 "look like 'TECHNOLOGY/URI' with the appropriate technology.\n"
-"Returns -1 on hangup, or 0 on completion\n"
 "Currently, the enumservices SIP, H323, IAX, IAX2 and TEL are recognized. \n"
 "\nReturns status in the ENUMSTATUS channel variable:\n"
 "    ERROR	Failed to do a lookup\n"

@@ -46,7 +46,7 @@ static char *app_md5 = "MD5";
 static char *desc_md5 = "Calculate MD5 checksum";
 static char *synopsis_md5 = 
 "  MD5(<var>=<string>): Calculates a MD5 checksum on <string>.\n"
-"Returns hash value in a channel variable. Always return 0\n";
+"Returns hash value in a channel variable. \n";
 
 static char *app_md5check = "MD5Check";
 static char *desc_md5check = "Check MD5 checksum";

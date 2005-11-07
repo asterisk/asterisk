@@ -66,7 +66,8 @@ static char *descrip =
 "incremented by one each time the file is recorded. \n\n"
 "Use 'show file formats' to see the available formats on your system\n\n"
 "User can press '#' to terminate the recording and continue to the next priority.\n\n"
-"Returns -1 when the user hangs up.\n";
+"If the user should hangup during a recording, all data will be lost and the\n"
+"application will teminate. \n";
 
 STANDARD_LOCAL_USER;
 

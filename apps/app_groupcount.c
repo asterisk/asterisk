@@ -256,7 +256,7 @@ static char *group_count_descrip =
 "Usage: GetGroupCount([groupname][@category])\n"
 "  Calculates the group count for the specified group, or uses\n"
 "the current channel's group if not specifed (and non-empty).\n"
-"Stores result in GROUPCOUNT.  Always returns 0.\n"
+"Stores result in GROUPCOUNT. \n"
 "This application has been deprecated, please use the function\n"
 "GroupCount.\n";
 

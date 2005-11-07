@@ -56,7 +56,7 @@ static char *cut_descrip =
 "  fieldspec - number of the field you want (1-based offset)\n"
 "            may also be specified as a range (with -)\n"
 "            or group of ranges and fields (with &)\n" 
-"  Returns 0 or -1 on hangup or error.\n";
+"  The process with complete on success or fail on hangup or error\n";
 
 static char *app_sort = "Sort";
 static char *app_sort_synopsis = "Sorts a list of keywords and values";
@@ -64,7 +64,7 @@ static char *app_sort_descrip =
 "   Sort(<newvar>=<key1>:<val1>[,<key2>:<val2>[[...],<keyN>:<valN>]])\n"
 "Sorts the list provided by using the value as a float to order the list of\n"
 "keywords in ascending order.  Sets the variable provided to the list of\n"
-"sorted keywords.  Always returns 0.\n";
+"sorted keywords. \n";
 
 STANDARD_LOCAL_USER;
 

@@ -45,8 +45,9 @@ static char *app = "Echo";
 static char *synopsis = "Echo audio read back to the user";
 
 static char *descrip = 
-"  Echo():  Echo audio read from channel back to the channel. Returns 0\n"
-"if the user exits with the '#' key, or -1 if the user hangs up.\n";
+"  Echo():  Echo audio read from channel back to the channel. \n"
+"User can exit the application by either pressing the '#' key, \n"
+"or hanging up.\n";
 
 STANDARD_LOCAL_USER;
 

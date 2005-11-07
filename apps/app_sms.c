@@ -67,8 +67,7 @@ static char *synopsis = "Communicates with SMS service centres and SMS capable a
 
 static char *descrip =
 	"  SMS(name|[a][s]):  SMS handles exchange of SMS data with a call to/from SMS capabale\n"
-	"phone or SMS PSTN service centre. Can send and/or receive SMS messages.\n"
-	"Returns 0 if call handled correctly, or -1 if there were any problems.\n"
+	"phone or SMS PSTN service center. Can send and/or receive SMS messages.\n"
 	"Works to ETSI ES 201 912 compatible with BT SMS PSTN service in UK\n"
 	"Typical usage is to use to handle called from the SMS service centre CLI,\n"
 	"or to set up a call using 'outgoing' or manager interface to connect\n"

@@ -95,7 +95,6 @@ static char *descrip =
 	"If the user enters an invalid extension and extension \"i\" (invalid) \n"
 	"exists in the context, it will be used.\n";
 
-
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;

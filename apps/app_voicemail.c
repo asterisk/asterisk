@@ -308,8 +308,7 @@ static char *descrip_vm =
 "and there exists a priority n + 101, then that priority will be taken next.\n"
 "When multiple mailboxes are specified, the unavailable or busy message\n"
 "will be taken from the first mailbox specified.\n"
-"Returns -1 on error or mailbox not found, or if the user hangs up.\n"
-"Otherwise, it returns 0.\n";
+"Execution will fail if the mailbox does not exist, or if the user disconnects.\n";
 
 static char *synopsis_vmain =
 "Enter voicemail system";

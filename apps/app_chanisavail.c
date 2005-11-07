@@ -52,16 +52,18 @@ static char *synopsis = "Check if channel is available";
 
 static char *descrip = 
 "  ChanIsAvail(Technology/resource[&Technology2/resource2...][|option]): \n"
-"Checks is any of the requested channels are available.  \n"
-"If any of the requested channels are available, the next priority will be n+1,\n"
-"the channel variable ${AVAILCHAN} will be set to the name of the available channel\n"
-"and the ChanIsAvail app will return 0.\n"
-"${AVAILORIGCHAN} is the canonical channel name that was used to create the channel.\n"
-"${AVAILSTATUS} is the status code for the channel.\n"
+"Checks if any of the requested channels are available.  \n"
+"If any of the requested channels are available, the dialplan will continue and:\n"
+"  ${AVAILCHAN} will be set to the name of the available channel\n"
+"  ${AVAILORIGCHAN} is the canonical channel name that was used to create the channel\n"
+"  ${AVAILSTATUS} is the status code for the channel\n"
 "If the option 's' is specified (state), will consider channel unavailable\n"
 "when the channel is in use at all, even if it can take another call.\n"
-"If the option 'j' is specified (jump), the application will jump to n+101 \n"
-"(unless such a priority does not exist, in which case ChanIsAvail will return -1)\n";
+"If none of the requested channels are available, then:\n"
+"  if the option 'j' is specified (jump), the application will jump to n+101\n"
+"    if it exists, otherwise the call will terminate\n"
+"  if the option 'j' is not specified the dialplan will continue and\n"
+"    ${AVAILCHAN} will be empty\n";
 
 STANDARD_LOCAL_USER;
 

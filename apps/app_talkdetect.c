@@ -55,8 +55,7 @@ static char *descrip =
 "yet less than 'max' ms is followed by silence for at least 'sil' ms then\n"
 "the audio playback is aborted and processing jumps to the 'talk' extension\n"
 "if available.  If unspecified, sil, min, and max default to 1000, 100, and\n"
-"infinity respectively.  Returns -1 on hangup, and 0 on successful playback\n"
-"completion with no exit conditions.\n";
+"infinity respectively.\n";
 
 STANDARD_LOCAL_USER;
 

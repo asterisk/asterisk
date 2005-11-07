@@ -48,16 +48,15 @@ static const char *synopsis = "Play a file with fast forward and rewind";
 
 static const char *descrip = 
 "ControlPlayback(filename[|skipms[|ffchar[|rewchar[|stopchar[|pausechar[|restartchar[|option]]]]]]]):\n"
-"  Plays  back  a  given  filename (do not put extension). Options may also\n"
+"  Plays back a given filename (do not put extension). Options may also\n"
 "  be included following a pipe symbol.  You can use * and # to rewind and\n"
 "  fast forward the playback specified. If 'stopchar' is added the file will\n"
 "  terminate playback when 'stopchar' is pressed. If 'restartchar' is added, the file\n"
-"  will restart when 'restartchar' is pressed. Returns -1 if the channel\n"
-"  was hung up. \n\n"
-"  The option string may contain zero or the following character:\n"
+"  will restart when 'restartchar' is pressed.\n"
+"  The option string may contain the following character:\n"
 "       'j' -- jump to +101 priority if the file requested isn't found.\n"
 "  This application sets the following channel variable upon completion:\n"
-"     CPLAYBACKSTATUS       The status of the attempt to add a queue member as a text string, one of\n"
+"     CPLAYBACKSTATUS       The status of the attempt as a text string, one of\n"
 "             SUCCESS | USERSTOPPED | ERROR\n"
 "  Example:  exten => 1234,1,ControlPlayback(file|4000|*|#|1|0|5)\n\n";
 

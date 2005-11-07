@@ -59,7 +59,7 @@ static char *descrip =
   "at least a 10 digit phone number, and if there exists a priority n + 101,\n"
   "where 'n' is the priority of the current instance, then  the\n"
   "channel  will  be  setup  to continue at that priority level.\n"
-  "Otherwise, it returns 0.  Does nothing if Caller*ID was received on the\n"
+  "Otherwise, the call is hungup.  Does nothing if Caller*ID was received on the\n"
   "channel.\n"
   "  Configuration file privacy.conf contains two variables:\n"
   "   maxretries  default 3  -maximum number of attempts the caller is allowed to input a callerid.\n"

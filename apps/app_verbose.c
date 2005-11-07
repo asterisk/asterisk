@@ -46,8 +46,7 @@ static char *verbose_synopsis = "Send arbitrary text to verbose output";
 
 static char *verbose_descrip =
 "Verbose([<level>|]<message>)\n"
-"  level must be an integer value.  If not specified, defaults to 0."
-"  Always returns 0.\n";
+"  level must be an integer value.  If not specified, defaults to 0.\n";
 
 STANDARD_LOCAL_USER;
 

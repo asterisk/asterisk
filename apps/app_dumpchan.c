@@ -51,7 +51,7 @@ static char *desc =
 "Displays information on channel and listing of all channel\n"
 "variables. If min_verbose_level is specified, output is only\n"
 "displayed when the verbose level is currently set to that number\n"
-"or greater. Always returns 0.\n\n";
+"or greater. \n";
 
 STANDARD_LOCAL_USER;
 

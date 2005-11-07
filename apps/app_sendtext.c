@@ -59,8 +59,7 @@ static const char *descrip =
 "\n"
 "At this moment, text is supposed to be 7 bit ASCII in most channels.\n"
 "Old deprecated behavior: \n"
-" SendText only returns 0 if the text was sent correctly or if\n"
-" the channel does not support text transport.\n"
+" SendText should continue with the next priority upon successful execution.\n"
 " If the client does not support text transport, and there exists a\n"
 " step with priority n + 101, then execution will continue at that step.\n";
 

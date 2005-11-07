@@ -48,7 +48,7 @@ static char *synopsis = "Load an external URL";
 
 static char *descrip = 
 "  Curl(URL[|postdata]): Requests the URL.  Mainly used for signalling\n"
-"external applications of an event.  Returns 0 or -1 on fatal error.\n"
+"external applications of an event.  Curl will fail on fatal errors. \n"
 "Argument specified treated as POST data.  Also sets CURL variable with the\n"
 "resulting page.\n";
 

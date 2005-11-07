@@ -69,7 +69,7 @@ static char *descrip =
 "  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe conference.\n"
 "If the conference number is omitted, the user will be prompted to enter\n"
 "one. \n"
-"MeetMe returns 0 if user pressed # to exit (see option 'p'), otherwise -1.\n"
+"User can exit the conference by hangup, or if the 'p' option is specified, by pressing '#'.\n"
 "Please note: A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING TO WORK!\n\n"
 
 "The option string may contain zero or more of the following characters:\n"
@@ -103,9 +103,10 @@ static char *descrip =
 "             if that variable is not defined.\n";
 
 static char *descrip2 =
-"  MeetMeCount(confno[|var]): Plays back the number of users in the specifiedi\n"
+"  MeetMeCount(confno[|var]): Plays back the number of users in the specified\n"
 "MeetMe conference. If var is specified, playback will be skipped and the value\n"
-"will be returned in the variable. Returns 0 on success or -1 on a hangup.\n"
+"will be returned in the variable. Upon app completion, MeetMeCount will hangup the\n"
+"channel, unless priority n+1 exists, in which case priority progress will continue.\n"
 "A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
 static char *descrip3 = 

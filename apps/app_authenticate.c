@@ -65,11 +65,10 @@ static char *descrip =
 "     r - Remove database key upon successful entry (valid with 'd' only)\n"
 "\n"
 "When using a database key, the value associated with the key can be\n"
-"anything.\n"
-"Returns 0 if the user enters a valid password within three\n"
-"tries, or -1 on hangup.  If the priority n+101 exists and invalid\n"
-"authentication was entered, and the 'j' flag was specified, processing\n"
-"will jump to n+101 and 0 will be returned.\n";
+"anything.  Users have three attempts to authenticate before the line is \n"
+"hungup.  If the passsword is invalid, and the 'j' flag is specified, \n"
+"and priority n+101 exists, the call would be sent to the n+101 priority \n"
+"and executed \n";
 
 STANDARD_LOCAL_USER;
 
