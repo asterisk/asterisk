@@ -572,10 +572,9 @@ static struct ast_config *config_text_file_load(const char *database, const char
 				ast_copy_string(fn, globbuf.gl_pathv[i], sizeof(fn));
 #endif
 	do {
-		if (stat(fn, &statbuf)) {
-			ast_log(LOG_WARNING, "Cannot stat() '%s', ignoring\n", fn);
+		if (stat(fn, &statbuf))
 			continue;
-		}
+
 		if (!S_ISREG(statbuf.st_mode)) {
 			ast_log(LOG_WARNING, "'%s' is not a regular file, ignoring\n", fn);
 			continue;

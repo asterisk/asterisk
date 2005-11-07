@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* config.c (config_text_file_load): don't generate log message when stat() fails
+
 	* many files: clean up application documentation to not refer to return values, since they cannot be used in the dialplan (work done by Neil Lewis)
 
 2005-11-06  Russell Bryant <russell@digium.com>
