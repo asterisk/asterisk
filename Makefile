@@ -36,17 +36,19 @@ endif
 # Remember the MAKELEVEL at the top
 MAKETOPLEVEL?=$(MAKELEVEL)
 
+ifneq ($(findstring dont-optimize,$(MAKECMDGOALS)),dont-optimize)
 ######### More GSM codec optimization
 ######### Uncomment to enable MMXTM optimizations for x86 architecture CPU's
 ######### which support MMX instructions.  This should be newer pentiums,
 ######### ppro's, etc, as well as the AMD K6 and K7.  
 #K6OPT  = -DK6OPT
 
-#Overwite config files on "make samples"
-OVERWRITE=y
-
 #Tell gcc to optimize the code
 OPTIMIZE+=-O6
+endif
+
+#Overwite config files on "make samples"
+OVERWRITE=y
 
 #Include debug symbols in the executables (-g) and profiling info (-pg)
 DEBUG=-g #-pg
@@ -815,8 +817,7 @@ config:
 		$(INSTALL) -m 755 init.asterisk /etc/init.d/asterisk; \
 	fi 
 
-dont-optimize:
-	$(MAKE) OPTIMIZE= K6OPT= install
+dont-optimize: install
 
 valgrind: dont-optimize
 
