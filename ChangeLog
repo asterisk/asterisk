@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* say.c (ast_say_date_with_format_da): say hours properly (issue #5576)
+
 	* manager.c (astman_get_variables): restore old multiple-variable behavior for "Variable" header (issue #5585)
 
 	* many files: don't check for NULL before calling ast_strlen_zero, it can do it itself (issue #5648)

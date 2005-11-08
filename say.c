@@ -3286,12 +3286,14 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'H':
+				/* 24-Hour, single digit hours preceeded by "oh" (0) */
+				if (tm.tm_hour < 10 && tm.tm_hour > 0) {
+					res = wait_file(chan,ints, "digits/0",lang);
+				}
+				/* FALLTRHU */
 			case 'k':
 				/* 24-Hour */
-				res = wait_file(chan,ints,"digits/oclock",lang);
-				if (!res) {
-					res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);	
-				}
+				res = ast_say_number(chan, tm.tm_hour, ints, lang, (char *) NULL);	
 				break;
 			case 'M':
 				/* Minute */
