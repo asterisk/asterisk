@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* manager.c (action_setvar): add support for setting global variables (issue #5571)
+
 	* Makefile: correct cross-compilation issue introduced in Cygwin patches (issue #5572)
 
 	* apps/app_voicemail.c: upgrade to new arg/option API and implement priority jumping control (issue #5649)
