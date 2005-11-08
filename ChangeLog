@@ -1,3 +1,7 @@
+2005-11-08  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* many files: add explicit include of stdio.h (issue #5650)
+
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* UPGRADE.txt (Parking): add note about new parking behavior (issue #5532)

@@ -23,6 +23,7 @@
  * \ingroup applications
  */
  
+#include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
 #include <sys/ioctl.h>
