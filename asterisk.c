@@ -2061,9 +2061,8 @@ int main(int argc, char *argv[])
 		runuser = ast_config_AST_RUN_USER;
 #ifndef __CYGWIN__
 
-	if (!is_child_of_nonroot && ast_set_priority(option_highpriority)) {
-		exit(1);
-	}
+	if (!is_child_of_nonroot) 
+	    ast_set_priority(option_highpriority);
 
 	if (!is_child_of_nonroot && rungroup) {
 		struct group *gr;
