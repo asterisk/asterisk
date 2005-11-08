@@ -1,5 +1,9 @@
 2005-11-08  Kevin P. Fleming  <kpfleming@digium.com>
-	
+
+	* pbx.c (pbx_builtin_pushvar_helper): add new API function for setting variables that can exist multiple times (issue #2720)
+	* apps/Makefile (APPS): add app_stack (issue #2720)
+	* apps/app_stack.c: new applications (issue #2720)
+
 	* apps/app_meetme.c: fix two audio delay problems related to using non-Zap channels in conferences (issues #3599 and #4252)
 	* configs/meetme.conf.sample: add documentation of new 'audiobuffers' setting to control buffering on incoming audio from non-Zap channels
 

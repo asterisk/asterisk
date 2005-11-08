@@ -5897,6 +5897,26 @@ char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name)
 	return NULL;
 }
 
+void pbx_builtin_pushvar_helper(struct ast_channel *chan, const char *name, const char *value)
+{
+	struct ast_var_t *newvariable;
+	struct varshead *headp;
+
+	if (name[strlen(name)-1] == ')') {
+		ast_log(LOG_WARNING, "Cannot push a value onto a function\n");
+		return ast_func_write(chan, name, value);
+	}
+
+	headp = (chan) ? &chan->varshead : &globals;
+
+	if (value) {
+		if ((option_verbose > 1) && (headp == &globals))
+			ast_verbose(VERBOSE_PREFIX_2 "Setting global variable '%s' to '%s'\n", name, value);
+		newvariable = ast_var_assign(name, value);	
+		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
+	}
+}
+
 void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const char *value)
 {
 	struct ast_var_t *newvariable;
