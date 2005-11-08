@@ -64,7 +64,7 @@ static char *builtin_function_iftime(struct ast_channel *chan, char *cmd, char *
 	iftrue = strsep(&data, ":");
 	iffalse = data;
 
-	if (!expr || ast_strlen_zero(expr) || !(iftrue || iffalse)) {
+	if (ast_strlen_zero(expr) || !(iftrue || iffalse)) {
 		ast_log(LOG_WARNING, "Syntax IFTIME(<timespec>?[<true>][:<false>])\n");
 		return NULL;
 	}
@@ -104,7 +104,7 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 	iftrue = strsep(&data, ":");
 	iffalse = data;
 
-	if (!expr || ast_strlen_zero(expr) || !(iftrue || iffalse)) {
+	if (ast_strlen_zero(expr) || !(iftrue || iffalse)) {
 		ast_log(LOG_WARNING, "Syntax IF(<expr>?[<true>][:<false>])\n");
 		return NULL;
 	}
@@ -136,7 +136,7 @@ static char *builtin_function_set(struct ast_channel *chan, char *cmd, char *dat
 	varname = strsep(&data, "=");
 	val = data;
 
-	if (!varname || ast_strlen_zero(varname) || !val) {
+	if (ast_strlen_zero(varname) || !val) {
 		ast_log(LOG_WARNING, "Syntax SET(<varname>=[<value>])\n");
 		return NULL;
 	}

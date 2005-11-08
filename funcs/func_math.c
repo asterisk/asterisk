@@ -78,7 +78,7 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 
 	char *mvalue1, *mvalue2=NULL, *mtype_of_result;
 		
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
 		return NULL;
 	}

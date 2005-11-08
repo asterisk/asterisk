@@ -97,9 +97,9 @@ static char *tdesc = "Realtime Switch";
 			table++;\
 			cxt = buf; \
 		} else cxt = NULL; \
-		if (!cxt || ast_strlen_zero(cxt)) \
+		if (ast_strlen_zero(cxt)) \
 			cxt = context;\
-		if (!table || ast_strlen_zero(table)) \
+		if (ast_strlen_zero(table)) \
 			table = "extensions"; \
 		var = realtime_switch_common(table, cxt, exten, priority, mode); \
 	} else \

@@ -183,7 +183,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 
 	goto_on_transfer = pbx_builtin_getvar_helper(chan, "GOTO_ON_BLINDXFR");
 
-	if (goto_on_transfer && !ast_strlen_zero(goto_on_transfer) && (xferchan = ast_channel_alloc(0))) {
+	if (!ast_strlen_zero(goto_on_transfer) && (xferchan = ast_channel_alloc(0))) {
 		char *x;
 		struct ast_frame *f;
 		
@@ -1002,7 +1002,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	}
 
 
-	if (dynamic_features && !ast_strlen_zero(dynamic_features)) {
+	if (!ast_strlen_zero(dynamic_features)) {
 		char *tmp = ast_strdupa(dynamic_features);
 		char *tok;
 
@@ -1868,7 +1868,7 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 	char *id = astman_get_header(m,"ActionID");
 	char idText[256] = "";
 
-	if (id && !ast_strlen_zero(id))
+	if (!ast_strlen_zero(id))
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 
 	astman_send_ack(s, m, "Parked calls will follow");

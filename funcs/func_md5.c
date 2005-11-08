@@ -40,7 +40,7 @@ static char *builtin_function_md5(struct ast_channel *chan, char *cmd, char *dat
 {
 	char md5[33];
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: MD5(<data>) - missing argument!\n");
 		return NULL;
 	}

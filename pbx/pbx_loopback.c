@@ -122,9 +122,9 @@ static void loopback_subst(char **newexten, char **newcontext, int *priority, ch
 		pri = strchr(buf, ':');
 	if (!ast_strlen_zero(buf))
 		*newexten = buf;
-	if (con && !ast_strlen_zero(con))
+	if (!ast_strlen_zero(con))
 		*newcontext = con;
-	if (pri && !ast_strlen_zero(pri))
+	if (!ast_strlen_zero(pri))
 		sscanf(pri, "%d", priority);
 }
 

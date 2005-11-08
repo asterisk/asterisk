@@ -361,7 +361,7 @@ static int spawn_mp3(struct mohclass *class)
 		/* Look for extra arguments and add them to the list */
 		strncpy(xargs, class->args, sizeof(xargs) - 1);
 		argptr = xargs;
-		while (argptr && !ast_strlen_zero(argptr)) {
+		while (!ast_strlen_zero(argptr)) {
 			argv[argc++] = argptr;
 			argptr = strchr(argptr, ',');
 			if (argptr) {
@@ -373,7 +373,7 @@ static int spawn_mp3(struct mohclass *class)
 		/* Format arguments for argv vector */
 		strncpy(xargs, class->args, sizeof(xargs) - 1);
 		argptr = xargs;
-		while (argptr && !ast_strlen_zero(argptr)) {
+		while (!ast_strlen_zero(argptr)) {
 			argv[argc++] = argptr;
 			argptr = strchr(argptr, ' ');
 			if (argptr) {
@@ -569,7 +569,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 
 static int moh2_exec(struct ast_channel *chan, void *data)
 {
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
 		return -1;
 	}
@@ -865,9 +865,9 @@ static int local_ast_moh_start(struct ast_channel *chan, char *class)
 {
 	struct mohclass *mohclass;
 
-	if (!class || ast_strlen_zero(class))
+	if (ast_strlen_zero(class))
 		class = chan->musicclass;
-	if (!class || ast_strlen_zero(class))
+	if (ast_strlen_zero(class))
 		class = "default";
 	ast_mutex_lock(&moh_lock);
 	mohclass = get_mohbyname(class);

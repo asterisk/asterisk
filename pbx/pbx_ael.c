@@ -496,7 +496,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 		data = c;
 		data = ast_skip_blanks(data);
 	}
-	if (!data || ast_strlen_zero(data))
+	if (ast_strlen_zero(data))
 		return 0;
 	if (matches_keyword(data, "switch")) {
 		fillin = NULL;

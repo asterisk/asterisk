@@ -45,7 +45,7 @@ static char *builtin_function_uriencode(struct ast_channel *chan, char *cmd, cha
 {
 	char uri[BUFSIZ];
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: URIENCODE(<data>) - missing argument!\n");
 		return NULL;
 	}
@@ -59,7 +59,7 @@ static char *builtin_function_uriencode(struct ast_channel *chan, char *cmd, cha
 /*!\brief builtin_function_uridecode: Decode URI according to RFC 2396 */
 static char *builtin_function_uridecode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: URIDECODE(<data>) - missing argument!\n");
 		return NULL;
 	}

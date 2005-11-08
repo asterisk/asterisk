@@ -102,7 +102,7 @@ static char *group_function_read(struct ast_channel *chan, char *cmd, char *data
 	char varname[256];
 	char *group;
 
-	if (data && !ast_strlen_zero(data)) {
+	if (!ast_strlen_zero(data)) {
 		snprintf(varname, sizeof(varname), "%s_%s", GROUP_CATEGORY_PREFIX, data);
 	} else {
 		ast_copy_string(varname, GROUP_CATEGORY_PREFIX, sizeof(varname));
@@ -119,7 +119,7 @@ static void group_function_write(struct ast_channel *chan, char *cmd, char *data
 {
 	char grpcat[256];
 
-	if (data && !ast_strlen_zero(data)) {
+	if (!ast_strlen_zero(data)) {
 		snprintf(grpcat, sizeof(grpcat), "%s@%s", value, data);
 	} else {
 		ast_copy_string(grpcat, value, sizeof(grpcat));

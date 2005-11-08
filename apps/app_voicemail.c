@@ -3658,7 +3658,7 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 	/* Strip off caller ID number from name */
 	ast_log(LOG_DEBUG, "VM-CID: composite caller ID received: %s, context: %s\n", cid, context);
 	ast_callerid_parse(cid, &name, &callerid);
-	if ((callerid != NULL)&&(!res)&&(!ast_strlen_zero(callerid))){
+	if ((!res)&&(!ast_strlen_zero(callerid))){
 		/* Check for internal contexts and only */
 		/* say extension when the call didn't come from an internal context in the list */
 		for (i = 0 ; i < MAX_NUM_CID_CONTEXTS ; i++){

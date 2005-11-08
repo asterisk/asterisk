@@ -160,7 +160,7 @@ static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char 
 	epoch = strsep(&format, "|");
 	timezone = strsep(&format, "|");
 
-	if (!epoch || ast_strlen_zero(epoch) || !sscanf(epoch, "%ld", &epochi)) {
+	if (ast_strlen_zero(epoch) || !sscanf(epoch, "%ld", &epochi)) {
 		struct timeval tv = ast_tvnow();
 		epochi = tv.tv_sec;
 	}
@@ -193,7 +193,7 @@ static char *function_eval(struct ast_channel *chan, char *cmd, char *data, char
 {
 	memset(buf, 0, len);
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "EVAL requires an argument: EVAL(<string>)\n");
 		return buf;
 	}

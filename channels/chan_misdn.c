@@ -3466,7 +3466,7 @@ static int misdn_facility_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	if (!data || ast_strlen_zero((char *)data)) {
+	if (ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "misdn_facility Requires arguments\n");
 		return -1;
 	}
@@ -3509,7 +3509,7 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	if (!data || ast_strlen_zero((char *)data)) {
+	if (ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "misdn_set_opt Requires arguments\n");
 		return -1;
 	}

@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* many files: don't check for NULL before calling ast_strlen_zero, it can do it itself (issue #5648)
+
 	* pbx.c (handle_show_hints): use proper state-to-string function for hint state (issue #5583)
 
 	* rtp.c: use unsigned format for debug packet output (issue #5595)

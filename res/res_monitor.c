@@ -123,7 +123,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		memset(monitor, 0, sizeof(struct ast_channel_monitor));
 
 		/* Determine file names */
-		if (fname_base && !ast_strlen_zero(fname_base)) {
+		if (!ast_strlen_zero(fname_base)) {
 			int directory = strchr(fname_base, '/') ? 1 : 0;
 			/* try creating the directory just in case it doesn't exist */
 			if (directory) {
@@ -162,7 +162,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		monitor->stop = ast_monitor_stop;
 
 		/* Determine file format */
-		if (format_spec && !ast_strlen_zero(format_spec)) {
+		if (!ast_strlen_zero(format_spec)) {
 			monitor->format = strdup(format_spec);
 		} else {
 			monitor->format = strdup("wav");
@@ -264,12 +264,12 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 
 			/* Set the execute application */
 			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");
-			if (!execute || ast_strlen_zero(execute)) { 
+			if (ast_strlen_zero(execute)) { 
 				execute = "nice -n 19 soxmix";
 				delfiles = 1;
 			} 
 			execute_args = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC_ARGS");
-			if (!execute_args || ast_strlen_zero(execute_args)) {
+			if (ast_strlen_zero(execute_args)) {
 				execute_args = "";
 			}
 			
@@ -297,7 +297,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, int need_lock)
 {
 	char tmp[256];
-	if ((!fname_base) || (ast_strlen_zero(fname_base))) {
+	if (ast_strlen_zero(fname_base)) {
 		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null", chan->name);
 		return -1;
 	}
@@ -344,7 +344,7 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	
 	/* Parse arguments. */
-	if (data && !ast_strlen_zero((char*)data)) {
+	if (!ast_strlen_zero((char*)data)) {
 		arg = ast_strdupa((char*)data);
 		format = arg;
 		fname_base = strchr(arg, '|');
@@ -433,7 +433,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	char *mix = astman_get_header(m, "Mix");
 	char *d;
 	
-	if ((!name) || (ast_strlen_zero(name))) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
@@ -443,7 +443,7 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 		return 0;
 	}
 
-	if ((!fname) || (ast_strlen_zero(fname))) {
+	if (ast_strlen_zero(fname)) {
 		/* No filename base specified, default to channel name as per CLI */
 		fname = malloc (FILENAME_MAX);
 		if (!fname) {
@@ -484,7 +484,7 @@ static int stop_monitor_action(struct mansession *s, struct message *m)
 	struct ast_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	int res;
-	if ((!name) || (ast_strlen_zero(name))) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
@@ -516,11 +516,11 @@ static int change_monitor_action(struct mansession *s, struct message *m)
 	struct ast_channel *c = NULL;
 	char *name = astman_get_header(m, "Channel");
 	char *fname = astman_get_header(m, "File");
-	if ((!name) || (ast_strlen_zero(name))) {
+	if (ast_strlen_zero(name)) {
 		astman_send_error(s, m, "No channel specified");
 		return 0;
 	}
-	if ((!fname)||(ast_strlen_zero(fname))) {
+	if (ast_strlen_zero(fname)) {
 		astman_send_error(s, m, "No filename specified");
 		return 0;
 	}

@@ -50,8 +50,8 @@ static char *builtin_function_env_read(struct ast_channel *chan, char *cmd, char
 
 static void builtin_function_env_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	if (data && !ast_strlen_zero(data)) {
-		if (value && !ast_strlen_zero(value)) {
+	if (!ast_strlen_zero(data)) {
+		if (!ast_strlen_zero(value)) {
 			setenv(data, value, 1);
 		} else {
 			unsetenv(data);

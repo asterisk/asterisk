@@ -2022,7 +2022,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	cur = qe->parent->members;
 	if (!ast_strlen_zero(qe->announce))
 		announce = qe->announce;
-	if (announceoverride && !ast_strlen_zero(announceoverride))
+	if (!ast_strlen_zero(announceoverride))
 		announce = announceoverride;
 
 	while(cur) {
@@ -2201,7 +2201,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		/* Drop out of the queue at this point, to prepare for next caller */
 		leave_queue(qe);			
- 		if (url && !ast_strlen_zero(url) && ast_channel_supports_html(peer)) {
+ 		if (!ast_strlen_zero(url) && ast_channel_supports_html(peer)) {
 			if (option_debug)
 	 			ast_log(LOG_DEBUG, "app_queue: sendurl=%s.\n", url);
  			ast_channel_sendurl(peer, url);

@@ -64,7 +64,7 @@ static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char
        int i = 0;
 
 
-       if (!data || ast_strlen_zero(data)) {
+       if (ast_strlen_zero(data)) {
                ast_log(LOG_WARNING, synopsis);
                return "";
        }
@@ -166,7 +166,7 @@ static char *function_txtcidname(struct ast_channel *chan, char *cmd, char *data
 
 	buf[0] = '\0';
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "TXTCIDNAME requires an argument (number)\n");
 		LOCAL_USER_REMOVE(u);
 		return buf;	

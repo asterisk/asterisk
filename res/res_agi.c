@@ -2009,7 +2009,7 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
         char *stringp;
 	AGI agi;
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "AGI requires an argument (script)\n");
 		return -1;
 	}

@@ -168,7 +168,7 @@ static struct ast_variable *realtime_odbc(const char *database, const char *tabl
 		stringp = rowdata;
 		while(stringp) {
 			chunk = strsep(&stringp, ";");
-			if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+			if (!ast_strlen_zero(ast_strip(chunk))) {
 				if (prev) {
 					prev->next = ast_variable_new(coltitle, chunk);
 					if (prev->next)
@@ -320,7 +320,7 @@ static struct ast_config *realtime_multi_odbc(const char *database, const char *
 			stringp = rowdata;
 			while(stringp) {
 				chunk = strsep(&stringp, ";");
-				if (chunk && !ast_strlen_zero(ast_strip(chunk))) {
+				if (!ast_strlen_zero(ast_strip(chunk))) {
 					if (initfield && !strcmp(initfield, coltitle))
 						ast_category_rename(cat, chunk);
 					var = ast_variable_new(coltitle, chunk);
