@@ -34,6 +34,13 @@ Agents:
   string from the extension, so that they do not conflict.  See
   'show application AgentCallbackLogin' for more details.
 
+Parking:
+
+* Parking behavior has changed slightly; when a parked call times out,
+  Asterisk will attempt to deliver the call back to the extension that
+  parked it, rather than the 's' extension. If that extension is busy
+  or unavailable, the parked call will be lost.
+
 Dialing:
 
 * The Caller*ID of the outbound leg is now the extension that was 

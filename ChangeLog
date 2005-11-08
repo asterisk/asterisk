@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* UPGRADE.txt (Parking): add note about new parking behavior (issue #5532)
+
 	* many files: more Cygwin compatibility, and proper getloadavg() prototype/macro (issue #5569)
 
 	* include/asterisk/lock.h (__ast_pthread_mutex_lock): correct build with DETECT_DEADLOCKS defined (issue #5570)
