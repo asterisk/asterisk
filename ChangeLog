@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* apps/app_voicemail.c: upgrade to new arg/option API and implement priority jumping control (issue #5649)
+
 	* asterisk.c (main): setpriority() failure is not a reason to stop the process (issue #5581)
 
 	* say.c (ast_say_date_with_format_da): say hours properly (issue #5576)

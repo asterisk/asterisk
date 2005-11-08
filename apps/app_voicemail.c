@@ -116,6 +116,7 @@ enum {
 	OPT_UNAVAIL_GREETING = (1 << 2),
 	OPT_RECORDGAIN = (1 << 3),
 	OPT_PREPEND_MAILBOX = (1 << 4),
+	OPT_PRIORITY_JUMP = (1 << 5),
 } vm_option_flags;
 
 enum {
@@ -129,6 +130,7 @@ AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION('u', OPT_UNAVAIL_GREETING),
 	AST_APP_OPTION_ARG('g', OPT_RECORDGAIN, OPT_ARG_RECORDGAIN),
 	AST_APP_OPTION('p', OPT_PREPEND_MAILBOX),
+	AST_APP_OPTION('j', OPT_PRIORITY_JUMP),
 });
 
 static int load_config(void);
@@ -298,16 +300,16 @@ static char *descrip_vm =
 "         recording (units are whole-number decibels (dB))\n"
 "* 's'    instructions for leaving the message will be skipped.\n"
 "* 'u'    the \"unavailable\" greeting will be played.\n"
+"* 'j'    jump to n+101 priority when mailbox not found or on error\n"
 "If the caller presses '0' (zero) during the prompt, the call jumps to\n"
 "extension 'o' in the current context.\n"
 "If the caller presses '*' during the prompt, the call jumps to\n"
 "extension 'a' in the current context.\n"
-"If the requested mailbox does not exist, and there exists a priority\n"
-"n + 101, then that priority will be taken next.\n"
-"If an error occur in the voicemail application resulting in that the message cannot be left,\n" 
-"and there exists a priority n + 101, then that priority will be taken next.\n"
 "When multiple mailboxes are specified, the unavailable or busy message\n"
 "will be taken from the first mailbox specified.\n"
+"This application sets the following channel variable upon completion:\n"
+"VMSTATUS    The status of the VoiceMail call, a text string that is either:\n"
+"SUCCESS | USEREXIT | FAILED \n"
 "Execution will fail if the mailbox does not exist, or if the user disconnects.\n";
 
 static char *synopsis_vmain =
@@ -331,8 +333,14 @@ static char *synopsis_vm_box_exists =
 "Check if vmbox exists";
 
 static char *descrip_vm_box_exists =
-"  MailboxExists(mailbox[@context]): Conditionally branches to priority n+101\n"
-"if the specified voice mailbox exists.\n";
+"  MailboxExists(mailbox[@context][|options]): Check to see if the mailbox \n"
+"                                              exists\n"
+"If the options contain: \n"
+"* 'j'    jump to n+101 priority when the mailbox is found.\n"
+"This application sets the following channel variable upon completion:\n"
+" VMBOXEXISTSSTATUS The status of the mailbox exists call, a text\n"
+"                    string that is either:\n"
+" SUCCESS | FAILED\n";
 
 static char *synopsis_vmauthenticate =
 "Authenticate off voicemail passwords";
@@ -2381,7 +2389,9 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 	if (!(vmu = find_user(&svm, context, ext))) {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		if (ast_test_flag(options, OPT_PRIORITY_JUMP) || option_priority_jumping)
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		return res;
 	}
 
@@ -2446,6 +2456,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		if (res < 0) {
 			ast_log(LOG_DEBUG, "Hang up during prefile playback\n");
 			free_user(vmu);
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 			return -1;
 		}
 	}
@@ -2477,6 +2488,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 		}
 		chan->priority = 0;
 		free_user(vmu);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 		return 0;
 	}
 	/* Check for a '0' here */
@@ -2493,14 +2505,17 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 			ast_play_and_wait(chan, "transfer");
 			chan->priority = 0;
 			free_user(vmu);
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 			return 0;
 		} else {
 			ast_play_and_wait(chan, "vm-sorry");
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "USEREXIT");
 			return 0;
 		}
 	}
 	if (res < 0) {
 		free_user(vmu);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		return -1;
 	}
 	/* The meat of recording the message...  All the announcements and beeps have been played*/
@@ -2585,6 +2600,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 					ast_verbose( VERBOSE_PREFIX_3 "Recording was %d seconds long but needs to be at least %d - abandoning\n", duration, vmminmessage);
 				DELETE(dir,msgnum,fn);
 				/* XXX We should really give a prompt too short/option start again, with leave_vm_out called only after a timeout XXX */
+				pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 				goto leave_vm_out;
 			}
 			/* Are there to be more recipients of this message? */
@@ -2608,18 +2624,20 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				STORE(dir, vmu->mailbox, vmu->context, msgnum);
 				DISPOSE(dir, msgnum);
 			}
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
 		} else {
 			ast_unlock_path(dir);
 			res = ast_streamfile(chan, "vm-mailboxfull", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");
 			ast_log(LOG_WARNING, "No more messages possible\n");
+			pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		}
 	} else
 		ast_log(LOG_WARNING, "No format for saving voicemail?\n");
  leave_vm_out:
 	free_user(vmu);
-
+	
 	return res;
 }
 
@@ -5502,6 +5520,9 @@ static int vm_exec(struct ast_channel *chan, void *data)
 				} else if (*argv[0] == 'u') {
 					ast_set_flag(&leave_options, OPT_UNAVAIL_GREETING);
 					argv[0]++;
+				} else if (*argv[0] == 'j') {
+					ast_set_flag(&leave_options, OPT_PRIORITY_JUMP);
+					argv[0]++;
 				} else 
 					break;
 			}
@@ -5523,8 +5544,10 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	if (res == ERROR_LOCK_PATH) {
 		ast_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
 		/*Send the call to n+101 priority, where n is the current priority*/
-		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
-			ast_log(LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
+		if (ast_test_flag(&leave_options, OPT_PRIORITY_JUMP) || option_priority_jumping)
+			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+				ast_log(LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
+		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		res = 0;
 	}
 	
@@ -5577,9 +5600,14 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_vm_user svm;
 	char *context, *box;
+	int priority_jump = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(mbox);
+		AST_APP_ARG(options);
+	);
 
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context])\n");
+		ast_log(LOG_ERROR, "MailboxExists requires an argument: (vmbox[@context][|options])\n");
 		return -1;
 	}
 
@@ -5592,15 +5620,25 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	if ((context = strchr(box, '@'))) {
+	AST_STANDARD_APP_ARGS(args, box);
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
+
+	if ((context = strchr(args.mbox, '@'))) {
 		*context = '\0';
 		context++;
 	}
 
-	if (find_user(&svm, context, box)) {
-		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
-			ast_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
-	}
+	if (find_user(&svm, context, args.mbox)) {
+		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
+		if (priority_jump || option_priority_jumping)
+			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
+				ast_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
+	} else
+		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "FAILED");
 	LOCAL_USER_REMOVE(u);
 	return 0;
 }
