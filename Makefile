@@ -285,12 +285,13 @@ ifeq ($(OSARCH),SunOS)
 endif
 
 ifeq ($(findstring CYGWIN,$(OSARCH)),CYGWIN)
-CYGLOADER=cygwin_a
-OSARCH=CYGWIN
-ASTOBJ=-shared -o asterisk.dll -Wl,--out-implib=libasterisk.dll.a -Wl,--export-all-symbols
-ASTLINK=
-LIBS+=-lpthread -lncurses -lm -lresolv
-ASTSBINDIR=$(MODULES_DIR)
+  CYGLOADER=cygwin_a
+  OSARCH=CYGWIN
+  ASTOBJ=-shared -o asterisk.dll -Wl,--out-implib=libasterisk.dll.a -Wl,--export-all-symbols
+  ASTLINK=
+  LIBS+=-lpthread -lncurses -lm -lresolv
+  ASTSBINDIR=$(MODULES_DIR)
+  PROC=$(shell uname -m)
 endif
 
 ifndef WITHOUT_ZAPTEL

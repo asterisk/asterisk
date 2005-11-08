@@ -36,7 +36,6 @@ WAV49	= -DWAV49
 ######### which support MMX instructions.  This should be newer pentiums,
 ######### ppro's, etc, as well as the AMD K6 and K7.  The compile will
 ######### probably require gcc. 
-PROC=$(shell uname -m)
 
 ifneq (${OSARCH},Darwin)
 ifneq (${OSARCH},SunOS)
