@@ -8,6 +8,10 @@
 
 2005-11-07  Russell Bryant  <russell@digium.com>
 
+	* apps/app_queue.c: upgrade to new arg/option API and implement priority jumping control (issue #5580)
+	* res/res_indications.c: Add missing include of stdio.h
+	* many files: Add missing include of stdio.h, and remove some duplicate and unused header includes
+
 	* include/asterisk/app.h: Increment the arg_index in the options structure to fix applicaiton options that have arguments to them
 
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>

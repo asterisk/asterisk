@@ -24,10 +24,10 @@
  */
 
 #include <stdlib.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
 #include <linux/zaptel.h>

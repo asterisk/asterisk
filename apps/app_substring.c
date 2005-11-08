@@ -24,11 +24,11 @@
  * \todo Deprecate this application in 1.3dev
  */
 
-#include <sys/types.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 #include "asterisk.h"
 

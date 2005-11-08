@@ -25,6 +25,7 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "asterisk.h"
 

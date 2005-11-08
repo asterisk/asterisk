@@ -23,9 +23,10 @@
  * \ingroup applications
  */
  
+#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <sys/ioctl.h>
 #ifdef __linux__
 #include <linux/zaptel.h>
