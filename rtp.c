@@ -1149,7 +1149,7 @@ int ast_rtp_senddigit(struct ast_rtp *rtp, char digit)
 					ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
 					ntohs(rtp->them.sin_port), strerror(errno));
 			if (rtp_debug_test_addr(&rtp->them))
-				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n",
+				ast_verbose("Sent RTP packet to %s:%d (type %d, seq %u, ts %u, len %u)\n",
 					    ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr),
 					    ntohs(rtp->them.sin_port), payload, rtp->seqno, rtp->lastdigitts, res - hdrlen);
 		}
@@ -1292,7 +1292,7 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 		}
 				
 		if(rtp_debug_test_addr(&rtp->them))
-			ast_verbose("Sent RTP packet to %s:%d (type %d, seq %d, ts %d, len %d)\n"
+			ast_verbose("Sent RTP packet to %s:%d (type %d, seq %u, ts %u, len %u)\n"
 					, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr), ntohs(rtp->them.sin_port), codec, rtp->seqno, rtp->lastts,res - hdrlen);
 	}
 

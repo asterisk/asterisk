@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* rtp.c: use unsigned format for debug packet output (issue #5595)
+
 	* asterisk.c (main): force a dnsmgr background refresh after all other modules are initialized (issue #5599)
 	* dnsmgr.c: add ability to start a background refresh on demand (issue #5599)
 
