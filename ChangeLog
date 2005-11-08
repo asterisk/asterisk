@@ -1,4 +1,7 @@
 2005-11-08  Kevin P. Fleming  <kpfleming@digium.com>
+	
+	* apps/app_meetme.c: fix two audio delay problems related to using non-Zap channels in conferences (issues #3599 and #4252)
+	* configs/meetme.conf.sample: add documentation of new 'audiobuffers' setting to control buffering on incoming audio from non-Zap channels
 
 	* channels/chan_local.c (local_call): move channel variables from incoming to outgoing instead of inheriting them (issue #5604)
 

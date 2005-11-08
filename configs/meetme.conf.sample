@@ -2,6 +2,16 @@
 ; Configuration file for MeetMe simple conference rooms for Asterisk of course.
 ;
 ; This configuration file is read every time you call app meetme()
+
+[general]
+;audiobuffers=32		; The number of 20ms audio buffers to be used
+				; when feeding audio frames from non-Zap channels
+				; into the conference; larger numbers will allow
+				; for the conference to 'de-jitter' audio that arrives
+				; at different timing than the conference's timing
+				; source, but can also allow for latency in hearing
+				; the audio from the speaker. Minimum value is 2,
+				; maximum value is 32.
 ;
 [rooms]
 ;
@@ -9,4 +19,3 @@
 ;
 ;conf => 1234 
 ;conf => 2345,9938
-

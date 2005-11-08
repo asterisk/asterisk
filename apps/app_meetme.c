@@ -55,17 +55,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/utils.h"
 
-static char *tdesc = "MeetMe conference bridge";
+static const char *tdesc = "MeetMe conference bridge";
 
-static char *app = "MeetMe";
-static char *app2 = "MeetMeCount";
-static char *app3 = "MeetMeAdmin";
+static const char *app = "MeetMe";
+static const char *app2 = "MeetMeCount";
+static const char *app3 = "MeetMeAdmin";
 
-static char *synopsis = "MeetMe conference bridge";
-static char *synopsis2 = "MeetMe participant count";
-static char *synopsis3 = "MeetMe conference Administration";
+static const char *synopsis = "MeetMe conference bridge";
+static const char *synopsis2 = "MeetMe participant count";
+static const char *synopsis3 = "MeetMe conference Administration";
 
-static char *descrip =
+static const char *descrip =
 "  MeetMe([confno][,[options][,pin]]): Enters the user into a specified MeetMe conference.\n"
 "If the conference number is omitted, the user will be prompted to enter\n"
 "one. \n"
@@ -102,14 +102,14 @@ static char *descrip =
 "             digit extension ${MEETME_EXIT_CONTEXT} or the current context\n"
 "             if that variable is not defined.\n";
 
-static char *descrip2 =
+static const char *descrip2 =
 "  MeetMeCount(confno[|var]): Plays back the number of users in the specified\n"
 "MeetMe conference. If var is specified, playback will be skipped and the value\n"
 "will be returned in the variable. Upon app completion, MeetMeCount will hangup the\n"
 "channel, unless priority n+1 exists, in which case priority progress will continue.\n"
 "A ZAPTEL INTERFACE MUST BE INSTALLED FOR CONFERENCING FUNCTIONALITY.\n";
 
-static char *descrip3 = 
+static const char *descrip3 = 
 "  MeetMeAdmin(confno,command[,user]): Run admin command for conference\n"
 "      'e' -- Eject last user that joined\n"
 "      'k' -- Kick one user out of conference\n"
@@ -121,6 +121,8 @@ static char *descrip3 =
 "      'n' -- Unmute entire conference (except admin)\n"
 "      'N' -- Mute entire conference (except admin)\n"
 "";
+
+#define CONFIG_FILE_NAME "meetme.conf"
 
 STANDARD_LOCAL_USER;
 
@@ -169,8 +171,14 @@ struct ast_conf_user {
 	struct volume listen;
 };
 
-#define ADMINFLAG_MUTED (1 << 1)	/* User is muted */
-#define ADMINFLAG_KICKME (1 << 2)	/* User is kicked */
+static int audio_buffers;			/* The number of audio buffers to be allocated on pseudo channels
+						   when in a conference
+						*/
+
+#define DEFAULT_AUDIO_BUFFERS 32		/* each buffer is 20ms, so this is 640ms total */
+
+#define ADMINFLAG_MUTED (1 << 1)		/* User is muted */
+#define ADMINFLAG_KICKME (1 << 2)		/* User is kicked */
 #define MEETME_DELAYDETECTTALK 		300
 #define MEETME_DELAYDETECTENDTALK 	1000
 
@@ -706,16 +714,34 @@ static char conf_usage[] =
 "       Executes a command for the conference or on a conferee\n";
 
 static struct ast_cli_entry cli_conf = {
-	{ "meetme", NULL, NULL }, conf_cmd,
-	"Execute a command on a conference or conferee", conf_usage, complete_confcmd };
+	{"meetme", NULL, NULL }, conf_cmd,
+	"Execute a command on a conference or conferee", conf_usage, complete_confcmd};
 
-static void conf_flush(int fd)
+static void conf_flush(int fd, struct ast_channel *chan)
 {
 	int x;
 
+	/* read any frames that may be waiting on the channel
+	   and throw them away
+	*/
+	if (chan) {
+		struct ast_frame *f;
+
+		/* when no frames are available, this will wait
+		   for 1 millisecond maximum
+		*/
+		while (ast_waitfor(chan, 1)) {
+			f = ast_read(chan);
+			if (f)
+				ast_frfree(f);
+		}
+	}
+
+	/* flush any data sitting in the pseudo channel */
 	x = ZT_FLUSH_ALL;
 	if (ioctl(fd, ZT_FLUSH, &x))
 		ast_log(LOG_WARNING, "Error flushing channel\n");
+
 }
 
 /* Remove the conference from the list and free it.
@@ -960,7 +986,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		bi.bufsize = CONF_SIZE/2;
 		bi.txbufpolicy = ZT_POLICY_IMMEDIATE;
 		bi.rxbufpolicy = ZT_POLICY_IMMEDIATE;
-		bi.numbufs = 4;
+		bi.numbufs = audio_buffers;
 		if (ioctl(fd, ZT_SET_BUFINFO, &bi)) {
 			ast_log(LOG_WARNING, "Unable to set buffering information: %s\n", strerror(errno));
 			close(fd);
@@ -1042,7 +1068,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	ast_mutex_unlock(&conflock);
 
-	conf_flush(fd);
+	conf_flush(fd, chan);
 
 	if (confflags & CONFFLAG_AGI) {
 		/* Get name of AGI file to run from $(MEETME_AGI_BACKGROUND)
@@ -1273,8 +1299,15 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						}
 					}
 					if (using_pseudo) {
-						/* Carefully write */
-						careful_write(fd, f->data, f->datalen);
+						/* Absolutely do _not_ use careful_write here...
+						   it is important that we read data from the channel
+						   as fast as it arrives, and feed it into the conference.
+						   The buffering in the pseudo channel will take care of any
+						   timing differences, unless they are so drastic as to lose
+						   audio frames (in which case carefully writing would only
+						   have delayed the audio even further).
+						*/
+						write(fd, f->data, f->datalen);
 					}
 				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
@@ -1451,7 +1484,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						ast_mutex_unlock(&conflock);
 						goto outrun;
 					}
-					conf_flush(fd);
+
+					conf_flush(fd, chan);
 				} else if (option_debug) {
 					ast_log(LOG_DEBUG,
 						"Got unrecognized frame on channel %s, f->frametype=%d,f->subclass=%d\n",
@@ -1597,9 +1631,9 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			}
 		} else {
 			/* Check the config */
-			cfg = ast_config_load("meetme.conf");
+			cfg = ast_config_load(CONFIG_FILE_NAME);
 			if (!cfg) {
-				ast_log(LOG_WARNING, "No meetme.conf file :(\n");
+				ast_log(LOG_WARNING, "No %s file :(\n", CONFIG_FILE_NAME);
 				return NULL;
 			}
 			var = ast_variable_browse(cfg, "rooms");
@@ -1748,28 +1782,24 @@ static int conf_exec(struct ast_channel *chan, void *data)
 		if (retrycnt > 3)
 			allowretry = 0;
 		if (empty) {
-			int i, map[1024];
+			int i, map[1024] = { 0, };
 			struct ast_config *cfg;
 			struct ast_variable *var;
 			int confno_int;
 
-			memset(map, 0, sizeof(map));
-
 			ast_mutex_lock(&conflock);
-			cnf = confs;
-			while (cnf) {
+			for (cnf = confs; cnf; cnf = cnf->next) {
 				if (sscanf(cnf->confno, "%d", &confno_int) == 1) {
 					/* Disqualify in use conference */
 					if (confno_int >= 0 && confno_int < 1024)
 						map[confno_int]++;
 				}
-				cnf = cnf->next;
 			}
 			ast_mutex_unlock(&conflock);
 
 			/* We only need to load the config file for static and empty_no_pin (otherwise we don't care) */
 			if ((empty_no_pin) || (!dynamic)) {
-				cfg = ast_config_load("meetme.conf");
+				cfg = ast_config_load(CONFIG_FILE_NAME);
 				if (cfg) {
 					var = ast_variable_browse(cfg, "rooms");
 					while (var) {
@@ -1820,9 +1850,10 @@ static int conf_exec(struct ast_channel *chan, void *data)
 					ast_config_destroy(cfg);
 				}
 			}
+
 			/* Select first conference number not in use */
 			if (ast_strlen_zero(confno) && dynamic) {
-				for (i=0;i<1024;i++) {
+				for (i = 0; i < sizeof(map) / sizeof(map[0]); i++) {
 					if (!map[i]) {
 						snprintf(confno, sizeof(confno), "%d", i);
 						break;
@@ -1847,6 +1878,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				}
 			}
 		}
+
 		while (allowretry && (ast_strlen_zero(confno)) && (++retrycnt < 4)) {
 			/* Prompt user for conference number */
 			res = ast_app_getdata(chan, "conf-getconfno", confno, sizeof(confno) - 1, 0);
@@ -2116,6 +2148,32 @@ static void *recordthread(void *args)
 	pthread_exit(0);
 }
 
+static void load_config(void)
+{
+	struct ast_config *cfg;
+	char *val;
+
+	audio_buffers = DEFAULT_AUDIO_BUFFERS;
+
+	if (!(cfg = ast_config_load(CONFIG_FILE_NAME)))
+		return;
+
+	if ((val = ast_variable_retrieve(cfg, "general", "audiobuffers"))) {
+		if ((sscanf(val, "%d", &audio_buffers) != 1)) {
+			ast_log(LOG_WARNING, "audiobuffers setting must be a number, not '%s'\n", val);
+			audio_buffers = DEFAULT_AUDIO_BUFFERS;
+		} else if ((audio_buffers < ZT_DEFAULT_NUM_BUFS) || (audio_buffers > ZT_MAX_NUM_BUFS)) {
+			ast_log(LOG_WARNING, "audiobuffers setting must be between %d and %d\n",
+				ZT_DEFAULT_NUM_BUFS, ZT_MAX_NUM_BUFS);
+			audio_buffers = DEFAULT_AUDIO_BUFFERS;
+		}
+		if (audio_buffers != DEFAULT_AUDIO_BUFFERS)
+			ast_log(LOG_NOTICE, "Audio buffers per channel set to %d\n", audio_buffers);
+	}
+
+	ast_config_destroy(cfg);
+}
+
 int unload_module(void)
 {
 	int res;
@@ -2135,6 +2193,8 @@ int load_module(void)
 {
 	int res;
 
+	load_config();
+
 	res = ast_cli_register(&cli_show_confs);
 	res |= ast_cli_register(&cli_conf);
 	res |= ast_register_application(app3, admin_exec, synopsis3, descrip3);
@@ -2144,9 +2204,16 @@ int load_module(void)
 	return res;
 }
 
+int reload(void)
+{
+	load_config();
+
+	return 0;
+}
+
 char *description(void)
 {
-	return tdesc;
+	return (char *) tdesc;
 }
 
 int usecount(void)
