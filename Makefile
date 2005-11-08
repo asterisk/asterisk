@@ -89,7 +89,9 @@ INSTALL_PREFIX?=
 # Files are copied here temporarily during the install process
 # For example, make DESTDIR=/tmp/asterisk woud put things in
 # /tmp/asterisk/etc/asterisk
-DESTDIR=
+# XXX watch out, put no spaces or comments after the value
+DESTDIR?=
+#DESTDIR?=/tmp/asterisk
 
 # Original busydetect routine
 BUSYDETECT = #-DBUSYDETECT
@@ -249,6 +251,22 @@ ifeq ($(OSARCH),FreeBSD)
     ASTCFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/spandsp
   endif
   MPG123TARG=freebsd
+
+  # XXX FreeBSD paths
+  PREFIX?=/usr/local
+  ASTLIBDIR=$(INSTALL_PREFIX)$(PREFIX)/lib/asterisk
+  ASTVARLIBDIR=$(INSTALL_PREFIX)$(PREFIX)/share/asterisk
+  ASTETCDIR=$(INSTALL_PREFIX)$(PREFIX)/etc/asterisk
+  ASTSPOOLDIR=$(INSTALL_PREFIX)/var/spool/asterisk
+  ASTLOGDIR=$(INSTALL_PREFIX)/var/log/asterisk
+  ASTHEADERDIR=$(INSTALL_PREFIX)$(PREFIX)/include/asterisk
+  ASTCONFPATH=$(ASTETCDIR)/asterisk.conf
+  ASTBINDIR=$(INSTALL_PREFIX)$(PREFIX)/bin
+  ASTSBINDIR=$(INSTALL_PREFIX)$(PREFIX)/sbin
+  ASTVARRUNDIR=$(INSTALL_PREFIX)/var/run
+  ASTMANDIR=$(INSTALL_PREFIX)$(PREFIX)/man
+  # XXX end FreeBSD paths
+
 endif # FreeBSD
 
 ifeq ($(OSARCH),NetBSD)
@@ -717,22 +735,24 @@ samples: adsi
 		fi ; \
 		$(INSTALL) -m 644 $$x $(DESTDIR)$(ASTETCDIR)/`basename $$x .sample` ;\
 	done
-	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTETCDIR)/asterisk.conf ]; then \
-		echo "[directories]" > $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "astetcdir => $(ASTETCDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "astmoddir => $(MODULES_DIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "astvarlibdir => $(ASTVARLIBDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "astagidir => $(AGI_DIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "astspooldir => $(ASTSPOOLDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "astrundir => $(ASTVARRUNDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "astlogdir => $(ASTLOGDIR)" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo "; Changing the following lines may compromise your security." >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo ";[files]" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo ";astctlpermissions = 0660" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo ";astctlowner = root" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo ";astctlgroup = apache" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
-		echo ";astctl = asterisk.ctl" >> $(DESTDIR)$(ASTETCDIR)/asterisk.conf ; \
+	if [ "$(OVERWRITE)" = "y" ] || [ ! -f $(DESTDIR)$(ASTCONFPATH) ]; then \
+		( \
+		echo "[directories]" ; \
+		echo "astetcdir => $(ASTETCDIR)" ; \
+		echo "astmoddir => $(MODULES_DIR)" ; \
+		echo "astvarlibdir => $(ASTVARLIBDIR)" ; \
+		echo "astagidir => $(AGI_DIR)" ; \
+		echo "astspooldir => $(ASTSPOOLDIR)" ; \
+		echo "astrundir => $(ASTVARRUNDIR)" ; \
+		echo "astlogdir => $(ASTLOGDIR)" ; \
+		echo "" ; \
+		echo "; Changing the following lines may compromise your security." ; \
+		echo ";[files]" ; \
+		echo ";astctlpermissions = 0660" ; \
+		echo ";astctlowner = root" ; \
+		echo ";astctlgroup = apache" ; \
+		echo ";astctl = asterisk.ctl" ; \
+		) > $(DESTDIR)$(ASTCONFPATH) ; \
 	else \
 		echo "Skipping asterisk.conf creation"; \
 	fi

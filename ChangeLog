@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* Makefile: various fixes from issue #5633
+
 	* apps/app_osplookup.c: upgrade to new arg/option API and implement priority jumping control
 
 	* channels/chan_misdn.c: various fixes from issue #5639
