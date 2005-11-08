@@ -43,6 +43,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/astosp.h"
+#include "asterisk/app.h"
+#include "asterisk/options.h"
 
 static char *tdesc = "OSP Lookup";
 
@@ -63,23 +65,33 @@ static char *descrip =
 " ${OSPHANDLE}: The OSP Handle for anything remaining\n"
 " ${OSPRESULTS}: The number of OSP results total remaining\n"
 "\n"
-"If the lookup was *not* successful and there exists a priority n + 101,\n"
-"then that priority will be taken next.\n" ;
+"The option string may contain the following character:\n"
+"	'j' -- jump to n+101 priority if the lookup was NOT successful\n"
+"This application sets the following channel variable upon completion:\n"
+"	OSPLOOKUPSTATUS	The status of the OSP Lookup attempt as a text string, one of\n"
+"		SUCCESS | FAILED \n";
+
 
 static char *descrip2 = 
-"  OSPNext:  Looks up the next OSP Destination for ${OSPHANDLE}\n"
+"  OSPNext(cause[|options]):  Looks up the next OSP Destination for ${OSPHANDLE}\n"
 "See OSPLookup for more information\n"
 "\n"
-"If the lookup was *not* successful and there exists a priority n + 101,\n"
-"then that priority will be taken next.\n" ;
+"The option string may contain the following character:\n"
+"	'j' -- jump to n+101 priority if the lookup was NOT successful\n"
+"This application sets the following channel variable upon completion:\n"
+"	OSPNEXTSTATUS	The status of the OSP Next attempt as a text string, one of\n"
+"		SUCCESS | FAILED \n";
 
 static char *descrip3 = 
-"  OSPFinish(status):  Records call state for ${OSPHANDLE}, according to\n"
-"status, which should be one of BUSY, CONGESTION, ANSWER, NOANSWER, or NOCHANAVAIL\n"
-"or coincidentally, just what the Dial application stores in its ${DIALSTATUS}\n"
+"  OSPFinish(status[|options]):  Records call state for ${OSPHANDLE}, according to\n"
+"status, which should be one of BUSY, CONGESTION, ANSWER, NOANSWER, or CHANUNAVAIL\n"
+"or coincidentally, just what the Dial application stores in its ${DIALSTATUS}.\n"
 "\n"
-"If the finishing was *not* successful and there exists a priority n + 101,\n"
-"then that priority will be taken next.\n" ;
+"The option string may contain the following character:\n"
+"	'j' -- jump to n+101 priority if the finish attempt was NOT successful\n"
+"This application sets the following channel variable upon completion:\n"
+"	OSPFINISHSTATUS	The status of the OSP Finish attempt as a text string, one of\n"
+"		SUCCESS | FAILED \n";
 
 STANDARD_LOCAL_USER;
 
@@ -108,11 +120,16 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	char *temp;
-	char *provider, *opts=NULL;
 	struct ast_osp_result result;
+	int priority_jump = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(extension);
+		AST_APP_ARG(provider);
+		AST_APP_ARG(options);
+	);
 	
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "OSPLookup requires an argument (extension)\n");
+		ast_log(LOG_WARNING, "OSPLookup requires an argument OSPLookup(exten[|provider[|options]])\n");
 		return -1;
 	}
 
@@ -125,19 +142,15 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	provider = strchr(temp, '|');
-	if (provider) {
-		*provider = '\0';
-		provider++;
-		opts = strchr(provider, '|');
-		if (opts) {
-			*opts = '\0';
-			opts++;
-		}
+	AST_STANDARD_APP_ARGS(args, temp);
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
 	}
-	
-	ast_log(LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", temp, provider ? provider : "<default>");
-	if ((res = ast_osp_lookup(chan, provider, temp, chan->cid.cid_num, &result)) > 0) {
+
+	ast_log(LOG_DEBUG, "Whoo hoo, looking up OSP on '%s' via '%s'\n", args.extension, args.provider ? args.provider : "<default>");
+	if ((res = ast_osp_lookup(chan, args.provider, args.extension, chan->cid.cid_num, &result)) > 0) {
 		char tmp[80];
 		snprintf(tmp, sizeof(tmp), "%d", result.handle);
 		pbx_builtin_setvar_helper(chan, "_OSPHANDLE", tmp);
@@ -146,16 +159,19 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "_OSPTOKEN", result.token);
 		snprintf(tmp, sizeof(tmp), "%d", result.numresults);
 		pbx_builtin_setvar_helper(chan, "_OSPRESULTS", tmp);
+		pbx_builtin_setvar_helper(chan, "OSPLOOKUPSTATUS", "SUCCESS");
 
 	} else {
-		if (!res)
-			ast_log(LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", temp, provider ? provider : "<default>");
-		else
-			ast_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, temp, provider ? provider : "<default>" );
+		if (!res) {
+			ast_log(LOG_NOTICE, "OSP Lookup failed for '%s' (provider '%s')\n", args.extension, args.provider ? args.provider : "<default>");
+			pbx_builtin_setvar_helper(chan, "OSPLOOKUPSTATUS", "FAILED");
+		} else
+			ast_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Lookup for '%s' (provider '%s')!\n", chan->name, args.extension, args.provider ? args.provider : "<default>" );
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		if (priority_jump || option_priority_jumping)
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
@@ -169,15 +185,34 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	char *temp;
 	int cause;
 	struct ast_osp_result result;
-
+	int priority_jump = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(cause);
+		AST_APP_ARG(options);
+	);
+	
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "OSPNext should have an argument (cause)\n");
+		ast_log(LOG_WARNING, "OSPNext should have an argument (cause[|options])\n");
 		return -1;
 	}
-	
+
 	LOCAL_USER_ADD(u);
 
-	cause = str2cause((char *)data);
+	temp = ast_strdupa(data);
+	if (!temp) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, temp);
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
+
+	cause = str2cause(args.cause);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
 	if (!ast_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
@@ -190,6 +225,7 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 			pbx_builtin_setvar_helper(chan, "_OSPTOKEN", result.token);
 			snprintf(tmp, sizeof(tmp), "%d", result.numresults);
 			pbx_builtin_setvar_helper(chan, "_OSPRESULTS", tmp);
+			pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", "SUCCESS");
 		}
 	} else {
 		if (!res) {
@@ -197,12 +233,14 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 				ast_log(LOG_NOTICE, "OSP Lookup Next failed for handle '%d'\n", result.handle);
 			else
 				ast_log(LOG_DEBUG, "No OSP handle specified\n");
+			pbx_builtin_setvar_helper(chan, "OSPNEXTSTATUS", "FAILED");	
 		} else
 			ast_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Next!\n", chan->name);
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		if (priority_jump || option_priority_jumping)
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);
@@ -217,13 +255,32 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	int cause;
 	time_t start=0, duration=0;
 	struct ast_osp_result result;
-
+	int priority_jump = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(status);
+		AST_APP_ARG(options);
+	);
+	
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "OSPFinish should have an argument (cause)\n");
+		ast_log(LOG_WARNING, "OSPFinish should have an argument (status[|options])\n");
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);	
+	LOCAL_USER_ADD(u);
+
+	temp = ast_strdupa(data);
+	if (!temp) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	AST_STANDARD_APP_ARGS(args, temp);
+
+	if (args.options) {
+		if (strchr(args.options, 'j'))
+			priority_jump = 1;
+	}
 
 	if (chan->cdr) {
 		start = chan->cdr->answer.tv_sec;
@@ -234,12 +291,13 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	} else
 		ast_log(LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
 	
-	cause = str2cause((char *)data);
+	cause = str2cause(args.status);
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
 	if (!ast_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
 		if (!ast_osp_terminate(result.handle, cause, start, duration)) {
 			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
+			pbx_builtin_setvar_helper(chan, "OSPFINISHSTATUS", "SUCCESS");
 			res = 1;
 		}
 	} else {
@@ -248,12 +306,14 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 				ast_log(LOG_NOTICE, "OSP Finish failed for handle '%d'\n", result.handle);
 			else
 				ast_log(LOG_DEBUG, "No OSP handle specified\n");
+			pbx_builtin_setvar_helper(chan, "OSPFINISHSTATUS", "FAILED");
 		} else
 			ast_log(LOG_DEBUG, "Got hangup on '%s' while doing OSP Terminate!\n", chan->name);
 	}
 	if (!res) {
 		/* Look for a "busy" place */
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
+		if (priority_jump || option_priority_jumping)
+			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 	} else if (res > 0)
 		res = 0;
 	LOCAL_USER_REMOVE(u);

@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* apps/app_osplookup.c: upgrade to new arg/option API and implement priority jumping control
+
 	* channels/chan_misdn.c: various fixes from issue #5639
 	* channels/misdn/isdn_lib.c: various fixes from issue #5639
 
