@@ -309,26 +309,34 @@ char *astman_get_header(struct message *m, char *var)
 
 struct ast_variable *astman_get_variables(struct message *m)
 {
-	int varlen, x;
+	int varlen, x, y;
 	struct ast_variable *head = NULL, *cur;
 	char *var, *val;
+	unsigned int var_count;
+        char *vars[32];
 	
 	varlen = strlen("Variable: ");	
 
 	for (x = 0; x < m->hdrcount; x++) {
-		if (!strncasecmp("Variable: ", m->headers[x], varlen)) {
-			var = val = ast_strdupa(m->headers[x] + varlen);
-			if (!var)
-				return head;				
-			strsep(&val, "=");
-			if (!val || ast_strlen_zero(var))
-				continue;
-			cur = ast_variable_new(var, val);
-			if (head) {
-				cur->next = head;
-				head = cur;
-			} else
-				head = cur;
+		if (strncasecmp("Variable: ", m->headers[x], varlen))
+			continue;
+
+		if (!(var = ast_strdupa(m->headers[x] + varlen)))
+			return head;
+
+		if ((var_count = ast_app_separate_args(var, '|', vars, sizeof(vars) / sizeof(var[0])))) {
+			for (y = 0; y < var_count; y++) {
+				var = val = vars[y];
+				strsep(&val, "=");
+				if (!val || ast_strlen_zero(var))
+					continue;
+				cur = ast_variable_new(var, val);
+				if (head) {
+					cur->next = head;
+					head = cur;
+				} else
+					head = cur;
+			}
 		}
 	}
 
