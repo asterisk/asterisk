@@ -842,7 +842,7 @@ uint64_t strtoq(const char *nptr, char **endptr, int base)
 }
 #endif /* !HAVE_STRTOQ */
 
-#if (!defined(_BSD_SOURCE))
+#ifndef HAVE_GETLOADAVG
 #ifdef linux
 /* Alternative method of getting load avg on Linux only */
 int getloadavg(double *list, int nelem)

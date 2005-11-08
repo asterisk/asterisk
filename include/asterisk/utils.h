@@ -231,4 +231,8 @@ int ast_pthread_create_stack(pthread_t *thread, pthread_attr_t *attr, void *(*st
 */
 char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
 
+#ifndef HAVE_GETLOADAVG
+int getloadavg(double *list, int nelem);
+#endif
+
 #endif /* _ASTERISK_UTILS_H */

@@ -77,6 +77,12 @@ static const char elsieid[] = "@(#)localtime.c	7.57";
 #define OPEN_MODE	O_RDONLY
 #endif /* !defined O_BINARY */
 
+#ifdef SOLARIS
+#undef TM_ZONE
+#undef TM_GMTOFF 
+#endif
+
+#ifdef TM_ZONE
 #ifndef WILDABBR
 /*! \note
  * Someone might make incorrect use of a time zone abbreviation:
@@ -101,6 +107,7 @@ static const char elsieid[] = "@(#)localtime.c	7.57";
 #endif /* !defined WILDABBR */
 
 static char		wildabbr[] = "WILDABBR";
+#endif /* TM_ZONE */
 
 /*! \brief FreeBSD defines 'zone' in 'struct tm' as non-const, so don't declare this
    string as const. */
@@ -129,12 +136,6 @@ struct lsinfo {
 #ifndef TZNAME_MAX
 #define MY_TZNAME_MAX	255
 #endif /* !defined TZNAME_MAX */
-
-#ifdef SOLARIS
-#undef TM_ZONE
-#undef TM_GMTOFF 
-#endif
-
 
 struct state {
 	char	name[TZ_STRLEN_MAX + 1];

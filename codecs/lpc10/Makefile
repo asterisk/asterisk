@@ -22,7 +22,10 @@ LIB_TARGET_DIR = .
 # 
 
 WARNINGS = -Wall -Wno-comment -Wno-error
-CFLAGS += $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS) -fPIC
+CFLAGS += $(OPTIMIZE) -I$(LIB_TARGET_DIR) $(WARNINGS)
+ifneq (${OSARCH},CYGWIN)
+CFLAGS += -fPIC
+endif
 #CFLAGS+= $(shell if uname -m | grep -q 86; then echo "-mpentium" ; fi)
 
 #fix for PPC processors and ALPHA, And UltraSparc too

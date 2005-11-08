@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/app.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/compat.h"
 
 /*!
  * \note I M P O R T A N T :

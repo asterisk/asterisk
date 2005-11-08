@@ -107,6 +107,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/version.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/compat.h"
 
 #include "asterisk/doxyref.h"		/* Doxygen documentation */
 

@@ -14,6 +14,8 @@
 ifeq (${OSARCH},CYGWIN)
 CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
 CYGSOLIB=-L.. -L. -lasterisk.dll
+else
+CFLAGS+=-fPIC
 endif
 
 ifneq ($(wildcard g723.1/coder.c),)
@@ -57,7 +59,6 @@ ifneq ($(wildcard ilbc/iLBC_decode.h),)
   LIBILBC=ilbc/libilbc.a
 endif
 
-CFLAGS+=-fPIC
 
 LIBGSM=gsm/lib/libgsm.a
 LIBGSMT=gsm/lib/libgsm.a

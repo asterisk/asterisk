@@ -74,6 +74,10 @@ int unsetenv(const char *name);
 #define HAVE_VASPRINTF
 #define HAVE_STRTOQ
 
+#ifdef _BSD_SOURCE
+#define HAVE_GETLOADAVG
+#endif
+
 #ifdef __linux__
 #define HAVE_STRCASESTR
 #define HAVE_STRNDUP
