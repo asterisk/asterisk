@@ -323,7 +323,7 @@ struct ast_app_option {
   \sa AST_APP_OPTIONS, ast_app_parse_options
  */
 #define AST_APP_OPTION_ARG(option, flagno, argno) \
-	[option] = { .flag = flagno, .arg_index = argno }
+	[option] = { .flag = flagno, .arg_index = argno + 1 }
 
 /*!
   \brief Parses a string containing application options and sets flags/arguments.
