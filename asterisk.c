@@ -2062,7 +2062,7 @@ int main(int argc, char *argv[])
 #ifndef __CYGWIN__
 
 	if (!is_child_of_nonroot) 
-	    ast_set_priority(option_highpriority);
+		ast_set_priority(option_highpriority);
 
 	if (!is_child_of_nonroot && rungroup) {
 		struct group *gr;
