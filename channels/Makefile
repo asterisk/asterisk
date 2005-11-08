@@ -104,6 +104,7 @@ ifneq ($(wildcard alsa-monitor.h),)
   ALSA_SRC+=alsa-monitor.h
 endif
 
+ifndef WITHOUT_ZAPTEL
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
   ifeq (${OSARCH},NetBSD)
     SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/pkg/lib
@@ -114,6 +115,7 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard 
   CFLAGS+=-DIAX_TRUNKING
   CHANNEL_LIBS+=chan_zap.so
 endif
+endif # WITHOUT_ZAPTEL
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h),)
   CHANNEL_LIBS+=chan_vpb.so

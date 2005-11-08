@@ -53,9 +53,11 @@ CRYPTO_LIBS=-lssl -lcrypto
 
 CFLAGS+=
 
+ifndef WITHOUT_ZAPTEL
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
   CFLAGS+=-DZAPATA_MOH
 endif
+endif # WITHOUT_ZAPTEL
 
 #
 # Work around buggy RedHat 9.0

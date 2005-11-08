@@ -293,9 +293,13 @@ LIBS+=-lpthread -lncurses -lm -lresolv
 ASTSBINDIR=$(MODULES_DIR)
 endif
 
+ifndef WITHOUT_ZAPTEL
+
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
   ASTCFLAGS+=-DZAPTEL_OPTIMIZATIONS
 endif
+
+endif # WITHOUT_ZAPTEL
 
 LIBEDIT=editline/libedit.a
 

@@ -1,11 +1,13 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
-	* Makefile: various fixes from issue #5633
+	* res/Makefile, apps/Makefile, channels/Makefile, Makefile: support WITHOUT_ZAPTEL define to forcibly avoid building Zaptel support (issue #5634)
+
+	* Makefile: various fixes (issue #5633)
 
 	* apps/app_osplookup.c: upgrade to new arg/option API and implement priority jumping control
 
-	* channels/chan_misdn.c: various fixes from issue #5639
-	* channels/misdn/isdn_lib.c: various fixes from issue #5639
+	* channels/chan_misdn.c: various fixes (issue #5639)
+	* channels/misdn/isdn_lib.c: various fixes (issue #5639)
 
 	* apps/app_playback.c: upgrade to new arg/option API and implement priority jumping control
 

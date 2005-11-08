@@ -44,9 +44,11 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
 #APPS+=app_skel.so
 #APPS+=app_rpt.so
 
+ifndef WITHOUT_ZAPTEL
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
   APPS+=app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so app_page.so
 endif
+endif # WITHOUT_ZAPTEL
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
 APPS+=app_osplookup.so
@@ -88,7 +90,7 @@ clean:
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
-	
+
 app_rpt.so : app_rpt.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -ltonezone
 
