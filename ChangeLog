@@ -4,6 +4,9 @@
 
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* cryptostub.c: include necessary headers
+	* include/asterisk/crypto.h: don't include unnecessary headers
+
 	* manager.c (action_setvar): add support for setting global variables (issue #5571)
 
 	* Makefile: correct cross-compilation issue introduced in Cygwin patches (issue #5572)

@@ -16,7 +16,11 @@
  * at the top of the source tree.
  */
 
+#include <unistd.h>
+#include <stdlib.h>
+
 #include "asterisk/crypto.h"
+#include "asterisk/logger.h"
 
 /* Hrm, I wonder if the compiler is smart enough to only create two functions
    for all these...  I could force it to only make two, but those would be some
