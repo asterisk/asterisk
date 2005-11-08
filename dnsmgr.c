@@ -187,8 +187,16 @@ static int refresh_list(void *data)
 
 	ast_mutex_unlock(&refresh_lock);
 
-	/* automatically reschedule */
-	return -1;
+	/* automatically reschedule based on the interval */
+	return refresh_interval * 1000;
+}
+
+void dnsmgr_start_refresh(void)
+{
+	if (refresh_sched > -1) {
+		ast_sched_del(sched, refresh_sched);
+		refresh_sched = ast_sched_add(sched, 100, refresh_list, &master_refresh_info);
+	}
 }
 
 static int do_reload(int loading);
@@ -328,10 +336,8 @@ static int do_reload(int loading)
 		ast_config_destroy(config);
 	}
 
-	if (enabled && refresh_interval) {
-		refresh_sched = ast_sched_add(sched, refresh_interval * 1000, refresh_list, &master_refresh_info);
+	if (enabled && refresh_interval)
 		ast_log(LOG_NOTICE, "Managed DNS entries will be refreshed every %d seconds.\n", refresh_interval);
-	}
 
 	/* if this reload enabled the manager, create the background thread
 	   if it does not exist */
@@ -340,10 +346,11 @@ static int do_reload(int loading)
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (ast_pthread_create(&refresh_thread, &attr, do_refresh, NULL) < 0) {
 			ast_log(LOG_ERROR, "Unable to start refresh thread.\n");
-			ast_sched_del(sched, refresh_sched);
 		}
 		else {
 			ast_cli_register(&cli_refresh);
+			/* make a background refresh happen right away */
+			refresh_sched = ast_sched_add(sched, 100, refresh_list, &master_refresh_info);
 			res = 0;
 		}
 	}

@@ -42,27 +42,28 @@ extern char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH];
 extern char ast_config_AST_CTL[AST_CONFIG_MAX_PATH];
 
 /* Provided by asterisk.c */
-extern int ast_set_priority(int);
+int ast_set_priority(int);
 /* Provided by module.c */
-extern int load_modules(const int preload_only);
+int load_modules(const int preload_only);
 /* Provided by pbx.c */
-extern int load_pbx(void);
+int load_pbx(void);
 /* Provided by logger.c */
-extern int init_logger(void);
-extern void close_logger(void);
+int init_logger(void);
+void close_logger(void);
 /* Provided by frame.c */
-extern int init_framer(void);
+int init_framer(void);
 /* Provided by logger.c */
-extern int reload_logger(int);
+int reload_logger(int);
 /* Provided by term.c */
-extern int term_init(void);
+int term_init(void);
 /* Provided by db.c */
-extern int astdb_init(void);
+int astdb_init(void);
 /* Provided by channel.c */
-extern void ast_channels_init(void);
+void ast_channels_init(void);
 /* Provided by dnsmgr.c */
-extern int dnsmgr_init(void);
-extern void dnsmgr_reload(void);
+int dnsmgr_init(void);
+void dnsmgr_start_refresh(void);
+void dnsmgr_reload(void);
 
 /*!
  * \brief Register the version of a source code file with the core.
