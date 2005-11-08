@@ -3154,7 +3154,7 @@ static int handle_show_hints(int fd, int argc, char *argv[])
 			watchers++;
 		ast_cli(fd, "   %-20.20s: %-20.20s  State:%-15.15s Watchers %2d\n",
 			ast_get_extension_name(hint->exten), ast_get_extension_app(hint->exten),
-			devstate2str(hint->laststate), watchers);
+			ast_extension_state2str(hint->laststate), watchers);
 		num++;
 		hint = hint->next;
 	}
