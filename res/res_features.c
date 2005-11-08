@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/manager.h"
 #include "asterisk/utils.h"
 #include "asterisk/adsi.h"
+#include "asterisk/monitor.h"
 
 #ifdef __AST_DEBUG_MALLOC
 static void FREE(void *ptr)

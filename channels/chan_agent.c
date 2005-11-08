@@ -67,6 +67,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/astdb.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/monitor.h"
 
 static const char desc[] = "Agent Proxy Channel";
 static const char channeltype[] = "Agent";

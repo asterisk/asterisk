@@ -112,7 +112,6 @@ extern "C" {
 #include "asterisk/config.h"
 #include "asterisk/lock.h"
 #include "asterisk/cdr.h"
-#include "asterisk/monitor.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
 
