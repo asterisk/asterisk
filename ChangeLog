@@ -1,5 +1,7 @@
 2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* asterisk.c: support 'runuser' and 'rungroup' options in asterisk.conf (issue #5621)
+
 	* res/Makefile, apps/Makefile, channels/Makefile, Makefile: support WITHOUT_ZAPTEL define to forcibly avoid building Zaptel support (issue #5634)
 
 	* Makefile: various fixes (issue #5633)

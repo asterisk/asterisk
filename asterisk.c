@@ -194,6 +194,8 @@ char ast_config_AST_KEY_DIR[AST_CONFIG_MAX_PATH];
 char ast_config_AST_PID[AST_CONFIG_MAX_PATH];
 char ast_config_AST_SOCKET[AST_CONFIG_MAX_PATH];
 char ast_config_AST_RUN_DIR[AST_CONFIG_MAX_PATH];
+char ast_config_AST_RUN_USER[AST_CONFIG_MAX_PATH];
+char ast_config_AST_RUN_GROUP[AST_CONFIG_MAX_PATH];
 char ast_config_AST_CTL_PERMISSIONS[AST_CONFIG_MAX_PATH];
 char ast_config_AST_CTL_OWNER[AST_CONFIG_MAX_PATH] = "\0";
 char ast_config_AST_CTL_GROUP[AST_CONFIG_MAX_PATH] = "\0";
@@ -1885,6 +1887,12 @@ static void ast_readconfig(void) {
 			} else if ((sscanf(v->value, "%lf", &option_maxload) != 1) || (option_maxload < 0.0)) {
 				option_maxload = 0.0;
 			}
+		/* What user to run as */
+		} else if (!strcasecmp(v->name, "runuser")) {
+			ast_copy_string(ast_config_AST_RUN_USER, v->value, sizeof(ast_config_AST_RUN_USER));
+		/* What group to run as */
+		} else if (!strcasecmp(v->name, "rungroup")) {
+			ast_copy_string(ast_config_AST_RUN_GROUP, v->value, sizeof(ast_config_AST_RUN_GROUP));
 		}
 		v = v->next;
 	}
@@ -2047,6 +2055,10 @@ int main(int argc, char *argv[])
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();
 
+	if ((!rungroup) && !ast_strlen_zero(ast_config_AST_RUN_GROUP))
+		rungroup = ast_config_AST_RUN_GROUP;
+	if ((!runuser) && !ast_strlen_zero(ast_config_AST_RUN_USER))
+		runuser = ast_config_AST_RUN_USER;
 #ifndef __CYGWIN__
 
 	if (!is_child_of_nonroot && ast_set_priority(option_highpriority)) {
@@ -2062,6 +2074,10 @@ int main(int argc, char *argv[])
 		}
 		if (setgid(gr->gr_gid)) {
 			ast_log(LOG_WARNING, "Unable to setgid to %d (%s)\n", gr->gr_gid, rungroup);
+			exit(1);
+		}
+		if (setgroups(0, NULL)) {
+			ast_log(LOG_WARNING, "Unable to drop unneeded groups\n");
 			exit(1);
 		}
 		if (option_verbose)
