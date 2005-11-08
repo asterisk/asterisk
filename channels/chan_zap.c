@@ -3182,7 +3182,7 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 		    (t0 != p0->subs[SUB_REAL].inthreeway) ||
 		    (t1 != p1->subs[SUB_REAL].inthreeway) ||
 		    (oi0 != i0) ||
-		    (oi1 != i0)) {
+		    (oi1 != i1)) {
 			ast_log(LOG_DEBUG, "Something changed out on %d/%d to %d/%d, returning -3 to restart\n",
 				op0->channel, oi0, op1->channel, oi1);
 			res = AST_BRIDGE_RETRY;
