@@ -195,7 +195,7 @@ void dnsmgr_start_refresh(void)
 {
 	if (refresh_sched > -1) {
 		ast_sched_del(sched, refresh_sched);
-		refresh_sched = ast_sched_add(sched, 100, refresh_list, &master_refresh_info);
+		refresh_sched = ast_sched_add_variable(sched, 100, refresh_list, &master_refresh_info, 1);
 	}
 }
 
@@ -350,7 +350,7 @@ static int do_reload(int loading)
 		else {
 			ast_cli_register(&cli_refresh);
 			/* make a background refresh happen right away */
-			refresh_sched = ast_sched_add(sched, 100, refresh_list, &master_refresh_info);
+			refresh_sched = ast_sched_add_variable(sched, 100, refresh_list, &master_refresh_info, 1);
 			res = 0;
 		}
 	}
