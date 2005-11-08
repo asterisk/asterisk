@@ -345,7 +345,9 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	strncpy(p->chan->language, p->owner->language, sizeof(p->chan->language) - 1);
 	strncpy(p->chan->accountcode, p->owner->accountcode, sizeof(p->chan->accountcode) - 1);
 	p->chan->cdrflags = p->owner->cdrflags;
-	ast_channel_inherit_variables(p->owner, p->chan);
+	/* move the channel variables from the incoming channel to the outgoing channel */
+	AST_LIST_HEAD_SET_NOLOCK(&p->chan->varshead, AST_LIST_FIRST(&p->owner->varshead));
+	AST_LIST_HEAD_INIT_NOLOCK(&p->owner->varshead);
 	p->launchedpbx = 1;
 
 	/* Start switch on sub channel */
