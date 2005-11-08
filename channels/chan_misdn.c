@@ -98,8 +98,6 @@ struct chan_list {
   
 	ast_mutex_t lock;
 
-	pthread_t *audio_thread;
-  
 	enum misdn_chan_state state;
 	int holded; 
 	int orginator;
@@ -225,7 +223,6 @@ void send_cause2ast(struct ast_channel *ast, struct misdn_bchannel*bc);
 void cl_queue_chan(struct chan_list **list, struct chan_list *chan);
 void cl_dequeue_chan(struct chan_list **list, struct chan_list *chan);
 struct chan_list *find_chan_by_bc(struct chan_list *list, struct misdn_bchannel *bc);
-void * audio_thread( void * data);
 void chan_misdn_log(int level, int port, char *tmpl, ...);
 void chan_misdn_trace_call(struct ast_channel *chan, int debug, char *tmpl, ...);
 
@@ -1632,7 +1629,7 @@ struct ast_frame  *misdn_read(struct ast_channel *ast)
 	
 	
 	len = misdn_ibuf_usedcount(tmp->bc->astbuf);
-	
+
 	/*shrinken len if necessary, we transmit at maximum 4k*/
 	len = len<=sizeof(tmp->ast_rd_buf)?len:sizeof(tmp->ast_rd_buf);
 	
@@ -1754,6 +1751,11 @@ enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 	while(1) {
 		to=-1;
 		who = ast_waitfor_n(carr, 2, &to);
+
+		if (!who) {
+			ast_log(LOG_DEBUG,"misdn_bridge: empty read\n");
+			continue;
+		}
 		f = ast_read(who);
     
 		if (!f || f->frametype == AST_FRAME_CONTROL) {
@@ -1960,8 +1962,8 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	}
 	
 	if (!newbc) {
-		chan_misdn_log(1, port, " --> ! No free channel chan ext:%s even after Group Call\n",ext);
-		chan_misdn_log(1, port, " --> SEND: State Down\n");
+		chan_misdn_log(1, 0, " --> ! No free channel chan ext:%s even after Group Call\n",ext);
+		chan_misdn_log(1, 0, " --> SEND: State Down\n");
 		return NULL;
 	}
 	
@@ -2650,21 +2652,19 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			
 			int digits;
 			misdn_cfg_get( 0, MISDN_GEN_APPEND_DIGITS2EXTEN, &digits, sizeof(int));
-			if (ch->state != MISDN_CONNECTED && digits) {
-				{
+			if (ch->state != MISDN_CONNECTED ) {
+				if (digits) {
 					int l = sizeof(bc->dad);
 					strncat(bc->dad,bc->info_dad, l);
 					bc->dad[l-1] = 0;
-				}
-				{
-					int l = sizeof(ch->ast->exten);
+					l = sizeof(ch->ast->exten);
 					strncpy(ch->ast->exten, bc->dad, l);
 					ch->ast->exten[l-1] = 0;
+
+					ast_cdr_update(ch->ast);
 				}
-				ast_cdr_update(ch->ast);
 				
 				ast_queue_frame(ch->ast, &fr);
-				
 			}
 			
 		}
@@ -3056,10 +3056,16 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			misdn_tx2ast_frm(ch, bc->bframe, bc->bframe_len );
 		} else {
 			int len=bc->bframe_len;
+			int free=misdn_ibuf_freecount(bc->astbuf);
 			
-			if (bc->bframe_len > misdn_ibuf_freecount(bc->astbuf)) {
+			
+			if (bc->bframe_len > free) {
 				ast_log(LOG_DEBUG, "sbuf overflow!\n");
 				len=misdn_ibuf_freecount(bc->astbuf);
+
+				if (len == 0) {
+					ast_log(LOG_WARNING, "BCHAN_DATA: write buffer overflow port:%d channel:%d!\n",bc->port,bc->channel);
+				}
 			}
 			
 			misdn_ibuf_memcpy_w(bc->astbuf, bc->bframe, len);
@@ -3080,7 +3086,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				write(ch->pipe[1], blah,sizeof(blah));
 #endif
 				
-
+				
 			}
 		}
 		
@@ -3351,8 +3357,8 @@ char *key(void)
 
 void chan_misdn_log(int level, int port, char *tmpl, ...)
 {
-	if (! (0 <= port <= max_ports)) {
-		ast_console_puts("cb_log called with out-of-range port number!\n");
+	if (! ((0 <= port) && (port <= max_ports))) {
+		ast_log(LOG_WARNING, "cb_log called with out-of-range port number! (%d)\n", port);
 		return;
 	}
 		
@@ -3592,10 +3598,10 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 			chan_misdn_log(1, ch->bc->port, "SETOPT: Digital\n");
 			if (strlen(tok) > 1 && tok[1]=='1') {
 				chan_misdn_log(1, ch->bc->port, "SETOPT: Digital TRANS_DIGITAL\n");
-				ch->bc->nohdlc=1;
+				ch->bc->async=1;
 				ch->bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED;
 			} else {
-				ch->bc->nohdlc=0;
+				ch->bc->async=0;
 				ch->bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED;
 			}
 			break;

@@ -403,8 +403,6 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->channel = 0;
 	bc->in_use = 0;
 
-	bc->nohdlc=0;
-	
 	bc->send_dtmf=0;
 	bc->nodsp=0;
 	bc->nojitter=0;
