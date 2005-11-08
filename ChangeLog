@@ -1,3 +1,7 @@
+2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* include/asterisk/lock.h (__ast_pthread_mutex_lock): correct build with DETECT_DEADLOCKS defined (issue #5570)
+
 2005-11-07  Russell Bryant  <russell@digium.com>
 
 	* include/asterisk/app.h: Increment the arg_index in the options structure to fix applicaiton options that have arguments to them
