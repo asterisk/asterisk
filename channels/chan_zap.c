@@ -7236,16 +7236,22 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	return tmp;
 }
 
-static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, int *busy)
+static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, int *busy, int *channelmatched, int *groupmatched)
 {
 	int res;
 	ZT_PARAMS par;
 	/* First, check group matching */
-	if ((p->group & groupmatch) != groupmatch)
-		return 0;
+	if (groupmatch) {
+		if ((p->group & groupmatch) != groupmatch)
+			return 0;
+		*groupmatched = 1;
+	}
 	/* Check to see if we have a channel match */
-	if ((channelmatch > 0) && (p->channel != channelmatch))
-		return 0;
+	if (channelmatch) {
+		if (p->channel != channelmatch)
+			return 0;
+		*channelmatched = 1;
+	}
 	/* We're at least busy at this point */
 	if (busy) {
 		if ((p->sig == SIG_FXOKS) || (p->sig == SIG_FXOLS) || (p->sig == SIG_FXOGS))
@@ -7428,6 +7434,8 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 #endif	
 	struct zt_pvt *exit, *start, *end;
 	ast_mutex_t *lock;
+	int channelmatched = 0;
+	int groupmatched = 0;
 	
 	/* Assume we're locking the iflock */
 	lock = &iflock;
@@ -7528,7 +7536,8 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 #if 0
 		ast_verbose("name = %s, %d, %d, %d\n",p->owner ? p->owner->name : "<none>", p->channel, channelmatch, groupmatch);
 #endif
-		if (p && available(p, channelmatch, groupmatch, &busy)) {
+
+		if (p && available(p, channelmatch, groupmatch, &busy, &channelmatched, &groupmatched)) {
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Using channel %d\n", p->channel);
 				if (p->inalarm) 
@@ -7619,8 +7628,13 @@ next:
 	}
 	ast_mutex_unlock(lock);
 	restart_monitor();
-	if (callwait || (!tmp && busy))
-		*cause = AST_CAUSE_BUSY;
+	if (channelmatched) {
+		if (callwait || (!tmp && busy))
+			*cause = AST_CAUSE_BUSY;
+	} else if (groupmatched) {
+		*cause = AST_CAUSE_CONGESTION;
+	}
+		
 	return tmp;
 }
 

@@ -1,5 +1,8 @@
 2005-11-08  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* channels/chan_zap.c (zt_request): return AST_CAUSE_CONGESTION when a group-channel is requested and the group exists but all channels are busy (issue #3360, related fix)
+	* channels/chan_iax2.c (create_addr): treat UNREACHABLE as AST_CAUSE_UNREGISTERED so that it will generate CHANUNAVAIL from app_dial (issue #3360)
+
 	* res/res_features.c (ast_bridge_call_thread_launch): set SCHED_RR separately from thread creation, so it won't fail when running as non-root (issue #5601, different fix)
 
 	* pbx.c (pbx_builtin_pushvar_helper): add new API function for setting variables that can exist multiple times (issue #2720)

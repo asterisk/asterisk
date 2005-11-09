@@ -2753,7 +2753,7 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 	}
 
 	/* if the peer is being monitored and is currently unreachable, return failure */
-	if (peer->maxms && (peer->lastms > peer->maxms)) {
+	if (peer->maxms && ((peer->lastms > peer->maxms) || (peer->lastms < 0))) {
 		if (ast_test_flag(peer, IAX_TEMPONLY))
 			destroy_peer(peer);
 		return -1;
