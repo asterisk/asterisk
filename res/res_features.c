@@ -244,13 +244,14 @@ static void ast_bridge_call_thread_launch(void *data)
 {
 	pthread_t thread;
 	pthread_attr_t attr;
-	int result;
+	struct sched_param sched;
 
-	result = pthread_attr_init(&attr);
-	pthread_attr_setschedpolicy(&attr, SCHED_RR);
+	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	result = ast_pthread_create(&thread, &attr,ast_bridge_call_thread, data);
-	result = pthread_attr_destroy(&attr);
+	ast_pthread_create(&thread, &attr,ast_bridge_call_thread, data);
+	pthread_attr_destroy(&attr);
+	memset(&sched, 0, sizeof(sched));
+	pthread_setschedparam(thread, SCHED_RR, &sched);
 }
 
 

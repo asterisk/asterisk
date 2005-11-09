@@ -1,5 +1,7 @@
 2005-11-08  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* res/res_features.c (ast_bridge_call_thread_launch): set SCHED_RR separately from thread creation, so it won't fail when running as non-root (issue #5601, different fix)
+
 	* pbx.c (pbx_builtin_pushvar_helper): add new API function for setting variables that can exist multiple times (issue #2720)
 	* apps/Makefile (APPS): add app_stack (issue #2720)
 	* apps/app_stack.c: new applications (issue #2720)
