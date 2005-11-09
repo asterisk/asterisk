@@ -5660,6 +5660,9 @@ static int update_registry(char *name, struct sockaddr_in *sin, int callno, char
 	/* Setup the expiry */
 	if (p->expire > -1)
 		ast_sched_del(sched, p->expire);
+	/* treat an unspecified refresh interval as the minimum */
+	if (!refresh)
+		refresh = min_reg_expire;
 	if (refresh > max_reg_expire) {
 		ast_log(LOG_NOTICE, "Restricting registration for peer '%s' to %d seconds (requested %d)\n",
 			p->name, max_reg_expire, refresh);
