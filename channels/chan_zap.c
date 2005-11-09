@@ -7240,6 +7240,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 {
 	int res;
 	ZT_PARAMS par;
+
 	/* First, check group matching */
 	if (groupmatch) {
 		if ((p->group & groupmatch) != groupmatch)
@@ -7247,7 +7248,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 		*groupmatched = 1;
 	}
 	/* Check to see if we have a channel match */
-	if (channelmatch) {
+	if (channelmatch != -1) {
 		if (p->channel != channelmatch)
 			return 0;
 		*channelmatched = 1;
@@ -7336,7 +7337,7 @@ static inline int available(struct zt_pvt *p, int channelmatch, int groupmatch, 
 	}
 	
 	if ((p->owner->_state != AST_STATE_UP) &&
-		((p->owner->_state != AST_STATE_RINGING) || p->outgoing)) {
+	    ((p->owner->_state != AST_STATE_RINGING) || p->outgoing)) {
 		/* If the current call is not up, then don't allow the call */
 		return 0;
 	}
@@ -7628,11 +7629,15 @@ next:
 	}
 	ast_mutex_unlock(lock);
 	restart_monitor();
-	if (channelmatched) {
-		if (callwait || (!tmp && busy))
-			*cause = AST_CAUSE_BUSY;
-	} else if (groupmatched) {
-		*cause = AST_CAUSE_CONGESTION;
+	if (callwait)
+		*cause = AST_CAUSE_BUSY;
+	else if (!tmp) {
+		if (channelmatched) {
+			if (busy)
+				*cause = AST_CAUSE_BUSY;
+		} else if (groupmatched) {
+			*cause = AST_CAUSE_CONGESTION;
+		}
 	}
 		
 	return tmp;
