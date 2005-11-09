@@ -23,6 +23,10 @@
 #ifndef _ASTERISK_FILE_H
 #define _ASTERISK_FILE_H
 
+#ifndef stdin
+#error You must include stdio.h before file.h!
+#endif /* !stdin */
+
 #include "asterisk/channel.h"
 #include "asterisk/frame.h"
 #include <fcntl.h>
