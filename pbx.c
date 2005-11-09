@@ -1520,7 +1520,7 @@ static void pbx_substitute_variables_helper_full(struct ast_channel *c, struct v
 
 			workspace[0] = '\0';
 
-			parse_variable_name(var, &offset, &offset2, &isfunction);
+			parse_variable_name(vars, &offset, &offset2, &isfunction);
 			if (isfunction) {
 				/* Evaluate function */
 				cp4 = ast_func_read(c, vars, workspace, VAR_BUF_SIZE);
