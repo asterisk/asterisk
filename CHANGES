@@ -28,120 +28,100 @@ Changes since Asterisk 1.0:
 This list currently only containts changes made from the end of November until
 March 26, 2005.
 
-app AgentMonitorOutgoing
- -- new application
-app Answer
- -- added delay option
-app ChanIsAvail
- -- added 's' option
-app Curl
- -- new app
-app Dial
- -- add option to specify the class for musiconhold with m option
-app Directory
- -- added info on pressing 0 to go to the operator
-app ExecIf
- -- new app
-app ExecIfTime
- -- new app
-app EnumLookup
- -- added "reload enum" for config
-app Goto
- -- added relative priorities
-app GotoIf
- -- added relative priorities
-app IAX2Provision
- -- new application, with config - iaxprov.conf
-app MacroExit
- -- new app
-app MacroIf
- -- new application
-app MeetMe
- -- added 'i' option
- -- added 'r' option
- -- added 'T' option
- -- added 'P' option
- -- added 'c' option
- -- added adminpin to meetme.conf
- -- added reload command
-app PauseQueueMember
- -- new app
-app PrivacyManager
- -- add config file privacy.conf
-app queue
- -- queues.conf
-    -- added persistentmembers option to queues.conf
-    -- changed music option to musiconhold
-    -- added weight option
-    -- added note about why agent groups probably shouldn't be used
-    -- added timeoutrestart option
-app Read
- -- added attempts parameter
- -- added timeout parameter
-app ReadFile
- -- new app
-app Record
- -- added 'q' option
-app RetryDial
- -- new app
-app SendDTMF
- -- add timeout option
-app SetRDNIS
- -- new app
-app SIPAddHeader
- -- new application
-app SIPGetHeader
- -- new application
-app SMS
- -- document alternative syntax for queueing messages
-app StartMusicOnHold / StopMusicOnHold
- -- new apps
-app UnpauseQueueMember
- -- new app
-app WaitForSilence
- -- new application
-app While
- -- new app
-app Voicemail
- -- add info about VM_CATEGORY
-voicemail.conf
- -- added usedirectory option
- -- added VM_CIDNUM and VM_CIDNAME in message config
-chan IAX2
- -- new jitterbuffer
- -- added setvar option
- -- added regex to iax2 show peers/users
- -- allow multiple bindaddr lines in iax.conf
- -- added reload command
- -- added forcejitterbuffer option
- -- added note about specifying bindport before bindaddr
- -- added trunktimestamps option
-chan agent
- -- added agent logoff CLI command
-chan OSS
- -- added Flash CLI command
-chan SIP
- -- added setvar option
- -- added compactheaders option
- -- added usereqphone option
- -- added registertimeout option
- -- added externhost option
- -- added sip notify CLI command
- -- added sip_notify.conf
- -- added allowguest option
-chan Zap
- -- added hanguponplarityswitch option
- -- added sendcalleridafter option
- -- added priresetinterval option
- -- added TON/NPI config options (the ones right above the resetinterval option)
- -- added answeronpolarityswitch option
- -- added "never" for resetinterval
-extensions
- -- added info on using '*' when including files (#include "sip-*.conf")
- -- redid section on available variables to include new variables,
-    variables from various applications, and CDR variables
- -- added CLI commands
- -- added eswitch
- -- added #exec syntax for including output from a command
- -- added show features CLI command
- -- added section on category inheritance
+   * Add new applications:
+     -- AgentMonitorOutgoing
+     -- Curl
+     -- ExecIf
+     -- ExecIfTime
+     -- IAX2Provision
+     -- MacroExit
+     -- MacroIf
+     -- PauseQueueMember
+     -- ReadFile
+     -- SetRDNIS
+     -- SIPAddHeader
+     -- SIPGetHeader
+     -- StartMusicOnHold
+     -- StopMusicOnHold
+     -- UnpauseQueueMember
+     -- WaitForSilence
+     -- While / EndWhile
+   * app Answer
+     -- added delay option
+   * app ChanIsAvail
+     -- added 's' option
+   * app Dial
+     -- add option to specify the class for musiconhold with m option
+   * app EnumLookup
+     -- added "reload enum" for configuration
+   * app Goto
+     -- added relative priorities
+   * app GotoIf
+     -- added relative priorities
+   * app MeetMe
+     -- added 'i' option
+     -- added 'r' option
+     -- added 'T' option
+     -- added 'P' option
+     -- added 'c' option
+     -- added adminpin to meetme.conf
+     -- added reload command
+   * app PrivacyManager
+     -- add config file privacy.conf
+   * app queue
+     -- queues.conf
+        -- added persistentmembers option to queues.conf
+        -- changed music option to musiconhold
+        -- added weight option
+        -- added note about why agent groups probably shouldn't be used
+        -- added timeoutrestart option
+   * app Read
+     -- added attempts parameter
+     -- added timeout parameter
+   * app Record
+     -- added 'q' option
+   * app SendDTMF
+     -- add timeout option
+   * app SMS
+     -- document alternative syntax for queueing messages
+   * app Voicemail
+     -- add info about VM_CATEGORY
+     -- voicemail.conf
+        -- added usedirectory option
+        -- added VM_CIDNUM and VM_CIDNAME in message config
+   * chan IAX2
+     -- new jitterbuffer
+     -- added setvar option
+     -- added regex to iax2 show peers/users
+     -- allow multiple bindaddr lines in iax.conf
+     -- added reload command
+     -- added forcejitterbuffer option
+     -- added note about specifying bindport before bindaddr
+     -- added trunktimestamps option
+   * chan Agent
+     -- added agent logoff CLI command
+   * chan OSS
+     -- added Flash CLI command
+   * chan SIP
+     -- added setvar option
+     -- added compactheaders option
+     -- added usereqphone option
+     -- added registertimeout option
+     -- added externhost option
+     -- added sip notify CLI command
+     -- added sip_notify.conf
+     -- added allowguest option
+   * chan Zap
+     -- added hanguponplarityswitch option
+     -- added sendcalleridafter option
+     -- added priresetinterval option
+     -- added TON/NPI config options (the ones right above the resetinterval option)
+     -- added answeronpolarityswitch option
+     -- added "never" for resetinterval
+   * extensions
+     -- allow '*' when including files (#include "sip-*.conf")
+     -- added eswitch
+   * General
+     -- added #exec syntax for including output from a command
+     -- added show features CLI command
+     -- added configuration templates for category inheritance
