@@ -242,52 +242,54 @@ static struct pbx_builtin {
 
 	{ "AbsoluteTimeout", pbx_builtin_atimeout,
 	"Set absolute maximum time of call",
-	"  AbsoluteTimeout(seconds): Set the absolute maximum amount of time permitted\n"
-	"for a call.  A setting of 0 disables the timeout.  Always returns 0.\n" 
-	"AbsoluteTimeout has been deprecated in favor of Set(TIMEOUT(absolute)=timeout)\n"
+	"  AbsoluteTimeout(seconds): This application will set the absolute maximum\n"
+	"amount of time permitted for a call. A setting of 0 disables the timeout.\n"
+	"  AbsoluteTimeout has been deprecated in favor of Set(TIMEOUT(absolute)=timeout)\n"
 	},
 
 	{ "Answer", pbx_builtin_answer, 
 	"Answer a channel if ringing", 
-	"  Answer([delay]): If the channel is ringing, answer it, otherwise do nothing. \n"
-	"If delay is specified, asterisk will pause execution for the specified amount\n"
-	"of milliseconds if an answer is required, in order to give audio a chance to\n"
-	"become ready. Returns 0 unless it tries to answer the channel and fails.\n"   
+	"  Answer([delay]): If the call has not been answered, this application will\n"
+	"answer it. Otherwise, it has no effect on the call. If a delay is specified,\n"
+	"Asterisk will wait this number of milliseconds before answering the call.\n"
 	},
 
 	{ "BackGround", pbx_builtin_background,
 	"Play a file while awaiting extension",
 	"  Background(filename1[&filename2...][|options[|langoverride][|context]]):\n"
-	"Plays given files, while simultaneously waiting for the user to begin typing\n"
-	"an extension. The timeouts do not count until the last BackGround\n"
-	"application has ended. Options may also be included following a pipe \n"
-	"symbol. The 'langoverride' may be a language to use for playing the prompt\n"
-	"which differs from the current language of the channel.  The optional\n"
-	"'context' can be used to specify an optional context to exit into.\n"
-	"Returns -1 if thhe channel was hung up, or if the file does not exist./n"
-	"Returns 0 otherwise.\n\n"
+	"This application will play the given list of files while waiting for an\n"
+	"extension to be dialed by the calling channel. To continue waiting for digits\n"
+	"after this application has finished playing files, the WaitExten application\n"
+	"should be used. The 'langoverride' option explicity specifies which language\n"
+	"to attempt to use for the requested sound files. If a 'context' is specified,\n"
+	"this is the dialplan context that this application will use when exiting to a\n"
+	"dialed extension."
+	"  If one of the requested sound files does not exist, call processing will be\n"
+	"terminated.\n"
 	"  Options:\n"
-	"    's' - causes the playback of the message to be skipped\n"
+	"    s - causes the playback of the message to be skipped\n"
 	"          if the channel is not in the 'up' state (i.e. it\n"
 	"          hasn't been answered yet.) If this happens, the\n"
 	"          application will return immediately.\n"
-	"    'n' - don't answer the channel before playing the files\n"
-	"    'm' - only break if a digit hit matches a one digit\n"
-	"		 extension in the destination context\n"
+	"    n - don't answer the channel before playing the files\n"
+	"    m - only break if a digit hit matches a one digit\n"
+	"          extension in the destination context\n"
 	},
 
 	{ "Busy", pbx_builtin_busy,
-	"Indicate busy condition and stop",
-	"  Busy([timeout]): Requests that the channel indicate busy condition and\n"
-	"then waits for the user to hang up or the optional timeout to expire.\n"
-	"Always returns -1." 
+	"Indicate the Busy condition",
+	"  Busy([timeout]): This application will indicate the busy condition to\n"
+	"the calling channel. If the optional timeout is specified, the calling channel\n"
+	"will be hung up after the specified number of seconds. Otherwise, this\n"
+	"application will wait until the calling channel hangs up.\n"
 	},
 
 	{ "Congestion", pbx_builtin_congestion,
-	"Indicate congestion and stop",
-	"  Congestion([timeout]): Requests that the channel indicate congestion\n"
-	"and then waits for the user to hang up or for the optional timeout to\n"
-	"expire.  Always returns -1." 
+	"Indicate the Congestion condition",
+	"  Congestion([timeout]): This application will indicate the congenstion\n"
+	"condition to the calling channel. If the optional timeout is specified, the\n"
+	"calling channel will be hung up after the specified number of seconds.\n"
+	"Otherwise, this application will wait until the calling channel hangs up.\n"
 	},
 
 	{ "DigitTimeout", pbx_builtin_dtimeout,
@@ -300,226 +302,225 @@ static struct pbx_builtin {
 	"at the expiry of this timeout, the extension will be considered invalid\n"
 	"(and thus control would be passed to the 'i' extension, or if it doesn't\n"
 	"exist the call would be terminated). The default timeout is 5 seconds.\n"
-	"Always returns 0.\n" 
-	"DigitTimeout has been deprecated in favor of Set(TIMEOUT(digit)=timeout)\n"
+	"  DigitTimeout has been deprecated in favor of Set(TIMEOUT(digit)=timeout)\n"
 	},
 
 	{ "Goto", pbx_builtin_goto, 
-	"Goto a particular priority, extension, or context",
-	"  Goto([[context|]extension|]priority):  Set the  priority to the specified\n"
-	"value, optionally setting the extension and optionally the context as well.\n"
-	"The extension BYEXTENSION is special in that it uses the current extension,\n"
-	"thus  permitting you to go to a different context, without specifying a\n"
-	"specific extension. Always returns 0, even if the given context, extension,\n"
-	"or priority is invalid.\n" 
+	"Jump to a particular priority, extension, or context",
+	"  Goto([[context|]extension|]priority): This application will cause the\n"
+	"calling channel to continue dialplan execution at the specified priority.\n"
+	"If no specific extension, or extension and context, are specified, then this\n"
+	"application will jump to the specified priority of the current extension.\n"
+	"  If the attempt to jump to another location in the dialplan is not successful,\n"
+	"then the channel will continue at the next priority of the current extension.\n"
 	},
 
 	{ "GotoIf", pbx_builtin_gotoif,
 	"Conditional goto",
-	"  GotoIf(Condition?label1:label2): Go to label 1 if condition is\n"
-	"true, to label2 if condition is false. Either label1 or label2 may be\n"
-	"omitted (in that case, we just don't take the particular branch) but not\n"
-	"both. Look for the condition syntax in examples or documentation." 
+	"  GotoIf(Condition?[label1]:[label2]): This application will cause the calling\n"
+	"channel to jump to the speicifed location in the dialplan based on the\n"
+	"evaluation of the given condition. The channel will continue at 'label1' if the\n"
+	"condition is true, or 'label2' if the condition is false. The labels are\n"
+	"specified in the same syntax that is used with the Goto application.\n"
 	},
 
 	{ "GotoIfTime", pbx_builtin_gotoiftime,
-	"Conditional goto on current time",
-	"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]extension|]pri):\n"
-	"If the current time matches the specified time, then branch to the specified\n"
-	"extension. Each of the elements may be specified either as '*' (for always)\n"
-	"or as a range. See the 'include' syntax for details." 
+	"Conditional Goto based on the current time",
+	"  GotoIfTime(<times>|<weekdays>|<mdays>|<months>?[[context|]exten|]priority):\n"
+	"This application will have the calling channel jump to the speicified location\n"
+	"int the dialplan if the current time matches the given time specification.\n"
+	"Further information on the time specification can be found in examples\n"
+	"illustrating how to do time-based context includes in the dialplan.\n" 
 	},
 
 	{ "ExecIfTime", pbx_builtin_execiftime,
-	"Conditional application execution on current time",
-	"  ExecIfTime(<times>|<weekdays>|<mdays>|<months>?<appname>[|<appdata>]):\n"
-	"If the current time matches the specified time, then execute the specified\n"
-	"application. Each of the elements may be specified either as '*' (for always)\n"
-	"or as a range. See the 'include' syntax for details. It will return whatever\n"
-	"<appname> returns, or a non-zero value if the application is not found.\n"
+	"Conditional application execution based on the current time",
+	"  ExecIfTime(<times>|<weekdays>|<mdays>|<months>?appname[|appargs]):\n"
+	"This application will execute the specified dialplan application, with optional\n"
+	"arguments, if the current time matches the given time specification. Further\n"
+	"information on the time speicification can be found in examples illustrating\n"
+	"how to do time-based context includes in the dialplan.\n"
 	},
 	
 	{ "Hangup", pbx_builtin_hangup,
-	"Unconditional hangup",
-	"  Hangup(): Unconditionally hangs up a given channel by returning -1 always.\n" 
+	"Hang up the calling channel",
+	"  Hangup(): This application will hang up the calling channel.\n"
 	},
 
 	{ "NoOp", pbx_builtin_noop,
-	"No operation",
-	"  NoOp(): No-operation; Does nothing." 
+	"Do Nothing",
+	"  NoOp(): This applicatiion does nothing. However, it is useful for debugging\n"
+	"purposes. Any text that is provided as arguments to this application can be\n"
+	"viewed at the Asterisk CLI. This method can be used to see the evaluations of\n"
+	"variables or functions without having any effect." 
 	},
 
 	{ "Prefix", pbx_builtin_prefix, 
-	"Prepend leading digits",
-	"  Prefix(digits): Prepends the digit string specified by digits to the\n"
-	"channel's associated extension. For example, the number 1212 when prefixed\n"
-	"with '555' will become 5551212. This app always returns 0, and the PBX will\n"
-	"continue processing at the next priority for the *new* extension.\n"
-	"  So, for example, if priority  3  of 1212 is  Prefix  555, the next step\n"
-	"executed will be priority 4 of 5551212. If you switch into an extension\n"
-	"which has no first step, the PBX will treat it as though the user dialed an\n"
-	"invalid extension.\n" 
+	"Prepend digits to the current extension",
+	"  Prefix(digits): This application will insert the specified digits to the\n"
+	"beginning of the current extension. Call processing will then continue at\n"
+	"the next priority, but at the new extension.\n"
+	"  For example, if priority 3 of extension 1212 is Prefix(555), the next step\n"
+	"executed will be priority 4 of 5551212.\n"
 	},
 
 	{ "Progress", pbx_builtin_progress,
 	"Indicate progress",
-	"  Progress(): Request that the channel indicate in-band progress is \n"
-	"available to the user.\nAlways returns 0.\n" 
+	"  Progress(): This application will request that in-band progress information\n"
+	"be provided to the calling channel.\n"
 	},
 
 	{ "ResetCDR", pbx_builtin_resetcdr,
 	"Resets the Call Data Record",
-	"  ResetCDR([options]):  Causes the Call Data Record to be reset, optionally\n"
-	"storing the current CDR before zeroing it out\b"
-	" - if 'w' option is specified record will be stored.\n"
-	" - if 'a' option is specified any stacked records will be stored.\n"
-	" - if 'v' option is specified any variables will be saved.\n"
-	"Always returns 0.\n"  
+	"  ResetCDR([options]):  This application causes the Call Data Record to be\n"
+	"reset.\n"
+	"  Options:\n"
+	"    w -- Store the current CDR record before resetting it.\n"
+	"    a -- Store any stacked records.\n"
+	"    v -- Save CDR variables.\n"
 	},
 
 	{ "ResponseTimeout", pbx_builtin_rtimeout,
 	"Set maximum timeout awaiting response",
-	"  ResponseTimeout(seconds): Set the maximum amount of time permitted after\n"
-	"falling through a series of priorities for a channel in which the user may\n"
-	"begin typing an extension. If the user does not type an extension in this\n"
-	"amount of time, control will pass to the 't' extension if it exists, and\n"
-	"if not the call would be terminated. The default timeout is 10 seconds.\n"
-	"Always returns 0.\n"  
-	"ResponseTimeout has been deprecated in favor of Set(TIMEOUT(response)=timeout)\n"
+	"  ResponseTimeout(seconds): This will set the maximum amount of time permitted\n"
+	"to wait for an extension to dialed (see the WaitExten application), before the\n"
+	"timeout occurs. If this timeout is reached, dialplan execution will continue at\n"
+	"the 't' extension, if it exists.\n"
+	"  ResponseTimeout has been deprecated in favor of Set(TIMEOUT(response)=timeout)\n"
 	},
 
 	{ "Ringing", pbx_builtin_ringing,
 	"Indicate ringing tone",
-	"  Ringing(): Request that the channel indicate ringing tone to the user.\n"
-	"Always returns 0.\n" 
+	"  Ringing(): This application will request that the channel indicate a ringing\n"
+	"tone to the user.\n"
 	},
 
 	{ "SayNumber", pbx_builtin_saynumber,
 	"Say Number",
-	"  SayNumber(digits[,gender]): Says the passed number. SayNumber is using\n" 
-	"the current language setting for the channel. (See app SetLanguage).\n"
+	"  SayNumber(digits[,gender]): This application will play the sounds that\n"
+	"correspond to the given number. Optionally, a gender may be specified.\n"
+	"This will use the language that is currently set for the channel. See the\n"
+	"LANGUAGE function for more information on setting the language for the channel.\n"	
 	},
 
 	{ "SayDigits", pbx_builtin_saydigits,
 	"Say Digits",
-	"  SayDigits(digits): Says the passed digits. SayDigits is using the\n" 
-	"current language setting for the channel. (See app setLanguage)\n"
+	"  SayDigits(digits): This application will play the sounds that correspond\n"
+	"to the digits of the given number. This will use the language that is currently\n"
+	"set for the channel. See the LANGUAGE function for more information on setting\n"
+	"the language for the channel.\n"
 	},
 
 	{ "SayAlpha", pbx_builtin_saycharacters,
 	"Say Alpha",
-	"  SayAlpha(string): Spells the passed string\n" 
+	"  SayAlpha(string): This application will play the sounds that correspond to\n"
+	"the letters of the given string.\n" 
 	},
 
 	{ "SayPhonetic", pbx_builtin_sayphonetic,
 	"Say Phonetic",
-	"  SayPhonetic(string): Spells the passed string with phonetic alphabet\n" 
+	"  SayPhonetic(string): This application will play the sounds from the phonetic\n"
+	"alphabet that correspond to the letters in the given string.\n"
 	},
 
 	{ "SetAccount", pbx_builtin_setaccount,
-	"Sets account code",
-	"  SetAccount([account]): Set the channel account code for billing\n"
-	"purposes. Always returns 0.\n"
+	"Set the CDR Account Code",
+	"  SetAccount([account]): This application will set the channel account code for\n"
+	"billing purposes.\n"
+	"  SetAccount has been deprecated in favor of the Set(CDR(accountcode)=account).\n"
 	},
 
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
-	"Sets AMA Flags",
-	"  SetAMAFlags([flag]): Set the channel AMA Flags for billing\n"
-	"purposes. Always returns 0.\n"
+	"Set the AMA Flags",
+	"  SetAMAFlags([flag]): This channel will set the channel's AMA Flags for billing\n"
+	"purposes.\n"
 	},
 
 	{ "SetGlobalVar", pbx_builtin_setglobalvar,
-	"Set global variable to value",
-	"  SetGlobalVar(#n=value): Sets global variable n to value. Global\n" 
-	"variable are available across channels.\n"
+	"Set a global variable to a given value",
+	"  SetGlobalVar(variable=value): This application sets a given global variable to\n"
+	"the specified value.\n"
 	},
 
 	{ "SetLanguage", pbx_builtin_setlanguage,
-	"Sets channel language",
-	"  SetLanguage(language): Set the channel language to 'language'. This\n"
-	"information is used for the syntax in generation of numbers, and to choose\n"
-	"a natural language file when available.\n"
+	"Set the channel's preferred language",
+	"  SetLanguage(language): This will set the channel language to the given value.\n"
+	"This information is used for the syntax in generation of numbers, and to choose\n"
+	"a sound file in the given language, when it is available.\n"
 	"  For example, if language is set to 'fr' and the file 'demo-congrats' is \n"
 	"requested to be played, if the file 'fr/demo-congrats' exists, then\n"
-	"it will play that file, and if not will play the normal 'demo-congrats'.\n"
+	"it will play that file. If not, it will play the normal 'demo-congrats'.\n"
 	"For some language codes, SetLanguage also changes the syntax of some\n"
 	"Asterisk functions, like SayNumber.\n"
-	"Always returns 0.\n"
-	"SetLanguage has been deprecated in favor of Set(LANGUAGE()=language)\n"
+	"  SetLanguage has been deprecated in favor of Set(LANGUAGE()=language)\n"
 	},
 
 	{ "Set", pbx_builtin_setvar,
-	  "Set channel variable(s) or function value(s)",
-	  "  Set(name1=value1|name2=value2|..[|options])\n"
-	  "This function can be used to set the value of channel variables\n"
-	  "or dialplan functions. It will accept up to 24 name/value pairs.\n"
-	  "When setting variables, if the variable name is prefixed with _,\n"
-	  "the variable will be inherited into channels created from the\n"
-	  "current channel. If the variable name is prefixed with __,\n"
-	  "the variable will be inherited into channels created from the\n"
-	  "current channel and all child channels.\n"
-	  "The last argument, if it does not contain '=', is interpreted\n"
-	  "as a string of options. The valid options are:\n"
-	  "  g - Set variable globally instead of on the channel\n"
-	  "      (applies only to variables, not functions)\n"
+	"Set channel variable(s) or function value(s)",
+	"  Set(name1=value1|name2=value2|..[|options])\n"
+	"This function can be used to set the value of channel variables or dialplan\n"
+	"functions. It will accept up to 24 name/value pairs. When setting variables,\n"
+	"if the variable name is prefixed with _, the variable will be inherited into\n"
+	"channels created from the current channel. If the variable name is prefixed\n"
+	"with __, the variable will be inherited into channels created from the current\n"
+	"channel and all children channels.\n"
+	"  Options:\n" 
+	"    g - Set variable globally instead of on the channel\n"
+	"        (applies only to variables, not functions)\n"
 	},
 
 	{ "SetVar", pbx_builtin_setvar_old,
-	  "Set channel variable(s)",
-	  "  SetVar(name1=value1|name2=value2|..[|options])\n"
-	  "SetVar has been deprecated in favor of Set.\n"
+	"Set channel variable(s)",
+	"  SetVar(name1=value1|name2=value2|..[|options]): This application has been\n"
+	"deprecated in favor of using the Set application.\n"
 	},
 
 	{ "ImportVar", pbx_builtin_importvar,
 	"Import a variable from a channel into a new variable",
-	"  ImportVar(newvar=channelname|variable): This application imports a\n"
-	"variable from the specified channel (as opposed to the current one)\n"
-	"and stores it as a variable in the current channel (the channel that\n"
-	"is calling this application). If the new variable name is prefixed by\n"
-	"a single underscore \"_\", then it will be inherited into any channels\n"
-	"created from this one. If it is prefixed with two underscores,then\n"
-	"the variable will have infinite inheritance, meaning that it will be\n"
-	"present in any descendent channel of this one.\n"
+	"  ImportVar(newvar=channelname|variable): This application imports a variable\n"
+	"from the specified channel (as opposed to the current one) and stores it as\n"
+	"a variable in the current channel (the channel that is calling this\n"
+	"application). Variables created by this application have the same inheritance\n"
+	"properties as those created with the Set application. See the documentation for\n"
+	"Set for more information.\n"
 	},
 
 	{ "StripMSD", pbx_builtin_stripmsd,
 	"Strip leading digits",
 	"  StripMSD(count): Strips the leading 'count' digits from the channel's\n"
 	"associated extension. For example, the number 5551212 when stripped with a\n"
-	"count of 3 would be changed to 1212. This app always returns 0, and the PBX\n"
-	"will continue processing at the next priority for the *new* extension.\n"
+	"count of 3 would be changed to 1212. The channel will continue dialplan\n"
+	"execution at the next priority for the *new* extension.\n"
 	"  So, for example, if priority 3 of 5551212 is StripMSD 3, the next step\n"
-	"executed will be priority 4 of 1212. If you switch into an extension which\n"
-	"has no first step, the PBX will treat it as though the user dialed an\n"
-	"invalid extension.\n" 
+	"executed will be priority 4 of 1212.\n"
 	},
 
 	{ "Suffix", pbx_builtin_suffix, 
 	"Append trailing digits",
 	"  Suffix(digits): Appends the digit string specified by digits to the\n"
 	"channel's associated extension. For example, the number 555 when suffixed\n"
-	"with '1212' will become 5551212. This app always returns 0, and the PBX will\n"
-	"continue processing at the next priority for the *new* extension.\n"
+	"with '1212' will become 5551212. The channel will continune dialplan execution\n"
+	"at the next priority for the *new* extension.\n"
 	"  So, for example, if priority 3 of 555 is Suffix 1212, the next step\n"
-	"executed will be priority 4 of 5551212. If you switch into an extension\n"
-	"which has no first step, the PBX will treat it as though the user dialed an\n"
-	"invalid extension.\n" 
+	"executed will be priority 4 of 5551212.\n"
 	},
 
 	{ "Wait", pbx_builtin_wait, 
 	"Waits for some time", 
-	"  Wait(seconds): Waits for a specified number of seconds, then returns 0.\n"
-	"seconds can be passed with fractions of a second. (eg: 1.5 = 1.5 seconds)\n" 
+	"  Wait(seconds): This application waits for a specified number of seconds.\n"
+	"Then, dialplan execution will continue at the next priority.\n"
+	"  Note that the seconds can be passed with fractions of a second. For example,\n"
+	"'1.5' will ask the application to wait for 1.5 seconds.\n" 
 	},
 
 	{ "WaitExten", pbx_builtin_waitexten, 
 	"Waits for an extension to be entered", 
-	"  WaitExten([seconds][|options]): Waits for the user to enter a new extension for the \n"
-	"specified number of seconds, then returns 0. Seconds can be passed with\n"
-	"fractions of a seconds (eg: 1.5 = 1.5 seconds) or if unspecified the\n"
-	"default extension timeout will be used.\n"
+	"  WaitExten([seconds][|options]): This application waits for the user to enter\n"
+	"a new extension for a specified number of seconds.\n"
+	"  Note that the seconds can be passed with fractions of a second. For example,\n"
+	"'1.5' will ask the application to wait for 1.5 seconds.\n" 
 	"  Options:\n"
-	"    'm[(x)]' - Provide music on hold to the caller while waiting for an extension.\n"
+	"    m[(x)] - Provide music on hold to the caller while waiting for an extension.\n"
 	"               Optionally, specify the class for music on hold within parenthesis.\n"
 	},
 
@@ -5362,7 +5363,7 @@ static void wait_for_hangup(struct ast_channel *chan, void *data)
 	struct ast_frame *f;
 	int waittime;
 	
-	if (!data || !strlen(data) || (sscanf(data, "%d", &waittime) != 1) || (waittime < 0))
+	if (ast_strlen_zero(data) || (sscanf(data, "%d", &waittime) != 1) || (waittime < 0))
 		waittime = -1;
 	if (waittime > -1) {
 		ast_safe_sleep(chan, waittime * 1000);
@@ -6091,7 +6092,7 @@ static int pbx_checkcondition(char *condition)
 
 static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 {
-	char *condition,*branch1,*branch2,*branch;
+	char *condition, *branch1, *branch2, *branch;
 	char *s;
 	int rc;
 	char *stringp=NULL;
@@ -6101,21 +6102,21 @@ static int pbx_builtin_gotoif(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	
-	s=ast_strdupa(data);
-	stringp=s;
-	condition=strsep(&stringp,"?");
-	branch1=strsep(&stringp,":");
-	branch2=strsep(&stringp,"");
+	s = ast_strdupa(data);
+	stringp = s;
+	condition = strsep(&stringp,"?");
+	branch1 = strsep(&stringp,":");
+	branch2 = strsep(&stringp,"");
 	branch = pbx_checkcondition(condition) ? branch1 : branch2;
 	
 	if (ast_strlen_zero(branch)) {
 		ast_log(LOG_DEBUG, "Not taking any branch\n");
-		return(0);
+		return 0;
 	}
 	
-	rc=pbx_builtin_goto(chan,branch);
+	rc = pbx_builtin_goto(chan, branch);
 
-	return(rc);
+	return rc;
 }           
 
 static int pbx_builtin_saynumber(struct ast_channel *chan, void *data)

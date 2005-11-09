@@ -1,3 +1,7 @@
+2005-11-09  Russell Bryant <russell@digium.com>
+
+	* pbx.c: Clean up descriptions of built-in dialplan applications. Changes include clearer wording and not referring to return values.
+
 2005-11-09  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* channels/chan_iax2.c (update_registry): don't complain about unspecifed registration expiration intervals, just use the minimum
