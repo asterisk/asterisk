@@ -107,18 +107,83 @@ static void odbc_init(void)
 static char *tdesc = "ODBC Resource";
 /* internal stuff */
 
+SQLHSTMT odbc_prepare_and_execute(odbc_obj *obj, SQLHSTMT (*prepare_cb)(odbc_obj *obj, void *data), void *data)
+{
+	int res = 0, i, attempt;
+	SQLINTEGER nativeerror=0, numfields=0;
+	SQLSMALLINT diagbytes=0;
+	unsigned char state[10], diagnostic[256];
+	SQLHSTMT stmt;
+
+	for (attempt = 0; attempt < 2; attempt++) {
+		/* This prepare callback may do more than just prepare -- it may also
+		 * bind parameters, bind results, etc.  The real key, here, is that
+		 * when we disconnect, all handles become invalid for most databases.
+		 * We must therefore redo everything when we establish a new
+		 * connection. */
+		stmt = prepare_cb(obj, data);
+
+		if (stmt) {
+			res = SQLExecute(stmt);
+			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
+				if (res == SQL_ERROR) {
+					SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+					for (i=0; i< numfields + 1; i++) {
+						SQLGetDiagRec(SQL_HANDLE_STMT, stmt, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+						ast_log(LOG_WARNING, "SQL Execute returned an error %d: %s: %s (%d)\n", res, state, diagnostic, diagbytes);
+						if (i > 10) {
+							ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+							break;
+						}
+					}
+				}
+
+				ast_log(LOG_WARNING, "SQL Execute error %d! Attempting a reconnect...\n", res);
+				SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+
+				ast_mutex_lock(&obj->lock);
+				obj->up = 0;
+				ast_mutex_unlock(&obj->lock);
+				odbc_obj_disconnect(obj);
+				odbc_obj_connect(obj);
+				continue;
+			}
+			break;
+		}
+	}
+
+	return stmt;
+}
+
 int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt) 
 {
-	int res = 0;
+	int res = 0, i;
+	SQLINTEGER nativeerror=0, numfields=0;
+	SQLSMALLINT diagbytes=0;
+	unsigned char state[10], diagnostic[256];
+
 	res = SQLExecute(stmt);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO) && (res != SQL_NO_DATA)) {
-		ast_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
+		if (res == SQL_ERROR) {
+			SQLGetDiagField(SQL_HANDLE_STMT, stmt, 1, SQL_DIAG_NUMBER, &numfields, SQL_IS_INTEGER, &diagbytes);
+			for (i=0; i< numfields + 1; i++) {
+				SQLGetDiagRec(SQL_HANDLE_STMT, stmt, i + 1, state, &nativeerror, diagnostic, sizeof(diagnostic), &diagbytes);
+				ast_log(LOG_WARNING, "SQL Execute returned an error %d: %s: %s (%d)\n", res, state, diagnostic, diagbytes);
+				if (i > 10) {
+					ast_log(LOG_WARNING, "Oh, that was good.  There are really %d diagnostics?\n", (int)numfields);
+					break;
+				}
+			}
+		}
+/*
+		ast_log(LOG_WARNING, "SQL Execute error %d! Attempting a reconnect...\n", res);
 		ast_mutex_lock(&obj->lock);
 		obj->up = 0;
 		ast_mutex_unlock(&obj->lock);
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
 		res = SQLExecute(stmt);
+*/
 	}
 	
 	return res;
@@ -129,7 +194,7 @@ int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql)
 {
 	int res = 0;
 
-	res = SQLExecDirect (stmt, sql, SQL_NTS);
+	res = SQLExecDirect (stmt, (unsigned char *)sql, SQL_NTS);
 	if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 		ast_log(LOG_WARNING, "SQL Execute error! Attempting a reconnect...\n");
 		ast_mutex_lock(&obj->lock);
@@ -137,7 +202,7 @@ int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql)
 		ast_mutex_unlock(&obj->lock);
 		odbc_obj_disconnect(obj);
 		odbc_obj_connect(obj);
-		res = SQLExecDirect (stmt, sql, SQL_NTS);
+		res = SQLExecDirect (stmt, (unsigned char *)sql, SQL_NTS);
 	}
 	
 	return res;
@@ -155,7 +220,7 @@ int odbc_sanity_check(odbc_obj *obj)
 		if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 			obj->up = 0; /* Liar!*/
 		} else {
-			res = SQLPrepare(stmt, test_sql, SQL_NTS);
+			res = SQLPrepare(stmt, (unsigned char *)test_sql, SQL_NTS);
 			if ((res != SQL_SUCCESS) && (res != SQL_SUCCESS_WITH_INFO)) {
 				obj->up = 0; /* Liar!*/
 			} else {
@@ -442,7 +507,7 @@ odbc_status odbc_obj_connect(odbc_obj *obj)
 	int res;
 	SQLINTEGER err;
 	short int mlen;
-	char msg[200], stat[10];
+	unsigned char msg[200], stat[10];
 
 	ast_mutex_lock(&obj->lock);
 

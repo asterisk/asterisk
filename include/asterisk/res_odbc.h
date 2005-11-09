@@ -55,6 +55,7 @@ int register_odbc_obj(char *name,odbc_obj *obj);
 odbc_obj *fetch_odbc_obj(const char *name, int check);
 int odbc_dump_fd(int fd,odbc_obj *obj);
 int odbc_sanity_check(odbc_obj *obj);
+SQLHSTMT odbc_prepare_and_execute(odbc_obj *obj, SQLHSTMT (*prepare_cb)(odbc_obj *obj, void *data), void *data);
 int odbc_smart_execute(odbc_obj *obj, SQLHSTMT stmt);
 int odbc_smart_direct_execute(odbc_obj *obj, SQLHSTMT stmt, char *sql);
 

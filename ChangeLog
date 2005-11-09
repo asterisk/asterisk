@@ -1,5 +1,7 @@
 2005-11-08  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* res/res_odbc.c (odbc_prepare_and_execute): add new API call for use to properly handle prepared statements across server disconnects (issue #5563)
+
 	* pbx.c (pbx_substitute_variables_helper_full): use already-substituted buffer for parsing variable name (issue #5664)
 
 	* channels/chan_zap.c (zt_request): return AST_CAUSE_CONGESTION when a group-channel is requested and the group exists but all channels are busy (issue #3360, related fix)
