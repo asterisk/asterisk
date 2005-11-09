@@ -1,5 +1,7 @@
 2005-11-08  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* Asterisk 1.2.0-rc1 released.
+
 	* include/asterisk/file.h: add test to ensure that stdio.h is included before this file (issue #5658)
 
 	* res/res_odbc.c (odbc_prepare_and_execute): add new API call for use to properly handle prepared statements across server disconnects (issue #5563)
