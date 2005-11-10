@@ -93,7 +93,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	
-	if ((argc = ast_separate_app_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
+	if ((argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		dummy = argv[0];
 		options = argv[1];
 		ast_parseoptions(app_opts, &flags, opts, options);

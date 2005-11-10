@@ -190,13 +190,13 @@ int ast_app_group_match_get_count(char *groupmatch, char *category);
   \param arglist The list of arguments, defined using AST_APP_ARG
 
   This macro defines a structure intended to be used in a call
-  to ast_separate_app_args(). The structure includes all the
+  to ast_app_separate_args(). The structure includes all the
   arguments specified, plus an argv array that overlays them and an
   argc argument counter. The arguments must be declared using AST_APP_ARG,
   and they will all be character pointers (strings).
 
   \note The structure is <b>not</b> initialized, as the call to
-  ast_separate_app_args() will perform that function before parsing
+  ast_app_separate_args() will perform that function before parsing
   the arguments.
  */
 #define AST_DECLARE_APP_ARGS(name, arglist) \

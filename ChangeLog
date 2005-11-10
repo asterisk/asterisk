@@ -4,6 +4,7 @@
 
 2005-11-10  Russell Bryant <russell@digium.com>
 
+	* many files: Change all references to ast_separate_app_args to ast_app_separate_args
 	* many files in apps/: Clean up some application descriptions. Make sure all descriptions in changed files are wrapped at 80 characters.
 
 2005-11-09  Russell Bryant <russell@digium.com>
@@ -185,7 +186,7 @@
 	* include/asterisk/channel.h: add parent_channel field
 	* channel.c (__ast_request_and_dial): use parent_channel field to inherit variables into new channel
 
-	* apps/app_cut.c (cut_internal): use ast_separate_app_args() instead of open code (issue #5560)
+	* apps/app_cut.c (cut_internal): use ast_app_separate_args() instead of open code (issue #5560)
 
 	* apps/app_mixmonitor.c (launch_monitor_thread): ast_strlen_zero can handle NULL input (issue #5561)
 	(mixmonitor_exec): same

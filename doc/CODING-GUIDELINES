@@ -295,7 +295,7 @@ you intend to parse the incoming data string.
 
 
 - Separating arguments to dialplan applications and functions
-Use ast_separate_app_args() to separate the arguments to your application
+Use ast_app_separate_args() to separate the arguments to your application
 once you have made a local copy of the string.
 
 - Parsing strings with strsep
