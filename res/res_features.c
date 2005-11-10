@@ -1949,7 +1949,7 @@ static int load_config(void)
 	struct ast_config *cfg = NULL;
 	struct ast_variable *var = NULL;
 	char old_parking_ext[AST_MAX_EXTENSION];
-	char old_parking_con[AST_MAX_EXTENSION];
+	char old_parking_con[AST_MAX_EXTENSION] = "";
 
 	if (!ast_strlen_zero(parking_con)) {
 		strcpy(old_parking_ext, parking_ext);
