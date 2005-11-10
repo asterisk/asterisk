@@ -1,10 +1,12 @@
 2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* app.c (ast_app_parse_options): don't increment 's' until after checking for NULL (related to issue #5630)
+
 	* apps/app_rpt.c: solve a memory leak (config structure was not freed) (issue #5706
 
 2005-11-10  Russell Bryant <russell@digium.com>
 
-	* app.c (ast_app_separate_args): Don't consider the open parenthesis as part of the arguments to an option.
+	* app.c (ast_app_separate_args): Don't consider the open parenthesis as part of the arguments to an option. (issue #5630)
 	* many files: Change all references to ast_separate_app_args to ast_app_separate_args
 	* many files in apps/: Clean up some application descriptions. Make sure all descriptions in changed files are wrapped at 80 characters.
 

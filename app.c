@@ -1544,7 +1544,7 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 		if (*s == '(') {
 			/* Has argument */
 			arg = ++s;
-			while (*++s && (*s != ')'));
+			while (*s && (*s++ != ')'));
 			if (*s) {
 				if (argloc)
 					args[argloc - 1] = arg;
