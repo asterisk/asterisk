@@ -1970,6 +1970,7 @@ static char *complete_iax2_show_peer(char *line, char *word, int pos, int state)
 {
 	int which = 0;
 	struct iax2_peer *p;
+	char *res = NULL;
 
 	/* 0 - iax2; 1 - show; 2 - peer; 3 - <peername> */
 	if(pos == 3) {
@@ -1977,14 +1978,15 @@ static char *complete_iax2_show_peer(char *line, char *word, int pos, int state)
 		for(p = peerl.peers ; p ; p = p->next) {
 			if(!strncasecmp(p->name, word, strlen(word))) {
 				if(++which > state) {
-					return strdup(p->name);
+					res = strdup(p->name);
+					break;
 				}
 			}
 		}
 		ast_mutex_unlock(&peerl.lock);
 	}
 
-	return NULL;
+	return res;
 }
 
 static int iax2_show_stats(int fd, int argc, char *argv[])

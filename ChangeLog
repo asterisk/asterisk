@@ -1,5 +1,7 @@
 2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* channels/chan_iax2.c (complete_iax2_show_peer): don't return from function without releasing lock (issue #5685)
+
 	* channels/iax2-provision.c (iax_provision_reload): don't leak memory (issue #5700)
 
 	* pbx/pbx_ael.c (handle_macro): don't leak memory (issue #5701)
