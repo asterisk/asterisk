@@ -1543,7 +1543,7 @@ int ast_app_parse_options(const struct ast_app_option *options, struct ast_flags
 		argloc = options[curarg].arg_index;
 		if (*s == '(') {
 			/* Has argument */
-			arg = s;
+			arg = ++s;
 			while (*++s && (*s != ')'));
 			if (*s) {
 				if (argloc)

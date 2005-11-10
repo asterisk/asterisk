@@ -4,6 +4,7 @@
 
 2005-11-10  Russell Bryant <russell@digium.com>
 
+	* app.c (ast_app_separate_args): Don't consider the open parenthesis as part of the arguments to an option.
 	* many files: Change all references to ast_separate_app_args to ast_app_separate_args
 	* many files in apps/: Clean up some application descriptions. Make sure all descriptions in changed files are wrapped at 80 characters.
 
