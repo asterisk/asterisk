@@ -29,6 +29,13 @@
  */
 
 #include <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
 
 #include "asterisk.h"
 
@@ -45,14 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define CUSTOM_LOG_DIR "/cdr_custom"
 
 #define DATE_FORMAT "%Y-%m-%d %T"
-
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-
-#include <stdlib.h>
-#include <unistd.h>
-#include <time.h>
 
 AST_MUTEX_DEFINE_STATIC(lock);
 

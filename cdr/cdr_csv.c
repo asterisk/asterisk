@@ -27,6 +27,13 @@
  */
 
 #include <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <time.h>
 
 #include "asterisk.h"
 
@@ -45,14 +52,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* #define CSV_LOGUNIQUEID 1 */
 /* #define CSV_LOGUSERFIELD 1 */
-
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-
-#include <stdlib.h>
-#include <unistd.h>
-#include <time.h>
 
 /*----------------------------------------------------
   The values are as follows:

@@ -1,5 +1,7 @@
 2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* many files: ensure that system headers are included before Asterisk headers (issue #5693)
+
 	* channels/chan_iax2.c (complete_iax2_show_peer): don't return from function without releasing lock (issue #5685)
 
 	* channels/iax2-provision.c (iax_provision_reload): don't leak memory (issue #5700)

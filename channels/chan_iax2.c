@@ -26,6 +26,35 @@
  * \ingroup channel_drivers
  */
 
+#include <sys/mman.h>
+#include <arpa/inet.h>
+#include <dirent.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <sys/time.h>
+#include <sys/signal.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <regex.h>
+#ifdef IAX_TRUNKING
+#include <sys/ioctl.h>
+#ifdef __linux__
+#include <linux/zaptel.h>
+#else
+#include <zaptel.h>
+#endif /* __linux__ */
+#endif
+
 #include "asterisk.h"
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
@@ -60,34 +89,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/netsock.h"
 
-#include <sys/mman.h>
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <sys/time.h>
-#include <sys/signal.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <unistd.h>
-#include <netdb.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <regex.h>
-#ifdef IAX_TRUNKING
-#include <sys/ioctl.h>
-#ifdef __linux__
-#include <linux/zaptel.h>
-#else
-#include <zaptel.h>
-#endif /* __linux__ */
-#endif
 #include "iax2.h"
 #include "iax2-parser.h"
 #include "iax2-provision.h"
