@@ -34,11 +34,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 
 
-static char *tdesc = "Make sure asterisk doesn't save CDR for a certain call";
+static char *tdesc = "Tell Asterisk to not maintain a CDR for the current call";
 
-static char *nocdr_descrip = "NoCDR(): makes sure there won't be any CDR written for a certain call";
+static char *nocdr_descrip = 
+"  NoCDR(): This application will tell Asterisk not to maintain a CDR for the\n"
+"current call.\n";
+
 static char *nocdr_app = "NoCDR";
-static char *nocdr_synopsis = "Make sure asterisk doesn't save CDR for a certain call";
+static char *nocdr_synopsis = "Tell Asterisk to not maintain a CDR for the current call";
 
 STANDARD_LOCAL_USER;
 

@@ -44,26 +44,22 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/devicestate.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Check if channel is available";
+static char *tdesc = "Check channel availability";
 
 static char *app = "ChanIsAvail";
 
-static char *synopsis = "Check if channel is available";
+static char *synopsis = "Check channel availability;
 
 static char *descrip = 
-"  ChanIsAvail(Technology/resource[&Technology2/resource2...][|option]): \n"
-"Checks if any of the requested channels are available.  \n"
-"If any of the requested channels are available, the dialplan will continue and:\n"
-"  ${AVAILCHAN} will be set to the name of the available channel\n"
-"  ${AVAILORIGCHAN} is the canonical channel name that was used to create the channel\n"
-"  ${AVAILSTATUS} is the status code for the channel\n"
-"If the option 's' is specified (state), will consider channel unavailable\n"
-"when the channel is in use at all, even if it can take another call.\n"
-"If none of the requested channels are available, then:\n"
-"  if the option 'j' is specified (jump), the application will jump to n+101\n"
-"    if it exists, otherwise the call will terminate\n"
-"  if the option 'j' is not specified the dialplan will continue and\n"
-"    ${AVAILCHAN} will be empty\n";
+"  ChanIsAvail(Technology/resource[&Technology2/resource2...][|options]): \n"
+"This application will check to see if any of the specified channels are\n"
+"available. The following variables will be set by this application:\n"
+"  ${AVAILCHAN}     - the name of the available channel, if one exists\n"
+"  ${AVAILORIGCHAN} - the canonical channel name that was used to create the channel\n"
+"  ${AVAILSTATUS}   - the status code for the available channel\n"
+"  Options:\n"
+"    s - Consider the channel unavailable if the channel is in use at all\n"
+"    j - Support jumping to priority n+101 if no channel is available\n";
 
 STANDARD_LOCAL_USER;
 

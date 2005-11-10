@@ -73,13 +73,15 @@ static char *app = "AlarmReceiver";
 
 static char *synopsis = "Provide support for receving alarm reports from a burglar or fire alarm panel";
 static char *descrip =
-"Alarm receiver application for Asterisk. Only 1 signalling format is supported at this time:\n"
-"Ademco Contact ID. This application should be called whenever there is an alarm panel calling in\n"
-"to dump its events. The application will handshake with the alarm panel, and receive events,\n"
-"validate them, handshake them, and store them until the panel hangs up. Once the panel hangs up,\n"
-"the application will run the command line specified by the eventcmd setting in alarmreceiver.conf\n"
-"and pipe the events to the standard input of the application. Alarmreceiver.conf also contains settings\n"
-"for DTMF timing, and for the loudness of the acknowledgement tones.\n";
+"  AlarmReceiver(): Only 1 signalling format is supported at this time: Ademco\n"
+"Contact ID. This application should be called whenever there is an alarm\n"
+"panel calling in to dump its events. The application will handshake with the\n"
+"alarm panel, and receive events, validate them, handshake them, and store them\n"
+"until the panel hangs up. Once the panel hangs up, the application will run the\n"
+"system command specified by the eventcmd setting in alarmreceiver.conf and pipe\n"
+"the events to the standard input of the application. The configuration file also\n"
+"contains settings for DTMF timing, and for the loudness of the acknowledgement\n" 
+"tones.\n";
 
 /* Config Variables */
 

@@ -51,23 +51,31 @@ AST_MUTEX_DEFINE_STATIC(modlock);
 #define ALL_DONE(u, ret) LOCAL_USER_REMOVE(u); return ret;
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
-static const char *synopsis = "Tap into any type of asterisk channel and listen to audio";
+static const char *synopsis = "Listen to the audio of an active channel\n";
 static const char *app = "ChanSpy";
-static const char *desc = "   Chanspy([<scanspec>][|<options>])\n\n"
-"Valid Options:\n"
-" - b: bridged, only spy on channels involved in a bridged call.\n"
-" - g(grp): enforce group.  Match only calls where their ${SPYGROUP} is 'grp'.\n"
-" - q: quiet, don't announce channels beep, etc.\n"
-" - r[(basename)]: Record session to monitor spool dir (with optional basename, default is 'chanspy')\n\n"
-" - v([-4..4]): adjust the initial volume. (negative is quieter)\n"
-"If <scanspec> is specified, only channel names *beginning* with that string will be scanned.\n"
-"('all' or an empty string are also both valid <scanspec>)\n\n"
-"While Spying:\n\n"
-"Dialing # cycles the volume level.\n"
-"Dialing * will stop spying and look for another channel to spy on.\n"
-"Dialing a series of digits followed by # builds a channel name to append to <scanspec>\n"
-"(e.g. run Chanspy(Agent) and dial 1234# while spying to jump to channel Agent/1234)\n\n"
-"";
+static const char *desc = 
+"  ChanSpy([chanprefix][|options]): This application is used to listen to the\n"
+"audio from an active Asterisk channel. This includes the audio coming in and\n"
+"out of the channel being spied on. If the 'chanprefix' parameter is specified,\n"
+"only channels beginning with this string will be spied upon.\n"
+"  While Spying, the following actions may be performed:\n"
+"    - Dialing # cycles the volume level.\n"
+"    - Dialing * will stop spying and look for another channel to spy on.\n"
+"    - Dialing a series of digits followed by # builds a channel name to append\n"
+"      to 'chanprefix'. For example, executing ChanSpy(Agent) and then dialing\n"
+"      the digits '1234#' while spying will begin spying on the channel,\n"
+"      'Agent/1234'.
+"  Options:\n"
+"    b - Only spy on channels involved in a bridged call.\n"
+"    g(grp) - Match only channels where their ${SPYGROUP} variable is set to\n"
+"             'grp'.\n"
+"    q - Don't play a beep when beginning to spy on a channel.\n"
+"    r[(basename)] - Record the session to the monitor spool directory. An\n"
+"                    optional base for the filename may be specified. The\n"
+"                    default is 'chanspy'.\n"
+"    v([value]) - Adjust the initial volume in the range from -4 to 4. A\n"
+"                 negative value refers to a quieter setting.\n"
+;
 
 static const char *chanspy_spy_type = "ChanSpy";
 

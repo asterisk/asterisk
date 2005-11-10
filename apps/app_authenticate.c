@@ -49,26 +49,24 @@ static char *app = "Authenticate";
 static char *synopsis = "Authenticate a user";
 
 static char *descrip =
-"  Authenticate(password[|options]): Requires a user to enter a"
-"given password in order to continue execution.  If the\n"
-"password begins with the '/' character, it is interpreted as\n"
-"a file which contains a list of valid passwords (1 per line).\n"
-"an optional set of opions may be provided by concatenating any\n"
-"of the following letters:\n"
-"     a - Set account code to the password that is entered\n"
-"     d - Interpret path as database key, not literal file\n"
-"     j - Support jumping to n+101\n"
-"     m - Interpret path as a file which contains a list of\n"
-"         account codes and password hashes delimited with ':'\n"
-"         one per line. When password matched, corresponding\n"
-"         account code will be set\n"
-"     r - Remove database key upon successful entry (valid with 'd' only)\n"
-"\n"
-"When using a database key, the value associated with the key can be\n"
-"anything.  Users have three attempts to authenticate before the line is \n"
-"hungup.  If the passsword is invalid, and the 'j' flag is specified, \n"
-"and priority n+101 exists, the call would be sent to the n+101 priority \n"
-"and executed \n";
+"  Authenticate(password[|options]): This application asks the caller to enter a\n"
+"given password in order to continue dialplan execution. If the password begins\n"
+"with the '/' character, it is interpreted as a file which contains a list of\n"
+"valid passwords, listed 1 password per line in the file.\n"
+"  When using a database key, the value associated with the key can be anything.\n"
+"Users have three attempts to authenticate before the channel is hung up. If the\n"
+"passsword is invalid, the 'j' option is specified, and priority n+101 exists,\n"
+"dialplan execution will continnue at this location.\n"
+"  Options:\n"
+"     a - Set the channels' account code to the password that is entered\n"
+"     d - Interpret the given path as database key, not a literal file\n"
+"     j - Support jumping to n+101 if authentication fails\n"
+"     m - Interpret the given path as a file which contains a list of account\n"
+"         codes and password hashes delimited with ':', listed one per line in\n"
+"         the file. When one of the passwords is matched, the channel will have\n"
+"         its account code set to the corresponding account code in the file.\n"
+"     r - Remove the database key upon successful entry (valid with 'd' only)\n"
+;
 
 STANDARD_LOCAL_USER;
 
