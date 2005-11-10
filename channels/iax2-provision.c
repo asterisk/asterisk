@@ -509,6 +509,7 @@ int iax_provision_reload(void)
 			}
 			cat = ast_category_browse(cfg, cat);
 		}
+		ast_config_destroy(cfg);
 	} else
 		ast_log(LOG_NOTICE, "No IAX provisioning configuration found, IAX provisioning disabled.\n");
 	ast_mutex_lock(&provlock);
