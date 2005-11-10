@@ -2720,7 +2720,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.interface)) {
-		ast_copy_string(args.interface, chan->name, sizeof(args.interface));
+		args.interface = ast_strdupa(chan->name);
 		temppos = strrchr(args.interface, '-');
 		if (temppos)
 			*temppos = '\0';
@@ -2788,7 +2788,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (ast_strlen_zero(args.interface)) {
-		ast_copy_string(args.interface, chan->name, sizeof(args.interface));
+		args.interface = ast_strdupa(chan->name);
 		temppos = strrchr(args.interface, '-');
 		if (temppos)
 			*temppos = '\0';
