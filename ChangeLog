@@ -1,5 +1,8 @@
 2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* pbx/pbx_ael.c (handle_macro): don't leak memory (issue #5701)
+	(handle_context): ditto
+
 	* res/res_features.c (load_config): properly initialize referenced variable (issue #5703)
 
 	* apps/app_queue.c (rqm_exec): correct segfault problem (issue #5705)

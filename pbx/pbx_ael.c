@@ -966,6 +966,7 @@ static void handle_macro(struct ast_context **local_contexts, struct stringlink 
 		}
 	} else
 		ast_log(LOG_WARNING, "Unable to create context '%s'\n", name);
+	arg_free(paramv);
 	arg_free(argv);
 	if (vars->next)
 		ast_log(LOG_NOTICE, "Ignoring excess tokens in macro definition around line %d of %s!\n", lineno, filename);
@@ -1013,7 +1014,6 @@ static void parse_keyword(char *s, char **o)
 static void handle_context(struct ast_context **local_contexts, struct stringlink *vars, const char *filename, int lineno)
 {
 	struct stringlink *argv;
-	struct stringlink *paramv;
 	struct stringlink *cur2;
 	struct stringlink *argv2;
 	struct stringlink *cur;
@@ -1026,7 +1026,6 @@ static void handle_context(struct ast_context **local_contexts, struct stringlin
 	if (aeldebug & DEBUG_CONTEXTS)
 		ast_verbose("Root context def is '%s'\n", vars->data);
 	argv = split_token(vars->data, filename, lineno);
-	paramv = split_params(vars->data, filename, lineno);
 	if (aeldebug & DEBUG_CONTEXTS) 
 		ast_verbose("Found context '%s'\n", vars->data);
 	snprintf(name, sizeof(name), "%s", vars->data);
