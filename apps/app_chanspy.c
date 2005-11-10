@@ -64,7 +64,7 @@ static const char *desc =
 "    - Dialing a series of digits followed by # builds a channel name to append\n"
 "      to 'chanprefix'. For example, executing ChanSpy(Agent) and then dialing\n"
 "      the digits '1234#' while spying will begin spying on the channel,\n"
-"      'Agent/1234'.
+"      'Agent/1234'.\n"
 "  Options:\n"
 "    b - Only spy on channels involved in a bridged call.\n"
 "    g(grp) - Match only channels where their ${SPYGROUP} variable is set to\n"

@@ -48,7 +48,7 @@ static char *tdesc = "Check channel availability";
 
 static char *app = "ChanIsAvail";
 
-static char *synopsis = "Check channel availability;
+static char *synopsis = "Check channel availability";
 
 static char *descrip = 
 "  ChanIsAvail(Technology/resource[&Technology2/resource2...][|options]): \n"
