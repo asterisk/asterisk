@@ -5758,6 +5758,7 @@ pthread_attr_t attr;
 		if (!rpt_vars[i].rxchanname)
 		{
 			ast_log(LOG_WARNING,"Did not specify rxchanname for node %s\n",rpt_vars[i].name);
+			ast_config_destroy(cfg);
 			pthread_exit(NULL);
 		}
 		/* if is a remote, dont start one for it */
@@ -5775,6 +5776,7 @@ pthread_attr_t attr;
 		if (!rpt_vars[i].ident)
 		{
 			ast_log(LOG_WARNING,"Did not specify ident for node %s\n",rpt_vars[i].name);
+			ast_config_destroy(cfg);
 			pthread_exit(NULL);
 		}
 	        pthread_attr_init(&attr);
@@ -5821,6 +5823,7 @@ pthread_attr_t attr;
 		}
 		usleep(2000000);
 	}
+	ast_config_destroy(cfg);
 	pthread_exit(NULL);
 }
 
