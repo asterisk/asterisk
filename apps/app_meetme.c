@@ -848,7 +848,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 	time(&user->jointime);
 
-	if (conf->locked) {
+	if (conf->locked && (!(confflags & CONFFLAG_ADMIN))) {
 		/* Sorry, but this confernce is locked! */	
 		if (!ast_streamfile(chan, "conf-locked", chan->language))
 			ast_waitstream(chan, "");
