@@ -5,15 +5,6 @@
  *
  * Mark Spencer <markster@digium.com>
  *
- * 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
- *				 George Konstantoulakis <gkon@inaccessnetworks.com>
- *
- * 05-10-2005 : Support for Swedish and Norwegian added by Daniel Nylander, http://www.danielnylander.se/
- *
- * 05-11-2005 : An option for maximum number of messsages per mailbox added by GDS Partners (www.gdspartners.com)
- * 07-11-2005 : An issue with voicemail synchronization has been fixed by GDS Partners (www.gdspartners.com)
- *				 Stojan Sljivic <stojan.sljivic@gdspartners.com>
- *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
  * any of the maintainers of this project for assistance;
@@ -32,6 +23,18 @@
  * \par See also
  * \arg \ref Config_vm
  * \ingroup applications
+ */
+
+/*
+ * 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
+ *				 George Konstantoulakis <gkon@inaccessnetworks.com>
+ *
+ * 05-10-2005 : Support for Swedish and Norwegian added by Daniel Nylander, http://www.danielnylander.se/
+ *
+ * 05-11-2005 : An option for maximum number of messsages per mailbox added by GDS Partners (www.gdspartners.com)
+ * 07-11-2005 : An issue with voicemail synchronization has been fixed by GDS Partners (www.gdspartners.com)
+ *				 Stojan Sljivic <stojan.sljivic@gdspartners.com>
+ *
  */
 
 #include <stdlib.h>
@@ -100,10 +103,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define VM_ENVELOPE		(1 << 4)
 #define VM_SAYDURATION		(1 << 5)
 #define VM_SKIPAFTERCMD 	(1 << 6)
-#define VM_FORCENAME		(1 << 7)	/* Have new users record their name */
-#define VM_FORCEGREET		(1 << 8)	/* Have new users record their greetings */
+#define VM_FORCENAME		(1 << 7)	/*!< Have new users record their name */
+#define VM_FORCEGREET		(1 << 8)	/*!< Have new users record their greetings */
 #define VM_PBXSKIP		(1 << 9)
-#define VM_DIRECFORWARD 	(1 << 10)	/* directory_forward */
+#define VM_DIRECFORWARD 	(1 << 10)	/*!< directory_forward */
 #define VM_ATTACH		(1 << 11)
 #define VM_DELETE		(1 << 12)
 #define VM_ALLOCED		(1 << 13)
@@ -111,12 +114,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define ERROR_LOCK_PATH		-100
 
 enum {
-	OPT_SILENT =(1 << 0),
-	OPT_BUSY_GREETING = (1 << 1),
+	OPT_SILENT =           (1 << 0),
+	OPT_BUSY_GREETING =    (1 << 1),
 	OPT_UNAVAIL_GREETING = (1 << 2),
-	OPT_RECORDGAIN = (1 << 3),
-	OPT_PREPEND_MAILBOX = (1 << 4),
-	OPT_PRIORITY_JUMP = (1 << 5),
+	OPT_RECORDGAIN =       (1 << 3),
+	OPT_PREPEND_MAILBOX =  (1 << 4),
+	OPT_PRIORITY_JUMP =    (1 << 5),
 } vm_option_flags;
 
 enum {
@@ -289,70 +292,74 @@ static char *tdesc = "Comedian Mail (Voicemail System)";
 static char *addesc = "Comedian Mail";
 
 static char *synopsis_vm =
-"Leave a voicemail message";
+"Leave a Voicemail message";
 
 static char *descrip_vm =
-"  VoiceMail(mailbox[@context][&mailbox[@context]][...][|options]):  Leaves"
-"voicemail for a given mailbox (must be configured in voicemail.conf).\n"
-" If the options contain: \n"
-"* 'b'    the \"busy\" greeting will be played.\n"
-"* 'g(#)' the specified amount of gain will be requested during message\n"
-"         recording (units are whole-number decibels (dB))\n"
-"* 's'    instructions for leaving the message will be skipped.\n"
-"* 'u'    the \"unavailable\" greeting will be played.\n"
-"* 'j'    jump to n+101 priority when mailbox not found or on error\n"
-"If the caller presses '0' (zero) during the prompt, the call jumps to\n"
-"extension 'o' in the current context.\n"
-"If the caller presses '*' during the prompt, the call jumps to\n"
-"extension 'a' in the current context.\n"
-"When multiple mailboxes are specified, the unavailable or busy message\n"
-"will be taken from the first mailbox specified.\n"
-"This application sets the following channel variable upon completion:\n"
-"VMSTATUS    The status of the VoiceMail call, a text string that is either:\n"
-"SUCCESS | USEREXIT | FAILED \n"
-"Execution will fail if the mailbox does not exist, or if the user disconnects.\n";
+"  VoiceMail(mailbox[@context][&mailbox[@context]][...][|options]): This\n"
+"application allows the calling party to leave a message for the specified\n"
+"list of mailboxes. When multiple mailboxes are specified, the greeting will\n"
+"be taken from the first mailbox specified. Dialplan execution will stop if the\n"
+"specified mailbox does not exist.\n"
+"  The Voicemail application will exit if any of the following DTMF digits are\n"
+"received:\n"
+"    0 - Jump to the 'o' extension in the current dialplan context.\n"
+"    * - Jump to the 'a' extension in the current dialplan context.\n"
+"  This application will set the following channel variable upon completion:\n"
+"    VMSTATUS - This indicates the status of the execution of the VoiceMail\n"
+"               application. The possible values are:\n"
+"               SUCCESS | USEREXIT | FAILED\n\n"
+"  Options:\n"
+"    b    - Play the 'busy' greeting to the calling party.\n"
+"    g(#) - Use the specified amount of gain when recording the voicemail\n"
+"           message. The units are whole-number decibels (dB).\n"
+"    s    - Skip the playback of instructions for leaving a message to the\n"
+"           calling party.\n"
+"    u    - Play the 'unavailble greeting.\n"
+"    j    - Jump to priority n+101 if the mailbox is not found or some other\n"
+"           error occurs.\n";
 
 static char *synopsis_vmain =
-"Enter voicemail system";
+"Check Voicemail messages";
 
 static char *descrip_vmain =
-"  VoiceMailMain([mailbox][@context][|options]): Enters the main voicemail system\n"
-"for the checking of voicemail. The mailbox can be passed in,\n"
-"which will stop the voicemail system from prompting the user for the mailbox.\n"
-"If the options contain: \n"
-"* 'p'    the supplied mailbox is prepended to the user's entry and\n"
-"         the resulting string is used as the mailbox number. This can\n"
-"         be useful for virtual hosting of voicemail boxes.\n"
-"* 'g(#)' the specified amount of gain will be requested during message\n"
-"         recording (units are whole-number decibels (dB))\n"
-"* 's'    the password check will be skipped.\n"
-"If a context is specified, mailboxes are considered in that voicemail context only.\n"
-"Returns -1 if the user hangs up or 0 otherwise.\n";
+"  VoiceMailMain([mailbox][@context][|options]): This application allows the\n"
+"calling party to check voicemail messages. A specific mailbox, and optional\n"
+"corresponding context, may be specified. If a mailbox is not provided, the\n"
+"calling party will be prompted to enter one. If a context is not specified,\n"
+"the 'default' context will be used.\n\n"
+"  Options:\n"
+"    p    - Consider the mailbox parameter as a prefix to the mailbox that\n"
+"           is entered by the caller.\n"
+"    g(#) - Use the specified amount of gain when recording a voicemail\n"
+"           message. The units are whole-number decibels (dB).\n"
+"    s    - Skip checking the passcode for the mailbox.\n";
 
 static char *synopsis_vm_box_exists =
-"Check if vmbox exists";
+"Check to see if Voicemail mailbox exists";
 
 static char *descrip_vm_box_exists =
-"  MailboxExists(mailbox[@context][|options]): Check to see if the mailbox \n"
-"                                              exists\n"
-"If the options contain: \n"
-"* 'j'    jump to n+101 priority when the mailbox is found.\n"
-"This application sets the following channel variable upon completion:\n"
-" VMBOXEXISTSSTATUS The status of the mailbox exists call, a text\n"
-"                    string that is either:\n"
-" SUCCESS | FAILED\n";
+"  MailboxExists(mailbox[@context][|options]): Check to see if the specified\n"
+"mailbox exists. If no voicemail context is specified, the 'default' context\n"
+"will be used.\n"
+"  This application will set the following channel variable upon completion:\n"
+"    VMBOXEXISTSSTATUS - This will contain the status of the execution of the\n"
+"                        MailboxExists application. Possible values include:\n"
+"                        SUCCESS | FAILED\n\n"
+"  Options:\n"
+"    j - Jump to priority n+101 if the mailbox is found.\n";
 
 static char *synopsis_vmauthenticate =
-"Authenticate off voicemail passwords";
+"Authenticate with Voicemail passwords";
 
 static char *descrip_vmauthenticate =
-"  VMAuthenticate([mailbox][@context][|options]): Behaves identically to\n"
-"the Authenticate application, with the exception that the passwords are\n"
-"taken from voicemail.conf.\n"
+"  VMAuthenticate([mailbox][@context][|options]): This application behaves the\n"
+"same way as the Authenticate application, but the passwords are taken from\n"
+"voicemail.conf.\n"
 "  If the mailbox is specified, only that mailbox's password will be considered\n"
 "valid. If the mailbox is not specified, the channel variable AUTH_MAILBOX will\n"
-"be set with the authenticated mailbox.\n"
-"If the options contain 's' then no initial prompts will be played.\n";
+"be set with the authenticated mailbox.\n\n"
+"  Options:\n"
+"    s - Skip playing the initial prompts.\n";
 
 /* Leave a message */
 static char *app = "VoiceMail";
