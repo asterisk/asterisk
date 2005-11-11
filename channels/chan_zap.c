@@ -3146,10 +3146,10 @@ static enum ast_bridge_result zt_bridge(struct ast_channel *c0, struct ast_chann
 		return AST_BRIDGE_FAILED;
 	}
 	
-	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_0))
+	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_0) && (oi0 == SUB_REAL))
 		disable_dtmf_detect(op0);
 
-	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_1))
+	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_1) && (oi1 == SUB_REAL))
 		disable_dtmf_detect(op1);
 
 	for (;;) {
@@ -3237,10 +3237,10 @@ return_from_bridge:
 	if (op1 == p1)
 		zt_enable_ec(p1);
 
-	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_0))
+	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_0) && (oi0 == SUB_REAL))
 		enable_dtmf_detect(op0);
 
-	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_1))
+	if (!(flags & AST_BRIDGE_DTMF_CHANNEL_1) && (oi1 == SUB_REAL))
 		enable_dtmf_detect(op1);
 
 	zt_unlink(slave, master, 1);
