@@ -1,5 +1,7 @@
 2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* apps/app_disa.c (disa_exec): correct password file parsing (issue #5676)
+
 	* apps/app_meetme.c (conf_run): don't restrict admin users from joining a locked conference (issue #5680)
 
 	* channels/chan_misdn.c: include stdio.h (issue #5671)

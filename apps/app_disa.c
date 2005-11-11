@@ -119,6 +119,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int digittimeout = 10000;
 	struct localuser *u;
 	char *tmp, arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
+	char pwline[256];
 	char *ourcontext,*ourcallerid,ourcidname[256],ourcidnum[256],*mailbox;
 	struct ast_frame *f;
 	struct timeval lastdigittime;
@@ -262,18 +263,18 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							LOCAL_USER_REMOVE(u);
 							return -1;
 						   }
-						tmp[0] = 0;
-						while(fgets(tmp,sizeof(tmp) - 1,fp))
+						pwline[0] = 0;
+						while(fgets(pwline,sizeof(pwline) - 1,fp))
 						   {
 							char *stringp=NULL,*stringp2;
-							if (!tmp[0]) continue;
-							if (tmp[strlen(tmp) - 1] == '\n') 
-								tmp[strlen(tmp) - 1] = 0;
-							if (!tmp[0]) continue;
+							if (!pwline[0]) continue;
+							if (pwline[strlen(pwline) - 1] == '\n') 
+								pwline[strlen(pwline) - 1] = 0;
+							if (!pwline[0]) continue;
 							  /* skip comments */
-							if (tmp[0] == '#') continue;
-							if (tmp[0] == ';') continue;
-							stringp=tmp;
+							if (pwline[0] == '#') continue;
+							if (pwline[0] == ';') continue;
+							stringp=pwline;
 							strsep(&stringp, "|");
 							stringp2=strsep(&stringp, "|");
 							if (stringp2) {
@@ -287,14 +288,14 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
 
 							  /* password must be in valid format (numeric) */
-							if (sscanf(tmp,"%d",&j) < 1) continue;
+							if (sscanf(pwline,"%d",&j) < 1) continue;
 							  /* if we got it */
-							if (!strcmp(exten,tmp)) break;
+							if (!strcmp(exten,pwline)) break;
 						   }
 						fclose(fp);
 					   }
 					  /* compare the two */
-					if (strcmp(exten,tmp))
+					if (strcmp(exten,pwline))
 					{
 						ast_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
 						goto reorder;
