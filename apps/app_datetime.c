@@ -46,8 +46,7 @@ static char *app = "DateTime";
 static char *synopsis = "Say the date and time";
 
 static char *descrip = 
-"  DateTime():  Says the current date and time.  Terminates on hangup or\n"
-"completion.\n";
+"  DateTime(): This application will say the current date and time.\n";
 
 STANDARD_LOCAL_USER;
 

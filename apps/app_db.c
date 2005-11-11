@@ -45,27 +45,30 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/options.h"
 
-static char *tdesc = "Database access functions for Asterisk extension logic";
+static char *tdesc = "Database Access Functions";
 
 static char *g_descrip =
-	"  DBget(varname=family/key[|options]): Retrieves a value from the Asterisk\n"
-	"database and stores it in the given variable.\n"
-	"  The option string may contain the following character:\n"
-	"       'j' -- jump to +101 priority if the requested family/key isn't found.\n"
-	"  This application sets the following channel variable upon completion:\n"
-	"     DBGETSTATUS       The status of the attempt as a text string, one of\n"
-	"             FOUND | NOTFOUND \n";
+"  DBget(varname=family/key[|options]): This application will retrieve a value\n"
+"from the Asterisk database and store it in the given variable.\n"
+"  Options:\n"
+"    j - Jump to priority n+101 if the requested family/key isn't found.\n"
+"  This application sets the following channel variable upon completion:\n"
+"    DBGETSTATUS - This variable will contain the status of the attempt\n"
+"                  FOUND | NOTFOUND \n"
+"  This application has been deprecated in favor of the DB function.\n";
 
 static char *p_descrip =
-	"  DBput(family/key=value): Stores the given value in the Asterisk\n"
-	"database.\n";
+"  DBput(family/key=value): This application will store the given value in the\n"
+"specified location in the Asterisk database.\n"
+"  This application has been deprecated in favor of the DB function.\n";
 
 static char *d_descrip =
-	"  DBdel(family/key): Deletes a key from the Asterisk database.\n";
+"  DBdel(family/key): This applicaiton will delete a key from the Asterisk\n"
+"database.\n";
 
 static char *dt_descrip =
-	"  DBdeltree(family[/keytree]): Deletes a family or keytree from the Asterisk\n"
-	"database.\n";
+"  DBdeltree(family[/keytree]): This application will delete a family or keytree\n"
+"from the Asterisk database\n";
 
 static char *g_app = "DBget";
 static char *p_app = "DBput";

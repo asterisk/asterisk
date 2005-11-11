@@ -1,3 +1,7 @@
+2005-11-11  Russell Bryant  <russell@digium.com>
+
+	* many files in apps/: Clean up application descriptions. Clarify some wording and make sure they wrap at 80 characters.
+
 2005-11-10  Mark Spencer <markster@digium.com>
 
 	* rtp.c (ast_rtp_raw_write): use unsigned int for return value from calc_txstamp() (issue #5595)
@@ -44,12 +48,14 @@
 
 	* app.c (ast_app_parse_options): don't increment 's' until after checking for NULL (related to issue #5630)
 
-	* apps/app_rpt.c: solve a memory leak (config structure was not freed) (issue #5706
+	* apps/app_rpt.c: solve a memory leak (config structure was not freed) (issue #5706)
 
 2005-11-10  Russell Bryant <russell@digium.com>
 
 	* app.c (ast_app_separate_args): Don't consider the open parenthesis as part of the arguments to an option. (issue #5630)
+
 	* many files: Change all references to ast_separate_app_args to ast_app_separate_args
+
 	* many files in apps/: Clean up some application descriptions. Make sure all descriptions in changed files are wrapped at 80 characters.
 
 2005-11-09  Russell Bryant <russell@digium.com>

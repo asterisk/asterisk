@@ -48,18 +48,22 @@ static const char *app = "ControlPlayback";
 static const char *synopsis = "Play a file with fast forward and rewind";
 
 static const char *descrip = 
-"ControlPlayback(filename[|skipms[|ffchar[|rewchar[|stopchar[|pausechar[|restartchar[|option]]]]]]]):\n"
-"  Plays back a given filename (do not put extension). Options may also\n"
-"  be included following a pipe symbol.  You can use * and # to rewind and\n"
-"  fast forward the playback specified. If 'stopchar' is added the file will\n"
-"  terminate playback when 'stopchar' is pressed. If 'restartchar' is added, the file\n"
-"  will restart when 'restartchar' is pressed.\n"
-"  The option string may contain the following character:\n"
-"       'j' -- jump to +101 priority if the file requested isn't found.\n"
-"  This application sets the following channel variable upon completion:\n"
-"     CPLAYBACKSTATUS       The status of the attempt as a text string, one of\n"
-"             SUCCESS | USERSTOPPED | ERROR\n"
-"  Example:  exten => 1234,1,ControlPlayback(file|4000|*|#|1|0|5)\n\n";
+"  ControlPlayback(file[|skipms[|ff[|rew[|stop[|pause[|restart|options]]]]]]]):\n"
+"This application will play back the given filename. By default, the '*' key\n"
+"can be used to rewind, and the '#' key can be used to fast-forward.\n"
+"Parameters:\n"
+"  skipms  - This is number of milliseconds to skip when rewinding or\n"
+"            fast-forwarding.\n"
+"  ff      - Fast-forward when this DTMF digit is received.\n"
+"  rew     - Rewind when this DTMF digit is received.\n"
+"  stop    - Stop playback when this DTMF digit is received.\n"
+"  pause   - Pause playback when this DTMF digit is received.\n"
+"  restart - Restart playback when this DTMF digit is received.\n"
+"Options:\n"
+"  j - Jump to priority n+101 if the requested file is not found.\n"
+"This application sets the following channel variable upon completion:\n"
+"  CPLAYBACKSTATUS -  This variable contains the status of the attempt as a text\n"
+"                     string, one of: SUCCESS | USERSTOPPED | ERROR\n";
 
 STANDARD_LOCAL_USER;
 

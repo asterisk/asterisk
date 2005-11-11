@@ -48,10 +48,14 @@ static char *app = "Curl";
 static char *synopsis = "Load an external URL";
 
 static char *descrip = 
-"  Curl(URL[|postdata]): Requests the URL.  Mainly used for signalling\n"
-"external applications of an event.  Curl will fail on fatal errors. \n"
-"Argument specified treated as POST data.  Also sets CURL variable with the\n"
-"resulting page.\n";
+"  Curl(URL[|postdata]): This application will request the specified URL.\n"
+"It is mainly used for signalling external applications of an event.\n"
+"Parameters:\n"
+"  URL      - This is the external URL to request.\n"
+"  postdata - This information will be treated as POST data.\n"
+"This application will set the following variable:\n"
+"  CURL - This variable will contain the resulting page.\n"
+"This application has been deprecated in favor of the CURL function.\n";
 
 STANDARD_LOCAL_USER;
 
