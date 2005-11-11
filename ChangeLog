@@ -1,3 +1,7 @@
+2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* channels/chan_iax2.c: ensure that system headers that provide basic types are included first (issue #5713)
+
 2005-11-11  Russell Bryant  <russell@digium.com>
 
 	* many files in apps/: Clean up application descriptions. Clarify some wording and make sure they wrap at 80 characters.
