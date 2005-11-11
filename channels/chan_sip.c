@@ -4845,11 +4845,9 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 			add_header(&req, "Referred-By", p->referred_by);
 	}
 #ifdef OSP_SUPPORT
-	if (p->options && !ast_strlen_zero(p->options->osptoken)) {
+	if ((req.method != SIP_OPTIONS) && p->options && !ast_strlen_zero(p->options->osptoken)) {
 		ast_log(LOG_DEBUG,"Adding OSP Token: %s\n", p->options->osptoken);
 		add_header(&req, "P-OSP-Auth-Token", p->options->osptoken);
-	} else {
-		ast_log(LOG_DEBUG,"NOT Adding OSP Token\n");
 	}
 #endif
 	if (p->options && !ast_strlen_zero(p->options->distinctive_ring))
