@@ -15,8 +15,8 @@ APPS=app_dial.so app_playback.so app_voicemail.so app_directory.so app_mp3.so\
      app_system.so app_echo.so app_record.so app_image.so app_url.so app_disa.so \
      app_adsiprog.so app_getcpeid.so app_milliwatt.so \
      app_zapateller.so app_setcallerid.so app_festival.so \
-     app_queue.so app_senddtmf.so app_parkandannounce.so app_striplsd.so \
-     app_setcidname.so app_lookupcidname.so app_substring.so app_macro.so \
+     app_queue.so app_senddtmf.so app_parkandannounce.so \
+     app_setcidname.so app_lookupcidname.so app_macro.so \
      app_authenticate.so app_softhangup.so app_lookupblacklist.so \
      app_waitforring.so app_privacy.so app_db.so app_chanisavail.so \
      app_enumlookup.so app_transfer.so app_setcidnum.so app_cdr.so \

@@ -187,9 +187,6 @@ struct ast_hint {
 
 int ast_pbx_outgoing_cdr_failed(void);
 
-static int pbx_builtin_prefix(struct ast_channel *, void *);
-static int pbx_builtin_suffix(struct ast_channel *, void *);
-static int pbx_builtin_stripmsd(struct ast_channel *, void *);
 static int pbx_builtin_answer(struct ast_channel *, void *);
 static int pbx_builtin_goto(struct ast_channel *, void *);
 static int pbx_builtin_hangup(struct ast_channel *, void *);
@@ -355,15 +352,6 @@ static struct pbx_builtin {
 	"variables or functions without having any effect." 
 	},
 
-	{ "Prefix", pbx_builtin_prefix, 
-	"Prepend digits to the current extension",
-	"  Prefix(digits): This application will insert the specified digits to the\n"
-	"beginning of the current extension. Call processing will then continue at\n"
-	"the next priority, but at the new extension.\n"
-	"  For example, if priority 3 of extension 1212 is Prefix(555), the next step\n"
-	"executed will be priority 4 of 5551212.\n"
-	},
-
 	{ "Progress", pbx_builtin_progress,
 	"Indicate progress",
 	"  Progress(): This application will request that in-band progress information\n"
@@ -483,26 +471,6 @@ static struct pbx_builtin {
 	"application). Variables created by this application have the same inheritance\n"
 	"properties as those created with the Set application. See the documentation for\n"
 	"Set for more information.\n"
-	},
-
-	{ "StripMSD", pbx_builtin_stripmsd,
-	"Strip leading digits",
-	"  StripMSD(count): Strips the leading 'count' digits from the channel's\n"
-	"associated extension. For example, the number 5551212 when stripped with a\n"
-	"count of 3 would be changed to 1212. The channel will continue dialplan\n"
-	"execution at the next priority for the *new* extension.\n"
-	"  So, for example, if priority 3 of 5551212 is StripMSD 3, the next step\n"
-	"executed will be priority 4 of 1212.\n"
-	},
-
-	{ "Suffix", pbx_builtin_suffix, 
-	"Append trailing digits",
-	"  Suffix(digits): Appends the digit string specified by digits to the\n"
-	"channel's associated extension. For example, the number 555 when suffixed\n"
-	"with '1212' will become 5551212. The channel will continune dialplan execution\n"
-	"at the next priority for the *new* extension.\n"
-	"  So, for example, if priority 3 of 555 is Suffix 1212, the next step\n"
-	"executed will be priority 4 of 5551212.\n"
 	},
 
 	{ "Wait", pbx_builtin_wait, 
@@ -5490,51 +5458,6 @@ static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
 {
 	/* Just return non-zero and it will hang up */
 	return -1;
-}
-
-static int pbx_builtin_stripmsd(struct ast_channel *chan, void *data)
-{
-	char newexten[AST_MAX_EXTENSION] = "";
-
-	if (!data || !atoi(data)) {
-		ast_log(LOG_DEBUG, "Ignoring, since number of digits to strip is 0\n");
-		return 0;
-	}
-	if (strlen(chan->exten) > atoi(data)) {
-		ast_copy_string(newexten, chan->exten + atoi(data), sizeof(newexten));
-	}
-	ast_copy_string(chan->exten, newexten, sizeof(chan->exten));
-	return 0;
-}
-
-static int pbx_builtin_prefix(struct ast_channel *chan, void *data)
-{
-	char newexten[AST_MAX_EXTENSION];
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_DEBUG, "Ignoring, since there is no prefix to add\n");
-		return 0;
-	}
-	snprintf(newexten, sizeof(newexten), "%s%s", (char *)data, chan->exten);
-	ast_copy_string(chan->exten, newexten, sizeof(chan->exten));
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Prepended prefix, new extension is %s\n", chan->exten);
-	return 0;
-}
-
-static int pbx_builtin_suffix(struct ast_channel *chan, void *data)
-{
-	char newexten[AST_MAX_EXTENSION];
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_DEBUG, "Ignoring, since there is no suffix to add\n");
-		return 0;
-	}
-	snprintf(newexten, sizeof(newexten), "%s%s", chan->exten, (char *)data);
-	ast_copy_string(chan->exten, newexten, sizeof(chan->exten));
-	if (option_verbose > 2)
-		ast_verbose(VERBOSE_PREFIX_3 "Appended suffix, new extension is %s\n", chan->exten);
-	return 0;
 }
 
 static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
