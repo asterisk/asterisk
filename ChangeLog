@@ -1,5 +1,7 @@
 2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* pbx/pbx_ael.c: handle switch default cases inside macros properly (issue #5354)
+
 	* configs/voicemail.conf.sample (format): add strong warning about changing format list when mailboxes contain messages (issue #5689)
 
 	* many files: ensure that system headers are included before Asterisk headers (issue #5693)

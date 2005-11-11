@@ -512,7 +512,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 			mlen = strlen(exten) + 128 + strlen(args) + strlen(name);
 			margs = alloca(mlen);
 			app = "Goto";
-			sprintf(margs, "sw-%s-%d-%s|1", name, *pos, args);
+			sprintf(margs, "sw-%d-%s|1", *pos, args);
 			ast_process_quotes_and_slashes(margs, ',', '|');
 			oargs = args;
 			args = margs;
@@ -523,7 +523,7 @@ static int __build_step(const char *what, const char *name, const char *filename
 				(*pos)++;
 			}
 			app = "NoOp";
-			sprintf(margs, "Finish switch-%s-%d", name, *pos - 1);
+			sprintf(margs, "Finish switch-%d", *pos - 1);
 			if (ast_add_extension2(con, 0, exten, *pos, *label, NULL, app, strdup(args), FREE, registrar))
 				ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 			else {
@@ -543,15 +543,15 @@ static int __build_step(const char *what, const char *name, const char *filename
 					if (curcase) {
 						/* Handle fall through */
 						char tmp[strlen(newcase) + strlen(name) + 40];
-						sprintf(tmp, "sw-%s-%d-%s|%d", name, *pos - 2, newcase, 1);
+						sprintf(tmp, "sw-%d-%s|%d", *pos - 2, newcase, 1);
 						ast_add_extension2(con, 0, margs, cpos, NULL, NULL, "Goto", strdup(tmp), FREE, registrar);
 					}
 					curcase = newcase;
 					cpos = 1;
 					if (pattern)
-						snprintf(margs, mlen, "_sw-%s-%d-%s", name, *pos - 2, curcase);
+						snprintf(margs, mlen, "_sw-%d-%s", *pos - 2, curcase);
 					else
-						snprintf(margs, mlen, "sw-%s-%d-%s", name, *pos - 2, curcase);
+						snprintf(margs, mlen, "sw-%d-%s", *pos - 2, curcase);
 					if (!strcasecmp(rest, "break")) {
 						char tmp[strlen(exten) + 10];
 						sprintf(tmp, "%s|%d", exten, *pos - 1);
