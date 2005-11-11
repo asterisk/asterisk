@@ -5,6 +5,20 @@
 ; Default formats for writing Voicemail
 ;format=g723sf|wav49|wav
 format=wav49|gsm|wav
+;
+; WARNING:
+; If you change the list of formats that you record voicemail in
+; when you have mailboxes that contain messages, you _MUST_ absolutely
+; manually go through those mailboxes and convert/delete/add the
+; the message files so that they appear to have been stored using
+; your new format list. If you don't do this, very unpleasant
+; things may happen to your users while they are retrieving and
+; manipulating their voicemail.
+;
+; In other words: don't change the format list on a production system
+; unless you are _VERY_  sure that you know what you are doing and are
+; prepared for the consequences.
+;
 ; Who the e-mail notification should appear to come from
 serveremail=asterisk
 ;serveremail=asterisk@linux-support.net
