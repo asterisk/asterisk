@@ -1,7 +1,9 @@
-2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
+2005-11-10  Mark Spencer <markster@digium.com>
 
 	* rtp.c (ast_rtp_raw_write): use unsigned int for return value from calc_txstamp() (issue #5595)
 	(calc_txstamp): never return a value that was less than zero before being turned into 'unsigned int' (issue #5595)
+
+2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* include/asterisk/chanspy.h: move spy-related stuff into separate header so chan_h323 can build (issue #5590)
 
