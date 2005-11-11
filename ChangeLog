@@ -1,4 +1,8 @@
-2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
+2005-11-11  Mark Spencer <markster@digium.com>
+
+	* channels/chan_zap.c (zt_bridge): only enable/disable DTMF detection on SUB_REAL channels
+
+2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* channels/chan_iax2.c: ensure that system headers that provide basic types are included first (issue #5713)
 
