@@ -36,6 +36,7 @@
 #include <asterisk/strings.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <asterisk/utils.h>
 #define AST_LOAD_CFG ast_config_load

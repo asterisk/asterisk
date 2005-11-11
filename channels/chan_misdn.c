@@ -149,7 +149,7 @@ static inline void free_robin_list_r (struct robin_list *r)
 	}
 }
 
-static void free_robin_list ()
+static void free_robin_list ( void )
 {
 	free_robin_list_r(robin);
 }

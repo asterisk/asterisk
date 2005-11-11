@@ -1,5 +1,8 @@
 2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* channels/chan_misdn.c: include stdio.h (issue #5671)
+	* channels/chan_misdn_config.c: fix prototype warning (issue #5671)
+
 	* pbx.c: remove apps that were deprecated before 1.0 was released (issue #5673)
 
 	* apps/app_striplsd.c, apps/app_substring.c: remove apps that were deprecated before 1.0 was released (issue #5673)
