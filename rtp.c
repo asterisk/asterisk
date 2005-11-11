@@ -1098,6 +1098,8 @@ static unsigned int calc_txstamp(struct ast_rtp *rtp, struct timeval *delivery)
 	/* Use previous txcore if available */
 	t = (delivery && !ast_tvzero(*delivery)) ? *delivery : ast_tvnow();
 	ms = ast_tvdiff_ms(t, rtp->txcore);
+	if (ms < 0)
+		ms = 0;
 	/* Use what we just got for next time */
 	rtp->txcore = t;
 	return (unsigned int) ms;
@@ -1226,14 +1228,14 @@ static int ast_rtp_raw_write(struct ast_rtp *rtp, struct ast_frame *f, int codec
 	char iabuf[INET_ADDRSTRLEN];
 	int hdrlen = 12;
 	int res;
-	int ms;
+	unsigned int ms;
 	int pred;
 	int mark = 0;
 
 	ms = calc_txstamp(rtp, &f->delivery);
 	/* Default prediction */
 	if (f->subclass < AST_FORMAT_MAX_AUDIO) {
-                pred = rtp->lastts + f->samples;
+		pred = rtp->lastts + f->samples;
 
 		/* Re-calculate last TS */
 		rtp->lastts = rtp->lastts + ms * 8;
