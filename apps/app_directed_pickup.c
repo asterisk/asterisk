@@ -42,10 +42,11 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static const char *tdesc = "Directed Call Pickup Application";
 static const char *app = "Pickup";
-static const char *synopsis = "Directed Call Pickup application.";
+static const char *synopsis = "Directed Call Pickup";
 static const char *descrip =
-" Pickup(extension@context):\n"
-"Steals any calls to a specified extension that are in a ringing state and bridges them to the current channel. Context is an optional argument.\n";
+"  Pickup(extension[@context]): This application can pickup any ringing channel\n"
+"that is calling the specified extension. If no context is specified, the current\n"
+"context will be used.\n";
 
 STANDARD_LOCAL_USER;
 
