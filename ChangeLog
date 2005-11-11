@@ -1,5 +1,7 @@
 2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* include/asterisk/chanspy.h: move spy-related stuff into separate header so chan_h323 can build (issue #5590)
+
 	* include/asterisk/linkedlists.h (AST_LIST_HEAD_SET_NOLOCK): properly initialize tail pointer when list head is directly set (issue #5669)
 
 	* app.c (ast_app_parse_options): ok, so we aren't all perfect... let's make the while loop actually work properly here (issue #5684)

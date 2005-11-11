@@ -52,6 +52,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/options.h"
 #include "asterisk/channel.h"
+#include "asterisk/chanspy.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/logger.h"
 #include "asterisk/say.h"
