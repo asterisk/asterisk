@@ -1,3 +1,7 @@
+2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* apps/app_voicemail.c (close_mailbox): properly remove deleted messages at mailbox close time (issue #5663)
+
 2005-11-11  Mark Spencer <markster@digium.com>
 
 	* channels/chan_zap.c (zt_bridge): only enable/disable DTMF detection on SUB_REAL channels

@@ -3869,7 +3869,7 @@ static int open_mailbox(struct vm_state *vms, struct ast_vm_user *vmu,int box)
 
 static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 {
-	int x;
+	int x, nummsg;
 	int res = 0;
 
 	if (vms->lastmsg <= -1)
@@ -3902,12 +3902,14 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 			} 
 		} 
 	} 
-	for (x = vms->curmsg + 1; x <= vmu->maxmsg; x++) { 
-		make_file(vms->fn, sizeof(vms->fn), vms->curdir, x); 
-		if (!EXISTS(vms->curdir, x, vms->fn, NULL)) 
-			break;
-		DELETE(vms->curdir, x, vms->fn);
-	} 
+
+	/* Delete ALL remaining messages */
+	nummsg = x;
+	for (x = vms->curmsg + 1; x <= nummsg; x++) {
+		make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
+		if (EXISTS(vms->curdir, x, vms->fn, NULL))
+			DELETE(vms->curdir, x, vms->fn);
+	}
 	ast_unlock_path(vms->curdir);
 
 done:
