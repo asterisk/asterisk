@@ -1,5 +1,9 @@
 2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* Asterisk 1.2.0-rc2 released.
+	
+2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
+
 	* channels/chan_sip.c (thread_safe_rand): ensure that threads don't get the same random number (issue #5712)
 
 	* apps/app_voicemail.c (forward_message): correct bugs in message forwarding (issue #5718)
