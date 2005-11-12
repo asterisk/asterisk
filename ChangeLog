@@ -1,6 +1,7 @@
 2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* apps/app_voicemail.c (close_mailbox): correct previous commit (issue #5663)
+	(vm_change_password): fix password change writing (issue #5721)
 
 	* channels/chan_sip.c (transmit_invite): remove useless debug message; don't try to add OSP tokens to OPTIONS pings
 
