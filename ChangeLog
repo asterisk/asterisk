@@ -1,5 +1,7 @@
 2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* apps/app_dial.c (wait_for_answer): correct flag copying for automon feature (issue #5720)
+
 	* channels/chan_iax2.c: correct comment
 
 	* apps/app_voicemail.c (close_mailbox): correct previous commit (issue #5663)

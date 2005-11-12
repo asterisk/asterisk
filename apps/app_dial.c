@@ -435,7 +435,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 					peer = o->chan;
-					ast_copy_flags(peerflags, o, OPT_CALLEE_TRANSFER|OPT_CALLER_TRANSFER|OPT_CALLEE_HANGUP|OPT_CALLER_HANGUP|DIAL_NOFORWARDHTML);
+					ast_copy_flags(peerflags, o,
+						       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
+						       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
+						       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
+						       DIAL_NOFORWARDHTML);
 				}
 			} else if (o->chan && (o->chan == winner)) {
 				if (!ast_strlen_zero(o->chan->call_forward)) {
@@ -547,7 +551,11 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 								if (option_verbose > 2)
 									ast_verbose( VERBOSE_PREFIX_3 "%s answered %s\n", o->chan->name, in->name);
 								peer = o->chan;
-								ast_copy_flags(peerflags, o, OPT_CALLEE_TRANSFER|OPT_CALLER_TRANSFER|OPT_CALLEE_HANGUP|OPT_CALLER_HANGUP|DIAL_NOFORWARDHTML);
+								ast_copy_flags(peerflags, o,
+									       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
+									       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP |
+									       OPT_CALLEE_MONITOR | OPT_CALLER_MONITOR |
+									       DIAL_NOFORWARDHTML);
 							}
 							/* If call has been answered, then the eventual hangup is likely to be normal hangup */
 							in->hangupcause = AST_CAUSE_NORMAL_CLEARING;
@@ -955,9 +963,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	/* If a channel group has been specified, get it for use when we create peer channels */
 	outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
 
-	ast_copy_flags(peerflags, &opts,
-		       OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID |
-		       OPT_CALLEE_HANGUP | OPT_CALLER_HANGUP);
+	ast_copy_flags(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID);
 	cur = args.peers;
 	do {
 		/* Remember where to start next time */
