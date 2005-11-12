@@ -2285,7 +2285,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
 
-	if (vm_lock_path(topath))
+	if (vm_lock_path(todir))
 		return ERROR_LOCK_PATH;
 
 	recipmsgnum = 0;
@@ -2300,7 +2300,7 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 	} else {
 		ast_log(LOG_ERROR, "Recipient mailbox %s@%s is full\n", recip->mailbox, recip->context);
 	}
-	ast_unlock_path(topath);
+	ast_unlock_path(todir);
 	notify_new_message(chan, recip, recipmsgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 	
 	return 0;

@@ -1,6 +1,7 @@
 2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* apps/app_voicemail.c (forward_message): correct bugs in message forwarding (issue #5718)
+	(copy_message): use correct path for locking (issue #5704)
 
 	* apps/app_dial.c (wait_for_answer): correct flag copying for automon feature (issue #5720)
 
