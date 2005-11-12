@@ -3904,7 +3904,7 @@ static int close_mailbox(struct vm_state *vms, struct ast_vm_user *vmu)
 	} 
 
 	/* Delete ALL remaining messages */
-	nummsg = x;
+	nummsg = x - 1;
 	for (x = vms->curmsg + 1; x <= nummsg; x++) {
 		make_file(vms->fn, sizeof(vms->fn), vms->curdir, x);
 		if (EXISTS(vms->curdir, x, vms->fn, NULL))
