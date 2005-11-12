@@ -441,7 +441,7 @@ struct chan_iax2_pvt {
 	int sockfd;
 	/*! Last received voice format */
 	int voiceformat;
-	/*! Last received voice format */
+	/*! Last received video format */
 	int videoformat;
 	/*! Last sent voice format */
 	int svoiceformat;
