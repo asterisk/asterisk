@@ -1,5 +1,7 @@
 2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
 
+	* apps/app_voicemail.c (forward_message): correct bugs in message forwarding (issue #5718)
+
 	* apps/app_dial.c (wait_for_answer): correct flag copying for automon feature (issue #5720)
 
 	* channels/chan_iax2.c: correct comment

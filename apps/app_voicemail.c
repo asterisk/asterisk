@@ -3479,10 +3479,16 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 				ast_log(LOG_DEBUG, "%s", sys);
 				ast_safe_system(sys);
 		
-				if ( (res = count_messages(receiver, todir)) )
+				res = count_messages(receiver, todir);
+
+				if ( (res == ERROR_LOCK_PATH) || (res < 0) ) {
+					if (res == ERROR_LOCK_PATH)
+						ast_log(LOG_WARNING, "Unable to lock the directory %s to forward the requested vmail msg!\n", todir);
+					else
+						ast_log(LOG_WARNING, "Unable to determine how many msgs are in the destination folder!\n");
 					break;
-				else
-					todircount = res;
+				}
+				todircount = res;
 				ast_copy_string(tmp, fmt, sizeof(tmp));
 				stringp = tmp;
 				while ((s = strsep(&stringp, "|"))) {
@@ -3547,8 +3553,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 					res = ast_play_and_wait(chan, "vm-messages");
 				if (!res)
 					res = ast_play_and_wait(chan, "vm-saved"); */
-				if (!res)
-					res = ast_play_and_wait(chan, "vm-msgsaved");
+				res = ast_play_and_wait(chan, "vm-msgsaved");
 			}	
 		}
 	}
