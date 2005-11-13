@@ -1259,8 +1259,8 @@ int load_module(void)
 
 int reload(void)
 {
-	unload_module();
-	return (load_module());
+	ast_context_destroy(NULL, registrar);
+	return pbx_load_module();
 }
 
 int usecount(void)
