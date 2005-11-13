@@ -160,6 +160,9 @@ AGI:
   at the end of AGI being called (e.g. on a hangup) then set SIGHUP to 
   be ignored within your application.
 
+* CallerID is reported with agi_callerid and agi_calleridname instead
+  of a single parameter holding both.
+
 Music On Hold:
 
 * The preferred format for musiconhold.conf has changed; please see the
