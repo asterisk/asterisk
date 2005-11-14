@@ -19,11 +19,6 @@
 
 PROJECT_NAME           = "Asterisk - the Open Source PBX"
 
-# The PROJECT_NUMBER tag can be used to enter a project or revision number. 
-# This could be handy for archiving the generated documentation or 
-# if some version control system is used.
-
-PROJECT_NUMBER         = CVS_HEAD
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) 
 # base path where the generated documentation will be put. 
@@ -455,6 +450,7 @@ INPUT                  = ./ \
                          include/asterisk \
 			 channels \
 			 funcs \
+			 stdtime \
 			 apps \
 			 cdr \
 			 codecs \
@@ -716,7 +712,7 @@ ENUM_VALUES_PER_LINE   = 4
 # Netscape 6.0+, Internet explorer 5.0+, or Konqueror). Windows users are 
 # probably better off using the HTML help feature.
 
-GENERATE_TREEVIEW      = NO
+GENERATE_TREEVIEW      = YES
 
 # If the treeview is enabled (see GENERATE_TREEVIEW) then this tag can be 
 # used to set the initial width (in pixels) of the frame in which the tree 
@@ -1083,7 +1079,8 @@ HIDE_UNDOC_RELATIONS   = YES
 # toolkit from AT&T and Lucent Bell Labs. The other options in this section 
 # have no effect if this option is set to NO (the default)
 
-HAVE_DOT               = YES
+#Created by Asterisk Makefile
+#HAVE_DOT               = NO
 
 # If the CLASS_GRAPH and HAVE_DOT tags are set to YES then doxygen 
 # will generate a graph for each documented class showing the direct and 

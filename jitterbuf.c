@@ -22,6 +22,7 @@
 /*! \file
  *
  * \brief jitterbuf: an application-independent jitterbuffer
+ * \author Steve Kann <stevek@stevek.com>
  *
  */
 
@@ -35,7 +36,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "jitterbuf.h"
 
-/* define these here, just for ancient compiler systems */
+/*! define these here, just for ancient compiler systems */
 #define JB_LONGMAX 2147483647L
 #define JB_LONGMIN (-JB_LONGMAX - 1L)
 
@@ -114,10 +115,6 @@ void jb_destroy(jitterbuf *jb)
 
 
 
-/* simple history manipulation */
-/* maybe later we can make the history buckets variable size, or something? */
-/* drop parameter determines whether we will drop outliers to minimize
- * delay */
 #if 0
 static int longcmp(const void *a, const void *b) 
 {
@@ -125,6 +122,10 @@ static int longcmp(const void *a, const void *b)
 }
 #endif
 
+/*!	\brief simple history manipulation 
+ 	\note maybe later we can make the history buckets variable size, or something? */
+/* drop parameter determines whether we will drop outliers to minimize
+ * delay */
 static int history_put(jitterbuf *jb, long ts, long now, long ms) 
 {
 	long delay = now - (ts - jb->info.resync_offset);

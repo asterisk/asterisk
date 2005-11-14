@@ -25,6 +25,11 @@
  * \ref amiconf
  */
 
+/*! \addtogroup Group_AMI AMI functions 
+*/
+/*! @{ 
+ Doxygen group */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -569,6 +574,7 @@ static int authenticate(struct mansession *s, struct message *m)
 	return -1;
 }
 
+/*! \brief PING: Manager PING */
 static char mandescr_ping[] = 
 "Description: A 'Ping' action will ellicit a 'Pong' response.  Used to keep the "
 "  manager connection open.\n"
@@ -1084,6 +1090,8 @@ static int action_originate(struct mansession *s, struct message *m)
 	return 0;
 }
 
+/*! 	\brief Help text for manager command mailboxstatus
+ */
 static char mandescr_mailboxstatus[] = 
 "Description: Checks a voicemail account for status.\n"
 "Variables: (Names marked with * are required)\n"
@@ -1094,6 +1102,7 @@ static char mandescr_mailboxstatus[] =
 "	Mailbox: <mailboxid>\n"
 "	Waiting: <count>\n"
 "\n";
+
 static int action_mailboxstatus(struct mansession *s, struct message *m)
 {
 	char *mailbox = astman_get_header(m, "Mailbox");
@@ -1599,6 +1608,8 @@ static int ast_manager_register_struct(struct manager_action *act)
 	return 0;
 }
 
+/*! \brief register a new command with manager, including online help. This is 
+	the preferred way to register a manager command */
 int ast_manager_register2(const char *action, int auth, int (*func)(struct mansession *s, struct message *m), const char *synopsis, const char *description)
 {
 	struct manager_action *cur;
@@ -1620,6 +1631,8 @@ int ast_manager_register2(const char *action, int auth, int (*func)(struct manse
 
 	return 0;
 }
+/*! @}
+ END Doxygen group */
 
 static int registered = 0;
 

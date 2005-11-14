@@ -28,60 +28,63 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #include "asterisk/ulaw.h"
 
-#define ZEROTRAP    /* turn on the trap as per the MIL-STD */
-#define BIAS 0x84   /* define the add-in bias for 16 bit samples */
+#define ZEROTRAP    /*!< turn on the trap as per the MIL-STD */
+#define BIAS 0x84   /*!< define the add-in bias for 16 bit samples */
 #define CLIP 32635
 
 unsigned char __ast_lin2mu[16384];
 short __ast_mulaw[256];
 
-static unsigned char
-linear2ulaw(short sample)
+
+static unsigned char linear2ulaw(short sample)
 {
-  static int exp_lut[256] = {0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
-                             4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
-                             5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-                             5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-                             6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-                             6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-                             6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-                             6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-                             7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7};
-  int sign, exponent, mantissa;
-  unsigned char ulawbyte;
+	static int exp_lut[256] = {
+		0,0,1,1,2,2,2,2,3,3,3,3,3,3,3,3,
+		4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+		5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+		5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
+		6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+		6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+		6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+		6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
+		7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+		7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+		7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+		7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+		7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+		7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+		7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
+		7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7 };
+	int sign, exponent, mantissa;
+	unsigned char ulawbyte;
 
-  /* Get the sample into sign-magnitude. */
-  sign = (sample >> 8) & 0x80;          /* set aside the sign */
-  if (sign != 0) sample = -sample;              /* get magnitude */
-  if (sample > CLIP) sample = CLIP;             /* clip the magnitude */
+	/* Get the sample into sign-magnitude. */
+	sign = (sample >> 8) & 0x80;          /* set aside the sign */
+	if (sign != 0) 
+		sample = -sample;              /* get magnitude */
+	if (sample > CLIP)
+		sample = CLIP;             /* clip the magnitude */
 
-  /* Convert from 16 bit linear to ulaw. */
-  sample = sample + BIAS;
-  exponent = exp_lut[(sample >> 7) & 0xFF];
-  mantissa = (sample >> (exponent + 3)) & 0x0F;
-  ulawbyte = ~(sign | (exponent << 4) | mantissa);
+	/* Convert from 16 bit linear to ulaw. */
+	sample = sample + BIAS;
+	exponent = exp_lut[(sample >> 7) & 0xFF];
+	mantissa = (sample >> (exponent + 3)) & 0x0F;
+	ulawbyte = ~(sign | (exponent << 4) | mantissa);
 #ifdef ZEROTRAP
-  if (ulawbyte == 0) ulawbyte = 0x02;   /* optional CCITT trap */
+	if (ulawbyte == 0)
+		ulawbyte = 0x02;   /* optional CCITT trap */
 #endif
 
-  return(ulawbyte);
+	return ulawbyte;
 }
 
+/*!
+ * \brief  Set up mu-law conversion table
+ */
 void ast_ulaw_init(void)
 {
 	int i;
-	/* 
-	 *  Set up mu-law conversion table
-	 */
-	for(i = 0;i < 256;i++)
-	   {
+	for(i = 0;i < 256;i++) {
 		short mu,e,f,y;
 		static short etab[]={0,132,396,924,1980,4092,8316,16764};
 
@@ -92,12 +95,11 @@ void ast_ulaw_init(void)
 		y += etab[e];
 		if (mu & 0x80) y = -y;
 	        __ast_mulaw[i] = y;
-	   }
-	  /* set up the reverse (mu-law) conversion table */
-	for(i = -32768; i < 32768; i++)
-	   {
+	}
+	/* set up the reverse (mu-law) conversion table */
+	for(i = -32768; i < 32768; i++) {
 		__ast_lin2mu[((unsigned short)i) >> 2] = linear2ulaw(i);
-	   }
+	}
 
 }
 

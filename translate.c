@@ -46,15 +46,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_RECALC 200 /* max sample recalc */
 
-/* This could all be done more efficiently *IF* we chained packets together
+/*! \note
+   This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
 AST_MUTEX_DEFINE_STATIC(list_lock);
 static struct ast_translator *list = NULL;
 
 struct ast_translator_dir {
-	struct ast_translator *step;	/* Next step translator */
-	int cost;			/* Complete cost to destination */
+	struct ast_translator *step;	/*!< Next step translator */
+	int cost;			/*!< Complete cost to destination */
 };
 
 struct ast_frame_delivery {
@@ -100,7 +101,7 @@ void ast_translator_free_path(struct ast_trans_pvt *p)
 	}
 }
 
-/* Build a set of translators based upon the given source and destination formats */
+/*! Build a set of translators based upon the given source and destination formats */
 struct ast_trans_pvt *ast_translator_build_path(int dest, int source)
 {
 	struct ast_trans_pvt *tmpr = NULL, *tmp = NULL;
@@ -218,15 +219,16 @@ struct ast_frame *ast_translate(struct ast_trans_pvt *path, struct ast_frame *f,
 }
 
 
-static void calc_cost(struct ast_translator *t,int samples)
+static void calc_cost(struct ast_translator *t, int samples)
 {
 	int sofar=0;
 	struct ast_translator_pvt *pvt;
 	struct ast_frame *f, *out;
 	struct timeval start;
 	int cost;
+
 	if(!samples)
-	  samples = 1;
+		samples = 1;
 	
 	/* If they don't make samples, give them a terrible score */
 	if (!t->sample) {
@@ -264,19 +266,20 @@ static void calc_cost(struct ast_translator *t,int samples)
 		t->cost = 1;
 }
 
+/*! \brief Use the list of translators to build a translation matrix */
 static void rebuild_matrix(int samples)
 {
 	struct ast_translator *t;
 	int changed;
 	int x,y,z;
+
 	if (option_debug)
-		ast_log(LOG_DEBUG, "Reseting translation matrix\n");
-	/* Use the list of translators to build a translation matrix */
+		ast_log(LOG_DEBUG, "Resetting translation matrix\n");
 	bzero(tr_matrix, sizeof(tr_matrix));
 	t = list;
 	while(t) {
-	  if(samples)
-	    calc_cost(t,samples);
+		if(samples)
+			calc_cost(t, samples);
 	  
 		if (!tr_matrix[t->srcfmt][t->dstfmt].step ||
 		     tr_matrix[t->srcfmt][t->dstfmt].cost > t->cost) {
@@ -290,7 +293,7 @@ static void rebuild_matrix(int samples)
 		/* Don't you just love O(N^3) operations? */
 		for (x=0; x< MAX_FORMAT; x++)				/* For each source format */
 			for (y=0; y < MAX_FORMAT; y++) 			/* And each destination format */
-				if (x != y)							/* Except ourselves, of course */
+				if (x != y)				/* Except ourselves, of course */
 					for (z=0; z < MAX_FORMAT; z++) 	/* And each format it might convert to */
 						if ((x!=z) && (y!=z)) 		/* Don't ever convert back to us */
 							if (tr_matrix[x][y].step && /* We can convert from x to y */
@@ -319,6 +322,7 @@ static void rebuild_matrix(int samples)
 
 
 
+/*! \brief CLI "show translation" command handler */
 static int show_translation(int fd, int argc, char *argv[])
 {
 #define SHOW_TRANS 11
@@ -346,7 +350,7 @@ static int show_translation(int fd, int argc, char *argv[])
 	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");
 	ast_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
 	ast_mutex_lock(&list_lock);
-	for (x=-1;x<SHOW_TRANS; x++) {
+	for (x = -1; x < SHOW_TRANS; x++) {
 		/* next 2 lines run faster than using strcpy() */
 		line[0] = ' ';
 		line[1] = '\0';
@@ -375,7 +379,7 @@ static int added_cli = 0;
 static char show_trans_usage[] =
 "Usage: show translation [recalc] [<recalc seconds>]\n"
 "       Displays known codec translators and the cost associated\n"
-"with each conversion.  if the arguement 'recalc' is supplied along\n"
+"with each conversion.  If the argument 'recalc' is supplied along\n"
 "with optional number of seconds to test a new test will be performed\n"
 "as the chart is being displayed.\n";
 
@@ -410,6 +414,7 @@ int ast_register_translator(struct ast_translator *t)
 	return 0;
 }
 
+/*! \brief unregister codec translator */
 int ast_unregister_translator(struct ast_translator *t)
 {
 	char tmp[80];
@@ -434,9 +439,9 @@ int ast_unregister_translator(struct ast_translator *t)
 	return (u ? 0 : -1);
 }
 
+/*! \brief Calculate our best translator source format, given costs, and a desired destination */
 int ast_translator_best_choice(int *dst, int *srcs)
 {
-	/* Calculate our best source format, given costs, and a desired destination */
 	int x,y;
 	int best = -1;
 	int bestdst = 0;

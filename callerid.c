@@ -64,11 +64,13 @@ float clidsb = 8000.0 / 1200.0;
 float sasdr, sasdi;
 float casdr1, casdi1, casdr2, casdi2;
 
-#define CALLERID_SPACE	2200.0		/* 2200 hz for "0" */
-#define CALLERID_MARK	1200.0		/* 1200 hz for "1" */
+#define CALLERID_SPACE	2200.0		/*!< 2200 hz for "0" */
+#define CALLERID_MARK	1200.0		/*!< 1200 hz for "1" */
 #define SAS_FREQ		 440.0
 #define CAS_FREQ1		2130.0
 #define CAS_FREQ2		2750.0
+
+#define AST_CALLERID_UNKNOWN	"<unknown>"
 
 static inline void gen_tones(unsigned char *buf, int len, int codec, float ddr1, float ddi1, float ddr2, float ddi2, float *cr1, float *ci1, float *cr2, float *ci2)
 {
@@ -107,9 +109,9 @@ static inline void gen_tone(unsigned char *buf, int len, int codec, float ddr1, 
 	}
 }
 
+/*! \brief Initialize stuff for inverse FFT */
 void callerid_init(void)
 {
-	/* Initialize stuff for inverse FFT */
 	cid_dr[0] = cos(CALLERID_SPACE * 2.0 * M_PI / 8000.0);
 	cid_di[0] = sin(CALLERID_SPACE * 2.0 * M_PI / 8000.0);
 	cid_dr[1] = cos(CALLERID_MARK * 2.0 * M_PI / 8000.0);
@@ -614,6 +616,10 @@ void ast_shrink_phone_number(char *n)
 	n[y] = '\0';
 }
 
+/*! \brief checks if string consists only of digits and * \# and + 
+	\return 1 if string is valid AST phone number
+	\return 0 if not
+*/
 int ast_isphonenumber(char *n)
 {
 	int x;
@@ -625,6 +631,9 @@ int ast_isphonenumber(char *n)
 	return 1;
 }
 
+/*! \brief parse string for caller id information 
+	\return returns -1 on failure, otherwise 0
+*/
 int ast_callerid_parse(char *instr, char **name, char **location)
 {
 	char *ns, *ne;
@@ -705,6 +714,7 @@ char *ast_callerid_merge(char *buf, int bufsiz, const char *name, const char *nu
 		ast_copy_string(buf, unknown, bufsiz);
 	return buf;
 }
+
 int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int numlen)
 {
 	char *tmp;
@@ -744,6 +754,11 @@ static struct {
 	{  AST_PRES_NUMBER_NOT_AVAILABLE, "unavailable", "Number Unavailable"},
 };
 
+/*! \brief Convert caller ID text code to value 
+	used in config file parsing
+	\param data text string
+	\return value AST_PRES_ from callerid.h 
+*/
 int ast_parse_caller_presentation(const char *data)
 {
 	int i;
@@ -756,6 +771,10 @@ int ast_parse_caller_presentation(const char *data)
 	return -1;
 }
 
+/*! \brief Convert caller ID pres value to explanatory string 
+	\param data value (see callerid.h AST_PRES_ ) 
+	\return string for human presentation
+*/
 const char *ast_describe_caller_presentation(int data)
 {
 	int i;

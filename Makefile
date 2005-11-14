@@ -392,6 +392,13 @@ ifeq ($(MAKETOPLEVEL),$(MAKELEVEL))
   CFLAGS+=$(ASTCFLAGS)
 endif
 
+# This is used when generating the doxygen documentation
+ifneq ($(wildcard /usr/local/bin/dot)$(wildcard /usr/bin/dot),)
+  HAVEDOT=yes
+else
+  HAVEDOT=no
+endif
+
 LIBS+=-lssl
 
 INSTALL=install
@@ -826,7 +833,8 @@ __rpm: include/asterisk/version.h spec
 	rpmbuild --rcfile /usr/lib/rpm/rpmrc:redhat/rpmrc -bb asterisk.spec
 
 progdocs:
-	doxygen contrib/asterisk-ng-doxygen
+	(cat contrib/asterisk-ng-doxygen; echo "HAVE_DOT=$(HAVEDOT) \
+	PROJECT_NUMBER=$(ASTERISKVERSION)  -  $(ASTERISKVERSIONNUM)") | doxygen - 
 
 mpg123:
 	@wget -V >/dev/null || (echo "You need wget" ; false )

@@ -56,10 +56,10 @@ AST_MUTEX_DEFINE_STATIC(framelock);
 #define TYPE_MASK	 0x3
 
 struct ast_format_list {
-	int visible; /* Can we see this entry */
-	int bits; /* bitmask value */
-	char *name; /* short name */
-	char *desc; /* Description */
+	int visible;	/*!< Can we see this entry */
+	int bits;	/*!< bitmask value */
+	char *name;	/*!< short name */
+	char *desc;	/*!< Description */
 };
 
 struct ast_smoother {
@@ -75,6 +75,36 @@ struct ast_smoother {
 	char framedata[SMOOTHER_SIZE + AST_FRIENDLY_OFFSET];
 	struct ast_frame *opt;
 	int len;
+};
+
+/*! \brief Definition of supported media formats (codecs) */
+static struct ast_format_list AST_FORMAT_LIST[] = {
+	{ 1, AST_FORMAT_G723_1 , "g723" , "G.723.1"},	/*!< codec_g723_1.c */
+	{ 1, AST_FORMAT_GSM, "gsm" , "GSM"},		/*!< codec_gsm.c */
+	{ 1, AST_FORMAT_ULAW, "ulaw", "G.711 u-law" },	/*!< codec_ulaw.c */
+	{ 1, AST_FORMAT_ALAW, "alaw", "G.711 A-law" },	/*!< codec_alaw.c */
+	{ 1, AST_FORMAT_G726, "g726", "G.726" },	/*!< codec_g726.c */
+	{ 1, AST_FORMAT_ADPCM, "adpcm" , "ADPCM"},	/*!< codec_adpcm.c */
+	{ 1, AST_FORMAT_SLINEAR, "slin",  "16 bit Signed Linear PCM"},	/*!<  */
+	{ 1, AST_FORMAT_LPC10, "lpc10", "LPC10" },	/*!< codec_lpc10.c */
+	{ 1, AST_FORMAT_G729A, "g729", "G.729A" },	/*!< Binary commercial distribution */
+	{ 1, AST_FORMAT_SPEEX, "speex", "SpeeX" },	/*!< codec_speex.c */
+	{ 1, AST_FORMAT_ILBC, "ilbc", "iLBC"},	/*!< codec_ilbc.c */
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, AST_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format" },
+	{ 1, AST_FORMAT_JPEG, "jpeg", "JPEG image"},	/*!< See format_jpeg.c */
+	{ 1, AST_FORMAT_PNG, "png", "PNG image"},	/*!< Image format */
+	{ 1, AST_FORMAT_H261, "h261", "H.261 Video" },	/*!< Passthrough */
+	{ 1, AST_FORMAT_H263, "h263", "H.263 Video" },	/*!< Passthrough support, see format_h263.c */
+	{ 1, AST_FORMAT_H263_PLUS, "h263p", "H.263+ Video" },	/*!< See format_h263.c */
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, 0, "nothing", "undefined" },
+	{ 0, AST_FORMAT_MAX_VIDEO, "maxvideo", "Maximum video format" },
 };
 
 void ast_smoother_reset(struct ast_smoother *s, int size)
@@ -236,11 +266,10 @@ static struct ast_frame *ast_frame_header_new(void)
 	return f;
 }
 
-/*
- * Important: I should be made more efficient.  Frame headers should
+/*!
+ * \todo Important: I should be made more efficient.  Frame headers should
  * most definitely be cached
  */
-
 void ast_frfree(struct ast_frame *fr)
 {
 	if (fr->mallocd & AST_MALLOCD_DATA) {
@@ -267,8 +296,8 @@ void ast_frfree(struct ast_frame *fr)
 	}
 }
 
-/*
- * 'isolates' a frame by duplicating non-malloc'ed components
+/*!
+ * \brief 'isolates' a frame by duplicating non-malloc'ed components
  * (header, src, data).
  * On return all components are malloc'ed
  */
@@ -449,34 +478,6 @@ void ast_swapcopy_samples(void *dst, const void *src, int samples)
 		dst_s[i] = (src_s[i]<<8) | (src_s[i]>>8);
 }
 
-static struct ast_format_list AST_FORMAT_LIST[] = {
-	{ 1, AST_FORMAT_G723_1 , "g723" , "G.723.1"},
-	{ 1, AST_FORMAT_GSM, "gsm" , "GSM"},
-	{ 1, AST_FORMAT_ULAW, "ulaw", "G.711 u-law" },
-	{ 1, AST_FORMAT_ALAW, "alaw", "G.711 A-law" },
-	{ 1, AST_FORMAT_G726, "g726", "G.726" },
-	{ 1, AST_FORMAT_ADPCM, "adpcm" , "ADPCM"},
-	{ 1, AST_FORMAT_SLINEAR, "slin",  "16 bit Signed Linear PCM"},
-	{ 1, AST_FORMAT_LPC10, "lpc10", "LPC10" },
-	{ 1, AST_FORMAT_G729A, "g729", "G.729A" },
-	{ 1, AST_FORMAT_SPEEX, "speex", "SpeeX" },
-	{ 1, AST_FORMAT_ILBC, "ilbc", "iLBC"},
-	{ 0, 0, "nothing", "undefined" },
-	{ 0, 0, "nothing", "undefined" },
-	{ 0, 0, "nothing", "undefined" },
-	{ 0, 0, "nothing", "undefined" },
-	{ 0, AST_FORMAT_MAX_AUDIO, "maxaudio", "Maximum audio format" },
-	{ 1, AST_FORMAT_JPEG, "jpeg", "JPEG image"},
-	{ 1, AST_FORMAT_PNG, "png", "PNG image"},
-	{ 1, AST_FORMAT_H261, "h261", "H.261 Video" },
-	{ 1, AST_FORMAT_H263, "h263", "H.263 Video" },
-	{ 1, AST_FORMAT_H263_PLUS, "h263p", "H.263+ Video" },
-	{ 0, 0, "nothing", "undefined" },
-	{ 0, 0, "nothing", "undefined" },
-	{ 0, 0, "nothing", "undefined" },
-	{ 0, 0, "nothing", "undefined" },
-	{ 0, AST_FORMAT_MAX_VIDEO, "maxvideo", "Maximum video format" },
-};
 
 struct ast_format_list *ast_get_format_list_index(int index) 
 {
@@ -652,6 +653,7 @@ static char frame_show_codec_n_usage[] =
 "Usage: show codec <number>\n"
 "       Displays codec mapping\n";
 
+/*! Dump a frame for debugging purposes */
 void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 {
 	char *n = "unknown";
@@ -835,7 +837,7 @@ static char frame_stats_usage[] =
 "       Displays debugging statistics from framer\n";
 #endif
 
-/* XXX no unregister function here ??? */
+/* Builtin Asterisk CLI-commands for debugging */
 static struct ast_cli_entry my_clis[] = {
 { { "show", "codecs", NULL }, show_codecs, "Shows codecs", frame_show_codecs_usage },
 { { "show", "audio", "codecs", NULL }, show_codecs, "Shows audio codecs", frame_show_codecs_usage },
@@ -923,7 +925,7 @@ int ast_codec_pref_index(struct ast_codec_pref *pref, int index)
 	return slot ? AST_FORMAT_LIST[slot-1].bits : 0;
 }
 
-/*--- ast_codec_pref_remove: Remove codec from pref list ---*/
+/*! \brief ast_codec_pref_remove: Remove codec from pref list ---*/
 void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 {
 	struct ast_codec_pref oldorder;
@@ -949,7 +951,7 @@ void ast_codec_pref_remove(struct ast_codec_pref *pref, int format)
 	
 }
 
-/*--- ast_codec_pref_append: Append codec to list ---*/
+/*! \brief ast_codec_pref_append: Append codec to list ---*/
 int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 {
 	size_t size = 0;
@@ -978,7 +980,7 @@ int ast_codec_pref_append(struct ast_codec_pref *pref, int format)
 }
 
 
-/*--- sip_codec_choose: Pick a codec ---*/
+/*! \brief ast_codec_choose: Pick a codec ---*/
 int ast_codec_choose(struct ast_codec_pref *pref, int formats, int find_best)
 {
 	size_t size = 0;

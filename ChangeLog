@@ -1,5 +1,7 @@
 2005-11-14  Russell Bryant  <russell@digium.com>
 
+	* many files: Merge doxygen documentation updates. (issue #5605)
+
 	* apps/app_dial.c: Fix typo in RetryDial description.
 
 2005-11-12  Russell Bryant  <russell@digium.com>

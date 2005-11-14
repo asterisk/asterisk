@@ -52,11 +52,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define MAX_OTHER_FORMATS 10
 
 
-/* 
+/* !
 This function presents a dialtone and reads an extension into 'collect' 
 which must be a pointer to a **pre-initilized** array of char having a 
 size of 'size' suitable for writing to.  It will collect no more than the smaller 
 of 'maxlen' or 'size' minus the original strlen() of collect digits.
+\return 0 if extension does not exist, 1 if extension exists
 */
 int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, size_t size, int maxlen, int timeout) 
 {
@@ -103,7 +104,7 @@ int ast_app_dtget(struct ast_channel *chan, const char *context, char *collect, 
 
 
 
-/* set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
+/*! \param timeout set timeout to 0 for "standard" timeouts. Set timeout to -1 for 
    "ludicrous time" (essentially never times out) */
 int ast_app_getdata(struct ast_channel *c, char *prompt, char *s, int maxlen, int timeout)
 {

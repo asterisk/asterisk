@@ -22,7 +22,10 @@
 /*! \file
  * \brief Mute Daemon
  *
- * Specially written for Malcolm Davenport, but I think I'll use it too
+ * \note Specially written for Malcolm Davenport, but I think I'll use it too
+ * Connects to the Asterisk Manager Interface, AMI, and listens for events
+ * on certain devices. If a phone call is connected to one of the devices (phones)
+ * the local sound is muted to a lower volume during the call.
  *
  */
 
@@ -183,6 +186,7 @@ static int open_mixer(void)
 }
 #endif /* !__Darwin */
 
+/*! Connect to the asterisk manager interface */
 static int connect_asterisk(void)
 {
 	int sock;
@@ -190,6 +194,7 @@ static int connect_asterisk(void)
 	char *ports;
 	int port = 5038;
 	struct sockaddr_in sin;
+
 	ports = strchr(host, ':');
 	if (ports) {
 		*ports = '\0';
@@ -237,6 +242,7 @@ static char *get_line(void)
 		return NULL;
 }
 
+/*! Login to the asterisk manager interface */
 static int login_asterisk(void)
 {
 	char *welcome;
@@ -573,6 +579,7 @@ static int wait_event(void)
 	char channel[120]="";
 	char oldname[120]="";
 	char newname[120]="";
+
 	resp = get_line();
 	if (!resp) {
 		fprintf(stderr, "disconnected (6)\n");
@@ -616,7 +623,7 @@ static void usage(void)
 {
 	printf("Usage: muted [-f] [-d]\n"
 	       "        -f : Do not fork\n"
-		   "        -d : Debug (implies -f)\n");
+	       "        -d : Debug (implies -f)\n");
 }
 
 int main(int argc, char *argv[])

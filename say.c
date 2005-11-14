@@ -21,7 +21,7 @@
  *
  * \brief Say numbers and dates (maybe words one day too)
  * 
- * 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
+ * \note 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
  *  						George Konstantoulakis <gkon@inaccessnetworks.com>
  */
 
@@ -278,35 +278,40 @@ int ast_say_digits(struct ast_channel *chan, int num, const char *ints, const ch
 }
 
 /* Forward declarations */
-/* Syntaxes supported, not really language codes.
-      da    - Danish
-      de    - German
-      en    - English (US)
-      en_GB - English (British)
-      es    - Spanish, Mexican
-      fr    - French
-      he    - Hebrew
-      it    - Italian
-      nl    - Dutch
-      no    - Norwegian
-      pl    - Polish       
-      pt    - Portuguese
-      se    - Swedish
-      tw    - Taiwanese
-      ru    - Russian
+/*! \page Def_syntaxlang Asterisk Language Syntaxes supported
+    \not Not really language codes.
+	For these language codes, Asterisk will change the syntax when
+	saying numbers (and in some cases dates and voicemail messages
+	as well)
+      \arg \b da    - Danish
+      \arg \b de    - German
+      \arg \b en    - English (US)
+      \arg \b en_GB - English (British)
+      \arg \b es    - Spanish, Mexican
+      \arg \b fr    - French
+      \arg \b he    - Hebrew
+      \arg \b it    - Italian
+      \arg \b nl    - Dutch
+      \arg \b no    - Norwegian
+      \arg \b pl    - Polish       
+      \arg \b pt    - Portuguese
+      \arg \b se    - Swedish
+      \arg \b tw    - Taiwanese
+      \arg \b ru    - Russian
 
- Gender:
- For Some languages the numbers differ for gender and plural
- Use the option argument 'f' for female, 'm' for male and 'n' for neuter in languages like Portuguese, French, Spanish and German.
- use the option argument 'c' is for commune and 'n' for neuter gender in nordic languages like Danish, Swedish and Norwegian.
+ \par Gender:
+ For Some languages the numbers differ for gender and plural.
+ \arg Use the option argument 'f' for female, 'm' for male and 'n' for neuter in languages like Portuguese, French, Spanish and German.
+ \arg use the option argument 'c' is for commune and 'n' for neuter gender in nordic languages like Danish, Swedish and Norwegian.
  use the option argument 'p' for plural enumerations like in German
  
  Date/Time functions currently have less languages supported than saynumber().
 
- Note that in future, we need to move to a model where we can differentiate further - e.g. between en_US & en_UK
+ \todo Note that in future, we need to move to a model where we can differentiate further - e.g. between en_US & en_UK
 
  See contrib/i18n.testsuite.conf for some examples of the different syntaxes
 
+ \par Portuguese
  Portuguese sound files needed for Time/Date functions:
  pt-ah
  pt-ao
@@ -317,10 +322,12 @@ int ast_say_digits(struct ast_channel *chan, int num, const char *ints, const ch
  pt-meiodia
  pt-sss
 
+ \par Spanish
  Spanish sound files needed for Time/Date functions:
  es-de
  es-el
 
+ \par Italian
  Italian sound files needed for Time/Date functions:
  ore-una
  ore-mezzanotte

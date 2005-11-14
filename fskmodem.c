@@ -74,7 +74,7 @@ static double coef_out[NBW][8]={
 };
 
 
-/* Filtro pasa-banda para frecuencia de MARCA */
+/*! Filtro pasa-banda para frecuencia de MARCA */
 static inline float filtroM(fsk_data *fskd,float in)
 {
 	int i,j;
@@ -91,7 +91,7 @@ static inline float filtroM(fsk_data *fskd,float in)
 	return s;
 }
 
-/* Filtro pasa-banda para frecuencia de ESPACIO */
+/*! Filtro pasa-banda para frecuencia de ESPACIO */
 static inline float filtroS(fsk_data *fskd,float in)
 {
 	int i,j;
@@ -108,7 +108,7 @@ static inline float filtroS(fsk_data *fskd,float in)
 	return s;
 }
 
-/* Filtro pasa-bajos para datos demodulados */
+/*! Filtro pasa-bajos para datos demodulados */
 static inline float filtroL(fsk_data *fskd,float in)
 {
 	int i,j;
