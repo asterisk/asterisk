@@ -37,7 +37,8 @@ else
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
+  SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
 ifeq (${OSARCH},CYGWIN)

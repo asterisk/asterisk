@@ -21,7 +21,8 @@ CFLAGS+=-fPIC
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
+  SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
 
 #The problem with sparc is the best stuff is in newer versions of gcc (post 3.0) only.
