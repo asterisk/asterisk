@@ -1,3 +1,7 @@
+2005-11-14  Russell Bryant  <russell@digium.com>
+
+	* apps/app_dial.c: Fix typo in RetryDial description.
+
 2005-11-12  Russell Bryant  <russell@digium.com>
 
 	* channels/chan_oss.c: Fix a typo in an error message.
