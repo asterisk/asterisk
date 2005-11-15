@@ -99,9 +99,9 @@ static int playback_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, tmp);
 
 	if (args.options) {
-		if (!strcasestr(args.options, "skip"))
+		if (strcasestr(args.options, "skip"))
 			option_skip = 1;
-		if (!strcasestr(args.options, "noanswer"))
+		if (strcasestr(args.options, "noanswer"))
 			option_noanswer = 1;
 		if (strchr(args.options, 'j'))
 			priority_jump = 1;

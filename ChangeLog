@@ -1,5 +1,7 @@
 2005-11-15  Kevin P. Fleming  <kpfleming@limerick.digium.com>
 
+	* apps/app_playback.c (playback_exec): use correct logic tests for options (issue #5752)
+
 	* apps/app_disa.c (disa_exec): use standard arg parsing routines (issue #5736)
 
 2005-11-15  Russell Bryant <russell@digium.com>
