@@ -1,5 +1,7 @@
 2005-11-15  Kevin P. Fleming  <kpfleming@limerick.digium.com>
 
+	* channels/chan_sip.c (add_codec_to_sdp): add 'annexb=no' to G.729A SDP (issue #5539)
+
 	* channels/chan_alsa.c (alsa_hangup): handle autohangup properly (issue #5672)
 
 	* channels/chan_misdn.c (and other files): various fixes (issue #5739)
