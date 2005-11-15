@@ -1,3 +1,7 @@
+2005-11-15  Kevin P. Fleming  <kpfleming@limerick.digium.com>
+
+	* apps/app_disa.c (disa_exec): use standard arg parsing routines (issue #5736)
+
 2005-11-15  Russell Bryant <russell@digium.com>
 
 	* manager.c: Don't crash on a SetVar action if the channel name is not set, or variable's value is not set (issue #5760)

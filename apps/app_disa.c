@@ -118,15 +118,20 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
 	struct localuser *u;
-	char *tmp, arg2[256]="",exten[AST_MAX_EXTENSION],acctcode[20]="";
+	char *tmp, exten[AST_MAX_EXTENSION],acctcode[20]="";
 	char pwline[256];
-	char *ourcontext,*ourcallerid,ourcidname[256],ourcidnum[256],*mailbox;
+	char ourcidname[256],ourcidnum[256];
 	struct ast_frame *f;
 	struct timeval lastdigittime;
 	int res;
 	time_t rstart;
 	FILE *fp;
-	char *stringp=NULL;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(passcode);
+		AST_APP_ARG(context);
+		AST_APP_ARG(cid);
+		AST_APP_ARG(mailbox);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "disa requires an argument (passcode/passcode file)\n");
@@ -161,24 +166,14 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}	
 
-	stringp=tmp;
-	strsep(&stringp, "|");
-	ourcontext = strsep(&stringp, "|");
-	/* if context specified, save 2nd arg and parse third */
-	if (ourcontext) {
-		ast_copy_string(arg2, ourcontext, sizeof(arg2));
-		ourcallerid = strsep(&stringp,"|");
-	}
-	  /* if context not specified, use "disa" */
-	else {
-		arg2[0] = 0;
-		ourcallerid = NULL;
-		ourcontext = "disa";
-	}
-	mailbox = strsep(&stringp, "|");
-	if (!mailbox)
-		mailbox = "";
-	ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
+	AST_STANDARD_APP_ARGS(args, tmp);
+
+	if (ast_strlen_zero(args.context)) 
+		args.context = ast_strdupa("disa");	
+	if (ast_strlen_zero(args.mailbox))
+		args.mailbox = ast_strdupa("");
+
+	ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
 	
 	if (chan->_state != AST_STATE_UP) {
 		/* answer */
@@ -190,15 +185,15 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	acctcode[0] = 0;
 	/* can we access DISA without password? */ 
 
-	ast_log(LOG_DEBUG, "Context: %s\n",ourcontext);
+	ast_log(LOG_DEBUG, "Context: %s\n",args.context);
 
-	if (!strcasecmp(tmp, "no-password")) {
+	if (!strcasecmp(args.passcode, "no-password")) {
 		k |= 1; /* We have the password */
 		ast_log(LOG_DEBUG, "DISA no-password login success\n");
 	}
 	lastdigittime = ast_tvnow();
 
-	play_dialtone(chan, mailbox);
+	play_dialtone(chan, args.mailbox);
 
 	for (;;) {
 		  /* if outa time, give em reorder */
@@ -254,19 +249,18 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				if (j == '#') /* end of password */
 				{
 					  /* see if this is an integer */
-					if (sscanf(tmp,"%d",&j) < 1)
+					if (sscanf(args.passcode,"%d",&j) < 1)
 					   { /* nope, it must be a filename */
-						fp = fopen(tmp,"r");
+						fp = fopen(args.passcode,"r");
 						if (!fp)
 						   {
-							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",tmp,chan->name);
+							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",args.passcode,chan->name);
 							LOCAL_USER_REMOVE(u);
 							return -1;
 						   }
 						pwline[0] = 0;
 						while(fgets(pwline,sizeof(pwline) - 1,fp))
 						   {
-							char *stringp=NULL,*stringp2;
 							if (!pwline[0]) continue;
 							if (pwline[strlen(pwline) - 1] == '\n') 
 								pwline[strlen(pwline) - 1] = 0;
@@ -274,28 +268,26 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							  /* skip comments */
 							if (pwline[0] == '#') continue;
 							if (pwline[0] == ';') continue;
-							stringp=pwline;
-							strsep(&stringp, "|");
-							stringp2=strsep(&stringp, "|");
-							if (stringp2) {
-								ourcontext=stringp2;
-								stringp2=strsep(&stringp, "|");
-								if (stringp2) ourcallerid=stringp2;
-							}
-							mailbox = strsep(&stringp, "|");
-							if (!mailbox)
-								mailbox = "";
-							ast_log(LOG_DEBUG, "Mailbox: %s\n",mailbox);
+
+							AST_STANDARD_APP_ARGS(args, pwline);
+			
+							ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
 
 							  /* password must be in valid format (numeric) */
-							if (sscanf(pwline,"%d",&j) < 1) continue;
+							if (sscanf(args.passcode,"%d",&j) < 1) continue;
 							  /* if we got it */
-							if (!strcmp(exten,pwline)) break;
+							if (!strcmp(exten,args.passcode)) {
+								if (ast_strlen_zero(args.context))
+									args.context = ast_strdupa("disa");
+								if (ast_strlen_zero(args.mailbox))
+									args.mailbox = ast_strdupa("");
+								break;
+							}
 						   }
 						fclose(fp);
 					   }
 					  /* compare the two */
-					if (strcmp(exten,pwline))
+					if (strcmp(exten,args.passcode))
 					{
 						ast_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
 						goto reorder;
@@ -303,7 +295,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					}
 					 /* password good, set to dial state */
 					ast_log(LOG_DEBUG,"DISA on chan %s password is good\n",chan->name);
-					play_dialtone(chan, mailbox);
+					play_dialtone(chan, args.mailbox);
 
 					k|=1; /* In number mode */
 					i = 0;  /* re-set buffer pointer */
@@ -320,7 +312,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (!(k&1)) continue; /* if getting password, continue doing it */
 			  /* if this exists */
 
-			if (ast_ignore_pattern(ourcontext, exten)) {
+			if (ast_ignore_pattern(args.context, exten)) {
 				play_dialtone(chan, "");
 				did_ignore = 1;
 			} else
@@ -330,7 +322,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				}
 
 			  /* if can do some more, do it */
-			if (!ast_matchmore_extension(chan,ourcontext,exten,1, chan->cid.cid_num)) {
+			if (!ast_matchmore_extension(chan,args.context,exten,1, chan->cid.cid_num)) {
 				break;
 			}
 		}
@@ -340,18 +332,18 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		int recheck = 0;
 		struct ast_flags flags = { AST_CDR_FLAG_POSTED };
 
-		if (!ast_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num)) {
+		if (!ast_exists_extension(chan, args.context, exten, 1, chan->cid.cid_num)) {
 			pbx_builtin_setvar_helper(chan, "INVALID_EXTEN", exten);
 			exten[0] = 'i';
 			exten[1] = '\0';
 			recheck = 1;
 		}
-		if (!recheck || ast_exists_extension(chan, ourcontext, exten, 1, chan->cid.cid_num)) {
+		if (!recheck || ast_exists_extension(chan, args.context, exten, 1, chan->cid.cid_num)) {
 			ast_playtones_stop(chan);
 			/* We're authenticated and have a target extension */
-			if (ourcallerid && *ourcallerid)
+			if (!ast_strlen_zero(args.cid))
 			{
-				ast_callerid_split(ourcallerid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
+				ast_callerid_split(args.cid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
 				ast_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
 			}
 
@@ -359,7 +351,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 				ast_copy_string(chan->accountcode, acctcode, sizeof(chan->accountcode));
 
 			ast_cdr_reset(chan->cdr, &flags);
-			ast_explicit_goto(chan, ourcontext, exten, 1);
+			ast_explicit_goto(chan, args.context, exten, 1);
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
