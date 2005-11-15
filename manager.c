@@ -689,6 +689,11 @@ static int action_setvar(struct mansession *s, struct message *m)
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
+	
+	if (ast_strlen_zero(varval)) {
+		astman_send_error(s, m, "No value specified");
+		return 0;
+	}
 
 	if (!ast_strlen_zero(name)) {
 		c = ast_get_channel_by_name_locked(name);
@@ -698,10 +703,12 @@ static int action_setvar(struct mansession *s, struct message *m)
 		}
 	}
 	
-	pbx_builtin_setvar_helper(c,varname,varval);
+	pbx_builtin_setvar_helper(c, varname, varval);
 	  
-	ast_mutex_unlock(&c->lock);
-	astman_send_ack(s, m, "Variable Set");
+	if (c)
+		ast_mutex_unlock(&c->lock);
+
+	astman_send_ack(s, m, "Variable Set");	
 
 	return 0;
 }

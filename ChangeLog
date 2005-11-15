@@ -1,5 +1,7 @@
 2005-11-15  Russell Bryant <russell@digium.com>
 
+	* manager.c: Don't crash on a SetVar action if the channel name is not set, or variable's value is not set (issue #5760)
+
 	* doc/README.variables: Add application exit status variables
 
 2005-11-14  Josh Roberson <josh@asteirasgi.com>
