@@ -565,6 +565,7 @@ static int oss_hangup(struct ast_channel *c)
 			/* Make congestion noise */
 			res = 2;
 			write(sndcmd[1], &res, sizeof(res));
+			hookstate = 0;
 		}
 	}
 	return 0;

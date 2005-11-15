@@ -582,8 +582,14 @@ static int alsa_hangup(struct ast_channel *c)
 	usecnt--;
 	ast_mutex_unlock(&usecnt_lock);
 	if (hookstate) {
-		res = 2;
-		write(sndcmd[1], &res, sizeof(res));
+		if (autoanswer) {
+			hookstate = 0;
+		} else {
+			/* Congestion noise */
+			res = 2;
+			write(sndcmd[1], &res, sizeof(res));
+			hookstate = 0;
+		}
 	}
 	snd_pcm_drop(alsa.icard);
 	ast_mutex_unlock(&alsalock);
