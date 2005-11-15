@@ -169,9 +169,9 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, tmp);
 
 	if (ast_strlen_zero(args.context)) 
-		args.context = ast_strdupa("disa");	
+		args.context = "disa";	
 	if (ast_strlen_zero(args.mailbox))
-		args.mailbox = ast_strdupa("");
+		args.mailbox = "";
 
 	ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
 	
@@ -278,9 +278,9 @@ static int disa_exec(struct ast_channel *chan, void *data)
 							  /* if we got it */
 							if (!strcmp(exten,args.passcode)) {
 								if (ast_strlen_zero(args.context))
-									args.context = ast_strdupa("disa");
+									args.context = "disa";
 								if (ast_strlen_zero(args.mailbox))
-									args.mailbox = ast_strdupa("");
+									args.mailbox = "";
 								break;
 							}
 						   }
