@@ -8575,8 +8575,6 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024];
 	unsigned int event;
-	char resp = 0;
-	struct ast_frame f;
 	char *c;
 	
 	/* Need to check the media/type */
@@ -8592,42 +8590,46 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			ast_copy_string(buf, c, sizeof(buf));
 		}
 	
-		if (p->owner) {	/* PBX call */
-			if (!ast_strlen_zero(buf)) {
-				if (sipdebug)
-					ast_verbose("* DTMF received: '%c'\n", buf[0]);
-				if (buf[0] == '*')
-					event = 10;
-				else if (buf[0] == '#')
-					event = 11;
-				else if ((buf[0] >= 'A') && (buf[0] <= 'D'))
-					event = 12 + buf[0] - 'A';
-				else
-					event = atoi(buf);
-				if (event < 10) {
-					resp = '0' + event;
-				} else if (event < 11) {
-					resp = '*';
-				} else if (event < 12) {
-					resp = '#';
-				} else if (event < 16) {
-					resp = 'A' + (event - 12);
-				}
-				/* Build DTMF frame and deliver to PBX for transmission to other call leg*/
-				memset(&f, 0, sizeof(f));
-				f.frametype = AST_FRAME_DTMF;
-				f.subclass = resp;
-				f.offset = 0;
-				f.data = NULL;
-				f.datalen = 0;
-				ast_queue_frame(p->owner, &f);
-			}
-			transmit_response(p, "200 OK", req);
-			return;
-		} else {
+		if (!p->owner) {	/* not a PBX call */
 			transmit_response(p, "481 Call leg/transaction does not exist", req);
 			ast_set_flag(p, SIP_NEEDDESTROY);
+			return;
 		}
+
+		if (ast_strlen_zero(buf)) {
+			transmit_response(p, "200 OK", req);
+			return;
+		}
+
+		if (sipdebug)
+			ast_verbose("* DTMF-relay event received: '%c'\n", buf[0]);
+		if (buf[0] == '*')
+			event = 10;
+		else if (buf[0] == '#')
+			event = 11;
+		else if ((buf[0] >= 'A') && (buf[0] <= 'D'))
+			event = 12 + buf[0] - 'A';
+		else
+			event = atoi(buf);
+		if (event == 16) {
+			/* send a FLASH event */
+			struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_FLASH, };
+			ast_queue_frame(p->owner, &f);
+		} else {
+			/* send a DTMF event */
+			struct ast_frame f = { AST_FRAME_DTMF, };
+			if (event < 10) {
+				f.subclass = '0' + event;
+			} else if (event < 11) {
+				f.subclass = '*';
+			} else if (event < 12) {
+				f.subclass = '#';
+			} else if (event < 16) {
+				f.subclass = 'A' + (event - 12);
+			}
+			ast_queue_frame(p->owner, &f);
+		}
+		transmit_response(p, "200 OK", req);
 		return;
 	} else if (!strcasecmp(get_header(req, "Content-Type"), "application/media_control+xml")) {
 		/* Eh, we'll just assume it's a fast picture update for now */
