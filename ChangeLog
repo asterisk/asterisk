@@ -1,3 +1,7 @@
+2005-11-14  Josh Roberson <josh@asteirasgi.com>
+	
+	* Fix crash on variable passing from AMI originate (issue #5737)
+
 2005-11-14  Russell Bryant  <russell@digium.com>
 
 	* many files: Merge doxygen documentation updates. (issue #5605)

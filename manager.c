@@ -329,9 +329,11 @@ struct ast_variable *astman_get_variables(struct message *m)
 		if (!(var = ast_strdupa(m->headers[x] + varlen)))
 			return head;
 
-		if ((var_count = ast_app_separate_args(var, '|', vars, sizeof(vars) / sizeof(var[0])))) {
+		if ((var_count = ast_app_separate_args(var, '|', vars, sizeof(vars) / sizeof(vars[0])))) {
 			for (y = 0; y < var_count; y++) {
-				var = val = vars[y];
+				if (!vars[y])
+					continue;
+				var = val = ast_strdupa(vars[y]);
 				strsep(&val, "=");
 				if (!val || ast_strlen_zero(var))
 					continue;
