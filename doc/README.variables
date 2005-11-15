@@ -598,7 +598,7 @@ Application return values
 -------------------------
 In Asterisk 1.2, many applications return the result in a variable
 instead of, as in Asterisk 1.0, changing the dial plan priority (+101).
-For the varioius status values, see each application's help text.
+For the various status values, see each application's help text.
 
 ${AQMSTATUS}			* addqueuemember()
 ${AVAILSTATUS}			* chanisavail()
@@ -628,7 +628,6 @@ ${UPQMSTATUS}			* unpausequeuemember()
 ${VMSTATUS}			* voicmail()
 ${VMBOXEXISTSSTATUS}		* vmboxexists()
 ${WAITSTATUS}			* waitforsilence()
-
 
 
 Various application variables
