@@ -267,7 +267,7 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 		enc_ie_channel_id(&setup->CHANNEL_ID, msg, 1, bc->channel, nt,bc);
   
 	{
-		int type=bc->onumplan,plan=1,present=bc->pres,screen=0;
+		int type=bc->onumplan,plan=1,present=bc->pres,screen=bc->screen;
 		enc_ie_calling_pn(&setup->CALLING_PN, msg, type, plan, present,
 				  screen, bc->oad, nt, bc);
 	}
