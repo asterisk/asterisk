@@ -572,6 +572,7 @@ ${CALLINGTON}    	* Caller Type of Number (PRI channels)
 ${CHANNEL}	 	* Current channel name
 ${CONTEXT}       	* Current context
 ${DATETIME}	 	* Current date time in the format: DDMMYYYY-HH:MM:SS
+${DB_RESULT}		Result value of DB_EXISTS() dial plan function
 ${DNID}          	* Dialed Number Identifier
 ${EPOCH}	 	* Current unix style epoch
 ${EXTEN}	 	* Current extension
@@ -592,6 +593,43 @@ ${RDNIS}         	* Redirected Dial Number ID Service
 ${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS
 ${TRANSFER_CONTEXT} 	Context for transferred calls
 ${UNIQUEID}	 	* Current call unique identifier
+
+Application return values
+-------------------------
+In Asterisk 1.2, many applications return the result in a variable
+instead of, as in Asterisk 1.0, changing the dial plan priority (+101).
+For the varioius status values, see each application's help text.
+
+${AQMSTATUS}			* addqueuemember()
+${AVAILSTATUS}			* chanisavail()
+${CHECKGROUPSTATUS}		* checkgroup()
+${CHECKMD5STATUS}		* checkmd5()
+${CPLAYBACKSTATUS}		* controlplayback()
+${DIALSTATUS}   		* dial()
+${DBGETSTATUS}			* dbget()
+${ENUMSTATUS}			* enumlookup()
+${HASVMSTATUS}			* hasnewvoicemail()
+${LOOKUPBLSTATUS}		* lookupblacklist()
+${OSPLOOKUPSTATUS}		* osplookup()
+${OSPNEXTSTATUS}		* ospnext()
+${OSPFINISHSTATUS}		* ospfinish()
+${PLAYBACKSTATUS}		* playback()
+${PQMSTATUS}			* pausequeuemember()
+${PRIVACYMGRSTATUS}		* privacymanager()
+${QUEUESTATUS}			* queue()
+${RQMSTATUS}			* removequeuemember()
+${SENDIMAGESTATUS}		* sendimage()
+${SENDTEXTSTATUS}		* sendtext()
+${SENDURLSTATUS}		* sendurl()
+${SYSTEMSTATUS}			* system()
+${TRANSFERSTATUS}		* transfer()
+${TXTCIDNAMESTATUS}		* txtcidname()
+${UPQMSTATUS}			* unpausequeuemember()
+${VMSTATUS}			* voicmail()
+${VMBOXEXISTSSTATUS}		* vmboxexists()
+${WAITSTATUS}			* waitforsilence()
+
+
 
 Various application variables
 -----------------------------

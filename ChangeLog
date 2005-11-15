@@ -1,6 +1,10 @@
+2005-11-15  Russell Bryant <russell@digium.com>
+
+	* doc/README.variables: Add application exit status variables
+
 2005-11-14  Josh Roberson <josh@asteirasgi.com>
 	
-	* Fix crash on variable passing from AMI originate (issue #5737)
+	* manager.c: Fix crash on variable passing from AMI originate (issue #5737)
 
 2005-11-14  Russell Bryant  <russell@digium.com>
 
