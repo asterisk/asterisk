@@ -1,5 +1,7 @@
 2005-11-16  Kevin P. Fleming  <kpfleming@limerick.digium.com>
 
+	* apps/app_forkcdr.c (forkcdr_exec): issue warning (and don't segfault) if ForkCDR is called on a channel that doesn't have a CDR (issue #5763)
+
 	* channel.c (ast_queue_hangup): ensure that the channel lock is held before changing its fields... (issue #5770)
 
 	* res/res_musiconhold.c: don't spit out incorrect log messages (and leak memory) during reload (issue #5766)
