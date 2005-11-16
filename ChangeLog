@@ -1,4 +1,4 @@
-2005-11-16  Kevin P. Fleming  <kpfleming@limerick.digium.com>
+2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* apps/app_forkcdr.c (forkcdr_exec): issue warning (and don't segfault) if ForkCDR is called on a channel that doesn't have a CDR (issue #5763)
 
@@ -9,8 +9,6 @@
 	* channels/chan_sip.c (process_sdp): don't pass video codec number into ast_getformatname(), it is not valid input for that function (issue #5764)
 
 	* pbx/pbx_ael.c (match_assignment): properly parse equal signs surrounded by whitespace (issue #5761)
-
-2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* doc/README.realtime: document the limitations of using FreeTDS with Realtime (issue #5767)
 
