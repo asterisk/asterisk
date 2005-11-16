@@ -1084,19 +1084,21 @@ static void transmit_callinfo(struct skinnysession *s, char *fromname, char *fro
 	req->len = htolel(sizeof(struct call_info_message));
 	req->e = htolel(CALL_INFO_MESSAGE);
 
-	if (fromname)
+	if (fromname) {
 		ast_copy_string(req->data.callinfo.callingPartyName, fromname, sizeof(req->data.callinfo.callingPartyName));
-	if (fromnum)
+	}
+	if (fromnum) {
 		ast_copy_string(req->data.callinfo.callingParty, fromnum, sizeof(req->data.callinfo.callingParty));
-	if (toname)
+	}
+	if (toname) {
 		ast_copy_string(req->data.callinfo.calledPartyName, toname, sizeof(req->data.callinfo.calledPartyName));
-	if (tonum)
+	}
+	if (tonum) {
 		ast_copy_string(req->data.callinfo.calledParty, tonum, sizeof(req->data.callinfo.calledParty));
-
+	}
 	req->data.callinfo.instance = htolel(instance);
 	req->data.callinfo.reference = htolel(callid);
 	req->data.callinfo.type = htolel(calltype);
-
 	transmit_response(s, req);
 }
 
@@ -1125,10 +1127,11 @@ static void transmit_tone(struct skinnysession *s, int tone)
 {
 	skinny_req *req;
 
-	if (tone > 0)
+	if (tone > 0) {
 		req = req_alloc(sizeof(struct start_tone_message));
-	else 
+	} else {
 		req = req_alloc(4);
+	}
 	if (!req) {
 		ast_log(LOG_ERROR, "Unable to allocate skinny_request, this is bad\n");
 		return;
@@ -1300,21 +1303,21 @@ static int has_voicemail(struct skinny_line *l)
 
 static void do_housekeeping(struct skinnysession *s)
 {
+	int new;
+	int old;
 	struct skinny_subchannel *sub;
 	struct skinny_line *l = s->device->lines;
 
 	sub = find_subchannel_by_line(l);
 	transmit_displaymessage(s, NULL);
 
-	if (skinnydebug) {
-		ast_verbose("Checking for voicemail Skinny %s@%s\n", sub->parent->name, sub->parent->parent->name);
-	}
 	if (has_voicemail(sub->parent)) {
-		int new;
-		int old;
+		if (skinnydebug) {
+			ast_verbose("Checking for voicemail Skinny %s@%s\n", sub->parent->name, sub->parent->parent->name);
+		}
 		ast_app_messagecount(sub->parent->mailbox, &new, &old);
 		if (skinnydebug) {
-			ast_verbose("Skinny %s@%s has voicemail! Yay!\n", sub->parent->name, sub->parent->parent->name);
+			ast_verbose("Skinny %s@%s has voicemail!\n", sub->parent->name, sub->parent->parent->name);
 		}
 		transmit_lamp_indication(s, STIMULUS_VOICEMAIL, l->instance, l->mwiblink?SKINNY_LAMP_BLINK:SKINNY_LAMP_ON);
 	} else {
@@ -1334,8 +1337,9 @@ static struct ast_rtp *skinny_get_rtp_peer(struct ast_channel *chan)
 {
 	struct skinny_subchannel *sub;
 	sub = chan->tech_pvt;
-	if (sub && sub->rtp)
+	if (sub && sub->rtp) {
 		return sub->rtp;
+	}
 	return NULL;
 }
 
@@ -1359,8 +1363,9 @@ static struct ast_rtp_protocol skinny_rtp = {
 
 static int skinny_do_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 2) {
 		return RESULT_SHOWUSAGE;
+	}
 	skinnydebug = 1;
 	ast_cli(fd, "Skinny Debugging Enabled\n");
 	return RESULT_SUCCESS;
@@ -1368,8 +1373,9 @@ static int skinny_do_debug(int fd, int argc, char *argv[])
 
 static int skinny_no_debug(int fd, int argc, char *argv[])
 {
-	if (argc != 3)
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
+	}
 	skinnydebug = 0;
 	ast_cli(fd, "Skinny Debugging Disabled\n");
 	return RESULT_SUCCESS;
@@ -1382,9 +1388,9 @@ static int skinny_show_devices(int fd, int argc, char *argv[])
 	int numlines = 0;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (argc != 3) 
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
-
+	}
 	ast_mutex_lock(&devicelock);
 	d = devices;
 
@@ -1407,19 +1413,17 @@ static int skinny_show_devices(int fd, int argc, char *argv[])
 		d = d->next;
 	}
 	ast_mutex_unlock(&devicelock);
-
 	return RESULT_SUCCESS;
 }
 
 static int skinny_show_lines(int fd, int argc, char *argv[])
 {
-		
 	struct skinny_device  *d;
 	struct skinny_line *l;
 
-	if (argc != 3) 
+	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
-
+	}
 	ast_mutex_lock(&devicelock);
 	d = devices;
 	while(d) {
@@ -1432,13 +1436,11 @@ static int skinny_show_lines(int fd, int argc, char *argv[])
 				l->label,
 				l->sub->owner?'Y':'N',
 				l->sub->rtp?'Y':'N');
-
 			l = l->next;
 		}
 		d = d->next;
 	}
 	ast_mutex_unlock(&devicelock);
-
 	return RESULT_SUCCESS;
 }
 
@@ -1490,14 +1492,14 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 		strncpy(d->name, cat, sizeof(d->name) - 1);
 		while(v) {
 			if (!strcasecmp(v->name, "host")) {
-					if (ast_get_ip(&d->addr, v->value)) {
-						free(d);
-						return NULL;
-					}				
+				if (ast_get_ip(&d->addr, v->value)) {
+					free(d);
+					return NULL;
+				}				
 			} else if (!strcasecmp(v->name, "port")) {
 				d->addr.sin_port = htons(atoi(v->value));
 			} else if (!strcasecmp(v->name, "device")) {
-           		strncpy(d->id, v->value, sizeof(d->id)-1);
+           			strncpy(d->id, v->value, sizeof(d->id)-1);
 			} else if (!strcasecmp(v->name, "permit") || !strcasecmp(v->name, "deny")) {
 				d->ha = ast_append_ha(v->name, v->value, d->ha);
 			} else if (!strcasecmp(v->name, "context")) {
@@ -1524,7 +1526,7 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
            			if (y < 0) {
 		   			ast_log(LOG_WARNING, "Invalid AMA flags: %s at line %d\n", v->value, v->lineno);
           			} else {
-           			amaflags = y;
+           				amaflags = y;
             			}
 			} else if (!strcasecmp(v->name, "musiconhold")) {
             			strncpy(musicclass, v->value, sizeof(musicclass)-1);
@@ -1558,7 +1560,6 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 					strncpy(l->name, v->value, sizeof(l->name) - 1);
 					
 					/* XXX Should we check for uniqueness?? XXX */
-
 					strncpy(l->context, context, sizeof(l->context) - 1);
 					strncpy(l->cid_num, cid_num, sizeof(l->cid_num) - 1);
 					strncpy(l->cid_name, cid_name, sizeof(l->cid_name) - 1);
@@ -1570,7 +1571,6 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 					if (!ast_strlen_zero(mailbox)) {
 						ast_verbose(VERBOSE_PREFIX_3 "Setting mailbox '%s' on %s@%s\n", mailbox, d->name, l->name);
 					}
-				
 					l->msgstate = -1;
 					l->capability = capability;
 					l->parent = d;
@@ -1630,9 +1630,9 @@ static struct skinny_device *build_device(char *cat, struct ast_variable *v)
 			ast_log(LOG_ERROR, "A Skinny device must have at least one line!\n");
 			return NULL;
 		}
-
-		if (d->addr.sin_addr.s_addr && !ntohs(d->addr.sin_port))
+		if (d->addr.sin_addr.s_addr && !ntohs(d->addr.sin_port)) {
 			d->addr.sin_port = htons(DEFAULT_SKINNY_PORT);
+		}
 		if (d->addr.sin_addr.s_addr) {
 			if (ast_ouraddrfor(&d->addr.sin_addr, &d->ourip)) {
 				memcpy(&d->ourip, &__ourip, sizeof(d->ourip));
@@ -1652,7 +1652,7 @@ static int skinny_register(skinny_req *req, struct skinnysession *s)
 	d = devices;
 	while (d) {
 		if (!strcasecmp(req->data.reg.name, d->id) 
-					&& ast_apply_ha(d->ha, &(s->sin))) {
+				&& ast_apply_ha(d->ha, &(s->sin))) {
 			s->device = d;
 			d->type = letohl(req->data.reg.type);
 			if (ast_strlen_zero(d->version_id)) {
@@ -1665,28 +1665,27 @@ static int skinny_register(skinny_req *req, struct skinnysession *s)
 		d = d->next;
 	}
 	ast_mutex_unlock(&devicelock);
-
-	if (!d)
+	if (!d) {
 		return 0;
-	
+	}
 	return 1;
 }		
 
 static void start_rtp(struct skinny_subchannel *sub)
 {
-		ast_mutex_lock(&sub->lock);
-		/* Allocate the RTP */
-		sub->rtp = ast_rtp_new(sched, io, 1, 0);
-		if (sub->rtp && sub->owner)
-			sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
-		if (sub->rtp)
-			ast_rtp_setnat(sub->rtp, sub->nat);
-		
-		/* Create the RTP connection */
-		transmit_connect(sub->parent->parent->session);
- 		ast_mutex_unlock(&sub->lock);
+	ast_mutex_lock(&sub->lock);
+	/* Allocate the RTP */
+	sub->rtp = ast_rtp_new(sched, io, 1, 0);
+	if (sub->rtp && sub->owner) {
+		sub->owner->fds[0] = ast_rtp_fd(sub->rtp);
+	}
+	if (sub->rtp) {
+		ast_rtp_setnat(sub->rtp, sub->nat);
+	}
+	/* Create the RTP connection */
+	transmit_connect(sub->parent->parent->session);
+ 	ast_mutex_unlock(&sub->lock);
 }
-
 
 static void *skinny_ss(void *data)
 {
@@ -1704,203 +1703,207 @@ static void *skinny_ss(void *data)
 		ast_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s@%s'\n", l->name, l->parent->name);
 	}
 	while(len < AST_MAX_EXTENSION-1) {
-        res = ast_waitfordigit(chan, timeout);
-        timeout = 0;
-        if (res < 0) {
-		if (skinnydebug) {
-			ast_verbose("Skinny(%s@%s): waitfordigit returned < 0\n", l->name, l->parent->name);
-        	}
-		ast_indicate(chan, -1);
-		ast_hangup(chan);
-            	return NULL;
-        } else if (res)  {
-            exten[len++]=res;
-            exten[len] = '\0';
-        }
-        if (!ast_ignore_pattern(chan->context, exten)) {
-			transmit_tone(s, SKINNY_SILENCE);
-        } 
-        if (ast_exists_extension(chan, chan->context, exten, 1, l->cid_num)) {
-            if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, l->cid_num)) {
-                if (getforward) {
-                    /* Record this as the forwarding extension */
-                    strncpy(l->call_forward, exten, sizeof(l->call_forward) - 1); 
-                    if (option_verbose > 2) {
-                        ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n", 
-                                l->call_forward, chan->name);
-                    }
-                    transmit_tone(s, SKINNY_DIALTONE); 
-		    if (res) {
-	        	    break;
-		    }
-                    usleep(500000);
-                    ast_indicate(chan, -1);
-                    sleep(1);
-                    memset(exten, 0, sizeof(exten));
-		    transmit_tone(s, SKINNY_DIALTONE); 
-                    len = 0;
-                    getforward = 0;
-                } else  {
-                    strncpy(chan->exten, exten, sizeof(chan->exten)-1);
-                    if (!ast_strlen_zero(l->cid_num)) {
-                        if (!l->hidecallerid)
-                            chan->cid.cid_num = strdup(l->cid_num);
-                        chan->cid.cid_ani = strdup(l->cid_num);
-                    }
-                    ast_setstate(chan, AST_STATE_RING);
-                    res = ast_pbx_run(chan);
-                    if (res) {
-                        ast_log(LOG_WARNING, "PBX exited non-zero\n");
-						transmit_tone(s, SKINNY_REORDER); 
-                    }
-                    return NULL;
-                }
-            } else {
-                /* It's a match, but they just typed a digit, and there is an ambiguous match,
-                   so just set the timeout to matchdigittimeout and wait some more */
-                timeout = matchdigittimeout;
-            }
-        } else if (res == 0) {
-            ast_log(LOG_DEBUG, "Not enough digits (and no ambiguous match)...\n");
-    		transmit_tone(s, SKINNY_REORDER); 
-            ast_hangup(chan);
-            return NULL;
-        } else if (l->callwaiting && !strcmp(exten, "*70")) {
-            if (option_verbose > 2) {
-                ast_verbose(VERBOSE_PREFIX_3 "Disabling call waiting on %s\n", chan->name);
-            }
-            /* Disable call waiting if enabled */
-            l->callwaiting = 0;
-            transmit_tone(s, SKINNY_DIALTONE);
-			len = 0;
-            memset(exten, 0, sizeof(exten));
-            timeout = firstdigittimeout;
-                
-        } else if (!strcmp(exten,ast_pickup_ext())) {
-            /* Scan all channels and see if any there
-             * ringing channqels with that have call groups
-             * that equal this channels pickup group  
-             */
-            if (ast_pickup_call(chan)) {
-                ast_log(LOG_WARNING, "No call pickup possible...\n");
-				transmit_tone(s, SKINNY_REORDER);
-            }
-            ast_hangup(chan);
-            return NULL;
-            
-        } else if (!l->hidecallerid && !strcmp(exten, "*67")) {
-            if (option_verbose > 2) {
-                ast_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
-            }
-            /* Disable Caller*ID if enabled */
-            l->hidecallerid = 1;
-            if (chan->cid.cid_num)
-                free(chan->cid.cid_num);
-            chan->cid.cid_num = NULL;
-            
-			if (chan->cid.cid_name)
-                free(chan->cid.cid_name);
-            chan->cid.cid_name = NULL;
-			
-            transmit_tone(s, SKINNY_DIALTONE);
-            len = 0;
-            memset(exten, 0, sizeof(exten));
-            timeout = firstdigittimeout;
-        } else if (l->callreturn && !strcmp(exten, "*69")) {
-            res = 0;
-            if (!ast_strlen_zero(l->lastcallerid)) {
-                res = ast_say_digit_str(chan, l->lastcallerid, "", chan->language);
-            }
-            if (!res) {
-                transmit_tone(s, SKINNY_DIALTONE);
-			}
-            break;
-        } else if (!strcmp(exten, "*78")) {
-            /* Do not disturb */
-            if (option_verbose > 2) {
-                ast_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %s\n", chan->name);
-            }
-            transmit_tone(s, SKINNY_DIALTONE);
-            l->dnd = 1;
-            getforward = 0;
-            memset(exten, 0, sizeof(exten));
-            len = 0;
-        } else if (!strcmp(exten, "*79")) {
-            /* Do not disturb */
-            if (option_verbose > 2) {
-                ast_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %s\n", chan->name);
-            }
-			transmit_tone(s, SKINNY_DIALTONE);
-            l->dnd = 0;
-            getforward = 0;
-            memset(exten, 0, sizeof(exten));
-            len = 0;
-        } else if (l->cancallforward && !strcmp(exten, "*72")) {
-            transmit_tone(s, SKINNY_DIALTONE);
-            getforward = 1;
-            memset(exten, 0, sizeof(exten));
-            len = 0;
-        } else if (l->cancallforward && !strcmp(exten, "*73")) {
-            if (option_verbose > 2) {
-                ast_verbose(VERBOSE_PREFIX_3 "Cancelling call forwarding on channel %s\n", chan->name);
-            }
-            transmit_tone(s, SKINNY_DIALTONE); 
-            memset(l->call_forward, 0, sizeof(l->call_forward));
-            getforward = 0;
-            memset(exten, 0, sizeof(exten));
-            len = 0;
-        } else if (!strcmp(exten, ast_parking_ext()) && 
-                    sub->next->owner &&
-                    ast_bridged_channel(sub->next->owner)) {
-            /* This is a three way call, the main call being a real channel, 
-                and we're parking the first call. */
-            ast_masq_park_call(ast_bridged_channel(sub->next->owner), chan, 0, NULL);
-            if (option_verbose > 2) {
-                ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
-            }
-            break;
-        } else if (!ast_strlen_zero(l->lastcallerid) && !strcmp(exten, "*60")) {
-            if (option_verbose > 2) {
-                ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", l->lastcallerid);
-            }
-            res = ast_db_put("blacklist", l->lastcallerid, "1");
-            if (!res) {
-                transmit_tone(s, SKINNY_DIALTONE);		
-                memset(exten, 0, sizeof(exten));
-                len = 0;
-            }
-        } else if (l->hidecallerid && !strcmp(exten, "*82")) {
-            if (option_verbose > 2) {
-                ast_verbose(VERBOSE_PREFIX_3 "Enabling Caller*ID on %s\n", chan->name);
-            }
-            /* Enable Caller*ID if enabled */
-            l->hidecallerid = 0;
-            if (chan->cid.cid_num)
-                free(chan->cid.cid_num);
-            if (!ast_strlen_zero(l->cid_num))
-                chan->cid.cid_num = strdup(l->cid_num);
-
-            if (chan->cid.cid_name)
-                free(chan->cid.cid_name);
-            if (!ast_strlen_zero(l->cid_name))
-                chan->cid.cid_name = strdup(l->cid_name);
-
-            transmit_tone(s, SKINNY_DIALTONE);
-            len = 0;
-            memset(exten, 0, sizeof(exten));
-            timeout = firstdigittimeout;
-        } else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
-                        ((exten[0] != '*') || (!ast_strlen_zero(exten) > 2))) {
-            ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
-            transmit_tone(s, SKINNY_REORDER); 
-			sleep(3); /* hang out for 3 seconds to let congestion play */
-			break;
-        }
-        if (!timeout)
-            timeout = gendigittimeout;
-        if (len && !ast_ignore_pattern(chan->context, exten))
+        	res = ast_waitfordigit(chan, timeout);
+        	timeout = 0;
+        	if (res < 0) {
+			if (skinnydebug) {
+				ast_verbose("Skinny(%s@%s): waitfordigit returned < 0\n", l->name, l->parent->name);
+        		}
 			ast_indicate(chan, -1);
-    }
+			ast_hangup(chan);
+            		return NULL;
+        	} else if (res)  {
+            		exten[len++]=res;
+            		exten[len] = '\0';
+        	}
+        	if (!ast_ignore_pattern(chan->context, exten)) {
+			transmit_tone(s, SKINNY_SILENCE);
+        	} 
+        	if (ast_exists_extension(chan, chan->context, exten, 1, l->cid_num)) {
+            		if (!res || !ast_matchmore_extension(chan, chan->context, exten, 1, l->cid_num)) {
+                		if (getforward) {
+                    			/* Record this as the forwarding extension */
+                    			strncpy(l->call_forward, exten, sizeof(l->call_forward) - 1); 
+                    			if (option_verbose > 2) {
+                        			ast_verbose(VERBOSE_PREFIX_3 "Setting call forward to '%s' on channel %s\n", 
+                                			l->call_forward, chan->name);
+                    			}
+                    			transmit_tone(s, SKINNY_DIALTONE); 
+		    			if (res) {
+	        	    			break;
+		    			}
+					ast_safe_sleep(chan, 500);
+	              			ast_indicate(chan, -1);
+ 					ast_safe_sleep(chan, 1000);
+                    			memset(exten, 0, sizeof(exten));
+		    			transmit_tone(s, SKINNY_DIALTONE); 
+                    			len = 0;
+                    			getforward = 0;
+                		} else  {
+                    			strncpy(chan->exten, exten, sizeof(chan->exten)-1);
+                    			if (!ast_strlen_zero(l->cid_num)) {
+                        			if (!l->hidecallerid) {
+                            				chan->cid.cid_num = strdup(l->cid_num);
+                        				chan->cid.cid_ani = strdup(l->cid_num);
+                    				}
+                    				ast_setstate(chan, AST_STATE_RING);
+                    				res = ast_pbx_run(chan);
+                    				if (res) {
+                        				ast_log(LOG_WARNING, "PBX exited non-zero\n");
+							transmit_tone(s, SKINNY_REORDER); 
+                    				}
+                    				return NULL;
+                			}
+				}
+            		} else {
+                		/* It's a match, but they just typed a digit, and there is an ambiguous match,
+                   			so just set the timeout to matchdigittimeout and wait some more */
+               			timeout = matchdigittimeout;
+		        }
+		} else if (res == 0) {
+            		ast_log(LOG_DEBUG, "Not enough digits (and no ambiguous match)...\n");
+    			transmit_tone(s, SKINNY_REORDER); 
+          		ast_hangup(chan);
+           		return NULL;
+        	} else if (l->callwaiting && !strcmp(exten, "*70")) {
+            		if (option_verbose > 2) {
+               			ast_verbose(VERBOSE_PREFIX_3 "Disabling call waiting on %s\n", chan->name);
+            		}
+           		/* Disable call waiting if enabled */
+      			l->callwaiting = 0;
+       			transmit_tone(s, SKINNY_DIALTONE);
+			len = 0;
+       			memset(exten, 0, sizeof(exten));\
+       			timeout = firstdigittimeout;
+	       } else if (!strcmp(exten,ast_pickup_ext())) {
+		      	/* Scan all channels and see if any there
+            	    	 * ringing channqels with that have call groups
+       		     	 * that equal this channels pickup group  
+       		     	 */
+            		if (ast_pickup_call(chan)) {
+                		ast_log(LOG_WARNING, "No call pickup possible...\n");
+				transmit_tone(s, SKINNY_REORDER);
+            		}
+		        ast_hangup(chan);
+            		return NULL;
+              	} else if (!l->hidecallerid && !strcmp(exten, "*67")) {
+      			if (option_verbose > 2) {
+           			 ast_verbose(VERBOSE_PREFIX_3 "Disabling Caller*ID on %s\n", chan->name);
+            		}
+		       	/* Disable Caller*ID if enabled */
+		        l->hidecallerid = 1;
+       			if (chan->cid.cid_num) {
+	               		free(chan->cid.cid_num);
+	    		}
+	            	chan->cid.cid_num = NULL;
+	   		if (chan->cid.cid_name) {
+               			free(chan->cid.cid_name);
+	    		}
+	      		chan->cid.cid_name = NULL;
+            		transmit_tone(s, SKINNY_DIALTONE);
+       			len = 0;
+           		memset(exten, 0, sizeof(exten));
+            		timeout = firstdigittimeout;
+        	} else if (l->callreturn && !strcmp(exten, "*69")) {
+          		res = 0;
+       			if (!ast_strlen_zero(l->lastcallerid)) {
+            			res = ast_say_digit_str(chan, l->lastcallerid, "", chan->language);
+       			}
+		       	if (!res) {
+              			transmit_tone(s, SKINNY_DIALTONE);
+			}
+		       	break;
+        	} else if (!strcmp(exten, "*78")) {
+            		/* Do not disturb */
+            		if (option_verbose > 2) {
+               			ast_verbose(VERBOSE_PREFIX_3 "Enabled DND on channel %s\n", chan->name);
+            		}
+           		transmit_tone(s, SKINNY_DIALTONE);
+            		l->dnd = 1;
+            		getforward = 0;
+            		memset(exten, 0, sizeof(exten));
+            		len = 0;
+        	} else if (!strcmp(exten, "*79")) {
+       			/* Do not disturb */
+           		if (option_verbose > 2) {
+                		ast_verbose(VERBOSE_PREFIX_3 "Disabled DND on channel %s\n", chan->name);
+            		}
+			transmit_tone(s, SKINNY_DIALTONE);
+		        l->dnd = 0;
+            		getforward = 0;
+            		memset(exten, 0, sizeof(exten));
+            		len = 0;
+        	} else if (l->cancallforward && !strcmp(exten, "*72")) {
+       			transmit_tone(s, SKINNY_DIALTONE);
+       			getforward = 1;
+       			memset(exten, 0, sizeof(exten));
+       			len = 0;
+       		} else if (l->cancallforward && !strcmp(exten, "*73")) {
+       			if (option_verbose > 2) {
+           			ast_verbose(VERBOSE_PREFIX_3 "Cancelling call forwarding on channel %s\n", chan->name);
+       			}
+      			transmit_tone(s, SKINNY_DIALTONE); 
+       			memset(l->call_forward, 0, sizeof(l->call_forward));
+       			getforward = 0;
+      			memset(exten, 0, sizeof(exten));
+       			len = 0;
+       		} else if (!strcmp(exten, ast_parking_ext()) && 
+               			sub->next->owner &&
+               			ast_bridged_channel(sub->next->owner)) {
+           		/* This is a three way call, the main call being a real channel, 
+               			and we're parking the first call. */
+            			ast_masq_park_call(ast_bridged_channel(sub->next->owner), chan, 0, NULL);
+           		if (option_verbose > 2) {
+               			ast_verbose(VERBOSE_PREFIX_3 "Parking call to '%s'\n", chan->name);
+       			}
+       	 		break;
+       		} else if (!ast_strlen_zero(l->lastcallerid) && !strcmp(exten, "*60")) {
+       			if (option_verbose > 2) {
+             			ast_verbose(VERBOSE_PREFIX_3 "Blacklisting number %s\n", l->lastcallerid);
+       			}
+            		res = ast_db_put("blacklist", l->lastcallerid, "1");
+            		if (!res) {
+               			transmit_tone(s, SKINNY_DIALTONE);		
+      	 			memset(exten, 0, sizeof(exten));
+               			len = 0;
+       			}
+       		} else if (l->hidecallerid && !strcmp(exten, "*82")) {
+      			if (option_verbose > 2) {
+             			ast_verbose(VERBOSE_PREFIX_3 "Enabling Caller*ID on %s\n", chan->name);
+       			}
+       			/* Enable Caller*ID if enabled */
+       			l->hidecallerid = 0;
+       			if (chan->cid.cid_num) {
+              			free(chan->cid.cid_num);	
+    			}
+            		if (!ast_strlen_zero(l->cid_num)) {
+                		chan->cid.cid_num = strdup(l->cid_num);
+	    		}
+      			if (chan->cid.cid_name) {
+               			free(chan->cid.cid_name);
+    			}
+            		if (!ast_strlen_zero(l->cid_name)) {
+               			chan->cid.cid_name = strdup(l->cid_name);	
+			}
+            		transmit_tone(s, SKINNY_DIALTONE);
+            		len = 0;
+            		memset(exten, 0, sizeof(exten));
+      			timeout = firstdigittimeout;
+       		} else if (!ast_canmatch_extension(chan, chan->context, exten, 1, chan->cid.cid_num) &&
+                   	     	((exten[0] != '*') || (!ast_strlen_zero(exten) > 2))) {
+            		ast_log(LOG_WARNING, "Can't match [%s] from '%s' in context %s\n", exten, chan->cid.cid_num ? chan->cid.cid_num : "<Unknown Caller>", chan->context);
+            		transmit_tone(s, SKINNY_REORDER); 	
+			/* hang out for 3 seconds to let congestion play */
+   			ast_safe_sleep(chan, 3000); 
+   			break;
+       		}
+       		if (!timeout) {
+            		timeout = gendigittimeout;
+		}
+        	if (len && !ast_ignore_pattern(chan->context, exten)) {
+			ast_indicate(chan, -1);
+		}
+    	}	
 	ast_hangup(chan);
 	return NULL;
 }
@@ -1940,14 +1943,14 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
    
 	switch (l->hookstate) {
         case SKINNY_OFFHOOK:
-            tone = SKINNY_CALLWAITTONE;
-            break;
+            	tone = SKINNY_CALLWAITTONE;
+            	break;
         case SKINNY_ONHOOK:
-			tone = SKINNY_ALERT;
-			break;
+		tone = SKINNY_ALERT;
+		break;
         default:
-            ast_log(LOG_ERROR, "Don't know how to deal with hookstate %d\n", l->hookstate);
-            break;
+            	ast_log(LOG_ERROR, "Don't know how to deal with hookstate %d\n", l->hookstate);
+            	break;
    	}
 
 	transmit_lamp_indication(session, STIMULUS_LINE, l->instance, SKINNY_LAMP_BLINK);
@@ -1958,9 +1961,7 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 		char *work;
 		size_t size = sizeof(ciddisplay);
 
-		/* We'll assume that if it is 10 numbers, it is a standard NANPA number
-		   Why? Because I am bloody American, and I'm bigoted that way. */
-
+		/* For now, we'll assume that if it is 10 numbers, it is a standard NANPA number */
 		if (strlen(ast->cid.cid_num) == 10) {
 			ast_build_string(&work, &size, "(xxx)xxx-xxxx      %s",
 					 ast->cid.cid_name ? ast->cid.cid_name : "");
@@ -1968,35 +1969,32 @@ static int skinny_call(struct ast_channel *ast, char *dest, int timeout)
 			memcpy(&ciddisplay[5], &ast->cid.cid_num[3], 3);
 			memcpy(&ciddisplay[9], &ast->cid.cid_num[6], 4);
 		} else {
-			if (strlen(ast->cid.cid_num) < 41)
+			if (strlen(ast->cid.cid_num) < 41) {
 				ast_build_string(&work, &size, "%s -- %s", ast->cid.cid_num,
 						 ast->cid.cid_name ? ast->cid.cid_name : "");
-			else
+			} else {
 				strncpy(ciddisplay, "Number too long!", 15);
+			}
 		}
-
-		if (skinnydebug)
+		if (skinnydebug) {
 			ast_verbose("Trying to send: '%s'\n",ciddisplay);
-
+		}
 		transmit_displaymessage(session, ciddisplay);
-	} else
+	} else {
 		transmit_displaymessage(session, "Unknown Name");
-
+	}
 	transmit_tone(session, tone);
 	transmit_callstate(session, l->instance, SKINNY_RINGIN, sub->callid);
 	transmit_displaypromptstatus(session, "Ring-In", 0, l->instance, sub->callid);
-	transmit_callinfo(session, ast->cid.cid_name, ast->cid.cid_num, l->cid_name, l->cid_num, l->instance, sub->callid, 1); /* 1 = incoming to phone */
+	transmit_callinfo(session, ast->cid.cid_name, ast->cid.cid_num, l->cid_name, l->cid_num, l->instance, sub->callid, 1); 
 
 	/* XXX need to deal with softkeys */
 
 	ast_setstate(ast, AST_STATE_RINGING);
 	ast_queue_control(ast, AST_CONTROL_RINGING);
-
 	sub->outgoing = 1;
-
 	return res;
 }
-
 
 static int skinny_hangup(struct ast_channel *ast)
 {
@@ -2055,7 +2053,6 @@ static int skinny_answer(struct ast_channel *ast)
     if (ast->_state != AST_STATE_UP) {
 	ast_setstate(ast, AST_STATE_UP);
     }
-
     transmit_tone(s, SKINNY_NOTONE);
     transmit_callstate(s, l->instance, SKINNY_CONNECTED, sub->callid);
     transmit_displaypromptstatus(s, "Connected", 0, l->instance, sub->callid);
@@ -2096,9 +2093,9 @@ static int skinny_write(struct ast_channel *ast, struct ast_frame *frame)
 	struct skinny_subchannel *sub = ast->tech_pvt;
 	int res = 0;
 	if (frame->frametype != AST_FRAME_VOICE) {
-		if (frame->frametype == AST_FRAME_IMAGE)
+		if (frame->frametype == AST_FRAME_IMAGE) {
 			return 0;
-		else {
+		} else {
 			ast_log(LOG_WARNING, "Can't send %d type frames with skinny_write\n", frame->frametype);
 			return 0;
 		}
@@ -2265,25 +2262,30 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		if (!tmp->nativeformats)
 			tmp->nativeformats = capability;
 		fmt = ast_best_codec(tmp->nativeformats);
-ast_verbose("chan_skinny: skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nativeformats, fmt);
+		ast_verbose("skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nativeformats, fmt);
 		snprintf(tmp->name, sizeof(tmp->name), "Skinny/%s@%s-%d", l->name, l->parent->name, sub->callid);
-		if (sub->rtp)
+		if (sub->rtp) {
 			tmp->fds[0] = ast_rtp_fd(sub->rtp);
+		}
 		tmp->type = type;
 		ast_setstate(tmp, state);
-		if (state == AST_STATE_RING)
+		if (state == AST_STATE_RING) {
 			tmp->rings = 1;
+		}
 		tmp->writeformat = fmt;
 		tmp->rawwriteformat = fmt;
 		tmp->readformat = fmt;
 		tmp->rawreadformat = fmt;
 		tmp->tech_pvt = sub;
-		if (!ast_strlen_zero(l->language))
+		if (!ast_strlen_zero(l->language)) {
 			strncpy(tmp->language, l->language, sizeof(tmp->language)-1);
-		if (!ast_strlen_zero(l->accountcode))
+		}
+		if (!ast_strlen_zero(l->accountcode)) {
 			strncpy(tmp->accountcode, l->accountcode, sizeof(tmp->accountcode)-1);
-		if (l->amaflags)
+		}
+		if (l->amaflags) {
 			tmp->amaflags = l->amaflags;
+		}
 		sub->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -2301,9 +2303,7 @@ ast_verbose("chan_skinny: skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nati
 			tmp->cid.cid_name = strdup(l->cid_name);
 		}
 		tmp->priority = 1;
-
 		tmp->adsicpe = AST_ADSI_UNAVAILABLE;
-
 
 		if (state != AST_STATE_DOWN) {
 			if (ast_pbx_start(tmp)) {
@@ -2315,8 +2315,7 @@ ast_verbose("chan_skinny: skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nati
 	} else {
 		ast_log(LOG_WARNING, "Unable to allocate channel structure\n");
     }
-
-	return tmp;
+    return tmp;
 }
 
 static int handle_message(skinny_req *req, struct skinnysession *s)
@@ -2345,7 +2344,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 	pthread_t t;
 	button_defs_t *b, *buse;
 	
-	if ( (!s->device) && (letohl(req->e) != REGISTER_MESSAGE && letohl(req->e) != ALARM_MESSAGE)) {
+	if ((!s->device) && (letohl(req->e) != REGISTER_MESSAGE && letohl(req->e) != ALARM_MESSAGE)) {
 		ast_log(LOG_WARNING, "Client sent message #%d without first registering.\n", req->e);
 		free(req);
 		return 0;
@@ -2407,12 +2406,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			/* If we can keep an array of dialed frames we can implement a quick 
 			   and dirty redial, feeding the frames we last got into the queue
 			   function */
-
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Redial(%d)\n", stimulusInstance);
 			}
-
-
 			break;
 		case STIMULUS_SPEEDDIAL:
 			if (skinnydebug) {
@@ -2429,46 +2425,41 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Transfer(%d)\n", stimulusInstance);
 			}
-			transmit_tone(s, SKINNY_DIALTONE);
-				
-			/* figure out how to transfer */
-
+			transmit_tone(s, SKINNY_DIALTONE);	
+			/* XXX figure out how to transfer */
 			break;
 		case STIMULUS_CONFERENCE:
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Transfer(%d)\n", stimulusInstance);
 			}
 			transmit_tone(s, SKINNY_DIALTONE);
-
-			/* figure out how to bridge n' stuff */
-				
-
+			/* XXX determine the best way to pull off a conference.  Meetme?  */
 			break;
 		case STIMULUS_VOICEMAIL:
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Voicemail(%d)\n", stimulusInstance);
 			}
-				
-			/* Dial Voicemail */
-
+			/* XXX Find and dial voicemail extension */
 			break;
 		case STIMULUS_CALLPARK:
 			if (skinnydebug) {
 				ast_verbose("Recieved Stimulus: Park Call(%d)\n", stimulusInstance);
 			}
-
+			/* XXX Park the call */
 			break;
 		case STIMULUS_FORWARDALL:
+			/* Why is DND under FORWARDALL ? */
+
 			/* Do not disturb */
 			transmit_tone(s, SKINNY_DIALTONE);
-			if(s->device->lines->dnd != 0){
+			if (s->device->lines->dnd != 0){
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "Disabling DND on %s@%s\n",find_subchannel_by_line(s->device->lines)->parent->name,find_subchannel_by_line(s->device->lines)->parent->name);
 				}
 				s->device->lines->dnd = 0;
 				transmit_lamp_indication(s, STIMULUS_FORWARDALL, 1, SKINNY_LAMP_ON);
 				transmit_displaynotify(s, "DnD disabled",10);
-			}else{
+			} else {
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "Enabling DND on %s@%s\n",find_subchannel_by_line(s->device->lines)->parent->name,find_subchannel_by_line(s->device->lines)->parent->name);
 				}
@@ -2530,9 +2521,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		if (skinnydebug) {
 			ast_verbose("Buttontemplate requested\n");
 		}
-
 		sub = find_subchannel_by_line(s->device->lines);
-
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->e = htolel(BUTTON_TEMPLATE_RES_MESSAGE);	
 		req->len = htolel(sizeof(button_template_res_message)+4);
@@ -2545,7 +2534,6 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 				buse = b;
 			}
 		}
-
 		req->data.buttontemplate.buttonOffset = 0;
 		req->data.buttontemplate.buttonCount  = htolel(buse->num_buttons);
 		req->data.buttontemplate.totalButtonCount = htolel(buse->num_buttons);
@@ -2561,14 +2549,13 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 			}
 		}
 
-		if(skinnydebug){			
+		if (skinnydebug) {			
 			ast_verbose("Sending %s template to %s@%s (%s)\n",
 						buse->type, 
 						sub->parent->name, 
 						sub->parent->parent->name, 
 						s->device->model);
 		}
-
 		transmit_response(s, req);
 		break;
 	case SOFT_KEY_SET_REQ_MESSAGE:
@@ -2578,9 +2565,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = htolel(sizeof(soft_key_sets)+4);
 		req->e = htolel(SOFT_KEY_SET_RES_MESSAGE);
-		req->data.softkeysets.softKeySetOffset		= 0;
-		req->data.softkeysets.softKeySetCount		= htolel(11);
-		req->data.softkeysets.totalSoftKeySetCount  = htolel(11);	
+		req->data.softkeysets.softKeySetOffset = 0;
+		req->data.softkeysets.softKeySetCount = htolel(11);
+		req->data.softkeysets.totalSoftKeySetCount = htolel(11);	
 		/* XXX Wicked hack XXX */
 		memcpy(req->data.softkeysets.softKeySetDefinition, 
 			   soft_key_set_hack, 
@@ -2594,9 +2581,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		memset(req, 0, SKINNY_MAX_PACKET);
 		req->len = htolel(sizeof(soft_key_template)+4);
 		req->e = htolel(SOFT_KEY_TEMPLATE_RES_MESSAGE);
-		req->data.softkeytemplate.softKeyOffset		= 0;
-		req->data.softkeytemplate.softKeyCount		= htolel(sizeof(soft_key_template_default) / sizeof(soft_key_template_definition));
-		req->data.softkeytemplate.totalSoftKeyCount 	= htolel(sizeof(soft_key_template_default) / sizeof(soft_key_template_definition)); 
+		req->data.softkeytemplate.softKeyOffset = 0;
+		req->data.softkeytemplate.softKeyCount	= htolel(sizeof(soft_key_template_default) / sizeof(soft_key_template_definition));
+		req->data.softkeytemplate.totalSoftKeyCount = htolel(sizeof(soft_key_template_default) / sizeof(soft_key_template_definition)); 
 		memcpy(req->data.softkeytemplate.softKeyTemplateDefinition,
 			   soft_key_template_default,
 			   sizeof(soft_key_template_default));
@@ -2675,12 +2662,10 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		req->e = htolel(KEEP_ALIVE_ACK_MESSAGE);
 		transmit_response(s, req);
 		do_housekeeping(s);
-
 		break;
 	case OFFHOOK_MESSAGE:
 		transmit_ringer_mode(s,SKINNY_RING_OFF);
 		transmit_lamp_indication(s, STIMULUS_LINE, s->device->lines->instance, SKINNY_LAMP_ON); 
-		
 		sub = find_subchannel_by_line(s->device->lines);
 		if (!sub) {
 			ast_log(LOG_NOTICE, "No available lines on: %s\n", s->device->name);
@@ -2707,7 +2692,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 				transmit_tone(s, SKINNY_DIALTONE);
 				c = skinny_new(sub, AST_STATE_DOWN);			
 				if(c) {
-					/* start switch */
+					/* start the switch thread */
 					if (ast_pthread_create(&t, NULL, skinny_ss, c)) {
 						ast_log(LOG_WARNING, "Unable to create switch thread: %s\n", strerror(errno));
 						ast_hangup(c);
@@ -2715,7 +2700,6 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 				} else {
 					ast_log(LOG_WARNING, "Unable to create channel for %s@%s\n", sub->parent->name, s->device->name);
 				}
-				
 			} else {
 				ast_log(LOG_DEBUG, "Current sub [%s] already has owner\n", sub->owner->name);
 			}
@@ -2730,11 +2714,9 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		sub->cxmode = SKINNY_CX_RECVONLY;
 		sub->parent->hookstate = SKINNY_ONHOOK;
 		transmit_callstate(s, s->device->lines->instance, sub->parent->hookstate,sub->callid);
-
 		if (skinnydebug) {
 			ast_verbose("Skinny %s@%s went on hook\n",sub->parent->name, sub->parent->parent->name);
 	    	}
-
             	if (sub->parent->transfer && (sub->owner && sub->next->owner) && ((!sub->outgoing) || (!sub->next->outgoing))) {
 			/* We're allowed to transfer, we have two active calls and */
 			/* we made at least one of the calls.  Let's try and transfer */
@@ -2761,13 +2743,10 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
                 	           sub->parent->name, sub->parent->parent->name, sub->callid);
            		}
        		}
-
        		if ((sub->parent->hookstate == SKINNY_ONHOOK) && (!sub->next->rtp)) {
 			do_housekeeping(s);
      		}
-
 		break;
-
 	case KEYPAD_BUTTON_MESSAGE:
 		digit = letohl(req->data.keypad.button);
 		if (skinnydebug) {
@@ -2793,9 +2772,7 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		}
 		f.subclass  = d;  
 		f.src = "skinny";
-
 		sub = find_subchannel_by_line(s->device->lines);		
-
 		if (sub->owner) {
 			/* XXX MUST queue this frame to all subs in threeway call if threeway call is active */
 			ast_queue_frame(sub->owner, &f);
@@ -2816,14 +2793,13 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		/* ENDIAN */
 		memcpy(addr, req->data.openrecievechannelack.ipAddr, sizeof(addr));
 		port = htolel(req->data.openrecievechannelack.port);
-				
 		sin.sin_family = AF_INET;
 		/* I smell endian problems */
 		memcpy(&sin.sin_addr, addr, sizeof(sin.sin_addr));  
 		sin.sin_port = htons(port);
-
-		ast_verbose("ipaddr = %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
-	
+		if (skinnydebug) {
+			ast_verbose("ipaddr = %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), ntohs(sin.sin_port));
+		}
 		sub = find_subchannel_by_line(s->device->lines);
 		if (sub->rtp) {
 			ast_rtp_set_peer(sub->rtp, &sin);
@@ -2851,10 +2827,8 @@ static int handle_message(skinny_req *req, struct skinnysession *s)
 		ast_verbose("RECEIVED UNKNOWN MESSAGE TYPE:  %x\n", letohl(req->e));
 		break;
 	}
-
 	free(req);
 	return 1;
-
 }
 
 static void destroy_session(struct skinnysession *s)
@@ -2863,22 +2837,26 @@ static void destroy_session(struct skinnysession *s)
 	ast_mutex_lock(&sessionlock);
 	cur = sessions;
 	while(cur) {
-		if (cur == s)
+		if (cur == s) {
 			break;
+		}
 		prev = cur;
 		cur = cur->next;
 	}
 	if (cur) {
-		if (prev)
+		if (prev) {
 			prev->next = cur->next;
-		else
+		} else {
 			sessions = cur->next;
-		if (s->fd > -1)
+		}
+		if (s->fd > -1) {
 			close(s->fd);
+		}
 		ast_mutex_destroy(&s->lock);
 		free(s);
-	} else
+	} else {
 		ast_log(LOG_WARNING, "Trying to delete nonexistent session %p?\n", s);
+	}
 	ast_mutex_unlock(&sessionlock);
 }
 
@@ -2902,8 +2880,9 @@ static int get_input(struct skinnysession *s)
 			return -1;
 		}
 		dlen = letohl(*(int *)s->inbuf);
-		if (dlen+8 > sizeof(s->inbuf))
+		if (dlen+8 > sizeof(s->inbuf)) {
 			dlen = sizeof(s->inbuf) - 8;
+		}
 		*(int *)s->inbuf = htolel(dlen);
 		res = read(s->fd, s->inbuf+4, dlen+4);
 		ast_mutex_unlock(&s->lock);
@@ -2943,12 +2922,12 @@ static void *skinny_session(void *data)
 	char iabuf[INET_ADDRSTRLEN];
 	
 	ast_verbose(VERBOSE_PREFIX_3 "Starting Skinny session from %s\n",  ast_inet_ntoa(iabuf, sizeof(iabuf), s->sin.sin_addr));
-
 	for (;;) {
 		res = 0;
 		res = get_input(s);
-		if (res < 0)
+		if (res < 0) {
 			break;
+		}
 		req = skinny_req_parse(s);
 		if (!req) {
 			return NULL;
@@ -3008,8 +2987,6 @@ static void *accept_thread(void *ignore)
 			destroy_session(s);
 		}
 	}
-	
-	
 	if (skinnydebug) {
 		ast_verbose("killing accept thread\n");
 	}
@@ -3086,19 +3063,16 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", format);
 		return NULL;
 	}
-	
 	strncpy(tmp, dest, sizeof(tmp) - 1);
 	if (ast_strlen_zero(tmp)) {
 		ast_log(LOG_NOTICE, "Skinny channels require a device\n");
 		return NULL;
 	}
-	
 	sub = find_subchannel_by_name(tmp);  
 	if (!sub) {
 		ast_log(LOG_NOTICE, "No available lines on: %s\n", dest);
 		return NULL;
 	}
-	
    	if (option_verbose > 2) {
         	ast_verbose(VERBOSE_PREFIX_3 "skinny_request(%s)\n", tmp);
         	ast_verbose(VERBOSE_PREFIX_3 "Skinny cw: %d, dnd: %d, so: %d, sno: %d\n", 
@@ -3109,14 +3083,12 @@ static struct ast_channel *skinny_request(const char *type, int format, void *da
 		ast_log(LOG_WARNING, "Unable to make channel for '%s'\n", tmp);
 	}
 	restart_monitor();
-
-	/* and finish */	
 	return tmpc;
 }
 
 static int reload_config(void)
 {
-	int on=1;
+	int on = 1;
 	struct ast_config *cfg;
 	struct ast_variable *v;
 	int format;
@@ -3136,7 +3108,6 @@ static int reload_config(void)
 		ast_log(LOG_NOTICE, "Unable to load config %s, Skinny disabled\n", config);
 		return 0;
 	}
-
 	/* load the general section */
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	v = ast_variable_browse(cfg, "general");
@@ -3154,16 +3125,18 @@ static int reload_config(void)
 			strncpy(date_format, v->value, sizeof(date_format) - 1);	
 		} else if (!strcasecmp(v->name, "allow")) {
 			format = ast_getformatbyname(v->value);
-			if (format < 1) 
+			if (format < 1) {
 				ast_log(LOG_WARNING, "Cannot allow unknown format '%s'\n", v->value);
-			else
+			} else {
 				capability |= format;
+			}	
 		} else if (!strcasecmp(v->name, "disallow")) {
 			format = ast_getformatbyname(v->value);
-			if (format < 1) 
+			if (format < 1) {
 				ast_log(LOG_WARNING, "Cannot disallow unknown format '%s'\n", v->value);
-			else
+			} else {
 				capability &= ~format;
+			}
 		} else if (!strcasecmp(v->name, "port")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
 				bindaddr.sin_port = htons(ourport);
@@ -3173,7 +3146,6 @@ static int reload_config(void)
 		}
 		v = v->next;
 	}
-
 	if (ntohl(bindaddr.sin_addr.s_addr)) {
 		memcpy(&__ourip, &bindaddr.sin_addr, sizeof(__ourip));
 	} else {
@@ -3206,7 +3178,7 @@ static int reload_config(void)
 			if (d) {
 				if (option_verbose > 2) {
 					ast_verbose(VERBOSE_PREFIX_3 "Added device '%s'\n", d->name);
-                }
+                		}
 				ast_mutex_lock(&devicelock);
 				d->next = devices;
 				devices = d;
@@ -3227,7 +3199,6 @@ static int reload_config(void)
 			ast_config_destroy(cfg);
 			return 0;
 		}
-
 		if (skinnysock < 0) {
 			ast_log(LOG_WARNING, "Unable to create Skinny socket: %s\n", strerror(errno));
 		} else {
@@ -3240,7 +3211,6 @@ static int reload_config(void)
 				ast_config_destroy(cfg);
 				return 0;
 			} 
-
 			if (listen(skinnysock,DEFAULT_SKINNY_BACKLOG)) {
 					ast_log(LOG_WARNING, "Failed to start listening to %s:%d: %s\n",
 						ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port),
@@ -3250,19 +3220,15 @@ static int reload_config(void)
 					ast_config_destroy(cfg);
 					return 0;
 			}
-		
-			if (option_verbose > 1)
+			if (option_verbose > 1) {
 				ast_verbose(VERBOSE_PREFIX_2 "Skinny listening on %s:%d\n", 
 					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-
+			}
 			ast_pthread_create(&accept_t,NULL, accept_thread, NULL);
 		}
 	}
 	ast_mutex_unlock(&netlock);
-
-	/* and unload the configuration when were done */
 	ast_config_destroy(cfg);
-
 	return 0;
 }
 
@@ -3275,8 +3241,7 @@ void delete_devices(void)
 	ast_mutex_lock(&devicelock);
 	
 	/* Delete all devices */
-	for (d=devices;d;) {
-		
+	for (d=devices;d;) {		
 		/* Delete all lines for this device */
 		for (l=d->lines;l;) {
 			/* Delete all subchannels for this line */
@@ -3304,7 +3269,6 @@ int reload(void)
 	delete_devices();
 	reload_config();
 	restart_monitor();
-
 	return 0;
 }
 
@@ -3313,20 +3277,12 @@ int load_module()
 {
 	int res = 0;
 
-	for (; res < (sizeof(soft_key_template_default) / sizeof(soft_key_template_default[0])); res++)
+	for (; res < (sizeof(soft_key_template_default) / sizeof(soft_key_template_default[0])); res++) {
 		soft_key_template_default[res].softKeyEvent = htolel(soft_key_template_default[res].softKeyEvent);
-
+	}
 	/* load and parse config */
 	res = reload_config();
 	
-	/* Announce our presence to Asterisk */	
-	if (!res) {
-		/* Make sure we can register our skinny channel type */
-		if (ast_channel_register(&skinny_tech)) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
-			return -1;
-		}
-	}
 	ast_rtp_proto_register(&skinny_rtp);
 	ast_cli_register(&cli_show_devices);
 	ast_cli_register(&cli_show_lines);
@@ -3342,6 +3298,15 @@ int load_module()
 	}
 	/* And start the monitor for the first time */
 	restart_monitor();
+
+	/* Announce our presence to Asterisk */	
+	if (!res) {
+		/* Make sure we can register our skinny channel type */
+		if (ast_channel_register(&skinny_tech)) {
+			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			return -1;
+		}
+	}
 	return res;
 }
 
@@ -3355,8 +3320,6 @@ int unload_module()
 	/* close all IP connections */
 	if (!ast_mutex_lock(&devicelock)) {
 		/* Terminate tcp listener thread */
-		
-
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;

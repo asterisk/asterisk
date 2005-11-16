@@ -1,6 +1,7 @@
 2005-11-16  Jeremy McNamara <jj@nufone.net>
 
 	* apps/app_voicemail.c (load_config): do not terminate asterisk if no voicemail config file
+	* channels/chan_skinny:  Don't register channel type until ready, code formatting updates
 
 2005-11-16  Josh Roberson <josh@asteriasgi.com>
 
