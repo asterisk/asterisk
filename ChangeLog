@@ -1,5 +1,7 @@
 2005-11-15  Kevin P. Fleming  <kpfleming@limerick.digium.com>
 
+	* astmm.c (__ast_vasprintf): don't re-use the ap list without copying it; that's not safe on some platforms (issue #5035)
+
 	* doc/README.backtrace: add note about properly building Asterisk to be able to produce backtraces; wrap text and remove DOS line endings
 
 	* channels/chan_sip.c (add_codec_to_sdp): add 'annexb=no' to G.729A SDP (issue #5539)

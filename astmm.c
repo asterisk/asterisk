@@ -254,21 +254,20 @@ char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const
 
 int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func) 
 {
-	int n, size = strlen(fmt) + 1;
-	if ((*strp = __ast_alloc_region(size, FUNC_VASPRINTF, file, lineno, func)) == NULL)
-		return -1; 
-	for (;;) {
-		n = vsnprintf(*strp, size, fmt, ap);
-		if (n > -1 && n < size)
-			return n;
-		if (n > -1) {	/* glibc 2.1 */
-			size = n+1;
-		} else {	/* glibc 2.0 */
-			size *= 2;
-		}
-		if ((*strp = __ast_realloc(*strp, size, file, lineno, func)) == NULL)
-			return -1;
-	}
+	int size;
+	va_list ap2;
+	char s;
+
+	*strp = NULL;
+	va_copy(ap2, ap);
+	size = vsnprintf(&s, 1, fmt, ap2);
+	va_end(ap2);
+	*strp = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func);
+	if (!*strp)
+		return -1;
+	vsnprintf(*strp, size + 1, fmt, ap);
+
+	return size;
 }
 
 static int handle_show_memory(int fd, int argc, char *argv[])
