@@ -17,7 +17,8 @@
 CHANNEL_LIBS=chan_sip.so chan_agent.so chan_mgcp.so chan_iax2.so chan_local.so chan_skinny.so chan_features.so
 
 ifneq (${OSARCH},CYGWIN)
-CHANNEL_LIBS+=chan_modem.so chan_modem_aopen.so chan_modem_bestdata.so
+# if you really, really want to use these drivers, uncomment the line below
+#CHANNEL_LIBS+=chan_modem.so chan_modem_aopen.so chan_modem_bestdata.so
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
