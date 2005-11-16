@@ -785,14 +785,18 @@ static int moh_scan_files(struct mohclass *class) {
 	return class->total_files;
 }
 
-static int moh_register(struct mohclass *moh)
+static int moh_register(struct mohclass *moh, int reload)
 {
 #ifdef ZAPATA_MOH
 	int x;
 #endif
 	ast_mutex_lock(&moh_lock);
 	if (get_mohbyname(moh->name)) {
-		ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
+		if (reload) {
+			ast_log(LOG_DEBUG, "Music on Hold class '%s' left alone from initial load.\n", moh->name);
+		} else {
+			ast_log(LOG_WARNING, "Music on Hold class '%s' already exists\n", moh->name);
+		}
 		free(moh);	
 		ast_mutex_unlock(&moh_lock);
 		return -1;
@@ -914,7 +918,7 @@ static struct mohclass *moh_class_malloc(void)
 	return class;
 }
 
-static int load_moh_classes(void)
+static int load_moh_classes(int reload)
 {
 	struct ast_config *cfg;
 	struct ast_variable *var;
@@ -979,7 +983,9 @@ static int load_moh_classes(void)
 				continue;
 			}
 
-			moh_register(class);
+			/* Don't leak a class when it's already registered */
+			moh_register(class, reload);
+
 			numclasses++;
 		}
 	}
@@ -1011,7 +1017,7 @@ static int load_moh_classes(void)
 				if (args)
 					ast_copy_string(class->args, args, sizeof(class->args));
 				
-				moh_register(class);
+				moh_register(class, reload);
 				numclasses++;
 			}
 		}
@@ -1039,7 +1045,7 @@ static int load_moh_classes(void)
 			if (args)	
 				ast_copy_string(class->args, args, sizeof(class->args));
 			
-			moh_register(class);
+			moh_register(class, reload);
 			numclasses++;
 		}
 		var = var->next;
@@ -1103,7 +1109,7 @@ static int moh_cli(int fd, int argc, char *argv[])
 
 	moh_on_off(0);
 	ast_moh_destroy();
-	x = load_moh_classes();
+	x = load_moh_classes(1);
 	moh_on_off(1);
 	ast_cli(fd, "\n%d class%s reloaded.\n", x, x == 1 ? "" : "es");
 	return 0;
@@ -1152,11 +1158,11 @@ static struct ast_cli_entry  cli_moh_classes_show = { { "moh", "classes", "show"
 
 static struct ast_cli_entry  cli_moh_files_show = { { "moh", "files", "show"}, cli_files_show, "List MOH file-based classes", "Lists all loaded file-based MOH classes and their files", NULL};
 
-static int init_classes(void) 
+static int init_classes(int reload) 
 {
 	struct mohclass *moh;
     
-	if (!load_moh_classes()) 		/* Load classes from config */
+	if (!load_moh_classes(reload)) 		/* Load classes from config */
 		return 0;			/* Return if nothing is found */
 	moh = mohclasses;
 	while (moh) {
@@ -1185,7 +1191,7 @@ int load_module(void)
 	if (!res)
 		res = ast_register_application(app4, moh4_exec, synopsis4, descrip4);
 
-	if (!init_classes()) { 	/* No music classes configured, so skip it */
+	if (!init_classes(0)) { 	/* No music classes configured, so skip it */
 		ast_log(LOG_WARNING, "No music on hold classes configured, disabling music on hold.");
 	} else {
 		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
@@ -1196,7 +1202,7 @@ int load_module(void)
 
 int reload(void)
 {
-	if (init_classes())
+	if (init_classes(1))
 		ast_install_music_functions(local_ast_moh_start, local_ast_moh_stop, local_ast_moh_cleanup);
 
 	return 0;
