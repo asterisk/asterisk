@@ -1,4 +1,8 @@
-2005-11-15  Kevin P. Fleming  <kpfleming@limerick.digium.com>
+2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* doc/README.realtime: document the limitations of using FreeTDS with Realtime (issue #5767)
+
+2005-11-15  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* Makefile: use -g3 for compiler to include macro information for debugger
 
