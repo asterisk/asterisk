@@ -1,3 +1,7 @@
+2005-11-16  Jeremy McNamara <jj@nufone.net>
+
+	* apps/app_voicemail.c (load_config): do not terminate asterisk if no voicemail config file
+
 2005-11-16  Josh Roberson <josh@asteriasgi.com>
 
 	* Makefile:  Update to fix non-responsive remote console on Darwin (OSX)(issue #5757)
