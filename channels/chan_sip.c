@@ -3461,7 +3461,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 					return -1;
 				}
 				if (debug)
-					ast_verbose("Found video format %s\n", ast_getformatname(codec));
+					ast_verbose("Found video format %s\n", codec);
 				ast_rtp_set_m_type(p->vrtp, codec);
 				codecs = ast_skip_blanks(codecs + len);
 			}

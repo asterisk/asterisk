@@ -1,5 +1,7 @@
 2005-11-16  Kevin P. Fleming  <kpfleming@limerick.digium.com>
 
+	* channels/chan_sip.c (process_sdp): don't pass video codec number into ast_getformatname(), it is not valid input for that function (issue #5764)
+
 	* pbx/pbx_ael.c (match_assignment): properly parse equal signs surrounded by whitespace (issue #5761)
 
 2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
