@@ -1,5 +1,7 @@
 2005-11-16  Kevin P. Fleming  <kpfleming@limerick.digium.com>
 
+	* channel.c (ast_queue_hangup): ensure that the channel lock is held before changing its fields... (issue #5770)
+
 	* res/res_musiconhold.c: don't spit out incorrect log messages (and leak memory) during reload (issue #5766)
 
 	* channels/chan_sip.c (process_sdp): don't pass video codec number into ast_getformatname(), it is not valid input for that function (issue #5764)

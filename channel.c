@@ -667,7 +667,11 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 int ast_queue_hangup(struct ast_channel *chan)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
-	chan->_softhangup |= AST_SOFTHANGUP_DEV;
+	/* Yeah, let's not change a lock-critical value without locking */
+	if (!ast_mutex_trylock(&chan->lock)) {
+		chan->_softhangup |= AST_SOFTHANGUP_DEV;
+		ast_mutex_unlock(&chan->lock);
+	}
 	return ast_queue_frame(chan, &f);
 }
 
