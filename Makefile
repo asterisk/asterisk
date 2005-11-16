@@ -50,8 +50,8 @@ endif
 #Overwite config files on "make samples"
 OVERWRITE=y
 
-#Include debug symbols in the executables (-g) and profiling info (-pg)
-DEBUG=-g #-pg
+#Include debug and macro symbols in the executables (-g) and profiling info (-pg)
+DEBUG=-g3 #-pg
 
 #Set NOCRYPTO to yes if you do not want to have crypto support or 
 #dependencies

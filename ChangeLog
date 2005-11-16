@@ -1,5 +1,7 @@
 2005-11-15  Kevin P. Fleming  <kpfleming@limerick.digium.com>
 
+	* Makefile: use -g3 for compiler to include macro information for debugger
+
 	* astmm.c (__ast_vasprintf): don't re-use the ap list without copying it; that's not safe on some platforms (issue #5035)
 
 	* doc/README.backtrace: add note about properly building Asterisk to be able to produce backtraces; wrap text and remove DOS line endings
