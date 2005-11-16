@@ -1,3 +1,7 @@
+2005-11-16  Josh Roberson <josh@asteriasgi.com>
+
+	* Makefile:  Update to fix non-responsive remote console on Darwin (OSX)(issue #5757)
+
 2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* apps/app_forkcdr.c (forkcdr_exec): issue warning (and don't segfault) if ForkCDR is called on a channel that doesn't have a CDR (issue #5763)
@@ -40,7 +44,7 @@
 
 	* doc/README.variables: Add application exit status variables
 
-2005-11-14  Josh Roberson <josh@asteirasgi.com>
+2005-11-14  Josh Roberson <josh@asteriasgi.com>
 	
 	* manager.c: Fix crash on variable passing from AMI originate (issue #5737)
 
