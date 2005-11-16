@@ -1,5 +1,7 @@
 2005-11-15  Kevin P. Fleming  <kpfleming@limerick.digium.com>
 
+	* doc/README.backtrace: add note about properly building Asterisk to be able to produce backtraces; wrap text and remove DOS line endings
+
 	* channels/chan_sip.c (add_codec_to_sdp): add 'annexb=no' to G.729A SDP (issue #5539)
 
 	* channels/chan_alsa.c (alsa_hangup): handle autohangup properly (issue #5672)

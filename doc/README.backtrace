@@ -1,14 +1,19 @@
+This document is to provide information on how to obtain the
+backtraces required on the asterisk bug tracker, available at
+http://bugs.digium.com. The information is required by developers to
+help fix problem with bugs of any kind. Backtraces provide information
+about what was wrong when a program crashed; in our case,
+Asterisk. There are two kind of backtraces (aka 'bt'), which are
+useful: bt and bt full.
 
+First of all, when you start Asterisk, you MUST start it with option
+-g (this tells Asterisk to produce a core file if it crashes).
 
-This document is to provide information on how to obtain the backtraces required on the asterisk bug tracker, available at http://bugs.digium.com.
-The information is required by developers to help fix problem with bugs of any kind.
-Backtraces provide information about what was wrong when a program crashed; in our case, Asterisk.
-There are two kind of backtraces (aka 'bt'), which are useful: bt and bt full.
+If you start Asterisk with the safe_asterisk script, it automatically
+starts using the option -g.
 
-First of all, when you start Asterisk, you MUST start it with option -g (this tells Asterisk to produce a core file if it crashes).
-If you start Asterisk with the safe_asterisk script, it automatically starts using the option -g.
-
-If you're not sure if Asterisk is running with the -g option, type the following command in your shell:
+If you're not sure if Asterisk is running with the -g option, type the
+following command in your shell:
 
 debian:/tmp# ps aux | grep asterisk
 root     17832  0.0  1.2   2348   788 pts/1    S    Aug12   0:00 /bin/sh /usr/sbin/safe_asterisk
@@ -17,9 +22,14 @@ root     26686  0.0  2.8  15544  1744 pts/1    S    Aug13   0:02 asterisk -vvvg 
 
 The interesting information is located in the last column.
 
+Second, your copy of Asterisk must have been built without
+optimization or the backtrace will be (nearly) unusable. This can be
+done by using 'make dont-optimize' intead of 'make install' to build
+and install the Asterisk binary and modules.
 
-After Asterisk crashes, a core file will be "dumped" in your /tmp/ directory
-To make sure it's really there, you can just type the following command in your shell:
+After Asterisk crashes, a core file will be "dumped" in your /tmp/
+directory. To make sure it's really there, you can just type the
+following command in your shell:
 
 debian:/tmp# ls -l /tmp/core.*
 -rw-------  1 root root 10592256 Aug 12 19:40 /tmp/core.26252
@@ -30,12 +40,14 @@ debian:/tmp# ls -l /tmp/core.*
 -rw-------  1 root root  8331264 Aug 13 00:32 /tmp/core.26647
 debian:/tmp#
 
-Now that we've verified the core file has been written to disk, the final part is to extract 'bt' from the core file.
-Core files are pretty big, don't be scared, it's normal.
+Now that we've verified the core file has been written to disk, the
+final part is to extract 'bt' from the core file. Core files are
+pretty big, don't be scared, it's normal.
 
 *** NOTE: Don't attach core files on the bug tracker, we only need the bt and bt full. ***
 
-For extraction, we use a really nice tool, called gdb. To verify that you have gdb installed on your system:
+For extraction, we use a really nice tool, called gdb. To verify that
+you have gdb installed on your system:
 
 debian:/tmp# gdb -v
 GNU gdb 6.3-debian
@@ -84,7 +96,7 @@ You would see output similar to:
 (gdb)
 
 
-The bt's output is the informations that we need on the bug tracker.
+The bt's output is the information that we need on the bug tracker.
 
 Now do a bt full as follows:
 (gdb) bt full
@@ -127,12 +139,14 @@ No symbol table info available.
 No symbol table info available.
 (gdb)
 
-
-We also need gdb's output.
-That output gives more details compared to the simple "bt". So we recommend that you use bt full instead of bt.
+We also need gdb's output. That output gives more details compared to
+the simple "bt". So we recommend that you use bt full instead of bt.
 But, if you could include both, we appreciate that.
 
-The final "extraction" would the to know all traces by all threads. Even if asterisk runs on the same thread for each calls, it could have some new threads created.
+The final "extraction" would the to know all traces by all
+threads. Even if asterisk runs on the same thread for each calls, it
+could have some new threads created.
+
 To make sure we have the correct informations, just do:
 (gdb) thread apply all bt
 
@@ -160,11 +174,14 @@ Thread 1 (process 26252):
 
 That output tell us crucial informations for threads.
 
-Now, just create a output.txt and dump your "bt full" (and/or "bt") AND with "thread apply all bt".
+Now, just create a output.txt and dump your "bt full" (and/or "bt")
+AND with "thread apply all bt".
 
 Note: Please ATTACH your output, DO NOT paste it as a note.
 
 And you're ready for upload on bug tracker.
 
 
-Questions or comments regarding this documentation, feel free to pass by #asterisk-bugs on FreeNode.
+Questions or comments regarding this documentation, feel free to pass
+by #asterisk-bugs on FreeNode.
+
