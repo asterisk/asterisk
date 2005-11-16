@@ -34,7 +34,7 @@ noload => app_intercom.so
 ; Explicitly load the chan_modem.so early on to be sure
 ; it loads before any of the chan_modem_* 's afte rit
 ;
-load => chan_modem.so
+;load => chan_modem.so
 load => res_musiconhold.so
 ;
 ; Load either OSS or ALSA, not both
@@ -47,4 +47,4 @@ noload => chan_alsa.so
 ; exported to modules loaded after them.
 ;
 [global]
-chan_modem.so=yes
+;chan_modem.so=yes
