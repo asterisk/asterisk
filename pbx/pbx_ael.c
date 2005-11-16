@@ -407,7 +407,7 @@ static int match_assignment(char *variable, char **value)
 	int inpar = 0;
 	c = variable;
 	
-	while (*c && (*c > 32)) {
+	while (*c) {
 		if(*c == ')' && (inpar > 0)) {
 			inpar--;
 		} else if(*c == '(' && (inpar >= 0)) {

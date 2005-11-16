@@ -1,3 +1,7 @@
+2005-11-16  Kevin P. Fleming  <kpfleming@limerick.digium.com>
+
+	* pbx/pbx_ael.c (match_assignment): properly parse equal signs surrounded by whitespace (issue #5761)
+
 2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* doc/README.realtime: document the limitations of using FreeTDS with Realtime (issue #5767)
