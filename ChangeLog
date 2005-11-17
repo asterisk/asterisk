@@ -1,5 +1,7 @@
 2005-11-16  Russell Bryant  <russell@digium.com>
 
+	* Makefile: Fix the output of Makefile generated variables to doxygen
+
 	* channels/chan_sip.c: Add missing carriage return and line feed to the SDP line indicating that we don't support VAD (issue #5780)
 
 2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
