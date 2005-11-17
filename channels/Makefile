@@ -61,7 +61,9 @@ endif
 ifneq (${OSARCH},Darwin)
   ifneq (${OSARCH},SunOS)
     ifneq (${OSARCH},CYGWIN)
-      CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
+# the ISDN4Linux channel driver is probably broken on all modern kernels,
+# but if you wish to try to use it, uncomment the line below
+#      CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
     endif
   endif
 endif
