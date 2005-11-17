@@ -1,3 +1,7 @@
+2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* Asterisk 1.2.0 released.
+	
 2005-11-16  Jeremy McNamara <jj@nufone.net>
 
 	* apps/app_voicemail.c (load_config): do not terminate asterisk if no voicemail config file
@@ -10,7 +14,8 @@
 2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
 
 	* channels/Makefile: don't build chan_modem and sub-modules by default
-
+	* configs/modules.conf.sample: explicitly 'noload' chan_modem.so and submodules, in case old versions exist
+	
 	* res/Makefile: issue mpg123 not-installed warning at 'make install' time, not 'make'
 
 	* apps/app_forkcdr.c (forkcdr_exec): issue warning (and don't segfault) if ForkCDR is called on a channel that doesn't have a CDR (issue #5763)
