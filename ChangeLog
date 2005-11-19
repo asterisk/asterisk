@@ -1,3 +1,7 @@
+2005-11-19  Russell Bryant  <russell@digium.com>
+
+	* app/app_echo.c: Update application description to be a bit more accurate, and clean up a little bit of code formatting
+
 2005-11-16  Russell Bryant  <russell@digium.com>
 
 	* Makefile: Fix the output of Makefile generated variables to doxygen

@@ -43,12 +43,12 @@ static char *tdesc = "Simple Echo Application";
 
 static char *app = "Echo";
 
-static char *synopsis = "Echo audio read back to the user";
+static char *synopsis = "Echo audio, video, or DTMF back to the calling party";
 
 static char *descrip = 
-"  Echo():  Echo audio read from channel back to the channel. \n"
-"User can exit the application by either pressing the '#' key, \n"
-"or hanging up.\n";
+"  Echo(): This application will echo any audio, video, or DTMF frames read from\n"
+"the calling channel back to itself. If the DTMF digit '#' is received, the\n"
+"application will exit.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -56,14 +56,18 @@ LOCAL_USER_DECL;
 
 static int echo_exec(struct ast_channel *chan, void *data)
 {
-	int res=-1;
+	int res = -1;
+	int format;
 	struct localuser *u;
 	struct ast_frame *f;
+
 	LOCAL_USER_ADD(u);
-	ast_set_write_format(chan, ast_best_codec(chan->nativeformats));
-	ast_set_read_format(chan, ast_best_codec(chan->nativeformats));
-	/* Do our thing here */
-	while(ast_waitfor(chan, -1) > -1) {
+
+	format = ast_best_codec(chan->nativeformats);
+	ast_set_write_format(chan, format);
+	ast_set_read_format(chan, format);
+
+	while (ast_waitfor(chan, -1) > -1) {
 		f = ast_read(chan);
 		if (!f)
 			break;
@@ -79,13 +83,16 @@ static int echo_exec(struct ast_channel *chan, void *data)
 			if (f->subclass == '#') {
 				res = 0;
 				break;
-			} else
+			} else {
 				if (ast_write(chan, f))
 					break;
+			}
 		}
 		ast_frfree(f);
 	}
+
 	LOCAL_USER_REMOVE(u);
+
 	return res;
 }
 
