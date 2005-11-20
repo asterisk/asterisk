@@ -202,11 +202,16 @@ static int apply_outgoing(struct outgoing *o, char *fn, FILE *f)
 				} else if (!strcasecmp(buf, "setvar") || !strcasecmp(buf, "set")) {
 					c2 = c;
 					strsep(&c2, "=");
-					var = ast_variable_new(c, c2);
-					if (var) {
-						var->next = o->vars;
-						o->vars = var;
+					if (c2)
+					{
+						var = ast_variable_new(c, c2);
+						if (var) {
+							var->next = o->vars;
+							o->vars = var;
+						}
 					}
+					else
+						ast_log(LOG_WARNING, "Malformed \"%s\" argument.  Should be \"%s: variable=value\"\n", buf, buf);
 				} else if (!strcasecmp(buf, "account")) {
 					var = ast_variable_new("CDR(accountcode|r)", c);
 					if (var) {	

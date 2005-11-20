@@ -1,5 +1,7 @@
 2005-11-20  Josh Roberson <josh@asteriasgi.com>
 
+	* pbx/pbx_spool.c: Fix crash in spooler if set/setvar declared incorrectly. (issue #5806)
+
 	* apps/app_meetme.c: fix 'X' option in MeetMe, with slight modification. (issue #5773)
 
 	* apps/app_voicemail.c: Make sure we're copying the read digits when calling voicemail without a box. (issue #5774)
