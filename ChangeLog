@@ -1,5 +1,8 @@
 2005-11-20  Russell Bryant  <russell@digium.com>
 
+	* UPGRADE.txt: Add a note on a second way that the IAX2 channel naming convention has changed. (issue #5792)
+	* channels/chan_iax2.c: Fix alignment of the output for the "iax2 show peer <peer>" CLI command (issue #5792)
+
 	* channels/Makefile: Re-add chan_oss to the default build. (issue #5799)
 
 	* res/res_musiconhold.c: Fix incorrect argument for the buffer size to an ast_copy_string call (issue #5803)

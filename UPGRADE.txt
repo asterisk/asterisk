@@ -52,8 +52,10 @@ Dialing:
 
 IAX: 
 
-* The naming convention for IAX channels has changed in a minor way such 
-  that the call number follows a "-" rather than a "/" character.
+* The naming convention for IAX channels has changed in two ways: 
+   1. The call number follows a "-" rather than a "/" character.
+   2. The name of the channel has been simplified to IAX2/peer-callno,
+   rather than IAX2/peer@peer-callno or even IAX2/peer@peer/callno.
 
 SIP:
 
