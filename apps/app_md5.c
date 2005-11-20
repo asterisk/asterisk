@@ -157,7 +157,7 @@ static int md5check_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_DEBUG, "ERROR: MD5 not verified: %s -- %s\n", args.md5hash, args.string);
 	pbx_builtin_setvar_helper(chan, "CHECKMD5STATUS", "NOMATCH");		
 	if (priority_jump || option_priority_jumping) {
-		if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
+		if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 			if (option_debug > 2)
 				ast_log(LOG_DEBUG, "ERROR: Can't jump to exten+101 (e%s,p%d), sorry\n", chan->exten,chan->priority+101);
 	}

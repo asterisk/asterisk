@@ -1,6 +1,10 @@
 2005-11-20  Josh Roberson <josh@asteriasgi.com>
 
-	* apps/app_voicemail.c: Fix conditional jump option to jump properly, also correct a small typo in the description. (issue #5795)
+	* apps/app_md5.c: Fix conditional jump option.
+
+	* apps/app_controlplayback.c: Fix conditional jump option.
+
+	* apps/app_hasnewvoicemail.c: Fix conditional jump option to jump properly, also correct a small typo in the description. (issue #5795)
 
 	* channels/chan_iax2.c: Fix output of iax2 show peer <peer> (issue #5792)
 
