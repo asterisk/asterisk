@@ -1,5 +1,7 @@
 2005-11-20  Josh Roberson <josh@asteriasgi.com>
 
+	* apps/app_voicemail.c: Make sure we're copying the read digits when calling voicemail without a box. (issue #5774)
+
 	* apps/app_md5.c: Fix conditional jump option.
 
 	* apps/app_controlplayback.c: Fix conditional jump option.
