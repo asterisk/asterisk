@@ -1,5 +1,9 @@
 2005-11-20  Josh Roberson <josh@asteriasgi.com>
 
+	* channels/chan_iax2.c: Fix output of iax2 show peer <peer> (issue #5792)
+
+	* UPGRADE.txt: Adjust note for naming conventions of iax2 channels. (issue #5792)
+
 	* res/res_musiconhold.c: Correct typo in ast_copy_string() for class->mode.  (issue #5803)
 
 2005-11-19  Josh Roberson <josh@asteriasgi.com>

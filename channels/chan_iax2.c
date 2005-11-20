@@ -1954,8 +1954,8 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 
 		ast_cli(fd, "  Status       : ");
 		peer_status(peer, status, sizeof(status));	
-		ast_cli(fd, " Qualify        : every %d when OK, every %d when UNREACHABLE (sample smoothing %s)\n", peer->pokefreqok, peer->pokefreqnotok, (peer->smoothing == 1) ? "On" : "Off");
 		ast_cli(fd, "%s\n",status);
+		ast_cli(fd, "  Qualify      : every %d when OK, every %d when UNREACHABLE (sample smoothing %s)\n", peer->pokefreqok, peer->pokefreqnotok, (peer->smoothing == 1) ? "On" : "Off");
 		ast_cli(fd,"\n");
 		if (ast_test_flag(peer, IAX_TEMPONLY))
 			destroy_peer(peer);
