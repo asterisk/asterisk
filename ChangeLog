@@ -1,3 +1,7 @@
+2005-11-20  Josh Roberson <josh@asteriasgi.com>
+
+	* res/res_musiconhold.c: Correct typo in ast_copy_string() for class->mode.  (issue #5803)
+
 2005-11-19  Josh Roberson <josh@asteriasgi.com>
 
 	* channels/Makefile: Put chan_oss back into the default build. (issue #5799)
