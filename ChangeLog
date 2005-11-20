@@ -1,5 +1,8 @@
 2005-11-20  Russell Bryant  <russell@digium.com>
 
+	* apps/app_controlplayback.c: Fix logic in checking for success when jumping to priority n+101.
+	* apps/app_md5.c: Fix logic in checking for success when jumping to priority n+101.
+
 	* apps/app_hasnewvoicemail.c: Fix a typo in the application description.  Also, fix the logic in checking for success when jumping to priority n+101. (issue #5795) 
 
 	* UPGRADE.txt: Add a note on a second way that the IAX2 channel naming convention has changed. (issue #5792)
