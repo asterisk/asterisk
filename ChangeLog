@@ -1,6 +1,6 @@
 2005-11-20  Russell Bryant  <russell@digium.com>
 
-	* res/res_musiconhold.c: Fix incorrect argument for the buffer size to an ast_copy_string call (issue #5791)
+	* res/res_musiconhold.c: Fix incorrect argument for the buffer size to an ast_copy_string call (issue #5803)
 
 	* funcs/func_enum.c: Shorten the module description (issue #5791)
 
