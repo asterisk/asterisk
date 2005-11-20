@@ -1,3 +1,7 @@
+2005-11-20  Russell Bryant  <russell@digium.com>
+
+	* funcs/func_enum.c: Shorten the module description (issue #5791)
+
 2005-11-17  Russell Bryant  <russell@digium.com>
 
 	* Makefile: Fix the output of Makefile generated variables to doxygen
