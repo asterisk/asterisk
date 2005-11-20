@@ -5531,7 +5531,8 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		if (ast_strlen_zero(tmp)) {
 			LOCAL_USER_REMOVE(u);
 			return 0;
-		}	
+		}
+		argv[0] = ast_strdupa(tmp);
 	}
 
 	res = leave_voicemail(chan, argv[0], &leave_options);
