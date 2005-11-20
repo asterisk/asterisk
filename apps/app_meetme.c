@@ -1314,7 +1314,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 
 					tmp[0] = f->subclass;
 					tmp[1] = '\0';
-					if (ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
+					if (!ast_goto_if_exists(chan, exitcontext, tmp, 1)) {
+						ast_log(LOG_DEBUG, "Got DTMF %c, goto context %s\n", tmp[0], exitcontext);
 						ret = 0;
 						break;
 					} else if (option_debug > 1)
