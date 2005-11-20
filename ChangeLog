@@ -1,5 +1,7 @@
 2005-11-20  Russell Bryant  <russell@digium.com>
 
+	* channels/Makefile: Re-add chan_oss to the default build. (issue #5799)
+
 	* res/res_musiconhold.c: Fix incorrect argument for the buffer size to an ast_copy_string call (issue #5803)
 
 	* funcs/func_enum.c: Shorten the module description (issue #5791)
