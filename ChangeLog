@@ -1,5 +1,7 @@
 2005-11-19  Josh Roberson <josh@asteriasgi.com>
 
+	* channels/Makefile: Put chan_oss back into the default build. (issue #5799)
+
 	* funcs/func_enum.c: Fix long text description causing cosmetic defect on module load. (issue #5971)
 
 2005-11-19  Russell Bryant  <russell@digium.com>

@@ -63,7 +63,8 @@ ifneq (${OSARCH},Darwin)
     ifneq (${OSARCH},CYGWIN)
 # the ISDN4Linux channel driver is probably broken on all modern kernels,
 # but if you wish to try to use it, uncomment the line below
-#      CHANNEL_LIBS+=chan_oss.so chan_modem_i4l.so 
+#      CHANNEL_LIBS+=chan_modem_i4l.so 
+       CHANNEL_LIBS+=chan_oss.so
     endif
   endif
 endif
