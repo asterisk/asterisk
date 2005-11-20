@@ -68,7 +68,7 @@ static char *hasnewvoicemail_descrip =
 "Assumes folder 'INBOX' if folder is not specified. Optionally sets <varname> to the number of messages\n" 
 "in that folder.\n"
 "  The option string may contain zero of the following character:\n"
-"	'j' -- jump to priority n+101, if there is new voicemail in tolder 'folder' or INBOX\n"
+"	'j' -- jump to priority n+101, if there is new voicemail in folder 'folder' or INBOX\n"
 "  This application sets the following channel variable upon completion:\n"
 "	HASVMSTATUS		The result of the new voicemail check returned as a text string as follows\n"
 "		<# of messages in the folder, 0 for NONE>\n";
@@ -163,7 +163,7 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 	if (vmcount > 0) {
 		/* Branch to the next extension */
 		if (priority_jump || option_priority_jumping) {
-			if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
+			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
 				ast_log(LOG_WARNING, "VM box %s@%s has new voicemail, but extension %s, priority %d doesn't exist\n", vmbox, context, chan->exten, chan->priority + 101);
 		}
 	}
