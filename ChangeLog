@@ -1,5 +1,7 @@
 2005-11-20  Russell Bryant  <russell@digium.com>
 
+	* apps/app_meetme.c: Fix the 'X' option to the MeetMe application. (issue #5773)
+
 	* apps/app_voicemail.c: Correct the use of a mailbox entered by the calling party instead of indicated as an argument to the Voicemail application. (issue #5774)
 
 	* apps/app_controlplayback.c: Fix logic in checking for success when jumping to priority n+101.
