@@ -946,7 +946,7 @@ static int load_moh_classes(int reload)
 			var = ast_variable_browse(cfg, cat);
 			while (var) {
 				if (!strcasecmp(var->name, "mode"))
-					ast_copy_string(class->mode, var->value, sizeof(class->name)); 
+					ast_copy_string(class->mode, var->value, sizeof(class->mode)); 
 				else if (!strcasecmp(var->name, "directory"))
 					ast_copy_string(class->dir, var->value, sizeof(class->dir));
 				else if (!strcasecmp(var->name, "application"))
