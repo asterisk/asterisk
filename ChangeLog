@@ -1,5 +1,7 @@
 2005-11-20  Russell Bryant <russell@digium.com>
 
+	* apps/app_record.c: Don't leak a frame if writing it to the file fails. (issue #5787)
+
 	* Makefile: Create the monitor spool directory when the other spool directories are created.
 
 	* pbx.c.c: Remove some useless checks and unnecessary calls to ast_strlen_zero(). (issue #5805)
