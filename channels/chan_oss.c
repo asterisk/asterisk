@@ -55,6 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/frame.h"
 #include "asterisk/logger.h"
+#include "asterisk/callerid.h"	/* for ast_callerid_split() */
 #include "asterisk/channel.h"
 #include "asterisk/module.h"
 #include "asterisk/options.h"
@@ -284,6 +285,8 @@ struct chan_oss_pvt {
 	char ext[AST_MAX_EXTENSION];
 	char ctx[AST_MAX_CONTEXT];
 	char language[MAX_LANGUAGE];
+	char cid_name[256]; /*XXX */
+	char cid_num[256]; /*XXX */
 
 	/* buffers used in oss_write */
 	char oss_write_buf[FRAME_SIZE*2];
@@ -892,6 +895,10 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 		ast_copy_string(c->exten, ext, sizeof(c->exten));
 	if (!ast_strlen_zero(o->language))
 		ast_copy_string(c->language, o->language, sizeof(c->language));
+        if (!ast_strlen_zero(o->cid_num))
+                c->cid.cid_num = strdup(o->cid_num);
+        if (!ast_strlen_zero(o->cid_name))
+                c->cid.cid_name = strdup(o->cid_name);
 
 	o->owner = c;
 	ast_setstate(c, state);
@@ -1275,6 +1282,14 @@ static void store_mixer(struct chan_oss_pvt *o, char *s)
 }
 
 /*
+ * store the callerid components
+ */
+static void store_callerid(struct chan_oss_pvt *o, char *s)
+{
+	ast_callerid_split(s, o->cid_name, sizeof(o->cid_name), o->cid_num, sizeof(o->cid_num));
+}
+
+/*
  * grab fields from the config file, init the descriptor and open the device.
  */
 static struct chan_oss_pvt * store_config(struct ast_config *cfg, char *ctg)
@@ -1315,6 +1330,7 @@ static struct chan_oss_pvt * store_config(struct ast_config *cfg, char *ctg)
 		M_STR("language", o->language)
 		M_STR("extension", o->ext)
 		M_F("mixer", store_mixer(o, v->value))
+		M_F("callerid", store_callerid(o, v->value))
 		M_END(;);
 	}
 	if (ast_strlen_zero(o->device))

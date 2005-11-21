@@ -25,6 +25,10 @@ extension=s
 ;
 ;language=en
 ;
+; CallerID for outbound calls
+;
+;callerid=John Doe <1234>
+;
 ; Silence supression can be enabled when sound is over a certain threshold.
 ; The value for the threshold should probably be between 500 and 2000 or so,
 ; but your mileage may vary.  Use the echo test to evaluate the best setting.
