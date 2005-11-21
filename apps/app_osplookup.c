@@ -217,6 +217,10 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
 	if (!ast_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
+		temp = pbx_builtin_getvar_helper(chan, "OSPRESULTS");
+		if (ast_strlen_zero(temp) || (sscanf(temp, "%d", &result.numresults) != 1)) {
+			result.numresults = 0;
+		}
 		if ((res = ast_osp_next(&result, cause)) > 0) {
 			char tmp[80];
 			snprintf(tmp, sizeof(tmp), "%d", result.handle);
