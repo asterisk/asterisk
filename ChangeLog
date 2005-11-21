@@ -1,3 +1,7 @@
+2005-11-20  Russell Bryant <russell@digium.com>
+
+	* channels/chan_sip.c channels/chan_iax2.c: Change warning messages about the number of scheduled events happening all at once to debug messages. (issue #5794)
+
 2005-11-20  Josh Roberson <josh@asteriasgi.com>
 
 	* pbx/pbx_spool.c: Fix crash in spooler if set/setvar declared incorrectly. (issue #5806)
