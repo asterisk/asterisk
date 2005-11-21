@@ -8104,7 +8104,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 	if (!temponly) {
 		peer = peerl.peers;
 		while(peer) {
-			if (!strcasecmp(peer->name, name)) {	
+			if (!strcmp(peer->name, name)) {	
 				break;
 			}
 			prev = peer;
@@ -8297,7 +8297,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 	if (!temponly) {
 		user = userl.users;
 		while(user) {
-			if (!strcasecmp(user->name, name)) {	
+			if (!strcmp(user->name, name)) {	
 				break;
 			}
 			prev = user;
