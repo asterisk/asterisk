@@ -1,7 +1,10 @@
 2005-11-21  Kevin P. Fleming  <kpfleming@digium.com>
 
-	* channels/chan_sip.c: ensure that case changes made to peer/user names are not ignored during reload operations
-	* channels/chan_iax2.c: ensure that case changes made to peer/user names are not ignored during reload operations
+	* channels/chan_sip.c (build_peer): ensure that case changes made to peer names are not ignored during reload operations
+	(build_peer): when a peer is changed from dynamic to static mode, reset the default port number if no other has been specified
+
+	* channels/chan_iax2.c (build_peer and build_user): ensure that case changes made to peer/user names are not ignored during reload operations
+	(build_peer): when a peer is changed from dynamic to static mode, reset the default port number if no other has been specified
 
 2005-11-21  Josh Roberson <josh@asteriasgi.com>
 

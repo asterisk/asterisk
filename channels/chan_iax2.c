@@ -8200,6 +8200,8 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 						free(peer);
 						return NULL;
 					}
+					if (!peer->addr.sin_port)
+						peer->addr.sin_port = htons(IAX_DEFAULT_PORTNO);
 				}
 				if (!maskfound)
 					inet_aton("255.255.255.255", &peer->mask);
