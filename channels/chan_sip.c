@@ -11245,12 +11245,12 @@ restartsearch:
 			res = 1;
 		res = ast_io_wait(io, res);
 		if (res > 20)
-			ast_log(LOG_WARNING, "chan_sip: ast_io_wait ran %d all at once\n", res);
+			ast_log(LOG_DEBUG, "chan_sip: ast_io_wait ran %d all at once\n", res);
 		ast_mutex_lock(&monlock);
 		if (res >= 0)  {
 			res = ast_sched_runq(sched);
 			if (res >= 20)
-				ast_log(LOG_WARNING, "chan_sip: ast_sched_runq ran %d all at once\n", res);
+				ast_log(LOG_DEBUG, "chan_sip: ast_sched_runq ran %d all at once\n", res);
 		}
 
 		/* needs work to send mwi to realtime peers */

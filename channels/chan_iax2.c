@@ -7956,7 +7956,7 @@ static void *network_thread(void *ignore)
 		}
 		ast_mutex_unlock(&iaxq.lock);
 		if (count >= 20)
-			ast_log(LOG_WARNING, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
+			ast_log(LOG_DEBUG, "chan_iax2: Sent %d queued outbound frames all at once\n", count);
 
 		/* Now do the IO, and run scheduled tasks */
 		res = ast_sched_wait(sched);
@@ -7965,10 +7965,10 @@ static void *network_thread(void *ignore)
 		res = ast_io_wait(io, res);
 		if (res >= 0) {
 			if (res >= 20)
-				ast_log(LOG_WARNING, "chan_iax2: ast_io_wait ran %d I/Os all at once\n", res);
+				ast_log(LOG_DEBUG, "chan_iax2: ast_io_wait ran %d I/Os all at once\n", res);
 			count = ast_sched_runq(sched);
 			if (count >= 20)
-				ast_log(LOG_WARNING, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
+				ast_log(LOG_DEBUG, "chan_iax2: ast_sched_runq ran %d scheduled tasks all at once\n", count);
 		}
 	}
 	return NULL;
