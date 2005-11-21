@@ -1,5 +1,7 @@
 2005-11-20  Russell Bryant <russell@digium.com>
 
+	* cli.c: Remove some unnecessary calls to ast_strlen_zero(). (issue #5804)
+
 	* channels/chan_oss.c configs/oss.conf.sample: Add the ability to set callerid in oss.conf. 
 
 	* channels/chan_sip.c channels/chan_iax2.c: Change warning messages about the number of scheduled events happening all at once to debug messages. (issue #5794)
