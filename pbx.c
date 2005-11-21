@@ -1666,14 +1666,14 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 				if (option_debug) {
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
 						snprintf(atmp, 80, "STACK-%s-%s-%d", context, exten, priority);
-						snprintf(atmp2, EXT_DATA_SIZE+100, "%s(\"%s\", \"%s\") %s", app->name, c->name, (!ast_strlen_zero(passdata) ? (char *)passdata : ""), (newstack ? "in new stack" : "in same stack"));
+						snprintf(atmp2, EXT_DATA_SIZE+100, "%s(\"%s\", \"%s\") %s", app->name, c->name, passdata, (newstack ? "in new stack" : "in same stack"));
 						pbx_builtin_setvar_helper(c, atmp, atmp2);
 				}
 				if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
-								term_color(tmp3, (!ast_strlen_zero(passdata) ? (char *)passdata : ""), COLOR_BRMAGENTA, 0, sizeof(tmp3)),
+								term_color(tmp3, passdata, COLOR_BRMAGENTA, 0, sizeof(tmp3)),
 								(newstack ? "in new stack" : "in same stack"));
 				manager_event(EVENT_FLAG_CALL, "Newexten", 
 					"Channel: %s\r\n"
@@ -1683,7 +1683,7 @@ static int pbx_extension_helper(struct ast_channel *c, struct ast_context *con, 
 					"Application: %s\r\n"
 					"AppData: %s\r\n"
 					"Uniqueid: %s\r\n",
-					c->name, c->context, c->exten, c->priority, app->name, passdata ? passdata : "(NULL)", c->uniqueid);
+					c->name, c->context, c->exten, c->priority, app->name, passdata, c->uniqueid);
 				res = pbx_exec(c, app, passdata, newstack);
 				return res;
 			} else {
@@ -2473,7 +2473,7 @@ static int increase_call_count(const struct ast_channel *c)
 	if (option_maxload) {
 		getloadavg(&curloadavg, 1);
 		if (curloadavg >= option_maxload) {
-			ast_log(LOG_NOTICE, "Maximum loadavg limit of %lf load exceeded by '%s' (currently %f)!\n", option_maxload, c->name, curloadavg);
+			ast_log(LOG_NOTICE, "Maximum loadavg limit of %f load exceeded by '%s' (currently %f)!\n", option_maxload, c->name, curloadavg);
 			failed = -1;
 		}
 	}

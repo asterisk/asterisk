@@ -1,5 +1,7 @@
 2005-11-20  Russell Bryant <russell@digium.com>
 
+	* pbx.c.c: Remove some useless checks and unnecessary calls to ast_strlen_zero(). (issue #5805)
+
 	* cli.c: Remove some unnecessary calls to ast_strlen_zero(). (issue #5804)
 
 	* channels/chan_oss.c configs/oss.conf.sample: Add the ability to set callerid in oss.conf. 
