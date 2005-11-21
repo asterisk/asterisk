@@ -40,10 +40,6 @@ Asterisk 1.0.10
  -- extensions
     -- A potential crash has been fixed when calling LEN() to get the length of
        a string that was 80 characters or larger.
- -- logger
-    -- The Asterisk logger will automatically detect when a log file needs to
-       be rotated.  However, this feature could put Asterisk in a nasty loop
-       that would result in a crash.
  -- general
     -- Added man pages for astgenkey, autosupport, and safe_asterisk
 
