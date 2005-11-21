@@ -108,6 +108,21 @@ AST_MUTEX_DEFINE_STATIC(moh_lock);
 #define MPG_123 "/usr/bin/mpg123"
 #define MAX_MP3S 256
 
+
+static void ast_moh_free_class(struct mohclass **class) 
+{
+	struct mohdata *members, *mtmp;
+	
+	members = (*class)->members;
+	while(members) {
+		mtmp = members;
+		members = members->next;
+		free(mtmp);
+	}
+	free(*class);
+	*class = NULL;
+}
+
 static int spawn_mp3(struct mohclass *class)
 {
 	int fds[2];
@@ -224,8 +239,11 @@ static int spawn_mp3(struct mohclass *class)
 		/* Stdout goes to pipe */
 		dup2(fds[1], STDOUT_FILENO);
 		/* Close unused file descriptors */
-		for (x=3;x<8192;x++)
-			close(x);
+		for (x=3;x<8192;x++) {
+			if (-1 != fcntl(x, F_GETFL)) {
+				close(x);
+			}
+		}
 		/* Child */
 		chdir(class->dir);
 		if(class->custom) {
@@ -352,6 +370,7 @@ static int moh0_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	while(!ast_safe_sleep(chan, 10000));
+	ast_moh_stop(chan);
 	return -1;
 }
 
@@ -363,7 +382,7 @@ static int moh1_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	if (ast_moh_start(chan, NULL)) {
-		ast_log(LOG_WARNING, "Unable to start music on hold (class '%s') on channel %s\n", (char *)data, chan->name);
+		ast_log(LOG_WARNING, "Unable to start music on hold for %d seconds on channel %s\n", atoi((char *)data), chan->name);
 		return -1;
 	}
 	res = ast_safe_sleep(chan, atoi(data) * 1000);
@@ -570,12 +589,12 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 			ast_log(LOG_WARNING, "Unable to create moh...\n");
 			if (moh->pseudofd > -1)
 				close(moh->pseudofd);
-			free(moh);
+			ast_moh_free_class(&moh);
 			return -1;
 		}
 	} else {
 		ast_log(LOG_WARNING, "Don't know how to do a mode '%s' music on hold\n", mode);
-		free(moh);
+		ast_moh_free_class(&moh);
 		return -1;
 	}
 	ast_mutex_lock(&moh_lock);

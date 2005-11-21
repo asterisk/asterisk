@@ -25,11 +25,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#ifdef __linux__
-#include <endian.h>
-#else
-#include <machine/endian.h>
-#endif
+#include "asterisk/endian.h"
 
 #define BUF_SIZE 160		/* 160 samples */
 

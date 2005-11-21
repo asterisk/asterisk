@@ -174,6 +174,7 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	while(!feof(f)) {
 		/* Calculate a "whatever" quality md5sum of the key */
 		char buf[256];
+		memset(buf, 0, 256);
 		fgets(buf, sizeof(buf), f);
 		if (!feof(f)) {
 			MD5Update(&md5, buf, strlen(buf));
@@ -441,7 +442,7 @@ int ast_check_signature(struct ast_key *key, char *msg, char *sig)
 static void crypto_load(int ifd, int ofd)
 {
 	struct ast_key *key, *nkey, *last;
-	DIR *dir;
+	DIR *dir = NULL;
 	struct dirent *ent;
 	int note = 0;
 	/* Mark all keys for deletion */

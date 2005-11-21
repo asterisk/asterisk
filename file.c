@@ -714,23 +714,31 @@ int ast_fileexists(char *filename, char *fmt, char *preflang)
 			*c = '\0';
 			postfix = c+1;
 			prefix = tmp;
+			snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, preflang, postfix);
 		} else {
 			postfix = tmp;
 			prefix="";
+			snprintf(filename2, sizeof(filename2), "%s/%s", preflang, postfix);
 		}
-		snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, preflang, postfix);
 		res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 		if (res < 1) {
 			char *stringp=NULL;
 			strncpy(lang2, preflang, sizeof(lang2)-1);
 			stringp=lang2;
 			strsep(&stringp, "_");
+			/* If language is a specific locality of a language (like es_MX), strip the locality and try again */
 			if (strcmp(lang2, preflang)) {
-				snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, lang2, postfix);
+				if (ast_strlen_zero(prefix)) {
+					snprintf(filename2, sizeof(filename2), "%s/%s", lang2, postfix);
+				} else {
+					snprintf(filename2, sizeof(filename2), "%s/%s/%s", prefix, lang2, postfix);
+				}
 				res = ast_filehelper(filename2, NULL, fmt, ACTION_EXISTS);
 			}
 		}
 	}
+
+	/* Fallback to no language (usually winds up being American English) */
 	if (res < 1) {
 		res = ast_filehelper(filename, NULL, fmt, ACTION_EXISTS);
 	}
@@ -844,8 +852,12 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 		return NULL;
 	}
 	/* set the O_TRUNC flag if and only if there is no O_APPEND specified */
-	if (!(flags & O_APPEND)) 
+	if (flags & O_APPEND){ 
+		/* We really can't use O_APPEND as it will break WAV header updates */
+		flags &= ~O_APPEND;
+	}else{
 		myflags = O_TRUNC;
+	}
 	
 	myflags |= O_WRONLY | O_CREAT;
 
@@ -920,7 +932,7 @@ struct ast_filestream *ast_writefile(char *filename, char *type, char *comment, 
 	return fs;
 }
 
-char ast_waitstream(struct ast_channel *c, char *breakon)
+int ast_waitstream(struct ast_channel *c, char *breakon)
 {
 	/* XXX Maybe I should just front-end ast_waitstream_full ? XXX */
 	int res;
@@ -976,10 +988,18 @@ char ast_waitstream(struct ast_channel *c, char *breakon)
 	return (c->_softhangup ? -1 : 0);
 }
 
-char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind, int ms)
+int ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char *rewind, int ms)
 {
 	int res;
 	struct ast_frame *fr;
+
+	if (!breakon)
+			breakon = "";
+	if (!forward)
+			forward = "";
+	if (!rewind)
+			rewind = "";
+	
 	while(c->stream) {
 		res = ast_sched_wait(c->sched);
 		if ((res < 0) && !c->timingfunc) {
@@ -1037,13 +1057,16 @@ char ast_waitstream_fr(struct ast_channel *c, char *breakon, char *forward, char
 	return (c->_softhangup ? -1 : 0);
 }
 
-char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int cmdfd)
+int ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int cmdfd)
 {
 	int res;
 	int ms;
 	int outfd;
 	struct ast_frame *fr;
 	struct ast_channel *rchan;
+
+	if (!breakon)
+		breakon = "";
 	
 	while(c->stream) {
 		ms = ast_sched_wait(c->sched);
@@ -1055,6 +1078,9 @@ char ast_waitstream_full(struct ast_channel *c, char *breakon, int audiofd, int 
 			ms = 1000;
 		rchan = ast_waitfor_nandfds(&c, 1, &cmdfd, (cmdfd > -1) ? 1 : 0, NULL, &outfd, &ms);
 		if (!rchan && (outfd < 0) && (ms)) {
+			/* Continue */
+			if (errno == EINTR)
+				continue;
 			ast_log(LOG_WARNING, "Wait failed (%s)\n", strerror(errno));
 			return -1;
 		} else if (outfd > -1) {

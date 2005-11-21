@@ -25,11 +25,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-#ifdef __linux__
-#include <endian.h>
-#else
-#include <machine/endian.h>
-#endif
+#include "asterisk/endian.h"
 #include "msgsm.h"
 
 /* Some Ideas for this code came from makewave.c by Jeffrey Chilton */
@@ -51,7 +47,6 @@ struct ast_filestream {
 	   weird MS format */
 	/* This is what a filestream means to us */
 	int fd; /* Descriptor */
-	int bytes;
 	struct ast_frame fr;				/* Frame information */
 	char waste[AST_FRIENDLY_OFFSET];	/* Buffer for sending frames, etc */
 	char empty;							/* Empty character */
@@ -219,7 +214,7 @@ static int update_header(int fd)
 	end = lseek(fd, 0, SEEK_END);
 	/* in a gsm WAV, data starts 60 bytes in */
 	bytes = end - 60;
-	datalen = htoll(bytes);
+	datalen = htoll((bytes + 1) & ~0x1);
 	filelen = htoll(52 + ((bytes + 1) & ~0x1));
 	if (cur < 0) {
 		ast_log(LOG_WARNING, "Unable to find our position\n");
@@ -398,7 +393,7 @@ static void wav_close(struct ast_filestream *s)
 	ast_mutex_unlock(&wav_lock);
 	ast_update_use_count();
 	/* Pad to even length */
-	if (s->bytes & 0x1)
+	if (lseek(s->fd, 0, SEEK_END) & 0x1)
 		write(s->fd, &zero, 1);
 	close(s->fd);
 	free(s);
@@ -458,7 +453,6 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 				ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 				return -1;
 			}
-			fs->bytes += 65;
 			update_header(fs->fd);
 			len += 65;
 		} else {
@@ -469,7 +463,6 @@ static int wav_write(struct ast_filestream *fs, struct ast_frame *f)
 					ast_log(LOG_WARNING, "Bad write (%d/65): %s\n", res, strerror(errno));
 					return -1;
 				}
-				fs->bytes += 65;
 				update_header(fs->fd);
 			} else {
 				/* Copy the data and do nothing */

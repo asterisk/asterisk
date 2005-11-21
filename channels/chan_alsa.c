@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "asterisk/endian.h"
 
 #define ALSA_PCM_NEW_HW_PARAMS_API
 #define ALSA_PCM_NEW_SW_PARAMS_API
@@ -59,8 +60,13 @@
 /* Don't switch between read/write modes faster than every 300 ms */
 #define MIN_SWITCH_TIME 600
 
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 static snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-//static int block = O_NONBLOCK;
+#else
+static snd_pcm_format_t format = SND_PCM_FORMAT_S16_BE;
+#endif
+
+/* static int block = O_NONBLOCK; */
 static char indevname[50] = ALSA_INDEV;
 static char outdevname[50] = ALSA_OUTDEV;
 
@@ -863,10 +869,11 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		struct ast_frame f = { AST_FRAME_TEXT, 0 };
 		char text2send[256] = "";
 		text2send[0] = '\0';
-		while(tmparg <= argc) {
+		while(tmparg < argc) {
 			strncat(text2send, argv[tmparg++], sizeof(text2send) - strlen(text2send) - 1);
 			strncat(text2send, " ", sizeof(text2send) - strlen(text2send) - 1);
 		}
+		text2send[strlen(text2send) - 1] = '\n';
 		f.data = text2send;
 		f.datalen = strlen(text2send) + 1;
 		grab_owner();
@@ -1047,10 +1054,12 @@ int load_module()
 int unload_module()
 {
 	int x;
+	
+	ast_channel_unregister(type);
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_unregister(myclis + x);
-	close(readdev);
-	close(writedev);
+	snd_pcm_close(alsa.icard);
+	snd_pcm_close(alsa.ocard);
 	if (sndcmd[0] > 0) {
 		close(sndcmd[0]);
 		close(sndcmd[1]);

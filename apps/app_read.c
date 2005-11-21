@@ -106,8 +106,9 @@ static int read_exec(struct ast_channel *chan, void *data)
 		if (res > -1) {
 			pbx_builtin_setvar_helper(chan, varname, tmp);
 			ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
+			res = 0;
 		} else {
-			ast_verbose(VERBOSE_PREFIX_3 "User entered nothing\n");
+			ast_verbose(VERBOSE_PREFIX_3 "User disconnected\n");
 		}
 	}
 	LOCAL_USER_REMOVE(u);

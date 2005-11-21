@@ -27,7 +27,7 @@
 #include <asterisk/enum.h>
 #include <asterisk/rtp.h>
 #include <asterisk/lock.h>
-#ifdef __APPLE__
+#ifdef DLFCNCOMPAT
 #include <asterisk/dlfcn-compat.h>
 #else
 #include <dlfcn.h>
@@ -67,7 +67,7 @@ static int printdigest(unsigned char *d)
 		strcat(buf, buf2);
 	}
 	strcat(buf, "\n");
-	ast_log(LOG_DEBUG, buf);
+	ast_log(LOG_DEBUG, "%s", buf);
 	return 0;
 }
 
@@ -103,6 +103,7 @@ AST_MUTEX_DEFINE_STATIC(modlock);
 AST_MUTEX_DEFINE_STATIC(reloadlock);
 
 static struct module *module_list=NULL;
+static int modlistver = 0;
 
 int ast_unload_resource(char *resource_name, int force)
 {
@@ -142,6 +143,7 @@ int ast_unload_resource(char *resource_name, int force)
 		ml = m;
 		m = m->next;
 	}
+	modlistver = rand();
 	ast_mutex_unlock(&modlock);
 	ast_update_use_count();
 	return res;
@@ -150,6 +152,8 @@ int ast_unload_resource(char *resource_name, int force)
 void ast_module_reload(const char *name)
 {
 	struct module *m;
+	int oldversion;
+	int (*reload)(void);
 
 	/* We'll do the logger and manager the favor of calling its reload here first */
 
@@ -168,14 +172,20 @@ void ast_module_reload(const char *name)
 	time(&ast_lastreloadtime);
 
 	ast_mutex_lock(&modlock);
+	oldversion = modlistver;	
 	m = module_list;
 	while(m) {
 		if (!name || !strcasecmp(name, m->resource)) {
-			if (m->reload) {
+			reload = m->reload;
+			ast_mutex_unlock(&modlock);
+			if (reload) {
 				if (option_verbose > 2) 
 					ast_verbose(VERBOSE_PREFIX_3 "Reloading module '%s' (%s)\n", m->resource, m->description());
-				m->reload();
+				reload();	
 			}
+			ast_mutex_lock(&modlock);
+			if (oldversion != modlistver)
+				break;
 		}
 		m = m->next;
 	}
@@ -328,7 +338,8 @@ int ast_load_resource(char *resource_name)
 			;
 		i->next = m;
 	}
-	
+
+	modlistver = rand();
 	ast_mutex_unlock(&modlock);
 	if ((res = m->load_module())) {
 		ast_log(LOG_WARNING, "%s: load_module failed, returning %d\n", m->resource, res);

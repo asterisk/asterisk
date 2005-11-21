@@ -19,6 +19,9 @@
 ;
 ;   sip debug			Show all SIP messages
 ;
+;   reload chan_sip.so		Reload configuration file
+;				Active SIP peers will not be reconfigured
+;
 
 [general]
 context=default			; Default context for incoming calls
@@ -131,7 +134,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; context                     context
 ; permit                      permit
 ; deny                        deny
-; auth                        auth
 ; secret                      secret
 ; md5secret                   md5secret
 ; dtmfmode                    dtmfmode
@@ -229,13 +231,26 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
 
 
+;[polycom]
+;type=friend			; Friends place calls and receive calls
+;context=from-sip		; Context for incoming calls from this user
+;secret=blahpoly
+;host=dynamic			; This peer register with us
+;dtmfmode=rfc2833		; Choices are inband, rfc2833, or info
+;username=polly			; Username to use in INVITE until peer registers
+;disallow=all
+;allow=ulaw                     ; dtmfmode=inband only works with ulaw or alaw!
+;progressinband=no		; Polycom phones don't work properly with "never"
+
+
 ;[pingtel]
 ;type=friend
 ;username=pingtel
 ;secret=blah
 ;host=dynamic
-;insecure=yes			; To match a peer based by IP address only and not peer
-;insecure=very			; To allow registered hosts to call without re-authenticating
+;insecure=port 			; Allow matching of peer by IP address without matching port number
+;insecure=invite 		; Do not require authentication of incoming INVITEs
+;insecure=port,invite 		; (both)
 ;qualify=1000			; Consider it down if it's 1 second to reply
 				; Helps with NAT session
 				; qualify=yes uses default value

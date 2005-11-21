@@ -106,7 +106,6 @@ int unload_module(void)
 
 int load_module(void)
 {
-	srandom((unsigned int)getpid() + (unsigned int)time(NULL));
 	return ast_register_application(app_random, random_exec, random_synopsis, random_descrip);
 }
 

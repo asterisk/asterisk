@@ -317,7 +317,7 @@ static void *qcall_do(void *arg)
 							extstr,context,channel->name);
 					if (strlen(ident)) {
 						strncat(ident,"-ok", sizeof(ident) - strlen(ident) - 1);
-						/* if file existant, play it */
+						/* if file existent, play it */
 						if (!ast_streamfile(channel,ident,0))
 						{
 							ast_waitstream(channel,"");

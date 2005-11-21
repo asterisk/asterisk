@@ -33,6 +33,10 @@
 #include <sys/ioctl.h>
 #include <linux/telephony.h>
 /* Still use some IXJ specific stuff */
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+# include <linux/compiler.h>
+#endif
 #include <linux/ixjuser.h>
 #include "DialTone.h"
 
@@ -468,10 +472,13 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	p->fr.frametype = AST_FRAME_VOICE;
 	p->fr.subclass = p->lastinput;
 	p->fr.offset = AST_FRIENDLY_OFFSET;
+	/* Byteswap from little-endian to native-endian */
+	if (p->fr.subclass == AST_FORMAT_SLINEAR)
+		ast_frame_byteswap_le(&p->fr);
 	return &p->fr;
 }
 
-static int phone_write_buf(struct phone_pvt *p, char *buf, int len, int frlen)
+static int phone_write_buf(struct phone_pvt *p, char *buf, int len, int frlen, int swap)
 {
 	int res;
 	/* Store as much of the buffer as we can, then write fixed frames */
@@ -479,7 +486,10 @@ static int phone_write_buf(struct phone_pvt *p, char *buf, int len, int frlen)
 	/* Make sure we have enough buffer space to store the frame */
 	if (space < len)
 		len = space;
-	memcpy(p->obuf + p->obuflen, buf, len);
+	if (swap)
+		ast_memcpy_byteswap(p->obuf+p->obuflen, buf, len/2);
+	else
+		memcpy(p->obuf + p->obuflen, buf, len);
 	p->obuflen += len;
 	while(p->obuflen > frlen) {
 		res = write(p->fd, p->obuf, frlen);
@@ -624,12 +634,17 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 				memset(tmpbuf + 4, 0, sizeof(tmpbuf) - 4);
 				memcpy(tmpbuf, frame->data, 4);
 				expected = 24;
-				res = phone_write_buf(p, tmpbuf, expected, maxfr);
+				res = phone_write_buf(p, tmpbuf, expected, maxfr, 0);
 			}
 			res = 4;
 			expected=4;
 		} else {
-			res = phone_write_buf(p, pos, expected, maxfr);
+			int swap = 0;
+#if __BYTE_ORDER == __BIG_ENDIAN
+			if (frame->subclass == AST_FORMAT_SLINEAR)
+				swap = 1; /* Swap big-endian samples to little-endian as we copy */
+#endif
+			res = phone_write_buf(p, pos, expected, maxfr, swap);
 		}
 		if (res != expected) {
 			if ((errno != EAGAIN) && (errno != EINTR)) {
@@ -650,6 +665,14 @@ static int phone_write(struct ast_channel *ast, struct ast_frame *frame)
 		sofar += res;
 		pos += res;
 	}
+	return 0;
+}
+
+static int phone_fixup(struct ast_channel *old, struct ast_channel *new)
+{
+	struct phone_pvt *pvt = old->pvt->pvt;
+	if (pvt && pvt->owner == old)
+		pvt->owner = new;
 	return 0;
 }
 
@@ -676,6 +699,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		tmp->pvt->read = phone_read;
 		tmp->pvt->write = phone_write;
 		tmp->pvt->exception = phone_exception;
+		tmp->pvt->fixup = phone_fixup;	
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		if (strlen(i->ext))
 			strncpy(tmp->exten, i->ext, sizeof(tmp->exten)-1);

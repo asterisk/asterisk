@@ -19,7 +19,11 @@
 #include <asterisk/chanvars.h>
 #include <unistd.h>
 #include <setjmp.h>
+#ifdef POLLCOMPAT
+#include <asterisk/poll-compat.h>
+#else
 #include <sys/poll.h>
+#endif
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -639,11 +643,11 @@ struct ast_channel *ast_get_channel_by_name_locked(char *channame);
  * \param c channel to wait for a digit on
  * \param ms how many milliseconds to wait
  * Wait for a digit.  Returns <0 on error, 0 on no entry, and the digit on success. */
-char ast_waitfordigit(struct ast_channel *c, int ms);
+int ast_waitfordigit(struct ast_channel *c, int ms);
 
 /* Same as above with audio fd for outputing read audio and ctrlfd to monitor for
    reading. Returns 1 if ctrlfd becomes available */
-char ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int ctrlfd);
+int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int ctrlfd);
 
 //! Reads multiple digits
 /*! 

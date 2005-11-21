@@ -1124,7 +1124,7 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 		if (pass > dsp->gsamp_size - dsp->gsamps) 
 			pass = dsp->gsamp_size - dsp->gsamps;
 		for (x=0;x<pass;x++) {
-			for (y=0;y<dsp->freqcount;y++) 
+			for (y=0;y<=dsp->freqcount;y++) 
 				goertzel_sample(&dsp->freqs[y], s[x]);
 			dsp->genergy += s[x] * s[x];
 		}
@@ -1136,8 +1136,9 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			for (y=0;y<7;y++)
 				hz[y] = goertzel_result(&dsp->freqs[y]);
 #if 0
-			printf("Got whole dsp state: 350: %e, 440: %e, 480: %e, 620: %e, 950: %e, 1400: %e, 1800: %e, Energy: %e\n", 
-				hz_350, hz_440, hz_480, hz_620, hz_950, hz_1400, hz_1800, dsp->genergy);
+			printf("\n350:     425:     440:     480:     620:     950:     1400:    1800:    Energy:   \n");
+			printf("%.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e %.2e\n", 
+				hz[HZ_350], hz[HZ_425], hz[HZ_440], hz[HZ_480], hz[HZ_620], hz[HZ_950], hz[HZ_1400], hz[HZ_1800], dsp->genergy);
 #endif
 			switch(dsp->progmode) {
 			case PROG_MODE_NA:
@@ -1308,10 +1309,10 @@ int ast_dsp_busydetect(struct ast_dsp *dsp)
 		}
 #endif
 		if (avgtone > dsp->historicnoise[x]) {
-			if (avgtone - (avgtone / BUSY_PERCENT) <= dsp->historicsilence[x])
+			if (avgtone - (avgtone / BUSY_PERCENT) <= dsp->historicnoise[x])
 				hittone++;
 		} else {
-			if (avgtone + (avgtone / BUSY_PERCENT) >= dsp->historicsilence[x])
+			if (avgtone + (avgtone / BUSY_PERCENT) >= dsp->historicnoise[x])
 				hittone++;
 		}
 	}
@@ -1465,7 +1466,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			shortdata[x] = AST_ALAW(odata[x]);
 		break;
 	default:
-		ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_codec2str(af->subclass));
+		ast_log(LOG_WARNING, "Inband DTMF is not supported on codec %s. Use RFC2833\n", ast_getformatname(af->subclass));
 		return af;
 	}
 	silence = __ast_dsp_silence(dsp, shortdata, len, NULL);

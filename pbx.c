@@ -235,7 +235,8 @@ static struct pbx_builtin {
 	"typed in is valid, it will not have to timeout to be tested, so typically\n"
 	"at the expiry of this timeout, the extension will be considered invalid\n"
 	"(and thus control would be passed to the 'i' extension, or if it doesn't\n"
-	"exist the call would be terminated). Always returns 0.\n" 
+	"exist the call would be terminated). The default timeout is 5 seconds.\n"
+	"Always returns 0.\n" 
 	},
 
 	{ "Goto", pbx_builtin_goto, 
@@ -305,7 +306,8 @@ static struct pbx_builtin {
 	"falling through a series of priorities for a channel in which the user may\n"
 	"begin typing an extension. If the user does not type an extension in this\n"
 	"amount of time, control will pass to the 't' extension if it exists, and\n"
-	"if not the call would be terminated.\nAlways returns 0.\n"  
+	"if not the call would be terminated. The default timeout is 10 seconds.\n"
+	"Always returns 0.\n"  
 	},
 
 	{ "Ringing", pbx_builtin_ringing,
@@ -481,7 +483,7 @@ int pbx_exec(struct ast_channel *c, 		/* Channel */
 
 
 /* Go no deeper than this through includes (not counting loops) */
-#define AST_PBX_MAX_STACK	64
+#define AST_PBX_MAX_STACK	128
 
 #define HELPER_EXISTS 0
 #define HELPER_SPAWN 1
@@ -577,6 +579,7 @@ static void pbx_destroy(struct ast_pbx *p)
 	match=1;\
 	pattern++;\
 	while(match && *data && *pattern && (*pattern != '/')) {\
+		while (*data == '-' && (*(data+1) != '\0')) data++;\
 		switch(toupper(*pattern)) {\
 		case '[': \
 		{\
@@ -816,6 +819,9 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, char *cont
 	return NULL;
 }
 
+/*--- pbx_retrieve_variable: Support for Asterisk built-in variables and
+      functions in the dialplan
+  ---*/
 static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen)
 {
 	char *first,*second;
@@ -829,52 +835,61 @@ static void pbx_substitute_variables_temp(struct ast_channel *c, const char *var
 
 	if (c) 
 		headp=&c->varshead;
+	
 	*ret=NULL;
-	/* Now we have the variable name on cp3 */
-	if (!strncasecmp(var,"LEN(",4)) {
-		int len=strlen(var);
-		int len_len=4;
-		if (strrchr(var,')')) {
-			char cp3[80];
-			strncpy(cp3, var, sizeof(cp3) - 1);
-			cp3[len-len_len-1]='\0';
-			sprintf(workspace,"%d",(int)strlen(cp3));
-			*ret = workspace;
-		} else {
-			/* length is zero */
-			*ret = "0";
+	
+	if (!strncasecmp(var,"LEN(",4)) {	/* ${LEN(<string>)} */
+		char *endparen, *string = ast_strdupa(var + 4);
+		int len = 0;
+		if (!string) {
+			ast_log(LOG_WARNING, "Out of memory!\n");
+			return;
 		}
-	} else if ((first=strchr(var,':'))) {
+		if ((endparen = strrchr(string,')'))) {
+			*endparen = '\0';
+			len = strlen(string);
+		} 
+		sprintf(workspace, "%d", len);
+		*ret = workspace;
+	} else if ((first=strchr(var,':'))) {	/* : Remove characters counting from end or start of string */
 		strncpy(tmpvar, var, sizeof(tmpvar) - 1);
 		first = strchr(tmpvar, ':');
 		if (!first)
 			first = tmpvar + strlen(tmpvar);
 		*first='\0';
 		pbx_substitute_variables_temp(c,tmpvar,ret,workspace,workspacelen - 1);
-		if (!(*ret)) return;
-		offset=atoi(first+1);
-	 	if ((second=strchr(first+1,':'))) {
+		if (!(*ret)) 
+			return;
+		offset=atoi(first+1);	/* The number of characters, 
+					   positive: remove # of chars from start
+					   negative: keep # of chars from end */
+						
+	 	if ((second=strchr(first+1,':'))) {	
 			*second='\0';
-			offset2=atoi(second+1);
-		} else
-			offset2=strlen(*ret)-offset;
-		if (abs(offset)>strlen(*ret)) {
-			if (offset>=0) 
+			offset2 = atoi(second+1);		/* Number of chars to copy */
+		} else if (offset >= 0) {
+			offset2 = strlen(*ret)-offset;	/* Rest of string */
+		} else {
+			offset2 = abs(offset);
+		}
+
+		if (abs(offset) > strlen(*ret)) {	/* Offset beyond string */
+			if (offset >= 0) 
 				offset=strlen(*ret);
 			else 
 				offset=-strlen(*ret);
 		}
-		if ((offset<0 && offset2>-offset) || (offset>=0 && offset+offset2>strlen(*ret))) {
-			if (offset>=0) 
+		if ((offset < 0 && offset2 > -offset) || (offset >= 0 && offset+offset2 > strlen(*ret))) {
+			if (offset >= 0) 
 				offset2=strlen(*ret)-offset;
 			else 
 				offset2=strlen(*ret)+offset;
 		}
-		if (offset>=0)
-			*ret+=offset;
+		if (offset >= 0)
+			*ret += offset;
 		else
-			*ret+=strlen(*ret)+offset;
-		(*ret)[offset2] = '\0';
+			*ret += strlen(*ret)+offset;
+			(*ret)[offset2] = '\0';		/* Cut at offset2 position */
 	} else if (c && !strcmp(var, "CALLERIDNUM")) {
 		if (c->callerid)
 			strncpy(workspace, c->callerid, workspacelen - 1);
@@ -1258,7 +1273,7 @@ static int pbx_extension_helper(struct ast_channel *c, char *context, char *exte
 				pbx_substitute_variables(passdata, sizeof(passdata), c, e);
 				if (option_debug)
 						ast_log(LOG_DEBUG, "Launching '%s'\n", app->name);
-				else if (option_verbose > 2)
+				if (option_verbose > 2)
 						ast_verbose( VERBOSE_PREFIX_3 "Executing %s(\"%s\", \"%s\") %s\n", 
 								term_color(tmp, app->name, COLOR_BRCYAN, 0, sizeof(tmp)),
 								term_color(tmp2, c->name, COLOR_BRMAGENTA, 0, sizeof(tmp2)),
@@ -1503,11 +1518,12 @@ int ast_extension_state_add(char *context, char *exten,
 			if (cblist->callback == callback) {
 				cblist->data = data;
 				ast_mutex_unlock(&hintlock);
+				return 0;
 			}
 			cblist = cblist->next;
 		}
 	
-		/* Now inserts the callback */
+		/* Now insert the callback */
 		cblist = malloc(sizeof(struct ast_state_cb));
 		if (!cblist) {
 			ast_mutex_unlock(&hintlock);
@@ -1760,7 +1776,7 @@ int ast_spawn_extension(struct ast_channel *c, char *context, char *exten, int p
 int ast_pbx_run(struct ast_channel *c)
 {
 	int firstpass = 1;
-	char digit;
+	int digit;
 	char exten[256];
 	int pos;
 	int waittime;
@@ -2760,6 +2776,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 				e = ast_walk_context_extensions(c, NULL);
 				while (e) {
 					struct ast_exten *p;
+					int prio;
 
 					/* looking for extension? is this our extension? */
 					if (exten &&
@@ -2786,11 +2803,18 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 					snprintf(buf, sizeof(buf), "'%s' =>",
 						ast_get_extension_name(e));
 
-					snprintf(buf2, sizeof(buf2),
-						"%d. %s(%s)",
-						ast_get_extension_priority(e),
-						ast_get_extension_app(e),
-						(char *)ast_get_extension_app_data(e));
+					prio = ast_get_extension_priority(e);
+					if (prio == PRIORITY_HINT) {
+						snprintf(buf2, sizeof(buf2),
+							"hint: %s",
+							ast_get_extension_app(e));
+					} else {
+						snprintf(buf2, sizeof(buf2),
+							"%d. %s(%s)",
+							prio,
+							ast_get_extension_app(e),
+							(char *)ast_get_extension_app_data(e));
+					}
 
 					ast_cli(fd, "  %-17s %-45s [%s]\n", buf, buf2,
 						ast_get_extension_registrar(e));
@@ -2800,11 +2824,18 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 					while (p) {
 						bzero((void *)buf2, sizeof(buf2));
 
-						snprintf(buf2, sizeof(buf2),
-							"%d. %s(%s)",
-							ast_get_extension_priority(p),
-							ast_get_extension_app(p),
-							(char *)ast_get_extension_app_data(p));
+						prio = ast_get_extension_priority(p);
+						if (prio == PRIORITY_HINT) {
+							snprintf(buf2, sizeof(buf2),
+								"hint: %s",
+								ast_get_extension_app(p));
+						} else {
+							snprintf(buf2, sizeof(buf2),
+								"%d. %s(%s)",
+								prio,
+								ast_get_extension_app(p),
+								(char *)ast_get_extension_app_data(p));
+						}
 
 						ast_cli(fd,"  %-17s %-45s [%s]\n",
 							"", buf2,
@@ -4006,7 +4037,7 @@ static void *async_wait(void *data)
 			app = pbx_findapp(as->app);
 			if (app) {
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3 "Lauching %s(%s) on %s\n", as->app, as->appdata, chan->name);
+					ast_verbose(VERBOSE_PREFIX_3 "Launching %s(%s) on %s\n", as->app, as->appdata, chan->name);
 				pbx_exec(chan, app, as->appdata, 1);
 			} else
 				ast_log(LOG_WARNING, "No such application '%s'\n", as->app);
@@ -4142,7 +4173,7 @@ static void *ast_pbx_run_app(void *data)
 	app = pbx_findapp(tmp->app);
 	if (app) {
 		if (option_verbose > 3)
-			ast_verbose(VERBOSE_PREFIX_4 "Lauching %s(%s) on %s\n", tmp->app, tmp->data, tmp->chan->name);
+			ast_verbose(VERBOSE_PREFIX_4 "Launching %s(%s) on %s\n", tmp->app, tmp->data, tmp->chan->name);
 		pbx_exec(tmp->chan, app, tmp->data, 1);
 	} else
 		ast_log(LOG_WARNING, "No such application '%s'\n", tmp->app);
@@ -4381,7 +4412,8 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
 {
 	/* Copy the language as specified */
-	strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
+	if (data)	
+		strncpy(chan->language, (char *)data, sizeof(chan->language)-1);
 	return 0;
 }
 
@@ -4567,7 +4599,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			res = ast_waitstream(chan, AST_DIGIT_ANY);
 			ast_stopstream(chan);
 		} else {
-			ast_log(LOG_WARNING, "ast_streamfile failed on %s fro %s\n", chan->name, (char*)data);
+			ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char*)data);
 			res = 0;
 		}
 	}
@@ -4588,6 +4620,10 @@ static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
 {
+	/* If the channel is not in a PBX, return now */
+	if (!chan->pbx)
+		return 0;
+
 	/* Set the timeout for how long to wait between digits */
 	chan->pbx->rtimeout = atoi((char *)data);
 	if (option_verbose > 2)
@@ -4597,6 +4633,10 @@ static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
 
 static int pbx_builtin_dtimeout(struct ast_channel *chan, void *data)
 {
+	/* If the channel is not in a PBX, return now */
+	if (!chan->pbx)
+		return 0;
+
 	/* Set the timeout for how long to wait between digits */
 	chan->pbx->dtimeout = atoi((char *)data);
 	if (option_verbose > 2)
@@ -5048,7 +5088,7 @@ int ast_context_verify_includes(struct ast_context *con)
 	for (inc = ast_walk_context_includes(con, NULL); inc; inc = ast_walk_context_includes(con, inc))
 		if (!ast_context_find(inc->rname)) {
 			res = -1;
-			ast_log(LOG_WARNING, "Context '%s' tries includes non-existant context '%s'\n",
+			ast_log(LOG_WARNING, "Context '%s' tries includes nonexistent context '%s'\n",
 					ast_get_context_name(con), inc->rname);
 		}
 	return res;

@@ -1,16 +1,6 @@
 /* MD5 checksum routines used for authentication.  Not covered by GPL, but
    in the public domain as per the copyright below */
-#if defined( __OpenBSD__ )
-#  include <machine/types.h>
-#  include <sys/endian.h>
-#elif defined( __FreeBSD__ ) || defined( __NetBSD__ )
-#  include <sys/types.h>
-#  include <sys/endian.h>
-#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
-#  include <machine/endian.h>
-#else
-#  include <endian.h>
-#endif
+#include "asterisk/endian.h"
 # if __BYTE_ORDER == __BIG_ENDIAN || BYTE_ORDER == BIG_ENDIAN
 #  define HIGHFIRST 1
 # endif

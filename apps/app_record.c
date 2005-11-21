@@ -301,7 +301,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Could not answer channel '%s'\n", chan->name);
 
 	LOCAL_USER_REMOVE(u);
-	if (silence > 0) {
+	if ((silence > 0) && rfmt) {
 	        res = ast_set_read_format(chan, rfmt);
         	if (res)
         	        ast_log(LOG_WARNING, "Unable to restore read format on '%s'\n", chan->name);

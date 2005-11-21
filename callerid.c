@@ -334,6 +334,8 @@ int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int 
 								cid->number[res] = '\0';
 							}
 							break;
+						case 6: /* Stentor Call Qualifier (ie. Long Distance call) */
+							break;
 						case 7: /* Name */
 						case 8: /* Name */
 							res = cid->rawdata[x];

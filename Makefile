@@ -38,6 +38,7 @@ OPTIONS+=$(shell if $(CC) -mcpu=v8 -S -o /dev/null -xc /dev/null >/dev/null 2>&1
 OPTIONS+=-fomit-frame-pointer
 endif
 
+MPG123TARG=linux
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
@@ -138,15 +139,17 @@ CFLAGS+=$(shell if [ -f /usr/include/osp/osp.h ]; then echo "-DOSP_SUPPORT -I/us
 
 ifeq (${OSARCH},FreeBSD)
 OSVERSION=$(shell make -V OSVERSION -f /usr/share/mk/bsd.port.subdir.mk)
-CFLAGS+=$(if ${OSVERSION}<500016,-D_THREAD_SAFE)
-LIBS+=$(if ${OSVERSION}<502102,-lc_r,-pthread)
+CFLAGS+=$(shell if test ${OSVERSION} -lt 500016 ; then echo "-D_THREAD_SAFE"; fi)
+LIBS+=$(shell if test  ${OSVERSION} -lt 502102 ; then echo "-lc_r"; else echo "-pthread"; fi)
 INCLUDE+=-I/usr/local/include
 CFLAGS+=$(shell if [ -d /usr/local/include/spandsp ]; then echo "-I/usr/local/include/spandsp"; fi)
+MPG123TARG=freebsd
 endif # FreeBSD
 
 ifeq (${OSARCH},NetBSD)
 CFLAGS+=-pthread
-INCLUDE+=-I/usr/local/include
+INCLUDE+=-I/usr/local/include -I/usr/pkg/include
+MPG123TARG=netbsd
 endif
 
 ifeq (${OSARCH},OpenBSD)
@@ -197,7 +200,7 @@ ifeq (${OSARCH},FreeBSD)
 LIBS+=-lcrypto
 endif
 ifeq (${OSARCH},NetBSD)
-LIBS+=-lpthread -lcrypto -lm -L/usr/local/lib -lncurses
+LIBS+=-lpthread -lcrypto -lm -L/usr/local/lib -L/usr/pkg/lib -lncurses
 endif
 ifeq (${OSARCH},OpenBSD)
 LIBS=-lcrypto -lpthread -lm -lncurses
@@ -211,12 +214,23 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o 
 ifeq (${OSARCH},Darwin)
-OBJS+=poll.o dlfcn.o
 ASTLINK=-Wl,-dynamic
 SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
+OBJS+= poll.o
+CFLAGS+=-DPOLLCOMPAT
 else
 ASTLINK=-Wl,-E 
 SOLINK=-shared -Xlinker -x
+endif
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sys/poll.h),)
+  OBJS+= poll.o
+  CFLAGS+=-DPOLLCOMPAT
+endif
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/dlfcn.h),)
+  OBJS+= dhfcn.o
+  CFLAGS+=-DDLFCNCOMPAT
 endif
 
 CC=gcc
@@ -307,7 +321,7 @@ clean:
 	rm -f build.h 
 	rm -f ast_expr.c
 	@if [ -e editline/Makefile ]; then $(MAKE) -C editline distclean ; fi
-	@if [ -d mpg123-0.59r ]; then make -C mpg123-0.59r clean; fi
+	@if [ -d mpg123-0.59r ]; then $(MAKE) -C mpg123-0.59r clean; fi	
 	$(MAKE) -C db1-ast clean
 	$(MAKE) -C stdtime clean
 
@@ -339,7 +353,7 @@ datafiles: all
 			exit 1; \
 		fi; \
 	done
-	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-*; do \
+	for x in sounds/vm-* sounds/transfer* sounds/pbx-* sounds/ss-* sounds/beep* sounds/dir-* sounds/conf-* sounds/agent-* sounds/invalid* sounds/tt-* sounds/auth-* sounds/privacy-* sounds/queue-* sounds/hello-*; do \
 		if grep -q "^%`basename $$x`%" sounds.txt; then \
 			install -m 644 $$x $(DESTDIR)$(ASTVARLIBDIR)/sounds ; \
 		else \
@@ -374,6 +388,7 @@ bininstall: all
 	mkdir -p $(DESTDIR)$(ASTSPOOLDIR)/tmp
 	install -m 755 asterisk $(DESTDIR)$(ASTSBINDIR)/
 	install -m 755 contrib/scripts/astgenkey $(DESTDIR)$(ASTSBINDIR)/
+	install -m 755 contrib/scripts/autosupport $(DESTDIR)$(ASTSBINDIR)/
 	if [ ! -f $(DESTDIR)$(ASTSBINDIR)/safe_asterisk ]; then \
 		install -m 755 contrib/scripts/safe_asterisk $(DESTDIR)$(ASTSBINDIR)/ ;\
 	fi
@@ -398,6 +413,9 @@ bininstall: all
 	install -m 644 keys/iaxtel.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 keys/freeworlddialup.pub $(DESTDIR)$(ASTVARLIBDIR)/keys
 	install -m 644 asterisk.8.gz $(DESTDIR)$(ASTMANDIR)/man8
+	install -m 644 contrib/scripts/astgenkey.8 $(DESTDIR)$(ASTMANDIR)/man8
+	install -m 644 contrib/scripts/autosupport.8 $(DESTDIR)$(ASTMANDIR)/man8
+	install -m 644 contrib/scripts/safe_asterisk.8 $(DESTDIR)$(ASTMANDIR)/man8
 	if [ -d contrib/firmware/iax ]; then \
 		install -m 644 contrib/firmware/iax/iaxy.bin $(DESTDIR)$(ASTVARLIBDIR)/firmware/iax/iaxy.bin; \
 	else \
@@ -405,7 +423,7 @@ bininstall: all
 	fi 
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/vm . )
 	( cd $(DESTDIR)$(ASTVARLIBDIR)/sounds  ; ln -s $(ASTSPOOLDIR)/voicemail . )
-	if [ -f mpg123-0.59r/mpg123 ]; then make -C mpg123-0.59r install; fi
+	if [ -f mpg123-0.59r/mpg123 ]; then $(MAKE) -C mpg123-0.59r install; fi
 	@echo " +---- Asterisk Installation Complete -------+"  
 	@echo " +                                           +"
 	@echo " +    YOU MUST READ THE SECURITY DOCUMENT    +"
@@ -427,6 +445,19 @@ bininstall: all
 	@echo " + **Note** This requires that you have      +"
 	@echo " + doxygen installed on your local system    +"
 	@echo " +-------------------------------------------+"
+	@echo " +                                           +"
+	@echo " + ** NOTE FOR DOWNGRADING FROM CVS HEAD **  +"
+	@echo " +                                           +"
+	@echo " + If you are downgrading from CVS HEAD to   +"
+	@echo " + a stable release, remember to delete      +"
+	@echo " + everything from your asterisk modules     +"
+	@echo " + directory (/usr/lib/asterisk/modules/)    +"
+	@echo " + and the asterisk header directory         +"
+	@echo " + (/usr/include/asterisk/)                  +"
+	@echo " + before doing a '$(MAKE) install'.            +"
+	@echo " +                                           +"
+	@echo " +-------------------------------------------+"
+
 
 install: all datafiles bininstall
 
@@ -518,7 +549,7 @@ mpg123:
 	@wget -V >/dev/null || (echo "You need wget" ; false )
 	[ -f mpg123-0.59r.tar.gz ] || wget http://www.mpg123.de/mpg123/mpg123-0.59r.tar.gz
 	[ -d mpg123-0.59r ] || tar xfz mpg123-0.59r.tar.gz
-	make -C mpg123-0.59r linux
+	$(MAKE) -C mpg123-0.59r $(MPG123TARG)
 
 config:
 	if [ -d /etc/rc.d/init.d ]; then \
@@ -537,12 +568,21 @@ depend: .depend
 	for x in $(SUBDIRS); do $(MAKE) -C $$x depend || exit 1 ; done
 
 .depend:
+	@if ! which mpg123 &>/dev/null ; then \
+		echo "*** You don't have mpg123 installed. You're going to need ***";\
+		echo "***       it if you want MusicOnHold                      ***";\
+	elif ! mpg123 --longhelp 2>&1 | grep .59r &>/dev/null ; then \
+			echo "*************************************************************";\
+			echo "*** You have the WRONG version of mpg123... you need .59r ***";\
+			echo "*** Use 'make mpg123' to get the right verison            ***";\
+			echo "*************************************************************";\
+	fi
 	./mkdep ${CFLAGS} `ls *.c`
 
 FORCE:
 
 %_env:
-	make -C $(shell echo $@ | sed "s/_env//g") env
+	$(MAKE) -C $(shell echo $@ | sed "s/_env//g") env
 
 env:
 	env

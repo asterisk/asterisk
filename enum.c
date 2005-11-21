@@ -47,7 +47,7 @@
 #define TOPLEV "e164.arpa."
 
 static struct enum_search {
-	char toplev[80];
+	char toplev[512];
 	struct enum_search *next;
 } *toplevs;
 
@@ -79,11 +79,11 @@ static int parse_ie(unsigned char *data, int maxdatalen, unsigned char *src, int
 static int parse_naptr(unsigned char *dst, int dstsize, char *tech, int techsize, unsigned char *answer, int len, char *naptrinput)
 {
 	unsigned char *oanswer = answer;
-	unsigned char flags[80] = "";
-	unsigned char services[80] = "";
-	unsigned char regexp[80] = "";
-	unsigned char repl[80] = "";
-	unsigned char temp[80] = "";
+	unsigned char flags[512] = "";
+	unsigned char services[512] = "";
+	unsigned char regexp[512] = "";
+	unsigned char repl[512] = "";
+	unsigned char temp[512] = "";
 	unsigned char delim;
 	unsigned char *delim2;
 	unsigned char *pattern, *subst, *d;
@@ -244,16 +244,31 @@ static int txt_callback(void *context, u_char *answer, int len, u_char *fullansw
 	printf("ENUMTXT Called\n");
 #endif
 
-	if (answer != NULL) {
-		c->txtlen = strlen(answer);
-		strncpy(c->txt, answer, sizeof(c->txt) - 1);
-		c->txt[sizeof(c->txt) - 1] = 0;
-		return 1;
-	} else {
+	if (answer == NULL) {
 		c->txt = NULL;
 		c->txtlen = 0;
 		return 0;
 	}
+
+	/* skip over first byte, as for some reason it's a vertical tab character */
+	answer += 1;
+	len -= 1;
+
+	/* answer is not null-terminated, but should be */
+	/* this is safe to do, as answer has extra bytes on the end we can 
+           safely overwrite with a null */
+	answer[len] = '\0';
+	/* now increment len so that len includes the null, so that we can
+	   compare apples to apples */
+	len +=1;
+
+	/* finally, copy the answer into c->txt */
+	strncpy(c->txt, answer, len < c->txtlen ? len-1 : (c->txtlen)-1);
+	
+	/* just to be safe, let's make sure c->txt is null terminated */
+	c->txt[(c->txtlen)-1] = '\0';
+
+	return 1;
 }
 
 static int enum_callback(void *context, u_char *answer, int len, u_char *fullanswer)
@@ -274,8 +289,8 @@ static int enum_callback(void *context, u_char *answer, int len, u_char *fullans
 int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen)
 {
 	struct enum_context context;
-	char tmp[259 + 80];
-	char naptrinput[80] = "+";
+	char tmp[259 + 512];
+	char naptrinput[512] = "+";
 	int pos = strlen(number) - 1;
 	int newpos = 0;
 	int ret = -1;
@@ -331,8 +346,8 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char *txt, int txtlen)
 {
 	struct enum_context context;
-	char tmp[259 + 80];
-	char naptrinput[80] = "+";
+	char tmp[259 + 512];
+	char naptrinput[512] = "+";
 	int pos = strlen(number) - 1;
 	int newpos = 0;
 	int ret = -1;

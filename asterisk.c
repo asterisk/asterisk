@@ -247,13 +247,15 @@ static void network_verboser(const char *s, int pos, int replace, int complete)
 		char *t = alloca(strlen(s) + 2);
 		if (t) {
 			sprintf(t, "\r%s", s);
-			ast_network_puts(t);
+			if (complete)
+				ast_network_puts(t);
 		} else {
 			ast_log(LOG_ERROR, "Out of memory\n");
 			ast_network_puts(s);
 		}
 	} else {
-		ast_network_puts(s);
+		if (complete)
+			ast_network_puts(s);
 	}
 }
 
@@ -262,12 +264,12 @@ static pthread_t lthread;
 static void *netconsole(void *vconsole)
 {
 	struct console *con = vconsole;
-	char hostname[256];
+	char hostname[MAXHOSTNAMELEN]="";
 	char tmp[512];
 	int res;
 	struct pollfd fds[2];
 	
-	if (gethostname(hostname, sizeof(hostname)))
+	if (gethostname(hostname, sizeof(hostname)-1))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
 	snprintf(tmp, sizeof(tmp), "%s/%d/%s\n", hostname, ast_mainpid, ASTERISK_VERSION);
 	fdprint(con->fd, tmp);
@@ -757,12 +759,12 @@ static char shutdown_when_convenient_help[] =
 
 static char restart_now_help[] = 
 "Usage: restart now\n"
-"       Causes Asterisk to hangup all calls and exec() itself performing a cold.\n"
+"       Causes Asterisk to hangup all calls and exec() itself performing a cold\n"
 "       restart.\n";
 
 static char restart_gracefully_help[] = 
 "Usage: restart gracefully\n"
-"       Causes Asterisk to stop accepting new calls and exec() itself performing a cold.\n"
+"       Causes Asterisk to stop accepting new calls and exec() itself performing a cold\n"
 "       restart when all active calls have ended.\n";
 
 static char restart_when_convenient_help[] = 
@@ -925,7 +927,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 							usleep(1000000 / reconnects_per_second);
 						}
 					}
-					if (tries >= 30) {
+					if (tries >= 30 * reconnects_per_second) {
 						fprintf(stderr, "Failed to reconnect for 30 seconds.  Quitting.\n");
 						quit_handler(0, 0, 0, 0);
 					}
@@ -962,7 +964,7 @@ static char *cli_prompt(EditLine *el)
 		memset(prompt, 0, sizeof(prompt));
 		while (*t != '\0' && *p < sizeof(prompt)) {
 			if (*t == '%') {
-				char hostname[256];
+				char hostname[MAXHOSTNAMELEN]="";
 				int i;
 				struct timeval tv;
 				struct tm tm;
@@ -1471,13 +1473,13 @@ static int show_cli_help(void) {
 	printf("   -f              Do not fork\n");
 	printf("   -g              Dump core in case of a crash\n");
 	printf("   -h              This help screen\n");
-	printf("   -i              Initializie crypto keys at startup\n");
+	printf("   -i              Initialize crypto keys at startup\n");
 	printf("   -n              Disable console colorization\n");
 	printf("   -p              Run as pseudo-realtime thread\n");
-	printf("   -q              Quiet mode (supress output)\n");
+	printf("   -q              Quiet mode (suppress output)\n");
 	printf("   -r              Connect to Asterisk on this machine\n");
 	printf("   -R              Connect to Asterisk, and attempt to reconnect if disconnected\n");
-	printf("   -t              Record soundfiles in /tmp and move them where they belong after they are done.\n");
+	printf("   -t              Record soundfiles in /var/tmp and move them where they belong after they are done.\n");
 	printf("   -v              Increase verbosity (multiple v's = more verbose)\n");
 	printf("   -x <cmd>        Execute command <cmd> (only valid with -r)\n");
 	printf("\n");
@@ -1570,7 +1572,7 @@ int main(int argc, char *argv[])
 {
 	int c;
 	char filename[80] = "";
-	char hostname[256];
+	char hostname[MAXHOSTNAMELEN]="";
 	char tmp[80];
 	char * xarg = NULL;
 	int x;
@@ -1579,6 +1581,7 @@ int main(int argc, char *argv[])
 	int num;
 	char *buf;
 	char *runuser=NULL, *rungroup=NULL;
+	struct pollfd silly_macos[1];	
 
 	/* Remember original args for restart */
 	if (argc > sizeof(_argv) / sizeof(_argv[0]) - 1) {
@@ -1594,7 +1597,7 @@ int main(int argc, char *argv[])
 		option_remote++;
 		option_nofork++;
 	}
-	if (gethostname(hostname, sizeof(hostname)))
+	if (gethostname(hostname, sizeof(hostname)-1))
 		strncpy(hostname, "<Unknown>", sizeof(hostname)-1);
 	ast_mainpid = getpid();
 	ast_ulaw_init();
@@ -1691,6 +1694,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (option_console && !option_verbose) 
+		ast_verbose("[ Reading Master Configuration ]");
+	ast_readconfig();
+
+	if (set_priority(option_highpriority)) {
+		exit(1);
+	}
+
 	if (rungroup) {
 		struct group *gr;
 		gr = getgrnam(rungroup);
@@ -1706,9 +1717,6 @@ int main(int argc, char *argv[])
 			ast_verbose("Running as group '%s'\n", rungroup);
 	}
 
-	if (set_priority(option_highpriority)) {
-		exit(1);
-	}
 	if (runuser) {
 		struct passwd *pw;
 		pw = getpwnam(runuser);
@@ -1727,14 +1735,6 @@ int main(int argc, char *argv[])
 	term_init();
 	printf(term_end());
 	fflush(stdout);
-
-	/* Test recursive mutex locking. */
-	if (test_for_thread_safety())
-		ast_verbose("Warning! Asterisk is not thread safe.\n");
-
-	if (option_console && !option_verbose) 
-		ast_verbose("[ Reading Master Configuration ]");
-	ast_readconfig();
 
 	if (option_console && !option_verbose) 
 		ast_verbose("[ Initializing Custom Configuration Options]");
@@ -1796,6 +1796,10 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
 	}
 
+	/* Test recursive mutex locking. */
+	if (test_for_thread_safety())
+		ast_verbose("Warning! Asterisk is not thread safe.\n");
+
 	ast_makesocket();
 	sigemptyset(&sigs);
 	sigaddset(&sigs, SIGHUP);
@@ -1819,6 +1823,12 @@ int main(int argc, char *argv[])
 	signal(SIGHUP, hup_handler);
 	signal(SIGCHLD, child_handler);
 	signal(SIGPIPE, SIG_IGN);
+
+	/* ensure that the random number generators are seeded with a different value every time
+	   Asterisk is started
+	*/
+	srand((unsigned int) getpid() + (unsigned int) time(NULL));
+	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
 
 	if (init_logger()) {
 		printf(term_quit());
@@ -1905,15 +1915,24 @@ int main(int argc, char *argv[])
 
 				consolehandler((char *)buf);
 			} else {
-				if (option_remote)
-					ast_cli(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n");
+				if (write(STDOUT_FILENO, "\nUse EXIT or QUIT to exit the asterisk console\n",
+								  strlen("\nUse EXIT or QUIT to exit the asterisk console\n")) < 0) {
+					/* Whoa, stdout disappeared from under us... Make /dev/null's */
+					int fd;
+					fd = open("/dev/null", O_RDWR);
+					if (fd > -1) {
+						dup2(fd, STDOUT_FILENO);
+						dup2(fd, STDIN_FILENO);
+					} else
+						ast_log(LOG_WARNING, "Failed to open /dev/null to recover from dead console.  Bad things will happen!\n");
+					break;
+				}
 			}
 		}
 
-	} else {
-		/* Do nothing */
-		for(;;) 
-			poll(NULL,0, -1);
 	}
+	/* Do nothing */
+	for(;;) 
+		poll(silly_macos,0, -1);
 	return 0;
 }

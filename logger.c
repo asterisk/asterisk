@@ -48,6 +48,13 @@ static int syslog_level_map[] = {
 
 #define MAX_MSG_QUEUE 200
 
+#if defined(__linux__) && defined (__NR_gettid)
+#include <asm/unistd.h>
+#define GETTID() syscall(__NR_gettid)
+#else
+#define GETTID() getpid()
+#endif
+
 static char dateformat[256] = "%b %e %T";		/* Original Asterisk Format */
 AST_MUTEX_DEFINE_STATIC(msglist_lock);
 AST_MUTEX_DEFINE_STATIC(loglock);
@@ -58,7 +65,7 @@ static struct msglist {
 	struct msglist *next;
 } *list = NULL, *last = NULL;
 
-static char hostname[256];
+static char hostname[MAXHOSTNAMELEN];
 
 struct logchannel {
 	int logmask;
@@ -154,7 +161,7 @@ static struct logchannel *make_logchannel(char *channel, char *components, int l
 		    chan->facility = -1;
 		    cptr = facilitynames;
 		    while (cptr->c_name) {
-			if (!strncasecmp(facility, cptr->c_name, sizeof(cptr->c_name))) {
+			if (!strcasecmp(facility, cptr->c_name)) {
 			    chan->facility = cptr->c_val;
 			    break;
 			}
@@ -223,7 +230,7 @@ static void init_logger_chain(void)
 	ast_mutex_lock(&loglock);
 	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
 		if(ast_true(s)) {
-			if(gethostname(hostname, sizeof(hostname))) {
+			if(gethostname(hostname, sizeof(hostname)-1)) {
 				strncpy(hostname, "unknown", sizeof(hostname)-1);
 				ast_log(LOG_WARNING, "What box has no hostname???\n");
 			}
@@ -351,6 +358,8 @@ int reload_logger(int rotate)
 
 	ast_mutex_unlock(&loglock);
 
+	pending_logger_reload = 0;
+
 	queue_log_init();
 
 	if (eventlog) {
@@ -362,7 +371,7 @@ int reload_logger(int rotate)
 	} else 
 		ast_log(LOG_ERROR, "Unable to create event log: %s\n", strerror(errno));
 	init_logger_chain();
-	pending_logger_reload = 0;
+	
 	return -1;
 }
 
@@ -455,8 +464,8 @@ void close_logger(void)
 {
 	struct msglist *m, *tmp;
 
-	m = list;
 	ast_mutex_lock(&msglist_lock);
+	m = list;
 	while(m) {
 		if (m->msg) {
 			free(m->msg);
@@ -471,9 +480,39 @@ void close_logger(void)
 	return;
 }
 
+static void strip_coloring(char *str)
+{
+	char *src, *dest, *end;
+	
+	if (!str)
+		return;
+
+	/* find the first potential escape sequence in the string */
+
+	src = strchr(str, '\033');
+	if (!src)
+		return;
+
+	dest = src;
+	while (*src) {
+		/* at the top of this loop, *src will always be an ESC character */
+		if ((src[1] == '[') && ((end = strchr(src + 2, 'm'))))
+			src = end + 1;
+		else
+			*dest++ = *src++;
+
+		/* copy characters, checking for ESC as we go */
+		while (*src && (*src != '\033'))
+			*dest++ = *src++;
+	}
+
+	*dest = '\0';
+}
+
 static void ast_log_vsyslog(int level, const char *file, int line, const char *function, const char *fmt, va_list args) 
 {
 	char buf[BUFSIZ];
+	char *s;
 
 	if (level >= SYSLOG_NLEVELS) {
 		/* we are locked here, so cannot ast_log() */
@@ -481,13 +520,15 @@ static void ast_log_vsyslog(int level, const char *file, int line, const char *f
 		return;
 	}
 	if (level == __LOG_VERBOSE) {
-		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)pthread_self());
+		snprintf(buf, sizeof(buf), "VERBOSE[%ld]: ", (long)GETTID());
 		level = __LOG_DEBUG;
 	} else {
 		snprintf(buf, sizeof(buf), "%s[%ld]: %s:%d in %s: ",
-			levels[level], (long)pthread_self(), file, line, function);
+			 levels[level], (long)GETTID(), file, line, function);
 	}
-	vsnprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), fmt, args);
+	s = buf + strlen(buf);
+	vsnprintf(s, sizeof(buf) - strlen(buf), fmt, args);
+	strip_coloring(s);
 	syslog(syslog_level_map[level], "%s", buf);
 }
 
@@ -543,7 +584,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 					snprintf(buf, sizeof(buf), "%s %s[%ld]: %s:%s %s: ",
 						date,
 						term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
-						(long)pthread_self(),
+						(long)GETTID(),
 						term_color(tmp2, file, COLOR_BRWHITE, 0, sizeof(tmp2)),
 						term_color(tmp3, linestr, COLOR_BRWHITE, 0, sizeof(tmp3)),
 						term_color(tmp4, function, COLOR_BRWHITE, 0, sizeof(tmp4)));
@@ -556,10 +597,11 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 				}
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
 				snprintf(buf, sizeof(buf), "%s %s[%ld]: ", date,
-					levels[level], (long)pthread_self());
+					levels[level], (long)GETTID());
 				fprintf(chan->fileptr, buf);
 				va_start(ap, fmt);
 				vsnprintf(buf, sizeof(buf), fmt, ap);
+				strip_coloring(buf);	
 				va_end(ap);
 				fputs(buf, chan->fileptr);
 				fflush(chan->fileptr);
@@ -642,7 +684,7 @@ extern void ast_verbose(const char *fmt, ...)
 	} /* else
 		fprintf(stdout, stuff + opos); */
 
-	ast_log(LOG_VERBOSE, stuff);
+	ast_log(LOG_VERBOSE, "%s", stuff);
 
 	if (fmt[strlen(fmt)-1] != '\n') 
 		replacelast = 1;
@@ -656,8 +698,8 @@ extern void ast_verbose(const char *fmt, ...)
 int ast_verbose_dmesg(void (*v)(const char *string, int opos, int replacelast, int complete))
 {
 	struct msglist *m;
-	m = list;
 	ast_mutex_lock(&msglist_lock);
+	m = list;
 	while(m) {
 		/* Send all the existing entries that we have queued (i.e. they're likely to have missed) */
 		v(m->msg, 0, 0, 1);

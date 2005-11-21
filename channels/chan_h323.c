@@ -82,7 +82,7 @@ con_established_cb	on_connection_established;
 clear_con_cb		on_connection_cleared;
 answer_call_cb		on_answer_call;
 
-int h323debug;
+int h323debug = 0;
 
 /** String variables required by ASTERISK */
 static char *type	= "H323";
@@ -348,7 +348,9 @@ static struct oh323_peer *build_peer(char *name, struct ast_variable *v)
  	} else {
 		ast_mutex_unlock(&peerl.lock);
 		peer = (struct oh323_peer*)malloc(sizeof(struct oh323_peer));
-		memset(peer, 0, sizeof(struct oh323_peer));
+		if (peer) {
+			memset(peer, 0, sizeof(struct oh323_peer));
+		}
 	}
 	if (peer) {
 		if (!found) {
@@ -403,7 +405,7 @@ static int oh323_digit(struct ast_channel *c, char digit)
 		ast_rtp_senddigit(p->rtp, digit);
 	}
 	/* If in-band DTMF is desired, send that */
-	if (p->dtmfmode & H323_DTMF_INBAND)
+	if (!(p->dtmfmode & H323_DTMF_RFC2833))
 		h323_send_tone(p->cd.call_token, digit);
 	return 0;
 }
@@ -442,13 +444,13 @@ static int oh323_call(struct ast_channel *c, char *dest, int timeout)
 	/* Clear the call token */
 	if ((p->cd).call_token == NULL)
 		(p->cd).call_token = (char *)malloc(128);
-
-	memset((char *)(p->cd).call_token, 0, 128);
 	
-	if (p->cd.call_token == NULL) {
+	if ((p->cd).call_token == NULL) {
 		ast_log(LOG_ERROR, "Not enough memory.\n");
 		return -1;
 	}
+
+	memset((char *)(p->cd).call_token, 0, 128);
 
 	/* Build the address to call */
 	memset(called_addr, 0, sizeof(called_addr));
@@ -601,7 +603,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *p)
 			}
 		
 			/* Do in-band DTMF detection */
-			if (p->dtmfmode & H323_DTMF_INBAND) {
+			if ((p->dtmfmode & H323_DTMF_INBAND) && p->vad) {
                    f = ast_dsp_process(p->owner,p->vad,f);
 				   if (f->frametype == AST_FRAME_DTMF)
 					ast_log(LOG_DEBUG, "Got in-band digit %c.\n", f->subclass);
@@ -1032,12 +1034,16 @@ struct rtp_info *create_connection(unsigned call_reference, const char * token)
 	   the oh323_pvt structure XXX */
 	static char iabuf[INET_ADDRSTRLEN];
 
-	info = (struct rtp_info *) malloc(sizeof(struct rtp_info));
-
 	p = find_call(call_reference, token); 
 
 	if (!p) {
 		ast_log(LOG_ERROR, "Unable to allocate private structure, this is very bad.\n");
+		return NULL;
+	}
+
+	info = (struct rtp_info *) malloc(sizeof(struct rtp_info));
+	if (!info) {
+		ast_log(LOG_ERROR, "Unable to allocate rtp_info, this is very bad.\n");
 		return NULL;
 	}
 
@@ -1594,9 +1600,9 @@ static struct ast_cli_entry  cli_show_codecs =
 static struct ast_cli_entry  cli_gk_cycle =
 	{ { "h.323", "gk", "cycle", NULL }, h323_gk_cycle, "Manually re-register with the Gatekeper", show_cycle_usage };
 static struct ast_cli_entry  cli_hangup_call =
-	{ { "h.323", "hangup", NULL }, h323_ep_hangup, "Show all active call tokens", show_hangup_usage };
+	{ { "h.323", "hangup", NULL }, h323_ep_hangup, "Manually try to hang up a call", show_hangup_usage };
 static struct ast_cli_entry  cli_show_tokens =
-	{ { "h.323", "show", "tokens", NULL }, h323_tokens_show, "Manually try to hang up a call", show_tokens_usage };
+	{ { "h.323", "show", "tokens", NULL }, h323_tokens_show, "Show all active call tokens", show_tokens_usage };
 
 
 
