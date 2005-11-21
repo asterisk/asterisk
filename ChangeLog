@@ -1,5 +1,7 @@
 2005-11-20  Russell Bryant  <russell@digium.com>
 
+	* pbx/pbx_spool.c: Fix crash when a value is not specified with a variable on a Set: line in a call file. (issue #5806)
+
 	* apps/app_meetme.c: Fix the 'X' option to the MeetMe application. (issue #5773)
 
 	* apps/app_voicemail.c: Correct the use of a mailbox entered by the calling party instead of indicated as an argument to the Voicemail application. (issue #5774)
