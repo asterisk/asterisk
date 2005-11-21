@@ -1,5 +1,9 @@
 2005-11-20  Russell Bryant  <russell@digium.com>
 
+	* apps/app_record.c: Don't leak a frame if writing it to the file fails. (issue #5787)
+
+	* Makefile: Create the monitor spool directory when the other spool directories are created.
+
 	* channels/chan_sip.c channels/chan_iax2.c: Change warning messages about the number of scheduled events happening all at once to debug messages. (issue #5794)
 
 	* pbx/pbx_spool.c: Fix crash when a value is not specified with a variable on a Set: line in a call file. (issue #5806)
