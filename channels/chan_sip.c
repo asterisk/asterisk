@@ -12100,8 +12100,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 				}
 				if (!strcasecmp(v->name, "outboundproxy"))
 					obproxyfound=1;
-				else
+				else {
 					ast_copy_string(peer->tohost, v->value, sizeof(peer->tohost));
+					if (!peer->addr.sin_port)
+						peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+				}
 			}
 		} else if (!strcasecmp(v->name, "defaultip")) {
 			if (ast_get_ip(&peer->defaddr, v->value)) {
