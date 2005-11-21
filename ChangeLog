@@ -1,5 +1,7 @@
 2005-11-21  Russell Bryant  <russell@digium.com>
 
+	* apps/app_osplookup.c: Properly populate the number of results. (issue #5789)
+
 	* Makefile: Don't hard-code that poll functionality needs to be provided on Darwin.
 	* apps/Makefile: Fix incorrect portion of the patch to fix 'make install' on Solaris.
 
