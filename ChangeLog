@@ -1,3 +1,7 @@
+2005-11-21  Josh Roberson <josh@asteriasgi.com>
+
+	* Makefile: Re-fix Darwin poll issues. 
+
 2005-11-21  Russell Bryant  <russell@digium.com>
 
 	* apps/app_osplookup.c: Properly populate the number of results. (issue #5789)

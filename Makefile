@@ -363,6 +363,8 @@ ifeq ($(OSARCH),Darwin)
   AUDIO_LIBS=-framework CoreAudio
   ASTLINK=-Wl,-dynamic
   SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
+  OBJS+=poll.o
+  ASTCFLAGS+=-DPOLLCOMPAT
 else
 #These are used for all but Darwin
   ASTLINK=-Wl,-E 
