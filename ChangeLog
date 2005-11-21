@@ -1,6 +1,7 @@
 2005-11-21  Kevin P. Fleming  <kpfleming@digium.com>
 
-	* ensure that case changes made to chan_sip and chan_iax2 peer/user names are not ignored during reload operations
+	* channels/chan_sip.c: ensure that case changes made to peer/user names are not ignored during reload operations
+	* channels/chan_iax2.c: ensure that case changes made to peer/user names are not ignored during reload operations
 
 2005-11-21  Josh Roberson <josh@asteriasgi.com>
 
