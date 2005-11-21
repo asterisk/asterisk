@@ -216,6 +216,8 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 ifeq (${OSARCH},Darwin)
 ASTLINK=-Wl,-dynamic
 SOLINK=-dynamic -bundle -undefined suppress -force_flat_namespace
+OBJS+= poll.o
+CFLAGS+=-DPOLLCOMPAT
 else
 ASTLINK=-Wl,-E 
 SOLINK=-shared -Xlinker -x
