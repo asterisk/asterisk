@@ -1,4 +1,8 @@
-2005-11-20  Russell Bryant <russell@digium.com>
+2005-11-21  Russell Bryant  <russell@digium.com>
+
+	* channels/chan_iax2.c (iax2_getpeername): Return non-zero to indicate that a peer was found when using realtime (issue #5815)
+
+2005-11-20  Russell Bryant  <russell@digium.com>
 
 	* Makefile apps/Makefile: Fix 'make install' for Solaris. (issue #5775)
 

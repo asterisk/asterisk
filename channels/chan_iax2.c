@@ -859,10 +859,11 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 {
 	struct iax2_peer *peer;
 	int res = 0;
+
 	if (lockpeer)
 		ast_mutex_lock(&peerl.lock);
 	peer = peerl.peers;
-	while(peer) {
+	while (peer) {
 		if ((peer->addr.sin_addr.s_addr == sin.sin_addr.s_addr) &&
 				(peer->addr.sin_port == sin.sin_port)) {
 					ast_copy_string(host, peer->name, len);
@@ -879,8 +880,10 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 			ast_copy_string(host, peer->name, len);
 			if (ast_test_flag(peer, IAX_TEMPONLY))
 				destroy_peer(peer);
+			res = 1;
 		}
 	}
+
 	return res;
 }
 
