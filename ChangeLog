@@ -1,437 +1,640 @@
-2005-11-21  Josh Roberson <josh@asteriasgi.com>
-
-	* Makefile: Re-fix Darwin poll issues. 
-
-2005-11-21  Russell Bryant  <russell@digium.com>
-
-	* apps/app_osplookup.c: Properly populate the number of results. (issue #5789)
-
-	* Makefile: Don't hard-code that poll functionality needs to be provided on Darwin.
-	* apps/Makefile: Fix incorrect portion of the patch to fix 'make install' on Solaris.
-
-	* channels/chan_iax2.c (iax2_getpeername): Return non-zero to indicate that a peer was found when using realtime (issue #5815)
-
-2005-11-20  Russell Bryant  <russell@digium.com>
-
-	* Makefile apps/Makefile: Fix 'make install' for Solaris. (issue #5775)
-
-	* apps/app_record.c: Don't leak a frame if writing it to the file fails. (issue #5787)
-
-	* Makefile: Create the monitor spool directory when the other spool directories are created.
-
-	* pbx.c.c: Remove some useless checks and unnecessary calls to ast_strlen_zero(). (issue #5805)
-
-	* cli.c: Remove some unnecessary calls to ast_strlen_zero(). (issue #5804)
-
-	* channels/chan_oss.c configs/oss.conf.sample: Add the ability to set callerid in oss.conf. 
-
-	* channels/chan_sip.c channels/chan_iax2.c: Change warning messages about the number of scheduled events happening all at once to debug messages. (issue #5794)
-
-2005-11-20  Josh Roberson <josh@asteriasgi.com>
-
-	* pbx/pbx_spool.c: Fix crash in spooler if set/setvar declared incorrectly. (issue #5806)
-
-	* apps/app_meetme.c: fix 'X' option in MeetMe, with slight modification. (issue #5773)
-
-	* apps/app_voicemail.c: Make sure we're copying the read digits when calling voicemail without a box. (issue #5774)
-
-	* apps/app_md5.c: Fix conditional jump option.
-
-	* apps/app_controlplayback.c: Fix conditional jump option.
-
-	* apps/app_hasnewvoicemail.c: Fix conditional jump option to jump properly, also correct a small typo in the description. (issue #5795)
-
-	* channels/chan_iax2.c: Fix output of iax2 show peer <peer> (issue #5792)
-
-	* UPGRADE.txt: Adjust note for naming conventions of iax2 channels. (issue #5792)
-
-	* res/res_musiconhold.c: Correct typo in ast_copy_string() for class->mode.  (issue #5803)
-
-2005-11-19  Josh Roberson <josh@asteriasgi.com>
-
-	* channels/Makefile: Put chan_oss back into the default build. (issue #5799)
-
-	* funcs/func_enum.c: Fix long text description causing cosmetic defect on module load. (issue #5791)
-
-2005-11-19  Russell Bryant  <russell@digium.com>
-
-	* app/app_echo.c: Update application description to be a bit more accurate, and clean up a little bit of code formatting
-
-2005-11-16  Russell Bryant  <russell@digium.com>
-
-	* Makefile: Fix the output of Makefile generated variables to doxygen
-
-	* channels/chan_sip.c: Add missing carriage return and line feed to the SDP line indicating that we don't support VAD (issue #5780)
-
-2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* Asterisk 1.2.0 released.
-	
-2005-11-16  Jeremy McNamara <jj@nufone.net>
-
-	* apps/app_voicemail.c (load_config): do not terminate asterisk if no voicemail config file
-	* channels/chan_skinny:  Don't register channel type until ready, code formatting updates
-
-2005-11-16  Josh Roberson <josh@asteriasgi.com>
-
-	* Makefile:  Update to fix non-responsive remote console on Darwin (OSX)(issue #5757)
-
-2005-11-16  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* channels/Makefile: don't build chan_modem and sub-modules by default
-	* configs/modules.conf.sample: explicitly 'noload' chan_modem.so and submodules, in case old versions exist
-	
-	* res/Makefile: issue mpg123 not-installed warning at 'make install' time, not 'make'
-
-	* apps/app_forkcdr.c (forkcdr_exec): issue warning (and don't segfault) if ForkCDR is called on a channel that doesn't have a CDR (issue #5763)
-
-	* channel.c (ast_queue_hangup): ensure that the channel lock is held before changing its fields... (issue #5770)
-
-	* res/res_musiconhold.c: don't spit out incorrect log messages (and leak memory) during reload (issue #5766)
-
-	* channels/chan_sip.c (process_sdp): don't pass video codec number into ast_getformatname(), it is not valid input for that function (issue #5764)
-
-	* pbx/pbx_ael.c (match_assignment): properly parse equal signs surrounded by whitespace (issue #5761)
-
-	* doc/README.realtime: document the limitations of using FreeTDS with Realtime (issue #5767)
-
-2005-11-15  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* Makefile: use -g3 for compiler to include macro information for debugger
-
-	* astmm.c (__ast_vasprintf): don't re-use the ap list without copying it; that's not safe on some platforms (issue #5035)
-
-	* doc/README.backtrace: add note about properly building Asterisk to be able to produce backtraces; wrap text and remove DOS line endings
-
-	* channels/chan_sip.c (add_codec_to_sdp): add 'annexb=no' to G.729A SDP (issue #5539)
-
-	* channels/chan_alsa.c (alsa_hangup): handle autohangup properly (issue #5672)
-
-	* channels/chan_misdn.c (and other files): various fixes (issue #5739)
-
-	* channels/chan_sip.c (handle_request_info): properly forward 'flash' events received via SIP INFO (issue #5751, different patch)
-
-	* apps/app_disa.c (disa_exec): don't duplicate constant strings when not needed
-
-	* apps/app_playback.c (playback_exec): use correct logic tests for options (issue #5752)
-
-	* apps/app_disa.c (disa_exec): use standard arg parsing routines (issue #5736)
-
-2005-11-15  Russell Bryant <russell@digium.com>
-
-	* manager.c: Don't crash on a SetVar action if the channel name is not set, or variable's value is not set (issue #5760)
-
-	* doc/README.variables: Add application exit status variables
-
-2005-11-14  Josh Roberson <josh@asteriasgi.com>
-	
-	* manager.c: Fix crash on variable passing from AMI originate (issue #5737)
-
-2005-11-14  Russell Bryant  <russell@digium.com>
-
-	* many files: Merge doxygen documentation updates. (issue #5605)
-
-	* apps/app_dial.c: Fix typo in RetryDial description.
-
-2005-11-12  Russell Bryant  <russell@digium.com>
-
-	* channels/chan_oss.c: Fix a typo in an error message.
-
-2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* Asterisk 1.2.0-rc2 released.
-	
-2005-11-11  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* channels/chan_sip.c (thread_safe_rand): ensure that threads don't get the same random number (issue #5712)
-
-	* apps/app_voicemail.c (forward_message): correct bugs in message forwarding (issue #5718)
-	(copy_message): use correct path for locking (issue #5704)
-
-	* apps/app_dial.c (wait_for_answer): correct flag copying for automon feature (issue #5720)
-
-	* channels/chan_iax2.c: correct comment
-
-	* apps/app_voicemail.c (close_mailbox): correct previous commit (issue #5663)
-	(vm_change_password): fix password change writing (issue #5721)
-
-	* channels/chan_sip.c (transmit_invite): remove useless debug message; don't try to add OSP tokens to OPTIONS pings
-
-	* apps/app_voicemail.c (close_mailbox): properly remove deleted messages at mailbox close time (issue #5663)
-
-2005-11-11  Mark Spencer <markster@digium.com>
-
-	* channels/chan_zap.c (zt_bridge): only enable/disable DTMF detection on SUB_REAL channels
-
-2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* channels/chan_iax2.c: ensure that system headers that provide basic types are included first (issue #5713)
-
-2005-11-11  Russell Bryant  <russell@digium.com>
-
-	* many files in apps/: Clean up application descriptions. Clarify some wording and make sure they wrap at 80 characters.
-
-2005-11-10  Mark Spencer <markster@digium.com>
-
-	* rtp.c (ast_rtp_raw_write): use unsigned int for return value from calc_txstamp() (issue #5595)
-	(calc_txstamp): never return a value that was less than zero before being turned into 'unsigned int' (issue #5595)
-
-2005-11-10  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* include/asterisk/chanspy.h: move spy-related stuff into separate header so chan_h323 can build (issue #5590)
-
-	* include/asterisk/linkedlists.h (AST_LIST_HEAD_SET_NOLOCK): properly initialize tail pointer when list head is directly set (issue #5669)
-
-	* app.c (ast_app_parse_options): ok, so we aren't all perfect... let's make the while loop actually work properly here (issue #5684)
-
-	* apps/app_disa.c (disa_exec): correct password file parsing (issue #5676)
-
-	* apps/app_meetme.c (conf_run): don't restrict admin users from joining a locked conference (issue #5680)
-
-	* channels/chan_misdn.c: include stdio.h (issue #5671)
-	* channels/chan_misdn_config.c: fix prototype warning (issue #5671)
-
-	* pbx.c: remove apps that were deprecated before 1.0 was released (issue #5673)
-
-	* apps/app_striplsd.c, apps/app_substring.c: remove apps that were deprecated before 1.0 was released (issue #5673)
-
-	* include/asterisk/lock.h (PTHREAD_MUTEX_RECURSIVE_NP): work around header problems on Cygwin (issue #5668)
-
-	* pbx/pbx_ael.c: handle switch default cases inside macros properly (issue #5354)
-
-	* configs/voicemail.conf.sample (format): add strong warning about changing format list when mailboxes contain messages (issue #5689)
-
-	* many files: ensure that system headers are included before Asterisk headers (issue #5693)
-
-	* channels/chan_iax2.c (complete_iax2_show_peer): don't return from function without releasing lock (issue #5685)
-
-	* channels/iax2-provision.c (iax_provision_reload): don't leak memory (issue #5700)
-
-	* pbx/pbx_ael.c (handle_macro): don't leak memory (issue #5701)
-	(handle_context): ditto
-
-	* res/res_features.c (load_config): properly initialize referenced variable (issue #5703)
-
-	* apps/app_queue.c (rqm_exec): correct segfault problem (issue #5705)
-	(aqm_exec): ditto
-
-	* app.c (ast_app_parse_options): don't increment 's' until after checking for NULL (related to issue #5630)
-
-	* apps/app_rpt.c: solve a memory leak (config structure was not freed) (issue #5706)
-
-2005-11-10  Russell Bryant <russell@digium.com>
-
-	* app.c (ast_app_separate_args): Don't consider the open parenthesis as part of the arguments to an option. (issue #5630)
-
-	* many files: Change all references to ast_separate_app_args to ast_app_separate_args
-
-	* many files in apps/: Clean up some application descriptions. Make sure all descriptions in changed files are wrapped at 80 characters.
-
-2005-11-09  Russell Bryant <russell@digium.com>
-
-	* pbx.c: Clean up descriptions of built-in dialplan applications. Changes include clearer wording and not referring to return values.
-
-2005-11-09  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* channels/chan_iax2.c (update_registry): don't complain about unspecifed registration expiration intervals, just use the minimum
-
-2005-11-08  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* Asterisk 1.2.0-rc1 released.
-
-	* include/asterisk/file.h: add test to ensure that stdio.h is included before this file (issue #5658)
-
-	* res/res_odbc.c (odbc_prepare_and_execute): add new API call for use to properly handle prepared statements across server disconnects (issue #5563)
-
-	* pbx.c (pbx_substitute_variables_helper_full): use already-substituted buffer for parsing variable name (issue #5664)
-
-	* channels/chan_zap.c (zt_request): return AST_CAUSE_CONGESTION when a group-channel is requested and the group exists but all channels are busy (issue #3360, related fix)
-	* channels/chan_iax2.c (create_addr): treat UNREACHABLE as AST_CAUSE_UNREGISTERED so that it will generate CHANUNAVAIL from app_dial (issue #3360)
-
-	* res/res_features.c (ast_bridge_call_thread_launch): set SCHED_RR separately from thread creation, so it won't fail when running as non-root (issue #5601, different fix)
-
-	* pbx.c (pbx_builtin_pushvar_helper): add new API function for setting variables that can exist multiple times (issue #2720)
-	* apps/Makefile (APPS): add app_stack (issue #2720)
-	* apps/app_stack.c: new applications (issue #2720)
-
-	* apps/app_meetme.c: fix two audio delay problems related to using non-Zap channels in conferences (issues #3599 and #4252)
-	* configs/meetme.conf.sample: add documentation of new 'audiobuffers' setting to control buffering on incoming audio from non-Zap channels
-
-	* channels/chan_local.c (local_call): move channel variables from incoming to outgoing instead of inheriting them (issue #5604)
-
-	* many files: add explicit include of stdio.h (issue #5650)
-
-2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* UPGRADE.txt (Parking): add note about new parking behavior (issue #5532)
-
-	* many files: more Cygwin compatibility, and proper getloadavg() prototype/macro (issue #5569)
-
-	* include/asterisk/lock.h (__ast_pthread_mutex_lock): correct build with DETECT_DEADLOCKS defined (issue #5570)
-
-2005-11-07  Russell Bryant  <russell@digium.com>
-
-	* apps/app_queue.c: upgrade to new arg/option API and implement priority jumping control (issue #5580)
-	* many files: Add missing include of stdio.h, and remove some duplicate and unused header includes
-
-	* include/asterisk/app.h: Increment the arg_index in the options structure to fix applicaiton options that have arguments to them
-
-2005-11-07  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* cryptostub.c: include necessary headers
-	* include/asterisk/crypto.h: don't include unnecessary headers
-
-	* manager.c (action_setvar): add support for setting global variables (issue #5571)
-
-	* Makefile: correct cross-compilation issue introduced in Cygwin patches (issue #5572)
-
-	* apps/app_voicemail.c: upgrade to new arg/option API and implement priority jumping control (issue #5649)
-
-	* asterisk.c (main): setpriority() failure is not a reason to stop the process (issue #5581)
-
-	* say.c (ast_say_date_with_format_da): say hours properly (issue #5576)
-
-	* manager.c (astman_get_variables): restore old multiple-variable behavior for "Variable" header (issue #5585)
-
-	* many files: don't check for NULL before calling ast_strlen_zero, it can do it itself (issue #5648)
-
-	* pbx.c (handle_show_hints): use proper state-to-string function for hint state (issue #5583)
-
-	* rtp.c: use unsigned format for debug packet output (issue #5595)
-
-	* asterisk.c (main): force a dnsmgr background refresh after all other modules are initialized (issue #5599)
-	* dnsmgr.c: add ability to start a background refresh on demand (issue #5599)
-
-	* apps/app_dial.c (HANDLE_CAUSE): set CDR disposition to match cause code (issue #5602)
-
-	* asterisk.c: support 'runuser' and 'rungroup' options in asterisk.conf (issue #5621)
-
-	* res/Makefile, apps/Makefile, channels/Makefile, Makefile: support WITHOUT_ZAPTEL define to forcibly avoid building Zaptel support (issue #5634)
-
-	* Makefile: various fixes (issue #5633)
-
-	* apps/app_osplookup.c: upgrade to new arg/option API and implement priority jumping control
-
-	* channels/chan_misdn.c: various fixes (issue #5639)
-	* channels/misdn/isdn_lib.c: various fixes (issue #5639)
-
-	* apps/app_playback.c: upgrade to new arg/option API and implement priority jumping control
-
-	* apps/app_privacy.c: upgrade to new arg/option API and implement priority jumping control
-
-	* apps/app_sendtext.c: upgrade to new arg/option API and implement priority jumping control
-
-	* apps/app_transfer.c: upgrade to new arg/option API and implement priority jumping control
-
-	* apps/app_txtcidname.c: upgrade to new arg/option API and implement priority jumping control
-
-	* Makefile: restore function of 'dont-optimize'
-
-	* config.c (config_text_file_load): don't generate log message when stat() fails
-
-	* many files: clean up application documentation to not refer to return values, since they cannot be used in the dialplan (work done by Neil Lewis)
-
-2005-11-06  Russell Bryant <russell@digium.com>
-
-	* many files: alphabetize options in applicaiton descriptions
-
-	* channels/chan_iax2.c: Use an enum to define iax peer/user flags as well as the pvt structure state.  Use the ast_flags macros for checking or setting the state.
-
-	* sounds.txt: Add missing words from the description of the vm-opts prompt
-
-	* apps/app_externalivr.c: Add a space that fixes building on older versions of gcc
-
-	* many files: Add doxygen updates to categorize modules into groups. Convert a lot of comments over to doxygen style. Add some text giving a basic overview of channels.
-
-	* many files: Update applications to add an exit status variable, make priority jumping optional, and use new args parsing macros
-
-	* pbx.c cdr.c res/res_features.c apps/app_dial.c include/asterisk/cdr.h: Convert some built-in applications to use new args parsing macros.  Change ast_cdr_reset to take a pointer to an ast_flags structure instead of an integer for flags.
-
-	* channels/chan_agent.c: Don't loop forever on an invalid options string
-
-	* apps/app_disa.c apps/app_forkcdr.c: Fix to use correct arguments to ast_cdr_reset
-
-2005-11-05  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* Makefile: don't rebuild asterisk/build.h unless the asterisk binary is going to be relinked for some other reason (stops spurious recompile/link every time 'make' is issued); clean up variable substitutions to use consistent syntax
-	* asterisk.c: don't include asterisk/build.h (it's unnecessary)
-	* cli.c: don't include asterisk/build.h, use extern references to buildinfo.c
-	* buildinfo.c: new file to hold version info strings
-
-2005-11-04  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* apps/app_mixmonitor.c (mixmonitor_exec): correct app name in an error message
-
-2005-11-04  Russell Bryant  <russell@digium.com>
-
-	* channels/chan_iax2.c: Create a function that stores a peer's status in a given buffer.  Use this function in "iax2 show peers" and "iax2 show peer <peername>".  Also, add the peer's status as an option to the IAXPEER dialplan function.
-
-2005-11-04  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* include/asterisk/compiler.h: don't try to use always_inline on old compilers
-
-2005-11-03  Russell Bryant  <russell@digium.com>
-
-	* res/res_agi.c: initialize buffer for result so that the contents are always valid in the response to GET FULL VARIABLE
-
-2005-11-03  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* doc/README.variables: document DYNAMIC_FEATURES
-
-	* res/res_features.c (ast_bridge_call): remove unused variables
-
-	* apps/app_dial.c (dial_exec_full): simplify options and flag usage
-
-	* include/asterisk/app.h: re-work application arg/option parsing APIs for consistent naming, add doxygen docs for option API
-	* many files: update to new APIs
-
-2005-11-02  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* apps/app_dial.c (dial_exec_full): convert to use API calls for argument/option parsing
-
-	* include/asterisk/channel.h: add doxygen docs for silence generator APIs
-
-	* channel.c (ast_channel_bridge): simplify native-bridge return logic, remove 'unsuccessful' message since it causes too many questions :-)
-
-2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* stdtime/localtime.c: fix build failure on uClibc systems (issue #5558)
-	* devicestate.c: same
-
-	* many files: make chan_misdn actually build (issue #5566)
-
-	* many files: more Cygwin build system support (issue #4678)
-
-	* apps/app_parkandannounce.c (parkandannounce_exec): supply parent channel to ast_request_and_dial so channel variables can be inherited (issue #5564)
-	* include/asterisk/channel.h: add parent_channel field
-	* channel.c (__ast_request_and_dial): use parent_channel field to inherit variables into new channel
-
-	* apps/app_cut.c (cut_internal): use ast_app_separate_args() instead of open code (issue #5560)
-
-	* apps/app_mixmonitor.c (launch_monitor_thread): ast_strlen_zero can handle NULL input (issue #5561)
-	(mixmonitor_exec): same
-
-	* res/res_features.c (ast_feature_request_and_dial): ensure that channel variables are inherited from the channel placing the call (issue #5499)
-
-	* utils.c (getloadavg): change to using _BSD_SOURCE as the indicator for whether this function is present or not (issue #5549)
-	
-	* include/asterisk/utils.h (ast_slinear_saturated_add): force to be inlined whenever possible
-	(ast_slinear_saturated_multiply): same
-	(ast_slinear_saturated_divide): same
-	(inaddrcmp): same
-	* include/asterisk/strings.h (ast_strlen_zero): force to be inlined whenever possible
-	* include/asterisk/compiler.h (force_inline): add macro to force inlining of functions
-	
-	* app.c (ast_play_and_record): use ast_silence_generator during recording if requested
-	* asterisk.c: add global option to enable silence-during-record (issue #5135)
-	* channel.c (silence_generator_alloc): new
-	(silence_generator_release): new
-	(silence_generator_generate): new
-	(ast_channel_start_silence_generator): new API call to start generating silence on a channel
-	(ast_channel_stop_silence_generator): parallel call to stop silence generation
-	* apps/app_record.c (record_exec): use ast_silence_generator during recording if requested
-
-2005-11-01  Kevin P. Fleming  <kpfleming@digium.com>
-
-	* Asterisk 1.2.0-beta2 released.
-
+ NOTE: Corrections or additions to the ChangeLog may be submitted to
+       http://bugs.digium.com.  Documentation and formatting fixes are not
+       not listed here.  A complete listing of changes is available through
+       the Asterisk-CVS mailing list hosted at http://lists.digium.com.
+
+Asterisk 1.0.10
+
+ -- chan_local
+    -- In releases 1.0.8 and 1.0.9, the Local channels that are created would
+       not be masqueraded into the new channel type.  This has now been fixed.
+ -- chan_sip
+    -- The 'insecure' options have been changed to support matching peersby IP
+       only, not requiring authentication on incoming invites, or both. Before,
+       to not require authentication on incoming invites also required matching
+       peers based on IP only.
+ -- chan_zap
+    -- Before, call waiting could occur during the initial ringing on the line.
+       This has now been fixed.
+ -- app_disa
+    -- We will now not set the accountcode if one is not supplied. 
+ -- app_meetme
+    -- If the first caller into a conference hangs up while being prompted for
+       the conference pin number, the conference will no longer be held open.
+ -- app_userevent
+    -- Events created with this application were indicated as a "call" event
+       instead of a "user" event.  This made the "user" event permissions
+       not work correctly.
+ -- app_voicemail
+    -- When using the externpass option for voicemail, the password will be
+       immediately updated in memory as well, instead of having to wait for
+       the next time the configuration is reloaded. 
+ -- app_zapras
+    -- We now ensure buffer policy is restored after RAS is done with a channel.
+       This could cause audio problems on the channel after zapras is done
+       with it. 
+ -- res_agi
+    -- We now unmask the SIGHUP signal before executing an AGI script.  This
+       fixes problems where some AGI scripts would continue running long after
+       the call is over.
+ -- extensions
+    -- A potential crash has been fixed when calling LEN() to get the length of
+       a string that was 80 characters or larger.
+ -- logger
+    -- The Asterisk logger will automatically detect when a log file needs to
+       be rotated.  However, this feature could put Asterisk in a nasty loop
+       that would result in a crash.
+ -- general
+    -- Added man pages for astgenkey, autosupport, and safe_asterisk
+
+Asterisk 1.0.9
+
+ -- fix bug in callerid matching in the dialplan that was introduced in 1.0.8
+
+Asterisk 1.0.8
+
+ -- chan_zap
+    -- Asterisk will now also look in the regular context for the fax extension
+       while executing a macro.  Previously, for this to work, the fax extension
+       would have to be included in the macro definition.
+    -- On some systems, ALERTING will be sent after PROCEEDING, so code has been
+       added to account for this case.
+    -- If no extension is specified on an overlap call, the 's' extension will 
+       be used.
+ -- chan_sip
+    -- We no longer send a "to" tag on "100 Trying" messages, as it is 
+       inappropriate to do so.
+    -- We now respond correctly to an invite for T.38 with a "488 Not acceptable
+       here"
+    -- We now discard saved tags on 401/407 responses in case the provider we're
+       talking to tries to pull a dirty trick on us and change it.
+    -- rtptimeout options will now be correctly set on a peer basis rather than
+       only global
+ -- chan_mgcp
+    -- Fixed setting of accountcode
+    -- Fixed where *67 to block callerid only worked for first call
+ -- chan_agent
+    -- We now will not pass audio until the agent has acked the call if the 
+       configuration
+       is set up for the agent to do so.
+ -- chan_alsa
+    -- Fixed problems with the unloading of this module
+ -- res_agi
+    -- A fix has been added to prevent calls from being hung up when more than 
+       one call is executing an AGI script calling the GET DATA command.
+    -- AGI scripts will now continue to run even if a file was not found with
+       the GET DATA command.
+    -- When calling SAY NUMBER with a number like 09, we will now say "nine" 
+       instead of "zero"
+ -- app_dial
+    -- There was a problem where text frames would not be forwarded before the
+       channel has been answered. 
+ -- app_disa
+    -- Fixed the timeout used when no password is set
+ -- app_queue
+    -- Distinctive ring has been fixed to work for queue members
+  -- rtp
+    -- Fixed a logic error when setting the "rtpchecksums" option
+ -- say.c
+    -- A problem has been fixed with saying the date in Spanish.
+ -- Makefile
+    -- A line was missing for the autosupport script that caused "make rpm" to 
+       fail
+ -- format_wav_gsm
+    -- Fixed a problem with wav formatting that prevented files from being 
+       played in some media players
+ -- pbx_spool
+    -- Fixed if the last line of text in a file for the call spool did not 
+       contain a new line, it would not be processed
+ -- logger
+    -- Fixed the logger so that color escape sequences wouldn't be sent to the 
+       logs
+ -- format_sln
+    -- A lot of changes were made to correctly handle signed linear format on
+       big endian machines
+ -- asterisk.conf
+     -- fix 'highpriority' option for asterisk.conf
+
+Asterisk 1.0.7
+
+ -- chan_sip
+    -- The fix for some codec availibility issues in 1.0.6 caused music on hold
+       problems, but has now been fixed.
+ -- chan_skinny
+    -- A check has been added to avoid a crash.
+ -- chan_iax2
+    -- A feature has been added to CVS head to have the option of sending 
+       timestamps with trunk frames.  It is not supported in 1.0, but a change 
+       has been made so that it will at least not choke if sent trunk
+       timestamps.
+ -- app_voicemail
+    -- Some checks have been added to avoid a crash.
+ -- speex
+    -- The path /usr/include/speex has been added for a place to look for the 
+       speex header.
+
+Asterisk 1.0.6
+
+ -- chan_iax2:
+    -- Fixed a bug dealing with a division by zero that could cause a crash
+ -- chan_sip:
+    -- Behavior was changed so that when a registration fails due to DNS 
+       resolution issues, a retry will be attempted in 20 seconds.
+    -- Peer settings were not reset to null values when reloading the 
+       configuration file. Behavior has been changed so that these values are 
+       now cleared.
+    -- 'restrictcid' now properly works on MySQL peers.
+    -- Only use the default callerid if it has been specified.
+    -- Asterisk was not sending the same From: line in SIP messages during 
+       certain times. Fixed to make sure it stays the same. This makes some 
+       providers happier, to a working state.
+    -- Certain circumstances involving a blank callerid caused asterisk to 
+       segmentation fault.
+    -- There was a problem incorrectly matching codec availablity when global 
+       preferences were different from that of the user.  To fix this, 
+       processing of SDP data has been moved to after determining who the call 
+       is coming from.
+    -- Asterisk would run out of RTP ports while waiting for SUBSCRIBE's to 
+       expire even though an RTP port isn't needed in this case.  This has been
+       fixed by releasing the ports early.
+ -- chan_zap:
+    -- During a certain scenario when using flash and '#' transfers you would 
+       hear the other person and the music they were hearing. This has been 
+       fixed.
+    -- A fix for a compilation issue with gcc4 was added.
+ -- chan_modem_bestdata:
+    -- A fix for a compilation issue with gcc4 was added.
+ -- format_g729:
+    -- Treat a 10-byte read as an end of file indication instead of an error. 
+       Some G729 encoders like to put 10-bytes at the end to indicate this.
+ -- res_features:
+    -- During certain situations when parking a call, both endpoints would get 
+       musiconhold. This has been fixed so the individual who parked the call 
+       will hear the digits and not musiconhold.
+ -- app_dial:
+    -- DIALEDPEERNUMBER is now being set, so if you attempted to use it in the 
+       past and failed, it should work now.
+    -- A callerid change caused many headaches, this has been reversed to the 
+       original 1.0 behavior.
+    -- A crash caused with the combination of the 'g' option and # transfer was
+       fixed.
+ -- app_voicemail:
+    -- If two people hit the voicemail system at the same time, and were leaving
+       a message the second message was overwriting the first. This has been 
+       fixed so that each one is distinct and will not overwrite eachother.
+ -- cdr_tds:
+    -- If the server you were using was going down, it had the potential to 
+       bring your asterisk server down with it. Extra stuff has been added so 
+       as to bring in more error/connection checking.
+ -- cdr_pgsql:
+    -- This will now attempt to reconnect after a connection problem.
+ -- IAXY firmware:
+    -- This has been updated to version 23.  It includes a fix for lost
+       registrations.
+ -- internals
+    -- Behavior was changed for 'show codec <number>' to make it more intuitive.
+    -- DNS failures and asterisk do not get along too well, this is not totally
+       the case anymore.
+    -- Asterisk will now handle DNS failures at startup more gracefully, and 
+       won't crash and burn
+    -- Choosing to append to a wave file would render the outputted wave file 
+       corrupt. Appending now works again.
+    -- If you failed to define certain keys, asterisk had the potential to crash
+       when seeing if you had used them.
+    -- Attempting to use such things as ${EXTEN:-1} gave a wrong return value. 
+       However, this was never a documented feature...
+
+Asterisk 1.0.5
+
+ -- chan_zap
+    -- fix a callerid bug introduced in 1.0.4
+ -- app_queue
+    -- fix some penalty behavior
+
+Asterisk 1.0.4
+
+ -- general
+    -- fix memory leak evident with extensive use of variables
+    -- update IAXy firmware to version 22
+       -- enable some special write protection
+       -- enable outbound DTMF
+    -- fix seg fault with incorrect usage of SetVar
+    -- other minor fixes including typos and doc updates
+ -- chan_sip
+   -- fix codecs to not be case sensitive
+   -- Re-use auth credentials
+   -- fix MWI when using type=friend
+   -- fix global NAT option
+ -- chan_agent / chan_local
+   -- fix incorrect use count
+ -- chan_zap
+   -- Allow CID rings to be configured in zapata.conf
+      -- no more patching needed for UK CID
+ -- app_macro 
+    -- allow Macros to exit with '*' or '#' like regular extension processing
+ -- app_voicemail
+   -- don't allow '#' as a password
+   -- add option to save voicemail before going to the operator
+   -- fix global operator=yes
+ -- app_read
+   -- return 0 instead of -1 if user enters nothing
+ -- res_agi
+    -- don't exit AGI when file not found to stream
+    -- send script parameter when using FastAGI
+ 
+Asterisk 1.0.3
+
+ -- chan_zap
+    -- fix seg fault when doing *0 to flash a trunk
+ -- rtp
+    -- seg fault fix
+ -- chan_sip
+    -- fix to prevent seg fault when attempting a transfer
+    -- fix bug with supervised transfers
+    -- fix codec preferences
+ -- chan_h323
+    -- fix compilation problem
+ -- chan_iax2
+   -- avoid a deadlock related to a static config of a BUNCH of peers
+ -- cdr_pgsql
+    -- fix memory leak when reading config
+ -- Numerous other minor bug fixes
+
+Asterisk 1.0.2
+
+ -- Major bugfix release
+
+Asterisk 1.0.1
+
+ -- Added AGI over TCP support
+ -- Add ability to purge callers from queue if no agents are logged in
+ -- Fix inband PRI indication detection
+ -- Fix for MGCP - always request digits if no RTP stream
+ -- Fixed seg fault for ast_control_streamfile
+ -- Make pick-up extension configurable via features.conf 
+ -- Numerous other bug fixes
+
+Asterisk 1.0.0
+ -- Use Q.931 standard cause codes for asterisk cause codes
+ -- Bug fixes from the bug tracker
+Asterisk 1.0-RC2 
+ -- Additional CDR backends
+ -- Allow muted to reconnect
+ -- Call parking improvements (including SIP parking support)
+ -- Added licensed hold music from FreePlayMusic
+ -- GR-303 and Zap improvements
+ -- More bug fixes from the bug tracker
+ -- Improved FreeBSD/OpenBSD/MacOS X support
+Asterisk 1.0-RC1
+ -- Innumerable bug fixes and features from the bug tracker
+ -- Added Open Settlement Protocol (OSP) support
+ -- Added Non-facility Associated Signalling (NFAS) Support
+ -- Added alarm Monitoring support
+ -- Added new MeetMe options
+ -- Added GR-303 Support
+ -- Added trunk groups
+ -- ADPCM Standardization
+ -- Numerous bug fixes
+ -- Add IAX2 Firmware Support
+ -- Add G.726 support
+ -- Add ices/icecast support
+ -- Numerous bug fixes
+Asterisk 0.7.2
+ -- Countless small bug fixes from bug tracker
+ -- DSP Fixes
+ -- Fix unloading of Zaptel
+ -- Pass Caller*ID/ANI properly on call forwarding
+ -- Add indication for Italy
+Asterisk 0.7.1
+ -- Fixed timed include context's and GotoIfTime
+ -- Fixed chan_h323 it now gets remote ip properly instead of 127.0.0.1
+Asterisk 0.7.0
+ -- Removed MP3 format and codec
+ -- Can now load and unload SIP,IAX,IAX2,H323 channels without core
+ -- Fixed various compiler warnings and clean up source tree
+ -- Preliminary AES Support
+ -- Fix SIP REINVITE
+ -- Outbound SIP registration behind NAT using externip
+ -- More CLI documentation and clean up
+ -- Pin numbers on MeeMe
+ -- Dynamic MeetMe conferences are more consistent with static conferences
+ -- Added channel variables ${HANGUPCAUSE}, ${SIPDOMAIN}, ${TIMESTAMP}, ${ACCONTCODE}
+ -- ODBC support for logging CDRs
+ -- Indications for Norway and New Zeland
+ -- Major redesign of app_voicemail
+ -- Syslog support
+ -- Reload logfiles with CLI command 'logger reload' and rotate logs with "logger rotate'
+ -- Configurable DEBUG, NOTICE, WARNING, ERROR and ast_verbose messages now appear on remote console 
+ -- Properly reaping any zombie processes
+ -- Added applications SayUnixTime, SetCDRUserField, HasNewVoicemail, ZapScan, Random, ResetCDR, NoCDR
+ -- Make PRI Hangup Cause available to the dialplan
+ -- Verify included contexts in extensions.conf
+ -- Add DESTDIR support for building RPMs and packages
+ -- Do route lookups on OpenBSD
+ -- Add support for building on FreeBSD and OS X
+ -- Add support for PostgreSQL in Voicemail
+ -- Translate SIP hangup cause to PRI hangup cause where needed
+ -- Better support for MOH in IAX2
+ -- Fix SIP problem where channels were not removed on BYE
+ -- Display codecs by name
+ -- Remove MySQL and put PGSql instead for licensing reasons
+ -- Better capability matching in SIP
+ -- Full IBR4 compliance for chan_zap
+ -- More flexible CDR handling
+ -- Distinguish between BUSY and FAILURE on outbound calls
+ -- Add initial support for SCCP via chan_skinny
+ -- Better support for Future Group B signaling
+Asterisk 0.5.0
+ -- Retain IAX2 and SIP registrations past shutdown/crash and restart
+ -- True data mode bridging when possible
+ -- H.323 build improvements
+ -- Agent Callback-login support
+ -- RFC2833 Improvements
+ -- Add thread debugging
+ -- Add optional pedantic SIP checking for Pingtel
+ -- Allow extension names, include context, switch to use global vars.
+ -- Allow variables in extensions.conf to reference previously defined ones
+ -- Merge voicemail enhancements (app_voicemail2)
+ -- Add multiple queueing strategies
+ -- Merge support for 'T'
+ -- Allow pending agent calling (Agent/:1)
+ -- Add groupings to agents.conf
+ -- Add video support to IAX2
+ -- Zaptel optimize playback
+ -- Add video support to SIP
+ -- Make RTP ports configurable
+ -- Add RDNIS support to SIP and IAX2
+ -- Add transfer app (implement in SIP and IAX2)
+ -- Make voicemail segmentable by context (app_voicemail2)
+ -- Major restructuring of voicemail (app_voicemail2)
+ -- Add initial ENUM support
+ -- Add malloc debugging support
+ -- Add preliminary Voicetronix support
+ -- Add iLBC codec
+Asterisk 0.4.0
+ -- Merge and edit Nick's FXO dial support
+ -- Reengineer SIP registration (outbound)
+ -- Support call pickup on SIP and compatibly with ZAP
+ -- Support 302 Redirect on SIP
+ -- Management interface improvements
+ -- Add "hint" support
+ -- Improve call forwarding using new "Local" channel driver.
+ -- Add "Local" channel
+ -- Substantial SIP enhancements including retransmissions
+ -- Enforce case sensitivity on extension/context names
+ -- Add monitor support (Thanks, Mahmut)
+ -- Add experimental "trunk" option to IAX2 for high density VoIP
+ -- Add experimental "debug channel" command
+ -- Add 'C' flag to dial command to reset call detail record (handy for calling cards)
+ -- Add NAT and dynamic support to MGCP
+ -- Allow selection of in-band, out-of-band, or INFO based DTMF
+ -- Add contributed "*80" support to blacklist numbers (Thanks James!)
+ -- Add "NAT" option to sip user, peer, friend
+ -- Add experimental "IAX2" protocol
+ -- Change special variable "EXTEN-n" to "EXTEN:n" to follow Bash syntax
+ -- Add "Enhanced" AGI with audio pass-through (voice recognition anyone?)
+ -- Choose best priority from codec from allow/disallow
+ -- Reject SIP calls to self
+ -- Allow SIP registration to provide an alternative contact
+ -- Make HOLD on SIP make use of asterisk MOH
+ -- Add supervised transfer (tested with Pingtel only)
+ -- Allow maxexpirey and defaultexpirey to be runtime configurable for SIP
+ -- Preliminary codec 13 support (RFC3389)
+ -- Add app_authenticate for general purpose authentication
+ -- Optimize RTP and smoother
+ -- Create special variable "EXTEN-n" where it is extension stripped by n MSD
+ -- Fix uninitialized frame pointer in channel.c
+ -- Add global variables support under [globals] of extensions.conf
+ -- Add macro support (show application Macro)
+ -- Allow [123-5] etc in extensions
+ -- Allow format of App(arg1,arg2,...) instead of just App,arg1|arg2 in dialplan
+ -- Add message waiting indicator to SIP
+ -- Fix double free bug in channel.c
+Asterisk 0.3.0
+ -- Add fastfoward, rewind, seek, and truncate functions to streams
+ -- Support registration
+ -- Add G729 format
+ -- Permit applications to return a digit indicating new extension
+ -- Change "SHUTDOWN" to "STOP" in commands
+ -- SIP "Hold" fixes and VXML URI support
+ -- New chan_zap with 160 sample chunk size
+ -- Add DTMF, MF, and Fax tone detector to dsp routines
+ -- Allow overlap dialing (inbound) on PRI
+ -- Enable tone detection with PRI
+ -- Add special information tone detection
+ -- Add Asterisk DB support
+ -- Add pulse dialing
+ -- Re-record all system prompts
+ -- Change "timelen" to samples for better accuracy
+ -- Move to editline, eliminating readline dependency
+ -- Add peer "poke" support to SIP and IAX
+ -- Add experimental call progress detection
+ -- Add SIP authentication (digest)
+ -- Add RDNIS
+ -- Reroute faxes to "fax" extension
+ -- Create ISDN/modem group concept
+ -- Centralize indication
+ -- Add initial MGCP support
+ -- SIP debugging cleanup
+ -- SIP reload
+ -- SIP commands (show channels, etc)
+ -- Add optional busy detection
+ -- Add Visual Message Waiting Indicator (MDMF and SDMF)
+ -- Add ambiguous extension matching
+ -- Add *69
+ -- Major SIP enhancements from SIPit
+ -- Rewrite of ZAP CLASS features using subchannels
+ -- Enhanced call parking
+ -- Add extended outgoing spool support (pbx_spool)
+Asterisk 0.2.0
+ -- Outbound origination API
+ -- Call management improvements
+ -- Add Do Not Disturb (*78, *79)
+ -- Add agents
+ -- Document variables
+ -- Add transfer capability on the console
+ -- Add SpeeX codec translator
+ -- Add call queues
+ -- Add setcallerid functionality (AGI, application)
+ -- Add special variables ${CALLERID}, ${EXTEN}, ${CONTEXT}, ${PRIORITY}
+ -- Don't echo cancel on pure TDM connections by default
+ -- Implement Async GOTO
+ -- Differentiate softhangups
+ -- Add date/time
+Asterisk 0.1.12
+ -- Fix for Big Endian machines
+ -- MySQL CDR Engine
+ -- Various SIP fixes and enhancements
+ -- Add "zapateller application and arbitrary tone pairs
+ -- Don't always start at "s"
+ -- Separate linear mode for pseudo and real
+ -- Add initial RTP and SIP support (no jitter buffer yet, unknown stability)
+ -- Add 'h' extension, executed on hangup
+ -- Add duration timer to message info
+ -- Add web based voicemail checking ("make webvmail")
+ -- Add ast_queue_frame function and eliminate frame pipes in most drivers
+ -- Centralize host access (and possibly future ACL's)
+ -- Add Caller*ID on PhoneJack (Thanks Nathan)
+ -- Add "safe_asterisk" wrapper script to auto-restart Asterisk
+ -- Indicate ringback on chan_phone
+ -- Add answer confirmation (press '#' to confirm answer)
+ -- Add distinctive ring support (e.g. Dial,Zap/4r2)
+ -- Add ANSI/vt100 color support
+ -- Make parking configurable through parking.conf
+ -- Fix the empty voicemail problem
+ -- Add Music On Hold
+ -- Add ADSI Compiler (app_adsiprog)
+ -- Extensive DISA re-work to improve tone generation
+ -- Reset all idle channels every 10 minutes on a PRI
+ -- Reset channels which are hungup with "channel in use"
+ -- Implement VNAK support in chan_iax
+ -- Fix chan_oss to support proper hangups and autoanswer
+ -- Make shutdown properly hangup channels
+ -- Add idling capability to chan_zap for idle-net
+ -- Add "MeetMe" conferencing app (app_meetme)
+ -- Add timing information to include
+Asterisk 0.1.11
+ -- Add ISDN RAS capability
+ -- Add stutter dialtone to Chan Zap
+ -- Add "#include" capability to config files.
+ -- Add call-forward variable to Chan Zap (*72, *73)
+ -- Optimize IAX flow when transfer isn't possible
+ -- Allow transmission of ANI over IAX
+Asterisk 0.1.10
+ -- Make ast_readstring parameter be the max # of digits, not the max size with \0
+ -- Make up any missing messages on the fly
+ -- Add support for specific DTMF interruption to saying numbers
+ -- Add new "u" and "b" options to condense busy/unavail handling
+ -- Add support for RSA authentication on IAX calls
+ -- Add support for ADSI compatible CPE
+ -- Outgoing call queue
+ -- Remote dialplan fixes for Quicknet
+ -- Added AGI commands supporting TDD functions (RECEIVE CHAR & TDD MODE)
+ -- Added TDD support (send/receive text in chan_zap)
+ -- Fix all strncpy references
+ -- Implement CSV CDR backend
+ -- Implement Call Detail Records
+Asterisk 0.1.9
+ -- Implement IAX quelching
+ -- Allow Caller*ID to be overridden and suggested
+ -- Configure defaults to use IAXTEL
+ -- Allow remote dialplan polling via IAX
+ -- Eliminate ast_longest_extension
+ -- Implement dialplan request/reply
+ -- Let peers have allow/disallow for codecs
+ -- Change allow/deny to permit/deny in IAX
+ -- Allow dialplan entries to match Caller*ID as well
+ -- Added AGI (Asterisk Gateway Interface) scripting interface (app_agi)
+ -- Added chan_zap for zapata telephony kernel interface, removed chan_tor
+ -- Add convenience functions
+ -- Fix race condition in channel hangup
+ -- Fix memory leaks in both asterisk and iax frame allocations
+ -- Add "iax show stats" command and -DTRACE_FRAMES (for frame tracing)
+ -- Add DISA application (Thanks to Jim Dixon)
+ -- Add IAX transfer support
+ -- Add URL and HTML transmission
+ -- Add application for sending images
+ -- Add RedHat RPM spec file and build capability
+ -- Fix GSM WAV file format bug
+ -- Move ignorepat to main dialplan
+ -- Add ability to specificy TOS bits in IAX
+ -- Allow username:password in IAX strings
+ -- Updates to PhoneJack interface
+ -- Allow "servermail" in voicemail.conf to override e-mail in "from" line
+ -- Add 'skip' option to app_playback
+ -- Reject IAX calls on unknown extensions
+ -- Fix version stuff
+Asterisk 0.1.8
+ -- Keep track of version information
+ -- Add -f to cause Asterisk not to fork
+ -- Keep important information in voicemail .txt file
+ -- Adtran Voice over Frame Relay updates
+ -- Implement option setting/querying of channel drivers
+ -- IAX performance improvements and protocol fixes
+ -- Substantial enhancement of console channel driver
+ -- Add IAX registration.  Now IAX can dynamically register
+ -- Add flash-hook transfer on tormenta channels
+ -- Added Three Way Calling on tormenta channels
+ -- Start on concept of zombie channel
+ -- Add Call Waiting CallerID
+ -- Keep track of who registeres contexts, includes, and extensions
+ -- Added Call Waiting(tm), *67, *70, and *82 codes
+ -- Move parked calls into "parkedcalls" context by default
+ -- Allow dialplan to be displayed
+ -- Allow "=>" instead of just "=" to make instantiation clearer
+ -- Asterisk forks if called with no arguments
+ -- Add remote control by running asterisk -vvvc
+ -- Adjust verboseness with "set verbose" now
+ -- No longer requires libaudiofile
+ -- Install beep
+ -- Make PBX Config module reload extensions on SIGHUP
+ -- Allow modules to be reloaded when SIGHUP is received
+ -- Variables now contain line numbers
+ -- Make dialer send in band signalling
+ -- Add record application
+ -- Added PRI signalling to Tormenta driver
+ -- Allow use of BYEXTENSION in "Goto"
+ -- Allow adjustment of gains on tormenta channels
+ -- Added raw PCM file format support
+ -- Add U-law translator
+ -- Fix DTMF handling in bridge code
+ -- Fix access control with IAX
+* Asterisk 0.1.7
+ -- Update configuration files and add some missing sounds
+ -- Added ability to include one context in another
+ -- Rewrite of PBX switching
+ -- Major mods to dialler application
+ -- Added Caller*ID spill reception
+ -- Added Dialogic VOX file format support
+ -- Added ADPCM Codec
+ -- Add Tormenta driver (RBS signalling)
+ -- Add Caller*ID spill creation
+ -- Rewrite of translation layer entirely
+ -- Add ability to run PBX without additional thread
+* Asterisk 0.1.6
+ -- Make app_dial handle a lack of translators smoothly
+ -- Add ISDN4Linux support -- dtmf is weird...
+ -- Minor bug fixes
+* Asterisk 0.1.5
+ -- Fix a small mistake in IAX
+ -- Fix the QuickNet driver to work with newer cards
+* Asterisk 0.1.4
+ -- Update VoFR some more
+ -- Fix the QuickNet driver to work with LineJack
+ -- Add ability to pass images for IAX.
+* Asterisk 0.1.3
+ -- Update VoFR for latest sangoma code
+ -- Update QuickNet Driver
+ -- Add text message handling
+ -- Fix transfers to use "default" if not in current context
+ -- Add call parking
+ -- Improve format/content negotiation
+ -- Added support for multiple languages
+ -- Bug fixes, as always...
+* Asterisk 0.1.2
+ -- Updated README file with a "Getting Started" section
+ -- Added sample sounds and configuration files.
+ -- Added LPC10 very low bandwidth (low quality) compression
+ -- Enhanced translation selection mechanism.
+ -- Enhanced IAX jitter buffer, improved reliability
+ -- Support echo cancelation on PhoneJack
+ -- Updated PhoneJack driver to std. Telephony interface
+ -- Added app_echo for evaluating VoIP latency
+ -- Added app_system to execute arbitrary programs
+ -- Updated sample configuration files
+ -- Added OSS channel driver (full duplex only)
+ -- Added IAX implementation
+ -- Fixed some deadlocks.
+ -- A whole bunch of bug fixes
+* Asterisk 0.1.1
+ -- Revised translator, fixed some general race conditions throughout *
+ -- Made dialer somewhat more aware of incompatible voice channels
+ -- Added Voice Modem driver and A/Open Modem Driver stub
+ -- Added MP3 decoder channel
+ -- Added Microsoft WAV49 support
+ -- Revised License -- Pure GPL, nothing else
+ -- Modified Copyright statement since code is still currently owned by author
+ -- Added RAW GSM headerless data format
+ -- Innumerable bug fixes
+* Asterisk 0.1.0
+ -- Initial Release
