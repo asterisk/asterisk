@@ -1,5 +1,8 @@
 2005-11-21  Russell Bryant  <russell@digium.com>
 
+	* Makefile: Don't hard-code that poll functionality needs to be provided on Darwin.
+	* apps/Makefile: Fix incorrect portion of the patch to fix 'make install' on Solaris.
+
 	* channels/chan_iax2.c (iax2_getpeername): Return non-zero to indicate that a peer was found when using realtime (issue #5815)
 
 2005-11-20  Russell Bryant  <russell@digium.com>
