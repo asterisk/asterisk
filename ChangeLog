@@ -1,3 +1,9 @@
+2005-11-21  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* channels/chan_sip.c (build_peer): ensure that case changes made to peer names are not ignored during reload operations
+
+	* channels/chan_iax2.c (build_peer and build_user): ensure that case changes made to peer/user names are not ignored during reload operations
+
 2005-11-21  Russell Bryant  <russell@digium.com>
 
 	* Makefile: Revert previous change for Darwin.

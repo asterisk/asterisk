@@ -11967,7 +11967,11 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 
 	if (!realtime)
 		/* Note we do NOT use find_peer here, to avoid realtime recursion */
-		peer = ASTOBJ_CONTAINER_FIND_UNLINK(&peerl, name);
+		/* We also use a case-sensitive comparison (unlike find_peer) so
+		   that case changes made to the peer name will be properly handled
+		   during reload
+		*/
+		peer = ASTOBJ_CONTAINER_FIND_UNLINK_FULL(&peerl, name, name, 0, 0, strcmp);
 
 	if (peer) {
 		/* Already in the list, remove it and it will be added back (or FREE'd)  */
