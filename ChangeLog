@@ -7,7 +7,7 @@
 	* include/asterisk/indications.h: Fix spelling of "cadence", allowing the old misspelling for backwards compatability. (issue #5826)
 	* res/res_indications.c: Fix spelling of "cadence", allowing the old misspelling for backwards compatability. (issue #5826)
 
-	* apps/app_voicemail.c: Remove left over "yay!" debuggin message. (issue #5829)
+	* apps/app_voicemail.c: Remove left over "yay!" debugging message. (issue #5829)
 
 2005-11-21  Kevin P. Fleming  <kpfleming@digium.com>
 
