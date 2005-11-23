@@ -1,5 +1,7 @@
 2005-11-22  Russell Bryant  <russell@digium.com>
 
+	* configs/voicemail.conf.sample: Add note to indicate that #include should not be used for this file. (issue #5828)
+
 	* indications.c: Fix spelling of "cadence", allowing the old misspelling for backwards compatability. (issue #5826)
 	* configs/indications.conf.sample: Fix spelling of "cadence", allowing the old misspelling for backwards compatability. (issue #5826)
 	* include/asterisk/indications.h: Fix spelling of "cadence", allowing the old misspelling for backwards compatability. (issue #5826)

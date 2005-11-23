@@ -1,6 +1,13 @@
 ;
 ; Voicemail Configuration
 ;
+
+;
+; NOTE: Asterisk has to edit this file to change a user's password.  This does
+; note currently work with the "#include <file>" directive for Asterisk
+; configuration files.  Do not use it with this configuration file.
+;
+
 [general]
 ; Default formats for writing Voicemail
 ;format=g723sf|wav49|wav
