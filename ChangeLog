@@ -1,3 +1,10 @@
+2005-11-23  Josh Roberson <josh@asteriasgi.com>
+
+	* configs/indications.conf.sample: Fix misspellings of cadence (issue #5826)
+	* include/asterisk/indications.h: Fix misspellings of cadence (issue #5826)
+	* res/res_indications.c: Fix misspellings of cadence (issue #5826)
+	* indications.c: Fix misspellings of cadence (issue #5826)
+
 2005-11-22  Josh Roberson <josh@asteriasgi.com>
 
 	* apps/app_voicemail.c: Remove "yay!" message.  (issue #5829)

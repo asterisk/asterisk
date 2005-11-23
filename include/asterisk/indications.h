@@ -53,8 +53,8 @@ struct tone_zone {
 	char country[5];				/* Country code */
 	char alias[5];					/* is this an alias? */
 	char description[40];				/* Description */
-	int  nrringcadance;				/* # registered ringcadance elements */
-	int *ringcadance;				/* Ring cadence */
+	int  nrringcadence;				/* # registered ringcadence elements */
+	int *ringcadence;				/* Ring cadence */
 	struct tone_zone_sound *tones;			/* The known tones for this zone */
 };
 
