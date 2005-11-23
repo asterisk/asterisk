@@ -432,8 +432,8 @@ static inline void free_zone(struct tone_zone* zone)
 		free(zone->tones);
 		zone->tones = tmp;
 	}
-	if (zone->ringcadance)
-		free((void*)zone->ringcadance);
+	if (zone->ringcadence)
+		free((void*)zone->ringcadence);
 	free(zone);
 }
 

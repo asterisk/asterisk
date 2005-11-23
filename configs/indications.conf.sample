@@ -20,7 +20,7 @@ country=us		; default location
 ; alias = iso[,iso]*
 ;      List of other countries 2-letter iso codes, which have the same
 ;      tone indications.
-; ringcadance = num[,num]*
+; ringcadence = num[,num]*
 ;      List of durations the physical bell rings.
 ; dial = tonelist
 ;      Set of tones to be played when one picks up the hook.
@@ -61,7 +61,7 @@ country=us		; default location
 
 [at]
 description = Austria
-ringcadance = 1000,5000
+ringcadence = 1000,5000
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
 dial = 420
 busy = 420/400,0/400
@@ -78,7 +78,7 @@ stutter = 380+420
 description = Australia
 ; Reference http://www.acif.org.au/__data/page/3303/S002_2001.pdf
 ; Normal Ring
-ringcadance = 400,200,400,2000
+ringcadence = 400,200,400,2000
 ; Distinctive Ring 1 - Forwarded Calls
 ; 400,400,200,200,400,1400
 ; Distinctive Ring 2 - Selective Ring 2 + Operator + Recall
@@ -116,7 +116,7 @@ ringmobile = 400+450/400,0/200,400+450/400,0/2000
 
 [br]
 description = Brazil
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 425
 busy = 425/250,0/250
 ring = 425/1000,0/4000
@@ -149,7 +149,7 @@ stutter = 425/1000,0/250
 [ch]
 description = Switzerland
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 425
 busy = 425/500,0/500
 ring = 425/1000,0/4000
@@ -165,7 +165,7 @@ stutter = 425+340/1100,0/1100
 [cl]
 description = Chile
 ; According to specs from Telefonica CTC Chile
-ringcadance = 1000,3000
+ringcadence = 1000,3000
 dial = 400
 busy = 400/500,0/500
 ring = 400/1000,0/3000
@@ -179,7 +179,7 @@ stutter = !400/100,!0/100,!400/100,!0/100,!400/100,!0/100,!400/100,!0/100,!400/1
 [cn]
 description = China
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 450
 busy = 450/350,0/350
 ring = 450/1000,0/4000
@@ -194,7 +194,7 @@ stutter = 450+425
 [cz]
 description = Czech Republic
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 425/330,0/330,425/660,0/660
 busy = 425/330,0/330
 ring = 425/1000,0/4000
@@ -211,7 +211,7 @@ stutter = 425/450,0/50
 [de]
 description = Germany
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 425
 busy = 425/480,0/480
 ring = 425/1000,0/4000
@@ -227,7 +227,7 @@ stutter = 425+400
 [dk]
 description = Denmark
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 425
 busy = 425/500,0/500
 ring = 425/1000,0/4000
@@ -244,7 +244,7 @@ stutter = 425/450,0/50
 [ee]
 description = Estonia
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 425
 busy = 425/300,0/300
 ring = 425/1000,0/4000
@@ -276,7 +276,7 @@ dialout = 500
 
 [fi]
 description = Finland
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 425
 busy = 425/300,0/300
 ring = 425/1000,0/4000
@@ -290,7 +290,7 @@ stutter = 425/650,0/25
 [fr]
 description = France
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1500,3500
+ringcadence = 1500,3500
 ; Dialtone can also be 440+330
 dial = 440
 busy = 440/500,0/500
@@ -307,7 +307,7 @@ stutter = !440/100,!0/100,!440/100,!0/100,!440/100,!0/100,!440/100,!0/100,!440/1
 
 [gr]
 description = Greece
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 425/200,0/300,425/700,0/800
 busy = 425/300,0/300
 ring = 425/1000,0/4000
@@ -321,7 +321,7 @@ stutter = 425/650,0/25
 [hu]
 description = Hungary
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1250,3750
+ringcadence = 1250,3750
 dial = 425
 busy = 425/300,0/300
 ring = 425/1250,0/3750
@@ -365,7 +365,7 @@ stutter = !425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/1
 
 [mx]
 description = Mexico
-ringcadance = 2000,4000
+ringcadence = 2000,4000
 dial = 425
 busy = 425/250,0/250
 ring = 425/1000,0/4000
@@ -379,7 +379,7 @@ stutter = !350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,!350+440/1
 [nl]
 description = Netherlands
 ; Reference: http://www.itu.int/ITU-T/inr/forms/files/tones-0203.pdf
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 ; Most of these 425's can also be 450's
 dial = 425
 busy = 425/500,0/500
@@ -440,7 +440,7 @@ stutter = !425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/1
 
 [pt]
 description = Portugal
-ringcadance = 1000,5000
+ringcadence = 1000,5000
 dial = 425
 busy = 425/500,0/500
 ring = 425/1000,0/5000
@@ -453,7 +453,7 @@ stutter = !425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/100,!0/100,!425/1
 
 [ru]
 description = Russia / ex Soviet Union
-ringcadance = 800,3200
+ringcadence = 800,3200
 dial = 425
 busy = 425/350,0/350
 ring = 425/800,0/3200
@@ -465,7 +465,7 @@ info = !950/330,!1400/330,!1800/330,0
 
 [se]
 description = Sweden
-ringcadance = 1000,5000
+ringcadence = 1000,5000
 dial = 425
 busy = 425/250,0/250
 ring = 425/1000,0/5000
@@ -502,7 +502,7 @@ holdingb    = !425/500,!0/2500
 
 [uk]
 description = United Kingdom
-ringcadance = 400,200,400,2000
+ringcadence = 400,200,400,2000
 ; These are the official tones taken from BT SIN350. The actual tones
 ; used by BT include some volume differences so sound slightly different
 ; from Asterisk-generated ones.
@@ -537,7 +537,7 @@ stutter = 350+440/750,440/750
 
 [us]
 description = United States / North America
-ringcadance = 2000,4000
+ringcadence = 2000,4000
 dial = 350+440
 busy = 480+620/500,0/500
 ring = 440+480/2000,0/4000
@@ -550,7 +550,7 @@ stutter = !350+440/100,!0/100,!350+440/100,!0/100,!350+440/100,!0/100,!350+440/1
 
 [us-old]
 description = United States Circa 1950/ North America
-ringcadance = 2000,4000
+ringcadence = 2000,4000
 dial = 600*120
 busy = 500*100/500,0/500
 ring = 420*40/2000,0/4000
@@ -574,7 +574,7 @@ description = Taiwan
 ; reorder tone 480+620Hz 0.25 sec. on,0.25 sec. off
 ; ringing tone 440+480Hz 1 sec. on ,2 sec. off
 ;
-ringcadance = 1000,4000
+ringcadence = 1000,4000
 dial = 350+440
 busy = 480+620/500,0/500
 ring = 440+480/1000,0/2000
@@ -593,7 +593,7 @@ description = South Africa
 ; Alcatel switches -- mainly in the Western Cape, and Siemens elsewhere.
 ; The former use 383+417 in dial, ringback etc.  The latter use 400*33
 ; I've provided both, uncomment the ones you prefer
-ringcadance = 400,200,400,2000
+ringcadence = 400,200,400,2000
 ; dial/ring/callwaiting for the Siemens switches:
 dial = 400*33
 ring = 400*33/400,0/200,400*33/400,0/2000
