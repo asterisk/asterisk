@@ -1,3 +1,7 @@
+2005-11-23  Russell Bryant  <russell@digium.com>
+
+	* configs/voicemail.conf.sample: Add note to indicate that #include should not be used for this file. (issue #5828)
+
 2005-11-23  Josh Roberson <josh@asteriasgi.com>
 
 	* configs/indications.conf.sample: Fix misspellings of cadence (issue #5826)
