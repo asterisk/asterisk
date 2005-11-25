@@ -1,3 +1,7 @@
+2005-11-25  Russell Bryant  <russell@digium.com>
+
+	* apps/app_dial.c: Properly duplicate the string for ANI (issue #5850)
+
 2005-11-23  Russell Bryant  <russell@digium.com>
 
 	* configs/voicemail.conf.sample: Add note to indicate that #include should not be used for this file. (issue #5828)
