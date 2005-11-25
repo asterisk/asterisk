@@ -75,7 +75,7 @@ static char *descrip =
 "continue if no requested channels can be called, or if the timeout expires.\n\n"
 "  This application sets the following channel variables upon completion:\n"
 "    DIALEDTIME   - This is the time from dialing a channel until when it\n"
-"                   answers.\n" 
+"                   is disconnected.\n" 
 "    ANSWEREDTIME - This is the amount of time for actual call.\n"
 "    DIALSTATUS   - This is the status of the call:\n"
 "                   CHANUNAVAIL | CONGESTION | NOANSWER | BUSY | ANSWER | CANCEL\n" 
@@ -735,6 +735,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char numsubst[AST_MAX_EXTENSION];
 	char restofit[AST_MAX_EXTENSION];
 	char cidname[AST_MAX_EXTENSION];
+	char toast[80];
 	char *newnum;
 	char *l;
 	int privdb_val=0;
@@ -1513,8 +1514,6 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		}
 		
 		if (!res) {
-			char toast[80];
-
 			memset(&config,0,sizeof(struct ast_bridge_config));
 			if (play_to_caller)
 				ast_set_flag(&(config.features_caller), AST_FEATURE_PLAY_WARNING);
@@ -1558,13 +1557,15 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 			res = ast_bridge_call(chan,peer,&config);
 			time(&end_time);
-			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
-			pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
 			snprintf(toast, sizeof(toast), "%ld", (long)(end_time - answer_time));
 			pbx_builtin_setvar_helper(chan, "ANSWEREDTIME", toast);
 			
-		} else 
+		} else {
+			time(&end_time);
 			res = -1;
+		}
+		snprintf(toast, sizeof(toast), "%ld", (long)(end_time - start_time));
+		pbx_builtin_setvar_helper(chan, "DIALEDTIME", toast);
 		
 		if (res != AST_PBX_NO_HANGUP_PEER) {
 			if (!chan->_softhangup)
