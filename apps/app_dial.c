@@ -512,10 +512,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						if (in->cid.cid_ani) {
 							if (o->chan->cid.cid_ani)
 								free(o->chan->cid.cid_ani);
-							o->chan->cid.cid_ani = malloc(strlen(in->cid.cid_ani) + 1);
-							if (o->chan->cid.cid_ani)
-								ast_copy_string(o->chan->cid.cid_ani, in->cid.cid_ani, sizeof(o->chan->cid.cid_ani));
-							else
+							o->chan->cid.cid_ani = strdup(in->cid.cid_ani);
+							if (!o->chan->cid.cid_ani)
 								ast_log(LOG_WARNING, "Out of memory\n");
 						}
 						if (o->chan->cid.cid_rdnis) 
