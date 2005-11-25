@@ -1888,7 +1888,7 @@ void ast_hint_state_changed(const char *device)
 		ast_copy_string(buf, ast_get_extension_app(hint->exten), sizeof(buf));
 		parse = buf;
 		for (cur = strsep(&parse, "&"); cur; cur = strsep(&parse, "&")) {
-			if (strcmp(cur, device))
+			if (strcasecmp(cur, device))
 				continue;
 
 			/* Get device state for this hint */
