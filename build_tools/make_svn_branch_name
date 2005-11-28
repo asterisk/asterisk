@@ -1,0 +1,50 @@
+#!/bin/sh
+
+PARTS=`svn info | grep URL | awk '{print $2;}' | sed -e s:^.*/svn/asterisk/:: | sed -e 's:/: :'`
+BRANCH=0
+TEAM=0
+
+REV=`svn info | grep -e 'Last Changed Rev' | awk '{print $4;}'`
+
+if [ "${PARTS}" == "trunk" ]
+then
+    echo 'trunk'-r${REV}
+    exit 0
+fi
+
+for PART in $PARTS
+do
+  if [ ${BRANCH} != 0 ]
+  then
+      RESULT="${RESULT}-${PART}"
+      break
+  fi
+
+  if [ ${TEAM} != 0 ]
+  then
+      RESULT="${RESULT}-${PART}"
+      continue
+  fi
+
+  if [ "${PART}" == "branches" ]
+  then
+      BRANCH=1
+      RESULT="branch"
+      continue
+  fi
+
+  if [ "${PART}" == "tags" ]
+  then
+      BRANCH=1
+      RESULT="tag"
+      continue
+  fi
+
+  if [ "${PART}" == "team" ]
+  then
+      TEAM=1
+      continue
+  fi
+done
+
+echo ${RESULT}-r${REV}

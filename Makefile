@@ -305,22 +305,26 @@ endif # WITHOUT_ZAPTEL
 LIBEDIT=editline/libedit.a
 
 ifneq ($(wildcard .version),)
-  ASTERISKVERSION=$(shell cat .version)
-  ASTERISKVERSIONNUM=$(shell awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version)
-  RPMVERSION=$(shell sed 's/[-\/:]/_/g' .version)
+  ASTERISKVERSION:=$(shell cat .version)
+  ASTERISKVERSIONNUM:=$(shell awk -F. '{printf "%02d%02d%02d", $$1, $$2, $$3}' .version)
+  RPMVERSION:=$(shell sed 's/[-\/:]/_/g' .version)
 else
   RPMVERSION=unknown
 endif
 
-ifneq ($(wildcard CVS),)
+# CVS mirrors of SVN have .svnrevision files showing
+# which SVN revision they are based on, and .svnbranch
+# showing the branch they are made from
+ifneq ($(wildcard .svnrevision),)
   ASTERISKVERSIONNUM=999999
-  ifneq ($(wildcard CVS/Tag),)
-    ASTERISKVERSION=$(shell echo "CVS-`sed 's/^T//g' CVS/Tag`-`date +"%D-%T"`")
-  else
-    ASTERISKVERSION=CVS HEAD
-  endif
+  ASTERISKVERSION:=SVN-$(shell cat .svnbranch)-r$(shell cat .svnrevision)
 else
-  ASTERISKVERSIONNUM=000000
+  ifneq ($(wildcard .svn),)
+    ASTERISKVERSIONNUM=999999
+    ASTERISKVERSION=SVN-$(shell build_tools/make_svn_branch_name)
+  else
+    ASTERISKVERSIONNUM=000000
+  endif
 endif
 
 ASTCFLAGS+= $(DEBUG_THREADS)
