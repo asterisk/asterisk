@@ -1,6 +1,0 @@
-.depend
-Makefile.ast
-ast_h323.dep
-ast_h323.cxx
-ast_h323.o
-libchanh323.a
