@@ -396,6 +396,10 @@ static inline int __ast_cond_wait(const char *filename, int lineno, const char *
 #endif
 	}
 
+	if (t->reentrancy)
+		__ast_mutex_logger("%s line %d (%s): mutex '%s' locked more than once, cond_wait will block!\n",
+				   filename, lineno, func, mutex_name);
+
 	if (--t->reentrancy < 0) {
 		__ast_mutex_logger("%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
 				   filename, lineno, func, mutex_name);
@@ -454,6 +458,10 @@ static inline int __ast_cond_timedwait(const char *filename, int lineno, const c
 		DO_THREAD_CRASH;
 #endif
 	}
+
+	if (t->reentrancy)
+		__ast_mutex_logger("%s line %d (%s): mutex '%s' locked more than once, cond_timedwait will block!\n",
+				   filename, lineno, func, mutex_name);
 
 	if (--t->reentrancy < 0) {
 		__ast_mutex_logger("%s line %d (%s): mutex '%s' freed more times than we've locked!\n",
