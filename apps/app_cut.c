@@ -252,6 +252,8 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 				}
 			}
 		}
+	} else {
+		return ERROR_NOARG;
 	}
 	return 0;
 }
@@ -385,7 +387,7 @@ static char *acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char 
 
 	switch (cut_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
-		ast_log(LOG_ERROR, "Cut() requires an argument\n");
+		ast_log(LOG_ERROR, "CUT() requires an argument\n");
 		break;
 	case ERROR_NOMEM:
 		ast_log(LOG_ERROR, "Out of memory\n");
