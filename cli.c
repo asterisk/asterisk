@@ -675,7 +675,7 @@ static int handle_debugchan(int fd, int argc, char *argv[])
 		if (c == NULL)
 			ast_cli(fd, "No such channel %s\n", argv[2]);
 	}
-	while(c) {
+	while (c) {
 		if (!(c->fin & DEBUGCHAN_FLAG) || !(c->fout & DEBUGCHAN_FLAG)) {
 			c->fin |= DEBUGCHAN_FLAG;
 			c->fout |= DEBUGCHAN_FLAG;
@@ -802,27 +802,38 @@ static char *complete_show_channels(char *line, char *word, int pos, int state)
 	static char *choices[] = { "concise", "verbose" };
 	int match = 0;
 	int x;
+	int wordlen;
+
 	if (pos != 2) 
 		return NULL;
-	for (x=0;x<sizeof(choices) / sizeof(choices[0]);x++) {
-		if (!strncasecmp(word, choices[x], strlen(word))) {
+	
+	wordlen = strlen(word);
+
+	for (x = 0; x < sizeof(choices) / sizeof(choices[0]); x++) {
+		if (!strncasecmp(word, choices[x], wordlen)) {
 			match++;
-			if (match > state) return strdup(choices[x]);
+			if (match > state)
+				return strdup(choices[x]);
 		}
 	}
+
 	return NULL;
 }
 
 static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
 {
 	struct ast_channel *c = NULL;
-	int which=0;
+	int which = 0;
+	int wordlen;
 	char *ret = NULL;
 
 	if (pos != rpos)
 		return NULL;
-	while ( (c = ast_channel_walk_locked(c)) != NULL) {
-		if (!strncasecmp(word, c->name, strlen(word))) {
+
+	wordlen = strlen(word);	
+
+	while ((c = ast_channel_walk_locked(c))) {
+		if (!strncasecmp(word, c->name, wordlen)) {
 			if (++which > state) {
 				ret = strdup(c->name);
 				ast_mutex_unlock(&c->lock);
@@ -831,6 +842,7 @@ static char *complete_ch_helper(char *line, char *word, int pos, int state, int 
 		}
 		ast_mutex_unlock(&c->lock);
 	}
+
 	return ret;
 }
 
@@ -858,15 +870,20 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 {
 	char *c;
 	char filename[256];
+
 	if (pos != 1)
 		return NULL;
+	
 	if (word[0] == '/')
 		ast_copy_string(filename, word, sizeof(filename));
 	else
-		snprintf(filename, sizeof(filename), "%s/%s", (char *)ast_config_AST_MODULE_DIR, word);
-	c = (char*)filename_completion_function(filename, state);
+		snprintf(filename, sizeof(filename), "%s/%s", ast_config_AST_MODULE_DIR, word);
+	
+	c = filename_completion_function(filename, state);
+	
 	if (c && word[0] != '/')
-		c += (strlen((char*)ast_config_AST_MODULE_DIR) + 1);
+		c += (strlen(ast_config_AST_MODULE_DIR) + 1);
+	
 	return c ? strdup(c) : c;
 }
 
@@ -1020,15 +1037,17 @@ int ast_cli_register(struct ast_cli_entry *e)
 	struct ast_cli_entry *cur, *l=NULL;
 	char fulle[80] ="", fulltst[80] ="";
 	static int len;
+	
 	ast_mutex_lock(&clilock);
 	join2(fulle, sizeof(fulle), e->cmda);
+	
 	if (find_cli(e->cmda, -1)) {
 		ast_mutex_unlock(&clilock);
 		ast_log(LOG_WARNING, "Command '%s' already registered (or something close enough)\n", fulle);
 		return -1;
 	}
-	cur = helpers;
-	while(cur) {
+	
+	for (cur = helpers; cur; cur = cur->next) {
 		join2(fulltst, sizeof(fulltst), cur->cmda);
 		len = strlen(fulltst);
 		if (strlen(fulle) < len)
@@ -1044,8 +1063,8 @@ int ast_cli_register(struct ast_cli_entry *e)
 			break;
 		}
 		l = cur;
-		cur = cur->next;
 	}
+
 	if (!cur) {
 		if (l)
 			l->next = e;
@@ -1053,7 +1072,9 @@ int ast_cli_register(struct ast_cli_entry *e)
 			helpers = e;
 		e->next = NULL;
 	}
+
 	ast_mutex_unlock(&clilock);
+	
 	return 0;
 }
 
@@ -1064,7 +1085,7 @@ void ast_cli_register_multiple(struct ast_cli_entry *e, int len)
 {
 	int i;
 
-	for (i=0; i < len; i++)
+	for (i = 0; i < len; i++)
 		ast_cli_register(e + i);
 }
 
@@ -1072,7 +1093,7 @@ void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len)
 {
 	int i;
 
-	for (i=0; i < len; i++)
+	for (i = 0; i < len; i++)
 		ast_cli_unregister(e + i);
 }
 
@@ -1159,7 +1180,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
 		return NULL;
 
 	cur = dup;
-	while (*s) {
+	while (!ast_strlen_zero(s)) {
 		if ((*s == '"') && !escaped) {
 			quoted = !quoted;
 			if (quoted & whitespace) {
@@ -1212,7 +1233,7 @@ int ast_cli_generatornummatches(char *text, char *word)
 	int matches = 0, i = 0;
 	char *buf = NULL, *oldbuf = NULL;
 
-	while ( (buf = ast_cli_generator(text, word, i++)) ) {
+	while ((buf = ast_cli_generator(text, word, i++))) {
 		if (!oldbuf || strcmp(buf,oldbuf))
 			matches++;
 		if (oldbuf)
@@ -1252,7 +1273,7 @@ char **ast_cli_completion_matches(char *text, char *word)
 	}
 
 	retstr = malloc(max_equal + 1);
-	(void) strncpy(retstr, match_list[1], max_equal);
+	strncpy(retstr, match_list[1], max_equal);
 	retstr[max_equal] = '\0';
 	match_list[0] = retstr;
 
@@ -1260,7 +1281,7 @@ char **ast_cli_completion_matches(char *text, char *word)
 		match_list = realloc(match_list, (match_list_len + 1) * sizeof(char *));
 	match_list[matches + 1] = (char *) NULL;
 
-	return (match_list);
+	return match_list;
 }
 
 static char *__ast_cli_generator(char *text, char *word, int state, int lock)
@@ -1352,32 +1373,34 @@ int ast_cli_command(int fd, char *s)
 	char *dup;
 	int tws;
 
-	if ((dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws))) {
-		/* We need at least one entry, or ignore */
-		if (x > 0) {
-			ast_mutex_lock(&clilock);
-			e = find_cli(argv, 0);
-			if (e)
-				e->inuse++;
-			ast_mutex_unlock(&clilock);
-			if (e) {
-				switch(e->handler(fd, x, argv)) {
-				case RESULT_SHOWUSAGE:
-					ast_cli(fd, "%s", e->usage);
-					break;
-				}
-			} else 
-				ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
-			if (e) {
-				ast_mutex_lock(&clilock);
-				e->inuse--;
-				ast_mutex_unlock(&clilock);
-			}
-		}
-		free(dup);
-	} else {
-		ast_log(LOG_WARNING, "Out of memory\n");	
+	dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws);
+	if (!dup) {
+		ast_log(LOG_ERROR, "Out of Memory!\n");
 		return -1;
 	}
+
+	/* We need at least one entry, or ignore */
+	if (x > 0) {
+		ast_mutex_lock(&clilock);
+		e = find_cli(argv, 0);
+		if (e)
+			e->inuse++;
+		ast_mutex_unlock(&clilock);
+		if (e) {
+			switch(e->handler(fd, x, argv)) {
+			case RESULT_SHOWUSAGE:
+				ast_cli(fd, "%s", e->usage);
+				break;
+			}
+		} else 
+			ast_cli(fd, "No such command '%s' (type 'help' for help)\n", find_best(argv));
+		if (e) {
+			ast_mutex_lock(&clilock);
+			e->inuse--;
+			ast_mutex_unlock(&clilock);
+		}
+	}
+	free(dup);
+	
 	return 0;
 }
