@@ -3,7 +3,7 @@
  *
  * Copyright (C) <Year>, <Your Name Here>
  *
- * <Your Name Here> <<You Email Here>>
+ * <Your Name Here> <<Your Email Here>>
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -20,7 +20,7 @@
  *
  * \brief Skeleton application
  * 
- * This is a skeleton for development of an Asterisk application */
+ * This is a skeleton for development of an Asterisk application 
  * \ingroup applications
  */
 
@@ -68,7 +68,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct ast_flags flags;
 	struct localuser *u;
-	char *options=NULL;
+	char *options = NULL;
 	char *dummy = NULL;
 	char *args;
 	int argc = 0;
@@ -77,12 +77,11 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "%s requires an argument (dummy|[options])\n",app);
-		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
 	LOCAL_USER_ADD(u);
-	
+
 	/* Do our thing here */
 
 	/* We need to make a copy of the input string if we are going to modify it! */
@@ -112,7 +111,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_NOTICE,"Option C is set with : %s\n", opts[1] ? opts[1] : "<unspecified>");
 
 	LOCAL_USER_REMOVE(u);
-	
+
 	return res;
 }
 
@@ -121,7 +120,7 @@ int unload_module(void)
 	int res;
 
 	res = ast_unregister_application(app);
-	
+
 	STANDARD_HANGUP_LOCALUSERS;
 
 	return res;	
@@ -132,6 +131,13 @@ int load_module(void)
 	return ast_register_application(app, app_exec, synopsis, descrip);
 }
 
+int reload(void)
+{
+	/* This function will be called if a 'reload' is requested */
+
+	return 0;
+}
+
 char *description(void)
 {
 	return tdesc;
@@ -140,7 +146,9 @@ char *description(void)
 int usecount(void)
 {
 	int res;
+
 	STANDARD_USECOUNT(res);
+
 	return res;
 }
 
