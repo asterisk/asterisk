@@ -271,6 +271,11 @@ void ast_cdr_getvar(struct ast_cdr *cdr, const char *name, char **ret, char *wor
 		*ret = workspace;
 }
 
+/* readonly cdr variables */
+static	const char *cdr_readonly_vars[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
+				    "lastapp", "lastdata", "start", "answer", "end", "duration",
+				    "billsec", "disposition", "amaflags", "accountcode", "uniqueid",
+				    "userfield", NULL };
 /*! Set a CDR channel variable 
 	\note You can't set the CDR variables that belong to the actual CDR record, like "billsec".
 */
@@ -278,14 +283,10 @@ int ast_cdr_setvar(struct ast_cdr *cdr, const char *name, const char *value, int
 {
 	struct ast_var_t *newvariable;
 	struct varshead *headp;
-	const char *read_only[] = { "clid", "src", "dst", "dcontext", "channel", "dstchannel",
-				    "lastapp", "lastdata", "start", "answer", "end", "duration",
-				    "billsec", "disposition", "amaflags", "accountcode", "uniqueid",
-				    "userfield", NULL };
 	int x;
 	
-	for(x = 0; read_only[x]; x++) {
-		if (!strcasecmp(name, read_only[x])) {
+	for(x = 0; cdr_readonly_vars[x]; x++) {
+		if (!strcasecmp(name, cdr_readonly_vars[x])) {
 			ast_log(LOG_ERROR, "Attempt to set a read-only variable!.\n");
 			return -1;
 		}
@@ -327,7 +328,7 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 {
 	struct ast_var_t *variables, *newvariable = NULL;
 	struct varshead *headpa, *headpb;
-	char *var, *val;
+	const char *var, *val;
 	int x = 0;
 
 	headpa = &from_cdr->varshead;
@@ -349,30 +350,10 @@ int ast_cdr_copy_vars(struct ast_cdr *to_cdr, struct ast_cdr *from_cdr)
 int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, char delim, char sep, int recur) 
 {
 	struct ast_var_t *variables;
-	char *var, *val;
+	const char *var, *val;
 	char *tmp;
 	char workspace[256];
 	int total = 0, x = 0, i;
-	const char *cdrcols[] = { 
-		"clid",
-		"src",
-		"dst",
-		"dcontext",
-		"channel",
-		"dstchannel",
-		"lastapp",
-		"lastdata",
-		"start",
-		"answer",
-		"end",
-		"duration",
-		"billsec",
-		"disposition",
-		"amaflags",
-		"accountcode",
-		"uniqueid",
-		"userfield"
-	};
 
 	memset(buf, 0, size);
 
@@ -393,12 +374,12 @@ int ast_cdr_serialize_variables(struct ast_cdr *cdr, char *buf, size_t size, cha
 				break;
 		}
 
-		for (i = 0; i < (sizeof(cdrcols) / sizeof(cdrcols[0])); i++) {
-			ast_cdr_getvar(cdr, cdrcols[i], &tmp, workspace, sizeof(workspace), 0);
+		for (i = 0; cdr_readonly_vars[i]; i++) {
+			ast_cdr_getvar(cdr, cdr_readonly_vars[i], &tmp, workspace, sizeof(workspace), 0);
 			if (!tmp)
 				continue;
 			
-			if (ast_build_string(&buf, &size, "level %d: %s%c%s%c", x, cdrcols[i], delim, tmp, sep)) {
+			if (ast_build_string(&buf, &size, "level %d: %s%c%s%c", x, cdr_readonly_vars[i], delim, tmp, sep)) {
 				ast_log(LOG_ERROR, "Data Buffer Size Exceeded!\n");
 				break;
 			} else
