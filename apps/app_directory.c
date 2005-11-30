@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/say.h"
 #include "asterisk/utils.h"
+#include "asterisk/app.h"
 
 static char *tdesc = "Extension Directory";
 static char *app = "Directory";
@@ -414,7 +415,12 @@ static int directory_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct ast_config *cfg;
 	int last = 1;
-	char *context, *dialcontext, *dirintro, *options;
+	char *dirintro, *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(vmcontext);
+		AST_APP_ARG(dialcontext);
+		AST_APP_ARG(options);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Directory requires an argument (context[,dialcontext])\n");
@@ -423,28 +429,32 @@ static int directory_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	context = ast_strdupa(data);
-	dialcontext = strchr(context, '|');
-	if (dialcontext) {
-		*dialcontext = '\0';
-		dialcontext++;
-		options = strchr(dialcontext, '|');
-		if (options) {
-			*options = '\0';
-			options++; 
-			if (strchr(options, 'f'))
-				last = 0;
-		}
-	} else	
-		dialcontext = context;
+	parse = ast_strdupa(data);
 
-	cfg = realtime_directory(context);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1; 
+	}
+
+	AST_STANDARD_APP_ARGS(args, parse);
+		
+	if (args.options) {
+		if (strchr(args.options, 'f'))
+			last = 0;
+	}
+
+	if (ast_strlen_zero(args.dialcontext))	
+		args.dialcontext = args.vmcontext;
+
+	cfg = realtime_directory(args.vmcontext);
 	if (!cfg) {
+		ast_log(LOG_ERROR, "Unable to read the configuration data!\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	dirintro = ast_variable_retrieve(cfg, context, "directoryintro");
+	dirintro = ast_variable_retrieve(cfg, args.vmcontext, "directoryintro");
 	if (ast_strlen_zero(dirintro))
 		dirintro = ast_variable_retrieve(cfg, "general", "directoryintro");
 	if (ast_strlen_zero(dirintro)) {
@@ -466,7 +476,7 @@ static int directory_exec(struct ast_channel *chan, void *data)
 		if (!res)
 			res = ast_waitfordigit(chan, 5000);
 		if (res > 0) {
-			res = do_directory(chan, cfg, context, dialcontext, res, last);
+			res = do_directory(chan, cfg, args.vmcontext, args.dialcontext, res, last);
 			if (res > 0) {
 				res = ast_waitstream(chan, AST_DIGIT_ANY);
 				ast_stopstream(chan);
