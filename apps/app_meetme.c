@@ -1608,6 +1608,12 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 	struct ast_config *cfg;
 	struct ast_variable *var;
 	struct ast_conference *cnf;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(confno);
+		AST_APP_ARG(pin);
+		AST_APP_ARG(pinadmin);
+	);
 
 	/* Check first in the conference list */
 	ast_mutex_lock(&conflock);
@@ -1638,31 +1644,32 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 				return NULL;
 			}
 			var = ast_variable_browse(cfg, "rooms");
-			while (var) {
-				if (!strcasecmp(var->name, "conf")) {
-					/* Separate the PIN */
-					char *pin, *pinadmin, *conf;
-
-					if ((pinadmin = ast_strdupa(var->value))) {
-						conf = strsep(&pinadmin, "|,");
-						pin = strsep(&pinadmin, "|,");
-						if (!strcasecmp(conf, confno)) {
-							/* Bingo it's a valid conference */
-							if (pin)
-								if (pinadmin)
-									cnf = build_conf(confno, pin, pinadmin, make, dynamic);
-								else
-									cnf = build_conf(confno, pin, "", make, dynamic);
-							else
-								if (pinadmin)
-									cnf = build_conf(confno, "", pinadmin, make, dynamic);
-								else
-									cnf = build_conf(confno, "", "", make, dynamic);
-							break;
-						}
-					}
+			for (; var; var = var->next) {
+				if (strcasecmp(var->name, "conf"))
+					continue;
+				
+				parse = ast_strdupa(var->value);
+				if (!parse) {
+					ast_log(LOG_ERROR, "Out of Memory!\n");
+					return NULL;
 				}
-				var = var->next;
+				
+				AST_STANDARD_APP_ARGS(args, parse);
+				if (!strcasecmp(args.confno, confno)) {
+					/* Bingo it's a valid conference */
+					if (args.pin) {
+						if (args.pinadmin)
+							cnf = build_conf(args.confno, args.pin, args.pinadmin, make, dynamic);
+						else
+							cnf = build_conf(args.confno, args.pin, "", make, dynamic);
+					} else {
+						if (args.pinadmin)
+							cnf = build_conf(args.confno, "", args.pinadmin, make, dynamic);
+						else
+							cnf = build_conf(args.confno, "", "", make, dynamic);
+					}
+					break;
+				}
 			}
 			if (!var) {
 				ast_log(LOG_DEBUG, "%s isn't a valid conference\n", confno);
@@ -1687,8 +1694,12 @@ static int count_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct ast_conference *conf;
 	int count;
-	char *confnum, *localdata;
+	char *localdata;
 	char val[80] = "0"; 
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(confno);
+		AST_APP_ARG(varname);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "MeetMeCount requires an argument (conference number)\n");
@@ -1703,18 +1714,19 @@ static int count_exec(struct ast_channel *chan, void *data)
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
+
+	AST_STANDARD_APP_ARGS(args, localdata);
 	
-	confnum = strsep(&localdata,"|");       
-	conf = find_conf(chan, confnum, 0, 0, NULL);
+	conf = find_conf(chan, args.confno, 0, 0, NULL);
 	if (conf)
 		count = conf->users;
 	else
 		count = 0;
 
-	if (!ast_strlen_zero(localdata)){
+	if (!ast_strlen_zero(args.varname)){
 		/* have var so load it and exit */
 		snprintf(val, sizeof(val), "%d",count);
-		pbx_builtin_setvar_helper(chan, localdata, val);
+		pbx_builtin_setvar_helper(chan, args.varname, val);
 	} else {
 		if (chan->_state != AST_STATE_UP)
 			ast_answer(chan);
@@ -1738,7 +1750,12 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	int dynamic = 0;
 	int empty = 0, empty_no_pin = 0;
 	int always_prompt = 0;
-	char *notdata, *info, *inflags = NULL, *inpin = NULL, the_pin[AST_MAX_EXTENSION] = "";
+	char *notdata, *info, the_pin[AST_MAX_EXTENSION] = "";
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(confno);
+		AST_APP_ARG(options);
+		AST_APP_ARG(pin);
+	);
 
 	LOCAL_USER_ADD(u);
 
@@ -1754,24 +1771,22 @@ static int conf_exec(struct ast_channel *chan, void *data)
 
 	info = ast_strdupa(notdata);
 
-	if (info) {
-		char *tmp = strsep(&info, "|");
-		ast_copy_string(confno, tmp, sizeof(confno));
+	AST_STANDARD_APP_ARGS(args, info);	
+
+	if (args.confno) {
+		ast_copy_string(confno, args.confno, sizeof(confno));
 		if (ast_strlen_zero(confno)) {
 			allowretry = 1;
 		}
 	}
-	if (info)
-		inflags = strsep(&info, "|");
-	if (info)
-		inpin = strsep(&info, "|");
-	if (inpin)
-		ast_copy_string(the_pin, inpin, sizeof(the_pin));
+	
+	if (args.pin)
+		ast_copy_string(the_pin, args.pin, sizeof(the_pin));
 
-	if (inflags) {
-		ast_app_parse_options(meetme_opts, &confflags, NULL, inflags);
+	if (args.options) {
+		ast_app_parse_options(meetme_opts, &confflags, NULL, args.options);
 		dynamic = ast_test_flag(&confflags, CONFFLAG_DYNAMIC | CONFFLAG_DYNAMICPIN);
-		if (ast_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && !inpin)
+		if (ast_test_flag(&confflags, CONFFLAG_DYNAMICPIN) && !args.pin)
 			strcpy(the_pin, "q");
 
 		empty = ast_test_flag(&confflags, CONFFLAG_EMPTY | CONFFLAG_EMPTYNOPIN);
@@ -1994,10 +2009,15 @@ static struct ast_conf_user* find_user(struct ast_conference *conf, char *caller
 /*--- admin_exec: The MeetMeadmin application */
 /* MeetMeAdmin(confno, command, caller) */
 static int admin_exec(struct ast_channel *chan, void *data) {
-	char *params, *command = NULL, *caller = NULL, *conf = NULL;
+	char *params;
 	struct ast_conference *cnf;
 	struct ast_conf_user *user = NULL;
 	struct localuser *u;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(confno);
+		AST_APP_ARG(command);
+		AST_APP_ARG(user);
+	);
 	
 	LOCAL_USER_ADD(u);
 
@@ -2005,26 +2025,25 @@ static int admin_exec(struct ast_channel *chan, void *data) {
 	/* The param has the conference number the user and the command to execute */
 	if (!ast_strlen_zero(data)) {		
 		params = ast_strdupa((char *) data);
-		conf = strsep(&params, "|");
-		command = strsep(&params, "|");
-		caller = strsep(&params, "|");
-		
-		if (!command) {
+
+		AST_STANDARD_APP_ARGS(args, params);
+
+		if (!args.command) {
 			ast_log(LOG_WARNING, "MeetmeAdmin requires a command!\n");
 			ast_mutex_unlock(&conflock);
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 		for (cnf = confs; cnf; cnf = cnf->next) {
-			if (!strcmp(cnf->confno, conf))
+			if (!strcmp(cnf->confno, args.confno))
 				break;
 		}
 		
-		if (caller)
-			user = find_user(cnf, caller);
+		if (args.user)
+			user = find_user(cnf, args.user);
 		
 		if (cnf) {
-			switch((int) (*command)) {
+			switch((int) (*args.command)) {
 			case 76: /* L: Lock */ 
 				cnf->locked = 1;
 				break;
