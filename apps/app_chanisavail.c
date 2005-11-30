@@ -70,8 +70,12 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	int res=-1, inuse=-1, option_state=0, priority_jump=0;
 	int status;
 	struct localuser *u;
-	char *info, tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur, *options, *stringp;
+	char *info, tmp[512], trychan[512], *peers, *tech, *number, *rest, *cur;
 	struct ast_channel *tempchan;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(reqchans);
+		AST_APP_ARG(options);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "ChanIsAvail requires an argument (Zap/1&Zap/2)\n");
@@ -81,16 +85,16 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	info = ast_strdupa(data); 
-	stringp = info;
-	strsep(&stringp, "|");
-	options = strsep(&stringp, "|");
-	if (options) {
-		if (strchr(options, 's'))
+
+	AST_STANDARD_APP_ARGS(args, info);
+
+	if (args.options) {
+		if (strchr(args.options, 's'))
 			option_state = 1;
-		if (strchr(options, 'j'))
+		if (strchr(args.options, 'j'))
 			priority_jump = 1;
 	}
-	peers = info;
+	peers = args.reqchans;
 	if (peers) {
 		cur = peers;
 		do {
