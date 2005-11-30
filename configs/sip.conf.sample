@@ -234,6 +234,14 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ; To disallow requests for domains not serviced by this server:
 ; allowexternaldomains=no
 
+; fromdomain=mydomain.tld ; When making outbound SIP INVITEs to
+                          ; non-peers, use your primary domain "identity"
+                          ; for From: headers instead of just your IP
+                          ; address. This is to be polite and
+                          ; it may be a mandatory requirement for some
+                          ; destinations which do not have a prior
+                          ; account relationship with your server. 
+
 [authentication]
 ; Global credentials for outbound calls, i.e. when a proxy challenges your
 ; Asterisk server for authentication. These credentials override
