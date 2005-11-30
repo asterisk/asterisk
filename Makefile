@@ -836,7 +836,7 @@ __rpm: include/asterisk/version.h spec
 	$(MAKE) DESTDIR=/tmp/asterisk install ; \
 	$(MAKE) DESTDIR=/tmp/asterisk samples ; \
 	mkdir -p /tmp/asterisk/etc/rc.d/init.d ; \
-	cp -f redhat/asterisk /tmp/asterisk/etc/rc.d/init.d/ ; \
+	cp -f contrib/init.d/rc.redhat.asterisk /tmp/asterisk/etc/rc.d/init.d/asterisk ; \
 	rpmbuild --rcfile /usr/lib/rpm/rpmrc:redhat/rpmrc -bb asterisk.spec
 
 progdocs:
