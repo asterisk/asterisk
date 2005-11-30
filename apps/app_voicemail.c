@@ -573,8 +573,12 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 	struct ast_vm_user *vmu=NULL, *cur;
 	ast_mutex_lock(&vmlock);
 	cur = users;
+
+	if (!context)
+		context = "default";
+
 	while (cur) {
-		if ((!context || !strcasecmp(context, cur->context)) &&
+		if ((!strcasecmp(context, cur->context)) &&
 			(!strcasecmp(mailbox, cur->mailbox)))
 				break;
 		cur=cur->next;
@@ -4985,7 +4989,7 @@ static int vm_authenticate(struct ast_channel *chan, char *mailbox, int mailbox_
 			valid++;
 		else {
 			if (option_verbose > 2)
-				ast_verbose( VERBOSE_PREFIX_3 "Incorrect password '%s' for user '%s' (context = %s)\n", password, mailbox, context ? context : "<any>");
+				ast_verbose( VERBOSE_PREFIX_3 "Incorrect password '%s' for user '%s' (context = %s)\n", password, mailbox, context ? context : "default");
 			if (!ast_strlen_zero(prefix))
 				mailbox[0] = '\0';
 		}
