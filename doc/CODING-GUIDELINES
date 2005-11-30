@@ -22,9 +22,9 @@ above the top-level Asterisk source directory. For example:
 
 ~/work$ diff -urN asterisk-base asterisk-new
 
-If you are changing within a fresh CVS/SVN repository, you can create
+If you are changing within a fresh SVN working copy, you can create
 a patch with
-$ cvs diff -urN <mycodefile>.c
+$ svn diff <mycodefile>.c
 
 * General rules
 ---------------
@@ -464,7 +464,7 @@ Before submitting a patch, *read* the actual patch file to be sure that
 all the changes you expect to be there are, and that there are no 
 surprising changes you did not expect. During your development, that
 part of Asterisk may have changed, so make sure you compare with the
-latest CVS.
+latest SVN.
 
 - Listen to advice
 If you are asked to make changes to your patch, there is a good chance

@@ -104,8 +104,8 @@ void ast_unregister_file_version(const char *file);
  * \endcode
  *
  * \note The dollar signs above have been protected with backslashes to keep
- * CVS from modifying them in this file; under normal circumstances they would
- * not be present and CVS would expand the Revision keyword into the file's
+ * SVN from modifying them in this file; under normal circumstances they would
+ * not be present and SVN would expand the Revision keyword into the file's
  * revision number.
  */
 #if defined(__GNUC__) && !defined(LOW_MEMORY)
