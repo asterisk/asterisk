@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/options.h"
 #include "asterisk/module.h"
+#include "asterisk/app.h"
 
 static char *tdesc = "Load external URL";
 
@@ -120,9 +121,13 @@ static int curl_exec(struct ast_channel *chan, void *data)
 {
 	int res = 0;
 	struct localuser *u;
-	char *info, *post_data=NULL, *url;
+	char *info;
 	struct MemoryStruct chunk = { NULL, 0 };
 	static int dep_warning = 0;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(url);
+		AST_APP_ARG(postdata);
+	);
 	
 	if (!dep_warning) {
 		ast_log(LOG_WARNING, "The application Curl is deprecated.  Please use the CURL() function instead.\n");
@@ -137,15 +142,14 @@ static int curl_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	if ((info = ast_strdupa(data))) {
-		url = strsep(&info, "|");
-		post_data = info;
+		AST_STANDARD_APP_ARGS(args, info);
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 
-	if (! curl_internal(&chunk, url, post_data)) {
+	if (! curl_internal(&chunk, args.url, args.postdata)) {
 		if (chunk.memory) {
 			chunk.memory[chunk.size] = '\0';
 			if (chunk.memory[chunk.size - 1] == 10)
@@ -167,8 +171,12 @@ static int curl_exec(struct ast_channel *chan, void *data)
 static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct localuser *u;
-	char *info, *post_data=NULL, *url;
+	char *info;
 	struct MemoryStruct chunk = { NULL, 0 };
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(url);
+		AST_APP_ARG(postdata);
+	);
 
 	*buf = '\0';
 	
@@ -185,11 +193,10 @@ static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char
 		LOCAL_USER_REMOVE(u);
 		return buf;
 	}
+
+	AST_STANDARD_APP_ARGS(args, info);	
 	
-	url = strsep(&info, "|");
-	post_data = info;
-	
-	if (! curl_internal(&chunk, url, post_data)) {
+	if (! curl_internal(&chunk, args.url, args.postdata)) {
 		if (chunk.memory) {
 			chunk.memory[chunk.size] = '\0';
 			if (chunk.memory[chunk.size - 1] == 10)
