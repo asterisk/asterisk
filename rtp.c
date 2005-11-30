@@ -299,7 +299,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 		}
 		resp = 0;
 		duration = 0;
-	} else if(rtp->dtmfduration && (duration < rtp->dtmfduration)) {
+	} else if (rtp->resp && rtp->dtmfduration && (duration < rtp->dtmfduration)) {
 		f = send_dtmf(rtp);
 	}
 	if (!(event_end & 0x80))
