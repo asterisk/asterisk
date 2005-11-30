@@ -1,3 +1,7 @@
+2005-11-29  Josh Roberson <josh@asteriasgi.com>
+	
+	* apps/app_voicemail.c: Only look in 'default' context when no context defined to VoiceMailMain(). (issue #5887)
+
 2005-11-25  Russell Bryant  <russell@digium.com>
 
 	* apps/app_dial.c: Properly duplicate the string for ANI (issue #5850)

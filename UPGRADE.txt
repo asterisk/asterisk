@@ -131,6 +131,10 @@ Applications:
   'mailbox options' menu, and 'change your password' option has been
   moved to option 5.
 
+* The application VoiceMailMain now only matches the 'default' context if
+  none is specified in the arguments.  (This was the previously 
+  documented behavior, however, we didn't follow that behavior.)
+
 Queues:
 
 * A queue is now considered empty not only if there are no members but if
