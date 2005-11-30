@@ -1016,8 +1016,13 @@ void ast_channel_spy_stop_by_type(struct ast_channel *chan, const char *type)
 		return;
 
 	AST_LIST_TRAVERSE(&chan->spies->list, spy, list) {
-		if ((spy->type == type) && (spy->status == CHANSPY_RUNNING))
+		ast_mutex_lock(&spy->lock);
+		if ((spy->type == type) && (spy->status == CHANSPY_RUNNING)) {
 			spy->status = CHANSPY_DONE;
+			if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
+				ast_cond_signal(&spy->trigger);
+		}
+		ast_mutex_unlock(&spy->lock);
 	}
 }
 
@@ -3912,8 +3917,10 @@ struct ast_frame *ast_channel_spy_read_frame(struct ast_channel_spy *spy, unsign
 
 		if (need_dup)
 			result = ast_frdup(read_frame);
-		else
+		else {
 			result = read_frame;
+			ast_frfree(write_frame);
+		}
 	} else {
 		if (need_dup) {
 			result = ast_frdup(read_frame);
