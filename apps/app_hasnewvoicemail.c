@@ -179,34 +179,37 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 static char *acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct localuser *u;
-	char *args, *context, *box, *folder;
+	char *argsstr, *context;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(vmbox);
+		AST_APP_ARG(folder);
+	);
 
 	LOCAL_USER_ACF_ADD(u);
 
 	buf[0] = '\0';
 
-	args = ast_strdupa(data);
-	if (!args) {
+	argsstr = ast_strdupa(data);
+	if (!argsstr) {
 		ast_log(LOG_ERROR, "Out of memory");
 		LOCAL_USER_REMOVE(u);
 		return buf;
 	}
 
-	box = strsep(&args, "|");
-	if (strchr(box, '@')) {
-		context = box;
-		box = strsep(&context, "@");
+	AST_STANDARD_APP_ARGS(args, argsstr);
+
+	if (strchr(args.vmbox, '@')) {
+		context = args.vmbox;
+		args.vmbox = strsep(&context, "@");
 	} else {
 		context = "default";
 	}
 
-	if (args) {
-		folder = args;
-	} else {
-		folder = "INBOX";
+	if (ast_strlen_zero(args.folder)) {
+		args.folder = "INBOX";
 	}
 
-	snprintf(buf, len, "%d", hasvoicemail_internal(context, box, folder));
+	snprintf(buf, len, "%d", hasvoicemail_internal(context, args.vmbox, args.folder));
 
 	LOCAL_USER_REMOVE(u);
 	
