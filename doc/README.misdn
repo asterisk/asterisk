@@ -282,7 +282,10 @@ should be enough. the messages are divided in asterisk and misdn parts.
 Misdn Debug messages begin with an 'I', asterisk messages begin with an '*', 
 the rest is clear I think. 
 
-Please take a trace of the problem and send this trace via mail to bugs@beronet.com
+Please take a trace of the problem and open a report in the Asterisk issue
+tracker at http://bugs.digium.com in the "channel drivers" project,
+"chan_misdn" category. Read the bug guidelines to make sure you
+provide all the information needed.
 
 
 Examples
