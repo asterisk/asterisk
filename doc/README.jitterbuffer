@@ -33,7 +33,7 @@ genericplc => true in the [plc] section of codecs.conf.
 
 3) Trunktimestamps:
 -------------------
-To use this, both sides must be using Asterisk v1.1dev (or coming 1.2 stable).
+To use this, both sides must be using Asterisk v1.2.
 Setting "trunktimestamps=yes" in iax.conf will cause your box to send 16-bit timestamps 
 for each trunked frame inside of a trunk frame. This will enable you to use jitterbuffer
 for an IAX2 trunk, something that was not possible in the old architecture.

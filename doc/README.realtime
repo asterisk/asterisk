@@ -2,8 +2,8 @@ The Asterisk Realtime Architecture
 ----------------------------------
 
 The Asterisk Realtime Architecture is a new set of drivers and 
-functions implemented in Asterisk 1.1dev (and the following v1.2 stable).
-The benefits of this architecture are many, both from a code management
+functions implemented in Asterisk 1.2. The benefits of this 
+architecture are many, both from a code management
 standpoint and from an installation perspective. 
 
 Additional information on the configuration of Realtime with Asterisk 
