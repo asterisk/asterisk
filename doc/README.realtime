@@ -2,7 +2,8 @@ The Asterisk Realtime Architecture
 ----------------------------------
 
 The Asterisk Realtime Architecture is a new set of drivers and 
-functions implemented in Asterisk 1.1dev (and the following v1.2 stable).
+functions implemented in Asterisk.
+
 The benefits of this architecture are many, both from a code management
 standpoint and from an installation perspective. 
 
@@ -24,8 +25,7 @@ Currently there are three realtime database drivers:
 * ODBC: Support for UnixODBC, integrated into Asterisk
   The UnixODBC subsystem supports many different databases,
   please check www.unixodbc.org for more information.
-* MySQL: Found in the asterisk-addons cvs archive on cvs.digium.com
-* Res_perl: Found in the asterisk-addons cvs archive on cvs.digium.com
+* MySQL: Found in the asterisk-addons subversion repository on cvs.digium.com
 
 
 * Two modes: Static and Realtime

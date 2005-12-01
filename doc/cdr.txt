@@ -108,7 +108,7 @@ MSSQL:		Asterisk can currently store CDRs into an MSSQL database in
 		   make install
 
                 Compile, or recompile, asterisk so that it will now add support
-                for cdr_tds.c  (Currently only asterisk CVS supports cdr_tds.c)
+                for cdr_tds.c  
 
                    make clean &&
                    make update &&

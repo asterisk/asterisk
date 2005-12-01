@@ -14,10 +14,8 @@ separated text file.
    * cdr_sqlite supports SQlite
    * cdr_pgsql supports PostgreSQL
 
-In the asterisk-addons cvs archive, there's a cdr_mysql driver for
+In the asterisk-addons subversion repository, there's a cdr_mysql driver for
 MySQL.
-
-
 
 Applications
 ------------
