@@ -6,6 +6,7 @@ This package contains the mISDN Channel Driver for the Asterisk PBX. It
 supports every mISDN Hardware and provides an interface for asterisk. 
 
 Features: 
+---------
 
 * NT and TE mode
 * PP and PMP mode
@@ -18,11 +19,12 @@ Features:
 * Volume Control 
 * Crypting with mISDNdsp (Blowfish)
 * Data (HDLC) callthrough 
-* Data Callin (with app_ptyfork +pppd)
-* echo cancellation
-* some other
+* Data Calling (with app_ptyfork +pppd)
+* Echo cancellation
+* Some other
 
 Supported Hardware:
+-------------------
 
 chan_misdn supports any mISDN compatible Hardware. Especially the 1-8 Port
 BRI Cards available from http://shop.beronet.com
@@ -76,18 +78,19 @@ Pre-Requisites
 --------------
 
 To compile and install this driver, you'll need at least one mISDN Driver, the
-mISDNuser package and the asterisk includes (which will be inside of the
-sources). Chan_misdn works with both, the current stable release and the cvs-head version of Asterisk.
+mISDNuser package and the Asterisk includes (which will be inside of the
+sources). Chan_misdn works with both, the current release version and the 
+development (svn trunk) version of Asterisk.
 
 To get the mISDN stuff please follow the instructions at
 http://www.isdn4linux.de.  Please Note that mISDN works good for the
 linux-2.6.x kernels. Some of the mISDN drivers do not compile against the
-2.4.x or older kernels, you can patch them, but than you'll get myterius
+2.4.x or older kernels, you can patch them, but than you'll get mysterious
 errors.
 
- I use Kernels > 2.6.9 and it works perfect. with kernels >= 2.6.10 there is a
+I use Kernels > 2.6.9 and it works perfect. with kernels >= 2.6.10 there is a
 very litle bug in hfc_multi.c which causes the module not to compile, it can
-be easyly fixed by changenging pci_findsubsys to pci_getsubsys in code.
+be easily fixed by changing pci_findsubsys to pci_getsubsys in code.
 
 Ok so far so good, now follow the compilation instructions.
 
@@ -100,19 +103,19 @@ Compilation
 !! the compilation stops near iapplication.h, this isn't very important
 !! at this step you are ready. 
 
-After you've successfully installed mISDN, mISDNuser and asterisk, you should
+After you've successfully installed mISDN, mISDNuser and Asterisk, you should
 modify the Makefile in the chan_misdn source path. There you can tell the
 Makefile where to install the driver, sample-conf, and most important where it
-can find the linux kernel includes, the mISDNuser package and the asterisk
-includes.  If you use the Head-Revision of Asterisk (or at least a newer
-version than stable) uncomment the CCFLAGS+=-DASTERISK_STABLE, the stable
-version of asterisk is at the moment v1-0-X as cvs tag.
+can find the linux kernel includes, the mISDNuser package and the Asterisk
+includes.  If you use the development version of Asterisk (or at least a newer
+version than release) uncomment the CCFLAGS+=-DASTERISK_STABLE, the release
+version of Asterisk is at the moment v1-2 as subversion branch.
 
 Now you can type in: 
 
 make
 
-This should compile chan_misdn.so, if theres an error check the paths in the
+This should compile chan_misdn.so, if there's an error check the paths in the
 Makefile again.
 
 
@@ -123,10 +126,10 @@ After successful compilation of chan_misdn, you should simply type in:
 
 make install 
 
-as privileged user to put chan_misdn.so in the asterisk modules
+as privileged user to put chan_misdn.so in the Asterisk modules
 directory.
 
-You should see a Msg like: "Successfully installed chan_misdn". 
+You should see a message like: "Successfully installed chan_misdn". 
 Congratulations. 
 
 Theres a sample init.d script for loading the mISDN modules (mISDN.sample),
@@ -141,67 +144,68 @@ Configuration
 
 First of all you must configure the mISDN drivers. Each driver module has got
 an options and layermask option, which tells the driver wether to start in
-TE,NT, PP or PMP mode (there are lots more please read docs in misdn for
+TE, NT, PP or PMP mode (there are lots more, please read docs in misdn for
 that).
 
 After thinking about the above you'll probably want to configure the
-misdn.conf file which resides in the asterisk-config directory.
+misdn.conf file which resides in the asterisk config directory (normally
+/etc/asterisk).
 
+- misdn.conf: [general]
 The misdn.conf file contains a "general" Section, and user sections which
-contain misdn port settings and different asterisk contexts.
+contain misdn port settings and different Asterisk contexts.
 
 The general section contains especially a variable named context with which
 the default context is set. There is also the very important debug variable
-which you can set from the asterisk cli (command line interface) or in this
-configfile, bigger numbers will lead to more debug output. Theres also a
-tracefile options, which takes a path+filename where debug output is written
+which you can set from the Asterisk cli (command line interface) or in this
+configuration file, bigger numbers will lead to more debug output. There's also a
+tracefile option, which takes a path+filename where debug output is written
 to.
 
-The user Sections have names which are unequal to "general". Those sections
+- misdn.conf: user/port sections
+The user sections have names which are unequal to "general". Those sections
 contain the ports variable which mean the mISDN Ports. Here you can add
-comma-sepperated multiple ports. 
+multiple ports, comma separated. 
 
 Espacially for TE-Mode Ports there is a msns variable. This variable tells the
 chan_misdn driver to listen for incomming calls with the given msns, you can
-insert a '*' as single msn, which leads in getting every incomming call (if
+insert a '*' as single msn, which leads in getting every incoming call (if
 you want to share on PMP TE S0 with a asterisk and a phone or isdn card you
-should insert here the msns which you'll like to give the asterisk).  Finally
+should insert here the msns which you'll like to give the Asterisk).  Finally
 a context variable resides in the user sections, which tells chan_misdn where
-to send incomming calls to (extension.conf).
+to send incoming calls to in the Asterisk dial plan (extension.conf).
 
 In NT-Mode Ports there is a new option, directly after the port number you can
-write ptp, this enables PP Mode for this port, please look at misdn.conf for
+write ptp, this enables PP Mode for this port, please look at misdn.conf.sample for
 an example.
-
-When everything worked you should get the asterisk running.
 
 
 Dial and Options String
 -----------------------
 
-The Dialstring of chan_misdn got more complex, because we added more features,
-so the generic dialstring looks like:
+The dial string of chan_misdn got more complex, because we added more features,
+so the generic dial string looks like:
 
 mISDN/<port>|g:<group>/<extension>[/<OPTIONSSTRING>]
 
 The Optionsstring looks Like:
 :<optchar1><OptParam1>:<optchar2><OptParam2>
 
-the ":" character is the delimeter.
+the ":" character is the delimiter.
 
 The available Optchars are: 
 	d - Send display text on called phone, text is the optparam
 	n - don't detect dtmf tones on called channel
 	h - make digital outgoing call
 	c - make crypted outgoing call, param is keyindex
-	e - perform echo cancelation on this channel, takes taps as 
-	arguments (32,64,128,256)
+	e - perform echo cancelation on this channel, 
+	    takes taps as arguments (32,64,128,256)
 	s - send Non Inband DTMF as inband
 	vr - rxgain control
 	vt - txgain control
 
 
-chan_misdn registers a new application "misdn_set_opt" when loaded. This 
+chan_misdn registers a new dial plan application "misdn_set_opt" when loaded. This 
 application takes the Optionsstring as argument. The Syntax is:
 
 misdn_set_opt(<OPTIONSSTRING>)
@@ -231,7 +235,7 @@ exten => ${CRYPT_MSN},2,dial(${PHONE2})
 misdn cli commands
 ------------------
 
-At the asterisk cli you can try to type in: 
+At the Asterisk cli you can try to type in: 
 
 misdn <tab> <tab>
 
@@ -241,7 +245,7 @@ Now you should see the misdn cli commands:
 	-> pid 		(cleans a broken call, use with care, leads often
 			 to a segmentation fault)
 - send
-	-> display	(sends a Text Message to a asterisk channel, 
+	-> display	(sends a Text Message to a Asterisk channel, 
 			 this channel must be an misdn channel)
 - set
 	-> debug	(sets debug level)
@@ -257,9 +261,9 @@ Now you should see the misdn cli commands:
 
 - reload 		(reloads misdn.conf)
 
-You can only use "misdn send display" when a asterisk channel is created and
-isdn is in the corect state, correct state means that you have established a
-call to another phone (mustnt be isdn though).
+You can only use "misdn send display" when an Asterisk channel is created and
+isdn is in the correct state. "correct state" means that you have established a
+call to another phone (mustn't be isdn though).
 
 Then you use it like this:
 
@@ -270,10 +274,13 @@ msn (callerid) of the Phone to send the text to.
 
 
 
-Debugging and sending Bug-Reports
+Debugging and sending bug reports
 ---------------------------------
 
-If you encounter problems, you should set up the debugging flag, usually debug=1 should be enough. the Messages are divided in asterisk and misdn parts. Misdn Debug messages begin with an 'I', asterisk messages begin with an '*', the rest is clear I think. 
+If you encounter problems, you should set up the debugging flag, usually debug=1 
+should be enough. the messages are divided in asterisk and misdn parts. 
+Misdn Debug messages begin with an 'I', asterisk messages begin with an '*', 
+the rest is clear I think. 
 
 Please take a trace of the problem and send this trace via mail to bugs@beronet.com
 
@@ -281,7 +288,7 @@ Please take a trace of the problem and send this trace via mail to bugs@beronet.
 Examples
 --------
 
-here some examples of how to use chan_misdn in the dialplan (extensions.conf): 
+Here are some examples of how to use chan_misdn in the dialplan (extensions.conf): 
 
 
 [globals]
@@ -298,10 +305,10 @@ In the last line you will notice the last argument (Hello), this is sended
 as Display Message to the Phone.
 
 
-Known working Configurations
+Known working configurations
 ----------------------------
 
-In this Section I'll put working configurations for chan_misdn. Beware It
+In this section I'll put working configurations for chan_misdn. Beware It
 seems that between Kernel 2.6.3 and Kernel 2.6.8 there were lots of mISDN
 Bugs. I use Kernel 2.6.9 now, it works quite ok, Kernel 2.6.10+ has changed
 the pci_find_subgsys funktion, so hfc_multi from mISDN doesn't compile against
@@ -351,13 +358,12 @@ modules) then modprobe ztdummy, this resolves the problem.
 and dtmf tone detection
 
 * I have strange ISDN behavior: sometimes I hear the other end, sometimes
-not. also i get STATUS Events with cause 100, with misdn debugging
+not. Also I get STATUS Events with cause 100, with misdn debugging
 
 -> Please update to newest version of chan_misdn and set the te_choose_channel
 option in misdn.conf to yes
 
 Changes
 -------
-
 in the Changes File
 
