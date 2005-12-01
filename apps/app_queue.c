@@ -1304,7 +1304,7 @@ static int compare_weight(struct ast_call_queue *rq, struct member *member)
 		ast_mutex_lock(&q->lock);
 		if (q->count && q->members) {
 			for (mem = q->members; mem; mem = mem->next) {
-				if (mem == member) {
+				if (!strcmp(mem->interface, member->interface)) {
 					ast_log(LOG_DEBUG, "Found matching member %s in queue '%s'\n", mem->interface, q->name);
 					if (q->weight > rq->weight) {
 						ast_log(LOG_DEBUG, "Queue '%s' (weight %d, calls %d) is preferred over '%s' (weight %d, calls %d)\n", q->name, q->weight, q->count, rq->name, rq->weight, rq->count);
