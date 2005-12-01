@@ -58,7 +58,7 @@
 #include <ctype.h>
 #ifdef ZAPATA_PRI
 #include <libpri.h>
-#ifndef PRI_USER_USER_TX
+#ifndef PRI_KEYPAD_FACILITY_TX
 #error "You need newer libpri"
 #endif
 #endif
@@ -2211,6 +2211,54 @@ static int destroy_channel(struct zt_pvt *prev, struct zt_pvt *cur, int now)
 }
 
 #ifdef ZAPATA_PRI
+static char *zap_send_keypad_facility_app = "ZapSendKeypadFacility";
+
+static char *zap_send_keypad_facility_synopsis = "Send digits out of band over a PRI";
+
+static char *zap_send_keypad_facility_descrip = 
+"  ZapSendKeypadFacility(): This application will send the given string of digits in a Keypad Facility\n"
+"  IE over the current channel.\n";
+
+static int zap_send_keypad_facility_exec(struct ast_channel *chan, void *data)
+{
+	/* Data will be our digit string */
+	struct zt_pvt *p;
+	char *digits = (char *) data;
+
+	if (ast_strlen_zero(digits)) {
+		ast_log(LOG_DEBUG, "No digit string sent to application!\n");
+		return -1;
+	}
+
+	p = (struct zt_pvt *)chan->tech_pvt;
+
+	if (!p) {
+		ast_log(LOG_DEBUG, "Unable to find technology private\n");
+		return -1;
+	}
+
+	ast_mutex_lock(&p->lock);
+
+	if (!p->pri || !p->call) {
+		ast_log(LOG_DEBUG, "Unable to find pri or call on channel!\n");
+		ast_mutex_unlock(&p->lock);
+		return -1;
+	}
+
+	if (!pri_grab(p, p->pri)) {
+		pri_keypad_facility(p->pri->pri, p->call, digits);
+		pri_rel(p->pri);
+	} else {
+		ast_log(LOG_DEBUG, "Unable to grab pri to send keypad facility!\n");
+		ast_mutex_unlock(&p->lock);
+		return -1;
+	}
+
+	ast_mutex_unlock(&p->lock);
+
+	return 0;
+}
+
 int pri_is_up(struct zt_pri *pri)
 {
 	int x;
@@ -9980,6 +10028,7 @@ static int __unload_module(void)
 			pthread_cancel(pris[i].master);
 	}
 	ast_cli_unregister_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
+	ast_unregister_application(zap_send_keypad_facility_app);
 #endif
 #ifdef ZAPATA_R2
 	ast_cli_unregister_multiple(zap_r2_cli, sizeof(zap_r2_cli) / sizeof(zap_r2_cli[0]));
@@ -10869,6 +10918,8 @@ int load_module(void)
 	}
 	pri_set_error(zt_pri_error);
 	pri_set_message(zt_pri_message);
+	ast_register_application(zap_send_keypad_facility_app, zap_send_keypad_facility_exec,
+			zap_send_keypad_facility_synopsis, zap_send_keypad_facility_descrip);
 #endif
 	res = setup_zap(0);
 	/* Make sure we can register our Zap channel type */
