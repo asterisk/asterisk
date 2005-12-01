@@ -43,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/app.h"
 
 static const char *tdesc = "External IVR Interface Application";
 
@@ -250,10 +251,9 @@ static int app_exec(struct ast_channel *chan, void *data)
 	int res = -1;
 	int gen_active = 0;
 	int pid;
-	char *command;
 	char *argv[32];
 	int argc = 1;
-	char *buf;
+	char *buf, *command;
 	FILE *child_commands = NULL;
 	FILE *child_errors = NULL;
 	FILE *child_events = NULL;
@@ -270,11 +270,13 @@ static int app_exec(struct ast_channel *chan, void *data)
 	}
 
 	buf = ast_strdupa(data);
-	command = strsep(&buf, "|");
-	memset(argv, 0, sizeof(argv) / sizeof(argv[0]));
-	argv[0] = command;
-	while ((argc < 31) && (argv[argc++] = strsep(&buf, "|")));
-	argv[argc] = NULL;
+	if (!buf) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
+
+	argc = ast_app_separate_args(buf, '|', argv, sizeof(argv) / sizeof(argv[0]));
 
 	if (pipe(child_stdin)) {
 		ast_chan_log(LOG_WARNING, chan, "Could not create pipe for child input: %s\n", strerror(errno));
@@ -316,8 +318,8 @@ static int app_exec(struct ast_channel *chan, void *data)
 		dup2(child_stderr[1], STDERR_FILENO);
 		for (i = STDERR_FILENO + 1; i < 1024; i++)
 			close(i);
-		execv(command, argv);
-		fprintf(stderr, "Failed to execute '%s': %s\n", command, strerror(errno));
+		execv(argv[0], argv);
+		fprintf(stderr, "Failed to execute '%s': %s\n", argv[0], strerror(errno));
 		exit(1);
 	} else {
 		/* parent process */
