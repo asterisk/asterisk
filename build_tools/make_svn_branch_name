@@ -6,7 +6,7 @@ TEAM=0
 
 REV=`svn info | grep -e 'Last Changed Rev' | awk '{print $4;}'`
 
-if [ "${PARTS}" == "trunk" ]
+if [ "${PARTS}" = "trunk" ]
 then
     echo 'trunk'-r${REV}
     exit 0
@@ -26,21 +26,21 @@ do
       continue
   fi
 
-  if [ "${PART}" == "branches" ]
+  if [ "${PART}" = "branches" ]
   then
       BRANCH=1
       RESULT="branch"
       continue
   fi
 
-  if [ "${PART}" == "tags" ]
+  if [ "${PART}" = "tags" ]
   then
       BRANCH=1
       RESULT="tag"
       continue
   fi
 
-  if [ "${PART}" == "team" ]
+  if [ "${PART}" = "team" ]
   then
       TEAM=1
       continue
