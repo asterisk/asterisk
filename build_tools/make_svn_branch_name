@@ -1,10 +1,10 @@
 #!/bin/sh
 
-PARTS=`svn info | grep URL | awk '{print $2;}' | sed -e s:^.*/svn/asterisk/:: | sed -e 's:/: :'`
+PARTS=`LANG=C svn info | grep URL | awk '{print $2;}' | sed -e s:^.*/svn/asterisk/:: | sed -e 's:/: :'`
 BRANCH=0
 TEAM=0
 
-REV=`svn info | grep -e 'Last Changed Rev' | awk '{print $4;}'`
+REV=`LANG=C svn info | grep -e 'Last Changed Rev' | awk '{print $4;}'`
 
 if [ "${PARTS}" = "trunk" ]
 then
