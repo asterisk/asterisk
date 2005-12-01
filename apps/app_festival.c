@@ -455,8 +455,20 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	/* This assumes only one waveform will come back, also LP is unlikely */
 	wave = 0;
 	do {
+               int read_data;
 		for (n=0; n < 3; )
-			n += read(fd,ack+n,3-n);
+               {
+                       read_data = read(fd,ack+n,3-n);
+                       /* this avoids falling in infinite loop
+                        * in case that festival server goes down
+                        * */
+                       if ( read_data == -1 )
+                       {
+                               ast_log(LOG_WARNING,"Unable to read from cache/festival fd");
+                               return -1;
+                       }
+                       n += read_data;
+               }
 		ack[3] = '\0';
 		if (strcmp(ack,"WV\n") == 0) {         /* receive a waveform */
 			ast_log(LOG_DEBUG,"Festival WV command\n");
