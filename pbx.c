@@ -5217,7 +5217,7 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 			goto outgoing_app_cleanup;
 		}
 		memset(as, 0, sizeof(struct async_stat));
-		chan = ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name);
+		chan = __ast_request_and_dial(type, format, data, timeout, reason, cid_num, cid_name, &oh);
 		if (!chan) {
 			free(as);
 			res = -1;
