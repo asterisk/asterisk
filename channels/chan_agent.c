@@ -910,15 +910,16 @@ static int agent_ack_sleep( void *data )
 
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge)
 {
-	struct agent_pvt *p;
+	struct agent_pvt *p = bridge->tech_pvt;
 	struct ast_channel *ret=NULL;
-	
 
-	p = bridge->tech_pvt;
-	if (chan == p->chan)
-		ret = bridge->_bridge;
-	else if (chan == bridge->_bridge)
-		ret = p->chan;
+	if (p) {
+		if (chan == p->chan)
+			ret = bridge->_bridge;
+		else if (chan == bridge->_bridge)
+			ret = p->chan;
+	}
+
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Asked for bridged channel on '%s'/'%s', returning '%s'\n", chan->name, bridge->name, ret ? ret->name : "<none>");
 	return ret;
