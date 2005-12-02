@@ -7890,13 +7890,13 @@ static void zt_pri_message(struct pri *pri, char *s)
 		}
 		if ((dchan >= 0) && (span >= 0)) {
 			if (dchancount > 1)
-				ast_verbose("[Span %d D-Channel %d]%s", span, dchan, s);
+				ast_log(LOG_DEBUG, "[Span %d D-Channel %d]%s", span, dchan, s);
 			else
-				ast_verbose("%s", s);
+				ast_log(LOG_DEBUG, "%s", s);
 		} else
-			ast_verbose("PRI debug error: could not find pri associated it with debug message output\n");
+			ast_log(LOG_ERROR, "PRI debug error: could not find pri associated it with debug message output\n");
 	} else
-		ast_verbose("%s", s);
+		ast_log(LOG_DEBUG, "%s", s);
 
 	ast_mutex_lock(&pridebugfdlock);
 
@@ -7929,13 +7929,13 @@ static void zt_pri_error(struct pri *pri, char *s)
 		}
 		if ((dchan >= 0) && (span >= 0)) {
 			if (dchancount > 1)
-				ast_log(LOG_WARNING, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
+				ast_log(LOG_ERROR, "[Span %d D-Channel %d] PRI: %s", span, dchan, s);
 			else
-				ast_verbose("%s", s);
+				ast_log(LOG_ERROR, "%s", s);
 		} else
-			ast_verbose("PRI debug error: could not find pri associated it with debug message output\n");
+			ast_log(LOG_ERROR, "PRI debug error: could not find pri associated it with debug message output\n");
 	} else
-		ast_log(LOG_WARNING, "%s", s);
+		ast_log(LOG_ERROR, "%s", s);
 
 	ast_mutex_lock(&pridebugfdlock);
 
