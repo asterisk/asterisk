@@ -110,6 +110,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define VM_ATTACH		(1 << 11)
 #define VM_DELETE		(1 << 12)
 #define VM_ALLOCED		(1 << 13)
+#define VM_SEARCH		(1 << 14)
 
 #define ERROR_LOCK_PATH		-100
 
@@ -534,12 +535,11 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 			ast_set_flag(retval, VM_ALLOCED);	
 		if (mailbox) 
 			ast_copy_string(retval->mailbox, mailbox, sizeof(retval->mailbox));
-		if (context) 
-			ast_copy_string(retval->context, context, sizeof(retval->context));
-		else
-			strcpy(retval->context, "default");
 		populate_defaults(retval);
-		var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", retval->context, NULL);
+		if (ast_test_flag((&globalflags), VM_SEARCH))
+			var = ast_load_realtime("voicemail", "mailbox", mailbox, NULL);
+		else
+			var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", retval->context, NULL);
 		if (var) {
 			tmp = var;
 			while(tmp) {
@@ -554,6 +554,8 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 					ast_copy_string(retval->email, tmp->value, sizeof(retval->email));
 				} else if (!strcasecmp(tmp->name, "fullname")) {
 					ast_copy_string(retval->fullname, tmp->value, sizeof(retval->fullname));
+				} else if (!strcasecmp(tmp->name, "context")) {
+					ast_copy_string(retval->context, tmp->value, sizeof(retval->context));
 				} else
 					apply_option(retval, tmp->name, tmp->value);
 				tmp = tmp->next;
@@ -574,13 +576,14 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 	ast_mutex_lock(&vmlock);
 	cur = users;
 
-	if (!context)
+	if (!context && !ast_test_flag((&globalflags), VM_SEARCH))
 		context = "default";
 
 	while (cur) {
-		if ((!strcasecmp(context, cur->context)) &&
-			(!strcasecmp(mailbox, cur->mailbox)))
-				break;
+		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mailbox, cur->mailbox))
+			break;
+		if ((!strcasecmp(context, cur->context)) && (!strcasecmp(mailbox, cur->mailbox)))
+			break;
 		cur=cur->next;
 	}
 	if (cur) {
@@ -5810,6 +5813,7 @@ static int load_config(void)
 	struct ast_variable *var;
 	char *notifystr = NULL;
 	char *astattach;
+	char *astsearch;
 	char *astsaycid;
 	char *send_voicemail;
 	char *astcallop;
@@ -5862,6 +5866,10 @@ static int load_config(void)
 		if (!(astattach = ast_variable_retrieve(cfg, "general", "attach"))) 
 			astattach = "yes";
 		ast_set2_flag((&globalflags), ast_true(astattach), VM_ATTACH);	
+
+		if (!(astsearch = ast_variable_retrieve(cfg, "general", "searchcontexts")))
+			astsearch = "no";
+		ast_set2_flag((&globalflags), ast_true(astsearch), VM_SEARCH);
 
 #ifdef USE_ODBC_STORAGE
 		strcpy(odbc_database, "asterisk");
