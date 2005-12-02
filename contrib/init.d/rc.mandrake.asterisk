@@ -15,7 +15,12 @@ CONSOLE=yes		# Whether or not you want a console
 NOTIFY=root		# Who to notify about crashes
 DUMPDROP=/tmp
 HOSTNAME=`hostname`
-CONFIGFILE=/etc/sysconfig/`basename $0`
+if [ 0`readlink $0` = "0" ]; then
+	CONFIGFILE=/etc/sysconfig/`basename $0`
+else
+	CONFIG0=`readlink $0`
+	CONFIGFILE=/etc/sysconfig/`basename $CONFIG0`
+fi
 
 # Setup environment
 cd /usr/src
@@ -68,7 +73,7 @@ ulimit -c unlimited
 #{
 #}
 
-SIGMSG=("Hangup" "Interrupt" "Quit" "Illegal instruction" "Trace trap" "IOT Trap" "Bus Error" "Floating-point exception" "Killed" "User-defined signal 1" "Segmentation violation" "User-defined signal 2" "Broken pipe" "Alarm clock" "Termination" "Stack fault")
+SIGMSG=("None", "Hangup" "Interrupt" "Quit" "Illegal instruction" "Trace trap" "IOT Trap" "Bus Error" "Floating-point exception" "Killed" "User-defined signal 1" "Segmentation violation" "User-defined signal 2" "Broken pipe" "Alarm clock" "Termination" "Stack fault")
 
 run_asterisk()
 {
@@ -90,7 +95,7 @@ run_asterisk()
 			exit 0
 		elif [ $EXITSTATUS -gt 128 ]; then
 			EXITSIGNAL=$(($EXITSTATUS - 128))
-			EXITMSG=$SIGMSG[$EXITSIGNAL]
+			EXITMSG=${SIGMSG[$EXITSIGNAL]}
 			echo "Asterisk exited on signal $EXITSIGNAL - $EXITMSG."
 			if [ "$NOTIFY" != "" ]; then
 				echo "Asterisk exited on signal $EXITSIGNAL - $EXITMSG.  Might want to take a peek." | \
