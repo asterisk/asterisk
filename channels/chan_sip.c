@@ -8604,8 +8604,6 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			return;
 		}
 
-		if (sipdebug)
-			ast_verbose("* DTMF-relay event received: '%c'\n", buf[0]);
 		if (buf[0] == '*')
 			event = 10;
 		else if (buf[0] == '#')
@@ -8618,6 +8616,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			/* send a FLASH event */
 			struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_FLASH, };
 			ast_queue_frame(p->owner, &f);
+			if (sipdebug)
+				ast_verbose("* DTMF-relay event received: FLASH\n");
 		} else {
 			/* send a DTMF event */
 			struct ast_frame f = { AST_FRAME_DTMF, };
@@ -8631,6 +8631,8 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 				f.subclass = 'A' + (event - 12);
 			}
 			ast_queue_frame(p->owner, &f);
+			if (sipdebug)
+				ast_verbose("* DTMF-relay event received: %c\n", f.subclass);
 		}
 		transmit_response(p, "200 OK", req);
 		return;

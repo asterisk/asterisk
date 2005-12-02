@@ -320,6 +320,8 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct local_pvt *p = ast->tech_pvt;
 	int res;
+	struct ast_var_t *varptr = NULL, *new;
+	size_t len, namelen;
 	
 	ast_mutex_lock(&p->lock);
 	if (p->owner->cid.cid_num)
@@ -345,9 +347,22 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	strncpy(p->chan->language, p->owner->language, sizeof(p->chan->language) - 1);
 	strncpy(p->chan->accountcode, p->owner->accountcode, sizeof(p->chan->accountcode) - 1);
 	p->chan->cdrflags = p->owner->cdrflags;
-	/* move the channel variables from the incoming channel to the outgoing channel */
-	AST_LIST_HEAD_SET_NOLOCK(&p->chan->varshead, AST_LIST_FIRST(&p->owner->varshead));
-	AST_LIST_HEAD_INIT_NOLOCK(&p->owner->varshead);
+
+	/* copy the channel variables from the incoming channel to the outgoing channel */
+	/* Note that due to certain assumptions, they MUST be in the same order */
+	AST_LIST_TRAVERSE(&p->owner->varshead, varptr, entries) {
+		namelen = strlen(varptr->name);
+		len = sizeof(struct ast_var_t) + namelen + strlen(varptr->value) + 2;
+		new = malloc(len);
+		if (new) {
+			memcpy(new, varptr, len);
+			new->value = &(new->name[0]) + namelen + 1;
+			AST_LIST_INSERT_TAIL(&p->chan->varshead, new, entries);
+		} else {
+			ast_log(LOG_ERROR, "Out of memory!\n");
+		}
+	}
+
 	p->launchedpbx = 1;
 
 	/* Start switch on sub channel */

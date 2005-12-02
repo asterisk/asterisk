@@ -133,7 +133,8 @@ Applications:
 
 * The application VoiceMailMain now only matches the 'default' context if
   none is specified in the arguments.  (This was the previously 
-  documented behavior, however, we didn't follow that behavior.)
+  documented behavior, however, we didn't follow that behavior.)  The old
+  behavior can be restored by setting searchcontexts=yes in voicemail.conf.
 
 Queues:
 

@@ -110,6 +110,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define VM_ATTACH		(1 << 11)
 #define VM_DELETE		(1 << 12)
 #define VM_ALLOCED		(1 << 13)
+#define VM_SEARCH		(1 << 14)
 
 #define ERROR_LOCK_PATH		-100
 
@@ -534,12 +535,11 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 			ast_set_flag(retval, VM_ALLOCED);	
 		if (mailbox) 
 			ast_copy_string(retval->mailbox, mailbox, sizeof(retval->mailbox));
-		if (context) 
-			ast_copy_string(retval->context, context, sizeof(retval->context));
-		else
-			strcpy(retval->context, "default");
 		populate_defaults(retval);
-		var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", retval->context, NULL);
+		if (ast_test_flag((&globalflags), VM_SEARCH))
+			var = ast_load_realtime("voicemail", "mailbox", mailbox, NULL);
+		else
+			var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", retval->context, NULL);
 		if (var) {
 			tmp = var;
 			while(tmp) {
@@ -554,6 +554,8 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 					ast_copy_string(retval->email, tmp->value, sizeof(retval->email));
 				} else if (!strcasecmp(tmp->name, "fullname")) {
 					ast_copy_string(retval->fullname, tmp->value, sizeof(retval->fullname));
+				} else if (!strcasecmp(tmp->name, "context")) {
+					ast_copy_string(retval->context, tmp->value, sizeof(retval->context));
 				} else
 					apply_option(retval, tmp->name, tmp->value);
 				tmp = tmp->next;
@@ -574,13 +576,14 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 	ast_mutex_lock(&vmlock);
 	cur = users;
 
-	if (!context)
+	if (!context && !ast_test_flag((&globalflags), VM_SEARCH))
 		context = "default";
 
 	while (cur) {
-		if ((!strcasecmp(context, cur->context)) &&
-			(!strcasecmp(mailbox, cur->mailbox)))
-				break;
+		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mailbox, cur->mailbox))
+			break;
+		if ((!strcasecmp(context, cur->context)) && (!strcasecmp(mailbox, cur->mailbox)))
+			break;
 		cur=cur->next;
 	}
 	if (cur) {
@@ -660,91 +663,89 @@ static void vm_change_password(struct ast_vm_user *vmu, const char *newpassword)
 	}
 
 	while (!feof(configin)) {
+		char *user = NULL, *pass = NULL, *rest = NULL, *comment = NULL, *tmpctx = NULL, *tmpctxend = NULL;
+
 		/* Read in the line */
 		fgets(inbuf, sizeof(inbuf), configin);
 		linenum++;
-		if (!feof(configin)) {
-			char *user = NULL, *pass = NULL, *rest = NULL,
-				*comment = NULL, *tmpctx = NULL, *tmpctxend = NULL;
-			
-			if (ast_strlen_zero(inbuf)) {
-				fprintf(configout, "\n");
-				continue;
-			}
 
-			/* Make a backup of it */
-			ast_copy_string(orig, inbuf, sizeof(orig));
-			
-			/*
-			  Read the file line by line, split each line into a comment and command section
-			  only parse the command portion of the line
-			*/
-			if (inbuf[strlen(inbuf) - 1] == '\n')
-				inbuf[strlen(inbuf) - 1] = '\0';
+		if (ast_strlen_zero(inbuf)) {
+			fprintf(configout, "\n");
+			continue;
+		}
 
-			if ((comment = strchr(inbuf, ';')))
-				*comment++ = '\0'; /* Now inbuf is terminated just before the comment */
+		/* Make a backup of it */
+		ast_copy_string(orig, inbuf, sizeof(orig));
 
-			if (ast_strlen_zero(inbuf)) {
+		/*
+		  Read the file line by line, split each line into a comment and command section
+		  only parse the command portion of the line
+		*/
+		if (inbuf[strlen(inbuf) - 1] == '\n')
+			inbuf[strlen(inbuf) - 1] = '\0';
+
+		if ((comment = strchr(inbuf, ';')))
+			*comment++ = '\0'; /* Now inbuf is terminated just before the comment */
+
+		if (ast_strlen_zero(inbuf)) {
+			fprintf(configout, "%s", orig);
+			continue;
+		}
+
+		/* Check for a context, first '[' to first ']' */
+		if ((tmpctx = strchr(inbuf, '['))) {
+			tmpctxend = strchr(tmpctx, ']');
+			if (tmpctxend) {
+				/* Valid context */
+				ast_copy_string(currcontext, tmpctx + 1, tmpctxend - tmpctx);
 				fprintf(configout, "%s", orig);
 				continue;
 			}
-			
-			/* Check for a context, first '[' to first ']' */
-			if ((tmpctx = strchr(inbuf, '['))) {
-				tmpctxend = strchr(tmpctx, ']');
-				if (tmpctxend) {
-					/* Valid context */
-					ast_copy_string(currcontext, tmpctx + 1, tmpctxend - tmpctx);
-					fprintf(configout, "%s", orig);
-					continue;
-				}
-			}
-				
-			/* This isn't a context line, check for MBX => PSWD... */
-			user = inbuf;
-			if ((pass = strchr(user, '='))) {
-				/* We have a line in the form of aaaaa=aaaaaa */
+		}
+
+		/* This isn't a context line, check for MBX => PSWD... */
+		user = inbuf;
+		if ((pass = strchr(user, '='))) {
+			/* We have a line in the form of aaaaa=aaaaaa */
+			*pass++ = '\0';
+
+			user = ast_strip(user);
+
+			if (*pass == '>')
 				*pass++ = '\0';
-				
-				user = ast_strip(user);
 
-				if (*pass == '>')
-					*pass++ = '\0';
+			pass = ast_skip_blanks(pass);
 
-				pass = ast_skip_blanks(pass);
-				
-				/* 
-				   Since no whitespace allowed in fields, or more correctly white space
-				   inside the fields is there for a purpose, we can just terminate pass
-				   at the comma or EOL whichever comes first.
-				*/
-				if ((rest = strchr(pass, ',')))
-					*rest++ = '\0';
+			/* 
+			   Since no whitespace allowed in fields, or more correctly white space
+			   inside the fields is there for a purpose, we can just terminate pass
+			   at the comma or EOL whichever comes first.
+			*/
+			if ((rest = strchr(pass, ',')))
+				*rest++ = '\0';
+		} else {
+			user = NULL;
+		}			
+
+		/* Compare user, pass AND context */
+		if (!ast_strlen_zero(user) && !strcmp(user, vmu->mailbox) &&
+		    !ast_strlen_zero(pass) && !strcmp(pass, vmu->password) &&
+		    !strcasecmp(currcontext, vmu->context)) {
+			/* This is the line */
+			if (rest) {
+				fprintf(configout, "%s => %s,%s", user, newpassword, rest);
 			} else {
-				user = NULL;
-			}			
-			
-			/* Compare user, pass AND context */
-			if (!ast_strlen_zero(user) && !strcmp(user, vmu->mailbox) &&
-			    !ast_strlen_zero(pass) && !strcmp(pass, vmu->password) &&
-			    !strcasecmp(currcontext, vmu->context)) {
-				/* This is the line */
-				if (rest) {
-					fprintf(configout, "%s => %s,%s", user, newpassword, rest);
-				} else {
-					fprintf(configout, "%s => %s", user, newpassword);
-				}
-				/* If there was a comment on the line print it out */
-				if (comment) {
-					fprintf(configout, ";%s\n", comment);
-				} else {
-					fprintf(configout, "\n");
-				}
-			} else {
-				/* Put it back like it was */
-				fprintf(configout, "%s", orig);
+				fprintf(configout, "%s => %s", user, newpassword);
 			}
+			/* If there was a comment on the line print it out */
+			if (comment) {
+				fprintf(configout, ";%s\n", comment);
+			} else {
+				fprintf(configout, "\n");
+			}
+		} else {
+			/* Put it back like it was */
+			fprintf(configout, "%s", orig);
 		}
 	}
 	fclose(configin);
@@ -5812,6 +5813,7 @@ static int load_config(void)
 	struct ast_variable *var;
 	char *notifystr = NULL;
 	char *astattach;
+	char *astsearch;
 	char *astsaycid;
 	char *send_voicemail;
 	char *astcallop;
@@ -5864,6 +5866,10 @@ static int load_config(void)
 		if (!(astattach = ast_variable_retrieve(cfg, "general", "attach"))) 
 			astattach = "yes";
 		ast_set2_flag((&globalflags), ast_true(astattach), VM_ATTACH);	
+
+		if (!(astsearch = ast_variable_retrieve(cfg, "general", "searchcontexts")))
+			astsearch = "no";
+		ast_set2_flag((&globalflags), ast_true(astsearch), VM_SEARCH);
 
 #ifdef USE_ODBC_STORAGE
 		strcpy(odbc_database, "asterisk");

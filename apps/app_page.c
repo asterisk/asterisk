@@ -40,6 +40,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/file.h"
 #include "asterisk/app.h"
+#include "asterisk/chanvars.h"
 
 
 static const char *tdesc = "Page Multiple Phones";
@@ -77,13 +78,14 @@ struct calloutdata {
 	char tech[64];
 	char resource[256];
 	char meetmeopts[64];
+	struct ast_variable *variables;
 };
 
 static void *page_thread(void *data)
 {
 	struct calloutdata *cd = data;
 	ast_pbx_outgoing_app(cd->tech, AST_FORMAT_SLINEAR, cd->resource, 30000,
-		"MeetMe", cd->meetmeopts, NULL, 0, cd->cidnum, cd->cidname, NULL, NULL);
+		"MeetMe", cd->meetmeopts, NULL, 0, cd->cidnum, cd->cidname, cd->variables, NULL);
 	free(cd);
 	return NULL;
 }
@@ -91,6 +93,9 @@ static void *page_thread(void *data)
 static void launch_page(struct ast_channel *chan, const char *meetmeopts, const char *tech, const char *resource)
 {
 	struct calloutdata *cd;
+	const char *varname;
+	struct ast_variable *lastvar = NULL;
+	struct ast_var_t *varptr;
 	pthread_t t;
 	pthread_attr_t attr;
 	cd = malloc(sizeof(struct calloutdata));
@@ -101,6 +106,29 @@ static void launch_page(struct ast_channel *chan, const char *meetmeopts, const 
 		ast_copy_string(cd->tech, tech, sizeof(cd->tech));
 		ast_copy_string(cd->resource, resource, sizeof(cd->resource));
 		ast_copy_string(cd->meetmeopts, meetmeopts, sizeof(cd->meetmeopts));
+
+		AST_LIST_TRAVERSE(&chan->varshead, varptr, entries) {
+			if (!(varname = ast_var_full_name(varptr)))
+				continue;
+			if (varname[0] == '_') {
+				struct ast_variable *newvar = NULL;
+
+				if (varname[1] == '_') {
+					newvar = ast_variable_new(varname, ast_var_value(varptr));
+				} else {
+					newvar = ast_variable_new(&varname[1], ast_var_value(varptr));
+				}
+
+				if (newvar) {
+					if (lastvar)
+						lastvar->next = newvar;
+					else
+						cd->variables = newvar;
+					lastvar = newvar;
+				}
+			}
+		}
+
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (ast_pthread_create(&t, &attr, page_thread, cd)) {

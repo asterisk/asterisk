@@ -909,8 +909,11 @@ void ast_channel_free(struct ast_channel *chan)
 		free(chan->tech_pvt);
 	}
 
+	if (chan->sched)
+		sched_context_destroy(chan->sched);
+
 	ast_copy_string(name, chan->name, sizeof(name));
-	
+
 	/* Stop monitoring */
 	if (chan->monitor) {
 		chan->monitor->stop( chan, 0 );
@@ -1294,8 +1297,10 @@ int ast_hangup(struct ast_channel *chan)
 		ast_closestream(chan->stream);
 	if (chan->vstream)		/* Close video stream */
 		ast_closestream(chan->vstream);
-	if (chan->sched)
+	if (chan->sched) {
 		sched_context_destroy(chan->sched);
+		chan->sched = NULL;
+	}
 	
 	if (chan->generatordata)	/* Clear any tone stuff remaining */ 
 		chan->generator->release(chan, chan->generatordata);
