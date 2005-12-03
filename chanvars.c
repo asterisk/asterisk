@@ -59,31 +59,27 @@ void ast_var_delete(struct ast_var_t *var)
 		free(var);
 }
 
-char *ast_var_name(struct ast_var_t *var)
+const char *ast_var_name(const struct ast_var_t *var)
 {
-	char *name;
+	const char *name;
 
-	if (var == NULL)
-		return NULL;
-	if (var->name == NULL)
+	if (var == NULL || (name = var->name) == NULL)
 		return NULL;
 	/* Return the name without the initial underscores */
-	if (var->name[0] == '_') {
-		if (var->name[1] == '_')
-			name = (char*)&(var->name[2]);
-		else
-			name = (char*)&(var->name[1]);
-	} else
-		name = var->name;
+	if (name[0] == '_') {
+		name++;
+		if (name[0] == '_')
+			name++;
+	}
 	return name;
 }
 
-char *ast_var_full_name(struct ast_var_t *var)
+const char *ast_var_full_name(const struct ast_var_t *var)
 {
 	return (var ? var->name : NULL);
 }
 
-char *ast_var_value(struct ast_var_t *var)
+const char *ast_var_value(const struct ast_var_t *var)
 {
 	return (var ? var->value : NULL);
 }

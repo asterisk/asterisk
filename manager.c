@@ -726,7 +726,7 @@ static int action_getvar(struct mansession *s, struct message *m)
         char *name = astman_get_header(m, "Channel");
         char *varname = astman_get_header(m, "Variable");
 	char *id = astman_get_header(m,"ActionID");
-	char *varval;
+	const char *varval;
 	char *varval2=NULL;
 
 	if (!strlen(varname)) {

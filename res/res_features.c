@@ -180,18 +180,14 @@ struct ast_bridge_thread_obj
 static void check_goto_on_transfer(struct ast_channel *chan) 
 {
 	struct ast_channel *xferchan;
-	char *goto_on_transfer;
+	const char *val = pbx_builtin_getvar_helper(chan, "GOTO_ON_BLINDXFR");
+	char *x, *goto_on_transfer;
+	struct ast_frame *f;
 
-	goto_on_transfer = pbx_builtin_getvar_helper(chan, "GOTO_ON_BLINDXFR");
-
-	if (!ast_strlen_zero(goto_on_transfer) && (xferchan = ast_channel_alloc(0))) {
-		char *x;
-		struct ast_frame *f;
-		
+	if (!ast_strlen_zero(val) && (goto_on_transfer = ast_strdupa(val)) && (xferchan = ast_channel_alloc(0))) {
 		for (x = goto_on_transfer; x && *x; x++)
 			if (*x == '^')
 				*x = '|';
-
 		strcpy(xferchan->name, chan->name);
 		/* Make formats okay */
 		xferchan->readformat = chan->readformat;
@@ -446,7 +442,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
-	char *touch_monitor = NULL, *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_format = NULL;
+	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL;
 	int x = 0;
 	size_t len;
 	struct ast_channel *caller_chan = NULL, *callee_chan = NULL;
@@ -494,11 +490,12 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 	}
 
 	if (caller_chan && callee_chan) {
-		touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_FORMAT");
+		const char *touch_format = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR_FORMAT");
+		const char *touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR");
+
 		if (!touch_format)
 			touch_format = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR_FORMAT");
 
-		touch_monitor = pbx_builtin_getvar_helper(caller_chan, "TOUCH_MONITOR");
 		if (!touch_monitor)
 			touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR");
 		
@@ -541,7 +538,7 @@ static int builtin_blindtransfer(struct ast_channel *chan, struct ast_channel *p
 {
 	struct ast_channel *transferer;
 	struct ast_channel *transferee;
-	char *transferer_real_context;
+	const char *transferer_real_context;
 	char newext[256];
 	int res;
 
@@ -670,7 +667,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 	struct ast_channel *newchan, *xferchan=NULL;
 	int outstate=0;
 	struct ast_bridge_config bconfig;
-	char *transferer_real_context;
+	const char *transferer_real_context;
 	char xferto[256],dialstr[265];
 	char *cid_num;
 	char *cid_name;
@@ -981,7 +978,7 @@ static int ast_feature_interpret(struct ast_channel *chan, struct ast_channel *p
 	struct ast_flags features;
 	int res = FEATURE_RETURN_PASSDIGITS;
 	struct ast_call_feature *feature;
-	char *dynamic_features=pbx_builtin_getvar_helper(chan,"DYNAMIC_FEATURES");
+	const char *dynamic_features=pbx_builtin_getvar_helper(chan,"DYNAMIC_FEATURES");
 
 	if (sense == FEATURE_SENSE_CHAN)
 		ast_copy_flags(&features, &(config->features_caller), AST_FLAGS_ALL);	
@@ -1047,9 +1044,7 @@ static void set_config_flags(struct ast_channel *chan, struct ast_channel *peer,
 	}
 	
 	if (chan && peer && !(ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_0) && ast_test_flag(config, AST_BRIDGE_DTMF_CHANNEL_1))) {
-		char *dynamic_features;
-
-		dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
+		const char *dynamic_features = pbx_builtin_getvar_helper(chan, "DYNAMIC_FEATURES");
 
 		if (dynamic_features) {
 			char *tmp = ast_strdupa(dynamic_features);
@@ -1261,7 +1256,6 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	struct ast_option_header *aoh;
 	struct timeval start = { 0 , 0 };
 	struct ast_bridge_config backup_config;
-	char *monitor_exec;
 
 	memset(&backup_config, 0, sizeof(backup_config));
 
@@ -1274,14 +1268,24 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 		pbx_builtin_setvar_helper(chan, "BLINDTRANSFER", NULL);
 
 	if (monitor_ok) {
+		const char *monitor_exec;
+		struct ast_channel *src = NULL;
 		if (!monitor_app) { 
 			if (!(monitor_app = pbx_findapp("Monitor")))
 				monitor_ok=0;
 		}
 		if ((monitor_exec = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR"))) 
-			pbx_exec(chan, monitor_app, monitor_exec, 1);
+			src = chan;
 		else if ((monitor_exec = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR")))
-			pbx_exec(peer, monitor_app, monitor_exec, 1);
+			src = peer;
+		if (src) {
+			char *tmp = ast_strdupa(monitor_exec);
+			if (tmp) {
+				pbx_exec(src, monitor_app, tmp, 1);
+			} else {
+				ast_log(LOG_ERROR, "Monitor failed: out of memory\n");
+			}
+		}
 	}
 	
 	set_config_flags(chan, peer, config);

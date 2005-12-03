@@ -89,6 +89,8 @@ LOCAL_USER_DECL;
 
 static int macro_exec(struct ast_channel *chan, void *data)
 {
+	const char *s;
+
 	char *tmp;
 	char *cur, *rest;
 	char *macro;
@@ -101,8 +103,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	int oldpriority;
 	char pc[80], depthc[12];
 	char oldcontext[AST_MAX_CONTEXT] = "";
-	char *offsets;
-	int offset, depth;
+	int offset, depth = 0;
 	int setmacrocontext=0;
 	int autoloopflag;
   
@@ -120,13 +121,9 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	/* Count how many levels deep the rabbit hole goes */
-	tmp = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
-	if (tmp) {
-		sscanf(tmp, "%d", &depth);
-	} else {
-		depth = 0;
-	}
-
+	s = pbx_builtin_getvar_helper(chan, "MACRO_DEPTH");
+	if (s)
+		sscanf(s, "%d", &depth);
 	if (depth >= 7) {
 		ast_log(LOG_ERROR, "Macro():  possible infinite loop detected.  Returning early.\n");
 		LOCAL_USER_REMOVE(u);
@@ -193,12 +190,13 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	chan->priority = 1;
 
 	while((cur = strsep(&rest, "|")) && (argc < MAX_ARGS)) {
+		const char *s;
   		/* Save copy of old arguments if we're overwriting some, otherwise
 	   	let them pass through to the other macro */
   		snprintf(varname, sizeof(varname), "ARG%d", argc);
-		oldargs[argc] = pbx_builtin_getvar_helper(chan, varname);
-		if (oldargs[argc])
-			oldargs[argc] = strdup(oldargs[argc]);
+		s = pbx_builtin_getvar_helper(chan, varname);
+		if (s)
+			oldargs[argc] = strdup(s);
 		pbx_builtin_setvar_helper(chan, varname, cur);
 		argc++;
 	}
@@ -286,6 +284,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		ast_copy_string(chan->context, oldcontext, sizeof(chan->context));
 		if (!(chan->_softhangup & AST_SOFTHANGUP_ASYNCGOTO)) {
 			/* Copy the extension, so long as we're not in softhangup, where we could be given an asyncgoto */
+			const char *offsets;
 			ast_copy_string(chan->exten, oldexten, sizeof(chan->exten));
 			if ((offsets = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"))) {
 				/* Handle macro offset if it's set by checking the availability of step n + offset + 1, otherwise continue

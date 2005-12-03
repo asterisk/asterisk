@@ -296,7 +296,6 @@ static int conf_exec(struct ast_channel *chan, void *data)
 	char confstr[80] = "", *tmp = NULL;
 	struct ast_channel *tempchan = NULL, *lastchan = NULL,*ichan = NULL;
 	struct ast_frame *f;
-	char *mygroup;
 	char *desired_group;
 	int input=0,search_group=0;
 	
@@ -335,6 +334,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 			break;
 		
 		if (tempchan && search_group) {
+			const char *mygroup;
 			if((mygroup = pbx_builtin_getvar_helper(tempchan, "GROUP")) && (!strcmp(mygroup, desired_group))) {
 				ast_verbose(VERBOSE_PREFIX_3 "Found Matching Channel %s in group %s\n", tempchan->name, desired_group);
 			} else {

@@ -389,7 +389,7 @@ extern char* ast_getformatname_multiple(char *buf, size_t size, int format);
  * \param name string of format
  * \return This returns the form of the format in binary on success, 0 on error.
  */
-extern int ast_getformatbyname(char *name);
+extern int ast_getformatbyname(const char *name);
 
 /*! \brief Get a name from a format 
  * Gets a name from a format

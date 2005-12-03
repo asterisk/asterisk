@@ -1129,9 +1129,9 @@ icky:
 				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
 #endif
 				if (strcasecmp(ast_var_name(variables),var)==0) {
-					*ret=ast_var_value(variables);
-					if (*ret) {
-						ast_copy_string(workspace, *ret, workspacelen);
+					const char *s = ast_var_value(variables);
+					if (s) {
+						ast_copy_string(workspace, s, workspacelen);
 						*ret = workspace;
 					}
 					break;
@@ -1145,9 +1145,9 @@ icky:
 				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
 #endif
 				if (strcasecmp(ast_var_name(variables),var)==0) {
-					*ret = ast_var_value(variables);
-					if (*ret) {
-						ast_copy_string(workspace, *ret, workspacelen);
+					const char *s = ast_var_value(variables);
+					if (s) {
+						ast_copy_string(workspace, s, workspacelen);
 						*ret = workspace;
 					}
 				}
@@ -2413,7 +2413,7 @@ static int __ast_pbx_run(struct ast_channel *c)
 					ast_cdr_update(c);
 			    }
 			} else {
-				char *status;
+				const char *status;
 
 				status = pbx_builtin_getvar_helper(c, "DIALSTATUS");
 				if (!status)
@@ -5846,7 +5846,7 @@ static int pbx_builtin_goto(struct ast_channel *chan, void *data)
 int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t size) 
 {
 	struct ast_var_t *variables;
-	char *var, *val;
+	const char *var, *val;
 	int total = 0;
 
 	if (!chan)
@@ -5870,7 +5870,7 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t 
 	return total;
 }
 
-char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name) 
+const char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name) 
 {
 	struct ast_var_t *variables;
 	struct varshead *headp;
@@ -6383,7 +6383,7 @@ int ast_context_verify_includes(struct ast_context *con)
 }
 
 
-static int __ast_goto_if_exists(struct ast_channel *chan, char *context, char *exten, int priority, int async) 
+static int __ast_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, int async) 
 {
 	int (*goto_func)(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
@@ -6400,11 +6400,11 @@ static int __ast_goto_if_exists(struct ast_channel *chan, char *context, char *e
 		return -3;
 }
 
-int ast_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority) {
+int ast_goto_if_exists(struct ast_channel *chan, const char* context, const char *exten, int priority) {
 	return __ast_goto_if_exists(chan, context, exten, priority, 0);
 }
 
-int ast_async_goto_if_exists(struct ast_channel *chan, char* context, char *exten, int priority) {
+int ast_async_goto_if_exists(struct ast_channel *chan, const char * context, const char *exten, int priority) {
 	return __ast_goto_if_exists(chan, context, exten, priority, 1);
 }
 

@@ -143,8 +143,8 @@ static struct ast_conference {
 	int locked;				/* Is the conference locked? */
 	pthread_t recordthread;			/* thread for recording */
 	pthread_attr_t attr;			/* thread attribute */
-	char *recordingfilename;		/* Filename to record the Conference into */
-	char *recordingformat;			/* Format to record the Conference in */
+	const char *recordingfilename;		/* Filename to record the Conference into */
+	const char *recordingformat;			/* Format to record the Conference in */
 	char pin[AST_MAX_EXTENSION];		/* If protected by a PIN */
 	char pinadmin[AST_MAX_EXTENSION];	/* If protected by a admin PIN */
 	struct ast_conference *next;
@@ -813,8 +813,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int duration=20;
 	struct ast_dsp *dsp=NULL;
 	struct ast_app *app;
-	char *agifile;
-	char *agifiledefault = "conf-background.agi";
+	const char *agifile;
+	const char *agifiledefault = "conf-background.agi";
 	char meetmesecs[30] = "";
 	char exitcontext[AST_MAX_CONTEXT] = "";
 	char recordingtmp[AST_MAX_EXTENSION] = "";
@@ -1086,7 +1086,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		/* Find a pointer to the agi app and execute the script */
 		app = pbx_findapp("agi");
 		if (app) {
-			ret = pbx_exec(chan, app, agifile, 1);
+			char *s = ast_strdupa(agifile);
+			ret = pbx_exec(chan, app, s, 1);
 		} else {
 			ast_log(LOG_WARNING, "Could not find application (agi)\n");
 			ret = -2;

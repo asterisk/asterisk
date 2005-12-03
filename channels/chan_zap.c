@@ -1932,7 +1932,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 			break;
 		case SIG_FEATDMF_TA:
 		{
-			char *cic = NULL, *ozz = NULL;
+			const char *cic, *ozz;
 
 			/* If you have to go through a Tandem Access point you need to use this */
 			ozz = pbx_builtin_getvar_helper(p->owner, "FEATDMF_OZZ");

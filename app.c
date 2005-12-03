@@ -1006,7 +1006,7 @@ int ast_play_and_prepend(struct ast_channel *chan, char *playfile, char *recordf
 
 /* Channel group core functions */
 
-int ast_app_group_split_group(char *data, char *group, int group_max, char *category, int category_max)
+int ast_app_group_split_group(const char *data, char *group, int group_max, char *category, int category_max)
 {
 	int res=0;
 	char tmp[256];
@@ -1035,7 +1035,7 @@ int ast_app_group_split_group(char *data, char *group, int group_max, char *cate
 	return res;
 }
 
-int ast_app_group_set_channel(struct ast_channel *chan, char *data)
+int ast_app_group_set_channel(struct ast_channel *chan, const char *data)
 {
 	int res=0;
 	char group[80] = "";
@@ -1049,13 +1049,13 @@ int ast_app_group_set_channel(struct ast_channel *chan, char *data)
 	return res;
 }
 
-int ast_app_group_get_count(char *group, char *category)
+int ast_app_group_get_count(const char *group, const char *category)
 {
 	struct ast_channel *chan;
 	int count = 0;
-	char *test;
+	const char *test;
 	char cat[80];
-	char *s;
+	const char *s;
 
 	if (ast_strlen_zero(group))
 		return 0;
@@ -1074,14 +1074,14 @@ int ast_app_group_get_count(char *group, char *category)
 	return count;
 }
 
-int ast_app_group_match_get_count(char *groupmatch, char *category)
+int ast_app_group_match_get_count(const char *groupmatch, const char *category)
 {
 	regex_t regexbuf;
 	struct ast_channel *chan;
 	int count = 0;
-	char *test;
+	const char *test;
 	char cat[80];
-	char *s;
+	const char *s;
 
 	if (ast_strlen_zero(groupmatch))
 		return 0;

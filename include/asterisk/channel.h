@@ -454,9 +454,9 @@ struct ast_bridge_config {
 	long timelimit;
 	long play_warning;
 	long warning_freq;
-	char *warning_sound;
-	char *end_sound;
-	char *start_sound;
+	const char *warning_sound;
+	const char *end_sound;
+	const char *start_sound;
 	int firstpass;
 	unsigned int flags;
 };

@@ -539,7 +539,7 @@ static struct ast_codec_alias_table {
 	{"g723.1","g723"},
 };
 
-static char *ast_expand_codec_alias(char *in) {
+static const char *ast_expand_codec_alias(const char *in) {
 	int x = 0;
 
 	for (x = 0; x < sizeof(ast_codec_alias_table) / sizeof(struct ast_codec_alias_table) ; x++) {
@@ -549,7 +549,7 @@ static char *ast_expand_codec_alias(char *in) {
 	return in;
 }
 
-int ast_getformatbyname(char *name)
+int ast_getformatbyname(const char *name)
 {
 	int x = 0, all = 0, format = 0;
 

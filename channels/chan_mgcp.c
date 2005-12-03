@@ -889,7 +889,7 @@ static int mgcp_call(struct ast_channel *ast, char *dest, int timeout)
 	struct mgcp_endpoint *p;
 	struct mgcp_subchannel *sub;
 	char tone[50] = "";
-	char *distinctive_ring = NULL;
+	const char *distinctive_ring = NULL;
 	struct varshead *headp;
 	struct ast_var_t *current;
 

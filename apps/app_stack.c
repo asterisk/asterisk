@@ -82,7 +82,7 @@ static int pop_exec(struct ast_channel *chan, void *data)
 
 static int return_exec(struct ast_channel *chan, void *data)
 {
-	char *label = pbx_builtin_getvar_helper(chan, STACKVAR);
+	const char *label = pbx_builtin_getvar_helper(chan, STACKVAR);
 
 	if (ast_strlen_zero(label)) {
 		ast_log(LOG_ERROR, "Return without Gosub: stack is empty\n");

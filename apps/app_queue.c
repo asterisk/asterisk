@@ -1992,7 +1992,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	char oldcontext[AST_MAX_CONTEXT]="";
 	char queuename[256]="";
 	char *newnum;
-	char *monitorfilename;
 	struct ast_channel *peer;
 	struct ast_channel *which;
 	struct localuser *lpeer;
@@ -2209,7 +2208,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		/* Begin Monitoring */
 		if (qe->parent->monfmt && *qe->parent->monfmt) {
-			monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
+			const char *monitorfilename = pbx_builtin_getvar_helper(qe->chan, "MONITOR_FILENAME");
 			if (pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC") || pbx_builtin_getvar_helper(qe->chan, "MONITOR_EXEC_ARGS"))
 				which = qe->chan;
 			else
@@ -2845,7 +2844,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	char *options = NULL;
 	char *url = NULL;
 	char *announceoverride = NULL;
-	char *user_priority;
+	const char *user_priority;
 	int prio;
 	char *queuetimeoutstr = NULL;
 	enum queue_result reason = QUEUE_UNKNOWN;

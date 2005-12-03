@@ -40,7 +40,7 @@ static char *group_count_function_read(struct ast_channel *chan, char *cmd, char
 	int count;
 	char group[80] = "";
 	char category[80] = "";
-	char *grp;
+	const char *grp;
 
 	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
 
@@ -101,7 +101,7 @@ struct ast_custom_function group_match_count_function = {
 static char *group_function_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char varname[256];
-	char *group;
+	const char *group;
 
 	if (!ast_strlen_zero(data)) {
 		snprintf(varname, sizeof(varname), "%s_%s", GROUP_CATEGORY_PREFIX, data);

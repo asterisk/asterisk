@@ -122,7 +122,7 @@ static int execif_exec(struct ast_channel *chan, void *data) {
 #define VAR_SIZE 64
 
 
-static char *get_index(struct ast_channel *chan, const char *prefix, int index) {
+static const char *get_index(struct ast_channel *chan, const char *prefix, int index) {
 	char varname[VAR_SIZE];
 
 	snprintf(varname, VAR_SIZE, "%s_%d", prefix, index);
@@ -209,15 +209,15 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 {
 	int res=0;
 	struct localuser *u;
-	char *while_pri = NULL;
-	char *goto_str = NULL, *my_name = NULL;
-	char *condition = NULL, *label = NULL;
+	const char *while_pri = NULL;
+	char *my_name = NULL;
+	const char *condition = NULL, *label = NULL;
 	char varname[VAR_SIZE], end_varname[VAR_SIZE];
 	const char *prefix = "WHILE";
 	size_t size=0;
 	int used_index_i = -1, x=0;
 	char used_index[VAR_SIZE] = "0", new_index[VAR_SIZE] = "0";
-	
+
 	if (!chan) {
 		/* huh ? */
 		return -1;
@@ -271,6 +271,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 
 	if (!end && !ast_true(condition)) {
 		/* Condition Met (clean up helper vars) */
+		const char *goto_str;
 		pbx_builtin_setvar_helper(chan, varname, NULL);
 		pbx_builtin_setvar_helper(chan, my_name, NULL);
         snprintf(end_varname,VAR_SIZE,"END_%s",varname);
@@ -291,6 +292,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 	}
 
 	if (!end && !while_pri) {
+		char *goto_str;
 		size = strlen(chan->context) + strlen(chan->exten) + 32;
 		goto_str = alloca(size);
 		memset(goto_str, 0, size);
@@ -302,6 +304,7 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 		/* END of loop */
 		snprintf(end_varname, VAR_SIZE, "END_%s", varname);
 		if (! pbx_builtin_getvar_helper(chan, end_varname)) {
+			char *goto_str;
 			size = strlen(chan->context) + strlen(chan->exten) + 32;
 			goto_str = alloca(size);
 			memset(goto_str, 0, size);

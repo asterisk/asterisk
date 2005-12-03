@@ -1686,7 +1686,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 			     AST_APP_ARG(options);
 			     AST_APP_ARG(extension);
 		);
-	char *tmpoptions = NULL;
+	const char *tmpoptions = NULL;
 	char *context = NULL;
 	int play_announcement = 1;
 	char agent_goodbye[AST_MAX_FILENAME_LEN];
@@ -2231,7 +2231,7 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 	int nowarnings = 0;
 	int changeoutgoing = 0;
 	int res = 0;
-	char agent[AST_MAX_AGENT], *tmp;
+	char agent[AST_MAX_AGENT];
 
 	if (data) {
 		if (strchr(data, 'd'))
@@ -2242,6 +2242,7 @@ static int agentmonitoroutgoing_exec(struct ast_channel *chan, void *data)
 			changeoutgoing = 1;
 	}
 	if (chan->cid.cid_num) {
+		const char *tmp;
 		char agentvar[AST_MAX_BUF];
 		snprintf(agentvar, sizeof(agentvar), "%s_%s", GETAGENTBYCALLERID, chan->cid.cid_num);
 		if ((tmp = pbx_builtin_getvar_helper(NULL, agentvar))) {

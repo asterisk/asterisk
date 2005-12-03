@@ -2770,7 +2770,7 @@ void ast_change_name(struct ast_channel *chan, char *newname)
 void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_channel *child)
 {
 	struct ast_var_t *current, *newvar;
-	char *varname;
+	const char *varname;
 
 	AST_LIST_TRAVERSE(&parent->varshead, current, entries) {
 		int vartype = 0;
@@ -3159,7 +3159,7 @@ struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
 	return bridged;
 }
 
-static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, char *sound, int remain) 
+static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, const char *sound, int remain) 
 {
 	int res=0, min=0, sec=0,check=0;
 

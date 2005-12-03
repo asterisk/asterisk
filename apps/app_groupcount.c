@@ -56,7 +56,6 @@ static int group_count_exec(struct ast_channel *chan, void *data)
 	char group[80] = "";
 	char category[80] = "";
 	char ret[80] = "";
-	char *grp;
 	static int deprecation_warning = 0;
 
 	LOCAL_USER_ADD(u);
@@ -69,7 +68,7 @@ static int group_count_exec(struct ast_channel *chan, void *data)
 	ast_app_group_split_group(data, group, sizeof(group), category, sizeof(category));
 
 	if (ast_strlen_zero(group)) {
-		grp = pbx_builtin_getvar_helper(chan, category);
+		const char *grp = pbx_builtin_getvar_helper(chan, category);
 		strncpy(group, grp, sizeof(group) - 1);
 	}
 

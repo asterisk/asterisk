@@ -468,7 +468,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 		prev=NULL;
 		while(peer) {
 			if (peer != chan) {
-				char *group = NULL;
+				const char *group = NULL;
 				int igrp = 1;
 
 				if (peer == prev && !chosen) {

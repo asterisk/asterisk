@@ -9137,7 +9137,6 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 	char odata[256];
 	char req[256];
 	char *ncontext;
-	char *dialstatus;
 	struct iax2_dpcache *dp;
 	struct ast_app *dial;
 #if 0
@@ -9145,7 +9144,7 @@ static int iax2_exec(struct ast_channel *chan, const char *context, const char *
 #endif
 	if (priority == 2) {
 		/* Indicate status, can be overridden in dialplan */
-		dialstatus = pbx_builtin_getvar_helper(chan, "DIALSTATUS");
+		const char *dialstatus = pbx_builtin_getvar_helper(chan, "DIALSTATUS");
 		if (dialstatus) {
 			dial = pbx_findapp(dialstatus);
 			if (dial) 

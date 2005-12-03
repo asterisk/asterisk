@@ -212,7 +212,6 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 /* Stop monitoring a channel */
 int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 {
-	char *execute, *execute_args;
 	int delfiles = 0;
 
 	if (need_lock) {
@@ -261,6 +260,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 			char *name = chan->monitor->filename_base;
 			int directory = strchr(name, '/') ? 1 : 0;
 			char *dir = directory ? "" : ast_config_AST_MONITOR_DIR;
+			const char *execute, *execute_args;
 
 			/* Set the execute application */
 			execute = pbx_builtin_getvar_helper(chan, "MONITOR_EXEC");

@@ -462,11 +462,11 @@ struct sip_pkt;
 
 /*! \brief Parameters to the transmit_invite function */
 struct sip_invite_param {
-	char *distinctive_ring;	/*!< Distinctive ring header */
+	const char *distinctive_ring;	/*!< Distinctive ring header */
 	char *osptoken;		/*!< OSP token for this call */
 	int addsipheaders;	/*!< Add extra SIP headers */
-	char *uri_options;	/*!< URI options to add to the URI */
-	char *vxml_url;		/*!< VXML url for Cisco phones */
+	const char *uri_options;	/*!< URI options to add to the URI */
+	const char *vxml_url;		/*!< VXML url for Cisco phones */
 	char *auth;		/*!< Authentication */
 	char *authheader;	/*!< Auth header */
 	enum sip_auth_type auth_type;	/*!< Authentication type */
@@ -2478,7 +2478,7 @@ static int sip_hangup(struct ast_channel *ast)
 static int sip_answer(struct ast_channel *ast)
 {
 	int res = 0,fmt;
-	char *codec;
+	const char *codec;
 	struct sip_pvt *p = ast->tech_pvt;
 
 	ast_mutex_lock(&p->lock);
