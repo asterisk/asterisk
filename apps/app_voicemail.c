@@ -3674,7 +3674,7 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 	/* Strip off caller ID number from name */
 	ast_log(LOG_DEBUG, "VM-CID: composite caller ID received: %s, context: %s\n", cid, context);
 	ast_callerid_parse(cid, &name, &callerid);
-	if ((!res)&&(!ast_strlen_zero(callerid))){
+	if ((!ast_strlen_zero(callerid)) && strcmp(callerid, "Unknown")) {
 		/* Check for internal contexts and only */
 		/* say extension when the call didn't come from an internal context in the list */
 		for (i = 0 ; i < MAX_NUM_CID_CONTEXTS ; i++){
@@ -3714,9 +3714,8 @@ static int play_message_callerid(struct ast_channel *chan, struct vm_state *vms,
 	} else {
 		/* Number unknown */
 		ast_log(LOG_DEBUG, "VM-CID: From an unknown number\n");
-		if (!res)
-			/* BB: Say "from an unknown caller" as one phrase - it is already recorded by "the voice" anyhow */
-			res = wait_file2(chan, vms, "vm-unknown-caller");
+		/* Say "from an unknown caller" as one phrase - it is already recorded by "the voice" anyhow */
+		res = wait_file2(chan, vms, "vm-unknown-caller");
 	}
 	return res;
 }
@@ -5535,7 +5534,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 		if (ast_strlen_zero(tmp)) {
 			LOCAL_USER_REMOVE(u);
 			return 0;
-		}	
+		}
 		argv[0] = ast_strdupa(tmp);
 	}
 
