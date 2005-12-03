@@ -148,7 +148,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;registerattempts=10		; Number of registration attempts before we give up
 				; 0 = continue forever, hammering the other server until it 
 				; accepts the registration
-				; Default is 10 tries
+				; Default is 0 tries, continue forever
 ;callevents=no			; generate manager events when sip ua performs events (e.g. hold)
 
 ;----------------------------------------- NAT SUPPORT ------------------------
