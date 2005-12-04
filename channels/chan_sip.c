@@ -576,9 +576,9 @@ struct sip_auth {
 #define SIP_PKT_DEBUG		(1 << 0)	/*!< Debug this packet */
 #define SIP_PKT_WITH_TOTAG	(1 << 1)	/*!< This packet has a to-tag */
 
-#define SIP_DEBUG		ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG)
-#define SIP_DEBUG_CONFIG	ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONFIG)
-#define SIP_DEBUG_CONSOLE	ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONSOLE)
+#define sipdebug		ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG)
+#define sipdebug_config		ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONFIG)
+#define sipdebug_console	ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONSOLE)
 
 static int global_rtautoclear = 120;
 
@@ -925,6 +925,8 @@ static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEB
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate);
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
+int find_sip_method(char *msg);
+unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported);
 
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -995,7 +997,7 @@ unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 	if (ast_strlen_zero(supported) )
 		return 0;
 
-	if (option_debug > 2 && SIP_DEBUG)
+	if (option_debug > 2 && sipdebug)
 		ast_log(LOG_DEBUG, "Begin: parsing SIP \"Supported: %s\"\n", supported);
 
 	next = temp;
@@ -1007,18 +1009,18 @@ unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 		}
 		while (*next == ' ')	/* Skip spaces */
 			next++;
-		if (option_debug > 2 && SIP_DEBUG)
+		if (option_debug > 2 && sipdebug)
 			ast_log(LOG_DEBUG, "Found SIP option: -%s-\n", next);
 		for (i=0; (i < (sizeof(sip_options) / sizeof(sip_options[0]))) && !res; i++) {
 			if (!strcasecmp(next, sip_options[i].text)) {
 				profile |= sip_options[i].id;
 				res = 1;
-				if (option_debug > 2 && SIP_DEBUG)
+				if (option_debug > 2 && sipdebug)
 					ast_log(LOG_DEBUG, "Matched SIP option: %s\n", next);
 			}
 		}
 		if (!res) 
-			if (option_debug > 2 && SIP_DEBUG)
+			if (option_debug > 2 && sipdebug)
 				ast_log(LOG_DEBUG, "Found no match for SIP option: %s (Please file bug report!)\n", next);
 		next = sep;
 	}
@@ -1033,7 +1035,7 @@ unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported)
 /*! \brief  sip_debug_test_addr: See if we pass debug IP filter */
 static inline int sip_debug_test_addr(struct sockaddr_in *addr) 
 {
-	if (!SIP_DEBUG)
+	if (!sipdebug)
 		return 0;
 	if (debugaddr.sin_addr.s_addr) {
 		if (((ntohs(debugaddr.sin_port) != 0)
@@ -1047,7 +1049,7 @@ static inline int sip_debug_test_addr(struct sockaddr_in *addr)
 /*! \brief  sip_debug_test_pvt: Test PVT for debugging output */
 static inline int sip_debug_test_pvt(struct sip_pvt *p) 
 {
-	if (!SIP_DEBUG)
+	if (!sipdebug)
 		return 0;
 	return sip_debug_test_addr(((ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) ? &p->recv : &p->sa));
 }
@@ -1170,12 +1172,12 @@ static int retrans_pkt(void *data)
 
 		pkt->retrans++;
  		if (!pkt->timer_t1) {	/* Re-schedule using timer_a and timer_t1 */
-			if (SIP_DEBUG && option_debug > 3)
+			if (sipdebug && option_debug > 3)
  				ast_log(LOG_DEBUG, "SIP TIMER: Not rescheduling id #%d:%s (Method %d) (No timer T1)\n", pkt->retransid, sip_methods[pkt->method].text, pkt->method);
 		} else {
  			int siptimer_a;
 
- 			if (SIP_DEBUG && option_debug > 3)
+ 			if (sipdebug && option_debug > 3)
  				ast_log(LOG_DEBUG, "SIP TIMER: Rescheduling retransmission #%d (%d) %s - %d\n", pkt->retransid, pkt->retrans, sip_methods[pkt->method].text, pkt->method);
  			if (!pkt->timer_a)
  				pkt->timer_a = 2 ;
@@ -1208,8 +1210,8 @@ static int retrans_pkt(void *data)
 	} 
 	/* Too many retries */
 	if (pkt->owner && pkt->method != SIP_OPTIONS) {
-		if (ast_test_flag(pkt, FLAG_FATAL) || SIP_DEBUG)	/* Tell us if it's critical or if we're debugging */ ast_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (ast_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (ast_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request"); } else {
-		if ((pkt->method == SIP_OPTIONS) && SIP_DEBUG)
+		if (ast_test_flag(pkt, FLAG_FATAL) || sipdebug)	/* Tell us if it's critical or if we're debugging */ ast_log(LOG_WARNING, "Maximum retries exceeded on transmission %s for seqno %d (%s %s)\n", pkt->owner->callid, pkt->seqno, (ast_test_flag(pkt, FLAG_FATAL)) ? "Critical" : "Non-critical", (ast_test_flag(pkt, FLAG_RESPONSE)) ? "Response" : "Request"); } else {
+		if ((pkt->method == SIP_OPTIONS) && sipdebug)
 			ast_log(LOG_WARNING, "Cancelling retransmit of OPTIONs (call id %s) \n", pkt->owner->callid);
 	}
 	append_history(pkt->owner, "MaxRetries", (ast_test_flag(pkt, FLAG_FATAL)) ? "(Critical)" : "(Non-critical)");
@@ -1282,7 +1284,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 
 	/* Schedule retransmission */
 	pkt->retransid = ast_sched_add_variable(sched, siptimer_a, retrans_pkt, pkt, 1);
-	if (option_debug > 3 && SIP_DEBUG)
+	if (option_debug > 3 && sipdebug)
 		ast_log(LOG_DEBUG, "*** SIP TIMER: Initalizing retransmit timer on packet: Id  #%d\n", pkt->retransid);
 	pkt->next = p->packets;
 	p->packets = pkt;
@@ -1376,7 +1378,7 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			else
 				p->packets = cur->next;
 			if (cur->retransid > -1) {
-				if (SIP_DEBUG && option_debug > 3)
+				if (sipdebug && option_debug > 3)
 					ast_log(LOG_DEBUG, "** SIP TIMER: Cancelling retransmit of packet (reply received) Retransid #%d\n", cur->retransid);
 				ast_sched_del(sched, cur->retransid);
 			}
@@ -1431,7 +1433,7 @@ static int __sip_semi_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			 (!strncasecmp(msg, cur->data, strlen(msg)) && (cur->data[strlen(msg)] < 33)))) {
 			/* this is our baby */
 			if (cur->retransid > -1) {
-				if (option_debug > 3 && SIP_DEBUG)
+				if (option_debug > 3 && sipdebug)
 					ast_log(LOG_DEBUG, "*** SIP TIMER: Cancelling retransmission #%d - %s (got response)\n", cur->retransid, msg);
 				ast_sched_del(sched, cur->retransid);
 			}
@@ -2230,7 +2232,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 			} else {
 				*inuse = 0;
 			}
-			if (option_debug > 1 || SIP_DEBUG) {
+			if (option_debug > 1 || sipdebug) {
 				ast_log(LOG_DEBUG, "Call %s %s '%s' removed from call limit %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *call_limit);
 			}
 			break;
@@ -2246,7 +2248,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 				}
 			}
 			(*inuse)++;
-			if (option_debug > 1 || SIP_DEBUG) {
+			if (option_debug > 1 || sipdebug) {
 				ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
 			}
 			break;
@@ -2678,12 +2680,12 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		res = -1;
 		break;
 	case AST_CONTROL_HOLD:	/* The other part of the bridge are put on hold */
-		if (SIP_DEBUG)
+		if (sipdebug)
 			ast_log(LOG_DEBUG, "Bridged channel now on hold%s\n", p->callid);
 		res = -1;
 		break;
 	case AST_CONTROL_UNHOLD:	/* The other part of the bridge are back from hold */
-		if (SIP_DEBUG)
+		if (sipdebug)
 			ast_log(LOG_DEBUG, "Bridged channel is back from hold, let's talk! : %s\n", p->callid);
 		res = -1;
 		break;
@@ -3315,7 +3317,7 @@ static void parse_request(struct sip_request *req)
 			/* We've got a new header */
 			*c = 0;
 
-			if (SIP_DEBUG && option_debug > 3)
+			if (sipdebug && option_debug > 3)
 				ast_log(LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
 			if (ast_strlen_zero(req->header[f])) {
 				/* Line by itself means we're now in content */
@@ -3335,7 +3337,7 @@ static void parse_request(struct sip_request *req)
 	}
 	/* Check for last header */
 	if (!ast_strlen_zero(req->header[f])) {
-		if (SIP_DEBUG && option_debug > 3)
+		if (sipdebug && option_debug > 3)
 			ast_log(LOG_DEBUG, "Header %d: %s (%d)\n", f, req->header[f], (int) strlen(req->header[f]));
 		f++;
 	}
@@ -3347,7 +3349,7 @@ static void parse_request(struct sip_request *req)
 		if (*c == '\n') {
 			/* We've got a new line */
 			*c = 0;
-			if (SIP_DEBUG && option_debug > 3)
+			if (sipdebug && option_debug > 3)
 				ast_log(LOG_DEBUG, "Line: %s (%d)\n", req->line[f], (int) strlen(req->line[f]));
 			if (f >= SIP_MAX_LINES - 1) {
 				ast_log(LOG_WARNING, "Too many SDP lines. Ignoring.\n");
@@ -4580,7 +4582,7 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 		reqprep(&req, p, SIP_INVITE, 0, 1);
 	
 	add_header(&req, "Allow", ALLOWED_METHODS);
-	if (SIP_DEBUG)
+	if (sipdebug)
 		add_header(&req, "X-asterisk-info", "SIP re-invite (RTP bridge)");
 	ast_rtp_offered_from_local(p->rtp, 1);
 	add_sdp(&req, p);
@@ -4914,7 +4916,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 								*end = '\0';
 						
 							add_header(&req, headdup, content);
-							if (SIP_DEBUG)
+							if (sipdebug)
 								ast_log(LOG_DEBUG, "Adding SIP Header \"%s\" with content :%s: \n", headdup, content);
 						}
 					}
@@ -5235,7 +5237,7 @@ static int sip_reregister(void *data)
 	}
 	/* Since registry's are only added/removed by the the monitor thread, this
 	   may be overkill to reference/dereference at all here */
-	if (SIP_DEBUG)
+	if (sipdebug)
 		ast_log(LOG_NOTICE, "   -- Re-registration for  %s@%s\n", r->username, r->hostname);
 
 	r->expire = -1;
@@ -5449,7 +5451,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		char digest[1024];
 
 		/* We have auth data to reuse, build a digest header! */
-		if (SIP_DEBUG)
+		if (sipdebug)
 			ast_log(LOG_DEBUG, "   >>> Re-using Auth data for %s@%s\n", r->username, r->hostname);
 		ast_copy_string(p->realm, r->realm, sizeof(p->realm));
 		ast_copy_string(p->nonce, r->nonce, sizeof(p->nonce));
@@ -6273,13 +6275,13 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, char *randdata
 
 			snprintf(randdata, randlen, "%08x", thread_safe_rand());
 			if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash))) {
-				if (SIP_DEBUG)
+				if (sipdebug)
 					ast_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
 				/* We got working auth token, based on stale nonce . */
 				transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 1);
 			} else {
 				/* Everything was wrong, so give the device one more try with a new challenge */
-				if (SIP_DEBUG)
+				if (sipdebug)
 					ast_log(LOG_NOTICE, "Bad authentication received from '%s'\n", get_header(req, "To"));
 				transmit_response_with_auth(p, response, req, randdata, reliable, respheader, 0);
 			}
@@ -8618,7 +8620,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			/* send a FLASH event */
 			struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_FLASH, };
 			ast_queue_frame(p->owner, &f);
-			if (SIP_DEBUG)
+			if (sipdebug)
 				ast_verbose("* DTMF-relay event received: FLASH\n");
 		} else {
 			/* send a DTMF event */
@@ -8633,7 +8635,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 				f.subclass = 'A' + (event - 12);
 			}
 			ast_queue_frame(p->owner, &f);
-			if (SIP_DEBUG)
+			if (sipdebug)
 				ast_verbose("* DTMF-relay event received: %c\n", f.subclass);
 		}
 		transmit_response(p, "200 OK", req);
@@ -8726,7 +8728,7 @@ static int sip_do_debug_peer(int fd, int argc, char *argv[])
 /*! \brief  sip_do_debug: Turn on SIP debugging (CLI command) */
 static int sip_do_debug(int fd, int argc, char *argv[])
 {
-	int oldsipdebug = SIP_DEBUG_CONSOLE;
+	int oldsipdebug = sipdebug_console;
 	if (argc != 2) {
 		if (argc != 4) 
 			return RESULT_SHOWUSAGE;
@@ -8999,7 +9001,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char* digest, int d
  		username = auth->username;
  		secret = auth->secret;
  		md5secret = auth->md5secret;
-		if (SIP_DEBUG)
+		if (sipdebug)
  			ast_log(LOG_DEBUG,"Using realm %s authentication for call %s\n", p->realm, p->callid);
  	} else {
  		/* No authentication, use peer or register= config */
@@ -9661,7 +9663,7 @@ static int handle_response_register(struct sip_pvt *p, int resp, char *rest, str
 			expires_ms -= MAX((expires_ms * EXPIRY_GUARD_PCT),EXPIRY_GUARD_MIN);
 		else
 			expires_ms -= EXPIRY_GUARD_SECS * 1000;
-		if (SIP_DEBUG)
+		if (sipdebug)
 			ast_log(LOG_NOTICE, "Outbound Registration: Expiry for %s is %d sec (Scheduling reregistration in %d s)\n", r->hostname, expires, expires_ms/1000); 
 
 		r->refresh= (int) expires_ms / 1000;
@@ -10376,7 +10378,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 		
 	} else {
-		if (option_debug > 1 && SIP_DEBUG)
+		if (option_debug > 1 && sipdebug)
 			ast_log(LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
 		c = p->owner;
 	}
@@ -10784,7 +10786,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			if (p->expiry > max_expiry)
 				p->expiry = max_expiry;
 		}
-		if (SIP_DEBUG || option_debug > 1)
+		if (sipdebug || option_debug > 1)
 			ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
@@ -11359,7 +11361,7 @@ static int sip_poke_peer(struct sip_peer *peer)
 		return 0;
 	}
 	if (peer->call > 0) {
-		if (SIP_DEBUG)
+		if (sipdebug)
 			ast_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
 		sip_destroy(peer->call);
 	}
@@ -11686,7 +11688,7 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
 	AST_LIST_INSERT_TAIL(&domain_list, d, list);
 	AST_LIST_UNLOCK(&domain_list);
 
- 	if (SIP_DEBUG)	
+ 	if (sipdebug)	
 		ast_log(LOG_DEBUG, "Added local SIP domain '%s'\n", domain);
 
 	return 1;
@@ -12795,7 +12797,7 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 	}
 	if (ok) {
 		pbx_builtin_setvar_helper (chan, varbuf, data);
-		if (SIP_DEBUG)
+		if (sipdebug)
 			ast_log(LOG_DEBUG,"SIP Header added \"%s\" as %s\n", (char *) data, varbuf);
 	} else {
 		ast_log(LOG_WARNING, "Too many SIP headers added, max 50\n");
