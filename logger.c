@@ -753,7 +753,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 
 				if (level != __LOG_VERBOSE) {
 					sprintf(linestr, "%d", line);
-					snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[%ld]: %s:%s %s: " : "%s %s[%ld]: %s:%s %s: ",
+					snprintf(buf, sizeof(buf), ast_opt_timestamp ? "[%s] %s[%ld]: %s:%s %s: " : "%s %s[%ld]: %s:%s %s: ",
 						date,
 						term_color(tmp1, levels[level], colors[level], 0, sizeof(tmp1)),
 						(long)GETTID(),
@@ -770,7 +770,7 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 			/* File channels */
 			} else if ((chan->logmask & (1 << level)) && (chan->fileptr)) {
 				int res;
-				snprintf(buf, sizeof(buf), option_timestamp ? "[%s] %s[%ld]: " : "%s %s[%ld] %s: ", date,
+				snprintf(buf, sizeof(buf), ast_opt_timestamp ? "[%s] %s[%ld]: " : "%s %s[%ld] %s: ", date,
 					levels[level], (long)GETTID(), file);
 				res = fprintf(chan->fileptr, buf);
 				if (res <= 0 && buf[0] != '\0') {	/* Error, no characters printed */
@@ -830,7 +830,7 @@ void ast_verbose(const char *fmt, ...)
 	va_list ap;
 	va_start(ap, fmt);
 
-	if (option_timestamp) {
+	if (ast_opt_timestamp) {
 		time_t t;
 		struct tm tm;
 		char date[40];

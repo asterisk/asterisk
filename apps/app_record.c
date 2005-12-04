@@ -249,7 +249,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 		goto out;
 	}
 
-	if (option_transmit_silence_during_record)
+	if (ast_opt_transmit_silence)
 		silgen = ast_channel_start_silence_generator(chan);
 	
 	/* Request a video update */

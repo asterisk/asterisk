@@ -39,6 +39,11 @@ extern "C" {
 	a; \
 }
 
+#define VERBOSE_PREFIX_1 " "
+#define VERBOSE_PREFIX_2 "  == "
+#define VERBOSE_PREFIX_3 "    -- "
+#define VERBOSE_PREFIX_4 "       > "  
+
 /*! Used for sending a log message */
 /*!
 	\brief This is the standard logger function.  Probably the only way you will invoke it would be something like this:

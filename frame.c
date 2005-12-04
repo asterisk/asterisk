@@ -587,7 +587,7 @@ static int show_codecs(int fd, int argc, char *argv[])
 	if ((argc < 2) || (argc > 3))
 		return RESULT_SHOWUSAGE;
 
-	if (!option_dontwarn)
+	if (!ast_opt_dont_warn)
 		ast_cli(fd, "Disclaimer: this command is for informational purposes only.\n"
 				"\tIt does not indicate anything about your configuration.\n");
 

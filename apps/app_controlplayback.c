@@ -139,7 +139,7 @@ static int controlplayback_exec(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, "CPLAYBACKSTATUS", "USERSTOPPED");
 	} else {
 		if (res < 0) {
-			if (priority_jump || option_priority_jumping) {
+			if (priority_jump || ast_opt_priority_jumping) {
 				if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 					ast_log(LOG_WARNING, "ControlPlayback tried to jump to priority n+101 as requested, but priority didn't exist\n");
 				}

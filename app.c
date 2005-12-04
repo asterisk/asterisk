@@ -636,7 +636,7 @@ int ast_play_and_record(struct ast_channel *chan, const char *playfile, const ch
 	/* Request a video update */
 	ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 
-	if (option_transmit_silence_during_record)
+	if (ast_opt_transmit_silence)
 		silgen = ast_channel_start_silence_generator(chan);
 
 	if (x == fmtcnt) {

@@ -264,7 +264,7 @@ static int get_exec(struct ast_channel *chan, void *data)
 		} else {
 			if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "DBget: Value not found in database.\n");
-			if (priority_jump || option_priority_jumping) {
+			if (priority_jump || ast_opt_priority_jumping) {
 				/* Send the call to n+101 priority, where n is the current priority */
 				ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 			}

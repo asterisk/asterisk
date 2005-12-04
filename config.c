@@ -450,7 +450,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 			do_exec = !strcasecmp(cur, "exec");
 		else
 			do_exec = 0;
-		if (do_exec && !option_exec_includes) {
+		if (do_exec && !ast_opt_exec_includes) {
 			ast_log(LOG_WARNING, "Cannot perform #exec unless execincludes option is enabled in asterisk.conf (options section)!\n");
 			do_exec = 0;
 		}

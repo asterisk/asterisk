@@ -111,7 +111,7 @@ static int system_exec_helper(struct ast_channel *chan, void *data, int failmode
 	} else {
 		if (res < 0) 
 			res = 0;
-		if (option_priority_jumping && res)
+		if (ast_opt_priority_jumping && res)
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 
 		if (res != 0)

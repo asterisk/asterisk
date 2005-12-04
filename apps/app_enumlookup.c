@@ -122,7 +122,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 	res = ast_get_enum(chan, args.d, dest, sizeof(dest), tech, sizeof(tech), NULL, NULL);
 	
 	if (!res) {	/* Failed to do a lookup */
-		if (priority_jump || option_priority_jumping) {
+		if (priority_jump || ast_opt_priority_jumping) {
 			/* Look for a "busy" place */
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		}
@@ -180,7 +180,7 @@ static int enumlookup_exec(struct ast_channel *chan, void *data)
 				*t = 0;
 				pbx_builtin_setvar_helper(chan, "ENUM", tmp);
 				ast_log(LOG_NOTICE, "tel: ENUM set to \"%s\"\n", tmp);
-				if (priority_jump || option_priority_jumping) {
+				if (priority_jump || ast_opt_priority_jumping) {
 					if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 51))
 						res = 0;
 				}

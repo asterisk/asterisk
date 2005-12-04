@@ -177,7 +177,7 @@ static int group_check_exec(struct ast_channel *chan, void *data)
 		count = ast_app_group_get_count(pbx_builtin_getvar_helper(chan, category), category);
 		if (count > max) {
 			pbx_builtin_setvar_helper(chan, "CHECKGROUPSTATUS", "OVERMAX");
-			if (priority_jump || option_priority_jumping) {
+			if (priority_jump || ast_opt_priority_jumping) {
 				if (!ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 					res = -1;
 			}

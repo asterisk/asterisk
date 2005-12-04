@@ -909,7 +909,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 			}
 		}
 		
-		if (option_cache_record_files && (fd > -1)) {
+		if (ast_opt_cache_record_files && (fd > -1)) {
 			char *c;
 
 			fclose(bfile);

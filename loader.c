@@ -383,10 +383,10 @@ static int __load_resource(const char *resource_name, const struct ast_config *c
 		ast_mutex_unlock(&modlock);
 		return -1;
 	}
-	if (!fully_booted) {
+	if (!ast_fully_booted) {
 		if (option_verbose) 
 			ast_verbose( " => (%s)\n", term_color(tmp, m->description(), COLOR_BROWN, COLOR_BLACK, sizeof(tmp)));
-		if (option_console && !option_verbose)
+		if (ast_opt_console && !option_verbose)
 			ast_verbose( ".");
 	} else {
 		if (option_verbose)
@@ -560,7 +560,7 @@ int load_modules(const int preload_only)
 				}
 				closedir(mods);
 			} else {
-				if (!option_quiet)
+				if (!ast_opt_quiet)
 					ast_log(LOG_WARNING, "Unable to open modules directory %s.\n", (char *)ast_config_AST_MODULE_DIR);
 			}
 		}

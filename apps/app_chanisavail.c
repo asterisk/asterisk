@@ -143,7 +143,7 @@ static int chanavail_exec(struct ast_channel *chan, void *data)
 	if (res < 1) {
 		pbx_builtin_setvar_helper(chan, "AVAILCHAN", "");
 		pbx_builtin_setvar_helper(chan, "AVAILORIGCHAN", "");
-		if (priority_jump || option_priority_jumping) {
+		if (priority_jump || ast_opt_priority_jumping) {
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 				LOCAL_USER_REMOVE(u);
 				return -1;

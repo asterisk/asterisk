@@ -105,7 +105,7 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 	if (!chan->tech->send_text) {
 		ast_mutex_unlock(&chan->lock);
 		/* Does not support transport */
-		if (priority_jump || option_priority_jumping)
+		if (priority_jump || ast_opt_priority_jumping)
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		LOCAL_USER_REMOVE(u);
 		return 0;

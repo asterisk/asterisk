@@ -1618,23 +1618,17 @@ static int pbx_load_module(void)
 	cfg = ast_config_load(config);
 	if (cfg) {
 		/* Use existing config to populate the PBX table */
-		static_config = ast_true(ast_variable_retrieve(cfg, "general",
-							       "static"));
-		write_protect_config = ast_true(ast_variable_retrieve(cfg, "general",
-								      "writeprotect"));
-		autofallthrough_config = ast_true(ast_variable_retrieve(cfg, "general",
-									"autofallthrough"));
-		clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", 
-									"clearglobalvars"));
-		option_priority_jumping = !ast_false(ast_variable_retrieve(cfg, "general",
-									   "priorityjumping"));
-
+		static_config = ast_true(ast_variable_retrieve(cfg, "general", "static"));
+		write_protect_config = ast_true(ast_variable_retrieve(cfg, "general", "writeprotect"));
+		autofallthrough_config = ast_true(ast_variable_retrieve(cfg, "general", "autofallthrough"));
+		clearglobalvars_config = ast_true(ast_variable_retrieve(cfg, "general", "clearglobalvars"));
+		ast_set2_flag(&ast_options, !ast_false(ast_variable_retrieve(cfg, "general", "priorityjumping")), AST_OPT_FLAG_PRIORITY_JUMPING);
+									    
 		v = ast_variable_browse(cfg, "globals");
-		while(v) {
+		for (; v; v = v->next) {
 			memset(realvalue, 0, sizeof(realvalue));
 			pbx_substitute_variables_helper(NULL, v->value, realvalue, sizeof(realvalue) - 1);
 			pbx_builtin_setvar_helper(NULL, v->name, realvalue);
-			v = v->next;
 		}
 		cxt = ast_category_browse(cfg, NULL);
 		while(cxt) {
@@ -1736,7 +1730,7 @@ static int pbx_load_module(void)
 								if (plus)
 									ipri += atoi(plus);
 								lastpri = ipri;
-								if(!option_dontwarn) {
+								if (!ast_opt_dont_warn) {
 									if (!strcmp(realext, "_."))
 										ast_log(LOG_WARNING, "The use of '_.' for an extension is strongly discouraged and can have unexpected behavior.  Please use '_X.' instead at line %d\n", v->lineno);
 								}

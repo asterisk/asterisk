@@ -2382,7 +2382,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 
 	if (!(vmu = find_user(&svm, context, ext))) {
 		ast_log(LOG_WARNING, "No entry in voicemail config file for '%s'\n", ext);
-		if (ast_test_flag(options, OPT_PRIORITY_JUMP) || option_priority_jumping)
+		if (ast_test_flag(options, OPT_PRIORITY_JUMP) || ast_opt_priority_jumping)
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
 		return res;
@@ -5543,7 +5543,7 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	if (res == ERROR_LOCK_PATH) {
 		ast_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
 		/*Send the call to n+101 priority, where n is the current priority*/
-		if (ast_test_flag(&leave_options, OPT_PRIORITY_JUMP) || option_priority_jumping)
+		if (ast_test_flag(&leave_options, OPT_PRIORITY_JUMP) || ast_opt_priority_jumping)
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101))
 				ast_log(LOG_WARNING, "Extension %s, priority %d doesn't exist.\n", chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "VMSTATUS", "FAILED");
@@ -5633,7 +5633,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 
 	if (find_user(&svm, context, args.mbox)) {
 		pbx_builtin_setvar_helper(chan, "VMBOXEXISTSSTATUS", "SUCCESS");
-		if (priority_jump || option_priority_jumping)
+		if (priority_jump || ast_opt_priority_jumping)
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) 
 				ast_log(LOG_WARNING, "VM box %s@%s exists, but extension %s, priority %d doesn't exist\n", box, context, chan->exten, chan->priority + 101);
 	} else

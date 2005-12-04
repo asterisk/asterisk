@@ -136,32 +136,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
   Some of them can be changed in the CLI 
  */
 /*! @{ */
-int option_verbose=0;			/*!< Verbosity level */
-int option_debug=0;			/*!< Debug level */
-int option_exec_includes=0;		/*!< Allow \#exec in config files? */
-int option_nofork=0;			/*!< Do not fork */
-int option_quiet=0;			/*!< Keep quiet */
-int option_console=0;			/*!< Console mode, no background */
-int option_highpriority=0;		/*!< Run in realtime Linux priority */
-int option_remote=0;			/*!< Remote CLI */
-int option_exec=0;			/*!< */
-int option_initcrypto=0;		/*!< Initialize crypto keys for RSA auth */
-int option_nocolor;			/*!< Don't use termcap colors */
-int option_dumpcore = 0;			/*!< Dump core when failing */
-int option_cache_record_files = 0;		/*!< Cache sound files */
-int option_timestamp = 0;			/*!< Timestamp in logging */
-int option_overrideconfig = 0;			/*!< */
-int option_reconnect = 0;			/*!< */
-int option_transcode_slin = 1;			/*!< */
-int option_maxcalls = 0;			/*!< */
+
+struct ast_flags ast_options = { AST_OPT_FLAG_TRANSCODE_VIA_SLIN | AST_OPT_FLAG_PRIORITY_JUMPING };
+
+int option_verbose = 0;				/*!< Verbosity level */
+int option_debug = 0;				/*!< Debug level */
+
 double option_maxload = 0.0;			/*!< Max load avg on system */
-int option_dontwarn = 0;			/*!< */
-int option_priority_jumping = 1;		/*!< Enable priority jumping as result value for apps */
-int option_transmit_silence_during_record = 0;	/*!< Transmit silence during record() app */
+int option_maxcalls = 0;			/*!< Max number of active calls */
 
 /*! @} */
 
-int fully_booted = 0;
 char record_cache_dir[AST_CACHE_DIR_LEN] = AST_TMP_DIR;
 char debug_filename[AST_FILENAME_MAX] = "";
 
@@ -831,7 +816,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		if (!nice) {
 			/* Begin shutdown routine, hanging up active channels */
 			ast_begin_shutdown(1);
-			if (option_verbose && option_console)
+			if (option_verbose && ast_opt_console)
 				ast_verbose("Beginning asterisk %s....\n", restart ? "restart" : "shutdown");
 			time(&s);
 			for(;;) {
@@ -849,7 +834,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		} else {
 			if (nice < 2)
 				ast_begin_shutdown(0);
-			if (option_verbose && option_console)
+			if (option_verbose && ast_opt_console)
 				ast_verbose("Waiting for inactivity to perform %s...\n", restart ? "restart" : "halt");
 			for(;;) {
 				if (!ast_active_channels())
@@ -861,12 +846,12 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		}
 
 		if (!shuttingdown) {
-			if (option_verbose && option_console)
+			if (option_verbose && ast_opt_console)
 				ast_verbose("Asterisk %s cancelled.\n", restart ? "restart" : "shutdown");
 			return;
 		}
 	}
-	if (option_console || option_remote) {
+	if (ast_opt_console || ast_opt_remote) {
 		if (getenv("HOME")) 
 			snprintf(filename, sizeof(filename), "%s/.asterisk_history", getenv("HOME"));
 		if (!ast_strlen_zero(filename))
@@ -880,7 +865,7 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 		ast_verbose("Executing last minute cleanups\n");
 	ast_run_atexits();
 	/* Called on exit */
-	if (option_verbose && option_console)
+	if (option_verbose && ast_opt_console)
 		ast_verbose("Asterisk %s ending (%d).\n", ast_active_channels() ? "uncleanly" : "cleanly", num);
 	else if (option_debug)
 		ast_log(LOG_DEBUG, "Asterisk ending (%d).\n", num);
@@ -892,17 +877,18 @@ static void quit_handler(int num, int nice, int safeshutdown, int restart)
 	if (ast_consock > -1)
 		close(ast_consock);
 	if (ast_socket > -1)
-		unlink((char *)ast_config_AST_SOCKET);
-	if (!option_remote) unlink((char *)ast_config_AST_PID);
+		unlink(ast_config_AST_SOCKET);
+	if (!ast_opt_remote)
+		unlink(ast_config_AST_PID);
 	printf(term_quit());
 	if (restart) {
-		if (option_verbose || option_console)
+		if (option_verbose || ast_opt_console)
 			ast_verbose("Preparing for Asterisk restart...\n");
 		/* Mark all FD's for closing on exec */
 		for (x=3;x<32768;x++) {
 			fcntl(x, F_SETFD, FD_CLOEXEC);
 		}
-		if (option_verbose || option_console)
+		if (option_verbose || ast_opt_console)
 			ast_verbose("Restarting Asterisk NOW...\n");
 		restartnow = 1;
 
@@ -961,7 +947,7 @@ static void console_verboser(const char *s, int pos, int replace, int complete)
 	fflush(stdout);
 	if (complete) {
 		/* Wake up a poll()ing console */
-		if (option_console && consolethread != AST_PTHREADT_NULL)
+		if (ast_opt_console && consolethread != AST_PTHREADT_NULL)
 			pthread_kill(consolethread, SIGURG);
 	}
 }
@@ -1172,7 +1158,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 		max = 1;
 		fds[0].fd = ast_consock;
 		fds[0].events = POLLIN;
-		if (!option_exec) {
+		if (!ast_opt_exec) {
 			fds[1].fd = STDIN_FILENO;
 			fds[1].events = POLLIN;
 			max++;
@@ -1185,7 +1171,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 			break;
 		}
 
-		if (!option_exec && fds[1].revents) {
+		if (!ast_opt_exec && fds[1].revents) {
 			num_read = read(STDIN_FILENO, cp, 1);
 			if (num_read < 1) {
 				break;
@@ -1197,7 +1183,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 			/* if the remote side disappears exit */
 			if (res < 1) {
 				fprintf(stderr, "\nDisconnected from Asterisk server\n");
-				if (!option_reconnect) {
+				if (!ast_opt_reconnect) {
 					quit_handler(0, 0, 0, 0);
 				} else {
 					int tries;
@@ -1222,7 +1208,7 @@ static int ast_el_read_char(EditLine *el, char *cp)
 
 			buf[res] = '\0';
 
-			if (!option_exec && !lastpos)
+			if (!ast_opt_exec && !lastpos)
 				write(STDOUT_FILENO, "\r", 1);
 			write(STDOUT_FILENO, buf, res);
 			if ((buf[res-1] == '\n') || (buf[res-2] == '\n')) {
@@ -1343,7 +1329,7 @@ static char *cli_prompt(EditLine *el)
 						}
 						break;
 					case '#': /* process console or remote? */
-						if (! option_remote) {
+						if (!ast_opt_remote) {
 							strncat(p, "#", sizeof(prompt) - strlen(prompt) - 1);
 						} else {
 							strncat(p, ">", sizeof(prompt) - strlen(prompt) - 1);
@@ -1497,7 +1483,7 @@ static char *cli_complete(EditLine *el, int ch)
 
 	len = lf->cursor - ptr;
 
-	if (option_remote) {
+	if (ast_opt_remote) {
 		snprintf(buf, sizeof(buf),"_COMMAND NUMMATCHES \"%s\" \"%s\"", lf->buffer, ptr); 
 		fdprint(ast_consock, buf);
 		res = read(ast_consock, buf, sizeof(buf));
@@ -1707,7 +1693,7 @@ static void ast_remotecontrol(char * data)
 	if (!ast_strlen_zero(filename))
 		ast_el_read_history(filename);
 
-	if (option_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
+	if (ast_opt_exec && data) {  /* hack to print output then exit if asterisk -rx is used */
 		char tempchar;
 		struct pollfd fds[0];
 		fds[0].fd = ast_consock;
@@ -1774,7 +1760,7 @@ static void ast_readconfig(void) {
 	struct ast_variable *v;
 	char *config = AST_CONFIG_FILE;
 
-	if (option_overrideconfig == 1) {
+	if (ast_opt_override_config) {
 		cfg = ast_config_load(ast_config_AST_CONFIG_FILE);
 		if (!cfg)
 			ast_log(LOG_WARNING, "Unable to open specified master config file '%s', using built-in defaults\n", ast_config_AST_CONFIG_FILE);
@@ -1843,10 +1829,10 @@ static void ast_readconfig(void) {
 			option_verbose = atoi(v->value);
 		/* whether or not to force timestamping. (-T at startup) */
 		} else if (!strcasecmp(v->name, "timestamp")) {
-			option_timestamp = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TIMESTAMP);
 		/* whether or not to support #exec in config files */
 		} else if (!strcasecmp(v->name, "execincludes")) {
-			option_exec_includes = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_EXEC_INCLUDES);
 		/* debug level (-d at startup) */
 		} else if (!strcasecmp(v->name, "debug")) {
 			option_debug = 0;
@@ -1855,40 +1841,40 @@ static void ast_readconfig(void) {
 			}
 		/* Disable forking (-f at startup) */
 		} else if (!strcasecmp(v->name, "nofork")) {
-			option_nofork = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_FORK);
 		/* Run quietly (-q at startup ) */
 		} else if (!strcasecmp(v->name, "quiet")) {
-			option_quiet = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_QUIET);
 		/* Run as console (-c at startup, implies nofork) */
 		} else if (!strcasecmp(v->name, "console")) {
-			option_console = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CONSOLE);
 		/* Run with highg priority if the O/S permits (-p at startup) */
 		} else if (!strcasecmp(v->name, "highpriority")) {
-			option_highpriority = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIGH_PRIORITY);
 		/* Initialize RSA auth keys (IAX2) (-i at startup) */
 		} else if (!strcasecmp(v->name, "initcrypto")) {
-			option_initcrypto = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_INIT_KEYS);
 		/* Disable ANSI colors for console (-c at startup) */
 		} else if (!strcasecmp(v->name, "nocolor")) {
-			option_nocolor = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_NO_COLOR);
 		/* Disable some usage warnings for picky people :p */
 		} else if (!strcasecmp(v->name, "dontwarn")) {
-			option_dontwarn = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_DONT_WARN);
 		/* Dump core in case of crash (-g) */
 		} else if (!strcasecmp(v->name, "dumpcore")) {
-			option_dumpcore = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_DUMP_CORE);
 		/* Cache recorded sound files to another directory during recording */
 		} else if (!strcasecmp(v->name, "cache_record_files")) {
-			option_cache_record_files = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CACHE_RECORD_FILES);
 		/* Specify cache directory */
 		}  else if (!strcasecmp(v->name, "record_cache_dir")) {
 			ast_copy_string(record_cache_dir, v->value, AST_CACHE_DIR_LEN);
 		/* Build transcode paths via SLINEAR, instead of directly */
 		} else if (!strcasecmp(v->name, "transcode_via_sln")) {
-			option_transcode_slin = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSCODE_VIA_SLIN);
 		/* Transmit SLINEAR silence while a channel is being recorded */
 		} else if (!strcasecmp(v->name, "transmit_silence_during_record")) {
-			option_transmit_silence_during_record = ast_true(v->value);
+			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_TRANSMIT_SILENCE);
 		} else if (!strcasecmp(v->name, "maxcalls")) {
 			if ((sscanf(v->value, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0)) {
 				option_maxcalls = 0;
@@ -1940,8 +1926,7 @@ int main(int argc, char *argv[])
 
 	/* if the progname is rasterisk consider it a remote console */
 	if (argv[0] && (strstr(argv[0], "rasterisk")) != NULL) {
-		option_remote++;
-		option_nofork++;
+		ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
 	}
 	if (gethostname(hostname, sizeof(hostname)-1))
 		ast_copy_string(hostname, "<Unknown>", sizeof(hostname));
@@ -1970,33 +1955,29 @@ int main(int argc, char *argv[])
 		switch(c) {
 		case 'd':
 			option_debug++;
-			option_nofork++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
 			break;
 		case 'c':
-			option_console++;
-			option_nofork++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_CONSOLE);
 			break;
 		case 'f':
-			option_nofork++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
 			break;
 		case 'n':
-			option_nocolor++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_COLOR);
 			break;
 		case 'r':
-			option_remote++;
-			option_nofork++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE);
 			break;
 		case 'R':
-			option_remote++;
-			option_nofork++;
-			option_reconnect++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK | AST_OPT_FLAG_REMOTE | AST_OPT_FLAG_RECONNECT);
 			break;
 		case 'p':
-			option_highpriority++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_HIGH_PRIORITY);
 			break;
 		case 'v':
 			option_verbose++;
-			option_nofork++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_NO_FORK);
 			break;
 		case 'M':
 			if ((sscanf(optarg, "%d", &option_maxcalls) != 1) || (option_maxcalls < 0))
@@ -2007,27 +1988,27 @@ int main(int argc, char *argv[])
 				option_maxload = 0.0;
 			break;
 		case 'q':
-			option_quiet++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_QUIET);
 			break;
 		case 't':
-			option_cache_record_files++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_CACHE_RECORD_FILES);
 			break;
 		case 'T':
-			option_timestamp++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_TIMESTAMP);
 			break;
 		case 'x':
-			option_exec++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_EXEC);
 			xarg = optarg;
 			break;
 		case 'C':
-			ast_copy_string((char *)ast_config_AST_CONFIG_FILE,optarg,sizeof(ast_config_AST_CONFIG_FILE));
-			option_overrideconfig++;
+			ast_copy_string(ast_config_AST_CONFIG_FILE, optarg, sizeof(ast_config_AST_CONFIG_FILE));
+			ast_set_flag(&ast_options, AST_OPT_FLAG_OVERRIDE_CONFIG);
 			break;
 		case 'i':
-			option_initcrypto++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_INIT_KEYS);
 			break;
 		case'g':
-			option_dumpcore++;
+			ast_set_flag(&ast_options, AST_OPT_FLAG_DUMP_CORE);
 			break;
 		case 'h':
 			show_cli_help();
@@ -2049,14 +2030,14 @@ int main(int argc, char *argv[])
 	/* For remote connections, change the name of the remote connection.
 	 * We do this for the benefit of init scripts (which need to know if/when
 	 * the main asterisk process has died yet). */
-	if (option_remote) {
+	if (ast_opt_remote) {
 		strcpy(argv[0], "rasterisk");
 		for (x = 1; x < argc; x++) {
 			argv[x] = argv[0] + 10;
 		}
 	}
 
-	if (option_dumpcore) {
+	if (ast_opt_dump_core) {
 		struct rlimit l;
 		memset(&l, 0, sizeof(l));
 		l.rlim_cur = RLIM_INFINITY;
@@ -2066,7 +2047,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (option_console && !option_verbose) 
+	if (ast_opt_console && !option_verbose) 
 		ast_verbose("[ Reading Master Configuration ]");
 	ast_readconfig();
 
@@ -2077,7 +2058,7 @@ int main(int argc, char *argv[])
 #ifndef __CYGWIN__
 
 	if (!is_child_of_nonroot) 
-		ast_set_priority(option_highpriority);
+		ast_set_priority(ast_opt_high_priority);
 
 	if (!is_child_of_nonroot && rungroup) {
 		struct group *gr;
@@ -2120,14 +2101,14 @@ int main(int argc, char *argv[])
 	printf(term_end());
 	fflush(stdout);
 
-	if (option_console && !option_verbose) 
+	if (ast_opt_console && !option_verbose) 
 		ast_verbose("[ Initializing Custom Configuration Options ]");
 	/* custom config setup */
 	register_config_cli();
 	read_config_maps();
 	
 
-	if (option_console) {
+	if (ast_opt_console) {
 		if (el_hist == NULL || el == NULL)
 			ast_el_initialize();
 
@@ -2137,8 +2118,8 @@ int main(int argc, char *argv[])
 
 	if (ast_tryconnect()) {
 		/* One is already running */
-		if (option_remote) {
-			if (option_exec) {
+		if (ast_opt_remote) {
+			if (ast_opt_exec) {
 				ast_remotecontrol(xarg);
 				quit_handler(0, 0, 0, 0);
 				exit(0);
@@ -2150,34 +2131,34 @@ int main(int argc, char *argv[])
 			quit_handler(0, 0, 0, 0);
 			exit(0);
 		} else {
-			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", (char *)ast_config_AST_SOCKET);
+			ast_log(LOG_ERROR, "Asterisk already running on %s.  Use 'asterisk -r' to connect.\n", ast_config_AST_SOCKET);
 			printf(term_quit());
 			exit(1);
 		}
-	} else if (option_remote || option_exec) {
+	} else if (ast_opt_remote || ast_opt_exec) {
 		ast_log(LOG_ERROR, "Unable to connect to remote asterisk (does %s exist?)\n",ast_config_AST_SOCKET);
 		printf(term_quit());
 		exit(1);
 	}
 	/* Blindly write pid file since we couldn't connect */
-	unlink((char *)ast_config_AST_PID);
-	f = fopen((char *)ast_config_AST_PID, "w");
+	unlink(ast_config_AST_PID);
+	f = fopen(ast_config_AST_PID, "w");
 	if (f) {
 		fprintf(f, "%d\n", getpid());
 		fclose(f);
 	} else
-		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
+		ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 
-	if (!option_verbose && !option_debug && !option_nofork && !option_console) {
+	if (!option_verbose && !option_debug && !ast_opt_no_fork && !ast_opt_console) {
 		daemon(0,0);
 		/* Blindly re-write pid file since we are forking */
-		unlink((char *)ast_config_AST_PID);
-		f = fopen((char *)ast_config_AST_PID, "w");
+		unlink(ast_config_AST_PID);
+		f = fopen(ast_config_AST_PID, "w");
 		if (f) {
 			fprintf(f, "%d\n", getpid());
 			fclose(f);
 		} else
-			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", (char *)ast_config_AST_PID, strerror(errno));
+			ast_log(LOG_WARNING, "Unable to open pid file '%s': %s\n", ast_config_AST_PID, strerror(errno));
 	}
 
 	/* Test recursive mutex locking. */
@@ -2192,13 +2173,13 @@ int main(int argc, char *argv[])
 	sigaddset(&sigs, SIGPIPE);
 	sigaddset(&sigs, SIGWINCH);
 	pthread_sigmask(SIG_BLOCK, &sigs, NULL);
-	if (option_console || option_verbose || option_remote)
+	if (ast_opt_console || option_verbose || ast_opt_remote)
 		ast_register_verbose(console_verboser);
 	/* Print a welcome message if desired */
-	if (option_verbose || option_console) {
+	if (option_verbose || ast_opt_console) {
 		WELCOME_MESSAGE;
 	}
-	if (option_console && !option_verbose) 
+	if (ast_opt_console && !option_verbose) 
 		ast_verbose("[ Booting...");
 
 	signal(SIGURG, urg_handler);
@@ -2285,20 +2266,20 @@ int main(int argc, char *argv[])
 
 	/* We might have the option of showing a console, but for now just
 	   do nothing... */
-	if (option_console && !option_verbose)
+	if (ast_opt_console && !option_verbose)
 		ast_verbose(" ]\n");
-	if (option_verbose || option_console)
+	if (option_verbose || ast_opt_console)
 		ast_verbose(term_color(tmp, "Asterisk Ready.\n", COLOR_BRWHITE, COLOR_BLACK, sizeof(tmp)));
-	if (option_nofork)
+	if (ast_opt_no_fork)
 		consolethread = pthread_self();
-	fully_booted = 1;
+	ast_set_flag(&ast_options, AST_OPT_FLAG_FULLY_BOOTED);
 	pthread_sigmask(SIG_UNBLOCK, &sigs, NULL);
 #ifdef __AST_DEBUG_MALLOC
 	__ast_mm_init();
 #endif	
 	time(&ast_startuptime);
 	ast_cli_register_multiple(core_cli, sizeof(core_cli) / sizeof(core_cli[0]));
-	if (option_console) {
+	if (ast_opt_console) {
 		/* Console stuff now... */
 		/* Register our quit function */
 		char title[256];

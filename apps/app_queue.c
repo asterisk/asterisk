@@ -2617,7 +2617,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	if (set_member_paused(args.queuename, args.interface, 1)) {
 		ast_log(LOG_WARNING, "Attempt to pause interface %s, not found\n", args.interface);
-		if (priority_jump || option_priority_jumping) {
+		if (priority_jump || ast_opt_priority_jumping) {
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 				pbx_builtin_setvar_helper(chan, "PQMSTATUS", "NOTFOUND");
 				LOCAL_USER_REMOVE(u);
@@ -2673,7 +2673,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	if (set_member_paused(args.queuename, args.interface, 0)) {
 		ast_log(LOG_WARNING, "Attempt to unpause interface %s, not found\n", args.interface);
-		if (priority_jump || option_priority_jumping) {
+		if (priority_jump || ast_opt_priority_jumping) {
 			if (ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101)) {
 				pbx_builtin_setvar_helper(chan, "UPQMSTATUS", "NOTFOUND");
 				LOCAL_USER_REMOVE(u);
@@ -2738,7 +2738,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		break;
 	case RES_EXISTS:
 		ast_log(LOG_WARNING, "Unable to remove interface '%s' from queue '%s': Not there\n", args.interface, args.queuename);
-		if (priority_jump || option_priority_jumping) 
+		if (priority_jump || ast_opt_priority_jumping) 
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "RQMSTATUS", "NOTINQUEUE");
 		res = 0;
@@ -2814,7 +2814,7 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		break;
 	case RES_EXISTS:
 		ast_log(LOG_WARNING, "Unable to add interface '%s' to queue '%s': Already there\n", args.interface, args.queuename);
-		if (priority_jump || option_priority_jumping) 
+		if (priority_jump || ast_opt_priority_jumping) 
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "AQMSTATUS", "MEMBERALREADY");
 		res = 0;

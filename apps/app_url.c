@@ -108,7 +108,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 	
 	if (!ast_channel_supports_html(chan)) {
 		/* Does not support transport */
-		if (local_option_jump || option_priority_jumping)
+		if (local_option_jump || ast_opt_priority_jumping)
 			 ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "SENDURLSTATUS", "UNSUPPORTED");
 		LOCAL_USER_REMOVE(u);
@@ -144,7 +144,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 				case AST_HTML_NOSUPPORT:
 					/* Does not support transport */
 					status ="UNSUPPORTED";
-					if (local_option_jump || option_priority_jumping)
+					if (local_option_jump || ast_opt_priority_jumping)
 			 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 					res = 0;
 					goto out;

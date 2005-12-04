@@ -268,7 +268,7 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 		ast_log(LOG_NOTICE, "Key '%s' needs passcode.\n", key->name);
 		key->ktype |= KEY_NEEDS_PASSCODE;
 		if (!notice) {
-			if (!option_initcrypto) 
+			if (!ast_opt_init_keys) 
 				ast_log(LOG_NOTICE, "Add the '-i' flag to the asterisk command line if you want to automatically initialize passcodes at launch.\n");
 			notice++;
 		}
@@ -592,7 +592,7 @@ int reload(void)
 int load_module(void)
 {
 	crypto_init();
-	if (option_initcrypto)
+	if (ast_opt_init_keys)
 		crypto_load(STDIN_FILENO, STDOUT_FILENO);
 	else
 		crypto_load(-1, -1);

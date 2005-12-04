@@ -130,7 +130,7 @@ static int playback_exec(struct ast_channel *chan, void *data)
 				ast_stopstream(chan);
 			} else {
 				ast_log(LOG_WARNING, "ast_streamfile failed on %s for %s\n", chan->name, (char *)data);
-				if (priority_jump || option_priority_jumping)
+				if (priority_jump || ast_opt_priority_jumping)
 					ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 				res = 0;
 				mres = 1;

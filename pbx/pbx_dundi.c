@@ -3912,7 +3912,7 @@ static int dundi_lookup_exec(struct ast_channel *chan, void *data)
 				break;
 			}
 		}
-	} else if (option_priority_jumping)
+	} else if (ast_opt_priority_jumping)
 		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 
 	LOCAL_USER_REMOVE(u);

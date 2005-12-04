@@ -418,7 +418,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					strcpy(status, "CONGESTION");
 				else if (numnochan)
 					strcpy(status, "CHANUNAVAIL");
-				if (option_priority_jumping || priority_jump)
+				if (ast_opt_priority_jumping || priority_jump)
 					ast_goto_if_exists(in, in->context, in->exten, in->priority + 101);
 			} else {
 				if (option_verbose > 2)
@@ -1453,7 +1453,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 				if ((macro_result = pbx_builtin_getvar_helper(peer, "MACRO_RESULT"))) {
 					if (!strcasecmp(macro_result, "BUSY")) {
 						ast_copy_string(status, macro_result, sizeof(status));
-						if (option_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
+						if (ast_opt_priority_jumping || ast_test_flag(&opts, OPT_PRIORITY_JUMP)) {
 							if (!ast_goto_if_exists(chan, NULL, NULL, chan->priority + 101)) {
 								ast_set_flag(peerflags, OPT_GO_ON);
 							}

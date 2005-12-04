@@ -96,7 +96,7 @@ static int sendimage_exec(struct ast_channel *chan, void *data)
 
 	if (!ast_supports_images(chan)) {
 		/* Does not support transport */
-		if (priority_jump || option_priority_jumping)
+		if (priority_jump || ast_opt_priority_jumping)
 			ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
 		pbx_builtin_setvar_helper(chan, "SENDIMAGESTATUS", "NOSUPPORT");
 		LOCAL_USER_REMOVE(u);

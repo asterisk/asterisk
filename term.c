@@ -80,7 +80,7 @@ int term_init(void)
 
 	if (!term)
 		return 0;
-	if (!option_console || option_nocolor || !option_nofork)
+	if (!ast_opt_console || ast_opt_no_color || !ast_opt_no_fork)
 		return 0;
 
 	for (i=0 ;; i++) {
