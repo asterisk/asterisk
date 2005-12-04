@@ -4,7 +4,7 @@ PARTS=`LANG=C svn info | grep URL | awk '{print $2;}' | sed -e s:^.*/svn/asteris
 BRANCH=0
 TEAM=0
 
-REV=`LANG=C svn info | grep -e 'Last Changed Rev' | awk '{print $4;}'`
+REV=`svnversion -c . | cut -d: -f2`
 
 if [ "${PARTS}" = "trunk" ]
 then
