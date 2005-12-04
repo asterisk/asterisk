@@ -2004,7 +2004,7 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 #ifdef ZAPATA_PRI
 	if (p->pri) {
 		struct pri_sr *sr;
-		char *useruser;
+		const char *useruser;
 		int pridialplan;
 		int dp_strip;
 		int prilocaldialplan;
@@ -2510,7 +2510,7 @@ static int zt_hangup(struct ast_channel *ast)
 		/* Perform low level hangup if no owner left */
 #ifdef ZAPATA_PRI
 		if (p->pri) {
-			char *useruser = pbx_builtin_getvar_helper(ast,"USERUSERINFO");
+			const char *useruser = pbx_builtin_getvar_helper(ast,"USERUSERINFO");
 			/* Make sure we have a call (or REALLY have a call in the case of a PRI) */
 			if (p->call && (!p->bearer || (p->bearer->call == p->call))) {
 				if (!pri_grab(p, p->pri)) {
@@ -2522,7 +2522,7 @@ static int zt_hangup(struct ast_channel *ast)
 						if (p->bearer) 
 							p->bearer->call = NULL;
 					} else {
-						char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
+						const char *cause = pbx_builtin_getvar_helper(ast,"PRI_CAUSE");
 						int icause = ast->hangupcause ? ast->hangupcause : -1;
 						ast_log(LOG_DEBUG, "Not yet hungup...  Calling hangup once with icause, and clearing call\n");
 						pri_call_set_useruser(p->call, useruser);
