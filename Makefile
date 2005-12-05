@@ -829,7 +829,7 @@ __rpm: include/asterisk/version.h spec
 
 progdocs:
 	(cat contrib/asterisk-ng-doxygen; echo "HAVE_DOT=$(HAVEDOT)"; \
-	echo "PROJECT_NUMBER=$(ASTERISKVERSION)  -  $(ASTERISKVERSIONNUM)") | doxygen - 
+	echo "PROJECT_NUMBER=$(ASTERISKVERSION)") | doxygen - 
 
 mpg123:
 	@wget -V >/dev/null || (echo "You need wget" ; false )
