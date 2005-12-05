@@ -1163,13 +1163,36 @@ static int handle_show_functions(int fd, int argc, char *argv[])
 {
 	struct ast_custom_function *acf;
 	int count_acf = 0;
+	int print_acf = 0;
+	int like = 0;
 
-	ast_cli(fd, "Installed Custom Functions:\n--------------------------------------------------------------------------------\n");
-	for (acf = acf_root ; acf; acf = acf->next) {
-		ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
-		count_acf++;
+	if (argc == 4 && (!strcmp(argv[2], "like")) ) {
+		like = 1;
+	} else if (argc != 2) {
+		return RESULT_SHOWUSAGE;
 	}
-	ast_cli(fd, "%d custom functions installed.\n", count_acf);
+
+	ast_cli(fd, "%s Custom Functions:\n--------------------------------------------------------------------------------\n", like ? "Matching" : "Installed");
+	
+	for (acf = acf_root ; acf; acf = acf->next) {
+		print_acf = 0;
+		if (like) {
+			if (strstr(acf->name, argv[3])) {
+				print_acf = 1;
+				count_acf++;
+			}
+		} else {
+			print_acf = 1;
+			count_acf++;
+		} 
+
+		if (print_acf) {
+			ast_cli(fd, "%-20.20s  %-35.35s  %s\n", acf->name, acf->syntax, acf->synopsis);
+		}
+	}
+
+	ast_cli(fd, "%d %scustom functions installed.\n", count_acf, like ? "matching " : "");
+
 	return 0;
 }
 
@@ -2966,8 +2989,8 @@ static char show_application_help[] =
 "       Describes a particular application.\n";
 
 static char show_functions_help[] =
-"Usage: show functions\n"
-"       List builtin functions accessable as $(function args)\n";
+"Usage: show functions [like <text>]\n"
+"       List builtin functions, optionally only those matching a given string\n";
 
 static char show_function_help[] =
 "Usage: show function <function>\n"
