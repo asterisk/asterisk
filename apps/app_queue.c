@@ -850,10 +850,11 @@ static struct ast_call_queue *reload_queue_rt(const char *queuename, struct ast_
 		v = v->next;
 	}
 
-	/* Temporarily set members dead so we can detect deleted ones. */
+	/* Temporarily set non-dynamic members dead so we can detect deleted ones. */
 	m = q->members;
 	while (m) {
-		m->dead = 1;
+		if (!m->dynamic)
+			m->dead = 1;
 		m = m->next;
 	}
 
