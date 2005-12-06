@@ -760,7 +760,7 @@ static void rt_handle_member_record(struct ast_call_queue *q, char *interface, c
    \return Return the queue, or NULL if it doesn't exist.
    \note Should be called with the global qlock locked.
    When found, the queue is returned with q->lock locked. */
-static struct ast_call_queue *reload_queue_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
+static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
 {
 	struct ast_variable *v;
 	struct ast_call_queue *q, *prev_q;
@@ -914,8 +914,8 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	}
 
 	ast_mutex_lock(&qlock);
-	q = reload_queue_rt(queuename, queue_vars, member_config);
-	/* Note: If found, reload_queue_rt() returns with q->lock locked. */
+	q = find_queue_by_name_rt(queuename, queue_vars, member_config);
+	/* Note: If found, find_queue_by_name_rt() returns with q->lock locked. */
 	if(member_config)
 		ast_config_destroy(member_config);
 	if(queue_vars)
