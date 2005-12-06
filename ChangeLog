@@ -1,6 +1,195 @@
+2005-12-06  Kevin P. Fleming  <kpfleming@digium.com>
+
+	* Asterisk 1.2.1 released.
+
+2005-12-06 00:23 +0000 [r7345-7351]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* sounds/(all files): ensure that sound/music files are
+	  handled as binary
+
+	* contrib/firmware/iax/iaxy.bin: replace with unmodified file
+
+	* contrib/firmware/iax/iaxy.bin: _really_ don't mess with line
+	  endings
+
+	* contrib/firmware/iax/iaxy.bin: don't try to expand keywords in
+	  this file
+
+	* contrib/firmware/iax/iaxy.bin: set this file to binary mode, so
+	  it won't be mangled on export/checkout
+
+2005-12-05 06:47 +0000 [r7335-7340]  Russell Bryant <russell@digium.com>
+
+	* Makefile: remove ASTERISKVERSIONNUM from the version string given
+	  to doxygen
+
+	* apps/app_queue.c: don't delete dynamic queue members when
+	  reloading the static members from a realtime database (issue
+	  #5922)
+
+	* channels/chan_sip.c: fix the order of arguments to an error
+	  message (issue #5927)
+
+2005-12-04 18:03 +0000 [r7329]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* build_tools/make_svn_branch_name: use a more efficient way to get
+	  the revision number, that will also report if the working copy
+	  contains uncommitted modifications
+
+2005-12-03 19:55 +0000 [r7310]  Tilghman Lesher <tilghman@mail.jeffandtilghman.com>
+
+	* apps/app_voicemail.c: Bug 5925: check for "Unknown", as that's
+	  what app_voicemail puts into the field for Unknown callerid Also,
+	  remove useless res checks (initialized to 0; never set)
+
+2005-12-03 01:24 +0000 [r7299]  Olle Johansson <oej@edvina.net>
+
+	* configs/sip.conf.sample: Documenting the default registerattempts
+	  setting as 0, continue hammering the server for ever and ever ;-)
+
+2005-12-02 21:12 +0000 [r7285]  Tilghman Lesher <tilghman@mail.jeffandtilghman.com>
+
+	* contrib/init.d/rc.debian.asterisk,
+	  contrib/init.d/rc.mandrake.asterisk,
+	  contrib/init.d/rc.redhat.asterisk,
+	  contrib/init.d/rc.gentoo.asterisk,
+	  contrib/init.d/rc.mandrake.zaptel,
+	  contrib/init.d/rc.slackware.asterisk: Turn on executable bits for
+	  startup scripts, and fix bash var interpolation for Mandrake
+
+2005-12-02 00:52 +0000 [r7275]  Olle Johansson <oej@edvina.net>
+
+	* channels/chan_sip.c: Bug #5907. Improve SIP INFO DTMF debugging
+	  output. (1.2 & Trunk)
+
+2005-12-02 00:51 +0000 [r7266-7274]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* apps/app_page.c, pbx.c: inherit channel variables into channels
+	  created by Page() application (issue #5888)
+
+	* apps/app_voicemail.c, configs/voicemail.conf.sample, UPGRADE.txt:
+	  allow previous context-searching behavior to be used if desired
+	  (issue #5899)
+
+	* apps/app_voicemail.c: properly handle password changes when
+	  mailbox is last line of config file and not followed by a newline
+	  (issue #5870) reformat password changing code to conform to
+	  coding guidelines (issue #5870)
+
+	* channels/chan_agent.c: protect agent_bridgedchannel() from
+	  segfaulting when there is no bridged channel (issue #5879)
+
+	* channels/chan_local.c: allow variables to exist on both 'halves'
+	  of the Local channel (issue #5810)
+
+	* apps/app_festival.c: don't block waiting for the Festival server
+	  forever when it goes away (issue #5882)
+
+	* channel.c: ensure channel's scheduling context is freed (issue
+	  #5788)
+
+	* Makefile, patches (removed): Makefile 'update' target now
+	  supports updating from Subversion repositories (issue #5875)
+	  remove support for 'patches' subdirectory, it's no longer useful
+
+2005-12-01 23:18 +0000 [r7261-7265]  Olle Johansson <oej@edvina.net>
+
+	* doc/README.misdn: Changing bug report address to the Asterisk
+	  issue tracker
+
+	* doc/README.jitterbuffer, doc/README.realtime: Removing references
+	  to 1.1dev, replacing with 1.2, in documentation files.
+
+	* doc/README.misdn: Fixing some spelling errors, as well as
+	  changing "cvs" to "subversion" in misdn documentation.
+
+2005-12-01 19:25 +0000 [r7257]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* build_tools/make_svn_branch_name: ensure that 'svn info' output
+	  is in the expected language for the script to parse (issue #5880)
+
+2005-12-01 02:33 +0000 [r7228-7251]  Russell Bryant <russell@digium.com>
+
+	* apps/app_externalivr.c: use ast_app_separate_args to split
+	  arguments (issue #5686)
+
+	* apps/app_queue.c: fix queue weight feature
+	  - compare member interfaces instead of pointers to the members,
+	    since each queue has its own list of members. (issue #5863)
+
+	* build_tools/make_svn_branch_name: use '=' instead of '==' for
+	  string comparisons. /bin/bash is ok with this, but /bin/sh is
+	  not. (issue #5885)
+
+	* redhat/asterisk (removed), Makefile: remove outdated redhat init
+	  script and provide the updated one in 'make rpm' (issue #5786)
+
+	* contrib/init.d/rc.debian.asterisk,
+	  contrib/init.d/rc.redhat.asterisk: Comment out LD_ASSUME_KERNEL
+	  by default. Print error messages if the asterisk executable or
+	  the asterisk configuration directory are not found. (issue #5785,
+	  #5708)
+
+	* apps/app_dial.c: fix DIALEDTIME when call has not been answered
+	  (issue #5862)
+
+	* rtp.c: do not allow an rtp message with zero type (issue #5749)
+
+	* pbx.c: fix hint case sensitivity (issue #5856)
+
+	* configs/sip.conf.sample: add description of the "fromdomain"
+	  option (issue #5874)
+
+2005-11-30 03:52 +0000 [r7227]  Josh Roberson <josh@asteriasgi.com>
+
+	* apps/app_voicemail.c, UPGRADE.txt, ChangeLog: backport fix from
+	  trunk
+
+2005-11-30 03:37 +0000 [r7219-7226]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* doc/cdr.txt, doc/CODING-GUIDELINES, include/asterisk.h,
+	  doc/README.mp3: remove remaining CVS references
+
+	* channel.c: port memory leak fix from rev 7223 in trunk
+
+	* (all files): remove extraneous svn:executable properties
+
+	* include/asterisk/lock.h: do the multiple-lock check for cond_wait
+	  properly...
+
 2005-11-29  Josh Roberson <josh@asteriasgi.com>
 	
 	* apps/app_voicemail.c: Only look in 'default' context when no context defined to VoiceMailMain(). (issue #5887)
+
+2005-11-29 06:12 +0000 [r7216-7218]  Russell Bryant <russell@digium.com>
+
+	* apps/app_cut.c: print an error message if invalid arguments are
+	  specified
+
+	* apps/app_skel.c: fix a couple of typos and a buglet
+
+2005-11-29 01:25 +0000 [r7199-7213]  Kevin P. Fleming <kpfleming@digium.com>
+
+	* include/asterisk/lock.h: if the lock protected a pthread_cond is
+	  held recursively, warn before waiting onthe condition
+
+	* formats, agi/.cvsignore (removed), codecs/lpc10, build_tools,
+	  patches, editline/np/.cvsignore (removed), formats/.cvsignore
+	  (removed), pbx, funcs/.cvsignore (removed), channels,
+	  build_tools/.cvsignore (removed), editline, agi, apps,
+	  codecs/gsm/.cvsignore (removed), patches/.cvsignore (removed),
+	  pbx/.cvsignore (removed), channels/.cvsignore (removed), stdtime,
+	  editline/.cvsignore (removed), editline/np, utils/.cvsignore
+	  (removed), codecs/.cvsignore (removed), .cvsignore (removed),
+	  funcs, apps/.cvsignore (removed), cdr/.cvsignore (removed),
+	  include/asterisk/.cvsignore (removed), stdtime/.cvsignore
+	  (removed), codecs/gsm, channels/h323/.cvsignore (removed), res,
+	  db1-ast, codecs, utils, /, res/.cvsignore (removed), cdr,
+	  codecs/ilbc, channels/h323: remove CVS ignore lists, set SVN
+	  ignore lists
+
+	* Makefile, build_tools/make_svn_branch_name (added): port version
+	  string computation from trunk
 
 2005-11-25  Russell Bryant  <russell@digium.com>
 
