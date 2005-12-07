@@ -4614,6 +4614,16 @@ int ast_add_extension2(struct ast_context *con,
 	int res;
 	int length;
 	char *p;
+	char expand_buf[VAR_BUF_SIZE];
+
+	/* if we are adding a hint, and there are global variables, and the hint
+	   contains variable references, then expand them
+	*/
+	if ((priority == PRIORITY_HINT) && AST_LIST_FIRST(&globals) && strstr(application, "${")) {
+		pbx_substitute_variables_varshead(&globals, application, expand_buf, sizeof(expand_buf));
+		application = expand_buf;
+	}
+
 	length = sizeof(struct ast_exten);
 	length += strlen(extension) + 1;
 	length += strlen(application) + 1;
