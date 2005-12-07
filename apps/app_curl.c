@@ -44,20 +44,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *tdesc = "Load external URL";
 
-static char *app = "Curl";
-
-static char *synopsis = "Load an external URL";
-
-static char *descrip = 
-"  Curl(URL[|postdata]): This application will request the specified URL.\n"
-"It is mainly used for signalling external applications of an event.\n"
-"Parameters:\n"
-"  URL      - This is the external URL to request.\n"
-"  postdata - This information will be treated as POST data.\n"
-"This application will set the following variable:\n"
-"  CURL - This variable will contain the resulting page.\n"
-"This application has been deprecated in favor of the CURL function.\n";
-
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
@@ -115,57 +101,6 @@ static int curl_internal(struct MemoryStruct *chunk, char *url, char *post)
 	curl_easy_perform(curl);
 	curl_easy_cleanup(curl);
 	return 0;
-}
-
-static int curl_exec(struct ast_channel *chan, void *data)
-{
-	int res = 0;
-	struct localuser *u;
-	char *info;
-	struct MemoryStruct chunk = { NULL, 0 };
-	static int dep_warning = 0;
-	AST_DECLARE_APP_ARGS(args,
-		AST_APP_ARG(url);
-		AST_APP_ARG(postdata);
-	);
-	
-	if (!dep_warning) {
-		ast_log(LOG_WARNING, "The application Curl is deprecated.  Please use the CURL() function instead.\n");
-		dep_warning = 1;
-	}
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "Curl requires an argument (URL)\n");
-		return -1;
-	}
-	
-	LOCAL_USER_ADD(u);
-	
-	if ((info = ast_strdupa(data))) {
-		AST_STANDARD_APP_ARGS(args, info);
-	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	if (! curl_internal(&chunk, args.url, args.postdata)) {
-		if (chunk.memory) {
-			chunk.memory[chunk.size] = '\0';
-			if (chunk.memory[chunk.size - 1] == 10)
-				chunk.memory[chunk.size - 1] = '\0';
-
-			pbx_builtin_setvar_helper(chan, "CURL", chunk.memory);
-
-			free(chunk.memory);
-		}
-	} else {
-		ast_log(LOG_ERROR, "Cannot allocate curl structure\n");
-		res = -1;
-	}
-
-	LOCAL_USER_REMOVE(u);
-	return res;
 }
 
 static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
@@ -228,7 +163,6 @@ int unload_module(void)
 	int res;
 
 	res = ast_custom_function_unregister(&acf_curl);
-	res |= ast_unregister_application(app);
 
 	STANDARD_HANGUP_LOCALUSERS;
 	
@@ -240,7 +174,6 @@ int load_module(void)
 	int res;
 
 	res = ast_custom_function_register(&acf_curl);
-	res |= ast_register_application(app, curl_exec, synopsis, descrip);
 
 	return res;
 }

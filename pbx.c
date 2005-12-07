@@ -199,14 +199,9 @@ static int pbx_builtin_answer(struct ast_channel *, void *);
 static int pbx_builtin_goto(struct ast_channel *, void *);
 static int pbx_builtin_hangup(struct ast_channel *, void *);
 static int pbx_builtin_background(struct ast_channel *, void *);
-static int pbx_builtin_dtimeout(struct ast_channel *, void *);
-static int pbx_builtin_rtimeout(struct ast_channel *, void *);
-static int pbx_builtin_atimeout(struct ast_channel *, void *);
 static int pbx_builtin_wait(struct ast_channel *, void *);
 static int pbx_builtin_waitexten(struct ast_channel *, void *);
-static int pbx_builtin_setlanguage(struct ast_channel *, void *);
 static int pbx_builtin_resetcdr(struct ast_channel *, void *);
-static int pbx_builtin_setaccount(struct ast_channel *, void *);
 static int pbx_builtin_setamaflags(struct ast_channel *, void *);
 static int pbx_builtin_ringing(struct ast_channel *, void *);
 static int pbx_builtin_progress(struct ast_channel *, void *);
@@ -221,7 +216,6 @@ static int pbx_builtin_saynumber(struct ast_channel *, void *);
 static int pbx_builtin_saydigits(struct ast_channel *, void *);
 static int pbx_builtin_saycharacters(struct ast_channel *, void *);
 static int pbx_builtin_sayphonetic(struct ast_channel *, void *);
-static int pbx_builtin_setvar_old(struct ast_channel *, void *);
 int pbx_builtin_setvar(struct ast_channel *, void *);
 static int pbx_builtin_importvar(struct ast_channel *, void *);
 
@@ -245,13 +239,6 @@ static struct pbx_builtin {
 {
 	/* These applications are built into the PBX core and do not
 	   need separate modules */
-
-	{ "AbsoluteTimeout", pbx_builtin_atimeout,
-	"Set absolute maximum time of call",
-	"  AbsoluteTimeout(seconds): This application will set the absolute maximum\n"
-	"amount of time permitted for a call. A setting of 0 disables the timeout.\n"
-	"  AbsoluteTimeout has been deprecated in favor of Set(TIMEOUT(absolute)=timeout)\n"
-	},
 
 	{ "Answer", pbx_builtin_answer, 
 	"Answer a channel if ringing", 
@@ -296,19 +283,6 @@ static struct pbx_builtin {
 	"condition to the calling channel. If the optional timeout is specified, the\n"
 	"calling channel will be hung up after the specified number of seconds.\n"
 	"Otherwise, this application will wait until the calling channel hangs up.\n"
-	},
-
-	{ "DigitTimeout", pbx_builtin_dtimeout,
-	"Set maximum timeout between digits",
-	"  DigitTimeout(seconds): Set the maximum amount of time permitted between\n"
-	"digits when the user is typing in an extension. When this timeout expires,\n"
-	"after the user has started to type in an extension, the extension will be\n"
-	"considered complete, and will be interpreted. Note that if an extension\n"
-	"typed in is valid, it will not have to timeout to be tested, so typically\n"
-	"at the expiry of this timeout, the extension will be considered invalid\n"
-	"(and thus control would be passed to the 'i' extension, or if it doesn't\n"
-	"exist the call would be terminated). The default timeout is 5 seconds.\n"
-	"  DigitTimeout has been deprecated in favor of Set(TIMEOUT(digit)=timeout)\n"
 	},
 
 	{ "Goto", pbx_builtin_goto, 
@@ -377,15 +351,6 @@ static struct pbx_builtin {
 	"    v -- Save CDR variables.\n"
 	},
 
-	{ "ResponseTimeout", pbx_builtin_rtimeout,
-	"Set maximum timeout awaiting response",
-	"  ResponseTimeout(seconds): This will set the maximum amount of time permitted\n"
-	"to wait for an extension to dialed (see the WaitExten application), before the\n"
-	"timeout occurs. If this timeout is reached, dialplan execution will continue at\n"
-	"the 't' extension, if it exists.\n"
-	"  ResponseTimeout has been deprecated in favor of Set(TIMEOUT(response)=timeout)\n"
-	},
-
 	{ "Ringing", pbx_builtin_ringing,
 	"Indicate ringing tone",
 	"  Ringing(): This application will request that the channel indicate a ringing\n"
@@ -420,13 +385,6 @@ static struct pbx_builtin {
 	"alphabet that correspond to the letters in the given string.\n"
 	},
 
-	{ "SetAccount", pbx_builtin_setaccount,
-	"Set the CDR Account Code",
-	"  SetAccount([account]): This application will set the channel account code for\n"
-	"billing purposes.\n"
-	"  SetAccount has been deprecated in favor of the Set(CDR(accountcode)=account).\n"
-	},
-
 	{ "SetAMAFlags", pbx_builtin_setamaflags,
 	"Set the AMA Flags",
 	"  SetAMAFlags([flag]): This channel will set the channel's AMA Flags for billing\n"
@@ -437,19 +395,6 @@ static struct pbx_builtin {
 	"Set a global variable to a given value",
 	"  SetGlobalVar(variable=value): This application sets a given global variable to\n"
 	"the specified value.\n"
-	},
-
-	{ "SetLanguage", pbx_builtin_setlanguage,
-	"Set the channel's preferred language",
-	"  SetLanguage(language): This will set the channel language to the given value.\n"
-	"This information is used for the syntax in generation of numbers, and to choose\n"
-	"a sound file in the given language, when it is available.\n"
-	"  For example, if language is set to 'fr' and the file 'demo-congrats' is \n"
-	"requested to be played, if the file 'fr/demo-congrats' exists, then\n"
-	"it will play that file. If not, it will play the normal 'demo-congrats'.\n"
-	"For some language codes, SetLanguage also changes the syntax of some\n"
-	"Asterisk functions, like SayNumber.\n"
-	"  SetLanguage has been deprecated in favor of Set(LANGUAGE()=language)\n"
 	},
 
 	{ "Set", pbx_builtin_setvar,
@@ -464,12 +409,6 @@ static struct pbx_builtin {
 	"  Options:\n" 
 	"    g - Set variable globally instead of on the channel\n"
 	"        (applies only to variables, not functions)\n"
-	},
-
-	{ "SetVar", pbx_builtin_setvar_old,
-	"Set channel variable(s)",
-	"  SetVar(name1=value1|name2=value2|..[|options]): This application has been\n"
-	"deprecated in favor of using the Set application.\n"
 	},
 
 	{ "ImportVar", pbx_builtin_importvar,
@@ -5447,25 +5386,6 @@ static int pbx_builtin_answer(struct ast_channel *chan, void *data)
 	return res;
 }
 
-/*!
- * \ingroup applications
- */
-static int pbx_builtin_setlanguage(struct ast_channel *chan, void *data)
-{
-	static int deprecation_warning = 0;
-
-	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "SetLanguage is deprecated, please use Set(LANGUAGE()=language) instead.\n");
-		deprecation_warning = 1;
-	}
-
-	/* Copy the language as specified */
-	if (!ast_strlen_zero(data))
-		ast_copy_string(chan->language, data, sizeof(chan->language));
-
-	return 0;
-}
-
 AST_APP_OPTIONS(resetcdr_opts, {
 	AST_APP_OPTION('w', AST_CDR_FLAG_POSTED),
 	AST_APP_OPTION('a', AST_CDR_FLAG_LOCKED),
@@ -5491,19 +5411,6 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 
 	ast_cdr_reset(chan->cdr, &flags);
 
-	return 0;
-}
-
-/*!
- * \ingroup applications
- */
-static int pbx_builtin_setaccount(struct ast_channel *chan, void *data)
-{
-	/* Copy the account code  as specified */
-	if (data)
-		ast_cdr_setaccount(chan, (char *)data);
-	else
-		ast_cdr_setaccount(chan, "");
 	return 0;
 }
 
@@ -5784,75 +5691,6 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	}
 }
 
-/*! AbsoluteTimeout
- * \ingroup applications
- * \todo Remove in 1.3 dev
- */
-static int pbx_builtin_atimeout(struct ast_channel *chan, void *data)
-{
-	static int deprecation_warning = 0;
-	int x = atoi((char *) data);
-
-	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "AbsoluteTimeout is deprecated, please use Set(TIMEOUT(absolute)=timeout) instead.\n");
-		deprecation_warning = 1;
-	}
-			
-	/* Set the absolute maximum time how long a call can be connected */
-	ast_channel_setwhentohangup(chan,x);
-	if (option_verbose > 2)
-		ast_verbose( VERBOSE_PREFIX_3 "Set Absolute Timeout to %d\n", x);
-	return 0;
-}
-
-/*! ResponseTimeout
- * \ingroup applications
- * \todo Remove in 1.3 dev
- */
-static int pbx_builtin_rtimeout(struct ast_channel *chan, void *data)
-{
-	static int deprecation_warning = 0;
-
-	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "ResponseTimeout is deprecated, please use Set(TIMEOUT(response)=timeout) instead.\n");
-		deprecation_warning = 1;
-	}
-
-	/* If the channel is not in a PBX, return now */
-	if (!chan->pbx)
-		return 0;
-
-	/* Set the timeout for how long to wait between digits */
-	chan->pbx->rtimeout = atoi((char *)data);
-	if (option_verbose > 2)
-		ast_verbose( VERBOSE_PREFIX_3 "Set Response Timeout to %d\n", chan->pbx->rtimeout);
-	return 0;
-}
-
-/*! DigitTimeout
- * \ingroup applications
- * \todo Remove in 1.3 dev
- */
-static int pbx_builtin_dtimeout(struct ast_channel *chan, void *data)
-{
-	static int deprecation_warning = 0;
-
-	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "DigitTimeout is deprecated, please use Set(TIMEOUT(digit)=timeout) instead.\n");
-		deprecation_warning = 1;
-	}
-
-	/* If the channel is not in a PBX, return now */
-	if (!chan->pbx)
-		return 0;
-
-	/* Set the timeout for how long to wait between digits */
-	chan->pbx->dtimeout = atoi((char *)data);
-	if (option_verbose > 2)
-		ast_verbose( VERBOSE_PREFIX_3 "Set Digit Timeout to %d\n", chan->pbx->dtimeout);
-	return 0;
-}
-
 /*! Goto
  * \ingroup applications
  */
@@ -5973,18 +5811,6 @@ void pbx_builtin_setvar_helper(struct ast_channel *chan, const char *name, const
 		newvariable = ast_var_assign(name, value);	
 		AST_LIST_INSERT_HEAD(headp, newvariable, entries);
 	}
-}
-
-int pbx_builtin_setvar_old(struct ast_channel *chan, void *data)
-{
-	static int deprecation_warning = 0;
-
-	if (!deprecation_warning) {
-		ast_log(LOG_WARNING, "SetVar is deprecated, please use Set instead.\n");
-		deprecation_warning = 1;
-	}
-
-	return pbx_builtin_setvar(chan, data);
 }
 
 int pbx_builtin_setvar(struct ast_channel *chan, void *data)

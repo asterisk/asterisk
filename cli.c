@@ -29,6 +29,7 @@
 #include <signal.h>
 #include <string.h>
 #include <ctype.h>
+#include <regex.h>
 
 #include "asterisk.h"
 
@@ -42,6 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/manager.h"
 #include "asterisk/utils.h"
+#include "asterisk/app.h"
 #include "asterisk/lock.h"
 /* For rl_filename_completion */
 #include "editline/readline/readline.h"
@@ -124,6 +126,12 @@ static char softhangup_help[] =
 "Usage: soft hangup <channel>\n"
 "       Request that a channel be hung up. The hangup takes effect\n"
 "       the next time the driver reads or writes from the channel\n";
+
+static char group_show_channels_help[] = 
+"Usage: group show channels [pattern]\n"
+"       Lists all currently active channels with channel group(s) specified.\n"
+"       Optional regular expression pattern is matched to group names for each\n"
+"       channel.\n";
 
 static int handle_load(int fd, int argc, char *argv[])
 {
@@ -887,6 +895,55 @@ static char *complete_fn(char *line, char *word, int pos, int state)
 	return c ? strdup(c) : c;
 }
 
+static int group_show_channels(int fd, int argc, char *argv[])
+{
+#define FORMAT_STRING  "%-25s  %-20s  %-20s\n"
+
+	struct ast_channel *c = NULL;
+	int numchans = 0;
+	struct ast_var_t *current;
+	struct varshead *headp;
+	regex_t regexbuf;
+	int havepattern = 0;
+
+	if (argc < 3 || argc > 4)
+		return RESULT_SHOWUSAGE;
+	
+	if (argc == 4) {
+		if (regcomp(&regexbuf, argv[3], REG_EXTENDED | REG_NOSUB))
+			return RESULT_SHOWUSAGE;
+		havepattern = 1;
+	}
+
+	ast_cli(fd, FORMAT_STRING, "Channel", "Group", "Category");
+	while ( (c = ast_channel_walk_locked(c)) != NULL) {
+		headp=&c->varshead;
+		AST_LIST_TRAVERSE(headp,current,entries) {
+			if (!strncmp(ast_var_name(current), GROUP_CATEGORY_PREFIX "_", strlen(GROUP_CATEGORY_PREFIX) + 1)) {
+				if (!havepattern || !regexec(&regexbuf, ast_var_value(current), 0, NULL, 0)) {
+					ast_cli(fd, FORMAT_STRING, c->name, ast_var_value(current),
+						(ast_var_name(current) + strlen(GROUP_CATEGORY_PREFIX) + 1));
+					numchans++;
+				}
+			} else if (!strcmp(ast_var_name(current), GROUP_CATEGORY_PREFIX)) {
+				if (!havepattern || !regexec(&regexbuf, ast_var_value(current), 0, NULL, 0)) {
+					ast_cli(fd, FORMAT_STRING, c->name, ast_var_value(current), "(default)");
+					numchans++;
+				}
+			}
+		}
+		numchans++;
+		ast_mutex_unlock(&c->lock);
+	}
+
+	if (havepattern)
+		regfree(&regexbuf);
+
+	ast_cli(fd, "%d active channel%s\n", numchans, (numchans != 1) ? "s" : "");
+	return RESULT_SUCCESS;
+#undef FORMAT_STRING
+}
+
 static int handle_help(int fd, int argc, char *argv[]);
 
 static struct ast_cli_entry builtins[] = {
@@ -910,6 +967,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "show", "version", NULL }, handle_version, "Display version info", version_help },
 	{ { "soft", "hangup", NULL }, handle_softhangup, "Request a hangup on a given channel", softhangup_help, complete_ch_3 },
 	{ { "unload", NULL }, handle_unload, "Unload a dynamic module by name", unload_help, complete_fn },
+	{ { "group", "show", "channels", NULL }, group_show_channels, "Show active channels with group(s)", group_show_channels_help},
 	{ { NULL }, NULL, NULL, NULL }
 };
 

@@ -43,31 +43,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *tdesc = "Cut out information from a string";
 
-static char *app_cut = "Cut";
-
-static char *cut_synopsis = "Splits a variable's contents using the specified delimiter";
-
-static char *cut_descrip =
-"  Cut(newvar=varname,delimiter,fieldspec): This applicaiton will split the\n"
-"contents of a variable based on the given delimeter and store the result in\n"
-"a new variable.\n"
-"Parameters:\n"
-"  newvar    - new variable created from result string\n"
-"  varname   - variable you want cut\n"
-"  delimiter - defaults to '-'\n"
-"  fieldspec - number of the field you want (1-based offset)\n"
-"              may also be specified as a range (with -)\n"
-"              or group of ranges and fields (with &)\n"
-"This application has been deprecated in favor of the CUT function.\n";
-
-static char *app_sort = "Sort";
-static char *app_sort_synopsis = "Sorts a list of keywords and values";
-static char *app_sort_descrip =
-"  Sort(newvar=key1:val1[,key2:val2[[...],keyN:valN]]): This application will\n"
-"sort the list provided in ascending order. The result will be stored in the\n"
-"specified variable name.\n"
-"  This applicaiton has been deprecated in favor of the SORT function.\n";
-
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
@@ -258,105 +233,6 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	return 0;
 }
 
-static int sort_exec(struct ast_channel *chan, void *data)
-{
-	int res=0;
-	struct localuser *u;
-	char *varname, *strings, result[512] = "";
-	static int dep_warning=0;
-
-	if (!dep_warning) {
-		ast_log(LOG_WARNING, "The application Sort is deprecated.  Please use the SORT() function instead.\n");
-		dep_warning=1;
-	}
-
-	if (!data) {
-		ast_log(LOG_ERROR, "Sort() requires an argument\n");
-		return 0;
-	}
-
-	LOCAL_USER_ADD(u);
-
-	strings = ast_strdupa((char *)data);
-	if (!strings) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
-
-	varname = strsep(&strings, "=");
-	switch (sort_internal(chan, strings, result, sizeof(result))) {
-	case ERROR_NOARG:
-		ast_log(LOG_ERROR, "Sort() requires an argument\n");
-		res = 0;
-		break;
-	case ERROR_NOMEM:
-		ast_log(LOG_ERROR, "Out of memory\n");
-		res = -1;
-		break;
-	case 0:
-		pbx_builtin_setvar_helper(chan, varname, result);
-		res = 0;
-		break;
-	default:
-		ast_log(LOG_ERROR, "Unknown internal error\n");
-		res = -1;
-	}
-	LOCAL_USER_REMOVE(u);
-	return res;
-}
-
-static int cut_exec(struct ast_channel *chan, void *data)
-{
-	int res=0;
-	struct localuser *u;
-	char *s, *newvar=NULL, result[512];
-	static int dep_warning = 0;
-
-	LOCAL_USER_ADD(u);
-
-	if (!dep_warning) {
-		ast_log(LOG_WARNING, "The application Cut is deprecated.  Please use the CUT() function instead.\n");
-		dep_warning=1;
-	}
-
-	/* Check and parse arguments */
-	if (data) {
-		s = ast_strdupa((char *)data);
-		if (s) {
-			newvar = strsep(&s, "=");
-		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
-	}
-
-	switch (cut_internal(chan, s, result, sizeof(result))) {
-	case ERROR_NOARG:
-		ast_log(LOG_ERROR, "Cut() requires an argument\n");
-		res = 0;
-		break;
-	case ERROR_NOMEM:
-		ast_log(LOG_ERROR, "Out of memory\n");
-		res = -1;
-		break;
-	case ERROR_USAGE:
-		ast_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
-		res = 0;
-		break;
-	case 0:
-		pbx_builtin_setvar_helper(chan, newvar, result);
-		res = 0;
-		break;
-	default:
-		ast_log(LOG_ERROR, "Unknown internal error\n");
-		res = -1;
-	}
-	LOCAL_USER_REMOVE(u);
-	return res;
-}
-
 static char *acf_sort_exec(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	struct localuser *u;
@@ -434,8 +310,6 @@ int unload_module(void)
 
 	res = ast_custom_function_unregister(&acf_cut);
 	res |= ast_custom_function_unregister(&acf_sort);
-	res |= ast_unregister_application(app_sort);
-	res |= ast_unregister_application(app_cut);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -448,8 +322,6 @@ int load_module(void)
 
 	res = ast_custom_function_register(&acf_cut);
 	res |= ast_custom_function_register(&acf_sort);
-	res |= ast_register_application(app_sort, sort_exec, app_sort_synopsis, app_sort_descrip);
-	res |= ast_register_application(app_cut, cut_exec, cut_synopsis, cut_descrip);
 
 	return res;
 }
