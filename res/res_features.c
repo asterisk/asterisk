@@ -442,7 +442,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 
 static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
-	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL;
+	char *caller_chan_id = NULL, *callee_chan_id = NULL, *args = NULL, *touch_filename = NULL;
 	int x = 0;
 	size_t len;
 	struct ast_channel *caller_chan = NULL, *callee_chan = NULL;
@@ -498,17 +498,21 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 
 		if (!touch_monitor)
 			touch_monitor = pbx_builtin_getvar_helper(callee_chan, "TOUCH_MONITOR");
-		
+	
 		if (touch_monitor) {
 			len = strlen(touch_monitor) + 50;
 			args = alloca(len);
-			snprintf(args, len, "%s|auto-%ld-%s|m", (touch_format) ? touch_format : "wav", time(NULL), touch_monitor);
+			touch_filename = alloca(len);
+			snprintf(touch_filename, len, "auto-%ld-%s", time(NULL), touch_monitor);
+			snprintf(args, len, "%s|%s|m", (touch_format) ? touch_format : "wav", touch_filename);
 		} else {
 			caller_chan_id = ast_strdupa(caller_chan->cid.cid_num ? caller_chan->cid.cid_num : caller_chan->name);
 			callee_chan_id = ast_strdupa(callee_chan->cid.cid_num ? callee_chan->cid.cid_num : callee_chan->name);
 			len = strlen(caller_chan_id) + strlen(callee_chan_id) + 50;
 			args = alloca(len);
-			snprintf(args, len, "%s|auto-%ld-%s-%s|m", (touch_format) ? touch_format : "wav", time(NULL), caller_chan_id, callee_chan_id);
+			touch_filename = alloca(len);
+			snprintf(touch_filename, len, "auto-%ld-%s-%s", time(NULL), caller_chan_id, callee_chan_id);
+			snprintf(args, len, "%s|%s|m", (touch_format) ? touch_format : "wav", touch_filename);
 		}
 
 		for( x = 0; x < strlen(args); x++)
@@ -519,7 +523,9 @@ static int builtin_automonitor(struct ast_channel *chan, struct ast_channel *pee
 			ast_verbose(VERBOSE_PREFIX_3 "User hit '%s' to record call. filename: %s\n", code, args);
 
 		pbx_exec(callee_chan, monitor_app, args, 1);
-		
+		pbx_builtin_setvar_helper(callee_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
+		pbx_builtin_setvar_helper(caller_chan, "TOUCH_MONITOR_OUTPUT", touch_filename);
+	
 		return FEATURE_RETURN_SUCCESS;
 	}
 	
