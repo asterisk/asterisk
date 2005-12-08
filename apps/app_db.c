@@ -164,7 +164,7 @@ int load_module(void)
 {
 	int retval;
 
-	retval |= ast_register_application(d_app, del_exec, d_synopsis, d_descrip);
+	retval = ast_register_application(d_app, del_exec, d_synopsis, d_descrip);
 	retval |= ast_register_application(dt_app, deltree_exec, dt_synopsis, dt_descrip);
 	
 	return retval;
