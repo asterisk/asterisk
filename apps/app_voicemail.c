@@ -536,10 +536,10 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 		if (mailbox) 
 			ast_copy_string(retval->mailbox, mailbox, sizeof(retval->mailbox));
 		populate_defaults(retval);
-		if (ast_test_flag((&globalflags), VM_SEARCH))
+		if (!context && ast_test_flag((&globalflags), VM_SEARCH))
 			var = ast_load_realtime("voicemail", "mailbox", mailbox, NULL);
 		else
-			var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", retval->context, NULL);
+			var = ast_load_realtime("voicemail", "mailbox", mailbox, "context", context, NULL);
 		if (var) {
 			tmp = var;
 			while(tmp) {
