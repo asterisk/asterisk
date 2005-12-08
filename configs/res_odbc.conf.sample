@@ -1,17 +1,28 @@
 ;;; odbc setup file 
 
+; ENV is a global set of environmental variables that will get set.
+; Note that all environmental variables can be seen by all connections,
+; so you can't have different values for different connections.
+[ENV]
+INFORMIXSERVER => my_special_database
+INFORMIXDIR => /opt/informix
+
+; All other sections are arbitrary names for database connections.
+
 [asterisk]
+enabled => yes
 dsn => asterisk
 ;username => myuser
 ;password => mypass
 pre-connect => yes
 
 
-;[mysql2]
-;dsn => MySQL-asterisk
-;username => myuser
-;password => mypass
-;pre-connect => yes
+[mysql2]
+enabled => no
+dsn => MySQL-asterisk
+username => myuser
+password => mypass
+pre-connect => yes
 
 
 
