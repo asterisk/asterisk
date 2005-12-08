@@ -4614,7 +4614,7 @@ int ast_add_extension2(struct ast_context *con,
 	int res;
 	int length;
 	char *p;
-	char expand_buf[VAR_BUF_SIZE];
+	char expand_buf[VAR_BUF_SIZE] = { 0, };
 
 	/* if we are adding a hint, and there are global variables, and the hint
 	   contains variable references, then expand them
