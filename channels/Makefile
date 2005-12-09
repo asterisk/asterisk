@@ -83,6 +83,7 @@ endif
 
 ifneq ($(wildcard misdn/chan_misdn_lib.a),)
   CHANNEL_LIBS+=chan_misdn.so
+  CFLAGS+=-Imisdn 
 endif
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
@@ -234,11 +235,10 @@ chan_h323.so: chan_h323.o h323/libchanh323.a
 endif
 
 chan_misdn.so: chan_misdn.o chan_misdn_config.o misdn/chan_misdn_lib.a
-	$(CC) -shared -Xlinker -x -o $@ $^ $(MISDNUSER)/i4lnet/libisdnnet.a $(MISDNUSER)/lib/libmISDN.a 
+	$(CC) -shared -Xlinker -x -L/usr/lib -o $@ $^ -lisdnnet -lmISDN
 
-chan_misdn_config.o: chan_misdn_config.c
-	$(CC) $(CFLAGS) -c chan_misdn_config.c
-
+chan_misdn.o: chan_misdn.c
+	$(CC) $(CFLAGS) -DCHAN_MISDN_VERSION=\"0.2.1\" -c $< -o $@
 
 #chan_modem.so : chan_modem.o
 #	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<
