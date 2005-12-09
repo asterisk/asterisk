@@ -1,18 +1,17 @@
 #ifndef ISDN_LIB_INTERN
-#define ISDN_LIB_INTER
+#define ISDN_LIB_INTERN
 
 
-#include <mISDNlib.h>
-#include <isdn_net.h>
-#include <l3dss1.h>
-#include <net_l3.h>
+#include <mISDNuser/mISDNlib.h>
+#include <mISDNuser/isdn_net.h>
+#include <mISDNuser/l3dss1.h>
+#include <mISDNuser/net_l3.h>
 
 #include <pthread.h>
 
 #include "isdn_lib.h"
 
-
-
+#define QI_ELEMENT(a) a.off
 
 
 #ifndef mISDNUSER_HEAD_SIZE
@@ -37,8 +36,6 @@ struct isdn_msg {
   
 	void (*msg_parser)(struct isdn_msg *msgs, msg_t *msg, struct misdn_bchannel *bc, int nt);
 	msg_t *(*msg_builder)(struct isdn_msg *msgs, struct misdn_bchannel *bc, int nt);
-	void (*msg_printer)(struct isdn_msg *msgs);
-  
 	char *info;
   
 } ; 
@@ -60,6 +57,8 @@ struct misdn_stack {
 	int b_stids[MAX_BCHANS + 1];
   
 	int ptp;
+
+	int l2_id;
 	int lower_id;
 	int upper_id;
   
@@ -70,7 +69,7 @@ struct misdn_stack {
 	int l1link;
 	int midev;
   
-	enum mode_e {NT_MODE, TE_MODE} mode;
+	int nt;
 	
 	int pri;
   

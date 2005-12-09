@@ -14,9 +14,11 @@
 #ifndef TE_LIB
 #define TE_LIB
 
+
 /** For initialization usage **/
 /* typedef int ie_nothing_t ;*/
 /** end of init usage **/
+
 
 
 #define MAX_BCHANS 30
@@ -144,9 +146,19 @@ enum layer_e {
 	UNKNOWN
 }; 
 
+
+
+/** FACILITY STUFF **/
+
 enum facility_type {
 	FACILITY_NONE,
-	FACILITY_CALLDEFLECT
+	FACILITY_CALLDEFLECT=0x91,
+	FACILITY_CENTREX=0x88
+};
+
+union facility {
+	char calldeflect_nr[15];
+	char cnip[256];
 };
 
 
@@ -161,7 +173,8 @@ struct misdn_bchannel {
 	/* int b_addr; */
 	int layer_id;
 
-
+	int layer;
+	
 	
 	/** var stuff**/
 	int l3_id;
@@ -180,10 +193,11 @@ struct misdn_bchannel {
 	
 	
 	void *astbuf;
+
 	void *misdnbuf;
-	
 
 	int te_choose_channel;
+	int early_bconnect;
 	
 	/* dtmf digit */
 	int dtmf;
@@ -203,8 +217,11 @@ struct misdn_bchannel {
 	int progress_location;
 	int progress_indicator;
 	
-	enum facility_type facility;
-	char facility_calldeflect_nr[15];
+	enum facility_type fac_type;
+	union facility fac;
+	
+	enum facility_type out_fac_type;
+	union facility out_fac;
 	
 	enum event_e evq;
 	
@@ -255,14 +272,14 @@ struct misdn_bchannel {
 	unsigned char dad[32];
 	unsigned char orig_dad[32];
 	unsigned char keypad[32];
-  
+
 	unsigned char info_dad[64];
 	unsigned char infos_pending[64];
-	unsigned char info_keypad[32];
-	unsigned char clisub[24];
-	unsigned char cldsub[24];
-	unsigned char fac[132];
-	unsigned char uu[256];
+
+/* 	unsigned char info_keypad[32]; */
+/* 	unsigned char clisub[24]; */
+/* 	unsigned char cldsub[24]; */
+/* 	unsigned char uu[256]; */
   
 	int cause;
 	int out_cause;
@@ -288,11 +305,13 @@ struct misdn_bchannel {
 enum event_response_e (*cb_event) (enum event_e event, struct misdn_bchannel *bc, void *user_data);
 void (*cb_log) (int level, int port, char *tmpl, ...);
 int (*cb_clearl3_true)(void);
+int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 
 struct misdn_lib_iface {
 	
 	enum event_response_e (*cb_event)(enum event_e event, struct misdn_bchannel *bc, void *user_data);
 	void (*cb_log)(int level, int port, char *tmpl, ...);
+	int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 	int (*cb_clearl3_true)(void);
 };
 
@@ -312,7 +331,9 @@ struct misdn_bchannel* misdn_lib_get_free_bc(int port, int channel);
 
 void manager_bchannel_activate(struct misdn_bchannel *bc);
 void manager_bchannel_deactivate(struct misdn_bchannel * bc);
-int manager_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len);
+
+int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len);
+
 void manager_send_tone (struct misdn_bchannel *bc, enum tone_e tone);
 
 void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2);
@@ -338,6 +359,7 @@ int misdn_lib_send_facility(struct misdn_bchannel *bc, enum facility_type fac, v
 void manager_ec_enable(struct misdn_bchannel *bc);
 void manager_ec_disable(struct misdn_bchannel *bc);
 
+
 void get_show_stack_details(int port, char *buf);
 
 
@@ -347,6 +369,10 @@ int misdn_ibuf_freecount(void *buf);
 void misdn_ibuf_memcpy_r(char *to, void *from, int len);
 void misdn_ibuf_memcpy_w(void *buf, char *from, int len);
 
+void misdn_free_ibuffer(void *ibuf);
+void misdn_clear_ibuffer(void *ibuf);
+void *misdn_init_ibuffer(int len);
+
 /** Ibuf interface End **/
 
 void misdn_lib_setup_bc(struct misdn_bchannel *bc);
@@ -354,6 +380,7 @@ void misdn_lib_setup_bc(struct misdn_bchannel *bc);
 void misdn_lib_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
 void misdn_lib_split_bridge( struct misdn_bchannel * bc1, struct misdn_bchannel *bc2);
 
+unsigned char * flip_buf_bits ( unsigned char * buf , int len);
 
 int misdn_lib_is_ptp(int port);
 

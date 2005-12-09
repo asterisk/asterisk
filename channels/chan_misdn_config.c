@@ -29,6 +29,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "chan_misdn_config.h"
 
@@ -36,7 +37,9 @@
 #include <asterisk/channel.h>
 #include <asterisk/logger.h>
 #include <asterisk/lock.h>
+#include <asterisk/pbx.h>
 #include <asterisk/strings.h>
+
 
 #include <asterisk/utils.h>
 #define AST_LOAD_CFG ast_config_load
@@ -57,20 +60,25 @@ struct port_config {
 	int *te_choose_channel;
 	char *context;
 	char *language;
+	char *musicclass;
 	char *callerid;
 	char *method;
-	int *dialplan; 
+	int *dialplan;
+	int *localdialplan; 
 	char *nationalprefix;
 	char *internationalprefix;
 	int *pres;
 	int *always_immediate;
 	int *immediate;
+	int *senddtmf;
 	int *hold_allowed;
 	int *early_bconnect;
 	int *use_callingpres;
 	int *echocancel;
 	int *echocancelwhenbridged;
 	int *echotraining;
+	int *jitterbuffer;
+	int *jitterbuffer_upper_threshold;
 	struct msn_list *msn_list;
 	ast_group_t *callgroup;		/* Call group */
 	ast_group_t *pickupgroup;	/* Pickup group */
@@ -148,13 +156,16 @@ static void free_port_cfg (void) {
 			FREE_ELEM(te_choose_channel);
 			FREE_ELEM(context);
 			FREE_ELEM(language);
+			FREE_ELEM(musicclass);
 			FREE_ELEM(callerid);
 			FREE_ELEM(method);
 			FREE_ELEM(dialplan);
+			FREE_ELEM(localdialplan);
 			FREE_ELEM(nationalprefix);
 			FREE_ELEM(internationalprefix);
 			FREE_ELEM(pres);
 			FREE_ELEM(always_immediate);
+			FREE_ELEM(senddtmf);
 			FREE_ELEM(immediate);
 			FREE_ELEM(hold_allowed);
 			FREE_ELEM(early_bconnect);
@@ -162,6 +173,8 @@ static void free_port_cfg (void) {
 			FREE_ELEM(echocancel);
 			FREE_ELEM(echocancelwhenbridged);
 			FREE_ELEM(echotraining);
+			FREE_ELEM(jitterbuffer);
+			FREE_ELEM(jitterbuffer_upper_threshold);
 			if (free_list[i]->msn_list)
 				free_msn_list(free_list[i]->msn_list);
 			FREE_ELEM(callgroup);
@@ -263,20 +276,28 @@ void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void *buf, int bufsiz
 		case MISDN_CFG_RXGAIN:		GET_PORTCFG_MEMCPY(rxgain);
 						break;
 		case MISDN_CFG_TXGAIN:		GET_PORTCFG_MEMCPY(txgain);
-						break;
-		case MISDN_CFG_TE_CHOOSE_CHANNEL:
+			break;
+		case MISDN_CFG_JITTERBUFFER:	GET_PORTCFG_MEMCPY(jitterbuffer);
+			break;
+		case MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD:	GET_PORTCFG_MEMCPY(jitterbuffer_upper_threshold);
+			break;
+case MISDN_CFG_TE_CHOOSE_CHANNEL:
 						GET_PORTCFG_MEMCPY(te_choose_channel);
 						break;
 		case MISDN_CFG_CONTEXT:		GET_PORTCFG_STRCPY(context);
 						break;
 		case MISDN_CFG_LANGUAGE:	GET_PORTCFG_STRCPY(language);
-						break;
-		case MISDN_CFG_CALLERID:	GET_PORTCFG_STRCPY(callerid);
+			break;
+	case MISDN_CFG_MUSICCLASS:	GET_PORTCFG_STRCPY(musicclass);
+		break;
+	case MISDN_CFG_CALLERID:	GET_PORTCFG_STRCPY(callerid);
 						break;
 		case MISDN_CFG_METHOD:		GET_PORTCFG_STRCPY(method);
 						break;
 		case MISDN_CFG_DIALPLAN:	GET_PORTCFG_MEMCPY(dialplan);
 						break;
+	case MISDN_CFG_LOCALDIALPLAN:	GET_PORTCFG_MEMCPY(localdialplan);
+		break;
 		case MISDN_CFG_NATPREFIX:	GET_PORTCFG_STRCPY(nationalprefix);
 						break;
 		case MISDN_CFG_INTERNATPREFIX:
@@ -284,9 +305,12 @@ void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void *buf, int bufsiz
 						break;
 		case MISDN_CFG_PRES:		GET_PORTCFG_MEMCPY(pres);
 						break;
-		case MISDN_CFG_ALWAYS_IMMEDIATE:
+	case MISDN_CFG_ALWAYS_IMMEDIATE:
 						GET_PORTCFG_MEMCPY(always_immediate);
 						break;
+	case MISDN_CFG_SENDDTMF:
+		GET_PORTCFG_MEMCPY(senddtmf);
+		break;
 		case MISDN_CFG_IMMEDIATE:	GET_PORTCFG_MEMCPY(immediate);
 						break;
 		case MISDN_CFG_HOLD_ALLOWED:
@@ -361,7 +385,7 @@ int misdn_cfg_is_msn_valid (int port, char* msn) {
 	else
 		iter = port_cfg[0]->msn_list;
 	for (; iter; iter = iter->next) 
-		if (*(iter->msn) == '*' || !strcasecmp(iter->msn, msn)) {
+		if (*(iter->msn) == '*' || ast_extension_match(iter->msn, msn)) {
 			misdn_cfg_unlock();
 			return 1;
 		}
@@ -518,8 +542,12 @@ void misdn_cfg_get_config_string(int port, enum misdn_cfg_elements elem, char* b
 		case MISDN_CFG_GROUPNAME:	GET_CFG_STRING(GROUPNAME, name);
 									break;
 		case MISDN_CFG_RXGAIN:		GET_CFG_INT(RXGAIN, rxgain);
+			break;
+	case MISDN_CFG_TXGAIN:		GET_CFG_INT(TXGAIN, txgain);
 									break;
-		case MISDN_CFG_TXGAIN:		GET_CFG_INT(TXGAIN, txgain);
+	case MISDN_CFG_JITTERBUFFER:		GET_CFG_INT(JITTERBUFFER, jitterbuffer);
+									break;
+										case MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD:		GET_CFG_INT(JITTERBUFFER_UPPER_THRESHOLD, jitterbuffer_upper_threshold);
 									break;
 		case MISDN_CFG_TE_CHOOSE_CHANNEL:
 						GET_CFG_BOOL(TE_CHOOSE_CHANNEL, te_choose_channel, yes, no);
@@ -528,12 +556,16 @@ void misdn_cfg_get_config_string(int port, enum misdn_cfg_elements elem, char* b
 									break;
 		case MISDN_CFG_LANGUAGE:	GET_CFG_STRING(LANGUAGE, language);
 									break;
+	case MISDN_CFG_MUSICCLASS:	GET_CFG_STRING(MUSICCLASS, musicclass);
+												break;
 		case MISDN_CFG_CALLERID:	GET_CFG_STRING(CALLERID, callerid);
 									break;
 		case MISDN_CFG_METHOD:		GET_CFG_STRING(METHOD, method);
 									break;
 		case MISDN_CFG_DIALPLAN:	GET_CFG_INT(DIALPLAN, dialplan);
 									break;
+	case MISDN_CFG_LOCALDIALPLAN:	GET_CFG_INT(LOCALDIALPLAN, localdialplan);
+		break;
 		case MISDN_CFG_NATPREFIX:	GET_CFG_STRING(NATIONALPREFIX, nationalprefix);
 									break;
 		case MISDN_CFG_INTERNATPREFIX:
@@ -541,9 +573,12 @@ void misdn_cfg_get_config_string(int port, enum misdn_cfg_elements elem, char* b
 									break;
 		case MISDN_CFG_PRES:		GET_CFG_BOOL(PRESENTATION, pres, allowed, not_screened);
 									break;
-		case MISDN_CFG_ALWAYS_IMMEDIATE:
+	case MISDN_CFG_ALWAYS_IMMEDIATE:
 						GET_CFG_BOOL(ALWAYS_IMMEDIATE, always_immediate, yes, no);
 									break;
+	case MISDN_CFG_SENDDTMF:
+		GET_CFG_BOOL(SENDDTMF, senddtmf, yes, no);
+		break;
 		case MISDN_CFG_IMMEDIATE:	GET_CFG_BOOL(IMMEDIATE, immediate, yes, no);
 									break;
 		case MISDN_CFG_HOLD_ALLOWED:
@@ -771,50 +806,40 @@ static void build_port_config(struct ast_variable *v, char *cat) {
 	
 	for (; v; v=v->next) {
 		if (!strcasecmp(v->name, "ports")) {
-			/* TODO check for value not beeing set, like PORTS= */
-			char *iter;
-			char *value = v->value;
-			while ((iter = strchr(value, ',')) != NULL) {
-				*iter = 0;
-				/* strip spaces */
-				while (*value && *value == ' ') {
-					value++;
-				}
-				/* TODO check for char not 0-9 */
-
-				if (*value){
-					int p = atoi(value);
-					if (p <= max_ports && p > 0) {
-						cfg_for_ports[p] = 1;
-						if (strstr(value, "ptp"))
-							ptp[p] = 1;
+			char *value;
+			char ptpbuf[BUFFERSIZE] = "";
+			int start, end;
+			for (value = strsep(&v->value, ","); value; value = strsep(&v->value, ","), *ptpbuf = 0) { 
+				if (!*value)
+					continue;
+				if (sscanf(value, "%d-%d%s", &start, &end, ptpbuf) >= 2) {
+					for (; start <= end; start++) {
+						if (start <= max_ports && start > 0) {
+							cfg_for_ports[start] = 1;
+							ptp[start] = (strstr(ptpbuf, "ptp")) ? 1 : 0;
+						} else
+							ast_log(LOG_WARNING, "Port value '%s' of group '%s' invalid or out of range! Please edit your misdn.conf and then do a \"misdn reload\".\n", value, cat);
+					}
+				} else {
+					if (sscanf(value, "%d%s", &start, ptpbuf)) {
+						if (start <= max_ports && start > 0) {
+							cfg_for_ports[start] = 1;
+							ptp[start] = (strstr(ptpbuf, "ptp")) ? 1 : 0;
+						} else
+							ast_log(LOG_WARNING, "Port value '%s' of group '%s' invalid or out of range! Please edit your misdn.conf and then do a \"misdn reload\".\n", value, cat);
 					} else
-						ast_log(LOG_WARNING, "Port value \"%s\" of group %s invalid or out of range! Please edit your misdn.conf and then do a \"misdn reload\".\n", value, cat);
-					value = ++iter;
+						ast_log(LOG_ERROR, "Syntax error parsing token \"msns=%s\" at group '%s'! Please edit your misdn.conf and then do a \"misdn reload\".\n", value, cat);
 				}
-			}
-			/* the remaining or the only one */
-			/* strip spaces */
-			while (*value && *value == ' ') {
-				value++;
-			}
-			/* TODO check for char not 0-9 */
-			if (*value) {
-				int p = atoi(value);
-				if (p <= max_ports && p > 0) {
-					cfg_for_ports[p] = 1;
-					if (strstr(value, "ptp"))
-						ptp[p] = 1;
-				} else
-					ast_log(LOG_WARNING, "Port value \"%s\" of group %s invalid or out of range! Please edit your misdn.conf and then do a \"misdn reload\".\n", value, cat);
 			}
 			continue;
 		}
 		PARSE_CFG_STR(context);
 		PARSE_CFG_INT(dialplan);
+		PARSE_CFG_INT(localdialplan);
 		PARSE_CFG_STR(nationalprefix);
 		PARSE_CFG_STR(internationalprefix);
 		PARSE_CFG_STR(language);
+		PARSE_CFG_STR(musicclass);
 		if (!strcasecmp(v->name, "presentation")) {
 			if (v->value && strlen(v->value)) {
 				new->pres = (int *)malloc(sizeof(int));
@@ -830,9 +855,12 @@ static void build_port_config(struct ast_variable *v, char *cat) {
 		}
 		PARSE_CFG_INT(rxgain);
 		PARSE_CFG_INT(txgain);
+		PARSE_CFG_INT(jitterbuffer);
+		PARSE_CFG_INT(jitterbuffer_upper_threshold);
 		PARSE_CFG_BOOL(te_choose_channel);
 		PARSE_CFG_BOOL(immediate);
 		PARSE_CFG_BOOL(always_immediate);
+		PARSE_CFG_BOOL(senddtmf);
 		PARSE_CFG_BOOL(hold_allowed);
 		PARSE_CFG_BOOL(early_bconnect);
 		PARSE_CFG_BOOL(use_callingpres);
@@ -842,38 +870,10 @@ static void build_port_config(struct ast_variable *v, char *cat) {
 		PARSE_CFG_STR(callerid);
 		PARSE_CFG_STR(method);
 		if (!strcasecmp(v->name, "msns")) {
-			/* TODO check for value not beeing set, like msns= */
-			char *iter;
-			char *value = v->value;
-
-			while ((iter = strchr(value, ',')) != NULL) {
-				*iter = 0;
-				/* strip spaces */
-				while (*value && *value == ' ') {
-					value++;
-				}
-				/* TODO check for char not 0-9 */
-				if (*value){
-					int l = strlen(value);
-					if (l) {
-						struct msn_list *ml = (struct msn_list *)calloc(1, sizeof(struct msn_list));
-						ml->msn = (char *)calloc(l+1, sizeof(char));
-						strncpy(ml->msn,value,l);
-						ml->next = new->msn_list;
-						new->msn_list = ml;
-					}
-					value = ++iter;
-				}
-			}
-			/* the remaining or the only one */
-			/* strip spaces */
-			while (*value && *value == ' ') {
-				value++;
-			}
-			/* TODO check for char not 0-9 */
-			if (*value) {
-				int l = strlen(value);
-				if (l) {
+			char *value;
+			int l;
+			for (value = strsep(&v->value, ","); value; value = strsep(&v->value, ",")) {
+				if ((l = strlen(value))) {
 					struct msn_list *ml = (struct msn_list *)calloc(1, sizeof(struct msn_list));
 					ml->msn = (char *)calloc(l+1, sizeof(char));
 					strncpy(ml->msn,value,l);
@@ -945,6 +945,10 @@ static void fill_defaults (void) {
 		port_cfg[0]->rxgain = (int *)calloc(1, sizeof(int));
 	if (!port_cfg[0]->txgain)
 		port_cfg[0]->txgain = (int *)calloc(1, sizeof(int));
+	if (!port_cfg[0]->jitterbuffer)
+		port_cfg[0]->jitterbuffer = (int *)calloc(1, sizeof(int));
+	if (!port_cfg[0]->jitterbuffer_upper_threshold)
+		port_cfg[0]->jitterbuffer_upper_threshold = (int *)calloc(1, sizeof(int));
 	if (!port_cfg[0]->te_choose_channel)
 		port_cfg[0]->te_choose_channel = (int *)calloc(1, sizeof(int));
 	if (!port_cfg[0]->context) {
@@ -955,6 +959,10 @@ static void fill_defaults (void) {
 		port_cfg[0]->language = (char *)malloc(3 * sizeof(char));
 		sprintf(port_cfg[0]->language, "en");
 	}
+	if (!port_cfg[0]->musicclass) {
+		port_cfg[0]->musicclass = (char *)malloc(3 * sizeof(char));
+		sprintf(port_cfg[0]->musicclass, "default");
+	}
 	if (!port_cfg[0]->callerid)
 		port_cfg[0]->callerid = (char *)calloc(1, sizeof(char));
 	if (!port_cfg[0]->method) {
@@ -963,6 +971,8 @@ static void fill_defaults (void) {
 	}
 	if (!port_cfg[0]->dialplan)
 		port_cfg[0]->dialplan = (int *)calloc(1, sizeof(int));
+	if (!port_cfg[0]->localdialplan)
+		port_cfg[0]->localdialplan = (int *)calloc(1, sizeof(int));
 	if (!port_cfg[0]->nationalprefix) {
 		port_cfg[0]->nationalprefix = (char *)malloc(2 * sizeof(char));
 		sprintf(port_cfg[0]->nationalprefix, "0");
@@ -977,6 +987,10 @@ static void fill_defaults (void) {
 	}
 	if (!port_cfg[0]->always_immediate)
 		port_cfg[0]->always_immediate = (int *)calloc(1, sizeof(int));
+	
+	if (!port_cfg[0]->senddtmf)
+		port_cfg[0]->senddtmf = (int *)calloc(1, sizeof(int));
+	
 	if (!port_cfg[0]->immediate)
 		port_cfg[0]->immediate = (int *)calloc(1, sizeof(int));
 	if (!port_cfg[0]->hold_allowed)

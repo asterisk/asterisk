@@ -23,17 +23,12 @@
 
 #include <string.h>
 
-
-#include "isdn_lib_intern.h"
-
-#include <mISDNlib.h>
-#include <isdn_net.h>
-#include <l3dss1.h>
-#include <net_l3.h>
+#include <mISDNuser/mISDNlib.h>
+#include <mISDNuser/isdn_net.h>
+#include <mISDNuser/l3dss1.h>
+#include <mISDNuser/net_l3.h>
 
 
-#define CENTREX_FAC     0x88
-#define CENTREX_ID      0xa1
 
 #define MISDN_IE_DEBG 0
 
@@ -69,7 +64,8 @@ void enc_ie_complete(unsigned char **ntmode, msg_t *msg, int complete, int nt, s
 		{
 			*ntmode = p;
 		} else
-			qi->sending_complete = p - (unsigned char *)qi - sizeof(Q931_info_t);
+			qi->QI_ELEMENT(sending_complete) = p - (unsigned char *)qi - sizeof(Q931_info_t);
+
 		p[0] = IE_COMPLETE;
 	}
 }
@@ -79,7 +75,7 @@ void dec_ie_complete(unsigned char *p, Q931_info_t *qi, int *complete, int nt, s
 	*complete = 0;
 	if (!nt)
 	{
-		if (qi->sending_complete)
+		if (qi->QI_ELEMENT(sending_complete))
 			*complete = 1;
 	} else
 		if (p)
@@ -140,7 +136,7 @@ void enc_ie_bearer(unsigned char **ntmode, msg_t *msg, int coding, int capabilit
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->bearer_capability = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(bearer_capability) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_BEARER;
 	p[1] = l;
 	p[2] = 0x80 + (coding<<5) + capability;
@@ -170,10 +166,10 @@ void dec_ie_bearer(unsigned char *p, Q931_info_t *qi, int *coding, int *capabili
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->llc)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->llc + 1;
-		else if (qi->bearer_capability)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->bearer_capability + 1;
+		if (qi->QI_ELEMENT(llc))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(llc) + 1;
+		else if (qi->QI_ELEMENT(bearer_capability))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(bearer_capability) + 1;
 	}
 	if (!p)
 		return;
@@ -292,7 +288,7 @@ void enc_ie_call_id(unsigned char **ntmode, msg_t *msg, unsigned char *callid, i
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->call_id = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(call_id) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_CALL_ID;
 	p[1] = l;
 	memcpy(p+2, callid, callid_len);
@@ -308,8 +304,8 @@ void dec_ie_call_id(unsigned char *p, Q931_info_t *qi, unsigned char *callid, in
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->call_id)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->call_id + 1;
+		if (qi->QI_ELEMENT(call_id))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(call_id) + 1;
 	}
 	if (!p)
 		return;
@@ -363,7 +359,7 @@ void enc_ie_called_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, un
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->called_nr = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(called_nr) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_CALLED_PN;
 	p[1] = l;
 	p[2] = 0x80 + (type<<4) + plan;
@@ -379,8 +375,8 @@ void dec_ie_called_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, u
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->called_nr)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->called_nr + 1;
+		if (qi->QI_ELEMENT(called_nr))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(called_nr) + 1;
 	}
 	if (!p)
 		return;
@@ -437,7 +433,7 @@ void enc_ie_calling_pn(unsigned char **ntmode, msg_t *msg, int type, int plan, i
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->calling_nr = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(calling_nr) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_CALLING_PN;
 	p[1] = l;
 	if (present >= 0)
@@ -465,8 +461,8 @@ void dec_ie_calling_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, 
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->calling_nr)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->calling_nr + 1;
+		if (qi->QI_ELEMENT(calling_nr))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(calling_nr) + 1;
 	}
 	if (!p)
 		return;
@@ -539,7 +535,7 @@ void enc_ie_connected_pn(unsigned char **ntmode, msg_t *msg, int type, int plan,
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->connected_nr = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(connected_nr) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_CONNECT_PN;
 	p[1] = l;
 	if (present >= 0)
@@ -567,8 +563,8 @@ void dec_ie_connected_pn(unsigned char *p, Q931_info_t *qi, int *type, int *plan
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->connected_nr)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->connected_nr + 1;
+		if (qi->QI_ELEMENT(connected_nr))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(connected_nr) + 1;
 	}
 	if (!p)
 		return;
@@ -624,7 +620,7 @@ void enc_ie_cause(unsigned char **ntmode, msg_t *msg, int location, int cause, i
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->cause = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(cause) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_CAUSE;
 	p[1] = l;
 	p[2] = 0x80 + location;
@@ -637,7 +633,7 @@ void enc_ie_cause_standalone(unsigned char **ntmode, msg_t *msg, int location, i
 	if (ntmode)
 		*ntmode = p+1;
 	else
-		qi->cause = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(cause) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_CAUSE;
 	p[1] = 2;
 	p[2] = 0x80 + location;
@@ -653,8 +649,8 @@ void dec_ie_cause(unsigned char *p, Q931_info_t *qi, int *location, int *cause, 
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->cause)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->cause + 1;
+		if (qi->QI_ELEMENT(cause))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(cause) + 1;
 	}
 	if (!p)
 		return;
@@ -705,7 +701,7 @@ void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive, int ch
 		if (nt)
 			*ntmode = p+1;
 		else
-			qi->channel_id = p - (unsigned char *)qi - sizeof(Q931_info_t);
+			qi->QI_ELEMENT(channel_id) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 		p[0] = IE_CHANNEL_ID;
 		p[1] = l;
 		if (channel == 0xff)
@@ -725,7 +721,7 @@ void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive, int ch
 			if (nt)
 				*ntmode = p+1;
 			else
-				qi->channel_id = p - (unsigned char *)qi - sizeof(Q931_info_t);
+				qi->QI_ELEMENT(channel_id) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 			p[0] = IE_CHANNEL_ID;
 			p[1] = l;
 			p[2] = 0x80 + 0x20 + 0x03;
@@ -737,7 +733,7 @@ void enc_ie_channel_id(unsigned char **ntmode, msg_t *msg, int exclusive, int ch
 		if (nt)
 			*ntmode = p+1;
 		else
-			qi->channel_id = p - (unsigned char *)qi - sizeof(Q931_info_t);
+			qi->QI_ELEMENT(channel_id) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 		p[0] = IE_CHANNEL_ID;
 		p[1] = l;
 		p[2] = 0x80 + 0x20 + (exclusive<<3) + 0x01;
@@ -758,8 +754,8 @@ void dec_ie_channel_id(unsigned char *p, Q931_info_t *qi, int *exclusive, int *c
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->channel_id)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->channel_id + 1;
+		if (qi->QI_ELEMENT(channel_id))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(channel_id) + 1;
 	}
 	if (!p)
 		return;
@@ -863,7 +859,7 @@ void enc_ie_date(unsigned char **ntmode, msg_t *msg, time_t ti, int nt, struct m
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->date = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(date) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_DATE;
 	p[1] = l;
 	p[2] = tm->tm_year % 100;
@@ -900,7 +896,7 @@ void enc_ie_display(unsigned char **ntmode, msg_t *msg, unsigned char *display, 
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->display = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(display) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_DISPLAY;
 	p[1] = l;
 	strncpy((char *)p+2, (char *)display, strlen((char *)display));
@@ -913,8 +909,8 @@ void dec_ie_display(unsigned char *p, Q931_info_t *qi, unsigned char *display, i
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->display)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->display + 1;
+		if (qi->QI_ELEMENT(display))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(display) + 1;
 	}
 	if (!p)
 		return;
@@ -950,7 +946,7 @@ void enc_ie_keypad(unsigned char **ntmode, msg_t *msg, unsigned char *keypad, in
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->keypad = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(keypad) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_KEYPAD;
 	p[1] = l;
 	strncpy((char *)p+2, (char *)keypad, strlen((char *)keypad));
@@ -963,8 +959,8 @@ void dec_ie_keypad(unsigned char *p, Q931_info_t *qi, unsigned char *keypad, int
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->keypad)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->keypad + 1;
+		if (qi->QI_ELEMENT(keypad))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(keypad) + 1;
 	}
 	if (!p)
 		return;
@@ -1000,7 +996,7 @@ void enc_ie_notify(unsigned char **ntmode, msg_t *msg, int notify, int nt, struc
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->notify = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(notify) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_NOTIFY;
 	p[1] = l;
 	p[2] = 0x80 + notify;
@@ -1013,8 +1009,8 @@ void dec_ie_notify(unsigned char *p, Q931_info_t *qi, int *notify, int nt, struc
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->notify)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->notify + 1;
+		if (qi->QI_ELEMENT(notify))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(notify) + 1;
 	}
 	if (!p)
 		return;
@@ -1060,7 +1056,7 @@ void enc_ie_progress(unsigned char **ntmode, msg_t *msg, int coding, int locatio
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->progress = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(progress) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_PROGRESS;
 	p[1] = l;
 	p[2] = 0x80 + (coding<<5) + location;
@@ -1077,8 +1073,8 @@ void dec_ie_progress(unsigned char *p, Q931_info_t *qi, int *coding, int *locati
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->progress)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->progress + 1;
+		if (qi->QI_ELEMENT(progress))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(progress) + 1;
 	}
 	if (!p)
 		return;
@@ -1092,7 +1088,8 @@ void dec_ie_progress(unsigned char *p, Q931_info_t *qi, int *coding, int *locati
 	*location = p[1] & 0x0f;
 	*progress = p[2] & 0x7f;
 
-	if (MISDN_IE_DEBG) printf("    coding=%d location=%d progress=%d\n", *coding, *location, *progress);
+	//if (MISDN_IE_DEBG) printf("    coding=%d location=%d progress=%d\n", *coding, *location, *progress);
+	if (1) printf("    coding=%d location=%d progress=%d\n", *coding, *location, *progress);
 }
 
 
@@ -1144,7 +1141,7 @@ void enc_ie_redir_nr(unsigned char **ntmode, msg_t *msg, int type, int plan, int
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->redirect_nr = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(redirect_nr) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_REDIR_NR;
 	p[1] = l;
 	if (present >= 0)
@@ -1183,8 +1180,8 @@ void dec_ie_redir_nr(unsigned char *p, Q931_info_t *qi, int *type, int *plan, in
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->redirect_nr)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->redirect_nr + 1;
+		if (qi->QI_ELEMENT(redirect_nr))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(redirect_nr) + 1;
 	}
 	if (!p)
 		return;
@@ -1252,7 +1249,7 @@ void enc_ie_redir_dn(unsigned char **ntmode, msg_t *msg, int type, int plan, int
 		*ntmode = p+1;
 	else
 /* #warning REINSERT redir_dn, when included in te-mode */
-		/*qi->redir_dn = p - (unsigned char *)qi - sizeof(Q931_info_t)*/;
+		/*qi->QI_ELEMENT(redir_dn) = p - (unsigned char *)qi - sizeof(Q931_info_t)*/;
 	p[0] = IE_REDIR_DN;
 	p[1] = l;
 	if (present >= 0)
@@ -1280,8 +1277,8 @@ void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, in
 	{
 		p = NULL;
 /* #warning REINSERT redir_dn, when included in te-mode */
-/* 		if (qi->redir_dn) */
-/* 			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->redir_dn + 1; */
+/* 		if (qi->QI_ELEMENT(redir_dn)) */
+/* 			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(redir_dn) + 1; */
 	}
 	if (!p)
 		return;
@@ -1305,242 +1302,6 @@ void dec_ie_redir_dn(unsigned char *p, Q931_info_t *qi, int *type, int *plan, in
 	if (MISDN_IE_DEBG) printf("    type=%d plan=%d present=%d number='%s'\n", *type, *plan, *present, number);
 }
 
-
-/* IE_FACILITY */
-void enc_ie_facility(unsigned char **ntmode, msg_t *msg, unsigned char *facility, int facility_len, int nt, struct misdn_bchannel *bc)
-{
-	unsigned char *p;
-	Q931_info_t *qi = (Q931_info_t *)(msg->data + mISDN_HEADER_LEN);
-	int l;
-
-	char debug[768];
-	int i;
-
-	if (!facility || facility_len<=0)
-	{
-		return;
-	}
-
-	i = 0;
-	while(i < facility_len)
-	{
-		if (MISDN_IE_DEBG) printf(debug+(i*3), " %02x", facility[i]);
-		i++;
-	}
-		
-	if (MISDN_IE_DEBG) printf("    facility%s\n", debug);
-
-	l = facility_len;
-	p = msg_put(msg, l+2);
-	if (nt)
-		*ntmode = p+1;
-	else
-		qi->facility = p - (unsigned char *)qi - sizeof(Q931_info_t);
-	p[0] = IE_FACILITY;
-	p[1] = l;
-	memcpy(p+2, facility, facility_len);
-}
-
-void dec_ie_facility(unsigned char *p, Q931_info_t *qi, unsigned char *facility, int *facility_len, int nt, struct misdn_bchannel *bc)
-{
-	int i;
-	struct misdn_stack *stack=get_stack_by_bc(bc);
-	
-	*facility_len = 0;
-
-	if (!nt)
-	{
-		p = NULL;
-		if (qi->facility)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->facility + 1;
-	}
-	if (!p)
-		return;
-
-	*facility_len = p[0];
-	memcpy(facility, p+1, *facility_len);
-	
-	i = 0;
-	while(i < *facility_len)
-	{
-		cb_log(3, stack->port, " %02x", facility[i]);
-		i++;
-	}
-	cb_log(3, stack->port, "    facility\n");
-}
-
-
-/* facility for siemens CENTEX (known parts implemented only) */
-void enc_facility_centrex(unsigned char **ntmode, msg_t *msg, unsigned char *cnip, int setup, int nt, struct misdn_bchannel *bc)
-{
-	unsigned char centrex[256];
-	int i = 0;
-
-	if (!cnip)
-		return;
-
-	/* centrex facility */
-	centrex[i++] = CENTREX_FAC;
-	centrex[i++] = CENTREX_ID;
-
-	/* cnip */
-	if (strlen((char *)cnip) > 15)
-	{
-/* 		if (options.deb & DEBUG_PORT) */
-		if (MISDN_IE_DEBG) printf("%s: CNIP/CONP text too long (max 13 chars), cutting.\n", __FUNCTION__);
-		cnip[15] = '\0';
-	}
-	/*  dunno what the 8 bytes mean */
-	if (setup)
-	{
-		centrex[i++] = 0x17;
-		centrex[i++] = 0x02;
-		centrex[i++] = 0x02;
-		centrex[i++] = 0x44;
-		centrex[i++] = 0x18;
-		centrex[i++] = 0x02;
-		centrex[i++] = 0x01;
-		centrex[i++] = 0x09;
-	} else
-	{
-		centrex[i++] = 0x18;
-		centrex[i++] = 0x02;
-		centrex[i++] = 0x02;
-		centrex[i++] = 0x81;
-		centrex[i++] = 0x09;
-		centrex[i++] = 0x02;
-		centrex[i++] = 0x01;
-		centrex[i++] = 0x0a;
-	}
-
-	centrex[i++] = 0x80;
-	centrex[i++] = strlen((char *)cnip);
-	strcpy((char *)(&centrex[i]), (char *)cnip);
-	i += strlen((char *)cnip);
-	if (MISDN_IE_DEBG) printf("    cnip='%s'\n", cnip);
-
-	/* encode facility */
-	enc_ie_facility(ntmode, msg, centrex, i, nt , bc);
-}
-
-void dec_facility_centrex(unsigned char *p, Q931_info_t *qi, unsigned char *cnip, int cnip_len, int nt, struct misdn_bchannel *bc)
-{
-	unsigned char centrex[256];
-	char debug[768];
-	int facility_len = 0;
-	int i = 0, j;
-	*cnip = '\0';
-
-	dec_ie_facility(p, qi, centrex, &facility_len,  nt, bc);
-	if (facility_len >= 2)
-	{
-		if (centrex[i++] != CENTREX_FAC)
-			return;
-		if (centrex[i++] != CENTREX_ID)
-			return;
-	}
-
-	/* loop sub IEs of facility */
-	while(facility_len > i+1)
-	{
-		if (centrex[i+1]+i+1 > facility_len)
-		{
-			printf("%s: ERROR: short read of centrex facility.\n", __FUNCTION__);
-			return;
-		}
-		switch(centrex[i])
-		{
-		case 0x80:
-			strnncpy(cnip, &centrex[i+2], centrex[i+1], cnip_len);
-			if (MISDN_IE_DEBG) printf("    CENTREX cnip='%s'\n", cnip);
-			break;
-
-		default:
-			j = 0;
-			while(j < centrex[i+1])
-			{
-				if (MISDN_IE_DEBG) printf(debug+(j*3), " %02x", centrex[i+1+j]);
-				i++;
-			}
-			if (MISDN_IE_DEBG) printf("    CENTREX unknown=0x%2x len=%d%s\n", centrex[i], centrex[i+1], debug);
-		}
-		i += 1+centrex[i+1];
-	}
-}
-
-
-
-
-/* facility for siemens CENTEX (known parts implemented only) */
-void enc_facility_calldeflect(unsigned char **ntmode, msg_t *msg, unsigned char *nr, int nt, struct misdn_bchannel *bc)
-{
-	unsigned char fac[256];
-	
-	if (!nr)
-		return;
-	
-	/* calldeflect facility */
-	
-	/* cnip */
-	if (strlen((char *)nr) > 15)
-	{
-/* 		if (options.deb & DEBUG_PORT) */
-		if (MISDN_IE_DEBG) printf("%s: NR text too long (max 13 chars), cutting.\n", __FUNCTION__);
-		nr[15] = '\0';
-	}
-	
-	fac[0]=0; // len 
-	fac[1]=0; //len 
-	fac[2]=0x01; // Use D-Chan
-	fac[3]=0; // Keypad len
-	fac[4]=31;	// user user data? len = 31 = 29 + 2
-	fac[5]=0x1c;	// magic?
-	fac[6]=0x1d;	// strlen destination + 18 = 29
-	fac[7]=0x91;	// ..
-	fac[8]=0xA1;
-	fac[9]=0x1A;	// strlen destination + 15 = 26
-	fac[10]=0x02;
-	fac[11]=0x01;
-	fac[12]=0x70;
-	fac[13]=0x02;
-	fac[14]=0x01;
-	fac[15]=0x0d;
-	fac[16]=0x30;
-	fac[17]=0x12;	// strlen destination + 7 = 18
-	fac[18]=0x30;	// ...hm 0x30
-	fac[19]=0x0d;	// strlen destination + 2	
-	fac[20]=0x80;	// CLIP
-	fac[21]=0x0b;	//  strlen destination 
-	fac[22]=0x01;	//  destination start
-	fac[23]=0x01;	//  
-	fac[24]=0x01;	//  
-	fac[25]=0x01;	//  
-	fac[26]=0x01;	//  
-	fac[27]=0x01;	//  
-	fac[28]=0x01;	//  
-	fac[29]=0x01;	//  
-	fac[30]=0x01;	//  
-	fac[31]=0x01;	//  
-	fac[32]=0x01;	//  
-	fac[33]=0x01;	// 0x1 = sending complete
-	fac[34]=0x01;
-	fac[35]=0x01;
-				   
-	memcpy((unsigned char *)fac+22,nr,strlen(nr));
-	fac[22+strlen( nr)]=0x01;	// fill with 0x01 if number is only 6 numbers (local call)
-	fac[23+strlen(nr)]=0x01;
-	fac[24+strlen(nr)]=0x01;
-	fac[25+strlen(nr)]=0x01;
-	fac[26+strlen(nr)]=0x01;
-	
-	fac[6]=18+strlen(nr);
-	fac[9]=15+strlen(nr);
-	fac[17]=7+strlen(nr);
-	fac[19]=2+strlen(nr);
-	fac[21]=strlen(nr);
-	
-	enc_ie_facility(ntmode, msg, &fac[4], 36-4, nt , bc);
-}
 
 
 /* IE_USERUSER */
@@ -1577,7 +1338,7 @@ void enc_ie_useruser(unsigned char **ntmode, msg_t *msg, int protocol, unsigned 
 	if (nt)
 		*ntmode = p+1;
 	else
-		qi->useruser = p - (unsigned char *)qi - sizeof(Q931_info_t);
+		qi->QI_ELEMENT(useruser) = p - (unsigned char *)qi - sizeof(Q931_info_t);
 	p[0] = IE_USER_USER;
 	p[1] = l;
 	p[2] = 0x80 + protocol;
@@ -1595,8 +1356,8 @@ void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, unsigned 
 	if (!nt)
 	{
 		p = NULL;
-		if (qi->useruser)
-			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->useruser + 1;
+		if (qi->QI_ELEMENT(useruser))
+			p = (unsigned char *)qi + sizeof(Q931_info_t) + qi->QI_ELEMENT(useruser) + 1;
 	}
 	if (!p)
 		return;
@@ -1617,5 +1378,7 @@ void dec_ie_useruser(unsigned char *p, Q931_info_t *qi, int *protocol, unsigned 
 		
 	if (MISDN_IE_DEBG) printf("    protocol=%d user-user%s\n", *protocol, debug);
 }
+
+
 
 
