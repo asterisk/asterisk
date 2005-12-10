@@ -5269,6 +5269,7 @@ static void *ss_thread(void *data)
 				return NULL;
 			} else if (res) {
 				exten[len++] = res;
+				exten[len] = '\0';
 			} else
 				break;
 		}
@@ -5375,6 +5376,7 @@ static void *ss_thread(void *data)
 			default:
 				/* If we got the first digit, get the rest */
 				len = 1;
+				dtmfbuf[len] = '\0';
 				while((len < AST_MAX_EXTENSION-1) && ast_matchmore_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
 					if (ast_exists_extension(chan, chan->context, dtmfbuf, 1, p->cid_num)) {
 						timeout = matchdigittimeout;
@@ -5388,6 +5390,7 @@ static void *ss_thread(void *data)
 						return NULL;
 					} else if (res) {
 						dtmfbuf[len++] = res;
+						dtmfbuf[len] = '\0';
 					} else {
 						break;
 					}
