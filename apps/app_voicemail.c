@@ -582,7 +582,7 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 	while (cur) {
 		if (ast_test_flag((&globalflags), VM_SEARCH) && !strcasecmp(mailbox, cur->mailbox))
 			break;
-		if ((!strcasecmp(context, cur->context)) && (!strcasecmp(mailbox, cur->mailbox)))
+		if (context && (!strcasecmp(context, cur->context)) && (!strcasecmp(mailbox, cur->mailbox)))
 			break;
 		cur=cur->next;
 	}
