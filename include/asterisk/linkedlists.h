@@ -424,15 +424,16 @@ struct {								\
 #define AST_LIST_REMOVE(head, elm, field) do {			        \
 	if ((head)->first == (elm)) {					\
 		(head)->first = (elm)->field.next;			\
-	}								\
-	else {								\
+		if ((head)->last = (elm))			\
+			(head)->last = NULL;			\
+	} else {								\
 		typeof(elm) curelm = (head)->first;			\
 		while (curelm->field.next != (elm))			\
 			curelm = curelm->field.next;			\
 		curelm->field.next = (elm)->field.next;			\
+		if ((head)->last == curelm->field.next)			\
+			(head)->last = curelm;				\
 	}								\
-	if ((head)->last == elm)					\
-		(head)->last = NULL;					\
 } while (0)
 
 #endif /* _ASTERISK_LINKEDLISTS_H */
