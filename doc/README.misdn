@@ -21,13 +21,13 @@ Features:
 * Data (HDLC) callthrough 
 * Data Calling (with app_ptyfork +pppd)
 * Echo cancellation
+* CallDeflection
 * Some other
 
 Supported Hardware:
 -------------------
 
-chan_misdn supports any mISDN compatible Hardware. Especially the 1-8 Port
-BRI Cards available from http://shop.beronet.com
+chan_misdn supports any mISDN compatible Hardware.
 
 Overview
 --------
@@ -49,48 +49,28 @@ Overview
 Fast Installation Guide
 -----------------------
 
-You have two options on how to install chan_misdn.
+It is easy to install mISDN and mISDNuser. Using the Makefile from
+channels/misdn. You just need to type:
 
-(1) Requirements: 
-      - mISDN and mISDNuser from jolly (see Pre-Requisites below)
-    Installation: 
-	  - cd <asterisk-src-dir>/channels/misdn
-	  - edit Makefile so that MISDNUSER points to your mISDNuser directory
-	  - run 'make'
-	  - cd <asterisk-src-dir>
-	  - compile and install asterisk via 'make install'
+cd channels/misdn 
+make misdn
 
-(2) Requirements:
-      - Asterisk headers and Kernel headers
-    Description:
-      The Makefile gets the newest mISDN and mISDNuser Sources from 
-	  jollys webpage and the newest release of chan_misdn from beronets 
-	  Servers. After that it compiles and installs everything (hopefully).
-    Installation:
-      - cd /usr/src
-      - wget http://www.beronet.com/downloads/install-misdn.tar.gz
-	  - tar zxf install-misdn.tar.gz
-	  - cd install-misdn
-	  - make install
+Then all the necessary files are fetched from isdn4linux.de.
 
 
 Pre-Requisites
 --------------
 
-To compile and install this driver, you'll need at least one mISDN Driver, the
-mISDNuser package and the Asterisk includes (which will be inside of the
-sources). Chan_misdn works with both, the current release version and the 
-development (svn trunk) version of Asterisk.
+To compile and install this driver, you'll need at least one mISDN Driver and
+the mISDNuser package. Chan_misdn works with both, the current release version
+and the development (svn trunk) version of Asterisk. mISDNuser and mISDN must
+be fetched from cvs.isdn4linux.de (mqueue branch).
 
-To get the mISDN stuff please follow the instructions at
-http://www.isdn4linux.de.  Please Note that mISDN works good for the
-linux-2.6.x kernels. Some of the mISDN drivers do not compile against the
-2.4.x or older kernels, you can patch them, but than you'll get mysterious
-errors.
+Please Note that mISDN works good for the linux-2.6.x kernels. Some of the
+mISDN drivers do not compile against the 2.4.x or older kernels, you can patch
+them, but than you'll get mysterious errors.
 
-I use Kernels > 2.6.9 and it works perfect. with kernels >= 2.6.10 there is a
-very litle bug in hfc_multi.c which causes the module not to compile, it can
-be easily fixed by changing pci_findsubsys to pci_getsubsys in code.
+Using Kernels > 2.6.9 works perfect. 
 
 Ok so far so good, now follow the compilation instructions.
 
@@ -99,44 +79,24 @@ Ok so far so good, now follow the compilation instructions.
 Compilation 
 -----------
 
-!! Be aware, in the actual mISDNuser package theres a bug in the Makefile
-!! the compilation stops near iapplication.h, this isn't very important
-!! at this step you are ready. 
+The compilation of chan_misdn requires a library which will be generated under
+channels/misdn/.
 
-After you've successfully installed mISDN, mISDNuser and Asterisk, you should
-modify the Makefile in the chan_misdn source path. There you can tell the
-Makefile where to install the driver, sample-conf, and most important where it
-can find the linux kernel includes, the mISDNuser package and the Asterisk
-includes.  If you use the development version of Asterisk (or at least a newer
-version than release) uncomment the CCFLAGS+=-DASTERISK_STABLE, the release
-version of Asterisk is at the moment v1-2 as subversion branch.
+To compile this library you just need to go into this directory and type
+make. Now you can go back to the asterisk source root and type make install
+again, which now should compile and install chan_misdn.
 
-Now you can type in: 
-
-make
-
-This should compile chan_misdn.so, if there's an error check the paths in the
-Makefile again.
 
 
 Installation
 ------------
 
-After successful compilation of chan_misdn, you should simply type in:
+Chan_misdn is automatically installed by the asterisk installation process.
 
-make install 
-
-as privileged user to put chan_misdn.so in the Asterisk modules
-directory.
-
-You should see a message like: "Successfully installed chan_misdn". 
-Congratulations. 
-
-Theres a sample init.d script for loading the mISDN modules (mISDN.sample),
-simply copy it to /etc/init.d/ and modify it, there you can enter your cards.
+There is a sample init.d script for loading the mISDN modules (mISDN.sample),
+5Asimply copy it to /etc/init.d/ and modify it, there you can enter your cards.
 
 !! Forget to use capi together with chan_misdn. 
-
 
 
 Configuration
@@ -161,6 +121,11 @@ which you can set from the Asterisk cli (command line interface) or in this
 configuration file, bigger numbers will lead to more debug output. There's also a
 tracefile option, which takes a path+filename where debug output is written
 to.
+
+- misdn.conf: [default] section 
+The default section is another special section which can contain all the
+options available int the usr/port sections. the user/port section inherit
+their parameters from the default section.
 
 - misdn.conf: user/port sections
 The user sections have names which are unequal to "general". Those sections
@@ -205,8 +170,8 @@ The available Optchars are:
 	vt - txgain control
 
 
-chan_misdn registers a new dial plan application "misdn_set_opt" when loaded. This 
-application takes the Optionsstring as argument. The Syntax is:
+chan_misdn registers a new dial plan application "misdn_set_opt" when
+loaded. This application takes the Optionsstring as argument. The Syntax is:
 
 misdn_set_opt(<OPTIONSSTRING>)
 
@@ -342,6 +307,11 @@ it, you can just change pci_find_subsys to pci_get_subsys, this works.
 	* linux-kernel >= 2.6.8 (but at least 2.6) 
 	* asterisk >= v1-0.2 , also CVS Head
 	* mISDN/mISDNuser (3.0-beta) from isdn.jolly.de
+
+- chan_misdn-0.2.1
+	* linux-kernel >= 2.6.8 (but at least 2.6) 
+	* asterisk >= v1.2 , also CVS Head
+	* mISDN/mISDNuser (3.0) from isdn.jolly.de
 
 
 Known Problems

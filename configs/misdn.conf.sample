@@ -20,6 +20,7 @@
 ;
 debug=0
 
+
 ; the big trace
 ;
 ; default value: [not set]
@@ -40,7 +41,7 @@ trace_dir=/var/log/
 ;
 ; default value: yes
 ;
-bridging=yes
+bridging=no
 
 ; stops dialtone after getting first digit on nt Port
 ;
@@ -67,15 +68,6 @@ l1_info_ok=yes
 ; default value: no
 ;
 clear_l3=no
-
-; set the method to use for channel selection:
-;   standard    - always choose the first free channel with the lowest number
-;   round_robin - use the round robin algorithm to select a channel. use this
-;                 if you want to balance your load.
-;
-; default value: standard
-;
-method=standard
 
 ;;; CRYPTION STUFF
 
@@ -125,6 +117,16 @@ context=misdn
 ;
 language=en
 
+;
+; sets the musiconhold class
+;
+musicclass=default
+
+;
+; Either if we should produce DTMF Tones ourselve
+; 
+senddtmf=yes
+
 ; Prefixes for national and international, those are put before the 
 ; oad if an according dialplan is set by the other end. 
 ;
@@ -149,11 +151,23 @@ txgain=0
 ;
 te_choose_channel=no
 
+; set the method to use for channel selection:
+;   standard    - always choose the first free channel with the lowest number
+;   round_robin - use the round robin algorithm to select a channel. use this
+;                 if you want to balance your load.
+;
+; default value: standard
+;
+method=standard
+
+;
+; dialplan means Type Of Number in ISDN Terms (for outgoing calls)
+;
 ; dialplan options: 
 ;
 ; 0 - unknown
-; 1 - National
-; 2 - International
+; 1 - International
+; 2 - National
 ; 4 - Subscriber
 ;
 ; This setting is used for outgoing calls
@@ -161,6 +175,7 @@ te_choose_channel=no
 ; default value: 0
 ;
 dialplan=0
+localdialplan=0
 
 ; This is only for asterisk head and will result in only considering 
 ; misdn.confs and misdn_set_opts callingpresentation informations if set to no.
@@ -169,6 +184,13 @@ dialplan=0
 ; default value: yes
 ;
 use_callingpres=yes
+
+
+
+;
+; turn this to no if you don't mind correct handling of Progress Indicators  
+;
+early_bconnect=yes
 
 ; uncomment the following to get into s extension at extension conf
 ; there you can use DigitTimeout if you can't or don't want to use
@@ -235,6 +257,17 @@ echocancelwhenbridged=no
 ; default value: yes
 ;
 echotraining=yes
+
+;
+; chan_misdns jitterbuffer, default 1000
+; 
+jitterbuffer=1000
+
+;
+; change this threshold to enable dejitter functionality
+;
+jitterbuffer_upper_threshold=0
+
 
 [intern]
 ; define your ports, e.g. 1,2 (depends on mISDN-driver loading order) 
