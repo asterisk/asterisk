@@ -424,7 +424,7 @@ struct {								\
 #define AST_LIST_REMOVE(head, elm, field) do {			        \
 	if ((head)->first == (elm)) {					\
 		(head)->first = (elm)->field.next;			\
-		if ((head)->last = (elm))			\
+		if ((head)->last == (elm))			\
 			(head)->last = NULL;			\
 	} else {								\
 		typeof(elm) curelm = (head)->first;			\
