@@ -345,8 +345,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 			goto exit;
 		}
 
-		setvbuf(child_events, NULL, _IONBF, 0);
-
 		if (!(child_commands = fdopen(child_commands_fd, "r"))) {
 			ast_chan_log(LOG_WARNING, chan, "Could not open stream for child commands\n");
 			goto exit;
@@ -356,6 +354,10 @@ static int app_exec(struct ast_channel *chan, void *data)
 			ast_chan_log(LOG_WARNING, chan, "Could not open stream for child errors\n");
 			goto exit;
 		}
+
+		setvbuf(child_events, NULL, _IONBF, 0);
+		setvbuf(child_commands, NULL, _IONBF, 0);
+		setvbuf(child_errors, NULL, _IONBF, 0);
 
 		res = 0;
 
