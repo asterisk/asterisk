@@ -87,6 +87,11 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
+static char *safe_strdup(const char *s)
+{
+	return s ? strdup(s) : NULL;
+}
+
 static int macro_exec(struct ast_channel *chan, void *data)
 {
 	const char *s;
@@ -162,25 +167,17 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	}
 	argc = 1;
 	/* Save old macro variables */
-	save_macro_exten = pbx_builtin_getvar_helper(chan, "MACRO_EXTEN");
-	if (save_macro_exten) 
-		save_macro_exten = strdup(save_macro_exten);
+	save_macro_exten = safe_strdup(pbx_builtin_getvar_helper(chan, "MACRO_EXTEN"));
 	pbx_builtin_setvar_helper(chan, "MACRO_EXTEN", oldexten);
 
-	save_macro_context = pbx_builtin_getvar_helper(chan, "MACRO_CONTEXT");
-	if (save_macro_context)
-		save_macro_context = strdup(save_macro_context);
+	save_macro_context = safe_strdup(pbx_builtin_getvar_helper(chan, "MACRO_CONTEXT"));
 	pbx_builtin_setvar_helper(chan, "MACRO_CONTEXT", oldcontext);
 
-	save_macro_priority = pbx_builtin_getvar_helper(chan, "MACRO_PRIORITY");
-	if (save_macro_priority) 
-		save_macro_priority = strdup(save_macro_priority);
+	save_macro_priority = safe_strdup(pbx_builtin_getvar_helper(chan, "MACRO_PRIORITY"));
 	snprintf(pc, sizeof(pc), "%d", oldpriority);
 	pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", pc);
   
-	save_macro_offset = pbx_builtin_getvar_helper(chan, "MACRO_OFFSET");
-	if (save_macro_offset) 
-		save_macro_offset = strdup(save_macro_offset);
+	save_macro_offset = safe_strdup(pbx_builtin_getvar_helper(chan, "MACRO_OFFSET"));
 	pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", NULL);
 
 	/* Setup environment for new run */
