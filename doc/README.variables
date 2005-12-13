@@ -94,17 +94,17 @@ NoOp(${__FOO}) is identical to NoOp(${FOO})
 
 
 
-_______________________________
-REMOVING CHARACTERS FROM STRING
--------------------------------
+___________________________________
+SELECTING CHARACTERS FROM VARIABLES
+-----------------------------------
 
-The format for removing characters from a variable can be expressed as:
+The format for selecting characters from a variable can be expressed as:
 
 	${variable_name[:offset[:length]]}
 
-If you want to remove the first N characters from the string assigned
+If you want to select the first N characters from the string assigned
 to a variable, simply append a colon and the number of characters to
-remove from the beginning of the string to the variable name.
+skip from the beginning of the string to the variable name.
 
 	;Remove the first character of extension, save in "number" variable
 	exten => _9X.,1,Set(number=${EXTEN:1})
@@ -115,7 +115,7 @@ dial a number to access an outside line, but do not wish to pass the first
 digit.
 
 If you use a negative offset number, Asterisk starts counting from the end 
-of the string and then removes everything before the new position. The following
+of the string and then selects everything after the new position. The following
 example will save the numbers 1234 to the 'number' variable, still assuming
 we've dialed 918005551234.
 
