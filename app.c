@@ -430,11 +430,11 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 			   const char *stop, const char *pause,
 			   const char *restart, int skipms) 
 {
-	long elapsed = 0, last_elapsed = 0;
 	char *breaks = NULL;
 	char *end = NULL;
 	int blen = 2;
 	int res;
+	long pause_restart_point = 0;
 
 	if (stop)
 		blen += strlen(stop);
@@ -456,9 +456,6 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 	if (chan->_state != AST_STATE_UP)
 		res = ast_answer(chan);
 
-	if (chan)
-		ast_stopstream(chan);
-
 	if (file) {
 		if ((end = strchr(file,':'))) {
 			if (!strcasecmp(end, ":end")) {
@@ -469,25 +466,18 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 	}
 
 	for (;;) {
-		struct timeval started = ast_tvnow();
-
-		if (chan)
-			ast_stopstream(chan);
+		ast_stopstream(chan);
 		res = ast_streamfile(chan, file, chan->language);
 		if (!res) {
-			if (end) {
+			if (pause_restart_point) {
+				ast_seekstream(chan->stream, pause_restart_point, SEEK_SET);
+				pause_restart_point = 0;
+			}
+			else if (end) {
 				ast_seekstream(chan->stream, 0, SEEK_END);
-				end=NULL;
-			}
-			res = 1;
-			if (elapsed) {
-				ast_stream_fastforward(chan->stream, elapsed);
-				last_elapsed = elapsed - 200;
-			}
-			if (res)
-				res = ast_waitstream_fr(chan, breaks, fwd, rev, skipms);
-			else
-				break;
+				end = NULL;
+			};
+			res = ast_waitstream_fr(chan, breaks, fwd, rev, skipms);
 		}
 
 		if (res < 1)
@@ -496,17 +486,16 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 		/* We go at next loop if we got the restart char */
 		if (restart && strchr(restart, res)) {
 			ast_log(LOG_DEBUG, "we'll restart the stream here at next loop\n");
-			elapsed=0; /* To make sure the next stream will start at beginning */
+			pause_restart_point = 0;
 			continue;
 		}
 
-		if (pause != NULL && strchr(pause, res)) {
-			elapsed = ast_tvdiff_ms(ast_tvnow(), started) + last_elapsed;
-			for(;;) {
-				if (chan)
-					ast_stopstream(chan);
+		if (pause && strchr(pause, res)) {
+			pause_restart_point = ast_tellstream(chan->stream);
+			for (;;) {
+				ast_stopstream(chan);
 				res = ast_waitfordigit(chan, 1000);
-				if (res == 0)
+				if (!res)
 					continue;
 				else if (res == -1 || strchr(pause, res) || (stop && strchr(stop, res)))
 					break;
@@ -516,17 +505,16 @@ int ast_control_streamfile(struct ast_channel *chan, const char *file,
 				continue;
 			}
 		}
+
 		if (res == -1)
 			break;
 
 		/* if we get one of our stop chars, return it to the calling function */
-		if (stop && strchr(stop, res)) {
-			/* res = 0; */
+		if (stop && strchr(stop, res))
 			break;
-		}
 	}
-	if (chan)
-		ast_stopstream(chan);
+
+	ast_stopstream(chan);
 
 	return res;
 }

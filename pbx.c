@@ -5443,6 +5443,8 @@ static int pbx_builtin_setamaflags(struct ast_channel *chan, void *data)
 static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
 {
 	/* Just return non-zero and it will hang up */
+	if (!chan->hangupcause)
+		chan->hangupcause = AST_CAUSE_NORMAL_CLEARING;
 	return -1;
 }
 

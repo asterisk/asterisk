@@ -962,7 +962,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	/* If a channel group has been specified, get it for use when we create peer channels */
 	outbound_group = pbx_builtin_getvar_helper(chan, "OUTBOUND_GROUP");
 
-	ast_copy_flags(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID);
+	ast_copy_flags(peerflags, &opts, OPT_DTMF_EXIT | OPT_GO_ON | OPT_ORIGINAL_CLID | OPT_CALLER_HANGUP);
 	cur = args.peers;
 	do {
 		/* Remember where to start next time */
