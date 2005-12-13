@@ -37,6 +37,7 @@ LOCAL_USER_DECL;
 static void ast_cdr_clone(struct ast_cdr *cdr) {
 	struct ast_cdr *newcdr = ast_cdr_alloc();
 	memcpy(newcdr,cdr,sizeof(struct ast_cdr));
+	newcdr->next = NULL;
 	ast_cdr_append(cdr,newcdr);
 	gettimeofday(&newcdr->start, NULL);
 	memset(&newcdr->answer, 0, sizeof(newcdr->answer));
