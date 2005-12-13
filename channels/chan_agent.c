@@ -1417,7 +1417,7 @@ static int action_agents(struct mansession *s, struct message *m)
 		/* Set a default status. It 'should' get changed. */
 		status = "AGENT_UNKNOWN";
 
-		if (!ast_strlen_zero(p->loginchan)) {
+		if (!ast_strlen_zero(p->loginchan) && !p->chan) {
 			loginChan = p->loginchan;
 			talkingtoChan = "n/a";
 			status = "AGENT_IDLE";
