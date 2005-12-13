@@ -2275,6 +2275,7 @@ static int hangup_sip2cause(int cause)
 /* Possible values taken from causes.h */
 
 	switch(cause) {
+		case 603:	/* Declined */
 		case 403:	/* Not found */
 			return AST_CAUSE_CALL_REJECTED;
 		case 404:	/* Not found */
@@ -2454,7 +2455,7 @@ static int sip_hangup(struct ast_channel *ast)
 				if (ast->hangupcause && ((res = hangup_cause2sip(ast->hangupcause)))) {
 					transmit_response_reliable(p, res, &p->initreq, 1);
 				} else 
-					transmit_response_reliable(p, "403 Forbidden", &p->initreq, 1);
+					transmit_response_reliable(p, "603 Declined", &p->initreq, 1);
 			}
 		} else {	/* Call is in UP state, send BYE */
 			if (!p->pendinginvite) {
