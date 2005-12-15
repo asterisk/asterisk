@@ -1092,12 +1092,11 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		ast_setstate(ast, AST_STATE_DOWN);
 		return -1;
 	}
-	
+
 	port=newbc->port;
-	
+
 	ast_copy_string(newbc->dad, ext, sizeof(newbc->dad));
 	ast_copy_string(ast->exten, ext, sizeof(ast->exten));
-	
 	
 	chan_misdn_log(1, 0, "* CALL: %s\n",dest);
 	
@@ -1131,22 +1130,63 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 					strncpy(newbc->oad,callerid, l);
 					newbc->oad[l-1] = 0;
 				}
-				
-				misdn_cfg_get( port, MISDN_CFG_DIALPLAN, &newbc->dnumplan, sizeof(int));
-				switch (newbc->dnumplan) {
-				case NUMPLAN_INTERNATIONAL:
-				case NUMPLAN_NATIONAL:
-				case NUMPLAN_SUBSCRIBER:
-				case NUMPLAN_UNKNOWN:
-					/* Maybe we should cut off the prefix if present ? */
-					break;
-				default:
+			}
+
+			
+			misdn_cfg_get( port, MISDN_CFG_DIALPLAN, &newbc->dnumplan, sizeof(int));
+			switch (newbc->dnumplan) {
+			case NUMPLAN_INTERNATIONAL:
+				chan_misdn_log(2, port, " --> TON: International\n");
+				break;
+			case NUMPLAN_NATIONAL:
+				chan_misdn_log(2, port, " --> TON: National\n");
+				break;
+			case NUMPLAN_SUBSCRIBER:
+				chan_misdn_log(2, port, " --> TON: Subscriber\n");
+				break;
+			case NUMPLAN_UNKNOWN:
+				chan_misdn_log(2, port, " --> TON: Unknown\n");
+				break;
+				/* Maybe we should cut off the prefix if present ? */
+			default:
 					chan_misdn_log(0, port, " --> !!!! Wrong dialplan setting, please see the misdn.conf sample file\n ");
 					break;
-				}
-				
+			}
+
+
+			misdn_cfg_get( port, MISDN_CFG_LOCALDIALPLAN, &newbc->onumplan, sizeof(int));
+			switch (newbc->onumplan) {
+			case NUMPLAN_INTERNATIONAL:
+				chan_misdn_log(2, port, " --> TON: International\n");
+				break;
+			case NUMPLAN_NATIONAL:
+				chan_misdn_log(2, port, " --> TON: National\n");
+				break;
+			case NUMPLAN_SUBSCRIBER:
+				chan_misdn_log(2, port, " --> TON: Subscriber\n");
+				break;
+			case NUMPLAN_UNKNOWN:
+				chan_misdn_log(2, port, " --> TON: Unknown\n");
+				break;
+				/* Maybe we should cut off the prefix if present ? */
+			default:
+					chan_misdn_log(0, port, " --> !!!! Wrong dialplan setting, please see the misdn.conf sample file\n ");
+					break;
 			}
 		}
+
+
+
+		
+		{
+			int eb3;
+			
+			misdn_cfg_get( port, MISDN_CFG_EARLY_BCONNECT, &eb3, sizeof(int));
+			newbc->early_bconnect=eb3;
+			
+		}
+		
+
 		
 		/* Will be overridden by asterisk in head! */
 		{
@@ -1160,38 +1200,48 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		int def_callingpres;
 		misdn_cfg_get( port, MISDN_CFG_USE_CALLINGPRES, &def_callingpres, sizeof(int));
 		if ( def_callingpres) {
+			
 			switch (ast->cid.cid_pres & 0x60){
 				
 			case AST_PRES_RESTRICTED:
+				chan_misdn_log(2, port, " --> PRES: Restricted (0x1)\n");
 				newbc->pres=1;
 				break;
 				
+				
 			case AST_PRES_UNAVAILABLE:
+				chan_misdn_log(2, port, " --> PRES: Unavailable (0x2)\n");
 				newbc->pres=2;
 				break;
-			
+				
 			default:
+				chan_misdn_log(2, port, " --> PRES: Allowed (0x0)\n");
 				newbc->pres=0;
 			}
 			
 			switch (ast->cid.cid_pres & 0x3){
 				
 			case AST_PRES_USER_NUMBER_UNSCREENED:
+				chan_misdn_log(2, port, " --> SCREEN: Unscreened (0x0)\n");
 				newbc->screen=0;
 				break;
 
 			case AST_PRES_USER_NUMBER_PASSED_SCREEN:
+				chan_misdn_log(2, port, " --> SCREEN: Passed Screen (0x1)\n");
 				newbc->screen=1;
 				break;
 			case AST_PRES_USER_NUMBER_FAILED_SCREEN:
+				chan_misdn_log(2, port, " --> SCREEN: Failed Screen (0x2)\n");
 				newbc->screen=2;
 				break;
 				
 			case AST_PRES_NETWORK_NUMBER:
+				chan_misdn_log(2, port, " --> SCREEN: Network Nr. (0x3)\n");
 				newbc->screen=3;
 				break;
 				
 			default:
+				chan_misdn_log(2, port, " --> SCREEN: Unscreened (0x0)\n");
 				newbc->screen=0;
 			}
 		}
@@ -1210,9 +1260,11 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 				newbc->ec_deftaps=ec;
 			}
 
-			if ( !ectr ) {
-				newbc->ec_training=0;
+
+			if (ectr>=0) {
+				newbc->ec_training=ectr;
 			}
+			
 		}
 		
 	} 
@@ -1533,9 +1585,8 @@ int misdn_hangup(struct ast_channel *ast)
 	struct chan_list *p;
 	struct misdn_bchannel *bc=NULL;
 	
-	if (!ast || ! MISDN_ASTERISK_PVT(ast)) return -1;
-	p = MISDN_ASTERISK_TECH_PVT(ast) ;
-
+	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast) ) ) return -1;
+	
 	release_lock;
 
 	chan_misdn_trace_call(ast,1,"*->I: EVENT_HANGUP cause=%d\n",ast->hangupcause);
@@ -1666,8 +1717,7 @@ struct ast_frame  *misdn_read(struct ast_channel *ast)
 	int len =0 ;
 	
 	if (!ast) return NULL;
-	tmp = MISDN_ASTERISK_TECH_PVT(ast);
-	if (!tmp) return NULL;
+	if (! (tmp=MISDN_ASTERISK_TECH_PVT(ast)) ) return NULL;
 	if (!tmp->bc) return NULL;
 	
 	
@@ -1699,8 +1749,7 @@ int misdn_write(struct ast_channel *ast, struct ast_frame *frame)
 	struct chan_list *p;
 	int i  = 0;
 	
-	if (!ast || ! MISDN_ASTERISK_PVT(ast)) return -1;
-	p = MISDN_ASTERISK_TECH_PVT(ast) ;
+	if (!ast || ! (p=MISDN_ASTERISK_TECH_PVT(ast)) ) return -1;
 	
 	if (!p->bc ) {
 		ast_log(LOG_WARNING, "private but no bc\n");
@@ -2099,15 +2148,18 @@ struct ast_channel *misdn_new(struct chan_list *chlist, int state, char * name, 
 		tmp->priority=1;
     
 		
-		if (context)
+		if (context) {
 			ast_copy_string(tmp->context, context, sizeof(tmp->context));
-		else
+		}  else {
 			chan_misdn_log(1,0,"misdn_new: no context given.\n");
-		if (exten) 
-			ast_copy_string(tmp->exten, exten, sizeof(tmp->exten));
-		else
+		}
+		
+		if (exten) {
+			ast_copy_string(tmp->exten, exten,  sizeof(tmp->exten));
+		} else {
 			chan_misdn_log(1,0,"misdn_new: no exten given.\n");
-
+		}
+		
 		if (callerid) {
 			char *cid_name, *cid_num;
       
@@ -2863,31 +2915,24 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		/** queue new chan **/
 		cl_queue_chan(&cl_te, ch) ;
 
-
+		
 		/*
 		  added support for s extension hope it will help those poor cretains
 		  which haven't overlap dial.
 		*/
 		{
 			
-			misdn_cfg_get( bc->port, MISDN_CFG_LANGUAGE, chan->language, sizeof(chan->language));
-			int ai;
-			misdn_cfg_get( bc->port, MISDN_CFG_ALWAYS_IMMEDIATE, &ai, sizeof(ai));
-			if ( ai ) {
-				do_immediate_setup(bc, ch , chan);
-				break;
-			}
-
-			int immediate;
-			misdn_cfg_get( bc->port, MISDN_CFG_IMMEDIATE, &immediate, sizeof(int));
-			
-			if (ast_strlen_zero(bc->orig_dad) && immediate ) {
-				do_immediate_setup(bc, ch , chan);
-				break;
-			}
+			misdn_cfg_get( bc->port, MISDN_CFG_LANGUAGE, chan->language, sizeof(chan->language));			
 			
 		}
 
+		{
+			int eb3;
+			
+			misdn_cfg_get( bc->port, MISDN_CFG_EARLY_BCONNECT, &eb3, sizeof(int));
+			bc->early_bconnect=eb3;
+			
+		}
 
 		{
 			int ec, ectr;
@@ -2902,8 +2947,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 				bc->ec_deftaps=ec;
 			}
 			
-			if ( !ectr ) {
-				bc->ec_training=0;
+			if ( ectr>=0 ) {
+				bc->ec_training=ectr;
 			}
 		}
 		
@@ -2912,6 +2957,29 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			char buf[16];
 			snprintf(buf,16,"%d",bc->urate);
 			pbx_builtin_setvar_helper(chan,"MISDN_URATE",buf);
+		}
+
+
+
+		/**
+		   from here on  we start the PBX, so no configuration should
+		   be considered anymore
+		**/
+		
+		int ai;
+		misdn_cfg_get( bc->port, MISDN_CFG_ALWAYS_IMMEDIATE, &ai, sizeof(ai));
+		if ( ai ) {
+			do_immediate_setup(bc, ch , chan);
+			break;
+		}
+		
+			
+		int immediate;
+		misdn_cfg_get( bc->port, MISDN_CFG_IMMEDIATE, &immediate, sizeof(int));
+		
+		if (ast_strlen_zero(bc->orig_dad) && immediate ) {
+			do_immediate_setup(bc, ch , chan);
+			break;
 		}
 		
 		/* Check for Pickup Request first */
@@ -3210,8 +3278,6 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		struct ast_channel *hold_ast=AST_BRIDGED_P(ch->ast);
 		ch->state = MISDN_CONNECTED;
 		
-		//ast_moh_stop(ch->ast);
-		//start_bc_tones(ch);
 		if (hold_ast) {
 			ast_moh_stop(hold_ast);
 		}
@@ -3384,8 +3450,8 @@ int load_module(void)
 int unload_module(void)
 {
 	/* First, take us out of the channel loop */
-	chan_misdn_log(0, 0, "-- Unregistering mISDN Channel Driver --\n");
-
+	ast_log(LOG_VERBOSE, "-- Unregistering mISDN Channel Driver --\n");
+	
 	if (!g_config_initialized) return 0;
 	
 	ast_cli_unregister(&cli_send_display);

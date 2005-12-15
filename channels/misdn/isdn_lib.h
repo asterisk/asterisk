@@ -184,6 +184,7 @@ struct misdn_bchannel {
 	
 
 	int te_choose_channel;
+	int early_bconnect;
 	
 	/* dtmf digit */
 	int dtmf;

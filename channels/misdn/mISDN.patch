@@ -1,0 +1,2500 @@
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/arith.h mISDN/drivers/isdn/hardware/mISDN/arith.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/arith.h	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/arith.h	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,347 @@
++#ifndef _ZAPTEL_ARITH_H
++#define _ZAPTEL_ARITH_H
++/*
++ * Handy add/subtract functions to operate on chunks of shorts.
++ * Feel free to add customizations for additional architectures
++ *
++ */
++
++#ifdef CONFIG_ZAPTEL_MMX
++#ifdef ZT_CHUNKSIZE
++static inline void __ACSS(volatile short *dst, const short *src)
++{
++	__asm__ __volatile__ (
++	        "movq 0(%0), %%mm0;\n"
++	        "movq 0(%1), %%mm1;\n"
++                "movq 8(%0), %%mm2;\n"
++	        "movq 8(%1), %%mm3;\n"
++	        "paddsw %%mm1, %%mm0;\n"
++	        "paddsw %%mm3, %%mm2;\n"
++                "movq %%mm0, 0(%0);\n"
++                "movq %%mm2, 8(%0);\n"
++	    : "=r" (dst)
++	    : "r" (src), "0" (dst)
++	    : "memory"
++#if CLOBBERMMX
++	    , "%mm0", "%mm1", "%mm2", "%mm3"
++#endif
++      );
++
++}
++static inline void __SCSS(volatile short *dst, const short *src)
++{
++	__asm__ __volatile__ (
++	        "movq 0(%0), %%mm0;\n"
++	        "movq 0(%1), %%mm1;\n"
++                "movq 8(%0), %%mm2;\n"
++	        "movq 8(%1), %%mm3;\n"
++	        "psubsw %%mm1, %%mm0;\n"
++	        "psubsw %%mm3, %%mm2;\n"
++                "movq %%mm0, 0(%0);\n"
++                "movq %%mm2, 8(%0);\n"
++	    : "=r" (dst)
++	    : "r" (src), "0" (dst)
++	    : "memory"
++#if CLOBBERMMX
++	    , "%mm0", "%mm1", "%mm2", "%mm3"
++#endif
++      );
++
++}
++
++#if (ZT_CHUNKSIZE == 8)
++#define ACSS(a,b) __ACSS(a,b)
++#define SCSS(a,b) __SCSS(a,b)
++#elif (ZT_CHUNKSIZE > 8)
++static inline void ACSS(volatile short *dst, const short *src)
++{
++	int x;
++	for (x=0;x<ZT_CHUNKSIZE;x+=8)
++		__ACSS(dst + x, src + x);
++}
++static inline void SCSS(volatile short *dst, const short *src)
++{
++	int x;
++	for (x=0;x<ZT_CHUNKSIZE;x+=8)
++		__SCSS(dst + x, src + x);
++}
++#else
++#error No MMX for ZT_CHUNKSIZE < 8
++#endif
++#endif
++static inline int CONVOLVE(const int *coeffs, const short *hist, int len)
++{
++	int sum;
++	/* Divide length by 16 */
++	len >>= 4;
++	
++	/* Clear our accumulator, mm4 */
++	
++	/* 
++	
++	   For every set of eight...
++	
++	   Load 16 coefficients into four registers...
++	   Shift each word right 16 to make them shorts...
++	   Pack the resulting shorts into two registers...
++	   With the coefficients now in mm0 and mm2, load the 
++	        history into mm1 and mm3...
++	   Multiply/add mm1 into mm0, and mm3 into mm2...
++	   Add mm2 into mm0 (without saturation, alas).  Now we have two half-results.
++	   Accumulate in mm4 (again, without saturation, alas)
++	*/
++	__asm__ (
++		"pxor %%mm4, %%mm4;\n"
++		"mov %1, %%edi;\n"
++		"mov %2, %%esi;\n"
++		"mov %3, %%ecx;\n"
++		"1:"
++			"movq  0(%%edi), %%mm0;\n"
++			"movq  8(%%edi), %%mm1;\n"
++			"movq 16(%%edi), %%mm2;\n"
++			"movq 24(%%edi), %%mm3;\n"
++			/* can't use 4/5 since 4 is the accumulator for us */
++			"movq 32(%%edi), %%mm6;\n"
++			"movq 40(%%edi), %%mm7;\n"
++			"psrad $16, %%mm0;\n"
++			"psrad $16, %%mm1;\n"
++			"psrad $16, %%mm2;\n"
++			"psrad $16, %%mm3;\n"
++			"psrad $16, %%mm6;\n"
++			"psrad $16, %%mm7;\n"
++			"packssdw %%mm1, %%mm0;\n"
++			"packssdw %%mm3, %%mm2;\n"
++			"packssdw %%mm7, %%mm6;\n"
++			"movq 0(%%esi), %%mm1;\n"
++			"movq 8(%%esi), %%mm3;\n"
++			"movq 16(%%esi), %%mm7;\n"
++			"pmaddwd %%mm1, %%mm0;\n"
++			"pmaddwd %%mm3, %%mm2;\n"
++			"pmaddwd %%mm7, %%mm6;\n"
++			"paddd %%mm6, %%mm4;\n"
++			"paddd %%mm2, %%mm4;\n"
++			"paddd %%mm0, %%mm4;\n"
++			/* Come back and do for the last few bytes */
++			"movq 48(%%edi), %%mm6;\n"
++			"movq 56(%%edi), %%mm7;\n"
++			"psrad $16, %%mm6;\n"
++			"psrad $16, %%mm7;\n"
++			"packssdw %%mm7, %%mm6;\n"
++			"movq 24(%%esi), %%mm7;\n"
++			"pmaddwd %%mm7, %%mm6;\n"
++			"paddd %%mm6, %%mm4;\n"
++			"add $64, %%edi;\n"
++			"add $32, %%esi;\n"
++			"dec %%ecx;\n"
++		"jnz 1b;\n"
++		"movq %%mm4, %%mm0;\n"
++		"psrlq $32, %%mm0;\n"
++		"paddd %%mm0, %%mm4;\n"
++		"movd %%mm4, %0;\n"
++		: "=r" (sum)
++		: "r" (coeffs), "r" (hist), "r" (len)
++		: "%ecx", "%edi", "%esi"
++	);
++		
++	return sum;
++}
++
++static inline void UPDATE(volatile int *taps, const short *history, const int nsuppr, const int ntaps)
++{
++	int i;
++	int correction;
++	for (i=0;i<ntaps;i++) {
++		correction = history[i] * nsuppr;
++		taps[i] += correction;
++	}
++}
++
++static inline void UPDATE2(volatile int *taps, volatile short *taps_short, const short *history, const int nsuppr, const int ntaps)
++{
++	int i;
++	int correction;
++#if 0
++	ntaps >>= 4;
++	/* First, load up taps, */
++	__asm__ (
++		"pxor %%mm4, %%mm4;\n"
++		"mov %0, %%edi;\n"
++		"mov %1, %%esi;\n"
++		"mov %3, %%ecx;\n"
++		"1:"
++		"jnz 1b;\n"
++		"movq %%mm4, %%mm0;\n"
++		"psrlq $32, %%mm0;\n"
++		"paddd %%mm0, %%mm4;\n"
++		"movd %%mm4, %0;\n"
++		: "=r" (taps), "=r" (taps_short)
++		: "r" (history), "r" (nsuppr), "r" (ntaps), "0" (taps)
++		: "%ecx", "%edi", "%esi"
++	);
++#endif
++#if 1
++	for (i=0;i<ntaps;i++) {
++		correction = history[i] * nsuppr;
++		taps[i] += correction;
++		taps_short[i] = taps[i] >> 16;
++	}
++#endif	
++}
++
++static inline int CONVOLVE2(const short *coeffs, const short *hist, int len)
++{
++	int sum;
++	/* Divide length by 16 */
++	len >>= 4;
++	
++	/* Clear our accumulator, mm4 */
++	
++	/* 
++	
++	   For every set of eight...
++	   Load in eight coefficients and eight historic samples, multliply add and
++	   accumulate the result
++	*/
++	__asm__ (
++		"pxor %%mm4, %%mm4;\n"
++		"mov %1, %%edi;\n"
++		"mov %2, %%esi;\n"
++		"mov %3, %%ecx;\n"
++		"1:"
++			"movq  0(%%edi), %%mm0;\n"
++			"movq  8(%%edi), %%mm2;\n"
++			"movq 0(%%esi), %%mm1;\n"
++			"movq 8(%%esi), %%mm3;\n"
++			"pmaddwd %%mm1, %%mm0;\n"
++			"pmaddwd %%mm3, %%mm2;\n"
++			"paddd %%mm2, %%mm4;\n"
++			"paddd %%mm0, %%mm4;\n"
++			"movq  16(%%edi), %%mm0;\n"
++			"movq  24(%%edi), %%mm2;\n"
++			"movq 16(%%esi), %%mm1;\n"
++			"movq 24(%%esi), %%mm3;\n"
++			"pmaddwd %%mm1, %%mm0;\n"
++			"pmaddwd %%mm3, %%mm2;\n"
++			"paddd %%mm2, %%mm4;\n"
++			"paddd %%mm0, %%mm4;\n"
++			"add $32, %%edi;\n"
++			"add $32, %%esi;\n"
++			"dec %%ecx;\n"
++		"jnz 1b;\n"
++		"movq %%mm4, %%mm0;\n"
++		"psrlq $32, %%mm0;\n"
++		"paddd %%mm0, %%mm4;\n"
++		"movd %%mm4, %0;\n"
++		: "=r" (sum)
++		: "r" (coeffs), "r" (hist), "r" (len)
++		: "%ecx", "%edi", "%esi"
++	);
++		
++	return sum;
++}
++static inline short MAX16(const short *y, int len, int *pos)
++{
++	int k;
++	short max = 0;
++	int bestpos = 0;
++	for (k=0;k<len;k++) {
++		if (max < y[k]) {
++			bestpos = k;
++			max = y[k];
++		}
++	}
++	*pos = (len - 1 - bestpos);
++	return max;
++}
++
++
++
++#else
++
++#ifdef ZT_CHUNKSIZE
++static inline void ACSS(short *dst, short *src)
++{
++	int x,sum;
++	/* Add src to dst with saturation, storing in dst */
++	for (x=0;x<ZT_CHUNKSIZE;x++) {
++		sum = dst[x]+src[x];
++		if (sum > 32767)
++			sum = 32767;
++		else if (sum < -32768)
++			sum = -32768;
++		dst[x] = sum;
++	}
++}
++
++static inline void SCSS(short *dst, short *src)
++{
++	int x,sum;
++	/* Add src to dst with saturation, storing in dst */
++	for (x=0;x<ZT_CHUNKSIZE;x++) {
++		sum = dst[x]-src[x];
++		if (sum > 32767)
++			sum = 32767;
++		else if (sum < -32768)
++			sum = -32768;
++		dst[x] = sum;
++	}
++}
++
++#endif	/* ZT_CHUNKSIZE */
++
++static inline int CONVOLVE(const int *coeffs, const short *hist, int len)
++{
++	int x;
++	int sum = 0;
++	for (x=0;x<len;x++)
++		sum += (coeffs[x] >> 16) * hist[x];
++	return sum;
++}
++
++static inline int CONVOLVE2(const short *coeffs, const short *hist, int len)
++{
++	int x;
++	int sum = 0;
++	for (x=0;x<len;x++)
++		sum += coeffs[x] * hist[x];
++	return sum;
++}
++
++static inline void UPDATE(int *taps, const short *history, const int nsuppr, const int ntaps)
++{
++	int i;
++	int correction;
++	for (i=0;i<ntaps;i++) {
++		correction = history[i] * nsuppr;
++		taps[i] += correction;
++	}
++}
++
++static inline void UPDATE2(int *taps, short *taps_short, const short *history, const int nsuppr, const int ntaps)
++{
++	int i;
++	int correction;
++	for (i=0;i<ntaps;i++) {
++		correction = history[i] * nsuppr;
++		taps[i] += correction;
++		taps_short[i] = taps[i] >> 16;
++	}
++}
++
++static inline short MAX16(const short *y, int len, int *pos)
++{
++	int k;
++	short max = 0;
++	int bestpos = 0;
++	for (k=0;k<len;k++) {
++		if (max < y[k]) {
++			bestpos = k;
++			max = y[k];
++		}
++	}
++	*pos = (len - 1 - bestpos);
++	return max;
++}
++
++#endif	/* MMX */
++#endif	/* _ZAPTEL_ARITH_H */
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/biquad.h mISDN/drivers/isdn/hardware/mISDN/biquad.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/biquad.h	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/biquad.h	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,73 @@
++/*
++ * SpanDSP - a series of DSP components for telephony
++ *
++ * biquad.h - General telephony bi-quad section routines (currently this just
++ *            handles canonic/type 2 form)
++ *
++ * Written by Steve Underwood <steveu@coppice.org>
++ *
++ * Copyright (C) 2001 Steve Underwood
++ *
++ * All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ *
++ */
++
++typedef struct
++{
++    int32_t gain;
++    int32_t a1;
++    int32_t a2;
++    int32_t b1;
++    int32_t b2;
++
++    int32_t z1;
++    int32_t z2;
++} biquad2_state_t;
++
++static inline void biquad2_init (biquad2_state_t *bq,
++                	 	 int32_t gain,
++		                 int32_t a1,
++            	                 int32_t a2,
++		                 int32_t b1,
++		                 int32_t b2)
++{
++    bq->gain = gain;
++    bq->a1 = a1;
++    bq->a2 = a2;
++    bq->b1 = b1;
++    bq->b2 = b2;
++    
++    bq->z1 = 0;
++    bq->z2 = 0;    
++}
++/*- End of function --------------------------------------------------------*/
++    
++static inline int16_t biquad2 (biquad2_state_t *bq, int16_t sample)
++{
++    int32_t y;
++    int32_t z0;
++    
++    z0 = sample*bq->gain + bq->z1*bq->a1 + bq->z2*bq->a2;
++    y = z0 + bq->z1*bq->b1 + bq->z2*bq->b2;
++
++    bq->z2 = bq->z1;
++    bq->z1 = z0 >> 15;
++    y >>= 15;
++    return  y;
++}
++/*- End of function --------------------------------------------------------*/
++/*- End of file ------------------------------------------------------------*/
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/dsp_cancel.c mISDN/drivers/isdn/hardware/mISDN/dsp_cancel.c
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/dsp_cancel.c	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/dsp_cancel.c	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,390 @@
++/* $Id: mISDN_echo_cancel.patch,v 1.1 2005/11/07 16:01:31 nadi Exp $
++ *
++ * Simple but fast Echo cancellation for mISDN_dsp.
++ *
++ * Copyright Andreas Eversberg (jolly@jolly.de)
++ *
++ * This software may be used and distributed according to the terms
++ * of the GNU General Public License, incorporated herein by reference.
++ *
++ */
++
++#include "layer1.h"
++#include "helper.h"
++#include "debug.h"
++#include "dsp.h"
++
++
++/*
++ * how this works:
++ *
++ * 
++ * 
++ */
++void bchdev_echocancel_chunk(dsp_t* dev, uint8_t *rxchunk, uint8_t *txchunk, uint16_t size);
++int bchdev_echocancel_activate(dsp_t* dev, int deftaps, int train);
++void bchdev_echocancel_deactivate(dsp_t* dev);
++
++
++
++
++
++
++static char flip_table[256];
++
++void dsp_cancel_init_flip_bits()
++{
++	int i,k;
++	
++	for (i = 0 ; i < 256 ; i++) {
++		unsigned char sample = 0 ;
++		for (k = 0; k<8; k++) {
++			if ( i & 1 << k ) sample |= 0x80 >>  k;
++		}
++		flip_table[i] = sample;
++	}
++}
++
++static unsigned char * flip_buf_bits ( unsigned char * buf , int len)
++{
++	int i;
++	char * start = buf;
++	
++	for (i = 0 ; i < len; i++) {
++		buf[i] = flip_table[buf[i]];
++	}
++	
++	return start;
++}
++
++
++
++void
++dsp_cancel_tx(dsp_t *dsp, u8 *data, int len)
++{
++	if (!dsp ) return ;
++	if (!data) return;
++	
++	if (dsp->txbuflen + len < ECHOCAN_BUFLEN) {
++		memcpy(&dsp->txbuf[dsp->txbuflen],data,len);
++		dsp->txbuflen+=len;
++	} else {
++		printk("ECHOCAN: TXBUF Overflow len:%d newlen:%d\n",dsp->txbuflen,len);
++		dsp->txbuflen=0;
++	}
++	
++}
++
++void
++dsp_cancel_rx(dsp_t *dsp, u8 *data, int len)
++{
++	if (!dsp ) return ;
++	if (!data) return;
++	
++	if (len <= dsp->txbuflen) {
++		char tmp[ECHOCAN_BUFLEN];
++		
++		int delta=dsp->txbuflen-len;
++		
++		memcpy(tmp,&dsp->txbuf[len],delta);
++		
++		flip_buf_bits(data,len);
++		flip_buf_bits(dsp->txbuf,len);
++		bchdev_echocancel_chunk(dsp, data, dsp->txbuf, len);
++		flip_buf_bits(data,len);
++		
++		memcpy(dsp->txbuf,tmp,delta);
++		dsp->txbuflen=delta;
++		//dsp->txbuflen=0;
++		
++		//bchdev_echocancel_chunk(dsp,  dsp->txbuf, data, len);
++	} else {
++		printk("ECHOCAN: TXBUF Underrun len:%d newlen:%d\n",dsp->txbuflen,len);
++	}
++	
++}
++
++int
++dsp_cancel_init(dsp_t *dsp, int deftaps, int training, int delay)
++{
++	
++	if (!dsp) return -1;
++	
++	printk("DSP_CANCEL_INIT called\n");
++	
++	if (delay < 0)
++	{
++		printk("Disabling EC\n");
++		dsp->cancel_enable = 0;
++		
++		dsp->txbuflen=0;
++		
++		bchdev_echocancel_deactivate(dsp);
++		
++		return(0);
++	}
++	
++	dsp->txbuflen=0;
++	dsp->rxbuflen=0;
++	
++	
++	bchdev_echocancel_activate(dsp,deftaps, training);
++	
++	printk("Enabling EC\n");
++	dsp->cancel_enable = 1;
++	return(0);
++}
++
++
++
++
++
++/*****************************************************/
++#define __ECHO_STATE_MUTE                       (1 << 8)
++#define ECHO_STATE_IDLE                         (0)
++#define ECHO_STATE_PRETRAINING          (1 | (__ECHO_STATE_MUTE))
++#define ECHO_STATE_STARTTRAINING        (2 | (__ECHO_STATE_MUTE))
++#define ECHO_STATE_AWAITINGECHO         (3 | (__ECHO_STATE_MUTE))
++#define ECHO_STATE_TRAINING                     (4 | (__ECHO_STATE_MUTE))
++#define ECHO_STATE_ACTIVE                       (5)
++
++#define AMI_MASK 0x55
++
++
++static unsigned char linear2alaw (short linear)
++{
++	int mask;
++	int seg;
++	int pcm_val;
++	static int seg_end[8] =
++		{
++			0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF
++		};
++    
++	pcm_val = linear;
++	if (pcm_val >= 0)
++	{
++		/* Sign (7th) bit = 1 */
++		mask = AMI_MASK | 0x80;
++	}
++	else
++	{
++		/* Sign bit = 0 */
++		mask = AMI_MASK;
++		pcm_val = -pcm_val;
++	}
++
++	/* Convert the scaled magnitude to segment number. */
++	for (seg = 0;  seg < 8;  seg++)
++	{
++		if (pcm_val <= seg_end[seg])
++			break;
++	}
++	/* Combine the sign, segment, and quantization bits. */
++	return  ((seg << 4) | ((pcm_val >> ((seg)  ?  (seg + 3)  :  4)) & 0x0F)) ^ mask;
++}
++
++/*- End of function --------------------------------------------------------*/
++
++static short int alaw2linear (uint8_t alaw)
++{
++	int i;
++	int seg;
++
++	alaw ^= AMI_MASK;
++	i = ((alaw & 0x0F) << 4);
++	seg = (((int) alaw & 0x70) >> 4);
++	if (seg)
++		i = (i + 0x100) << (seg - 1);
++	return (short int) ((alaw & 0x80)  ?  i  :  -i);
++}
++
++
++/** @return string of given echo cancellation state */
++char* bchdev_echocancel_statestr(uint16_t state)
++{
++  switch(state) {
++  case ECHO_STATE_IDLE:
++    return "idle";
++    break;
++  case ECHO_STATE_PRETRAINING:
++    return "pre-training";
++    break;
++  case ECHO_STATE_STARTTRAINING:
++    return "transmit impulse";
++    break;
++  case ECHO_STATE_AWAITINGECHO:
++    return "awaiting echo";
++    break;
++  case ECHO_STATE_TRAINING:
++    return "training start";
++    break;
++  case ECHO_STATE_ACTIVE:
++    return "training finished";
++    break;
++  default:
++    return "unknown";
++  }
++}
++
++/** Changes state of echo cancellation to given state */
++void bchdev_echocancel_setstate(dsp_t* dev, uint16_t state)
++{
++  char* statestr = bchdev_echocancel_statestr(state);
++  
++  printk("bchdev: echo cancel state %d (%s)\n", state & 0xff, statestr);
++  if (state == ECHO_STATE_ACTIVE)
++	  printk("bchdev: %d taps trained\n", dev->echolastupdate);
++  dev->echostate = state;
++}
++
++static int buf_size=0;
++static int ec_timer=2000;
++//static int ec_timer=1000;
++
++
++/** Activates echo cancellation for the given bch_dev, device must have been locked before! */
++int bchdev_echocancel_activate(dsp_t* dev, int deftaps, int training)
++{
++  int taps;
++  
++  if (! dev) return -EINVAL;
++  
++  if (dev->ec && dev->ecdis_rd && dev->ecdis_wr) {
++	  // already active
++    return 0;
++  }
++  
++  if (deftaps>0) {
++	  taps=deftaps;
++  } else {
++	  taps=128;
++  }
++  
++  
++  switch (buf_size) {
++  case  0: taps +=    0; break;
++  case  1: taps +=  256-128; break;
++  case  2: taps +=  512-128; break;
++  default: taps += 1024-128;
++  }
++  
++  if (!dev->ec) dev->ec = echo_can_create(taps, 0);
++  if (!dev->ec) {
++	  return -ENOMEM;
++  }
++  
++  dev->echolastupdate = 0;
++
++  if (!training) {
++	  dev->echotimer=0;
++	  bchdev_echocancel_setstate(dev, ECHO_STATE_IDLE);
++  } else {
++	  if (training<10) 
++		  training= ec_timer;
++	  
++	  dev->echotimer      = training;
++	  bchdev_echocancel_setstate(dev, ECHO_STATE_PRETRAINING);
++
++  }
++  
++  if (!dev->ecdis_rd) dev->ecdis_rd = kmalloc(sizeof(echo_can_disable_detector_state_t), GFP_KERNEL);
++  if (!dev->ecdis_rd) {
++	  kfree(dev->ec); dev->ec = NULL;
++	  return -ENOMEM;
++  }
++  echo_can_disable_detector_init(dev->ecdis_rd);
++  
++  if (!dev->ecdis_wr) dev->ecdis_wr = kmalloc(sizeof(echo_can_disable_detector_state_t), GFP_KERNEL);
++  if (!dev->ecdis_wr) {
++	  kfree(dev->ec); dev->ec = NULL;
++	  kfree(dev->ecdis_rd); dev->ecdis_rd = NULL;
++    return -ENOMEM;
++  }
++  echo_can_disable_detector_init(dev->ecdis_wr);
++
++  return 0;
++}
++
++/** Deactivates echo cancellation for the given bch_dev, device must have been locked before! */
++void bchdev_echocancel_deactivate(dsp_t* dev)
++{
++  if (! dev) return;
++
++  //chan_misdn_log("bchdev: deactivating echo cancellation on port=%04x, chan=%02x\n", dev->stack->port, dev->channel);
++  
++  if (dev->ec) echo_can_free(dev->ec);
++  dev->ec = NULL;
++  
++  dev->echolastupdate = 0;
++  dev->echotimer      = 0;
++  bchdev_echocancel_setstate(dev, ECHO_STATE_IDLE);
++
++  if (dev->ecdis_rd) kfree(dev->ecdis_rd);
++  dev->ecdis_rd = NULL;
++  
++  if (dev->ecdis_wr) kfree(dev->ecdis_wr);
++  dev->ecdis_wr = NULL;
++}
++
++/** Processes one TX- and one RX-packet with echocancellation */
++void bchdev_echocancel_chunk(dsp_t* dev, uint8_t *rxchunk, uint8_t *txchunk, uint16_t size)
++{
++  int16_t rxlin, txlin;
++  uint16_t pos;
++
++  /* Perform echo cancellation on a chunk if requested */
++  if (dev->ec) {
++    if (dev->echostate & __ECHO_STATE_MUTE) {
++      if (dev->echostate == ECHO_STATE_STARTTRAINING) {
++	// Transmit impulse now
++	txchunk[0] = linear2alaw(16384);
++	memset(txchunk+1, 0, size-1);
++	bchdev_echocancel_setstate(dev, ECHO_STATE_TRAINING); //AWAITINGECHO);
++      } else {
++	// train the echo cancellation
++	for (pos = 0; pos < size; pos++) {
++	  rxlin = alaw2linear(rxchunk[pos]);
++	  txlin = alaw2linear(txchunk[pos]);
++	  if (dev->echostate == ECHO_STATE_PRETRAINING) {
++	    if (dev->echotimer <= 0) {
++	      dev->echotimer = 0;
++	      bchdev_echocancel_setstate(dev, ECHO_STATE_STARTTRAINING);
++	    } else {
++	      dev->echotimer--;
++	    }
++	  }
++	  if ((dev->echostate == ECHO_STATE_AWAITINGECHO) && (txlin > 8000)) {
++	    dev->echolastupdate = 0;
++	    bchdev_echocancel_setstate(dev, ECHO_STATE_TRAINING);
++	  }
++	  if (dev->echostate == ECHO_STATE_TRAINING) {
++	    if (echo_can_traintap(dev->ec, dev->echolastupdate++, rxlin)) {
++	      bchdev_echocancel_setstate(dev, ECHO_STATE_ACTIVE);
++	    }
++	  }
++
++	  rxchunk[pos] = linear2alaw(0);
++	  txchunk[pos] = linear2alaw(0);
++	}
++      }
++    } else {
++      for (pos = 0; pos < size; pos++) {
++	rxlin = alaw2linear(rxchunk[pos]);
++	txlin = alaw2linear(txchunk[pos]);
++
++	if (echo_can_disable_detector_update(dev->ecdis_rd, rxlin) || 
++	    echo_can_disable_detector_update(dev->ecdis_wr, txlin)) {
++	  bchdev_echocancel_deactivate(dev);
++	  printk("EC: Fax detected, EC disabled\n");
++	  return ;
++	} else	{
++	  rxlin = echo_can_update(dev->ec, txlin, rxlin);
++	  rxchunk[pos] = linear2alaw(rxlin);
++	}
++      }
++    }
++  }
++}
++
++/******************************************************/
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/dsp_core.c mISDN/drivers/isdn/hardware/mISDN/dsp_core.c
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/dsp_core.c	2005-01-29 17:15:21.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/dsp_core.c	2005-12-02 09:57:08.000000000 +0100
+@@ -42,17 +42,11 @@
+  *             v             |
+  *       +-----+-------------+-----+
+  *       |(3)(4)                   |
+- *       |                         |
+- *       |                         |
+  *       |           CMX           |
+  *       |                         |
+- *       |                         |
+- *       |                         |
+- *       |                         |
+  *       |           +-------------+
+  *       |           |       ^
+  *       |           |       |
+- *       |           |       |
+  *       |+---------+|  +----+----+
+  *       ||(1)      ||  |(5)      |
+  *       ||         ||  |         |
+@@ -62,7 +56,6 @@
+  *       |+----+----+|  +----+----+
+  *       +-----+-----+       ^
+  *             |             | 
+- *             |             |
+  *             v             |
+  *        +----+----+   +----+----+
+  *        |(5)      |   |(2)      |
+@@ -74,8 +67,18 @@
+  *             |             ^ 
+  *             |             |
+  *             v             |
++ *        +----+-------------+----+
++ *        |(7)                    |
++ *        |                       |
++ *        |   Echo Cancellation   |
++ *        |                       |
++ *        |                       |
++ *        +----+-------------+----+
++ *             |             ^ 
++ *             |             |
++ *             v             |
+  *        +----+----+   +----+----+
+- *        |(7)      |   |(7)      |
++ *        |(8)      |   |(8)      |
+  *        |         |   |         |
+  *        | Encrypt |   | Decrypt |
+  *        |         |   |         |
+@@ -115,6 +118,13 @@
+  * data to/form upper layer may be swithed on/off individually without loosing
+  * features of CMX, Tones and DTMF.
+  *
++ * Echo Cancellation: Sometimes we like to cancel echo from the interface.
++ * Note that a VoIP call may not have echo caused by the IP phone. The echo
++ * is generated by the telephone line connected to it. Because the delay
++ * is high, it becomes an echo. RESULT: Echo Cachelation is required if
++ * both echo AND delay is applied to an interface.
++ * Remember that software CMX always generates a more or less delay.
++ *
+  * If all used features can be realized in hardware, and if transmit and/or
+  * receive data ist disabled, the card may not send/receive any data at all.
+  * Not receiving is usefull if only announcements are played. Not sending is
+@@ -215,6 +225,9 @@
+ 			printk(KERN_ERR "%s: failed to create tx packet\n", __FUNCTION__);
+ 			return;
+ 		}
++		/* if echo cancellation is enabled */
++		if (dsp->cancel_enable)
++			dsp_cancel_tx(dsp, nskb->data, nskb->len);
+ 		/* crypt if enabled */
+ 		if (dsp->bf_enable)
+ 			dsp_bf_encrypt(dsp, nskb->data, nskb->len);
+@@ -380,6 +393,34 @@
+ 			if (dsp_debug & DEBUG_DSP_CMX)
+ 				dsp_cmx_debug(dsp);
+ 			break;
++		case ECHOCAN_ON: /* turn echo calcellation on */
++			
++			if (len<4) {
++				ret = -EINVAL;
++				break;
++			}
++			int ec_arr[2];
++			
++			memcpy(&ec_arr,data,sizeof(ec_arr));
++			
++			
++			printk("data[0]: %d data[1]: %d, len :%d\n",ec_arr[0],
++			       ec_arr[1] ,len);
++			
++			if (dsp_debug & DEBUG_DSP_CORE)
++				printk(KERN_DEBUG "%s: turn echo cancelation on (delay=%d attenuation-shift=%d\n", __FUNCTION__, ec_arr[0], ec_arr[1]);
++			
++			ret = dsp_cancel_init(dsp, ec_arr[0], ec_arr[1] ,1);
++			
++			dsp_cmx_hardware(dsp->conf, dsp);
++			break;
++		case ECHOCAN_OFF: /* turn echo calcellation off */
++			if (dsp_debug & DEBUG_DSP_CORE)
++				printk(KERN_DEBUG "%s: turn echo cancelation off\n", __FUNCTION__);
++			
++			ret = dsp_cancel_init(dsp, 0,0,-1);
++			dsp_cmx_hardware(dsp->conf, dsp);
++			break;
+ 		case BF_ENABLE_KEY: /* turn blowfish on */
+ 			if (len<4 || len>56) {
+ 				ret = -EINVAL;
+@@ -522,6 +563,9 @@
+ 			/* decrypt if enabled */
+ 			if (dsp->bf_enable)
+ 				dsp_bf_decrypt(dsp, skb->data, skb->len);
++			/* if echo cancellation is enabled */
++			if (dsp->cancel_enable)
++				dsp_cancel_rx(dsp, skb->data, skb->len);
+ 			/* check if dtmf soft decoding is turned on */
+ 			if (dsp->dtmf.software) {
+ 				digits = dsp_dtmf_goertzel_decode(dsp, skb->data, skb->len, (dsp_options&DSP_OPT_ULAW)?1:0);
+@@ -919,6 +963,9 @@
+ 		dsp_audio_generate_ulaw_samples();
+ 	dsp_audio_generate_volume_changes();
+ 
++
++	dsp_cancel_init_flip_bits();
++	
+ 	/* init global lock */
+ 	lock_HW_init(&dsp_lock);
+ 
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/dsp.h mISDN/drivers/isdn/hardware/mISDN/dsp.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/dsp.h	2005-01-29 17:15:31.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/dsp.h	2005-12-02 09:57:08.000000000 +0100
+@@ -40,6 +40,13 @@
+ #include "memdbg.h"
+ #endif
+ 
++#include "ecdis.h"
++#include "mec2.h"
++
++//#include "mec.h"
++//#include "mec3.h"
++
++
+ extern int dsp_options;
+ extern int dsp_debug;
+ 
+@@ -109,6 +116,8 @@
+ 
+ #define DSP_DTMF_NPOINTS 102
+ 
++#define ECHOCAN_BUFLEN 4*128
++
+ typedef struct _dtmf_t {
+ 	int		software; /* dtmf uses software decoding */
+ 	int 		hardware; /* dtmf uses hardware decoding */
+@@ -120,6 +129,13 @@
+ } dtmf_t;
+ 
+ 
++/**************
++ *Cancel Stuff*
++ ***************/
++
++void dsp_cancel_init_flip_bits(void);
++
++
+ /***************
+  * tones stuff *
+  ***************/
+@@ -200,6 +216,25 @@
+ 	u8		bf_crypt_inring[16];
+ 	u8		bf_data_out[9];
+ 	int		bf_sync;
++
++	/* echo cancellation stuff */
++	int		cancel_enable;
++	echo_can_state_t* ec;      /**< == NULL: echo cancellation disabled;
++				      != NULL: echo cancellation enabled */
++	
++	echo_can_disable_detector_state_t* ecdis_rd;
++	echo_can_disable_detector_state_t* ecdis_wr;
++	
++	uint16_t echotimer;
++	uint16_t echostate;
++	uint16_t echolastupdate;
++	
++	char txbuf[ECHOCAN_BUFLEN];
++	int txbuflen;
++	
++	char rxbuf[ECHOCAN_BUFLEN];
++	int rxbuflen;
++	
+ } dsp_t;
+ 
+ /* functions */
+@@ -228,4 +263,8 @@
+ extern int dsp_bf_init(dsp_t *dsp, const u8 *key, unsigned int keylen);
+ extern void dsp_bf_cleanup(dsp_t *dsp);
+ 
++extern void dsp_cancel_tx(dsp_t *dsp, u8 *data, int len);
++extern void dsp_cancel_rx(dsp_t *dsp, u8 *data, int len);
++extern int dsp_cancel_init(dsp_t *dsp, int taps, int training, int delay);
++
+ 
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/ec.c mISDN/drivers/isdn/hardware/mISDN/ec.c
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/ec.c	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/ec.c	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,105 @@
++#include "mec2.h"
++#include "ec.h"
++
++
++
++#define __ECHO_STATE_MUTE			(1 << 8)
++#define ECHO_STATE_IDLE				(0)
++#define ECHO_STATE_PRETRAINING		(1 | (__ECHO_STATE_MUTE))
++#define ECHO_STATE_STARTTRAINING	(2 | (__ECHO_STATE_MUTE))
++#define ECHO_STATE_AWAITINGECHO		(3 | (__ECHO_STATE_MUTE))
++#define ECHO_STATE_TRAINING			(4 | (__ECHO_STATE_MUTE))
++#define ECHO_STATE_ACTIVE			(5)
++
++#define AMI_MASK 0x55
++
++static unsigned char linear2alaw (short linear)
++{
++    int mask;
++    int seg;
++    int pcm_val;
++    static int seg_end[8] =
++    {
++         0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF
++    };
++    
++    pcm_val = linear;
++    if (pcm_val >= 0)
++    {
++        /* Sign (7th) bit = 1 */
++      mask = AMI_MASK | 0x80;
++    }
++    else
++    {
++        /* Sign bit = 0 */
++        mask = AMI_MASK;
++        pcm_val = -pcm_val;
++    }
++
++    /* Convert the scaled magnitude to segment number. */
++    for (seg = 0;  seg < 8;  seg++)
++    {
++        if (pcm_val <= seg_end[seg])
++	    break;
++    }
++    /* Combine the sign, segment, and quantization bits. */
++    return  ((seg << 4) | ((pcm_val >> ((seg)  ?  (seg + 3)  :  4)) & 0x0F)) ^ mask;
++}
++/*- End of function --------------------------------------------------------*/
++
++static short int alaw2linear (uint8_t alaw)
++{
++    int i;
++    int seg;
++
++    alaw ^= AMI_MASK;
++    i = ((alaw & 0x0F) << 4);
++    seg = (((int) alaw & 0x70) >> 4);
++    if (seg)
++        i = (i + 0x100) << (seg - 1);
++    return (short int) ((alaw & 0x80)  ?  i  :  -i);
++}
++
++
++void ec_chunk(struct echo_can_s *echo_can, unsigned char *rxchunk, const unsigned char *txchunk, int chunk_size)
++{
++  short rxlin, txlin;
++  int x;
++  //unsigned long flags;
++  /* Perform echo cancellation on a chunk if necessary */
++  if (echo_can->ec) {
++    if (echo_can->echostate & __ECHO_STATE_MUTE) {
++      /* Special stuff for training the echo can */
++      for (x=0;x< chunk_size;x++) {
++	rxlin = alaw2linear(rxchunk[x]);
++	txlin = alaw2linear(txchunk[x]);
++	if (echo_can->echostate == ECHO_STATE_PRETRAINING) {
++	  if (--echo_can->echotimer <= 0) {
++	    echo_can->echotimer = 0;
++	    echo_can->echostate = ECHO_STATE_STARTTRAINING;
++	  }
++	}
++	if ((echo_can->echostate == ECHO_STATE_AWAITINGECHO) && (txlin > 8000)) {
++	  echo_can->echolastupdate = 0;
++	  echo_can->echostate = ECHO_STATE_TRAINING;
++	}
++	if (echo_can->echostate == ECHO_STATE_TRAINING) {
++	  if (echo_can_traintap(echo_can->ec, echo_can->echolastupdate++, rxlin)) {
++#if 0
++	    printf("Finished training (%d taps trained)!\n", echo_can->echolastupdate);
++#endif						
++	    echo_can->echostate = ECHO_STATE_ACTIVE;
++	  }
++	}
++	rxlin = 0;
++	rxchunk[x] = linear2alaw((int)rxlin);
++      }
++    } else {
++      for (x=0;x<chunk_size;x++) {
++	rxlin = alaw2linear(rxchunk[x]);
++	rxlin = echo_can_update(echo_can->ec,  alaw2linear(txchunk[x]), rxlin);
++	rxchunk[x] = linear2alaw((int)rxlin);
++      }
++    }
++  }
++}
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/ecdis.h mISDN/drivers/isdn/hardware/mISDN/ecdis.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/ecdis.h	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/ecdis.h	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,118 @@
++/*
++ * SpanDSP - a series of DSP components for telephony
++ *
++ * ec_disable_detector.h - A detector which should eventually meet the
++ *                         G.164/G.165 requirements for detecting the
++ *                         2100Hz echo cancellor disable tone.
++ *
++ * Written by Steve Underwood <steveu@coppice.org>
++ *
++ * Copyright (C) 2001 Steve Underwood
++ *
++ * All rights reserved.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ *
++ */
++
++#include "biquad.h"
++
++typedef struct
++{
++    biquad2_state_t notch;
++    int notch_level;
++    int channel_level;
++    int tone_present;
++    int tone_cycle_duration;
++    int good_cycles;
++    int hit;
++} echo_can_disable_detector_state_t;
++
++
++#define FALSE 0
++#define TRUE (!FALSE)
++
++static inline void echo_can_disable_detector_init (echo_can_disable_detector_state_t *det)
++{
++    /* Elliptic notch */
++    /* This is actually centred at 2095Hz, but gets the balance we want, due
++       to the asymmetric walls of the notch */
++    biquad2_init (&det->notch,
++    	     	  (int32_t) (-0.7600000*32768.0),
++    	    	  (int32_t) (-0.1183852*32768.0),
++    	    	  (int32_t) (-0.5104039*32768.0),
++    	    	  (int32_t) ( 0.1567596*32768.0),
++    	    	  (int32_t) ( 1.0000000*32768.0));
++
++    det->channel_level = 0;
++    det->notch_level = 0;    
++    det->tone_present = FALSE;
++    det->tone_cycle_duration = 0;
++    det->good_cycles = 0;
++    det->hit = 0;
++}
++/*- End of function --------------------------------------------------------*/
++
++static inline int echo_can_disable_detector_update (echo_can_disable_detector_state_t *det,
++                                      int16_t amp)
++{
++    int16_t notched;
++    
++    	notched = biquad2 (&det->notch, amp);
++    	/* Estimate the overall energy in the channel, and the energy in
++	   the notch (i.e. overall channel energy - tone energy => noise).
++	   Use abs instead of multiply for speed (is it really faster?).
++	   Damp the overall energy a little more for a stable result.
++	   Damp the notch energy a little less, so we don't damp out the
++	   blip every time the phase reverses */
++        det->channel_level += ((abs(amp) - det->channel_level) >> 5);
++	det->notch_level += ((abs(notched) - det->notch_level) >> 4);
++  	if (det->channel_level > 280)
++	{
++	    /* There is adequate energy in the channel. Is it mostly at 2100Hz? */
++	    if (det->notch_level*6 < det->channel_level)
++	    {
++                /* The notch says yes, so we have the tone. */
++		if (!det->tone_present)
++		{
++                    /* Do we get a kick every 450+-25ms? */
++		    if (det->tone_cycle_duration >= 425*8
++			&&
++			det->tone_cycle_duration <= 475*8)
++	            {
++			det->good_cycles++;
++			if (det->good_cycles > 2)
++			    det->hit = TRUE;
++		    }
++		    det->tone_cycle_duration = 0;
++		}
++		det->tone_present = TRUE;
++	    }
++	    else
++	    {
++		det->tone_present = FALSE;
++	    }
++   	    det->tone_cycle_duration++;
++	}
++	else
++	{
++	    det->tone_present = FALSE;
++	    det->tone_cycle_duration = 0;
++	    det->good_cycles = 0;
++	}
++    return  det->hit;
++}
++/*- End of function --------------------------------------------------------*/
++/*- End of file ------------------------------------------------------------*/
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/ec.h mISDN/drivers/isdn/hardware/mISDN/ec.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/ec.h	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/ec.h	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,12 @@
++
++
++
++struct echo_can_s {
++  int echostate;
++  int echotimer;
++  int echolastupdate;
++  echo_can_state_t  *ec;
++}; 
++
++
++
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/hfc_multi.c mISDN/drivers/isdn/hardware/mISDN/hfc_multi.c
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/hfc_multi.c	2005-01-31 18:24:03.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/hfc_multi.c	2005-12-02 09:57:08.000000000 +0100
+@@ -136,7 +136,7 @@
+ static int nt_t1_count[] = { 480, 240, 120, 60, 30, 15, 8, 4 };
+ #define CLKDEL_TE	0x0f	/* CLKDEL in TE mode */
+ #define CLKDEL_NT	0x0c	/* CLKDEL in NT mode (0x60 MUST not be included!) */
+-static u_char silence =	0xff;	/* silence by LAW */
++static u_char mysilence =	0xff;	/* silence by LAW */
+ 
+ /* enable 32 bit fifo access (PC usage) */
+ #define FIFO_32BIT_ACCESS
+@@ -903,11 +903,11 @@
+ 		bch->tx_idx = bch->tx_len = 0;
+ 	}
+ 	/* now we have no more data, so in case of transparent,
+-	 * we set the last byte in fifo to 'silence' in case we will get
++	 * we set the last byte in fifo to 'mysilence' in case we will get
+ 	 * no more data at all. this prevents sending an undefined value.
+ 	 */
+ 	if (!hdlc)
+-		HFC_outb_(hc, A_FIFO_DATA0_NOINC, silence);
++		HFC_outb_(hc, A_FIFO_DATA0_NOINC, mysilence);
+ }
+ 
+ 
+@@ -1551,7 +1551,7 @@
+ 		HFC_outb(hc, A_IRQ_MSK, 0);
+ 		HFC_outb(hc, R_INC_RES_FIFO, V_RES_F);
+ 		HFC_wait(hc);
+-		HFC_outb_(hc, A_FIFO_DATA0_NOINC, silence); /* tx silence */
++		HFC_outb_(hc, A_FIFO_DATA0_NOINC, mysilence); /* tx silence */
+ 		/* enable RX fifo */
+ 		HFC_outb(hc, R_FIFO, (ch<<1)|1);
+ 		HFC_wait(hc);
+@@ -1692,7 +1692,7 @@
+ 
+ 	/* if off */
+ 	if (len <= 0) {
+-		HFC_outb_(hc, A_FIFO_DATA0_NOINC, silence);
++		HFC_outb_(hc, A_FIFO_DATA0_NOINC, mysilence);
+ 		if (hc->chan[ch].slot_tx>=0) {
+ 			if (debug & DEBUG_HFCMULTI_MODE)
+ 				printk(KERN_DEBUG "%s: connecting PCM due to no more TONE: channel %d slot_tx %d\n", __FUNCTION__, ch, hc->chan[ch].slot_tx);
+@@ -2183,7 +2183,7 @@
+ 			ret = 0;
+ 			break;
+ 
+-			/* set silence */
++			/* set mysilence */
+ 			case HW_SPL_LOOP_OFF:
+ 			if (debug & DEBUG_HFCMULTI_MSG)
+ 				printk(KERN_DEBUG "%s: HW_SPL_LOOP_OFF\n", __FUNCTION__);
+@@ -2799,7 +2799,13 @@
+ 		if (debug & DEBUG_HFCMULTI_INIT)
+ 			printk(KERN_DEBUG "setup_pci(): investigating card entry %d (looking for type %d)\n", i, hc->type);
+ 		inuse:
++
++#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,9)
++		tmp_dev = pci_get_subsys(id_list[i].vendor_id, id_list[i].device_id, id_list[i].vendor_sub, id_list[i].device_sub, tmp_dev);
++#else
+ 		tmp_dev = pci_find_subsys(id_list[i].vendor_id, id_list[i].device_id, id_list[i].vendor_sub, id_list[i].device_sub, tmp_dev);
++#endif
++		
+ 		if (tmp_dev) {
+ 			/* skip if already in use */
+ 			list_for_each_entry_safe(hc_tmp, next, &HFCM_obj.ilist, list) {
+@@ -3318,9 +3324,9 @@
+ 		hc->type = type[HFC_cnt] & 0xff;
+ 		if (type[HFC_cnt] & 0x100) {
+ 			test_and_set_bit(HFC_CHIP_ULAW, &hc->chip);
+-			silence = 0xff; /* ulaw silence */
++			mysilence = 0xff; /* ulaw silence */
+ 		} else
+-			silence = 0x2a; /* alaw silence */
++			mysilence = 0x2a; /* alaw silence */
+ 		if (type[HFC_cnt] & 0x200)
+ 			test_and_set_bit(HFC_CHIP_DTMF, &hc->chip);
+ //		if ((type[HFC_cnt]&0x400) && hc->type==4)
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/l3_udss1.c mISDN/drivers/isdn/hardware/mISDN/l3_udss1.c
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/l3_udss1.c	2005-03-26 11:21:39.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/l3_udss1.c	2005-12-02 09:57:08.000000000 +0100
+@@ -1202,6 +1202,14 @@
+ 	err = check_infoelements(pc, skb, ie_PROGRESS);
+ 	if (err)
+ 		l3dss1_std_ie_err(pc, err);
++	/* START: patch by steinwej - http://www.beronet.com/bugs/bug_view_page.php?bug_id=0000095 */
++	/* clear T310 if running */
++	L3DelTimer(&pc->timer);
++	if (pc->t303skb) {
++		dev_kfree_skb(pc->t303skb);
++		pc->t303skb = NULL;
++	}
++	/* END */
+ 	if (ERR_IE_COMPREHENSION != err) {
+ 		if (mISDN_l3up(pc, CC_PROGRESS | INDICATION, skb))
+ 			dev_kfree_skb(skb);
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/Makefile mISDN/drivers/isdn/hardware/mISDN/Makefile
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/Makefile	2005-06-05 14:44:10.000000000 +0200
++++ mISDN/drivers/isdn/hardware/mISDN/Makefile	2005-12-05 19:03:11.000000000 +0100
+@@ -30,6 +30,7 @@
+ 
+ ifdef CONFIG_MISDN_SPEEDFAX
+ obj-$(CONFIG_MISDN_DRV) += sedlfax.o
++obj-$(CONFIG_MISDN_DRV) += faxl3.o
+ endif
+ 
+ ifdef CONFIG_MISDN_W6692
+@@ -70,8 +71,6 @@
+                    asn1_basic_service.o asn1_address.o asn1_enc.o capi_enc.o \
+                    supp_serv.o
+ mISDN_dtmf-objs := dtmf.o
+-mISDN_dsp-objs := dsp_core.o dsp_cmx.o dsp_tones.o dsp_dtmf.o dsp_audio.o dsp_blowfish.o
++mISDN_dsp-objs := dsp_core.o dsp_cmx.o dsp_tones.o dsp_dtmf.o dsp_audio.o dsp_blowfish.o dsp_cancel.o
+ mISDN_x25dte-objs := x25_dte.o x25_l3.o
+ I4LmISDN-objs := i4l_mISDN.o
+-
+-include Rules.mISDN
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/Makefile.v2.6 mISDN/drivers/isdn/hardware/mISDN/Makefile.v2.6
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/Makefile.v2.6	2005-06-05 14:44:10.000000000 +0200
++++ mISDN/drivers/isdn/hardware/mISDN/Makefile.v2.6	2005-12-02 09:57:08.000000000 +0100
+@@ -71,6 +71,6 @@
+                    asn1_basic_service.o asn1_address.o asn1_enc.o capi_enc.o \
+                    supp_serv.o
+ mISDN_dtmf-objs := dtmf.o
+-mISDN_dsp-objs := dsp_core.o dsp_cmx.o dsp_tones.o dsp_dtmf.o dsp_audio.o dsp_blowfish.o
++mISDN_dsp-objs := dsp_core.o dsp_cmx.o dsp_tones.o dsp_dtmf.o dsp_audio.o dsp_blowfish.o dsp_cancel.o
+ mISDN_x25dte-objs := x25_dte.o x25_l3.o
+ I4LmISDN-objs := i4l_mISDN.o
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/mec2_const.h mISDN/drivers/isdn/hardware/mISDN/mec2_const.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/mec2_const.h	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/mec2_const.h	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,25 @@
++/* 
++   Important constants for tuning mec2 echo can
++ */
++#ifndef _MEC2_CONST_H
++#define _MEC2_CONST_H
++
++
++/* Convergence speed -- higher means slower */
++#define DEFAULT_BETA1_I 2048
++#define DEFAULT_SIGMA_LY_I 7
++#define DEFAULT_SIGMA_LU_I 7
++#define DEFAULT_ALPHA_ST_I 5
++#define DEFAULT_ALPHA_YT_I 5
++#define DEFAULT_CUTOFF_I 128
++#define DEFAULT_HANGT 600
++#define DEFAULT_SUPPR_I 16
++#define MIN_UPDATE_THRESH_I 4096
++#define DEFAULT_M 16
++#define SUPPR_FLOOR -64
++#define SUPPR_CEIL -24
++#define RES_SUPR_FACTOR -20
++#define AGGRESSIVE_HCNTR 160	/* 20ms */
++
++#endif /* _MEC2_CONST_H */
++
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/mec2.h mISDN/drivers/isdn/hardware/mISDN/mec2.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/mec2.h	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/mec2.h	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,409 @@
++/*
++ * Mark's Second Echo Canceller
++ * 
++ * Copyright (C) 2002, Digium, Inc.
++ *
++ * This program is free software and may be used and
++ * distributed according to the terms of the GNU
++ * General Public License, incorporated herein by
++ * reference.
++ *
++ */
++#ifndef _MARK2_ECHO_H
++#define _MARK2_ECHO_H
++
++#ifdef __KERNEL__
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#define MALLOC(a) kmalloc((a), GFP_KERNEL)
++#define FREE(a) kfree(a)
++#else
++#include <stdlib.h>
++#include <unistd.h>
++#include <stdint.h>
++#include <string.h>
++#include <math.h>
++#define MALLOC(a) malloc(a)
++#define FREE(a) free(a)
++#endif
++
++/* Get optimized routines for math */
++#include "arith.h"
++
++#ifndef NULL
++#define NULL 0
++#endif
++#ifndef FALSE
++#define FALSE 0
++#endif
++#ifndef TRUE
++#define TRUE (!FALSE)
++#endif
++
++#include "mec2_const.h"
++
++/* Circular buffer definition */
++typedef struct {
++  int idx_d;
++  int size_d;
++  short *buf_d;	/* Twice as large as we need */
++} echo_can_cb_s;
++
++// class definition
++//
++typedef struct  {
++  /* Echo canceller definition */
++
++  /* absolute time */
++  int i_d;
++  
++  /* pre-computed constants */
++
++  int N_d;
++  int beta2_i;
++
++  // declare accumulators for power computations
++  //
++  int Ly_i;
++  int Lu_i;
++
++  // declare an accumulator for the near-end signal detector
++  //
++  int s_tilde_i;
++  int HCNTR_d;
++
++  // circular buffers and coefficients
++  //
++  int *a_i;
++  short *a_s;
++  echo_can_cb_s y_s;
++  echo_can_cb_s s_s;
++  echo_can_cb_s u_s;
++  echo_can_cb_s y_tilde_s;
++  int y_tilde_i;
++
++  /* Max memory */
++  short max_y_tilde;
++  int max_y_tilde_pos;
++
++} echo_can_state_t;
++
++static inline void init_cb_s(echo_can_cb_s *cb, int len, void *where)
++{
++	cb->buf_d = (short *)where;
++	cb->idx_d = 0;
++	cb->size_d = len;
++}
++
++static inline void add_cc_s(echo_can_cb_s *cb, short newval)
++{
++    /* Can't use modulus because N+M isn't a power of two (generally) */
++    cb->idx_d--;
++    if (cb->idx_d < (int)0)
++     {cb->idx_d += cb->size_d;}
++	/* Load two copies into memory */
++	cb->buf_d[cb->idx_d] = newval;
++	cb->buf_d[cb->idx_d + cb->size_d] = newval;
++}
++
++static inline short get_cc_s(echo_can_cb_s *cb, int pos)
++{
++	/* Load two copies into memory */
++	return cb->buf_d[cb->idx_d + pos];
++}
++
++static inline void init_cc(echo_can_state_t *ec, int N, int maxy, int maxu) {
++
++  void *ptr = ec;
++  unsigned long tmp;
++  /* double-word align past end of state */
++  ptr += sizeof(echo_can_state_t);
++  tmp = (unsigned long)ptr;
++  tmp += 3;
++  tmp &= ~3L;
++  ptr = (void *)tmp;
++  
++  // reset parameters
++  //
++  ec->N_d = N;
++  ec->beta2_i = DEFAULT_BETA1_I;
++  
++  // allocate coefficient memory
++  //
++  ec->a_i = ptr;
++  ptr += (sizeof(int) * ec->N_d);
++  ec->a_s = ptr;
++  ptr += (sizeof(short) * ec->N_d);
++
++  /* Reset Y circular buffer (short version) */
++  init_cb_s(&ec->y_s, maxy, ptr);
++  ptr += (sizeof(short) * (maxy) * 2);
++  
++  /* Reset Sig circular buffer (short version for FIR filter) */
++  init_cb_s(&ec->s_s, (1 << DEFAULT_ALPHA_ST_I), ptr);
++  ptr += (sizeof(short) * (1 << DEFAULT_ALPHA_ST_I) * 2);
++
++  init_cb_s(&ec->u_s, maxu, ptr);
++  ptr += (sizeof(short) * maxu * 2);
++
++  // allocate a buffer for the reference signal power computation
++  //
++  init_cb_s(&ec->y_tilde_s, ec->N_d, ptr);
++
++
++  // reset absolute time
++  //
++  ec->i_d = (int)0;
++  
++  // reset the power computations (for y and u)
++  //
++  ec->Ly_i = DEFAULT_CUTOFF_I;
++  ec->Lu_i = DEFAULT_CUTOFF_I;
++
++  // reset the near-end speech detector
++  //
++  ec->s_tilde_i = 0;
++  ec->HCNTR_d = (int)0;
++
++  // exit gracefully
++  //
++}
++
++static inline void echo_can_free(echo_can_state_t *ec)
++{
++	FREE(ec);
++}
++
++static inline short echo_can_update(echo_can_state_t *ec, short iref, short isig) {
++
++  /* declare local variables that are used more than once
++  */
++  int k;
++  int rs;
++  short u;
++  int Py_i;
++  int two_beta_i;
++  
++  /***************************************************************************
++  //
++  // flow A on pg. 428
++  //
++   ***************************************************************************/
++
++  /* eq. (16): high-pass filter the input to generate the next value;
++  //           push the current value into the circular buffer
++  //
++  // sdc_im1_d = sdc_d;
++  // sdc_d = sig;
++  //  s_i_d = sdc_d;
++  //  s_d = s_i_d;
++  //  s_i_d = (float)(1.0 - gamma_d) * s_i_d
++     + (float)(0.5 * (1.0 - gamma_d)) * (sdc_d - sdc_im1_d); */
++  
++  
++  /* Delete last sample from power estimate */
++  ec->y_tilde_i -= abs(get_cc_s(&ec->y_s, (1 << DEFAULT_ALPHA_YT_I) - 1 )) >> DEFAULT_ALPHA_YT_I;
++  /* push the reference data onto the circular buffer */
++  add_cc_s(&ec->y_s, iref);
++ 
++  /* eq. (2): compute r in fixed-point */
++  rs = CONVOLVE2(ec->a_s, ec->y_s.buf_d + ec->y_s.idx_d, ec->N_d);
++  rs >>= 15;
++
++  /* eq. (3): compute the output value (see figure 3) and the error
++  // note: the error is the same as the output signal when near-end
++  // speech is not present
++  */
++  u = isig - rs;  
++  
++  add_cc_s(&ec->u_s, u);
++  
++
++
++  /* Delete oldest part of received s_tilde */
++  ec->s_tilde_i -= abs(get_cc_s(&ec->s_s, (1 << DEFAULT_ALPHA_ST_I) - 1 ));
++
++  /* push the signal on the circular buffer, too */
++  add_cc_s(&ec->s_s, isig);
++  ec->s_tilde_i += abs(isig);
++  ec->y_tilde_i += abs(iref) >> DEFAULT_ALPHA_YT_I;
++
++  /* Add to our list of recent y_tilde's */
++  add_cc_s(&ec->y_tilde_s, ec->y_tilde_i);		
++
++  /****************************************************************************
++  //
++  // flow B on pg. 428
++  // 
++   ****************************************************************************/
++  
++  /* compute the new convergence factor
++  */
++  Py_i = (ec->Ly_i >> DEFAULT_SIGMA_LY_I) * (ec->Ly_i >> DEFAULT_SIGMA_LY_I);
++  Py_i >>= 15;
++  if (ec->HCNTR_d > 0) {
++  	Py_i = (1 << 15);
++  }
++  
++#if 0
++  printf("Py: %e, Py_i: %e\n", Py, Py_i * AMPL_SCALE_1);
++#endif  
++
++  /* Vary rate of adaptation depending on position in the file
++  // Do not do this for the first (DEFAULT_UPDATE_TIME) secs after speech
++  // has begun of the file to allow the echo cancellor to estimate the
++  // channel accurately
++  */
++#if 0
++  if (ec->start_speech_d != 0 ){
++    if ( ec->i_d > (DEFAULT_T0 + ec->start_speech_d)*(SAMPLE_FREQ) ){
++      ec->beta2_d = max_cc_float(MIN_BETA,
++		       DEFAULT_BETA1 * exp((-1/DEFAULT_TAU)*((ec->i_d/(float)SAMPLE_FREQ) -
++						 DEFAULT_T0 -
++						 ec->start_speech_d)));
++    }
++  }
++  else {ec->beta2_d = DEFAULT_BETA1;}
++#endif
++  
++  ec->beta2_i = DEFAULT_BETA1_I;	/* Fixed point, inverted */
++  
++  two_beta_i = (ec->beta2_i * Py_i) >> 15;	/* Fixed point version, inverted */
++  if (!two_beta_i)
++  	two_beta_i++;
++
++  /* Update Lu_i (Suppressed power estimate) */
++  ec->Lu_i -= abs(get_cc_s(&ec->u_s, (1 << DEFAULT_SIGMA_LU_I) - 1 )) ;
++  ec->Lu_i += abs(u);
++
++  /* eq. (10): update power estimate of the reference
++  */
++  ec->Ly_i -= abs(get_cc_s(&ec->y_s, (1 << DEFAULT_SIGMA_LY_I) - 1)) ;
++  ec->Ly_i += abs(iref);
++
++  if (ec->Ly_i < DEFAULT_CUTOFF_I)
++  	ec->Ly_i = DEFAULT_CUTOFF_I;
++
++#if 0
++  printf("Float: %e, Int: %e\n", ec->Ly_d, (ec->Ly_i >> DEFAULT_SIGMA_LY_I) * AMPL_SCALE_1);
++#endif
++  
++  if (ec->y_tilde_i > ec->max_y_tilde) {
++  	/* New highest y_tilde with full life */
++	ec->max_y_tilde = ec->y_tilde_i;
++	ec->max_y_tilde_pos = ec->N_d - 1;
++  } else if (--ec->max_y_tilde_pos < 0) {
++    /* Time to find new max y tilde... */
++	ec->max_y_tilde = MAX16(ec->y_tilde_s.buf_d + ec->y_tilde_s.idx_d, ec->N_d, &ec->max_y_tilde_pos);
++  }
++
++  if ((ec->s_tilde_i >> (DEFAULT_ALPHA_ST_I - 1)) > ec->max_y_tilde)
++    {
++      ec->HCNTR_d = DEFAULT_HANGT;
++    }
++  else if (ec->HCNTR_d > (int)0)
++    {
++      ec->HCNTR_d--;
++    }
++
++  /* update coefficients if no near-end speech and we have enough signal
++   * to bother trying to update.
++  */
++  if (!ec->HCNTR_d && !(ec->i_d % DEFAULT_M) && 
++      (ec->Lu_i > MIN_UPDATE_THRESH_I)) {
++	    // loop over all filter coefficients
++	    //
++	    for (k=0; k<ec->N_d; k++) {
++	      
++	      // eq. (7): compute an expectation over M_d samples 
++	      //
++		  int grad2;
++	      grad2 = CONVOLVE2(ec->u_s.buf_d + ec->u_s.idx_d,
++		  					ec->y_s.buf_d + ec->y_s.idx_d + k, DEFAULT_M);
++	      // eq. (7): update the coefficient
++	      //
++	      ec->a_i[k] += grad2 / two_beta_i;
++		  ec->a_s[k] = ec->a_i[k] >> 16;
++	    }
++  }
++
++  /* paragraph below eq. (15): if no near-end speech,
++  // check for residual error suppression
++  */
++#ifndef NO_ECHO_SUPPRESSOR
++#ifdef AGGRESSIVE_SUPPRESSOR
++  if ((ec->HCNTR_d < AGGRESSIVE_HCNTR) && (ec->Ly_i > (ec->Lu_i << 1))) {
++ 	u = u * (ec->Lu_i >> DEFAULT_SIGMA_LU_I) / ((ec->Ly_i >> (DEFAULT_SIGMA_LY_I)) + 1);
++ 	u = u * (ec->Lu_i >> DEFAULT_SIGMA_LU_I) / ((ec->Ly_i >> (DEFAULT_SIGMA_LY_I)) + 1);
++  }
++#else	
++  if ((ec->HCNTR_d == 0) && ((ec->Ly_i/(ec->Lu_i + 1)) > DEFAULT_SUPPR_I)) {
++  	u = u * (ec->Lu_i >> DEFAULT_SIGMA_LU_I) / ((ec->Ly_i >> (DEFAULT_SIGMA_LY_I + 2)) + 1);
++  }
++#endif	
++#endif  
++
++#if 0
++  if ((ec->HCNTR_d == 0) && ((ec->Lu_d/ec->Ly_d) < DEFAULT_SUPPR) &&
++      (ec->Lu_d/ec->Ly_d > EC_MIN_DB_VALUE)) { 
++    suppr_factor = (10/(float)(SUPPR_FLOOR-SUPPR_CEIL))*log(ec->Lu_d/ec->Ly_d)
++      - SUPPR_CEIL/(float)(SUPPR_FLOOR - SUPPR_CEIL);
++
++    u_suppr = pow(10.0,(suppr_factor)*RES_SUPR_FACTOR/10.0)*u_suppr;
++    
++  }
++#endif  
++  ec->i_d++;
++  return u;
++}
++
++static inline echo_can_state_t *echo_can_create(int len, int adaption_mode)
++{
++	echo_can_state_t *ec;
++	int maxy;
++	int maxu;
++	maxy = len + DEFAULT_M;
++	maxu = DEFAULT_M;
++	if (maxy < (1 << DEFAULT_ALPHA_YT_I))
++		maxy = (1 << DEFAULT_ALPHA_YT_I);
++	if (maxy < (1 << DEFAULT_SIGMA_LY_I))
++		maxy = (1 << DEFAULT_SIGMA_LY_I);
++	if (maxu < (1 << DEFAULT_SIGMA_LU_I))
++		maxu = (1 << DEFAULT_SIGMA_LU_I);
++	ec = (echo_can_state_t *)MALLOC(sizeof(echo_can_state_t) +
++									4 + 						/* align */
++									sizeof(int) * len +			/* a_i */
++									sizeof(short) * len + 		/* a_s */
++									2 * sizeof(short) * (maxy) +	/* y_s */
++									2 * sizeof(short) * (1 << DEFAULT_ALPHA_ST_I) + /* s_s */
++									2 * sizeof(short) * (maxu) +		/* u_s */
++									2 * sizeof(short) * len);			/* y_tilde_s */
++	if (ec) {
++		memset(ec, 0, sizeof(echo_can_state_t) +
++									4 + 						/* align */
++									sizeof(int) * len +			/* a_i */
++									sizeof(short) * len + 		/* a_s */
++									2 * sizeof(short) * (maxy) +	/* y_s */
++									2 * sizeof(short) * (1 << DEFAULT_ALPHA_ST_I) + /* s_s */
++									2 * sizeof(short) * (maxu) +		/* u_s */
++									2 * sizeof(short) * len);			/* y_tilde_s */
++	  init_cc(ec, len, maxy, maxu);
++	}
++	return ec;
++}
++
++static inline int echo_can_traintap(echo_can_state_t *ec, int pos, short val)
++{
++	/* Reset hang counter to avoid adjustments after
++	   initial forced training */
++	ec->HCNTR_d = ec->N_d << 1;
++	if (pos >= ec->N_d)
++		return 1;
++	ec->a_i[pos] = val << 17;
++	ec->a_s[pos] = val << 1;
++	if (++pos >= ec->N_d)
++		return 1;
++	return 0;
++}
++
++#endif
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/mec3.h mISDN/drivers/isdn/hardware/mISDN/mec3.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/mec3.h	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/mec3.h	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,243 @@
++/*
++ * Mark's Third Echo Canceller
++ *
++ * Copyright (C) 2003, Digium, Inc.
++ *
++ * This program is free software and may be used
++ * and distributed under the terms of the GNU General Public 
++ * License, incorporated herein by reference.  
++ *
++ * Dedicated to the crew of the Columbia, STS-107 for their
++ * bravery and courageous sacrifice for science.
++ *
++ */
++
++#ifndef _MARK3_ECHO_H
++#define _MARK3_ECHO_H
++
++
++
++#ifdef __KERNEL__
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#define MALLOC(a) kmalloc((a), GFP_KERNEL)
++#define FREE(a) kfree(a)
++#else
++#include <stdlib.h>
++#include <unistd.h>
++#include <stdint.h>
++#include <string.h>
++#include <math.h>
++#define MALLOC(a) malloc(a)
++#define FREE(a) free(a)
++#endif
++
++/* Features */
++
++/*
++ * DO_BACKUP -- Backup coefficients, and revert in the presense of double talk to try to prevent
++ * them from diverging during the ramp-up before the DTD kicks in
++ */
++/* #define DO_BACKUP */
++
++#define STEP_SHIFT			2		/* Convergence rate higher = slower / better (as a shift) */
++
++#define SIGMA_REF_PWR		655		/* Keep denominator from being 0 */
++
++#define MIN_TX_ENERGY		256		/* Must have at least this much reference */
++#define MIN_RX_ENERGY		 32		/* Must have at least this much receive energy */
++
++#define MAX_ATTENUATION_SHIFT	6		/* Maximum amount of loss we care about */
++#define MAX_BETA			1024
++
++#define SUPPR_SHIFT			  4				/* Amount of loss at which we suppress audio */
++
++#define HANG_TIME			600		/* Hangover time */
++
++#define NTAPS			       2048			/* Maximum number of echo can taps */
++
++#define BACKUP				256			/* Backup every this number of samples */
++
++#define POWER_OFFSET		5			/* Shift power by this amount to be sure we don't overflow the
++										   reference power.  Higher = less likely to overflow, lower = more accurage */
++
++#include "arith.h"
++
++typedef struct {
++	short buf[NTAPS * 2];
++	short max;
++	int maxexp;
++} cbuf_s;
++
++typedef struct {
++	short	a_s[NTAPS];				/* Coefficients in shorts */
++	int  	a_i[NTAPS];				/* Coefficients in ints*/
++#ifdef DO_BACKUP
++	int  	b_i[NTAPS];				/* Coefficients (backup1) */
++	int  	c_i[NTAPS];				/* Coefficients (backup2) */
++#endif	
++	cbuf_s 	ref;					/* Reference excitation */
++	cbuf_s 	sig;					/* Signal (echo + near end + noise) */
++	cbuf_s	e;						/* Error */
++	int		refpwr;					/* Reference power */
++	int		taps;					/* Number of taps */
++	int		tappwr;					/* Power of taps */
++	int		hcntr;					/* Hangtime counter */
++	int pos;						/* Position in curcular buffers */
++	int backup;						/* Backup timer */
++} echo_can_state_t;
++
++static inline void echo_can_free(echo_can_state_t *ec)
++{
++	FREE(ec);
++}
++
++static inline void buf_add(cbuf_s *b, short sample, int pos, int taps)
++{
++	/* Store and keep track of maxima */
++	int x;
++	b->buf[pos] = sample;
++	b->buf[pos + taps] = sample;
++	if (sample > b->max) {
++		b->max = sample;
++		b->maxexp = taps;
++	} else {
++		b->maxexp--;
++		if (!b->maxexp) {
++			b->max = 0;
++			for (x=0;x<taps;x++)
++				if (b->max < abs(b->buf[pos + x])) {
++					b->max = abs(b->buf[pos + x]);
++					b->maxexp = x + 1;
++				}
++		}
++	}
++}
++
++static inline short echo_can_update(echo_can_state_t *ec, short ref, short sig)
++{
++	int x;
++	short u;
++	int refpwr;
++	int beta;			/* Factor */
++	int se;			/* Simulated echo */
++#ifdef DO_BACKUP
++	if (!ec->backup) {
++		/* Backup coefficients periodically */
++		ec->backup = BACKUP;
++		memcpy(ec->c_i,ec->b_i,sizeof(ec->c_i));
++		memcpy(ec->b_i,ec->a_i,sizeof(ec->b_i));
++	} else
++		ec->backup--;
++#endif		
++	/* Remove old samples from reference power calculation */
++	ec->refpwr -= ((ec->ref.buf[ec->pos] * ec->ref.buf[ec->pos]) >> POWER_OFFSET);
++
++	/* Store signal and reference */
++	buf_add(&ec->ref, ref, ec->pos, ec->taps);
++	buf_add(&ec->sig, sig, ec->pos, ec->taps);
++
++	/* Add new reference power */	
++	ec->refpwr += ((ec->ref.buf[ec->pos] * ec->ref.buf[ec->pos]) >> POWER_OFFSET);
++
++
++	/* Calculate simulated echo */
++	se = CONVOLVE2(ec->a_s, ec->ref.buf + ec->pos, ec->taps);		
++	se >>= 15;
++	
++	u = sig - se;
++	if (ec->hcntr)
++		ec->hcntr--;
++
++	/* Store error */
++	buf_add(&ec->e, sig, ec->pos, ec->taps);
++	if ((ec->ref.max > MIN_TX_ENERGY) && 
++	    (ec->sig.max > MIN_RX_ENERGY) &&
++		(ec->e.max > (ec->ref.max >> MAX_ATTENUATION_SHIFT))) {
++		/* We have sufficient energy */
++		if (ec->sig.max < (ec->ref.max >> 1))  {
++			/* No double talk */
++			if (!ec->hcntr) {
++				refpwr = ec->refpwr >> (16 - POWER_OFFSET);
++				if (refpwr < SIGMA_REF_PWR)
++					refpwr = SIGMA_REF_PWR;
++				beta = (u << 16) / refpwr;
++				beta >>= STEP_SHIFT;
++				if (beta > MAX_BETA)	
++					beta = 0;
++				if (beta < -MAX_BETA)
++					beta = 0;
++				/* Update coefficients */
++				for (x=0;x<ec->taps;x++) {
++					ec->a_i[x] += beta * ec->ref.buf[ec->pos + x];
++					ec->a_s[x] = ec->a_i[x] >> 16;
++				}
++			}
++		} else {
++#ifdef DO_BACKUP
++			if (!ec->hcntr) {
++				/* Our double talk detector is turning on for the first time.  Revert
++				   our coefficients, since we're probably well into the double talk by now */
++				memcpy(ec->a_i, ec->c_i, sizeof(ec->a_i));
++				for (x=0;x<ec->taps;x++) {
++					ec->a_s[x] = ec->a_i[x] >> 16;
++				}
++			}
++#endif			
++			/* Reset hang-time counter, and prevent backups */
++			ec->hcntr = HANG_TIME;
++#ifdef DO_BACKUP
++			ec->backup = BACKUP;
++#endif			
++		}
++	}
++#ifndef NO_ECHO__SUPPRESSOR	
++	if (ec->e.max < (ec->ref.max >> SUPPR_SHIFT)) {
++		/* Suppress residual echo */
++		u *= u;
++		u >>= 16;
++	} 
++#endif	
++	ec->pos--;
++	if (ec->pos < 0)
++		ec->pos = ec->taps-1;
++	return u;
++}
++
++static inline echo_can_state_t *echo_can_create(int taps, int adaption_mode)
++{
++	echo_can_state_t *ec;
++	int x;
++
++	//taps = NTAPS;
++	ec = MALLOC(sizeof(echo_can_state_t));
++	if (ec) {
++		memset(ec, 0, sizeof(echo_can_state_t));
++		ec->taps = taps;
++		ec->pos = ec->taps-1;
++		for (x=0;x<31;x++) {
++			if ((1 << x) >= ec->taps) {
++				ec->tappwr = x;
++				break;
++			}
++		}
++	}
++	return ec;
++}
++
++static inline int echo_can_traintap(echo_can_state_t *ec, int pos, short val)
++{
++	/* Reset hang counter to avoid adjustments after
++	   initial forced training */
++	ec->hcntr = ec->taps << 1;
++	if (pos >= ec->taps)
++		return 1;
++	ec->a_i[pos] = val << 17;
++	ec->a_s[pos] = val << 1;
++	if (++pos >= ec->taps)
++		return 1;
++	return 0;
++}
++
++
++#endif
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/mec.h mISDN/drivers/isdn/hardware/mISDN/mec.h
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/mec.h	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/drivers/isdn/hardware/mISDN/mec.h	2005-12-02 09:57:08.000000000 +0100
+@@ -0,0 +1,308 @@
++/*
++ * Mark's Echo Canceller
++ *
++ * Mark Spencer <markster@linux-support.net>
++ *
++ * Simple, LMS Echo Canceller with double talk detection.  
++ * Partly based on the TI App note:
++ *     "Digital Voice Echo Canceller with a TMS 32020"
++ *
++ * Special additional thanks to:
++ * 		Jim Dixon 	  (Lambda Telecommunications)
++ *		Iman Ghobrial (Adtran, Inc.)
++ *
++ * Copyright (C) 2001, Linux Support Services, Inc.
++ *
++ * This program is free software and may be used and
++ * distributed according to the terms of the GNU
++ * General Public License, incorporated herein by
++ * reference.
++ *
++ */
++
++#ifndef _MEC_H
++#define _MEC_H 
++
++/* You have to express the size of the echo canceller in taps as
++   a power of 2 (6 = 64 taps, 7 = 128 taps, 8 = 256 taps) */
++#define	NUM_TAPS_POW2	6	/* Size of echo canceller in power of 2 (taps) */
++#define NUM_TAPS (1 << NUM_TAPS_POW2) /* Actual number of taps */
++#define TAP_MASK (NUM_TAPS-1)
++
++
++#define SIGMA_LU_POW NUM_TAPS_POW2
++#define SIGMA_LY_POW NUM_TAPS_POW2
++#define SIGMA_YT_POW (NUM_TAPS_POW2 - 1)
++#define SIGMA_ST_POW (NUM_TAPS_POW2 - 1)
++
++#define BETA_POW	  8
++
++#define CUTOFF_S 4
++
++/* The higher you make this, the better the quality, but the more CPU time required */
++#define MIN_QUALITY 100
++
++/* This optimization saves a lot of processor but may degrade quality */
++#define OPTIMIZEDIV
++
++#if 0
++/* This converges much more slowly but saves processor */
++#define MIN_UPDATE 256
++#define MIN_SKIP   8
++#endif
++
++#define HANG_T	600					/* 600 samples, or 75ms */
++
++typedef struct mark_ec {
++	/* Circular position */
++	int cpos;
++	short y[NUM_TAPS];		/* Last N samples (relative to cpos) transmitted */
++	short y_abs[NUM_TAPS];		/* Last N samples (relative to cpos) transmitted (abs value) */
++	short s[NUM_TAPS];		/* Last N samples (relative to cpos) received */
++	short s_abs[NUM_TAPS];		/* Last N samples (relative to cpos) received (abs value) */
++	short u[NUM_TAPS];		/* Last N samples (relative to cpos) with echo removed */
++	short u_abs[NUM_TAPS];		/* Last N samples (relative to cpos) with echo removed */
++	
++	int Ly;				/* tx power */
++	int Lu;				/* Power of echo-cancelled output */
++
++	int Ty[NUM_TAPS];		/* Short term power estimate of transmit */
++	int Ts;				/* Short term power estimate of received signal */
++
++	int a[NUM_TAPS];		/* Tap weight coefficients (not relative) */
++	
++	short sdc[NUM_TAPS];		/* Near end signal before High Pass Filter */
++
++	int samples;			/* Sample count */
++	int pass;				/* Number of passes we've made */
++
++	int hangt;
++
++	int lastmax;			/* Optimize maximum search */
++	int maxTy;			/* Maximum Ty */
++} echo_can_state_t;
++
++#define INLINE inline
++
++#ifdef __KERNEL__
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#define MALLOC(a) kmalloc((a), GFP_KERNEL)
++#define FREE(a) kfree((a))
++#else
++#include <stdlib.h>
++#include <unistd.h>
++#include <stdint.h>
++#include <string.h>
++#define MALLOC(a) malloc(a)
++#define FREE(a) free(a)
++#endif
++
++static INLINE echo_can_state_t *echo_can_create(int len, int adaption_mode)
++{
++	echo_can_state_t *ec;
++	/* Uhm, we're only one length, sorry.  */
++	ec = MALLOC(sizeof(echo_can_state_t));
++	if (ec)
++		memset(ec, 0, sizeof(*ec));
++	return ec;
++}
++
++#define PASSPOS 32000
++#undef PASSPOS
++
++static INLINE void echo_can_free(echo_can_state_t *ec)
++{
++	FREE(ec);
++}
++
++static INLINE int16_t echo_can_update(echo_can_state_t *ec, int16_t tx, int16_t rx)
++{
++	/* Process a sample, where tx is the near end and rx is the far end + echo */
++
++	int suppr;
++	int nsuppr;
++	short rxabs, txabs;
++	register int Lu;
++	register int x;
++	register int pos;
++	register int r_hat;		/* Estimated echo */
++	int oldrxabs;
++	int oldtxabs;
++	int oldsupprabs;
++	int supprabs;
++#ifdef MIN_UPDATE
++	int totalupd;
++#endif
++
++	txabs = abs(tx);
++	rxabs = abs(rx);
++
++	ec->pass++;
++
++	r_hat = 0;
++
++	/* Load next value */
++	ec->y[ec->cpos] = tx;
++
++	/* Load next abs value */
++	oldtxabs = ec->y_abs[ec->cpos];
++	ec->y_abs[ec->cpos] = txabs;
++
++	/* Bring in receive value (near-end signal) */
++	ec->sdc[ec->cpos] = rx;
++	
++	/* Bring in receive value absolute value */
++	oldrxabs = ec->s_abs[ec->cpos];
++	ec->s_abs[ec->cpos] = rxabs;
++
++	Lu = ec->Lu | 1;
++
++#if 0
++	/* Apply first order high pass filter (3 dB @ 160 Hz) */
++	tx = ec->s[ec->cpos] = (1.0-DEFGAMMA) * ec->s[(ec->cpos - 1) & TAP_MASK] +
++							0.5 * (1.0-DEFGAMMA) * ( ec->sdc[(ec->cpos - 1) & TAP_MASK] - ec->sdc[(ec->cpos - 2) & TAP_MASK]);
++#endif
++
++	/* Estimate echo */
++	pos = ec->cpos;
++	for (x=0;x<NUM_TAPS;x++) {
++		r_hat += ec->a[x] * ec->y[pos];
++		/* Go backwards in time and loop around circular buffer */
++		pos = (pos - 1) & TAP_MASK;
++	}
++	
++	r_hat >>= 16;
++	
++	if (ec->hangt > 0)
++		ec->hangt--;
++
++	/* printf("rx: %F, rhat: %F\n", rx, r_hat); */
++	/* Calculate suppressed amount */
++	suppr = rx - r_hat;
++
++	if (ec->pass > NUM_TAPS) {
++		/* Have to have enough taps to start with */
++		if (ec->maxTy > ec->Ts) {
++			/* There is no near-end speech detected */
++			if (!ec->hangt) {
++				/* We're not in the hang-time from the end of near-end speech */
++				if ((ec->Ly > 1024) && ((ec->Ly / Lu) < MIN_QUALITY)) {
++#ifdef OPTIMIZEDIV
++					/* We both have enough signal on the transmit   */
++					nsuppr = (suppr << 18) / ec->Ly;
++				
++					if (nsuppr > 32767)
++						nsuppr = 32767;
++					if (nsuppr < -32768)
++						nsuppr =  -32768;
++			
++					nsuppr /= ec->Ly;
++#else					
++					/* We both have enough signal on the transmit   */
++					nsuppr = (suppr << 16) / ec->Ly;
++				
++					if (nsuppr > 32767)
++						nsuppr = 32767;
++					if (nsuppr < -32768)
++						nsuppr =  -32768;
++			
++#endif					
++			
++					/* Update coefficients */
++					pos = ec->cpos;
++#ifdef MIN_UPDATE
++					totalupd =0;
++#endif					
++					for (x=0;x<NUM_TAPS;x++) {
++						register int adj;
++						adj = ec->y[pos] * nsuppr;
++#ifndef OPTIMIZEDIV
++						adj /= ec->Ly;
++						adj >>= BETA_POW;
++#else						
++						adj >>= BETA_POW + 2;
++#endif						
++#ifdef PASSPOS
++						if (ec->pass > PASSPOS)
++							printf("tx: %d, old %d: %d, adj %d, nsuppr: %d, power: %d\n", tx, x, ec->a[x], adj, nsuppr, ec->Ly);
++#endif							
++						ec->a[x] += adj;
++#ifdef MIN_UPDATE
++						totalupd += abs(adj);
++#endif						
++						/* Go backwards in time and loop around circular buffer */
++						pos = (pos - 1) & TAP_MASK;
++					}
++#ifdef MIN_UPDATE
++					/* If we didn't update at least this much, delay for many more taps */
++					if (totalupd < MIN_UPDATE) {
++						ec->hangt += MIN_SKIP;
++					}
++#endif						
++				} 
++					
++			}
++		} else
++			/* Near end speech detected */
++			ec->hangt = HANG_T;
++	} 
++
++	/* Save supression and absolute values */
++	supprabs = abs(suppr);
++	oldsupprabs = ec->u_abs[ec->cpos];
++	ec->u[ec->cpos] = suppr;
++	ec->u_abs[ec->cpos] = supprabs;
++
++	/* Update tx power */
++	ec->Ly += (txabs >> SIGMA_LY_POW) - (oldtxabs >> SIGMA_LY_POW);
++
++	/* Update rx power */
++	ec->Lu += (supprabs  >> SIGMA_LU_POW) - (oldsupprabs >> SIGMA_LU_POW);
++
++	/* Short term power of tx */
++	ec->Ty[ec->cpos] = ec->Ty[(ec->cpos - 1) & TAP_MASK] + 
++		((txabs >> SIGMA_YT_POW ) - (oldtxabs >> SIGMA_YT_POW));
++	
++	/* Keep track of highest */
++	if (ec->lastmax == ec->cpos) {
++		register int maxTy = 0;
++		/* Have to loop through and find the new highest since our old highest expired */
++		/* Estimate echo */
++		pos = ec->cpos;
++		for (x=0;x<NUM_TAPS;x++) {
++			if (ec->Ty[pos] > maxTy)
++				maxTy = ec->Ty[pos];
++			/* Go backwards in time and loop around circular buffer */
++			pos = (pos - 1) & TAP_MASK;
++		}
++		ec->maxTy = maxTy;
++	} else {
++		/* Just keep the highest */
++		if (ec->Ty[ec->cpos] > ec->maxTy) {
++			ec->maxTy = ec->Ty[ec->cpos];
++			ec->lastmax = ec->cpos;
++		}
++	}
++	ec->Ts += (rxabs >> SIGMA_ST_POW) - (oldrxabs >> SIGMA_ST_POW) ;
++
++	/* Increment position memory */
++	ec->cpos = (ec->cpos + 1 ) & TAP_MASK;
++	
++	return suppr;
++}
++
++static inline int echo_can_traintap(echo_can_state_t *ec, int pos, short val)
++{
++	/* Reset hang counter to avoid adjustments after
++	   initial forced training */
++	ec->hangt = NUM_TAPS << 1;
++	if (pos >= NUM_TAPS)
++		return 1;
++	ec->a[pos] = val << 17;
++	if (++pos >= NUM_TAPS)
++		return 1;
++	return 0;
++}
++
++#endif
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/sedl_fax.c mISDN/drivers/isdn/hardware/mISDN/sedl_fax.c
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/sedl_fax.c	2004-08-27 21:27:40.000000000 +0200
++++ mISDN/drivers/isdn/hardware/mISDN/sedl_fax.c	2005-12-02 09:57:08.000000000 +0100
+@@ -811,8 +811,8 @@
+ 		return(err);
+ 	}
+ 
+-	printk(KERN_INFO "mISDN: sedlpci found adapter %s at %s\n",
+-	       (char *) ent->driver_data, pdev->slot_name);
++/*	printk(KERN_INFO "mISDN: sedlpci found adapter %s at %s\n",
++	       (char *) ent->driver_data, pdev->slot_name); */
+ 
+ 	card->cfg = pci_resource_start(pdev, 0);
+ 	card->irq = pdev->irq;
+diff -u -r -P /tmp/mISDN/drivers/isdn/hardware/mISDN/w6692.c mISDN/drivers/isdn/hardware/mISDN/w6692.c
+--- /tmp/mISDN/drivers/isdn/hardware/mISDN/w6692.c	2004-08-27 21:27:40.000000000 +0200
++++ mISDN/drivers/isdn/hardware/mISDN/w6692.c	2005-12-02 09:57:08.000000000 +0100
+@@ -1502,8 +1502,8 @@
+ 		return(err);
+ 	}
+ 
+-	printk(KERN_INFO "mISDN_w6692: found adapter %s at %s\n",
+-	       (char *) ent->driver_data, pdev->slot_name);
++/*	printk(KERN_INFO "mISDN_w6692: found adapter %s at %s\n",
++	       (char *) ent->driver_data, pdev->slot_name); */
+ 
+ 	card->addr = pci_resource_start(pdev, 1);
+ 	card->irq = pdev->irq;
+diff -u -r -P /tmp/mISDN/include/linux/mISDNif.h mISDN/include/linux/mISDNif.h
+--- /tmp/mISDN/include/linux/mISDNif.h	2005-02-05 11:18:17.000000000 +0100
++++ mISDN/include/linux/mISDNif.h	2005-12-02 09:57:08.000000000 +0100
+@@ -173,6 +173,8 @@
+ #define BF_DISABLE	0x2315
+ #define BF_ACCEPT	0x2316
+ #define BF_REJECT	0x2317
++#define ECHOCAN_ON	0x2318
++#define ECHOCAN_OFF	0x2319
+ #define HW_POTS_ON		0x1001
+ #define HW_POTS_OFF		0x1002
+ #define HW_POTS_SETMICVOL	0x1100
+diff -u -r -P /tmp/mISDN/Makefile mISDN/Makefile
+--- /tmp/mISDN/Makefile	1970-01-01 01:00:00.000000000 +0100
++++ mISDN/Makefile	2005-12-05 19:08:57.000000000 +0100
+@@ -0,0 +1,54 @@
++BASEDIR=$(shell pwd)
++
++
++INSTALL_PREFIX := /
++export INSTALL_PREFIX
++
++#PATH to linux source/headers
++#LINUX=/usr/src/linux
++LINUX=/lib/modules/$(shell uname -r)/build
++
++MISDNDIR=$(BASEDIR)
++MISDN_SRC=$(MISDNDIR)/drivers/isdn/hardware/mISDN
++
++########################################
++# USER CONFIGS END
++########################################
++
++CONFIGS+=CONFIG_MISDN_DRV=m CONFIG_MISDN_DSP=m 
++CONFIGS+=CONFIG_MISDN_HFCMULTI=m 
++CONFIGS+=CONFIG_MISDN_HFCPCI=m
++CONFIGS+=CONFIG_MISDN_HFCUSB=m
++#CONFIGS+=CONFIG_MISDN_AVM_FRITZ=m
++
++
++MINCLUDES+=-I$(MISDNDIR)/include
++
++all: 
++	@echo
++	@echo "Makeing mISDN"
++	@echo "============="
++	@echo
++	cp $(MISDNDIR)/drivers/isdn/hardware/mISDN/Makefile.v2.6 $(MISDNDIR)/drivers/isdn/hardware/mISDN/Makefile
++
++	cd $(LINUX) ; make SUBDIRS=$(MISDN_SRC) modules $(CONFIGS) LINUXINCLUDE="$(MINCLUDES) -I$(LINUX)/include"
++
++
++
++install: all
++	cd $(LINUX) ; make SUBDIRS=$(MISDN_SRC) modules_install 
++	cp $(MISDNDIR)/include/linux/*.h $(INSTALL_PREFIX)/usr/include/linux/
++	depmod
++
++.PHONY: install all clean 
++
++clean:
++	rm -rf drivers/isdn/hardware/mISDN/*.o
++	rm -rf drivers/isdn/hardware/mISDN/*.ko
++	rm -rf *~
++	find . -iname ".*.cmd" -exec rm -rf {} \;
++	find . -iname ".*.d" -exec rm -rf {} \;
++	find . -iname "*.mod.c" -exec rm -rf {} \;
++	find . -iname "*.mod" -exec rm -rf {} \;
++
++

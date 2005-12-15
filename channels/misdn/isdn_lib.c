@@ -91,8 +91,8 @@ enum global_states {
 static enum global_states  global_state=MISDN_INITIALIZING;
 
 
-#include <../i4lnet/net_l2.h>
-#include <tone.h>
+#include <mISDNuser/net_l2.h>
+#include <mISDNuser/tone.h>
 #include <unistd.h>
 #include <semaphore.h>
 #include <pthread.h>
@@ -341,6 +341,10 @@ int misdn_cap_is_speech(int cap)
 
 int misdn_inband_avail(struct misdn_bchannel *bc)
 {
+
+	/*if ! early_bconnect we have never inband available*/
+	if ( ! bc->early_bconnect ) return 0;
+	
 	switch (bc->progress_indicator) {
 	case INFO_PI_INBAND_AVAILABLE:
 	case INFO_PI_CALL_NOT_E2E_ISDN:
@@ -421,7 +425,7 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->curptx=0; bc->curprx=0;
 	
 	bc->crypt_key[0] = 0;
-  
+	
 	bc->tone=TONE_NONE;
 	bc->tone_cnt2 = bc->tone_cnt=0;
   
@@ -429,12 +433,15 @@ void empty_bc(struct misdn_bchannel *bc)
 	bc->onumplan=NUMPLAN_UNKNOWN;
 	bc->rnumplan=NUMPLAN_UNKNOWN;
 	
+
 	bc->active = 0;
-  
+
+	bc->early_bconnect = 1;
+	
 	bc->ec_enable = 0;
 	bc->ec_deftaps = 128;
 	bc->ec_whenbridged = 0;
-	bc->ec_training = 400;
+	bc->ec_training = 1;
 	
 	
 	bc->orig=0;
@@ -3240,7 +3247,7 @@ void manager_ec_enable(struct misdn_bchannel *bc)
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
-	cb_log(1, stack?stack->port:0,"Sending Control ECHOCAN_ON enblock\n");
+	cb_log(1, stack?stack->port:0,"Sending Control ECHOCAN_ON taps:%d training:%d\n",bc->ec_deftaps, bc->ec_training);
 	
 	switch (bc->ec_deftaps) {
 	case 4:
@@ -3264,6 +3271,7 @@ void manager_ec_enable(struct misdn_bchannel *bc)
 	
 	manager_ph_control_block(bc,  ECHOCAN_ON,  ec_arr, sizeof(ec_arr));
 }
+
 
 
 void manager_ec_disable(struct misdn_bchannel *bc)

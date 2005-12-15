@@ -32,6 +32,7 @@ enum misdn_cfg_elements {
 	MISDN_CFG_CALLERID,            /* char[] */
 	MISDN_CFG_METHOD,              /* char[] */
 	MISDN_CFG_DIALPLAN,            /* int */
+	MISDN_CFG_LOCALDIALPLAN,       /* int */
 	MISDN_CFG_NATPREFIX,           /* char[] */
 	MISDN_CFG_INTERNATPREFIX,      /* char[] */
 	MISDN_CFG_PRES,                /* int (bool) */

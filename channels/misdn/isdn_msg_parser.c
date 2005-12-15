@@ -284,31 +284,30 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	{
 		int coding=0, capability, mode=0 /*  2 for packet ! */
 			,user, rate=0x10;
-		switch (bc->capability) {
-		case INFO_CAPABILITY_SPEECH: capability = 0;
-//			cb_log(2, bc->stack->port, " --> Speech\n");
-			break;
-		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED: capability = 8;
-//			cb_log(2, bc->stack->port, " --> cap unres Digital\n");
-			break;
-		case INFO_CAPABILITY_DIGITAL_RESTRICTED: capability = 9;
-//			cb_log(2, bc->stack->port, " --> cap res Digital\n");
-			break;
-		default:
-//			cb_log(2, bc->stack->port, " --> cap Speech\n");
-			capability=bc->capability; 
-		}
-		
+
 		switch (bc->law) {
 		case INFO_CODEC_ULAW: user=2;
-//			cb_log(2, bc->stack->port, " --> Codec Ulaw\n");
 			break;
 		case INFO_CODEC_ALAW: user=3;
-//			cb_log(2, bc->stack->port, " --> Codec Alaw\n");
 			break;
 		default:
 			user=3;
 		}
+		
+		switch (bc->capability) {
+		case INFO_CAPABILITY_SPEECH: capability = 0;
+			break;
+		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED: capability = 8;
+			user=-1;
+			break;
+		case INFO_CAPABILITY_DIGITAL_RESTRICTED: capability = 9;
+			user=-1;
+			break;
+		default:
+			capability=bc->capability; 
+		}
+		
+		
     
 		enc_ie_bearer(&setup->BEARER, msg, coding, capability, mode, rate, -1, user, nt,bc);
 	}

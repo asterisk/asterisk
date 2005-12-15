@@ -29,6 +29,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "chan_misdn_config.h"
 
@@ -59,7 +60,8 @@ struct port_config {
 	char *language;
 	char *callerid;
 	char *method;
-	int *dialplan; 
+	int *dialplan;
+	int *localdialplan; 
 	char *nationalprefix;
 	char *internationalprefix;
 	int *pres;
@@ -151,6 +153,7 @@ static void free_port_cfg (void) {
 			FREE_ELEM(callerid);
 			FREE_ELEM(method);
 			FREE_ELEM(dialplan);
+			FREE_ELEM(localdialplan);
 			FREE_ELEM(nationalprefix);
 			FREE_ELEM(internationalprefix);
 			FREE_ELEM(pres);
@@ -277,6 +280,8 @@ void misdn_cfg_get(int port, enum misdn_cfg_elements elem, void *buf, int bufsiz
 						break;
 		case MISDN_CFG_DIALPLAN:	GET_PORTCFG_MEMCPY(dialplan);
 						break;
+	case MISDN_CFG_LOCALDIALPLAN:	GET_PORTCFG_MEMCPY(localdialplan);
+		break;
 		case MISDN_CFG_NATPREFIX:	GET_PORTCFG_STRCPY(nationalprefix);
 						break;
 		case MISDN_CFG_INTERNATPREFIX:
@@ -534,6 +539,8 @@ void misdn_cfg_get_config_string(int port, enum misdn_cfg_elements elem, char* b
 									break;
 		case MISDN_CFG_DIALPLAN:	GET_CFG_INT(DIALPLAN, dialplan);
 									break;
+	case MISDN_CFG_LOCALDIALPLAN:	GET_CFG_INT(LOCALDIALPLAN, localdialplan);
+		break;
 		case MISDN_CFG_NATPREFIX:	GET_CFG_STRING(NATIONALPREFIX, nationalprefix);
 									break;
 		case MISDN_CFG_INTERNATPREFIX:
@@ -812,6 +819,7 @@ static void build_port_config(struct ast_variable *v, char *cat) {
 		}
 		PARSE_CFG_STR(context);
 		PARSE_CFG_INT(dialplan);
+		PARSE_CFG_INT(localdialplan);
 		PARSE_CFG_STR(nationalprefix);
 		PARSE_CFG_STR(internationalprefix);
 		PARSE_CFG_STR(language);
@@ -963,6 +971,8 @@ static void fill_defaults (void) {
 	}
 	if (!port_cfg[0]->dialplan)
 		port_cfg[0]->dialplan = (int *)calloc(1, sizeof(int));
+	if (!port_cfg[0]->localdialplan)
+		port_cfg[0]->localdialplan = (int *)calloc(1, sizeof(int));
 	if (!port_cfg[0]->nationalprefix) {
 		port_cfg[0]->nationalprefix = (char *)malloc(2 * sizeof(char));
 		sprintf(port_cfg[0]->nationalprefix, "0");

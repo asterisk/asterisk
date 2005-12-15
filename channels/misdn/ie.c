@@ -26,10 +26,10 @@
 
 #include "isdn_lib_intern.h"
 
-#include <mISDNlib.h>
-#include <isdn_net.h>
-#include <l3dss1.h>
-#include <net_l3.h>
+#include <mISDNuser/mISDNlib.h>
+#include <mISDNuser/isdn_net.h>
+#include <mISDNuser/l3dss1.h>
+#include <mISDNuser/net_l3.h>
 
 
 #define CENTREX_FAC     0x88
