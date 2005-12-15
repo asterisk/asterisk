@@ -16,9 +16,9 @@
  */
 
 /*! \file
- * \brief Cut application
+ * \brief CUT function
  *
- * \ingroup applications
+ * \ingroup functions
  */
 
 #include <stdio.h>
@@ -269,7 +269,7 @@ static char *acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char 
 		ast_log(LOG_ERROR, "Out of memory\n");
 		break;
 	case ERROR_USAGE:
-		ast_log(LOG_ERROR, "Usage: %s\n", cut_synopsis);
+		ast_log(LOG_ERROR, "Usage: CUT(<varname>,<char-delim>,<range-spec>)\n");
 		break;
 	case 0:
 		break;
