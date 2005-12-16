@@ -120,8 +120,9 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 		int blen = strlen(buffer);
 		if (element_count++) {
 			strncat(buffer + blen, ",", buflen - blen - 1);
+			blen++;
 		}
-		strncat(buffer + blen + 1, sortable_keys[count2].key, buflen - blen - 2);
+		strncat(buffer + blen, sortable_keys[count2].key, buflen - blen - 1);
 	}
 
 	return 0;
