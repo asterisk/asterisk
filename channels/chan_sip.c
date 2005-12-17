@@ -3993,7 +3993,6 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	copy_header(resp, req, "CSeq");
 	add_header(resp, "User-Agent", default_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
-	add_header(resp, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
 		/* For registration responses, we also need expiry and
 		   contact info */
