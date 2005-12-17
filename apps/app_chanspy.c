@@ -482,7 +482,7 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 					}
 				}
 				
-				if (igrp && (!spec || ((strlen(spec) < strlen(peer->name) &&
+				if (igrp && (!spec || ((strlen(spec) <= strlen(peer->name) &&
 							!strncasecmp(peer->name, spec, strlen(spec)))))) {
 					if (peer && (!bronly || ast_bridged_channel(peer)) &&
 					    !ast_check_hangup(peer) && !ast_test_flag(peer, AST_FLAG_SPYING)) {
