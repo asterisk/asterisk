@@ -1,6 +1,6 @@
 #!/bin/sh
 
-PARTS=`LANG=C svn info | grep URL | awk '{print $2;}' | sed -e s:^.*/svn/asterisk/:: | sed -e 's:/: :'`
+PARTS=`LANG=C svn info | grep URL | awk '{print $2;}' | sed -e s:^.*/svn/asterisk/:: | sed -e 's:/: :g'`
 BRANCH=0
 TEAM=0
 
@@ -47,4 +47,4 @@ do
   fi
 done
 
-echo ${RESULT}-r${REV}
+echo ${RESULT##-}-r${REV}
