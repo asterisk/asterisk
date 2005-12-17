@@ -263,3 +263,11 @@ hangup:
 	i => Playback(invalid);
 };
 
+
+Syntax Note
+------------------------
+Please note that all opening {'s are on the same line as the keyword.  For
+the time being, that syntax is mandatory.  We are looking at ways to allow
+other syntax in the future for flexibility, but for now, that is the way
+you must write AEL clauses.
+
