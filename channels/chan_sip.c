@@ -202,6 +202,7 @@ enum sip_auth_type {
 	WWW_AUTH,
 };
 
+/*! XXX Note that sip_methods[i].id == i must hold or the code breaks */
 static const struct  cfsip_methods { 
 	enum sipmethod id;
 	int need_rtp;		/*!< when this is the 'primary' use for a pvt structure, does it need RTP? */
@@ -878,7 +879,6 @@ struct ast_config *notify_types;
 static struct sip_auth *authl;          /*!< Authentication list */
 
 
-static struct ast_frame  *sip_read(struct ast_channel *ast);
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
@@ -2734,7 +2734,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	tmp->tech = &sip_tech;
 	/* Select our native format based on codec preference until we receive
 	   something from another device to the contrary. */
-	ast_mutex_lock(&i->lock);
 	if (i->jointcapability)
 		tmp->nativeformats = ast_codec_choose(&i->prefs, i->jointcapability, 1);
 	else if (i->capability)
