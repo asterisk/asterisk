@@ -691,12 +691,15 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 
 int ast_cdr_setamaflags(struct ast_channel *chan, const char *flag)
 {
-	struct ast_cdr *cdr = chan->cdr;
+	struct ast_cdr *cdr;
 	int newflag;
 
 	newflag = ast_cdr_amaflags2int(flag);
-	if (newflag)
-		cdr->amaflags = newflag;
+	if (newflag) {
+		for (cdr = chan->cdr; cdr; cdr = cdr->next) {
+			cdr->amaflags = newflag;
+		}
+	}
 
 	return 0;
 }
