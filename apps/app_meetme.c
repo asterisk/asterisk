@@ -813,9 +813,9 @@ static int conf_free(struct ast_conference *conf)
 			ast_frfree(conf->transframe[x]);
 		if (conf->transpath[x])
 			ast_translator_free_path(conf->transpath[x]);
-		if (conf->origframe)
-			ast_frfree(conf->origframe);
 	}
+	if (conf->origframe)
+		ast_frfree(conf->origframe);
 	if (conf->chan)
 		ast_hangup(conf->chan);
 	else
