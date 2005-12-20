@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 #include "asterisk/causes.h"
+#include "asterisk/rtp.h"
 #include "asterisk/manager.h"
 #include "asterisk/privacy.h"
 
@@ -310,7 +311,7 @@ static void hanguptree(struct localuser *outgoing, struct ast_channel *exception
 } while (0)
 
 
-static int onedigit_goto(struct ast_channel *chan, char *context, char exten, int pri) 
+static int onedigit_goto(struct ast_channel *chan, const char *context, char exten, int pri) 
 {
 	char rexten[2] = { exten, '\0' };
 
@@ -380,7 +381,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 	int pos;
 	int single;
 	struct ast_channel *winner;
-	char *context = NULL;
+	const char *context = NULL;
 	char cidname[AST_MAX_EXTENSION];
 
 	single = (outgoing && !outgoing->next && !ast_test_flag(outgoing, OPT_MUSICBACK | OPT_RINGBACK));
@@ -475,6 +476,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 						ast_clear_flag(o, DIAL_STILLGOING);	
 						HANDLE_CAUSE(cause, in);
 					} else {
+						ast_rtp_make_compatible(o->chan, in);
 						if (o->chan->cid.cid_num)
 							free(o->chan->cid.cid_num);
 						o->chan->cid.cid_num = NULL;
@@ -744,16 +746,17 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	long timelimit = 0;
 	long play_warning = 0;
 	long warning_freq=0;
-	char *warning_sound=NULL;
-	char *end_sound=NULL;
-	char *start_sound=NULL;
+	const char *warning_sound=NULL;
+	const char *end_sound=NULL;
+	const char *start_sound=NULL;
 	char *dtmfcalled=NULL, *dtmfcalling=NULL;
-	char *var;
+	const char *var;
 	char status[256];
 	int play_to_caller=0,play_to_callee=0;
 	int sentringing=0, moh=0;
-	char *outbound_group = NULL;
-	char *macro_result = NULL, *macro_transfer_dest = NULL;
+	const char *outbound_group = NULL;
+	const char *macro_result = NULL;
+	char *macro_transfer_dest = NULL;
 	int digit = 0, result = 0;
 	time_t start_time, answer_time, end_time;
 	struct ast_app *app = NULL;
@@ -1052,6 +1055,9 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			}
 		}
 
+		/* Setup outgoing SDP to match incoming one */
+		ast_rtp_make_compatible(tmp->chan, chan);
+		
 		/* Inherit specially named variables from parent channel */
 		ast_channel_inherit_variables(chan, tmp->chan);
 
@@ -1190,7 +1196,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 		if (peer->name)
 			pbx_builtin_setvar_helper(chan, "DIALEDPEERNAME", peer->name);
 
-		number = pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
+		number = (char *)pbx_builtin_getvar_helper(peer, "DIALEDPEERNUMBER");
 		if (!number)
 			number = numsubst;
 		pbx_builtin_setvar_helper(chan, "DIALEDPEERNUMBER", number);
@@ -1602,7 +1608,8 @@ static int dial_exec(struct ast_channel *chan, void *data)
 
 static int retrydial_exec(struct ast_channel *chan, void *data)
 {
-	char *announce = NULL, *context = NULL, *dialdata = NULL;
+	char *announce = NULL, *dialdata = NULL;
+	const char *context = NULL;
 	int sleep = 0, loops = 0, res = 0;
 	struct localuser *u;
 	struct ast_flags peerflags;

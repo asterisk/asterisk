@@ -2095,7 +2095,6 @@ static int transmit_modify_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp 
 	add_header(&resp, "X", sub->txident);
 	add_header(&resp, "I", sub->cxident);
 	/*add_header(&resp, "S", "");*/
-	ast_rtp_offered_from_local(sub->rtp, 0);
 	add_sdp(&resp, sub, rtp);
 	/* SC: fill in new fields */
 	resp.cmd = MGCP_CMD_MDCX;
@@ -2129,7 +2128,6 @@ static int transmit_connect_with_sdp(struct mgcp_subchannel *sub, struct ast_rtp
 	/* SC: X header should not be sent. kept for compatibility */
 	add_header(&resp, "X", sub->txident);
 	/*add_header(&resp, "S", "");*/
-	ast_rtp_offered_from_local(sub->rtp, 1);
 	add_sdp(&resp, sub, rtp);
 	/* SC: fill in new fields */
 	resp.cmd = MGCP_CMD_CRCX;
@@ -3948,7 +3946,7 @@ static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, stru
 	/* XXX Is there such thing as video support with MGCP? XXX */
 	struct mgcp_subchannel *sub;
 	sub = chan->tech_pvt;
-	if (sub) {
+	if (sub && !sub->alreadygone) {
 		transmit_modify_with_sdp(sub, rtp, codecs);
 		return 0;
 	}

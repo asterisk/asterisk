@@ -1299,3 +1299,28 @@ int ast_frame_slinear_sum(struct ast_frame *f1, struct ast_frame *f2)
 
 	return 0;
 }
+
+struct ast_frame *ast_frame_enqueue(struct ast_frame *head, struct ast_frame *f, int maxlen, int dupe)
+{
+	struct ast_frame *cur, *oldhead;
+	int len=0;
+	if (f && dupe)
+		f = ast_frdup(f);
+	if (!f)
+		return head;
+
+	f->next = NULL;
+	if (!head) 
+		return f;
+	cur = head;
+	while(cur->next) {
+		cur = cur->next;
+		len++;
+		if (len >= maxlen) {
+			oldhead = head;
+			head = head->next;
+			ast_frfree(oldhead);
+		}
+	}
+	return head;
+}

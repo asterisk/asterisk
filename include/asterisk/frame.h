@@ -452,6 +452,10 @@ extern int ast_codec_get_samples(struct ast_frame *f);
 /*! \brief Returns the number of bytes for the number of samples of the given format */
 extern int ast_codec_get_len(int format, int samples);
 
+/*! \brief Appends a frame to the end of a list of frames, truncating the maximum length of the list */
+extern struct ast_frame *ast_frame_enqueue(struct ast_frame *head, struct ast_frame *f, int maxlen, int dupe);
+
+
 /*! \brief Gets duration in ms of interpolation frame for a format */
 static inline int ast_codec_interp_len(int format) 
 { 

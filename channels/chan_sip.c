@@ -4509,7 +4509,6 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 	}
 	respprep(&resp, p, msg, req);
 	if (p->rtp) {
-		ast_rtp_offered_from_local(p->rtp, 0);
 		add_sdp(&resp, p);
 	} else {
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
@@ -4583,7 +4582,6 @@ static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 	add_header(&req, "Allow", ALLOWED_METHODS);
 	if (sipdebug)
 		add_header(&req, "X-asterisk-info", "SIP re-invite (RTP bridge)");
-	ast_rtp_offered_from_local(p->rtp, 1);
 	add_sdp(&req, p);
 	/* Use this as the basis */
 	copy_request(&p->initreq, &req);
@@ -4924,7 +4922,6 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 		}
 	}
 	if (sdp && p->rtp) {
-		ast_rtp_offered_from_local(p->rtp, 1);
 		add_sdp(&req, p);
 	} else {
 		add_header_contentLength(&req, 0);
@@ -12691,6 +12688,11 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	if (!p) 
 		return -1;
 	ast_mutex_lock(&p->lock);
+	if (ast_test_flag(p, SIP_ALREADYGONE)) {
+		/* If we're destroyed, don't bother */
+		ast_mutex_unlock(&p->lock);
+		return 0;
+	}
 	if (rtp)
 		ast_rtp_get_peer(rtp, &p->redirip);
 	else

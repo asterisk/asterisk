@@ -124,7 +124,6 @@ struct ast_rtp {
 	int rtp_lookup_code_cache_isAstFormat;
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
-	int rtp_offered_from_local;
 	struct ast_rtcp *rtcp;
 };
 
@@ -724,10 +723,98 @@ void ast_rtp_pt_default(struct ast_rtp* rtp)
 	rtp->rtp_lookup_code_cache_result = 0;
 }
 
+static void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src)
+{
+	int i;
+	/* Copy payload types from source to destination */
+	for (i=0; i < MAX_RTP_PT; ++i) {
+		dest->current_RTP_PT[i].isAstFormat = 
+			src->current_RTP_PT[i].isAstFormat;
+		dest->current_RTP_PT[i].code = 
+			src->current_RTP_PT[i].code; 
+	}
+	dest->rtp_lookup_code_cache_isAstFormat = 0;
+	dest->rtp_lookup_code_cache_code = 0;
+	dest->rtp_lookup_code_cache_result = 0;
+}
+
+/*--- get_proto: Get channel driver interface structure */
+static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
+{
+	struct ast_rtp_protocol *cur;
+
+	cur = protos;
+	while(cur) {
+		if (cur->type == chan->type) {
+			return cur;
+		}
+		cur = cur->next;
+	}
+	return NULL;
+}
+
+int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src)
+{
+	struct ast_rtp *destp, *srcp;		/* Audio RTP Channels */
+	struct ast_rtp *vdestp, *vsrcp;		/* Video RTP channels */
+	struct ast_rtp_protocol *destpr, *srcpr;
+	/* Lock channels */
+	ast_mutex_lock(&dest->lock);
+	while(ast_mutex_trylock(&src->lock)) {
+		ast_mutex_unlock(&dest->lock);
+		usleep(1);
+		ast_mutex_lock(&dest->lock);
+	}
+
+	/* Find channel driver interfaces */
+	destpr = get_proto(dest);
+	srcpr = get_proto(src);
+	if (!destpr) {
+		ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", dest->name);
+		ast_mutex_unlock(&dest->lock);
+		ast_mutex_unlock(&src->lock);
+		return 0;
+	}
+	if (!srcpr) {
+		ast_log(LOG_WARNING, "Channel '%s' has no RTP, not doing anything\n", src->name);
+		ast_mutex_unlock(&dest->lock);
+		ast_mutex_unlock(&src->lock);
+		return 0;
+	}
+
+	/* Get audio and video interface (if native bridge is possible) */
+	destp = destpr->get_rtp_info(dest);
+	if (destpr->get_vrtp_info)
+		vdestp = destpr->get_vrtp_info(dest);
+	else
+		vdestp = NULL;
+	srcp = srcpr->get_rtp_info(src);
+	if (srcpr->get_vrtp_info)
+		vsrcp = srcpr->get_vrtp_info(src);
+	else
+		vsrcp = NULL;
+
+	/* Check if bridge is still possible (In SIP canreinvite=no stops this, like NAT) */
+	if (!destp || !srcp) {
+		/* Somebody doesn't want to play... */
+		ast_mutex_unlock(&dest->lock);
+		ast_mutex_unlock(&src->lock);
+		return 0;
+	}
+	ast_rtp_pt_copy(destp, srcp);
+	if (vdestp && vsrcp)
+		ast_rtp_pt_copy(vdestp, vsrcp);
+	ast_mutex_unlock(&dest->lock);
+	ast_mutex_unlock(&src->lock);
+	ast_log(LOG_DEBUG, "Seeded SDP of '%s' with that of '%s'\n", dest->name, src->name);
+	return 1;
+}
+
 /* Make a note of a RTP paymoad type that was seen in a SDP "m=" line. */
 /* By default, use the well-known value for this type (although it may */
 /* still be set to a different value by a subsequent "a=rtpmap:" line): */
-void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) {
+void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) 
+{
 	if (pt < 0 || pt > MAX_RTP_PT) 
 		return; /* bogus payload type */
 
@@ -739,7 +826,9 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) {
 /* Make a note of a RTP payload type (with MIME type) that was seen in */
 /* a SDP "a=rtpmap:" line. */
 void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
-			 char* mimeType, char* mimeSubtype) {
+			 char* mimeType, char* mimeSubtype) 
+			 
+{
 	int i;
 
 	if (pt < 0 || pt > MAX_RTP_PT) 
@@ -770,13 +859,6 @@ void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 	}
 }
 
-void ast_rtp_offered_from_local(struct ast_rtp* rtp, int local) {
-	if (rtp)
-		rtp->rtp_offered_from_local = local;
-	else
-		ast_log(LOG_WARNING, "rtp structure is null\n");
-}
-
 struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt) 
 {
 	struct rtpPayloadType result;
@@ -786,8 +868,7 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt)
 		return result; /* bogus payload type */
 
 	/* Start with the negotiated codecs */
-	if (!rtp->rtp_offered_from_local)
-		result = rtp->current_RTP_PT[pt];
+	result = rtp->current_RTP_PT[pt];
 
 	/* If it doesn't exist, check our static RTP type list, just in case */
 	if (!result.code) 
@@ -829,7 +910,8 @@ int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int co
 	return -1;
 }
 
-char* ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code) {
+char* ast_rtp_lookup_mime_subtype(const int isAstFormat, const int code) 
+{
 
 	int i;
 
@@ -1485,21 +1567,6 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 	return 0;
 }
 
-/*--- get_proto: Get channel driver interface structure */
-static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
-{
-	struct ast_rtp_protocol *cur;
-
-	cur = protos;
-	while(cur) {
-		if (cur->type == chan->type) {
-			return cur;
-		}
-		cur = cur->next;
-	}
-	return NULL;
-}
-
 /* ast_rtp_bridge: Bridge calls. If possible and allowed, initiate
 	re-invite so the peers exchange media directly outside 
 	of Asterisk. */
@@ -1698,11 +1765,11 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			*rc = who;
 			if (option_debug)
 				ast_log(LOG_DEBUG, "Oooh, got a %s\n", f ? "digit" : "hangup");
-			if ((c0->tech_pvt == pvt0) && (!c0->_softhangup)) {
+			if ((c0->tech_pvt == pvt0)) {
 				if (pr0->set_rtp_peer(c0, NULL, NULL, 0, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c0->name);
 			}
-			if ((c1->tech_pvt == pvt1) && (!c1->_softhangup)) {
+			if ((c1->tech_pvt == pvt1)) {
 				if (pr1->set_rtp_peer(c1, NULL, NULL, 0, 0)) 
 					ast_log(LOG_WARNING, "Channel '%s' failed to break RTP bridge\n", c1->name);
 			}
