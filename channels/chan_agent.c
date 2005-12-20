@@ -2413,6 +2413,90 @@ static int agent_devicestate(void *data)
 	return res;
 }
 
+struct agent_pvt *find_agent(char *agentid)
+{
+	struct agent_pvt *cur = agents;
+
+	for (; cur; cur = cur->next) {
+		if (!strcmp(cur->agent, agentid))
+			break;	
+	}
+
+	return cur;	
+}
+
+static char *function_agent(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *agentid;
+	char *item;
+	char *tmp;
+	struct agent_pvt *agent;
+
+	buf[0] = '\0';
+
+	if (ast_strlen_zero(data)) {
+		ast_log(LOG_WARNING, "The AGENT function requires an argument - agentid!\n");
+		return buf;	
+	}
+
+	item = ast_strdupa(data);
+	if (!item) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return buf;
+	}
+
+	agentid	= strsep(&item, ":");
+	if (!item)
+		item = "status";
+
+	agent = find_agent(agentid);
+	if (!agent) {
+		ast_log(LOG_WARNING, "Agent '%s' not found!\n", agentid);
+		return buf;
+	}
+
+	if (!strcasecmp(item, "status")) {
+		if (agent->chan || !ast_strlen_zero(agent->loginchan)) {
+			ast_copy_string(buf, "LOGGEDIN", len);
+		} else {
+			ast_copy_string(buf, "LOGGEDOUT", len);
+		}
+	} else if (!strcasecmp(item, "password")) {
+		ast_copy_string(buf, agent->password, len);
+	} else if (!strcasecmp(item, "name")) {
+		ast_copy_string(buf, agent->name, len);
+	} else if (!strcasecmp(item, "mohclass")) {
+		ast_copy_string(buf, agent->moh, len);
+	} else if (!strcasecmp(item, "channel")) {
+		if (agent->chan) {
+			ast_copy_string(buf, agent->chan->name, len);
+			tmp = strrchr(buf, '-');
+			if (tmp)
+				*tmp = '\0';
+		} 
+	} else if (!strcasecmp(item, "exten")) {
+		ast_copy_string(buf, agent->loginchan, len);	
+	}
+
+	return buf;
+}
+
+struct ast_custom_function agent_function = {
+	.name = "AGENT",
+	.synopsis = "Gets information about an Agent",
+	.syntax = "AGENT(<agentid>[:item])",
+	.read = function_agent,
+	.desc = "The valid items to retrieve are:\n"
+	"- status (default)      The status of the agent\n"
+	"                          LOGGEDIN | LOGGEDOUT\n"
+	"- password              The password of the agent\n"
+	"- name                  The name of the agent\n"
+	"- mohclass              MusicOnHold class\n"
+	"- exten                 The callback extension for the Agent (AgentCallbackLogin)\n"
+	"- channel               The name of the active channel for the Agent (AgentLogin)\n"
+};
+
+
 /**
  * Initialize the Agents module.
  * This funcion is being called by Asterisk when loading the module. Among other thing it registers applications, cli commands and reads the cofiguration file.
@@ -2434,9 +2518,11 @@ int load_module()
 	ast_manager_register2("Agents", EVENT_FLAG_AGENT, action_agents, "Lists agents and their status", mandescr_agents);
 	ast_manager_register2("AgentLogoff", EVENT_FLAG_AGENT, action_agent_logoff, "Sets an agent as no longer logged in", mandescr_agent_logoff);
 	ast_manager_register2("AgentCallbackLogin", EVENT_FLAG_AGENT, action_agent_callback_login, "Sets an agent as logged in by callback", mandescr_agent_callback_login);
-	/* CLI Application */
+	/* CLI Commands */
 	ast_cli_register(&cli_show_agents);
 	ast_cli_register(&cli_agent_logoff);
+	/* Dialplan Functions */
+	ast_custom_function_register(&agent_function);
 	/* Read in the config */
 	read_agent_config();
 	if (persistent_agents)
@@ -2456,7 +2542,9 @@ int unload_module()
 {
 	struct agent_pvt *p;
 	/* First, take us out of the channel loop */
-	/* Unregister CLI application */
+	/* Unregister dialplan functions */
+	ast_custom_function_unregister(&agent_function);	
+	/* Unregister CLI commands */
 	ast_cli_unregister(&cli_show_agents);
 	ast_cli_unregister(&cli_agent_logoff);
 	/* Unregister dialplan applications */
