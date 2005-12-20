@@ -20,7 +20,7 @@
 /*
  *
  * Radio Repeater / Remote Base program 
- *  version 0.37 11/3/05
+ *  version 0.39 12/19/05
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *
@@ -114,6 +114,9 @@
 
 #define	MAXREMSTR 15
 
+#define	DELIMCHR ','
+#define	QUOTECHR 34
+
 #define	NODES "nodes"
 #define MEMORY "memory"
 #define	FUNCTIONS "functions"
@@ -139,7 +142,8 @@ enum {REM_OFF,REM_MONITOR,REM_TX};
 
 enum{ID,PROC,TERM,COMPLETE,UNKEY,REMDISC,REMALREADY,REMNOTFOUND,REMGO,
 	CONNECTED,CONNFAIL,STATUS,TIMEOUT,ID1, STATS_TIME,
-	STATS_VERSION, IDTALKOVER, ARB_ALPHA, TEST_TONE, REV_PATCH};
+	STATS_VERSION, IDTALKOVER, ARB_ALPHA, TEST_TONE, REV_PATCH,
+	TAILMSG};
 
 enum {REM_SIMPLEX,REM_MINUS,REM_PLUS};
 
@@ -153,7 +157,8 @@ enum {DLY_TELEM, DLY_ID, DLY_UNKEY, DLY_CALLTERM};
 
 enum {REM_MODE_FM,REM_MODE_USB,REM_MODE_LSB,REM_MODE_AM};
 
-enum {HF_SCAN_OFF,HF_SCAN_DOWN_SLOW,HF_SCAN_DOWN_QUICK,HF_SCAN_DOWN_FAST,HF_SCAN_UP_SLOW,HF_SCAN_UP_QUICK,HF_SCAN_UP_FAST};
+enum {HF_SCAN_OFF,HF_SCAN_DOWN_SLOW,HF_SCAN_DOWN_QUICK,
+      HF_SCAN_DOWN_FAST,HF_SCAN_UP_SLOW,HF_SCAN_UP_QUICK,HF_SCAN_UP_FAST};
 
 #include "asterisk.h"
 
@@ -197,7 +202,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/say.h"
 #include "asterisk/localtime.h"
 
-static  char *tdesc = "Radio Repeater / Remote Base  version 0.37  11/03/2005";
+static  char *tdesc = "Radio Repeater / Remote Base  version 0.39  12/19/2005";
 
 static char *app = "Rpt";
 
@@ -341,6 +346,7 @@ static struct rpt
 	int totime;
 	int idtime;
 	int unkeytocttimer;
+	int duplex;
 	char keyed;
 	char exttx;
 	char localtx;
@@ -360,7 +366,7 @@ static struct rpt
 	struct rpt_tele tele;
 	pthread_t rpt_call_thread,rpt_thread;
 	time_t rem_dtmf_time,dtmf_time_rem;
-	int tailtimer,totimer,idtimer,txconf,conf,callmode,cidx,scantimer;
+	int tailtimer,totimer,idtimer,txconf,conf,callmode,cidx,scantimer,tmsgtimer;
 	int mustid;
 	int politeid;
 	int dtmfidx,rem_dtmfidx;
@@ -387,6 +393,11 @@ static struct rpt
 	int longestfunc;
 	int longestnode;
 	int threadrestarts;		
+	int tailmessagetime;
+	int tailsquashedtime;
+	char *tailmessages[500];
+	int tailmessagemax;
+	int tailmessagen;
 	time_t disgorgetime;
 	time_t lastthreadrestarttime;
 	char	nobusyout;
@@ -459,6 +470,44 @@ static struct function_table_tag function_table[] = {
 	{"remote", function_remote}
 } ;
 	
+static int finddelim(char *str,char *strp[])
+{
+int     i,inquo;
+
+        inquo = 0;
+        i = 0;
+        strp[i++] = str;
+        if (!*str)
+           {
+                strp[0] = 0;
+                return(0);
+           }
+        for(; *str; str++)
+           {
+                if (*str == QUOTECHR)
+                   {
+                        if (inquo)
+                           {
+                                *str = 0;
+                                inquo = 0;
+                           }
+                        else
+                           {
+                                strp[i - 1] = str + 1;
+                                inquo = 1;
+                           }
+		}
+                if ((*str == DELIMCHR) && (!inquo))
+                {
+                        *str = 0;
+                        strp[i++] = str + 1;
+                }
+           }
+        strp[i] = 0;
+        return(i);
+
+}
+
 static int myatoi(char *str)
 {
 int	ret;
@@ -1006,8 +1055,9 @@ struct tm localtm;
 	ci.chan = 0;
 	/* If there's an ID queued, only connect the ID audio to the local tx conference so 
 		linked systems can't hear it */
-	ci.confno = (((mytele->mode == ID) || (mytele->mode == IDTALKOVER) || (mytele->mode == UNKEY)) ?
-		 myrpt->txconf : myrpt->conf);
+	ci.confno = (((mytele->mode == ID) || (mytele->mode == IDTALKOVER) || (mytele->mode == UNKEY) || 
+		(mytele->mode == TAILMSG)) ?
+		 	myrpt->txconf : myrpt->conf);
 	ci.confmode = ZT_CONF_CONFANN;
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(mychannel->fds[0],ZT_SETCONF,&ci) == -1)
@@ -1023,15 +1073,18 @@ struct tm localtm;
 	ast_stopstream(mychannel);
 	switch(mytele->mode)
 	{
+
 	    case ID:
 	    case ID1:
 		/* wait a bit */
 		wait_interval(myrpt, (mytele->mode == ID) ? DLY_ID : DLY_TELEM,mychannel);
 		res = telem_any(mychannel, ident); 
-		imdone=1;
-	
+		imdone=1;	
 		break;
 		
+	    case TAILMSG:
+		res = ast_streamfile(mychannel, myrpt->tailmessages[myrpt->tailmessagen], mychannel->language); 
+		break;
 		
 	    case IDTALKOVER:
 	    	p = ast_variable_retrieve(cfg, nodename, "idtalkover");
@@ -1482,6 +1535,18 @@ struct tm localtm;
 	}
 	ast_stopstream(mychannel);
 	ast_mutex_lock(&myrpt->lock);
+	if (mytele->mode == TAILMSG)
+	{
+		if (!res)
+		{
+			myrpt->tailmessagen++;
+			if(myrpt->tailmessagen >= myrpt->tailmessagemax) myrpt->tailmessagen = 0;
+		}
+		else
+		{
+			myrpt->tmsgtimer = myrpt->tailsquashedtime;
+		}
+	}
 	remque((struct qelem *)mytele);
 	ast_mutex_unlock(&myrpt->lock);
 	free(mytele);		
@@ -2823,7 +2888,7 @@ struct zt_radio_param r;
 	}
 }
 
-static int serial_remote_io(struct rpt *myrpt, char *txbuf, int txbytes, char *rxbuf,
+static int serial_remote_io(struct rpt *myrpt, unsigned char *txbuf, int txbytes, char *rxbuf,
         int rxmaxbytes, int asciiflag)
 {
 	int i;
@@ -2855,7 +2920,8 @@ static int serial_remote_io(struct rpt *myrpt, char *txbuf, int txbytes, char *r
 
 static int setrbi(struct rpt *myrpt)
 {
-char tmp[MAXREMSTR] = "",rbicmd[5],*s;
+char tmp[MAXREMSTR] = "",*s;
+unsigned char rbicmd[5];
 int	band,txoffset = 0,txpower = 0,txpl;
 
 	/* must be a remote system */
@@ -4528,7 +4594,7 @@ static void *rpt(void *this)
 {
 struct	rpt *myrpt = (struct rpt *)this;
 char *tele,*idtalkover;
-int ms = MSWAIT,lasttx=0,val,remrx=0,identqueued,nonidentqueued,res;
+int ms = MSWAIT,i,lasttx=0,val,remrx=0,identqueued,nonidentqueued,res, tailmessagequeued;
 struct ast_channel *who;
 ZT_CONFINFO ci;  /* conference info */
 time_t	dtmf_time,t;
@@ -4676,7 +4742,8 @@ char cmd[MAXDTMF+1] = "";
 	/* make a conference for the pseudo */
 	ci.chan = 0;
 	ci.confno = -1; /* make a new conf */
-	ci.confmode = ZT_CONF_CONFANNMON; 
+	ci.confmode = (myrpt->duplex == 2) ? ZT_CONF_CONFANNMON :
+		(ZT_CONF_CONF | ZT_CONF_LISTENER | ZT_CONF_TALKER);
 	/* first put the channel on the conference in announce mode */
 	if (ioctl(myrpt->pchannel->fds[0],ZT_SETCONF,&ci) == -1)
 	{
@@ -4728,6 +4795,7 @@ char cmd[MAXDTMF+1] = "";
 	myrpt->links.prev = &myrpt->links;
 	myrpt->tailtimer = 0;
 	myrpt->totimer = 0;
+	myrpt->tmsgtimer = myrpt->tailmessagetime;
 	myrpt->idtimer = myrpt->politeid;
 	myrpt->mustid = 0;
 	myrpt->callmode = 0;
@@ -4835,35 +4903,46 @@ char cmd[MAXDTMF+1] = "";
 
 		/* Build a fresh totx from myrpt->keyed and autopatch activated */
 		
-		totx = myrpt->localtx || myrpt->callmode;
+		totx = myrpt->callmode;
+		if (myrpt->duplex > 1) totx = totx || myrpt->localtx;
 		 
 		/* Traverse the telemetry list to see if there's an ID queued and if there is not an ID queued */
 		
 		identqueued = 0;
 		nonidentqueued = 0;
-		
+		tailmessagequeued = 0;
+	
 		telem = myrpt->tele.next;
 		while(telem != &myrpt->tele)
 		{
+
 			if((telem->mode == ID) || (telem->mode == IDTALKOVER)){
 				identqueued = 1;
 			}
+			else if(telem->mode == TAILMSG)
+			{
+				tailmessagequeued = 1;
+			}
 			else
-				nonidentqueued = 1;
+			{
+				if (telem->mode != UNKEY) nonidentqueued = 1;
+			}
 			telem = telem->next;
 		}
 	
 		/* Add in any non-id telemetry */
 		
-		totx = totx || nonidentqueued;
+		if (myrpt->duplex > 0) totx = totx || nonidentqueued;
 		
 		/* Update external transmitter PTT state with everything but ID telemetry */
 		
 		myrpt->exttx = totx;
+		if (myrpt->duplex < 2) myrpt->exttx = myrpt->exttx || myrpt->localtx;
 		
 		/* Add in ID telemetry to local transmitter */
 		
-		totx = totx || remrx || identqueued;
+		totx = totx || remrx;
+		if (myrpt->duplex > 0) totx = totx || identqueued || (telem->mode == UNKEY);
 		
 		if (!totx) 
 		{
@@ -4905,7 +4984,8 @@ char cmd[MAXDTMF+1] = "";
 		/* if not timed-out, add in tail */
 		if (myrpt->totimer) totx = totx || myrpt->tailtimer;
 		/* If user or links key up or are keyed up over standard ID, switch to talkover ID, if one is defined */
-		if (identqueued && (myrpt->keyed || remrx) && idtalkover) {
+		/* If tail message, kill the message if someone keys up over it */ 
+		if ((myrpt->keyed || remrx) && ((identqueued && idtalkover) || (tailmessagequeued))) {
 			int hasid = 0,hastalkover = 0;
 
 			telem = myrpt->tele.next;
@@ -4914,6 +4994,9 @@ char cmd[MAXDTMF+1] = "";
 					if (telem->chan) ast_softhangup(telem->chan, AST_SOFTHANGUP_DEV); /* Whoosh! */
 					hasid = 1;
 				}
+				if(telem->mode == TAILMSG){
+                                        if (telem->chan) ast_softhangup(telem->chan, AST_SOFTHANGUP_DEV); /* Whoosh! */
+                                }
 				if (telem->mode == IDTALKOVER) hastalkover = 1;
 				telem = telem->next;
 			}
@@ -4936,7 +5019,7 @@ char cmd[MAXDTMF+1] = "";
 			ast_mutex_lock(&myrpt->lock);
 		}
 		/* let telemetry transmit anyway (regardless of timeout) */
-		totx = totx || (myrpt->tele.next != &myrpt->tele);
+		if (myrpt->duplex > 0) totx = totx || (myrpt->tele.next != &myrpt->tele);
 		if (totx && (!lasttx))
 		{
 			lasttx = 1;
@@ -5114,12 +5197,21 @@ char cmd[MAXDTMF+1] = "";
 #endif
 			l = l->next;
 		}
+		i = myrpt->tailtimer;
 		if (myrpt->tailtimer) myrpt->tailtimer -= elap;
+		if (myrpt->tailtimer < 0) myrpt->tailtimer = 0;
+		if ((myrpt->tailmessagetime) && (myrpt->tailtimer == 0) && i && (myrpt->tmsgtimer == 0)){
+			myrpt->tmsgtimer = myrpt->tailmessagetime;	
+			rpt_telemetry(myrpt, TAILMSG, NULL);	
+		}
 		if (myrpt->tailtimer < 0) myrpt->tailtimer = 0;
 		if (myrpt->totimer) myrpt->totimer -= elap;
 		if (myrpt->totimer < 0) myrpt->totimer = 0;
 		if (myrpt->idtimer) myrpt->idtimer -= elap;
 		if (myrpt->idtimer < 0) myrpt->idtimer = 0;
+		if (myrpt->tmsgtimer) myrpt->tmsgtimer -= elap;
+		if (myrpt->tmsgtimer < 0) myrpt->tmsgtimer = 0;
+
 		ast_mutex_unlock(&myrpt->lock);
 		if (!ms) continue;
 		if (who == myrpt->rxchannel) /* if it was a read from rx */
@@ -5652,11 +5744,19 @@ pthread_attr_t attr;
 		val = ast_variable_retrieve(cfg,this,"totime");
 		if (val) rpt_vars[n].totime = atoi(val);
 			else rpt_vars[n].totime = TOTIME;
-		
+
+		rpt_vars[n].tailmessagetime = retrieve_astcfgint(this, "tailmessagetime", 0, 2400000, 0);		
+		rpt_vars[n].tailsquashedtime = retrieve_astcfgint(this, "tailsquashedtime", 0, 2400000, 0);		
+		rpt_vars[n].duplex = retrieve_astcfgint(this,"duplex",0,3,2);
 		rpt_vars[n].idtime = retrieve_astcfgint( this, "idtime", 60000, 2400000, IDTIME);	/* Enforce a min max */
 		rpt_vars[n].politeid = retrieve_astcfgint( this, "politeid", 30000, 300000, POLITEID); /* Enforce a min max */
 		rpt_vars[n].remote = ast_variable_retrieve(cfg,this,"remote");
 		rpt_vars[n].tonezone = ast_variable_retrieve(cfg,this,"tonezone");
+		rpt_vars[n].tailmessages[0] = 0;
+		rpt_vars[n].tailmessagemax = 0;
+		rpt_vars[n].tailmessagen = 0;
+		val = ast_variable_retrieve(cfg,this,"tailmessagelist");
+		if (val) rpt_vars[n].tailmessagemax = finddelim(val,rpt_vars[n].tailmessages);
 		val = ast_variable_retrieve(cfg,this,"iobase");
 		/* do not use atoi() here, we need to be able to have
 			the input specified in hex or decimal so we use
