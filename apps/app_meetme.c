@@ -1312,10 +1312,10 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 					user->zapchannel = !retryzap;
 					goto zapretry;
 				}
-				if (!(confflags & CONFFLAG_MONITOR))
-					f = ast_read(c);
-				else
+				if ((confflags & CONFFLAG_MONITOR) || (user->adminflags & ADMINFLAG_MUTED))
 					f = ast_read_noaudio(c);
+				else
+					f = ast_read(c);
 				if (!f)
 					break;
 				if ((f->frametype == AST_FRAME_VOICE) && (f->subclass == AST_FORMAT_SLINEAR)) {
