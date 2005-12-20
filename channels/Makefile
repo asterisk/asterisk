@@ -92,10 +92,12 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
   CHANNEL_LIBS+=chan_alsa.so
 endif
 
+ifndef WITHOUT_PRI
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libpri.so.1),)
   CFLAGS+=-DZAPATA_PRI
   ZAPPRI=-lpri
 endif
+endif # WITHOUT_PRI
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libmfcr2.so.1),)
   CFLAGS+=-DZAPATA_R2
