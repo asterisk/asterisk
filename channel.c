@@ -1773,7 +1773,7 @@ int ast_waitfordigit_full(struct ast_channel *c, int ms, int audiofd, int cmdfd)
 	return 0; /* Time is up */
 }
 
-struct ast_frame *ast_read(struct ast_channel *chan)
+static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 {
 	struct ast_frame *f = NULL;
 	int blah;
@@ -1897,7 +1897,10 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 
 
 	if (f && (f->frametype == AST_FRAME_VOICE)) {
-		if (!(f->subclass & chan->nativeformats)) {
+		if (dropaudio) {
+			ast_frfree(f);
+			f = &null_frame;
+		} else if (!(f->subclass & chan->nativeformats)) {
 			/* This frame can't be from the current native formats -- drop it on the
 			   floor */
 			ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, ast_getformatname(f->subclass), ast_getformatname(chan->nativeformats));
@@ -1996,6 +1999,16 @@ struct ast_frame *ast_read(struct ast_channel *chan)
 		chan->fin++;
 	ast_mutex_unlock(&chan->lock);
 	return f;
+}
+
+struct ast_frame *ast_read(struct ast_channel *chan)
+{
+	return __ast_read(chan, 0);
+}
+
+struct ast_frame *ast_read_noaudio(struct ast_channel *chan)
+{
+	return __ast_read(chan, 1);
 }
 
 int ast_indicate(struct ast_channel *chan, int condition)
@@ -2247,7 +2260,12 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		break;
 	default:
 		if (chan->tech->write) {
-			f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
+			/* Bypass translator if we're writing format in the raw write format.  This
+			   allows mixing of native / non-native formats */
+			if (fr->subclass == chan->rawwriteformat)
+				f = fr;
+			else
+				f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
 			if (f) {
 				if (f->frametype == AST_FRAME_VOICE && chan->spies)
 					queue_frame_to_spies(chan, f, SPY_WRITE);

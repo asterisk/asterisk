@@ -741,6 +741,15 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception);
    disconnected. */
 struct ast_frame *ast_read(struct ast_channel *chan);
 
+/*! Reads a frame, returning AST_FRAME_NULL frame if audio. */
+/*!
+ * \param chan channel to read a frame from
+ * Read a frame.  Returns a frame, or NULL on error.  If it returns NULL, you
+   best just stop reading frames and assume the channel has been
+   disconnected.  Audio is replaced with AST_FRAME_NULL to avoid 
+   transcode when the resulting audio is not necessary. */
+struct ast_frame *ast_read_noaudio(struct ast_channel *chan);
+
 /*! Write a frame to a channel */
 /*!
  * \param chan destination channel of the frame
