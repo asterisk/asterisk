@@ -60,8 +60,18 @@ ifneq ($(wildcard ilbc/iLBC_decode.h),)
 endif
 
 
+LIBGSM_PATH:=/usr/local/include /usr/include
+LIBGSM_SYSTEM_HEADERS:=$(wildcard $(LIBGSM_PATH:%=$(CROSS_COMPILE_TARGET)%/gsm/gsm.h))
+ifneq (,$(LIBGSM_SYSTEM_HEADERS))
+LIBGSM=-lgsm
+LIBGSMT=
+CFLAGS+=-DUSE_EXTERNAL_GSM_LIB
+else
 LIBGSM=gsm/lib/libgsm.a
-LIBGSMT=gsm/lib/libgsm.a
+LIBGSMT=$(LIBGSM)
+CFLAGS+=-I.
+endif
+
 LIBLPC10=lpc10/liblpc10.a
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
