@@ -1,5 +1,5 @@
 ; Radio Repeater / Remote Base configuration file (for use with app_rpt)
-; As of app_rpt version 0.36, 10/26/2005
+; As of app_rpt version 0.39, 12/20/2005
 ;
 
 ;[000]					; Node ID of first repeater
@@ -8,6 +8,12 @@
 ; Note: if you use a unified interface (tx/rx on one channel), only
 ; specify the rxchannel and the txchannel will be assumed from the rxchannel
 ;txchannel = Zap/2			; Tx audio/signalling channel
+;duplex = 2				; (Optional) set duplex operating mode
+;; 0 = half duplex (telemetry and courtesy tones do not transmit)
+;; 1 = semi-half duplex (telemetry and courtesy tones transmit, but not
+;;    repeated audio
+;; 2 = normal full-duplex mode (Default)
+;; 3 = full-duplex mode, without repeated audio from main input source
 ;functions = functions-repeater		; DTMF function list
 ;; specify this for a different function list then local when on link
 ;;link_functions = functions-different	; DTMF function list for link
@@ -31,6 +37,13 @@
 					; (optional, default is 30000).
 ;idtalkover=|iwb6nil/rpt		; Talkover ID (optional) default is none
 ;unlinkedct=ct2				; unlinked courtesy tone (optional) default is none
+
+;; The tailmessagetime,tailsquashedtime, and tailmessages need to be set
+;; to support tail messages. They can be omitted otherwise.
+;tailmessagetime=300000			; Play a tail message every 5 mins
+;tailsquashedtime=30000			; If squashed by another user,
+;;					  try again after 30 seconds
+;tailmessages=msg1,msg2,msg3		;list of messages to be played for tail message
 
 ; The default values for hangtime, time-out time, and id interval time are
 ; 5 seconds (5000 ms),  3 minutes (180000 ms), and 5 minutes (300000 ms)
