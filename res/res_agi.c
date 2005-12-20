@@ -1627,22 +1627,6 @@ static agi_command commands[MAX_COMMANDS] = {
 	{ { "wait", "for", "digit", NULL }, handle_waitfordigit, "Waits for a digit to be pressed", usage_waitfordigit },
 };
 
-static void join(char *s, size_t len, char *w[])
-{
-	int x;
-
-	/* Join words into a string */
-	if (!s) {
-		return;
-	}
-	s[0] = '\0';
-	for (x=0; w[x]; x++) {
-		if (x)
-			strncat(s, " ", len - strlen(s) - 1);
-		strncat(s, w[x], len - strlen(s) - 1);
-	}
-}
-
 static int help_workhorse(int fd, char *match[])
 {
 	char fullcmd[80];
@@ -1650,20 +1634,17 @@ static int help_workhorse(int fd, char *match[])
 	int x;
 	struct agi_command *e;
 	if (match)
-		join(matchstr, sizeof(matchstr), match);
+		ast_join(matchstr, sizeof(matchstr), match);
 	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
-		if (!commands[x].cmda[0]) break;
 		e = &commands[x]; 
-		if (e)
-			join(fullcmd, sizeof(fullcmd), e->cmda);
+		if (!e->cmda[0])
+			break;
 		/* Hide commands that start with '_' */
-		if (fullcmd[0] == '_')
+		if ((e->cmda[0])[0] == '_')
 			continue;
-		if (match) {
-			if (strncasecmp(matchstr, fullcmd, strlen(matchstr))) {
-				continue;
-			}
-		}
+		ast_join(fullcmd, sizeof(fullcmd), e->cmda);
+		if (match && strncasecmp(matchstr, fullcmd, strlen(matchstr)))
+			continue;
 		ast_cli(fd, "%20.20s   %s\n", fullcmd, e->summary);
 	}
 	return 0;
@@ -1801,10 +1782,9 @@ normal:
 static int agi_handle_command(struct ast_channel *chan, AGI *agi, char *buf)
 {
 	char *argv[MAX_ARGS];
-	int argc = 0;
+	int argc = MAX_ARGS;
 	int res;
 	agi_command *c;
-	argc = MAX_ARGS;
 
 	parse_args(buf, &argc, argv);
 #if	0
@@ -1929,7 +1909,7 @@ static int handle_showagi(int fd, int argc, char *argv[]) {
 			if (find_command(argv + 2, -1)) {
 				return help_workhorse(fd, argv + 1);
 			} else {
-				join(fullcmd, sizeof(fullcmd), argv+1);
+				ast_join(fullcmd, sizeof(fullcmd), argv+1);
 				ast_cli(fd, "No such command '%s'.\n", fullcmd);
 			}
 		}
@@ -1942,7 +1922,6 @@ static int handle_showagi(int fd, int argc, char *argv[]) {
 static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
 	struct agi_command *e;
 	char fullcmd[80];
-	char *tempstr;
 	int x;
 	FILE *htmlfile;
 
@@ -1961,18 +1940,18 @@ static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
 	fprintf(htmlfile, "<TABLE BORDER=\"0\" CELLSPACING=\"10\">\n");
 
 	for (x=0;x<sizeof(commands)/sizeof(commands[0]);x++) {
-		char *stringp=NULL;
-		if (!commands[x].cmda[0]) break;
+		char *stringp, *tempstr;
+
 		e = &commands[x]; 
-		if (e)
-			join(fullcmd, sizeof(fullcmd), e->cmda);
+		if (!e->cmda[0])	/* end ? */
+			break;
 		/* Hide commands that start with '_' */
-		if (fullcmd[0] == '_')
+		if ((e->cmda[0])[0] == '_')
 			continue;
+		ast_join(fullcmd, sizeof(fullcmd), e->cmda);
 
 		fprintf(htmlfile, "<TR><TD><TABLE BORDER=\"1\" CELLPADDING=\"5\" WIDTH=\"100%%\">\n");
 		fprintf(htmlfile, "<TR><TH ALIGN=\"CENTER\"><B>%s - %s</B></TD></TR>\n", fullcmd,e->summary);
-
 
 		stringp=e->usage;
 		tempstr = strsep(&stringp, "\n");
@@ -1980,10 +1959,8 @@ static int handle_dumpagihtml(int fd, int argc, char *argv[]) {
 		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">%s</TD></TR>\n", tempstr);
 		
 		fprintf(htmlfile, "<TR><TD ALIGN=\"CENTER\">\n");
-		while ((tempstr = strsep(&stringp, "\n")) != NULL) {
-		fprintf(htmlfile, "%s<BR>\n",tempstr);
-
-		}
+		while ((tempstr = strsep(&stringp, "\n")) != NULL)
+			fprintf(htmlfile, "%s<BR>\n",tempstr);
 		fprintf(htmlfile, "</TD></TR>\n");
 		fprintf(htmlfile, "</TABLE></TD></TR>\n\n");
 
@@ -2016,9 +1993,8 @@ static int agi_exec_full(struct ast_channel *chan, void *data, int enhanced, int
 	ast_copy_string(buf, data, sizeof(buf));
 
 	memset(&agi, 0, sizeof(agi));
-        while ((stringp = strsep(&tmp, "|"))) {
+        while ((stringp = strsep(&tmp, "|")) && argc < MAX_ARGS-1)
 		argv[argc++] = stringp;
-        }
 	argv[argc] = NULL;
 
 	LOCAL_USER_ADD(u);

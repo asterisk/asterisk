@@ -1019,17 +1019,8 @@ static struct ast_cli_entry *find_cli(char *cmds[], int exact)
 
 static void join(char *dest, size_t destsize, char *w[], int tws)
 {
-	int x;
-	/* Join words into a string */
-	if (!dest || destsize < 1) {
-		return;
-	}
-	dest[0] = '\0';
-	for (x=0;w[x];x++) {
-		if (x)
-			strncat(dest, " ", destsize - strlen(dest) - 1);
-		strncat(dest, w[x], destsize - strlen(dest) - 1);
-	}
+	ast_join(dest, destsize, w);	
+
 	if (tws && !ast_strlen_zero(dest))
 		strncat(dest, " ", destsize - strlen(dest) - 1);
 }

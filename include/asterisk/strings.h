@@ -165,6 +165,7 @@ void ast_copy_string(char *dst, const char *src, size_t size),
 }
 )
 
+
 /*!
   \brief Build a string in a buffer, designed to be called repeatedly
   
@@ -209,6 +210,18 @@ int ast_true(const char *val);
  * Returns 0 if val is a NULL pointer, -1 if "false", and 0 otherwise.
  */
 int ast_false(const char *val);
+
+/*
+  \brief Join an array of strings into a single string.
+  \param s the resulting string buffer
+  \param len the length of the result buffer, s
+  \param w an array of strings to join
+
+  This function will join all of the strings in the array 'w' into a single
+  string.  It will also place a space in the result buffer in between each
+  string from 'w'.
+*/
+void ast_join(char *s, size_t len, char * const w[]);
 
 /* The realloca lets us ast_restrdupa(), but you can't mix any other ast_strdup calls! */
 

@@ -903,3 +903,22 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with)
 		*dataPut = 0;
 	return dataPut;
 }
+
+void ast_join(char *s, size_t len, char * const w[])
+{
+	int x, ofs = 0;
+	const char *src;
+
+	/* Join words into a string */
+	if (!s)
+		return;
+	for (x=0; ofs < len && w[x]; x++) {
+		if (x > 0)
+			s[ofs++] = ' ';
+		for (src = w[x]; *src && ofs < len; src++)
+			s[ofs++] = *src;
+	}
+	if (ofs == len)
+		ofs--;
+	s[ofs] = '\0';
+}
