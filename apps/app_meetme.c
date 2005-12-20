@@ -263,14 +263,17 @@ static char *istalking(int x)
 		return "(not talking)";
 }
 
-static int careful_write(int fd, unsigned char *data, int len)
+static int careful_write(int fd, unsigned char *data, int len, int block)
 {
 	int res;
 	int x;
 
 	while (len) {
-		x = ZT_IOMUX_WRITE | ZT_IOMUX_SIGEVENT;
-		res = ioctl(fd, ZT_IOMUX, &x);
+		if (block) {
+			x = ZT_IOMUX_WRITE | ZT_IOMUX_SIGEVENT;
+			res = ioctl(fd, ZT_IOMUX, &x);
+		} else
+			res = 0;
 		if (res >= 0)
 			res = write(fd, data, len);
 		if (res < 1) {
@@ -423,7 +426,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int
 		len = 0;
 	}
 	if (data) 
-		careful_write(conf->fd, data, len);
+		careful_write(conf->fd, data, len, 1);
 
 	ast_mutex_unlock(&conflock);
 
@@ -1308,7 +1311,11 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						   audio frames (in which case carefully writing would only
 						   have delayed the audio even further).
 						*/
-						write(fd, f->data, f->datalen);
+						/* As it turns out, we do want to use careful write.  We just
+						   don't want to block, but we do want to at least *try*
+						   to write out all the samples.
+						 */
+						careful_write(fd, f->data, f->datalen, 0);
 					}
 				} else if ((f->frametype == AST_FRAME_DTMF) && (confflags & CONFFLAG_EXIT_CONTEXT)) {
 					char tmp[2];
