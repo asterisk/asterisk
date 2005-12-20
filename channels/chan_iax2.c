@@ -8147,6 +8147,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		peer->smoothing = 0;
 		peer->pokefreqok = DEFAULT_FREQ_OK;
 		peer->pokefreqnotok = DEFAULT_FREQ_NOTOK;
+		peer->context[0] = '\0';
 		while(v) {
 			if (!strcasecmp(v->name, "secret")) {
 				if (!ast_strlen_zero(peer->secret)) {
