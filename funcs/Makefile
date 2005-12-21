@@ -66,6 +66,9 @@ pbx_functions.o: pbx_functions.h
 pbx_functions.so: pbx_functions.o #$(BUILTINS)
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
 
+func_odbc.so: func_odbc.o
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc
+
 install: all
 	for x in $(FUNCS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 

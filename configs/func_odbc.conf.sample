@@ -1,0 +1,32 @@
+;
+; func_odbc.conf
+;
+; Each context is a separately defined function.  By convention, all
+; functions are entirely uppercase, so the defined contexts should also
+; be all-uppercase, but there is nothing that enforces this.  All functions
+; are case-sensitive, however.
+;
+; For substitution, you have ${ARG1}, ${ARG2} ... ${ARGn}
+; for the arguments to each SQL statement.
+;
+; In addition, for write statements, you have ${VAL1}, ${VAL2} ... ${VALn}
+; parsed, just like arguments, for the values.  In addition, if you want the
+; whole value, never mind the parsing, you can get that with ${VALUE}.
+
+
+; ODBC_SQL - Allow an SQL statement to be built entirely in the dialplan
+[SQL]
+dsn=mysql1
+read=${ARG1}
+
+; ODBC_ANTIGF - A blacklist.
+[ANTIGF]
+dsn=mysql1
+read=SELECT COUNT(*) FROM exgirlfriends WHERE callerid='${ARG1}'
+
+; ODBC_PRESENCE - Retrieve and update presence
+[PRESENCE]
+dsn=mysql1
+read=SELECT location FROM presence WHERE id='${ARG1}'
+write=UPDATE presence SET location='${VAL1}' WHERE id='${ARG1}'
+
