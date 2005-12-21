@@ -41,12 +41,16 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *tdesc = "Send verbose output";
 
 static char *app_verbose = "Verbose";
-
 static char *verbose_synopsis = "Send arbitrary text to verbose output";
-
 static char *verbose_descrip =
 "Verbose([<level>|]<message>)\n"
 "  level must be an integer value.  If not specified, defaults to 0.\n";
+
+static char *app_log = "Log";
+static char *log_synopsis = "Send arbitrary text to a selected log level";
+static char *log_descrip =
+"Log(<level>|<message>)\n"
+"  level must be one of ERROR, WARNING, NOTICE, DEBUG, VERBOSE, DTMF\n";
 
 STANDARD_LOCAL_USER;
 
@@ -101,11 +105,62 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
+static int log_exec(struct ast_channel *chan, void *data)
+{
+	char *level, *ltext;
+	struct localuser *u;
+	int lnum = -1;
+	char extension[AST_MAX_EXTENSION + 5], context[AST_MAX_EXTENSION + 2];
+
+	LOCAL_USER_ADD(u);
+	if (ast_strlen_zero(data)) {
+		LOCAL_USER_REMOVE(u);
+		return 0;
+	}
+
+	ltext = ast_strdupa(data);
+	if (!ltext) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return 0;
+	}
+
+	level = strsep(&ltext, "|");
+
+	if (!strcasecmp(level, "ERROR")) {
+		lnum = __LOG_ERROR;
+	} else if (!strcasecmp(level, "WARNING")) {
+		lnum = __LOG_WARNING;
+	} else if (!strcasecmp(level, "NOTICE")) {
+		lnum = __LOG_NOTICE;
+	} else if (!strcasecmp(level, "DEBUG")) {
+		lnum = __LOG_DEBUG;
+	} else if (!strcasecmp(level, "VERBOSE")) {
+		lnum = __LOG_VERBOSE;
+	} else if (!strcasecmp(level, "DTMF")) {
+		lnum = __LOG_DTMF;
+	} else if (!strcasecmp(level, "EVENT")) {
+		lnum = __LOG_EVENT;
+	} else {
+		ast_log(LOG_ERROR, "Unknown log level: '%s'\n", level);
+	}
+
+	if (lnum > -1) {
+		snprintf(context, sizeof(context), "@ %s", chan->context);
+		snprintf(extension, sizeof(extension), "Ext. %s", chan->exten);
+
+		ast_log(lnum, extension, chan->priority, context, "%s\n", ltext);
+	}
+	LOCAL_USER_REMOVE(u);
+	return 0;
+}
+
 int unload_module(void)
 {
 	int res;
 
 	res = ast_unregister_application(app_verbose);
+	res |= ast_unregister_application(app_log);
 
 	STANDARD_HANGUP_LOCALUSERS;
 
@@ -114,7 +169,12 @@ int unload_module(void)
 
 int load_module(void)
 {
-	return ast_register_application(app_verbose, verbose_exec, verbose_synopsis, verbose_descrip);
+	int res;
+
+	res = ast_register_application(app_log, log_exec, log_synopsis, log_descrip);
+	res |= ast_register_application(app_verbose, verbose_exec, verbose_synopsis, verbose_descrip);
+
+	return res;
 }
 
 char *description(void)
