@@ -53,13 +53,18 @@ static char *synopsis = "Realtime Data Lookup";
 static char *usynopsis = "Realtime Data Rewrite";
 static char *USAGE = "RealTime(<family>|<colmatch>|<value>[|<prefix>])";
 static char *UUSAGE = "RealTimeUpdate(<family>|<colmatch>|<value>|<newcol>|<newval>)";
-static char *desc = "Use the RealTime config handler system to read data into channel variables.\n"
+static char *desc =
+"Use the RealTime config handler system to read data into channel variables.\n"
 "RealTime(<family>|<colmatch>|<value>[|<prefix>])\n\n"
-"All unique column names will be set as channel variables with optional prefix to the name.\n"
-"e.g. prefix of 'var_' would make the column 'name' become the variable ${var_name}\n\n";
+"All unique column names will be set as channel variables with optional prefix\n"
+"to the name.  For example, a prefix of 'var_' would make the column 'name'\n"
+"become the variable ${var_name}.  REALTIMECOUNT will be set with the number\n"
+"of values read.\n";
 static char *udesc = "Use the RealTime config handler system to update a value\n"
 "RealTimeUpdate(<family>|<colmatch>|<value>|<newcol>|<newval>)\n\n"
-"The column <newcol> in 'family' matching column <colmatch>=<value> will be updated to <newval>\n";
+"The column <newcol> in 'family' matching column <colmatch>=<value> will be\n"
+"updated to <newval>.  REALTIMECOUNT will be set with the number of rows\n"
+"updated or -1 if an error occurs.\n";
 
 STANDARD_LOCAL_USER;
 LOCAL_USER_DECL;
@@ -130,7 +135,8 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 {
 	char *family=NULL, *colmatch=NULL, *value=NULL, *newcol=NULL, *newval=NULL;
 	struct localuser *u;
-	int res = 0;
+	int res = 0, count = 0;
+	char countc[13];
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR,"Invalid input: usage %s\n",UUSAGE);
@@ -156,8 +162,11 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_ERROR,"Invalid input: usage %s\n",UUSAGE);
 		res = -1;
 	} else {
-		ast_update_realtime(family,colmatch,value,newcol,newval,NULL);
+		count = ast_update_realtime(family,colmatch,value,newcol,newval,NULL);
 	}
+
+	snprintf(countc, sizeof(countc), "%d", count);
+	pbx_builtin_setvar_helper(chan, "REALTIMECOUNT", countc);
 
 	LOCAL_USER_REMOVE(u);
 	
@@ -167,10 +176,11 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 
 static int realtime_exec(struct ast_channel *chan, void *data)
 {
-	int res=0;
+	int res=0, count=0;
 	struct localuser *u;
 	struct ast_variable *var, *itt;
 	char *family=NULL, *colmatch=NULL, *value=NULL, *prefix=NULL, *vname=NULL;
+	char countc[13];
 	size_t len;
 		
 	if (ast_strlen_zero(data)) {
@@ -207,11 +217,14 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 					vname = itt->name;
 
 				pbx_builtin_setvar_helper(chan, vname, itt->value);
+				count++;
 			}
 			ast_variables_destroy(var);
 		} else if (option_verbose > 3)
 			ast_verbose(VERBOSE_PREFIX_4"No Realtime Matches Found.\n");
 	}
+	snprintf(countc, sizeof(countc), "%d", count);
+	pbx_builtin_setvar_helper(chan, "REALTIMECOUNT", countc);
 	
 	LOCAL_USER_REMOVE(u);
 	return res;
