@@ -1109,8 +1109,10 @@ int unload_module()
 	ast_channel_unregister(&alsa_tech);
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)
 		ast_cli_unregister(myclis + x);
-	snd_pcm_close(alsa.icard);
-	snd_pcm_close(alsa.ocard);
+	if (alsa.icard)
+		snd_pcm_close(alsa.icard);
+	if (alsa.ocard)
+		snd_pcm_close(alsa.ocard);
 	if (sndcmd[0] > 0) {
 		close(sndcmd[0]);
 		close(sndcmd[1]);
