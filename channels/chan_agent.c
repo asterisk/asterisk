@@ -131,7 +131,7 @@ static const char mandescr_agent_callback_login[] =
 "Description: Sets an agent as logged in with callback.\n"
 "Variables: (Names marked with * are required)\n"
 "	*Agent: Agent ID of the agent to login\n"
-"	*Extension: Extension to use for callback\n"
+"	*Exten: Extension to use for callback\n"
 "	Context: Context to use for callback\n"
 "	AckCall: Set to 'true' to require an acknowledgement by '#' when agent is called back\n"
 "	WrapupTime: the minimum amount of time after disconnecting before the caller can receive a new call\n";
