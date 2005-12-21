@@ -1892,12 +1892,13 @@ static int manager_parking_status( struct mansession *s, struct message *m )
 			ast_cli(s->fd, "Event: ParkedCall\r\n"
 			"Exten: %d\r\n"
 			"Channel: %s\r\n"
+			"From: %s\r\n"
 			"Timeout: %ld\r\n"
 			"CallerID: %s\r\n"
 			"CallerIDName: %s\r\n"
 			"%s"
 			"\r\n"
-                        ,cur->parkingnum, cur->chan->name
+                        ,cur->parkingnum, cur->chan->name, cur->peername
                         ,(long)cur->start.tv_sec + (long)(cur->parkingtime/1000) - (long)time(NULL)
 			,(cur->chan->cid.cid_num ? cur->chan->cid.cid_num : "")
 			,(cur->chan->cid.cid_name ? cur->chan->cid.cid_name : "")
