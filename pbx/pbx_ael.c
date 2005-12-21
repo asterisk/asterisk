@@ -730,6 +730,11 @@ static int __build_step(const char *what, const char *name, const char *filename
 		if (aeldebug & DEBUG_TOKENS)
 			ast_verbose("--GOTO to : '%s'\n", args);
 		app = "Goto";
+		if (args[0] == '(' && args[strlen(args) - 1] == ')') {
+			args[0] = '\0';
+			args++;
+			args[strlen(args) - 1] = '\0';
+		}
 		if (ast_add_extension2(con, 0, exten, (*pos)++, *label, NULL, app, strdup(args), FREE, registrar))
 			ast_log(LOG_WARNING, "Unable to add step at priority '%d' of %s '%s'\n", *pos, what, name);
 		*label = NULL;
