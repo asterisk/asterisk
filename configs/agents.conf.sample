@@ -1,3 +1,7 @@
+;
+; Agent configuration
+;
+
 [general]
 ;
 ; Define whether callbacklogins should be stored in astdb for
@@ -5,10 +9,7 @@
 ; Asterisk restarts.
 ;
 persistentagents=yes
-;
-; Agent configuration
-;
-;
+
 [agents]
 ;
 ; Define autologoff times if appropriate.  This is how long
