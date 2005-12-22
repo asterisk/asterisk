@@ -414,8 +414,6 @@ static struct sockaddr_in debugaddr;
 
 static int tos = 0;
 
-static int videosupport = 0;
-
 static int compactheaders = 0;				/*!< send compact sip headers */
 
 static int recordhistory = 0;				/*!< Record SIP history. Off by default */
@@ -557,11 +555,13 @@ struct sip_auth {
 #define SIP_CALL_LIMIT		(1 << 29)
 /* Remote Party-ID Support */
 #define SIP_SENDRPID		(1 << 30)
+/* SIP Video Options */
+#define SIP_VIDEOSUPPORT	(1 << 31)
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
 	 SIP_PROG_INBAND | SIP_OSPAUTH | SIP_USECLIENTCODE | SIP_NAT | \
-	 SIP_INSECURE_PORT | SIP_INSECURE_INVITE)
+	 SIP_INSECURE_PORT | SIP_INSECURE_INVITE | SIP_VIDEOSUPPORT)
 
 /* a new page of flags for peer */
 #define SIP_PAGE2_RTCACHEFRIENDS	(1 << 0)
@@ -3046,10 +3046,10 @@ static struct sip_pvt *sip_alloc(char *callid, struct sockaddr_in *sin, int useg
 
 	if (sip_methods[intended_method].need_rtp) {
 		p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-		if (videosupport)
+		if (ast_test_flag(p, SIP_VIDEOSUPPORT))
 			p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-		if (!p->rtp || (videosupport && !p->vrtp)) {
-			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
+		if (!p->rtp || (ast_test_flag(p, SIP_VIDEOSUPPORT) && !p->vrtp)) {
+			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", ast_test_flag(p, SIP_VIDEOSUPPORT) ? "and video" : "", strerror(errno));
 			ast_mutex_destroy(&p->lock);
 			if (p->chanvars) {
 				ast_variables_destroy(p->chanvars);
@@ -4416,7 +4416,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	/* Now send any other common codecs, and non-codec formats: */
-	for (x = 1; x <= ((videosupport && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
+	for (x = 1; x <= ((ast_test_flag(p, SIP_VIDEOSUPPORT) && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if (!(capability & x))
 			continue;
 
@@ -7521,6 +7521,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			"IPport: %d\r\n"
 			"Dynamic: %s\r\n"
 			"Natsupport: %s\r\n"
+			"Video Support: %s\r\n"
 			"ACL: %s\r\n"
 			"Status: %s\r\n\r\n", 
 			idtext,
@@ -7529,6 +7530,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 			ntohs(iterator->addr.sin_port), 
 			ast_test_flag(iterator, SIP_DYNAMIC) ? "yes" : "no",  /* Dynamic or not? */
 			(ast_test_flag(iterator, SIP_NAT) & SIP_NAT_ROUTE) ? "yes" : "no",	/* NAT=yes? */
+			ast_test_flag(iterator, SIP_VIDEOSUPPORT) ? "yes" : "no",	/* VIDEOSUPPORT=yes? */
 			iterator->ha ? "yes" : "no",       /* permit/deny */
 			status);
 		}
@@ -7909,6 +7911,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "  CanReinvite  : %s\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Yes":"No"));
 		ast_cli(fd, "  PromiscRedir : %s\n", (ast_test_flag(peer, SIP_PROMISCREDIR)?"Yes":"No"));
 		ast_cli(fd, "  User=Phone   : %s\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Yes":"No"));
+		ast_cli(fd, "  Video Support: %s\n", (ast_test_flag(peer, SIP_VIDEOSUPPORT)?"Yes":"No"));
 		ast_cli(fd, "  Trust RPID   : %s\n", (ast_test_flag(peer, SIP_TRUSTRPID) ? "Yes" : "No"));
 		ast_cli(fd, "  Send RPID    : %s\n", (ast_test_flag(peer, SIP_SENDRPID) ? "Yes" : "No"));
 
@@ -7985,6 +7988,7 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 		ast_cli(fd, "SIP-CanReinvite: %s\r\n", (ast_test_flag(peer, SIP_CAN_REINVITE)?"Y":"N"));
 		ast_cli(fd, "SIP-PromiscRedir: %s\r\n", (ast_test_flag(peer, SIP_PROMISCREDIR)?"Y":"N"));
 		ast_cli(fd, "SIP-UserPhone: %s\r\n", (ast_test_flag(peer, SIP_USEREQPHONE)?"Y":"N"));
+		ast_cli(fd, "SIP-VideoSupport: %s\r\n", (ast_test_flag(peer, SIP_VIDEOSUPPORT)?"Y":"N"));
 
 		/* - is enumerated */
 		ast_cli(fd, "SIP-DTMFmode %s\r\n", dtmfmode2str(ast_test_flag(peer, SIP_DTMF)));
@@ -8131,7 +8135,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "----------------\n");
 	ast_cli(fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
 	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(tmp, sizeof(tmp), bindaddr.sin_addr));
-	ast_cli(fd, "  Videosupport:           %s\n", videosupport ? "Yes" : "No");
+	ast_cli(fd, "  Videosupport:           %s\n", ast_test_flag(&global_flags, SIP_VIDEOSUPPORT) ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
 	ast_cli(fd, "  Promsic. redir:         %s\n", ast_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
@@ -12084,6 +12088,8 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			ast_copy_string(peer->fromdomain, v->value, sizeof(peer->fromdomain));
 		else if (!strcasecmp(v->name, "usereqphone"))
 			ast_set2_flag(peer, ast_true(v->value), SIP_USEREQPHONE);
+		else if (!strcasecmp(v->name, "videosupport"))
+			ast_set2_flag(peer, ast_true(v->value), SIP_VIDEOSUPPORT);
 		else if (!strcasecmp(v->name, "fromuser"))
 			ast_copy_string(peer->fromuser, v->value, sizeof(peer->fromuser));
 		else if (!strcasecmp(v->name, "host") || !strcasecmp(v->name, "outboundproxy")) {
@@ -12288,7 +12294,6 @@ static int reload_config(void)
 	memset(&outboundproxyip, 0, sizeof(outboundproxyip));
 	outboundproxyip.sin_port = htons(DEFAULT_SIP_PORT);
 	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
-	videosupport = 0;
 	compactheaders = 0;
 	dumphistory = 0;
 	recordhistory = 0;
@@ -12369,7 +12374,7 @@ static int reload_config(void)
 				global_rtpkeepalive = 0;
 			}
 		} else if (!strcasecmp(v->name, "videosupport")) {
-			videosupport = ast_true(v->value);
+			ast_set2_flag((&global_flags), ast_true(v->value), SIP_VIDEOSUPPORT);
 		} else if (!strcasecmp(v->name, "compactheaders")) {
 			compactheaders = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
