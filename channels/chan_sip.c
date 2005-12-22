@@ -2735,7 +2735,6 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, char *title)
 	else
 		what = global_capability;
 	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1);
-	ast_mutex_unlock(&i->lock);
 	fmt = ast_best_codec(tmp->nativeformats);
 
 	if (title)
