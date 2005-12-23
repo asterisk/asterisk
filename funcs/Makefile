@@ -37,7 +37,7 @@ FUNCS+=$(STANDALONE_FUNCS:.o=.so)
 
 FUNC_SOURCES=$(BUILTINS:.o=.c)
 
-FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(FUNC_SOURCES) | awk '{print $$3};')
+FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(FUNC_SOURCES) | awk '{print $$3};' | sort)
 
 ifeq (${OSARCH},CYGWIN)
 CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols

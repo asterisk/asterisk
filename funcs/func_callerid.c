@@ -42,32 +42,50 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 static char *callerid_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	if (!strncasecmp("all", data, 3)) {
-		snprintf(buf, len, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");	
-	} else if (!strncasecmp("name", data, 4)) {
-		if (chan->cid.cid_name) {
-			ast_copy_string(buf, chan->cid.cid_name, len);
-		}
-	} else if (!strncasecmp("num", data, 3) || !strncasecmp("number", data, 6)) {
-		if (chan->cid.cid_num) {
-			ast_copy_string(buf, chan->cid.cid_num, len);
-		}
-	} else if (!strncasecmp("ani", data, 3)) {
-		if (chan->cid.cid_ani) {
-			ast_copy_string(buf, chan->cid.cid_ani, len);
-		}
-	} else if (!strncasecmp("dnid", data, 4)) {
-		if (chan->cid.cid_dnid) {
-			ast_copy_string(buf, chan->cid.cid_dnid, len);
-		}
-	} else if (!strncasecmp("rdnis", data, 5)) {
-		if (chan->cid.cid_rdnis) {
-			ast_copy_string(buf, chan->cid.cid_rdnis, len);
+	char *opt = data;
+
+	if (strchr(opt, '|')) {
+		char name[80], num[80];
+
+		data = strsep(&opt, "|");
+		ast_callerid_split(opt, name, sizeof(name), num, sizeof(num));
+
+		if (!strncasecmp("all", data, 3)) {
+			snprintf(buf, len, "\"%s\" <%s>", name, num);	
+		} else if (!strncasecmp("name", data, 4)) {
+			ast_copy_string(buf, name, len);
+		} else if (!strncasecmp("num", data, 3) || !strncasecmp("number", data, 6)) {
+			ast_copy_string(buf, num, len);
+		} else {
+			ast_log(LOG_ERROR, "Unknown callerid data type.\n");
 		}
 	} else {
-		ast_log(LOG_ERROR, "Unknown callerid data type.\n");
+		if (!strncasecmp("all", data, 3)) {
+			snprintf(buf, len, "\"%s\" <%s>", chan->cid.cid_name ? chan->cid.cid_name : "", chan->cid.cid_num ? chan->cid.cid_num : "");	
+		} else if (!strncasecmp("name", data, 4)) {
+			if (chan->cid.cid_name) {
+				ast_copy_string(buf, chan->cid.cid_name, len);
+			}
+		} else if (!strncasecmp("num", data, 3) || !strncasecmp("number", data, 6)) {
+			if (chan->cid.cid_num) {
+				ast_copy_string(buf, chan->cid.cid_num, len);
+			}
+		} else if (!strncasecmp("ani", data, 3)) {
+			if (chan->cid.cid_ani) {
+				ast_copy_string(buf, chan->cid.cid_ani, len);
+			}
+		} else if (!strncasecmp("dnid", data, 4)) {
+			if (chan->cid.cid_dnid) {
+				ast_copy_string(buf, chan->cid.cid_dnid, len);
+			}
+		} else if (!strncasecmp("rdnis", data, 5)) {
+			if (chan->cid.cid_rdnis) {
+				ast_copy_string(buf, chan->cid.cid_rdnis, len);
+			}
+		} else {
+			ast_log(LOG_ERROR, "Unknown callerid data type.\n");
+		}
 	}
-
 	return buf;
 }
 
@@ -108,9 +126,10 @@ static
 struct ast_custom_function callerid_function = {
 	.name = "CALLERID",
 	.synopsis = "Gets or sets Caller*ID data on the channel.",
-	.syntax = "CALLERID(datatype)",
+	.syntax = "CALLERID(datatype[,<optional-CID>])",
 	.desc = "Gets or sets Caller*ID data on the channel.  The allowable datatypes\n"
-	"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\".\n",
+	"are \"all\", \"name\", \"num\", \"ANI\", \"DNID\", \"RDNIS\".\n"
+	"Uses channel callerid by default or optional callerid, if specified.\n",
 	.read = callerid_read,
 	.write = callerid_write,
 };

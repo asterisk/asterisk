@@ -68,6 +68,44 @@ struct ast_custom_function fieldqty_function = {
 	.read = function_fieldqty,
 };
 
+static char *builtin_function_filter(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *allowed, *string, *outbuf=buf;
+
+	string = ast_strdupa(data);
+	if (!string) {
+		ast_log(LOG_ERROR, "Out of memory");
+		return "";
+	}
+
+	allowed = strsep(&string, "|");
+
+	if (!string) {
+		ast_log(LOG_ERROR, "Usage: FILTER(<allowed-chars>,<string>)\n");
+		return "";
+	}
+
+	for ( ; *string && (buf + len - 1 > outbuf); string++) {
+		if (strchr(allowed, *string)) {
+			*outbuf = *string;
+			outbuf++;
+		}
+	}
+	*outbuf = '\0';
+	
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function filter_function = {
+	.name = "FILTER",
+	.synopsis = "Filter the string to include only the allowed characters",
+	.syntax = "FILTER(<allowed-chars>,<string>)",
+	.read = builtin_function_filter,
+};
+
 static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *arg, *earg = NULL, *tmp, errstr[256] = "";
