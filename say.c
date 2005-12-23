@@ -3022,39 +3022,18 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				/* Year */
 				if (tm.tm_year > 99) {
 				        res = ast_say_number(chan, tm.tm_year + 1900, ints, lang, (char *) NULL);
+				} else if (tm.tm_year < 1) {
+					/* I'm not going to handle 1900 and prior */
+					/* We'll just be silent on the year, instead of bombing out. */
 				} else {
-					if (tm.tm_year < 1) {
-						/* I'm not going to handle 1900 and prior */
-						/* We'll just be silent on the year, instead of bombing out. */
-					} else {
-						res = wait_file(chan,ints, "digits/19",lang);
-						if (!res) {
-							if (tm.tm_year <= 9) {
-								/* 1901 - 1909 */
-								res = wait_file(chan,ints, "digits/oh",lang);
-								if (!res) {
-									snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year);
-									res = wait_file(chan,ints,nextmsg,lang);
-								}
-							} else if (tm.tm_year <= 20) {
-								/* 1910 - 1920 */
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", tm.tm_year);
-								res = wait_file(chan,ints,nextmsg,lang);
-							} else {
-								/* 1921 - 1999 */
-								int ten, one;
-								ten = tm.tm_year / 10;
-								one = tm.tm_year % 10;
-								snprintf(nextmsg,sizeof(nextmsg), "digits/%d", ten * 10);
-								res = wait_file(chan,ints,nextmsg,lang);
-								if (!res) {
-									if (one != 0) {
-										snprintf(nextmsg,sizeof(nextmsg), "digits/%d", one);
-										res = wait_file(chan,ints,nextmsg,lang);
-									}
-								}
-							}
+					res = wait_file(chan, ints, "digits/19", lang);
+					if (!res) {
+						if (tm.tm_year <= 9) {
+							/* 1901 - 1909 */
+							res = wait_file(chan,ints, "digits/oh", lang);
 						}
+
+						res |= ast_say_number(chan, tm.tm_year, ints, lang, (char *) NULL);
 					}
 				}
 				break;
@@ -3127,6 +3106,9 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -3143,13 +3125,26 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 					} else if (beg_today - 86400 < time) {
 						/* Yesterday */
 						res = wait_file(chan,ints, "digits/yesterday",lang);
+					} else if (beg_today - 86400 * 6 < time) {
+						/* Within the last week */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "A", timezone);
+					} else if (beg_today - 2628000 < time) {
+						/* Less than a month ago - "Sunday, October third" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "ABd", timezone);
+					} else if (beg_today - 15768000 < time) {
+						/* Less than 6 months ago - "August seventh" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "Bd", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
+						/* More than 6 months ago - "April nineteenth two thousand three" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "BdY", timezone);
 					}
 				}
 				break;
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -3167,14 +3162,21 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 						res = wait_file(chan,ints, "digits/yesterday",lang);
 					} else if (beg_today - 86400 * 6 < time) {
 						/* Within the last week */
-						res = ast_say_date_with_format(chan, time, ints, lang, "A", timezone);
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "A", timezone);
+					} else if (beg_today - 2628000 < time) {
+						/* Less than a month ago - "Sunday, October third" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "ABd", timezone);
+					} else if (beg_today - 15768000 < time) {
+						/* Less than 6 months ago - "August seventh" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "Bd", timezone);
 					} else {
-						res = ast_say_date_with_format(chan, time, ints, lang, "ABdY", timezone);
+						/* More than 6 months ago - "April nineteenth two thousand three" */
+						res = ast_say_date_with_format_en(chan, time, ints, lang, "BdY", timezone);
 					}
 				}
 				break;
 			case 'R':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HM", timezone);
+				res = ast_say_date_with_format_en(chan, time, ints, lang, "HM", timezone);
 				break;
 			case 'S':
 				/* Seconds */
@@ -3192,7 +3194,7 @@ int ast_say_date_with_format_en(struct ast_channel *chan, time_t time, const cha
 				}
 				break;
 			case 'T':
-				res = ast_say_date_with_format(chan, time, ints, lang, "HMS", timezone);
+				res = ast_say_date_with_format_en(chan, time, ints, lang, "HMS", timezone);
 				break;
 			case ' ':
 			case '	':
@@ -3326,6 +3328,9 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or AdBY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -3349,6 +3354,9 @@ int ast_say_date_with_format_da(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or AdBY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -3518,6 +3526,9 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or AdBY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -3541,6 +3552,9 @@ int ast_say_date_with_format_de(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or AdBY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -3720,6 +3734,9 @@ int ast_say_date_with_format_he(struct ast_channel *chan, time_t time,
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A 
                                  * (weekday), or "date" */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -3877,6 +3894,9 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -3900,6 +3920,9 @@ int ast_say_date_with_format_es(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -4095,6 +4118,9 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or AdBY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -4118,6 +4144,9 @@ int ast_say_date_with_format_fr(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or AdBY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -4297,6 +4326,9 @@ int ast_say_date_with_format_it(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 			        struct timeval now;
 					struct tm tmnow;
@@ -4522,6 +4554,9 @@ int ast_say_date_with_format_nl(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -4734,6 +4769,9 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -4757,6 +4795,9 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -5004,6 +5045,9 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'Q':
 				/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -5027,6 +5071,9 @@ int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const cha
 				break;
 			case 'q':
 				/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 				{
 					struct timeval now;
 					struct tm tmnow;
@@ -6037,6 +6084,9 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 			break;
 		case 'Q':
 			/* Shorthand for "Today", "Yesterday", or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 			{
 				struct timeval now;
 				struct tm tmnow;
@@ -6060,6 +6110,9 @@ static int ast_say_date_with_format_gr(struct ast_channel *chan, time_t time, co
 			break;
 		case 'q':
 			/* Shorthand for "" (today), "Yesterday", A (weekday), or ABdY */
+				/* XXX As emphasized elsewhere, this should the native way in your
+				 * language to say the date, with changes in what you say, depending
+				 * upon how recent the date is. XXX */
 			{
 				struct timeval now;
 				struct tm tmnow;
