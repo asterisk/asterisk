@@ -126,9 +126,14 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define NUM_MSGS 64
 
 /*! \brief Welcome message when starting a CLI interface */
-#define WELCOME_MESSAGE ast_verbose( "Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2005 Digium.\n"); \
-		ast_verbose( "Written by Mark Spencer <markster@digium.com>\n"); \
-		ast_verbose( "=========================================================================\n")
+#define WELCOME_MESSAGE \
+	ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2005 Digium, Inc. and others.\n"); \
+	ast_verbose("Created by Mark Spencer <markster@digium.com>\n"); \
+	ast_verbose("Asterisk comes with ABSOLUTELY NO WARRANTY; type 'show warranty' for details.\n"); \
+	ast_verbose("This is free software, with components licensed under the GNU General Public\n"); \
+	ast_verbose("License version 2 and other licenses; you are welcome to redistribute it under\n"); \
+	ast_verbose("certain conditions. Type 'show license' for details.\n"); \
+	ast_verbose("=========================================================================\n")
 
 /*! \defgroup main_options 
  \brief Main configuration options from \ref Config_ast "asterisk.conf" or 
@@ -1046,6 +1051,14 @@ static char bang_help[] =
 "Usage: !<command>\n"
 "       Executes a given shell command\n";
 
+static char show_warranty_help[] =
+"Usage: show warranty\n"
+"	Shows the warranty (if any) for this copy of Asterisk.\n";
+
+static char show_license_help[] =
+"Usage: show license\n"
+"	Shows the license(s) for this copy of Asterisk.\n";
+
 #if 0
 static int handle_quit(int fd, int argc, char *argv[])
 {
@@ -1117,6 +1130,69 @@ static int handle_bang(int fd, int argc, char *argv[])
 {
 	return RESULT_SUCCESS;
 }
+static const char *warranty_lines[] = {
+	"\n",
+	"			    NO WARRANTY\n",
+	"\n",
+	"BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY\n",
+	"FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.  EXCEPT WHEN\n",
+	"OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES\n",
+	"PROVIDE THE PROGRAM \"AS IS\" WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESSED\n",
+	"OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF\n",
+	"MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  THE ENTIRE RISK AS\n",
+	"TO THE QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU.  SHOULD THE\n",
+	"PROGRAM PROVE DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING,\n",
+	"REPAIR OR CORRECTION.\n",
+	"\n",
+	"IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING\n",
+	"WILL ANY COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MAY MODIFY AND/OR\n",
+	"REDISTRIBUTE THE PROGRAM AS PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES,\n",
+	"INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING\n",
+	"OUT OF THE USE OR INABILITY TO USE THE PROGRAM (INCLUDING BUT NOT LIMITED\n",
+	"TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE OR LOSSES SUSTAINED BY\n",
+	"YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER\n",
+	"PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE\n",
+	"POSSIBILITY OF SUCH DAMAGES.\n",
+};
+
+static int show_warranty(int fd, int argc, char *argv[])
+{
+	int x;
+
+	for (x = 0; x < sizeof(warranty_lines) / sizeof(warranty_lines[0]); x++)
+		ast_cli(fd, (char *) warranty_lines[x]);
+
+	return RESULT_SUCCESS;
+}
+
+static const char *license_lines[] = {
+	"\n",
+	"This program is free software; you can redistribute it and/or modify\n",
+	"it under the terms of the GNU General Public License version 2 as\n",
+	"published by the Free Software Foundation.\n",
+	"\n",
+	"This program also contains components licensed under other licenses.\n",
+	"They include:\n",
+	"\n",
+	"This program is distributed in the hope that it will be useful,\n",
+	"but WITHOUT ANY WARRANTY; without even the implied warranty of\n",
+	"MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n",
+	"GNU General Public License for more details.\n",
+	"\n",
+	"You should have received a copy of the GNU General Public License\n",
+	"along with this program; if not, write to the Free Software\n",
+	"Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA\n",
+};
+
+static int show_license(int fd, int argc, char *argv[])
+{
+	int x;
+
+	for (x = 0; x < sizeof(license_lines) / sizeof(license_lines[0]); x++)
+		ast_cli(fd, (char *) license_lines[x]);
+
+	return RESULT_SUCCESS;
+}
 
 #define ASTERISK_PROMPT "*CLI> "
 
@@ -1137,6 +1213,10 @@ static struct ast_cli_entry core_cli[] = {
 	  "Restart Asterisk gracefully", restart_gracefully_help },
 	{ { "restart", "when", "convenient", NULL }, handle_restart_when_convenient,
 	  "Restart Asterisk at empty call volume", restart_when_convenient_help },
+	{ { "show", "warranty", NULL }, show_warranty,
+	  "Show the warranty (if any) for this copy of Asterisk", show_warranty_help },
+	{ { "show", "license", NULL }, show_license,
+	  "Show the license(s) for this copy of Asterisk", show_license_help },
 	{ { "!", NULL }, handle_bang,
 	  "Execute a shell command", bang_help },
 #if !defined(LOW_MEMORY)
@@ -1729,7 +1809,7 @@ static int show_version(void)
 }
 
 static int show_cli_help(void) {
-	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 2000 - 2005, Digium.\n");
+	printf("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2005, Digium, Inc. and others.\n");
 	printf("Usage: asterisk [OPTIONS]\n");
 	printf("Valid Options:\n");
 	printf("   -V              Display version number and exit\n");
