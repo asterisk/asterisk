@@ -90,7 +90,6 @@ static int hasvoicemail_internal(char *context, char *box, char *folder)
 		while ((vment = readdir(vmdir))) {
 			if (!strncmp(vment->d_name + 7, ".txt", 4)) {
 				count++;
-				break;
 			}
 		}
 		closedir(vmdir);
