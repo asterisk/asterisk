@@ -1275,6 +1275,9 @@ int ast_custom_function_unregister(struct ast_custom_function *acf)
 
 int ast_custom_function_register(struct ast_custom_function *acf) 
 {
+	struct ast_custom_function *cur, *last = NULL;
+	int found = 0;
+
 	if (!acf)
 		return -1;
 
@@ -1290,8 +1293,29 @@ int ast_custom_function_register(struct ast_custom_function *acf)
 		return -1;
 	}
 
-	acf->next = acf_root;
-	acf_root = acf;
+	for (cur = acf_root; cur; cur = cur->next) {
+		if (strcmp(acf->name, cur->name) < 0) {
+			found = 1;
+			if (last) {
+				acf->next = cur;
+				last->next = acf;
+			} else {
+				acf->next = acf_root;
+				acf_root = acf;
+			}
+			break;
+		}
+		last = cur;
+	}
+
+	/* Wasn't before anything else, put it at the end */
+	if (!found) {
+		if (last)
+			last->next = acf;
+		else
+			acf_root = acf;
+		acf->next = NULL;
+	}
 
 	ast_mutex_unlock(&acflock);
 
