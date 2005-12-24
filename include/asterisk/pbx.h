@@ -626,7 +626,7 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string);
 int ast_explicit_goto(struct ast_channel *chan, const char *context, const char *exten, int priority);
 int ast_async_goto_if_exists(struct ast_channel *chan, const char *context, const char *exten, int priority);
 
-struct ast_custom_function* ast_custom_function_find(char *name);
+struct ast_custom_function* ast_custom_function_find(const char *name);
 int ast_custom_function_unregister(struct ast_custom_function *acf);
 int ast_custom_function_register(struct ast_custom_function *acf);
 
