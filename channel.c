@@ -170,19 +170,18 @@ const struct ast_cause {
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
 #define FORMAT  "%-10.10s  %-30.30s %-12.12s %-12.12s %-12.12s\n"
-	struct chanlist *cl = backends;
+	struct chanlist *cl;
 	ast_cli(fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
 	ast_cli(fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
 	if (ast_mutex_lock(&chlock)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
-	while (cl) {
+	for (cl = backends; cl; cl = cl->next) {
 		ast_cli(fd, FORMAT, cl->tech->type, cl->tech->description, 
 			(cl->tech->devicestate) ? "yes" : "no", 
 			(cl->tech->indicate) ? "yes" : "no",
 			(cl->tech->transfer) ? "yes" : "no");
-		cl = cl->next;
 	}
 	ast_mutex_unlock(&chlock);
 	return RESULT_SUCCESS;
@@ -236,11 +235,8 @@ void ast_begin_shutdown(int hangup)
 	shutting_down = 1;
 	if (hangup) {
 		ast_mutex_lock(&chlock);
-		c = channels;
-		while(c) {
+		for (c = channels; c; c = c->next)
 			ast_softhangup(c, AST_SOFTHANGUP_SHUTDOWN);
-			c = c->next;
-		}
 		ast_mutex_unlock(&chlock);
 	}
 }
@@ -251,11 +247,8 @@ int ast_active_channels(void)
 	struct ast_channel *c;
 	int cnt = 0;
 	ast_mutex_lock(&chlock);
-	c = channels;
-	while(c) {
+	for (c = channels; c; c = c->next)
 		cnt++;
-		c = c->next;
-	}
 	ast_mutex_unlock(&chlock);
 	return cnt;
 }
@@ -319,14 +312,12 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 
 	ast_mutex_lock(&chlock);
 
-	chan = backends;
-	while (chan) {
+	for (chan = backends; chan; chan = chan->next) {
 		if (!strcasecmp(tech->type, chan->tech->type)) {
 			ast_log(LOG_WARNING, "Already have a handler for type '%s'\n", tech->type);
 			ast_mutex_unlock(&chlock);
 			return -1;
 		}
-		chan = chan->next;
 	}
 
 	chan = malloc(sizeof(*chan));
@@ -359,8 +350,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 
 	ast_mutex_lock(&chlock);
 
-	chan = backends;
-	while (chan) {
+	for (chan = backends; chan; chan = chan->next) {
 		if (chan->tech == tech) {
 			if (last)
 				last->next = chan->next;
@@ -375,7 +365,6 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 			return;
 		}
 		last = chan;
-		chan = chan->next;
 	}
 
 	ast_mutex_unlock(&chlock);
@@ -620,8 +609,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 	}
 	ast_mutex_lock(&chan->lock);
 	prev = NULL;
-	cur = chan->readq;
-	while(cur) {
+	for (cur = chan->readq; cur; cur = cur->next) {
 		if ((cur->frametype == AST_FRAME_CONTROL) && (cur->subclass == AST_CONTROL_HANGUP)) {
 			/* Don't bother actually queueing anything after a hangup */
 			ast_frfree(f);
@@ -629,7 +617,6 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 			return 0;
 		}
 		prev = cur;
-		cur = cur->next;
 		qlen++;
 	}
 	/* Allow up to 96 voice frames outstanding, and up to 128 total frames */
@@ -884,8 +871,7 @@ void ast_channel_free(struct ast_channel *chan)
 	headp=&chan->varshead;
 	
 	ast_mutex_lock(&chlock);
-	cur = channels;
-	while(cur) {
+	for (cur = channels; cur; cur = cur->next) {
 		if (cur == chan) {
 			if (last)
 				last->next = cur->next;
@@ -894,7 +880,6 @@ void ast_channel_free(struct ast_channel *chan)
 			break;
 		}
 		last = cur;
-		cur = cur->next;
 	}
 	if (!cur)
 		ast_log(LOG_WARNING, "Unable to find channel in list\n");
@@ -2951,12 +2936,10 @@ int ast_do_masquerade(struct ast_channel *original)
 	/* Save any pending frames on both sides.  Start by counting
 	 * how many we're going to need... */
 	prev = NULL;
-	cur = clone->readq;
 	x = 0;
-	while(cur) {
+	for (cur = clone->readq; cur; cur = cur->next) {
 		x++;
 		prev = cur;
-		cur = cur->next;
 	}
 	/* If we had any, prepend them to the ones already in the queue, and 
 	 * load up the alertpipe */
@@ -3179,10 +3162,10 @@ struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
 
 static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, const char *sound, int remain) 
 {
-	int res=0, min=0, sec=0,check=0;
+	int min = 0, sec = 0, check;
 
 	check = ast_autoservice_start(peer);
-	if(check) 
+	if (check) 
 		return;
 
 	if (remain > 0) {
@@ -3195,21 +3178,21 @@ static void bridge_playfile(struct ast_channel *chan, struct ast_channel *peer, 
 	}
 	
 	if (!strcmp(sound,"timeleft")) {	/* Queue support */
-		res = ast_streamfile(chan, "vm-youhave", chan->language);
-		res = ast_waitstream(chan, "");
+		ast_streamfile(chan, "vm-youhave", chan->language);
+		ast_waitstream(chan, "");
 		if (min) {
-			res = ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, (char *) NULL);
-			res = ast_streamfile(chan, "queue-minutes", chan->language);
-			res = ast_waitstream(chan, "");
+			ast_say_number(chan, min, AST_DIGIT_ANY, chan->language, (char *) NULL);
+			ast_streamfile(chan, "queue-minutes", chan->language);
+			ast_waitstream(chan, "");
 		}
 		if (sec) {
-			res = ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, (char *) NULL);
-			res = ast_streamfile(chan, "queue-seconds", chan->language);
-			res = ast_waitstream(chan, "");
+			ast_say_number(chan, sec, AST_DIGIT_ANY, chan->language, (char *) NULL);
+			ast_streamfile(chan, "queue-seconds", chan->language);
+			ast_waitstream(chan, "");
 		}
 	} else {
-		res = ast_streamfile(chan, sound, chan->language);
-		res = ast_waitstream(chan, "");
+		ast_streamfile(chan, sound, chan->language);
+		ast_waitstream(chan, "");
 	}
 
 	check = ast_autoservice_stop(peer);
@@ -3601,10 +3584,9 @@ static void *tonepair_alloc(struct ast_channel *chan, void *params)
 	struct tonepair_state *ts;
 	struct tonepair_def *td = params;
 
-	ts = malloc(sizeof(struct tonepair_state));
+	ts = calloc(1, sizeof(struct tonepair_state));
 	if (!ts)
 		return NULL;
-	memset(ts, 0, sizeof(struct tonepair_state));
 	ts->origwfmt = chan->writeformat;
 	if (ast_set_write_format(chan, AST_FORMAT_SLINEAR)) {
 		ast_log(LOG_WARNING, "Unable to set '%s' to signed linear format (write)\n", chan->name);
@@ -3693,7 +3675,7 @@ int ast_tonepair(struct ast_channel *chan, int freq1, int freq2, int duration, i
 		return res;
 
 	/* Give us some wiggle room */
-	while(chan->generatordata && (ast_waitfor(chan, 100) >= 0)) {
+	while (chan->generatordata && (ast_waitfor(chan, 100) >= 0)) {
 		f = ast_read(chan);
 		if (f)
 			ast_frfree(f);
@@ -3718,7 +3700,7 @@ ast_group_t ast_get_group(char *s)
 	}
 	c = copy;
 	
-	while((piece = strsep(&c, ","))) {
+	while ((piece = strsep(&c, ","))) {
 		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {
 			/* Range */
 		} else if (sscanf(piece, "%d", &start)) {
@@ -3775,14 +3757,14 @@ int ast_moh_start(struct ast_channel *chan, char *mclass)
 /*! Turn off music on hold on a given channel */
 void ast_moh_stop(struct ast_channel *chan) 
 {
-	if(ast_moh_stop_ptr)
+	if (ast_moh_stop_ptr)
 		ast_moh_stop_ptr(chan);
 }
 
 void ast_moh_cleanup(struct ast_channel *chan) 
 {
-	if(ast_moh_cleanup_ptr)
-        ast_moh_cleanup_ptr(chan);
+	if (ast_moh_cleanup_ptr)
+		ast_moh_cleanup_ptr(chan);
 }
 
 void ast_channels_init(void)
@@ -3800,9 +3782,9 @@ char *ast_print_group(char *buf, int buflen, ast_group_t group)
 	buf[0] = '\0';
 	
 	if (!group)	/* Return empty string if no group */
-		return(buf);
+		return buf;
 
-	for (i=0; i<=63; i++) {	/* Max group is 63 */
+	for (i = 0; i <= 63; i++) {	/* Max group is 63 */
 		if (group & ((ast_group_t) 1 << i)) {
 	   		if (!first) {
 				strncat(buf, ", ", buflen);
@@ -3813,7 +3795,7 @@ char *ast_print_group(char *buf, int buflen, ast_group_t group)
 			strncat(buf, num, buflen);
 		}
 	}
-	return(buf);
+	return buf;
 }
 
 void ast_set_variables(struct ast_channel *chan, struct ast_variable *vars)
