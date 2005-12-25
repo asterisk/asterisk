@@ -2264,10 +2264,10 @@ static void *recordthread(void *args)
 					ast_frfree(cnf->transframe[x]);
 					cnf->transframe[x] = NULL;
 				}
-				if (cnf->origframe)
-					ast_frfree(cnf->origframe);
-				cnf->origframe = f;
 			}
+			if (cnf->origframe)
+				ast_frfree(cnf->origframe);
+			cnf->origframe = f;
 			ast_mutex_unlock(&cnf->listenlock);
 			if (s)
 				res = ast_writestream(s, f);
