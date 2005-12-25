@@ -1603,10 +1603,44 @@ static void prep_email_sub_vars(struct ast_channel *ast, struct ast_vm_user *vmu
 	pbx_builtin_setvar_helper(ast, "VM_DATE", date);
 }
 
+/*
+ * fill in *tm for current time according to the proper timezone, if any.
+ * Return tm so it can be used as a function argument.
+ */
+static const struct tm *vmu_tm(const struct ast_vm_user *vmu, struct tm *tm)
+{
+	const struct vm_zone *z = NULL;
+	time_t t = time(NULL);
+
+	/* Does this user have a timezone specified? */
+	if (!ast_strlen_zero(vmu->zonetag)) {
+		/* Find the zone in the list */
+		for (z = zones; z ; z = z->next)
+			if (!strcmp(z->name, vmu->zonetag))
+				break;
+	}
+	ast_localtime(&t, tm, z ? z->timezone : NULL);
+	return tm;
+}
+
+/* same as mkstemp, but return a FILE * */
+static FILE *vm_mkftemp(char *template)
+{
+	FILE *p = NULL;
+	int pfd = mkstemp(template);
+	if (pfd > -1) {
+		p = fdopen(pfd, "w");
+		if (!p) {
+			close(pfd);
+			pfd = -1;
+		}
+	}
+	return p;
+}
+
 static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, char *attach, char *format, int duration, int attach_user_voicemail)
 {
 	FILE *p=NULL;
-	int pfd;
 	char date[256];
 	char host[MAXHOSTNAMELEN] = "";
 	char who[256];
@@ -1615,9 +1649,8 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	char dur[256];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[256];
-	time_t t;
 	struct tm tm;
-	struct vm_zone *the_zone = NULL;
+
 	if (vmu && ast_strlen_zero(vmu->email)) {
 		ast_log(LOG_WARNING, "E-mail address missing for mailbox [%s].  E-mail will not be sent.\n", vmu->mailbox);
 		return(0);
@@ -1627,15 +1660,11 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 	ast_log(LOG_DEBUG, "Attaching file '%s', format '%s', uservm is '%d', global is %d\n", attach, format, attach_user_voicemail, ast_test_flag((&globalflags), VM_ATTACH));
 	/* Make a temporary file instead of piping directly to sendmail, in case the mail
 	   command hangs */
-	pfd = mkstemp(tmp);
-	if (pfd > -1) {
-		p = fdopen(pfd, "w");
-		if (!p) {
-			close(pfd);
-			pfd = -1;
-		}
-	}
-	if (p) {
+	p = vm_mkftemp(tmp);
+	if (p == NULL) {
+		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
+		return -1;
+	} else {
 		gethostname(host, sizeof(host)-1);
 		if (strchr(srcemail, '@'))
 			ast_copy_string(who, srcemail, sizeof(who));
@@ -1643,27 +1672,7 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 		}
 		snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
-		time(&t);
-
-		/* Does this user have a timezone specified? */
-		if (!ast_strlen_zero(vmu->zonetag)) {
-			/* Find the zone in the list */
-			struct vm_zone *z;
-			z = zones;
-			while (z) {
-				if (!strcmp(z->name, vmu->zonetag)) {
-					the_zone = z;
-					break;
-				}
-				z = z->next;
-			}
-		}
-
-		if (the_zone)
-			ast_localtime(&t,&tm,the_zone->timezone);
-		else
-			ast_localtime(&t,&tm,NULL);
-		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
+		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
 		fprintf(p, "Date: %s\n", date);
 
 		/* Set date format for voicemail mail */
@@ -1758,37 +1767,25 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
 		ast_log(LOG_DEBUG, "Sent mail to %s with command '%s'\n", vmu->email, mailcmd);
-	} else {
-		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
-		return -1;
 	}
 	return 0;
 }
 
 static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char *mailbox, char *cidnum, char *cidname, int duration, struct ast_vm_user *vmu)
 {
-	FILE *p=NULL;
-	int pfd;
 	char date[256];
 	char host[MAXHOSTNAMELEN]="";
 	char who[256];
 	char dur[256];
 	char tmp[80] = "/tmp/astmail-XXXXXX";
 	char tmp2[256];
-	time_t t;
 	struct tm tm;
-	struct vm_zone *the_zone = NULL;
-	pfd = mkstemp(tmp);
+	FILE *p = vm_mkftemp(tmp);
 
-	if (pfd > -1) {
-		p = fdopen(pfd, "w");
-		if (!p) {
-			close(pfd);
-			pfd = -1;
-		}
-	}
-
-	if (p) {
+	if (p == NULL) {
+		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
+		return -1;
+	} else {
 		gethostname(host, sizeof(host)-1);
 		if (strchr(srcemail, '@'))
 			ast_copy_string(who, srcemail, sizeof(who));
@@ -1796,28 +1793,7 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			snprintf(who, sizeof(who), "%s@%s", srcemail, host);
 		}
 		snprintf(dur, sizeof(dur), "%d:%02d", duration / 60, duration % 60);
-		time(&t);
-
-		/* Does this user have a timezone specified? */
-		if (!ast_strlen_zero(vmu->zonetag)) {
-			/* Find the zone in the list */
-			struct vm_zone *z;
-			z = zones;
-			while (z) {
-				if (!strcmp(z->name, vmu->zonetag)) {
-					the_zone = z;
-					break;
-				}
-				z = z->next;
-			}
-		}
-
-		if (the_zone)
-			ast_localtime(&t,&tm,the_zone->timezone);
-		else
-			ast_localtime(&t,&tm,NULL);
-
-		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", &tm);
+		strftime(date, sizeof(date), "%a, %d %b %Y %H:%M:%S %z", vmu_tm(vmu, &tm));
 		fprintf(p, "Date: %s\n", date);
 
 		if (*pagerfromstring) {
@@ -1874,9 +1850,6 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		snprintf(tmp2, sizeof(tmp2), "( %s < %s ; rm -f %s ) &", mailcmd, tmp, tmp);
 		ast_safe_system(tmp2);
 		ast_log(LOG_DEBUG, "Sent page to %s with command '%s'\n", pager, mailcmd);
-	} else {
-		ast_log(LOG_WARNING, "Unable to launch '%s'\n", mailcmd);
-		return -1;
 	}
 	return 0;
 }
@@ -2360,7 +2333,7 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	char tmp[256] = "", *tmpptr;
 	struct ast_vm_user *vmu;
 	struct ast_vm_user svm;
-	char *category = NULL;
+	const char *category = NULL;
 
 	ast_copy_string(tmp, ext, sizeof(tmp));
 	ext = tmp;
@@ -4751,8 +4724,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	unsigned char buf[256];
 	int bytes=0;
 
-	if (adsi_available(chan))
-	{
+	if (adsi_available(chan)) {
 		bytes += adsi_logo(buf + bytes);
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 3, ADSI_JUST_CENT, 0, "Temp Greeting Menu", "");
 		bytes += adsi_display(buf + bytes, ADSI_COMM_PAGE, 4, ADSI_JUST_CENT, 0, "Not Done", "");
@@ -4760,39 +4732,37 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 		bytes += adsi_voice_mode(buf + bytes, 0);
 		adsi_transmit_message(chan, buf, bytes, ADSI_MSG_DISPLAY);
 	}
-	snprintf(prefile,sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
-	while((cmd >= 0) && (cmd != 't')) {
+	snprintf(prefile, sizeof(prefile), "%s%s/%s/temp", VM_SPOOL_DIR, vmu->context, vms->username);
+	while (cmd >= 0 && cmd != 't') {
 		if (cmd)
 			retries = 0;
-		if (ast_fileexists(prefile, NULL, NULL) > 0) {
+		if (ast_fileexists(prefile, NULL, NULL) <= 0) {
+			play_record_review(chan, "vm-rec-temp", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
+			cmd = 't';	
+		} else {
 			switch (cmd) {
 			case '1':
-				cmd = play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
+				cmd = play_record_review(chan, "vm-rec-temp", prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 				break;
 			case '2':
 				ast_filedelete(prefile, NULL);
-				ast_play_and_wait(chan,"vm-tempremoved");
+				ast_play_and_wait(chan, "vm-tempremoved");
 				cmd = 't';	
 				break;
 			case '*': 
 				cmd = 't';
 				break;
 			default:
-				if (ast_fileexists(prefile, NULL, NULL) > 0) {
-					cmd = ast_play_and_wait(chan,"vm-tempgreeting2");
-				} else {
-					cmd = ast_play_and_wait(chan,"vm-tempgreeting");
-				} if (!cmd) {
+				cmd = ast_play_and_wait(chan,
+					ast_fileexists(prefile, NULL, NULL) > 0 ? /* XXX always true ? */
+						"vm-tempgreeting2" : "vm-tempgreeting");
+				if (!cmd)
 					cmd = ast_waitfordigit(chan,6000);
-				} if (!cmd) {
+				if (!cmd)
 					retries++;
-				} if (retries > 3) {
+				if (retries > 3)
 					cmd = 't';
-				}
 			}
-		} else {
-			play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
-			cmd = 't';	
 		}
 	}
 	if (cmd == 't')
