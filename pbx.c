@@ -2541,12 +2541,13 @@ int pbx_set_autofallthrough(int newval)
  */
 int ast_context_remove_include(const char *context, const char *include, const char *registrar)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
 
-	if (ast_lock_contexts()) return -1;
+	if (ast_lock_contexts())
+		return -1;
 
 	/* walk contexts and search for the right one ...*/
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		/* we found one ... */
 		if (!strcmp(ast_get_context_name(c), context)) {
 			int ret;
@@ -2609,28 +2610,25 @@ int ast_context_remove_include2(struct ast_context *con, const char *include, co
  */
 int ast_context_remove_switch(const char *context, const char *sw, const char *data, const char *registrar)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
+	int ret = -1; /* default error return */
 
-	if (ast_lock_contexts()) return -1;
+	if (ast_lock_contexts())
+		return -1;
 
 	/* walk contexts and search for the right one ...*/
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		/* we found one ... */
 		if (!strcmp(ast_get_context_name(c), context)) {
-			int ret;
 			/* remove switch from this context ... */	
 			ret = ast_context_remove_switch2(c, sw, data, registrar);
-
-			ast_unlock_contexts();
-
-			/* ... return results */
-			return ret;
+			break;
 		}
 	}
 
-	/* we can't find the right one context */
+	/* found or error */
 	ast_unlock_contexts();
-	return -1;
+	return ret;
 }
 
 /*!
@@ -2677,26 +2675,25 @@ int ast_context_remove_switch2(struct ast_context *con, const char *sw, const ch
  */
 int ast_context_remove_extension(const char *context, const char *extension, int priority, const char *registrar)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
+	int ret = -1; /* default error return */
 
-	if (ast_lock_contexts()) return -1;
+	if (ast_lock_contexts())
+		return -1;
 
 	/* walk contexts ... */
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		/* ... search for the right one ... */
 		if (!strcmp(ast_get_context_name(c), context)) {
 			/* ... remove extension ... */
-			int ret = ast_context_remove_extension2(c, extension, priority,
+			ret = ast_context_remove_extension2(c, extension, priority,
 				registrar);
-			/* ... unlock contexts list and return */
-			ast_unlock_contexts();
-			return ret;
+			break;
 		}
 	}
-
-	/* we can't find the right context */
+	/* found or error */
 	ast_unlock_contexts();
-	return -1;
+	return ret;
 }
 
 /*!
@@ -3234,7 +3231,8 @@ static char *complete_show_applications(char *line, char *word, int pos, int sta
 static char *complete_show_dialplan_context(char *line, char *word, int pos,
 	int state)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
+	char *ret = NULL;
 	int which = 0;
 	int wordlen;
 
@@ -3251,22 +3249,21 @@ static char *complete_show_dialplan_context(char *line, char *word, int pos,
 	wordlen = strlen(word);
 
 	/* ... walk through all contexts ... */
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		/* ... word matches context name? yes? ... */
 		if (!strncasecmp(word, ast_get_context_name(c), wordlen)) {
 			/* ... for serve? ... */
 			if (++which > state) {
 				/* ... yes, serve this context name ... */
-				char *ret = strdup(ast_get_context_name(c));
-				ast_unlock_contexts();
-				return ret;
+				ret = strdup(ast_get_context_name(c));
+				break;
 			}
 		}
 	}
 
 	/* ... unlock and return */
 	ast_unlock_contexts();
-	return NULL;
+	return ret;
 }
 
 struct dialplan_counters {
@@ -3279,7 +3276,7 @@ struct dialplan_counters {
 
 static int show_dialplan_helper(int fd, char *context, char *exten, struct dialplan_counters *dpc, struct ast_include *rinclude, int includecount, char *includes[])
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
 	int res = 0, old_total_exten = dpc->total_exten;
 
 	/* try to lock contexts */
@@ -3289,7 +3286,7 @@ static int show_dialplan_helper(int fd, char *context, char *exten, struct dialp
 	}
 
 	/* walk all contexts ... */
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		/* show this context? */
 		if (!context ||
 			!strcmp(ast_get_context_name(c), context)) {
@@ -3728,7 +3725,7 @@ void ast_merge_contexts_and_delete(struct ast_context **extcontexts, const char 
  */
 int ast_context_add_include(const char *context, const char *include, const char *registrar)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
 
 	if (ast_lock_contexts()) {
 		errno = EBUSY;
@@ -3736,7 +3733,7 @@ int ast_context_add_include(const char *context, const char *include, const char
 	}
 
 	/* walk contexts ... */
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		/* ... search for the right one ... */
 		if (!strcmp(ast_get_context_name(c), context)) {
 			int ret = ast_context_add_include2(c, include, registrar);
@@ -4164,7 +4161,7 @@ int ast_context_add_include2(struct ast_context *con, const char *value,
  */
 int ast_context_add_switch(const char *context, const char *sw, const char *data, int eval, const char *registrar)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
 
 	if (ast_lock_contexts()) {
 		errno = EBUSY;
@@ -4172,7 +4169,7 @@ int ast_context_add_switch(const char *context, const char *sw, const char *data
 	}
 
 	/* walk contexts ... */
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		/* ... search for the right one ... */
 		if (!strcmp(ast_get_context_name(c), context)) {
 			int ret = ast_context_add_switch2(c, sw, data, eval, registrar);
@@ -4276,14 +4273,14 @@ int ast_context_add_switch2(struct ast_context *con, const char *value,
  */
 int ast_context_remove_ignorepat(const char *context, const char *ignorepat, const char *registrar)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
 
 	if (ast_lock_contexts()) {
 		errno = EBUSY;
 		return -1;
 	}
 
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		if (!strcmp(ast_get_context_name(c), context)) {
 			int ret = ast_context_remove_ignorepat2(c, ignorepat, registrar);
 			ast_unlock_contexts();
@@ -4332,14 +4329,14 @@ int ast_context_remove_ignorepat2(struct ast_context *con, const char *ignorepat
  */
 int ast_context_add_ignorepat(const char *con, const char *value, const char *registrar)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
 
 	if (ast_lock_contexts()) {
 		errno = EBUSY;
 		return -1;
 	}
 
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		if (!strcmp(ast_get_context_name(c), con)) {
 			int ret = ast_context_add_ignorepat2(c, value, registrar);
 			ast_unlock_contexts();
@@ -4409,14 +4406,14 @@ int ast_ignore_pattern(const char *context, const char *pattern)
 int ast_add_extension(const char *context, int replace, const char *extension, int priority, const char *label, const char *callerid,
 	const char *application, void *data, void (*datad)(void *), const char *registrar)
 {
-	struct ast_context *c;
+	struct ast_context *c = NULL;
 
 	if (ast_lock_contexts()) {
 		errno = EBUSY;
 		return -1;
 	}
 
-	for (c = ast_walk_contexts(NULL); c; c = ast_walk_contexts(c)) {
+	while ( (c = ast_walk_contexts(c)) ) {
 		if (!strcmp(context, ast_get_context_name(c))) {
 			int ret = ast_add_extension2(c, replace, extension, priority, label, callerid,
 				application, data, datad, registrar);
@@ -6134,10 +6131,7 @@ const char *ast_get_switch_registrar(struct ast_sw *sw)
  */
 struct ast_context *ast_walk_contexts(struct ast_context *con)
 {
-	if (!con)
-		return contexts;
-	else
-		return con->next;
+	return con ? con->next : contexts;
 }
 
 struct ast_exten *ast_walk_context_extensions(struct ast_context *con,
@@ -6161,10 +6155,7 @@ struct ast_sw *ast_walk_context_switches(struct ast_context *con,
 struct ast_exten *ast_walk_extension_priorities(struct ast_exten *exten,
 	struct ast_exten *priority)
 {
-	if (!priority)
-		return exten;
-	else
-		return priority->peer;
+	return priority ? priority->peer : exten;
 }
 
 struct ast_include *ast_walk_context_includes(struct ast_context *con,
@@ -6187,10 +6178,10 @@ struct ast_ignorepat *ast_walk_context_ignorepats(struct ast_context *con,
 
 int ast_context_verify_includes(struct ast_context *con)
 {
-	struct ast_include *inc;
+	struct ast_include *inc = NULL;
 	int res = 0;
 
-	for (inc = ast_walk_context_includes(con, NULL); inc; inc = ast_walk_context_includes(con, inc))
+	while ( (inc = ast_walk_context_includes(con, inc)) )
 		if (!ast_context_find(inc->rname)) {
 			res = -1;
 			ast_log(LOG_WARNING, "Context '%s' tries includes nonexistent context '%s'\n",
