@@ -148,6 +148,8 @@ switchtype=national
 ; featdmf_ta:     Feature Group D (The real thing, MF (domestic, US)) through
 ;                 a Tandem Access point
 ; featb:          Feature Group B (MF (domestic, US))
+; fgccama	  Feature Group C-CAMA (DP DNIS, MF ANI)
+; fgccamamf	  Feature Group C-CAMA MF (MF DNIS, MF ANI)
 ; fxs_ls:         FXS (Loop Start)
 ; fxs_gs:         FXS (Ground Start)
 ; fxs_ks:         FXS (Kewl Start)

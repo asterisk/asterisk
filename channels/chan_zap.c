@@ -133,7 +133,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define AST_LAW(p) (((p)->law == ZT_LAW_ALAW) ? AST_FORMAT_ALAW : AST_FORMAT_ULAW)
 
 /*! \brief Signaling types that need to use MF detection should be placed in this macro */
-#define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FEATB)) 
+#define NEED_MFDETECT(p) (((p)->sig == SIG_FEATDMF) || ((p)->sig == SIG_FEATDMF_TA) || ((p)->sig == SIG_E911) || ((p)->sig == SIG_FGC_CAMA) || ((p)->sig == SIG_FGC_CAMAMF) || ((p)->sig == SIG_FEATB)) 
 
 static const char desc[] = "Zapata Telephony"
 #ifdef ZAPATA_PRI
@@ -163,6 +163,8 @@ static const char config[] = "zapata.conf";
 #define	SIG_FEATB	(0x0800000 | ZT_SIG_EM)
 #define	SIG_E911	(0x1000000 | ZT_SIG_EM)
 #define	SIG_FEATDMF_TA	(0x2000000 | ZT_SIG_EM)
+#define	SIG_FGC_CAMA	(0x4000000 | ZT_SIG_EM)
+#define	SIG_FGC_CAMAMF	(0x8000000 | ZT_SIG_EM)
 #define SIG_FXSLS	ZT_SIG_FXSLS
 #define SIG_FXSGS	ZT_SIG_FXSGS
 #define SIG_FXSKS	ZT_SIG_FXSKS
@@ -1148,6 +1150,10 @@ static char *zap_sig2str(int sig)
 		return "Feature Group B (MF)";
 	case SIG_E911:
 		return "E911 (MF)";
+	case SIG_FGC_CAMA:
+		return "FGC/CAMA (Dialpulse)";
+	case SIG_FGC_CAMAMF:
+		return "FGC/CAMA (MF)";
 	case SIG_FXSLS:
 		return "FXS Loopstart";
 	case SIG_FXSGS:
@@ -1877,6 +1883,8 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 	case SIG_FEATD:
 	case SIG_FEATDMF:
 	case SIG_E911:
+	case SIG_FGC_CAMA:
+	case SIG_FGC_CAMAMF:
 	case SIG_FEATB:
 	case SIG_SFWINK:
 	case SIG_SF:
@@ -1954,6 +1962,10 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 		case SIG_E911:
 			ast_copy_string(p->dop.dialstr, "M*911#", sizeof(p->dop.dialstr));
 			break;
+		case SIG_FGC_CAMA:
+			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "P%s", c);
+			break;
+		case SIG_FGC_CAMAMF:
 		case SIG_FEATB:
 			snprintf(p->dop.dialstr, sizeof(p->dop.dialstr), "M*%s#", c);
 			break;
@@ -2692,7 +2704,10 @@ static int zt_answer(struct ast_channel *ast)
 	case SIG_EMWINK:
 	case SIG_FEATD:
 	case SIG_FEATDMF:
+	case SIG_FEATDMF_TA:
 	case SIG_E911:
+	case SIG_FGC_CAMA:
+	case SIG_FGC_CAMAMF:
 	case SIG_FEATB:
 	case SIG_SF:
 	case SIG_SFWINK:
@@ -3632,7 +3647,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					p->echobreak = 0;
 				} else {
 					p->dialing = 0;
-					if (p->sig == SIG_E911) {
+					if ((p->sig == SIG_E911) || (p->sig == SIG_FGC_CAMA) || (p->sig == SIG_FGC_CAMAMF)) {
 						/* if thru with dialing after offhook */
 						if (ast->_state == AST_STATE_DIALING_OFFHOOK) {
 							ast_setstate(ast, AST_STATE_UP);
@@ -3647,7 +3662,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 					if (ast->_state == AST_STATE_DIALING) {
 						if ((p->callprogress & 1) && CANPROGRESSDETECT(p) && p->dsp && p->outgoing) {
 							ast_log(LOG_DEBUG, "Done dialing, but waiting for progress detection before doing more...\n");
-						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EM_E1) ||  (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
+						} else if (p->confirmanswer || (!p->dialednone && ((p->sig == SIG_EM) || (p->sig == SIG_EM_E1) ||  (p->sig == SIG_EMWINK) || (p->sig == SIG_FEATD) || (p->sig == SIG_FEATDMF_TA) || (p->sig == SIG_FEATDMF) || (p->sig == SIG_E911) || (p->sig == SIG_FGC_CAMA) || (p->sig == SIG_FGC_CAMAMF) || (p->sig == SIG_FEATB) || (p->sig == SIG_SF) || (p->sig == SIG_SFWINK) || (p->sig == SIG_SF_FEATD) || (p->sig == SIG_SF_FEATDMF) || (p->sig == SIG_SF_FEATB)))) {
 							ast_setstate(ast, AST_STATE_RINGING);
 						} else if (!p->answeronpolarityswitch) {
 							ast_setstate(ast, AST_STATE_UP);
@@ -3810,7 +3825,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			}
 			/* for E911, its supposed to wait for offhook then dial
 			   the second half of the dial string */
-			if ((p->sig == SIG_E911) && (ast->_state == AST_STATE_DIALING_OFFHOOK)) {
+			if (((p->sig == SIG_E911) || (p->sig == SIG_FGC_CAMA) || (p->sig == SIG_FGC_CAMAMF)) && (ast->_state == AST_STATE_DIALING_OFFHOOK)) {
 				c = strchr(p->dialdest, '/');
 				if (c)
 					c++;
@@ -3924,6 +3939,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			case SIG_FEATDMF:
 			case SIG_FEATDMF_TA:
 			case SIG_E911:
+			case SIG_FGC_CAMA:
+			case SIG_FGC_CAMAMF:
 			case SIG_FEATB:
 			case SIG_SF:
 			case SIG_SFWINK:
@@ -4177,6 +4194,8 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				/* Fall through */
 			case SIG_FEATDMF:
 			case SIG_E911:
+			case SIG_FGC_CAMAMF:
+			case SIG_FGC_CAMA:
 			case SIG_FEATB:
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
@@ -4221,7 +4240,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 				p->dop.op = ZT_DIAL_OP_REPLACE;
 				break;
 			case SIG_FEATDMF:
+			case SIG_FEATDMF_TA:
 			case SIG_E911:
+			case SIG_FGC_CAMA:
+			case SIG_FGC_CAMAMF:
 			case SIG_FEATB:
 			case SIG_SF_FEATDMF:
 			case SIG_SF_FEATB:
@@ -5304,7 +5326,9 @@ static void *ss_thread(void *data)
 #endif
 	case SIG_FEATD:
 	case SIG_FEATDMF:
+	case SIG_FEATDMF_TA:
 	case SIG_E911:
+	case SIG_FGC_CAMAMF:
 	case SIG_FEATB:
 	case SIG_EMWINK:
 	case SIG_SF_FEATD:
@@ -5317,6 +5341,7 @@ static void *ss_thread(void *data)
 	case SIG_EM:
 	case SIG_EM_E1:
 	case SIG_SF:
+	case SIG_FGC_CAMA:
 		res = tone_zone_play_tone(p->subs[index].zfd, -1);
 		if (p->dsp)
 			ast_dsp_digitreset(p->dsp);
@@ -5344,8 +5369,19 @@ static void *ss_thread(void *data)
 					res = my_getsigstr(chan, dtmfbuf + strlen(dtmfbuf), "*", 3000);
 				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
 				break;
+			case SIG_FEATDMF_TA:
+				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
+				if ((res < 1) && (p->dsp)) ast_dsp_digitreset(p->dsp);
+				if (zt_wink(p, index)) return NULL;
+				dtmfbuf[0] = 0;
+				/* Wait for the first digit (up to 5 seconds). */
+				res = ast_waitfordigit(chan, 5000);
+				if (res <= 0) break;
+				dtmfbuf[0] = res;
+				/* fall through intentionally */
 			case SIG_FEATDMF:
 			case SIG_E911:
+			case SIG_FGC_CAMAMF:
 			case SIG_SF_FEATDMF:
 				res = my_getsigstr(chan, dtmfbuf + 1, "#", 3000);
 				if (res > 0) {
@@ -5407,6 +5443,31 @@ static void *ss_thread(void *data)
 			ast_hangup(chan);
 			return NULL;
 		}
+
+		if (p->sig == SIG_FGC_CAMA)
+		{
+			char anibuf[100];
+
+			if (ast_safe_sleep(chan,1000) == -1)
+			{
+	                        ast_hangup(chan);
+	                        return NULL;
+			}
+                        zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+                        ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_MF | p->dtmfrela\
+x);
+                        res = my_getsigstr(chan, anibuf, "#", 10000);
+                        if ((res > 0) && (strlen(anibuf) > 2))
+                          {
+                            if (anibuf[strlen(anibuf) - 1] == '#')
+                              anibuf[strlen(anibuf) - 1] = 0;
+                          ast_set_callerid(chan, anibuf + 2, NULL, anibuf + 2);
+                          printf("@@@@@ set ani to %s\n",anibuf + 2);
+                          }
+                        ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfre\
+lax);
+		}
+
 		ast_copy_string(exten, dtmfbuf, sizeof(exten));
 		if (ast_strlen_zero(exten))
 			ast_copy_string(exten, "s", sizeof(exten));
@@ -5430,7 +5491,7 @@ static void *ss_thread(void *data)
 			} else if (p->sig == SIG_FEATD)
 				ast_log(LOG_WARNING, "Got a non-Feature Group D input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
-		if (p->sig == SIG_FEATDMF) {
+		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATDMF_TA)) {
 			if (exten[0] == '*') {
 				char *stringp=NULL;
 				ast_copy_string(exten2, exten, sizeof(exten2));
@@ -5450,7 +5511,7 @@ static void *ss_thread(void *data)
 			} else
 				ast_log(LOG_WARNING, "Got a non-Feature Group D input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
-		if (p->sig == SIG_E911) {
+		if ((p->sig == SIG_E911) || (p->sig == SIG_FGC_CAMAMF)) {
 			if (exten[0] == '*') {
 				char *stringp=NULL;
 				ast_copy_string(exten2, exten, sizeof(exten2));
@@ -5464,9 +5525,9 @@ static void *ss_thread(void *data)
 				}
 				if (s1)	ast_copy_string(exten, s1, sizeof(exten));
 				else ast_copy_string(exten, "911", sizeof(exten));
-				printf("E911: exten: %s, ANI: %s\n",exten, chan->cid.cid_ani);
+				printf("E911/FGC CAMA: exten: %s, ANI: %s\n",exten, chan->cid.cid_ani);
 			} else
-				ast_log(LOG_WARNING, "Got a non-E911 input on channel %d.  Assuming E&M Wink instead\n", p->channel);
+				ast_log(LOG_WARNING, "Got a non-E911/FGC CAMA input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
 		if (p->sig == SIG_FEATB) {
 			if (exten[0] == '*') {
@@ -5479,8 +5540,12 @@ static void *ss_thread(void *data)
 			} else
 				ast_log(LOG_WARNING, "Got a non-Feature Group B input on channel %d.  Assuming E&M Wink instead\n", p->channel);
 		}
-		if (p->sig == SIG_FEATDMF) {
+		if ((p->sig == SIG_FEATDMF) || (p->sig == SIG_FEATDMF_TA)) {
 			zt_wink(p, index);
+                        /* some switches require a minimum guard time between
+                           the last FGD wink and something that answers
+                           immediately. This ensures it */
+                        if (ast_safe_sleep(chan,100)) return NULL;
 		}
 		zt_enable_ec(p);
 		if (NEED_MFDETECT(p)) {
@@ -6324,7 +6389,10 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_EMWINK:
 		case SIG_FEATD:
 		case SIG_FEATDMF:
+		case SIG_FEATDMF_TA:
 		case SIG_E911:
+		case SIG_FGC_CAMA:
+		case SIG_FGC_CAMAMF:
 		case SIG_FEATB:
 		case SIG_EM:
 		case SIG_EM_E1:
@@ -6373,7 +6441,10 @@ static int handle_init_event(struct zt_pvt *i, int event)
 		case SIG_FXOGS:
 		case SIG_FEATD:
 		case SIG_FEATDMF:
+		case SIG_FEATDMF_TA:
 		case SIG_E911:
+		case SIG_FGC_CAMA:
+		case SIG_FGC_CAMAMF:
 		case SIG_FEATB:
 		case SIG_EM:
 		case SIG_EM_E1:
@@ -7074,7 +7145,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 		    (signalling == SIG_EM) || (signalling == SIG_EM_E1) ||  (signalling == SIG_EMWINK) ||
 			(signalling == SIG_FEATD) || (signalling == SIG_FEATDMF) || (signalling == SIG_FEATDMF_TA) ||
 			  (signalling == SIG_FEATB) || (signalling == SIG_E911) ||
-		    (signalling == SIG_SF) || (signalling == SIG_SFWINK) ||
+		    (signalling == SIG_SF) || (signalling == SIG_SFWINK) || (signalling == SIG_FGC_CAMA) || (signalling == SIG_FGC_CAMAMF) ||
 			(signalling == SIG_SF_FEATD) || (signalling == SIG_SF_FEATDMF) ||
 			  (signalling == SIG_SF_FEATB)) {
 			p.starttime = 250;
@@ -10567,6 +10638,12 @@ static int setup_zap(int reload)
 					cur_radio = 0;
 				} else if (!strcasecmp(v->value, "e911")) {
 					cur_signalling = SIG_E911;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fgccama")) {
+					cur_signalling = SIG_FGC_CAMA;
+					cur_radio = 0;
+				} else if (!strcasecmp(v->value, "fgccamamf")) {
+					cur_signalling = SIG_FGC_CAMAMF;
 					cur_radio = 0;
 				} else if (!strcasecmp(v->value, "featb")) {
 					cur_signalling = SIG_FEATB;
