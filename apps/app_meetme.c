@@ -139,6 +139,7 @@ static struct ast_conference {
 	ast_mutex_t listenlock;				/* Conference specific lock (listeners) */
 	char confno[AST_MAX_EXTENSION];		/* Conference */
 	struct ast_channel *chan;		/* Announcements channel */
+	struct ast_channel *lchan;		/* Listen/Record channel */
 	int fd;					/* Announcements fd */
 	int zapconf;				/* Zaptel Conf # */
 	int users;				/* Number of active users */
@@ -509,7 +510,18 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 				cnf = NULL;
 				goto cnfout;
 			}
-
+			cnf->lchan = ast_request("zap", AST_FORMAT_SLINEAR, "pseudo", NULL);
+			if (cnf->lchan) {
+				ast_set_read_format(cnf->lchan, AST_FORMAT_SLINEAR);
+				ast_set_write_format(cnf->lchan, AST_FORMAT_SLINEAR);
+				ztc.chan = 0;
+				ztc.confmode = ZT_CONF_CONFANN | ZT_CONF_CONFANNMON;
+				if (ioctl(cnf->lchan->fds[0], ZT_SETCONF, &ztc)) {
+					ast_log(LOG_WARNING, "Error setting conference\n");
+					ast_hangup(cnf->lchan);
+					cnf->lchan = NULL;
+				}
+			}
 			/* Fill the conference struct */
 			cnf->start = time(NULL);
 			cnf->zapconf = ztc.confno;
@@ -816,6 +828,8 @@ static int conf_free(struct ast_conference *conf)
 	}
 	if (conf->origframe)
 		ast_frfree(conf->origframe);
+	if (conf->lchan)
+		ast_hangup(conf->lchan);
 	if (conf->chan)
 		ast_hangup(conf->chan);
 	else
@@ -885,7 +899,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 		}
 	}
 
-	if ((conf->recording == MEETME_RECORD_OFF) && ((confflags & CONFFLAG_RECORDCONF) || (conf->chan))) {
+	if ((conf->recording == MEETME_RECORD_OFF) && ((confflags & CONFFLAG_RECORDCONF) || (conf->lchan))) {
 		pthread_attr_init(&conf->attr);
 		pthread_attr_setdetachstate(&conf->attr, PTHREAD_CREATE_DETACHED);
 		ast_pthread_create(&conf->recordthread, &conf->attr, recordthread, conf);
@@ -2231,16 +2245,16 @@ static void *recordthread(void *args)
 	int x;
 	const char *oldrecordingfilename = NULL;
 
-	if (!cnf || !cnf->chan) {
+	if (!cnf || !cnf->lchan) {
 		pthread_exit(0);
 	}
 
-	ast_stopstream(cnf->chan);
+	ast_stopstream(cnf->lchan);
 	flags = O_CREAT|O_TRUNC|O_WRONLY;
 
 
 	cnf->recording = MEETME_RECORD_ACTIVE;
-	while (ast_waitfor(cnf->chan, -1) > -1) {
+	while (ast_waitfor(cnf->lchan, -1) > -1) {
 		if (cnf->recording == MEETME_RECORD_TERMINATE) {
 			ast_mutex_lock(&conflock);
 			ast_mutex_unlock(&conflock);
@@ -2251,7 +2265,7 @@ static void *recordthread(void *args)
 			oldrecordingfilename = cnf->recordingfilename;
 		}
 		
-		f = ast_read(cnf->chan);
+		f = ast_read(cnf->lchan);
 		if (!f) {
 			res = -1;
 			break;
