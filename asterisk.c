@@ -670,8 +670,10 @@ static int ast_makesocket(void)
 		ast_log(LOG_WARNING, "Unable to change ownership of %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
 
 	if (!ast_strlen_zero(ast_config_AST_CTL_PERMISSIONS)) {
+		int p1;
 		mode_t p;
-		sscanf(ast_config_AST_CTL_PERMISSIONS, "%o", (int *) &p);
+		sscanf(ast_config_AST_CTL_PERMISSIONS, "%o", &p1);
+		p = p1;
 		if ((chmod(ast_config_AST_SOCKET, p)) < 0)
 			ast_log(LOG_WARNING, "Unable to change file permissions of %s: %s\n", ast_config_AST_SOCKET, strerror(errno));
 	}
@@ -1318,7 +1320,7 @@ static char *cli_prompt(EditLine *el)
 			if (*t == '%') {
 				char hostname[MAXHOSTNAMELEN]="";
 				int i;
-				struct timeval tv;
+				time_t ts;
 				struct tm tm;
 #ifdef linux
 				FILE *LOADAVG;
@@ -1346,8 +1348,8 @@ static char *cli_prompt(EditLine *el)
 						break;
 					case 'd': /* date */
 						memset(&tm, 0, sizeof(struct tm));
-						tv = ast_tvnow();
-						if (localtime_r(&(tv.tv_sec), &tm)) {
+						time(&ts);
+						if (localtime_r(&ts, &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%Y-%m-%d", &tm);
 						}
 						break;
@@ -1403,8 +1405,8 @@ static char *cli_prompt(EditLine *el)
 #endif
 					case 't': /* time */
 						memset(&tm, 0, sizeof(struct tm));
-						tv = ast_tvnow();
-						if (localtime_r(&(tv.tv_sec), &tm)) {
+						time(&ts);
+						if (localtime_r(&ts, &tm)) {
 							strftime(p, sizeof(prompt) - strlen(prompt), "%H:%M:%S", &tm);
 						}
 						break;

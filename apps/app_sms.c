@@ -694,7 +694,7 @@ static void sms_readfile (sms_t * h, char *fn)
 		}
 		while (fgets (line, sizeof (line), s))
 		{								 /* process line in file */
-			char *p;
+			unsigned char *p;
 			for (p = line; *p && *p != '\n' && *p != '\r'; p++);
 			*p = 0;					 /* strip eoln */
 			p = line;
@@ -1379,8 +1379,8 @@ static int sms_exec (struct ast_channel *chan, void *data)
 		ast_copy_string (h.cli, chan->cid.cid_num, sizeof (h.cli));
 
 	{
-		char *d = data,
-			*p,
+		unsigned char *p;
+		unsigned char *d = data,
 			answer = 0;
 		if (!*d || *d == '|') {
 			ast_log (LOG_ERROR, "Requires queue name\n");
@@ -1449,7 +1449,7 @@ static int sms_exec (struct ast_channel *chan, void *data)
 			d = p;
 			h.udl = 0;
 			while (*p && h.udl < SMSLEN)
-				h.ud[h.udl++] = utf8decode((unsigned char **)&p);
+				h.ud[h.udl++] = utf8decode(&p);
 			if (is7bit (h.dcs) && packsms7 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
 				ast_log (LOG_WARNING, "Invalid 7 bit GSM data\n");
 			if (is8bit (h.dcs) && packsms8 (0, h.udhl, h.udh, h.udl, h.ud) < 0)
