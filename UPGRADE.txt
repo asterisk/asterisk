@@ -8,3 +8,21 @@ Applications:
   marked deprecated in Asterisk 1.2.  An option to disable it was provided with
   the default value set to 'on'.  The default value for the global priority
   jumping option is now 'off'.
+
+* The applications Cut, Sort, DBGet, DBPut, SetCIDNum, SetCIDName, SetRDNIS,
+  AbsoluteTimeout, DigitTimeout, ResponseTimeout, SetLanguage, GetGroupCount,
+  and GetGroupMatchCount were all deprecated in version 1.2, and therefore have
+  been removed in this version.  You should use the equivalent dialplan
+  function in places where you have previously used one of these applications.
+
+* The application SetVar has been renamed to Set.  The syntax SetVar was marked
+  deprecated in version 1.2 and is no longer recognized in this version.
+
+Variables:
+
+* The builtin variables ${CALLERID}, ${CALLERIDNAME}, ${CALLERIDNUM},
+  ${CALLERANI}, ${DNID}, ${RDNIS}, ${DATETIME}, ${TIMESTAMP}, ${ACCOUNTCODE},
+  and ${LANGUAGE} have all been deprecated in favor of their related dialplan
+  functions.  You are encouraged to move towards the associated dialplan
+  function, as these variables will be removed in a future release.
+

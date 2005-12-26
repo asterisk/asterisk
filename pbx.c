@@ -903,6 +903,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 	struct tm brokentime;
 	int offset, offset2, isfunc;
 	struct ast_var_t *variables;
+	char *deprecated = NULL;
 
 	if (c) 
 		headp=&c->varshead;
@@ -929,6 +930,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 						*ret = workspace;
 					} else
 						*ret = NULL;
+					deprecated = "CALLERID(all)";
 				} else if (!strcmp(var + 8, "NUM")) {
 					/* CALLERIDNUM */
 					if (c->cid.cid_num) {
@@ -936,6 +938,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 						*ret = workspace;
 					} else
 						*ret = NULL;
+					deprecated = "CALLERID(num)";
 				} else if (!strcmp(var + 8, "NAME")) {
 					/* CALLERIDNAME */
 					if (c->cid.cid_name) {
@@ -943,7 +946,9 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 						*ret = workspace;
 					} else
 						*ret = NULL;
-				}
+					deprecated = "CALLERID(name)";
+				} else
+					goto icky;
 			} else if (!strcmp(var + 6, "ANI")) {
 				/* CALLERANI */
 				if (c->cid.cid_ani) {
@@ -951,6 +956,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 					*ret = workspace;
 				} else
 					*ret = NULL;
+				deprecated = "CALLERID(ANI)";
 			} else
 				goto icky;
 		} else if (!strncmp(var + 4, "ING", 3)) {
@@ -980,6 +986,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			*ret = workspace;
 		} else
 			*ret = NULL;
+		deprecated = "CALLERID(DNID)";
 	} else if (c && !strcmp(var, "HINT")) {
 		if (!ast_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten))
 			*ret = NULL;
@@ -999,6 +1006,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			*ret = workspace;
 		} else
 			*ret = NULL;
+		deprecated = "CALLERID(RDNIS)";
 	} else if (c && !strcmp(var, "CONTEXT")) {
 		ast_copy_string(workspace, c->context, workspacelen);
 		*ret = workspace;
@@ -1023,6 +1031,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			brokentime.tm_sec
 		);
 		*ret = workspace;
+		deprecated = "STRFTIME(${EPOCH},,\%m\%d\%Y-\%H:\%M:\%S)";
 	} else if (!strcmp(var, "TIMESTAMP")) {
 		thistime=time(NULL);
 		localtime_r(&thistime, &brokentime);
@@ -1036,6 +1045,7 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 			brokentime.tm_sec
 		);
 		*ret = workspace;
+		deprecated = "STRFTIME(${EPOCH},,\%Y\%m\%d-\%H\%M\%S)";
 	} else if (c && !strcmp(var, "UNIQUEID")) {
 		snprintf(workspace, workspacelen, "%s", c->uniqueid);
 		*ret = workspace;
@@ -1045,9 +1055,11 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 	} else if (c && !strcmp(var, "ACCOUNTCODE")) {
 		ast_copy_string(workspace, c->accountcode, workspacelen);
 		*ret = workspace;
+		deprecated = "CDR(accountcode)";
 	} else if (c && !strcmp(var, "LANGUAGE")) {
 		ast_copy_string(workspace, c->language, workspacelen);
 		*ret = workspace;
+		deprecated = "LANGUAGE()";
 	} else {
 icky:
 		if (headp) {
@@ -1080,6 +1092,9 @@ icky:
 				}
 			}
 		}
+	}
+	if (deprecated) {
+		ast_log(LOG_WARNING, "${%s} is deprecated.  Please use ${%s} instead.\n", var, deprecated);
 	}
 }
 
