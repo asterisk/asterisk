@@ -484,11 +484,11 @@ static void *changethread(void *data)
 							"Membership: %s\r\n"
 							"Penalty: %d\r\n"
 							"CallsTaken: %d\r\n"
-							"LastCall: %ld\r\n"
+							"LastCall: %d\r\n"
 							"Status: %d\r\n"
 							"Paused: %d\r\n",
 						q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
-						cur->penalty, cur->calls, cur->lastcall, cur->status, cur->paused);
+						cur->penalty, cur->calls, (int)cur->lastcall, cur->status, cur->paused);
 					}
 				}
 			}
@@ -1262,11 +1262,11 @@ static int update_status(struct ast_call_queue *q, struct member *member, int st
 					"Membership: %s\r\n"
 					"Penalty: %d\r\n"
 					"CallsTaken: %d\r\n"
-					"LastCall: %ld\r\n"
+					"LastCall: %d\r\n"
 					"Status: %d\r\n"
 					"Paused: %d\r\n",
 				q->name, cur->interface, cur->dynamic ? "dynamic" : "static",
-				cur->penalty, cur->calls, cur->lastcall, cur->status, cur->paused);
+				cur->penalty, cur->calls, (int)cur->lastcall, cur->status, cur->paused);
 			}
 			break;
 		}
@@ -2422,11 +2422,11 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
 						"Membership: %s\r\n"
 						"Penalty: %d\r\n"
 						"CallsTaken: %d\r\n"
-						"LastCall: %ld\r\n"
+						"LastCall: %d\r\n"
 						"Status: %d\r\n"
 						"Paused: %d\r\n",
 					q->name, new_member->interface, new_member->dynamic ? "dynamic" : "static",
-					new_member->penalty, new_member->calls, new_member->lastcall, new_member->status, new_member->paused);
+					new_member->penalty, new_member->calls, (int)new_member->lastcall, new_member->status, new_member->paused);
 					
 					if (dump)
 						dump_queue_members(q);
@@ -3436,13 +3436,13 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 						"Membership: %s\r\n"
 						"Penalty: %d\r\n"
 						"CallsTaken: %d\r\n"
-						"LastCall: %ld\r\n"
+						"LastCall: %d\r\n"
 						"Status: %d\r\n"
 						"Paused: %d\r\n"
 						"%s"
 						"\r\n",
 							q->name, mem->interface, mem->dynamic ? "dynamic" : "static",
-							mem->penalty, mem->calls, mem->lastcall, mem->status, mem->paused, idText);
+							mem->penalty, mem->calls, (int)mem->lastcall, mem->status, mem->paused, idText);
 				}
 			}
 			/* List Queue Entries */

@@ -1445,11 +1445,11 @@ static int action_agents(struct mansession *s, struct message *m)
 			"Name: %s\r\n"
 			"Status: %s\r\n"
 			"LoggedInChan: %s\r\n"
-			"LoggedInTime: %ld\r\n"
+			"LoggedInTime: %d\r\n"
 			"TalkingTo: %s\r\n"
 			"%s"
 			"\r\n",
-			p->agent, username, status, loginChan, p->loginstart, talkingtoChan, idText);
+			p->agent, username, status, loginChan, (int)p->loginstart, talkingtoChan, idText);
 		ast_mutex_unlock(&p->lock);
 		p = p->next;
 	}

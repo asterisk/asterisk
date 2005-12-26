@@ -94,9 +94,9 @@ static void send_child_event(FILE *handle, const char event, const char *data,
 	char tmp[256];
 
 	if (!data) {
-		snprintf(tmp, sizeof(tmp), "%c,%10ld", event, time(NULL));
+		snprintf(tmp, sizeof(tmp), "%c,%10d", event, (int)time(NULL));
 	} else {
-		snprintf(tmp, sizeof(tmp), "%c,%10ld,%s", event, time(NULL), data);
+		snprintf(tmp, sizeof(tmp), "%c,%10d,%s", event, (int)time(NULL), data);
 	}
 
 	fprintf(handle, "%s\n", tmp);

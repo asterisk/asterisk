@@ -1594,7 +1594,7 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 		time_t nowtime;
 		time(&nowtime);
 		nowtime += expirey;
-		snprintf(regseconds, sizeof(regseconds), "%ld", nowtime);	/* Expiration time */
+		snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);	/* Expiration time */
 		ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
 		snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
 	}
@@ -12069,7 +12069,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		}
 
 		if (realtime && !strcasecmp(v->name, "regseconds")) {
-			if (sscanf(v->value, "%li", &regseconds) != 1)
+			if (sscanf(v->value, "%i", (int *)&regseconds) != 1)
 				regseconds = 0;
 		} else if (realtime && !strcasecmp(v->name, "ipaddr") && !ast_strlen_zero(v->value) ) {
 			inet_aton(v->value, &(peer->addr.sin_addr));
@@ -12232,7 +12232,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 			destroy_association(peer);
 			memset(&peer->addr, 0, sizeof(peer->addr));
 			if (option_debug)
-				ast_log(LOG_DEBUG, "Bah, we're expired (%ld/%ld/%ld)!\n", nowtime - regseconds, regseconds, nowtime);
+				ast_log(LOG_DEBUG, "Bah, we're expired (%d/%d/%d)!\n", (int)(nowtime - regseconds), (int)regseconds, (int)nowtime);
 		}
 	}
 	ast_copy_flags(peer, &peerflags, mask.flags);
