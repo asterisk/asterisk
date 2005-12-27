@@ -811,9 +811,19 @@ void read_config_maps(void)
 	for (v = ast_variable_browse(config, "settings"); v; v = v->next) {
 		stringp = v->value;
 		driver = strsep(&stringp, ",");
-		database = strsep(&stringp, ",");
+
+		/* check if the database text starts with a double quote */
+		if (*stringp == '"') {
+			stringp++;
+			database = strsep(&stringp, "\"");
+			strsep(&stringp, ",");
+		} else {
+			/* apparently this text has no quotes */
+			database = strsep(&stringp, ",");
+		}
+
 		table = strsep(&stringp, ",");
-			
+
 		if (!strcmp(v->name, extconfig_conf)) {
 			ast_log(LOG_WARNING, "Cannot bind '%s'!\n", extconfig_conf);
 			continue;

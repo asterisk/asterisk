@@ -40,6 +40,8 @@
 ; the family if the table is not specified
 ;
 ;example => odbc,asterisk,alttable
+;example2 => ldap,"dc=oxymium,dc=net",example2
+;
 ;iaxusers => odbc,asterisk
 ;iaxpeers => odbc,asterisk
 ;sipusers => odbc,asterisk
