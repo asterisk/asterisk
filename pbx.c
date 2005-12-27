@@ -1196,10 +1196,9 @@ static int handle_show_function(int fd, int argc, char *argv[])
 static char *complete_show_function(char *line, char *word, int pos, int state)
 {
 	struct ast_custom_function *acf;
+	char *ret = NULL;
 	int which = 0;
-	int wordlen;
-
-	wordlen = strlen(word);
+	int wordlen = strlen(word);
 
 	/* try to lock functions list ... */
 	if (ast_mutex_lock(&acflock)) {
@@ -1210,15 +1209,15 @@ static char *complete_show_function(char *line, char *word, int pos, int state)
 	for (acf = acf_root; acf; acf = acf->next) {
 		if (!strncasecmp(word, acf->name, wordlen)) {
 			if (++which > state) {
-				char *ret = strdup(acf->name);
-				ast_mutex_unlock(&acflock);
-				return ret;
+				ret = strdup(acf->name);
+				break;
 			}
 		}
 	}
 
 	ast_mutex_unlock(&acflock);
-	return NULL; 
+
+	return ret; 
 }
 
 struct ast_custom_function* ast_custom_function_find(const char *name) 
