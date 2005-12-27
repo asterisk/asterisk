@@ -722,35 +722,32 @@ static char mandescr_getvar[] =
 
 static int action_getvar(struct mansession *s, struct message *m)
 {
-        struct ast_channel *c = NULL;
-        char *name = astman_get_header(m, "Channel");
-        char *varname = astman_get_header(m, "Variable");
+	struct ast_channel *c = NULL;
+	char *name = astman_get_header(m, "Channel");
+	char *varname = astman_get_header(m, "Variable");
 	char *id = astman_get_header(m,"ActionID");
-	const char *varval;
-	char *varval2=NULL;
+	char *varval;
+	char workspace[1024];
 
-	if (!strlen(varname)) {
+	if (ast_strlen_zero(varname)) {
 		astman_send_error(s, m, "No variable specified");
 		return 0;
 	}
 
-	if (strlen(name)) {
+	if (!ast_strlen_zero(name)) {
 		c = ast_get_channel_by_name_locked(name);
 		if (!c) {
 			astman_send_error(s, m, "No such channel");
 			return 0;
 		}
 	}
-	
-	varval=pbx_builtin_getvar_helper(c,varname);
-	if (varval)
-		varval2 = ast_strdupa(varval);
-	if (!varval2)
-		varval2 = "";
+
+	pbx_retrieve_variable(c, varname, &varval, workspace, sizeof(workspace), NULL);
+
 	if (c)
 		ast_mutex_unlock(&c->lock);
 	ast_cli(s->fd, "Response: Success\r\n"
-		"Variable: %s\r\nValue: %s\r\n" ,varname,varval2);
+		"Variable: %s\r\nValue: %s\r\n", varname, varval);
 	if (!ast_strlen_zero(id))
 		ast_cli(s->fd, "ActionID: %s\r\n",id);
 	ast_cli(s->fd, "\r\n");
@@ -874,8 +871,10 @@ static int action_redirect(struct mansession *s, struct message *m)
 		return 0;
 	}
 	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
-		astman_send_error(s, m, "Invalid priority\n");
-		return 0;
+		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
+			astman_send_error(s, m, "Invalid priority\n");
+			return 0;
+		}
 	}
 	chan = ast_get_channel_by_name_locked(name);
 	if (!chan) {
@@ -1020,8 +1019,10 @@ static int action_originate(struct mansession *s, struct message *m)
 		return 0;
 	}
 	if (!ast_strlen_zero(priority) && (sscanf(priority, "%d", &pi) != 1)) {
-		astman_send_error(s, m, "Invalid priority\n");
-		return 0;
+		if ((pi = ast_findlabel_extension(NULL, context, exten, priority, NULL)) < 1) {
+			astman_send_error(s, m, "Invalid priority\n");
+			return 0;
+		}
 	}
 	if (!ast_strlen_zero(timeout) && (sscanf(timeout, "%d", &to) != 1)) {
 		astman_send_error(s, m, "Invalid timeout\n");
