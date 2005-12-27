@@ -45,6 +45,11 @@ ifneq ($(findstring dont-optimize,$(MAKECMDGOALS)),dont-optimize)
 
 #Tell gcc to optimize the code
 OPTIMIZE+=-O6
+else
+  # Stack backtraces, while useful for debugging, are incompatible with optimizations
+  ifeq (${OSARCH},Linux)
+    CFLAGS+=-DSTACK_BACKTRACES
+  endif
 endif
 
 #Overwite config files on "make samples"
@@ -332,7 +337,10 @@ ASTCFLAGS+= $(TRACE_FRAMES)
 ASTCFLAGS+= $(MALLOC_DEBUG)
 ASTCFLAGS+= $(BUSYDETECT)
 ASTCFLAGS+= $(OPTIONS)
+ifneq ($(findstring dont-optimize,$(MAKECMDGOALS)),dont-optimize)
 ASTCFLAGS+= -fomit-frame-pointer 
+endif
+
 SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime
 
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \

@@ -32,6 +32,9 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/stat.h>
+#ifdef STACK_BACKTRACES
+#include <execinfo.h>
+#endif
 
 #define SYSLOG_NAMES /* so we can map syslog facilities names to their numeric values,
 		        from <syslog.h> which is included by logger.h */
@@ -814,6 +817,39 @@ void ast_log(int level, const char *file, int line, const char *function, const 
 		if (option_verbose)
 			ast_verbose("Rotated Logs Per SIGXFSZ (Exceeded file size limit)\n");
 	}
+}
+
+void ast_backtrace(void)
+{
+#ifdef STACK_BACKTRACES
+	int count=0, i=0;
+	void **addresses;
+	char **strings;
+
+	addresses = calloc(levels, sizeof(void *));
+	if (addresses) {
+		count = backtrace(addresses, 20);
+		strings = backtrace_symbols(addresses, count);
+		if (strings) {
+			ast_log(LOG_WARNING, "Got %d backtrace record%c\n", count, count != 1 ? 's' : ' ');
+			for (i=0; i < count ; i++) {
+				ast_log(LOG_WARNING, "#%d: [%08X] %s\n", i, (unsigned int)addresses[i], strings[i]);
+			}
+			free(strings);
+		} else {
+			ast_log(LOG_WARNING, "Could not allocate memory for backtrace\n");
+		}
+		free(addresses);
+	} else {
+		ast_log(LOG_WARNING, "Could not allocate memory for backtrace\n");
+	}
+#else
+#ifdef Linux
+	ast_log(LOG_WARNING, "Must compile with 'make dont-optimize' for stack backtraces\n");
+#else
+	ast_log(LOG_WARNING, "Inline stack backtraces are only available on the Linux platform.\n");
+#endif
+#endif
 }
 
 void ast_verbose(const char *fmt, ...)
