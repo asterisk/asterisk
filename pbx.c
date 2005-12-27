@@ -2957,11 +2957,12 @@ static char show_hints_help[] =
  * application at one time. You can type 'show application Dial Echo' and
  * you will see informations about these two applications ...
  */
-static char *complete_show_application(char *line, char *word,
-	int pos, int state)
+static char *complete_show_application(char *line, char *word, int pos, int state)
 {
 	struct ast_app *a;
+	char *ret = NULL;
 	int which = 0;
+	int wordlen = strlen(word);
 
 	/* try to lock applications list ... */
 	if (ast_mutex_lock(&applock)) {
@@ -2972,19 +2973,18 @@ static char *complete_show_application(char *line, char *word,
 	/* ... walk all applications ... */
 	for (a = apps; a; a = a->next) {
 		/* ... check if word matches this application ... */
-		if (!strncasecmp(word, a->name, strlen(word))) {
+		if (!strncasecmp(word, a->name, wordlen)) {
 			/* ... if this is right app serve it ... */
 			if (++which > state) {
-				char *ret = strdup(a->name);
-				ast_mutex_unlock(&applock);
-				return ret;
+				ret = strdup(a->name);
+				break;
 			}
 		}
 	}
 
-	/* no application match */
 	ast_mutex_unlock(&applock);
-	return NULL; 
+
+	return ret; 
 }
 
 static int handle_show_application(int fd, int argc, char *argv[])
@@ -3198,6 +3198,8 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 
 static char *complete_show_applications(char *line, char *word, int pos, int state)
 {
+	int wordlen = strlen(word);
+
 	if (pos == 2) {
 		if (ast_strlen_zero(word)) {
 			switch (state) {
@@ -3208,13 +3210,13 @@ static char *complete_show_applications(char *line, char *word, int pos, int sta
 			default:
 				return NULL;
 			}
-		} else if (! strncasecmp(word, "like", strlen(word))) {
+		} else if (! strncasecmp(word, "like", wordlen)) {
 			if (state == 0) {
 				return strdup("like");
 			} else {
 				return NULL;
 			}
-		} else if (! strncasecmp(word, "describing", strlen(word))) {
+		} else if (! strncasecmp(word, "describing", wordlen)) {
 			if (state == 0) {
 				return strdup("describing");
 			} else {
