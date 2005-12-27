@@ -351,6 +351,35 @@ acf_out:
 	return buf;
 }
 
+static char *acf_escape(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	char *in, *out = buf;
+	for (in = data; *in && out - buf < len; in++) {
+		if (*in == '\'') {
+			*out = '\'';
+			out++;
+		}
+		*out = *in;
+		out++;
+	}
+	*out = '\0';
+	return buf;
+}
+
+struct ast_custom_function escape_function = {
+	.name = "SQL_ESC",
+	.synopsis = "Escapes single ticks for use in SQL statements",
+	.syntax = "SQL_ESC(<string>)",
+	.desc =
+"Used in SQL templates to escape data which may contain single ticks (') which\n"
+"are otherwise used to delimit data.  For example:\n"
+"SELECT foo FROM bar WHERE baz='${SQL_ESC(${ARG1})}'\n",
+	.read = acf_escape,
+	.write = NULL,
+};
+
+
+
 static int init_acf_query(struct ast_config *cfg, char *catg, struct acf_odbc_query **query)
 {
 	char *tmp;
@@ -477,6 +506,7 @@ static int odbc_load_module(void)
 	}
 
 	ast_config_destroy(cfg);
+	ast_custom_function_register(&escape_function);
 out:
 	ast_mutex_unlock(&query_lock);
 	return res;
@@ -506,6 +536,8 @@ static int odbc_unload_module(void)
 	if (lastquery)
 		free(lastquery);
 	queries = NULL;
+
+	ast_custom_function_unregister(&escape_function);
 
 	ast_mutex_unlock(&query_lock);
 	return 0;
