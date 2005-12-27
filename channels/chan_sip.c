@@ -8294,17 +8294,16 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 	int which=0;
 	struct sip_pvt *cur;
 	char *c = NULL;
+	int wordlen = strlen(word);
 
 	ast_mutex_lock(&iflock);
-	cur = iflist;
-	while(cur) {
-		if (!strncasecmp(word, cur->callid, strlen(word))) {
+	for (cur = iflist; cur; cur = cur->next) {
+		if (!strncasecmp(word, cur->callid, wordlen)) {
 			if (++which > state) {
 				c = strdup(cur->callid);
 				break;
 			}
 		}
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&iflock);
 	return c;
@@ -8384,22 +8383,21 @@ static char *complete_sipnotify(char *line, char *word, int pos, int state)
 
 	if (pos == 2) {
 		int which = 0;
-		char *cat;
+		char *cat = NULL;
+		int wordlen = strlen(word);
 
 		/* do completion for notify type */
 
 		if (!notify_types)
 			return NULL;
 		
-		cat = ast_category_browse(notify_types, NULL);
-		while(cat) {
-			if (!strncasecmp(word, cat, strlen(word))) {
+		while ( (cat = ast_category_browse(notify_types, cat)) ) {
+			if (!strncasecmp(word, cat, wordlen)) {
 				if (++which > state) {
 					c = strdup(cat);
 					break;
 				}
 			}
-			cat = ast_category_browse(notify_types, cat);
 		}
 		return c;
 	}
@@ -8439,9 +8437,8 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	len = strlen(argv[3]);
 	ast_mutex_lock(&iflock);
-	cur = iflist;
-	while(cur) {
-		if (!strncasecmp(cur->callid, argv[3],len)) {
+	for (cur = iflist; cur; cur = cur->next) {
+		if (!strncasecmp(cur->callid, argv[3], len)) {
 			ast_cli(fd,"\n");
 			if (cur->subscribed != NONE)
 				ast_cli(fd, "  * Subscription (type: %s)\n", subscription_type2str(cur->subscribed));
@@ -8486,7 +8483,6 @@ static int sip_show_channel(int fd, int argc, char *argv[])
 			ast_cli(fd, "\n\n");
 			found++;
 		}
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&iflock);
 	if (!found) 
@@ -8509,8 +8505,7 @@ static int sip_show_history(int fd, int argc, char *argv[])
 		ast_cli(fd, "\n***Note: History recording is currently DISABLED.  Use 'sip history' to ENABLE.\n");
 	len = strlen(argv[3]);
 	ast_mutex_lock(&iflock);
-	cur = iflist;
-	while(cur) {
+	for (cur = iflist; cur; cur = cur->next) {
 		if (!strncasecmp(cur->callid, argv[3], len)) {
 			ast_cli(fd,"\n");
 			if (cur->subscribed != NONE)
@@ -8528,7 +8523,6 @@ static int sip_show_history(int fd, int argc, char *argv[])
 				ast_cli(fd, "Call '%s' has no history\n", cur->callid);
 			found++;
 		}
-		cur = cur->next;
 	}
 	ast_mutex_unlock(&iflock);
 	if (!found) 
@@ -8552,11 +8546,9 @@ void sip_dump_history(struct sip_pvt *dialog)
 	else
 		ast_log(LOG_DEBUG, "  * SIP Call\n");
 	x = 0;
-	hist = dialog->history;
-	while(hist) {
+	for (hist = dialog->history; hist; hist = hist->next) {
 		x++;
 		ast_log(LOG_DEBUG, "  %d. %s\n", x, hist->event);
-		hist = hist->next;
 	}
 	if (!x)
 		ast_log(LOG_DEBUG, "Call '%s' has no history\n", dialog->callid);
@@ -11207,8 +11199,7 @@ static void *do_monitor(void *data)
 		ast_mutex_lock(&iflock);
 restartsearch:		
 		time(&t);
-		sip = iflist;
-		while(sip) {
+		for (sip = iflist; sip; sip = sip->next) {
 			ast_mutex_lock(&sip->lock);
 			if (sip->rtp && sip->owner && (sip->owner->_state == AST_STATE_UP) && !sip->redirip.sin_addr.s_addr) {
 				if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive) {
@@ -11246,7 +11237,6 @@ restartsearch:
 				goto restartsearch;
 			}
 			ast_mutex_unlock(&sip->lock);
-			sip = sip->next;
 		}
 		ast_mutex_unlock(&iflock);
 		/* Don't let anybody kill us right away.  Nobody should lock the interface list
@@ -11828,13 +11818,11 @@ static int clear_realm_authentication(struct sip_auth *authlist)
 /*! \brief  find_realm_authentication: Find authentication for a specific realm ---*/
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, char *realm)
 {
-	struct sip_auth *a = authlist; 	/* First entry in auth list */
+	struct sip_auth *a;
 
-	while (a) {
-		if (!strcasecmp(a->realm, realm)){
+	for (a = authlist; a; a = a->next) {
+		if (!strcasecmp(a->realm, realm))
 			break;
-		}
-		a = a->next;
 	}
 	
 	return a;
