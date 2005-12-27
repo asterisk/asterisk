@@ -1602,12 +1602,13 @@ static char *cli_complete(EditLine *el, int ch)
 			free(mbuf);
 		} else
 			matches = (char **) NULL;
-
-
 	} else {
-
-		nummatches = ast_cli_generatornummatches((char *)lf->buffer,ptr);
+		char **p;
+		int count = 0;
 		matches = ast_cli_completion_matches((char *)lf->buffer,ptr);
+		for (p = matches; p && *p; p++)
+			count++;
+		nummatches = count - 1; /* XXX apparently there is one dup ? */
 	}
 
 	if (matches) {
@@ -1641,7 +1642,7 @@ static char *cli_complete(EditLine *el, int ch)
 				retval = CC_REFRESH;
 			}
 		}
-	free(matches);
+		free(matches);
 	}
 
 	return (char *)(long)retval;
