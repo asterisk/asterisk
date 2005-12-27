@@ -2959,6 +2959,9 @@ static void enable_dtmf_detect(struct zt_pvt *p)
 	int val;
 #endif
 
+	if (p->channel == CHAN_PSEUDO)
+		return;
+
 	p->ignoredtmf = 0;
 
 #ifdef ZT_TONEDETECT
@@ -5031,7 +5034,10 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			if (i->dsp) {
 				ast_log(LOG_DEBUG, "Already have a dsp on %s?\n", tmp->name);
 			} else {
-				i->dsp = ast_dsp_new();
+				if (i->channel != CHAN_PSEUDO)
+					i->dsp = ast_dsp_new();
+				else
+					i->dsp = NULL;
 				if (i->dsp) {
 					i->dsp_features = features & ~DSP_PROGRESS_TALK;
 #ifdef ZAPATA_PRI
