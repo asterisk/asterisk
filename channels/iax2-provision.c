@@ -156,21 +156,20 @@ char *iax_prov_complete_template(char *line, char *word, int pos, int state)
 {
 	struct iax_template *c;
 	int which=0;
-	char *ret;
+	char *ret = NULL;
+	int wordlen = strlen(word);
+
 	ast_mutex_lock(&provlock);
-	c = templates;
-	while(c) {
-		if (!strncasecmp(word, c->name, strlen(word))) {
-			if (++which > state)
+	for (c = templates; c; c = c->next) {
+		if (!strncasecmp(word, c->name, wordlen)) {
+			if (++which > state) {
+				ret = strdup(c->name);
 				break;
+			}
 		}
-		c = c->next;
 	}
-	if (c) {
-		ret = strdup(c->name);
-	} else
-		ret = NULL;
 	ast_mutex_unlock(&provlock);
+	
 	return ret;
 }
 

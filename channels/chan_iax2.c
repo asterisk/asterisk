@@ -1975,13 +1975,14 @@ static char *complete_iax2_show_peer(char *line, char *word, int pos, int state)
 	int which = 0;
 	struct iax2_peer *p;
 	char *res = NULL;
+	int wordlen = strlen(word);
 
 	/* 0 - iax2; 1 - show; 2 - peer; 3 - <peername> */
-	if(pos == 3) {
+	if (pos == 3) {
 		ast_mutex_lock(&peerl.lock);
-		for(p = peerl.peers ; p ; p = p->next) {
-			if(!strncasecmp(p->name, word, strlen(word))) {
-				if(++which > state) {
+		for (p = peerl.peers ; p ; p = p->next) {
+			if (!strncasecmp(p->name, word, wordlen)) {
+				if (++which > state) {
 					res = strdup(p->name);
 					break;
 				}
