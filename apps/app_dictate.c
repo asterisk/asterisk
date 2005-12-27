@@ -47,7 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 static char *tdesc = "Virtual Dictation Machine";
 static char *app = "Dictate";
 static char *synopsis = "Virtual Dictation Machine";
-static char *desc = "  Dictate([<base_dir>])\n"
+static char *desc = "  Dictate([<base_dir>[|<filename>]])\n"
 "Start dictation machine using optional base dir for files.\n";
 
 
@@ -80,7 +80,7 @@ static int play_and_wait(struct ast_channel *chan, char *file, char *digits)
 
 static int dictate_exec(struct ast_channel *chan, void *data)
 {
-	char *mydata, *argv[2], *path = NULL, filein[256];
+	char *mydata, *argv[3], *path = NULL, filein[256], *filename = "";
 	char dftbase[256];
 	char *base;
 	struct ast_flags flags = {0};
@@ -112,7 +112,9 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	} else {
 		base = dftbase;
 	}
-
+	if (argc && argv[1]) {
+		filename = argv[1];
+	} 
 	oldr = chan->readformat;
 	if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR)) < 0) {
 		ast_log(LOG_WARNING, "Unable to set to linear mode.\n");
@@ -122,13 +124,17 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 
 	ast_answer(chan);
 	ast_safe_sleep(chan, 200);
-	for(res = 0; !res;) {
-		if (ast_app_getdata(chan, "dictate/enter_filename", filein, sizeof(filein), 0) || 
-			ast_strlen_zero(filein)) {
-			res = -1;
-			break;
+	for (res = 0; !res;) {
+		if (ast_strlen_zero(filename)) {
+			if (ast_app_getdata(chan, "dictate/enter_filename", filein, sizeof(filein), 0) || 
+				ast_strlen_zero(filein)) {
+				res = -1;
+				break;
+			}
+		} else {
+			ast_copy_string(filein, filename, sizeof(filein));
+			filename = "";
 		}
-		
 		mkdir(base, 0755);
 		len = strlen(base) + strlen(filein) + 2;
 		if (!path || len > maxlen) {
