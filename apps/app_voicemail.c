@@ -5741,7 +5741,8 @@ static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
 static char *complete_show_voicemail_users(char *line, char *word, int pos, int state)
 {
 	int which = 0;
-	struct ast_vm_user *vmu = users;
+	int wordlen;
+	struct ast_vm_user *vmu;
 	char *context = "";
 
 	/* 0 - show; 1 - voicemail; 2 - users; 3 - for; 4 - <context> */
@@ -5753,8 +5754,9 @@ static char *complete_show_voicemail_users(char *line, char *word, int pos, int 
 		else
 			return NULL;
 	}
-	while (vmu) {
-		if (!strncasecmp(word, vmu->context, strlen(word))) {
+	wordlen = strlen(word);
+	for (vmu = users; vmu; vmu = vmu->next) {
+		if (!strncasecmp(word, vmu->context, wordlen)) {
 			if (context && strcmp(context, vmu->context)) {
 				if (++which > state) {
 					return strdup(vmu->context);
@@ -5762,7 +5764,6 @@ static char *complete_show_voicemail_users(char *line, char *word, int pos, int 
 				context = vmu->context;
 			}
 		}
-		vmu = vmu->next;
 	}
 	return NULL;
 }
