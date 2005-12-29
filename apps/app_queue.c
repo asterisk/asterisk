@@ -3360,17 +3360,22 @@ static int queue_show(int fd, int argc, char **argv)
 static char *complete_queue(char *line, char *word, int pos, int state)
 {
 	struct ast_call_queue *q;
-	int which=0;
+	char *ret = NULL;
+	int which = 0;
+	int wordlen = strlen(word);
 	
 	ast_mutex_lock(&qlock);
 	for (q = queues; q; q = q->next) {
-		if (!strncasecmp(word, q->name, strlen(word))) {
-			if (++which > state)
+		if (!strncasecmp(word, q->name, wordlen)) {
+			if (++which > state) {
+				ret = strdup(q->name);	
 				break;
+			}
 		}
 	}
 	ast_mutex_unlock(&qlock);
-	return q ? strdup(q->name) : NULL;
+
+	return ret;
 }
 
 /*!\brief callback to display queues status in manager 
