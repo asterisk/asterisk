@@ -94,6 +94,7 @@ struct ast_channel_spy_list {
  */
 static int shutting_down = 0;
 
+AST_MUTEX_DEFINE_STATIC(uniquelock);
 static int uniqueint = 0;
 
 unsigned long global_fin = 0, global_fout = 0;
@@ -572,7 +573,9 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	tmp->data = NULL;
 	tmp->fin = global_fin;
 	tmp->fout = global_fout;
+	ast_mutex_lock(&uniquelock);
 	snprintf(tmp->uniqueid, sizeof(tmp->uniqueid), "%li.%d", (long) time(NULL), uniqueint++);
+	ast_mutex_unlock(&uniquelock);
 	headp = &tmp->varshead;
 	ast_mutex_init(&tmp->lock);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
