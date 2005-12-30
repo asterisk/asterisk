@@ -38,3 +38,7 @@ what the translator API does with its channel.
 
 When the PBX is finished with the line, it will hang up the line, at which
 point it the hardware should again be monitored by the monitoring thread.
+
+---------------
+For more information, please consult the Asterisk Developer's Documentation
+on http://www.asterisk.org
