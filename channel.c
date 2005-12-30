@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Channel Management
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include <stdio.h>

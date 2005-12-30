@@ -18,8 +18,12 @@
 */
 
 /*! \file
-* \brief Check if Channel is Available
-* 
+ * 
+ * \brief Check if Channel is Available
+ * 
+ * \author Mark Spencer <markster@digium.com>
+ * \author James Golovich <james@gnuinter.net>
+
  * \ingroup applications
  */
 

@@ -18,6 +18,8 @@
 
 /*! \file
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \brief Local Proxy Channel
  * 
  * \ingroup channel_drivers

@@ -22,6 +22,11 @@
 /*! \file
  *
  * \brief Zap Barge support
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
+ * \note Special thanks to comphealth.com for sponsoring this
+ * GPL application.
  * 
  * \ingroup applications
  */

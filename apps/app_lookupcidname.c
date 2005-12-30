@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief App to set callerid name from database, based on directory number
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

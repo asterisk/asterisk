@@ -18,7 +18,10 @@
 
 
 /*! \file
+ * 
  * \brief Implementation of Agents (proxy channel)
+ *
+ * \author Mark Spencer <markster@digium.com>
  *
  * This file is the implementation of Agents modules.
  * It is a dynamic module that is loaded by Asterisk. 

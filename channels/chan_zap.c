@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Zaptel Pseudo TDM interface 
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * Connects to the zaptel telephony library as well as 
  * libpri. Libpri is optional and needed only if you are

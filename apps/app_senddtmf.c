@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief App to send DTMF digits
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

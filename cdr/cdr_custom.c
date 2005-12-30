@@ -21,7 +21,9 @@
 /*! \file
  *
  * \brief Custom Comma Separated Value CDR records.
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \arg See also \ref AstCDR
  *
  * Logs in LOG_DIR/cdr_custom

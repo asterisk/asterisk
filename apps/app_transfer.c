@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Transfer a caller
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * Requires transfer support from channel driver
  *

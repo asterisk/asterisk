@@ -18,6 +18,10 @@
 /*! \file
  *
  * \brief Fork CDR application
+ *
+ * \author Anthony Minessale anthmct@yahoo.com
+ *
+ * \note Development of this app Sponsered/Funded  by TAAN Softworks Corp
  * 
  * \ingroup applications
  */

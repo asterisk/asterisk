@@ -31,12 +31,16 @@
  Issue Date: 26/08/2003
 
 */
+
 /*! \file
-\brief  This file contains the code for implementing encryption and decryption
- for AES (Rijndael) for block and key sizes of 16, 24 and 32 bytes. It
- can optionally be replaced by code written in assembler using NASM. For
- further details see the file aesopt.h
-*/
+ *
+ * \brief  This file contains the code for implementing encryption and decryption
+ * for AES (Rijndael) for block and key sizes of 16, 24 and 32 bytes. It
+ * can optionally be replaced by code written in assembler using NASM. For
+ * further details see the file aesopt.h
+ *
+ * \author Dr Brian Gladman <brg@gladman.me.uk>
+ */
 
 #include "aesopt.h"
 

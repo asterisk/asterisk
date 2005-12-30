@@ -17,9 +17,10 @@
  */
 
 /*
+ * \brief A/Open ITU-56/2 Voice Modem Driver (Rockwell, IS-101, and others)
  *
- * A/Open ITU-56/2 Voice Modem Driver (Rockwell, IS-101, and others)
- * 
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \ingroup channel_drivers
  */
 

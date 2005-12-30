@@ -17,10 +17,12 @@
  */
 
 /*! \file
+ *
  * \brief Asterisk Logger
  * 
  * Logging routines
  *
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include <signal.h>

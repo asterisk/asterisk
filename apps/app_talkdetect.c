@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Playback a file with audio detect
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

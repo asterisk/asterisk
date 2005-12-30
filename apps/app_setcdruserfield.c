@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief Applictions connected with CDR engine
- * 
+ *
+ * \author Justin Huff <jjhuff@mspin.net>
+ *  
  * \ingroup applications
  */
 

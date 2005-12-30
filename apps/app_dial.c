@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief dial() & retrydial() - Trivial application to dial a channel and send an URL on answer
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

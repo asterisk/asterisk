@@ -20,6 +20,8 @@
  *
  * \brief page() - Paging application
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \ingroup applications
  */
 

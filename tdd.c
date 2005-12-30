@@ -21,7 +21,10 @@
 /*! \file
  *
  * \brief TTY/TDD Generation support 
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
+ * \note Includes code and algorithms from the Zapata library.
  */
 
 #include <time.h>

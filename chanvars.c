@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Channel Variables
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <stdlib.h>

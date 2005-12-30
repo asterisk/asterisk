@@ -21,7 +21,9 @@
 /*! \file
  *
  * \brief Application to dump channel variables
- * 
+ *
+ * \author Anthony Minessale <anthmct@yahoo.com>
+ *
  * \ingroup applications
  */
 

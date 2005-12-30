@@ -24,6 +24,11 @@
  *
  * \brief HasVoicemail application
  *
+ * \author Todd Freeman <freeman@andrews.edu>
+ *
+ * \note 95% based on HasNewVoicemail by
+ * Tilghman Lesher <asterisk-hasnewvoicemail-app@the-tilghman.com>
+ *
  * \ingroup applications
  */
 

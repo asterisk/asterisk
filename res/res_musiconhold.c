@@ -22,6 +22,7 @@
  *
  * \arg See also \ref Config_moh
  * 
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include <stdlib.h>

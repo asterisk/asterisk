@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Call Detail Record API 
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * Includes code and algorithms from the Zapata library.
  *

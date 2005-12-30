@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Channel timeout related dialplan functions
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <stdlib.h>

@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief feature Proxy Channel
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \note *** Experimental code ****
  * 
  * \ingroup channel_drivers

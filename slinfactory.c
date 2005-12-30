@@ -20,7 +20,8 @@
  *
  * \brief A machine to gather up arbitrary frames and convert them
  * to raw slinear on demand.
- * 
+ *
+ * \author Anthony Minessale <anthmct@yahoo.com>
  */
 
 #include <string.h>

@@ -20,6 +20,7 @@
  *
  * \brief I/O Managment (Derived from Cheops-NG)
  *
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include <stdio.h>

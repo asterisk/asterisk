@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Get ADSI CPE ID
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

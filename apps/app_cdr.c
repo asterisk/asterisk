@@ -17,7 +17,10 @@
  */
 
 /*! \file
+ * 
  * \brief Applications connected with CDR engine
+ *
+ * Martin Pycko <martinp@digium.com>
  *
  * \ingroup applications
  */

@@ -17,7 +17,10 @@
  */
 
 /*! \file
+ *
  * \brief App to transmit a URL
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

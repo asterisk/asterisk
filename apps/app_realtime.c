@@ -20,6 +20,9 @@
 /*! \file
  *
  * \brief RealTime App
+ *
+ * \author Anthony Minessale <anthmct@yahoo.com>
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

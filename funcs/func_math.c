@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief Maths relatad dialplan functions
- * 
+ *
+ * \author Andy Powell
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include <stdlib.h>

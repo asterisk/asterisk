@@ -22,7 +22,10 @@
 /*! \file
  *
  * \brief ParkAndAnnounce application for Asterisk
- * 
+ *
+ * \author Ben Miller <bgmiller@dccinc.com>
+ * \arg With TONS of help from Mark!
+ *
  * \ingroup applications
  */
 

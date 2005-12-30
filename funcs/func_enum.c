@@ -21,6 +21,11 @@
 /*! \file
  *
  * \brief ENUM Functions
+ *
+ * \author Mark Spencer <markster@digium.com>
+ * \author Oleksiy Krivoshey <oleksiyk@gmail.com>
+ * \author Russell Bryant <russelb@clemson.edu>
+ *
  * \arg See also AstENUM
  */
 

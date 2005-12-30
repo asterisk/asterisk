@@ -19,6 +19,7 @@
  * 
  * \brief Conditional logic dialplan functions
  * 
+ * \author Anthony Minessale II
  */
 
 #include <stdlib.h>

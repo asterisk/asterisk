@@ -20,6 +20,9 @@
 /*! \file
  *
  * \brief Applications to test connection and produce report in text file
+ *
+ * \author Mark Spencer <markster@digium.com>
+ * \author Russell Bryant <russelb@clemson.edu>
  * 
  * \ingroup applications
  */

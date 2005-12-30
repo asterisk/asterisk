@@ -20,6 +20,8 @@
  *
  * \brief Configuration File Parser
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * Includes the Asterisk Realtime API - ARA
  * See README.realtime
  */

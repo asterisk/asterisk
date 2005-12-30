@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Memory Management
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #ifdef __AST_DEBUG_MALLOC

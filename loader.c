@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Module Loader
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <stdio.h>

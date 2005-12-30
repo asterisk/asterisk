@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Functions for reading or setting the MusicOnHold class
- * 
+ *
+ * \author Russell Bryant <russelb@clemson.edu> 
  */
 
 #include <stdlib.h>

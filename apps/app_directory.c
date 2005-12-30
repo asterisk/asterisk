@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Provide a directory of extensions
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

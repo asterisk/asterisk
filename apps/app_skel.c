@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Skeleton application
+ *
+ * \author <Your Name Here> <<Your Email Here>>
  * 
  * This is a skeleton for development of an Asterisk application 
  * \ingroup applications

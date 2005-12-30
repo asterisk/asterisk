@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Provide Cryptographic Signature capability
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <sys/types.h>

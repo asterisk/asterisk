@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief While Loop and ExecIf Implementations
+ *
+ * \author Anthony Minessale <anthmct@yahoo.com>
  * 
  * \ingroup applications
  */

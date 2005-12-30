@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Build timestamp variables
- * 
+ *
+ * \author Kevin P. Fleming <kpfleming@digium.com>
  */
 
 #include "asterisk/build.h"

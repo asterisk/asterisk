@@ -18,9 +18,11 @@
  */
 
 /*
+ * \brief BestData 56SX-92 Voice Modem Driver (Conexant)
  *
- * BestData 56SX-92 Voice Modem Driver (Conexant)
- * 
+ * \author Mark Spencer <markster@digium.com>
+ * \author Jim Dixon <jim@lambdatel.com>
+ *
  * \ingroup channel_drivers
  */
 

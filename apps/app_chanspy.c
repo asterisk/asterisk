@@ -17,8 +17,11 @@
  */
 
 /*! \file
+ *
  * \brief ChanSpy: Listen in on any channel.
- * 
+ *
+ * \author Anthony Minessale II <anthmct@yahoo.com>
+ *
  * \ingroup applications
  */
 

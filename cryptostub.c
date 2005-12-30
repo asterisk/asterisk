@@ -16,6 +16,13 @@
  * at the top of the source tree.
  */
 
+/*! \file
+ *
+ * \brief Stubs for res_crypto routines
+ *
+ * \author Mark Spencer <markster@digium.com>
+ */
+
 #include <unistd.h>
 #include <stdlib.h>
 

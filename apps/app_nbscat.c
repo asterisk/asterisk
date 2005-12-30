@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief Silly application to play an NBScat file -- uses nbscat8k
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *  
  * \ingroup applications
  */
  

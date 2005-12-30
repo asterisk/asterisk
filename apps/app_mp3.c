@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Silly application to play an MP3 file -- uses mpg123
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

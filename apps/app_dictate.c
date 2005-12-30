@@ -22,6 +22,8 @@
  *
  * \brief Virtual Dictation Machine Application For Asterisk
  *
+ * \author Anthony Minessale II <anthmct@yahoo.com>
+ *
  * \ingroup applications
  */
 

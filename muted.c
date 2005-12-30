@@ -20,7 +20,13 @@
  */
 
 /*! \file
+ *
  * \brief Mute Daemon
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
+ * Updated for Mac OSX CoreAudio 
+ * \arg Josh Roberson <josh@asteriasgi.com>
  *
  * \note Specially written for Malcolm Davenport, but I think I'll use it too
  * Connects to the Asterisk Manager Interface, AMI, and listens for events

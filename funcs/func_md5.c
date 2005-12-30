@@ -20,6 +20,8 @@
  *
  * \brief MD5 digest related dialplan functions
  * 
+ * \author Olle E. Johansson <oej@edvina.net>
+ * \author Russell Bryant <russelb@clemson.edu>
  */
 
 #include <stdlib.h>

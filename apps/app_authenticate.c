@@ -17,7 +17,10 @@
  */
 
 /*! \file
+ *
  * \brief Execute arbitrary authenticate commands
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

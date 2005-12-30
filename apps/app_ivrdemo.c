@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief IVR Demo application
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

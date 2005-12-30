@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Image Management
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <stdio.h>

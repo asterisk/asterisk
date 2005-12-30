@@ -18,9 +18,12 @@
 
 /*! 
  * \file 
+ *
  * \brief Supports RTP and RTCP with Symmetric RTP support for NAT traversal.
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
- * RTP is deffined in RFC 3550.
+ * \note RTP is deffined in RFC 3550.
  */
 
 #include <stdio.h>

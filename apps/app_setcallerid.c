@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief App to set callerid
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

@@ -20,6 +20,8 @@
  *
  * \brief Directed Call Pickup Support
  *
+ * \author Joshua Colp <jcolp@asterlink.com>
+ *
  * \ingroup applications
  */
 

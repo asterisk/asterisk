@@ -19,6 +19,8 @@
  *
  * \brief Verbose logging application
  *
+ * \author Tilghman Lesher <app_verbose_v001@the-tilghman.com>
+ *
  * \ingroup applications
  */
 

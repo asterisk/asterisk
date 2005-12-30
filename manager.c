@@ -20,6 +20,8 @@
  *
  * \brief The Asterisk Management Interface - AMI
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * Channel Management and more
  * 
  * \ref amiconf

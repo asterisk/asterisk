@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief Implementation of Media Gateway Control Protocol
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \par See also
  * \arg \ref Config_mgcp
  *

@@ -24,8 +24,10 @@
  *
  * \brief ODBC resource manager
  * 
- * \arg See also: \ref cdr_odbc
+ * \author Mark Spencer <markster@digium.com>
+ * \author Anthony Minessale II <anthmct@yahoo.com>
  *
+ * \arg See also: \ref cdr_odbc
  */
 
 #include <stdio.h>

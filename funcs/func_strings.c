@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief String manipulation dialplan functions
- * 
+ *
+ * \author Tilghman Lesher
+ * \author Anothony Minessale II 
  */
 
 #include <stdlib.h>

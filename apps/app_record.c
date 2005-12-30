@@ -20,6 +20,8 @@
  *
  * \brief Trivial application to record a sound file
  *
+ * \author Matthew Fredrickson <creslin@digium.com>
+ *
  * \ingroup applications
  */
  

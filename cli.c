@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Standard Command Line Interface
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <unistd.h>

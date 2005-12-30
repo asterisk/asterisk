@@ -21,6 +21,8 @@
 /*! \file
  *
  * \brief Comma Separated Value CDR records.
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \arg See also \ref AstCDR
  * \ingroup cdr_drivers

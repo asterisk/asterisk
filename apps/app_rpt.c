@@ -17,10 +17,14 @@
  * at the top of the source tree.
  */
 
-/*
+/*! \file
  *
- * Radio Repeater / Remote Base program 
+ * \brief Radio Repeater / Remote Base program 
  *  version 0.39 12/19/05
+ *
+ * \author Jim Dixon, WB6NIL <jim@lambdatel.com>
+ *
+ * \note Serious contributions by Steve RoDgers, WA6ZFT <hwstar@rodgers.sdcoxmail.com>
  * 
  * See http://www.zapatatelephony.org/app_rpt.html
  *

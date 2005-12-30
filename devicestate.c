@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Device state management
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <sys/types.h>

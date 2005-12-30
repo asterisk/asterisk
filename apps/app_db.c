@@ -22,6 +22,9 @@
  *
  * \brief Database access functions
  *
+ * \author Mark Spencer <markster@digium.com>
+ * \author Jefferson Noxon <jeff@debian.org>
+ *
  * \ingroup applications
  */
 

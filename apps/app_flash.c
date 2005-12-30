@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief App to flash a zap trunk
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

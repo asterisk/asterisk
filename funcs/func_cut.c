@@ -16,7 +16,10 @@
  */
 
 /*! \file
+ * 
  * \brief CUT function
+ *
+ * \author Tilghman Lesher <app_cut__v003@the-tilghman.com>
  *
  * \ingroup functions
  */

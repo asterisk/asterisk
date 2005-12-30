@@ -20,6 +20,8 @@
  *
  * \brief ReadFile application -- Reads in a File for you.
  *
+ * \author Matt O'Gorman <mogorman@digium.com>
+ *
  * \ingroup applications
  */
 

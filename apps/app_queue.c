@@ -20,6 +20,8 @@
  *
  * \brief True call queues with optional send URL on answer
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \arg Config in \ref Config_qu queues.conf
  * 
  * \par Development notes

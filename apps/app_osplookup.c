@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Open Settlement Protocol Lookup
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

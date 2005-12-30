@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Trivial application to read a variable
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Core PBX routines.
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <sys/types.h>

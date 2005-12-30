@@ -19,7 +19,12 @@
 /*!
  * \file
  * \brief Implementation of Session Initiation Protocol
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
+ * See Also:
+ * \arg \ref AstCREDITS
+ *
  * Implementation of RFC 3261 - without S/MIME, TCP and TLS support
  * Configuration file \link Config_sip sip.conf \endlink
  *

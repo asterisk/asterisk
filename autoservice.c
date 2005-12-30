@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Automatic channel service routines
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <stdio.h>

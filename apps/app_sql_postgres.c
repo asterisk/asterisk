@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Connect to PostgreSQL
+ *
+ * \author Christos Ricudis <ricudis@itc.auth.gr>
  * 
  * \ingroup applications
  */

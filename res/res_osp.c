@@ -19,7 +19,9 @@
 /*! \file
  *
  * \brief Provide Open Settlement Protocol capability
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \arg See also: \ref chan_sip.c
  */
 

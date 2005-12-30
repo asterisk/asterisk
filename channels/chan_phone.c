@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Generic Linux Telephony Interface driver
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup channel_drivers
  */

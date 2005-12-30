@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Various sorts of access control
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <stdio.h>

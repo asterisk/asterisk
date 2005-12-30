@@ -25,6 +25,8 @@
  *
  * \brief This file is part of the chan_h323 driver for Asterisk
  *
+ * \author Jeremy McNamara
+ *
  * \par See also
  * \arg Config_h323
  *

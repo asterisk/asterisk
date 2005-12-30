@@ -18,8 +18,9 @@
 
 /*! \file
  *
- * \brief Routines implementing call parking
- * 
+ * \brief Routines implementing call features
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <pthread.h>

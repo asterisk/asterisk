@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Translate via the use of pseudo channels
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <sys/types.h>

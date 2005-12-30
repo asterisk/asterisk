@@ -19,6 +19,8 @@
 /*! \file 
  * \brief ALSA sound card channel driver 
  *
+ * \author Matthew Fredrickson <creslin@digium.com>
+ *
  * \par See also
  * \arg Config_alsa
  *

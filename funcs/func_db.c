@@ -21,7 +21,8 @@
 /*! \file
  *
  * \brief Functions for interaction with the Asterisk database
- * 
+ *
+ * \author Russell Bryant <russelb@clemson.edu>
  */
 
 #include <stdlib.h>

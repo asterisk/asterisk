@@ -20,6 +20,8 @@
  *
  * \brief Implementation of Inter-Asterisk eXchange Version 2
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \par See also
  * \arg \ref Config_iax
  *

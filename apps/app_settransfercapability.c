@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief App to set the ISDN Transfer Capability
+ *
+ * \author Frank Sautter - asterisk+at+sautter+dot+com 
  * 
  * \ingroup applications
  */

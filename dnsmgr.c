@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Background DNS update manager
- * 
+ *
+ * \author Kevin P. Fleming <kpfleming@digium.com> 
  */
 
 #include <sys/types.h>

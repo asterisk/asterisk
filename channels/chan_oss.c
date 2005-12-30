@@ -23,6 +23,9 @@
  *
  * \brief Channel driver for OSS sound cards
  *
+ * \author Mark Spencer <markster@digium.com>
+ * \author Luigi Rizzo
+ *
  * \par See also
  * \arg \ref Config_oss
  *

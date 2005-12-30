@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief ISDN4Linux TTY Driver
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup channel_drivers
  */

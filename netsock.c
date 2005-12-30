@@ -20,7 +20,9 @@
 /*! \file
  *
  * \brief Network socket handling
- * 
+ *
+ * \author Kevin P. Fleming <kpfleming@digium.com>
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include <stdio.h>

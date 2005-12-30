@@ -26,6 +26,7 @@
  *
  * \brief SpanDSP - a series of DSP components for telephony
  *
+ * \author Steve Underwood <steveu@coppice.org>
  */
 
 #include <stdio.h>

@@ -20,6 +20,7 @@
  *
  * \brief Scheduler Routines (from cheops-NG)
  *
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #ifdef DEBUG_SCHEDULER

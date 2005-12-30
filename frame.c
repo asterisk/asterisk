@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Frame manipulation routines
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <stdlib.h>

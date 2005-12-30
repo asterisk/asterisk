@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Generic File Format Support.
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <sys/types.h>

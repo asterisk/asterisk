@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Privacy Routines
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <stdio.h>

@@ -17,8 +17,10 @@
  */
 
 /*! \file
+ * 
  * \brief IAX Provisioning Protocol 
  *
+ * \author Mark Spencer <markster@digium.com>
  */
 
 #include <unistd.h>

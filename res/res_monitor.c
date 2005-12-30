@@ -20,6 +20,7 @@
  *
  * \brief PBX channel monitoring
  *
+ * \author Mark Spencer <markster@digium.com>
  */
  
 #include <stdio.h>

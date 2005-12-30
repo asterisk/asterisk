@@ -22,7 +22,9 @@
 /*! \file
  *
  * \brief Convenience Signal Processing routines
- * 
+ *
+ * \author Mark Spencer <markster@digium.com>
+ * \author Steve Underwood <steveu@coppice.org>
  */
 
 /* Some routines from tone_detect.c by Steven Underwood as published under the zapata library */

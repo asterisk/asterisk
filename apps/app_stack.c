@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Stack applications Gosub, Return, etc.
+ *
+ * \author Tilghman Lesher <app_stack_v002@the-tilghman.com>
  * 
  * \ingroup applications
  */

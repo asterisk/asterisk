@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Echo application -- play back what you hear to evaluate latency
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

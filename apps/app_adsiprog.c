@@ -17,7 +17,10 @@
  */
 
 /*! \file
+ *
  * \brief Program Asterisk ADSI Scripts into phone
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

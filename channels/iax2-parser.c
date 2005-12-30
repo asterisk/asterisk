@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Implementation of Inter-Asterisk eXchange Protocol, v 2
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <sys/types.h>

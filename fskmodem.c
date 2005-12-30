@@ -22,6 +22,9 @@
  *
  * \brief FSK Modulator/Demodulator 
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
+ * \arg Includes code and algorithms from the Zapata library.
  */
 
 #include <stdio.h>

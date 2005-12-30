@@ -26,6 +26,8 @@
  *   - WaitForSilence(500,2) will wait for 1/2 second of silence, twice \n
  *   - WaitForSilence(1000,1) will wait for 1 second of silence, once \n
  *
+ * \author David C. Troy <dave@popvox.com>
+ *
  * \ingroup applications
  */
 

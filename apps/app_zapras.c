@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Execute an ISDN RAS
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

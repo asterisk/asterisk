@@ -22,7 +22,12 @@
 /*! \file
  *
  * \brief External IVR application interface
- * 
+ *
+ * \author Kevin P. Fleming <kpfleming@digium.com>
+ *
+ * \note Portions taken from the file-based music-on-hold work
+ * created by Anthony Minessale II in res_musiconhold.c
+ *
  * \ingroup applications
  */
 

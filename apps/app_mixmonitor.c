@@ -22,8 +22,15 @@
  */
 
 /*! \file
+ *
  * \brief MixMonitor() - Record a call and mix the audio during the recording
  * \ingroup applications
+ *
+ * \author Mark Spencer <markster@digium.com>
+ * \author Kevin P. Fleming <kpfleming@digium.com>
+ *
+ * \note Based on app_muxmon.c provided by
+ * Anthony Minessale II <anthmct@yahoo.com>
  */
 
 #include <stdlib.h>

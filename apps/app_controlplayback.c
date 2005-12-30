@@ -17,7 +17,10 @@
  */
 
 /*! \file
+ * 
  * \brief Trivial application to control playback of a sound file
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

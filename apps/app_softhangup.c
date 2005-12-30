@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief SoftHangup application
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

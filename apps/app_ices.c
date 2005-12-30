@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Stream to an icecast server via ICES (see contrib/asterisk-ices.xml)
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

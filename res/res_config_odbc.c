@@ -22,7 +22,10 @@
  *
  * \brief odbc+odbc plugin for portable configuration engine
  *
- *	http://www.unixodbc.org
+ * \author Mark Spencer <markster@digium.com>
+ * \author Anthony Minessale II <anthmct@yahoo.com>
+ *
+ * \arg http://www.unixodbc.org
  */
 
 #include <stdio.h>

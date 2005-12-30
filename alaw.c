@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief u-Law to Signed linear conversion
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include "asterisk.h"

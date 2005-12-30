@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Execute arbitrary system commands
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

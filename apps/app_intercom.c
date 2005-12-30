@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Use /dev/dsp as an intercom.
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

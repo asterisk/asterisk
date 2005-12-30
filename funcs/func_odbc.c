@@ -10,6 +10,14 @@
  * Special thanks to Anthony Minessale II for debugging help.
  */
 
+/*!
+ * \file
+ *
+ * \brief ODBC lookups
+ *
+ * \author Tilghman Lesher <func_odbc__200508@the-tilghman.com>
+ */
+
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>

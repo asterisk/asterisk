@@ -22,6 +22,9 @@
  *
  * \brief ENUM Support for Asterisk
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
+ * \arg Funding provided by nic.at
  */
 
 #include <sys/types.h>

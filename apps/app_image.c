@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief App to transmit an image
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

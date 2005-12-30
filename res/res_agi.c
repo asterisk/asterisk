@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief AGI - the Asterisk Gateway Interface
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <sys/types.h>

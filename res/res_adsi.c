@@ -21,7 +21,8 @@
 /*! \file
  *
  * \brief ADSI support 
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <time.h>

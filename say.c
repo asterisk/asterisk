@@ -20,9 +20,11 @@
 /*! \file
  *
  * \brief Say numbers and dates (maybe words one day too)
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
- * \note 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr)
- *  						George Konstantoulakis <gkon@inaccessnetworks.com>
+ * \note 12-16-2004 : Support for Greek added by InAccess Networks (work funded by HOL, www.hol.gr) George Konstantoulakis <gkon@inaccessnetworks.com>
+ *  						
  */
 
 #include <sys/types.h>

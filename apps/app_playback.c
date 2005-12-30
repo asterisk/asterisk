@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Trivial application to playback a sound file
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

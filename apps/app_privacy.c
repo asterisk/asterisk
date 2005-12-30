@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Block all calls without Caller*ID, require phone # to be entered
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

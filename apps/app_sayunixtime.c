@@ -18,6 +18,8 @@
 /*! \file
  *
  * \brief SayUnixTime application
+ *
+ * \author Tilghman Lesher <app_sayunixtime__200309@the-tilghman.com>
  * 
  * \ingroup applications
  */

@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Comedian Mail - Voicemail System
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \par See also
  * \arg \ref Config_vm

@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Dial plan macro Implementation
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

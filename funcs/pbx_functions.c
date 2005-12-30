@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief Builtin dialplan functions
- * 
+ *
+ * \author Kevin P. Fleming <kpfleming@digium.com>
  */
 
 #include <sys/types.h>

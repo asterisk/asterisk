@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Meet me conference bridge
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

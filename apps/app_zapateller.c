@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief Playback the special information tone to get rid of telemarketers
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \ingroup applications
  */

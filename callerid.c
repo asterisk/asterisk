@@ -19,7 +19,8 @@
 /*! \file
  *
  * \brief CallerID Generation support 
- * 
+ *
+ * \author Mark Spencer <markster@digium.com> 
  */
 
 #include <time.h>

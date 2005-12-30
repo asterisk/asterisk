@@ -19,8 +19,10 @@
 /*! \file
  *
  * \brief App to transmit a text message
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
- * Requires support of sending text messages from channel driver
+ * \note Requires support of sending text messages from channel driver
  *
  * \ingroup applications
  */

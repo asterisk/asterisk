@@ -21,9 +21,12 @@
 /*! \file
  *
  * \brief DNS SRV Record Lookup Support for Asterisk
+ *
+ * \author Mark Spencer <markster@digium.com>
  * 
  * \arg See also \ref AstENUM
  *
+ * \note Funding provided by nic.at
  */
 
 #include <sys/types.h>

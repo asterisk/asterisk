@@ -25,6 +25,8 @@
  *
  * \brief Zap Scanner
  *
+ * \author Mark Spencer <markster@digium.com>
+ *
  * \ingroup applications
  */
 

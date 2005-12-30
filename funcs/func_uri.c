@@ -19,6 +19,8 @@
 /*! \file
  *
  * \brief URI encoding / decoding
+ *
+ * \author Olle E. Johansson <oej@edvina.net>
  * 
  * \note For now this code only supports 8 bit characters, not unicode,
          which we ultimately will need to support.
