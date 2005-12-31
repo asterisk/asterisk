@@ -286,7 +286,6 @@ const char *ast_describe_caller_presentation(int data);
 
 	The following values are available to use:
 	\arg \b Defined value, text string in config file, explanation
-	.
 
 	\arg \b AST_PRES_ALLOWED_USER_NUMBER_NOT_SCREENED, "allowed_not_screened", Presentation Allowed, Not Screened,
 	\arg \b AST_PRES_ALLOWED_USER_NUMBER_PASSED_SCREEN, "allowed_passed_screen", Presentation Allowed, Passed Screen,

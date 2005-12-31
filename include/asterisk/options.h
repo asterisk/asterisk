@@ -30,6 +30,7 @@ extern "C" {
 #define AST_CACHE_DIR_LEN 	512
 #define AST_FILENAME_MAX	80
 
+/*! \ingroup main_options */
 enum ast_option_flags {
 	/*! Allow \#exec in config files */
 	AST_OPT_FLAG_EXEC_INCLUDES = (1 << 0),

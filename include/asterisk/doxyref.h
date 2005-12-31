@@ -126,7 +126,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
  * \section enumreadme ENUM
  * \arg Configuration: \ref Config_enum
  * \arg \ref enum.c
- * \arg \ref app_enumlookup.c
+ * \arg \ref func_enum.c
  *
  * \verbinclude README.enum
  */

@@ -47,8 +47,8 @@
 		-# The dial plan forces Asterisk to create an outbound 
 		   call somewhere with the dial (see \ref app_dial.c)
 		   application
-
 	.
+
 	\par Bridging channels
 	If Asterisk dials out this happens:
 	-# Dial creates an outbound PBX channel and asks one of the
