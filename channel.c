@@ -90,9 +90,7 @@ struct ast_channel_spy_list {
 #define MONITOR_DELAY	150 * 8		/* 150 ms of MONITORING DELAY */
 #endif
 
-/*
- * Prevent new channel allocation if shutting down.
- */
+/*! Prevent new channel allocation if shutting down. */
 static int shutting_down = 0;
 
 AST_MUTEX_DEFINE_STATIC(uniquelock);
@@ -107,17 +105,16 @@ struct chanlist {
 	struct chanlist *next;
 };
 
+/*! the list of registered channel types */
 static struct chanlist *backends = NULL;
 
-/*
- * the list of channels we have
- */
+/*! the list of channels we have */
 static struct ast_channel *channels = NULL;
 
-/* Protect the channel list, both backends and channels.
- */
+/*! Protect the channel list, both backends and channels. */
 AST_MUTEX_DEFINE_STATIC(chlock);
 
+/*! map AST_CAUSE's to readable string representations */
 const struct ast_cause {
 	int cause;
 	const char *desc;
@@ -199,7 +196,7 @@ static char show_channeltypes_usage[] =
 static struct ast_cli_entry cli_show_channeltypes = 
 	{ { "show", "channeltypes", NULL }, show_channeltypes, "Show available channel types", show_channeltypes_usage };
 
-/*--- ast_check_hangup: Checks to see if a channel is needing hang up */
+/*! \brief Checks to see if a channel is needing hang up */
 int ast_check_hangup(struct ast_channel *chan)
 {
 	time_t	myt;
@@ -230,7 +227,7 @@ static int ast_check_hangup_locked(struct ast_channel *chan)
 	return res;
 }
 
-/*--- ast_begin_shutdown: Initiate system shutdown */
+/*! \brief Initiate system shutdown */
 void ast_begin_shutdown(int hangup)
 {
 	struct ast_channel *c;
@@ -243,7 +240,7 @@ void ast_begin_shutdown(int hangup)
 	}
 }
 
-/*--- ast_active_channels: returns number of active/allocated channels */
+/*! \brief returns number of active/allocated channels */
 int ast_active_channels(void)
 {
 	struct ast_channel *c;
@@ -255,19 +252,19 @@ int ast_active_channels(void)
 	return cnt;
 }
 
-/*--- ast_cancel_shutdown: Cancel a shutdown in progress */
+/*! \brief Cancel a shutdown in progress */
 void ast_cancel_shutdown(void)
 {
 	shutting_down = 0;
 }
 
-/*--- ast_shutting_down: Returns non-zero if Asterisk is being shut down */
+/*! \brief Returns non-zero if Asterisk is being shut down */
 int ast_shutting_down(void)
 {
 	return shutting_down;
 }
 
-/*--- ast_channel_setwhentohangup: Set when to hangup channel */
+/*! \brief Set when to hangup channel */
 void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 {
 	time_t	myt;
@@ -282,7 +279,7 @@ void ast_channel_setwhentohangup(struct ast_channel *chan, time_t offset)
 	return;
 }
 
-/*--- ast_channel_cmpwhentohangup: Compare a offset with when to hangup channel */
+/*! \brief Compare a offset with when to hangup channel */
 int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset)
 {
 	time_t whentohangup;
@@ -307,7 +304,7 @@ int ast_channel_cmpwhentohangup(struct ast_channel *chan, time_t offset)
 	}
 }
 
-/*--- ast_channel_register: Register a new telephony channel in Asterisk */
+/*! \brief Register a new telephony channel in Asterisk */
 int ast_channel_register(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan;
@@ -393,7 +390,7 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name)
 	return NULL;
 }
 
-/*--- ast_cause2str: Gives the string form of a given hangup cause */
+/*! \brief Gives the string form of a given hangup cause */
 const char *ast_cause2str(int cause)
 {
 	int x;
@@ -405,7 +402,7 @@ const char *ast_cause2str(int cause)
 	return "Unknown";
 }
 
-/*--- ast_state2str: Gives the string form of a given channel state */
+/*! \brief Gives the string form of a given channel state */
 char *ast_state2str(int state)
 {
 	/* XXX Not reentrant XXX */
@@ -433,7 +430,7 @@ char *ast_state2str(int state)
 	}
 }
 
-/*--- ast_transfercapability2str: Gives the string form of a given transfer capability */
+/*! \brief Gives the string form of a given transfer capability */
 char *ast_transfercapability2str(int transfercapability)
 {
 	switch(transfercapability) {
@@ -454,7 +451,7 @@ char *ast_transfercapability2str(int transfercapability)
 	}
 }
 
-/*--- ast_best_codec: Pick the best codec */
+/*! \brief Pick the best codec */
 int ast_best_codec(int fmts)
 {
 	/* This just our opinion, expressed in code.  We are asked to choose
@@ -462,29 +459,29 @@ int ast_best_codec(int fmts)
 	int x;
 	static int prefs[] = 
 	{
-		/* Okay, ulaw is used by all telephony equipment, so start with it */
+		/*! Okay, ulaw is used by all telephony equipment, so start with it */
 		AST_FORMAT_ULAW,
-		/* Unless of course, you're a silly European, so then prefer ALAW */
+		/*! Unless of course, you're a silly European, so then prefer ALAW */
 		AST_FORMAT_ALAW,
-		/* Okay, well, signed linear is easy to translate into other stuff */
+		/*! Okay, well, signed linear is easy to translate into other stuff */
 		AST_FORMAT_SLINEAR,
-		/* G.726 is standard ADPCM */
+		/*! G.726 is standard ADPCM */
 		AST_FORMAT_G726,
-		/* ADPCM has great sound quality and is still pretty easy to translate */
+		/*! ADPCM has great sound quality and is still pretty easy to translate */
 		AST_FORMAT_ADPCM,
-		/* Okay, we're down to vocoders now, so pick GSM because it's small and easier to
-		   translate and sounds pretty good */
+		/*! Okay, we're down to vocoders now, so pick GSM because it's small and easier to
+		    translate and sounds pretty good */
 		AST_FORMAT_GSM,
-		/* iLBC is not too bad */
+		/*! iLBC is not too bad */
 		AST_FORMAT_ILBC,
-		/* Speex is free, but computationally more expensive than GSM */
+		/*! Speex is free, but computationally more expensive than GSM */
 		AST_FORMAT_SPEEX,
-		/* Ick, LPC10 sounds terrible, but at least we have code for it, if you're tacky enough
-		   to use it */
+		/*! Ick, LPC10 sounds terrible, but at least we have code for it, if you're tacky enough
+		    to use it */
 		AST_FORMAT_LPC10,
-		/* G.729a is faster than 723 and slightly less expensive */
+		/*! G.729a is faster than 723 and slightly less expensive */
 		AST_FORMAT_G729A,
-		/* Down to G.723.1 which is proprietary but at least designed for voice */
+		/*! Down to G.723.1 which is proprietary but at least designed for voice */
 		AST_FORMAT_G723_1,
 	};
 	
@@ -502,7 +499,7 @@ static const struct ast_channel_tech null_tech = {
 	.description = "Null channel (should not see this)",
 };
 
-/*--- ast_channel_alloc: Create a new channel structure */
+/*! \brief Create a new channel structure */
 struct ast_channel *ast_channel_alloc(int needqueue)
 {
 	struct ast_channel *tmp;
@@ -597,7 +594,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	return tmp;
 }
 
-/*--- ast_queue_frame: Queue an outgoing media frame */
+/*! \brief Queue an outgoing media frame */
 int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 {
 	struct ast_frame *f;
@@ -654,7 +651,7 @@ int ast_queue_frame(struct ast_channel *chan, struct ast_frame *fin)
 	return 0;
 }
 
-/*--- ast_queue_hangup: Queue a hangup frame for channel */
+/*! \brief Queue a hangup frame for channel */
 int ast_queue_hangup(struct ast_channel *chan)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
@@ -666,7 +663,7 @@ int ast_queue_hangup(struct ast_channel *chan)
 	return ast_queue_frame(chan, &f);
 }
 
-/*--- ast_queue_control: Queue a control frame */
+/*! \brief Queue a control frame */
 int ast_queue_control(struct ast_channel *chan, int control)
 {
 	struct ast_frame f = { AST_FRAME_CONTROL, };
@@ -674,7 +671,7 @@ int ast_queue_control(struct ast_channel *chan, int control)
 	return ast_queue_frame(chan, &f);
 }
 
-/*--- ast_channel_defer_dtmf: Set defer DTMF flag on channel */
+/*! \brief Set defer DTMF flag on channel */
 int ast_channel_defer_dtmf(struct ast_channel *chan)
 {
 	int pre = 0;
@@ -686,15 +683,17 @@ int ast_channel_defer_dtmf(struct ast_channel *chan)
 	return pre;
 }
 
-/*--- ast_channel_undefer_dtmf: Unset defer DTMF flag on channel */
+/*! \brief Unset defer DTMF flag on channel */
 void ast_channel_undefer_dtmf(struct ast_channel *chan)
 {
 	if (chan)
 		ast_clear_flag(chan, AST_FLAG_DEFER_DTMF);
 }
 
-/*
- * Helper function to find channels. It supports these modes:
+/*!
+ * \brief Helper function to find channels. 
+ * 
+ * It supports these modes:
  *
  * prev != NULL : get channel next in list after prev
  * name != NULL : get channel with matching name
@@ -705,10 +704,10 @@ void ast_channel_undefer_dtmf(struct ast_channel *chan)
  * It returns with the channel's lock held. If getting the individual lock fails,
  * unlock and retry quickly up to 10 times, then give up.
  * 
- * XXX Note that this code has cost O(N) because of the need to verify
+ * \note XXX Note that this code has cost O(N) because of the need to verify
  * that the object is still on the global list.
  *
- * XXX also note that accessing fields (e.g. c->name in ast_log())
+ * \note XXX also note that accessing fields (e.g. c->name in ast_log())
  * can only be done with the lock held or someone could delete the
  * object while we work on it. This causes some ugliness in the code.
  * Note that removing the first ast_log() may be harmful, as it would
@@ -778,37 +777,37 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 	return NULL;
 }
 
-/*--- ast_channel_walk_locked: Browse channels in use */
+/*! \brief Browse channels in use */
 struct ast_channel *ast_channel_walk_locked(const struct ast_channel *prev)
 {
 	return channel_find_locked(prev, NULL, 0, NULL, NULL);
 }
 
-/*--- ast_get_channel_by_name_locked: Get channel by name and lock it */
+/*! \brief Get channel by name and lock it */
 struct ast_channel *ast_get_channel_by_name_locked(const char *name)
 {
 	return channel_find_locked(NULL, name, 0, NULL, NULL);
 }
 
-/*--- ast_get_channel_by_name_prefix_locked: Get channel by name prefix and lock it */
+/*! \brief Get channel by name prefix and lock it */
 struct ast_channel *ast_get_channel_by_name_prefix_locked(const char *name, const int namelen)
 {
 	return channel_find_locked(NULL, name, namelen, NULL, NULL);
 }
 
-/*--- ast_walk_channel_by_name_prefix_locked: Get next channel by name prefix and lock it */
+/*! \brief Get next channel by name prefix and lock it */
 struct ast_channel *ast_walk_channel_by_name_prefix_locked(struct ast_channel *chan, const char *name, const int namelen)
 {
 	return channel_find_locked(chan, name, namelen, NULL, NULL);
 }
 
-/*--- ast_get_channel_by_exten_locked: Get channel by exten (and optionally context) and lock it */
+/*! \brief Get channel by exten (and optionally context) and lock it */
 struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const char *context)
 {
 	return channel_find_locked(NULL, NULL, 0, context, exten);
 }
 
-/*--- ast_safe_sleep_conditional: Wait, look for hangups and condition arg */
+/*! \brief Wait, look for hangups and condition arg */
 int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
 	int (*cond)(void*), void *data )
 {
@@ -830,7 +829,7 @@ int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
 	return 0;
 }
 
-/*--- ast_safe_sleep: Wait, look for hangups */
+/*! \brief Wait, look for hangups */
 int ast_safe_sleep(struct ast_channel *chan, int ms)
 {
 	struct ast_frame *f;
@@ -862,7 +861,7 @@ static void free_cid(struct ast_callerid *cid)
 		free(cid->cid_rdnis);
 }
 
-/*--- ast_channel_free: Free a channel structure */
+/*! \brief Free a channel structure */
 void ast_channel_free(struct ast_channel *chan)
 {
 	struct ast_channel *last=NULL, *cur;
@@ -1083,7 +1082,7 @@ static void detach_spies(struct ast_channel *chan)
 	AST_LIST_TRAVERSE_SAFE_END;
 }
 
-/*--- ast_softhangup_nolock: Softly hangup a channel, don't lock */
+/*! \brief Softly hangup a channel, don't lock */
 int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 {
 	int res = 0;
@@ -1099,7 +1098,7 @@ int ast_softhangup_nolock(struct ast_channel *chan, int cause)
 	return res;
 }
 
-/*--- ast_softhangup_nolock: Softly hangup a channel, lock */
+/*! \brief Softly hangup a channel, lock */
 int ast_softhangup(struct ast_channel *chan, int cause)
 {
 	int res;
@@ -1253,7 +1252,7 @@ static void free_translation(struct ast_channel *clone)
 	clone->rawreadformat = clone->nativeformats;
 }
 
-/*--- ast_hangup: Hangup a channel */
+/*! \brief Hangup a channel */
 int ast_hangup(struct ast_channel *chan)
 {
 	int res = 0;
@@ -1360,8 +1359,6 @@ int ast_answer(struct ast_channel *chan)
 	return 0;
 }
 
-
-
 void ast_deactivate_generator(struct ast_channel *chan)
 {
 	ast_mutex_lock(&chan->lock);
@@ -1423,7 +1420,7 @@ int ast_activate_generator(struct ast_channel *chan, struct ast_generator *gen, 
 	return res;
 }
 
-/*--- ast_waitfor_n_fd: Wait for x amount of time on a file descriptor to have input.  */
+/*! \brief Wait for x amount of time on a file descriptor to have input.  */
 int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 {
 	struct timeval start = { 0 , 0 };
@@ -1479,7 +1476,7 @@ int ast_waitfor_n_fd(int *fds, int n, int *ms, int *exception)
 	return winner;
 }
 
-/*--- ast_waitfor_nanfds: Wait for x amount of time on a file descriptor to have input.  */
+/*! \brief Wait for x amount of time on a file descriptor to have input.  */
 struct ast_channel *ast_waitfor_nandfds(struct ast_channel **c, int n, int *fds, int nfds, 
 	int *exception, int *outfd, int *ms)
 {
@@ -2556,8 +2553,13 @@ int ast_call(struct ast_channel *chan, char *addr, int timeout)
 	return res;
 }
 
-/*--- ast_transfer: Transfer a call to dest, if the channel supports transfer */
-/*	called by app_transfer or the manager interface */
+/*! 
+  \brief Transfer a call to dest, if the channel supports transfer
+
+  Called by: 
+    \arg app_transfer
+    \arg the manager interface
+*/
 int ast_transfer(struct ast_channel *chan, char *dest) 
 {
 	int res = -1;
@@ -2817,13 +2819,15 @@ void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_
 	}
 }
 
-/* Clone channel variables from 'clone' channel into 'original' channel
-   All variables except those related to app_groupcount are cloned
-   Variables are actually _removed_ from 'clone' channel, presumably
-   because it will subsequently be destroyed.
-   Assumes locks will be in place on both channels when called.
-*/
+/*!
+  \brief Clone channel variables from 'clone' channel into 'original' channel
    
+  All variables except those related to app_groupcount are cloned.
+  Variables are actually _removed_ from 'clone' channel, presumably
+  because it will subsequently be destroyed.
+  
+  \note Assumes locks will be in place on both channels when called.
+*/
 static void clone_variables(struct ast_channel *original, struct ast_channel *clone)
 {
 	struct ast_var_t *varptr;
@@ -2848,8 +2852,11 @@ static void clone_variables(struct ast_channel *original, struct ast_channel *cl
 		AST_LIST_INSERT_TAIL(&original->varshead, AST_LIST_FIRST(&clone->varshead), entries);
 }
 
-/*--- ast_do_masquerade: Masquerade a channel */
-/* Assumes channel will be locked when called */
+/*!
+  \brief Masquerade a channel
+
+  \note Assumes channel will be locked when called 
+*/
 int ast_do_masquerade(struct ast_channel *original)
 {
 	int x,i;
@@ -3154,7 +3161,7 @@ int ast_setstate(struct ast_channel *chan, int state)
 	return 0;
 }
 
-/*--- Find bridged channel */
+/*! \brief Find bridged channel */
 struct ast_channel *ast_bridged_channel(struct ast_channel *chan)
 {
 	struct ast_channel *bridged;
@@ -3309,7 +3316,7 @@ tackygoto:
 	return res;
 }
 
-/*--- ast_channel_bridge: Bridge two channels together */
+/*! \brief Bridge two channels together */
 enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_channel *c1,
 					  struct ast_bridge_config *config, struct ast_frame **fo, struct ast_channel **rc) 
 {
@@ -3532,7 +3539,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 	return res;
 }
 
-/*--- ast_channel_setoption: Sets an option on a channel */
+/*! \brief Sets an option on a channel */
 int ast_channel_setoption(struct ast_channel *chan, int option, void *data, int datalen, int block)
 {
 	int res;
@@ -3746,7 +3753,7 @@ void ast_uninstall_music_functions(void)
 	ast_moh_cleanup_ptr = NULL;
 }
 
-/*! Turn on music on hold on a given channel */
+/*! \brief Turn on music on hold on a given channel */
 int ast_moh_start(struct ast_channel *chan, char *mclass) 
 {
 	if (ast_moh_start_ptr)
@@ -3758,7 +3765,7 @@ int ast_moh_start(struct ast_channel *chan, char *mclass)
 	return 0;
 }
 
-/*! Turn off music on hold on a given channel */
+/*! \brief Turn off music on hold on a given channel */
 void ast_moh_stop(struct ast_channel *chan) 
 {
 	if (ast_moh_stop_ptr)
@@ -3776,7 +3783,7 @@ void ast_channels_init(void)
 	ast_cli_register(&cli_show_channeltypes);
 }
 
-/*--- ast_print_group: Print call group and pickup group ---*/
+/*! \brief Print call group and pickup group ---*/
 char *ast_print_group(char *buf, int buflen, ast_group_t group) 
 {
 	unsigned int i;
