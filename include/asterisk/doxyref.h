@@ -64,8 +64,7 @@
  *  \subsection model_txt Generic Model
  *  \verbinclude model.txt
  *  \subsection channel_txt Channels
- *  \arg See \link Def_Channel
- *  \verbinclude channel.txt
+ *  \arg See \ref Def_Channel
  */
 
 /*! \page AstDebug Debugging
