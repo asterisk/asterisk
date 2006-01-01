@@ -1207,13 +1207,10 @@ static char *complete_show_function(char *line, char *word, int pos, int state)
 		return NULL;
 	}
 
-	for (acf = acf_root; acf; acf = acf->next) {
-		if (!strncasecmp(word, acf->name, wordlen)) {
-			if (++which > state) {
-				ret = strdup(acf->name);
-				break;
-			}
-		}
+	/* case-insensitive for convenience in this 'complete' function */
+ 	for (acf = acf_root; acf && !ret; acf = acf->next) {
+ 		if (!strncasecmp(word, acf->name, wordlen) && ++which > state)
+ 			ret = strdup(acf->name);
 	}
 
 	ast_mutex_unlock(&acflock);
@@ -1232,9 +1229,8 @@ struct ast_custom_function* ast_custom_function_find(const char *name)
 	}
 
 	for (acfptr = acf_root; acfptr; acfptr = acfptr->next) {
-		if (!strcmp(name, acfptr->name)) {
+		if (!strcmp(name, acfptr->name))
 			break;
-		}
 	}
 
 	ast_mutex_unlock(&acflock);
@@ -2970,16 +2966,10 @@ static char *complete_show_application(char *line, char *word, int pos, int stat
 		return NULL;
 	}
 
-	/* ... walk all applications ... */
-	for (a = apps; a; a = a->next) {
-		/* ... check if word matches this application ... */
-		if (!strncasecmp(word, a->name, wordlen)) {
-			/* ... if this is right app serve it ... */
-			if (++which > state) {
-				ret = strdup(a->name);
-				break;
-			}
-		}
+	/* return the n-th [partial] matching entry */
+	for (a = apps; a && !ret; a = a->next) {
+		if (!strncasecmp(word, a->name, wordlen) && ++which > state)
+			ret = strdup(a->name);
 	}
 
 	ast_mutex_unlock(&applock);
@@ -5701,22 +5691,17 @@ int pbx_builtin_serialize_variables(struct ast_channel *chan, char *buf, size_t 
 const char *pbx_builtin_getvar_helper(struct ast_channel *chan, const char *name) 
 {
 	struct ast_var_t *variables;
-	struct varshead *headp;
-
+	int i;
+	struct varshead *places[2] = { NULL, &globals };
+	
+	if (!name)
+		return NULL;
 	if (chan)
-		headp=&chan->varshead;
-	else
-		headp=&globals;
+		places[0] = &chan->varshead;
 
-	if (name) {
-		AST_LIST_TRAVERSE(headp,variables,entries) {
-			if (!strcmp(name, ast_var_name(variables)))
-				return ast_var_value(variables);
-		}
-		if (headp != &globals) {
-			/* Check global variables if we haven't already */
-			headp = &globals;
-			AST_LIST_TRAVERSE(headp,variables,entries) {
+	for (i = 0; i < 2; i++) {
+		if (places[i]) {
+			AST_LIST_TRAVERSE(places[i], variables, entries) {
 				if (!strcmp(name, ast_var_name(variables)))
 					return ast_var_value(variables);
 			}
