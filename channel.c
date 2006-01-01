@@ -808,16 +808,15 @@ struct ast_channel *ast_get_channel_by_exten_locked(const char *exten, const cha
 }
 
 /*! \brief Wait, look for hangups and condition arg */
-int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
-	int (*cond)(void*), void *data )
+int ast_safe_sleep_conditional(struct ast_channel *chan, int ms, int (*cond)(void*), void *data)
 {
 	struct ast_frame *f;
 
-	while(ms > 0) {
-		if( cond && ((*cond)(data) == 0 ) )
+	while (ms > 0) {
+		if (cond && ((*cond)(data) == 0))
 			return 0;
 		ms = ast_waitfor(chan, ms);
-		if (ms <0)
+		if (ms < 0)
 			return -1;
 		if (ms > 0) {
 			f = ast_read(chan);
@@ -832,19 +831,7 @@ int ast_safe_sleep_conditional(	struct ast_channel *chan, int ms,
 /*! \brief Wait, look for hangups */
 int ast_safe_sleep(struct ast_channel *chan, int ms)
 {
-	struct ast_frame *f;
-	while(ms > 0) {
-		ms = ast_waitfor(chan, ms);
-		if (ms <0)
-			return -1;
-		if (ms > 0) {
-			f = ast_read(chan);
-			if (!f)
-				return -1;
-			ast_frfree(f);
-		}
-	}
-	return 0;
+	return ast_safe_sleep_conditional(chan, ms, NULL, NULL);
 }
 
 static void free_cid(struct ast_callerid *cid)
