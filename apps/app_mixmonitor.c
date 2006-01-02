@@ -79,6 +79,7 @@ LOCAL_USER_DECL;
 static const char *mixmonitor_spy_type = "MixMonitor";
 
 struct mixmonitor {
+	AST_LIST_ENTRY(mixmonitor) list;
 	struct ast_channel *chan;
 	char *filename;
 	char *post_process;
@@ -87,12 +88,15 @@ struct mixmonitor {
 	int writevol;
 };
 
+AST_LIST_HEAD_STATIC(monitors, mixmonitor);
+
 enum {
 	MUXFLAG_APPEND = (1 << 1),
 	MUXFLAG_BRIDGED = (1 << 2),
 	MUXFLAG_VOLUME = (1 << 3),
 	MUXFLAG_READVOLUME = (1 << 4),
 	MUXFLAG_WRITEVOLUME = (1 << 5),
+	FLAG_STOP = (1 << 6),
 } mixmonitor_flags;
 
 enum {
@@ -157,6 +161,10 @@ static void *mixmonitor_thread(void *obj)
 	
 	STANDARD_INCREMENT_USECOUNT;
 
+	AST_LIST_LOCK(&monitors);
+	AST_LIST_INSERT_HEAD(&monitors, mixmonitor, list);
+	AST_LIST_UNLOCK(&monitors);
+
 	name = ast_strdupa(mixmonitor->chan->name);
 
 	oflags = O_CREAT|O_WRONLY;
@@ -211,7 +219,7 @@ static void *mixmonitor_thread(void *obj)
 
 		ast_channel_spy_trigger_wait(&spy);
 		
-		if (ast_check_hangup(mixmonitor->chan) || spy.status != CHANSPY_RUNNING) {
+		if (ast_check_hangup(mixmonitor->chan) || spy.status != CHANSPY_RUNNING || ast_test_flag(mixmonitor, FLAG_STOP)) {
 			ast_mutex_unlock(&spy.lock);
 			break;
 		}
@@ -237,6 +245,8 @@ static void *mixmonitor_thread(void *obj)
 		ast_mutex_unlock(&spy.lock);
 	}
 	
+	stopmon(mixmonitor->chan, &spy);
+
 	if (mixmonitor->post_process) {
 		char *p;
 
@@ -247,8 +257,6 @@ static void *mixmonitor_thread(void *obj)
 		}
 		pbx_substitute_variables_helper(mixmonitor->chan, mixmonitor->post_process, post_process, sizeof(post_process) - 1);
 	}
-
-	stopmon(mixmonitor->chan, &spy);
 
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "End MixMonitor Recording %s\n", name);
@@ -266,6 +274,10 @@ out2:
 		ast_closestream(fs);
 
 out:
+	AST_LIST_LOCK(&monitors);
+	AST_LIST_REMOVE(&monitors, mixmonitor, list);
+	AST_LIST_UNLOCK(&monitors);
+
 	free(mixmonitor);
 
 	STANDARD_DECREMENT_USECOUNT;
@@ -396,6 +408,7 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 static int mixmonitor_cli(int fd, int argc, char **argv) 
 {
 	struct ast_channel *chan;
+	struct mixmonitor *mon;
 
 	if (argc < 3)
 		return RESULT_SHOWUSAGE;
@@ -407,8 +420,13 @@ static int mixmonitor_cli(int fd, int argc, char **argv)
 
 	if (!strcasecmp(argv[1], "start"))
 		mixmonitor_exec(chan, argv[3]);
-	else if (!strcasecmp(argv[1], "stop"))
-		ast_channel_spy_stop_by_type(chan, mixmonitor_spy_type);
+	else if (!strcasecmp(argv[1], "stop")) {
+		AST_LIST_TRAVERSE_SAFE_BEGIN(&monitors, mon, list) {
+			if (chan == mon->chan)
+				ast_set_flag(mon, FLAG_STOP);
+		}
+		AST_LIST_TRAVERSE_SAFE_END;
+	}
 
 	ast_mutex_unlock(&chan->lock);
 
