@@ -52,46 +52,46 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 
 struct ast_format {
-	/* Name of format */
+	/*! Name of format */
 	char name[80];
-	/* Extensions (separated by | if more than one) 
-	   this format can read.  First is assumed for writing (e.g. .mp3) */
+	/*! Extensions (separated by | if more than one) 
+	    this format can read.  First is assumed for writing (e.g. .mp3) */
 	char exts[80];
-	/* Format of frames it uses/provides (one only) */
+	/*! Format of frames it uses/provides (one only) */
 	int format;
-	/* Open an input stream, and start playback */
+	/*! Open an input stream, and start playback */
 	struct ast_filestream * (*open)(FILE * f);
-	/* Open an output stream, of a given file descriptor and comment it appropriately if applicable */
+	/*! Open an output stream, of a given file descriptor and comment it appropriately if applicable */
 	struct ast_filestream * (*rewrite)(FILE *f, const char *comment);
-	/* Write a frame to a channel */
+	/*! Write a frame to a channel */
 	int (*write)(struct ast_filestream *, struct ast_frame *);
-	/* seek num samples into file, whence(think normal seek) */
+	/*! seek num samples into file, whence(think normal seek) */
 	int (*seek)(struct ast_filestream *, long offset, int whence);
-	/* trunc file to current position */
+	/*! trunc file to current position */
 	int (*trunc)(struct ast_filestream *fs);
-	/* tell current position */
+	/*! tell current position */
 	long (*tell)(struct ast_filestream *fs);
-	/* Read the next frame from the filestream (if available) and report when to get next one
+	/*! Read the next frame from the filestream (if available) and report when to get next one
 		(in samples) */
 	struct ast_frame * (*read)(struct ast_filestream *, int *whennext);
-	/* Close file, and destroy filestream structure */
+	/*! Close file, and destroy filestream structure */
 	void (*close)(struct ast_filestream *);
-	/* Retrieve file comment */
+	/*! Retrieve file comment */
 	char * (*getcomment)(struct ast_filestream *);
-	/* Link */
+	/*! Link */
 	struct ast_format *next;
 };
 
 struct ast_filestream {
-	/* Everybody reserves a block of AST_RESERVED_POINTERS pointers for us */
+	/*! Everybody reserves a block of AST_RESERVED_POINTERS pointers for us */
 	struct ast_format *fmt;
 	int flags;
 	mode_t mode;
 	char *filename;
 	char *realfilename;
-	/* Video file stream */
+	/*! Video file stream */
 	struct ast_filestream *vfs;
-	/* Transparently translate from another format -- just once */
+	/*! Transparently translate from another format -- just once */
 	struct ast_trans_pvt *trans;
 	struct ast_tranlator_pvt *tr;
 	int lastwriteformat;
