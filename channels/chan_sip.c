@@ -881,7 +881,7 @@ static struct ast_ha *localaddr;
 /* The list of manual NOTIFY types we know how to send */
 struct ast_config *notify_types;
 
-static struct sip_auth *authl;          /*!< Authentication list */
+static struct sip_auth *authl = NULL;          /*!< Authentication list */
 
 
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
