@@ -20,6 +20,10 @@ enabled = no
 port = 5038
 bindaddr = 0.0.0.0
 ;displayconnects = yes
+;
+; Add a Unix epoch timestamp to events (not action responses)
+;
+;timestampevents = yes
 
 ;[mark]
 ;secret = mysecret

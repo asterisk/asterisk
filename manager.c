@@ -84,6 +84,7 @@ static int enabled = 0;
 static int portno = DEFAULT_MANAGER_PORT;
 static int asock = -1;
 static int displayconnects = 1;
+static int timestampevents = 0;
 
 static pthread_t t;
 AST_MUTEX_DEFINE_STATIC(sessionlock);
@@ -1521,8 +1522,15 @@ int manager_event(int category, char *event, char *fmt, ...)
 			continue;
 
 		if (ast_strlen_zero(tmp)) {
+			struct timeval now;
+
 			ast_build_string(&tmp_next, &tmp_left, "Event: %s\r\nPrivilege: %s\r\n",
 					 event, authority_to_str(category, auth, sizeof(auth)));
+			if (timestampevents) {
+				now = ast_tvnow();
+				ast_build_string(&tmp_next, &tmp_left, "Timestamp: %ld.%06lu\r\n",
+						 now.tv_sec, now.tv_usec);
+			}
 			va_start(ap, fmt);
 			ast_build_string_va(&tmp_next, &tmp_left, fmt, ap);
 			va_end(ap);
@@ -1704,11 +1712,12 @@ int init_manager(void)
 		}
 		ast_log(LOG_NOTICE, "Use of portno in manager.conf deprecated.  Please use 'port=%s' instead.\n", val);
 	}
-	/* Parsing the displayconnects */
-	if ((val = ast_variable_retrieve(cfg, "general", "displayconnects"))) {
-			displayconnects = ast_true(val);;
-	}
-				
+
+	if ((val = ast_variable_retrieve(cfg, "general", "displayconnects")))
+		displayconnects = ast_true(val);
+
+	if ((val = ast_variable_retrieve(cfg, "general", "timestampevents")))
+		timestampevents = ast_true(val);
 	
 	ba.sin_family = AF_INET;
 	ba.sin_port = htons(portno);
