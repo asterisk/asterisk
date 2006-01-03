@@ -2562,42 +2562,42 @@ int ast_yyerror(const char *, YYLTYPE *, struct parse_io *); /* likewise */
 
 int ast_expr(char *expr, char *buf, int length)
 {
-	struct parse_io *io;
+	struct parse_io io;
+	int return_value = 0;
 	
-	io = calloc(sizeof(struct parse_io),1);
-	io->string = expr;  /* to pass to the error routine */
+	memset(&io, 0, sizeof(io));
+	io.string = expr;  /* to pass to the error routine */
 	
-	ast_yylex_init(&io->scanner);
+	ast_yylex_init(&io.scanner);
 	
-	ast_yy_scan_string(expr, io->scanner);
+	ast_yy_scan_string(expr, io.scanner);
 	
-	ast_yyparse ((void *) io);
+	ast_yyparse ((void *) &io);
 
-	ast_yylex_destroy(io->scanner);
+	ast_yylex_destroy(io.scanner);
 
-	if (io->val == NULL) {
+	if (!io.val) {
 		if (length > 1) {
 			strcpy(buf, "0");
-			return 1;
+			return_value = 1;
 		}
 	} else {
-		if (io->val->type == AST_EXPR_integer) {
+		if (io.val->type == AST_EXPR_integer) {
 			int res_length;
 
-			res_length = snprintf(buf, length, "%ld", (long int) io->val->u.i);
-			return res_length <= length ? res_length : length;
+			res_length = snprintf(buf, length, "%ld", (long int) io.val->u.i);
+			return_value = (res_length <= length) ? res_length : length;
 		} else {
 #ifdef STANDALONE
-			strncpy(buf, io->val->u.s, length - 1);
+			strncpy(buf, io.val->u.s, length - 1);
 #else /* !STANDALONE */
-			ast_copy_string(buf, io->val->u.s, length);
+			ast_copy_string(buf, io.val->u.s, length);
 #endif /* STANDALONE */
-			return strlen(buf);
+			return_value = strlen(buf);
 		}
-		free(io->val);
+		free(io.val);
 	}
-	free(io);
-	return 0;
+	return return_value;
 }
 
 int ast_yyerror (const char *s,  yyltype *loc, struct parse_io *parseio )
