@@ -46,37 +46,31 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/cli.h"
 #include "asterisk/lock.h"
 
-static struct ast_imager *list;
-AST_MUTEX_DEFINE_STATIC(listlock);
+static AST_LIST_HEAD_STATIC(imagers, ast_imager);
 
 int ast_image_register(struct ast_imager *img)
 {
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered format '%s' (%s)\n", img->name, img->desc);
-	ast_mutex_lock(&listlock);
-	img->next = list;
-	list = img;
-	ast_mutex_unlock(&listlock);
+	AST_LIST_LOCK(&imagers);
+	AST_LIST_INSERT_HEAD(&imagers, img, list);
+	AST_LIST_UNLOCK(&imagers);
 	return 0;
 }
 
 void ast_image_unregister(struct ast_imager *img)
 {
-	struct ast_imager *i, *prev = NULL;
-	ast_mutex_lock(&listlock);
-	i = list;
-	while(i) {
+	struct ast_imager *i;
+	
+	AST_LIST_LOCK(&imagers);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&imagers, i, list) {	
 		if (i == img) {
-			if (prev) 
-				prev->next = i->next;
-			else
-				list = i->next;
+			AST_LIST_REMOVE_CURRENT(&imagers, list);
 			break;
 		}
-		prev = i;
-		i = i->next;
 	}
-	ast_mutex_unlock(&listlock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&imagers);
 	if (i && (option_verbose > 1))
 		ast_verbose(VERBOSE_PREFIX_2 "Unregistered format '%s' (%s)\n", img->name, img->desc);
 }
@@ -125,11 +119,9 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 	int fd;
 	int len=0;
 	struct ast_frame *f = NULL;
-#if 0 /* We need to have some sort of read-only lock */
-	ast_mutex_lock(&listlock);
-#endif	
-	i = list;
-	while(!found && i) {
+	
+	AST_LIST_LOCK(&imagers);
+	AST_LIST_TRAVERSE(&imagers, i, list) {
 		if (i->format & format) {
 			char *stringp=NULL;
 			strncpy(tmp, i->exts, sizeof(tmp)-1);
@@ -149,8 +141,10 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 				e = strsep(&stringp, "|");
 			}
 		}
-		i = i->next;
+		if (found)
+			break;	
 	}
+
 	if (found) {
 		fd = open(buf, O_RDONLY);
 		if (fd > -1) {
@@ -165,9 +159,9 @@ struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
 			ast_log(LOG_WARNING, "Unable to open '%s': %s\n", buf, strerror(errno));
 	} else
 		ast_log(LOG_WARNING, "Image file '%s' not found\n", filename);
-#if 0
-	ast_mutex_unlock(&listlock);
-#endif	
+	
+	AST_LIST_UNLOCK(&imagers);
+	
 	return f;
 }
 
@@ -194,11 +188,8 @@ static int show_image_formats(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Name", "Extensions", "Description", "Format");
-	i = list;
-	while(i) {
+	AST_LIST_TRAVERSE(&imagers, i, list)
 		ast_cli(fd, FORMAT2, i->name, i->exts, i->desc, ast_getformatname(i->format));
-		i = i->next;
-	};
 	return RESULT_SUCCESS;
 }
 

@@ -40,7 +40,7 @@ struct ast_imager {
 	/*! Returns length written */
 	int (*write_image)(int fd, struct ast_frame *frame); 	
 	/*! For linked list */
-	struct ast_imager *next;
+	AST_LIST_ENTRY(ast_imager) list;
 };
 
 /*! Check for image support on a channel */
