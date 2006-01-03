@@ -52,22 +52,18 @@ static const char *pop_synopsis = "Remove one address from gosub stack";
 
 static const char *gosub_descrip =
 "Gosub([[context|]exten|]priority)\n"
-"  Jumps to the label specified, saving the return address.\n"
-"  Returns 0 if the label exists or -1 otherwise.\n";
+"  Jumps to the label specified, saving the return address.\n";
 static const char *gosubif_descrip =
-"Gosub(condition?labeliftrue[:labeliffalse])\n"
+"GosubIf(condition?labeliftrue[:labeliffalse])\n"
 "  If the condition is true, then jump to labeliftrue.  If false, jumps to\n"
 "labeliffalse, if specified.  In either case, a jump saves the return point\n"
-"in the dialplan, to be returned to with a Return.\n"
-"  Returns 0 if the label exists or -1 otherwise.\n";
+"in the dialplan, to be returned to with a Return.\n";
 static const char *return_descrip =
 "Return()\n"
-"  Jumps to the last label in the stack, removing it.\n"
-"  Returns 0 if there's a label in the stack or -1 otherwise.\n";
+"  Jumps to the last label on the stack, removing it.\n";
 static const char *pop_descrip =
 "StackPop()\n"
-"  Removes last label in the stack, discarding it.\n"
-"  Always returns 0, even if the stack is empty.\n";
+"  Removes last label on the stack, discarding it.\n";
 
 STANDARD_LOCAL_USER;
 
