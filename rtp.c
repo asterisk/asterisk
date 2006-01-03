@@ -738,16 +738,16 @@ static void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src)
 /*! \brief Get channel driver interface structure */
 static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 {
-	struct ast_rtp_protocol *cur;
+	struct ast_rtp_protocol *cur = NULL;
 
 	AST_LIST_LOCK(&protos);
 	AST_LIST_TRAVERSE(&protos, cur, list) {
 		if (cur->type == chan->type)
-			return cur;
+			break;
 	}
 	AST_LIST_UNLOCK(&protos);
 
-	return NULL;
+	return cur;
 }
 
 int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src)
@@ -1533,16 +1533,8 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 /*! \brief Unregister interface to channel driver */
 void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
 {
-	struct ast_rtp_protocol *cur;
-
 	AST_LIST_LOCK(&protos);
-	AST_LIST_TRAVERSE_SAFE_BEGIN(&protos, cur, list) {	
-		if (cur == proto) {
-			AST_LIST_REMOVE_CURRENT(&protos, list);
-			break;
-		}
-	}
-	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_REMOVE(&protos, proto, list);
 	AST_LIST_UNLOCK(&protos);
 }
 
@@ -1553,7 +1545,7 @@ int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 
 	AST_LIST_LOCK(&protos);
 	AST_LIST_TRAVERSE(&protos, cur, list) {	
-		if (cur->type == proto->type) {
+		if (!strcmp(cur->type, proto->type)) {
 			ast_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
 			AST_LIST_UNLOCK(&protos);
 			return -1;
