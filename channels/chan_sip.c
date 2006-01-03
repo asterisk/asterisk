@@ -104,6 +104,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define SIPDUMPER
 #define DEFAULT_DEFAULT_EXPIRY  120
+#define DEFAULT_MIN_EXPIRY	60
 #define DEFAULT_MAX_EXPIRY	3600
 #define DEFAULT_REGISTRATION_TIMEOUT	20
 #define DEFAULT_MAX_FORWARDS	"70"
@@ -120,6 +121,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define EXPIRY_GUARD_PCT	0.20	/* Percentage of expires timeout to use when 
 					   below EXPIRY_GUARD_LIMIT */
 
+static int min_expiry = DEFAULT_MIN_EXPIRY;
 static int max_expiry = DEFAULT_MAX_EXPIRY;
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
@@ -5894,8 +5896,10 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 
 	if (p->expire > -1)
 		ast_sched_del(sched, p->expire);
-	if ((expiry < 1) || (expiry > max_expiry))
+	if (expiry > max_expiry)
 		expiry = max_expiry;
+	if (expiry < min_expiry)
+		expiry = min_expiry;
 	if (!ast_test_flag(p, SIP_REALTIME))
 		p->expire = ast_sched_add(sched, (expiry + 10) * 1000, expire_register, p);
 	else
@@ -8171,6 +8175,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  MWI NOTIFY mime type:   %s\n", default_notifymime);
 	ast_cli(fd, "  DNS SRV lookup:         %s\n", srvlookup ? "Yes" : "No");
 	ast_cli(fd, "  Pedantic SIP support:   %s\n", pedanticsipchecking ? "Yes" : "No");
+	ast_cli(fd, "  Reg. min duration       %d secs\n", min_expiry);
 	ast_cli(fd, "  Reg. max duration:      %d secs\n", max_expiry);
 	ast_cli(fd, "  Reg. default duration:  %d secs\n", default_expiry);
 	ast_cli(fd, "  Outbound reg. timeout:  %d secs\n", global_reg_timeout);
@@ -10766,6 +10771,8 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		if (p->subscribed == DIALOG_INFO_XML) {  
 			if (p->expiry > max_expiry)
 				p->expiry = max_expiry;
+			if (p->expiry < min_expiry)
+				p->expiry = min_expiry;
 		}
 		if (sipdebug || option_debug > 1)
 			ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
@@ -12395,6 +12402,10 @@ static int reload_config(void)
 			max_expiry = atoi(v->value);
 			if (max_expiry < 1)
 				max_expiry = DEFAULT_MAX_EXPIRY;
+		} else if (!strcasecmp(v->name, "minexpirey") || !strcasecmp(v->name, "minexpiry")) {
+			min_expiry = atoi(v->value);
+			if (min_expiry < 1)
+				min_expiry = DEFAULT_MIN_EXPIRY;
 		} else if (!strcasecmp(v->name, "defaultexpiry") || !strcasecmp(v->name, "defaultexpirey")) {
 			default_expiry = atoi(v->value);
 			if (default_expiry < 1)
