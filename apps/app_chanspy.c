@@ -2,6 +2,7 @@
  * Asterisk -- An open source telephony toolkit.
  *
  * Copyright (C) 2005 Anthony Minessale II (anthmct@yahoo.com)
+ * Copyright (C) 2005 - 2006, Digium, Inc.
  *
  * Disclaimed to Digium
  *

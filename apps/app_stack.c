@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (c) 2004-2005 Tilghman Lesher <app_stack_v002@the-tilghman.com>.
+ * Copyright (c) 2004-2006 Tilghman Lesher <app_stack_v002@the-tilghman.com>.
  *
  * This code is released by the author with no restrictions on usage.
  *
