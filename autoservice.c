@@ -53,14 +53,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define MAX_AUTOMONS 256
 
-AST_MUTEX_DEFINE_STATIC(autolock);
-
 struct asent {
 	struct ast_channel *chan;
-	struct asent *next;
+	AST_LIST_ENTRY(asent) list;
 };
 
-static struct asent *aslist = NULL;
+static AST_LIST_HEAD_STATIC(aslist, asent);
+
 static pthread_t asthread = AST_PTHREADT_NULL;
 
 static void *autoservice_run(void *ign)
@@ -71,23 +70,20 @@ static void *autoservice_run(void *ign)
 	struct ast_channel *chan;
 	struct asent *as;
 	struct ast_frame *f;
+
 	for(;;) {
 		x = 0;
-		ast_mutex_lock(&autolock);
-		as = aslist;
-		while(as) {
+		AST_LIST_LOCK(&aslist);
+		AST_LIST_TRAVERSE(&aslist, as, list) {
 			if (!as->chan->_softhangup) {
 				if (x < MAX_AUTOMONS)
 					mons[x++] = as->chan;
 				else
 					ast_log(LOG_WARNING, "Exceeded maximum number of automatic monitoring events.  Fix autoservice.c\n");
 			}
-			as = as->next;
 		}
-		ast_mutex_unlock(&autolock);
+		AST_LIST_UNLOCK(&aslist);
 
-/* 		if (!aslist)
-			break; */
 		ms = 500;
 		chan = ast_waitfor_n(mons, x, &ms);
 		if (chan) {
@@ -106,62 +102,62 @@ int ast_autoservice_start(struct ast_channel *chan)
 	int res = -1;
 	struct asent *as;
 	int needstart;
-	ast_mutex_lock(&autolock);
-	needstart = (asthread == AST_PTHREADT_NULL) ? 1 : 0 /* aslist ? 0 : 1 */;
-	as = aslist;
-	while(as) {
+	AST_LIST_LOCK(&aslist);
+
+	/* Check if autoservice thread is executing */
+	needstart = (asthread == AST_PTHREADT_NULL) ? 1 : 0 ;
+
+	/* Check if the channel already has autoservice */
+	AST_LIST_TRAVERSE(&aslist, as, list) {
 		if (as->chan == chan)
 			break;
-		as = as->next;
 	}
+
+	/* If not, start autoservice on channel */
 	if (!as) {
-		as = malloc(sizeof(struct asent));
+		as = calloc(1, sizeof(struct asent));
 		if (as) {
-			memset(as, 0, sizeof(struct asent));
 			as->chan = chan;
-			as->next = aslist;
-			aslist = as;
+			AST_LIST_INSERT_HEAD(&aslist, as, list);
 			res = 0;
 			if (needstart) {
 				if (ast_pthread_create(&asthread, NULL, autoservice_run, NULL)) {
 					ast_log(LOG_WARNING, "Unable to create autoservice thread :(\n");
-					free(aslist);
-					aslist = NULL;
+					/* There will only be a single member in the list at this point,
+					   the one we just added. */
+					AST_LIST_REMOVE(&aslist, as, list);
+					free(as);
 					res = -1;
 				} else
 					pthread_kill(asthread, SIGURG);
 			}
 		}
 	}
-	ast_mutex_unlock(&autolock);
+	AST_LIST_UNLOCK(&aslist);
 	return res;
 }
 
 int ast_autoservice_stop(struct ast_channel *chan)
 {
 	int res = -1;
-	struct asent *as, *prev;
-	ast_mutex_lock(&autolock);
-	as = aslist;
-	prev = NULL;
-	while(as) {
-		if (as->chan == chan)
+	struct asent *as;
+
+	AST_LIST_LOCK(&aslist);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&aslist, as, list) {	
+		if (as->chan == chan) {
+			AST_LIST_REMOVE_CURRENT(&aslist, list);
+			free(as);
+			if (!chan->_softhangup)
+				res = 0;
 			break;
-		prev = as;
-		as = as->next;
+		}
 	}
-	if (as) {
-		if (prev)
-			prev->next = as->next;
-		else
-			aslist = as->next;
-		free(as);
-		if (!chan->_softhangup)
-			res = 0;
-	}
+	AST_LIST_TRAVERSE_SAFE_END
+
 	if (asthread != AST_PTHREADT_NULL) 
 		pthread_kill(asthread, SIGURG);
-	ast_mutex_unlock(&autolock);
+	AST_LIST_UNLOCK(&aslist);
+
 	/* Wait for it to un-block */
 	while(ast_test_flag(chan, AST_FLAG_BLOCKING))
 		usleep(1000);
