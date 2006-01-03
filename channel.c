@@ -996,7 +996,7 @@ void ast_channel_spy_stop_by_type(struct ast_channel *chan, const char *type)
 	AST_LIST_TRAVERSE(&chan->spies->list, spy, list) {
 		ast_mutex_lock(&spy->lock);
 		if ((spy->type == type) && (spy->status == CHANSPY_RUNNING)) {
-			spy->status = CHANSPY_DONE;
+			spy->status = CHANSPY_STOP;
 			if (ast_test_flag(spy, CHANSPY_TRIGGER_MODE) != CHANSPY_TRIGGER_NONE)
 				ast_cond_signal(&spy->trigger);
 		}
