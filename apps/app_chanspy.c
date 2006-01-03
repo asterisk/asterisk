@@ -208,9 +208,9 @@ static int start_spying(struct ast_channel *chan, struct ast_channel *spychan, s
 
 static void stop_spying(struct ast_channel *chan, struct ast_channel_spy *spy) 
 {
-	/* If our status has changed, then the channel we're spying on is gone....
+	/* If our status has changed to DONE, then the channel we're spying on is gone....
 	   DON'T TOUCH IT!!!  RUN AWAY!!! */
-	if (spy->status != CHANSPY_RUNNING)
+	if (spy->status == CHANSPY_DONE)
 		return;
 
 	if (!chan)
