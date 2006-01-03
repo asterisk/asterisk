@@ -6800,7 +6800,7 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
-/*! \brief  check_via: check Via: headers ---*/
+/*! \brief check Via: header for hostname, port and rport request/answer */
 static int check_via(struct sip_pvt *p, struct sip_request *req)
 {
 	char via[256];
@@ -6810,9 +6810,16 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 	struct ast_hostent ahp;
 
 	ast_copy_string(via, get_header(req, "Via"), sizeof(via));
+
+	/* Check for rport */
+	c = strstr(via, ";rport");
+	if (c && (c[6] != '='))	/* rport query, not answer */
+		ast_set_flag(p, SIP_NAT_ROUTE);
+
 	c = strchr(via, ';');
 	if (c) 
 		*c = '\0';
+
 	c = strchr(via, ' ');
 	if (c) {
 		*c = '\0';
@@ -6833,9 +6840,7 @@ static int check_via(struct sip_pvt *p, struct sip_request *req)
 		p->sa.sin_family = AF_INET;
 		memcpy(&p->sa.sin_addr, hp->h_addr, sizeof(p->sa.sin_addr));
 		p->sa.sin_port = htons(pt ? atoi(pt) : DEFAULT_SIP_PORT);
-		c = strstr(via, ";rport");
-		if (c && (c[6] != '='))	/* rport query, not answer */
-			ast_set_flag(p, SIP_NAT_ROUTE);
+
 		if (sip_debug_test_pvt(p)) {
 			c = (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE) ? "NAT" : "non-NAT";
 			ast_verbose("Sending to %s : %d (%s)\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->sa.sin_addr), ntohs(p->sa.sin_port), c);
