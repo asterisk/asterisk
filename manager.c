@@ -947,26 +947,23 @@ static void *fast_originate(void *data)
 			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
 			in->vars, &chan);
 	}   
-	if (!res)
-		manager_event(EVENT_FLAG_CALL,
-			"OriginateSuccess",
-			"%s"
-			"Channel: %s/%s\r\n"
-			"Context: %s\r\n"
-			"Exten: %s\r\n"
-			"Reason: %d\r\n"
-			"Uniqueid: %s\r\n",
-			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
-	else
-		manager_event(EVENT_FLAG_CALL,
-			"OriginateFailure",
-			"%s"
-			"Channel: %s/%s\r\n"
-			"Context: %s\r\n"
-			"Exten: %s\r\n"
-			"Reason: %d\r\n"
-			"Uniqueid: %s\r\n",
-			in->idtext, in->tech, in->data, in->context, in->exten, reason, chan ? chan->uniqueid : "<null>");
+	
+	/* Tell the manager what happened with the channel */
+	manager_event(EVENT_FLAG_CALL,
+		res ? "OriginateSuccess" : "OriginateFailure",
+		"%s"
+		"Channel: %s/%s\r\n"
+		"Context: %s\r\n"
+		"Exten: %s\r\n"
+		"Reason: %d\r\n"
+		"Uniqueid: %s\r\n"
+		"CallerID: %s\r\n"
+		"CallerIDName: %s\r\n",
+		in->idtext, in->tech, in->data, in->context, in->exten, reason, 
+		chan ? chan->uniqueid : "<null>",
+		in->cid_num ? in->cid_num : "<unknown>",
+		in->cid_name ? in->cid_name : "<unknown>"
+		);
 
 	/* Locked by ast_pbx_outgoing_exten or ast_pbx_outgoing_app */
 	if (chan)
