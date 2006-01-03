@@ -2197,7 +2197,9 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 	ast_copy_string(name, fup->username, sizeof(name));
 
 	/* Check the list of users */
-	u = find_user(name, 1);
+	if (!outgoing)	/* Only check users for incoming calls */
+		u = find_user(name, 1);
+
 	if (u) {
 		inuse = &u->inUse;
 		call_limit = &u->call_limit;
@@ -6916,7 +6918,7 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	struct sip_user *user = NULL;
 	struct sip_peer *peer;
 	char *of, from[256], *c;
-	char *rpid,rpid_num[50];
+	char *rpid, rpid_num[50];
 	char iabuf[INET_ADDRSTRLEN];
 	int res = 0;
 	char *t;
@@ -6935,13 +6937,13 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 
 	ast_copy_string(from, of, sizeof(from));
 	
-	memset(calleridname,0,sizeof(calleridname));
+	memset(calleridname, 0, sizeof(calleridname));
 	get_calleridname(from, calleridname, sizeof(calleridname));
 	if (calleridname[0])
 		ast_copy_string(p->cid_name, calleridname, sizeof(p->cid_name));
 
 	rpid = get_header(req, "Remote-Party-ID");
-	memset(rpid_num,0,sizeof(rpid_num));
+	memset(rpid_num, 0, sizeof(rpid_num));
 	if (!ast_strlen_zero(rpid)) 
 		p->callingpres = get_rpid_num(rpid,rpid_num, sizeof(rpid_num));
 
@@ -6997,11 +6999,13 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		}
 
 		if (p->rtp) {
-			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 			ast_rtp_setnat(p->rtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 		}
 		if (p->vrtp) {
-			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
+			if (option_debug)
+				ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 			ast_rtp_setnat(p->vrtp, (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
 		}
 		if (!(res = check_auth(p, req, p->randdata, sizeof(p->randdata), user->name, user->secret, user->md5secret, sipmethod, uri, reliable, ignore))) {
