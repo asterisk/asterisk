@@ -61,38 +61,38 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define RTP_MTU		1200
 
-#define DEFAULT_DTMF_TIMEOUT 3000 /* samples */
+#define DEFAULT_DTMF_TIMEOUT 3000	/*!< samples */
 
 static int dtmftimeout = DEFAULT_DTMF_TIMEOUT;
 
-static int rtpstart = 0;
-static int rtpend = 0;
-static int rtpdebug = 0;		/* Are we debugging? */
-static struct sockaddr_in rtpdebugaddr;	/* Debug packets to/from this host */
+static int rtpstart = 0;		/*!< First port for RTP sessions (set in rtp.conf) */
+static int rtpend = 0;			/*!< Last port for RTP sessions (set in rtp.conf) */
+static int rtpdebug = 0;		/*!< Are we debugging? */
+static struct sockaddr_in rtpdebugaddr;	/*!< Debug packets to/from this host */
 #ifdef SO_NO_CHECK
 static int nochecksums = 0;
 #endif
 
-/* The value of each payload format mapping: */
+/*! \brief The value of each payload format mapping: */
 struct rtpPayloadType {
-	int isAstFormat; 	/* whether the following code is an AST_FORMAT */
+	int isAstFormat; 	/*!< whether the following code is an AST_FORMAT */
 	int code;
 };
 
-#define MAX_RTP_PT 256
+#define MAX_RTP_PT			256
 
 #define FLAG_3389_WARNING		(1 << 0)
 #define FLAG_NAT_ACTIVE			(3 << 1)
 #define FLAG_NAT_INACTIVE		(0 << 1)
 #define FLAG_NAT_INACTIVE_NOWARN	(1 << 1)
 
+/*! \brief RTP session description */
 struct ast_rtp {
 	int s;
 	char resp;
 	struct ast_frame f;
 	unsigned char rawdata[8192 + AST_FRIENDLY_OFFSET];
-	/*! Synchronization source, RFC 3550, page 10. */
-	unsigned int ssrc;
+	unsigned int ssrc;		/*!< Synchronization source, RFC 3550, page 10. */
 	unsigned int lastts;
 	unsigned int lastdigitts;
 	unsigned int lastrxts;
@@ -106,25 +106,21 @@ struct ast_rtp {
 	unsigned int dtmfduration;
 	int nat;
 	unsigned int flags;
-	/*! Socket representation of the local endpoint. */
-	struct sockaddr_in us;
-	/*! Socket representation of the remote endpoint. */
-	struct sockaddr_in them;
+	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
+	struct sockaddr_in them;	/*!< Socket representation of the remote endpoint. */
 	struct timeval rxcore;
 	struct timeval txcore;
 	struct timeval dtmfmute;
 	struct ast_smoother *smoother;
 	int *ioid;
-	/*! Sequence number, RFC 3550, page 13. */
-	unsigned short seqno;
+	unsigned short seqno;		/*!< Sequence number, RFC 3550, page 13. */
 	unsigned short rxseqno;
 	struct sched_context *sched;
 	struct io_context *io;
 	void *data;
 	ast_rtp_callback callback;
 	struct rtpPayloadType current_RTP_PT[MAX_RTP_PT];
-	/*! a cache for the result of rtp_lookup_code(): */
-	int rtp_lookup_code_cache_isAstFormat;
+	int rtp_lookup_code_cache_isAstFormat; /*!< a cache for the result of rtp_lookup_code(): */
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	struct ast_rtcp *rtcp;
@@ -141,15 +137,13 @@ struct ast_rtp {
  * 
  */
 struct ast_rtcp {
-	/*! Socket */
-	int s;
-	/*! Socket representation of the local endpoint. */
-	struct sockaddr_in us;
-	/*! Socket representation of the remote endpoint. */
-	struct sockaddr_in them;
+	int s;				/*!< Socket */
+	struct sockaddr_in us;		/*!< Socket representation of the local endpoint. */
+	struct sockaddr_in them;	/*!< Socket representation of the remote endpoint. */
 };
 
-static struct ast_rtp_protocol *protos = NULL;
+/*! \brief List of current sessions */
+static AST_LIST_HEAD_STATIC(protos, ast_rtp_protocol);
 
 int ast_rtp_fd(struct ast_rtp *rtp)
 {
@@ -229,9 +223,8 @@ static struct ast_frame *process_cisco_dtmf(struct ast_rtp *rtp, unsigned char *
 	struct ast_frame *f = NULL;
 	event = ntohl(*((unsigned int *)(data)));
 	event &= 0x001F;
-#if 0
-	printf("Cisco Digit: %08x (len = %d)\n", event, len);
-#endif	
+	if (option_debug > 2 || rtpdebug)
+		ast_log(LOG_DEBUG, "Cisco DTMF Digit: %08x (len = %d)\n", event, len);
 	if (event < 10) {
 		resp = '0' + event;
 	} else if (event < 11) {
@@ -269,6 +262,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	unsigned int duration;
 	char resp = 0;
 	struct ast_frame *f = NULL;
+
 	event = ntohl(*((unsigned int *)(data)));
 	event >>= 24;
 	event_end = ntohl(*((unsigned int *)(data)));
@@ -276,7 +270,7 @@ static struct ast_frame *process_rfc2833(struct ast_rtp *rtp, unsigned char *dat
 	event_end >>= 24;
 	duration = ntohl(*((unsigned int *)(data)));
 	duration &= 0xFFFF;
-	if (rtpdebug)
+	if (rtpdebug || option_debug > 2)
 		ast_log(LOG_DEBUG, "- RTP 2833 Event: %08x (len = %d)\n", event, len);
 	if (event < 10) {
 		resp = '0' + event;
@@ -638,61 +632,61 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 /* The following array defines the MIME Media type (and subtype) for each
    of our codecs, or RTP-specific data type. */
 static struct {
-  struct rtpPayloadType payloadType;
-  char* type;
-  char* subtype;
+	struct rtpPayloadType payloadType;
+	char* type;
+	char* subtype;
 } mimeTypes[] = {
-  {{1, AST_FORMAT_G723_1}, "audio", "G723"},
-  {{1, AST_FORMAT_GSM}, "audio", "GSM"},
-  {{1, AST_FORMAT_ULAW}, "audio", "PCMU"},
-  {{1, AST_FORMAT_ALAW}, "audio", "PCMA"},
-  {{1, AST_FORMAT_G726}, "audio", "G726-32"},
-  {{1, AST_FORMAT_ADPCM}, "audio", "DVI4"},
-  {{1, AST_FORMAT_SLINEAR}, "audio", "L16"},
-  {{1, AST_FORMAT_LPC10}, "audio", "LPC"},
-  {{1, AST_FORMAT_G729A}, "audio", "G729"},
-  {{1, AST_FORMAT_SPEEX}, "audio", "speex"},
-  {{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
-  {{0, AST_RTP_DTMF}, "audio", "telephone-event"},
-  {{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
-  {{0, AST_RTP_CN}, "audio", "CN"},
-  {{1, AST_FORMAT_JPEG}, "video", "JPEG"},
-  {{1, AST_FORMAT_PNG}, "video", "PNG"},
-  {{1, AST_FORMAT_H261}, "video", "H261"},
-  {{1, AST_FORMAT_H263}, "video", "H263"},
-  {{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998"},
+	{{1, AST_FORMAT_G723_1}, "audio", "G723"},
+	{{1, AST_FORMAT_GSM}, "audio", "GSM"},
+	{{1, AST_FORMAT_ULAW}, "audio", "PCMU"},
+	{{1, AST_FORMAT_ALAW}, "audio", "PCMA"},
+	{{1, AST_FORMAT_G726}, "audio", "G726-32"},
+	{{1, AST_FORMAT_ADPCM}, "audio", "DVI4"},
+	{{1, AST_FORMAT_SLINEAR}, "audio", "L16"},
+	{{1, AST_FORMAT_LPC10}, "audio", "LPC"},
+	{{1, AST_FORMAT_G729A}, "audio", "G729"},
+	{{1, AST_FORMAT_SPEEX}, "audio", "speex"},
+	{{1, AST_FORMAT_ILBC}, "audio", "iLBC"},
+	{{0, AST_RTP_DTMF}, "audio", "telephone-event"},
+	{{0, AST_RTP_CISCO_DTMF}, "audio", "cisco-telephone-event"},
+	{{0, AST_RTP_CN}, "audio", "CN"},
+	{{1, AST_FORMAT_JPEG}, "video", "JPEG"},
+	{{1, AST_FORMAT_PNG}, "video", "PNG"},
+	{{1, AST_FORMAT_H261}, "video", "H261"},
+	{{1, AST_FORMAT_H263}, "video", "H263"},
+	{{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998"},
 };
 
 /* Static (i.e., well-known) RTP payload types for our "AST_FORMAT..."s:
    also, our own choices for dynamic payload types.  This is our master
    table for transmission */
 static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
-  [0] = {1, AST_FORMAT_ULAW},
+	[0] = {1, AST_FORMAT_ULAW},
 #ifdef USE_DEPRECATED_G726
-  [2] = {1, AST_FORMAT_G726}, /* Technically this is G.721, but if Cisco can do it, so can we... */
+	[2] = {1, AST_FORMAT_G726}, /* Technically this is G.721, but if Cisco can do it, so can we... */
 #endif
-  [3] = {1, AST_FORMAT_GSM},
-  [4] = {1, AST_FORMAT_G723_1},
-  [5] = {1, AST_FORMAT_ADPCM}, /* 8 kHz */
-  [6] = {1, AST_FORMAT_ADPCM}, /* 16 kHz */
-  [7] = {1, AST_FORMAT_LPC10},
-  [8] = {1, AST_FORMAT_ALAW},
-  [10] = {1, AST_FORMAT_SLINEAR}, /* 2 channels */
-  [11] = {1, AST_FORMAT_SLINEAR}, /* 1 channel */
-  [13] = {0, AST_RTP_CN},
-  [16] = {1, AST_FORMAT_ADPCM}, /* 11.025 kHz */
-  [17] = {1, AST_FORMAT_ADPCM}, /* 22.050 kHz */
-  [18] = {1, AST_FORMAT_G729A},
-  [19] = {0, AST_RTP_CN},		/* Also used for CN */
-  [26] = {1, AST_FORMAT_JPEG},
-  [31] = {1, AST_FORMAT_H261},
-  [34] = {1, AST_FORMAT_H263},
-  [103] = {1, AST_FORMAT_H263_PLUS},
-  [97] = {1, AST_FORMAT_ILBC},
-  [101] = {0, AST_RTP_DTMF},
-  [110] = {1, AST_FORMAT_SPEEX},
-  [111] = {1, AST_FORMAT_G726},
-  [121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
+	[3] = {1, AST_FORMAT_GSM},
+	[4] = {1, AST_FORMAT_G723_1},
+	[5] = {1, AST_FORMAT_ADPCM}, /* 8 kHz */
+	[6] = {1, AST_FORMAT_ADPCM}, /* 16 kHz */
+	[7] = {1, AST_FORMAT_LPC10},
+	[8] = {1, AST_FORMAT_ALAW},
+	[10] = {1, AST_FORMAT_SLINEAR}, /* 2 channels */
+	[11] = {1, AST_FORMAT_SLINEAR}, /* 1 channel */
+	[13] = {0, AST_RTP_CN},
+	[16] = {1, AST_FORMAT_ADPCM}, /* 11.025 kHz */
+	[17] = {1, AST_FORMAT_ADPCM}, /* 22.050 kHz */
+	[18] = {1, AST_FORMAT_G729A},
+	[19] = {0, AST_RTP_CN},		/* Also used for CN */
+	[26] = {1, AST_FORMAT_JPEG},
+	[31] = {1, AST_FORMAT_H261},
+	[34] = {1, AST_FORMAT_H263},
+	[103] = {1, AST_FORMAT_H263_PLUS},
+	[97] = {1, AST_FORMAT_ILBC},
+	[101] = {0, AST_RTP_DTMF},
+	[110] = {1, AST_FORMAT_SPEEX},
+	[111] = {1, AST_FORMAT_G726},
+	[121] = {0, AST_RTP_CISCO_DTMF}, /* Must be type 121 */
 };
 
 void ast_rtp_pt_clear(struct ast_rtp* rtp) 
@@ -741,18 +735,18 @@ static void ast_rtp_pt_copy(struct ast_rtp *dest, struct ast_rtp *src)
 	dest->rtp_lookup_code_cache_result = 0;
 }
 
-/*--- get_proto: Get channel driver interface structure */
+/*! \brief Get channel driver interface structure */
 static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 {
 	struct ast_rtp_protocol *cur;
 
-	cur = protos;
-	while(cur) {
-		if (cur->type == chan->type) {
+	AST_LIST_LOCK(&protos);
+	AST_LIST_TRAVERSE(&protos, cur, list) {
+		if (cur->type == chan->type)
 			return cur;
-		}
-		cur = cur->next;
 	}
+	AST_LIST_UNLOCK(&protos);
+
 	return NULL;
 }
 
@@ -773,13 +767,15 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src)
 	destpr = get_proto(dest);
 	srcpr = get_proto(src);
 	if (!destpr) {
-		ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", dest->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", dest->name);
 		ast_mutex_unlock(&dest->lock);
 		ast_mutex_unlock(&src->lock);
 		return 0;
 	}
 	if (!srcpr) {
-		ast_log(LOG_WARNING, "Channel '%s' has no RTP, not doing anything\n", src->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Channel '%s' has no RTP, not doing anything\n", src->name);
 		ast_mutex_unlock(&dest->lock);
 		ast_mutex_unlock(&src->lock);
 		return 0;
@@ -809,13 +805,15 @@ int ast_rtp_make_compatible(struct ast_channel *dest, struct ast_channel *src)
 		ast_rtp_pt_copy(vdestp, vsrcp);
 	ast_mutex_unlock(&dest->lock);
 	ast_mutex_unlock(&src->lock);
-	ast_log(LOG_DEBUG, "Seeded SDP of '%s' with that of '%s'\n", dest->name, src->name);
+	if (option_debug)
+		ast_log(LOG_DEBUG, "Seeded SDP of '%s' with that of '%s'\n", dest->name, src->name);
 	return 1;
 }
 
-/* Make a note of a RTP paymoad type that was seen in a SDP "m=" line. */
-/* By default, use the well-known value for this type (although it may */
-/* still be set to a different value by a subsequent "a=rtpmap:" line): */
+/*! \brief  Make a note of a RTP paymoad type that was seen in a SDP "m=" line.
+ * By default, use the well-known value for this type (although it may 
+ * still be set to a different value by a subsequent "a=rtpmap:" line)
+ */
 void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt) 
 {
 	if (pt < 0 || pt > MAX_RTP_PT) 
@@ -826,11 +824,10 @@ void ast_rtp_set_m_type(struct ast_rtp* rtp, int pt)
 	}
 } 
 
-/* Make a note of a RTP payload type (with MIME type) that was seen in */
-/* a SDP "a=rtpmap:" line. */
+/*! \brief Make a note of a RTP payload type (with MIME type) that was seen in
+ 	a SDP "a=rtpmap:" line. */
 void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 			 char* mimeType, char* mimeSubtype) 
-			 
 {
 	int i;
 
@@ -846,8 +843,8 @@ void ast_rtp_set_rtpmap_type(struct ast_rtp* rtp, int pt,
 	}
 } 
 
-/* Return the union of all of the codecs that were set by rtp_set...() calls */
-/* They're returned as two distinct sets: AST_FORMATs, and AST_RTPs */
+/*! \brief Return the union of all of the codecs that were set by rtp_set...() calls 
+ * They're returned as two distinct sets: AST_FORMATs, and AST_RTPs */
 void ast_rtp_get_current_formats(struct ast_rtp* rtp,
 			     int* astFormats, int* nonAstFormats) {
 	int pt;
@@ -879,7 +876,7 @@ struct rtpPayloadType ast_rtp_lookup_pt(struct ast_rtp* rtp, int pt)
 	return result;
 }
 
-/* Looks up an RTP code out of our *static* outbound list */
+/*! \brief Looks up an RTP code out of our *static* outbound list */
 int ast_rtp_lookup_code(struct ast_rtp* rtp, const int isAstFormat, const int code) {
 
 	int pt;
@@ -1533,44 +1530,42 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	return 0;
 }
 
-/*--- ast_rtp_proto_unregister: Unregister interface to channel driver */
+/*! \brief Unregister interface to channel driver */
 void ast_rtp_proto_unregister(struct ast_rtp_protocol *proto)
 {
-	struct ast_rtp_protocol *cur, *prev;
+	struct ast_rtp_protocol *cur;
 
-	cur = protos;
-	prev = NULL;
-	while(cur) {
+	AST_LIST_LOCK(&protos);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&protos, cur, list) {	
 		if (cur == proto) {
-			if (prev)
-				prev->next = proto->next;
-			else
-				protos = proto->next;
-			return;
+			AST_LIST_REMOVE_CURRENT(&protos, list);
+			break;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&protos);
 }
 
-/*--- ast_rtp_proto_register: Register interface to channel driver */
+/*! \brief Register interface to channel driver */
 int ast_rtp_proto_register(struct ast_rtp_protocol *proto)
 {
 	struct ast_rtp_protocol *cur;
-	cur = protos;
-	while(cur) {
+
+	AST_LIST_LOCK(&protos);
+	AST_LIST_TRAVERSE(&protos, cur, list) {	
 		if (cur->type == proto->type) {
 			ast_log(LOG_WARNING, "Tried to register same protocol '%s' twice\n", cur->type);
+			AST_LIST_UNLOCK(&protos);
 			return -1;
 		}
-		cur = cur->next;
 	}
-	proto->next = protos;
-	protos = proto;
+	AST_LIST_INSERT_HEAD(&protos, proto, list);
+	AST_LIST_UNLOCK(&protos);
+	
 	return 0;
 }
 
-/* ast_rtp_bridge: Bridge calls. If possible and allowed, initiate
+/*! \brief Bridge calls. If possible and allowed, initiate
 	re-invite so the peers exchange media directly outside 
 	of Asterisk. */
 enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
@@ -1935,7 +1930,7 @@ void ast_rtp_reload(void)
 	
 }
 
-/*--- ast_rtp_init: Initialize the RTP system in Asterisk */
+/*! \brief Initialize the RTP system in Asterisk */
 void ast_rtp_init(void)
 {
 	ast_cli_register(&cli_debug);
