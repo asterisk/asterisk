@@ -40,7 +40,7 @@ static char *function_moh_read(struct ast_channel *chan, char *cmd, char *data, 
 
 static void function_moh_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	ast_copy_string(chan->musicclass, value, MAX_MUSICCLASS);
+	ast_copy_string(chan->musicclass, value, sizeof(chan->musicclass));
 }
 
 #ifndef BUILTIN_FUNC
