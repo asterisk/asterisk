@@ -201,11 +201,11 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 			size_t res;
 
 			while (left) {
-				res = fwrite(ulaw_silence, (left > BUF_SIZE) ? BUF_SIZE : left,
-					     sizeof(ulaw_silence[0]), fs->f);
+				res = fwrite(ulaw_silence, sizeof(ulaw_silence[0]),
+					     (left > BUF_SIZE) ? BUF_SIZE : left, fs->f);
 				if (res == -1)
 					return res;
-				left -= res;
+				left -= res * sizeof(ulaw_silence[0]);
 			}
 			return offset;
 		}
