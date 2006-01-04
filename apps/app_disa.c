@@ -146,12 +146,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	}
 	
 	if (ast_set_write_format(chan,AST_FORMAT_ULAW)) {
-		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n",chan->name);
+		ast_log(LOG_WARNING, "Unable to set write format to Mu-law on %s\n", chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
 	if (ast_set_read_format(chan,AST_FORMAT_ULAW)) {
-		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n",chan->name);
+		ast_log(LOG_WARNING, "Unable to set read format to Mu-law on %s\n", chan->name);
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -198,8 +198,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	for (;;) {
 		  /* if outa time, give em reorder */
 		if (ast_tvdiff_ms(ast_tvnow(), lastdigittime) > 
-		    ((k&2) ? digittimeout : firstdigittimeout))
-		{
+		    ((k&2) ? digittimeout : firstdigittimeout)) {
 			ast_log(LOG_DEBUG,"DISA %s entry timeout on chan %s\n",
 				((k&1) ? "extension" : "password"),chan->name);
 			break;
@@ -210,14 +209,12 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		}
 			
 		f = ast_read(chan);
-		if (f == NULL) 
-		{
+		if (f == NULL) {
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
 		if ((f->frametype == AST_FRAME_CONTROL) &&
-		    (f->subclass == AST_CONTROL_HANGUP))
-		{
+		    (f->subclass == AST_CONTROL_HANGUP)) {
 			ast_frfree(f);
 			LOCAL_USER_REMOVE(u);
 			return -1;
@@ -226,56 +223,54 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			ast_frfree(f);
 			continue;
 		}
-		  /* if not DTMF, just do it again */
-		if (f->frametype != AST_FRAME_DTMF) 
-		{
+
+		/* if not DTMF, just do it again */
+		if (f->frametype != AST_FRAME_DTMF) {
 			ast_frfree(f);
 			continue;
 		}
 
 		j = f->subclass;  /* save digit */
 		ast_frfree(f);
-		if (i == 0) 
-		{
+		if (i == 0) {
 			k|=2; /* We have the first digit */ 
 			ast_playtones_stop(chan);
 		}
 		lastdigittime = ast_tvnow();
 		  /* got a DTMF tone */
-		if (i < AST_MAX_EXTENSION) /* if still valid number of digits */
-		{
-			if (!(k&1)) /* if in password state */
-			{
-				if (j == '#') /* end of password */
-				{
+		if (i < AST_MAX_EXTENSION) { /* if still valid number of digits */
+			if (!(k&1)) { /* if in password state */
+				if (j == '#') { /* end of password */
 					  /* see if this is an integer */
-					if (sscanf(args.passcode,"%d",&j) < 1)
-					   { /* nope, it must be a filename */
+					if (sscanf(args.passcode,"%d",&j) < 1) { /* nope, it must be a filename */
 						fp = fopen(args.passcode,"r");
-						if (!fp)
-						   {
+						if (!fp) {
 							ast_log(LOG_WARNING,"DISA password file %s not found on chan %s\n",args.passcode,chan->name);
 							LOCAL_USER_REMOVE(u);
 							return -1;
-						   }
+						}
 						pwline[0] = 0;
-						while(fgets(pwline,sizeof(pwline) - 1,fp))
-						   {
-							if (!pwline[0]) continue;
+						while(fgets(pwline,sizeof(pwline) - 1,fp)) {
+							if (!pwline[0])
+								continue;
 							if (pwline[strlen(pwline) - 1] == '\n') 
 								pwline[strlen(pwline) - 1] = 0;
-							if (!pwline[0]) continue;
-							  /* skip comments */
-							if (pwline[0] == '#') continue;
-							if (pwline[0] == ';') continue;
+							if (!pwline[0])
+								continue;
+							 /* skip comments */
+							if (pwline[0] == '#')
+								continue;
+							if (pwline[0] == ';')
+								continue;
 
 							AST_STANDARD_APP_ARGS(args, pwline);
 			
 							ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
 
-							  /* password must be in valid format (numeric) */
-							if (sscanf(args.passcode,"%d",&j) < 1) continue;
-							  /* if we got it */
+							/* password must be in valid format (numeric) */
+							if (sscanf(args.passcode,"%d", &j) < 1)
+								continue;
+							 /* if we got it */
 							if (!strcmp(exten,args.passcode)) {
 								if (ast_strlen_zero(args.context))
 									args.context = "disa";
@@ -283,12 +278,11 @@ static int disa_exec(struct ast_channel *chan, void *data)
 									args.mailbox = "";
 								break;
 							}
-						   }
+						}
 						fclose(fp);
-					   }
-					  /* compare the two */
-					if (strcmp(exten,args.passcode))
-					{
+					}
+					/* compare the two */
+					if (strcmp(exten,args.passcode)) {
 						ast_log(LOG_WARNING,"DISA on chan %s got bad password %s\n",chan->name,exten);
 						goto reorder;
 
@@ -302,15 +296,16 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					exten[sizeof(acctcode)] = 0;
 					ast_copy_string(acctcode, exten, sizeof(acctcode));
 					exten[0] = 0;
-					ast_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n",chan->name);
+					ast_log(LOG_DEBUG,"Successful DISA log-in on chan %s\n", chan->name);
 					continue;
 				}
 			}
 
 			exten[i++] = j;  /* save digit */
 			exten[i] = 0;
-			if (!(k&1)) continue; /* if getting password, continue doing it */
-			  /* if this exists */
+			if (!(k&1))
+				continue; /* if getting password, continue doing it */
+			/* if this exists */
 
 			if (ast_ignore_pattern(args.context, exten)) {
 				play_dialtone(chan, "");
@@ -321,7 +316,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 					did_ignore = 0;
 				}
 
-			  /* if can do some more, do it */
+			/* if can do some more, do it */
 			if (!ast_matchmore_extension(chan,args.context,exten,1, chan->cid.cid_num)) {
 				break;
 			}
@@ -341,8 +336,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		if (!recheck || ast_exists_extension(chan, args.context, exten, 1, chan->cid.cid_num)) {
 			ast_playtones_stop(chan);
 			/* We're authenticated and have a target extension */
-			if (!ast_strlen_zero(args.cid))
-			{
+			if (!ast_strlen_zero(args.cid)) {
 				ast_callerid_split(args.cid, ourcidname, sizeof(ourcidname), ourcidnum, sizeof(ourcidnum));
 				ast_set_callerid(chan, ourcidnum, ourcidname, ourcidnum);
 			}
@@ -364,8 +358,7 @@ reorder:
 	ast_indicate(chan,AST_CONTROL_CONGESTION);
 	/* something is invalid, give em reorder for several seconds */
 	time(&rstart);
-	while(time(NULL) < rstart + 10)
-	{
+	while(time(NULL) < rstart + 10) {
 		if (ast_waitfor(chan, -1) < 0)
 			break;
 		f = ast_read(chan);
