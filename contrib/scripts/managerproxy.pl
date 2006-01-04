@@ -2,14 +2,14 @@
 #
 #  Simple Asterisk Manager Proxy, Version 1.01
 #  2004-09-26
-#  Copyright (c) 2004 David C. Troy &lt;dave@popvox.com>
+#  Copyright (c) 2004 David C. Troy <dave@popvox.com>
 #
 #  This code is based on Flash Operator Panel 'op_server.pl'
-#  by Nicolá³ Gudiñ¯¬
+#  by Nicolas Gudino
 #   Copyright (C) 2004.
 #
-#  David C. Troy &lt;dave@popvox.com>
-#  Nicolá³ Gudiñ¯ ¼nicolas@house.com.ar>
+#  David C. Troy <dave@popvox.com>
+#  Nicolas Gudino <nicolas@house.com.ar>
 #
 #  This program is free software, distributed under the terms of
 #  the GNU General Public License.
