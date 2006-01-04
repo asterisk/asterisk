@@ -16,11 +16,6 @@
 
 CHANNEL_LIBS=chan_sip.so chan_agent.so chan_mgcp.so chan_iax2.so chan_local.so chan_skinny.so chan_features.so
 
-ifneq (${OSARCH},CYGWIN)
-# if you really, really want to use these drivers, uncomment the line below
-#CHANNEL_LIBS+=chan_modem.so chan_modem_aopen.so chan_modem_bestdata.so
-endif
-
 ifeq ($(findstring BSD,${OSARCH}),BSD)
  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
 endif
@@ -61,9 +56,6 @@ endif
 ifneq (${OSARCH},Darwin)
   ifneq (${OSARCH},SunOS)
     ifneq (${OSARCH},CYGWIN)
-# the ISDN4Linux channel driver is probably broken on all modern kernels,
-# but if you wish to try to use it, uncomment the line below
-#      CHANNEL_LIBS+=chan_modem_i4l.so 
        CHANNEL_LIBS+=chan_oss.so
     endif
   endif
@@ -241,9 +233,6 @@ chan_misdn.so: chan_misdn.o chan_misdn_config.o misdn/chan_misdn_lib.a
 
 chan_misdn.o: chan_misdn.c
 	$(CC) $(CFLAGS) -DCHAN_MISDN_VERSION=\"0.2.1\" -c $< -o $@
-
-#chan_modem.so : chan_modem.o
-#	$(CC) -rdynamic -shared -Xlinker -x -o $@ $<
 
 install: all
 	for x in $(CHANNEL_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
