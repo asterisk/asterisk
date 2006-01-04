@@ -168,8 +168,10 @@ const struct ast_cause {
 
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
-#define FORMAT  "%-10.10s  %-30.30s %-12.12s %-12.12s %-12.12s\n"
+#define FORMAT  "%-10.10s  %-40.40s %-12.12s %-12.12s %-12.12s\n"
 	struct chanlist *cl;
+	int count_chan = 0;
+
 	ast_cli(fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
 	ast_cli(fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
 	if (ast_mutex_lock(&chlock)) {
@@ -181,8 +183,10 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 			(cl->tech->devicestate) ? "yes" : "no", 
 			(cl->tech->indicate) ? "yes" : "no",
 			(cl->tech->transfer) ? "yes" : "no");
+		count_chan++;
 	}
 	ast_mutex_unlock(&chlock);
+	ast_cli(fd, "----------\n%d channel drivers registered.\n", count_chan);
 	return RESULT_SUCCESS;
 
 #undef FORMAT
