@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -162,7 +162,7 @@ int ast_base64decode(unsigned char *dst, const char *src, int max);
 	\param doreserved	Convert reserved characters
 */
 
-char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved);
+char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserved);
 
 /*!	\brief Decode URI, URN, URL (overwrite string)
 	\param s	String to be decoded 

@@ -287,7 +287,7 @@ int ast_unregister_application(const char *app);
  * \param exten which extension to get state
  * Returns extension state !! = AST_EXTENSION_???
  */
-int ast_extension_state(struct ast_channel *c, char *context, char *exten);
+int ast_extension_state(struct ast_channel *c, const char *context, const char *exten);
 
 /*! Return string of the state of an extension */
 /*!

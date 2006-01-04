@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * See http://www.asterisk.org for more information about
  * the Asterisk project. Please do not directly contact
@@ -51,6 +51,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "asterisk/time.h"
+
+#define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
+#include "asterisk/stringfields.h"
 
 #define AST_API_MODULE		/* ensure that inlinable API functions will be built in this module if required */
 #include "asterisk/utils.h"
@@ -421,11 +424,11 @@ static void base64_init(void)
 	Note: The doreserved option is needed for replaces header in
 	SIP transfers.
 */
-char *ast_uri_encode(char *string, char *outbuf, int buflen, int doreserved) 
+char *ast_uri_encode(const char *string, char *outbuf, int buflen, int doreserved) 
 {
 	char *reserved = ";/?:@&=+$, ";	/* Reserved chars */
 
- 	char *ptr  = string;	/* Start with the string */
+ 	const char *ptr  = string;	/* Start with the string */
 	char *out = NULL;
 	char *buf = NULL;
 
@@ -921,4 +924,53 @@ void ast_join(char *s, size_t len, char * const w[])
 	if (ofs == len)
 		ofs--;
 	s[ofs] = '\0';
+}
+
+const char const *__ast_string_field_empty = "";
+
+int __ast_string_field_init(struct ast_string_field_pool *pool, size_t size,
+			    ast_string_field *fields, int num_fields)
+{
+	int index;
+
+	pool->base = calloc(1, size);
+	if (pool->base) {
+		pool->size = size;
+		pool->space = size;
+		for (index = 0; index < num_fields; index++)
+			fields[index] = __ast_string_field_empty;
+	}
+	return pool->base ? 0 : -1;
+}
+
+char *__ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t needed,
+				     ast_string_field *fields, int num_fields)
+{
+	char *result = NULL;
+
+	if (__builtin_expect(needed > pool->space, 0)) {
+		int index;
+		char *new_base;
+		size_t new_size = pool->size * 2;
+
+		while (new_size < (pool->used + needed))
+			new_size *= 2;
+
+		if (!(new_base = realloc(pool->base, new_size)))
+			return NULL;
+
+		for (index = 0; index < num_fields; index++) {
+			if (fields[index] != __ast_string_field_empty)
+				fields[index] = new_base + (fields[index] - pool->base);
+		}
+
+		pool->base = new_base;
+		pool->space += new_size - pool->size;
+		pool->size = new_size;
+	}
+
+	result = pool->base + pool->used;
+	pool->used += needed;
+	pool->space -= needed;
+	return result;
 }

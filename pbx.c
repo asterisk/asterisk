@@ -1849,7 +1849,7 @@ const char *ast_extension_state2str(int extension_state)
 }
 
 /*! \brief  ast_extension_state: Check extension state for an extension by using hint */
-int ast_extension_state(struct ast_channel *c, char *context, char *exten)
+int ast_extension_state(struct ast_channel *c, const char *context, const char *exten)
 {
 	struct ast_exten *e;
 

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define FUNC_STRDUP	4
 #define FUNC_STRNDUP	5
 #define FUNC_VASPRINTF	6
+#define FUNC_ASPRINTF   7
 
 /* Undefine all our macros */
 #undef malloc
@@ -56,6 +57,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #undef strndup
 #undef free
 #undef vasprintf
+#undef asprintf
 
 #define FENCE_MAGIC 0xdeadbeef
 
@@ -253,6 +255,28 @@ char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const
 	return ptr;
 }
 
+int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, const char *fmt, ...)
+{
+	int size;
+	va_list ap, ap2;
+	char s;
+
+	*strp = NULL;
+	va_start(ap, fmt);
+	va_copy(ap2, ap);
+	size = vsnprintf(&s, 1, fmt, ap2);
+	va_end(ap2);
+	*strp = __ast_alloc_region(size + 1, FUNC_ASPRINTF, file, lineno, func);
+	if (!*strp) {
+		va_end(ap);
+		return -1;
+	}
+	vsnprintf(*strp, size + 1, fmt, ap);
+	va_end(ap);
+
+	return size;
+}
+
 int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, int lineno, const char *func) 
 {
 	int size;
@@ -264,8 +288,10 @@ int __ast_vasprintf(char **strp, const char *fmt, va_list ap, const char *file, 
 	size = vsnprintf(&s, 1, fmt, ap2);
 	va_end(ap2);
 	*strp = __ast_alloc_region(size + 1, FUNC_VASPRINTF, file, lineno, func);
-	if (!*strp)
+	if (!*strp) {
+		va_end(ap);
 		return -1;
+	}
 	vsnprintf(*strp, size + 1, fmt, ap);
 
 	return size;

@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -38,6 +38,7 @@
 #undef realloc
 #undef strdup
 #undef strndup
+#undef asprintf
 #undef vasprintf
 
 void *__ast_calloc(size_t nmemb, size_t size, const char *file, int lineno, const char *func);
@@ -46,6 +47,7 @@ void __ast_free(void *ptr, const char *file, int lineno, const char *func);
 void *__ast_realloc(void *ptr, size_t size, const char *file, int lineno, const char *func);
 char *__ast_strdup(const char *s, const char *file, int lineno, const char *func);
 char *__ast_strndup(const char *s, size_t n, const char *file, int lineno, const char *func);
+int __ast_asprintf(const char *file, int lineno, const char *func, char **strp, const char *format, ...);
 int __ast_vasprintf(char **strp, const char *format, va_list ap, const char *file, int lineno, const char *func);
 
 void __ast_mm_init(void);
@@ -69,6 +71,9 @@ void __ast_mm_init(void);
 
 #define strndup(a,b) \
 	__ast_strndup(a,b,__FILE__, __LINE__, __PRETTY_FUNCTION__)
+
+#define asprintf(a, b, c...) \
+	__ast_asprintf(__FILE__, __LINE__, __PRETTY_FUNCTION__, a, b, c)
 
 #define vasprintf(a,b,c) \
 	__ast_vasprintf(a,b,c,__FILE__, __LINE__, __PRETTY_FUNCTION__)
