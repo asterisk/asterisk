@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/module.h"
 #include "asterisk/endian.h"
+#include "asterisk/alaw.h"
 
 #define BUF_SIZE 160		/* 160 samples */
 
@@ -72,6 +73,8 @@ static int glistcnt = 0;
 static char *name = "alaw";
 static char *desc = "Raw aLaw 8khz PCM Audio support";
 static char *exts = "alaw|al";
+
+static char alaw_silence[BUF_SIZE];
 
 
 #if 0
@@ -248,24 +251,44 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 
 static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
-	off_t offset=0,min,cur,max;
+	long cur, max, offset;
 
-	min = 0;
 	cur = ftell(fs->f);
-	fseek(fs->f, 0, SEEK_END);
-	max = ftell(fs->f);
-	if (whence == SEEK_SET)
+	max = fseek(fs->f, 0, SEEK_END);
+
+	switch (whence) {
+	case SEEK_SET:
 		offset = sample_offset;
-	else if (whence == SEEK_CUR || whence == SEEK_FORCECUR)
-		offset = sample_offset + cur;
-	else if (whence == SEEK_END)
+		break;
+	case SEEK_END:
 		offset = max - sample_offset;
-	if (whence != SEEK_FORCECUR) {
-		offset = (offset > max)?max:offset;
+		break;
+	case SEEK_CUR:
+	case SEEK_FORCECUR:
+		offset = cur + sample_offset;
+		break;
 	}
-	/* Always protect against seeking past begining */
-	offset = (offset < min)?min:offset;
-	return fseek(fs->f, offset, SEEK_SET);
+
+	switch (whence) {
+	case SEEK_FORCECUR:
+		if (offset > max) {
+			size_t left = offset - max;
+			size_t res;
+
+			while (left) {
+				res = fwrite(alaw_silence, (left > BUF_SIZE) ? BUF_SIZE : left,
+					     sizeof(alaw_silence[0]), fs->f);
+				if (res == -1)
+					return res;
+				left -= res;
+			}
+		}
+		/* fall through */
+	default:
+		offset = (offset > max) ? max : offset;
+		offset = (offset < 0) ? 0 : offset;
+		return fseek(fs->f, offset, SEEK_SET);
+	}
 }
 
 static int pcm_trunc(struct ast_filestream *fs)
@@ -288,16 +311,21 @@ static char *pcm_getcomment(struct ast_filestream *s)
 
 int load_module()
 {
+	int index;
+
+	for (index = 0; index < (sizeof(alaw_silence) / sizeof(alaw_silence[0])); index++)
+		alaw_silence[index] = AST_LIN2A(0);
+
 	return ast_format_register(name, exts, AST_FORMAT_ALAW,
-								pcm_open,
-								pcm_rewrite,
-								pcm_write,
-								pcm_seek,
-								pcm_trunc,
-								pcm_tell,
-								pcm_read,
-								pcm_close,
-								pcm_getcomment);
+				   pcm_open,
+				   pcm_rewrite,
+				   pcm_write,
+				   pcm_seek,
+				   pcm_trunc,
+				   pcm_tell,
+				   pcm_read,
+				   pcm_close,
+				   pcm_getcomment);
 }
 
 int unload_module()
