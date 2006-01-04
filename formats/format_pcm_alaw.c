@@ -282,6 +282,7 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 					return res;
 				left -= res;
 			}
+			return offset;
 		}
 		/* fall through */
 	default:
