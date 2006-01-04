@@ -516,6 +516,44 @@ int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *tim
 	return res;	
 }
 
+static int check_dest(struct ast_osp_result *result, char *token, int tokensize)
+{
+	OSPE_DEST_OSP_ENABLED enabled;
+	OSPE_DEST_PROT prot;
+	int res = 1;
+
+	/* Check destination OSP version */
+	if (!OSPPTransactionIsDestOSPEnabled(result->handle, &enabled) && (enabled == OSPE_OSP_FALSE)) {
+		result->token[0] = 0;
+	} else {
+		ast_base64encode(result->token, token, tokensize, sizeof(result->token) - 1);
+	}
+
+	/* Check destination protocol */
+	if (OSPPTransactionGetDestProtocol(result->handle, &prot)) {
+		prot = OSPE_DEST_PROT_UNDEFINED;
+	}
+	switch(prot) {
+	case OSPE_DEST_PROT_UNDEFINED:	/* Protocol is not configured, use SIP as default */
+	case OSPE_DEST_PROT_SIP:
+		ast_copy_string(result->tech, "SIP", sizeof(result->tech));
+		break;
+	case OSPE_DEST_PROT_H323_SETUP:
+		ast_copy_string(result->tech, "H323", sizeof(result->tech));
+		break;
+	case OSPE_DEST_PROT_IAX:
+		ast_copy_string(result->tech, "IAX", sizeof(result->tech));
+		break;
+	case OSPE_DEST_PROT_H323_LRQ:
+	case OSPE_DEST_PROT_UNKNOWN:
+	default:
+		ast_log(LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
+		res = 0;
+	}
+
+	return res;
+}
+
 int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, char *callerid, struct ast_osp_result *result)
 {
 	int cres;
@@ -533,8 +571,6 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 	char destination[2048]="";
 	char token[2000];
 	char tmp[256]="", *l, *n;
-	OSPE_DEST_PROT prot;
-	OSPE_DEST_OSP_ENABLED ospenabled;
 	char *devinfo = NULL;
 
 	result->handle = -1;
@@ -603,49 +639,27 @@ int ast_osp_lookup(struct ast_channel *chan, char *provider, char *extension, ch
 						ast_channel_setwhentohangup (chan, timelimit);	
 					}
 					do {
-						if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {
-							result->token[0] = 0;
-						}
-						else {
-							ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
-						}
-						if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
-							res = 1;
+						if ((strlen(destination) > 2) && (check_dest(result, token, tokenlen))) {
 							/* Strip leading and trailing brackets */
 							destination[strlen(destination) - 1] = '\0';
-							switch(prot) {
-							case OSPE_DEST_PROT_H323_SETUP:
-								ast_copy_string(result->tech, "H323", sizeof(result->tech));
-								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-								break;
-							case OSPE_DEST_PROT_SIP:
-								ast_copy_string(result->tech, "SIP", sizeof(result->tech));
-								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-								break;
-							case OSPE_DEST_PROT_IAX:
-								ast_copy_string(result->tech, "IAX", sizeof(result->tech));
-								snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-								break;
-							default:
-								ast_log(LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
-								res = 0;
-							}
-							if (!res && result->numresults) {
+							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
+							res = 1;
+						} else {
+							if(result->numresults) {
 								result->numresults--;
 								callidlen = sizeof(callidstr);
-								if (OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
-										sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
-										break;
+								if (!OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, 
+									callidstr, sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, 
+									&tokenlen, token))
+								{
+									continue;
 								}
 							}
-						} else {
-							ast_log(LOG_DEBUG, "Missing destination protocol\n");
-							break;
 						}
-					} while(!res && result->numresults);
+						break;
+					} while (1);
 				}
 			}
-			
 		}
 		if (!res) {
 			OSPPTransactionDelete(result->handle);
@@ -667,7 +681,6 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 {
 	int res = 0;
 	int tokenlen;
-	unsigned int dummy=0;
 	unsigned int timelimit;
 	unsigned int callidlen;
 	char callidstr[OSPC_CALLID_MAXSIZE] = "";
@@ -675,62 +688,33 @@ int ast_osp_next(struct ast_osp_result *result, int cause)
 	char callingnum[2048]="";
 	char destination[2048]="";
 	char token[2000];
-	OSPE_DEST_PROT prot;
-	OSPE_DEST_OSP_ENABLED ospenabled;
 
 	result->tech[0] = '\0';
 	result->dest[0] = '\0';
 	result->token[0] = '\0';
 
 	if (result->handle > -1) {
-		dummy = 0;
 		if (result->numresults) {
 			tokenlen = sizeof(token);
 			while(!res && result->numresults) {
 				result->numresults--;
 				callidlen = sizeof(callidstr);
 				if (!OSPPTransactionGetNextDestination(result->handle, OSPC_FAIL_INCOMPATIBLE_DEST, 0, NULL, NULL, &timelimit, &callidlen, callidstr, 
-									sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) {
-					if (!OSPPTransactionIsDestOSPEnabled (result->handle, &ospenabled) && (ospenabled == OSPE_OSP_FALSE)) {
-						result->token[0] = 0;
-					}
-					else {
-						ast_base64encode(result->token, token, tokenlen, sizeof(result->token) - 1);
-					}
-					if ((strlen(destination) > 2) && !OSPPTransactionGetDestProtocol(result->handle, &prot)) {
-						res = 1;
+					sizeof(callednum), callednum, sizeof(callingnum), callingnum, sizeof(destination), destination, 0, NULL, &tokenlen, token)) 
+				{
+					if ((strlen(destination) > 2) && check_dest(result, token, tokenlen)) {
 						/* Strip leading and trailing brackets */
 						destination[strlen(destination) - 1] = '\0';
-						switch(prot) {
-						case OSPE_DEST_PROT_H323_SETUP:
-							ast_copy_string(result->tech, "H323", sizeof(result->tech));
-							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-							break;
-						case OSPE_DEST_PROT_SIP:
-							ast_copy_string(result->tech, "SIP", sizeof(result->tech));
-							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-							break;
-						case OSPE_DEST_PROT_IAX:
-							ast_copy_string(result->tech, "IAX", sizeof(result->tech));
-							snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
-							break;
-						default:
-							ast_log(LOG_DEBUG, "Unknown destination protocol '%d', skipping...\n", prot);
-							res = 0;
-						}
-					} else {
-						ast_log(LOG_DEBUG, "Missing destination protocol\n");
-						break;
+						snprintf(result->dest, sizeof(result->dest), "%s@%s", callednum, destination + 1);
+						res = 1;
 					}
 				}
 			}
-			
 		}
 		if (!res) {
 			OSPPTransactionDelete(result->handle);
 			result->handle = -1;
 		}
-		
 	}
 	return res;
 }
