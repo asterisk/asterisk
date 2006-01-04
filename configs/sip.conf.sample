@@ -348,9 +348,15 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;dtmfmode=info			; either RFC2833 or INFO for the BudgeTone
 ;call-limit=1			; permit only 1 outgoing call and 1 incoming call at a time
 				; from the phone to asterisk
-				; (1 for the explicit peer, 1 for the explicit user,
+				; 1 for the explicit peer, 1 for the explicit user,
 				; remember that a friend equals 1 peer and 1 user in
-				; memory)
+				; memory
+				; This will affect your subscriptions as well.
+				; There is no combined call counter for a "friend"
+				; so there's currently no way in sip.conf to limit
+				; to one inbound or outbound call per phone. Use
+				; the group counters in the dial plan for that.
+				;
 ;mailbox=1234@default		; mailbox 1234 in voicemail context "default"
 ;disallow=all			; need to disallow=all before we can use allow=
 ;allow=ulaw			; Note: In user sections the order of codecs

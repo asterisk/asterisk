@@ -26,3 +26,6 @@ Variables:
   functions.  You are encouraged to move towards the associated dialplan
   function, as these variables will be removed in a future release.
 
+The SIP channel:
+
+* The "incominglimit" setting is replaced by the "call-limit" setting in sip.conf.

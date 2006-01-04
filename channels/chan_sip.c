@@ -2177,8 +2177,15 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 }
 
 /*! \brief  update_call_counter: Handle call_limit for SIP users 
- * Note: This is going to be replaced by app_groupcount 
- * Thought: For realtime, we should propably update storage with inuse counter... */
+ * Setting a call-limit will cause calls above the limit not to be accepted.
+ *
+ * Remember that for a type=friend, there's one limit for the user and
+ * another for the peer, not a combined call limit.
+ * This will cause unexpected behaviour in subscriptions, since a "friend"
+ * is *two* devices in Asterisk, not one.
+ *
+ * Thought: For realtime, we should propably update storage with inuse counter... 
+ */
 static int update_call_counter(struct sip_pvt *fup, int event)
 {
 	char name[256];
@@ -11888,7 +11895,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			ast_copy_string(user->musicclass, v->value, sizeof(user->musicclass));
 		} else if (!strcasecmp(v->name, "accountcode")) {
 			ast_copy_string(user->accountcode, v->value, sizeof(user->accountcode));
-		} else if (!strcasecmp(v->name, "call-limit") || !strcasecmp(v->name, "incominglimit")) {
+		} else if (!strcasecmp(v->name, "call-limit")) {
 			user->call_limit = atoi(v->value);
 			if (user->call_limit < 0)
 				user->call_limit = 0;
