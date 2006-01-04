@@ -22,7 +22,7 @@
  *
  * \author Mark Spencer <markster@digium.com>
  * 
- * Includes code and algorithms from the Zapata library.
+ * \note Includes code and algorithms from the Zapata library.
  *
  * \note We do a lot of checking here in the CDR code to try to be sure we don't ever let a CDR slip
  * through our fingers somehow.  If someone allocates a CDR, it must be completely handled normally
