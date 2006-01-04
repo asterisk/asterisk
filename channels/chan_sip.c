@@ -4244,7 +4244,7 @@ static int add_vidupdate(struct sip_request *req)
 		" <media_control>\r\n"
 		"  <vc_primitive>\r\n"
 		"   <to_encoder>\r\n"
-		"    <picture_fast_update\r\n"
+		"    <picture_fast_update>\r\n"
 		"    </picture_fast_update>\r\n"
 		"   </to_encoder>\r\n"
 		"  </vc_primitive>\r\n"
