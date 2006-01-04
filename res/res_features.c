@@ -358,7 +358,7 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 		"From: %s\r\n"
 		"Timeout: %ld\r\n"
 		"CallerID: %s\r\n"
-		"CallerIDName: %s\r\n\r\n"
+		"CallerIDName: %s\r\n"
 		,pu->parkingnum, pu->chan->name, peer->name
 		,(long)pu->start.tv_sec + (long)(pu->parkingtime/1000) - (long)time(NULL)
 		,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
@@ -1544,7 +1544,7 @@ static void *do_parking_thread(void *ignore)
 					"Exten: %d\r\n"
 					"Channel: %s\r\n"
 					"CallerID: %s\r\n"
-					"CallerIDName: %s\r\n\r\n"
+					"CallerIDName: %s\r\n"
 					,pu->parkingnum, pu->chan->name
 					,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
 					,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
@@ -1588,7 +1588,7 @@ static void *do_parking_thread(void *ignore)
 								"Exten: %d\r\n"
 								"Channel: %s\r\n"
 								"CallerID: %s\r\n"
-								"CallerIDName: %s\r\n\r\n"
+								"CallerIDName: %s\r\n"
 								,pu->parkingnum, pu->chan->name
 								,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
 								,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
@@ -1725,7 +1725,7 @@ static int park_exec(struct ast_channel *chan, void *data)
 			"Channel: %s\r\n"
 			"From: %s\r\n"
 			"CallerID: %s\r\n"
-			"CallerIDName: %s\r\n\r\n"
+			"CallerIDName: %s\r\n"
 			,pu->parkingnum, pu->chan->name, chan->name
 			,(pu->chan->cid.cid_num ? pu->chan->cid.cid_num : "<unknown>")
 			,(pu->chan->cid.cid_name ? pu->chan->cid.cid_name : "<unknown>")
