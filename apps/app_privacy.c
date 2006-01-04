@@ -195,7 +195,7 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		}
 		
 		/*Got a number, play sounds and send them on their way*/
-		if ((retries < maxretries) && res == 1 ) {
+		if ((retries < maxretries) && !res ) {
 			res = ast_streamfile(chan, "privacy-thankyou", chan->language);
 			if (!res)
 				res = ast_waitstream(chan, "");
