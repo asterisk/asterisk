@@ -254,7 +254,8 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	long cur, max, offset;
 
 	cur = ftell(fs->f);
-	max = fseek(fs->f, 0, SEEK_END);
+	fseek(fs->f, 0, SEEK_END);
+	max = ftell(fs->f);
 
 	switch (whence) {
 	case SEEK_SET:
