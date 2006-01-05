@@ -18,6 +18,9 @@ Applications:
 * The application SetVar has been renamed to Set.  The syntax SetVar was marked
   deprecated in version 1.2 and is no longer recognized in this version.
 
+* app_read has been updated to use the newer options codes, using "skip" or
+  "noanswer" will not work.  Use s or n.  Also there is a new feature i, for
+  using indication tones, so typing in skip would give you unexpected results.
 Variables:
 
 * The builtin variables ${CALLERID}, ${CALLERIDNAME}, ${CALLERIDNUM},

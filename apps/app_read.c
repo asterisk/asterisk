@@ -43,6 +43,19 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/options.h"
 #include "asterisk/utils.h"
+#include "asterisk/indications.h"
+
+enum {
+	OPT_SKIP = (1 << 0),
+	OPT_INDICATION = (1 << 1),
+	OPT_NOANSWER = (1 << 2),
+} read_option_flags;
+
+AST_APP_OPTIONS(read_app_options, {
+	AST_APP_OPTION('s', OPT_SKIP),
+	AST_APP_OPTION('i', OPT_INDICATION),
+	AST_APP_OPTION('n', OPT_NOANSWER),
+});
 
 static char *tdesc = "Read Variable Application";
 
@@ -54,14 +67,16 @@ static char *descrip =
 "  Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n"
 "Reads a #-terminated string of digits a certain number of times from the\n"
 "user in to the given variable.\n"
-"  filename   -- file to play before reading digits.\n"
+"  filename   -- file to play before reading digits or tone with option i\n"
 "  maxdigits  -- maximum acceptable number of digits. Stops reading after\n"
 "                maxdigits have been entered (without requiring the user to\n"
 "                press the '#' key).\n"
 "                Defaults to 0 - no limit - wait for the user press the '#' key.\n"
 "                Any value below 0 means the same. Max accepted value is 255.\n"
-"  option     -- may be 'skip' to return immediately if the line is not up,\n"
-"                or 'noanswer' to read digits even if the line is not up.\n"
+"  option     -- options are 's' , 'i', 'n'\n"
+"                's' to return immediately if the line is not up,\n"
+"                'i' to play  filename as an indication tone from your indications.conf\n"
+"                'n' to read digits even if the line is not up.\n"
 "  attempts   -- if greater than 1, that many attempts will be made in the \n"
 "                event no data is entered.\n"
 "  timeout    -- if greater than 0, that value will override the default timeout.\n\n"
@@ -78,21 +93,23 @@ static int read_exec(struct ast_channel *chan, void *data)
 	int res = 0;
 	struct localuser *u;
 	char tmp[256];
-	char *timeout = NULL;
-	char *varname = NULL;
-	char *filename = NULL;
-	char *loops;
-	char *maxdigitstr=NULL;
-	char *options=NULL;
-	int option_skip = 0;
-	int option_noanswer = 0;
 	int maxdigits=255;
 	int tries = 1;
 	int to = 0;
 	int x = 0;
 	char *argcopy = NULL;
-	char *args[8];
+	struct tone_zone_sound *ts;
+	struct ast_flags flags = {0};
 
+	 AST_DECLARE_APP_ARGS(arglist,
+		AST_APP_ARG(variable);
+		AST_APP_ARG(filename);
+		AST_APP_ARG(maxdigits);
+		AST_APP_ARG(options);
+		AST_APP_ARG(attempts);
+		AST_APP_ARG(timeout);
+	);
+	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Read requires an argument (variable)\n");
 		return -1;
@@ -101,74 +118,57 @@ static int read_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	argcopy = ast_strdupa(data);
-	if (!argcopy) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 
-	if (ast_app_separate_args(argcopy, '|', args, sizeof(args) / sizeof(args[0])) < 1) {
-		ast_log(LOG_WARNING, "Cannot Parse Arguments.\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
-
-	varname = args[x++];
-	filename = args[x++];
-	maxdigitstr = args[x++];
-	options = args[x++];
-	loops = args[x++];
-	timeout = args[x++];
+	AST_STANDARD_APP_ARGS(arglist, argcopy);
 	
-	if (options) { 
-		if (!strcasecmp(options, "skip"))
-			option_skip = 1;
-		else if (!strcasecmp(options, "noanswer"))
-			option_noanswer = 1;
-		else {
-			if (strchr(options, 's'))
-				option_skip = 1;
-			if (strchr(options, 'n'))
-				option_noanswer = 1;
-		}
-	}
+	ast_verbose("\n var %s\nfilename %s\nmaxdigits %s\noptions %s\nattempts %s\ntimeout %s\n",arglist.variable,arglist.filename,arglist.maxdigits,arglist.options, arglist.attempts,arglist.timeout);
 
-	if(loops) {
-		tries = atoi(loops);
+	if(arglist.options){
+		ast_app_parse_options(read_app_options, &flags, NULL, arglist.options);
+	}
+	
+	if(arglist.attempts) {
+		tries = atoi(arglist.attempts);
 		if(tries <= 0)
 			tries = 1;
 	}
 
-	if(timeout) {
-		to = atoi(timeout);
+	if(arglist.timeout) {
+		to = atoi(arglist.timeout);
 		if (to <= 0)
 			to = 0;
 		else
 			to *= 1000;
 	}
 
-	if (ast_strlen_zero(filename)) 
-		filename = NULL;
-	if (maxdigitstr) {
-		maxdigits = atoi(maxdigitstr);
+	if (ast_strlen_zero(arglist.filename)){
+		arglist.filename = NULL;
+	}
+	if (arglist.maxdigits) {
+		maxdigits = atoi(arglist.maxdigits);
 		if ((maxdigits<1) || (maxdigits>255)) {
     			maxdigits = 255;
 		} else if (option_verbose > 2)
 			ast_verbose(VERBOSE_PREFIX_3 "Accepting a maximum of %d digits.\n", maxdigits);
 	}
-	if (ast_strlen_zero(varname)) {
+	if (ast_strlen_zero(arglist.variable)) {
 		ast_log(LOG_WARNING, "Invalid! Usage: Read(variable[|filename][|maxdigits][|option][|attempts][|timeout])\n\n");
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
-	
+	ts=NULL;
+	if(ast_test_flag(&flags,OPT_INDICATION)){
+		if(!ast_strlen_zero(arglist.filename)){
+			ts = ast_get_indication_tone(chan->zone,arglist.filename);
+		}
+	}
 	if (chan->_state != AST_STATE_UP) {
-		if (option_skip) {
+		if (ast_test_flag(&flags,OPT_SKIP)) {
 			/* At the user's option, skip if the line is not up */
-			pbx_builtin_setvar_helper(chan, varname, "\0");
+			pbx_builtin_setvar_helper(chan, arglist.variable, "\0");
 			LOCAL_USER_REMOVE(u);
 			return 0;
-		} else if (!option_noanswer) {
+		} else if (!ast_test_flag(&flags,OPT_NOANSWER)) {
 			/* Otherwise answer unless we're supposed to read while on-hook */
 			res = ast_answer(chan);
 		}
@@ -176,9 +176,28 @@ static int read_exec(struct ast_channel *chan, void *data)
 	if (!res) {
 		while(tries && !res) {
 			ast_stopstream(chan);
-			res = ast_app_getdata(chan, filename, tmp, maxdigits, to);
+			if (ts && ts->data[0]){
+				if(!to)
+					to = chan->pbx ? chan->pbx->rtimeout * 1000 : 6000;
+				res = ast_playtones_start(chan, 0, ts->data, 0);
+				for (x = 0; x < maxdigits; ){
+					res = ast_waitfordigit(chan, to);
+					ast_playtones_stop(chan);
+					if (res < 1){
+						tmp[x]='\0';
+						break;
+					}
+					tmp[x++] = res;
+					if (tmp[x-1] == '#'){
+						tmp[x-1] = '\0';
+						break;
+					}
+				}
+			} else {
+				res = ast_app_getdata(chan, arglist.filename, tmp, maxdigits, to);
+			}
 			if (res > -1) {
-				pbx_builtin_setvar_helper(chan, varname, tmp);
+				pbx_builtin_setvar_helper(chan, arglist.variable, tmp);
 				if (!ast_strlen_zero(tmp)) {
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "User entered '%s'\n", tmp);
