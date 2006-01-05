@@ -798,6 +798,7 @@ static int agent_hangup(struct ast_channel *ast)
 				snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 				ast_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Autologoff");
 				set_agentbycallerid(p->logincallerid, NULL);
+				ast_device_state_changed("Agent/%s", p->agent);
 				p->loginchan[0] = '\0';
 				p->logincallerid[0] = '\0';
 			}
