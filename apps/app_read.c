@@ -118,22 +118,25 @@ static int read_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	argcopy = ast_strdupa(data);
+	if (!argcopy) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	AST_STANDARD_APP_ARGS(arglist, argcopy);
-	
-	ast_verbose("\n var %s\nfilename %s\nmaxdigits %s\noptions %s\nattempts %s\ntimeout %s\n",arglist.variable,arglist.filename,arglist.maxdigits,arglist.options, arglist.attempts,arglist.timeout);
 
-	if(arglist.options){
+	if (!ast_strlen_zero(arglist.options)) {
 		ast_app_parse_options(read_app_options, &flags, NULL, arglist.options);
 	}
 	
-	if(arglist.attempts) {
+	if (!ast_strlen_zero(arglist.attempts)) {
 		tries = atoi(arglist.attempts);
-		if(tries <= 0)
+		if (tries <= 0)
 			tries = 1;
 	}
 
-	if(arglist.timeout) {
+	if (!ast_strlen_zero(arglist.timeout)) {
 		to = atoi(arglist.timeout);
 		if (to <= 0)
 			to = 0;
@@ -141,10 +144,10 @@ static int read_exec(struct ast_channel *chan, void *data)
 			to *= 1000;
 	}
 
-	if (ast_strlen_zero(arglist.filename)){
+	if (ast_strlen_zero(arglist.filename)) {
 		arglist.filename = NULL;
 	}
-	if (arglist.maxdigits) {
+	if (!ast_strlen_zero(arglist.maxdigits)) {
 		maxdigits = atoi(arglist.maxdigits);
 		if ((maxdigits<1) || (maxdigits>255)) {
     			maxdigits = 255;
@@ -157,8 +160,8 @@ static int read_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 	ts=NULL;
-	if(ast_test_flag(&flags,OPT_INDICATION)){
-		if(!ast_strlen_zero(arglist.filename)){
+	if (ast_test_flag(&flags,OPT_INDICATION)) {
+		if (!ast_strlen_zero(arglist.filename)) {
 			ts = ast_get_indication_tone(chan->zone,arglist.filename);
 		}
 	}
@@ -174,21 +177,21 @@ static int read_exec(struct ast_channel *chan, void *data)
 		}
 	}
 	if (!res) {
-		while(tries && !res) {
+		while (tries && !res) {
 			ast_stopstream(chan);
-			if (ts && ts->data[0]){
-				if(!to)
+			if (ts && ts->data[0]) {
+				if (!to)
 					to = chan->pbx ? chan->pbx->rtimeout * 1000 : 6000;
 				res = ast_playtones_start(chan, 0, ts->data, 0);
-				for (x = 0; x < maxdigits; ){
+				for (x = 0; x < maxdigits; ) {
 					res = ast_waitfordigit(chan, to);
 					ast_playtones_stop(chan);
-					if (res < 1){
+					if (res < 1) {
 						tmp[x]='\0';
 						break;
 					}
 					tmp[x++] = res;
-					if (tmp[x-1] == '#'){
+					if (tmp[x-1] == '#') {
 						tmp[x-1] = '\0';
 						break;
 					}
