@@ -940,13 +940,15 @@ static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, 
 	
 	app = pbx_findapp(feature->app);
 	if (app) {
-		struct ast_channel *work=chan;
-		if (ast_test_flag(feature,AST_FEATURE_FLAG_CALLEE)) work=peer;
+		struct ast_channel *work = chan;
+		if (ast_test_flag(feature, AST_FEATURE_FLAG_CALLEE))
+			work = peer;
 		res = pbx_exec(work, app, feature->app_args, 1);
-		if (res<0) return res; 
+		if (res < 0)
+			return res; 
 	} else {
 		ast_log(LOG_WARNING, "Could not find application (%s)\n", feature->app);
-		res = -2;
+		return -2;
 	}
 	
 	return FEATURE_RETURN_SUCCESS;
@@ -1572,7 +1574,8 @@ static void *do_parking_thread(void *ignore)
 						/* See if they need servicing */
 						f = ast_read(pu->chan);
 						if (!f || ((f->frametype == AST_FRAME_CONTROL) && (f->subclass ==  AST_CONTROL_HANGUP))) {
-
+							if (f)
+								ast_frfree(f);
 							manager_event(EVENT_FLAG_CALL, "ParkedCallGiveUp",
 								"Exten: %d\r\n"
 								"Channel: %s\r\n"
