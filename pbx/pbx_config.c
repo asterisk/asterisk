@@ -712,7 +712,7 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 	if (argc != 5) return RESULT_SHOWUSAGE;
 
 	/* third arg must be 'in' ... */
-	if (strcmp(argv[3], "in")) return RESULT_SHOWUSAGE;
+	if (strcmp(argv[3], "in") && strcmp(argv[3], "into")) return RESULT_SHOWUSAGE;
 
 	if (ast_context_add_include(argv[4], argv[2], registrar)) {
 		switch (errno) {
@@ -724,7 +724,7 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 
 			case EEXIST:
 				ast_cli(fd, "Context '%s' already included in '%s' context\n",
-					argv[1], argv[3]); break;
+					argv[2], argv[4]); break;
 
 			case ENOENT:
 			case EINVAL:
@@ -733,14 +733,14 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 
 			default:
 				ast_cli(fd, "Failed to include '%s' in '%s' context\n",
-					argv[1], argv[3]); break;
+					argv[2], argv[4]); break;
 		}
 		return RESULT_FAILURE;
 	}
 
 	/* show some info ... */
 	ast_cli(fd, "Context '%s' included in '%s' context\n",
-		argv[2], argv[3]);
+		argv[2], argv[4]);
 
 	return RESULT_SUCCESS;
 }
