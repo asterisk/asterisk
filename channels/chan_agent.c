@@ -798,6 +798,8 @@ static int agent_hangup(struct ast_channel *ast)
 				ast_device_state_changed("Agent/%s", p->agent);
 				p->loginchan[0] = '\0';
 				p->logincallerid[0] = '\0';
+				if (persistent_agents)
+					dump_agents();
 			}
 		} else if (p->dead) {
 			ast_mutex_lock(&p->chan->lock);
