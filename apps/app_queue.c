@@ -286,6 +286,7 @@ struct queue_ent {
 	time_t last_pos;                /*!< Last time we told the user their position */
 	int opos;			/*!< Where we started in the queue */
 	int handled;			/*!< Whether our call was handled */
+	int max_penalty;		/*!< Limit the members that can take this call to this penalty or lower */
 	time_t start;			/*!< When we started holding */
 	time_t expire;			/*!< When this entry should expire (time out of queue) */
 	struct ast_channel *chan;	/*!< Our channel */
@@ -426,12 +427,15 @@ enum queue_member_status {
 	QUEUE_NORMAL
 };
 
-static enum queue_member_status get_member_status(const struct ast_call_queue *q)
+static enum queue_member_status get_member_status(const struct ast_call_queue *q, int max_penalty)
 {
 	struct member *member;
 	enum queue_member_status result = QUEUE_NO_MEMBERS;
 
 	for (member = q->members; member; member = member->next) {
+		if (max_penalty && (member->penalty > max_penalty))
+			continue;
+
 		switch (member->status) {
 		case AST_DEVICE_INVALID:
 			/* nothing to do */
@@ -929,7 +933,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	}
 
 	/* This is our one */
-	stat = get_member_status(q);
+	stat = get_member_status(q, qe->max_penalty);
 	if (!q->joinempty && (stat == QUEUE_NO_MEMBERS))
 		*reason = QUEUE_JOINEMPTY;
 	else if ((q->joinempty == QUEUE_EMPTY_STRICT) && (stat == QUEUE_NO_REACHABLE_MEMBERS))
@@ -1878,7 +1882,7 @@ static int wait_our_turn(struct queue_ent *qe, int ringing, enum queue_result *r
 			break;
 		}
 
-		stat = get_member_status(qe->parent);
+		stat = get_member_status(qe->parent, qe->max_penalty);
 
 		/* leave the queue if no agents, if enabled */
 		if (qe->parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
@@ -1935,6 +1939,9 @@ static int update_queue(struct ast_call_queue *q, struct member *member)
 
 static int calc_metric(struct ast_call_queue *q, struct member *mem, int pos, struct queue_ent *qe, struct localuser *tmp)
 {
+	if (mem->penalty > qe->max_penalty)
+		return -1;
+
 	switch (q->strategy) {
 	case QUEUE_STRATEGY_RINGALL:
 		/* Everyone equal, except for penalty */
@@ -2087,15 +2094,18 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		}
 		/* Special case: If we ring everyone, go ahead and ring them, otherwise
 		   just calculate their metric for the appropriate strategy */
-		calc_metric(qe->parent, cur, x++, qe, tmp);
-		/* Put them in the list of outgoing thingies...  We're ready now. 
-		   XXX If we're forcibly removed, these outgoing calls won't get
-		   hung up XXX */
-		tmp->next = outgoing;
-		outgoing = tmp;		
-		/* If this line is up, don't try anybody else */
-		if (outgoing->chan && (outgoing->chan->_state == AST_STATE_UP))
-			break;
+		if (!calc_metric(qe->parent, cur, x++, qe, tmp)) {
+			/* Put them in the list of outgoing thingies...  We're ready now. 
+			   XXX If we're forcibly removed, these outgoing calls won't get
+			   hung up XXX */
+			tmp->next = outgoing;
+			outgoing = tmp;		
+			/* If this line is up, don't try anybody else */
+			if (outgoing->chan && (outgoing->chan->_state == AST_STATE_UP))
+				break;
+		} else {
+			free(tmp);
+		}
 
 		cur = cur->next;
 	}
@@ -2848,7 +2858,9 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	char *url = NULL;
 	char *announceoverride = NULL;
 	const char *user_priority;
+	const char *max_penalty_str;
 	int prio;
+	int max_penalty;
 	char *queuetimeoutstr = NULL;
 	enum queue_result reason = QUEUE_UNKNOWN;
 
@@ -2901,15 +2913,31 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		prio = 0;
 	}
 
+	/* Get the maximum penalty from the variable ${QUEUE_MAX_PENALTY} */
+	if ((max_penalty_str = pbx_builtin_getvar_helper(chan, "QUEUE_MAX_PENALTY"))) {
+		if (sscanf(max_penalty_str, "%d", &max_penalty) == 1) {
+			if (option_debug)
+				ast_log(LOG_DEBUG, "%s: Got max penalty %d from ${QUEUE_MAX_PENALTY}.\n",
+					chan->name, max_penalty);
+		} else {
+			ast_log(LOG_WARNING, "${QUEUE_MAX_PENALTY}: Invalid value (%s), channel %s.\n",
+				max_penalty_str, chan->name);
+			max_penalty = 0;
+		}
+	} else {
+		max_penalty = 0;
+	}
+
 	if (options && (strchr(options, 'r')))
 		ringing = 1;
 
 	if (option_debug)  
 		ast_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
-			queuename, options, url, announceoverride, (long)qe.expire, (int)prio);
+			queuename, options, url, announceoverride, (long)qe.expire, prio);
 
 	qe.chan = chan;
-	qe.prio = (int)prio;
+	qe.prio = prio;
+	qe.max_penalty = max_penalty;
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
 	qe.last_periodic_announce_time = time(NULL);
@@ -2997,7 +3025,7 @@ check_turns:
 					break;
 				}
 
-				stat = get_member_status(qe.parent);
+				stat = get_member_status(qe.parent, qe.max_penalty);
 
 				/* leave the queue if no agents, if enabled */
 				if (qe.parent->leavewhenempty && (stat == QUEUE_NO_MEMBERS)) {
