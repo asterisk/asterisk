@@ -943,8 +943,8 @@ int __ast_string_field_init(struct ast_string_field_pool *pool, size_t size,
 	return pool->base ? 0 : -1;
 }
 
-char *__ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t needed,
-				     ast_string_field *fields, int num_fields)
+ast_string_field __ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t needed,
+						ast_string_field *fields, int num_fields)
 {
 	char *result = NULL;
 
@@ -973,4 +973,25 @@ char *__ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t 
 	pool->used += needed;
 	pool->space -= needed;
 	return result;
+}
+
+void __ast_string_field_index_build(struct ast_string_field_pool *pool,
+				    ast_string_field *fields, int num_fields,
+				    int index, const char *format, ...)
+{
+	char s;
+	size_t needed;
+	va_list ap1, ap2;
+
+	va_start(ap1, format);
+	va_copy(ap2, ap1);
+
+	needed = vsnprintf(&s, 1, format, ap1) + 1;
+
+	va_end(ap1);
+
+	if ((fields[index] = __ast_string_field_alloc_space(pool, needed, fields, num_fields)))
+		vsprintf((char *) fields[index], format, ap2);
+
+	va_end(ap2);
 }

@@ -143,8 +143,22 @@ int __ast_string_field_init(struct ast_string_field_pool *pool, size_t size,
   and the existing fields stored there will be updated to point
   into the new pool.
 */
-char *__ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t needed,
-				     ast_string_field *fields, int num_fields);
+ast_string_field __ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t needed,
+						ast_string_field *fields, int num_fields);
+
+/*!
+  \internal
+  \brief Set a field to a complex (built) value
+  \param pool Pointer to the pool structure
+  \param fields Pointer to the first entry of the field array
+  \param num_fields Number of fields in the array
+  \param index Index position of the field within the structure
+  \param format printf-style format string
+  \return nothing
+*/
+void __ast_string_field_index_build(struct ast_string_field_pool *pool,
+				    ast_string_field *fields, int num_fields,
+				    int index, const char *format, ...);
 
 /*!
   The default amount of storage to be allocated for a field pool.
@@ -216,23 +230,18 @@ char *__ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t 
 	ast_string_field_index_set(x, ast_string_field_index(x, field), data)
 
 /*!
-  \brief Set a field to a simple complex (built) value
+  \brief Set a field to a complex (built) value
   \param x Pointer to a structure containing fields
   \param index Index position of the field within the structure
   \param fmt printf-style format string
   \param args Arguments for format string
   \return nothing
 */
-#define ast_string_field_index_build(x, index, fmt, args...) do { \
-	char s; \
-	size_t needed; \
-	needed = snprintf(&s, 1, fmt, args) + 1; \
-	if ((x->__begin_field[index] = __ast_string_field_alloc_space(&x->__field_pool, needed, &x->__begin_field[0], ast_string_field_count(x)))) \
-		sprintf((char *) x->__begin_field[index], fmt, args); \
-	} while (0)
+#define ast_string_field_index_build(x, index, fmt, args...) \
+	__ast_string_field_index_build(&x->__field_pool, &x->__begin_field[0], ast_string_field_count(x), index, fmt, args)
 
 /*!
-  \brief Set a field to a simple complex (built) value
+  \brief Set a field to a complex (built) value
   \param x Pointer to a structure containing fields
   \param field Name of the field to set
   \param fmt printf-style format string
