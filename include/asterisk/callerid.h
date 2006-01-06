@@ -41,6 +41,7 @@
 #define CID_SIG_BELL	1
 #define CID_SIG_V23	2
 #define CID_SIG_DTMF	3
+#define CID_SIG_V23_JP	4
 
 #define CID_START_RING	1
 #define CID_START_POLARITY 2
@@ -91,6 +92,18 @@ extern struct callerid_state *callerid_new(int cid_signalling);
  * and 1 if the CallerID spill reception is complete.
  */
 extern int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int samples, int codec);
+
+/*! \brief Read samples into the state machine.
+ * \param cid Which state machine to act upon
+ * \param ubuf containing your samples
+ * \param samples number of samples contained within the buffer.
+ * \param codec which codec (AST_FORMAT_ALAW or AST_FORMAT_ULAW)
+ *
+ * Send received audio to the Caller*ID demodulator (for japanese style lines).
+ * \return Returns -1 on error, 0 for "needs more samples", 
+ * and 1 if the CallerID spill reception is complete.
+ */
+extern int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int samples, int codec);
 
 /*! \brief Extract info out of callerID state machine.  Flags are listed above 
  * \param cid Callerid state machine to act upon

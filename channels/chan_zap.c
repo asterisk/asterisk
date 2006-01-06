@@ -5266,6 +5266,7 @@ static void *ss_thread(void *data)
 	int len = 0;
 	int res;
 	int index;
+
 	if (option_verbose > 2) 
 		ast_verbose( VERBOSE_PREFIX_3 "Starting simple switch on '%s'\n", chan->name);
 	index = zt_get_index(chan, p, 1);
@@ -5947,8 +5948,9 @@ lax);
 				else
 					number = 0;
 			/* If set to use V23 Signalling, launch our FSK gubbins and listen for it */
-			} else if (p->cid_signalling == CID_SIG_V23) {
-				cs = callerid_new(cid_signalling);
+			} else if ((p->cid_signalling == CID_SIG_V23) || (p->cid_signalling == CID_SIG_V23_JP)) {
+
+				cs = callerid_new(p->cid_signalling);
 				if (cs) {
 					samples = 0;
 #if 1
@@ -5969,8 +5971,16 @@ lax);
 						if (i & ZT_IOMUX_SIGEVENT) {
 							res = zt_get_event(p->subs[index].zfd);
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
-							res = 0;
-							break;
+
+							if (p->cid_signalling == CID_SIG_V23_JP) {
+								if (res == ZT_EVENT_RINGBEGIN) {
+									res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
+            								usleep(1);
+								}
+							} else {
+								res = 0;
+								break;
+							}
 						} else if (i & ZT_IOMUX_READ) {
 							res = read(p->subs[index].zfd, buf, sizeof(buf));
 							if (res < 0) {
@@ -5983,7 +5993,13 @@ lax);
 								break;
 							}
 							samples += res;
-							res = callerid_feed(cs, buf, res, AST_LAW(p));
+
+							if  (p->cid_signalling == CID_SIG_V23_JP) {
+								res = callerid_feed_jp(cs, buf, res, AST_LAW(p));
+							} else {
+								res = callerid_feed(cs, buf, res, AST_LAW(p));
+							}
+
 							if (res < 0) {
 								ast_log(LOG_WARNING, "CallerID feed failed: %s\n", strerror(errno));
 								break;
@@ -5995,15 +6011,22 @@ lax);
 					}
 					if (res == 1) {
 						callerid_get(cs, &name, &number, &flags);
-						if (option_debug)
-							ast_log(LOG_DEBUG, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
+						ast_log(LOG_NOTICE, "CallerID number: %s, name: %s, flags=%d\n", number, name, flags);
 					}
 					if (res < 0) {
 						ast_log(LOG_WARNING, "CallerID returned with error on channel '%s'\n", chan->name);
 					}
 
-					/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */ 
-					res = 2000;
+					if (p->cid_signalling == CID_SIG_V23_JP) {
+						res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
+           					usleep(1);
+						res = 4000;
+					} else {
+
+						/* Finished with Caller*ID, now wait for a ring to make sure there really is a call coming */ 
+						res = 2000;
+					}
+
 					for (;;) {
 						struct ast_frame *f;
 						res = ast_waitfor(chan, res);
@@ -10414,6 +10437,8 @@ static int setup_zap(int reload)
 				cid_signalling = CID_SIG_V23;
 			else if (!strcasecmp(v->value, "dtmf"))
 				cid_signalling = CID_SIG_DTMF;
+			else if (!strcasecmp(v->value, "v23_jp"))
+				cid_signalling = CID_SIG_V23_JP;
 			else if (ast_true(v->value))
 				cid_signalling = CID_SIG_BELL;
 		} else if (!strcasecmp(v->name, "cidstart")) {

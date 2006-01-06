@@ -57,6 +57,9 @@ struct callerid_state {
 	int flags;
 	int sawflag;
 	int len;
+
+	int skipflag; 
+	unsigned short crc;
 };
 
 
@@ -251,6 +254,278 @@ int ast_gen_cas(unsigned char *outbuf, int sendsas, int len, int codec)
 	gen_tones(outbuf + pos, len, codec, casdr1, casdi1, casdr2, casdi2, &cr1, &ci1, &cr2, &ci2);
 	return 0;
 }
+
+static unsigned short calc_crc(unsigned short crc, unsigned char data)
+{
+   	unsigned int i, j, org, dst;
+   	org = data;
+   	dst = 0;
+   	for (i=0; i<CHAR_BIT; i++) {
+       	org <<= 1;
+       	dst >>= 1;
+       	if (org & 0x100) {
+           	dst |= 0x80;
+       	}
+   	}
+   	data = (unsigned char)dst;
+	crc ^= (unsigned int)data << (16 - CHAR_BIT);
+	for ( j=0; j<CHAR_BIT; j++ ) {
+		if ( crc & 0x8000U ) crc = (crc << 1) ^ 0x1021U ;
+		else crc <<= 1 ;
+	}
+   	return crc;
+}
+
+int callerid_feed_jp(struct callerid_state *cid, unsigned char *ubuf, int len, int codec)
+{
+	int mylen = len;
+	int olen;
+	int b = 'X';
+	int b2 ;
+	int res;
+	int x;
+	short *buf = malloc(2 * len + cid->oldlen);
+	short *obuf = buf;
+
+	if (!buf) {
+		ast_log(LOG_WARNING, "Out of memory\n");
+		return -1;
+	}
+
+	memset(buf, 0, 2 * len + cid->oldlen);
+	memcpy(buf, cid->oldstuff, cid->oldlen);
+	mylen += cid->oldlen/2;
+
+	for (x=0;x<len;x++) 
+		buf[x+cid->oldlen/2] = AST_XLAW(ubuf[x]);
+
+	while (mylen >= 160) {
+        b = b2 = 0 ;
+		olen = mylen;
+		res = fsk_serie(&cid->fskd, buf, &mylen, &b);
+
+		if (mylen < 0) {
+			ast_log(LOG_ERROR, "fsk_serie made mylen < 0 (%d)\n", mylen);
+			return -1;
+		}
+
+		buf += (olen - mylen);
+
+		if (res < 0) {
+			ast_log(LOG_NOTICE, "fsk_serie failed\n");
+			return -1;
+		}
+
+		if (res == 1) {
+
+			b2 = b ;
+			b  = b & 0x7f ;
+
+			/* crc checksum calculation */
+			if ( cid->sawflag > 1 ) {
+				cid->crc = calc_crc(cid->crc, (unsigned char)b2);
+			}
+
+			/* Ignore invalid bytes */
+			if (b > 0xff) {
+				continue;
+			}
+
+			/* skip DLE if needed */
+			if ( cid->sawflag > 0 ) {
+				if ( cid->sawflag != 5 && cid->skipflag == 0 && b == 0x10 ) {
+					cid->skipflag = 1 ;
+					continue ;
+				}
+			}
+			if ( cid->skipflag == 1 ) {
+				cid->skipflag = 0 ;
+			}
+
+			/* caller id retrieval */
+			switch(cid->sawflag) {
+				case 0: /* DLE */
+					if (b == 0x10) {
+						cid->sawflag = 1;
+						cid->skipflag = 0;
+						cid->crc = 0;
+					}
+					break;
+				case 1: /* SOH */
+					if (b == 0x01) {
+						cid->sawflag = 2;
+					}
+					break ;
+				case 2: /* HEADER */
+					if (b == 0x07) {
+						cid->sawflag = 3;
+					}
+					break;
+				case 3: /* STX */
+					if (b == 0x02) {
+						cid->sawflag = 4;
+					}
+					break;
+				case 4: /* SERVICE TYPE */
+					if (b == 0x40) {
+						cid->sawflag = 5;
+					}
+					break;
+				case 5: /* Frame Length */
+					cid->sawflag = 6;
+					break;	
+				case 6: /* NUMBER TYPE */
+					cid->sawflag = 7;
+					cid->pos = 0;
+					cid->rawdata[cid->pos++] = b;
+					break;
+				case 7:	/* NUMBER LENGTH */
+					cid->sawflag = 8;
+					cid->len = b;
+					if ( (cid->len+2) >= sizeof( cid->rawdata ) ) {
+						ast_log(LOG_WARNING, "too long caller id string\n" ) ;
+						return -1;
+					}
+					cid->rawdata[cid->pos++] = b;
+					break;
+				case 8:	/* Retrieve message */
+					cid->rawdata[cid->pos++] = b;
+					cid->len--;
+					if (cid->len<=0) {
+						cid->rawdata[cid->pos] = '\0';
+						cid->sawflag = 9;
+					}
+					break;
+				case 9:	/* ETX */
+					cid->sawflag = 10;
+					break;
+				case 10: /* CRC Checksum 1 */
+					cid->sawflag = 11;
+					break;
+				case 11: /* CRC Checksum 2 */
+					cid->sawflag = 12;
+					if ( cid->crc != 0 ) {
+						ast_log(LOG_WARNING, "crc checksum error\n" ) ;
+						return -1;
+					} 
+					/* extract caller id data */
+					for (x=0; x<cid->pos; ) {
+						switch (cid->rawdata[x++]) {
+							case 0x02: /* caller id  number */
+								cid->number[0] = '\0';
+								cid->name[0] = '\0';
+								cid->flags = 0;
+								res = cid->rawdata[x++];
+								ast_copy_string(cid->number, &cid->rawdata[x], res+1 );
+                                x += res;
+								break;
+							case 0x21: /* additional information */
+								/* length */
+                                x++; 
+								/* number type */
+                           		switch (cid->rawdata[x]) { 
+									case 0x00: /* unknown */
+									case 0x01: /* international number */
+									case 0x02: /* domestic number */
+									case 0x03: /* network */
+									case 0x04: /* local call */
+									case 0x06: /* short dial number */
+									case 0x07: /* reserved */
+									default:   /* reserved */
+										ast_log(LOG_NOTICE, "cid info:#1=%X\n", cid->rawdata[x]);
+										break ;
+								}
+                                x++; 
+								/* numbering plan octed 4 */
+                                x++; 
+								/* numbering plan octed 5 */
+                           		switch (cid->rawdata[x]) { 
+									case 0x00: /* unknown */
+									case 0x01: /* recommendation E.164 ISDN */
+									case 0x03: /* recommendation X.121 */
+									case 0x04: /* telex dial plan */
+									case 0x08: /* domestic dial plan */
+									case 0x09: /* private dial plan */
+									case 0x05: /* reserved */
+									default:   /* reserved */
+										ast_log(LOG_NOTICE, "cid info:#2=%X\n", cid->rawdata[x]);
+										break ;
+								}
+                                x++; 
+								break ;
+							case 0x04: /* no callerid reason */
+								/* length */
+                                x++; 
+								/* no callerid reason code */
+                            	switch (cid->rawdata[x]) {
+									case 'P': /* caller id denied by user */
+									case 'O': /* service not available */
+									case 'C': /* pay phone */
+									case 'S': /* service congested */
+                    					cid->flags |= CID_UNKNOWN_NUMBER;
+										ast_log(LOG_NOTICE, "no cid reason:%c\n",cid->rawdata[x]);
+										break ;
+								}
+                                x++; 
+								break ;
+							case 0x09: /* dialed number */
+								/* length */
+								res = cid->rawdata[x++];
+								/* dialed number */
+								x += res;
+								break ;
+							case 0x22: /* dialed number additional information */
+                                /* length */
+                                x++;
+                                /* number type */
+                                switch (cid->rawdata[x]) {
+                                    case 0x00: /* unknown */
+                                    case 0x01: /* international number */
+                                    case 0x02: /* domestic number */
+                                    case 0x03: /* network */
+                                    case 0x04: /* local call */
+                                    case 0x06: /* short dial number */
+                                    case 0x07: /* reserved */
+                                    default:   /* reserved */
+                                        ast_log(LOG_NOTICE, "did info:#1=%X\n", cid->rawdata[x]);
+                                        break ;
+                                }
+                                x++;
+                                /* numbering plan octed 4 */
+                                x++;
+                                /* numbering plan octed 5 */
+                                switch (cid->rawdata[x]) {
+                                    case 0x00: /* unknown */
+                                    case 0x01: /* recommendation E.164 ISDN */
+                                    case 0x03: /* recommendation X.121 */
+                                    case 0x04: /* telex dial plan */
+                                    case 0x08: /* domestic dial plan */
+                                    case 0x09: /* private dial plan */
+                                    case 0x05: /* reserved */
+                                    default:   /* reserved */
+                                        ast_log(LOG_NOTICE, "did info:#2=%X\n", cid->rawdata[x]);
+                                        break ;
+                                }
+                                x++;
+                                break ;
+						}
+					}
+					return 1;
+					break;
+				default:
+					ast_log(LOG_ERROR, "invalid value in sawflag %d\n", cid->sawflag);
+			}
+		}
+	}
+	if (mylen) {
+		memcpy(cid->oldstuff, buf, mylen * 2);
+		cid->oldlen = mylen * 2;
+	} else
+		cid->oldlen = 0;
+	free(obuf);
+	return 0;
+}
+
 
 int callerid_feed(struct callerid_state *cid, unsigned char *ubuf, int len, int codec)
 {
