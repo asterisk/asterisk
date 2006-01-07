@@ -1830,8 +1830,6 @@ static struct sip_user *find_user(const char *name, int realtime)
 /*! \brief  create_addr_from_peer: create address structure from peer reference ---*/
 static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 {
-	char *callhost;
-
 	if ((peer->addr.sin_addr.s_addr || peer->defaddr.sin_addr.s_addr) &&
 	    (!peer->maxms || ((peer->lastms >= 0)  && (peer->lastms <= peer->maxms)))) {
 		if (peer->addr.sin_addr.s_addr) {
@@ -1867,8 +1865,15 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	ast_string_field_set(r, tohost, peer->tohost);
 	ast_string_field_set(r, fullcontact, peer->fullcontact);
 	if (!r->initreq.headers && !ast_strlen_zero(peer->fromdomain)) {
-		if ((callhost = strchr(r->callid, '@'))) {
-			strncpy(callhost + 1, peer->fromdomain, sizeof(r->callid) - (callhost - r->callid) - 2);
+		char *tmpcall;
+		char *c;
+		tmpcall = ast_strdupa(r->callid);
+		if (tmpcall) {
+			c = strchr(tmpcall, '@');
+			if (c) {
+				*c = '\0';
+				ast_string_field_build(r, callid, "%s@%s", tmpcall, peer->fromdomain);
+			}
 		}
 	}
 	if (ast_strlen_zero(r->tohost)) {
