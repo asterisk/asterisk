@@ -3898,8 +3898,8 @@ done:
 static int vm_play_folder_name_gr(struct ast_channel *chan, char *mbox)
 {
 	int cmd;
-	char buf[sizeof(mbox)+1]; 
-
+	char *buf;
+	buf = alloca(strlen(mbox)+2); 
 	memset(buf, '\0', sizeof(char)*(sizeof(buf)));
 	strcpy(buf, mbox);
 	strcat(buf,"s");
