@@ -1511,7 +1511,7 @@ static int ast_cli_display_match_list(char **matches, int len, int max)
 
 	idx = 1;
 
-	qsort(&matches[0], (size_t)(len + 1), sizeof(char *), ast_el_sort_compare);
+	qsort(&matches[0], (size_t)(len), sizeof(char *), ast_el_sort_compare);
 
 	for (; count > 0; count--) {
 		numoutputline = 0;
@@ -1603,12 +1603,14 @@ static char *cli_complete(EditLine *el, int ch)
 		} else
 			matches = (char **) NULL;
 	} else {
-		char **p;
-		int count = 0;
+		char **p, *oldbuf=NULL;
+		nummatches = 0;
 		matches = ast_cli_completion_matches((char *)lf->buffer,ptr);
-		for (p = matches; p && *p; p++)
-			count++;
-		nummatches = count - 1; /* XXX apparently there is one dup ? */
+		for (p = matches; p && *p; p++) {
+			if (!oldbuf || strcmp(*p,oldbuf))
+				nummatches++;
+			oldbuf = *p;
+		}
 	}
 
 	if (matches) {
