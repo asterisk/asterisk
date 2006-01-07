@@ -5973,10 +5973,12 @@ lax);
 							ast_log(LOG_NOTICE, "Got event %d (%s)...\n", res, event2str(res));
 
 							if (p->cid_signalling == CID_SIG_V23_JP) {
+#ifdef ZT_EVENT_RINGBEGIN
 								if (res == ZT_EVENT_RINGBEGIN) {
 									res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_OFFHOOK);
-            								usleep(1);
+									usleep(1);
 								}
+#endif
 							} else {
 								res = 0;
 								break;
@@ -6019,7 +6021,7 @@ lax);
 
 					if (p->cid_signalling == CID_SIG_V23_JP) {
 						res = zt_set_hook(p->subs[SUB_REAL].zfd, ZT_ONHOOK);
-           					usleep(1);
+						usleep(1);
 						res = 4000;
 					} else {
 
@@ -10438,7 +10440,11 @@ static int setup_zap(int reload)
 			else if (!strcasecmp(v->value, "dtmf"))
 				cid_signalling = CID_SIG_DTMF;
 			else if (!strcasecmp(v->value, "v23_jp"))
+#ifdef ZT_EVENT_RINGBEGIN
 				cid_signalling = CID_SIG_V23_JP;
+#else
+				ast_log(LOG_WARNING, "Asterisk compiled aginst Zaptel version too old to support japanese CallerID!\n");								
+#endif
 			else if (ast_true(v->value))
 				cid_signalling = CID_SIG_BELL;
 		} else if (!strcasecmp(v->name, "cidstart")) {
