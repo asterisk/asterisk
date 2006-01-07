@@ -122,8 +122,10 @@ int ast_db_deltree(const char *family, const char *keytree)
 	}
 	
 	ast_mutex_lock(&dblock);
-	if (dbinit()) 
+	if (dbinit()) {
+		ast_mutex_unlock(&dblock);
 		return -1;
+	}
 	
 	memset(&key, 0, sizeof(key));
 	memset(&data, 0, sizeof(data));
