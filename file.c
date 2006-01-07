@@ -365,13 +365,9 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 	/* Check for a specific format */
 	if (ast_mutex_lock(&formatlock)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
-		if (action == ACTION_EXISTS)
-			return 0;
-		else
-			return -1;
+		return res;
 	}
-	f = formats;
-	while(f) {
+	for (f = formats; f; f = f->next) {
 		if (!fmt || exts_compare(f->exts, fmt)) {
 			char *stringp=NULL;
 			exts = ast_strdupa(f->exts);
@@ -452,7 +448,6 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 			} while(ext);
 			
 		}
-		f = f->next;
 	}
 	ast_mutex_unlock(&formatlock);
 	if ((action == ACTION_EXISTS) || (action == ACTION_OPEN))
