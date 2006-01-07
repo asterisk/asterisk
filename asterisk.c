@@ -2171,6 +2171,10 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
+		if (initgroups(pw->pw_name, pw->pw_gid)) {
+			ast_log(LOG_WARNING, "Unable to init groups for '%s'\n", runuser);
+			exit(1);
+		}
 		if (setuid(pw->pw_uid)) {
 			ast_log(LOG_WARNING, "Unable to setuid to %d (%s)\n", pw->pw_uid, runuser);
 			exit(1);
