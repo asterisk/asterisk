@@ -1504,7 +1504,7 @@ static int append_event(struct mansession *s, const char *str)
 }
 
 /*! \brief  manager_event: Send AMI event to client */
-int manager_event(int category, char *event, char *fmt, ...)
+int manager_event(int category, const char *event, const char *fmt, ...)
 {
 	struct mansession *s;
 	char auth[80];
