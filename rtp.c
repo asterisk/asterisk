@@ -655,6 +655,7 @@ static struct {
 	{{1, AST_FORMAT_H261}, "video", "H261"},
 	{{1, AST_FORMAT_H263}, "video", "H263"},
 	{{1, AST_FORMAT_H263_PLUS}, "video", "h263-1998"},
+	{{1, AST_FORMAT_H264}, "video", "H264"},
 };
 
 /* Static (i.e., well-known) RTP payload types for our "AST_FORMAT..."s:
@@ -683,6 +684,7 @@ static struct rtpPayloadType static_RTP_PT[MAX_RTP_PT] = {
 	[34] = {1, AST_FORMAT_H263},
 	[103] = {1, AST_FORMAT_H263_PLUS},
 	[97] = {1, AST_FORMAT_ILBC},
+	[99] = {1, AST_FORMAT_H264},
 	[101] = {0, AST_RTP_DTMF},
 	[110] = {1, AST_FORMAT_SPEEX},
 	[111] = {1, AST_FORMAT_G726},
@@ -1515,6 +1517,7 @@ int ast_rtp_write(struct ast_rtp *rtp, struct ast_frame *_f)
 	case AST_FORMAT_H261:
 	case AST_FORMAT_H263:
 	case AST_FORMAT_H263_PLUS:
+	case AST_FORMAT_H264:
 	case AST_FORMAT_G723_1:
 	case AST_FORMAT_LPC10:
 	case AST_FORMAT_SPEEX:

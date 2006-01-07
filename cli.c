@@ -738,6 +738,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	struct timeval now;
 	char buf[2048];
 	char cdrtime[256];
+	char nf[256], wf[256], rf[256];
 	long elapsed_seconds=0;
 	int hour=0, min=0, sec=0;
 	
@@ -767,9 +768,9 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"    DNID Digits: %s\n"
 		"          State: %s (%d)\n"
 		"          Rings: %d\n"
-		"   NativeFormat: %d\n"
-		"    WriteFormat: %d\n"
-		"     ReadFormat: %d\n"
+		"  NativeFormats: %s\n"
+		"    WriteFormat: %s\n"
+		"     ReadFormat: %s\n"
 		"1st File Descriptor: %d\n"
 		"      Frames in: %d%s\n"
 		"     Frames out: %d%s\n"
@@ -789,7 +790,10 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		c->name, c->type, c->uniqueid,
 		(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
 		(c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
-		(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, c->nativeformats, c->writeformat, c->readformat,
+		(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, 
+		ast_getformatname_multiple(nf, sizeof(nf), c->nativeformats), 
+		ast_getformatname_multiple(wf, sizeof(wf), c->writeformat), 
+		ast_getformatname_multiple(rf, sizeof(rf), c->readformat),
 		c->fds[0], c->fin & 0x7fffffff, (c->fin & 0x80000000) ? " (DEBUGGED)" : "",
 		c->fout & 0x7fffffff, (c->fout & 0x80000000) ? " (DEBUGGED)" : "", (long)c->whentohangup,
 		cdrtime, c->_bridge ? c->_bridge->name : "<none>", ast_bridged_channel(c) ? ast_bridged_channel(c)->name : "<none>", 

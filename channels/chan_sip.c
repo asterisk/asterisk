@@ -2790,7 +2790,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 		what = i->capability;
 	else
 		what = global_capability;
-	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1);
+	tmp->nativeformats = ast_codec_choose(&i->prefs, what, 1) | (i->jointcapability & AST_FORMAT_VIDEO_MASK);
 	fmt = ast_best_codec(tmp->nativeformats);
 
 	if (title)
@@ -3011,9 +3011,9 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 	if (p->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {
-			if (f->subclass != p->owner->nativeformats) {
+			if (f->subclass != (p->owner->nativeformats & AST_FORMAT_AUDIO_MASK)) {
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
-				p->owner->nativeformats = f->subclass;
+				p->owner->nativeformats = (p->owner->nativeformats & AST_FORMAT_VIDEO_MASK) | f->subclass;
 				ast_set_read_format(p->owner, p->owner->readformat);
 				ast_set_write_format(p->owner, p->owner->writeformat);
 			}
@@ -3679,13 +3679,13 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	if (!p->owner) 	/* There's no open channel owning us */
 		return 0;
 
-	if (!(p->owner->nativeformats & p->jointcapability)) {
+	if (!(p->owner->nativeformats & p->jointcapability & AST_FORMAT_AUDIO_MASK)) {
 		const unsigned slen=512;
 		char s1[slen], s2[slen];
 		ast_log(LOG_DEBUG, "Oooh, we need to change our formats since our peer supports only %s and not %s\n", 
 				ast_getformatname_multiple(s1, slen, p->jointcapability),
 				ast_getformatname_multiple(s2, slen, p->owner->nativeformats));
-		p->owner->nativeformats = ast_codec_choose(&p->prefs, p->jointcapability, 1);
+		p->owner->nativeformats = ast_codec_choose(&p->prefs, p->jointcapability, 1) | (p->capability & vpeercapability);
 		ast_set_read_format(p->owner, p->owner->readformat);
 		ast_set_write_format(p->owner, p->owner->writeformat);
 	}

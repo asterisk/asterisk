@@ -101,7 +101,7 @@ static struct ast_format_list AST_FORMAT_LIST[] = {
 	{ 1, AST_FORMAT_H261, "h261", "H.261 Video" },	/*!< Passthrough */
 	{ 1, AST_FORMAT_H263, "h263", "H.263 Video" },	/*!< Passthrough support, see format_h263.c */
 	{ 1, AST_FORMAT_H263_PLUS, "h263p", "H.263+ Video" },	/*!< See format_h263.c */
-	{ 0, 0, "nothing", "undefined" },
+	{ 1, AST_FORMAT_H264, "h264", "H.264 Video" },	/*!< Passthrough support, see format_h263.c */
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, 0, "nothing", "undefined" },

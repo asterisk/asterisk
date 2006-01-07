@@ -193,6 +193,8 @@ struct ast_frame {
 #define AST_FORMAT_ILBC		(1 << 10)
 /*! Maximum audio format */
 #define AST_FORMAT_MAX_AUDIO	(1 << 15)
+/*! Maximum audio mask */
+#define AST_FORMAT_AUDIO_MASK   ((1 << 16)-1)
 /*! JPEG Images */
 #define AST_FORMAT_JPEG		(1 << 16)
 /*! PNG Images */
@@ -203,8 +205,11 @@ struct ast_frame {
 #define AST_FORMAT_H263		(1 << 19)
 /*! H.263+ Video */
 #define AST_FORMAT_H263_PLUS	(1 << 20)
+/*! H.264 Video */
+#define AST_FORMAT_H264		(1 << 21)
 /*! Maximum video format */
 #define AST_FORMAT_MAX_VIDEO	(1 << 24)
+#define AST_FORMAT_VIDEO_MASK   (((1 << 25)-1) & ~(AST_FORMAT_AUDIO_MASK))
 
 /* Control frame types */
 /*! Other end has hungup */
