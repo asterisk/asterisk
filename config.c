@@ -440,9 +440,8 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 		while(*c && (*c > 32)) c++;
 		if (*c) {
 			*c = '\0';
-			c++;
 			/* Find real argument */
-			while(*c  && (*c < 33)) c++;
+			c = ast_skip_blanks(c + 1);
 			if (!*c)
 				c = NULL;
 		} else 
