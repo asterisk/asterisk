@@ -2171,7 +2171,7 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "No such user '%s'!\n", runuser);
 			exit(1);
 		}
-		if (!ast_strlen_zero(rungroup))
+		if (!ast_strlen_zero(rungroup)) {
 			if (initgroups(pw->pw_name, pw->pw_gid)) {
 				ast_log(LOG_WARNING, "Unable to init groups for '%s'\n", runuser);
 				exit(1);
