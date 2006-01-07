@@ -4194,7 +4194,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	add_header(req, "User-Agent", default_useragent);
 	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
-	if (p->rpid)
+	if (!ast_strlen_zero(p->rpid))
 		add_header(req, "Remote-Party-ID", p->rpid);
 
 	return 0;
@@ -4720,7 +4720,7 @@ static void build_rpid(struct sip_pvt *p)
 	char iabuf[INET_ADDRSTRLEN];
 	const char *fromdomain;
 
-	if (p->rpid || p->rpid_from)
+	if (!ast_strlen_zero(p->rpid) || !ast_strlen_zero(p->rpid_from))  
 		return;
 
 	if (p->owner && p->owner->cid.cid_num)
@@ -4922,7 +4922,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	add_header(req, "CSeq", tmp);
 	add_header(req, "User-Agent", default_useragent);
 	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
-	if (p->rpid)
+	if (!ast_strlen_zero(p->rpid))
 		add_header(req, "Remote-Party-ID", p->rpid);
 }
 
