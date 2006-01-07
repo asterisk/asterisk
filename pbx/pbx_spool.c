@@ -289,10 +289,11 @@ static void launch_service(struct outgoing *o)
 {
 	pthread_t t;
 	pthread_attr_t attr;
+	int ret;
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (ast_pthread_create(&t,&attr,attempt_thread, o) == -1) {
-		ast_log(LOG_WARNING, "Unable to create thread :(\n");
+	if ((ret = ast_pthread_create(&t,&attr,attempt_thread, o)) != 0) {
+		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
 		free_outgoing(o);
 	}
 }
@@ -413,6 +414,7 @@ int load_module(void)
 {
 	pthread_t thread;
 	pthread_attr_t attr;
+	int ret;
 	snprintf(qdir, sizeof(qdir), "%s/%s", ast_config_AST_SPOOL_DIR, "outgoing");
 	if (mkdir(qdir, 0700) && (errno != EEXIST)) {
 		ast_log(LOG_WARNING, "Unable to create queue directory %s -- outgoing spool disabled\n", qdir);
@@ -420,8 +422,8 @@ int load_module(void)
 	}
 	pthread_attr_init(&attr);
  	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (ast_pthread_create(&thread,&attr,scan_thread, NULL) == -1) {
-		ast_log(LOG_WARNING, "Unable to create thread :(\n");
+	if ((ret = ast_pthread_create(&thread,&attr,scan_thread, NULL)) != 0) {
+		ast_log(LOG_WARNING, "Unable to create thread :( (returned error: %d)\n", ret);
 		return -1;
 	}
 	return 0;
