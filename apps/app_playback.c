@@ -72,13 +72,13 @@ LOCAL_USER_DECL;
 
 static int playback_exec(struct ast_channel *chan, void *data)
 {
-	int res = 0, mres = 0;
+	int res = 0;
 	struct localuser *u;
-	char *tmp = NULL;
+	char *tmp;
 	int option_skip=0;
 	int option_noanswer = 0;
-	char *front = NULL, *back = NULL;
 	int priority_jump = 0;
+
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(filenames);
 		AST_APP_ARG(options);
@@ -89,15 +89,13 @@ static int playback_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
-
 	tmp = ast_strdupa(data);
 	if (!tmp) {
 		ast_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
 		return -1;	
 	}
 
+	LOCAL_USER_ADD(u);
 	AST_STANDARD_APP_ARGS(args, tmp);
 
 	if (args.options) {
@@ -119,13 +117,11 @@ static int playback_exec(struct ast_channel *chan, void *data)
 			res = ast_answer(chan);
 	}
 	if (!res) {
+		int mres = 0;
+		char *front;
+
 		ast_stopstream(chan);
-		front = tmp;
-		while (!res && front) {
-			if ((back = strchr(front, '&'))) {
-				*back = '\0';
-				back++;
-			}
+		while (!res && (front = strsep(&tmp, "&"))) {
 			res = ast_streamfile(chan, front, chan->language);
 			if (!res) { 
 				res = ast_waitstream(chan, "");	
@@ -137,12 +133,8 @@ static int playback_exec(struct ast_channel *chan, void *data)
 				res = 0;
 				mres = 1;
 			}
-			front = back;
 		}
-		if (mres)
-			pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "FAILED");
-		else
-			pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", "SUCCESS");
+		pbx_builtin_setvar_helper(chan, "PLAYBACKSTATUS", mres ? "FAILED" : "SUCCESS");
 	}
 	LOCAL_USER_REMOVE(u);
 	return res;
