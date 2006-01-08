@@ -94,6 +94,9 @@ static char courtesytone[256];
 static char xfersound[256];
 static char xferfailsound[256];
 
+/* Who to play the courtesy tone to */
+static int parkedplay = 0;
+
 /* First available extension for parking */
 static int parking_start;
 
@@ -1742,19 +1745,45 @@ static int park_exec(struct ast_channel *chan, void *data)
 	}
 
 	if (peer) {
-		/* Play a courtesy beep in the calling channel to prefix the bridge connecting */	
+		/* Play a courtesy to the source(s) configured to prefix the bridge connecting */
+		
 		if (!ast_strlen_zero(courtesytone)) {
-			if (!ast_streamfile(chan, courtesytone, chan->language)) {
-				if (ast_waitstream(chan, "") < 0) {
-					ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
-					ast_hangup(peer);
-					return -1;
+			if (parkedplay == 0) {
+				if (!ast_streamfile(chan, courtesytone, chan->language)) {
+					if (ast_waitstream(chan, "") < 0) {
+						ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+						ast_hangup(peer);
+						return -1;
+					}
+				}
+				ast_moh_stop(peer);
+				ast_indicate(peer, AST_CONTROL_UNHOLD);
+			} else {
+				ast_moh_stop(peer);
+				ast_indicate(peer, AST_CONTROL_UNHOLD);
+				if (parkedplay == 2) {
+					if (!ast_streamfile(chan, courtesytone, chan->language) && !ast_streamfile(peer, courtesytone, chan->language)) {
+						res = ast_waitstream(chan, "");
+						if (res >= 0)
+							res = ast_waitstream(peer, "");
+						if (res < 0) {
+							ast_log(LOG_WARNING, "Failed to play courtesy tones!\n");
+							ast_hangup(peer);
+							return -1;
+						}
+					}
+				} else if (parkedplay == 1) {
+					if (!ast_streamfile(peer, courtesytone, chan->language)) {
+						if (ast_waitstream(peer, "") < 0) {
+							ast_log(LOG_WARNING, "Failed to play courtesy tone!\n");
+							ast_hangup(peer);
+							return -1;
+						}
+					}
 				}
 			}
 		}
  
-		ast_moh_stop(peer);
-		ast_indicate(peer, AST_CONTROL_UNHOLD);
 		res = ast_channel_make_compatible(chan, peer);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "Could not make channels %s and %s compatible for bridge\n", chan->name, peer->name);
@@ -2029,6 +2058,13 @@ static int load_config(void)
 				}
 			} else if (!strcasecmp(var->name, "courtesytone")) {
 				ast_copy_string(courtesytone, var->value, sizeof(courtesytone));
+			}  else if (!strcasecmp(var->name, "parkedplay")) {
+				if (!strcasecmp(var->value, "both"))
+					parkedplay = 2;
+				else if (!strcasecmp(var->value, "parked"))
+					parkedplay = 1;
+				else
+					parkedplay = 0;
 			} else if (!strcasecmp(var->name, "xfersound")) {
 				ast_copy_string(xfersound, var->value, sizeof(xfersound));
 			} else if (!strcasecmp(var->name, "xferfailsound")) {

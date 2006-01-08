@@ -12,6 +12,8 @@ context => parkedcalls		; Which context parked calls are in
 ;courtesytone = beep		; Sound file to play to the parked caller 
 				; when someone dials a parked call
 				; or the Touch Monitor is activated/deactivated.
+;parkedplay = caller		; Who to play the courtesy tone to when picking up a parked call
+				; one of: parked, caller, both  (default is caller)
 ;xfersound = beep		; to indicate an attended transfer is complete
 ;xferfailsound = beeperr	; to indicate a failed transfer
 ;adsipark = yes			; if you want ADSI parking announcements
