@@ -164,7 +164,7 @@ static struct ast_frame *h264_read(struct ast_filestream *s, int *whennext)
 	}
 	if ((res = fread(s->h264, 1, len, s->f)) != len) {
 		if (res)
-			ast_log(LOG_WARNING, "Short read (%d) (%s)!\n", res, strerror(errno));
+			ast_log(LOG_WARNING, "Short read (%d of %d) (%s)!\n", res, len, strerror(errno));
 		return NULL;
 	}
 	s->fr.samples = s->lastts;

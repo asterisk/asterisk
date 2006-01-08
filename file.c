@@ -184,8 +184,6 @@ int ast_format_unregister(const char *name)
 int ast_stopstream(struct ast_channel *tmp)
 {
 	/* Stop a running stream if there is one */
-	if (tmp->vstream)
-		ast_closestream(tmp->vstream);
 	if (tmp->stream) {
 		ast_closestream(tmp->stream);
 		if (tmp->oldwriteformat && ast_set_write_format(tmp, tmp->oldwriteformat))
@@ -730,6 +728,10 @@ int ast_closestream(struct ast_filestream *f)
 		f->realfilename = NULL;
 	}
 	f->fmt->close(f);
+	if (f->vfs) {
+		ast_closestream(f->vfs);
+		f->vfs = NULL;
+	}
 	return 0;
 }
 
