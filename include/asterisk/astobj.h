@@ -571,6 +571,76 @@ extern "C" {
 		found; \
 	})
 
+/*! \brief Add an object to the end of a container.
+ *
+ * \param container A pointer to the container to operate on.
+ * \param newobj A pointer to the object to be added.
+ *
+ * This macro adds an object to the end of a container.
+ */
+#define ASTOBJ_CONTAINER_LINK_END(container,newobj) \
+	do { \
+		typeof((container)->head) iterator; \
+		typeof((container)->head) next; \
+		typeof((container)->head) prev; \
+		ASTOBJ_CONTAINER_RDLOCK(container); \
+		prev = NULL; \
+		next = (container)->head; \
+		while((iterator = next)) { \
+			next = iterator->next[0]; \
+			prev = iterator; \
+		} \
+		if(prev) { \
+			ASTOBJ_CONTAINER_WRLOCK((container)); \
+			prev->next[0] = ASTOBJ_REF(newobj); \
+			(newobj)->next[0] = NULL; \
+			ASTOBJ_CONTAINER_UNLOCK((container)); \
+		} else { \
+			ASTOBJ_CONTAINER_LINK_START((container),(newobj)); \
+		} \
+		ASTOBJ_CONTAINER_UNLOCK((container)); \
+	} while(0)
+
+/*! \brief Add an object to the front of a container.
+ *
+ * \param container A pointer to the container to operate on.
+ * \param newobj A pointer to the object to be added.
+ *
+ * This macro adds an object to the start of a container.
+ */
+#define ASTOBJ_CONTAINER_LINK_START(container,newobj) \
+	do { \
+		ASTOBJ_CONTAINER_WRLOCK(container); \
+		(newobj)->next[0] = (container)->head; \
+		(container)->head = ASTOBJ_REF(newobj); \
+		ASTOBJ_CONTAINER_UNLOCK(container); \
+	} while(0)
+
+/*! \brief Remove an object from the front of a container.
+ *
+ * \param container A pointer to the container to operate on.
+ *
+ * This macro removes the first object in a container.
+ *
+ * \note This macro does not destroy any objects, it simply unlinks
+ * them from the list.  No destructors are called.
+ *
+ * \return The container's reference to the removed object or NULL if no
+ * matching object was found.
+ */
+#define ASTOBJ_CONTAINER_UNLINK_START(container) \
+	({ \
+		typeof((container)->head) found = NULL; \
+		ASTOBJ_CONTAINER_WRLOCK(container); \
+	 	if((container)->head) { \
+	 		found = (container)->head; \
+	 		(container)->head = (container)->head->next[0]; \
+	 		found->next[0] = NULL; \
+	 	} \
+		ASTOBJ_CONTAINER_UNLOCK(container); \
+	 	found; \
+	})
+
 /*! \brief Prune marked objects from a container.
  *
  * \param container A pointer to the container to prune.
