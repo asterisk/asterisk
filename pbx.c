@@ -821,40 +821,33 @@ static struct ast_exten *pbx_find_extension(struct ast_channel *chan, struct ast
 /* Note that it's negative -- that's important later. */
 #define DONT_HAVE_LENGTH	0x80000000
 
+/*! \brief extract offset:length from variable name.
+ * Returns 1 if there is a offset:length part, which is
+ * trimmed off (values go into variables)
+ */
 static int parse_variable_name(char *var, int *offset, int *length, int *isfunc)
 {
-	char *varchar, *offsetchar = NULL;
 	int parens=0;
 
 	*offset = 0;
 	*length = DONT_HAVE_LENGTH;
 	*isfunc = 0;
-	for (varchar = var; *varchar; varchar++) {
-		switch (*varchar) {
-		case '(':
+	for (; *var; var++) {
+		if (*var == '(') {
 			(*isfunc)++;
 			parens++;
-			break;
-		case ')':
+		} else if (*var == ')') {
 			parens--;
-			break;
-		case ':':
-			if (parens == 0) {
-				offsetchar = varchar + 1;
-				*varchar = '\0';
-				goto pvn_endfor;
-			}
+		} else if (*var == ':' && parens == 0) {
+			*var++ = '\0';
+			sscanf(var, "%d:%d", offset, length);
+			return 1; /* offset:length valid */
 		}
 	}
-pvn_endfor:
-	if (offsetchar) {
-		sscanf(offsetchar, "%d:%d", offset, length);
-		return 1;
-	} else {
-		return 0;
-	}
+	return 0;
 }
 
+/*! \brief takes a substring. It is ok to call with value == workspace. */
 static char *substring(char *value, int offset, int length, char *workspace, size_t workspace_len)
 {
 	char *ret = workspace;
@@ -899,204 +892,171 @@ static char *substring(char *value, int offset, int length, char *workspace, siz
   ---*/
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
-	char tmpvar[80];
-	time_t thistime;
-	struct tm brokentime;
-	int offset, offset2, isfunc;
-	struct ast_var_t *variables;
-	char *deprecated = NULL;
+	const char not_found = '\0';
+	char tmpvar[80], *deprecated = NULL;
+	const char *s;	/* the result */
+	int offset, length;
+	int i, need_substring;
+	struct varshead *places[2] = { headp, &globals };	/* list of places where we may look */
 
-	if (c) 
-		headp=&c->varshead;
-	*ret=NULL;
-	ast_copy_string(tmpvar, var, sizeof(tmpvar));
-	if (parse_variable_name(tmpvar, &offset, &offset2, &isfunc)) {
-		pbx_retrieve_variable(c, tmpvar, ret, workspace, workspacelen, headp);
-		if (!(*ret)) 
-			return;
-		*ret = substring(*ret, offset, offset2, workspace, workspacelen);
-	} else if (c && !strncmp(var, "CALL", 4)) {
-		if (!strncmp(var + 4, "ER", 2)) {
-			if (!strncmp(var + 6, "ID", 2)) {
-				if (!var[8]) { 			/* CALLERID */
-					if (c->cid.cid_num) {
-						if (c->cid.cid_name) {
-							snprintf(workspace, workspacelen, "\"%s\" <%s>", c->cid.cid_name, c->cid.cid_num);
-						} else {
-							ast_copy_string(workspace, c->cid.cid_num, workspacelen);
-						}
-						*ret = workspace;
-					} else if (c->cid.cid_name) {
-						ast_copy_string(workspace, c->cid.cid_name, workspacelen);
-						*ret = workspace;
-					} else
-						*ret = NULL;
-					deprecated = "CALLERID(all)";
-				} else if (!strcmp(var + 8, "NUM")) {
-					/* CALLERIDNUM */
-					if (c->cid.cid_num) {
-						ast_copy_string(workspace, c->cid.cid_num, workspacelen);
-						*ret = workspace;
-					} else
-						*ret = NULL;
-					deprecated = "CALLERID(num)";
-				} else if (!strcmp(var + 8, "NAME")) {
-					/* CALLERIDNAME */
-					if (c->cid.cid_name) {
-						ast_copy_string(workspace, c->cid.cid_name, workspacelen);
-						*ret = workspace;
-					} else
-						*ret = NULL;
-					deprecated = "CALLERID(name)";
-				} else
-					goto icky;
-			} else if (!strcmp(var + 6, "ANI")) {
-				/* CALLERANI */
-				if (c->cid.cid_ani) {
-					ast_copy_string(workspace, c->cid.cid_ani, workspacelen);
-					*ret = workspace;
-				} else
-					*ret = NULL;
-				deprecated = "CALLERID(ANI)";
-			} else
-				goto icky;
-		} else if (!strncmp(var + 4, "ING", 3)) {
-			if (!strcmp(var + 7, "PRES")) {
-				/* CALLINGPRES */
-				snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
-				*ret = workspace;
-			} else if (!strcmp(var + 7, "ANI2")) {
-				/* CALLINGANI2 */
-				snprintf(workspace, workspacelen, "%d", c->cid.cid_ani2);
-				*ret = workspace;
-			} else if (!strcmp(var + 7, "TON")) {
-				/* CALLINGTON */
-				snprintf(workspace, workspacelen, "%d", c->cid.cid_ton);
-				*ret = workspace;
-			} else if (!strcmp(var + 7, "TNS")) {
-				/* CALLINGTNS */
-				snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
-				*ret = workspace;
-			} else
-				goto icky;
-		} else
-			goto icky;
-	} else if (c && !strcmp(var, "DNID")) {
-		if (c->cid.cid_dnid) {
-			ast_copy_string(workspace, c->cid.cid_dnid, workspacelen);
-			*ret = workspace;
-		} else
-			*ret = NULL;
-		deprecated = "CALLERID(DNID)";
-	} else if (c && !strcmp(var, "HINT")) {
-		if (!ast_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten))
-			*ret = NULL;
-		else
-			*ret = workspace;
-	} else if (c && !strcmp(var, "HINTNAME")) {
-		if (!ast_get_hint(NULL, 0, workspace, workspacelen, c, c->context, c->exten))
-			*ret = NULL;
-		else
-			*ret = workspace;
-	} else if (c && !strcmp(var, "EXTEN")) {
-		ast_copy_string(workspace, c->exten, workspacelen);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "RDNIS")) {
-		if (c->cid.cid_rdnis) {
-			ast_copy_string(workspace, c->cid.cid_rdnis, workspacelen);
-			*ret = workspace;
-		} else
-			*ret = NULL;
-		deprecated = "CALLERID(RDNIS)";
-	} else if (c && !strcmp(var, "CONTEXT")) {
-		ast_copy_string(workspace, c->context, workspacelen);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "PRIORITY")) {
-		snprintf(workspace, workspacelen, "%d", c->priority);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "CHANNEL")) {
-		ast_copy_string(workspace, c->name, workspacelen);
-		*ret = workspace;
-	} else if (!strcmp(var, "EPOCH")) {
-		snprintf(workspace, workspacelen, "%u",(int)time(NULL));
-		*ret = workspace;
-	} else if (!strcmp(var, "DATETIME")) {
-		thistime=time(NULL);
-		localtime_r(&thistime, &brokentime);
-		snprintf(workspace, workspacelen, "%02d%02d%04d-%02d:%02d:%02d",
-			brokentime.tm_mday,
-			brokentime.tm_mon+1,
-			brokentime.tm_year+1900,
-			brokentime.tm_hour,
-			brokentime.tm_min,
-			brokentime.tm_sec
-		);
-		*ret = workspace;
-		deprecated = "STRFTIME(${EPOCH},,\%m\%d\%Y-\%H:\%M:\%S)";
-	} else if (!strcmp(var, "TIMESTAMP")) {
-		thistime=time(NULL);
-		localtime_r(&thistime, &brokentime);
-		/* 20031130-150612 */
-		snprintf(workspace, workspacelen, "%04d%02d%02d-%02d%02d%02d",
-			brokentime.tm_year+1900,
-			brokentime.tm_mon+1,
-			brokentime.tm_mday,
-			brokentime.tm_hour,
-			brokentime.tm_min,
-			brokentime.tm_sec
-		);
-		*ret = workspace;
-		deprecated = "STRFTIME(${EPOCH},,\%Y\%m\%d-\%H\%M\%S)";
-	} else if (c && !strcmp(var, "UNIQUEID")) {
-		snprintf(workspace, workspacelen, "%s", c->uniqueid);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "HANGUPCAUSE")) {
-		snprintf(workspace, workspacelen, "%d", c->hangupcause);
-		*ret = workspace;
-	} else if (c && !strcmp(var, "ACCOUNTCODE")) {
-		ast_copy_string(workspace, c->accountcode, workspacelen);
-		*ret = workspace;
-		deprecated = "CDR(accountcode)";
-	} else if (c && !strcmp(var, "LANGUAGE")) {
-		ast_copy_string(workspace, c->language, workspacelen);
-		*ret = workspace;
-		deprecated = "LANGUAGE()";
-	} else {
-icky:
-		if (headp) {
-			AST_LIST_TRAVERSE(headp,variables,entries) {
-#if 0
-				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
-#endif
-				if (strcasecmp(ast_var_name(variables),var)==0) {
-					const char *s = ast_var_value(variables);
-					if (s) {
-						ast_copy_string(workspace, s, workspacelen);
-						*ret = workspace;
+	if (c) {
+		places[0] = &c->varshead;
+	}
+	/*
+	 * Make a copy of var because parse_variable_name() modifies the string.
+	 * Then if called directly, we might need to run substring() on the result;
+	 * remember this for later in 'need_substring', 'offset' and 'length'
+	 */
+	ast_copy_string(tmpvar, var, sizeof(tmpvar));	/* parse_variable_name modifies the string */
+	need_substring = parse_variable_name(tmpvar, &offset, &length, &i /* ignored */);
+
+	/*
+	 * Look first into predefined variables, then into variable lists.
+	 * s == &not_found (set at the beginning) means that we did not find a
+	 * matching variable and need to look into more places.
+	 * If s != &not_found, s is a valid result string as follows:
+	 * s = NULL if the variable does not have a value;
+	 * s = workspace if the result has been assembled there;
+	 * s != workspace in case we have a string, that needs to be copied
+	 *	(the ast_copy_string is done once for all at the end).
+	 * Deprecated variables have the replacement indicated in 'deprecated'.
+	 */
+	s = &not_found;	/* default value */
+	if (c) {	/* This group requires a valid channel */
+		/* Names with common parts are looked up a piece at a time using strncmp. */
+		if (!strncmp(var, "CALL", 4)) {
+			if (!strncmp(var + 4, "ER", 2)) {
+				if (!strncmp(var + 6, "ID", 2)) {
+					if (!var[8]) {	 			/* CALLERID */
+						if (c->cid.cid_num) {
+							if (c->cid.cid_name) {
+								snprintf(workspace, workspacelen, "\"%s\" <%s>",
+										c->cid.cid_name, c->cid.cid_num);
+								s = workspace;
+							} else {
+								s = c->cid.cid_num;
+							}
+						} else
+							s = c->cid.cid_name; /* possibly empty */
+						deprecated = "CALLERID(all)";
+					} else if (!strcmp(var + 8, "NUM")) {	/* CALLERIDNUM */
+						s = c->cid.cid_num;
+						deprecated = "CALLERID(num)";
+					} else if (!strcmp(var + 8, "NAME")) {	/* CALLERIDNAME */
+						s = c->cid.cid_name;
+						deprecated = "CALLERID(name)";
 					}
-					break;
+				} else if (!strcmp(var + 6, "ANI")) {		/* CALLERANI */
+					s = c->cid.cid_ani;
+					deprecated = "CALLERID(ANI)";
+				}
+			} else if (!strncmp(var + 4, "ING", 3)) {
+				if (!strcmp(var + 7, "PRES")) {			/* CALLINGPRES */
+					snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
+					s = workspace;
+				} else if (!strcmp(var + 7, "ANI2")) {		/* CALLINGANI2 */
+					snprintf(workspace, workspacelen, "%d", c->cid.cid_ani2);
+					s = workspace;
+				} else if (!strcmp(var + 7, "TON")) {		/* CALLINGTON */
+					snprintf(workspace, workspacelen, "%d", c->cid.cid_ton);
+					s = workspace;
+				} else if (!strcmp(var + 7, "TNS")) {		/* CALLINGTNS */
+					snprintf(workspace, workspacelen, "%d", c->cid.cid_tns);
+					s = workspace;
 				}
 			}
+		} else if (!strcmp(var, "DNID")) {
+			s = c->cid.cid_dnid;
+			deprecated = "CALLERID(DNID)";
+		} else if (!strcmp(var, "HINT")) {
+			s = ast_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten) ? workspace : NULL;
+		} else if (!strcmp(var, "HINTNAME")) {
+			s = ast_get_hint(NULL, 0, workspace, workspacelen, c, c->context, c->exten) ? workspace : NULL;
+		} else if (!strcmp(var, "EXTEN")) {
+			s = c->exten;
+		} else if (!strcmp(var, "RDNIS")) {
+			s = c->cid.cid_rdnis;
+			deprecated = "CALLERID(RDNIS)";
+		} else if (!strcmp(var, "CONTEXT")) {
+			s = c->context;
+		} else if (!strcmp(var, "PRIORITY")) {
+			snprintf(workspace, workspacelen, "%d", c->priority);
+			s = workspace;
+		} else if (!strcmp(var, "CHANNEL")) {
+			s = c->name;
+		} else if (!strcmp(var, "UNIQUEID")) {
+			s = c->uniqueid;
+		} else if (!strcmp(var, "HANGUPCAUSE")) {
+			snprintf(workspace, workspacelen, "%d", c->hangupcause);
+			s = workspace;
+		} else if (!strcmp(var, "ACCOUNTCODE")) {
+			s = c->accountcode;
+			deprecated = "CDR(accountcode)";
+		} else if (!strcmp(var, "LANGUAGE")) {
+			s = c->language;
+			deprecated = "LANGUAGE()";
 		}
-		if (!(*ret)) {
-			/* Try globals */
-			AST_LIST_TRAVERSE(&globals,variables,entries) {
-#if 0
-				ast_log(LOG_WARNING,"Comparing variable '%s' with '%s'\n",var,ast_var_name(variables));
-#endif
-				if (strcasecmp(ast_var_name(variables),var)==0) {
-					const char *s = ast_var_value(variables);
-					if (s) {
-						ast_copy_string(workspace, s, workspacelen);
-						*ret = workspace;
-					}
-				}
+	}
+	if (s == &not_found) { /* look for more */
+		time_t thistime;
+		struct tm brokentime;
+
+		if (!strcmp(var, "EPOCH")) {
+			snprintf(workspace, workspacelen, "%u",(int)time(NULL));
+			s = workspace;
+		} else if (!strcmp(var, "DATETIME")) {
+			thistime=time(NULL);
+			localtime_r(&thistime, &brokentime);
+			snprintf(workspace, workspacelen, "%02d%02d%04d-%02d:%02d:%02d",
+				brokentime.tm_mday,
+				brokentime.tm_mon+1,
+				brokentime.tm_year+1900,
+				brokentime.tm_hour,
+				brokentime.tm_min,
+				brokentime.tm_sec
+			);
+			s = workspace;
+			deprecated = "STRFTIME(${EPOCH},,\%d\%m\%Y-\%H:\%M:\%S)";
+		} else if (!strcmp(var, "TIMESTAMP")) {
+			thistime=time(NULL);
+			localtime_r(&thistime, &brokentime);
+			/* 20031130-150612 */
+			snprintf(workspace, workspacelen, "%04d%02d%02d-%02d%02d%02d",
+				brokentime.tm_year+1900,
+				brokentime.tm_mon+1,
+				brokentime.tm_mday,
+				brokentime.tm_hour,
+				brokentime.tm_min,
+				brokentime.tm_sec
+			);
+			s = workspace;
+			deprecated = "STRFTIME(${EPOCH},,\%Y\%m\%d-\%H\%M\%S)";
+		}
+	}
+	/* if not found, look into chanvars or global vars */
+	for (i = 0; s == &not_found && i < (sizeof(places) / sizeof(places[0])); i++) {
+		struct ast_var_t *variables;
+		if (!places[i])
+			continue;
+		AST_LIST_TRAVERSE(places[i], variables, entries) {
+			if (strcasecmp(ast_var_name(variables), var)==0) {
+				s = ast_var_value(variables);
+				break;
 			}
 		}
 	}
-	if (deprecated) {
+	if (s == &not_found || s == NULL)
+		*ret = NULL;
+	else {
+		if (s != workspace)
+			ast_copy_string(workspace, s, workspacelen);
+		*ret = workspace;
+		if (need_substring)
+			*ret = substring(*ret, offset, length, workspace, workspacelen);
+	}
+		
+	if (deprecated)
 		ast_log(LOG_WARNING, "${%s} is deprecated.  Please use ${%s} instead.\n", var, deprecated);
-	}
 }
 
 /*! \brief CLI function to show installed custom functions 
