@@ -298,7 +298,7 @@ int ast_say_digits(struct ast_channel *chan, int num, const char *ints, const ch
       \arg \b pl    - Polish       
       \arg \b pt    - Portuguese
       \arg \b se    - Swedish
-      \arg \b tw    - Taiwanese
+      \arg \b tw    - Taiwanese / Chinese
       \arg \b ru    - Russian
 
  \par Gender:
@@ -443,7 +443,7 @@ int ast_say_number_full(struct ast_channel *chan, int num, const char *ints, con
 	   return(ast_say_number_full_pt(chan, num, ints, language, options, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "se") ) {	/* Swedish syntax */
 	   return(ast_say_number_full_se(chan, num, ints, language, options, audiofd, ctrlfd));
-	} else if (!strcasecmp(language, "tw")) {	/* Taiwanese syntax */
+	} else if (!strcasecmp(language, "tw") || !strcasecmp(language, "zh") ) {	/* Taiwanese / Chinese syntax */
 	   return(ast_say_number_full_tw(chan, num, ints, language, audiofd, ctrlfd));
 	} else if (!strcasecmp(language, "gr") ) {	/* Greek syntax */
 	   return(ast_say_number_full_gr(chan, num, ints, language, audiofd, ctrlfd));
@@ -2099,7 +2099,7 @@ static int ast_say_number_full_se(struct ast_channel *chan, int num, const char 
 	return res;
 }
 
-/*! \brief  ast_say_number_full_tw: Taiwanese syntax */
+/*! \brief  ast_say_number_full_tw: Taiwanese / Chinese syntax */
 static int ast_say_number_full_tw(struct ast_channel *chan, int num, const char *ints, const char *language, int audiofd, int ctrlfd)
 {
 	int res = 0;
@@ -2967,7 +2967,7 @@ int ast_say_date_with_format(struct ast_channel *chan, time_t time, const char *
 		return(ast_say_date_with_format_nl(chan, time, ints, lang, format, timezone));
 	} else if (!strcasecmp(lang, "pt") ) {	/* Portuguese syntax */
 		return(ast_say_date_with_format_pt(chan, time, ints, lang, format, timezone));
-	} else if (!strcasecmp(lang, "tw") ) {	/* Taiwanese syntax */
+	} else if (!strcasecmp(lang, "tw") || !strcasecmp(lang, "zh") ) {	/* Taiwanese / Chinese syntax */
 		return(ast_say_date_with_format_tw(chan, time, ints, lang, format, timezone));
 	} else if (!strcasecmp(lang, "gr") ) {	/* Greek syntax */
 		return(ast_say_date_with_format_gr(chan, time, ints, lang, format, timezone));
@@ -4874,7 +4874,7 @@ int ast_say_date_with_format_pt(struct ast_channel *chan, time_t time, const cha
 	return res;
 }
 
-/* Taiwanese syntax */
+/* Taiwanese / Chinese syntax */
 int ast_say_date_with_format_tw(struct ast_channel *chan, time_t time, const char *ints, const char *lang, const char *format, const char *timezone)
 {
 	struct tm tm;
@@ -5153,7 +5153,7 @@ int ast_say_time(struct ast_channel *chan, time_t t, const char *ints, const cha
 		return(ast_say_time_nl(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "pt") ) {	/* Portuguese syntax */
 		return(ast_say_time_pt(chan, t, ints, lang));
-	} else if (!strcasecmp(lang, "tw") ) {	/* Taiwanese syntax */
+	} else if (!strcasecmp(lang, "tw") || !strcasecmp(lang, "zh") ) {	/* Taiwanese / Chinese syntax */
 		return(ast_say_time_tw(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "gr") ) {  			/* Greek syntax */
 		return(ast_say_time_gr(chan, t, ints, lang));
@@ -5290,7 +5290,7 @@ int ast_say_time_pt(struct ast_channel *chan, time_t t, const char *ints, const 
 	return res;
 }
 
-/* Taiwanese syntax */
+/* Taiwanese / Chinese  syntax */
 int ast_say_time_tw(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	struct tm tm;
@@ -5342,7 +5342,7 @@ int ast_say_datetime(struct ast_channel *chan, time_t t, const char *ints, const
 		return(ast_say_datetime_nl(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "pt") ) {	/* Portuguese syntax */
 		return(ast_say_datetime_pt(chan, t, ints, lang));
-	} else if (!strcasecmp(lang, "tw") ) {	/* Taiwanese syntax */
+	} else if (!strcasecmp(lang, "tw") || !strcasecmp(lang, "zh") ) {	/* Taiwanese / Chinese syntax */
 		return(ast_say_datetime_tw(chan, t, ints, lang));
 	} else if (!strcasecmp(lang, "gr") ) {  			/* Greek syntax */
 		return(ast_say_datetime_gr(chan, t, ints, lang));
@@ -5551,7 +5551,7 @@ int ast_say_datetime_pt(struct ast_channel *chan, time_t t, const char *ints, co
 	return res;
 }
 
-/* Taiwanese syntax */
+/* Taiwanese / Chinese syntax */
 int ast_say_datetime_tw(struct ast_channel *chan, time_t t, const char *ints, const char *lang)
 {
 	struct tm tm;
