@@ -5372,6 +5372,7 @@ static int complete_transfer(int callno, struct iax_ies *ies)
 	memset(&pvt->transfer, 0, sizeof(pvt->transfer));
 	/* Reset sequence numbers */
 	pvt->oseqno = 0;
+	pvt->rseqno = 0;
 	pvt->iseqno = 0;
 	pvt->aseqno = 0;
 	pvt->peercallno = peercallno;
@@ -6582,8 +6583,8 @@ static int socket_read(int *id, int fd, short events, void *cbdata)
 		/* Handle implicit ACKing unless this is an INVAL, and only if this is 
 		   from the real peer, not the transfer peer */
 		if (!inaddrcmp(&sin, &iaxs[fr.callno]->addr) && 
-			(((f.subclass != IAX_COMMAND_INVAL)) ||
-			(f.frametype != AST_FRAME_IAX))) {
+		    ((f.subclass != IAX_COMMAND_INVAL) ||
+		     (f.frametype != AST_FRAME_IAX))) {
 			unsigned char x;
 			/* XXX This code is not very efficient.  Surely there is a better way which still
 			       properly handles boundary conditions? XXX */
