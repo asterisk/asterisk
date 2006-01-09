@@ -558,25 +558,25 @@ Variables marked with a * are builtin functions and can't be set,
 only read in the dialplan.  Writes to such variables are silently 
 ignored.
 
-${ACCOUNTCODE} 	 	* Account code (if specified)
+${ACCOUNTCODE} 	 	* Account code (if specified) (Deprecated; use ${CDR(accountcode)})
 ${BLINDTRANSFER} 	The name of the channel on the other side of a blind transfer
 ${BRIDGEPEER}	 	Bridged peer
-${CALLERANI}	 	* Caller ANI (PRI channels)
-${CALLERID}	 	* Caller ID
-${CALLERIDNAME}	 	* Caller ID Name only
-${CALLERIDNUM}	 	* Caller ID Number only
+${CALLERANI}	 	* Caller ANI (PRI channels) (Deprecated; use ${CALLERID(ani)})
+${CALLERID}	 	* Caller ID (Deprecated; use ${CALLERID(all)})
+${CALLERIDNAME}	 	* Caller ID Name only (Deprecated; use ${CALLERID(name)})
+${CALLERIDNUM}	 	* Caller ID Number only (Deprecated; use ${CALLERID(num)})
 ${CALLINGANI2}	 	* Caller ANI2 (PRI channels)
 ${CALLINGPRES}	 	* Caller ID presentation for incoming calls (PRI channels)
 ${CALLINGTNS} 	 	* Transit Network Selector (PRI channels)
 ${CALLINGTON}    	* Caller Type of Number (PRI channels)
 ${CHANNEL}	 	* Current channel name
 ${CONTEXT}       	* Current context
-${DATETIME}	 	* Current date time in the format: DDMMYYYY-HH:MM:SS
+${DATETIME}	 	* Current date time in the format: DDMMYYYY-HH:MM:SS (Deprecated; use ${STRFTIME(${EPOCH},,%d%m%Y-%H:%M:%S)})
 ${DB_RESULT}		Result value of DB_EXISTS() dial plan function
-${DNID}          	* Dialed Number Identifier
+${DNID}          	* Dialed Number Identifier (Deprecated; use ${CALLERID(dnid)})
 ${EPOCH}	 	* Current unix style epoch
 ${EXTEN}	 	* Current extension
-${ENV(VAR)}	 	* Environmental variable VAR
+${ENV(VAR)}	 	Environmental variable VAR
 ${GOTO_ON_BLINDXFR}	Transfer to the specified context/extension/priority
 			after a blind transfer (use ^ characters in place of
 			| to separate context/extension/priority when setting
@@ -585,12 +585,12 @@ ${HANGUPCAUSE}	 	* Asterisk cause of hangup (inbound/outbound)
 ${HINT}          	* Channel hints for this extension
 ${HINTNAME}      	* Suggested Caller*ID name for this extension
 ${INVALID_EXTEN} 	The invalid called extension (used in the "i" extension)
-${LANGUAGE}	 	* Current language
+${LANGUAGE}	 	* Current language (Deprecated; use ${LANGUAGE()})
 ${LEN(VAR)}	 	* String length of VAR (integer)
 ${PRIORITY}	 	* Current priority in the dialplan
 ${PRIREDIRECTREASON} 	Reason for redirect on PRI, if a call was directed
-${RDNIS}         	* Redirected Dial Number ID Service
-${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS
+${RDNIS}         	* Redirected Dial Number ID Service (Deprecated; use ${CALLERID(rdnis)})
+${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS (Deprecated; use ${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
 ${TRANSFER_CONTEXT} 	Context for transferred calls
 ${UNIQUEID}	 	* Current call unique identifier
 
@@ -787,8 +787,8 @@ ${CDR(userfield)}		The channels uses specified field.
 
 
 In addition, you can set your own extra variables with a traditional
-SetVAR(CDR(var)=val) to anything you want.
+Set(CDR(var)=val) to anything you want.
 
-Certain functional variables may be accessed with $(foo <args>).  A list
+Certain functional variables may be accessed with ${foo(<args>)}.  A list
 of these functional variables may be found by typing "show functions"
 at the Asterisk CLI.
