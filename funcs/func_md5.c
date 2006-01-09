@@ -60,7 +60,7 @@ static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char
 	char *args;
 	char newmd5[33];
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
 		return NULL;
 	}
