@@ -7060,11 +7060,17 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		of += 4;
 	/* Get just the username part */
 	if ((c = strchr(of, '@'))) {
+		char *tmp;
 		*c = '\0';
 		if ((c = strchr(of, ':')))
 			*c = '\0';
-		ast_string_field_set(p, cid_num, of);
-		ast_shrink_phone_number((char *) p->cid_num);
+		tmp = ast_strdupa(of);
+		if (tmp) {
+			ast_shrink_phone_number(tmp);
+			ast_string_field_set(p, cid_num, tmp);
+		} else {
+			ast_string_field_set(p, cid_num, of);
+		}
 	}
 	if (ast_strlen_zero(of))
 		return 0;
@@ -7085,10 +7091,16 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		p->prefs = user->prefs;
 		/* replace callerid if rpid found, and not restricted */
 		if (!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
+			char *tmp;
 			if (*calleridname)
 				ast_string_field_set(p, cid_name, calleridname);
-			ast_string_field_set(p, cid_num, rpid_num);
-			ast_shrink_phone_number((char *) p->cid_num);
+			tmp = ast_strdupa(rpid_num);
+			if (tmp) {
+				ast_shrink_phone_number(tmp);
+				ast_string_field_set(p, cid_num, tmp);
+			} else {
+				ast_string_field_set(p, cid_num, rpid_num);
+			}
 		}
 
 		if (p->rtp) {
@@ -7114,8 +7126,13 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			if (!ast_strlen_zero(user->context))
 				ast_string_field_set(p, context, user->context);
 			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) {
-				ast_string_field_set(p, cid_num, user->cid_num);
-				ast_shrink_phone_number((char *) p->cid_num);
+				char *tmp = ast_strdupa(user->cid_num);
+				if (tmp) {
+					ast_shrink_phone_number(tmp);
+					ast_string_field_set(p, cid_num, tmp);
+				} else {
+					ast_string_field_set(p, cid_num, user->cid_num);
+				}
 			}
 			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num))
 				ast_string_field_set(p, cid_name, user->cid_name);
@@ -7174,10 +7191,15 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 
 			/* replace callerid if rpid found, and not restricted */
 			if (!ast_strlen_zero(rpid_num) && ast_test_flag(p, SIP_TRUSTRPID)) {
+				char *tmp = ast_strdupa(rpid_num);
 				if (*calleridname)
 					ast_string_field_set(p, cid_name, calleridname);
-				ast_string_field_set(p, cid_num, rpid_num);
-				ast_shrink_phone_number((char *) p->cid_num);
+				if (tmp) {
+					ast_shrink_phone_number(tmp);
+					ast_string_field_set(p, cid_num, tmp);
+				} else {
+					ast_string_field_set(p, cid_num, rpid_num);
+				}
 			}
 			if (p->rtp) {
 				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
@@ -7221,8 +7243,13 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 					ast_string_field_set(p, authname, peer->username);
 				}
 				if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num)) {
-					ast_string_field_set(p, cid_num, peer->cid_num);
-					ast_shrink_phone_number((char *) p->cid_num);
+					char *tmp = ast_strdupa(peer->cid_num);
+					if (tmp) {
+						ast_shrink_phone_number(tmp);
+						ast_string_field_set(p, cid_num, tmp);
+					} else {
+						ast_string_field_set(p, cid_num, peer->cid_num);
+					}
 				}
 				if (!ast_strlen_zero(peer->cid_name) && !ast_strlen_zero(p->cid_name)) 
 					ast_string_field_set(p, cid_name, peer->cid_name);
