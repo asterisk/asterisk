@@ -75,36 +75,20 @@ static void FREE(void *ptr)
 
 static char *parkedcall = "ParkedCall";
 
-/* No more than 45 seconds parked before you do something with them */
-static int parkingtime = DEFAULT_PARK_TIME;
+static int parkingtime = DEFAULT_PARK_TIME; 		/*!< No more than 45 seconds parked before you do something with them */
+static char parking_con[AST_MAX_EXTENSION];		/*!< Context for which parking is made accessible */
+static char parking_con_dial[AST_MAX_EXTENSION];	/*!< Context for dialback for parking (KLUDGE) */
+static char parking_ext[AST_MAX_EXTENSION];		/*!< Extension you type to park the call */
+static char pickup_ext[AST_MAX_EXTENSION];		/*!< Call pickup extension */
+static int parking_start;				/*!< First available extension for parking */
+static int parking_stop;				/*!< Last available extension for parking */
 
-/* Context for which parking is made accessible */
-static char parking_con[AST_MAX_EXTENSION];
-
-/* Context for dialback for parking (KLUDGE) */
-static char parking_con_dial[AST_MAX_EXTENSION];
-
-/* Extension you type to park the call */
-static char parking_ext[AST_MAX_EXTENSION];
-
-static char pickup_ext[AST_MAX_EXTENSION];
-
-/* Default sounds */
-static char courtesytone[256];
-static char xfersound[256];
-static char xferfailsound[256];
-
-/* Who to play the courtesy tone to */
-static int parkedplay = 0;
-
-/* First available extension for parking */
-static int parking_start;
-
-/* Last available extension for parking */
-static int parking_stop;
+static char courtesytone[256];				/*!< Courtesy tone */
+static int parkedplay = 0;				/*!< Who to play the courtesy tone to */
+static char xfersound[256];				/*!< Call transfer sound */
+static char xferfailsound[256];				/*!< Call transfer failure sound */
 
 static int parking_offset;
-
 static int parkfindnext;
 
 static int adsipark;
@@ -112,11 +96,9 @@ static int adsipark;
 static int transferdigittimeout;
 static int featuredigittimeout;
 
-/* Default courtesy tone played when party joins conference */
+static char *registrar = "res_features";		/*!< Registrar for operations */
 
-/* Registrar for operations */
-static char *registrar = "res_features";
-
+/* module and CLI command definitions */
 static char *synopsis = "Answer a parked call";
 
 static char *descrip = "ParkedCall(exten):"
@@ -136,8 +118,8 @@ static char *descrip2 = "Park(exten):"
 "into the dialplan, although you should include the 'parkedcalls'\n"
 "context.\n";
 
-static struct ast_app *monitor_app=NULL;
-static int monitor_ok=1;
+static struct ast_app *monitor_app = NULL;
+static int monitor_ok = 1;
 
 struct parkeduser {
 	struct ast_channel *chan;
