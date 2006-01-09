@@ -312,8 +312,10 @@ static int scan_service(char *fn, time_t now, time_t atime)
 #endif
 				fclose(f);
 				if (o->retries <= o->maxretries) {
+					now += o->retrytime;
 					if (o->callingpid && (o->callingpid == ast_mainpid)) {
 						safe_append(o, time(NULL), "DelayedRetry");
+						free_outgoing(o);
 						ast_log(LOG_DEBUG, "Delaying retry since we're currently running '%s'\n", o->fn);
 					} else {
 						/* Increment retries */
@@ -326,7 +328,6 @@ static int scan_service(char *fn, time_t now, time_t atime)
 						safe_append(o, now, "StartRetry");
 						launch_service(o);
 					}
-					now += o->retrytime;
 					return now;
 				} else {
 					ast_log(LOG_EVENT, "Queued call to %s/%s expired without completion after %d attempt%s\n", o->tech, o->dest, o->retries - 1, ((o->retries - 1) != 1) ? "s" : "");
