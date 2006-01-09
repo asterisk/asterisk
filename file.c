@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/lock.h"
 #include "asterisk/app.h"
 #include "asterisk/pbx.h"
+#include "asterisk/linkedlists.h"
 
 struct ast_format {
 	/*! Name of format */
@@ -79,7 +80,7 @@ struct ast_format {
 	/*! Retrieve file comment */
 	char * (*getcomment)(struct ast_filestream *);
 	/*! Link */
-	struct ast_format *next;
+	AST_LIST_ENTRY(ast_format) list;
 };
 
 struct ast_filestream {
@@ -99,9 +100,7 @@ struct ast_filestream {
 	struct ast_channel *owner;
 };
 
-AST_MUTEX_DEFINE_STATIC(formatlock);
-
-static struct ast_format *formats = NULL;
+static AST_LIST_HEAD_STATIC(formats, ast_format);
 
 int ast_format_register(const char *name, const char *exts, int format,
 						struct ast_filestream * (*open)(FILE *f),
@@ -115,23 +114,21 @@ int ast_format_register(const char *name, const char *exts, int format,
 						char * (*getcomment)(struct ast_filestream *))
 {
 	struct ast_format *tmp;
-	if (ast_mutex_lock(&formatlock)) {
+	if (AST_LIST_LOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return -1;
 	}
-	tmp = formats;
-	while(tmp) {
+	AST_LIST_TRAVERSE(&formats, tmp, list) {
 		if (!strcasecmp(name, tmp->name)) {
-			ast_mutex_unlock(&formatlock);
+			AST_LIST_UNLOCK(&formats);
 			ast_log(LOG_WARNING, "Tried to register '%s' format, already registered\n", name);
 			return -1;
 		}
-		tmp = tmp->next;
 	}
 	tmp = malloc(sizeof(struct ast_format));
 	if (!tmp) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		ast_mutex_unlock(&formatlock);
+		AST_LIST_UNLOCK(&formats);
 		return -1;
 	}
 	ast_copy_string(tmp->name, name, sizeof(tmp->name));
@@ -146,9 +143,8 @@ int ast_format_register(const char *name, const char *exts, int format,
 	tmp->close = close;
 	tmp->format = format;
 	tmp->getcomment = getcomment;
-	tmp->next = formats;
-	formats = tmp;
-	ast_mutex_unlock(&formatlock);
+	AST_LIST_INSERT_HEAD(&formats, tmp, list);
+	AST_LIST_UNLOCK(&formats);
 	if (option_verbose > 1)
 		ast_verbose( VERBOSE_PREFIX_2 "Registered file format %s, extension(s) %s\n", name, exts);
 	return 0;
@@ -156,29 +152,30 @@ int ast_format_register(const char *name, const char *exts, int format,
 
 int ast_format_unregister(const char *name)
 {
-	struct ast_format *tmp, *tmpl = NULL;
-	if (ast_mutex_lock(&formatlock)) {
+	struct ast_format *tmp;
+	int res = -1;
+
+	if (AST_LIST_LOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return -1;
 	}
-	tmp = formats;
-	while(tmp) {
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&formats, tmp, list) {
 		if (!strcasecmp(name, tmp->name)) {
-			if (tmpl) 
-				tmpl->next = tmp->next;
-			else
-				formats = tmp->next;
+			AST_LIST_REMOVE_CURRENT(&formats, list);
 			free(tmp);
-			ast_mutex_unlock(&formatlock);
-			if (option_verbose > 1)
-				ast_verbose( VERBOSE_PREFIX_2 "Unregistered format %s\n", name);
-			return 0;
+			res = 0;
 		}
-		tmpl = tmp;
-		tmp = tmp->next;
 	}
-	ast_log(LOG_WARNING, "Tried to unregister format %s, already unregistered\n", name);
-	return -1;
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&formats);
+
+	if (tmp) {
+		if (option_verbose > 1)
+				ast_verbose( VERBOSE_PREFIX_2 "Unregistered format %s\n", name);
+	} else
+		ast_log(LOG_WARNING, "Tried to unregister format %s, already unregistered\n", name);
+
+	return res;
 }
 
 int ast_stopstream(struct ast_channel *tmp)
@@ -360,11 +357,11 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 	if (action == ACTION_OPEN)
 		ret = -1;
 	/* Check for a specific format */
-	if (ast_mutex_lock(&formatlock)) {
+	if (AST_LIST_LOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return res;
 	}
-	for (f = formats; f; f = f->next) {
+	AST_LIST_TRAVERSE(&formats, f, list) {
 		if (!fmt || exts_compare(f->exts, fmt)) {
 			char *stringp=NULL;
 			exts = ast_strdupa(f->exts);
@@ -446,7 +443,7 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 			
 		}
 	}
-	ast_mutex_unlock(&formatlock);
+	AST_LIST_UNLOCK(&formats);
 	if ((action == ACTION_EXISTS) || (action == ACTION_OPEN))
 		res = ret ? ret : -1;
 	return res;
@@ -836,12 +833,15 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 	struct ast_filestream *fs = NULL;
 	char *fn;
 
-	if (ast_mutex_lock(&formatlock)) {
+	if (AST_LIST_LOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
 	}
 
-	for (f = formats; f && !fs; f = f->next) {
+	AST_LIST_TRAVERSE(&formats, f, list) {
+		if (fs)
+			break;
+
 		if (!exts_compare(f->exts, type))
 			continue;
 
@@ -868,7 +868,7 @@ struct ast_filestream *ast_readfile(const char *filename, const char *type, cons
 		free(fn);
 	}
 
-	ast_mutex_unlock(&formatlock);
+	AST_LIST_UNLOCK(&formats);
 	if (!fs) 
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
 
@@ -886,7 +886,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	char *buf = NULL;
 	size_t size = 0;
 
-	if (ast_mutex_lock(&formatlock)) {
+	if (AST_LIST_LOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return NULL;
 	}
@@ -901,7 +901,10 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 	
 	myflags |= O_WRONLY | O_CREAT;
 
-	for (f = formats; f && !fs; f = f->next) {
+	AST_LIST_TRAVERSE(&formats, f, list) {
+		if (fs)
+			break;
+
 		if (!exts_compare(f->exts, type))
 			continue;
 
@@ -983,7 +986,7 @@ struct ast_filestream *ast_writefile(const char *filename, const char *type, con
 			free(fn);
 	}
 
-	ast_mutex_unlock(&formatlock);
+	AST_LIST_UNLOCK(&formats);
 	if (!fs)
 		ast_log(LOG_WARNING, "No such format '%s'\n", type);
 
@@ -1259,18 +1262,16 @@ static int show_file_formats(int fd, int argc, char *argv[])
 		return RESULT_SHOWUSAGE;
 	ast_cli(fd, FORMAT, "Format", "Name", "Extensions");
 	        
-	if (ast_mutex_lock(&formatlock)) {
+	if (AST_LIST_LOCK(&formats)) {
 		ast_log(LOG_WARNING, "Unable to lock format list\n");
 		return -1;
 	}
 
-	f = formats;
-	while(f) {
+	AST_LIST_TRAVERSE(&formats, f, list) {
 		ast_cli(fd, FORMAT2, ast_getformatname(f->format), f->name, f->exts);
-		f = f->next;
 		count_fmt++;
-	};
-	ast_mutex_unlock(&formatlock);
+	}
+	AST_LIST_UNLOCK(&formats);
 	ast_cli(fd, "%d file formats registered.\n", count_fmt);
 	return RESULT_SUCCESS;
 #undef FORMAT
