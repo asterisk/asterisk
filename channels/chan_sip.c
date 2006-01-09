@@ -883,6 +883,7 @@ static char externhost[MAXHOSTNAMELEN] = "";
 static time_t externexpire = 0;
 static int externrefresh = 10;
 static struct ast_ha *localaddr;
+static int callevents;				/*!< Whether we send manager events or not */
 
 /* The list of manual NOTIFY types we know how to send */
 struct ast_config *notify_types;
@@ -912,7 +913,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
 static int sip_do_reload(void);
 static int expire_register(void *data);
-static int callevents = 0;
 
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause);
 static int sip_devicestate(void *data);
