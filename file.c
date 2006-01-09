@@ -176,6 +176,7 @@ int ast_format_unregister(const char *name)
 		tmpl = tmp;
 		tmp = tmp->next;
 	}
+	ast_mutex_unlock(&formatlock);
 	ast_log(LOG_WARNING, "Tried to unregister format %s, already unregistered\n", name);
 	return -1;
 }
