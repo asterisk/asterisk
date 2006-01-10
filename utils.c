@@ -884,6 +884,9 @@ int getloadavg(double *list, int nelem)
 /* glibc puts a lock inside random(3), so that the results are thread-safe.
  * BSD libc (and others) do not. */
 #ifndef linux
+
+AST_MUTEX_DEFINE_STATIC(randomlock);
+
 long int ast_random(void)
 {
 	long int res;
