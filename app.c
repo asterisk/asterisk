@@ -304,10 +304,16 @@ int ast_dtmf_stream(struct ast_channel *chan,struct ast_channel *peer,char *digi
 				f.frametype = AST_FRAME_DTMF;
 				f.subclass = *ptr;
 				f.src = "ast_dtmf_stream";
-				if (strchr("0123456789*#abcdABCD",*ptr)==NULL) {
-					ast_log(LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdD allowed)\n",*ptr);
+				if (strchr("0123456789*#abcdfABCDF",*ptr)==NULL) {
+					ast_log(LOG_WARNING, "Illegal DTMF character '%c' in string. (0-9*#aAbBcCdDfF allowed)\n",*ptr);
 				} else {
-					res = ast_write(chan, &f);
+					if (*ptr == 'f' || *ptr == 'F') {
+						/* ignore return values if not supported by channel */
+						ast_indicate(chan, AST_CONTROL_FLASH);
+						res = 0;
+					} else {
+						res = ast_write(chan, &f);
+					}
 					if (res) 
 						break;
 					/* pause between digits */
