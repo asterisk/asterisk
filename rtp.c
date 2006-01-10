@@ -125,6 +125,10 @@ struct ast_rtp {
 	int rtp_lookup_code_cache_code;
 	int rtp_lookup_code_cache_result;
 	int rtp_offered_from_local;
+
+#ifdef MIDCOM
+  struct sockaddr_in them_midcom_nat;
+#endif
 	struct ast_rtcp *rtcp;
 };
 
@@ -1041,6 +1045,20 @@ void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us)
 	memcpy(us, &rtp->us, sizeof(rtp->us));
 }
 
+#ifdef MIDCOM /* RANCH */
+void ast_rtp_nat_us(struct ast_rtp *rtp, struct sockaddr_in *our_nat)
+{
+  memcpy(&rtp->them_midcom_nat, our_nat, sizeof(rtp->them_midcom_nat));
+}
+
+void ast_rtp_get_their_nat(struct ast_rtp *rtp, struct sockaddr_in *their_nat)
+{
+  their_nat->sin_family = AF_INET;
+  their_nat->sin_port = rtp->them_midcom_nat.sin_port;
+  their_nat->sin_addr = rtp->them_midcom_nat.sin_addr;
+}
+#endif
+
 void ast_rtp_stop(struct ast_rtp *rtp)
 {
 	memset(&rtp->them.sin_addr, 0, sizeof(rtp->them.sin_addr));
@@ -1515,7 +1533,6 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 	struct sockaddr_in t0, t1;
 	struct sockaddr_in vt0, vt1;
 	char iabuf[INET_ADDRSTRLEN];
-	
 	void *pvt0, *pvt1;
 	int codec0,codec1, oldcodec0, oldcodec1;
 	
@@ -1670,8 +1687,12 @@ enum ast_bridge_result ast_rtp_bridge(struct ast_channel *c0, struct ast_channel
 			if (option_debug) {
 				ast_log(LOG_DEBUG, "Oooh, '%s' changed end address to %s:%d (format %d)\n", 
 					c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), t0.sin_addr), ntohs(t0.sin_port), codec0);
+			ast_log(LOG_DEBUG, "Oooh, '%s' changed end vaddress to %s:%d (format %d)\n", 
+				c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vt0.sin_addr), ntohs(vt0.sin_port), codec0);
 				ast_log(LOG_DEBUG, "Oooh, '%s' was %s:%d/(format %d)\n", 
 					c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), ac0.sin_addr), ntohs(ac0.sin_port), oldcodec0);
+			ast_log(LOG_DEBUG, "Oooh, '%s' wasv %s:%d/(format %d)\n", 
+				c0->name, ast_inet_ntoa(iabuf, sizeof(iabuf), vac0.sin_addr), ntohs(vac0.sin_port), oldcodec0);
 			}
 			if (pr1->set_rtp_peer(c1, t0.sin_addr.s_addr ? p0 : NULL, vt0.sin_addr.s_addr ? vp0 : NULL, codec0, ast_test_flag(p0, FLAG_NAT_ACTIVE)))
 				ast_log(LOG_WARNING, "Channel '%s' failed to update to '%s'\n", c1->name, c0->name);

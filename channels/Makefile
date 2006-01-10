@@ -97,6 +97,11 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1)$(wildcard $(CROSS
   ZAPPRI=-lpri
 endif
 
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/asterisk/modules/res_netsec.so)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/asterisk/modules/res_netsec.so),)
+  CFLAGS+=-DSIP_MIDCOM
+#  NETSEC=-lnetsec -lssl -lcrypto -lstdc++
+endif
+
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libmfcr2.so.1),)
   CFLAGS+=-DZAPATA_R2
   ZAPR2=-lmfcr2
@@ -207,7 +212,7 @@ chan_zap.so: chan_zap.o
 	$(CC) $(SOLINK) -o $@ $<  $(ZAPPRI) $(ZAPR2) -ltonezone
 
 chan_sip.so: chan_sip.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_sip.o ${CYGSOLIB}
+	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_sip.o ${CYGSOLIB} ${NETSEC}
 
 chan_agent.so: chan_agent.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} chan_agent.o ${CYGSOLIB} ${CYG_CHAN_AGENT}

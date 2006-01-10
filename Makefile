@@ -105,6 +105,9 @@ BUSYDETECT+= #-DBUSYDETECT_TONEONLY
 # Don't use together with -DBUSYDETECT_TONEONLY
 BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
 
+# Comment this if you want to disable MIDCOM
+MIDCOM = -DMIDCOM
+
 ifneq ($(OSARCH),SunOS)
   ASTLIBDIR=$(INSTALL_PREFIX)/usr/lib/asterisk
   ASTVARLIBDIR=$(INSTALL_PREFIX)/var/lib/asterisk
@@ -331,6 +334,7 @@ ASTCFLAGS+= $(DEBUG_THREADS)
 ASTCFLAGS+= $(TRACE_FRAMES)
 ASTCFLAGS+= $(MALLOC_DEBUG)
 ASTCFLAGS+= $(BUSYDETECT)
+ASTCFLAGS+= $(MIDCOM)
 ASTCFLAGS+= $(OPTIONS)
 ASTCFLAGS+= -fomit-frame-pointer 
 SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime

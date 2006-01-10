@@ -86,6 +86,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astosp.h"
 #endif
 
+#ifdef SIP_MIDCOM
+#include "asterisk/res_netsec.h"
+#endif
+
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "Asterisk PBX"
 #endif
@@ -679,6 +683,10 @@ static struct sip_pvt {
 	
 	struct ast_dsp *vad;			/*!< Voice Activation Detection dsp */
 	
+#ifdef SIP_MIDCOM
+  void *r;
+#endif
+	
 	struct sip_peer *peerpoke;		/*!< If this calls is to poke a peer, which one */
 	struct sip_registry *registry;		/*!< If this is a REGISTER call, to which registry */
 	struct ast_rtp *rtp;			/*!< RTP Session */
@@ -921,6 +929,25 @@ static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEB
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
 static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate);
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
+
+#ifdef SIP_MIDCOM
+static void sip_rtp_get_peer_audio_helper(void *p, struct sockaddr_in *them);
+static void sip_rtp_get_peer_video_helper(void *p, struct sockaddr_in *them);
+static void sip_rtp_get_us_audio_helper(void *p, struct sockaddr_in *sin);
+static void sip_rtp_get_us_video_helper(void *p, struct sockaddr_in *vsin);
+static void sip_map_hook_struct(void *p, void *r);
+static void *sip_get_hook_struct(void *p);
+static int sip_get_flag_novideo(void *p);
+static int sip_cmp_sa_addr(void *p, struct sockaddr_in *addr);
+static void sip_get_recv_addr(void *p, struct in_addr *addr);
+static char *sip_get_username(void *p);
+static struct ast_channel *sip_channel_helper(void *p);
+static struct ast_channel *sip_bridged_channel_helper(void *p);
+static int sip_get_capability_helper(void *p);
+static void sip_softhangup_helper(void *p);
+
+extern struct ast_sip_hook_cb *m_cb;
+#endif
 
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -2095,6 +2122,11 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (sip_debug_test_pvt(p))
 		ast_verbose("Destroying call '%s'\n", p->callid);
 
+#ifdef SIP_MIDCOM
+	if (m_cb)
+	  m_cb->__sip_destroy_hook(p);
+#endif
+
 	if (dumphistory)
 		sip_dump_history(p);
 
@@ -2418,6 +2450,12 @@ static int sip_hangup(struct ast_channel *ast)
 	/* If the call is not UP, we need to send CANCEL instead of BYE */
 	if (ast->_state != AST_STATE_UP)
 		needcancel = 1;
+
+#ifdef SIP_MIDCOM
+        /* For callee to shutdown, send "BYE" instead of "CANCEL"
+           -- this needs to be verified */
+        if (m_cb && ast_test_flag(p, SIP_OUTGOING)) needcancel = 0;
+#endif
 
 	/* Disconnect */
 	p = ast->tech_pvt;
@@ -4339,8 +4377,22 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 		ast_rtp_get_us(p->vrtp, &vsin);
 
 	if (p->redirip.sin_addr.s_addr) {
+#ifdef SIP_MIDCOM
+	  if (m_cb && p->r) {
+	    struct sockaddr_in redirip_hook;
+	    char iabuf2[INET_ADDRSTRLEN];
+	    m_cb->ast_get_redirip_audio_hook(p->r, &redirip_hook);
+	    ast_log(LOG_DEBUG, "Replacing %s:%d by %s:%d in SDP before sending to %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->redirip.sin_addr), ntohs(p->redirip.sin_port), ast_inet_ntoa(iabuf2, sizeof(iabuf2), redirip_hook.sin_addr), ntohs(redirip_hook.sin_port), p->username);
+	    dest.sin_port = redirip_hook.sin_port;
+	    dest.sin_addr = redirip_hook.sin_addr;
+	  } else {
 		dest.sin_port = p->redirip.sin_port;
 		dest.sin_addr = p->redirip.sin_addr;
+	  }
+#else
+		dest.sin_port = p->redirip.sin_port;
+		dest.sin_addr = p->redirip.sin_addr;
+#endif
 		if (p->redircodecs)
 			capability = p->redircodecs;
 	} else {
@@ -4351,8 +4403,22 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	/* Determine video destination */
 	if (p->vrtp) {
 		if (p->vredirip.sin_addr.s_addr) {
+#ifdef SIP_MIDCOM
+		  if (m_cb && p->r) {
+		    struct sockaddr_in vredirip_hook;
+		    char iabuf2[INET_ADDRSTRLEN];
+		    m_cb->ast_get_vredirip_video_hook(p->r, &vredirip_hook);
+		    ast_log(LOG_DEBUG, "Replacing %s:%d by %s:%d in video SDP before sending to %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->vredirip.sin_addr), ntohs(p->vredirip.sin_port), ast_inet_ntoa(iabuf2, sizeof(iabuf2), vredirip_hook.sin_addr), ntohs(vredirip_hook.sin_port), p->username);
+		    vdest.sin_port = vredirip_hook.sin_port;
+		    vdest.sin_addr = vredirip_hook.sin_addr;
+		  } else {
 			vdest.sin_port = p->vredirip.sin_port;
 			vdest.sin_addr = p->vredirip.sin_addr;
+		  }
+#else
+			vdest.sin_port = p->vredirip.sin_port;
+			vdest.sin_addr = p->vredirip.sin_addr;
+#endif
 		} else {
 			vdest.sin_addr = p->ourip;
 			vdest.sin_port = vsin.sin_port;
@@ -4509,6 +4575,14 @@ static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_r
 	} else {
 		ast_log(LOG_ERROR, "Can't add SDP to response, since we have no RTP session allocated. Call-ID %s\n", p->callid);
 	}
+#ifdef SIP_MIDCOM
+	if (m_cb) {
+	  if (!m_cb->transmit_response_with_sdp_hook(p)) { 
+	    ast_log(LOG_NOTICE, "Failed transmit_response_with_sdp_hook()\n");
+	    return -1;
+	  }
+	}
+#endif
 	return send_response(p, &resp, retrans, seqno);
 }
 
@@ -4570,6 +4644,19 @@ static int determine_firstline_parts( struct sip_request *req )
 static int transmit_reinvite_with_sdp(struct sip_pvt *p)
 {
 	struct sip_request req;
+
+#ifdef SIP_MIDCOM
+	if (m_cb) {
+	  if (!m_cb->transmit_reinvite_with_sdp_hook(p)) { 
+	    ast_log(LOG_NOTICE, "Failed transmit_reinvite_with_sdp_hook()\n");
+	    if (p->owner)
+	      ast_queue_hangup(p->owner);
+	    else
+	      ast_set_flag(p, SIP_NEEDDESTROY);
+	  }
+	}
+#endif
+
 	if (ast_test_flag(p, SIP_REINVITE_UPDATE))
 		reqprep(&req, p, SIP_UPDATE, 0, 1);
 	else 
@@ -9467,6 +9554,16 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 		p->authtries = 0;
 		if (!strcasecmp(get_header(req, "Content-Type"), "application/sdp")) {
 			process_sdp(p, req);
+#ifdef SIP_MIDCOM
+			if (m_cb) {
+			  if (!m_cb->handle_response_invite_hook(p)) {
+			    if (p->owner)
+			      ast_queue_hangup(p->owner);
+			    else
+			      ast_set_flag(p, SIP_NEEDDESTROY);
+			  }
+			}
+#endif
 		}
 
 		/* Parse contact header for continued conversation */
@@ -10308,6 +10405,19 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 				return -1;
 			}
+#ifdef SIP_MIDCOM
+			if (m_cb) {
+			  if (!m_cb->handle_request_invite_hook((void *)p)) {
+			    ast_log(LOG_NOTICE, "Failed to NAT for (%s)\n", get_header(req, "From"));
+			    if (ignore)
+			      transmit_response(p, "403 Forbidden", req);
+			    else
+			      transmit_response_reliable(p, "403 Forbidden", req, 1);
+			    ast_set_flag(p, SIP_NEEDDESTROY);
+			    return 0;
+			  }
+			}
+#endif
 		} else {
 			p->jointcapability = p->capability;
 			ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
@@ -12655,8 +12765,13 @@ static struct ast_rtp *sip_get_rtp_peer(struct ast_channel *chan)
 	if (!p)
 		return NULL;
 	ast_mutex_lock(&p->lock);
-	if (p->rtp && ast_test_flag(p, SIP_CAN_REINVITE))
+	if (p->rtp && ast_test_flag(p, SIP_CAN_REINVITE)) {
 		rtp =  p->rtp;
+#ifdef SIP_MIDCOM
+		if (m_cb)
+		  m_cb->ast_rtp_nat_us_audio_hook(rtp, p->r); /* change the ip port in rtp */
+#endif
+	}
 	ast_mutex_unlock(&p->lock);
 	return rtp;
 }
@@ -12671,8 +12786,13 @@ static struct ast_rtp *sip_get_vrtp_peer(struct ast_channel *chan)
 		return NULL;
 
 	ast_mutex_lock(&p->lock);
-	if (p->vrtp && ast_test_flag(p, SIP_CAN_REINVITE))
+	if (p->vrtp && ast_test_flag(p, SIP_CAN_REINVITE)) {
 		rtp = p->vrtp;
+#ifdef SIP_MIDCOM
+		if (m_cb)
+		  m_cb->ast_rtp_nat_us_video_hook(rtp, p->r); /* change the ip port in rtp */
+#endif
+	}
 	ast_mutex_unlock(&p->lock);
 	return rtp;
 }
@@ -12686,12 +12806,22 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 	if (!p) 
 		return -1;
 	ast_mutex_lock(&p->lock);
-	if (rtp)
+		if (rtp) {
 		ast_rtp_get_peer(rtp, &p->redirip);
+#ifdef SIP_MIDCOM
+		if (m_cb)
+		  m_cb->ast_rtp_get_their_nat_audio_hook(rtp, p->r);
+#endif
+		}
 	else
 		memset(&p->redirip, 0, sizeof(p->redirip));
-	if (vrtp)
+		if (vrtp) {
 		ast_rtp_get_peer(vrtp, &p->vredirip);
+#ifdef SIP_MIDCOM
+		if (m_cb)
+		  m_cb->ast_rtp_get_their_nat_video_hook(vrtp, p->r);
+#endif
+		}
 	else
 		memset(&p->vredirip, 0, sizeof(p->vredirip));
 	p->redircodecs = codecs;
@@ -12959,6 +13089,26 @@ static struct ast_rtp_protocol sip_rtp = {
 	get_codec: sip_get_codec,
 };
 
+#ifdef SIP_MIDCOM
+/*! \brief  sip_helper: Interface structure with callbacks used to connect to midcom module --*/
+static struct ast_sip_helper_cb sip_helper = {
+	ast_rtp_get_peer_audio_helper: sip_rtp_get_peer_audio_helper,
+	ast_rtp_get_peer_video_helper: sip_rtp_get_peer_video_helper,
+	ast_rtp_get_us_audio_helper: sip_rtp_get_us_audio_helper,
+	ast_rtp_get_us_video_helper: sip_rtp_get_us_video_helper,
+	ast_map_hook_struct: sip_map_hook_struct,
+	ast_get_hook_struct: sip_get_hook_struct,
+	ast_get_flag_novideo: sip_get_flag_novideo,
+	ast_cmp_sa_addr: sip_cmp_sa_addr,
+	ast_get_recv_addr: sip_get_recv_addr,
+	ast_get_username: sip_get_username,
+	ast_channel_helper: sip_channel_helper,
+	ast_bridged_channel_helper: sip_bridged_channel_helper,
+	ast_get_capability_helper: sip_get_capability_helper,
+	ast_softhangup_helper: sip_softhangup_helper,
+};
+#endif
+
 /*! \brief  sip_poke_all_peers: Send a poke to all known peers */
 static void sip_poke_all_peers(void)
 {
@@ -13094,6 +13244,12 @@ int load_module()
 	/* Tell the RTP subdriver that we're here */
 	ast_rtp_proto_register(&sip_rtp);
 
+#ifdef SIP_MIDCOM
+	/* Register the sip helper functions */
+	if (m_cb)
+	  m_cb->ast_sip_helper_register(&sip_helper);
+#endif
+
 	/* Register dialplan applications */
 	ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
 
@@ -13141,6 +13297,12 @@ int unload_module()
 	ast_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
 	ast_rtp_proto_unregister(&sip_rtp);
+
+#ifdef SIP_MIDCOM
+	/* Unregister the sip helper functions */
+	if (m_cb)
+	  m_cb->ast_sip_helper_unregister();
+#endif
 
 	ast_manager_unregister("SIPpeers");
 	ast_manager_unregister("SIPshowpeer");
@@ -13226,4 +13388,78 @@ char *description()
 	return (char *) desc;
 }
 
+#ifdef SIP_MIDCOM
+static void sip_rtp_get_peer_audio_helper(void *p, struct sockaddr_in *them)
+{
+  ast_rtp_get_peer(((struct sip_pvt*)p)->rtp, them);
+}
+
+static void sip_rtp_get_peer_video_helper(void *p, struct sockaddr_in *them)
+{
+  ast_rtp_get_peer(((struct sip_pvt*)p)->vrtp, them);
+}
+
+static void sip_rtp_get_us_audio_helper(void *p, struct sockaddr_in *sin)
+{
+  ast_rtp_get_us(((struct sip_pvt*)p)->rtp, sin);
+  sin->sin_addr = ((struct sip_pvt*)p)->ourip;
+}
+
+static void sip_rtp_get_us_video_helper(void *p, struct sockaddr_in *vsin)
+{
+  ast_rtp_get_us(((struct sip_pvt*)p)->vrtp, vsin);
+  vsin->sin_addr = ((struct sip_pvt*)p)->ourip;
+}
+
+static void sip_map_hook_struct(void *p, void *r)
+{
+  ((struct sip_pvt*)p)->r = r;
+}
+
+static void *sip_get_hook_struct(void *p)
+{
+  return ((struct sip_pvt*)p)->r;
+}
+
+static int sip_get_flag_novideo(void *p)
+{
+  return ast_test_flag((struct sip_pvt*)p, SIP_NOVIDEO);
+}
+
+static int sip_cmp_sa_addr(void *p, struct sockaddr_in *addr)
+{
+  return (((struct sip_pvt*)p)->sa.sin_addr.s_addr == addr->sin_addr.s_addr);
+}
+
+static void sip_get_recv_addr(void *p, struct in_addr *addr)
+{
+  memcpy(addr, &((struct sip_pvt *)p)->recv.sin_addr, sizeof(struct in_addr));
+}
+
+static char *sip_get_username(void *p)
+{
+  return ((struct sip_pvt*)p)->username;
+}
+
+static struct ast_channel *sip_channel_helper(void *p)
+{
+  return ((struct sip_pvt*)p)->owner;
+}
+
+static struct ast_channel *sip_bridged_channel_helper(void *p)
+{
+  return ast_bridged_channel(((struct sip_pvt*)p)->owner);
+}
+
+static int sip_get_capability_helper(void *p)
+{
+  return ((struct sip_pvt*)p)->jointcapability;
+}
+
+static void sip_softhangup_helper(void *p)
+{
+  if (p && ((struct sip_pvt *)p)->owner)
+    ast_softhangup(((struct sip_pvt *)p)->owner, AST_SOFTHANGUP_APPUNLOAD);
+}
+#endif
 

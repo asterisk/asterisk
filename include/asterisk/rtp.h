@@ -100,6 +100,11 @@ void ast_rtp_get_peer(struct ast_rtp *rtp, struct sockaddr_in *them);
 
 void ast_rtp_get_us(struct ast_rtp *rtp, struct sockaddr_in *us);
 
+#ifdef MIDCOM
+void ast_rtp_nat_us(struct ast_rtp *rtp, struct sockaddr_in *our_nat);
+void ast_rtp_get_their_nat(struct ast_rtp *rtp, struct sockaddr_in *their_nat);
+#endif
+
 void ast_rtp_destroy(struct ast_rtp *rtp);
 
 void ast_rtp_reset(struct ast_rtp *rtp);
