@@ -349,27 +349,43 @@ of a function you are calling; this can cause very strange stack
 arrangements and produce unexpected behavior.
 
 -Allocations for structures
-When allocating/zeroing memory for a structure, try to use code like this:
+When allocating/zeroing memory for a structure, use code like this:
 
 struct foo *tmp;
 
 ...
 
-tmp = malloc(sizeof(*tmp));
-if (tmp)
-	memset(tmp, 0, sizeof(*tmp));
+tmp = ast_calloc(1, sizeof(*tmp));
 
-This eliminates duplication of the 'struct foo' identifier, which makes the
-code easier to read and also ensures that if it is copy-and-pasted it won't
-require as much editing. In fact, you can even use:
+Avoid the combination of ast_malloc() and memset().  Instead, always use
+ast_calloc(). This will allocate and zero the memory in a single operation. 
+In the case that uninitialized memory is acceptable, there should be a comment
+in the code that states why this is the case.
 
-struct foo *tmp;
+Using sizeof(*tmp) instead of sizeof(struct foo) eliminates duplication of the 
+'struct foo' identifier, which makes the code easier to read and also ensures 
+that if it is copy-and-pasted it won't require as much editing.
 
-...
+The ast_* family of functions for memory allocation are functionally the same.
+They just add an Asterisk log error message in the case that the allocation
+fails for some reason. This eliminates the need to generate custom messages
+throughout the code to log that this has occurred.
 
-tmp = calloc(1, sizeof(*tmp));
+-String Duplications
 
-This will allocate and zero the memory in a single operation.
+The functions strdup and strndup can *not* accept a NULL argument. This results
+in having code like this:
+
+	if (str)
+		newstr = strdup(str);
+	else
+		newstr = NULL;
+
+However, the ast_strdup and ast_strdup functions will happily accept a NULL
+argument without generating an error.  The same code can be written as:
+	
+	newstr = strdup(str);
+
 
 * CLI Commands
 --------------

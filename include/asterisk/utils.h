@@ -25,6 +25,7 @@
 
 #include "asterisk/compat.h"
 
+#include <stdlib.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>	/* we want to override inet_ntoa */
 #include <netdb.h>
@@ -33,6 +34,7 @@
 #include "asterisk/lock.h"
 #include "asterisk/time.h"
 #include "asterisk/strings.h"
+#include "asterisk/logger.h"
 
 /*! \note
  \verbatim
@@ -240,5 +242,152 @@ int getloadavg(double *list, int nelem);
 #else
 long int ast_random(void);
 #endif
+
+/*!
+  \brief A wrapper for malloc()
+
+  ast_malloc() is a wrapper for malloc() that will generate an Asterisk log
+  message in the case that the allocation fails.
+
+  The argument and return value are the same as malloc()
+*/
+#define ast_malloc(len) \
+	({ \
+		(_ast_malloc((len), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
+	})
+
+AST_INLINE_API(
+void *_ast_malloc(size_t len, const char *file, int lineno, const char *func),
+{
+	void *p;
+
+	p = malloc(len);
+
+	if (!p)
+		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
+
+	return p;
+}
+)
+
+/*!
+  \brief A wrapper for calloc()
+
+  ast_calloc() is a wrapper for calloc() that will generate an Asterisk log
+  message in the case that the allocation fails.
+
+  The arguments and return value are the same as calloc()
+*/
+#define ast_calloc(num, len) \
+	({ \
+		(_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
+	})
+
+AST_INLINE_API(
+void *_ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func),
+{
+	void *p;
+
+	p = calloc(num, len);
+
+	if (!p)
+		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
+
+	return p;
+}
+)
+
+/*!
+  \brief A wrapper for realloc()
+
+  ast_realloc() is a wrapper for realloc() that will generate an Asterisk log
+  message in the case that the allocation fails.
+
+  The arguments and return value are the same as realloc()
+*/
+#define ast_realloc(p, len) \
+	({ \
+		(_ast_realloc((p), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
+	})
+
+AST_INLINE_API(
+void *_ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func),
+{
+	void *newp;
+
+	newp = realloc(p, len);
+
+	if (!newp)
+		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
+
+	return newp;
+}
+)
+
+/*!
+  \brief A wrapper for strdup()
+
+  ast_strdup() is a wrapper for strdup() that will generate an Asterisk log
+  message in the case that the allocation fails.
+
+  ast_strdup(), unlike strdup(), can safely accept a NULL argument. If a NULL
+  argument is provided, ast_strdup will return NULL without generating any
+  kind of error log message.
+
+  The argument and return value are the same as strdup()
+*/
+#define ast_strdup(str) \
+	({ \
+		(_ast_strdup((str), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
+	})
+
+AST_INLINE_API(
+void *_ast_strdup(const char *str, const char *file, int lineno, const char *func),
+{
+	char *newstr = NULL;
+
+	if (str) {
+		newstr = strdup(str);
+
+		if (!newstr)
+			ast_log(LOG_ERROR, "Memory Allocation Failure - Could not duplicate '%s' in function %s at line %d of %s\n", str, func, lineno, file);
+	}
+
+	return newstr;
+}
+)
+
+/*!
+  \brief A wrapper for strndup()
+
+  ast_strndup() is a wrapper for strndup() that will generate an Asterisk log
+  message in the case that the allocation fails.
+
+  ast_strndup(), unlike strndup(), can safely accept a NULL argument for the
+  string to duplicate. If a NULL argument is provided, ast_strdup will return  
+  NULL without generating any kind of error log message.
+
+  The arguments and return value are the same as strndup()
+*/
+#define ast_strndup(str, len) \
+	({ \
+		(_ast_strndup((str), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
+	})
+
+AST_INLINE_API(
+void *_ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func),
+{
+	char *newstr = NULL;
+
+	if (str) {
+		newstr = strndup(str, len);
+
+		if (!newstr)
+			ast_log(LOG_ERROR, "Memory Allocation Failure - Could not duplicate '%d' bytes of '%s' in function %s at line %d of %s\n", (int)len, str, func, lineno, file);
+	}
+
+	return newstr;
+}
+)
 
 #endif /* _ASTERISK_UTILS_H */
