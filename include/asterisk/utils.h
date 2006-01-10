@@ -235,4 +235,10 @@ char *ast_process_quotes_and_slashes(char *start, char find, char replace_with);
 int getloadavg(double *list, int nelem);
 #endif
 
+#ifdef linux
+#define ast_random random
+#else
+long int ast_random(void);
+#endif
+
 #endif /* _ASTERISK_UTILS_H */

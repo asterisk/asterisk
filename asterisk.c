@@ -211,6 +211,8 @@ static int shuttingdown = 0;
 static int restartnow = 0;
 static pthread_t consolethread = AST_PTHREADT_NULL;
 
+static char randompool[256];
+
 #if !defined(LOW_MEMORY)
 struct file_version {
 	AST_LIST_ENTRY(file_version) list;
@@ -2288,7 +2290,7 @@ int main(int argc, char *argv[])
 	   Asterisk is started
 	*/
 	srand((unsigned int) getpid() + (unsigned int) time(NULL));
-	srandom((unsigned int) getpid() + (unsigned int) time(NULL));
+	initstate((unsigned int) getpid() * 65536 + (unsigned int) time(NULL), randompool, sizeof(randompool));
 
 	if (init_logger()) {
 		printf(term_quit());
