@@ -55,27 +55,34 @@ static char *builtin_function_md5(struct ast_channel *chan, char *cmd, char *dat
 
 static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	int argc;
-	char *argv[2];
-	char *args;
 	char newmd5[33];
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(digest);
+		AST_APP_ARG(data);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
 		return NULL;
 	}
 
-	args = ast_strdupa(data);	
-	argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	if (argc < 2) {
+	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return NULL;
+	}
+	
+	AST_STANDARD_APP_ARGS(args, parse);
+	
+	if (args.argc < 2) {
 		ast_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
 		return NULL;
 	}
 
-	ast_md5_hash(newmd5, argv[1]);
+	ast_md5_hash(newmd5, args.data);
 
-	if (!strcasecmp(newmd5, argv[0]))	/* they match */
+	if (!strcasecmp(newmd5, args.digest) )	/* they match */
 		ast_copy_string(buf, "1", len);
 	else
 		ast_copy_string(buf, "0", len);

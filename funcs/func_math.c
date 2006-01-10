@@ -66,35 +66,42 @@ enum TypeOfResult
 
 static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
-	int argc;
-	char *argv[2];
-	char *args;
 	float fnum1;
 	float fnum2;
 	float ftmp = 0;
 	char *op;
 	int iaction=-1;
 	int type_of_result=FLOAT_RESULT;
-
+	char *parse;
+	
 	/* dunno, big calulations :D */
 	char user_result[30];
 
 	char *mvalue1, *mvalue2=NULL, *mtype_of_result;
-		
+	
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(argv0);
+		AST_APP_ARG(argv1);
+	);
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
 		return NULL;
 	}
 
-	args = ast_strdupa(data);	
-	argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0]));
+	parse = ast_strdupa(data);
+	if(!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return NULL;
+	}
 
-	if (argc < 1) {
+	AST_STANDARD_APP_ARGS(args, parse);
+	
+	if (args.argc < 1) {
 		ast_log(LOG_WARNING, "Syntax: Math(<number1><op><number 2>[,<type_of_result>]) - missing argument!\n");
 		return NULL;
 	}
 
-	mvalue1 = argv[0];
+	mvalue1 = args.argv0;
 	
 	if ((op = strchr(mvalue1, '+'))) {
 		iaction = ADDFUNCTION;
@@ -139,7 +146,7 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 		mvalue2 = op + 1;
 
 	/* detect wanted type of result */
-	mtype_of_result = argv[1];
+	mtype_of_result = args.argv1;
 	if (mtype_of_result)
 	{
 		if (!strcasecmp(mtype_of_result,"float") || !strcasecmp(mtype_of_result,"f"))
