@@ -223,6 +223,7 @@ usecallerid=yes
 ; Type of caller ID signalling in use
 ;     bell     = bell202 as used in US
 ;     v23      = v23 as used in the UK
+;     v23_jp   = v23 as used in Japan
 ;     dtmf     = DTMF as used in Denmark, Sweden and Netherlands
 ;
 ;cidsignalling=bell
