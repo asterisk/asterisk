@@ -2029,7 +2029,7 @@ int ast_extension_state_del(int id, ast_state_cb_type callback)
 	    		cblist = cblist->next;
 		}
 
-		ast_mutex_lock(&hintlock);
+		ast_mutex_unlock(&hintlock);
 		return -1;
 	}
 
