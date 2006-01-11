@@ -4764,13 +4764,14 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	while((cmd >= 0) && (cmd != 't')) {
 		if (cmd)
 			retries = 0;
+		RETRIEVE(prefile, -1);
 		if (ast_fileexists(prefile, NULL, NULL) > 0) {
 			switch (cmd) {
 			case '1':
 				cmd = play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 				break;
 			case '2':
-				ast_filedelete(prefile, NULL);
+				DELETE(prefile, -1, prefile);
 				ast_play_and_wait(chan,"vm-tempremoved");
 				cmd = 't';	
 				break;
@@ -4794,6 +4795,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 			play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 			cmd = 't';	
 		}
+		DISPOSE(prefile, -1);
 	}
 	if (cmd == 't')
 		cmd = 0;
