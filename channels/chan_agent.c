@@ -1695,6 +1695,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 	char agent_goodbye[AST_MAX_FILENAME_LEN];
 	int update_cdr = updatecdr;
 	char *filename = "agent-loginok";
+	char tmpchan[AST_MAX_BUF] = "";
 
 	LOCAL_USER_ADD(u);
 
@@ -1825,7 +1826,6 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
 
 					if (callbackmode) {
-						char tmpchan[AST_MAX_BUF] = "";
 						int pos = 0;
 						/* Retrieve login chan */
 						for (;;) {
