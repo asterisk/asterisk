@@ -329,6 +329,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 		ast_mutex_unlock(&chlock);
 		return -1;
 	}
+	chan->tech = tech;
 	AST_LIST_INSERT_HEAD(&backends, chan, list);
 
 	if (option_debug)
