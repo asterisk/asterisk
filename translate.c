@@ -331,6 +331,7 @@ static int show_translation(int fd, int argc, char *argv[])
 	if (argc > 4) 
 		return RESULT_SHOWUSAGE;
 
+	ast_mutex_lock(&list_lock);
 	if (argv[2] && !strcasecmp(argv[2],"recalc")) {
 		z = argv[3] ? atoi(argv[3]) : 1;
 
@@ -349,7 +350,6 @@ static int show_translation(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");
 	ast_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
-	ast_mutex_lock(&list_lock);
 	for (x = -1; x < SHOW_TRANS; x++) {
 		/* next 2 lines run faster than using strcpy() */
 		line[0] = ' ';
