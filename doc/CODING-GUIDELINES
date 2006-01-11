@@ -384,7 +384,7 @@ in having code like this:
 However, the ast_strdup and ast_strdup functions will happily accept a NULL
 argument without generating an error.  The same code can be written as:
 	
-	newstr = strdup(str);
+	newstr = ast_strdup(str);
 
 
 * CLI Commands
