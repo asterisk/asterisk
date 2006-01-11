@@ -38,13 +38,24 @@
 #include "asterisk/app.h"
 #include "asterisk/cdr.h"
 
+enum {
+	OPT_RECURSIVE = (1 << 0),
+} cdr_option_flags;
+
+AST_APP_OPTIONS(cdr_func_options, {
+	AST_APP_OPTION('r', OPT_RECURSIVE),
+});
+
 static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *ret;
-	char *mydata;
-	int argc;
-	char *argv[2];
-	int recursive = 0;
+	char *parse;
+	struct ast_flags flags = {0};
+	
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(variable);
+		AST_APP_ARG(options);
+	);
 
 	if (ast_strlen_zero(data))
 		return NULL;
@@ -52,47 +63,54 @@ static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char
 	if (!chan->cdr)
 		return NULL;
 
-	mydata = ast_strdupa(data);
-	argc = ast_app_separate_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	/* check for a trailing flags argument */
-	if (argc > 1) {
-		argc--;
-		if (strchr(argv[argc], 'r'))
-			recursive = 1;
+	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return NULL;
 	}
 
-	ast_cdr_getvar(chan->cdr, argv[0], &ret, buf, len, recursive);
+	AST_STANDARD_APP_ARGS(args, parse);
+	
+	if(!ast_strlen_zero(args.options) ) {
+		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
+	}
+	ast_cdr_getvar(chan->cdr, args.variable, &ret, buf, len, (ast_test_flag(&flags,OPT_RECURSIVE) ) ? 1 : 0 );
 
 	return ret;
 }
 
 static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	char *mydata;
-	int argc;
-	char *argv[2];
-	int recursive = 0;
+	char *parse;
+	struct ast_flags flags = {0};
+
+	AST_DECLARE_APP_ARGS(args, 
+		AST_APP_ARG(variable);
+		AST_APP_ARG(options);
+	);      
 
 	if (ast_strlen_zero(data) || !value)
 		return;
 	
-	mydata = ast_strdupa(data);
-	argc = ast_app_separate_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
-
-	/* check for a trailing flags argument */
-	if (argc > 1) {
-		argc--;
-		if (strchr(argv[argc], 'r'))
-			recursive = 1;
+	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return;
 	}
 
-	if (!strcasecmp(argv[0], "accountcode"))
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	/* check for a trailing flags argument */
+	if(!ast_strlen_zero(args.options) ) {
+		ast_app_parse_options(cdr_func_options, &flags, NULL, args.options);
+	}
+
+	if (!strcasecmp(args.variable, "accountcode"))
 		ast_cdr_setaccount(chan, value);
-	else if (!strcasecmp(argv[0], "userfield"))
+	else if (!strcasecmp(args.variable, "userfield"))
 		ast_cdr_setuserfield(chan, value);
 	else if (chan->cdr)
-		ast_cdr_setvar(chan->cdr, argv[0], value, recursive);
+		ast_cdr_setvar(chan->cdr, args.variable, value, (ast_test_flag(&flags,OPT_RECURSIVE) ) ? 1 : 0 );
 }
 
 #ifndef BUILTIN_FUNC

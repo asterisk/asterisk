@@ -133,42 +133,40 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 
 static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size_t buflen)
 {
-	char *s, *args[3], *varname=NULL, *delimiter=NULL, *field=NULL;
-	int args_okay = 0;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(varname);
+		AST_APP_ARG(delimiter);
+		AST_APP_ARG(field);
+	);
 
-	memset(buffer, 0, buflen);
-
-	/* Check and parse arguments */
-	if (data) {
-		s = ast_strdupa((char *)data);
-		if (s) {
-			ast_app_separate_args(s, '|', args, 3);
-			varname = args[0];
-			delimiter = args[1];
-			field = args[2];
-
-			if (field) {
-				args_okay = 1;
-			}
-		} else {
-			return ERROR_NOMEM;
-		}
+	memset(buffer, 0, buflen); 
+	
+	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return ERROR_NOMEM;
 	}
 
-	if (args_okay) {
+	AST_STANDARD_APP_ARGS(args, parse);
+
+	/* Check and parse arguments */
+	if(args.argc < 3){
+		return ERROR_NOARG;
+	} else {
 		char d, ds[2];
-		char *tmp = alloca(strlen(varname) + 4);
+		char *tmp = alloca(strlen(args.varname) + 4);
 		char varvalue[MAXRESULT], *tmp2=varvalue;
 
 		if (tmp) {
-			snprintf(tmp, strlen(varname) + 4, "${%s}", varname);
+			snprintf(tmp, strlen(args.varname) + 4, "${%s}", args.varname);
 			memset(varvalue, 0, sizeof(varvalue));
 		} else {
 			return ERROR_NOMEM;
 		}
 
-		if (delimiter[0])
-			d = delimiter[0];
+		if (args.delimiter[0])
+			d = args.delimiter[0];
 		else
 			d = '-';
 
@@ -179,8 +177,8 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 
 		if (tmp2) {
 			int curfieldnum = 1;
-			while ((tmp2 != NULL) && (field != NULL)) {
-				char *nextgroup = strsep(&field, "&");
+			while ((tmp2 != NULL) && (args.field != NULL)) {
+				char *nextgroup = strsep(&(args.field), "&");
 				int num1 = 0, num2 = MAXRESULT;
 				char trashchar;
 
@@ -231,8 +229,6 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 				}
 			}
 		}
-	} else {
-		return ERROR_NOARG;
 	}
 	return 0;
 }
@@ -267,7 +263,7 @@ static char *acf_cut_exec(struct ast_channel *chan, char *cmd, char *data, char 
 
 	switch (cut_internal(chan, data, buf, len)) {
 	case ERROR_NOARG:
-		ast_log(LOG_ERROR, "CUT() requires an argument\n");
+		ast_log(LOG_ERROR, "Syntax: CUT(<varname>,<char-delim>,<range-spec>) - missing argument!\n");
 		break;
 	case ERROR_NOMEM:
 		ast_log(LOG_ERROR, "Out of memory\n");
