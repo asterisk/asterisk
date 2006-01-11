@@ -12066,7 +12066,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		found++;
  	} else {
 		if (!(peer = ast_calloc(1, sizeof(*peer))))
-			return -1;
+			return NULL;
 
 		if (realtime)
 			rpeerobjs++;
