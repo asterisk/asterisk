@@ -84,7 +84,7 @@ static char *convert(char *lastname)
 {
 	char *tmp;
 	int lcount = 0;
-	tmp = malloc(NUMDIGITS + 1);
+	tmp = ast_malloc(NUMDIGITS + 1);
 	if (tmp) {
 		while((*lastname > 32) && lcount < NUMDIGITS) {
 			switch(toupper(*lastname)) {

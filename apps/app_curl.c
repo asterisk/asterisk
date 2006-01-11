@@ -46,6 +46,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/module.h"
 #include "asterisk/app.h"
+#include "asterisk/utils.h"
 
 static char *tdesc = "Load external URL";
 
@@ -63,9 +64,9 @@ static void *myrealloc(void *ptr, size_t size)
 	/* There might be a realloc() out there that doesn't like reallocing
 	   NULL pointers, so we take care of it here */
 	if (ptr)
-		return realloc(ptr, size);
+		return ast_realloc(ptr, size);
 	else
-		return malloc(size);
+		return ast_malloc(size);
 }
 
 static size_t WriteMemoryCallback(void *ptr, size_t size, size_t nmemb, void *data)

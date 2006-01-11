@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/localtime.h"
 #include "asterisk/callerid.h"
 #include "asterisk/astdb.h"
+#include "asterisk/utils.h"
 
 #define ALMRCV_CONFIG "alarmreceiver.conf"
 #define ADEMCO_CONTACT_ID "ADEMCO_CONTACT_ID"
@@ -579,17 +580,11 @@ static int receive_ademco_contact_id( struct ast_channel *chan, void *data, int 
 
 		events_received++;
 		
-		/* Queue the Event */
-
-		if((enew = malloc(sizeof(event_node_t))) == NULL){
-			if(option_verbose >= 1)
-				ast_verbose(VERBOSE_PREFIX_1 "AlarmReceiver: Failed to allocate memory\n");
-			ast_log(LOG_WARNING, "AlarmReceiver Failed to allocate memory\n");
+		/* Queue the Event */		
+		if (!(enew = ast_calloc(1, sizeof(*enew)))) {
 			res = -1;
-                        break;
+			break;
 		}
-
-		memset(enew, 0, sizeof(event_node_t));
 		
 		enew->next = NULL;
 		ast_copy_string(enew->data, event, sizeof(enew->data));

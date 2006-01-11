@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/linkedlists.h"
 #include "asterisk/app.h"
+#include "asterisk/utils.h"
 
 static const char *tdesc = "External IVR Interface Application";
 
@@ -112,10 +113,8 @@ static void *gen_alloc(struct ast_channel *chan, void *params)
 {
 	struct localuser *u = params;
 	struct gen_state *state;
-
-	state = calloc(1, sizeof(*state));
-
-	if (!state)
+	
+	if (!(state = ast_calloc(1, sizeof(*state))))
 		return NULL;
 
 	state->u = u;
@@ -234,10 +233,8 @@ static struct ast_generator gen =
 static struct playlist_entry *make_entry(const char *filename)
 {
 	struct playlist_entry *entry;
-
-	entry = calloc(1, sizeof(*entry) + strlen(filename) + 10);
-
-	if (!entry)
+	
+	if (!(entry = ast_calloc(1, sizeof(*entry) + strlen(filename) + 10)))
 		return NULL;
 
 	strcpy(entry->filename, filename);

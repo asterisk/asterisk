@@ -984,13 +984,10 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			goto out;
 		}
 		*number = '\0';
-		number++;
-		tmp = malloc(sizeof(struct localuser));
-		if (!tmp) {
-			ast_log(LOG_WARNING, "Out of memory\n");
+		number++;		
+		if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 			goto out;
 		}
-		memset(tmp, 0, sizeof(struct localuser));
 		if (opts.flags) {
 			ast_copy_flags(tmp, &opts,
 				       OPT_CALLEE_TRANSFER | OPT_CALLER_TRANSFER |
