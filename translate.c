@@ -51,8 +51,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
    This could all be done more efficiently *IF* we chained packets together
    by default, but it would also complicate virtually every application. */
    
-AST_MUTEX_DEFINE_STATIC(list_lock);
-static struct ast_translator *list = NULL;
+static AST_LIST_HEAD_STATIC(translators, ast_translator);
 
 struct ast_translator_dir {
 	struct ast_translator *step;	/*!< Next step translator */
@@ -267,7 +266,11 @@ static void calc_cost(struct ast_translator *t, int samples)
 		t->cost = 1;
 }
 
-/*! \brief Use the list of translators to build a translation matrix */
+/*! 
+  \brief Use the list of translators to build a translation matrix
+
+  \note This function expects the list of translators to be locked
+*/
 static void rebuild_matrix(int samples)
 {
 	struct ast_translator *t;
@@ -277,8 +280,7 @@ static void rebuild_matrix(int samples)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Resetting translation matrix\n");
 	bzero(tr_matrix, sizeof(tr_matrix));
-	t = list;
-	while(t) {
+	AST_LIST_TRAVERSE(&translators, t, list) {
 		if(samples)
 			calc_cost(t, samples);
 	  
@@ -287,7 +289,6 @@ static void rebuild_matrix(int samples)
 			tr_matrix[t->srcfmt][t->dstfmt].step = t;
 			tr_matrix[t->srcfmt][t->dstfmt].cost = t->cost;
 		}
-		t = t->next;
 	}
 	do {
 		changed = 0;
@@ -332,6 +333,8 @@ static int show_translation(int fd, int argc, char *argv[])
 	if (argc > 4) 
 		return RESULT_SHOWUSAGE;
 
+	AST_LIST_LOCK(&translators);	
+	
 	if (argv[2] && !strcasecmp(argv[2],"recalc")) {
 		z = argv[3] ? atoi(argv[3]) : 1;
 
@@ -350,7 +353,6 @@ static int show_translation(int fd, int argc, char *argv[])
 
 	ast_cli(fd, "         Translation times between formats (in milliseconds)\n");
 	ast_cli(fd, "          Source Format (Rows) Destination Format(Columns)\n\n");
-	ast_mutex_lock(&list_lock);
 	for (x = -1; x < SHOW_TRANS; x++) {
 		/* next 2 lines run faster than using strcpy() */
 		line[0] = ' ';
@@ -371,7 +373,7 @@ static int show_translation(int fd, int argc, char *argv[])
 		snprintf(line + strlen(line), sizeof(line) - strlen(line), "\n");
 		ast_cli(fd, line);			
 	}
-	ast_mutex_unlock(&list_lock);
+	AST_LIST_UNLOCK(&translators);
 	return RESULT_SUCCESS;
 }
 
@@ -403,15 +405,14 @@ int ast_register_translator(struct ast_translator *t)
 	calc_cost(t,1);
 	if (option_verbose > 1)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered translator '%s' from format %s to %s, cost %d\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt), t->cost);
-	ast_mutex_lock(&list_lock);
+	AST_LIST_LOCK(&translators);
 	if (!added_cli) {
 		ast_cli_register(&show_trans);
 		added_cli++;
 	}
-	t->next = list;
-	list = t;
+	AST_LIST_INSERT_HEAD(&translators, t, list);
 	rebuild_matrix(0);
-	ast_mutex_unlock(&list_lock);
+	AST_LIST_UNLOCK(&translators);
 	return 0;
 }
 
@@ -419,24 +420,19 @@ int ast_register_translator(struct ast_translator *t)
 int ast_unregister_translator(struct ast_translator *t)
 {
 	char tmp[80];
-	struct ast_translator *u, *ul = NULL;
-	ast_mutex_lock(&list_lock);
-	u = list;
-	while(u) {
+	struct ast_translator *u;
+	AST_LIST_LOCK(&translators);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&translators, u, list) {
 		if (u == t) {
-			if (ul)
-				ul->next = u->next;
-			else
-				list = u->next;
+			AST_LIST_REMOVE_CURRENT(&translators, list);
 			if (option_verbose > 1)
 				ast_verbose(VERBOSE_PREFIX_2 "Unregistered translator '%s' from format %s to %s\n", term_color(tmp, t->name, COLOR_MAGENTA, COLOR_BLACK, sizeof(tmp)), ast_getformatname(1 << t->srcfmt), ast_getformatname(1 << t->dstfmt));
 			break;
 		}
-		ul = u;
-		u = u->next;
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 	rebuild_matrix(0);
-	ast_mutex_unlock(&list_lock);
+	AST_LIST_UNLOCK(&translators);
 	return (u ? 0 : -1);
 }
 
@@ -463,7 +459,7 @@ int ast_translator_best_choice(int *dst, int *srcs)
 		}
 	} else {
 		/* We will need to translate */
-		ast_mutex_lock(&list_lock);
+		AST_LIST_LOCK(&translators);
 		for (y=0; y < MAX_FORMAT; y++) {
 			if (cur & *dst)
 				for (x=0; x < MAX_FORMAT; x++) {
@@ -477,7 +473,7 @@ int ast_translator_best_choice(int *dst, int *srcs)
 				}
 			cur = cur << 1;
 		}
-		ast_mutex_unlock(&list_lock);
+		AST_LIST_UNLOCK(&translators);
 	}
 	if (best > -1) {
 		*srcs = best;

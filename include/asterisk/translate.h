@@ -31,6 +31,7 @@ extern "C" {
 
 #include "asterisk/frame.h"
 #include "asterisk/plc.h"
+#include "asterisk/linkedlists.h"
 
 /* Declared by individual translators */
 struct ast_translator_pvt;
@@ -57,7 +58,7 @@ struct ast_translator {
 	/*! Cost in milliseconds for encoding/decoding 1 second of sound */
 	int cost;
 	/*! For linking, not to be modified by the translator */
-	struct ast_translator *next;
+	AST_LIST_ENTRY(ast_translator) list;
 };
 
 struct ast_trans_pvt;
