@@ -1359,13 +1359,10 @@ static struct adsi_script *compile_script(char *script)
 		ast_log(LOG_WARNING, "Can't open file '%s'\n", fn);
 		return NULL;
 	}
-	scr = malloc(sizeof(struct adsi_script));
-	if (!scr) {
+	if (!(scr = ast_calloc(1, sizeof(*scr)))) {
 		fclose(f);
-		ast_log(LOG_WARNING, "Out of memory loading script '%s'\n", fn);
 		return NULL;
 	}
-	memset(scr, 0, sizeof(struct adsi_script));
 	/* Create "main" as first subroutine */
 	getsubbyname(scr, "main", NULL, 0);
 	while(!feof(f)) {
