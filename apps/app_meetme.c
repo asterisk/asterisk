@@ -662,8 +662,14 @@ static int conf_cmd(int fd, int argc, char **argv) {
 			}
 		}
 		/* Show all the users */
-		for (user = cnf->firstuser; user; user = user->nextuser)
-			ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s\n",
+		for (user = cnf->firstuser; user; user = user->nextuser){
+			now = time(NULL);
+			hr = (now - user->jointime) / 3600;
+			min = ((now - user->jointime) % 3600) / 60;
+			sec = (now - user->jointime) % 60;
+
+
+			ast_cli(fd, "User #: %-2.2d %12.12s %-20.20s Channel: %s %s %s %s %s %02d:%02d:%02d\n",
 				user->user_no,
 				user->chan->cid.cid_num ? user->chan->cid.cid_num : "<unknown>",
 				user->chan->cid.cid_name ? user->chan->cid.cid_name : "<no name>",
@@ -671,7 +677,8 @@ static int conf_cmd(int fd, int argc, char **argv) {
 				user->userflags & CONFFLAG_ADMIN ? "(Admin)" : "",
 				user->userflags & CONFFLAG_MONITOR ? "(Listen only)" : "",
 				user->adminflags & ADMINFLAG_MUTED ? "(Admn Muted)" : "",
-				istalking(user->talking));
+				istalking(user->talking), hr, min, sec);
+		}
 		ast_cli(fd,"%d users in that conference.\n",cnf->users);
 
 		return RESULT_SUCCESS;
@@ -867,6 +874,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	int menu_active = 0;
 	int using_pseudo = 0;
 	int duration=20;
+	int hr, min, sec;
+	time_t now;
 	struct ast_dsp *dsp=NULL;
 	struct ast_app *app;
 	const char *agifile;
@@ -1661,12 +1670,26 @@ bailoutandtrynormal:
 		ast_dsp_free(dsp);
 	
 	if (user->user_no) { /* Only cleanup users who really joined! */
-		manager_event(EVENT_FLAG_CALL, "MeetmeLeave", 
-			      "Channel: %s\r\n"
-			      "Uniqueid: %s\r\n"
-			      "Meetme: %s\r\n"
-			      "Usernum: %d\r\n",
-			      chan->name, chan->uniqueid, conf->confno, user->user_no);
+		now = time(NULL);
+		hr = (now - user->jointime) / 3600;
+		min = ((now - user->jointime) % 3600) / 60;
+		sec = (now - user->jointime) % 60;
+
+		manager_event(EVENT_FLAG_CALL, "MeetmeLeave",
+			"Channel: %s\r\n"
+			"Uniqueid: %s\r\n"
+			"Meetme: %s\r\n"
+			"Usernum: %d\r\n"
+		        "CIDnum: %s\r\n"
+			"CIDname: %s\r\n"
+		        "Duration: %02d:%02d:%02d\r\n",
+			 chan->name, chan->uniqueid, conf->confno, 
+			  user->user_no,
+			  user->chan->cid.cid_num ? user->chan->cid.cid_num :
+		         "<unknown>",
+		         user->chan->cid.cid_name ? user->chan->cid.cid_name :
+		          "<no name>", hr, min, sec);
+
 		conf->users--;
 		if (confflags & CONFFLAG_MARKEDUSER) 
 			conf->markedusers--;
