@@ -161,7 +161,7 @@ static char *descrip =
 "    S(x) - Hang up the call after 'x' seconds *after* the called party has\n"
 "           answered the call.\n"  	
 "    t    - Allow the called party to transfer the calling party by sending the\n"
-"           DTMF sequence defiend in features.conf.\n"
+"           DTMF sequence defined in features.conf.\n"
 "    T    - Allow the calling party to transfer the called party by sending the\n"
 "           DTMF sequence defined in features.conf.\n"
 "    w    - Allow the called party to enable recording of the call by sending\n"
