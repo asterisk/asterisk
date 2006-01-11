@@ -118,8 +118,18 @@ int ast_app_messagecount(const char *mailbox, int *newmsgs, int *oldmsgs);
 */
 extern int ast_safe_system(const char *s);
 
-/*! Send DTMF to chan (optionally entertain peer)   */
-int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, char *digits, int between);
+/*!
+  \brief Send DTMF to a channel
+
+  \param chan    The channel that will receive the DTMF frames
+  \param peer    (optional) Peer channel that will be autoserviced while the primary
+                 channel is receiving DTMF
+  \param digits  This is a string of characters representing the DTMF digits to be sent
+                 to the channel.  Valid characters are "0123456789*#abcdABCD".
+  \param between This is the number of milliseconds to wait in between each DTMF digit.
+                 If zero milliseconds is specified, then the default value of 100 will be used.
+*/
+int ast_dtmf_stream(struct ast_channel *chan, struct ast_channel *peer, const char *digits, int between);
 
 /*! Stream a filename (or file descriptor) as a generator. */
 int ast_linear_stream(struct ast_channel *chan, const char *filename, int fd, int allowoverride);
