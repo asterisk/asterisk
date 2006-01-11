@@ -892,35 +892,35 @@ static int iax2_getpeername(struct sockaddr_in sin, char *host, int len, int loc
 static struct chan_iax2_pvt *new_iax(struct sockaddr_in *sin, int lockpeer, const char *host)
 {
 	struct chan_iax2_pvt *tmp;
-	tmp = malloc(sizeof(struct chan_iax2_pvt));
-	if (tmp) {
-		memset(tmp, 0, sizeof(struct chan_iax2_pvt));
-		tmp->prefs = prefs;
-		tmp->callno = 0;
-		tmp->peercallno = 0;
-		tmp->transfercallno = 0;
-		tmp->bridgecallno = 0;
-		tmp->pingid = -1;
-		tmp->lagid = -1;
-		tmp->autoid = -1;
-		tmp->authid = -1;
-		tmp->initid = -1;
-		/* ast_copy_string(tmp->context, context, sizeof(tmp->context)); */
-		ast_copy_string(tmp->exten, "s", sizeof(tmp->exten));
-		ast_copy_string(tmp->host, host, sizeof(tmp->host));
-#ifdef NEWJB
-		{
-			jb_conf jbconf;
 
-			tmp->jb = jb_new();
-			tmp->jbid = -1;
-			jbconf.max_jitterbuf = maxjitterbuffer;
-			jbconf.resync_threshold = resyncthreshold;
-			jbconf.max_contig_interp = maxjitterinterps;
-			jb_setconf(tmp->jb,&jbconf);
-		}
-#endif
+	if (!(tmp = ast_calloc(1, sizeof(*tmp))))
+		return NULL;
+
+	tmp->prefs = prefs;
+	tmp->callno = 0;
+	tmp->peercallno = 0;
+	tmp->transfercallno = 0;
+	tmp->bridgecallno = 0;
+	tmp->pingid = -1;
+	tmp->lagid = -1;
+	tmp->autoid = -1;
+	tmp->authid = -1;
+	tmp->initid = -1;
+	/* ast_copy_string(tmp->context, context, sizeof(tmp->context)); */
+	ast_copy_string(tmp->exten, "s", sizeof(tmp->exten));
+	ast_copy_string(tmp->host, host, sizeof(tmp->host));
+#ifdef NEWJB
+	{
+		jb_conf jbconf;
+
+		tmp->jb = jb_new();
+		tmp->jbid = -1;
+		jbconf.max_jitterbuf = maxjitterbuffer;
+		jbconf.resync_threshold = resyncthreshold;
+		jbconf.max_contig_interp = maxjitterinterps;
+		jb_setconf(tmp->jb,&jbconf);
 	}
+#endif
 	return tmp;
 }
 
@@ -1275,9 +1275,7 @@ static int try_firmware(char *s)
 	}
 	if (!cur) {
 		/* Allocate a new one and link it */
-		cur = malloc(sizeof(struct iax_firmware));
-		if (cur) {
-			memset(cur, 0, sizeof(struct iax_firmware));
+		if ((cur = ast_calloc(1, sizeof(*cur)))) {
 			cur->fd = -1;
 			cur->next = waresl.wares;
 			waresl.wares = cur;
@@ -1985,7 +1983,7 @@ static char *complete_iax2_show_peer(char *line, char *word, int pos, int state)
 		for (p = peerl.peers ; p ; p = p->next) {
 			if (!strncasecmp(p->name, word, wordlen)) {
 				if (++which > state) {
-					res = strdup(p->name);
+					res = ast_strdup(p->name);
 					break;
 				}
 			}
@@ -3085,20 +3083,17 @@ static int iax2_setoption(struct ast_channel *c, int option, void *data, int dat
 		errno = ENOSYS;
 		return -1;
 	default:
-		h = malloc(datalen + sizeof(*h));
-		if (h) {
-			h->flag = AST_OPTION_FLAG_REQUEST;
-			h->option = htons(option);
-			memcpy(h->data, data, datalen);
-			res = send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_CONTROL,
-						  AST_CONTROL_OPTION, 0, (unsigned char *) h,
-						  datalen + sizeof(*h), -1);
-			free(h);
-			return res;
-		} else {
-			ast_log(LOG_WARNING, "Out of memory\n");
+		if (!(h = ast_malloc(datalen + sizeof(*h))))
 			return -1;
-		}
+
+		h->flag = AST_OPTION_FLAG_REQUEST;
+		h->option = htons(option);
+		memcpy(h->data, data, datalen);
+		res = send_command_locked(PTR_TO_CALLNO(c->tech_pvt), AST_FRAME_CONTROL,
+					  AST_CONTROL_OPTION, 0, (unsigned char *) h,
+					  datalen + sizeof(*h), -1);
+		free(h);
+		return res;
 	}
 }
 
@@ -3398,15 +3393,15 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->tech_pvt = CALLNO_TO_PTR(i->callno);
 
 		if (!ast_strlen_zero(i->cid_num))
-			tmp->cid.cid_num = strdup(i->cid_num);
+			tmp->cid.cid_num = ast_strdup(i->cid_num);
 		if (!ast_strlen_zero(i->cid_name))
-			tmp->cid.cid_name = strdup(i->cid_name);
+			tmp->cid.cid_name = ast_strdup(i->cid_name);
 		if (!ast_strlen_zero(i->ani))
-			tmp->cid.cid_ani = strdup(i->ani);
+			tmp->cid.cid_ani = ast_strdup(i->ani);
 		if (!ast_strlen_zero(i->language))
 			ast_copy_string(tmp->language, i->language, sizeof(tmp->language));
 		if (!ast_strlen_zero(i->dnid))
-			tmp->cid.cid_dnid = strdup(i->dnid);
+			tmp->cid.cid_dnid = ast_strdup(i->dnid);
 		tmp->cid.cid_pres = i->calling_pres;
 		tmp->cid.cid_ton = i->calling_ton;
 		tmp->cid.cid_tns = i->calling_tns;
@@ -3685,9 +3680,7 @@ static struct iax2_trunk_peer *find_tpeer(struct sockaddr_in *sin, int fd)
 		tpeer = tpeer->next;
 	}
 	if (!tpeer) {
-		tpeer = malloc(sizeof(struct iax2_trunk_peer));
-		if (tpeer) {
-			memset(tpeer, 0, sizeof(struct iax2_trunk_peer));
+		if ((tpeer = ast_calloc(1, sizeof(*tpeer)))) {
 			ast_mutex_init(&tpeer->lock);
 			tpeer->lastsent = 9999;
 			memcpy(&tpeer->addr, sin, sizeof(tpeer->addr));
@@ -3721,16 +3714,14 @@ static int iax2_trunk_queue(struct chan_iax2_pvt *pvt, struct iax_frame *fr)
 		if (tpeer->trunkdatalen + f->datalen + 4 >= tpeer->trunkdataalloc) {
 			/* Need to reallocate space */
 			if (tpeer->trunkdataalloc < MAX_TRUNKDATA) {
-				tmp = realloc(tpeer->trunkdata, tpeer->trunkdataalloc + DEFAULT_TRUNKDATA + IAX2_TRUNK_PREFACE);
-				if (tmp) {
-					tpeer->trunkdataalloc += DEFAULT_TRUNKDATA;
-					tpeer->trunkdata = tmp;
-					ast_log(LOG_DEBUG, "Expanded trunk '%s:%d' to %d bytes\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
-				} else {
-					ast_log(LOG_WARNING, "Insufficient memory to expand trunk data to %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
+				if (!(tmp = ast_realloc(tpeer->trunkdata, tpeer->trunkdataalloc + DEFAULT_TRUNKDATA + IAX2_TRUNK_PREFACE))) {
 					ast_mutex_unlock(&tpeer->lock);
 					return -1;
 				}
+				
+				tpeer->trunkdataalloc += DEFAULT_TRUNKDATA;
+				tpeer->trunkdata = tmp;
+				ast_log(LOG_DEBUG, "Expanded trunk '%s:%d' to %d bytes\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port), tpeer->trunkdataalloc);
 			} else {
 				ast_log(LOG_WARNING, "Maximum trunk data space exceeded to %s:%d\n", ast_inet_ntoa(iabuf, sizeof(iabuf), tpeer->addr.sin_addr), ntohs(tpeer->addr.sin_port));
 				ast_mutex_unlock(&tpeer->lock);
@@ -5511,24 +5502,20 @@ static int iax2_register(char *value, int lineno)
 		ast_log(LOG_WARNING, "Host '%s' not found at line %d\n", hostname, lineno);
 		return -1;
 	}
-	reg = malloc(sizeof(struct iax2_registry));
-	if (reg) {
-		memset(reg, 0, sizeof(struct iax2_registry));
-		ast_copy_string(reg->username, username, sizeof(reg->username));
-		if (secret)
-			ast_copy_string(reg->secret, secret, sizeof(reg->secret));
-		reg->expire = -1;
-		reg->refresh = IAX_DEFAULT_REG_EXPIRE;
-		reg->addr.sin_family = AF_INET;
-		memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
-		reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
-		reg->next = registrations;
-		reg->callno = 0;
-		registrations = reg;
-	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(reg = ast_calloc(1, sizeof(*reg))))
 		return -1;
-	}
+	ast_copy_string(reg->username, username, sizeof(reg->username));
+	if (secret)
+		ast_copy_string(reg->secret, secret, sizeof(reg->secret));
+	reg->expire = -1;
+	reg->refresh = IAX_DEFAULT_REG_EXPIRE;
+	reg->addr.sin_family = AF_INET;
+	memcpy(&reg->addr.sin_addr, hp->h_addr, sizeof(&reg->addr.sin_addr));
+	reg->addr.sin_port = porta ? htons(atoi(porta)) : htons(IAX_DEFAULT_PORTNO);
+	reg->next = registrations;
+	reg->callno = 0;
+	registrations = reg;
+	
 	return 0;
 }
 
@@ -5542,7 +5529,7 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff) {
 				if (!ast_exists_extension(NULL, regcontext, ext, 1, NULL))
-					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, channeltype);
+					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", ast_strdup(peer->name), free, channeltype);
 			} else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
@@ -6097,19 +6084,18 @@ static void spawn_dp_lookup(int callno, char *context, char *callednum, char *ca
 {
 	pthread_t newthread;
 	struct dpreq_data *dpr;
-	dpr = malloc(sizeof(struct dpreq_data));
-	if (dpr) {
-		memset(dpr, 0, sizeof(struct dpreq_data));
-		dpr->callno = callno;
-		ast_copy_string(dpr->context, context, sizeof(dpr->context));
-		ast_copy_string(dpr->callednum, callednum, sizeof(dpr->callednum));
-		if (callerid)
-			dpr->callerid = strdup(callerid);
-		if (ast_pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
-			ast_log(LOG_WARNING, "Unable to start lookup thread!\n");
-		}
-	} else
-		ast_log(LOG_WARNING, "Out of memory!\n");
+	
+	if (!(dpr = ast_calloc(1, sizeof(*dpr))))
+		return;
+
+	dpr->callno = callno;
+	ast_copy_string(dpr->context, context, sizeof(dpr->context));
+	ast_copy_string(dpr->callednum, callednum, sizeof(dpr->callednum));
+	if (callerid)
+		dpr->callerid = ast_strdup(callerid);
+	if (ast_pthread_create(&newthread, NULL, dp_lookup_thread, dpr)) {
+		ast_log(LOG_WARNING, "Unable to start lookup thread!\n");
+	}
 }
 
 struct iax_dual {
@@ -6178,9 +6164,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 			ast_hangup(chan2m);
 		return -1;
 	}
-	d = malloc(sizeof(struct iax_dual));
-	if (d) {
-		memset(d, 0, sizeof(*d));
+	if ((d = ast_calloc(1, sizeof(*d)))) {
 		d->chan1 = chan1m;
 		d->chan2 = chan2m;
 		if (!ast_pthread_create(&th, NULL, iax_park_thread, d))
@@ -7988,11 +7972,11 @@ static int start_network_thread(void)
 
 static struct iax2_context *build_context(char *context)
 {
-	struct iax2_context *con = malloc(sizeof(struct iax2_context));
-	if (con) {
+	struct iax2_context *con;
+
+	if ((con = ast_calloc(1, sizeof(*con))))
 		ast_copy_string(con->context, context, sizeof(con->context));
-		con->next = NULL;
-	}
+	
 	return con;
 }
 
@@ -8129,9 +8113,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 		ast_mutex_unlock(&peerl.lock);
  	} else {
 		ast_mutex_unlock(&peerl.lock);
-		peer = malloc(sizeof(struct iax2_peer));
-		if (peer) {
-			memset(peer, 0, sizeof(struct iax2_peer));
+		if ((peer = ast_calloc(1, sizeof(*peer)))) {
 			peer->expire = -1;
 			peer->pokeexpire = -1;
 			peer->sockfd = defaultsockfd;
@@ -8327,9 +8309,8 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 		ast_mutex_unlock(&userl.lock);
  	} else {
 		ast_mutex_unlock(&userl.lock);
-		user = malloc(sizeof(struct iax2_user));
-		if (user)
-			memset(user, 0, sizeof(struct iax2_user));
+		/* This is going to memset'd to 0 in the next block */
+		user = ast_malloc(sizeof(*user));
 	}
 	
 	if (user) {
@@ -8965,12 +8946,10 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 			ast_log(LOG_WARNING, "Unable to generate call for '%s'\n", data);
 			return NULL;
 		}
-		dp = malloc(sizeof(struct iax2_dpcache));
-		if (!dp) {
+		if (!(dp = ast_calloc(1, sizeof(*dp)))) {
 			ast_mutex_unlock(&iaxsl[callno]);
 			return NULL;
 		}
-		memset(dp, 0, sizeof(struct iax2_dpcache));
 		ast_copy_string(dp->peercontext, data, sizeof(dp->peercontext));
 		ast_copy_string(dp->exten, exten, sizeof(dp->exten));
 		gettimeofday(&dp->expiry, NULL);

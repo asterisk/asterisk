@@ -326,25 +326,11 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	size_t len, namelen;
 	
 	ast_mutex_lock(&p->lock);
-	if (p->owner->cid.cid_num)
-		p->chan->cid.cid_num = strdup(p->owner->cid.cid_num);
-	else 
-		p->chan->cid.cid_num = NULL;
 
-	if (p->owner->cid.cid_name)
-		p->chan->cid.cid_name = strdup(p->owner->cid.cid_name);
-	else 
-		p->chan->cid.cid_name = NULL;
-
-	if (p->owner->cid.cid_rdnis)
-		p->chan->cid.cid_rdnis = strdup(p->owner->cid.cid_rdnis);
-	else
-		p->chan->cid.cid_rdnis = NULL;
-
-	if (p->owner->cid.cid_ani)
-		p->chan->cid.cid_ani = strdup(p->owner->cid.cid_ani);
-	else
-		p->chan->cid.cid_ani = NULL;
+	p->chan->cid.cid_num = ast_strdup(p->owner->cid.cid_num);
+	p->chan->cid.cid_name = ast_strdup(p->owner->cid.cid_name);
+	p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis);
+	p->chan->cid.cid_ani = ast_strdup(p->owner->cid.cid_ani);
 
 	strncpy(p->chan->language, p->owner->language, sizeof(p->chan->language) - 1);
 	strncpy(p->chan->accountcode, p->owner->accountcode, sizeof(p->chan->accountcode) - 1);
@@ -355,13 +341,10 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	AST_LIST_TRAVERSE(&p->owner->varshead, varptr, entries) {
 		namelen = strlen(varptr->name);
 		len = sizeof(struct ast_var_t) + namelen + strlen(varptr->value) + 2;
-		new = malloc(len);
-		if (new) {
+		if ((new = ast_calloc(1, len))) {
 			memcpy(new, varptr, len);
 			new->value = &(new->name[0]) + namelen + 1;
 			AST_LIST_INSERT_TAIL(&p->chan->varshead, new, entries);
-		} else {
-			ast_log(LOG_ERROR, "Out of memory!\n");
 		}
 	}
 
@@ -472,40 +455,39 @@ static struct local_pvt *local_alloc(char *data, int format)
 	char *c;
 	char *opts;
 
-	tmp = malloc(sizeof(struct local_pvt));
-	if (tmp) {
-		memset(tmp, 0, sizeof(struct local_pvt));
-		ast_mutex_init(&tmp->lock);
-		strncpy(tmp->exten, data, sizeof(tmp->exten) - 1);
-		opts = strchr(tmp->exten, '/');
-		if (opts) {
-			*opts='\0';
-			opts++;
-			if (strchr(opts, 'n'))
-				tmp->nooptimization = 1;
-		}
-		c = strchr(tmp->exten, '@');
-		if (c) {
-			*c = '\0';
-			c++;
-			strncpy(tmp->context, c, sizeof(tmp->context) - 1);
-		} else
-			strncpy(tmp->context, "default", sizeof(tmp->context) - 1);
-		tmp->reqformat = format;
-		if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
-			ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
-			ast_mutex_destroy(&tmp->lock);
-			free(tmp);
-			tmp = NULL;
-		} else {
-			/* Add to list */
-			ast_mutex_lock(&locallock);
-			tmp->next = locals;
-			locals = tmp;
-			ast_mutex_unlock(&locallock);
-		}
-		
+	if (!(tmp = ast_calloc(1, sizeof(*tmp))))
+		return NULL;
+	
+	ast_mutex_init(&tmp->lock);
+	strncpy(tmp->exten, data, sizeof(tmp->exten) - 1);
+	opts = strchr(tmp->exten, '/');
+	if (opts) {
+		*opts='\0';
+		opts++;
+		if (strchr(opts, 'n'))
+			tmp->nooptimization = 1;
 	}
+	c = strchr(tmp->exten, '@');
+	if (c) {
+		*c = '\0';
+		c++;
+		strncpy(tmp->context, c, sizeof(tmp->context) - 1);
+	} else
+		strncpy(tmp->context, "default", sizeof(tmp->context) - 1);
+	tmp->reqformat = format;
+	if (!ast_exists_extension(NULL, tmp->context, tmp->exten, 1, NULL)) {
+		ast_log(LOG_NOTICE, "No such extension/context %s@%s creating local channel\n", tmp->exten, tmp->context);
+		ast_mutex_destroy(&tmp->lock);
+		free(tmp);
+		tmp = NULL;
+	} else {
+		/* Add to list */
+		ast_mutex_lock(&locallock);
+		tmp->next = locals;
+		locals = tmp;
+		ast_mutex_unlock(&locallock);
+	}
+	
 	return tmp;
 }
 

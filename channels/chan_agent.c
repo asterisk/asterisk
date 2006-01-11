@@ -350,25 +350,20 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	}
 	if (!p) {
 		// Build the agent.
-		p = malloc(sizeof(struct agent_pvt));
-		if (p) {
-			memset(p, 0, sizeof(struct agent_pvt));
-			ast_copy_string(p->agent, agt, sizeof(p->agent));
-			ast_mutex_init(&p->lock);
-			ast_mutex_init(&p->app_lock);
-			p->owning_app = (pthread_t) -1;
-			p->app_sleep_cond = 1;
-			p->group = group;
-			p->pending = pending;
-			p->next = NULL;
-			if (prev)
-				prev->next = p;
-			else
-				agents = p;
-			
-		} else {
+		if (!(p = ast_calloc(1, sizeof(*p))))
 			return NULL;
-		}
+		ast_copy_string(p->agent, agt, sizeof(p->agent));
+		ast_mutex_init(&p->lock);
+		ast_mutex_init(&p->app_lock);
+		p->owning_app = (pthread_t) -1;
+		p->app_sleep_cond = 1;
+		p->group = group;
+		p->pending = pending;
+		p->next = NULL;
+		if (prev)
+			prev->next = p;
+		else
+			agents = p;
 	}
 	
 	ast_copy_string(p->password, password ? password : "", sizeof(p->password));
@@ -666,16 +661,10 @@ static int agent_call(struct ast_channel *ast, char *dest, int timeout)
 			ast_verbose(VERBOSE_PREFIX_3 "outgoing agentcall, to agent '%s', on '%s'\n", p->agent, p->chan->name);
 		if (p->chan->cid.cid_num)
 			free(p->chan->cid.cid_num);
-		if (ast->cid.cid_num)
-			p->chan->cid.cid_num = strdup(ast->cid.cid_num);
-		else
-			p->chan->cid.cid_num = NULL;
+		p->chan->cid.cid_num = ast_strdup(ast->cid.cid_num);
 		if (p->chan->cid.cid_name)
 			free(p->chan->cid.cid_name);
-		if (ast->cid.cid_name)
-			p->chan->cid.cid_name = strdup(ast->cid.cid_name);
-		else
-			p->chan->cid.cid_name = NULL;
+		p->chan->cid.cid_name = ast_strdup(ast->cid.cid_name);
 		ast_channel_inherit_variables(ast, p->chan);
 		res = ast_call(p->chan, p->loginchan, 0);
 		CLEANUP(ast,p);
@@ -1568,12 +1557,12 @@ static char *complete_agent_logoff_cmd(char *line, char *word, int pos, int stat
 			snprintf(name, sizeof(name), "Agent/%s", p->agent);
 			if (!strncasecmp(word, name, strlen(word))) {
 				if (++which > state) {
-					return strdup(name);
+					return ast_strdup(name);
 				}
 			}
 		}
 	} else if (pos == 3 && state == 0) {
-		return strdup("soft");
+		return ast_strdup("soft");
 	}
 	return NULL;
 }

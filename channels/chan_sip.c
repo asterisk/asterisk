@@ -1149,15 +1149,9 @@ static void append_history_va(struct sip_pvt *p, const char *fmt, va_list ap)
 	vsnprintf(buf, sizeof(buf), fmt, ap);
 	strsep(&c, "\r\n"); /* Trim up everything after \r or \n */
 	l = strlen(buf) + 1;
-	hist = calloc(1, sizeof(*hist) + l);
-	if (!hist) {
-		ast_log(LOG_WARNING, "Can't allocate memory for history");
+	if (!(hist = ast_calloc(1, sizeof(*hist) + l)))
 		return;
-	}
-	if (p->history == NULL)
-		p->history = calloc(1, sizeof(struct sip_history_head));
-	if (p->history == NULL) {
-		ast_log(LOG_WARNING, "Can't allocate memory for history head");
+	if (!p->history && !(p->history = ast_calloc(1, sizeof(*p->history)))) {
 		free(hist);
 		return;
 	}
@@ -1283,10 +1277,8 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	struct sip_pkt *pkt;
 	int siptimer_a = DEFAULT_RETRANS;
 
-	pkt = malloc(sizeof(struct sip_pkt) + len + 1);
-	if (!pkt)
+	if (!(pkt = ast_calloc(1, sizeof(*pkt) + len + 1)))
 		return -1;
-	memset(pkt, 0, sizeof(struct sip_pkt));
 	memcpy(pkt->data, data, len);
 	pkt->method = sipmethod;
 	pkt->packetlen = len;
@@ -1616,7 +1608,7 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", strdup(peer->name), free, channeltype);
+				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", ast_strdup(peer->name), free, channeltype);
 			else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
@@ -2847,13 +2839,13 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
 	ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 	if (!ast_strlen_zero(i->cid_num)) 
-		tmp->cid.cid_num = strdup(i->cid_num);
+		tmp->cid.cid_num = ast_strdup(i->cid_num);
 	if (!ast_strlen_zero(i->cid_name))
-		tmp->cid.cid_name = strdup(i->cid_name);
+		tmp->cid.cid_name = ast_strdup(i->cid_name);
 	if (!ast_strlen_zero(i->rdnis))
-		tmp->cid.cid_rdnis = strdup(i->rdnis);
+		tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
 	if (!ast_strlen_zero(i->exten) && strcmp(i->exten, "s"))
-		tmp->cid.cid_dnid = strdup(i->exten);
+		tmp->cid.cid_dnid = ast_strdup(i->exten);
 	tmp->priority = 1;
 	if (!ast_strlen_zero(i->uri)) {
 		pbx_builtin_setvar_helper(tmp, "SIPURI", i->uri);
@@ -3097,7 +3089,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 {
 	struct sip_pvt *p;
 
-	if (!(p = calloc(1, sizeof(*p))))
+	if (!(p = ast_calloc(1, sizeof(*p))))
 		return NULL;
 
 	if (ast_string_field_init(p)) {
@@ -3310,10 +3302,8 @@ static int sip_register(char *value, int lineno)
 		ast_log(LOG_WARNING, "%s is not a valid port number at line %d\n", porta, lineno);
 		return -1;
 	}
-	if (!(reg = calloc(1, sizeof(*reg)))) {
-		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
+	if (!(reg = ast_calloc(1, sizeof(*reg))))
 		return -1;
-	}
 
 	if (ast_string_field_init(reg)) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry entry\n");
@@ -6066,12 +6056,13 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 			/* Each route entry */
 			/* Find < */
 			rr = strchr(rr, '<');
-			if (!rr) break; /* No more hops */
+			if (!rr) 
+				break; /* No more hops */
 			++rr;
 			len = strcspn(rr, ">") + 1;
 			/* Make a struct route */
-			thishop = malloc(sizeof(*thishop) + len);
-			if (thishop) {
+			if ((thishop = ast_malloc(sizeof(*thishop) + len))) {
+				/* ast_calloc is not needed because all fields are initialized in this block */
 				ast_copy_string(thishop->hop, rr, len);
 				ast_log(LOG_DEBUG, "build_route: Record-Route hop: <%s>\n", thishop->hop);
 				/* Link in */
@@ -6113,8 +6104,8 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 				c = contact;
 				len = strlen(contact) + 1;
 			}
-			thishop = malloc(sizeof(*thishop) + len);
-			if (thishop) {
+			if ((thishop = ast_malloc(sizeof(*thishop) + len))) {
+				/* ast_calloc is not needed because all fields are initialized in this block */
 				ast_copy_string(thishop->hop, c, len);
 				thishop->next = NULL;
 				/* Goes at the end */
@@ -8421,7 +8412,7 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 	for (cur = iflist; cur; cur = cur->next) {
 		if (!strncasecmp(word, cur->callid, wordlen)) {
 			if (++which > state) {
-				c = strdup(cur->callid);
+				c = ast_strdup(cur->callid);
 				break;
 			}
 		}
@@ -8443,7 +8434,7 @@ static char *complete_sip_peer(char *word, int state, int flags2)
 			if (flags2 && !ast_test_flag((&iterator->flags_page2), flags2))
 				continue;
 			if (++which > state) {
-				result = strdup(iterator->name);
+				result = ast_strdup(iterator->name);
 			}
 		}
 	} while(0) );
@@ -8481,7 +8472,7 @@ static char *complete_sip_user(char *word, int state, int flags2)
 			if (flags2 && !ast_test_flag(&(iterator->flags_page2), flags2))
 				continue;
 			if (++which > state) {
-				result = strdup(iterator->name);
+				result = ast_strdup(iterator->name);
 			}
 		}
 	} while(0) );
@@ -8515,7 +8506,7 @@ static char *complete_sipnotify(char *line, char *word, int pos, int state)
 		while ( (cat = ast_category_browse(notify_types, cat)) ) {
 			if (!strncasecmp(word, cat, wordlen)) {
 				if (++which > state) {
-					c = strdup(cat);
+					c = ast_strdup(cat);
 					break;
 				}
 			}
@@ -8960,13 +8951,8 @@ static int do_proxy_auth(struct sip_pvt *p, struct sip_request *req, char *heade
 {
 	char digest[1024];
 
-	if (!p->options) {
-		p->options = calloc(1, sizeof(*p->options));
-		if (!p->options) {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			return -2;
-		}
-	}
+	if (!p->options && !(p->options = ast_calloc(1, sizeof(*p->options))))
+		return -2;
 
 	p->authtries++;
 	if (option_debug > 1)
@@ -10181,9 +10167,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		return -1;
 	}
 	ast_mutex_unlock(&chan2m->lock);
-	d = malloc(sizeof(struct sip_dual));
-	if (d) {
-		memset(d, 0, sizeof(*d));
+	if ((d = ast_calloc(1, sizeof(*d)))) {
 		/* Save original request for followup */
 		copy_request(&d->req, req);
 		d->chan1 = chan1m;
@@ -11259,11 +11243,9 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 		return 0;
 	}
 	
-	p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY);
-	if (!p) {
-		ast_log(LOG_WARNING, "Unable to build sip pvt data for MWI\n");
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_NOTIFY)))
 		return -1;
-	}
+	
 	peer->lastmsgssent = ((newmsgs << 8) | (oldmsgs));
 	if (create_addr_from_peer(p, peer)) {
 		/* Maybe they're not registered, etc. */
@@ -11487,11 +11469,9 @@ static int sip_poke_peer(struct sip_peer *peer)
 			ast_log(LOG_NOTICE, "Still have a QUALIFY dialog active, deleting\n");
 		sip_destroy(peer->call);
 	}
-	p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS);
-	if (!peer->call) {
-		ast_log(LOG_WARNING, "Unable to allocate dialog for poking peer '%s'\n", peer->name);
+	if (!(p = peer->call = sip_alloc(NULL, NULL, 0, SIP_OPTIONS)))
 		return -1;
-	}
+	
 	memcpy(&p->sa, &peer->addr, sizeof(p->sa));
 	memcpy(&p->recv, &peer->addr, sizeof(p->sa));
 
@@ -11612,17 +11592,11 @@ static struct ast_channel *sip_request_call(const char *type, int format, void *
 		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format %s while capability is %s\n", ast_getformatname(oldformat), ast_getformatname(global_capability));
 		return NULL;
 	}
-	p = sip_alloc(NULL, NULL, 0, SIP_INVITE);
-	if (!p) {
-		ast_log(LOG_WARNING, "Unable to build sip pvt data for '%s'\n", (char *)data);
+	if (!(p = sip_alloc(NULL, NULL, 0, SIP_INVITE)))
 		return NULL;
-	}
 
-	p->options = calloc(1, sizeof(*p->options));
-	if (!p->options) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(p->options = ast_calloc(1, sizeof(*p->options))))
 		return NULL;
-	}
 
 	ast_copy_string(tmp, dest, sizeof(tmp));
 	host = strchr(tmp, '@');
@@ -11796,11 +11770,8 @@ static int add_sip_domain(const char *domain, const enum domain_mode mode, const
 		return 1;
 	}
 
-	d = calloc(1, sizeof(*d));
-	if (!d) {
-		ast_log(LOG_ERROR, "Allocation of domain structure failed, Out of memory\n");
+	if (!(d = ast_calloc(1, sizeof(*d))))
 		return 0;
-	}
 
 	ast_copy_string(d->domain, domain, sizeof(d->domain));
 
@@ -11889,19 +11860,15 @@ static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char
 			md5secret = strsep(&stringp,"#");
 		}
 	}
-	auth = malloc(sizeof(struct sip_auth));
-	if (auth) {
-		memset(auth, 0, sizeof(struct sip_auth));
-		ast_copy_string(auth->realm, realm, sizeof(auth->realm));
-		ast_copy_string(auth->username, username, sizeof(auth->username));
-		if (secret)
-			ast_copy_string(auth->secret, secret, sizeof(auth->secret));
-		if (md5secret)
-			ast_copy_string(auth->md5secret, md5secret, sizeof(auth->md5secret));
-	} else {
-		ast_log(LOG_ERROR, "Allocation of auth structure failed, Out of memory\n");
+	if (!(auth = ast_calloc(1, sizeof(*auth))))
 		return authlist;
-	}
+
+	ast_copy_string(auth->realm, realm, sizeof(auth->realm));
+	ast_copy_string(auth->username, username, sizeof(auth->username));
+	if (secret)
+		ast_copy_string(auth->secret, secret, sizeof(auth->secret));
+	if (md5secret)
+		ast_copy_string(auth->md5secret, md5secret, sizeof(auth->md5secret));
 
 	/* Add authentication to authl */
 	if (!authlist) {	/* No existing list */
@@ -11960,11 +11927,9 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	struct ast_flags mask = {(0)};
 
 
-	user = (struct sip_user *)malloc(sizeof(struct sip_user));
-	if (!user) {
+	if (!(user = ast_calloc(1, sizeof(*user))))
 		return NULL;
-	}
-	memset(user, 0, sizeof(struct sip_user));
+		
 	suserobjs++;
 	ASTOBJ_INIT(user);
 	ast_copy_string(user->name, name, sizeof(user->name));
@@ -12045,11 +12010,9 @@ static struct sip_peer *temp_peer(const char *name)
 {
 	struct sip_peer *peer;
 
-	peer = malloc(sizeof(*peer));
-	if (!peer)
+	if (!(peer = ast_calloc(1, sizeof(*peer))))
 		return NULL;
 
-	memset(peer, 0, sizeof(*peer));
 	apeerobjs++;
 	ASTOBJ_INIT(peer);
 
@@ -12102,23 +12065,18 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		/* Already in the list, remove it and it will be added back (or FREE'd)  */
 		found++;
  	} else {
-		peer = malloc(sizeof(*peer));
-		if (peer) {
-			memset(peer, 0, sizeof(*peer));
-			if (realtime)
-				rpeerobjs++;
-			else
-				speerobjs++;
-			ASTOBJ_INIT(peer);
-			peer->expire = -1;
-			peer->pokeexpire = -1;
-		} else {
-			ast_log(LOG_WARNING, "Can't allocate SIP peer memory\n");
-		}
+		if (!(peer = ast_calloc(1, sizeof(*peer))))
+			return -1;
+
+		if (realtime)
+			rpeerobjs++;
+		else
+			speerobjs++;
+		ASTOBJ_INIT(peer);
+		peer->expire = -1;
+		peer->pokeexpire = -1;
 	}
 	/* Note that our peer HAS had its reference count incrased */
-	if (!peer)
-		return NULL;
 
 	peer->lastmsgssent = -1;
 	if (!found) {

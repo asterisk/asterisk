@@ -865,10 +865,10 @@ static char *autoanswer_complete(char *line, char *word, int pos, int state)
 	switch(state) {
 	case 0:
 		if (!ast_strlen_zero(word) && !strncasecmp(word, "on", MIN(strlen(word), 2)))
-			return strdup("on");
+			return ast_strdup("on");
 	case 1:
 		if (!ast_strlen_zero(word) && !strncasecmp(word, "off", MIN(strlen(word), 3)))
-			return strdup("off");
+			return ast_strdup("off");
 	default:
 		return NULL;
 	}

@@ -1659,17 +1659,15 @@ int send_cwcidspill(struct zt_pvt *p)
 {
 	p->callwaitcas = 0;
 	p->cidcwexpire = 0;
-	p->cidspill = malloc(MAX_CALLERID_SIZE);
-	if (p->cidspill) {
-		memset(p->cidspill, 0x7f, MAX_CALLERID_SIZE);
-		p->cidlen = ast_callerid_callwaiting_generate(p->cidspill, p->callwait_name, p->callwait_num, AST_LAW(p));
-		/* Make sure we account for the end */
-		p->cidlen += READ_SIZE * 4;
-		p->cidpos = 0;
-		send_callerid(p);
-		if (option_verbose > 2)
-			ast_verbose(VERBOSE_PREFIX_3 "CPE supports Call Waiting Caller*ID.  Sending '%s/%s'\n", p->callwait_name, p->callwait_num);
-	} else return -1;
+	if (!(p->cidspill = ast_malloc(MAX_CALLERID_SIZE)))
+		return -1;
+	p->cidlen = ast_callerid_callwaiting_generate(p->cidspill, p->callwait_name, p->callwait_num, AST_LAW(p));
+	/* Make sure we account for the end */
+	p->cidlen += READ_SIZE * 4;
+	p->cidpos = 0;
+	send_callerid(p);
+	if (option_verbose > 2)
+		ast_verbose(VERBOSE_PREFIX_3 "CPE supports Call Waiting Caller*ID.  Sending '%s/%s'\n", p->callwait_name, p->callwait_num);
 	return 0;
 }
 
@@ -1720,26 +1718,23 @@ static int zt_callwait(struct ast_channel *ast)
 		ast_log(LOG_WARNING, "Spill already exists?!?\n");
 		free(p->cidspill);
 	}
-	p->cidspill = malloc(2400 /* SAS */ + 680 /* CAS */ + READ_SIZE * 4);
-	if (p->cidspill) {
-		save_conference(p);
-		/* Silence */
-		memset(p->cidspill, 0x7f, 2400 + 600 + READ_SIZE * 4);
-		if (!p->callwaitrings && p->callwaitingcallerid) {
-			ast_gen_cas(p->cidspill, 1, 2400 + 680, AST_LAW(p));
-			p->callwaitcas = 1;
-			p->cidlen = 2400 + 680 + READ_SIZE * 4;
-		} else {
-			ast_gen_cas(p->cidspill, 1, 2400, AST_LAW(p));
-			p->callwaitcas = 0;
-			p->cidlen = 2400 + READ_SIZE * 4;
-		}
-		p->cidpos = 0;
-		send_callerid(p);
-	} else {
-		ast_log(LOG_WARNING, "Unable to create SAS/CAS spill\n");
+	if (!(p->cidspill = ast_malloc(2400 /* SAS */ + 680 /* CAS */ + READ_SIZE * 4)))
 		return -1;
+	save_conference(p);
+	/* Silence */
+	memset(p->cidspill, 0x7f, 2400 + 600 + READ_SIZE * 4);
+	if (!p->callwaitrings && p->callwaitingcallerid) {
+		ast_gen_cas(p->cidspill, 1, 2400 + 680, AST_LAW(p));
+		p->callwaitcas = 1;
+		p->cidlen = 2400 + 680 + READ_SIZE * 4;
+	} else {
+		ast_gen_cas(p->cidspill, 1, 2400, AST_LAW(p));
+		p->callwaitcas = 0;
+		p->cidlen = 2400 + READ_SIZE * 4;
 	}
+	p->cidpos = 0;
+	send_callerid(p);
+	
 	return 0;
 }
 
@@ -1796,14 +1791,12 @@ static int zt_call(struct ast_channel *ast, char *rdest, int timeout)
 					ast_log(LOG_WARNING, "cidspill already exists??\n");
 					free(p->cidspill);
 				}
-				p->cidspill = malloc(MAX_CALLERID_SIZE);
 				p->callwaitcas = 0;
-				if (p->cidspill) {
+				if ((p->cidspill = ast_malloc(MAX_CALLERID_SIZE))) {
 					p->cidlen = ast_callerid_generate(p->cidspill, ast->cid.cid_name, ast->cid.cid_num, AST_LAW(p));
 					p->cidpos = 0;
 					send_callerid(p);
-				} else
-					ast_log(LOG_WARNING, "Unable to generate CallerID spill\n");
+				}
 			}
 			/* Choose proper cadence */
 			if ((p->distinctivering > 0) && (p->distinctivering <= num_cadence)) {
@@ -4082,9 +4075,9 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 						chan = zt_new(p, AST_STATE_RESERVED, 0, SUB_THREEWAY, 0, 0);
 						if (p->zaptrcallerid) {
 							if (!p->origcid_num)
-								p->origcid_num = strdup(p->cid_num);
+								p->origcid_num = ast_strdup(p->cid_num);
 							if (!p->origcid_name)
-								p->origcid_name = strdup(p->cid_name);
+								p->origcid_name = ast_strdup(p->cid_name);
 							ast_copy_string(p->cid_num, cid_num, sizeof(p->cid_num));
 							ast_copy_string(p->cid_name, cid_name, sizeof(p->cid_name));
 						}
@@ -5160,9 +5153,9 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		if (!ast_strlen_zero(i->exten))
 			ast_copy_string(tmp->exten, i->exten, sizeof(tmp->exten));
 		if (!ast_strlen_zero(i->rdnis))
-			tmp->cid.cid_rdnis = strdup(i->rdnis);
+			tmp->cid.cid_rdnis = ast_strdup(i->rdnis);
 		if (!ast_strlen_zero(i->dnid))
-			tmp->cid.cid_dnid = strdup(i->dnid);
+			tmp->cid.cid_dnid = ast_strdup(i->dnid);
 
 #ifdef PRI_ANI
 		ast_set_callerid(tmp, i->cid_num, i->cid_name, ast_strlen_zero(i->cid_ani) ? i->cid_num : i->cid_ani);
@@ -6571,9 +6564,7 @@ static void *do_monitor(void *data)
 			if (pfds)
 				free(pfds);
 			if (ifcount) {
-				pfds = malloc(ifcount * sizeof(struct pollfd));
-				if (!pfds) {
-					ast_log(LOG_WARNING, "Critical memory error.  Zap dies.\n");
+				if (!(pfds = ast_calloc(1, ifcount * sizeof(*pfds)))) {
 					ast_mutex_unlock(&iflock);
 					return NULL;
 				}
@@ -6648,8 +6639,7 @@ static void *do_monitor(void *data)
 								res2 = ioctl(last->subs[SUB_REAL].zfd, ZT_FLUSH, &x);
 								if (res2)
 									ast_log(LOG_WARNING, "Unable to flush input on channel %d\n", last->channel);
-								last->cidspill = malloc(MAX_CALLERID_SIZE);
-								if (last->cidspill) {
+								if ((last->cidspill = ast_calloc(1, MAX_CALLERID_SIZE))) {
 									/* Turn on on hook transfer for 4 seconds */
 									x = 4000;
 									ioctl(last->subs[SUB_REAL].zfd, ZT_ONHOOKTRANSFER, &x);
@@ -6976,13 +6966,10 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 	}
 
 	if (!here && !reloading) {
-		tmp = (struct zt_pvt*)malloc(sizeof(struct zt_pvt));
-		if (!tmp) {
-			ast_log(LOG_ERROR, "MALLOC FAILED\n");
+		if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 			destroy_zt_pvt(&tmp);
 			return NULL;
 		}
-		memset(tmp, 0, sizeof(struct zt_pvt));
 		ast_mutex_init(&tmp->lock);
 		ifcount++;
 		for (x=0;x<3;x++)
@@ -7509,8 +7496,8 @@ static struct zt_pvt *chandup(struct zt_pvt *src)
 	struct zt_pvt *p;
 	ZT_BUFFERINFO bi;
 	int res;
-	p = malloc(sizeof(struct zt_pvt));
-	if (p) {
+	
+	if ((p = ast_malloc(sizeof(*p)))) {
 		memcpy(p, src, sizeof(struct zt_pvt));
 		ast_mutex_init(&p->lock);
 		p->subs[SUB_REAL].zfd = zt_open("/dev/zap/pseudo");
@@ -9271,7 +9258,7 @@ static char *complete_span_helper(char *line, char *word, int pos, int state, in
 	}
 	if (span <= NUM_SPANS) {
 		snprintf(tmp, sizeof(tmp), "%d", span);
-		return strdup(tmp);
+		return ast_strdup(tmp);
 	} else
 		return NULL;
 }
@@ -11096,13 +11083,11 @@ static int zt_sendtext(struct ast_channel *c, const char *text)
 	if (!text[0]) return(0); /* if nothing to send, dont */
 	if ((!p->tdd) && (!p->mate)) return(0);  /* if not in TDD mode, just return */
 	if (p->mate) 
-		buf = malloc(((strlen(text) + 1) * ASCII_BYTES_PER_CHAR) + END_SILENCE_LEN + HEADER_LEN);
+		buf = ast_malloc(((strlen(text) + 1) * ASCII_BYTES_PER_CHAR) + END_SILENCE_LEN + HEADER_LEN);
 	else
-		buf = malloc(((strlen(text) + 1) * TDD_BYTES_PER_CHAR) + END_SILENCE_LEN);
-	if (!buf) {
-		ast_log(LOG_ERROR, "MALLOC FAILED\n");
+		buf = ast_malloc(((strlen(text) + 1) * TDD_BYTES_PER_CHAR) + END_SILENCE_LEN);
+	if (!buf)
 		return -1;
-	}
 	mybuf = buf;
 	if (p->mate) {
 		int codec = AST_LAW(p);

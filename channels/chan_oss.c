@@ -380,7 +380,7 @@ static char *ast_ext_ctx(const char *src, char **ext, char **ctx)
 		return NULL;	/* error */
 	*ext = *ctx = NULL;
 	if (src && *src != '\0')
-		*ext = strdup(src);
+		*ext = ast_strdup(src);
 	if (*ext == NULL)
 		return NULL;
 	if (!o->overridecontext) {
@@ -899,9 +899,9 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 	if (!ast_strlen_zero(o->language))
 		ast_copy_string(c->language, o->language, sizeof(c->language));
         if (!ast_strlen_zero(o->cid_num))
-                c->cid.cid_num = strdup(o->cid_num);
+                c->cid.cid_num = ast_strdup(o->cid_num);
         if (!ast_strlen_zero(o->cid_name))
-                c->cid.cid_name = strdup(o->cid_name);
+                c->cid.cid_name = ast_strdup(o->cid_name);
 
 	o->owner = c;
 	ast_setstate(c, state);
@@ -982,10 +982,10 @@ static char *autoanswer_complete(char *line, char *word, int pos, int state)
 	switch(state) {
 	case 0:
 		if (l && !strncasecmp(word, "on", MIN(l, 2)))
-			return strdup("on");
+			return ast_strdup("on");
 	case 1:
 		if (l && !strncasecmp(word, "off", MIN(l, 3)))
-			return strdup("off");
+			return ast_strdup("off");
 	default:
 		return NULL;
 	}
@@ -1280,7 +1280,7 @@ static void store_mixer(struct chan_oss_pvt *o, char *s)
 	}
 	if (o->mixer_cmd)
 		free(o->mixer_cmd);
-	o->mixer_cmd = strdup(s);
+	o->mixer_cmd = ast_strdup(s);
 	ast_log(LOG_WARNING, "setting mixer %s\n", s);
 }
 
@@ -1304,17 +1304,16 @@ static struct chan_oss_pvt * store_config(struct ast_config *cfg, char *ctg)
 		o = &oss_default;
 		ctg = "general";
 	} else {
-		o = (struct chan_oss_pvt *)malloc(sizeof *o);
-		if (o == NULL)		/* fail */
+		if (!(o = ast_calloc(1, sizeof(*o))))
 			return NULL;
 		*o = oss_default;
 		/* "general" is also the default thing */
 		if (strcmp(ctg, "general") == 0) {
-			o->name = strdup("dsp");
+			o->name = ast_strdup("dsp");
 			oss_active = o->name;
 			goto openit;
 		}
-		o->name = strdup(ctg);
+		o->name = ast_strdup(ctg);
 	}
 
 	o->lastopen = ast_tvnow(); /* don't leave it 0 or tvdiff may wrap */
