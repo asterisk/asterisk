@@ -129,6 +129,20 @@ struct name {								\
 };
 
 /*!
+  \brief Defines a structure to be used to hold a list of specified type, statically initialized.
+
+  This is the same as AST_LIST_HEAD_STATIC, except without the lock included.
+*/
+#define AST_LIST_HEAD_NOLOCK_STATIC(name, type)				\
+struct name {								\
+	struct type *first;						\
+	struct type *last;						\
+} name = {								\
+	.first = NULL,							\
+	.last = NULL,							\
+};
+
+/*!
   \brief Initializes a list head structure with a specified first entry.
   \param head This is a pointer to the list head structure
   \param entry pointer to the list entry that will become the head of the list
