@@ -87,7 +87,6 @@
 #define _ASTERISK_CHANNEL_H
 
 #include <unistd.h>
-#include <setjmp.h>
 #ifdef POLLCOMPAT 
 #include "asterisk/poll-compat.h"
 #else
