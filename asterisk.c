@@ -100,6 +100,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/enum.h"
 #include "asterisk/rtp.h"
+#if defined(T38_SUPPORT)
+#include "asterisk/udptl.h"
+#endif
 #include "asterisk/app.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
@@ -2319,6 +2322,9 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 	ast_rtp_init();
+#if defined(T38_SUPPORT)
+	ast_udptl_init();
+#endif
 	if (ast_image_init()) {
 		printf(term_quit());
 		exit(1);
