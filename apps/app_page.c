@@ -100,9 +100,8 @@ static void launch_page(struct ast_channel *chan, const char *meetmeopts, const 
 	struct ast_var_t *varptr;
 	pthread_t t;
 	pthread_attr_t attr;
-	cd = malloc(sizeof(struct calloutdata));
+	cd = ast_calloc(1, sizeof(*cd));
 	if (cd) {
-		memset(cd, 0, sizeof(struct calloutdata));
 		ast_copy_string(cd->cidnum, chan->cid.cid_num ? chan->cid.cid_num : "", sizeof(cd->cidnum));
 		ast_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
 		ast_copy_string(cd->tech, tech, sizeof(cd->tech));

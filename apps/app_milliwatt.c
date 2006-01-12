@@ -60,7 +60,7 @@ static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 static void *milliwatt_alloc(struct ast_channel *chan, void *params)
 {
 int	*indexp;
-	indexp = malloc(sizeof(int));
+	indexp = ast_malloc(sizeof(*indexp));
 	if (indexp == NULL) return(NULL);
 	*indexp = 0;
 	return(indexp);

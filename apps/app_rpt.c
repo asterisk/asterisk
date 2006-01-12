@@ -1313,7 +1313,7 @@ struct tm localtm;
 				l = l->next;
 				continue;
 			}
-			m = malloc(sizeof(struct rpt_link));
+			m = ast_malloc(sizeof(*m));
 			if (!m)
 			{
 				ast_log(LOG_WARNING, "Cannot alloc memory on %s\n", mychannel->name);
@@ -1564,7 +1564,7 @@ struct rpt_tele *tele;
 struct rpt_link *mylink = (struct rpt_link *) data;
 pthread_attr_t attr;
 
-	tele = malloc(sizeof(struct rpt_tele));
+	tele = ast_malloc(sizeof(*tele));
 	if (!tele)
 	{
 		ast_log(LOG_WARNING, "Unable to allocate memory\n");
@@ -1952,13 +1952,12 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				ast_mutex_unlock(&myrpt->lock);
 			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 			/* establish call in monitor mode */
-			l = malloc(sizeof(struct rpt_link));
+			l = ast_calloc(1, sizeof(*l));
 			if (!l){
 				ast_log(LOG_WARNING, "Unable to malloc\n");
 				return DC_ERROR;
 			}
 			/* zero the silly thing */
-			memset((char *)l,0,sizeof(struct rpt_link));
 			snprintf(deststr, sizeof(deststr), "IAX2/%s", s1);
 			tele = strchr(deststr,'/');
 			if (!tele){
@@ -2066,13 +2065,11 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				ast_mutex_unlock(&myrpt->lock);
 			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 			/* establish call in tranceive mode */
-			l = malloc(sizeof(struct rpt_link));
+			l = ast_calloc(1, sizeof(*l));
 			if (!l){
 				ast_log(LOG_WARNING, "Unable to malloc\n");
 				return(DC_ERROR);
 			}
-			/* zero the silly thing */
-			memset((char *)l,0,sizeof(struct rpt_link));
 			l->mode = 1;
 			l->outbound = 1;
 			strncpy(l->name, digitbuf, MAXNODESTR - 1);
@@ -6017,7 +6014,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		}
 
 		l=strlen(options)+2;
-		orig_s=malloc(l);
+		orig_s=ast_malloc(l);
 		if(!orig_s) {
 			ast_log(LOG_WARNING, "Out of memory\n");
 			return -1;
@@ -6229,14 +6226,12 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		} else 
 			ast_mutex_unlock(&myrpt->lock);
 		/* establish call in tranceive mode */
-		l = malloc(sizeof(struct rpt_link));
+		l = ast_calloc(1, sizeof(*l));
 		if (!l)
 		{
 			ast_log(LOG_WARNING, "Unable to malloc\n");
 			pthread_exit(NULL);
 		}
-		/* zero the silly thing */
-		memset((char *)l,0,sizeof(struct rpt_link));
 		l->mode = 1;
 		strncpy(l->name,b1,MAXNODESTR - 1);
 		l->isremote = 0;
