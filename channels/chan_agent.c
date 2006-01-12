@@ -170,7 +170,6 @@ AST_MUTEX_DEFINE_STATIC(agentlock);
 static int recordagentcalls = 0;
 static char recordformat[AST_MAX_BUF] = "";
 static char recordformatext[AST_MAX_BUF] = "";
-static int createlink = 0;
 static char urlprefix[AST_MAX_BUF] = "";
 static char savecallsin[AST_MAX_BUF] = "";
 static int updatecdr = 0;
@@ -1037,7 +1036,6 @@ static int read_agent_config(void)
 	strcpy(moh, "default");
 	/* set the default recording values */
 	recordagentcalls = 0;
-	createlink = 0;
 	strcpy(recordformat, "wav");
 	strcpy(recordformatext, "wav");
 	urlprefix[0] = '\0';
@@ -1085,8 +1083,6 @@ static int read_agent_config(void)
 				updatecdr = 0;
 		} else if (!strcasecmp(v->name, "recordagentcalls")) {
 			recordagentcalls = ast_true(v->value);
-		} else if (!strcasecmp(v->name, "createlink")) {
-			createlink = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "recordformat")) {
 			ast_copy_string(recordformat, v->value, sizeof(recordformat));
 			if (!strcasecmp(v->value, "wav49"))
