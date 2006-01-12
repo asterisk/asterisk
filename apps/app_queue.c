@@ -515,7 +515,7 @@ static int statechange_queue(const char *dev, int state, void *ign)
 	pthread_t t;
 	pthread_attr_t attr;
 
-	sc = malloc(sizeof(struct statechange) + strlen(dev) + 1);
+	sc = ast_calloc(1, sizeof(*sc) + strlen(dev) + 1);
 	if (sc) {
 		sc->state = state;
 		strcpy(sc->dev, dev);
@@ -535,10 +535,9 @@ static struct member *create_queue_member(char *interface, int penalty, int paus
 	
 	/* Add a new member */
 
-	cur = malloc(sizeof(struct member));
+	cur = ast_calloc(1, sizeof(*cur));
 
 	if (cur) {
-		memset(cur, 0, sizeof(struct member));
 		cur->penalty = penalty;
 		cur->paused = paused;
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
@@ -554,9 +553,8 @@ static struct ast_call_queue *alloc_queue(const char *queuename)
 {
 	struct ast_call_queue *q;
 
-	q = malloc(sizeof(*q));
+	q = ast_calloc(1, sizeof(*q));
 	if (q) {
-		memset(q, 0, sizeof(*q));
 		ast_mutex_init(&q->lock);
 		ast_copy_string(q->name, queuename, sizeof(q->name));
 	}
@@ -1707,7 +1705,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 						if (in->cid.cid_ani) {
 							if (o->chan->cid.cid_ani)
 								free(o->chan->cid.cid_ani);
-							o->chan->cid.cid_ani = malloc(strlen(in->cid.cid_ani) + 1);
+							o->chan->cid.cid_ani = ast_calloc(1, strlen(in->cid.cid_ani) + 1);
 							if (o->chan->cid.cid_ani)
 								strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
 							else
@@ -2063,7 +2061,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		announce = announceoverride;
 
 	while(cur) {
-		tmp = malloc(sizeof(*tmp));
+		tmp = ast_calloc(1, sizeof(*tmp));
 		if (!tmp) {
 			ast_mutex_unlock(&qe->parent->lock);
 			if (use_weight) 
@@ -2071,7 +2069,6 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_log(LOG_WARNING, "Out of memory\n");
 			goto out;
 		}
-		memset(tmp, 0, sizeof(*tmp));
 		tmp->stillgoing = -1;
 		if (option_debug) {
 			if (url)
@@ -3685,7 +3682,7 @@ static char *complete_add_queue_member(char *line, char *word, int pos, int stat
 		}
 	case 7:
 		if (state < 100) {	/* 0-99 */
-			char *num = malloc(3);
+			char *num = ast_malloc(3);
 			if (num) {
 				sprintf(num, "%d", state);
 			}
