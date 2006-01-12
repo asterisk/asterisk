@@ -1323,7 +1323,6 @@ static int compare_weight(struct ast_call_queue *rq, struct member *member)
 		if (found) 
 			break;
 	}
-	ast_mutex_unlock(&qlock);
 	return found;
 }
 
