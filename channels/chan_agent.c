@@ -157,6 +157,7 @@ static ast_group_t group;
 static int autologoff;
 static int wrapuptime;
 static int ackcall;
+static int multiplelogin = 1;
 
 static int maxlogintries = 3;
 static char agentgoodbye[AST_MAX_FILENAME_LEN] = "vm-goodbye";
@@ -1044,6 +1045,8 @@ static int read_agent_config(void)
 	/* Read in [general] section for persistance */
 	if ((general_val = ast_variable_retrieve(cfg, "general", "persistentagents")))
 		persistent_agents = ast_true(general_val);
+	if (ast_false(ast_variable_retrieve(cfg, "general", "multiplelogin") ) ) 
+		multiplelogin=0;
 
 	/* Read in the [agents] section */
 	v = ast_variable_browse(cfg, "agents");
@@ -1252,6 +1255,29 @@ static int check_beep(struct agent_pvt *newlyavailable, int needlock)
 		ast_mutex_lock(&newlyavailable->lock);
 	}
 	return res;
+}
+
+/* return 1 if multiple login is fine, 0 if it is not and we find a match, -1 if multiplelogin is not allowed and we dont find a match. */
+static int allow_multiple_login(char *chan,char *context)
+{
+	struct agent_pvt *p;
+	char loginchan[80];
+	if(multiplelogin)
+		return 1;
+	if(!chan) 
+		return 0;
+	if(!context)
+		context="default";
+
+	snprintf(loginchan, sizeof(loginchan), "%s@%s", chan, !ast_strlen_zero(context) ? context : "default");
+	
+	p = agents;
+	while(p) {
+		if(!strcasecmp(chan, p->loginchan))
+			return 0;
+		p = p->next;
+	}
+	return -1;
 }
 
 /*--- agent_request: Part of the Asterisk PBX interface ---*/
@@ -1822,9 +1848,15 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 								res = 0;
 							} else
 								res = ast_app_getdata(chan, "agent-newlocation", tmpchan+pos, sizeof(tmpchan) - 2, 0);
-							if (ast_strlen_zero(tmpchan) || ast_exists_extension(chan, !ast_strlen_zero(context) ? context : "default", tmpchan,
-													     1, NULL))
+							if (ast_strlen_zero(tmpchan) )
 								break;
+							if(ast_exists_extension(chan, !ast_strlen_zero(context) ? context : "default", tmpchan,1, NULL) ) {
+								if(!allow_multiple_login(tmpchan,context) ) {
+									args.extension = NULL;
+									pos = 0;
+								} else
+									break;
+							}
 							if (args.extension) {
 								ast_log(LOG_WARNING, "Extension '%s' is not valid for automatic login of agent '%s'\n", args.extension, p->agent);
 								args.extension = NULL;

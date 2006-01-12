@@ -2680,8 +2680,9 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 	switch(condition) {
 	case AST_CONTROL_RINGING:
 		if (ast->_state == AST_STATE_RING) {
-			if (!ast_test_flag(p, SIP_PROGRESS_SENT) ||
-			    (ast_test_flag(p, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER)) {
+			if ((!ast_test_flag(p, SIP_PROGRESS_SENT) ||
+			    (ast_test_flag(p, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER)) &&
+			    ast_test_flag(p, SIP_PROG_INBAND) != SIP_PROG_INBAND_YES) {				
 				/* Send 180 ringing if out-of-band seems reasonable */
 				transmit_response(p, "180 Ringing", &p->initreq);
 				ast_set_flag(p, SIP_RINGING);

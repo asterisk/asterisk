@@ -10,6 +10,10 @@
 ;
 persistentagents=yes
 
+;enable or disable a single extension from longing in as multiple
+;agents, defaults to enabled
+;multiplelogin=yes
+
 [agents]
 ;
 ; Define autologoff times if appropriate.  This is how long
