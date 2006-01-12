@@ -128,8 +128,9 @@ enum {
 
 enum {
 	OPT_ARG_RECORDGAIN = 0,
-	OPT_ARG_ARRAY_SIZE = 1,
-	OPT_ARG_PLAYFOLDER = 2,
+	OPT_ARG_PLAYFOLDER = 1,
+	/* This *must* be the last value in this enum! */
+	OPT_ARG_ARRAY_SIZE = 2,
 } vm_option_args;
 
 AST_APP_OPTIONS(vm_app_options, {
