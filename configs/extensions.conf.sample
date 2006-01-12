@@ -343,6 +343,23 @@ exten => _s-.,1,Goto(s-NOANSWER,1)				; Treat anything else as no answer
 
 exten => a,1,VoicemailMain(${ARG1})				; If they press *, send the user into VoicemailMain
 
+[macro-page];
+;
+; Paging macro:
+;
+;       Check to see if SIP device is in use and DO NOT PAGE if they are
+;
+;   ${ARG1} - Device to page
+
+exten => s,1,ChanIsAvail(${ARG1}|js)                            ; j is for Jump and s is for ANY call
+exten => s,2,GoToIf([${AVAILSTATUS} = "1"]?3?7)
+exten => s,3,Set(_ALERT_INFO="RA")                              ; This is for the PolyComs
+exten => s,4,SIPAddHeader(Call-Info: Answer-After=0)            ; This is for the Grandstream, Snoms, and Others
+exten => s,5,NoOp()                                             ; Add others here and Post on the Wiki!!!!
+exten => s,6,Dial(${ARG1}||)
+exten => s,7,Hangup
+
+
 [demo]
 ;
 ; We start with what to do when a call first comes in.
@@ -405,6 +422,17 @@ exten => 600,n,Playback(demo-echodone)	; Let them know it's over
 exten => 600,n,Goto(s,6)		; Start over
 
 ;
+;	You can use the Macro Page to intercom a individual user
+exten => 76245,1,Macro(page,SIP/Grandstream1)
+; or if your peernames are the same as extensions
+exten => _7XXX,1,Macro(page,SIP/${EXTEN})
+;
+;
+; System Wide Page at extension 7999
+;
+exten => 7999,1,Set(TIMEOUT(absolute)=60)
+exten => 7999,2,Page(Local/Grandstream1@page&Local/Xlite1@page&Local/1234@page/n|d)
+
 ; Give voicemail at extension 8500
 ;
 exten => 8500,1,VoicemailMain
@@ -414,6 +442,14 @@ exten => 8500,n,Goto(s,6)
 ;
 ;exten => 1265,1,Dial(Phone/phone0,15)
 ;exten => 1265,n,Goto(s,5)
+
+;
+;	The page context calls up the page macro that sets variables needed for auto-answer
+;	It is in is own context to make calling it from the Page() application as simple as 
+;	Local/{peername}@page
+;
+[page]
+exten => _X.,1,Macro(page,SIP/${EXTEN})
 
 ;[mainmenu]
 ;
