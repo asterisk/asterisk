@@ -340,8 +340,7 @@ static char *descrip_vmain =
 "    g(#) - Use the specified amount of gain when recording a voicemail\n"
 "           message. The units are whole-number decibels (dB).\n"
 "    s    - Skip checking the passcode for the mailbox.\n"
-"    a(#) - Automatically play messages in the specified folder.\n"
-"           Defaults to INBOX";
+"    a(#) - Skip folder prompt and go directly to folder specified, defaults to 1\n";
 
 static char *synopsis_vm_box_exists =
 "Check to see if Voicemail mailbox exists";
@@ -5065,26 +5064,30 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			}
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
-
-				if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
-					ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
-					LOCAL_USER_REMOVE(u);
-					return -1;
+				if(opts[OPT_ARG_PLAYFOLDER]) {
+					if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
+						ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
+						LOCAL_USER_REMOVE(u);
+						return -1;
+					} else {
+						record_gain = (signed char) gain;
+					}
 				} else {
-					record_gain = (signed char) gain;
+					ast_log(LOG_WARNING, "Invalid Gain level set with option g\n");
 				}
 			}
 			if (ast_test_flag(&flags, OPT_AUTOPLAY) ) {
 				play_auto = 1;
-				if (sscanf(opts[OPT_ARG_PLAYFOLDER], "%d", &play_folder) != 1) {
-					ast_log(LOG_WARNING, "Invalid value '%s' provided for folder autoplay option\n", opts[OPT_ARG_PLAYFOLDER]);
-					LOCAL_USER_REMOVE(u);
-					return -1;
-				}
-				else if ( play_folder > 9 || play_folder < 0) {
+				if(opts[OPT_ARG_PLAYFOLDER]) {
+					if (sscanf(opts[OPT_ARG_PLAYFOLDER], "%d", &play_folder) != 1) {
+						ast_log(LOG_WARNING, "Invalid value '%s' provided for folder autoplay option\n", opts[OPT_ARG_PLAYFOLDER]);
+					}
+				} else {
+					ast_log(LOG_WARNING, "Invalid folder set with option a\n");
+				}	
+				if ( play_folder > 9 || play_folder < 0) {
 					ast_log(LOG_WARNING, "Invalid value '%d' provided for folder autoplay option\n", play_folder);
-					LOCAL_USER_REMOVE(u);
-					return -1;
+					play_folder = 0;
 				}
 			}
 		} else {
