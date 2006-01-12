@@ -346,7 +346,7 @@ SUBDIRS=res channels pbx apps codecs formats agi cdr funcs utils stdtime
 OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	translate.o file.o say.o pbx.o cli.o md5.o term.o \
 	ulaw.o alaw.o callerid.o fskmodem.o image.o app.o \
-	cdr.o tdd.o acl.o rtp.o manager.o asterisk.o \
+	cdr.o tdd.o acl.o rtp.o udptl.o manager.o asterisk.o \
 	dsp.o chanvars.o indications.o autoservice.o db.o privacy.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
@@ -416,6 +416,8 @@ endif
 LIBS+=-lssl
 
 INSTALL=install
+
+CFLAGS+=-DT38_SUPPORT
 
 _all: all
 	@echo " +--------- Asterisk Build Complete ---------+"  
