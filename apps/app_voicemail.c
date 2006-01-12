@@ -445,7 +445,7 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->language, value, sizeof(vmu->language));
 	} else if (!strcasecmp(var, "tz")) {
 		ast_copy_string(vmu->zonetag, value, sizeof(vmu->zonetag));
-	} else if (!strcasecmp(var, "delete")) {
+	} else if (!strcasecmp(var, "delete") || !strcasecmp(var, "deletevoicemail")) {
 		ast_set2_flag(vmu, ast_true(value), VM_DELETE);	
 	} else if (!strcasecmp(var, "saycid")){
 		ast_set2_flag(vmu, ast_true(value), VM_SAYCID);	
@@ -2613,8 +2613,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				}
 			}
 			if (ast_fileexists(fn, NULL, NULL)) {
-				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 				STORE(dir, vmu->mailbox, vmu->context, msgnum);
+				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 				DISPOSE(dir, msgnum);
 			}
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
