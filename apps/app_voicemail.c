@@ -340,7 +340,8 @@ static char *descrip_vmain =
 "    g(#) - Use the specified amount of gain when recording a voicemail\n"
 "           message. The units are whole-number decibels (dB).\n"
 "    s    - Skip checking the passcode for the mailbox.\n"
-"    a(#) - Skip folder prompt and go directly to folder specified, defaults to 1\n";
+"    a(#) - Skip folder prompt and go directly to folder specified.
+"           Defaults to INBOX\n";
 
 static char *synopsis_vm_box_exists =
 "Check to see if Voicemail mailbox exists";
@@ -5064,7 +5065,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			}
 			if (ast_test_flag(&flags, OPT_RECORDGAIN)) {
 				int gain;
-				if(opts[OPT_ARG_PLAYFOLDER]) {
+				if(opts[OPT_ARG__RECORDGAIN]) {
 					if (sscanf(opts[OPT_ARG_RECORDGAIN], "%d", &gain) != 1) {
 						ast_log(LOG_WARNING, "Invalid value '%s' provided for record gain option\n", opts[OPT_ARG_RECORDGAIN]);
 						LOCAL_USER_REMOVE(u);
