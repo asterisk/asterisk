@@ -123,11 +123,13 @@ enum {
 	OPT_RECORDGAIN =       (1 << 3),
 	OPT_PREPEND_MAILBOX =  (1 << 4),
 	OPT_PRIORITY_JUMP =    (1 << 5),
+	OPT_AUTOPLAY =         (1 << 6),
 } vm_option_flags;
 
 enum {
 	OPT_ARG_RECORDGAIN = 0,
 	OPT_ARG_ARRAY_SIZE = 1,
+	OPT_ARG_PLAYFOLDER = 2,
 } vm_option_args;
 
 AST_APP_OPTIONS(vm_app_options, {
@@ -137,6 +139,7 @@ AST_APP_OPTIONS(vm_app_options, {
 	AST_APP_OPTION_ARG('g', OPT_RECORDGAIN, OPT_ARG_RECORDGAIN),
 	AST_APP_OPTION('p', OPT_PREPEND_MAILBOX),
 	AST_APP_OPTION('j', OPT_PRIORITY_JUMP),
+	AST_APP_OPTION_ARG('a', OPT_AUTOPLAY, OPT_ARG_PLAYFOLDER),
 });
 
 static int load_config(void);
@@ -335,7 +338,8 @@ static char *descrip_vmain =
 "           is entered by the caller.\n"
 "    g(#) - Use the specified amount of gain when recording a voicemail\n"
 "           message. The units are whole-number decibels (dB).\n"
-"    s    - Skip checking the passcode for the mailbox.\n";
+"    s    - Skip checking the passcode for the mailbox.\n"
+"    a(#) - Skip folder prompt and g directly to folder specified, default 1\n";
 
 static char *synopsis_vm_box_exists =
 "Check to see if Voicemail mailbox exists";
@@ -5021,6 +5025,8 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	int silentexit = 0;
 	struct ast_flags flags = { 0 };
 	signed char record_gain = 0;
+	int play_auto = 0;
+	int play_folder = 0;
 
 	LOCAL_USER_ADD(u);
 
@@ -5054,6 +5060,19 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 					return -1;
 				} else {
 					record_gain = (signed char) gain;
+				}
+			}
+			if (ast_test_flag(&flags, OPT_AUTOPLAY) ) {
+				play_auto = 1;
+				if (sscanf(opts[OPT_ARG_PLAYFOLDER], "%d", &play_folder) != 1) {
+					ast_log(LOG_WARNING, "Invalid value '%s' provided for folder autoplay option\n", opts[OPT_ARG_PLAYFOLDER]);
+					LOCAL_USER_REMOVE(u);
+					return -1;
+				}
+				else if ( play_folder > 9 || play_folder < 1) {
+					ast_log(LOG_WARNING, "Invalid value '%d' provided for folder autoplay option\n", play_folder);
+					LOCAL_USER_REMOVE(u);
+					return -1;
 				}
 			}
 		} else {
@@ -5126,11 +5145,24 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	vms.newmessages = vms.lastmsg + 1;
 		
 	/* Select proper mailbox FIRST!! */
-	if (!vms.newmessages && vms.oldmessages) {
-		/* If we only have old messages start here */
-		res = open_mailbox(&vms, vmu, 1);
+	if (play_auto) {
+		res = open_mailbox(&vms, vmu, play_folder);
 		if (res == ERROR_LOCK_PATH)
 			goto out;
+
+		/* If there are no new messages, inform the user and hangup */
+		if (vms.lastmsg == -1) {
+			cmd = vm_browse_messages(chan, &vms, vmu);
+			res = 0;
+			goto out;
+		}
+	} else {
+		if (!vms.newmessages && vms.oldmessages) {
+			/* If we only have old messages start here */
+			res = open_mailbox(&vms, vmu, 1);
+			if (res == ERROR_LOCK_PATH)
+				goto out;
+		}
 	}
 
 	if (useadsi)
@@ -5154,7 +5186,11 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		}
 	}
 
-	cmd = vm_intro(chan, &vms);
+	if (play_auto) {
+		cmd = '1';
+	} else {
+		cmd = vm_intro(chan, &vms);
+	}
 
 	vms.repeats = 0;
 	vms.starting = 1;
