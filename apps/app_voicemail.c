@@ -340,7 +340,8 @@ static char *descrip_vmain =
 "    g(#) - Use the specified amount of gain when recording a voicemail\n"
 "           message. The units are whole-number decibels (dB).\n"
 "    s    - Skip checking the passcode for the mailbox.\n"
-"    a(#) - Skip folder prompt and go directly to folder specified, defaults to 1\n";
+"    a(#) - Automatically play messages in the specified folder.\n"
+"           Defaults to INBOX";
 
 static char *synopsis_vm_box_exists =
 "Check to see if Voicemail mailbox exists";
