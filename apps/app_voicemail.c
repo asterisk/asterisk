@@ -5039,15 +5039,24 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		ast_answer(chan);
 
 	if (!ast_strlen_zero(data)) {
-		char *tmp;
-		int argc;
-		char *argv[2];
 		char *opts[OPT_ARG_ARRAY_SIZE];
+		char *parse;    
+		AST_DECLARE_APP_ARGS(args,
+			AST_APP_ARG(argv0);
+			AST_APP_ARG(argv1);
+		);
+				        
+		parse = ast_strdupa(data);
+		if (!parse) {
+			ast_log(LOG_ERROR, "Out of memory!\n");
+			LOCAL_USER_REMOVE(u);
+			return -1;
+		}
 
-		tmp = ast_strdupa(data);
-		argc = ast_app_separate_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
-		if (argc == 2) {
-			if (ast_app_parse_options(vm_app_options, &flags, opts, argv[1])) {
+		AST_STANDARD_APP_ARGS(args, parse);
+
+		if (args.argc == 2) {
+			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1)) {
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
@@ -5077,28 +5086,27 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			}
 		} else {
 			/* old style options parsing */
-			while (*argv[0]) {
-				if (*argv[0] == 's') {
+			while (*(args.argv0)) {
+				if (*(args.argv0) == 's')
 					ast_set_flag(&flags, OPT_SILENT);
-					argv[0]++;
-				} else if (*argv[0] == 'p') {
+				else if (*(args.argv0) == 'p')
 					ast_set_flag(&flags, OPT_PREPEND_MAILBOX);
-					argv[0]++;
-				} else 
+				else 
 					break;
+				(args.argv0)++;
 			}
 
 		}
 
 		valid = ast_test_flag(&flags, OPT_SILENT);
 
-		if ((context = strchr(argv[0], '@')))
+		if ((context = strchr(args.argv0, '@')))
 			*context++ = '\0';
 
 		if (ast_test_flag(&flags, OPT_PREPEND_MAILBOX))
-			ast_copy_string(prefixstr, argv[0], sizeof(prefixstr));
+			ast_copy_string(prefixstr, args.argv0, sizeof(prefixstr));
 		else
-			ast_copy_string(vms.username, argv[0], sizeof(vms.username));
+			ast_copy_string(vms.username, args.argv0, sizeof(vms.username));
 
 		if (!ast_strlen_zero(vms.username) && (vmu = find_user(&vmus, context ,vms.username)))
 			skipuser++;
@@ -5488,11 +5496,13 @@ static int vm_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	char tmp[256];
 	struct leave_vm_options leave_options;
-	int argc;
-	char *argv[2];
 	struct ast_flags flags = { 0 };
 	char *opts[OPT_ARG_ARRAY_SIZE];
-	
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(argv0);
+		AST_APP_ARG(argv1);
+	);
+
 	LOCAL_USER_ADD(u);
 	
 	memset(&leave_options, 0, sizeof(leave_options));
@@ -5502,9 +5512,9 @@ static int vm_exec(struct ast_channel *chan, void *data)
 
 	if (!ast_strlen_zero(data)) {
 		ast_copy_string(tmp, data, sizeof(tmp));
-		argc = ast_app_separate_args(tmp, '|', argv, sizeof(argv) / sizeof(argv[0]));
-		if (argc == 2) {
-			if (ast_app_parse_options(vm_app_options, &flags, opts, argv[1])) {
+		AST_STANDARD_APP_ARGS(args, tmp);
+		if (args.argc == 2) {
+			if (ast_app_parse_options(vm_app_options, &flags, opts, args.argv1)) {
 				LOCAL_USER_REMOVE(u);
 				return -1;
 			}
@@ -5522,21 +5532,18 @@ static int vm_exec(struct ast_channel *chan, void *data)
 			}
 		} else {
 			/* old style options parsing */
-			while (*argv[0]) {
-				if (*argv[0] == 's') {
+			while (*(args.argv0)) {
+				if (*(args.argv0) == 's')
 					ast_set_flag(&leave_options, OPT_SILENT);
-					argv[0]++;
-				} else if (*argv[0] == 'b') {
+				else if (*(args.argv0) == 'b')
 					ast_set_flag(&leave_options, OPT_BUSY_GREETING);
-					argv[0]++;
-				} else if (*argv[0] == 'u') {
+				else if (*(args.argv0) == 'u')
 					ast_set_flag(&leave_options, OPT_UNAVAIL_GREETING);
-					argv[0]++;
-				} else if (*argv[0] == 'j') {
+				else if (*(args.argv0) == 'j')
 					ast_set_flag(&leave_options, OPT_PRIORITY_JUMP);
-					argv[0]++;
-				} else 
+				else 
 					break;
+				(args.argv0)++;
 			}
 		}
 	} else {
@@ -5549,10 +5556,10 @@ static int vm_exec(struct ast_channel *chan, void *data)
 			LOCAL_USER_REMOVE(u);
 			return 0;
 		}
-		argv[0] = ast_strdupa(tmp);
+		args.argv0 = ast_strdupa(tmp);
 	}
 
-	res = leave_voicemail(chan, argv[0], &leave_options);
+	res = leave_voicemail(chan, args.argv0, &leave_options);
 
 	if (res == ERROR_LOCK_PATH) {
 		ast_log(LOG_ERROR, "Could not leave voicemail. The path is already locked.\n");
