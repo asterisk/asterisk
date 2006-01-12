@@ -21,7 +21,6 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
-#include <stdint.h>
 #include <netinet/in.h>
 #include <sys/time.h>
 #include <sys/socket.h>
