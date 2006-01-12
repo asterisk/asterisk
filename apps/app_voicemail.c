@@ -533,12 +533,13 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 	if (ivm)
 		retval=ivm;
 	else
-		retval=malloc(sizeof(struct ast_vm_user));
+		retval=ast_calloc(1, sizeof(*retval));
 
 	if (retval) {
-		memset(retval, 0, sizeof(struct ast_vm_user));
 		if (!ivm)
 			ast_set_flag(retval, VM_ALLOCED);	
+		else
+			memset(retval, 0, sizeof(*retval));
 		if (mailbox) 
 			ast_copy_string(retval->mailbox, mailbox, sizeof(retval->mailbox));
 		populate_defaults(retval);
@@ -597,9 +598,9 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 			vmu = ivm;
 		else
 			/* Make a copy, so that on a reload, we have no race */
-			vmu = malloc(sizeof(struct ast_vm_user));
+			vmu = ast_malloc(sizeof(*vmu));
 		if (vmu) {
-			memcpy(vmu, cur, sizeof(struct ast_vm_user));
+			memcpy(vmu, cur, sizeof(*vmu));
 			ast_set2_flag(vmu, !ivm, VM_ALLOCED);	
 			vmu->next = NULL;
 		}
@@ -3418,7 +3419,7 @@ static int forward_message(struct ast_channel *chan, char *context, char *dir, i
 		/* start optimistic */
 		valid_extensions = 1;
 		while (s) {
-			/* find_user is going to malloc since we have a NULL as first argument */
+			/* find_user is going to ast_malloc since we have a NULL as first argument */
 			if ((receiver = find_user(NULL, context, s))) {
 				if (!extensions)
 					vmtmp = extensions = receiver;
@@ -5585,9 +5586,8 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	struct ast_vm_user *vmu;
 
 	ast_copy_string(tmp, data, sizeof(tmp));
-	vmu = malloc(sizeof(struct ast_vm_user));
+	vmu = ast_calloc(1, sizeof(*vmu));
 	if (vmu) {
-		memset(vmu, 0, sizeof(struct ast_vm_user));
 		ast_copy_string(vmu->context, context, sizeof(vmu->context));
 		ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
 
@@ -6123,7 +6123,7 @@ static int load_config(void)
 					/* Timezones in this context */
 					while (var) {
 						struct vm_zone *z;
-						z = malloc(sizeof(struct vm_zone));
+						z = ast_malloc(sizeof(*z));
 						if (z != NULL) {
 							char *msg_format, *timezone;
 							msg_format = ast_strdupa(var->value);
