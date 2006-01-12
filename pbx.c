@@ -3693,13 +3693,70 @@ int ast_context_add_include(const char *context, const char *include, const char
 	return -1;
 }
 
-#define FIND_NEXT \
-do { \
-	c = info; \
-	while(*c && (*c != '|')) c++; \
-	if (*c) { *c = '\0'; c++; } else c = NULL; \
-} while(0)
+/*! \brief Helper for get_range.
+ * return the index of the matching entry, starting from 1.
+ * If names is not supplied, try numeric values.
+ */
+static int lookup_name(const char *s, char *const names[], int max)
+{
+	int i;
 
+	if (names) {
+		for (i = 0; names[i]; i++) {
+			if (!strcasecmp(s, names[i]))
+				return i+1;
+		}
+	} else if (sscanf(s, "%d", &i) == 1 && i >= 1 && i <= max) {
+		return i;
+	}
+	return 0; /* error return */
+}
+
+/*! \brief helper function to return a range up to max (7, 12, 31 respectively).
+ * names, if supplied, is an array of names that should be mapped to numbers.
+ */
+static unsigned get_range(char *src, int max, char *const names[], const char *msg)
+{
+	int s, e; /* start and ending position */
+	unsigned int mask = 0;
+
+	/* Check for whole range */
+	if (ast_strlen_zero(src) || !strcmp(src, "*")) {
+		s = 0;
+		e = max - 1;
+	} else {
+		/* Get start and ending position */
+		char *c = strchr(src, '-');
+		if (c)
+			*c++ = '\0';
+		/* Find the start */
+		s = lookup_name(src, names, max);
+		if (!s) {
+			ast_log(LOG_WARNING, "Invalid %s '%s', assuming none\n", msg, src);
+			return 0;
+		}
+		s--;
+		if (c) { /* find end of range */
+			e = lookup_name(c, names, max);
+			if (!e) {
+				ast_log(LOG_WARNING, "Invalid end %s '%s', assuming none\n", msg, c);
+				return 0;
+			}
+			e--;
+		} else
+			e = s;
+	}
+	/* Fill the mask. Remember that ranges are cyclic */
+	mask = 1 << s;	/* last element in case s == e */
+	for ( ; s!=e; s++) {
+		if (s == max)
+			s = 0 ;
+		mask |= (1 << s);
+	}
+	return mask;
+}
+
+/*! \brief store a bitmask of valid times, one bit each 2 minute */
 static void get_timerange(struct ast_timing *i, char *times)
 {
 	char *e;
@@ -3711,10 +3768,11 @@ static void get_timerange(struct ast_timing *i, char *times)
 	/* start disabling all times, fill the fields with 0's, as they may contain garbage */
 	memset(i->minmask, 0, sizeof(i->minmask));
 	
+	/* 2-minutes per bit, since the mask has only 32 bits :( */
 	/* Star is all times */
 	if (ast_strlen_zero(times) || !strcmp(times, "*")) {
 		for (x=0; x<24; x++)
-			i->minmask[x] = (1 << 30) - 1;
+			i->minmask[x] = 0x3fffffff; /* 30 bits */
 		return;
 	}
 	/* Otherwise expect a range */
@@ -3723,8 +3781,8 @@ static void get_timerange(struct ast_timing *i, char *times)
 		ast_log(LOG_WARNING, "Time range is not valid. Assuming no restrictions based on time.\n");
 		return;
 	}
-	*e = '\0';
-	e++;
+	*e++ = '\0';
+	/* XXX why skip non digits ? */
 	while (*e && !isdigit(*e)) 
 		e++;
 	if (!*e) {
@@ -3739,7 +3797,7 @@ static void get_timerange(struct ast_timing *i, char *times)
 		ast_log(LOG_WARNING, "%s isn't a time.  Assuming no restrictions based on time.\n", e);
 		return;
 	}
-
+	/* XXX this needs to be optimized */
 #if 1
 	s1 = s1 * 30 + s2/2;
 	if ((s1 < 0) || (s1 >= 24*30)) {
@@ -3793,98 +3851,8 @@ static char *days[] =
 	"thu",
 	"fri",
 	"sat",
+	NULL,
 };
-
-/*! \brief  get_dow: Get day of week */
-static unsigned int get_dow(char *dow)
-{
-	char *c;
-	/* The following line is coincidence, really! */
-	int s, e, x;
-	unsigned int mask;
-
-	/* Check for all days */
-	if (ast_strlen_zero(dow) || !strcmp(dow, "*"))
-		return (1 << 7) - 1;
-	/* Get start and ending days */
-	c = strchr(dow, '-');
-	if (c) {
-		*c = '\0';
-		c++;
-	} else
-		c = NULL;
-	/* Find the start */
-	s = 0;
-	while((s < 7) && strcasecmp(dow, days[s])) s++;
-	if (s >= 7) {
-		ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", dow);
-		return 0;
-	}
-	if (c) {
-		e = 0;
-		while((e < 7) && strcasecmp(c, days[e])) e++;
-		if (e >= 7) {
-			ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", c);
-			return 0;
-		}
-	} else
-		e = s;
-	mask = 0;
-	for (x=s; x != e; x = (x + 1) % 7) {
-		mask |= (1 << x);
-	}
-	/* One last one */
-	mask |= (1 << x);
-	return mask;
-}
-
-static unsigned int get_day(char *day)
-{
-	char *c;
-	/* The following line is coincidence, really! */
-	int s, e, x;
-	unsigned int mask;
-
-	/* Check for all days */
-	if (ast_strlen_zero(day) || !strcmp(day, "*")) {
-		mask = (1 << 30)  + ((1 << 30) - 1);
-		return mask;
-	}
-	/* Get start and ending days */
-	c = strchr(day, '-');
-	if (c) {
-		*c = '\0';
-		c++;
-	}
-	/* Find the start */
-	if (sscanf(day, "%d", &s) != 1) {
-		ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", day);
-		return 0;
-	}
-	if ((s < 1) || (s > 31)) {
-		ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", day);
-		return 0;
-	}
-	s--;
-	if (c) {
-		if (sscanf(c, "%d", &e) != 1) {
-			ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", c);
-			return 0;
-		}
-		if ((e < 1) || (e > 31)) {
-			ast_log(LOG_WARNING, "Invalid day '%s', assuming none\n", c);
-			return 0;
-		}
-		e--;
-	} else
-		e = s;
-	mask = 0;
-	for (x=s; x!=e; x = (x + 1) % 31) {
-		mask |= (1 << x);
-	}
-	mask |= (1 << x);
-	return mask;
-}
 
 static char *months[] =
 {
@@ -3900,54 +3868,13 @@ static char *months[] =
 	"oct",
 	"nov",
 	"dec",
+	NULL,
 };
-
-static unsigned int get_month(char *mon)
-{
-	char *c;
-	/* The following line is coincidence, really! */
-	int s, e, x;
-	unsigned int mask;
-
-	/* Check for all days */
-	if (ast_strlen_zero(mon) || !strcmp(mon, "*")) 
-		return (1 << 12) - 1;
-	/* Get start and ending days */
-	c = strchr(mon, '-');
-	if (c) {
-		*c = '\0';
-		c++;
-	}
-	/* Find the start */
-	s = 0;
-	while((s < 12) && strcasecmp(mon, months[s])) s++;
-	if (s >= 12) {
-		ast_log(LOG_WARNING, "Invalid month '%s', assuming none\n", mon);
-		return 0;
-	}
-	if (c) {
-		e = 0;
-		while((e < 12) && strcasecmp(mon, months[e])) e++;
-		if (e >= 12) {
-			ast_log(LOG_WARNING, "Invalid month '%s', assuming none\n", c);
-			return 0;
-		}
-	} else
-		e = s;
-	mask = 0;
-	for (x=s; x!=e; x = (x + 1) % 12) {
-		mask |= (1 << x);
-	}
-	/* One last one */
-	mask |= (1 << x);
-	return mask;
-}
 
 int ast_build_timing(struct ast_timing *i, char *info_in)
 {
 	char info_save[256];
 	char *info;
-	char *c;
 
 	/* Check for empty just in case */
 	if (ast_strlen_zero(info_in))
@@ -3956,48 +3883,30 @@ int ast_build_timing(struct ast_timing *i, char *info_in)
 	ast_copy_string(info_save, info_in, sizeof(info_save));
 	info = info_save;
 	/* Assume everything except time */
-	i->monthmask = (1 << 12) - 1;
-	i->daymask = (1 << 30) - 1 + (1 << 30);
-	i->dowmask = (1 << 7) - 1;
-	/* Avoid using str tok */
-	FIND_NEXT;
-	/* Info has the time range, start with that */
-	get_timerange(i, info);
-	info = c;
-	if (!info)
-		return 1;
-	FIND_NEXT;
-	/* Now check for day of week */
-	i->dowmask = get_dow(info);
-
-	info = c;
-	if (!info)
-		return 1;
-	FIND_NEXT;
-	/* Now check for the day of the month */
-	i->daymask = get_day(info);
-	info = c;
-	if (!info)
-		return 1;
-	FIND_NEXT;
-	/* And finally go for the month */
-	i->monthmask = get_month(info);
-
+	i->monthmask = 0xfff;	/* 12 bits */
+	i->daymask = 0x7fffffffU; /* 31 bits */
+	i->dowmask = 0x7f; /* 7 bits */
+	/* on each call, use strsep() to move info to the next argument */
+	get_timerange(i, strsep(&info, "|"));
+	if (info)
+		i->dowmask = get_range(strsep(&info, "|"), 7, days, "day of week");
+	if (info)
+		i->daymask = get_range(strsep(&info, "|"), 31, NULL, "day");
+	if (info)
+		i->monthmask = get_range(strsep(&info, "|"), 12, months, "month");
 	return 1;
 }
 
 int ast_check_timing(struct ast_timing *i)
 {
 	struct tm tm;
-	time_t t;
+	time_t t = time(NULL);
 
-	time(&t);
 	localtime_r(&t,&tm);
 
 	/* If it's not the right month, return */
-	if (!(i->monthmask & (1 << tm.tm_mon))) {
+	if (!(i->monthmask & (1 << tm.tm_mon)))
 		return 0;
-	}
 
 	/* If it's not that time of the month.... */
 	/* Warning, tm_mday has range 1..31! */
