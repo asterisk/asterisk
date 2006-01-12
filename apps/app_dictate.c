@@ -82,7 +82,12 @@ static int play_and_wait(struct ast_channel *chan, char *file, char *digits)
 
 static int dictate_exec(struct ast_channel *chan, void *data)
 {
-	char *mydata, *argv[3], *path = NULL, filein[256], *filename = "";
+	char *path = NULL, filein[256], *filename = "";
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(base);
+		AST_APP_ARG(filename);
+	);
 	char dftbase[256];
 	char *base;
 	struct ast_flags flags = {0};
@@ -91,7 +96,6 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	int ffactor = 320 * 80,
 		res = 0,
-		argc = 0,
 		done = 0,
 		oldr = 0,
 		lastop = 0,
@@ -105,17 +109,23 @@ static int dictate_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	snprintf(dftbase, sizeof(dftbase), "%s/dictate", ast_config_AST_SPOOL_DIR);
-	if (!ast_strlen_zero(data) && (mydata = ast_strdupa(data))) {
-		argc = ast_app_separate_args(mydata, '|', argv, sizeof(argv) / sizeof(argv[0]));
-	}
+	if (!ast_strlen_zero(data)) {
+		parse = ast_strdupa(data);
+		if (!parse) {
+			ast_log(LOG_ERROR, "Out of memory!\n");
+			return -1;
+		}
+		AST_STANDARD_APP_ARGS(args, parse);
+	} else
+		args.argc = 0;
 	
-	if (argc) {
-		base = argv[0];
+	if (args.argc && !ast_strlen_zero(args.base)) {
+		base = args.base;
 	} else {
 		base = dftbase;
 	}
-	if (argc && argv[1]) {
-		filename = argv[1];
+	if (args.argc > 1 && args.filename) {
+		filename = args.filename;
 	} 
 	oldr = chan->readformat;
 	if ((res = ast_set_read_format(chan, AST_FORMAT_SLINEAR)) < 0) {
