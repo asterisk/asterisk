@@ -5058,7 +5058,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 			   is searching through it. */
 			if (ast_mutex_lock(&tmp->lock)) {
 				ast_log(LOG_WARNING, "Unable to lock context lock\n");
-				return;
+				break;
 			}
 			if (tmpl)
 				tmpl->next = tmp->next;
@@ -5105,8 +5105,7 @@ void __ast_context_destroy(struct ast_context *con, const char *registrar)
 				tmpil = NULL;
 				continue;
 			}
-			ast_mutex_unlock(&conlock);
-			return;
+			break;
 		}
 		tmpl = tmp;
 		tmp = tmp->next;
