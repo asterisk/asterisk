@@ -172,6 +172,7 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 			;     This does NOT affect option 3,3 from the advanced options menu
 ; delete=yes		; After notification, the voicemail is deleted from the server. [per-mailbox only]
 			;     This is intended for use with users who wish to receive their voicemail ONLY by email.
+			;     Note:  deletevoicemail is provided as an equivalent option for Realtime configuration.
 ; nextaftercmd=yes	; Skips to the next message after hitting 7 or 9 to delete/save current message.
 			;     [global option only at this time] 
 ; forcename=yes		; Forces a new user to record their name.  A new user is
