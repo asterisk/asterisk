@@ -3748,7 +3748,7 @@ static unsigned get_range(char *src, int max, char *const names[], const char *m
 	}
 	/* Fill the mask. Remember that ranges are cyclic */
 	mask = 1 << s;	/* last element in case s == e */
-	for ( ; s!=e; s++) {
+	for ( ; s<=e; s++) {
 		if (s == max)
 			s = 0 ;
 		mask |= (1 << s);
