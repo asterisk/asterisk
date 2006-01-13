@@ -61,10 +61,6 @@ persistentagents=yes
 ; By default its "wav".
 ;recordformat=gsm
 ;
-; Insert into CDR userfield a name of the the created recording 
-; By default it's turned off. 
-;createlink=yes
-;
 ; The text to be added to the name of the recording. Allows forming a url link.
 ;urlprefix=http://localhost/calls/
 ;
