@@ -8735,7 +8735,7 @@ static void handle_request_info(struct sip_pvt *p, struct sip_request *req)
 			ast_queue_control(p->owner, AST_CONTROL_VIDUPDATE);
 		transmit_response(p, "200 OK", req);
 		return;
-	} else if ((c = get_header(req, "X-ClientCode"))) {
+	} else if (!ast_strlen_zero(c = get_header(req, "X-ClientCode"))) {
 		/* Client code (from SNOM phone) */
 		if (ast_test_flag(p, SIP_USECLIENTCODE)) {
 			if (p->owner && p->owner->cdr)
