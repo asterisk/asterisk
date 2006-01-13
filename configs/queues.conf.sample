@@ -72,6 +72,15 @@ persistentmembers = yes
 ;
 ;wrapuptime=15
 ;
+; Autofill will follow queue strategy but push multiple calls through
+; at same time.
+; 
+;autofill=yes
+;
+; Autopause will pause a queue member if the y fail to answer a call
+;
+;autopause=yes
+;
 ; Maximum number of people waiting in the queue (0 for unlimited)
 ;
 ;maxlen = 0

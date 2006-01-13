@@ -317,18 +317,18 @@ struct ast_call_queue {
 	char moh[80];			/*!< Music On Hold class to be used */
 	char announce[80];		/*!< Announcement to play when call is answered */
 	char context[AST_MAX_CONTEXT];	/*!< Exit context */
-		unsigned int monjoin:1;
-		unsigned int dead:1;
-		unsigned int joinempty:2;
-		unsigned int eventwhencalled:1;
-		unsigned int leavewhenempty:2;
-		unsigned int reportholdtime:1;
-		unsigned int wrapped:1;
-		unsigned int timeoutrestart:1;
-		unsigned int announceholdtime:2;
-		unsigned int strategy:3;
-		unsigned int maskmemberstatus:1;
-		unsigned int realtime:1;
+	unsigned int monjoin:1;
+	unsigned int dead:1;
+	unsigned int joinempty:2;
+	unsigned int eventwhencalled:1;
+	unsigned int leavewhenempty:2;
+	unsigned int reportholdtime:1;
+	unsigned int wrapped:1;
+	unsigned int timeoutrestart:1;
+	unsigned int announceholdtime:2;
+	unsigned int strategy:3;
+	unsigned int maskmemberstatus:1;
+	unsigned int realtime:1;
 	int announcefrequency;          /*!< How often to announce their position */
 	int periodicannouncefrequency;	/*!< How often to play periodic announcement */
 	int roundingseconds;            /*!< How many seconds do we round to? */
@@ -356,11 +356,13 @@ struct ast_call_queue {
 	int retry;			/*!< Retry calling everyone after this amount of time */
 	int timeout;			/*!< How long to wait for an answer */
 	int weight;                     /*!< Respective weight */
-	
+	int autopause;			/*!< Auto pause queue members if they fail to answer */
+
 	/* Queue strategy things */
 	int rrpos;			/*!< Round Robin - position */
 	int memberdelay;		/*!< Seconds to delay connecting member to caller */
-
+	int autofill;			/*!< Ignore the head call status and ring an available agent */
+	
 	struct member *members;		/*!< Head of the list of members */
 	struct queue_ent *head;		/*!< Head of the list of callers */
 	struct ast_call_queue *next;	/*!< Next call queue */
@@ -368,6 +370,8 @@ struct ast_call_queue {
 
 static struct ast_call_queue *queues = NULL;
 AST_MUTEX_DEFINE_STATIC(qlock);
+
+static int set_member_paused(char *queuename, char *interface, int paused);
 
 static void set_queue_result(struct ast_channel *chan, enum queue_result res)
 {
@@ -666,6 +670,10 @@ static void queue_set_param(struct ast_call_queue *q, const char *param, const c
 			q->retry = DEFAULT_RETRY;
 	} else if (!strcasecmp(param, "wrapuptime")) {
 		q->wrapuptime = atoi(val);
+	} else if (!strcasecmp(param, "autofill")) {
+		q->autofill = ast_true(val);
+	} else if (!strcasecmp(param, "autopause")) {
+		q->autopause = ast_true(val);
 	} else if (!strcasecmp(param, "maxlen")) {
 		q->maxlen = atoi(val);
 		if (q->maxlen < 0)
@@ -1607,6 +1615,7 @@ static void record_abandoned(struct queue_ent *qe)
 static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser *outgoing, int *to, char *digit, int prebusies, int caller_disconnect)
 {
 	char *queue = qe->parent->name;
+	char on[256] = "";
 	struct localuser *o;
 	int found;
 	int numlines;
@@ -1650,6 +1659,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 					peer = o;
 				}
 			} else if (o->chan && (o->chan == winner)) {
+				ast_copy_string(on, o->member->interface, sizeof(on));
 				if (!ast_strlen_zero(o->chan->call_forward)) {
 					char tmpchan[256]="";
 					char *stuff;
@@ -1825,8 +1835,19 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 			}
 			ast_frfree(f);
 		}
-		if (!*to && (option_verbose > 2))
-			ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
+		if (!*to) {
+			if (option_verbose > 2)
+				ast_verbose( VERBOSE_PREFIX_3 "Nobody picked up in %d ms\n", orig);
+			if (qe->parent->autopause) {
+				if (!set_member_paused(qe->parent->name, on, 1)) {
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Auto-Pausing Queue Member %s in queue %s since they failed to answer.\n", on, qe->parent->name);
+				} else {
+					if (option_verbose > 2)
+						ast_verbose( VERBOSE_PREFIX_3 "Failed to pause Queue Member %s in queue %s!\n", on, qe->parent->name);
+				}
+			}
+		}
 	}
 
 	return peer;
@@ -1841,7 +1862,7 @@ static int is_our_turn(struct queue_ent *qe)
 	/* Atomically read the parent head -- does not need a lock */
 	ch = qe->parent->head;
 	/* If we are now at the top of the head, break out */
-	if (ch == qe) {
+	if ((ch == qe) || (qe->parent->autofill)) {
 		if (option_debug)
 			ast_log(LOG_DEBUG, "It's our turn (%s).\n", qe->chan->name);
 		res = 1;
