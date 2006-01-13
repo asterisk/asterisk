@@ -316,8 +316,12 @@ int ast_dtmf_stream(struct ast_channel *chan,struct ast_channel *peer,char *digi
 				}
 			}
 		}
-		if (peer)
-			res = ast_autoservice_stop(peer);
+		if (peer) {
+			/* Stop autoservice on the peer channel, but don't overwrite any error condition 
+			   that has occurred previously while acting on the primary channel */	
+			if (ast_autoservice_stop(peer) && !res)
+				res = -1;
+		}
 	}
 	return res;
 }

@@ -445,7 +445,7 @@ static void apply_option(struct ast_vm_user *vmu, const char *var, const char *v
 		ast_copy_string(vmu->language, value, sizeof(vmu->language));
 	} else if (!strcasecmp(var, "tz")) {
 		ast_copy_string(vmu->zonetag, value, sizeof(vmu->zonetag));
-	} else if (!strcasecmp(var, "delete")) {
+	} else if (!strcasecmp(var, "delete") || !strcasecmp(var, "deletevoicemail")) {
 		ast_set2_flag(vmu, ast_true(value), VM_DELETE);	
 	} else if (!strcasecmp(var, "saycid")){
 		ast_set2_flag(vmu, ast_true(value), VM_SAYCID);	
@@ -2613,8 +2613,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 				}
 			}
 			if (ast_fileexists(fn, NULL, NULL)) {
-				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 				STORE(dir, vmu->mailbox, vmu->context, msgnum);
+				notify_new_message(chan, vmu, msgnum, duration, fmt, chan->cid.cid_num, chan->cid.cid_name);
 				DISPOSE(dir, msgnum);
 			}
 			pbx_builtin_setvar_helper(chan, "VMSTATUS", "SUCCESS");
@@ -4764,13 +4764,14 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 	while((cmd >= 0) && (cmd != 't')) {
 		if (cmd)
 			retries = 0;
+		RETRIEVE(prefile, -1);
 		if (ast_fileexists(prefile, NULL, NULL) > 0) {
 			switch (cmd) {
 			case '1':
 				cmd = play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 				break;
 			case '2':
-				ast_filedelete(prefile, NULL);
+				DELETE(prefile, -1, prefile);
 				ast_play_and_wait(chan,"vm-tempremoved");
 				cmd = 't';	
 				break;
@@ -4794,6 +4795,7 @@ static int vm_tempgreeting(struct ast_channel *chan, struct ast_vm_user *vmu, st
 			play_record_review(chan,"vm-rec-temp",prefile, maxgreet, fmtc, 0, vmu, &duration, NULL, record_gain);
 			cmd = 't';	
 		}
+		DISPOSE(prefile, -1);
 	}
 	if (cmd == 't')
 		cmd = 0;
@@ -5645,10 +5647,10 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 static int vmauthenticate(struct ast_channel *chan, void *data)
 {
 	struct localuser *u;
-	char *s = data, *user=NULL, *context=NULL, mailbox[AST_MAX_EXTENSION];
+	char *s = data, *user=NULL, *context=NULL, mailbox[AST_MAX_EXTENSION] = "";
 	struct ast_vm_user vmus;
 	char *options = NULL;
-	int silent = 0;
+	int silent = 0, skipuser = 0;
 	int res = -1;
 
 	LOCAL_USER_ADD(u);
@@ -5665,6 +5667,9 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 			s = user;
 			user = strsep(&s, "@");
 			context = strsep(&s, "");
+			if (!ast_strlen_zero(user))
+				skipuser++;
+			ast_copy_string(mailbox, user, sizeof(mailbox));
 		}
 	}
 
@@ -5672,9 +5677,10 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 		silent = (strchr(options, 's')) != NULL;
 	}
 
-	if (!vm_authenticate(chan, mailbox, sizeof(mailbox), &vmus, context, NULL, 0, 3, silent)) {
+	if (!vm_authenticate(chan, mailbox, sizeof(mailbox), &vmus, context, NULL, skipuser, 3, silent)) {
 		pbx_builtin_setvar_helper(chan, "AUTH_MAILBOX", mailbox);
 		pbx_builtin_setvar_helper(chan, "AUTH_CONTEXT", vmus.context);
+		ast_play_and_wait(chan, "auth-thankyou");
 		res = 0;
 	}
 

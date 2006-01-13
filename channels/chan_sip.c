@@ -13315,7 +13315,6 @@ int unload_module()
 				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
 			p = p->next;
 		}
-		iflist = NULL;
 		ast_mutex_unlock(&iflock);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the interface list\n");
