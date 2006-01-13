@@ -3131,7 +3131,7 @@ static char *queue_function_qac(struct ast_channel *chan, char *cmd, char *data,
 	ast_copy_string(buf, "0", len);
 	
 	if (ast_strlen_zero(data)) {
-		ast_log(LOG_ERROR, "QUEUEAGENTCOUNT requires an argument: queuename\n");
+		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
 		LOCAL_USER_REMOVE(u);
 		return buf;
 	}
@@ -3163,11 +3163,85 @@ static char *queue_function_qac(struct ast_channel *chan, char *cmd, char *data,
 	return buf;
 }
 
+static char *queue_function_queuememberlist(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+{
+	struct localuser *u;
+	struct ast_call_queue *q;
+	struct member *m;
+
+	/* Ensure an otherwise empty list doesn't return garbage */
+	buf[0] = '\0';
+
+	if (!data || ast_strlen_zero(data)) {
+		ast_log(LOG_ERROR, "QUEUE_MEMBER_LIST requires an argument: queuename\n");
+		return buf;
+	}
+	
+	LOCAL_USER_ACF_ADD(u);
+
+	ast_mutex_lock(&qlock);
+
+	/* Find the right queue */
+	for (q = queues; q; q = q->next) {
+		if (!strcasecmp(q->name, data)) {
+			ast_mutex_lock(&q->lock);
+			break;
+		}
+	}
+
+	ast_mutex_unlock(&qlock);
+
+	if (q) {
+		int buflen = 0, count = 0;
+		for (m = q->members; m; m = m->next) {
+			/* strcat() is always faster than printf() */
+			if (count++) {
+				strncat(buf + buflen, ",", len - buflen - 1);
+				buflen++;
+			}
+			strncat(buf + buflen, m->interface, len - buflen - 1);
+			buflen += strlen(m->interface);
+			/* Safeguard against overflow (negative length) */
+			if (buflen >= len - 2) {
+				ast_log(LOG_WARNING, "Truncating list\n");
+				break;
+			}
+		}
+		ast_mutex_unlock(&q->lock);
+	}
+
+	/* We should already be terminated, but let's make sure. */
+	buf[len - 1] = '\0';
+	LOCAL_USER_REMOVE(u);
+	return buf;
+}
+
 static struct ast_custom_function queueagentcount_function = {
 	.name = "QUEUEAGENTCOUNT",
 	.synopsis = "Count number of agents answering a queue",
 	.syntax = "QUEUEAGENTCOUNT(<queuename>)",
+	.desc =
+"Returns the number of members currently associated with the specified queue.\n"
+"This function is deprecated.  You should use QUEUE_MEMBER_COUNT() instead.\n",
 	.read = queue_function_qac,
+};
+
+static struct ast_custom_function queuemembercount_function = {
+	.name = "QUEUE_MEMBER_COUNT",
+	.synopsis = "Count number of members answering a queue",
+	.syntax = "QUEUE_MEMBER_COUNT(<queuename>)",
+	.desc =
+"Returns the number of members currently associated with the specified queue.\n",
+	.read = queue_function_qac,
+};
+
+static struct ast_custom_function queuememberlist_function = {
+	.name = "QUEUE_MEMBER_LIST",
+	.synopsis = "Returns a list of interfaces on a queue",
+	.syntax = "QUEUE_MEMBER_LIST(<queuename>)",
+	.desc =
+"Returns a comma-separated list of members associated with the specified queue.\n",
+	.read = queue_function_queuememberlist,
 };
 
 static void reload_queues(void)
@@ -3824,6 +3898,8 @@ int unload_module(void)
 	res |= ast_unregister_application(app_pqm);
 	res |= ast_unregister_application(app_upqm);
 	res |= ast_custom_function_unregister(&queueagentcount_function);
+	res |= ast_custom_function_unregister(&queuemembercount_function);
+	res |= ast_custom_function_unregister(&queuememberlist_function);
 	res |= ast_unregister_application(app);
 
 	STANDARD_HANGUP_LOCALUSERS;
@@ -3851,6 +3927,8 @@ int load_module(void)
 	res |= ast_register_application(app_pqm, pqm_exec, app_pqm_synopsis, app_pqm_descrip) ;
 	res |= ast_register_application(app_upqm, upqm_exec, app_upqm_synopsis, app_upqm_descrip) ;
 	res |= ast_custom_function_register(&queueagentcount_function);
+	res |= ast_custom_function_register(&queuemembercount_function);
+	res |= ast_custom_function_register(&queuememberlist_function);
 
 	if (!res) {	
 		reload_queues();
