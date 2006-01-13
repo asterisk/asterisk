@@ -1047,6 +1047,8 @@ static int read_agent_config(void)
 		persistent_agents = ast_true(general_val);
 	if (ast_false(ast_variable_retrieve(cfg, "general", "multiplelogin") ) ) 
 		multiplelogin=0;
+	if (ast_true(ast_variable_retrieve(cfg, "general", "multiplelogin") ) )
+		multiplelogin=1;
 
 	/* Read in the [agents] section */
 	v = ast_variable_browse(cfg, "agents");
@@ -1266,8 +1268,6 @@ static int allow_multiple_login(char *chan,char *context)
 		return 1;
 	if(!chan) 
 		return 0;
-	if(!context)
-		context="default";
 
 	snprintf(loginchan, sizeof(loginchan), "%s@%s", chan, !ast_strlen_zero(context) ? context : "default");
 	
