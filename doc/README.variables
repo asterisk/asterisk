@@ -592,6 +592,7 @@ ${PRIREDIRECTREASON} 	Reason for redirect on PRI, if a call was directed
 ${RDNIS}         	* Redirected Dial Number ID Service (Deprecated; use ${CALLERID(rdnis)})
 ${TIMESTAMP}	 	* Current date time in the format: YYYYMMDD-HHMMSS (Deprecated; use ${STRFTIME(${EPOCH},,%Y%m%d-%H%M%S)})
 ${TRANSFER_CONTEXT} 	Context for transferred calls
+${FORWARD_CONTEXT}     Context for forwarded calls
 ${UNIQUEID}	 	* Current call unique identifier
 
 Application return values
