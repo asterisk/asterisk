@@ -86,7 +86,10 @@ static char *socket_receive_file_to_buff(int fd,int *size)
     char c;
 
     bufflen = 1024;
-    buff = (char *)malloc(bufflen);
+    if (!(buff = ast_malloc(bufflen)))
+    {
+        /* TODO: Handle memory allocation failure */
+    }
     *size=0;
 
     for (k=0; file_stuff_key[k] != '\0';)
@@ -96,7 +99,10 @@ static char *socket_receive_file_to_buff(int fd,int *size)
         if ((*size)+k+1 >= bufflen)
         {   /* +1 so you can add a NULL if you want */
             bufflen += bufflen/4;
-            buff = (char *)realloc(buff,bufflen);
+            if (!(buff = ast_realloc(buff, bufflen)))
+            {
+                /* TODO: Handle memory allocation failure */
+            }
         }
         if (file_stuff_key[k] == c)
             k++;

@@ -53,6 +53,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/app.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/utils.h"
 
 #define get_volfactor(x) x ? ((x > 0) ? (1 << x) : ((1 << abs(x)) * -1)) : 0
 
@@ -292,8 +293,7 @@ static void launch_monitor_thread(struct ast_channel *chan, const char *filename
 	if (!ast_strlen_zero(post_process))
 		len += strlen(post_process) + 1;
 
-	if (!(mixmonitor = calloc(1, len))) {
-		ast_log(LOG_ERROR, "Memory Error!\n");
+	if (!(mixmonitor = ast_calloc(1, len))) {
 		return;
 	}
 

@@ -49,6 +49,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/logger.h"
 #include "asterisk/say.h"
 #include "asterisk/lock.h"
+#include "asterisk/utils.h"
 
 static char *tdesc = "Call Parking and Announce Application";
 
@@ -94,10 +95,8 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
   
 	LOCAL_USER_ADD(u);
 
-	l=strlen(data)+2;
-	orig_s=malloc(l);
-	if(!orig_s) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	l=strlen(data)+2;	
+	if (!(orig_s = ast_malloc(l))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}

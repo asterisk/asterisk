@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
+#include "asterisk/utils.h"
 
 static char *tdesc = "Digital Milliwatt (mu-law) Test Application";
 
@@ -59,11 +60,7 @@ static char digital_milliwatt[] = {0x1e,0x0b,0x0b,0x1e,0x9e,0x8b,0x8b,0x9e} ;
 
 static void *milliwatt_alloc(struct ast_channel *chan, void *params)
 {
-int	*indexp;
-	indexp = ast_malloc(sizeof(*indexp));
-	if (indexp == NULL) return(NULL);
-	*indexp = 0;
-	return(indexp);
+	return ast_calloc(1, sizeof(int));
 }
 
 static void milliwatt_release(struct ast_channel *chan, void *data)

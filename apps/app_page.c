@@ -43,7 +43,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/file.h"
 #include "asterisk/app.h"
 #include "asterisk/chanvars.h"
-
+#include "asterisk/utils.h"
 
 static const char *tdesc = "Page Multiple Phones";
 
@@ -100,8 +100,7 @@ static void launch_page(struct ast_channel *chan, const char *meetmeopts, const 
 	struct ast_var_t *varptr;
 	pthread_t t;
 	pthread_attr_t attr;
-	cd = ast_calloc(1, sizeof(*cd));
-	if (cd) {
+	if ((cd = ast_calloc(1, sizeof(*cd)))) {
 		ast_copy_string(cd->cidnum, chan->cid.cid_num ? chan->cid.cid_num : "", sizeof(cd->cidnum));
 		ast_copy_string(cd->cidname, chan->cid.cid_name ? chan->cid.cid_name : "", sizeof(cd->cidname));
 		ast_copy_string(cd->tech, tech, sizeof(cd->tech));

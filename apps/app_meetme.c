@@ -474,8 +474,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 
 	if (!cnf && (make || dynamic)) {
 		/* Make a new one */
-		cnf = calloc(1, sizeof(*cnf));
-		if (cnf) {
+		if ((cnf = ast_calloc(1, sizeof(*cnf)))) {
 			ast_mutex_init(&cnf->playlock);
 			ast_mutex_init(&cnf->listenlock);
 			ast_copy_string(cnf->confno, confno, sizeof(cnf->confno));
@@ -535,8 +534,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, char *pinadmin
 				ast_verbose(VERBOSE_PREFIX_3 "Created MeetMe conference %d for conference '%s'\n", cnf->zapconf, cnf->confno);
 			cnf->next = confs;
 			confs = cnf;
-		} else	
-			ast_log(LOG_WARNING, "Out of memory\n");
+		} 
 	}
  cnfout:
 	ast_mutex_unlock(&conflock);
@@ -851,7 +849,7 @@ static int conf_free(struct ast_conference *conf)
 
 static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int confflags)
 {
-	struct ast_conf_user *user = calloc(1, sizeof(*user));
+	struct ast_conf_user *user = NULL;
 	struct ast_conf_user *usr = NULL;
 	int fd;
 	struct zt_confinfo ztc, ztc_empty;
@@ -887,9 +885,8 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	ZT_BUFFERINFO bi;
 	char __buf[CONF_SIZE + AST_FRIENDLY_OFFSET];
 	char *buf = __buf + AST_FRIENDLY_OFFSET;
-	
-	if (!user) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+
+	if (!(user = ast_calloc(1, sizeof(*user)))) {
 		return ret;
 	}
 
