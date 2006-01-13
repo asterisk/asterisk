@@ -252,9 +252,7 @@ long int ast_random(void);
   The argument and return value are the same as malloc()
 */
 #define ast_malloc(len) \
-	({ \
-		(_ast_malloc((len), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
-	})
+	_ast_malloc((len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
 void *_ast_malloc(size_t len, const char *file, int lineno, const char *func),
@@ -279,9 +277,7 @@ void *_ast_malloc(size_t len, const char *file, int lineno, const char *func),
   The arguments and return value are the same as calloc()
 */
 #define ast_calloc(num, len) \
-	({ \
-		(_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
-	})
+	_ast_calloc((num), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
 void *_ast_calloc(size_t num, size_t len, const char *file, int lineno, const char *func),
@@ -306,9 +302,7 @@ void *_ast_calloc(size_t num, size_t len, const char *file, int lineno, const ch
   The arguments and return value are the same as realloc()
 */
 #define ast_realloc(p, len) \
-	({ \
-		(_ast_realloc((p), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
-	})
+	_ast_realloc((p), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
 void *_ast_realloc(void *p, size_t len, const char *file, int lineno, const char *func),
@@ -337,12 +331,10 @@ void *_ast_realloc(void *p, size_t len, const char *file, int lineno, const char
   The argument and return value are the same as strdup()
 */
 #define ast_strdup(str) \
-	({ \
-		(_ast_strdup((str), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
-	})
+	_ast_strdup((str), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void *_ast_strdup(const char *str, const char *file, int lineno, const char *func),
+char *_ast_strdup(const char *str, const char *file, int lineno, const char *func),
 {
 	char *newstr = NULL;
 
@@ -370,12 +362,10 @@ void *_ast_strdup(const char *str, const char *file, int lineno, const char *fun
   The arguments and return value are the same as strndup()
 */
 #define ast_strndup(str, len) \
-	({ \
-		(_ast_strndup((str), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)); \
-	})
+	_ast_strndup((str), (len), __FILE__, __LINE__, __PRETTY_FUNCTION__)
 
 AST_INLINE_API(
-void *_ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func),
+char *_ast_strndup(const char *str, size_t len, const char *file, int lineno, const char *func),
 {
 	char *newstr = NULL;
 

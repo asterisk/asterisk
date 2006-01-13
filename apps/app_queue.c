@@ -1709,8 +1709,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 						if (in->cid.cid_ani) {
 							if (o->chan->cid.cid_ani)
 								free(o->chan->cid.cid_ani);
-							if ((o->chan->cid.cid_ani = ast_calloc(1, strlen(in->cid.cid_ani) + 1)))
-								strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
+							o->chan->cid.cid_ani = ast_strdup(in->cid.cid_ani);
 						}
 						if (o->chan->cid.cid_rdnis) 
 							free(o->chan->cid.cid_rdnis);

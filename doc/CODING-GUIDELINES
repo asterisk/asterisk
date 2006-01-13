@@ -386,6 +386,10 @@ argument without generating an error.  The same code can be written as:
 	
 	newstr = ast_strdup(str);
 
+Furthermore, it is unnecessary to have code that malloc/calloc's for the length
+of a string (+1 for the terminating '\0') and then using strncpy to copy the
+copy the string into the resulting buffer.  This is the exact same thing as
+using ast_strdup.
 
 * CLI Commands
 --------------
