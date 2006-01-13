@@ -229,6 +229,19 @@ int ast_app_group_match_get_count(const char *groupmatch, const char *category);
 	args.argc = ast_app_separate_args(parse, '|', args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
 	
 /*!
+  \brief Performs the 'nonstandard' argument separation process for an application.
+  \param args An argument structure defined using AST_DECLARE_APP_ARGS
+  \param parse A modifiable buffer containing the input to be parsed
+  \param sep A nonstandard separator character
+
+  This function will separate the input string using the nonstandard argument
+  separator character and fill in the provided structure, including
+  the argc argument counter field.
+ */
+#define AST_NONSTANDARD_APP_ARGS(args, parse, sep) \
+	args.argc = ast_app_separate_args(parse, sep, args.argv, (sizeof(args) - sizeof(args.argc)) / sizeof(args.argv[0]))
+	
+/*!
   \brief Separate a string into arguments in an array
   \param buf The string to be parsed (this must be a writable copy, as it will be modified)
   \param delim The character to be used to delimit arguments

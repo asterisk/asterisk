@@ -288,17 +288,17 @@ static void agent_unlink(struct agent_pvt *agent)
 	struct agent_pvt *p, *prev;
 	prev = NULL;
 	p = agents;
-	// Iterate over all agents looking for the one.
+	/* Iterate over all agents looking for the one. */
 	while(p) {
 		if (p == agent) {
-			// Once it wal found, check if it is the first one.
+			/* Once it was found, check if it is the first one. */
 			if (prev)
-				// If it is not, tell the previous agent that the next one is the next one of the current (jumping the current).
+				/* If it is not, tell the previous agent that the next one is the next one of the current (jumping the current). */
 				prev->next = agent->next;
 			else
-				// If it is the first one, just change the general pointer to point to the second one.
+				/* If it is the first one, just change the general pointer to point to the second one. */
 				agents = agent->next;
-			// We are done.
+			/* We are done. */
 			break;
 		}
 		prev = p;
@@ -316,32 +316,47 @@ static void agent_unlink(struct agent_pvt *agent)
  */
 static struct agent_pvt *add_agent(char *agent, int pending)
 {
-	int argc;
-	char *argv[3];
-	char *args;
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(agt);
+		AST_APP_ARG(password);
+		AST_APP_ARG(name);
+	);
 	char *password = NULL;
 	char *name = NULL;
 	char *agt = NULL;
 	struct agent_pvt *p, *prev;
 
-	args = ast_strdupa(agent);
+	parse = ast_strdupa(agent);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return NULL;
+	}
 
-	// Extract username (agt), password and name from agent (args).
-	if ((argc = ast_app_separate_args(args, ',', argv, sizeof(argv) / sizeof(argv[0])))) {
-		agt = argv[0];
-		if (argc > 1) {
-			password = argv[1];
-			while (*password && *password < 33) password++;
-		} 
-		if (argc > 2) {
-			name = argv[2];
-			while (*name && *name < 33) name++;
-		}
-	} else {
+	/* Extract username (agt), password and name from agent (args). */
+	AST_NONSTANDARD_APP_ARGS(args, parse, ',');
+
+	if(args.argc == 0) {
 		ast_log(LOG_WARNING, "A blank agent line!\n");
+		return NULL;
+	}
+
+	if(ast_strlen_zero(args.agt) ) {
+		ast_log(LOG_WARNING, "An agent line with no agentid!\n");
+		return NULL;
+	} else
+		agt = args.agt;
+
+	if(!ast_strlen_zero(args.password)) {
+		password = args.password;
+		while (*password && *password < 33) password++;
+	}
+	if(!ast_strlen_zero(args.name)) {
+		name = args.name;
+		while (*name && *name < 33) name++;
 	}
 	
-	// Are we searching for the agent here ? to see if it exists already ?
+	/* Are we searching for the agent here ? To see if it exists already ? */
 	prev=NULL;
 	p = agents;
 	while(p) {
