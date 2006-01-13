@@ -252,6 +252,7 @@ Some standard AMI headers:
  Position: <num>		-- Position in Queue
  Queue:				-- Queue name
  Reason:			-- "Autologoff"
+ Reason:			-- "Chanunavail"
  Response: <response>		-- response code, like "200 OK"
 					"Success", "Error", "Follows"
  Restart:			-- "True", "False"

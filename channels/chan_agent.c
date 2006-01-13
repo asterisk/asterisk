@@ -158,6 +158,7 @@ static int autologoff;
 static int wrapuptime;
 static int ackcall;
 static int multiplelogin = 1;
+static int autologoffunavail = 0;
 
 static int maxlogintries = 3;
 static char agentgoodbye[AST_MAX_FILENAME_LEN] = "vm-goodbye";
@@ -255,6 +256,7 @@ static int agent_sendtext(struct ast_channel *ast, const char *text);
 static int agent_indicate(struct ast_channel *ast, int condition);
 static int agent_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct ast_channel *bridge);
+static void set_agentbycallerid(const char *callerid, const char *agent);
 
 static const struct ast_channel_tech agent_tech = {
 	.type = channeltype,
@@ -464,6 +466,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	struct ast_frame *f = NULL;
 	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
+	const char *status;
 	ast_mutex_lock(&p->lock); 
 	CHECK_FORMATS(ast, p);
 	if (p->chan) {
@@ -484,6 +487,26 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 			if (!ast_strlen_zero(p->loginchan)) {
 				if (p->chan)
 					ast_log(LOG_DEBUG, "Bridge on '%s' being cleared (2)\n", p->chan->name);
+
+				status = pbx_builtin_getvar_helper(p->chan, "CHANLOCALSTATUS");
+				if (autologoffunavail && status && !strcasecmp(status, "CHANUNAVAIL")) {
+					char agent[AST_MAX_AGENT] = "";
+					long logintime = time(NULL) - p->loginstart;
+					p->loginstart = 0;
+					ast_log(LOG_NOTICE, "Agent read: '%s' is not available now, auto logoff\n", p->name);
+					manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+						      "Agent: %s\r\n"
+						      "Loginchan: %s\r\n"
+						      "Logintime: %ld\r\n"
+						      "Reason: Chanunavail\r\n"
+						      "Uniqueid: %s\r\n",
+						      p->agent, p->loginchan, logintime, ast->uniqueid);
+					snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
+					ast_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Chanunavail");
+					set_agentbycallerid(p->logincallerid, NULL);
+					p->loginchan[0] = '\0';
+					p->logincallerid[0] = '\0';
+				}
 				ast_hangup(p->chan);
 				if (p->wrapuptime && p->acknowledged)
 					p->lastdisc = ast_tvadd(ast_tvnow(), ast_samp2tv(p->wrapuptime, 1000));
@@ -732,6 +755,7 @@ static int agent_hangup(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	int howlong = 0;
+	const char *status;
 	ast_mutex_lock(&p->lock);
 	p->owner = NULL;
 	ast->tech_pvt = NULL;
@@ -767,6 +791,25 @@ static int agent_hangup(struct ast_channel *ast)
 			else
 				p->lastdisc = ast_tv(0,0);
 			if (p->chan) {
+				status = pbx_builtin_getvar_helper(p->chan, "CHANLOCALSTATUS");
+				if (autologoffunavail && status && !strcasecmp(status, "CHANUNAVAIL")) {
+					char agent[AST_MAX_AGENT] = "";
+					long logintime = time(NULL) - p->loginstart;
+					p->loginstart = 0;
+					ast_log(LOG_NOTICE, "Agent hangup: '%s' is not available now, auto logoff\n", p->name);
+					manager_event(EVENT_FLAG_AGENT, "Agentcallbacklogoff",
+							"Agent: %s\r\n"
+							"Loginchan: %s\r\n"
+							"Logintime: %ld\r\n"
+							"Reason: Chanunavail\r\n"
+							"Uniqueid: %s\r\n",
+							p->agent, p->loginchan, logintime, ast->uniqueid);
+					snprintf(agent, sizeof(agent), "Agent/%s", p->agent);
+					ast_queue_log("NONE", ast->uniqueid, agent, "AGENTCALLBACKLOGOFF", "%s|%ld|%s", p->loginchan, logintime, "Chanunavail");
+					set_agentbycallerid(p->logincallerid, NULL);
+					p->loginchan[0] = '\0';
+					p->logincallerid[0] = '\0';
+				}
 				/* Recognize the hangup and pass it along immediately */
 				ast_hangup(p->chan);
 				p->chan = NULL;
@@ -1086,6 +1129,11 @@ static int read_agent_config(void)
 				updatecdr = 1;
 			else
 				updatecdr = 0;
+		} else if (!strcasecmp(v->name, "autologoffunavail")) {
+			if (ast_true(v->value))
+				autologoffunavail = 1;
+			else
+				autologoffunavail = 0;
 		} else if (!strcasecmp(v->name, "recordagentcalls")) {
 			recordagentcalls = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "recordformat")) {

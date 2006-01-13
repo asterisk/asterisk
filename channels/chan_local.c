@@ -390,10 +390,14 @@ static int local_hangup(struct ast_channel *ast)
 	struct local_pvt *cur, *prev=NULL;
 	struct ast_channel *ochan = NULL;
 	int glaredetect;
+	char *status;
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
+		status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
+		if(status)
+			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
 		p->chan = NULL;
 		p->launchedpbx = 0;
 	} else
