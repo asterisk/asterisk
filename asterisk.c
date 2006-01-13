@@ -1096,6 +1096,7 @@ static int handle_shutdown_when_convenient(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "Waiting for inactivity to perform halt\n");
 	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 0 /* don't restart */);
 	return RESULT_SUCCESS;
 }
@@ -1120,6 +1121,7 @@ static int handle_restart_when_convenient(int fd, int argc, char *argv[])
 {
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
+	ast_cli(fd, "Waiting for inactivity to perform restart\n");
 	quit_handler(0, 2 /* really nicely */, 1 /* safely */, 1 /* restart */);
 	return RESULT_SUCCESS;
 }
