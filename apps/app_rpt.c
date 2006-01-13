@@ -1041,8 +1041,7 @@ struct tm localtm;
 	
 	
 	/* allocate a pseudo-channel thru asterisk */
-	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
-	if (!mychannel)
+	if (!(mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL)))
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 		ast_mutex_lock(&myrpt->lock);
@@ -1312,11 +1311,9 @@ struct tm localtm;
 			{
 				l = l->next;
 				continue;
-			}
-			m = ast_malloc(sizeof(*m));
-			if (!m)
+			}			
+			if (!(m = ast_malloc(sizeof(*m))))
 			{
-				ast_log(LOG_WARNING, "Cannot alloc memory on %s\n", mychannel->name);
 				ast_mutex_lock(&myrpt->lock);
 				remque((struct qelem *)mytele);
 				ast_mutex_unlock(&myrpt->lock);
@@ -1563,16 +1560,12 @@ static void rpt_telemetry(struct rpt *myrpt,int mode, void *data)
 struct rpt_tele *tele;
 struct rpt_link *mylink = (struct rpt_link *) data;
 pthread_attr_t attr;
-
-	tele = ast_malloc(sizeof(*tele));
-	if (!tele)
+	
+	if (!(tele = ast_calloc(1, sizeof(*tele))))
 	{
-		ast_log(LOG_WARNING, "Unable to allocate memory\n");
 		pthread_exit(NULL);
 		return;
 	}
-	/* zero it out */
-	memset((char *)tele,0,sizeof(struct rpt_tele));
 	tele->rpt = myrpt;
 	tele->mode = mode;
 	ast_mutex_lock(&myrpt->lock);
@@ -1605,8 +1598,7 @@ struct ast_channel *mychannel,*genchannel;
 
 	myrpt->mydtmf = 0;
 	/* allocate a pseudo-channel thru asterisk */
-	mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
-	if (!mychannel)
+	if (!(mychannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL)))
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 		pthread_exit(NULL);
@@ -1624,8 +1616,7 @@ struct ast_channel *mychannel,*genchannel;
 		pthread_exit(NULL);
 	}
 	/* allocate a pseudo-channel thru asterisk */
-	genchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
-	if (!genchannel)
+	if (!(genchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL)))
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 		ast_hangup(mychannel);
@@ -1951,10 +1942,8 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 			} else
 				ast_mutex_unlock(&myrpt->lock);
 			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
-			/* establish call in monitor mode */
-			l = ast_calloc(1, sizeof(*l));
-			if (!l){
-				ast_log(LOG_WARNING, "Unable to malloc\n");
+			/* establish call in monitor mode */			
+			if (!(l = ast_calloc(1, sizeof(*l)))) {
 				return DC_ERROR;
 			}
 			/* zero the silly thing */
@@ -1993,8 +1982,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				return DC_ERROR;
 			}
 			/* allocate a pseudo-channel thru asterisk */
-			l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
-			if (!l->pchan){
+			if (!(l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL))) {
 				fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 				ast_hangup(l->chan);
 				free(l);
@@ -2065,9 +2053,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				ast_mutex_unlock(&myrpt->lock);
 			strncpy(myrpt->lastlinknode,digitbuf,MAXNODESTR - 1);
 			/* establish call in tranceive mode */
-			l = ast_calloc(1, sizeof(*l));
-			if (!l){
-				ast_log(LOG_WARNING, "Unable to malloc\n");
+			if (!(l = ast_calloc(1, sizeof(*l)))) {
 				return(DC_ERROR);
 			}
 			l->mode = 1;
@@ -2107,8 +2093,7 @@ static int function_ilink(struct rpt *myrpt, char *param, char *digits, int comm
 				return DC_ERROR;
 			}
 			/* allocate a pseudo-channel thru asterisk */
-			l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
-			if (!l->pchan){
+			if (!(l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL))) {
 				fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 				ast_hangup(l->chan);
 				free(l);
@@ -4711,8 +4696,7 @@ char cmd[MAXDTMF+1] = "";
 	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_KEY);
 	ast_indicate(myrpt->txchannel,AST_CONTROL_RADIO_UNKEY);
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->pchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
-	if (!myrpt->pchannel)
+	if (!(myrpt->pchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL)))
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 		ast_mutex_unlock(&myrpt->lock);
@@ -4760,8 +4744,7 @@ char cmd[MAXDTMF+1] = "";
 	/* save pseudo channel conference number */
 	myrpt->conf = ci.confno;
 	/* allocate a pseudo-channel thru asterisk */
-	myrpt->txpchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
-	if (!myrpt->txpchannel)
+	if (!(myrpt->txpchannel = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL)))
 	{
 		fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 		ast_mutex_unlock(&myrpt->lock);
@@ -6014,9 +5997,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		}
 
 		l=strlen(options)+2;
-		orig_s=ast_malloc(l);
-		if(!orig_s) {
-			ast_log(LOG_WARNING, "Out of memory\n");
+		if (!(orig_s = ast_malloc(l))) {
 			return -1;
 		}
 		s=orig_s;
@@ -6226,10 +6207,8 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		} else 
 			ast_mutex_unlock(&myrpt->lock);
 		/* establish call in tranceive mode */
-		l = ast_calloc(1, sizeof(*l));
-		if (!l)
+		if (!(l = ast_calloc(1, sizeof(*l))))
 		{
-			ast_log(LOG_WARNING, "Unable to malloc\n");
 			pthread_exit(NULL);
 		}
 		l->mode = 1;
@@ -6242,8 +6221,7 @@ static int rpt_exec(struct ast_channel *chan, void *data)
 		ast_set_read_format(l->chan,AST_FORMAT_SLINEAR);
 		ast_set_write_format(l->chan,AST_FORMAT_SLINEAR);
 		/* allocate a pseudo-channel thru asterisk */
-		l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL);
-		if (!l->pchan)
+		if (!(l->pchan = ast_request("zap",AST_FORMAT_SLINEAR,"pseudo",NULL)))
 		{
 			fprintf(stderr,"rpt:Sorry unable to obtain pseudo channel\n");
 			pthread_exit(NULL);

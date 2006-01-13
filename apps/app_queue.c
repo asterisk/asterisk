@@ -514,9 +514,8 @@ static int statechange_queue(const char *dev, int state, void *ign)
 	struct statechange *sc;
 	pthread_t t;
 	pthread_attr_t attr;
-
-	sc = ast_calloc(1, sizeof(*sc) + strlen(dev) + 1);
-	if (sc) {
+	
+	if ((sc = ast_calloc(1, sizeof(*sc) + strlen(dev) + 1))) {
 		sc->state = state;
 		strcpy(sc->dev, dev);
 		pthread_attr_init(&attr);
@@ -535,9 +534,7 @@ static struct member *create_queue_member(char *interface, int penalty, int paus
 	
 	/* Add a new member */
 
-	cur = ast_calloc(1, sizeof(*cur));
-
-	if (cur) {
+	if ((cur = ast_calloc(1, sizeof(*cur)))) {
 		cur->penalty = penalty;
 		cur->paused = paused;
 		ast_copy_string(cur->interface, interface, sizeof(cur->interface));
@@ -553,8 +550,7 @@ static struct ast_call_queue *alloc_queue(const char *queuename)
 {
 	struct ast_call_queue *q;
 
-	q = ast_calloc(1, sizeof(*q));
-	if (q) {
+	if ((q = ast_calloc(1, sizeof(*q)))) {
 		ast_mutex_init(&q->lock);
 		ast_copy_string(q->name, queuename, sizeof(q->name));
 	}
@@ -827,8 +823,7 @@ static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struc
 
 	/* Create a new queue if an in-core entry does not exist yet. */
 	if (!q) {
-		q = alloc_queue(queuename);
-		if (!q)
+		if (!(q = alloc_queue(queuename)))
 			return NULL;
 		ast_mutex_lock(&q->lock);
 		clear_queue(q);
@@ -1704,11 +1699,8 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 						if (in->cid.cid_ani) {
 							if (o->chan->cid.cid_ani)
 								free(o->chan->cid.cid_ani);
-							o->chan->cid.cid_ani = ast_calloc(1, strlen(in->cid.cid_ani) + 1);
-							if (o->chan->cid.cid_ani)
+							if ((o->chan->cid.cid_ani = ast_calloc(1, strlen(in->cid.cid_ani) + 1)))
 								strncpy(o->chan->cid.cid_ani, in->cid.cid_ani, strlen(in->cid.cid_ani) + 1);
-							else
-								ast_log(LOG_WARNING, "Out of memory\n");
 						}
 						if (o->chan->cid.cid_rdnis) 
 							free(o->chan->cid.cid_rdnis);
@@ -2060,12 +2052,10 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		announce = announceoverride;
 
 	while(cur) {
-		tmp = ast_calloc(1, sizeof(*tmp));
-		if (!tmp) {
+		if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 			ast_mutex_unlock(&qe->parent->lock);
 			if (use_weight) 
 				ast_mutex_unlock(&qlock);
-			ast_log(LOG_WARNING, "Out of memory\n");
 			goto out;
 		}
 		tmp->stillgoing = -1;
@@ -3204,7 +3194,9 @@ static void reload_queues(void)
 			}
 			if (!q) {
 				/* Make one then */
-				q = alloc_queue(cat);
+				if (!(q = alloc_queue(cat))) {
+					/* TODO: Handle memory allocation failure */
+				}
 				new = 1;
 			} else
 				new = 0;
@@ -3681,8 +3673,8 @@ static char *complete_add_queue_member(char *line, char *word, int pos, int stat
 		}
 	case 7:
 		if (state < 100) {	/* 0-99 */
-			char *num = ast_malloc(3);
-			if (num) {
+			char *num;
+			if ((num = ast_malloc(3))) {
 				sprintf(num, "%d", state);
 			}
 			return num;

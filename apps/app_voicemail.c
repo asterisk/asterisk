@@ -532,12 +532,7 @@ static struct ast_vm_user *find_user_realtime(struct ast_vm_user *ivm, const cha
 	struct ast_variable *var, *tmp;
 	struct ast_vm_user *retval;
 
-	if (ivm)
-		retval=ivm;
-	else
-		retval=ast_calloc(1, sizeof(*retval));
-
-	if (retval) {
+	if ((retval = (ivm ? ivm : ast_calloc(1, sizeof(*retval))))) {
 		if (!ivm)
 			ast_set_flag(retval, VM_ALLOCED);	
 		else
@@ -596,12 +591,8 @@ static struct ast_vm_user *find_user(struct ast_vm_user *ivm, const char *contex
 		cur=cur->next;
 	}
 	if (cur) {
-		if (ivm)
-			vmu = ivm;
-		else
-			/* Make a copy, so that on a reload, we have no race */
-			vmu = ast_malloc(sizeof(*vmu));
-		if (vmu) {
+		/* Make a copy, so that on a reload, we have no race */
+		if ((vmu = (ivm ? ivm : ast_malloc(sizeof(*vmu))))) {
 			memcpy(vmu, cur, sizeof(*vmu));
 			ast_set2_flag(vmu, !ivm, VM_ALLOCED);	
 			vmu->next = NULL;
@@ -1462,7 +1453,7 @@ static int vm_delete(char *file)
 	int txtsize = 0;
 
 	txtsize = (strlen(file) + 5)*sizeof(char);
-	txt = (char *)alloca(txtsize);
+	txt = alloca(txtsize);
 	/* Sprintf here would safe because we alloca'd exactly the right length,
 	 * but trying to eliminate all sprintf's anyhow
 	 */
@@ -1689,8 +1680,8 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		strftime(date, sizeof(date), emaildateformat, &tm);
 
 		if (*fromstring) {
-			struct ast_channel *ast = ast_channel_alloc(0);
-			if (ast) {
+			struct ast_channel *ast;
+			if ((ast = ast_channel_alloc(0))) {
 				char *passdata;
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
@@ -1706,8 +1697,8 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		fprintf(p, "To: %s <%s>\n", vmu->fullname, vmu->email);
 
 		if (emailsubject) {
-			struct ast_channel *ast = ast_channel_alloc(0);
-			if (ast) {
+			struct ast_channel *ast;
+			if ((ast = ast_channel_alloc(0))) {
 				char *passdata;
 				int vmlen = strlen(emailsubject)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
@@ -1738,8 +1729,8 @@ static int sendmail(char *srcemail, struct ast_vm_user *vmu, int msgnum, char *c
 		}
 		fprintf(p, "Content-Type: text/plain; charset=%s\nContent-Transfer-Encoding: 8bit\n\n", charset);
 		if (emailbody) {
-			struct ast_channel *ast = ast_channel_alloc(0);
-			if (ast) {
+			struct ast_channel *ast;
+			if ((ast = ast_channel_alloc(0))) {
 				char *passdata;
 				int vmlen = strlen(emailbody)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
@@ -1807,8 +1798,8 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 		fprintf(p, "Date: %s\n", date);
 
 		if (*pagerfromstring) {
-			struct ast_channel *ast = ast_channel_alloc(0);
-			if (ast) {
+			struct ast_channel *ast;
+			if ((ast = ast_channel_alloc(0))) {
 				char *passdata;
 				int vmlen = strlen(fromstring)*3 + 200;
 				if ((passdata = alloca(vmlen))) {
@@ -1824,8 +1815,8 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
 			fprintf(p, "From: Asterisk PBX <%s>\n", who);
 		fprintf(p, "To: %s\n", pager);
                if (pagersubject) {
-                       struct ast_channel *ast = ast_channel_alloc(0);
-                       if (ast) {
+                       struct ast_channel *ast;
+                       if ((ast = ast_channel_alloc(0))) {
                                char *passdata;
                                int vmlen = strlen(pagersubject)*3 + 200;
                                if ((passdata = alloca(vmlen))) {
@@ -1840,8 +1831,8 @@ static int sendpage(char *srcemail, char *pager, int msgnum, char *context, char
                        fprintf(p, "Subject: New VM\n\n");
 		strftime(date, sizeof(date), "%A, %B %d, %Y at %r", &tm);
                if (pagerbody) {
-                       struct ast_channel *ast = ast_channel_alloc(0);
-                       if (ast) {
+                       struct ast_channel *ast;
+                       if ((ast = ast_channel_alloc(0))) {
                                char *passdata;
                                int vmlen = strlen(pagerbody)*3 + 200;
                                if ((passdata = alloca(vmlen))) {
@@ -5138,8 +5129,12 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	if (!valid)
 		goto out;
 
-	vms.deleted = calloc(vmu->maxmsg, sizeof(int));
-	vms.heard = calloc(vmu->maxmsg, sizeof(int));
+	if (!(vms.deleted = ast_calloc(vmu->maxmsg, sizeof(int)))) {
+		/* TODO: Handle memory allocation failure */
+	}
+	if (!(vms.heard = ast_calloc(vmu->maxmsg, sizeof(int)))) {
+		/* TODO: Handle memory allocation failure */
+	}
 	
 	/* Set language from config to override channel language */
 	if (!ast_strlen_zero(vmu->language))
@@ -5592,8 +5587,7 @@ static int append_mailbox(char *context, char *mbox, char *data)
 	struct ast_vm_user *vmu;
 
 	ast_copy_string(tmp, data, sizeof(tmp));
-	vmu = ast_calloc(1, sizeof(*vmu));
-	if (vmu) {
+	if ((vmu = ast_calloc(1, sizeof(*vmu)))) {
 		ast_copy_string(vmu->context, context, sizeof(vmu->context));
 		ast_copy_string(vmu->mailbox, mbox, sizeof(vmu->mailbox));
 
@@ -6129,8 +6123,7 @@ static int load_config(void)
 					/* Timezones in this context */
 					while (var) {
 						struct vm_zone *z;
-						z = ast_malloc(sizeof(*z));
-						if (z != NULL) {
+						if ((z = ast_malloc(sizeof(*z)))) {
 							char *msg_format, *timezone;
 							msg_format = ast_strdupa(var->value);
 							if (msg_format != NULL) {
@@ -6156,8 +6149,7 @@ static int load_config(void)
 								free(z);
 								return -1;
 							}
-						} else {
-							ast_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
+						} else {						
 							return -1;
 						}
 						var = var->next;
