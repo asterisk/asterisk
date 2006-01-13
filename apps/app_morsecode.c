@@ -55,12 +55,8 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-#define	TONE	440
-#define	DITLEN	100
-#define	DAHLEN	250
-#define	DITDAHSEPLEN	50
-#define	CHARSEPLEN	200
-/* Pause between words will be twice CHARSEPLEN plus DITDAHSEPLEN - 450 */
+#define	TONE	800
+#define	DITLEN	80
 
 static char *morsecode[] = {
 	"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", /*  0-15 */
@@ -109,9 +105,9 @@ static char *morsecode[] = {
 static void playtone(struct ast_channel *chan, int tone, int len)
 {
 	char dtmf[20];
-	snprintf(dtmf, sizeof(dtmf), "%d/%d", tone, len);
+	snprintf(dtmf, sizeof(dtmf), "%d/%d", tone, DITLEN * len);
 	ast_playtones_start(chan, 0, dtmf, 0);
-	ast_safe_sleep(chan, len);
+	ast_safe_sleep(chan, DITLEN * len);
 	ast_playtones_stop(chan);
 }
 
@@ -136,18 +132,19 @@ static int morsecode_exec(struct ast_channel *chan, void *data)
 		}
 		for (dahdit = morsecode[(int)*digit]; *dahdit; dahdit++) {
 			if (*dahdit == '-') {
-				playtone(chan, TONE, DAHLEN);
+				playtone(chan, TONE, 3);
 			} else if (*dahdit == '.') {
-				playtone(chan, TONE, DITLEN);
+				playtone(chan, TONE, 1);
 			} else {
-				playtone(chan, TONE, CHARSEPLEN);
+				/* Account for ditlen of silence immediately following */
+				playtone(chan, 0, 2);
 			}
 
 			/* Pause slightly between each dit and dah */
-			playtone(chan, 0, DITDAHSEPLEN);
+			playtone(chan, 0, 1);
 		}
 		/* Pause between characters */
-		playtone(chan, 0, CHARSEPLEN);
+		playtone(chan, 0, 2);
 	}
 
 	LOCAL_USER_REMOVE(u);
