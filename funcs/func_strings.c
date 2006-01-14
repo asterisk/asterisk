@@ -50,8 +50,12 @@ static char *function_fieldqty(struct ast_channel *chan, char *cmd, char *data, 
 	if (delim) {
 		varname = strsep(&delim, "|");
 		pbx_retrieve_variable(chan, varname, &varval, workspace, sizeof(workspace), NULL);
-		while (strsep(&varval, delim))
-			fieldcount++;
+		if (delim) {
+			while (strsep(&varval, delim))
+				fieldcount++;
+		} else if (!ast_strlen_zero(varval)) {
+			fieldcount = 1;
+		}
 		snprintf(buf, len, "%d", fieldcount);
 	} else {
 		ast_log(LOG_ERROR, "Out of memory\n");
