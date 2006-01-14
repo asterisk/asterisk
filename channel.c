@@ -1899,8 +1899,10 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				} else
 					chan->insmpl += f->samples;
 #endif
-				if (ast_writestream(chan->monitor->read_stream, f) < 0)
-					ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
+				if (chan->monitor->state == AST_MONITOR_RUNNING) {
+					if (ast_writestream(chan->monitor->read_stream, f) < 0)
+						ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
+				}
 			}
 			if (chan->readtrans) {
 				f = ast_translate(chan->readtrans, f, 1);
@@ -2260,8 +2262,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 					} else
 						chan->outsmpl += f->samples;
 #endif
-					if (ast_writestream(chan->monitor->write_stream, f) < 0)
-						ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
+					if (chan->monitor->state == AST_MONITOR_RUNNING) {
+						if (ast_writestream(chan->monitor->write_stream, f) < 0)
+							ast_log(LOG_WARNING, "Failed to write data to channel monitor write stream\n");
+					}
 				}
 
 				res = chan->tech->write(chan, f);

@@ -50,6 +50,23 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 AST_MUTEX_DEFINE_STATIC(monitorlock);
 
+#define LOCK_IF_NEEDED(lock, needed)								\
+	do {															\
+		if (needed) {												\
+			if (ast_mutex_lock(lock)) {								\
+				ast_log(LOG_WARNING, "Unable to lock channel\n");	\
+				return -1;											\
+			}														\
+		}															\
+	} while(0)
+
+#define UNLOCK_IF_NEEDED(lock, needed)			\
+	do {										\
+		if (needed) {							\
+			ast_mutex_unlock(lock);				\
+		}										\
+	} while(0)									\
+
 static unsigned long seq = 0;
 
 static char *monitor_synopsis = "Monitor a channel";
@@ -89,6 +106,29 @@ static char *changemonitor_descrip = "ChangeMonitor(filename_base)\n"
 	"Changes monitoring filename of a channel. Has no effect if the channel is not monitored\n"
 	"The argument is the new filename base to use for monitoring this channel.\n";
 
+static char *pausemonitor_synopsis = "Pause monitoring of a channel";
+
+static char *pausemonitor_descrip = "PauseMonitor\n"
+	"Pauses monitoring of a channel until it is re-enabled by a call to UnpauseMonitor.\n";
+
+static char *unpausemonitor_synopsis = "Unpause monitoring of a channel";
+
+static char *unpausemonitor_descrip = "UnpauseMonitor\n"
+	"Unpauses monitoring of a channel on which monitoring had\n"
+	"previously been paused with PauseMonitor.\n";
+
+static int ast_monitor_set_state(struct ast_channel *chan, int state)
+{
+	LOCK_IF_NEEDED(&chan->lock, 1);
+	if (!chan->monitor) {
+		UNLOCK_IF_NEEDED(&chan->lock, 1);
+		return -1;
+	}
+	chan->monitor->state = state;
+	UNLOCK_IF_NEEDED(&chan->lock, 1);
+	return 0;
+}
+
 /* Start monitoring a channel */
 int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		const char *fname_base, int need_lock)
@@ -96,12 +136,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 	int res = 0;
 	char tmp[256];
 
-	if (need_lock) {
-		if (ast_mutex_lock(&chan->lock)) {
-			ast_log(LOG_WARNING, "Unable to lock channel\n");
-			return -1;
-		}
-	}
+	LOCK_IF_NEEDED(&chan->lock, need_lock);
 
 	if (!(chan->monitor)) {
 		struct ast_channel_monitor *monitor;
@@ -117,8 +152,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 
 		monitor = malloc(sizeof(struct ast_channel_monitor));
 		if (!monitor) {
-			if (need_lock) 
-				ast_mutex_unlock(&chan->lock);
+			UNLOCK_IF_NEEDED(&chan->lock, need_lock);
 			return -1;
 		}
 		memset(monitor, 0, sizeof(struct ast_channel_monitor));
@@ -196,6 +230,7 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			return -1;
 		}
 		chan->monitor = monitor;
+		ast_monitor_set_state(chan, AST_MONITOR_RUNNING);
 		/* so we know this call has been monitored in case we need to bill for it or something */
 		pbx_builtin_setvar_helper(chan, "__MONITORED","true");
 	} else {
@@ -204,9 +239,8 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 		res = -1;
 	}
 
-	if (need_lock) {
-		ast_mutex_unlock(&chan->lock);
-	}
+	UNLOCK_IF_NEEDED(&chan->lock, need_lock);
+
 	return res;
 }
 
@@ -215,12 +249,7 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 {
 	int delfiles = 0;
 
-	if (need_lock) {
-		if (ast_mutex_lock(&chan->lock)) {
-			ast_log(LOG_WARNING, "Unable to lock channel\n");
-			return -1;
-		}
-	}
+	LOCK_IF_NEEDED(&chan->lock, need_lock);
 
 	if (chan->monitor) {
 		char filename[ FILENAME_MAX ];
@@ -289,9 +318,32 @@ int ast_monitor_stop(struct ast_channel *chan, int need_lock)
 		chan->monitor = NULL;
 	}
 
-	if (need_lock)
-		ast_mutex_unlock(&chan->lock);
+	UNLOCK_IF_NEEDED(&chan->lock, need_lock);
+
 	return 0;
+}
+
+
+/* Pause monitoring of a channel */
+int ast_monitor_pause(struct ast_channel *chan)
+{
+	return ast_monitor_set_state(chan, AST_MONITOR_PAUSED);
+}
+
+/* Unpause monitoring of a channel */
+int ast_monitor_unpause(struct ast_channel *chan)
+{
+	return ast_monitor_set_state(chan, AST_MONITOR_RUNNING);
+}
+
+int pause_monitor_exec(struct ast_channel *chan, void *data)
+{
+	return ast_monitor_pause(chan);
+}
+
+int unpause_monitor_exec(struct ast_channel *chan, void *data)
+{
+	return ast_monitor_unpause(chan);
 }
 
 /* Change monitoring filename of a channel */
@@ -302,13 +354,8 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to null", chan->name);
 		return -1;
 	}
-	
-	if (need_lock) {
-		if (ast_mutex_lock(&chan->lock)) {
-			ast_log(LOG_WARNING, "Unable to lock channel\n");
-			return -1;
-		}
-	}
+
+	LOCK_IF_NEEDED(&chan->lock, need_lock);
 
 	if (chan->monitor) {
 		int directory = strchr(fname_base, '/') ? 1 : 0;
@@ -325,8 +372,7 @@ int ast_monitor_change_fname(struct ast_channel *chan, const char *fname_base, i
 		ast_log(LOG_WARNING, "Cannot change monitor filename of channel %s to %s, monitoring not started\n", chan->name, fname_base);
 	}
 
-	if (need_lock)
-		ast_mutex_unlock(&chan->lock);
+	UNLOCK_IF_NEEDED(&chan->lock, need_lock);
 
 	return 0;
 }
@@ -546,14 +592,75 @@ void ast_monitor_setjoinfiles(struct ast_channel *chan, int turnon)
 		chan->monitor->joinfiles = turnon;
 }
 
+#define IS_NULL_STRING(string) ((!(string)) || (ast_strlen_zero((string))))
+
+enum MONITOR_PAUSING_ACTION
+{
+	MONITOR_ACTION_PAUSE,
+	MONITOR_ACTION_UNPAUSE
+};
+	  
+static int do_pause_or_unpause(struct mansession *s, struct message *m, int action)
+{
+	struct ast_channel *c = NULL;
+	char *name = astman_get_header(m, "Channel");
+	
+	if (IS_NULL_STRING(name)) {
+		astman_send_error(s, m, "No channel specified");
+		return -1;
+	}
+	
+	c = ast_get_channel_by_name_locked(name);
+	if (!c) {
+		astman_send_error(s, m, "No such channel");
+		return -1;
+	}
+
+	if (action == MONITOR_ACTION_PAUSE)
+		ast_monitor_pause(c);
+	else
+		ast_monitor_unpause(c);
+	
+	ast_mutex_unlock(&c->lock);
+	astman_send_ack(s, m, "Paused monitoring of the channel");
+	return 0;	
+}
+
+static char pause_monitor_action_help[] =
+	"Description: The 'PauseMonitor' action may be used to temporarily stop the\n"
+	" recording of a channel.  The following parameters may\n"
+	" be used to control this:\n"
+	"  Channel     - Required.  Used to specify the channel to record.\n";
+
+static int pause_monitor_action(struct mansession *s, struct message *m)
+{
+	return do_pause_or_unpause(s, m, MONITOR_ACTION_PAUSE);
+}
+
+static char unpause_monitor_action_help[] =
+	"Description: The 'UnpauseMonitor' action may be used to re-enable recording\n"
+	"  of a channel after calling PauseMonitor.  The following parameters may\n"
+	"  be used to control this:\n"
+	"  Channel     - Required.  Used to specify the channel to record.\n";
+
+static int unpause_monitor_action(struct mansession *s, struct message *m)
+{
+	return do_pause_or_unpause(s, m, MONITOR_ACTION_UNPAUSE);
+}
+	
+
 int load_module(void)
 {
 	ast_register_application("Monitor", start_monitor_exec, monitor_synopsis, monitor_descrip);
 	ast_register_application("StopMonitor", stop_monitor_exec, stopmonitor_synopsis, stopmonitor_descrip);
 	ast_register_application("ChangeMonitor", change_monitor_exec, changemonitor_synopsis, changemonitor_descrip);
+	ast_register_application("PauseMonitor", pause_monitor_exec, pausemonitor_synopsis, pausemonitor_descrip);
+	ast_register_application("UnpauseMonitor", unpause_monitor_exec, unpausemonitor_synopsis, unpausemonitor_descrip);
 	ast_manager_register2("Monitor", EVENT_FLAG_CALL, start_monitor_action, monitor_synopsis, start_monitor_action_help);
 	ast_manager_register2("StopMonitor", EVENT_FLAG_CALL, stop_monitor_action, stopmonitor_synopsis, stop_monitor_action_help);
 	ast_manager_register2("ChangeMonitor", EVENT_FLAG_CALL, change_monitor_action, changemonitor_synopsis, change_monitor_action_help);
+	ast_manager_register2("PauseMonitor", EVENT_FLAG_CALL, pause_monitor_action, pausemonitor_synopsis, pause_monitor_action_help);
+	ast_manager_register2("UnpauseMonitor", EVENT_FLAG_CALL, unpause_monitor_action, unpausemonitor_synopsis, unpause_monitor_action_help);
 
 	return 0;
 }
@@ -563,9 +670,14 @@ int unload_module(void)
 	ast_unregister_application("Monitor");
 	ast_unregister_application("StopMonitor");
 	ast_unregister_application("ChangeMonitor");
+	ast_unregister_application("PauseMonitor");
+	ast_unregister_application("UnpauseMonitor");
 	ast_manager_unregister("Monitor");
 	ast_manager_unregister("StopMonitor");
 	ast_manager_unregister("ChangeMonitor");
+	ast_unregister_application("PauseMonitor");
+	ast_unregister_application("UnpauseMonitor");
+
 	return 0;
 }
 

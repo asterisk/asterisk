@@ -32,4 +32,5 @@ context => parkedcalls		; Which context parked calls are in
 [applicationmap]
 ;testfeature => #9,callee,Playback,tt-monkeys	;Play tt-monkeys to 
 						;callee if #9 was pressed
-
+;pauseMonitor   => #1,caller,Pausemonitor	;Pause monitoring on channel
+;unpauseMonitor => #3,caller,UnPauseMonitor	;Unpause monitoring on channel
