@@ -50,7 +50,7 @@ struct ast_codec_pref {
 	\arg \b IMAGE:	Image transport, mostly used in IAX
 	\arg \b TEXT:	Text messages
 	\arg \b HTML:	URL's and web pages
-	\arg \b T38:	T38 Fax transport frames
+	\arg \b MODEM:	Modulated data encodings, such as T.38 and V.150
 	\arg \b IAX:	Private frame type for the IAX protocol
 	\arg \b CNG:	Comfort noice frames
 	\arg \b CONTROL:	A control frame, subclass defined as AST_CONTROL_
