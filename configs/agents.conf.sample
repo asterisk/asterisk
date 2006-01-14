@@ -16,6 +16,13 @@ persistentagents=yes
 
 [agents]
 ;
+; Define maxlogintries to allow agent to try max logins before
+; failed.
+; default to 3
+;
+;maxlogintries=5
+;
+;
 ; Define autologoff times if appropriate.  This is how long
 ; the phone has to ring with no answer before the agent is
 ; automatically logged off (in seconds)
@@ -44,6 +51,11 @@ persistentagents=yes
 ; musiconhold => music_class
 ;
 ;musiconhold => default
+;
+; Define the default good bye sound file for agents
+; default to vm-goodbye
+;
+;agentgoodbye => goodbye_file
 ;
 ; Define updatecdr. This is whether or not to change the source 
 ; channel in the CDR record for this call to agent/agent_id so 
