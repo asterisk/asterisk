@@ -745,7 +745,11 @@ static int action_getvar(struct mansession *s, struct message *m)
 		}
 	}
 
-	pbx_retrieve_variable(c, varname, &varval, workspace, sizeof(workspace), NULL);
+	if (varname[strlen(varname) - 1] == ')') {
+		varval = ast_func_read(c, varname, workspace, sizeof(workspace));
+	} else {
+		pbx_retrieve_variable(c, varname, &varval, workspace, sizeof(workspace), NULL);
+	}
 
 	if (c)
 		ast_mutex_unlock(&c->lock);
