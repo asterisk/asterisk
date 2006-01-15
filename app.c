@@ -1109,7 +1109,7 @@ unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arra
 {
 	int argc;
 	char *scan;
-	int paren = 0;
+	int paren = 0, quote = 0;
 
 	if (!buf || !array || !arraylen)
 		return 0;
@@ -1126,7 +1126,15 @@ unsigned int ast_app_separate_args(char *buf, char delim, char **array, int arra
 			else if (*scan == ')') {
 				if (paren)
 					paren--;
-			} else if ((*scan == delim) && !paren) {
+			} else if (*scan == '"') {
+				quote = quote ? 0 : 1;
+				/* Remove quote character from argument */
+				memmove(scan, scan + 1, strlen(scan));
+				scan--;
+			} else if (*scan == '\\') {
+				/* Literal character, don't parse */
+				memmove(scan, scan + 1, strlen(scan));
+			} else if ((*scan == delim) && !paren && !quote) {
 				*scan++ = '\0';
 				break;
 			}
