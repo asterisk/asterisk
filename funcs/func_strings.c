@@ -224,10 +224,12 @@ struct ast_custom_function array_function = {
 	.syntax = "ARRAY(var1[,var2[...][,varN]])",
 	.write = builtin_function_array,
 	.desc =
-"The comma-separated list passed as a value to which the function is set\n"
-"will be interpreted as a set of values to which the comma-separated list\n"
-"of variable names in the argument should be set.\n"
-"Hence, Set(ARRAY(var1,var2)=1,2) will set var1 to 1 and var2 to 2\n",
+"The comma-separated list passed as a value to which the function is set will\n"
+"be interpreted as a set of values to which the comma-separated list of\n"
+"variable names in the argument should be set.\n"
+"Hence, Set(ARRAY(var1,var2)=1,2) will set var1 to 1 and var2 to 2\n"
+"Note: remember to either backslash your commas in extensions.conf or quote the\n"
+"entire argument, since Set can take multiple arguments itself.\n",
 };
 
 static char *builtin_function_len(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
