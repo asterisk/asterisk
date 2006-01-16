@@ -210,7 +210,7 @@ static void builtin_function_array(struct ast_channel *chan, char *cmd, char *da
 	}
 
 	for (i = 0; i < arg1.argc; i++) {
-		ast_log(LOG_ERROR, "arrary set value (%s=%s)\n", arg1.var[i], arg2.val[i]);
+		ast_log(LOG_DEBUG, "array set value (%s=%s)\n", arg1.var[i], arg2.val[i]);
 		if (i < arg2.argc) {
 			pbx_builtin_setvar_helper(chan, arg1.var[i], arg2.val[i]);
 		} else {
