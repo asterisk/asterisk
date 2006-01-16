@@ -196,7 +196,7 @@ static void builtin_function_array(struct ast_channel *chan, char *cmd, char *da
 	 * want them to be surprised by the result.  Hence, we prefer commas as the
 	 * delimiter, but we'll fall back to vertical bars if commas aren't found.
 	 */
-	ast_log(LOG_ERROR, "arrary (%s=%s)\n", var, value2);
+	ast_log(LOG_DEBUG, "array (%s=%s)\n", var, value2);
 	if (strchr(var, ',')) {
 		AST_NONSTANDARD_APP_ARGS(arg1, var, ',');
 	} else {
