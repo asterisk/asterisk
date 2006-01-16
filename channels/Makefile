@@ -16,10 +16,6 @@
 
 CHANNEL_LIBS=chan_sip.so chan_agent.so chan_mgcp.so chan_iax2.so chan_local.so chan_skinny.so chan_features.so
 
-ifeq ($(findstring BSD,${OSARCH}),BSD)
- CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
-endif
-
 ifeq (${OSARCH},OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
   H323LIB=-lh323_OpenBSD_x86_r

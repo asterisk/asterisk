@@ -29,10 +29,6 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vorbis/codec.h),)
   FORMAT_LIBS+=format_ogg_vorbis.so
 endif
 
-ifeq ($(findstring BSD,${OSARCH}),BSD)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
-endif
-
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
 ifeq (${OSARCH},CYGWIN)

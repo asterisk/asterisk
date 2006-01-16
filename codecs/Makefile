@@ -74,10 +74,6 @@ endif
 
 LIBLPC10=lpc10/liblpc10.a
 
-ifeq ($(findstring BSD,${OSARCH}),BSD)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include -L$(CROSS_COMPILE_TARGET)/usr/local/lib
-endif
-
 CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_lpc10.so  \
         codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so \
 	codec_g726.so
