@@ -2138,6 +2138,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (option_console && !option_verbose) 
+		ast_verbose("[ Reading Master Configuration ]");
+	ast_readconfig();
+
 	if (option_dumpcore) {
 		struct rlimit l;
 		memset(&l, 0, sizeof(l));
@@ -2147,10 +2151,6 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
 		}
 	}
-
-	if (option_console && !option_verbose) 
-		ast_verbose("[ Reading Master Configuration ]");
-	ast_readconfig();
 
 	if ((!rungroup) && !ast_strlen_zero(ast_config_AST_RUN_GROUP))
 		rungroup = ast_config_AST_RUN_GROUP;
