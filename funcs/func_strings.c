@@ -174,10 +174,14 @@ struct ast_custom_function regex_function = {
 
 static void builtin_function_array(struct ast_channel *chan, char *cmd, char *data, const char *value)
 {
-	char *varv[100];
-	char *valuev[100];
+	AST_DECLARE_APP_ARGS(arg1,
+		AST_APP_ARG(var)[100];
+	);
+	AST_DECLARE_APP_ARGS(arg2,
+		AST_APP_ARG(val)[100];
+	);
 	char *var, *value2;
-	int varcount, valuecount, i;
+	int i;
 
 	var = ast_strdupa(data);
 	value2 = ast_strdupa(value);
@@ -192,25 +196,27 @@ static void builtin_function_array(struct ast_channel *chan, char *cmd, char *da
 	 * want them to be surprised by the result.  Hence, we prefer commas as the
 	 * delimiter, but we'll fall back to vertical bars if commas aren't found.
 	 */
+	ast_log(LOG_ERROR, "arrary (%s=%s)\n", var, value2);
 	if (strchr(var, ',')) {
-		varcount = ast_app_separate_args(var, ',', varv, 100);
+		AST_NONSTANDARD_APP_ARGS(arg1, var, ',');
 	} else {
-		varcount = ast_app_separate_args(var, '|', varv, 100);
+		AST_STANDARD_APP_ARGS(arg1, var);
 	}
 
 	if (strchr(value2, ',')) {
-		valuecount = ast_app_separate_args(value2, ',', valuev, 100);
+		AST_NONSTANDARD_APP_ARGS(arg2, value2, ',');
 	} else {
-		valuecount = ast_app_separate_args(value2, '|', valuev, 100);
+		AST_STANDARD_APP_ARGS(arg2, value2);
 	}
 
-	for (i = 0; i < varcount; i++) {
-		if (i < valuecount) {
-			pbx_builtin_setvar_helper(chan, varv[i], valuev[i]);
+	for (i = 0; i < arg1.argc; i++) {
+		ast_log(LOG_ERROR, "arrary set value (%s=%s)\n", arg1.var[i], arg2.val[i]);
+		if (i < arg2.argc) {
+			pbx_builtin_setvar_helper(chan, arg1.var[i], arg2.val[i]);
 		} else {
 			/* We could unset the variable, by passing a NULL, but due to
 			 * pushvar semantics, that could create some undesired behavior. */
-			pbx_builtin_setvar_helper(chan, varv[i], "");
+			pbx_builtin_setvar_helper(chan, arg1.var[i], "");
 		}
 	}
 }
