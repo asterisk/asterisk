@@ -223,7 +223,7 @@ static char *app_upqm_descrip =
 
 /*! \brief Persistent Members astdb family */
 static const char *pm_family = "/Queue/PersistentMembers";
-/* The maximum lengh of each persistent member queue database entry */
+/* The maximum length of each persistent member queue database entry */
 #define PM_MAX_LEN 2048
 
 /*! \brief queues.conf [general] option */
@@ -282,7 +282,7 @@ struct queue_ent {
 	int pos;			/*!< Where we are in the queue */
 	int prio;			/*!< Our priority */
 	int last_pos_said;              /*!< Last position we told the user */
-	time_t last_periodic_announce_time;	/*!< The last time we played a periodic anouncement */
+	time_t last_periodic_announce_time;	/*!< The last time we played a periodic announcement */
 	time_t last_pos;                /*!< Last time we told the user their position */
 	int opos;			/*!< Where we started in the queue */
 	int handled;			/*!< Whether our call was handled */
@@ -2135,7 +2135,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		peer = NULL;
 	if (!peer) {
 		if (to) {
-			/* Musta gotten hung up */
+			/* Must gotten hung up */
 			record_abandoned(qe);
 			res = -1;
 		} else {
@@ -2302,7 +2302,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 			ast_hangup(peer);
 		update_queue(qe->parent, member);
 		if (bridge == 0) 
-			res = 1; /* JDG: bridge successfull, leave app_queue */
+			res = 1; /* JDG: bridge successfully, leave app_queue */
 		else 
 			res = bridge; /* bridge error, stay in the queue */
 	}	
@@ -2332,7 +2332,7 @@ static struct member * interface_exists(struct ast_call_queue *q, char *interfac
 }
 
 
-/* Dump all members in a specific queue to the databse
+/* Dump all members in a specific queue to the database
  *
  * <pm_family>/<queuename> = <interface>;<penalty>;<paused>[|...]
  *
@@ -2561,7 +2561,7 @@ static void reload_queue_members(void)
 			paused_tok = strsep(&member, ";");
 
 			if (!penalty_tok) {
-				ast_log(LOG_WARNING, "Error parsing persisent member string for '%s' (penalty)\n", queue_name);
+				ast_log(LOG_WARNING, "Error parsing persistent member string for '%s' (penalty)\n", queue_name);
 				break;
 			}
 			penalty = strtol(penalty_tok, NULL, 10);
@@ -2592,7 +2592,7 @@ static void reload_queue_members(void)
 
 	ast_mutex_unlock(&qlock);
 	if (db_tree) {
-		ast_log(LOG_NOTICE, "Queue members sucessfully reloaded from database.\n");
+		ast_log(LOG_NOTICE, "Queue members successfully reloaded from database.\n");
 		ast_db_freetree(db_tree);
 	}
 }

@@ -484,7 +484,7 @@ int ast_best_codec(int fmts)
 	};
 	
 	
-	/* Find the first prefered codec in the format given */
+	/* Find the first preferred codec in the format given */
 	for (x=0; x < (sizeof(prefs) / sizeof(prefs[0]) ); x++)
 		if (fmts & prefs[x])
 			return prefs[x];
@@ -896,7 +896,7 @@ void ast_channel_free(struct ast_channel *chan)
 	if(chan->music_state)
 		ast_moh_cleanup(chan);
 
-	/* Free translatosr */
+	/* Free translators */
 	if (chan->readtrans)
 		ast_translator_free_path(chan->readtrans);
 	if (chan->writetrans)
@@ -2907,7 +2907,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clone->uniqueid);
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", orig, newn, original->uniqueid);
 
-	/* Swap the technlogies */	
+	/* Swap the technologies */	
 	t = original->tech;
 	original->tech = clone->tech;
 	clone->tech = t;

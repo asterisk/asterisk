@@ -1940,7 +1940,7 @@ static void ast_readconfig(void) {
 		/* Run as console (-c at startup, implies nofork) */
 		} else if (!strcasecmp(v->name, "console")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_CONSOLE);
-		/* Run with highg priority if the O/S permits (-p at startup) */
+		/* Run with high priority if the O/S permits (-p at startup) */
 		} else if (!strcasecmp(v->name, "highpriority")) {
 			ast_set2_flag(&ast_options, ast_true(v->value), AST_OPT_FLAG_HIGH_PRIORITY);
 		/* Initialize RSA auth keys (IAX2) (-i at startup) */

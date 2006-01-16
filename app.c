@@ -55,7 +55,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* !
 This function presents a dialtone and reads an extension into 'collect' 
-which must be a pointer to a **pre-initilized** array of char having a 
+which must be a pointer to a **pre-initialized** array of char having a 
 size of 'size' suitable for writing to.  It will collect no more than the smaller 
 of 'maxlen' or 'size' minus the original strlen() of collect digits.
 \return 0 if extension does not exist, 1 if extension exists
