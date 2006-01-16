@@ -561,7 +561,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	tmp->fds[AST_MAX_FDS-1] = tmp->alertpipe[0];
 	/* And timing pipe */
 	tmp->fds[AST_MAX_FDS-2] = tmp->timingfd;
-	strcpy(tmp->name, "**Unkown**");
+	strcpy(tmp->name, "**Unknown**");
 	/* Initial state */
 	tmp->_state = AST_STATE_DOWN;
 	tmp->streamid = -1;
