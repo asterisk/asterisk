@@ -93,7 +93,8 @@ static char *descrip =
 	"If login is successful, the application looks up the dialed number in\n"
 	"the specified (or default) context, and executes it if found.\n"
 	"If the user enters an invalid extension and extension \"i\" (invalid) \n"
-	"exists in the context, it will be used.\n";
+	"exists in the context, it will be used. Also, if you set the 5th argument\n"
+	"to 'NOANSWER', the DISA application will not answer initially.\n";
 
 STANDARD_LOCAL_USER;
 
@@ -114,7 +115,7 @@ static void play_dialtone(struct ast_channel *chan, char *mailbox)
 
 static int disa_exec(struct ast_channel *chan, void *data)
 {
-	int i,j,k,x,did_ignore;
+	int i,j,k,x,did_ignore,special_noanswer;
 	int firstdigittimeout = 20000;
 	int digittimeout = 10000;
 	struct localuser *u;
@@ -131,6 +132,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 		AST_APP_ARG(context);
 		AST_APP_ARG(cid);
 		AST_APP_ARG(mailbox);
+		AST_APP_ARG(noanswer);
 	);
 
 	if (ast_strlen_zero(data)) {
@@ -175,10 +177,15 @@ static int disa_exec(struct ast_channel *chan, void *data)
 
 	ast_log(LOG_DEBUG, "Mailbox: %s\n",args.mailbox);
 	
-	if (chan->_state != AST_STATE_UP) {
-		/* answer */
-		ast_answer(chan);
-	}
+
+	special_noanswer = 0;
+	if ((!args.noanswer) || strcmp(args.noanswer,"NOANSWER"))
+	{
+		if (chan->_state != AST_STATE_UP) {
+			/* answer */
+			ast_answer(chan);
+		}
+	} else special_noanswer = 1;
 	i = k = x = 0; /* k is 0 for pswd entry, 1 for ext entry */
 	did_ignore = 0;
 	exten[0] = 0;
@@ -344,6 +351,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			if (!ast_strlen_zero(acctcode))
 				ast_copy_string(chan->accountcode, acctcode, sizeof(chan->accountcode));
 
+			if (special_noanswer) flags.flags = 0;
 			ast_cdr_reset(chan->cdr, &flags);
 			ast_explicit_goto(chan, args.context, exten, 1);
 			LOCAL_USER_REMOVE(u);
