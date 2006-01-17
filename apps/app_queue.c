@@ -590,7 +590,7 @@ static void init_queue(struct ast_call_queue *q)
 	ast_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
 	ast_copy_string(q->sound_periodicannounce[0], "queue-periodic-announce", sizeof(q->sound_periodicannounce[0]));
 	for (i=1;i<MAX_PERIODIC_ANNOUNCEMENTS;i++) {
-		ast_copy_string(q->sound_periodicannounce[i], "", sizeof(q->sound_periodicannounce[i]));
+		q->sound_periodicannounce[i][0]='\0';
 	}
 }
 
