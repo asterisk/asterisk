@@ -114,6 +114,7 @@ static struct strategy {
 #define DEFAULT_RETRY		5
 #define DEFAULT_TIMEOUT		15
 #define RECHECK			1		/* Recheck every second to see we we're at the top yet */
+#define MAX_PERIODIC_ANNOUNCEMENTS 10 /* The maximum periodic announcements we can have */
 
 #define	RES_OKAY	0		/* Action completed */
 #define	RES_EXISTS	(-1)		/* Entry already exists */
@@ -283,6 +284,7 @@ struct queue_ent {
 	int prio;			/*!< Our priority */
 	int last_pos_said;              /*!< Last position we told the user */
 	time_t last_periodic_announce_time;	/*!< The last time we played a periodic announcement */
+	int last_periodic_announce_sound;	/* The last periodic announcement we made */
 	time_t last_pos;                /*!< Last time we told the user their position */
 	int opos;			/*!< Where we started in the queue */
 	int handled;			/*!< Whether our call was handled */
@@ -347,7 +349,7 @@ struct ast_call_queue {
 	char sound_seconds[80];         /*!< Sound file: "seconds." (def. queue-seconds) */
 	char sound_thanks[80];          /*!< Sound file: "Thank you for your patience." (def. queue-thankyou) */
 	char sound_reporthold[80];	/*!< Sound file: "Hold time" (def. queue-reporthold) */
-	char sound_periodicannounce[80];/*!< Sound file: Custom announce, no default */
+	char sound_periodicannounce[MAX_PERIODIC_ANNOUNCEMENTS][80];/* Sound files: Custom announce, no default */
 
 	int count;			/*!< How many entries */
 	int maxlen;			/*!< Max number of entries */
@@ -563,6 +565,7 @@ static struct ast_call_queue *alloc_queue(const char *queuename)
 
 static void init_queue(struct ast_call_queue *q)
 {
+	int i;
 	q->dead = 0;
 	q->retry = DEFAULT_RETRY;
 	q->timeout = -1;
@@ -585,7 +588,10 @@ static void init_queue(struct ast_call_queue *q)
 	ast_copy_string(q->sound_thanks, "queue-thankyou", sizeof(q->sound_thanks));
 	ast_copy_string(q->sound_lessthan, "queue-less-than", sizeof(q->sound_lessthan));
 	ast_copy_string(q->sound_reporthold, "queue-reporthold", sizeof(q->sound_reporthold));
-	ast_copy_string(q->sound_periodicannounce, "queue-periodic-announce", sizeof(q->sound_periodicannounce));
+	ast_copy_string(q->sound_periodicannounce[0], "queue-periodic-announce", sizeof(q->sound_periodicannounce[0]));
+	for (i=1;i<MAX_PERIODIC_ANNOUNCEMENTS;i++) {
+		ast_copy_string(q->sound_periodicannounce[i], "", sizeof(q->sound_periodicannounce[i]));
+	}
 }
 
 static void clear_queue(struct ast_call_queue *q)
@@ -606,6 +612,9 @@ static void clear_queue(struct ast_call_queue *q)
    extra fields in the tables. */
 static void queue_set_param(struct ast_call_queue *q, const char *param, const char *val, int linenum, int failunknown)
 {
+	int i = 0;
+	char *c, *lastc;
+	char buff[80];
 	if (!strcasecmp(param, "music") || !strcasecmp(param, "musiconhold")) {
 		ast_copy_string(q->moh, val, sizeof(q->moh));
 	} else if (!strcasecmp(param, "announce")) {
@@ -660,8 +669,24 @@ static void queue_set_param(struct ast_call_queue *q, const char *param, const c
 			q->announceholdtime = ANNOUNCEHOLDTIME_ALWAYS;
 		else
 			q->announceholdtime = 0;
-	 } else if (!strcasecmp(param, "periodic-announce")) {
-		ast_copy_string(q->sound_periodicannounce, val, sizeof(q->sound_periodicannounce));
+	} else if (!strcasecmp(param, "periodic-announce")) {
+		if (strchr(val,'|')) {
+			lastc = (char *)val;
+			while ((c = strchr(lastc,'|'))) {
+				if (i > MAX_PERIODIC_ANNOUNCEMENTS)
+					break;
+				strncpy(buff, lastc, abs(lastc - c));
+				buff[abs(lastc - c)] = '\0';
+				ast_copy_string(q->sound_periodicannounce[i], buff, sizeof(q->sound_periodicannounce[i]));
+				lastc = (c + 1);
+				i++;
+			}
+			if (strlen(lastc)) {
+				ast_copy_string(q->sound_periodicannounce[i], lastc, sizeof(q->sound_periodicannounce[i]));
+			}
+		} else {
+			ast_copy_string(q->sound_periodicannounce[i], val, sizeof(q->sound_periodicannounce[i]));
+		}
 	} else if (!strcasecmp(param, "periodic-announce-frequency")) {
 		q->periodicannouncefrequency = atoi(val);
 	} else if (!strcasecmp(param, "retry")) {
@@ -1570,8 +1595,13 @@ static int say_periodic_announcement(struct queue_ent *qe)
 	if (option_verbose > 2)
 		ast_verbose(VERBOSE_PREFIX_3 "Playing periodic announcement\n");
 
+	/* Check to make sure we have a sound file. If not, reset to the first sound file */
+	if (qe->last_periodic_announce_sound >= MAX_PERIODIC_ANNOUNCEMENTS || !strlen(qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound])) {
+		qe->last_periodic_announce_sound = 0;
+	}
+	
 	/* play the announcement */
-	res = background_file(qe, qe->chan, qe->parent->sound_periodicannounce);
+	res = background_file(qe, qe->chan, qe->parent->sound_periodicannounce[qe->last_periodic_announce_sound]);
 
 	/* Resume Music on Hold */
 	ast_moh_start(qe->chan, qe->moh);
@@ -1579,6 +1609,9 @@ static int say_periodic_announcement(struct queue_ent *qe)
 	/* update last_periodic_announce_time */
 	qe->last_periodic_announce_time = now;
 
+	/* Update the current periodic announcement to the next announcement */
+	qe->last_periodic_announce_sound++;
+	
 	return res;
 }
 
@@ -2947,6 +2980,7 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.last_pos_said = 0;
 	qe.last_pos = 0;
 	qe.last_periodic_announce_time = time(NULL);
+	qe.last_periodic_announce_sound = 0;
 	if (!join_queue(queuename, &qe, &reason)) {
 		ast_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "",
 			      chan->cid.cid_num ? chan->cid.cid_num : "");
