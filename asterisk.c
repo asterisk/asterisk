@@ -127,7 +127,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
-	ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2005 Digium, Inc. and others.\n"); \
+	ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2006 Digium, Inc. and others.\n"); \
 	ast_verbose("Created by Mark Spencer <markster@digium.com>\n"); \
 	ast_verbose("Asterisk comes with ABSOLUTELY NO WARRANTY; type 'show warranty' for details.\n"); \
 	ast_verbose("This is free software, with components licensed under the GNU General Public\n"); \
