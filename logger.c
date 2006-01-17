@@ -465,9 +465,9 @@ int reload_logger(int rotate)
 	ast_mutex_unlock(&loglock);
 
 	filesize_reload_needed = 0;
-
-	queue_log_init();
+	
 	init_logger_chain();
+	queue_log_init();
 
 	if (logfiles.event_log) {
 		if (eventlog) {
@@ -594,11 +594,11 @@ int init_logger(void)
 	ast_cli_register(&rotate_logger_cli);
 	ast_cli_register(&logger_show_channels_cli);
 
-	/* initialize queue logger */
-	queue_log_init();
-
 	/* create log channels */
 	init_logger_chain();
+
+	/* initialize queue logger */
+	queue_log_init();
 
 	/* create the eventlog */
 	if (logfiles.event_log) {
