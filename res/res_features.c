@@ -1272,7 +1272,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			src = chan;
 		else if ((monitor_exec = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR")))
 			src = peer;
-		if (src) {
+		if (monitor_app && src) {
 			char *tmp = ast_strdupa(monitor_exec);
 			if (tmp) {
 				pbx_exec(src, monitor_app, tmp, 1);
