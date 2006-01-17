@@ -289,7 +289,7 @@ DUNDi is not itself a Voice-over IP signaling or media protocol. Instead, it pub
 /*! \page Config_enum ENUM Configuration
  * \section enumconf enum.conf
  * \arg See also \ref enumreadme
- * \arg Implemented in \ref app_enumlookup.c and \ref enum.c
+ * \arg Implemented in \ref func_enum.c and \ref enum.c
  * \verbinclude enum.conf.sample
  */
 
