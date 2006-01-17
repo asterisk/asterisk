@@ -892,7 +892,7 @@ static char *substring(char *value, int offset, int length, char *workspace, siz
 void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, char *workspace, int workspacelen, struct varshead *headp)
 {
 	const char not_found = '\0';
-	char tmpvar[80], *deprecated = NULL;
+	char tmpvar[80];
 	const char *s;	/* the result */
 	int offset, length;
 	int i, need_substring;
@@ -918,38 +918,12 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 	 * s = workspace if the result has been assembled there;
 	 * s != workspace in case we have a string, that needs to be copied
 	 *	(the ast_copy_string is done once for all at the end).
-	 * Deprecated variables have the replacement indicated in 'deprecated'.
 	 */
 	s = &not_found;	/* default value */
 	if (c) {	/* This group requires a valid channel */
 		/* Names with common parts are looked up a piece at a time using strncmp. */
 		if (!strncmp(var, "CALL", 4)) {
-			if (!strncmp(var + 4, "ER", 2)) {
-				if (!strncmp(var + 6, "ID", 2)) {
-					if (!var[8]) {	 			/* CALLERID */
-						if (c->cid.cid_num) {
-							if (c->cid.cid_name) {
-								snprintf(workspace, workspacelen, "\"%s\" <%s>",
-										c->cid.cid_name, c->cid.cid_num);
-								s = workspace;
-							} else {
-								s = c->cid.cid_num;
-							}
-						} else
-							s = c->cid.cid_name; /* possibly empty */
-						deprecated = "CALLERID(all)";
-					} else if (!strcmp(var + 8, "NUM")) {	/* CALLERIDNUM */
-						s = c->cid.cid_num;
-						deprecated = "CALLERID(num)";
-					} else if (!strcmp(var + 8, "NAME")) {	/* CALLERIDNAME */
-						s = c->cid.cid_name;
-						deprecated = "CALLERID(name)";
-					}
-				} else if (!strcmp(var + 6, "ANI")) {		/* CALLERANI */
-					s = c->cid.cid_ani;
-					deprecated = "CALLERID(ANI)";
-				}
-			} else if (!strncmp(var + 4, "ING", 3)) {
+			if (!strncmp(var + 4, "ING", 3)) {
 				if (!strcmp(var + 7, "PRES")) {			/* CALLINGPRES */
 					snprintf(workspace, workspacelen, "%d", c->cid.cid_pres);
 					s = workspace;
@@ -964,18 +938,12 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 					s = workspace;
 				}
 			}
-		} else if (!strcmp(var, "DNID")) {
-			s = c->cid.cid_dnid;
-			deprecated = "CALLERID(DNID)";
 		} else if (!strcmp(var, "HINT")) {
 			s = ast_get_hint(workspace, workspacelen, NULL, 0, c, c->context, c->exten) ? workspace : NULL;
 		} else if (!strcmp(var, "HINTNAME")) {
 			s = ast_get_hint(NULL, 0, workspace, workspacelen, c, c->context, c->exten) ? workspace : NULL;
 		} else if (!strcmp(var, "EXTEN")) {
 			s = c->exten;
-		} else if (!strcmp(var, "RDNIS")) {
-			s = c->cid.cid_rdnis;
-			deprecated = "CALLERID(RDNIS)";
 		} else if (!strcmp(var, "CONTEXT")) {
 			s = c->context;
 		} else if (!strcmp(var, "PRIORITY")) {
@@ -988,48 +956,12 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		} else if (!strcmp(var, "HANGUPCAUSE")) {
 			snprintf(workspace, workspacelen, "%d", c->hangupcause);
 			s = workspace;
-		} else if (!strcmp(var, "ACCOUNTCODE")) {
-			s = c->accountcode;
-			deprecated = "CDR(accountcode)";
-		} else if (!strcmp(var, "LANGUAGE")) {
-			s = c->language;
-			deprecated = "LANGUAGE()";
 		}
 	}
 	if (s == &not_found) { /* look for more */
-		time_t thistime;
-		struct tm brokentime;
-
 		if (!strcmp(var, "EPOCH")) {
 			snprintf(workspace, workspacelen, "%u",(int)time(NULL));
 			s = workspace;
-		} else if (!strcmp(var, "DATETIME")) {
-			thistime=time(NULL);
-			localtime_r(&thistime, &brokentime);
-			snprintf(workspace, workspacelen, "%02d%02d%04d-%02d:%02d:%02d",
-				brokentime.tm_mday,
-				brokentime.tm_mon+1,
-				brokentime.tm_year+1900,
-				brokentime.tm_hour,
-				brokentime.tm_min,
-				brokentime.tm_sec
-			);
-			s = workspace;
-			deprecated = "STRFTIME(${EPOCH},,\%d\%m\%Y-\%H:\%M:\%S)";
-		} else if (!strcmp(var, "TIMESTAMP")) {
-			thistime=time(NULL);
-			localtime_r(&thistime, &brokentime);
-			/* 20031130-150612 */
-			snprintf(workspace, workspacelen, "%04d%02d%02d-%02d%02d%02d",
-				brokentime.tm_year+1900,
-				brokentime.tm_mon+1,
-				brokentime.tm_mday,
-				brokentime.tm_hour,
-				brokentime.tm_min,
-				brokentime.tm_sec
-			);
-			s = workspace;
-			deprecated = "STRFTIME(${EPOCH},,\%Y\%m\%d-\%H\%M\%S)";
 		}
 	}
 	/* if not found, look into chanvars or global vars */
@@ -1053,9 +985,6 @@ void pbx_retrieve_variable(struct ast_channel *c, const char *var, char **ret, c
 		if (need_substring)
 			*ret = substring(*ret, offset, length, workspace, workspacelen);
 	}
-		
-	if (deprecated)
-		ast_log(LOG_WARNING, "${%s} is deprecated.  Please use ${%s} instead.\n", var, deprecated);
 }
 
 /*! \brief CLI function to show installed custom functions 

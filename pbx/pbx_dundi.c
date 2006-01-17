@@ -79,20 +79,6 @@ extern char ast_config_AST_KEY_DIR[];
 
 static char *tdesc = "Distributed Universal Number Discovery (DUNDi)";
 
-static char *app = "DUNDiLookup";
-static char *synopsis = "Look up a number with DUNDi";
-static char *descrip = 
-"DUNDiLookup(number[|context[|options]])\n"
-"      Looks up a given number in the global context specified or in\n"
-"the reserved 'e164' context if not specified.  Returns -1 if the channel\n"
-"is hungup during the lookup or 0 otherwise.  On completion, the variable\n"
-"${DUNDTECH} and ${DUNDDEST} will contain the technology and destination\n"
-"of the appropriate technology and destination to access the number. If no\n"
-"answer was found, and the priority n + 101 exists, execution will continue\n"
-"at that location. Note that this will only occur if the global priority\n"
-"jumping option is enabled in extensions.conf. If the 'b' option is specified,\n"
-"the internal DUNDi cache will by bypassed.\n";
-
 #define DUNDI_MODEL_INBOUND		(1 << 0)
 #define DUNDI_MODEL_OUTBOUND	(1 << 1)
 #define DUNDI_MODEL_SYMMETRIC	(DUNDI_MODEL_INBOUND | DUNDI_MODEL_OUTBOUND)
@@ -3851,75 +3837,6 @@ int dundi_query_eid(struct dundi_entity_info *dei, const char *dcontext, dundi_e
 	return dundi_query_eid_internal(dei, dcontext, &eid, &hmd, dundi_ttl, 0, avoid);
 }
 
-/*! 
- * \ingroup applications
- */
-static int dundi_lookup_exec(struct ast_channel *chan, void *data)
-{
-	char *num;
-	char *context;
-	char *opts;
-	int results;
-	int x;
-	int bypass = 0;
-	struct localuser *u;
-	struct dundi_result dr[MAX_RESULTS];
-	static int dep_warning = 0;
-
-	LOCAL_USER_ADD(u);
-
-	if (!dep_warning) {
-		ast_log(LOG_WARNING, "This application has been deprecated in favor of the DUNDILOOKUP dialplan function.\n");
-		dep_warning = 1;
-	}
-
-	if (ast_strlen_zero(data)) {
-		ast_log(LOG_WARNING, "DUNDiLookup requires an argument (number)\n");
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
-
-	num = ast_strdupa(data);
-	if (!num) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return 0;
-	}
-
-	context = strchr(num, '|');
-	if (context) {
-		*context = '\0';
-		context++;
-		opts = strchr(context, '|');
-		if (opts) {
-			*opts = '\0';
-			opts++;
-			if (strchr(opts, 'b'))
-				bypass = 1;
-		}
-	}
-
-	if (ast_strlen_zero(context))
-		context = "e164";
-	
-	results = dundi_lookup(dr, MAX_RESULTS, NULL, context, num, bypass);
-	if (results > 0) {
-		sort_results(dr, results);
-		for (x = 0; x < results; x++) {
-			if (ast_test_flag(dr + x, DUNDI_FLAG_EXISTS)) {
-				pbx_builtin_setvar_helper(chan, "DUNDTECH", dr[x].tech);
-				pbx_builtin_setvar_helper(chan, "DUNDDEST", dr[x].dest);
-				break;
-			}
-		}
-	} else if (ast_opt_priority_jumping)
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-
-	LOCAL_USER_REMOVE(u);
-
-	return 0;
-}
-
 static char *dundifunc_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *num;
@@ -4706,8 +4623,8 @@ static int set_config(char *config_file, struct sockaddr_in* sin)
 
 int unload_module(void)
 {
-	int res;
 	STANDARD_HANGUP_LOCALUSERS;
+
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_store_history);
 	ast_cli_unregister(&cli_flush);
@@ -4725,8 +4642,8 @@ int unload_module(void)
 	ast_cli_unregister(&cli_queryeid);
 	ast_unregister_switch(&dundi_switch);
 	ast_custom_function_unregister(&dundi_function);
-	res = ast_unregister_application(app);
-	return res;
+
+	return 0;
 }
 
 int reload(void)
@@ -4804,7 +4721,6 @@ int load_module(void)
 	ast_cli_register(&cli_queryeid);
 	if (ast_register_switch(&dundi_switch))
 		ast_log(LOG_ERROR, "Unable to register DUNDi switch\n");
-	ast_register_application(app, dundi_lookup_exec, synopsis, descrip);
 	ast_custom_function_register(&dundi_function); 
 	
 	return res;

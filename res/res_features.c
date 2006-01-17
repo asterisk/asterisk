@@ -1998,11 +1998,6 @@ static int load_config(void)
 	featuredigittimeout = DEFAULT_FEATURE_DIGIT_TIMEOUT;
 
 	cfg = ast_config_load("features.conf");
-	if (!cfg) {
-		cfg = ast_config_load("parking.conf");
-		if (cfg)
-			ast_log(LOG_NOTICE, "parking.conf is deprecated in favor of 'features.conf'.  Please rename it.\n");
-	}
 	if (cfg) {
 		var = ast_variable_browse(cfg, "general");
 		while(var) {

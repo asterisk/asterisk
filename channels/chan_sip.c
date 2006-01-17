@@ -12786,27 +12786,6 @@ static char *synopsis_dtmfmode = "Change the dtmfmode for a SIP call";
 static char *descrip_dtmfmode = "SIPDtmfMode(inband|info|rfc2833): Changes the dtmfmode for a SIP call\n";
 static char *app_dtmfmode = "SIPDtmfMode";
 
-static char *app_sipaddheader = "SIPAddHeader";
-static char *synopsis_sipaddheader = "Add a SIP header to the outbound call";
-
-
-static char *descrip_sipaddheader = ""
-"  SIPAddHeader(Header: Content)\n"
-"Adds a header to a SIP call placed with DIAL.\n"
-"Remember to user the X-header if you are adding non-standard SIP\n"
-"headers, like \"X-Asterisk-Accountcode:\". Use this with care.\n"
-"Adding the wrong headers may jeopardize the SIP dialog.\n"
-"Always returns 0\n";
-
-static char *app_sipgetheader = "SIPGetHeader";
-static char *synopsis_sipgetheader = "Get a SIP header from an incoming call";
- 
-static char *descrip_sipgetheader = ""
-"  SIPGetHeader(var=headername): \n"
-"Sets a channel variable to the content of a SIP header\n"
-"Skips to priority+101 if header does not exist\n"
-"Otherwise returns 0\n";
-
 /*! \brief  sip_dtmfmode: change the DTMFmode for a SIP call (application) ---*/
 static int sip_dtmfmode(struct ast_channel *chan, void *data)
 {
@@ -12853,90 +12832,6 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 		}
 	}
 	ast_mutex_unlock(&p->lock);
-	ast_mutex_unlock(&chan->lock);
-	return 0;
-}
-
-/*! \brief  sip_addheader: Add a SIP header ---*/
-static int sip_addheader(struct ast_channel *chan, void *data)
-{
-	int arglen;
-	int no = 0;
-	int ok = 0;
-	const char *content = (char *) NULL;
-	char varbuf[128];
-	
-	arglen = strlen(data);
-	if (!arglen) {
-		ast_log(LOG_WARNING, "This application requires the argument: Header\n");
-		return 0;
-	}
-	ast_mutex_lock(&chan->lock);
-
-	/* Check for headers */
-	while (!ok && no <= 50) {
-		no++;
-		snprintf(varbuf, sizeof(varbuf), "_SIPADDHEADER%.2d", no);
-		content = pbx_builtin_getvar_helper(chan, varbuf);
-
-		if (!content)
-			ok = 1;
-	}
-	if (ok) {
-		pbx_builtin_setvar_helper (chan, varbuf, data);
-		if (sipdebug)
-			ast_log(LOG_DEBUG,"SIP Header added \"%s\" as %s\n", (char *) data, varbuf);
-	} else {
-		ast_log(LOG_WARNING, "Too many SIP headers added, max 50\n");
-	}
-	ast_mutex_unlock(&chan->lock);
-	return 0;
-}
-
-/*! \brief  sip_getheader: Get a SIP header (dialplan app) ---*/
-static int sip_getheader(struct ast_channel *chan, void *data)
-{
-	static int dep_warning = 0;
-	struct sip_pvt *p;
-	char *argv, *varname = NULL, *header = NULL, *content;
-	
-	if (!dep_warning) {
-		ast_log(LOG_WARNING, "SIPGetHeader is deprecated, use the SIP_HEADER function instead.\n");
-		dep_warning = 1;
-	}
-
-	argv = ast_strdupa(data);
-	if (!argv) {
-		ast_log(LOG_DEBUG, "Memory allocation failed\n");
-		return 0;
-	}
-
-	if (strchr (argv, '=') ) {	/* Pick out argumenet */
-		varname = strsep (&argv, "=");
-		header = strsep (&argv, "\0");
-	}
-
-	if (!varname || !header) {
-		ast_log(LOG_DEBUG, "SipGetHeader: Ignoring command, Syntax error in argument\n");
-		return 0;
-	}
-
-	ast_mutex_lock(&chan->lock);
-	if (chan->type != channeltype) {
-		ast_log(LOG_WARNING, "Call this application only on incoming SIP calls\n");
-		ast_mutex_unlock(&chan->lock);
-		return 0;
-	}
-
-	p = chan->tech_pvt;
-	content = get_header(&p->initreq, header);	/* Get the header */
-	if (!ast_strlen_zero(content)) {
-		pbx_builtin_setvar_helper(chan, varname, content);
-	} else {
-		ast_log(LOG_WARNING,"SIP Header %s not found for channel variable %s\n", header, varname);
-		ast_goto_if_exists(chan, chan->context, chan->exten, chan->priority + 101);
-	}
-	
 	ast_mutex_unlock(&chan->lock);
 	return 0;
 }
@@ -13162,10 +13057,6 @@ int load_module()
 	/* Register dialplan applications */
 	ast_register_application(app_dtmfmode, sip_dtmfmode, synopsis_dtmfmode, descrip_dtmfmode);
 
-	/* These will be removed soon */
-	ast_register_application(app_sipaddheader, sip_addheader, synopsis_sipaddheader, descrip_sipaddheader);
-	ast_register_application(app_sipgetheader, sip_getheader, synopsis_sipgetheader, descrip_sipgetheader);
-
 	/* Register dialplan functions */
 	ast_custom_function_register(&sip_header_function);
 	ast_custom_function_register(&sippeer_function);
@@ -13200,8 +13091,6 @@ int unload_module()
 	ast_custom_function_unregister(&checksipdomain_function);
 
 	ast_unregister_application(app_dtmfmode);
-	ast_unregister_application(app_sipaddheader);
-	ast_unregister_application(app_sipgetheader);
 
 	ast_cli_unregister_multiple(my_clis, sizeof(my_clis) / sizeof(my_clis[0]));
 
