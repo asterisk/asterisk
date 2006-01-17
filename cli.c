@@ -951,6 +951,19 @@ static int group_show_channels(int fd, int argc, char *argv[])
 
 static int handle_help(int fd, int argc, char *argv[]);
 
+static char * complete_help(char *text, char *word, int pos, int state)
+{
+	/* skip first 4 or 5 chars, "help "*/
+	int l = strlen(text);
+
+	if (l > 5)
+		l = 5;
+	text += l;
+
+	/* XXX watch out, should stop to the non-generator parts */
+	return __ast_cli_generator(text, word, state, 0); /* Don't lock as we are already locked */
+}
+
 static struct ast_cli_entry builtins[] = {
 	/* Keep alphabetized, with longer matches first (example: abcd before abc) */
 	{ { "_command", "complete", NULL }, handle_commandcomplete, "Command complete", commandcomplete_help },
@@ -959,7 +972,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { "debug", "channel", NULL }, handle_debugchan, "Enable debugging on a channel", debugchan_help, complete_ch_3 },
 	{ { "debug", "level", NULL }, handle_debuglevel, "Set global debug level", debuglevel_help },
 	{ { "group", "show", "channels", NULL }, group_show_channels, "Show active channels with group(s)", group_show_channels_help},
-	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help },
+	{ { "help", NULL }, handle_help, "Display help list, or specific help on a command", help_help, complete_help },
 	{ { "load", NULL }, handle_load, "Load a dynamic module by name", load_help, complete_fn },
 	{ { "no", "debug", "channel", NULL }, handle_nodebugchan, "Disable debugging on a channel", nodebugchan_help, complete_ch_4 },
 	{ { "reload", NULL }, handle_reload, "Reload configuration", reload_help, complete_mod_2 },
