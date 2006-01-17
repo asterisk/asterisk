@@ -449,7 +449,8 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					char tmpchan[256];
 					char *stuff;
 					char *tech;
-					char *forward_context;
+					const char *forward_context;
+
 					ast_copy_string(tmpchan, o->chan->call_forward, sizeof(tmpchan));
 					if ((stuff = strchr(tmpchan, '/'))) {
 						*stuff = '\0';
