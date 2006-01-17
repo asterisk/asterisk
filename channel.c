@@ -3492,7 +3492,7 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 				continue;
 			default:
 				if (option_verbose > 2)
-					ast_verbose(VERBOSE_PREFIX_3, "Native bridging %s and %s ended\n",
+					ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s ended\n",
 						    c0->name, c1->name);
 				/* fallthrough */
 			case AST_BRIDGE_FAILED_NOWARN:
