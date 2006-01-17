@@ -1533,7 +1533,7 @@ int manager_event(int category, const char *event, const char *fmt, ...)
 			if (timestampevents) {
 				now = ast_tvnow();
 				ast_build_string(&tmp_next, &tmp_left, "Timestamp: %ld.%06lu\r\n",
-						 now.tv_sec, now.tv_usec);
+						 now.tv_sec, (unsigned long) now.tv_usec);
 			}
 			va_start(ap, fmt);
 			ast_build_string_va(&tmp_next, &tmp_left, fmt, ap);
