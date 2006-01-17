@@ -476,6 +476,9 @@ static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_chan
 			ast_verbose(VERBOSE_PREFIX_2 "%s: vpb_bridge: Bridging call entered with [%s, %s]\n",p0->dev, c0->name, c1->name);
 	}
 
+	if (option_verbose > 2) 
+		ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s\n", c0->name, c1->name);
+
 	#ifdef HALF_DUPLEX_BRIDGE
 
 	if (option_verbose>1) 

@@ -2023,6 +2023,9 @@ enum ast_bridge_result  misdn_bridge (struct ast_channel *c0,
 		misdn_lib_bridge(ch1->bc,ch2->bc);
 	}
 	
+	if (option_verbose > 2) 
+		ast_verbose(VERBOSE_PREFIX_3 "Native bridging %s and %s\n", c0->name, c1->name);
+
 	chan_misdn_log(1, ch1->bc->port, "* Makeing Native Bridge between %s and %s\n", ch1->bc->oad, ch2->bc->oad);
   
 	while(1) {

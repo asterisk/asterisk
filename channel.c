@@ -3460,8 +3460,6 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 		    !nativefailed && !c0->monitor && !c1->monitor &&
 		    !c0->spies && !c1->spies) {
 			/* Looks like they share a bridge method and nothing else is in the way */
-			if (option_verbose > 2) 
-				ast_verbose(VERBOSE_PREFIX_3 "Attempting native bridge of %s and %s\n", c0->name, c1->name);
 			ast_set_flag(c0, AST_FLAG_NBRIDGE);
 			ast_set_flag(c1, AST_FLAG_NBRIDGE);
 			if ((res = c0->tech->bridge(c0, c1, config->flags, fo, rc, to)) == AST_BRIDGE_COMPLETE) {
@@ -3493,7 +3491,9 @@ enum ast_bridge_result ast_channel_bridge(struct ast_channel *c0, struct ast_cha
 			case AST_BRIDGE_RETRY:
 				continue;
 			default:
-				ast_log(LOG_WARNING, "Private bridge between %s and %s failed\n", c0->name, c1->name);
+				if (option_verbose > 2)
+					ast_verbose(VERBOSE_PREFIX_3, "Native bridging %s and %s ended\n",
+						    c0->name, c1->name);
 				/* fallthrough */
 			case AST_BRIDGE_FAILED_NOWARN:
 				nativefailed++;
