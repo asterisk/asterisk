@@ -390,7 +390,7 @@ static int local_hangup(struct ast_channel *ast)
 	struct local_pvt *cur, *prev=NULL;
 	struct ast_channel *ochan = NULL;
 	int glaredetect;
-	char *status;
+	const char *status;
 
 	ast_mutex_lock(&p->lock);
 	isoutbound = IS_OUTBOUND(ast, p);
