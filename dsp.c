@@ -119,8 +119,14 @@ static struct progress {
 
 #define TONE_THRESH		10.0	/* How much louder the tone should be than channel energy */
 #define TONE_MIN_THRESH 	1e8	/* How much tone there should be at least to attempt */
-#define COUNT_THRESH		3	/* Need at least 50ms of stuff to count it */
-#define UK_HANGUP_THRESH	60	/* This is the threshold for the UK */
+
+					/* All THRESH_XXX values are in GSAMP_SIZE chunks (us = 22ms) */
+#define THRESH_RING		8	/* Need at least 150ms ring to accept */
+#define THRESH_TALK		2	/* Talk detection does not work continously */
+#define THRESH_BUSY		4	/* Need at least 80ms to accept */
+#define THRESH_CONGESTION	4	/* Need at least 80ms to accept */
+#define THRESH_HANGUP		60	/* Need at least 1300ms to accept hangup */
+#define THRESH_RING2ANSWER	300	/* Timeout from start of ring to answer (about 6600 ms) */
 
 
 #define	MAX_DTMF_DIGITS		128
@@ -315,6 +321,7 @@ struct ast_dsp {
 	int totalsilence;
 	int totalnoise;
 	int features;
+	int ringtimeout;
 	int busymaybe;
 	int busycount;
 	int busy_tonelength;
@@ -1037,7 +1044,6 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 	int pass;
 	int newstate = DSP_TONE_STATE_SILENCE;
 	int res = 0;
-	int thresh = (dsp->progmode == PROG_MODE_UK) ? UK_HANGUP_THRESH : COUNT_THRESH;
 	while(len) {
 		/* Take the lesser of the number of samples we need and what we have */
 		pass = len;
@@ -1099,31 +1105,56 @@ static int __ast_dsp_call_progress(struct ast_dsp *dsp, short *s, int len)
 			}
 			if (newstate == dsp->tstate) {
 				dsp->tcount++;
-				if (dsp->tcount == thresh) {
-					if ((dsp->features & DSP_PROGRESS_BUSY) && 
-					    dsp->tstate == DSP_TONE_STATE_BUSY) {
-						res = AST_CONTROL_BUSY;
-						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if ((dsp->features & DSP_PROGRESS_TALK) && 
-						   dsp->tstate == DSP_TONE_STATE_TALKING) {
-						res = AST_CONTROL_ANSWER;
-						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if ((dsp->features & DSP_PROGRESS_RINGING) && 
-						   dsp->tstate == DSP_TONE_STATE_RINGING)
-						res = AST_CONTROL_RINGING;
-					else if ((dsp->features & DSP_PROGRESS_CONGESTION) && 
-						 dsp->tstate == DSP_TONE_STATE_SPECIAL3) {
-						res = AST_CONTROL_CONGESTION;
-						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					} else if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
-						dsp->tstate == DSP_TONE_STATE_HUNGUP) {
-						res = AST_CONTROL_HANGUP;
-						dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
-					}
+				if (dsp->ringtimeout)
+					dsp->ringtimeout++;
+				switch (dsp->tstate) {
+					case DSP_TONE_STATE_RINGING:
+						if ((dsp->features & DSP_PROGRESS_RINGING) &&
+						    (dsp->tcount==THRESH_RING)) {
+							res = AST_CONTROL_RINGING;
+							dsp->ringtimeout= 1;
+						}
+						break;
+					case DSP_TONE_STATE_BUSY:
+						if ((dsp->features & DSP_PROGRESS_BUSY) &&
+						    (dsp->tcount==THRESH_BUSY)) {
+							res = AST_CONTROL_BUSY;
+							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+						}
+						break;
+					case DSP_TONE_STATE_TALKING:
+						if ((dsp->features & DSP_PROGRESS_TALK) &&
+						    (dsp->tcount==THRESH_TALK)) {
+							res = AST_CONTROL_ANSWER;
+							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+						}
+						break;
+					case DSP_TONE_STATE_SPECIAL3:
+						if ((dsp->features & DSP_PROGRESS_CONGESTION) &&
+						    (dsp->tcount==THRESH_CONGESTION)) {
+							res = AST_CONTROL_CONGESTION;
+							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+						}
+						break;
+					case DSP_TONE_STATE_HUNGUP:
+						if ((dsp->features & DSP_FEATURE_CALL_PROGRESS) &&
+						    (dsp->tcount==THRESH_HANGUP)) {
+							res = AST_CONTROL_HANGUP;
+							dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
+						}
+						break;
+				}
+				if (dsp->ringtimeout==THRESH_RING2ANSWER) {
+#if 0
+					ast_log(LOG_NOTICE, "Consider call as answered because of timeout after last ring\n");
+#endif
+					res = AST_CONTROL_ANSWER;
+					dsp->features &= ~DSP_FEATURE_CALL_PROGRESS;
 				}
 			} else {
 #if 0
-				printf("Newstate: %d\n", newstate);
+				ast_log(LOG_NOTICE, "Stop state %d with duration %d\n", dsp->tstate, dsp->tcount);
+				ast_log(LOG_NOTICE, "Start state %d\n", newstate);
 #endif
 				dsp->tstate = newstate;
 				dsp->tcount = 1;
@@ -1570,6 +1601,7 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 		}
 	}
 	dsp->freqcount = max;
+	dsp->ringtimeout= 0;
 }
 
 struct ast_dsp *ast_dsp_new(void)
@@ -1681,6 +1713,7 @@ void ast_dsp_reset(struct ast_dsp *dsp)
 		dsp->freqs[x].v2 = dsp->freqs[x].v3 = 0.0;
 	memset(dsp->historicsilence, 0, sizeof(dsp->historicsilence));
 	memset(dsp->historicnoise, 0, sizeof(dsp->historicnoise));	
+	dsp->ringtimeout= 0;
 }
 
 int ast_dsp_digitmode(struct ast_dsp *dsp, int digitmode)
