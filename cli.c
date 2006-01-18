@@ -278,118 +278,70 @@ static char uptime_help[] =
 "       Shows Asterisk uptime information.\n"
 "       The seconds word returns the uptime in seconds only.\n";
 
-static char *format_uptimestr(time_t timeval)
+static void print_uptimestr(int fd, time_t timeval, const char *prefix, int printsec)
 {
-	int years = 0, weeks = 0, days = 0, hours = 0, mins = 0, secs = 0;
-	char timestr[256]="";
-	int bytes = 0;
-	int maxbytes = 0;
-	int offset = 0;
+	int x; /* the main part - years, weeks, etc. */
+	char timestr[256]="", *s = timestr;
+	size_t maxbytes = sizeof(timestr);
+
 #define SECOND (1)
 #define MINUTE (SECOND*60)
 #define HOUR (MINUTE*60)
 #define DAY (HOUR*24)
 #define WEEK (DAY*7)
 #define YEAR (DAY*365)
-#define ESS(x) ((x == 1) ? "" : "s")
-
-	maxbytes = sizeof(timestr);
-	if (timeval < 0)
-		return NULL;
+#define ESS(x) ((x == 1) ? "" : "s")	/* plural suffix */
+#define NEEDCOMMA(x) ((x)? ",": "")	/* define if we need a comma */
+	if (timeval < 0)	/* invalid, nothing to show */
+		return;
+	if (printsec)  {	/* plain seconds output */
+		ast_build_string(&s, &maxbytes, "%lu", (u_long)timeval);
+		timeval = 0; /* bypass the other cases */
+	}
 	if (timeval > YEAR) {
-		years = (timeval / YEAR);
-		timeval -= (years * YEAR);
-		if (years > 0) {
-			snprintf(timestr + offset, maxbytes, "%d year%s, ", years, ESS(years));
-			bytes = strlen(timestr + offset);
-			offset += bytes;
-			maxbytes -= bytes;
-		}
+		x = (timeval / YEAR);
+		timeval -= (x * YEAR);
+		ast_build_string(&s, &maxbytes, "%d year%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	if (timeval > WEEK) {
-		weeks = (timeval / WEEK);
-		timeval -= (weeks * WEEK);
-		if (weeks > 0) {
-			snprintf(timestr + offset, maxbytes, "%d week%s, ", weeks, ESS(weeks));
-			bytes = strlen(timestr + offset);
-			offset += bytes;
-			maxbytes -= bytes;
-		}
+		x = (timeval / WEEK);
+		timeval -= (x * WEEK);
+		ast_build_string(&s, &maxbytes, "%d week%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	if (timeval > DAY) {
-		days = (timeval / DAY);
-		timeval -= (days * DAY);
-		if (days > 0) {
-			snprintf(timestr + offset, maxbytes, "%d day%s, ", days, ESS(days));
-			bytes = strlen(timestr + offset);
-			offset += bytes;
-			maxbytes -= bytes;
-		}
+		x = (timeval / DAY);
+		timeval -= (x * DAY);
+		ast_build_string(&s, &maxbytes, "%d day%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	if (timeval > HOUR) {
-		hours = (timeval / HOUR);
-		timeval -= (hours * HOUR);
-		if (hours > 0) {
-			snprintf(timestr + offset, maxbytes, "%d hour%s, ", hours, ESS(hours));
-			bytes = strlen(timestr + offset);
-			offset += bytes;
-			maxbytes -= bytes;
-		}
+		x = (timeval / HOUR);
+		timeval -= (x * HOUR);
+		ast_build_string(&s, &maxbytes, "%d hour%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
 	if (timeval > MINUTE) {
-		mins = (timeval / MINUTE);
-		timeval -= (mins * MINUTE);
-		if (mins > 0) {
-			snprintf(timestr + offset, maxbytes, "%d minute%s, ", mins, ESS(mins));
-			bytes = strlen(timestr + offset);
-			offset += bytes;
-			maxbytes -= bytes;
-		}
+		x = (timeval / MINUTE);
+		timeval -= (x * MINUTE);
+		ast_build_string(&s, &maxbytes, "%d minute%s%s ", x, ESS(x),NEEDCOMMA(timeval));
 	}
-	secs = timeval;
-
-	if (secs > 0) {
-		snprintf(timestr + offset, maxbytes, "%d second%s", secs, ESS(secs));
-	}
-
-	return timestr ? strdup(timestr) : NULL;
+	x = timeval;
+	if (x > 0)
+		ast_build_string(&s, &maxbytes, "%d second%s ", x, ESS(x));
+	if (timestr[0] != '\0')
+		ast_cli(fd, "%s: %s\n", prefix, timestr);
 }
 
 static int handle_showuptime(int fd, int argc, char *argv[])
 {
-	time_t curtime, tmptime;
-	char *timestr;
-	int printsec;
+	/* 'show uptime [seconds]' */
+	time_t curtime = time(NULL);
+	int printsec = (argc == 3 && !strcasecmp(argv[2],"seconds"));
 
-	printsec = ((argc == 3) && (!strcasecmp(argv[2],"seconds")));
-	if ((argc != 2) && (!printsec))
+	if (argc != 2 && !printsec)
 		return RESULT_SHOWUSAGE;
-
-	time(&curtime);
-	if (ast_startuptime) {
-		tmptime = curtime - ast_startuptime;
-		if (printsec) {
-			ast_cli(fd, "System uptime: %lu\n",(u_long)tmptime);
-		} else {
-			timestr = format_uptimestr(tmptime);
-			if (timestr) {
-				ast_cli(fd, "System uptime: %s\n", timestr);
-				free(timestr);
-			}
-		}
-	}		
-	if (ast_lastreloadtime) {
-		tmptime = curtime - ast_lastreloadtime;
-		if (printsec) {
-			ast_cli(fd, "Last reload: %lu\n", (u_long) tmptime);
-		} else {
-			timestr = format_uptimestr(tmptime);
-			if ((timestr) && (!printsec)) {
-				ast_cli(fd, "Last reload: %s\n", timestr);
-				free(timestr);
-			} 
-		}
-	}
+	if (ast_startuptime)
+		print_uptimestr(fd, curtime - ast_startuptime, "System uptime", printsec);
+	if (ast_lastreloadtime)
+		print_uptimestr(fd, curtime - ast_lastreloadtime, "Last reload", printsec);
 	return RESULT_SUCCESS;
 }
 
