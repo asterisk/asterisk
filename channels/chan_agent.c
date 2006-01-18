@@ -102,7 +102,7 @@ static const char descrip2[] =
 static const char descrip3[] =
 "  AgentMonitorOutgoing([options]):\n"
 "Tries to figure out the id of the agent who is placing outgoing call based on\n"
-"comparision of the callerid of the current interface and the global variable \n"
+"comparison of the callerid of the current interface and the global variable \n"
 "placed by the AgentCallbackLogin application. That's why it should be used only\n"
 "with the AgentCallbackLogin app. Uses the monitoring functions in chan_agent \n"
 "instead of Monitor application. That have to be configured in the agents.conf file.\n"
@@ -144,7 +144,7 @@ static char moh[80] = "default";
 
 /** Persistent Agents astdb family */
 static const char pa_family[] = "/Agents";
-/** The maximum lengh of each persistent member agent database entry */
+/** The maximum length of each persistent member agent database entry */
 #define PA_MAX_LEN 2048
 /** queues.conf [general] option */
 static int persistent_agents = 0;
@@ -1051,7 +1051,7 @@ static int read_agent_config(void)
 	urlprefix[0] = '\0';
 	savecallsin[0] = '\0';
 
-	/* Read in [general] section for persistance */
+	/* Read in [general] section for persistence */
 	if ((general_val = ast_variable_retrieve(cfg, "general", "persistentagents")))
 		persistent_agents = ast_true(general_val);
 
@@ -1791,7 +1791,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 				gettimeofday(&p->lastdisc, NULL);
 				p->lastdisc.tv_sec++;
 
-				/* Set Channel Specific Agent Overides */
+				/* Set Channel Specific Agent Overrides */
 				if (pbx_builtin_getvar_helper(chan, "AGENTACKCALL") && strlen(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"))) {
 					if (!strcasecmp(pbx_builtin_getvar_helper(chan, "AGENTACKCALL"), "always"))
 						p->ackcall = 2;
@@ -1819,7 +1819,7 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 					if (option_verbose > 2)
 						ast_verbose(VERBOSE_PREFIX_3 "Saw variable AGENTWRAPUPTIME=%s, setting wrapuptime to: %d for Agent '%s'.\n",tmpoptions,p->wrapuptime,p->agent);
 				}
-				/* End Channel Specific Agent Overides */
+				/* End Channel Specific Agent Overrides */
 				if (!p->chan) {
 					char last_loginchan[80] = "";
 					long logintime;
@@ -2360,7 +2360,7 @@ static void reload_agents(void)
 	}
 	ast_mutex_unlock(&agentlock);
 	if (db_tree) {
-		ast_log(LOG_NOTICE, "Agents sucessfully reloaded from database.\n");
+		ast_log(LOG_NOTICE, "Agents successfully reloaded from database.\n");
 		ast_db_freetree(db_tree);
 	}
 }
@@ -2417,7 +2417,7 @@ static int agent_devicestate(void *data)
 
 /**
  * Initialize the Agents module.
- * This funcion is being called by Asterisk when loading the module. Among other thing it registers applications, cli commands and reads the cofiguration file.
+ * This function is being called by Asterisk when loading the module. Among other thing it registers applications, cli commands and reads the cofiguration file.
  *
  * @returns int Always 0.
  */

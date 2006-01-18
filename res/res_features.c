@@ -1280,10 +1280,12 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 			if (!(monitor_app = pbx_findapp("Monitor")))
 				monitor_ok=0;
 		}
-		if ((monitor_exec = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR"))) 
-			pbx_exec(chan, monitor_app, monitor_exec, 1);
-		else if ((monitor_exec = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR")))
-			pbx_exec(peer, monitor_app, monitor_exec, 1);
+		if (monitor_app) {
+			if ((monitor_exec = pbx_builtin_getvar_helper(chan, "AUTO_MONITOR"))) 
+				pbx_exec(chan, monitor_app, monitor_exec, 1);
+			else if ((monitor_exec = pbx_builtin_getvar_helper(peer, "AUTO_MONITOR")))
+				pbx_exec(peer, monitor_app, monitor_exec, 1);
+		}
 	}
 	
 	set_config_flags(chan, peer, config);

@@ -127,7 +127,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /*! \brief Welcome message when starting a CLI interface */
 #define WELCOME_MESSAGE \
-	ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2005 Digium, Inc. and others.\n"); \
+	ast_verbose("Asterisk " ASTERISK_VERSION ", Copyright (C) 1999 - 2006 Digium, Inc. and others.\n"); \
 	ast_verbose("Created by Mark Spencer <markster@digium.com>\n"); \
 	ast_verbose("Asterisk comes with ABSOLUTELY NO WARRANTY; type 'show warranty' for details.\n"); \
 	ast_verbose("This is free software, with components licensed under the GNU General Public\n"); \
@@ -2138,6 +2138,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (option_console && !option_verbose) 
+		ast_verbose("[ Reading Master Configuration ]");
+	ast_readconfig();
+
 	if (option_dumpcore) {
 		struct rlimit l;
 		memset(&l, 0, sizeof(l));
@@ -2147,10 +2151,6 @@ int main(int argc, char *argv[])
 			ast_log(LOG_WARNING, "Unable to disable core size resource limit: %s\n", strerror(errno));
 		}
 	}
-
-	if (option_console && !option_verbose) 
-		ast_verbose("[ Reading Master Configuration ]");
-	ast_readconfig();
 
 	if ((!rungroup) && !ast_strlen_zero(ast_config_AST_RUN_GROUP))
 		rungroup = ast_config_AST_RUN_GROUP;
