@@ -29,7 +29,7 @@ extern "C" {
 
 #include <stdarg.h>
 
-extern void ast_cli(int fd, char *fmt, ...)
+void ast_cli(int fd, char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 
 #define RESULT_SUCCESS		0
@@ -45,40 +45,55 @@ extern void ast_cli(int fd, char *fmt, ...)
 /*! \brief A command line entry */ 
 struct ast_cli_entry {
 	/*! Null terminated list of the words of the command */
-	char *cmda[AST_MAX_CMD_LEN];
-	/*! Handler for the command (fd for output, # of arguments, argument list).  Returns RESULT_SHOWUSAGE for improper arguments */
+	char * cmda[AST_MAX_CMD_LEN];
+	/*! Handler for the command (fd for output, # of args, argument list).
+	  Returns RESULT_SHOWUSAGE for improper arguments.
+	  argv[] has argc 'useful' entries, and an additional NULL entry
+	  at the end so that clients requiring NULL terminated arrays
+	  can use it without need for copies.
+	  You can overwrite argv or the strings it points to, but remember
+	  that this memory is deallocated after the handler returns.
+	 */
 	int (*handler)(int fd, int argc, char *argv[]);
 	/*! Summary of the command (< 60 characters) */
-	char *summary;
+	const char *summary;
 	/*! Detailed usage information */
-	char *usage;
-	/*! Generate a list of possible completions for a given word */
-	char *(*generator)(char *line, char *word, int pos, int state);
+	const char *usage;
+	/*! Generate the n-th (starting from 0) possible completion
+	  for a given 'word' following 'line' in position 'pos'.
+	  'line' and 'word' must not be modified.
+	  Must return a malloc'ed string with the n-th value when available,
+	  or NULL if the n-th completion does not exist.
+	  Typically, the function is called with increasing values for n
+	  until a NULL is returned.
+	 */
+	char *(*generator)(char *line, char *word, int pos, int n);
 	/*! For linking */
 	struct ast_cli_entry *next;
 	/*! For keeping track of usage */
 	int inuse;
 };
 
+
 /*! \brief Interprets a command 
  * Interpret a command s, sending output to fd
  * Returns 0 on succes, -1 on failure 
  */
-extern int ast_cli_command(int fd, char *s);
+int ast_cli_command(int fd, char *s);
 
 /*! \brief Registers a command or an array of commands 
  * \param e which cli entry to register
  * Register your own command
  * Returns 0 on success, -1 on failure
  */
-extern int ast_cli_register(struct ast_cli_entry *e);
+int ast_cli_register(struct ast_cli_entry *e);
 
 /*! 
  * \brief Register multiple commands
  * \param e pointer to first cli entry to register
  * \param len number of entries to register
  */
-extern void ast_cli_register_multiple(struct ast_cli_entry *e, int len);
+void ast_cli_register_multiple(struct ast_cli_entry *e, int len);
 
 /*! \brief Unregisters a command or an array of commands
  *
@@ -86,23 +101,36 @@ extern void ast_cli_register_multiple(struct ast_cli_entry *e, int len);
  * Unregister your own command.  You must pass a completed ast_cli_entry structure
  * Returns 0.
  */
-extern int ast_cli_unregister(struct ast_cli_entry *e);
+int ast_cli_unregister(struct ast_cli_entry *e);
 
 /*!
  * \brief Unregister multiple commands
  * \param e pointer to first cli entry to unregister
  * \param len number of entries to unregister
  */
-extern void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
+void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
 
 /*! \brief Readline madness 
  * Useful for readline, that's about it
  * Returns 0 on success, -1 on failure
  */
-extern char *ast_cli_generator(char *, char *, int);
+char *ast_cli_generator(char *, char *, int);
 
-extern int ast_cli_generatornummatches(char *, char *);
-extern char **ast_cli_completion_matches(char *, char *);
+int ast_cli_generatornummatches(char *, char *);
+
+/*!
+ * \brief Generates a NULL-terminated array of strings that
+ * 1) begin with the string in the second parameter, and 
+ * 2) are valid in a command after the string in the first parameter.
+ *
+ * The first entry (offset 0) of the result is the longest common substring
+ * in the results, useful to extend the string that has been completed.
+ * Subsequent entries are all possible values, followe by a NULL.
+ * All strings and the array itself are malloc'ed and must be freed
+ * by the caller.
+ */
+char **ast_cli_completion_matches(char *, char *);
+
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }
