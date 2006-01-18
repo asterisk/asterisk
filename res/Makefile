@@ -11,7 +11,7 @@
 # the GNU General Public License
 #
 
-MODS=res_indications.so res_monitor.so res_adsi.so res_agi.so res_features.so
+MODS=res_indications.so res_monitor.so res_adsi.so res_agi.so res_features.so res_clioriginate.so
 
 ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
   ifneq (${OSARCH},FreeBSD)

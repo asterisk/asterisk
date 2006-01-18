@@ -290,6 +290,10 @@ void ast_unregister_atexit(void (*func)(void));
 						static struct localuser *localusers = NULL; \
 						static int localusecnt = 0;
 
+#define STANDARD_USECOUNT_DECL \
+	AST_MUTEX_DEFINE_STATIC(localuser_lock); \
+	static int localusecnt = 0;	
+
 #define STANDARD_INCREMENT_USECOUNT \
 	ast_mutex_lock(&localuser_lock); \
 	localusecnt++; \
