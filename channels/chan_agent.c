@@ -1622,7 +1622,7 @@ static int action_agent_logoff(struct mansession *s, struct message *m)
 	return 0;
 }
 
-static char *complete_agent_logoff_cmd(char *line, char *word, int pos, int state)
+static char *complete_agent_logoff_cmd(const char *line, const char *word, int pos, int state)
 {
 	struct agent_pvt *p;
 	char name[AST_MAX_AGENT];

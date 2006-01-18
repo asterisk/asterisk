@@ -975,7 +975,7 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *autoanswer_complete(char *line, char *word, int pos, int state)
+static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
 {
 	int l = strlen(word);
 

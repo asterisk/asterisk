@@ -8401,7 +8401,7 @@ static int __sip_show_channels(int fd, int argc, char *argv[], int subscriptions
 }
 
 /*! \brief  complete_sipch: Support routine for 'sip show channel' CLI ---*/
-static char *complete_sipch(char *line, char *word, int pos, int state)
+static char *complete_sipch(const char *line, const char *word, int pos, int state)
 {
 	int which=0;
 	struct sip_pvt *cur;
@@ -8422,7 +8422,7 @@ static char *complete_sipch(char *line, char *word, int pos, int state)
 }
 
 /*! \brief  complete_sip_peer: Do completion on peer name ---*/
-static char *complete_sip_peer(char *word, int state, int flags2)
+static char *complete_sip_peer(const char *word, const int state, int flags2)
 {
 	char *result = NULL;
 	int wordlen = strlen(word);
@@ -8442,7 +8442,7 @@ static char *complete_sip_peer(char *word, int state, int flags2)
 }
 
 /*! \brief  complete_sip_show_peer: Support routine for 'sip show peer' CLI ---*/
-static char *complete_sip_show_peer(char *line, char *word, int pos, int state)
+static char *complete_sip_show_peer(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 3)
 		return complete_sip_peer(word, state, 0);
@@ -8451,7 +8451,7 @@ static char *complete_sip_show_peer(char *line, char *word, int pos, int state)
 }
 
 /*! \brief  complete_sip_debug_peer: Support routine for 'sip debug peer' CLI ---*/
-static char *complete_sip_debug_peer(char *line, char *word, int pos, int state)
+static char *complete_sip_debug_peer(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 3)
 		return complete_sip_peer(word, state, 0);
@@ -8460,7 +8460,7 @@ static char *complete_sip_debug_peer(char *line, char *word, int pos, int state)
 }
 
 /*! \brief  complete_sip_user: Do completion on user name ---*/
-static char *complete_sip_user(char *word, int state, int flags2)
+static char *complete_sip_user(const char *word, int state, int flags2)
 {
 	char *result = NULL;
 	int wordlen = strlen(word);
@@ -8480,7 +8480,7 @@ static char *complete_sip_user(char *word, int state, int flags2)
 }
 
 /*! \brief  complete_sip_show_user: Support routine for 'sip show user' CLI ---*/
-static char *complete_sip_show_user(char *line, char *word, int pos, int state)
+static char *complete_sip_show_user(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 3)
 		return complete_sip_user(word, state, 0);
@@ -8489,7 +8489,7 @@ static char *complete_sip_show_user(char *line, char *word, int pos, int state)
 }
 
 /*! \brief  complete_sipnotify: Support routine for 'sip notify' CLI ---*/
-static char *complete_sipnotify(char *line, char *word, int pos, int state)
+static char *complete_sipnotify(const char *line, const char *word, int pos, int state)
 {
 	char *c = NULL;
 
@@ -8521,7 +8521,7 @@ static char *complete_sipnotify(char *line, char *word, int pos, int state)
 }
 
 /*! \brief  complete_sip_prune_realtime_peer: Support routine for 'sip prune realtime peer' CLI ---*/
-static char *complete_sip_prune_realtime_peer(char *line, char *word, int pos, int state)
+static char *complete_sip_prune_realtime_peer(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 4)
 		return complete_sip_peer(word, state, SIP_PAGE2_RTCACHEFRIENDS);
@@ -8529,7 +8529,7 @@ static char *complete_sip_prune_realtime_peer(char *line, char *word, int pos, i
 }
 
 /*! \brief  complete_sip_prune_realtime_user: Support routine for 'sip prune realtime user' CLI ---*/
-static char *complete_sip_prune_realtime_user(char *line, char *word, int pos, int state)
+static char *complete_sip_prune_realtime_user(const char *line, const char *word, int pos, int state)
 {
 	if (pos == 4)
 		return complete_sip_user(word, state, SIP_PAGE2_RTCACHEFRIENDS);

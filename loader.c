@@ -164,7 +164,7 @@ int ast_unload_resource(const char *resource_name, int force)
 	return res;
 }
 
-char *ast_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload)
+char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int needsreload)
 {
 	struct module *m;
 	int which=0;

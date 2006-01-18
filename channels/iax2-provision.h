@@ -50,4 +50,4 @@ extern int iax_provision_reload(void);
 extern int iax_provision_unload(void);
 extern int iax_provision_build(struct iax_ie_data *provdata, unsigned int *signature, const char *template, int force);
 extern int iax_provision_version(unsigned int *signature, const char *template, int force);
-extern char *iax_prov_complete_template(char *line, char *word, int pos, int state);
+extern char *iax_prov_complete_template(const char *line, const char *word, int pos, int state);

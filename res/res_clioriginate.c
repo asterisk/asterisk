@@ -64,7 +64,7 @@ static char orig_help[] =
 "used. If no extension is given, the 's' extension will be used.\n";
 
 static int handle_orig(int fd, int argc, char *argv[]);
-static char *complete_orig(char *line, char *word, int pos, int state);
+static char *complete_orig(const char *line, const char *word, int pos, int state);
 
 struct ast_cli_entry cli_orig = { { "originate", NULL }, handle_orig, "Originate a call", orig_help, complete_orig };
 
@@ -144,7 +144,7 @@ static int handle_orig(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char *complete_orig(char *line, char *word, int pos, int state)
+static char *complete_orig(const char *line, const char *word, int pos, int state)
 {
 	int wordlen;
 	char *app = "application";

@@ -2226,7 +2226,7 @@ static char *model2str(int model)
 	}
 }
 
-static char *complete_peer_helper(char *line, char *word, int pos, int state, int rpos)
+static char *complete_peer_helper(const char *line, const char *word, int pos, int state, int rpos)
 {
 	int which=0;
 	char *ret;
@@ -2251,7 +2251,7 @@ static char *complete_peer_helper(char *line, char *word, int pos, int state, in
 	return ret;
 }
 
-static char *complete_peer_4(char *line, char *word, int pos, int state)
+static char *complete_peer_4(const char *line, const char *word, int pos, int state)
 {
 	return complete_peer_helper(line, word, pos, state, 3);
 }

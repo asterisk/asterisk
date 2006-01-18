@@ -161,7 +161,7 @@ static char *authority_to_str(int authority, char *res, int reslen)
 	return res;
 }
 
-static char *complete_show_mancmd(char *line, char *word, int pos, int state)
+static char *complete_show_mancmd(const char *line, const char *word, int pos, int state)
 {
 	struct manager_action *cur = first_action;
 	int which = 0;

@@ -324,7 +324,7 @@ static int handle_show_version_files(int fd, int argc, char *argv[])
 #undef FORMAT
 }
 
-static char *complete_show_version_files(char *line, char *word, int pos, int state)
+static char *complete_show_version_files(const char *line, const char *word, int pos, int state)
 {
 	struct file_version *find;
 	int which = 0;

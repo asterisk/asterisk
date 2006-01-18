@@ -1082,7 +1082,7 @@ static int handle_show_function(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_show_function(char *line, char *word, int pos, int state)
+static char *complete_show_function(const char *line, const char *word, int pos, int state)
 {
 	struct ast_custom_function *acf;
 	char *ret = NULL;
@@ -2834,7 +2834,7 @@ static char show_hints_help[] =
  * application at one time. You can type 'show application Dial Echo' and
  * you will see informations about these two applications ...
  */
-static char *complete_show_application(char *line, char *word, int pos, int state)
+static char *complete_show_application(const char *line, const char *word, int pos, int state)
 {
 	struct ast_app *a;
 	char *ret = NULL;
@@ -3067,7 +3067,7 @@ static int handle_show_applications(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_show_applications(char *line, char *word, int pos, int state)
+static char *complete_show_applications(const char *line, const char *word, int pos, int state)
 {
 	int wordlen = strlen(word);
 
@@ -3101,7 +3101,7 @@ static char *complete_show_applications(char *line, char *word, int pos, int sta
 /*
  * 'show dialplan' CLI command implementation functions ...
  */
-static char *complete_show_dialplan_context(char *line, char *word, int pos,
+static char *complete_show_dialplan_context(const char *line, const char *word, int pos,
 	int state)
 {
 	struct ast_context *c = NULL;

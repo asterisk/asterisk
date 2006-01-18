@@ -1970,7 +1970,7 @@ static int iax2_show_peer(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_iax2_show_peer(char *line, char *word, int pos, int state)
+static char *complete_iax2_show_peer(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
 	struct iax2_peer *p;
@@ -7631,7 +7631,7 @@ static int iax2_do_register(struct iax2_registry *reg)
 	return 0;
 }
 
-static char *iax2_prov_complete_template_3rd(char *line, char *word, int pos, int state)
+static char *iax2_prov_complete_template_3rd(const char *line, const char *word, int pos, int state)
 {
 	if (pos != 3)
 		return NULL;

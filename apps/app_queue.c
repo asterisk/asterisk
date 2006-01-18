@@ -3503,7 +3503,7 @@ static int queue_show(int fd, int argc, char **argv)
 	return __queues_show(0, fd, argc, argv, 1);
 }
 
-static char *complete_queue(char *line, char *word, int pos, int state)
+static char *complete_queue(const char *line, const char *word, int pos, int state)
 {
 	struct ast_call_queue *q;
 	char *ret = NULL;
@@ -3777,7 +3777,7 @@ static int handle_add_queue_member(int fd, int argc, char *argv[])
 	}
 }
 
-static char *complete_add_queue_member(char *line, char *word, int pos, int state)
+static char *complete_add_queue_member(const char *line, const char *word, int pos, int state)
 {
 	/* 0 - add; 1 - queue; 2 - member; 3 - <member>; 4 - to; 5 - <queue>; 6 - penalty; 7 - <penalty> */
 	switch (pos) {
@@ -3845,7 +3845,7 @@ static int handle_remove_queue_member(int fd, int argc, char *argv[])
 	}
 }
 
-static char *complete_remove_queue_member(char *line, char *word, int pos, int state)
+static char *complete_remove_queue_member(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
 	struct ast_call_queue *q;

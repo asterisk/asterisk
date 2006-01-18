@@ -154,7 +154,7 @@ static struct iax_template *iax_template_find(const char *s, int allowdead)
 	return cur;
 }
 
-char *iax_prov_complete_template(char *line, char *word, int pos, int state)
+char *iax_prov_complete_template(const char *line, const char *word, int pos, int state)
 {
 	struct iax_template *c;
 	int which=0;

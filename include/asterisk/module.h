@@ -242,7 +242,7 @@ int ast_module_reload(const char *name);
  * \return A possible completion of the partial match, or NULL if no matches
  * were found.
  */
-char *ast_module_helper(char *line, char *word, int pos, int state, int rpos, int needsreload);
+char *ast_module_helper(const char *line, const char *word, int pos, int state, int rpos, int needsreload);
 
 /*! 
  * \brief Register a function to be executed before Asterisk exits.

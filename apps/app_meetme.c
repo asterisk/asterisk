@@ -688,7 +688,7 @@ static int conf_cmd(int fd, int argc, char **argv) {
 	return 0;
 }
 
-static char *complete_confcmd(char *line, char *word, int pos, int state) {
+static char *complete_confcmd(const char *line, const char *word, int pos, int state) {
 #define CONF_COMMANDS 6
 	int which = 0, x = 0;
 	struct ast_conference *cnf = NULL;

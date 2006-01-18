@@ -143,7 +143,7 @@ static int handle_context_dont_include(int fd, int argc, char *argv[])
 	return RESULT_FAILURE;
 }
 
-static char *complete_context_dont_include(char *line, char *word,
+static char *complete_context_dont_include(const char *line, const char *word,
 	int pos, int state)
 {
 	int which = 0;
@@ -449,7 +449,7 @@ static int handle_context_remove_extension(int fd, int argc, char *argv[])
  * It's ugly, I know, but I'm waiting for Mark suggestion if upper is
  * bug or feature ...
  */
-static int fix_complete_args(char *line, char **word, int *pos)
+static int fix_complete_args(const char *line, char **word, int *pos)
 {
 	char *_line, *_strsep_line, *_previous_word = NULL, *_word = NULL;
 	int words = 0;
@@ -481,13 +481,14 @@ static int fix_complete_args(char *line, char **word, int *pos)
 }
 #endif /* BROKEN_READLINE */
 
-static char *complete_context_remove_extension(char *line, char *word, int pos,
+static char *complete_context_remove_extension(const char *line, const char *word2, int pos,
 	int state)
 {
 	char *ret = NULL;
 	int which = 0;
 
 #ifdef BROKEN_READLINE
+	char *word = (char *)word2;	/* fool the compiler. XXX will go away later */
 	/*
 	 * Fix arguments, *word is a new allocated structure, REMEMBER to
 	 * free *word when you want to return from this function ...
@@ -496,6 +497,8 @@ static char *complete_context_remove_extension(char *line, char *word, int pos,
 		ast_log(LOG_ERROR, "Out of free memory\n");
 		return NULL;
 	}
+#else
+	const char *word = word2;
 #endif
 
 	/*
@@ -745,7 +748,7 @@ static int handle_context_add_include(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_context_add_include(char *line, char *word, int pos,
+static char *complete_context_add_include(const char *line, const char *word, int pos,
     int state)
 {
 	struct ast_context *c;
@@ -1243,7 +1246,7 @@ static int handle_context_add_extension(int fd, int argc, char *argv[])
 }
 
 /*! add extension 6123,1,Dial,IAX/212.71.138.13/6123 into local */
-static char *complete_context_add_extension(char *line, char *word,
+static char *complete_context_add_extension(const char *line, const char *word,
 	int pos, int state)
 {
 	int which = 0;
@@ -1326,7 +1329,7 @@ static int handle_context_add_ignorepat(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_context_add_ignorepat(char *line, char *word,
+static char *complete_context_add_ignorepat(const char *line, const char *word,
 	int pos, int state)
 {
 	if (pos == 3) return state == 0 ? strdup("into") : NULL;
@@ -1427,7 +1430,7 @@ static int handle_reload_extensions(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_context_remove_ignorepat(char *line, char *word,
+static char *complete_context_remove_ignorepat(const char *line, const char *word,
 	int pos, int state)
 {
 	struct ast_context *c;

@@ -508,7 +508,7 @@ static int handle_softhangup(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *__ast_cli_generator(char *text, char *word, int state, int lock);
+static char *__ast_cli_generator(const char *text, const char *word, int state, int lock);
 
 static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 {
@@ -762,7 +762,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_show_channels(char *line, char *word, int pos, int state)
+static char *complete_show_channels(const char *line, const char *word, int pos, int state)
 {
 	static char *choices[] = { "concise", "verbose" };
 	int match = 0;
@@ -785,7 +785,7 @@ static char *complete_show_channels(char *line, char *word, int pos, int state)
 	return NULL;
 }
 
-static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
+static char *complete_ch_helper(const char *line, const char *word, int pos, int state, int rpos)
 {
 	struct ast_channel *c = NULL;
 	int which = 0;
@@ -811,27 +811,27 @@ static char *complete_ch_helper(char *line, char *word, int pos, int state, int 
 	return ret;
 }
 
-static char *complete_ch_3(char *line, char *word, int pos, int state)
+static char *complete_ch_3(const char *line, const char *word, int pos, int state)
 {
 	return complete_ch_helper(line, word, pos, state, 2);
 }
 
-static char *complete_ch_4(char *line, char *word, int pos, int state)
+static char *complete_ch_4(const char *line, const char *word, int pos, int state)
 {
 	return complete_ch_helper(line, word, pos, state, 3);
 }
 
-static char *complete_mod_2(char *line, char *word, int pos, int state)
+static char *complete_mod_2(const char *line, const char *word, int pos, int state)
 {
 	return ast_module_helper(line, word, pos, state, 1, 1);
 }
 
-static char *complete_mod_4(char *line, char *word, int pos, int state)
+static char *complete_mod_4(const char *line, const char *word, int pos, int state)
 {
 	return ast_module_helper(line, word, pos, state, 3, 0);
 }
 
-static char *complete_fn(char *line, char *word, int pos, int state)
+static char *complete_fn(const char *line, const char *word, int pos, int state)
 {
 	char *c;
 	char filename[256];
@@ -903,7 +903,7 @@ static int group_show_channels(int fd, int argc, char *argv[])
 
 static int handle_help(int fd, int argc, char *argv[]);
 
-static char * complete_help(char *text, char *word, int pos, int state)
+static char * complete_help(const char *text, const char *word, int pos, int state)
 {
 	/* skip first 4 or 5 chars, "help "*/
 	int l = strlen(text);
@@ -941,7 +941,7 @@ static struct ast_cli_entry builtins[] = {
 	{ { NULL }, NULL, NULL, NULL }
 };
 
-static struct ast_cli_entry *find_cli(char *cmds[], int exact)
+static struct ast_cli_entry *find_cli(char *const cmds[], int exact)
 {
 	int x;
 	int y;
@@ -987,7 +987,7 @@ static struct ast_cli_entry *find_cli(char *cmds[], int exact)
 	return NULL;
 }
 
-static void join(char *dest, size_t destsize, char *w[], int tws)
+static void join(char *dest, size_t destsize, char *const w[], int tws)
 {
 	ast_join(dest, destsize, w);	
 
@@ -995,7 +995,7 @@ static void join(char *dest, size_t destsize, char *w[], int tws)
 		strncat(dest, " ", destsize - strlen(dest) - 1);
 }
 
-static void join2(char *dest, size_t destsize, char *w[])
+static void join2(char *dest, size_t destsize, char *const w[])
 {
 	int x;
 	/* Join words into a string */
@@ -1186,7 +1186,7 @@ static int handle_help(int fd, int argc, char *argv[]) {
 	return RESULT_SUCCESS;
 }
 
-static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailingwhitespace)
+static char *parse_args(const char *s, int *argc, char *argv[], int max, int *trailingwhitespace)
 {
 	char *dup, *cur;
 	int x = 0;
@@ -1247,7 +1247,7 @@ static char *parse_args(char *s, int *argc, char *argv[], int max, int *trailing
 }
 
 /* This returns the number of unique matches for the generator */
-int ast_cli_generatornummatches(char *text, char *word)
+int ast_cli_generatornummatches(const char *text, const char *word)
 {
 	int matches = 0, i = 0;
 	char *buf = NULL, *oldbuf = NULL;
@@ -1264,7 +1264,7 @@ int ast_cli_generatornummatches(char *text, char *word)
 	return matches;
 }
 
-char **ast_cli_completion_matches(char *text, char *word)
+char **ast_cli_completion_matches(const char *text, const char *word)
 {
 	char **match_list = NULL, *retstr, *prevstr;
 	size_t match_list_len, max_equal, which, i;
@@ -1303,7 +1303,7 @@ char **ast_cli_completion_matches(char *text, char *word)
 	return match_list;
 }
 
-static char *__ast_cli_generator(char *text, char *word, int state, int lock)
+static char *__ast_cli_generator(const char *text, const char *word, int state, int lock)
 {
 	char *argv[AST_MAX_ARGS];
 	struct ast_cli_entry *e, *e1, *e2;
@@ -1379,12 +1379,12 @@ static char *__ast_cli_generator(char *text, char *word, int state, int lock)
 	return NULL;
 }
 
-char *ast_cli_generator(char *text, char *word, int state)
+char *ast_cli_generator(const char *text, const char *word, int state)
 {
 	return __ast_cli_generator(text, word, state, 1);
 }
 
-int ast_cli_command(int fd, char *s)
+int ast_cli_command(int fd, const char *s)
 {
 	char *argv[AST_MAX_ARGS];
 	struct ast_cli_entry *e;

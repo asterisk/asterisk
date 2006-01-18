@@ -44,8 +44,7 @@ void ast_cli(int fd, char *fmt, ...)
 
 /*! \brief A command line entry */ 
 struct ast_cli_entry {
-	/*! Null terminated list of the words of the command */
-	char * cmda[AST_MAX_CMD_LEN];
+	char * const cmda[AST_MAX_CMD_LEN];
 	/*! Handler for the command (fd for output, # of args, argument list).
 	  Returns RESULT_SHOWUSAGE for improper arguments.
 	  argv[] has argc 'useful' entries, and an additional NULL entry
@@ -67,7 +66,7 @@ struct ast_cli_entry {
 	  Typically, the function is called with increasing values for n
 	  until a NULL is returned.
 	 */
-	char *(*generator)(char *line, char *word, int pos, int n);
+	char *(*generator)(const char *line, const char *word, int pos, int n);
 	/*! For linking */
 	struct ast_cli_entry *next;
 	/*! For keeping track of usage */
@@ -79,7 +78,7 @@ struct ast_cli_entry {
  * Interpret a command s, sending output to fd
  * Returns 0 on succes, -1 on failure 
  */
-int ast_cli_command(int fd, char *s);
+int ast_cli_command(int fd, const char *s);
 
 /*! \brief Registers a command or an array of commands 
  * \param e which cli entry to register
@@ -114,9 +113,9 @@ void ast_cli_unregister_multiple(struct ast_cli_entry *e, int len);
  * Useful for readline, that's about it
  * Returns 0 on success, -1 on failure
  */
-char *ast_cli_generator(char *, char *, int);
+char *ast_cli_generator(const char *, const char *, int);
 
-int ast_cli_generatornummatches(char *, char *);
+int ast_cli_generatornummatches(const char *, const char *);
 
 /*!
  * \brief Generates a NULL-terminated array of strings that
@@ -129,7 +128,7 @@ int ast_cli_generatornummatches(char *, char *);
  * All strings and the array itself are malloc'ed and must be freed
  * by the caller.
  */
-char **ast_cli_completion_matches(char *, char *);
+char **ast_cli_completion_matches(const char *, const char *);
 
 
 #if defined(__cplusplus) || defined(c_plusplus)

@@ -5803,7 +5803,7 @@ static int handle_show_voicemail_zones(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char *complete_show_voicemail_users(char *line, char *word, int pos, int state)
+static char *complete_show_voicemail_users(const char *line, const char *word, int pos, int state)
 {
 	int which = 0;
 	int wordlen;
