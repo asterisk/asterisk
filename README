@@ -164,6 +164,14 @@ parameters.  For example, the line "channel => 25-47" creates objects for
 the channels 25 through 47 of the card, obtaining the settings
 from the variables specified above.
 
+* NETWORK SECURITY DEVICES
+
+This release of Asterisk contains support for network security devices
+manufactured by Ranch Networks, Inc., using their MIDCOM interface
+library. You will need the companion libmidcom-0.1.0.tar.gz file to
+build the library. Contact Ranch Networks' support department for assistance
+in building and configuring MIDCOM support.
+
 * SPECIAL NOTE ON TIME
   
   Those using SIP phones should be aware that Asterisk is sensitive to
