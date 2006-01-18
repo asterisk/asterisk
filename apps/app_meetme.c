@@ -1759,7 +1759,8 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 			if (dynamic_pin) {
 				if (dynamic_pin[0] == 'q') {
 					/* Query the user to enter a PIN */
-					ast_app_getdata(chan, "conf-getpin", dynamic_pin, AST_MAX_EXTENSION - 1, 0);
+					if (ast_app_getdata(chan, "conf-getpin", dynamic_pin, AST_MAX_EXTENSION - 1, 0) < 0)
+						return NULL;
 				}
 				cnf = build_conf(confno, dynamic_pin, "", make, dynamic);
 			} else {
