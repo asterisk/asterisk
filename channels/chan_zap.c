@@ -33,6 +33,8 @@
  * \arg \ref Config_zap
  *
  * \ingroup channel_drivers
+ *
+ * \todo Decprecate the "musiconhold" configuration option in v1.5dev
  */
 
 #include <stdio.h>
@@ -10529,7 +10531,7 @@ static int setup_zap(int reload)
 			ast_copy_string(language, v->value, sizeof(language));
 		} else if (!strcasecmp(v->name, "progzone")) {
 			ast_copy_string(progzone, v->value, sizeof(progzone));
-		} else if (!strcasecmp(v->name, "musiconhold")) {
+		} else if (!strcasecmp(v->name, "musiconhold") || !strcasecmp(v->name, "musicclass")) {
 			ast_copy_string(musicclass, v->value, sizeof(musicclass));
 		} else if (!strcasecmp(v->name, "stripmsd")) {
 			stripmsd = atoi(v->value);
