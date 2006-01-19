@@ -39,6 +39,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 
+/* TODO This app should be removed from trunk following the release of 1.4 */
+
 static char *tdesc = "Random goto";
 
 static char *app_random = "Random";
@@ -47,13 +49,12 @@ static char *random_synopsis = "Conditionally branches, based upon a probability
 
 static char *random_descrip =
 "Random([probability]:[[context|]extension|]priority)\n"
-"  probability := INTEGER in the range 1 to 100\n";
+"  probability := INTEGER in the range 1 to 100\n"
+"DEPRECATED: Use GotoIf($[${RAND(1,100)} > <number>]?<label>)\n";
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
-
-static char random_state[256];
 
 static int random_exec(struct ast_channel *chan, void *data)
 {
@@ -63,7 +64,8 @@ static int random_exec(struct ast_channel *chan, void *data)
 	char *s;
 	char *prob;
 	int probint;
-	
+	static int deprecated = 0;
+
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "Random requires an argument ([probability]:[[context|]extension|]priority)\n");
 		return -1;
@@ -82,7 +84,12 @@ static int random_exec(struct ast_channel *chan, void *data)
 	if ((!prob) || (sscanf(prob, "%d", &probint) != 1))
 		probint = 0;
 
-	if ((random() % 100) + probint > 100) {
+	if (!deprecated) {
+		deprecated = 1;
+		ast_log(LOG_WARNING, "Random is deprecated in Asterisk 1.3 or later.  Replace with GotoIf($[${RAND(0,99)} + %d >= 100]?%s)\n", probint, s);
+	}
+
+	if ((ast_random() % 100) + probint > 100) {
 		res = ast_parseable_goto(chan, s);
 		if (option_verbose > 2)
 			ast_verbose( VERBOSE_PREFIX_3 "Random branches to (%s,%s,%d)\n",
@@ -105,7 +112,6 @@ int unload_module(void)
 
 int load_module(void)
 {
-	initstate((getppid() * 65535 + getpid()) % RAND_MAX, random_state, 256);
 	return ast_register_application(app_random, random_exec, random_synopsis, random_descrip);
 }
 
