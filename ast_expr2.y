@@ -124,7 +124,12 @@ int		ast_yyerror(const char *,YYLTYPE *, struct parse_io *);
    some useful info about the error. Not as easy as it looks, but it
    is possible. */
 #define ast_yyerror(x) ast_yyerror(x,&yyloc,parseio)
-
+#define DESTROY(x) { \
+if ((x)->type == AST_EXPR_numeric_string || (x)->type == AST_EXPR_string) \
+	free((x)->u.s); \
+	(x)->u.s = 0; \
+	free(x); \
+}
 %}
  
 %pure-parser
@@ -158,69 +163,91 @@ extern int		ast_yylex __P((YYSTYPE *, YYLTYPE *, yyscan_t));
 %%
 
 start: expr { ((struct parse_io *)parseio)->val = (struct val *)calloc(sizeof(struct val),1);
-              ((struct parse_io *)parseio)->val->type = $$->type;
-              if( $$->type == AST_EXPR_integer )
-		((struct parse_io *)parseio)->val->u.i = $$->u.i;
+              ((struct parse_io *)parseio)->val->type = $1->type;
+              if( $1->type == AST_EXPR_integer )
+				  ((struct parse_io *)parseio)->val->u.i = $1->u.i;
               else
-                ((struct parse_io *)parseio)->val->u.s = $$->u.s; }
+				  ((struct parse_io *)parseio)->val->u.s = $1->u.s; 
+			  free($1);
+			}
 	;
 
 expr:	TOKEN   { $$= $1;}
 	| TOK_LP expr TOK_RP { $$ = $2; 
 	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
-						   @$.first_line=0; @$.last_line=0;}
+						   @$.first_line=0; @$.last_line=0;
+							DESTROY($1); DESTROY($3); }
 	| expr TOK_OR expr { $$ = op_or ($1, $3);
+						DESTROY($2);	
                          @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_AND expr { $$ = op_and ($1, $3); 
+						DESTROY($2);	
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
                           @$.first_line=0; @$.last_line=0;}
 	| expr TOK_EQ expr { $$ = op_eq ($1, $3);
+						DESTROY($2);	
 	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_GT expr { $$ = op_gt ($1, $3);
+						DESTROY($2);	
                          @$.first_column = @1.first_column; @$.last_column = @3.last_column;
 						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_LT expr { $$ = op_lt ($1, $3); 
+						DESTROY($2);	
 	                     @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						 @$.first_line=0; @$.last_line=0;}
 	| expr TOK_GE expr  { $$ = op_ge ($1, $3); 
+						DESTROY($2);	
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_LE expr  { $$ = op_le ($1, $3); 
+						DESTROY($2);	
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_NE expr  { $$ = op_ne ($1, $3); 
+						DESTROY($2);	
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_PLUS expr { $$ = op_plus ($1, $3); 
+						DESTROY($2);	
 	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						   @$.first_line=0; @$.last_line=0;}
 	| expr TOK_MINUS expr { $$ = op_minus ($1, $3); 
+						DESTROY($2);	
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	| TOK_MINUS expr %prec TOK_COMPL { $$ = op_negate ($2); 
+						DESTROY($1);	
 	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	| TOK_COMPL expr   { $$ = op_compl ($2); 
+						DESTROY($1);	
 	                        @$.first_column = @1.first_column; @$.last_column = @2.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_MULT expr { $$ = op_times ($1, $3); 
+						DESTROY($2);	
 	                       @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						   @$.first_line=0; @$.last_line=0;}
 	| expr TOK_DIV expr { $$ = op_div ($1, $3); 
+						DESTROY($2);	
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_MOD expr { $$ = op_rem ($1, $3); 
+						DESTROY($2);	
 	                      @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 						  @$.first_line=0; @$.last_line=0;}
 	| expr TOK_COLON expr { $$ = op_colon ($1, $3); 
+						DESTROY($2);	
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_EQTILDE expr { $$ = op_eqtilde ($1, $3); 
+						DESTROY($2);	
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	| expr TOK_COND expr TOK_COLONCOLON expr  { $$ = op_cond ($1, $3, $5); 
+						DESTROY($2);	
+						DESTROY($4);	
 	                        @$.first_column = @1.first_column; @$.last_column = @3.last_column; 
 							@$.first_line=0; @$.last_line=0;}
 	;
@@ -281,6 +308,7 @@ free_value (struct val *vp)
 	}
 	if (vp->type == AST_EXPR_string || vp->type == AST_EXPR_numeric_string)
 		free (vp->u.s);	
+	free(vp);
 }
 
 
