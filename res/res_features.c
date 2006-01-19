@@ -18,7 +18,7 @@
 
 /*! \file
  *
- * \brief Routines implementing call features
+ * \brief Routines implementing call features as call pickup, parking and transfer
  *
  * \author Mark Spencer <markster@digium.com> 
  */
@@ -254,9 +254,9 @@ static int adsi_announce_park(struct ast_channel *chan, int parkingnum)
 	return adsi_print(chan, message, justify, 1);
 }
 
-/*--- ast_park_call: Park a call */
-/* We put the user in the parking list, then wake up the parking thread to be sure it looks
-	   after these channels too */
+/*! \brief Park a call 
+ 	We put the user in the parking list, then wake up the parking thread to be sure it looks
+	after these channels too */
 int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeout, int *extout)
 {
 	struct parkeduser *pu, *cur;
@@ -846,6 +846,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 
 /* add atxfer and automon as undefined so you can only use em if you configure them */
 #define FEATURES_COUNT (sizeof(builtin_features) / sizeof(builtin_features[0]))
+
 struct ast_call_feature builtin_features[] = 
  {
 	{ AST_FEATURE_REDIRECT, "Blind Transfer", "blindxfer", "#", "#", builtin_blindtransfer, AST_FEATURE_FLAG_NEEDSDTMF },
@@ -857,7 +858,7 @@ struct ast_call_feature builtin_features[] =
 
 static AST_LIST_HEAD(feature_list,ast_call_feature) feature_list;
 
-/* register new feature into feature_list*/
+/*! \brief register new feature into feature_list*/
 void ast_register_feature(struct ast_call_feature *feature)
 {
 	if (!feature) {
@@ -873,7 +874,7 @@ void ast_register_feature(struct ast_call_feature *feature)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered Feature '%s'\n",feature->sname);
 }
 
-/* unregister feature from feature_list */
+/*! \brief unregister feature from feature_list */
 void ast_unregister_feature(struct ast_call_feature *feature)
 {
 	if (!feature) return;
@@ -894,7 +895,7 @@ static void ast_unregister_features(void)
 	AST_LIST_UNLOCK(&feature_list);
 }
 
-/* find a feature by name */
+/*! \brief find a feature by name */
 static struct ast_call_feature *find_feature(char *name)
 {
 	struct ast_call_feature *tmp;
@@ -909,7 +910,7 @@ static struct ast_call_feature *find_feature(char *name)
 	return tmp;
 }
 
-/* exec an app by feature */
+/*! \brief exec an app by feature */
 static int feature_exec_app(struct ast_channel *chan, struct ast_channel *peer, struct ast_bridge_config *config, char *code, int sense)
 {
 	struct ast_app *app;
@@ -1888,7 +1889,7 @@ static char showparked_help[] =
 static struct ast_cli_entry showparked =
 { { "show", "parkedcalls", NULL }, handle_parkedcalls, "Lists parked calls", showparked_help };
 
-/* Dump lot status */
+/*! \brief Dump lot status */
 static int manager_parking_status( struct mansession *s, struct message *m )
 {
 	struct parkeduser *cur;
