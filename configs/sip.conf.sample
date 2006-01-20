@@ -90,7 +90,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;useragent=Asterisk PBX		; Allows you to change the user agent string
 ;promiscredir = no      	; If yes, allows 302 or REDIR to non-local SIP address
 	                       	; Note that promiscredir when redirects are made to the
-       	                	; local system will cause loops since SIP is incapable
+       	                	; local system will cause loops since Asterisk is incapable
        	                	; of performing a "hairpin" call.
 ;usereqphone = no		; If yes, ";user=phone" is added to uri that contains
 				; a valid phone number
