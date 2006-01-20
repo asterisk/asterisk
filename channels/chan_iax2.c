@@ -4888,6 +4888,8 @@ static int raw_hangup(struct sockaddr_in *sin, unsigned short src, unsigned shor
 	fh.iseqno = 0;
 	fh.type = AST_FRAME_IAX;
 	fh.csub = compress_subclass(IAX_COMMAND_INVAL);
+	if (iaxdebug)
+		 iax_showframe(NULL, &fh, 0, sin, 0);
 #if 0
 	if (option_debug)
 #endif	
@@ -6753,6 +6755,10 @@ retryowner:
 					break;
 				if (ies.provverpres && ies.serviceident && sin.sin_addr.s_addr)
 					check_provisioning(&sin, fd, ies.serviceident, ies.provver);
+				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
+				if (ast_test_flag(iaxs[fr.callno], IAX_TRUNK)) {
+					fr.callno = make_trunk(fr.callno, 1);
+				}
 				/* For security, always ack immediately */
 				if (delayreject)
 					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
@@ -6762,10 +6768,6 @@ retryowner:
 					if (authdebug)
 						ast_log(LOG_NOTICE, "Rejected connect attempt from %s, who was trying to reach '%s@%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), sin.sin_addr), iaxs[fr.callno]->exten, iaxs[fr.callno]->context);
 					break;
-				}
-				/* If we're in trunk mode, do it now, and update the trunk number in our frame before continuing */
-				if (ast_test_flag(iaxs[fr.callno], IAX_TRUNK)) {
-					fr.callno = make_trunk(fr.callno, 1);
 				}
 				/* This might re-enter the IAX code and need the lock */
 				if (strcasecmp(iaxs[fr.callno]->exten, "TBD")) {
