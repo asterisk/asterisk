@@ -898,7 +898,7 @@ int ast_config_engine_deregister(struct ast_config_engine *del)
 	return 0;
 }
 
-/*--- find_engine: Find realtime engine for realtime family */
+/*! \brief Find realtime engine for realtime family */
 static struct ast_config_engine *find_engine(const char *family, char *database, int dbsiz, char *table, int tabsiz) 
 {
 	struct ast_config_engine *eng, *ret = NULL;
@@ -1008,7 +1008,7 @@ struct ast_variable *ast_load_realtime(const char *family, ...)
 	return res;
 }
 
-/*--- ast_check_realtime: Check if realtime engine is configured for family */
+/*! \brief Check if realtime engine is configured for family */
 int ast_check_realtime(const char *family)
 {
 	struct ast_config_engine *eng;

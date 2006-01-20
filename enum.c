@@ -82,7 +82,7 @@ struct naptr {
 	unsigned short pref;
 } __attribute__ ((__packed__));
 
-/*--- parse_ie: Parse NAPTR record information elements */
+/*! \brief Parse NAPTR record information elements */
 static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
 {
 	int len, olen;
@@ -100,7 +100,7 @@ static int parse_ie(char *data, int maxdatalen, char *src, int srclen)
 	return olen + 1;
 }
 
-/*--- parse_naptr: Parse DNS NAPTR record used in ENUM ---*/
+/*! \brief Parse DNS NAPTR record used in ENUM ---*/
 static int parse_naptr(char *dst, int dstsize, char *tech, int techsize, char *answer, int len, char *naptrinput)
 {
 
@@ -309,7 +309,7 @@ struct enum_context {
 	int naptr_rrs_count; /* Size of array naptr_rrs */
 };
 
-/*--- txt_callback: Callback for TXT record lookup */
+/*! \brief Callback for TXT record lookup */
 static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
@@ -344,7 +344,7 @@ static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 	return 1;
 }
 
-/*--- enum_callback: Callback from ENUM lookup function */
+/*! \brief Callback from ENUM lookup function */
 static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 {
 	struct enum_context *c = (struct enum_context *)context;
@@ -383,7 +383,7 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 	return 0;
 }
 
-/*--- ast_get_enum: ENUM lookup */
+/*! \brief ENUM lookup */
 int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char* suffix, char* options)
 {
 	struct enum_context context;
@@ -545,7 +545,7 @@ int ast_get_enum(struct ast_channel *chan, const char *number, char *dst, int ds
 	return ret;
 }
 
-/*--- ast_get_txt: Get TXT record from DNS.
+/*! \brief Get TXT record from DNS.
 	Really has nothing to do with enum, but anyway...
  */
 int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dstlen, char *tech, int techlen, char *txt, int txtlen)
@@ -608,7 +608,7 @@ int ast_get_txt(struct ast_channel *chan, const char *number, char *dst, int dst
 	return ret;
 }
 
-/*--- enum_newtoplev: Add enum tree to linked list ---*/
+/*! \brief Add enum tree to linked list ---*/
 static struct enum_search *enum_newtoplev(char *s)
 {
 	struct enum_search *tmp;
@@ -621,7 +621,7 @@ static struct enum_search *enum_newtoplev(char *s)
 	return tmp;
 }
 
-/*--- ast_enum_init: Initialize the ENUM support subsystem */
+/*! \brief Initialize the ENUM support subsystem */
 int ast_enum_init(void)
 {
 	struct ast_config *cfg;

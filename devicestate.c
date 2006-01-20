@@ -71,13 +71,13 @@ static AST_LIST_HEAD_STATIC(state_changes, state_change);
 static pthread_t change_thread = AST_PTHREADT_NULL;
 static ast_cond_t change_pending;
 
-/*--- devstate2str: Find devicestate as text message for output */
+/*! \brief Find devicestate as text message for output */
 const char *devstate2str(int devstate) 
 {
 	return devstatestring[devstate];
 }
 
-/*--- ast_parse_device_state: Find out if device is active in a call or not */
+/*! \brief Find out if device is active in a call or not */
 int ast_parse_device_state(const char *device)
 {
 	struct ast_channel *chan;
@@ -101,7 +101,7 @@ int ast_parse_device_state(const char *device)
 	return res;
 }
 
-/*--- ast_device_state: Check device state through channel specific function or generic function */
+/*! \brief Check device state through channel specific function or generic function */
 int ast_device_state(const char *device)
 {
 	char *buf;
@@ -138,7 +138,7 @@ int ast_device_state(const char *device)
 	}
 }
 
-/*--- ast_devstate_add: Add device state watcher */
+/*! \brief Add device state watcher */
 int ast_devstate_add(ast_devstate_cb_type callback, void *data)
 {
 	struct devstate_cb *devcb;
@@ -160,7 +160,7 @@ int ast_devstate_add(ast_devstate_cb_type callback, void *data)
 	return 0;
 }
 
-/*--- ast_devstate_del: Remove device state watcher */
+/*! \brief Remove device state watcher */
 void ast_devstate_del(ast_devstate_cb_type callback, void *data)
 {
 	struct devstate_cb *devcb;
@@ -177,7 +177,7 @@ void ast_devstate_del(ast_devstate_cb_type callback, void *data)
 	AST_LIST_UNLOCK(&devstate_cbs);
 }
 
-/*--- do_state_change: Notify callback watchers of change, and notify PBX core for hint updates */
+/*! \brief Notify callback watchers of change, and notify PBX core for hint updates */
 static void do_state_change(const char *device)
 {
 	int state;
@@ -232,7 +232,7 @@ int ast_device_state_changed_literal(const char *dev)
 	return __ast_device_state_changed_literal(buf);
 }
 
-/*--- ast_device_state_changed: Accept change notification, add it to change queue */
+/*! \brief Accept change notification, add it to change queue */
 int ast_device_state_changed(const char *fmt, ...) 
 {
 	char buf[AST_MAX_EXTENSION];
@@ -244,7 +244,7 @@ int ast_device_state_changed(const char *fmt, ...)
 	return __ast_device_state_changed_literal(buf);
 }
 
-/*--- do_devstate_changes: Go through the dev state change queue and update changes in the dev state thread */
+/*! \brief Go through the dev state change queue and update changes in the dev state thread */
 static void *do_devstate_changes(void *data)
 {
 	struct state_change *cur;
@@ -269,7 +269,7 @@ static void *do_devstate_changes(void *data)
 	return NULL;
 }
 
-/*--- ast_device_state_engine_init: Initialize the device state engine in separate thread */
+/*! \brief Initialize the device state engine in separate thread */
 int ast_device_state_engine_init(void)
 {
 	pthread_attr_t attr;

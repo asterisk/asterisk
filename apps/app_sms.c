@@ -198,7 +198,7 @@ static void sms_release (struct ast_channel *chan, void *data)
 
 static void sms_messagetx (sms_t * h);
 
-/*--- numcpy: copy number, skipping non digits apart from leading + */
+/*! \brief copy number, skipping non digits apart from leading + */
 static void numcpy (char *d, char *s)
 {
 	if (*s == '+')
@@ -211,7 +211,7 @@ static void numcpy (char *d, char *s)
 	*d = 0;
 }
 
-/*--- isodate: static, return a date/time in ISO format */
+/*! \brief static, return a date/time in ISO format */
 static char * isodate (time_t t)
 {
 	static char date[20];
@@ -219,7 +219,7 @@ static char * isodate (time_t t)
 	return date;
 }
 
-/*--- utf8decode: reads next UCS character from null terminated UTF-8 string and advanced pointer */
+/*! \brief reads next UCS character from null terminated UTF-8 string and advanced pointer */
 /* for non valid UTF-8 sequences, returns character as is */
 /* Does not advance pointer for null termination */
 static long utf8decode (unsigned char **pp)
@@ -265,7 +265,7 @@ static long utf8decode (unsigned char **pp)
 	return *p;                   /* not sensible */
 }
 
-/*--- packsms7: takes a binary header (udhl bytes at udh) and UCS-2 message (udl characters at ud) and packs in to o using SMS 7 bit character codes */
+/*! \brief takes a binary header (udhl bytes at udh) and UCS-2 message (udl characters at ud) and packs in to o using SMS 7 bit character codes */
 /* The return value is the number of septets packed in to o, which is internally limited to SMSLEN */
 /* o can be null, in which case this is used to validate or count only */
 /* if the input contains invalid characters then the return value is -1 */
@@ -335,7 +335,7 @@ static int packsms7 (unsigned char *o, int udhl, unsigned char *udh, int udl, un
 	return n;
 }
 
-/*--- packsms8: takes a binary header (udhl bytes at udh) and UCS-2 message (udl characters at ud) and packs in to o using 8 bit character codes */
+/*! \brief takes a binary header (udhl bytes at udh) and UCS-2 message (udl characters at ud) and packs in to o using 8 bit character codes */
 /* The return value is the number of bytes packed in to o, which is internally limited to 140 */
 /* o can be null, in which case this is used to validate or count only */
 /* if the input contains invalid characters then the return value is -1 */
@@ -367,7 +367,7 @@ static int packsms8 (unsigned char *o, int udhl, unsigned char *udh, int udl, un
 	return p;
 }
 
-/*--- packsms16: takes a binary header (udhl bytes at udh) and UCS-2 
+/*! \brief takes a binary header (udhl bytes at udh) and UCS-2 
 	message (udl characters at ud) and packs in to o using 16 bit 
 	UCS-2 character codes 
 	The return value is the number of bytes packed in to o, which is 
@@ -404,7 +404,7 @@ static int packsms16 (unsigned char *o, int udhl, unsigned char *udh, int udl, u
 	return p;
 }
 
-/*--- packsms: general pack, with length and data, 
+/*! \brief general pack, with length and data, 
 	returns number of bytes of target used */
 static int packsms (unsigned char dcs, unsigned char *base, unsigned int udhl, unsigned char *udh, int udl, unsigned short *ud)
 {
@@ -436,7 +436,7 @@ static int packsms (unsigned char dcs, unsigned char *base, unsigned int udhl, u
 }
 
 
-/*--- packdate: pack a date and return */
+/*! \brief pack a date and return */
 static void packdate (unsigned char *o, time_t w)
 {
 	struct tm *t = localtime (&w);
@@ -457,7 +457,7 @@ static void packdate (unsigned char *o, time_t w)
 		*o++ = ((z % 10) << 4) + z / 10;
 }
 
-/*--- unpackdate: unpack a date and return */
+/*! \brief unpack a date and return */
 static time_t unpackdate (unsigned char *i)
 {
 	struct tm t;
@@ -475,7 +475,7 @@ static time_t unpackdate (unsigned char *i)
 	return mktime (&t);
 }
 
-/*--- unpacksms7: unpacks bytes (7 bit encoding) at i, len l septets, 
+/*! \brief unpacks bytes (7 bit encoding) at i, len l septets, 
 	and places in udh and ud setting udhl and udl. udh not used 
 	if udhi not set */
 static void unpacksms7 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
@@ -526,7 +526,7 @@ static void unpacksms7 (unsigned char *i, unsigned char l, unsigned char *udh, i
 	*udl = (o - ud);
 }
 
-/*--- unpacksms8: unpacks bytes (8 bit encoding) at i, len l septets, 
+/*! \brief unpacks bytes (8 bit encoding) at i, len l septets, 
       and places in udh and ud setting udhl and udl. udh not used 
       if udhi not set */
 static void unpacksms8 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
@@ -551,7 +551,7 @@ static void unpacksms8 (unsigned char *i, unsigned char l, unsigned char *udh, i
 	*udl = (o - ud);
 }
 
-/*--- unpacksms16: unpacks bytes (16 bit encoding) at i, len l septets,
+/*! \brief unpacks bytes (16 bit encoding) at i, len l septets,
 	 and places in udh and ud setting udhl and udl. 
 	udh not used if udhi not set */
 static void unpacksms16 (unsigned char *i, unsigned char l, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
@@ -580,7 +580,7 @@ static void unpacksms16 (unsigned char *i, unsigned char l, unsigned char *udh, 
 	*udl = (o - ud);
 }
 
-/*--- unpacksms: general unpack - starts with length byte (octet or septet) and returns number of bytes used, inc length */
+/*! \brief general unpack - starts with length byte (octet or septet) and returns number of bytes used, inc length */
 static int unpacksms (unsigned char dcs, unsigned char *i, unsigned char *udh, int *udhl, unsigned short *ud, int *udl, char udhi)
 {
 	int l = *i++;
@@ -594,7 +594,7 @@ static int unpacksms (unsigned char dcs, unsigned char *i, unsigned char *udh, i
 	return l + 1;
 }
 
-/*--- unpackaddress: unpack an address from i, return byte length, unpack to o */
+/*! \brief unpack an address from i, return byte length, unpack to o */
 static unsigned char unpackaddress (char *o, unsigned char *i)
 {
 	unsigned char l = i[0],
@@ -611,7 +611,7 @@ static unsigned char unpackaddress (char *o, unsigned char *i)
 	return (l + 5) / 2;
 }
 
-/*--- packaddress: store an address at o, and return number of bytes used */
+/*! \brief store an address at o, and return number of bytes used */
 static unsigned char packaddress (unsigned char *o, char *i)
 {
 	unsigned char p = 2;
@@ -636,7 +636,7 @@ static unsigned char packaddress (unsigned char *o, char *i)
 	return p;
 }
 
-/*--- sms_log: Log the output, and remove file */
+/*! \brief Log the output, and remove file */
 static void sms_log (sms_t * h, char status)
 {
 	if (*h->oa || *h->da) {
@@ -674,7 +674,7 @@ static void sms_log (sms_t * h, char status)
 	}
 }
 
-/*--- sms_readfile: parse and delete a file */
+/*! \brief parse and delete a file */
 static void sms_readfile (sms_t * h, char *fn)
 {
 	char line[1000];
@@ -856,7 +856,7 @@ static void sms_readfile (sms_t * h, char *fn)
 	}
 }
 
-/*--- sms_writefile: white a received text message to a file */
+/*! \brief white a received text message to a file */
 static void sms_writefile (sms_t * h)
 {
 	char fn[200] = "", fn2[200] = "";
@@ -943,7 +943,7 @@ static void sms_writefile (sms_t * h)
 	}
 }
 
-/*--- readdirqueue: read dir skipping dot files... */
+/*! \brief read dir skipping dot files... */
 static struct dirent *readdirqueue (DIR * d, char *queue)
 {
    struct dirent *f;
@@ -953,7 +953,7 @@ static struct dirent *readdirqueue (DIR * d, char *queue)
    return f;
 }
 
-/*--- sms_handleincoming: handle the incoming message */
+/*! \brief handle the incoming message */
 static unsigned char sms_handleincoming (sms_t * h)
 {
 	unsigned char p = 3;
@@ -1024,8 +1024,7 @@ static unsigned char sms_handleincoming (sms_t * h)
 #define NAME_MAX 1024
 #endif
 
-/*--- sms_nextoutgoing: find and fill in next message, 
-	or send a REL if none waiting */
+/*! \brief find and fill in next message, or send a REL if none waiting */
 static void sms_nextoutgoing (sms_t * h)
 {          
 	char fn[100 + NAME_MAX] = "";

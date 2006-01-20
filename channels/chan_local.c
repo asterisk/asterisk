@@ -316,8 +316,8 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 	return res;
 }
 
-/*--- local_call: Initiate new call, part of PBX interface */
-/* 	dest is the dial string */
+/*! \brief Initiate new call, part of PBX interface 
+ * 	dest is the dial string */
 static int local_call(struct ast_channel *ast, char *dest, int timeout)
 {
 	struct local_pvt *p = ast->tech_pvt;
@@ -381,7 +381,7 @@ static void local_destroy(struct local_pvt *p)
 }
 #endif
 
-/*--- local_hangup: Hangup a call through the local proxy channel */
+/*! \brief Hangup a call through the local proxy channel */
 static int local_hangup(struct ast_channel *ast)
 {
 	struct local_pvt *p = ast->tech_pvt;
@@ -452,7 +452,7 @@ static int local_hangup(struct ast_channel *ast)
 	return 0;
 }
 
-/*--- local_alloc: Create a call structure */
+/*! \brief Create a call structure */
 static struct local_pvt *local_alloc(char *data, int format)
 {
 	struct local_pvt *tmp;
@@ -495,7 +495,7 @@ static struct local_pvt *local_alloc(char *data, int format)
 	return tmp;
 }
 
-/*--- local_new: Start new local channel */
+/*! \brief Start new local channel */
 static struct ast_channel *local_new(struct local_pvt *p, int state)
 {
 	struct ast_channel *tmp, *tmp2;
@@ -548,7 +548,7 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 }
 
 
-/*--- local_request: Part of PBX interface */
+/*! \brief Part of PBX interface */
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause)
 {
 	struct local_pvt *p;
@@ -560,7 +560,7 @@ static struct ast_channel *local_request(const char *type, int format, void *dat
 	return chan;
 }
 
-/*--- locals_show: CLI command "local show channels" */
+/*! \brief CLI command "local show channels" */
 static int locals_show(int fd, int argc, char **argv)
 {
 	struct local_pvt *p;
@@ -589,7 +589,7 @@ static struct ast_cli_entry cli_show_locals = {
 	{ "local", "show", "channels", NULL }, locals_show, 
 	"Show status of local channels", show_locals_usage, NULL };
 
-/*--- load_module: Load module into PBX, register channel */
+/*! \brief Load module into PBX, register channel */
 int load_module()
 {
 	/* Make sure we can register our channel type */
@@ -601,13 +601,13 @@ int load_module()
 	return 0;
 }
 
-/*--- reload: Reload module */
+/*! \brief Reload module */
 int reload()
 {
 	return 0;
 }
 
-/*--- unload_module: Unload the local proxy channel from Asterisk */
+/*! \brief Unload the local proxy channel from Asterisk */
 int unload_module()
 {
 	struct local_pvt *p;

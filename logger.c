@@ -500,8 +500,7 @@ static int handle_logger_rotate(int fd, int argc, char *argv[])
 		return RESULT_SUCCESS;
 }
 
-/*--- handle_logger_show_channels: CLI command to show logging system 
- 	configuration */
+/*! \brief CLI command to show logging system configuration */
 static int handle_logger_show_channels(int fd, int argc, char *argv[])
 {
 #define FORMATL	"%-35.35s %-8.8s %-9.9s "
