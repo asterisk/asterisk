@@ -261,7 +261,7 @@ void *_ast_malloc(size_t len, const char *file, int lineno, const char *func),
 
 	p = malloc(len);
 
-	if (!p)
+	if (__builtin_expect(!p, 0))
 		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
 
 	return p;
@@ -286,7 +286,7 @@ void *_ast_calloc(size_t num, size_t len, const char *file, int lineno, const ch
 
 	p = calloc(num, len);
 
-	if (!p)
+	if (__builtin_expect(!p, 0))
 		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
 
 	return p;
@@ -311,7 +311,7 @@ void *_ast_realloc(void *p, size_t len, const char *file, int lineno, const char
 
 	newp = realloc(p, len);
 
-	if (!newp)
+	if (__builtin_expect(!newp, 0))
 		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
 
 	return newp;
@@ -341,7 +341,7 @@ char *_ast_strdup(const char *str, const char *file, int lineno, const char *fun
 	if (str) {
 		newstr = strdup(str);
 
-		if (!newstr)
+		if (__builtin_expect(!newstr, 0))
 			ast_log(LOG_ERROR, "Memory Allocation Failure - Could not duplicate '%s' in function %s at line %d of %s\n", str, func, lineno, file);
 	}
 
@@ -372,12 +372,38 @@ char *_ast_strndup(const char *str, size_t len, const char *file, int lineno, co
 	if (str) {
 		newstr = strndup(str, len);
 
-		if (!newstr)
+		if (__builtin_expect(!newstr, 0))
 			ast_log(LOG_ERROR, "Memory Allocation Failure - Could not duplicate '%d' bytes of '%s' in function %s at line %d of %s\n", (int)len, str, func, lineno, file);
 	}
 
 	return newstr;
 }
 )
+
+#if !defined(ast_strdupa) && defined(__GNUC__)
+/*!
+  \brief duplicate a string in memory from the stack
+  \param s The string to duplicate
+
+  This macro will duplicate the given string.  It returns a pointer to the stack
+  allocatted memory for the new string.
+
+  \note If this function fails to allocate memory on the stack, we do not make
+  any effort to prevent Asterisk from crashing.  We will attempt to log an
+  error message, but Asterisk will crash shortly after.
+*/
+#define ast_strdupa(s)                                                    \
+	(__extension__                                                    \
+	({                                                                \
+		const char *__old = (s);                                  \
+		size_t __len = strlen(__old) + 1;                         \
+		char *__new = __builtin_alloca(__len);                    \
+		if (__builtin_expect(!__new, 0))                          \
+			ast_log(LOG_ERROR, "Stack Allocation Error in"    \
+				"function '%s' at line '%d' of '%s'!\n",  \
+				__PRETTY_FUNCTION__, __LINE__, __FILE__); \
+		(char *) memcpy (__new, __old, __len);                    \
+	}))
+#endif
 
 #endif /* _ASTERISK_UTILS_H */
