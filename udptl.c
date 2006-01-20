@@ -4,7 +4,7 @@
  * UDPTL support for T.38
  * 
  * Copyright (C) 2005, Steve Underwood, partly based on RTP code which is
- * Copyright (C) 1999-2004, Digium, Inc.
+ * Copyright (C) 1999-2006, Digium, Inc.
  *
  * Steve Underwood <steveu@coppice.org>
  *
@@ -29,7 +29,7 @@
 
 #include "asterisk.h"
 
-ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+ASTERISK_FILE_VERSION(__FILE__, "$Revision: 8038 $")
 
 #include "asterisk/udptl.h"
 #include "asterisk/frame.h"
