@@ -250,6 +250,7 @@ callwaiting=yes
 ;
 ; Whether or not use the caller ID presentation for the outgoing call that the
 ; calling switch is sending.
+; See README.callingpres
 ;
 usecallingpres=yes
 ;
