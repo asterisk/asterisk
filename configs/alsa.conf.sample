@@ -28,4 +28,4 @@ extension=s
 ;
 ; To set which ALSA device to use, change this parameter
 ;input_device=hw:0,0
-;output_device=default
+;output_device=hw:0,0
