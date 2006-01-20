@@ -1908,7 +1908,7 @@ static int peer_status(struct iax2_peer *peer, char *status, int statuslen)
 	return res;
 }
 
-/*--- iax2_show_peer: Show one peer in detail ---*/
+/*! \brief Show one peer in detail */
 static int iax2_show_peer(int fd, int argc, char *argv[])
 {
 	char status[30];
@@ -3370,7 +3370,7 @@ static int iax2_getpeertrunk(struct sockaddr_in sin)
 	return res;
 }
 
-/*--- ast_iax2_new: Create new call, interface with the PBX core */
+/*! \brief  Create new call, interface with the PBX core */
 static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 {
 	struct ast_channel *tmp;
@@ -7993,11 +7993,8 @@ static int get_auth_methods(char *value)
 }
 
 
-/*--- check_src_ip: Check if address can be used as packet source.
- returns:
- 0  address available
- 1  address unavailable
--1  error
+/*! \brief Check if address can be used as packet source.
+ \return 0  address available, 1  address unavailable, -1  error
 */
 static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
 {
@@ -8021,7 +8018,7 @@ static int check_srcaddr(struct sockaddr *sa, socklen_t salen)
 	return 0;
 }
 
-/*--- peer_set_srcaddr: Parse the "sourceaddress" value,
+/*! \brief Parse the "sourceaddress" value,
   lookup in netsock list and set peer's sockfd. Defaults to defaultsockfd if
   not found. */
 static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
@@ -8079,7 +8076,7 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 }
 
 		
-/*--- build_peer: Create peer structure based on configuration */
+/*! \brief Create peer structure based on configuration */
 static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, int temponly)
 {
 	struct iax2_peer *peer;
@@ -8270,7 +8267,7 @@ static struct iax2_peer *build_peer(const char *name, struct ast_variable *v, in
 	return peer;
 }
 
-/*--- build_user: Create in-memory user structure from configuration */
+/*! \brief Create in-memory user structure from configuration */
 static struct iax2_user *build_user(const char *name, struct ast_variable *v, int temponly)
 {
 	struct iax2_user *prev, *user;
@@ -8550,7 +8547,7 @@ static void set_timing(void)
 }
 
 
-/*--- set_config: Load configuration */
+/*! \brief Load configuration */
 static int set_config(char *config_file, int reload)
 {
 	struct ast_config *cfg;
@@ -9046,7 +9043,7 @@ static struct iax2_dpcache *find_cache(struct ast_channel *chan, const char *dat
 	return dp;	
 }
 
-/*--- iax2_exists: Part of the IAX2 switch interface ---*/
+/*! \brief Part of the IAX2 switch interface */
 static int iax2_exists(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	struct iax2_dpcache *dp;
@@ -9069,7 +9066,7 @@ static int iax2_exists(struct ast_channel *chan, const char *context, const char
 	return res;
 }
 
-/*--- iax2_canmatch: part of the IAX2 dial plan switch interface */
+/*! \brief part of the IAX2 dial plan switch interface */
 static int iax2_canmatch(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
@@ -9092,7 +9089,7 @@ static int iax2_canmatch(struct ast_channel *chan, const char *context, const ch
 	return res;
 }
 
-/*--- iax2_matchmore: Part of the IAX2 Switch interface */
+/*! \brief Part of the IAX2 Switch interface */
 static int iax2_matchmore(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, const char *data)
 {
 	int res = 0;
@@ -9115,7 +9112,7 @@ static int iax2_matchmore(struct ast_channel *chan, const char *context, const c
 	return res;
 }
 
-/*--- iax2_exec: Execute IAX2 dialplan switch */
+/*! \brief Execute IAX2 dialplan switch */
 static int iax2_exec(struct ast_channel *chan, const char *context, const char *exten, int priority, const char *callerid, int newstack, const char *data)
 {
 	char odata[256];
@@ -9256,7 +9253,7 @@ struct ast_custom_function iaxpeer_function = {
 };
 
 
-/*--- iax2_devicestate: Part of the device state notification system ---*/
+/*! \brief Part of the device state notification system ---*/
 static int iax2_devicestate(void *data) 
 {
 	char *dest = (char *) data;
@@ -9498,7 +9495,7 @@ int unload_module()
 }
 
 
-/*--- load_module: Load IAX2 module, load configuraiton ---*/
+/*! \brief Load IAX2 module, load configuraiton ---*/
 int load_module(void)
 {
 	char *config = "iax.conf";
