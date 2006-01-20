@@ -9253,7 +9253,7 @@ static int start_pri(struct zt_pri *pri)
 	return 0;
 }
 
-static char *complete_span_helper(char *line, char *word, int pos, int state, int rpos)
+static char *complete_span_helper(const char *line, const char *word, int pos, int state, int rpos)
 {
 	int span=1;
 	char tmp[50];
@@ -9271,12 +9271,12 @@ static char *complete_span_helper(char *line, char *word, int pos, int state, in
 		return NULL;
 }
 
-static char *complete_span_4(char *line, char *word, int pos, int state)
+static char *complete_span_4(const char *line, const char *word, int pos, int state)
 {
 	return complete_span_helper(line,word,pos,state,3);
 }
 
-static char *complete_span_5(char *line, char *word, int pos, int state)
+static char *complete_span_5(const char *line, const char *word, int pos, int state)
 {
 	return complete_span_helper(line,word,pos,state,4);
 }
@@ -9483,19 +9483,19 @@ static int handle_pri_show_debug(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
-static char pri_debug_help[] = 
+static const char pri_debug_help[] = 
 	"Usage: pri debug span <span>\n"
 	"       Enables debugging on a given PRI span\n";
 	
-static char pri_no_debug_help[] = 
+static const char pri_no_debug_help[] = 
 	"Usage: pri no debug span <span>\n"
 	"       Disables debugging on a given PRI span\n";
 
-static char pri_really_debug_help[] = 
+static const char pri_really_debug_help[] = 
 	"Usage: pri intensive debug span <span>\n"
 	"       Enables debugging down to the Q.921 level\n";
 
-static char pri_show_span_help[] = 
+static const char pri_show_span_help[] = 
 	"Usage: pri show span <span>\n"
 	"       Displays PRI Information\n";
 
