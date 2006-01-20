@@ -57,33 +57,33 @@ static int useplc = 0;
 #include "slin_ulaw_ex.h"
 #include "ulaw_slin_ex.h"
 
-/*
- * Private workspace for translating signed linear signals to ulaw.
+/*!
+ * \brief Private workspace for translating signed linear signals to ulaw.
  */
 
 struct ulaw_encoder_pvt
 {
-  struct ast_frame f;
-  char offset[AST_FRIENDLY_OFFSET];   /* Space to build offset */
-  unsigned char outbuf[BUFFER_SIZE];  /* Encoded ulaw, two nibbles to a word */
-  int tail;
+	struct ast_frame f;
+	char offset[AST_FRIENDLY_OFFSET];   /*!< Space to build offset */
+	unsigned char outbuf[BUFFER_SIZE];  /*!< Encoded ulaw, two nibbles to a word */
+	int tail;
 };
 
-/*
- * Private workspace for translating ulaw signals to signed linear.
+/*!
+ * \brief Private workspace for translating ulaw signals to signed linear.
  */
 
 struct ulaw_decoder_pvt
 {
-  struct ast_frame f;
-  char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
-  short outbuf[BUFFER_SIZE];	/* Decoded signed linear values */
-  int tail;
-  plc_state_t plc;
+	struct ast_frame f;
+	char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
+	short outbuf[BUFFER_SIZE];		/* Decoded signed linear values */
+	int tail;
+	plc_state_t plc;
 };
 
-/*
- * ulawToLin_New
+/*!
+ * \brief ulawToLin_New
  *  Create a new instance of ulaw_decoder_pvt.
  *
  * Results:
@@ -93,24 +93,22 @@ struct ulaw_decoder_pvt
  *  None.
  */
 
-static struct ast_translator_pvt *
-ulawtolin_new (void)
+static struct ast_translator_pvt *ulawtolin_new(void)
 {
-  struct ulaw_decoder_pvt *tmp;
-  tmp = malloc (sizeof (struct ulaw_decoder_pvt));
-  if (tmp)
-    {
-	  memset(tmp, 0, sizeof(*tmp));
-      tmp->tail = 0;
-      plc_init(&tmp->plc);
-      localusecnt++;
-      ast_update_use_count ();
-    }
-  return (struct ast_translator_pvt *) tmp;
+	struct ulaw_decoder_pvt *tmp;
+	tmp = malloc(sizeof(struct ulaw_decoder_pvt));
+	if (tmp) {
+		memset(tmp, 0, sizeof(*tmp));
+		tmp->tail = 0;
+		plc_init(&tmp->plc);
+		localusecnt++;
+		ast_update_use_count();
+	}
+	return (struct ast_translator_pvt *)tmp;
 }
 
-/*
- * LinToulaw_New
+/*!
+ * \brief LinToulaw_New
  *  Create a new instance of ulaw_encoder_pvt.
  *
  * Results:
@@ -120,23 +118,21 @@ ulawtolin_new (void)
  *  None.
  */
 
-static struct ast_translator_pvt *
-lintoulaw_new (void)
+static struct ast_translator_pvt *lintoulaw_new(void)
 {
-  struct ulaw_encoder_pvt *tmp;
-  tmp = malloc (sizeof (struct ulaw_encoder_pvt));
-  if (tmp)
-    {
-	  memset(tmp, 0, sizeof(*tmp));
-      localusecnt++;
-      ast_update_use_count ();
-      tmp->tail = 0;
-    }
-  return (struct ast_translator_pvt *) tmp;
+	struct ulaw_encoder_pvt *tmp;
+	tmp = malloc(sizeof(struct ulaw_encoder_pvt));
+	if (tmp) {
+		memset(tmp, 0, sizeof(*tmp));
+		localusecnt++;
+		ast_update_use_count();
+		tmp->tail = 0;
+	}
+	return (struct ast_translator_pvt *)tmp;
 }
 
-/*
- * ulawToLin_FrameIn
+/*!
+ * \brief ulawToLin_FrameIn
  *  Fill an input buffer with packed 4-bit ulaw values if there is room
  *  left.
  *
@@ -147,43 +143,43 @@ lintoulaw_new (void)
  *  tmp->tail is the number of packed values in the buffer.
  */
 
-static int
-ulawtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
+static int ulawtolin_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
 {
-  struct ulaw_decoder_pvt *tmp = (struct ulaw_decoder_pvt *) pvt;
-  int x;
-  unsigned char *b;
+	struct ulaw_decoder_pvt *tmp = (struct ulaw_decoder_pvt *)pvt;
+	int x;
+	unsigned char *b;
 
-  if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
-	if((tmp->tail + 160)  * 2 > sizeof(tmp->outbuf)) {
-	    ast_log(LOG_WARNING, "Out of buffer space\n");
-	    return -1;
+	if(f->datalen == 0) { /* perform PLC with nominal framesize of 20ms/160 samples */
+		if((tmp->tail + 160) * 2 > sizeof(tmp->outbuf)) {
+			ast_log(LOG_WARNING, "Out of buffer space\n");
+			return -1;
+		}
+		if(useplc) {
+			plc_fillin(&tmp->plc, tmp->outbuf+tmp->tail, 160);
+			tmp->tail += 160;
+		}
+		return 0;
 	}
-	if(useplc) {
-	    plc_fillin(&tmp->plc, tmp->outbuf+tmp->tail, 160);
-	    tmp->tail += 160;
+
+	if ((tmp->tail + f->datalen) * 2 > sizeof(tmp->outbuf)) {
+		ast_log(LOG_WARNING, "Out of buffer space\n");
+		return -1;
 	}
+
+	/* Reset ssindex and signal to frame's specified values */
+	b = f->data;
+	for (x=0;x<f->datalen;x++)
+		tmp->outbuf[tmp->tail + x] = AST_MULAW(b[x]);
+
+	if(useplc)
+		plc_rx(&tmp->plc, tmp->outbuf+tmp->tail, f->datalen);
+
+	tmp->tail += f->datalen;
 	return 0;
-  }
-
-  if ((tmp->tail + f->datalen) * 2 > sizeof(tmp->outbuf)) {
-  	ast_log(LOG_WARNING, "Out of buffer space\n");
-	return -1;
-  }
-
-  /* Reset ssindex and signal to frame's specified values */
-  b = f->data;
-  for (x=0;x<f->datalen;x++)
-  	tmp->outbuf[tmp->tail + x] = AST_MULAW(b[x]);
-
-  if(useplc) plc_rx(&tmp->plc, tmp->outbuf+tmp->tail, f->datalen);
-
-  tmp->tail += f->datalen;
-  return 0;
 }
 
-/*
- * ulawToLin_FrameOut
+/*!
+ * \brief ulawToLin_FrameOut
  *  Convert 4-bit ulaw encoded signals to 16-bit signed linear.
  *
  * Results:
@@ -194,28 +190,27 @@ ulawtolin_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
  *  None.
  */
 
-static struct ast_frame *
-ulawtolin_frameout (struct ast_translator_pvt *pvt)
+static struct ast_frame *ulawtolin_frameout(struct ast_translator_pvt *pvt)
 {
-  struct ulaw_decoder_pvt *tmp = (struct ulaw_decoder_pvt *) pvt;
+	struct ulaw_decoder_pvt *tmp = (struct ulaw_decoder_pvt *)pvt;
 
-  if (!tmp->tail)
-    return NULL;
+	if (!tmp->tail)
+		return NULL;
 
-  tmp->f.frametype = AST_FRAME_VOICE;
-  tmp->f.subclass = AST_FORMAT_SLINEAR;
-  tmp->f.datalen = tmp->tail *2;
-  tmp->f.samples = tmp->tail;
-  tmp->f.mallocd = 0;
-  tmp->f.offset = AST_FRIENDLY_OFFSET;
-  tmp->f.src = __PRETTY_FUNCTION__;
-  tmp->f.data = tmp->outbuf;
-  tmp->tail = 0;
-  return &tmp->f;
+	tmp->f.frametype = AST_FRAME_VOICE;
+	tmp->f.subclass = AST_FORMAT_SLINEAR;
+	tmp->f.datalen = tmp->tail * 2;
+	tmp->f.samples = tmp->tail;
+	tmp->f.mallocd = 0;
+	tmp->f.offset = AST_FRIENDLY_OFFSET;
+	tmp->f.src = __PRETTY_FUNCTION__;
+	tmp->f.data = tmp->outbuf;
+	tmp->tail = 0;
+	return &tmp->f;
 }
 
-/*
- * LinToulaw_FrameIn
+/*!
+ * \brief LinToulaw_FrameIn
  *  Fill an input buffer with 16-bit signed linear PCM values.
  *
  * Results:
@@ -225,26 +220,24 @@ ulawtolin_frameout (struct ast_translator_pvt *pvt)
  *  tmp->tail is number of signal values in the input buffer.
  */
 
-static int
-lintoulaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
+static int lintoulaw_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
 {
-  struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
-  int x;
-  short *s;
-  if (tmp->tail + f->datalen/2 >= sizeof(tmp->outbuf))
-    {
-      ast_log (LOG_WARNING, "Out of buffer space\n");
-      return -1;
-    }
-  s = f->data;
-  for (x=0;x<f->datalen/2;x++) 
-  	tmp->outbuf[x+tmp->tail] = AST_LIN2MU(s[x]);
-  tmp->tail += f->datalen/2;
-  return 0;
+	struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *)pvt;
+	int x;
+	short *s;
+	if (tmp->tail + f->datalen / 2 >= sizeof(tmp->outbuf)) {
+		ast_log(LOG_WARNING, "Out of buffer space\n");
+		return -1;
+	}
+	s = f->data;
+	for (x=0;x<f->datalen/2;x++) 
+		tmp->outbuf[x+tmp->tail] = AST_LIN2MU(s[x]);
+	tmp->tail += f->datalen/2;
+	return 0;
 }
 
-/*
- * LinToulaw_FrameOut
+/*!
+ * \brief LinToulaw_FrameOut
  *  Convert a buffer of raw 16-bit signed linear PCM to a buffer
  *  of 4-bit ulaw packed two to a byte (Big Endian).
  *
@@ -255,67 +248,65 @@ lintoulaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
  *  Leftover inbuf data gets packed, tail gets updated.
  */
 
-static struct ast_frame *
-lintoulaw_frameout (struct ast_translator_pvt *pvt)
+static struct ast_frame *lintoulaw_frameout(struct ast_translator_pvt *pvt)
 {
-  struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
+	struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *)pvt;
   
-  if (tmp->tail) {
-	  tmp->f.frametype = AST_FRAME_VOICE;
-	  tmp->f.subclass = AST_FORMAT_ULAW;
-	  tmp->f.samples = tmp->tail;
-	  tmp->f.mallocd = 0;
-	  tmp->f.offset = AST_FRIENDLY_OFFSET;
-	  tmp->f.src = __PRETTY_FUNCTION__;
-	  tmp->f.data = tmp->outbuf;
-	  tmp->f.datalen = tmp->tail;
-	  tmp->tail = 0;
-	  return &tmp->f;
-   } else return NULL;
+	if (tmp->tail) {
+		tmp->f.frametype = AST_FRAME_VOICE;
+		tmp->f.subclass = AST_FORMAT_ULAW;
+		tmp->f.samples = tmp->tail;
+		tmp->f.mallocd = 0;
+		tmp->f.offset = AST_FRIENDLY_OFFSET;
+		tmp->f.src = __PRETTY_FUNCTION__;
+		tmp->f.data = tmp->outbuf;
+		tmp->f.datalen = tmp->tail;
+		tmp->tail = 0;
+		return &tmp->f;
+	} else
+		return NULL;
 }
 
 
-/*
- * ulawToLin_Sample
+/*!
+ * \brief ulawToLin_Sample
  */
 
-static struct ast_frame *
-ulawtolin_sample (void)
+static struct ast_frame *ulawtolin_sample(void)
 {
-  static struct ast_frame f;
-  f.frametype = AST_FRAME_VOICE;
-  f.subclass = AST_FORMAT_ULAW;
-  f.datalen = sizeof (ulaw_slin_ex);
-  f.samples = sizeof(ulaw_slin_ex);
-  f.mallocd = 0;
-  f.offset = 0;
-  f.src = __PRETTY_FUNCTION__;
-  f.data = ulaw_slin_ex;
-  return &f;
+	static struct ast_frame f;
+	f.frametype = AST_FRAME_VOICE;
+	f.subclass = AST_FORMAT_ULAW;
+	f.datalen = sizeof(ulaw_slin_ex);
+	f.samples = sizeof(ulaw_slin_ex);
+	f.mallocd = 0;
+	f.offset = 0;
+	f.src = __PRETTY_FUNCTION__;
+	f.data = ulaw_slin_ex;
+	return &f;
 }
 
-/*
- * LinToulaw_Sample
+/*!
+ * \brief LinToulaw_Sample
  */
 
-static struct ast_frame *
-lintoulaw_sample (void)
+static struct ast_frame *lintoulaw_sample(void)
 {
-  static struct ast_frame f;
-  f.frametype = AST_FRAME_VOICE;
-  f.subclass = AST_FORMAT_SLINEAR;
-  f.datalen = sizeof (slin_ulaw_ex);
-  /* Assume 8000 Hz */
-  f.samples = sizeof (slin_ulaw_ex) / 2;
-  f.mallocd = 0;
-  f.offset = 0;
-  f.src = __PRETTY_FUNCTION__;
-  f.data = slin_ulaw_ex;
-  return &f;
+	static struct ast_frame f;
+	f.frametype = AST_FRAME_VOICE;
+	f.subclass = AST_FORMAT_SLINEAR;
+	f.datalen = sizeof(slin_ulaw_ex);
+	/* Assume 8000 Hz */
+	f.samples = sizeof(slin_ulaw_ex) / 2;
+	f.mallocd = 0;
+	f.offset = 0;
+	f.src = __PRETTY_FUNCTION__;
+	f.data = slin_ulaw_ex;
+	return &f;
 }
 
-/*
- * ulaw_Destroy
+/*!
+ * \brief ulaw_Destroy
  *  Destroys a private workspace.
  *
  * Results:
@@ -325,121 +316,112 @@ lintoulaw_sample (void)
  *  None.
  */
 
-static void
-ulaw_destroy (struct ast_translator_pvt *pvt)
+static void ulaw_destroy(struct ast_translator_pvt *pvt)
 {
-  free (pvt);
-  localusecnt--;
-  ast_update_use_count ();
+	free(pvt);
+	localusecnt--;
+	ast_update_use_count();
 }
 
-/*
- * The complete translator for ulawToLin.
+/*!
+ * \brief The complete translator for ulawToLin.
  */
 
 static struct ast_translator ulawtolin = {
-  "ulawtolin",
-  AST_FORMAT_ULAW,
-  AST_FORMAT_SLINEAR,
-  ulawtolin_new,
-  ulawtolin_framein,
-  ulawtolin_frameout,
-  ulaw_destroy,
-  /* NULL */
-  ulawtolin_sample
+	"ulawtolin",
+	AST_FORMAT_ULAW,
+	AST_FORMAT_SLINEAR,
+	ulawtolin_new,
+	ulawtolin_framein,
+	ulawtolin_frameout,
+	ulaw_destroy,
+	/* NULL */
+	ulawtolin_sample
 };
 
-/*
- * The complete translator for LinToulaw.
+/*!
+ * \brief The complete translator for LinToulaw.
  */
 
 static struct ast_translator lintoulaw = {
-  "lintoulaw",
-  AST_FORMAT_SLINEAR,
-  AST_FORMAT_ULAW,
-  lintoulaw_new,
-  lintoulaw_framein,
-  lintoulaw_frameout,
-  ulaw_destroy,
-  /* NULL */
-  lintoulaw_sample
+	"lintoulaw",
+	AST_FORMAT_SLINEAR,
+	AST_FORMAT_ULAW,
+	lintoulaw_new,
+	lintoulaw_framein,
+	lintoulaw_frameout,
+	ulaw_destroy,
+	/* NULL */
+	lintoulaw_sample
 };
 
-static void 
-parse_config(void)
+static void parse_config(void)
 {
-  struct ast_config *cfg;
-  struct ast_variable *var;
-  if ((cfg = ast_config_load("codecs.conf"))) {
-    if ((var = ast_variable_browse(cfg, "plc"))) {
-      while (var) {
-	if (!strcasecmp(var->name, "genericplc")) {
-	  useplc = ast_true(var->value) ? 1 : 0;
-	  if (option_verbose > 2)
-	    ast_verbose(VERBOSE_PREFIX_3 "codec_ulaw: %susing generic PLC\n", useplc ? "" : "not ");
+	struct ast_config *cfg;
+	struct ast_variable *var;
+	if ((cfg = ast_config_load("codecs.conf"))) {
+		if ((var = ast_variable_browse(cfg, "plc"))) {
+			while (var) {
+				if (!strcasecmp(var->name, "genericplc")) {
+					useplc = ast_true(var->value) ? 1 : 0;
+					if (option_verbose > 2)
+						ast_verbose(VERBOSE_PREFIX_3 "codec_ulaw: %susing generic PLC\n", useplc ? "" : "not ");
+				}
+				var = var->next;
+			}
+		}
+		ast_config_destroy(cfg);
 	}
-	var = var->next;
-      }
-    }
-    ast_config_destroy(cfg);
-  }
 }
 
-int 
-reload(void)
+int reload(void)
 {
-  parse_config();
-  return 0;
+	parse_config();
+	return 0;
 }
 
-
-int
-unload_module (void)
+int unload_module(void)
 {
-  int res;
-  ast_mutex_lock (&localuser_lock);
-  res = ast_unregister_translator (&lintoulaw);
-  if (!res)
-    res = ast_unregister_translator (&ulawtolin);
-  if (localusecnt)
-    res = -1;
-  ast_mutex_unlock (&localuser_lock);
-  return res;
+	int res;
+	ast_mutex_lock(&localuser_lock);
+	res = ast_unregister_translator(&lintoulaw);
+	if (!res)
+		res = ast_unregister_translator(&ulawtolin);
+	if (localusecnt)
+		res = -1;
+	ast_mutex_unlock(&localuser_lock);
+	return res;
 }
 
-int
-load_module (void)
+int load_module(void)
 {
-  int res;
-  parse_config();
-  res = ast_register_translator (&ulawtolin);
-  if (!res)
-    res = ast_register_translator (&lintoulaw);
-  else
-    ast_unregister_translator (&ulawtolin);
-  return res;
+	int res;
+	parse_config();
+	res = ast_register_translator(&ulawtolin);
+	if (!res)
+		res = ast_register_translator(&lintoulaw);
+	else
+		ast_unregister_translator(&ulawtolin);
+	return res;
 }
 
 /*
  * Return a description of this module.
  */
 
-char *
-description (void)
+char *description(void)
 {
-  return tdesc;
+	return tdesc;
 }
 
-int
-usecount (void)
+int usecount(void)
 {
-  int res;
-  STANDARD_USECOUNT (res);
-  return res;
+	int res;
+	STANDARD_USECOUNT(res);
+	return res;
 }
 
-char *
-key ()
+char *key()
 {
-  return ASTERISK_GPL_KEY;
+	return ASTERISK_GPL_KEY;
 }

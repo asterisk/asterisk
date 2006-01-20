@@ -62,10 +62,10 @@ static unsigned char a2mu[256];
 
 struct alaw_encoder_pvt
 {
-  struct ast_frame f;
-  char offset[AST_FRIENDLY_OFFSET];   /* Space to build offset */
-  unsigned char outbuf[BUFFER_SIZE];  /* Encoded alaw, two nibbles to a word */
-  int tail;
+	struct ast_frame f;
+	char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
+	unsigned char outbuf[BUFFER_SIZE];	/* Encoded alaw, two nibbles to a word */
+	int tail;
 };
 
 /*
@@ -74,99 +74,91 @@ struct alaw_encoder_pvt
 
 struct ulaw_encoder_pvt
 {
-  struct ast_frame f;
-  char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
-  unsigned char outbuf[BUFFER_SIZE];	/* Encoded ulaw values */
-  int tail;
+	struct ast_frame f;
+	char offset[AST_FRIENDLY_OFFSET];	/* Space to build offset */
+	unsigned char outbuf[BUFFER_SIZE];	/* Encoded ulaw values */
+	int tail;
 };
 
-static struct ast_translator_pvt *
-alawtoulaw_new (void)
+static struct ast_translator_pvt *alawtoulaw_new(void)
 {
-  struct ulaw_encoder_pvt *tmp;
-  tmp = malloc (sizeof (struct ulaw_encoder_pvt));
-  if (tmp)
-    {
-	  memset(tmp, 0, sizeof(*tmp));
-      tmp->tail = 0;
-      localusecnt++;
-      ast_update_use_count ();
-    }
-  return (struct ast_translator_pvt *) tmp;
+	struct ulaw_encoder_pvt *tmp;
+	tmp = malloc(sizeof(struct ulaw_encoder_pvt));
+	if (tmp) {
+		memset(tmp, 0, sizeof(*tmp));
+		tmp->tail = 0;
+		localusecnt++;
+		ast_update_use_count();
+	}
+	return (struct ast_translator_pvt *)tmp;
 }
 
-static struct ast_translator_pvt *
-ulawtoalaw_new (void)
+static struct ast_translator_pvt *ulawtoalaw_new(void)
 {
-  struct alaw_encoder_pvt *tmp;
-  tmp = malloc (sizeof (struct alaw_encoder_pvt));
-  if (tmp)
-    {
-	  memset(tmp, 0, sizeof(*tmp));
-      localusecnt++;
-      ast_update_use_count ();
-      tmp->tail = 0;
-    }
-  return (struct ast_translator_pvt *) tmp;
+	struct alaw_encoder_pvt *tmp;
+	tmp = malloc(sizeof(struct alaw_encoder_pvt));
+	if (tmp) {
+		memset(tmp, 0, sizeof(*tmp));
+		localusecnt++;
+		ast_update_use_count();
+		tmp->tail = 0;
+	}
+	return (struct ast_translator_pvt *)tmp;
 }
 
-static int
-alawtoulaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
+static int alawtoulaw_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
 {
-  struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
-  int x;
-  unsigned char *b;
+	struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *)pvt;
+	int x;
+	unsigned char *b;
 
-  if ((tmp->tail + f->datalen)> sizeof(tmp->outbuf)) {
-  	ast_log(LOG_WARNING, "Out of buffer space\n");
-	return -1;
-  }
+	if ((tmp->tail + f->datalen) > sizeof(tmp->outbuf)) {
+		ast_log(LOG_WARNING, "Out of buffer space\n");
+		return -1;
+	}
 
-  /* Reset ssindex and signal to frame's specified values */
-  b = f->data;
-  for (x=0;x<f->datalen;x++)
-  	tmp->outbuf[tmp->tail + x] = a2mu[b[x]];
+	/* Reset ssindex and signal to frame's specified values */
+	b = f->data;
+	for (x=0;x<f->datalen;x++)
+		tmp->outbuf[tmp->tail + x] = a2mu[b[x]];
 
-  tmp->tail += f->datalen;
-  return 0;
+	tmp->tail += f->datalen;
+	return 0;
 }
 
-static struct ast_frame *
-alawtoulaw_frameout (struct ast_translator_pvt *pvt)
+static struct ast_frame *alawtoulaw_frameout(struct ast_translator_pvt *pvt)
 {
-  struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *) pvt;
+	struct ulaw_encoder_pvt *tmp = (struct ulaw_encoder_pvt *)pvt;
 
-  if (!tmp->tail)
-    return NULL;
+	if (!tmp->tail)
+		return NULL;
 
-  tmp->f.frametype = AST_FRAME_VOICE;
-  tmp->f.subclass = AST_FORMAT_ULAW;
-  tmp->f.datalen = tmp->tail;
-  tmp->f.samples = tmp->tail;
-  tmp->f.mallocd = 0;
-  tmp->f.offset = AST_FRIENDLY_OFFSET;
-  tmp->f.src = __PRETTY_FUNCTION__;
-  tmp->f.data = tmp->outbuf;
-  tmp->tail = 0;
-  return &tmp->f;
+	tmp->f.frametype = AST_FRAME_VOICE;
+	tmp->f.subclass = AST_FORMAT_ULAW;
+	tmp->f.datalen = tmp->tail;
+	tmp->f.samples = tmp->tail;
+	tmp->f.mallocd = 0;
+	tmp->f.offset = AST_FRIENDLY_OFFSET;
+	tmp->f.src = __PRETTY_FUNCTION__;
+	tmp->f.data = tmp->outbuf;
+	tmp->tail = 0;
+	return &tmp->f;
 }
 
-static int
-ulawtoalaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
+static int ulawtoalaw_framein(struct ast_translator_pvt *pvt, struct ast_frame *f)
 {
-  struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
-  int x;
-  unsigned char *s;
-  if (tmp->tail + f->datalen >= sizeof(tmp->outbuf))
-    {
-      ast_log (LOG_WARNING, "Out of buffer space\n");
-      return -1;
-    }
-  s = f->data;
-  for (x=0;x<f->datalen;x++) 
-  	tmp->outbuf[x+tmp->tail] = mu2a[s[x]];
-  tmp->tail += f->datalen;
-  return 0;
+	struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *)pvt;
+	int x;
+	unsigned char *s;
+	if (tmp->tail + f->datalen >= sizeof(tmp->outbuf)) {
+		ast_log(LOG_WARNING, "Out of buffer space\n");
+		return -1;
+	}
+	s = f->data;
+	for (x=0;x<f->datalen;x++) 
+		tmp->outbuf[x+tmp->tail] = mu2a[s[x]];
+	tmp->tail += f->datalen;
+	return 0;
 }
 
 /*
@@ -181,60 +173,56 @@ ulawtoalaw_framein (struct ast_translator_pvt *pvt, struct ast_frame *f)
  *  Leftover inbuf data gets packed, tail gets updated.
  */
 
-static struct ast_frame *
-ulawtoalaw_frameout (struct ast_translator_pvt *pvt)
+static struct ast_frame *ulawtoalaw_frameout(struct ast_translator_pvt *pvt)
 {
-  struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *) pvt;
+	struct alaw_encoder_pvt *tmp = (struct alaw_encoder_pvt *)pvt;
   
-  if (tmp->tail) {
-	  tmp->f.frametype = AST_FRAME_VOICE;
-	  tmp->f.subclass = AST_FORMAT_ALAW;
-	  tmp->f.samples = tmp->tail;
-	  tmp->f.mallocd = 0;
-	  tmp->f.offset = AST_FRIENDLY_OFFSET;
-	  tmp->f.src = __PRETTY_FUNCTION__;
-	  tmp->f.data = tmp->outbuf;
-	  tmp->f.datalen = tmp->tail;
-	  tmp->tail = 0;
-	  return &tmp->f;
-   } else return NULL;
+	if (tmp->tail) {
+		tmp->f.frametype = AST_FRAME_VOICE;
+		tmp->f.subclass = AST_FORMAT_ALAW;
+		tmp->f.samples = tmp->tail;
+		tmp->f.mallocd = 0;
+		tmp->f.offset = AST_FRIENDLY_OFFSET;
+		tmp->f.src = __PRETTY_FUNCTION__;
+		tmp->f.data = tmp->outbuf;
+		tmp->f.datalen = tmp->tail;
+		tmp->tail = 0;
+		return &tmp->f;
+	} else
+		return NULL;
 }
-
 
 /*
  * alawToLin_Sample
  */
 
-static struct ast_frame *
-alawtoulaw_sample (void)
+static struct ast_frame *alawtoulaw_sample(void)
 {
-  static struct ast_frame f;
-  f.frametype = AST_FRAME_VOICE;
-  f.subclass = AST_FORMAT_ALAW;
-  f.datalen = sizeof (ulaw_slin_ex);
-  f.samples = sizeof(ulaw_slin_ex);
-  f.mallocd = 0;
-  f.offset = 0;
-  f.src = __PRETTY_FUNCTION__;
-  f.data = ulaw_slin_ex;
-  return &f;
+	static struct ast_frame f;
+	f.frametype = AST_FRAME_VOICE;
+	f.subclass = AST_FORMAT_ALAW;
+	f.datalen = sizeof(ulaw_slin_ex);
+	f.samples = sizeof(ulaw_slin_ex);
+	f.mallocd = 0;
+	f.offset = 0;
+	f.src = __PRETTY_FUNCTION__;
+	f.data = ulaw_slin_ex;
+	return &f;
 }
 
-static struct ast_frame *
-ulawtoalaw_sample (void)
+static struct ast_frame *ulawtoalaw_sample(void)
 {
-  static struct ast_frame f;
-  f.frametype = AST_FRAME_VOICE;
-  f.subclass = AST_FORMAT_ULAW;
-  f.datalen = sizeof (ulaw_slin_ex);
-  f.samples = sizeof(ulaw_slin_ex);
-  f.mallocd = 0;
-  f.offset = 0;
-  f.src = __PRETTY_FUNCTION__;
-  f.data = ulaw_slin_ex;
-  return &f;
+	static struct ast_frame f;
+	f.frametype = AST_FRAME_VOICE;
+	f.subclass = AST_FORMAT_ULAW;
+	f.datalen = sizeof(ulaw_slin_ex);
+	f.samples = sizeof(ulaw_slin_ex);
+	f.mallocd = 0;
+	f.offset = 0;
+	f.src = __PRETTY_FUNCTION__;
+	f.data = ulaw_slin_ex;
+	return &f;
 }
-
 
 /*
  * alaw_Destroy
@@ -247,12 +235,11 @@ ulawtoalaw_sample (void)
  *  None.
  */
 
-static void
-alaw_destroy (struct ast_translator_pvt *pvt)
+static void alaw_destroy(struct ast_translator_pvt *pvt)
 {
-  free (pvt);
-  localusecnt--;
-  ast_update_use_count ();
+	free(pvt);
+	localusecnt--;
+	ast_update_use_count();
 }
 
 /*
@@ -260,15 +247,15 @@ alaw_destroy (struct ast_translator_pvt *pvt)
  */
 
 static struct ast_translator alawtoulaw = {
-  "alawtoulaw",
-  AST_FORMAT_ALAW,
-  AST_FORMAT_ULAW,
-  alawtoulaw_new,
-  alawtoulaw_framein,
-  alawtoulaw_frameout,
-  alaw_destroy,
-  /* NULL */
-  alawtoulaw_sample
+	"alawtoulaw",
+	AST_FORMAT_ALAW,
+	AST_FORMAT_ULAW,
+	alawtoulaw_new,
+	alawtoulaw_framein,
+	alawtoulaw_frameout,
+	alaw_destroy,
+	/* NULL */
+	alawtoulaw_sample
 };
 
 /*
@@ -276,68 +263,63 @@ static struct ast_translator alawtoulaw = {
  */
 
 static struct ast_translator ulawtoalaw = {
-  "ulawtoalaw",
-  AST_FORMAT_ULAW,
-  AST_FORMAT_ALAW,
-  ulawtoalaw_new,
-  ulawtoalaw_framein,
-  ulawtoalaw_frameout,
-  alaw_destroy,
-  /* NULL */
-  ulawtoalaw_sample
+	"ulawtoalaw",
+	AST_FORMAT_ULAW,
+	AST_FORMAT_ALAW,
+	ulawtoalaw_new,
+	ulawtoalaw_framein,
+	ulawtoalaw_frameout,
+	alaw_destroy,
+	/* NULL */
+	ulawtoalaw_sample
 };
 
-int
-unload_module (void)
+int unload_module(void)
 {
-  int res;
-  ast_mutex_lock (&localuser_lock);
-  res = ast_unregister_translator (&ulawtoalaw);
-  if (!res)
-    res = ast_unregister_translator (&alawtoulaw);
-  if (localusecnt)
-    res = -1;
-  ast_mutex_unlock (&localuser_lock);
-  return res;
+	int res;
+	ast_mutex_lock(&localuser_lock);
+	res = ast_unregister_translator(&ulawtoalaw);
+	if (!res)
+		res = ast_unregister_translator(&alawtoulaw);
+	if (localusecnt)
+		res = -1;
+	ast_mutex_unlock(&localuser_lock);
+	return res;
 }
 
-int
-load_module (void)
+int load_module(void)
 {
-  int res;
-  int x;
-  for (x=0;x<256;x++) {
-	mu2a[x] = AST_LIN2A(AST_MULAW(x));
-	a2mu[x] = AST_LIN2MU(AST_ALAW(x));
-  }
-  res = ast_register_translator (&alawtoulaw);
-  if (!res)
-    res = ast_register_translator (&ulawtoalaw);
-  else
-    ast_unregister_translator (&alawtoulaw);
-  return res;
+	int res;
+	int x;
+	for (x=0;x<256;x++) {
+		mu2a[x] = AST_LIN2A(AST_MULAW(x));
+		a2mu[x] = AST_LIN2MU(AST_ALAW(x));
+	}
+	res = ast_register_translator(&alawtoulaw);
+	if (!res)
+		res = ast_register_translator(&ulawtoalaw);
+	else
+		ast_unregister_translator(&alawtoulaw);
+	return res;
 }
 
 /*
  * Return a description of this module.
  */
 
-char *
-description (void)
+char *description(void)
 {
-  return tdesc;
+	return tdesc;
 }
 
-int
-usecount (void)
+int usecount(void)
 {
-  int res;
-  STANDARD_USECOUNT (res);
-  return res;
+	int res;
+	STANDARD_USECOUNT(res);
+	return res;
 }
 
-char *
-key ()
+char *key()
 {
-  return ASTERISK_GPL_KEY;
+	return ASTERISK_GPL_KEY;
 }
