@@ -252,6 +252,7 @@ static int pcm_write(struct ast_filestream *fs, struct ast_frame *f)
 static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 {
 	long cur, max, offset = 0;
+ 	int ret = -1; /* assume error */
 
 	cur = ftell(fs->f);
 	fseek(fs->f, 0, SEEK_END);
@@ -268,29 +269,34 @@ static int pcm_seek(struct ast_filestream *fs, long sample_offset, int whence)
 	case SEEK_FORCECUR:
 		offset = cur + sample_offset;
 		break;
-	}
-
-	switch (whence) {
-	case SEEK_FORCECUR:
-		if (offset > max) {
-			size_t left = offset - max;
-			size_t res;
-
-			while (left) {
-				res = fwrite(alaw_silence, sizeof(alaw_silence[0]),
-					     (left > BUF_SIZE) ? BUF_SIZE : left, fs->f);
-				if (res == -1)
-					return res;
-				left -= res * sizeof(alaw_silence[0]);
-			}
-			return offset;
-		}
-		/* fall through */
 	default:
-		offset = (offset > max) ? max : offset;
-		offset = (offset < 0) ? 0 : offset;
-		return fseek(fs->f, offset, SEEK_SET);
+		ast_log(LOG_WARNING, "invalid whence %d, assuming SEEK_SET\n", whence);
+		offset = sample_offset;
 	}
+
+	if (offset < 0) {
+		offset = 0;
+		ast_log(LOG_WARNING, "negative offset %ld, resetting to 0\n", offset);
+	}
+	if (whence == SEEK_FORCECUR && offset > max) {
+		size_t left = offset - max;
+
+		while (left) {
+			size_t written = fwrite(alaw_silence, sizeof(alaw_silence[0]),
+				     (left > BUF_SIZE) ? BUF_SIZE : left, fs->f);
+			if (written == -1)
+				break; /* error */
+			left -= written * sizeof(alaw_silence[0]);
+		}
+		ret = 0; /* success */
+	} else {
+                if (offset > max) {
+                        ast_log(LOG_WARNING, "offset too large %ld, truncating to %ld\n", offset, max);
+                        offset = max;
+		}
+                ret = fseek(fs->f, offset, SEEK_SET);
+	}
+	return ret;
 }
 
 static int pcm_trunc(struct ast_filestream *fs)
