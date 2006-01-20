@@ -796,20 +796,17 @@ static void rt_handle_member_record(struct ast_call_queue *q, char *interface, c
 static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
 {
 	struct ast_variable *v;
-	struct ast_call_queue *q, *prev_q;
+	struct ast_call_queue *q, *prev_q = NULL;
 	struct member *m, *prev_m, *next_m;
 	char *interface;
 	char *tmp, *tmp_name;
 	char tmpbuf[64];	/* Must be longer than the longest queue param name. */
 
 	/* Find the queue in the in-core list (we will create a new one if not found). */
-	q = queues;
-	prev_q = NULL;
-	while (q) {
+	for (q = queues; q; q = q->next) {
 		if (!strcasecmp(q->name, queuename)) {
 			break;
 		}
-		q = q->next;
 		prev_q = q;
 	}
 
