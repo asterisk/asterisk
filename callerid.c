@@ -862,6 +862,10 @@ int callerid_generate(unsigned char *buf, char *number, char *name, int flags, i
 	return bytes;
 }
 
+/*
+ * remove '(', ' ', ')', non-trailing '.', and '-' not in square brackets.
+ * Basically, remove anything that could be invalid in a pattern.
+ */
 void ast_shrink_phone_number(char *n)
 {
 	int x,y=0;
@@ -908,53 +912,50 @@ int ast_isphonenumber(char *n)
 }
 
 /*! \brief parse string for caller id information 
-	\return returns -1 on failure, otherwise 0
+	\return always returns 0, as the code always returns something.
+  XXX note that 'name' is not parsed consistently e.g. we have
+
+	input			location	name
+	" foo bar " <123>	123		' foo bar ' (with spaces around)
+	" foo bar "		NULL		'foo bar' (without spaces around)
+	" foo bar  <123>"	123		'" foo bar'
+  The parsing of leading and trailing space/quotes should be more consistent.
 */
 int ast_callerid_parse(char *instr, char **name, char **location)
 {
-	char *ns, *ne;
-	char *ls, *le;
-	char tmp[256];
-	/* Try for "name" <location> format or 
-	   name <location> format */
+	char *ns, *ne, *ls, *le;
+
+	/* Try "name" <location> format or name <location> format */
 	if ((ls = strchr(instr, '<')) && (le = strchr(ls, '>'))) {
-		/* Found the location */
-		*le = '\0';
-		*ls = '\0';
-		*location = ls + 1;
-		if ((ns = strchr(instr, '\"')) && (ne = strchr(ns + 1, '\"'))) {
-			/* Get name out of quotes */
-			*ns = '\0';
-			*ne = '\0';
-			*name = ns + 1;
-			return 0;
-		} else {
-			/* Just trim off any trailing spaces */
-			*name = instr;
-			while(!ast_strlen_zero(instr) && (instr[strlen(instr) - 1] < 33))
-				instr[strlen(instr) - 1] = '\0';
-			/* And leading spaces */
-			*name = ast_skip_blanks(*name);
-			return 0;
+		*ls = *le = '\0';	/* location found, trim off the brackets */
+		*location = ls + 1;	/* and this is the result */
+		if ((ns = strchr(instr, '"')) && (ne = strchr(ns + 1, '"'))) {
+			*ns = *ne = '\0';	/* trim off the quotes */
+			*name = ns + 1;		/* and this is the name */
+		} else { /* no quotes, trim off leading and trailing spaces */
+			*name = ast_skip_blanks(instr);
+			ast_trim_blanks(*name);
 		}
-	} else {
+	} else {	/* no valid brackets */
+		char tmp[256];
 		ast_copy_string(tmp, instr, sizeof(tmp));
 		ast_shrink_phone_number(tmp);
-		if (ast_isphonenumber(tmp)) {
-			/* Assume it's just a location */
+		if (ast_isphonenumber(tmp)) {	/* Assume it's just a location */
 			*name = NULL;
+			strcpy(instr, tmp); /* safe, because tmp will always be the same size or smaller than instr */
 			*location = instr;
-		} else {
-			/* Assume it's just a name.  Make sure it's not quoted though */
-			*name = instr;
-			while(*(*name) && ((*(*name) < 33) || (*(*name) == '\"'))) (*name)++;
-			ne = *name + strlen(*name) - 1;
-			while((ne > *name) && ((*ne < 33) || (*ne == '\"'))) { *ne = '\0'; ne--; }
+		} else { /* Assume it's just a name. */
 			*location = NULL;
+			if ((ns = strchr(instr, '"')) && (ne = strchr(ns + 1, '"'))) {
+				*ns = *ne = '\0';	/* trim off the quotes */
+				*name = ns + 1;		/* and this is the name */
+			} else { /* no quotes, trim off leading and trailing spaces */
+				*name = ast_skip_blanks(instr);
+				ast_trim_blanks(*name);
+			}
 		}
-		return 0;
 	}
-	return -1;
+	return 0;
 }
 
 static int __ast_callerid_generate(unsigned char *buf, char *name, char *number, int callwaiting, int codec)
