@@ -150,12 +150,10 @@ int ast_monitor_start(	struct ast_channel *chan, const char *format_spec,
 			}
 		}
 
-		monitor = malloc(sizeof(struct ast_channel_monitor));
-		if (!monitor) {
+		if (!(monitor = ast_calloc(1, sizeof(*monitor)))) {
 			UNLOCK_IF_NEEDED(&chan->lock, need_lock);
 			return -1;
 		}
-		memset(monitor, 0, sizeof(struct ast_channel_monitor));
 
 		/* Determine file names */
 		if (!ast_strlen_zero(fname_base)) {
@@ -416,8 +414,8 @@ static int start_monitor_exec(struct ast_channel *chan, void *data)
 	if (urlprefix) {
 		snprintf(tmp,sizeof(tmp) - 1,"%s/%s.%s",urlprefix,fname_base,
 			((strcmp(format,"gsm")) ? "wav" : "gsm"));
-		if (!chan->cdr)
-			chan->cdr = ast_cdr_alloc();
+		if (!chan->cdr && !(chan->cdr = ast_cdr_alloc()))
+			return -1;
 		ast_cdr_setuserfield(chan, tmp);
 	}
 	if (waitforbridge) {
@@ -491,17 +489,15 @@ static int start_monitor_action(struct mansession *s, struct message *m)
 	}
 
 	if (ast_strlen_zero(fname)) {
-		/* No filename base specified, default to channel name as per CLI */
-		fname = malloc (FILENAME_MAX);
-		if (!fname) {
+		/* No filename base specified, default to channel name as per CLI */		
+		if (!(fname = ast_strdup(c->name))) {
 			astman_send_error(s, m, "Could not start monitoring channel");
 			ast_mutex_unlock(&c->lock);
 			return 0;
 		}
-		memset(fname, 0, FILENAME_MAX);
-		ast_copy_string(fname, c->name, FILENAME_MAX);
 		/* Channels have the format technology/channel_name - have to replace that /  */
-		if ((d=strchr(fname, '/'))) *d='-';
+		if ((d = strchr(fname, '/'))) 
+			*d = '-';
 	}
 	
 	if (ast_monitor_start(c, format, fname, 1)) {

@@ -47,7 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/translate.h"
 #include "asterisk/indications.h"
-
+#include "asterisk/utils.h"
 
 /* Globals */
 static const char dtext[] = "Indications Configuration";
@@ -94,13 +94,10 @@ static int handle_add_indication(int fd, int argc, char *argv[])
 	if (!tz) {
 		/* country does not exist, create it */
 		ast_log(LOG_NOTICE, "Country '%s' does not exist, creating it.\n",argv[2]);
-
-		tz = malloc(sizeof(struct tone_zone));
-		if (!tz) {
-			ast_log(LOG_WARNING, "Out of memory\n");
+		
+		if (!(tz = ast_calloc(1, sizeof(*tz)))) {
 			return -1;
 		}
-		memset(tz,0,sizeof(struct tone_zone));
 		ast_copy_string(tz->country,argv[2],sizeof(tz->country));
 		if (ast_register_indication_country(tz)) {
 			ast_log(LOG_WARNING, "Unable to register new country\n");
@@ -257,14 +254,11 @@ static int ind_load_module(void)
 		if (!strcasecmp(cxt, "general")) {
 			cxt = ast_category_browse(cfg, cxt);
 			continue;
-		}
-		tones = malloc(sizeof(struct tone_zone));
-		if (!tones) {
-			ast_log(LOG_WARNING,"Out of memory\n");
+		}		
+		if (!(tones = ast_calloc(1, sizeof(*tones)))) {
 			ast_config_destroy(cfg);
 			return -1;
 		}
-		memset(tones,0,sizeof(struct tone_zone));
 		ast_copy_string(tones->country,cxt,sizeof(tones->country));
 
 		v = ast_variable_browse(cfg, cxt);
@@ -281,10 +275,8 @@ static int ind_load_module(void)
 						ast_log(LOG_WARNING,"Invalid ringcadence given '%s' at line %d.\n",ring,v->lineno);
 						ring = strsep(&c,",");
 						continue;
-					}
-					tmp = realloc(tones->ringcadence,(tones->nrringcadence+1)*sizeof(int));
-					if (!tmp) {
-						ast_log(LOG_WARNING, "Out of memory\n");
+					}					
+					if (!(tmp = ast_realloc(tones->ringcadence, (tones->nrringcadence + 1) * sizeof(int)))) {
 						ast_config_destroy(cfg);
 						return -1;
 					}
@@ -299,13 +291,11 @@ static int ind_load_module(void)
 				c = countries;
 				country = strsep(&c,",");
 				while (country) {
-					struct tone_zone* azone = malloc(sizeof(struct tone_zone));
-					if (!azone) {
-						ast_log(LOG_WARNING,"Out of memory\n");
+					struct tone_zone* azone;
+					if (!(azone = ast_calloc(1, sizeof(*azone)))) {
 						ast_config_destroy(cfg);
 						return -1;
 					}
-					memset(azone,0,sizeof(struct tone_zone));
 					ast_copy_string(azone->country, country, sizeof(azone->country));
 					ast_copy_string(azone->alias, cxt, sizeof(azone->alias));
 					if (ast_register_indication_country(azone)) {
@@ -325,10 +315,8 @@ static int ind_load_module(void)
 						goto out;
 					}
 				}
-				/* not there, add it to the back */
-				ts = malloc(sizeof(struct tone_zone_sound));
-				if (!ts) {
-					ast_log(LOG_WARNING, "Out of memory\n");
+				/* not there, add it to the back */				
+				if (!(ts = ast_malloc(sizeof(*ts)))) {
 					ast_config_destroy(cfg);
 					return -1;
 				}

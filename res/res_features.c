@@ -263,13 +263,10 @@ int ast_park_call(struct ast_channel *chan, struct ast_channel *peer, int timeou
 	int i,x,parking_range;
 	char exten[AST_MAX_EXTENSION];
 	struct ast_context *con;
-
-	pu = malloc(sizeof(struct parkeduser));
-	if (!pu) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	
+	if (!(pu = ast_calloc(1, sizeof(*pu)))) {
 		return -1;
 	}
-	memset(pu, 0, sizeof(struct parkeduser));
 	ast_mutex_lock(&parking_lock);
 	parking_range = parking_stop - parking_start+1;
 	for (i = 0; i < parking_range; i++) {
@@ -386,8 +383,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	struct ast_frame *f;
 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
-	chan = ast_channel_alloc(0);
-	if (chan) {
+	if ((chan = ast_channel_alloc(0))) {
 		/* Let us keep track of the channel name */
 		snprintf(chan->name, sizeof (chan->name), "Parked/%s",rchan->name);
 
@@ -785,10 +781,8 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				newchan->_state = AST_STATE_UP;
 				ast_clear_flag(newchan, AST_FLAGS_ALL);	
 				newchan->_softhangup = 0;
-
-				tobj = malloc(sizeof(struct ast_bridge_thread_obj));
-				if (tobj) {
-					memset(tobj,0,sizeof(struct ast_bridge_thread_obj));
+				
+				if ((tobj = ast_calloc(1, sizeof(*tobj)))) {
 					tobj->chan = xferchan;
 					tobj->peer = newchan;
 					tobj->bconfig = *config;
@@ -800,7 +794,6 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 					}
 					ast_bridge_call_thread_launch(tobj);
 				} else {
-					ast_log(LOG_WARNING, "Out of memory!\n");
 					ast_hangup(xferchan);
 					ast_hangup(newchan);
 				}
@@ -1214,10 +1207,7 @@ static struct ast_channel *ast_feature_request_and_dial(struct ast_channel *call
 		*outstate = state;
 
 	if (chan && res <= 0) {
-		if (!chan->cdr) {
-			chan->cdr = ast_cdr_alloc();
-		}
-		if (chan->cdr) {
+		if (chan->cdr || (chan->cdr = ast_cdr_alloc())) {
 			char tmp[256];
 			ast_cdr_init(chan->cdr, chan);
 			snprintf(tmp, 256, "%s/%s", type, (char *)data);
@@ -2088,21 +2078,19 @@ static int load_config(void)
 			}
 
 			{
-				struct ast_call_feature *feature=find_feature(var->name);
-				int mallocd=0;
+				struct ast_call_feature *feature;
+				int mallocd = 0;
 				
-				if (!feature) {
-					feature=malloc(sizeof(struct ast_call_feature));
-					mallocd=1;
-				}
-				if (!feature) {
-					ast_log(LOG_NOTICE, "Malloc failed at feature mapping\n");
-					free(tmp_val);
-					var = var->next;
-					continue;
+				if (!(feature = find_feature(var->name))) {
+					mallocd = 1;
+					
+					if (!(feature = ast_calloc(1, sizeof(*feature)))) {
+						free(tmp_val);
+						var = var->next;
+						continue;					
+					}
 				}
 
-				memset(feature,0,sizeof(struct ast_call_feature));
 				ast_copy_string(feature->sname,var->name,FEATURE_SNAME_LEN);
 				ast_copy_string(feature->app,app,FEATURE_APP_LEN);
 				ast_copy_string(feature->exten, exten,FEATURE_EXTEN_LEN);

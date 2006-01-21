@@ -215,13 +215,10 @@ static struct ast_key *try_load_key (char *dir, char *fname, int ifd, int ofd, i
 	/* Make fname just be the normal name now */
 	*c = '\0';
 	if (!key) {
-		key = (struct ast_key *)malloc(sizeof(struct ast_key));
-		if (!key) {
-			ast_log(LOG_WARNING, "Out of memory\n");
+		if (!(key = ast_calloc(1, sizeof(*key)))) {
 			fclose(f);
 			return NULL;
 		}
-		memset(key, 0, sizeof(struct ast_key));
 	}
 	/* At this point we have a key structure (old or new).  Time to
 	   fill it with what we know */

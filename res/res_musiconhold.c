@@ -279,18 +279,17 @@ static void *moh_files_alloc(struct ast_channel *chan, void *params)
 {
 	struct moh_files_state *state;
 	struct mohclass *class = params;
-	int allocated = 0;
 
-	if (!chan->music_state && (state = malloc(sizeof(struct moh_files_state)))) {
+	if (!chan->music_state && (state = ast_calloc(1, sizeof(*state)))) {
 		chan->music_state = state;
-		allocated = 1;
+		state->class = class;
 	} else 
 		state = chan->music_state;
 
 	if (state) {
-		if (allocated || state->class != class) {
+		if (state->class != class) {
 			/* initialize */
-			memset(state, 0, sizeof(struct moh_files_state));
+			memset(state, 0, sizeof(*state));
 			state->class = class;
 		}
 
@@ -611,11 +610,9 @@ static struct mohclass *get_mohbyname(char *name)
 static struct mohdata *mohalloc(struct mohclass *cl)
 {
 	struct mohdata *moh;
-	long flags;
-	moh = malloc(sizeof(struct mohdata));
-	if (!moh)
+	long flags;	
+	if (!(moh = ast_calloc(1, sizeof(*moh))))
 		return NULL;
-	memset(moh, 0, sizeof(struct mohdata));
 	if (pipe(moh->pipe)) {
 		ast_log(LOG_WARNING, "Failed to create pipe: %s\n", strerror(errno));
 		free(moh);
@@ -669,8 +666,7 @@ static void *moh_alloc(struct ast_channel *chan, void *params)
 	struct mohdata *res;
 	struct mohclass *class = params;
 
-	res = mohalloc(class);
-	if (res) {
+	if ((res = mohalloc(class))) {
 		res->origwfmt = chan->writeformat;
 		if (ast_set_write_format(chan, class->format)) {
 			ast_log(LOG_WARNING, "Unable to set channel '%s' to format '%s'\n", chan->name, ast_codec2str(class->format));
@@ -907,14 +903,8 @@ static struct mohclass *moh_class_malloc(void)
 {
 	struct mohclass *class;
 
-	class = malloc(sizeof(struct mohclass));
-
-	if (!class)
-		return NULL;
-
-	memset(class, 0, sizeof(struct mohclass));
-
-	class->format = AST_FORMAT_SLINEAR;
+	if ((class = ast_calloc(1, sizeof(*class))))		
+		class->format = AST_FORMAT_SLINEAR;
 
 	return class;
 }
@@ -937,10 +927,8 @@ static int load_moh_classes(int reload)
 
 	cat = ast_category_browse(cfg, NULL);
 	for (; cat; cat = ast_category_browse(cfg, cat)) {
-		if (strcasecmp(cat, "classes") && strcasecmp(cat, "moh_files")) {
-			class = moh_class_malloc();
-			if (!class) {
-				ast_log(LOG_WARNING, "Out of memory!\n");
+		if (strcasecmp(cat, "classes") && strcasecmp(cat, "moh_files")) {			
+			if (!(class = moh_class_malloc())) {
 				break;
 			}				
 			ast_copy_string(class->name, cat, sizeof(class->name));	
@@ -1005,10 +993,8 @@ static int load_moh_classes(int reload)
 			args = strchr(data, ',');
 			if (args)
 				*args++ = '\0';
-			if (!(get_mohbyname(var->name))) {
-				class = moh_class_malloc();
-				if (!class) {
-					ast_log(LOG_WARNING, "Out of memory!\n");
+			if (!(get_mohbyname(var->name))) {			
+				if (!(class = moh_class_malloc())) {
 					return numclasses;
 				}
 				
@@ -1033,10 +1019,8 @@ static int load_moh_classes(int reload)
 		if (!(get_mohbyname(var->name))) {
 			args = strchr(var->value, ',');
 			if (args)
-				*args++ = '\0';
-			class = moh_class_malloc();
-			if (!class) {
-				ast_log(LOG_WARNING, "Out of memory!\n");
+				*args++ = '\0';			
+			if (!(class = moh_class_malloc())) {
 				return numclasses;
 			}
 			

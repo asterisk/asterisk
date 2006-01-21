@@ -124,12 +124,9 @@ static int osp_build(struct ast_config *cfg, char *cat)
 	ast_mutex_unlock(&osplock);
 	if (!osp) {
 		mallocd = 1;
-		osp = malloc(sizeof(struct osp_provider));
-		if (!osp) {
-			ast_log(LOG_WARNING, "Out of memory!\n");
+		if (!(osp = ast_calloc(1, sizeof(*osp)))) {
 			return -1;
 		}
-		memset(osp, 0, sizeof(struct osp_provider));
 		osp->handle = -1;
 	}
 	ast_copy_string(osp->name, cat, sizeof(osp->name));
