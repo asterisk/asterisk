@@ -3284,28 +3284,23 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
 
 	/* Attach only the first format */
-	fmt = ast_strdupa(fmt);
-	if (fmt) {
-		stringp = fmt;
-		strsep(&stringp, "|");
+	stringp = fmt = ast_strdupa(fmt);
+	strsep(&stringp, "|");
 
-		if (!ast_strlen_zero(vmu->email)) {
-			int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
-			char *myserveremail = serveremail;
-			attach_user_voicemail = ast_test_flag(vmu, VM_ATTACH);
-			if (!ast_strlen_zero(vmu->serveremail))
-				myserveremail = vmu->serveremail;
-			sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail, category);
-		}
+	if (!ast_strlen_zero(vmu->email)) {
+		int attach_user_voicemail = ast_test_flag((&globalflags), VM_ATTACH);
+		char *myserveremail = serveremail;
+		attach_user_voicemail = ast_test_flag(vmu, VM_ATTACH);
+		if (!ast_strlen_zero(vmu->serveremail))
+			myserveremail = vmu->serveremail;
+		sendmail(myserveremail, vmu, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, fn, fmt, duration, attach_user_voicemail, category);
+	}
 
-		if (!ast_strlen_zero(vmu->pager)) {
-			char *myserveremail = serveremail;
-			if (!ast_strlen_zero(vmu->serveremail))
-				myserveremail = vmu->serveremail;
-			sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu, category);
-		}
-	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!ast_strlen_zero(vmu->pager)) {
+		char *myserveremail = serveremail;
+		if (!ast_strlen_zero(vmu->serveremail))
+			myserveremail = vmu->serveremail;
+		sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu, category);
 	}
 
 	if (ast_test_flag(vmu, VM_DELETE)) {
@@ -5058,11 +5053,6 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 		);
 				        
 		parse = ast_strdupa(data);
-		if (!parse) {
-			ast_log(LOG_ERROR, "Out of memory!\n");
-			LOCAL_USER_REMOVE(u);
-			return -1;
-		}
 
 		AST_STANDARD_APP_ARGS(args, parse);
 
@@ -5648,11 +5638,6 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	box = ast_strdupa(data);
-	if (!box) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(args, box);
 
@@ -5690,10 +5675,6 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 	
 	if (s) {
 		s = ast_strdupa(s);
-		if (!s) {
-			ast_log(LOG_ERROR, "Out of memory\n");
-			return -1;
-		}
 		user = strsep(&s, "|");
 		options = strsep(&s, "|");
 		if (user) {
@@ -6140,28 +6121,22 @@ static int load_config(void)
 						if ((z = ast_malloc(sizeof(*z)))) {
 							char *msg_format, *timezone;
 							msg_format = ast_strdupa(var->value);
-							if (msg_format != NULL) {
-								timezone = strsep(&msg_format, "|");
-								if (msg_format) {
-									ast_copy_string(z->name, var->name, sizeof(z->name));
-									ast_copy_string(z->timezone, timezone, sizeof(z->timezone));
-									ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
-									z->next = NULL;
-									if (zones) {
-										zonesl->next = z;
-										zonesl = z;
-									} else {
-										zones = z;
-										zonesl = z;
-									}
+							timezone = strsep(&msg_format, "|");
+							if (msg_format) {
+								ast_copy_string(z->name, var->name, sizeof(z->name));
+								ast_copy_string(z->timezone, timezone, sizeof(z->timezone));
+								ast_copy_string(z->msg_format, msg_format, sizeof(z->msg_format));
+								z->next = NULL;
+								if (zones) {
+									zonesl->next = z;
+									zonesl = z;
 								} else {
-									ast_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
-									free(z);
+									zones = z;
+									zonesl = z;
 								}
 							} else {
-								ast_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
+								ast_log(LOG_WARNING, "Invalid timezone definition at line %d\n", var->lineno);
 								free(z);
-								return -1;
 							}
 						} else {						
 							return -1;

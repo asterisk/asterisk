@@ -92,26 +92,21 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 	} 
 
 	if (data) {
-		s = data;
-		s = ast_strdupa(s);
+		s = ast_strdupa(data);
+		timec = strsep(&s,"|");
+		if ((timec) && (*timec != '\0')) {
+			long timein;
+			if (sscanf(timec,"%ld",&timein) == 1) {
+				unixtime = (time_t)timein;
+			}
+		}
 		if (s) {
-			timec = strsep(&s,"|");
-			if ((timec) && (*timec != '\0')) {
-				long timein;
-				if (sscanf(timec,"%ld",&timein) == 1) {
-					unixtime = (time_t)timein;
-				}
-			}
+			zone = strsep(&s,"|");
+			if (zone && (*zone == '\0'))
+				zone = NULL;
 			if (s) {
-				zone = strsep(&s,"|");
-				if (zone && (*zone == '\0'))
-					zone = NULL;
-				if (s) {
-					format = s;
-				}
+				format = s;
 			}
-		} else {
-			ast_log(LOG_ERROR, "Out of memory error\n");
 		}
 	}
 

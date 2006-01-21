@@ -130,10 +130,6 @@ static int gosubif_exec(struct ast_channel *chan, void *data)
 	}
 
 	args = ast_strdupa((char *)data);
-	if (!args) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		return -1;
-	}
 
 	LOCAL_USER_ADD(u);
 

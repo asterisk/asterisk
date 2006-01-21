@@ -88,11 +88,6 @@ static int app_exec(struct ast_channel *chan, void *data)
 
 	/* We need to make a copy of the input string if we are going to modify it! */
 	args = ast_strdupa(data);	
-	if (!args) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 	
 	if ((argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
 		dummy = argv[0];

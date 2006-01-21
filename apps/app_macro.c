@@ -308,11 +308,6 @@ static int macroif_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	expr = ast_strdupa(data);
-	if (!expr) {
-		ast_log(LOG_ERROR, "Out of Memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 
 	if ((label_a = strchr(expr, '?'))) {
 		*label_a = '\0';

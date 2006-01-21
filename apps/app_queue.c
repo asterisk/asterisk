@@ -2645,11 +2645,7 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(parse = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -2701,11 +2697,7 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(parse = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -2759,11 +2751,7 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	if (!(parse = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
+	parse = ast_strdupa(data);
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

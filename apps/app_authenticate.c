@@ -129,11 +129,6 @@ static int auth_exec(struct ast_channel *chan, void *data)
 	}
 	
 	argcopy = ast_strdupa(data);
-	if (!argcopy) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(arglist,argcopy);
 	

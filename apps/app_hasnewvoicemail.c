@@ -130,11 +130,6 @@ static int hasvoicemail_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	input = ast_strdupa((char *)data);
-	if (! input) {
-		ast_log(LOG_ERROR, "Out of memory error\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(args, input);
 
@@ -194,11 +189,6 @@ static char *acf_vmcount_exec(struct ast_channel *chan, char *cmd, char *data, c
 	buf[0] = '\0';
 
 	argsstr = ast_strdupa(data);
-	if (!argsstr) {
-		ast_log(LOG_ERROR, "Out of memory");
-		LOCAL_USER_REMOVE(u);
-		return buf;
-	}
 
 	AST_STANDARD_APP_ARGS(args, argsstr);
 

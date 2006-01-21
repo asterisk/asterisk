@@ -139,11 +139,6 @@ static int osplookup_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	temp = ast_strdupa(data);
-	if (!temp) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(args, temp);
 
@@ -202,11 +197,6 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	temp = ast_strdupa(data);
-	if (!temp) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(args, temp);
 
@@ -276,11 +266,6 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	temp = ast_strdupa(data);
-	if (!temp) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
-		LOCAL_USER_REMOVE(u);
-		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(args, temp);
 
