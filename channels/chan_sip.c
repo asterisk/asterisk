@@ -1860,12 +1860,9 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 		char *tmpcall;
 		char *c;
 		tmpcall = ast_strdupa(r->callid);
-		if (tmpcall) {
-			c = strchr(tmpcall, '@');
-			if (c) {
-				*c = '\0';
-				ast_string_field_build(r, callid, "%s@%s", tmpcall, peer->fromdomain);
-			}
+		if ((c = strchr(tmpcall, '@'))) {
+			*c = '\0';
+			ast_string_field_build(r, callid, "%s@%s", tmpcall, peer->fromdomain);
 		}
 	}
 	if (ast_strlen_zero(r->tohost)) {
@@ -7057,12 +7054,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 		if ((c = strchr(of, ':')))
 			*c = '\0';
 		tmp = ast_strdupa(of);
-		if (tmp) {
-			ast_shrink_phone_number(tmp);
-			ast_string_field_set(p, cid_num, tmp);
-		} else {
-			ast_string_field_set(p, cid_num, of);
-		}
+		ast_shrink_phone_number(tmp);
+		ast_string_field_set(p, cid_num, tmp);
 	}
 	if (ast_strlen_zero(of))
 		return 0;
@@ -7087,12 +7080,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 			if (*calleridname)
 				ast_string_field_set(p, cid_name, calleridname);
 			tmp = ast_strdupa(rpid_num);
-			if (tmp) {
-				ast_shrink_phone_number(tmp);
-				ast_string_field_set(p, cid_num, tmp);
-			} else {
-				ast_string_field_set(p, cid_num, rpid_num);
-			}
+			ast_shrink_phone_number(tmp);
+			ast_string_field_set(p, cid_num, tmp);
 		}
 
 		if (p->rtp) {
@@ -7119,12 +7108,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				ast_string_field_set(p, context, user->context);
 			if (!ast_strlen_zero(user->cid_num) && !ast_strlen_zero(p->cid_num)) {
 				char *tmp = ast_strdupa(user->cid_num);
-				if (tmp) {
-					ast_shrink_phone_number(tmp);
-					ast_string_field_set(p, cid_num, tmp);
-				} else {
-					ast_string_field_set(p, cid_num, user->cid_num);
-				}
+				ast_shrink_phone_number(tmp);
+				ast_string_field_set(p, cid_num, tmp);
 			}
 			if (!ast_strlen_zero(user->cid_name) && !ast_strlen_zero(p->cid_num))
 				ast_string_field_set(p, cid_name, user->cid_name);
@@ -7186,12 +7171,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				char *tmp = ast_strdupa(rpid_num);
 				if (*calleridname)
 					ast_string_field_set(p, cid_name, calleridname);
-				if (tmp) {
-					ast_shrink_phone_number(tmp);
-					ast_string_field_set(p, cid_num, tmp);
-				} else {
-					ast_string_field_set(p, cid_num, rpid_num);
-				}
+				ast_shrink_phone_number(tmp);
+				ast_string_field_set(p, cid_num, tmp);
 			}
 			if (p->rtp) {
 				ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(p, SIP_NAT) & SIP_NAT_ROUTE));
@@ -7236,12 +7217,8 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 				}
 				if (!ast_strlen_zero(peer->cid_num) && !ast_strlen_zero(p->cid_num)) {
 					char *tmp = ast_strdupa(peer->cid_num);
-					if (tmp) {
-						ast_shrink_phone_number(tmp);
-						ast_string_field_set(p, cid_num, tmp);
-					} else {
-						ast_string_field_set(p, cid_num, peer->cid_num);
-					}
+					ast_shrink_phone_number(tmp);
+					ast_string_field_set(p, cid_num, tmp);
 				}
 				if (!ast_strlen_zero(peer->cid_name) && !ast_strlen_zero(p->cid_name)) 
 					ast_string_field_set(p, cid_name, peer->cid_name);
@@ -9292,10 +9269,7 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 	char *peername, *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (!(peername = ast_strdupa(data))) {
-		ast_log(LOG_ERROR, "Memory Error!\n");
-		return ret;
-	}
+	peername = ast_strdupa(data);
 
 	if ((colname = strchr(peername, ':'))) {
 		*colname = '\0';
@@ -11953,7 +11927,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 			ast_copy_string(user->subscribecontext, v->value, sizeof(user->subscribecontext));
 		} else if (!strcasecmp(v->name, "setvar")) {
 			varname = ast_strdupa(v->value);
-			if (varname && (varval = strchr(varname,'='))) {
+			if ((varval = strchr(varname,'='))) {
 				*varval = '\0';
 				varval++;
 				if ((tmpvar = ast_variable_new(varname, varval))) {
@@ -12257,7 +12231,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 		} else if (!strcasecmp(v->name, "setvar")) {
 			/* Set peer channel variable */
 			varname = ast_strdupa(v->value);
-			if (varname && (varval = strchr(varname,'='))) {
+			if ((varval = strchr(varname,'='))) {
 				*varval = '\0';
 				varval++;
 				if ((tmpvar = ast_variable_new(varname, varval))) {
@@ -12848,10 +12822,6 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	char tmp[80];
 	
 	cdest = ast_strdupa(dest);
-	if (!cdest) {
-		ast_log(LOG_ERROR, "Problem allocating the memory\n");
-		return 0;
-	}
 	extension = strsep(&cdest, "@");
 	host = strsep(&cdest, ":");
 	port = strsep(&cdest, ":");
@@ -12869,28 +12839,17 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 			return 0;
 		}
 		if ((localtmp = strstr(tmp, "sip:")) && (localtmp = strchr(localtmp, '@'))) {
-			char lhost[80], lport[80];
-			memset(lhost, 0, sizeof(lhost));
-			memset(lport, 0, sizeof(lport));
+			char lhost[80] = "", lport[80] = "";
 			localtmp++;
 			/* This is okey because lhost and lport are as big as tmp */
 			sscanf(localtmp, "%[^<>:; ]:%[^<>:; ]", lhost, lport);
-			if (!strlen(lhost)) {
+			if (ast_strlen_zero(lhost)) {
 				ast_log(LOG_ERROR, "Can't find the host address\n");
 				return 0;
 			}
 			host = ast_strdupa(lhost);
-			if (!host) {
-				ast_log(LOG_ERROR, "Problem allocating the memory\n");
-				return 0;
-			}
-			if (!ast_strlen_zero(lport)) {
+			if (!ast_strlen_zero(lport))
 				port = ast_strdupa(lport);
-				if (!port) {
-					ast_log(LOG_ERROR, "Problem allocating the memory\n");
-					return 0;
-				}
-			}
 		}
 	}
 
