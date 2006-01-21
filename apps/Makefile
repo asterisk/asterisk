@@ -30,7 +30,7 @@ APPS=app_adsiprog.so app_alarmreceiver.so app_authenticate.so app_cdr.so       \
 #
 # Obsolete things...
 #
-#APPS+=app_sql_postgres.so
+APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so
 
 #
@@ -96,7 +96,7 @@ app_curl.so: app_curl.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CURLLIBS)
 
 app_sql_postgres.o: app_sql_postgres.c
-	$(CC) -pipe -I/usr/local/pgsql/include $(CFLAGS) -c -o app_sql_postgres.o app_sql_postgres.c
+	$(CC) -pipe -I$(CROSS_COMPILE_TARGET)/usr/local/pgsql/include -I$(CROSS_COMPILE_TARGET)/usr/include/postgresql $(CFLAGS) -c -o app_sql_postgres.o app_sql_postgres.c
 
 app_sql_postgres.so: app_sql_postgres.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -L/usr/local/pgsql/lib -lpq
