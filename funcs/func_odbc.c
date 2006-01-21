@@ -108,12 +108,6 @@ static void acf_odbc_write(struct ast_channel *chan, char *cmd, char *data, cons
 		t = "";
 	}
 
-	if (!s || !t) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_mutex_unlock(&query_lock);
-		return;
-	}
-
 	/* XXX You might be tempted to change this section into using
 	 * pbx_builtin_pushvar_helper().  However, note that if you try
 	 * to set a NULL (like for VALUE), then nothing gets set, and the
@@ -266,11 +260,6 @@ static char *acf_odbc_read(struct ast_channel *chan, char *cmd, char *data, char
 
 	/* Parse our arguments */
 	s = ast_strdupa(data);
-	if (!s) {
-		ast_log(LOG_ERROR, "Out of memory\n");
-		ast_mutex_unlock(&query_lock);
-		return "";
-	}
 
 	while ((arg = strsep(&s, "|"))) {
 		count++;

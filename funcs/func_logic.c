@@ -55,10 +55,7 @@ static char *builtin_function_iftime(struct ast_channel *chan, char *cmd, char *
 	char *iftrue;
 	char *iffalse;
 
-	if (!(data = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
-		return NULL;
-	}
+	data = ast_strdupa(data);
 
 	data = ast_strip_quoted(data, "\"", "\"");
 	expr = strsep(&data, "?");
@@ -95,10 +92,7 @@ static char *builtin_function_if(struct ast_channel *chan, char *cmd, char *data
 	char *iftrue;
 	char *iffalse;
 
-	if (!(data = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
-		return NULL;
-	}
+	data = ast_strdupa(data);
 
 	data = ast_strip_quoted(data, "\"", "\"");
 	expr = strsep(&data, "?");
@@ -129,10 +123,7 @@ static char *builtin_function_set(struct ast_channel *chan, char *cmd, char *dat
 	char *varname;
 	char *val;
 
-	if (!(data = ast_strdupa(data))) {
-		ast_log(LOG_WARNING, "Memory Error!\n");
-		return NULL;
-	}
+	data = ast_strdupa(data);
 
 	varname = strsep(&data, "=");
 	val = data;
