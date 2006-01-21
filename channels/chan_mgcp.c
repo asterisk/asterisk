@@ -115,6 +115,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/dsp.h"
+#include "asterisk/devicestate.h"
 
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
@@ -290,14 +291,14 @@ struct mgcp_request {
 	char *identifier;
 	char *endpoint;
 	char *version;
-	int headers;			/* MGCP Headers */
+	int headers;			/*!< MGCP Headers */
 	char *header[MGCP_MAX_HEADERS];
-	int lines;			/* SDP Content */
+	int lines;			/*!< SDP Content */
 	char *line[MGCP_MAX_LINES];
 	char data[MGCP_MAX_PACKET];
-	int cmd;                        /* SC: int version of verb = command */
-	unsigned int trid;              /* SC: int version of identifier = transaction id */
-	struct mgcp_request *next;      /* SC: next in the queue */
+	int cmd;                        /*!< SC: int version of verb = command */
+	unsigned int trid;              /*!< SC: int version of identifier = transaction id */
+	struct mgcp_request *next;      /*!< SC: next in the queue */
 };
 
 /* SC: obsolete
@@ -310,7 +311,7 @@ static struct mgcp_pkt {
 } *packets = NULL;	
 */
 
-/* MGCP message for queuing up */
+/*! \brief mgcp_message: MGCP message for queuing up */
 struct mgcp_message {
 	struct mgcp_endpoint *owner_ep;
 	struct mgcp_subchannel *owner_sub;
@@ -360,8 +361,8 @@ struct mgcp_subchannel {
 	int lastout;
 */
 	int cxmode;
-	struct mgcp_request *cx_queue; /* SC: pending CX commands */
-	ast_mutex_t cx_queue_lock;     /* SC: CX queue lock */
+	struct mgcp_request *cx_queue; /*!< SC: pending CX commands */
+	ast_mutex_t cx_queue_lock;     /*!< SC: CX queue lock */
 	int nat;
 	int iseq; /* Not used? RTP? */
 	int outgoing;
@@ -382,18 +383,18 @@ struct mgcp_subchannel {
 struct mgcp_endpoint {
 	ast_mutex_t lock;
 	char name[80];
-	struct mgcp_subchannel *sub;		/* pointer to our current connection, channel and stuff */
+	struct mgcp_subchannel *sub;		/*!< Pointer to our current connection, channel and stuff */
 	char accountcode[AST_MAX_ACCOUNT_CODE];
-	char exten[AST_MAX_EXTENSION];		/* Extention where to start */
+	char exten[AST_MAX_EXTENSION];		/*!< Extention where to start */
 	char context[AST_MAX_EXTENSION];
 	char language[MAX_LANGUAGE];
-	char cid_num[AST_MAX_EXTENSION];	/* Caller*ID */
-	char cid_name[AST_MAX_EXTENSION];	/* Caller*ID */
-	char lastcallerid[AST_MAX_EXTENSION];	/* Last Caller*ID */
-	char call_forward[AST_MAX_EXTENSION];	/* Last Caller*ID */
+	char cid_num[AST_MAX_EXTENSION];	/*!< Caller*ID number */
+	char cid_name[AST_MAX_EXTENSION];	/*!< Caller*ID name */
+	char lastcallerid[AST_MAX_EXTENSION];	/*!< Last Caller*ID */
+	char call_forward[AST_MAX_EXTENSION];	/*!< Last Caller*ID */
 	char mailbox[AST_MAX_EXTENSION];
 	char musicclass[MAX_MUSICCLASS];
-	char curtone[80];			/* Current tone */
+	char curtone[80];			/*!< Current tone */
 	ast_group_t callgroup;
 	ast_group_t pickupgroup;
 	int callwaiting;
@@ -410,26 +411,26 @@ struct mgcp_endpoint {
 	int dtmfmode;
 	int amaflags;
 	int type;
-	int slowsequence;			/* MS: Sequence the endpoint as a whole */
+	int slowsequence;			/*!< MS: Sequence the endpoint as a whole */
 	int group;
-	int iseq; /* Not used? */
-	int lastout; /* tracking this on the subchannels.  Is it needed here? */
-	int needdestroy; /* Not used? */
+	int iseq; /*!< Not used? */
+	int lastout; /*!< tracking this on the subchannels.  Is it needed here? */
+	int needdestroy; /*!< Not used? */
 	int capability;
 	int nonCodecCapability;
 	int onhooktime;
-	int msgstate; /* voicemail message state */
+	int msgstate; /*!< voicemail message state */
 	int immediate;
 	int hookstate;
 	int adsi;
-	char rqnt_ident[80];             /* SC: request identifier */
-	struct mgcp_request *rqnt_queue; /* SC: pending RQNT commands */
+	char rqnt_ident[80];             /*!< SC: request identifier */
+	struct mgcp_request *rqnt_queue; /*!< SC: pending RQNT commands */
 	ast_mutex_t rqnt_queue_lock;
-	struct mgcp_request *cmd_queue;  /* SC: pending commands other than RQNT */
+	struct mgcp_request *cmd_queue;  /*!< SC: pending commands other than RQNT */
 	ast_mutex_t cmd_queue_lock;
-	int delme;                       /* SC: needed for reload */
-	int needaudit;                   /* SC: needed for reload */
-	struct ast_dsp *dsp; /* XXX Should there be a dsp/subchannel? XXX */
+	int delme;                       /*!< SC: needed for reload */
+	int needaudit;                   /*!< SC: needed for reload */
+	struct ast_dsp *dsp; /*!< XXX Should there be a dsp/subchannel? XXX */
 	/* owner is tracked on the subchannels, and the *sub indicates whos in charge */
 	/* struct ast_channel *owner; */
 	/* struct ast_rtp *rtp; */
@@ -442,12 +443,12 @@ struct mgcp_endpoint {
 static struct mgcp_gateway {
 	/* A gateway containing one or more endpoints */
 	char name[80];
-	int isnamedottedip; /* SC: is the name FQDN or dotted ip */
+	int isnamedottedip; /*!< SC: is the name FQDN or dotted ip */
 	struct sockaddr_in addr;
 	struct sockaddr_in defaddr;
 	struct in_addr ourip;
 	int dynamic;
-	int expire;		/* XXX Should we ever expire dynamic registrations? XXX */
+	int expire;		/*!< XXX Should we ever expire dynamic registrations? XXX */
 	struct mgcp_endpoint *endpoints;
 	struct ast_ha *ha;
 /* SC: obsolete
@@ -457,10 +458,10 @@ static struct mgcp_gateway {
 */
 /* JS: Wildcard endpoint name */
 	char wcardep[30];
-	struct mgcp_message *msgs; /* SC: gw msg queue */
-	ast_mutex_t msgs_lock;     /* SC: queue lock */  
-	int retransid;             /* SC: retrans timer id */
-	int delme;                 /* SC: needed for reload */
+	struct mgcp_message *msgs; /*!< SC: gw msg queue */
+	ast_mutex_t msgs_lock;     /*!< SC: queue lock */  
+	int retransid;             /*!< SC: retrans timer id */
+	int delme;                 /*!< SC: needed for reload */
 	struct mgcp_response *responses;
 	struct mgcp_gateway *next;
 } *gateways;
@@ -468,6 +469,7 @@ static struct mgcp_gateway {
 AST_MUTEX_DEFINE_STATIC(mgcp_reload_lock);
 static int mgcp_reloading = 0;
 
+/*! \brief gatelock: mutex for gateway/endpoint lists */
 AST_MUTEX_DEFINE_STATIC(gatelock);
 
 static int mgcpsock  = -1;
@@ -498,6 +500,7 @@ static int mgcp_write(struct ast_channel *ast, struct ast_frame *frame);
 static int mgcp_indicate(struct ast_channel *ast, int ind);
 static int mgcp_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int mgcp_senddigit(struct ast_channel *ast, char digit);
+static int mgcp_devicestate(void *data);
 
 static const struct ast_channel_tech mgcp_tech = {
 	.type = type,
@@ -505,6 +508,7 @@ static const struct ast_channel_tech mgcp_tech = {
 	.capabilities = AST_FORMAT_ULAW,
 	.properties = AST_CHAN_TP_WANTSJITTER,
 	.requester = mgcp_request,
+	.devicestate = mgcp_devicestate,
 	.call = mgcp_call,
 	.hangup = mgcp_hangup,
 	.answer = mgcp_answer,
@@ -1314,6 +1318,63 @@ static int mgcp_senddigit(struct ast_channel *ast, char digit)
 	return -1;
 }
 
+/*!
+ *  \brief  mgcp_devicestate: channel callback for device status monitoring
+ *  \param  data tech/resource name of MGCP device to query
+ *
+ * Callback for device state management in channel subsystem
+ * to obtain device status (up/down) of a specific MGCP endpoint
+ *
+ *  \return device status result (from devicestate.h) AST_DEVICE_INVALID (not available) or AST_DEVICE_UNKNOWN (available but unknown state)
+ */
+static int mgcp_devicestate(void *data)
+{
+	struct mgcp_gateway  *g;
+	struct mgcp_endpoint *e = NULL;
+	char *tmp, *endpt, *gw;
+	int ret = AST_DEVICE_INVALID;
+
+	endpt = ast_strdupa(data);
+	if ((tmp = strchr(endpt, '@'))) {
+		*tmp++ = '\0';
+		gw = tmp;
+	} else
+		goto error;
+
+	ast_mutex_lock(&gatelock);
+	g = gateways;
+	while (g) {
+		if (strcasecmp(g->name, gw) == 0) {
+			e = g->endpoints;
+			break;
+		}
+		g = g->next;
+	}
+
+	if (!e)
+		goto error;
+
+	while (e) {
+		if (strcasecmp(e->name, endpt) == 0)
+			break;
+		e = e->next;
+	}
+
+	if (!e)
+		goto error;
+
+	/*
+	 * As long as the gateway/endpoint is valid, we'll
+	 * assume that the device is available and its state
+	 * can be tracked.
+	 */
+	ret = AST_DEVICE_UNKNOWN;
+
+error:
+	ast_mutex_unlock(&gatelock);
+	return ret;
+}
+
 static char *control2str(int ind) {
 	switch (ind) {
 	case AST_CONTROL_HANGUP:
@@ -1519,7 +1580,7 @@ static char *get_header(struct mgcp_request *req, char *name)
 	return __get_header(req, name, &start);
 }
 
-/* SC: get comma separated value */
+/*! \brief get_csv: (SC:) get comma separated value */
 static char *get_csv(char *c, int *len, char **next) 
 {
 	char *s;
@@ -2306,7 +2367,7 @@ static int transmit_connection_del_w_params(struct mgcp_endpoint *p, char *calli
 	return send_request(p, p->sub, &resp, oseq);
 }
 
-/* SC: cleanup pending commands */
+/*! \brief  dump_cmd_queues: (SC:) cleanup pending commands */
 static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub) 
 {
 	struct mgcp_request *t, *q;
@@ -2340,7 +2401,7 @@ static void dump_cmd_queues(struct mgcp_endpoint *p, struct mgcp_subchannel *sub
 }
 
 
-/* SC: remove command transaction from queue */
+/*! \brief  find_command: (SC:) remove command transaction from queue */
 static struct mgcp_request *find_command(struct mgcp_endpoint *p, struct mgcp_subchannel *sub,
                                          struct mgcp_request **queue, ast_mutex_t *l, int ident)
 {
@@ -3555,6 +3616,7 @@ static struct ast_channel *mgcp_request(const char *type, int format, void *data
 }
 
 /* SC: modified for reload support */
+/*! \brief  build_gateway: parse mgcp.conf and create gateway/endpoint structures */
 static struct mgcp_gateway *build_gateway(char *cat, struct ast_variable *v)
 {
 	struct mgcp_gateway *gw;
@@ -4266,6 +4328,7 @@ static int reload_config(void)
 	return 0;
 }
 
+/*! \brief  load_module: PBX load module - initialization ---*/
 int load_module()
 {
 	int res;
@@ -4301,6 +4364,7 @@ int load_module()
 	return res;
 }
 
+/*! \brief  mgcp_do_reload: Reload module */
 static int mgcp_do_reload(void)
 {
 	reload_config();
