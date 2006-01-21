@@ -272,6 +272,18 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		return -1;
 	}
 	if (!pid) {
+		/* Pass paths to AGI via environmental variables */
+		setenv("AST_CONFIG_DIR", ast_config_AST_CONFIG_DIR, 1);
+		setenv("AST_CONFIG_FILE", ast_config_AST_CONFIG_FILE, 1);
+		setenv("AST_MODULE_DIR", ast_config_AST_MODULE_DIR, 1);
+		setenv("AST_SPOOL_DIR", ast_config_AST_SPOOL_DIR, 1);
+		setenv("AST_MONITOR_DIR", ast_config_AST_MONITOR_DIR, 1);
+		setenv("AST_VAR_DIR", ast_config_AST_VAR_DIR, 1);
+		setenv("AST_LOG_DIR", ast_config_AST_LOG_DIR, 1);
+		setenv("AST_AGI_DIR", ast_config_AST_AGI_DIR, 1);
+		setenv("AST_KEY_DIR", ast_config_AST_KEY_DIR, 1);
+		setenv("AST_RUN_DIR", ast_config_AST_RUN_DIR, 1);
+
 		/* Redirect stdin and out, provide enhanced audio channel if desired */
 		dup2(fromast[0], STDIN_FILENO);
 		dup2(toast[1], STDOUT_FILENO);
