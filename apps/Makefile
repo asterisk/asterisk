@@ -30,7 +30,7 @@ APPS=app_adsiprog.so app_alarmreceiver.so app_authenticate.so app_cdr.so       \
 #
 # Obsolete things...
 #
-APPS+=app_sql_postgres.so
+#APPS+=app_sql_postgres.so
 #APPS+=app_sql_odbc.so
 
 #
