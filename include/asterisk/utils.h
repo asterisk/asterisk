@@ -261,7 +261,7 @@ void *_ast_malloc(size_t len, const char *file, int lineno, const char *func),
 
 	p = malloc(len);
 
-	if (__builtin_expect(!p, 0))
+	if (!p)
 		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
 
 	return p;
@@ -286,7 +286,7 @@ void *_ast_calloc(size_t num, size_t len, const char *file, int lineno, const ch
 
 	p = calloc(num, len);
 
-	if (__builtin_expect(!p, 0))
+	if (!p)
 		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
 
 	return p;
@@ -311,7 +311,7 @@ void *_ast_realloc(void *p, size_t len, const char *file, int lineno, const char
 
 	newp = realloc(p, len);
 
-	if (__builtin_expect(!newp, 0))
+	if (!newp)
 		ast_log(LOG_ERROR, "Memory Allocation Failure - '%d' bytes in function %s at line %d of %s\n", (int)len, func, lineno, file);
 
 	return newp;
@@ -341,7 +341,7 @@ char *_ast_strdup(const char *str, const char *file, int lineno, const char *fun
 	if (str) {
 		newstr = strdup(str);
 
-		if (__builtin_expect(!newstr, 0))
+		if (!newstr)
 			ast_log(LOG_ERROR, "Memory Allocation Failure - Could not duplicate '%s' in function %s at line %d of %s\n", str, func, lineno, file);
 	}
 
@@ -372,7 +372,7 @@ char *_ast_strndup(const char *str, size_t len, const char *file, int lineno, co
 	if (str) {
 		newstr = strndup(str, len);
 
-		if (__builtin_expect(!newstr, 0))
+		if (!newstr)
 			ast_log(LOG_ERROR, "Memory Allocation Failure - Could not duplicate '%d' bytes of '%s' in function %s at line %d of %s\n", (int)len, str, func, lineno, file);
 	}
 
