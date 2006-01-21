@@ -786,7 +786,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 
 	LOCAL_USER_ADD(u);
 
-	parse = ast_strdupa(data);
+	if (!(parse = ast_strdupa(data))) {
+		ast_log(LOG_WARNING, "Memory allocation failure\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 	
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -1624,6 +1628,11 @@ static int retrydial_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	announce = ast_strdupa(data);	
+	if (!announce) {	
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 	
 	memset(&peerflags, 0, sizeof(peerflags));
 

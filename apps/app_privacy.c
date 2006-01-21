@@ -118,6 +118,11 @@ static int privacy_exec (struct ast_channel *chan, void *data)
 		if (!ast_strlen_zero((char *)data))
 		{
 			parse = ast_strdupa(data);
+			if (!parse) {
+				ast_log(LOG_ERROR, "Out of memory!\n");
+				LOCAL_USER_REMOVE(u);
+				return -1;
+			}
 			
 			AST_STANDARD_APP_ARGS(args, parse);
 

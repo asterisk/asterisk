@@ -68,6 +68,10 @@ static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char
 	}
 
 	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return NULL;
+	}
 	
 	AST_STANDARD_APP_ARGS(args, parse);
 	

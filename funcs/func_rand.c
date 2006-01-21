@@ -55,7 +55,12 @@ static char *acf_rand_exec(struct ast_channel *chan, char *cmd, char *data, char
 
 	LOCAL_USER_ACF_ADD(u);
 
-	s = ast_strdupa(data);
+	if (!(s = ast_strdupa(data))) {
+		ast_log(LOG_WARNING, "Out of memory\n");
+		*buffer = '\0';
+		LOCAL_USER_REMOVE(u);
+		return buffer;
+	}
 
 	ast_app_separate_args(s, '|', args, sizeof(args) / sizeof(args[0]));
 

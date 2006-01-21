@@ -52,6 +52,11 @@ static char *function_fieldqty(struct ast_channel *chan, char *cmd, char *data, 
 	);
 
 	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		ast_copy_string(buf, "0", len);
+		return buf;
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 	if (args.delim) {
@@ -86,6 +91,10 @@ static char *builtin_function_filter(struct ast_channel *chan, char *cmd, char *
 	char *outbuf=buf;
 
 	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory");
+		return "";
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -132,6 +141,10 @@ static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *d
 	ast_copy_string(buf, "0", len);
 	
 	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory in %s(%s)\n", cmd, data);
+		return buf;
+	}
 
 	AST_NONSTANDARD_APP_ARGS(args, parse, '"');
 
@@ -172,6 +185,10 @@ static void builtin_function_array(struct ast_channel *chan, char *cmd, char *da
 
 	var = ast_strdupa(data);
 	value2 = ast_strdupa(value);
+	if (!var || !value2) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return;
+	}
 
 	/* The functions this will generally be used with are SORT and ODBC_*, which
 	 * both return comma-delimited lists.  However, if somebody uses literal lists,
@@ -260,6 +277,10 @@ static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char 
 	}
 	
 	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return buf;
+	}
 	
 	AST_STANDARD_APP_ARGS(args, parse);
 

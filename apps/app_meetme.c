@@ -1779,6 +1779,10 @@ static struct ast_conference *find_conf(struct ast_channel *chan, char *confno, 
 					continue;
 				
 				parse = ast_strdupa(var->value);
+				if (!parse) {
+					ast_log(LOG_ERROR, "Out of Memory!\n");
+					return NULL;
+				}
 				
 				AST_STANDARD_APP_ARGS(args, parse);
 				if (!strcasecmp(args.confno, confno)) {
@@ -1835,6 +1839,11 @@ static int count_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	localdata = ast_strdupa(data);
+	if (!localdata) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	AST_STANDARD_APP_ARGS(args, localdata);
 	

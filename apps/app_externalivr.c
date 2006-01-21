@@ -272,6 +272,11 @@ static int app_exec(struct ast_channel *chan, void *data)
 	}
 
 	buf = ast_strdupa(data);
+	if (!buf) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	argc = ast_app_separate_args(buf, '|', argv, sizeof(argv) / sizeof(argv[0]));
 

@@ -90,6 +90,11 @@ static int execif_exec(struct ast_channel *chan, void *data) {
 	LOCAL_USER_ADD(u);
 
 	expr = ast_strdupa(data);
+	if (!expr) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	if ((myapp = strchr(expr,'|'))) {
 		*myapp = '\0';
@@ -239,8 +244,9 @@ static int _while_exec(struct ast_channel *chan, void *data, int end)
 	snprintf(used_index, VAR_SIZE, "%d", used_index_i);
 	snprintf(new_index, VAR_SIZE, "%d", used_index_i + 1);
 	
-	if (!end)
-		condition = ast_strdupa(data);
+	if (!end) {
+		condition = ast_strdupa((char *) data);
+	}
 
 	size = strlen(chan->context) + strlen(chan->exten) + 32;
 	my_name = alloca(size);

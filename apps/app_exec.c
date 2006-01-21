@@ -73,22 +73,27 @@ static int exec_exec(struct ast_channel *chan, void *data)
 
 	/* Check and parse arguments */
 	if (data) {
-		s = ast_strdupa(data);
-		appname = strsep(&s, "(");
+		s = ast_strdupa((char *)data);
 		if (s) {
-			endargs = strrchr(s, ')');
-			if (endargs)
-				*endargs = '\0';
-			pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
-		}
-		if (appname) {
-			app = pbx_findapp(appname);
-			if (app) {
-				res = pbx_exec(chan, app, args, 1);
-			} else {
-				ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
-				res = -1;
+			appname = strsep(&s, "(");
+			if (s) {
+				endargs = strrchr(s, ')');
+				if (endargs)
+					*endargs = '\0';
+				pbx_substitute_variables_helper(chan, s, args, MAXRESULT - 1);
 			}
+			if (appname) {
+				app = pbx_findapp(appname);
+				if (app) {
+					res = pbx_exec(chan, app, args, 1);
+				} else {
+					ast_log(LOG_WARNING, "Could not find application (%s)\n", appname);
+					res = -1;
+				}
+			}
+		} else {
+			ast_log(LOG_ERROR, "Out of memory\n");
+			res = -1;
 		}
 	}
 

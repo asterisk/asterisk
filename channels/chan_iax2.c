@@ -2784,10 +2784,12 @@ static int create_addr(const char *peername, struct sockaddr_in *sin, struct cre
 		char *key = NULL;
 
 		family = ast_strdupa(peer->dbsecret);
-		key = strchr(family, '/');
-		if (key)
-			*key++ = '\0';
-		if (!key || ast_db_get(family, key, cai->secret, sizeof(cai->secret))) {
+		if (family) {
+			key = strchr(family, '/');
+			if (key)
+				*key++ = '\0';
+		}
+		if (!family || !key || ast_db_get(family, key, cai->secret, sizeof(cai->secret))) {
 			ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", peer->dbsecret);
 			if (ast_test_flag(peer, IAX_TEMPONLY))
 				destroy_peer(peer);
@@ -3904,8 +3906,9 @@ static int decrypt_frame(int callno, struct ast_iax2_full_hdr *fh, struct ast_fr
 		unsigned char digest[16];
 		char *tmppw, *stringp;
 		
-		stringp = ast_strdupa(iaxs[callno]->secret);
-		while ((tmppw = strsep(&stringp, ";"))) {
+		tmppw = ast_strdupa(iaxs[callno]->secret);
+		stringp = tmppw;
+		while((tmppw = strsep(&stringp, ";"))) {
 			MD5Init(&md5);
 			MD5Update(&md5, (unsigned char *)iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
 			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
@@ -4852,10 +4855,14 @@ static int check_access(int callno, struct sockaddr_in *sin, struct iax_ies *ies
 		if (!ast_strlen_zero(user->dbsecret)) {
 			char *family, *key=NULL;
 			family = ast_strdupa(user->dbsecret);
-			key = strchr(family, '/');
-			if (key)
-				*key++ = '\0';
-			if (!key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
+			if (family) {
+				key = strchr(family, '/');
+				if (key) {
+					*key = '\0';
+					key++;
+				}
+			}
+			if (!family || !key || ast_db_get(family, key, iaxs[callno]->secret, sizeof(iaxs[callno]->secret))) {
 				ast_log(LOG_WARNING, "Unable to retrieve database password for family/key '%s'!\n", user->dbsecret);
 				if (ast_test_flag(user, IAX_TEMPONLY)) {
 					destroy_user(user);
@@ -4961,8 +4968,9 @@ static int authenticate_verify(struct chan_iax2_pvt *p, struct iax_ies *ies)
 		unsigned char digest[16];
 		char *tmppw, *stringp;
 		
-		stringp = ast_strdupa(p->secret);
-		while ((tmppw = strsep(&stringp, ";"))) {
+		tmppw = ast_strdupa(p->secret);
+		stringp = tmppw;
+		while((tmppw = strsep(&stringp, ";"))) {
 			MD5Init(&md5);
 			MD5Update(&md5, (unsigned char *)p->challenge, strlen(p->challenge));
 			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
@@ -5090,8 +5098,9 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 		unsigned char digest[16];
 		char *tmppw, *stringp;
 		
-		stringp = ast_strdupa(p->secret);
-		while ((tmppw = strsep(&stringp, ";"))) {
+		tmppw = ast_strdupa(p->secret);
+		stringp = tmppw;
+		while((tmppw = strsep(&stringp, ";"))) {
 			MD5Init(&md5);
 			MD5Update(&md5, (unsigned char *)iaxs[callno]->challenge, strlen(iaxs[callno]->challenge));
 			MD5Update(&md5, (unsigned char *)tmppw, strlen(tmppw));
@@ -8025,6 +8034,10 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	char *portstr;
 
 	tmp = ast_strdupa(srcaddr);
+	if (!tmp) {
+		ast_log(LOG_WARNING, "Out of memory!\n");
+		return -1;
+	}
 
 	addr = strsep(&tmp, ":");
 	portstr = tmp;
@@ -8322,7 +8335,7 @@ static struct iax2_user *build_user(const char *name, struct ast_variable *v, in
 				user->ha = ast_append_ha(v->name, v->value, user->ha);
 			} else if (!strcasecmp(v->name, "setvar")) {
 				varname = ast_strdupa(v->value);
-				if ((varval = strchr(varname,'='))) {
+				if (varname && (varval = strchr(varname,'='))) {
 					*varval = '\0';
 					varval++;
 					if((tmpvar = ast_variable_new(varname, varval))) {
@@ -9161,7 +9174,10 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 	char *peername, *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	peername = ast_strdupa(data);
+	if (!(peername = ast_strdupa(data))) {
+		ast_log(LOG_ERROR, "Memory Error!\n");
+		return ret;
+	}
 
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(peername,"CURRENTCHANNEL")) {

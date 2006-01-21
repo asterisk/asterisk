@@ -148,19 +148,20 @@ static int realtime_update_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 
-	family = ast_strdupa(data);
-	if ((colmatch = strchr(family,'|'))) {
-		crop_data(colmatch);
-		if ((value = strchr(colmatch,'|'))) {
-			crop_data(value);
-			if ((newcol = strchr(value,'|'))) {
-				crop_data(newcol);
-				if ((newval = strchr(newcol,'|'))) 
-					crop_data(newval);
+	if ((family = ast_strdupa(data))) {
+		if ((colmatch = strchr(family,'|'))) {
+			crop_data(colmatch);
+			if ((value = strchr(colmatch,'|'))) {
+				crop_data(value);
+				if ((newcol = strchr(value,'|'))) {
+					crop_data(newcol);
+					if ((newval = strchr(newcol,'|'))) 
+						crop_data(newval);
+				}
 			}
 		}
 	}
-	if (!newval) {
+	if (! (family && value && colmatch && newcol && newval) ) {
 		ast_log(LOG_ERROR,"Invalid input: usage %s\n",UUSAGE);
 		res = -1;
 	} else {
@@ -192,16 +193,17 @@ static int realtime_exec(struct ast_channel *chan, void *data)
 	
 	LOCAL_USER_ADD(u);
 
-	family = ast_strdupa(data);
-	if ((colmatch = strchr(family,'|'))) {
-		crop_data(colmatch);
-		if ((value = strchr(colmatch,'|'))) {
-			crop_data(value);
-			if ((prefix = strchr(value,'|')))
-				crop_data(prefix);
+	if ((family = ast_strdupa(data))) {
+		if ((colmatch = strchr(family,'|'))) {
+			crop_data(colmatch);
+			if ((value = strchr(colmatch,'|'))) {
+				crop_data(value);
+				if ((prefix = strchr(value,'|')))
+					crop_data(prefix);
+			}
 		}
 	}
-	if (!value) {
+	if (! (family && value && colmatch) ) {
 		ast_log(LOG_ERROR,"Invalid input: usage %s\n",USAGE);
 		res = -1;
 	} else {

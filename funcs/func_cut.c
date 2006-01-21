@@ -83,7 +83,10 @@ static int sort_internal(struct ast_channel *chan, char *data, char *buffer, siz
 		return ERROR_NOARG;
 	}
 
-	strings = ast_strdupa(data);
+	strings = ast_strdupa((char *)data);
+	if (!strings) {
+		return ERROR_NOMEM;
+	}
 
 	for (ptrkey = strings; *ptrkey; ptrkey++) {
 		if (*ptrkey == '|') {
@@ -140,6 +143,10 @@ static int cut_internal(struct ast_channel *chan, char *data, char *buffer, size
 	memset(buffer, 0, buflen); 
 	
 	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return ERROR_NOMEM;
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

@@ -333,7 +333,11 @@ static int mixmonitor_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	parse = ast_strdupa(data);
+	if (!(parse = ast_strdupa(data))) {
+		ast_log(LOG_WARNING, "Memory Error!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 	

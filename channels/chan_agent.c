@@ -329,6 +329,10 @@ static struct agent_pvt *add_agent(char *agent, int pending)
 	struct agent_pvt *p, *prev;
 
 	parse = ast_strdupa(agent);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return NULL;
+	}
 
 	/* Extract username (agt), password and name from agent (args). */
 	AST_NONSTANDARD_APP_ARGS(args, parse, ',');
@@ -1763,7 +1767,11 @@ static int __login_exec(struct ast_channel *chan, void *data, int callbackmode)
 
 	LOCAL_USER_ADD(u);
 
-	parse = ast_strdupa(data);
+	if (!(parse = ast_strdupa(data))) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 
@@ -2503,6 +2511,10 @@ static char *function_agent(struct ast_channel *chan, char *cmd, char *data, cha
 	}
 
 	item = ast_strdupa(data);
+	if (!item) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return buf;
+	}
 
 	agentid	= strsep(&item, ":");
 	if (!item)

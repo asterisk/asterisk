@@ -340,6 +340,12 @@ static int festival_exec(struct ast_channel *chan, void *vdata)
 	}
 	
 	data = ast_strdupa(vdata);
+	if (!data) {
+		ast_log(LOG_ERROR, "Out of memery\n");
+		ast_config_destroy(cfg);
+		LOCAL_USER_REMOVE(u);
+		return -1;
+	}
 
 	intstr = strchr(data, '|');
 	if (intstr) {	
