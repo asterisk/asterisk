@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/linkedlists.h"
 #include "asterisk/chanvars.h"
 #include "asterisk/lock.h"
+#include "asterisk/utils.h"
 
 #include "libpq-fe.h"
 
@@ -122,13 +123,15 @@ STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
 
-#define AST_PGSQL_ID_DUMMY 0
-#define AST_PGSQL_ID_CONNID 1
-#define AST_PGSQL_ID_RESID 2
-#define AST_PGSQL_ID_FETCHID 3
+enum id_type {
+	AST_PGSQL_ID_DUMMY = 0,
+	AST_PGSQL_ID_CONNID,
+	AST_PGSQL_ID_RESID,
+	AST_PGSQL_ID_FETCHID
+};
 
 struct ast_PGSQL_id {
-	int identifier_type; /* 0 = dummy, 1 = connid, 2 = resultid */
+	enum id_type identifier_type; /* 0 = dummy, 1 = connid, 2 = resultid, 3 = fetchid */
 	int identifier;
 	void *data;
 	AST_LIST_ENTRY(ast_PGSQL_id) entries;
@@ -136,7 +139,7 @@ struct ast_PGSQL_id {
 
 AST_LIST_HEAD(PGSQLidshead, ast_PGSQL_id) PGSQLidshead;
 
-static void *find_identifier(int identifier, int identifier_type)
+static void *find_identifier(const int identifier, const enum id_type identifier_type)
 {
 	struct PGSQLidshead *headp;
 	struct ast_PGSQL_id *i;
@@ -164,7 +167,7 @@ static void *find_identifier(int identifier, int identifier_type)
 	return res;
 }
 
-static int add_identifier(int identifier_type, void *data)
+static int add_identifier(const enum id_type identifier_type, void *data)
 {
 	struct ast_PGSQL_id *i, *j;
 	struct PGSQLidshead *headp;
@@ -177,25 +180,27 @@ static int add_identifier(int identifier_type, void *data)
 	if (AST_LIST_LOCK(headp)) {
 		ast_log(LOG_WARNING, "Unable to lock identifiers list\n");
 		return -1;
-	} else {
- 		i = malloc(sizeof(struct ast_PGSQL_id));
-		AST_LIST_TRAVERSE(headp, j, entries) {
-			if (j->identifier > maxidentifier) {
-				maxidentifier = j->identifier;
-			}
-		}
-
-		i->identifier = maxidentifier + 1;
-		i->identifier_type = identifier_type;
-		i->data = data;
-		AST_LIST_INSERT_HEAD(headp, i, entries);
-		AST_LIST_UNLOCK(headp);
 	}
+
+	if (!(i = ast_malloc(sizeof(*i)))) {
+		AST_LIST_UNLOCK(headp);
+		return -1;
+	}
+	
+	AST_LIST_TRAVERSE(headp, j, entries) {
+		if (j->identifier > maxidentifier)
+			maxidentifier = j->identifier;
+	}
+	i->identifier = maxidentifier + 1;
+	i->identifier_type = identifier_type;
+	i->data = data;
+	AST_LIST_INSERT_HEAD(headp, i, entries);
+	AST_LIST_UNLOCK(headp);
 
 	return i->identifier;
 }
 
-static int del_identifier(int identifier, int identifier_type)
+static int del_identifier(const int identifier, const enum id_type identifier_type)
 {
 	struct ast_PGSQL_id *i;
 	struct PGSQLidshead *headp;
@@ -227,21 +232,17 @@ static int del_identifier(int identifier, int identifier_type)
 
 static int aPGSQL_connect(struct ast_channel *chan, void *data)
 {
-	char *s1;
 	char s[100] = "";
 	char *optionstring;
 	char *var;
-	int l;
-	int res;
+	int res = 0;
 	PGconn *PGSQLconn;
 	int id;
 	char *stringp = NULL;
 
-	res = 0;
-	l = strlen(data) + 2;
-	s1 = malloc(l);
-	strncpy(s1, data, l - 1);
-	stringp = s1;
+	if (!(stringp = ast_strdupa(data)))
+		return -1;
+	
 	strsep(&stringp, " "); /* eat the first token, we already know it :P  */
 	var = strsep(&stringp, " ");
 	optionstring = strsep(&stringp, "\n");
@@ -257,35 +258,30 @@ static int aPGSQL_connect(struct ast_channel *chan, void *data)
 		pbx_builtin_setvar_helper(chan, var, s);
 	}
 
-	free(s1);
 	return res;
 }
 
 static int aPGSQL_query(struct ast_channel *chan, void *data)
 {
-	char *s1, *s2, *s3, *s4;
+	char *s2, *s3;
 	char s[100] = "";
 	char *querystring;
 	char *var;
-	int l;
-	int res, nres;
+	int res = 0, nres;
 	PGconn *PGSQLconn;
 	PGresult *PGSQLres;
 	int id, id1;
 	char *stringp = NULL;
 
-	res = 0;
-	l = strlen(data) + 2;
-	s1 = malloc(l);
-	s2 = malloc(l);
-	strncpy(s1, data, l - 1);
-	stringp = s1;
+	if (!(stringp = ast_strdupa(data)))
+		return -1;
+	
 	strsep(&stringp, " "); /* eat the first token, we already know it :P  */
-	s3 = strsep(&stringp, " ");
+	s2 = strsep(&stringp, " ");
 	while (1) {	/* ugly trick to make branches with break; */
-		var = s3;
-		s4 = strsep(&stringp, " ");
-		id = atoi(s4);
+		var = s2;
+		s3 = strsep(&stringp, " ");
+		id = atoi(s3);
 		querystring = strsep(&stringp, "\n");
 		if (!(PGSQLconn = find_identifier(id, AST_PGSQL_ID_CONNID))) {
 			ast_log(LOG_WARNING, "Invalid connection identifier %d passed in aPGSQL_query\n", id);
@@ -311,20 +307,16 @@ static int aPGSQL_query(struct ast_channel *chan, void *data)
 	 	break;
 	}
 
-	free(s1);
-	free(s2);
-
 	return res;
 }
 
 static int aPGSQL_fetch(struct ast_channel *chan, void *data)
 {
-	char *s1, *s2, *fetchid_var, *s4, *s5, *s6;
-	const char *s7;
+	char *s2, *s3, *s4, *fetchid_var;
+	const char *s5 = NULL;
 	char s[100];
 	char *var;
-	int l;
-	int res;
+	int res = 0;
 	PGresult *PGSQLres;
 	int id, id1, i, j, fnd;
 	int *identp = NULL;
@@ -335,13 +327,9 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data)
 
 	headp = &chan->varshead;
 
-	res = 0;
-	l = strlen(data) + 2;
-	s7 = NULL;
-	s1 = malloc(l);
-	s2 = malloc(l);
-	strncpy(s1, data, l - 1);
-	stringp = s1;
+	if (!(stringp = ast_strdupa(data)))
+		return -1;
+	
 	strsep(&stringp, " "); /* eat the first token, we already know it :P  */
 	fetchid_var = strsep(&stringp, " ");
 	while (1) {	/* ugly trick to make branches with break; */
@@ -350,25 +338,25 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data)
 
 		AST_LIST_TRAVERSE(headp, variables, entries) {
 			if (!(strncasecmp(ast_var_name(variables), fetchid_var, strlen(fetchid_var)))) {
-				s7 = ast_var_value(variables);
+				s5 = ast_var_value(variables);
 				fnd = 1;
 				break;
 			}
 		}
 
 		if (!fnd) {
-			s7 = "0";
-			pbx_builtin_setvar_helper(chan, fetchid_var, s7);
+			s5 = "0";
+			pbx_builtin_setvar_helper(chan, fetchid_var, s5);
 		}
 
-		s4 = strsep(&stringp, " ");
-		id = atoi(s4); /* resultid */
+		s2 = strsep(&stringp, " ");
+		id = atoi(s2); /* resultid */
 		if (!(PGSQLres = find_identifier(id, AST_PGSQL_ID_RESID))) {
 			ast_log(LOG_WARNING, "Invalid result identifier %d passed in aPGSQL_fetch\n", id);
 			res = -1;
 			break;
 		}
-		id = atoi(s7); /*fetchid */
+		id = atoi(s5); /*fetchid */
 		if (!(identp = find_identifier(id, AST_PGSQL_ID_FETCHID))) {
 			i = 0; /* fetching the very first row */
 		} else {
@@ -381,18 +369,19 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data)
 			nres = PQnfields(PGSQLres);
 			ast_log(LOG_WARNING, "ast_PGSQL_fetch : nres = %d i = %d ;\n", nres, i);
 			for (j = 0; j < nres; j++) {
-				if (!(s5 = strsep(&stringp, " "))) {
+				if (!(s3 = strsep(&stringp, " "))) {
 					ast_log(LOG_WARNING, "ast_PGSQL_fetch : More tuples (%d) than variables (%d)\n", nres, j);
 					break;
 				}
-				if (!(s6 = PQgetvalue(PGSQLres, i, j))) {
+				if (!(s4 = PQgetvalue(PGSQLres, i, j))) {
 					ast_log(LOG_WARNING, "PQgetvalue(res, %d, %d) returned NULL in ast_PGSQL_fetch\n", i, j);
 					break;
 				}
-				ast_log(LOG_WARNING, "===setting variable '%s' to '%s'\n", s5, s6);
-				pbx_builtin_setvar_helper(chan, s5, s6);
+				ast_log(LOG_WARNING, "===setting variable '%s' to '%s'\n", s3, s4);
+				pbx_builtin_setvar_helper(chan, s3, s4);
 			}
-			identp = malloc(sizeof(int));
+			if (!(identp = ast_malloc(sizeof(int))))
+				return -1;
 			*identp = ++i; /* advance to the next row */
 			id1 = add_identifier(AST_PGSQL_ID_FETCHID, identp);
 		} else {
@@ -405,53 +394,44 @@ static int aPGSQL_fetch(struct ast_channel *chan, void *data)
 		break;
 	}
 
-	free(s1);
-	free(s2);
-	
 	return res;
 }
 
 static int aPGSQL_reset(struct ast_channel *chan, void *data)
 {
-	char *s1, *s3;
-	int l;
+	char *s;
 	PGconn *PGSQLconn;
 	int id;
 	char *stringp = NULL;
 
-	l = strlen(data) + 2;
-	s1 = malloc(l);
-	strncpy(s1, data, l - 1);
-	stringp = s1;
+	if (!(stringp = ast_strdupa(data)))
+		return -1;
+
 	strsep(&stringp, " "); /* eat the first token, we already know it :P  */
-	s3 = strsep(&stringp, " ");
-	id = atoi(s3);
+	s = strsep(&stringp, " ");
+	id = atoi(s);
 	if (!(PGSQLconn = find_identifier(id, AST_PGSQL_ID_CONNID))) {
 		ast_log(LOG_WARNING, "Invalid connection identifier %d passed in aPGSQL_reset\n", id);
 	} else {
 		PQreset(PGSQLconn);
 	}
 	
-	free(s1);
-
 	return 0;
 }
 
 static int aPGSQL_clear(struct ast_channel *chan, void *data)
 {
-	char *s1, *s3;
-	int l;
+	char *s;
 	PGresult *PGSQLres;
 	int id;
 	char *stringp = NULL;
 
-	l = strlen(data) + 2;
-	s1 = malloc(l);
-	strncpy(s1, data, l - 1);
-	stringp = s1;
+	if (!(stringp = ast_strdupa(data)))
+		return -1;
+	
 	strsep(&stringp, " "); /* eat the first token, we already know it :P  */
-	s3 = strsep(&stringp, " ");
-	id = atoi(s3);
+	s = strsep(&stringp, " ");
+	id = atoi(s);
 	if (!(PGSQLres = find_identifier(id, AST_PGSQL_ID_RESID))) {
 		ast_log(LOG_WARNING, "Invalid result identifier %d passed in aPGSQL_clear\n", id);
 	} else {
@@ -459,34 +439,28 @@ static int aPGSQL_clear(struct ast_channel *chan, void *data)
 		del_identifier(id, AST_PGSQL_ID_RESID);
 	}
 
-	free(s1);
-
 	return 0;
 }
 
 static int aPGSQL_disconnect(struct ast_channel *chan, void *data)
 {
-	char *s1, *s3;
-	int l;
+	char *s;
 	PGconn *PGSQLconn;
 	int id;
 	char *stringp = NULL;
 
-	l = strlen(data) + 2;
-	s1 = malloc(l);
-	strncpy(s1, data, l - 1);
-	stringp = s1;
+	if (!(stringp = ast_strdupa(data)))
+		return -1;
+	
 	strsep(&stringp, " "); /* eat the first token, we already know it :P  */
-	s3 = strsep(&stringp, " ");
-	id = atoi(s3);
+	s = strsep(&stringp, " ");
+	id = atoi(s);
 	if (!(PGSQLconn = find_identifier(id, AST_PGSQL_ID_CONNID))) {
 		ast_log(LOG_WARNING, "Invalid connection identifier %d passed in aPGSQL_disconnect\n", id);
 	} else {
 		PQfinish(PGSQLconn);
 		del_identifier(id, AST_PGSQL_ID_CONNID);
 	}
-	
-	free(s1);
 	
 	return 0;
 }
