@@ -387,10 +387,6 @@ char *_ast_strndup(const char *str, size_t len, const char *file, int lineno, co
 
   This macro will duplicate the given string.  It returns a pointer to the stack
   allocatted memory for the new string.
-
-  \note If this function fails to allocate memory on the stack, we do not make
-  any effort to prevent Asterisk from crashing.  We will attempt to log an
-  error message, but Asterisk will crash shortly after.
 */
 #define ast_strdupa(s)                                                    \
 	(__extension__                                                    \
@@ -402,7 +398,9 @@ char *_ast_strndup(const char *str, size_t len, const char *file, int lineno, co
 			ast_log(LOG_ERROR, "Stack Allocation Error in"    \
 				"function '%s' at line '%d' of '%s'!\n",  \
 				__PRETTY_FUNCTION__, __LINE__, __FILE__); \
-		(char *) memcpy (__new, __old, __len);                    \
+		else                                                      \
+			memcpy (__new, __old, __len);                     \
+		__new;                                                    \
 	}))
 #endif
 
