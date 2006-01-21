@@ -1220,6 +1220,10 @@ char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, s
 	struct ast_custom_function *acfptr;
 
 	function = ast_strdupa(in);
+	if (!function) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return ret;
+	}
 	if ((args = strchr(function, '('))) {
 		*args = '\0';
 		args++;
@@ -1251,6 +1255,10 @@ void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
 	struct ast_custom_function *acfptr;
 
 	function = ast_strdupa(in);
+	if (!function) {
+		ast_log(LOG_ERROR, "Out of memory\n");
+		return;
+	}
 	if ((args = strchr(function, '('))) {
 		*args = '\0';
 		args++;
@@ -3341,7 +3349,7 @@ static int handle_show_dialplan(int fd, int argc, char *argv[])
 	if (argc == 3) {
 		char *splitter = ast_strdupa(argv[2]);
 		/* is there a '@' character? */
-		if (strchr(argv[2], '@')) {
+		if (splitter && strchr(argv[2], '@')) {
 			/* yes, split into exten & context ... */
 			exten   = strsep(&splitter, "@");
 			context = splitter;
@@ -5138,6 +5146,10 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 	
 	if (!ast_strlen_zero(data)) {
 		args = ast_strdupa(data);
+		if (!args) {
+			ast_log(LOG_ERROR, "Out of memory!\n");
+			return -1;
+		}
 		ast_app_parse_options(resetcdr_opts, &flags, NULL, args);
 	}
 
@@ -5175,7 +5187,7 @@ static int pbx_builtin_hangup(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 {
-	int res = 0;
+	int res=0;
 	char *s, *ts;
 	struct ast_timing timing;
 
@@ -5184,15 +5196,18 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	ts = s = ast_strdupa(data);
+	if ((s = ast_strdupa(data))) {
+		ts = s;
 
-	/* Separate the Goto path */
-	strsep(&ts,"?");
+		/* Separate the Goto path */
+		strsep(&ts,"?");
 
-	/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
-	if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
-		res = pbx_builtin_goto(chan, (void *)ts);
-	
+		/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
+		if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
+			res = pbx_builtin_goto(chan, (void *)ts);
+	} else {
+		ast_log(LOG_ERROR, "Memory Error!\n");
+	}
 	return res;
 }
 
@@ -5212,11 +5227,17 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	ptr2 = ptr1 = ast_strdupa(data);
+	ptr1 = ast_strdupa(data);
 
+	if (!ptr1) {
+		ast_log(LOG_ERROR, "Out of Memory!\n");
+		return -1;	
+	}
+
+	ptr2 = ptr1;
 	/* Separate the Application data ptr1 is the time spec ptr2 is the app|data */
 	strsep(&ptr2,"?");
-	if (!ast_build_timing(&timing, ptr1)) {
+	if(!ast_build_timing(&timing, ptr1)) {
 		ast_log(LOG_WARNING, "Invalid Time Spec: %s\nCorrect usage: %s\n", ptr1, usage);
 		res = -1;
 	}
@@ -5983,7 +6004,8 @@ int ast_parseable_goto(struct ast_channel *chan, const char *goto_string)
 		ast_log(LOG_WARNING, "Goto requires an argument (optional context|optional extension|priority)\n");
 		return -1;
 	}
-	stringp = s = ast_strdupa(goto_string);
+	s = ast_strdupa(goto_string);
+	stringp=s;
 	context = strsep(&stringp, "|");
 	exten = strsep(&stringp, "|");
 	if (!exten) {

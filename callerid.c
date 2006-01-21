@@ -996,8 +996,12 @@ int ast_callerid_split(const char *buf, char *name, int namelen, char *num, int 
 {
 	char *tmp;
 	char *l = NULL, *n = NULL;
-	
 	tmp = ast_strdupa(buf);
+	if (!tmp) {
+		name[0] = '\0';
+		num[0] = '\0';
+		return -1;
+	}
 	ast_callerid_parse(tmp, &n, &l);
 	if (n)
 		ast_copy_string(name, n, namelen);

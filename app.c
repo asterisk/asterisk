@@ -1358,11 +1358,12 @@ static int ivr_dispatch(struct ast_channel *chan, struct ast_ivr_option *option,
 	case AST_ACTION_BACKLIST:
 		res = 0;
 		c = ast_strdupa(option->adata);
-		while ((n = strsep(&c, ";"))) {
-			if ((res = ast_streamfile(chan, n, chan->language)) || (res = ast_waitstream(chan, (option->action == AST_ACTION_BACKLIST) ? AST_DIGIT_ANY : "")))
-				break;
+		if (c) {
+			while((n = strsep(&c, ";")))
+				if ((res = ast_streamfile(chan, n, chan->language)) || (res = ast_waitstream(chan, (option->action == AST_ACTION_BACKLIST) ? AST_DIGIT_ANY : "")))
+					break;
+			ast_stopstream(chan);
 		}
-		ast_stopstream(chan);
 		return res;
 	default:
 		ast_log(LOG_NOTICE, "Unknown dispatch function %d, ignoring!\n", option->action);
