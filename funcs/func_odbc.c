@@ -265,9 +265,7 @@ static char *acf_odbc_read(struct ast_channel *chan, char *cmd, char *data, char
 #endif
 
 	/* Parse our arguments */
-	s = ast_strdupa(data);
-	if (!s) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(s = ast_strdupa(data))) {
 		ast_mutex_unlock(&query_lock);
 		return "";
 	}

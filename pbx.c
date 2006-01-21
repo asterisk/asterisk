@@ -1219,11 +1219,8 @@ char *ast_func_read(struct ast_channel *chan, const char *in, char *workspace, s
 	char *ret = "0";
 	struct ast_custom_function *acfptr;
 
-	function = ast_strdupa(in);
-	if (!function) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(function = ast_strdupa(in)))
 		return ret;
-	}
 	if ((args = strchr(function, '('))) {
 		*args = '\0';
 		args++;
@@ -1254,11 +1251,8 @@ void ast_func_write(struct ast_channel *chan, const char *in, const char *value)
 	char *args = NULL, *function, *p;
 	struct ast_custom_function *acfptr;
 
-	function = ast_strdupa(in);
-	if (!function) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(function = ast_strdupa(in)))
 		return;
-	}
 	if ((args = strchr(function, '('))) {
 		*args = '\0';
 		args++;
@@ -5145,11 +5139,8 @@ static int pbx_builtin_resetcdr(struct ast_channel *chan, void *data)
 	struct ast_flags flags = { 0 };
 	
 	if (!ast_strlen_zero(data)) {
-		args = ast_strdupa(data);
-		if (!args) {
-			ast_log(LOG_ERROR, "Out of memory!\n");
+		if (!(args = ast_strdupa(data)))
 			return -1;
-		}
 		ast_app_parse_options(resetcdr_opts, &flags, NULL, args);
 	}
 
@@ -5205,8 +5196,6 @@ static int pbx_builtin_gotoiftime(struct ast_channel *chan, void *data)
 		/* struct ast_include include contained garbage here, fixed by zeroing it on get_timerange */
 		if (ast_build_timing(&timing, s) && ast_check_timing(&timing))
 			res = pbx_builtin_goto(chan, (void *)ts);
-	} else {
-		ast_log(LOG_ERROR, "Memory Error!\n");
 	}
 	return res;
 }
@@ -5227,12 +5216,8 @@ static int pbx_builtin_execiftime(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	ptr1 = ast_strdupa(data);
-
-	if (!ptr1) {
-		ast_log(LOG_ERROR, "Out of Memory!\n");
-		return -1;	
-	}
+	if (!(ptr1 = ast_strdupa(data)))
+		return -1;
 
 	ptr2 = ptr1;
 	/* Separate the Application data ptr1 is the time spec ptr2 is the app|data */

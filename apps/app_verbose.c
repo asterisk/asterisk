@@ -67,8 +67,7 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	if (data) {
-		vtext = ast_strdupa((char *)data);
-		if (vtext) {
+		if ((vtext = ast_strdupa(data))) {
 			char *tmp = strsep(&vtext, "|,");
 			if (vtext) {
 				if (sscanf(tmp, "%d", &vsize) != 1) {
@@ -97,8 +96,6 @@ static int verbose_exec(struct ast_channel *chan, void *data)
 					ast_verbose(VERBOSE_PREFIX_4 "%s\n", vtext);
 				}
 			}
-		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
 		}
 	}
 
@@ -120,9 +117,7 @@ static int log_exec(struct ast_channel *chan, void *data)
 		return 0;
 	}
 
-	ltext = ast_strdupa(data);
-	if (!ltext) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(ltext = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}

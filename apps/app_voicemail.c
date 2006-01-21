@@ -3284,8 +3284,7 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 	snprintf(ext_context, sizeof(ext_context), "%s@%s", vmu->mailbox, vmu->context);
 
 	/* Attach only the first format */
-	fmt = ast_strdupa(fmt);
-	if (fmt) {
+	if ((fmt = ast_strdupa(fmt))) {
 		stringp = fmt;
 		strsep(&stringp, "|");
 
@@ -3304,8 +3303,6 @@ static int notify_new_message(struct ast_channel *chan, struct ast_vm_user *vmu,
 				myserveremail = vmu->serveremail;
 			sendpage(myserveremail, vmu->pager, msgnum, vmu->context, vmu->mailbox, cidnum, cidname, duration, vmu, category);
 		}
-	} else {
-		ast_log(LOG_ERROR, "Out of memory\n");
 	}
 
 	if (ast_test_flag(vmu, VM_DELETE)) {
@@ -5057,9 +5054,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 			AST_APP_ARG(argv1);
 		);
 				        
-		parse = ast_strdupa(data);
-		if (!parse) {
-			ast_log(LOG_ERROR, "Out of memory!\n");
+		if (!(parse = ast_strdupa(data))) {
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}
@@ -5647,9 +5642,7 @@ static int vm_box_exists(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	box = ast_strdupa(data);
-	if (!box) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(box = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}
@@ -5689,11 +5682,8 @@ static int vmauthenticate(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 	
 	if (s) {
-		s = ast_strdupa(s);
-		if (!s) {
-			ast_log(LOG_ERROR, "Out of memory\n");
+		if (!(s = ast_strdupa(s)))
 			return -1;
-		}
 		user = strsep(&s, "|");
 		options = strsep(&s, "|");
 		if (user) {
@@ -6139,8 +6129,7 @@ static int load_config(void)
 						struct vm_zone *z;
 						if ((z = ast_malloc(sizeof(*z)))) {
 							char *msg_format, *timezone;
-							msg_format = ast_strdupa(var->value);
-							if (msg_format != NULL) {
+							if ((msg_format = ast_strdupa(var->value))) {
 								timezone = strsep(&msg_format, "|");
 								if (msg_format) {
 									ast_copy_string(z->name, var->name, sizeof(z->name));
@@ -6159,7 +6148,6 @@ static int load_config(void)
 									free(z);
 								}
 							} else {
-								ast_log(LOG_WARNING, "Out of memory while reading voicemail config\n");
 								free(z);
 								return -1;
 							}

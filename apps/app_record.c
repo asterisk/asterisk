@@ -116,9 +116,7 @@ static int record_exec(struct ast_channel *chan, void *data)
 	LOCAL_USER_ADD(u);
 
 	/* Yay for strsep being easy */
-	vdata = ast_strdupa(data);
-	if (!vdata) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(vdata = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}

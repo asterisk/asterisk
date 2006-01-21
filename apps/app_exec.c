@@ -73,8 +73,7 @@ static int exec_exec(struct ast_channel *chan, void *data)
 
 	/* Check and parse arguments */
 	if (data) {
-		s = ast_strdupa((char *)data);
-		if (s) {
+		if ((s = ast_strdupa(data))) {
 			appname = strsep(&s, "(");
 			if (s) {
 				endargs = strrchr(s, ')');
@@ -91,10 +90,8 @@ static int exec_exec(struct ast_channel *chan, void *data)
 					res = -1;
 				}
 			}
-		} else {
-			ast_log(LOG_ERROR, "Out of memory\n");
+		} else
 			res = -1;
-		}
 	}
 
 	LOCAL_USER_REMOVE(u);

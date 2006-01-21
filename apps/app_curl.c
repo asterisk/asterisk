@@ -128,9 +128,7 @@ static char *acf_curl_exec(struct ast_channel *chan, char *cmd, char *data, char
 
 	LOCAL_USER_ACF_ADD(u);
 
-	info = ast_strdupa(data);
-	if (!info) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(info = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return buf;
 	}

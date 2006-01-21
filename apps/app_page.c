@@ -163,9 +163,7 @@ static int page_exec(struct ast_channel *chan, void *data)
 		return -1;
 	};
 
-	options = ast_strdupa(data);
-	if (!options) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(options = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}

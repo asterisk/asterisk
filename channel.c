@@ -3705,12 +3705,9 @@ ast_group_t ast_get_group(char *s)
 	int start=0, finish=0, x;
 	ast_group_t group = 0;
 
-	copy = ast_strdupa(s);
-	if (!copy) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	c = copy = ast_strdupa(s);
+	if (!copy)
 		return 0;
-	}
-	c = copy;
 	
 	while ((piece = strsep(&c, ","))) {
 		if (sscanf(piece, "%d-%d", &start, &finish) == 2) {

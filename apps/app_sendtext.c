@@ -88,9 +88,7 @@ static int sendtext_exec(struct ast_channel *chan, void *data)
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	} else {
-		parse = ast_strdupa(data);
-		if (!parse) {
-			ast_log(LOG_ERROR, "Out of memory!\n");
+		if (!(parse = ast_strdupa(data))) {
 			LOCAL_USER_REMOVE(u);
 			return -1;
 		}

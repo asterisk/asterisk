@@ -74,9 +74,7 @@ static int senddtmf_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	digits = ast_strdupa(data);
-	if (!digits) {
-		ast_log(LOG_ERROR, "Out of Memory!\n");
+	if (!(digits = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}

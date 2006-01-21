@@ -8033,11 +8033,8 @@ static int peer_set_srcaddr(struct iax2_peer *peer, const char *srcaddr)
 	char *addr;
 	char *portstr;
 
-	tmp = ast_strdupa(srcaddr);
-	if (!tmp) {
-		ast_log(LOG_WARNING, "Out of memory!\n");
+	if (!(tmp = ast_strdupa(srcaddr)))
 		return -1;
-	}
 
 	addr = strsep(&tmp, ":");
 	portstr = tmp;
@@ -9174,10 +9171,8 @@ static char *function_iaxpeer(struct ast_channel *chan, char *cmd, char *data, c
 	char *peername, *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (!(peername = ast_strdupa(data))) {
-		ast_log(LOG_ERROR, "Memory Error!\n");
+	if (!(peername = ast_strdupa(data)))
 		return ret;
-	}
 
 	/* if our channel, return the IP address of the endpoint of current channel */
 	if (!strcmp(peername,"CURRENTCHANNEL")) {

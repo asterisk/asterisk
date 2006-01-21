@@ -383,10 +383,8 @@ static int chanspy_exec(struct ast_channel *chan, void *data)
 	struct ast_flags flags;
 	signed char zero_volume = 0;
 
-	if (!(args = ast_strdupa((char *)data))) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
+	if (!(args = ast_strdupa(data)))
 		return -1;
-	}
 
 	LOCAL_USER_ADD(u);
 

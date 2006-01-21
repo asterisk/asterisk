@@ -94,9 +94,7 @@ static int sendurl_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	tmp = ast_strdupa(data);
-	if (!tmp) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(tmp = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}

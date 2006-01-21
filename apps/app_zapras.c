@@ -209,9 +209,7 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	args = ast_strdupa(data);
-	if (!args) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(args = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}

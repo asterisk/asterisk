@@ -75,9 +75,7 @@ static int deltree_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	argv = ast_strdupa(data);
-	if (!argv) {
-		ast_log(LOG_ERROR, "Memory allocation failed\n");
+	if (!(argv = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}
@@ -121,9 +119,7 @@ static int del_exec(struct ast_channel *chan, void *data)
 
 	LOCAL_USER_ADD(u);
 
-	argv = ast_strdupa(data);
-	if (!argv) {
-		ast_log (LOG_ERROR, "Memory allocation failed\n");
+	if (!(argv = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return 0;
 	}

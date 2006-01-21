@@ -63,11 +63,8 @@ static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char
 	if (!chan->cdr)
 		return NULL;
 
-	parse = ast_strdupa(data);
-	if (!parse) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
+	if (!(parse = ast_strdupa(data)))
 		return NULL;
-	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 	
@@ -92,11 +89,8 @@ static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char
 	if (ast_strlen_zero(data) || !value)
 		return;
 	
-	parse = ast_strdupa(data);
-	if (!parse) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
+	if (!(parse = ast_strdupa(data)))
 		return;
-	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
 

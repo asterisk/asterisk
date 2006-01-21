@@ -9292,10 +9292,8 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 	char *peername, *colname;
 	char iabuf[INET_ADDRSTRLEN];
 
-	if (!(peername = ast_strdupa(data))) {
-		ast_log(LOG_ERROR, "Memory Error!\n");
+	if (!(peername = ast_strdupa(data)))
 		return ret;
-	}
 
 	if ((colname = strchr(peername, ':'))) {
 		*colname = '\0';
@@ -12847,11 +12845,9 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 	char *extension, *host, *port;
 	char tmp[80];
 	
-	cdest = ast_strdupa(dest);
-	if (!cdest) {
-		ast_log(LOG_ERROR, "Problem allocating the memory\n");
+	if (!(cdest = ast_strdupa(dest)))
 		return 0;
-	}
+	
 	extension = strsep(&cdest, "@");
 	host = strsep(&cdest, ":");
 	port = strsep(&cdest, ":");
@@ -12879,17 +12875,11 @@ static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 				ast_log(LOG_ERROR, "Can't find the host address\n");
 				return 0;
 			}
-			host = ast_strdupa(lhost);
-			if (!host) {
-				ast_log(LOG_ERROR, "Problem allocating the memory\n");
+			if (!(host = ast_strdupa(lhost)))
 				return 0;
-			}
 			if (!ast_strlen_zero(lport)) {
-				port = ast_strdupa(lport);
-				if (!port) {
-					ast_log(LOG_ERROR, "Problem allocating the memory\n");
+				if (!(port = ast_strdupa(lport)))
 					return 0;
-				}
 			}
 		}
 	}

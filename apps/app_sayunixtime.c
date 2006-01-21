@@ -93,8 +93,7 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 
 	if (data) {
 		s = data;
-		s = ast_strdupa(s);
-		if (s) {
+		if ((s = ast_strdupa(s))) {
 			timec = strsep(&s,"|");
 			if ((timec) && (*timec != '\0')) {
 				long timein;
@@ -110,8 +109,6 @@ static int sayunixtime_exec(struct ast_channel *chan, void *data)
 					format = s;
 				}
 			}
-		} else {
-			ast_log(LOG_ERROR, "Out of memory error\n");
 		}
 	}
 

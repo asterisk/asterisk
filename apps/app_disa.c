@@ -161,9 +161,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 	ast_log(LOG_DEBUG, "Digittimeout: %d\n", digittimeout);
 	ast_log(LOG_DEBUG, "Responsetimeout: %d\n", firstdigittimeout);
 
-	tmp = ast_strdupa(data);
-	if (!tmp) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+	if (!(tmp = ast_strdupa(data))) {
 		LOCAL_USER_REMOVE(u);
 		return -1;
 	}	

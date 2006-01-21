@@ -89,11 +89,8 @@ static int playback_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	tmp = ast_strdupa(data);
-	if (!tmp) {
-		ast_log(LOG_ERROR, "Out of memory!\n");
+	if (!(tmp = ast_strdupa(data)))
 		return -1;	
-	}
 
 	LOCAL_USER_ADD(u);
 	AST_STANDARD_APP_ARGS(args, tmp);
