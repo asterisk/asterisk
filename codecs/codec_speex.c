@@ -75,6 +75,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 /* Sample frame data */
 #include "slin_speex_ex.h"
@@ -111,9 +112,8 @@ struct ast_translator_pvt {
 
 static struct ast_translator_pvt *lintospeex_new(void)
 {
-	struct speex_coder_pvt *tmp;
-	tmp = malloc(sizeof(struct speex_coder_pvt));
-	if (tmp) {
+	struct speex_coder_pvt *tmp;	
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		if (!(tmp->speex = speex_encoder_init(&speex_nb_mode))) {
 			free(tmp);
 			tmp = NULL;
@@ -158,9 +158,8 @@ static struct ast_translator_pvt *lintospeex_new(void)
 
 static struct ast_translator_pvt *speextolin_new(void)
 {
-	struct speex_coder_pvt *tmp;
-	tmp = malloc(sizeof(struct speex_coder_pvt));
-	if (tmp) {
+	struct speex_coder_pvt *tmp;	
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		if (!(tmp->speex = speex_decoder_init(&speex_nb_mode))) {
 			free(tmp);
 			tmp = NULL;

@@ -44,6 +44,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 #ifdef USE_EXTERNAL_GSM_LIB
 #include <gsm/gsm.h>
@@ -81,9 +82,8 @@ struct ast_translator_pvt {
 
 static struct ast_translator_pvt *gsm_new(void)
 {
-	struct gsm_coder_pvt *tmp;
-	tmp = malloc(sizeof(struct gsm_coder_pvt));
-	if (tmp) {
+	struct gsm_coder_pvt *tmp;	
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		if (!(tmp->gsm = gsm_create())) {
 			free(tmp);
 			tmp = NULL;

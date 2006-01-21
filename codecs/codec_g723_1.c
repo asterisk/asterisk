@@ -50,6 +50,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 #ifdef ANNEX_B
 #include "g723.1b/typedef2.h"
@@ -113,9 +114,8 @@ struct g723_decoder_pvt {
 
 static struct ast_translator_pvt *g723tolin_new(void)
 {
-	struct g723_decoder_pvt *tmp;
-	tmp = malloc(sizeof(struct g723_decoder_pvt));
-	if (tmp) {
+	struct g723_decoder_pvt *tmp;	
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		Init_Decod(&tmp->dec);
 	    Init_Dec_Cng(&tmp->dec);
 		tmp->tail = 0;
@@ -157,9 +157,8 @@ static struct ast_frame *g723tolin_sample(void)
 
 static struct ast_translator_pvt *lintog723_new(void)
 {
-	struct g723_encoder_pvt *tmp;
-	tmp = malloc(sizeof(struct g723_encoder_pvt));
-	if (tmp) {
+	struct g723_encoder_pvt *tmp;	
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		Init_Coder(&tmp->cod);
 	    /* Init Comfort Noise Functions */
    		 if( UseVx ) {

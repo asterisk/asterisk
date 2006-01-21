@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 #include "ilbc/iLBC_encode.h"
 #include "ilbc/iLBC_decode.h"
@@ -76,8 +77,7 @@ struct ast_translator_pvt {
 static struct ast_translator_pvt *lintoilbc_new(void)
 {
 	struct ilbc_coder_pvt *tmp;
-	tmp = malloc(sizeof(struct ilbc_coder_pvt));
-	if (tmp) {
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		/* Shut valgrind up */
 		memset(&tmp->enc, 0, sizeof(tmp->enc));
 		initEncode(&tmp->enc, ILBC_MS);
@@ -89,9 +89,8 @@ static struct ast_translator_pvt *lintoilbc_new(void)
 
 static struct ast_translator_pvt *ilbctolin_new(void)
 {
-	struct ilbc_coder_pvt *tmp;
-	tmp = malloc(sizeof(struct ilbc_coder_pvt));
-	if (tmp) {
+	struct ilbc_coder_pvt *tmp;	
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		/* Shut valgrind up */
 		memset(&tmp->dec, 0, sizeof(tmp->dec));
 		initDecode(&tmp->dec, ILBC_MS, USE_ILBC_ENHANCER);

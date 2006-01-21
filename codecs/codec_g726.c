@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/translate.h"
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 #define WANT_ASM
 #include "log2comp.h"
@@ -734,11 +735,9 @@ struct g726_decoder_pvt
 static struct ast_translator_pvt *
 g726tolin_new (void)
 {
-  struct g726_decoder_pvt *tmp;
-  tmp = malloc (sizeof (struct g726_decoder_pvt));
-  if (tmp)
+  struct g726_decoder_pvt *tmp;  
+  if ((tmp = ast_calloc(1, sizeof(*tmp))))
     {
-	  memset(tmp, 0, sizeof(*tmp));
       tmp->tail = 0;
       plc_init(&tmp->plc);
       localusecnt++;
@@ -762,11 +761,9 @@ g726tolin_new (void)
 static struct ast_translator_pvt *
 lintog726_new (void)
 {
-  struct g726_encoder_pvt *tmp;
-  tmp = malloc (sizeof (struct g726_encoder_pvt));
-  if (tmp)
+  struct g726_encoder_pvt *tmp;  
+  if ((tmp = ast_calloc(1, sizeof(*tmp))))
     {
-	  memset(tmp, 0, sizeof(*tmp));
       localusecnt++;
       tmp->tail = 0;
 	  g726_init_state(&tmp->g726);

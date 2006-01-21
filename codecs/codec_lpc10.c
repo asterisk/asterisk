@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/module.h"
 #include "asterisk/logger.h"
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 #include "lpc10/lpc10.h"
 
@@ -87,9 +88,8 @@ struct ast_translator_pvt {
 
 static struct ast_translator_pvt *lpc10_enc_new(void)
 {
-	struct lpc10_coder_pvt *tmp;
-	tmp = malloc(sizeof(struct lpc10_coder_pvt));
-	if (tmp) {
+	struct lpc10_coder_pvt *tmp;	
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		if (!(tmp->lpc10.enc = create_lpc10_encoder_state())) {
 			free(tmp);
 			tmp = NULL;
@@ -103,9 +103,8 @@ static struct ast_translator_pvt *lpc10_enc_new(void)
 
 static struct ast_translator_pvt *lpc10_dec_new(void)
 {
-	struct lpc10_coder_pvt *tmp;
-	tmp = malloc(sizeof(struct lpc10_coder_pvt));
-	if (tmp) {
+	struct lpc10_coder_pvt *tmp;	
+	if ((tmp = ast_malloc(sizeof(*tmp)))) {
 		if (!(tmp->lpc10.dec = create_lpc10_decoder_state())) {
 			free(tmp);
 			tmp = NULL;

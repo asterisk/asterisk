@@ -41,6 +41,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/channel.h"
 #include "asterisk/alaw.h"
 #include "asterisk/ulaw.h"
+#include "asterisk/utils.h"
 
 #define BUFFER_SIZE   8096	/* size for the translation buffers */
 
@@ -83,26 +84,26 @@ struct ulaw_encoder_pvt
 static struct ast_translator_pvt *alawtoulaw_new(void)
 {
 	struct ulaw_encoder_pvt *tmp;
-	tmp = malloc(sizeof(struct ulaw_encoder_pvt));
-	if (tmp) {
-		memset(tmp, 0, sizeof(*tmp));
+	
+	if ((tmp = ast_calloc(1, sizeof(*tmp)))) {
 		tmp->tail = 0;
 		localusecnt++;
 		ast_update_use_count();
 	}
+
 	return (struct ast_translator_pvt *)tmp;
 }
 
 static struct ast_translator_pvt *ulawtoalaw_new(void)
 {
 	struct alaw_encoder_pvt *tmp;
-	tmp = malloc(sizeof(struct alaw_encoder_pvt));
-	if (tmp) {
-		memset(tmp, 0, sizeof(*tmp));
+	
+	if ((tmp = ast_calloc(1, sizeof(*tmp)))) {
 		localusecnt++;
 		ast_update_use_count();
 		tmp->tail = 0;
 	}
+
 	return (struct ast_translator_pvt *)tmp;
 }
 

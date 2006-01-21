@@ -45,6 +45,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/options.h"
 #include "asterisk/translate.h"
 #include "asterisk/channel.h"
+#include "asterisk/utils.h"
 
 /* define NOT_BLI to use a faster but not bit-level identical version */
 /* #define NOT_BLI */
@@ -268,14 +269,14 @@ struct adpcm_decoder_pvt
 static struct ast_translator_pvt *adpcmtolin_new(void)
 {
 	struct adpcm_decoder_pvt *tmp;
-	tmp = malloc(sizeof(struct adpcm_decoder_pvt));
-	if (tmp) {
-		memset(tmp, 0, sizeof(*tmp));
+	
+	if ((tmp = ast_calloc(1, sizeof(*tmp)))) {
 		tmp->tail = 0;
 		plc_init(&tmp->plc);
 		localusecnt++;
 		ast_update_use_count();
 	}
+
 	return (struct ast_translator_pvt *)tmp;
 }
 
@@ -293,13 +294,13 @@ static struct ast_translator_pvt *adpcmtolin_new(void)
 static struct ast_translator_pvt *lintoadpcm_new(void)
 {
 	struct adpcm_encoder_pvt *tmp;
-	tmp = malloc(sizeof(struct adpcm_encoder_pvt));
-	if (tmp) {
-		memset(tmp, 0, sizeof(*tmp));
+	
+	if ((tmp = ast_calloc(1, sizeof(*tmp)))) {
 		localusecnt++;
 		ast_update_use_count();
 		tmp->tail = 0;
 	}
+
 	return (struct ast_translator_pvt *)tmp;
 }
 
