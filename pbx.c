@@ -927,40 +927,38 @@ pvn_endfor:
 	}
 }
 
-static char *substring(char *value, int offset, int length, char *workspace, size_t workspace_len)
+/*! \brief takes a substring. It is ok to call with value == workspace.
+ *
+ * offset < 0 means start from the end of the string and set the beginning
+ *   to be that many characters back.
+ * length is the length of the substring, -1 means unlimited
+ * (we take any negative value).
+ * Always return a copy in workspace.
+ */
+static char *substring(const char *value, int offset, int length, char *workspace, size_t workspace_len)
 {
 	char *ret = workspace;
+	int lr;	/* length of the input string after the copy */
 
-	/* No need to do anything */
-	if (offset == 0 && length==-1) {
-		return value;
+	ast_copy_string(workspace, value, workspace_len); /* always make a copy */
+
+	if (offset == 0 && length < 0)	/* take the whole string */
+		return ret;
+
+	lr = strlen(ret); /* compute length after copy, so we never go out of the workspace */
+
+	if (offset < 0)	{	/* translate negative offset into positive ones */
+		offset = lr + offset;
+		if (offset < 0) /* If the negative offset was greater than the length of the string, just start at the beginning */
+			offset = 0;
 	}
 
-	ast_copy_string(workspace, value, workspace_len);
+	/* too large offset result in empty string so we know what to return */
+	if (offset >= lr)
+		return ret + lr;	/* the final '\0' */
 
-	if (abs(offset) > strlen(ret)) {	/* Offset beyond string */
-		if (offset >= 0) 
-			offset = strlen(ret);
-		else 
-			offset =- strlen(ret);	
-	}
-
-	/* Detect too-long length */
-	if ((offset < 0 && length > -offset) || (offset >= 0 && offset+length > strlen(ret))) {
-		if (offset >= 0) 
-			length = strlen(ret)-offset;
-		else 
-			length = strlen(ret)+offset;
-	}
-
-	/* Bounce up to the right offset */
-	if (offset >= 0)
-		ret += offset;
-	else
-		ret += strlen(ret)+offset;
-
-	/* Chop off at the requisite length */
-	if (length >= 0)
+	ret += offset;		/* move to the start position */
+	if (length >= 0 && length < lr - offset)	/* truncate if necessary */
 		ret[length] = '\0';
 
 	return ret;
