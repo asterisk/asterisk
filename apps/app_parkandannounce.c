@@ -59,12 +59,21 @@ static char *synopsis = "Park and Announce";
 
 static char *descrip =
 "  ParkAndAnnounce(announce:template|timeout|dial|[return_context]):\n"
-"Park a call into the parkinglot and announce the call over the console.\n"
-"announce template: colon separated list of files to announce, the word PARKED\n"
-"                   will be replaced by a say_digits of the ext the call is parked in\n"
-"timeout: time in seconds before the call returns into the return context.\n"
-"dial: The app_dial style resource to call to make the announcement. Console/dsp calls the console.\n"
-"return_context: the goto style label to jump the call back into after timeout. default=prio+1\n";
+"Park a call into the parkinglot and announce the call to another channel.\n"
+"\n"
+"announce template: Colon-separated list of files to announce.  The word PARKED\n"
+"                   will be replaced by a say_digits of the extension in which\n"
+"                   the call is parked.\n"
+"timeout:           Time in seconds before the call returns into the return\n"
+"                   context.\n"
+"dial:              The app_dial style resource to call to make the\n"
+"                   announcement.  Console/dsp calls the console.\n"
+"return_context:    The goto-style label to jump the call back into after\n"
+"                   timeout.  Default <priority+1>.\n"
+"\n"
+"The variable ${PARKEDAT} will contain the parking extension into which the\n"
+"call was placed.  Use with the Local channel to allow the dialplan to make\n"
+"use of this information.\n";
 
 
 STANDARD_LOCAL_USER;
@@ -79,6 +88,7 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 	char *working, *context, *exten, *priority, *dial, *dialtech, *dialstr;
 	char *template, *tpl_working, *tpl_current;
 	char *tmp[100];
+	char buf[13];
 	int looptemp=0,i=0;
 	char *s,*orig_s;
 
@@ -183,8 +193,10 @@ static int parkandannounce_exec(struct ast_channel *chan, void *data)
 
 	/* Now place the call to the extention */
 
+	snprintf(buf, sizeof(buf), "%d", lot);
 	memset(&oh, 0, sizeof(oh));
 	oh.parent_channel = chan;
+	oh.vars = ast_variable_new("_PARKEDAT", buf);
 	dchan = __ast_request_and_dial(dialtech, AST_FORMAT_SLINEAR, dialstr,30000, &outstate, chan->cid.cid_num, chan->cid.cid_name, &oh);
 
 	if(dchan) {
