@@ -367,11 +367,10 @@ struct ast_call_queue {
 	
 	struct member *members;		/*!< Head of the list of members */
 	struct queue_ent *head;		/*!< Head of the list of callers */
-	struct ast_call_queue *next;	/*!< Next call queue */
+	AST_LIST_ENTRY(ast_call_queue) list;	/*!< Next call queue */
 };
 
-static struct ast_call_queue *queues = NULL;
-AST_MUTEX_DEFINE_STATIC(qlock);
+static AST_LIST_HEAD_STATIC(queues, ast_call_queue);
 
 static int set_member_paused(char *queuename, char *interface, int paused);
 
@@ -481,8 +480,8 @@ static void *changethread(void *data)
 	}
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Device '%s/%s' changed to state '%d' (%s)\n", technology, loc, sc->state, devstate2str(sc->state));
-	ast_mutex_lock(&qlock);
-	for (q = queues; q; q = q->next) {
+	AST_LIST_LOCK(&queues);
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		ast_mutex_lock(&q->lock);
 		cur = q->members;
 		while(cur) {
@@ -508,7 +507,7 @@ static void *changethread(void *data)
 		}
 		ast_mutex_unlock(&q->lock);
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 	free(sc);
 	return NULL;
 }
@@ -795,18 +794,17 @@ static void rt_handle_member_record(struct ast_call_queue *q, char *interface, c
 static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struct ast_variable *queue_vars, struct ast_config *member_config)
 {
 	struct ast_variable *v;
-	struct ast_call_queue *q, *prev_q = NULL;
+	struct ast_call_queue *q;
 	struct member *m, *prev_m, *next_m;
 	char *interface;
 	char *tmp, *tmp_name;
 	char tmpbuf[64];	/* Must be longer than the longest queue param name. */
 
 	/* Find the queue in the in-core list (we will create a new one if not found). */
-	for (q = queues; q; q = q->next) {
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		if (!strcasecmp(q->name, queuename)) {
 			break;
 		}
-		prev_q = q;
 	}
 
 	/* Static queues override realtime. */
@@ -838,11 +836,7 @@ static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struc
 			/* Delete if unused (else will be deleted when last caller leaves). */
 			if (!q->count) {
 				/* Delete. */
-				if (!prev_q) {
-					queues = q->next;
-				} else {
-					prev_q->next = q->next;
-				}
+				AST_LIST_REMOVE(&queues, q, list);
 				ast_mutex_unlock(&q->lock);
 				free(q);
 			} else
@@ -858,8 +852,7 @@ static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struc
 		ast_mutex_lock(&q->lock);
 		clear_queue(q);
 		q->realtime = 1;
-		q->next = queues;
-		queues = q;
+		AST_LIST_INSERT_HEAD(&queues, q, list);
 	}
 	init_queue(q);		/* Ensure defaults for all parameters not set explicitly. */
 
@@ -923,13 +916,13 @@ static struct ast_call_queue *load_realtime_queue(char *queuename)
 	struct ast_call_queue *q;
 
 	/* Find the queue in the in-core list first. */
-	ast_mutex_lock(&qlock);
-	for (q = queues; q; q = q->next) {
+	AST_LIST_LOCK(&queues);
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		if (!strcasecmp(q->name, queuename)) {
 			break;
 		}
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 
 	if (!q) {
 		/*! \note Load from realtime before taking the global qlock, to avoid blocking all
@@ -950,7 +943,7 @@ static struct ast_call_queue *load_realtime_queue(char *queuename)
 			}
 		}
 
-		ast_mutex_lock(&qlock);
+		AST_LIST_LOCK(&queues);
 
 		q = find_queue_by_name_rt(queuename, queue_vars, member_config);
 		if (member_config)
@@ -958,7 +951,7 @@ static struct ast_call_queue *load_realtime_queue(char *queuename)
 		if (queue_vars)
 			ast_variables_destroy(queue_vars);
 
-		ast_mutex_unlock(&qlock);
+		AST_LIST_UNLOCK(&queues);
 	}
 	return q;
 }
@@ -976,7 +969,7 @@ static int join_queue(char *queuename, struct queue_ent *qe, enum queue_result *
 	if (!q)
 		return res;
 
-	ast_mutex_lock(&qlock);
+	AST_LIST_LOCK(&queues);
 	ast_mutex_lock(&q->lock);
 
 	/* This is our one */
@@ -1025,7 +1018,7 @@ ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, q
 #endif
 	}
 	ast_mutex_unlock(&q->lock);
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 	return res;
 }
 
@@ -1052,22 +1045,11 @@ static void free_members(struct ast_call_queue *q, int all)
 
 static void destroy_queue(struct ast_call_queue *q)
 {
-	struct ast_call_queue *cur, *prev = NULL;
-
-	ast_mutex_lock(&qlock);
-	for (cur = queues; cur; cur = cur->next) {
-		if (cur == q) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				queues = cur->next;
-		} else {
-			prev = cur;
-		}
-	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_LOCK(&queues);
+	AST_LIST_REMOVE(&queues, q, list);
+	AST_LIST_UNLOCK(&queues);
 	free_members(q, 1);
-        ast_mutex_destroy(&q->lock);
+	ast_mutex_destroy(&q->lock);
 	free(q);
 }
 
@@ -1352,7 +1334,7 @@ static int compare_weight(struct ast_call_queue *rq, struct member *member)
 	
 	/* &qlock and &rq->lock already set by try_calling()
 	 * to solve deadlock */
-	for (q = queues; q; q = q->next) {
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		if (q == rq) /* don't check myself, could deadlock */
 			continue; 
 		ast_mutex_lock(&q->lock);
@@ -2113,7 +2095,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 
 	/* Hold the lock while we setup the outgoing calls */
 	if (use_weight) 
-		ast_mutex_lock(&qlock);
+		AST_LIST_LOCK(&queues);
 	ast_mutex_lock(&qe->parent->lock);
 	if (option_debug)
 		ast_log(LOG_DEBUG, "%s is trying to call a queue member.\n", 
@@ -2129,7 +2111,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		if (!(tmp = ast_calloc(1, sizeof(*tmp)))) {
 			ast_mutex_unlock(&qe->parent->lock);
 			if (use_weight) 
-				ast_mutex_unlock(&qlock);
+				AST_LIST_UNLOCK(&queues);
 			goto out;
 		}
 		tmp->stillgoing = -1;
@@ -2176,7 +2158,7 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 	ring_one(qe, outgoing, &numbusies);
 	ast_mutex_unlock(&qe->parent->lock);
 	if (use_weight) 
-		ast_mutex_unlock(&qlock);
+		AST_LIST_UNLOCK(&queues);
 	lpeer = wait_for_answer(qe, outgoing, &to, &digit, numbusies, ast_test_flag(&(bridge_config.features_caller), AST_FEATURE_DISCONNECT));
 	ast_mutex_lock(&qe->parent->lock);
 	if (qe->parent->strategy == QUEUE_STRATEGY_RRMEMORY) {
@@ -2431,8 +2413,8 @@ static int remove_from_queue(char *queuename, char *interface)
 	struct member *last_member, *look;
 	int res = RES_NOSUCHQUEUE;
 
-	ast_mutex_lock(&qlock);
-	for (q = queues ; q ; q = q->next) {
+	AST_LIST_LOCK(&queues);
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		ast_mutex_lock(&q->lock);
 		if (!strcmp(q->name, queuename)) {
 			if ((last_member = interface_exists(q, interface))) {
@@ -2466,7 +2448,7 @@ static int remove_from_queue(char *queuename, char *interface)
 		}
 		ast_mutex_unlock(&q->lock);
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 	return res;
 }
 
@@ -2480,7 +2462,7 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
 	 * short-circuits if the queue is already in memory. */
 	q = load_realtime_queue(queuename);
 
-	ast_mutex_lock(&qlock);
+	AST_LIST_LOCK(&queues);
 
 	if (q) {
 		ast_mutex_lock(&q->lock);
@@ -2515,7 +2497,7 @@ static int add_to_queue(char *queuename, char *interface, int penalty, int pause
 		}
 		ast_mutex_unlock(&q->lock);
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 	return res;
 }
 
@@ -2530,8 +2512,8 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 	if (ast_strlen_zero(queuename))
 		ast_queue_log("NONE", "NONE", interface, (paused ? "PAUSEALL" : "UNPAUSEALL"), "%s", "");
 
-	ast_mutex_lock(&qlock);
-	for (q = queues ; q ; q = q->next) {
+	AST_LIST_LOCK(&queues);
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		ast_mutex_lock(&q->lock);
 		if (ast_strlen_zero(queuename) || !strcasecmp(q->name, queuename)) {
 			if ((mem = interface_exists(q, interface))) {
@@ -2554,7 +2536,7 @@ static int set_member_paused(char *queuename, char *interface, int paused)
 		}
 		ast_mutex_unlock(&q->lock);
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 
 	if (found)
 		return RESULT_SUCCESS;
@@ -2578,7 +2560,7 @@ static void reload_queue_members(void)
 	struct ast_call_queue *cur_queue;
 	char queue_data[PM_MAX_LEN];
 
-	ast_mutex_lock(&qlock);
+	AST_LIST_LOCK(&queues);
 
 	/* Each key in 'pm_family' is the name of a queue */
 	db_tree = ast_db_gettree(pm_family, NULL);
@@ -2586,13 +2568,11 @@ static void reload_queue_members(void)
 
 		queue_name = entry->key + strlen(pm_family) + 2;
 
-		cur_queue = queues;
-		while (cur_queue) {
+		AST_LIST_TRAVERSE(&queues, cur_queue, list) {
 			ast_mutex_lock(&cur_queue->lock);
 			if (!strcmp(queue_name, cur_queue->name))
 				break;
 			ast_mutex_unlock(&cur_queue->lock);
-			cur_queue = cur_queue->next;
 		}
 
 		if (!cur_queue) {
@@ -2645,7 +2625,7 @@ static void reload_queue_members(void)
 		}
 	}
 
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 	if (db_tree) {
 		ast_log(LOG_NOTICE, "Queue members successfully reloaded from database.\n");
 		ast_db_freetree(db_tree);
@@ -3185,17 +3165,17 @@ static char *queue_function_qac(struct ast_channel *chan, char *cmd, char *data,
 		return buf;
 	}
 
-	ast_mutex_lock(&qlock);
+	AST_LIST_LOCK(&queues);
 
 	/* Find the right queue */
-	for (q = queues; q; q = q->next) {
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		if (!strcasecmp(q->name, data)) {
 			ast_mutex_lock(&q->lock);
 			break;
 		}
 	}
 
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 
 	if (q) {
 		for (m = q->members; m; m = m->next) {
@@ -3228,17 +3208,17 @@ static char *queue_function_queuememberlist(struct ast_channel *chan, char *cmd,
 	
 	LOCAL_USER_ACF_ADD(u);
 
-	ast_mutex_lock(&qlock);
+	AST_LIST_LOCK(&queues);
 
 	/* Find the right queue */
-	for (q = queues; q; q = q->next) {
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		if (!strcasecmp(q->name, data)) {
 			ast_mutex_lock(&q->lock);
 			break;
 		}
 	}
 
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 
 	if (q) {
 		int buflen = 0, count = 0;
@@ -3295,7 +3275,7 @@ static struct ast_custom_function queuememberlist_function = {
 
 static void reload_queues(void)
 {
-	struct ast_call_queue *q, *ql, *qn;
+	struct ast_call_queue *q;
 	struct ast_config *cfg;
 	char *cat, *tmp;
 	struct ast_variable *var;
@@ -3311,13 +3291,11 @@ static void reload_queues(void)
 		return;
 	}
 	memset(interface, 0, sizeof(interface));
-	ast_mutex_lock(&qlock);
+	AST_LIST_LOCK(&queues);
 	use_weight=0;
 	/* Mark all queues as dead for the moment */
-	q = queues;
-	while(q) {
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		q->dead = 1;
-		q = q->next;
 	}
 	/* Chug through config file */
 	cat = ast_category_browse(cfg, NULL);
@@ -3329,11 +3307,9 @@ static void reload_queues(void)
 				queue_persistent_members = ast_true(general_val);
 		} else {	/* Define queue */
 			/* Look for an existing one */
-			q = queues;
-			while(q) {
+			AST_LIST_TRAVERSE(&queues, q, list) {
 				if (!strcmp(q->name, cat))
 					break;
-				q = q->next;
 			}
 			if (!q) {
 				/* Make one then */
@@ -3383,26 +3359,18 @@ static void reload_queues(void)
 					}
 					var = var->next;
 				}
-				if (!new) 
-					ast_mutex_unlock(&q->lock);
 				if (new) {
-					q->next = queues;
-					queues = q;
-				}
+					AST_LIST_INSERT_HEAD(&queues, q, list);
+				} else
+					ast_mutex_unlock(&q->lock);
 			}
 		}
 		cat = ast_category_browse(cfg, cat);
 	}
 	ast_config_destroy(cfg);
-	q = queues;
-	ql = NULL;
-	while(q) {
-		qn = q->next;
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&queues, q, list) {
 		if (q->dead) {
-			if (ql)
-				ql->next = q->next;
-			else
-				queues = q->next;
+			AST_LIST_REMOVE_CURRENT(&queues, list);
 			if (!q->count) {
 				free(q);
 			} else
@@ -3410,11 +3378,10 @@ static void reload_queues(void)
 		} else {
 			for (cur = q->members; cur; cur = cur->next)
 				cur->status = ast_device_state(cur->interface);
-			ql = q;
 		}
-		q = qn;
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_TRAVERSE_SAFE_END;
+	AST_LIST_UNLOCK(&queues);
 }
 
 static int __queues_show(int manager, int fd, int argc, char **argv, int queue_show)
@@ -3438,24 +3405,21 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
 	if (queue_show)
 		load_realtime_queue(argv[2]);
 
-	ast_mutex_lock(&qlock);
-
-	q = queues;
-	if (!q) {	
-		ast_mutex_unlock(&qlock);
+	AST_LIST_LOCK(&queues);
+	if (AST_LIST_EMPTY(&queues)) {
+		AST_LIST_UNLOCK(&queues);
 		if (queue_show)
 			ast_cli(fd, "No such queue: %s.%s",argv[2], term);
 		else
 			ast_cli(fd, "No queues.%s", term);
 		return RESULT_SUCCESS;
 	}
-	while (q) {
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		ast_mutex_lock(&q->lock);
 		if (queue_show) {
 			if (strcasecmp(q->name, argv[2]) != 0) {
 				ast_mutex_unlock(&q->lock);
-				q = q->next;
-				if (!q) {
+				if (!AST_LIST_NEXT(q, list)) {
 					ast_cli(fd, "No such queue: %s.%s",argv[2], term);
 					break;
 				}
@@ -3506,11 +3470,10 @@ static int __queues_show(int manager, int fd, int argc, char **argv, int queue_s
 			ast_cli(fd, "   No Callers%s", term);
 		ast_cli(fd, "%s", term);
 		ast_mutex_unlock(&q->lock);
-		q = q->next;
 		if (queue_show)
 			break;
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 	return RESULT_SUCCESS;
 }
 
@@ -3531,8 +3494,8 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 	int which = 0;
 	int wordlen = strlen(word);
 	
-	ast_mutex_lock(&qlock);
-	for (q = queues; q; q = q->next) {
+	AST_LIST_LOCK(&queues);
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		if (!strncasecmp(word, q->name, wordlen)) {
 			if (++which > state) {
 				ret = strdup(q->name);	
@@ -3540,7 +3503,7 @@ static char *complete_queue(const char *line, const char *word, int pos, int sta
 			}
 		}
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 
 	return ret;
 }
@@ -3573,11 +3536,11 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 
 	astman_send_ack(s, m, "Queue status will follow");
 	time(&now);
-	ast_mutex_lock(&qlock);
+	AST_LIST_LOCK(&queues);
 	if (!ast_strlen_zero(id)) {
 		snprintf(idText,256,"ActionID: %s\r\n",id);
 	}
-	for (q = queues; q; q = q->next) {
+	AST_LIST_TRAVERSE(&queues, q, list) {
 		ast_mutex_lock(&q->lock);
 
 		/* List queue properties */
@@ -3636,7 +3599,7 @@ static int manager_queues_status( struct mansession *s, struct message *m )
 		}
 		ast_mutex_unlock(&q->lock);
 	}
-	ast_mutex_unlock(&qlock);
+	AST_LIST_UNLOCK(&queues);
 
 	ast_cli(s->fd,
 		"Event: QueueStatusComplete\r\n"
@@ -3889,8 +3852,8 @@ static char *complete_remove_queue_member(const char *line, const char *word, in
 		return complete_queue(line, word, pos, state);
 	}
 
-	if (queues != NULL) {
-		for (q = queues ; q ; q = q->next) {
+	if (!AST_LIST_EMPTY(&queues)) {
+		AST_LIST_TRAVERSE(&queues, q, list) {
 			ast_mutex_lock(&q->lock);
 			for (m = q->members ; m ; m = m->next) {
 				if (++which > state) {
