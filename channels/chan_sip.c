@@ -12796,14 +12796,11 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 /*! \brief  sip_addheader: Add a SIP header ---*/
 static int sip_addheader(struct ast_channel *chan, void *data)
 {
-	int arglen;
 	int no = 0;
 	int ok = 0;
-	char *content = (char *) NULL;
 	char varbuf[128];
 	
-	arglen = strlen(data);
-	if (!arglen) {
+	if (ast_strlen_zero((char *)data)) {
 		ast_log(LOG_WARNING, "This application requires the argument: Header\n");
 		return 0;
 	}
@@ -12812,14 +12809,12 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 	/* Check for headers */
 	while (!ok && no <= 50) {
 		no++;
-		snprintf(varbuf, sizeof(varbuf), "_SIPADDHEADER%.2d", no);
-		content = pbx_builtin_getvar_helper(chan, varbuf);
-
-		if (!content)
+		snprintf(varbuf, sizeof(varbuf), "_SIPADDHEADER%02d", no);
+		if (ast_strlen_zero(pbx_builtin_getvar_helper(chan, varbuf + 1)))
 			ok = 1;
 	}
 	if (ok) {
-		pbx_builtin_setvar_helper (chan, varbuf, data);
+		pbx_builtin_setvar_helper (chan, varbuf, (char *)data);
 		if (sipdebug)
 			ast_log(LOG_DEBUG,"SIP Header added \"%s\" as %s\n", (char *) data, varbuf);
 	} else {
