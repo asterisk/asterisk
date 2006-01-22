@@ -567,6 +567,8 @@ struct sip_auth {
 #define SIP_CALL_LIMIT		(1 << 29)
 /* Remote Party-ID Support */
 #define SIP_SENDRPID		(1 << 30)
+/* Did this connection increment the counter of in-use calls? */
+#define SIP_INC_COUNT (1 << 31)
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
@@ -2229,7 +2231,8 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 		/* incoming and outgoing affects the inUse counter */
 		case DEC_CALL_LIMIT:
 			if ( *inuse > 0 ) {
-				(*inuse)--;
+			         if (ast_test_flag(fup,SIP_INC_COUNT))
+				         (*inuse)--;
 			} else {
 				*inuse = 0;
 			}
@@ -2249,6 +2252,7 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 				}
 			}
 			(*inuse)++;
+	                ast_set_flag(fup,SIP_INC_COUNT);
 			if (option_debug > 1 || sipdebug) {
 				ast_log(LOG_DEBUG, "Call %s %s '%s' is %d out of %d\n", outgoing ? "to" : "from", u ? "user":"peer", name, *inuse, *call_limit);
 			}
