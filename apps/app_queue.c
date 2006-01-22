@@ -787,6 +787,30 @@ static void rt_handle_member_record(struct ast_call_queue *q, char *interface, c
 	}
 }
 
+static void free_members(struct ast_call_queue *q, int all)
+{
+	/* Free non-dynamic members */
+	struct member *curm, *next, *prev = NULL;
+
+	for (curm = q->members; curm; curm = next) {
+		next = curm->next;
+		if (all || !curm->dynamic) {
+			if (prev)
+				prev->next = next;
+			else
+				q->members = next;
+			free(curm);
+		} else 
+			prev = curm;
+	}
+}
+
+static void destroy_queue(struct ast_call_queue *q)
+{
+	free_members(q, 1);
+	ast_mutex_destroy(&q->lock);
+	free(q);
+}
 
 /*!\brief Reload a single queue via realtime.
    \return Return the queue, or NULL if it doesn't exist.
@@ -838,7 +862,7 @@ static struct ast_call_queue *find_queue_by_name_rt(const char *queuename, struc
 				/* Delete. */
 				AST_LIST_REMOVE(&queues, q, list);
 				ast_mutex_unlock(&q->lock);
-				free(q);
+				destroy_queue(q);
 			} else
 				ast_mutex_unlock(&q->lock);
 		}
@@ -1020,37 +1044,6 @@ ast_log(LOG_NOTICE, "Queue '%s' Join, Channel '%s', Position '%d'\n", q->name, q
 	ast_mutex_unlock(&q->lock);
 	AST_LIST_UNLOCK(&queues);
 	return res;
-}
-
-static void free_members(struct ast_call_queue *q, int all)
-{
-	/* Free non-dynamic members */
-	struct member *curm, *next, *prev;
-
-	curm = q->members;
-	prev = NULL;
-	while(curm) {
-		next = curm->next;
-		if (all || !curm->dynamic) {
-			if (prev)
-				prev->next = next;
-			else
-				q->members = next;
-			free(curm);
-		} else 
-			prev = curm;
-		curm = next;
-	}
-}
-
-static void destroy_queue(struct ast_call_queue *q)
-{
-	AST_LIST_LOCK(&queues);
-	AST_LIST_REMOVE(&queues, q, list);
-	AST_LIST_UNLOCK(&queues);
-	free_members(q, 1);
-	ast_mutex_destroy(&q->lock);
-	free(q);
 }
 
 static int play_file(struct ast_channel *chan, char *filename)
@@ -1260,6 +1253,9 @@ ast_log(LOG_NOTICE, "Queue '%s' Leave, Channel '%s'\n", q->name, qe->chan->name 
 	ast_mutex_unlock(&q->lock);
 	if (q->dead && !q->count) {	
 		/* It's dead and nobody is in it, so kill it */
+		AST_LIST_LOCK(&queues);
+		AST_LIST_REMOVE(&queues, q, list);
+		AST_LIST_UNLOCK(&queues);
 		destroy_queue(q);
 	}
 }
@@ -3371,10 +3367,10 @@ static void reload_queues(void)
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&queues, q, list) {
 		if (q->dead) {
 			AST_LIST_REMOVE_CURRENT(&queues, list);
-			if (!q->count) {
-				free(q);
-			} else
-				ast_log(LOG_WARNING, "XXX Leaking a little memory :( XXX\n");
+			if (!q->count)
+				destroy_queue(q);
+			else
+				ast_log(LOG_DEBUG, "XXX Leaking a little memory :( XXX\n");
 		} else {
 			for (cur = q->members; cur; cur = cur->next)
 				cur->status = ast_device_state(cur->interface);
