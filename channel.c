@@ -3911,7 +3911,7 @@ static void copy_data_from_queue(struct ast_channel_spy_queue *queue, short *buf
 		}
 
 		tocopy = (f->samples > samples) ? samples : f->samples;
-		bytestocopy = ast_codec_get_len(queue->format, samples);
+		bytestocopy = ast_codec_get_len(queue->format, tocopy);
 		memcpy(buf, f->data, bytestocopy);
 		samples -= tocopy;
 		buf += tocopy;
