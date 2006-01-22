@@ -469,7 +469,7 @@ struct sip_pkt;
 /*! \brief Parameters to the transmit_invite function */
 struct sip_invite_param {
 	const char *distinctive_ring;	/*!< Distinctive ring header */
-	char *osptoken;		/*!< OSP token for this call */
+	const char *osptoken;		/*!< OSP token for this call */
 	int addsipheaders;	/*!< Add extra SIP headers */
 	const char *uri_options;	/*!< URI options to add to the URI */
 	const char *vxml_url;		/*!< VXML url for Cisco phones */
@@ -1996,7 +1996,7 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 	int res;
 	struct sip_pvt *p;
 #ifdef OSP_SUPPORT
-	char *osphandle = NULL;
+	const char *osphandle = NULL;
 #endif	
 	struct varshead *headp;
 	struct ast_var_t *current;

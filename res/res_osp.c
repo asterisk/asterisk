@@ -452,7 +452,7 @@ static int loadPemPrivateKey(unsigned char *FileName, unsigned char *buffer, int
     return retVal;
 }
 
-int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *timelimit, char *callerid, struct in_addr addr, char *extension)
+int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *timelimit, const char *callerid, struct in_addr addr, const char *extension)
 {
 	char tmp[256]="", *l, *n;
 	char iabuf[INET_ADDRSTRLEN];

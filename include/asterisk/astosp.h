@@ -43,6 +43,6 @@ int ast_osp_next(struct ast_osp_result *result, int cause);
 
 int ast_osp_terminate(int handle, int cause, time_t start, time_t duration);
 
-int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *timeout, char *callerid, struct in_addr addr, char *extension);
+int ast_osp_validate(char *provider, char *token, int *handle, unsigned int *timeout, const char *callerid, struct in_addr addr, const char *extension);
 
 #endif /* _ASTERISK_OSP_H */
