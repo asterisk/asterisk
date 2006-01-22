@@ -296,6 +296,57 @@ struct ast_custom_function strftime_function = {
 	.read = acf_strftime,
 };
 
+static char *acf_strptime(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+{
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(timestring);
+		AST_APP_ARG(timezone);
+		AST_APP_ARG(format);
+	);
+	struct tm time;
+
+	memset(&time, 0, sizeof(struct tm));
+	
+	buf[0] = '\0';
+
+	if (!data) {
+		ast_log(LOG_ERROR, "Asterisk function STRPTIME() requires an argument.\n");
+		return buf;
+	}
+
+	AST_STANDARD_APP_ARGS(args, data);
+
+	if (ast_strlen_zero(args.format) ) {
+		ast_log(LOG_ERROR, "No format supplied to STRPTIME(<timestring>|<timezone>|<format>)");
+		return buf;
+	}
+			
+	if (!strptime(args.timestring, args.format, &time)) {
+		ast_log(LOG_WARNING, "C function strptime() output nothing?!!\n");
+	} else {
+		snprintf(buf, len, "%d", (int)ast_mktime(&time, args.timezone));	  
+	}
+	
+	return buf;
+}
+
+#ifndef BUILTIN_FUNC
+static
+#endif
+struct ast_custom_function strptime_function = {
+	.name = "STRPTIME",
+	.synopsis = "Returns the epoch of the arbitrary date/time string structured as described in the format.",
+	.syntax = "STRPTIME(<datetime>|<timezone>|<format>)",
+	.desc =
+"This is useful for converting a date into an EPOCH time, possibly to pass to\n"
+"an application like SayUnixTime or to calculate the difference between two\n"
+"date strings.\n"
+"\n"
+"Example:\n"
+"  ${STRPTIME(2006-03-01 07:30:35|America/Chicago|%Y-%m-%d %H:%M:%S)} returns 1141219835\n",
+	.read = acf_strptime,
+};
+
 static char *function_eval(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	memset(buf, 0, len);
