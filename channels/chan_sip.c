@@ -395,7 +395,7 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 AST_MUTEX_DEFINE_STATIC(rand_lock);
 
-/*! \brief Protect the interface list (of sip_pvt's) */
+/*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
 
 /*! \brief Protect the monitoring thread, so only one process can kill or start it, and not
@@ -595,10 +595,10 @@ struct sip_auth {
 
 static int global_rtautoclear = 120;
 
-/*! \brief sip_pvt: PVT structures are used for each SIP conversation, ie. a call  */
+/*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
 static struct sip_pvt {
-	ast_mutex_t lock;			/*!< Channel private lock */
-	int method;				/*!< SIP method of this packet */
+	ast_mutex_t lock;			/*!< Dialog private lock */
+	int method;				/*!< SIP method that opened this dialog */
 	AST_DECLARE_STRING_FIELDS(
 		AST_STRING_FIELD(callid);	/*!< Global CallID */
 		AST_STRING_FIELD(randdata);	/*!< Random data */
@@ -690,35 +690,35 @@ static struct sip_pvt {
 	int rtptimeout;				/*!< RTP timeout time */
 	int rtpholdtimeout;			/*!< RTP timeout when on hold */
 	int rtpkeepalive;			/*!< Send RTP packets for keepalive */
-	enum subscriptiontype subscribed;	/*!< Is this call a subscription?  */
+	enum subscriptiontype subscribed;	/*!< Is this dialog a subscription?  */
 	int stateid;
 	int laststate;                          /*!< Last known extension state */
 	int dialogver;
 	
 	struct ast_dsp *vad;			/*!< Voice Activation Detection dsp */
 	
-	struct sip_peer *peerpoke;		/*!< If this calls is to poke a peer, which one */
-	struct sip_registry *registry;		/*!< If this is a REGISTER call, to which registry */
+	struct sip_peer *peerpoke;		/*!< If this dialog is to poke a peer, which one */
+	struct sip_registry *registry;		/*!< If this is a REGISTER dialog, to which registry */
 	struct ast_rtp *rtp;			/*!< RTP Session */
 	struct ast_rtp *vrtp;			/*!< Video RTP session */
 	struct sip_pkt *packets;		/*!< Packets scheduled for re-transmission */
 	struct sip_history_head *history;	/*!< History of this SIP dialog */
 	struct ast_variable *chanvars;		/*!< Channel variables to set for call */
-	struct sip_pvt *next;			/*!< Next call in chain */
+	struct sip_pvt *next;			/*!< Next dialog in chain */
 	struct sip_invite_param *options;	/*!< Options for INVITE */
 } *iflist = NULL;
 
 #define FLAG_RESPONSE (1 << 0)
 #define FLAG_FATAL (1 << 1)
 
-/*! \brief sip packet - read in sipsock_read, transmitted in send_request */
+/*! \brief sip packet - read in sipsock_read(), transmitted in send_request() */
 struct sip_pkt {
 	struct sip_pkt *next;			/*!< Next packet */
 	int retrans;				/*!< Retransmission number */
 	int method;				/*!< SIP method for this packet */
 	int seqno;				/*!< Sequence number */
 	unsigned int flags;			/*!< non-zero if this is a response packet (e.g. 200 OK) */
-	struct sip_pvt *owner;			/*!< Owner call */
+	struct sip_pvt *owner;			/*!< Owner AST call */
 	int retransid;				/*!< Retransmission ID */
 	int timer_a;				/*!< SIP timer A, retransmission timer */
 	int timer_t1;				/*!< SIP Timer T1, estimated RTT or 500 ms */
@@ -848,7 +848,7 @@ struct sip_registry {
 	int regattempts;		/*!< Number of attempts (since the last success) */
 	int timeout; 			/*!< sched id of sip_reg_timeout */
 	int refresh;			/*!< How often to refresh */
-	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration call" in progress */
+	struct sip_pvt *call;		/*!< create a sip_pvt structure for each outbound "registration dialog" in progress */
 	int regstate;			/*!< Registration state (see above) */
 	int callid_valid;		/*!< 0 means we haven't chosen callid for this registry yet. */
 	unsigned int ocseq;		/*!< Sequence number we got to for REGISTERs for this registry */
@@ -867,7 +867,7 @@ static struct ast_peer_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct sip_peer);
 } peerl;
 
-/*! \brief  The register list: Other SIP proxys we register with and call */
+/*! \brief  The register list: Other SIP proxys we register with and place calls to */
 static struct ast_register_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct sip_registry);
 	int recheck;
@@ -1310,7 +1310,7 @@ static int __sip_reliable_xmit(struct sip_pvt *p, int seqno, int resp, char *dat
 	return 0;
 }
 
-/*! \brief  __sip_autodestruct: Kill a call (called by scheduler) */
+/*! \brief  __sip_autodestruct: Kill a SIP dialog (called by scheduler) */
 static int __sip_autodestruct(void *data)
 {
 	struct sip_pvt *p = data;
@@ -1328,7 +1328,7 @@ static int __sip_autodestruct(void *data)
 	ast_log(LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
 	append_history(p, "AutoDestroy", "");
 	if (p->owner) {
-		ast_log(LOG_WARNING, "Autodestruct on call '%s' with owner in place\n", p->callid);
+		ast_log(LOG_WARNING, "Autodestruct on dialog '%s' with owner in place (Method: %s)\n", p->callid, sip_methods[p->method].text);
 		ast_queue_hangup(p->owner);
 	} else {
 		sip_destroy(p);
@@ -1340,7 +1340,7 @@ static int __sip_autodestruct(void *data)
 static int sip_scheddestroy(struct sip_pvt *p, int ms)
 {
 	if (sip_debug_test_pvt(p))
-		ast_verbose("Scheduling destruction of call '%s' in %d ms\n", p->callid, ms);
+		ast_verbose("Scheduling destruction of SIP dialog '%s' in %d ms (Method: %s)\n", p->callid, ms, sip_methods[p->method].text);
 	if (recordhistory)
 		append_history(p, "SchedDestroy", "%d ms", ms);
 
@@ -1350,7 +1350,7 @@ static int sip_scheddestroy(struct sip_pvt *p, int ms)
 	return 0;
 }
 
-/*! \brief  sip_cancel_destroy: Cancel destruction of SIP call */
+/*! \brief  sip_cancel_destroy: Cancel destruction of SIP dialog */
 static int sip_cancel_destroy(struct sip_pvt *p)
 {
 	if (p->autokillid > -1)
@@ -2042,7 +2042,8 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 #ifdef OSP_SUPPORT
 	if (!p->options->osptoken || !osphandle || (sscanf(osphandle, "%d", &p->osphandle) != 1)) {
 		/* Force Disable OSP support */
-		ast_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", p->options->osptoken, osphandle);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Disabling OSP support for this call. osptoken = %s, osphandle = %s\n", p->options->osptoken, osphandle);
 		p->options->osptoken = NULL;
 		osphandle = NULL;
 		p->osphandle = -1;
@@ -2083,14 +2084,14 @@ static void sip_registry_destroy(struct sip_registry *reg)
 	
 }
 
-/*! \brief   __sip_destroy: Execute destrucion of call structure, release memory*/
+/*! \brief   __sip_destroy: Execute destrucion of SIP dialog structure, release memory */
 static void __sip_destroy(struct sip_pvt *p, int lockowner)
 {
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
 
 	if (sip_debug_test_pvt(p))
-		ast_verbose("Destroying call '%s'\n", p->callid);
+		ast_verbose("Destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
 
 	if (dumphistory)
 		sip_dump_history(p);
@@ -2118,14 +2119,15 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (p->registry) {
 		if (p->registry->call == p)
 			p->registry->call = NULL;
-		ASTOBJ_UNREF(p->registry,sip_registry_destroy);
+		ASTOBJ_UNREF(p->registry, sip_registry_destroy);
 	}
 
 	/* Unlink us from the owner if we have one */
 	if (p->owner) {
 		if (lockowner)
 			ast_mutex_lock(&p->owner->lock);
-		ast_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Detaching from %s\n", p->owner->name);
 		p->owner->tech_pvt = NULL;
 		if (lockowner)
 			ast_mutex_unlock(&p->owner->lock);
@@ -2440,7 +2442,7 @@ static char *hangup_cause2sip(int cause)
 }
 
 
-/*! \brief  sip_hangup: Hangup SIP call 
+/*! \brief  sip_hangup: Hangup SIP call
  * Part of PBX interface, called from ast_hangup */
 static int sip_hangup(struct ast_channel *ast)
 {
@@ -2733,7 +2735,7 @@ static int sip_indicate(struct ast_channel *ast, int condition)
 		break;
 	case AST_CONTROL_HOLD:	/* The other part of the bridge are put on hold */
 		if (sipdebug)
-			ast_log(LOG_DEBUG, "Bridged channel now on hold%s\n", p->callid);
+			ast_log(LOG_DEBUG, "Bridged channel now on hold - %s\n", p->callid);
 		res = -1;
 		break;
 	case AST_CONTROL_UNHOLD:	/* The other part of the bridge are back from hold */
