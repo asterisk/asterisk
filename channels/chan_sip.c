@@ -2452,7 +2452,7 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "Asked to hangup channel not connected\n");
 		return 0;
 	}
-	if (option_debug)
+	if (option_debug && sipdebug)
 		ast_log(LOG_DEBUG, "Hangup call %s, SIP callid %s)\n", ast->name, p->callid);
 
 	ast_mutex_lock(&p->lock);
@@ -2461,7 +2461,8 @@ static int sip_hangup(struct ast_channel *ast)
 		ast_osp_terminate(p->osphandle, AST_CAUSE_NORMAL, p->ospstart, time(NULL) - p->ospstart);
 	}
 #endif	
-	ast_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter\n", p->username);
+	if (option_debug && sipdebug)
+		ast_log(LOG_DEBUG, "update_call_counter(%s) - decrement call limit counter on hangup\n", p->username);
 	update_call_counter(p, DEC_CALL_LIMIT);
 	/* Determine how to disconnect */
 	if (p->owner != ast) {
@@ -4102,7 +4103,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	const char *c;
 	char *n;
 	char *ot, *of;
-	int is_strict = 0;	/* Strict routing flag */
+	int is_strict = 0;		/*!< Strict routing flag */
 
 	memset(req, 0, sizeof(struct sip_request));
 	
@@ -4119,8 +4120,11 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	}
 
 	/* Check for strict or loose router */
-	if (p->route && !ast_strlen_zero(p->route->hop) && strstr(p->route->hop,";lr") == NULL)
+	if (p->route && !ast_strlen_zero(p->route->hop) && strstr(p->route->hop,";lr") == NULL) {
 		is_strict = 1;
+		if (sipdebug)
+			ast_log(LOG_DEBUG, "Strict routing enforced for session %s\n", p->callid);
+	}
 
 	if (sipmethod == SIP_CANCEL) {
 		c = p->initreq.rlPart2;	/* Use original URI */
@@ -4132,7 +4136,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
  		else
  			c = p->initreq.rlPart2;
 	} else if (!ast_strlen_zero(p->okcontacturi)) {
-			c = is_strict ? p->route->hop : p->okcontacturi; /* Use for BYE or REINVITE */
+		c = is_strict ? p->route->hop : p->okcontacturi; /* Use for BYE or REINVITE */
 	} else if (!ast_strlen_zero(p->uri)) {
 		c = p->uri;
 	} else {
