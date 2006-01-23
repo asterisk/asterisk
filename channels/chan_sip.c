@@ -93,10 +93,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #ifndef DEFAULT_USERAGENT
-#define DEFAULT_USERAGENT "Asterisk PBX"
+#define DEFAULT_USERAGENT "Asterisk PBX"	/*!< Default Useragent: header unless re-defined in sip.conf */
 #endif
  
-#define VIDEO_CODEC_MASK	0x1fc0000 /* Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
+#define VIDEO_CODEC_MASK	0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST		0x02
 #endif
@@ -111,18 +111,18 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
-#define EXPIRY_GUARD_SECS	15	/* How long before expiry do we reregister */
-#define EXPIRY_GUARD_LIMIT	30	/* Below here, we use EXPIRY_GUARD_PCT instead of 
+#define EXPIRY_GUARD_SECS	15	/*!< How long before expiry do we reregister */
+#define EXPIRY_GUARD_LIMIT	30	/*!< Below here, we use EXPIRY_GUARD_PCT instead of 
 					   EXPIRY_GUARD_SECS */
-#define EXPIRY_GUARD_MIN	500	/* This is the minimum guard time applied. If 
+#define EXPIRY_GUARD_MIN	500	/*!< This is the minimum guard time applied. If 
 					   GUARD_PCT turns out to be lower than this, it 
 					   will use this time instead.
 					   This is in milliseconds. */
-#define EXPIRY_GUARD_PCT	0.20	/* Percentage of expires timeout to use when 
+#define EXPIRY_GUARD_PCT	0.20	/*!< Percentage of expires timeout to use when 
 					   below EXPIRY_GUARD_LIMIT */
 
-static int min_expiry = DEFAULT_MIN_EXPIRY;
-static int max_expiry = DEFAULT_MAX_EXPIRY;
+static int min_expiry = DEFAULT_MIN_EXPIRY;	/*!< Minimum accepted registration time */
+static int max_expiry = DEFAULT_MAX_EXPIRY;	/*!< Maximum accepted registration time */
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 #ifndef MAX
@@ -133,18 +133,17 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 
 
-#define DEFAULT_MAXMS		2000		/* Must be faster than 2 seconds by default */
-#define DEFAULT_FREQ_OK		60 * 1000	/* How often to check for the host to be up */
-#define DEFAULT_FREQ_NOTOK	10 * 1000	/* How often to check, if the host is down... */
+#define DEFAULT_MAXMS		2000		/*!< Must be faster than 2 seconds by default */
+#define DEFAULT_FREQ_OK		60 * 1000	/*!< How often to check for the host to be up */
+#define DEFAULT_FREQ_NOTOK	10 * 1000	/*!< How often to check, if the host is down... */
 
-#define DEFAULT_RETRANS		1000		/* How frequently to retransmit */
-						/* 2 * 500 ms in RFC 3261 */
-#define MAX_RETRANS		6		/* Try only 6 times for retransmissions, a total of 7 transmissions */
-#define MAX_AUTHTRIES		3		/* Try authentication three times, then fail */
+#define DEFAULT_RETRANS		1000		/*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
+#define MAX_RETRANS		6		/*!< Try only 6 times for retransmissions, a total of 7 transmissions */
+#define MAX_AUTHTRIES		3		/*!< Try authentication three times, then fail */
 
 
-#define DEBUG_READ	0			/* Recieved data	*/
-#define DEBUG_SEND	1			/* Transmit data	*/
+#define DEBUG_READ	0			/*!< Recieved data	*/
+#define DEBUG_SEND	1			/*!< Transmit data	*/
 
 static const char desc[] = "Session Initiation Protocol (SIP)";
 static const char channeltype[] = "SIP";
