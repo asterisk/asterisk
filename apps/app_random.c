@@ -39,7 +39,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/pbx.h"
 #include "asterisk/module.h"
 
-/* TODO This app should be removed from trunk following the release of 1.4 */
+/*! \todo The Random() app should be removed from trunk following the release of 1.4 */
 
 static char *tdesc = "Random goto";
 
