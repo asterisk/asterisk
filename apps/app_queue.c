@@ -2644,14 +2644,12 @@ static int pqm_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
-
-	if (!(parse = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
+	if (!(parse = ast_strdupa(data)))
 		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
+
+	LOCAL_USER_ADD(u);
 
 	if (args.options) {
 		if (strchr(args.options, 'j'))
@@ -2699,14 +2697,12 @@ static int upqm_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
-
-	if (!(parse = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
+	if (!(parse = ast_strdupa(data))) 
 		return -1;	
-	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
+
+	LOCAL_USER_ADD(u);
 
 	if (args.options) {
 		if (strchr(args.options, 'j'))
@@ -2756,14 +2752,12 @@ static int rqm_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
-
-	if (!(parse = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
+	if (!(parse = ast_strdupa(data)))
 		return -1;
-	}
 
 	AST_STANDARD_APP_ARGS(args, parse);
+
+	LOCAL_USER_ADD(u);
 
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(chan->name);
@@ -2823,11 +2817,12 @@ static int aqm_exec(struct ast_channel *chan, void *data)
 		return -1;
 	}
 
-	LOCAL_USER_ADD(u);
-
-	parse = ast_strdupa(data);
+	if (!(parse = ast_strdupa(data)))
+		return -1;
 
 	AST_STANDARD_APP_ARGS(args, parse);
+
+	LOCAL_USER_ADD(u);
 
 	if (ast_strlen_zero(args.interface)) {
 		args.interface = ast_strdupa(chan->name);
@@ -2881,22 +2876,24 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	int res=-1;
 	int ringing=0;
 	struct localuser *u;
-	char *queuename;
-	char info[512];
-	char *info_ptr = info;
-	char *options = NULL;
-	char *url = NULL;
-	char *announceoverride = NULL;
 	const char *user_priority;
 	const char *max_penalty_str;
 	int prio;
 	int max_penalty;
-	char *queuetimeoutstr = NULL;
 	enum queue_result reason = QUEUE_UNKNOWN;
 
 	/* whether to exit Queue application after the timeout hits */
 	int go_on = 0;
 
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		 AST_APP_ARG(queuename);
+		 AST_APP_ARG(options);
+		 AST_APP_ARG(url);
+		 AST_APP_ARG(announceoverride);
+		 AST_APP_ARG(queuetimeoutstr);
+	);
+	
 	/* Our queue entry */
 	struct queue_ent qe;
 	
@@ -2904,24 +2901,23 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "Queue requires an argument: queuename[|options[|URL][|announceoverride][|timeout]]\n");
 		return -1;
 	}
+	
+	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		return -1;
+	}
+	AST_STANDARD_APP_ARGS(args, parse);
 
 	LOCAL_USER_ADD(u);
 
 	/* Setup our queue entry */
 	memset(&qe, 0, sizeof(qe));
 	qe.start = time(NULL);
-	
-	/* Parse our arguments XXX Check for failure XXX */
-	ast_copy_string(info, (char *) data, sizeof(info));
-	queuename = strsep(&info_ptr, "|");
-	options = strsep(&info_ptr, "|");
-	url = strsep(&info_ptr, "|");
-	announceoverride = strsep(&info_ptr, "|");
-	queuetimeoutstr = info_ptr;
 
 	/* set the expire time based on the supplied timeout; */
-	if (queuetimeoutstr)
-		qe.expire = qe.start + atoi(queuetimeoutstr);
+	if (args.queuetimeoutstr)
+		qe.expire = qe.start + atoi(args.queuetimeoutstr);
 	else
 		qe.expire = 0;
 
@@ -2958,12 +2954,12 @@ static int queue_exec(struct ast_channel *chan, void *data)
 		max_penalty = 0;
 	}
 
-	if (options && (strchr(options, 'r')))
+	if (args.options && (strchr(args.options, 'r')))
 		ringing = 1;
 
 	if (option_debug)  
 		ast_log(LOG_DEBUG, "queue: %s, options: %s, url: %s, announce: %s, expires: %ld, priority: %d\n",
-			queuename, options, url, announceoverride, (long)qe.expire, prio);
+			args.queuename, args.options, args.url, args.announceoverride, (long)qe.expire, prio);
 
 	qe.chan = chan;
 	qe.prio = prio;
@@ -2972,8 +2968,8 @@ static int queue_exec(struct ast_channel *chan, void *data)
 	qe.last_pos = 0;
 	qe.last_periodic_announce_time = time(NULL);
 	qe.last_periodic_announce_sound = 0;
-	if (!join_queue(queuename, &qe, &reason)) {
-		ast_queue_log(queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", url ? url : "",
+	if (!join_queue(args.queuename, &qe, &reason)) {
+		ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ENTERQUEUE", "%s|%s", args.url ? args.url : "",
 			      chan->cid.cid_num ? chan->cid.cid_num : "");
 check_turns:
 		if (ringing) {
@@ -2989,9 +2985,9 @@ check_turns:
 			if (res < 0) {
 				/* Record this abandoned call */
 				record_abandoned(&qe);
-				ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+				 ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 				if (option_verbose > 2) {
-					ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s while waiting their turn\n", queuename);
+					ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s while waiting their turn\n", args.queuename);
 					res = -1;
 				}
 				break;
@@ -2999,7 +2995,7 @@ check_turns:
 			if (!res) 
 				break;
 			if (valid_exit(&qe, res)) {
-				ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+				ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 				break;
 			}
 		}
@@ -3018,7 +3014,7 @@ check_turns:
                                         record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
-					ast_queue_log(queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+					ast_queue_log(args.queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 					break;
 				}
 
@@ -3027,7 +3023,7 @@ check_turns:
 					if (qe.parent->announcefrequency && !ringing)
 						res = say_position(&qe);
 					if (res && valid_exit(&qe, res)) {
-						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+						 ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 						break;
 					}
 
@@ -3039,20 +3035,21 @@ check_turns:
 					res = say_periodic_announcement(&qe);
 
 				if (res && valid_exit(&qe, res)) {
-					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%c|%d", res, qe.pos);
 					break;
 				}
 
 				/* Try calling all queue members for 'timeout' seconds */
-				res = try_calling(&qe, options, announceoverride, url, &go_on);
+				res = try_calling(&qe, args.options, args.announceoverride, args.url, &go_on);
+
 				if (res) {
 					if (res < 0) {
 						if (!qe.handled) {
 							record_abandoned(&qe);
-							ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+							ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 						}
 					} else if (res > 0)
-						ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+						 ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 					break;
 				}
 
@@ -3079,7 +3076,7 @@ check_turns:
 					record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
-					ast_queue_log(queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);	
+					ast_queue_log(args.queuename, chan->uniqueid,"NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
 					break;
 				}
 
@@ -3087,15 +3084,15 @@ check_turns:
 				res = wait_a_bit(&qe);
 				if (res < 0) {
 					record_abandoned(&qe);
-					ast_queue_log(queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "ABANDON", "%d|%d|%ld", qe.pos, qe.opos, (long)time(NULL) - qe.start);
 					if (option_verbose > 2) {
-						ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", queuename);
+						ast_verbose(VERBOSE_PREFIX_3 "User disconnected from queue %s when they almost made it\n", args.queuename);
 						res = -1;
 					}
 					break;
 				}
 				if (res && valid_exit(&qe, res)) {
-					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHKEY", "%s|%d", qe.digits, qe.pos);
 					break;
 				}
 				/* exit after 'timeout' cycle if 'n' option enabled */
@@ -3104,7 +3101,7 @@ check_turns:
 						ast_verbose(VERBOSE_PREFIX_3 "Exiting on time-out cycle\n");
 						res = -1;
 					}
-					ast_queue_log(queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
+					ast_queue_log(args.queuename, chan->uniqueid, "NONE", "EXITWITHTIMEOUT", "%d", qe.pos);
                                         record_abandoned(&qe);
 					reason = QUEUE_TIMEOUT;
 					res = 0;
@@ -3136,7 +3133,7 @@ check_turns:
 		if (reason != QUEUE_UNKNOWN)
 			set_queue_result(chan, reason);
 	} else {
-		ast_log(LOG_WARNING, "Unable to join queue '%s'\n", queuename);
+		ast_log(LOG_WARNING, "Unable to join queue '%s'\n", args.queuename);
 		set_queue_result(chan, reason);
 		res = 0;
 	}
@@ -3151,16 +3148,16 @@ static char *queue_function_qac(struct ast_channel *chan, char *cmd, char *data,
 	struct localuser *u;
 	struct member *m;
 
-	LOCAL_USER_ACF_ADD(u);
 
 	ast_copy_string(buf, "0", len);
 	
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "%s requires an argument: queuename\n", cmd);
-		LOCAL_USER_REMOVE(u);
 		return buf;
 	}
 
+	LOCAL_USER_ACF_ADD(u);
+	
 	AST_LIST_LOCK(&queues);
 
 	/* Find the right queue */
@@ -3197,7 +3194,7 @@ static char *queue_function_queuememberlist(struct ast_channel *chan, char *cmd,
 	/* Ensure an otherwise empty list doesn't return garbage */
 	buf[0] = '\0';
 
-	if (!data || ast_strlen_zero(data)) {
+	if (ast_strlen_zero(data)) {
 		ast_log(LOG_ERROR, "QUEUE_MEMBER_LIST requires an argument: queuename\n");
 		return buf;
 	}

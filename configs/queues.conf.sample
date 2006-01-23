@@ -5,7 +5,7 @@
 ; Persistent Members
 ;    Store each dynamic agent in each queue in the astdb so that
 ;    when asterisk is restarted, each agent will be automatically
-;    readded into their recorded queues. Default is 'yes'.
+;    read into their recorded queues. Default is 'yes'.
 ;
 persistentmembers = yes
 ;
