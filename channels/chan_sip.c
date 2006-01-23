@@ -332,45 +332,54 @@ static const struct cfsip_options {
 static char default_useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
 
 #define DEFAULT_CONTEXT "default"
-static char default_context[AST_MAX_CONTEXT] = DEFAULT_CONTEXT;
+static char default_context[AST_MAX_CONTEXT];
 static char default_subscribecontext[AST_MAX_CONTEXT];
 
 #define DEFAULT_VMEXTEN "asterisk"
-static char global_vmexten[AST_MAX_EXTENSION] = DEFAULT_VMEXTEN;
+static char global_vmexten[AST_MAX_EXTENSION];
 
-static char default_language[MAX_LANGUAGE] = "";
+static char default_language[MAX_LANGUAGE];
 
 #define DEFAULT_CALLERID "asterisk"
-static char default_callerid[AST_MAX_EXTENSION] = DEFAULT_CALLERID;
+static char default_callerid[AST_MAX_EXTENSION];
 
-static char default_fromdomain[AST_MAX_EXTENSION] = "";
+static char default_fromdomain[AST_MAX_EXTENSION];
 
 #define DEFAULT_NOTIFYMIME "application/simple-message-summary"
-static char default_notifymime[AST_MAX_EXTENSION] = DEFAULT_NOTIFYMIME;
+static char default_notifymime[AST_MAX_EXTENSION];
 
-static int global_notifyringing = 1;	/*!< Send notifications on ringing */
+static int global_notifyringing;	/*!< Send notifications on ringing */
 
-static int default_qualify = 0;		/*!< Default Qualify= setting */
+static int default_qualify;		/*!< Default Qualify= setting */
 
-static struct ast_flags global_flags = {0};		/*!< global SIP_ flags */
-static struct ast_flags global_flags_page2 = {0};	/*!< more global SIP_ flags */
 
-static int srvlookup = 0;		/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
+static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
 
-static int pedanticsipchecking = 0;	/*!< Extra checking ?  Default off */
+static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 
-static int autocreatepeer = 0;		/*!< Auto creation of peers at registration? Default off. */
+static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
 
-static int relaxdtmf = 0;
+static int relaxdtmf;			/*!< Relax DTMF */
 
-static int global_rtptimeout = 0;
+static int global_rtptimeout;		/*!< Time out call if no RTP */
 
-static int global_rtpholdtimeout = 0;
+static int global_rtpholdtimeout;
 
-static int global_rtpkeepalive = 0;
+static int global_rtpkeepalive;		/*!< Send RTP keepalives */
 
-static int global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;	
-static int global_regattempts_max = 0;
+static int global_reg_timeout;	
+static int global_regattempts_max;	/*!< Registration attempts before giving up */
+static int global_allowguest = 1;	/*!< allow unauthenticated users/peers to connect? */
+
+#define DEFAULT_MWITIME 10
+static int global_mwitime;		/*!< Time between MWI checks for peers */
+
+static int tos = 0;
+
+static int videosupport = 0;
+
+static int compactheaders = 0;				/*!< send compact sip headers */
+
 
 /* Object counters */
 static int suserobjs = 0;
@@ -380,10 +389,8 @@ static int rpeerobjs = 0;
 static int apeerobjs = 0;
 static int regobjs = 0;
 
-static int global_allowguest = 1;    /*!< allow unauthenticated users/peers to connect? */
-
-#define DEFAULT_MWITIME 10
-static int global_mwitime = DEFAULT_MWITIME;	/*!< Time between MWI checks for peers */
+static struct ast_flags global_flags = {0};		/*!< global SIP_ flags */
+static struct ast_flags global_flags_page2 = {0};	/*!< more global SIP_ flags */
 
 static int usecnt =0;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
@@ -415,19 +422,13 @@ static int ourport;
 
 static struct sockaddr_in debugaddr;
 
-static int tos = 0;
+static int recordhistory;				/*!< Record SIP history. Off by default */
+static int dumphistory;					/*!< Dump history to verbose before destroying SIP dialog */
 
-static int videosupport = 0;
-
-static int compactheaders = 0;				/*!< send compact sip headers */
-
-static int recordhistory = 0;				/*!< Record SIP history. Off by default */
-static int dumphistory = 0;				/*!< Dump history to verbose before destroying SIP dialog */
-
-static char global_musicclass[MAX_MUSICCLASS] = "";	/*!< Global music on hold class */
+static char global_musicclass[MAX_MUSICCLASS];		/*!< Global music on hold class */
 #define DEFAULT_REALM	"asterisk"
-static char global_realm[MAXHOSTNAMELEN] = DEFAULT_REALM; 	/*!< Default realm */
-static char regcontext[AST_MAX_CONTEXT] = "";		/*!< Context for auto-extensions */
+static char global_realm[MAXHOSTNAMELEN]; 		/*!< Default realm */
+static char regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
 
 #define DEFAULT_EXPIRY 900				/*!< Expire slowly */
 static int expiry = DEFAULT_EXPIRY;
