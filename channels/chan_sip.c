@@ -142,9 +142,6 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 #define MAX_AUTHTRIES		3		/*!< Try authentication three times, then fail */
 
 
-#define DEBUG_READ	0			/*!< Recieved data	*/
-#define DEBUG_SEND	1			/*!< Transmit data	*/
-
 static const char desc[] = "Session Initiation Protocol (SIP)";
 static const char channeltype[] = "SIP";
 static const char config[] = "sip.conf";
