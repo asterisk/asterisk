@@ -780,13 +780,13 @@ static int make_file(char *dest, int len, char *dir, int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
-/** basically mkdir -p $dest/$context/$ext/$mailbox
- * @dest    String. base directory.
- * @context String. Ignored if is null or empty string.
- * @ext     String. Ignored if is null or empty string.
- * @mailbox String. Ignored if is null or empty string. 
- * @returns 0 on failure, 1 on success.
- * */
+/*! \brief basically mkdir -p $dest/$context/$ext/$mailbox
+ * \param dest    String. base directory.
+ * \param context String. Ignored if is null or empty string.
+ * \param ext     String. Ignored if is null or empty string.
+ * \param mailbox String. Ignored if is null or empty string. 
+ * \return 0 on failure, 1 on success.
+ */
 static int create_dirpath(char *dest, int len, char *context, char *ext, char *mailbox)
 {
 	mode_t	mode = VOICEMAIL_DIR_MODE;
