@@ -106,7 +106,7 @@ BUSYDETECT+= #-DBUSYDETECT_MARTIN
 # Detect the busy signal looking only at tone lengths
 # For example if you have 3 beeps 100ms tone, 100ms silence separated by 500 ms of silence
 BUSYDETECT+= #-DBUSYDETECT_TONEONLY
-# Enforce the detection of busy singal (get rid of false hangups)
+# Enforce the detection of busy signal (get rid of false hangups)
 # Don't use together with -DBUSYDETECT_TONEONLY
 BUSYDETECT+= #-DBUSYDETECT_COMPARE_TONE_AND_SILENCE
 
