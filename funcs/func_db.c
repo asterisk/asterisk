@@ -44,30 +44,35 @@
 
 static char *function_db_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	int argc;	
-	char *args;
-	char *argv[2];
-	char *family;
-	char *key;
+	char *parse;    
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(family);
+		AST_APP_ARG(key);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)\n");
+		buf[0] = '\0';
 		return buf;
 	}
 
-	args = ast_strdupa(data);
-	argc = ast_app_separate_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		buf[0] = '\0';
+		return buf;
+	}
+	        
+	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
 	
-	if (argc > 1) {
-		family = argv[0];
-		key = argv[1];
-	} else {
+	if (args.argc < 2) {
 		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)\n");
+		buf[0] = '\0';
 		return buf;
 	}
 
-	if (ast_db_get(family, key, buf, len-1)) {
-		ast_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", family, key);
+	if (ast_db_get(args.family, args.key, buf, len-1)) {
+		ast_log(LOG_DEBUG, "DB: %s/%s not found in database.\n", args.family, args.key);
 	} else
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);
 
@@ -77,29 +82,31 @@ static char *function_db_read(struct ast_channel *chan, char *cmd, char *data, c
 
 static void function_db_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	int argc;	
-	char *args;
-	char *argv[2];
-	char *family;
-	char *key;
+	char *parse;    
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(family);
+		AST_APP_ARG(key);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=<value>\n");
 		return;
 	}
 
-	args = ast_strdupa(data);
-	argc = ast_app_separate_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
-	
-	if (argc > 1) {
-		family = argv[0];
-		key = argv[1];
-	} else {
+	parse = ast_strdupa(data);
+	if (!parse) { 
+		ast_log(LOG_ERROR, "Out of memory!\n"); 
+		return;
+	}
+
+	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
+
+	if (args.argc < 2) {
 		ast_log(LOG_WARNING, "DB requires an argument, DB(<family>/<key>)=value\n");
 		return;
 	}
 
-	if (ast_db_put(family, key, (char*)value)) {
+	if (ast_db_put(args.family, args.key, (char*)value)) {
 		ast_log(LOG_WARNING, "DB: Error writing value to database.\n");
 	}
 }
@@ -123,29 +130,34 @@ struct ast_custom_function db_function = {
 
 static char *function_db_exists(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	int argc;	
-	char *args;
-	char *argv[2];
-	char *family;
-	char *key;
+	char *parse;    
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(family);
+		AST_APP_ARG(key);
+	);
 
 	if (ast_strlen_zero(data)) {
 		ast_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
+		buf[0] = '\0';
 		return buf;
 	}
 
-	args = ast_strdupa(data);
-	argc = ast_app_separate_args(args, '/', argv, sizeof(argv) / sizeof(argv[0]));
+	parse = ast_strdupa(data);
+	if (!parse) {
+		ast_log(LOG_ERROR, "Out of memory!\n");
+		buf[0] = '\0';
+		return buf;
+	}
+	        
+	AST_NONSTANDARD_APP_ARGS(args, parse, '/');
 	
-	if (argc > 1) {
-		family = argv[0];
-		key = argv[1];
-	} else {
+	if (args.argc < 2) {
 		ast_log(LOG_WARNING, "DB_EXISTS requires an argument, DB(<family>/<key>)\n");
+		buf[0] = '\0';
 		return buf;
 	}
 
-	if (ast_db_get(family, key, buf, len-1))
+	if (ast_db_get(args.family, args.key, buf, len-1))
 		ast_copy_string(buf, "0", len);	
 	else {
 		pbx_builtin_setvar_helper(chan, "DB_RESULT", buf);

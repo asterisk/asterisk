@@ -320,23 +320,27 @@ struct ast_variable *astman_get_variables(struct message *m)
 	int varlen, x, y;
 	struct ast_variable *head = NULL, *cur;
 	char *var, *val;
-	unsigned int var_count;
-        char *vars[32];
-	
+
+	char *parse;    
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(vars)[32];
+	);
+
 	varlen = strlen("Variable: ");	
 
 	for (x = 0; x < m->hdrcount; x++) {
 		if (strncasecmp("Variable: ", m->headers[x], varlen))
 			continue;
 
-		if (!(var = ast_strdupa(m->headers[x] + varlen)))
+		if (!(parse = ast_strdupa(m->headers[x] + varlen)))
 			return head;
 
-		if ((var_count = ast_app_separate_args(var, '|', vars, sizeof(vars) / sizeof(vars[0])))) {
-			for (y = 0; y < var_count; y++) {
-				if (!vars[y])
+		AST_STANDARD_APP_ARGS(args, parse);
+		if (args.argc) {
+			for (y = 0; y < args.argc; y++) {
+				if (!args.vars[y])
 					continue;
-				var = val = ast_strdupa(vars[y]);
+				var = val = ast_strdupa(args.vars[y]);
 				strsep(&val, "=");
 				if (!val || ast_strlen_zero(var))
 					continue;

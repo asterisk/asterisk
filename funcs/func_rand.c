@@ -50,24 +50,29 @@ LOCAL_USER_DECL;
 static char *acf_rand_exec(struct ast_channel *chan, char *cmd, char *data, char *buffer, size_t buflen)
 {
 	struct localuser *u;
-	char *args[2] = { "", "" }, *s;
 	int min_int, response_int, max_int;
+	char *parse;
 
-	LOCAL_USER_ACF_ADD(u);
-
-	if (!(s = ast_strdupa(data))) {
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(min);
+		AST_APP_ARG(max);
+	);
+	
+	if (!(parse = ast_strdupa(data))) {
 		*buffer = '\0';
-		LOCAL_USER_REMOVE(u);
 		return buffer;
 	}
 
-	ast_app_separate_args(s, '|', args, sizeof(args) / sizeof(args[0]));
+	LOCAL_USER_ACF_ADD(u);
 
-	if (ast_strlen_zero(args[0]) || sscanf(args[0], "%d", &min_int) != 1) {
+	AST_STANDARD_APP_ARGS(args, parse);
+	
+	if (ast_strlen_zero(args.min) || sscanf(args.min, "%d", &min_int) != 1) {
 		min_int = 0;
 	}
 
-	if (ast_strlen_zero(args[1]) || sscanf(args[1], "%d", &max_int) != 1) {
+
+	if (ast_strlen_zero(args.max) || sscanf(args.max, "%d", &max_int) != 1) {
 		max_int = RAND_MAX;
 	}
 
