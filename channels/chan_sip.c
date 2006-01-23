@@ -12883,10 +12883,12 @@ static int sip_addheader(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-/*! \brief  sip_sipredirect: Transfer call before connect with a 302 redirect */
-/* Called by the transfer() dialplan application through the sip_transfer() */
-/* pbx interface function if the call is in ringing state */
-/* coded by Martin Pycko (m78pl@yahoo.com) */
+/*! \brief  sip_sipredirect: Transfer call before connect with a 302 redirect
+ * Called by the transfer() dialplan application through the sip_transfer()
+ * pbx interface function if the call is in ringing state 
+ * \todo Fix this function so that we wait for reply to the REFER and
+ * 	 react to errors, denials or other issues the other end might have.
+ */
 static int sip_sipredirect(struct sip_pvt *p, const char *dest)
 {
 	char *cdest;
