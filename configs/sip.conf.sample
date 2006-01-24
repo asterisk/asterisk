@@ -342,6 +342,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;type=friend 			
 ;context=from-sip		; Where to start in the dialplan when this phone calls
 ;callerid=John Doe <1234>	; Full caller ID, to override the phones config
+				; on incoming calls to Asterisk
 ;host=192.168.0.23		; we have a static but private IP address
 				; No registration allowed
 ;nat=no				; there is not NAT between phone and Asterisk
