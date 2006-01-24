@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2003 - 2005
+ * Copyright (C) 2003 - 2006
  *
  * Matthew D. Hardeman <mhardemn@papersoft.com> 
  * Adapted from the MySQL CDR logger originally by James Sharp 
@@ -64,8 +64,8 @@ static int connected = 0;
 
 AST_MUTEX_DEFINE_STATIC(pgsql_lock);
 
-PGconn		*conn;
-PGresult	*result;
+static PGconn	*conn;
+static PGresult	*result;
 
 static int pgsql_log(struct ast_cdr *cdr)
 {
