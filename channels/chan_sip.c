@@ -92,8 +92,12 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astosp.h"
 #endif
 
-#ifndef DEFAULT_USERAGENT
-#define DEFAULT_USERAGENT "Asterisk PBX"	/*!< Default Useragent: header unless re-defined in sip.conf */
+#ifndef FALSE
+#define FALSE	0
+#endif
+
+#ifndef TRUE
+#define TRUE 1
 #endif
  
 #define VIDEO_CODEC_MASK	0x1fc0000 /*!< Video codecs from H.261 thru AST_FORMAT_MAX_VIDEO */
@@ -111,19 +115,21 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
 /* guard limit must be larger than guard secs */
 /* guard min must be < 1000, and should be >= 250 */
-#define EXPIRY_GUARD_SECS	15	/*!< How long before expiry do we reregister */
-#define EXPIRY_GUARD_LIMIT	30	/*!< Below here, we use EXPIRY_GUARD_PCT instead of 
-					   EXPIRY_GUARD_SECS */
-#define EXPIRY_GUARD_MIN	500	/*!< This is the minimum guard time applied. If 
-					   GUARD_PCT turns out to be lower than this, it 
-					   will use this time instead.
-					   This is in milliseconds. */
-#define EXPIRY_GUARD_PCT	0.20	/*!< Percentage of expires timeout to use when 
-					   below EXPIRY_GUARD_LIMIT */
+#define EXPIRY_GUARD_SECS	15		/*!< How long before expiry do we reregister */
+#define EXPIRY_GUARD_LIMIT	30		/*!< Below here, we use EXPIRY_GUARD_PCT instead of 
+					 	  EXPIRY_GUARD_SECS */
+#define EXPIRY_GUARD_MIN	500		/*!< This is the minimum guard time applied. If 
+					 	  GUARD_PCT turns out to be lower than this, it 
+						   will use this time instead.
+						   This is in milliseconds. */
+#define EXPIRY_GUARD_PCT	0.20		/*!< Percentage of expires timeout to use when 
+						   below EXPIRY_GUARD_LIMIT */
+#define DEFAULT_EXPIRY 900			/*!< Expire slowly */
 
 static int min_expiry = DEFAULT_MIN_EXPIRY;	/*!< Minimum accepted registration time */
 static int max_expiry = DEFAULT_MAX_EXPIRY;	/*!< Maximum accepted registration time */
 static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
+static int expiry = DEFAULT_EXPIRY;
 
 #ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
@@ -133,13 +139,16 @@ static int default_expiry = DEFAULT_DEFAULT_EXPIRY;
 
 
 
-#define DEFAULT_MAXMS		2000		/*!< Must be faster than 2 seconds by default */
-#define DEFAULT_FREQ_OK		60 * 1000	/*!< How often to check for the host to be up */
-#define DEFAULT_FREQ_NOTOK	10 * 1000	/*!< How often to check, if the host is down... */
+#define DEFAULT_MAXMS		2000		/*!< Qualification: Must be faster than 2 seconds by default */
+#define DEFAULT_FREQ_OK		60 * 1000	/*!< Qualification: How often to check for the host to be up */
+#define DEFAULT_FREQ_NOTOK	10 * 1000	/*!< Qualification: How often to check, if the host is down... */
 
 #define DEFAULT_RETRANS		1000		/*!< How frequently to retransmit Default: 2 * 500 ms in RFC 3261 */
 #define MAX_RETRANS		6		/*!< Try only 6 times for retransmissions, a total of 7 transmissions */
 #define MAX_AUTHTRIES		3		/*!< Try authentication three times, then fail */
+
+#define SIP_MAX_HEADERS		64			/*!< Max amount of SIP headers to read */
+#define SIP_MAX_LINES 		64			/*!< Max amount of lines in SIP attachment (like SDP) */
 
 
 static const char desc[] = "Session Initiation Protocol (SIP)";
@@ -326,76 +335,90 @@ static const struct cfsip_options {
 /*! \brief SIP Extensions we support */
 #define SUPPORTED_EXTENSIONS "replaces" 
 
-#define DEFAULT_SIP_PORT	5060	/*!< From RFC 3261 (former 2543) */
 #define SIP_MAX_PACKET		4096	/*!< Also from RFC 3261 (2543), should sub headers tho */
 
-static char default_useragent[AST_MAX_EXTENSION] = DEFAULT_USERAGENT;
+/* Default values, set and reset in reload_config before reading configuration */
+/* These are default values in the source. There are other recommended values in the
+   sip.conf.sample for new installations. These may differ to keep backwards compatibility,
+   yet encouraging new behaviour on new installations 
+ */
+#define DEFAULT_SIP_PORT	5060	/*!< From RFC 3261 (former 2543) */
+#define DEFAULT_CONTEXT		"default"
+#define DEFAULT_MUSICCLASS	"default"
+#define DEFAULT_VMEXTEN 	"asterisk"
+#define DEFAULT_CALLERID 	"asterisk"
+#define DEFAULT_NOTIFYMIME 	"application/simple-message-summary"
+#define DEFAULT_MWITIME 	10
+#define DEFAULT_ALLOWGUEST	TRUE
+#define DEFAULT_VIDEOSUPPORT	FALSE
+#define DEFAULT_SRVLOOKUP	FALSE		/*!< Recommended setting is ON */
+#define DEFAULT_COMPACTHEADERS	FALSE
+#define DEFAULT_TOS		FALSE
+#define DEFAULT_ALLOW_EXT_DOM	TRUE
+#define DEFAULT_REALM		"asterisk"
+#define DEFAULT_NOTIFYRINGING	TRUE
+#define DEFAULT_PEDANTIC	FALSE
+#define DEFAULT_AUTOCREATEPEER	FALSE
+#define DEFAULT_QUALIFY		FALSE
+#ifndef DEFAULT_USERAGENT
+#define DEFAULT_USERAGENT "Asterisk PBX"	/*!< Default Useragent: header unless re-defined in sip.conf */
+#endif
 
-#define DEFAULT_CONTEXT "default"
+/* Default setttings are used as a channel setting and as a default when
+   configuring devices */
 static char default_context[AST_MAX_CONTEXT];
 static char default_subscribecontext[AST_MAX_CONTEXT];
-
-#define DEFAULT_VMEXTEN "asterisk"
-static char global_vmexten[AST_MAX_EXTENSION];
-
 static char default_language[MAX_LANGUAGE];
-
-#define DEFAULT_CALLERID "asterisk"
 static char default_callerid[AST_MAX_EXTENSION];
-
 static char default_fromdomain[AST_MAX_EXTENSION];
-
-#define DEFAULT_NOTIFYMIME "application/simple-message-summary"
 static char default_notifymime[AST_MAX_EXTENSION];
-
-static int global_notifyringing;	/*!< Send notifications on ringing */
-
 static int default_qualify;		/*!< Default Qualify= setting */
+static char default_vmexten[AST_MAX_EXTENSION];
+static char default_musicclass[MAX_MUSICCLASS];		/*!< Global music on hold class */
 
-
+/* Global settings only apply to the channel */
+static int global_notifyringing;	/*!< Send notifications on ringing */
 static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
-
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
-
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
-
 static int relaxdtmf;			/*!< Relax DTMF */
-
 static int global_rtptimeout;		/*!< Time out call if no RTP */
-
 static int global_rtpholdtimeout;
-
 static int global_rtpkeepalive;		/*!< Send RTP keepalives */
-
 static int global_reg_timeout;	
 static int global_regattempts_max;	/*!< Registration attempts before giving up */
-static int global_allowguest = 1;	/*!< allow unauthenticated users/peers to connect? */
-
-#define DEFAULT_MWITIME 10
+static int global_allowguest;		/*!< allow unauthenticated users/peers to connect? */
 static int global_mwitime;		/*!< Time between MWI checks for peers */
+static int global_tos;			/*!< IP Type of service */
+static int global_videosupport;		/*!< Videosupport on or off */
+static int compactheaders;		/*!< send compact sip headers */
+static int recordhistory;		/*!< Record SIP history. Off by default */
+static int dumphistory;			/*!< Dump history to verbose before destroying SIP dialog */
+static char global_realm[MAXHOSTNAMELEN]; 		/*!< Default realm */
+static char regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
+static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP channel */
+static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 
-static int tos = 0;
-
-static int videosupport = 0;
-
-static int compactheaders = 0;				/*!< send compact sip headers */
-
+/*! \brief Codecs that we support by default: */
+static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
+static int noncodeccapability = AST_RTP_DTMF;
 
 /* Object counters */
-static int suserobjs = 0;
-static int ruserobjs = 0;
-static int speerobjs = 0;
-static int rpeerobjs = 0;
-static int apeerobjs = 0;
-static int regobjs = 0;
+static int suserobjs = 0;		/*!< Static users */
+static int ruserobjs = 0;		/*!< Realtime users */
+static int speerobjs = 0;		/*!< Statis peers */
+static int rpeerobjs = 0;		/*!< Realtime peers */
+static int apeerobjs = 0;		/*!< Autocreated peer objects */
+static int regobjs = 0;			/*!< Registry objects */
 
 static struct ast_flags global_flags = {0};		/*!< global SIP_ flags */
 static struct ast_flags global_flags_page2 = {0};	/*!< more global SIP_ flags */
 
 static int usecnt =0;
+
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
-AST_MUTEX_DEFINE_STATIC(rand_lock);
+AST_MUTEX_DEFINE_STATIC(rand_lock);			/*!< Lock for thread-safe random generator */
 
 /*! \brief Protect the SIP dialog list (of sip_pvt's) */
 AST_MUTEX_DEFINE_STATIC(iflock);
@@ -412,32 +435,16 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
 static int restart_monitor(void);
 
-/*! \brief Codecs that we support by default: */
-static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
-static int noncodeccapability = AST_RTP_DTMF;
 
 static struct in_addr __ourip;
 static struct sockaddr_in outboundproxyip;
 static int ourport;
-
 static struct sockaddr_in debugaddr;
 
-static int recordhistory;				/*!< Record SIP history. Off by default */
-static int dumphistory;					/*!< Dump history to verbose before destroying SIP dialog */
-
-static char global_musicclass[MAX_MUSICCLASS];		/*!< Global music on hold class */
-#define DEFAULT_REALM	"asterisk"
-static char global_realm[MAXHOSTNAMELEN]; 		/*!< Default realm */
-static char regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
-
-#define DEFAULT_EXPIRY 900				/*!< Expire slowly */
-static int expiry = DEFAULT_EXPIRY;
 
 static struct sched_context *sched;
 static struct io_context *io;
 
-#define SIP_MAX_HEADERS		64			/*!< Max amount of SIP headers to read */
-#define SIP_MAX_LINES 		64			/*!< Max amount of lines in SIP attachment (like SDP) */
 
 #define DEC_CALL_LIMIT	0
 #define INC_CALL_LIMIT	1
@@ -493,7 +500,6 @@ struct domain {
 
 static AST_LIST_HEAD_STATIC(domain_list, domain);	/*!< The SIP domain list */
 
-int allow_external_domains;		/*!< Accept calls to external SIP domains? */
 
 /*! \brief sip_history: Structure for saving transactions within a SIP dialog */
 struct sip_history {
@@ -3129,10 +3135,10 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 
 	if (sip_methods[intended_method].need_rtp) {
 		p->rtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-		if (videosupport)
+		if (global_videosupport)
 			p->vrtp = ast_rtp_new_with_bindaddr(sched, io, 1, 0, bindaddr.sin_addr);
-		if (!p->rtp || (videosupport && !p->vrtp)) {
-			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", videosupport ? "and video" : "", strerror(errno));
+		if (!p->rtp || (global_videosupport && !p->vrtp)) {
+			ast_log(LOG_WARNING, "Unable to create RTP audio %s session: %s\n", global_videosupport ? "and video" : "", strerror(errno));
 			ast_mutex_destroy(&p->lock);
 			if (p->chanvars) {
 				ast_variables_destroy(p->chanvars);
@@ -3141,9 +3147,9 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 			free(p);
 			return NULL;
 		}
-		ast_rtp_settos(p->rtp, tos);
+		ast_rtp_settos(p->rtp, global_tos);
 		if (p->vrtp)
-			ast_rtp_settos(p->vrtp, tos);
+			ast_rtp_settos(p->vrtp, global_tos);
 		p->rtptimeout = global_rtptimeout;
 		p->rtpholdtimeout = global_rtpholdtimeout;
 		p->rtpkeepalive = global_rtpkeepalive;
@@ -3168,7 +3174,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 		ast_string_field_set(p, callid, callid);
 	ast_copy_flags(p, &global_flags, SIP_FLAGS_TO_COPY);
 	/* Assign default music on hold class */
-	ast_string_field_set(p, musicclass, global_musicclass);
+	ast_string_field_set(p, musicclass, default_musicclass);
 	p->capability = global_capability;
 	if ((ast_test_flag(p, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(p, SIP_DTMF) == SIP_DTMF_AUTO))
 		p->noncodeccapability |= AST_RTP_DTMF;
@@ -4071,7 +4077,7 @@ static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, stru
 	add_header(resp, "To", ot);
 	copy_header(resp, req, "Call-ID");
 	copy_header(resp, req, "CSeq");
-	add_header(resp, "User-Agent", default_useragent);
+	add_header(resp, "User-Agent", global_useragent);
 	add_header(resp, "Allow", ALLOWED_METHODS);
 	if (msg[0] == '2' && (p->method == SIP_SUBSCRIBE || p->method == SIP_REGISTER)) {
 		/* For registration responses, we also need expiry and
@@ -4187,7 +4193,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	copy_header(req, orig, "Call-ID");
 	add_header(req, "CSeq", tmp);
 
-	add_header(req, "User-Agent", default_useragent);
+	add_header(req, "User-Agent", global_useragent);
 	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	if (!ast_strlen_zero(p->rpid))
@@ -4506,7 +4512,7 @@ static int add_sdp(struct sip_request *resp, struct sip_pvt *p)
 	}
 
 	/* Now send any other common codecs, and non-codec formats: */
-	for (x = 1; x <= ((videosupport && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
+	for (x = 1; x <= ((global_videosupport && p->vrtp) ? AST_FORMAT_MAX_VIDEO : AST_FORMAT_MAX_AUDIO); x <<= 1) {
 		if (!(capability & x))
 			continue;
 
@@ -4916,7 +4922,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	add_header(req, "Contact", p->our_contact);
 	add_header(req, "Call-ID", p->callid);
 	add_header(req, "CSeq", tmp);
-	add_header(req, "User-Agent", default_useragent);
+	add_header(req, "User-Agent", global_useragent);
 	add_header(req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 	if (!ast_strlen_zero(p->rpid))
 		add_header(req, "Remote-Party-ID", p->rpid);
@@ -5205,7 +5211,7 @@ static int transmit_notify_with_mwi(struct sip_pvt *p, int newmsgs, int oldmsgs,
 	add_header(&req, "Content-Type", default_notifymime);
 
 	ast_build_string(&t, &maxbytes, "Messages-Waiting: %s\r\n", newmsgs ? "yes" : "no");
-	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", !ast_strlen_zero(vmexten) ? vmexten : global_vmexten, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain);
+	ast_build_string(&t, &maxbytes, "Message-Account: sip:%s@%s\r\n", !ast_strlen_zero(vmexten) ? vmexten : default_vmexten, ast_strlen_zero(p->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), p->ourip) : p->fromdomain);
 	ast_build_string(&t, &maxbytes, "Voice-Message: %d/%d (0/0)\r\n", newmsgs, oldmsgs);
 
 	if (t > tmp + sizeof(tmp))
@@ -5511,7 +5517,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 	add_header(&req, "To", to);
 	add_header(&req, "Call-ID", p->callid);
 	add_header(&req, "CSeq", tmp);
-	add_header(&req, "User-Agent", default_useragent);
+	add_header(&req, "User-Agent", global_useragent);
 	add_header(&req, "Max-Forwards", DEFAULT_MAX_FORWARDS);
 
 	
@@ -8247,7 +8253,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "----------------\n");
 	ast_cli(fd, "  SIP Port:               %d\n", ntohs(bindaddr.sin_port));
 	ast_cli(fd, "  Bindaddress:            %s\n", ast_inet_ntoa(tmp, sizeof(tmp), bindaddr.sin_addr));
-	ast_cli(fd, "  Videosupport:           %s\n", videosupport ? "Yes" : "No");
+	ast_cli(fd, "  Videosupport:           %s\n", global_videosupport ? "Yes" : "No");
 	ast_cli(fd, "  AutoCreatePeer:         %s\n", autocreatepeer ? "Yes" : "No");
 	ast_cli(fd, "  Allow unknown access:   %s\n", global_allowguest ? "Yes" : "No");
 	ast_cli(fd, "  Promsic. redir:         %s\n", ast_test_flag(&global_flags, SIP_PROMISCREDIR) ? "Yes" : "No");
@@ -8256,14 +8262,14 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  URI user is phone no:   %s\n", ast_test_flag(&global_flags, SIP_USEREQPHONE) ? "Yes" : "No");
 	ast_cli(fd, "  Our auth realm          %s\n", global_realm);
 	ast_cli(fd, "  Realm. auth:            %s\n", authl ? "Yes": "No");
-	ast_cli(fd, "  User Agent:             %s\n", default_useragent);
+	ast_cli(fd, "  User Agent:             %s\n", global_useragent);
 	ast_cli(fd, "  MWI checking interval:  %d secs\n", global_mwitime);
 	ast_cli(fd, "  Reg. context:           %s\n", ast_strlen_zero(regcontext) ? "(not set)" : regcontext);
 	ast_cli(fd, "  Caller ID:              %s\n", default_callerid);
 	ast_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
 	ast_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
 	ast_cli(fd, "  Call Events:            %s\n", callevents ? "On" : "Off");
-	ast_cli(fd, "  IP ToS:                 0x%x\n", tos);
+	ast_cli(fd, "  IP ToS:                 0x%x\n", global_tos);
 #ifdef OSP_SUPPORT
 	ast_cli(fd, "  OSP Support:            Yes\n");
 #else
@@ -8301,8 +8307,8 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Use ClientCode:         %s\n", ast_test_flag(&global_flags, SIP_USECLIENTCODE) ? "Yes" : "No");
 	ast_cli(fd, "  Progress inband:        %s\n", (ast_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NEVER) ? "Never" : (ast_test_flag(&global_flags, SIP_PROG_INBAND) == SIP_PROG_INBAND_NO) ? "No" : "Yes" );
 	ast_cli(fd, "  Language:               %s\n", ast_strlen_zero(default_language) ? "(Defaults to English)" : default_language);
-	ast_cli(fd, "  Musicclass:             %s\n", global_musicclass);
-	ast_cli(fd, "  Voice Mail Extension:   %s\n", global_vmexten);
+	ast_cli(fd, "  Musicclass:             %s\n", default_musicclass);
+	ast_cli(fd, "  Voice Mail Extension:   %s\n", default_vmexten);
 
 	
 	if (realtimepeers || realtimeusers) {
@@ -11945,7 +11951,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	/* set default context */
 	strcpy(user->context, default_context);
 	strcpy(user->language, default_language);
-	strcpy(user->musicclass, global_musicclass);
+	strcpy(user->musicclass, default_musicclass);
 	for (; v; v = v->next) {
 		if (handle_common_options(&userflags, &mask, v))
 			continue;
@@ -12027,7 +12033,7 @@ static struct sip_peer *temp_peer(const char *name)
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
 	strcpy(peer->language, default_language);
-	strcpy(peer->musicclass, global_musicclass);
+	strcpy(peer->musicclass, default_musicclass);
 	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 	peer->addr.sin_family = AF_INET;
 	peer->capability = global_capability;
@@ -12097,9 +12103,9 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	}
 	strcpy(peer->context, default_context);
 	strcpy(peer->subscribecontext, default_subscribecontext);
-	strcpy(peer->vmexten, global_vmexten);
+	strcpy(peer->vmexten, default_vmexten);
 	strcpy(peer->language, default_language);
-	strcpy(peer->musicclass, global_musicclass);
+	strcpy(peer->musicclass, default_musicclass);
 	ast_copy_flags(peer, &global_flags, SIP_USEREQPHONE);
 	peer->secret[0] = '\0';
 	peer->md5secret[0] = '\0';
@@ -12331,58 +12337,66 @@ static int reload_config(void)
 		return -1;
 	}
 	
+	/* Clear all flags before setting default values */
+	ast_clear_flag(&global_flags, AST_FLAGS_ALL);
+
 	/* Reset IP addresses  */
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
 	memset(&prefs, 0 , sizeof(prefs));
-	ast_clear_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONFIG);
+	outboundproxyip.sin_port = htons(DEFAULT_SIP_PORT);
+	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
+	ourport = DEFAULT_SIP_PORT;
+	srvlookup = DEFAULT_SRVLOOKUP;
+	global_tos = DEFAULT_TOS;
+	externhost[0] = '\0';			/* External host name (for behind NAT DynDNS support) */
+	externexpire = 0;			/* Expiration for DNS re-issuing */
+	externrefresh = 10;
+	memset(&outboundproxyip, 0, sizeof(outboundproxyip));
 
-	/* Initialize some reasonable defaults at SIP reload */
+	/* Reset channel settings to default before re-configuring */
+	allow_external_domains = DEFAULT_ALLOW_EXT_DOM;				/* Allow external invites */
+	regcontext[0] = '\0';
+	expiry = DEFAULT_EXPIRY;
+	global_notifyringing = DEFAULT_NOTIFYRINGING;
+	ast_copy_string(global_useragent, DEFAULT_USERAGENT, sizeof(global_useragent));
+	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
+	ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
+	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
+	global_videosupport = DEFAULT_VIDEOSUPPORT;
+	compactheaders = DEFAULT_COMPACTHEADERS;
+	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
+	global_regattempts_max = 0;
+	pedanticsipchecking = DEFAULT_PEDANTIC;
+	global_mwitime = DEFAULT_MWITIME;
+	autocreatepeer = DEFAULT_AUTOCREATEPEER;
+	global_allowguest = DEFAULT_ALLOWGUEST;
+	global_rtptimeout = 0;
+	global_rtpholdtimeout = 0;
+	global_rtpkeepalive = 0;
+	ast_set_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE);
+
+	/* Initialize some reasonable defaults at SIP reload (used both for channel and as default for peers and users */
 	ast_copy_string(default_context, DEFAULT_CONTEXT, sizeof(default_context));
 	default_subscribecontext[0] = '\0';
 	default_language[0] = '\0';
 	default_fromdomain[0] = '\0';
-	default_qualify = 0;
-	allow_external_domains = 1;	/* Allow external invites */
-	externhost[0] = '\0';
-	externexpire = 0;
-	externrefresh = 10;
-	ast_copy_string(default_useragent, DEFAULT_USERAGENT, sizeof(default_useragent));
-	ast_copy_string(default_notifymime, DEFAULT_NOTIFYMIME, sizeof(default_notifymime));
-	global_notifyringing = 1;
-	ast_copy_string(global_realm, DEFAULT_REALM, sizeof(global_realm));
-	ast_copy_string(global_musicclass, "default", sizeof(global_musicclass));
-	ast_copy_string(default_callerid, DEFAULT_CALLERID, sizeof(default_callerid));
-	memset(&outboundproxyip, 0, sizeof(outboundproxyip));
-	outboundproxyip.sin_port = htons(DEFAULT_SIP_PORT);
-	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
-	videosupport = 0;
-	compactheaders = 0;
-	dumphistory = 0;
-	recordhistory = 0;
+	default_qualify = DEFAULT_QUALIFY;
+	ast_copy_string(default_musicclass, DEFAULT_MUSICCLASS, sizeof(default_musicclass));
+	ast_copy_string(default_vmexten, DEFAULT_VMEXTEN, sizeof(default_vmexten));
+	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);			/*!< Default DTMF setting: RFC2833 */
+	ast_set_flag(&global_flags, SIP_NAT_RFC3581);			/*!< NAT support if requested by device with rport */
+	ast_set_flag(&global_flags, SIP_CAN_REINVITE);			/*!< Allow re-invites */
+
+	/* Debugging settings, always default to off */
+	dumphistory = FALSE;
+	recordhistory = FALSE;
+	ast_clear_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONFIG);
+
+	/* Misc settings for the channel */
 	relaxdtmf = 0;
 	callevents = 0;
-	ourport = DEFAULT_SIP_PORT;
-	global_rtptimeout = 0;
-	global_rtpholdtimeout = 0;
-	global_rtpkeepalive = 0;
-	pedanticsipchecking = 0;
-	global_reg_timeout = DEFAULT_REGISTRATION_TIMEOUT;
-	global_regattempts_max = 0;
-	ast_clear_flag(&global_flags, AST_FLAGS_ALL);
-	ast_set_flag(&global_flags, SIP_DTMF_RFC2833);
-	ast_set_flag(&global_flags, SIP_NAT_RFC3581);
-	ast_set_flag(&global_flags, SIP_CAN_REINVITE);
-	ast_set_flag(&global_flags_page2, SIP_PAGE2_RTUPDATE);
-	global_mwitime = DEFAULT_MWITIME;
-	strcpy(global_vmexten, DEFAULT_VMEXTEN);
-	srvlookup = 0;
-	autocreatepeer = 0;
-	regcontext[0] = '\0';
-	tos = 0;
-	expiry = DEFAULT_EXPIRY;
-	global_allowguest = 1;
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -12395,9 +12409,8 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "realm")) {
 			ast_copy_string(global_realm, v->value, sizeof(global_realm));
 		} else if (!strcasecmp(v->name, "useragent")) {
-			ast_copy_string(default_useragent, v->value, sizeof(default_useragent));
-			ast_log(LOG_DEBUG, "Setting User Agent Name to %s\n",
-				default_useragent);
+			ast_copy_string(global_useragent, v->value, sizeof(global_useragent));
+			ast_log(LOG_DEBUG, "Setting SIP channel User-Agent Name to %s\n", global_useragent);
 		} else if (!strcasecmp(v->name, "rtcachefriends")) {
 			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTCACHEFRIENDS);	
 		} else if (!strcasecmp(v->name, "rtupdate")) {
@@ -12421,7 +12434,7 @@ static int reload_config(void)
 				global_mwitime = DEFAULT_MWITIME;
 			}
 		} else if (!strcasecmp(v->name, "vmexten")) {
-			ast_copy_string(global_vmexten, v->value, sizeof(global_vmexten));
+			ast_copy_string(default_vmexten, v->value, sizeof(default_vmexten));
 		} else if (!strcasecmp(v->name, "rtptimeout")) {
 			if ((sscanf(v->value, "%d", &global_rtptimeout) != 1) || (global_rtptimeout < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid RTP hold time at line %d.  Using default.\n", v->value, v->lineno);
@@ -12438,7 +12451,7 @@ static int reload_config(void)
 				global_rtpkeepalive = 0;
 			}
 		} else if (!strcasecmp(v->name, "videosupport")) {
-			videosupport = ast_true(v->value);
+			global_videosupport = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "compactheaders")) {
 			compactheaders = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "notifymimetype")) {
@@ -12446,7 +12459,7 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "notifyringing")) {
 			global_notifyringing = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "musicclass") || !strcasecmp(v->name, "musiconhold")) {
-			ast_copy_string(global_musicclass, v->value, sizeof(global_musicclass));
+			ast_copy_string(default_musicclass, v->value, sizeof(default_musicclass));
 		} else if (!strcasecmp(v->name, "language")) {
 			ast_copy_string(default_language, v->value, sizeof(default_language));
 		} else if (!strcasecmp(v->name, "regcontext")) {
@@ -12552,7 +12565,7 @@ static int reload_config(void)
 		} else if (!strcasecmp(v->name, "register")) {
 			sip_register(v->value, v->lineno);
 		} else if (!strcasecmp(v->name, "tos")) {
-			if (ast_str2tos(v->value, &tos))
+			if (ast_str2tos(v->value, &global_tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
 		} else if (!strcasecmp(v->name, "bindport")) {
 			if (sscanf(v->value, "%d", &ourport) == 1) {
@@ -12660,10 +12673,10 @@ static int reload_config(void)
 				if (option_verbose > 1) { 
 					ast_verbose(VERBOSE_PREFIX_2 "SIP Listening on %s:%d\n", 
 					ast_inet_ntoa(iabuf, sizeof(iabuf), bindaddr.sin_addr), ntohs(bindaddr.sin_port));
-					ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", tos);
+					ast_verbose(VERBOSE_PREFIX_2 "Using TOS bits %d\n", global_tos);
 				}
-				if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &tos, sizeof(tos))) 
-					ast_log(LOG_WARNING, "Unable to set TOS to %d\n", tos);
+				if (setsockopt(sipsock, IPPROTO_IP, IP_TOS, &global_tos, sizeof(global_tos))) 
+					ast_log(LOG_WARNING, "Unable to set TOS to %d\n", global_tos);
 			}
 		}
 	}
