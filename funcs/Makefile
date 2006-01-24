@@ -34,6 +34,12 @@ else
   STANDALONE_FUNCS=$(AVAILABLE_FUNCS)
 endif
 
+ifeq ($(findstring BSD,${OSARCH}),BSD)
+  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
+  SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+endif
+
+
 FUNCS+=$(STANDALONE_FUNCS:.o=.so)
 
 FUNC_SOURCES=$(BUILTINS:.o=.c)
