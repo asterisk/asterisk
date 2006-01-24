@@ -10619,7 +10619,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
 			}
 		} else {
 			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
-			ast_queue_hangup(p->owner);
+			if (p->owner)
+				ast_queue_hangup(p->owner);
 		}
 	} else if (p->owner)
 		ast_queue_hangup(p->owner);
