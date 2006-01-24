@@ -7,7 +7,7 @@ CONSOLE=yes					# Whether or not you want a console
 #NOTIFY=ben@alkaloid.net	# Who to notify about crashes
 MACHINE=`hostname`			# To specify which machine has crashed when getting the mail
 DUMPDROP=/tmp
-SLEEPSECS=5
+SLEEPSECS=4
 ASTSBINDIR=__ASTERISK_SBIN_DIR__
 
 # comment this line out to have this script _not_ kill all mpg123 processes when
@@ -15,7 +15,7 @@ ASTSBINDIR=__ASTERISK_SBIN_DIR__
 KILLALLMPG123=1
 
 # run asterisk with this priority
-PRIORITY=-19
+PRIORITY=0
 
 # set system filemax on supported OSes if this variable is set
 # SYSMAXFILES=262144
