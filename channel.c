@@ -2005,10 +2005,12 @@ int ast_indicate(struct ast_channel *chan, int condition)
 {
 	int res = -1;
 
-	/* Stop if we're a zombie or need a soft hangup */
-	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) 
-		return -1;
 	ast_mutex_lock(&chan->lock);
+	/* Stop if we're a zombie or need a soft hangup */
+	if (ast_test_flag(chan, AST_FLAG_ZOMBIE) || ast_check_hangup(chan)) {
+		ast_mutex_unlock(&chan->lock);
+		return -1;
+	}
 	if (chan->tech->indicate)
 		res = chan->tech->indicate(chan, condition);
 	ast_mutex_unlock(&chan->lock);

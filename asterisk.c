@@ -18,6 +18,7 @@
 
 
 /* Doxygenified Copyright Header */
+
 /*!
  * \mainpage Asterisk -- An Open Source Telephony Toolkit
  *
