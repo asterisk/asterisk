@@ -1664,7 +1664,10 @@ static void update_peer(struct sip_peer *p, int expiry)
 
 
 /*! \brief  realtime_peer: Get peer from realtime storage
- * Checks the "sippeers" realtime family from extconfig.conf */
+ * Checks the "sippeers" realtime family from extconfig.conf 
+ * \todo Consider adding check of port address when matching here to follow the same
+ * 	algorithm as for static peers. Will we break anything by adding that?
+*/
 static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *sin)
 {
 	struct sip_peer *peer=NULL;
@@ -1676,9 +1679,12 @@ static struct sip_peer *realtime_peer(const char *peername, struct sockaddr_in *
 	/* First check on peer name */
 	if (newpeername) 
 		var = ast_load_realtime("sippeers", "name", peername, NULL);
-	else if (sin) {	/* Then check on IP address */
+	else if (sin) {	/* Then check on IP address for dynamic peers */
 		ast_inet_ntoa(iabuf, sizeof(iabuf), sin->sin_addr);
-		var = ast_load_realtime("sippeers", "ipaddr", iabuf, NULL);
+		var = ast_load_realtime("sippeers", "host", iabuf, NULL);	/* First check for fixed IP hosts */
+		if (!var)
+			var = ast_load_realtime("sippeers", "ipaddr", iabuf, NULL);	/* Then check for registred hosts */
+	
 	} else
 		return NULL;
 
@@ -1745,9 +1751,9 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 	struct sip_peer *p = NULL;
 
 	if (peer)
-		p = ASTOBJ_CONTAINER_FIND(&peerl,peer);
+		p = ASTOBJ_CONTAINER_FIND(&peerl, peer);
 	else
-		p = ASTOBJ_CONTAINER_FIND_FULL(&peerl,sin,name,sip_addr_hashfunc,1,sip_addrcmp);
+		p = ASTOBJ_CONTAINER_FIND_FULL(&peerl, sin, name, sip_addr_hashfunc, 1, sip_addrcmp);
 
 	if (!p && realtime) {
 		p = realtime_peer(peer, sin);
