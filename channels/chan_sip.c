@@ -28,9 +28,12 @@
  * Implementation of RFC 3261 - without S/MIME, TCP and TLS support
  * Configuration file \link Config_sip sip.conf \endlink
  *
+ *
  * \todo SIP over TCP
  * \todo SIP over TLS
  * \todo Better support of forking
+ *
+ * \ingroup channel_drivers
  */
 
 
@@ -815,6 +818,7 @@ struct sip_peer {
 
 AST_MUTEX_DEFINE_STATIC(sip_reload_lock);
 static int sip_reloading = 0;
+static enum channelreloadreason sip_reloadreason;	/*!< Reason for last reload/load of configuration */
 
 /* States for outbound registrations (with register= lines in sip.conf */
 #define REG_STATE_UNREGISTERED		0
@@ -915,7 +919,7 @@ static int build_reply_digest(struct sip_pvt *p, int method, char *digest, int d
 static int update_call_counter(struct sip_pvt *fup, int event);
 static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int realtime);
 static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
-static int sip_do_reload(void);
+static int sip_do_reload(enum channelreloadreason reason);
 static int expire_register(void *data);
 
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause);
@@ -9365,7 +9369,7 @@ static char *function_sippeer(struct ast_channel *chan, char *cmd, char *data, c
 	return ret;
 }
 
-/* Structure to declare a dialplan function: SIPPEER */
+/*! \brief Structure to declare a dialplan function: SIPPEER */
 struct ast_custom_function sippeer_function = {
 	.name = "SIPPEER",
 	.synopsis = "Gets SIP peer information",
@@ -9441,7 +9445,7 @@ static char *function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char
 	return buf;
 }
 
-/* Structure to declare a dialplan function: SIPCHANINFO */
+/*! \brief Structure to declare a dialplan function: SIPCHANINFO */
 static struct ast_custom_function sipchaninfo_function = {
 	.name = "SIPCHANINFO",
 	.synopsis = "Gets the specified SIP parameter from the current channel",
@@ -11302,7 +11306,7 @@ static void *do_monitor(void *data)
 		if (reloading) {
 			if (option_verbose > 0)
 				ast_verbose(VERBOSE_PREFIX_1 "Reloading SIP\n");
-			sip_do_reload();
+			sip_do_reload(sip_reloadreason);
 		}
 		/* Check for interfaces needing to be killed */
 		ast_mutex_lock(&iflock);
@@ -12314,7 +12318,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	change configuration data at restart, not at reload.
 	SIP debug and recordhistory state will not change
  */
-static int reload_config(void)
+static int reload_config(enum channelreloadreason reason)
 {
 	struct ast_config *cfg;
 	struct ast_variable *v;
@@ -12328,6 +12332,7 @@ static int reload_config(void)
 	struct ast_flags dummy;
 	int auto_sip_domains = 0;
 	struct sockaddr_in old_bindaddr = bindaddr;
+	int registry_count = 0, peer_count = 0, user_count = 0;
 
 	cfg = ast_config_load(config);
 
@@ -12563,7 +12568,8 @@ static int reload_config(void)
 			else
 				add_sip_domain(ast_strip(domain), SIP_DOMAIN_CONFIG, context ? ast_strip(context) : "");
 		} else if (!strcasecmp(v->name, "register")) {
-			sip_register(v->value, v->lineno);
+			if (sip_register(v->value, v->lineno) == 0)
+				registry_count++;
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &global_tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
@@ -12629,6 +12635,7 @@ static int reload_config(void)
 				if (user) {
 					ASTOBJ_CONTAINER_LINK(&userl,user);
 					ASTOBJ_UNREF(user, sip_destroy_user);
+					user_count++;
 				}
 			}
 			if (is_peer) {
@@ -12636,6 +12643,7 @@ static int reload_config(void)
 				if (peer) {
 					ASTOBJ_CONTAINER_LINK(&peerl,peer);
 					ASTOBJ_UNREF(peer, sip_destroy_peer);
+					peer_count++;
 				}
 			}
 		}
@@ -12719,6 +12727,9 @@ static int reload_config(void)
 	if (notify_types)
 		ast_config_destroy(notify_types);
 	notify_types = ast_config_load(notify_config);
+
+	/* Done, tell the manager */
+	manager_event(EVENT_FLAG_SYSTEM, "ChannelReload", "Channel: SIP\r\nReloadReason: %s\r\nRegistry_Count: %d\r\nPeer_Count: %d\r\nUser_Count: %d\r\n\r\n", channelreloadreason2txt(reason), registry_count, peer_count, user_count);
 
 	return 0;
 }
@@ -13009,7 +13020,7 @@ static void sip_send_all_registers(void)
 }
 
 /*! \brief  sip_do_reload: Reload module */
-static int sip_do_reload(void)
+static int sip_do_reload(enum channelreloadreason reason)
 {
 	clear_realm_authentication(authl);
 	clear_sip_domains();
@@ -13018,7 +13029,7 @@ static int sip_do_reload(void)
 	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
 	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
 	ASTOBJ_CONTAINER_MARKALL(&peerl);
-	reload_config();
+	reload_config(reason);
 	/* Prune peers who still are supposed to be deleted */
 	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, sip_destroy_peer);
 
@@ -13035,8 +13046,13 @@ static int sip_reload(int fd, int argc, char *argv[])
 	ast_mutex_lock(&sip_reload_lock);
 	if (sip_reloading) {
 		ast_verbose("Previous SIP reload not yet done\n");
-	} else
+	} else {
 		sip_reloading = 1;
+		if (fd)
+			sip_reloadreason = CHANNEL_CLI_RELOAD;
+		else
+			sip_reloadreason = CHANNEL_MODULE_RELOAD;
+	}
 	ast_mutex_unlock(&sip_reload_lock);
 	restart_monitor();
 
@@ -13095,8 +13111,8 @@ int load_module()
 	if (!io) {
 		ast_log(LOG_WARNING, "Unable to create I/O context\n");
 	}
-
-	reload_config();	/* Load the configuration from sip.conf */
+	sip_reloadreason = CHANNEL_MODULE_LOAD;
+	reload_config(sip_reloadreason);	/* Load the configuration from sip.conf */
 
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {

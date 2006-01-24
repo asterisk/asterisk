@@ -530,6 +530,14 @@ struct outgoing_helper {
 #define AST_STATE_MUTE		(1 << 16)	
 /*! @} */
 
+/*! \brief Channel reload reasons for manager events at load or reload of configuration */
+enum channelreloadreason {
+	CHANNEL_MODULE_LOAD,
+	CHANNEL_MODULE_RELOAD,
+	CHANNEL_CLI_RELOAD,
+	CHANNEL_MANAGER_RELOAD,
+};
+
 /*! \brief Change the state of a channel */
 int ast_setstate(struct ast_channel *chan, int state);
 
@@ -1191,9 +1199,14 @@ static inline int ast_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds,
 									} }
 
 extern ast_group_t ast_get_group(char *s);
-/* print call- and pickup groups into buffer */
+
+/*! \brief print call- and pickup groups into buffer */
 extern char *ast_print_group(char *buf, int buflen, ast_group_t group);
 
+/*! \brief Convert enum channelreloadreason to text string for manager event
+	\param reason	Enum channelreloadreason - reason for reload (manager, cli, start etc)
+*/
+const char *channelreloadreason2txt(enum channelreloadreason reason);
 
 #if defined(__cplusplus) || defined(c_plusplus)
 }

@@ -4125,3 +4125,19 @@ void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_sil
 
 	free(state);
 }
+
+
+/*! \ brief Convert channel reloadreason (ENUM) to text string for manager event */
+const char *channelreloadreason2txt(enum channelreloadreason reason) {
+	switch (reason) {
+	case CHANNEL_MODULE_LOAD:	return "LOAD (Channel module load)";
+					break;
+	case CHANNEL_MODULE_RELOAD:	return "RELOAD (Channel module reload)";
+					break;
+	case CHANNEL_CLI_RELOAD:	return "CLIRELOAD (Channel module reload by CLI command)";
+					break;
+	default:	return "MANAGERRELOAD (Channel module reload by manager)";
+					break;
+	}
+};
+	
