@@ -4200,6 +4200,10 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
                                      (ast->_state == AST_STATE_RINGING))) {
                                         ast_log(LOG_DEBUG, "Answering on polarity switch!\n");
                                         ast_setstate(p->owner, AST_STATE_UP);
+					if(p->hanguponpolarityswitch) {
+						gettimeofday(&p->polaritydelaytv, NULL);
+					}
+					break;
                                 } else
                                         ast_log(LOG_DEBUG, "Ignore switch to REVERSED Polarity on channel %d, state %d\n", p->channel, ast->_state);
 			} 
