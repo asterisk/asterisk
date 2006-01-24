@@ -6882,7 +6882,8 @@ static int get_also_info(struct sip_pvt *p, struct sip_request *oreq)
 	}
 	if (ast_exists_extension(NULL, p->context, c, 1, NULL)) {
 		/* This is an unsupervised transfer */
-		ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
+		if (option_debug)
+			ast_log(LOG_DEBUG,"Assigning Extension %s to REFER-TO\n", c);
 		ast_string_field_set(p, refer_to, c);
 		ast_string_field_free(p, referred_by);
 		ast_string_field_free(p, refer_contact);
@@ -10719,7 +10720,8 @@ static int handle_request_bye(struct sip_pvt *p, struct sip_request *req, int de
 			}
 		} else {
 			ast_log(LOG_WARNING, "Invalid transfer information from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), p->recv.sin_addr));
-			ast_queue_hangup(p->owner);
+			if (p->owner)
+				ast_queue_hangup(p->owner);
 		}
 	} else if (p->owner)
 		ast_queue_hangup(p->owner);
