@@ -167,12 +167,12 @@ struct console {
 	pthread_t t;			/*!< Thread of handler */
 };
 
-static struct ast_atexit {
+struct ast_atexit {
 	void (*func)(void);
-	struct ast_atexit *next;
-} *atexits = NULL;
+	AST_LIST_ENTRY(ast_atexit) list;
+};
 
-AST_MUTEX_DEFINE_STATIC(atexitslock);
+static AST_LIST_HEAD_STATIC(atexits, ast_atexit);
 
 time_t ast_startuptime;
 time_t ast_lastreloadtime;
@@ -355,35 +355,29 @@ int ast_register_atexit(void (*func)(void))
 	struct ast_atexit *ae;
 	ast_unregister_atexit(func);
 	ae = malloc(sizeof(struct ast_atexit));
-	ast_mutex_lock(&atexitslock);
+	AST_LIST_LOCK(&atexits);
 	if (ae) {
 		memset(ae, 0, sizeof(struct ast_atexit));
-		ae->next = atexits;
+		AST_LIST_INSERT_HEAD(&atexits, ae, list);
 		ae->func = func;
-		atexits = ae;
 		res = 0;
 	}
-	ast_mutex_unlock(&atexitslock);
+	AST_LIST_UNLOCK(&atexits);
 	return res;
 }
 
 void ast_unregister_atexit(void (*func)(void))
 {
-	struct ast_atexit *ae, *prev = NULL;
-	ast_mutex_lock(&atexitslock);
-	ae = atexits;
-	while(ae) {
+	struct ast_atexit *ae;
+	AST_LIST_LOCK(&atexits);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&atexits, ae, list) {
 		if (ae->func == func) {
-			if (prev)
-				prev->next = ae->next;
-			else
-				atexits = ae->next;
+			AST_LIST_REMOVE_CURRENT(&atexits, list);
 			break;
 		}
-		prev = ae;
-		ae = ae->next;
 	}
-	ast_mutex_unlock(&atexitslock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&atexits);
 }
 
 static int fdprint(int fd, const char *s)
@@ -806,14 +800,12 @@ int ast_set_priority(int pri)
 static void ast_run_atexits(void)
 {
 	struct ast_atexit *ae;
-	ast_mutex_lock(&atexitslock);
-	ae = atexits;
-	while(ae) {
+	AST_LIST_LOCK(&atexits);
+	AST_LIST_TRAVERSE(&atexits, ae, list) {
 		if (ae->func) 
 			ae->func();
-		ae = ae->next;
 	}
-	ast_mutex_unlock(&atexitslock);
+	AST_LIST_UNLOCK(&atexits);
 }
 
 static void quit_handler(int num, int nice, int safeshutdown, int restart)
