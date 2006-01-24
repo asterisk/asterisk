@@ -411,7 +411,7 @@ struct ast_channel {
 	struct ast_channel_spy_list *spies;
 
 	/*! For easy linking */
-	struct ast_channel *next;
+	AST_LIST_ENTRY(ast_channel) list;
 };
 
 /* \defgroup chanprop Channel tech properties:

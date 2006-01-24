@@ -108,11 +108,9 @@ struct chanlist {
 /*! the list of registered channel types */
 static AST_LIST_HEAD_NOLOCK_STATIC(backends, chanlist);
 
-/*! the list of channels we have */
-static struct ast_channel *channels = NULL;
-
-/*! Protect the channel list, both backends and channels. */
-AST_MUTEX_DEFINE_STATIC(chlock);
+/*! the list of channels we have. Note that the lock for this list is used for
+    both the channels list and the backends list.  */
+static AST_LIST_HEAD_STATIC(channels, ast_channel);
 
 /*! map AST_CAUSE's to readable string representations */
 const struct ast_cause {
@@ -174,7 +172,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 
 	ast_cli(fd, FORMAT, "Type", "Description",       "Devicestate", "Indications", "Transfer");
 	ast_cli(fd, FORMAT, "----------", "-----------", "-----------", "-----------", "--------");
-	if (ast_mutex_lock(&chlock)) {
+	if (AST_LIST_LOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return -1;
 	}
@@ -185,7 +183,7 @@ static int show_channeltypes(int fd, int argc, char *argv[])
 			(cl->tech->transfer) ? "yes" : "no");
 		count_chan++;
 	}
-	ast_mutex_unlock(&chlock);
+	AST_LIST_UNLOCK(&channels);
 	ast_cli(fd, "----------\n%d channel drivers registered.\n", count_chan);
 	return RESULT_SUCCESS;
 
@@ -200,7 +198,7 @@ static int show_channeltype(int fd, int argc, char *argv[])
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
 	
-	if (ast_mutex_lock(&chlock)) {
+	if (AST_LIST_LOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return RESULT_FAILURE;
 	}
@@ -214,7 +212,7 @@ static int show_channeltype(int fd, int argc, char *argv[])
 
 	if (!cl) {
 		ast_cli(fd, "\n%s is not a registered channel driver.\n", argv[2]);
-		ast_mutex_unlock(&chlock);
+		AST_LIST_UNLOCK(&channels);
 		return RESULT_FAILURE;
 	} 
 
@@ -240,7 +238,7 @@ static int show_channeltype(int fd, int argc, char *argv[])
 		
 	);
 
-	ast_mutex_unlock(&chlock);
+	AST_LIST_UNLOCK(&channels);
 	return RESULT_SUCCESS;
 }
 
@@ -317,10 +315,10 @@ void ast_begin_shutdown(int hangup)
 	struct ast_channel *c;
 	shutting_down = 1;
 	if (hangup) {
-		ast_mutex_lock(&chlock);
-		for (c = channels; c; c = c->next)
+		AST_LIST_LOCK(&channels);
+		AST_LIST_TRAVERSE(&channels, c, list)
 			ast_softhangup(c, AST_SOFTHANGUP_SHUTDOWN);
-		ast_mutex_unlock(&chlock);
+		AST_LIST_UNLOCK(&channels);
 	}
 }
 
@@ -329,10 +327,10 @@ int ast_active_channels(void)
 {
 	struct ast_channel *c;
 	int cnt = 0;
-	ast_mutex_lock(&chlock);
-	for (c = channels; c; c = c->next)
+	AST_LIST_LOCK(&channels);
+	AST_LIST_TRAVERSE(&channels, c, list)
 		cnt++;
-	ast_mutex_unlock(&chlock);
+	AST_LIST_UNLOCK(&channels);
 	return cnt;
 }
 
@@ -393,12 +391,12 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 {
 	struct chanlist *chan;
 
-	ast_mutex_lock(&chlock);
+	AST_LIST_LOCK(&channels);
 
 	AST_LIST_TRAVERSE(&backends, chan, list) {
 		if (!strcasecmp(tech->type, chan->tech->type)) {
 			ast_log(LOG_WARNING, "Already have a handler for type '%s'\n", tech->type);
-			ast_mutex_unlock(&chlock);
+			AST_LIST_UNLOCK(&channels);
 			return -1;
 		}
 	}
@@ -406,7 +404,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 	chan = malloc(sizeof(*chan));
 	if (!chan) {
 		ast_log(LOG_WARNING, "Out of memory\n");
-		ast_mutex_unlock(&chlock);
+		AST_LIST_UNLOCK(&channels);
 		return -1;
 	}
 	chan->tech = tech;
@@ -419,7 +417,7 @@ int ast_channel_register(const struct ast_channel_tech *tech)
 		ast_verbose(VERBOSE_PREFIX_2 "Registered channel type '%s' (%s)\n", chan->tech->type,
 			    chan->tech->description);
 
-	ast_mutex_unlock(&chlock);
+	AST_LIST_UNLOCK(&channels);
 	return 0;
 }
 
@@ -430,7 +428,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Unregistering channel type '%s'\n", tech->type);
 
-	ast_mutex_lock(&chlock);
+	AST_LIST_LOCK(&channels);
 
 	AST_LIST_TRAVERSE_SAFE_BEGIN(&backends, chan, list) {
 		if (chan->tech == tech) {
@@ -443,7 +441,7 @@ void ast_channel_unregister(const struct ast_channel_tech *tech)
 	}
 	AST_LIST_TRAVERSE_SAFE_END
 
-	ast_mutex_unlock(&chlock);
+	AST_LIST_UNLOCK(&channels);
 }
 
 const struct ast_channel_tech *ast_get_channel_tech(const char *name)
@@ -451,7 +449,7 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name)
 	struct chanlist *chanls;
 	const struct ast_channel_tech *ret = NULL;
 
-	if (ast_mutex_lock(&chlock)) {
+	if (AST_LIST_LOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel tech list\n");
 		return NULL;
 	}
@@ -463,7 +461,7 @@ const struct ast_channel_tech *ast_get_channel_tech(const char *name)
 		}
 	}
 
-	ast_mutex_unlock(&chlock);
+	AST_LIST_UNLOCK(&channels);
 	
 	return ret;
 }
@@ -664,11 +662,9 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 
 	tmp->tech = &null_tech;
 
-	ast_mutex_lock(&chlock);
-	tmp->next = channels;
-	channels = tmp;
-
-	ast_mutex_unlock(&chlock);
+	AST_LIST_LOCK(&channels);
+	AST_LIST_INSERT_HEAD(&channels, tmp, list);
+	AST_LIST_UNLOCK(&channels);
 	return tmp;
 }
 
@@ -801,8 +797,8 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 	struct ast_channel *c;
 
 	for (retries = 0; retries < 10; retries++) {
-		ast_mutex_lock(&chlock);
-		for (c = channels; c; c = c->next) {
+		AST_LIST_LOCK(&channels);
+		AST_LIST_TRAVERSE(&channels, c, list) {
 			if (!prev) {
 				/* want head of list */
 				if (!name && !exten)
@@ -831,7 +827,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 						break;
 				}
 			} else if (c == prev) { /* found, return c->next */
-				c = c->next;
+				c = AST_LIST_NEXT(c, list);
 				break;
 			}
 		}
@@ -840,7 +836,7 @@ static struct ast_channel *channel_find_locked(const struct ast_channel *prev,
 		/* this is slightly unsafe, as we _should_ hold the lock to access c->name */
 		if (!done && c)
 			ast_log(LOG_DEBUG, "Avoiding %s for '%s'\n", msg, c->name);
-		ast_mutex_unlock(&chlock);
+		AST_LIST_UNLOCK(&channels);
 		if (done)
 			return c;
 		usleep(1);
@@ -929,7 +925,6 @@ static void free_cid(struct ast_callerid *cid)
 /*! \brief Free a channel structure */
 void ast_channel_free(struct ast_channel *chan)
 {
-	struct ast_channel *last=NULL, *cur;
 	int fd;
 	struct ast_var_t *vardata;
 	struct ast_frame *f, *fp;
@@ -938,25 +933,12 @@ void ast_channel_free(struct ast_channel *chan)
 	
 	headp=&chan->varshead;
 	
-	ast_mutex_lock(&chlock);
-	for (cur = channels; cur; cur = cur->next) {
-		if (cur == chan) {
-			if (last)
-				last->next = cur->next;
-			else
-				channels = cur->next;
-			break;
-		}
-		last = cur;
-	}
-	if (!cur)
-		ast_log(LOG_WARNING, "Unable to find channel in list\n");
-	else {
-		/* Lock and unlock the channel just to be sure nobody
-		   has it locked still */
-		ast_mutex_lock(&cur->lock);
-		ast_mutex_unlock(&cur->lock);
-	}
+	AST_LIST_LOCK(&channels);
+	AST_LIST_REMOVE(&channels, chan, list);
+	/* Lock and unlock the channel just to be sure nobody
+	   has it locked still */
+	ast_mutex_lock(&chan->lock);
+	ast_mutex_unlock(&chan->lock);
 	if (chan->tech_pvt) {
 		ast_log(LOG_WARNING, "Channel '%s' may not have been hung up properly\n", chan->name);
 		free(chan->tech_pvt);
@@ -1007,7 +989,7 @@ void ast_channel_free(struct ast_channel *chan)
 		ast_var_delete(vardata);
 
 	free(chan);
-	ast_mutex_unlock(&chlock);
+	AST_LIST_UNLOCK(&channels);
 
 	ast_device_state_changed_literal(name);
 }
@@ -2564,7 +2546,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		cause = &foo;
 	*cause = AST_CAUSE_NOTDEFINED;
 
-	if (ast_mutex_lock(&chlock)) {
+	if (AST_LIST_LOCK(&channels)) {
 		ast_log(LOG_WARNING, "Unable to lock channel list\n");
 		return NULL;
 	}
@@ -2578,10 +2560,10 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 		res = ast_translator_best_choice(&fmt, &capabilities);
 		if (res < 0) {
 			ast_log(LOG_WARNING, "No translator path exists for channel type %s (native %d) to %d\n", type, chan->tech->capabilities, format);
-			ast_mutex_unlock(&chlock);
+			AST_LIST_UNLOCK(&channels);
 			return NULL;
 		}
-		ast_mutex_unlock(&chlock);
+		AST_LIST_UNLOCK(&channels);
 		if (!chan->tech->requester)
 			return NULL;
 		
@@ -2605,7 +2587,7 @@ struct ast_channel *ast_request(const char *type, int format, void *data, int *c
 
 	ast_log(LOG_WARNING, "No channel type registered for '%s'\n", type);
 	*cause = AST_CAUSE_NOSUCHDRIVER;
-	ast_mutex_unlock(&chlock);
+	AST_LIST_UNLOCK(&channels);
 
 	return NULL;
 }
