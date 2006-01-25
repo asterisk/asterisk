@@ -3235,11 +3235,14 @@ static enum ast_bridge_result ast_generic_bridge(struct ast_channel *c0, struct 
 			res = AST_BRIDGE_RETRY;
 			break;
 		}
-		to = ast_tvdiff_ms(bridge_end, ast_tvnow());
-		if (to <= 0) {
-			res = AST_BRIDGE_RETRY;
-			break;
-		}
+		if (bridge_end.tv_sec) {
+			to = ast_tvdiff_ms(bridge_end, ast_tvnow());
+			if (to <= 0) {
+				res = AST_BRIDGE_RETRY;
+				break;
+			}
+		} else
+			to = -1;
 		who = ast_waitfor_n(cs, 2, &to);
 		if (!who) {
 			ast_log(LOG_DEBUG, "Nobody there, continuing...\n"); 
