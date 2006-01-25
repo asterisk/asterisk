@@ -71,9 +71,6 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
-/* Protect the interface list (of feature_pvt's) */
-AST_MUTEX_DEFINE_STATIC(featurelock);
-
 struct feature_sub {
 	struct ast_channel *owner;
 	int inthreeway;
@@ -82,15 +79,17 @@ struct feature_sub {
 	int alertpipebackup[2];
 };
 
-static struct feature_pvt {
+struct feature_pvt {
 	ast_mutex_t lock;			/* Channel private lock */
 	char tech[AST_MAX_EXTENSION];		/* Technology to abstract */
 	char dest[AST_MAX_EXTENSION];		/* Destination to abstract */
 	struct ast_channel *subchan;
 	struct feature_sub subs[3];		/* Subs */
 	struct ast_channel *owner;		/* Current Master Channel */
-	struct feature_pvt *next;		/* Next entity */
-} *features = NULL;
+	AST_LIST_ENTRY(feature_pvt) list;	/* Next entity */
+};
+
+static AST_LIST_HEAD_STATIC(features, feature_pvt);
 
 #define SUB_REAL	0			/* Active call */
 #define SUB_CALLWAIT	1			/* Call-Waiting call on hold */
@@ -366,7 +365,6 @@ static int features_call(struct ast_channel *ast, char *dest, int timeout)
 static int features_hangup(struct ast_channel *ast)
 {
 	struct feature_pvt *p = ast->tech_pvt;
-	struct feature_pvt *cur, *prev=NULL;
 	int x;
 
 	ast_mutex_lock(&p->lock);
@@ -378,24 +376,12 @@ static int features_hangup(struct ast_channel *ast)
 	}
 	ast->tech_pvt = NULL;
 	
-	
 	if (!p->subs[SUB_REAL].owner && !p->subs[SUB_CALLWAIT].owner && !p->subs[SUB_THREEWAY].owner) {
 		ast_mutex_unlock(&p->lock);
 		/* Remove from list */
-		ast_mutex_lock(&featurelock);
-		cur = features;
-		while(cur) {
-			if (cur == p) {
-				if (prev)
-					prev->next = cur->next;
-				else
-					features = cur->next;
-				break;
-			}
-			prev = cur;
-			cur = cur->next;
-		}
-		ast_mutex_unlock(&featurelock);
+		AST_LIST_LOCK(&features);
+		AST_LIST_REMOVE(&features, p, list);
+		AST_LIST_UNLOCK(&features);
 		ast_mutex_lock(&p->lock);
 		/* And destroy */
 		if (p->subchan)
@@ -431,14 +417,12 @@ static struct feature_pvt *features_alloc(char *data, int format)
 			data);
 		return NULL;
 	}
-	ast_mutex_lock(&featurelock);
-	tmp = features;
-	while(tmp) {
+	AST_LIST_LOCK(&features);
+	AST_LIST_TRAVERSE(&features, tmp, list) {
 		if (!strcasecmp(tmp->tech, tech) && !strcmp(tmp->dest, dest))
 			break;
-		tmp = tmp->next;
 	}
-	ast_mutex_unlock(&featurelock);
+	AST_LIST_UNLOCK(&features);
 	if (!tmp) {
 		chan = ast_request(tech, format, dest, &status);
 		if (!chan) {
@@ -454,10 +438,9 @@ static struct feature_pvt *features_alloc(char *data, int format)
 			strncpy(tmp->tech, tech, sizeof(tmp->tech) - 1);
 			strncpy(tmp->dest, dest, sizeof(tmp->dest) - 1);
 			tmp->subchan = chan;
-			ast_mutex_lock(&featurelock);
-			tmp->next = features;
-			features = tmp;
-			ast_mutex_unlock(&featurelock);
+			AST_LIST_LOCK(&features);
+			AST_LIST_INSERT_HEAD(&features, tmp, list);
+			AST_LIST_UNLOCK(&features);
 		}
 	}
 	return tmp;
@@ -530,17 +513,19 @@ static int features_show(int fd, int argc, char **argv)
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&featurelock);
-	p = features;
-	while(p) {
+
+	if (AST_LIST_EMPTY(&features)) {
+		ast_cli(fd, "No feature channels in use\n");
+		return RESULT_SUCCESS;
+	}
+
+	AST_LIST_LOCK(&features);
+	AST_LIST_TRAVERSE(&features, p, list) {
 		ast_mutex_lock(&p->lock);
 		ast_cli(fd, "%s -- %s/%s\n", p->owner ? p->owner->name : "<unowned>", p->tech, p->dest);
 		ast_mutex_unlock(&p->lock);
-		p = p->next;
 	}
-	if (!features)
-		ast_cli(fd, "No feature channels in use\n");
-	ast_mutex_unlock(&featurelock);
+	AST_LIST_UNLOCK(&features);
 	return RESULT_SUCCESS;
 }
 
@@ -571,23 +556,23 @@ int reload()
 int unload_module()
 {
 	struct feature_pvt *p;
+	
 	/* First, take us out of the channel loop */
 	ast_cli_unregister(&cli_show_features);
 	ast_channel_unregister(&features_tech);
-	if (!ast_mutex_lock(&featurelock)) {
-		/* Hangup all interfaces if they have an owner */
-		p = features;
-		while(p) {
-			if (p->owner)
-				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-			p = p->next;
-		}
-		features = NULL;
-		ast_mutex_unlock(&featurelock);
-	} else {
-		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
+	
+	if (!AST_LIST_LOCK(&features))
 		return -1;
-	}		
+	/* Hangup all interfaces if they have an owner */
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&features, p, list) {
+		if (p->owner)
+			ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
+		AST_LIST_REMOVE_CURRENT(&features, list);
+		free(p);
+	}
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&features);
+	
 	return 0;
 }
 
