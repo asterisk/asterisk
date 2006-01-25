@@ -1596,16 +1596,15 @@ static void realtime_update_peer(const char *peername, struct sockaddr_in *sin, 
 {
 	char port[10];
 	char ipaddr[20];
-	char regseconds[20] = "0";
+	char regseconds[20];
+	time_t nowtime;
 	
-	if (expirey) {	/* Registration */
-		time_t nowtime;
-		time(&nowtime);
-		nowtime += expirey;
-		snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);	/* Expiration time */
-		ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
-		snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
-	}
+	time(&nowtime);
+	nowtime += expirey;
+	snprintf(regseconds, sizeof(regseconds), "%d", (int)nowtime);	/* Expiration time */
+	ast_inet_ntoa(ipaddr, sizeof(ipaddr), sin->sin_addr);
+	snprintf(port, sizeof(port), "%d", ntohs(sin->sin_port));
+	
 	if (fullcontact)
 		ast_update_realtime("sippeers", "name", peername, "ipaddr", ipaddr, "port", port, "regseconds", regseconds, "username", username, "fullcontact", fullcontact, NULL);
 	else
