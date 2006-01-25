@@ -2417,8 +2417,11 @@ struct agent_pvt *find_agent(char *agentid)
 
 static char *function_agent(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
-	char *agentid;
-	char *item;
+	char *parse;    
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(agentid);
+		AST_APP_ARG(item);
+	);
 	char *tmp;
 	struct agent_pvt *agent;
 
@@ -2429,39 +2432,38 @@ static char *function_agent(struct ast_channel *chan, char *cmd, char *data, cha
 		return buf;	
 	}
 
-	if (!(item = ast_strdupa(data)))
+	if (!(parse = ast_strdupa(data)))
 		return buf;
 
-	agentid	= strsep(&item, ":");
-	if (!item)
-		item = "status";
+	AST_NONSTANDARD_APP_ARGS(args, parse, ':');
+	if (!args.item)
+		args.item = "status";
 
-	agent = find_agent(agentid);
-	if (!agent) {
-		ast_log(LOG_WARNING, "Agent '%s' not found!\n", agentid);
+	if (!(agent = find_agent(args.agentid))) {
+		ast_log(LOG_WARNING, "Agent '%s' not found!\n", args.agentid);
 		return buf;
 	}
 
-	if (!strcasecmp(item, "status")) {
+	if (!strcasecmp(args.item, "status")) {
 		if (agent->chan || !ast_strlen_zero(agent->loginchan)) {
 			ast_copy_string(buf, "LOGGEDIN", len);
 		} else {
 			ast_copy_string(buf, "LOGGEDOUT", len);
 		}
-	} else if (!strcasecmp(item, "password")) {
+	} else if (!strcasecmp(args.item, "password")) {
 		ast_copy_string(buf, agent->password, len);
-	} else if (!strcasecmp(item, "name")) {
+	} else if (!strcasecmp(args.item, "name")) {
 		ast_copy_string(buf, agent->name, len);
-	} else if (!strcasecmp(item, "mohclass")) {
+	} else if (!strcasecmp(args.item, "mohclass")) {
 		ast_copy_string(buf, agent->moh, len);
-	} else if (!strcasecmp(item, "channel")) {
+	} else if (!strcasecmp(args.item, "channel")) {
 		if (agent->chan) {
 			ast_copy_string(buf, agent->chan->name, len);
 			tmp = strrchr(buf, '-');
 			if (tmp)
 				*tmp = '\0';
 		} 
-	} else if (!strcasecmp(item, "exten")) {
+	} else if (!strcasecmp(args.item, "exten")) {
 		ast_copy_string(buf, agent->loginchan, len);	
 	}
 
