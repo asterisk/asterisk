@@ -5268,33 +5268,31 @@ static int pbx_builtin_wait(struct ast_channel *chan, void *data)
  */
 static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 {
-	int ms, res, argc;
-	char *args;
-	char *argv[2];
-	char *options = NULL; 
-	char *timeout = NULL;
+	int ms, res;
 	struct ast_flags flags = {0};
 	char *opts[1] = { NULL };
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(timeout);
+		AST_APP_ARG(options);
+	);
 
-	args = ast_strdupa(data);
+	if (!ast_strlen_zero(data)) {
+		if (!(parse = ast_strdupa(data)))
+			return -1;
+		AST_STANDARD_APP_ARGS(args, parse);
+	} else
+		memset(&args, 0, sizeof(args));
 
-	if ((argc = ast_app_separate_args(args, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		if (argc > 0) {
-			timeout = argv[0];
-			if (argc > 1)
-				options = argv[1];
-		}
-	}
-
-	if (options)
-		ast_app_parse_options(waitexten_opts, &flags, opts, options);
+	if (args.options)
+		ast_app_parse_options(waitexten_opts, &flags, opts, args.options);
 	
 	if (ast_test_flag(&flags, WAITEXTEN_MOH))
 		ast_moh_start(chan, opts[0]);
 
 	/* Wait for "n" seconds */
-	if (timeout && atof((char *)timeout)) 
-		ms = atof((char *)timeout) * 1000;
+	if (args.timeout && atof((char *)args.timeout))
+		 ms = atof((char *)args.timeout) * 1000;
 	else if (chan->pbx)
 		ms = chan->pbx->rtimeout * 1000;
 	else
@@ -5327,48 +5325,37 @@ static int pbx_builtin_waitexten(struct ast_channel *chan, void *data)
 static int pbx_builtin_background(struct ast_channel *chan, void *data)
 {
 	int res = 0;
-	int argc;
-	char *parse;
-	char *argv[4];
-	char *options = NULL; 
-	char *filename = NULL;
 	char *front = NULL, *back = NULL;
-	char *lang = NULL;
-	char *context = NULL;
 	struct ast_flags flags = {0};
+	char *parse;
+	AST_DECLARE_APP_ARGS(args,
+		AST_APP_ARG(filename);
+		AST_APP_ARG(options);
+		AST_APP_ARG(lang);
+		AST_APP_ARG(context);
+	);
 
-	parse = ast_strdupa(data);
+	if (ast_strlen_zero(data))
+		ast_log(LOG_WARNING, "Background requires an argument (filename)\n");
 
-	if ((argc = ast_app_separate_args(parse, '|', argv, sizeof(argv) / sizeof(argv[0])))) {
-		switch (argc) {
-		case 4:
-			context = argv[3];
-		case 3:
-			lang = argv[2];
-		case 2:
-			options = argv[1];
-		case 1:
-			filename = argv[0];
-			break;
-		default:
-			ast_log(LOG_WARNING, "Background requires an argument (filename)\n");
-			break;
-		}
-	}
+	if (!(parse = ast_strdupa(data)))
+		return -1;
+	
+	AST_STANDARD_APP_ARGS(args, parse);
 
-	if (!lang)
-		lang = chan->language;
+	if (!args.lang)
+		args.lang = chan->language;
 
-	if (!context)
-		context = chan->context;
+	if (!args.context)
+		args.context = chan->context;
 
-	if (options) {
-		if (!strcasecmp(options, "skip"))
+	if (args.options) {
+		if (!strcasecmp(args.options, "skip"))
 			flags.flags = BACKGROUND_SKIP;
-		else if (!strcasecmp(options, "noanswer"))
+		else if (!strcasecmp(args.options, "noanswer"))
 			flags.flags = BACKGROUND_NOANSWER;
 		else
-			ast_app_parse_options(background_opts, &flags, NULL, options);
+			ast_app_parse_options(background_opts, &flags, NULL, args.options);
 	}
 
 	/* Answer if need be */
@@ -5384,19 +5371,19 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 		/* Stop anything playing */
 		ast_stopstream(chan);
 		/* Stream a file */
-		front = filename;
+		front = args.filename;
 		while(!res && front) {
 			if((back = strchr(front, '&'))) {
 				*back = '\0';
 				back++;
 			}
-			res = ast_streamfile(chan, front, lang);
+			res = ast_streamfile(chan, front, args.lang);
 			if (!res) {
 				if (ast_test_flag(&flags, BACKGROUND_PLAYBACK)) {
 					res = ast_waitstream(chan, "");
 				} else {
 					if (ast_test_flag(&flags, BACKGROUND_MATCHEXTEN)) {
-						res = ast_waitstream_exten(chan, context);
+						res = ast_waitstream_exten(chan, args.context);
 					} else {
 						res = ast_waitstream(chan, AST_DIGIT_ANY);
 					}
@@ -5410,9 +5397,9 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 			front = back;
 		}
 	}
-	if (context != chan->context && res) {
+	if (args.context != chan->context && res) {
 		snprintf(chan->exten, sizeof(chan->exten), "%c", res);
-		ast_copy_string(chan->context, context, sizeof(chan->context));
+		ast_copy_string(chan->context, args.context, sizeof(chan->context));
 		chan->priority = 0;
 		return 0;
 	} else {
