@@ -648,6 +648,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localu
 					ast_hangup(o->chan);
 					o->chan = NULL;
 					ast_clear_flag(o, DIAL_STILLGOING);
+					HANDLE_CAUSE(in->hangupcause, in);
 				}
 			}
 			o = o->next;
