@@ -942,7 +942,7 @@ static void append_date(struct sip_request *req);	/* Append date to SIP packet *
 static int determine_firstline_parts(struct sip_request *req);
 static void sip_dump_history(struct sip_pvt *dialog);	/* Dump history to LOG_DEBUG at end of dialog, before destroying data */
 static const struct cfsubscription_types *find_subscription_type(enum subscriptiontype subtype);
-static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate);
+static int transmit_state_notify(struct sip_pvt *p, int state, int full);
 static char *gettag(struct sip_request *req, char *header, char *tagbuf, int tagbufsize);
 int find_sip_method(char *msg);
 unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported);
@@ -1325,7 +1325,7 @@ static int __sip_autodestruct(void *data)
 	/* If this is a subscription, tell the phone that we got a timeout */
 	if (p->subscribed) {
 		p->subscribed = TIMEOUT;
-		transmit_state_notify(p, AST_EXTENSION_DEACTIVATED, 1, 1);	/* Send first notification */
+		transmit_state_notify(p, AST_EXTENSION_DEACTIVATED, 1);	/* Send last notification */
 		p->subscribed = NONE;
 		append_history(p, "Subscribestatus", "timeout");
 		if (option_debug > 2)
@@ -5042,7 +5042,7 @@ static int transmit_invite(struct sip_pvt *p, int sipmethod, int sdp, int init)
 }
 
 /*! \brief  transmit_state_notify: Used in the SUBSCRIBE notification subsystem */
-static int transmit_state_notify(struct sip_pvt *p, int state, int full, int substate)
+static int transmit_state_notify(struct sip_pvt *p, int state, int full)
 {
 	char tmp[4000], from[256], to[256];
 	char *t = tmp, *c, *a, *mfrom, *mto;
@@ -6418,7 +6418,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 		p->laststate = state;
 		break;
 	}
-	transmit_state_notify(p, state, 1, 1);
+	transmit_state_notify(p, state, 1);
 
 	if (option_debug > 1)
 		ast_verbose(VERBOSE_PREFIX_1 "Extension Changed %s new state %s for Notify User %s\n", exten, ast_extension_state2str(state), p->username);
@@ -10891,14 +10891,15 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 		/* check if the requested expiry-time is within the approved limits from sip.conf */
 		if (p->expiry > max_expiry)
 			p->expiry = max_expiry;
-		if (p->expiry < min_expiry)
+		if (p->expiry < min_expiry && p->expiry > 0)
 			p->expiry = min_expiry;
 
 		if (sipdebug || option_debug > 1)
 			ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
 		if (p->autokillid > -1)
 			sip_cancel_destroy(p);	/* Remove subscription expiry for renewals */
-		sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
+		if (p->expiry > 0)
+			sip_scheddestroy(p, (p->expiry + 10) * 1000);	/* Set timer for destruction of call at expiration */
 
 		if ((firststate = ast_extension_state(NULL, p->context, p->exten)) < 0) {
 			ast_log(LOG_ERROR, "Got SUBSCRIBE for extensions without hint. Please add hint to %s in context %s\n", p->exten, p->context);
@@ -10909,7 +10910,7 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 			struct sip_pvt *p_old;
 
 			transmit_response(p, "200 OK", req);
-			transmit_state_notify(p, firststate, 1, 1);	/* Send first notification */
+			transmit_state_notify(p, firststate, 1);	/* Send first notification */
 			append_history(p, "Subscribestatus", "%s", ast_extension_state2str(firststate));
 
 			/* remove any old subscription from this peer for the same exten/context,
