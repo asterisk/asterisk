@@ -568,17 +568,17 @@ int reload()
 
 int unload_module()
 {
-	struct feature_pvt *p;
+	struct feature_pvt *p, *prev;
 	/* First, take us out of the channel loop */
 	ast_cli_unregister(&cli_show_features);
 	ast_channel_unregister(&features_tech);
 	if (!ast_mutex_lock(&featurelock)) {
 		/* Hangup all interfaces if they have an owner */
-		p = features;
-		while(p) {
+		for (p = features; p; p = p->next) {
+			prev = p;
 			if (p->owner)
 				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-			p = p->next;
+			free(prev);
 		}
 		features = NULL;
 		ast_mutex_unlock(&featurelock);
