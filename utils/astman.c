@@ -39,6 +39,7 @@
 
 #include "asterisk/md5.h"
 #include "asterisk/manager.h"
+#include "asterisk/linkedlists.h"
 
 #undef gethostbyname
 
@@ -60,15 +61,17 @@ static struct ast_mansession {
 	int inlen;
 } session;
 
-static struct ast_chan {
+struct ast_chan {
 	char name[80];
 	char exten[20];
 	char context[20];
 	char priority[20];
 	char callerid[40];
 	char state[10];
-	struct ast_chan *next;
-} *chans;
+	AST_LIST_ENTRY(ast_chan) list;
+};
+
+static AST_LIST_HEAD_NOLOCK_STATIC(chans, ast_chan);
 
 /* dummy functions to be compatible with the Asterisk core for md5.c */
 void ast_register_file_version(const char *file, const char *version);
@@ -83,39 +86,31 @@ void ast_unregister_file_version(const char *file)
 
 static struct ast_chan *find_chan(char *name)
 {
-	struct ast_chan *prev = NULL, *chan = chans;
-	while(chan) {
+	struct ast_chan *chan;
+	AST_LIST_TRAVERSE(&chans, chan, list) {
 		if (!strcmp(name, chan->name))
 			return chan;
-		prev = chan;
-		chan = chan->next;
 	}
 	chan = malloc(sizeof(struct ast_chan));
 	if (chan) {
 		memset(chan, 0, sizeof(struct ast_chan));
 		strncpy(chan->name, name, sizeof(chan->name) - 1);
-		if (prev) 
-			prev->next = chan;
-		else
-			chans = chan;
+		AST_LIST_INSERT_TAIL(&chans, chan, list);
 	}
 	return chan;
 }
 
 static void del_chan(char *name)
 {
-	struct ast_chan *prev = NULL, *chan = chans;
-	while(chan) {
+	struct ast_chan *chan;
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&chans, chan, list) {
 		if (!strcmp(name, chan->name)) {
-			if (prev)
-				prev->next = chan->next;
-			else
-				chans = chan->next;
+			AST_LIST_REMOVE_CURRENT(&chans, list);
+			free(chan);
 			return;
 		}
-		prev = chan;
-		chan = chan->next;
 	}
+	AST_LIST_TRAVERSE_SAFE_END
 }
 
 static void fdprintf(int fd, char *fmt, ...)
@@ -246,8 +241,7 @@ static void rebuild_channels(newtComponent c)
 	int x=0;
 	prev = newtListboxGetCurrent(c);
 	newtListboxClear(c);
-	chan = chans;
-	while(chan) {
+	AST_LIST_TRAVERSE(&chans, chan, list) {
 		snprintf(tmpn, sizeof(tmpn), "%s (%s)", chan->name, chan->callerid);
 		if (strlen(chan->exten)) 
 			snprintf(tmp, sizeof(tmp), "%-30s %8s -> %s@%s:%s", 
@@ -258,7 +252,6 @@ static void rebuild_channels(newtComponent c)
 				tmpn, chan->state);
 		newtListboxAppendEntry(c, tmp, chan);
 		x++;
-		chan = chan->next;
 	}
 	if (!x)
 		newtListboxAppendEntry(c, " << No Active Channels >> ", NULL);
