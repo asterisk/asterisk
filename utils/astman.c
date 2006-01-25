@@ -111,6 +111,7 @@ static void del_chan(char *name)
 				prev->next = chan->next;
 			else
 				chans = chan->next;
+			free(chan);
 			return;
 		}
 		prev = chan;
