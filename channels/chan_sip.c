@@ -10888,13 +10888,12 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 	if (p && !ast_test_flag(p, SIP_NEEDDESTROY)) {
 		p->expiry = atoi(get_header(req, "Expires"));
 
-		/* The next 4 lines can be removed if the SNOM Expires bug is fixed */
-		if (p->subscribed == DIALOG_INFO_XML) {  
-			if (p->expiry > max_expiry)
-				p->expiry = max_expiry;
-			if (p->expiry < min_expiry)
-				p->expiry = min_expiry;
-		}
+		/* check if the requested expiry-time is within the approved limits from sip.conf */
+		if (p->expiry > max_expiry)
+			p->expiry = max_expiry;
+		if (p->expiry < min_expiry)
+			p->expiry = min_expiry;
+
 		if (sipdebug || option_debug > 1)
 			ast_log(LOG_DEBUG, "Adding subscription for extension %s context %s for peer %s\n", p->exten, p->context, p->username);
 		if (p->autokillid > -1)
