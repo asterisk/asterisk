@@ -6940,29 +6940,23 @@ retryowner:
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_REJECT:
-				memset(&f, 0, sizeof(f));
-				f.frametype = AST_FRAME_CONTROL;
-				f.subclass = AST_CONTROL_CONGESTION;
-
 				/* Set hangup cause according to remote */
 				if (ies.causecode && iaxs[fr.callno]->owner)
 					iaxs[fr.callno]->owner->hangupcause = ies.causecode;
 
-				iax2_queue_frame(fr.callno, &f);
-				if (ast_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
-					/* Send ack immediately, before we destroy */
-					send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-					iax2_destroy_nolock(fr.callno);
-					break;
+				if (!ast_test_flag(iaxs[fr.callno], IAX_PROVISION)) {
+					if (iaxs[fr.callno]->owner && authdebug)
+						ast_log(LOG_WARNING, "Call rejected by %s: %s\n",
+							ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr),
+							ies.cause ? ies.cause : "<Unknown>");
+					ast_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n",
+						fr.callno);
 				}
-				if (iaxs[fr.callno]->owner) {
-					if (authdebug)
-						ast_log(LOG_WARNING, "Call rejected by %s: %s\n", ast_inet_ntoa(iabuf, sizeof(iabuf), iaxs[fr.callno]->addr.sin_addr), ies.cause ? ies.cause : "<Unknown>");
-				}
-				ast_log(LOG_DEBUG, "Immediately destroying %d, having received reject\n", fr.callno);
 				/* Send ack immediately, before we destroy */
-				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK, fr.ts, NULL, 0,fr.iseqno);
-				iaxs[fr.callno]->error = EPERM;
+				send_command_immediate(iaxs[fr.callno], AST_FRAME_IAX, IAX_COMMAND_ACK,
+						       fr.ts, NULL, 0, fr.iseqno);
+				if (!ast_test_flag(iaxs[fr.callno], IAX_PROVISION))
+					iaxs[fr.callno]->error = EPERM;
 				iax2_destroy_nolock(fr.callno);
 				break;
 			case IAX_COMMAND_TRANSFER:
