@@ -6167,24 +6167,24 @@ static void build_route(struct sip_pvt *p, struct sip_request *req, int backward
 }
 
 #ifdef OSP_SUPPORT
-/*! \brief  check_osptoken: Validate OSP token for user authrroization */
+/*! \brief Validate OSP token for user authorization */
 static int check_osptoken (struct sip_pvt *p, char *token)
 {
 	char tmp[80];
 
 	if (ast_osp_validate (NULL, token, &p->osphandle, &p->osptimelimit, p->cid_num, p->sa.sin_addr, p->exten) < 1) {
-		return (-1);
+		return -1;
 	} else {
 		snprintf (tmp, sizeof (tmp), "%d", p->osphandle);
 		pbx_builtin_setvar_helper (p->owner, "_OSPHANDLE", tmp);
-		return (0);
+		return 0;
 	}
 }
 #endif
 
-/*! \brief  check_auth: Check user authorization from peer definition */
-/*      Some actions, like REGISTER and INVITEs from peers require
-        authentication (if peer have secret set) */
+/*! \brief  Check user authorization from peer definition 
+	Some actions, like REGISTER and INVITEs from peers require
+	authentication (if peer have secret set) */
 static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
 		      const char *secret, const char *md5secret, int sipmethod,
 		      char *uri, int reliable, int ignore)
@@ -6223,31 +6223,31 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 			case SIP_OSPAUTH_GATEWAY:
 				if (ast_strlen_zero (osptoken)) {
 					if (ast_strlen_zero (secret) && ast_strlen_zero (md5secret)) {
-						return (0);
+						return 0;
 					}
 				}
 				else {
-					return (check_osptoken (p, osptoken));
+					return check_osptoken (p, osptoken);
 				}
 				break;
 			case SIP_OSPAUTH_PROXY:
 				if (ast_strlen_zero (osptoken)) {
-					return (0);
+					return 0;
 				} 
 				else {
-					return (check_osptoken (p, osptoken));
+					return check_osptoken (p, osptoken);
 				}
 				break;
 			case SIP_OSPAUTH_EXCLUSIVE:
 				if (ast_strlen_zero (osptoken)) {
-					return (-1);
+					return -1;
 				}
 				else {
-					return (check_osptoken (p, osptoken));
+					return check_osptoken (p, osptoken);
 				}
 				break;
 			default:
-				return (-1);
+				return -1;
 		}
  	}
 #endif	
