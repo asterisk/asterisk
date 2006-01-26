@@ -107,31 +107,40 @@ extern const char *__ast_string_field_empty;
 
 /*!
   \internal
-  \brief Structure used to manage the storage for a field pool
+  \brief Structure used to hold a pool of space for string fields
 */
 struct ast_string_field_pool {
-	char *base;	/*!< the address of the pool's base in memory */
-	size_t size;	/*!< the total size of the pool */
-	size_t space;	/*!< the space available in the pool */
-	size_t used;	/*!< the space used in the pool */
+	struct ast_string_field_pool *prev;	/*!< pointer to the previous pool, if any */
+	char base[0];				/*!< storage space for the fields */
 };
 
 /*!
   \internal
-  \brief Initialize a field pool and fields
-  \param pool Pointer to the pool structure
+  \brief Structure used to manage the storage for a set of string fields
+*/
+struct ast_string_field_mgr {
+	struct ast_string_field_pool *pool;	/*!< the address of the pool's structure */
+	size_t size;				/*!< the total size of the current pool */
+	size_t space;				/*!< the space available in the current pool */
+	size_t used;				/*!< the space used in the current pool */
+};
+
+/*!
+  \internal
+  \brief Initialize a field pool manager and fields
+  \param mgr Pointer to the pool manager structure
   \param size Amount of storage to allocate
   \param fields Pointer to the first entry of the field array
   \param num_fields Number of fields in the array
   \return 0 on failure, non-zero on success
 */
-int __ast_string_field_init(struct ast_string_field_pool *pool, size_t size,
+int __ast_string_field_init(struct ast_string_field_mgr *mgr, size_t size,
 			    ast_string_field *fields, int num_fields);
 
 /*!
   \internal
-  \brief Allocate space for field in the pool
-  \param pool Pointer to the pool structure
+  \brief Allocate space for a field
+  \param mgr Pointer to the pool manager structure
   \param needed Amount of space needed for this field
   \param fields Pointer to the first entry of the field array
   \param num_fields Number of fields in the array
@@ -139,24 +148,22 @@ int __ast_string_field_init(struct ast_string_field_pool *pool, size_t size,
 
   This function will allocate the requested amount of space from
   the field pool. If the requested amount of space is not available,
-  the pool will be expanded until enough space becomes available,
-  and the existing fields stored there will be updated to point
-  into the new pool.
+  an additional pool will be allocated.
 */
-ast_string_field __ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t needed,
+ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr, size_t needed,
 						ast_string_field *fields, int num_fields);
 
 /*!
   \internal
   \brief Set a field to a complex (built) value
-  \param pool Pointer to the pool structure
+  \param mgr Pointer to the pool manager structure
   \param fields Pointer to the first entry of the field array
   \param num_fields Number of fields in the array
   \param index Index position of the field within the structure
   \param format printf-style format string
   \return nothing
 */
-void __ast_string_field_index_build(struct ast_string_field_pool *pool,
+void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 				    ast_string_field *fields, int num_fields,
 				    int index, const char *format, ...);
 
@@ -179,7 +186,7 @@ void __ast_string_field_index_build(struct ast_string_field_pool *pool,
 	ast_string_field __begin_field[0]; \
 	field_list \
 	ast_string_field __end_field[0]; \
-	struct ast_string_field_pool __field_pool;
+	struct ast_string_field_mgr __field_mgr;
 
 /*!
   \brief Get the number of string fields in a structure
@@ -205,7 +212,7 @@ void __ast_string_field_index_build(struct ast_string_field_pool *pool,
   \return 0 on failure, non-zero on success
 */
 #define ast_string_field_init(x) \
-	__ast_string_field_init(&x->__field_pool, AST_STRING_FIELD_DEFAULT_POOL, &x->__begin_field[0], ast_string_field_count(x))
+	__ast_string_field_init(&x->__field_mgr, AST_STRING_FIELD_DEFAULT_POOL, &x->__begin_field[0], ast_string_field_count(x))
 
 /*!
   \brief Set a field to a simple string value
@@ -215,7 +222,7 @@ void __ast_string_field_index_build(struct ast_string_field_pool *pool,
   \return nothing
 */
 #define ast_string_field_index_set(x, index, data) do { \
-	if ((x->__begin_field[index] = __ast_string_field_alloc_space(&x->__field_pool, strlen(data) + 1, &x->__begin_field[0], ast_string_field_count(x)))) \
+	if ((x->__begin_field[index] = __ast_string_field_alloc_space(&x->__field_mgr, strlen(data) + 1, &x->__begin_field[0], ast_string_field_count(x)))) \
 		strcpy((char *) x->__begin_field[index], data); \
 	} while (0)
 
@@ -238,7 +245,7 @@ void __ast_string_field_index_build(struct ast_string_field_pool *pool,
   \return nothing
 */
 #define ast_string_field_index_build(x, index, fmt, args...) \
-	__ast_string_field_index_build(&x->__field_pool, &x->__begin_field[0], ast_string_field_count(x), index, fmt, args)
+	__ast_string_field_index_build(&x->__field_mgr, &x->__begin_field[0], ast_string_field_count(x), index, fmt, args)
 
 /*!
   \brief Set a field to a complex (built) value
@@ -289,9 +296,13 @@ void __ast_string_field_index_build(struct ast_string_field_pool *pool,
 */
 #define ast_string_field_free_all(x) do { \
 	int index; \
+	struct ast_string_field_pool *this, *prev; \
 	for (index = 0; index < ast_string_field_count(x); index ++) \
 		ast_string_field_index_free(x, index); \
-	free(x->__field_pool.base); \
+	for (this = x->__field_mgr.pool; this; this = prev) { \
+		prev = this->prev; \
+		free(this); \
+	} \
 	} while(0)
 
 #endif /* _ASTERISK_STRINGFIELDS_H */

@@ -944,70 +944,86 @@ void ast_join(char *s, size_t len, char * const w[])
 
 const char const *__ast_string_field_empty = "";
 
-int __ast_string_field_init(struct ast_string_field_pool *pool, size_t size,
+static int add_string_pool(struct ast_string_field_mgr *mgr, size_t size)
+{
+	struct ast_string_field_pool *pool;
+
+	if (!(pool = ast_calloc(1, sizeof(*pool) + size)))
+		return -1;
+	
+	pool->prev = mgr->pool;
+	mgr->pool = pool;
+	mgr->size = size;
+	mgr->space = size;
+	mgr->used = 0;
+
+	return 0;
+}
+
+int __ast_string_field_init(struct ast_string_field_mgr *mgr, size_t size,
 			    ast_string_field *fields, int num_fields)
 {
 	int index;
 
-	pool->base = calloc(1, size);
-	if (pool->base) {
-		pool->size = size;
-		pool->space = size;
-		for (index = 0; index < num_fields; index++)
-			fields[index] = __ast_string_field_empty;
-	}
-	return pool->base ? 0 : -1;
+	if (add_string_pool(mgr, size))
+		return -1;
+
+	for (index = 0; index < num_fields; index++)
+		fields[index] = __ast_string_field_empty;
+
+	return 0;
 }
 
-ast_string_field __ast_string_field_alloc_space(struct ast_string_field_pool *pool, size_t needed,
+ast_string_field __ast_string_field_alloc_space(struct ast_string_field_mgr *mgr, size_t needed,
 						ast_string_field *fields, int num_fields)
 {
 	char *result = NULL;
 
-	if (__builtin_expect(needed > pool->space, 0)) {
-		int index;
-		char *new_base;
-		size_t new_size = pool->size * 2;
+	if (__builtin_expect(needed > mgr->space, 0)) {
+		size_t new_size = mgr->size * 2;
 
-		while (new_size < (pool->used + needed))
+		while (new_size < needed)
 			new_size *= 2;
 
-		if (!(new_base = realloc(pool->base, new_size)))
+		if (add_string_pool(mgr, new_size))
 			return NULL;
-
-		for (index = 0; index < num_fields; index++) {
-			if (fields[index] != __ast_string_field_empty)
-				fields[index] = new_base + (fields[index] - pool->base);
-		}
-
-		pool->base = new_base;
-		pool->space += new_size - pool->size;
-		pool->size = new_size;
 	}
 
-	result = pool->base + pool->used;
-	pool->used += needed;
-	pool->space -= needed;
+	result = mgr->pool->base + mgr->used;
+	mgr->used += needed;
+	mgr->space -= needed;
 	return result;
 }
 
-void __ast_string_field_index_build(struct ast_string_field_pool *pool,
+void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 				    ast_string_field *fields, int num_fields,
 				    int index, const char *format, ...)
 {
-	char s;
 	size_t needed;
 	va_list ap1, ap2;
 
 	va_start(ap1, format);
 	va_copy(ap2, ap1);
 
-	needed = vsnprintf(&s, 1, format, ap1) + 1;
+	needed = vsnprintf(mgr->pool->base + mgr->used, mgr->space, format, ap1) + 1;
 
 	va_end(ap1);
 
-	if ((fields[index] = __ast_string_field_alloc_space(pool, needed, fields, num_fields)))
-		vsprintf((char *) fields[index], format, ap2);
+	if (needed > mgr->space) {
+		size_t new_size = mgr->size * 2;
+
+		while (new_size < needed)
+			new_size *= 2;
+
+		if (add_string_pool(mgr, new_size))
+			return;
+
+		vsprintf(mgr->pool->base + mgr->used, format, ap2);
+	}
+
+	fields[index] = mgr->pool->base + mgr->used;
+	mgr->used += needed;
+	mgr->space -= needed;
 
 	va_end(ap2);
 }
