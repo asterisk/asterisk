@@ -8671,7 +8671,7 @@ static int sip_show_history(int fd, int argc, char *argv[])
 				ast_cli(fd, "  * SIP Call\n");
 			if (cur->history)
 				AST_LIST_TRAVERSE(cur->history, hist, list)
-					ast_cli(fd, "%d. %s\n", x++, hist->event);
+					ast_cli(fd, "%d. %s\n", ++x, hist->event);
 			if (x == 0)
 				ast_cli(fd, "Call '%s' has no history\n", cur->callid);
 			found++;
@@ -8700,7 +8700,7 @@ void sip_dump_history(struct sip_pvt *dialog)
 		ast_log(LOG_DEBUG, "  * SIP Call\n");
 	if (dialog->history)
 		AST_LIST_TRAVERSE(dialog->history, hist, list)
-			ast_log(LOG_DEBUG, "  %d. %s\n", x++, hist->event);
+			ast_log(LOG_DEBUG, "  %d. %s\n", ++x, hist->event);
 	if (!x)
 		ast_log(LOG_DEBUG, "Call '%s' has no history\n", dialog->callid);
 	ast_log(LOG_DEBUG, "\n---------- END SIP HISTORY for '%s' \n", dialog->callid);
