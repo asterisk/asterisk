@@ -7036,9 +7036,12 @@ static int get_rpid_num(char *input,char *output, int maxlen)
 }
 
 
-/*! \brief  Check if matching user or peer is defined */
-/* 	Match user on From: user name and peer on IP/port */
-/*	This is used on first invite (not re-invites) and subscribe requests */
+/*! \brief  Check if matching user or peer is defined 
+ 	Match user on From: user name and peer on IP/port
+	This is used on first invite (not re-invites) and subscribe requests 
+	\return 0 on success, -1 on failure, and 1 on challenge sent
+	-2 on authentication error from chedck_auth()
+*/
 static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore, char *mailbox, int mailboxlen)
 {
 	struct sip_user *user = NULL;
@@ -10411,70 +10414,64 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	} else if (debug)
 		ast_verbose("Ignoring this INVITE request\n");
 	if (!p->lastinvite && !ignore && !p->owner) {
+
 		/* Handle authentication if this is our first invite */
 		res = check_user(p, req, SIP_INVITE, e, 1, sin, ignore);
-		if (res) {
-			if (res < 0) {
-				ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
-				if (ignore)
-					transmit_response(p, "403 Forbidden", req);
-				else
-					transmit_response_reliable(p, "403 Forbidden", req, 1);
-				ast_set_flag(p, SIP_NEEDDESTROY);
-				ast_string_field_free(p, theirtag);
-			}
+		if (res > 0)	/* We have challenged the user for auth */
+			return 0; 
+		if (res < 0) { /* Something failed in authentication */
+			ast_log(LOG_NOTICE, "Failed to authenticate user %s\n", get_header(req, "From"));
+			transmit_response_reliable(p, "403 Forbidden", req, 1);
+			ast_set_flag(p, SIP_NEEDDESTROY);
+			ast_string_field_free(p, theirtag);
 			return 0;
 		}
-		/* Process the SDP portion */
+
+		/* We have a succesful authentication, process the SDP portion if there is one */
 		if (!ast_strlen_zero(get_header(req, "Content-Type"))) {
 			if (process_sdp(p, req)) {
-				transmit_response(p, "488 Not acceptable here", req);
+				/* Unacceptable codecs */
+				transmit_response_reliable(p, "488 Not acceptable here", req, 1);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 				return -1;
 			}
 		} else {
 			p->jointcapability = p->capability;
-			ast_log(LOG_DEBUG, "Hm....  No sdp for the moment\n");
+			if (option_debug > 1)
+				ast_log(LOG_DEBUG, "No SDP in Invite, third party call control\n");
 		}
+
 		/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
 		if (p->owner)
 			ast_queue_frame(p->owner, &af);
+
 		/* Initialize the context if it hasn't been already */
 		if (ast_strlen_zero(p->context))
 			ast_string_field_set(p, context, default_context);
+
 		/* Check number of concurrent calls -vs- incoming limit HERE */
-		ast_log(LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Checking SIP call limits for device %s\n", p->username);
 		res = update_call_counter(p, INC_CALL_LIMIT);
 		if (res) {
 			if (res < 0) {
 				ast_log(LOG_NOTICE, "Failed to place call for user %s, too many calls\n", p->username);
-				if (ignore)
-					transmit_response(p, "480 Temporarily Unavailable (Call limit)", req);
-				else
-					transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
+				transmit_response_reliable(p, "480 Temporarily Unavailable (Call limit) ", req, 1);
 				ast_set_flag(p, SIP_NEEDDESTROY);	
 			}
 			return 0;
 		}
-		/* Get destination right away */
-		gotdest = get_destination(p, NULL);
-
-		get_rdnis(p, NULL);
-		extract_uri(p, req);
-		build_contact(p);
+		gotdest = get_destination(p, NULL);	/* Get destination right away */
+		get_rdnis(p, NULL);			/* Get redirect information */
+		extract_uri(p, req);			/* Get the Contact URI */
+		build_contact(p);			/* Build our contact header */
 
 		if (gotdest) {
 			if (gotdest < 0) {
-				if (ignore)
-					transmit_response(p, "404 Not Found", req);
-				else
-					transmit_response_reliable(p, "404 Not Found", req, 1);
+				transmit_response_reliable(p, "404 Not Found", req, 1);
 				update_call_counter(p, DEC_CALL_LIMIT);
 			} else {
-				if (ignore)
-					transmit_response(p, "484 Address Incomplete", req);
-				else
-					transmit_response_reliable(p, "484 Address Incomplete", req, 1);
+				transmit_response_reliable(p, "484 Address Incomplete", req, 1);
 				update_call_counter(p, DEC_CALL_LIMIT);
 			}
 			ast_set_flag(p, SIP_NEEDDESTROY);		
@@ -10482,7 +10479,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 			/* If no extension was specified, use the s one */
 			if (ast_strlen_zero(p->exten))
 				ast_string_field_set(p, exten, "s");
-			/* Initialize tag */	
+			/* Initialize our tag */	
 			make_our_tag(p->tag, sizeof(p->tag));
 			/* First invitation */
 			c = sip_new(p, AST_STATE_DOWN, ast_strlen_zero(p->username) ? NULL : p->username);
@@ -10496,8 +10493,12 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 		}
 		
 	} else {
-		if (option_debug > 1 && sipdebug)
-			ast_log(LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
+		if (option_debug > 1 && sipdebug) {
+			if (!ignore)
+				ast_log(LOG_DEBUG, "Got a SIP re-invite for call %s\n", p->callid);
+			else
+				ast_log(LOG_DEBUG, "Got a SIP re-transmit of INVITE for call %s\n", p->callid);
+		}
 		c = p->owner;
 	}
 	if (!ignore && p)
