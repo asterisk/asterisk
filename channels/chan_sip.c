@@ -1631,6 +1631,9 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 /*! \brief  sip_destroy_peer: Destroy peer object from memory */
 static void sip_destroy_peer(struct sip_peer *peer)
 {
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Destroying SIP peer %s\n", peer->name);
+
 	/* Delete it, it needs to disappear */
 	if (peer->call)
 		sip_destroy(peer->call);
@@ -1769,6 +1772,8 @@ static struct sip_peer *find_peer(const char *peer, struct sockaddr_in *sin, int
 /*! \brief  sip_destroy_user: Remove user object from in-memory storage */
 static void sip_destroy_user(struct sip_user *user)
 {
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Destroying user object from memory: %s\n", user->name);
 	ast_free_ha(user->ha);
 	if (user->chanvars) {
 		ast_variables_destroy(user->chanvars);
@@ -2085,10 +2090,15 @@ static int sip_call(struct ast_channel *ast, char *dest, int timeout)
 static void sip_registry_destroy(struct sip_registry *reg)
 {
 	/* Really delete */
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Destroying registry entry for %s@%s\n", reg->username, reg->hostname);
+
 	if (reg->call) {
 		/* Clear registry before destroying to ensure
 		   we don't get reentered trying to grab the registry lock */
 		reg->call->registry = NULL;
+		if (option_debug > 2)
+			ast_log(LOG_DEBUG, "Destroying active SIP dialog for registry %s@%s\n", reg->username, reg->hostname);
 		sip_destroy(reg->call);
 	}
 	if (reg->expire > -1)
@@ -2107,8 +2117,8 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	struct sip_pvt *cur, *prev = NULL;
 	struct sip_pkt *cp;
 
-	if (sip_debug_test_pvt(p))
-		ast_verbose("Destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
+	if (sip_debug_test_pvt(p) || option_debug > 2)
+		ast_verbose("Really destroying SIP dialog '%s' Method: %s\n", p->callid, sip_methods[p->method].text);
 
 	if (dumphistory)
 		sip_dump_history(p);
@@ -2179,6 +2189,7 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
 	if (p->initid > -1)
 		ast_sched_del(sched, p->initid);
 
+	/* remove all current packets in this dialog */
 	while((cp = p->packets)) {
 		p->packets = p->packets->next;
 		if (cp->retransid > -1) {
@@ -2290,6 +2301,8 @@ static int update_call_counter(struct sip_pvt *fup, int event)
 static void sip_destroy(struct sip_pvt *p)
 {
 	ast_mutex_lock(&iflock);
+	if (option_debug > 2)
+		ast_log(LOG_DEBUG, "Destroying SIP dialog %s\n", p->callid);
 	__sip_destroy(p, 1);
 	ast_mutex_unlock(&iflock);
 }
@@ -13037,6 +13050,9 @@ static void sip_send_all_registers(void)
 /*! \brief  sip_do_reload: Reload module */
 static int sip_do_reload(enum channelreloadreason reason)
 {
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "--------------- SIP reload started\n");
+
 	clear_realm_authentication(authl);
 	clear_sip_domains();
 	authl = NULL;
@@ -13054,15 +13070,29 @@ static int sip_do_reload(enum channelreloadreason reason)
 		ASTOBJ_UNLOCK(iterator);
 	} while(0));
 
+	/* Then, actually destroy users and registry */
 	ASTOBJ_CONTAINER_DESTROYALL(&userl, sip_destroy_user);
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "--------------- Done destroying user list\n");
 	ASTOBJ_CONTAINER_DESTROYALL(&regl, sip_registry_destroy);
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "--------------- Done destroying registry list\n");
 	ASTOBJ_CONTAINER_MARKALL(&peerl);
 	reload_config(reason);
+
 	/* Prune peers who still are supposed to be deleted */
 	ASTOBJ_CONTAINER_PRUNE_MARKED(&peerl, sip_destroy_peer);
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "--------------- Done destroying pruned peers\n");
 
+	/* Send qualify (OPTIONS) to all peers */
 	sip_poke_all_peers();
+
+	/* Register with all services */
 	sip_send_all_registers();
+
+	if (option_debug > 3)
+		ast_log(LOG_DEBUG, "--------------- SIP reload done\n");
 
 	return 0;
 }
