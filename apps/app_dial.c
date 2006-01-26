@@ -262,19 +262,20 @@ AST_APP_OPTIONS(dial_exec_options, {
    use it not only for keeping track of what is in use but
    also for keeping track of who we're dialing. */
 
-struct localuser {
+struct dial_localuser {
 	struct ast_channel *chan;
 	unsigned int flags;
 	int forwards;
-	struct localuser *next;
+	struct dial_localuser *next;
 };
 
 LOCAL_USER_DECL;
+STANDARD_LOCAL_USER;
 
-static void hanguptree(struct localuser *outgoing, struct ast_channel *exception)
+static void hanguptree(struct dial_localuser *outgoing, struct ast_channel *exception)
 {
 	/* Hang up a tree of stuff */
-	struct localuser *oo;
+	struct dial_localuser *oo;
 	while (outgoing) {
 		/* Hangup any existing lines we have open */
 		if (outgoing->chan && (outgoing->chan != exception))
@@ -366,9 +367,9 @@ static void senddialevent(struct ast_channel *src, struct ast_channel *dst)
 			   dst->uniqueid);
 }
 
-static struct ast_channel *wait_for_answer(struct ast_channel *in, struct localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int priority_jump, int *result)
+static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_localuser *outgoing, int *to, struct ast_flags *peerflags, int *sentringing, char *status, size_t statussize, int busystart, int nochanstart, int congestionstart, int priority_jump, int *result)
 {
-	struct localuser *o;
+	struct dial_localuser *o;
 	int found;
 	int numlines;
 	int numbusy = busystart;
@@ -736,7 +737,7 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 	char *tech, *number, *rest, *cur;
 	char privcid[256];
 	char privintro[1024];
-	struct localuser *outgoing=NULL, *tmp;
+	struct dial_localuser *outgoing=NULL, *tmp;
 	struct ast_channel *peer;
 	int to;
 	int numbusy = 0;
