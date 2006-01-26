@@ -5362,7 +5362,7 @@ static void *ss_thread(void *data)
 			else 
 				ast_dsp_digitmode(p->dsp,DSP_DIGITMODE_DTMF | p->dtmfrelax);
 		}
-		dtmfbuf[0] = 0;
+		memset(dtmfbuf, 0, sizeof(dtmfbuf));
 		/* Wait for the first digit only if immediate=no */
 		if (!p->immediate)
 			/* Wait for the first digit (up to 5 seconds). */
