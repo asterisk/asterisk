@@ -36,11 +36,6 @@ else
   endif
 endif
 
-ifeq ($(findstring BSD,${OSARCH}),BSD)
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
-  SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
-endif
-
 ifeq (${OSARCH},CYGWIN)
 CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
 CYGSOLIB=-L.. -L. -lasterisk.dll
