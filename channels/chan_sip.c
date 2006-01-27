@@ -5936,13 +5936,11 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 	   it
 	*/
 	if (ast_strlen_zero(c) && ast_strlen_zero(expires)) {
+		/* If we have an active registration, tell them when the registration is going to expire */
 		if ((p->expire > -1) && !ast_strlen_zero(p->fullcontact)) {
-			/* tell them when the registration is going to expire */
 			pvt->expiry = ast_sched_when(sched, p->expire);
-			return PARSE_REGISTER_QUERY;
-		} else {
-			return PARSE_REGISTER_FAILED;
-		}
+		} 
+		return PARSE_REGISTER_QUERY;
 	} else if (!strcasecmp(c, "*") || !expiry) {	/* Unregister this peer */
 		/* This means remove all registrations and return OK */
 		memset(&p->addr, 0, sizeof(p->addr));
