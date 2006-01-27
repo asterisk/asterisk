@@ -75,9 +75,8 @@ struct playlist_entry {
 	char filename[1];
 };
 
-struct localuser {
+struct ivr_localuser {
 	struct ast_channel *chan;
-	struct localuser *next;
 	AST_LIST_HEAD(playlist, playlist_entry) playlist;
 	AST_LIST_HEAD(finishlist, playlist_entry) finishlist;
 	int abort_current_sound;
@@ -86,9 +85,10 @@ struct localuser {
 };
 
 LOCAL_USER_DECL;
+STANDARD_LOCAL_USER;
 
 struct gen_state {
-	struct localuser *u;
+	struct ivr_localuser *u;
 	struct ast_filestream *stream;
 	struct playlist_entry *current;
 	int sample_queue;
@@ -111,7 +111,7 @@ static void send_child_event(FILE *handle, const char event, const char *data,
 
 static void *gen_alloc(struct ast_channel *chan, void *params)
 {
-	struct localuser *u = params;
+	struct ivr_localuser *u = params;
 	struct gen_state *state;
 	
 	if (!(state = ast_calloc(1, sizeof(*state))))
@@ -143,7 +143,7 @@ static void gen_release(struct ast_channel *chan, void *data)
 /* caller has the playlist locked */
 static int gen_nextfile(struct gen_state *state)
 {
-	struct localuser *u = state->u;
+	struct ivr_localuser *u = state->u;
 	char *file_to_stream;
 	
 	u->abort_current_sound = 0;
@@ -175,7 +175,7 @@ static int gen_nextfile(struct gen_state *state)
 static struct ast_frame *gen_readframe(struct gen_state *state)
 {
 	struct ast_frame *f = NULL;
-	struct localuser *u = state->u;
+	struct ivr_localuser *u = state->u;
 	
 	if (u->abort_current_sound ||
 	    (u->playing_silence && AST_LIST_FIRST(&u->playlist))) {
@@ -234,7 +234,7 @@ static struct playlist_entry *make_entry(const char *filename)
 {
 	struct playlist_entry *entry;
 	
-	if (!(entry = ast_calloc(1, sizeof(*entry) + strlen(filename) + 10)))
+	if (!(entry = ast_calloc(1, sizeof(*entry) + strlen(filename) + 10))) /* XXX why 10 ? */
 		return NULL;
 
 	strcpy(entry->filename, filename);
@@ -244,7 +244,7 @@ static struct playlist_entry *make_entry(const char *filename)
 
 static int app_exec(struct ast_channel *chan, void *data)
 {
-	struct localuser *u = NULL;
+	struct localuser *lu = NULL;
 	struct playlist_entry *entry;
 	const char *args = data;
 	int child_stdin[2] = { 0,0 };
@@ -259,8 +259,11 @@ static int app_exec(struct ast_channel *chan, void *data)
 	FILE *child_commands = NULL;
 	FILE *child_errors = NULL;
 	FILE *child_events = NULL;
+	struct ivr_localuser foo, *u = &foo;
 
-	LOCAL_USER_ADD(u);
+	bzero(u, sizeof(*u));
+
+	LOCAL_USER_ADD(lu);
 	
 	AST_LIST_HEAD_INIT(&u->playlist);
 	AST_LIST_HEAD_INIT(&u->finishlist);
@@ -268,11 +271,12 @@ static int app_exec(struct ast_channel *chan, void *data)
 	
 	if (ast_strlen_zero(args)) {
 		ast_log(LOG_WARNING, "ExternalIVR requires a command to execute\n");
-		goto exit;
+		LOCAL_USER_REMOVE(lu);
+		return -1;	
 	}
 
 	if (!(buf = ast_strdupa(data))) {
-		LOCAL_USER_REMOVE(u);
+		LOCAL_USER_REMOVE(lu);
 		return -1;
 	}
 
@@ -542,7 +546,7 @@ static int app_exec(struct ast_channel *chan, void *data)
 	while ((entry = AST_LIST_REMOVE_HEAD(&u->playlist, list)))
 		free(entry);
 
-	LOCAL_USER_REMOVE(u);
+	LOCAL_USER_REMOVE(lu);
 
 	return res;
 }
