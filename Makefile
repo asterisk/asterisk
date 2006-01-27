@@ -381,6 +381,9 @@ else
 #These are used for all but Darwin
   ASTLINK=-Wl,-E 
   SOLINK=-shared -Xlinker -x
+  ifeq ($(findstring BSD,$(OSARCH)),BSD)
+    SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
+  endif
 endif
 
 ifeq ($(OSARCH),FreeBSD)
