@@ -3080,46 +3080,41 @@ static struct ast_frame *sip_read(struct ast_channel *ast)
 	return fr;
 }
 
-/*! \brief Build SIP Call-ID value for a non-REGISTER transaction */
-static void build_callid_pvt(struct sip_pvt *pvt)
+
+/*! \brief Generate 32 byte random string for callid's etc */
+static char *generate_random_string(char *buf, size_t size)
 {
 	int val[4];
 	int x;
-	char iabuf[INET_ADDRSTRLEN];
 
 	for (x=0; x<4; x++)
 		val[x] = thread_safe_rand();
+	snprintf(buf, size, "%08x%08x%08x%08x", val[0], val[1], val[2], val[3]);
 
-	if (ast_strlen_zero(pvt->fromdomain))
-		/* It's not important that we really use our right IP here... */
-		ast_string_field_build(pvt, callid, "%08x%08x%08x%08x@%s",
-				       val[0], val[1], val[2], val[3],
-				       ast_inet_ntoa(iabuf, sizeof(iabuf), pvt->ourip));
-	else
-		ast_string_field_build(pvt, callid, "%08x%08x%08x%08x@%s",
-				       val[0], val[1], val[2], val[3],
-				       pvt->fromdomain);
+	return buf;
+}
+
+/*! \brief Build SIP Call-ID value for a non-REGISTER transaction */
+static void build_callid_pvt(struct sip_pvt *pvt)
+{
+	char iabuf[INET_ADDRSTRLEN];
+	char buf[33];
+
+	const char *host = ast_strlen_zero(pvt->fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), pvt->ourip) : pvt->fromdomain;
+	
+	ast_string_field_build(pvt, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
+
 }
 
 /*! \brief Build SIP Call-ID value for a REGISTER transaction */
 static void build_callid_registry(struct sip_registry *reg, struct in_addr ourip, const char *fromdomain)
 {
-	int val[4];
-	int x;
 	char iabuf[INET_ADDRSTRLEN];
+	char buf[33];
 
-	for (x=0; x<4; x++)
-		val[x] = thread_safe_rand();
+	const char *host = ast_strlen_zero(fromdomain) ? ast_inet_ntoa(iabuf, sizeof(iabuf), ourip) : fromdomain;
 
-	if (ast_strlen_zero(fromdomain))
-		/* It's not important that we really use our right IP here... */
-		ast_string_field_build(reg, callid, "%08x%08x%08x%08x@%s",
-				       val[0], val[1], val[2], val[3],
-				       ast_inet_ntoa(iabuf, sizeof(iabuf), ourip));
-	else
-		ast_string_field_build(reg, callid, "%08x%08x%08x%08x@%s",
-				       val[0], val[1], val[2], val[3],
-				       fromdomain);
+	ast_string_field_build(reg, callid, "%s@%s", generate_random_string(buf, sizeof(buf)), host);
 }
 
 /*! \brief Make our SIP dialog tag */
