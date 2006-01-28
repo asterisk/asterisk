@@ -1383,7 +1383,6 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 {
 	struct sip_pkt *cur, *prev = NULL;
 	int res = -1;
-	int resetinvite = 0;
 
 	/* Just in case... */
 	char *msg;
@@ -1399,7 +1398,6 @@ static int __sip_ack(struct sip_pvt *p, int seqno, int resp, int sipmethod)
 			if (!resp && (seqno == p->pendinginvite)) {
 				ast_log(LOG_DEBUG, "Acked pending invite %d\n", p->pendinginvite);
 				p->pendinginvite = 0;
-				resetinvite = 1;
 			}
 			/* this is our baby */
 			if (prev)
@@ -11316,7 +11314,7 @@ static void *do_monitor(void *data)
 	struct sip_pvt *sip;
 	struct sip_peer *peer = NULL;
 	time_t t;
-	int fastrestart =0;
+	int fastrestart = FALSE;
 	int lastpeernum = -1;
 	int curpeernum;
 	int reloading;
@@ -11412,12 +11410,12 @@ restartsearch:
 
 		/* needs work to send mwi to realtime peers */
 		time(&t);
-		fastrestart = 0;
+		fastrestart = FALSE;
 		curpeernum = 0;
 		peer = NULL;
 		ASTOBJ_CONTAINER_TRAVERSE(&peerl, !peer, do {
 			if ((curpeernum > lastpeernum) && !ast_strlen_zero(iterator->mailbox) && ((t - iterator->lastmsgcheck) > global_mwitime)) {
-				fastrestart = 1;
+				fastrestart = TRUE;
 				lastpeernum = curpeernum;
 				peer = ASTOBJ_REF(iterator);
 			};
