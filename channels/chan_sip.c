@@ -1300,7 +1300,6 @@ static int __sip_autodestruct(void *data)
 {
 	struct sip_pvt *p = data;
 
-	p->autokillid = -1;
 
 	/* If this is a subscription, tell the phone that we got a timeout */
 	if (p->subscribed) {
@@ -1310,6 +1309,10 @@ static int __sip_autodestruct(void *data)
 		append_history(p, "Subscribestatus", "timeout");
 		return 10000;	/* Reschedule this destruction so that we know that it's gone */
 	}
+
+	/* This scheduled event is now considered done. */
+	p->autokillid = -1;
+
 	ast_log(LOG_DEBUG, "Auto destroying call '%s'\n", p->callid);
 	append_history(p, "AutoDestroy", "");
 	if (p->owner) {
