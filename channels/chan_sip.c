@@ -438,7 +438,7 @@ AST_MUTEX_DEFINE_STATIC(sip_reload_lock);
    which are not currently in use.  */
 static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
-static int sip_reloading = 0;			/*!< Flag for avoiding multiple reloads at the same time */
+static int sip_reloading = FALSE;			/*!< Flag for avoiding multiple reloads at the same time */
 static enum channelreloadreason sip_reloadreason;	/*!< Reason for last reload/load of configuration */
 
 static struct sched_context *sched;
@@ -2476,7 +2476,7 @@ static char *hangup_cause2sip(int cause)
 static int sip_hangup(struct ast_channel *ast)
 {
 	struct sip_pvt *p = ast->tech_pvt;
-	int needcancel = 0;
+	int needcancel = FALSE;
 	struct ast_flags locflags = {0};
 
 	if (!p) {
@@ -2503,7 +2503,7 @@ static int sip_hangup(struct ast_channel *ast)
 	}
 	/* If the call is not UP, we need to send CANCEL instead of BYE */
 	if (ast->_state != AST_STATE_UP)
-		needcancel = 1;
+		needcancel = TRUE;
 
 	/* Disconnect */
 	p = ast->tech_pvt;
@@ -3254,7 +3254,7 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 	ast_mutex_lock(&iflock);
 	p = iflist;
 	while(p) {	/* In pedantic, we do not want packets with bad syntax to be connected to a PVT */
-		int found = 0;
+		int found = FALSE;
 		if (req->method == SIP_REGISTER)
 			found = (!strcmp(p->callid, callid));
 		else 
@@ -3268,10 +3268,10 @@ static struct sip_pvt *find_call(struct sip_request *req, struct sockaddr_in *si
 		if (pedanticsipchecking && found  && req->method != SIP_RESPONSE) {	/* SIP Request */
 			if (p->tag[0] == '\0' && totag[0]) {
 				/* We have no to tag, but they have. Wrong dialog */
-				found = 0;
+				found = FALSE;
 			} else if (totag[0]) {			/* Both have tags, compare them */
 				if (strcmp(totag, p->tag)) {
-					found = 0;		/* This is not our packet */
+					found = FALSE;		/* This is not our packet */
 				}
 			}
 			if (!found && option_debug > 4)
@@ -3365,7 +3365,7 @@ static int sip_register(char *value, int lineno)
 	reg->timeout =  -1;
 	reg->refresh = default_expiry;
 	reg->portno = porta ? atoi(porta) : 0;
-	reg->callid_valid = 0;
+	reg->callid_valid = FALSE;
 	reg->ocseq = 101;
 	ASTOBJ_CONTAINER_LINK(&regl, reg);	/* Add the new registry entry to the list */
 	ASTOBJ_UNREF(reg,sip_registry_destroy);
@@ -4135,7 +4135,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 	const char *c;
 	char *n;
 	char *ot, *of;
-	int is_strict = 0;		/*!< Strict routing flag */
+	int is_strict = FALSE;		/*!< Strict routing flag */
 
 	memset(req, 0, sizeof(struct sip_request));
 	
@@ -4153,7 +4153,7 @@ static int reqprep(struct sip_request *req, struct sip_pvt *p, int sipmethod, in
 
 	/* Check for strict or loose router */
 	if (p->route && !ast_strlen_zero(p->route->hop) && strstr(p->route->hop,";lr") == NULL) {
-		is_strict = 1;
+		is_strict = TRUE;
 		if (sipdebug)
 			ast_log(LOG_DEBUG, "Strict routing enforced for session %s\n", p->callid);
 	}
@@ -4742,7 +4742,7 @@ static void build_contact(struct sip_pvt *p)
 /*! \brief Build the Remote Party-ID & From using callingpres options */
 static void build_rpid(struct sip_pvt *p)
 {
-	int send_pres_tags = 1;
+	int send_pres_tags = TRUE;
 	const char *privacy=NULL;
 	const char *screen=NULL;
 	char buf[256];
@@ -4795,7 +4795,7 @@ static void build_rpid(struct sip_pvt *p)
 		screen = "pass";
 		break;
 	case AST_PRES_NUMBER_NOT_AVAILABLE:
-		send_pres_tags = 0;
+		send_pres_tags = FALSE;
 		break;
 	default:
 		ast_log(LOG_WARNING, "Unsupported callingpres (%d)\n", p->callingpres);
@@ -4835,7 +4835,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 	char urioptions[256]="";
 
 	if (ast_test_flag(p, SIP_USEREQPHONE)) {
-	 	char onlydigits = 1;
+	 	char onlydigits = TRUE;
 		x=0;
 
 		/* Test p->username against allowed characters in AST_DIGIT_ANY
@@ -4848,7 +4848,7 @@ static void initreqprep(struct sip_request *req, struct sip_pvt *p, int sipmetho
 
 		for (; x < strlen(p->username); x++) {
 			if (!strchr(AST_DIGIT_ANYNUM, p->username[x])) {
-                		onlydigits = 0;
+                		onlydigits = FALSE;
 				break;
 			}
 		}
@@ -5434,7 +5434,7 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 		/* Build callid for registration if we haven't registered before */
 		if (!r->callid_valid) {
 			build_callid_registry(r, __ourip, default_fromdomain);
-			r->callid_valid = 1;
+			r->callid_valid = TRUE;
 		}
 		/* Allocate SIP packet for registration */
 		p=sip_alloc( r->callid, NULL, 0, SIP_REGISTER);
@@ -6287,7 +6287,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 		char *resp_uri ="";
 		char *nonce = "";
 		char *digestusername = "";
-		int  wrongnonce = 0;
+		int  wrongnonce = FALSE;
 		const char *usednonce = p->randdata;
 
 		/* Find their response among the mess that we'r sent for comparison */
@@ -6359,7 +6359,7 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 
 		/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
 		if (strcasecmp(p->randdata, nonce)) {
-			wrongnonce = 1;
+			wrongnonce = TRUE;
 			usednonce = nonce;
 		}
 
@@ -7410,13 +7410,13 @@ static int sip_show_inuse(int fd, int argc, char *argv[]) {
 #define FORMAT2 "%-25.25s %-15.15s %-15.15s \n"
 	char ilimits[40];
 	char iused[40];
-	int showall = 0;
+	int showall = FALSE;
 
 	if (argc < 3) 
 		return RESULT_SHOWUSAGE;
 
 	if (argc == 4 && !strcmp(argv[3],"all")) 
-			showall = 1;
+			showall = TRUE;
 	
 	ast_cli(fd, FORMAT, "* User name", "In use", "Limit");
 	ASTOBJ_CONTAINER_TRAVERSE(&userl, 1, do {
@@ -7496,7 +7496,7 @@ static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 static int sip_show_users(int fd, int argc, char *argv[])
 {
 	regex_t regexbuf;
-	int havepattern = 0;
+	int havepattern = FALSE;
 
 #define FORMAT  "%-25.25s  %-15.15s  %-15.15s  %-15.15s  %-5.5s%-10.10s\n"
 
@@ -7505,7 +7505,7 @@ static int sip_show_users(int fd, int argc, char *argv[])
 		if (!strcasecmp(argv[3], "like")) {
 			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
 				return RESULT_SHOWUSAGE;
-			havepattern = 1;
+			havepattern = TRUE;
 		} else
 			return RESULT_SHOWUSAGE;
 	case 3:
@@ -7581,7 +7581,7 @@ static int sip_show_peers(int fd, int argc, char *argv[])
 static int _sip_show_peers(int fd, int *total, struct mansession *s, struct message *m, int argc, char *argv[])
 {
 	regex_t regexbuf;
-	int havepattern = 0;
+	int havepattern = FALSE;
 
 #define FORMAT2 "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8s %-10s\n"
 #define FORMAT  "%-25.25s  %-15.15s %-3.3s %-3.3s %-3.3s %-8d %-10s\n"
@@ -7605,7 +7605,7 @@ static int _sip_show_peers(int fd, int *total, struct mansession *s, struct mess
 		if (!strcasecmp(argv[3], "like")) {
 			if (regcomp(&regexbuf, argv[4], REG_EXTENDED | REG_NOSUB))
 				return RESULT_SHOWUSAGE;
-			havepattern = 1;
+			havepattern = TRUE;
 		} else
 			return RESULT_SHOWUSAGE;
 	case 3:
@@ -7765,9 +7765,9 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 {
 	struct sip_peer *peer;
 	struct sip_user *user;
-	int pruneuser = 0;
-	int prunepeer = 0;
-	int multi = 0;
+	int pruneuser = FALSE;
+	int prunepeer = FALSE;
+	int multi = FALSE;
 	char *name = NULL;
 	regex_t regexbuf;
 
@@ -7780,10 +7780,10 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 		if (!strcasecmp(argv[3], "like"))
 			return RESULT_SHOWUSAGE;
 		if (!strcasecmp(argv[3], "all")) {
-			multi = 1;
-			pruneuser = prunepeer = 1;
+			multi = TRUE;
+			pruneuser = prunepeer = TRUE;
 		} else {
-			pruneuser = prunepeer = 1;
+			pruneuser = prunepeer = TRUE;
 			name = argv[3];
 		}
 		break;
@@ -7793,19 +7793,19 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 		if (!strcasecmp(argv[3], "all"))
 			return RESULT_SHOWUSAGE;
 		if (!strcasecmp(argv[3], "like")) {
-			multi = 1;
+			multi = TRUE;
 			name = argv[4];
-			pruneuser = prunepeer = 1;
+			pruneuser = prunepeer = TRUE;
 		} else if (!strcasecmp(argv[3], "user")) {
-			pruneuser = 1;
+			pruneuser = TRUE;
 			if (!strcasecmp(argv[4], "all"))
-				multi = 1;
+				multi = TRUE;
 			else
 				name = argv[4];
 		} else if (!strcasecmp(argv[3], "peer")) {
-			prunepeer = 1;
+			prunepeer = TRUE;
 			if (!strcasecmp(argv[4], "all"))
-				multi = 1;
+				multi = TRUE;
 			else
 				name = argv[4];
 		} else
@@ -7815,10 +7815,10 @@ static int sip_prune_realtime(int fd, int argc, char *argv[])
 		if (strcasecmp(argv[4], "like"))
 			return RESULT_SHOWUSAGE;
 		if (!strcasecmp(argv[3], "user")) {
-			pruneuser = 1;
+			pruneuser = TRUE;
 			name = argv[5];
 		} else if (!strcasecmp(argv[3], "peer")) {
-			prunepeer = 1;
+			prunepeer = TRUE;
 			name = argv[5];
 		} else
 			return RESULT_SHOWUSAGE;
@@ -8010,12 +8010,12 @@ static int _sip_show_peer(int type, int fd, struct mansession *s, struct message
 	struct ast_codec_pref *pref;
 	struct ast_variable *v;
 	struct sip_auth *auth;
-	int x = 0, codec = 0, load_realtime = 0;
+	int x = 0, codec = 0, load_realtime;
 
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
 
-	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
+	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
 	peer = find_peer(argv[3], NULL, load_realtime);
 	if (s) { 	/* Manager */
 		if (peer)
@@ -8193,13 +8193,13 @@ static int sip_show_user(int fd, int argc, char *argv[])
 	struct sip_user *user;
 	struct ast_codec_pref *pref;
 	struct ast_variable *v;
-	int x = 0, codec = 0, load_realtime = 0;
+	int x = 0, codec = 0, load_realtime;
 
 	if (argc < 4)
 		return RESULT_SHOWUSAGE;
 
 	/* Load from realtime storage? */
-	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? 1 : 0;
+	load_realtime = (argc == 5 && !strcmp(argv[4], "load")) ? TRUE : FALSE;
 
 	user = find_user(argv[3], load_realtime);
 	if (user) {
@@ -8942,7 +8942,7 @@ static int sip_do_history(int fd, int argc, char *argv[])
 	if (argc != 2) {
 		return RESULT_SHOWUSAGE;
 	}
-	recordhistory = 1;
+	recordhistory = TRUE;
 	ast_cli(fd, "SIP History Recording Enabled (use 'sip show history')\n");
 	return RESULT_SUCCESS;
 }
@@ -8953,7 +8953,7 @@ static int sip_no_history(int fd, int argc, char *argv[])
 	if (argc != 3) {
 		return RESULT_SHOWUSAGE;
 	}
-	recordhistory = 0;
+	recordhistory = FALSE;
 	ast_cli(fd, "SIP History Recording Disabled\n");
 	return RESULT_SUCCESS;
 }
@@ -11332,7 +11332,7 @@ static void *do_monitor(void *data)
 		/* Check for a reload request */
 		ast_mutex_lock(&sip_reload_lock);
 		reloading = sip_reloading;
-		sip_reloading = 0;
+		sip_reloading = FALSE;
 		ast_mutex_unlock(&sip_reload_lock);
 		if (reloading) {
 			if (option_verbose > 0)
@@ -12361,7 +12361,7 @@ static int reload_config(enum channelreloadreason reason)
 	int format;
 	char iabuf[INET_ADDRSTRLEN];
 	struct ast_flags dummy;
-	int auto_sip_domains = 0;
+	int auto_sip_domains = FALSE;
 	struct sockaddr_in old_bindaddr = bindaddr;
 	int registry_count = 0, peer_count = 0, user_count = 0;
 
@@ -12431,8 +12431,8 @@ static int reload_config(enum channelreloadreason reason)
 	ast_clear_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONFIG);
 
 	/* Misc settings for the channel */
-	global_relaxdtmf = 0;
-	global_callevents = 0;
+	global_relaxdtmf = FALSE;
+	global_callevents = FALSE;
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -13108,7 +13108,7 @@ static int sip_reload(int fd, int argc, char *argv[])
 	if (sip_reloading) {
 		ast_verbose("Previous SIP reload not yet done\n");
 	} else {
-		sip_reloading = 1;
+		sip_reloading = TRUE;
 		if (fd)
 			sip_reloadreason = CHANNEL_CLI_RELOAD;
 		else
