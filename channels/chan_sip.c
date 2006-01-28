@@ -140,8 +140,6 @@ static int expiry = DEFAULT_EXPIRY;
 
 #define CALLERID_UNKNOWN	"Unknown"
 
-
-
 #define DEFAULT_MAXMS		2000		/*!< Qualification: Must be faster than 2 seconds by default */
 #define DEFAULT_FREQ_OK		60 * 1000	/*!< Qualification: How often to check for the host to be up */
 #define DEFAULT_FREQ_NOTOK	10 * 1000	/*!< Qualification: How often to check, if the host is down... */
@@ -152,12 +150,15 @@ static int expiry = DEFAULT_EXPIRY;
 
 #define SIP_MAX_HEADERS		64			/*!< Max amount of SIP headers to read */
 #define SIP_MAX_LINES 		64			/*!< Max amount of lines in SIP attachment (like SDP) */
+#define SIP_MAX_PACKET		4096	/*!< Also from RFC 3261 (2543), should sub headers tho */
 
 
 static const char desc[] = "Session Initiation Protocol (SIP)";
 static const char channeltype[] = "SIP";
 static const char config[] = "sip.conf";
 static const char notify_config[] = "sip_notify.conf";
+static int usecnt = 0;
+
 
 #define RTP 	1
 #define NO_RTP	0
@@ -338,7 +339,6 @@ static const struct cfsip_options {
 /*! \brief SIP Extensions we support */
 #define SUPPORTED_EXTENSIONS "replaces" 
 
-#define SIP_MAX_PACKET		4096	/*!< Also from RFC 3261 (2543), should sub headers tho */
 
 /* Default values, set and reset in reload_config before reading configuration */
 /* These are default values in the source. There are other recommended values in the
@@ -380,11 +380,12 @@ static char default_vmexten[AST_MAX_EXTENSION];
 static char default_musicclass[MAX_MUSICCLASS];		/*!< Global music on hold class */
 
 /* Global settings only apply to the channel */
+static int global_rtautoclear = 120;
 static int global_notifyringing;	/*!< Send notifications on ringing */
 static int srvlookup;			/*!< SRV Lookup on or off. Default is off, RFC behavior is on */
 static int pedanticsipchecking;		/*!< Extra checking ?  Default off */
 static int autocreatepeer;		/*!< Auto creation of peers at registration? Default off. */
-static int relaxdtmf;			/*!< Relax DTMF */
+static int global_relaxdtmf;			/*!< Relax DTMF */
 static int global_rtptimeout;		/*!< Time out call if no RTP */
 static int global_rtpholdtimeout;
 static int global_rtpkeepalive;		/*!< Send RTP keepalives */
@@ -401,6 +402,7 @@ static char global_realm[MAXHOSTNAMELEN]; 		/*!< Default realm */
 static char regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
 static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP channel */
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
+static int global_callevents;		/*!< Whether we send manager events or not */
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
@@ -417,8 +419,6 @@ static int regobjs = 0;			/*!< Registry objects */
 static struct ast_flags global_flags = {0};		/*!< global SIP_ flags */
 static struct ast_flags global_flags_page2 = {0};	/*!< more global SIP_ flags */
 
-static int usecnt =0;
-
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 AST_MUTEX_DEFINE_STATIC(rand_lock);			/*!< Lock for thread-safe random generator */
@@ -432,28 +432,22 @@ AST_MUTEX_DEFINE_STATIC(netlock);
 
 AST_MUTEX_DEFINE_STATIC(monlock);
 
+AST_MUTEX_DEFINE_STATIC(sip_reload_lock);
+
 /*! \brief This is the thread for the monitor which checks for input on the channels
    which are not currently in use.  */
 static pthread_t monitor_thread = AST_PTHREADT_NULL;
 
-static int restart_monitor(void);
-
-
-static struct in_addr __ourip;
-static struct sockaddr_in outboundproxyip;
-static int ourport;
-static struct sockaddr_in debugaddr;
-
+static int sip_reloading = 0;			/*!< Flag for avoiding multiple reloads at the same time */
+static enum channelreloadreason sip_reloadreason;	/*!< Reason for last reload/load of configuration */
 
 static struct sched_context *sched;
 static struct io_context *io;
-
 
 #define DEC_CALL_LIMIT	0
 #define INC_CALL_LIMIT	1
 
 static struct ast_codec_pref prefs;
-
 
 /*! \brief sip_request: The data grabbed from the UDP socket */
 struct sip_request {
@@ -521,6 +515,7 @@ struct sip_auth {
 	struct sip_auth *next;          /*!< Next auth structure in list */
 };
 
+/*--- Various flags for the flags field in the pvt structure */
 #define SIP_ALREADYGONE		(1 << 0)	/*!< Whether or not we've already been destroyed by our peer */
 #define SIP_NEEDDESTROY		(1 << 1)	/*!< if we need to be destroyed */
 #define SIP_NOVIDEO		(1 << 2)	/*!< Didn't get video in invite, don't offer */
@@ -573,7 +568,7 @@ struct sip_auth {
 /* Remote Party-ID Support */
 #define SIP_SENDRPID		(1 << 30)
 /* Did this connection increment the counter of in-use calls? */
-#define SIP_INC_COUNT (1 << 31)
+#define SIP_INC_COUNT		(1 << 31)
 
 #define SIP_FLAGS_TO_COPY \
 	(SIP_PROMISCREDIR | SIP_TRUSTRPID | SIP_SENDRPID | SIP_DTMF | SIP_REINVITE | \
@@ -598,7 +593,6 @@ struct sip_auth {
 #define sipdebug_config		ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONFIG)
 #define sipdebug_console	ast_test_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONSOLE)
 
-static int global_rtautoclear = 120;
 
 /*! \brief sip_pvt: PVT structures are used for each SIP dialog, ie. a call, a registration, a subscribe  */
 static struct sip_pvt {
@@ -816,9 +810,6 @@ struct sip_peer {
 	int lastmsg;
 };
 
-AST_MUTEX_DEFINE_STATIC(sip_reload_lock);
-static int sip_reloading = 0;
-static enum channelreloadreason sip_reloadreason;	/*!< Reason for last reload/load of configuration */
 
 /* States for outbound registrations (with register= lines in sip.conf */
 #define REG_STATE_UNREGISTERED		0	/*!< We are not registred */
@@ -863,6 +854,8 @@ struct sip_registry {
 	char lastmsg[256];		/*!< Last Message sent/received */
 };
 
+/* --- Linked lists of various objects --------*/
+
 /*! \brief  The user list: Users and friends */
 static struct ast_user_list {
 	ASTOBJ_CONTAINER_COMPONENTS(struct sip_user);
@@ -879,23 +872,25 @@ static struct ast_register_list {
 	int recheck;
 } regl;
 
-
-static int __sip_do_register(struct sip_registry *r);
-
-static int sipsock  = -1;
+/*! \todo Move the sip_auth list to AST_LIST */
+static struct sip_auth *authl = NULL;          /*!< Authentication list for realm authentication */
 
 
+/* --- Sockets and networking --------------*/
+static int sipsock  = -1;			/*!< Main socket for SIP network communication */
 static struct sockaddr_in bindaddr = { 0, };	/*!< The address we bind to */
 static struct sockaddr_in externip;		/*!< External IP address if we are behind NAT */
 static char externhost[MAXHOSTNAMELEN];		/*!< External host name (possibly with dynamic DNS and DHCP */
 static time_t externexpire = 0;			/*!< Expiration counter for re-resolving external host name in dynamic DNS */
 static int externrefresh = 10;
 static struct ast_ha *localaddr;		/*!< List of local networks, on the same side of NAT as this Asterisk */
-static int callevents;				/*!< Whether we send manager events or not */
+static struct in_addr __ourip;
+static struct sockaddr_in outboundproxyip;
+static int ourport;
+static struct sockaddr_in debugaddr;
 
 struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know how to send */
 
-static struct sip_auth *authl = NULL;          /*!< Authentication list for realm authentication */
 
 
 /*---------------------------- Forward declarations of functions in chan_sip.c */
@@ -953,6 +948,8 @@ static void copy_request(struct sip_request *dst,struct sip_request *src);
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req, int fatal);
 static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
 static int sip_poke_peer(struct sip_peer *peer);
+static int __sip_do_register(struct sip_registry *r);
+static int restart_monitor(void);
 
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct ast_channel_tech sip_tech = {
@@ -2842,7 +2839,7 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	if (ast_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND) {
 		i->vad = ast_dsp_new();
 		ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
-		if (relaxdtmf)
+		if (global_relaxdtmf)
 			ast_dsp_digitmode(i->vad, DSP_DIGITMODE_DTMF | DSP_DIGITMODE_RELAXDTMF);
 	}
 	if (i->rtp) {
@@ -3748,7 +3745,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	if (sin.sin_addr.s_addr && !sendonly) {	        
 	        append_history(p, "Unhold", "%s", req->data);
 
-		if (callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
+		if (global_callevents && ast_test_flag(p, SIP_CALL_ONHOLD)) {
 			manager_event(EVENT_FLAG_CALL, "Unhold",
 				"Channel: %s\r\n"
 				"Uniqueid: %s\r\n",
@@ -3761,7 +3758,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 		/* No address for RTP, we're on hold */
 	        append_history(p, "Hold", "%s", req->data);
 
-	        if (callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
+	        if (global_callevents && !ast_test_flag(p, SIP_CALL_ONHOLD)) {
 			manager_event(EVENT_FLAG_CALL, "Hold",
 				"Channel: %s\r\n"
 		   	    	"Uniqueid: %s\r\n",
@@ -8302,7 +8299,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Caller ID:              %s\n", default_callerid);
 	ast_cli(fd, "  From: Domain:           %s\n", default_fromdomain);
 	ast_cli(fd, "  Record SIP history:     %s\n", recordhistory ? "On" : "Off");
-	ast_cli(fd, "  Call Events:            %s\n", callevents ? "On" : "Off");
+	ast_cli(fd, "  Call Events:            %s\n", global_callevents ? "On" : "Off");
 	ast_cli(fd, "  IP ToS:                 0x%x\n", global_tos);
 #ifdef OSP_SUPPORT
 	ast_cli(fd, "  OSP Support:            Yes\n");
@@ -8319,7 +8316,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Codecs:                 ");
 	print_codec_to_cli(fd, &prefs);
 	ast_cli(fd, "\n");
-	ast_cli(fd, "  Relax DTMF:             %s\n", relaxdtmf ? "Yes" : "No");
+	ast_cli(fd, "  Relax DTMF:             %s\n", global_relaxdtmf ? "Yes" : "No");
 	ast_cli(fd, "  Compact SIP headers:    %s\n", compactheaders ? "Yes" : "No");
 	ast_cli(fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
 	ast_cli(fd, "  RTP Hold Timeout:       %d %s\n", global_rtpholdtimeout, global_rtpholdtimeout ? "" : "(Disabled)");
@@ -12431,8 +12428,8 @@ static int reload_config(enum channelreloadreason reason)
 	ast_clear_flag(&global_flags_page2, SIP_PAGE2_DEBUG_CONFIG);
 
 	/* Misc settings for the channel */
-	relaxdtmf = 0;
-	callevents = 0;
+	global_relaxdtmf = 0;
+	global_callevents = 0;
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -12463,7 +12460,7 @@ static int reload_config(enum channelreloadreason reason)
 		} else if (!strcasecmp(v->name, "usereqphone")) {
 			ast_set2_flag((&global_flags), ast_true(v->value), SIP_USEREQPHONE);	
 		} else if (!strcasecmp(v->name, "relaxdtmf")) {
-			relaxdtmf = ast_true(v->value);
+			global_relaxdtmf = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "checkmwi")) {
 			if ((sscanf(v->value, "%d", &global_mwitime) != 1) || (global_mwitime < 0)) {
 				ast_log(LOG_WARNING, "'%s' is not a valid MWI time setting at line %d.  Using default (10).\n", v->value, v->lineno);
@@ -12620,7 +12617,7 @@ static int reload_config(enum channelreloadreason reason)
 				default_qualify = 0;
 			}
 		} else if (!strcasecmp(v->name, "callevents")) {
-			callevents = ast_true(v->value);
+			global_callevents = ast_true(v->value);
 		}
 	}
 
