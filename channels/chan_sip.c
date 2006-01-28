@@ -6044,6 +6044,7 @@ static enum parse_register_result parse_register_contact(struct sip_pvt *pvt, st
 static void free_old_route(struct sip_route *route)
 {
 	struct sip_route *next;
+
 	while (route) {
 		next = route->next;
 		free(route);
@@ -6051,7 +6052,7 @@ static void free_old_route(struct sip_route *route)
 	}
 }
 
-/*! \brief  list_route: List all routes - mostly for debugging */
+/*! \brief List all routes - mostly for debugging */
 static void list_route(struct sip_route *route)
 {
 	if (!route) {
@@ -6064,7 +6065,7 @@ static void list_route(struct sip_route *route)
 	}
 }
 
-/*! \brief  build_route: Build route list from Record-Route header */
+/*! \brief Build route list from Record-Route header */
 static void build_route(struct sip_pvt *p, struct sip_request *req, int backwards)
 {
 	struct sip_route *thishop, *head, *tail;
@@ -6407,9 +6408,9 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 	return res;
 }
 
-/*! \brief  cb_extensionstate: Callback for the devicestate notification (SUBSCRIBE) support subsystem */
-/*    If you add an "hint" priority to the extension in the dial plan,
-      you will get notifications on device state changes */
+/*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
+\note	If you add an "hint" priority to the extension in the dial plan,
+	you will get notifications on device state changes */
 static int cb_extensionstate(char *context, char* exten, int state, void *data)
 {
 	struct sip_pvt *p = data;
@@ -6436,7 +6437,7 @@ static int cb_extensionstate(char *context, char* exten, int state, void *data)
 	return 0;
 }
 
-/*! \brief  register_verify: Verify registration of user */
+/*! \brief Verify registration of user */
 static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct sip_request *req, char *uri, int ignore)
 {
 	int res = -3;
@@ -6580,7 +6581,7 @@ static int register_verify(struct sip_pvt *p, struct sockaddr_in *sin, struct si
 	return res;
 }
 
-/*! \brief  get_rdnis: get referring dnis */
+/*! \brief Get referring dnis */
 static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256], *c, *a;
@@ -6608,7 +6609,7 @@ static int get_rdnis(struct sip_pvt *p, struct sip_request *oreq)
 	return 0;
 }
 
-/*! \brief  get_destination: Find out who the call is for */
+/*! \brief Find out who the call is for */
 static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 {
 	char tmp[256] = "", *uri, *a;
@@ -6704,7 +6705,7 @@ static int get_destination(struct sip_pvt *p, struct sip_request *oreq)
 	return -1;
 }
 
-/*! \brief  get_sip_pvt_byid_locked: Lock interface lock and find matching pvt lock  */
+/*! \brief Lock interface lock and find matching pvt lock  */
 static struct sip_pvt *get_sip_pvt_byid_locked(char *callid) 
 {
 	struct sip_pvt *sip_pvt_ptr = NULL;
@@ -6733,7 +6734,7 @@ static struct sip_pvt *get_sip_pvt_byid_locked(char *callid)
 	return sip_pvt_ptr;
 }
 
-/*! \brief  get_refer_info: Call transfer support (the REFER method) */
+/*! \brief Call transfer support (the REFER method) */
 static int get_refer_info(struct sip_pvt *sip_pvt, struct sip_request *outgoing_req)
 {
 
@@ -7331,7 +7332,9 @@ static int check_user_full(struct sip_pvt *p, struct sip_request *req, int sipme
 	return res;
 }
 
-/*! \brief  Find user */
+/*! \brief  Find user 
+	If we get a match, this will add a reference pointer to the user object in ASTOBJ, that needs to be unreferenced
+*/
 static int check_user(struct sip_pvt *p, struct sip_request *req, int sipmethod, char *uri, int reliable, struct sockaddr_in *sin, int ignore)
 {
 	return check_user_full(p, req, sipmethod, uri, reliable, sin, ignore, NULL, 0);
@@ -7359,9 +7362,9 @@ static int get_msg_text(char *buf, int len, struct sip_request *req)
 }
 
                 
-/*! \brief  Receive SIP MESSAGE method messages */
-/*	We only handle messages within current calls currently */
-/*	Reference: RFC 3428 */
+/*! \brief  Receive SIP MESSAGE method messages
+\note	We only handle messages within current calls currently 
+	Reference: RFC 3428 */
 static void receive_message(struct sip_pvt *p, struct sip_request *req)
 {
 	char buf[1024];
@@ -7464,8 +7467,8 @@ static char *nat2str(int nat)
 	}
 }
 
-/*! \brief  Report Peer status in character string */
-/* 	returns 1 if peer is online, -1 if unmonitored */
+/*! \brief  Report Peer status in character string
+ * 	\return 1 if peer is online, -1 if unmonitored */
 static int peer_status(struct sip_peer *peer, char *status, int statuslen)
 {
 	int res = 0;
