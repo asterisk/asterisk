@@ -3560,12 +3560,14 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 	pthread_t threadid;
 	pthread_attr_t attr;
 	struct ast_channel *chan;
+	struct ast_frame dtmf_frame = { .frametype = AST_FRAME_DTMF };
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	index = zt_get_index(ast, p, 0);
 	p->subs[index].f.frametype = AST_FRAME_NULL;
+	p->subs[index].f.subclass = 0;
 	p->subs[index].f.datalen = 0;
 	p->subs[index].f.samples = 0;
 	p->subs[index].f.mallocd = 0;
@@ -3590,12 +3592,17 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 		ast_log(LOG_DEBUG, "Detected %sdigit '%c'\n", p->pulsedial ? "pulse ": "", res & 0xff);
 #ifdef ZAPATA_PRI
 		if (!p->proceeding && p->sig == SIG_PRI && p->pri && p->pri->overlapdial) {
-			p->subs[index].f.frametype = AST_FRAME_NULL;
-			p->subs[index].f.subclass = 0;
+			/* absorb event */
 		} else {
 #endif
-			p->subs[index].f.frametype = AST_FRAME_DTMF;
+			/* Send a DTMF event for 'legacy' channels and all applications,
+			   and a DTMF_BEGIN event for channels that handle variable duration
+			   DTMF events
+			*/
+			p->subs[index].f.frametype = AST_FRAME_DTMF_BEGIN;
 			p->subs[index].f.subclass = res & 0xff;
+			dtmf_frame.subclass = res & 0xff;
+			p->subs[index].f.next = ast_frdup(&dtmf_frame);
 #ifdef ZAPATA_PRI
 		}
 #endif
@@ -3606,10 +3613,13 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 
 	if (res & ZT_EVENT_DTMFDOWN) {
 		ast_log(LOG_DEBUG, "DTMF Down '%c'\n", res & 0xff);
-		p->subs[index].f.frametype = AST_FRAME_NULL;
-		p->subs[index].f.subclass = 0;
+		/* Mute conference */
 		zt_confmute(p, 1);
-		/* Mute conference, return null frame */
+		/* Send a DTMF_BEGIN event for devices that want variable
+		   duration DTMF events
+		*/
+		p->subs[index].f.frametype = AST_FRAME_DTMF_BEGIN;
+		p->subs[index].f.subclass = res & 0xff;
 		return &p->subs[index].f;
 	}
 
@@ -3705,8 +3715,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 								alarm2str(res), p->channel);
 			/* fall through intentionally */
 		case ZT_EVENT_ONHOOK:
-			if (p->radio)
-			{
+			if (p->radio) {
 				p->subs[index].f.frametype = AST_FRAME_CONTROL;
 				p->subs[index].f.subclass = AST_CONTROL_RADIO_UNKEY;
 				break;
@@ -3820,8 +3829,7 @@ static struct ast_frame *zt_handle_event(struct ast_channel *ast)
 			break;
 		case ZT_EVENT_RINGOFFHOOK:
 			if (p->inalarm) break;
-			if (p->radio)
-			{
+			if (p->radio) {
 				p->subs[index].f.frametype = AST_FRAME_CONTROL;
 				p->subs[index].f.subclass = AST_CONTROL_RADIO_KEY;
 				break;

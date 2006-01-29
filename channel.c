@@ -1904,6 +1904,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	if (chan->readq) {
 		f = chan->readq;
 		chan->readq = f->next;
+		f->next = NULL;
 		/* Interpret hangup and return NULL */
 		if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_HANGUP)) {
 			ast_frfree(f);
@@ -1928,103 +1929,126 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		}
 	}
 
+	if (f) {
+		/* if the channel driver returned more than one frame, stuff the excess
+		   into the readq for the next ast_read call
+		*/
+		if (f->next) {
+			chan->readq = f->next;
+			f->next = NULL;
+		}
 
-	if (f && (f->frametype == AST_FRAME_VOICE)) {
-		if (dropaudio) {
-			ast_frfree(f);
-			f = &null_frame;
-		} else if (!(f->subclass & chan->nativeformats)) {
-			/* This frame can't be from the current native formats -- drop it on the
-			   floor */
-			ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n", chan->name, ast_getformatname(f->subclass), ast_getformatname(chan->nativeformats));
-			ast_frfree(f);
-			f = &null_frame;
-		} else {
-			if (chan->spies)
-				queue_frame_to_spies(chan, f, SPY_READ);
-
-			if (chan->monitor && chan->monitor->read_stream ) {
+		switch (f->frametype) {
+		case AST_FRAME_CONTROL:
+			if (f->subclass == AST_CONTROL_ANSWER) {
+				if (prestate == AST_STATE_UP) {
+					ast_log(LOG_DEBUG, "Dropping duplicate answer!\n");
+					f = &null_frame;
+				}
+				/* Answer the CDR */
+				ast_setstate(chan, AST_STATE_UP);
+				ast_cdr_answer(chan->cdr);
+			}
+			break;
+		case AST_FRAME_DTMF:
+			ast_log(LOG_DTMF, "DTMF '%c' received on %s\n", f->subclass, chan->name);
+			if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF)) {
+				if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
+					chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
+				else
+					ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
+				f = &null_frame;
+			}
+			break;
+		case AST_FRAME_DTMF_BEGIN:
+			ast_log(LOG_DTMF, "DTMF begin '%c' received on %s\n", f->subclass, chan->name);
+			break;
+		case AST_FRAME_DTMF_END:
+			ast_log(LOG_DTMF, "DTMF end '%c' received on %s\n", f->subclass, chan->name);
+			break;
+		case AST_FRAME_VOICE:
+			if (dropaudio) {
+				ast_frfree(f);
+				f = &null_frame;
+			} else if (!(f->subclass & chan->nativeformats)) {
+				/* This frame can't be from the current native formats -- drop it on the
+				   floor */
+				ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n",
+					chan->name, ast_getformatname(f->subclass), ast_getformatname(chan->nativeformats));
+				ast_frfree(f);
+				f = &null_frame;
+			} else {
+				if (chan->spies)
+					queue_frame_to_spies(chan, f, SPY_READ);
+				
+				if (chan->monitor && chan->monitor->read_stream ) {
 #ifndef MONITOR_CONSTANT_DELAY
-				int jump = chan->outsmpl - chan->insmpl - 4 * f->samples;
-				if (jump >= 0) {
-					if (ast_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
-						ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
-					chan->insmpl += jump + 4 * f->samples;
-				} else
-					chan->insmpl+= f->samples;
+					int jump = chan->outsmpl - chan->insmpl - 4 * f->samples;
+					if (jump >= 0) {
+						if (ast_seekstream(chan->monitor->read_stream, jump + f->samples, SEEK_FORCECUR) == -1)
+							ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
+						chan->insmpl += jump + 4 * f->samples;
+					} else
+						chan->insmpl+= f->samples;
 #else
-				int jump = chan->outsmpl - chan->insmpl;
-				if (jump - MONITOR_DELAY >= 0) {
-					if (ast_seekstream(chan->monitor->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
-						ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
-					chan->insmpl += jump;
-				} else
-					chan->insmpl += f->samples;
+					int jump = chan->outsmpl - chan->insmpl;
+					if (jump - MONITOR_DELAY >= 0) {
+						if (ast_seekstream(chan->monitor->read_stream, jump - f->samples, SEEK_FORCECUR) == -1)
+							ast_log(LOG_WARNING, "Failed to perform seek in monitoring read stream, synchronization between the files may be broken\n");
+						chan->insmpl += jump;
+					} else
+						chan->insmpl += f->samples;
 #endif
-				if (chan->monitor->state == AST_MONITOR_RUNNING) {
-					if (ast_writestream(chan->monitor->read_stream, f) < 0)
-						ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
+					if (chan->monitor->state == AST_MONITOR_RUNNING) {
+						if (ast_writestream(chan->monitor->read_stream, f) < 0)
+							ast_log(LOG_WARNING, "Failed to write data to channel monitor read stream\n");
+					}
+				}
+
+				if (chan->readtrans) {
+					if (!(f = ast_translate(chan->readtrans, f, 1)))
+						f = &null_frame;
+				}
+
+				/* Run any generator sitting on the channel */
+				if (chan->generatordata) {
+					/* Mask generator data temporarily and apply.  If there is a timing function, it
+					   will be calling the generator instead */
+					void *tmp;
+					int res;
+					int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
+					
+					if (chan->timingfunc) {
+						ast_log(LOG_DEBUG, "Generator got voice, switching to phase locked mode\n");
+						ast_settimeout(chan, 0, NULL, NULL);
+					}
+					tmp = chan->generatordata;
+					chan->generatordata = NULL;
+					generate = chan->generator->generate;
+					res = generate(chan, tmp, f->datalen, f->samples);
+					chan->generatordata = tmp;
+					if (res) {
+						ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
+						ast_deactivate_generator(chan);
+					}
+				} else if (f->frametype == AST_FRAME_CNG) {
+					if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
+						ast_log(LOG_DEBUG, "Generator got CNG, switching to timed mode\n");
+						ast_settimeout(chan, 160, generator_force, chan);
+					}
 				}
 			}
-			if (chan->readtrans) {
-				f = ast_translate(chan->readtrans, f, 1);
-				if (!f)
-					f = &null_frame;
-			}
 		}
-	}
-
-	/* Make sure we always return NULL in the future */
-	if (!f) {
+	} else {
+		/* Make sure we always return NULL in the future */
 		chan->_softhangup |= AST_SOFTHANGUP_DEV;
 		if (chan->generator)
 			ast_deactivate_generator(chan);
 		/* End the CDR if appropriate */
 		if (chan->cdr)
 			ast_cdr_end(chan->cdr);
-	} else if (ast_test_flag(chan, AST_FLAG_DEFER_DTMF) && f->frametype == AST_FRAME_DTMF) {
-		if (strlen(chan->dtmfq) < sizeof(chan->dtmfq) - 2)
-			chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
-		else
-			ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
-		f = &null_frame;
-	} else if ((f->frametype == AST_FRAME_CONTROL) && (f->subclass == AST_CONTROL_ANSWER)) {
-		if (prestate == AST_STATE_UP) {
-			ast_log(LOG_DEBUG, "Dropping duplicate answer!\n");
-			f = &null_frame;
-		}
-		/* Answer the CDR */
-		ast_setstate(chan, AST_STATE_UP);
-		ast_cdr_answer(chan->cdr);
-	} 
-
-	/* Run any generator sitting on the line */
-	if (f && (f->frametype == AST_FRAME_VOICE) && chan->generatordata) {
-		/* Mask generator data temporarily and apply.  If there is a timing function, it
-		   will be calling the generator instead */
-		void *tmp;
-		int res;
-		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
-
-		if (chan->timingfunc) {
-			ast_log(LOG_DEBUG, "Generator got voice, switching to phase locked mode\n");
-			ast_settimeout(chan, 0, NULL, NULL);
-		}
-		tmp = chan->generatordata;
-		chan->generatordata = NULL;
-		generate = chan->generator->generate;
-		res = generate(chan, tmp, f->datalen, f->samples);
-		chan->generatordata = tmp;
-		if (res) {
-			ast_log(LOG_DEBUG, "Auto-deactivating generator\n");
-			ast_deactivate_generator(chan);
-		}
-	} else if (f && (f->frametype == AST_FRAME_CNG)) {
-		if (chan->generator && !chan->timingfunc && (chan->timingfd > -1)) {
-			ast_log(LOG_DEBUG, "Generator got CNG, switching to zap timed mode\n");
-			ast_settimeout(chan, 160, generator_force, chan);
-		}
 	}
+
 	/* High bit prints debugging */
 	if (chan->fin & 0x80000000)
 		ast_frame_dump(chan->name, f, "<<");
@@ -2033,6 +2057,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	else
 		chan->fin++;
 	ast_mutex_unlock(&chan->lock);
+
 	return f;
 }
 
@@ -2269,6 +2294,11 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		/* XXX Interpret control frames XXX */
 		ast_log(LOG_WARNING, "Don't know how to handle control frames yet\n");
 		break;
+	case AST_FRAME_DTMF_BEGIN:
+	case AST_FRAME_DTMF_END:
+		/* nothing to do with these yet */
+		res = 0;
+		break;
 	case AST_FRAME_DTMF:
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);
 		ast_mutex_unlock(&chan->lock);
@@ -2295,7 +2325,7 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		else
 			res = 0;
 		break;
-	default:
+	case AST_FRAME_VOICE:
 		if (chan->tech->write) {
 			/* Bypass translator if we're writing format in the raw write format.  This
 			   allows mixing of native / non-native formats */
@@ -2304,11 +2334,10 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			else
 				f = (chan->writetrans) ? ast_translate(chan->writetrans, fr, 0) : fr;
 			if (f) {
-				if (f->frametype == AST_FRAME_VOICE && chan->spies)
+				if (chan->spies)
 					queue_frame_to_spies(chan, f, SPY_WRITE);
 
-				if( chan->monitor && chan->monitor->write_stream &&
-						f && ( f->frametype == AST_FRAME_VOICE ) ) {
+				if (chan->monitor && chan->monitor->write_stream) {
 #ifndef MONITOR_CONSTANT_DELAY
 					int jump = chan->insmpl - chan->outsmpl - 4 * f->samples;
 					if (jump >= 0) {
@@ -2336,13 +2365,6 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 			} else
 				res = 0;
 		}
-	}
-
-	/* It's possible this is a translated frame */
-	if (f && f->frametype == AST_FRAME_DTMF) {
-		ast_log(LOG_DTMF, "%s : %c\n", chan->name, f->subclass);
-	} else if (fr->frametype == AST_FRAME_DTMF) {
-		ast_log(LOG_DTMF, "%s : %c\n", chan->name, fr->subclass);
 	}
 
 	if (f && (f != fr))
