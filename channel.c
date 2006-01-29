@@ -2295,9 +2295,16 @@ int ast_write(struct ast_channel *chan, struct ast_frame *fr)
 		ast_log(LOG_WARNING, "Don't know how to handle control frames yet\n");
 		break;
 	case AST_FRAME_DTMF_BEGIN:
+		if (chan->tech->send_digit_begin)
+			res = chan->tech->send_digit_begin(chan, fr->subclass);
+		else
+			res = 0;
+		break;
 	case AST_FRAME_DTMF_END:
-		/* nothing to do with these yet */
-		res = 0;
+		if (chan->tech->send_digit_end)
+			res = chan->tech->send_digit_end(chan);
+		else
+			res = 0;
 		break;
 	case AST_FRAME_DTMF:
 		ast_clear_flag(chan, AST_FLAG_BLOCKING);

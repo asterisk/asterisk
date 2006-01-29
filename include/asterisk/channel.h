@@ -189,6 +189,12 @@ struct ast_channel_tech {
 	/*! Send a literal DTMF digit */
 	int (* const send_digit)(struct ast_channel *chan, char digit);
 
+	/*! Start sending a literal DTMF digit */
+	int (* const send_digit_begin)(struct ast_channel *chan, char digit);
+
+	/*! Stop sending the last literal DTMF digit */
+	int (* const send_digit_end)(struct ast_channel *chan);
+
 	/*! Call a given phone number (address, etc), but don't
 	   take longer than timeout seconds to do so.  */
 	int (* const call)(struct ast_channel *chan, char *addr, int timeout);
