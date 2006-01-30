@@ -61,6 +61,8 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;maxexpiry=3600			; Max length of incoming registrations/subscriptions we allow (seconds)
 ;minexpiry=60			; Minimum length of registrations/subscriptions (default 60)
 ;defaultexpiry=120		; Default length of incoming/outoing registration
+;t1min=100			; Minimum roundtrip time for messages to monitored hosts
+				; Defaults to 100 ms
 ;notifymimetype=text/plain	; Allow overriding of mime type in MWI NOTIFY
 ;checkmwi=10			; Default time between mailbox checks for peers
 ;vmexten=voicemail      ; dialplan extension to reach mailbox sets the 

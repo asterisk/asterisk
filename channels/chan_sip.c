@@ -363,6 +363,7 @@ static const struct cfsip_options {
 #define DEFAULT_PEDANTIC	FALSE
 #define DEFAULT_AUTOCREATEPEER	FALSE
 #define DEFAULT_QUALIFY		FALSE
+#define DEFAULT_T1MIN		100		/*!< 100 MS for minimal roundtrip time */
 #ifndef DEFAULT_USERAGENT
 #define DEFAULT_USERAGENT "Asterisk PBX"	/*!< Default Useragent: header unless re-defined in sip.conf */
 #endif
@@ -403,6 +404,7 @@ static char regcontext[AST_MAX_CONTEXT];		/*!< Context for auto-extensions */
 static char global_useragent[AST_MAX_EXTENSION];	/*!< Useragent for the SIP channel */
 static int allow_external_domains;	/*!< Accept calls to external SIP domains? */
 static int global_callevents;		/*!< Whether we send manager events or not */
+static int global_t1min;		/*!< T1 roundtrip time minimum */
 
 /*! \brief Codecs that we support by default: */
 static int global_capability = AST_FORMAT_ULAW | AST_FORMAT_ALAW | AST_FORMAT_GSM | AST_FORMAT_H263;
@@ -1915,8 +1917,9 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->callgroup = peer->callgroup;
 	r->pickupgroup = peer->pickupgroup;
 	/* Set timer T1 to RTT for this peer (if known by qualify=) */
+	/* Minimum is settable or default to 100 ms */
 	if (peer->maxms && peer->lastms)
-		r->timer_t1 = peer->lastms;
+		r->timer_t1 = peer->lastms < global_t1min ? global_t1min : peer->lastms;
 	if ((ast_test_flag(r, SIP_DTMF) == SIP_DTMF_RFC2833) || (ast_test_flag(r, SIP_DTMF) == SIP_DTMF_AUTO))
 		r->noncodeccapability |= AST_RTP_DTMF;
 	else
@@ -8289,6 +8292,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "  Codecs:                 ");
 	print_codec_to_cli(fd, &prefs);
 	ast_cli(fd, "\n");
+	ast_cli(fd, "  T1 minimum:             %d\n", global_t1min);
 	ast_cli(fd, "  Relax DTMF:             %s\n", global_relaxdtmf ? "Yes" : "No");
 	ast_cli(fd, "  Compact SIP headers:    %s\n", compactheaders ? "Yes" : "No");
 	ast_cli(fd, "  RTP Timeout:            %d %s\n", global_rtptimeout, global_rtptimeout ? "" : "(Disabled)" );
@@ -12403,6 +12407,7 @@ static int reload_config(enum channelreloadreason reason)
 	/* Misc settings for the channel */
 	global_relaxdtmf = FALSE;
 	global_callevents = FALSE;
+	global_t1min = DEFAULT_T1MIN;		
 
 	/* Read the [general] config section of sip.conf (or from realtime config) */
 	for (v = ast_variable_browse(cfg, "general"); v; v = v->next) {
@@ -12423,6 +12428,8 @@ static int reload_config(enum channelreloadreason reason)
 			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_RTUPDATE);	
 		} else if (!strcasecmp(v->name, "ignoreregexpire")) {
 			ast_set2_flag((&global_flags_page2), ast_true(v->value), SIP_PAGE2_IGNOREREGEXPIRE);	
+		} else if (!strcasecmp(v->name, "t1min")) {
+			global_t1min = atoi(v->value);
 		} else if (!strcasecmp(v->name, "rtautoclear")) {
 			int i = atoi(v->value);
 			if (i > 0)
