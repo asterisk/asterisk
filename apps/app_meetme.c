@@ -426,8 +426,6 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int
 	unsigned char *data;
 	int len;
 	int res = -1;
-	short *data2;
-	int x;
 
 	if (!chan->_softhangup)
 		res = ast_autoservice_start(chan);
@@ -448,10 +446,7 @@ static void conf_play(struct ast_channel *chan, struct ast_conference *conf, int
 		len = 0;
 	}
 	if (data) {
-		data2 = alloca(len * 2);
-		for (x=0;x<len;x++)
-			data2[x] = AST_MULAW(data[x]);
-		careful_write(conf->fd, (unsigned char *)data2, len << 1, 1);
+		careful_write(conf->fd, data, len, 1);
 	}
 
 	AST_LIST_UNLOCK(&confs);
