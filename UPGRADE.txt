@@ -38,3 +38,13 @@ Functions:
 The SIP channel:
 
 * The "incominglimit" setting is replaced by the "call-limit" setting in sip.conf.
+
+Installation:
+
+* On BSD systems, the installation directories have changed to more "FreeBSDish" directories. On startup, Asterisk will look for the main configuration in /usr7local/etc/asterisk/asterisk.conf
+If you have an old installation, you might want to remove the binaries and move the configuration files to the new locations. The following directories are now default:
+	ASTLIBDIR	/usr/local/lib/asterisk
+	ASTVARLIBDIR	/usr/local/share/asterisk
+	ASTETCDIR	/usr/local/etc/asterisk
+	ASTBINDIR	/usr/local/bin/asterisk
+	ASTSBINDIR	/usr/local/sbin/asterisk
