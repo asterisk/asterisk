@@ -6368,9 +6368,14 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 		} 
 		if (good_response) /* Auth is OK */
 			return 0;
+
+		/* Ok, we have a bad username/secret pair */
+		/* Challenge again, and again, and again */
+		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
+		sip_scheddestroy(p, 32000);
+		return 1;		/* Challenge sent */
+
 	}
-	/* Failure */
-	return -1;
 }
 
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
