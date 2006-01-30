@@ -57,6 +57,7 @@ static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char
 {
 	char newmd5[33];
 	char *parse;
+	static int deprecated = 0;
 	AST_DECLARE_APP_ARGS(args,
 		AST_APP_ARG(digest);
 		AST_APP_ARG(data);
@@ -75,6 +76,11 @@ static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char
 	if (args.argc < 2) {
 		ast_log(LOG_WARNING, "Syntax: CHECK_MD5(<digest>,<data>) - missing argument!\n");
 		return NULL;
+	}
+
+	if (!deprecated) {
+		deprecated = 1;
+		ast_log(LOG_WARNING, "CHECK_MD5() is deprecated in Asterisk 1.4 and later.\n");
 	}
 
 	ast_md5_hash(newmd5, args.data);
