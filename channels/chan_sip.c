@@ -897,7 +897,7 @@ struct ast_config *notify_types;		/*!< The list of manual NOTIFY types we know h
 static int transmit_response(struct sip_pvt *p, char *msg, struct sip_request *req);
 static int transmit_response_with_sdp(struct sip_pvt *p, char *msg, struct sip_request *req, int retrans);
 static int transmit_response_with_unsupported(struct sip_pvt *p, char *msg, struct sip_request *req, char *unsupported);
-static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, const char *rand, int reliable, char *header, int stale);
+static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *rand, int reliable, const char *header, int stale);
 static int transmit_request(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_request_with_auth(struct sip_pvt *p, int sipmethod, int inc, int reliable, int newbranch);
 static int transmit_invite(struct sip_pvt *p, int sipmethod, int sendsdp, int init);
@@ -916,7 +916,6 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 static struct sip_user *build_user(const char *name, struct ast_variable *v, int realtime);
 static int sip_do_reload(enum channelreloadreason reason);
 static int expire_register(void *data);
-
 static struct ast_channel *sip_request_call(const char *type, int format, void *data, int *cause);
 static int sip_devicestate(void *data);
 static int sip_sendtext(struct ast_channel *ast, const char *text);
@@ -932,6 +931,9 @@ static int sip_senddigit(struct ast_channel *ast, char digit);
 static int clear_realm_authentication(struct sip_auth *authlist);                            /* Clear realm authentication list (at reload) */
 static struct sip_auth *add_realm_authentication(struct sip_auth *authlist, char *configuration, int lineno);   /* Add realm authentication in list */
 static struct sip_auth *find_realm_authentication(struct sip_auth *authlist, const char *realm);         /* Find authentication for a specific realm */
+static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
+		      const char *secret, const char *md5secret, int sipmethod,
+		      char *uri, int reliable, int ignore);
 static int check_sip_domain(const char *domain, char *context, size_t len); /* Check if domain is one of our local domains */
 static void append_date(struct sip_request *req);	/* Append date to SIP packet */
 static int determine_firstline_parts(struct sip_request *req);
@@ -943,7 +945,7 @@ static int find_sip_method(char *msg);
 static unsigned int parse_sip_options(struct sip_pvt *pvt, char *supported);
 static void sip_destroy(struct sip_pvt *p);
 static void parse_request(struct sip_request *req);
-static char *get_header(struct sip_request *req, char *name);
+static char *get_header(struct sip_request *req, const char *name);
 static void copy_request(struct sip_request *dst,struct sip_request *src);
 static int transmit_response_reliable(struct sip_pvt *p, char *msg, struct sip_request *req, int fatal);
 static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, char *authheader);
@@ -2968,7 +2970,7 @@ static char *find_alias(const char *name, char *_default)
 	return _default;
 }
 
-static char *__get_header(struct sip_request *req, char *name, int *start)
+static char *__get_header(struct sip_request *req, const char *name, int *start)
 {
 	int pass;
 
@@ -3004,7 +3006,7 @@ static char *__get_header(struct sip_request *req, char *name, int *start)
 }
 
 /*! \brief Get header from SIP request */
-static char *get_header(struct sip_request *req, char *name)
+static char *get_header(struct sip_request *req, const char *name)
 {
 	int start = 0;
 	return __get_header(req, name, &start);
@@ -4043,7 +4045,7 @@ static void set_destination(struct sip_pvt *p, char *uri)
 }
 
 /*! \brief Initialize SIP response, based on SIP request */
-static int init_resp(struct sip_request *req, char *resp, struct sip_request *orig)
+static int init_resp(struct sip_request *req, const char *resp, struct sip_request *orig)
 {
 	/* Initialize a response */
 	if (req->headers || req->len) {
@@ -4076,7 +4078,7 @@ static int init_req(struct sip_request *req, int sipmethod, const char *recip)
 
 
 /*! \brief Prepare SIP response packet */
-static int respprep(struct sip_request *resp, struct sip_pvt *p, char *msg, struct sip_request *req)
+static int respprep(struct sip_request *resp, struct sip_pvt *p, const char *msg, struct sip_request *req)
 {
 	char newto[256], *ot;
 
@@ -4307,7 +4309,7 @@ static int transmit_response_with_allow(struct sip_pvt *p, char *msg, struct sip
 }
 
 /*! \brief Respond with authorization request */
-static int transmit_response_with_auth(struct sip_pvt *p, char *msg, struct sip_request *req, const char *randdata, int reliable, char *header, int stale)
+static int transmit_response_with_auth(struct sip_pvt *p, const char *msg, struct sip_request *req, const char *randdata, int reliable, const char *header, int stale)
 {
 	struct sip_request resp;
 	char tmp[256];
@@ -6182,19 +6184,19 @@ static int check_osptoken (struct sip_pvt *p, char *token)
 
 /*! \brief  Check user authorization from peer definition 
 	Some actions, like REGISTER and INVITEs from peers require
-	authentication (if peer have secret set) */
+	authentication (if peer have secret set) 
+	\return -1 on Error, 0 on success, 1 on challenge sent
+	
+*/
 static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *username,
 		      const char *secret, const char *md5secret, int sipmethod,
 		      char *uri, int reliable, int ignore)
 {
-	int res = -1;
-	char *response = "407 Proxy Authentication Required";
-	char *reqheader = "Proxy-Authorization";
-	char *respheader = "Proxy-Authenticate";
-	char *authtoken;
-#ifdef OSP_SUPPORT
-	char *osptoken;
-#endif
+	const char *response = "407 Proxy Authentication Required";
+	const char *reqheader = "Proxy-Authorization";
+	const char *respheader = "Proxy-Authenticate";
+	const char *authtoken;
+
 	/* Always OK if no secret */
 	if (ast_strlen_zero(secret) && ast_strlen_zero(md5secret)
 #ifdef OSP_SUPPORT
@@ -6213,36 +6215,30 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 	}
 #ifdef OSP_SUPPORT
 	else {
-		ast_log (LOG_DEBUG, "Checking OSP Authentication!\n");
+		char *osptoken;
+		if (option_debug)
+			ast_log (LOG_DEBUG, "Checking OSP Authentication!\n");
 		osptoken = get_header (req, "P-OSP-Auth-Token");
 		switch (ast_test_flag (p, SIP_OSPAUTH)) {
 			case SIP_OSPAUTH_NO:
 				break;
 			case SIP_OSPAUTH_GATEWAY:
-				if (ast_strlen_zero (osptoken)) {
-					if (ast_strlen_zero (secret) && ast_strlen_zero (md5secret)) {
+				if (ast_strlen_zero(osptoken)) {
+					if (ast_strlen_zero(secret) && ast_strlen_zero (md5secret))
 						return 0;
-					}
-				}
-				else {
-					return check_osptoken (p, osptoken);
+				} else {
+					return check_osptoken(p, osptoken);
 				}
 				break;
 			case SIP_OSPAUTH_PROXY:
-				if (ast_strlen_zero (osptoken)) {
+				if (ast_strlen_zero(osptoken))
 					return 0;
-				} 
-				else {
-					return check_osptoken (p, osptoken);
-				}
+				return check_osptoken(p, osptoken);
 				break;
 			case SIP_OSPAUTH_EXCLUSIVE:
-				if (ast_strlen_zero (osptoken)) {
+				if (ast_strlen_zero(osptoken))
 					return -1;
-				}
-				else {
-					return check_osptoken (p, osptoken);
-				}
+				return check_osptoken(p, osptoken);
 				break;
 			default:
 				return -1;
@@ -6253,134 +6249,108 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 	if (ignore && !ast_strlen_zero(p->randdata) && ast_strlen_zero(authtoken)) {
 		/* This is a retransmitted invite/register/etc, don't reconstruct authentication
 		   information */
-		if (!ast_strlen_zero(p->randdata)) {
-			if (!reliable) {
-				/* Resend message if this was NOT a reliable delivery.   Otherwise the
-				   retransmission should get it */
-				transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
-				/* Schedule auto destroy in 15 seconds */
-				sip_scheddestroy(p, 15000);
-			}
-			res = 1;
+		if (!reliable) {
+			/* Resend message if this was NOT a reliable delivery.   Otherwise the
+			   retransmission should get it */
+			transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
+			/* Schedule auto destroy in 32 seconds (according to RFC 3261) */
+			sip_scheddestroy(p, 32000);
 		}
+		return 1;	/* Auth sent */
 	} else if (ast_strlen_zero(p->randdata) || ast_strlen_zero(authtoken)) {
-		ast_string_field_build(p, randdata, "%08x", thread_safe_rand());
+		/* We have no auth, so issue challenge and request authentication */
+		ast_string_field_build(p, randdata, "%08x", thread_safe_rand());	/* Create nonce for challenge */
 		transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
-		/* Schedule auto destroy in 15 seconds */
-		sip_scheddestroy(p, 15000);
-		res = 1;
-	} else {
+		/* Schedule auto destroy in 32 seconds */
+		sip_scheddestroy(p, 32000);
+		return 1;	/* Auth sent */
+	} else {	/* We have auth, so check it */
 		/* Whoever came up with the authentication section of SIP can suck my %&#$&* for not putting
-		   an example in the spec of just what it is you're doing a hash on. */
-		char a1[256];
-		char a2[256];
+	   	an example in the spec of just what it is you're doing a hash on. */
 		char a1_hash[256];
-		char a2_hash[256];
-		char resp[256];
 		char resp_hash[256]="";
 		char tmp[256];
 		char *c;
-		char *z;
-		char *ua_hash ="";
-		char *resp_uri ="";
-		char *nonce = "";
-		char *digestusername = "";
 		int  wrongnonce = FALSE;
-		const char *usednonce = p->randdata;
+		int  good_response;
+		const char *usednonce = p->randdata; /* XXX check */
 
-		/* Find their response among the mess that we'r sent for comparison */
+		/* table of recognised keywords, and their value in the digest */
+		enum keys { K_RESP, K_URI, K_USER, K_NONCE, K_LAST };
+		struct x {
+			const char *key;
+			const char *s;
+		} *i, keys[] = {
+			[K_RESP] = { "response=", "" },
+			[K_URI] = { "uri=", "" },
+			[K_USER] = { "username=", "" },
+			[K_NONCE] = { "nonce=", "" },
+			[K_LAST] = { NULL, NULL}
+		};
+
+		/* Make a copy of the response and parse it */
 		ast_copy_string(tmp, authtoken, sizeof(tmp));
 		c = tmp;
 
-		while(c) {
-			c = ast_skip_blanks(c);
-			if (!*c)
+		while(c && *(c = ast_skip_blanks(c)) ) { /* lookup for keys */
+			for (i = keys; i->key != NULL; i++) {
+				const char *separator = ",";	/* default */
+
+				if (strncasecmp(c, i->key, strlen(i->key)) != 0)
+					continue;
+				/* Found. Skip keyword, take text in quotes or up to the separator. */
+				c += strlen(i->key);
+				if (*c == '"') { /* in quotes. Skip first and look for last */
+					c++;
+					separator = "\"";
+				}
+				i->s = c;
+				strsep(&c, separator);
 				break;
-			if (!strncasecmp(c, "response=", strlen("response="))) {
-				c+= strlen("response=");
-				if ((*c == '\"')) {
-					ua_hash=++c;
-					if ((c = strchr(c,'\"')))
-						*c = '\0';
-
-				} else {
-					ua_hash=c;
-					if ((c = strchr(c,',')))
-						*c = '\0';
-				}
-
-			} else if (!strncasecmp(c, "uri=", strlen("uri="))) {
-				c+= strlen("uri=");
-				if ((*c == '\"')) {
-					resp_uri=++c;
-					if ((c = strchr(c,'\"')))
-						*c = '\0';
-				} else {
-					resp_uri=c;
-					if ((c = strchr(c,',')))
-						*c = '\0';
-				}
-
-			} else if (!strncasecmp(c, "username=", strlen("username="))) {
-				c+= strlen("username=");
-				if ((*c == '\"')) {
-					digestusername=++c;
-					if((c = strchr(c,'\"')))
-						*c = '\0';
-				} else {
-					digestusername=c;
-					if((c = strchr(c,',')))
-						*c = '\0';
-				}
-			} else if (!strncasecmp(c, "nonce=", strlen("nonce="))) {
-				c+= strlen("nonce=");
-				if ((*c == '\"')) {
-					nonce=++c;
-					if ((c = strchr(c,'\"')))
-						*c = '\0';
-				} else {
-					nonce=c;
-					if ((c = strchr(c,',')))
-						*c = '\0';
-				}
-
-			} else
-				if ((z = strchr(c,' ')) || (z = strchr(c,','))) c=z;
-			if (c)
-				c++;
+			}
+			if (i->key == NULL) /* not found, jump after space or comma */
+				strsep(&c, " ,");
 		}
 		/* Verify that digest username matches  the username we auth as */
-		if (strcmp(username, digestusername)) {
+		if (strcmp(username, keys[K_USER].s)) {
+			ast_log(LOG_WARNING, "username mismatch, have <%s>, digest has <%s>\n",
+				username, keys[K_USER].s);
 			/* Oops, we're trying something here */
 			return -2;
 		}
 
 		/* Verify nonce from request matches our nonce.  If not, send 401 with new nonce */
-		if (strcasecmp(p->randdata, nonce)) {
+		if (strcasecmp(p->randdata, keys[K_NONCE].s)) { /* XXX it was 'n'casecmp ? */
 			wrongnonce = TRUE;
-			usednonce = nonce;
+			usednonce = keys[K_NONCE].s;
 		}
 
-		snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
-
-		if (!ast_strlen_zero(resp_uri))
-			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, resp_uri);
-		else
-			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text, uri);
-
 		if (!ast_strlen_zero(md5secret))
-			snprintf(a1_hash, sizeof(a1_hash), "%s", md5secret);
-		else
+			ast_copy_string(a1_hash, md5secret, sizeof(a1_hash));
+		else {
+			char a1[256];
+			snprintf(a1, sizeof(a1), "%s:%s:%s", username, global_realm, secret);
 			ast_md5_hash(a1_hash, a1);
+		}
 
-		ast_md5_hash(a2_hash, a2);
+		/* compute the expected response to compare with what we received */
+		{
+			char a2[256];
+			char a2_hash[256];
+			char resp[256];
 
-		snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, usednonce, a2_hash);
-		ast_md5_hash(resp_hash, resp);
+			snprintf(a2, sizeof(a2), "%s:%s", sip_methods[sipmethod].text,
+					!ast_strlen_zero(keys[K_URI].s) ? keys[K_URI].s : uri);
+			ast_md5_hash(a2_hash, a2);
+			snprintf(resp, sizeof(resp), "%s:%s:%s", a1_hash, usednonce, a2_hash);
+			ast_md5_hash(resp_hash, resp);
+		}
 
+		good_response = keys[K_RESP].s &&
+				!strncasecmp(keys[K_RESP].s, resp_hash, strlen(resp_hash));
 		if (wrongnonce) {
 			ast_string_field_build(p, randdata, "%08x", thread_safe_rand());
-			if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash))) {
+			if (good_response) {
 				if (sipdebug)
 					ast_log(LOG_NOTICE, "stale nonce received from '%s'\n", get_header(req, "To"));
 				/* We got working auth token, based on stale nonce . */
@@ -6392,18 +6362,15 @@ static int check_auth(struct sip_pvt *p, struct sip_request *req, const char *us
 				transmit_response_with_auth(p, response, req, p->randdata, reliable, respheader, 0);
 			}
 
-			/* Schedule auto destroy in 15 seconds */
-			sip_scheddestroy(p, 15000);
-			return 1;
+			/* Schedule auto destroy in 32 seconds */
+			sip_scheddestroy(p, 32000);
+			return 1;	/* Challenge sent */
 		} 
-		/* resp_hash now has the expected response, compare the two */
-		if (ua_hash && !strncasecmp(ua_hash, resp_hash, strlen(resp_hash))) {
-			/* Auth is OK */
-			res = 0;
-		}
+		if (good_response) /* Auth is OK */
+			return 0;
 	}
 	/* Failure */
-	return res;
+	return -1;
 }
 
 /*! \brief Callback for the devicestate notification (SUBSCRIBE) support subsystem
