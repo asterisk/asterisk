@@ -170,8 +170,8 @@ static void restore_channel(struct feature_pvt *p, int index)
 	p->subs[index].owner->timingfd = p->subs[index].timingfdbackup;
 	p->subs[index].owner->alertpipe[0] = p->subs[index].alertpipebackup[0];
 	p->subs[index].owner->alertpipe[1] = p->subs[index].alertpipebackup[1];
-	p->subs[index].owner->fds[AST_MAX_FDS-1] = p->subs[index].alertpipebackup[0];
-	p->subs[index].owner->fds[AST_MAX_FDS-2] = p->subs[index].timingfdbackup;
+	p->subs[index].owner->fds[AST_ALERT_FD] = p->subs[index].alertpipebackup[0];
+	p->subs[index].owner->fds[AST_TIMING_FD] = p->subs[index].timingfdbackup;
 }
 
 static void update_features(struct feature_pvt *p, int index)

@@ -233,10 +233,10 @@ static AST_LIST_HEAD_STATIC(agents, agent_pvt);	/**< Holds the list of agents (l
 	int x; \
 	if (p->chan) { \
 		for (x=0;x<AST_MAX_FDS;x++) {\
-			if (x != AST_MAX_FDS - 2) \
+			if (x != AST_TIMING_FD) \
 				ast->fds[x] = p->chan->fds[x]; \
 		} \
-		ast->fds[AST_MAX_FDS - 3] = p->chan->fds[AST_MAX_FDS - 2]; \
+		ast->fds[AST_AGENT_FD] = p->chan->fds[AST_TIMING_FD]; \
 	} \
 } while(0)
 
@@ -445,10 +445,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 	CHECK_FORMATS(ast, p);
 	if (p->chan) {
 		ast_copy_flags(p->chan, ast, AST_FLAG_EXCEPTION);
-		if (ast->fdno == AST_MAX_FDS - 3)
-			p->chan->fdno = AST_MAX_FDS - 2;
-		else
-			p->chan->fdno = ast->fdno;
+		p->chan->fdno = (ast->fdno == AST_AGENT_FD) ? AST_TIMING_FD : ast->fdno;
 		f = ast_read(p->chan);
 	} else
 		f = &null_frame;

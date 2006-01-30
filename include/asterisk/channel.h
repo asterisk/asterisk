@@ -119,6 +119,14 @@ extern "C" {
 #define MAX_MUSICCLASS		20
 
 #define AST_MAX_FDS		8
+/*
+ * We have AST_MAX_FDS file descriptors in a channel.
+ * Some of them have a fixed use:
+ */
+#define AST_ALERT_FD	(AST_MAX_FDS-1)		/* used for alertpipe */
+#define AST_TIMING_FD	(AST_MAX_FDS-2)		/* used for timingfd */
+#define AST_AGENT_FD	(AST_MAX_FDS-3) /* used by agents for pass thru */
+#define AST_GENERATOR_FD	(AST_MAX_FDS-4) /* used by generator */
 
 enum ast_bridge_result {
 	AST_BRIDGE_COMPLETE = 0,
@@ -1124,16 +1132,31 @@ void ast_channel_stop_silence_generator(struct ast_channel *chan, struct ast_sil
 
 /* Misc. functions below */
 
+/* if fd is a valid descriptor, set *pfd with the descriptor
+ * Return 1 (not -1!) if added, 0 otherwise (so we can add the
+ * return value to the index into the array)
+ */
+static inline int ast_add_fd(struct pollfd *pfd, int fd)
+{
+	pfd->fd = fd;
+	pfd->events = POLLIN | POLLPRI;
+	return fd >= 0;
+}
+
 /* Helper function for migrating select to poll */
 static inline int ast_fdisset(struct pollfd *pfds, int fd, int max, int *start)
 {
 	int x;
-	for (x=start ? *start : 0;x<max;x++)
+	int dummy=0;
+
+	if (fd < 0)
+		return 0;
+	if (!start)
+		start = &dummy;
+	for (x = *start; x<max; x++)
 		if (pfds[x].fd == fd) {
-			if (start) {
-				if (x==*start)
-					(*start)++;
-			}
+			if (x == *start)
+				(*start)++;
 			return pfds[x].revents;
 		}
 	return 0;
