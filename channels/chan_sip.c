@@ -379,6 +379,7 @@ static char default_notifymime[AST_MAX_EXTENSION];
 static int default_qualify;		/*!< Default Qualify= setting */
 static char default_vmexten[AST_MAX_EXTENSION];
 static char default_musicclass[MAX_MUSICCLASS];		/*!< Global music on hold class */
+static struct ast_codec_pref default_prefs;		/*!< Default codec prefs */
 
 /* Global settings only apply to the channel */
 static int global_rtautoclear = 120;
@@ -443,13 +444,12 @@ static pthread_t monitor_thread = AST_PTHREADT_NULL;
 static int sip_reloading = FALSE;			/*!< Flag for avoiding multiple reloads at the same time */
 static enum channelreloadreason sip_reloadreason;	/*!< Reason for last reload/load of configuration */
 
-static struct sched_context *sched;
-static struct io_context *io;
+static struct sched_context *sched;	/*!< The scheduling context */
+static struct io_context *io;		/*!< The IO context */
 
 #define DEC_CALL_LIMIT	0
 #define INC_CALL_LIMIT	1
 
-static struct ast_codec_pref prefs;
 
 /*! \brief sip_request: The data grabbed from the UDP socket */
 struct sip_request {
@@ -3167,7 +3167,8 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	p->autokillid = -1;
 	p->subscribed = NONE;
 	p->stateid = -1;
-	p->prefs = prefs;
+	p->prefs = default_prefs;		/* Set default codecs for this call */
+
 	if (intended_method != SIP_OPTIONS)	/* Peerpoke has it's own system */
 		p->timer_t1 = 500;	/* Default SIP retransmission timer T1 (RFC 3261) */
 #ifdef OSP_SUPPORT
@@ -8313,7 +8314,7 @@ static int sip_show_settings(int fd, int argc, char *argv[])
 	ast_cli(fd, "\nGlobal Signalling Settings:\n");
 	ast_cli(fd, "---------------------------\n");
 	ast_cli(fd, "  Codecs:                 ");
-	print_codec_to_cli(fd, &prefs);
+	print_codec_to_cli(fd, &default_prefs);
 	ast_cli(fd, "\n");
 	ast_cli(fd, "  T1 minimum:             %d\n", global_t1min);
 	ast_cli(fd, "  Relax DTMF:             %s\n", global_relaxdtmf ? "Yes" : "No");
@@ -11975,7 +11976,7 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	user->ha = NULL;
 	ast_copy_flags(user, &global_flags, SIP_FLAGS_TO_COPY);
 	user->capability = global_capability;
-	user->prefs = prefs;
+	user->prefs = default_prefs;
 	/* set default context */
 	strcpy(user->context, default_context);
 	strcpy(user->language, default_language);
@@ -12070,7 +12071,7 @@ static struct sip_peer *temp_peer(const char *name)
 	peer->rtpkeepalive = global_rtpkeepalive;
 	ast_set_flag(peer, SIP_SELFDESTRUCT);
 	ast_set_flag(peer, SIP_DYNAMIC);
-	peer->prefs = prefs;
+	peer->prefs = default_prefs;
 	reg_source_db(peer);
 
 	return peer;
@@ -12147,7 +12148,7 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	peer->pickupgroup = 0;
 	peer->rtpkeepalive = global_rtpkeepalive;
 	peer->maxms = default_qualify;
-	peer->prefs = prefs;
+	peer->prefs = default_prefs;
 	oldha = peer->ha;
 	peer->ha = NULL;
 	peer->addr.sin_family = AF_INET;
@@ -12373,7 +12374,7 @@ static int reload_config(enum channelreloadreason reason)
 	memset(&bindaddr, 0, sizeof(bindaddr));
 	memset(&localaddr, 0, sizeof(localaddr));
 	memset(&externip, 0, sizeof(externip));
-	memset(&prefs, 0 , sizeof(prefs));
+	memset(&default_prefs, 0 , sizeof(default_prefs));
 	outboundproxyip.sin_port = htons(DEFAULT_SIP_PORT);
 	outboundproxyip.sin_family = AF_INET;	/* Type of address: IPv4 */
 	ourport = DEFAULT_SIP_PORT;
@@ -12574,9 +12575,9 @@ static int reload_config(enum channelreloadreason reason)
 				externrefresh = 10;
 			}
 		} else if (!strcasecmp(v->name, "allow")) {
-			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 1);
+			ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, 1);
 		} else if (!strcasecmp(v->name, "disallow")) {
-			ast_parse_allow_disallow(&prefs, &global_capability, v->value, 0);
+			ast_parse_allow_disallow(&default_prefs, &global_capability, v->value, 0);
 		} else if (!strcasecmp(v->name, "allowexternaldomains")) {
 			allow_external_domains = ast_true(v->value);
 		} else if (!strcasecmp(v->name, "autodomain")) {
