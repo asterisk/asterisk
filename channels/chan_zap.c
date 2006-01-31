@@ -711,7 +711,7 @@ static int zt_setoption(struct ast_channel *chan, int option, void *data, int da
 static const struct ast_channel_tech zap_tech = {
 	.type = type,
 	.description = tdesc,
-	.capabilities = AST_FORMAT_SLINEAR | AST_FORMAT_ULAW,
+	.capabilities = AST_FORMAT_SLINEAR | AST_FORMAT_ULAW | AST_FORMAT_ALAW,
 	.requester = zt_request,
 	.send_digit = zt_digit,
 	.send_text = zt_sendtext,
