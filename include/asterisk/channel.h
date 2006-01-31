@@ -261,6 +261,9 @@ struct ast_channel_spy_list;
 
 /*! Main Channel structure associated with a channel. 
  * This is the side of it mostly used by the pbx and call management.
+ *
+ * \note XXX It is important to remember to increment .cleancount each time
+ *       this structure is changed. XXX
  */
 struct ast_channel {
 	/*! ASCII unique channel name */
