@@ -438,7 +438,6 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 {
 	struct agent_pvt *p = ast->tech_pvt;
 	struct ast_frame *f = NULL;
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	static struct ast_frame answer_frame = { AST_FRAME_CONTROL, AST_CONTROL_ANSWER };
 	const char *status;
 	ast_mutex_lock(&p->lock); 
@@ -448,7 +447,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 		p->chan->fdno = (ast->fdno == AST_AGENT_FD) ? AST_TIMING_FD : ast->fdno;
 		f = ast_read(p->chan);
 	} else
-		f = &null_frame;
+		f = &ast_null_frame;
 	if (!f) {
 		/* If there's a channel, hang it up (if it's on a callback) make it NULL */
 		if (p->chan) {
@@ -486,7 +485,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  						ast_verbose(VERBOSE_PREFIX_3 "%s answered, waiting for '#' to acknowledge\n", p->chan->name);
  					/* Don't pass answer along */
  					ast_frfree(f);
- 					f = &null_frame;
+ 					f = &ast_null_frame;
  				} else {
  					p->acknowledged = 1;
  					/* Use the builtin answer frame for the 
@@ -513,7 +512,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
  			/* don't pass voice until the call is acknowledged */
  			if (!p->acknowledged) {
  				ast_frfree(f);
- 				f = &null_frame;
+ 				f = &ast_null_frame;
  			}
  			break;
   		}
@@ -899,7 +898,6 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 {
 	struct ast_channel *tmp;
-	struct ast_frame null_frame = { AST_FRAME_NULL };
 #if 0
 	if (!p->chan) {
 		ast_log(LOG_WARNING, "No channel? :(\n");
@@ -950,7 +948,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 		if( ast_mutex_trylock(&p->app_lock) )
 		{
 			if (p->chan) {
-				ast_queue_frame(p->chan, &null_frame);
+				ast_queue_frame(p->chan, &ast_null_frame);
 				ast_mutex_unlock(&p->lock);	/* For other thread to read the condition. */
 				ast_mutex_lock(&p->app_lock);
 				ast_mutex_lock(&p->lock);

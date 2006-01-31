@@ -543,7 +543,6 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 {
 	/* Retrieve audio/etc from channel.  Assumes pvt->lock is already held. */
 	struct ast_frame *f;
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 
 	/* Only apply it for the first packet, we just need the correct ip/port */
 	if (pvt->options.nat) {
@@ -554,7 +553,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 	f = ast_rtp_read(pvt->rtp);
 	/* Don't send RFC2833 if we're not supposed to */
 	if (f && (f->frametype == AST_FRAME_DTMF) && !(pvt->options.dtmfmode & H323_DTMF_RFC2833)) {
-		return &null_frame;
+		return &ast_null_frame;
 	}
 	if (pvt->owner) {
 		/* We already hold the channel lock */
@@ -563,7 +562,7 @@ static struct ast_frame *oh323_rtp_read(struct oh323_pvt *pvt)
 				/* Try to avoid deadlock */
 				if (ast_mutex_trylock(&pvt->owner->lock)) {
 					ast_log(LOG_NOTICE, "Format changed but channel is locked. Ignoring frame...\n");
-					return &null_frame;
+					return &ast_null_frame;
 				}
 				ast_log(LOG_DEBUG, "Oooh, format changed to %d\n", f->subclass);
 				pvt->owner->nativeformats = f->subclass;

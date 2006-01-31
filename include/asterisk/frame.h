@@ -111,6 +111,10 @@ struct ast_frame {
 	struct ast_frame *next;			
 };
 
+/*! Queueing a null frame is fairly common, so we declare a global null frame object
+    for this purpose instead of having to declare one on the stack */
+extern struct ast_frame ast_null_frame;
+
 #define AST_FRIENDLY_OFFSET 	64	/*! It's polite for a a new frame to
 					  have this number of bytes for additional
 					  headers.  */

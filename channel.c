@@ -1760,17 +1760,13 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 	void *data;
 	int res;
 #endif
-	static struct ast_frame null_frame = {
-		AST_FRAME_NULL,
-	};
-	
 	ast_mutex_lock(&chan->lock);
 	if (chan->masq) {
 		if (ast_do_masquerade(chan)) {
 			ast_log(LOG_WARNING, "Failed to perform masquerade\n");
 			f = NULL;
 		} else
-			f =  &null_frame;
+			f =  &ast_null_frame;
 		ast_mutex_unlock(&chan->lock);
 		return f;
 	}
@@ -1838,8 +1834,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				chan->timingdata = NULL;
 				ast_mutex_unlock(&chan->lock);
 			}
-			f =  &null_frame;
-			return f;
+			return &ast_null_frame;
 		} else
 			ast_log(LOG_NOTICE, "No/unknown event '%d' on timer for '%s'?\n", blah, chan->name);
 	} else
@@ -1851,8 +1846,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		chan->generatordata = NULL;     /* reset to let ast_write get through */
 		chan->generator->generate(chan, tmp, -1, -1);
 		chan->generatordata = tmp;
-		f = &null_frame;
-		return f;
+		return &ast_null_frame;
 	}
 
 	/* Check for pending read queue */
@@ -1872,7 +1866,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 				f = chan->tech->exception(chan);
 			else {
 				ast_log(LOG_WARNING, "Exception flag set on '%s', but no exception handler\n", chan->name);
-				f = &null_frame;
+				f = &ast_null_frame;
 			}
 			/* Clear the exception flag */
 			ast_clear_flag(chan, AST_FLAG_EXCEPTION);
@@ -1898,7 +1892,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 			if (f->subclass == AST_CONTROL_ANSWER) {
 				if (prestate == AST_STATE_UP) {
 					ast_log(LOG_DEBUG, "Dropping duplicate answer!\n");
-					f = &null_frame;
+					f = &ast_null_frame;
 				}
 				/* Answer the CDR */
 				ast_setstate(chan, AST_STATE_UP);
@@ -1912,7 +1906,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 					chan->dtmfq[strlen(chan->dtmfq)] = f->subclass;
 				else
 					ast_log(LOG_WARNING, "Dropping deferred DTMF digits on %s\n", chan->name);
-				f = &null_frame;
+				f = &ast_null_frame;
 			}
 			break;
 		case AST_FRAME_DTMF_BEGIN:
@@ -1924,14 +1918,14 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 		case AST_FRAME_VOICE:
 			if (dropaudio) {
 				ast_frfree(f);
-				f = &null_frame;
+				f = &ast_null_frame;
 			} else if (!(f->subclass & chan->nativeformats)) {
 				/* This frame can't be from the current native formats -- drop it on the
 				   floor */
 				ast_log(LOG_NOTICE, "Dropping incompatible voice frame on %s of format %s since our native format has changed to %s\n",
 					chan->name, ast_getformatname(f->subclass), ast_getformatname(chan->nativeformats));
 				ast_frfree(f);
-				f = &null_frame;
+				f = &ast_null_frame;
 			} else {
 				if (chan->spies)
 					queue_frame_to_spies(chan, f, SPY_READ);
@@ -1962,7 +1956,7 @@ static struct ast_frame *__ast_read(struct ast_channel *chan, int dropaudio)
 
 				if (chan->readtrans) {
 					if (!(f = ast_translate(chan->readtrans, f, 1)))
-						f = &null_frame;
+						f = &ast_null_frame;
 				}
 
 				/* Run any generator sitting on the channel */
@@ -3121,10 +3115,9 @@ int ast_do_masquerade(struct ast_channel *original)
 			);
 		ast_channel_free(clone);
 	} else {
-		struct ast_frame null_frame = { AST_FRAME_NULL, };
 		ast_log(LOG_DEBUG, "Released clone lock on '%s'\n", clone->name);
 		ast_set_flag(clone, AST_FLAG_ZOMBIE);
-		ast_queue_frame(clone, &null_frame);
+		ast_queue_frame(clone, &ast_null_frame);
 		ast_mutex_unlock(&clone->lock);
 	}
 	

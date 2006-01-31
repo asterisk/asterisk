@@ -241,12 +241,11 @@ static int features_answer(struct ast_channel *ast)
 
 static struct ast_frame  *features_read(struct ast_channel *ast)
 {
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	struct feature_pvt *p = ast->tech_pvt;
 	struct ast_frame *f;
 	int x;
 	
-	f = &null_frame;
+	f = &ast_null_frame;
 	ast_mutex_lock(&p->lock);
 	x = indexof(p, ast, 0);
 	if (!x && p->subchan) {

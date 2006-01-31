@@ -3051,11 +3051,10 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 {
 	/* Retrieve audio/etc from channel.  Assumes p->lock is already held. */
 	struct ast_frame *f;
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	
 	if (!p->rtp) {
 		/* We have no RTP allocated for this channel */
-		return &null_frame;
+		return &ast_null_frame;
 	}
 
 	switch(ast->fdno) {
@@ -3072,11 +3071,11 @@ static struct ast_frame *sip_rtp_read(struct ast_channel *ast, struct sip_pvt *p
 		f = ast_rtcp_read(p->vrtp);	/* RTCP Control Channel for video */
 		break;
 	default:
-		f = &null_frame;
+		f = &ast_null_frame;
 	}
 	/* Don't forward RFC2833 if we're not supposed to */
 	if (f && (f->frametype == AST_FRAME_DTMF) && (ast_test_flag(p, SIP_DTMF) != SIP_DTMF_RFC2833))
-		return &null_frame;
+		return &ast_null_frame;
 
 	if (p->owner) {
 		/* We already hold the channel lock */

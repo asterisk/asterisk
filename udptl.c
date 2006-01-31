@@ -645,7 +645,6 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 	uint16_t seqno = 0;
 	char iabuf[INET_ADDRSTRLEN];
 	uint16_t *udptlheader;
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 
 	len = sizeof(sin);
 	
@@ -662,12 +661,12 @@ struct ast_frame *ast_udptl_read(struct ast_udptl *udptl)
 			ast_log(LOG_WARNING, "UDPTL read error: %s\n", strerror(errno));
 		if (errno == EBADF)
 			CRASH;
-		return &null_frame;
+		return &ast_null_frame;
 	}
 
 	/* Ignore if the other side hasn't been given an address yet. */
 	if (!udptl->them.sin_addr.s_addr || !udptl->them.sin_port)
-		return &null_frame;
+		return &ast_null_frame;
 
 	if (udptl->nat) {
 		/* Send to whoever sent to us */

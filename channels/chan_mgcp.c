@@ -1219,12 +1219,11 @@ static struct ast_frame *mgcp_rtp_read(struct mgcp_subchannel *sub)
 {
 	/* Retrieve audio/etc from channel.  Assumes sub->lock is already held. */
 	struct ast_frame *f;
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 
 	f = ast_rtp_read(sub->rtp);
 	/* Don't send RFC2833 if we're not supposed to */
 	if (f && (f->frametype == AST_FRAME_DTMF) && !(sub->parent->dtmfmode & MGCP_DTMF_RFC2833))
-		return &null_frame;
+		return &ast_null_frame;
 	if (sub->owner) {
 		/* We already hold the channel lock */
 		if (f->frametype == AST_FRAME_VOICE) {

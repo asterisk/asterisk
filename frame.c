@@ -56,13 +56,6 @@ AST_MUTEX_DEFINE_STATIC(framelock);
 #define TYPE_DONTSEND	 0x3
 #define TYPE_MASK	 0x3
 
-struct ast_format_list {
-	int visible;	/*!< Can we see this entry */
-	int bits;	/*!< bitmask value */
-	char *name;	/*!< short name */
-	char *desc;	/*!< Description */
-};
-
 struct ast_smoother {
 	int size;
 	int format;
@@ -79,7 +72,12 @@ struct ast_smoother {
 };
 
 /*! \brief Definition of supported media formats (codecs) */
-static struct ast_format_list AST_FORMAT_LIST[] = {
+static struct ast_format_list {
+	int visible;	/*!< Can we see this entry */
+	int bits;	/*!< bitmask value */
+	char *name;	/*!< short name */
+	char *desc;	/*!< Description */
+} AST_FORMAT_LIST[] = {
 	{ 1, AST_FORMAT_G723_1 , "g723" , "G.723.1"},	/*!< codec_g723_1.c */
 	{ 1, AST_FORMAT_GSM, "gsm" , "GSM"},		/*!< codec_gsm.c */
 	{ 1, AST_FORMAT_ULAW, "ulaw", "G.711 u-law" },	/*!< codec_ulaw.c */
@@ -107,6 +105,8 @@ static struct ast_format_list AST_FORMAT_LIST[] = {
 	{ 0, 0, "nothing", "undefined" },
 	{ 0, AST_FORMAT_MAX_VIDEO, "maxvideo", "Maximum video format" },
 };
+
+struct ast_frame ast_null_frame = { AST_FRAME_NULL, };
 
 void ast_smoother_reset(struct ast_smoother *s, int size)
 {

@@ -206,7 +206,6 @@ enum volume_action {
 };
 
 static int admin_exec(struct ast_channel *chan, void *data);
-static struct ast_frame null_frame = { AST_FRAME_NULL, };
 
 static void *recordthread(void *args);
 
@@ -1574,7 +1573,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 								if (conf->transpath[index]) {
 									conf->transframe[index] = ast_translate(conf->transpath[index], conf->origframe, 0);
 									if (!conf->transframe[index])
-										conf->transframe[index] = &null_frame;
+										conf->transframe[index] = &ast_null_frame;
 								}
 							}
 						}

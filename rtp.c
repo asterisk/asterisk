@@ -174,7 +174,6 @@ void ast_rtp_setnat(struct ast_rtp *rtp, int nat)
 
 static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 {
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	char iabuf[INET_ADDRSTRLEN];
 
 	if (ast_tvcmp(ast_tvnow(), rtp->dtmfmute) < 0) {
@@ -182,7 +181,7 @@ static struct ast_frame *send_dtmf(struct ast_rtp *rtp)
 			ast_log(LOG_DEBUG, "Ignore potential DTMF echo from '%s'\n", ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
 		rtp->resp = 0;
 		rtp->dtmfduration = 0;
-		return &null_frame;
+		return &ast_null_frame;
 	}
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Sending dtmf: %d (%c), at %s\n", rtp->resp, rtp->resp, ast_inet_ntoa(iabuf, sizeof(iabuf), rtp->them.sin_addr));
@@ -364,7 +363,6 @@ static int rtpread(int *id, int fd, short events, void *cbdata)
 
 struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 {
-	static struct ast_frame null_frame = { AST_FRAME_NULL, };
 	socklen_t len;
 	int hdrlen = 8;
 	int res;
@@ -373,7 +371,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	char iabuf[INET_ADDRSTRLEN];
 	
 	if (!rtp || !rtp->rtcp)
-		return &null_frame;
+		return &ast_null_frame;
 
 	len = sizeof(sin);
 	
@@ -385,12 +383,12 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 			ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
 		if (errno == EBADF)
 			CRASH;
-		return &null_frame;
+		return &ast_null_frame;
 	}
 
 	if (res < hdrlen) {
 		ast_log(LOG_WARNING, "RTP Read too short\n");
-		return &null_frame;
+		return &ast_null_frame;
 	}
 
 	if (rtp->nat) {
@@ -404,7 +402,7 @@ struct ast_frame *ast_rtcp_read(struct ast_rtp *rtp)
 	}
 	if (option_debug)
 		ast_log(LOG_DEBUG, "Got RTCP report of %d bytes\n", res);
-	return &null_frame;
+	return &ast_null_frame;
 }
 
 static void calc_rxstamp(struct timeval *tv, struct ast_rtp *rtp, unsigned int timestamp, int mark)
@@ -434,7 +432,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	char iabuf[INET_ADDRSTRLEN];
 	unsigned int timestamp;
 	unsigned int *rtpheader;
-	static struct ast_frame *f, null_frame = { AST_FRAME_NULL, };
+	static struct ast_frame *f;
 	struct rtpPayloadType rtpPT;
 	
 	len = sizeof(sin);
@@ -450,17 +448,17 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			ast_log(LOG_WARNING, "RTP Read error: %s\n", strerror(errno));
 		if (errno == EBADF)
 			CRASH;
-		return &null_frame;
+		return &ast_null_frame;
 	}
 	if (res < hdrlen) {
 		ast_log(LOG_WARNING, "RTP Read too short\n");
-		return &null_frame;
+		return &ast_null_frame;
 	}
 
 	/* Ignore if the other side hasn't been given an address
 	   yet.  */
 	if (!rtp->them.sin_addr.s_addr || !rtp->them.sin_port)
-		return &null_frame;
+		return &ast_null_frame;
 
 	if (rtp->nat) {
 		/* Send to whoever sent to us */
@@ -480,7 +478,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 	/* Check RTP version */
 	version = (seqno & 0xC0000000) >> 30;
 	if (version != 2)
-		return &null_frame;
+		return &ast_null_frame;
 	
 	payloadtype = (seqno & 0x7f0000) >> 16;
 	padding = seqno & (1 << 29);
@@ -502,7 +500,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 
 	if (res < hdrlen) {
 		ast_log(LOG_WARNING, "RTP Read too short (%d, expecting %d)\n", res, hdrlen);
-		return &null_frame;
+		return &ast_null_frame;
 	}
 
 	if(rtp_debug_test_addr(&sin))
@@ -537,7 +535,7 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 			if (f)
 				return f;
 			else
-				return &null_frame;
+				return &ast_null_frame;
 		} else if (rtpPT.code == AST_RTP_CISCO_DTMF) {
 			/* It's really special -- process it the Cisco way */
 			if (rtp->lasteventseqn <= seqno || rtp->resp == 0 || (rtp->lasteventseqn >= 65530 && seqno <= 6)) {
@@ -548,17 +546,17 @@ struct ast_frame *ast_rtp_read(struct ast_rtp *rtp)
 				if (f) 
 				return f; 
 			else 
-				return &null_frame;
+				return &ast_null_frame;
 		} else if (rtpPT.code == AST_RTP_CN) {
 			/* Comfort Noise */
 			f = process_rfc3389(rtp, rtp->rawdata + AST_FRIENDLY_OFFSET + hdrlen, res - hdrlen);
 			if (f) 
 				return f; 
 			else 
-				return &null_frame;
+				return &ast_null_frame;
 		} else {
 			ast_log(LOG_NOTICE, "Unknown RTP codec %d received\n", payloadtype);
-			return &null_frame;
+			return &ast_null_frame;
 		}
 	}
 	rtp->f.subclass = rtpPT.code;
