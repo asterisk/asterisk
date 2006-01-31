@@ -967,6 +967,9 @@ static int transmit_register(struct sip_registry *r, int sipmethod, char *auth, 
 static int sip_poke_peer(struct sip_peer *peer);
 static int __sip_do_register(struct sip_registry *r);
 static int restart_monitor(void);
+static void set_peer_defaults(struct sip_peer *peer);
+static struct sip_peer *temp_peer(const char *name);
+
 
 /*----- RTP interface functions */
 static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struct ast_rtp *vrtp, int codecs, int nat_active);
@@ -12048,6 +12051,39 @@ static struct sip_user *build_user(const char *name, struct ast_variable *v, int
 	return user;
 }
 
+/*! \brief Set peer defaults before configuring specific configurations */
+static void set_peer_defaults(struct sip_peer *peer)
+{
+	peer->expire = -1;
+	peer->pokeexpire = -1;
+	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
+	strcpy(peer->context, default_context);
+	strcpy(peer->subscribecontext, default_subscribecontext);
+	strcpy(peer->language, default_language);
+	strcpy(peer->musicclass, default_musicclass);
+	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
+	peer->addr.sin_family = AF_INET;
+	peer->defaddr.sin_family = AF_INET;
+	peer->capability = global_capability;
+	peer->rtptimeout = global_rtptimeout;
+	peer->rtpholdtimeout = global_rtpholdtimeout;
+	peer->rtpkeepalive = global_rtpkeepalive;
+	strcpy(peer->vmexten, default_vmexten);
+	ast_copy_flags(peer, &global_flags, SIP_USEREQPHONE);
+	peer->secret[0] = '\0';
+	peer->md5secret[0] = '\0';
+	peer->cid_num[0] = '\0';
+	peer->cid_name[0] = '\0';
+	peer->fromdomain[0] = '\0';
+	peer->fromuser[0] = '\0';
+	peer->regexten[0] = '\0';
+	peer->mailbox[0] = '\0';
+	peer->callgroup = 0;
+	peer->pickupgroup = 0;
+	peer->maxms = default_qualify;
+	peer->prefs = default_prefs;
+}
+
 /*! \brief Create temporary peer (used in autocreatepeer mode) */
 static struct sip_peer *temp_peer(const char *name)
 {
@@ -12058,21 +12094,10 @@ static struct sip_peer *temp_peer(const char *name)
 
 	apeerobjs++;
 	ASTOBJ_INIT(peer);
+	set_peer_defaults(peer);
 
-	peer->expire = -1;
-	peer->pokeexpire = -1;
 	ast_copy_string(peer->name, name, sizeof(peer->name));
-	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
-	strcpy(peer->context, default_context);
-	strcpy(peer->subscribecontext, default_subscribecontext);
-	strcpy(peer->language, default_language);
-	strcpy(peer->musicclass, default_musicclass);
-	peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
-	peer->addr.sin_family = AF_INET;
-	peer->capability = global_capability;
-	peer->rtptimeout = global_rtptimeout;
-	peer->rtpholdtimeout = global_rtpholdtimeout;
-	peer->rtpkeepalive = global_rtpkeepalive;
+
 	ast_set_flag((&peer->flags_page2), SIP_PAGE2_SELFDESTRUCT);
 	ast_set_flag((&peer->flags_page2), SIP_PAGE2_DYNAMIC);
 	peer->prefs = default_prefs;
@@ -12122,44 +12147,20 @@ static struct sip_peer *build_peer(const char *name, struct ast_variable *v, int
 	/* Note that our peer HAS had its reference count incrased */
 
 	peer->lastmsgssent = -1;
+	oldha = peer->ha;
+	peer->ha = NULL;
+	set_peer_defaults(peer);	/* Set peer defaults */
 	if (!found) {
 		if (name)
 			ast_copy_string(peer->name, name, sizeof(peer->name));
 		peer->addr.sin_port = htons(DEFAULT_SIP_PORT);
 		peer->addr.sin_family = AF_INET;
-		peer->defaddr.sin_family = AF_INET;
 	}
 	/* If we have channel variables, remove them (reload) */
 	if (peer->chanvars) {
 		ast_variables_destroy(peer->chanvars);
 		peer->chanvars = NULL;
 	}
-	strcpy(peer->context, default_context);
-	strcpy(peer->subscribecontext, default_subscribecontext);
-	strcpy(peer->vmexten, default_vmexten);
-	strcpy(peer->language, default_language);
-	strcpy(peer->musicclass, default_musicclass);
-	ast_copy_flags(peer, &global_flags, SIP_USEREQPHONE);
-	peer->secret[0] = '\0';
-	peer->md5secret[0] = '\0';
-	peer->cid_num[0] = '\0';
-	peer->cid_name[0] = '\0';
-	peer->fromdomain[0] = '\0';
-	peer->fromuser[0] = '\0';
-	peer->regexten[0] = '\0';
-	peer->mailbox[0] = '\0';
-	peer->callgroup = 0;
-	peer->pickupgroup = 0;
-	peer->rtpkeepalive = global_rtpkeepalive;
-	peer->maxms = default_qualify;
-	peer->prefs = default_prefs;
-	oldha = peer->ha;
-	peer->ha = NULL;
-	peer->addr.sin_family = AF_INET;
-	ast_copy_flags(peer, &global_flags, SIP_FLAGS_TO_COPY);
-	peer->capability = global_capability;
-	peer->rtptimeout = global_rtptimeout;
-	peer->rtpholdtimeout = global_rtpholdtimeout;
 	while(v) {
 		if (handle_common_options(&peerflags, &mask, v)) {
 			v = v->next;
