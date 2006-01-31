@@ -3758,12 +3758,11 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 	if ((bridgepeer=ast_bridged_channel(p->owner))) {
 		/* We have a bridge */
 		/* Turn on/off music on hold if we are holding/unholding */
-		struct ast_frame af = { AST_FRAME_NULL, };
 		if (sin.sin_addr.s_addr && !sendonly) {
 			ast_moh_stop(bridgepeer);
 		
 			/* Activate a re-invite */
-			ast_queue_frame(p->owner, &af);
+			ast_queue_frame(p->owner, &ast_null_frame);
 		} else {
 			/* No address for RTP, we're on hold */
 			
@@ -3771,7 +3770,7 @@ static int process_sdp(struct sip_pvt *p, struct sip_request *req)
 			if (sendonly)
 				ast_rtp_stop(p->rtp);
 			/* Activate a re-invite */
-			ast_queue_frame(p->owner, &af);
+			ast_queue_frame(p->owner, &ast_null_frame);
 		}
 	}
 
@@ -9618,8 +9617,7 @@ static void handle_response_invite(struct sip_pvt *p, int resp, char *rest, stru
 #endif
 				ast_queue_control(p->owner, AST_CONTROL_ANSWER);
 			} else {	/* RE-invite */
-				struct ast_frame af = { AST_FRAME_NULL, };
-				ast_queue_frame(p->owner, &af);
+				ast_queue_frame(p->owner, &ast_null_frame);
 			}
 		} else {
 			 /* It's possible we're getting an ACK after we've tried to disconnect
@@ -10353,7 +10351,6 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 	int res = 1;
 	struct ast_channel *c=NULL;
 	int gotdest;
-	struct ast_frame af = { AST_FRAME_NULL, };
 	char *supported;
 	char *required;
 	unsigned int required_profile = 0;
@@ -10445,7 +10442,7 @@ static int handle_request_invite(struct sip_pvt *p, struct sip_request *req, int
 
 		/* Queue NULL frame to prod ast_rtp_bridge if appropriate */
 		if (p->owner)
-			ast_queue_frame(p->owner, &af);
+			ast_queue_frame(p->owner, &ast_null_frame);
 
 		/* Initialize the context if it hasn't been already */
 		if (ast_strlen_zero(p->context))

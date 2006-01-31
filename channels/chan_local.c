@@ -224,9 +224,7 @@ static void check_bridge(struct local_pvt *p, int isoutbound)
 
 static struct ast_frame  *local_read(struct ast_channel *ast)
 {
-	static struct ast_frame null = { AST_FRAME_NULL, };
-
-	return &null;
+	return &ast_null_frame;
 }
 
 static int local_write(struct ast_channel *ast, struct ast_frame *f)

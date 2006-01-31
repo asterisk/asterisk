@@ -808,7 +808,6 @@ static void wakeup_sub(struct zt_pvt *p, int a, struct zt_pri *pri)
 static void wakeup_sub(struct zt_pvt *p, int a, void *pri)
 #endif
 {
-	struct ast_frame null = { AST_FRAME_NULL, };
 #ifdef ZAPATA_PRI
 	if (pri)
 		ast_mutex_unlock(&pri->lock);
@@ -820,7 +819,7 @@ static void wakeup_sub(struct zt_pvt *p, int a, void *pri)
 				usleep(1);
 				ast_mutex_lock(&p->lock);
 			} else {
-				ast_queue_frame(p->subs[a].owner, &null);
+				ast_queue_frame(p->subs[a].owner, &ast_null_frame);
 				ast_mutex_unlock(&p->subs[a].owner->lock);
 				break;
 			}
