@@ -525,7 +525,7 @@ void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, s
 		dump_ies(fh->iedata, datalen);
 }
 
-int iax_ie_append_raw(struct iax_ie_data *ied, unsigned char ie, void *data, int datalen)
+int iax_ie_append_raw(struct iax_ie_data *ied, unsigned char ie, const void *data, int datalen)
 {
 	char tmp[256];
 	if (datalen > ((int)sizeof(ied->buf) - ied->pos)) {
@@ -540,7 +540,7 @@ int iax_ie_append_raw(struct iax_ie_data *ied, unsigned char ie, void *data, int
 	return 0;
 }
 
-int iax_ie_append_addr(struct iax_ie_data *ied, unsigned char ie, struct sockaddr_in *sin)
+int iax_ie_append_addr(struct iax_ie_data *ied, unsigned char ie, const struct sockaddr_in *sin)
 {
 	return iax_ie_append_raw(ied, ie, sin, (int)sizeof(struct sockaddr_in));
 }
@@ -559,7 +559,7 @@ int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsigned shor
 	return iax_ie_append_raw(ied, ie, &newval, (int)sizeof(newval));
 }
 
-int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, char *str)
+int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, const char *str)
 {
 	return iax_ie_append_raw(ied, ie, str, strlen(str));
 }

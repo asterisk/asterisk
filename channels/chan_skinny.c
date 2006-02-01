@@ -68,13 +68,13 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/musiconhold.h"
 #include "asterisk/utils.h"
 #include "asterisk/dsp.h"
+#include "asterisk/stringfields.h"
 
 /************************************************************************************/
 /*                         Skinny/Asterisk Protocol Settings                        */
 /************************************************************************************/
 static const char desc[] = "Skinny Client Control Protocol (Skinny)";
 static const char tdesc[] = "Skinny Client Control Protocol (Skinny)";
-static const char type[] = "Skinny";
 static const char config[] = "skinny.conf";
 
 /* Just about everybody seems to support ulaw, so make it a nice default */
@@ -908,7 +908,7 @@ static int skinny_fixup(struct ast_channel *oldchan, struct ast_channel *newchan
 static int skinny_senddigit(struct ast_channel *ast, char digit);
 
 static const struct ast_channel_tech skinny_tech = {
-	.type = type,
+	.type = "Skinny",
 	.description = tdesc,
 	.capabilities = AST_FORMAT_ULAW,
 	.properties = AST_CHAN_TP_WANTSJITTER,
@@ -1355,7 +1355,7 @@ static int skinny_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, st
 }
 
 static struct ast_rtp_protocol skinny_rtp = {
-	.type = type,
+	.type = "Skinny",
 	.get_rtp_info = skinny_get_rtp_peer,
 	.get_vrtp_info =  skinny_get_vrtp_peer,
 	.set_rtp_peer = skinny_set_rtp_peer,
@@ -2263,11 +2263,10 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 			tmp->nativeformats = capability;
 		fmt = ast_best_codec(tmp->nativeformats);
 		ast_verbose("skinny_new: tmp->nativeformats=%d fmt=%d\n", tmp->nativeformats, fmt);
-		snprintf(tmp->name, sizeof(tmp->name), "Skinny/%s@%s-%d", l->name, l->parent->name, sub->callid);
+		ast_string_field_build(tmp, name, "Skinny/%s@%s-%d", l->name, l->parent->name, sub->callid);
 		if (sub->rtp) {
 			tmp->fds[0] = ast_rtp_fd(sub->rtp);
 		}
-		tmp->type = type;
 		ast_setstate(tmp, state);
 		if (state == AST_STATE_RING) {
 			tmp->rings = 1;
@@ -2277,15 +2276,12 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		tmp->readformat = fmt;
 		tmp->rawreadformat = fmt;
 		tmp->tech_pvt = sub;
-		if (!ast_strlen_zero(l->language)) {
-			strncpy(tmp->language, l->language, sizeof(tmp->language)-1);
-		}
-		if (!ast_strlen_zero(l->accountcode)) {
-			strncpy(tmp->accountcode, l->accountcode, sizeof(tmp->accountcode)-1);
-		}
-		if (l->amaflags) {
+		if (!ast_strlen_zero(l->language))
+			ast_string_field_set(tmp, language, l->language);
+		if (!ast_strlen_zero(l->accountcode))
+			ast_string_field_set(tmp, accountcode, l->accountcode);
+		if (l->amaflags)
 			tmp->amaflags = l->amaflags;
-		}
 		sub->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;
@@ -2293,7 +2289,7 @@ static struct ast_channel *skinny_new(struct skinny_subchannel *sub, int state)
 		ast_update_use_count();
 		tmp->callgroup = l->callgroup;
 		tmp->pickupgroup = l->pickupgroup;
-		strncpy(tmp->call_forward, l->call_forward, sizeof(tmp->call_forward) - 1);
+		ast_string_field_set(tmp, call_forward, l->call_forward);
 		strncpy(tmp->context, l->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten,l->exten, sizeof(tmp->exten)-1);
 		if (!ast_strlen_zero(l->cid_num)) {
@@ -3303,7 +3299,7 @@ int load_module()
 	if (!res) {
 		/* Make sure we can register our skinny channel type */
 		if (ast_channel_register(&skinny_tech)) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			ast_log(LOG_ERROR, "Unable to register channel class 'Skinny'\n");
 			return -1;
 		}
 	}

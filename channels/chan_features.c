@@ -61,9 +61,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/manager.h"
+#include "asterisk/stringfields.h"
 
 static const char desc[] = "Feature Proxy Channel";
-static const char type[] = "Feature";
 static const char tdesc[] = "Feature Proxy Channel Driver";
 
 static int usecnt =0;
@@ -106,7 +106,7 @@ static int features_indicate(struct ast_channel *ast, int condition);
 static int features_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static const struct ast_channel_tech features_tech = {
-	.type = type,
+	.type = "Feature",
 	.description = tdesc,
 	.capabilities = -1,
 	.requester = features_request,
@@ -349,8 +349,8 @@ static int features_call(struct ast_channel *ast, char *dest, int timeout)
 				p->subchan->cid.cid_ani = NULL;
 		
 			p->subchan->cid.cid_pres = p->owner->cid.cid_pres;
-			strncpy(p->subchan->language, p->owner->language, sizeof(p->subchan->language) - 1);
-			strncpy(p->subchan->accountcode, p->owner->accountcode, sizeof(p->subchan->accountcode) - 1);
+			ast_string_field_set(p->subchan, language, p->owner->language);
+			ast_string_field_set(p->subchan, accountcode, p->owner->accountcode);
 			p->subchan->cdrflags = p->owner->cdrflags;
 			res = ast_call(p->subchan, dest2, timeout);
 			update_features(p, x);
@@ -464,7 +464,7 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 	}
 	tmp->tech = &features_tech;
 	for (x=1;x<4;x++) {
-		snprintf(tmp->name, sizeof(tmp->name), "Feature/%s/%s-%d", p->tech, p->dest, x);
+		ast_string_field_build(tmp, name, "Feature/%s/%s-%d", p->tech, p->dest, x);
 		for (y=0;y<3;y++) {
 			if (y == index)
 				continue;
@@ -474,7 +474,6 @@ static struct ast_channel *features_new(struct feature_pvt *p, int state, int in
 		if (y >= 3)
 			break;
 	}
-	tmp->type = type;
 	ast_setstate(tmp, state);
 	tmp->writeformat = p->subchan->writeformat;
 	tmp->rawwriteformat = p->subchan->rawwriteformat;
@@ -540,7 +539,7 @@ int load_module()
 {
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&features_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ast_log(LOG_ERROR, "Unable to register channel class 'Feature'\n");
 		return -1;
 	}
 	ast_cli_register(&cli_show_features);

@@ -739,7 +739,7 @@ static int handle_showchan(int fd, int argc, char *argv[])
 		"    Application: %s\n"
 		"           Data: %s\n"
 		"    Blocking in: %s\n",
-		c->name, c->type, c->uniqueid,
+		c->name, c->tech->type, c->uniqueid,
 		(c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
 		(c->cid.cid_name ? c->cid.cid_name : "(N/A)"),
 		(c->cid.cid_dnid ? c->cid.cid_dnid : "(N/A)" ), ast_state2str(c->_state), c->_state, c->rings, 

@@ -441,7 +441,7 @@ extern struct ast_frame *ast_smoother_read(struct ast_smoother *s);
 #define ast_smoother_feed_le(s,f) __ast_smoother_feed(s, f, 1)
 #endif
 
-extern void ast_frame_dump(char *name, struct ast_frame *f, char *prefix);
+extern void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix);
 
 /*! \brief Initialize a codec preference to "no preference" */
 extern void ast_codec_pref_init(struct ast_codec_pref *pref);

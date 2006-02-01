@@ -94,7 +94,7 @@ static int file_exists(char *filename)
 	return 0;
 }
 
-static void make_filename(char *buf, int len, char *filename, char *preflang, char *ext)
+static void make_filename(char *buf, int len, char *filename, const char *preflang, char *ext)
 {
 	if (filename[0] == '/') {
 		if (preflang && strlen(preflang))
@@ -109,7 +109,7 @@ static void make_filename(char *buf, int len, char *filename, char *preflang, ch
 	}
 }
 
-struct ast_frame *ast_read_image(char *filename, char *preflang, int format)
+struct ast_frame *ast_read_image(char *filename, const char *preflang, int format)
 {
 	struct ast_imager *i;
 	char buf[256];

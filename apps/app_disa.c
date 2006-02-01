@@ -47,6 +47,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/translate.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/callerid.h"
+#include "asterisk/stringfields.h"
 
 static char *tdesc = "DISA (Direct Inward System Access) Application";
 
@@ -347,7 +348,7 @@ static int disa_exec(struct ast_channel *chan, void *data)
 			}
 
 			if (!ast_strlen_zero(acctcode))
-				ast_copy_string(chan->accountcode, acctcode, sizeof(chan->accountcode));
+				ast_string_field_set(chan, accountcode, acctcode);
 
 			if (special_noanswer) flags.flags = 0;
 			ast_cdr_reset(chan->cdr, &flags);

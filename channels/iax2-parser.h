@@ -129,27 +129,27 @@ struct iax_ie_data {
 };
 
 /* Choose a different function for output */
-extern void iax_set_output(void (*output)(const char *data));
+void iax_set_output(void (*output)(const char *data));
 /* Choose a different function for errors */
-extern void iax_set_error(void (*output)(const char *data));
-extern void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen);
+void iax_set_error(void (*output)(const char *data));
+void iax_showframe(struct iax_frame *f, struct ast_iax2_full_hdr *fhi, int rx, struct sockaddr_in *sin, int datalen);
 
-extern const char *iax_ie2str(int ie);
+const char *iax_ie2str(int ie);
 
-extern int iax_ie_append_raw(struct iax_ie_data *ied, unsigned char ie, void *data, int datalen);
-extern int iax_ie_append_addr(struct iax_ie_data *ied, unsigned char ie, struct sockaddr_in *sin);
-extern int iax_ie_append_int(struct iax_ie_data *ied, unsigned char ie, unsigned int value);
-extern int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsigned short value);
-extern int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, char *str);
-extern int iax_ie_append_byte(struct iax_ie_data *ied, unsigned char ie, unsigned char dat);
-extern int iax_ie_append(struct iax_ie_data *ied, unsigned char ie);
-extern int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen);
+int iax_ie_append_raw(struct iax_ie_data *ied, unsigned char ie, const void *data, int datalen);
+int iax_ie_append_addr(struct iax_ie_data *ied, unsigned char ie, const struct sockaddr_in *sin);
+int iax_ie_append_int(struct iax_ie_data *ied, unsigned char ie, unsigned int value);
+int iax_ie_append_short(struct iax_ie_data *ied, unsigned char ie, unsigned short value);
+int iax_ie_append_str(struct iax_ie_data *ied, unsigned char ie, const char *str);
+int iax_ie_append_byte(struct iax_ie_data *ied, unsigned char ie, unsigned char dat);
+int iax_ie_append(struct iax_ie_data *ied, unsigned char ie);
+int iax_parse_ies(struct iax_ies *ies, unsigned char *data, int datalen);
 
-extern int iax_get_frames(void);
-extern int iax_get_iframes(void);
-extern int iax_get_oframes(void);
+int iax_get_frames(void);
+int iax_get_iframes(void);
+int iax_get_oframes(void);
 
-extern void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f);
-extern struct iax_frame *iax_frame_new(int direction, int datalen);
-extern void iax_frame_free(struct iax_frame *fr);
+void iax_frame_wrap(struct iax_frame *fr, struct ast_frame *f);
+struct iax_frame *iax_frame_new(int direction, int datalen);
+void iax_frame_free(struct iax_frame *fr);
 #endif

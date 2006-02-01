@@ -30,6 +30,7 @@
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
+#include "asterisk/stringfields.h"
 
 static char *function_moh_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
@@ -40,7 +41,7 @@ static char *function_moh_read(struct ast_channel *chan, char *cmd, char *data, 
 
 static void function_moh_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
-	ast_copy_string(chan->musicclass, value, sizeof(chan->musicclass));
+	ast_string_field_set(chan, musicclass, value);
 }
 
 #ifndef BUILTIN_FUNC

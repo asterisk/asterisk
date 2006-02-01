@@ -137,7 +137,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 		goto outrun;
 	}
 	ast_indicate(chan, -1);
-	retryzap = strcasecmp(chan->type, "Zap");
+	retryzap = strcasecmp(chan->tech->type, "Zap");
  zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
@@ -345,7 +345,7 @@ static int conf_exec(struct ast_channel *chan, void *data)
 				continue;
 			}
 		}
-		if ( tempchan && tempchan->type && (!strcmp(tempchan->type, "Zap")) && (tempchan != chan) ) {
+		if (tempchan && (!strcmp(tempchan->tech->type, "Zap")) && (tempchan != chan) ) {
 			ast_verbose(VERBOSE_PREFIX_3 "Zap channel %s is in-use, monitoring...\n", tempchan->name);
 			ast_copy_string(confstr, tempchan->name, sizeof(confstr));
 			ast_mutex_unlock(&tempchan->lock);

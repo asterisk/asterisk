@@ -64,6 +64,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/utils.h"
 #include "asterisk/cli.h"
+#include "asterisk/stringfields.h"
 
 #define MAX_MOHFILES 512
 #define MAX_MOHFILE_LEN 128
@@ -573,7 +574,7 @@ static int moh2_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "SetMusicOnHold requires an argument (class)\n");
 		return -1;
 	}
-	strncpy(chan->musicclass, data, sizeof(chan->musicclass) - 1);
+	ast_string_field_set(chan, musicclass, data);
 	return 0;
 }
 
@@ -595,7 +596,7 @@ static int moh4_exec(struct ast_channel *chan, void *data)
 	return 0;
 }
 
-static struct mohclass *get_mohbyname(char *name)
+static struct mohclass *get_mohbyname(const char *name)
 {
 	struct mohclass *moh;
 	moh = mohclasses;
@@ -862,7 +863,7 @@ static void local_ast_moh_cleanup(struct ast_channel *chan)
 	}
 }
 
-static int local_ast_moh_start(struct ast_channel *chan, char *class)
+static int local_ast_moh_start(struct ast_channel *chan, const char *class)
 {
 	struct mohclass *mohclass;
 

@@ -113,6 +113,7 @@ extern "C" {
 #include "asterisk/cdr.h"
 #include "asterisk/utils.h"
 #include "asterisk/linkedlists.h"
+#include "asterisk/stringfields.h"
 
 #define MAX_LANGUAGE		20
 
@@ -266,24 +267,23 @@ struct ast_channel_spy_list;
  *       this structure is changed. XXX
  */
 struct ast_channel {
-	/*! ASCII unique channel name */
-	char name[AST_CHANNEL_NAME];
-	
 	/*! Technology (point to channel driver) */
 	const struct ast_channel_tech *tech;
 
 	/*! Private data used by the technology driver */
 	void *tech_pvt;
 
-	/*! Language requested for voice prompts */
-	char language[MAX_LANGUAGE];		
-	/*! Type of channel */
-	const char *type;				
+	AST_DECLARE_STRING_FIELDS(
+		AST_STRING_FIELD(name);			/*! ASCII unique channel name */
+		AST_STRING_FIELD(language);		/*! Language requested for voice prompts */
+		AST_STRING_FIELD(musicclass);		/*! Default music class */
+		AST_STRING_FIELD(accountcode);		/*! Account code for billing */
+		AST_STRING_FIELD(call_forward);		/*! Where to forward to if asked to dial on this interface */
+	);
+	
 	/*! File descriptor for channel -- Drivers will poll on these file descriptors, so at least one must be non -1.  */
 	int fds[AST_MAX_FDS];			
 
-	/*! Default music class */
-	char musicclass[MAX_MUSICCLASS];
 	/*! Music State*/
 	void *music_state;
 	/*! Current generator data if there is any */
@@ -372,14 +372,10 @@ struct ast_channel {
 	struct ast_pbx *pbx;
 	/*! Set BEFORE PBX is started to determine AMA flags */
 	int amaflags;			
-	/*! Account code for billing */
-	char accountcode[AST_MAX_ACCOUNT_CODE];		
 	/*! Call Detail Record */
 	struct ast_cdr *cdr;			
 	/*! Whether or not ADSI is detected on CPE */
 	int adsicpe;
-	/*! Where to forward to if asked to dial on this interface */
-	char call_forward[AST_MAX_EXTENSION];
 
 	/*! Tone zone as set in indications.conf */
 	struct tone_zone *zone;

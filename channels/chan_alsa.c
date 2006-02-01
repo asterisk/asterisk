@@ -56,6 +56,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/endian.h"
+#include "asterisk/stringfields.h"
 
 #include "busy.h"
 #include "ringtone.h"
@@ -105,7 +106,6 @@ static int silencethreshold = 1000;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 AST_MUTEX_DEFINE_STATIC(alsalock);
 
-static const char type[] = "Console";
 static const char desc[] = "ALSA Console Channel Driver";
 static const char tdesc[] = "ALSA Console Channel Driver";
 static const char config[] = "alsa.conf";
@@ -184,7 +184,7 @@ static int alsa_indicate(struct ast_channel *chan, int cond);
 static int alsa_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static const struct ast_channel_tech alsa_tech = {
-	.type = type,
+	.type = "Console",
 	.description = tdesc,
 	.capabilities = AST_FORMAT_SLINEAR,
 	.requester = alsa_request,
@@ -681,7 +681,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 	f.datalen = 0;
 	f.data = NULL;
 	f.offset = 0;
-	f.src = type;
+	f.src = "Console";
 	f.mallocd = 0;
 	f.delivery.tv_sec = 0;
 	f.delivery.tv_usec = 0;
@@ -727,7 +727,7 @@ static struct ast_frame *alsa_read(struct ast_channel *chan)
 		f.datalen = FRAME_SIZE * 2;
 		f.data = buf;
 		f.offset = AST_FRIENDLY_OFFSET;
-		f.src = type;
+		f.src = "Console";
 		f.mallocd = 0;
 #ifdef ALSA_MONITOR
 		alsa_monitor_read((char *)buf, FRAME_SIZE * 2);
@@ -784,8 +784,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		tmp->tech = &alsa_tech;
-		snprintf(tmp->name, sizeof(tmp->name), "ALSA/%s", indevname);
-		tmp->type = type;
+		ast_string_field_build(tmp, name, "ALSA/%s", indevname);
 		tmp->fds[0] = readdev;
 		tmp->nativeformats = AST_FORMAT_SLINEAR;
 		tmp->readformat = AST_FORMAT_SLINEAR;
@@ -796,7 +795,7 @@ static struct ast_channel *alsa_new(struct chan_alsa_pvt *p, int state)
 		if (!ast_strlen_zero(p->exten))
 			ast_copy_string(tmp->exten, p->exten, sizeof(tmp->exten));
 		if (!ast_strlen_zero(language))
-			ast_copy_string(tmp->language, language, sizeof(tmp->language));
+			ast_string_field_set(tmp, language, language);
 		p->owner = tmp;
 		ast_setstate(tmp, state);
 		ast_mutex_lock(&usecnt_lock);
@@ -857,7 +856,7 @@ static int console_autoanswer(int fd, int argc, char *argv[])
 	return res;
 }
 
-static char *autoanswer_complete(char *line, char *word, int pos, int state)
+static char *autoanswer_complete(const char *line, const char *word, int pos, int state)
 {
 #ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -875,7 +874,7 @@ static char *autoanswer_complete(char *line, char *word, int pos, int state)
 	return NULL;
 }
 
-static char autoanswer_usage[] =
+static const char autoanswer_usage[] =
 "Usage: autoanswer [on|off]\n"
 "       Enables or disables autoanswer feature.  If used without\n"
 "       argument, displays the current on/off status of autoanswer.\n"
@@ -1088,7 +1087,7 @@ int load_module()
 
 	res = ast_channel_register(&alsa_tech);
 	if (res < 0) {
-		ast_log(LOG_ERROR, "Unable to register channel class '%s'\n", type);
+		ast_log(LOG_ERROR, "Unable to register channel class 'Console'\n");
 		return -1;
 	}
 	for (x=0;x<sizeof(myclis)/sizeof(struct ast_cli_entry); x++)

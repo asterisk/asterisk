@@ -155,7 +155,6 @@ static int expiry = DEFAULT_EXPIRY;
 
 
 static const char desc[] = "Session Initiation Protocol (SIP)";
-static const char channeltype[] = "SIP";
 static const char config[] = "sip.conf";
 static const char notify_config[] = "sip_notify.conf";
 static int usecnt = 0;
@@ -979,7 +978,7 @@ static int sip_get_codec(struct ast_channel *chan);
 
 /*! \brief Definition of this channel for PBX channel registration */
 static const struct ast_channel_tech sip_tech = {
-	.type = channeltype,
+	.type = "SIP",
 	.description = "Session Initiation Protocol (SIP)",
 	.capabilities = ((AST_FORMAT_MAX_AUDIO << 1) - 1),
 	.properties = AST_CHAN_TP_WANTSJITTER,
@@ -1001,7 +1000,7 @@ static const struct ast_channel_tech sip_tech = {
 
 /*! \brief Interface structure with callbacks used to connect to RTP module */
 static struct ast_rtp_protocol sip_rtp = {
-	type: channeltype,
+	type: "SIP",
 	get_rtp_info: sip_get_rtp_peer,
 	get_vrtp_info: sip_get_vrtp_peer,
 	set_rtp_peer: sip_set_rtp_peer,
@@ -1665,7 +1664,8 @@ static void register_peer_exten(struct sip_peer *peer, int onoff)
 		stringp = multi;
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff)
-				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", ast_strdup(peer->name), free, channeltype);
+				ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop",
+						  ast_strdup(peer->name), free, "SIP");
 			else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
@@ -2866,13 +2866,12 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	fmt = ast_best_codec(tmp->nativeformats);
 
 	if (title)
-		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%04x", title, thread_safe_rand() & 0xffff);
+		ast_string_field_build(tmp, name, "SIP/%s-%04x", title, thread_safe_rand() & 0xffff);
 	else if (strchr(i->fromdomain,':'))
-		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(long)(i));
+		ast_string_field_build(tmp, name, "SIP/%s-%08x", strchr(i->fromdomain,':')+1, (int)(long)(i));
 	else
-		snprintf(tmp->name, sizeof(tmp->name), "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
+		ast_string_field_build(tmp, name, "SIP/%s-%08x", i->fromdomain, (int)(long)(i));
 
-	tmp->type = channeltype;
 	if (ast_test_flag(i, SIP_DTMF) ==  SIP_DTMF_INBAND) {
 		i->vad = ast_dsp_new();
 		ast_dsp_set_features(i->vad, DSP_FEATURE_DTMF_DETECT);
@@ -2900,13 +2899,13 @@ static struct ast_channel *sip_new(struct sip_pvt *i, int state, const char *tit
 	tmp->pickupgroup = i->pickupgroup;
 	tmp->cid.cid_pres = i->callingpres;
 	if (!ast_strlen_zero(i->accountcode))
-		ast_copy_string(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode));
+		ast_string_field_set(tmp, accountcode, i->accountcode);
 	if (i->amaflags)
 		tmp->amaflags = i->amaflags;
 	if (!ast_strlen_zero(i->language))
-		ast_copy_string(tmp->language, i->language, sizeof(tmp->language));
+		ast_string_field_set(tmp, language, i->language);
 	if (!ast_strlen_zero(i->musicclass))
-		ast_copy_string(tmp->musicclass, i->musicclass, sizeof(tmp->musicclass));
+		ast_string_field_set(tmp, musicclass, i->musicclass);
 	i->owner = tmp;
 	ast_mutex_lock(&usecnt_lock);
 	usecnt++;
@@ -3165,7 +3164,7 @@ static struct sip_pvt *sip_alloc(ast_string_field callid, struct sockaddr_in *si
 	if (!(p = ast_calloc(1, sizeof(*p))))
 		return NULL;
 
-	if (ast_string_field_init(p)) {
+	if (ast_string_field_init(p, 512)) {
 		free(p);
 		return NULL;
 	}
@@ -3381,7 +3380,7 @@ static int sip_register(char *value, int lineno)
 		return -1;
 	}
 
-	if (ast_string_field_init(reg)) {
+	if (ast_string_field_init(reg, 256)) {
 		ast_log(LOG_ERROR, "Out of memory. Can't allocate SIP registry strings\n");
 		free(reg);
 		return -1;
@@ -9275,7 +9274,7 @@ static char *func_header_read(struct ast_channel *chan, char *cmd, char *data, c
 	}
 
 	ast_mutex_lock(&chan->lock);
-	if (chan->type != channeltype) {
+	if (chan->tech != &sip_tech) {
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_mutex_unlock(&chan->lock);
 		return NULL;
@@ -9446,7 +9445,7 @@ static char *function_sipchaninfo_read(struct ast_channel *chan, char *cmd, char
 	}
 
 	ast_mutex_lock(&chan->lock);
-	if (chan->type != channeltype) {
+	if (chan->tech != &sip_tech) {
 		ast_log(LOG_WARNING, "This function can only be used on SIP channels.\n");
 		ast_mutex_unlock(&chan->lock);
 		return NULL;
@@ -9517,7 +9516,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 			*e = '\0';
 		ast_log(LOG_DEBUG, "Found promiscuous redirection to 'SIP/%s'\n", s);
 		if (p->owner)
-			snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "SIP/%s", s);
+			ast_string_field_build(p->owner, call_forward, "SIP/%s", s);
 	} else {
 		e = strchr(tmp, '@');
 		if (e)
@@ -9529,7 +9528,7 @@ static void parse_moved_contact(struct sip_pvt *p, struct sip_request *req)
 			s += 4;
 		ast_log(LOG_DEBUG, "Found 302 Redirect to extension '%s'\n", s);
 		if (p->owner)
-			ast_copy_string(p->owner->call_forward, s, sizeof(p->owner->call_forward));
+			ast_string_field_set(p->owner, call_forward, s);
 	}
 }
 
@@ -10031,7 +10030,8 @@ static void handle_response(struct sip_pvt *p, int resp, char *rest, struct sip_
 							 forward and hope we end up at the right place... */
 					ast_log(LOG_DEBUG, "Hairpin detected, setting up call forward for what it's worth\n");
 					if (p->owner)
-						snprintf(p->owner->call_forward, sizeof(p->owner->call_forward), "Local/%s@%s", p->username, p->context);
+						ast_string_field_build(p->owner, call_forward,
+								       "Local/%s@%s", p->username, p->context);
 					/* Fall through */
 				case 488: /* Not acceptable here - codec error */
 				case 480: /* Temporarily Unavailable */
@@ -10183,7 +10183,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 			ast_hangup(chan2m);
 		return -1;
 	}
-	snprintf(chan1m->name, sizeof(chan1m->name), "Parking/%s", chan1->name);
+	ast_string_field_build(chan1m, name, "Parking/%s", chan1->name);
 	/* Make formats okay */
 	chan1m->readformat = chan1->readformat;
 	chan1m->writeformat = chan1->writeformat;
@@ -10195,7 +10195,7 @@ static int sip_park(struct ast_channel *chan1, struct ast_channel *chan2, struct
 		
 	/* We make a clone of the peer channel too, so we can play
 	   back the announcement */
-	snprintf(chan2m->name, sizeof (chan2m->name), "SIPPeer/%s",chan2->name);
+	ast_string_field_build(chan2m, name, "SIPPeer/%s",chan2->name);
 	/* Make formats okay */
 	chan2m->readformat = chan2->readformat;
 	chan2m->writeformat = chan2->writeformat;
@@ -12504,7 +12504,7 @@ static int reload_config(enum channelreloadreason reason)
 			ast_copy_string(regcontext, v->value, sizeof(regcontext));
 			/* Create context if it doesn't exist already */
 			if (!ast_context_find(regcontext))
-				ast_context_create(NULL, regcontext, channeltype);
+				ast_context_create(NULL, regcontext, "SIP");
 		} else if (!strcasecmp(v->name, "callerid")) {
 			ast_copy_string(default_callerid, v->value, sizeof(default_callerid));
 		} else if (!strcasecmp(v->name, "fromdomain")) {
@@ -12871,7 +12871,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 		return 0;
 	}
 	ast_mutex_lock(&chan->lock);
-	if (chan->type != channeltype) {
+	if (chan->tech != &sip_tech) {
 		ast_log(LOG_WARNING, "Call this application only on SIP incoming calls\n");
 		ast_mutex_unlock(&chan->lock);
 		return 0;
@@ -13170,7 +13170,7 @@ int load_module()
 
 	/* Make sure we can register our sip channel type */
 	if (ast_channel_register(&sip_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel type %s\n", channeltype);
+		ast_log(LOG_ERROR, "Unable to register channel type 'SIP'\n");
 		return -1;
 	}
 

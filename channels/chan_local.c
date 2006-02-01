@@ -59,9 +59,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/musiconhold.h"
 #include "asterisk/manager.h"
+#include "asterisk/stringfields.h"
 
 static const char desc[] = "Local Proxy Channel";
-static const char type[] = "Local";
 static const char tdesc[] = "Local Proxy Channel Driver";
 
 static int usecnt =0;
@@ -85,7 +85,7 @@ static int local_sendhtml(struct ast_channel *ast, int subclass, const char *dat
 
 /* PBX interface structure for channel registration */
 static const struct ast_channel_tech local_tech = {
-	.type = type,
+	.type = "Local",
 	.description = tdesc,
 	.capabilities = -1,
 	.requester = local_request,
@@ -330,8 +330,8 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 	p->chan->cid.cid_rdnis = ast_strdup(p->owner->cid.cid_rdnis);
 	p->chan->cid.cid_ani = ast_strdup(p->owner->cid.cid_ani);
 
-	strncpy(p->chan->language, p->owner->language, sizeof(p->chan->language) - 1);
-	strncpy(p->chan->accountcode, p->owner->accountcode, sizeof(p->chan->accountcode) - 1);
+	ast_string_field_set(p->chan, language, p->owner->language);
+	ast_string_field_set(p->chan, accountcode, p->owner->accountcode);
 	p->chan->cdrflags = p->owner->cdrflags;
 
 	/* copy the channel variables from the incoming channel to the outgoing channel */
@@ -513,10 +513,8 @@ static struct ast_channel *local_new(struct local_pvt *p, int state)
 	tmp2->tech = tmp->tech = &local_tech;
 	tmp->nativeformats = p->reqformat;
 	tmp2->nativeformats = p->reqformat;
-	snprintf(tmp->name, sizeof(tmp->name), "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
-	snprintf(tmp2->name, sizeof(tmp2->name), "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
-	tmp->type = type;
-	tmp2->type = type;
+	ast_string_field_build(tmp, name, "Local/%s@%s-%04x,1", p->exten, p->context, randnum);
+	ast_string_field_build(tmp2, name, "Local/%s@%s-%04x,2", p->exten, p->context, randnum);
 	ast_setstate(tmp, state);
 	ast_setstate(tmp2, AST_STATE_RING);
 	tmp->writeformat = p->reqformat;
@@ -592,7 +590,7 @@ int load_module()
 {
 	/* Make sure we can register our channel type */
 	if (ast_channel_register(&local_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ast_log(LOG_ERROR, "Unable to register channel class 'Local'\n");
 		return -1;
 	}
 	ast_cli_register(&cli_show_locals);

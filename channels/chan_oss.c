@@ -69,6 +69,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/causes.h"
 #include "asterisk/endian.h"
+#include "asterisk/stringfields.h"
 
 /* ringtones we use */
 #include "busy.h"
@@ -247,7 +248,6 @@ static struct sound sounds[] = {
 struct chan_oss_pvt {
 	struct chan_oss_pvt *next;
 
-	char *type;	/* XXX maybe take the one from oss_tech */
 	char *name;
 	/*
 	 * cursound indicates which in struct sound we play. -1 means nothing,
@@ -303,7 +303,6 @@ struct chan_oss_pvt {
 };
 
 static struct chan_oss_pvt oss_default = {
-	.type = "Console",
 	.cursound = -1,
 	.sounddev = -1,
 	.duplex = M_UNSET, /* XXX check this */
@@ -334,19 +333,19 @@ static int oss_indicate(struct ast_channel *chan, int cond);
 static int oss_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static const struct ast_channel_tech oss_tech = {
-	.type =			"Console",
+	.type =	"Console",
 	.description =	"OSS Console Channel Driver",
 	.capabilities =	AST_FORMAT_SLINEAR,
-	.requester =	oss_request,
-	.send_digit =	oss_digit,
-	.send_text =	oss_text,
-	.hangup =		oss_hangup,
-	.answer =		oss_answer,
-	.read =			oss_read,
-	.call =			oss_call,
-	.write =		oss_write,
-	.indicate =		oss_indicate,
-	.fixup =		oss_fixup,
+	.requester = oss_request,
+	.send_digit = oss_digit,
+	.send_text = oss_text,
+	.hangup = oss_hangup,
+	.answer = oss_answer,
+	.read = oss_read,
+	.call = oss_call,
+	.write = oss_write,
+	.indicate = oss_indicate,
+	.fixup = oss_fixup,
 };
 
 /*
@@ -807,7 +806,7 @@ static struct ast_frame *oss_read(struct ast_channel *c)
 	/* prepare a NULL frame in case we don't have enough data to return */
 	bzero(f, sizeof(struct ast_frame));
 	f->frametype = AST_FRAME_NULL;
-	f->src = o->type;
+	f->src = oss_tech.type;
 
 	res = read(o->sounddev, o->oss_read_buf + o->readpos,
 	sizeof(o->oss_read_buf) - o->readpos);
@@ -884,8 +883,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 	if (c == NULL)
 		return NULL;
 	c->tech = &oss_tech;
-	snprintf(c->name, sizeof(c->name), "OSS/%s", o->device + 5);
-	c->type = o->type;
+	ast_string_field_build(c, name, "OSS/%s", o->device + 5);
 	c->fds[0] = o->sounddev; /* -1 if device closed, override later */
 	c->nativeformats = AST_FORMAT_SLINEAR;
 	c->readformat = AST_FORMAT_SLINEAR;
@@ -897,7 +895,7 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 	if (!ast_strlen_zero(ext))
 		ast_copy_string(c->exten, ext, sizeof(c->exten));
 	if (!ast_strlen_zero(o->language))
-		ast_copy_string(c->language, o->language, sizeof(c->language));
+		ast_string_field_set(c, language, o->language);
         if (!ast_strlen_zero(o->cid_num))
                 c->cid.cid_num = ast_strdup(o->cid_num);
         if (!ast_strlen_zero(o->cid_name))
@@ -1403,8 +1401,7 @@ int load_module(void)
 	}
 	i = ast_channel_register(&oss_tech);
 	if (i < 0) {
-		ast_log(LOG_ERROR, "Unable to register channel class '%s'\n",
-			oss_default.type);
+		ast_log(LOG_ERROR, "Unable to register channel class 'Console'\n");
 		/* XXX should cleanup allocated memory etc. */
 		return -1;
 	}

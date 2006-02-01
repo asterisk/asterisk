@@ -33,6 +33,7 @@
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
+#include "asterisk/stringfields.h"
 
 static char *builtin_function_language_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
@@ -44,7 +45,7 @@ static char *builtin_function_language_read(struct ast_channel *chan, char *cmd,
 static void builtin_function_language_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
 	if (value)
-		ast_copy_string(chan->language, value, sizeof(chan->language));
+                ast_string_field_set(chan, language, value);
 }
 
 #ifndef BUILTIN_FUNC

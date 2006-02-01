@@ -113,7 +113,7 @@ static int transfer_exec(struct ast_channel *chan, void *data)
 		tech = dest;
 		dest = slash + 1;
 		/* Allow execution only if the Tech/destination agrees with the type of the channel */
-		if (strncasecmp(chan->type, tech, len)) {
+		if (strncasecmp(chan->tech->type, tech, len)) {
 			pbx_builtin_setvar_helper(chan, "TRANSFERSTATUS", "FAILURE");
 			LOCAL_USER_REMOVE(u);
 			return 0;

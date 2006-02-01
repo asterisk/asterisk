@@ -106,7 +106,7 @@ static int ast_serialize_showchan(struct ast_channel *c, char *buf, size_t size)
 			 "Data=               %s\n"
 			 "Blocking_in=        %s\n",
 			 c->name,
-			 c->type,
+			 c->tech->type,
 			 c->uniqueid,
 			 (c->cid.cid_num ? c->cid.cid_num : "(N/A)"),
 			 (c->cid.cid_name ? c->cid.cid_name : "(N/A)"),

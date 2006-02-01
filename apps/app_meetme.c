@@ -996,7 +996,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 	}
 
 	ast_indicate(chan, -1);
-	retryzap = strcasecmp(chan->type, "Zap");
+	retryzap = strcasecmp(chan->tech->type, "Zap");
 	user->zapchannel = !retryzap;
 
  zapretry:
@@ -1302,7 +1302,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 						using_pseudo = 0;
 					}
 					ast_log(LOG_DEBUG, "Ooh, something swapped out under us, starting over\n");
-					retryzap = strcasecmp(c->type, "Zap");
+					retryzap = strcasecmp(c->tech->type, "Zap");
 					user->zapchannel = !retryzap;
 					goto zapretry;
 				}

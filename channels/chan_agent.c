@@ -71,9 +71,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/astdb.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/monitor.h"
+#include "asterisk/stringfields.h"
 
 static const char desc[] = "Agent Proxy Channel";
-static const char channeltype[] = "Agent";
 static const char tdesc[] = "Call Agent Proxy Channel";
 static const char config[] = "agents.conf";
 
@@ -257,7 +257,7 @@ static struct ast_channel *agent_bridgedchannel(struct ast_channel *chan, struct
 static void set_agentbycallerid(const char *callerid, const char *agent);
 
 static const struct ast_channel_tech agent_tech = {
-	.type = channeltype,
+	.type = "Agent",
 	.description = tdesc,
 	.capabilities = -1,
 	.requester = agent_request,
@@ -520,7 +520,7 @@ static struct ast_frame *agent_read(struct ast_channel *ast)
 
 	CLEANUP(ast,p);
 	if (p->chan && !p->chan->_bridge) {
-		if (strcasecmp(p->chan->type, "Local")) {
+		if (strcasecmp(p->chan->tech->type, "Local")) {
 			p->chan->_bridge = ast;
 			if (p->chan)
 				ast_log(LOG_DEBUG, "Bridge on '%s' being set to '%s' (3)\n", p->chan->name, p->chan->_bridge->name);
@@ -913,7 +913,7 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 			tmp->rawwriteformat = p->chan->writeformat;
 			tmp->readformat = p->chan->readformat;
 			tmp->rawreadformat = p->chan->readformat;
-			ast_copy_string(tmp->language, p->chan->language, sizeof(tmp->language));
+			ast_string_field_set(tmp, language, p->chan->language);
 			ast_copy_string(tmp->context, p->chan->context, sizeof(tmp->context));
 			ast_copy_string(tmp->exten, p->chan->exten, sizeof(tmp->exten));
 		} else {
@@ -924,10 +924,9 @@ static struct ast_channel *agent_new(struct agent_pvt *p, int state)
 			tmp->rawreadformat = AST_FORMAT_SLINEAR;
 		}
 		if (p->pending)
-			snprintf(tmp->name, sizeof(tmp->name), "Agent/P%s-%d", p->agent, rand() & 0xffff);
+			ast_string_field_build(tmp, name, "Agent/P%s-%d", p->agent, rand() & 0xffff);
 		else
-			snprintf(tmp->name, sizeof(tmp->name), "Agent/%s", p->agent);
-		tmp->type = channeltype;
+			ast_string_field_build(tmp, name, "Agent/%s", p->agent);
 		/* Safe, agentlock already held */
 		ast_setstate(tmp, state);
 		tmp->tech_pvt = p;
@@ -2491,7 +2490,7 @@ int load_module()
 {
 	/* Make sure we can register our agent channel type */
 	if (ast_channel_register(&agent_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
+		ast_log(LOG_ERROR, "Unable to register channel class 'Agent'\n");
 		return -1;
 	}
 	/* Dialplan applications */

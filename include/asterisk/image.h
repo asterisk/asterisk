@@ -68,7 +68,7 @@ extern int ast_send_image(struct ast_channel *chan, char *filename);
  * Make an image from a filename ??? No estoy positivo
  * Returns an ast_frame on success, NULL on failure
  */
-extern struct ast_frame *ast_read_image(char *filename, char *preflang, int format);
+extern struct ast_frame *ast_read_image(char *filename, const char *preflang, int format);
 
 /*! Register image format */
 /*! 

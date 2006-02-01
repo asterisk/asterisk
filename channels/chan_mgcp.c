@@ -116,6 +116,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/dsp.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/stringfields.h"
 
 #ifndef IPTOS_MINCOST
 #define IPTOS_MINCOST 0x02
@@ -137,7 +138,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 static const char desc[] = "Media Gateway Control Protocol (MGCP)";
-static const char type[] = "MGCP";
 static const char tdesc[] = "Media Gateway Control Protocol (MGCP)";
 static const char config[] = "mgcp.conf";
 
@@ -503,7 +503,7 @@ static int mgcp_senddigit(struct ast_channel *ast, char digit);
 static int mgcp_devicestate(void *data);
 
 static const struct ast_channel_tech mgcp_tech = {
-	.type = type,
+	.type = "MGCP",
 	.description = tdesc,
 	.capabilities = AST_FORMAT_ULAW,
 	.properties = AST_CHAN_TP_WANTSJITTER,
@@ -1454,10 +1454,9 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		if (!tmp->nativeformats)
 			tmp->nativeformats = capability;
 		fmt = ast_best_codec(tmp->nativeformats);
-		snprintf(tmp->name, sizeof(tmp->name), "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
+		ast_string_field_build(tmp, name, "MGCP/%s@%s-%d", i->name, i->parent->name, sub->id);
 		if (sub->rtp)
 			tmp->fds[0] = ast_rtp_fd(sub->rtp);
-		tmp->type = type;
 		if (i->dtmfmode & (MGCP_DTMF_INBAND | MGCP_DTMF_HYBRID)) {
 			i->dsp = ast_dsp_new();
 			ast_dsp_set_features(i->dsp,DSP_FEATURE_DTMF_DETECT);
@@ -1475,9 +1474,9 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		tmp->rawreadformat = fmt;
 		tmp->tech_pvt = sub;
 		if (!ast_strlen_zero(i->language))
-			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
+			ast_string_field_set(tmp, language, i->language);
 		if (!ast_strlen_zero(i->accountcode))
-			strncpy(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode)-1);
+			ast_string_field_set(tmp, accountcode, i->accountcode);
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		sub->owner = tmp;
@@ -1487,7 +1486,7 @@ static struct ast_channel *mgcp_new(struct mgcp_subchannel *sub, int state)
 		ast_update_use_count();
 		tmp->callgroup = i->callgroup;
 		tmp->pickupgroup = i->pickupgroup;
-		strncpy(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward) - 1);
+		ast_string_field_set(tmp, call_forward, i->call_forward);
 		strncpy(tmp->context, i->context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, i->exten, sizeof(tmp->exten)-1);
 		if (!ast_strlen_zero(i->cid_num))
@@ -4017,7 +4016,7 @@ static int mgcp_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, stru
 }
 
 static struct ast_rtp_protocol mgcp_rtp = {
-	.type = type,
+	.type = "MGCP",
 	.get_rtp_info = mgcp_get_rtp_peer,
 	.set_rtp_peer = mgcp_set_rtp_peer,
 };
@@ -4346,7 +4345,7 @@ int load_module()
 	if (!(res = reload_config())) {
 		/* Make sure we can register our mgcp channel type */
 		if (ast_channel_register(&mgcp_tech)) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			ast_log(LOG_ERROR, "Unable to register channel class 'MGCP'\n");
 			return -1;
 		}
 		ast_rtp_proto_register(&mgcp_rtp);

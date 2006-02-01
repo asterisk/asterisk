@@ -655,9 +655,9 @@ static char frame_show_codec_n_usage[] =
 "       Displays codec mapping\n";
 
 /*! Dump a frame for debugging purposes */
-void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
+void ast_frame_dump(const char *name, struct ast_frame *f, char *prefix)
 {
-	char *n = "unknown";
+	const char noname[] = "unknown";
 	char ftype[40] = "Unknown Frametype";
 	char cft[80];
 	char subclass[40] = "Unknown Subclass";
@@ -666,13 +666,16 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 	char cn[60];
 	char cp[40];
 	char cmn[40];
-	if (name)
-		n = name;
+
+	if (!name)
+		name = noname;
+
+
 	if (!f) {
 		ast_verbose("%s [ %s (NULL) ] [%s]\n", 
 			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
 			term_color(cft, "HANGUP", COLOR_BRRED, COLOR_BLACK, sizeof(cft)), 
-			term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
+			term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 		return;
 	}
 	/* XXX We should probably print one each of voice and video when the format changes XXX */
@@ -795,22 +798,21 @@ void ast_frame_dump(char *name, struct ast_frame *f, char *prefix)
 	}
 	if (!ast_strlen_zero(moreinfo))
 		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) '%s' ] [%s]\n",  
-			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
-			term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
-			f->frametype, 
-			term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
-			f->subclass, 
-			term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
-			term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
+			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
+			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
+			    f->frametype, 
+			    term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
+			    f->subclass, 
+			    term_color(cmn, moreinfo, COLOR_BRGREEN, COLOR_BLACK, sizeof(cmn)),
+			    term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 	else
 		ast_verbose("%s [ TYPE: %s (%d) SUBCLASS: %s (%d) ] [%s]\n",  
-			term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
-			term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
-			f->frametype, 
-			term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
-			f->subclass, 
-			term_color(cn, n, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
-
+			    term_color(cp, prefix, COLOR_BRMAGENTA, COLOR_BLACK, sizeof(cp)),
+			    term_color(cft, ftype, COLOR_BRRED, COLOR_BLACK, sizeof(cft)),
+			    f->frametype, 
+			    term_color(csub, subclass, COLOR_BRCYAN, COLOR_BLACK, sizeof(csub)),
+			    f->subclass, 
+			    term_color(cn, name, COLOR_YELLOW, COLOR_BLACK, sizeof(cn)));
 }
 
 

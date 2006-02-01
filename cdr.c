@@ -54,6 +54,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/config.h"
 #include "asterisk/cli.h"
 #include "asterisk/module.h"
+#include "asterisk/stringfields.h"
 
 /*! Default AMA flag for billing records (CDR's) */
 int ast_default_amaflags = AST_CDR_DOCUMENTATION;
@@ -535,7 +536,7 @@ int ast_cdr_disposition(struct ast_cdr *cdr, int cause)
 	return res;
 }
 
-void ast_cdr_setdestchan(struct ast_cdr *cdr, char *chann)
+void ast_cdr_setdestchan(struct ast_cdr *cdr, const char *chann)
 {
 	char *chan; 
 
@@ -682,7 +683,7 @@ int ast_cdr_setaccount(struct ast_channel *chan, const char *account)
 {
 	struct ast_cdr *cdr = chan->cdr;
 
-	ast_copy_string(chan->accountcode, account, sizeof(chan->accountcode));
+	ast_string_field_set(chan, accountcode, account);
 	while (cdr) {
 		if (!ast_test_flag(cdr, AST_CDR_FLAG_LOCKED))
 			ast_copy_string(cdr->accountcode, chan->accountcode, sizeof(cdr->accountcode));

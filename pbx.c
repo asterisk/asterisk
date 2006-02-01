@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/compat.h"
+#include "asterisk/stringfields.h"
 
 /*!
  * \note I M P O R T A N T :
@@ -4237,7 +4238,7 @@ int ast_async_goto(struct ast_channel *chan, const char *context, const char *ex
 		struct ast_channel *tmpchan;
 		tmpchan = ast_channel_alloc(0);
 		if (tmpchan) {
-			snprintf(tmpchan->name, sizeof(tmpchan->name), "AsyncGoto/%s", chan->name);
+			ast_string_field_build(tmpchan, name, "AsyncGoto/%s", chan->name);
 			ast_setstate(tmpchan, chan->_state);
 			/* Make formats okay */
 			tmpchan->readformat = chan->readformat;
@@ -4736,7 +4737,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 			if (ast_exists_extension(chan, context, "failed", 1, NULL)) {
 				chan = ast_channel_alloc(0);
 				if (chan) {
-					ast_copy_string(chan->name, "OutgoingSpoolFailed", sizeof(chan->name));
+					ast_string_field_set(chan, name, "OutgoingSpoolFailed");
 					if (!ast_strlen_zero(context))
 						ast_copy_string(chan->context, context, sizeof(chan->context));
 					ast_copy_string(chan->exten, "failed", sizeof(chan->exten));
@@ -5344,7 +5345,7 @@ static int pbx_builtin_background(struct ast_channel *chan, void *data)
 	AST_STANDARD_APP_ARGS(args, parse);
 
 	if (!args.lang)
-		args.lang = chan->language;
+		args.lang = (char *) chan->language;
 
 	if (!args.context)
 		args.context = chan->context;

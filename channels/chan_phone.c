@@ -58,6 +58,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 #include "asterisk/callerid.h"
 #include "asterisk/causes.h"
+#include "asterisk/stringfields.h"
+
 #include "DialTone.h"
 
 #ifdef QTI_PHONEJACK_TJ_PCI	/* check for the newer quicknet driver v.3.1.0 which has this symbol */
@@ -81,7 +83,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #define DEFAULT_GAIN 0x100
 
 static const char desc[] = "Linux Telephony API Support";
-static const char type[] = "Phone";
 static const char tdesc[] = "Standard Linux Telephony API Driver";
 static const char config[] = "phone.conf";
 
@@ -163,7 +164,7 @@ static int phone_fixup(struct ast_channel *old, struct ast_channel *new);
 static int phone_indicate(struct ast_channel *chan, int condition);
 
 static const struct ast_channel_tech phone_tech = {
-	.type = type,
+	.type = "Phone",
 	.description = tdesc,
 	.capabilities = AST_FORMAT_G723_1 | AST_FORMAT_SLINEAR | AST_FORMAT_ULAW,
 	.requester = phone_request,
@@ -179,7 +180,7 @@ static const struct ast_channel_tech phone_tech = {
 };
 
 static struct ast_channel_tech phone_tech_fxs = {
-	.type = type,
+	.type = "Phone",
 	.description = tdesc,
 	.requester = phone_request,
 	.send_digit = phone_digit,
@@ -479,7 +480,7 @@ static struct ast_frame  *phone_exception(struct ast_channel *ast)
 	p->fr.datalen = 0;
 	p->fr.samples = 0;
 	p->fr.data =  NULL;
-	p->fr.src = type;
+	p->fr.src = "Phone";
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
 	p->fr.delivery = ast_tv(0,0);
@@ -541,7 +542,7 @@ static struct ast_frame  *phone_read(struct ast_channel *ast)
 	p->fr.datalen = 0;
 	p->fr.samples = 0;
 	p->fr.data =  NULL;
-	p->fr.src = type;
+	p->fr.src = "Phone";
 	p->fr.offset = 0;
 	p->fr.mallocd=0;
 	p->fr.delivery = ast_tv(0,0);
@@ -815,8 +816,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		tmp->tech = cur_tech;
-		snprintf(tmp->name, sizeof(tmp->name), "Phone/%s", i->dev + 5);
-		tmp->type = type;
+		ast_string_field_build(tmp, name, "Phone/%s", i->dev + 5);
 		tmp->fds[0] = i->fd;
 		/* XXX Switching formats silently causes kernel panics XXX */
 		if (i->mode == MODE_FXS &&
@@ -848,7 +848,7 @@ static struct ast_channel *phone_new(struct phone_pvt *i, int state, char *conte
 		else
 			strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
 		if (!ast_strlen_zero(i->language))
-			strncpy(tmp->language, i->language, sizeof(tmp->language)-1);
+			ast_string_field_set(tmp, language, i->language);
 		if (!ast_strlen_zero(i->cid_num))
 			tmp->cid.cid_num = strdup(i->cid_num);
 		if (!ast_strlen_zero(i->cid_name))
@@ -1411,7 +1411,7 @@ int load_module()
 	/* Make sure we can register our Adtranphone channel type */
 
 	if (ast_channel_register(cur_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ast_log(LOG_ERROR, "Unable to register channel class 'Phone'\n");
 		ast_config_destroy(cfg);
 		__unload_module();
 		return -1;

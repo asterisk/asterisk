@@ -82,7 +82,7 @@ static int flash_exec(struct ast_channel *chan, void *data)
 	struct localuser *u;
 	struct zt_params ztp;
 	LOCAL_USER_ADD(u);
-	if (!strcasecmp(chan->type, "Zap")) {
+	if (!strcasecmp(chan->tech->type, "Zap")) {
 		memset(&ztp, 0, sizeof(ztp));
 		res = ioctl(chan->fds[0], ZT_GET_PARAMS, &ztp);
 		if (!res) {

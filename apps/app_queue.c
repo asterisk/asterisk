@@ -91,6 +91,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/causes.h"
 #include "asterisk/astdb.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/stringfields.h"
 
 #define QUEUE_STRATEGY_RINGALL		0
 #define QUEUE_STRATEGY_ROUNDROBIN	1
@@ -1735,7 +1736,7 @@ static struct localuser *wait_for_answer(struct queue_ent *qe, struct localuser 
 							if (!o->chan->cid.cid_name)
 								ast_log(LOG_WARNING, "Out of memory\n");	
 						}
-						ast_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
+						ast_string_field_set(o->chan, accountcode, in->accountcode);
 						o->chan->cdrflags = in->cdrflags;
 
 						if (in->cid.cid_ani) {
@@ -2182,9 +2183,9 @@ static int try_calling(struct queue_ent *qe, const char *options, char *announce
 		   we will always return with -1 so that it is hung up properly after the 
 		   conversation.  */
 		qe->handled++;
-		if (!strcmp(qe->chan->type,"Zap"))
+		if (!strcmp(qe->chan->tech->type, "Zap"))
 			ast_channel_setoption(qe->chan, AST_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
-		if (!strcmp(peer->type,"Zap"))
+		if (!strcmp(peer->tech->type, "Zap"))
 			ast_channel_setoption(peer, AST_OPTION_TONE_VERIFY, &nondataquality, sizeof(nondataquality), 0);
 		/* Update parameters for the queue */
 		recalc_holdtime(qe);

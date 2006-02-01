@@ -90,6 +90,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dnsmgr.h"
 #include "asterisk/devicestate.h"
 #include "asterisk/netsock.h"
+#include "asterisk/stringfields.h"
 
 #include "iax2.h"
 #include "iax2-parser.h"
@@ -141,7 +142,6 @@ static struct ast_codec_pref prefs;
 
 static const char desc[] = "Inter Asterisk eXchange (Ver 2)";
 static const char tdesc[] = "Inter Asterisk eXchange Driver (Ver 2)";
-static const char channeltype[] = "IAX2";
 
 static char context[80] = "default";
 
@@ -747,7 +747,7 @@ static int iax2_transfer(struct ast_channel *c, const char *dest);
 static int iax2_fixup(struct ast_channel *oldchannel, struct ast_channel *newchan);
 
 static const struct ast_channel_tech iax2_tech = {
-	.type = channeltype,
+	.type = "IAX2",
 	.description = tdesc,
 	.capabilities = IAX_CAPABILITY_FULLBANDWIDTH,
 	.properties = AST_CHAN_TP_WANTSJITTER,
@@ -3175,16 +3175,16 @@ static enum ast_bridge_result iax2_bridge(struct ast_channel *c0, struct ast_cha
 	cs[1] = c1;
 	for (/* ever */;;) {
 		/* Check in case we got masqueraded into */
-		if ((c0->type != channeltype) || (c1->type != channeltype)) {
+		if ((c0->tech != &iax2_tech) || (c1->tech != &iax2_tech)) {
 			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Can't masquerade, we're different...\n");
 			/* Remove from native mode */
-			if (c0->type == channeltype) {
+			if (c0->tech == &iax2_tech) {
 				ast_mutex_lock(&iaxsl[callno0]);
 				iaxs[callno0]->bridgecallno = 0;
 				ast_mutex_unlock(&iaxsl[callno0]);
 			}
-			if (c1->type == channeltype) {
+			if (c1->tech == &iax2_tech) {
 				ast_mutex_lock(&iaxsl[callno1]);
 				iaxs[callno1]->bridgecallno = 0;
 				ast_mutex_unlock(&iaxsl[callno1]);
@@ -3387,8 +3387,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 	i = iaxs[callno];
 	if (i && tmp) {
 		tmp->tech = &iax2_tech;
-		snprintf(tmp->name, sizeof(tmp->name), "IAX2/%s-%d", i->host, i->callno);
-		tmp->type = channeltype;
+		ast_string_field_build(tmp, name, "IAX2/%s-%d", i->host, i->callno);
 		/* We can support any format by default, until we get restricted */
 		tmp->nativeformats = capability;
 		tmp->readformat = ast_best_codec(capability);
@@ -3402,7 +3401,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		if (!ast_strlen_zero(i->ani))
 			tmp->cid.cid_ani = ast_strdup(i->ani);
 		if (!ast_strlen_zero(i->language))
-			ast_copy_string(tmp->language, i->language, sizeof(tmp->language));
+			ast_string_field_set(tmp, language, i->language);
 		if (!ast_strlen_zero(i->dnid))
 			tmp->cid.cid_dnid = ast_strdup(i->dnid);
 		if (!ast_strlen_zero(i->rdnis))
@@ -3411,7 +3410,7 @@ static struct ast_channel *ast_iax2_new(int callno, int state, int capability)
 		tmp->cid.cid_ton = i->calling_ton;
 		tmp->cid.cid_tns = i->calling_tns;
 		if (!ast_strlen_zero(i->accountcode))
-			ast_copy_string(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode));
+			ast_string_field_set(tmp, accountcode, i->accountcode);
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
@@ -5538,7 +5537,8 @@ static void register_peer_exten(struct iax2_peer *peer, int onoff)
 		while((ext = strsep(&stringp, "&"))) {
 			if (onoff) {
 				if (!ast_exists_extension(NULL, regcontext, ext, 1, NULL))
-					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL, "Noop", ast_strdup(peer->name), free, channeltype);
+					ast_add_extension(regcontext, 1, ext, 1, NULL, NULL,
+							  "Noop", ast_strdup(peer->name), free, "IAX2");
 			} else
 				ast_context_remove_extension(regcontext, ext, 1, NULL);
 		}
@@ -6140,7 +6140,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 	chan1m = ast_channel_alloc(0);
 	chan2m = ast_channel_alloc(0);
 	if (chan2m && chan1m) {
-		snprintf(chan1m->name, sizeof(chan1m->name), "Parking/%s", chan1->name);
+		ast_string_field_build(chan1m, name, "Parking/%s", chan1->name);
 		/* Make formats okay */
 		chan1m->readformat = chan1->readformat;
 		chan1m->writeformat = chan1->writeformat;
@@ -6152,7 +6152,7 @@ static int iax_park(struct ast_channel *chan1, struct ast_channel *chan2)
 		
 		/* We make a clone of the peer channel too, so we can play
 		   back the announcement */
-		snprintf(chan2m->name, sizeof (chan2m->name), "IAXPeer/%s",chan2->name);
+		ast_string_field_build(chan2m, name, "IAXPeer/%s",chan2->name);
 		/* Make formats okay */
 		chan2m->readformat = chan2->readformat;
 		chan2m->writeformat = chan2->writeformat;
@@ -7716,7 +7716,7 @@ static int iax2_prov_app(struct ast_channel *chan, void *data)
 	if (opts)
 		*opts='\0';
 
-	if (chan->type != channeltype) {
+	if (chan->tech != &iax2_tech) {
 		ast_log(LOG_NOTICE, "Can't provision a non-IAX device!\n");
 		return -1;
 	} 
@@ -8728,7 +8728,7 @@ static int set_config(char *config_file, int reload)
 			ast_copy_string(regcontext, v->value, sizeof(regcontext));
 			/* Create context if it doesn't exist already */
 			if (!ast_context_find(regcontext))
-				ast_context_create(NULL, regcontext, channeltype);
+				ast_context_create(NULL, regcontext, "IAX2");
 		} else if (!strcasecmp(v->name, "tos")) {
 			if (ast_str2tos(v->value, &tos))
 				ast_log(LOG_WARNING, "Invalid tos value at line %d, should be 'lowdelay', 'throughput', 'reliability', 'mincost', or 'none'\n", v->lineno);
@@ -9562,7 +9562,7 @@ int load_module(void)
 	set_config(config, 0);
 
  	if (ast_channel_register(&iax2_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", channeltype);
+		ast_log(LOG_ERROR, "Unable to register channel class %s\n", "IAX2");
 		__unload_module();
 		return -1;
 	}

@@ -84,7 +84,7 @@ static int softhangup_exec(struct ast_channel *chan, void *data)
 		/* XXX watch out, i think it is wrong to access c-> after unlocking! */
 		if (all) {
 			/* CAPI is set up like CAPI[foo/bar]/clcnt */ 
-			if (!strcmp(c->type,"CAPI")) 
+			if (!strcmp(c->tech->type, "CAPI")) 
 				cut = strrchr(name,'/');
 			/* Basically everything else is Foo/Bar-Z */
 			else

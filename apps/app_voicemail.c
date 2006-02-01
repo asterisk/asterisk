@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/localtime.h"
 #include "asterisk/cli.h"
 #include "asterisk/utils.h"
+#include "asterisk/stringfields.h"
 #ifdef USE_ODBC_STORAGE
 #include "asterisk/res_odbc.h"
 #endif
@@ -2655,7 +2656,7 @@ static int resequence_mailbox(struct ast_vm_user *vmu, char *dir)
 }
 
 
-static int say_and_wait(struct ast_channel *chan, int num, char *language)
+static int say_and_wait(struct ast_channel *chan, int num, const char *language)
 {
 	int d;
 	d = ast_say_number(chan, num, AST_DIGIT_ANY, language, (char *) NULL);
@@ -5150,7 +5151,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	
 	/* Set language from config to override channel language */
 	if (!ast_strlen_zero(vmu->language))
-		ast_copy_string(chan->language, vmu->language, sizeof(chan->language));
+		ast_string_field_set(chan, language, vmu->language);
 	create_dirpath(vms.curdir, sizeof(vms.curdir), vmu->context, vms.username, "");
 	/* Retrieve old and new message counts */
 	res = open_mailbox(&vms, vmu, 1);

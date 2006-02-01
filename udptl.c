@@ -971,7 +971,7 @@ static struct ast_udptl_protocol *get_proto(struct ast_channel *chan)
 
 	cur = protos;
 	while (cur) {
-		if (cur->type == chan->type)
+		if (cur->type == chan->tech->type)
 			return cur;
 		cur = cur->next;
 	}

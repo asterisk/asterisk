@@ -217,7 +217,7 @@ static int zapras_exec(struct ast_channel *chan, void *data)
 	/* Answer the channel if it's not up */
 	if (chan->_state != AST_STATE_UP)
 		ast_answer(chan);
-	if (strcasecmp(chan->type, "Zap")) {
+	if (strcasecmp(chan->tech->type, "Zap")) {
 		/* If it's not a zap channel, we're done.  Wait a couple of
 		   seconds and then hangup... */
 		if (option_verbose > 1)

@@ -174,7 +174,7 @@ static void check_goto_on_transfer(struct ast_channel *chan)
 		for (x = goto_on_transfer; x && *x; x++)
 			if (*x == '^')
 				*x = '|';
-		strcpy(xferchan->name, chan->name);
+		ast_string_field_set(xferchan, name, chan->name);
 		/* Make formats okay */
 		xferchan->readformat = chan->readformat;
 		xferchan->writeformat = chan->writeformat;
@@ -201,9 +201,9 @@ static void *ast_bridge_call_thread(void *data)
 	struct ast_bridge_thread_obj *tobj = data;
 
 	tobj->chan->appl = "Transferred Call";
-	tobj->chan->data = tobj->peer->name;
+	tobj->chan->data = (char *) tobj->peer->name;
 	tobj->peer->appl = "Transferred Call";
-	tobj->peer->data = tobj->chan->name;
+	tobj->peer->data = (char *) tobj->chan->name;
 	if (tobj->chan->cdr) {
 		ast_cdr_reset(tobj->chan->cdr, NULL);
 		ast_cdr_setdestchan(tobj->chan->cdr, tobj->peer->name);
@@ -385,7 +385,7 @@ int ast_masq_park_call(struct ast_channel *rchan, struct ast_channel *peer, int 
 	/* Make a new, fake channel that we'll use to masquerade in the real one */
 	if ((chan = ast_channel_alloc(0))) {
 		/* Let us keep track of the channel name */
-		snprintf(chan->name, sizeof (chan->name), "Parked/%s",rchan->name);
+		ast_string_field_build(chan, name, "Parked/%s",rchan->name);
 
 		/* Make formats okay */
 		chan->readformat = rchan->readformat;
@@ -758,7 +758,7 @@ static int builtin_atxfer(struct ast_channel *chan, struct ast_channel *peer, st
 				}
 
 				if ((xferchan = ast_channel_alloc(0))) {
-					snprintf(xferchan->name, sizeof (xferchan->name), "Transfered/%s",transferee->name);
+					ast_string_field_build(xferchan, name, "Transfered/%s", transferee->name);
 					/* Make formats okay */
 					xferchan->readformat = transferee->readformat;
 					xferchan->writeformat = transferee->writeformat;
@@ -1280,7 +1280,7 @@ int ast_bridge_call(struct ast_channel *chan,struct ast_channel *peer,struct ast
 	if (ast_answer(chan))
 		return -1;
 	peer->appl = "Bridged Call";
-	peer->data = chan->name;
+	peer->data = (char *) chan->name;
 
 	/* copy the userfield from the B-leg to A-leg if applicable */
 	if (chan->cdr && peer->cdr && !ast_strlen_zero(peer->cdr->userfield)) {

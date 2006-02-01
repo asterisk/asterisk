@@ -100,9 +100,10 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/term.h"
 #include "asterisk/utils.h"
 #include "asterisk/transcap.h"
+#include "asterisk/stringfields.h"
 
 #ifndef ZT_SIG_EM_E1
-#error "Your zaptel is too old.  please cvs update"
+#error "Your zaptel is too old.  please update"
 #endif
 
 #ifndef ZT_TONEDETECT
@@ -160,7 +161,6 @@ static const char tdesc[] = "Zapata Telephony Driver"
 #endif
 ;
 
-static const char type[] = "Zap";
 static const char config[] = "zapata.conf";
 
 #define SIG_EM		ZT_SIG_EM
@@ -307,7 +307,7 @@ static char localprefix[20] = "";
 static char privateprefix[20] = "";
 static char unknownprefix[20] = "";
 static long resetinterval = 3600;	/*!< How often (in seconds) to reset unused channels. Default 1 hour. */
-static struct ast_channel inuse = { "GR-303InUse" };
+static struct ast_channel inuse;
 #ifdef PRI_GETSET_TIMERS
 static int pritimers[PRI_MAX_TIMERS];
 #endif
@@ -709,7 +709,7 @@ static int zt_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 static int zt_setoption(struct ast_channel *chan, int option, void *data, int datalen);
 
 static const struct ast_channel_tech zap_tech = {
-	.type = type,
+	.type = "Zap",
 	.description = tdesc,
 	.capabilities = AST_FORMAT_SLINEAR | AST_FORMAT_ULAW | AST_FORMAT_ALAW,
 	.requester = zt_request,
@@ -5083,20 +5083,19 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 		do {
 #ifdef ZAPATA_PRI
 			if (i->bearer || (i->pri && (i->sig == SIG_FXSKS)))
-				snprintf(tmp->name, sizeof(tmp->name), "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
+				ast_string_field_build(tmp, name, "Zap/%d:%d-%d", i->pri->trunkgroup, i->channel, y);
 			else
 #endif
 			if (i->channel == CHAN_PSEUDO)
-				snprintf(tmp->name, sizeof(tmp->name), "Zap/pseudo-%d", rand());
+				ast_string_field_build(tmp, name, "Zap/pseudo-%d", rand());
 			else	
-				snprintf(tmp->name, sizeof(tmp->name), "Zap/%d-%d", i->channel, y);
+				ast_string_field_build(tmp, name, "Zap/%d-%d", i->channel, y);
 			for (x=0;x<3;x++) {
 				if ((index != x) && i->subs[x].owner && !strcasecmp(tmp->name, i->subs[x].owner->name))
 					break;
 			}
 			y++;
 		} while (x < 3);
-		tmp->type = type;
 		tmp->fds[0] = i->subs[index].zfd;
 		tmp->nativeformats = AST_FORMAT_SLINEAR | deflaw;
 		/* Start out assuming ulaw since it's smaller :) */
@@ -5168,19 +5167,18 @@ static struct ast_channel *zt_new(struct zt_pvt *i, int state, int startpbx, int
 			tmp->pickupgroup = i->pickupgroup;
 		}
 		if (!ast_strlen_zero(i->language))
-			ast_copy_string(tmp->language, i->language, sizeof(tmp->language));
+			ast_string_field_set(tmp, language, i->language);
 		if (!ast_strlen_zero(i->musicclass))
-			ast_copy_string(tmp->musicclass, i->musicclass, sizeof(tmp->musicclass));
+			ast_string_field_set(tmp, musicclass, i->musicclass);
 		if (!i->owner)
 			i->owner = tmp;
 		if (!ast_strlen_zero(i->accountcode))
-			ast_copy_string(tmp->accountcode, i->accountcode, sizeof(tmp->accountcode));
+			ast_string_field_set(tmp, accountcode, i->accountcode);
 		if (i->amaflags)
 			tmp->amaflags = i->amaflags;
 		i->subs[index].owner = tmp;
 		ast_copy_string(tmp->context, i->context, sizeof(tmp->context));
-		/* Copy call forward info */
-		ast_copy_string(tmp->call_forward, i->call_forward, sizeof(tmp->call_forward));
+		ast_string_field_set(tmp, call_forward, i->call_forward);
 		/* If we've been told "no ADSI" then enforce it */
 		if (!i->adsi)
 			tmp->adsicpe = AST_ADSI_UNAVAILABLE;
@@ -5856,8 +5854,8 @@ lax);
 				if (nbridge && ast_bridged_channel(nbridge)) 
 					pbridge = ast_bridged_channel(nbridge)->tech_pvt;
 				if (nbridge && pbridge && 
-				    (!strcmp(nbridge->type,"Zap")) && 
-					(!strcmp(ast_bridged_channel(nbridge)->type, "Zap")) &&
+				    (nbridge->tech == &zap_tech) && 
+				    (ast_bridged_channel(nbridge)->tech == &zap_tech) &&
 				    ISTRUNK(pbridge)) {
 					int func = ZT_FLASH;
 					/* Clear out the dial buffer */
@@ -7893,8 +7891,9 @@ static int pri_fixup_principle(struct zt_pri *pri, int principle, q931_call *c)
 				/* Fix it all up now */
 				pri->pvts[principle]->owner = pri->pvts[x]->owner;
 				if (pri->pvts[principle]->owner) {
-					snprintf(pri->pvts[principle]->owner->name, sizeof(pri->pvts[principle]->owner->name), 
-						"Zap/%d:%d-%d", pri->trunkgroup, pri->pvts[principle]->channel, 1);
+					ast_string_field_build(pri->pvts[principle]->owner, name, 
+							       "Zap/%d:%d-%d", pri->trunkgroup,
+							       pri->pvts[principle]->channel, 1);
 					pri->pvts[principle]->owner->tech_pvt = pri->pvts[principle];
 					pri->pvts[principle]->owner->fds[0] = pri->pvts[principle]->subs[SUB_REAL].zfd;
 					pri->pvts[principle]->subs[SUB_REAL].owner = pri->pvts[x]->subs[SUB_REAL].owner;
@@ -11095,7 +11094,7 @@ int load_module(void)
 	  return -1;
 	}
 	if (ast_channel_register(&zap_tech)) {
-		ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+		ast_log(LOG_ERROR, "Unable to register channel class 'Zap'\n");
 		__unload_module();
 		return -1;
 	}
@@ -11114,6 +11113,8 @@ int load_module(void)
 	ast_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
 	ast_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
 	ast_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
+	ast_string_field_init(&inuse, 16);
+	ast_string_field_set(&inuse, name, "GR-303InUse");
 
 	return res;
 }

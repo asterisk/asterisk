@@ -168,11 +168,6 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 				    int index, const char *format, ...);
 
 /*!
-  The default amount of storage to be allocated for a field pool.
-*/
-#define AST_STRING_FIELD_DEFAULT_POOL 512
-
-/*!
   \brief Declare a string field
   \param name The field name
 */
@@ -194,7 +189,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
   \return the number of fields in the structure's definition
 */
 #define ast_string_field_count(x) \
-	(offsetof(typeof(*x), __end_field) - offsetof(typeof(*x), __begin_field)) / sizeof(ast_string_field)
+	(offsetof(typeof(*(x)), __end_field) - offsetof(typeof(*(x)), __begin_field)) / sizeof(ast_string_field)
 
 /*!
   \brief Get the index of a field in a structure
@@ -209,10 +204,11 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 /*!
   \brief Initialize a field pool and fields
   \param x Pointer to a structure containing fields
+  \param size Amount of storage to allocate
   \return 0 on failure, non-zero on success
 */
-#define ast_string_field_init(x) \
-	__ast_string_field_init(&x->__field_mgr, AST_STRING_FIELD_DEFAULT_POOL, &x->__begin_field[0], ast_string_field_count(x))
+#define ast_string_field_init(x, size) \
+	__ast_string_field_init(&(x)->__field_mgr, size, &(x)->__begin_field[0], ast_string_field_count(x))
 
 /*!
   \brief Set a field to a simple string value
@@ -222,8 +218,8 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
   \return nothing
 */
 #define ast_string_field_index_set(x, index, data) do { \
-	if ((x->__begin_field[index] = __ast_string_field_alloc_space(&x->__field_mgr, strlen(data) + 1, &x->__begin_field[0], ast_string_field_count(x)))) \
-		strcpy((char *) x->__begin_field[index], data); \
+	if (((x)->__begin_field[index] = __ast_string_field_alloc_space(&(x)->__field_mgr, strlen(data) + 1, &(x)->__begin_field[0], ast_string_field_count(x)))) \
+		strcpy((char *) (x)->__begin_field[index], data); \
 	} while (0)
 
 /*!
@@ -245,7 +241,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
   \return nothing
 */
 #define ast_string_field_index_build(x, index, fmt, args...) \
-	__ast_string_field_index_build(&x->__field_mgr, &x->__begin_field[0], ast_string_field_count(x), index, fmt, args)
+	__ast_string_field_index_build(&(x)->__field_mgr, &(x)->__begin_field[0], ast_string_field_count(x), index, fmt, args)
 
 /*!
   \brief Set a field to a complex (built) value
@@ -269,7 +265,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
   pointer is just changed to point to an empty string.
 */
 #define ast_string_field_index_free(x, index) do { \
-	x->__begin_field[index] = __ast_string_field_empty; \
+	(x)->__begin_field[index] = __ast_string_field_empty; \
 	} while(0)
 
 /*!
@@ -299,7 +295,7 @@ void __ast_string_field_index_build(struct ast_string_field_mgr *mgr,
 	struct ast_string_field_pool *this, *prev; \
 	for (index = 0; index < ast_string_field_count(x); index ++) \
 		ast_string_field_index_free(x, index); \
-	for (this = x->__field_mgr.pool; this; this = prev) { \
+	for (this = (x)->__field_mgr.pool; this; this = prev) { \
 		prev = this->prev; \
 		free(this); \
 	} \

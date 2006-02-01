@@ -58,6 +58,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/rtp.h"
 #include "asterisk/manager.h"
 #include "asterisk/privacy.h"
+#include "asterisk/stringfields.h"
 
 static char *tdesc = "Dialing Application";
 
@@ -498,7 +499,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 							else
 								newcid = in->exten;
 							o->chan->cid.cid_num = strdup(newcid);
-							ast_copy_string(o->chan->accountcode, winner->accountcode, sizeof(o->chan->accountcode));
+							ast_string_field_set(o->chan, accountcode, winner->accountcode);
 							o->chan->cdrflags = winner->cdrflags;
 							if (!o->chan->cid.cid_num)
 								ast_log(LOG_WARNING, "Out of memory\n");
@@ -513,7 +514,7 @@ static struct ast_channel *wait_for_answer(struct ast_channel *in, struct dial_l
 								if (!o->chan->cid.cid_name)
 									ast_log(LOG_WARNING, "Out of memory\n");	
 							}
-							ast_copy_string(o->chan->accountcode, in->accountcode, sizeof(o->chan->accountcode));
+							ast_string_field_set(o->chan, accountcode, in->accountcode);
 							o->chan->cdrflags = in->cdrflags;
 						}
 
@@ -1089,11 +1090,11 @@ static int dial_exec_full(struct ast_channel *chan, void *data, struct ast_flags
 			tmp->chan->cid.cid_ani = strdup(chan->cid.cid_ani);
 		
 		/* Copy language from incoming to outgoing */
-		ast_copy_string(tmp->chan->language, chan->language, sizeof(tmp->chan->language));
-		ast_copy_string(tmp->chan->accountcode, chan->accountcode, sizeof(tmp->chan->accountcode));
+		ast_string_field_set(tmp->chan, language, chan->language);
+		ast_string_field_set(tmp->chan, accountcode, chan->accountcode);
 		tmp->chan->cdrflags = chan->cdrflags;
 		if (ast_strlen_zero(tmp->chan->musicclass))
-			ast_copy_string(tmp->chan->musicclass, chan->musicclass, sizeof(tmp->chan->musicclass));
+			ast_string_field_set(tmp->chan, musicclass, chan->musicclass);
 		if (chan->cid.cid_rdnis)
 			tmp->chan->cid.cid_rdnis = strdup(chan->cid.cid_rdnis);
 		/* Pass callingpres setting */

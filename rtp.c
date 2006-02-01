@@ -742,7 +742,7 @@ static struct ast_rtp_protocol *get_proto(struct ast_channel *chan)
 
 	AST_LIST_LOCK(&protos);
 	AST_LIST_TRAVERSE(&protos, cur, list) {
-		if (cur->type == chan->type)
+		if (cur->type == chan->tech->type)
 			break;
 	}
 	AST_LIST_UNLOCK(&protos);

@@ -131,7 +131,7 @@ static int conf_run(struct ast_channel *chan, int confno, int confflags)
 		goto outrun;
 	}
 	ast_indicate(chan, -1);
-	retryzap = strcasecmp(chan->type, "Zap");
+	retryzap = strcasecmp(chan->tech->type, "Zap");
 zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {

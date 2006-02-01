@@ -604,6 +604,8 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 		return NULL;
 	}
 	
+	ast_string_field_init(tmp, 128);
+
 	/* Don't bother initializing the last two FD here, because they
 	   will *always* be set just a few lines down (AST_TIMING_FD,
 	   AST_ALERT_FD). */
@@ -642,7 +644,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	tmp->fds[AST_ALERT_FD] = tmp->alertpipe[0];
 	/* And timing pipe */
 	tmp->fds[AST_TIMING_FD] = tmp->timingfd;
-	strcpy(tmp->name, "**Unknown**");
+	ast_string_field_set(tmp, name, "**Unknown**");
 	/* Initial state */
 	tmp->_state = AST_STATE_DOWN;
 	tmp->streamid = -1;
@@ -657,11 +659,11 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 	ast_mutex_init(&tmp->lock);
 	AST_LIST_HEAD_INIT_NOLOCK(headp);
 	strcpy(tmp->context, "default");
-	ast_copy_string(tmp->language, defaultlanguage, sizeof(tmp->language));
+	ast_string_field_set(tmp, language, defaultlanguage);
 	strcpy(tmp->exten, "s");
 	tmp->priority = 1;
 	tmp->amaflags = ast_default_amaflags;
-	ast_copy_string(tmp->accountcode, ast_default_accountcode, sizeof(tmp->accountcode));
+	ast_string_field_set(tmp, accountcode, ast_default_accountcode);
 
 	tmp->tech = &null_tech;
 
@@ -2805,10 +2807,8 @@ int ast_channel_masquerade(struct ast_channel *original, struct ast_channel *clo
 
 void ast_change_name(struct ast_channel *chan, char *newname)
 {
-	char tmp[256];
-	ast_copy_string(tmp, chan->name, sizeof(tmp));
-	ast_copy_string(chan->name, newname, sizeof(chan->name));
-	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", tmp, chan->name, chan->uniqueid);
+	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", chan->name, newname, chan->uniqueid);
+	ast_string_field_set(chan, name, newname);
 }
 
 void ast_channel_inherit_variables(const struct ast_channel *parent, struct ast_channel *child)
@@ -2941,10 +2941,10 @@ int ast_do_masquerade(struct ast_channel *original)
 	snprintf(masqn, sizeof(masqn), "%s<MASQ>", newn);
 		
 	/* Copy the name from the clone channel */
-	ast_copy_string(original->name, newn, sizeof(original->name));
+	ast_string_field_set(original, name, newn);
 
 	/* Mangle the name of the clone channel */
-	ast_copy_string(clone->name, masqn, sizeof(clone->name));
+	ast_string_field_set(clone, name, masqn);
 	
 	/* Notify any managers of the change, first the masq then the other */
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", newn, masqn, clone->uniqueid);
@@ -3026,17 +3026,16 @@ int ast_do_masquerade(struct ast_channel *original)
 	
 	snprintf(zombn, sizeof(zombn), "%s<ZOMBIE>", orig);
 	/* Mangle the name of the clone channel */
-	ast_copy_string(clone->name, zombn, sizeof(clone->name));
+	ast_string_field_set(clone, name, zombn);
 	manager_event(EVENT_FLAG_CALL, "Rename", "Oldname: %s\r\nNewname: %s\r\nUniqueid: %s\r\n", masqn, zombn, clone->uniqueid);
 
 	/* Update the type. */
-	original->type = clone->type;
 	t_pvt = original->monitor;
 	original->monitor = clone->monitor;
 	clone->monitor = t_pvt;
 	
 	/* Keep the same language.  */
-	ast_copy_string(original->language, clone->language, sizeof(original->language));
+	ast_string_field_set(original, language, clone->language);
 	/* Copy the FD's other than the generator fd */
 	for (x = 0; x < AST_MAX_FDS; x++) {
 		if (x != AST_GENERATOR_FD)
@@ -3079,7 +3078,7 @@ int ast_do_masquerade(struct ast_channel *original)
 	ast_set_read_format(original, rformat);
 
 	/* Copy the music class */
-	ast_copy_string(original->musicclass, clone->musicclass, sizeof(original->musicclass));
+	ast_string_field_set(original, musicclass, clone->musicclass);
 
 	ast_log(LOG_DEBUG, "Putting channel %s in %d/%d formats\n", original->name, wformat, rformat);
 
@@ -3089,13 +3088,13 @@ int ast_do_masquerade(struct ast_channel *original)
 		res = original->tech->fixup(clone, original);
 		if (res) {
 			ast_log(LOG_WARNING, "Channel for type '%s' could not fixup channel %s\n",
-				original->type, original->name);
+				original->tech->type, original->name);
 			ast_mutex_unlock(&clone->lock);
 			return -1;
 		}
 	} else
 		ast_log(LOG_WARNING, "Channel type '%s' does not have a fixup routine (for %s)!  Bad things may happen.\n",
-			original->type, original->name);
+			original->tech->type, original->name);
 	
 	/* Now, at this point, the "clone" channel is totally F'd up.  We mark it as
 	   a zombie so nothing tries to touch it.  If it's already been marked as a
@@ -3775,15 +3774,13 @@ ast_group_t ast_get_group(char *s)
 	return group;
 }
 
-static int (*ast_moh_start_ptr)(struct ast_channel *, char *) = NULL;
+static int (*ast_moh_start_ptr)(struct ast_channel *, const char *) = NULL;
 static void (*ast_moh_stop_ptr)(struct ast_channel *) = NULL;
 static void (*ast_moh_cleanup_ptr)(struct ast_channel *) = NULL;
 
-
-void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, char *),
-								 void (*stop_ptr)(struct ast_channel *),
-								 void (*cleanup_ptr)(struct ast_channel *)
-								 ) 
+void ast_install_music_functions(int (*start_ptr)(struct ast_channel *, const char *),
+				 void (*stop_ptr)(struct ast_channel *),
+				 void (*cleanup_ptr)(struct ast_channel *))
 {
 	ast_moh_start_ptr = start_ptr;
 	ast_moh_stop_ptr = stop_ptr;
@@ -3798,7 +3795,7 @@ void ast_uninstall_music_functions(void)
 }
 
 /*! \brief Turn on music on hold on a given channel */
-int ast_moh_start(struct ast_channel *chan, char *mclass) 
+int ast_moh_start(struct ast_channel *chan, const char *mclass) 
 {
 	if (ast_moh_start_ptr)
 		return ast_moh_start_ptr(chan, mclass);
