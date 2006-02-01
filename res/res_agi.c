@@ -309,7 +309,8 @@ static int launch_script(char *script, char *argv[], int *fds, int *efd, int *op
 		/* Execute script */
 		execv(script, argv);
 		/* Can't use ast_log since FD's are closed */
-		fprintf(stderr, "Failed to execute '%s': %s\n", script, strerror(errno));
+		fprintf(stdout, "verbose \"Failed to execute '%s': %s\" 2\n", script, strerror(errno));
+		fflush(stdout);
 		exit(1);
 	}
 	if (option_verbose > 2) 
