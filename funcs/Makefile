@@ -75,6 +75,8 @@ func_odbc.so: func_odbc.o
 install: all
 	for x in $(FUNCS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
+uninstall:
+
 ifneq ($(wildcard .depend),)
   include .depend
 endif

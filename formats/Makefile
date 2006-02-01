@@ -58,6 +58,8 @@ format_ogg_vorbis.so : format_ogg_vorbis.o
 install: all
 	for x in $(FORMAT_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
+uninstall:
+
 depend: .depend
 
 .depend:

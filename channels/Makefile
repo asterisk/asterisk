@@ -234,6 +234,8 @@ install: all
 	for x in $(CHANNEL_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 	if ! [ -f chan_iax.so ]; then rm -f $(DESTDIR)$(MODULES_DIR)/chan_iax.so ; fi
 
+uninstall:
+
 depend: .depend
 
 .depend:
@@ -241,4 +243,3 @@ depend: .depend
 
 env:
 	env
-

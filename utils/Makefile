@@ -40,6 +40,9 @@ install:
 		fi; \
 	done 
 
+uninstall:
+	for x in $(TARGET); do rm -f $$x $(DESTDIR)$(ASTSBINDIR)/$$x; done
+
 clean:
 	rm -f *.o astman smsq stereorize streamplayer check_expr .depend
 	rm -f ast_expr2.o ast_expr2f.o

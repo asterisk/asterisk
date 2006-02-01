@@ -92,6 +92,8 @@ install: all
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_datetime.so
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_qcall.so
 
+uninstall:
+
 app_curl.so: app_curl.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CURLLIBS)
 

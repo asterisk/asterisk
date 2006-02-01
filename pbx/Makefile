@@ -70,6 +70,8 @@ endif
 install: all
 	for x in $(PBX_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
+uninstall:
+
 depend: .depend
 
 .depend:

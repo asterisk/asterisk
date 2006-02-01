@@ -8,6 +8,8 @@ libtime.a: $(OBJS)
 
 install:
 
+uninstall:
+
 clean:
 	rm -f libtime.a *.o test .depend
 

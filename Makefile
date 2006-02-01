@@ -912,3 +912,37 @@ cleantest:
 	if cmp -s .cleancount .lastclean ; then echo ; else \
 		$(MAKE) clean; cp -f .cleancount .lastclean;\
 	fi
+
+_uninstall:
+	rm -f $(DESTDIR)$(MODULES_DIR)/*
+	rm -f $(DESTDIR)$(ASTSBINDIR)/*asterisk*
+	rm -f $(DESTDIR)$(ASTSBINDIR)/astgenkey
+	rm -f $(DESTDIR)$(ASTSBINDIR)/autosupport
+	rm -rf $(DESTDIR)$(ASTHEADERDIR)
+	rm -rf $(DESTDIR)$(ASTVARLIBDIR)/sounds
+	rm -rf $(DESTDIR)$(ASTVARLIBDIR)/firmware
+	rm -rf $(DESTDIR)$(ASTMANDIR)/man8
+	for x in $(SUBDIRS); do $(MAKE) -C $$x uninstall || exit 1 ; done
+
+uninstall: _uninstall
+	@echo " +--------- Asterisk Uninstall Complete -----+"  
+	@echo " + Asterisk binaries, sounds, man pages,     +"  
+	@echo " + headers, modules, and firmware builds,    +"  
+	@echo " + have all been uninstalled.                +"  
+	@echo " +                                           +"
+	@echo " + To remove ALL traces of Asterisk,         +"
+	@echo " + including configuration, spool            +"
+	@echo " + directories, and logs, run the following  +"
+	@echo " + command:                                  +"
+	@echo " +                                           +"
+	@echo " +            $(MAKE) uninstall-all             +"  
+	@echo " +-------------------------------------------+"  
+
+
+uninstall-all: _uninstall
+	rm -rf $(DESTDIR)$(ASTLIBDIR)
+	rm -rf $(DESTDIR)$(ASTVARLIBDIR)
+	rm -rf $(DESTDIR)$(ASTSPOOLDIR)
+	rm -rf $(DESTDIR)$(ASTETCDIR)
+	rm -rf $(DESTDIR)$(ASTLOGDIR)
+	

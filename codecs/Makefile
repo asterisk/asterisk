@@ -134,6 +134,8 @@ endif
 install: all
 	for x in $(CODECS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
+uninstall:
+
 depend: .depend
 
 .depend:

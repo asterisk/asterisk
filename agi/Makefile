@@ -30,6 +30,9 @@ install: all
 	mkdir -p $(DESTDIR)$(AGI_DIR)
 	for x in $(AGIS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(AGI_DIR) ; done
 
+uninstall:
+	for x in $(AGIS); do rm -f $(DESTDIR)$(AGI_DIR)/$$x ; done
+
 eagi-test: eagi-test.o
 	$(CC) $(CFLAGS) -o eagi-test eagi-test.o $(LIBS)
 

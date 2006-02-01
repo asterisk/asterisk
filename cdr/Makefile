@@ -112,6 +112,8 @@ all: depend $(MODS)
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
+uninstall:
+
 clean:
 	rm -f *.so *.o .depend
 

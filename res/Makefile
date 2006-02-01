@@ -83,6 +83,8 @@ install: all
 		echo "***       it if you want to use MusicOnHold       ***";\
 	fi
 
+uninstall:
+
 res_crypto.so: res_crypto.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(CRYPTO_LIBS)
 
