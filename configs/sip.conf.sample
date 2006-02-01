@@ -109,6 +109,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; Useful to limit subscriptions to local extensions
 				; Settable per peer/user also
 ;notifyringing = yes		; Notify subscriptions on RINGING state
+;callevents=no			; generate manager events when sip ua performs events (e.g. hold)
 
 ;
 ; If regcontext is specified, Asterisk will dynamically create and destroy a
@@ -119,6 +120,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;
 ;regcontext=sipregistrations
 ;
+;----------------------------------------- OUTBOUND SIP REGISTRATIONS  ------------------------
 ; Asterisk can register as a SIP user agent to a SIP proxy (provider)
 ; Format for the register statement is:
 ;       register => user[:secret[:authuser]]@host[:port][/extension]
@@ -152,7 +154,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; 0 = continue forever, hammering the other server until it 
 				; accepts the registration
 				; Default is 0 tries, continue forever
-;callevents=no			; generate manager events when sip ua performs events (e.g. hold)
 
 ;----------------------------------------- NAT SUPPORT ------------------------
 ; The externip, externhost and localnet settings are used if you use Asterisk
@@ -191,6 +192,21 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; route = Assume NAT, don't send rport 
 				; (work around more UNIDEN bugs)
 
+;canreinvite=yes		; Asterisk by default tries to redirect the
+				; RTP media stream (audio) to go directly from
+				; the caller to the callee.  Some devices do not
+				; support this (especially if one of them is 
+				; behind a NAT).
+				; The default setting is YES. If you have all clients
+				; behind a NAT, or for some other reason wants
+				; Asterisk to stay in the audio path,
+				; you may want to turn this off
+
+;----------------------------------------- REALTIME SUPPORT ------------------------
+; For additional information on ARA, the Asterisk Realtime Architecture,
+; please read README.realtime and README.extconfig in the /doc directory of the
+; source code.
+;
 ;rtcachefriends=yes		; Cache realtime friends by adding them to the internal list
 				; just like friends added from the config file only on a
 				; as-needed basis? (yes|no)
@@ -199,7 +215,6 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; If set to yes, when a SIP UA registers successfully, the ip address,
 				; the origination port, the registration period, and the username of
 				; the UA will be set to database via realtime. If not present, defaults to 'yes'.
-
 ;rtautoclear=yes		; Auto-Expire friends created on the fly on the same schedule
 				; as if it had just registered? (yes|no|<seconds>)
 				; If set to yes, when the registration expires, the friend will vanish from
@@ -220,6 +235,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 				; memory (due to caching or other reasons), the information will not be
 				; removed from realtime storage
 
+;----------------------------------------- SIP DOMAIN SUPPORT ------------------------
 ; Incoming INVITE and REFER messages can be matched against a list of 'allowed'
 ; domains, each of which can direct the call to a specific context if desired.
 ; By default, all domains are accepted and sent to the default context or the
