@@ -1,0 +1,68 @@
+Files in the /doc directory:
+----------------------------
+In addition to these files, there is a lot of documentation of various
+configuration options in the sample configuration files, in the /configs
+directory of your source code
+
+Start here
+----------
+README.security		IMPORTANT INFORMATION ABOUT ASTERISK SECURITY
+README.hardware		Hardware supported by Asterisk
+
+Configuration
+-------------
+README.configuration	Features in the configuration parser
+README.extensions	Basics about the dialplan
+README.extconfig	How to use databases for configuration of Asterisk (ARA)
+README.realtime		The Asterisk Realtime Architecture - database support
+README.tds		Information about the FreeTDS support
+README.ael		Information about the Asterisk Extension Language
+
+Misc
+----
+PEERING			The General Peering Agreement for Dundi
+README.app_sms		How to configure the SMS application
+README.asterisk.conf	Documentation of various options in asterisk.conf
+README.callingpres	Settings for Caller ID presentation
+README.cdr		Call Data Record information
+README.cliprompt	How to change the Asterisk CLI prompt
+README.dundi		Dundi - a discovery protocol
+README.enum		Enum support in Asterisk
+README.ices		Integrating ICEcast streaming in Asterisk
+README.jitterbuffer	About the IAX2 jitterbuffer implementation
+README.math		About the math() application
+README.mp3		About MP3 support in Asterisk
+README.musiconhold-fpm	Free Music On Hold music
+README.mysql		About MYSQL support in Asterisk
+README.odbcstorage	Voicemail storage of messages in UnixODBC
+README.privacy		Privacy enhancements in Asterisk
+README.queuelog		Agent and queue logging
+README.variables	Channel variables
+cdr.txt			About CDR storage in various databases (needs update)
+
+Channel drivers
+---------------
+README.misdn
+README.h323		How to compile and configure the H.323 channel
+README.iax		About the IAX2 protocol support in Asterisk
+README.localchannel	The local channel is a "gosub" in the dialplan
+
+Portability
+-----------
+README.cygwin		Compiling Asterisk on CygWin platforms (Windows)
+
+For developers
+--------------
+See http://www.asterisk.org/developers for more information
+
+README.manager		About the AMI - Asterisk Manager Interface
+			for third party call control and PBX management
+README.backtrace	How to produce a backtrace when Asterisk crashes
+CODING-GUIDELINES	Guidelines for developers
+README.channels		What is a channel?
+README.externalivr	Documentation of the protocol used in externalivr()
+README.linkedlists	How to develop linked lists in Asterisk (old)
+iax.txt			About the IAX protocol
+apps.txt		About application development
+model.txt		About the call model in Asterisk (old)
+modules.txt		How Asterisk modules work
