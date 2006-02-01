@@ -11,10 +11,7 @@ Zaptel compatible hardware
 ==========================
 
 -- Digium (Primary author of Asterisk)
-        http://www.digium.com, http://store.yahoo.com/asteriskpbx
-
-   * Wildcard X100P - Single FXO interface connects to Loopstart phone 
-     line
+        http://www.digium.com, http://store.digium.com
 
    * Wildcard T400P (obsolete) - Quad T1 interface connects to four T1/PRI 
      interfaces.  Supports RBS and PRI voice and PPP, FR, and HDLC data.
@@ -27,9 +24,6 @@ Zaptel compatible hardware
 
    * Wildcard E100P - Single E1 interface connects to a single E1/PRI (or PRA)
      interface.  Supports PRA/PRI, EuroISDN voice and PPP, FR, HDLC data.
-
-   * Wildcard S100U - Single FXS interface connects to a standard analog
-     telephone.
 
    * Wildcard TDM400P - Quad Modular FXS interface connects to standard
      analog telephones.
@@ -49,15 +43,25 @@ Non-zaptel compatible hardware
    * Internet LineJack - Single FXS or FXO interface.  Supports Linux 
      telephony interface.
 
+mISDN compatible hardware
+=========================
+mISDN homepage:  http://www.isdn4linux.de/mISDN/
+
+Any adapter with an mISDN driver should be compatible with
+chan_misdn. See misdn.txt for information.
+
+-- beroNet 
+	http://www.beronet.com
+
+   * BN4S0 - 4 Port BRI card (TE/NT)
+
+   * BN8S0 - 8 Port BRI card (TE/NT)
+
+   * Billion Card - Single Port BRI card (TE (/NT with crossed cable) )
+
 
 Miscellaneous other interfaces
 ==============================
-
--- ISDN4Linux
-       http://www.isdn4linux.de/
-
-   * Any ISDN terminal adapter supported by isdn4linux should provide
-     connectivity.
 
 -- ALSA
        http://www.alsa-project.org
