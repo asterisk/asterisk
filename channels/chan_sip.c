@@ -11310,7 +11310,10 @@ static int sip_send_mwi_to_peer(struct sip_peer *peer)
 	return 0;
 }
 
-/*! \brief The SIP monitoring thread */
+/*! \brief The SIP monitoring thread 
+\note	This thread monitors all the SIP sessions and peers that needs notification of mwi
+	(and thus do not have a separate thread) indefinitely 
+*/
 static void *do_monitor(void *data)
 {
 	int res;
@@ -11322,12 +11325,10 @@ static void *do_monitor(void *data)
 	int curpeernum;
 	int reloading;
 
-	/* Add an I/O event to our UDP socket */
+	/* Add an I/O event to our SIP UDP socket */
 	if (sipsock > -1) 
 		ast_io_add(io, sipsock, sipsock_read, AST_IO_IN, NULL);
 	
-	/* This thread monitors all the frame relay interfaces which are not yet in use
-	   (and thus do not have a separate thread) indefinitely */
 	/* From here on out, we die whenever asked */
 	for(;;) {
 		/* Check for a reload request */
@@ -11346,6 +11347,7 @@ restartsearch:
 		time(&t);
 		for (sip = iflist; sip; sip = sip->next) {
 			ast_mutex_lock(&sip->lock);
+			/* Check RTP timeouts and kill calls if we have a timeout set and do not get RTP */
 			if (sip->rtp && sip->owner && (sip->owner->_state == AST_STATE_UP) && !sip->redirip.sin_addr.s_addr) {
 				if (sip->lastrtptx && sip->rtpkeepalive && t > sip->lastrtptx + sip->rtpkeepalive) {
 					/* Need to send an empty RTP packet */
@@ -11376,6 +11378,7 @@ restartsearch:
 					}
 				}
 			}
+			/* If we have sessions that needs to be destroyed, do it now */
 			if (ast_test_flag(sip, SIP_NEEDDESTROY) && !sip->packets && !sip->owner) {
 				ast_mutex_unlock(&sip->lock);
 				__sip_destroy(sip, 1);
@@ -11402,16 +11405,16 @@ restartsearch:
 		if (fastrestart)
 			res = 1;
 		res = ast_io_wait(io, res);
-		if (res > 20)
+		if (option_debug && res > 20)
 			ast_log(LOG_DEBUG, "chan_sip: ast_io_wait ran %d all at once\n", res);
 		ast_mutex_lock(&monlock);
 		if (res >= 0)  {
 			res = ast_sched_runq(sched);
-			if (res >= 20)
+			if (option_debug && res >= 20)
 				ast_log(LOG_DEBUG, "chan_sip: ast_sched_runq ran %d all at once\n", res);
 		}
 
-		/* needs work to send mwi to realtime peers */
+		/* Send MWI notifications to peers - static and cached realtime peers */
 		time(&t);
 		fastrestart = FALSE;
 		curpeernum = 0;
