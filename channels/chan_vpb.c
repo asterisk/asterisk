@@ -93,7 +93,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 /**/
 
 static const char desc[] = "VoiceTronix V6PCI/V12PCI/V4PCI  API Support";
-static const char type[] = "vpb";
 static const char tdesc[] = "Standard VoiceTronix API Driver";
 static const char config[] = "vpb.conf";
 
@@ -344,18 +343,20 @@ static int vpb_hangup(struct ast_channel *ast);
 static int vpb_answer(struct ast_channel *ast);
 static struct ast_frame *vpb_read(struct ast_channel *ast);
 static int vpb_write(struct ast_channel *ast, struct ast_frame *frame);
-static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
+static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms);
 static int vpb_indicate(struct ast_channel *ast, int condition);
 static int vpb_fixup(struct ast_channel *oldchan, struct ast_channel *newchan);
 
 static struct ast_channel_tech vpb_tech = {
-	type: type,
+	type: "vpb",
 	description: tdesc,
 	capabilities: AST_FORMAT_SLINEAR,
-	properties: NULL,
+	properties: 0,
 	requester: vpb_request,
 	devicestate: NULL,
 	send_digit: vpb_digit,
+	send_digit_begin: NULL,
+	send_digit_end: NULL,
 	call: vpb_call,
 	hangup: vpb_hangup,
 	answer: vpb_answer,
@@ -365,7 +366,7 @@ static struct ast_channel_tech vpb_tech = {
 	send_image: NULL,
 	send_html: NULL,
 	exception: NULL,
-	bridge: vpb_bridge,
+	bridge: ast_vpb_bridge,
 	indicate: vpb_indicate,
 	fixup: vpb_fixup,
 	setoption: NULL,
@@ -376,13 +377,15 @@ static struct ast_channel_tech vpb_tech = {
 };
 
 static struct ast_channel_tech vpb_tech_indicate = {
-	type: type,
+	type: "vpb",
 	description: tdesc,
 	capabilities: AST_FORMAT_SLINEAR,
-	properties: NULL,
+	properties: 0,
 	requester: vpb_request,
 	devicestate: NULL,
 	send_digit: vpb_digit,
+	send_digit_begin: NULL,
+	send_digit_end: NULL,
 	call: vpb_call,
 	hangup: vpb_hangup,
 	answer: vpb_answer,
@@ -392,7 +395,7 @@ static struct ast_channel_tech vpb_tech_indicate = {
 	send_image: NULL,
 	send_html: NULL,
 	exception: NULL,
-	bridge: vpb_bridge,
+	bridge: ast_vpb_bridge,
 	indicate: NULL,
 	fixup: vpb_fixup,
 	setoption: NULL,
@@ -402,7 +405,7 @@ static struct ast_channel_tech vpb_tech_indicate = {
 	bridged_channel: NULL
 };
 
-/* Can't get vpb_bridge() working on v4pci without either a horrible 
+/* Can't get ast_vpb_bridge() working on v4pci without either a horrible 
 *  high pitched feedback noise or bad hiss noise depending on gain settings
 *  Get asterisk to do the bridging
 */
@@ -414,7 +417,7 @@ static struct ast_channel_tech vpb_tech_indicate = {
 /* #define HALF_DUPLEX_BRIDGE */
 
 /* This is the Native bridge code, which Asterisk will try before using its own bridging code */
-static enum ast_bridge_result vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
+static enum ast_bridge_result ast_vpb_bridge(struct ast_channel *c0, struct ast_channel *c1, int flags, struct ast_frame **fo, struct ast_channel **rc, int timeoutms)
 {
 	struct vpb_pvt *p0 = (struct vpb_pvt *)c0->tech_pvt;
 	struct vpb_pvt *p1 = (struct vpb_pvt *)c1->tech_pvt;
@@ -643,7 +646,7 @@ static void get_callerid(struct vpb_pvt *p)
 		}
 
 		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "CID record - skipped %ldms trailing ring\n",
+			ast_verbose(VERBOSE_PREFIX_4 "CID record - skipped %dms trailing ring\n",
 				 ast_tvdiff_ms(ast_tvnow(), cid_record_time));
 		cid_record_time = ast_tvnow();
 
@@ -658,7 +661,7 @@ static void get_callerid(struct vpb_pvt *p)
 #endif
 
 		if (option_verbose>3) 
-			ast_verbose(VERBOSE_PREFIX_4 "CID record - recorded %ldms between rings\n", 
+			ast_verbose(VERBOSE_PREFIX_4 "CID record - recorded %dms between rings\n", 
 				 ast_tvdiff_ms(ast_tvnow(), cid_record_time));
 
 		ast_mutex_unlock(&p->record_lock);
@@ -850,7 +853,7 @@ static inline int monitor_handle_owned(struct vpb_pvt *p, VPB_EVENT *e)
 	if (option_verbose > 3) 
 		ast_verbose(VERBOSE_PREFIX_4 "%s: handle_owned: got event: [%d=>%d]\n", p->dev, e->type, e->data);
 
-	f.src = (char *)type;
+	f.src = "vpb";
 	switch (e->type) {
 		case VPB_RING:
 			if (p->mode == MODE_FXO) {
@@ -1131,7 +1134,7 @@ static inline int monitor_handle_notowned(struct vpb_pvt *p, VPB_EVENT *e)
 						ast_verbose(VERBOSE_PREFIX_4 "Using VPB Caller ID\n");
 					get_callerid(p);        /* UK CID before 1st ring*/
 				}
-/*				get_callerid_ast(p);    /* Caller ID using the ast functions */
+/*				get_callerid_ast(p); */   /* Caller ID using the ast functions */
 			}
 			break;
 		case VPB_RING:
@@ -2181,7 +2184,7 @@ static struct ast_frame  *vpb_read(struct ast_channel *ast)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt; 
 	static struct ast_frame f = {AST_FRAME_NULL}; 
 
-	f.src = (char *)type;
+	f.src = "vpb";
 	ast_log(LOG_NOTICE, "%s: vpb_read: should never be called!\n", p->dev);
 	ast_verbose("%s: vpb_read: should never be called!\n", p->dev);
 
@@ -2256,7 +2259,6 @@ static int vpb_write(struct ast_channel *ast, struct ast_frame *frame)
 	struct vpb_pvt *p = (struct vpb_pvt *)ast->tech_pvt; 
 	int res = 0, fmt = 0;
 	struct timeval play_buf_time_start;
-	struct ast_frame *nextf;
 	int tdiff;
 
 /*	ast_mutex_lock(&p->lock); */
@@ -2361,10 +2363,10 @@ static void *do_chanreads(void *pvt)
 	int bridgerec = 0;
 	int afmt, readlen, res, fmt, trycnt=0;
 	int ignore_dtmf;
-	char * getdtmf_var = NULL;
+	const char * getdtmf_var = NULL;
 
 	fr->frametype = AST_FRAME_VOICE;
-	fr->src = (char *)type;
+	fr->src = "vpb";
 	fr->mallocd = 0;
 	fr->delivery.tv_sec = 0;
 	fr->delivery.tv_usec = 0;
@@ -2631,8 +2633,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 			tmp->tech = &vpb_tech;
 		}
 
-		strncpy(tmp->name, me->dev, sizeof(tmp->name) - 1);
-		tmp->type = type;
+		ast_string_field_set(tmp, name, me->dev);
 		
 		tmp->callgroup = me->callgroup;
 		tmp->pickupgroup = me->pickupgroup;
@@ -2660,7 +2661,7 @@ static struct ast_channel *vpb_new(struct vpb_pvt *me, int state, char *context)
 		else
 			strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
 		if (strlen(me->language))
-			strncpy(tmp->language, me->language, sizeof(tmp->language)-1);
+			ast_string_field_set(tmp, language, me->language);
 
 		me->owner = tmp;
      
@@ -2940,7 +2941,7 @@ int load_module()
 
 	if (use_ast_ind == 1){
 		if (!error && ast_channel_register(&vpb_tech_indicate) != 0) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			ast_log(LOG_ERROR, "Unable to register channel class 'vpb'\n");
 			error = -1;
 		}
 		else {
@@ -2949,7 +2950,7 @@ int load_module()
 	}
 	else {
 		if (!error && ast_channel_register(&vpb_tech) != 0) {
-			ast_log(LOG_ERROR, "Unable to register channel class %s\n", type);
+			ast_log(LOG_ERROR, "Unable to register channel class 'vpb'\n");
 			error = -1;
 		}
 		else {
