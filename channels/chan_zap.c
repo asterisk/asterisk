@@ -9240,7 +9240,7 @@ static int start_pri(struct zt_pri *pri)
 			ast_log(LOG_ERROR, "Unable to get parameters for D-channel %d (%s)\n", x, strerror(errno));
 			return -1;
 		}
-		if (p.sigtype != ZT_SIG_HDLCFCS) {
+		if ((p.sigtype != ZT_SIG_HDLCFCS) && (p.sigtype != ZT_SIG_HARDHDLC)) {
 			zt_close(pri->fds[i]);
 			pri->fds[i] = -1;
 			ast_log(LOG_ERROR, "D-channel %d is not in HDLC/FCS mode.  See /etc/zaptel.conf\n", x);
