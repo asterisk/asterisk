@@ -693,7 +693,7 @@ static struct sip_pvt {
 	time_t ospstart;			/*!< OSP Start time */
 	unsigned int osptimelimit;		/*!< OSP call duration limit */
 #endif
-	struct sip_request initreq;		/*!< Initial request */
+	struct sip_request initreq;		/*!< Initial request that opened the SIP dialog */
 	
 	int maxtime;				/*!< Max time for first response */
 	int initid;				/*!< Auto-congest ID if appropriate */
@@ -1910,11 +1910,13 @@ static int create_addr_from_peer(struct sip_pvt *r, struct sip_peer *peer)
 	r->capability = peer->capability;
 	r->prefs = peer->prefs;
 	if (r->rtp) {
-		ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Setting NAT on RTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 		ast_rtp_setnat(r->rtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 	}
 	if (r->vrtp) {
-		ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
+		if (option_debug)
+			ast_log(LOG_DEBUG, "Setting NAT on VRTP to %d\n", (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 		ast_rtp_setnat(r->vrtp, (ast_test_flag(r, SIP_NAT) & SIP_NAT_ROUTE));
 	}
 	ast_string_field_set(r, peername, peer->username);
