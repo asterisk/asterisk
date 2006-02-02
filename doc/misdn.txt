@@ -11,8 +11,10 @@ Features:
 * NT and TE mode
 * PP and PMP mode
 * BRI and PRI (with BNE1 and BN2E1 Cards)
+* Hardware Bridging
 * DTMF Detection in HW+mISDNdsp (much better than asterisks internal!)
-* Display Messages to Phones (which support display msg)
+* Display Messages on Phones (which support display msg)
+* app_SendText
 * HOLD/RETRIEVE/TRANSFER on ISDN Phones : )
 * Screen/ Not Screen User Number
 * Basic EchoCancellation 
@@ -41,7 +43,6 @@ Overview
 - misdn cli commands
 - Debugging and sending Bugreports
 - Examples
-- Known working Configurations
 - Known Problems
 - Changes
 
@@ -70,7 +71,7 @@ Please Note that mISDN works good for the linux-2.6.x kernels. Some of the
 mISDN drivers do not compile against the 2.4.x or older kernels, you can patch
 them, but than you'll get mysterious errors.
 
-Using Kernels > 2.6.9 works perfect. 
+Using Kernels > 2.6.12 works perfect. 
 
 Ok so far so good, now follow the compilation instructions.
 
@@ -94,7 +95,7 @@ Installation
 Chan_misdn is automatically installed by the asterisk installation process.
 
 There is a sample init.d script for loading the mISDN modules (mISDN.sample),
-5Asimply copy it to /etc/init.d/ and modify it, there you can enter your cards.
+simply copy it to /etc/init.d/ and modify it, there you can enter your cards.
 
 !! Forget to use capi together with chan_misdn. 
 
@@ -139,10 +140,6 @@ you want to share on PMP TE S0 with a asterisk and a phone or isdn card you
 should insert here the msns which you'll like to give the Asterisk).  Finally
 a context variable resides in the user sections, which tells chan_misdn where
 to send incoming calls to in the Asterisk dial plan (extension.conf).
-
-In NT-Mode Ports there is a new option, directly after the port number you can
-write ptp, this enables PP Mode for this port, please look at misdn.conf.sample for
-an example.
 
 
 Dial and Options String
@@ -272,48 +269,6 @@ exten => _1X.,1,Dial(mISDN/g:${OUT_GROUP}/${EXTEN:1}/:dHello Test:n)
 In the last line you will notice the last argument (Hello), this is sended
 as Display Message to the Phone.
 
-
-Known working configurations
-----------------------------
-
-In this section I'll put working configurations for chan_misdn. Beware It
-seems that between Kernel 2.6.3 and Kernel 2.6.8 there were lots of mISDN
-Bugs. I use Kernel 2.6.9 now, it works quite ok, Kernel 2.6.10+ has changed
-the pci_find_subgsys funktion, so hfc_multi from mISDN doesn't compile against
-it, you can just change pci_find_subsys to pci_get_subsys, this works.
-
-
-- chan_misdn-0.0.3-rc1: 	
-	* linux-kernel >= 2.6.3 (but at least 2.6) 
-	* asterisk >= v1-0 
-	* mISDN/mISDNuser since September/04
-
-- chan_misdn-0.0.3-rc3: 	
-	* linux-kernel >= 2.6.3 (but at least 2.6) 
-	* asterisk >= v1-0.2 
-	* mISDN/mISDNuser since December/04
-
-- chan_misdn-0.0.3-rc4: 	
-	* linux-kernel >= 2.6.8 (but at least 2.6) 
-	* asterisk >= v1-0.2 
-	* mISDN/mISDNuser head on cvs.isdn4linux.de
-
-- chan_misdn-0.0.3-rc6: 	
-	* linux-kernel >= 2.6.8 (but at least 2.6) 
-	* asterisk >= v1-0.2 
-	* mISDN/mISDNuser head on cvs.isdn4linux.de
-
-- chan_misdn-0.1.0
-	* linux-kernel >= 2.6.8 (but at least 2.6) 
-	* asterisk >= v1-0.2 , also CVS Head
-	* mISDN/mISDNuser (3.0-beta) from isdn.jolly.de
-
-- chan_misdn-0.2.1
-	* linux-kernel >= 2.6.8 (but at least 2.6) 
-	* asterisk >= v1.2 , also CVS Head
-	* mISDN/mISDNuser (3.0) from isdn.jolly.de
-
-
 Known Problems
 --------------
 
@@ -329,6 +284,7 @@ modules) then modprobe ztdummy, this resolves the problem.
 
 -> you forgot to load mISDNdsp, which is now needed by chan_misdn for switching
 and dtmf tone detection
+
 
 * I have strange ISDN behavior: sometimes I hear the other end, sometimes
 not. Also I get STATUS Events with cause 100, with misdn debugging
