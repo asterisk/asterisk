@@ -327,8 +327,6 @@ else
   ifneq ($(wildcard .svn),)
     ASTERISKVERSIONNUM=999999
     ASTERISKVERSION=SVN-$(shell build_tools/make_svn_branch_name)
-  else
-    ASTERISKVERSIONNUM=000000
   endif
 endif
 
