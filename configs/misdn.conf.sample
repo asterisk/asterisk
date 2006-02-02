@@ -8,6 +8,10 @@
 ;
 
 [general] 
+;
+; Sets the Path to the misdn-init.conf (for nt_ptp mode checking)
+;
+misdn_init=/etc/misdn-init.conf
 
 ; set debugging flag: 
 ;   0 - No Debug
@@ -54,20 +58,6 @@ stop_tone_after_first_digit=yes
 ; default value: yes
 ;
 append_digits2exten=yes
-
-; set this to yes if you have jollys mISDN which sends correct L1 Infos
-;
-; default value: yes
-;
-l1_info_ok=yes
-
-; set this to yes if you want to clear the l3 in case the l2 deactivates
-; some environments have a flickering l2 which causes this option to 
-; damage active calls .. highly experimental
-; 
-; default value: no
-;
-clear_l3=no
 
 ;;; CRYPTION STUFF
 
@@ -151,6 +141,16 @@ txgain=0
 ;
 te_choose_channel=no
 
+
+;
+; Send Setup_Acknowledge on incoming calls anyway (instead of PROCEEDING), 
+; this requests additional Infos, so we can waitfordigits 
+; without much issues. This works only for PTP Ports
+; 
+; default value: no
+;
+need_more_infos=no
+
 ; set the method to use for channel selection:
 ;   standard    - always choose the first free channel with the lowest number
 ;   round_robin - use the round robin algorithm to select a channel. use this
@@ -176,14 +176,6 @@ method=standard
 ;
 dialplan=0
 localdialplan=0
-
-; This is only for asterisk head and will result in only considering 
-; misdn.confs and misdn_set_opts callingpresentation informations if set to no.
-; Otherwise asterisks callingpresentation overwrites misdn.confs settings.
-;
-; default value: yes
-;
-use_callingpres=yes
 
 
 
@@ -223,17 +215,17 @@ early_bconnect=yes
 ;callgroup=1
 ;pickupgroup=1
 
-; Allows/Screens Callerid
+
 ;
-; possible values: allowed,not_screened
-;
-; be aware, if you set to allowed you need to set a correct 
-; callerid in the dialplan or set it here in the misdn.conf
-; Some Telcos don't care about wrong callerids, others do !
-;
-; default value: allowed
-;
-;presentation=not_screened
+; these are the exact isdn screening and presentation indicators
+; if -1 is given for both values the presentation indicators are used
+; from asterisks SetCallerPres application.
+; s=0, p=0 -> callerid presented not screened
+; s=1, p=1 -> callerid presented but screened (the remote end does not see it!)
+; 
+; defaule values s=-1, p=-1
+presentation=-1
+screen=-1
 
 ; this enables echocancellation, with the given number of taps
 ; be aware, move this setting only to outgoing portgroups!
@@ -276,10 +268,12 @@ ports=1,2
 context=Intern
 
 [internPP]
-; if you want to have pp Protocol on one nt Port, you need 
-; to add a ptp directly after the portnumber, you can still add 
-; more ports and multiple ptp adds in your config.
-ports=3ptp
+;
+; adding the postfix 'ptp' to a port number is obsolete now, chan_misdn
+; parses /etc/misdn-init.conf and sets the ptp mode to the corresponding
+; configs. For backwards compatibility you can still set ptp here.
+;
+ports=3
 	
 [first_extern]
 ; again port defs

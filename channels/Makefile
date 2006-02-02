@@ -69,7 +69,7 @@ ifneq ($(wildcard h323/libchanh323.a),)
   CHANNEL_LIBS+=chan_h323.so
 endif
 
-ifneq ($(wildcard misdn/chan_misdn_lib.a),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
   CHANNEL_LIBS+=chan_misdn.so
   CFLAGS+=-Imisdn 
 endif
@@ -224,11 +224,18 @@ chan_h323.so: chan_h323.o h323/libchanh323.a
 	$(CC) $(SOLINK) -o $@ $< h323/libchanh323.a $(CHANH323LIB) -L$(PWLIBDIR)/lib $(PTLIB) -L$(OPENH323DIR)/lib $(H323LIB) -L/usr/lib -lcrypto -lssl -lexpat
 endif
 
+misdn/chan_misdn_lib.a:
+	make -C misdn
+
 chan_misdn.so: chan_misdn.o chan_misdn_config.o misdn/chan_misdn_lib.a
 	$(CC) -shared -Xlinker -x -L/usr/lib -o $@ $^ -lisdnnet -lmISDN
 
 chan_misdn.o: chan_misdn.c
-	$(CC) $(CFLAGS) -DCHAN_MISDN_VERSION=\"0.2.1\" -c $< -o $@
+	$(CC) $(CFLAGS) -DCHAN_MISDN_VERSION=\"0.3.0\" -c $< -o $@
+
+chan_misdn_config.o: chan_misdn_config.c misdn/chan_misdn_config.h
+	$(CC) $(CFLAGS) -DCHAN_MISDN_VERSION=\"0.3.0\" -c $< -o $@
+
 
 install: all
 	for x in $(CHANNEL_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done

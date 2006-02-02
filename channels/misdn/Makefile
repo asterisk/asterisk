@@ -5,7 +5,7 @@
 #
 
 # Verify those options with main Makefile
-CFLAGS		+= -pipe -c
+CFLAGS		= -pipe -c -Wall
 SOURCES		= isdn_lib.c isdn_msg_parser.c 
 OBJDIR		= .
 OBJS		= isdn_lib.o isdn_msg_parser.o fac.o

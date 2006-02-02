@@ -31,15 +31,6 @@ enum bc_state_e {
 	STATE_HOLD_ACKNOWLEDGE
 };
 
-
-enum tone_e {
-	TONE_NONE=0,
-	TONE_DIAL,
-	TONE_ALERTING,
-	TONE_BUSY,
-	TONE_FILE
-};
-
 enum misdn_err_e {
 	ENOCHAN=1
 };
@@ -66,7 +57,9 @@ enum event_response_e {
 
 enum event_e {
 	EVENT_NOTHING,
+	EVENT_TONE_GENERATE,
 	EVENT_BCHAN_DATA,
+	EVENT_BCHAN_ACTIVATED,
 	EVENT_CLEANUP,
 	EVENT_PROCEEDING,
 	EVENT_PROGRESS,
@@ -173,6 +166,8 @@ struct misdn_bchannel {
 	/* int b_addr; */
 	int layer_id;
 
+	void *ack_hdlc;
+	
 	int layer;
 	
 	
@@ -202,6 +197,9 @@ struct misdn_bchannel {
 	/* dtmf digit */
 	int dtmf;
 	int send_dtmf;
+
+	/* get setup ack */
+	int need_more_infos;
 
 	/* wether we should use jollys dsp or not */
 	int nodsp;
@@ -242,9 +240,8 @@ struct misdn_bchannel {
 	int active;
 	int upset;
 
-	enum tone_e tone;
+	int generate_tone;
 	int tone_cnt;
-	int tone_cnt2;
   
 	enum bc_state_e state;
 
@@ -262,7 +259,7 @@ struct misdn_bchannel {
 
 	int user1;
 	int urate;
-	int async;
+	int hdlc;
 	/* V110 */
   
 	unsigned char display[84];
@@ -304,7 +301,6 @@ struct misdn_bchannel {
 
 enum event_response_e (*cb_event) (enum event_e event, struct misdn_bchannel *bc, void *user_data);
 void (*cb_log) (int level, int port, char *tmpl, ...);
-int (*cb_clearl3_true)(void);
 int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
 
 struct misdn_lib_iface {
@@ -312,7 +308,6 @@ struct misdn_lib_iface {
 	enum event_response_e (*cb_event)(enum event_e event, struct misdn_bchannel *bc, void *user_data);
 	void (*cb_log)(int level, int port, char *tmpl, ...);
 	int (*cb_jb_empty)(struct misdn_bchannel *bc, char *buffer, int len);
-	int (*cb_clearl3_true)(void);
 };
 
 /***** USER IFACE **********/
@@ -333,8 +328,6 @@ void manager_bchannel_activate(struct misdn_bchannel *bc);
 void manager_bchannel_deactivate(struct misdn_bchannel * bc);
 
 int misdn_lib_tx2misdn_frm(struct misdn_bchannel *bc, void *data, int len);
-
-void manager_send_tone (struct misdn_bchannel *bc, enum tone_e tone);
 
 void manager_ph_control(struct misdn_bchannel *bc, int c1, int c2);
 
@@ -374,6 +367,10 @@ void misdn_clear_ibuffer(void *ibuf);
 void *misdn_init_ibuffer(int len);
 
 /** Ibuf interface End **/
+
+void misdn_lib_tone_generator_start(struct misdn_bchannel *bc);
+void misdn_lib_tone_generator_stop(struct misdn_bchannel *bc);
+
 
 void misdn_lib_setup_bc(struct misdn_bchannel *bc);
 

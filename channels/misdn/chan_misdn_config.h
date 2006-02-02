@@ -22,12 +22,9 @@ enum misdn_cfg_elements {
 
 	/* port config items */
 	MISDN_CFG_FIRST = 0,
-	MISDN_CFG_PTP,                 /* int (bool) */
 	MISDN_CFG_GROUPNAME,           /* char[] */
 	MISDN_CFG_RXGAIN,              /* int */
 	MISDN_CFG_TXGAIN,              /* int */
-	MISDN_CFG_JITTERBUFFER,              /* int */
-	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
 	MISDN_CFG_TE_CHOOSE_CHANNEL,   /* int (bool) */
 	MISDN_CFG_CONTEXT,             /* char[] */
 	MISDN_CFG_LANGUAGE,            /* char[] */
@@ -38,32 +35,33 @@ enum misdn_cfg_elements {
 	MISDN_CFG_LOCALDIALPLAN,       /* int */
 	MISDN_CFG_NATPREFIX,           /* char[] */
 	MISDN_CFG_INTERNATPREFIX,      /* char[] */
-	MISDN_CFG_PRES,                /* int (bool) */
+	MISDN_CFG_PRES,                /* int */
+	MISDN_CFG_SCREEN,              /* int */
 	MISDN_CFG_ALWAYS_IMMEDIATE,    /* int (bool) */
 	MISDN_CFG_IMMEDIATE,           /* int (bool) */
 	MISDN_CFG_SENDDTMF,           /* int (bool) */
 	MISDN_CFG_HOLD_ALLOWED,        /* int (bool) */
 	MISDN_CFG_EARLY_BCONNECT,      /* int (bool) */
-	MISDN_CFG_USE_CALLINGPRES,     /* int (bool) */
 	MISDN_CFG_ECHOCANCEL,          /* int */
 	MISDN_CFG_ECHOCANCELWHENBRIDGED,  /* int (bool) */
 	MISDN_CFG_ECHOTRAINING,        /* int (bool) */
+	MISDN_CFG_NEED_MORE_INFOS,     /* bool */
+	MISDN_CFG_JITTERBUFFER,              /* int */
+	MISDN_CFG_JITTERBUFFER_UPPER_THRESHOLD,              /* int */
 	MISDN_CFG_CALLGROUP,           /* ast_group_t */
 	MISDN_CFG_PICKUPGROUP,         /* ast_group_t */
 	MISDN_CFG_MSNS,                /* char[] */
+	MISDN_CFG_PTP,                 /* int (bool) */
 	MISDN_CFG_LAST,
 	
 	/* general config items */
 	MISDN_GEN_FIRST,
+	MISDN_GEN_MISDN_INIT,           /* char[] */
 	MISDN_GEN_DEBUG,               /* int */
 	MISDN_GEN_TRACEFILE,           /* char[] */
-	MISDN_GEN_TRACE_CALLS,         /* int (bool) */
-	MISDN_GEN_TRACE_DIR,           /* char[] */
 	MISDN_GEN_BRIDGING,            /* int (bool) */
 	MISDN_GEN_STOP_TONE,           /* int (bool) */
 	MISDN_GEN_APPEND_DIGITS2EXTEN, /* int (bool) */
-	MISDN_GEN_L1_INFO_OK,          /* int (bool) */
-	MISDN_GEN_CLEAR_L3,            /* int (bool) */
 	MISDN_GEN_DYNAMIC_CRYPT,       /* int (bool) */
 	MISDN_GEN_CRYPT_PREFIX,        /* char[] */
 	MISDN_GEN_CRYPT_KEYS,          /* char[] */
@@ -79,6 +77,8 @@ enum misdn_cfg_method {
 void misdn_cfg_init(int max_ports); 
 void misdn_cfg_reload(void);
 void misdn_cfg_destroy(void);
+
+void misdn_cfg_update_ptp( void );
 
 /* if you requst a general config element, the port value is ignored. if the requested 
  * value is not available, or the buffer is too small, the buffer will be nulled (in 

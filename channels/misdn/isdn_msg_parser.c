@@ -21,23 +21,43 @@
 
 #include "fac.h"
 
+
+void set_channel(struct misdn_bchannel *bc, int channel) {
+
+	cb_log(3,bc->port,"set_channel: bc->channel:%d channel:%d\n", bc->channel, channel);
+	
+	
+	if (channel==0xff) {
+		/* any channel */
+		channel=-1;
+	}
+	
+	/*  ALERT: is that everytime true ?  */
+	if (channel > 0 && bc->nt ) {
+		
+		if (bc->channel && ( bc->channel != 0xff) ) {
+			cb_log(0,bc->port,"We already have a channel (%d)\n", bc->channel);
+		} else {
+			bc->channel = channel;
+		}
+	}
+	
+	if (channel > 0 && !bc->nt ) 
+		bc->channel = channel;
+}
+
 void parse_proceeding (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc, int nt) 
 {
 	int HEADER_LEN = nt?mISDNUSER_HEAD_SIZE:mISDN_HEADER_LEN;
 	CALL_PROCEEDING_t *proceeding=(CALL_PROCEEDING_t*)((unsigned long)msg->data+ HEADER_LEN);
-	struct misdn_stack *stack=get_stack_by_bc(bc);
+	//struct misdn_stack *stack=get_stack_by_bc(bc);
 	
 	{
 		int  exclusive, channel;
 		dec_ie_channel_id(proceeding->CHANNEL_ID, (Q931_info_t *)proceeding, &exclusive, &channel, nt,bc);
-		
-		if (channel==0xff) /* any channel */
-			channel=-1;
-    
-		/*  ALERT: is that everytime true ?  */
 
-		if (channel > 0 && stack->nt) 
-			bc->channel = channel;
+		set_channel(bc,channel);
+		
 	}
 	
 	dec_ie_progress(proceeding->PROGRESS, (Q931_info_t *)proceeding, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
@@ -197,29 +217,22 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
 		dec_ie_bearer(setup->BEARER, (Q931_info_t *)setup, &coding, &capability, &mode, &rate, &multi, &user, &async, &urate, &stopbits, &dbits, &parity, nt,bc);
 		switch (capability) {
 		case -1: bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED; 
-//			cb_log(2, bc->stack->port, " --> cap -1 -> digital\n");
 			break;
 		case 0: bc->capability=INFO_CAPABILITY_SPEECH;
-//			cb_log(2, bc->stack->port, " --> cap speech\n");
 			break;
 		case 8: bc->capability=INFO_CAPABILITY_DIGITAL_UNRESTRICTED;
 			bc->user1 = user;
-			bc->async = async;
 			bc->urate = urate;
 			
 			bc->rate = rate;
 			bc->mode = mode;
-			
-//			cb_log(2, bc->stack->port, " --> cap unres Digital (user l1 %d, async %d, user rate %d\n", user, async, urate);
 			break;
 		case 9: bc->capability=INFO_CAPABILITY_DIGITAL_RESTRICTED;
-//			cb_log(2, bc->stack->port, " --> cap res Digital\n");
 			break;
 		default:
-//			cb_log(2, bc->stack->port, " --> cap Else\n");
 			break;
 		}
-
+		
 		switch(user) {
 		case 2:
 			bc->law=INFO_CODEC_ULAW;
@@ -237,11 +250,8 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
 	{
 		int  exclusive, channel;
 		dec_ie_channel_id(setup->CHANNEL_ID, (Q931_info_t *)setup, &exclusive, &channel, nt,bc);
-		if (channel==0xff) /* any channel */
-			channel=-1;
-
-		if (channel > 0) 
-			bc->channel = channel;
+		
+		set_channel(bc,channel);
 	}
 	
 	dec_ie_progress(setup->PROGRESS, (Q931_info_t *)setup, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
@@ -260,9 +270,10 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 //	cb_log(2, bc->stack->port, " --> oad %s dad %s channel %d\n",bc->oad, bc->dad,bc->channel);
 	if (bc->channel == 0 || bc->channel == ANY_CHANNEL || bc->channel==-1)
 		enc_ie_channel_id(&setup->CHANNEL_ID, msg, 0, bc->channel, nt,bc);
-	else
+	else 
 		enc_ie_channel_id(&setup->CHANNEL_ID, msg, 1, bc->channel, nt,bc);
-  
+	
+	
 	{
 		int type=bc->onumplan,plan=1,present=bc->pres,screen=bc->screen;
 		enc_ie_calling_pn(&setup->CALLING_PN, msg, type, plan, present,
@@ -281,31 +292,30 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	{
 		int coding=0, capability, mode=0 /*  2 for packet ! */
 			,user, rate=0x10;
-		switch (bc->capability) {
-		case INFO_CAPABILITY_SPEECH: capability = 0;
-//			cb_log(2, bc->stack->port, " --> Speech\n");
-			break;
-		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED: capability = 8;
-//			cb_log(2, bc->stack->port, " --> cap unres Digital\n");
-			break;
-		case INFO_CAPABILITY_DIGITAL_RESTRICTED: capability = 9;
-//			cb_log(2, bc->stack->port, " --> cap res Digital\n");
-			break;
-		default:
-//			cb_log(2, bc->stack->port, " --> cap Speech\n");
-			capability=bc->capability; 
-		}
-		
+
 		switch (bc->law) {
 		case INFO_CODEC_ULAW: user=2;
-//			cb_log(2, bc->stack->port, " --> Codec Ulaw\n");
 			break;
 		case INFO_CODEC_ALAW: user=3;
-//			cb_log(2, bc->stack->port, " --> Codec Alaw\n");
 			break;
 		default:
 			user=3;
 		}
+		
+		switch (bc->capability) {
+		case INFO_CAPABILITY_SPEECH: capability = 0;
+			break;
+		case INFO_CAPABILITY_DIGITAL_UNRESTRICTED: capability = 8;
+			user=-1;
+			break;
+		case INFO_CAPABILITY_DIGITAL_RESTRICTED: capability = 9;
+			user=-1;
+			break;
+		default:
+			capability=bc->capability; 
+		}
+		
+		
     
 		enc_ie_bearer(&setup->BEARER, msg, coding, capability, mode, rate, -1, user, nt,bc);
 	}
@@ -366,11 +376,8 @@ void parse_setup_acknowledge (struct isdn_msg msgs[], msg_t *msg, struct misdn_b
 		int  exclusive, channel;
 		dec_ie_channel_id(setup_acknowledge->CHANNEL_ID, (Q931_info_t *)setup_acknowledge, &exclusive, &channel, nt,bc);
 
-		if (channel==0xff) /* any channel */
-			channel=-1;
 
-		if (channel > 0) 
-			bc->channel = channel;
+		set_channel(bc, channel);
 	}
 	
 	dec_ie_progress(setup_acknowledge->PROGRESS, (Q931_info_t *)setup_acknowledge, &bc->progress_coding, &bc->progress_location, &bc->progress_indicator, nt, bc);
@@ -1164,7 +1171,7 @@ int isdn_msg_get_index_by_event(struct isdn_msg msgs[], enum event_e event, int 
 	for (i=0; i< msgs_max; i++) 
 		if ( event == msgs[i].event) return i;
 
-	cb_log(4,0, "get_index: EVENT NOT FOUND!!\n");
+	cb_log(10,0, "get_index: event not found!\n");
 	
 	return -1;
 }
@@ -1189,6 +1196,8 @@ char EVENT_DTMF_TONE_INFO[] = "DTMF_TONE";
 char EVENT_NEW_L3ID_INFO[] = "NEW_L3ID";
 char EVENT_NEW_BC_INFO[] = "NEW_BC";
 char EVENT_BCHAN_DATA_INFO[] = "BCHAN_DATA";
+char EVENT_BCHAN_ACTIVATED_INFO[] = "BCHAN_ACTIVATED";
+char EVENT_TONE_GENERATE_INFO[] = "TONE_GENERATE";
 
 char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt)
 {
@@ -1201,6 +1210,8 @@ char * isdn_get_info(struct isdn_msg msgs[], enum event_e event, int nt)
 	if (event == EVENT_NEW_L3ID) return EVENT_NEW_L3ID_INFO;
 	if (event == EVENT_NEW_BC) return EVENT_NEW_BC_INFO;
 	if (event == EVENT_BCHAN_DATA) return EVENT_BCHAN_DATA_INFO;
+	if (event == EVENT_BCHAN_ACTIVATED) return EVENT_BCHAN_ACTIVATED_INFO;
+	if (event == EVENT_TONE_GENERATE) return EVENT_TONE_GENERATE_INFO;
 	
 	return NULL;
 }
