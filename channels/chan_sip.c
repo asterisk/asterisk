@@ -2259,6 +2259,10 @@ static void __sip_destroy(struct sip_pvt *p, int lockowner)
  * is *two* devices in Asterisk, not one.
  *
  * Thought: For realtime, we should propably update storage with inuse counter... 
+ *
+ * \return 0 if call is ok (no call limit, below treshold)
+ *	-1 on rejection of call
+ *		
  */
 static int update_call_counter(struct sip_pvt *fup, int event)
 {
@@ -10801,7 +10805,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 
 	if (!p->lastinvite) {
 		char mailboxbuf[256]="";
-		int found = 0;
 		char *mailbox = NULL;
 		int mailboxsize = 0;
 
@@ -10877,10 +10880,6 @@ static int handle_request_subscribe(struct sip_pvt *p, struct sip_request *req, 
 				
 				*/
 				if (!ast_strlen_zero(mailbox)) {
-					found++;
-				}
-
-				if (found){
 					transmit_response(p, "200 OK", req);
 					ast_set_flag(p, SIP_NEEDDESTROY);	
 				} else {
