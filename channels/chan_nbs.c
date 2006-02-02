@@ -51,7 +51,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 static const char desc[] = "Network Broadcast Sound Support";
-static const char type[] = "NBS";
 static const char tdesc[] = "Network Broadcast Sound Driver";
 
 static int usecnt =0;
@@ -62,6 +61,7 @@ static int prefformat = AST_FORMAT_SLINEAR;
 AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 static char context[AST_MAX_EXTENSION] = "default";
+static char type[] = "NBS";
 
 /* NBS creates private structures on demand */
    
@@ -233,8 +233,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 	tmp = ast_channel_alloc(1);
 	if (tmp) {
 		tmp->tech = &nbs_tech;
-		snprintf(tmp->name, sizeof(tmp->name), "NBS/%s", i->stream);
-		tmp->type = type;
+		ast_string_field_build(tmp, name, "NBS/%s", i->stream);
 		tmp->fds[0] = nbs_fd(i->nbs);
 		tmp->nativeformats = prefformat;
 		tmp->rawreadformat = prefformat;
@@ -247,7 +246,7 @@ static struct ast_channel *nbs_new(struct nbs_pvt *i, int state)
 		tmp->tech_pvt = i;
 		strncpy(tmp->context, context, sizeof(tmp->context)-1);
 		strncpy(tmp->exten, "s",  sizeof(tmp->exten) - 1);
-		tmp->language[0] = '\0';
+		ast_string_field_set(tmp, language, "");
 		i->owner = tmp;
 		ast_mutex_lock(&usecnt_lock);
 		usecnt++;

@@ -58,6 +58,7 @@
 #include <asterisk/indications.h>
 #include <asterisk/app.h>
 #include <asterisk/features.h>
+#include <asterisk/stringfields.h>
 
 #include "chan_misdn_config.h"
 #include "isdn_lib.h"
@@ -1081,15 +1082,12 @@ static int read_config(struct chan_list *ch, int orig) {
 	
 
 	misdn_cfg_get( port, MISDN_CFG_LANGUAGE, lang, BUFFERSIZE);
-	ast_copy_string(ast->language, lang, sizeof(ast->language));
-	ast->language[sizeof(ast->language)]=0;
+	ast_string_field_set(ast, language, lang);
 
-
-	char musicclass[BUFFERSIZE];
+	char localmusicclass[BUFFERSIZE];
 	
-	misdn_cfg_get( port, MISDN_CFG_MUSICCLASS, musicclass, BUFFERSIZE);
-	ast_copy_string(ast->musicclass, musicclass, sizeof(ast->musicclass));
-	ast->musicclass[sizeof(ast->musicclass)]=0;
+	misdn_cfg_get( port, MISDN_CFG_MUSICCLASS, localmusicclass, BUFFERSIZE);
+	ast_string_field_set(ast, musicclass, localmusicclass);
 	
 	
 	misdn_cfg_get( port, MISDN_CFG_TXGAIN, &bc->txgain, sizeof(int));
@@ -2314,14 +2312,12 @@ static struct ast_channel *misdn_new(struct chan_list *chlist, int state,  char 
 		
 		if (c<=0) {
 			c=glob_channel++;
-			snprintf(tmp->name, sizeof(tmp->name), "%s/%d-u%d",
+			ast_string_field_build(tmp, name, "%s/%d-u%d",
 				 misdn_type, port, c);
 		} else {
-			snprintf(tmp->name, sizeof(tmp->name), "%s/%d-%d",
+			ast_string_field_build(tmp, name, "%s/%d-%d",
 				 misdn_type, port, c);
 		}
-		
-		tmp->type = misdn_type;
 		
 		tmp->nativeformats = prefformat;
 
