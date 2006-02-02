@@ -83,6 +83,10 @@ static int orig_app(const char *chan, const char *app, const char *appdata)
 		return RESULT_FAILURE;
 	}
 	chantech = strsep(&chandata, "/");
+	if (!chandata) {
+		ast_log(LOG_ERROR, "No dial string.\n");
+		return RESULT_SHOWUSAGE;
+	}
 
 	ast_pbx_outgoing_app(chantech, AST_FORMAT_SLINEAR, chandata, TIMEOUT * 1000, app, appdata, &reason, 1, NULL, NULL, NULL, NULL);
 
