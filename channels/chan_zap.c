@@ -11099,6 +11099,8 @@ int load_module(void)
 		return -1;
 	}
 #ifdef ZAPATA_PRI
+	ast_string_field_init(&inuse, 16);
+	ast_string_field_set(&inuse, name, "GR-303InUse");
 	ast_cli_register_multiple(zap_pri_cli, sizeof(zap_pri_cli) / sizeof(zap_pri_cli[0]));
 #endif	
 #ifdef ZAPATA_R2
@@ -11113,8 +11115,6 @@ int load_module(void)
 	ast_manager_register( "ZapDNDon", 0, action_zapdndon, "Toggle Zap channel Do Not Disturb status ON" );
 	ast_manager_register( "ZapDNDoff", 0, action_zapdndoff, "Toggle Zap channel Do Not Disturb status OFF" );
 	ast_manager_register("ZapShowChannels", 0, action_zapshowchannels, "Show status zapata channels");
-	ast_string_field_init(&inuse, 16);
-	ast_string_field_set(&inuse, name, "GR-303InUse");
 
 	return res;
 }
