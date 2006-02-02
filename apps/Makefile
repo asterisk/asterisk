@@ -26,12 +26,6 @@ APPS=app_adsiprog.so app_alarmreceiver.so app_authenticate.so app_cdr.so       \
      app_userevent.so app_url.so app_verbose.so app_voicemail.so               \
      app_waitforring.so app_waitforsilence.so app_while.so app_zapateller.so   \
      app_morsecode.so
-     
-#
-# Obsolete things...
-#
-#APPS+=app_sql_postgres.so
-#APPS+=app_sql_odbc.so
 
 #
 # Experimental things
