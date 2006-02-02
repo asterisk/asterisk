@@ -102,7 +102,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/transcap.h"
 #include "asterisk/stringfields.h"
 
-#ifndef ZT_SIG_EM_E1
+#ifndef ZT_SIG_HARDHDLC
 #error "Your zaptel is too old.  please update"
 #endif
 
