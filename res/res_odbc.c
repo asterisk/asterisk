@@ -430,39 +430,41 @@ odbc_obj *new_odbc_obj(char *name, char *dsn, char *username, char *password)
 {
 	static odbc_obj *new;
 
-	new = malloc(sizeof(odbc_obj));
-	if (!new)
-		return NULL;
-	memset(new, 0, sizeof(odbc_obj));
-	new->env = SQL_NULL_HANDLE;
-
-	new->name = malloc(strlen(name) + 1);
-	if (new->name == NULL)
-		return NULL;
-
-	new->dsn = malloc(strlen(dsn) + 1);
-	if (new->dsn == NULL)
-		return NULL;
+	if (!(new = calloc(1, sizeof(*new))) || 
+	    !(new->name = malloc(strlen(name) + 1)) || 
+	    !(new->dsn = malloc(strlen(dsn) + 1)))
+	    	goto cleanup;
 
 	if (username) {
-		new->username = malloc(strlen(username) + 1);
-		if (new->username == NULL)
-			return NULL;
+		if (!(new->username = malloc(strlen(username) + 1)))
+			goto cleanup;
 		strcpy(new->username, username);
 	}
 
 	if (password) {
-		new->password = malloc(strlen(password) + 1);
-		if (new->password == NULL)
-			return NULL;
+		if (!(new->password = malloc(strlen(password) + 1)))
+			goto cleanup;
 		strcpy(new->password, password);
 	}
 
 	strcpy(new->name, name);
 	strcpy(new->dsn, dsn);
+	new->env = SQL_NULL_HANDLE;
 	new->up = 0;
 	ast_mutex_init(&new->lock);
 	return new;
+
+cleanup:
+	if (new) {
+		free(new->name);
+		free(new->dsn);
+		free(new->username);
+		free(new->password);
+
+		free(new);	
+	}
+
+	return NULL;
 }
 
 void destroy_odbc_obj(odbc_obj **obj)
