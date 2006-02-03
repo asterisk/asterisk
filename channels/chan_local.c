@@ -394,7 +394,7 @@ static int local_hangup(struct ast_channel *ast)
 	isoutbound = IS_OUTBOUND(ast, p);
 	if (isoutbound) {
 		status = pbx_builtin_getvar_helper(p->chan, "DIALSTATUS");
-		if(status)
+		if ((status) && (p->owner))
 			pbx_builtin_setvar_helper(p->owner, "CHANLOCALSTATUS", status);
 		p->chan = NULL;
 		p->launchedpbx = 0;
