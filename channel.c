@@ -72,6 +72,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/app.h"
 #include "asterisk/transcap.h"
 #include "asterisk/devicestate.h"
+#include "asterisk/sha1.h"
 
 struct channel_spy_trans {
 	int last_format;

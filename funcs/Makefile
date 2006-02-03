@@ -24,7 +24,8 @@ BUILTINS=func_md5.o \
          func_timeout.o \
          func_language.o \
          func_moh.o \
-         func_base64.o
+         func_base64.o \
+         func_sha1.o
 
 AVAILABLE_FUNCS=$(filter-out $(BUILTINS),$(patsubst %.c,%.o,$(wildcard func*.c)))
 

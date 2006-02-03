@@ -145,6 +145,9 @@ struct hostent *ast_gethostbyname(const char *host, struct ast_hostent *hp);
 /* ast_md5_hash 
 	\brief Produces MD5 hash based on input string */
 void ast_md5_hash(char *output, char *input);
+/* ast_sha1_hash
+	\brief Produces SHA1 hash based on input string */
+void ast_sha1_hash(char *output, char *input);
 
 int ast_base64encode(char *dst, const unsigned char *src, int srclen, int max);
 int ast_base64decode(unsigned char *dst, const char *src, int max);

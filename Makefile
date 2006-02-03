@@ -349,7 +349,7 @@ OBJS=io.o sched.o logger.o frame.o loader.o config.o channel.o \
 	astmm.o enum.o srv.o dns.o aescrypt.o aestab.o aeskey.o \
 	utils.o plc.o jitterbuf.o dnsmgr.o devicestate.o \
 	netsock.o slinfactory.o ast_expr2.o ast_expr2f.o \
-	cryptostub.o
+	cryptostub.o sha1.o
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sys/poll.h),)
   OBJS+= poll.o
