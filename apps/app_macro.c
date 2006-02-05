@@ -107,7 +107,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	char oldcontext[AST_MAX_CONTEXT] = "";
 	int offset, depth = 0;
 	int setmacrocontext=0;
-	int autoloopflag;
+	int autoloopflag, dead = 0;
   
 	char *save_macro_exten;
 	char *save_macro_context;
@@ -208,8 +208,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 				break;
 			}
 			switch(res) {
-	        	case MACRO_EXIT_RESULT:
-                        	res = 0;
+			case MACRO_EXIT_RESULT:
+				res = 0;
 				goto out;
 			case AST_PBX_KEEPALIVE:
 				if (option_debug)
@@ -223,6 +223,7 @@ static int macro_exec(struct ast_channel *chan, void *data)
 					ast_log(LOG_DEBUG, "Spawn extension (%s,%s,%d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
 				else if (option_verbose > 1)
 					ast_verbose( VERBOSE_PREFIX_2 "Spawn extension (%s, %s, %d) exited non-zero on '%s' in macro '%s'\n", chan->context, chan->exten, chan->priority, chan->name, macro);
+				dead = 1;
 				goto out;
 			}
 		}
@@ -242,37 +243,44 @@ static int macro_exec(struct ast_channel *chan, void *data)
 	out:
 	/* Reset the depth back to what it was when the routine was entered (like if we called Macro recursively) */
 	snprintf(depthc, sizeof(depthc), "%d", depth);
-	pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
+	if (!dead) {
+		pbx_builtin_setvar_helper(chan, "MACRO_DEPTH", depthc);
 
-	ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
-  	for (x=1; x<argc; x++) {
+		ast_set2_flag(chan, autoloopflag, AST_FLAG_IN_AUTOLOOP);
+	}
+
+  	for (x = 1; x < argc; x++) {
   		/* Restore old arguments and delete ours */
 		snprintf(varname, sizeof(varname), "ARG%d", x);
   		if (oldargs[x]) {
-			pbx_builtin_setvar_helper(chan, varname, oldargs[x]);
+			if (!dead)
+				pbx_builtin_setvar_helper(chan, varname, oldargs[x]);
 			free(oldargs[x]);
-		} else {
+		} else if (!dead) {
 			pbx_builtin_setvar_helper(chan, varname, NULL);
 		}
   	}
 
 	/* Restore macro variables */
-	pbx_builtin_setvar_helper(chan, "MACRO_EXTEN", save_macro_exten);
+	if (!dead) {
+		pbx_builtin_setvar_helper(chan, "MACRO_EXTEN", save_macro_exten);
+		pbx_builtin_setvar_helper(chan, "MACRO_CONTEXT", save_macro_context);
+		pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
+	}
 	if (save_macro_exten)
 		free(save_macro_exten);
-	pbx_builtin_setvar_helper(chan, "MACRO_CONTEXT", save_macro_context);
 	if (save_macro_context)
 		free(save_macro_context);
-	pbx_builtin_setvar_helper(chan, "MACRO_PRIORITY", save_macro_priority);
 	if (save_macro_priority)
 		free(save_macro_priority);
-	if (setmacrocontext) {
+
+	if (!dead && setmacrocontext) {
 		chan->macrocontext[0] = '\0';
 		chan->macroexten[0] = '\0';
 		chan->macropriority = 0;
 	}
 
-	if (!strcasecmp(chan->context, fullmacro)) {
+	if (!dead && !strcasecmp(chan->context, fullmacro)) {
   		/* If we're leaving the macro normally, restore original information */
 		chan->priority = oldpriority;
 		ast_copy_string(chan->context, oldcontext, sizeof(chan->context));
@@ -292,7 +300,8 @@ static int macro_exec(struct ast_channel *chan, void *data)
 		}
 	}
 
-	pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", save_macro_offset);
+	if (!dead)
+		pbx_builtin_setvar_helper(chan, "MACRO_OFFSET", save_macro_offset);
 	if (save_macro_offset)
 		free(save_macro_offset);
 	LOCAL_USER_REMOVE(u);
