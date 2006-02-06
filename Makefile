@@ -3,7 +3,7 @@
 # 
 # Top level Makefile
 #
-# Copyright (C) 1999-2005, Mark Spencer
+# Copyright (C) 1999-2006, Digium, Inc.
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -943,4 +943,4 @@ uninstall-all: _uninstall
 	rm -rf $(DESTDIR)$(ASTSPOOLDIR)
 	rm -rf $(DESTDIR)$(ASTETCDIR)
 	rm -rf $(DESTDIR)$(ASTLOGDIR)
-	
+
