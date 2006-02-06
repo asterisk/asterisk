@@ -6,7 +6,7 @@
 
 # Verify those options with main Makefile
 CFLAGS		= -pipe -c -Wall
-ifeq ($(PROC),x86_64)
+ifeq ($(shell uname -m),x86_64)
 CFLAGS	       += -fPIC
 endif
 SOURCES		= isdn_lib.c isdn_msg_parser.c 
