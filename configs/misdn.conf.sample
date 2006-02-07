@@ -258,7 +258,7 @@ jitterbuffer=1000
 ;
 ; change this threshold to enable dejitter functionality
 ;
-jitterbuffer_upper_threshold=0
+jitterbuffer_upper_threshold=600
 
 
 [intern]
