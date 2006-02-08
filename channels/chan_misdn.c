@@ -888,7 +888,7 @@ static int misdn_send_display (int fd, int argc, char *argv[])
 	return RESULT_SUCCESS ;
 }
 
-static char *complete_ch_helper(char *line, char *word, int pos, int state, int rpos)
+static char *complete_ch_helper(const char *line, const char *word, int pos, int state, int rpos)
 {
 	struct ast_channel *c;
 	int which=0;
@@ -912,12 +912,12 @@ static char *complete_ch_helper(char *line, char *word, int pos, int state, int 
 	return ret;
 }
 
-static char *complete_ch(char *line, char *word, int pos, int state)
+static char *complete_ch(const char *line, const char *word, int pos, int state)
 {
 	return complete_ch_helper(line, word, pos, state, 3);
 }
 
-static char *complete_debug_port (char *line, char *word, int pos, int state)
+static char *complete_debug_port (const char *line, const char *word, int pos, int state)
 {
 	if (state)
 		return NULL;
@@ -1418,14 +1418,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	struct misdn_bchannel *newbc;
 	char *opts=NULL, *ext,*tokb;
 	char dest_cp[256];
-	struct ast_channel *bridged;
-	
-	if ( (bridged=ast_bridged_channel(ast)) ) {
-		chan_misdn_log(0,0,"Our Bridged Partner is %s\n",bridged->tech->type);
-	} else {
-		chan_misdn_log(0,0,"No Bridged Partner\n");
-	}
-	
+
 	{
 		strncpy(dest_cp,dest,sizeof(dest_cp)-1);
 		dest_cp[sizeof(dest_cp)]=0;
@@ -1480,7 +1473,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 	strncpy(ast->exten,ext,sizeof(ast->exten));
 	
 	
-	chan_misdn_log(1, 0, "* CALL: %s\n",dest);
+	chan_misdn_log(1, port, "* CALL: %s\n",dest);
 	
 	chan_misdn_log(1, port, " --> * dad:%s tech:%s ctx:%s\n",ast->exten,ast->name, ast->context);
 	
@@ -1521,7 +1514,7 @@ static int misdn_call(struct ast_channel *ast, char *dest, int timeout)
 		if (opts)
 			misdn_set_opt_exec(ast,opts);
 		else
-			chan_misdn_log(1,0,"NO OPTS GIVEN\n");
+			chan_misdn_log(2,port,"NO OPTS GIVEN\n");
 		
 		
 		ch->state=MISDN_CALLING;
@@ -2342,8 +2335,8 @@ static struct ast_channel *misdn_request(const char *type, int format, void *dat
 	}
 	
 	if (!newbc) {
-		chan_misdn_log(1, 0, " --> ! No free channel chan ext:%s even after Group Call\n",ext);
-		chan_misdn_log(1, 0, " --> SEND: State Down\n");
+		chan_misdn_log(-1, 0, " --> ! No free channel chan ext:%s even after Group Call\n",ext);
+		chan_misdn_log(-1, 0, " --> SEND: State Down\n");
 		return NULL;
 	}
 
@@ -2773,7 +2766,6 @@ static void release_chan(struct misdn_bchannel *bc) {
 					} else {
 						chan_misdn_log(2,  bc->port, "* --> Hangup\n");
 						ast_queue_hangup(ast);
-						//ast_hangup(ast);
 					}
 					break;
 					
@@ -2817,7 +2809,6 @@ static void misdn_transfer_bc(struct chan_list *tmp_ch, struct chan_list *holded
 	holded_chan->state=MISDN_CONNECTED;
 	holded_chan->holded=0;
 	misdn_lib_transfer(holded_chan->bc?holded_chan->bc:holded_chan->holded_bc);
-	
 	ast_channel_masquerade(holded_chan->ast, AST_BRIDGED_P(tmp_ch->ast));
 }
 
@@ -2832,7 +2823,6 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 	strncpy(predial, ast->exten, sizeof(predial) -1 );
   
 	ch->state=MISDN_DIALING;
-	
 
 	if (bc->nt) {
 		int ret; 
@@ -2845,7 +2835,6 @@ static void do_immediate_setup(struct misdn_bchannel *bc,struct chan_list *ch , 
 			ret = misdn_lib_send_event(bc, EVENT_PROCEEDING );
 		}
 	}
-
 	tone_indicate(ch,TONE_DIAL);  
   
 	chan_misdn_log(1, bc->port, "* Starting Ast ctx:%s dad:%s oad:%s with 's' extension\n", ast->context, ast->exten, AST_CID_P(ast));
@@ -3010,6 +2999,21 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			}
 /*			chan_misdn_log(5, bc->port, "Can Match Extension: dad:%s oad:%s\n",bc->dad,bc->oad);*/
 			
+			/* Check for Pickup Request first */
+			if (!strcmp(ch->ast->exten, ast_pickup_ext())) {
+				int ret;/** Sending SETUP_ACK**/
+				ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+				if (ast_pickup_call(ch->ast)) {
+					ast_hangup(ch->ast);
+				} else {
+					struct ast_channel *chan=ch->ast;
+					ch->state = MISDN_CALLING_ACKNOWLEDGE;
+					ch->ast=NULL;
+					ast_setstate(chan, AST_STATE_DOWN);
+					ast_hangup(chan);
+					break;
+				}
+			}
 			
 			if(!ast_canmatch_extension(ch->ast, ch->context, bc->dad, 1, bc->oad)) {
 
@@ -3130,7 +3134,21 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 
 		/** queue new chan **/
 		cl_queue_chan(&cl_te, ch) ;
-
+		
+		/* Check for Pickup Request first */
+		if (!strcmp(chan->exten, ast_pickup_ext())) {
+			int ret;/** Sending SETUP_ACK**/
+			ret = misdn_lib_send_event(bc, EVENT_SETUP_ACKNOWLEDGE );
+			if (ast_pickup_call(chan)) {
+				ast_hangup(chan);
+			} else {
+				ch->state = MISDN_CALLING_ACKNOWLEDGE;
+				ch->ast=NULL;
+				ast_setstate(chan, AST_STATE_DOWN);
+				ast_hangup(chan);
+				break;
+			}
+		}
 		
 		/*
 		  added support for s extension hope it will help those poor cretains
@@ -3371,7 +3389,7 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 		int res;
 		int (*generate)(struct ast_channel *chan, void *tmp, int datalen, int samples);
 
-		chan_misdn_log(9,0,"TONE_GEN: len:%d\n");
+		chan_misdn_log(9,bc->port,"TONE_GEN: len:%d\n");
 		
 		if (!ast->generator) break;
 		

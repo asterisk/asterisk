@@ -16,11 +16,8 @@
 
 #ifndef mISDNUSER_HEAD_SIZE
 
-#ifdef MISDNUSER_JOLLY
 #define mISDNUSER_HEAD_SIZE (sizeof(mISDNuser_head_t))
-#else
-#define mISDNUSER_HEAD_SIZE (sizeof(mISDN_head_t))
-#endif
+/*#define mISDNUSER_HEAD_SIZE (sizeof(mISDN_head_t))*/
 #endif
 
 

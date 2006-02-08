@@ -165,23 +165,18 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
 		strcpy(bc->oad, id);
 		switch (present) {
 		case 0:
-//			cb_log(3, bc->stack->port, " --> Pres:0\n");
 			bc->pres=0; /* screened */
 			break;
 		case 1:
-//			cb_log(3, bc->stack->port, " --> Pres:1\n");
 			bc->pres=1; /* not screened */
 			break;
 		default:
-//			cb_log(3, bc->stack->port, " --> Pres:%d\n",present);
 			bc->pres=0;
 		}
 		switch (screen) {
 		case 0:
-//			cb_log(4, bc->stack->port, " --> Screen:0\n");
 			break;
 		default:
-//			cb_log(4, bc->stack->port, " --> Screen:%d\n",screen);
 			;
 		} 
 	}
@@ -210,7 +205,6 @@ void parse_setup (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *bc,
     
 		strcpy(bc->rad, id);
 		bc->rnumplan=type; 
-//		cb_log(3, bc->stack->port, " --> Redirecting number (REDIR_NR): '%s'\n", id);
 	}
 	{
 		int  coding, capability, mode, rate, multi, user, async, urate, stopbits, dbits, parity;
@@ -267,7 +261,6 @@ msg_t *build_setup (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
   
 	setup=(SETUP_t*)((msg->data+HEADER_LEN)); 
   
-//	cb_log(2, bc->stack->port, " --> oad %s dad %s channel %d\n",bc->oad, bc->dad,bc->channel);
 	if (bc->channel == 0 || bc->channel == ANY_CHANNEL || bc->channel==-1)
 		enc_ie_channel_id(&setup->CHANNEL_ID, msg, 0, bc->channel, nt,bc);
 	else 
@@ -346,7 +339,7 @@ msg_t *build_connect (struct isdn_msg msgs[], struct misdn_bchannel *bc, int nt)
 	CONNECT_t *connect;
 	msg_t *msg =(msg_t*)create_l3msg(CC_CONNECT | REQUEST, MT_CONNECT,  bc?bc->l3_id:-1, sizeof(CONNECT_t) ,nt); 
 	
-	cb_log(0,0,"BUILD_CONNECT: bc:%p bc->l3id:%d, nt:%d\n",bc,bc->l3_id,nt);
+	cb_log(6,bc->port,"BUILD_CONNECT: bc:%p bc->l3id:%d, nt:%d\n",bc,bc->l3_id,nt);
 
 	connect=(CONNECT_t*)((msg->data+HEADER_LEN)); 
 
@@ -765,7 +758,7 @@ void parse_restart (struct isdn_msg msgs[], msg_t *msg, struct misdn_bchannel *b
 		dec_ie_channel_id(restart->CHANNEL_ID, (Q931_info_t *)restart, &exclusive, &channel, nt,bc);
 		if (channel==0xff) /* any channel */
 			channel=-1;
-		cb_log(0, stack->port, "CC_RESTART Request on channel:%d on this port.\n");
+		cb_log(3, stack->port, "CC_RESTART Request on channel:%d on this port.\n");
 	}
   
  
@@ -822,15 +815,12 @@ void parse_release_complete (struct isdn_msg msgs[], msg_t *msg, struct misdn_bc
 	iframe_t *frm = (iframe_t*) msg->data;
 
 	struct misdn_stack *stack=get_stack_by_bc(bc);
-	
-#ifdef MISDNUSER_JOLLY
 	mISDNuser_head_t *hh;
 	hh=(mISDNuser_head_t*)msg->data;
-#else
-	mISDN_head_t *hh;
-	hh=(mISDN_head_t*)msg->data;
-#endif
-  
+
+	/*hh=(mISDN_head_t*)msg->data;
+	mISDN_head_t *hh;*/
+
 	if (nt) {
 		if (hh->prim == (CC_RELEASE_COMPLETE|CONFIRM)) {
 			cb_log(0, stack->port, "CC_RELEASE_COMPLETE|CONFIRM [NT] \n");

@@ -335,9 +335,8 @@ int send_msg (int midev, struct misdn_bchannel *bc, msg_t *dmsg)
 	frm = (iframe_t *)dmsg->data;
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 
-
 	if (!stack) {
-		cb_log(0,0,"send_msg: IEK!! no stack\n ");
+		cb_log(0,bc->port,"send_msg: IEK!! no stack\n ");
 		return -1;
 	}
 	
@@ -594,16 +593,11 @@ int chan_in_stack_free(struct misdn_stack *stack, int channel)
 
 static int newteid=0;
 
-#ifdef MISDNUSER_JOLLY
 #define MAXPROCS 0x100
-#else
-#define MAXPROCS 0x10
-#endif
-
 
 int misdn_lib_get_l1_up(struct misdn_stack *stack)
 {
-	/* Pull Up L1 if we have JOLLY */ 
+	/* Pull Up L1 */ 
 	iframe_t act;
 	act.prim = PH_ACTIVATE | REQUEST; 
 	act.addr = (stack->upper_id | FLG_MSG_DOWN)  ;
@@ -693,11 +687,7 @@ static int create_process (int midev, struct misdn_bchannel *bc) {
 		}
 		stack->procids[i]=1;
 
-#ifdef MISDNUSER_JOLLY
 		l3_id = 0xff00 | i;
-#else
-		l3_id = 0xfff0 | i;
-#endif
     
 		ncr.prim = CC_NEW_CR | REQUEST; 
 
@@ -1054,15 +1044,11 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 		}
 	}
 	
-	
-
 	{
 		int ret;
 		int nt=stack->nt;
 
 		cb_log(4, port, "Init. Stack.\n");
-		
-		
 		
 		memset(&li, 0, sizeof(li));
 		{
@@ -1091,7 +1077,6 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 			cb_log(-1,port,"Cannot register layer %d of this port.\n", nt?2:4);
 			return(NULL);
 		}
-		
 		
 		stack->lower_id = mISDN_get_layerid(midev, stack->d_stid, nt?1:3); 
 		if (stack->lower_id < 0) {
@@ -1277,7 +1262,6 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 				int ret=setup_bc(bc);
 				if (ret == -EINVAL){
 					cb_log(-1,bc->port,"send_event: setup_bc failed\n");
-					
 				}
 			}
 			
@@ -1287,7 +1271,6 @@ int handle_event ( struct misdn_bchannel *bc, enum event_e event, iframe_t *frm)
 
 			if ( *bc->crypt_key ) {
 				cb_log(4, stack->port, "ENABLING BLOWFISH channel:%d oad%d:%s dad%d:%s\n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
-				
 				manager_ph_control_block(bc,  BF_ENABLE_KEY, bc->crypt_key, strlen(bc->crypt_key) );
 			}
 		case EVENT_SETUP:
@@ -1333,7 +1316,7 @@ int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
 	
 	
 	if (!bc) {
-		cb_log(-1, 0, " --> !! lib: No free channel!\n");
+		cb_log(-1, stack->port, " --> !! lib: No free channel!\n");
 		return -1;
 	}
   
@@ -1347,7 +1330,6 @@ int handle_new_process(struct misdn_stack *stack, iframe_t *frm)
 
 int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 {
-	
 	if (!stack) return -1;
   
 	switch (frm->prim) {
@@ -1385,7 +1367,6 @@ int handle_cr ( struct misdn_stack *stack, iframe_t *frm)
 				dump_chan_list(stack);
 				bc->pid = 0;
 				cb_event(EVENT_CLEANUP, bc, glob_mgr->user_data);
-				
 				if (bc->stack_holder) {
 					cb_log(4,stack->port, "REMOVEING Holder\n");
 					stack_holder_remove( stack, bc);
@@ -1427,7 +1408,7 @@ void misdn_lib_release(struct misdn_bchannel *bc)
 
 
 int misdn_lib_get_port_up (int port) 
-{ /* Pull Up L1 if we have JOLLY */ 
+{ /* Pull Up L1 */ 
 	struct misdn_stack *stack;
 	
 	for (stack=glob_mgr->stack_list;
@@ -1508,16 +1489,11 @@ handle_event_nt(void *dat, void *arg)
 		return(-EINVAL);
 
 	hh=(mISDNuser_head_t*)msg->data;
-
-
 	port=stack->port;
 	
-	
 	cb_log(4, stack->port, " --> lib: prim %x dinfo %x\n",hh->prim, hh->dinfo);
-  
 	{
 		switch(hh->prim){
-			
 		case CC_RETRIEVE|INDICATION:
 		{
 			iframe_t frm; /* fake te frm to add callref to global callreflist */
@@ -1549,15 +1525,13 @@ handle_event_nt(void *dat, void *arg)
 			
 			break;
 			
-			
 		case CC_SETUP|CONFIRM:
 		{
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
 			int l3id = *((int *)(((u_char *)msg->data)+ mISDNUSER_HEAD_SIZE));
-			
-			cb_log(4, bc?stack->port:0, " --> lib: Event_ind:SETUP CONFIRM [NT] : new L3ID  is %x\n",l3id );
+			cb_log(4, stack->port, " --> lib: Event_ind:SETUP CONFIRM [NT] : new L3ID  is %x\n",l3id );
 	
-			if (!bc) { cb_log(4, 0, "Bc Not found (after SETUP CONFIRM)\n"); return 0; }
+			if (!bc) { cb_log(4, stack->port, "Bc Not found (after SETUP CONFIRM)\n"); return 0; }
 			cb_log (2,bc->port,"I IND :CC_SETUP|CONFIRM: old l3id:%x new l3id:%x\n", bc->l3_id, l3id);
 			bc->l3_id=l3id;
 			cb_event(EVENT_NEW_L3ID, bc, glob_mgr->user_data);
@@ -1656,7 +1630,6 @@ handle_event_nt(void *dat, void *arg)
 		}
 		break;
 		
-
 		case CC_RELEASE_COMPLETE|INDICATION:
 			break;
 
@@ -1696,11 +1669,9 @@ handle_event_nt(void *dat, void *arg)
 
 			frm.addr=stack->upper_id | FLG_MSG_DOWN;
 
-
 			frm.prim = CC_RELEASE_CR|INDICATION;
 			cb_log(4, stack->port, " --> Faking Realease_cr for %x\n",frm.addr);
 			/** removing procid **/
-
 			if (!bc) {
 				cb_log(4, stack->port, " --> Didn't found BC so temporarly creating dummy BC (l3id:%x) on this port.\n", hh->dinfo);
 				memset (&dummybc,0,sizeof(dummybc));
@@ -1710,20 +1681,10 @@ handle_event_nt(void *dat, void *arg)
 			}
 	
 			if (bc) {
-#ifdef MISDNUSER_JOLLY
 				if ( (bc->l3_id & 0xff00) == 0xff00) {
 					cb_log(4, stack->port, " --> Removing Process Id:%x on this port.\n", bc->l3_id&0xff);
 					stack->procids[bc->l3_id&0xff] = 0 ;
 				}
-#else
-				if ( (bc->l3_id & 0xfff0) == 0xfff0) {
-					cb_log(4, stack->port, " --> Removing Process Id:%x on this port.\n", bc->l3_id&0xf);
-					stack->procids[bc->l3_id&0xf] = 0 ;
-	    
-				}
-	  
-#endif
-
 			}
 			else cb_log(-1, stack->port, "Couldnt find BC so I couldnt remove the Process!!!! this is a bad port.\n");
 	
@@ -1731,7 +1692,6 @@ handle_event_nt(void *dat, void *arg)
 			free_msg(msg);
 			return 0 ;
 		}
-      
 		break;
       
 		case CC_NEW_CR|INDICATION:
@@ -1740,24 +1700,15 @@ handle_event_nt(void *dat, void *arg)
 		{
 			struct misdn_bchannel *bc=find_bc_by_l3id(stack, hh->dinfo);
 			int l3id = *((int *)(((u_char *)msg->data)+ mISDNUSER_HEAD_SIZE));
-			if (!bc) { cb_log(-1, 0, " --> In NEW_CR: didn't found bc ??\n"); return -1;};
-#ifdef MISDNUSER_JOLLY
+			if (!bc) { cb_log(-1, stack->port, " --> In NEW_CR: didn't found bc ??\n"); return -1;};
 			if (((l3id&0xff00)!=0xff00) && ((bc->l3_id&0xff00)==0xff00)) {
 				cb_log(4, stack->port, " --> Removing Process Id:%x on this port.\n", 0xff&bc->l3_id);
 				stack->procids[bc->l3_id&0xff] = 0 ;
 			}
-#else
-			if (((l3id&0xfff0)!=0xfff0) && ((bc->l3_id&0xfff0)==0xfff0)) {
-				cb_log(4, stack->port, "Removing Process Id:%x on this port.\n", 0xf&bc->l3_id);
-				stack->procids[bc->l3_id&0xf] = 0 ;
-			}
-
-#endif
 			cb_log(4, stack->port, "lib: Event_ind:CC_NEW_CR : very new L3ID  is %x\n",l3id );
 	
 			bc->l3_id =l3id;
 			cb_event(EVENT_NEW_L3ID, bc, glob_mgr->user_data);
-	
 	
 			free_msg(msg);
 			return 0;
@@ -1787,8 +1738,6 @@ handle_event_nt(void *dat, void *arg)
 		}
 	}
 	
-  
-
 	{
 		/*  Parse Events and fire_up to App. */
 		struct misdn_bchannel *bc;
@@ -1954,7 +1903,7 @@ int handle_bchan(msg_t *msg)
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 	
 	if (!stack) {
-		cb_log(0,0,"handle_bchan: STACK not found for prim:%x with addr:%x dinfo:%x\n", frm->prim, frm->addr, frm->dinfo);
+		cb_log(0, bc->port,"handle_bchan: STACK not found for prim:%x with addr:%x dinfo:%x\n", frm->prim, frm->addr, frm->dinfo);
 		return 0;
 	}
 	
@@ -2219,17 +2168,11 @@ int handle_frm(msg_t *msg)
 #endif
       
 		} else {
-	
 			cb_log(-1, stack->port, "NO BC FOR STACK\n");		
-			
 		}
-
 	}
 
 	cb_log(4, stack->port, "TE_FRM_HANDLER: Returning 0 on prim:%x \n",frm->prim);
-
-	
-  
 	return 0;
 }
 
@@ -2237,10 +2180,7 @@ int handle_frm(msg_t *msg)
 int handle_l1(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
-
 	struct misdn_stack *stack = find_stack_by_addr(frm->addr);
-
-	
 	int i ;
 	
 	if (!stack) return 0 ;
@@ -2267,19 +2207,16 @@ int handle_l1(msg_t *msg)
 			}
 			
 		}
-		
 		return 1;
 
 	case PH_ACTIVATE | REQUEST:
 		free_msg(msg);
 		cb_log(1,stack->port,"L1: PH_ACTIVATE|REQUEST \n");
-		
 		return 1;
 		
 	case PH_DEACTIVATE | REQUEST:
 		free_msg(msg);
 		cb_log(1,stack->port,"L1: PH_DEACTIVATE|REQUEST \n");
-		
 		return 1;
 		
 	case PH_DEACTIVATE | CONFIRM:
@@ -2290,13 +2227,11 @@ int handle_l1(msg_t *msg)
 			if (global_state == MISDN_INITIALIZED)  {
 				cb_event(EVENT_CLEANUP, &stack->bc[i], glob_mgr->user_data);
 			}
-			
 		}
 		
 		if (stack->nt) {
 			if (stack->nst.l1_l2(&stack->nst, msg))
 				free_msg(msg);
-			
 		} else {
 			free_msg(msg);
 		}
@@ -2315,8 +2250,6 @@ int handle_l2(msg_t *msg)
 	iframe_t *frm = (iframe_t*) msg->data;
 
 	struct misdn_stack *stack = find_stack_by_addr(frm->addr);
-
-	
 	
 	if (!stack) {
 		return 0 ;
@@ -2355,12 +2288,9 @@ int handle_l2(msg_t *msg)
 	return 0;
 }
 
-
 int handle_mgmt(msg_t *msg)
 {
 	iframe_t *frm = (iframe_t*) msg->data;
-	
-
 
 	if ( (frm->addr == 0) && (frm->prim == (MGR_DELLAYER|CONFIRM)) ) {
 		cb_log(2, 0, "MGMT: DELLAYER|CONFIRM Addr: 0 !\n") ;
@@ -2393,31 +2323,28 @@ int handle_mgmt(msg_t *msg)
 				stack->l1link=0;
 			
 			break;
+
 		case SSTATUS_L2_ESTABLISHED:
-			cb_log(1, 0, "MGMT: SSTATUS: L2_ESTABLISH \n");
+			cb_log(1, stack->port, "MGMT: SSTATUS: L2_ESTABLISH \n");
 			stack->l2link=1;
-			
 			break;
 			
 		case SSTATUS_L2_RELEASED:
-			cb_log(1, 0, "MGMT: SSTATUS: L2_RELEASED \n");
+			cb_log(1, stack->port, "MGMT: SSTATUS: L2_RELEASED \n");
 			stack->l2link=0;
 			stack->l1link=2;
-			
 			break;
-			
 		}
-		
 		
 		free_msg(msg);
 		return 1;
 		
 	case MGR_SETSTACK | INDICATION:
-		cb_log(2, 0, "MGMT: SETSTACK|IND dinfo %x\n",frm->dinfo);
+		cb_log(2, stack->port, "MGMT: SETSTACK|IND dinfo %x\n",frm->dinfo);
 		free_msg(msg);
 		return 1;
 	case MGR_DELLAYER | CONFIRM:
-		cb_log(2, 0, "MGMT: DELLAYER|CNF dinfo %x\n",frm->dinfo) ;
+		cb_log(2, stack->port, "MGMT: DELLAYER|CNF dinfo %x\n",frm->dinfo) ;
 		free_msg(msg);
 		return 1;
 		
@@ -2648,7 +2575,6 @@ void misdn_lib_log_ies(struct misdn_bchannel *bc)
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 
 	if (!stack) return;
-	
 
 	cb_log(2, stack->port, " --> mode:%s cause:%d ocause:%d rad:%s\n", stack->nt?"NT":"TE", bc->cause, bc->out_cause, bc->rad);
 	
@@ -2680,12 +2606,10 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 	int err = -1 ;
   
 	if (!bc) goto ERR; 
-
 	
 	struct misdn_stack *stack=get_stack_by_bc(bc);
 
-
-	cb_log(0,0,"SENDEVENT: stack->nt:%d stack->uperid:%x\n",stack->nt, stack->upper_id);
+	cb_log(6,stack->port,"SENDEVENT: stack->nt:%d stack->uperid:%x\n",stack->nt, stack->upper_id);
 
 	if ( stack->nt && !stack->l1link) {
 		/** Queue Event **/
@@ -2707,8 +2631,6 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			goto ERR;
 		}
 		break;
-
-		
 
 	case EVENT_CONNECT:
 	case EVENT_PROGRESS:
@@ -2737,14 +2659,12 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 			}
 		} 
 		
-		
 		if ( (event == EVENT_CONNECT ) && misdn_cap_is_speech(bc->capability) ) {
 			if ( *bc->crypt_key ) {
 				cb_log(4, stack->port,  " --> ENABLING BLOWFISH channel:%d oad%d:%s dad%d:%s \n", bc->channel, bc->onumplan,bc->oad, bc->dnumplan,bc->dad);
 				
 				manager_ph_control_block(bc,  BF_ENABLE_KEY, bc->crypt_key, strlen(bc->crypt_key) );
 			}
-			
 			
 			if (!bc->nodsp) manager_ph_control(bc,  DTMF_TONE_START, 0);
 			
@@ -2827,7 +2747,6 @@ int misdn_lib_send_event(struct misdn_bchannel *bc, enum event_e event )
 }
 
 
-
 int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 {  
 
@@ -2836,13 +2755,10 @@ int manager_isdn_handler(iframe_t *frm ,msg_t *msg)
 	}
 
 	if ( ((frm->addr | ISDN_PID_BCHANNEL_BIT )>> 28 ) == 0x5) {
-		cb_log(9,0,"BCHANNEL_BIT\n");
 		if (handle_bchan(msg)) 
 			return 0 ;
-	} else {
-		cb_log(9,0,"NO BCHANNEL_BIT !\n");
-	}
-	
+	}	
+
 	if (handle_timers(msg)) 
 		return 0 ;
 	
@@ -2910,10 +2826,8 @@ int misdn_lib_port_restart(int port)
 	cb_log(0, port, "Restarting this port.\n");
 	if (stack) {
 		cb_log(0, port, "Stack:%p\n",stack);
-
 		
 		clear_l3(stack);
-		
 		{
 			msg_t *msg=alloc_msg(MAX_MSG_SIZE);
 			iframe_t *frm;
@@ -2926,12 +2840,9 @@ int misdn_lib_port_restart(int port)
 			frm=(iframe_t*)msg->data;
 			/* we must activate if we are deactivated */
 			/* activate bchannel */
-	
 			frm->prim = DL_RELEASE | REQUEST;
-
 			frm->addr = stack->upper_id | FLG_MSG_DOWN;
 
-	
 			frm->dinfo = 0;
 			frm->len = 0;
 			msg_queue_tail(&glob_mgr->activatequeue, msg);
@@ -3111,8 +3022,6 @@ int misdn_lib_init(char *portlist, struct misdn_lib_iface *iface, void *user_dat
 			exit(1);
 		}
 		stack=stack_init(midev, port, ptp);
-    
-    
     
 		if (!stack) {
 			perror("init_stack");
