@@ -635,6 +635,18 @@ int misdn_lib_get_l2_up(struct misdn_stack *stack)
 	return 0;
 }
 
+int misdn_lib_get_l2_te_ptp_up(struct misdn_stack *stack)
+{
+	iframe_t act;
+		
+	act.prim = DL_ESTABLISH | REQUEST;
+	act.addr = (stack->upper_id  & ~LAYER_ID_MASK) | 3 | FLG_MSG_DOWN;
+		
+	act.dinfo = 0;
+	act.len = 0;
+	return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
+	return 0;
+}
 
 int misdn_lib_get_l2_status(struct misdn_stack *stack)
 {
@@ -656,9 +668,9 @@ int misdn_lib_get_short_status(struct misdn_stack *stack)
 	
 	act.prim = MGR_SHORTSTATUS | REQUEST; 
 	
-	act.addr = (stack->upper_id | FLG_MSG_DOWN)  ;
+	act.addr = (stack->upper_id | MSG_BROADCAST)  ;
 
-	act.dinfo = SSTATUS_L1;
+	act.dinfo = SSTATUS_BROADCAST_BIT | SSTATUS_ALL;
 	
 	act.len = 0;
 	return mISDN_write(stack->midev, &act, mISDN_HEADER_LEN+act.len, TIMEOUT_1SEC);
@@ -1129,6 +1141,7 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 			stack->l1link=1;
 		}
 
+		misdn_lib_get_short_status(stack);
 		misdn_lib_get_l1_up(stack);
 		misdn_lib_get_l2_up(stack);
 		
@@ -2312,6 +2325,7 @@ int handle_mgmt(msg_t *msg)
 		case SSTATUS_L1_ACTIVATED:
 			cb_log(1, 0, "MGMT: SSTATUS: L1_ACTIVATED \n");
 			stack->l1link=1;
+		
 			break;
 		case SSTATUS_L1_DEACTIVATED:
 			cb_log(1, 0, "MGMT: SSTATUS: L1_DEACTIVATED \n");
