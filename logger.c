@@ -314,9 +314,18 @@ static void init_logger_chain(void)
 	
 	cfg = ast_config_load("logger.conf");
 	
-	/* If no config file, we're fine */
-	if (!cfg)
+	/* If no config file, we're fine, set default options. */
+	if (!cfg) {
+		fprintf(stderr, "Unable to open logger.conf: %s\n", strerror(errno));
+		chan = malloc(sizeof(struct logchannel));
+		memset(chan, 0, sizeof(struct logchannel));
+		chan->type = LOGTYPE_CONSOLE;
+		chan->logmask = 28; /*warning,notice,error */
+		chan->next = logchannels;
+		logchannels = chan;
+		global_logmask |= chan->logmask;
 		return;
+	}
 	
 	ast_mutex_lock(&loglock);
 	if ((s = ast_variable_retrieve(cfg, "general", "appendhostname"))) {
