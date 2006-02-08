@@ -2319,6 +2319,7 @@ int handle_mgmt(msg_t *msg)
 	
 	switch(frm->prim) {
 	case MGR_SHORTSTATUS | INDICATION:
+	case MGR_SHORTSTATUS | CONFIRM:
 		cb_log(2, 0, "MGMT: Short status dinfo %x\n",frm->dinfo);
 		
 		switch (frm->dinfo) {
