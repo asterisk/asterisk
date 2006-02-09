@@ -83,11 +83,7 @@ struct ast_dnsmgr_entry *ast_dnsmgr_get(const char *name, struct in_addr *result
 {
 	struct ast_dnsmgr_entry *entry;
 
-	if (!result || ast_strlen_zero(name))
-		return NULL;
-
-	entry = calloc(1, sizeof(*entry) + strlen(name));
-	if (!entry)
+	if (!result || ast_strlen_zero(name) || !(entry = ast_calloc(1, sizeof(*entry) + strlen(name))))
 		return NULL;
 
 	entry->result = result;
@@ -285,8 +281,7 @@ static struct ast_cli_entry cli_status = {
 
 int dnsmgr_init(void)
 {
-	sched = sched_context_create();
-	if (!sched) {
+	if (!(sched = sched_context_create())) {
 		ast_log(LOG_ERROR, "Unable to create schedule context.\n");
 		return -1;
 	}

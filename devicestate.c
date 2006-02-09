@@ -143,11 +143,7 @@ int ast_devstate_add(ast_devstate_cb_type callback, void *data)
 {
 	struct devstate_cb *devcb;
 
-	if (!callback)
-		return -1;
-
-	devcb = calloc(1, sizeof(*devcb));
-	if (!devcb)
+	if (!callback || !(devcb = ast_calloc(1, sizeof(*devcb))))
 		return -1;
 
 	devcb->data = data;
@@ -198,16 +194,13 @@ static void do_state_change(const char *device)
 static int __ast_device_state_changed_literal(char *buf)
 {
 	char *device, *tmp;
-	struct state_change *change = NULL;
+	struct state_change *change;
 
 	device = buf;
-	tmp = strrchr(device, '-');
-	if (tmp)
+	if ((tmp = strrchr(device, '-')))
 		*tmp = '\0';
-	if (change_thread != AST_PTHREADT_NULL)
-		change = calloc(1, sizeof(*change) + strlen(device));
 
-	if (!change) {
+	if (change_thread == AST_PTHREADT_NULL || !(change = ast_calloc(1, sizeof(*change) + strlen(device)))) {
 		/* we could not allocate a change struct, or */
 		/* there is no background thread, so process the change now */
 		do_state_change(device);

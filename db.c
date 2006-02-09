@@ -63,14 +63,11 @@ AST_MUTEX_DEFINE_STATIC(dblock);
 
 static int dbinit(void) 
 {
-	if (!astdb) {
-		if (!(astdb = dbopen((char *)ast_config_AST_DB, O_CREAT | O_RDWR, 0664, DB_BTREE, NULL))) {
-			ast_log(LOG_WARNING, "Unable to open Asterisk database\n");
-		}
+	if (!astdb && !(astdb = dbopen((char *)ast_config_AST_DB, O_CREAT | O_RDWR, 0664, DB_BTREE, NULL))) {
+		ast_log(LOG_WARNING, "Unable to open Asterisk database\n");
+		return -1;
 	}
-	if (astdb)
-		return 0;
-	return -1;
+	return 0;
 }
 
 
@@ -402,6 +399,7 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 	char prefix[256];
 	DBT key, data;
 	char *keys, *values;
+	int values_len;
 	int res;
 	int pass;
 	struct ast_db_entry *last = NULL;
@@ -440,20 +438,18 @@ struct ast_db_entry *ast_db_gettree(const char *family, const char *keytree)
 		} else {
 			values = "<bad value>";
 		}
-		if (keymatch(keys, prefix)) {
-			cur = malloc(sizeof(struct ast_db_entry) + strlen(keys) + strlen(values) + 2);
-			if (cur) {
-				cur->next = NULL;
-				cur->key = cur->data + strlen(values) + 1;
-				strcpy(cur->data, values);
-				strcpy(cur->key, keys);
-				if (last) {
-					last->next = cur;
-				} else {
-					ret = cur;
-				}
-				last = cur;
+		values_len = strlen(values) + 1;
+		if (keymatch(keys, prefix) && (cur = ast_malloc(sizeof(*cur) + strlen(keys) + 1 + values_len))) {
+			cur->next = NULL;
+			cur->key = cur->data + values_len;
+			strcpy(cur->data, values);
+			strcpy(cur->key, keys);
+			if (last) {
+				last->next = cur;
+			} else {
+				ret = cur;
 			}
+			last = cur;
 		}
 	}
 	ast_mutex_unlock(&dblock);

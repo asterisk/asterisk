@@ -63,14 +63,14 @@ extern unsigned long global_fin, global_fout;
 void ast_cli(int fd, char *fmt, ...)
 {
 	char *stuff;
-	int res = 0;
+	int res;
 	va_list ap;
 
 	va_start(ap, fmt);
 	res = vasprintf(&stuff, fmt, ap);
 	va_end(ap);
 	if (res == -1) {
-		ast_log(LOG_ERROR, "Out of memory\n");
+		ast_log(LOG_ERROR, "Memory allocation failure\n");
 	} else {
 		ast_carefulwrite(fd, stuff, strlen(stuff), 100);
 		free(stuff);
@@ -520,8 +520,7 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 
 	if (argc != 4)
 		return RESULT_SHOWUSAGE;
-	buf = malloc(buflen);
-	if (!buf)
+	if (!(buf = ast_malloc(buflen)))
 		return RESULT_FAILURE;
 	buf[len] = '\0';
 	matches = ast_cli_completion_matches(argv[2], argv[3]);
@@ -534,9 +533,8 @@ static int handle_commandmatchesarray(int fd, int argc, char *argv[])
 			if (len + matchlen >= buflen) {
 				buflen += matchlen * 3;
 				obuf = buf;
-				buf = realloc(obuf, buflen);
-				if (!buf) 
-					/* Out of memory...  Just free old buffer and be done */
+				if (!(buf = ast_realloc(obuf, buflen))) 
+					/* Memory allocation failure...  Just free old buffer and be done */
 					free(obuf);
 			}
 			if (buf)
@@ -1274,13 +1272,14 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 	while ((retstr = ast_cli_generator(text, word, matches)) != NULL) {
 		if (matches + 1 >= match_list_len) {
 			match_list_len <<= 1;
-			match_list = realloc(match_list, match_list_len * sizeof(char *));
+			if (!(match_list = ast_realloc(match_list, match_list_len * sizeof(*match_list))))
+				return NULL;
 		}
 		match_list[++matches] = retstr;
 	}
 
 	if (!match_list)
-		return (char **) NULL;
+		return NULL;
 
 	which = 2;
 	prevstr = match_list[1];
@@ -1291,14 +1290,18 @@ char **ast_cli_completion_matches(const char *text, const char *word)
 		max_equal = i;
 	}
 
-	retstr = malloc(max_equal + 1);
+	if (!(retstr = ast_malloc(max_equal + 1)))
+		return NULL;
+	
 	strncpy(retstr, match_list[1], max_equal);
 	retstr[max_equal] = '\0';
 	match_list[0] = retstr;
 
-	if (matches + 1 >= match_list_len)
-		match_list = realloc(match_list, (match_list_len + 1) * sizeof(char *));
-	match_list[matches + 1] = (char *) NULL;
+	if (matches + 1 >= match_list_len) {
+		if (!(match_list = ast_realloc(match_list, (match_list_len + 1) * sizeof(*match_list))))
+			return NULL;
+	}
+	match_list[matches + 1] = NULL;
 
 	return match_list;
 }
@@ -1391,10 +1394,9 @@ int ast_cli_command(int fd, const char *s)
 	int x;
 	char *dup;
 	int tws;
-
-	dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws);
-	if (!dup) {
-		ast_log(LOG_ERROR, "Out of Memory!\n");
+	
+	if (!(dup = parse_args(s, &x, argv, sizeof(argv) / sizeof(argv[0]), &tws))) {
+		ast_log(LOG_ERROR, "Memory allocation failure\n");
 		return -1;
 	}
 

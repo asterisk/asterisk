@@ -101,13 +101,11 @@ struct ast_config {
 struct ast_variable *ast_variable_new(const char *name, const char *value) 
 {
 	struct ast_variable *variable;
+	int name_len = strlen(name) + 1;	
 
-	int length = strlen(name) + strlen(value) + 2 + sizeof(struct ast_variable);
-	variable = malloc(length);
-	if (variable) {
-		memset(variable, 0, length);
+	if ((variable = ast_calloc(1, name_len + strlen(value) + 1 + sizeof(*variable)))) {
 		variable->name = variable->stuff;
-		variable->value = variable->stuff + strlen(name) + 1;		
+		variable->value = variable->stuff + name_len;		
 		strcpy(variable->name,name);
 		strcpy(variable->value,value);
 	}
@@ -203,9 +201,7 @@ struct ast_category *ast_category_new(const char *name)
 {
 	struct ast_category *category;
 
-	category = malloc(sizeof(struct ast_category));
-	if (category) {
-		memset(category, 0, sizeof(struct ast_category));
+	if ((category = ast_calloc(1, sizeof(*category)))) {		
 		ast_copy_string(category->name, name, sizeof(category->name));
 	}
 
@@ -329,9 +325,7 @@ struct ast_config *ast_config_new(void)
 {
 	struct ast_config *config;
 
-	config = malloc(sizeof(*config));
-	if (config) {
-		memset(config, 0, sizeof(*config));
+	if ((config = ast_calloc(1, sizeof(*config)))) {
 		config->max_include_level = MAX_INCLUDE_LEVEL;
 	}
 
@@ -390,9 +384,7 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
  		if (*c++ != '(')
  			c = NULL;
 		catname = cur;
-		*cat = newcat = ast_category_new(catname);
-		if (!newcat) {
-			ast_log(LOG_WARNING, "Out of memory, line %d of %s\n", lineno, configfile);
+		if (!(*cat = newcat = ast_category_new(catname))) {
 			return -1;
 		}
  		/* If there are options or categories to inherit from, process them now */
@@ -511,15 +503,13 @@ static int process_text_line(struct ast_config *cfg, struct ast_category **cat, 
 				c++;
 			} else
 				object = 0;
-			v = ast_variable_new(ast_strip(cur), ast_strip(c));
-			if (v) {
+			if ((v = ast_variable_new(ast_strip(cur), ast_strip(c)))) {
 				v->lineno = lineno;
 				v->object = object;
 				/* Put and reset comments */
 				v->blanklines = 0;
 				ast_variable_append(*cat, v);
 			} else {
-				ast_log(LOG_WARNING, "Out of memory, line %d\n", lineno);
 				return -1;
 			}
 		} else {
@@ -767,12 +757,10 @@ static int append_mapping(char *name, char *driver, char *database, char *table)
 	length += strlen(database) + 1;
 	if (table)
 		length += strlen(table) + 1;
-	map = malloc(length);
 
-	if (!map)
+	if (!(map = ast_calloc(1, length)))
 		return -1;
 
-	memset(map, 0, length);
 	map->name = map->stuff;
 	strcpy(map->name, name);
 	map->driver = map->name + strlen(map->name) + 1;
