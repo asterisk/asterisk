@@ -7747,7 +7747,7 @@ static const char *dtmfmode2str(int mode)
 {
 	switch (mode) {
 	case SIP_DTMF_RFC2833:
-		return "rfc2833";
+		return "rtp";
 	case SIP_DTMF_INFO:
 		return "info";
 	case SIP_DTMF_INBAND:
@@ -11723,7 +11723,7 @@ static int handle_common_options(struct ast_flags *flags, struct ast_flags *mask
 		ast_clear_flag(flags, SIP_DTMF);
 		if (!strcasecmp(v->value, "inband"))
 			ast_set_flag(flags, SIP_DTMF_INBAND);
-		else if (!strcasecmp(v->value, "rfc2833"))
+		else if (!strcasecmp(v->value, "rfc2833") || !strcasecmp(v->value, "rtp"))
 			ast_set_flag(flags, SIP_DTMF_RFC2833);
 		else if (!strcasecmp(v->value, "info"))
 			ast_set_flag(flags, SIP_DTMF_INFO);
@@ -12848,7 +12848,7 @@ static int sip_set_rtp_peer(struct ast_channel *chan, struct ast_rtp *rtp, struc
 }
 
 static char *synopsis_dtmfmode = "Change the dtmfmode for a SIP call";
-static char *descrip_dtmfmode = "SIPDtmfMode(inband|info|rfc2833): Changes the dtmfmode for a SIP call\n";
+static char *descrip_dtmfmode = "SIPDtmfMode(inband|info|rtp): Changes the dtmfmode for a SIP call\n";
 static char *app_dtmfmode = "SIPDtmfMode";
 
 static char *app_sipaddheader = "SIPAddHeader";
@@ -12871,7 +12871,7 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 	if (data)
 		mode = (char *)data;
 	else {
-		ast_log(LOG_WARNING, "This application requires the argument: info, inband, rfc2833\n");
+		ast_log(LOG_WARNING, "This application requires the argument: info, inband, rtp\n");
 		return 0;
 	}
 	ast_mutex_lock(&chan->lock);
@@ -12889,10 +12889,10 @@ static int sip_dtmfmode(struct ast_channel *chan, void *data)
 	if (!strcasecmp(mode,"info")) {
 		ast_clear_flag(p, SIP_DTMF);
 		ast_set_flag(p, SIP_DTMF_INFO);
-	} else if (!strcasecmp(mode,"rfc2833")) {
+	} else if (!strcasecmp(mode, "rfc2833") || !strcasecmp(mode, "rtp")) {
 		ast_clear_flag(p, SIP_DTMF);
 		ast_set_flag(p, SIP_DTMF_RFC2833);
-	} else if (!strcasecmp(mode,"inband")) { 
+	} else if (!strcasecmp(mode, "inband")) { 
 		ast_clear_flag(p, SIP_DTMF);
 		ast_set_flag(p, SIP_DTMF_INBAND);
 	} else
