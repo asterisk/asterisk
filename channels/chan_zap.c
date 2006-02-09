@@ -7032,7 +7032,7 @@ static struct zt_pvt *mkintf(int channel, int signalling, int radio, struct zt_p
 				if (p.sigtype != (signalling & 0x3ffff)) {
 					ast_log(LOG_ERROR, "Signalling requested on channel %d is %s but line is in %s signalling\n", channel, sig2str(signalling), sig2str(p.sigtype));
 					destroy_zt_pvt(&tmp);
-					return tmp;
+					return NULL;
 				}
 				tmp->law = p.curlaw;
 				tmp->span = p.spanno;
