@@ -136,6 +136,12 @@ emaildateformat=%A, %B %d, %Y at %r
 ; R             24 hour time, including minute 
 ; 
 ; 
+[zonemessages]
+eastern=America/New_York|'vm-received' Q 'digits/at' IMp
+central=America/Chicago|'vm-received' Q 'digits/at' IMp
+central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
+military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
+european=Europe/Copenhagen|'vm-received' a d b 'digits/at' HM
 
 ;
 ; Each mailbox is listed in the form <mailbox>=<password>,<name>,<email>,<pager_email>,<options>
@@ -183,11 +189,6 @@ sendvoicemail=yes	; Context to Send voicemail from [option 5 from the advanced m
 ; hidefromdir=yes	; Hide this mailbox from the directory produced by app_directory
 			;     The default is "no".
 
-[zonemessages]
-eastern=America/New_York|'vm-received' Q 'digits/at' IMp
-central=America/Chicago|'vm-received' Q 'digits/at' IMp
-central24=America/Chicago|'vm-received' q 'digits/at' H N 'hours'
-military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
 
 [default]
 ; Define maximum number of messages per folder for partcular context.
@@ -200,6 +201,7 @@ military=Zulu|'vm-received' q 'digits/at' H N 'hours' 'phonetic/z_p'
 ;4069 => 6522,Matt Brooks,matt@marko.net,,|tz=central|attach=yes|saycid=yes|dialout=fromvm|callback=fromvm|review=yes|operator=yes|envelope=yes|sayduration=yes|saydurationm=1
 ;4073 => 1099,Bianca Paige,bianca@biancapaige.com,,delete=1
 ;4110 => 3443,Rob Flynn,rflynn@blueridge.net
+;4235 => 1234,Jim Holmes,jim@astricon.ips,,Tz=european
 
 
 ;
