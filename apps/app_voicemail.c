@@ -75,6 +75,8 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #endif
 
 #define COMMAND_TIMEOUT 5000
+#define	VOICEMAIL_DIR_MODE	0770
+#define	VOICEMAIL_FILE_MODE	0660
 
 #define VOICEMAIL_CONFIG "voicemail.conf"
 #define ASTERISK_USERNAME "asterisk"
@@ -778,6 +780,41 @@ static int make_file(char *dest, int len, char *dir, int num)
 	return snprintf(dest, len, "%s/msg%04d", dir, num);
 }
 
+/** basically mkdir -p $dest/$context/$ext/$mailbox
+ * @dest    String. base directory.
+ * @context String. Ignored if is null or empty string.
+ * @ext     String. Ignored if is null or empty string.
+ * @mailbox String. Ignored if is null or empty string. 
+ * @returns 0 on failure, 1 on success.
+ * */
+static int create_dirpath(char *dest, int len, char *context, char *ext, char *mailbox)
+{
+	mode_t	mode = VOICEMAIL_DIR_MODE;
+
+	if(context && context[0] != '\0') {
+		make_dir(dest, len, context, "", "");
+		if(mkdir(dest, mode) && errno != EEXIST) {
+			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
+			return 0;
+		}
+	}
+	if(ext && ext[0] != '\0') {
+		make_dir(dest, len, context, ext, "");
+		if(mkdir(dest, mode) && errno != EEXIST) {
+			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
+			return 0;
+		}
+	}
+	if(mailbox && mailbox[0] != '\0') {
+		make_dir(dest, len, context, ext, mailbox);
+		if(mkdir(dest, mode) && errno != EEXIST) {
+			ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dest, strerror(errno));
+			return 0;
+		}
+	}
+	return 1;
+}
+
 /* only return failure if ast_lock_path returns 'timeout',
    not if the path does not exist or any other reason
 */
@@ -1383,7 +1420,7 @@ static int copy(char *infile, char *outfile)
 			ast_log(LOG_WARNING, "Unable to open %s in read-only mode\n", infile);
 			return -1;
 		}
-		if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, 0600)) < 0) {
+		if ((ofd = open(outfile, O_WRONLY | O_TRUNC | O_CREAT, VOICEMAIL_FILE_MODE)) < 0) {
 			ast_log(LOG_WARNING, "Unable to open %s in write-only mode\n", outfile);
 			close(ifd);
 			return -1;
@@ -2275,18 +2312,8 @@ static int copy_message(struct ast_channel *chan, struct ast_vm_user *vmu, int i
 
 	ast_log(LOG_NOTICE, "Copying message from %s@%s to %s@%s\n", vmu->mailbox, vmu->context, recip->mailbox, recip->context);
 
-	make_dir(todir, sizeof(todir), recip->context, "", "");
-	/* It's easier just to try to make it than to check for its existence */
-	if (mkdir(todir, 0700) && (errno != EEXIST))
-		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
-	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, "");
-	/* It's easier just to try to make it than to check for its existence */
-	if (mkdir(todir, 0700) && (errno != EEXIST))
-		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
-	make_dir(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
-	if (mkdir(todir, 0700) && (errno != EEXIST))
-		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", todir, strerror(errno));
-
+	create_dirpath(todir, sizeof(todir), recip->context, recip->mailbox, "INBOX");
+  
 	make_dir(fromdir, sizeof(fromdir), vmu->context, vmu->mailbox, frombox);
 	make_file(frompath, sizeof(frompath), fromdir, msgnum);
 
@@ -2402,17 +2429,8 @@ static int leave_voicemail(struct ast_channel *chan, char *ext, struct leave_vm_
 	if (ast_fileexists(tempfile, NULL, NULL) > 0)
 		ast_copy_string(prefile, tempfile, sizeof(prefile));
 	DISPOSE(tempfile, -1);
-	make_dir(dir, sizeof(dir), vmu->context, "", "");
 	/* It's easier just to try to make it than to check for its existence */
-	if (mkdir(dir, 0700) && (errno != EEXIST))
-		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
-	make_dir(dir, sizeof(dir), vmu->context, ext, "");
-	/* It's easier just to try to make it than to check for its existence */
-	if (mkdir(dir, 0700) && (errno != EEXIST))
-		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
-	make_dir(dir, sizeof(dir), vmu->context, ext, "INBOX");
-	if (mkdir(dir, 0700) && (errno != EEXIST))
-		ast_log(LOG_WARNING, "mkdir '%s' failed: %s\n", dir, strerror(errno));
+	create_dirpath(dir, sizeof(dir), vmu->context, ext, "INBOX");
 
 	/* Check current or macro-calling context for special extensions */
 	if (!ast_strlen_zero(vmu->exit)) {
@@ -2677,9 +2695,8 @@ static int save_to_folder(struct ast_vm_user *vmu, char *dir, int msg, char *con
 	char ddir[256];
 	char *dbox = mbox(box);
 	int x;
-	make_file(sfn, sizeof(sfn), dir, msg);
-	make_dir(ddir, sizeof(ddir), context, username, dbox);
-	mkdir(ddir, 0700);
+ 	make_file(sfn, sizeof(sfn), dir, msg);
+	create_dirpath(ddir, sizeof(ddir), context, username, dbox);
 
 	if (vm_lock_path(ddir))
 		return ERROR_LOCK_PATH;
@@ -5134,10 +5151,7 @@ static int vm_execmain(struct ast_channel *chan, void *data)
 	/* Set language from config to override channel language */
 	if (!ast_strlen_zero(vmu->language))
 		ast_copy_string(chan->language, vmu->language, sizeof(chan->language));
-	snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s", VM_SPOOL_DIR, vmu->context);
-	mkdir(vms.curdir, 0700);
-	snprintf(vms.curdir, sizeof(vms.curdir), "%s/%s/%s", VM_SPOOL_DIR, vmu->context, vms.username);
-	mkdir(vms.curdir, 0700);
+	create_dirpath(vms.curdir, sizeof(vms.curdir), vmu->context, vms.username, "");
 	/* Retrieve old and new message counts */
 	res = open_mailbox(&vms, vmu, 1);
 	if (res == ERROR_LOCK_PATH)
