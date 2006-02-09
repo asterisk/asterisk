@@ -124,10 +124,8 @@ int ast_format_register(const char *name, const char *exts, int format,
 			ast_log(LOG_WARNING, "Tried to register '%s' format, already registered\n", name);
 			return -1;
 		}
-	}
-	tmp = malloc(sizeof(struct ast_format));
-	if (!tmp) {
-		ast_log(LOG_WARNING, "Out of memory\n");
+	}	
+	if (!(tmp = ast_malloc(sizeof(*tmp)))) {
 		AST_LIST_UNLOCK(&formats);
 		return -1;
 	}
@@ -301,16 +299,14 @@ static char *build_filename(const char *filename, const char *ext)
 
 	if (filename[0] == '/') {
 		fnsize = strlen(filename) + strlen(type) + 2;
-		fn = malloc(fnsize);
-		if (fn)
+		if ((fn = ast_malloc(fnsize)))
 			snprintf(fn, fnsize, "%s.%s", filename, type);
 	} else {
 		char tmp[AST_CONFIG_MAX_PATH] = "";
 
 		snprintf(tmp, sizeof(tmp), "%s/%s", ast_config_AST_VAR_DIR, "sounds");
 		fnsize = strlen(tmp) + strlen(filename) + strlen(type) + 3;
-		fn = malloc(fnsize);
-		if (fn)
+		if ((fn = ast_malloc(fnsize)))
 			snprintf(fn, fnsize, "%s/%s.%s", tmp, filename, type);
 	}
 
@@ -333,13 +329,15 @@ static int exts_compare(const char *exts, const char *type)
 	return 0;
 }
 
-#define ACTION_EXISTS 1
-#define ACTION_DELETE 2
-#define ACTION_RENAME 3
-#define ACTION_OPEN   4
-#define ACTION_COPY   5
+enum file_action {
+	ACTION_EXISTS = 1,
+	ACTION_DELETE,
+	ACTION_RENAME,
+	ACTION_OPEN,
+	ACTION_COPY
+};
 
-static int ast_filehelper(const char *filename, const char *filename2, const char *fmt, int action)
+static int ast_filehelper(const char *filename, const char *filename2, const char *fmt, const enum file_action action)
 {
 	struct stat st;
 	struct ast_format *f;
@@ -389,8 +387,7 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 								if (res)
 									ast_log(LOG_WARNING, "rename(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 								free(nfn);
-							} else
-								ast_log(LOG_WARNING, "Out of memory\n");
+							}
 							break;
 						case ACTION_COPY:
 							nfn = build_filename(filename2, ext);
@@ -399,8 +396,7 @@ static int ast_filehelper(const char *filename, const char *filename2, const cha
 								if (res)
 									ast_log(LOG_WARNING, "copy(%s,%s) failed: %s\n", fn, nfn, strerror(errno));
 								free(nfn);
-							} else
-								ast_log(LOG_WARNING, "Out of memory\n");
+							}
 							break;
 						case ACTION_OPEN:
 							if ((ret < 0) && ((chan->writeformat & f->format) ||

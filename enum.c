@@ -347,7 +347,7 @@ static int txt_callback(void *context, char *answer, int len, char *fullanswer)
 /*! \brief Callback from ENUM lookup function */
 static int enum_callback(void *context, char *answer, int len, char *fullanswer)
 {
-	struct enum_context *c = (struct enum_context *)context;
+       struct enum_context *c = context;
        void *p = NULL;
        int res;
 
@@ -361,10 +361,9 @@ static int enum_callback(void *context, char *answer, int len, char *fullanswer)
                        c->position++;
                        snprintf(c->dst, c->dstlen, "%d", c->position);
                } else  {
-                       p = realloc(c->naptr_rrs, sizeof(struct enum_naptr_rr)*(c->naptr_rrs_count+1));
-                       if (p) {
-                               c->naptr_rrs = (struct enum_naptr_rr*)p;
-                               memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(struct naptr));
+                       if ((p = ast_realloc(c->naptr_rrs, sizeof(*c->naptr_rrs) * (c->naptr_rrs_count + 1)))) {
+                               c->naptr_rrs = p;
+                               memcpy(&c->naptr_rrs[c->naptr_rrs_count].naptr, answer, sizeof(c->naptr_rrs->naptr));
                                /* printf("order=%d, pref=%d\n", ntohs(c->naptr_rrs[c->naptr_rrs_count].naptr.order), ntohs(c->naptr_rrs[c->naptr_rrs_count].naptr.pref)); */
                                c->naptr_rrs[c->naptr_rrs_count].result = strdup(c->dst);
                                c->naptr_rrs[c->naptr_rrs_count].tech = strdup(c->tech);
@@ -613,9 +612,7 @@ static struct enum_search *enum_newtoplev(char *s)
 {
 	struct enum_search *tmp;
 
-	tmp = malloc(sizeof(struct enum_search));
-	if (tmp) {
-		memset(tmp, 0, sizeof(struct enum_search));
+	if ((tmp = ast_calloc(1, sizeof(*tmp)))) {		
 		ast_copy_string(tmp->toplev, s, sizeof(tmp->toplev));
 	}
 	return tmp;

@@ -58,34 +58,41 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/dsp.h"
 #include "asterisk/ulaw.h"
 #include "asterisk/alaw.h"
+#include "asterisk/utils.h"
 
-/* Number of goertzels for progress detect */
-#define GSAMP_SIZE_NA 183			/* North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */
-#define GSAMP_SIZE_CR 188			/* Costa Rica, Brazil - Only care about 425 Hz */
-#define GSAMP_SIZE_UK 160			/* UK disconnect goertzel feed - shoud trigger 400hz */
+/*! Number of goertzels for progress detect */
+enum gsamp_size {
+	GSAMP_SIZE_NA = 183,			/*!< North America - 350, 440, 480, 620, 950, 1400, 1800 Hz */
+	GSAMP_SIZE_CR = 188,			/*!< Costa Rica, Brazil - Only care about 425 Hz */
+	GSAMP_SIZE_UK = 160 			/*!< UK disconnect goertzel feed - should trigger 400hz */
+};
 
-#define PROG_MODE_NA		0
-#define PROG_MODE_CR		1	
-#define PROG_MODE_UK		2	
+enum prog_mode {
+	PROG_MODE_NA = 0,
+	PROG_MODE_CR,
+	PROG_MODE_UK
+};
 
-/* For US modes */
-#define HZ_350  0
-#define HZ_440  1
-#define HZ_480  2
-#define HZ_620  3
-#define HZ_950  4
-#define HZ_1400 5
-#define HZ_1800 6
+enum freq_index { 
+	/*! For US modes { */
+	HZ_350 = 0,
+	HZ_440,
+	HZ_480,
+	HZ_620,
+	HZ_950,
+	HZ_1400,
+	HZ_1800, /*!< } */
 
-/* For CR/BR modes */
-#define HZ_425	0
+	/*! For CR/BR modes */
+	HZ_425 = 0,
 
-/* For UK mode */
-#define HZ_400	0
+	/*! For UK mode */
+	HZ_400 = 0
+};
 
 static struct progalias {
 	char *name;
-	int mode;
+	enum prog_mode mode;
 } aliases[] = {
 	{ "us", PROG_MODE_NA },
 	{ "ca", PROG_MODE_NA },
@@ -95,39 +102,42 @@ static struct progalias {
 };
 
 static struct progress {
-	int size;
+	enum gsamp_size size;
 	int freqs[7];
 } modes[] = {
-	{ GSAMP_SIZE_NA, { 350, 440, 480, 620, 950, 1400, 1800 } },	/* North America */
-	{ GSAMP_SIZE_CR, { 425 } },
-	{ GSAMP_SIZE_UK, { 400 } },
+	{ GSAMP_SIZE_NA, { 350, 440, 480, 620, 950, 1400, 1800 } },	/*!< North America */
+	{ GSAMP_SIZE_CR, { 425 } },                                	/*!< Costa Rica, Brazil */
+	{ GSAMP_SIZE_UK, { 400 } },                                	/*!< UK */
 };
 
 #define DEFAULT_THRESHOLD	512
 
-#define BUSY_PERCENT		10	/* The percentage difference between the two last silence periods */
-#define BUSY_PAT_PERCENT	7	/* The percentage difference between measured and actual pattern */
-#define BUSY_THRESHOLD		100	/* Max number of ms difference between max and min times in busy */
-#define BUSY_MIN		75	/* Busy must be at least 80 ms in half-cadence */
-#define BUSY_MAX		3100	/* Busy can't be longer than 3100 ms in half-cadence */
+enum busy_detect {
+	BUSY_PERCENT = 10,   	/*!< The percentage difference between the two last silence periods */
+	BUSY_PAT_PERCENT = 7,	/*!< The percentage difference between measured and actual pattern */
+	BUSY_THRESHOLD = 100,	/*!< Max number of ms difference between max and min times in busy */
+	BUSY_MIN = 75,       	/*!< Busy must be at least 80 ms in half-cadence */
+	BUSY_MAX =3100       	/*!< Busy can't be longer than 3100 ms in half-cadence */
+};
 
-/* Remember last 15 units */
+/*! Remember last 15 units */
 #define DSP_HISTORY 		15
 
-/* Define if you want the fax detector -- NOT RECOMMENDED IN -STABLE */
+/*! Define if you want the fax detector -- NOT RECOMMENDED IN -STABLE */
 #define FAX_DETECT
 
-#define TONE_THRESH		10.0	/* How much louder the tone should be than channel energy */
-#define TONE_MIN_THRESH 	1e8	/* How much tone there should be at least to attempt */
+#define TONE_THRESH		10.0	/*!< How much louder the tone should be than channel energy */
+#define TONE_MIN_THRESH 	1e8	/*!< How much tone there should be at least to attempt */
 
-					/* All THRESH_XXX values are in GSAMP_SIZE chunks (us = 22ms) */
-#define THRESH_RING		8	/* Need at least 150ms ring to accept */
-#define THRESH_TALK		2	/* Talk detection does not work continously */
-#define THRESH_BUSY		4	/* Need at least 80ms to accept */
-#define THRESH_CONGESTION	4	/* Need at least 80ms to accept */
-#define THRESH_HANGUP		60	/* Need at least 1300ms to accept hangup */
-#define THRESH_RING2ANSWER	300	/* Timeout from start of ring to answer (about 6600 ms) */
-
+/*! All THRESH_XXX values are in GSAMP_SIZE chunks (us = 22ms) */
+enum gsamp_thresh {
+	THRESH_RING = 8,        	/*!< Need at least 150ms ring to accept */
+	THRESH_TALK = 2,        	/*!< Talk detection does not work continuously */
+	THRESH_BUSY = 4,        	/*!< Need at least 80ms to accept */
+	THRESH_CONGESTION = 4,  	/*!< Need at least 80ms to accept */
+	THRESH_HANGUP = 60,     	/*!< Need at least 1300ms to accept hangup */
+	THRESH_RING2ANSWER = 300	/*!< Timeout from start of ring to answer (about 6600 ms) */
+};
 
 #define	MAX_DTMF_DIGITS		128
 
@@ -331,8 +341,8 @@ struct ast_dsp {
 	goertzel_state_t freqs[7];
 	int freqcount;
 	int gsamps;
-	int gsamp_size;
-	int progmode;
+	enum gsamp_size gsamp_size;
+	enum prog_mode progmode;
 	int tstate;
 	int tcount;
 	int digitmode;
@@ -1434,8 +1444,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 		len = af->datalen / 2;
 		break;
 	case AST_FORMAT_ULAW:
-		shortdata = alloca(af->datalen * 2);
-		if (!shortdata) {
+		if (!(shortdata = alloca(af->datalen * 2))) {
 			ast_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
 			return af;
 		}
@@ -1443,8 +1452,7 @@ struct ast_frame *ast_dsp_process(struct ast_channel *chan, struct ast_dsp *dsp,
 			shortdata[x] = AST_MULAW(odata[x]);
 		break;
 	case AST_FORMAT_ALAW:
-		shortdata = alloca(af->datalen * 2);
-		if (!shortdata) {
+		if (!(shortdata = alloca(af->datalen * 2))) {
 			ast_log(LOG_WARNING, "Unable to allocate stack space for data: %s\n", strerror(errno));
 			return af;
 		}
@@ -1607,10 +1615,8 @@ static void ast_dsp_prog_reset(struct ast_dsp *dsp)
 struct ast_dsp *ast_dsp_new(void)
 {
 	struct ast_dsp *dsp;
-
-	dsp = malloc(sizeof(struct ast_dsp));
-	if (dsp) {
-		memset(dsp, 0, sizeof(struct ast_dsp));
+	
+	if ((dsp = ast_calloc(1, sizeof(*dsp)))) {		
 		dsp->threshold = DEFAULT_THRESHOLD;
 		dsp->features = DSP_FEATURE_SILENCE_SUPPRESS;
 		dsp->busycount = DSP_HISTORY;
