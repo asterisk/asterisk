@@ -7587,7 +7587,6 @@ static int pri_find_empty_chan(struct zt_pri *pri, int backwards)
 
 static struct ast_channel *zt_request(const char *type, int format, void *data, int *cause)
 {
-	int oldformat;
 	int groupmatch = 0;
 	int channelmatch = -1;
 	int roundrobin = 0;
@@ -7616,13 +7615,6 @@ static struct ast_channel *zt_request(const char *type, int format, void *data, 
 	lock = &iflock;
 	start = iflist;
 	end = ifend;
-	/* We do signed linear */
-	oldformat = format;
-	format &= (AST_FORMAT_SLINEAR | AST_FORMAT_ULAW);
-	if (!format) {
-		ast_log(LOG_NOTICE, "Asked to get a channel of unsupported format '%d'\n", oldformat);
-		return NULL;
-	}
 	if (data) {
 		dest = ast_strdupa((char *)data);
 	} else {
