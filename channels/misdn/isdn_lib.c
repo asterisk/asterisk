@@ -1138,7 +1138,7 @@ struct misdn_stack* stack_init( int midev, int port, int ptp )
 		if (!stack->nt) {
 			/*assume L1 is up, we'll get DEACTIVATES soon, for non
 			 * up L1s*/
-			stack->l1link=1;
+			stack->l1link=0;
 		}
 
 		misdn_lib_get_short_status(stack);
@@ -2342,12 +2342,13 @@ int handle_mgmt(msg_t *msg)
 		case SSTATUS_L2_ESTABLISHED:
 			cb_log(1, stack->port, "MGMT: SSTATUS: L2_ESTABLISH \n");
 			stack->l2link=1;
+			if ( !stack->ptp && !stack->nt )
+				stack->l1link=2;
 			break;
 			
 		case SSTATUS_L2_RELEASED:
 			cb_log(1, stack->port, "MGMT: SSTATUS: L2_RELEASED \n");
 			stack->l2link=0;
-			stack->l1link=2;
 			break;
 		}
 		
