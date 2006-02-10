@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -5948,10 +5948,10 @@ lax);
 #endif
 #ifdef WITH_SMDI
 		/* check for SMDI messages */
-		if(p->use_smdi && p->smdi_iface) {
+		if (p->use_smdi && p->smdi_iface) {
 			smdi_msg = ast_smdi_md_message_wait(p->smdi_iface, SMDI_MD_WAIT_TIMEOUT);
 
-			if(smdi_msg != NULL) {
+			if (smdi_msg != NULL) {
 				ast_copy_string(chan->exten, smdi_msg->fwd_st, sizeof(chan->exten));
 
 				if (smdi_msg->type == 'B')

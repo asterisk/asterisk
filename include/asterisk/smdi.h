@@ -1,14 +1,19 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * SMDI support for Asterisk.
- * 
- * Copyright (C) 2005, Digium, Inc.
+ * Copyright (C) 2005-2006, Digium, Inc.
  *
  * Matthew A. Nicholson <mnicholson@digium.com>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License.
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
  */
 
 /*! 
@@ -21,14 +26,15 @@
 /* C is simply a ego booster for those who want to do objects the hard way. */
 
 
-#ifndef AST_SMDI_H
-#define AST_SMDI_H
+#ifndef ASTERISK_SMDI_H
+#define ASTERISK_SMDI_H
+
+#include <termios.h>
+#include <time.h>
 
 #include "asterisk/config.h"
 #include "asterisk/module.h"
 #include "asterisk/astobj.h"
-#include <termios.h>
-#include <time.h>
 
 #define SMDI_MESG_DESK_NUM_LEN 3
 #define SMDI_MESG_DESK_TERM_LEN 4
@@ -98,23 +104,24 @@ struct ast_smdi_interface {
 
 
 /* MD message queue functions */
-extern struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *iface);
-extern struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *iface, int timeout);
-extern void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_md_message *msg);
+struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *iface);
+struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *iface, int timeout);
+void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_md_message *msg);
 
 /* MWI message queue functions */
-extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_interface *iface);
-extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_interface *iface, int timeout);
-extern void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *msg);
+struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_interface *iface);
+struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_interface *iface, int timeout);
+void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *msg);
 
-extern struct ast_smdi_interface *ast_smdi_interface_find(const char *iface_name);
+struct ast_smdi_interface *ast_smdi_interface_find(const char *iface_name);
 
 /* MWI functions */
-extern int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox);
-extern int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox);
+int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox);
+int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox);
 
-extern void ast_smdi_md_message_destroy(struct ast_smdi_md_message *msg);
-extern void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg);
+void ast_smdi_md_message_destroy(struct ast_smdi_md_message *msg);
+void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg);
 
-extern void ast_smdi_interface_destroy(struct ast_smdi_interface *iface);
-#endif
+void ast_smdi_interface_destroy(struct ast_smdi_interface *iface);
+
+#endif /* !ASTERISK_SMDI_H */

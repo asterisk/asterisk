@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -2335,14 +2335,12 @@ static void run_externnotify(char *context, char *extension)
 
 #ifdef WITH_SMDI
 	if (!strcasecmp(externnotify, "smdi")) {
-
 		if (ast_app_has_voicemail(ext_context, NULL)) 
 			ast_smdi_mwi_set(smdi_iface, extension);
 		else
 			ast_smdi_mwi_unset(smdi_iface, extension);
 
-		mwi_msg = ast_smdi_mwi_message_wait(smdi_iface, SMDI_MWI_WAIT_TIMEOUT);
-		if (mwi_msg) {
+		if ((mwi_msg = ast_smdi_mwi_message_wait(smdi_iface, SMDI_MWI_WAIT_TIMEOUT))) {
 			ast_log(LOG_ERROR, "Error executing SMDI MWI change for %s on %s\n", extension, smdi_iface->name);
 			if (!strncmp(mwi_msg->cause, "INV", 3))
 				ast_log(LOG_ERROR, "Invalid MWI extension: %s\n", mwi_msg->fwd_st);
@@ -5987,9 +5985,8 @@ static int load_config(void)
 			ast_copy_string(externnotify, notifystr, sizeof(externnotify));
 			ast_log(LOG_DEBUG, "found externnotify: %s\n", externnotify);
 #ifdef WITH_SMDI
-			if(!strcasecmp(externnotify, "smdi")) {
+			if (!strcasecmp(externnotify, "smdi")) {
 				ast_log(LOG_DEBUG, "Using SMDI for external voicemail notification\n");
-
 				if ((smdistr = ast_variable_retrieve(cfg, "general", "smdiport"))) {
 					smdi_iface = ast_smdi_interface_find(smdistr);
 				} else {
@@ -5997,7 +5994,7 @@ static int load_config(void)
 					smdi_iface = ast_smdi_interface_find("/dev/ttyS0");
 				}
 
-				if(!smdi_iface) {
+				if (!smdi_iface) {
 					ast_log(LOG_ERROR, "No valid SMDI interface specfied, disabling external voicemail notification\n");
 					externnotify[0] = '\0';
 				} else {

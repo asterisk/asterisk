@@ -3,7 +3,7 @@
  *
  * SMDI support for Asterisk.
  * 
- * Copyright (C) 2005, Digium, Inc.
+ * Copyright (C) 2005-2006, Digium, Inc.
  *
  * Matthew A. Nicholson <mnicholson@digium.com>
  *
@@ -84,7 +84,7 @@ static void ast_smdi_mwi_message_push(struct ast_smdi_interface *iface, struct a
  * \param iface the interface to use.
  * \param mailbox the mailbox to use.
  */
-extern int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox)
+int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbox)
 {
 	FILE *file;
 	int i;
@@ -115,7 +115,7 @@ extern int ast_smdi_mwi_set(struct ast_smdi_interface *iface, const char *mailbo
  * \param iface the interface to use.
  * \param mailbox the mailbox to use.
  */
-extern int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox)
+int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mailbox)
 {
 	FILE *file;
 	int i;
@@ -150,7 +150,7 @@ extern int ast_smdi_mwi_unset(struct ast_smdi_interface *iface, const char *mail
  * should be used if a message was popped but is not going to be processed for
  * some reason, and the message needs to be returned to the queue.
  */
-extern void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_md_message *md_msg)
+void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_md_message *md_msg)
 {
 	ASTOBJ_CONTAINER_LINK_START(&iface->md_q, md_msg);
 }
@@ -164,7 +164,7 @@ extern void ast_smdi_md_message_putback(struct ast_smdi_interface *iface, struct
  * should be used if a message was popped but is not going to be processed for
  * some reason, and the message needs to be returned to the queue.
  */
-extern void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *mwi_msg)
+void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struct ast_smdi_mwi_message *mwi_msg)
 {
 	ASTOBJ_CONTAINER_LINK_START(&iface->mwi_q, mwi_msg);
 }
@@ -179,28 +179,26 @@ extern void ast_smdi_mwi_message_putback(struct ast_smdi_interface *iface, struc
  *
  * \return the next SMDI message, or NULL if there were no pending messages.
  */
-extern struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *iface)
+struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_interface *iface)
 {
 	struct ast_smdi_md_message *md_msg = ASTOBJ_CONTAINER_UNLINK_START(&iface->md_q);
 	struct timeval now;
 	long elapsed = 0;
 
 	/* purge old messages */
-	gettimeofday(&now, NULL);
-	while(md_msg)
-	{
-		/* calculate the elapsed time since this message was recieved ( in milliseconds) */
-		elapsed = (now.tv_sec - md_msg->timestamp.tv_sec) * 1000;
-		elapsed += (now.tv_usec - md_msg->timestamp.tv_usec) / 1000;
+	now = ast_tvnow();
+	while (md_msg) {
+		elapsed = ast_tvdiff_ms(now, md_msg->timestamp);
 
-		if(elapsed > iface->msg_expiry)
-		{ /* found an expired message */
-			ASTOBJ_UNREF(md_msg,ast_smdi_md_message_destroy);
-			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI MD message queue.  Message was %ld milliseconds too old.", iface->name, elapsed - iface->msg_expiry);
+		if (elapsed > iface->msg_expiry) {
+			/* found an expired message */
+			ASTOBJ_UNREF(md_msg, ast_smdi_md_message_destroy);
+			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI MD message queue.  Message was %ld milliseconds too old.",
+				iface->name, elapsed - iface->msg_expiry);
 			md_msg = ASTOBJ_CONTAINER_UNLINK_START(&iface->md_q);
 		}
-		else /* good message, return it */
-		{
+		else {
+			/* good message, return it */
 			break;
 		}
 	}
@@ -222,21 +220,20 @@ extern struct ast_smdi_md_message *ast_smdi_md_message_pop(struct ast_smdi_inter
  */
 extern struct ast_smdi_md_message *ast_smdi_md_message_wait(struct ast_smdi_interface *iface, int timeout)
 {
-	struct timeval start, end;
+	struct timeval start;
 	long diff = 0;
 	struct ast_smdi_md_message *msg;
 
-	gettimeofday(&start, NULL);
-	while(diff < timeout) {
+	start = ast_tvnow();
+	while (diff < timeout) {
 
-		if((msg = ast_smdi_md_message_pop(iface)))
+		if ((msg = ast_smdi_md_message_pop(iface)))
 			return msg;
 
 		/* check timeout */
-		gettimeofday(&end, NULL);
-		diff = (end.tv_sec - start.tv_sec) * 1000;
-		diff += (end.tv_usec - start.tv_usec) / 1000;
+		diff = ast_tvdiff_ms(ast_tvnow(), start);
 	}
+
 	return (ast_smdi_md_message_pop(iface));
 }
 
@@ -257,27 +254,24 @@ extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_int
 	long elapsed = 0;
 
 	/* purge old messages */
-	gettimeofday(&now, NULL);
-	while(mwi_msg)
-	{
-		/* calculate the elapsed time since this message was recieved ( in milliseconds) */
-		elapsed = (now.tv_sec - mwi_msg->timestamp.tv_sec) * 1000;
-		elapsed += (now.tv_usec - mwi_msg->timestamp.tv_usec) / 1000;
+	now = ast_tvnow();
+	while (mwi_msg)	{
+		elapsed = ast_tvdiff_ms(now, mwi_msg->timestamp);
 
-		if(elapsed > iface->msg_expiry)
-		{ /* found an expired message */
-			ASTOBJ_UNREF(mwi_msg,ast_smdi_mwi_message_destroy);
-			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI MWI message queue.  Message was %ld milliseconds too old.", iface->name, elapsed - iface->msg_expiry);
+		if (elapsed > iface->msg_expiry) {
+			/* found an expired message */
+			ASTOBJ_UNREF(mwi_msg, ast_smdi_mwi_message_destroy);
+			ast_log(LOG_NOTICE, "Purged expired message from %s SMDI MWI message queue.  Message was %ld milliseconds too old.",
+				iface->name, elapsed - iface->msg_expiry);
 			mwi_msg = ASTOBJ_CONTAINER_UNLINK_START(&iface->mwi_q);
 		}
-		else /* good message, return it */
-		{
+		else {
+			/* good message, return it */
 			break;
 		}
 	}
 
 	return mwi_msg;
-	return (ASTOBJ_CONTAINER_UNLINK_START(&iface->mwi_q));
 }
 
 /*!
@@ -294,21 +288,20 @@ extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_pop(struct ast_smdi_int
  */
 extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_interface *iface, int timeout)
 {
-	struct timeval start, end;
+	struct timeval start;
 	long diff = 0;
 	struct ast_smdi_mwi_message *msg;
 
-	gettimeofday(&start, NULL);
-	while(diff < timeout) {
+	start = ast_tvnow();
+	while (diff < timeout) {
 
-		if((msg = ast_smdi_mwi_message_pop(iface)))
+		if ((msg = ast_smdi_mwi_message_pop(iface)))
 			return msg;
 
 		/* check timeout */
-		gettimeofday(&end, NULL);
-		diff = (end.tv_sec - start.tv_sec) * 1000;
-		diff += (end.tv_usec - start.tv_usec) / 1000;
+		diff = ast_tvdiff_ms(ast_tvnow(), start);
 	}
+
 	return (ast_smdi_mwi_message_pop(iface));
 }
 
@@ -322,7 +315,7 @@ extern struct ast_smdi_mwi_message *ast_smdi_mwi_message_wait(struct ast_smdi_in
  */
 extern struct ast_smdi_interface *ast_smdi_interface_find(const char *iface_name)
 {
-	return (ASTOBJ_CONTAINER_FIND(&smdi_ifaces,iface_name));
+	return (ASTOBJ_CONTAINER_FIND(&smdi_ifaces, iface_name));
 }
 
 /*! \brief Read an SMDI message.
@@ -343,39 +336,34 @@ static void *smdi_read(void *iface_p)
 	int start = 0;
 		
 	/* read an smdi message */
-	while((c = fgetc(iface->file))) {
+	while ((c = fgetc(iface->file))) {
 
 		/* check if this is the start of a message */
-		if(!start)
-		{
-			if(c == 'M')
+		if (!start) {
+			if (c == 'M')
 				start = 1;
 		}
-		else /* Determine if this is a MD or MWI message */
-		{
+		else { /* Determine if this is a MD or MWI message */
 			if(c == 'D') { /* MD message */
 				start = 0;
 
-				md_msg = malloc(sizeof(struct ast_smdi_md_message));
-				if(!md_msg) {
-					ast_log(LOG_ERROR, "Error allocating memory for ast_smdi_md_message.  Stopping listner thread.\n");
+				if (!(md_msg = ast_calloc(1, sizeof(*md_msg)))) {
 					ASTOBJ_UNREF(iface,ast_smdi_interface_destroy);
 					return NULL;
 				}
-				memset(md_msg, 0, sizeof(struct ast_smdi_md_message));
 				
 				ASTOBJ_INIT(md_msg);
 
 				/* read the message desk number */
-				for(i = 0; i < SMDI_MESG_DESK_NUM_LEN; i++) {
+				for(i = 0; i < SMDI_MESG_DESK_NUM_LEN; i++)
 					md_msg->mesg_desk_num[i] = fgetc(iface->file);
-				}
+
 				md_msg->mesg_desk_num[SMDI_MESG_DESK_NUM_LEN] = '\0';
 
 				/* read the message desk terminal number */
-				for(i = 0; i < SMDI_MESG_DESK_TERM_LEN; i++) {
+				for(i = 0; i < SMDI_MESG_DESK_TERM_LEN; i++)
 					md_msg->mesg_desk_term[i] = fgetc(iface->file);
-				}
+
 				md_msg->mesg_desk_term[SMDI_MESG_DESK_TERM_LEN] = '\0';
 
 				/* read the message type */
@@ -383,42 +371,40 @@ static void *smdi_read(void *iface_p)
 			   
 				/* read the forwarding station number (may be blank) */
 				cp = &md_msg->fwd_st[0];
-				for(i = 0; i < SMDI_MAX_STATION_NUM_LEN + 1; i++) {
+				for (i = 0; i < SMDI_MAX_STATION_NUM_LEN + 1; i++) {
 					if((c = fgetc(iface->file)) == ' ') {
 						*cp = '\0';
 						break;
 					}
 
 					/* store c in md_msg->fwd_st */
-					if( i >= iface->msdstrip) {
-						*cp = c;
-						cp++;
-					}
+					if( i >= iface->msdstrip)
+						*cp++ = c;
 				}
+
 				/* make sure the value is null terminated, even if this truncates it */
 				md_msg->fwd_st[SMDI_MAX_STATION_NUM_LEN] = '\0';
 				cp = NULL;
 				
 				/* read the calling station number (may be blank) */
 				cp = &md_msg->calling_st[0];
-				for(i = 0; i < SMDI_MAX_STATION_NUM_LEN + 1; i++) {
-					if(!isdigit( (c = fgetc(iface->file)) )) {
+				for (i = 0; i < SMDI_MAX_STATION_NUM_LEN + 1; i++) {
+					if (!isdigit((c = fgetc(iface->file)))) {
 						*cp = '\0';
 						break;
 					}
 
 					/* store c in md_msg->calling_st */
-					if( i >= iface->msdstrip) {
-						*cp = c;
-						cp++;
-					}
+					if (i >= iface->msdstrip)
+						*cp++ = c;
 				}
+
 				/* make sure the value is null terminated, even if this truncates it */
 				md_msg->calling_st[SMDI_MAX_STATION_NUM_LEN] = '\0';
 				cp = NULL;
 
 				/* add the message to the message queue */
-				gettimeofday(&md_msg->timestamp, NULL);
+				md_msg->timestamp = ast_tvnow();
 				ast_smdi_md_message_push(iface, md_msg);
 				ast_log(LOG_DEBUG, "Recieved SMDI MD message on %s\n", iface->name);
 				
@@ -427,14 +413,11 @@ static void *smdi_read(void *iface_p)
 			} else if(c == 'W') { /* MWI message */
 				start = 0;
 
-				mwi_msg = malloc(sizeof(struct ast_smdi_mwi_message));
-				if(!mwi_msg) {
-					ast_log(LOG_ERROR, "Error allocating memory for ast_smdi_mwi_message.  Stopping listner thread.\n");
+				if (!(mwi_msg = ast_calloc(1, sizeof(*mwi_msg)))) {
 					ASTOBJ_UNREF(iface,ast_smdi_interface_destroy);
 					return NULL;
 				}
-				memset(mwi_msg, 0, sizeof(struct ast_smdi_mwi_message));
-				
+
 				ASTOBJ_INIT(mwi_msg);
 
 				/* discard the 'I' (from 'MWI') */
@@ -442,30 +425,29 @@ static void *smdi_read(void *iface_p)
 				
 				/* read the forwarding station number (may be blank) */
 				cp = &mwi_msg->fwd_st[0];
-				for(i = 0; i < SMDI_MAX_STATION_NUM_LEN + 1; i++) {
-					if((c = fgetc(iface->file)) == ' ') {
+				for (i = 0; i < SMDI_MAX_STATION_NUM_LEN + 1; i++) {
+					if ((c = fgetc(iface->file)) == ' ') {
 						*cp = '\0';
 						break;
 					}
 
 					/* store c in md_msg->fwd_st */
-					if( i >= iface->msdstrip) {
-						*cp = c;
-						cp++;
-					}
+					if (i >= iface->msdstrip)
+						*cp++ = c;
 				}
+
 				/* make sure the station number is null terminated, even if this will truncate it */
 				mwi_msg->fwd_st[SMDI_MAX_STATION_NUM_LEN] = '\0';
 				cp = NULL;
 				
 				/* read the mwi failure cause */
-				for(i = 0; i < SMDI_MWI_FAIL_CAUSE_LEN; i++) {
+				for (i = 0; i < SMDI_MWI_FAIL_CAUSE_LEN; i++)
 					mwi_msg->cause[i] = fgetc(iface->file);
-				}
+
 				mwi_msg->cause[SMDI_MWI_FAIL_CAUSE_LEN] = '\0';
 
 				/* add the message to the message queue */
-				gettimeofday(&mwi_msg->timestamp, NULL);
+				mwi_msg->timestamp = ast_tvnow();
 				ast_smdi_mwi_message_push(iface, mwi_msg);
 				ast_log(LOG_DEBUG, "Recieved SMDI MWI message on %s\n", iface->name);
 				
@@ -497,7 +479,7 @@ void ast_smdi_mwi_message_destroy(struct ast_smdi_mwi_message *msg)
 /*! \brief ast_smdi_interface destructor. */
 void ast_smdi_interface_destroy(struct ast_smdi_interface *iface)
 {
-	if(iface->thread != AST_PTHREADT_NULL && iface->thread != AST_PTHREADT_STOP) {
+	if (iface->thread != AST_PTHREADT_NULL && iface->thread != AST_PTHREADT_STOP) {
 		pthread_cancel(iface->thread);
 		pthread_join(iface->thread, NULL);
 	}
@@ -547,7 +529,7 @@ static int smdi_load(int reload)
 	
 	conf = ast_config_load(config_file);
 
-	if(!conf) {
+	if (!conf) {
 		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
 		return -1;
 	}
@@ -557,61 +539,60 @@ static int smdi_load(int reload)
 	 * still marked after we have finished parsing the config file should
 	 * be stopped.
 	 */
-	if(reload)
+	if (reload)
 		ASTOBJ_CONTAINER_MARKALL(&smdi_ifaces);
 
-	v = ast_variable_browse(conf, "interfaces");
-	while(v) {
-		if(!strcasecmp(v->name, "baudrate")) {
-			if(!strcasecmp(v->value, "9600")) {
+	for (v = ast_variable_browse(conf, "interfaces"); v; v = v->next) {
+		if (!strcasecmp(v->name, "baudrate")) {
+			if (!strcasecmp(v->value, "9600"))
 				baud_rate = B9600;
-			} else if(!strcasecmp(v->value, "4800")) {
+			else if(!strcasecmp(v->value, "4800"))
 				baud_rate = B4800;
-			} else if(!strcasecmp(v->value, "2400")) {
+			else if(!strcasecmp(v->value, "2400"))
 				baud_rate = B2400;
-			} else if(!strcasecmp(v->value, "1200")) {
+			else if(!strcasecmp(v->value, "1200"))
 				baud_rate = B1200;
-			} else {
+			else {
 				ast_log(LOG_NOTICE, "Invalid baud rate '%s' specified in %s (line %d), using default\n", v->value, config_file, v->lineno);
 				baud_rate = B9600;
 			}
-		} else if(!strcasecmp(v->name, "msdstrip")) {
-			if(!sscanf(v->value, "%d", &msdstrip)) {
+		} else if (!strcasecmp(v->name, "msdstrip")) {
+			if (!sscanf(v->value, "%d", &msdstrip)) {
 				ast_log(LOG_NOTICE, "Invalid msdstrip value in %s (line %d), using default\n", config_file, v->lineno);
 				msdstrip = 0;
-			} else if(0 > msdstrip || msdstrip > 9) {
+			} else if (0 > msdstrip || msdstrip > 9) {
 				ast_log(LOG_NOTICE, "Invalid msdstrip value in %s (line %d), using default\n", config_file, v->lineno);
 				msdstrip = 0;
 			}
-		} else if(!strcasecmp(v->name, "msgexpirytime")) {
-			if(!sscanf(v->value, "%ld", &msg_expiry)) {
+		} else if (!strcasecmp(v->name, "msgexpirytime")) {
+			if (!sscanf(v->value, "%ld", &msg_expiry)) {
 				ast_log(LOG_NOTICE, "Invalid msgexpirytime value in %s (line %d), using default\n", config_file, v->lineno);
 				msg_expiry = SMDI_MSG_EXPIRY_TIME;
 			}
-		} else if(!strcasecmp(v->name, "paritybit")) {
-			if(!strcasecmp(v->value, "even")) {
+		} else if (!strcasecmp(v->name, "paritybit")) {
+			if (!strcasecmp(v->value, "even"))
 				paritybit = PARENB;
-			} else if(!strcasecmp(v->value, "odd")) {
+			else if (!strcasecmp(v->value, "odd"))
 				paritybit = PARENB | PARODD;
-			} else if(!strcasecmp(v->value, "none")) {
+			else if (!strcasecmp(v->value, "none"))
 				paritybit = ~PARENB;
-			} else {
+			else {
 				ast_log(LOG_NOTICE, "Invalid parity bit setting in %s (line %d), using default\n", config_file, v->lineno);
 				paritybit = PARENB;
 			}
-		} else if(!strcasecmp(v->name, "charsize")) {
-			if(!strcasecmp(v->value, "7")) {
+		} else if (!strcasecmp(v->name, "charsize")) {
+			if (!strcasecmp(v->value, "7"))
 				charsize = CS7;
-			} else if(!strcasecmp(v->value, "8")) {
+			else if (!strcasecmp(v->value, "8"))
 				charsize = CS8;
-			} else {
+			else {
 				ast_log(LOG_NOTICE, "Invalid character size setting in %s (line %d), using default\n", config_file, v->lineno);
 				charsize = CS7;
 			}
-		} else if(!strcasecmp(v->name, "twostopbits")) {
+		} else if (!strcasecmp(v->name, "twostopbits")) {
 			stopbits = ast_true(v->name);
-		} else if(!strcasecmp(v->name, "smdiport")) {
-			if(reload) {
+		} else if (!strcasecmp(v->name, "smdiport")) {
+			if (reload) {
 				/* we are reloading, check if we are already
 				 * monitoring this interface, if we are we do
 				 * not want to start it again.  This also has
@@ -622,57 +603,48 @@ static int smdi_load(int reload)
 				 * restarting the interface.  Or the interface
 				 * could be restarted with out emptying the
 				 * queue. */
-				iface = ASTOBJ_CONTAINER_FIND(&smdi_ifaces, v->value);
-				if(iface) {
+				if ((iface = ASTOBJ_CONTAINER_FIND(&smdi_ifaces, v->value))) {
 					ast_log(LOG_NOTICE, "SMDI interface %s already running, not restarting\n", iface->name);
 					ASTOBJ_UNMARK(iface);
 					ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-					v = v->next;
 					continue;
 				}
 			}
 							
-			iface = malloc(sizeof(struct ast_smdi_interface));
+			iface = ast_calloc(1, sizeof(*iface));
 
 			ASTOBJ_INIT(iface);
 			ASTOBJ_CONTAINER_INIT(&iface->md_q);
 			ASTOBJ_CONTAINER_INIT(&iface->mwi_q);
-			iface->md_q.head = NULL;
-			iface->mwi_q.head = NULL;
-			iface->thread = AST_PTHREADT_NULL;
-			memset(&iface->mode, 0, sizeof(iface->mode));
 
 			ast_copy_string(iface->name, v->value, sizeof(iface->name));
 
-			iface->file = fopen(iface->name, "r");
-			if(!(iface->file)) {
+			if (!(iface->file = fopen(iface->name, "r"))) {
 				ast_log(LOG_ERROR, "Error opening SMDI interface %s (%s)\n", iface->name, strerror(errno));
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-		                v = v->next;
 				continue;
 			}
+
 			iface->fd = fileno(iface->file);
 
 			/* Set the proper attributes for our serial port. */
 
 			/* get the current attributes from the port */
-			if(tcgetattr(iface->fd, &iface->mode)) {
+			if (tcgetattr(iface->fd, &iface->mode)) {
 				ast_log(LOG_ERROR, "Error getting atributes of %s (%s)\n", iface->name, strerror(errno));
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-				v = v->next;
 				continue;
 			}
 
 			/* set the desired speed */
-			if(cfsetispeed(&iface->mode, baud_rate) || cfsetospeed(&iface->mode, baud_rate)) {
+			if (cfsetispeed(&iface->mode, baud_rate) || cfsetospeed(&iface->mode, baud_rate)) {
 				ast_log(LOG_ERROR, "Error setting baud rate on %s (%s)\n", iface->name, strerror(errno));
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-				v = v->next;
 				continue;
 			}
 			
 			/* set the stop bits */
-			if(stopbits)
+			if (stopbits)
 			   iface->mode.c_cflag = iface->mode.c_cflag | CSTOPB;   /* set two stop bits */
 			else
 			   iface->mode.c_cflag = iface->mode.c_cflag & ~CSTOPB;  /* set one stop bit */
@@ -684,10 +656,9 @@ static int smdi_load(int reload)
 			iface->mode.c_cflag = (iface->mode.c_cflag & ~CSIZE) | charsize;
 			
 			/* commit the desired attributes */
-			if(tcsetattr(iface->fd, TCSAFLUSH, &iface->mode)) {
+			if (tcsetattr(iface->fd, TCSAFLUSH, &iface->mode)) {
 				ast_log(LOG_ERROR, "Error setting attributes on %s (%s)\n", iface->name, strerror(errno));
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-				v = v->next;
 				continue;
 			}
 
@@ -698,15 +669,16 @@ static int smdi_load(int reload)
 			iface->msg_expiry = msg_expiry;
 
                         /* start the listner thread */
-			if(option_verbose > 2)
+			if (option_verbose > 2)
 				ast_verbose(VERBOSE_PREFIX_3 "Starting SMDI monitor thread for %s\n", iface->name);
-			if(ast_pthread_create(&iface->thread, NULL, smdi_read, iface)) {
+			if (ast_pthread_create(&iface->thread, NULL, smdi_read, iface)) {
 				ast_log(LOG_ERROR, "Error starting SMDI monitor thread for %s\n", iface->name);
 				ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
-		                v = v->next;
 				continue;
 			}
+
 			ASTOBJ_CONTAINER_LINK(&smdi_ifaces, iface);
+			ASTOBJ_UNREF(iface, ast_smdi_interface_destroy);
 			ast_mutex_lock(&localuser_lock);
 			localusecnt++;
 			ast_mutex_unlock(&localuser_lock);
@@ -719,11 +691,12 @@ static int smdi_load(int reload)
 	ast_config_destroy(conf);
 
 	/* Prune any interfaces we should no longer monitor. */
-	if(reload)
+	if (reload)
 		ASTOBJ_CONTAINER_PRUNE_MARKED(&smdi_ifaces, ast_smdi_interface_destroy);
 	
 	ASTOBJ_CONTAINER_RDLOCK(&smdi_ifaces);
-	if(!smdi_ifaces.head)
+	/* TODO: this is bad, we need an ASTOBJ method for this! */
+	if (!smdi_ifaces.head)
 		res = 1;
 	ASTOBJ_CONTAINER_UNLOCK(&smdi_ifaces);
 			
@@ -733,33 +706,32 @@ static int smdi_load(int reload)
 
 char *description(void)
 {
-	return (char *)tdesc;
+	return (char *) tdesc;
 }
 
 int load_module(void)
 {
 	int res;
 
-	/* initilize our containers */
+	/* initialize our containers */
+	memset(&smdi_ifaces, 0, sizeof(smdi_ifaces));
 	ASTOBJ_CONTAINER_INIT(&smdi_ifaces);
-	smdi_ifaces.head = NULL;
 
 	/* load the config and start the listener threads*/
 	res = smdi_load(0);
-	if(res < 0) {
+	if (res < 0) {
 		return res;
-	} else if(res == 1) {
+	} else if (res == 1) {
 		ast_log(LOG_WARNING, "No SMDI interfaces are available to listen on, not starting SDMI listener.\n");
 		return 0;
-	}
-
-	return 0;
+	} else
+		return 0;
 }
 
 int unload_module(void)
 {
 	/* this destructor stops any running smdi_read threads */
-	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces,ast_smdi_interface_destroy);
+	ASTOBJ_CONTAINER_DESTROYALL(&smdi_ifaces, ast_smdi_interface_destroy);
 	ASTOBJ_CONTAINER_DESTROY(&smdi_ifaces);
 
 	return 0;
@@ -768,23 +740,24 @@ int unload_module(void)
 int reload(void)
 {
 	int res;
+
 	res = smdi_load(1);
 
-	if(res < 0) {
+	if (res < 0) {
 		return res;
-	} else if(res == 1) {
+	} else if (res == 1) {
 		ast_log(LOG_WARNING, "No SMDI interfaces were specified to listen on, not starting SDMI listener.\n");
 		return 0;
-	}
-
-	/* notify the listner thread? */
-	return 0;
+	} else
+		return 0;
 }
 
 int usecount(void)
 {
 	int res;
+
 	STANDARD_USECOUNT(res);
+
 	return res;
 }
 
