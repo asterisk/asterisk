@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -718,16 +718,15 @@ static int restart_monitor()
 		return -1;
 	}
 	if (monitor_thread != AST_PTHREADT_NULL) {
-		pthread_cancel(monitor_thread);
-		/* Nudge it a little, as it's probably stuck in select */
 		pthread_kill(monitor_thread, SIGURG);
 		pthread_join(monitor_thread, NULL);
-	}
-	/* Start a new monitor */
-	if (ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
-		ast_mutex_unlock(&monlock);
-		ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
-		return -1;
+	} else {
+		/* Start a new monitor */
+		if (ast_pthread_create(&monitor_thread, NULL, do_monitor, NULL) < 0) {
+			ast_mutex_unlock(&monlock);
+			ast_log(LOG_ERROR, "Unable to start monitor thread.\n");
+			return -1;
+		}
 	}
 	ast_mutex_unlock(&monlock);
 	return 0;
