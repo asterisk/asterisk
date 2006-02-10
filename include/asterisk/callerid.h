@@ -42,6 +42,9 @@
 #define CID_SIG_V23	2
 #define CID_SIG_DTMF	3
 #define CID_SIG_V23_JP	4
+#ifdef WITH_SMDI
+#define CID_SIG_SMDI	5
+#endif
 
 #define CID_START_RING	1
 #define CID_START_POLARITY 2

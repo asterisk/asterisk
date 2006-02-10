@@ -65,6 +65,13 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/ixjuser.h)$(wildcard
   CHANNEL_LIBS+=chan_phone.so
 endif
 
+#
+# Asterisk SMDI integration
+#
+ifeq (${WITH_SMDI},1)
+CFLAGS+=-DWITH_SMDI
+endif
+
 ifneq ($(wildcard h323/libchanh323.a),)
   CHANNEL_LIBS+=chan_h323.so
 endif

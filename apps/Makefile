@@ -59,7 +59,12 @@ CFLAGS+=-fPIC
 APPS+=app_sms.so
 endif
 
+# Asterisk SMDI integration
 #
+ifeq (${WITH_SMDI},1)
+CFLAGS+=-DWITH_SMDI
+endif
+
 # If you have UnixODBC you can use ODBC voicemail
 # storage
 #

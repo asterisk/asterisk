@@ -73,6 +73,11 @@ DEBUG=-g3 #-pg
 #OPTIONS += -DLOW_MEMORY
 #endif
 
+#
+# Asterisk SMDI integration
+#
+WITH_SMDI = 1
+
 # Optional debugging parameters
 DEBUG_THREADS = #-DDUMP_SCHEDULER #-DDEBUG_SCHEDULER #-DDEBUG_THREADS #-DDO_CRASH #-DDETECT_DEADLOCKS
 

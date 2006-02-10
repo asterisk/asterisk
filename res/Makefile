@@ -64,6 +64,13 @@ else
 CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
 endif
 
+#
+# Asterisk SMDI integration
+#
+ifeq (${WITH_SMDI},1)
+MODS+=res_smdi.so
+endif
+
 all: depend $(MODS)
 
 install: all

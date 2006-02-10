@@ -225,6 +225,7 @@ usecallerid=yes
 ;     v23      = v23 as used in the UK
 ;     v23_jp   = v23 as used in Japan
 ;     dtmf     = DTMF as used in Denmark, Sweden and Netherlands
+;     smdi     = Use SMDI for callerid.  Requires SMDI to be enabled (usesmdi).
 ;
 ;cidsignalling=bell
 ;
@@ -379,6 +380,14 @@ immediate=no
 ; basis if you have (or may have) ADSI compatible CPE equipment
 ;
 ;adsi=yes
+;
+; SMDI (Simplified Message Desk Interface) can be enabled on a per-channel
+; basis if you would like that channel to behave like an SMDI message desk.
+; The SMDI port specfied should have already been defined in smdi.conf.  The
+; default port is /dev/ttyS0.
+;
+;usesmdi=yes
+;smdiport=/dev/ttyS0
 ;
 ; On trunk interfaces (FXS) and E&M interfaces (E&M, Wink, Feature Group D
 ; etc, it can be useful to perform busy detection either in an effort to 

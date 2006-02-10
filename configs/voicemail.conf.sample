@@ -49,12 +49,18 @@ maxsilence=10
 silencethreshold=128
 ; Max number of failed login attempts
 maxlogins=3
-; If you need to have an external program, i.e. /usr/bin/myapp called when a
-; voicemail is left, delivered, or your voicemailbox is checked, uncomment
-; this:
+
+; If you need to have an external program, i.e. /usr/bin/myapp
+; called when a voicemail is left, delivered, or your voicemailbox 
+; is checked, uncomment this.  It can also be set to 'smdi' to use
+; smdi for external notification.  If it is 'smdi', smdiport should
+; be set to a valid port as specfied in smdi.conf.
+
 ;externnotify=/usr/bin/myapp
-; If you need to have an external program, i.e. /usr/bin/myapp called when a
-; voicemail password is changed, uncomment this:
+;smdiport=/dev/ttyS0
+
+; If you need to have an external program, i.e. /usr/bin/myapp
+; called when a voicemail password is changed, uncomment this:
 ;externpass=/usr/bin/myapp
 ; For the directory, you can override the intro file if you want
 ;directoryintro=dir-intro
