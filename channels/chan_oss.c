@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <ctype.h>	/* for isalnum */
+#include <math.h>	/* exp and log */
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -90,6 +91,7 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
  * where 'foo' is the name of the card you want.
  *
  * oss.conf parameters are
+START_CONFIG
 
 [general]
 ; general config options, default values are shown
@@ -109,6 +111,9 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 ; mixer="-f /dev/mixer0 pcm 80 ; mixer command to run on start
 ; queuesize=10		; frames in device driver
 ; frags=8		; argument to SETFRAGMENT
+; boost = n		; mic volume boost in dB
+
+END_CONFIG
 
 .. and so on for the other cards.
 
@@ -280,6 +285,13 @@ struct chan_oss_pvt {
 
 	int overridecontext;
 	int mute;
+
+	/* boost support. BOOST_SCALE * 10 ^(BOOST_MAX/20) must
+	 * be representable in 16 bits to avoid overflows.
+	 */
+#define	BOOST_SCALE	(1<<9)
+#define	BOOST_MAX	40	/* slightly less than 7 bits */
+	int boost;	/* input boost, scaled by BOOST_SCALE */
 	char device[64];	/* device to open */
 
 	pthread_t sthread;
@@ -314,6 +326,7 @@ static struct chan_oss_pvt oss_default = {
 	.ctx = "default",
 	.readpos = AST_FRIENDLY_OFFSET,	/* start here on reads */
 	.lastopen = { 0, 0 },
+	.boost = BOOST_SCALE,
 };
 
 static char *oss_active;	 /* the active device */
@@ -354,11 +367,13 @@ static const struct ast_channel_tech oss_tech = {
 static struct chan_oss_pvt *find_desc(char *dev)
 {
 	struct chan_oss_pvt *o;
+	if (dev == NULL)
+		ast_log(LOG_WARNING, "null dev\n");
 
-	for (o = oss_default.next; o && strcmp(o->name, dev) != 0; o = o->next)
+	for (o = oss_default.next; o && o->name && dev && strcmp(o->name, dev) != 0; o = o->next)
 		;
 	if (o == NULL)
-		ast_log(LOG_WARNING, "could not find <%s>\n", dev);
+		ast_log(LOG_WARNING, "could not find <%s>\n", dev ? dev : "--no-device--");
 	return o;
 }
 
@@ -698,8 +713,8 @@ static int oss_call(struct ast_channel *c, char *dest, int timeout)
 	struct chan_oss_pvt *o = c->tech_pvt;
 	struct ast_frame f = { 0, };
 
-	ast_verbose(" << Call to '%s' on console from <%s><%s><%s> >>\n",
-		dest, c->cid.cid_dnid, c->cid.cid_num, c->cid.cid_name);
+	ast_verbose(" << Call to device '%s' dnid '%s' rdnis '%s' on console from '%s' <%s> >>\n",
+		dest, c->cid.cid_dnid, c->cid.cid_rdnis, c->cid.cid_name, c->cid.cid_num);
 	if (o->autoanswer) {
 		ast_verbose( " << Auto-answered >> \n" );
 		f.frametype = AST_FRAME_CONTROL;
@@ -803,6 +818,7 @@ static struct ast_frame *oss_read(struct ast_channel *c)
 	struct chan_oss_pvt *o = c->tech_pvt;
 	struct ast_frame *f = &o->read_f;
 
+	/* XXX can be simplified returning &ast_null_frame */
 	/* prepare a NULL frame in case we don't have enough data to return */
 	bzero(f, sizeof(struct ast_frame));
 	f->frametype = AST_FRAME_NULL;
@@ -829,6 +845,19 @@ static struct ast_frame *oss_read(struct ast_channel *c)
 	f->samples = FRAME_SIZE;
 	f->datalen = FRAME_SIZE * 2;
 	f->data = o->oss_read_buf + AST_FRIENDLY_OFFSET;
+	if (o->boost != BOOST_SCALE) { /* scale and clip values */
+		int i, x;
+		int16_t *p = (int16_t *)f->data;
+		for (i = 0; i < f->samples; i++) {
+			x = (p[i] * o->boost) / BOOST_SCALE;
+			if (x > 32767)
+				x = 32767;
+			else if (x < -32768)
+				x = -32768;
+			p[i] = x;
+		}
+	}
+	
 	f->offset = AST_FRIENDLY_OFFSET;
 	return f;
 }
@@ -884,6 +913,8 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
 		return NULL;
 	c->tech = &oss_tech;
 	ast_string_field_build(c, name, "OSS/%s", o->device + 5);
+	if (o->sounddev < 0)
+		setformat(o, O_RDWR);
 	c->fds[0] = o->sounddev; /* -1 if device closed, override later */
 	c->nativeformats = AST_FORMAT_SLINEAR;
 	c->readformat = AST_FORMAT_SLINEAR;
@@ -900,6 +931,8 @@ static struct ast_channel *oss_new(struct chan_oss_pvt *o,
                 c->cid.cid_num = ast_strdup(o->cid_num);
         if (!ast_strlen_zero(o->cid_name))
                 c->cid.cid_name = ast_strdup(o->cid_name);
+        if (!ast_strlen_zero(ext))
+		c->cid.cid_dnid = strdup(ext);
 
 	o->owner = c;
 	ast_setstate(c, state);
@@ -1026,14 +1059,13 @@ static char sendtext_usage[] =
 "       Sends a text message for display on the remote terminal.\n";
 
 /*
- * concatenate all arguments into a single string
+ * concatenate all arguments into a single string. argv is NULL-terminated
+ * so we can use it right away
  */
 static int console_sendtext(int fd, int argc, char *argv[])
 {
 	struct chan_oss_pvt *o = find_desc(oss_active);
-	int tmparg = 2;
-	char text2send[TEXT_SIZE] = "";
-	struct ast_frame f = { 0, };
+	char buf[TEXT_SIZE];
 
 	if (argc < 2)
 		return RESULT_SHOWUSAGE;
@@ -1041,18 +1073,15 @@ static int console_sendtext(int fd, int argc, char *argv[])
 		ast_cli(fd, "Not in a call\n");
 		return RESULT_FAILURE;
 	}
-	while (tmparg < argc) {
-		strncat(text2send, argv[tmparg++],
-			sizeof(text2send) - strlen(text2send) - 1);
-		strncat(text2send, " ",
-			sizeof(text2send) - strlen(text2send) - 1);
-	}
-	if (!ast_strlen_zero(text2send)) {
-		text2send[strlen(text2send) - 1] = '\n';
+	ast_join(buf, sizeof(buf) - 1, argv+2);
+	if (!ast_strlen_zero(buf)) {
+		struct ast_frame f = { 0, };
+		int i = strlen(buf);
+		buf[i] = '\n';
 		f.frametype = AST_FRAME_TEXT;
 		f.subclass = 0;
-		f.data = text2send;
-		f.datalen = strlen(text2send);
+		f.data = buf;
+		f.datalen = i + 1;
 		ast_queue_frame(o->owner, &f);
 	}
 	return RESULT_SUCCESS;
@@ -1247,6 +1276,42 @@ static int console_active(int fd, int argc, char *argv[])
 	return RESULT_SUCCESS;
 }
 
+/*
+ * store the boost factor
+ */
+static void store_boost(struct chan_oss_pvt *o, char *s)
+{
+	double boost = 0;
+	if (sscanf(s, "%lf", &boost) != 1) {
+		ast_log(LOG_WARNING, "invalid boost <%s>\n", s);
+		return;
+	}
+	if (boost < - BOOST_MAX) {
+		ast_log(LOG_WARNING, "boost %s too small, using %d\n",
+			s, -BOOST_MAX);
+		boost = -BOOST_MAX;
+	} else if (boost > BOOST_MAX) {
+		ast_log(LOG_WARNING, "boost %s too large, using %d\n",
+			s, BOOST_MAX);
+		boost = BOOST_MAX;
+	}
+	boost = exp(log(10)*boost/20) * BOOST_SCALE;
+	o->boost = boost;
+	ast_log(LOG_WARNING, "setting boost %s to %d\n", s, o->boost);
+}
+
+static int do_boost(int fd, int argc, char *argv[])
+{
+	struct chan_oss_pvt *o = find_desc(oss_active);
+
+	if (argc == 2)
+		ast_cli(fd, "boost currently %5.1f\n",
+			20 * log10(((double)o->boost/(double)BOOST_SCALE)) );
+	else if (argc == 3)
+		store_boost(o, argv[2]);
+	return RESULT_SUCCESS;
+}
+
 static struct ast_cli_entry myclis[] = {
 	{ { "answer", NULL }, console_answer, "Answer an incoming console call", answer_usage },
 	{ { "hangup", NULL }, console_hangup, "Hangup a call on the console", hangup_usage },
@@ -1257,6 +1322,7 @@ static struct ast_cli_entry myclis[] = {
 	{ { "transfer", NULL }, console_transfer, "Transfer a call to a different extension", transfer_usage },
 	{ { "send", "text", NULL }, console_sendtext, "Send text to the remote device", sendtext_usage },
 	{ { "autoanswer", NULL }, console_autoanswer, "Sets/displays autoanswer", autoanswer_usage, autoanswer_complete },
+	{ { "oss", "boost", NULL }, do_boost, "Sets/displays mic boost in dB"},
 	{ { "console", NULL }, console_active, "Sets/displays active console", console_usage },
 };
 
@@ -1331,6 +1397,7 @@ static struct chan_oss_pvt * store_config(struct ast_config *cfg, char *ctg)
 		M_STR("extension", o->ext)
 		M_F("mixer", store_mixer(o, v->value))
 		M_F("callerid", store_callerid(o, v->value))
+		M_F("boost", store_boost(o, v->value))
 		M_END(;);
 	}
 	if (ast_strlen_zero(o->device))
