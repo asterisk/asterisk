@@ -120,6 +120,7 @@ enum misdn_chan_state {
 	MISDN_EXTCANTMATCH, /*!<  when asterisk couldnt match our ext */
 	MISDN_DIALING, /*!<  when pbx_start */
 	MISDN_PROGRESS, /*!<  we got a progress */
+	MISDN_PROCEEDING, /*!<  we got a progress */
 	MISDN_CALLING, /*!<  when misdn_call is called */
 	MISDN_CALLING_ACKNOWLEDGE, /*!<  when we get SETUP_ACK */
 	MISDN_ALERTING, /*!<  when Alerting */
@@ -1858,6 +1859,8 @@ static int misdn_hangup(struct ast_channel *ast)
 			break;
       
 		case MISDN_ALERTING:
+		case MISDN_PROGRESS:
+		case MISDN_PROCEEDING:
 			chan_misdn_log(2, bc->port, " --> * State Alerting\n");
 
 			if (p->orginator != ORG_AST) 
@@ -3262,6 +3265,8 @@ cb_events(enum event_e event, struct misdn_bchannel *bc, void *user_data)
 			start_bc_tones(ch);
 		}
 
+		ch->state = MISDN_PROCEEDING;
+		
 		ast_queue_control(ch->ast, AST_CONTROL_PROCEEDING);
 	}
 	break;
@@ -3879,6 +3884,7 @@ static int misdn_set_opt_exec(struct ast_channel *chan, void *data)
 			chan_misdn_log(1, ch->bc->port, "SETOPT: EchoCancel\n");
 			
 			if (neglect) {
+				chan_misdn_log(1, ch->bc->port, " --> disabled\n");
 				ch->bc->ec_enable=0;
 			} else {
 				ch->bc->ec_enable=1;
