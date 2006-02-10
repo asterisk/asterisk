@@ -96,12 +96,11 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
        	                	; of performing a "hairpin" call.
 ;usereqphone = no		; If yes, ";user=phone" is added to uri that contains
 				; a valid phone number
-;dtmfmode = rtp			; Set default dtmfmode for sending DTMF. Default is rtp (according to RFC 2833)
+;dtmfmode = rfc2833		; Set default dtmfmode for sending DTMF. Default: rfc2833
 				; Other options: 
-				; info		SIP INFO messages
-				; inband	Inband audio
-				;		(requires 64 kbit codec -alaw, ulaw)
-				; auto : Use rtp if offered, inband otherwise
+				; info : SIP INFO messages
+				; inband : Inband audio (requires 64 kbit codec -alaw, ulaw)
+				; auto : Use rfc2833 if offered, inband otherwise
 
 ;compactheaders = yes		; send compact sip headers.
 ;sipdebug = yes			; Turn on SIP debugging by default, from
@@ -413,7 +412,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;subscribecontext=localextensions	; Only allow SUBSCRIBE for local extensions
 ;language=de			; Use German prompts for this user 
 ;host=dynamic			; This peer register with us
-;dtmfmode=inband		; Choices are inband, rtp, or info
+;dtmfmode=inband		; Choices are inband, rfc2833, or info
 ;defaultip=192.168.0.59		; IP used until peer registers
 ;mailbox=1234@context,2345      ; Mailbox(-es) for message waiting indicator
 ;vmexten=voicemail      ; dialplan extension to reach mailbox 
@@ -429,7 +428,7 @@ srvlookup=yes			; Enable DNS SRV lookups on outbound calls
 ;context=from-sip		; Context for incoming calls from this user
 ;secret=blahpoly
 ;host=dynamic			; This peer register with us
-;dtmfmode=rtp			; Choices are inband, rtp, or info
+;dtmfmode=rfc2833		; Choices are inband, rfc2833, or info
 ;username=polly			; Username to use in INVITE until peer registers
 				; Normally you do NOT need to set this parameter
 ;disallow=all
