@@ -69,9 +69,6 @@ AST_MUTEX_DEFINE_STATIC(usecnt_lock);
 
 #define IS_OUTBOUND(a,b) (a == b->chan ? 1 : 0)
 
-/* Protect the interface list (of sip_pvt's) */
-AST_MUTEX_DEFINE_STATIC(locallock);
-
 static struct ast_channel *local_request(const char *type, int format, void *data, int *cause);
 static int local_digit(struct ast_channel *ast, char digit);
 static int local_call(struct ast_channel *ast, char *dest, int timeout);
@@ -101,7 +98,7 @@ static const struct ast_channel_tech local_tech = {
 	.send_html = local_sendhtml,
 };
 
-static struct local_pvt {
+struct local_pvt {
 	ast_mutex_t lock;			/* Channel private lock */
 	char context[AST_MAX_CONTEXT];		/* Context to call */
 	char exten[AST_MAX_EXTENSION];		/* Extension to call */
@@ -113,8 +110,10 @@ static struct local_pvt {
 	int nooptimization;			/* Don't leave masq state */
 	struct ast_channel *owner;		/* Master Channel */
 	struct ast_channel *chan;		/* Outbound channel */
-	struct local_pvt *next;			/* Next entity */
-} *locals = NULL;
+	AST_LIST_ENTRY(local_pvt) list;		/* Next entity */
+};
+
+static AST_LIST_HEAD_STATIC(locals, local_pvt);
 
 static int local_queue_frame(struct local_pvt *p, int isoutbound, struct ast_frame *f, struct ast_channel *us)
 {
@@ -357,23 +356,19 @@ static int local_call(struct ast_channel *ast, char *dest, int timeout)
 #if 0
 static void local_destroy(struct local_pvt *p)
 {
-	struct local_pvt *cur, *prev = NULL;
-	ast_mutex_lock(&locallock);
-	cur = locals;
-	while(cur) {
+	struct local_pvt *cur;
+
+	AST_LIST_LOCK(&locals);
+	AST_LIST_TRAVERSE_SAFE_BEGIN(&locals, cur, list) {
 		if (cur == p) {
-			if (prev)
-				prev->next = cur->next;
-			else
-				locals = cur->next;
-			ast_mutex_destroy(cur);
+			AST_LIST_REMOVE_CURRENT(&locals, list);
+			ast_mutex_destroy(&cur->lock);
 			free(cur);
 			break;
 		}
-		prev = cur;
-		cur = cur->next;
 	}
-	ast_mutex_unlock(&locallock);
+	AST_LIST_TRAVERSE_SAFE_END
+	AST_LIST_UNLOCK(&locals);
 	if (!cur)
 		ast_log(LOG_WARNING, "Unable ot find local '%s@%s' in local list\n", p->exten, p->context);
 }
@@ -385,7 +380,6 @@ static int local_hangup(struct ast_channel *ast)
 	struct local_pvt *p = ast->tech_pvt;
 	int isoutbound;
 	struct ast_frame f = { AST_FRAME_CONTROL, AST_CONTROL_HANGUP };
-	struct local_pvt *cur, *prev=NULL;
 	struct ast_channel *ochan = NULL;
 	int glaredetect;
 	const char *status;
@@ -415,20 +409,9 @@ static int local_hangup(struct ast_channel *ast)
 			p->cancelqueue = 1;
 		ast_mutex_unlock(&p->lock);
 		/* Remove from list */
-		ast_mutex_lock(&locallock);
-		cur = locals;
-		while(cur) {
-			if (cur == p) {
-				if (prev)
-					prev->next = cur->next;
-				else
-					locals = cur->next;
-				break;
-			}
-			prev = cur;
-			cur = cur->next;
-		}
-		ast_mutex_unlock(&locallock);
+		AST_LIST_LOCK(&locals);
+		AST_LIST_REMOVE(&locals, p, list);
+		AST_LIST_UNLOCK(&locals);
 		/* Grab / release lock just in case */
 		ast_mutex_lock(&p->lock);
 		ast_mutex_unlock(&p->lock);
@@ -484,10 +467,9 @@ static struct local_pvt *local_alloc(char *data, int format)
 		tmp = NULL;
 	} else {
 		/* Add to list */
-		ast_mutex_lock(&locallock);
-		tmp->next = locals;
-		locals = tmp;
-		ast_mutex_unlock(&locallock);
+		AST_LIST_LOCK(&locals);
+		AST_LIST_INSERT_HEAD(&locals, tmp, list);
+		AST_LIST_UNLOCK(&locals);
 	}
 	
 	return tmp;
@@ -563,17 +545,15 @@ static int locals_show(int fd, int argc, char **argv)
 
 	if (argc != 3)
 		return RESULT_SHOWUSAGE;
-	ast_mutex_lock(&locallock);
-	p = locals;
-	while(p) {
+	if (AST_LIST_EMPTY(&locals))
+		ast_cli(fd, "No local channels in use\n");
+	AST_LIST_LOCK(&locals);
+	AST_LIST_TRAVERSE(&locals, p, list) {
 		ast_mutex_lock(&p->lock);
 		ast_cli(fd, "%s -- %s@%s\n", p->owner ? p->owner->name : "<unowned>", p->exten, p->context);
 		ast_mutex_unlock(&p->lock);
-		p = p->next;
 	}
-	if (!locals)
-		ast_cli(fd, "No local channels in use\n");
-	ast_mutex_unlock(&locallock);
+	AST_LIST_UNLOCK(&locals);
 	return RESULT_SUCCESS;
 }
 
@@ -611,16 +591,14 @@ int unload_module()
 	/* First, take us out of the channel loop */
 	ast_cli_unregister(&cli_show_locals);
 	ast_channel_unregister(&local_tech);
-	if (!ast_mutex_lock(&locallock)) {
+	if (!AST_LIST_LOCK(&locals)) {
 		/* Hangup all interfaces if they have an owner */
-		p = locals;
-		while(p) {
+		AST_LIST_TRAVERSE(&locals, p, list) {
 			if (p->owner)
 				ast_softhangup(p->owner, AST_SOFTHANGUP_APPUNLOAD);
-			p = p->next;
 		}
-		locals = NULL;
-		ast_mutex_unlock(&locallock);
+		AST_LIST_UNLOCK(&locals);
+		AST_LIST_HEAD_DESTROY(&locals);
 	} else {
 		ast_log(LOG_WARNING, "Unable to lock the monitor\n");
 		return -1;
