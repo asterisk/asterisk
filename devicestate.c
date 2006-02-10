@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -265,12 +265,8 @@ static void *do_devstate_changes(void *data)
 /*! \brief Initialize the device state engine in separate thread */
 int ast_device_state_engine_init(void)
 {
-	pthread_attr_t attr;
-
 	ast_cond_init(&change_pending, NULL);
-	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-	if (ast_pthread_create(&change_thread, &attr, do_devstate_changes, NULL) < 0) {
+	if (ast_pthread_create(&change_thread, NULL, do_devstate_changes, NULL) < 0) {
 		ast_log(LOG_ERROR, "Unable to start device state change thread.\n");
 		return -1;
 	}
