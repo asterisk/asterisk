@@ -1,14 +1,25 @@
 /*
  * Asterisk -- A telephony toolkit for Linux.
  *
- * SMDI support for Asterisk.
- * 
  * Copyright (C) 2005-2006, Digium, Inc.
  *
  * Matthew A. Nicholson <mnicholson@digium.com>
  *
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
  * This program is free software, distributed under the terms of
- * the GNU General Public License
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
+ */
+
+/*!
+ * \file
+ * \brief SMDI support for Asterisk.
+ * \author Matthew A. Nicholson <mnicholson@digium.com>
  */
 
 #include <stdio.h>
@@ -18,6 +29,11 @@
 #include <sys/time.h>
 #include <time.h>
 #include <ctype.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision: $")
+
 #include "asterisk/module.h"
 #include "asterisk/lock.h"
 #include "asterisk/utils.h"
@@ -28,12 +44,6 @@
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/options.h"
-
-/*!
- * \file
- * \brief SMDI support for Asterisk.
- * \author Matthew A. Nicholson <mnicholson@digium.com>
- */
 
 /* Message expiry time in milliseconds */
 #define SMDI_MSG_EXPIRY_TIME	30000 /* 30 seconds */
