@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2005, Kevin P. Fleming
+ * Copyright (C) 2005-2006, Kevin P. Fleming
  *
  * Kevin P. Fleming <kpfleming@digium.com>
  *
@@ -342,9 +342,7 @@ static int do_reload(int loading)
 	/* if this reload enabled the manager, create the background thread
 	   if it does not exist */
 	if (enabled && !was_enabled && (refresh_thread == AST_PTHREADT_NULL)) {
-		pthread_attr_init(&attr);
-		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-		if (ast_pthread_create(&refresh_thread, &attr, do_refresh, NULL) < 0) {
+		if (ast_pthread_create(&refresh_thread, NULL, do_refresh, NULL) < 0) {
 			ast_log(LOG_ERROR, "Unable to start refresh thread.\n");
 		}
 		else {
