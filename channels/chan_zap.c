@@ -10623,7 +10623,7 @@ static int setup_zap(int reload)
 		} else if (!strcasecmp(v->name, "echotraining")) {
 			if (sscanf(v->value, "%d", &y) == 1) {
 				if ((y < 10) || (y > 4000)) {
-					ast_log(LOG_WARNING, "Echo training time must be within the range of 10 to 2000 ms at line %d\n", v->lineno);					
+					ast_log(LOG_WARNING, "Echo training time must be within the range of 10 to 4000 ms at line %d\n", v->lineno);					
 				} else {
 					echotraining = y;
 				}
