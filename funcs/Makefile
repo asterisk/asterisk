@@ -11,13 +11,11 @@
 # the GNU General Public License
 #
 
-BUILD_MODS:=$(patsubst %.c,%.o,$(wildcard func_*.c))
+MODS:=$(patsubst %.c,%.so,$(wildcard func_*.c))
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
-  BUILD_MODS:=$(filter-out func_odbc.o,$(BUILD_MODS))
+  MODS:=$(filter-out func_odbc.so,$(MODS))
 endif
-
-MODS:=$(BUILD_MODS:.o=.so)
 
 ifeq (${OSARCH},CYGWIN)
 CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols

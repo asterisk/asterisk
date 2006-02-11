@@ -11,38 +11,36 @@
 # the GNU General Public License
 #
 
-MODS=res_indications.so res_monitor.so res_adsi.so res_agi.so res_features.so res_clioriginate.so
+MODS:=$(patsubst %.c,%.so,$(wildcard res_*.c))
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
-  ifneq (${OSARCH},FreeBSD)
-    MODS+=res_config_odbc.so
-  else
-    MODS+=$(shell if test ${BSDVERSION} -ge 500000 ; then echo "res_config_odbc.so"; fi)
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
+  MODS:=$(filter-out res_odbc.so,$(MODS))
+  MODS:=$(filter-out res_config_odbc.so,$(MODS))
+else
+  ifeq (${OSARCH},FreeBSD)
+    MODS:=$(filter-out $(shell if test ${BSDVERSION} -lt 500000 ; then echo "res_config_odbc.so"; fi),$(MODS))
   endif
-  MODS+=res_odbc.so
 endif
 
 ifneq ($(NOCRYPTO),yes)
-  MODS+=res_crypto.so
+  MODS:=$(filter-out res_crypto.so,$(MODS))
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a),)
-  MODS+=res_osp.so
-  OSPLIB=$(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a
-else
-  ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a),)
-    MODS+=res_osp.so
-    OSPLIB=$(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a
-  endif
+OSPLIB=$(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a)
+ifeq (${OSPLIB},)
+  MODS:=$(filter-out res_osp.so,$(MODS))
+endif
+
+ifeq (${WITH_SMDI},)
+  MODS:=$(filter-out res_smdi.so,$(MODS))
 endif
 
 ifeq (${OSARCH},CYGWIN)
-CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-CYGSOLIB=-L.. -L. -lasterisk.dll
-CYG_RES_CONFIG_ODBC_LIB=-lres_odbc.so
-CYG_RES_FEATURES_LIB=-lres_adsi.so -lres_monitor.so
-else
-MODS+=res_musiconhold.so 
+  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+  CYGSOLIB=-L.. -L. -lasterisk.dll
+  CYG_RES_CONFIG_ODBC_LIB=-lres_odbc.so
+  CYG_RES_FEATURES_LIB=-lres_adsi.so -lres_monitor.so
+  MODS:=$(filter-out res_musiconhold.so,$(MODS))
 endif
 
 CRYPTO_LIBS=-lssl -lcrypto
@@ -62,13 +60,6 @@ ifeq (${OSARCH},CYGWIN)
 CFLAGS+=-DOPENSSL_NO_KRB5
 else
 CFLAGS+=-DOPENSSL_NO_KRB5 -fPIC
-endif
-
-#
-# Asterisk SMDI integration
-#
-ifeq (${WITH_SMDI},1)
-MODS+=res_smdi.so
 endif
 
 all: depend $(MODS)
