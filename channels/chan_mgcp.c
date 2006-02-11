@@ -4388,6 +4388,7 @@ int unload_module()
 	ast_cli_unregister(&cli_debug);
 	ast_cli_unregister(&cli_no_debug);
 	ast_cli_unregister(&cli_mgcp_reload);
+	sched_context_destroy(sched);
 
 	return 0;
 }
