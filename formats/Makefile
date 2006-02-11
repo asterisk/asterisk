@@ -3,7 +3,7 @@
 # 
 # Makefile for file format modules
 #
-# Copyright (C) 1999-2005, Digium
+# Copyright (C) 1999-2006, Digium, Inc.
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -11,33 +11,25 @@
 # the GNU General Public License
 #
 
-FORMAT_LIBS=format_gsm.so format_wav.so \
-	format_wav_gsm.so format_vox.so format_pcm.so format_g729.so \
-	format_pcm_alaw.so format_h263.so format_g726.so format_ilbc.so \
-	format_sln.so format_au.so format_h264.so
-FORMAT_LIBS+=format_jpeg.so
-
-#
-# G723 simple frame is deprecated
-#
-FORMAT_LIBS+=format_g723.so
+MODS:=$(patsubst %.c,%.so,$(wildcard format_*.c))
 
 #
 # OGG/Vorbis format
 #
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vorbis/codec.h),)
-  FORMAT_LIBS+=format_ogg_vorbis.so
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vorbis/codec.h),)
+  MODS:=$(filter-out format_ogg_vorbis.so,$(MODS))
 endif
 
 GSMLIB=../codecs/gsm/lib/libgsm.a
 
 ifeq (${OSARCH},CYGWIN)
-CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-CYGSOLIB=-L.. -L. -lasterisk.dll
+  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+  CYGSOLIB=-L.. -L. -lasterisk.dll
 else
-CFLAGS+=-fPIC
+  CFLAGS+=-fPIC
 endif
-all: depend $(FORMAT_LIBS)
+
+all: depend $(MODS)
 
 clean:
 	rm -f *.so *.o .depend
