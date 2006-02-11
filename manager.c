@@ -66,16 +66,17 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/utils.h"
 
 struct fast_originate_helper {
-	char tech[256];
-	char data[256];
+	char tech[AST_MAX_MANHEADER_LEN];
+	char data[AST_MAX_MANHEADER_LEN];
 	int timeout;
-	char app[256];
-	char appdata[256];
-	char cid_name[256];
-	char cid_num[256];
-	char context[256];
-	char exten[256];
-	char idtext[256];
+	char app[AST_MAX_APP];
+	char appdata[AST_MAX_MANHEADER_LEN];
+	char cid_name[AST_MAX_MANHEADER_LEN];
+	char cid_num[AST_MAX_MANHEADER_LEN];
+	char context[AST_MAX_CONTEXT];
+	char exten[AST_MAX_EXTENSION];
+	char idtext[AST_MAX_MANHEADER_LEN];
+	char account[AST_MAX_ACCOUNT_CODE];
 	int priority;
 	struct ast_variable *vars;
 };
@@ -949,12 +950,12 @@ static void *fast_originate(void *data)
 		res = ast_pbx_outgoing_app(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->app, in->appdata, &reason, 1, 
 			!ast_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, &chan);
+			in->vars, in->account, &chan);
 	} else {
 		res = ast_pbx_outgoing_exten(in->tech, AST_FORMAT_SLINEAR, in->data, in->timeout, in->context, in->exten, in->priority, &reason, 1, 
 			!ast_strlen_zero(in->cid_num) ? in->cid_num : NULL, 
 			!ast_strlen_zero(in->cid_name) ? in->cid_name : NULL,
-			in->vars, &chan);
+			in->vars, in->account, &chan);
 	}   
 	
 	/* Tell the manager what happened with the channel */
@@ -1056,12 +1057,6 @@ static int action_originate(struct mansession *s, struct message *m)
 		if (ast_strlen_zero(l))
 			l = NULL;
 	}
-	if (account) {
-		struct ast_variable *newvar;
-		newvar = ast_variable_new("CDR(accountcode|r)", account);
-		newvar->next = vars;
-		vars = newvar;
-	}
 	if (ast_true(async)) {
 		struct fast_originate_helper *fast = malloc(sizeof(struct fast_originate_helper));
 		if (!fast) {
@@ -1081,6 +1076,7 @@ static int action_originate(struct mansession *s, struct message *m)
 			fast->vars = vars;	
 			ast_copy_string(fast->context, context, sizeof(fast->context));
 			ast_copy_string(fast->exten, exten, sizeof(fast->exten));
+			ast_copy_string(fast->account, account, sizeof(fast->account));
 			fast->timeout = to;
 			fast->priority = pi;
 			pthread_attr_init(&attr);
@@ -1092,10 +1088,10 @@ static int action_originate(struct mansession *s, struct message *m)
 			}
 		}
 	} else if (!ast_strlen_zero(app)) {
-        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, NULL);
+        	res = ast_pbx_outgoing_app(tech, AST_FORMAT_SLINEAR, data, to, app, appdata, &reason, 1, l, n, vars, account, NULL);
     	} else {
 		if (exten && context && pi)
-	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, NULL);
+	        	res = ast_pbx_outgoing_exten(tech, AST_FORMAT_SLINEAR, data, to, context, exten, pi, &reason, 1, l, n, vars, account, NULL);
 		else {
 			astman_send_error(s, m, "Originate with 'Exten' requires 'Context' and 'Priority'");
 			return 0;
@@ -1414,7 +1410,7 @@ static void *session_do(void *data)
 				if (process_message(s, &m))
 					break;
 				memset(&m, 0, sizeof(m));
-			} else if (m.hdrcount < MAX_HEADERS - 1)
+			} else if (m.hdrcount < AST_MAX_MANHEADERS - 1)
 				m.hdrcount++;
 		} else if (res < 0)
 			break;

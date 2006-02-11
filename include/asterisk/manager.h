@@ -56,8 +56,8 @@
 #define EVENT_FLAG_USER                 (1 << 6) /* Ability to read/set user info */
 
 /* Export manager structures */
-#define MAX_HEADERS 80
-#define MAX_LEN 256
+#define AST_MAX_MANHEADERS 80
+#define AST_MAX_MANHEADER_LEN 256
 
 struct eventqent {
 	struct eventqent *next;
@@ -88,7 +88,7 @@ struct mansession {
 	/*! Authorization for writing */
 	int writeperm;
 	/*! Buffer */
-	char inbuf[MAX_LEN];
+	char inbuf[AST_MAX_MANHEADER_LEN];
 	int inlen;
 	int send_events;
 	/* Queued events that we've not had the ability to send yet */
@@ -101,7 +101,7 @@ struct mansession {
 
 struct message {
 	int hdrcount;
-	char headers[MAX_HEADERS][MAX_LEN];
+	char headers[AST_MAX_MANHEADERS][AST_MAX_MANHEADER_LEN];
 };
 
 struct manager_action {

@@ -2434,6 +2434,8 @@ struct ast_channel *__ast_request_and_dial(const char *type, int format, void *d
 				ast_set_callerid(chan, oh->cid_num, oh->cid_name, oh->cid_num);
 			if (oh->parent_channel)
 				ast_channel_inherit_variables(oh->parent_channel, chan);
+			if (oh->account)
+				ast_cdr_setaccount(chan, oh->account);	
 		}
 		ast_set_callerid(chan, cid_num, cid_name, cid_num);
 
