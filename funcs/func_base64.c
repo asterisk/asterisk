@@ -46,7 +46,7 @@ static char *base64_encode(struct ast_channel *chan, char *cmd, char *data, char
 	}
 
 	ast_log(LOG_DEBUG, "data=%s\n",data);
-	res = ast_base64encode(buf, data, strlen(data), len);
+	res = ast_base64encode(buf, (unsigned char *)data, strlen(data), len);
 	ast_log(LOG_DEBUG, "res=%d\n", res);
 	return buf;
 }
@@ -59,7 +59,7 @@ static char *base64_decode(struct ast_channel *chan, char *cmd, char *data, char
 	}
 
 	ast_log(LOG_DEBUG, "data=%s\n", data);
-	ast_base64decode(buf, data, len);
+	ast_base64decode((unsigned char *)buf, data, len);
 	return buf;
 }
 
