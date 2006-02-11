@@ -234,7 +234,8 @@ static pthread_t netthreadid = AST_PTHREADT_NULL;
 enum {
 	IAX_STATE_STARTED = 		(1 << 0),
 	IAX_STATE_AUTHENTICATED = 	(1 << 1),
-	IAX_STATE_TBD = 		(1 << 2)
+	IAX_STATE_TBD = 		(1 << 2),
+	IAX_STATE_UNCHANGED = 		(1 << 3),
 } iax2_state;
 
 struct iax2_context {
@@ -5011,7 +5012,7 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 	int x;
 	int expire = 0;
 
-	ast_clear_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED);
+	ast_clear_flag(&iaxs[callno]->state, IAX_STATE_AUTHENTICATED | IAX_STATE_UNCHANGED);
 	iaxs[callno]->peer[0] = '\0';
 	if (ies->username)
 		ast_copy_string(peer, ies->username, sizeof(peer));
@@ -5056,6 +5057,8 @@ static int register_verify(int callno, struct sockaddr_in *sin, struct iax_ies *
 			destroy_peer(p);
 		return -1;
 	}
+	if (!inaddrcmp(&p->addr, sin))
+		ast_set_flag(&iaxs[callno]->state, IAX_STATE_UNCHANGED);
 	ast_copy_string(iaxs[callno]->secret, p->secret, sizeof(iaxs[callno]->secret));
 	ast_copy_string(iaxs[callno]->inkeys, p->inkeys, sizeof(iaxs[callno]->inkeys));
 	/* Check secret against what we have on file */
@@ -7362,7 +7365,8 @@ retryowner2:
 					auth_fail(fr.callno, IAX_COMMAND_REGREJ);
 					break;
 				}
-				if ((ast_strlen_zero(iaxs[fr.callno]->secret) && ast_strlen_zero(iaxs[fr.callno]->inkeys)) || ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_AUTHENTICATED)) {
+				if ((ast_strlen_zero(iaxs[fr.callno]->secret) && ast_strlen_zero(iaxs[fr.callno]->inkeys)) || 
+						ast_test_flag(&iaxs[fr.callno]->state, IAX_STATE_AUTHENTICATED | IAX_STATE_UNCHANGED)) {
 					if (f.subclass == IAX_COMMAND_REGREL)
 						memset(&sin, 0, sizeof(sin));
 					if (update_registry(iaxs[fr.callno]->peer, &sin, fr.callno, ies.devicetype, fd, ies.refresh))
