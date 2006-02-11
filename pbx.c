@@ -4957,7 +4957,7 @@ int ast_pbx_outgoing_cdr_failed(void)
 	return 0;  /* success */
 }
 
-int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, struct ast_channel **channel)
+int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout, const char *context, const char *exten, int priority, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **channel)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -4974,7 +4974,7 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 				ast_mutex_lock(&chan->lock);
 		}
 		if (chan) {
-			if(chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
+			if (chan->cdr) { /* check if the channel already has a cdr record, if not give it one */
 				ast_log(LOG_WARNING, "%s already has a call record??\n", chan->name);
 			} else {
 				chan->cdr = ast_cdr_alloc();   /* allocate a cdr for the channel */
@@ -5051,6 +5051,8 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 					ast_copy_string(chan->exten, "failed", sizeof(chan->exten));
 					chan->priority = 1;
 					ast_set_variables(chan, vars);
+					if (account)
+						ast_cdr_setaccount(chan, account);
 					ast_pbx_run(chan);	
 				} else 
 					ast_log(LOG_WARNING, "Can't allocate the channel structure, skipping execution of extension 'failed'\n");
@@ -5080,6 +5082,8 @@ int ast_pbx_outgoing_exten(const char *type, int format, void *data, int timeout
 		as->priority = priority;
 		as->timeout = timeout;
 		ast_set_variables(chan, vars);
+		if (account)
+			ast_cdr_setaccount(chan, account);
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 		if (ast_pthread_create(&as->p, &attr, async_wait, as)) {
@@ -5121,7 +5125,7 @@ static void *ast_pbx_run_app(void *data)
 	return NULL;
 }
 
-int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, struct ast_channel **locked_channel)
+int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, const char *app, const char *appdata, int *reason, int sync, const char *cid_num, const char *cid_name, struct ast_variable *vars, const char *account, struct ast_channel **locked_channel)
 {
 	struct ast_channel *chan;
 	struct async_stat *as;
@@ -5129,9 +5133,10 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 	int res = -1, cdr_res = -1;
 	struct outgoing_helper oh;
 	pthread_attr_t attr;
-	
+
 	memset(&oh, 0, sizeof(oh));
-	oh.vars = vars;	
+	oh.vars = vars;
+	oh.account = account;	
 
 	if (locked_channel) 
 		*locked_channel = NULL;
@@ -5158,6 +5163,8 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 				ast_cdr_start(chan->cdr);
 			}
 			ast_set_variables(chan, vars);
+			if (account)
+				ast_cdr_setaccount(chan, account);
 			if (chan->_state == AST_STATE_UP) {
 				res = 0;
 				if (option_verbose > 3)
@@ -5237,6 +5244,8 @@ int ast_pbx_outgoing_app(const char *type, int format, void *data, int timeout, 
 			ast_copy_string(as->appdata,  appdata, sizeof(as->appdata));
 		as->timeout = timeout;
 		ast_set_variables(chan, vars);
+		if (account)
+			ast_cdr_setaccount(chan, account);
 		/* Start a new thread, and get something handling this channel. */
 		pthread_attr_init(&attr);
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
