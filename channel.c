@@ -165,6 +165,22 @@ const struct ast_cause {
 };
 
 
+struct ast_variable *ast_channeltype_list(void)
+{
+	struct chanlist *cl;
+	struct ast_variable *var=NULL, *prev = NULL;
+	AST_LIST_TRAVERSE(&backends, cl, list) {
+		if (prev)  {
+			if ((prev->next = ast_variable_new(cl->tech->type, cl->tech->description)))
+				prev = prev->next;
+		} else {
+			var = ast_variable_new(cl->tech->type, cl->tech->description);
+			prev = var;
+		}
+	}
+	return var;
+}
+
 static int show_channeltypes(int fd, int argc, char *argv[])
 {
 #define FORMAT  "%-10.10s  %-40.40s %-12.12s %-12.12s %-12.12s\n"

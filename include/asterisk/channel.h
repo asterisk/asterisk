@@ -1236,6 +1236,9 @@ extern char *ast_print_group(char *buf, int buflen, ast_group_t group);
 */
 const char *channelreloadreason2txt(enum channelreloadreason reason);
 
+/*! \brief return an ast_variable list of channeltypes */
+extern struct ast_variable *ast_channeltype_list(void);
+
 #if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
