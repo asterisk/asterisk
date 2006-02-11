@@ -87,7 +87,7 @@ static void *page_thread(void *data)
 {
 	struct calloutdata *cd = data;
 	ast_pbx_outgoing_app(cd->tech, AST_FORMAT_SLINEAR, cd->resource, 30000,
-		"MeetMe", cd->meetmeopts, NULL, 0, cd->cidnum, cd->cidname, cd->variables, NULL);
+		"MeetMe", cd->meetmeopts, NULL, 0, cd->cidnum, cd->cidname, cd->variables, NULL, NULL);
 	free(cd);
 	return NULL;
 }
