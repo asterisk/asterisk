@@ -16,9 +16,6 @@
 
 MODS:=$(patsubst %.c,%.so,$(wildcard chan_*.c))
 
-# This should be renamed :)
-MODS:=$(filter-out chan_misdn_config.so,$(MODS))
-
 ifeq (${OSARCH},OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
   H323LIB=-lh323_OpenBSD_x86_r
@@ -238,15 +235,14 @@ endif
 misdn/chan_misdn_lib.a:
 	make -C misdn
 
-chan_misdn.so: chan_misdn.o chan_misdn_config.o misdn/chan_misdn_lib.a
+chan_misdn.so: chan_misdn.o misdn_config.o misdn/chan_misdn_lib.a
 	$(CC) -shared -Xlinker -x -L/usr/lib -o $@ $^ -lisdnnet -lmISDN
 
 chan_misdn.o: chan_misdn.c
 	$(CC) $(CFLAGS) -DCHAN_MISDN_VERSION=\"0.3.0\" -c $< -o $@
 
-chan_misdn_config.o: chan_misdn_config.c misdn/chan_misdn_config.h
+misdn_config.o: misdn_config.c misdn/chan_misdn_config.h
 	$(CC) $(CFLAGS) -DCHAN_MISDN_VERSION=\"0.3.0\" -c $< -o $@
-
 
 install: all
 	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
