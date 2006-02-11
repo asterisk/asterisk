@@ -540,8 +540,11 @@ static int smdi_load(int reload)
 	conf = ast_config_load(config_file);
 
 	if (!conf) {
-		ast_log(LOG_ERROR, "Unable to load config %s\n", config_file);
-		return -1;
+		if (reload)
+			ast_log(LOG_NOTICE, "Unable to reload config %s: SMDI untouched\n", config_file);
+		else
+			ast_log(LOG_NOTICE, "Unable to load config %s: SMDI disabled\n", config_file);
+		return 1;
 	}
 
 	/* Mark all interfaces that we are listening on.  We will unmark them
