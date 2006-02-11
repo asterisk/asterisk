@@ -3,7 +3,7 @@
 # 
 # Makefile for codec modules
 #
-# Copyright (C) 1999-2005, Digium
+# Copyright (C) 1999-2006, Digium, Inc.
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -11,74 +11,57 @@
 # the GNU General Public License
 #
 
+MODS:=$(patsubst %.c,%.so,$(wildcard codec_*.c))
+
 ifeq (${OSARCH},CYGWIN)
-CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-CYGSOLIB=-L.. -L. -lasterisk.dll
+  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+  CYGSOLIB=-L.. -L. -lasterisk.dll
 else
-CFLAGS+=-fPIC
+  CFLAGS+=-fPIC
 endif
 
-ifneq ($(wildcard g723.1/coder.c),)
-  MODG723=codec_g723_1.so
+ifeq ($(wildcard g723.1/coder.c),)
+  MODS:=$(filter-out codec_g723_1.so,$(MODS))
+else
   LIBG723=g723.1/libg723.a
 endif
 
-ifneq ($(wildcard g723.1b/coder2.c),)
-  MODG723+=codec_g723_1b.so
+ifeq ($(wildcard g723.1b/coder2.c),)
+  MODS:=$(filter-out codec_g723_1b.so,$(MODS))
+else
   LIBG723B=g723.1b/libg723b.a
 endif
 
-UI_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/speex.h)
-UIS_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/speex/speex.h)
-ULI_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/speex.h)
-ULIS_SPEEX=$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/speex/speex.h)
-ifneq (${UI_SPEEX},)
-  MODSPEEX=codec_speex.so
-  LIBSPEEX+=-lspeex -lm
-endif
-ifneq (${UIS_SPEEX},)
-  MODSPEEX=codec_speex.so
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/include/speex
-  LIBSPEEX+=-lspeex -lm
-endif
-ifneq (${ULI_SPEEX},)
-  MODSPEEX=codec_speex.so
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include
-  LIBSPEEX=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
-  LIBSPEEX+=-lspeex -lm
-endif
-ifneq (${ULIS_SPEEX},)
-  MODSPEEX=codec_speex.so
-  CFLAGS+=-I$(CROSS_COMPILE_TARGET)/usr/local/include/speex
-  LIBSPEEX=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
-  LIBSPEEX+=-lspeex -lm
+SPEEX_PATH:=/usr/local/include /usr/include /usr/include/speex /usr/local/include/speex
+SPEEX_SYSTEM_HEADERS:=$(wildcard $(SPEEX_PATH:%=$(CROSS_COMPILE_TARGET)%/speex.h))
+ifeq (${SPEEX_SYSTEM_HEADERS},)
+  MODS:=$(filter-out codec_speex.so,$(MODS))
+else
+  CFLAGS+=-I$(subst /speex.h,,${SPEEX_SYSTEM_HEADERS})
+  LIBSPEEX=-lspeex -lm
 endif
 
-ifneq ($(wildcard ilbc/iLBC_decode.h),)
-  MODILBC=codec_ilbc.so
+ifeq ($(wildcard ilbc/iLBC_decode.h),)
+  MODS:=$(filter-out codec_ilbc.so,$(MODS))
+else
   LIBILBC=ilbc/libilbc.a
 endif
 
-
 LIBGSM_PATH:=/usr/local/include /usr/include
 LIBGSM_SYSTEM_HEADERS:=$(wildcard $(LIBGSM_PATH:%=$(CROSS_COMPILE_TARGET)%/gsm/gsm.h))
-ifneq (,$(LIBGSM_SYSTEM_HEADERS))
-LIBGSM=-lgsm
-LIBGSMT=
-CFLAGS+=-DUSE_EXTERNAL_GSM_LIB
+ifneq ($(LIBGSM_SYSTEM_HEADERS),)
+  LIBGSM=-lgsm
+  LIBGSMT=
+  CFLAGS+=-DUSE_EXTERNAL_GSM_LIB
 else
-LIBGSM=gsm/lib/libgsm.a
-LIBGSMT=$(LIBGSM)
-CFLAGS+=-I.
+  LIBGSM=gsm/lib/libgsm.a
+  LIBGSMT=$(LIBGSM)
+  CFLAGS+=-I.
 endif
 
 LIBLPC10=lpc10/liblpc10.a
 
-CODECS+=$(MODG723) $(MODSPEEX) $(MODILBC) codec_gsm.so codec_lpc10.so  \
-        codec_adpcm.so codec_ulaw.so codec_alaw.so codec_a_mu.so \
-	codec_g726.so
-
-all: depend $(CODECS)
+all: depend $(MODS)
 
 clean:
 	rm -f *.so *.o .depend
@@ -118,7 +101,7 @@ codec_g723_1b.so : codec_g723_1b.o $(LIBG723B)
 codec_gsm.so: codec_gsm.o $(LIBGSMT) 
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBGSM)
 
-$(MODSPEEX): codec_speex.o
+codec_speex.so: codec_speex.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} $(LIBSPEEX)
 
 codec_lpc10.so: codec_lpc10.o $(LIBLPC10)
@@ -132,7 +115,7 @@ ifneq ($(wildcard .depend),)
 endif
 
 install: all
-	for x in $(CODECS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 uninstall:
 
