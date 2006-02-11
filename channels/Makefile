@@ -3,7 +3,7 @@
 # 
 # Makefile for channel drivers
 #
-# Copyright (C) 1999-2005, Mark Spencer
+# Copyright (C) 1999-2006, Digium, Inc.
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -14,7 +14,7 @@
 # the GNU General Public License
 #
 
-CHANNEL_LIBS=chan_sip.so chan_agent.so chan_mgcp.so chan_iax2.so chan_local.so chan_skinny.so chan_features.so
+MODS:=$(patsubst %.c,%.so,$(wildcard chan_*.c))
 
 ifeq (${OSARCH},OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
@@ -28,9 +28,9 @@ ifeq (${OSARCH},Linux)
 endif
 
 ifeq (${OSARCH},CYGWIN)
-CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-CYGSOLIB=-L.. -L. -L../res -lasterisk.dll -lres_features.so
-CYG_CHAN_AGENT=-lres_monitor.so
+  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+  CYGSOLIB=-L.. -L. -L../res -lasterisk.dll -lres_features.so
+  CYG_CHAN_AGENT=-lres_monitor.so
 endif
 
 ifeq ($(PROC),sparc64)
@@ -49,52 +49,51 @@ ifeq (${OSARCH},NetBSD)
   H323LIB=-lh323_NetBSD_x86_r
 endif
 
-ifneq (${OSARCH},Darwin)
-  ifneq (${OSARCH},SunOS)
-    ifneq (${OSARCH},CYGWIN)
-       CHANNEL_LIBS+=chan_oss.so
-    endif
-  endif
+ifeq (${OSARCH},Darwin)
+  MODS:=$(filter-out chan_oss.so,$(MODS))
 endif
 
 ifeq (${OSARCH},SunOS)
+  MODS:=$(filter-out chan_oss.so,$(MODS))
   SOLINK+=-lrt
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/ixjuser.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/ixjuser.h),)
-  CHANNEL_LIBS+=chan_phone.so
+ifeq (${OSARCH},CYGWIN)
+  MODS:=$(filter-out chan_oss.so,$(MODS))
 endif
 
-#
-# Asterisk SMDI integration
-#
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/ixjuser.h $(CROSS_COMPILE_TARGET)/usr/local/include/ixjuser.h),)
+  MODS:=$(filter-out chan_phone.so,$(MODS))
+endif
+
 ifeq (${WITH_SMDI},1)
 CFLAGS+=-DWITH_SMDI
 endif
 
-ifneq ($(wildcard h323/libchanh323.a),)
-  CHANNEL_LIBS+=chan_h323.so
+ifeq ($(wildcard h323/libchanh323.a),)
+  MODS:=$(filter-out chan_h323.so,$(MODS))
 endif
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
-  CHANNEL_LIBS+=chan_misdn.so
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/mISDNuser/mISDNlib.h),)
+  MODS:=$(filter-out chan_misdn.so,$(MODS))
+else
   CFLAGS+=-Imisdn 
 endif
 
 CFLAGS+=-Wno-missing-prototypes -Wno-missing-declarations
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
-  CHANNEL_LIBS+=chan_alsa.so
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/alsa/asoundlib.h),)
+  MODS:=$(filter-out chan_alsa.so,$(MODS))
 endif
 
 ifndef WITHOUT_PRI
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libpri.so.1),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libpri.so.1 $(CROSS_COMPILE_TARGET)/usr/local/lib/libpri.so.1),)
   CFLAGS+=-DZAPATA_PRI
   ZAPPRI=-lpri
 endif
 endif # WITHOUT_PRI
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libmfcr2.so.1),)
+ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libmfcr2.so.1 $(CROSS_COMPILE_TARGET)/usr/local/lib/libmfcr2.so.1),)
   CFLAGS+=-DZAPATA_R2
   ZAPR2=-lmfcr2
 endif
@@ -107,7 +106,12 @@ ifneq ($(wildcard alsa-monitor.h),)
 endif
 
 ifndef WITHOUT_ZAPTEL
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/pkg/include/zaptel.h),)
+ZAPAVAIL:=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)
+endif
+
+ifeq (${ZAPAVAIL},)
+  MODS:=$(filter-out chan_zap.so,$(MODS))
+else
   ifeq (${OSARCH},NetBSD)
     SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/pkg/lib
   endif
@@ -115,27 +119,26 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard 
     SOLINK+=-L$(CROSS_COMPILE_TARGET)/usr/local/lib
   endif
   CFLAGS+=-DIAX_TRUNKING
-  CHANNEL_LIBS+=chan_zap.so
 endif
-endif # WITHOUT_ZAPTEL
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h),)
-  CHANNEL_LIBS+=chan_vpb.so
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/vpbapi.h),)
+  MODS:=$(filter-out chan_vpb.so,$(MODS))
+else
   CFLAGS+=-DLINUX
 endif
 
 CFLAGS+=-DCRYPTO
 
 ifneq ($(OSARCH),CYGWIN)
-CFLAGS+=-fPIC
+  CFLAGS+=-fPIC
 endif
 
 CFLAGS+=#-DVOFRDUMPER
 
 ZAPDIR=/usr/lib
 
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/nbs.h),)
-  CHANNEL_LIBS+=chan_nbs.so
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/nbs.h),)
+  MODS:=$(filter-out chan_nbs.so,$(MODS))
 endif
 
 ifndef OPENH323DIR
@@ -146,9 +149,7 @@ ifndef PWLIBDIR
   PWLIBDIR=$(HOME)/pwlib
 endif
 
-#CFLAGS+=$(shell [ -f $(ZAPDIR)/libzap.a ] && echo "-I$(ZAPDIR)")
-
-all: depend $(CHANNEL_LIBS) 
+all: depend $(MODS) 
 
 clean:
 	rm -f *.so *.o .depend
@@ -245,8 +246,7 @@ chan_misdn_config.o: chan_misdn_config.c misdn/chan_misdn_config.h
 
 
 install: all
-	for x in $(CHANNEL_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
-	if ! [ -f chan_iax.so ]; then rm -f $(DESTDIR)$(MODULES_DIR)/chan_iax.so ; fi
+	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 uninstall:
 
