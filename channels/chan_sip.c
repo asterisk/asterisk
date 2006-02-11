@@ -11324,7 +11324,6 @@ restartsearch:
 /*! \brief  restart_monitor: Start the channel monitor thread ---*/
 static int restart_monitor(void)
 {
-	pthread_attr_t attr;
 	/* If we're supposed to be stopped -- stay stopped */
 	if (monitor_thread == AST_PTHREADT_STOP)
 		return 0;
