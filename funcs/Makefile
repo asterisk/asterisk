@@ -31,7 +31,7 @@ endif
 all: $(FUNCS)
 
 clean:
-	rm -f *.so *.o .depend pbx_functions.h
+	rm -f *.so *.o .depend
 
 %.so : %.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
@@ -50,7 +50,7 @@ endif
 
 depend: .depend
 
-.depend: pbx_functions.h
+.depend:
 	../build_tools/mkdep $(CFLAGS) `ls *.c`
 
 env:
