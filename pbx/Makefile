@@ -3,7 +3,7 @@
 # 
 # Makefile for PBX modules
 #
-# Copyright (C) 1999-2005, Mark Spencer
+# Copyright (C) 1999-2006, Digium, Inc.
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -11,13 +11,17 @@
 # the GNU General Public License
 #
 
-PBX_LIBS=pbx_config.so pbx_spool.so pbx_dundi.so pbx_loopback.so pbx_realtime.so \
-         pbx_ael.so
+MODS:=$(patsubst %.c,%.so,$(wildcard pbx_*.c))
 
-# Add GTK console if appropriate
-#PBX_LIBS+=$(shell $(CROSS_COMPILE_BIN)gtk-config --cflags >/dev/null 2>/dev/null && echo "pbx_gtkconsole.so")
-# Add KDE Console if appropriate
-#PBX_LIBS+=$(shell [ "$$QTDIR" != "" ] && echo "pbx_kdeconsole.so")
+#GTK=$(shell $(CROSS_COMPILE_BIN)gtk-config --cflags >/dev/null 2>/dev/null && echo "OK")
+ifeq (${GTK},)
+  MODS:=$(filter-out pbx_gtkconsole.so,$(MODS))
+endif
+
+#KDE=$(shell [ "$$QTDIR" != "" ] && echo "OK")
+ifeq (${GTK},)
+  MODS:=$(filter-out pbx_kdeconsole.so,$(MODS))
+endif
 
 GTK_FLAGS=`${CROSS_COMPILE_BIN}gtk-config --cflags gthread`
 GTK_LIBS=`${CROSS_COMPILE_BIN}gtk-config --libs gthread`
@@ -26,15 +30,15 @@ KDE_FLAGS=-I$(KDEDIR)/include -I$(KDEDIR)/include/kde -I$(QTDIR)/include
 KDE_LIBS=-L$(KDEDIR)/lib -L$(QTDIR)/lib -lqt -lkdecore -lkdeui
 
 ifeq (${OSARCH},CYGWIN)
-CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-CYGSOLIB=-L.. -L. -L../res -lasterisk.dll 
+  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+  CYGSOLIB=-L.. -L. -L../res -lasterisk.dll 
 else
-CFLAGS+=-fPIC
+  CFLAGS+=-fPIC
 endif
 
 KDE_CONSOLE_OBJS=pbx_kdeconsole_main.o pbx_kdeconsole.o 
 
-all: depend $(PBX_LIBS)
+all: depend $(MODS)
 
 clean:
 	rm -f *.so *.o .depend
@@ -68,7 +72,7 @@ ifneq ($(wildcard .depend),)
 endif
 
 install: all
-	for x in $(PBX_LIBS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 uninstall:
 
