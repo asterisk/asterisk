@@ -4642,6 +4642,7 @@ int unload_module(void)
 	ast_cli_unregister(&cli_queryeid);
 	ast_unregister_switch(&dundi_switch);
 	ast_custom_function_unregister(&dundi_function);
+	sched_context_destroy(sched);
 
 	return 0;
 }

@@ -9484,6 +9484,7 @@ static int __unload_module(void)
 	ast_channel_unregister(&iax2_tech);
 	delete_users();
 	iax_provision_unload();
+	sched_context_destroy(sched);
 	return 0;
 }
 

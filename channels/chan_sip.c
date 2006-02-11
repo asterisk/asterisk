@@ -13289,6 +13289,7 @@ int unload_module()
 	clear_realm_authentication(authl);
 	clear_sip_domains();
 	close(sipsock);
+	sched_context_destroy(sched);
 		
 	return 0;
 }
