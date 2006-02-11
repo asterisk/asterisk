@@ -1,9 +1,9 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
 # 
-# Makefile for CDR backends (dynamically loaded)
+# Makefile for CDR backends
 #
-# Copyright (C) 1999-2005, Digium
+# Copyright (C) 1999-2006, Digium, Inc.
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -11,13 +11,30 @@
 # the GNU General Public License
 #
 
-MODS=cdr_csv.so cdr_manager.so cdr_custom.so
+MODS:=$(patsubst %.c,%.so,$(wildcard cdr_*.c))
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
+  MODS:=$(filter-out cdr_odbc.so,$(MODS))
+endif
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include $(CROSS_COMPILE_TARGET)/usr/include/pgsql $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql $(CROSS_COMPILE_TARGET)/opt/pgsql/include $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
+  MODS:=$(filter-out cdr_pgsql.so,$(MODS))
+endif
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sqlite.h),)
+  MODS:=$(filter-out cdr_sqlite.so,$(MODS))
+endif
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/tds.h $(CROSS_COMPILE_TARGET)/usr/local/include/tds.h $(CROSS_COMPILE_TARGET)/usr/include/freetds/tds.h),)
+  MODS:=$(filter-out cdr_tds.so,$(MODS))
+  NOTDS=1
+endif
 
 ifeq (${OSARCH},CYGWIN)
-CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-CYGSOLIB=-L.. -L. -lasterisk.dll
+  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+  CYGSOLIB=-L.. -L. -lasterisk.dll
 else
-CFLAGS+=-fPIC
+  CFLAGS+=-fPIC
 endif
 
 ifeq ($(findstring BSD,${OSARCH}),BSD)
@@ -31,21 +48,11 @@ endif
 #So we go lowest common available by gcc and go a step down, still a step up from
 #the default as we now have a better instruction set to work with. - Belgarath
 ifeq ($(PROC),sparc64)
- PROC=ultrasparc
+  PROC=ultrasparc
   CFLAGS += -mtune=$(PROC) -O3 -pipe -fomit-frame-pointer -mcpu=v8
 endif
 
-#
-# unixODBC stuff...
-#
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
-  MODS+=cdr_odbc.so
-endif
-
-#
-# FreeTDS stuff...
-#
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/tds.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/tds.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/freetds/tds.h),)
+ifeq (${NOTDS},)
   ifeq ($(shell grep -s TDS_VERSION_NO $(CROSS_COMPILE_TARGET)/usr/include/tdsver.h $(CROSS_COMPILE_TARGET)/usr/local/include/tdsver.h $(CROSS_COMPILE_TARGET)/usr/include/freetds/tdsver.h | grep -c 0.63),1)
     CFLAGS += -DFREETDS_0_63
   else
@@ -55,14 +62,6 @@ ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/tds.h)$(wildcard $(CROSS_C
       CFLAGS += -DFREETDS_PRE_0_62
     endif
   endif
-  MODS+=cdr_tds.so
-endif
-
-#
-# PGSQL stuff...  Autoconf anyone??
-#
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/postgresql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/pgsql)$(wildcard $(CROSS_COMPILE_TARGET)/opt/pgsql/include)$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/libpq-fe.h),)
-  MODS+=cdr_pgsql.so
 endif
 
 MLFLAGS=
@@ -98,13 +97,6 @@ endif
 
 ifneq ($(wilcard $(CROSS_COMPILE_TARGET)/usr/lib/libpq.so),)
   MLFLAGS+=-L$(CROSS_COMPILE_TARGET)/usr/lib
-endif
-
-#
-# SQLite stuff...
-#
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/sqlite.h),)
-  MODS+=cdr_sqlite.so
 endif
 
 all: depend $(MODS)
