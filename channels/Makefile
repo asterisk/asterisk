@@ -16,6 +16,9 @@
 
 MODS:=$(patsubst %.c,%.so,$(wildcard chan_*.c))
 
+# This should be renamed :)
+MODS:=$(filter-out chan_misdn_config.so,$(MODS))
+
 ifeq (${OSARCH},OpenBSD)
   PTLIB=-lpt_OpenBSD_x86_r
   H323LIB=-lh323_OpenBSD_x86_r
