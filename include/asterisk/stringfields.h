@@ -103,7 +103,7 @@ typedef const char * ast_string_field;
   \internal
   \brief A constant empty string used for fields that have no other value
 */
-extern const char *__ast_string_field_empty;
+extern const char __ast_string_field_empty[];
 
 /*!
   \internal

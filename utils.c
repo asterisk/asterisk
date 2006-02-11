@@ -961,7 +961,7 @@ void ast_join(char *s, size_t len, char * const w[])
 	s[ofs] = '\0';
 }
 
-const char const *__ast_string_field_empty = "";
+const char __ast_string_field_empty[] = "";
 
 static int add_string_pool(struct ast_string_field_mgr *mgr, size_t size)
 {
