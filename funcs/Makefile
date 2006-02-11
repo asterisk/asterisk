@@ -11,15 +11,13 @@
 # the GNU General Public License
 #
 
-AVAILABLE_FUNCS=$(patsubst %.c,%.o,$(wildcard func*.c))
+BUILD_MODS:=$(patsubst %.c,%.o,$(wildcard func_*.c))
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
-  STANDALONE_FUNCS=$(filter-out func_odbc.o,$(AVAILABLE_FUNCS))
-else
-  STANDALONE_FUNCS=$(AVAILABLE_FUNCS)
+  BUILD_MODS:=$(filter-out func_odbc.o,$(BUILD_MODS))
 endif
 
-FUNCS=$(STANDALONE_FUNCS:.o=.so)
+MODS:=$(BUILD_MODS:.o=.so)
 
 ifeq (${OSARCH},CYGWIN)
 CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
@@ -28,7 +26,7 @@ else
 CFLAGS+=-fPIC
 endif
 
-all: $(FUNCS)
+all: $(MODS)
 
 clean:
 	rm -f *.so *.o .depend
@@ -40,7 +38,7 @@ func_odbc.so: func_odbc.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -lodbc
 
 install: all
-	for x in $(FUNCS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 
 uninstall:
 
