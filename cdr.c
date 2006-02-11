@@ -1120,7 +1120,6 @@ static int do_reload(void)
 	int was_enabled;
 	int was_batchmode;
 	int res=0;
-	pthread_attr_t attr;
 
 	ast_mutex_lock(&cdr_batch_lock);
 
@@ -1181,7 +1180,7 @@ static int do_reload(void)
 	   if it does not exist */
 	if (enabled && batchmode && (!was_enabled || !was_batchmode) && (cdr_thread == AST_PTHREADT_NULL)) {
 		ast_cond_init(&cdr_pending_cond, NULL);
-		if (ast_pthread_create(&cdr_thread, &attr, do_cdr, NULL) < 0) {
+		if (ast_pthread_create(&cdr_thread, NULL, do_cdr, NULL) < 0) {
 			ast_log(LOG_ERROR, "Unable to start CDR thread.\n");
 			ast_sched_del(sched, cdr_sched);
 		} else {
