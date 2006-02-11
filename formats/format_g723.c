@@ -45,9 +45,6 @@ ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 #include "asterisk/sched.h"
 #include "asterisk/module.h"
 
-#include "../channels/adtranvofr.h"
-
-
 #define G723_MAX_SIZE 1024
 
 struct ast_filestream {
