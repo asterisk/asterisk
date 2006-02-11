@@ -3,7 +3,7 @@
 # 
 # Makefile for PBX applications
 #
-# Copyright (C) 1999-2005, Digium
+# Copyright (C) 1999-2006, Digium, Inc.
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -11,58 +11,45 @@
 # the GNU General Public License
 #
 
-APPS=app_adsiprog.so app_alarmreceiver.so app_authenticate.so app_cdr.so       \
-     app_chanisavail.so app_chanspy.so app_controlplayback.so app_db.so        \
-     app_dial.so app_dictate.so app_directed_pickup.so app_directory.so        \
-     app_disa.so app_dumpchan.so app_echo.so app_exec.so app_externalivr.so    \
-     app_festival.so app_forkcdr.so app_getcpeid.so app_hasnewvoicemail.so     \
-     app_ices.so app_image.so app_lookupblacklist.so app_lookupcidname.so      \
-     app_macro.so app_milliwatt.so app_mixmonitor.so app_mp3.so app_nbscat.so  \
-     app_parkandannounce.so app_playback.so app_privacy.so app_queue.so        \
-     app_random.so app_read.so app_readfile.so app_realtime.so app_record.so   \
-     app_sayunixtime.so app_senddtmf.so app_sendtext.so app_setcallerid.so     \
-     app_setcdruserfield.so app_settransfercapability.so app_softhangup.so     \
-     app_stack.so app_system.so app_talkdetect.so app_test.so app_transfer.so  \
-     app_userevent.so app_url.so app_verbose.so app_voicemail.so               \
-     app_waitforring.so app_waitforsilence.so app_while.so app_zapateller.so   \
-     app_morsecode.so
+MODS:=$(patsubst %.c,%.so,$(wildcard app_*.c))
 
 #
 # Experimental things
 #
-#APPS+=app_ivrdemo.so
-#APPS+=app_skel.so
-#APPS+=app_rpt.so
+MODS:=$(filter-out app_ivrdemo.so,$(MODS))
+MODS:=$(filter-out app_skel.so,$(MODS))
+MODS:=$(filter-out app_rpt.so,$(MODS))
 
 ifndef WITHOUT_ZAPTEL
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h),)
-  APPS+=app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so app_page.so
-endif
-endif # WITHOUT_ZAPTEL
-
-ifneq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
-APPS+=app_osplookup.so
+ZAPAVAIL:=$(wildcard $(CROSS_COMPILE_TARGET)/usr/include/linux/zaptel.h $(CROSS_COMPILE_TARGET)/usr/local/include/zaptel.h)
 endif
 
-CURLLIBS=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
+ifeq (${ZAPAVAIL},)
+  MODS:=$(filter-out app_zapras.so app_meetme.so app_flash.so app_zapbarge.so app_zapscan.so app_page.so,$(MODS))
+endif
+
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/osp/osp.h $(CROSS_COMPILE_TARGET)/usr/include/osp/osp.h),)
+  MODS:=$(filter-out app_osplookup.so,$(MODS))
+endif
+
 ifneq ($(shell if [[ 0x`$(CROSS_COMPILE_BIN)curl-config --vernum` -ge 0x70907 ]]; then echo "OK" ; fi),)
-  ifneq (${CURLLIBS},)
-    APPS+=app_curl.so
-  endif 
+  CURLLIBS:=$(shell $(CROSS_COMPILE_BIN)curl-config --libs)
+endif
+
+ifeq (${CURLLIBS},)
+  MODS:=$(filter-out app_curl.so,$(MODS))
+endif
+
+ifneq (${WITH_SMDI},)
+  CFLAGS+=-DWITH_SMDI
 endif
 
 ifeq (${OSARCH},CYGWIN)
-CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-CYGSOLIB=-L.. -L. -L../res -lasterisk.dll -lres_features.so -lres_adsi.so -lres_monitor.so
+  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+  CYGSOLIB=-L.. -L. -L../res -lasterisk.dll -lres_features.so -lres_adsi.so -lres_monitor.so
+  MODS:=$(filter-out app_sms.so,$(MODS))
 else
-CFLAGS+=-fPIC
-APPS+=app_sms.so
-endif
-
-# Asterisk SMDI integration
-#
-ifeq (${WITH_SMDI},1)
-CFLAGS+=-DWITH_SMDI
+  CFLAGS+=-fPIC
 endif
 
 # If you have UnixODBC you can use ODBC voicemail
@@ -74,7 +61,7 @@ endif
 #CFLAGS+=-DEXTENDED_ODBC_STORAGE
 # See doc/README.odbcstorage for more information
 
-all: $(APPS)
+all: $(MODS)
 
 clean:
 	rm -f *.so *.o look .depend
@@ -86,7 +73,7 @@ app_rpt.so : app_rpt.o
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB} -ltonezone
 
 install: all
-	for x in $(APPS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
+	for x in $(MODS); do $(INSTALL) -m 755 $$x $(DESTDIR)$(MODULES_DIR) ; done
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_cut.so
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_datetime.so
 	rm -f $(DESTDIR)$(MODULES_DIR)/app_qcall.so

@@ -3,7 +3,7 @@
 # 
 # Makefile for resource modules
 #
-# Copyright (C) 1999-2005, Digium
+# Copyright (C) 1999-2006, Digium
 #
 # Mark Spencer <markster@digium.com>
 #
@@ -13,7 +13,7 @@
 
 MODS:=$(patsubst %.c,%.so,$(wildcard res_*.c))
 
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
   MODS:=$(filter-out res_odbc.so,$(MODS))
   MODS:=$(filter-out res_config_odbc.so,$(MODS))
 else
@@ -26,7 +26,7 @@ ifneq ($(NOCRYPTO),yes)
   MODS:=$(filter-out res_crypto.so,$(MODS))
 endif
 
-OSPLIB=$(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a)
+OSPLIB:=$(wildcard $(CROSS_COMPILE_TARGET)/usr/lib/libosptk.a $(CROSS_COMPILE_TARGET)/usr/local/lib/libosptk.a)
 ifeq (${OSPLIB},)
   MODS:=$(filter-out res_osp.so,$(MODS))
 endif

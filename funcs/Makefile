@@ -3,7 +3,7 @@
 # 
 # Makefile for dialplan functions
 #
-# Copyright (C) 2005 - 2006, Digium
+# Copyright (C) 2005-2006, Digium, Inc.
 #
 # Kevin P. Fleming <kpfleming@digium.com>
 #
@@ -13,15 +13,15 @@
 
 MODS:=$(patsubst %.c,%.so,$(wildcard func_*.c))
 
-ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
+ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
   MODS:=$(filter-out func_odbc.so,$(MODS))
 endif
 
 ifeq (${OSARCH},CYGWIN)
-CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
-CYGSOLIB=-L.. -L. -lasterisk.dll
+  CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
+  CYGSOLIB=-L.. -L. -lasterisk.dll
 else
-CFLAGS+=-fPIC
+  CFLAGS+=-fPIC
 endif
 
 all: $(MODS)
