@@ -33,7 +33,7 @@ else
 endif
 
 SPEEX_PATH:=/usr/local/include /usr/include /usr/include/speex /usr/local/include/speex
-SPEEX_SYSTEM_HEADERS:=$(wildcard $(SPEEX_PATH:%=$(CROSS_COMPILE_TARGET)%/speex.h))
+SPEEX_SYSTEM_HEADERS:=$(firstword $(wildcard $(SPEEX_PATH:%=$(CROSS_COMPILE_TARGET)%/speex.h)))
 ifeq (${SPEEX_SYSTEM_HEADERS},)
   MODS:=$(filter-out codec_speex.so,$(MODS))
 else
@@ -48,7 +48,7 @@ else
 endif
 
 LIBGSM_PATH:=/usr/local/include /usr/include
-LIBGSM_SYSTEM_HEADERS:=$(wildcard $(LIBGSM_PATH:%=$(CROSS_COMPILE_TARGET)%/gsm/gsm.h))
+LIBGSM_SYSTEM_HEADERS:=$(firstword $(wildcard $(LIBGSM_PATH:%=$(CROSS_COMPILE_TARGET)%/gsm/gsm.h)))
 ifneq ($(LIBGSM_SYSTEM_HEADERS),)
   LIBGSM=-lgsm
   LIBGSMT=
