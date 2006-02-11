@@ -149,17 +149,17 @@ static __inline__ short GSM_SUB(short a, short b)
 	          : (utmp = (ulongword)(a) + (ulongword)(b)) >= MAX_LONGWORD \
 		    ? MAX_LONGWORD : utmp))
 
-static inline word GSM_ADD(a, b)
+static inline word GSM_ADD(longword a, longword b)
 {
 	register longword ltmp;
-	ltmp = (longword) (a) + (longword) (b);
+	ltmp = a + b;
 	return (word)((ulongword) (ltmp - MIN_WORD) > MAX_WORD - MIN_WORD ? (ltmp > 0 ? MAX_WORD : MIN_WORD) : ltmp);
 };
 
-static inline word GSM_SUB(a, b)
+static inline word GSM_SUB(longword a, longword b)
 {
 	register longword ltmp;
-	ltmp = (longword) (a) - (longword) (b);
+	ltmp = a - b;
 	return (word)(ltmp >= MAX_WORD ? MAX_WORD : ltmp <= MIN_WORD ? MIN_WORD : ltmp);
 };
 

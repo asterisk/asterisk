@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 1999 - 2005, Digium, Inc.
+ * Copyright (C) 1999 - 2006, Digium, Inc.
  *
  * Mark Spencer <markster@digium.com>
  *
@@ -184,6 +184,7 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	char *temp;
+	const char *val;
 	int cause;
 	struct ast_osp_result result;
 	int priority_jump = 0;
@@ -212,11 +213,11 @@ static int ospnext_exec(struct ast_channel *chan, void *data)
 	}
 
 	cause = str2cause(args.cause);
-	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
+	val = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
-	if (!ast_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
-		temp = pbx_builtin_getvar_helper(chan, "OSPRESULTS");
-		if (ast_strlen_zero(temp) || (sscanf(temp, "%d", &result.numresults) != 1)) {
+	if (!ast_strlen_zero(val) && (sscanf(val, "%d", &result.handle) == 1) && (result.handle > -1)) {
+		val = pbx_builtin_getvar_helper(chan, "OSPRESULTS");
+		if (ast_strlen_zero(val) || (sscanf(val, "%d", &result.numresults) != 1)) {
 			result.numresults = 0;
 		}
 		if ((res = ast_osp_next(&result, cause)) > 0) {
@@ -255,6 +256,7 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 	int res=0;
 	struct localuser *u;
 	char *temp;
+	const char *val;
 	int cause;
 	time_t start=0, duration=0;
 	struct ast_osp_result result;
@@ -293,9 +295,9 @@ static int ospfinished_exec(struct ast_channel *chan, void *data)
 		ast_log(LOG_WARNING, "OSPFinish called on channel '%s' with no CDR!\n", chan->name);
 	
 	cause = str2cause(args.status);
-	temp = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
+	val = pbx_builtin_getvar_helper(chan, "OSPHANDLE");
 	result.handle = -1;
-	if (!ast_strlen_zero(temp) && (sscanf(temp, "%d", &result.handle) == 1) && (result.handle > -1)) {
+	if (!ast_strlen_zero(val) && (sscanf(val, "%d", &result.handle) == 1) && (result.handle > -1)) {
 		if (!ast_osp_terminate(result.handle, cause, start, duration)) {
 			pbx_builtin_setvar_helper(chan, "_OSPHANDLE", "");
 			pbx_builtin_setvar_helper(chan, "OSPFINISHSTATUS", "SUCCESS");
