@@ -34,9 +34,9 @@
 
 #include "asterisk.h"
 
-#ifndef BUILTIN_FUNC
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
 #include "asterisk/module.h"
-#endif /* BUILTIN_FUNC */
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
@@ -145,10 +145,7 @@ static char *function_enum(struct ast_channel *chan, char *cmd, char *data, char
        return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function enum_function = {
+static struct ast_custom_function enum_function = {
        .name = "ENUMLOOKUP",
        .synopsis = "ENUMLOOKUP allows for general or specific querying of NAPTR records"
        " or counts of NAPTR types for ENUM or ENUM-like DNS pointers",
@@ -188,10 +185,7 @@ static char *function_txtcidname(struct ast_channel *chan, char *cmd, char *data
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function txtcidname_function = {
+static struct ast_custom_function txtcidname_function = {
        .name = "TXTCIDNAME",
        .synopsis = "TXTCIDNAME looks up a caller name via DNS",
        .syntax = "TXTCIDNAME(<number>)",
@@ -201,27 +195,26 @@ struct ast_custom_function txtcidname_function = {
        .read = function_txtcidname,
 };
 
-#ifndef BUILTIN_FUNC
-
-static char *tdesc = "ENUM Related Functions";
+static char *tdesc = "ENUM related dialplan functions";
 
 int unload_module(void)
 {
-	ast_custom_function_unregister(&enum_function);
-	ast_custom_function_unregister(&txtcidname_function);
+	int res = 0;
+	
+	res |= ast_custom_function_unregister(&enum_function);
+	res |= ast_custom_function_unregister(&txtcidname_function);
 
 	STANDARD_HANGUP_LOCALUSERS;
 	
-	return 0;
+	return res;
 }
 
 int load_module(void)
 {
-	int res;
+	int res = 0;
 	
-	res = ast_custom_function_register(&enum_function);
-	if (!res)
-		ast_custom_function_register(&txtcidname_function);
+	res |= ast_custom_function_register(&enum_function);
+	res |= ast_custom_function_register(&txtcidname_function);
 
 	return res;
 }
@@ -244,5 +237,4 @@ char *key()
 {
        return ASTERISK_GPL_KEY;
 }
-#endif /* BUILTIN_FUNC */
 

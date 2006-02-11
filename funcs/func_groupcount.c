@@ -27,8 +27,9 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
@@ -57,10 +58,7 @@ static char *group_count_function_read(struct ast_channel *chan, char *cmd, char
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function group_count_function = {
+static struct ast_custom_function group_count_function = {
 	.name = "GROUP_COUNT",
 	.syntax = "GROUP_COUNT([groupname][@category])",
 	.synopsis = "Counts the number of channels in the specified group",
@@ -85,10 +83,7 @@ static char *group_match_count_function_read(struct ast_channel *chan, char *cmd
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function group_match_count_function = {
+static struct ast_custom_function group_match_count_function = {
 	.name = "GROUP_MATCH_COUNT",
 	.syntax = "GROUP_MATCH_COUNT(groupmatch[@category])",
 	.synopsis = "Counts the number of channels in the groups matching the specified pattern",
@@ -130,10 +125,7 @@ static void group_function_write(struct ast_channel *chan, char *cmd, char *data
                 ast_log(LOG_WARNING, "Setting a group requires an argument (group name)\n");
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function group_function = {
+static struct ast_custom_function group_function = {
 	.name = "GROUP",
 	.syntax = "GROUP([category])",
 	.synopsis = "Gets or sets the channel group.",
@@ -171,10 +163,7 @@ static char *group_list_function_read(struct ast_channel *chan, char *cmd, char 
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function group_list_function = {
+static struct ast_custom_function group_list_function = {
 	.name = "GROUP_LIST",
 	.syntax = "GROUP_LIST()",
 	.synopsis = "Gets a list of the groups set on a channel.",
@@ -182,6 +171,47 @@ struct ast_custom_function group_list_function = {
 	.read = group_list_function_read,
 	.write = NULL,
 };
+
+static char *tdesc = "Channel group dialplan functions";
+
+int unload_module(void)
+{
+	int res = 0;
+
+	res |= ast_custom_function_unregister(&group_count_function);
+	res |= ast_custom_function_unregister(&group_match_count_function);
+	res |= ast_custom_function_unregister(&group_list_function);
+	res |= ast_custom_function_unregister(&group_function);
+
+	return res;
+}
+
+int load_module(void)
+{
+	int res = 0;
+
+	res |= ast_custom_function_register(&group_count_function);
+	res |= ast_custom_function_register(&group_match_count_function);
+	res |= ast_custom_function_register(&group_list_function);
+	res |= ast_custom_function_register(&group_function);
+
+	return res;
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
 
 /*
 Local Variables:

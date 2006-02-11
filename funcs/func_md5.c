@@ -30,15 +30,16 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static char *builtin_function_md5(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *md5(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char md5[33];
 
@@ -53,7 +54,7 @@ static char *builtin_function_md5(struct ast_channel *chan, char *cmd, char *dat
 	return buf;
 }
 
-static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *checkmd5(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char newmd5[33];
 	char *parse;
@@ -93,23 +94,44 @@ static char *builtin_function_checkmd5(struct ast_channel *chan, char *cmd, char
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function md5_function = {
+static struct ast_custom_function md5_function = {
 	.name = "MD5",
 	.synopsis = "Computes an MD5 digest",
 	.syntax = "MD5(<data>)",
-	.read = builtin_function_md5,
+	.read = md5,
 };
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function checkmd5_function = {
+static struct ast_custom_function checkmd5_function = {
 	.name = "CHECK_MD5",
 	.synopsis = "Checks an MD5 digest",
 	.desc = "Returns 1 on a match, 0 otherwise\n",
 	.syntax = "CHECK_MD5(<digest>,<data>)",
-	.read = builtin_function_checkmd5,
+	.read = checkmd5,
 };
+
+static char *tdesc = "MD5 digest dialplan functions";
+
+int unload_module(void)
+{
+        return ast_custom_function_unregister(&md5_function) || ast_custom_function_unregister(&checkmd5_function);
+}
+
+int load_module(void)
+{
+        return ast_custom_function_register(&md5_function) || ast_custom_function_register(&checkmd5_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}

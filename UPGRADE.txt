@@ -35,6 +35,11 @@ Functions:
 * The function ${CHECK_MD5()} has been deprecated in favor of using an
   expression: $[${MD5(<string>)} = ${saved_md5}].
 
+* The 'builtin' functions that used to be combined in pbx_functions.so are
+  now built as separate modules. If you are not using 'autoload=yes' in your
+  modules.conf file then you will need to explicitly load the modules that
+  contain the functions you want to use.
+
 The SIP channel:
 
 * The "incominglimit" setting is replaced by the "call-limit" setting in sip.conf.

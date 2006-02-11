@@ -30,8 +30,9 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
@@ -39,7 +40,7 @@
 #include "asterisk/app.h"
 #include "asterisk/options.h"
 
-static char *builtin_function_timeout_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *timeout_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	time_t myt;
 
@@ -81,7 +82,7 @@ static char *builtin_function_timeout_read(struct ast_channel *chan, char *cmd, 
 	return buf;
 }
 
-static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void timeout_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
 	int x;
 	char timestr[64];
@@ -135,10 +136,7 @@ static void builtin_function_timeout_write(struct ast_channel *chan, char *cmd, 
 	}
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function timeout_function = {
+static struct ast_custom_function timeout_function = {
 	.name = "TIMEOUT",
 	.synopsis = "Gets or sets timeouts on the channel.",
 	.syntax = "TIMEOUT(timeouttype)",
@@ -165,9 +163,36 @@ struct ast_custom_function timeout_function = {
 	"	   extension in this amount of time, control will pass to the\n"
 	"	   't' extension if it exists, and if not the call would be\n"
 	"	   terminated.  The default timeout is 10 seconds.\n",
-	.read = builtin_function_timeout_read,
-	.write = builtin_function_timeout_write,
+	.read = timeout_read,
+	.write = timeout_write,
 };
+
+static char *tdesc = "Channel timeout dialplan functions";
+
+int unload_module(void)
+{
+        return ast_custom_function_unregister(&timeout_function);
+}
+
+int load_module(void)
+{
+        return ast_custom_function_register(&timeout_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
 
 /*
 Local Variables:

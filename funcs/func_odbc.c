@@ -1,13 +1,19 @@
 /*
- * Asterisk -- A telephony toolkit for Linux.
+ * Asterisk -- An open source telephony toolkit.
  *
- * func_odbc
- * 
  * Copyright (c) 2005 Tilghman Lesher
  *
  * Tilghman Lesher <func_odbc__200508@the-tilghman.com>
  *
- * Special thanks to Anthony Minessale II for debugging help.
+ * See http://www.asterisk.org for more information about
+ * the Asterisk project. Please do not directly contact
+ * any of the maintainers of this project for assistance;
+ * the project provides a web site, mailing lists and IRC
+ * channels for your use.
+ *
+ * This program is free software, distributed under the terms of
+ * the GNU General Public License Version 2. See the LICENSE file
+ * at the top of the source tree.
  */
 
 /*!
@@ -23,14 +29,20 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <asterisk/file.h>
-#include <asterisk/logger.h>
-#include <asterisk/options.h>
-#include <asterisk/channel.h>
-#include <asterisk/pbx.h>
-#include <asterisk/module.h>
-#include <asterisk/config.h>
-#include <asterisk/res_odbc.h>
+
+#include "asterisk.h"
+
+ASTERISK_FILE_VERSION(__FILE__, "$Revision: 7682 $")
+
+#include "asterisk/module.h"
+#include "asterisk/file.h"
+#include "asterisk/logger.h"
+#include "asterisk/options.h"
+#include "asterisk/channel.h"
+#include "asterisk/pbx.h"
+#include "asterisk/module.h"
+#include "asterisk/config.h"
+#include "asterisk/res_odbc.h"
 
 static char *tdesc = "ODBC lookups";
 
@@ -372,7 +384,7 @@ static char *acf_escape(struct ast_channel *chan, char *cmd, char *data, char *b
 	return buf;
 }
 
-struct ast_custom_function escape_function = {
+static struct ast_custom_function escape_function = {
 	.name = "SQL_ESC",
 	.synopsis = "Escapes single ticks for use in SQL statements",
 	.syntax = "SQL_ESC(<string>)",
@@ -497,8 +509,8 @@ static int odbc_load_module(void)
 	}
 
 	for (catg = ast_category_browse(cfg, NULL);
-		 catg;
-		 catg = ast_category_browse(cfg, catg)) {
+	     catg;
+	     catg = ast_category_browse(cfg, catg)) {
 		struct acf_odbc_query *query=NULL;
 
 		if (init_acf_query(cfg, catg, &query)) {
@@ -569,8 +581,8 @@ int reload(void)
 	}
 
 	for (catg = ast_category_browse(cfg, NULL);
-		 catg;
-		 catg = ast_category_browse(cfg, catg)) {
+	     catg;
+	     catg = ast_category_browse(cfg, catg)) {
 		struct acf_odbc_query *query = NULL;
 
 		/* We do this piecemeal, so that we stay in a consistent state, if there's ever an error */

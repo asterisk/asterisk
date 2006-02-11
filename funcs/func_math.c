@@ -31,8 +31,9 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
@@ -47,7 +48,6 @@ enum TypeOfFunctions
     MULTIPLYFUNCTION,
     SUBTRACTFUNCTION,
     MODULUSFUNCTION,
-
     GTFUNCTION,
     LTFUNCTION,
     GTEFUNCTION,
@@ -64,7 +64,7 @@ enum TypeOfResult
 };
 
 
-static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *math(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	float fnum1;
 	float fnum2;
@@ -237,10 +237,7 @@ static char *builtin_function_math(struct ast_channel *chan, char *cmd, char *da
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif /* BUILTIN_FUNC */
-struct ast_custom_function math_function = {
+static struct ast_custom_function math_function = {
 	.name = "MATH",
 	.synopsis = "Performs Mathematical Functions",
 	.syntax = "MATH(<number1><op><number 2>[,<type_of_result>])",
@@ -253,5 +250,32 @@ struct ast_custom_function math_function = {
 		"	h, hex - hex,\n"
 		"	c, char - char\n"
 		"Example: Set(i=${MATH(123%16,int)}) - sets var i=11",
-	.read = builtin_function_math
+	.read = math
 };
+
+static char *tdesc = "Mathematical dialplan function";
+
+int unload_module(void)
+{
+        return ast_custom_function_unregister(&math_function);
+}
+
+int load_module(void)
+{
+        return ast_custom_function_register(&math_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}

@@ -30,22 +30,18 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision: 7682 $") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision: 7682 $")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
-#ifndef BUILTIN_FUNC
-#include "asterisk/module.h"
-#endif
-
 
 STANDARD_LOCAL_USER;
 
 LOCAL_USER_DECL;
-
 
 static char *acf_rand_exec(struct ast_channel *chan, char *cmd, char *data, char *buffer, size_t buflen)
 {
@@ -91,10 +87,7 @@ static char *acf_rand_exec(struct ast_channel *chan, char *cmd, char *data, char
 	return buffer;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function acf_rand = {
+static struct ast_custom_function acf_rand = {
 	.name = "RAND",
 	.synopsis = "Choose a random number in a range",
 	.syntax = "RAND([min][,max])",
@@ -107,15 +100,11 @@ struct ast_custom_function acf_rand = {
 };
 
 
-#ifndef BUILTIN_FUNC
-
-static char *tdesc = "Generate a random number";
+static char *tdesc = "Random number dialplan function";
 
 int unload_module(void)
 {
 	ast_custom_function_unregister(&acf_rand);
-
-	STANDARD_HANGUP_LOCALUSERS;
 
 	return 0;
 }
@@ -132,16 +121,10 @@ char *description(void)
 
 int usecount(void)
 {
-	int res;
-
-	STANDARD_USECOUNT(res);
-
-	return res;
+	return 0;
 }
 
 char *key()
 {
        return ASTERISK_GPL_KEY;
 }
-
-#endif

@@ -32,8 +32,9 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
@@ -111,10 +112,7 @@ static void function_db_write(struct ast_channel *chan, char *cmd, char *data, c
 	}
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function db_function = {
+static struct ast_custom_function db_function = {
 	.name = "DB",
 	.synopsis = "Read or Write from/to the Asterisk database",
 	.syntax = "DB(<family>/<key>)",
@@ -167,10 +165,7 @@ static char *function_db_exists(struct ast_channel *chan, char *cmd, char *data,
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function db_exists_function = {
+static struct ast_custom_function db_exists_function = {
 	.name = "DB_EXISTS",
 	.synopsis = "Check to see if a key exists in the Asterisk database",
 	.syntax = "DB_EXISTS(<family>/<key>)",
@@ -180,3 +175,41 @@ struct ast_custom_function db_exists_function = {
 		"also set the variable DB_RESULT to the key's value if it exists.\n",
 	.read = function_db_exists,
 };
+
+static char *tdesc = "Database (astdb) related dialplan functions";
+
+int unload_module(void)
+{
+	int res = 0;
+	
+	res |= ast_custom_function_unregister(&db_function);
+	res |= ast_custom_function_unregister(&db_exists_function);
+
+	return res;
+}
+
+int load_module(void)
+{
+	int res = 0;
+	
+	res |= ast_custom_function_register(&db_function);
+	res |= ast_custom_function_register(&db_exists_function);
+
+	return res;
+}
+
+char *description(void)
+{
+       return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+       return ASTERISK_GPL_KEY;
+}
+

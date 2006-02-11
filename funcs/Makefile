@@ -3,7 +3,7 @@
 # 
 # Makefile for dialplan functions
 #
-# Copyright (C) 2005, Digium
+# Copyright (C) 2005 - 2006, Digium
 #
 # Kevin P. Fleming <kpfleming@digium.com>
 #
@@ -11,23 +11,7 @@
 # the GNU General Public License
 #
 
-FUNCS=pbx_functions.so
-
-BUILTINS=func_md5.o \
-         func_math.o \
-         func_groupcount.o \
-         func_strings.o \
-         func_cdr.o \
-         func_logic.o \
-         func_env.o \
-         func_db.o \
-         func_timeout.o \
-         func_language.o \
-         func_moh.o \
-         func_base64.o \
-         func_sha1.o
-
-AVAILABLE_FUNCS=$(filter-out $(BUILTINS),$(patsubst %.c,%.o,$(wildcard func*.c)))
+AVAILABLE_FUNCS=$(patsubst %.c,%.o,$(wildcard func*.c))
 
 ifeq ($(wildcard $(CROSS_COMPILE_TARGET)/usr/include/odbcinst.h)$(wildcard $(CROSS_COMPILE_TARGET)/usr/local/include/odbcinst.h),)
   STANDALONE_FUNCS=$(filter-out func_odbc.o,$(AVAILABLE_FUNCS))
@@ -35,11 +19,7 @@ else
   STANDALONE_FUNCS=$(AVAILABLE_FUNCS)
 endif
 
-FUNCS+=$(STANDALONE_FUNCS:.o=.so)
-
-FUNC_SOURCES=$(BUILTINS:.o=.c)
-
-FUNC_STRUCTS=$(shell grep 'struct ast_custom_function' $(FUNC_SOURCES) | awk '{print $$3};' | sort)
+FUNCS=$(STANDALONE_FUNCS:.o=.so)
 
 ifeq (${OSARCH},CYGWIN)
 CYGSOLINK=-Wl,--out-implib=lib$@.a -Wl,--export-all-symbols
@@ -54,20 +34,6 @@ clean:
 	rm -f *.so *.o .depend pbx_functions.h
 
 %.so : %.o
-	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
-
-#$(BUILTINS) : CFLAGS += -DBUILTIN_FUNC
-
-pbx_functions.h: $(FUNC_SOURCES)
-	@echo "/* Automatically generated - do not edit */" > $@
-	@for f in $(FUNC_SOURCES); do echo "#include \"$$f\"" >> $@; done
-	@echo "static struct ast_custom_function *builtins[] = {" >> $@
-	@for f in $(FUNC_STRUCTS); do echo "&$$f," >> $@; done
-	@echo "};" >> $@
-
-pbx_functions.o: pbx_functions.h
-
-pbx_functions.so: pbx_functions.o #$(BUILTINS)
 	$(CC) $(SOLINK) -o $@ ${CYGSOLINK} $< ${CYGSOLIB}
 
 func_odbc.so: func_odbc.o

@@ -29,9 +29,7 @@
 
 ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
-#ifndef BUILTIN_FUNC
 #include "asterisk/module.h"
-#endif /* BUILTIN_FUNC */
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
@@ -120,10 +118,7 @@ static void callerid_write(struct ast_channel *chan, char *cmd, char *data, cons
         }
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif /* BUILTIN_FUNC */
-struct ast_custom_function callerid_function = {
+static struct ast_custom_function callerid_function = {
 	.name = "CALLERID",
 	.synopsis = "Gets or sets Caller*ID data on the channel.",
 	.syntax = "CALLERID(datatype[,<optional-CID>])",
@@ -134,7 +129,6 @@ struct ast_custom_function callerid_function = {
 	.write = callerid_write,
 };
 
-#ifndef BUILTIN_FUNC
 static char *tdesc = "Caller ID related dialplan function";
 
 int unload_module(void)
@@ -161,7 +155,6 @@ char *key()
 {
 	return ASTERISK_GPL_KEY;
 }
-#endif /* BUILTIN_FUNC */
 
 /*
 Local Variables:

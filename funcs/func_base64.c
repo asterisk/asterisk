@@ -1,7 +1,7 @@
 /*
  * Asterisk -- An open source telephony toolkit.
  *
- * Copyright (C) 2005, Digium, Inc.
+ * Copyright (C) 2005 - 2006, Digium, Inc.
  * Copyright (C) 2005, Claude Patry
  *
  * See http://www.asterisk.org for more information about
@@ -27,15 +27,16 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "Revision: 7221 ") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static char *builtin_function_base64_encode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *base64_encode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	int res = 0;
 
@@ -50,7 +51,7 @@ static char *builtin_function_base64_encode(struct ast_channel *chan, char *cmd,
 	return buf;
 }
 
-static char *builtin_function_base64_decode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *base64_decode(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	if (ast_strlen_zero(data) ) {
 		ast_log(LOG_WARNING, "Syntax: BASE64_DECODE(<base_64 string>) - missing argument!\n");
@@ -62,24 +63,55 @@ static char *builtin_function_base64_decode(struct ast_channel *chan, char *cmd,
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function base64_encode_function = {
+static struct ast_custom_function base64_encode_function = {
 	.name = "BASE64_ENCODE",
 	.synopsis = "Encode a string in base64",
 	.desc = "Returns the base64 string\n",
 	.syntax = "BASE64_ENCODE(<string>)",
-	.read = builtin_function_base64_encode,
+	.read = base64_encode,
 };
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function base64_decode_function = {
+static struct ast_custom_function base64_decode_function = {
 	.name = "BASE64_DECODE",
 	.synopsis = "Decode a base64 string",
 	.desc = "Returns the plain text string\n",
 	.syntax = "BASE64_DECODE(<base64_string>)",
-	.read = builtin_function_base64_decode,
+	.read = base64_decode,
 };
+
+static char *tdesc = "base64 encode/decode dialplan functions";
+
+int unload_module(void)
+{
+        return ast_custom_function_unregister(&base64_encode_function) ||
+		ast_custom_function_unregister(&base64_decode_function);
+}
+
+int load_module(void)
+{
+        return ast_custom_function_register(&base64_encode_function) ||
+		ast_custom_function_register(&base64_decode_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

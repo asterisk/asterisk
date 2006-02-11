@@ -29,8 +29,9 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
@@ -46,7 +47,7 @@ AST_APP_OPTIONS(cdr_func_options, {
 	AST_APP_OPTION('r', OPT_RECURSIVE),
 });
 
-static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *cdr_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *ret;
 	char *parse;
@@ -76,7 +77,7 @@ static char *builtin_function_cdr_read(struct ast_channel *chan, char *cmd, char
 	return ret;
 }
 
-static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void cdr_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
 	char *parse;
 	struct ast_flags flags = {0};
@@ -107,15 +108,46 @@ static void builtin_function_cdr_write(struct ast_channel *chan, char *cmd, char
 		ast_cdr_setvar(chan->cdr, args.variable, value, (ast_test_flag(&flags,OPT_RECURSIVE) ) ? 1 : 0 );
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function cdr_function = {
+static struct ast_custom_function cdr_function = {
 	.name = "CDR",
 	.synopsis = "Gets or sets a CDR variable",
 	.desc= "Option 'r' searches the entire stack of CDRs on the channel\n",
 	.syntax = "CDR(<name>[|options])",
-	.read = builtin_function_cdr_read,
-	.write = builtin_function_cdr_write,
+	.read = cdr_read,
+	.write = cdr_write,
 };
 
+static char *tdesc = "CDR dialplan function";
+
+int unload_module(void)
+{
+        return ast_custom_function_unregister(&cdr_function);
+}
+
+int load_module(void)
+{
+        return ast_custom_function_register(&cdr_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

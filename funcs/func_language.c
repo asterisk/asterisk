@@ -26,8 +26,9 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
@@ -35,23 +36,20 @@
 #include "asterisk/app.h"
 #include "asterisk/stringfields.h"
 
-static char *builtin_function_language_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *language_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	ast_copy_string(buf, chan->language, len);
 
 	return buf;
 }
 
-static void builtin_function_language_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void language_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
 	if (value)
                 ast_string_field_set(chan, language, value);
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function language_function = {
+static struct ast_custom_function language_function = {
 	.name = "LANGUAGE",
 	.synopsis = "Gets or sets the channel's language.",
 	.syntax = "LANGUAGE()",
@@ -63,9 +61,36 @@ struct ast_custom_function language_function = {
 	"will play the normal 'demo-congrats'.  For some language codes,\n"
 	"changing the language also changes the syntax of some Asterisk\n"
 	"functions, like SayNumber.\n",
-	.read = builtin_function_language_read,
-	.write = builtin_function_language_write,
+	.read = language_read,
+	.write = language_write,
 };
+
+static char *tdesc = "Channel language dialplan function";
+
+int unload_module(void)
+{
+        return ast_custom_function_unregister(&language_function);
+}
+
+int load_module(void)
+{
+        return ast_custom_function_register(&language_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
 
 /*
 Local Variables:

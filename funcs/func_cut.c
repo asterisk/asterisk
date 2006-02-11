@@ -301,9 +301,9 @@ struct ast_custom_function acf_cut = {
 
 int unload_module(void)
 {
-	int res;
+	int res = 0;
 
-	res = ast_custom_function_unregister(&acf_cut);
+	res |= ast_custom_function_unregister(&acf_cut);
 	res |= ast_custom_function_unregister(&acf_sort);
 
 	STANDARD_HANGUP_LOCALUSERS;
@@ -313,9 +313,9 @@ int unload_module(void)
 
 int load_module(void)
 {
-	int res;
+	int res = 0;
 
-	res = ast_custom_function_register(&acf_cut);
+	res |= ast_custom_function_register(&acf_cut);
 	res |= ast_custom_function_register(&acf_sort);
 
 	return res;

@@ -32,8 +32,9 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
@@ -69,17 +70,14 @@ static char *function_fieldqty(struct ast_channel *chan, char *cmd, char *data, 
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function fieldqty_function = {
+static struct ast_custom_function fieldqty_function = {
 	.name = "FIELDQTY",
 	.synopsis = "Count the fields, with an arbitrary delimiter",
 	.syntax = "FIELDQTY(<varname>,<delim>)",
 	.read = function_fieldqty,
 };
 
-static char *builtin_function_filter(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *filter(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -109,17 +107,14 @@ static char *builtin_function_filter(struct ast_channel *chan, char *cmd, char *
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function filter_function = {
+static struct ast_custom_function filter_function = {
 	.name = "FILTER",
 	.synopsis = "Filter the string to include only the allowed characters",
 	.syntax = "FILTER(<allowed-chars>,<string>)",
-	.read = builtin_function_filter,
+	.read = filter,
 };
 
-static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *regex(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *parse;
 	AST_DECLARE_APP_ARGS(args,
@@ -154,17 +149,14 @@ static char *builtin_function_regex(struct ast_channel *chan, char *cmd, char *d
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function regex_function = {
+static struct ast_custom_function regex_function = {
 	.name = "REGEX",
 	.synopsis = "Regular Expression: Returns 1 if data matches regular expression.",
 	.syntax = "REGEX(\"<regular expression>\" <data>)",
-	.read = builtin_function_regex,
+	.read = regex,
 };
 
-static void builtin_function_array(struct ast_channel *chan, char *cmd, char *data, const char *value)
+static void array(struct ast_channel *chan, char *cmd, char *data, const char *value)
 {
 	AST_DECLARE_APP_ARGS(arg1,
 		AST_APP_ARG(var)[100];
@@ -211,14 +203,11 @@ static void builtin_function_array(struct ast_channel *chan, char *cmd, char *da
 	}
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function array_function = {
+static struct ast_custom_function array_function = {
 	.name = "ARRAY",
 	.synopsis = "Allows setting multiple variables at once",
 	.syntax = "ARRAY(var1[,var2[...][,varN]])",
-	.write = builtin_function_array,
+	.write = array,
 	.desc =
 "The comma-separated list passed as a value to which the function is set will\n"
 "be interpreted as a set of values to which the comma-separated list of\n"
@@ -228,7 +217,7 @@ struct ast_custom_function array_function = {
 "entire argument, since Set can take multiple arguments itself.\n",
 };
 
-static char *builtin_function_len(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *len(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	int length = 0;
 	if (data) {
@@ -238,14 +227,11 @@ static char *builtin_function_len(struct ast_channel *chan, char *cmd, char *dat
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function len_function = {
+static struct ast_custom_function len_function = {
 	.name = "LEN",
 	.synopsis = "Returns the length of the argument given",
 	.syntax = "LEN(<string>)",
-	.read = builtin_function_len,
+	.read = len,
 };
 
 static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
@@ -286,10 +272,7 @@ static char *acf_strftime(struct ast_channel *chan, char *cmd, char *data, char 
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function strftime_function = {
+static struct ast_custom_function strftime_function = {
 	.name = "STRFTIME",
 	.synopsis = "Returns the current date/time in a specified format.",
 	.syntax = "STRFTIME([<epoch>][,[timezone][,format]])",
@@ -330,10 +313,7 @@ static char *acf_strptime(struct ast_channel *chan, char *cmd, char *data, char 
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function strptime_function = {
+static struct ast_custom_function strptime_function = {
 	.name = "STRPTIME",
 	.synopsis = "Returns the epoch of the arbitrary date/time string structured as described in the format.",
 	.syntax = "STRPTIME(<datetime>|<timezone>|<format>)",
@@ -361,10 +341,7 @@ static char *function_eval(struct ast_channel *chan, char *cmd, char *data, char
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function eval_function = {
+static struct ast_custom_function eval_function = {
 	.name = "EVAL",
 	.synopsis = "Evaluate stored variables.",
 	.syntax = "EVAL(<variable>)",
@@ -380,3 +357,59 @@ struct ast_custom_function eval_function = {
 	.read = function_eval,
 };
 
+static char *tdesc = "String handling dialplan functions";
+
+int unload_module(void)
+{
+	int res = 0;
+
+	res |= ast_custom_function_unregister(&fieldqty_function);
+	res |= ast_custom_function_unregister(&filter_function);
+	res |= ast_custom_function_unregister(&regex_function);
+	res |= ast_custom_function_unregister(&array_function);
+	res |= ast_custom_function_unregister(&len_function);
+	res |= ast_custom_function_unregister(&strftime_function);
+	res |= ast_custom_function_unregister(&strptime_function);
+	res |= ast_custom_function_unregister(&eval_function);
+
+	return res;
+}
+
+int load_module(void)
+{
+	int res = 0;
+
+	res |= ast_custom_function_register(&fieldqty_function);
+	res |= ast_custom_function_register(&filter_function);
+	res |= ast_custom_function_register(&regex_function);
+	res |= ast_custom_function_register(&array_function);
+	res |= ast_custom_function_register(&len_function);
+	res |= ast_custom_function_register(&strftime_function);
+	res |= ast_custom_function_register(&strptime_function);
+	res |= ast_custom_function_register(&eval_function);
+
+	return res;
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/

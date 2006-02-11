@@ -27,32 +27,58 @@
 
 #include "asterisk.h"
 
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
+
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/utils.h"
 #include "asterisk/stringfields.h"
 
-static char *function_moh_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *moh_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	ast_copy_string(buf, chan->musicclass, len);
 
 	return buf;
 }
 
-static void function_moh_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void moh_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
 	ast_string_field_set(chan, musicclass, value);
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function moh_function = {
+static struct ast_custom_function moh_function = {
 	.name = "MUSICCLASS",
 	.synopsis = "Read or Set the MusicOnHold class",
 	.syntax = "MUSICCLASS()",
 	.desc = "This function will read or set the music on hold class for a channel.\n",
-	.read = function_moh_read,
-	.write = function_moh_write,
+	.read = moh_read,
+	.write = moh_write,
 };
 
+static char *tdesc = "Music-on-hold dialplan function";
+
+int unload_module(void)
+{
+        return ast_custom_function_unregister(&moh_function);
+}
+
+int load_module(void)
+{
+        return ast_custom_function_register(&moh_function);
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}

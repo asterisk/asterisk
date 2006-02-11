@@ -27,15 +27,16 @@
 
 #include "asterisk.h"
 
-/* ASTERISK_FILE_VERSION(__FILE__, "$Revision$") */
+ASTERISK_FILE_VERSION(__FILE__, "$Revision$")
 
+#include "asterisk/module.h"
 #include "asterisk/channel.h"
 #include "asterisk/pbx.h"
 #include "asterisk/logger.h"
 #include "asterisk/utils.h"
 #include "asterisk/app.h"
 
-static char *builtin_function_env_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
+static char *env_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len) 
 {
 	char *ret = "";
 
@@ -49,7 +50,7 @@ static char *builtin_function_env_read(struct ast_channel *chan, char *cmd, char
 	return buf;
 }
 
-static void builtin_function_env_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
+static void env_write(struct ast_channel *chan, char *cmd, char *data, const char *value) 
 {
 	if (!ast_strlen_zero(data)) {
 		if (!ast_strlen_zero(value)) {
@@ -60,7 +61,7 @@ static void builtin_function_env_write(struct ast_channel *chan, char *cmd, char
 	}
 }
 
-static char *builtin_function_stat_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
+static char *stat_read(struct ast_channel *chan, char *cmd, char *data, char *buf, size_t len)
 {
 	char *action;
 	struct stat s;
@@ -105,25 +106,19 @@ static char *builtin_function_stat_read(struct ast_channel *chan, char *cmd, cha
 	return buf;
 }
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function env_function = {
+static struct ast_custom_function env_function = {
 	.name = "ENV",
 	.synopsis = "Gets or sets the environment variable specified",
 	.syntax = "ENV(<envname>)",
-	.read = builtin_function_env_read,
-	.write = builtin_function_env_write,
+	.read = env_read,
+	.write = env_write,
 };
 
-#ifndef BUILTIN_FUNC
-static
-#endif
-struct ast_custom_function stat_function = {
+static struct ast_custom_function stat_function = {
 	.name = "STAT",
 	.synopsis = "Does a check on the specified file",
 	.syntax = "STAT(<flag>,<filename>)",
-	.read = builtin_function_stat_read,
+	.read = stat_read,
 	.desc =
 "flag may be one of the following:\n"
 "  d - Checks if the file is a directory\n"
@@ -136,3 +131,48 @@ struct ast_custom_function stat_function = {
 "  M - Returns the epoch at which the file was last modified\n",
 };
 
+
+static char *tdesc = "Environment/filesystem dialplan functions";
+
+int unload_module(void)
+{
+	int res = 0;
+
+	res |= ast_custom_function_unregister(&env_function);
+	res |= ast_custom_function_unregister(&stat_function);
+
+	return res;
+}
+
+int load_module(void)
+{
+	int res = 0;
+
+	res |= ast_custom_function_register(&env_function);
+	res |= ast_custom_function_register(&stat_function);
+
+	return res;
+}
+
+char *description(void)
+{
+	return tdesc;
+}
+
+int usecount(void)
+{
+	return 0;
+}
+
+char *key()
+{
+	return ASTERISK_GPL_KEY;
+}
+
+/*
+Local Variables:
+mode: C
+c-file-style: "linux"
+indent-tabs-mode: nil
+End:
+*/
